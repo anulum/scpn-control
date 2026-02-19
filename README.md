@@ -1,8 +1,20 @@
-# scpn-control
+<p align="center">
+  <img src="docs/scpn_control_header.png" alt="SCPN-CONTROL — Formal Stochastic Petri Net Engine" width="100%">
+</p>
 
-**Neuro-symbolic Stochastic Petri Net controller for plasma control.**
+<p align="center">
+  <a href="https://github.com/anulum/scpn-control/actions"><img src="https://github.com/anulum/scpn-control/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
+  <a href="https://orcid.org/0009-0009-3560-0851"><img src="https://img.shields.io/badge/ORCID-0009--0009--3560--0851-green.svg" alt="ORCID"></a>
+</p>
 
-Extracted from [scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — the minimal 40-file transitive closure of the control pipeline.
+---
+
+**scpn-control** is a standalone neuro-symbolic control engine that compiles
+Stochastic Petri Nets into spiking neural network controllers with formal
+verification guarantees. Extracted from
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) as the minimal
+41-file transitive closure of the control pipeline.
 
 ## Quick Start
 
@@ -14,46 +26,63 @@ scpn-control benchmark --n-bench 5000
 
 ## Features
 
-- **Petri Net → SNN compilation**: Translates Stochastic Petri Nets into spiking neural network controllers
-- **Formal verification**: Contract-based pre/post-condition checking on all control actions
-- **Sub-millisecond latency**: <1ms control loop with Rust-accelerated kernels
-- **Rust acceleration**: Optional PyO3 bindings for SCPN activation, marking update, and Boris integration
-- **Multiple controller types**: PID, MPC, H-infinity, SNN, neuro-cybernetic
-- **Digital twin integration**: Real-time telemetry ingest and closed-loop simulation
-- **RMSE validation**: CI-gated regression testing against experimental reference data
+- **Petri Net to SNN compilation** -- Translates Stochastic Petri Nets into spiking neural network controllers with LIF neurons and bitstream encoding
+- **Formal verification** -- Contract-based pre/post-condition checking on all control observations and actions
+- **Sub-millisecond latency** -- <1ms control loop with optional Rust-accelerated kernels
+- **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update, Boris integration, SNN pools, and MPC
+- **Multiple controller types** -- PID, MPC, H-infinity, SNN, neuro-cybernetic dual R+Z
+- **Grad-Shafranov solver** -- Free-boundary equilibrium solver with L-mode/H-mode profile support
+- **Digital twin integration** -- Real-time telemetry ingest, closed-loop simulation, and flight simulator
+- **RMSE validation** -- CI-gated regression testing against DIII-D and SPARC experimental reference data
+- **Disruption prediction** -- ML-based predictor with SPI mitigation and halo/RE physics
 
 ## Architecture
 
 ```
 src/scpn_control/
-├── scpn/              # Petri net → SNN compiler (structure, compiler, contracts, controller)
-├── core/              # Grad-Shafranov solver, transport, scaling laws (clean __init__)
-├── control/           # Controllers (PID, MPC, H-inf, SNN, digital twin, disruption)
-└── cli.py             # Click CLI (demo, benchmark, validate, hil-test)
++-- scpn/              # Petri net -> SNN compiler
+|   +-- structure.py   #   StochasticPetriNet graph builder
+|   +-- compiler.py    #   FusionCompiler -> CompiledNet (LIF + bitstream)
+|   +-- contracts.py   #   ControlObservation, ControlAction, ControlTargets
+|   +-- controller.py  #   NeuroSymbolicController (main entry point)
++-- core/              # Solver + plant model (clean init, no import bombs)
+|   +-- fusion_kernel.py           # Grad-Shafranov equilibrium solver
+|   +-- integrated_transport_solver.py  # Multi-species transport
+|   +-- scaling_laws.py            # IPB98y2 confinement scaling
+|   +-- eqdsk.py                   # GEQDSK/EQDSK file I/O
+|   +-- uncertainty.py             # Monte Carlo UQ
++-- control/           # Controllers (optional deps guarded)
+|   +-- h_infinity_controller.py   # H-inf robust control
+|   +-- fusion_sota_mpc.py         # Model Predictive Control
+|   +-- disruption_predictor.py    # ML disruption prediction
+|   +-- tokamak_digital_twin.py    # Digital twin
+|   +-- tokamak_flight_sim.py      # IsoFlux flight simulator
+|   +-- neuro_cybernetic_controller.py  # Dual R+Z SNN
++-- cli.py             # Click CLI
 
 scpn-control-rs/       # Rust workspace (5 crates)
-├── control-types/     # Type definitions
-├── control-math/      # LIF neuron, boris pusher, matrix ops
-├── control-core/      # GS solver, transport
-├── control-control/   # PID, MPC, H-inf, SNN
-└── control-python/    # Slim PyO3 bindings (~400 LOC)
++-- control-types/     # PlasmaState, EquilibriumConfig, ControlAction
++-- control-math/      # LIF neuron, Boris pusher, matrix ops
++-- control-core/      # GS solver, transport, confinement scaling
++-- control-control/   # PID, MPC, H-inf, SNN controller
++-- control-python/    # Slim PyO3 bindings (~474 LOC)
 ```
 
 ## Dependencies
 
 | Required | Optional |
 |----------|----------|
-| numpy >= 1.24 | matplotlib (`[viz]`) |
-| scipy >= 1.10 | streamlit (`[dashboard]`) |
-| click >= 8.0 | torch (`[ml]`) |
-| | nengo (`[nengo]`) |
+| numpy >= 1.24 | matplotlib (`pip install -e ".[viz]"`) |
+| scipy >= 1.10 | streamlit (`pip install -e ".[dashboard]"`) |
+| click >= 8.0 | torch (`pip install -e ".[ml]"`) |
+| | nengo (`pip install -e ".[nengo]"`) |
 
-## CLI Commands
+## CLI
 
 ```bash
 scpn-control demo --scenario combined --steps 1000   # Closed-loop control demo
-scpn-control benchmark --n-bench 5000                 # PID vs SNN timing
-scpn-control validate                                 # RMSE validation
+scpn-control benchmark --n-bench 5000                 # PID vs SNN timing benchmark
+scpn-control validate                                 # RMSE validation dashboard
 scpn-control hil-test --shots-dir ...                 # HIL test campaign
 ```
 
@@ -64,28 +93,45 @@ pip install -e ".[dashboard]"
 streamlit run dashboard/control_dashboard.py
 ```
 
+Four tabs: Trajectory Viewer, RMSE Dashboard, Timing Benchmark, Shot Replay.
+
 ## Rust Acceleration
 
 ```bash
 cd scpn-control-rs
 cargo test --workspace
-# Build Python bindings:
+
+# Build Python bindings
 pip install maturin
 maturin develop --release
+
+# Verify
+python -c "import scpn_control_rs; print('Rust backend active')"
 ```
+
+The Rust backend provides PyO3 bindings for:
+- `PyFusionKernel` -- Grad-Shafranov solver
+- `PySnnPool` / `PySnnController` -- Spiking neural network pools
+- `PyMpcController` -- Model Predictive Control
+- `PyPlasma2D` -- Digital twin
+- `PyTransportSolver` -- Chang-Hinton + Sauter bootstrap
+- SCPN kernels -- `dense_activations`, `marking_update`, `sample_firing`
 
 ## Citation
 
 ```bibtex
 @software{sotek2026scpncontrol,
-  title = {SCPN Control},
-  author = {Sotek, Miroslav and Reiprich, Michal},
-  year = {2026},
-  url = {https://github.com/anulum/scpn-control},
+  title   = {SCPN Control: Neuro-Symbolic Stochastic Petri Net Controller},
+  author  = {Sotek, Miroslav and Reiprich, Michal},
+  year    = {2026},
+  url     = {https://github.com/anulum/scpn-control},
   license = {AGPL-3.0-or-later}
 }
 ```
 
 ## License
 
-GNU AGPL v3. See [LICENSE](LICENSE).
+Copyright 1998-2026 Miroslav Sotek. All rights reserved.
+
+GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
+Commercial licensing available -- contact [protoscience@anulum.li](mailto:protoscience@anulum.li).
