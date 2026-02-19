@@ -24,4 +24,6 @@ Then open `http://127.0.0.1:8000/`.
 2. Run Python test suite.
 3. Run Rust build, clippy, and tests.
 4. Run Rust/Python parity tests if bindings are enabled.
-5. Confirm CI and Pages workflows pass on `main`.
+5. Run package quality checks (`python -m build`, `twine check dist/*`).
+6. Run benchmark suite and review artifacts.
+7. Confirm CI and Pages workflows pass on `main`.

@@ -13,6 +13,7 @@ theme:
 nav:
   - Home: index.md
   - Tutorials: tutorials.md
+  - Benchmarks: benchmarks.md
   - Validation and QA: validation.md
   - Development: development.md
 

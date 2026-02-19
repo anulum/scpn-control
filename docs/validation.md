@@ -6,6 +6,12 @@
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/ -q
 ```
 
+Coverage gate (matches CI threshold):
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=term --cov-fail-under=50
+```
+
 ## Rust workspace checks
 
 ```bash
@@ -30,3 +36,16 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/t
 
 - Core CI: `.github/workflows/ci.yml`
 - Docs and Pages deployment: `.github/workflows/docs-pages.yml`
+- PyPI publish workflow: `.github/workflows/publish-pypi.yml`
+
+## CI quality gates in `.github/workflows/ci.yml`
+
+- `python-tests` (3.9/3.10/3.11/3.12, mypy + coverage on 3.12)
+- `notebook-smoke` (executes CI notebook set; full neuro notebook only if `sc_neurocore` is available)
+- `package-quality` (`build` + `twine check`)
+- `python-audit` (`pip_audit`)
+- `rmse-gate`
+- `rust-tests`
+- `rust-python-interop`
+- `rust-benchmarks` (uploads `bench-results` artifact from `scpn-control-rs/target/criterion/`)
+- `rust-audit`

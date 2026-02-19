@@ -51,11 +51,23 @@ jobs:
       - name: Install notebook dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e . jupyter nbconvert
+          python -m pip install -e ".[viz]" jupyter nbconvert
       - name: Execute notebooks
         run: |
           mkdir -p artifacts/notebook-exec
-          for nb in examples/*.ipynb; do
+          NOTEBOOKS=(
+            "examples/q10_breakeven_demo.ipynb"
+            "examples/snn_compiler_walkthrough.ipynb"
+          )
+
+          if python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('sc_neurocore') is not None else 1)"
+          then
+            NOTEBOOKS+=("examples/neuro_symbolic_control_demo.ipynb")
+          else
+            echo "Skipping examples/neuro_symbolic_control_demo.ipynb (sc_neurocore not available)"
+          fi
+
+          for nb in "${NOTEBOOKS[@]}"; do
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=900 --output-dir artifacts/notebook-exec "$nb"
           done
       - uses: actions/upload-artifact@v4

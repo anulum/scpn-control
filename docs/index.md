@@ -43,4 +43,5 @@ cargo test --workspace
 ```
 
 For notebook execution, see [Tutorials](tutorials.md). For parity and CI checks,
-see [Validation and QA](validation.md).
+see [Validation and QA](validation.md). For performance methodology, see
+[Benchmarks](benchmarks.md).
