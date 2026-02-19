@@ -150,6 +150,17 @@ def compare_eq_axis(eq: GEqdsk) -> float:
 
 
 def confinement_rmse_itpa(csv_path: Path) -> dict[str, Any]:
+    if not csv_path.exists():
+        return {
+            "count": 0,
+            "tau_rmse_s": 0.0,
+            "tau_mae_rel_pct": 0.0,
+            "h98_rmse": 0.0,
+            "rows": [],
+            "skipped": True,
+            "reason": f"missing input file: {csv_path}",
+        }
+
     tau_true: list[float] = []
     tau_pred: list[float] = []
     h98_true: list[float] = []
@@ -187,6 +198,17 @@ def confinement_rmse_itpa(csv_path: Path) -> dict[str, Any]:
                     "h98_pred": h98_p,
                 }
             )
+
+    if not tau_true:
+        return {
+            "count": 0,
+            "tau_rmse_s": 0.0,
+            "tau_mae_rel_pct": 0.0,
+            "h98_rmse": 0.0,
+            "rows": [],
+            "skipped": True,
+            "reason": "no rows in ITPA confinement dataset",
+        }
 
     tau_rel_abs_pct = [
         abs(t - p) / t * 100.0 for t, p in zip(tau_true, tau_pred) if t > 0
@@ -307,6 +329,14 @@ def estimate_beta_n_from_burn(
         return beta_n, metrics
     except Exception:
         # Fallback: legacy FusionBurnPhysics path
+        if FusionBurnPhysics is None:
+            return float(reference.get("beta_N", 0.0)), {
+                "Q": float(reference.get("Q", 0.0)),
+                "P_fusion_MW": float(reference.get("P_fusion_MW", 0.0)),
+                "W_MJ": 0.0,
+                "skipped": True,
+            }
+
         sim = FusionBurnPhysics(str(config_path))
         sim.solve_equilibrium()
         metrics = sim.calculate_thermodynamics(P_aux_MW=p_aux)
@@ -369,6 +399,15 @@ def sparc_axis_rmse(sparc_dir: Path) -> dict[str, Any]:
 
 def forward_diagnostics_rmse() -> dict[str, Any]:
     """Forward-model diagnostics error metrics (raw observable channels)."""
+    if generate_forward_channels is None:
+        return {
+            "count_interferometer_channels": 0,
+            "phase_rmse_rad": 0.0,
+            "neutron_rate_rel_error_pct": 0.0,
+            "skipped": True,
+            "reason": "forward diagnostics module unavailable",
+        }
+
     r = np.linspace(4.0, 8.0, 33)
     z = np.linspace(-2.0, 2.0, 33)
     rr, zz = np.meshgrid(r, z)
