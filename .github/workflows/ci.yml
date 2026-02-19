@@ -32,7 +32,7 @@ jobs:
         run: python -m mypy
       - name: Coverage (3.12 only)
         if: matrix.python-version == '3.12'
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=50
       - name: Upload coverage
         if: matrix.python-version == '3.12'
         uses: actions/upload-artifact@v4
@@ -40,7 +40,66 @@ jobs:
           name: coverage-report
           path: coverage.xml
 
-  # ─── Job 2: RMSE gate ───
+  # ─── Job 2: Notebook smoke tests ───
+  notebook-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install notebook dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . jupyter nbconvert
+      - name: Execute notebooks
+        run: |
+          mkdir -p artifacts/notebook-exec
+          for nb in examples/*.ipynb; do
+            jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=900 --output-dir artifacts/notebook-exec "$nb"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: executed-notebooks
+          path: artifacts/notebook-exec/
+
+  # ─── Job 3: Package quality gate ───
+  package-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install packaging tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+      - name: Build package
+        run: python -m build
+      - name: Validate package metadata
+        run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/
+
+  # ─── Job 4: Python dependency audit ───
+  python-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project and audit tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pip-audit
+      - name: Run pip audit
+        run: python -m pip_audit
+
+  # ─── Job 5: RMSE gate ───
   rmse-gate:
     needs: python-tests
     runs-on: ubuntu-latest
@@ -58,7 +117,7 @@ jobs:
       - name: RMSE Gate
         run: python tools/ci_rmse_gate.py
 
-  # ─── Job 3: Rust tests ───
+  # ─── Job 6: Rust tests ───
   rust-tests:
     runs-on: ubuntu-latest
     defaults:
@@ -76,7 +135,7 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-  # ─── Job 4: Rust-Python interop ───
+  # ─── Job 7: Rust-Python interop ───
   rust-python-interop:
     needs: rust-tests
     runs-on: ubuntu-latest
@@ -106,7 +165,7 @@ jobs:
           . .venv/bin/activate
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
 
-  # ─── Job 5: Rust benchmarks ───
+  # ─── Job 8: Rust benchmarks ───
   rust-benchmarks:
     runs-on: ubuntu-latest
     defaults:
@@ -122,7 +181,7 @@ jobs:
           name: bench-results
           path: scpn-control-rs/target/criterion/
 
-  # ─── Job 6: Rust audit ───
+  # ─── Job 9: Rust audit ───
   rust-audit:
     runs-on: ubuntu-latest
     defaults:
