@@ -54,7 +54,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e . matplotlib
       - name: RMSE Dashboard
-        run: python validation/rmse_dashboard.py --json
+        run: python validation/rmse_dashboard.py
       - name: RMSE Gate
         run: python tools/ci_rmse_gate.py
 
