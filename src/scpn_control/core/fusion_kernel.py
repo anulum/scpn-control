@@ -13,7 +13,7 @@ Picard iteration with under-relaxation.  Supports both L-mode (linear)
 and H-mode (mtanh pedestal) pressure/current profiles.
 
 The solver can optionally offload the inner elliptic solve to a compiled
-C++ library via :class:`~scpn_control.hpc.hpc_bridge.HPCBridge`, or to
+C++ library via :class:`~scpn_control.core.hpc_bridge.HPCBridge`, or to
 the Rust multigrid backend when available.
 """
 
@@ -29,7 +29,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.special import ellipe, ellipk
 
-from scpn_control.hpc.hpc_bridge import HPCBridge
+from scpn_control.core.hpc_bridge import HPCBridge
 
 logger = logging.getLogger(__name__)
 

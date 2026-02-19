@@ -17,14 +17,18 @@ from scpn_control.control.tokamak_digital_twin import (
     run_digital_twin_ids_history,
     run_digital_twin_ids_pulse,
 )
-from scpn_control.io.imas_connector import (
-    digital_twin_summary_to_ids,
-    ids_pulse_to_digital_twin_history,
-    ids_to_digital_twin_history,
-    ids_to_digital_twin_summary,
-    validate_ids_pulse_payload,
-    validate_ids_payload_sequence,
-)
+try:
+    from scpn_control.io.imas_connector import (
+        digital_twin_summary_to_ids,
+        ids_pulse_to_digital_twin_history,
+        ids_to_digital_twin_history,
+        ids_to_digital_twin_summary,
+        validate_ids_pulse_payload,
+        validate_ids_payload_sequence,
+    )
+    HAS_IMAS = True
+except ImportError:
+    HAS_IMAS = False
 
 
 def test_run_digital_twin_returns_finite_summary_without_plot() -> None:
@@ -124,6 +128,7 @@ def test_run_digital_twin_is_deterministic_for_fixed_seed() -> None:
     assert a["reward_mean_last_50"] == b["reward_mean_last_50"]
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 def test_ids_roundtrip_preserves_core_digital_twin_fields() -> None:
     summary = run_digital_twin(time_steps=18, seed=5, save_plot=False, verbose=False)
     ids_payload = digital_twin_summary_to_ids(summary, machine="ITER", shot=101, run=2)
@@ -135,6 +140,7 @@ def test_ids_roundtrip_preserves_core_digital_twin_fields() -> None:
     assert np.isfinite(recovered["final_reward"])
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 @pytest.mark.parametrize("bad_time_s", [-0.001, float("nan"), float("inf")])
 def test_ids_to_digital_twin_summary_rejects_invalid_time_slice_time(
     bad_time_s: float,
@@ -146,6 +152,7 @@ def test_ids_to_digital_twin_summary_rejects_invalid_time_slice_time(
         ids_to_digital_twin_summary(ids_payload)
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 @pytest.mark.parametrize(
     ("patch", "msg"),
     [
@@ -166,6 +173,7 @@ def test_digital_twin_summary_to_ids_rejects_invalid_metadata(
         digital_twin_summary_to_ids(summary, **kwargs)
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 @pytest.mark.parametrize(
     ("summary_patch", "msg"),
     [
@@ -186,6 +194,7 @@ def test_digital_twin_summary_to_ids_rejects_invalid_summary_fields(
         digital_twin_summary_to_ids(summary, machine="ITER", shot=101, run=2)
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 def test_ids_to_digital_twin_summary_rejects_non_ms_time_slice_time() -> None:
     summary = run_digital_twin(time_steps=12, seed=33, save_plot=False, verbose=False)
     ids_payload = digital_twin_summary_to_ids(summary, machine="ITER", shot=101, run=2)
@@ -194,6 +203,7 @@ def test_ids_to_digital_twin_summary_rejects_non_ms_time_slice_time() -> None:
         ids_to_digital_twin_summary(ids_payload)
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 @pytest.mark.parametrize(
     ("patch_path", "value", "msg"),
     [
@@ -297,6 +307,7 @@ def test_run_digital_twin_rejects_invalid_time_steps() -> None:
         run_digital_twin(time_steps=0, seed=2, save_plot=False, verbose=False)
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 def test_run_digital_twin_ids_history_returns_valid_sequence() -> None:
     payloads = run_digital_twin_ids_history(
         [6, 12, 18],
@@ -317,6 +328,7 @@ def test_run_digital_twin_ids_history_returns_valid_sequence() -> None:
     assert times[0] < times[1] < times[2]
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 def test_run_digital_twin_ids_history_is_deterministic() -> None:
     kwargs = dict(
         history_steps=[5, 10],
@@ -332,6 +344,7 @@ def test_run_digital_twin_ids_history_is_deterministic() -> None:
     assert a == b
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 def test_run_digital_twin_ids_pulse_returns_valid_container() -> None:
     pulse = run_digital_twin_ids_pulse(
         [6, 12, 18],
@@ -352,6 +365,7 @@ def test_run_digital_twin_ids_pulse_returns_valid_container() -> None:
     assert len(recovered) == 3
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 def test_run_digital_twin_ids_pulse_is_deterministic() -> None:
     kwargs = dict(
         history_steps=[5, 10],
@@ -367,6 +381,7 @@ def test_run_digital_twin_ids_pulse_is_deterministic() -> None:
     assert a == b
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 @pytest.mark.parametrize("history_steps", [[], [0, 2], [3.0, 6]])  # type: ignore[list-item]
 def test_run_digital_twin_ids_history_rejects_invalid_history_steps(history_steps) -> None:
     with pytest.raises(ValueError, match="history_steps"):
@@ -380,6 +395,7 @@ def test_run_digital_twin_ids_history_rejects_invalid_history_steps(history_step
         )
 
 
+@pytest.mark.skipif(not HAS_IMAS, reason="IMAS connector not available")
 @pytest.mark.parametrize("history_steps", [[], [0, 2], [3.0, 6]])  # type: ignore[list-item]
 def test_run_digital_twin_ids_pulse_rejects_invalid_history_steps(history_steps) -> None:
     with pytest.raises(ValueError, match="history_steps"):

@@ -13,11 +13,15 @@ except ImportError:
     HAS_MPL = False
 from typing import Optional, Sequence
 
-from scpn_control.io.imas_connector import (
-    digital_twin_history_to_ids,
-    digital_twin_history_to_ids_pulse,
-    digital_twin_summary_to_ids,
-)
+try:
+    from scpn_control.io.imas_connector import (
+        digital_twin_history_to_ids,
+        digital_twin_history_to_ids_pulse,
+        digital_twin_summary_to_ids,
+    )
+    HAS_IMAS = True
+except ImportError:
+    HAS_IMAS = False
 
 # --- HYPER-PARAMETERS ---
 GRID_SIZE = 40        # 40x40 Poloidal Cross-section

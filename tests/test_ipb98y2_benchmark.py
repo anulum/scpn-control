@@ -46,6 +46,11 @@ _ITPA_DIR = (
 _CSV_PATH = _ITPA_DIR / "hmode_confinement.csv"
 _COEFF_PATH = _ITPA_DIR / "ipb98y2_coefficients.json"
 
+pytestmark = pytest.mark.skipif(
+    not _ITPA_DIR.is_dir(),
+    reason=f"ITPA reference data directory not found: {_ITPA_DIR}",
+)
+
 
 def _load_itpa_dataset():
     """Load the 20-shot ITPA H-mode confinement dataset."""

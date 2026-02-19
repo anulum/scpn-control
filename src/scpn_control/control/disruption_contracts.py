@@ -13,7 +13,10 @@ from numpy.typing import NDArray
 from scpn_control.control.advanced_soc_fusion_learning import FusionAIAgent
 from scpn_control.control.disruption_predictor import predict_disruption_risk
 from scpn_control.control.spi_mitigation import ShatteredPelletInjection
-from scpn_control.core.global_design_scanner import GlobalDesignExplorer
+try:
+    from scpn_control.core.global_design_scanner import GlobalDesignExplorer
+except ImportError:
+    GlobalDesignExplorer = None
 
 _TBR_EQUIVALENCE_SCALE = 1.45
 

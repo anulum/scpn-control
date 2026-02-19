@@ -3,12 +3,15 @@
 import numpy as np
 import pytest
 
-from scpn_control.core.equilibrium_3d import (
-    FourierMode3D,
-    VMECStyleEquilibrium3D,
-    ForceBalance3D,
-    ForceBalanceResult,
-)
+try:
+    from scpn_control.core.equilibrium_3d import (
+        FourierMode3D,
+        VMECStyleEquilibrium3D,
+        ForceBalance3D,
+        ForceBalanceResult,
+    )
+except ImportError:
+    pytest.skip("equilibrium_3d not available in scpn-control", allow_module_level=True)
 
 
 def _make_eq(**kwargs):

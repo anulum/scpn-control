@@ -21,7 +21,9 @@ criterion = { workspace = true }
 [[bench]]
 name = "bench_boris"
 harness = false
+path = "../../benches/bench_boris.rs"
 
 [[bench]]
 name = "bench_transport"
 harness = false
+path = "../../benches/bench_transport.rs"

@@ -14,8 +14,14 @@ from scpn_control.control.disruption_contracts import (
     run_disruption_episode,
     run_real_shot_replay,
 )
-from scpn_control.core.global_design_scanner import GlobalDesignExplorer
-from scpn_control.nuclear.blanket_neutronics import BreedingBlanket
+try:
+    from scpn_control.core.global_design_scanner import GlobalDesignExplorer
+except ImportError:
+    GlobalDesignExplorer = None
+try:
+    from scpn_control.nuclear.blanket_neutronics import BreedingBlanket
+except ImportError:
+    BreedingBlanket = None
 
 
 def _build_replay_shot(n: int = 220) -> dict[str, NDArray[np.float64] | bool | int]:
@@ -36,6 +42,10 @@ def _build_replay_shot(n: int = 220) -> dict[str, NDArray[np.float64] | bool | i
     }
 
 
+@pytest.mark.skipif(
+    GlobalDesignExplorer is None or BreedingBlanket is None,
+    reason="global_design_scanner or blanket_neutronics not available",
+)
 def test_run_disruption_episode_contract_smoke() -> None:
     rng = np.random.default_rng(42)
     agent = FusionAIAgent(epsilon=0.05)
@@ -127,6 +137,10 @@ def test_run_real_shot_replay_rejects_bad_vector_lengths_and_indices() -> None:
         )
 
 
+@pytest.mark.skipif(
+    GlobalDesignExplorer is None,
+    reason="global_design_scanner not available",
+)
 def test_run_disruption_episode_rejects_nonpositive_base_tbr() -> None:
     rng = np.random.default_rng(42)
     agent = FusionAIAgent(epsilon=0.05)

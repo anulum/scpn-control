@@ -21,9 +21,23 @@ try:
 
     HAS_RUST = True
 except ImportError:
+    scpn_control_rs = None
     HAS_RUST = False
 
-pytestmark = pytest.mark.skipif(not HAS_RUST, reason="Rust extension not available")
+HAS_BORIS_API = HAS_RUST and all(
+    hasattr(scpn_control_rs, name)
+    for name in (
+        "py_seed_alpha_particles",
+        "py_advance_boris",
+        "py_get_heating_profile",
+        "py_particle_population_summary",
+    )
+)
+
+pytestmark = pytest.mark.skipif(
+    not HAS_BORIS_API,
+    reason="Rust Boris bridge API not available in this build",
+)
 
 
 # ─── helpers ───

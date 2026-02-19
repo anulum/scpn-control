@@ -14,8 +14,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scpn_control.hpc.hpc_bridge import HPCBridge, _as_contiguous_f64
-from scpn_control.hpc import hpc_bridge as hpc_mod
+from scpn_control.core.hpc_bridge import HPCBridge, _as_contiguous_f64
+from scpn_control.core import hpc_bridge as hpc_mod
 
 
 class _DummyLib:

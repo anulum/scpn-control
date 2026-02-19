@@ -13,3 +13,11 @@ control-core = { path = "../control-core" }
 ndarray = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench_lif"
+harness = false
+path = "../../benches/bench_lif.rs"

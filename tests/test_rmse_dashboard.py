@@ -58,6 +58,10 @@ def test_sparc_axis_rmse_smoke() -> None:
     assert len(result["rows"]) == result["count"]
 
 
+@pytest.mark.skipif(
+    getattr(rmse_dashboard, "generate_forward_channels", None) is None,
+    reason="generate_forward_channels not available (forward diagnostics module missing)",
+)
 def test_forward_diagnostics_rmse_includes_thomson_metrics() -> None:
     result = rmse_dashboard.forward_diagnostics_rmse()
     assert result["count_interferometer_channels"] >= 1

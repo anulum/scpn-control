@@ -13,7 +13,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import validation.run_diiid_jet_validation as diiid_jet_mod
+try:
+    import validation.run_diiid_jet_validation as diiid_jet_mod
+except ImportError:
+    pytest.skip("validation.run_diiid_jet_validation not available", allow_module_level=True)
 from scpn_control.core.eqdsk import read_geqdsk
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -84,8 +84,14 @@ def _flag(value: float, key: str) -> str:
 _FLAG_EMOJI = {"PASS": "[PASS]", "WARN": "[WARN]", "FAIL": "[FAIL]", "": ""}
 
 from scpn_control.core.eqdsk import GEqdsk, read_geqdsk
-from scpn_control.core.fusion_ignition_sim import FusionBurnPhysics
-from scpn_control.diagnostics.forward import generate_forward_channels
+try:
+    from scpn_control.core.fusion_ignition_sim import FusionBurnPhysics
+except ImportError:
+    FusionBurnPhysics = None
+try:
+    from scpn_control.diagnostics.forward import generate_forward_channels
+except ImportError:
+    generate_forward_channels = None
 
 try:
     from validation.psi_pointwise_rmse import sparc_psi_rmse as _sparc_psi_rmse

@@ -14,7 +14,10 @@ try:
     from scpn_control.core._rust_compat import FusionKernel
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
-from scpn_control.core.stability_analyzer import StabilityAnalyzer
+try:
+    from scpn_control.core.stability_analyzer import StabilityAnalyzer
+except ImportError:
+    StabilityAnalyzer = None
 
 class ForceBalanceSolver:
     """

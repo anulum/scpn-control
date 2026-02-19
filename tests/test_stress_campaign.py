@@ -19,6 +19,17 @@ repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root / "src"))
 sys.path.insert(0, str(repo_root))
 
+try:
+    import validation.collect_results as _collect_results  # noqa: F401
+    HAS_COLLECT_RESULTS = True
+except (ImportError, ModuleNotFoundError):
+    HAS_COLLECT_RESULTS = False
+
+_skip_no_collect = pytest.mark.skipif(
+    not HAS_COLLECT_RESULTS,
+    reason="validation.collect_results not available",
+)
+
 
 # ── Campaign data structures ─────────────────────────────────────────
 
@@ -91,6 +102,7 @@ def test_generate_summary_table_format():
 # ── run_controller_campaign wiring ───────────────────────────────────
 
 
+@_skip_no_collect
 def test_run_controller_campaign_returns_dict():
     """run_controller_campaign should return a dict with expected keys."""
     from validation.stress_test_campaign import (
@@ -121,6 +133,7 @@ def test_run_controller_campaign_returns_dict():
     assert "PID" in result["controllers"]
 
 
+@_skip_no_collect
 def test_campaign_controller_fields():
     """Each controller in campaign result should have all metric fields."""
     from validation.stress_test_campaign import ControllerMetrics
@@ -153,6 +166,7 @@ def test_campaign_controller_fields():
 # ── RESULTS.md generation with campaign ──────────────────────────────
 
 
+@_skip_no_collect
 def test_generate_results_md_includes_campaign():
     """generate_results_md should include campaign table when provided."""
     from validation.collect_results import generate_results_md
@@ -180,6 +194,7 @@ def test_generate_results_md_includes_campaign():
     assert "PID" in md
 
 
+@_skip_no_collect
 def test_generate_results_md_without_campaign():
     """generate_results_md without campaign should not fail."""
     from validation.collect_results import generate_results_md

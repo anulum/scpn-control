@@ -43,11 +43,11 @@ def demo(scenario: str, steps: int, json_out: bool):
 
     # Build a minimal Petri net
     net = StochasticPetriNet()
-    net.add_place("plasma_state", tokens=1.0)
-    net.add_place("control_signal", tokens=0.0)
-    net.add_place("actuator_response", tokens=0.0)
-    net.add_transition("sense", rate=1.0)
-    net.add_transition("actuate", rate=1.0)
+    net.add_place("plasma_state", initial_tokens=1.0)
+    net.add_place("control_signal", initial_tokens=0.0)
+    net.add_place("actuator_response", initial_tokens=0.0)
+    net.add_transition("sense", threshold=0.5)
+    net.add_transition("actuate", threshold=0.5)
     net.add_arc("plasma_state", "sense", weight=1.0)
     net.add_arc("sense", "control_signal", weight=1.0)
     net.add_arc("control_signal", "actuate", weight=1.0)
@@ -77,8 +77,8 @@ def demo(scenario: str, steps: int, json_out: bool):
         "final_state": trajectory[-1]["state"],
         "final_error": final_error,
         "converged": final_error < 0.05,
-        "net_places": len(net.places),
-        "net_transitions": len(net.transitions),
+        "net_places": net.n_places,
+        "net_transitions": net.n_transitions,
         "compiled_neurons": compiled.n_neurons if hasattr(compiled, "n_neurons") else "N/A",
     }
 

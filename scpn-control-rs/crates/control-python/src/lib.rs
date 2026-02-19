@@ -9,7 +9,7 @@
 //! - Transport solver (Chang-Hinton, Sauter bootstrap)
 //! - Analytic equilibrium (Shafranov Bv, coil currents)
 
-use ndarray::{Array1, Array2};
+use ndarray::Array1;
 use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
 use rand::rngs::StdRng;
@@ -19,9 +19,7 @@ use control_control::digital_twin::Plasma2D;
 use control_control::mpc::{MPController, NeuralSurrogate};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_core::kernel::FusionKernel;
-use control_core::source::ProfileParams;
 use control_core::transport::{self, NeoclassicalParams, TransportSolver};
-use control_types::state::Grid2D;
 
 // ─── Equilibrium solver ───
 
@@ -192,7 +190,11 @@ fn scpn_marking_update<'py>(
     ) {
         let wi = wi_2d.as_array();
         let wo = wo_2d.as_array();
-        if wi.nrows() != f.len() || wo.ncols() != f.len() || wi.ncols() != m.len() || wo.nrows() != m.len() {
+        if wi.nrows() != f.len()
+            || wo.ncols() != f.len()
+            || wi.ncols() != m.len()
+            || wo.nrows() != m.len()
+        {
             return Err(pyo3::exceptions::PyValueError::new_err("shape mismatch"));
         }
         let cons = wi.t().dot(&f);
@@ -208,7 +210,9 @@ fn scpn_marking_update<'py>(
         let pre = pre_1d.as_array();
         let post = post_1d.as_array();
         if pre.len() != m.len() || post.len() != m.len() || f.len() != m.len() {
-            return Err(pyo3::exceptions::PyValueError::new_err("vector mode length mismatch"));
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "vector mode length mismatch",
+            ));
         }
         let out = &m - &(&pre * &f) + &(&post * &f);
         return Ok(out.into_pyarray(py));
@@ -240,8 +244,12 @@ fn scpn_sample_firing<'py>(
             for (i, p_raw) in probs.iter().enumerate() {
                 let p = p_raw.clamp(0.0, 1.0);
                 let u: f64 = rng.gen();
-                if u < p { counts[i] += 1; }
-                if use_mirror && (1.0 - u) < p { counts[i] += 1; }
+                if u < p {
+                    counts[i] += 1;
+                }
+                if use_mirror && (1.0 - u) < p {
+                    counts[i] += 1;
+                }
             }
         }
     } else {
@@ -249,7 +257,9 @@ fn scpn_sample_firing<'py>(
             for (i, p_raw) in probs.iter().enumerate() {
                 let p = p_raw.clamp(0.0, 1.0);
                 let u: f64 = rng.gen();
-                if u < p { counts[i] += 1; }
+                if u < p {
+                    counts[i] += 1;
+                }
             }
         }
     }
@@ -298,9 +308,13 @@ impl PySnnPool {
     }
 
     #[getter]
-    fn n_neurons(&self) -> usize { self.inner.n_neurons }
+    fn n_neurons(&self) -> usize {
+        self.inner.n_neurons
+    }
     #[getter]
-    fn gain(&self) -> f64 { self.inner.gain }
+    fn gain(&self) -> f64 {
+        self.inner.gain
+    }
 }
 
 #[pyclass]
@@ -324,9 +338,13 @@ impl PySnnController {
     }
 
     #[getter]
-    fn target_r(&self) -> f64 { self.inner.target_r }
+    fn target_r(&self) -> f64 {
+        self.inner.target_r
+    }
     #[getter]
-    fn target_z(&self) -> f64 { self.inner.target_z }
+    fn target_z(&self) -> f64 {
+        self.inner.target_z
+    }
 }
 
 // ─── MPC controller ───
@@ -339,15 +357,24 @@ struct PyMpcController {
 #[pymethods]
 impl PyMpcController {
     #[new]
-    fn new(b_matrix: PyReadonlyArray2<'_, f64>, target: PyReadonlyArray1<'_, f64>) -> PyResult<Self> {
+    fn new(
+        b_matrix: PyReadonlyArray2<'_, f64>,
+        target: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<Self> {
         let surrogate = NeuralSurrogate::new(b_matrix.as_array().to_owned());
         let inner = MPController::new(surrogate, target.as_array().to_owned())
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(Self { inner })
     }
 
-    fn plan<'py>(&self, py: Python<'py>, state: PyReadonlyArray1<'py, f64>) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        let result = self.inner.plan(&state.as_array().to_owned())
+    fn plan<'py>(
+        &self,
+        py: Python<'py>,
+        state: PyReadonlyArray1<'py, f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let result = self
+            .inner
+            .plan(&state.as_array().to_owned())
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(result.into_pyarray(py))
     }
@@ -363,15 +390,21 @@ struct PyPlasma2D {
 #[pymethods]
 impl PyPlasma2D {
     #[new]
-    fn new() -> Self { Self { inner: Plasma2D::new() } }
+    fn new() -> Self {
+        Self {
+            inner: Plasma2D::new(),
+        }
+    }
 
     fn step(&mut self, action: f64) -> PyResult<(f64, f64)> {
-        self.inner.step(action)
+        self.inner
+            .step(action)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
     fn measure_core_temp(&self, noise: f64) -> PyResult<f64> {
-        self.inner.measure_core_temp(noise)
+        self.inner
+            .measure_core_temp(noise)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 }
@@ -395,10 +428,15 @@ struct PyTransportSolver {
 #[pymethods]
 impl PyTransportSolver {
     #[new]
-    fn new() -> Self { Self { inner: TransportSolver::new() } }
+    fn new() -> Self {
+        Self {
+            inner: TransportSolver::new(),
+        }
+    }
 
     fn evolve_profiles(&mut self, p_aux_mw: f64) -> PyResult<()> {
-        self.inner.evolve_profiles(p_aux_mw)
+        self.inner
+            .evolve_profiles(p_aux_mw)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 
@@ -408,35 +446,50 @@ impl PyTransportSolver {
     }
 
     fn chang_hinton_chi_profile<'py>(
-        &self, py: Python<'py>,
-        rho: PyReadonlyArray1<'py, f64>, t_i_kev: PyReadonlyArray1<'py, f64>,
-        n_e_19: PyReadonlyArray1<'py, f64>, q: PyReadonlyArray1<'py, f64>,
+        &self,
+        py: Python<'py>,
+        rho: PyReadonlyArray1<'py, f64>,
+        t_i_kev: PyReadonlyArray1<'py, f64>,
+        n_e_19: PyReadonlyArray1<'py, f64>,
+        q: PyReadonlyArray1<'py, f64>,
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let (rho_a, ti_a, ne_a, q_a) = (
-            rho.as_array().to_owned(), t_i_kev.as_array().to_owned(),
-            n_e_19.as_array().to_owned(), q.as_array().to_owned(),
+            rho.as_array().to_owned(),
+            t_i_kev.as_array().to_owned(),
+            n_e_19.as_array().to_owned(),
+            q.as_array().to_owned(),
         );
         let n = rho_a.len();
         ensure_matching_length("t_i_kev", n, ti_a.len())?;
         ensure_matching_length("n_e_19", n, ne_a.len())?;
         ensure_matching_length("q", n, q_a.len())?;
-        let params = NeoclassicalParams { q_profile: q_a.clone(), ..NeoclassicalParams::default() };
+        let params = NeoclassicalParams {
+            q_profile: q_a.clone(),
+            ..NeoclassicalParams::default()
+        };
         let chi = transport::chang_hinton_chi_profile(&rho_a, &ti_a, &ne_a, &q_a, &params);
         Ok(chi.into_pyarray(py))
     }
 
     #[allow(clippy::too_many_arguments)]
     fn sauter_bootstrap_profile<'py>(
-        &self, py: Python<'py>,
-        rho: PyReadonlyArray1<'py, f64>, t_e_kev: PyReadonlyArray1<'py, f64>,
-        t_i_kev: PyReadonlyArray1<'py, f64>, n_e_19: PyReadonlyArray1<'py, f64>,
-        q: PyReadonlyArray1<'py, f64>, epsilon: PyReadonlyArray1<'py, f64>,
+        &self,
+        py: Python<'py>,
+        rho: PyReadonlyArray1<'py, f64>,
+        t_e_kev: PyReadonlyArray1<'py, f64>,
+        t_i_kev: PyReadonlyArray1<'py, f64>,
+        n_e_19: PyReadonlyArray1<'py, f64>,
+        q: PyReadonlyArray1<'py, f64>,
+        epsilon: PyReadonlyArray1<'py, f64>,
         b_field: f64,
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let (rho_a, te_a, ti_a, ne_a, q_a, eps_a) = (
-            rho.as_array().to_owned(), t_e_kev.as_array().to_owned(),
-            t_i_kev.as_array().to_owned(), n_e_19.as_array().to_owned(),
-            q.as_array().to_owned(), epsilon.as_array().to_owned(),
+            rho.as_array().to_owned(),
+            t_e_kev.as_array().to_owned(),
+            t_i_kev.as_array().to_owned(),
+            n_e_19.as_array().to_owned(),
+            q.as_array().to_owned(),
+            epsilon.as_array().to_owned(),
         );
         let n = rho_a.len();
         ensure_matching_length("t_e_kev", n, te_a.len())?;
@@ -444,7 +497,9 @@ impl PyTransportSolver {
         ensure_matching_length("n_e_19", n, ne_a.len())?;
         ensure_matching_length("q", n, q_a.len())?;
         ensure_matching_length("epsilon", n, eps_a.len())?;
-        let j_bs = transport::sauter_bootstrap_current_profile(&rho_a, &te_a, &ti_a, &ne_a, &q_a, &eps_a, b_field);
+        let j_bs = transport::sauter_bootstrap_current_profile(
+            &rho_a, &te_a, &ti_a, &ne_a, &q_a, &eps_a, b_field,
+        );
         Ok(j_bs.into_pyarray(py))
     }
 }
