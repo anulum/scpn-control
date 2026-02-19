@@ -1,0 +1,22 @@
+[package]
+name = "control-math"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+description = "SCPN Control - Mathematical primitives (LIF neuron, boris pusher, matrix ops)"
+
+[dependencies]
+control-types = { path = "../control-types" }
+ndarray = { workspace = true }
+rayon = { workspace = true }
+rustfft = { workspace = true }
+num-complex = { workspace = true }
+approx = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+[[bench]]
+name = "bench_lif"
+harness = false

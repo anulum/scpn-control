@@ -1,0 +1,21 @@
+[package]
+authors = ["Miroslav Sotek", "Michal Reiprich"]
+license = "AGPL-3.0-or-later"
+name = "scpn-control-rs"
+version = "0.1.0"
+edition = "2021"
+description = "SCPN Control - Slim Python bindings via PyO3 (control-only)"
+
+[lib]
+name = "scpn_control_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+control-types = { path = "../control-types" }
+control-math = { path = "../control-math" }
+control-core = { path = "../control-core" }
+control-control = { path = "../control-control" }
+pyo3 = { workspace = true }
+numpy = { workspace = true }
+ndarray = { workspace = true }
+rand = { workspace = true }

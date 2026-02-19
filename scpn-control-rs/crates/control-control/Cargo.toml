@@ -1,0 +1,15 @@
+[package]
+authors = ["Miroslav Sotek", "Michal Reiprich"]
+license = "AGPL-3.0-or-later"
+name = "control-control"
+version = "0.1.0"
+edition = "2021"
+description = "SCPN Control - Control systems (PID, MPC, H-inf, SNN controller)"
+
+[dependencies]
+control-types = { path = "../control-types" }
+control-math = { path = "../control-math" }
+control-core = { path = "../control-core" }
+ndarray = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }

@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scpn-control"
+version = "0.1.0"
+description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
+authors = [
+    {name = "Miroslav Sotek"},
+    {name = "Michal Reiprich"}
+]
+license = {text = "AGPL-3.0-or-later"}
+classifiers = [
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Development Status :: 3 - Alpha",
+]
+readme = "README.md"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "click>=8.0",
+]
+requires-python = ">=3.9"
+
+[project.urls]
+Homepage = "https://github.com/anulum/scpn-control"
+Documentation = "https://anulum.github.io/scpn-control/"
+Repository = "https://github.com/anulum/scpn-control"
+"Bug Tracker" = "https://github.com/anulum/scpn-control/issues"
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.5"]
+dashboard = ["streamlit>=1.20", "matplotlib>=3.5"]
+ml = ["torch>=2.0"]
+nengo = ["nengo>=4.0"]
+benchmark = ["freegs>=0.6"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.0",
+    "mypy>=1.10",
+    "matplotlib>=3.5",
+    "streamlit>=1.20",
+    "torch>=2.0",
+    "nengo>=4.0",
+]
+
+[project.scripts]
+scpn-control = "scpn_control.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.mypy]
+strict = false
+check_untyped_defs = true
+ignore_missing_imports = true
+files = [
+    "src/scpn_control/scpn/",
+    "src/scpn_control/core/fusion_kernel.py",
+    "src/scpn_control/core/_rust_compat.py",
+    "src/scpn_control/control/h_infinity_controller.py",
+    "src/scpn_control/control/nengo_snn_wrapper.py",
+]
+
+[[tool.mypy.overrides]]
+module = ["matplotlib", "matplotlib.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["streamlit", "streamlit.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["nengo", "nengo.*", "nengo_loihi", "nengo_loihi.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["scipy", "scipy.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+markers = [
+    "slow: marks long-running regression tests",
+]
+filterwarnings = [
+    "error::DeprecationWarning",
+    "ignore:.*oneOf.*[dD]eprecated.*:Warning",
+    "default::UserWarning",
+]
+xfail_strict = true

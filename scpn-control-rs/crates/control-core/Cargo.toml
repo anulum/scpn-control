@@ -1,0 +1,27 @@
+[package]
+name = "control-core"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+description = "SCPN Control - GS solver, transport, confinement scaling"
+
+[features]
+default = []
+
+[dependencies]
+control-types = { path = "../control-types" }
+control-math = { path = "../control-math" }
+ndarray = { workspace = true }
+rayon = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench_boris"
+harness = false
+
+[[bench]]
+name = "bench_transport"
+harness = false

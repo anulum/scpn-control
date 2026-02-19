@@ -1,0 +1,16 @@
+[package]
+authors = ["Miroslav Sotek", "Michal Reiprich"]
+license = "AGPL-3.0-or-later"
+name = "control-types"
+version = "0.1.0"
+edition = "2021"
+description = "SCPN Control - Type definitions and configuration"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+ndarray = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
