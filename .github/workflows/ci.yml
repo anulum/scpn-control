@@ -17,8 +17,8 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
@@ -35,7 +35,7 @@ jobs:
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=50
       - name: Upload coverage
         if: matrix.python-version == '3.12'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: coverage.xml
@@ -44,8 +44,8 @@ jobs:
   notebook-smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install notebook dependencies
@@ -70,7 +70,7 @@ jobs:
           for nb in "${NOTEBOOKS[@]}"; do
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=900 --output-dir artifacts/notebook-exec "$nb"
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: executed-notebooks
           path: artifacts/notebook-exec/
@@ -79,8 +79,8 @@ jobs:
   package-quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install packaging tools
@@ -91,7 +91,7 @@ jobs:
         run: python -m build
       - name: Validate package metadata
         run: python -m twine check dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: python-dist
           path: dist/
@@ -100,8 +100,8 @@ jobs:
   python-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install project and audit tools
@@ -116,8 +116,8 @@ jobs:
     needs: python-tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install
@@ -136,7 +136,7 @@ jobs:
       run:
         working-directory: scpn-control-rs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -152,9 +152,9 @@ jobs:
     needs: rust-tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Create virtualenv
@@ -167,11 +167,25 @@ jobs:
       - name: Build Rust bindings
         run: |
           . .venv/bin/activate
-          python -m maturin develop --release --manifest-path scpn-control-rs/crates/control-python/Cargo.toml
+          cd scpn-control-rs/crates/control-python
+          python -m maturin develop --release
       - name: Install package
         run: |
           . .venv/bin/activate
           python -m pip install -e .
+      - name: Verify Rust bindings
+        run: |
+          . .venv/bin/activate
+          python - <<'PY'
+          import importlib.util
+          from scpn_control.core._rust_compat import _rust_available
+
+          if importlib.util.find_spec("scpn_control_rs") is None:
+              raise SystemExit("scpn_control_rs module missing after maturin develop")
+          if not _rust_available():
+              raise SystemExit("Rust compatibility layer reports unavailable backend")
+          print("Rust bindings import and compatibility probe passed.")
+          PY
       - name: Parity tests
         run: |
           . .venv/bin/activate
@@ -184,11 +198,11 @@ jobs:
       run:
         working-directory: scpn-control-rs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - name: Bench
         run: cargo bench --workspace
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: bench-results
           path: scpn-control-rs/target/criterion/
@@ -200,7 +214,7 @@ jobs:
       run:
         working-directory: scpn-control-rs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-audit
         run: cargo install cargo-audit

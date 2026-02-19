@@ -151,11 +151,13 @@ cd scpn-control-rs
 cargo test --workspace
 
 # Build Python bindings
+cd crates/control-python
 pip install maturin
 maturin develop --release
+cd ../../
 
 # Verify
-python -c "import scpn_control_rs; print('Rust backend active')"
+python -c "import importlib.util; from scpn_control.core._rust_compat import _rust_available; print(bool(importlib.util.find_spec('scpn_control_rs') and _rust_available()))"
 ```
 
 The Rust backend provides PyO3 bindings for:

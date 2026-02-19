@@ -27,8 +27,11 @@ cargo test --workspace
 python -m venv .venv
 . .venv/bin/activate  # On Windows PowerShell: .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip maturin pytest hypothesis
-python -m maturin develop --release --manifest-path scpn-control-rs/crates/control-python/Cargo.toml
+cd scpn-control-rs/crates/control-python
+python -m maturin develop --release
+cd ../../..
 python -m pip install -e .
+python -c "import importlib.util; from scpn_control.core._rust_compat import _rust_available; assert importlib.util.find_spec('scpn_control_rs') and _rust_available()"
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
 ```
 

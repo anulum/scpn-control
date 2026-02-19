@@ -20,14 +20,21 @@ try:
     from scpn_control_rs import (
         PyFusionKernel,
         PyEquilibriumResult,
-        PyThermodynamicsResult,
         shafranov_bv,
         solve_coil_currents,
-        measure_magnetics,
-        simulate_tearing_mode,
     )
+    try:
+        from scpn_control_rs import measure_magnetics
+    except ImportError:
+        measure_magnetics = None
+    try:
+        from scpn_control_rs import simulate_tearing_mode
+    except ImportError:
+        simulate_tearing_mode = None
     _RUST_AVAILABLE = True
 except ImportError:
+    measure_magnetics = None
+    simulate_tearing_mode = None
     _RUST_AVAILABLE = False
 
 
@@ -164,16 +171,26 @@ if _RUST_AVAILABLE:
         return shafranov_bv(*args, **kwargs)
 
     rust_solve_coil_currents = solve_coil_currents
-    rust_measure_magnetics = measure_magnetics
+
+    if measure_magnetics is None:
+        def rust_measure_magnetics(*args, **kwargs):
+            raise ImportError(
+                "scpn_control_rs is available but does not expose measure_magnetics"
+            )
+    else:
+        rust_measure_magnetics = measure_magnetics
 
     def rust_simulate_tearing_mode(steps: int, seed: Optional[int] = None):
         """Rust tearing mode with optional deterministic seed compatibility."""
-        if seed is None:
+        if simulate_tearing_mode is not None and seed is None:
             return simulate_tearing_mode(int(steps))
 
         from scpn_control.control.disruption_predictor import (
             simulate_tearing_mode as _py_tearing,
         )
+
+        if seed is None:
+            return _py_tearing(steps=int(steps))
 
         rng = np.random.default_rng(seed=int(seed))
         return _py_tearing(steps=int(steps), rng=rng)
