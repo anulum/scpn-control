@@ -13,7 +13,7 @@ Usage:
     from scpn_control.core._rust_compat import FusionKernel, RUST_BACKEND
 """
 import os
-from typing import Optional
+from typing import Any, Optional
 import numpy as np
 
 try:
@@ -137,6 +137,8 @@ class RustAcceleratedKernel:
 
 # ─── Public API ─────────────────────────────────────────────────────
 
+FusionKernel: Any
+
 if _RUST_AVAILABLE:
     FusionKernel = RustAcceleratedKernel
     RUST_BACKEND = True
@@ -185,7 +187,7 @@ else:
     def rust_measure_magnetics(*args, **kwargs):
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
-    def rust_simulate_tearing_mode(*args, **kwargs):
+    def rust_simulate_tearing_mode(steps: int, seed: Optional[int] = None):
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
 

@@ -1619,8 +1619,8 @@ class FusionKernel:
     def _interp_psi(self, R_pt: float, Z_pt: float) -> float:
         """Bilinear interpolation of Psi at an arbitrary (R, Z) point."""
         # Find enclosing cell
-        ir = np.searchsorted(self.R, R_pt) - 1
-        iz = np.searchsorted(self.Z, Z_pt) - 1
+        ir = int(np.searchsorted(self.R, R_pt) - 1)
+        iz = int(np.searchsorted(self.Z, Z_pt) - 1)
         ir = max(0, min(ir, self.NR - 2))
         iz = max(0, min(iz, self.NZ - 2))
 
