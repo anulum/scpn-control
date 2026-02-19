@@ -27,7 +27,3 @@ Then open `http://127.0.0.1:8000/`.
 5. Run package quality checks (`python -m build`, `twine check dist/*`).
 6. Run benchmark suite and review artifacts.
 7. Confirm CI and Pages workflows pass on `main`.
-
-For release tagging and PyPI publishing, follow:
-
-- `release.md`

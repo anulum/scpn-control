@@ -30,7 +30,6 @@ scpn-control benchmark --n-bench 5000
 - Documentation site: https://anulum.github.io/scpn-control/
 - Local docs index: `docs/index.md`
 - Benchmark guide: `docs/benchmarks.md`
-- Release and PyPI guide: `docs/release.md`
 - Notebook tutorials:
   - `examples/neuro_symbolic_control_demo.ipynb`
   - `examples/q10_breakeven_demo.ipynb`
@@ -181,10 +180,9 @@ The Rust backend provides PyO3 bindings for:
 
 ## Release and PyPI
 
-Release checklist and publishing guide:
+Publishing is handled by workflow:
 
-- `docs/release.md`
-- Workflow: `.github/workflows/publish-pypi.yml`
+- `.github/workflows/publish-pypi.yml`
 
 ## Authors
 
