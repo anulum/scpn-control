@@ -35,7 +35,7 @@ jobs:
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=50
       - name: Upload coverage
         if: matrix.python-version == '3.12'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: coverage.xml
@@ -58,7 +58,7 @@ jobs:
           for nb in examples/*.ipynb; do
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=900 --output-dir artifacts/notebook-exec "$nb"
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: executed-notebooks
           path: artifacts/notebook-exec/
@@ -79,7 +79,7 @@ jobs:
         run: python -m build
       - name: Validate package metadata
         run: python -m twine check dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: python-dist
           path: dist/
@@ -176,7 +176,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Bench
         run: cargo bench --workspace
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: bench-results
           path: scpn-control-rs/target/criterion/
