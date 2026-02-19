@@ -60,11 +60,7 @@ jobs:
             "examples/snn_compiler_walkthrough.ipynb"
           )
 
-          if python - <<'PY'
-import importlib.util
-import sys
-sys.exit(0 if importlib.util.find_spec("sc_neurocore") is not None else 1)
-PY
+          if python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('sc_neurocore') is not None else 1)"
           then
             NOTEBOOKS+=("examples/neuro_symbolic_control_demo.ipynb")
           else
