@@ -29,6 +29,8 @@ scpn-control benchmark --n-bench 5000
 
 - Documentation site: https://anulum.github.io/scpn-control/
 - Local docs index: `docs/index.md`
+- Benchmark guide: `docs/benchmarks.md`
+- Release and PyPI guide: `docs/release.md`
 - Notebook tutorials:
   - `examples/neuro_symbolic_control_demo.ipynb`
   - `examples/q10_breakeven_demo.ipynb`
@@ -44,8 +46,15 @@ mkdocs serve
 Execute all notebooks:
 
 ```bash
-python -m pip install jupyter nbconvert
-jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec examples/*.ipynb
+python -m pip install -e ".[viz]" jupyter nbconvert
+jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec examples/q10_breakeven_demo.ipynb
+jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec examples/snn_compiler_walkthrough.ipynb
+```
+
+Optional notebook (requires `sc_neurocore` available in environment):
+
+```bash
+jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec examples/neuro_symbolic_control_demo.ipynb
 ```
 
 ## Features
@@ -110,6 +119,23 @@ scpn-control validate                                 # RMSE validation dashboar
 scpn-control hil-test --shots-dir ...                 # HIL test campaign
 ```
 
+## Benchmarks
+
+Python micro-benchmark:
+
+```bash
+scpn-control benchmark --n-bench 5000 --json-out
+```
+
+Rust Criterion benchmarks:
+
+```bash
+cd scpn-control-rs
+cargo bench --workspace
+```
+
+Benchmark docs: `docs/benchmarks.md`
+
 ## Dashboard
 
 ```bash
@@ -152,6 +178,13 @@ The Rust backend provides PyO3 bindings for:
   license = {AGPL-3.0-or-later}
 }
 ```
+
+## Release and PyPI
+
+Release checklist and publishing guide:
+
+- `docs/release.md`
+- Workflow: `.github/workflows/publish-pypi.yml`
 
 ## Authors
 
