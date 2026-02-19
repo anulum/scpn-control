@@ -52,6 +52,7 @@ benchmarks/results/
 # Artifacts
 artifacts/
 !artifacts/.gitkeep
+site/
 
 # Streamlit
 .streamlit/

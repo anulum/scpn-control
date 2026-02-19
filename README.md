@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/anulum/scpn-control/actions"><img src="https://github.com/anulum/scpn-control/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/anulum/scpn-control/actions/workflows/docs-pages.yml"><img src="https://github.com/anulum/scpn-control/actions/workflows/docs-pages.yml/badge.svg" alt="Docs Pages"></a>
   <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
   <a href="https://orcid.org/0009-0009-3560-0851"><img src="https://img.shields.io/badge/ORCID-0009--0009--3560--0851-green.svg" alt="ORCID"></a>
 </p>
@@ -22,6 +23,29 @@ verification guarantees. Extracted from
 pip install -e "."
 scpn-control demo --steps 1000
 scpn-control benchmark --n-bench 5000
+```
+
+## Documentation and Tutorials
+
+- Documentation site: https://anulum.github.io/scpn-control/
+- Local docs index: `docs/index.md`
+- Notebook tutorials:
+  - `examples/neuro_symbolic_control_demo.ipynb`
+  - `examples/q10_breakeven_demo.ipynb`
+  - `examples/snn_compiler_walkthrough.ipynb`
+
+Build docs locally:
+
+```bash
+python -m pip install mkdocs
+mkdocs serve
+```
+
+Execute all notebooks:
+
+```bash
+python -m pip install jupyter nbconvert
+jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec examples/*.ipynb
 ```
 
 ## Features

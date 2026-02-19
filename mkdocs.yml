@@ -1,0 +1,23 @@
+site_name: SCPN Control
+site_description: Neuro-symbolic stochastic Petri net control for fusion plasma systems
+site_url: https://anulum.github.io/scpn-control/
+repo_url: https://github.com/anulum/scpn-control
+repo_name: anulum/scpn-control
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: mkdocs
+
+nav:
+  - Home: index.md
+  - Tutorials: tutorials.md
+  - Validation and QA: validation.md
+  - Development: development.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
