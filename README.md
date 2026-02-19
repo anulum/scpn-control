@@ -129,9 +129,17 @@ The Rust backend provides PyO3 bindings for:
 }
 ```
 
+## Authors
+
+- **Miroslav Sotek** — ANULUM CH & LI — [ORCID](https://orcid.org/0009-0009-3560-0851)
+- **Michal Reiprich** — ANULUM CH & LI
+
 ## License
 
-Copyright 1998-2026 Miroslav Sotek. All rights reserved.
+- Concepts: Copyright 1996-2026
+- Code: Copyright 2024-2026
+- License: GNU AGPL v3
 
-GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
-Commercial licensing available -- contact [protoscience@anulum.li](mailto:protoscience@anulum.li).
+GNU Affero General Public License v3.0 — see [LICENSE](LICENSE).
+
+For commercial licensing inquiries, contact: [protoscience@anulum.li](mailto:protoscience@anulum.li)
