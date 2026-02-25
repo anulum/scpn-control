@@ -1,0 +1,114 @@
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Kuramoto-Sakaguchi + Global Field Driver
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
+# ORCID: https://orcid.org/0009-0009-3560-0851
+# License: GNU AGPL v3 | Commercial licensing available
+# ──────────────────────────────────────────────────────────────────────
+"""
+Mean-field Kuramoto-Sakaguchi with exogenous global driver.
+
+Equation:
+    dθ_i/dt = ω_i + K·R·sin(ψ_r − θ_i − α) + ζ·sin(Ψ − θ_i)
+
+The ζ sin(Ψ−θ) term implements the reviewer's requested "intention as
+carrier" injection.  Ψ is a Lagrangian pull parameter with no own
+dynamics (no dotΨ equation) — it is resolved either from an external
+value or from the mean-field phase.
+
+Reference: arXiv:2004.06344 (generalized Kuramoto-Sakaguchi finite-size)
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Optional, Tuple
+
+import numpy as np
+from numpy.typing import NDArray
+
+FloatArray = NDArray[np.float64]
+
+
+def wrap_phase(x: FloatArray) -> FloatArray:
+    """Map phases to (-π, π]."""
+    return (x + np.pi) % (2.0 * np.pi) - np.pi
+
+
+def order_parameter(
+    theta: FloatArray,
+    weights: Optional[FloatArray] = None,
+) -> Tuple[float, float]:
+    """Kuramoto order parameter R·exp(i·ψ_r) = <w·exp(i·θ)> / W.
+
+    Returns (R, ψ_r).
+    """
+    th = np.asarray(theta, dtype=np.float64).ravel()
+
+    if weights is None:
+        z = np.mean(np.exp(1j * th))
+    else:
+        w = np.asarray(weights, dtype=np.float64).ravel()
+        W = float(np.sum(w))
+        z = np.sum(w * np.exp(1j * th)) / max(W, 1e-15)
+
+    return float(np.abs(z)), float(np.angle(z))
+
+
+@dataclass(frozen=True)
+class GlobalPsiDriver:
+    """Resolve the global field phase Ψ.
+
+    mode="external"    : Ψ supplied by caller (intention/carrier, no dotΨ).
+    mode="mean_field"  : Ψ = arg(<exp(iθ)>) from the oscillator population.
+    """
+    mode: str = "external"
+
+    def resolve(self, theta: FloatArray, psi_external: Optional[float]) -> float:
+        if self.mode == "external":
+            if psi_external is None:
+                raise ValueError("psi_external required when mode='external'")
+            return float(psi_external)
+        if self.mode == "mean_field":
+            _, psi = order_parameter(theta)
+            return psi
+        raise ValueError(f"Unknown mode: {self.mode}")
+
+
+def kuramoto_sakaguchi_step(
+    theta: FloatArray,
+    omega: FloatArray,
+    *,
+    dt: float,
+    K: float,
+    alpha: float = 0.0,
+    zeta: float = 0.0,
+    psi_driver: Optional[float] = None,
+    psi_mode: str = "external",
+    wrap: bool = True,
+) -> dict:
+    """Single Euler step of mean-field Kuramoto-Sakaguchi + global driver.
+
+    dθ_i/dt = ω_i + K·R·sin(ψ_r − θ_i − α) + ζ·sin(Ψ − θ_i)
+    """
+    th = np.asarray(theta, dtype=np.float64).ravel()
+    om = np.asarray(omega, dtype=np.float64).ravel()
+
+    R, psi_r = order_parameter(th)
+    Psi = GlobalPsiDriver(mode=psi_mode).resolve(th, psi_driver)
+
+    dtheta = om + (K * R) * np.sin(psi_r - th - alpha)
+    if zeta != 0.0:
+        dtheta += zeta * np.sin(Psi - th)
+
+    th1 = th + dt * dtheta
+    if wrap:
+        th1 = wrap_phase(th1)
+
+    return {
+        "theta1": th1,
+        "dtheta": dtheta,
+        "R": R,
+        "Psi_r": psi_r,
+        "Psi": Psi,
+    }

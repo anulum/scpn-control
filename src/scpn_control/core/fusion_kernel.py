@@ -1639,6 +1639,49 @@ class FusionKernel:
         )
         return float(psi)
 
+    # ── phase reduction (Paper 27 / reviewer: ζ sin(Ψ−θ)) ─────────
+
+    def phase_sync_step(
+        self,
+        theta: FloatArray,
+        omega: FloatArray,
+        *,
+        dt: float = 1e-3,
+        K: Optional[float] = None,
+        alpha: Optional[float] = None,
+        zeta: Optional[float] = None,
+        psi_driver: Optional[float] = None,
+        psi_mode: Optional[str] = None,
+        actuation_gain: Optional[float] = None,
+    ) -> dict[str, Any]:
+        """Reduced-order plasma sync kernel (phase reduction).
+
+        dθ_i/dt = ω_i + K·R·sin(ψ_r − θ_i − α) + ζ·sin(Ψ − θ_i)
+
+        Ψ is exogenous when psi_mode="external" (no dotΨ equation).
+        This is the reviewer's ζ sin(Ψ−θ) injection for plasma sync stability.
+        """
+        from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step
+
+        cfg = self.cfg.get("phase_sync", {})
+        K_eff = float(cfg.get("K", 1.0) if K is None else K)
+        alpha_eff = float(cfg.get("alpha", 0.0) if alpha is None else alpha)
+        zeta_eff = float(cfg.get("zeta", 0.0) if zeta is None else zeta)
+        psi_mode_eff = str(cfg.get("psi_mode", "external") if psi_mode is None else psi_mode)
+        gain = float(cfg.get("actuation_gain", 1.0) if actuation_gain is None else actuation_gain)
+
+        return kuramoto_sakaguchi_step(
+            theta=np.asarray(theta, dtype=np.float64),
+            omega=np.asarray(omega, dtype=np.float64),
+            dt=dt,
+            K=K_eff * gain,
+            alpha=alpha_eff,
+            zeta=zeta_eff * gain,
+            psi_driver=psi_driver,
+            psi_mode=psi_mode_eff,
+            wrap=True,
+        )
+
     def save_results(self, filename: str = "equilibrium_nonlinear.npz") -> None:
         """Save the equilibrium state to a compressed NumPy archive.
 

@@ -17,6 +17,10 @@ verification guarantees. Extracted from
 [scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) as the minimal
 41-file transitive closure of the control pipeline.
 
+> **11.9 µs P50 control loop** — faster than any open-source fusion code,
+> competitive with the DIII-D PCS (4–10 kHz physics loops).
+> See [competitive analysis](docs/competitive_analysis.md) for full benchmarks.
+
 ## Quick Start
 
 ```bash
