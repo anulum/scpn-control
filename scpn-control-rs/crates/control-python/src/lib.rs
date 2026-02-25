@@ -20,6 +20,7 @@ use control_control::mpc::{MPController, NeuralSurrogate};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_core::kernel::FusionKernel;
 use control_core::transport::{self, NeoclassicalParams, TransportSolver};
+use control_math::kuramoto;
 
 // ─── Equilibrium solver ───
 
@@ -504,6 +505,68 @@ impl PyTransportSolver {
     }
 }
 
+// ─── Kuramoto–Sakaguchi phase sync kernel ───
+
+#[pyfunction]
+#[pyo3(signature = (theta, omega, dt, k, alpha=0.0, zeta=0.0, psi_external=None))]
+fn kuramoto_step<'py>(
+    py: Python<'py>,
+    theta: PyReadonlyArray1<'py, f64>,
+    omega: PyReadonlyArray1<'py, f64>,
+    dt: f64,
+    k: f64,
+    alpha: f64,
+    zeta: f64,
+    psi_external: Option<f64>,
+) -> PyResult<(Bound<'py, PyArray1<f64>>, f64, f64, f64)> {
+    let th = theta.as_slice().map_err(|e| {
+        pyo3::exceptions::PyValueError::new_err(format!("theta not contiguous: {e}"))
+    })?;
+    let om = omega.as_slice().map_err(|e| {
+        pyo3::exceptions::PyValueError::new_err(format!("omega not contiguous: {e}"))
+    })?;
+    if th.len() != om.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err("theta/omega length mismatch"));
+    }
+    let res = kuramoto::kuramoto_sakaguchi_step(th, om, dt, k, alpha, zeta, psi_external);
+    Ok((
+        res.theta.into_pyarray(py),
+        res.r,
+        res.psi_r,
+        res.psi_global,
+    ))
+}
+
+#[pyfunction]
+#[pyo3(signature = (theta, omega, n_steps, dt, k, alpha=0.0, zeta=0.0, psi_external=None))]
+fn kuramoto_run<'py>(
+    py: Python<'py>,
+    theta: PyReadonlyArray1<'py, f64>,
+    omega: PyReadonlyArray1<'py, f64>,
+    n_steps: usize,
+    dt: f64,
+    k: f64,
+    alpha: f64,
+    zeta: f64,
+    psi_external: Option<f64>,
+) -> PyResult<(Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>)> {
+    let th = theta.as_slice().map_err(|e| {
+        pyo3::exceptions::PyValueError::new_err(format!("theta not contiguous: {e}"))
+    })?;
+    let om = omega.as_slice().map_err(|e| {
+        pyo3::exceptions::PyValueError::new_err(format!("omega not contiguous: {e}"))
+    })?;
+    if th.len() != om.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err("theta/omega length mismatch"));
+    }
+    let (final_theta, r_hist) =
+        kuramoto::kuramoto_sakaguchi_run(th, om, n_steps, dt, k, alpha, zeta, psi_external);
+    Ok((
+        final_theta.into_pyarray(py),
+        Array1::from_vec(r_hist).into_pyarray(py),
+    ))
+}
+
 // ─── Module registration ───
 
 /// SCPN Control — Rust-accelerated control pipeline.
@@ -524,5 +587,8 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyMpcController>()?;
     m.add_class::<PyPlasma2D>()?;
     m.add_class::<PyTransportSolver>()?;
+    // Phase dynamics (Paper 27)
+    m.add_function(wrap_pyfunction!(kuramoto_step, m)?)?;
+    m.add_function(wrap_pyfunction!(kuramoto_run, m)?)?;
     Ok(())
 }

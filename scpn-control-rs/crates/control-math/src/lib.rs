@@ -7,6 +7,7 @@ pub mod fft;
 pub mod gmres;
 pub mod iga;
 pub mod interp;
+pub mod kuramoto;
 pub mod linalg;
 pub mod multigrid;
 pub mod sor;
