@@ -17,11 +17,9 @@ pub fn order_parameter(theta: &[f64]) -> (f64, f64) {
     if n == 0 {
         return (0.0, 0.0);
     }
-    let (re, im) = theta
-        .iter()
-        .fold((0.0_f64, 0.0_f64), |(re, im), &th| {
-            (re + th.cos(), im + th.sin())
-        });
+    let (re, im) = theta.iter().fold((0.0_f64, 0.0_f64), |(re, im), &th| {
+        (re + th.cos(), im + th.sin())
+    });
     let inv_n = 1.0 / n as f64;
     let z_re = re * inv_n;
     let z_im = im * inv_n;
@@ -165,13 +163,14 @@ mod tests {
     #[test]
     fn test_zeta_pulls_toward_psi() {
         let n = 100;
-        let theta: Vec<f64> = (0..n).map(|i| -std::f64::consts::PI + (i as f64) * 0.06).collect();
+        let theta: Vec<f64> = (0..n)
+            .map(|i| -std::f64::consts::PI + (i as f64) * 0.06)
+            .collect();
         let omega = vec![0.0; n];
         let psi_target = 0.5;
 
-        let (final_theta, _) = kuramoto_sakaguchi_run(
-            &theta, &omega, 500, 0.01, 0.0, 0.0, 3.0, Some(psi_target),
-        );
+        let (final_theta, _) =
+            kuramoto_sakaguchi_run(&theta, &omega, 500, 0.01, 0.0, 0.0, 3.0, Some(psi_target));
 
         let spread: f64 = final_theta
             .iter()
@@ -185,9 +184,8 @@ mod tests {
     fn test_run_returns_trajectory() {
         let theta = vec![0.0; 50];
         let omega: Vec<f64> = (0..50).map(|i| 0.01 * i as f64).collect();
-        let (final_th, r_hist) = kuramoto_sakaguchi_run(
-            &theta, &omega, 100, 0.01, 2.0, 0.0, 0.0, None,
-        );
+        let (final_th, r_hist) =
+            kuramoto_sakaguchi_run(&theta, &omega, 100, 0.01, 2.0, 0.0, 0.0, None);
         assert_eq!(final_th.len(), 50);
         assert_eq!(r_hist.len(), 100);
     }

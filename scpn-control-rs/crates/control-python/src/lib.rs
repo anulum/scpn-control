@@ -526,15 +526,12 @@ fn kuramoto_step<'py>(
         pyo3::exceptions::PyValueError::new_err(format!("omega not contiguous: {e}"))
     })?;
     if th.len() != om.len() {
-        return Err(pyo3::exceptions::PyValueError::new_err("theta/omega length mismatch"));
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "theta/omega length mismatch",
+        ));
     }
     let res = kuramoto::kuramoto_sakaguchi_step(th, om, dt, k, alpha, zeta, psi_external);
-    Ok((
-        res.theta.into_pyarray(py),
-        res.r,
-        res.psi_r,
-        res.psi_global,
-    ))
+    Ok((res.theta.into_pyarray(py), res.r, res.psi_r, res.psi_global))
 }
 
 #[pyfunction]
@@ -557,7 +554,9 @@ fn kuramoto_run<'py>(
         pyo3::exceptions::PyValueError::new_err(format!("omega not contiguous: {e}"))
     })?;
     if th.len() != om.len() {
-        return Err(pyo3::exceptions::PyValueError::new_err("theta/omega length mismatch"));
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "theta/omega length mismatch",
+        ));
     }
     let (final_theta, r_hist) =
         kuramoto::kuramoto_sakaguchi_run(th, om, n_steps, dt, k, alpha, zeta, psi_external);
