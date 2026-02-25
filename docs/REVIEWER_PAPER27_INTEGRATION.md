@@ -86,25 +86,36 @@ Reference: arXiv:2004.06344 (generalized Kuramoto–Sakaguchi finite-size)
 
 ## 4. Architecture — How It Fits
 
+### 4.1 Equation Cross-Reference (Paper 27, Eqs. 12–15)
+
+| Paper 27 Eq. | Description | Implementation |
+|:------------:|-------------|----------------|
+| **(12)** | Mean-field Kuramoto order parameter: R·e^{iψ} = (1/N) Σ e^{iθ_j} | `order_parameter()` in `kuramoto.py:47` / `kuramoto.rs:15` |
+| **(13)** | Single-layer Kuramoto–Sakaguchi: dθ_i/dt = ω_i + K·R·sin(ψ−θ_i−α) | `kuramoto_sakaguchi_step()` in `kuramoto.py:87` / `kuramoto.rs:53` |
+| **(14)** | Multi-layer UPDE with Knm inter-layer coupling: dθ_{m,i}/dt = ω_{m,i} + K_{mm}·R_m·sin(ψ_m−θ_{m,i}−α_{mm}) + Σ_{n≠m} K_{nm}·R_n·sin(ψ_n−θ_{m,i}−α_{nm}) | `UPDESystem.step()` in `upde.py:45` |
+| **(15)** | Exogenous global field driver: + ζ_m·sin(Ψ−θ_{m,i}), Ψ exogenous (no ˙Ψ) | ζ term in `kuramoto.py:126–127`, `upde.py:115–116`; `GlobalPsiDriver` in `kuramoto.py:67` |
+
+### 4.2 Module Architecture
+
 ```
 ┌───────────────────────────────────────────────────────┐
 │                    FusionKernel                        │
 │                                                       │
 │  solve_equilibrium()   ← GS solver (untouched)        │
 │  compute_stability()   ← MHD stability (untouched)    │
-│  phase_sync_step()     ← NEW: Paper 27 injection      │
+│  phase_sync_step()     ← NEW: Paper 27 Eqs. 12–15    │
 │       │                                               │
 │       ▼                                               │
 │  ┌─────────────────────────────────────┐              │
 │  │  scpn_control.phase                 │              │
 │  │                                     │              │
-│  │  kuramoto_sakaguchi_step()          │──► Rust      │
-│  │  ├─ order_parameter()              │   fast-path   │
-│  │  ├─ GlobalPsiDriver.resolve()      │   (rayon,     │
+│  │  kuramoto_sakaguchi_step() [Eq.13] │──► Rust      │
+│  │  ├─ order_parameter()     [Eq.12] │   fast-path   │
+│  │  ├─ GlobalPsiDriver       [Eq.15] │   (rayon,     │
 │  │  └─ wrap_phase()                   │    sub-ms     │
 │  │                                     │    N>1000)   │
 │  │  KnmSpec / build_knm_paper27()     │              │
-│  │  UPDESystem.step() / .run()        │              │
+│  │  UPDESystem.step()        [Eq.14] │              │
 │  └─────────────────────────────────────┘              │
 └───────────────────────────────────────────────────────┘
 ```
@@ -112,6 +123,52 @@ Reference: arXiv:2004.06344 (generalized Kuramoto–Sakaguchi finite-size)
 **Non-invasive**: the GS equilibrium solver, SNN controllers, and all existing
 code paths are completely untouched.  `phase_sync_step()` is a new method on
 `FusionKernel` that reads defaults from `cfg["phase_sync"]`.
+
+### 4.3 Ψ Global Driver Flowchart
+
+```
+                    ┌──────────────────────┐
+                    │  Caller / Controller  │
+                    └──────────┬───────────┘
+                               │
+                    ┌──────────▼───────────┐
+                    │   psi_mode?           │
+                    └──┬───────────────┬───┘
+                       │               │
+              "external"          "mean_field"
+                       │               │
+              ┌────────▼──────┐  ┌─────▼──────────────┐
+              │ Ψ = caller-   │  │ Ψ = arg(⟨e^{iθ}⟩) │
+              │ supplied float │  │ from oscillator    │
+              │ (intention     │  │ population         │
+              │  carrier)      │  │ (self-organised)   │
+              └────────┬──────┘  └─────┬──────────────┘
+                       │               │
+                       └───────┬───────┘
+                               │
+                    ┌──────────▼───────────┐
+                    │  Ψ resolved (scalar) │
+                    │  NO ˙Ψ dynamics      │
+                    └──────────┬───────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │  For each oscillator i:          │
+              │  dθ_i += ζ · sin(Ψ − θ_i)      │
+              │                                  │
+              │  • ζ > 0: pull toward Ψ          │
+              │  • ζ = 0: term vanishes          │
+              │  • gain scales both K and ζ      │
+              └────────────────┬────────────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │  Euler step: θ' = θ + dt·dθ     │
+              │  wrap to (−π, π]                 │
+              └────────────────┬────────────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │  Return: θ', dθ, R, ψ_r, Ψ     │
+              └─────────────────────────────────┘
+```
 
 ---
 
@@ -286,3 +343,12 @@ b11228b docs: add Paper 27 phase dynamics demo notebook
 - Chebyshev/IGA spectral methods
 - Rust control-math crates (SOR, tridiag, FFT, etc.) — only added `kuramoto` module
 - All existing tests remain green
+
+---
+
+## 14. Paper 27 Reference
+
+M. Šotek, "The Knm Matrix: A Simulation Framework for Modelling Multi-Scale
+Bidirectional Causality in the Self-Consistent Phenomenological Network,"
+SCPN Paper 27, 2026.
+Available: [academia.edu](https://www.academia.edu/) | ORCID [0009-0009-3560-0851](https://orcid.org/0009-0009-3560-0851)
