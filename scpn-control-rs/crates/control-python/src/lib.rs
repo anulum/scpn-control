@@ -591,5 +591,46 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Phase dynamics (Paper 27)
     m.add_function(wrap_pyfunction!(kuramoto_step, m)?)?;
     m.add_function(wrap_pyfunction!(kuramoto_run, m)?)?;
+    m.add_function(wrap_pyfunction!(kuramoto_run_lyapunov, m)?)?;
     Ok(())
+}
+
+#[pyfunction]
+#[pyo3(signature = (theta, omega, n_steps, dt, k, alpha=0.0, zeta=0.0, psi_external=None))]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+fn kuramoto_run_lyapunov<'py>(
+    py: Python<'py>,
+    theta: PyReadonlyArray1<'py, f64>,
+    omega: PyReadonlyArray1<'py, f64>,
+    n_steps: usize,
+    dt: f64,
+    k: f64,
+    alpha: f64,
+    zeta: f64,
+    psi_external: Option<f64>,
+) -> PyResult<(
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    f64,
+)> {
+    let th = theta.as_slice().map_err(|e| {
+        pyo3::exceptions::PyValueError::new_err(format!("theta not contiguous: {e}"))
+    })?;
+    let om = omega.as_slice().map_err(|e| {
+        pyo3::exceptions::PyValueError::new_err(format!("omega not contiguous: {e}"))
+    })?;
+    if th.len() != om.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "theta/omega length mismatch",
+        ));
+    }
+    let (final_theta, r_hist, v_hist, lyap_exp) =
+        kuramoto::kuramoto_run_lyapunov(th, om, n_steps, dt, k, alpha, zeta, psi_external);
+    Ok((
+        final_theta.into_pyarray(py),
+        Array1::from_vec(r_hist).into_pyarray(py),
+        Array1::from_vec(v_hist).into_pyarray(py),
+        lyap_exp,
+    ))
 }

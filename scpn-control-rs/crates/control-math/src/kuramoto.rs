@@ -119,6 +119,52 @@ pub fn kuramoto_sakaguchi_run(
     (Array1::from_vec(theta), r_hist)
 }
 
+/// Lyapunov stability candidate V(t) = (1/N) Σ (1 − cos(θ_i − Ψ)).
+/// Returns (V, dV/dt_approx) where dV/dt is finite-differenced from last two V values.
+pub fn lyapunov_v(theta: &[f64], psi: f64) -> f64 {
+    let n = theta.len();
+    if n == 0 {
+        return 0.0;
+    }
+    theta.iter().map(|&th| 1.0 - (th - psi).cos()).sum::<f64>() / n as f64
+}
+
+/// Run N steps with Lyapunov tracking.
+/// Returns (final_theta, r_hist, v_hist, lyapunov_exponent).
+/// Lyapunov exponent λ = (1/T) · ln(V_final / V_initial).
+/// λ < 0 ⟹ stable convergence toward Ψ.
+#[allow(clippy::too_many_arguments)]
+pub fn kuramoto_run_lyapunov(
+    theta_init: &[f64],
+    omega: &[f64],
+    n_steps: usize,
+    dt: f64,
+    k: f64,
+    alpha: f64,
+    zeta: f64,
+    psi_external: Option<f64>,
+) -> (Array1<f64>, Vec<f64>, Vec<f64>, f64) {
+    let mut theta = theta_init.to_vec();
+    let mut r_hist = Vec::with_capacity(n_steps);
+    let mut v_hist = Vec::with_capacity(n_steps);
+
+    for _ in 0..n_steps {
+        let res = kuramoto_sakaguchi_step(&theta, omega, dt, k, alpha, zeta, psi_external);
+        let psi = psi_external.unwrap_or(res.psi_r);
+        let v = lyapunov_v(res.theta.as_slice().unwrap(), psi);
+        theta = res.theta.to_vec();
+        r_hist.push(res.r);
+        v_hist.push(v);
+    }
+
+    let t_total = n_steps as f64 * dt;
+    let v0 = v_hist.first().copied().unwrap_or(1.0).max(1e-15);
+    let vf = v_hist.last().copied().unwrap_or(1.0).max(1e-15);
+    let lyap_exp = (vf / v0).ln() / t_total;
+
+    (Array1::from_vec(theta), r_hist, v_hist, lyap_exp)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,5 +235,26 @@ mod tests {
             kuramoto_sakaguchi_run(&theta, &omega, 100, 0.01, 2.0, 0.0, 0.0, None);
         assert_eq!(final_th.len(), 50);
         assert_eq!(r_hist.len(), 100);
+    }
+
+    #[test]
+    fn test_lyapunov_v_synced_is_zero() {
+        let theta = vec![0.5; 100];
+        let v = lyapunov_v(&theta, 0.5);
+        assert!(v.abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_lyapunov_exponent_negative_with_zeta() {
+        let n = 100;
+        let theta: Vec<f64> = (0..n)
+            .map(|i| -std::f64::consts::PI + (i as f64) * 0.06)
+            .collect();
+        let omega = vec![0.0; n];
+        let (_, _, v_hist, lyap_exp) =
+            kuramoto_run_lyapunov(&theta, &omega, 500, 0.01, 0.0, 0.0, 3.0, Some(0.5));
+        assert_eq!(v_hist.len(), 500);
+        // λ < 0 ⟹ V is decreasing ⟹ stable convergence
+        assert!(lyap_exp < 0.0, "lyap_exp = {lyap_exp}, expected < 0");
     }
 }

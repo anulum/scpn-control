@@ -262,6 +262,30 @@ fn bench_kuramoto_run_diiid(c: &mut Criterion) {
     group.finish();
 }
 
+// ── 6. DIII-D run with Lyapunov exponent tracking ────────────────────
+
+fn bench_kuramoto_run_lyapunov(c: &mut Criterion) {
+    let mut group = c.benchmark_group("kuramoto_run_lyapunov");
+    for &(n, steps) in &[(4096_usize, 100_usize), (16384, 100)] {
+        let (theta, omega) = make_population(n);
+        group.bench_with_input(BenchmarkId::new(format!("N{n}_S{steps}"), n), &n, |b, _| {
+            b.iter(|| {
+                kuramoto::kuramoto_run_lyapunov(
+                    black_box(&theta),
+                    black_box(&omega),
+                    black_box(steps),
+                    black_box(0.0001),
+                    black_box(2.0),
+                    black_box(0.0),
+                    black_box(0.5),
+                    black_box(Some(0.3)),
+                )
+            });
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_kuramoto_step,
@@ -269,5 +293,6 @@ criterion_group!(
     bench_knm_interlayer_pac,
     bench_kuramoto_order_param,
     bench_kuramoto_run_diiid,
+    bench_kuramoto_run_lyapunov,
 );
 criterion_main!(benches);

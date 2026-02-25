@@ -1,0 +1,61 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "title": {
+    "text": "Knm 16-Layer UPDE: PAC Gate vs No-PAC Latency",
+    "subtitle": "Paper 27 — 16 layers × 256 oscillators, K_base=0.45, α=0.3, ζ=0.5"
+  },
+  "width": 500,
+  "height": 300,
+  "data": {
+    "values": [
+      {"config": "PAC (γ=1.0)", "metric": "Total step", "time_us": 909, "ci_lo": 860, "ci_hi": 921},
+      {"config": "No PAC (γ=0)", "metric": "Total step", "time_us": 811, "ci_lo": 807, "ci_hi": 827},
+      {"config": "PAC (γ=1.0)", "metric": "Order params (16×)", "time_us": 64, "ci_lo": 60, "ci_hi": 68},
+      {"config": "No PAC (γ=0)", "metric": "Order params (16×)", "time_us": 64, "ci_lo": 60, "ci_hi": 68},
+      {"config": "PAC (γ=1.0)", "metric": "Inter-layer loop", "time_us": 780, "ci_lo": 740, "ci_hi": 800},
+      {"config": "No PAC (γ=0)", "metric": "Inter-layer loop", "time_us": 685, "ci_lo": 680, "ci_hi": 700},
+      {"config": "PAC (γ=1.0)", "metric": "Global driver ζ", "time_us": 65, "ci_lo": 60, "ci_hi": 70},
+      {"config": "No PAC (γ=0)", "metric": "Global driver ζ", "time_us": 62, "ci_lo": 58, "ci_hi": 66}
+    ]
+  },
+  "encoding": {
+    "y": {
+      "field": "metric",
+      "type": "nominal",
+      "sort": ["Total step", "Inter-layer loop", "Global driver ζ", "Order params (16×)"],
+      "title": null
+    },
+    "x": {
+      "field": "time_us",
+      "type": "quantitative",
+      "title": "Latency (µs)",
+      "scale": {"zero": true}
+    },
+    "color": {
+      "field": "config",
+      "type": "nominal",
+      "title": "Configuration",
+      "scale": {"range": ["#e45756", "#4c78a8"]}
+    },
+    "yOffset": {"field": "config"}
+  },
+  "layer": [
+    {
+      "mark": {"type": "bar", "cornerRadiusEnd": 3, "height": 14}
+    },
+    {
+      "mark": {"type": "errorbar", "ticks": true},
+      "encoding": {
+        "x": {"field": "ci_lo", "type": "quantitative"},
+        "x2": {"field": "ci_hi"}
+      }
+    },
+    {
+      "mark": {"type": "text", "align": "left", "dx": 5, "fontSize": 11},
+      "encoding": {
+        "text": {"field": "time_us", "type": "quantitative", "format": ".0f"},
+        "color": {"value": "#333"}
+      }
+    }
+  ]
+}
