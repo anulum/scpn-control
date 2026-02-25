@@ -2,9 +2,11 @@
 
 **Repository:** [anulum/scpn-control](https://github.com/anulum/scpn-control)
 **Branch:** `main`
-**Commits:** `81704be..4af1c5f` (5 commits, +1 833 lines across 12 files)
+**Commits:** `81704be..HEAD`
 **Date:** 2026-02-25
 **Author:** Miroslav Šotek — ORCID [0009-0009-3560-0851](https://orcid.org/0009-0009-3560-0851)
+**Paper 27:** [academia.edu](https://www.academia.edu/) | arXiv: [2004.06344](https://arxiv.org/abs/2004.06344) (Kuramoto–Sakaguchi finite-size)
+**PDF export:** [`REVIEWER_PAPER27_INTEGRATION.pdf`](REVIEWER_PAPER27_INTEGRATION.pdf)
 
 ---
 
@@ -221,6 +223,26 @@ theta_out
 PyO3 bindings expose `kuramoto_step(theta, omega, dt, k, alpha, zeta, psi_external)`
 and `kuramoto_run(...)` returning NumPy arrays directly.
 
+### 6.1 Benchmark: Python NumPy vs Rust Rayon
+
+Median wall-time for a single `kuramoto_sakaguchi_step()` with ζ=0.5, Ψ=0.3.
+Python: NumPy vectorised (AMD Ryzen, single-thread).
+Rust: Rayon `par_chunks_mut(64)` + `criterion` harness.
+
+| N | Python (ms) | Rust (ms) | Speedup |
+|------:|------------:|----------:|--------:|
+| 64 | 0.050 | 0.003 | 17.3× |
+| 256 | 0.029 | 0.033 | 0.9× |
+| 1 000 | 0.087 | 0.062 | 1.4× |
+| 4 096 | 0.328 | 0.180 | 1.8× |
+| 16 384 | 1.240 | 0.544 | 2.3× |
+
+N=64: Rust wins on per-element throughput (no NumPy dispatch overhead).
+N=256: parity — NumPy SIMD matches rayon for this size.
+N≥1000: Rust rayon parallelism scales; **sub-ms for N=16k** (0.544 ms).
+
+Benchmark source: `benches/bench_kuramoto.rs` (criterion, `--quick` mode).
+
 ---
 
 ## 7. Global Field Driver — ζ sin(Ψ − θ)
@@ -238,7 +260,9 @@ There is **no ˙Ψ equation** — Ψ is a Lagrangian pull parameter.  When
 
 ---
 
-## 8. PAC Cross-Layer Gating
+## 8. PAC Cross-Layer Gating + SNN Sketch
+
+### 8.1 PAC Gate Equation
 
 The UPDE engine supports phase-amplitude coupling gating via `pac_gamma`:
 
@@ -251,6 +275,99 @@ dθ += gain * pac_gate * K[n,m] * R_n * sin(ψ_n - θ - α[n,m])
 When a source layer is incoherent (low R), the gate amplifies its coupling,
 implementing the PAC hypothesis that desynchronised layers drive downstream
 amplitude modulation.
+
+### 8.2 SNN PAC Full Architecture Sketch
+
+The SNN closed-loop couples spiking neural networks with the Kuramoto phase
+oscillator population through a PAC gating mechanism:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    SNN–PAC–Kuramoto Closed Loop                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────────┐     spike rate      ┌──────────────────┐         │
+│  │  LIF Layer A  │ ──────────────────► │  Rate Decoder    │         │
+│  │  (N_a neurons)│     ν_a(t)          │  ν → Ψ mapping   │         │
+│  │  I_syn = f(θ) │                     │  Ψ = π(2ν/ν_max  │         │
+│  └──────┬───────┘                     │       − 1)       │         │
+│         │ synaptic                     └────────┬─────────┘         │
+│         │ input                                 │                   │
+│         │                                       │ Ψ (exogenous)    │
+│  ┌──────▼───────┐                     ┌────────▼─────────┐         │
+│  │  LIF Layer B  │     PAC gate       │  Kuramoto        │         │
+│  │  (N_b neurons)│ ◄─────────────── │  Oscillators     │         │
+│  │  w_ab modulated│    R_source →     │  N oscillators   │         │
+│  │  by R_source  │    gate strength   │  dθ/dt = ω + ..  │         │
+│  └──────┬───────┘                     │  + ζ sin(Ψ − θ)  │         │
+│         │                              └────────┬─────────┘         │
+│         │ spike output                          │                   │
+│         │                                       │ R, ψ_r           │
+│  ┌──────▼───────────────────────────────────────▼─────────┐        │
+│  │                  PAC Feedback Controller                 │        │
+│  │                                                         │        │
+│  │  1. Read R_source from each Kuramoto layer              │        │
+│  │  2. Compute PAC gate: g = 1 + γ·(1 − R_n)              │        │
+│  │  3. Modulate inter-layer SNN weights: w' = g · w_base   │        │
+│  │  4. Inject Kuramoto R into LIF synaptic current:        │        │
+│  │     I_syn = I_base + β · R · cos(ψ_r − θ_preferred)    │        │
+│  │  5. Map spike rate → Ψ for next Kuramoto step           │        │
+│  └─────────────────────────────────────────────────────────┘        │
+│                                                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  Data Flow per Timestep (dt = 1 ms):                                │
+│                                                                     │
+│  t=0:  Kuramoto step → R_m, ψ_m for each layer m                   │
+│  t=1:  PAC gate g_m = 1 + γ(1 − R_m) → modulate SNN weights       │
+│  t=2:  LIF neurons integrate I_syn(R, ψ) → spike/no-spike          │
+│  t=3:  Decode spike rate ν → Ψ_next = π(2ν/ν_max − 1)             │
+│  t=4:  Feed Ψ_next back as exogenous driver → next Kuramoto step   │
+│                                                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  Key Equations:                                                     │
+│                                                                     │
+│  LIF:  τ dV/dt = −(V − V_rest) + R_mem · I_syn                     │
+│         if V ≥ V_th: spike, V → V_reset                            │
+│                                                                     │
+│  PAC gate:  g_{n→m} = 1 + γ_PAC · (1 − R_n)                       │
+│                                                                     │
+│  Synaptic current from Kuramoto:                                    │
+│    I_syn,i = Σ_j w_ij · δ(t − t_j^spike) + β · R_m · cos(ψ_m−φ_i)│
+│                                                                     │
+│  Rate→Ψ decoder:  Ψ = π · (2·ν_window/ν_max − 1)                  │
+│    ν_window = spike_count / T_window  (T_window = 50 ms)           │
+│                                                                     │
+│  Closed-loop stability (Lyapunov candidate):                        │
+│    V(t) = (1/N) Σ_i (1 − cos(θ_i − Ψ)) + λ·|ν − ν_target|²     │
+│    dV/dt ≤ 0 when ζ > 0 and SNN rate tracks target                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 8.3 Cross-Layer PAC Routing (Multi-Layer SNN)
+
+```
+Layer L1 (Quantum)    Layer L7 (Symbolic)    Layer L16 (Director)
+┌──────────────┐      ┌──────────────┐       ┌──────────────┐
+│ LIF₁ (64 neu)│      │ LIF₇ (64 neu)│       │ LIF₁₆(64 neu)│
+│ ω₁ = 1.329   │      │ ω₇ = 1.055   │       │ ω₁₆ = 0.991  │
+└──────┬───────┘      └──────┬───────┘       └──────┬───────┘
+       │                      │                       │
+       │ K[0,6]=0.15          │ K[6,15]               │ K[15,0]=0.05
+       │ PAC g₁₇             │ PAC g₇₁₆              │ PAC g₁₆₁
+       ▼                      ▼                       ▼
+┌──────────────────────────────────────────────────────────────┐
+│                 Kuramoto Phase Bus (16 layers)                │
+│                                                              │
+│  Per-layer R_m, ψ_m → PAC gates g_{n→m} → SNN weight mod   │
+│  Spike rates ν_m → Ψ decoder → exogenous driver feedback    │
+│                                                              │
+│  Cross-hierarchy fast channels:                              │
+│    L1 ↔ L16: K=0.05 (quantum ↔ director)                   │
+│    L5 ↔ L7:  K=0.15 (bio ↔ symbolic)                       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Demo: notebook §9 (SNN closed-loop) and §10 (PAC cross-layer SNN).
 
 ---
 

@@ -16,3 +16,8 @@ approx = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 proptest = { workspace = true }
+
+[[bench]]
+name = "bench_kuramoto"
+harness = false
+path = "../../benches/bench_kuramoto.rs"

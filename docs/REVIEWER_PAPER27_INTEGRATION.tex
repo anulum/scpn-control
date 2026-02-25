@@ -34,7 +34,9 @@
 \author{Miroslav \v{S}otek\\
   \small ORCID: \href{https://orcid.org/0009-0009-3560-0851}{0009-0009-3560-0851}\\
   \small\href{https://www.anulum.li}{www.anulum.li} $\mid$
-  \href{mailto:protoscience@anulum.li}{protoscience@anulum.li}}
+  \href{mailto:protoscience@anulum.li}{protoscience@anulum.li}\\[4pt]
+  \small Paper~27: \href{https://www.academia.edu/}{academia.edu} $\mid$
+  arXiv: \href{https://arxiv.org/abs/2004.06344}{2004.06344}}
 
 \date{25 February 2026}
 
@@ -263,9 +265,36 @@ theta_out
 PyO3 bindings: \texttt{kuramoto\_step()}, \texttt{kuramoto\_run()} returning
 NumPy arrays.
 
+\subsection{Benchmark: Python NumPy vs Rust Rayon}
+
+Median wall-time for a single \texttt{kuramoto\_sakaguchi\_step()} with
+$\zeta=0.5$, $\Psi=0.3$.  Python: NumPy vectorised (single-thread).
+Rust: Rayon \texttt{par\_chunks\_mut(64)} + \texttt{criterion} harness.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}rrrl@{}}
+\toprule
+\textbf{N} & \textbf{Python (ms)} & \textbf{Rust (ms)} & \textbf{Speedup} \\
+\midrule
+64     & 0.050 & 0.003 & 17.3$\times$ \\
+256    & 0.029 & 0.033 & 0.9$\times$ \\
+1\,000 & 0.087 & 0.062 & 1.4$\times$ \\
+4\,096 & 0.328 & 0.180 & 1.8$\times$ \\
+16\,384& 1.240 & 0.544 & 2.3$\times$ \\
+\bottomrule
+\end{tabular}
+\caption{Python NumPy vs Rust Rayon Kuramoto step.
+$N=64$: Rust wins on per-element throughput (no NumPy dispatch overhead).
+$N=256$: parity (NumPy SIMD matches rayon at this size).
+$N\geq 1000$: Rust rayon parallelism scales; sub-ms for $N=16\text{k}$.
+Source: \texttt{benches/bench\_kuramoto.rs} (criterion, quick mode).}
+\label{tab:bench}
+\end{table}
+
 
 %% ──────────────────────────────────────────────────────────────────────
-\section{PAC Cross-Layer Gating}
+\section{PAC Cross-Layer Gating + SNN Sketch}
 
 Phase-amplitude coupling modulation via \texttt{pac\_gamma}:
 \begin{equation}
@@ -279,6 +308,52 @@ Phase-amplitude coupling modulation via \texttt{pac\_gamma}:
 When a source layer is incoherent (low $R_n$), the gate amplifies coupling,
 implementing the PAC hypothesis that desynchronised layers drive downstream
 amplitude modulation.
+
+\subsection{SNN--PAC--Kuramoto Closed Loop}
+
+The SNN closed loop couples LIF spiking networks with the Kuramoto oscillator
+population through a PAC gating mechanism:
+
+\begin{enumerate}
+  \item \textbf{Kuramoto step} $\to$ per-layer $R_m$, $\psi_m$.
+  \item \textbf{PAC gate}: $g_{n\to m} = 1 + \gamma(1 - R_n)$ modulates
+        inter-layer SNN weights $w' = g \cdot w_{\text{base}}$.
+  \item \textbf{LIF integration}: neurons receive synaptic current
+        $I_{\text{syn},i} = \sum_j w_{ij}\,\delta(t - t_j^{\text{spike}})
+        + \beta\,R_m\cos(\psi_m - \varphi_i)$.
+  \item \textbf{Rate decode}: spike rate
+        $\nu = N_{\text{spikes}}/T_{\text{window}}$ (50\,ms window)
+        $\to$ $\Psi = \pi(2\nu/\nu_{\max} - 1)$.
+  \item \textbf{Feedback}: $\Psi$ fed back as exogenous global driver for the
+        next Kuramoto step.
+\end{enumerate}
+
+Key equations:
+\begin{align}
+  \text{LIF:}\quad \tau\,\frac{dV}{dt} &= -(V - V_{\text{rest}}) + R_{\text{mem}}\,I_{\text{syn}}
+  \label{eq:lif}\\[3pt]
+  \text{Rate}\to\Psi:\quad \Psi &= \pi\!\left(\frac{2\nu}{\nu_{\max}} - 1\right)
+  \label{eq:rate2psi}\\[3pt]
+  \text{Lyapunov:}\quad \mathcal{V}(t) &= \frac{1}{N}\sum_i\bigl(1 - \cos(\theta_i - \Psi)\bigr)
+  + \lambda\,|\nu - \nu_{\text{target}}|^2
+  \label{eq:lyapunov_snn}
+\end{align}
+
+\subsection{Cross-Layer PAC Routing}
+
+Cross-hierarchy fast channels bypass the distance-decay coupling:
+
+\begin{itemize}
+  \item L1 (Quantum) $\leftrightarrow$ L16 (Director): $K_{0,15}=0.05$
+  \item L5 (Bio) $\leftrightarrow$ L7 (Symbolic): $K_{4,6}=0.15$
+\end{itemize}
+
+Each layer maintains its own LIF population (64 neurons per layer in the demo).
+PAC gates modulate the effective inter-layer synaptic weights, creating
+frequency-dependent routing where desynchronised layers preferentially
+drive downstream amplitude modulation.
+
+Demo: notebook \S9 (SNN closed-loop) and \S10 (PAC cross-layer SNN).
 
 
 %% ──────────────────────────────────────────────────────────────────────
