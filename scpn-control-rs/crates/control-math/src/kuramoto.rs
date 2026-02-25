@@ -96,6 +96,7 @@ pub fn kuramoto_sakaguchi_step(
 }
 
 /// Run N steps and return final state + R trajectory.
+#[allow(clippy::too_many_arguments)]
 pub fn kuramoto_sakaguchi_run(
     theta_init: &[f64],
     omega: &[f64],

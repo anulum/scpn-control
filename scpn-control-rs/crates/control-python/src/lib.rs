@@ -509,6 +509,7 @@ impl PyTransportSolver {
 
 #[pyfunction]
 #[pyo3(signature = (theta, omega, dt, k, alpha=0.0, zeta=0.0, psi_external=None))]
+#[allow(clippy::too_many_arguments)]
 fn kuramoto_step<'py>(
     py: Python<'py>,
     theta: PyReadonlyArray1<'py, f64>,
@@ -536,6 +537,7 @@ fn kuramoto_step<'py>(
 
 #[pyfunction]
 #[pyo3(signature = (theta, omega, n_steps, dt, k, alpha=0.0, zeta=0.0, psi_external=None))]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn kuramoto_run<'py>(
     py: Python<'py>,
     theta: PyReadonlyArray1<'py, f64>,
