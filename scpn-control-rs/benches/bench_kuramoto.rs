@@ -29,9 +29,7 @@ fn bench_kuramoto_step(c: &mut Criterion) {
 fn bench_kuramoto_order_param(c: &mut Criterion) {
     let mut group = c.benchmark_group("kuramoto_order_param");
     for &n in &[256, 4096, 16384] {
-        let theta: Vec<f64> = (0..n)
-            .map(|i| (i as f64) * 0.01)
-            .collect();
+        let theta: Vec<f64> = (0..n).map(|i| (i as f64) * 0.01).collect();
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| kuramoto::order_parameter(black_box(&theta)));
         });
