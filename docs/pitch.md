@@ -1,7 +1,7 @@
 # SCPN Control — The Fastest Open-Source Fusion Controller
 
 <p align="center">
-  <img src="scpn_control_header.png" alt="SCPN Control" width="100%">
+  <img src="../scpn_control_header.png" alt="SCPN Control" width="100%">
 </p>
 
 ---
@@ -123,7 +123,7 @@ Interactive controls for coupling strength, oscillator count, and Psi driver.
 **Phase sync convergence (500 ticks, 16 layers x 50 oscillators):**
 
 <p align="center">
-  <img src="phase_sync_live.gif" alt="Phase Sync Convergence" width="100%">
+  <img src="../phase_sync_live.gif" alt="Phase Sync Convergence" width="100%">
 </p>
 
 ---
