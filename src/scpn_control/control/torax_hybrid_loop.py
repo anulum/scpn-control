@@ -17,7 +17,6 @@ import numpy as np
 from scpn_control.control.disruption_predictor import predict_disruption_risk
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.contracts import (
-    ControlObservation,
     ControlScales,
     ControlTargets,
 )
@@ -191,7 +190,7 @@ def run_nstxu_torax_hybrid_campaign(
 
             # Hybrid branch = TORAX command + SNN correction
             base_cmd = _torax_policy(hybrid_state)
-            obs: ControlObservation = {"R_axis_m": hybrid_state.beta_n, "Z_axis_m": 0.0}
+            obs: dict[str, float] = {"R_axis_m": hybrid_state.beta_n, "Z_axis_m": 0.0}
             action = controller.step(obs, ep * steps + k)
             snn_corr = float(np.clip(action["dI_PF3_A"] / 4500.0, -0.45, 0.45))
             cmd = float(np.clip(base_cmd + 0.30 * snn_corr, -2.0, 2.0))

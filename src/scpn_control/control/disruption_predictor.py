@@ -21,9 +21,9 @@ try:
     import torch.nn as nn
     import torch.optim as optim
 except Exception:  # pragma: no cover - optional dependency path
-    torch = None
-    nn = None
-    optim = None
+    torch = None  # type: ignore[assignment]
+    nn = None  # type: ignore[assignment]
+    optim = None  # type: ignore[assignment]
 
 DEFAULT_SEQ_LEN = 100
 DEFAULT_MODEL_FILENAME = "disruption_model.pth"

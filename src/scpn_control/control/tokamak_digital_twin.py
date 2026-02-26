@@ -259,8 +259,8 @@ def run_digital_twin(
     state_dim = GRID_SIZE 
     brain = SimpleNeuralNet(state_dim, HIDDEN_SIZE, 1, rng=local_rng)
     
-    history_rewards = []
-    history_actions = []
+    history_rewards: list[float] = []
+    history_actions: list[float] = []
     sensor_dropouts_total = 0
     
     if verbose:

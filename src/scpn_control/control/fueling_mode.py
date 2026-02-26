@@ -16,7 +16,6 @@ import numpy as np
 
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.contracts import (
-    ControlObservation,
     ControlScales,
     ControlTargets,
 )
@@ -112,7 +111,7 @@ class IcePelletFuelingController:
         self.integrator = float(np.clip(self.integrator, -0.5, 0.5))
 
         # SNN pathway receives mapped pseudo-observation.
-        obs: ControlObservation = {
+        obs: dict[str, float] = {
             "R_axis_m": float(6.2 - 0.25 * np.clip(error, -1.0, 1.0)),
             "Z_axis_m": 0.0,
         }

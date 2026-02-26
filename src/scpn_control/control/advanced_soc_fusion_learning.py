@@ -224,18 +224,18 @@ def _plot_learning(
         ax2 = fig.add_subplot(2, 3, (2, 3))
         ax2.plot(h_temp, color="orange", label="Core Temperature")
         ax2_twin = ax2.twinx()
-        ax2_twin.plot(h_flow, color="blue", alpha=0.3, label="Internal Flow")
+        ax2_twin.plot(h_flow, color="blue", alpha=0.3, label="Internal Flow")  # type: ignore[attr-defined]
         ax2.set_title("Reactor Evolution: Temperature Growth")
         ax2.legend(loc="upper left")
-        ax2_twin.legend(loc="upper right")
+        ax2_twin.legend(loc="upper right")  # type: ignore[attr-defined]
 
         ax3 = fig.add_subplot(2, 3, (4, 5))
         ax3.plot(h_turb, "r-", alpha=0.3, label="Turbulence")
         ax3_twin = ax3.twinx()
-        ax3_twin.plot(h_shear_ctrl, "g-", linewidth=2, label="AI Control Signal")
+        ax3_twin.plot(h_shear_ctrl, "g-", linewidth=2, label="AI Control Signal")  # type: ignore[attr-defined]
         ax3.set_title("AI Agent Response to Instability")
         ax3.legend(loc="upper left")
-        ax3_twin.legend(loc="upper right")
+        ax3_twin.legend(loc="upper right")  # type: ignore[attr-defined]
 
         ax4 = fig.add_subplot(2, 3, 6)
         policy_map = np.argmax(q_table, axis=2)

@@ -172,12 +172,12 @@ def _render_outputs(
     ax_plasma = fig.add_subplot(gs[:, 0])
     ax_plasma.set_facecolor("black")
     ax_plasma.set_title("Tokamak Cross-Section (Live)", color="white")
-    extent = [
+    extent = (
         float(frames[0]["r_min"]),
         float(frames[0]["r_max"]),
         float(frames[0]["z_min"]),
         float(frames[0]["z_max"]),
-    ]
+    )
     im = ax_plasma.imshow(
         np.asarray(frames[0]["density"]),
         extent=extent,

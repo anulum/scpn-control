@@ -84,7 +84,7 @@ class HPCBridge:
     """
 
     def __init__(self, lib_path: Optional[str] = None) -> None:
-        self.lib = None
+        self.lib: Optional[ctypes.CDLL] = None
         self.solver_ptr = None
         self.loaded: bool = False
         self._destroy_symbol: Optional[str] = None
@@ -146,8 +146,8 @@ class HPCBridge:
     def __exit__(self, *exc) -> None:
         self.close()
 
-    def _setup_signatures(self):
-        # void* create_solver(int nr, int nz, double rmin, double rmax, double zmin, double zmax)
+    def _setup_signatures(self) -> None:
+        assert self.lib is not None
         self.lib.create_solver.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double]
         self.lib.create_solver.restype = ctypes.c_void_p
 
@@ -208,7 +208,7 @@ class HPCBridge:
         boundary_value: float = 0.0,
     ) -> None:
         """Create the C++ solver instance for the given grid dimensions."""
-        if not self.loaded:
+        if not self.loaded or self.lib is None:
             return
         self.nr = nr
         self.nz = nz
@@ -261,6 +261,7 @@ class HPCBridge:
             return None
         j_input, expected_shape = prepared
         psi_target = _require_c_contiguous_f64(psi_out, expected_shape, "psi_out")
+        assert self.lib is not None
 
         self.lib.run_step(
             self.solver_ptr,
@@ -319,6 +320,7 @@ class HPCBridge:
             max_iterations, tolerance, omega
         )
 
+        assert self.lib is not None
         if not self._has_converged_api:
             self.lib.run_step(
                 self.solver_ptr,
@@ -434,4 +436,5 @@ if __name__ == "__main__":
         
         # Run
         Psi = bridge.solve(J, iterations=500)
-        print(f"Max Flux: {np.max(Psi)}")
+        if Psi is not None:
+            print(f"Max Flux: {np.max(Psi)}")

@@ -12,10 +12,17 @@ authors = [
 ]
 license = "AGPL-3.0-or-later"
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Rust",
     "Topic :: Scientific/Engineering :: Physics",
-    "Development Status :: 3 - Alpha",
 ]
 readme = "README.md"
 dependencies = [
@@ -64,8 +71,23 @@ files = [
     "src/scpn_control/scpn/",
     "src/scpn_control/core/fusion_kernel.py",
     "src/scpn_control/core/_rust_compat.py",
+    "src/scpn_control/core/scaling_laws.py",
+    "src/scpn_control/core/stability_mhd.py",
+    "src/scpn_control/core/neural_transport.py",
+    "src/scpn_control/core/neural_equilibrium.py",
+    "src/scpn_control/core/uncertainty.py",
+    "src/scpn_control/core/eqdsk.py",
+    "src/scpn_control/core/tokamak_config.py",
     "src/scpn_control/control/h_infinity_controller.py",
     "src/scpn_control/control/nengo_snn_wrapper.py",
+    "src/scpn_control/control/disruption_predictor.py",
+    "src/scpn_control/control/disruption_contracts.py",
+    "src/scpn_control/control/spi_mitigation.py",
+    "src/scpn_control/control/fusion_optimal_control.py",
+    "src/scpn_control/control/tokamak_digital_twin.py",
+    "src/scpn_control/control/tokamak_flight_sim.py",
+    "src/scpn_control/control/digital_twin_ingest.py",
+    "src/scpn_control/control/analytic_solver.py",
 ]
 
 [[tool.mypy.overrides]]
@@ -102,3 +124,7 @@ xfail_strict = true
 
 [tool.coverage.report]
 fail_under = 50
+
+[tool.bandit]
+exclude_dirs = ["tests", "examples"]
+skips = ["B101"]

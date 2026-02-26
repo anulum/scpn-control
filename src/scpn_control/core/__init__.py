@@ -17,4 +17,6 @@ except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
     RUST_BACKEND = False
 
-__all__ = ["FusionKernel", "RUST_BACKEND"]
+from scpn_control.core.tokamak_config import TokamakConfig
+
+__all__ = ["FusionKernel", "RUST_BACKEND", "TokamakConfig"]

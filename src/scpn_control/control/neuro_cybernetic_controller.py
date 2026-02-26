@@ -183,6 +183,8 @@ class SpikingControllerPool:
                 if neuron.step(self._i_bias + input_neg):
                     spikes_neg += 1
         else:
+            assert self._v_pos is not None and self._rng_pos is not None
+            assert self._v_neg is not None and self._rng_neg is not None
             spikes_pos = self._step_numpy_population(
                 self._v_pos, self._rng_pos, self._i_bias + input_pos
             )
@@ -364,10 +366,10 @@ class NeuroCyberneticController:
                 if verbose:
                     print(f"Plot export skipped due to error: {exc}")
 
-        err_r = np.asarray(self.history["Err_R"], dtype=np.float64)
-        err_z = np.asarray(self.history["Err_Z"], dtype=np.float64)
-        ctrl_r = np.asarray(self.history["Control_R"], dtype=np.float64)
-        ctrl_z = np.asarray(self.history["Control_Z"], dtype=np.float64)
+        err_r_arr = np.asarray(self.history["Err_R"], dtype=np.float64)
+        err_z_arr = np.asarray(self.history["Err_Z"], dtype=np.float64)
+        ctrl_r_arr = np.asarray(self.history["Control_R"], dtype=np.float64)
+        ctrl_z_arr = np.asarray(self.history["Control_Z"], dtype=np.float64)
         summary: Dict[str, Any] = {
             "seed": self.seed,
             "steps": int(self.shot_duration),
@@ -376,10 +378,10 @@ class NeuroCyberneticController:
             "backend_z": self.brain_Z.backend,
             "final_r": float(self.history["R_axis"][-1]),
             "final_z": float(self.history["Z_axis"][-1]),
-            "mean_abs_err_r": float(np.mean(np.abs(err_r))),
-            "mean_abs_err_z": float(np.mean(np.abs(err_z))),
-            "max_abs_control_r": float(np.max(np.abs(ctrl_r))),
-            "max_abs_control_z": float(np.max(np.abs(ctrl_z))),
+            "mean_abs_err_r": float(np.mean(np.abs(err_r_arr))),
+            "mean_abs_err_z": float(np.mean(np.abs(err_z_arr))),
+            "max_abs_control_r": float(np.max(np.abs(ctrl_r_arr))),
+            "max_abs_control_z": float(np.max(np.abs(ctrl_z_arr))),
             "mean_spike_imbalance": float(np.mean(self.history["Spike_Rates"])),
             "plot_saved": bool(plot_saved),
             "plot_error": plot_error,

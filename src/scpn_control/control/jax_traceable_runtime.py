@@ -219,8 +219,8 @@ if _HAS_TORCH:
         return out
 
 else:
-    _torchscript_rollout = None
-    _torchscript_rollout_batch = None
+    _torchscript_rollout = None  # type: ignore[assignment]
+    _torchscript_rollout_batch = None  # type: ignore[assignment]
 
 
 def _simulate_torchscript(

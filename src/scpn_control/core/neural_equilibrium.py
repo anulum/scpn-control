@@ -174,6 +174,7 @@ class NeuralEquilibriumAccelerator:
         if not self.is_trained:
             raise RuntimeError("Not trained")
         assert self._input_mean is not None and self._input_std is not None
+        assert self.mlp is not None
         x_norm = (X_test - self._input_mean) / self._input_std
         coeffs = self.mlp.predict(x_norm)
         psi_pred = self.pca.inverse_transform(coeffs)
@@ -243,9 +244,9 @@ class NeuralEquilibriumAccelerator:
             delta_upper = 0.3  # default upper triangularity
             delta_lower = 0.3  # default lower triangularity
             q95 = 3.0  # default safety factor at 95% flux
-            if hasattr(eq, 'rbbbs') and eq.rbbbs is not None and len(eq.rbbbs) > 3:
-                r_span = eq.rbbbs.max() - eq.rbbbs.min()
-                kappa = (eq.zbbbs.max() - eq.zbbbs.min()) / max(r_span, 0.01)
+            if eq.rbdry is not None and len(eq.rbdry) > 3:
+                r_span = eq.rbdry.max() - eq.rbdry.min()
+                kappa = (eq.zbdry.max() - eq.zbdry.min()) / max(r_span, 0.01)
             if hasattr(eq, 'qpsi') and eq.qpsi is not None and len(eq.qpsi) > 0:
                 idx_95 = int(0.95 * len(eq.qpsi))
                 q95 = eq.qpsi[min(idx_95, len(eq.qpsi) - 1)]
@@ -314,6 +315,7 @@ class NeuralEquilibriumAccelerator:
 
         # PCA on flattened psi
         Y_compressed = self.pca.fit_transform(Y)
+        assert self.pca.explained_variance_ratio_ is not None
         explained = float(np.sum(self.pca.explained_variance_ratio_))
         logger.info("PCA: %d → %d components, %.2f%% variance retained",
                      Y.shape[1], self.cfg.n_components, explained * 100)
@@ -503,6 +505,7 @@ class NeuralEquilibriumAccelerator:
             features = features[np.newaxis, :]
 
         assert self._input_mean is not None and self._input_std is not None
+        assert self.mlp is not None
         x_norm = (features - self._input_mean) / self._input_std
         coeffs = self.mlp.predict(x_norm)
         psi_flat = self.pca.inverse_transform(coeffs)
@@ -519,6 +522,12 @@ class NeuralEquilibriumAccelerator:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
+        assert self.mlp is not None
+        assert self.pca.mean_ is not None
+        assert self.pca.components_ is not None
+        assert self.pca.explained_variance_ratio_ is not None
+        assert self._input_mean is not None
+        assert self._input_std is not None
         payload: dict[str, NDArray] = {
             "n_components": np.array([self.cfg.n_components]),
             "grid_nh": np.array([self.cfg.grid_shape[0]]),
@@ -653,9 +662,9 @@ if __name__ == "__main__":
     test_eq = read_geqdsk(next(sparc_dir.glob("*.geqdsk")))
     kappa_cli = 1.7
     q95_cli = 3.0
-    if hasattr(test_eq, 'rbbbs') and test_eq.rbbbs is not None and len(test_eq.rbbbs) > 3:
-        r_span = test_eq.rbbbs.max() - test_eq.rbbbs.min()
-        kappa_cli = (test_eq.zbbbs.max() - test_eq.zbbbs.min()) / max(r_span, 0.01)
+    if test_eq.rbdry is not None and len(test_eq.rbdry) > 3:
+        r_span = test_eq.rbdry.max() - test_eq.rbdry.min()
+        kappa_cli = (test_eq.zbdry.max() - test_eq.zbdry.min()) / max(r_span, 0.01)
     if hasattr(test_eq, 'qpsi') and test_eq.qpsi is not None and len(test_eq.qpsi) > 0:
         idx_95 = int(0.95 * len(test_eq.qpsi))
         q95_cli = test_eq.qpsi[min(idx_95, len(test_eq.qpsi) - 1)]

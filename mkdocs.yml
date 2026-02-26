@@ -34,6 +34,7 @@ nav:
   - Use Cases: use_cases.md
   - Competitive Analysis: competitive_analysis.md
   - Tutorials: tutorials.md
+  - API Reference: api.md
   - Benchmarks: benchmarks.md
   - Validation and QA: validation.md
   - Development: development.md

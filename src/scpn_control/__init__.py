@@ -4,7 +4,7 @@ from __future__ import annotations
 __version__ = "0.2.0"
 
 # Core solver
-from scpn_control.core import FusionKernel, RUST_BACKEND
+from scpn_control.core import FusionKernel, RUST_BACKEND, TokamakConfig
 
 # Petri net compiler
 from scpn_control.scpn import (
@@ -29,6 +29,7 @@ __all__ = [
     "__version__",
     "FusionKernel",
     "RUST_BACKEND",
+    "TokamakConfig",
     "StochasticPetriNet",
     "FusionCompiler",
     "CompiledNet",
