@@ -606,12 +606,17 @@ streamlit run examples/streamlit_ws_client.py -- --embedded
 Features: auto-reconnect, R/V/λ time-series plots, per-layer bar chart,
 guard status, Ψ control slider, raw JSON expander, auto-refresh at 3 Hz.
 
-### 11.10 Phase Sync Animation
+### 11.10 Phase Sync Live Video
 
-![Phase Sync Convergence](phase_sync_animation.svg)
+![Phase Sync Convergence](phase_sync_live.gif)
 
-Animated SVG in `docs/phase_sync_animation.svg` showing R_global convergence,
-Lyapunov V decay, λ settling to negative, and per-layer R bar chart growth.
+Real data from RealtimeMonitor (500 ticks, 16×50 oscillators, ζ=0.5):
+
+- **MP4**: [`docs/phase_sync_live.mp4`](phase_sync_live.mp4) (418 KB, H.264)
+- **GIF**: [`docs/phase_sync_live.gif`](phase_sync_live.gif) (1.1 MB)
+- **Generator**: `tools/generate_phase_video.py --ticks 500 --fps 20`
+
+Observed convergence: R=0.92, V→0, λ=−0.47 (stable), 38 µs/tick.
 
 ### 11.11 PyPI Publish Script
 

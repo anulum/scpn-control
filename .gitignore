@@ -42,6 +42,7 @@ benchmarks/results/
 # Simulation outputs
 *.npz
 *.gif
+!docs/**/*.gif
 *.png
 !docs/**/*.png
 !weights/pretrained_mlp_itpa.npz
