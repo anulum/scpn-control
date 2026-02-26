@@ -568,6 +568,140 @@ fn kuramoto_run<'py>(
     ))
 }
 
+// ─── UPDE multi-layer realtime monitor ───
+
+#[pyclass]
+struct PyRealtimeMonitor {
+    theta_flat: Vec<f64>,
+    omega_flat: Vec<f64>,
+    knm_flat: Vec<f64>,
+    zeta: Vec<f64>,
+    n_layers: usize,
+    n_per: usize,
+    dt: f64,
+    psi_driver: f64,
+    pac_gamma: f64,
+    tick_count: u64,
+}
+
+#[pymethods]
+impl PyRealtimeMonitor {
+    #[new]
+    #[pyo3(signature = (knm, zeta, theta, omega, n_layers, n_per, dt=1e-3, psi_driver=0.0, pac_gamma=0.0))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        knm: PyReadonlyArray1<'_, f64>,
+        zeta: PyReadonlyArray1<'_, f64>,
+        theta: PyReadonlyArray1<'_, f64>,
+        omega: PyReadonlyArray1<'_, f64>,
+        n_layers: usize,
+        n_per: usize,
+        dt: f64,
+        psi_driver: f64,
+        pac_gamma: f64,
+    ) -> PyResult<Self> {
+        let th = theta.as_slice()?.to_vec();
+        let om = omega.as_slice()?.to_vec();
+        let k = knm.as_slice()?.to_vec();
+        let z = zeta.as_slice()?.to_vec();
+        if th.len() != n_layers * n_per {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "theta length mismatch",
+            ));
+        }
+        if om.len() != n_layers * n_per {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "omega length mismatch",
+            ));
+        }
+        if k.len() != n_layers * n_layers {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "knm length mismatch",
+            ));
+        }
+        if z.len() != n_layers {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "zeta length mismatch",
+            ));
+        }
+        Ok(Self {
+            theta_flat: th,
+            omega_flat: om,
+            knm_flat: k,
+            zeta: z,
+            n_layers,
+            n_per,
+            dt,
+            psi_driver,
+            pac_gamma,
+            tick_count: 0,
+        })
+    }
+
+    /// Advance one UPDE step. Returns dict with R_global, R_layer, V_global, V_layer, Psi_global, tick.
+    fn tick<'py>(&mut self, py: Python<'py>) -> PyResult<PyObject> {
+        let res = kuramoto::upde_tick(
+            &self.theta_flat,
+            &self.omega_flat,
+            &self.knm_flat,
+            &self.zeta,
+            self.n_layers,
+            self.n_per,
+            self.dt,
+            self.psi_driver,
+            self.pac_gamma,
+        );
+        self.theta_flat = res.theta_flat;
+        self.tick_count += 1;
+
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("tick", self.tick_count)?;
+        dict.set_item("R_global", res.r_global)?;
+        dict.set_item("R_layer", res.r_layer.into_pyarray(py))?;
+        dict.set_item("Psi_global", res.psi_global)?;
+        dict.set_item("V_global", res.v_global)?;
+        dict.set_item("V_layer", res.v_layer.into_pyarray(py))?;
+        Ok(dict.into())
+    }
+
+    #[setter]
+    fn set_psi_driver(&mut self, v: f64) {
+        self.psi_driver = v;
+    }
+
+    #[getter]
+    fn get_psi_driver(&self) -> f64 {
+        self.psi_driver
+    }
+
+    #[setter]
+    fn set_pac_gamma(&mut self, v: f64) {
+        self.pac_gamma = v;
+    }
+
+    #[getter]
+    fn get_pac_gamma(&self) -> f64 {
+        self.pac_gamma
+    }
+
+    #[getter]
+    fn tick_count(&self) -> u64 {
+        self.tick_count
+    }
+
+    fn reset(&mut self, theta: PyReadonlyArray1<'_, f64>) -> PyResult<()> {
+        let th = theta.as_slice()?.to_vec();
+        if th.len() != self.n_layers * self.n_per {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "theta length mismatch",
+            ));
+        }
+        self.theta_flat = th;
+        self.tick_count = 0;
+        Ok(())
+    }
+}
+
 // ─── Module registration ───
 
 /// SCPN Control — Rust-accelerated control pipeline.
@@ -592,6 +726,7 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(kuramoto_step, m)?)?;
     m.add_function(wrap_pyfunction!(kuramoto_run, m)?)?;
     m.add_function(wrap_pyfunction!(kuramoto_run_lyapunov, m)?)?;
+    m.add_class::<PyRealtimeMonitor>()?;
     Ok(())
 }
 

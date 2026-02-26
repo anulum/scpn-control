@@ -165,6 +165,120 @@ pub fn kuramoto_run_lyapunov(
     (Array1::from_vec(theta), r_hist, v_hist, lyap_exp)
 }
 
+/// Result of a single UPDE multi-layer tick.
+pub struct UpdeTick {
+    /// Updated per-layer phases (concatenated: L × N_per).
+    pub theta_flat: Vec<f64>,
+    /// Per-layer order parameter R.
+    pub r_layer: Vec<f64>,
+    /// Global order parameter R.
+    pub r_global: f64,
+    /// Global mean phase Ψ.
+    pub psi_global: f64,
+    /// Per-layer Lyapunov V.
+    pub v_layer: Vec<f64>,
+    /// Global Lyapunov V.
+    pub v_global: f64,
+}
+
+/// One multi-layer UPDE tick: per-layer Kuramoto + inter-layer Knm coupling.
+///
+/// `knm_flat` is the L×L coupling matrix in row-major order.
+/// `theta_flat` / `omega_flat` are L × N_per concatenated layer arrays.
+/// `zeta` is the per-layer ζ vector (length L).
+#[allow(clippy::too_many_arguments)]
+pub fn upde_tick(
+    theta_flat: &[f64],
+    omega_flat: &[f64],
+    knm_flat: &[f64],
+    zeta: &[f64],
+    n_layers: usize,
+    n_per: usize,
+    dt: f64,
+    psi_driver: f64,
+    pac_gamma: f64,
+) -> UpdeTick {
+    assert_eq!(theta_flat.len(), n_layers * n_per);
+    assert_eq!(omega_flat.len(), n_layers * n_per);
+    assert_eq!(knm_flat.len(), n_layers * n_layers);
+    assert_eq!(zeta.len(), n_layers);
+
+    // Per-layer order parameters
+    let mut r_layer = vec![0.0_f64; n_layers];
+    let mut psi_layer = vec![0.0_f64; n_layers];
+    for m in 0..n_layers {
+        let start = m * n_per;
+        let (r, psi) = order_parameter(&theta_flat[start..start + n_per]);
+        r_layer[m] = r;
+        psi_layer[m] = psi;
+    }
+
+    let psi_global = psi_driver;
+
+    // Advance each layer
+    let mut theta_out = vec![0.0_f64; n_layers * n_per];
+
+    for m in 0..n_layers {
+        let start = m * n_per;
+        let z = zeta[m];
+
+        for i in 0..n_per {
+            let idx = start + i;
+            let th = theta_flat[idx];
+            let om = omega_flat[idx];
+
+            // Intra-layer: K_mm * R_m * sin(ψ_m - θ)
+            let k_mm = knm_flat[m * n_layers + m];
+            let mut dth = om + k_mm * r_layer[m] * (psi_layer[m] - th).sin();
+
+            // ζ sin(Ψ - θ)
+            if z != 0.0 {
+                dth += z * (psi_global - th).sin();
+            }
+
+            // Inter-layer coupling
+            for n in 0..n_layers {
+                if n == m {
+                    continue;
+                }
+                let k_mn = knm_flat[m * n_layers + n];
+                if k_mn == 0.0 {
+                    continue;
+                }
+                let mut gain = k_mn * r_layer[n] * (psi_layer[n] - th).sin();
+                // PAC gate: amplify when source layer is incoherent
+                if pac_gamma != 0.0 {
+                    gain *= 1.0 + pac_gamma * (1.0 - r_layer[n]);
+                }
+                dth += gain;
+            }
+
+            theta_out[idx] = wrap_phase(th + dt * dth);
+        }
+    }
+
+    // Post-step order parameters
+    let mut r_layer_out = vec![0.0_f64; n_layers];
+    let mut v_layer = vec![0.0_f64; n_layers];
+    for m in 0..n_layers {
+        let start = m * n_per;
+        let (r, _) = order_parameter(&theta_out[start..start + n_per]);
+        r_layer_out[m] = r;
+        v_layer[m] = lyapunov_v(&theta_out[start..start + n_per], psi_global);
+    }
+    let (r_global_out, _) = order_parameter(&theta_out);
+    let v_global = lyapunov_v(&theta_out, psi_global);
+
+    UpdeTick {
+        theta_flat: theta_out,
+        r_layer: r_layer_out,
+        r_global: r_global_out,
+        psi_global,
+        v_layer,
+        v_global,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,6 +356,49 @@ mod tests {
         let theta = vec![0.5; 100];
         let v = lyapunov_v(&theta, 0.5);
         assert!(v.abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_upde_tick_shape() {
+        let l = 4;
+        let n = 20;
+        let theta: Vec<f64> = (0..l * n).map(|i| (i as f64) * 0.05).collect();
+        let omega = vec![0.0; l * n];
+        // Identity-diagonal Knm (no inter-layer coupling)
+        let mut knm = vec![0.0; l * l];
+        for m in 0..l {
+            knm[m * l + m] = 2.0;
+        }
+        let zeta = vec![0.5; l];
+        let res = upde_tick(&theta, &omega, &knm, &zeta, l, n, 0.01, 0.3, 0.0);
+        assert_eq!(res.theta_flat.len(), l * n);
+        assert_eq!(res.r_layer.len(), l);
+        assert_eq!(res.v_layer.len(), l);
+        assert!(res.r_global >= 0.0 && res.r_global <= 1.0);
+    }
+
+    #[test]
+    fn test_upde_tick_zeta_convergence() {
+        let l = 4;
+        let n = 30;
+        let theta: Vec<f64> = (0..l * n)
+            .map(|i| -std::f64::consts::PI + (i as f64) * 0.05)
+            .collect();
+        let omega = vec![0.0; l * n];
+        let mut knm = vec![0.0; l * l];
+        for m in 0..l {
+            knm[m * l + m] = 1.0;
+        }
+        let zeta = vec![3.0; l];
+        let psi = 0.5;
+
+        let mut th = theta.clone();
+        for _ in 0..300 {
+            let res = upde_tick(&th, &omega, &knm, &zeta, l, n, 0.005, psi, 0.0);
+            th = res.theta_flat;
+        }
+        let v = lyapunov_v(&th, psi);
+        assert!(v < 0.3, "v = {v}, expected convergence toward Ψ");
     }
 
     #[test]

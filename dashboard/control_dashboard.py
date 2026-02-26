@@ -23,11 +23,16 @@ except ImportError:
     HAS_MPL = False
     st.error("matplotlib not installed — plots disabled")
 
+import json
+import time
+from pathlib import Path
+
 st.set_page_config(page_title="SCPN Control Dashboard", layout="wide")
 st.title("SCPN Control Dashboard")
 
-tab_traj, tab_rmse, tab_bench, tab_replay = st.tabs([
-    "Trajectory Viewer", "RMSE Dashboard", "Timing Benchmark", "Shot Replay"
+tab_traj, tab_phase, tab_vega, tab_rmse, tab_bench, tab_replay = st.tabs([
+    "Trajectory Viewer", "Phase Sync Monitor", "Benchmark Plots",
+    "RMSE Dashboard", "Timing Benchmark", "Shot Replay",
 ])
 
 # ─── Trajectory Viewer ───
@@ -61,6 +66,110 @@ with tab_traj:
         else:
             st.line_chart({"state": states, "error": errors})
 
+# ─── Phase Sync Monitor (RealtimeMonitor live hook) ───
+with tab_phase:
+    st.header("Phase Sync Monitor — Paper 27 UPDE + LyapunovGuard")
+
+    col_cfg1, col_cfg2, col_cfg3, col_cfg4 = st.columns(4)
+    L = col_cfg1.number_input("Layers", 2, 16, 8, key="phase_L")
+    N_per = col_cfg2.number_input("Oscillators/layer", 10, 200, 50, key="phase_N")
+    zeta_val = col_cfg3.slider("ζ (driver)", 0.0, 5.0, 0.5, 0.1, key="phase_zeta")
+    psi_val = col_cfg4.slider("Ψ (target)", -3.14, 3.14, 0.0, 0.1, key="phase_psi")
+
+    col_cfg5, col_cfg6 = st.columns(2)
+    pac_val = col_cfg5.slider("PAC γ", 0.0, 2.0, 0.0, 0.1, key="phase_pac")
+    n_ticks = col_cfg6.number_input("Ticks", 50, 2000, 500, step=50, key="phase_ticks")
+
+    if st.button("Run Phase Sync", key="run_phase"):
+        from scpn_control.phase.realtime_monitor import RealtimeMonitor
+
+        mon = RealtimeMonitor.from_paper27(
+            L=int(L), N_per=int(N_per),
+            zeta_uniform=zeta_val, psi_driver=psi_val,
+            pac_gamma=pac_val,
+        )
+
+        r_hist, v_hist, lam_hist, lat_hist = [], [], [], []
+        r_layer_hist = []
+        progress = st.progress(0)
+        status = st.empty()
+
+        for i in range(int(n_ticks)):
+            snap = mon.tick()
+            r_hist.append(snap["R_global"])
+            v_hist.append(snap["V_global"])
+            lam_hist.append(snap["lambda_exp"])
+            lat_hist.append(snap["latency_us"])
+            r_layer_hist.append(snap["R_layer"])
+            if (i + 1) % 50 == 0:
+                progress.progress((i + 1) / int(n_ticks))
+                status.text(
+                    f"tick {i+1}/{int(n_ticks)}  R={snap['R_global']:.3f}  "
+                    f"λ={snap['lambda_exp']:.4f}  guard={'OK' if snap['guard_approved'] else 'HALT'}  "
+                    f"lat={snap['latency_us']:.0f} µs"
+                )
+
+        progress.progress(1.0)
+        final = snap
+
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1.metric("R_global (final)", f"{final['R_global']:.4f}")
+        col_m2.metric("λ (Lyapunov)", f"{final['lambda_exp']:.4f}")
+        col_m3.metric("Guard", "APPROVED" if final["guard_approved"] else "HALT")
+        col_m4.metric("Latency P50", f"{sorted(lat_hist)[len(lat_hist)//2]:.0f} µs")
+
+        if HAS_MPL:
+            fig, axes = plt.subplots(2, 2, figsize=(12, 7))
+            axes[0, 0].plot(r_hist, linewidth=0.8, color="#4c78a8")
+            axes[0, 0].set_ylabel("R_global")
+            axes[0, 0].set_title("Global Coherence")
+
+            axes[0, 1].plot(v_hist, linewidth=0.8, color="#e45756")
+            axes[0, 1].set_ylabel("V_global")
+            axes[0, 1].set_title("Lyapunov V(t)")
+
+            axes[1, 0].plot(lam_hist, linewidth=0.8, color="#72b7b2")
+            axes[1, 0].axhline(0, color="#999", linestyle="--", linewidth=0.5)
+            axes[1, 0].set_ylabel("λ")
+            axes[1, 0].set_xlabel("tick")
+            axes[1, 0].set_title("Lyapunov Exponent")
+
+            r_arr = np.array(r_layer_hist)
+            for m in range(r_arr.shape[1]):
+                axes[1, 1].plot(r_arr[:, m], linewidth=0.5, alpha=0.7, label=f"L{m}")
+            axes[1, 1].set_ylabel("R_layer")
+            axes[1, 1].set_xlabel("tick")
+            axes[1, 1].set_title("Per-Layer Coherence")
+            if r_arr.shape[1] <= 8:
+                axes[1, 1].legend(fontsize=6, ncol=2)
+
+            fig.tight_layout()
+            st.pyplot(fig)
+        else:
+            st.line_chart({"R_global": r_hist, "V_global": v_hist})
+
+        with st.expander("DIRECTOR_AI Export (last tick)"):
+            st.json(final["director_ai"])
+
+# ─── Benchmark Plots (Vega-Lite interactive) ───
+with tab_vega:
+    st.header("Interactive Benchmark Plots — Paper 27")
+
+    vega_path = Path(__file__).resolve().parent.parent / "docs" / "bench_interactive.vl.json"
+    if vega_path.exists():
+        spec = json.loads(vega_path.read_text(encoding="utf-8"))
+        st.vega_lite_chart(spec, use_container_width=True)
+        st.caption("Click legend entries to filter series. Data from Criterion + Python benchmarks.")
+    else:
+        st.warning(f"Vega-Lite spec not found: {vega_path}")
+
+    st.subheader("Individual Benchmark Charts")
+    for vl_name in ["bench_lyapunov_vs_zeta.vl.json", "bench_pac_vs_nopac.vl.json"]:
+        vl_path = Path(__file__).resolve().parent.parent / "docs" / vl_name
+        if vl_path.exists():
+            vl_spec = json.loads(vl_path.read_text(encoding="utf-8"))
+            st.vega_lite_chart(vl_spec, use_container_width=True)
+
 # ─── RMSE Dashboard ───
 with tab_rmse:
     st.header("RMSE Validation")
@@ -71,7 +180,6 @@ with tab_bench:
     st.header("Controller Latency Benchmark")
     n_bench = st.number_input("Iterations", 100, 50000, 5000, step=1000)
     if st.button("Run Benchmark", key="run_bench"):
-        import time
         # PID
         t0 = time.perf_counter()
         kp, ki, kd = 1.0, 0.1, 0.01
@@ -102,7 +210,6 @@ with tab_bench:
 # ─── Shot Replay ───
 with tab_replay:
     st.header("Disruption Shot Replay")
-    from pathlib import Path
     shots_dir = Path("validation/reference_data/diiid/disruption_shots")
     if shots_dir.exists():
         shot_files = sorted(shots_dir.glob("*.npz"))

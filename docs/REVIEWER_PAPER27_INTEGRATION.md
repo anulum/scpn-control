@@ -525,6 +525,32 @@ CI job `python-benchmark` runs Kuramoto steps at DIII-D PCS scale:
 - N=1000, N=4096 single-step P50 < 5 ms gate
 - RealtimeMonitor tick (16 × 50 oscillators) P50 < 50 ms gate
 
+### 11.4 Streamlit Dashboard
+
+`dashboard/control_dashboard.py` — 6 tabs:
+
+1. **Trajectory Viewer** — closed-loop PID/SNN trajectory
+2. **Phase Sync Monitor** — live RealtimeMonitor with R/V/λ plots + DIRECTOR_AI export
+3. **Benchmark Plots** — `bench_interactive.vl.json` embedded as `st.vega_lite_chart`
+4. **RMSE Dashboard** — validation summary
+5. **Timing Benchmark** — PID vs SNN latency
+6. **Shot Replay** — disruption shot viewer
+
+### 11.5 Rust PyO3 UPDE Tick
+
+`PyRealtimeMonitor` in `control-python/src/lib.rs` wraps the Rust `upde_tick()`
+multi-layer kernel:
+
+```python
+import scpn_control_rs as rs
+mon = rs.PyRealtimeMonitor(knm_flat, zeta, theta_flat, omega_flat, L, N_per)
+snap = mon.tick()  # returns {R_global, R_layer, V_global, V_layer, Psi_global, tick}
+```
+
+Rust `upde_tick` in `control-math/src/kuramoto.rs`: per-layer Kuramoto +
+inter-layer Knm coupling + PAC gate + Lyapunov V tracking.  11 Rust tests
+(9 existing + 2 new `test_upde_tick_*`).
+
 ---
 
 ## 12. FusionKernel.phase_sync_step() — Single Step
@@ -550,7 +576,7 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 
 ## 13. Test Coverage
 
-**50 Python tests** (all passing, ~7s):
+**50 Python tests + 3 Rust parity** (all passing, ~13s):
 
 | Class | Tests | What is verified |
 |-------|------:|------------------|
@@ -567,7 +593,7 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 | `TestLyapunovGuard` | 5 | Stable approved, unstable refused, batch, DIRECTOR_AI dict, reset |
 | `TestRealtimeMonitor` | 6 | from_paper27 defaults, tick snapshot, multi-tick, convergence, reset, DIRECTOR_AI export |
 
-**9 Rust tests** (inline, all passing):
+**11 Rust tests** (inline, all passing):
 
 | Test | What is verified |
 |------|------------------|
@@ -580,6 +606,8 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 | `test_run_returns_trajectory` | Correct trajectory length |
 | `test_lyapunov_v_synced_is_zero` | V=0 at perfect sync |
 | `test_lyapunov_exponent_negative_with_zeta` | λ<0 with ζ=3 driver |
+| `test_upde_tick_shape` | Multi-layer tick output dimensions |
+| `test_upde_tick_zeta_convergence` | 4-layer ζ=3 convergence to Ψ |
 
 **Full suite regression**: 563 passed, 91 skipped, 1 pre-existing failure (unrelated).
 
