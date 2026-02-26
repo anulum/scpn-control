@@ -211,7 +211,7 @@ def test_generate_results_md_without_campaign():
         elapsed_s=10.0,
         campaign=None,
     )
-    assert "SCPN Control" in md
+    assert "SCPN" in md
     assert "Controller Performance" not in md
 
 

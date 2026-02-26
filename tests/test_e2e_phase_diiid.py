@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 from scpn_control.phase.realtime_monitor import RealtimeMonitor, TrajectoryRecorder
-from tests.mock_diiid import generate_mock_shot, save_mock_shot
+from mock_diiid import generate_mock_shot, save_mock_shot
 
 
 class TestMockDIIID:
