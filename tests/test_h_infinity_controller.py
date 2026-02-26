@@ -280,7 +280,7 @@ class TestInputValidation:
         """B2 row count must match A."""
         A, B1, _, C1, C2 = _vertical_stability_plant()
         B2_wrong = np.array([[0.0], [0.0], [1.0]])  # 3 rows vs A is 2x2
-        with pytest.raises(ValueError, match="same number of rows"):
+        with pytest.raises(ValueError, match="row count must match A"):
             HInfinityController(A, B1, B2_wrong, C1, C2)
 
     def test_rejects_nonfinite_step_error(self) -> None:
@@ -331,15 +331,22 @@ class TestEnforceRobustFeasibility:
 
     def test_strict_mode_rejects_infeasible(self) -> None:
         """enforce_robust_feasibility=True raises on infeasible synthesis."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=100.0)
-        # The reference plant with gamma_v=100 typically fails spectral condition
+        # Pathologically ill-conditioned: huge disturbance, tiny control authority
+        A = np.array([[0.0, 1.0], [1e6, 0.0]])
+        B1 = np.array([[0.0], [100.0]])
+        B2 = np.array([[0.0], [0.01]])
+        C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
+        C2 = np.array([[1.0, 0.0]])
         with pytest.raises(ValueError, match="spectral feasibility condition failed"):
             HInfinityController(A, B1, B2, C1, C2, enforce_robust_feasibility=True)
 
     def test_non_strict_mode_warns(self, caplog: pytest.LogCaptureFixture) -> None:
         """Without enforce_robust_feasibility, infeasible produces a warning."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=100.0)
+        A = np.array([[0.0, 1.0], [1e6, 0.0]])
+        B1 = np.array([[0.0], [100.0]])
+        B2 = np.array([[0.0], [0.01]])
+        C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
+        C2 = np.array([[1.0, 0.0]])
         with caplog.at_level("WARNING", logger="scpn_control.control.h_infinity_controller"):
             ctrl = HInfinityController(A, B1, B2, C1, C2)
-        # Should still produce a controller, just flag infeasible
         assert isinstance(ctrl, HInfinityController)
