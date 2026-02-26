@@ -78,7 +78,7 @@ def bump_version(part: str) -> str:
     text = PYPROJECT.read_text(encoding="utf-8")
     text = text.replace(f'version = "{old}"', f'version = "{new}"', 1)
     PYPROJECT.write_text(text, encoding="utf-8")
-    print(f"  Version bumped: {old} → {new}")
+    print(f"  Version bumped: {old} -> {new}")
     return new
 
 

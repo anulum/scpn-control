@@ -5,6 +5,8 @@
 <p align="center">
   <a href="https://github.com/anulum/scpn-control/actions"><img src="https://github.com/anulum/scpn-control/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/anulum/scpn-control/actions/workflows/docs-pages.yml"><img src="https://github.com/anulum/scpn-control/actions/workflows/docs-pages.yml/badge.svg" alt="Docs Pages"></a>
+  <img src="https://img.shields.io/badge/version-0.2.0-blue.svg" alt="Version 0.2.0">
+  <a href="https://scpn-control.streamlit.app"><img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Open in Streamlit"></a>
   <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
   <a href="https://orcid.org/0009-0009-3560-0851"><img src="https://img.shields.io/badge/ORCID-0009--0009--3560--0851-green.svg" alt="ORCID"></a>
   <a href="https://arxiv.org/abs/2004.06344"><img src="https://img.shields.io/badge/arXiv-2004.06344-b31b1b.svg" alt="arXiv"></a>
@@ -222,15 +224,15 @@ Phase Sync Monitor (live R/V/λ plots), Benchmark Plots (interactive Vega).
 
 ### Streamlit Cloud
 
-The phase sync dashboard auto-deploys to Streamlit Cloud with embedded
-server mode (no external WS server needed):
+**Live dashboard:** [scpn-control.streamlit.app](https://scpn-control.streamlit.app)
 
-1. Fork or push to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io) → New app
-3. Select `anulum/scpn-control` → `streamlit_app.py`
-4. Deploy
+The phase sync dashboard runs on Streamlit Cloud with embedded server mode
+(no external WS server needed). Entry point: `streamlit_app.py`.
 
-Entry point: `streamlit_app.py` (auto-starts embedded PhaseStreamServer).
+To deploy your own instance:
+1. Fork to your GitHub
+2. [share.streamlit.io](https://share.streamlit.io) > New app > select `streamlit_app.py`
+3. Deploy (auto-starts embedded PhaseStreamServer)
 
 ## Rust Acceleration
 

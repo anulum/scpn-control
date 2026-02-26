@@ -655,7 +655,27 @@ Files added for one-click Streamlit Cloud deployment:
 - `.streamlit/config.toml` — dark theme matching docs video palette
 - `streamlit_app.py` — root entry point with auto-start embedded server
 
-Deploy: share.streamlit.io → New app → `anulum/scpn-control` → `streamlit_app.py`.
+Deploy: share.streamlit.io > New app > `anulum/scpn-control` > `streamlit_app.py`.
+
+Live: [scpn-control.streamlit.app](https://scpn-control.streamlit.app)
+
+### 11.15 PyPI Version Bump (v0.2.0)
+
+Version bumped from 0.1.0 to 0.2.0 to mark the `live` CLI feature and full
+Paper 27 phase dynamics integration:
+
+```
+pyproject.toml:  version = "0.2.0"
+__init__.py:     __version__ = "0.2.0"
+CHANGELOG.md:    [0.2.0] — 2026-02-26
+```
+
+Build artifacts (dry-run verified):
+- `scpn_control-0.2.0-py3-none-any.whl` (226 KB)
+- `scpn_control-0.2.0.tar.gz` (272 KB)
+- twine check: PASSED
+
+Publish: `python tools/publish.py --target testpypi` (or `--target pypi --confirm`).
 
 ---
 
