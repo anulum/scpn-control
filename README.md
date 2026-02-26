@@ -16,8 +16,8 @@
 **scpn-control** is a standalone neuro-symbolic control engine that compiles
 Stochastic Petri Nets into spiking neural network controllers with formal
 verification guarantees. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) as the minimal
-41-file transitive closure of the control pipeline.
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 48 source
+modules, 41 test files, **675 tests**, 5 Rust crates, 14 CI jobs.
 
 > **11.9 µs P50 control loop** — faster than any open-source fusion code,
 > competitive with the DIII-D PCS (4–10 kHz physics loops).
@@ -98,14 +98,66 @@ src/scpn_control/
 |   +-- tokamak_digital_twin.py    # Digital twin
 |   +-- tokamak_flight_sim.py      # IsoFlux flight simulator
 |   +-- neuro_cybernetic_controller.py  # Dual R+Z SNN
++-- phase/             # Paper 27 Knm/UPDE phase dynamics (NEW)
+|   +-- kuramoto.py    #   Kuramoto-Sakaguchi step + order parameter
+|   +-- knm.py         #   Paper 27 Knm coupling matrix builder
+|   +-- upde.py        #   UPDE multi-layer solver
+|   +-- lyapunov_guard.py          # Sliding-window stability monitor
+|   +-- realtime_monitor.py        # Tick-by-tick UPDE + TrajectoryRecorder
+|   +-- ws_phase_stream.py         # Async WebSocket live stream server
 +-- cli.py             # Click CLI
 
 scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-types/     # PlasmaState, EquilibriumConfig, ControlAction
-+-- control-math/      # LIF neuron, Boris pusher, matrix ops
++-- control-math/      # LIF neuron, Boris pusher, Kuramoto, upde_tick
 +-- control-core/      # GS solver, transport, confinement scaling
 +-- control-control/   # PID, MPC, H-inf, SNN controller
-+-- control-python/    # Slim PyO3 bindings (~474 LOC)
++-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
+
+tests/                 # 675 tests (41 files)
++-- mock_diiid.py      # Synthetic DIII-D shot generator (14-field NPZ)
++-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
++-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
++-- test_rust_realtime_parity.py  # Rust PyRealtimeMonitor parity
++-- ...                # 37 more test files
+```
+
+## Paper 27 Phase Dynamics (Knm/UPDE Engine)
+
+Implements the generalized Kuramoto-Sakaguchi mean-field model with exogenous
+global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
+
+**Modules:** `src/scpn_control/phase/` (7 files)
+
+| Module | Purpose |
+|--------|---------|
+| `kuramoto.py` | Kuramoto-Sakaguchi step, order parameter R·e^{iΨ}, Lyapunov V/λ |
+| `knm.py` | Paper 27 16×16 coupling matrix (exponential decay + calibration anchors) |
+| `upde.py` | UPDE multi-layer solver with PAC gating |
+| `lyapunov_guard.py` | Sliding-window stability monitor (mirrors DIRECTOR_AI CoherenceScorer) |
+| `realtime_monitor.py` | Tick-by-tick UPDE + TrajectoryRecorder (HDF5/NPZ export) |
+| `ws_phase_stream.py` | Async WebSocket server streaming R/V/λ per tick |
+
+**Rust acceleration:** `upde_tick()` in `control-math` + `PyRealtimeMonitor` PyO3 binding.
+
+**WebSocket live demo:**
+
+<p align="center">
+  <img src="docs/ws_phase_demo.svg" alt="WebSocket Phase Sync Monitor" width="100%">
+</p>
+
+```bash
+# Start WebSocket server (standalone)
+python -m scpn_control.phase.ws_phase_stream --port 8765
+
+# Or via Streamlit dashboard (Phase Sync Monitor tab)
+streamlit run dashboard/control_dashboard.py
+```
+
+**E2E test with mock DIII-D shot data:**
+
+```bash
+pytest tests/test_e2e_phase_diiid.py -v
 ```
 
 ## Dependencies
@@ -116,6 +168,8 @@ scpn-control-rs/       # Rust workspace (5 crates)
 | scipy >= 1.10 | streamlit (`pip install -e ".[dashboard]"`) |
 | click >= 8.0 | torch (`pip install -e ".[ml]"`) |
 | | nengo (`pip install -e ".[nengo]"`) |
+| | h5py (`pip install -e ".[hdf5]"`) |
+| | websockets (`pip install -e ".[ws]"`) |
 
 ## CLI
 
@@ -150,7 +204,8 @@ pip install -e ".[dashboard]"
 streamlit run dashboard/control_dashboard.py
 ```
 
-Four tabs: Trajectory Viewer, RMSE Dashboard, Timing Benchmark, Shot Replay.
+Six tabs: Trajectory Viewer, RMSE Dashboard, Timing Benchmark, Shot Replay,
+Phase Sync Monitor (live R/V/λ plots), Benchmark Plots (interactive Vega).
 
 ## Rust Acceleration
 
@@ -174,6 +229,7 @@ The Rust backend provides PyO3 bindings for:
 - `PyMpcController` -- Model Predictive Control
 - `PyPlasma2D` -- Digital twin
 - `PyTransportSolver` -- Chang-Hinton + Sauter bootstrap
+- `PyRealtimeMonitor` -- Multi-layer Kuramoto UPDE tick (phase dynamics)
 - SCPN kernels -- `dense_activations`, `marking_update`, `sample_firing`
 
 ## Citation

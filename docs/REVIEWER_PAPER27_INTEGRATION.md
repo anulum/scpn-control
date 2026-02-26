@@ -3,7 +3,7 @@
 **Repository:** [anulum/scpn-control](https://github.com/anulum/scpn-control)
 **Branch:** `main`
 **Commits:** `81704be..HEAD`
-**Date:** 2026-02-25
+**Date:** 2026-02-26
 **Author:** Miroslav Šotek — ORCID [0009-0009-3560-0851](https://orcid.org/0009-0009-3560-0851)
 **Paper 27:** [academia.edu](https://www.academia.edu/) | arXiv: [2004.06344](https://arxiv.org/abs/2004.06344) (Kuramoto–Sakaguchi finite-size)
 **PDF export:** [`REVIEWER_PAPER27_INTEGRATION.pdf`](REVIEWER_PAPER27_INTEGRATION.pdf)
@@ -553,6 +553,8 @@ inter-layer Knm coupling + PAC gate + Lyapunov V tracking.  11 Rust tests
 
 ### 11.6 WebSocket Phase Stream
 
+![WebSocket Phase Sync Monitor](ws_phase_demo.svg)
+
 `scpn_control.phase.ws_phase_stream.PhaseStreamServer` — async WebSocket server
 streaming tick snapshots as JSON frames:
 
@@ -613,7 +615,7 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 
 ## 13. Test Coverage
 
-**61 Python tests + 3 Rust parity** (all passing, ~11s):
+**61 phase-specific tests + 3 Rust parity** (675 total in suite, 14 CI jobs, all green):
 
 | Class | Tests | What is verified |
 |-------|------:|------------------|
@@ -650,7 +652,8 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 | `test_upde_tick_shape` | Multi-layer tick output dimensions |
 | `test_upde_tick_zeta_convergence` | 4-layer ζ=3 convergence to Ψ |
 
-**Full suite regression**: 563 passed, 91 skipped, 1 pre-existing failure (unrelated).
+**Full suite regression**: 582 passed, 94 skipped, 0 failures.
+Total collected: **675 tests** across 41 test files.
 
 ---
 

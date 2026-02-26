@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" font-family="'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="540" fill="url(#bg)"/>
+
+  <!-- Title bar -->
+  <rect x="0" y="0" width="960" height="44" fill="#0f172a" opacity="0.8"/>
+  <circle cx="20" cy="22" r="6" fill="#ef4444"/>
+  <circle cx="40" cy="22" r="6" fill="#eab308"/>
+  <circle cx="60" cy="22" r="6" fill="#22c55e"/>
+  <text x="480" y="28" fill="#94a3b8" font-size="13" text-anchor="middle">scpn-control — Phase Sync Monitor (WebSocket Live Stream)</text>
+
+  <!-- Left panel: Architecture -->
+  <rect x="16" y="56" width="290" height="470" rx="8" fill="url(#card)" stroke="#475569" stroke-width="1"/>
+  <text x="161" y="80" fill="#e2e8f0" font-size="14" font-weight="bold" text-anchor="middle">Data Pipeline</text>
+
+  <!-- Pipeline boxes -->
+  <rect x="36" y="96" width="250" height="40" rx="6" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="161" y="112" fill="#93c5fd" font-size="11" font-weight="bold" text-anchor="middle">RealtimeMonitor</text>
+  <text x="161" y="126" fill="#64748b" font-size="9" text-anchor="middle">16 layers × 50 oscillators / tick</text>
+
+  <path d="M161 136 L161 152" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="36" y="152" width="250" height="40" rx="6" fill="#1e3a5f" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="161" y="168" fill="#c4b5fd" font-size="11" font-weight="bold" text-anchor="middle">LyapunovGuard</text>
+  <text x="161" y="182" fill="#64748b" font-size="9" text-anchor="middle">V(t), λ exponent, approve/refuse</text>
+
+  <path d="M161 192 L161 208" stroke="#8b5cf6" stroke-width="1.5"/>
+
+  <rect x="36" y="208" width="250" height="40" rx="6" fill="#1e3a5f" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="161" y="224" fill="#86efac" font-size="11" font-weight="bold" text-anchor="middle">PhaseStreamServer (WS :8765)</text>
+  <text x="161" y="238" fill="#64748b" font-size="9" text-anchor="middle">JSON frames → all connected clients</text>
+
+  <path d="M161 248 L161 264" stroke="#22c55e" stroke-width="1.5"/>
+
+  <rect x="36" y="264" width="250" height="40" rx="6" fill="#1e3a5f" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="161" y="280" fill="#fcd34d" font-size="11" font-weight="bold" text-anchor="middle">TrajectoryRecorder</text>
+  <text x="161" y="294" fill="#64748b" font-size="9" text-anchor="middle">HDF5 / NPZ export</text>
+
+  <!-- File list -->
+  <text x="36" y="328" fill="#94a3b8" font-size="11" font-weight="bold">Key Files</text>
+  <text x="36" y="348" fill="#64748b" font-size="10">phase/kuramoto.py</text>
+  <text x="250" y="348" fill="#475569" font-size="9" text-anchor="end">Kuramoto-Sakaguchi</text>
+  <text x="36" y="366" fill="#64748b" font-size="10">phase/knm.py</text>
+  <text x="250" y="366" fill="#475569" font-size="9" text-anchor="end">Paper 27 Knm matrix</text>
+  <text x="36" y="384" fill="#64748b" font-size="10">phase/upde.py</text>
+  <text x="250" y="384" fill="#475569" font-size="9" text-anchor="end">UPDE multi-layer solver</text>
+  <text x="36" y="402" fill="#64748b" font-size="10">phase/lyapunov_guard.py</text>
+  <text x="250" y="402" fill="#475569" font-size="9" text-anchor="end">Stability monitor</text>
+  <text x="36" y="420" fill="#64748b" font-size="10">phase/realtime_monitor.py</text>
+  <text x="250" y="420" fill="#475569" font-size="9" text-anchor="end">Tick-by-tick UPDE</text>
+  <text x="36" y="438" fill="#64748b" font-size="10">phase/ws_phase_stream.py</text>
+  <text x="250" y="438" fill="#475569" font-size="9" text-anchor="end">WebSocket server</text>
+
+  <text x="36" y="464" fill="#94a3b8" font-size="11" font-weight="bold">Test Coverage</text>
+  <rect x="36" y="472" width="200" height="8" rx="4" fill="#1e293b"/>
+  <rect x="36" y="472" width="172" height="8" rx="4" fill="url(#accent)"/>
+  <text x="250" y="480" fill="#94a3b8" font-size="10" text-anchor="end">675 tests (86% cov)</text>
+
+  <text x="36" y="502" fill="#64748b" font-size="10">48 src + 41 test + 5 Rust crates</text>
+  <text x="36" y="518" fill="#64748b" font-size="10">14 CI jobs — all green</text>
+
+  <!-- Right panel: Live plots -->
+  <rect x="322" y="56" width="622" height="228" rx="8" fill="url(#card)" stroke="#475569" stroke-width="1"/>
+  <text x="633" y="80" fill="#e2e8f0" font-size="14" font-weight="bold" text-anchor="middle">Live Phase Sync (R, V, λ)</text>
+
+  <!-- R_global plot area -->
+  <rect x="340" y="92" width="280" height="80" rx="4" fill="#0f172a"/>
+  <text x="348" y="106" fill="#3b82f6" font-size="10">R_global</text>
+  <!-- Simulated R trace converging to ~0.9 -->
+  <polyline points="344,164 360,158 376,150 392,145 408,138 424,130 440,124 456,120 472,116 488,113 504,111 520,109 536,108 552,107 568,106 584,105 600,104 612,104"
+            stroke="#3b82f6" stroke-width="2" fill="none" filter="url(#glow)"/>
+  <line x1="340" y1="108" x2="620" y2="108" stroke="#22c55e" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <text x="612" y="104" fill="#22c55e" font-size="8" text-anchor="end">0.92</text>
+  <text x="348" y="164" fill="#475569" font-size="8">0.0</text>
+
+  <!-- Lyapunov V plot -->
+  <rect x="636" y="92" width="280" height="80" rx="4" fill="#0f172a"/>
+  <text x="644" y="106" fill="#8b5cf6" font-size="10">V(t) Lyapunov</text>
+  <!-- V decaying -->
+  <polyline points="640,110 656,112 672,116 688,118 704,122 720,128 736,136 752,142 768,148 784,152 800,155 816,157 832,158 848,159 864,160 880,160 896,161 908,161"
+            stroke="#8b5cf6" stroke-width="2" fill="none" filter="url(#glow)"/>
+  <text x="900" y="158" fill="#8b5cf6" font-size="8" text-anchor="end">→0</text>
+
+  <!-- Lambda exponent plot -->
+  <rect x="340" y="184" width="280" height="80" rx="4" fill="#0f172a"/>
+  <text x="348" y="198" fill="#f59e0b" font-size="10">λ exponent</text>
+  <line x1="340" y1="224" x2="620" y2="224" stroke="#475569" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <text x="612" y="220" fill="#475569" font-size="8" text-anchor="end">0</text>
+  <!-- λ settling to negative -->
+  <polyline points="344,218 360,230 376,236 392,238 408,237 424,239 440,240 456,241 472,240 488,241 504,241 520,240 536,241 552,241 568,241 584,240 600,241 612,241"
+            stroke="#f59e0b" stroke-width="2" fill="none" filter="url(#glow)"/>
+  <text x="612" y="248" fill="#22c55e" font-size="8" text-anchor="end">λ &lt; 0 ✓ stable</text>
+
+  <!-- Per-layer R heatmap -->
+  <rect x="636" y="184" width="280" height="80" rx="4" fill="#0f172a"/>
+  <text x="644" y="198" fill="#22c55e" font-size="10">R per layer (16)</text>
+  <!-- Heatmap bars -->
+  <g transform="translate(644,206)">
+    <rect x="0"   y="0" width="15" height="50" rx="2" fill="#1d4ed8" opacity="0.9"/>
+    <rect x="17"  y="0" width="15" height="50" rx="2" fill="#2563eb" opacity="0.9"/>
+    <rect x="34"  y="0" width="15" height="50" rx="2" fill="#3b82f6" opacity="0.9"/>
+    <rect x="51"  y="0" width="15" height="50" rx="2" fill="#60a5fa" opacity="0.9"/>
+    <rect x="68"  y="0" width="15" height="50" rx="2" fill="#3b82f6" opacity="0.85"/>
+    <rect x="85"  y="0" width="15" height="50" rx="2" fill="#2563eb" opacity="0.85"/>
+    <rect x="102" y="0" width="15" height="50" rx="2" fill="#60a5fa" opacity="0.9"/>
+    <rect x="119" y="0" width="15" height="50" rx="2" fill="#93c5fd" opacity="0.95"/>
+    <rect x="136" y="0" width="15" height="50" rx="2" fill="#93c5fd" opacity="0.95"/>
+    <rect x="153" y="0" width="15" height="50" rx="2" fill="#60a5fa" opacity="0.9"/>
+    <rect x="170" y="0" width="15" height="50" rx="2" fill="#3b82f6" opacity="0.85"/>
+    <rect x="187" y="0" width="15" height="50" rx="2" fill="#2563eb" opacity="0.8"/>
+    <rect x="204" y="0" width="15" height="50" rx="2" fill="#60a5fa" opacity="0.9"/>
+    <rect x="221" y="0" width="15" height="50" rx="2" fill="#93c5fd" opacity="0.95"/>
+    <rect x="238" y="0" width="15" height="50" rx="2" fill="#bfdbfe" opacity="0.95"/>
+    <rect x="255" y="0" width="15" height="50" rx="2" fill="#1d4ed8" opacity="0.85"/>
+    <text x="0"   y="62" fill="#475569" font-size="7">1</text>
+    <text x="68"  y="62" fill="#475569" font-size="7">5</text>
+    <text x="153" y="62" fill="#475569" font-size="7">10</text>
+    <text x="238" y="62" fill="#475569" font-size="7">15</text>
+  </g>
+
+  <!-- Bottom panel: Metrics + WS info -->
+  <rect x="322" y="296" width="302" height="228" rx="8" fill="url(#card)" stroke="#475569" stroke-width="1"/>
+  <text x="473" y="320" fill="#e2e8f0" font-size="14" font-weight="bold" text-anchor="middle">Metrics</text>
+
+  <!-- Metric cards -->
+  <rect x="340" y="334" width="130" height="54" rx="6" fill="#0f172a"/>
+  <text x="405" y="352" fill="#94a3b8" font-size="10" text-anchor="middle">R_global</text>
+  <text x="405" y="376" fill="#3b82f6" font-size="22" font-weight="bold" text-anchor="middle">0.923</text>
+
+  <rect x="480" y="334" width="130" height="54" rx="6" fill="#0f172a"/>
+  <text x="545" y="352" fill="#94a3b8" font-size="10" text-anchor="middle">λ exponent</text>
+  <text x="545" y="376" fill="#22c55e" font-size="22" font-weight="bold" text-anchor="middle">−0.47</text>
+
+  <rect x="340" y="396" width="130" height="54" rx="6" fill="#0f172a"/>
+  <text x="405" y="414" fill="#94a3b8" font-size="10" text-anchor="middle">Tick latency</text>
+  <text x="405" y="438" fill="#f59e0b" font-size="22" font-weight="bold" text-anchor="middle">38 µs</text>
+
+  <rect x="480" y="396" width="130" height="54" rx="6" fill="#0f172a"/>
+  <text x="545" y="414" fill="#94a3b8" font-size="10" text-anchor="middle">Guard</text>
+  <text x="545" y="438" fill="#22c55e" font-size="22" font-weight="bold" text-anchor="middle">PASS</text>
+
+  <rect x="340" y="458" width="270" height="54" rx="6" fill="#0f172a"/>
+  <text x="475" y="476" fill="#94a3b8" font-size="10" text-anchor="middle">Tick #1000 / 1000 — Export: traj.h5 (HDF5)</text>
+  <text x="475" y="496" fill="#64748b" font-size="9" text-anchor="middle">WS ws://localhost:8765 — 1 client connected</text>
+
+  <!-- Bottom right: WS frame -->
+  <rect x="636" y="296" width="308" height="228" rx="8" fill="url(#card)" stroke="#475569" stroke-width="1"/>
+  <text x="790" y="320" fill="#e2e8f0" font-size="14" font-weight="bold" text-anchor="middle">WebSocket Frame</text>
+
+  <rect x="650" y="334" width="280" height="178" rx="4" fill="#0f172a"/>
+  <text x="660" y="352" fill="#22c55e" font-size="10" font-family="'Cascadia Code',monospace">← server frame</text>
+  <text x="660" y="370" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">{</text>
+  <text x="672" y="385" fill="#93c5fd" font-size="9.5" font-family="'Cascadia Code',monospace">"tick"</text><text x="715" y="385" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">: 1000,</text>
+  <text x="672" y="400" fill="#93c5fd" font-size="9.5" font-family="'Cascadia Code',monospace">"R_global"</text><text x="740" y="400" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">: 0.923,</text>
+  <text x="672" y="415" fill="#93c5fd" font-size="9.5" font-family="'Cascadia Code',monospace">"V_global"</text><text x="740" y="415" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">: 0.041,</text>
+  <text x="672" y="430" fill="#93c5fd" font-size="9.5" font-family="'Cascadia Code',monospace">"lambda_exp"</text><text x="755" y="430" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">: -0.47,</text>
+  <text x="672" y="445" fill="#93c5fd" font-size="9.5" font-family="'Cascadia Code',monospace">"approved"</text><text x="740" y="445" fill="#22c55e" font-size="9.5" font-family="'Cascadia Code',monospace">: true,</text>
+  <text x="672" y="460" fill="#93c5fd" font-size="9.5" font-family="'Cascadia Code',monospace">"R_layer"</text><text x="735" y="460" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">: [0.91, ...],</text>
+  <text x="672" y="475" fill="#93c5fd" font-size="9.5" font-family="'Cascadia Code',monospace">"Psi_global"</text><text x="755" y="475" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">: 1.27,</text>
+  <text x="672" y="490" fill="#93c5fd" font-size="9.5" font-family="'Cascadia Code',monospace">"latency_us"</text><text x="755" y="490" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">: 38.2</text>
+  <text x="660" y="505" fill="#94a3b8" font-size="9.5" font-family="'Cascadia Code',monospace">}</text>
+</svg>
