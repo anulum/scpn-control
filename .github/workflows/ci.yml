@@ -263,7 +263,28 @@ jobs:
           path: "*.json"
           if-no-files-found: ignore
 
-  # ─── Job 10: Rust audit ───
+  # ─── Job 10: E2E mock DIII-D shot test ───
+  e2e-diiid:
+    needs: python-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest h5py
+      - name: E2E mock DIII-D + trajectory export
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/test_e2e_phase_diiid.py -v --tb=short
+      - uses: actions/upload-artifact@v6
+        with:
+          name: e2e-diiid-results
+          path: "*.json"
+          if-no-files-found: ignore
+
+  # ─── Job 11: Rust audit ───
   rust-audit:
     runs-on: ubuntu-latest
     defaults:

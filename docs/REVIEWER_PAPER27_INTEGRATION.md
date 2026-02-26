@@ -551,6 +551,43 @@ Rust `upde_tick` in `control-math/src/kuramoto.rs`: per-layer Kuramoto +
 inter-layer Knm coupling + PAC gate + Lyapunov V tracking.  11 Rust tests
 (9 existing + 2 new `test_upde_tick_*`).
 
+### 11.6 WebSocket Phase Stream
+
+`scpn_control.phase.ws_phase_stream.PhaseStreamServer` — async WebSocket server
+streaming tick snapshots as JSON frames:
+
+```bash
+python -m scpn_control.phase.ws_phase_stream --port 8765 --layers 16 --zeta 0.5
+```
+
+Clients receive `{"tick": N, "R_global": ..., "V_global": ..., "lambda_exp": ...}`
+every tick.  Control commands: `{"action": "set_psi", "value": 1.0}`,
+`{"action": "reset"}`, `{"action": "stop"}`.
+
+### 11.7 HDF5 / NPZ Trajectory Export
+
+```python
+monitor = RealtimeMonitor.from_paper27()
+for _ in range(1000):
+    monitor.tick()
+
+monitor.save_hdf5("trajectory.h5")   # requires h5py
+monitor.save_npz("trajectory.npz")   # numpy only
+```
+
+Datasets: R_global, R_layer, V_global, V_layer, lambda_exp, guard_approved,
+latency_us, Psi_global.  HDF5 attributes: L, N_per, psi_driver, pac_gamma,
+n_ticks.
+
+### 11.8 Mock DIII-D Shot Loader (CI)
+
+`tests/mock_diiid.py` generates synthetic shots matching real DIII-D npz format
+(14 fields: time_s, Ip_MA, BT_T, beta_N, q95, ne_1e19, MHD modes, etc.).
+CI job `e2e-diiid` runs end-to-end tests:
+- Mock shot generation and round-trip load
+- Shot-driven RealtimeMonitor (Ψ = f(beta_N))
+- NPZ and HDF5 trajectory export verification
+
 ---
 
 ## 12. FusionKernel.phase_sync_step() — Single Step
@@ -576,7 +613,7 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 
 ## 13. Test Coverage
 
-**50 Python tests + 3 Rust parity** (all passing, ~13s):
+**61 Python tests + 3 Rust parity** (all passing, ~11s):
 
 | Class | Tests | What is verified |
 |-------|------:|------------------|
@@ -592,6 +629,10 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 | `TestUPDELyapunov` | 3 | step V output, run_lyapunov λ, PAC γ effect |
 | `TestLyapunovGuard` | 5 | Stable approved, unstable refused, batch, DIRECTOR_AI dict, reset |
 | `TestRealtimeMonitor` | 6 | from_paper27 defaults, tick snapshot, multi-tick, convergence, reset, DIRECTOR_AI export |
+| `TestMockDIIID` | 4 | Shot generation, shapes, save/reload, safe shot |
+| `TestE2EPhaseSyncWithShot` | 2 | Shot-driven monitor, disruption guard |
+| `TestTrajectoryExport` | 4 | NPZ export, HDF5 export, recorder clear, record=False |
+| `TestWebSocketServer` | 1 | Server construction |
 
 **11 Rust tests** (inline, all passing):
 
