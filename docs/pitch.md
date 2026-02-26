@@ -49,14 +49,17 @@ only** using a PCA + MLP surrogate trained on SPARC geometries.
 |-----------|--------|
 | Grad-Shafranov equilibrium solver | Production |
 | 1.5D coupled transport | Production |
-| PID / MPC / H-infinity controllers | Production |
-| Spiking neural network controller | Production |
-| ML disruption prediction | Production |
-| SPI ablation mitigation | Production |
-| Real-time digital twin | Production |
+| PID controller | Production |
+| H-infinity controller (Riccati) | Production |
+| MPC (gradient-based, surrogate dynamics) | Production |
+| Spiking neural network controller (Nengo) | Production |
 | Phase dynamics (Kuramoto/UPDE) | Production |
 | WebSocket live telemetry | Production |
 | Formal contract verification | Production |
+| ML disruption prediction (Transformer) | Experimental |
+| SPI ablation mitigation | Experimental |
+| Real-time digital twin | Experimental |
+| Neuro-cybernetic controller | Experimental |
 
 ---
 
