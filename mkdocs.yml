@@ -12,6 +12,9 @@ theme:
 
 nav:
   - Home: index.md
+  - Pitch: pitch.md
+  - Use Cases: use_cases.md
+  - Competitive Analysis: competitive_analysis.md
   - Tutorials: tutorials.md
   - Benchmarks: benchmarks.md
   - Validation and QA: validation.md
