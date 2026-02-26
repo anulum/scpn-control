@@ -141,11 +141,12 @@ global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
 
 **Rust acceleration:** `upde_tick()` in `control-math` + `PyRealtimeMonitor` PyO3 binding.
 
-**Live phase sync convergence** ([MP4 video](docs/phase_sync_live.mp4) |
-[animated GIF](docs/phase_sync_live.gif)):
+**Live phase sync convergence** ([GIF fallback](docs/phase_sync_live.gif)):
 
 <p align="center">
-  <img src="docs/phase_sync_live.gif" alt="Phase Sync Convergence — 16 layers × 50 osc, ζ=0.5" width="100%">
+  <video src="docs/phase_sync_live.mp4" autoplay loop muted playsinline width="100%">
+    <img src="docs/phase_sync_live.gif" alt="Phase Sync Convergence — 16 layers × 50 osc, ζ=0.5" width="100%">
+  </video>
 </p>
 
 > 500 ticks, 16 layers × 50 oscillators, ζ=0.5. R converges to 0.92,
@@ -154,8 +155,8 @@ global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
 **WebSocket live stream:**
 
 ```bash
-# Terminal 1: start server
-python -m scpn_control.phase.ws_phase_stream --port 8765 --zeta 0.5
+# Terminal 1: start server (CLI)
+scpn-control live --port 8765 --zeta 0.5
 
 # Terminal 2: Streamlit WS client (live R/V/λ plots, guard status, control)
 pip install -e ".[dashboard,ws]"
@@ -188,6 +189,7 @@ pytest tests/test_e2e_phase_diiid.py -v
 scpn-control demo --scenario combined --steps 1000   # Closed-loop control demo
 scpn-control benchmark --n-bench 5000                 # PID vs SNN timing benchmark
 scpn-control validate                                 # RMSE validation dashboard
+scpn-control live --port 8765 --zeta 0.5              # Real-time WS phase sync server
 scpn-control hil-test --shots-dir ...                 # HIL test campaign
 ```
 
@@ -217,6 +219,18 @@ streamlit run dashboard/control_dashboard.py
 
 Six tabs: Trajectory Viewer, RMSE Dashboard, Timing Benchmark, Shot Replay,
 Phase Sync Monitor (live R/V/λ plots), Benchmark Plots (interactive Vega).
+
+### Streamlit Cloud
+
+The phase sync dashboard auto-deploys to Streamlit Cloud with embedded
+server mode (no external WS server needed):
+
+1. Fork or push to GitHub
+2. Go to [share.streamlit.io](https://share.streamlit.io) → New app
+3. Select `anulum/scpn-control` → `streamlit_app.py`
+4. Deploy
+
+Entry point: `streamlit_app.py` (auto-starts embedded PhaseStreamServer).
 
 ## Rust Acceleration
 

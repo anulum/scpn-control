@@ -55,8 +55,8 @@ artifacts/
 !artifacts/.gitkeep
 site/
 
-# Streamlit
-.streamlit/
+# Streamlit (allow config.toml for Cloud deployment)
+.streamlit/secrets.toml
 
 # Jupyter
 .ipynb_checkpoints/

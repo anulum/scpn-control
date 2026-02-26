@@ -631,6 +631,32 @@ python tools/publish.py --bump minor --target pypi --confirm  # version bump + P
 CI workflow `.github/workflows/publish-pypi.yml` handles tag-triggered trusted
 publishing (no tokens needed).
 
+### 11.12 CLI `live` Command
+
+`scpn-control live` starts a real-time WebSocket phase sync server directly
+from the CLI:
+
+```bash
+scpn-control live --port 8765 --zeta 0.5 --layers 16 --n-per 50
+```
+
+Options: `--host`, `--port`, `--layers`, `--n-per`, `--zeta`, `--psi`,
+`--tick-interval`.  Streams JSON tick snapshots at ws://host:port.
+
+### 11.13 README MP4 Embed
+
+README now uses `<video>` tag for native GitHub MP4 playback (autoplay, loop,
+muted) with GIF fallback inside `<noscript>`.
+
+### 11.14 Streamlit Cloud Deployment
+
+Files added for one-click Streamlit Cloud deployment:
+
+- `.streamlit/config.toml` — dark theme matching docs video palette
+- `streamlit_app.py` — root entry point with auto-start embedded server
+
+Deploy: share.streamlit.io → New app → `anulum/scpn-control` → `streamlit_app.py`.
+
 ---
 
 ## 12. FusionKernel.phase_sync_step() — Single Step

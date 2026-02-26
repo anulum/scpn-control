@@ -13,6 +13,7 @@ Usage::
     scpn-control demo --scenario combined --steps 1000
     scpn-control benchmark --n-bench 5000
     scpn-control validate
+    scpn-control live --port 8765 --zeta 0.5
     scpn-control hil-test --shots-dir validation/reference_data/diiid/disruption_shots
 """
 from __future__ import annotations
@@ -171,6 +172,40 @@ def validate(json_out: bool):
         click.echo(f"Transport solver: {'OK' if has_transport else 'MISSING'}")
         click.echo(f"Import clean: {'OK' if result['import_clean'] else 'FAIL'}")
         click.echo(f"Status: {result['status']}")
+
+
+@main.command()
+@click.option("--port", default=8765, type=int, help="WebSocket port")
+@click.option("--host", default="0.0.0.0", help="Bind address")
+@click.option("--layers", default=16, type=int, help="Kuramoto layers (L)")
+@click.option("--n-per", default=50, type=int, help="Oscillators per layer")
+@click.option("--zeta", default=0.5, type=float, help="Global field coupling zeta")
+@click.option("--psi", default=0.0, type=float, help="Initial Psi driver")
+@click.option("--tick-interval", default=0.001, type=float, help="Seconds between ticks")
+def live(port: int, host: str, layers: int, n_per: int, zeta: float,
+         psi: float, tick_interval: float):
+    """Start real-time WebSocket phase sync server.
+
+    Streams Kuramoto R/V/lambda tick snapshots over ws://<host>:<port>.
+    Connect with: examples/streamlit_ws_client.py or any WS client.
+    """
+    from scpn_control.phase.realtime_monitor import RealtimeMonitor
+    from scpn_control.phase.ws_phase_stream import PhaseStreamServer
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+    click.echo(f"Starting phase sync server on ws://{host}:{port}")
+    click.echo(f"  L={layers}, N_per={n_per}, zeta={zeta}, psi={psi}")
+    click.echo("  Ctrl-C to stop")
+
+    mon = RealtimeMonitor.from_paper27(
+        L=layers, N_per=n_per, zeta_uniform=zeta, psi_driver=psi,
+    )
+    server = PhaseStreamServer(monitor=mon, tick_interval_s=tick_interval)
+    server.serve_sync(host=host, port=port)
 
 
 @main.command(name="hil-test")
