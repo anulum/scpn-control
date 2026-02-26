@@ -51,10 +51,11 @@ Reference: arXiv:2004.06344 (generalized Kuramoto–Sakaguchi finite-size)
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `src/scpn_control/phase/__init__.py` | 33 | Package exports |
-| `src/scpn_control/phase/kuramoto.py` | 139 | Kuramoto–Sakaguchi + ζ sin(Ψ−θ), Rust auto-dispatch |
+| `src/scpn_control/phase/__init__.py` | 36 | Package exports |
+| `src/scpn_control/phase/kuramoto.py` | 161 | Kuramoto–Sakaguchi + ζ sin(Ψ−θ) + Lyapunov V/λ, Rust auto-dispatch |
 | `src/scpn_control/phase/knm.py` | 101 | Paper 27 Knm matrix builder + OMEGA_N_16 |
-| `src/scpn_control/phase/upde.py` | 168 | Multi-layer UPDE engine |
+| `src/scpn_control/phase/upde.py` | 215 | Multi-layer UPDE engine + run_lyapunov() |
+| `src/scpn_control/phase/lyapunov_guard.py` | 130 | Lyapunov stability guardrail (DIRECTOR_AI sync) |
 
 ### 3.2 Rust — Sub-ms Kernel
 
@@ -68,14 +69,14 @@ Reference: arXiv:2004.06344 (generalized Kuramoto–Sakaguchi finite-size)
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `src/scpn_control/core/fusion_kernel.py` | +43 | `FusionKernel.phase_sync_step()` injection point |
+| `src/scpn_control/core/fusion_kernel.py` | +86 | `phase_sync_step()` + `phase_sync_step_lyapunov()` |
 
 ### 3.4 Tests
 
 | File | Lines | Tests |
 |------|------:|------:|
-| `tests/test_phase_kuramoto.py` | 320 | 28 |
-| `kuramoto.rs` (inline `#[cfg(test)]`) | — | 7 |
+| `tests/test_phase_kuramoto.py` | 475 | 44 |
+| `kuramoto.rs` (inline `#[cfg(test)]`) | — | 9 |
 
 ### 3.5 Documentation
 
@@ -371,7 +372,123 @@ Demo: notebook §9 (SNN closed-loop) and §10 (PAC cross-layer SNN).
 
 ---
 
-## 9. FusionKernel.phase_sync_step()
+## 9. Lyapunov Stability — λ Hook
+
+### 9.1 Python Functions
+
+```python
+# Lyapunov candidate V(t) = (1/N) Σ (1 − cos(θ_i − Ψ))
+from scpn_control.phase import lyapunov_v, lyapunov_exponent
+
+V = lyapunov_v(theta, psi)                # scalar ∈ [0, 2]
+lam = lyapunov_exponent(v_hist, dt=1e-3)  # λ = (1/T)·ln(V_f/V_0)
+# λ < 0 ⟹ stable convergence toward Ψ
+```
+
+Matches `control-math/kuramoto.rs::lyapunov_v` and `kuramoto_run_lyapunov`.
+
+### 9.2 UPDE Lyapunov Tracking
+
+`UPDESystem.step()` now returns `V_layer` (per-layer) and `V_global`.
+`UPDESystem.run_lyapunov()` returns full V histories and per-layer + global λ:
+
+```python
+out = sys.run_lyapunov(200, theta_layers, omega_layers, psi_driver=0.5, pac_gamma=1.0)
+# out["V_layer_hist"]  — (n_steps, L)
+# out["lambda_layer"]  — (L,) per-layer Lyapunov exponents
+# out["lambda_global"] — scalar global λ
+```
+
+### 9.3 FusionKernel.phase_sync_step_lyapunov()
+
+Multi-step Kuramoto with Lyapunov tracking:
+
+```python
+out = kernel.phase_sync_step_lyapunov(
+    theta, omega, n_steps=100, dt=0.01,
+    zeta=3.0, psi_driver=0.5,
+)
+# out["lambda"]  — Lyapunov exponent
+# out["stable"]  — True if λ < 0
+# out["V_hist"]  — (100,) trajectory
+# out["R_hist"]  — (100,) coherence trajectory
+```
+
+### 9.4 Lyapunov Exponent vs ζ Strength
+
+See [`docs/bench_lyapunov_vs_zeta.vl.json`](bench_lyapunov_vs_zeta.vl.json) — Vega-Lite plot showing:
+
+- ζ = 0: λ ≈ 0 (no convergence, drift)
+- ζ = 0.5: λ ≈ −0.23 (moderate pull)
+- ζ = 3.0: λ ≈ −1.83 (strong convergence)
+- ζ = 5.0: λ ≈ −3.35 (rapid sync)
+
+K=2.0 (Kuramoto coupling) amplifies the ζ effect due to cooperative self-organisation.
+
+---
+
+## 10. DIRECTOR_AI Guardrail Sync
+
+### 10.1 LyapunovGuard
+
+`scpn_control.phase.lyapunov_guard.LyapunovGuard` monitors V(t) over a sliding
+window and flags instability when λ > 0 for K consecutive windows.  Interface
+mirrors DIRECTOR_AI's `CoherenceScorer` → `CoherenceScore` pattern:
+
+```python
+from scpn_control.phase import LyapunovGuard
+
+guard = LyapunovGuard(window=50, dt=1e-3, max_violations=3)
+
+# Per-timestep check (online monitoring)
+verdict = guard.check(theta, psi)
+verdict.approved        # True if stable
+verdict.lambda_exp      # current λ
+verdict.score           # stability score ∈ [0, 1]
+verdict.consecutive_violations
+
+# Batch check (post-hoc)
+verdict = guard.check_trajectory(v_hist)
+```
+
+### 10.2 DIRECTOR_AI Integration
+
+Export to DIRECTOR_AI `AuditLogger` format:
+
+```python
+d = guard.to_director_ai_dict(verdict)
+# {"query": "lyapunov_stability_check",
+#  "response": "V=0.42, λ=-1.23",
+#  "approved": True,
+#  "score": 0.99,
+#  "h_factual": 0.0,
+#  "halt_reason": ""}
+```
+
+This enables the DIRECTOR_AI `CoherenceAgent` to incorporate Lyapunov stability
+into its dual-entropy coherence score.  When λ > 0 for 3 consecutive windows,
+the guard issues a refusal — analogous to DIRECTOR_AI's `SafetyKernel` emergency
+stop when coherence drops below the hard limit.
+
+### 10.3 Data Flow
+
+```
+Kuramoto oscillators → θ(t) per timestep
+         │
+         ▼
+LyapunovGuard.check(θ, Ψ) → LyapunovVerdict
+         │
+         ├─ approved=True  → continue control loop
+         ├─ approved=False → HALT / parameter clamp
+         │
+         └─ to_director_ai_dict() → DIRECTOR_AI AuditLogger
+                                      ├─ h_factual = max(0, λ)
+                                      └─ halt_reason logged
+```
+
+---
+
+## 11. FusionKernel.phase_sync_step() — Single Step
 
 ```python
 kernel = FusionKernel("tokamak_config.json")
@@ -394,7 +511,7 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 
 ## 10. Test Coverage
 
-**28 Python tests** (all passing, 5.8s):
+**44 Python tests** (all passing, 7.8s):
 
 | Class | Tests | What is verified |
 |-------|------:|------------------|
@@ -404,9 +521,13 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 | `TestKuramotoSakaguchiStep` | 4 | Sync stability, R increase, ζ pull, α frustration |
 | `TestKnmSpec` | 7 | Shape, anchors, boosts, symmetry, zeta, validation |
 | `TestUPDESystem` | 6 | Step shape, intra-sync, ζ pull, trajectory, PAC, error |
-| `TestFusionKernelPhaseSync` | 2 | Integration smoke, config-driven ζ |
+| `TestFusionKernelPhaseSync` | 3 | Integration smoke, config-driven ζ, Lyapunov multi-step |
+| `TestLyapunovV` | 4 | V=0 sync, V=2 anti-sync, empty, range |
+| `TestLyapunovExponent` | 3 | λ<0 decreasing, λ>0 increasing, single sample |
+| `TestUPDELyapunov` | 3 | step V output, run_lyapunov λ, PAC γ effect |
+| `TestLyapunovGuard` | 5 | Stable approved, unstable refused, batch, DIRECTOR_AI dict, reset |
 
-**7 Rust tests** (inline, all passing):
+**9 Rust tests** (inline, all passing):
 
 | Test | What is verified |
 |------|------------------|
@@ -417,6 +538,8 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 | `test_step_preserves_count` | Output length matches input |
 | `test_zeta_pulls_toward_psi` | 500 steps, spread < 0.1 |
 | `test_run_returns_trajectory` | Correct trajectory length |
+| `test_lyapunov_v_synced_is_zero` | V=0 at perfect sync |
+| `test_lyapunov_exponent_negative_with_zeta` | λ<0 with ζ=3 driver |
 
 **Full suite regression**: 548 passed, 91 skipped, 1 pre-existing failure (unrelated).
 

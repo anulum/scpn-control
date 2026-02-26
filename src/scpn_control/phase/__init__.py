@@ -17,17 +17,23 @@ from scpn_control.phase.kuramoto import (
     kuramoto_sakaguchi_step,
     order_parameter,
     wrap_phase,
+    lyapunov_v,
+    lyapunov_exponent,
     GlobalPsiDriver,
 )
 from scpn_control.phase.knm import KnmSpec, build_knm_paper27
 from scpn_control.phase.upde import UPDESystem
+from scpn_control.phase.lyapunov_guard import LyapunovGuard
 
 __all__ = [
     "kuramoto_sakaguchi_step",
     "order_parameter",
     "wrap_phase",
+    "lyapunov_v",
+    "lyapunov_exponent",
     "GlobalPsiDriver",
     "KnmSpec",
     "build_knm_paper27",
     "UPDESystem",
+    "LyapunovGuard",
 ]

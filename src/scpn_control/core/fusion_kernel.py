@@ -1682,6 +1682,57 @@ class FusionKernel:
             wrap=True,
         )
 
+    def phase_sync_step_lyapunov(
+        self,
+        theta: FloatArray,
+        omega: FloatArray,
+        *,
+        n_steps: int = 100,
+        dt: float = 1e-3,
+        K: Optional[float] = None,
+        zeta: Optional[float] = None,
+        psi_driver: Optional[float] = None,
+        psi_mode: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Multi-step phase sync with Lyapunov stability tracking.
+
+        Returns final state, R trajectory, V trajectory, and λ exponent.
+        λ < 0 ⟹ stable convergence toward Ψ.
+        """
+        from scpn_control.phase.kuramoto import (
+            kuramoto_sakaguchi_step,
+            lyapunov_v,
+            lyapunov_exponent,
+        )
+
+        cfg = self.cfg.get("phase_sync", {})
+        K_eff = float(cfg.get("K", 1.0) if K is None else K)
+        zeta_eff = float(cfg.get("zeta", 0.0) if zeta is None else zeta)
+        psi_mode_eff = str(cfg.get("psi_mode", "external") if psi_mode is None else psi_mode)
+
+        th = np.asarray(theta, dtype=np.float64)
+        om = np.asarray(omega, dtype=np.float64)
+        r_hist = []
+        v_hist = []
+
+        for _ in range(n_steps):
+            out = kuramoto_sakaguchi_step(
+                th, om, dt=dt, K=K_eff, zeta=zeta_eff,
+                psi_driver=psi_driver, psi_mode=psi_mode_eff,
+            )
+            th = out["theta1"]
+            r_hist.append(out["R"])
+            v_hist.append(lyapunov_v(th, out["Psi"]))
+
+        lam = lyapunov_exponent(v_hist, dt)
+        return {
+            "theta_final": th,
+            "R_hist": np.array(r_hist),
+            "V_hist": np.array(v_hist),
+            "lambda": lam,
+            "stable": lam < 0.0,
+        }
+
     def save_results(self, filename: str = "equilibrium_nonlinear.npz") -> None:
         """Save the equilibrium state to a compressed NumPy archive.
 

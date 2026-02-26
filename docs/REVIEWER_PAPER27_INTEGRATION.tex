@@ -49,10 +49,12 @@ This document summarises the integration of SCPN Paper~27
 repository.  The implementation adds a multi-layer Unified Phase Dynamics
 Equation (UPDE) engine with Kuramoto--Sakaguchi mean-field coupling,
 the reviewer-requested exogenous global field driver
-$\zeta\sin(\Psi-\theta)$, and a Rayon-parallelised Rust kernel for sub-ms
-performance.  Five commits add 1\,833 lines across 12 files with 35 tests
-(28~Python + 7~Rust), all passing.  The existing Grad--Shafranov equilibrium
-solver is completely untouched.
+$\zeta\sin(\Psi-\theta)$, a Rayon-parallelised Rust kernel for sub-ms
+performance, Lyapunov stability tracking ($V(t)$, $\lambda$ exponent),
+and a \texttt{LyapunovGuard} safety guardrail synchronised with the
+DIRECTOR\_AI coherence framework.  53 tests (44~Python + 9~Rust), all
+passing.  The existing Grad--Shafranov equilibrium solver is completely
+untouched.
 \end{abstract}
 
 \tableofcontents
@@ -357,6 +359,101 @@ Demo: notebook \S9 (SNN closed-loop) and \S10 (PAC cross-layer SNN).
 
 
 %% ──────────────────────────────────────────────────────────────────────
+\section{Lyapunov Stability --- $\lambda$ Hook}
+
+\subsection{Lyapunov Candidate}
+
+The candidate function tracking convergence toward the global driver $\Psi$:
+
+\begin{equation}\label{eq:lyapunov_v}
+  V(t) = \frac{1}{N}\sum_{i=1}^{N}\bigl(1 - \cos(\theta_i - \Psi)\bigr)
+\end{equation}
+
+$V = 0$ at perfect sync ($\theta_i = \Psi\;\forall\,i$),
+$V \to 2$ at maximal desync.
+The Lyapunov exponent is:
+
+\begin{equation}\label{eq:lyapunov_exp}
+  \lambda = \frac{1}{T}\ln\frac{V(T)}{V(0)}, \qquad \lambda < 0 \implies \text{stable}
+\end{equation}
+
+Both functions implemented in Python (\texttt{lyapunov\_v}, \texttt{lyapunov\_exponent}
+in \texttt{kuramoto.py}) and Rust (\texttt{lyapunov\_v}, \texttt{kuramoto\_run\_lyapunov}
+in \texttt{kuramoto.rs}).
+
+\subsection{UPDE Lyapunov Tracking}
+
+\texttt{UPDESystem.step()} returns \texttt{V\_layer} (per-layer) and \texttt{V\_global}.
+\texttt{UPDESystem.run\_lyapunov()} returns full $V(t)$ histories, per-layer
+$\lambda_m$, and global $\lambda$:
+
+\begin{lstlisting}[language=Python]
+out = sys.run_lyapunov(200, theta_layers, omega_layers,
+                       psi_driver=0.5, pac_gamma=1.0)
+# out["lambda_layer"] -- (L,) per-layer exponents
+# out["lambda_global"] -- scalar global exponent
+\end{lstlisting}
+
+\subsection{$\lambda$ vs $\zeta$ Characterisation}
+
+See \texttt{docs/bench\_lyapunov\_vs\_zeta.vl.json} (Vega-Lite plot).
+$N=1000$ oscillators, 200 steps, $\Psi=0.3$:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}rll@{}}
+\toprule
+$\zeta$ & $\lambda$ ($K{=}0$) & $\lambda$ ($K{=}2$) \\
+\midrule
+0.0   & $+0.01$  & $+0.04$ \\
+0.1   & $-0.03$  & $-0.02$ \\
+0.5   & $-0.23$  & $-0.24$ \\
+1.0   & $-0.49$  & $-0.53$ \\
+3.0   & $-1.65$  & $-1.83$ \\
+5.0   & $-3.01$  & $-3.35$ \\
+\bottomrule
+\end{tabular}
+\caption{Lyapunov exponent $\lambda$ vs global driver strength $\zeta$.
+Kuramoto coupling $K=2$ amplifies $\zeta$ stability via cooperative sync.}
+\label{tab:lambda_zeta}
+\end{table}
+
+
+%% ──────────────────────────────────────────────────────────────────────
+\section{DIRECTOR\_AI Guardrail Sync}
+
+\subsection{LyapunovGuard}
+
+\texttt{scpn\_control.phase.lyapunov\_guard.LyapunovGuard} monitors $V(t)$
+over a sliding window and flags instability when $\lambda > 0$ for $K$
+consecutive windows.  Interface mirrors DIRECTOR\_AI's \texttt{CoherenceScorer}
+$\to$ \texttt{CoherenceScore} pattern:
+
+\begin{lstlisting}[language=Python]
+from scpn_control.phase import LyapunovGuard
+
+guard = LyapunovGuard(window=50, dt=1e-3, max_violations=3)
+verdict = guard.check(theta, psi)
+# verdict.approved    -- True if stable
+# verdict.lambda_exp  -- current exponent
+# verdict.score       -- stability score in [0, 1]
+\end{lstlisting}
+
+\subsection{AuditLogger Export}
+
+\begin{lstlisting}[language=Python]
+d = guard.to_director_ai_dict(verdict)
+# {"approved": True, "score": 0.99, "h_factual": 0.0,
+#  "halt_reason": ""}
+\end{lstlisting}
+
+Enables DIRECTOR\_AI's \texttt{CoherenceAgent} to incorporate Lyapunov stability
+into its dual-entropy coherence score.  When $\lambda > 0$ for 3 consecutive
+windows, the guard issues a refusal --- analogous to DIRECTOR\_AI's
+\texttt{SafetyKernel} emergency stop.
+
+
+%% ──────────────────────────────────────────────────────────────────────
 \section{Files Created / Modified}
 
 \begin{table}[h]
@@ -366,14 +463,15 @@ Demo: notebook \S9 (SNN closed-loop) and \S10 (PAC cross-layer SNN).
 \toprule
 \textbf{File} & \textbf{Lines} & \textbf{Purpose} \\
 \midrule
-\texttt{phase/\_\_init\_\_.py} & 33 & Package exports \\
-\texttt{phase/kuramoto.py} & 139 & Kuramoto--Sakaguchi + $\zeta\sin(\Psi-\theta)$, Rust dispatch \\
+\texttt{phase/\_\_init\_\_.py} & 36 & Package exports \\
+\texttt{phase/kuramoto.py} & 161 & Kuramoto--Sakaguchi + $\zeta\sin(\Psi-\theta)$ + Lyapunov \\
 \texttt{phase/knm.py} & 101 & Paper~27 $K_{nm}$ builder + $\Omega_{N,16}$ \\
-\texttt{phase/upde.py} & 168 & Multi-layer UPDE engine \\
-\texttt{control-math/src/kuramoto.rs} & 195 & Rayon Kuramoto + 7 unit tests \\
-\texttt{control-python/src/lib.rs} & +67 & PyO3 bindings \\
-\texttt{fusion\_kernel.py} & +43 & \texttt{phase\_sync\_step()} injection \\
-\texttt{test\_phase\_kuramoto.py} & 320 & 28 Python tests \\
+\texttt{phase/upde.py} & 215 & Multi-layer UPDE + \texttt{run\_lyapunov()} \\
+\texttt{phase/lyapunov\_guard.py} & 130 & Lyapunov stability guard (DIRECTOR\_AI sync) \\
+\texttt{control-math/src/kuramoto.rs} & 260 & Rayon Kuramoto + Lyapunov + 9 unit tests \\
+\texttt{control-python/src/lib.rs} & +107 & PyO3 bindings (incl.\ Lyapunov) \\
+\texttt{fusion\_kernel.py} & +86 & \texttt{phase\_sync\_step()} + \texttt{\_lyapunov()} \\
+\texttt{test\_phase\_kuramoto.py} & 475 & 44 Python tests \\
 \texttt{paper27\_phase\_dynamics\_demo.ipynb} & --- & 10-section notebook \\
 \texttt{paper27\_phase\_dynamics.md} & 571 & Markdown export \\
 \bottomrule
@@ -385,8 +483,7 @@ Demo: notebook \S9 (SNN closed-loop) and \S10 (PAC cross-layer SNN).
 %% ──────────────────────────────────────────────────────────────────────
 \section{Test Coverage}
 
-28 Python + 7 Rust tests, all passing.
-Full suite regression: 548 passed, 91 skipped, 1 pre-existing failure (unrelated).
+44 Python + 9 Rust tests, all passing.
 
 \begin{table}[h]
 \centering
@@ -401,12 +498,16 @@ Full suite regression: 548 passed, 91 skipped, 1 pre-existing failure (unrelated
 \texttt{TestKuramotoSakaguchiStep} & 4 & Sync stability, $R$ increase, $\zeta$ pull, $\alpha$ frustration \\
 \texttt{TestKnmSpec} & 7 & Shape, anchors, boosts, symmetry, $\zeta$, validation \\
 \texttt{TestUPDESystem} & 6 & Step shape, intra-sync, $\zeta$ pull, trajectory, PAC, error \\
-\texttt{TestFusionKernelPhaseSync} & 2 & Integration smoke, config-driven $\zeta$ \\
+\texttt{TestFusionKernelPhaseSync} & 3 & Integration smoke, config-driven $\zeta$, Lyapunov multi-step \\
+\texttt{TestLyapunovV} & 4 & $V=0$ sync, $V=2$ anti-sync, empty, range \\
+\texttt{TestLyapunovExponent} & 3 & $\lambda<0$ decreasing, $\lambda>0$ increasing, single sample \\
+\texttt{TestUPDELyapunov} & 3 & Step $V$ output, \texttt{run\_lyapunov} $\lambda$, PAC $\gamma$ effect \\
+\texttt{TestLyapunovGuard} & 5 & Stable approved, unstable refused, batch, DIRECTOR\_AI dict, reset \\
 \midrule
-Rust inline tests & 7 & Order param, wrap, step count, $\zeta$ pull, trajectory \\
+Rust inline tests & 9 & Order param, wrap, step count, $\zeta$ pull, trajectory, $V=0$, $\lambda<0$ \\
 \bottomrule
 \end{tabular}
-\caption{Test coverage summary.}
+\caption{Test coverage summary (44 Python + 9 Rust = 53 total).}
 \end{table}
 
 

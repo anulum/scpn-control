@@ -15,10 +15,13 @@ from scpn_control.phase.kuramoto import (
     kuramoto_sakaguchi_step,
     order_parameter,
     wrap_phase,
+    lyapunov_v,
+    lyapunov_exponent,
     GlobalPsiDriver,
 )
 from scpn_control.phase.knm import KnmSpec, build_knm_paper27, OMEGA_N_16
 from scpn_control.phase.upde import UPDESystem
+from scpn_control.phase.lyapunov_guard import LyapunovGuard
 
 
 # ── order_parameter ──────────────────────────────────────────────────
@@ -318,3 +321,160 @@ class TestFusionKernelPhaseSync:
         out = kernel.phase_sync_step(theta, omega, dt=0.01, psi_driver=1.0)
         # ζ=0.5 from config, Ψ=1.0 → dθ = 0.5·sin(1.0 − 0) ≈ 0.421
         assert np.all(out["dtheta"] > 0.0)
+
+    def test_phase_sync_step_lyapunov(self, kernel):
+        N = 50
+        rng = np.random.default_rng(42)
+        theta = rng.uniform(-np.pi, np.pi, N)
+        omega = np.zeros(N)
+        out = kernel.phase_sync_step_lyapunov(
+            theta, omega, n_steps=100, dt=0.01,
+            zeta=3.0, psi_driver=0.5,
+        )
+        assert out["theta_final"].shape == (N,)
+        assert out["R_hist"].shape == (100,)
+        assert out["V_hist"].shape == (100,)
+        assert out["lambda"] < 0.0
+        assert out["stable"] is True
+
+
+# ── lyapunov_v ─────────────────────────────────────────────────────────
+
+
+class TestLyapunovV:
+
+    def test_synced_is_zero(self):
+        theta = np.full(100, 0.5)
+        v = lyapunov_v(theta, 0.5)
+        assert v == pytest.approx(0.0, abs=1e-12)
+
+    def test_anti_synced_is_two(self):
+        theta = np.full(100, 0.5 + np.pi)
+        v = lyapunov_v(theta, 0.5)
+        assert v == pytest.approx(2.0, abs=1e-12)
+
+    def test_empty_is_zero(self):
+        assert lyapunov_v(np.array([]), 0.0) == 0.0
+
+    def test_in_range(self):
+        rng = np.random.default_rng(7)
+        theta = rng.uniform(-np.pi, np.pi, 200)
+        v = lyapunov_v(theta, 0.3)
+        assert 0.0 <= v <= 2.0
+
+
+class TestLyapunovExponent:
+
+    def test_negative_for_decreasing_v(self):
+        v_hist = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5]
+        lam = lyapunov_exponent(v_hist, dt=0.01)
+        assert lam < 0.0
+
+    def test_positive_for_increasing_v(self):
+        v_hist = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        lam = lyapunov_exponent(v_hist, dt=0.01)
+        assert lam > 0.0
+
+    def test_zero_for_single_sample(self):
+        assert lyapunov_exponent([1.0], dt=0.01) == 0.0
+
+
+# ── UPDESystem Lyapunov ────────────────────────────────────────────────
+
+
+class TestUPDELyapunov:
+
+    @staticmethod
+    def _make(L, N, seed=42):
+        rng = np.random.default_rng(seed)
+        theta = [rng.uniform(-np.pi, np.pi, N) for _ in range(L)]
+        omega = [np.zeros(N) for _ in range(L)]
+        return theta, omega
+
+    def test_step_returns_v(self):
+        spec = build_knm_paper27(L=4, zeta_uniform=1.0)
+        sys = UPDESystem(spec=spec, dt=1e-3, psi_mode="external")
+        theta, omega = self._make(4, 20)
+        out = sys.step(theta, omega, psi_driver=0.0)
+        assert "V_layer" in out
+        assert "V_global" in out
+        assert out["V_layer"].shape == (4,)
+        assert 0.0 <= out["V_global"] <= 2.0
+
+    def test_run_lyapunov_returns_lambda(self):
+        spec = build_knm_paper27(L=4, zeta_uniform=2.0)
+        sys = UPDESystem(spec=spec, dt=0.005, psi_mode="external")
+        theta, omega = self._make(4, 30)
+        out = sys.run_lyapunov(200, theta, omega, psi_driver=0.5)
+        assert out["V_layer_hist"].shape == (200, 4)
+        assert out["V_global_hist"].shape == (200,)
+        assert out["lambda_layer"].shape == (4,)
+        # With ζ=2.0 pulling toward Ψ=0.5, should converge
+        assert out["lambda_global"] < 0.0
+
+    def test_run_lyapunov_pac_gamma(self):
+        spec = build_knm_paper27(L=4, zeta_uniform=1.0)
+        sys = UPDESystem(spec=spec, dt=0.005, psi_mode="external")
+        theta, omega = self._make(4, 30, seed=7)
+        out_base = sys.run_lyapunov(100, theta, omega, psi_driver=0.3, pac_gamma=0.0)
+        out_pac = sys.run_lyapunov(100, theta, omega, psi_driver=0.3, pac_gamma=1.0)
+        # PAC should change the dynamics (different λ)
+        assert out_base["lambda_global"] != pytest.approx(out_pac["lambda_global"], abs=1e-6)
+
+
+# ── LyapunovGuard ──────────────────────────────────────────────────────
+
+
+class TestLyapunovGuard:
+
+    def test_stable_trajectory_approved(self):
+        guard = LyapunovGuard(window=20, dt=0.01)
+        rng = np.random.default_rng(42)
+        theta = rng.uniform(-np.pi, np.pi, 50)
+        omega = np.zeros(50)
+        psi = 0.5
+        for _ in range(100):
+            dth = 3.0 * np.sin(psi - theta)
+            theta = ((theta + 0.01 * dth) + np.pi) % (2 * np.pi) - np.pi
+            verdict = guard.check(theta, psi)
+        assert verdict.approved
+        assert verdict.lambda_exp < 0.0
+        assert verdict.score > 0.5
+
+    def test_unstable_trajectory_refused(self):
+        guard = LyapunovGuard(window=10, dt=0.01, max_violations=3)
+        # Feed monotonically increasing V: θ diverges from Ψ=0 up to ~π
+        refused_seen = False
+        for i in range(20):
+            angle = float(i) * 0.15  # stays below π at i=20 (3.0 < π)
+            theta = np.full(10, angle)
+            verdict = guard.check(theta, 0.0)
+            if not verdict.approved:
+                refused_seen = True
+        assert refused_seen
+
+    def test_check_trajectory_batch(self):
+        guard = LyapunovGuard(dt=0.01)
+        v_hist = [1.0, 0.9, 0.8, 0.7, 0.6]
+        verdict = guard.check_trajectory(v_hist)
+        assert verdict.approved
+        assert verdict.lambda_exp < 0.0
+
+    def test_director_ai_dict_format(self):
+        guard = LyapunovGuard(dt=0.01)
+        v_hist = [1.0, 0.5, 0.3]
+        verdict = guard.check_trajectory(v_hist)
+        d = guard.to_director_ai_dict(verdict)
+        assert "approved" in d
+        assert "score" in d
+        assert "halt_reason" in d
+        assert d["approved"] is True
+
+    def test_reset_clears_state(self):
+        guard = LyapunovGuard(window=5, dt=0.01, max_violations=2)
+        for i in range(10):
+            theta = np.full(5, float(i) * 0.5)
+            guard.check(theta, 0.0)
+        guard.reset()
+        verdict = guard.check(np.zeros(5), 0.0)
+        assert verdict.consecutive_violations == 0

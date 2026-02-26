@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
@@ -82,6 +82,28 @@ class GlobalPsiDriver:
             _, psi = order_parameter(theta)
             return psi
         raise ValueError(f"Unknown mode: {self.mode}")
+
+
+def lyapunov_v(theta: FloatArray, psi: float) -> float:
+    """Lyapunov candidate V(t) = (1/N) Σ (1 − cos(θ_i − Ψ)).
+
+    V=0 at perfect sync (all θ_i = Ψ), V→2 at maximal desync.
+    Mirror of control-math/kuramoto.rs::lyapunov_v.
+    """
+    th = np.asarray(theta, dtype=np.float64).ravel()
+    if th.size == 0:
+        return 0.0
+    return float(np.mean(1.0 - np.cos(th - psi)))
+
+
+def lyapunov_exponent(v_hist: Sequence[float], dt: float) -> float:
+    """λ = (1/T) · ln(V_final / V_initial).  λ < 0 ⟹ stable."""
+    if len(v_hist) < 2:
+        return 0.0
+    v0 = max(v_hist[0], 1e-15)
+    vf = max(v_hist[-1], 1e-15)
+    T = len(v_hist) * dt
+    return float(np.log(vf / v0) / T)
 
 
 def kuramoto_sakaguchi_step(

@@ -29,7 +29,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from scpn_control.phase.knm import KnmSpec
-from scpn_control.phase.kuramoto import order_parameter, wrap_phase
+from scpn_control.phase.kuramoto import order_parameter, wrap_phase, lyapunov_v, lyapunov_exponent
 
 FloatArray = NDArray[np.float64]
 
@@ -126,6 +126,15 @@ class UPDESystem:
             np.concatenate([np.asarray(t).ravel() for t in theta_layers])
         )
 
+        # Per-layer Lyapunov V_m(t) = (1/N_m) Σ (1 − cos(θ_{m,i} − Ψ))
+        V_layer = np.array([
+            lyapunov_v(theta1[m], Psi_global) for m in range(L)
+        ])
+        V_global = lyapunov_v(
+            np.concatenate([np.asarray(t).ravel() for t in theta1]),
+            Psi_global,
+        )
+
         return {
             "theta1": theta1,
             "dtheta": dtheta_all,
@@ -133,6 +142,8 @@ class UPDESystem:
             "Psi_layer": Psim.copy(),
             "R_global": R_global,
             "Psi_global": Psi_global,
+            "V_layer": V_layer,
+            "V_global": V_global,
         }
 
     def run(
@@ -165,4 +176,57 @@ class UPDESystem:
             "theta_final": current,
             "R_layer_hist": np.array(R_layer_hist),
             "R_global_hist": np.array(R_global_hist),
+        }
+
+    def run_lyapunov(
+        self,
+        n_steps: int,
+        theta_layers: Sequence[FloatArray],
+        omega_layers: Sequence[FloatArray],
+        *,
+        psi_driver: Optional[float] = None,
+        actuation_gain: float = 1.0,
+        pac_gamma: float = 0.0,
+    ) -> dict:
+        """Run n_steps with Lyapunov tracking.
+
+        Returns R histories, V histories, and per-layer + global λ.
+        λ < 0 ⟹ stable convergence toward Ψ.
+        """
+        R_layer_hist = []
+        R_global_hist = []
+        V_layer_hist = []
+        V_global_hist = []
+        current = [np.asarray(t, dtype=np.float64).copy() for t in theta_layers]
+
+        for _ in range(n_steps):
+            out = self.step(
+                current, omega_layers,
+                psi_driver=psi_driver,
+                actuation_gain=actuation_gain,
+                pac_gamma=pac_gamma,
+            )
+            current = out["theta1"]
+            R_layer_hist.append(out["R_layer"].copy())
+            R_global_hist.append(out["R_global"])
+            V_layer_hist.append(out["V_layer"].copy())
+            V_global_hist.append(out["V_global"])
+
+        V_layer_arr = np.array(V_layer_hist)  # (n_steps, L)
+        V_global_arr = np.array(V_global_hist)  # (n_steps,)
+
+        L = V_layer_arr.shape[1]
+        lambda_layer = np.array([
+            lyapunov_exponent(V_layer_arr[:, m].tolist(), self.dt) for m in range(L)
+        ])
+        lambda_global = lyapunov_exponent(V_global_arr.tolist(), self.dt)
+
+        return {
+            "theta_final": current,
+            "R_layer_hist": np.array(R_layer_hist),
+            "R_global_hist": np.array(R_global_hist),
+            "V_layer_hist": V_layer_arr,
+            "V_global_hist": V_global_arr,
+            "lambda_layer": lambda_layer,
+            "lambda_global": lambda_global,
         }

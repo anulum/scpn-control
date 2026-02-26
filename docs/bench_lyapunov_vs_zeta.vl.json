@@ -1,0 +1,78 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "title": {
+    "text": "Lyapunov Exponent λ vs Global Driver ζ",
+    "subtitle": "N=1000 oscillators, 200 steps @ dt=1ms, Ψ=0.3 (exogenous)"
+  },
+  "width": 500,
+  "height": 320,
+  "data": {
+    "values": [
+      {"zeta": 0.0, "label": "K=0 (pure driver)", "lambda": 0.01},
+      {"zeta": 0.0, "label": "K=2 (Kuramoto+driver)", "lambda": 0.04},
+      {"zeta": 0.1, "label": "K=0 (pure driver)", "lambda": -0.03},
+      {"zeta": 0.1, "label": "K=2 (Kuramoto+driver)", "lambda": -0.02},
+      {"zeta": 0.25, "label": "K=0 (pure driver)", "lambda": -0.11},
+      {"zeta": 0.25, "label": "K=2 (Kuramoto+driver)", "lambda": -0.10},
+      {"zeta": 0.5, "label": "K=0 (pure driver)", "lambda": -0.23},
+      {"zeta": 0.5, "label": "K=2 (Kuramoto+driver)", "lambda": -0.24},
+      {"zeta": 1.0, "label": "K=0 (pure driver)", "lambda": -0.49},
+      {"zeta": 1.0, "label": "K=2 (Kuramoto+driver)", "lambda": -0.53},
+      {"zeta": 1.5, "label": "K=0 (pure driver)", "lambda": -0.76},
+      {"zeta": 1.5, "label": "K=2 (Kuramoto+driver)", "lambda": -0.83},
+      {"zeta": 2.0, "label": "K=0 (pure driver)", "lambda": -1.05},
+      {"zeta": 2.0, "label": "K=2 (Kuramoto+driver)", "lambda": -1.15},
+      {"zeta": 3.0, "label": "K=0 (pure driver)", "lambda": -1.65},
+      {"zeta": 3.0, "label": "K=2 (Kuramoto+driver)", "lambda": -1.83},
+      {"zeta": 5.0, "label": "K=0 (pure driver)", "lambda": -3.01},
+      {"zeta": 5.0, "label": "K=2 (Kuramoto+driver)", "lambda": -3.35}
+    ]
+  },
+  "layer": [
+    {
+      "mark": {"type": "line", "point": true, "strokeWidth": 2},
+      "encoding": {
+        "x": {
+          "field": "zeta",
+          "type": "quantitative",
+          "title": "ζ (global driver strength)",
+          "scale": {"zero": true}
+        },
+        "y": {
+          "field": "lambda",
+          "type": "quantitative",
+          "title": "λ (Lyapunov exponent)",
+          "scale": {"domain": [-3.5, 0.5]}
+        },
+        "color": {
+          "field": "label",
+          "type": "nominal",
+          "title": "Configuration",
+          "scale": {"range": ["#e45756", "#4c78a8"]}
+        }
+      }
+    },
+    {
+      "mark": {"type": "rule", "strokeDash": [4, 4], "color": "#999"},
+      "encoding": {
+        "y": {"datum": 0}
+      }
+    },
+    {
+      "mark": {"type": "text", "align": "left", "dx": 5, "dy": -10, "fontSize": 10, "color": "#666"},
+      "encoding": {
+        "x": {"datum": 0.3},
+        "y": {"datum": 0.15},
+        "text": {"value": "λ > 0: UNSTABLE"}
+      }
+    },
+    {
+      "mark": {"type": "text", "align": "left", "dx": 5, "dy": 10, "fontSize": 10, "color": "#666"},
+      "encoding": {
+        "x": {"datum": 0.3},
+        "y": {"datum": -0.15},
+        "text": {"value": "λ < 0: STABLE"}
+      }
+    }
+  ]
+}
