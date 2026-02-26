@@ -22,6 +22,7 @@ from scpn_control.phase.kuramoto import (
 from scpn_control.phase.knm import KnmSpec, build_knm_paper27, OMEGA_N_16
 from scpn_control.phase.upde import UPDESystem
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
+from scpn_control.phase.realtime_monitor import RealtimeMonitor
 
 
 # ── order_parameter ──────────────────────────────────────────────────
@@ -478,3 +479,59 @@ class TestLyapunovGuard:
         guard.reset()
         verdict = guard.check(np.zeros(5), 0.0)
         assert verdict.consecutive_violations == 0
+
+
+# ── RealtimeMonitor ──────────────────────────────────────────────────
+
+
+class TestRealtimeMonitor:
+
+    def test_from_paper27_defaults(self):
+        mon = RealtimeMonitor.from_paper27(L=4, N_per=10)
+        assert len(mon.theta_layers) == 4
+        assert mon.theta_layers[0].shape == (10,)
+
+    def test_tick_returns_snapshot(self):
+        mon = RealtimeMonitor.from_paper27(L=4, N_per=10, dt=0.005)
+        snap = mon.tick()
+        assert snap["tick"] == 1
+        assert 0.0 <= snap["R_global"] <= 1.0
+        assert len(snap["R_layer"]) == 4
+        assert "lambda_exp" in snap
+        assert "guard_approved" in snap
+        assert "latency_us" in snap
+        assert "director_ai" in snap
+
+    def test_multi_tick_advances(self):
+        mon = RealtimeMonitor.from_paper27(L=4, N_per=10)
+        for _ in range(5):
+            snap = mon.tick()
+        assert snap["tick"] == 5
+
+    def test_convergence_with_strong_zeta(self):
+        mon = RealtimeMonitor.from_paper27(
+            L=4, N_per=20, dt=0.005,
+            zeta_uniform=3.0, psi_driver=0.5,
+        )
+        for _ in range(200):
+            snap = mon.tick()
+        assert snap["R_global"] > 0.5
+        assert snap["guard_approved"]
+
+    def test_reset_clears(self):
+        mon = RealtimeMonitor.from_paper27(L=4, N_per=10)
+        mon.tick()
+        mon.tick()
+        mon.reset(seed=99)
+        assert mon._tick_count == 0
+        snap = mon.tick()
+        assert snap["tick"] == 1
+
+    def test_director_ai_export_format(self):
+        mon = RealtimeMonitor.from_paper27(L=4, N_per=10)
+        snap = mon.tick()
+        d = snap["director_ai"]
+        assert "approved" in d
+        assert "score" in d
+        assert "halt_reason" in d
+        assert "query" in d

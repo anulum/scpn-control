@@ -207,7 +207,63 @@ jobs:
           name: bench-results
           path: scpn-control-rs/target/criterion/
 
-  # ─── Job 9: Rust audit ───
+  # ─── Job 9: Python phase-sync benchmark (DIII-D scale) ───
+  python-benchmark:
+    needs: python-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+      - name: Kuramoto benchmark (DIII-D scale)
+        run: |
+          python - <<'PY'
+          import time
+          import numpy as np
+          from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step
+          from scpn_control.phase.realtime_monitor import RealtimeMonitor
+
+          rng = np.random.default_rng(42)
+
+          # Single-step latency at DIII-D scale (N=1000, 4096)
+          for N in (1000, 4096):
+              theta = rng.uniform(-np.pi, np.pi, N)
+              omega = rng.normal(0, 0.3, N)
+              times = []
+              for _ in range(200):
+                  t0 = time.perf_counter()
+                  kuramoto_sakaguchi_step(theta, omega, dt=1e-3, K=2.0, zeta=0.5,
+                                         psi_driver=0.3, psi_mode="external")
+                  times.append(time.perf_counter() - t0)
+              p50 = sorted(times)[len(times) // 2] * 1e3
+              print(f"N={N:>5d}  P50={p50:.3f} ms")
+              assert p50 < 5.0, f"N={N} P50={p50:.3f} ms exceeds 5 ms budget"
+
+          # RealtimeMonitor tick (16 layers × 50 oscillators)
+          mon = RealtimeMonitor.from_paper27(L=16, N_per=50)
+          tick_times = []
+          for _ in range(100):
+              t0 = time.perf_counter()
+              mon.tick()
+              tick_times.append(time.perf_counter() - t0)
+          p50_tick = sorted(tick_times)[len(tick_times) // 2] * 1e6
+          print(f"RealtimeMonitor tick P50={p50_tick:.0f} µs")
+          assert p50_tick < 50_000, f"Tick P50={p50_tick:.0f} µs exceeds 50 ms budget"
+
+          print("All benchmark gates passed.")
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: python-bench-results
+          path: "*.json"
+          if-no-files-found: ignore
+
+  # ─── Job 10: Rust audit ───
   rust-audit:
     runs-on: ubuntu-latest
     defaults:

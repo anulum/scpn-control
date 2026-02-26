@@ -76,6 +76,16 @@ See `docs/bench_lyapunov_vs_zeta.vl.json` for Vega-Lite plot.
 
 Benchmark source: `benches/bench_fusion_snn_hook.py` (Python, pytest-benchmark).
 
+### Interactive Visualization
+
+All three benchmark datasets (speedup, λ-vs-ζ, PAC latency) in a single
+interactive Vega-Lite chart with legend-click filtering:
+
+`docs/bench_interactive.vl.json`
+
+Open in the [Vega Editor](https://vega.github.io/editor/) or embed via
+`<vega-embed>` / `vegaEmbed()`.  Click legend entries to isolate series.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:
@@ -96,19 +106,21 @@ Criterion artifacts are generated under:
 
 - `scpn-control-rs/target/criterion/`
 
-## CI benchmark job
+## CI benchmark jobs
 
-The CI workflow runs:
+### Rust Criterion (Job 8)
 
 - `cargo bench --workspace`
+- Uploads `bench-results` from `scpn-control-rs/target/criterion/`
 
-and uploads benchmark artifacts as:
+### Python phase-sync benchmark — DIII-D scale (Job 9)
 
-- `bench-results`
+Runs `kuramoto_sakaguchi_step` at N=1000 and N=4096 (DIII-D PCS scale),
+plus a `RealtimeMonitor.tick()` (16 layers × 50 oscillators).
 
-from:
-
-- `scpn-control-rs/target/criterion/`
+Gates:
+- Single-step P50 < 5 ms (N=4096)
+- RealtimeMonitor tick P50 < 50 ms
 
 ## Reproducibility notes
 

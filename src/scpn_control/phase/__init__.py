@@ -24,6 +24,7 @@ from scpn_control.phase.kuramoto import (
 from scpn_control.phase.knm import KnmSpec, build_knm_paper27
 from scpn_control.phase.upde import UPDESystem
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
+from scpn_control.phase.realtime_monitor import RealtimeMonitor
 
 __all__ = [
     "kuramoto_sakaguchi_step",
@@ -36,4 +37,5 @@ __all__ = [
     "build_knm_paper27",
     "UPDESystem",
     "LyapunovGuard",
+    "RealtimeMonitor",
 ]

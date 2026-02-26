@@ -488,7 +488,46 @@ LyapunovGuard.check(θ, Ψ) → LyapunovVerdict
 
 ---
 
-## 11. FusionKernel.phase_sync_step() — Single Step
+## 11. Real-Time Dashboard Hook
+
+### 11.1 RealtimeMonitor
+
+`scpn_control.phase.realtime_monitor.RealtimeMonitor` wraps UPDESystem +
+LyapunovGuard into a tick-by-tick interface for live control dashboards:
+
+```python
+from scpn_control.phase import RealtimeMonitor
+
+monitor = RealtimeMonitor.from_paper27(psi_driver=0.0)
+for sample in sensor_stream:
+    snap = monitor.tick()
+    if not snap["guard_approved"]:
+        trigger_safety_halt()
+    dashboard.push(snap)
+```
+
+Each `tick()` returns: `R_global`, `R_layer`, `Psi_global`, `V_global`,
+`V_layer`, `lambda_exp`, `guard_approved`, `guard_score`, `latency_us`,
+and a `director_ai` dict ready for AuditLogger.
+
+### 11.2 Interactive Benchmark Visualisation
+
+[`docs/bench_interactive.vl.json`](bench_interactive.vl.json) — single Vega-Lite
+chart with 3 vertically concatenated panels:
+
+1. **Python vs Rust Speedup** (log-log, N=64..65k, legend-click filtering)
+2. **λ vs ζ** (K=0 / K=2 configs, stability boundary annotation)
+3. **PAC vs No-PAC Latency** (grouped bars with 95% CI error bars)
+
+### 11.3 CI Benchmark — DIII-D Scale
+
+CI job `python-benchmark` runs Kuramoto steps at DIII-D PCS scale:
+- N=1000, N=4096 single-step P50 < 5 ms gate
+- RealtimeMonitor tick (16 × 50 oscillators) P50 < 50 ms gate
+
+---
+
+## 12. FusionKernel.phase_sync_step() — Single Step
 
 ```python
 kernel = FusionKernel("tokamak_config.json")
@@ -509,9 +548,9 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 
 ---
 
-## 10. Test Coverage
+## 13. Test Coverage
 
-**44 Python tests** (all passing, 7.8s):
+**50 Python tests** (all passing, ~7s):
 
 | Class | Tests | What is verified |
 |-------|------:|------------------|
@@ -526,6 +565,7 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 | `TestLyapunovExponent` | 3 | λ<0 decreasing, λ>0 increasing, single sample |
 | `TestUPDELyapunov` | 3 | step V output, run_lyapunov λ, PAC γ effect |
 | `TestLyapunovGuard` | 5 | Stable approved, unstable refused, batch, DIRECTOR_AI dict, reset |
+| `TestRealtimeMonitor` | 6 | from_paper27 defaults, tick snapshot, multi-tick, convergence, reset, DIRECTOR_AI export |
 
 **9 Rust tests** (inline, all passing):
 
@@ -541,11 +581,11 @@ provided.  The `actuation_gain` parameter scales both K and ζ uniformly.
 | `test_lyapunov_v_synced_is_zero` | V=0 at perfect sync |
 | `test_lyapunov_exponent_negative_with_zeta` | λ<0 with ζ=3 driver |
 
-**Full suite regression**: 548 passed, 91 skipped, 1 pre-existing failure (unrelated).
+**Full suite regression**: 563 passed, 91 skipped, 1 pre-existing failure (unrelated).
 
 ---
 
-## 11. Demo Notebook Sections
+## 14. Demo Notebook Sections
 
 `examples/paper27_phase_dynamics_demo.ipynb` (10 sections + summary):
 
@@ -564,7 +604,7 @@ Markdown export: `docs/paper27_phase_dynamics.md`
 
 ---
 
-## 12. Commit History
+## 15. Commit History
 
 ```
 4af1c5f fix: silence clippy too_many_arguments / type_complexity on Kuramoto bindings
@@ -576,7 +616,7 @@ b11228b docs: add Paper 27 phase dynamics demo notebook
 
 ---
 
-## 13. What Was NOT Touched
+## 16. What Was NOT Touched
 
 - GS equilibrium solver (`solve_equilibrium`, `gs_step`, `SOR/multigrid`)
 - SNN controllers (`LIFNeuron`, `SNNController`, spike-rate feedback`)
@@ -586,7 +626,7 @@ b11228b docs: add Paper 27 phase dynamics demo notebook
 
 ---
 
-## 14. Paper 27 Reference
+## 17. Paper 27 Reference
 
 M. Šotek, "The Knm Matrix: A Simulation Framework for Modelling Multi-Scale
 Bidirectional Causality in the Self-Consistent Phenomenological Network,"

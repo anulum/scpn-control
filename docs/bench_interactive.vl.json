@@ -1,0 +1,190 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "title": {
+    "text": "SCPN-Control Phase Sync Benchmarks",
+    "subtitle": "Paper 27 — Kuramoto–Sakaguchi + ζ sin(Ψ−θ)"
+  },
+  "config": {"view": {"stroke": null}},
+  "vconcat": [
+    {
+      "title": "Python vs Rust Speedup by Oscillator Count",
+      "width": 520,
+      "height": 220,
+      "data": {
+        "values": [
+          {"N": 64, "backend": "Python", "time_ms": 0.050},
+          {"N": 64, "backend": "Rust", "time_ms": 0.003},
+          {"N": 256, "backend": "Python", "time_ms": 0.029},
+          {"N": 256, "backend": "Rust", "time_ms": 0.033},
+          {"N": 1000, "backend": "Python", "time_ms": 0.087},
+          {"N": 1000, "backend": "Rust", "time_ms": 0.062},
+          {"N": 4096, "backend": "Python", "time_ms": 0.328},
+          {"N": 4096, "backend": "Rust", "time_ms": 0.180},
+          {"N": 16384, "backend": "Python", "time_ms": 1.240},
+          {"N": 16384, "backend": "Rust", "time_ms": 0.544},
+          {"N": 65536, "backend": "Python", "time_ms": 5.010},
+          {"N": 65536, "backend": "Rust", "time_ms": 1.980}
+        ]
+      },
+      "params": [
+        {
+          "name": "backend_filter",
+          "select": {"type": "point", "fields": ["backend"]},
+          "bind": "legend"
+        }
+      ],
+      "mark": {"type": "line", "point": {"size": 60}},
+      "encoding": {
+        "x": {
+          "field": "N",
+          "type": "quantitative",
+          "scale": {"type": "log"},
+          "title": "Oscillator count N (log scale)"
+        },
+        "y": {
+          "field": "time_ms",
+          "type": "quantitative",
+          "scale": {"type": "log"},
+          "title": "Latency (ms, log scale)"
+        },
+        "color": {
+          "field": "backend",
+          "type": "nominal",
+          "scale": {"range": ["#e45756", "#4c78a8"]},
+          "title": "Backend"
+        },
+        "opacity": {
+          "condition": {"param": "backend_filter", "value": 1},
+          "value": 0.15
+        },
+        "tooltip": [
+          {"field": "N", "type": "quantitative"},
+          {"field": "backend", "type": "nominal"},
+          {"field": "time_ms", "type": "quantitative", "format": ".3f", "title": "ms"}
+        ]
+      }
+    },
+    {
+      "title": "Lyapunov Exponent λ vs Global Driver ζ",
+      "width": 520,
+      "height": 220,
+      "data": {
+        "values": [
+          {"zeta": 0.0, "config": "K=0 (pure driver)", "lambda": 0.01},
+          {"zeta": 0.0, "config": "K=2 (Kuramoto+driver)", "lambda": 0.04},
+          {"zeta": 0.1, "config": "K=0 (pure driver)", "lambda": -0.03},
+          {"zeta": 0.1, "config": "K=2 (Kuramoto+driver)", "lambda": -0.02},
+          {"zeta": 0.25, "config": "K=0 (pure driver)", "lambda": -0.11},
+          {"zeta": 0.25, "config": "K=2 (Kuramoto+driver)", "lambda": -0.10},
+          {"zeta": 0.5, "config": "K=0 (pure driver)", "lambda": -0.23},
+          {"zeta": 0.5, "config": "K=2 (Kuramoto+driver)", "lambda": -0.24},
+          {"zeta": 1.0, "config": "K=0 (pure driver)", "lambda": -0.49},
+          {"zeta": 1.0, "config": "K=2 (Kuramoto+driver)", "lambda": -0.53},
+          {"zeta": 1.5, "config": "K=0 (pure driver)", "lambda": -0.76},
+          {"zeta": 1.5, "config": "K=2 (Kuramoto+driver)", "lambda": -0.83},
+          {"zeta": 2.0, "config": "K=0 (pure driver)", "lambda": -1.05},
+          {"zeta": 2.0, "config": "K=2 (Kuramoto+driver)", "lambda": -1.15},
+          {"zeta": 3.0, "config": "K=0 (pure driver)", "lambda": -1.65},
+          {"zeta": 3.0, "config": "K=2 (Kuramoto+driver)", "lambda": -1.83},
+          {"zeta": 5.0, "config": "K=0 (pure driver)", "lambda": -3.01},
+          {"zeta": 5.0, "config": "K=2 (Kuramoto+driver)", "lambda": -3.35}
+        ]
+      },
+      "params": [
+        {
+          "name": "config_filter",
+          "select": {"type": "point", "fields": ["config"]},
+          "bind": "legend"
+        }
+      ],
+      "layer": [
+        {
+          "mark": {"type": "line", "point": {"size": 60}, "strokeWidth": 2},
+          "encoding": {
+            "x": {"field": "zeta", "type": "quantitative", "title": "ζ (global driver strength)"},
+            "y": {"field": "lambda", "type": "quantitative", "title": "λ (Lyapunov exponent)"},
+            "color": {
+              "field": "config",
+              "type": "nominal",
+              "title": "Configuration",
+              "scale": {"range": ["#e45756", "#4c78a8"]}
+            },
+            "opacity": {
+              "condition": {"param": "config_filter", "value": 1},
+              "value": 0.15
+            },
+            "tooltip": [
+              {"field": "zeta", "type": "quantitative", "title": "ζ"},
+              {"field": "config", "type": "nominal"},
+              {"field": "lambda", "type": "quantitative", "format": ".2f", "title": "λ"}
+            ]
+          }
+        },
+        {
+          "mark": {"type": "rule", "strokeDash": [4, 4], "color": "#999"},
+          "encoding": {"y": {"datum": 0}}
+        },
+        {
+          "mark": {"type": "text", "align": "left", "dx": 5, "fontSize": 10, "color": "#c44"},
+          "encoding": {
+            "x": {"datum": 3.5},
+            "y": {"datum": 0.2},
+            "text": {"value": "UNSTABLE (λ > 0)"}
+          }
+        },
+        {
+          "mark": {"type": "text", "align": "left", "dx": 5, "fontSize": 10, "color": "#4a4"},
+          "encoding": {
+            "x": {"datum": 3.5},
+            "y": {"datum": -0.3},
+            "text": {"value": "STABLE (λ < 0)"}
+          }
+        }
+      ]
+    },
+    {
+      "title": "Knm 16-Layer UPDE: PAC Gate vs No-PAC Latency",
+      "width": 520,
+      "height": 160,
+      "data": {
+        "values": [
+          {"config": "PAC (γ=1.0)", "metric": "Total step", "time_us": 909, "ci_lo": 860, "ci_hi": 921},
+          {"config": "No PAC (γ=0)", "metric": "Total step", "time_us": 811, "ci_lo": 807, "ci_hi": 827},
+          {"config": "PAC (γ=1.0)", "metric": "Inter-layer loop", "time_us": 780, "ci_lo": 740, "ci_hi": 800},
+          {"config": "No PAC (γ=0)", "metric": "Inter-layer loop", "time_us": 685, "ci_lo": 680, "ci_hi": 700},
+          {"config": "PAC (γ=1.0)", "metric": "Order params (16×)", "time_us": 64, "ci_lo": 60, "ci_hi": 68},
+          {"config": "No PAC (γ=0)", "metric": "Order params (16×)", "time_us": 64, "ci_lo": 60, "ci_hi": 68}
+        ]
+      },
+      "encoding": {
+        "y": {
+          "field": "metric", "type": "nominal",
+          "sort": ["Total step", "Inter-layer loop", "Order params (16×)"],
+          "title": null
+        },
+        "x": {"field": "time_us", "type": "quantitative", "title": "Latency (µs)", "scale": {"zero": true}},
+        "color": {"field": "config", "type": "nominal", "title": "Config", "scale": {"range": ["#e45756", "#4c78a8"]}},
+        "yOffset": {"field": "config"},
+        "tooltip": [
+          {"field": "metric", "type": "nominal"},
+          {"field": "config", "type": "nominal"},
+          {"field": "time_us", "type": "quantitative", "title": "µs"}
+        ]
+      },
+      "layer": [
+        {"mark": {"type": "bar", "cornerRadiusEnd": 3, "height": 14}},
+        {
+          "mark": {"type": "errorbar", "ticks": true},
+          "encoding": {"x": {"field": "ci_lo", "type": "quantitative"}, "x2": {"field": "ci_hi"}}
+        },
+        {
+          "mark": {"type": "text", "align": "left", "dx": 5, "fontSize": 11},
+          "encoding": {
+            "text": {"field": "time_us", "type": "quantitative", "format": ".0f"},
+            "color": {"value": "#333"}
+          }
+        }
+      ]
+    }
+  ]
+}
