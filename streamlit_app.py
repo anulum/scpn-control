@@ -12,9 +12,17 @@ Deploy: share.streamlit.io > New app > anulum/scpn-control > streamlit_app.py
 """
 from __future__ import annotations
 
+import os
+import sys
 import threading
 import time
 from collections import deque
+from pathlib import Path
+
+# Ensure scpn_control is importable (src-layout, no pip install needed)
+_src = str(Path(__file__).resolve().parent / "src")
+if _src not in sys.path:
+    sys.path.insert(0, _src)
 
 import numpy as np
 import streamlit as st
