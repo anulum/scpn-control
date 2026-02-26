@@ -42,6 +42,7 @@ scpn-control benchmark --n-bench 5000
   - `examples/snn_compiler_walkthrough.ipynb`
   - `examples/paper27_phase_dynamics_demo.ipynb` — Knm/UPDE + ζ sin(Ψ−θ)
   - `examples/snn_pac_closed_loop_demo.ipynb` — SNN-PAC-Kuramoto closed loop
+  - `examples/streamlit_ws_client.py` — live WebSocket phase sync dashboard
 
 Build docs locally:
 
@@ -140,18 +141,24 @@ global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
 
 **Rust acceleration:** `upde_tick()` in `control-math` + `PyRealtimeMonitor` PyO3 binding.
 
-**WebSocket live demo:**
+**Live phase sync convergence** (animated):
 
 <p align="center">
-  <img src="docs/ws_phase_demo.svg" alt="WebSocket Phase Sync Monitor" width="100%">
+  <img src="docs/phase_sync_animation.svg" alt="Phase Sync Convergence Animation" width="100%">
 </p>
 
-```bash
-# Start WebSocket server (standalone)
-python -m scpn_control.phase.ws_phase_stream --port 8765
+**WebSocket live stream:**
 
-# Or via Streamlit dashboard (Phase Sync Monitor tab)
-streamlit run dashboard/control_dashboard.py
+```bash
+# Terminal 1: start server
+python -m scpn_control.phase.ws_phase_stream --port 8765 --zeta 0.5
+
+# Terminal 2: Streamlit WS client (live R/V/λ plots, guard status, control)
+pip install -e ".[dashboard,ws]"
+streamlit run examples/streamlit_ws_client.py
+
+# Or embedded mode (server + client in one process)
+streamlit run examples/streamlit_ws_client.py -- --embedded
 ```
 
 **E2E test with mock DIII-D shot data:**
@@ -246,9 +253,26 @@ The Rust backend provides PyO3 bindings for:
 
 ## Release and PyPI
 
-Publishing is handled by workflow:
+**Local publish script:**
 
-- `.github/workflows/publish-pypi.yml`
+```bash
+# Dry run (build + check, no upload)
+python tools/publish.py --dry-run
+
+# Publish to TestPyPI
+python tools/publish.py --target testpypi
+
+# Bump version + publish to PyPI
+python tools/publish.py --bump minor --target pypi --confirm
+```
+
+**CI workflow** (tag-triggered trusted publishing):
+
+```bash
+git tag v0.2.0
+git push --tags
+# → .github/workflows/publish-pypi.yml runs automatically
+```
 
 ## Authors
 

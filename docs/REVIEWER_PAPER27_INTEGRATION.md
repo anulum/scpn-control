@@ -590,6 +590,42 @@ CI job `e2e-diiid` runs end-to-end tests:
 - Shot-driven RealtimeMonitor (Ψ = f(beta_N))
 - NPZ and HDF5 trajectory export verification
 
+### 11.9 Streamlit WebSocket Client
+
+`examples/streamlit_ws_client.py` — live Streamlit dashboard consuming WS ticks:
+
+```bash
+# Two-terminal mode
+python -m scpn_control.phase.ws_phase_stream --port 8765 --zeta 0.5  # terminal 1
+streamlit run examples/streamlit_ws_client.py                          # terminal 2
+
+# Embedded mode (server + client in one process)
+streamlit run examples/streamlit_ws_client.py -- --embedded
+```
+
+Features: auto-reconnect, R/V/λ time-series plots, per-layer bar chart,
+guard status, Ψ control slider, raw JSON expander, auto-refresh at 3 Hz.
+
+### 11.10 Phase Sync Animation
+
+![Phase Sync Convergence](phase_sync_animation.svg)
+
+Animated SVG in `docs/phase_sync_animation.svg` showing R_global convergence,
+Lyapunov V decay, λ settling to negative, and per-layer R bar chart growth.
+
+### 11.11 PyPI Publish Script
+
+`tools/publish.py` — local build + publish pipeline:
+
+```bash
+python tools/publish.py --dry-run                       # build + twine check
+python tools/publish.py --target testpypi               # upload to TestPyPI
+python tools/publish.py --bump minor --target pypi --confirm  # version bump + PyPI
+```
+
+CI workflow `.github/workflows/publish-pypi.yml` handles tag-triggered trusted
+publishing (no tokens needed).
+
 ---
 
 ## 12. FusionKernel.phase_sync_step() — Single Step
