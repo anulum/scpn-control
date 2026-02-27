@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Stress-Test Campaign Tests (P1.4)
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
+# License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests for the controller stress-test campaign and RESULTS.md wiring."""
 

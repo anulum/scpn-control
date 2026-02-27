@@ -72,7 +72,7 @@ cycle. scpn-control gives you:
 
 - Drop-in controller with 675 tests and CI-gated RMSE validation
 - Runs on edge hardware (no data center required)
-- AGPL-licensed with commercial licensing available
+- MIT/Apache-2.0 dual-licensed — no copyleft restrictions
 
 ### For National Labs
 
@@ -177,8 +177,7 @@ cd crates/control-python && maturin develop --release
 
 | | |
 |---|---|
-| **Open Source** | GNU AGPL v3 — free for research and open-source projects |
-| **Commercial** | Dual-license available for proprietary integration |
+| **Open Source** | MIT OR Apache-2.0 — permissive, no copyleft |
 | **Contact** | [protoscience@anulum.li](mailto:protoscience@anulum.li) |
 | **Organization** | ANULUM CH & LI |
 | **Authors** | Miroslav Sotek ([ORCID](https://orcid.org/0009-0009-3560-0851)), Michal Reiprich |

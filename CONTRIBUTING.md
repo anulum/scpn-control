@@ -109,9 +109,8 @@ Do not open a public issue.
 
 ## License
 
-scpn-control is licensed under AGPL-3.0-or-later. All contributions are
-released under the same license. No CLA is required, but contributions
-must be AGPL-compatible (no proprietary or GPL-incompatible dependencies).
+scpn-control is dual-licensed under MIT or Apache-2.0, at your option.
+Contributions are released under the same dual license. No CLA is required.
 
 By submitting a pull request, you agree that your contribution is licensed
-under AGPL-3.0-or-later.
+under MIT OR Apache-2.0.

@@ -3,7 +3,7 @@
 // © 1998–2026 Miroslav Šotek. All rights reserved.
 // Contact: www.anulum.li | protoscience@anulum.li
 // ORCID: https://orcid.org/0009-0009-3560-0851
-// License: GNU AGPL v3 | Commercial licensing available
+// License: MIT OR Apache-2.0
 // ─────────────────────────────────────────────────────────────────────
 /// Vacuum permeability (H/m) - real SI value.
 /// NOTE: The Python code uses vacuum_permeability=1.0 in configs (normalized units).

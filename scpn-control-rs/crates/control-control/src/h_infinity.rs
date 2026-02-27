@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────
 // SCPN Control — H-infinity Robust Controller (Rust)
 // © 1998–2026 Miroslav Šotek. All rights reserved.
-// License: GNU AGPL v3 | Commercial licensing available
+// License: MIT OR Apache-2.0
 // ─────────────────────────────────────────────────────────────────────
 //! Doyle-Glover-Khargonekar H-infinity synthesis in Rust.
 //!

@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Streamlit WebSocket Phase Sync Client
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
+# License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """
 Live Streamlit client consuming PhaseStreamServer WebSocket ticks.

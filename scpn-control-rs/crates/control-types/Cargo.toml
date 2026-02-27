@@ -1,6 +1,6 @@
 [package]
 authors = ["Miroslav Sotek", "Michal Reiprich"]
-license = "AGPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 name = "control-types"
 version = "0.1.0"
 edition = "2021"

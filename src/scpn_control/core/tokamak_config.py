@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Tokamak Configuration
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
+# License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tokamak machine parameter container with named presets.
 

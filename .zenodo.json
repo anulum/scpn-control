@@ -4,7 +4,7 @@
   "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with formal verification guarantees. 48 Python modules, 5 Rust crates, 701 tests, 11.9 µs P50 control loop.",
   "upload_type": "software",
   "license": {
-    "id": "AGPL-3.0-or-later"
+    "id": "MIT"
   },
   "creators": [
     {

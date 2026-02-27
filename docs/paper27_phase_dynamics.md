@@ -18,7 +18,7 @@ References:
 
 ---
 
-Copyright 1996–2026 Miroslav Šotek · GNU AGPL v3
+Copyright 1996–2026 Miroslav Šotek · MIT OR Apache-2.0
 
 
 ```python

@@ -10,7 +10,7 @@ authors = [
     {name = "Miroslav Sotek"},
     {name = "Michal Reiprich"}
 ]
-license = "AGPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",

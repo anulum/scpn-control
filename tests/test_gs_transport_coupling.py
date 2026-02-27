@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — GS ↔ Transport Self-Consistency Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
+# License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests for the self-consistent GS <-> transport coupling loop.
 

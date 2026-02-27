@@ -2,7 +2,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — PyPI Publish Script
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
+# License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """
 Build, verify, and publish scpn-control to PyPI or TestPyPI.
