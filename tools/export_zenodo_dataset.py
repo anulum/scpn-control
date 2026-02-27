@@ -32,6 +32,8 @@ INCLUDE_PATTERNS = [
     "pyproject.toml",
     "README.md",
     "LICENSE",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
     "CITATION.cff",
     "CHANGELOG.md",
     ".zenodo.json",

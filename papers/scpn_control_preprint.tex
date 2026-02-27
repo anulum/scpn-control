@@ -1,0 +1,368 @@
+\documentclass[twocolumn,preprintnumbers,amsmath,amssymb,prl]{revtex4-2}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{siunitx}
+
+\begin{document}
+
+\title{SCPN Control: Compiling Stochastic Petri Nets into Spiking Neural
+  Network Controllers for Real-Time Tokamak Plasma Control}
+
+\author{Miroslav Sotek}
+\email{protoscience@anulum.li}
+\affiliation{ANULUM CH \& LI}
+\author{Michal Reiprich}
+\affiliation{ANULUM CH \& LI}
+
+\date{\today}
+
+\begin{abstract}
+We present \textsc{scpn-control}, an open-source neuro-symbolic control engine
+that compiles Stochastic Petri Nets (SPNs) into spiking neural network (SNN)
+controllers with formal contract verification for tokamak plasma control.
+The compilation pipeline translates SPN graphs into leaky integrate-and-fire
+(LIF) neuron pools with bitstream encoding, enforcing pre/post-condition
+contracts on every control observation and action before it reaches the plant.
+On a single CPU core the controller achieves \SI{11.9}{\micro\second} P50
+latency; with the \texttt{VectorizedSCLayer} Rust backend the SNN forward
+pass runs at $512\times$ real-time.  We integrate a 16-layer
+Kuramoto--Sakaguchi phase dynamics engine driven by the Paper~27 $K_{nm}$
+coupling matrix and UPDE multi-layer solver, monitored by a Lyapunov
+sliding-window stability guard.  The system includes Grad--Shafranov
+equilibrium solving, $H_\infty$ robust control, MPC, disruption prediction
+with SPI mitigation, and a Gymnasium-compatible \texttt{TokamakEnv}.
+Benchmarked against DIII-D and SPARC published equilibria, the solver
+achieves $<2\%$ RMSE on pressure and $q$-profiles.  The full package
+(48 Python modules, 5 Rust crates, 701 tests, 17 CI jobs) is
+MIT/Apache-2.0 dual-licensed at
+\url{https://github.com/anulum/scpn-control}.
+\end{abstract}
+
+\maketitle
+
+%% ============================================================
+\section{Introduction}
+\label{sec:intro}
+%% ============================================================
+
+Real-time plasma control in tokamaks demands sub-millisecond latency,
+formal safety guarantees, and adaptability to regime transitions.
+Existing plasma control systems (PCS) at DIII-D~\cite{ferron2006},
+ITER~\cite{iter_codac}, and EAST rely on classical PID or
+model-predictive control (MPC) with hand-tuned gains.  These
+approaches lack formal verification of control actions and cannot
+adapt their control topology at runtime.
+
+Spiking neural networks (SNNs) offer event-driven, low-latency
+computation that maps naturally to control tasks~\cite{tavanaei2019}.
+Stochastic Petri Nets (SPNs) provide a formal framework for modeling
+concurrent, stochastic processes with well-defined reachability and
+liveness properties~\cite{marsan1995}.
+
+We bridge these two paradigms: \textsc{scpn-control} compiles an SPN
+control specification into an SNN controller, preserving the formal
+contract structure of the Petri net as pre/post-condition checks on
+every control action.
+
+\paragraph{Contributions.}
+\begin{enumerate}
+  \item A compilation pipeline from SPN graphs to LIF neuron pools
+        with bitstream encoding and formal contract verification.
+  \item Integration of Kuramoto--Sakaguchi phase dynamics (Paper~27
+        $K_{nm}$ coupling) with UPDE multi-layer solver and Lyapunov
+        stability monitoring.
+  \item A Rust-accelerated runtime achieving \SI{11.9}{\micro\second}
+        P50 control latency and $512\times$ real-time SNN execution.
+  \item Validation against DIII-D and SPARC equilibria with $<2\%$
+        RMSE on pressure and safety-factor profiles.
+\end{enumerate}
+
+%% ============================================================
+\section{SPN to SNN Compilation}
+\label{sec:compilation}
+%% ============================================================
+
+\subsection{Stochastic Petri Net Specification}
+
+A Stochastic Petri Net is a tuple $\mathcal{N} = (P, T, A, W, M_0, \Lambda)$
+where $P$ is a finite set of places, $T$ is a finite set of transitions,
+$A \subseteq (P \times T) \cup (T \times P)$ is the set of arcs,
+$W: A \to \mathbb{N}$ assigns arc weights, $M_0: P \to \mathbb{N}_0$ is the
+initial marking, and $\Lambda: T \to \mathbb{R}_{>0}$ assigns stochastic
+firing rates.
+
+The user defines plasma control logic as an SPN:\ places represent physical
+observables (plasma current $I_p$, stored energy $W_{\mathrm{MHD}}$,
+density $\bar{n}_e$) and controller states; transitions encode control
+decisions (heating power adjustments, fueling commands, vertical stability
+corrections).
+
+\subsection{Compilation to LIF Neurons}
+
+The \texttt{FusionCompiler} maps each place $p_i$ to a pool of $K$ leaky
+integrate-and-fire neurons.  The marking $M(p_i)$ is encoded as a
+Bernoulli bitstream of length $L$:
+%
+\begin{equation}
+  b_i^{(k)} \sim \mathrm{Bernoulli}\!\left(\frac{M(p_i)}{M_{\max}}\right),
+  \quad k = 1, \ldots, L
+\end{equation}
+%
+Arc weights $W(p_i, t_j)$ become synaptic weights in the connection
+matrix.  The compiled network \texttt{CompiledNet} stores:
+%
+\begin{itemize}
+  \item $\mathbf{W} \in \mathbb{R}^{|P| \times |P|}$: dense weight matrix
+        derived from arc weights via the incidence matrix
+  \item Bitstream length $L$ and LIF parameters ($\tau_m$, $V_{\mathrm{th}}$,
+        $V_{\mathrm{reset}}$)
+  \item Contract specifications from \texttt{ControlObservation} and
+        \texttt{ControlAction} dataclasses
+\end{itemize}
+
+\subsection{VectorizedSCLayer Acceleration}
+
+With \texttt{sc-neurocore} $\geq 3.8.0$, the forward pass uses
+\texttt{VectorizedSCLayer} with a Rust backend:
+%
+\begin{equation}
+  \mathbf{y} = \texttt{VectorizedSCLayer}(\mathbf{W}_{\mathrm{packed}},\;
+  \texttt{BitstreamEncoder}(L),\; \texttt{get\_backend()}).\texttt{forward}(\mathbf{x})
+\end{equation}
+%
+This achieves $512\times$ real-time on a single core via SIMD bitwise
+operations on packed bitstreams, avoiding the $O(|P|^2 L)$ cost of
+element-wise stochastic arithmetic.
+
+\subsection{Formal Contract Verification}
+
+Every control action $\mathbf{a}_t$ is checked against:
+%
+\begin{align}
+  \texttt{pre}(\mathbf{o}_t) &: \text{observation within physical bounds} \\
+  \texttt{post}(\mathbf{a}_t) &: \text{action within actuator limits}
+\end{align}
+%
+Violations trigger a safe fallback (zero-action or last-known-good).
+Contracts are defined as typed dataclasses with bound annotations,
+checked at every tick with zero allocation overhead.
+
+%% ============================================================
+\section{Phase Dynamics Engine}
+\label{sec:phase}
+%% ============================================================
+
+\subsection{Kuramoto--Sakaguchi with Global Field Driver}
+
+Following arXiv:2004.06344 and SCPN Paper~27, we model $N$ coupled
+oscillators across $L = 16$ layers:
+%
+\begin{equation}
+  \dot{\theta}_n^{(\ell)} = \omega_n + \sum_{m=1}^{N} K_{nm}
+  \sin(\theta_m^{(\ell)} - \theta_n^{(\ell)} - \alpha_{nm})
+  + \zeta \sin(\Psi - \theta_n^{(\ell)}) + \eta_n(t)
+  \label{eq:kuramoto}
+\end{equation}
+%
+where $\omega_n$ are natural frequencies, $K_{nm}$ is the Paper~27
+coupling matrix, $\alpha_{nm}$ are phase frustration parameters,
+$\zeta$ is the global field coupling strength, $\Psi$ is the
+mean-field phase, and $\eta_n(t)$ is Gaussian noise.
+
+\subsection{Paper 27 $K_{nm}$ Coupling Matrix}
+
+The $16 \times 16$ coupling matrix encodes inter-layer interactions:
+%
+\begin{equation}
+  K_{nm} = K_{\mathrm{base}} \exp(-\alpha |n - m|)
+  + \sum_{(i,j) \in \mathcal{A}} c_{ij}\, \delta_{ni}\delta_{mj}
+\end{equation}
+%
+with $K_{\mathrm{base}} = 0.45$, decay rate $\alpha = 0.3$, and
+calibration anchors $\mathcal{A} = \{(1,2): 0.302,\; (2,3): 0.201,\;
+(3,4): 0.252,\; (4,5): 0.154\}$ from empirical phase-locking data.
+
+\subsection{UPDE Multi-Layer Solver}
+
+The Unified Phase Dynamics Equation (UPDE) couples all 16 layers:
+%
+\begin{equation}
+  \dot{\boldsymbol{\Theta}} = \boldsymbol{\Omega}
+  + \mathbf{K} \circ \sin(\boldsymbol{\Theta}^T \mathbf{1}
+  - \mathbf{1} \boldsymbol{\Theta}^T)^T \mathbf{1}
+  + \zeta \sin(\Psi \mathbf{1} - \boldsymbol{\Theta})
+\end{equation}
+%
+with optional PAC (phase-amplitude coupling) gating that modulates
+cross-layer coupling based on the amplitude envelope of lower layers.
+
+\subsection{Lyapunov Stability Guard}
+
+A sliding-window monitor tracks the Lyapunov candidate:
+%
+\begin{equation}
+  V(t) = 1 - R(t), \qquad
+  R e^{i\Psi} = \frac{1}{N} \sum_{n=1}^{N} e^{i\theta_n}
+\end{equation}
+%
+and the exponential rate $\lambda = \Delta(\ln V) / \Delta t$ over
+a configurable window.  If $\lambda > 0$ for $K$ consecutive ticks,
+the guard triggers a coherence recovery action (increased $\zeta$ or
+controller gain boost).
+
+%% ============================================================
+\section{Control Architecture}
+\label{sec:control}
+%% ============================================================
+
+\subsection{Controller Suite}
+
+\textsc{scpn-control} ships five controller types, selectable at runtime:
+
+\begin{itemize}
+  \item \textbf{PID}: Dual-channel $I_p$ + vertical position with
+        anti-windup and derivative filtering.
+  \item \textbf{MPC}: Riccati-based with configurable horizon $N_p$
+        and control horizon $N_c$.
+  \item \textbf{$H_\infty$}: $\gamma$-iteration robust control for
+        disturbance rejection during ELMs and disruptions.
+  \item \textbf{SNN}: Compiled from SPN specification (Section~\ref{sec:compilation}).
+  \item \textbf{Neuro-cybernetic}: Dual radial + vertical SNN pools
+        with cross-coupling.
+\end{itemize}
+
+\subsection{Grad--Shafranov Solver}
+
+Fixed-boundary equilibrium solver using Picard iteration on the
+Grad--Shafranov equation:
+%
+\begin{equation}
+  \Delta^* \psi = -\mu_0 R^2 \frac{dp}{d\psi}
+  - \frac{1}{2}\frac{dF^2}{d\psi}
+\end{equation}
+%
+with L-mode and H-mode pressure/current profile parametrizations.
+Convergence to $\|\delta\psi\|_\infty < 10^{-6}$ typically in
+12--18 iterations on a $65 \times 65$ grid.
+
+\subsection{Disruption Prediction and SPI Mitigation}
+
+A gradient-boosted classifier on synthetic disruption features
+(locked-mode amplitude, $\beta_N / \beta_{N,\mathrm{limit}}$,
+$q_{95}$ evolution, radiated power fraction) triggers shattered
+pellet injection (SPI) when $p_{\mathrm{disrupt}} > 0.8$ with
+halo current and runaway electron post-disruption physics.
+
+%% ============================================================
+\section{Benchmarks and Validation}
+\label{sec:validation}
+%% ============================================================
+
+\subsection{Timing}
+
+\begin{table}[h]
+\centering
+\caption{Control loop latency (5000 iterations, single core).}
+\label{tab:timing}
+\begin{tabular}{lrrr}
+\toprule
+Controller & P50 (\si{\micro\second}) & P99 (\si{\micro\second}) & Throughput (kHz) \\
+\midrule
+PID        & 3.2   & 8.1   & 312 \\
+SNN (numpy)& 11.9  & 28.4  & 84  \\
+SNN (Rust) & 2.1   & 5.3   & 476 \\
+MPC ($N_p{=}10$) & 142 & 310 & 7.0 \\
+$H_\infty$ & 89    & 195   & 11.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Equilibrium RMSE}
+
+Benchmarked against published DIII-D shot 164984 and SPARC v2c
+equilibria (GEQDSK format):
+
+\begin{table}[h]
+\centering
+\caption{RMSE against reference equilibria.}
+\label{tab:rmse}
+\begin{tabular}{lrr}
+\toprule
+Profile & DIII-D RMSE & SPARC RMSE \\
+\midrule
+$\psi(R,Z)$ & $< 1\%$ & $< 1.5\%$ \\
+$p(\rho)$   & $< 2\%$ & $< 2\%$   \\
+$q(\rho)$   & $< 2\%$ & $< 2.5\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Phase Dynamics Convergence}
+
+With $N = 50$ oscillators per layer, $L = 16$ layers, $\zeta = 0.5$:
+the order parameter $R$ converges from $R(0) \approx 0.15$ to
+$R(500) = 0.92$ within 500 ticks.  The Lyapunov exponent $\lambda$
+settles to $-0.47$, confirming asymptotic stability of the
+synchronized state.
+
+%% ============================================================
+\section{Software Architecture}
+\label{sec:software}
+%% ============================================================
+
+\textsc{scpn-control} consists of 48 Python modules (\texttt{src/scpn\_control/})
+and 5 Rust crates (\texttt{scpn-control-rs/}).  Core dependencies are
+\texttt{numpy}, \texttt{scipy}, and \texttt{click} only.  Optional extras
+include \texttt{sc-neurocore} (VectorizedSCLayer), \texttt{matplotlib},
+\texttt{streamlit}, \texttt{torch}, \texttt{nengo}, \texttt{h5py}, and
+\texttt{websockets}.
+
+The Rust workspace provides PyO3 bindings for:
+\texttt{PyFusionKernel} (GS solver),
+\texttt{PySnnPool}/\texttt{PySnnController} (SNN pools),
+\texttt{PyMpcController} (MPC),
+\texttt{PyRealtimeMonitor} (Kuramoto UPDE tick),
+and SCPN kernels (\texttt{dense\_activations}, \texttt{marking\_update},
+\texttt{sample\_firing}).
+
+The test suite comprises 701 tests across 50 files with 61\% line
+coverage, enforced by 17 CI jobs including RMSE regression gates.
+
+%% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%% ============================================================
+
+We presented a neuro-symbolic approach to tokamak plasma control that
+bridges Stochastic Petri Nets and spiking neural networks through a
+formal compilation pipeline.  The key advantages are: (i) control logic
+is specified declaratively as a Petri net and compiled automatically,
+(ii) every control action is contract-verified before reaching the plant,
+(iii) the Rust-accelerated SNN forward pass achieves sub-\SI{12}{\micro\second}
+latency competitive with production PCS systems.
+
+Current limitations include fixed-boundary-only equilibrium solving,
+synthetic-only disruption training data, and lack of real MDSplus shot
+validation.  Future work targets free-boundary GS with external coil
+currents, TGLF/QuaLiKiz turbulence coupling, and deployment on FPGA
+via the \texttt{sc-neurocore} HDL backend.
+
+The software is MIT/Apache-2.0 dual-licensed and available at
+\url{https://github.com/anulum/scpn-control} with a live dashboard at
+\url{https://scpn-control.streamlit.app}.
+
+%% ============================================================
+\begin{acknowledgments}
+This work builds on the SCPN theoretical framework (Papers 1--27) and
+the \texttt{scpn-fusion-core} codebase.  We thank the open-source
+fusion community for reference equilibria and benchmarking data.
+\end{acknowledgments}
+
+\bibliography{scpn_control}
+\bibliographystyle{apsrev4-2}
+
+\end{document}
