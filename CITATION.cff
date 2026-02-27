@@ -20,3 +20,8 @@ date-released: "2026-02-27"
 license: "MIT OR Apache-2.0"
 repository-code: "https://github.com/anulum/scpn-control"
 url: "https://www.anulum.li"
+doi: "10.5281/zenodo.18804940"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.18804940"
+    description: "Zenodo archive"

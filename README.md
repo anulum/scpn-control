@@ -13,7 +13,7 @@
   <a href="https://arxiv.org/abs/2004.06344"><img src="https://img.shields.io/badge/arXiv-2004.06344-b31b1b.svg" alt="arXiv"></a>
   <a href="docs/REVIEWER_PAPER27_INTEGRATION.pdf"><img src="https://img.shields.io/badge/Paper_27-PDF-informational.svg" alt="Paper 27 PDF"></a>
   <a href="https://codecov.io/gh/anulum/scpn-control"><img src="https://codecov.io/gh/anulum/scpn-control/branch/main/graph/badge.svg" alt="codecov"></a>
-  <a href="https://doi.org/10.5281/zenodo.PLACEHOLDER"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.PLACEHOLDER.svg" alt="DOI"></a>
+  <a href="https://doi.org/10.5281/zenodo.18804940"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.18804940.svg" alt="DOI"></a>
 </p>
 
 ---
