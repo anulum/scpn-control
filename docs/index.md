@@ -21,7 +21,8 @@ contract checks.
 ## Quick start
 
 ```bash
-pip install -e "."
+pip install scpn-control                        # core (numpy, scipy, click)
+pip install "scpn-control[dashboard,ws]"        # + Streamlit + WebSocket
 scpn-control demo --steps 1000
 scpn-control benchmark --n-bench 5000
 scpn-control validate

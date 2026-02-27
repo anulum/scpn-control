@@ -88,7 +88,7 @@ was comprehensively addressed.
 1. Fork the repository and create a feature branch off `main`.
 2. Keep commits atomic. One logical change per commit.
 3. Open a pull request against `main`.
-4. CI must pass (14 jobs: lint, type-check, pre-commit, pytest matrix,
+4. CI must pass (17 jobs: lint, type-check, pre-commit, pytest matrix,
    cargo test/clippy, maturin build, mkdocs build, coverage gate).
 5. At least one maintainer review is required before merge.
 

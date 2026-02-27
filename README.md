@@ -33,9 +33,18 @@ modules, 50 test files, **701 tests**, 5 Rust crates, 13 CI jobs.
 ## Quick Start
 
 ```bash
-pip install -e "."
+pip install scpn-control                        # core (numpy, scipy, click)
+pip install "scpn-control[dashboard,ws]"        # + Streamlit dashboard + WebSocket
 scpn-control demo --steps 1000
 scpn-control benchmark --n-bench 5000
+```
+
+For development (editable install):
+
+```bash
+git clone https://github.com/anulum/scpn-control.git
+cd scpn-control
+pip install -e ".[dev]"
 ```
 
 ## Documentation and Tutorials
@@ -61,7 +70,7 @@ mkdocs serve
 Execute all notebooks:
 
 ```bash
-python -m pip install -e ".[viz]" jupyter nbconvert
+python -m pip install "scpn-control[viz]" jupyter nbconvert
 jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec examples/q10_breakeven_demo.ipynb
 jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec examples/snn_compiler_walkthrough.ipynb
 ```
@@ -166,7 +175,7 @@ global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
 scpn-control live --port 8765 --zeta 0.5
 
 # Terminal 2: Streamlit WS client (live R/V/λ plots, guard status, control)
-pip install -e ".[dashboard,ws]"
+pip install "scpn-control[dashboard,ws]"
 streamlit run examples/streamlit_ws_client.py
 
 # Or embedded mode (server + client in one process)
@@ -183,13 +192,13 @@ pytest tests/test_e2e_phase_diiid.py -v
 
 | Required | Optional |
 |----------|----------|
-| numpy >= 1.24 | sc-neurocore >= 3.8.0 (`pip install -e ".[neuro]"`) |
-| scipy >= 1.10 | matplotlib (`pip install -e ".[viz]"`) |
-| click >= 8.0 | streamlit (`pip install -e ".[dashboard]"`) |
-| | torch (`pip install -e ".[ml]"`) |
-| | nengo (`pip install -e ".[nengo]"`) |
-| | h5py (`pip install -e ".[hdf5]"`) |
-| | websockets (`pip install -e ".[ws]"`) |
+| numpy >= 1.24 | sc-neurocore >= 3.8.0 (`pip install "scpn-control[neuro]"`) |
+| scipy >= 1.10 | matplotlib (`pip install "scpn-control[viz]"`) |
+| click >= 8.0 | streamlit (`pip install "scpn-control[dashboard]"`) |
+| | torch (`pip install "scpn-control[ml]"`) |
+| | nengo (`pip install "scpn-control[nengo]"`) |
+| | h5py (`pip install "scpn-control[hdf5]"`) |
+| | websockets (`pip install "scpn-control[ws]"`) |
 
 ## CLI
 
@@ -221,7 +230,7 @@ Benchmark docs: `docs/benchmarks.md`
 ## Dashboard
 
 ```bash
-pip install -e ".[dashboard]"
+pip install "scpn-control[dashboard]"
 streamlit run dashboard/control_dashboard.py
 ```
 
