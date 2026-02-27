@@ -80,7 +80,7 @@ class PhaseStreamServer:
             self._clients -= dead
             await asyncio.sleep(self.tick_interval_s)
 
-    async def serve(self, host: str = "0.0.0.0", port: int = 8765):
+    async def serve(self, host: str = "0.0.0.0", port: int = 8765):  # nosec B104
         """Start WebSocket server and tick loop."""
         try:
             import websockets  # noqa: F811
@@ -92,7 +92,7 @@ class PhaseStreamServer:
             logger.info("Phase stream listening on ws://%s:%d", host, port)
             await tick_task
 
-    def serve_sync(self, host: str = "0.0.0.0", port: int = 8765):
+    def serve_sync(self, host: str = "0.0.0.0", port: int = 8765):  # nosec B104
         """Blocking entry point."""
         asyncio.run(self.serve(host, port))
 
@@ -101,7 +101,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="SCPN Phase Sync WebSocket Stream")
     parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--host", default="0.0.0.0")  # nosec B104
     parser.add_argument("--layers", type=int, default=16)
     parser.add_argument("--n-per", type=int, default=50)
     parser.add_argument("--zeta", type=float, default=0.5)

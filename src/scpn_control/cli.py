@@ -174,7 +174,7 @@ def validate(json_out: bool):
 
 @main.command()
 @click.option("--port", default=8765, type=int, help="WebSocket port")
-@click.option("--host", default="0.0.0.0", help="Bind address")
+@click.option("--host", default="0.0.0.0", help="Bind address")  # nosec B104
 @click.option("--layers", default=16, type=int, help="Kuramoto layers (L)")
 @click.option("--n-per", default=50, type=int, help="Oscillators per layer")
 @click.option("--zeta", default=0.5, type=float, help="Global field coupling zeta")

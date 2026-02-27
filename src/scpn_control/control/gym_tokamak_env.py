@@ -104,9 +104,9 @@ class TokamakEnv:
         T_ax += self.dt * (50.0 * P_aux_delta - 3.0 * (T_ax - T_edge))
         T_edge += self.dt * (0.5 * (T_ax - T_edge) - 1.0 * T_edge)
         Ip += Ip_delta * self.dt * 10.0
-        beta_N = 0.02 * T_ax * np.sqrt(max(Ip, 0.1)) / max(abs(Ip), 0.1)
-        q95 = max(5.0 * 5.3 / max(Ip, 0.1), 1.5)
-        li = 0.85 + 0.1 * (q95 - 3.0)
+        beta_N = float(0.02 * T_ax * np.sqrt(max(Ip, 0.1)) / max(abs(Ip), 0.1))
+        q95 = float(max(5.0 * 5.3 / max(Ip, 0.1), 1.5))
+        li = float(0.85 + 0.1 * (q95 - 3.0))
 
         self._state = np.array([T_ax, T_edge, beta_N, li, q95, Ip])
         self._step_count += 1
@@ -118,14 +118,14 @@ class TokamakEnv:
         temp_err = abs(T_ax - self.T_target)
         reward = -temp_err - 10.0 * float(disrupted) - 0.01 * np.linalg.norm(action)
 
-        terminated = disrupted
-        truncated = self._step_count >= self.max_steps
+        terminated = bool(disrupted)
+        truncated = bool(self._step_count >= self.max_steps)
 
         info = {
             "T_axis": float(T_ax),
             "beta_N": float(beta_N),
             "q95": float(q95),
-            "disrupted": disrupted,
+            "disrupted": bool(disrupted),
             "step": self._step_count,
         }
         return self._observe(), float(reward), terminated, truncated, info

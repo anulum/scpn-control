@@ -653,7 +653,7 @@ def load_or_train_predictor(
 
     if path.exists() and not force_retrain:
         try:
-            checkpoint = torch.load(path, map_location="cpu")
+            checkpoint = torch.load(path, map_location="cpu", weights_only=True)
             if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
                 state_dict = checkpoint["state_dict"]
                 loaded_seq_len = _normalize_seq_len(checkpoint.get("seq_len", seq_len))
