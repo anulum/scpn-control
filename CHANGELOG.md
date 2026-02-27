@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.1] — 2026-02-27
+## [0.3.2] — 2026-02-27
 
 ### Added
 - VectorizedSCLayer + Rust backend path in SNN compiler (512× real-time)
