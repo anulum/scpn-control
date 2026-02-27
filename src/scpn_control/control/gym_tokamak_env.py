@@ -98,15 +98,18 @@ class TokamakEnv:
         action = np.clip(action, self.action_low, self.action_high)
         P_aux_delta, Ip_delta = float(action[0]), float(action[1])
 
-        T_ax, T_edge, beta_N, li, q95, Ip = self._state
+        s = self._state
+        T_ax: float = float(s[0])
+        T_edge: float = float(s[1])
+        Ip: float = float(s[5])
 
         # Simplified plasma response model
         T_ax += self.dt * (50.0 * P_aux_delta - 3.0 * (T_ax - T_edge))
         T_edge += self.dt * (0.5 * (T_ax - T_edge) - 1.0 * T_edge)
         Ip += Ip_delta * self.dt * 10.0
-        beta_N = float(0.02 * T_ax * np.sqrt(max(Ip, 0.1)) / max(abs(Ip), 0.1))
-        q95 = float(max(5.0 * 5.3 / max(Ip, 0.1), 1.5))
-        li = float(0.85 + 0.1 * (q95 - 3.0))
+        beta_N: float = 0.02 * T_ax * np.sqrt(max(Ip, 0.1)) / max(abs(Ip), 0.1)
+        q95: float = max(5.0 * 5.3 / max(Ip, 0.1), 1.5)
+        li: float = 0.85 + 0.1 * (q95 - 3.0)
 
         self._state = np.array([T_ax, T_edge, beta_N, li, q95, Ip])
         self._step_count += 1
