@@ -8,6 +8,7 @@ cd scpn-control
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
+pre-commit install
 ```
 
 Rust toolchain (stable) is required for the PyO3 crates:
@@ -28,7 +29,14 @@ maturin develop --release
 
 ## Running tests
 
-Python (582 tests):
+Pre-commit hooks (ruff, mypy, yaml, whitespace):
+
+```bash
+pre-commit run --all-files    # check everything
+pre-commit run ruff            # single hook
+```
+
+Python (701 tests):
 
 ```bash
 pytest                       # full suite
@@ -80,8 +88,8 @@ was comprehensively addressed.
 1. Fork the repository and create a feature branch off `main`.
 2. Keep commits atomic. One logical change per commit.
 3. Open a pull request against `main`.
-4. CI must pass (14 jobs: lint, type-check, pytest matrix, cargo test/clippy,
-   maturin build, mkdocs build, coverage gate).
+4. CI must pass (14 jobs: lint, type-check, pre-commit, pytest matrix,
+   cargo test/clippy, maturin build, mkdocs build, coverage gate).
 5. At least one maintainer review is required before merge.
 
 If your change touches Rust code, ensure `cargo clippy -- -D warnings` is clean.

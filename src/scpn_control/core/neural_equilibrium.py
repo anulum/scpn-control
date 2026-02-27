@@ -307,8 +307,9 @@ class NeuralEquilibriumAccelerator:
 
         # Normalise inputs
         self._input_mean = X.mean(axis=0)
-        self._input_std = X.std(axis=0)
-        self._input_std[self._input_std < 1e-10] = 1.0
+        input_std = X.std(axis=0)
+        input_std[input_std < 1e-10] = 1.0
+        self._input_std = input_std
         X_norm = (X - self._input_mean) / self._input_std
 
         # PCA on flattened psi

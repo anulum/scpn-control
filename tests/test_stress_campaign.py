@@ -7,17 +7,11 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import numpy as np
 import pytest
-
-# Ensure validation/ is importable
-repo_root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(repo_root / "src"))
-sys.path.insert(0, str(repo_root))
 
 try:
     import validation.collect_results as _collect_results  # noqa: F401

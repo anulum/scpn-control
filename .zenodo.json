@@ -1,0 +1,37 @@
+{
+  "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controller for Plasma Control",
+  "version": "0.3.0",
+  "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with formal verification guarantees. 48 Python modules, 5 Rust crates, 701 tests, 11.9 µs P50 control loop.",
+  "upload_type": "software",
+  "license": {
+    "id": "AGPL-3.0-or-later"
+  },
+  "creators": [
+    {
+      "name": "Sotek, Miroslav",
+      "orcid": "0009-0009-3560-0851",
+      "affiliation": "ANULUM CH & LI"
+    },
+    {
+      "name": "Reiprich, Michal",
+      "affiliation": "ANULUM CH & LI"
+    }
+  ],
+  "keywords": [
+    "tokamak control",
+    "stochastic Petri net",
+    "spiking neural network",
+    "plasma physics",
+    "Kuramoto oscillators",
+    "H-infinity control",
+    "neuro-symbolic AI"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "2004.06344",
+      "relation": "isSupplementTo",
+      "scheme": "arxiv"
+    }
+  ],
+  "access_right": "open"
+}

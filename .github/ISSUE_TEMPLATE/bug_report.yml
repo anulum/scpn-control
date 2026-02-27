@@ -1,0 +1,50 @@
+name: Bug Report
+description: Report a bug in scpn-control
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Paste the smallest script or command that triggers the bug.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Full traceback / error output
+      render: text
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.12.1"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "Ubuntu 24.04 / macOS 15 / Windows 11"
+    validations:
+      required: true
+  - type: input
+    id: rust
+    attributes:
+      label: Rust toolchain (if relevant)
+      placeholder: "stable-1.82 or N/A"
+  - type: input
+    id: package-version
+    attributes:
+      label: scpn-control version
+      placeholder: "0.3.0"
+    validations:
+      required: true

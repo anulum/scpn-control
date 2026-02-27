@@ -28,11 +28,24 @@ theme:
     - search.suggest
     - content.code.copy
 
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: false
+            show_root_heading: true
+            members_order: source
+
 nav:
   - Home: index.md
   - Pitch: pitch.md
   - Use Cases: use_cases.md
   - Competitive Analysis: competitive_analysis.md
+  - Theory: theory.md
+  - Architecture: architecture.md
   - Tutorials: tutorials.md
   - API Reference: api.md
   - Benchmarks: benchmarks.md
@@ -44,3 +57,14 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js

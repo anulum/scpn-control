@@ -1,0 +1,17 @@
+{
+  "name": "scpn-control",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": { "version": "stable" }
+  },
+  "postCreateCommand": "pip install -e '.[dev]' pre-commit && pre-commit install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "charliermarsh.ruff",
+        "ms-python.python",
+        "rust-lang.rust-analyzer"
+      ]
+    }
+  }
+}

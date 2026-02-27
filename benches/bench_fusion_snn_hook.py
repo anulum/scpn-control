@@ -11,14 +11,11 @@ Requires: pytest-benchmark
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step, order_parameter
-
+from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step
 
 # ── Minimal LIF layer (mirrors SNN controller hot path) ──────────────
 

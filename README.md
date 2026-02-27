@@ -12,6 +12,8 @@
   <a href="https://orcid.org/0009-0009-3560-0851"><img src="https://img.shields.io/badge/ORCID-0009--0009--3560--0851-green.svg" alt="ORCID"></a>
   <a href="https://arxiv.org/abs/2004.06344"><img src="https://img.shields.io/badge/arXiv-2004.06344-b31b1b.svg" alt="arXiv"></a>
   <a href="docs/REVIEWER_PAPER27_INTEGRATION.pdf"><img src="https://img.shields.io/badge/Paper_27-PDF-informational.svg" alt="Paper 27 PDF"></a>
+  <a href="https://codecov.io/gh/anulum/scpn-control"><img src="https://codecov.io/gh/anulum/scpn-control/branch/main/graph/badge.svg" alt="codecov"></a>
+  <a href="https://doi.org/10.5281/zenodo.PLACEHOLDER"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.PLACEHOLDER.svg" alt="DOI"></a>
 </p>
 
 ---
@@ -294,6 +296,21 @@ git tag v0.2.0
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```
+
+## Limitations
+
+- **Equilibrium solver**: Fixed-boundary Grad-Shafranov only. Free-boundary with
+  external coil currents is not implemented. No stellarator geometry.
+- **Transport**: 1.5D flux-surface-averaged. No turbulence micro-instability
+  models (TGLF/QuaLiKiz) — uses Chang-Hinton neoclassical + scaling-law anomalous.
+- **Validation scope**: Benchmarked against analytic Solov'ev solutions and
+  published DIII-D/SPARC equilibria (GEQDSK). No real MDSplus shot data yet.
+- **Disruption predictor**: Synthetic training data only. Not validated on
+  experimental disruption databases.
+- **Rust acceleration**: Optional. Pure-Python fallback is complete but 5-10x
+  slower for GS solve and Kuramoto steps at N > 1000.
+- **Deployment**: Research-grade. Not hardened for real-time PCS integration.
+  No ITER CODAC or EPICS interface.
 
 ## Authors
 

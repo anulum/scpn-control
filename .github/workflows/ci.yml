@@ -324,7 +324,22 @@ jobs:
           name: bandit-report
           path: bandit-report.json
 
-  # ─── Job 13: Rust audit ───
+  # ─── Job 13: Pre-commit hooks ───
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pre-commit
+      - name: Run pre-commit
+        run: pre-commit run --all-files
+
+  # ─── Job 14: Rust audit ───
   rust-audit:
     runs-on: ubuntu-latest
     defaults:

@@ -1,0 +1,35 @@
+name: Feature Request
+description: Suggest an enhancement or new feature
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What limitation or pain point does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should scpn-control solve this?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you evaluate?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Component
+      options:
+        - core (equilibrium / transport)
+        - control (PID / MPC / H-inf / SNN)
+        - scpn (Petri net compiler)
+        - phase (Kuramoto / UPDE)
+        - Rust crates
+        - CLI / dashboard
+        - docs / CI
