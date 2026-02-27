@@ -654,7 +654,7 @@ class HILDemoRunner:
         for t in range(n_steps):
             inputs = rng.normal(0, 0.1, size=self.n_inputs)
             if inject_faults and t % 100 == 50:
-                self.inject_bitflip(neuron_idx=t % self.n_neurons, bit_idx=rng.integers(0, 52))
+                self.inject_bitflip(neuron_idx=t % self.n_neurons, bit_idx=int(rng.integers(0, 52)))
             out = self.step(inputs)
             outputs.append(out.copy())
 

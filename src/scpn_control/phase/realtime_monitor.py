@@ -159,7 +159,7 @@ class RealtimeMonitor:
         rng = np.random.default_rng(seed)
         L = len(self.theta_layers)
         N = self.theta_layers[0].shape[0]
-        self.theta_layers = [rng.uniform(-np.pi, np.pi, N) for _ in range(L)]
+        self.theta_layers = [np.asarray(rng.uniform(-np.pi, np.pi, N)) for _ in range(L)]
         self.guard.reset()
         self._recorder.clear()
         self._tick_count = 0

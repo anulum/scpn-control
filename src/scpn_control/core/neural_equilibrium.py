@@ -544,7 +544,7 @@ class NeuralEquilibriumAccelerator:
             payload[f"w{i}"] = w
             payload[f"b{i}"] = b
 
-        np.savez(path, **payload)
+        np.savez(path, **payload)  # type: ignore[arg-type]
         logger.info("Saved neural equilibrium weights to %s", path)
 
     def load_weights(self, path: str | Path = DEFAULT_WEIGHTS_PATH) -> None:
