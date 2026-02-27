@@ -51,6 +51,7 @@ nav:
   - Benchmarks: benchmarks.md
   - Validation and QA: validation.md
   - Development: development.md
+  - Pricing: pricing.md
 
 markdown_extensions:
   - admonition

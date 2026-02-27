@@ -14,6 +14,7 @@
   <a href="docs/REVIEWER_PAPER27_INTEGRATION.pdf"><img src="https://img.shields.io/badge/Paper_27-PDF-informational.svg" alt="Paper 27 PDF"></a>
   <a href="https://codecov.io/gh/anulum/scpn-control"><img src="https://codecov.io/gh/anulum/scpn-control/branch/main/graph/badge.svg" alt="codecov"></a>
   <a href="https://doi.org/10.5281/zenodo.18804940"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.18804940.svg" alt="DOI"></a>
+  <a href="https://buy.stripe.com/4gM00kbiMdjAberaYz5J601"><img src="https://img.shields.io/badge/sponsor-Stripe-635bff.svg" alt="Sponsor"></a>
 </p>
 
 ---
@@ -323,6 +324,23 @@ git push --tags
   slower for GS solve and Kuramoto steps at N > 1000.
 - **Deployment**: Research-grade. Not hardened for real-time PCS integration.
   No ITER CODAC or EPICS interface.
+
+## Support the Project
+
+**scpn-control** is open-source (MIT / Apache-2.0). Funding goes to compute,
+validation data, and development time.
+
+| | | |
+|---|---|---|
+| [Sponsor via Stripe](https://buy.stripe.com/4gM00kbiMdjAberaYz5J601) | [Donate via PayPal](https://www.paypal.com/donate?hosted_button_id=4X5F6DNT934HY) | [Pay via TWINT](https://go.twint.ch/1/e/tw?tw=acq.lJTAypb8SL2s8vPg7fL0ubi2C220ajOH0BEQn1aKfEJIiIakLpt8jlEv8XdQ9tCp.) |
+
+**Crypto:** BTC `bc1qg48gdmrjrjumn6fqltvt0cf0w6nvs0wggy37zd` ·
+ETH `0xd9b07F617bEff4aC9CAdC2a13Dd631B1980905FF` ·
+LTC `ltc1q886tmvtlnj86kmg2urd8f5td3lmfh32xtpdrut`
+
+**Bank:** CHF IBAN CH14 8080 8002 1898 7544 1 · EUR IBAN CH66 8080 8002 8173 6061 8 · BIC RAIFCH22
+
+Full tier details (Pro, Academic, Enterprise, Sponsorships): [docs/pricing.md](docs/pricing.md)
 
 ## Authors
 
