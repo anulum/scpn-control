@@ -7,18 +7,18 @@
 # ──────────────────────────────────────────────────────────────────────
 """SCPN Petri net to SNN compilation pipeline."""
 
-from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.compiler import FusionCompiler, CompiledNet
-from scpn_control.scpn.contracts import (
-    ControlObservation,
-    ControlAction,
-    ControlTargets,
-    ControlScales,
-    extract_features,
-    decode_actions,
-)
 from scpn_control.scpn.artifact import Artifact, load_artifact, save_artifact
+from scpn_control.scpn.compiler import CompiledNet, FusionCompiler
+from scpn_control.scpn.contracts import (
+    ControlAction,
+    ControlObservation,
+    ControlScales,
+    ControlTargets,
+    decode_actions,
+    extract_features,
+)
 from scpn_control.scpn.controller import NeuroSymbolicController
+from scpn_control.scpn.structure import StochasticPetriNet
 
 __all__ = [
     "StochasticPetriNet",

@@ -25,11 +25,10 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
-
 
 # ── Dataclasses ──────────────────────────────────────────────────────
 
@@ -151,7 +150,6 @@ def compute_q_profile(
     """
     mu0 = 4.0 * np.pi * 1e-7
     Ip = Ip_MA * 1e6  # MA -> A
-    n = len(rho)
 
     # Parabolic current profile: j(rho) ∝ (1 - rho^2)
     # => I_enclosed(rho) = Ip * (2*rho^2 - rho^4)

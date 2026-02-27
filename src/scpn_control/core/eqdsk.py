@@ -39,7 +39,6 @@ from typing import IO, Union
 import numpy as np
 from numpy.typing import NDArray
 
-
 # ── Data container ────────────────────────────────────────────────────
 
 @dataclass

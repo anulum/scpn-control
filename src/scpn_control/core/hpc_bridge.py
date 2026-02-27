@@ -8,13 +8,13 @@
 import ctypes
 import logging
 import math
-import numpy as np
 import os
 import platform
 import subprocess
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
@@ -423,17 +423,17 @@ def compile_cpp() -> Optional[str]:
 if __name__ == "__main__":
     # Test sequence
     lib_file = compile_cpp()
-    
+
     if lib_file:
         bridge = HPCBridge(lib_file)
-        
+
         # Test Grid
         N = 100
         bridge.initialize(N, N, (2.0, 10.0), (-5.0, 5.0))
-        
+
         # Dummy Current (Gaussian)
         J = np.random.rand(N, N)
-        
+
         # Run
         Psi = bridge.solve(J, iterations=500)
         if Psi is not None:

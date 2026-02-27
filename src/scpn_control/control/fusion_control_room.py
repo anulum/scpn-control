@@ -70,7 +70,7 @@ class TokamakPhysicsEngine:
     def _kernel_psi(self) -> Optional[np.ndarray]:
         if self.kernel is None or not hasattr(self.kernel, "Psi"):
             return None
-        psi = np.asarray(getattr(self.kernel, "Psi"), dtype=np.float64)
+        psi = np.asarray(self.kernel.Psi, dtype=np.float64)
         if psi.ndim != 2 or psi.shape[0] < 8 or psi.shape[1] < 8:
             return None
         return psi
@@ -333,7 +333,7 @@ def run_control_room(
     top_action = 0.0
     bot_action = 0.0
 
-    for frame in range(steps):
+    for _frame in range(steps):
         if kernel is not None and hasattr(kernel, "cfg"):
             try:
                 coils = kernel.cfg.get("coils", [])

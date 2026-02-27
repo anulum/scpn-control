@@ -192,9 +192,15 @@ from scpn_control import RealtimeMonitor
 
 mon = RealtimeMonitor.from_paper27(L=16, N_per=50, zeta_uniform=0.5)
 snap = mon.tick()
-snap["R"]       # global order parameter (0-1)
-snap["V"]       # velocity field norm
-snap["lambda"]  # Lyapunov exponent (negative = converging)
+snap["R_global"]        # global order parameter (0-1)
+snap["R_layer"]         # per-layer order parameters (list of floats)
+snap["V_global"]        # Lyapunov V(t) = (1/N) Σ (1 - cos(θ - Ψ))
+snap["V_layer"]         # per-layer V values
+snap["lambda_exp"]      # Lyapunov exponent (negative = converging)
+snap["Psi_global"]      # global mean field phase
+snap["guard_approved"]  # True if LyapunovGuard allows continuation
+snap["guard_score"]     # stability score ∈ [0, 1]
+snap["latency_us"]      # tick computation time in microseconds
 ```
 
 ### `kuramoto_sakaguchi_step`
@@ -218,23 +224,34 @@ Unified Phase Dynamics Equation solver (16-layer coupled system).
 
 ```python
 from scpn_control import UPDESystem, build_knm_paper27
+import numpy as np
 
-knm = build_knm_paper27()
-upde = UPDESystem(knm=knm, N_per=50)
-upde.step(dt=0.001)
-R = upde.order_parameter()
+spec = build_knm_paper27(L=16, zeta_uniform=0.5)
+upde = UPDESystem(spec=spec, dt=1e-3, psi_mode="external")
+
+rng = np.random.default_rng(42)
+theta = [rng.uniform(-np.pi, np.pi, 50) for _ in range(16)]
+omega = [np.full(50, 1.0) for _ in range(16)]
+
+out = upde.step(theta, omega, psi_driver=0.0)
+out["R_global"]   # global order parameter
+out["theta1"]     # updated phase arrays (list of 16 arrays)
 ```
 
 ### `LyapunovGuard`
 
-Convergence monitor — raises alarm if Lyapunov exponent turns positive.
+Sliding-window stability monitor — flags instability when λ > 0 persists.
 
 ```python
 from scpn_control import LyapunovGuard
+import numpy as np
 
-guard = LyapunovGuard(window=100, threshold=0.0)
-guard.update(lambda_val=-0.05)
-guard.is_converging  # True if lambda < threshold
+guard = LyapunovGuard(window=50, dt=1e-3, max_violations=3)
+theta = np.random.uniform(-np.pi, np.pi, 100)
+verdict = guard.check(theta, psi=0.0)
+verdict.approved       # True if λ stayed below threshold
+verdict.lambda_exp     # estimated Lyapunov exponent
+verdict.score          # stability score ∈ [0, 1]
 ```
 
 ---

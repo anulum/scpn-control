@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -318,11 +318,11 @@ class NengoSNNController:
         """
         try:
             import nengo_loihi
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
                 "nengo_loihi is required for Loihi export. "
                 "Install with: pip install nengo-loihi"
-            )
+            ) from exc
 
         path = Path(filename)
         path.parent.mkdir(parents=True, exist_ok=True)

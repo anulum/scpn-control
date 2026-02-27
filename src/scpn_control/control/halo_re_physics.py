@@ -53,7 +53,6 @@ from typing import Optional
 
 import numpy as np
 
-
 # ─── Physical constants ─────────────────────────────────────────────
 _E_CHARGE = 1.602e-19  # C
 _M_ELECTRON = 9.109e-31  # kg

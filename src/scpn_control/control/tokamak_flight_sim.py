@@ -21,7 +21,7 @@ except ImportError:
 SHOT_DURATION = 50 # Time steps
 TARGET_R = 6.2     # Target Major Radius
 TARGET_Z = 0.0     # Target Vertical Position
-TARGET_ELONGATION = 1.7 
+TARGET_ELONGATION = 1.7
 
 
 class FirstOrderActuator:
@@ -159,11 +159,11 @@ class IsoFluxController:
         heating_actuator_tau_s = float(heating_actuator_tau_s)
         if not np.isfinite(heating_actuator_tau_s) or heating_actuator_tau_s <= 0.0:
             raise ValueError("heating_actuator_tau_s must be finite and > 0.")
-        
+
         # PID Gains for Position Control
         # Radial Control (Horizontal) -> Controlled by Outer Coils (PF2, PF3, PF4)
         self.pid_R = {'Kp': 2.0, 'Ki': 0.1, 'Kd': 0.5, 'err_sum': 0, 'last_err': 0}
-        
+
         # Vertical Control (Z-pos) -> Controlled by Top/Bottom diff (PF1 vs PF5)
         self.pid_Z = {'Kp': 5.0, 'Ki': 0.2, 'Kd': 2.0, 'err_sum': 0, 'last_err': 0}
 
@@ -219,10 +219,10 @@ class IsoFluxController:
             raise ValueError("shot_duration must be >= 1.")
         self._log("--- INITIATING TOKAMAK FLIGHT SIMULATOR ---")
         self._log("Scenario: Current Ramp-Up & Divertor Formation")
-        
+
         # Initial Solve
         self.kernel.solve_equilibrium()
-        
+
         # Physics Evolution Loop
         for t in range(steps):
             # 1. EVOLVE PHYSICS (Scenario)
@@ -230,27 +230,27 @@ class IsoFluxController:
             target_Ip = 5.0 + (10.0 * t / steps) # 5MA -> 15MA
             physics_cfg = self.kernel.cfg.setdefault("physics", {})
             physics_cfg['plasma_current_target'] = target_Ip
-            
+
             # Increase Pressure (Heating) -> This pushes plasma outward (Shafranov Shift)
             # The controller must fight this drift!
             beta_cmd = 1.0 + (0.05 * t)
             beta_applied = self._act_heating.step(beta_cmd)
             physics_cfg['beta_scale'] = beta_applied
-            
+
             # 2. MEASURE STATE (Diagnostics)
             # Find current axis
             idx_max = np.argmax(self.kernel.Psi)
             iz, ir = np.unravel_index(idx_max, self.kernel.Psi.shape)
             curr_R = self.kernel.R[ir]
             curr_Z = self.kernel.Z[iz]
-            
+
             # Find X-point (Divertor)
             xp_pos, _ = self.kernel.find_x_point(self.kernel.Psi)
-            
+
             # 3. COMPUTE CONTROL (Iso-Flux)
             err_R = TARGET_R - curr_R
             err_Z = TARGET_Z - curr_Z
-            
+
             # Control Actions (Current Deltas)
             ctrl_radial_cmd = self.pid_step(self.pid_R, err_R)
             ctrl_vertical_cmd = self.pid_step(self.pid_Z, err_Z)
@@ -260,20 +260,20 @@ class IsoFluxController:
             ctrl_vertical_top = self._act_top.step(-ctrl_vertical_cmd)
             ctrl_vertical_bottom = self._act_bottom.step(ctrl_vertical_cmd)
             ctrl_vertical_applied = 0.5 * (ctrl_vertical_bottom - ctrl_vertical_top)
-            
+
             # 4. ACTUATE COILS (Map Control -> Coils)
             # Radial Correction: If R is too small (Inner), Push with Outer Coils
             # PF3 is the main pusher
             self._add_coil_current(2, ctrl_radial)
-            
+
             # Vertical Correction: Differential pull
             self._add_coil_current(0, ctrl_vertical_top) # Top
             self._add_coil_current(4, ctrl_vertical_bottom) # Bottom
-            
+
             # 5. SOLVE NEW EQUILIBRIUM
             # We use the previous solution as guess (hot start) -> Faster
             self.kernel.solve_equilibrium()
-            
+
             # Log
             self.history['t'].append(t)
             self.history['Ip'].append(target_Ip)
@@ -286,7 +286,7 @@ class IsoFluxController:
             self.history['ctrl_Z_applied'].append(ctrl_vertical_applied)
             self.history['beta_cmd'].append(beta_cmd)
             self.history['beta_applied'].append(beta_applied)
-            
+
             self._log(
                 f"Time {t}: Ip={target_Ip:.1f}MA | "
                 f"Axis=({curr_R:.2f}, {curr_Z:.2f}) | Ctrl_R={ctrl_radial:.2f}"

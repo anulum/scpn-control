@@ -38,9 +38,8 @@ def main():
 @click.option("--json-out", is_flag=True, help="Emit JSON instead of text")
 def demo(scenario: str, steps: int, json_out: bool):
     """Run a closed-loop control demo."""
-    from scpn_control.scpn.structure import StochasticPetriNet
     from scpn_control.scpn.compiler import FusionCompiler
-    from scpn_control.core import FusionKernel
+    from scpn_control.scpn.structure import StochasticPetriNet
 
     # Build a minimal Petri net
     net = StochasticPetriNet()
@@ -98,7 +97,6 @@ def demo(scenario: str, steps: int, json_out: bool):
 @click.option("--json-out", is_flag=True, help="Emit JSON")
 def benchmark(n_bench: int, json_out: bool):
     """Timing benchmark: PID vs SNN control step latency."""
-    from scpn_control.core import FusionKernel
 
     # PID benchmark
     t0 = time.perf_counter()
@@ -146,7 +144,7 @@ def benchmark(n_bench: int, json_out: bool):
 def validate(json_out: bool):
     """Run RMSE validation dashboard."""
     try:
-        from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver
+        from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
         has_transport = True
     except ImportError:
         has_transport = False
@@ -189,9 +187,10 @@ def live(port: int, host: str, layers: int, n_per: int, zeta: float,
     Streams Kuramoto R/V/lambda tick snapshots over ws://<host>:<port>.
     Connect with: examples/streamlit_ws_client.py or any WS client.
     """
+    import logging
+
     from scpn_control.phase.realtime_monitor import RealtimeMonitor
     from scpn_control.phase.ws_phase_stream import PhaseStreamServer
-    import logging
 
     logging.basicConfig(
         level=logging.INFO,
@@ -242,6 +241,41 @@ def hil_test(shots_dir: str, json_out: bool):
         click.echo(f"Loaded {len(results)} shots from {shots_dir}")
         for r in results:
             click.echo(f"  {r['shot']}: {len(r['keys'])} arrays")
+
+
+@main.command()
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def info(json_out: bool):
+    """Print environment and backend information."""
+    from pathlib import Path
+
+    import scpn_control
+
+    rust_status = "available" if scpn_control.RUST_BACKEND else "not installed"
+
+    weights_dir = Path(__file__).resolve().parent.parent.parent.parent / "weights"
+    weight_files = sorted(weights_dir.glob("*.npz")) if weights_dir.exists() else []
+
+    result = {
+        "version": scpn_control.__version__,
+        "rust_backend": scpn_control.RUST_BACKEND,
+        "python": sys.version.split()[0],
+        "numpy": np.__version__,
+        "weights": [w.name for w in weight_files],
+        "source_modules": 49,
+        "test_files": 49,
+    }
+
+    if json_out:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"scpn-control {result['version']}")
+        click.echo(f"  Rust backend: {rust_status}")
+        click.echo(f"  Python: {result['python']}")
+        click.echo(f"  NumPy: {result['numpy']}")
+        click.echo(f"  Weights: {len(weight_files)} files")
+        for w in weight_files:
+            click.echo(f"    {w.name} ({w.stat().st_size / 1024:.0f} KB)")
 
 
 if __name__ == "__main__":

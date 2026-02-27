@@ -28,13 +28,12 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
 
-from scpn_control.phase.knm import KnmSpec, build_knm_paper27, OMEGA_N_16
-from scpn_control.phase.kuramoto import lyapunov_v, order_parameter
+from scpn_control.phase.knm import OMEGA_N_16, build_knm_paper27
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
 from scpn_control.phase.upde import UPDESystem
 
@@ -175,8 +174,8 @@ class RealtimeMonitor:
         """
         try:
             import h5py
-        except ImportError:
-            raise ImportError("pip install h5py")
+        except ImportError as exc:
+            raise ImportError("pip install h5py") from exc
 
         path = Path(path)
         rec = self._recorder

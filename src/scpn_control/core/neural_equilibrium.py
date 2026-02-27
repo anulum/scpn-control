@@ -28,10 +28,8 @@ from __future__ import annotations
 
 import logging
 import time
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -330,7 +328,7 @@ class NeuralEquilibriumAccelerator:
 
         X_train, Y_train = X_norm[train_idx], Y_compressed[train_idx]
         X_val, Y_val = X_norm[val_idx], Y_compressed[val_idx]
-        X_test, Y_test = X_norm[test_idx], Y_compressed[test_idx]
+        _X_test, _Y_test = X_norm[test_idx], Y_compressed[test_idx]
         # Keep uncompressed targets for GS residual evaluation
         Y_test_raw = Y[test_idx]
 

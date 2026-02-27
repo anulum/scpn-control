@@ -18,10 +18,10 @@ References
 - Verdoolaege et al., Nucl. Fusion 61 (2021) 076006
 """
 
-import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional
 
+import numpy as np
 
 # IPB98(y,2) scaling: τ_E = C · I_p^α_I · B^α_B · P^α_P · n^α_n · R^α_R · A^α_A · κ^α_κ · M^α_M
 # Central values from ITER Physics Basis
@@ -262,8 +262,6 @@ def quantify_full_chain(
     q_samples = np.zeros(n_samples)
     beta_n_samples = np.zeros(n_samples)
     psi_nrmse_samples = np.zeros(n_samples)
-
-    a_nominal = scenario.R / scenario.A  # minor radius (m)
 
     for i in range(n_samples):
         # --- (a) Perturb IPB98 scaling-law coefficients ---

@@ -9,15 +9,14 @@ from __future__ import annotations
 
 import json
 import logging
+
 import numpy as np
+
 try:
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # noqa: F401
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
-import sys
-import os
-import copy
 from pathlib import Path
 from typing import Any
 
@@ -99,7 +98,6 @@ def chang_hinton_chi_profile(rho, T_i, n_e_19, q, R0, a, B0, A_ion=2.0, Z_eff=1.
     e_charge = 1.602176634e-19
     eps0 = 8.854187812e-12
     m_p = 1.672621924e-27
-    m_e = 9.10938370e-31
     m_i = A_ion * m_p
 
     chi_nc = np.zeros_like(rho)
@@ -320,16 +318,16 @@ class TransportSolver(FusionKernel):
         transport object. Keep the method as a thin adapter over the module
         function so those tests remain stable.
         """
-        rho = np.asarray(getattr(self, "rho"), dtype=np.float64)
+        rho = np.asarray(self.rho, dtype=np.float64)
 
         t_i_raw = getattr(self, "t_i", None)
         if t_i_raw is None:
-            t_i_raw = getattr(self, "Ti")
+            t_i_raw = self.Ti
         t_i = np.asarray(t_i_raw, dtype=np.float64)
 
         n_e_raw = getattr(self, "n_e", None)
         if n_e_raw is None:
-            n_e_raw = getattr(self, "ne")
+            n_e_raw = self.ne
         n_e = np.asarray(n_e_raw, dtype=np.float64)
         q_profile = np.asarray(
             getattr(self, "q_profile", np.linspace(1.0, 3.0, len(rho))),
@@ -361,24 +359,24 @@ class TransportSolver(FusionKernel):
         # Flux is total particles. Volume of edge shell approx 20 m3.
         # Delta_n = Flux * dt / Vol_edge
         # Scaling factor adjusted for simulation stability
-        d_n_edge = (flux_from_wall_per_sec * dt) / 20.0 * 1e-18 
-        
+        d_n_edge = (flux_from_wall_per_sec * dt) / 20.0 * 1e-18
+
         # Add to edge
         self.n_impurity[-1] += d_n_edge
-        
+
         # Diffuse inward (Explicit step)
         D_imp = 1.0 # m2/s
         new_imp = self.n_impurity.copy()
-        
+
         grad = np.gradient(self.n_impurity, self.drho)
         flux = -D_imp * grad
         div = np.gradient(flux, self.drho) / (self.rho + 1e-6)
-        
+
         new_imp += (-div) * dt
-        
+
         # Boundary
         new_imp[0] = new_imp[1] # Axis symmetry
-        
+
         self.n_impurity = np.maximum(0, new_imp)
 
     def calculate_bootstrap_current_simple(self, R0, B_pol):
@@ -1113,33 +1111,35 @@ class TransportSolver(FusionKernel):
         Psi_axis = self.Psi[iz_ax, ir_ax]
         xp, psi_x = self.find_x_point(self.Psi)
         Psi_edge = psi_x
-        if abs(Psi_edge - Psi_axis) < 1.0: Psi_edge = np.min(self.Psi)
-        
+        if abs(Psi_edge - Psi_axis) < 1.0:
+            Psi_edge = np.min(self.Psi)
+
         # 2. Calculate Rho for every 2D point
         denom = Psi_edge - Psi_axis
-        if abs(denom) < 1e-9: denom = 1e-9
+        if abs(denom) < 1e-9:
+            denom = 1e-9
         Psi_norm = (self.Psi - Psi_axis) / denom
         Psi_norm = np.clip(Psi_norm, 0, 1)
         Rho_2D = np.sqrt(Psi_norm)
-        
+
         # 3. Calculate 1D Bootstrap Current
         R0 = (self.cfg["dimensions"]["R_min"] + self.cfg["dimensions"]["R_max"]) / 2.0
         # Estimate B_pol from Ip
         I_target = self.cfg['physics']['plasma_current_target']
         B_pol_est = (1.256e-6 * I_target) / (2 * np.pi * 0.5 * (self.cfg["dimensions"]["R_max"] - self.cfg["dimensions"]["R_min"]))
         J_bs_1d = self.calculate_bootstrap_current(R0, B_pol_est)
-        
+
         # 4. Interpolate 1D profiles to 2D
         self.Pressure_2D = np.interp(Rho_2D.flatten(), self.rho, self.ne * (self.Ti + self.Te))
         self.Pressure_2D = self.Pressure_2D.reshape(self.Psi.shape)
-        
+
         J_bs_2D = np.interp(Rho_2D.flatten(), self.rho, J_bs_1d)
         J_bs_2D = J_bs_2D.reshape(self.Psi.shape)
-        
+
         # 5. Update J_phi (Pressure driven + Bootstrap)
         # J_phi = R p' + J_bs
         self.J_phi = (self.Pressure_2D * self.RR) + J_bs_2D
-        
+
         # Normalize to target current
         I_curr = np.sum(self.J_phi) * self.dR * self.dZ
         if I_curr > 1e-9:
@@ -1373,7 +1373,7 @@ class TransportSolver(FusionKernel):
         # ── Adaptive time stepping ──
         atc = AdaptiveTimeController(dt_init=dt, tol=tol)
 
-        for step in range(n_steps):
+        for _step in range(n_steps):
             self.update_transport_model(P_aux)
             error = atc.estimate_error(self, P_aux)
             atc.adapt_dt(error)

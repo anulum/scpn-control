@@ -31,7 +31,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from scpn_control.phase.kuramoto import lyapunov_v, lyapunov_exponent
+from scpn_control.phase.kuramoto import lyapunov_exponent, lyapunov_v
 
 logger = logging.getLogger(__name__)
 FloatArray = NDArray[np.float64]

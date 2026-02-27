@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
@@ -36,7 +37,6 @@ logger = logging.getLogger(__name__)
 # ── Type aliases ──────────────────────────────────────────────────────
 FloatArray = NDArray[np.float64]
 
-from dataclasses import dataclass, field
 
 @dataclass
 class CoilSet:
@@ -725,7 +725,6 @@ class FusionKernel:
         alpha /= alpha_sum
 
         # Mix iterates
-        shape = psi_history[-1].shape
         mixed = np.zeros_like(psi_history[-1])
         psi_cols = psi_history[-mk:]
         for j in range(mk):
@@ -1067,11 +1066,11 @@ class FusionKernel:
                 dJ_dpsi = self._compute_profile_jacobian(Psi_axis, Psi_boundary, mu0)
                 diag_term = -mu0 * self.RR * dJ_dpsi  # the source derivative
 
-                def matvec(v_flat: np.ndarray) -> np.ndarray:
+                def matvec(v_flat: np.ndarray, _dt=diag_term) -> np.ndarray:  # noqa: B006
                     v2d = np.zeros((NZ, NR_grid))
                     v2d[1:-1, 1:-1] = v_flat.reshape(NZ - 2, NR_grid - 2)
                     Lv = self._apply_gs_operator(v2d)
-                    Lv[1:-1, 1:-1] -= diag_term[1:-1, 1:-1] * v2d[1:-1, 1:-1]
+                    Lv[1:-1, 1:-1] -= _dt[1:-1, 1:-1] * v2d[1:-1, 1:-1]
                     return Lv[1:-1, 1:-1].ravel()
 
                 J_op = LinearOperator(
@@ -1140,7 +1139,7 @@ class FusionKernel:
 
         Falls back to Python SOR if the Rust extension is not installed.
         """
-        from scpn_control.core._rust_compat import _rust_available, RustAcceleratedKernel
+        from scpn_control.core._rust_compat import RustAcceleratedKernel, _rust_available
 
         if preserve_initial_state or boundary_flux is not None:
             logger.warning(
@@ -1428,7 +1427,7 @@ class FusionKernel:
         k2 = 4.0 * R_obs * R_src / denom
         k2 = np.clip(k2, 1e-9, 0.999999)
         k = np.sqrt(k2)
-        from scipy.special import ellipk, ellipe
+        from scipy.special import ellipe, ellipk
         K_val = ellipk(k2)
         E_val = ellipe(k2)
         prefactor = mu0 / (2.0 * np.pi) * np.sqrt(R_obs * R_src)
@@ -1701,8 +1700,8 @@ class FusionKernel:
         """
         from scpn_control.phase.kuramoto import (
             kuramoto_sakaguchi_step,
-            lyapunov_v,
             lyapunov_exponent,
+            lyapunov_v,
         )
 
         cfg = self.cfg.get("phase_sync", {})

@@ -7,8 +7,8 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 try:
@@ -27,10 +27,10 @@ except ImportError:  # pragma: no cover - optional dependency path
     DirectorModule = None
 
 try:
-    from scpn_control.core._rust_compat import FusionKernel, RUST_BACKEND
+    from scpn_control.core._rust_compat import RUST_BACKEND, FusionKernel
 except ImportError:
     try:
-        from scpn_control.core.fusion_kernel import FusionKernel
+        from scpn_control.core.fusion_kernel import FusionKernel  # noqa: F401
 
         RUST_BACKEND = False
     except ImportError as exc:  # pragma: no cover - import-guard path

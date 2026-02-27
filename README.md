@@ -20,7 +20,7 @@
 Stochastic Petri Nets into spiking neural network controllers with formal
 verification guarantees. Extracted from
 [scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 48 source
-modules, 41 test files, **675 tests**, 5 Rust crates, 14 CI jobs.
+modules, 50 test files, **701 tests**, 5 Rust crates, 13 CI jobs.
 
 > **11.9 µs P50 control loop** — faster than any open-source fusion code,
 > competitive with the DIII-D PCS (4–10 kHz physics loops).
@@ -118,12 +118,12 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 675 tests (41 files)
+tests/                 # 701 tests (50 files)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (14-field NPZ)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
 +-- test_rust_realtime_parity.py  # Rust PyRealtimeMonitor parity
-+-- ...                # 37 more test files
++-- ...                # 44 more test files
 ```
 
 ## Paper 27 Phase Dynamics (Knm/UPDE Engine)

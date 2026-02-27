@@ -84,8 +84,8 @@ class PhaseStreamServer:
         """Start WebSocket server and tick loop."""
         try:
             import websockets  # noqa: F811
-        except ImportError:
-            raise ImportError("pip install websockets")
+        except ImportError as exc:
+            raise ImportError("pip install websockets") from exc
 
         tick_task = asyncio.create_task(self._tick_loop())
         async with websockets.serve(self._handler, host, port):

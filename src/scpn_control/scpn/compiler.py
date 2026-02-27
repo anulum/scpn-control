@@ -17,7 +17,6 @@ Compiles a ``StochasticPetriNet`` into sc_neurocore artifacts:
 from __future__ import annotations
 
 import logging
-import math
 import os
 import subprocess
 from dataclasses import dataclass, field
@@ -29,6 +28,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from scpn_control import __version__ as PACKAGE_VERSION
+
 from .structure import StochasticPetriNet
 
 logger = logging.getLogger(__name__)
@@ -38,9 +38,8 @@ logger = logging.getLogger(__name__)
 _HAS_SC_NEUROCORE = False
 
 try:
-    from sc_neurocore import StochasticLIFNeuron
-    from sc_neurocore import generate_bernoulli_bitstream
     from sc_neurocore import RNG as _SC_RNG
+    from sc_neurocore import StochasticLIFNeuron, generate_bernoulli_bitstream
     from sc_neurocore.accel.vector_ops import pack_bitstream, vec_and, vec_popcount
 
     _HAS_SC_NEUROCORE = True
@@ -286,8 +285,6 @@ class CompiledNet:
         injection_config : list of place-injection dicts.
         """
         from . import artifact as artifact_mod
-
-        n_words = int(math.ceil(self.bitstream_length / 64))
 
         meta = artifact_mod.ArtifactMeta(
             artifact_version=artifact_mod.ARTIFACT_SCHEMA_VERSION,

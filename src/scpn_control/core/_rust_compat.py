@@ -14,12 +14,13 @@ Usage:
 """
 import os
 from typing import Any, Optional
+
 import numpy as np
 
 try:
     from scpn_control_rs import (
+        PyEquilibriumResult,  # noqa: F401
         PyFusionKernel,
-        PyEquilibriumResult,
         shafranov_bv,
         solve_coil_currents,
     )
@@ -118,15 +119,10 @@ class RustAcceleratedKernel:
         else:
             return (0, 0), np.min(Psi)
 
-    def calculate_thermodynamics(self, p_aux_mw):
-        """Calculate thermodynamics via Rust backend."""
-        return self._rust.calculate_thermodynamics(p_aux_mw)
-
     def calculate_vacuum_field(self):
-        """Compute vacuum field with Python reference implementation."""
-        from scpn_control.core.fusion_kernel import FusionKernel as _PyFusionKernel
-
-        fk = _PyFusionKernel(self._config_path)
+        """Compute vacuum field via Python FusionKernel (not yet in PyO3)."""
+        from scpn_control.core.fusion_kernel import FusionKernel as _PyFK
+        fk = _PyFK(self._config_path)
         return fk.calculate_vacuum_field()
 
     def set_solver_method(self, method: str) -> None:
@@ -150,7 +146,6 @@ if _RUST_AVAILABLE:
     FusionKernel = RustAcceleratedKernel
     RUST_BACKEND = True
 else:
-    from scpn_control.core.fusion_kernel import FusionKernel  # noqa: F811
     RUST_BACKEND = False
 
 
@@ -305,8 +300,8 @@ def rust_multigrid_vcycle(
     try:
         from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore
         return _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
-    except ImportError:
+    except ImportError as exc:
         raise ImportError(
             "Rust multigrid_vcycle not exposed via PyO3. "
             "Use Python multigrid fallback."
-        )
+        ) from exc

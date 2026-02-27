@@ -31,7 +31,7 @@ from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
-from scipy.linalg import solve_continuous_are, solve_discrete_are, expm
+from scipy.linalg import expm, solve_continuous_are, solve_discrete_are
 
 logger = logging.getLogger(__name__)
 

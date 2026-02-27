@@ -24,9 +24,9 @@ from numpy.typing import NDArray
 from .artifact import Artifact
 from .contracts import (
     ControlAction,
-    FeatureAxisSpec,
     ControlScales,
     ControlTargets,
+    FeatureAxisSpec,
     _seed64,
 )
 
@@ -44,7 +44,11 @@ _rust_sample_firing: Optional[
 try:
     from scpn_control_rs import (  # type: ignore[import-not-found,unused-ignore]
         scpn_dense_activations as _rust_dense_activations_impl,
+    )
+    from scpn_control_rs import (
         scpn_marking_update as _rust_marking_update_impl,
+    )
+    from scpn_control_rs import (
         scpn_sample_firing as _rust_sample_firing_impl,
     )
 

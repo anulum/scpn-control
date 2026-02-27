@@ -1,28 +1,28 @@
 """scpn-control: Neuro-symbolic Stochastic Petri Net controller."""
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # Core solver
-from scpn_control.core import FusionKernel, RUST_BACKEND, TokamakConfig
-
-# Petri net compiler
-from scpn_control.scpn import (
-    StochasticPetriNet,
-    FusionCompiler,
-    CompiledNet,
-    NeuroSymbolicController,
-)
+from scpn_control.core import RUST_BACKEND, FusionKernel, TokamakConfig
 
 # Phase dynamics (Paper 27)
 from scpn_control.phase import (
-    kuramoto_sakaguchi_step,
-    order_parameter,
     KnmSpec,
-    build_knm_paper27,
-    UPDESystem,
     LyapunovGuard,
     RealtimeMonitor,
+    UPDESystem,
+    build_knm_paper27,
+    kuramoto_sakaguchi_step,
+    order_parameter,
+)
+
+# Petri net compiler
+from scpn_control.scpn import (
+    CompiledNet,
+    FusionCompiler,
+    NeuroSymbolicController,
+    StochasticPetriNet,
 )
 
 __all__ = [

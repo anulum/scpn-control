@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scpn-control"
-version = "0.2.0"
+version = "0.3.0"
 description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
 authors = [
     {name = "Miroslav Sotek"},
@@ -90,6 +90,7 @@ files = [
     "src/scpn_control/control/tokamak_digital_twin.py",
     "src/scpn_control/control/tokamak_flight_sim.py",
     "src/scpn_control/control/torax_hybrid_loop.py",
+    "src/scpn_control/control/gym_tokamak_env.py",
     "src/scpn_control/cli.py",
 ]
 
@@ -126,7 +127,21 @@ filterwarnings = [
 xfail_strict = true
 
 [tool.coverage.report]
-fail_under = 50
+fail_under = 55
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = [
+    "E501",   # line length handled by formatter
+    "E741",   # ambiguous variable (physics code uses l, I, O)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["scpn_control"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "examples"]

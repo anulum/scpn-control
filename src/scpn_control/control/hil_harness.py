@@ -22,12 +22,11 @@ format provides the register map and port definitions.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
-from typing import Callable, Optional, Protocol
+from dataclasses import dataclass
+from dataclasses import dataclass as dc_dataclass
+from typing import Callable
 
 import numpy as np
-
-from dataclasses import dataclass as dc_dataclass, field as dc_field
 
 
 @dc_dataclass
@@ -377,7 +376,7 @@ class FPGASNNExport:
         n = reg_map.neurons[0] if reg_map.neurons else SNNNeuronConfig(neuron_id=0)
         v_th_fixed = int(n.v_threshold * 2**14)
         tau_ticks = int(n.tau_mem_us * reg_map.clock_hz / 1e6)
-        lines.append(f"    // Neuron parameters (Q2.14 fixed-point)")
+        lines.append("    // Neuron parameters (Q2.14 fixed-point)")
         lines.append(f"    localparam V_THRESHOLD = 16'sd{v_th_fixed};")
         lines.append(f"    localparam TAU_TICKS   = 32'd{tau_ticks};")
         lines.append("")

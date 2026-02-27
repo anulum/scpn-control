@@ -405,8 +405,6 @@ class NeuralTransportModel:
         chi_e, chi_i, d_e : FloatArray
             Transport coefficient profiles, each shape ``(N,)``.
         """
-        n = len(rho)
-
         # Normalised gradients: R/L_X = -R * (1/X) * dX/dr
         def norm_grad(x: FloatArray) -> FloatArray:
             dx = np.gradient(x, rho)

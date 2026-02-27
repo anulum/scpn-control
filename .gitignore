@@ -58,5 +58,15 @@ site/
 # Streamlit (allow config.toml for Cloud deployment)
 .streamlit/secrets.toml
 
+# TeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+!docs/**/*.pdf
+
 # Jupyter
 .ipynb_checkpoints/

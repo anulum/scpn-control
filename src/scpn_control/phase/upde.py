@@ -29,7 +29,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from scpn_control.phase.knm import KnmSpec
-from scpn_control.phase.kuramoto import order_parameter, wrap_phase, lyapunov_v, lyapunov_exponent
+from scpn_control.phase.kuramoto import lyapunov_exponent, lyapunov_v, order_parameter, wrap_phase
 
 FloatArray = NDArray[np.float64]
 

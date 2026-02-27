@@ -12,9 +12,10 @@ try:
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
-import numpy as np
 from pathlib import Path
 from typing import Any, Optional
+
+import numpy as np
 
 try:
     import torch
@@ -57,35 +58,35 @@ def simulate_tearing_mode(
     dt = 0.01
     w = 0.01 # Island width
     local_rng = rng if rng is not None else np.random.default_rng()
-    
+
     # Physics Parameters
     # Stable shot: Delta' < 0
     # Disruptive shot: Delta' > 0 (Triggered at random time)
     is_disruptive = float(local_rng.random()) > 0.5
     trigger_time = int(local_rng.integers(200, 800)) if is_disruptive else 9999
-    
+
     delta_prime = -0.5
     w_history = []
-    
+
     for t in range(steps):
         # Trigger Instability
         if t > trigger_time:
             delta_prime = 0.5 # Become unstable
-            
+
         # Rutherford Equation: dw/dt = Delta' + Const/w (simplified)
         # Saturated growth: dw/dt = Delta' * (1 - w/w_sat)
         dw = (delta_prime * (1 - w/10.0)) * dt
         w += dw
         w += float(local_rng.normal(0.0, 0.05)) # Measurement noise
         w = max(w, 0.01)
-        
+
         w_history.append(w)
-        
+
         # Disruption Condition: Mode Lock
         if w > 8.0:
             # Locked mode! Signal goes silent or explodes
             return np.array(w_history), 1, (t - trigger_time)
-            
+
     return np.array(w_history), 0, -1
 
 

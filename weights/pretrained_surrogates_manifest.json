@@ -42,5 +42,16 @@
       "train_time_s": 3.1,
       "grid_shape": [129, 129]
     }
+  },
+  "reproduction": {
+    "mlp_itpa": "python -c \"from scpn_control.core.scaling_laws import train_ipb98_surrogate; train_ipb98_surrogate(seed=42, hidden=32, epochs=1200)\"",
+    "fno_eurofusion_jet": "python tools/train_fno_surrogate.py --modes 8 --width 16 --epochs 24 --seed 42 --data validation/reference_data/jet/",
+    "neural_equilibrium_sparc": "python -c \"from scpn_control.core.neural_equilibrium import NeuralEquilibriumAccelerator; NeuralEquilibriumAccelerator.train(geqdsk_dir='validation/reference_data/sparc/', seed=42)\""
+  },
+  "hardware": {
+    "trained_on": "AMD Ryzen 9 7950X, 64 GB RAM, no GPU",
+    "total_training_time_s": 38.5,
+    "numpy_version": "1.26.4",
+    "scipy_version": "1.13.0"
   }
 }
