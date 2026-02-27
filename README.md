@@ -26,6 +26,8 @@ modules, 50 test files, **701 tests**, 5 Rust crates, 13 CI jobs.
 
 > **11.9 µs P50 control loop** — faster than any open-source fusion code,
 > competitive with the DIII-D PCS (4–10 kHz physics loops).
+> With `sc-neurocore` installed, the SNN compiler uses `VectorizedSCLayer` +
+> Rust backend for **512× real-time** spiking neural network execution.
 > See [competitive analysis](docs/competitive_analysis.md) for full benchmarks.
 
 ## Quick Start
@@ -184,7 +186,7 @@ pytest tests/test_e2e_phase_diiid.py -v
 | numpy >= 1.24 | matplotlib (`pip install -e ".[viz]"`) |
 | scipy >= 1.10 | streamlit (`pip install -e ".[dashboard]"`) |
 | click >= 8.0 | torch (`pip install -e ".[ml]"`) |
-| | nengo (`pip install -e ".[nengo]"`) |
+| sc-neurocore >= 3.8.0 | nengo (`pip install -e ".[nengo]"`) |
 | | h5py (`pip install -e ".[hdf5]"`) |
 | | websockets (`pip install -e ".[ws]"`) |
 

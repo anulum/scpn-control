@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scpn-control"
-version = "0.3.0"
+version = "0.3.1"
 description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
 authors = [
     {name = "Miroslav Sotek"},
@@ -28,6 +28,7 @@ dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
     "click>=8.0",
+    "sc-neurocore>=3.8.0",
 ]
 requires-python = ">=3.9"
 
