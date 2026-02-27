@@ -33,21 +33,26 @@ from .structure import StochasticPetriNet
 
 logger = logging.getLogger(__name__)
 
-# ── sc_neurocore import (graceful fallback) ──────────────────────────────────
-
 _HAS_SC_NEUROCORE = False
+_HAS_NEUROCORE_V3 = False
 
 try:
     from sc_neurocore import RNG as _SC_RNG
-    from sc_neurocore import StochasticLIFNeuron, generate_bernoulli_bitstream
-    from sc_neurocore.accel.vector_ops import pack_bitstream, vec_and, vec_popcount
+    from sc_neurocore import BitstreamEncoder, StochasticLIFNeuron, VectorizedSCLayer, generate_bernoulli_bitstream
+    from sc_neurocore.accel import get_backend
 
-    _HAS_SC_NEUROCORE = True
-    logger.info("sc_neurocore detected — stochastic path enabled.")
+    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True
+    logger.info("sc_neurocore v3.8.0+ detected — VectorizedSCLayer + Rust backend")
 except ImportError:
-    logger.warning(
-        "sc_neurocore not installed — using numpy float-path only."
-    )
+    try:
+        from sc_neurocore import RNG as _SC_RNG
+        from sc_neurocore import StochasticLIFNeuron, generate_bernoulli_bitstream
+        from sc_neurocore.accel.vector_ops import pack_bitstream, vec_and, vec_popcount
+
+        _HAS_SC_NEUROCORE = True
+        logger.info("sc_neurocore <3.8 detected — legacy bit-ops path")
+    except ImportError:
+        logger.warning("sc_neurocore not installed — numpy float-path only")
 
 FloatArray = NDArray[np.float64]
 UInt64Array = NDArray[np.uint64]
@@ -186,20 +191,24 @@ class CompiledNet:
                 "Use dense_forward_float for the numpy fallback."
             )
 
+        # v3.8.0+ path: VectorizedSCLayer handles encode+forward in one call
+        if _HAS_NEUROCORE_V3:
+            encoder = BitstreamEncoder(length=self.bitstream_length, seed=self.seed + 1_000_000)
+            layer = VectorizedSCLayer(W_packed, encoder, backend=get_backend())
+            return np.asarray(layer.forward(input_probs), dtype=np.float64)
+
+        # Legacy path: manual pack + AND + popcount
         n_out, n_in, n_words = W_packed.shape
         output = np.zeros(n_out, dtype=np.float64)
 
-        # Encode each input probability as a packed bitstream
         input_packed = np.zeros((n_in, n_words), dtype=np.uint64)
-        rng_seed = self.seed + 1_000_000  # offset from weight seeds
+        rng_seed = self.seed + 1_000_000
         for j in range(n_in):
             p = float(np.clip(input_probs[j], 0.0, 1.0))
             rng = _SC_RNG(rng_seed + j)
             bits = generate_bernoulli_bitstream(p, self.bitstream_length, rng=rng)
             input_packed[j, :] = pack_bitstream(bits)
 
-        # Vectorized path when numpy bit_count is available; fallback keeps
-        # explicit per-stream sc_neurocore ops for compatibility.
         if hasattr(np, "bit_count"):
             anded = np.bitwise_and(W_packed, input_packed[np.newaxis, :, :])
             ones = np.bit_count(anded).sum(axis=(1, 2), dtype=np.uint64)
@@ -210,9 +219,6 @@ class CompiledNet:
                 for j in range(n_in):
                     anded = vec_and(W_packed[i, j, :], input_packed[j, :])
                     total_ones += int(vec_popcount(anded))
-                # Normalize: sum of products, each product ≈ w_ij * x_j
-                # Max possible ones per AND = bitstream_length, there are n_in
-                # terms, but we want the sum not the average, so divide only by L.
                 output[i] = total_ones / self.bitstream_length
 
         return output
