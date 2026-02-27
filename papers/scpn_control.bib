@@ -1,4 +1,6 @@
-@article{ferron2006,
+%% ── Core references ──────────────────────────────────────────────
+
+@article{ferron1998,
   author  = {Ferron, J. R. and Walker, M. L. and Lao, L. L. and {St John}, H. E.
              and Humphreys, D. A. and Leuer, J. A.},
   title   = {Real time equilibrium reconstruction for tokamak discharge control},
@@ -17,6 +19,16 @@
   note        = {ITER\_D\_2V3V8G}
 }
 
+@article{sotek2026knm,
+  author = {Sotek, Miroslav},
+  title  = {The {$K_{nm}$} Matrix: A Simulation Framework for
+            Modelling Multi-Scale Bidirectional Causality},
+  year   = {2026},
+  note   = {SCPN Paper 27, \url{https://www.academia.edu/143833534/27_SCPN_The_Knm_Matrix}}
+}
+
+%% ── Spiking neural networks ────────────────────────────────────
+
 @article{tavanaei2019,
   author  = {Tavanaei, A. and Ghodrati, M. and Kheradpisheh, S. R.
              and Masquelier, T. and Maida, A.},
@@ -28,6 +40,18 @@
   doi     = {10.1016/j.neunet.2018.12.002}
 }
 
+@article{maass1997,
+  author  = {Maass, W.},
+  title   = {Networks of spiking neurons: The third generation of neural network models},
+  journal = {Neural Networks},
+  volume  = {10},
+  pages   = {1659--1671},
+  year    = {1997},
+  doi     = {10.1016/S0893-6080(97)00011-7}
+}
+
+%% ── Stochastic Petri Nets ──────────────────────────────────────
+
 @book{marsan1995,
   author    = {Marsan, M. A. and Balbo, G. and Conte, G. and
                Donatelli, S. and Franceschinis, G.},
@@ -36,6 +60,18 @@
   year      = {1995},
   isbn      = {978-0471930594}
 }
+
+@article{murata1989,
+  author  = {Murata, T.},
+  title   = {Petri nets: Properties, analysis and applications},
+  journal = {Proc. IEEE},
+  volume  = {77},
+  pages   = {541--580},
+  year    = {1989},
+  doi     = {10.1109/5.24143}
+}
+
+%% ── Kuramoto / synchronization ─────────────────────────────────
 
 @article{kuramoto1975,
   author  = {Kuramoto, Y.},
@@ -47,10 +83,235 @@
   doi     = {10.1007/BFb0013365}
 }
 
-@article{sotek2026knm,
-  author = {Sotek, Miroslav},
-  title  = {The {$K_{nm}$} Matrix: A Simulation Framework for
-            Modelling Multi-Scale Bidirectional Causality},
-  year   = {2026},
-  note   = {SCPN Paper 27, \url{https://www.academia.edu/143833534/27_SCPN_The_Knm_Matrix}}
+@article{acebron2005,
+  author  = {Acebr{\'o}n, J. A. and Bonilla, L. L. and P{\'e}rez Vicente, C. J.
+             and Ritort, F. and Spigler, R.},
+  title   = {The {Kuramoto} model: A simple paradigm for synchronization phenomena},
+  journal = {Rev. Mod. Phys.},
+  volume  = {77},
+  pages   = {137--185},
+  year    = {2005},
+  doi     = {10.1103/RevModPhys.77.137}
+}
+
+@article{sakaguchi1986,
+  author  = {Sakaguchi, H. and Kuramoto, Y.},
+  title   = {A soluble active rotator model showing phase transitions via mutual entertainment},
+  journal = {Prog. Theor. Phys.},
+  volume  = {76},
+  pages   = {576--581},
+  year    = {1986},
+  doi     = {10.1143/PTP.76.576}
+}
+
+%% ── Fusion control ─────────────────────────────────────────────
+
+@article{degrave2022,
+  author  = {Degrave, J. and Felici, F. and Buchli, J. and Neunert, M.
+             and Tracey, B. and Carpanese, F. and Ewalds, T.
+             and Hafner, R. and Abdolmaleki, A. and de las Casas, D.
+             and others},
+  title   = {Magnetic control of tokamak plasmas through deep
+             reinforcement learning},
+  journal = {Nature},
+  volume  = {602},
+  pages   = {414--419},
+  year    = {2022},
+  doi     = {10.1038/s41586-021-04301-9}
+}
+
+@article{humphreys2015,
+  author  = {Humphreys, D. A. and Casper, T. A. and Eidietis, N.
+             and Ferrara, M. and Gates, D. A. and Hutchinson, I. H.
+             and Jackson, G. L. and Kolemen, E. and Leuer, J. A.
+             and Lister, J. and others},
+  title   = {Novel aspects of plasma control in {ITER}},
+  journal = {Phys. Plasmas},
+  volume  = {22},
+  pages   = {021806},
+  year    = {2015},
+  doi     = {10.1063/1.4907901}
+}
+
+@article{walker2020,
+  author  = {Walker, M. L. and Humphreys, D. A.},
+  title   = {On feedback stabilization of the tokamak plasma vertical
+             instability},
+  journal = {Automatica},
+  volume  = {45},
+  pages   = {665--674},
+  year    = {2009},
+  doi     = {10.1016/j.automatica.2008.10.006}
+}
+
+%% ── Grad-Shafranov / equilibrium ───────────────────────────────
+
+@book{freidberg2014,
+  author    = {Freidberg, J. P.},
+  title     = {Ideal {MHD}},
+  publisher = {Cambridge University Press},
+  year      = {2014},
+  isbn      = {978-1107006256}
+}
+
+@article{lao1985,
+  author  = {Lao, L. L. and {St John}, H. and Stambaugh, R. D.
+             and Kellman, A. G. and Pfeiffer, W.},
+  title   = {Reconstruction of current profile parameters and plasma
+             shapes in tokamaks},
+  journal = {Nucl. Fusion},
+  volume  = {25},
+  pages   = {1611},
+  year    = {1985},
+  doi     = {10.1088/0029-5515/25/11/007}
+}
+
+%% ── H-infinity / robust control ────────────────────────────────
+
+@book{zhou1996,
+  author    = {Zhou, K. and Doyle, J. C. and Glover, K.},
+  title     = {Robust and Optimal Control},
+  publisher = {Prentice Hall},
+  year      = {1996},
+  isbn      = {978-0134565675}
+}
+
+@article{glover1988,
+  author  = {Glover, K. and Doyle, J. C.},
+  title   = {State-space formulae for all stabilizing controllers that
+             satisfy an {$H_\infty$}-norm bound and relations to risk
+             sensitivity},
+  journal = {Syst. Control Lett.},
+  volume  = {11},
+  pages   = {167--172},
+  year    = {1988},
+  doi     = {10.1016/0167-6911(88)90055-2}
+}
+
+%% ── Disruption prediction ──────────────────────────────────────
+
+@article{devries2011,
+  author  = {{de Vries}, P. C. and Johnson, M. F. and Alper, B.
+             and Buratti, P. and Hender, T. C. and Koslowski, H. R.
+             and Riccardo, V.},
+  title   = {Survey of disruption causes at {JET}},
+  journal = {Nucl. Fusion},
+  volume  = {51},
+  pages   = {053018},
+  year    = {2011},
+  doi     = {10.1088/0029-5515/51/5/053018}
+}
+
+@article{rea2019,
+  author  = {Rea, C. and Granetz, R. S.},
+  title   = {Exploratory machine learning studies for disruption prediction
+             using large databases on {DIII-D}},
+  journal = {Fusion Sci. Technol.},
+  volume  = {76},
+  pages   = {912--924},
+  year    = {2019},
+  doi     = {10.1080/15361055.2020.1798589}
+}
+
+%% ── Confinement scaling ────────────────────────────────────────
+
+@article{iter1999,
+  author  = {{ITER Physics Basis Editors}},
+  title   = {Chapter 2: Plasma confinement and transport},
+  journal = {Nucl. Fusion},
+  volume  = {39},
+  pages   = {2175},
+  year    = {1999},
+  doi     = {10.1088/0029-5515/39/12/302}
+}
+
+%% ── Transport / TORAX ──────────────────────────────────────────
+
+@article{fanni2024torax,
+  author  = {Fanni, A. and Citrin, J. and Felici, F. and others},
+  title   = {{TORAX}: A fast and differentiable tokamak transport simulator
+             in {JAX}},
+  journal = {Nucl. Fusion},
+  year    = {2024},
+  note    = {arXiv:2406.06718}
+}
+
+@misc{freegs,
+  author  = {Dudson, B. and others},
+  title   = {{FreeGS}: Free-boundary {Grad--Shafranov} solver},
+  year    = {2023},
+  note    = {\url{https://github.com/freegs-plasma/freegs}}
+}
+
+%% ── Stochastic computing ───────────────────────────────────────
+
+@article{alaghi2013,
+  author  = {Alaghi, A. and Hayes, J. P.},
+  title   = {Survey of stochastic computing},
+  journal = {ACM Trans. Embed. Comput. Syst.},
+  volume  = {12},
+  number  = {2s},
+  pages   = {1--19},
+  year    = {2013},
+  doi     = {10.1145/2465787.2465794}
+}
+
+%% ── Gymnasium ──────────────────────────────────────────────────
+
+@misc{gymnasium2023,
+  author = {Towers, M. and Terry, J. K. and Kwiatkowski, A.
+            and Balis, J. U. and de Cola, G. and Deleu, T.
+            and Goulão, M. and Kallinteris, A. and KG, A.
+            and Krimmel, M. and others},
+  title  = {Gymnasium},
+  year   = {2023},
+  note   = {\url{https://github.com/Farama-Foundation/Gymnasium}}
+}
+
+%% ── Troyon / stability limits ──────────────────────────────────
+
+@article{troyon1984,
+  author  = {Troyon, F. and Gruber, R. and Saurenmann, H.
+             and Semenzato, S. and Succi, S.},
+  title   = {{MHD}-limits to plasma confinement},
+  journal = {Plasma Phys. Control. Fusion},
+  volume  = {26},
+  pages   = {209},
+  year    = {1984},
+  doi     = {10.1088/0741-3335/26/1A/319}
+}
+
+@article{greenwald2002,
+  author  = {Greenwald, M.},
+  title   = {Density limits in toroidal plasmas},
+  journal = {Plasma Phys. Control. Fusion},
+  volume  = {44},
+  pages   = {R27},
+  year    = {2002},
+  doi     = {10.1088/0741-3335/44/8/201}
+}
+
+%% ── PyO3 / Rust-Python FFI ─────────────────────────────────────
+
+@misc{pyo3,
+  author = {{PyO3 Contributors}},
+  title  = {{PyO3}: {Rust} bindings for {Python}},
+  year   = {2024},
+  note   = {\url{https://pyo3.rs}}
+}
+
+%% ── SPI mitigation ─────────────────────────────────────────────
+
+@article{lehnen2015,
+  author  = {Lehnen, M. and Aleynikova, K. and Aleynikov, P. B.
+             and Campbell, D. J. and Drewelow, P. and Eidietis, N. W.
+             and Gasber, Yu. and Granetz, R. S. and Gribov, Yu.
+             and Hartmann, N. and others},
+  title   = {Disruptions in {ITER} and strategies for their control and
+             mitigation},
+  journal = {J. Nucl. Mater.},
+  volume  = {463},
+  pages   = {39--48},
+  year    = {2015},
+  doi     = {10.1016/j.jnucmat.2014.10.075}
 }
