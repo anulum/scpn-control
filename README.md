@@ -183,10 +183,11 @@ pytest tests/test_e2e_phase_diiid.py -v
 
 | Required | Optional |
 |----------|----------|
-| numpy >= 1.24 | matplotlib (`pip install -e ".[viz]"`) |
-| scipy >= 1.10 | streamlit (`pip install -e ".[dashboard]"`) |
-| click >= 8.0 | torch (`pip install -e ".[ml]"`) |
-| sc-neurocore >= 3.8.0 | nengo (`pip install -e ".[nengo]"`) |
+| numpy >= 1.24 | sc-neurocore >= 3.8.0 (`pip install -e ".[neuro]"`) |
+| scipy >= 1.10 | matplotlib (`pip install -e ".[viz]"`) |
+| click >= 8.0 | streamlit (`pip install -e ".[dashboard]"`) |
+| | torch (`pip install -e ".[ml]"`) |
+| | nengo (`pip install -e ".[nengo]"`) |
 | | h5py (`pip install -e ".[hdf5]"`) |
 | | websockets (`pip install -e ".[ws]"`) |
 

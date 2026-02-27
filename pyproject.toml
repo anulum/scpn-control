@@ -28,7 +28,6 @@ dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
     "click>=8.0",
-    "sc-neurocore>=3.8.0",
 ]
 requires-python = ">=3.9"
 

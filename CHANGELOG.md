@@ -3,14 +3,13 @@
 ## [0.3.1] — 2026-02-27
 
 ### Added
-- sc-neurocore >= 3.8.0 promoted to required dependency
 - VectorizedSCLayer + Rust backend path in SNN compiler (512× real-time)
 - Two-tier import: v3.8.0+ preferred → legacy bit-ops → numpy float fallback
 - Test for v3.8 detection and VectorizedSCLayer forward-path benchmark
+- sc-neurocore listed first in optional deps table (crown jewel)
 
 ### Changed
-- CI: 14 → 15 jobs (added neurocore-v3 verification)
-- README: dependencies table and engine callout updated for sc-neurocore
+- README: engine callout and dep table updated for sc-neurocore
 
 ## [0.3.0] — 2026-02-27
 
