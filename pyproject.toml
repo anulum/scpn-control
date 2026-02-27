@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scpn-control"
-version = "0.3.2"
+version = "0.3.3"
 description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
 authors = [
     {name = "Miroslav Sotek"},

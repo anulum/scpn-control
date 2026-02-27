@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3] — 2026-02-27
+
+### Changed
+- License: AGPL-3.0 → MIT OR Apache-2.0 dual (137 files, zero AGPL remaining)
+- README: `pip install -e "."` → `pip install scpn-control` (PyPI install path)
+- CONTRIBUTING: CI job count 14 → 17
+
 ## [0.3.2] — 2026-02-27
 
 ### Added
