@@ -19,6 +19,7 @@ from scpn_control.core.integrated_transport_solver import (
     PhysicsError,
     chang_hinton_chi_profile,
     calculate_sauter_bootstrap_current_full,
+    _load_gyro_bohm_coefficient,
 )
 
 # ── Minimal config for fast tests ────────────────────────────────────
@@ -459,3 +460,63 @@ class TestImpurityInjection:
         """Impurity profiles should remain non-negative after injection."""
         solver.inject_impurities(flux_from_wall_per_sec=1e20, dt=0.01)
         assert np.all(solver.n_impurity >= 0)
+
+
+# ── 9. Gyro-Bohm & Neoclassical Method Adapter ───────────────────────
+
+class TestGyroBohm:
+
+    def test_load_gyro_bohm_fallback_missing_file(self) -> None:
+        val = _load_gyro_bohm_coefficient("/nonexistent/file.json")
+        assert val == pytest.approx(0.1)
+
+    def test_load_gyro_bohm_from_json(self, tmp_path: Path) -> None:
+        p = tmp_path / "c_gB.json"
+        p.write_text(json.dumps({"c_gB": 0.042}))
+        val = _load_gyro_bohm_coefficient(str(p))
+        assert val == pytest.approx(0.042)
+
+    def test_load_gyro_bohm_bad_json(self, tmp_path: Path) -> None:
+        p = tmp_path / "bad.json"
+        p.write_text("{not json")
+        val = _load_gyro_bohm_coefficient(str(p))
+        assert val == pytest.approx(0.1)
+
+    def test_gyro_bohm_chi_with_neoclassical(self, solver: TransportSolver) -> None:
+        solver.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        chi = solver._gyro_bohm_chi()
+        assert chi.shape == solver.rho.shape
+        assert np.all(np.isfinite(chi))
+        assert np.all(chi >= 0.01)
+
+    def test_gyro_bohm_chi_no_neoclassical(self, solver: TransportSolver) -> None:
+        solver.neoclassical_params = None
+        chi = solver._gyro_bohm_chi()
+        assert np.all(chi == pytest.approx(0.5))
+
+    def test_chang_hinton_method_adapter(self, solver: TransportSolver) -> None:
+        solver.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        chi = solver.chang_hinton_chi_profile()
+        assert chi.shape == solver.rho.shape
+        assert np.all(np.isfinite(chi))
+
+    def test_update_transport_neoclassical_path(self, solver: TransportSolver) -> None:
+        solver.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        solver.update_transport_model(50.0)
+        assert np.all(np.isfinite(solver.chi_e))
+        assert np.all(solver.chi_e > 0)
+
+
+# ── 10. Zero Aux Heating Overshoot Guard ──────────────────────────────
+
+class TestZeroAuxHeatingGuard:
+
+    def test_evolve_with_zero_aux_heating(self, solver: TransportSolver) -> None:
+        solver.Ti = 5.0 * (1 - solver.rho ** 2)
+        solver.Te = solver.Ti.copy()
+        solver.ne = 8.0 * (1 - solver.rho ** 2) ** 0.5
+        solver.update_transport_model(0.0)
+        ti_before = solver.Ti.copy()
+        solver.evolve_profiles(dt=0.001, P_aux=0.0)
+        assert np.all(np.isfinite(solver.Ti))
+        assert float(np.mean(solver.Ti)) <= float(np.mean(ti_before)) + 1e-8

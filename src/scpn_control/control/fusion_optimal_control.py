@@ -241,6 +241,8 @@ class OptimalController:
         self,
         output_path: str = "Optimal_Control_Result.png",
     ) -> Tuple[bool, Optional[str]]:
+        if not HAS_MPL:
+            return False, "matplotlib not installed"
         try:
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 

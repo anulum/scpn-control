@@ -336,3 +336,19 @@ class TestKernelEdgeCases:
         )
         out = capsys.readouterr().out
         assert "nope" in out
+
+    def test_auto_kernel_factory_from_config_file(self):
+        """When kernel_factory=None but config_file set, FusionKernel is used automatically."""
+        import scpn_control.control.fusion_control_room as fcr_mod
+
+        original_fk = fcr_mod.FusionKernel
+        fcr_mod.FusionKernel = _DummyKernel
+        try:
+            summary = run_control_room(
+                sim_duration=3, seed=0,
+                save_animation=False, save_report=False, verbose=False,
+                kernel_factory=None, config_file="x.json",
+            )
+            assert summary["psi_source"] == "kernel"
+        finally:
+            fcr_mod.FusionKernel = original_fk

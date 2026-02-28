@@ -540,8 +540,7 @@ class TransportSolver(FusionKernel):
                         self.Ti[ped_idx:],
                         ped.T_ped_keV * np.linspace(1.0, 0.1, len(self.Ti[ped_idx:]))
                     )
-            except (ValueError, IndexError, AttributeError):
-                # Pedestal params missing or incompatible — fallback
+            except (ImportError, ValueError, IndexError, AttributeError):
                 edge_mask = self.rho > 0.9
                 chi_turb[edge_mask] *= 0.1
         elif is_H_mode:

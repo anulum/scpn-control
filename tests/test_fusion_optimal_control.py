@@ -272,7 +272,5 @@ def test_run_optimal_shot_save_plot_no_matplotlib(monkeypatch) -> None:
     )
     pilot.identify_system(perturbation=0.3)
     saved, err = pilot.plot_telemetry(output_path="/tmp/test_plot.png")
-    # Without matplotlib the method tries plt.subplots and gets NameError/AttributeError
-    # The except clause catches (OSError, ValueError); anything else propagates.
-    # With HAS_MPL=False but plt still imported, it may still work — either way test exercises the path.
-    assert isinstance(saved, bool)
+    assert saved is False
+    assert "matplotlib" in err.lower()
