@@ -230,11 +230,10 @@ class HInfinityController:
         return X, Y, F, L
 
     # Bisection bounds for gamma search.
-    # gamma_min > 1.0 because H-inf requires gamma > 1 for feasibility.
-    # gamma_max = 1e6 covers all practical plants.
-    _GAMMA_SEARCH_MIN = 1.01
+    # H-inf feasibility requires gamma > ||D_11||_inf >= 1; Zhou & Doyle, Ch. 17
+    _GAMMA_SEARCH_MIN = 1.01   # 1% above unity to avoid numerical singularity
     _GAMMA_SEARCH_MAX = 1e6
-    _GAMMA_FEASIBILITY_PAD = 1.005  # 0.5% margin above minimum
+    _GAMMA_FEASIBILITY_PAD = 1.005  # 0.5% headroom above bisection optimum
 
     def _find_optimal_gamma(
         self,

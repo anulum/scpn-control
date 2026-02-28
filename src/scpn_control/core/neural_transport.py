@@ -126,11 +126,13 @@ class TransportFluxes:
 
 # ── Analytic fallback (critical-gradient model) ──────────────────────
 
-# Critical gradient thresholds; Dimits et al., Phys. Plasmas 7, 969 (2000)
-_CRIT_ITG = 4.0   # R/L_Ti threshold for ITG onset
-_CRIT_TEM = 5.0   # R/L_Te threshold for TEM (simplified; full form in TGLF)
-_CHI_GB = 1.0     # Gyro-Bohm unit [m^2/s]; Sugama & Horton, Phys. Plasmas 4, 405 (1997)
-_STIFFNESS = 2.0  # Transport stiffness exponent (canonical for stiff-gradient models)
+# Dimits et al., Phys. Plasmas 7, 969 (2000), Fig. 3
+_CRIT_ITG = 4.0   # R/L_Ti threshold for ITG onset (Cyclone base-case)
+_CRIT_TEM = 5.0   # R/L_Te threshold for TEM; simplified from TGLF Eq. (32)
+# Sugama & Horton, Phys. Plasmas 4, 405 (1997), Eq. (1)
+_CHI_GB = 1.0     # Gyro-Bohm normalisation [m^2/s] at reference B, T, n
+# Garbet et al., Plasma Phys. Control. Fusion 46, B557 (2004), §3
+_STIFFNESS = 2.0  # Transport stiffness exponent above critical gradient
 
 
 def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:

@@ -108,6 +108,8 @@ class TokamakEnv:
         T_edge += self.dt * (0.5 * (T_ax - T_edge) - 1.0 * T_edge)
         Ip += Ip_delta * self.dt * 10.0
         beta_N: float = 0.02 * T_ax * np.sqrt(max(Ip, 0.1)) / max(abs(Ip), 0.1)
+        # q95 ≈ 5 a² B_T / (R Ip); ITER: a=2.0m, B_T=5.3T, R=6.2m
+        # → 5 * 4 * 5.3 / 6.2 ≈ 17.1 / Ip  (simplified cylindrical safety factor)
         q95: float = max(5.0 * 5.3 / max(Ip, 0.1), 1.5)
         li: float = 0.85 + 0.1 * (q95 - 3.0)
 

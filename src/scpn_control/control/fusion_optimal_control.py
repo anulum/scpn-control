@@ -25,7 +25,7 @@ except ImportError:
 from scpn_control.control import normalize_bounds
 
 # --- MISSION PARAMETERS ---
-TARGET_R = 6.0
+TARGET_R = 6.2  # ITER major radius [m]; ITER Physics Basis, NF 47 (2007) S1
 TARGET_Z = 0.0
 SHOT_STEPS = 50
 

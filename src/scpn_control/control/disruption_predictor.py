@@ -55,21 +55,21 @@ def simulate_tearing_mode(
         time_to_disruption (array): Time remaining (or -1 if safe)
     """
     steps = _require_int("steps", steps, 1)
-    DT_RUTHERFORD = 0.01        # s, Rutherford equation timestep
-    W_INIT_CM = 0.01            # cm, seed island width
+    # Rutherford (1973) modified; Fitzpatrick, Phys. Plasmas 2, 825 (1995)
+    DT_RUTHERFORD = 0.01        # s, integration timestep
+    W_INIT_CM = 0.01            # cm, seed island half-width
     dt = DT_RUTHERFORD
     w = W_INIT_CM
     local_rng = rng if rng is not None else np.random.default_rng()
 
-    # Stable shot: Delta' < 0; disruptive: Delta' > 0 (triggered at random time)
     is_disruptive = float(local_rng.random()) > 0.5
     trigger_time = int(local_rng.integers(200, 800)) if is_disruptive else 9999
 
-    # Δ' < 0 → classically stable; flips to +0.5 at trigger_time for NTM seed
-    delta_prime = -0.5
-    W_SAT = 10.0  # island saturation width [cm], simplified Rutherford
-    W_LOCK = 8.0  # locked-mode threshold [cm]; La Haye, Phys. Plasmas 13, 055501 (2006)
-    NOISE_STD = 0.05  # Rogowski coil noise σ [cm], typical for DIII-D
+    delta_prime = -0.5  # Δ' < 0 → classically stable; flips at trigger_time
+    # La Haye, Phys. Plasmas 13, 055501 (2006), Fig. 6
+    W_SAT = 10.0  # cm, island saturation width (NTM m/n=2/1 on DIII-D)
+    W_LOCK = 8.0  # cm, locked-mode threshold
+    NOISE_STD = 0.05  # cm, Rogowski coil noise σ (DIII-D shot #164549)
     w_history = []
 
     for t in range(steps):

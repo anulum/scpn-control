@@ -170,7 +170,7 @@ def ipb98y2_tau_e(
     R: float,
     kappa: float,
     epsilon: float,
-    M: float = 2.5,
+    M: float = 2.5,  # D-T effective ion mass [AMU]; ITER Physics Basis, NF 39 (1999)
     *,
     coefficients: Optional[dict] = None,
 ) -> float:
@@ -252,7 +252,7 @@ def ipb98y2_with_uncertainty(
     R: float,
     kappa: float,
     epsilon: float,
-    M: float = 2.5,
+    M: float = 2.5,  # D-T effective ion mass [AMU]; ITER Physics Basis, NF 39 (1999)
     *,
     coefficients: Optional[dict] = None,
 ) -> tuple[float, float]:
