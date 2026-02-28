@@ -346,3 +346,76 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch) -> N
     assert calls["check"] is True
     assert isinstance(calls["cmd"], list)
     assert calls["cmd"][0] == "g++"
+
+
+def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, object] = {}
+
+    def _fake_run(cmd, check):  # type: ignore[no-untyped-def]
+        calls["cmd"] = list(cmd)
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    monkeypatch.setattr(hpc_mod.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _fake_run)
+
+    out = hpc_mod.compile_cpp()
+    assert out is not None
+    assert Path(out).name == "scpn_solver.dll"
+
+
+def test_compile_cpp_handles_build_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    def _fail_run(cmd, check):  # type: ignore[no-untyped-def]
+        raise subprocess.CalledProcessError(1, cmd)
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _fail_run)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_context_manager_protocol() -> None:
+    bridge = _make_bridge()
+    with bridge as b:
+        assert b is bridge
+        assert b.solver_ptr is not None
+    assert bridge.solver_ptr is None
+    assert bridge.lib.destroyed == 12345
+
+
+def test_solve_rejects_empty_input() -> None:
+    bridge = _make_bridge(nr=0, nz=0)
+    bridge.nr = 2
+    bridge.nz = 3
+    with pytest.raises(ValueError, match="non-empty"):
+        bridge.solve(np.zeros((0, 0), dtype=np.float64))
+
+
+def test_require_c_contiguous_f64_wrong_dtype() -> None:
+    from scpn_control.core.hpc_bridge import _require_c_contiguous_f64
+    arr = np.zeros((3, 2), dtype=np.float32)
+    with pytest.raises(ValueError, match="dtype float64"):
+        _require_c_contiguous_f64(arr, (3, 2), "test")
+
+
+def test_sanitize_convergence_params_valid() -> None:
+    from scpn_control.core.hpc_bridge import _sanitize_convergence_params
+    iters, tol, omega = _sanitize_convergence_params(100, 1e-6, 1.5)
+    assert iters == 100
+    assert abs(tol - 1e-6) < 1e-12
+    assert abs(omega - 1.5) < 1e-12
+
+
+def test_close_noop_when_no_solver_ptr() -> None:
+    bridge = _make_bridge()
+    bridge.solver_ptr = None
+    bridge.close()
+    assert bridge.lib.destroyed is None
+
+
+def test_close_noop_when_not_loaded() -> None:
+    bridge = _make_bridge()
+    bridge.loaded = False
+    bridge.close()
+    assert bridge.lib.destroyed is None
