@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 
 import pytest
 
@@ -48,100 +49,116 @@ class TestPhaseStreamServer:
         server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01)
         assert server.tick_interval_s == 0.01
 
-    @pytest.mark.asyncio
-    async def test_handler_set_psi(self):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon)
-        ws = _FakeWS([json.dumps({"action": "set_psi", "value": 0.5})])
-        await server._handler(ws)
-        assert mon.psi_driver == pytest.approx(0.5)
-        assert ws not in server._clients
+    def test_handler_set_psi(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            ws = _FakeWS([json.dumps({"action": "set_psi", "value": 0.5})])
+            await server._handler(ws)
+            assert mon.psi_driver == pytest.approx(0.5)
+            assert ws not in server._clients
 
-    @pytest.mark.asyncio
-    async def test_handler_set_pac_gamma(self):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon)
-        ws = _FakeWS([json.dumps({"action": "set_pac_gamma", "value": 0.3})])
-        await server._handler(ws)
-        assert mon.pac_gamma == pytest.approx(0.3)
+        asyncio.run(_run())
 
-    @pytest.mark.asyncio
-    async def test_handler_reset(self):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon)
-        ws = _FakeWS([json.dumps({"action": "reset", "seed": 99})])
-        await server._handler(ws)
+    def test_handler_set_pac_gamma(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            ws = _FakeWS([json.dumps({"action": "set_pac_gamma", "value": 0.3})])
+            await server._handler(ws)
+            assert mon.pac_gamma == pytest.approx(0.3)
 
-    @pytest.mark.asyncio
-    async def test_handler_stop(self):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon)
-        ws = _FakeWS([json.dumps({"action": "stop"})])
-        await server._handler(ws)
-        assert server._running is False
+        asyncio.run(_run())
 
-    @pytest.mark.asyncio
-    async def test_handler_bad_json_ignored(self):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon)
-        ws = _FakeWS(["not-json", json.dumps({"action": "stop"})])
-        await server._handler(ws)
+    def test_handler_reset(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            ws = _FakeWS([json.dumps({"action": "reset", "seed": 99})])
+            await server._handler(ws)
 
-    @pytest.mark.asyncio
-    async def test_tick_loop_sends_to_clients(self):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon, tick_interval_s=0.001)
-        ws = _FakeWS()
-        server._clients.add(ws)
-        server._running = True
+        asyncio.run(_run())
 
-        async def _stop_after_ticks():
-            await asyncio.sleep(0.05)
-            server._running = False
+    def test_handler_stop(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            ws = _FakeWS([json.dumps({"action": "stop"})])
+            await server._handler(ws)
+            assert server._running is False
 
-        await asyncio.gather(server._tick_loop(), _stop_after_ticks())
-        assert len(ws._sent) > 0
-        frame = json.loads(ws._sent[0])
-        assert "R_global" in frame
+        asyncio.run(_run())
 
-    @pytest.mark.asyncio
-    async def test_tick_loop_no_clients_idles(self):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon, tick_interval_s=0.001)
-        server._running = True
+    def test_handler_bad_json_ignored(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            ws = _FakeWS(["not-json", json.dumps({"action": "stop"})])
+            await server._handler(ws)
 
-        async def _stop_soon():
-            await asyncio.sleep(0.06)
-            server._running = False
+        asyncio.run(_run())
 
-        await asyncio.gather(server._tick_loop(), _stop_soon())
+    def test_tick_loop_sends_to_clients(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, tick_interval_s=0.001)
+            ws = _FakeWS()
+            server._clients.add(ws)
+            server._running = True
 
-    @pytest.mark.asyncio
-    async def test_tick_loop_dead_client_removed(self):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon, tick_interval_s=0.001)
+            async def _stop_after_ticks():
+                await asyncio.sleep(0.05)
+                server._running = False
 
-        class _DeadWS(_FakeWS):
-            async def send(self, data):
-                raise ConnectionError("gone")
+            await asyncio.gather(server._tick_loop(), _stop_after_ticks())
+            assert len(ws._sent) > 0
+            frame = json.loads(ws._sent[0])
+            assert "R_global" in frame
 
-        dead = _DeadWS()
-        server._clients.add(dead)
-        server._running = True
+        asyncio.run(_run())
 
-        async def _stop():
-            await asyncio.sleep(0.03)
-            server._running = False
+    def test_tick_loop_no_clients_idles(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, tick_interval_s=0.001)
+            server._running = True
 
-        await asyncio.gather(server._tick_loop(), _stop())
-        assert dead not in server._clients
+            async def _stop_soon():
+                await asyncio.sleep(0.06)
+                server._running = False
 
-    @pytest.mark.asyncio
-    async def test_serve_requires_websockets(self, monkeypatch):
-        mon = _make_monitor()
-        server = PhaseStreamServer(monitor=mon)
-        import scpn_control.phase.ws_phase_stream as ws_mod
-        import sys
-        monkeypatch.setitem(sys.modules, "websockets", None)
-        with pytest.raises(ImportError, match="websockets"):
-            await server.serve()
+            await asyncio.gather(server._tick_loop(), _stop_soon())
+
+        asyncio.run(_run())
+
+    def test_tick_loop_dead_client_removed(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, tick_interval_s=0.001)
+
+            class _DeadWS(_FakeWS):
+                async def send(self, data):
+                    raise ConnectionError("gone")
+
+            dead = _DeadWS()
+            server._clients.add(dead)
+            server._running = True
+
+            async def _stop():
+                await asyncio.sleep(0.03)
+                server._running = False
+
+            await asyncio.gather(server._tick_loop(), _stop())
+            assert dead not in server._clients
+
+        asyncio.run(_run())
+
+    def test_serve_requires_websockets(self, monkeypatch):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            monkeypatch.setitem(sys.modules, "websockets", None)
+            with pytest.raises(ImportError, match="websockets"):
+                await server.serve()
+
+        asyncio.run(_run())
