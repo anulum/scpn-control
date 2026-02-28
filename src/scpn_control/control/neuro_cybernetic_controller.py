@@ -361,7 +361,7 @@ class NeuroCyberneticController:
             try:
                 self.visualize(title, output_path=output_path, verbose=verbose)
                 plot_saved = True
-            except Exception as exc:
+            except (OSError, ValueError, RuntimeError) as exc:
                 plot_error = str(exc)
                 if verbose:
                     print(f"Plot export skipped due to error: {exc}")

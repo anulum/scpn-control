@@ -259,7 +259,7 @@ def _render_outputs(
             )
             ani.save(output_gif, writer=PillowWriter(fps=FPS))
             animation_saved = True
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             animation_error = str(exc)
 
     report_saved = False
@@ -270,7 +270,7 @@ def _render_outputs(
             plt.tight_layout()
             fig.savefig(output_report)
             report_saved = True
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             report_error = str(exc)
 
     plt.close(fig)
@@ -312,7 +312,7 @@ def run_control_room(
             kernel = kernel_factory(cfg) if kernel_factory is not None else None
             if kernel is not None:
                 psi_source = "kernel"
-        except Exception as exc:
+        except (OSError, ValueError, KeyError, RuntimeError) as exc:
             kernel = None
             kernel_error = str(exc)
             psi_source = "analytic"

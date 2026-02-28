@@ -366,7 +366,7 @@ def run_digital_twin(
                 print(
                     f"\nDigital Twin Simulation Complete. Snapshot saved: {output_path}"
                 )
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             plot_error = str(exc)
             if verbose:
                 print(f"\nDigital Twin completed without plot artifact: {exc}")

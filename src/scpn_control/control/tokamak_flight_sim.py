@@ -370,7 +370,7 @@ class IsoFluxController:
     ) -> Tuple[bool, Optional[str]]:
         try:
             import matplotlib.pyplot as plt
-        except Exception as exc:
+        except ImportError as exc:
             return False, f"matplotlib unavailable: {exc}"
         try:
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
@@ -420,7 +420,7 @@ class IsoFluxController:
             plt.close(fig)
             self._log(f"Flight Sim Complete. Report: {output_path}")
             return True, None
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             return False, str(exc)
 
 

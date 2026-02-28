@@ -287,7 +287,7 @@ def run_spi_mitigation(
             plot_saved = True
             if verbose:
                 print(f"Saved: {output_path}")
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             plot_error = f"{exc.__class__.__name__}: {exc}"
 
     return {
