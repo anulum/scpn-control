@@ -225,3 +225,43 @@ class TestDirectorInterfaceRunMission:
             save_plot=False, verbose=False,
         )
         assert result["intervention_count"] > 0
+
+    def test_verbose_output(self, capsys):
+        di = DirectorInterface(
+            "mock.json", controller_factory=_MockNeuroCyberneticController,
+        )
+        di.run_directed_mission(
+            duration=20, save_plot=False, verbose=True,
+        )
+        out = capsys.readouterr().out
+        assert "DIRECTOR-GHOSTED FUSION MISSION" in out
+        assert "fallback_rule_based" in out
+
+    def test_verbose_intervention_prints(self, capsys):
+        di = DirectorInterface(
+            "mock.json", controller_factory=_MockNeuroCyberneticController,
+        )
+        di.run_directed_mission(
+            duration=100, glitch_start_step=5, glitch_std=50000.0,
+            save_plot=False, verbose=True, rng_seed=0,
+        )
+        out = capsys.readouterr().out
+        assert "APPROVED" in out or "DENIED" in out
+
+    def test_verbose_with_denied_intervention(self, capsys):
+        class _HighEntropyDirector:
+            def review_action(self, prompt, action):
+                return False, 9.9
+
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
+            director=_HighEntropyDirector(),
+        )
+        result = di.run_directed_mission(
+            duration=20, save_plot=False, verbose=True,
+        )
+        out = capsys.readouterr().out
+        assert "DENIED" in out
+        assert "INTERVENTION" in out
+        assert result["intervention_count"] > 0

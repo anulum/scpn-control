@@ -4,7 +4,9 @@ import numpy as np
 
 from scpn_control.core.imas_adapter import (
     EquilibriumIDS,
+    from_geqdsk,
     from_kernel,
+    from_omas,
     to_kernel_arrays,
     to_omas,
 )
@@ -107,3 +109,81 @@ class TestToOmas:
         result = to_omas(ids)
         # Either None (omas not installed) or an ODS object
         assert result is None or hasattr(result, "__getitem__")
+
+
+class TestFromOmas:
+    def _make_mock_ods(self):
+        """Build a minimal dict-based ODS mimic for from_omas."""
+        nr, nz = 5, 7
+        rng = np.random.default_rng(0)
+        r = np.linspace(4.0, 8.0, nr)
+        z = np.linspace(-3.0, 3.0, nz)
+        psi = rng.standard_normal((nz, nr))
+        j_tor = rng.standard_normal((nz, nr))
+
+        class _DictLike(dict):
+            """Dict that also supports .get()."""
+            pass
+
+        p2d = _DictLike({
+            "grid": {"dim1": r, "dim2": z},
+            "psi": psi,
+            "j_tor": j_tor,
+        })
+        gq = _DictLike({"ip": 15e6, "magnetic_axis": {"r": 6.2}})
+        ts = _DictLike({"profiles_2d": [p2d], "global_quantities": gq, "time": 1.5})
+        ts.get = lambda k, d=None: ts[k] if k in ts else d
+        ods = {"equilibrium": {"time_slice": [ts]}}
+        return ods
+
+    def test_from_omas_extracts_fields(self):
+        ods = self._make_mock_ods()
+        ids = from_omas(ods)
+        assert ids.ip == 15e6
+        assert ids.r0 == 6.2
+        assert ids.psi.shape == (7, 5)
+        assert ids.time == 1.5
+
+    def test_from_omas_default_time_index(self):
+        ods = self._make_mock_ods()
+        ids = from_omas(ods, time_index=0)
+        assert ids.r.shape == (5,)
+
+
+class TestFromGeqdsk:
+    def test_from_geqdsk_round_trip(self, tmp_path):
+        from scpn_control.core.eqdsk import GEqdsk, write_geqdsk
+
+        nr, nz = 8, 10
+        g = GEqdsk(
+            description="test",
+            nw=nr,
+            nh=nz,
+            rdim=4.0,
+            zdim=6.0,
+            rcentr=6.2,
+            rleft=4.0,
+            zmid=0.0,
+            rmaxis=6.2,
+            zmaxis=0.0,
+            simag=-5.0,
+            sibry=-1.0,
+            bcentr=5.3,
+            current=15e6,
+            fpol=np.full(nr, 12.0),
+            pres=np.zeros(nr),
+            ffprime=np.zeros(nr),
+            pprime=np.zeros(nr),
+            qpsi=np.linspace(1.0, 4.0, nr),
+            psirz=np.random.default_rng(0).standard_normal((nz, nr)),
+        )
+        path = tmp_path / "test.geqdsk"
+        write_geqdsk(g, str(path))
+
+        ids = from_geqdsk(str(path))
+        assert ids.r.shape == (nr,)
+        assert ids.z.shape == (nz,)
+        assert ids.psi.shape == (nz, nr)
+        assert ids.ip == 15e6
+        assert ids.b0 == 5.3
+        assert ids.r0 == 6.2
