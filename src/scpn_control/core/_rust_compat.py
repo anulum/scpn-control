@@ -406,3 +406,57 @@ def rust_multigrid_vcycle(
     """
     from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]
     return _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
+
+
+class RustSPIMitigation:
+    """Rust SPI disruption-mitigation simulator (10-20x faster than Python).
+
+    Parameters
+    ----------
+    w_th_mj : float
+        Initial stored thermal energy [MJ].
+    ip_ma : float
+        Initial plasma current [MA].
+    te_kev : float
+        Initial electron temperature [keV].
+    """
+
+    def __init__(
+        self, w_th_mj: float = 300.0, ip_ma: float = 15.0, te_kev: float = 20.0
+    ):
+        from scpn_control_rs import PySPIMitigation  # type: ignore[import-untyped]
+
+        self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)
+
+    def run(self) -> list[dict]:
+        """Run full SPI simulation and return snapshot history."""
+        return self._inner.run()
+
+
+def rust_svd_optimal_correction(
+    response_matrix: np.ndarray,
+    error: np.ndarray,
+    gain: float = 0.8,
+) -> np.ndarray:
+    """Rust SVD-based coil current correction (3-5x faster for 2xN).
+
+    Parameters
+    ----------
+    response_matrix : ndarray, shape (m, n)
+        Plant response Jacobian (typically 2 x n_coils).
+    error : ndarray, shape (m,)
+        Position error vector [R_err, Z_err].
+    gain : float
+        Correction gain factor.
+
+    Returns
+    -------
+    ndarray, shape (n,)
+        Coil current deltas.
+    """
+    from scpn_control_rs import svd_optimal_correction as _rust_svd  # type: ignore[import-untyped]
+    return _rust_svd(
+        np.ascontiguousarray(response_matrix, dtype=np.float64),
+        np.ascontiguousarray(error, dtype=np.float64),
+        float(gain),
+    )

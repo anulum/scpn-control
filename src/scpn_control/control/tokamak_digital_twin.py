@@ -254,9 +254,7 @@ def run_digital_twin(
     topo = TokamakTopoloy()
     plasma = Plasma2D(topo, gyro_surrogate=gyro_surrogate)
 
-    # State: Simplified to radial profile samples (to keep NN small)
-    # We take 40 points along the midplane
-    state_dim = GRID_SIZE
+    state_dim = GRID_SIZE  # midplane radial samples
     brain = SimpleNeuralNet(state_dim, HIDDEN_SIZE, 1, rng=local_rng)
 
     history_rewards: list[float] = []
@@ -294,8 +292,7 @@ def run_digital_twin(
         # 3. Physics Step
         _, avg_temp = plasma.step(action)
 
-        # 4. Reward
-        # We want High Temp, but we lose points for instability (implicit in low temp)
+        # Reward: high temperature minus island-driven instability penalty
         islands_area = np.sum(topo.get_rational_surfaces())
         reward = avg_temp - (islands_area * 0.05)
 

@@ -939,7 +939,7 @@ class FusionKernel:
         # For the linear L-mode profile: Source = -mu0 * R * J_phi
         # J_phi = c * (1 - psi_norm) * R  =>  dJ_phi/dpsi_norm = -c * R
         # dJ_phi/dpsi = dJ_phi/dpsi_norm * dpsi_norm/dpsi = -c * R / denom
-        # We compute c from the current normalisation
+        # c from Ip normalisation: I_p = ∫ J_phi dA
         I_target = self.cfg["physics"]["plasma_current_target"]
         # Approximate: I = integral(J_phi) dA ≈ c * sum_plasma((1-psi_norm)*R) * dR*dZ
         s = float(np.sum(np.where(mask_plasma, (1 - Psi_norm) * self.RR, 0.0))) * self.dR * self.dZ

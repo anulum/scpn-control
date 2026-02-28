@@ -55,15 +55,18 @@ def simulate_tearing_mode(
         time_to_disruption (array): Time remaining (or -1 if safe)
     """
     steps = _require_int("steps", steps, 1)
-    dt = 0.01
-    w = 0.01 # Island width
+    DT_RUTHERFORD = 0.01        # s, Rutherford equation timestep
+    W_INIT_CM = 0.01            # cm, seed island width
+    dt = DT_RUTHERFORD
+    w = W_INIT_CM
     local_rng = rng if rng is not None else np.random.default_rng()
 
     # Stable shot: Delta' < 0; disruptive: Delta' > 0 (triggered at random time)
     is_disruptive = float(local_rng.random()) > 0.5
     trigger_time = int(local_rng.integers(200, 800)) if is_disruptive else 9999
 
-    delta_prime = -0.5  # classically stable baseline
+    # Δ' < 0 → classically stable; flips to +0.5 at trigger_time for NTM seed
+    delta_prime = -0.5
     W_SAT = 10.0  # island saturation width [cm], simplified Rutherford
     W_LOCK = 8.0  # locked-mode threshold [cm]; La Haye, Phys. Plasmas 13, 055501 (2006)
     NOISE_STD = 0.05  # Rogowski coil noise σ [cm], typical for DIII-D

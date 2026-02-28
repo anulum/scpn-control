@@ -270,8 +270,7 @@ class IsoFluxController:
             self._add_coil_current(0, ctrl_vertical_top) # Top
             self._add_coil_current(4, ctrl_vertical_bottom) # Bottom
 
-            # 5. SOLVE NEW EQUILIBRIUM
-            # We use the previous solution as guess (hot start) -> Faster
+            # Hot-start from previous Psi
             self.kernel.solve_equilibrium()
 
             # Log

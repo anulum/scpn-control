@@ -33,24 +33,24 @@ class ForceBalanceSolver:
         print("--- FORCE BALANCE SOLVER (Newton-Raphson) ---")
         print(f"Target Equilibrium: R={target_R}m, Z={target_Z}m")
 
-        # We control PF3 and PF4 (Outer coils) to control Radial Position
-        # We assume Up-Down symmetry for now (PF3=PF4)
-        # Load Physics Params
+        # PF3/PF4 outer coils, up-down symmetric (PF3=PF4)
         Ip = self.analyzer.kernel.cfg['physics']['plasma_current_target']
 
-        # Newton Loop
-        for iter in range(10):
+        MAX_NEWTON_ITERS = 10
+        FORCE_TOLERANCE_N = 1e4       # 10 kN — typical ITER force resolution
+        PERTURBATION_MA = 0.1         # finite-difference step for Jacobian
+        MAX_COIL_STEP_MA = 5.0        # power-supply current-slew limit
+
+        for iter in range(MAX_NEWTON_ITERS):
             # 1. Calculate Current Force
             Fr, Fz, n_idx = self.analyzer.calculate_forces(target_R, target_Z, Ip)
             print(f"Iter {iter}: Radial Force = {Fr/1e6:.2f} MN")
 
-            if abs(Fr) < 1e4: # Tolerance 10 kN
+            if abs(Fr) < FORCE_TOLERANCE_N:
                 print("  -> CONVERGED. Force Balance Achieved.")
                 break
 
-            # 2. Calculate Jacobian dF/dI (Numerical Derivative)
-            # We perturb PF3/PF4 together
-            dI = 0.1 # MA perturbation
+            dI = PERTURBATION_MA
 
             # Apply perturbation
             currents = [c['current'] for c in self.analyzer.kernel.cfg['coils']]
@@ -70,15 +70,7 @@ class ForceBalanceSolver:
             J = (Fr_new - Fr) / dI
             print(f"  Jacobian dF/dI_PF34: {J/1e6:.2f} MN/MA")
 
-            # 3. Newton Step: I_new = I_old - F / J
-            # We want F_target = 0
-            # 0 = F_old + J * delta_I
-            # delta_I = - F_old / J
-
-            delta_I = - Fr / J
-
-            # Safety Clamp (don't jump more than 5 MA at once)
-            delta_I = np.clip(delta_I, -5.0, 5.0)
+            delta_I = np.clip(-Fr / J, -MAX_COIL_STEP_MA, MAX_COIL_STEP_MA)
 
             print(f"  Correction: Delta I = {delta_I:.3f} MA")
 

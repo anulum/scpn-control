@@ -229,10 +229,17 @@ class HInfinityController:
 
         return X, Y, F, L
 
+    # Bisection bounds for gamma search.
+    # gamma_min > 1.0 because H-inf requires gamma > 1 for feasibility.
+    # gamma_max = 1e6 covers all practical plants.
+    _GAMMA_SEARCH_MIN = 1.01
+    _GAMMA_SEARCH_MAX = 1e6
+    _GAMMA_FEASIBILITY_PAD = 1.005  # 0.5% margin above minimum
+
     def _find_optimal_gamma(
         self,
-        gamma_min: float = 1.01,
-        gamma_max: float = 1e6,
+        gamma_min: float = _GAMMA_SEARCH_MIN,
+        gamma_max: float = _GAMMA_SEARCH_MAX,
         rtol: float = 1e-3,
         max_iter: int = 100,
     ) -> float:
@@ -256,8 +263,7 @@ class HInfinityController:
             if gamma_max - gamma_min < rtol * gamma_min:
                 break
 
-        # Pad 0.5% above minimum to ensure feasibility margin
-        return best_gamma * 1.005
+        return best_gamma * self._GAMMA_FEASIBILITY_PAD
 
     def _update_discretization(self, dt: float) -> None:
         """Compute discrete-time gains for the given sampling period.
@@ -278,7 +284,8 @@ class HInfinityController:
         Fd = -np.linalg.solve(R_fb + Bd_u.T @ Xd @ Bd_u, Bd_u.T @ Xd @ Ad)
 
         # Discrete observer gain (DARE, dual)
-        Q_obs = Bd_w @ Bd_w.T + 1e-6 * np.eye(self.n)  # regularise
+        DARE_REG = 1e-6  # prevent singular Q when Bd_w is low-rank
+        Q_obs = Bd_w @ Bd_w.T + DARE_REG * np.eye(self.n)
         R_obs = np.eye(self.l)
         Yd = solve_discrete_are(Ad.T, self.C2.T, Q_obs, R_obs)
         S = self.C2 @ Yd @ self.C2.T + R_obs

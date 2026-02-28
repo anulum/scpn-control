@@ -18,8 +18,10 @@ use rand::{Rng, SeedableRng};
 use control_control::digital_twin::Plasma2D;
 use control_control::mpc::{MPController, NeuralSurrogate};
 use control_control::h_infinity::{radial_robust_plant, HInfController};
+use control_control::optimal;
 use control_control::pid::{IsoFluxController, PIDController};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
+use control_control::spi;
 use control_core::kernel::FusionKernel;
 use control_core::transport::{self, NeoclassicalParams, TransportSolver};
 use control_math::kuramoto;
@@ -882,6 +884,64 @@ fn multigrid_vcycle<'py>(
     ))
 }
 
+// ─── SPI mitigation ───
+
+#[pyclass]
+struct PySPIMitigation {
+    inner: spi::SPIMitigation,
+}
+
+#[pymethods]
+impl PySPIMitigation {
+    #[new]
+    #[pyo3(signature = (w_th_mj=300.0, ip_ma=15.0, te_kev=20.0))]
+    fn new(w_th_mj: f64, ip_ma: f64, te_kev: f64) -> PyResult<Self> {
+        let inner = spi::SPIMitigation::new(w_th_mj, ip_ma, te_kev)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    /// Run full SPI simulation. Returns list of (time, w_th_mj, ip_ma, te_kev, phase_str).
+    fn run<'py>(&mut self, py: Python<'py>) -> PyResult<PyObject> {
+        let history = self
+            .inner
+            .run()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        let list = pyo3::types::PyList::empty(py);
+        for snap in &history {
+            let phase_str = match snap.phase {
+                spi::Phase::Assimilation => "assimilation",
+                spi::Phase::ThermalQuench => "thermal_quench",
+                spi::Phase::CurrentQuench => "current_quench",
+            };
+            let dict = pyo3::types::PyDict::new(py);
+            dict.set_item("time", snap.time)?;
+            dict.set_item("w_th_mj", snap.w_th_mj)?;
+            dict.set_item("ip_ma", snap.ip_ma)?;
+            dict.set_item("te_kev", snap.te_kev)?;
+            dict.set_item("phase", phase_str)?;
+            list.append(dict)?;
+        }
+        Ok(list.into())
+    }
+}
+
+// ─── SVD optimal correction ───
+
+#[pyfunction]
+fn svd_optimal_correction<'py>(
+    py: Python<'py>,
+    response_matrix: PyReadonlyArray2<'py, f64>,
+    error: PyReadonlyArray1<'py, f64>,
+    gain: f64,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    let resp = response_matrix.as_array().to_owned();
+    let err = error.as_array().to_owned();
+    let delta = optimal::svd_optimal_correction(&resp, &err, gain)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+    Ok(delta.into_pyarray(py))
+}
+
 // ─── Module registration ───
 
 /// SCPN Control — Rust-accelerated control pipeline.
@@ -905,6 +965,9 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyPIDController>()?;
     m.add_class::<PyIsoFluxController>()?;
     m.add_class::<PyHInfController>()?;
+    // SPI + Optimal
+    m.add_class::<PySPIMitigation>()?;
+    m.add_function(wrap_pyfunction!(svd_optimal_correction, m)?)?;
     // Multigrid solver
     m.add_function(wrap_pyfunction!(multigrid_vcycle, m)?)?;
     // Phase dynamics (Paper 27)

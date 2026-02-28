@@ -659,7 +659,7 @@ class TransportSolver(FusionKernel):
             coeff_ip = chi_ip * r_ip / (r * dr * dr)
             coeff_im = chi_im * r_im / (r * dr * dr)
 
-            # LHS: (I - 0.5*dt*L_h) => diag entries are *subtracted*
+            # Crank-Nicolson LHS: (I - 0.5·dt·L_h)
             b[i] = 1.0 + 0.5 * dt * (coeff_ip + coeff_im)
             c[i] = -0.5 * dt * coeff_ip       # T_{i+1} coefficient
             a[i - 1] = -0.5 * dt * coeff_im   # T_{i-1} coefficient
