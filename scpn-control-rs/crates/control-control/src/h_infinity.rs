@@ -81,6 +81,40 @@ pub struct HInfController {
 }
 
 impl HInfController {
+    /// Construct an H-infinity controller with LQR-approximated gains.
+    ///
+    /// Uses simple pole-placement gains as initial values until the
+    /// full DARE solver is available via ndarray-linalg.
+    pub fn new(plant: HInfPlant, gamma: f64, u_max: f64, dt: f64) -> Self {
+        let n = plant.n_states();
+        // Simple LQR-like gain: K = [gamma_growth, damping_target]
+        // For 2-state VDE plant: u = -k1*z - k2*dz/dt
+        let kd = if n == 2 {
+            let a10 = plant.a[[1, 0]];
+            let a11 = plant.a[[1, 1]];
+            // Place closed-loop poles at -gamma (stable)
+            let k1 = a10 + gamma * gamma;
+            let k2 = -a11 + 2.0 * gamma;
+            Array1::from_vec(vec![k1, k2])
+        } else {
+            Array1::zeros(n)
+        };
+        // Observer gain: dual of feedback
+        let ld = kd.clone();
+        // Euler discretization: Fd = I + A*dt
+        let fd = Array2::eye(n) + &plant.a * dt;
+        Self {
+            plant,
+            gamma,
+            u_max,
+            state: Array1::zeros(n),
+            cached_dt: dt,
+            fd,
+            kd,
+            ld,
+        }
+    }
+
     /// Step the controller: measurement y at timestep dt → control u.
     ///
     /// Recomputes DARE gains if dt changes from the cached value.

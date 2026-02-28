@@ -17,11 +17,14 @@ use rand::{Rng, SeedableRng};
 
 use control_control::digital_twin::Plasma2D;
 use control_control::mpc::{MPController, NeuralSurrogate};
+use control_control::h_infinity::{radial_robust_plant, HInfController};
 use control_control::pid::{IsoFluxController, PIDController};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_core::kernel::FusionKernel;
 use control_core::transport::{self, NeoclassicalParams, TransportSolver};
 use control_math::kuramoto;
+use control_math::multigrid::{multigrid_solve, MultigridConfig};
+use control_types::state::Grid2D;
 
 // ─── Equilibrium solver ───
 
@@ -787,6 +790,98 @@ impl PyIsoFluxController {
     }
 }
 
+// ─── H-infinity controller ───
+
+/// Observer-based H-infinity controller for vertical stability.
+///
+/// Uses LQR-approximated gains (full DARE requires ndarray-linalg).
+#[pyclass]
+struct PyHInfController {
+    inner: HInfController,
+}
+
+#[pymethods]
+impl PyHInfController {
+    /// Construct from growth rate and damping (2-state VDE plant).
+    #[new]
+    #[pyo3(signature = (gamma_growth=100.0, damping=10.0, gamma=1.0, u_max=10.0, dt=1e-3))]
+    fn new(gamma_growth: f64, damping: f64, gamma: f64, u_max: f64, dt: f64) -> PyResult<Self> {
+        let plant = radial_robust_plant(gamma_growth, damping);
+        Ok(Self {
+            inner: HInfController::new(plant, gamma, u_max, dt),
+        })
+    }
+
+    /// Step the controller: measurement y at timestep dt → control u.
+    fn step(&mut self, y: f64, dt: f64) -> f64 {
+        self.inner.step(y, dt)
+    }
+
+    /// Reset internal observer state to zero.
+    fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    #[getter]
+    fn gamma(&self) -> f64 {
+        self.inner.gamma
+    }
+
+    #[getter]
+    fn u_max(&self) -> f64 {
+        self.inner.u_max
+    }
+}
+
+// ─── Multigrid solver ───
+
+/// Solve the GS* elliptic equation via geometric multigrid V-cycles.
+///
+/// Returns (psi, residual, cycles, converged).
+#[pyfunction]
+#[pyo3(signature = (source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol=1e-6, max_cycles=500))]
+#[allow(clippy::too_many_arguments)]
+fn multigrid_vcycle<'py>(
+    py: Python<'py>,
+    source: PyReadonlyArray2<'py, f64>,
+    psi_bc: PyReadonlyArray2<'py, f64>,
+    r_min: f64,
+    r_max: f64,
+    z_min: f64,
+    z_max: f64,
+    nr: usize,
+    nz: usize,
+    tol: f64,
+    max_cycles: usize,
+) -> PyResult<(Bound<'py, PyArray2<f64>>, f64, usize, bool)> {
+    let src = source.as_array();
+    let bc = psi_bc.as_array();
+    if src.dim() != (nz, nr) {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            format!("source shape {:?} != ({nz}, {nr})", src.dim()),
+        ));
+    }
+    if bc.dim() != (nz, nr) {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            format!("psi_bc shape {:?} != ({nz}, {nr})", bc.dim()),
+        ));
+    }
+
+    let grid = Grid2D::new(nr, nz, r_min, r_max, z_min, z_max);
+    let config = MultigridConfig::default();
+    let mut psi = bc.to_owned();
+    let src_owned = src.to_owned();
+
+    let result = multigrid_solve(&mut psi, &src_owned, &grid, &config, max_cycles, tol);
+
+    Ok((
+        psi.into_pyarray(py),
+        result.residual,
+        result.cycles,
+        result.converged,
+    ))
+}
+
 // ─── Module registration ───
 
 /// SCPN Control — Rust-accelerated control pipeline.
@@ -809,6 +904,9 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyTransportSolver>()?;
     m.add_class::<PyPIDController>()?;
     m.add_class::<PyIsoFluxController>()?;
+    m.add_class::<PyHInfController>()?;
+    // Multigrid solver
+    m.add_function(wrap_pyfunction!(multigrid_vcycle, m)?)?;
     // Phase dynamics (Paper 27)
     m.add_function(wrap_pyfunction!(kuramoto_step, m)?)?;
     m.add_function(wrap_pyfunction!(kuramoto_run, m)?)?;

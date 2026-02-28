@@ -24,18 +24,8 @@ try:
         shafranov_bv,
         solve_coil_currents,
     )
-    try:
-        from scpn_control_rs import measure_magnetics
-    except ImportError:
-        measure_magnetics = None
-    try:
-        from scpn_control_rs import simulate_tearing_mode
-    except ImportError:
-        simulate_tearing_mode = None
     _RUST_AVAILABLE = True
 except ImportError:
-    measure_magnetics = None
-    simulate_tearing_mode = None
     _RUST_AVAILABLE = False
 
 
@@ -167,26 +157,13 @@ if _RUST_AVAILABLE:
 
     rust_solve_coil_currents = solve_coil_currents
 
-    if measure_magnetics is None:
-        def rust_measure_magnetics(*args, **kwargs):
-            raise ImportError(
-                "scpn_control_rs is available but does not expose measure_magnetics"
-            )
-    else:
-        rust_measure_magnetics = measure_magnetics
-
     def rust_simulate_tearing_mode(steps: int, seed: Optional[int] = None):
-        """Rust tearing mode with optional deterministic seed compatibility."""
-        if simulate_tearing_mode is not None and seed is None:
-            return simulate_tearing_mode(int(steps))
-
+        """Python tearing-mode simulation (no Rust implementation exists)."""
         from scpn_control.control.disruption_predictor import (
             simulate_tearing_mode as _py_tearing,
         )
-
         if seed is None:
             return _py_tearing(steps=int(steps))
-
         rng = np.random.default_rng(seed=int(seed))
         return _py_tearing(steps=int(steps), rng=rng)
 else:
@@ -196,11 +173,15 @@ else:
     def rust_solve_coil_currents(*args, **kwargs):
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
-    def rust_measure_magnetics(*args, **kwargs):
-        raise ImportError("scpn_control_rs not installed. Run: maturin develop")
-
     def rust_simulate_tearing_mode(steps: int, seed: Optional[int] = None):
-        raise ImportError("scpn_control_rs not installed. Run: maturin develop")
+        """Python tearing-mode simulation fallback."""
+        from scpn_control.control.disruption_predictor import (
+            simulate_tearing_mode as _py_tearing,
+        )
+        if seed is None:
+            return _py_tearing(steps=int(steps))
+        rng = np.random.default_rng(seed=int(seed))
+        return _py_tearing(steps=int(steps), rng=rng)
 
 
 class RustSnnPool:
@@ -354,6 +335,57 @@ class RustIsoFluxController:
         return f"RustIsoFluxController(target_r={self.target_r}, target_z={self.target_z})"
 
 
+class RustHInfController:
+    """Rust H-infinity observer-based controller for vertical stability.
+
+    Uses LQR-approximated gains for the 2-state VDE plant
+    (full DARE solver pending ndarray-linalg).
+
+    Parameters
+    ----------
+    gamma_growth : float
+        Unstable growth rate [1/s].
+    damping : float
+        Passive damping coefficient.
+    gamma : float
+        H-infinity performance level.
+    u_max : float
+        Actuator saturation limit [A].
+    dt : float
+        Nominal timestep [s].
+    """
+
+    def __init__(
+        self,
+        gamma_growth: float = 100.0,
+        damping: float = 10.0,
+        gamma: float = 1.0,
+        u_max: float = 10.0,
+        dt: float = 1e-3,
+    ):
+        from scpn_control_rs import PyHInfController  # type: ignore[import-untyped]
+
+        self._inner = PyHInfController(gamma_growth, damping, gamma, u_max, dt)
+
+    def step(self, y: float, dt: float) -> float:
+        """Measurement y → control u (observer-based, saturation-limited)."""
+        return self._inner.step(y, dt)
+
+    def reset(self) -> None:
+        self._inner.reset()
+
+    @property
+    def gamma(self) -> float:
+        return self._inner.gamma
+
+    @property
+    def u_max(self) -> float:
+        return self._inner.u_max
+
+    def __repr__(self) -> str:
+        return f"RustHInfController(gamma={self.gamma}, u_max={self.u_max})"
+
+
 def rust_multigrid_vcycle(
     source: np.ndarray,
     psi_bc: np.ndarray,
@@ -372,17 +404,5 @@ def rust_multigrid_vcycle(
     -------
     tuple of (psi, residual, n_cycles, converged)
     """
-    if not _RUST_AVAILABLE:
-        raise ImportError(
-            "scpn_control_rs not installed — Rust multigrid unavailable. "
-            "Use Python multigrid fallback in FusionKernel._multigrid_vcycle()."
-        )
-    # Delegate to Rust PyO3 binding (when available in fusion-python crate)
-    try:
-        from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore
-        return _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
-    except ImportError as exc:
-        raise ImportError(
-            "Rust multigrid_vcycle not exposed via PyO3. "
-            "Use Python multigrid fallback."
-        ) from exc
+    from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]
+    return _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
