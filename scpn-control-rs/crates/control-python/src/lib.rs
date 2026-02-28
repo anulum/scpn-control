@@ -16,8 +16,8 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 use control_control::digital_twin::Plasma2D;
-use control_control::mpc::{MPController, NeuralSurrogate};
 use control_control::h_infinity::{radial_robust_plant, HInfController};
+use control_control::mpc::{MPController, NeuralSurrogate};
 use control_control::optimal;
 use control_control::pid::{IsoFluxController, PIDController};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
@@ -25,8 +25,8 @@ use control_control::spi;
 use control_core::bfield;
 use control_core::ignition;
 use control_core::kernel::FusionKernel;
-use control_core::xpoint;
 use control_core::transport::{self, NeoclassicalParams, TransportSolver};
+use control_core::xpoint;
 use control_math::kuramoto;
 use control_math::multigrid::{multigrid_solve, MultigridConfig};
 use control_types::state::Grid2D;
@@ -114,11 +114,7 @@ impl PyFusionKernel {
     ///
     /// Returns dict with p_fusion_mw, p_alpha_mw, p_loss_mw, p_aux_mw,
     /// net_mw, q_factor, t_peak_kev, w_thermal_mj.
-    fn calculate_thermodynamics<'py>(
-        &self,
-        py: Python<'py>,
-        p_aux_mw: f64,
-    ) -> PyResult<PyObject> {
+    fn calculate_thermodynamics<'py>(&self, py: Python<'py>, p_aux_mw: f64) -> PyResult<PyObject> {
         let result = ignition::calculate_thermodynamics(&self.inner, p_aux_mw)
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         let dict = pyo3::types::PyDict::new(py);
@@ -921,14 +917,16 @@ fn multigrid_vcycle<'py>(
     let src = source.as_array();
     let bc = psi_bc.as_array();
     if src.dim() != (nz, nr) {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            format!("source shape {:?} != ({nz}, {nr})", src.dim()),
-        ));
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "source shape {:?} != ({nz}, {nr})",
+            src.dim()
+        )));
     }
     if bc.dim() != (nz, nr) {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            format!("psi_bc shape {:?} != ({nz}, {nr})", bc.dim()),
-        ));
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "psi_bc shape {:?} != ({nz}, {nr})",
+            bc.dim()
+        )));
     }
 
     let grid = Grid2D::new(nr, nz, r_min, r_max, z_min, z_max);

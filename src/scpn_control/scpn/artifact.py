@@ -16,6 +16,7 @@ validation on load.
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 import math
 import zlib
@@ -207,7 +208,7 @@ def _decode_u64_compact(encoded: Dict[str, Any]) -> List[int]:
 
     try:
         comp = base64.b64decode(payload.encode("ascii"), validate=True)
-    except (ValueError, base64.binascii.Error) as exc:
+    except (ValueError, binascii.Error) as exc:
         raise ArtifactValidationError(f"Invalid base64 payload: {exc}") from exc
 
     if len(comp) > MAX_COMPRESSED_BYTES:
