@@ -190,3 +190,94 @@ def test_run_real_shot_replay_rejects_window_larger_than_shot() -> None:
             spi_trigger_risk=0.72,
             window_size=96,
         )
+
+
+def _build_safe_shot(n: int = 220) -> dict[str, NDArray[np.float64] | bool | int]:
+    """Shot with low perturbation: no disruption, no SPI expected."""
+    t = np.linspace(0.0, 0.22, n, dtype=np.float64)
+    dBdt = 0.10 + 0.02 * np.sin(2.0 * np.pi * 2.0 * t)
+    n1 = np.full(n, 0.02, dtype=np.float64)
+    n2 = np.full(n, 0.01, dtype=np.float64)
+    return {
+        "time_s": t,
+        "Ip_MA": np.full(n, 12.0, dtype=np.float64),
+        "beta_N": np.full(n, 2.0, dtype=np.float64),
+        "n1_amp": n1,
+        "n2_amp": n2,
+        "dBdt_gauss_per_s": dBdt,
+        "is_disruption": False,
+        "disruption_time_idx": -1,
+    }
+
+
+def test_run_real_shot_replay_safe_shot_no_spi() -> None:
+    agent = FusionAIAgent(epsilon=0.05)
+    out = run_real_shot_replay(
+        shot_data=_build_safe_shot(),
+        rl_agent=agent,
+        risk_threshold=0.55,
+        spi_trigger_risk=0.80,
+        window_size=64,
+    )
+    assert out["is_disruption"] is False
+    assert out["spi_triggered"] is False
+    assert out["spi_trigger_idx"] == -1
+    assert out["tau_cq_ms"] == 0.0
+    assert out["total_impurity_mol"] == 0.0
+
+
+def test_run_real_shot_replay_returns_risk_series() -> None:
+    agent = FusionAIAgent(epsilon=0.05)
+    out = run_real_shot_replay(
+        shot_data=_build_replay_shot(),
+        rl_agent=agent,
+        risk_threshold=0.55,
+        spi_trigger_risk=0.72,
+        window_size=96,
+    )
+    assert "risk_series" in out
+    rs = np.asarray(out["risk_series"])
+    assert rs.shape == (220,)
+    assert np.all(np.isfinite(rs))
+    assert float(out["peak_risk"]) >= 0.0
+    assert float(out["mean_risk"]) >= 0.0
+
+
+def test_run_real_shot_replay_rejects_negative_disruption_time_idx() -> None:
+    agent = FusionAIAgent(epsilon=0.05)
+    shot_data = _build_replay_shot()
+    shot_data["disruption_time_idx"] = -2
+    with pytest.raises(ValueError, match="disruption_time_idx must be >= -1"):
+        run_real_shot_replay(
+            shot_data=shot_data,
+            rl_agent=agent,
+            risk_threshold=0.55,
+            spi_trigger_risk=0.72,
+            window_size=96,
+        )
+
+
+def test_run_real_shot_replay_detection_lead_ms() -> None:
+    agent = FusionAIAgent(epsilon=0.05)
+    shot_data = _build_replay_shot()
+    out = run_real_shot_replay(
+        shot_data=shot_data,
+        rl_agent=agent,
+        risk_threshold=0.40,
+        spi_trigger_risk=0.60,
+        window_size=64,
+    )
+    if out["first_alarm_idx"] > 0 and out["is_disruption"]:
+        assert out["detection_lead_ms"] != -1.0
+
+
+def test_run_real_shot_replay_rejects_short_time_s() -> None:
+    agent = FusionAIAgent(epsilon=0.05)
+    shot_data = _build_replay_shot(n=10)
+    shot_data["disruption_time_idx"] = 5
+    with pytest.raises(ValueError, match="at least 16 samples"):
+        run_real_shot_replay(
+            shot_data=shot_data,
+            rl_agent=agent,
+            window_size=8,
+        )

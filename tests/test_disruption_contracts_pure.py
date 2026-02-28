@@ -7,6 +7,7 @@ from scpn_control.control.disruption_contracts import (
     impurity_transport_response,
     mcnp_lite_tbr,
     post_disruption_halo_runaway,
+    require_1d_array,
     require_finite_float,
     require_fraction,
     require_int,
@@ -180,3 +181,123 @@ class TestPostDisruptionHaloRunaway:
             disturbance=0.0, mitigation_strength=0.5, zeff_eff=1.0,
         )
         assert result["halo_peak_ma"] == pytest.approx(0.0, abs=1e-6)
+
+
+# ── require_1d_array ──────────────────────────────────────────────
+
+class TestRequire1dArray:
+    def test_valid_1d(self):
+        arr = require_1d_array("x", [1.0, 2.0, 3.0])
+        assert arr.shape == (3,)
+        assert arr.dtype == np.float64
+
+    def test_rejects_2d(self):
+        with pytest.raises(ValueError, match="1D array"):
+            require_1d_array("x", [[1.0, 2.0], [3.0, 4.0]])
+
+    def test_rejects_too_small(self):
+        with pytest.raises(ValueError, match="at least 5 samples"):
+            require_1d_array("x", [1.0, 2.0], minimum_size=5)
+
+    def test_rejects_wrong_expected_size(self):
+        with pytest.raises(ValueError, match="must have 4 samples"):
+            require_1d_array("x", [1.0, 2.0, 3.0], expected_size=4)
+
+    def test_rejects_nan(self):
+        with pytest.raises(ValueError, match="finite"):
+            require_1d_array("x", [1.0, float("nan"), 3.0])
+
+    def test_rejects_inf(self):
+        with pytest.raises(ValueError, match="finite"):
+            require_1d_array("x", [1.0, float("inf"), 3.0])
+
+    def test_scalar_becomes_1d(self):
+        arr = require_1d_array("x", [42.0])
+        assert arr.shape == (1,)
+
+    def test_expected_size_match(self):
+        arr = require_1d_array("x", [1.0, 2.0, 3.0], expected_size=3)
+        assert arr.shape == (3,)
+
+
+# ── require_finite_float edge cases ──────────────────────────────
+
+class TestRequireFiniteFloatExtended:
+    def test_rejects_inf(self):
+        with pytest.raises(ValueError, match="finite"):
+            require_finite_float("x", float("inf"))
+
+    def test_rejects_neg_inf(self):
+        with pytest.raises(ValueError, match="finite"):
+            require_finite_float("x", float("-inf"))
+
+    def test_converts_int(self):
+        assert require_finite_float("x", 3) == 3.0
+
+
+# ── require_positive_float edge cases ─────────────────────────────
+
+class TestRequirePositiveFloatExtended:
+    def test_rejects_negative(self):
+        with pytest.raises(ValueError, match="> 0"):
+            require_positive_float("x", -1.0)
+
+    def test_rejects_inf(self):
+        with pytest.raises(ValueError, match="finite"):
+            require_positive_float("x", float("inf"))
+
+
+# ── impurity_transport_response edge cases ────────────────────────
+
+class TestImpurityTransportResponseExtended:
+    def test_negative_quantity_clamped_to_zero(self):
+        result = impurity_transport_response(
+            neon_quantity_mol=-5.0,
+            argon_quantity_mol=-1.0,
+            xenon_quantity_mol=-2.0,
+            disturbance=0.5,
+            seed_shift=0,
+        )
+        assert result["total_impurity_mol"] == 0.0
+
+    def test_high_disturbance_higher_radiation(self):
+        r_low = impurity_transport_response(
+            neon_quantity_mol=0.5, argon_quantity_mol=0.2,
+            xenon_quantity_mol=0.05, disturbance=0.0, seed_shift=0,
+        )
+        r_high = impurity_transport_response(
+            neon_quantity_mol=0.5, argon_quantity_mol=0.2,
+            xenon_quantity_mol=0.05, disturbance=1.0, seed_shift=0,
+        )
+        assert r_high["impurity_radiation_mw"] > r_low["impurity_radiation_mw"]
+
+
+# ── post_disruption_halo_runaway edge cases ───────────────────────
+
+class TestPostDisruptionExtended:
+    def test_fast_cq_clamped(self):
+        # tau_cq_s < 4ms gets clamped to 4ms (Pautasso 2017)
+        result = post_disruption_halo_runaway(
+            pre_current_ma=15.0, tau_cq_s=0.001,
+            disturbance=0.5, mitigation_strength=0.5, zeff_eff=2.0,
+        )
+        assert result["halo_current_ma"] >= 0.0
+
+    def test_high_disturbance_more_halo(self):
+        r_low = post_disruption_halo_runaway(
+            pre_current_ma=15.0, tau_cq_s=0.010,
+            disturbance=0.0, mitigation_strength=0.5, zeff_eff=2.0,
+        )
+        r_high = post_disruption_halo_runaway(
+            pre_current_ma=15.0, tau_cq_s=0.010,
+            disturbance=1.0, mitigation_strength=0.5, zeff_eff=2.0,
+        )
+        assert r_high["halo_peak_ma"] >= r_low["halo_peak_ma"]
+
+    def test_all_outputs_finite(self):
+        result = post_disruption_halo_runaway(
+            pre_current_ma=15.0, tau_cq_s=0.010,
+            disturbance=0.5, mitigation_strength=0.5, zeff_eff=2.0,
+        )
+        for v in result.values():
+            assert np.isfinite(v)

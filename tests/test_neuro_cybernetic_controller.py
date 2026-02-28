@@ -186,3 +186,92 @@ def test_run_neuro_cybernetic_control_rejects_nonpositive_duration() -> None:
             verbose=False,
             kernel_factory=_DummyKernel,
         )
+
+
+def test_run_neuro_cybernetic_control_quantum_mode() -> None:
+    summary = run_neuro_cybernetic_control(
+        config_file="dummy.json",
+        shot_duration=10,
+        seed=42,
+        quantum=True,
+        save_plot=False,
+        verbose=False,
+        kernel_factory=_DummyKernel,
+    )
+    assert summary["mode"] == "quantum"
+    assert summary["steps"] == 10
+
+
+def test_spiking_pool_numpy_population_fires_above_threshold() -> None:
+    pool = SpikingControllerPool(n_neurons=20, seed=42)
+    spikes = 0
+    for _ in range(100):
+        out = pool.step(2.0)
+        if out > 0.0:
+            spikes += 1
+    assert spikes > 0
+
+
+def test_spiking_pool_no_numpy_fallback_raises() -> None:
+    with pytest.raises(RuntimeError, match="allow_numpy_fallback=False"):
+        SpikingControllerPool(
+            n_neurons=8, allow_numpy_fallback=False,
+        )
+
+
+def test_spiking_pool_last_rates_nonnegative() -> None:
+    pool = SpikingControllerPool(n_neurons=10, seed=42)
+    pool.step(0.5)
+    assert pool.last_rate_pos >= 0.0
+    assert pool.last_rate_neg >= 0.0
+
+
+def test_controller_history_populated() -> None:
+    from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+    nc = NeuroCyberneticController(
+        "dummy.json", seed=42, shot_duration=20, kernel_factory=_DummyKernel,
+    )
+    nc.run_shot(save_plot=False, verbose=False)
+    assert len(nc.history["t"]) == 20
+    assert len(nc.history["Err_R"]) == 20
+    assert len(nc.history["Control_R"]) == 20
+    assert len(nc.history["Spike_Rates"]) == 20
+
+
+def test_controller_coils_updated() -> None:
+    """An offset kernel should produce nonzero errors → coil adjustments."""
+    from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+
+    class _OffsetKernel:
+        def __init__(self, _config_file: str) -> None:
+            self.cfg = {
+                "physics": {"plasma_current_target": 5.0},
+                "coils": [{"current": 0.0} for _ in range(5)],
+            }
+            self.R = np.linspace(5.0, 7.0, 25)
+            self.Z = np.linspace(-1.0, 1.0, 25)
+            RR, ZZ = np.meshgrid(self.R, self.Z)
+            # Peak at (5.5, 0.3) — offset from TARGET_R=6.2, TARGET_Z=0.0
+            self.Psi = 1.0 - ((RR - 5.5) ** 2 + (ZZ - 0.3) ** 2)
+
+        def solve_equilibrium(self) -> None:
+            pass
+
+    nc = NeuroCyberneticController(
+        "dummy.json", seed=42, shot_duration=30, kernel_factory=_OffsetKernel,
+    )
+    nc.run_shot(save_plot=False, verbose=False)
+    any_nonzero = any(
+        abs(float(c["current"])) > 0.0 for c in nc.kernel.cfg["coils"]
+    )
+    assert any_nonzero
+
+
+def test_spiking_pool_rejects_inf_dt() -> None:
+    with pytest.raises(ValueError, match="dt_s must be finite"):
+        SpikingControllerPool(dt_s=float("inf"))
+
+
+def test_spiking_pool_rejects_nan_noise() -> None:
+    with pytest.raises(ValueError, match="noise_std must be finite"):
+        SpikingControllerPool(noise_std=float("nan"))

@@ -13,6 +13,11 @@ import numpy as np
 import pytest
 
 from scpn_control.control.tokamak_digital_twin import (
+    Plasma2D,
+    SimpleNeuralNet,
+    TokamakTopoloy,
+    _resolve_rng,
+    _run_digital_twin_history_snapshots,
     run_digital_twin,
     run_digital_twin_ids_history,
     run_digital_twin_ids_pulse,
@@ -406,4 +411,198 @@ def test_run_digital_twin_ids_pulse_rejects_invalid_history_steps(history_steps)
             run=2,
             save_plot=False,
             verbose=False,
+        )
+
+
+# ── TokamakTopoloy ───────────────────────────────────────────────
+
+class TestTokamakTopology:
+    def test_q_profile_shape(self):
+        topo = TokamakTopoloy(size=20)
+        assert topo.q_map.shape == (20, 20)
+
+    def test_q_profile_center_near_q0(self):
+        topo = TokamakTopoloy(size=40)
+        center = 40 // 2
+        assert abs(topo.q_map[center, center] - topo.q0) < 0.5
+
+    def test_update_q_profile_changes_map(self):
+        topo = TokamakTopoloy(size=20)
+        q_before = topo.q_map.copy()
+        topo.update_q_profile(1.0)
+        assert not np.array_equal(q_before, topo.q_map)
+
+    def test_rational_surfaces_boolean(self):
+        topo = TokamakTopoloy(size=40)
+        danger = topo.get_rational_surfaces()
+        assert danger.dtype == bool
+        assert danger.shape == (40, 40)
+
+    def test_rational_surfaces_only_inside_plasma(self):
+        topo = TokamakTopoloy(size=40)
+        danger = topo.get_rational_surfaces()
+        assert not np.any(danger & ~topo.mask)
+
+    def test_mask_circular(self):
+        topo = TokamakTopoloy(size=40)
+        assert topo.mask[20, 20] is np.True_
+        assert topo.mask[0, 0] is np.False_
+
+
+# ── Plasma2D ──────────────────────────────────────────────────────
+
+class TestPlasma2D:
+    def test_step_returns_tuple(self):
+        topo = TokamakTopoloy(size=40)
+        plasma = Plasma2D(topo)
+        state, avg = plasma.step(0.0)
+        assert isinstance(avg, float)
+        assert state.shape == (40 * 40,)
+
+    def test_core_heats_up(self):
+        topo = TokamakTopoloy(size=40)
+        plasma = Plasma2D(topo)
+        for _ in range(10):
+            plasma.step(0.0)
+        center = 40 // 2
+        assert plasma.T[center, center] > 0.0
+
+    def test_temperature_bounded(self):
+        topo = TokamakTopoloy(size=40)
+        plasma = Plasma2D(topo)
+        for _ in range(100):
+            plasma.step(0.0)
+        assert np.all(plasma.T >= 0.0)
+        assert np.all(plasma.T <= 100.0)
+
+    def test_boundary_cold(self):
+        topo = TokamakTopoloy(size=40)
+        plasma = Plasma2D(topo)
+        for _ in range(20):
+            plasma.step(0.0)
+        assert np.all(plasma.T[~topo.mask] == 0.0)
+
+
+# ── SimpleNeuralNet ───────────────────────────────────────────────
+
+class TestSimpleNeuralNet:
+    def test_forward_shape(self):
+        rng = np.random.default_rng(0)
+        net = SimpleNeuralNet(10, 8, 1, rng=rng)
+        x = rng.standard_normal((1, 10))
+        out = net.forward(x)
+        assert out.shape == (1, 1)
+
+    def test_forward_bounded(self):
+        rng = np.random.default_rng(42)
+        net = SimpleNeuralNet(10, 8, 1, rng=rng)
+        x = rng.standard_normal((5, 10)) * 10
+        out = net.forward(x)
+        assert np.all(out >= -1.0)
+        assert np.all(out <= 1.0)
+
+    def test_train_step_returns_loss(self):
+        rng = np.random.default_rng(7)
+        net = SimpleNeuralNet(10, 8, 1, rng=rng)
+        x = rng.standard_normal((1, 10))
+        loss = net.train_step(x, None, 1.0)
+        assert isinstance(loss, (float, np.floating))
+        assert np.isfinite(loss)
+
+    def test_train_step_updates_weights(self):
+        rng = np.random.default_rng(0)
+        net = SimpleNeuralNet(10, 8, 1, rng=rng)
+        w1_before = net.W1.copy()
+        x = rng.standard_normal((1, 10))
+        net.train_step(x, None, 1.0)
+        assert not np.array_equal(w1_before, net.W1)
+
+    def test_batch_forward(self):
+        rng = np.random.default_rng(0)
+        net = SimpleNeuralNet(5, 4, 2, rng=rng)
+        x = rng.standard_normal((8, 5))
+        out = net.forward(x)
+        assert out.shape == (8, 2)
+
+
+# ── _resolve_rng ──────────────────────────────────────────────────
+
+class TestResolveRng:
+    def test_returns_generator_from_seed(self):
+        rng = _resolve_rng(seed=42, rng=None)
+        assert isinstance(rng, np.random.Generator)
+
+    def test_returns_injected_generator(self):
+        injected = np.random.default_rng(99)
+        rng = _resolve_rng(seed=0, rng=injected)
+        assert rng is injected
+
+    def test_rejects_non_generator(self):
+        with pytest.raises(TypeError, match="numpy.random.Generator"):
+            _resolve_rng(seed=0, rng="not_a_generator")  # type: ignore[arg-type]
+
+
+# ── _run_digital_twin_history_snapshots validation ────────────────
+
+class TestHistorySnapshots:
+    def test_rejects_string_history_steps(self):
+        with pytest.raises(ValueError, match="history_steps"):
+            _run_digital_twin_history_snapshots(
+                history_steps="abc",  # type: ignore[arg-type]
+                seed=0,
+                save_plot=False,
+                verbose=False,
+            )
+
+    def test_rejects_empty_history_steps(self):
+        with pytest.raises(ValueError, match="at least one"):
+            _run_digital_twin_history_snapshots(
+                history_steps=[],
+                seed=0,
+                save_plot=False,
+                verbose=False,
+            )
+
+    def test_rejects_bool_in_steps(self):
+        with pytest.raises(ValueError, match="positive integer"):
+            _run_digital_twin_history_snapshots(
+                history_steps=[True, 5],  # type: ignore[list-item]
+                seed=0,
+                save_plot=False,
+                verbose=False,
+            )
+
+    def test_valid_snapshots(self):
+        snapshots = _run_digital_twin_history_snapshots(
+            history_steps=[5, 10],
+            seed=42,
+            save_plot=False,
+            verbose=False,
+        )
+        assert len(snapshots) == 2
+        assert snapshots[0]["steps"] == 5
+        assert snapshots[1]["steps"] == 10
+
+
+# ── run_digital_twin_ids_history kwarg rejection ──────────────────
+
+def test_ids_history_rejects_time_steps_kwarg() -> None:
+    with pytest.raises(ValueError, match="time_steps is controlled"):
+        run_digital_twin_ids_history(
+            [5, 10],
+            seed=0,
+            save_plot=False,
+            verbose=False,
+            time_steps=20,
+        )
+
+
+def test_ids_pulse_rejects_time_steps_kwarg() -> None:
+    with pytest.raises(ValueError, match="time_steps is controlled"):
+        run_digital_twin_ids_pulse(
+            [5, 10],
+            seed=0,
+            save_plot=False,
+            verbose=False,
+            time_steps=20,
         )
