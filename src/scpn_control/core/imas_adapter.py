@@ -118,7 +118,7 @@ def from_omas(ods, time_index: int = 0) -> EquilibriumIDS:
         psi=np.asarray(p2d["psi"], dtype=np.float64),
         j_tor=np.asarray(p2d["j_tor"], dtype=np.float64),
         ip=float(eq["global_quantities"]["ip"]),
-        b0=5.3,  # IMAS doesn't always store B0 in equilibrium IDS
+        b0=5.3,  # ITER nominal vacuum B_T; IMAS equilibrium IDS omits this field
         r0=float(eq["global_quantities"]["magnetic_axis"]["r"]),
         time=float(eq.get("time", 0.0)),
     )
