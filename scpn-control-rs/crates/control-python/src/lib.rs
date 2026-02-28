@@ -150,6 +150,7 @@ impl PyFusionKernel {
     }
 
     /// Compute (B_R, B_Z) field arrays from the current psi.
+    #[allow(clippy::type_complexity)]
     fn compute_b_field<'py>(
         &self,
         py: Python<'py>,
