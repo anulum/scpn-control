@@ -272,10 +272,10 @@ class TransportSolver(FusionKernel):
             self.n_He = None  # type: ignore[assignment]
 
         # He-ash pumping time (default 5 * tau_E, ITER design baseline)
-        self.tau_He_factor: float = 5.0
+        self.tau_He_factor: float = 5.0  # tau_He/tau_E ratio; ITER design basis, Reiter et al.
 
         # Particle diffusivity for species transport
-        self.D_species: float = 0.3  # m^2/s (typical for ITER)
+        self.D_species: float = 0.3  # m²/s, anomalous; Angioni et al., NF 47 (2007) 1326
 
         # Z_eff tracking (updated every evolve step in multi-ion mode)
         self._Z_eff: float = 1.5
