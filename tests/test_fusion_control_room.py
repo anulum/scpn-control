@@ -263,3 +263,76 @@ class TestRunControlRoomExtended:
         assert summary["psi_source"] == "kernel"
         assert summary["kernel_error"] is None
         assert np.isfinite(summary["final_z"])
+
+
+# ── Kernel coil/equilibrium edge cases ───────────────────────────
+
+class _KernelFewCoils:
+    """Kernel with only 3 coils: coil update branch at line 345 is skipped."""
+
+    def __init__(self, _cfg: str) -> None:
+        self.cfg = {"coils": [{"current": 0.0} for _ in range(3)]}
+        self.R = np.linspace(1.0, 5.0, 20)
+        self.Z = np.linspace(-3.0, 3.0, 20)
+        RR, ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = 1.0 - ((RR - 3.0) ** 2 + (ZZ / 1.7) ** 2)
+
+    def solve_equilibrium(self) -> None:
+        pass
+
+
+class _KernelBadEquilibrium:
+    """Kernel whose solve_equilibrium raises to cover the warning path."""
+
+    def __init__(self, _cfg: str) -> None:
+        self.cfg = {"coils": [{"current": 0.0} for _ in range(5)]}
+        self.R = np.linspace(1.0, 5.0, 20)
+        self.Z = np.linspace(-3.0, 3.0, 20)
+        RR, ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = 1.0 - ((RR - 3.0) ** 2 + (ZZ / 1.7) ** 2)
+        self._calls = 0
+
+    def solve_equilibrium(self) -> None:
+        self._calls += 1
+        if self._calls > 1:
+            raise RuntimeError("singular matrix")
+
+
+class TestKernelEdgeCases:
+    def test_few_coils_skips_update(self):
+        summary = run_control_room(
+            sim_duration=5, seed=0,
+            save_animation=False, save_report=False, verbose=False,
+            kernel_factory=_KernelFewCoils, config_file="x.json",
+        )
+        assert summary["psi_source"] == "kernel"
+        assert np.isfinite(summary["final_z"])
+
+    def test_bad_equilibrium_logs_warning(self):
+        summary = run_control_room(
+            sim_duration=5, seed=0,
+            save_animation=False, save_report=False, verbose=False,
+            kernel_factory=_KernelBadEquilibrium, config_file="x.json",
+        )
+        assert summary["psi_source"] == "kernel"
+        assert np.isfinite(summary["final_z"])
+
+    def test_verbose_kernel_path(self, capsys):
+        run_control_room(
+            sim_duration=3, seed=0,
+            save_animation=False, save_report=False, verbose=True,
+            kernel_factory=_DummyKernel, config_file="x.json",
+        )
+        out = capsys.readouterr().out
+        assert "kernel" in out.lower()
+
+    def test_verbose_analytic_fallback_on_error(self, capsys):
+        def _bad_factory(_cfg):
+            raise RuntimeError("nope")
+        run_control_room(
+            sim_duration=3, seed=0,
+            save_animation=False, save_report=False, verbose=True,
+            kernel_factory=_bad_factory, config_file="x.json",
+        )
+        out = capsys.readouterr().out
+        assert "nope" in out

@@ -84,3 +84,126 @@ def test_trigger_mitigation_returns_finite_histories_and_diagnostics() -> None:
     assert np.isclose(diag["argon_quantity_mol"], 0.02)
     assert np.isclose(diag["xenon_quantity_mol"], 0.01)
     assert np.isclose(diag["total_impurity_mol"], 0.13)
+
+
+# ── Constructor validation ────────────────────────────────────────
+
+import pytest
+
+
+def test_rejects_nonpositive_energy() -> None:
+    with pytest.raises(ValueError, match="Plasma_Energy_MJ"):
+        ShatteredPelletInjection(Plasma_Energy_MJ=0.0)
+
+
+def test_rejects_nonpositive_current() -> None:
+    with pytest.raises(ValueError, match="Plasma_Current_MA"):
+        ShatteredPelletInjection(Plasma_Current_MA=-1.0)
+
+
+def test_rejects_nan_energy() -> None:
+    with pytest.raises(ValueError, match="Plasma_Energy_MJ"):
+        ShatteredPelletInjection(Plasma_Energy_MJ=float("nan"))
+
+
+# ── _require_non_negative ─────────────────────────────────────────
+
+def test_require_non_negative_rejects_inf() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        ShatteredPelletInjection._require_non_negative("x", float("inf"))
+
+
+def test_require_non_negative_rejects_negative() -> None:
+    with pytest.raises(ValueError, match=">= 0"):
+        ShatteredPelletInjection._require_non_negative("x", -0.1)
+
+
+# ── estimate_mitigation_cocktail validation ───────────────────────
+
+def test_cocktail_rejects_nan_risk() -> None:
+    with pytest.raises(ValueError, match="risk_score"):
+        ShatteredPelletInjection.estimate_mitigation_cocktail(
+            risk_score=float("nan"), disturbance=0.5,
+        )
+
+
+def test_cocktail_rejects_nan_disturbance() -> None:
+    with pytest.raises(ValueError, match="disturbance"):
+        ShatteredPelletInjection.estimate_mitigation_cocktail(
+            risk_score=0.5, disturbance=float("inf"),
+        )
+
+
+def test_cocktail_rejects_nan_action_bias() -> None:
+    with pytest.raises(ValueError, match="action_bias"):
+        ShatteredPelletInjection.estimate_mitigation_cocktail(
+            risk_score=0.5, disturbance=0.5, action_bias=float("nan"),
+        )
+
+
+# ── trigger_mitigation validation & modes ─────────────────────────
+
+def test_trigger_rejects_bad_duration() -> None:
+    spi = ShatteredPelletInjection()
+    with pytest.raises(ValueError, match="duration_s"):
+        spi.trigger_mitigation(duration_s=0.0, verbose=False)
+
+
+def test_trigger_rejects_bad_dt() -> None:
+    spi = ShatteredPelletInjection()
+    with pytest.raises(ValueError, match="dt_s"):
+        spi.trigger_mitigation(dt_s=-1e-5, verbose=False)
+
+
+def test_trigger_without_diagnostics_returns_three() -> None:
+    spi = ShatteredPelletInjection()
+    result = spi.trigger_mitigation(
+        neon_quantity_mol=0.1, return_diagnostics=False,
+        duration_s=0.01, verbose=False,
+    )
+    assert len(result) == 3
+    t, w, i = result
+    assert len(t) == len(w) == len(i)
+
+
+def test_trigger_rejects_negative_impurity_mol() -> None:
+    spi = ShatteredPelletInjection()
+    with pytest.raises(ValueError, match="neon_quantity_mol"):
+        spi.trigger_mitigation(neon_quantity_mol=-0.1, verbose=False)
+
+
+# ── run_spi_mitigation convenience function ───────────────────────
+
+from scpn_control.control.spi_mitigation import run_spi_mitigation
+
+
+def test_run_spi_mitigation_smoke() -> None:
+    summary = run_spi_mitigation(
+        save_plot=False, verbose=False,
+        duration_s=0.05, dt_s=1e-4,
+    )
+    for key in (
+        "plasma_energy_mj", "plasma_current_ma",
+        "z_eff", "tau_cq_ms_mean", "plot_saved",
+        "initial_current_ma", "final_current_ma",
+    ):
+        assert key in summary
+    assert summary["plot_saved"] is False
+    assert summary["final_current_ma"] < summary["initial_current_ma"]
+
+
+def test_run_spi_mitigation_deterministic() -> None:
+    kwargs = dict(save_plot=False, verbose=False, duration_s=0.05, dt_s=1e-4)
+    a = run_spi_mitigation(**kwargs)
+    b = run_spi_mitigation(**kwargs)
+    assert a["z_eff"] == b["z_eff"]
+    assert a["final_current_ma"] == b["final_current_ma"]
+
+
+def test_run_spi_mitigation_cocktail_fields() -> None:
+    summary = run_spi_mitigation(
+        argon_quantity_mol=0.05, xenon_quantity_mol=0.02,
+        save_plot=False, verbose=False, duration_s=0.05, dt_s=1e-4,
+    )
+    assert summary["argon_quantity_mol"] == 0.05
+    assert summary["xenon_quantity_mol"] == 0.02

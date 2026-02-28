@@ -207,3 +207,115 @@ def test_run_flight_sim_heating_tau_controls_actuator_lag() -> None:
         kernel_factory=_DummyKernel,
     )
     assert fast["mean_abs_heating_actuator_lag"] < slow["mean_abs_heating_actuator_lag"]
+
+
+# ── FirstOrderActuator: rate limiting ────────────────────────────
+
+class TestActuatorRateLimiting:
+    def test_rate_limit_clips_large_step(self):
+        act = FirstOrderActuator(tau_s=0.01, dt_s=0.01, rate_limit=1.0)
+        act.step(1000.0)
+        # max_du = rate_limit * dt_s = 0.01; state was 0 → clipped to 0.01
+        assert act.state == pytest.approx(0.01, abs=1e-12)
+
+    def test_no_rate_limit_when_small_step(self):
+        act = FirstOrderActuator(tau_s=0.01, dt_s=0.01, rate_limit=1e9)
+        act.step(0.5)
+        # alpha = dt/(tau+dt) = 0.5; 0 + 0.5*0.5 = 0.25
+        assert act.state == pytest.approx(0.25, abs=1e-6)
+
+    def test_negative_rate_limit_clip(self):
+        act = FirstOrderActuator(tau_s=0.01, dt_s=0.01, rate_limit=1.0)
+        act.state = 1.0
+        act.step(-1000.0)
+        assert act.state == pytest.approx(0.99, abs=1e-12)
+
+
+# ── FirstOrderActuator: measurement delay & noise ────────────────
+
+class TestActuatorMeasurement:
+    def test_delay_returns_past_value(self):
+        act = FirstOrderActuator(
+            tau_s=0.01, dt_s=0.01, delay_steps=3, rate_limit=1e9,
+        )
+        values = []
+        for i in range(6):
+            act.step(float(i + 1))
+            values.append(act.state)
+        meas = act.get_measurement()
+        # delay_steps=3 → measurement lags by 3 steps
+        # buffer has 7 entries (initial 0.0 + 6 steps)
+        # idx = len(buffer) - 1 - 3 = 3 → buffer[3] = values[2] (3rd step)
+        assert meas == pytest.approx(values[2], abs=1e-6)
+
+    def test_noise_adds_gaussian(self):
+        act = FirstOrderActuator(
+            tau_s=0.01, dt_s=0.01,
+            sensor_noise_std=1.0, rng_seed=42,
+        )
+        act.step(5.0)
+        measurements = [act.get_measurement() for _ in range(200)]
+        # Mean should be close to act.state, but not exactly (noise)
+        mean_m = float(np.mean(measurements))
+        # With noise_std=1.0, mean of 200 samples should be within ~0.2 of state
+        assert abs(mean_m - act.state) < 0.5
+
+    def test_zero_noise_exact(self):
+        act = FirstOrderActuator(tau_s=0.01, dt_s=0.01, sensor_noise_std=0.0)
+        act.step(3.0)
+        assert act.get_measurement() == act.state
+
+
+# ── IsoFluxController: verbose path ──────────────────────────────
+
+class TestIsoFluxControllerVerbose:
+    def test_verbose_output(self, capsys):
+        sim = IsoFluxController(
+            config_file="dummy.json",
+            kernel_factory=_DummyKernel,
+            verbose=True,
+        )
+        sim.run_shot(shot_duration=3, save_plot=False)
+        out = capsys.readouterr().out
+        assert "TOKAMAK FLIGHT SIMULATOR" in out
+
+    def test_nonverbose_no_output(self, capsys):
+        sim = IsoFluxController(
+            config_file="dummy.json",
+            kernel_factory=_DummyKernel,
+            verbose=False,
+        )
+        sim.run_shot(shot_duration=3, save_plot=False)
+        out = capsys.readouterr().out
+        assert out == ""
+
+
+# ── run_flight_sim: config_file=None default path ────────────────
+
+class TestRunFlightSimConfigDefault:
+    def test_config_none_uses_default_path(self):
+        summary = run_flight_sim(
+            config_file=None,
+            shot_duration=5,
+            save_plot=False,
+            verbose=False,
+            kernel_factory=_DummyKernel,
+        )
+        assert "iter_config.json" in summary["config_path"]
+        assert summary["steps"] == 5
+
+
+# ── FirstOrderActuator: saturation limits ────────────────────────
+
+class TestActuatorSaturation:
+    def test_u_max_clamp(self):
+        act = FirstOrderActuator(tau_s=0.01, dt_s=0.01, u_max=0.5, rate_limit=1e9)
+        for _ in range(100):
+            act.step(1000.0)
+        assert act.state <= 0.5
+
+    def test_u_min_clamp(self):
+        act = FirstOrderActuator(tau_s=0.01, dt_s=0.01, u_min=-0.5, rate_limit=1e9)
+        for _ in range(100):
+            act.step(-1000.0)
+        assert act.state >= -0.5

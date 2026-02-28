@@ -275,3 +275,49 @@ def test_spiking_pool_rejects_inf_dt() -> None:
 def test_spiking_pool_rejects_nan_noise() -> None:
     with pytest.raises(ValueError, match="noise_std must be finite"):
         SpikingControllerPool(noise_std=float("nan"))
+
+
+# ── Verbose & coil-padding paths ─────────────────────────────────
+
+def test_run_neuro_cybernetic_control_verbose_output(capsys) -> None:
+    run_neuro_cybernetic_control(
+        config_file="dummy.json",
+        shot_duration=3,
+        seed=42,
+        quantum=False,
+        save_plot=False,
+        verbose=True,
+        kernel_factory=_DummyKernel,
+    )
+    out = capsys.readouterr().out
+    assert "SNN" in out or "PLASMA" in out
+
+
+class _KernelFewCoils:
+    """Kernel with only 2 coils: forces the coil-padding path (line 313-314)."""
+
+    def __init__(self, _config_file: str) -> None:
+        self.cfg = {
+            "physics": {"plasma_current_target": 5.0},
+            "coils": [{"current": 0.0}, {"current": 0.0}],
+        }
+        self.R = np.linspace(5.9, 6.5, 25)
+        self.Z = np.linspace(-0.3, 0.3, 25)
+        self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = np.zeros((25, 25), dtype=np.float64)
+        self.solve_equilibrium()
+
+    def solve_equilibrium(self) -> None:
+        self.Psi = 1.0 - (
+            (self.RR - 6.2) ** 2 + ((self.ZZ - 0.0) / 1.4) ** 2
+        )
+
+
+def test_controller_pads_coils_when_fewer_than_five() -> None:
+    from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+    nc = NeuroCyberneticController(
+        "dummy.json", seed=42, shot_duration=5, kernel_factory=_KernelFewCoils,
+    )
+    nc.run_shot(save_plot=False, verbose=False)
+    assert len(nc.kernel.cfg["coils"]) >= 5
+    assert len(nc.history["t"]) == 5

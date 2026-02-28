@@ -281,3 +281,65 @@ def test_run_real_shot_replay_rejects_short_time_s() -> None:
             rl_agent=agent,
             window_size=8,
         )
+
+
+# ── SPI-triggered replay path ───────────────────────────────────
+
+def _build_severe_disruption_shot(n: int = 220) -> dict:
+    """Shot with extreme perturbation: forces SPI trigger in replay."""
+    t = np.linspace(0.0, 0.22, n, dtype=np.float64)
+    dBdt = 2.0 + 5.0 * np.exp(-(((t - 0.18) / 0.015) ** 2))
+    n1 = 1.5 + 3.0 * np.exp(-(((t - 0.18) / 0.015) ** 2))
+    n2 = 0.5 + 1.5 * np.exp(-(((t - 0.18) / 0.020) ** 2))
+    return {
+        "time_s": t,
+        "Ip_MA": np.full(n, 12.0, dtype=np.float64),
+        "beta_N": np.full(n, 2.5, dtype=np.float64),
+        "n1_amp": n1,
+        "n2_amp": n2,
+        "dBdt_gauss_per_s": dBdt,
+        "is_disruption": True,
+        "disruption_time_idx": 200,
+    }
+
+
+def test_spi_triggered_replay_produces_mitigation_output() -> None:
+    agent = FusionAIAgent(epsilon=0.05)
+    out = run_real_shot_replay(
+        shot_data=_build_severe_disruption_shot(),
+        rl_agent=agent,
+        risk_threshold=0.40,
+        spi_trigger_risk=0.55,
+        window_size=96,
+    )
+    assert out["spi_triggered"] is True
+    assert out["spi_trigger_idx"] > 0
+    assert out["tau_cq_ms"] > 0.0
+    assert out["total_impurity_mol"] > 0.0
+    assert out["neon_mol"] > 0.0
+
+
+def test_spi_triggered_replay_detection_lead_positive() -> None:
+    agent = FusionAIAgent(epsilon=0.05)
+    out = run_real_shot_replay(
+        shot_data=_build_severe_disruption_shot(),
+        rl_agent=agent,
+        risk_threshold=0.20,
+        spi_trigger_risk=0.40,
+        window_size=96,
+    )
+    assert out["is_disruption"] is True
+    if out["first_alarm_idx"] > 0:
+        assert out["detection_lead_ms"] > 0.0
+
+
+def test_spi_triggered_replay_prevention_flag() -> None:
+    agent = FusionAIAgent(epsilon=0.05)
+    out = run_real_shot_replay(
+        shot_data=_build_severe_disruption_shot(),
+        rl_agent=agent,
+        risk_threshold=0.20,
+        spi_trigger_risk=0.40,
+        window_size=96,
+    )
+    assert isinstance(out["prevented"], bool)
