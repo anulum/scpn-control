@@ -22,8 +22,10 @@ use control_control::optimal;
 use control_control::pid::{IsoFluxController, PIDController};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_control::spi;
+use control_core::bfield;
 use control_core::ignition;
 use control_core::kernel::FusionKernel;
+use control_core::xpoint;
 use control_core::transport::{self, NeoclassicalParams, TransportSolver};
 use control_math::kuramoto;
 use control_math::multigrid::{multigrid_solve, MultigridConfig};
@@ -129,6 +131,42 @@ impl PyFusionKernel {
         dict.set_item("t_peak_kev", result.t_peak_kev)?;
         dict.set_item("w_thermal_mj", result.w_thermal_mj)?;
         Ok(dict.into())
+    }
+
+    /// Interpolate psi at a single (R, Z) point.
+    fn sample_psi_at(&self, r: f64, z: f64) -> PyResult<f64> {
+        self.inner
+            .sample_psi_at(r, z)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+    }
+
+    /// Interpolate psi at multiple (R, Z) probe positions.
+    fn sample_psi_at_probes<'py>(
+        &self,
+        py: Python<'py>,
+        probes: Vec<(f64, f64)>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let values = self
+            .inner
+            .sample_psi_at_probes(&probes)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok(Array1::from_vec(values).into_pyarray(py))
+    }
+
+    /// Compute (B_R, B_Z) field arrays from the current psi.
+    fn compute_b_field<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<(Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<f64>>)> {
+        let (br, bz) = bfield::compute_b_field(self.inner.psi(), self.inner.grid())
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok((br.into_pyarray(py), bz.into_pyarray(py)))
+    }
+
+    /// Find the lower X-point. Returns ((r, z), psi_x).
+    fn find_x_point(&self, z_min: f64) -> PyResult<((f64, f64), f64)> {
+        xpoint::find_x_point(self.inner.psi(), self.inner.grid(), z_min)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 }
 

@@ -84,12 +84,35 @@ class RustAcceleratedKernel:
 
         return result
 
+    def sample_psi_at(self, r: float, z: float) -> float:
+        """Interpolate psi at a single (R, Z) point via Rust bilinear interpolation."""
+        return self._rust.sample_psi_at(float(r), float(z))
+
+    def sample_psi_at_probes(self, probes: list) -> np.ndarray:
+        """Interpolate psi at multiple (R, Z) probe positions.
+
+        Parameters
+        ----------
+        probes : list of (float, float)
+            Probe positions as (R, Z) pairs.
+
+        Returns
+        -------
+        ndarray, shape (len(probes),)
+        """
+        return np.asarray(self._rust.sample_psi_at_probes(probes))
+
     def compute_b_field(self):
-        """Compute magnetic field components from Psi gradient."""
-        dPsi_dR, dPsi_dZ = np.gradient(self.Psi, self.dR, self.dZ)
-        R_safe = np.maximum(self.RR, 1e-6)
-        self.B_R = -(1.0 / R_safe) * dPsi_dZ
-        self.B_Z = (1.0 / R_safe) * dPsi_dR
+        """Compute (B_R, B_Z) from current psi, delegating to Rust when available."""
+        try:
+            br, bz = self._rust.compute_b_field()
+            self.B_R = np.asarray(br)
+            self.B_Z = np.asarray(bz)
+        except (AttributeError, RuntimeError):
+            dPsi_dR, dPsi_dZ = np.gradient(self.Psi, self.dR, self.dZ)
+            R_safe = np.maximum(self.RR, 1e-6)
+            self.B_R = -(1.0 / R_safe) * dPsi_dZ
+            self.B_Z = (1.0 / R_safe) * dPsi_dR
 
     def find_x_point(self, Psi):
         """
