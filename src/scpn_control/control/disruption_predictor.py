@@ -21,7 +21,7 @@ try:
     import torch
     import torch.nn as nn
     import torch.optim as optim
-except Exception:  # pragma: no cover - optional dependency path
+except ImportError:  # pragma: no cover - optional dependency path
     torch = None  # type: ignore[assignment]
     nn = None  # type: ignore[assignment]
     optim = None  # type: ignore[assignment]

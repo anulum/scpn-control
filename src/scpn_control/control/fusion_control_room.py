@@ -27,7 +27,7 @@ try:
 except ImportError:
     try:
         from scpn_control.core.fusion_kernel import FusionKernel
-    except Exception:  # pragma: no cover - optional kernel path
+    except ImportError:  # pragma: no cover - optional kernel path
         FusionKernel = None
 
 # --- CONTROL ROOM PARAMETERS ---

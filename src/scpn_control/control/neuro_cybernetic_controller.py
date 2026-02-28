@@ -25,7 +25,7 @@ try:
     from sc_neurocore.sources.quantum_entropy import QuantumEntropySource
 
     SC_NEUROCORE_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency path
+except ImportError:  # pragma: no cover - optional dependency path
     SC_NEUROCORE_AVAILABLE = False
     StochasticLIFNeuron = None
     QuantumEntropySource = None
