@@ -136,5 +136,9 @@ class LyapunovGuard:
             "score": verdict.score,
             "h_logical": 0.0,
             "h_factual": float(max(0.0, verdict.lambda_exp)),
-            "halt_reason": "" if verdict.approved else f"λ={verdict.lambda_exp:.4f} > threshold for {verdict.consecutive_violations} windows",
+            "halt_reason": (
+                "" if verdict.approved
+                else f"λ={verdict.lambda_exp:.4f} > threshold"
+                     f" for {verdict.consecutive_violations} windows"
+            ),
         }

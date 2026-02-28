@@ -297,7 +297,11 @@ class TransportSolver(FusionKernel):
         # Numerical hardening telemetry (non-finite replacements per step)
         self._last_numerical_recovery_count: int = 0
 
-    def set_neoclassical(self, R0: float, a: float, B0: float, A_ion: float = 2.0, Z_eff: float = 1.5, q0: float = 1.0, q_edge: float = 3.0) -> None:
+    def set_neoclassical(
+        self, R0: float, a: float, B0: float,
+        A_ion: float = 2.0, Z_eff: float = 1.5,
+        q0: float = 1.0, q_edge: float = 3.0,
+    ) -> None:
         """Configure Chang-Hinton neoclassical transport model.
 
         When set, update_transport_model uses the Chang-Hinton formula instead
@@ -385,18 +389,19 @@ class TransportSolver(FusionKernel):
         J_bs = - (R/B_pol) * [ L31 * (dP/dpsi) + ... ]
         """
         # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eq. 13 (simplified)
-        f_trapped = 1.46 * np.sqrt(self.rho * (self.cfg["dimensions"]["R_max"] - self.cfg["dimensions"]["R_min"]) / (2 * R0))
+        dims = self.cfg["dimensions"]
+        delta_a = dims["R_max"] - dims["R_min"]
+        f_trapped = 1.46 * np.sqrt(self.rho * delta_a / (2 * R0))
 
-        # Pressure gradient in SI
-        P = self.ne * 1e19 * (self.Ti + self.Te) * 1.602e-16 # J/m3
+        P = self.ne * 1e19 * (self.Ti + self.Te) * 1.602e-16  # J/m3
         dP_drho = np.gradient(P, self.drho)
 
         # Wesson, "Tokamaks" 4th ed., Eq. 4.8.1: J_bs ~ -f_t / B_p * dp/dr
-        # Factor 1.2 accounts for Z_eff≈1.5 correction to collisionless limit
-        # (Hirshman & Sigmar, Nucl. Fusion 21, 1079, 1981, Table II)
+        # Factor 1.2: Z_eff≈1.5 correction (Hirshman & Sigmar, NF 21, 1079, 1981)
         B_pol = np.maximum(B_pol, 0.1)
         BOOTSTRAP_ZEFF_CORRECTION = 1.2
-        J_bs = BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol) * dP_drho / (self.cfg["dimensions"]["R_max"] - self.cfg["dimensions"]["R_min"])
+        J_bs = (BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol)
+                * dP_drho / delta_a)
 
         # Ensure it's zero at axis and edge
         J_bs[0] = 0
@@ -1129,10 +1134,11 @@ class TransportSolver(FusionKernel):
         Rho_2D = np.sqrt(Psi_norm)
 
         # 3. Calculate 1D Bootstrap Current
-        R0 = (self.cfg["dimensions"]["R_min"] + self.cfg["dimensions"]["R_max"]) / 2.0
-        # Estimate B_pol from Ip
+        dims = self.cfg["dimensions"]
+        R0 = (dims["R_min"] + dims["R_max"]) / 2.0
         I_target = self.cfg['physics']['plasma_current_target']
-        B_pol_est = (1.256e-6 * I_target) / (2 * np.pi * 0.5 * (self.cfg["dimensions"]["R_max"] - self.cfg["dimensions"]["R_min"]))
+        a_half = 0.5 * (dims["R_max"] - dims["R_min"])
+        B_pol_est = (1.256e-6 * I_target) / (2 * np.pi * a_half)
         J_bs_1d = self.calculate_bootstrap_current(R0, B_pol_est)
 
         # 4. Interpolate 1D profiles to 2D

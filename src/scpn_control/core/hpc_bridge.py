@@ -148,7 +148,11 @@ class HPCBridge:
 
     def _setup_signatures(self) -> None:
         assert self.lib is not None
-        self.lib.create_solver.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double]
+        self.lib.create_solver.argtypes = [
+            ctypes.c_int, ctypes.c_int,
+            ctypes.c_double, ctypes.c_double,
+            ctypes.c_double, ctypes.c_double,
+        ]
         self.lib.create_solver.restype = ctypes.c_void_p
 
         # void run_step(void* solver, double* j, double* psi, int size, int iter)

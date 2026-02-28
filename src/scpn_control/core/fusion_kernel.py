@@ -181,7 +181,7 @@ class FusionKernel:
 
         for coil in self.cfg["coils"]:
             Rc, Zc = coil["r"], coil["z"]
-            I = coil["current"]
+            I_coil = coil["current"]
 
             dZ = self.ZZ - Zc
             R_plus_Rc_sq = (self.RR + Rc) ** 2
@@ -192,7 +192,7 @@ class FusionKernel:
             K = ellipk(k2)
             E = ellipe(k2)
 
-            prefactor = (mu0 * I) / (2 * np.pi)
+            prefactor = (mu0 * I_coil) / (2 * np.pi)
             sqrt_term = np.sqrt(R_plus_Rc_sq + dZ**2)
             term = ((2.0 - k2) * K - 2.0 * E) / k2
             Psi_vac += prefactor * sqrt_term * term
