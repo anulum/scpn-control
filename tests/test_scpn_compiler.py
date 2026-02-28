@@ -621,3 +621,87 @@ class TestCyclicFlow:
     def test_invalid_lif_parameter_rejected(self) -> None:
         with pytest.raises(ValueError, match="lif_tau_mem"):
             FusionCompiler(lif_tau_mem=0.0)
+
+    def test_invalid_noise_std_rejected(self) -> None:
+        with pytest.raises(ValueError, match="lif_noise_std"):
+            FusionCompiler(lif_noise_std=-0.1)
+
+    def test_invalid_lif_dt_rejected(self) -> None:
+        with pytest.raises(ValueError, match="lif_dt"):
+            FusionCompiler(lif_dt=0.0)
+
+    def test_invalid_lif_resistance_rejected(self) -> None:
+        with pytest.raises(ValueError, match="lif_resistance"):
+            FusionCompiler(lif_resistance=0.0)
+
+    def test_invalid_refractory_period_rejected(self) -> None:
+        with pytest.raises(ValueError, match="lif_refractory_period"):
+            FusionCompiler(lif_refractory_period=-1)
+
+    def test_invalid_firing_mode_rejected(self, traffic_net) -> None:
+        compiler = FusionCompiler(bitstream_length=128, seed=0)
+        with pytest.raises(ValueError, match="firing_mode"):
+            compiler.compile(traffic_net, firing_mode="invalid")
+
+
+class TestFractionalFiring:
+    def test_fractional_firing_mode(self) -> None:
+        net = _build_traffic_light()
+        compiler = FusionCompiler(bitstream_length=128, seed=0)
+        compiled = compiler.compile(net, firing_mode="fractional", firing_margin=0.1)
+        assert compiled.firing_mode == "fractional"
+        currents = np.array([0.55, 0.3, 0.4])
+        fired = compiled.lif_fire(currents)
+        assert fired[0] > 0.0
+        assert fired[1] == 0.0
+
+    def test_fractional_clamps_to_unit(self) -> None:
+        net = _build_traffic_light()
+        compiler = FusionCompiler(bitstream_length=128, seed=0)
+        compiled = compiler.compile(net, firing_mode="fractional", firing_margin=0.01)
+        currents = np.array([10.0, 10.0, 10.0])
+        fired = compiled.lif_fire(currents)
+        np.testing.assert_array_equal(fired, [1.0, 1.0, 1.0])
+
+
+class TestDenseForwardFloat:
+    def test_returns_correct_product(self) -> None:
+        net = _build_traffic_light()
+        compiler = FusionCompiler(bitstream_length=128, seed=0)
+        compiled = compiler.compile(net)
+        marking = np.array([0.5, 0.3, 0.0])
+        result = compiled.dense_forward_float(compiled.W_in, marking)
+        expected = compiled.W_in @ marking
+        np.testing.assert_allclose(result, expected)
+
+    def test_dense_forward_without_neurocore_raises(self) -> None:
+        net = _build_traffic_light()
+        compiler = FusionCompiler(bitstream_length=128, seed=0)
+        compiled = compiler.compile(net)
+        if not compiled.has_stochastic_path:
+            with pytest.raises(RuntimeError, match="sc_neurocore"):
+                compiled.dense_forward(
+                    np.zeros((3, 3, 1), dtype=np.uint64),
+                    np.array([1.0, 0.0, 0.0]),
+                )
+
+
+class TestResolveGitSha:
+    def test_env_override(self, monkeypatch) -> None:
+        from scpn_control.scpn.compiler import _resolve_git_sha
+        monkeypatch.setenv("SCPN_GIT_SHA", "deadbeef1234567")
+        assert _resolve_git_sha() == "deadbee"
+
+    def test_github_sha_override(self, monkeypatch) -> None:
+        from scpn_control.scpn.compiler import _resolve_git_sha
+        monkeypatch.delenv("SCPN_GIT_SHA", raising=False)
+        monkeypatch.setenv("GITHUB_SHA", "abcdef0123456789")
+        assert _resolve_git_sha() == "abcdef0"
+
+    def test_fallback_not_empty(self, monkeypatch) -> None:
+        from scpn_control.scpn.compiler import _resolve_git_sha
+        monkeypatch.delenv("SCPN_GIT_SHA", raising=False)
+        monkeypatch.delenv("GITHUB_SHA", raising=False)
+        monkeypatch.delenv("CI_COMMIT_SHA", raising=False)
+        sha = _resolve_git_sha()
+        assert len(sha) == 7

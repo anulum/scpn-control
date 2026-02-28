@@ -163,9 +163,92 @@ class TestHILBenchmark:
     def test_sub_ms_p95(self):
         """The key deliverable: demonstrate sub-ms control loop latency."""
         result = run_hil_benchmark(iterations=1000)
-        print(f"\n=== HIL Benchmark ===")
-        print(f"    P50: {result.control_metrics.p50_latency_us:.1f} us")
-        print(f"    P95: {result.control_metrics.p95_latency_us:.1f} us")
-        print(f"    P99: {result.control_metrics.p99_latency_us:.1f} us")
-        print(f"    Sub-ms: {'PASS' if result.passes_sub_ms else 'FAIL'}")
         assert result.passes_sub_ms
+
+
+# ── HILDemoRunner ──────────────────────────────────────────────────
+
+class TestHILDemoRunner:
+    def test_q16_roundtrip(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+        for val in [0.0, 0.5, -0.5, 1.0, -1.0, 0.123]:
+            encoded = HILDemoRunner.float_to_q16_16(val)
+            decoded = HILDemoRunner.q16_16_to_float(encoded)
+            assert abs(decoded - val) < 1e-4
+
+    def test_step_returns_output(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+        runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
+        out = runner.step(np.array([0.1, 0.2]))
+        assert out.shape == (2,)
+        assert runner.total_steps == 1
+
+    def test_run_episode_no_faults(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+        runner = HILDemoRunner(n_neurons=4, n_inputs=4, n_outputs=4)
+        report = runner.run_episode(n_steps=50, inject_faults=False)
+        assert report["total_steps"] == 50
+        assert report["tmr_mismatches"] == 0
+
+    def test_run_episode_with_faults(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+        runner = HILDemoRunner(n_neurons=4, n_inputs=4, n_outputs=4)
+        report = runner.run_episode(n_steps=200, inject_faults=True)
+        assert report["total_steps"] == 200
+        assert report["tmr_mismatch_rate"] >= 0.0
+
+    def test_inject_bitflip(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+        runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
+        runner.tmr_copies[0][0] = 0.5
+        runner.tmr_copies[1][0] = 0.5
+        runner.tmr_copies[2][0] = 0.5
+        runner.inject_bitflip(neuron_idx=0, bit_idx=10)
+        assert runner.tmr_copies[1][0] == 0.5
+        assert runner.tmr_copies[2][0] == 0.5
+
+    def test_report_keys(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+        runner = HILDemoRunner()
+        runner.step(np.zeros(4))
+        report = runner.report()
+        for key in ("total_steps", "tmr_mismatches", "tmr_mismatch_rate",
+                     "latency_mean_cycles", "latency_p95_cycles", "latency_max_cycles",
+                     "latency_mean_ns", "n_neurons", "n_inputs", "n_outputs"):
+            assert key in report
+
+    def test_tmr_vote_corrects_single_fault(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+        runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
+        runner.tmr_copies[0][:] = [0.1, 0.2, 0.3, 0.4]
+        runner.tmr_copies[1][:] = [0.1, 0.2, 0.3, 0.4]
+        runner.tmr_copies[2][:] = [99.0, 0.2, 0.3, 0.4]  # faulty
+        voted = runner._tmr_vote()
+        assert abs(voted[0] - 0.1) < 0.01
+        assert runner.tmr_mismatches >= 1
+
+
+# ── run_hil_benchmark_detailed ─────────────────────────────────────
+
+class TestRunHILBenchmarkDetailed:
+    def test_returns_expected_keys(self):
+        from scpn_control.control.hil_harness import run_hil_benchmark_detailed
+        result = run_hil_benchmark_detailed(n_steps=100)
+        for key in ("n_steps", "mean_us", "p50_us", "p95_us", "p99_us", "max_us",
+                     "stage_breakdown"):
+            assert key in result
+        assert result["n_steps"] == 100
+
+    def test_stage_breakdown_positive(self):
+        from scpn_control.control.hil_harness import run_hil_benchmark_detailed
+        result = run_hil_benchmark_detailed(n_steps=200)
+        sb = result["stage_breakdown"]
+        assert sb["state_estimation_mean_us"] >= 0.0
+        assert sb["controller_step_mean_us"] >= 0.0
+        assert sb["actuator_command_mean_us"] >= 0.0
+
+    def test_mean_bounded_by_max(self):
+        from scpn_control.control.hil_harness import run_hil_benchmark_detailed
+        result = run_hil_benchmark_detailed(n_steps=100)
+        assert result["mean_us"] <= result["max_us"]
+        assert result["p50_us"] <= result["p99_us"]
