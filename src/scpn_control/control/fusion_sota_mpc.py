@@ -23,17 +23,11 @@ try:
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
 
+from scpn_control.control import normalize_bounds
+
 # --- SOTA PARAMETERS ---
 PREDICTION_HORIZON = 10
 SHOT_LENGTH = 100
-
-
-def _normalize_bounds(bounds: Tuple[float, float], name: str) -> Tuple[float, float]:
-    lo = float(bounds[0])
-    hi = float(bounds[1])
-    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
-        raise ValueError(f"{name} must be finite with lower < upper.")
-    return lo, hi
 
 
 class NeuralSurrogate:
@@ -196,8 +190,8 @@ def run_sota_simulation(
         repo_root = Path(__file__).resolve().parents[3]
         config_file = str(repo_root / "iter_config.json")
 
-    lo_ip, hi_ip = _normalize_bounds(current_target_bounds, "current_target_bounds")
-    lo_i, hi_i = _normalize_bounds(coil_current_limits, "coil_current_limits")
+    lo_ip, hi_ip = normalize_bounds(current_target_bounds, "current_target_bounds")
+    lo_i, hi_i = normalize_bounds(coil_current_limits, "coil_current_limits")
     steps = int(shot_length)
     if steps < 1:
         raise ValueError("shot_length must be >= 1.")

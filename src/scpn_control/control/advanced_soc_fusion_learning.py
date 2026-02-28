@@ -16,6 +16,8 @@ except ImportError:
     HAS_MPL = False
 import numpy as np
 
+from scpn_control.control import normalize_bounds
+
 # --- ADVANCED PHYSICS PARAMETERS ---
 L = 60
 TIME_STEPS = 10000
@@ -31,14 +33,6 @@ EPSILON = 0.1
 N_STATES_TURB = 5
 N_STATES_FLOW = 5
 N_ACTIONS = 3
-
-
-def _normalize_bounds(bounds: Tuple[float, float], name: str) -> Tuple[float, float]:
-    lo = float(bounds[0])
-    hi = float(bounds[1])
-    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
-        raise ValueError(f"{name} must be finite with lower < upper.")
-    return lo, hi
 
 
 class CoupledSandpileReactor:
@@ -78,7 +72,7 @@ class CoupledSandpileReactor:
         self.flow_damping = flow_damping
         self.shear_efficiency = shear_efficiency
         self.max_sub_steps = max_sub_steps
-        self.flow_bounds = _normalize_bounds(flow_bounds, "flow_bounds")
+        self.flow_bounds = normalize_bounds(flow_bounds, "flow_bounds")
 
         self.Z = np.zeros(self.size, dtype=np.float64)
         self.h = np.zeros(self.size, dtype=np.float64)
@@ -272,7 +266,7 @@ def run_advanced_learning_sim(
     steps = int(time_steps)
     if steps < 1:
         raise ValueError("time_steps must be >= 1.")
-    lo_shear, hi_shear = _normalize_bounds(shear_bounds, "shear_bounds")
+    lo_shear, hi_shear = normalize_bounds(shear_bounds, "shear_bounds")
     shear_step = float(shear_step)
     if not np.isfinite(shear_step) or shear_step < 0.0:
         raise ValueError("shear_step must be finite and >= 0.")

@@ -22,18 +22,12 @@ try:
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
 
+from scpn_control.control import normalize_bounds
+
 # --- MISSION PARAMETERS ---
 TARGET_R = 6.0
 TARGET_Z = 0.0
 SHOT_STEPS = 50
-
-
-def _normalize_bounds(bounds: Tuple[float, float], name: str) -> Tuple[float, float]:
-    lo = float(bounds[0])
-    hi = float(bounds[1])
-    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
-        raise ValueError(f"{name} must be finite with lower < upper.")
-    return lo, hi
 
 
 class OptimalController:
@@ -60,10 +54,10 @@ class OptimalController:
         if not np.isfinite(correction_limit) or correction_limit <= 0.0:
             raise ValueError("correction_limit must be finite and > 0.")
         self.correction_limit = correction_limit
-        self.coil_current_limits = _normalize_bounds(
+        self.coil_current_limits = normalize_bounds(
             coil_current_limits, "coil_current_limits"
         )
-        self.current_target_limits = _normalize_bounds(
+        self.current_target_limits = normalize_bounds(
             current_target_limits, "current_target_limits"
         )
         self.history: Dict[str, list[float]] = {

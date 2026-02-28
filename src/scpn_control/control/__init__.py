@@ -10,6 +10,18 @@
 Nengo, matplotlib, and torch are optional — use accessor functions
 to defer their import until actually needed.
 """
+from __future__ import annotations
+
+import numpy as np
+
+
+def normalize_bounds(bounds: tuple[float, float], name: str) -> tuple[float, float]:
+    """Validate (lo, hi) float pair. Shared by MPC, optimal, and SOC modules."""
+    lo = float(bounds[0])
+    hi = float(bounds[1])
+    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
+        raise ValueError(f"{name} must be finite with lower < upper.")
+    return lo, hi
 
 
 def get_nengo_controller():

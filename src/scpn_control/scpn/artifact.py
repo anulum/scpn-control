@@ -207,7 +207,7 @@ def _decode_u64_compact(encoded: Dict[str, Any]) -> List[int]:
 
     try:
         comp = base64.b64decode(payload.encode("ascii"), validate=True)
-    except Exception as exc:
+    except (ValueError, base64.binascii.Error) as exc:
         raise ArtifactValidationError(f"Invalid base64 payload: {exc}") from exc
 
     if len(comp) > MAX_COMPRESSED_BYTES:
@@ -225,7 +225,7 @@ def _decode_u64_compact(encoded: Dict[str, Any]) -> List[int]:
         raw += decomp.flush()
     except ArtifactValidationError:
         raise
-    except Exception as exc:
+    except (zlib.error, ValueError, OSError) as exc:
         raise ArtifactValidationError(
             f"Invalid compact packed payload: {exc}"
         ) from exc

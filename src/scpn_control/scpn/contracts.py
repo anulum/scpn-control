@@ -19,6 +19,10 @@ import math
 from dataclasses import dataclass
 from typing import Dict, List, Mapping, Optional, Sequence, TypedDict
 
+SCALE_FLOOR = 1e-12  # prevent division-by-zero in feature extraction
+CONTROL_ERROR_CLAMP = 1.0  # symmetric saturation for normalized error
+INVARIANT_CRITICAL_FRACTION = 0.20  # 20% deviation from threshold → "critical"
+
 # ── Observation / Action TypedDicts ──────────────────────────────────────────
 
 
@@ -141,9 +145,9 @@ def extract_features(
         scale_raw = float(axis.scale)
         if not math.isfinite(scale_raw):
             raise ValueError(f"Feature axis scale must be finite: {axis.obs_key}")
-        scale = scale_raw if abs(scale_raw) > 1e-12 else 1e-12
+        scale = scale_raw if abs(scale_raw) > SCALE_FLOOR else SCALE_FLOOR
         err = (target - obs_value) / scale
-        err = max(-1.0, min(1.0, err))
+        err = max(-CONTROL_ERROR_CLAMP, min(CONTROL_ERROR_CLAMP, err))
         out[axis.pos_key] = _clip01(max(0.0, err))
         out[axis.neg_key] = _clip01(max(0.0, -err))
 
@@ -410,7 +414,7 @@ def check_physics_invariant(
 
     margin = abs(value - invariant.threshold)
     ref = abs(invariant.threshold) if invariant.threshold != 0.0 else 1.0
-    severity = "critical" if margin > 0.20 * ref else "warning"
+    severity = "critical" if margin > INVARIANT_CRITICAL_FRACTION * ref else "warning"
 
     return PhysicsInvariantViolation(
         invariant=invariant,

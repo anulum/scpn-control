@@ -123,6 +123,10 @@ class RustAcceleratedKernel:
         """Get current solver method name."""
         return self._rust.solver_method()
 
+    def calculate_thermodynamics(self, p_aux_mw: float = 50.0) -> dict:
+        """D-T fusion thermodynamics from current equilibrium (Rust backend)."""
+        return self._rust.calculate_thermodynamics(p_aux_mw)
+
     def save_results(self, filename="equilibrium_nonlinear.npz"):
         """Save current state to .npz file."""
         np.savez(filename, R=self.R, Z=self.Z, Psi=self.Psi, J_phi=self.J_phi)
@@ -182,6 +186,14 @@ else:
             return _py_tearing(steps=int(steps))
         rng = np.random.default_rng(seed=int(seed))
         return _py_tearing(steps=int(steps), rng=rng)
+
+
+def rust_bosch_hale_dt(t_kev: float) -> float:
+    """Bosch-Hale D-T reaction rate [m³/s] at temperature t_kev [keV]."""
+    if not _RUST_AVAILABLE:
+        raise ImportError("scpn_control_rs not installed. Run: maturin develop")
+    from scpn_control_rs import bosch_hale_dt
+    return bosch_hale_dt(float(t_kev))
 
 
 class RustSnnPool:

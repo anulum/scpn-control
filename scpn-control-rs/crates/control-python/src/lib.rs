@@ -22,6 +22,7 @@ use control_control::optimal;
 use control_control::pid::{IsoFluxController, PIDController};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_control::spi;
+use control_core::ignition;
 use control_core::kernel::FusionKernel;
 use control_core::transport::{self, NeoclassicalParams, TransportSolver};
 use control_math::kuramoto;
@@ -105,6 +106,29 @@ impl PyFusionKernel {
             control_core::kernel::SolverMethod::PicardSor => "sor",
             control_core::kernel::SolverMethod::PicardMultigrid => "multigrid",
         }
+    }
+
+    /// Calculate D-T fusion thermodynamics from current equilibrium state.
+    ///
+    /// Returns dict with p_fusion_mw, p_alpha_mw, p_loss_mw, p_aux_mw,
+    /// net_mw, q_factor, t_peak_kev, w_thermal_mj.
+    fn calculate_thermodynamics<'py>(
+        &self,
+        py: Python<'py>,
+        p_aux_mw: f64,
+    ) -> PyResult<PyObject> {
+        let result = ignition::calculate_thermodynamics(&self.inner, p_aux_mw)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("p_fusion_mw", result.p_fusion_mw)?;
+        dict.set_item("p_alpha_mw", result.p_alpha_mw)?;
+        dict.set_item("p_loss_mw", result.p_loss_mw)?;
+        dict.set_item("p_aux_mw", result.p_aux_mw)?;
+        dict.set_item("net_mw", result.net_mw)?;
+        dict.set_item("q_factor", result.q_factor)?;
+        dict.set_item("t_peak_kev", result.t_peak_kev)?;
+        dict.set_item("w_thermal_mj", result.w_thermal_mj)?;
+        Ok(dict.into())
     }
 }
 
@@ -884,6 +908,15 @@ fn multigrid_vcycle<'py>(
     ))
 }
 
+// ─── Ignition physics ───
+
+/// Bosch-Hale D-T reaction rate <sigma*v> [m³/s] at given temperature [keV].
+#[pyfunction]
+fn bosch_hale_dt(t_kev: f64) -> PyResult<f64> {
+    ignition::bosch_hale_dt(t_kev)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+}
+
 // ─── SPI mitigation ───
 
 #[pyclass]
@@ -965,6 +998,8 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyPIDController>()?;
     m.add_class::<PyIsoFluxController>()?;
     m.add_class::<PyHInfController>()?;
+    // Ignition
+    m.add_function(wrap_pyfunction!(bosch_hale_dt, m)?)?;
     // SPI + Optimal
     m.add_class::<PySPIMitigation>()?;
     m.add_function(wrap_pyfunction!(svd_optimal_correction, m)?)?;

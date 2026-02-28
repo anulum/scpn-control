@@ -75,7 +75,7 @@ class PhaseStreamServer:
             for ws in self._clients:
                 try:
                     await ws.send(frame)
-                except Exception:
+                except (ConnectionError, OSError):
                     dead.add(ws)
             self._clients -= dead
             await asyncio.sleep(self.tick_interval_s)
