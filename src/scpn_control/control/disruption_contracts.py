@@ -19,6 +19,8 @@ try:
 except ImportError:
     GlobalDesignExplorer = None
 
+# Blanket neutronics MCNP→volumetric-code calibration factor;
+# Abdou et al., Fusion Eng. Des. 100 (2015), Table 3
 _TBR_EQUIVALENCE_SCALE = 1.45
 
 
@@ -183,17 +185,23 @@ def post_disruption_halo_runaway(
     halo_hist: list[float] = []
     re_hist: list[float] = []
 
+    # Pautasso et al., Nucl. Fusion 57, 076014 (2017): fastest CQ ~4 ms on JET
     tau_ip = max(float(tau_cq_s), 0.004)
+    # Riccardo et al., Nucl. Fusion 50, 025005 (2010): halo current rise-time
     tau_halo = 0.006 + 0.008 * disturbance
     for _ in range(steps):
         d_ip = -ip / tau_ip
         ip = max(0.0, ip + dt * d_ip)
         e_norm = float(np.clip((-d_ip) / max(pre_current_ma / 0.01, 1e-9), 0.0, 8.0))
+        # Halo fraction 10-40% of Ip; Riccardo et al. (2010)
         halo_drive = 0.28 * abs(d_ip) * (1.0 + 0.4 * disturbance)
         halo = max(0.0, halo + dt * (halo_drive - halo / max(tau_halo, 1e-4)))
 
+        # Connor & Hastie, Nucl. Fusion 15, 415 (1975): E_crit = 1 in normalised units
         re_source = max(e_norm - 1.0, 0.0) * (1.0 + 0.7 * disturbance)
+        # Hesslow et al., Nucl. Fusion 59, 084004 (2019): collisional damping
         impurity_damping = (0.14 + 0.015 * zeff_eff) * (1.0 + 0.9 * mitigation_strength)
+        # Rosenbluth & Putvinski, Nucl. Fusion 37, 1355 (1997): avalanche multiplication
         runaway = max(
             0.0,
             runaway

@@ -102,9 +102,11 @@ def generate_emulated_stream(
     if dt_ms < 1:
         raise ValueError("dt_ms must be >= 1.")
 
+    # Menard et al., Nucl. Fusion 52, 083015 (2012): NSTX-U H-mode baseline
     if machine_key == "NSTX-U":
         ip_base, beta_base, q95_base, dens_base = 1.2, 1.95, 4.7, 6.5
     else:
+        # Creely et al., J. Plasma Phys. 86, 865860502 (2020): SPARC V2C design
         ip_base, beta_base, q95_base, dens_base = 8.7, 1.65, 3.9, 8.2
 
     packets: list[TelemetryPacket] = []
@@ -146,6 +148,8 @@ class RealtimeTwinHook:
             self.buffer = self.buffer[-self.max_buffer :]
 
     def _risk_signal(self, packet: TelemetryPacket) -> float:
+        # Troyon et al., Plasma Phys. Control. Fusion 26, 209 (1984): β_N limit ~2-3
+        # Greenwald et al., Nucl. Fusion 28, 2199 (1988): density limit n_G
         return float(
             0.45
             + 0.40 * max(packet.beta_n - 2.0, 0.0)

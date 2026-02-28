@@ -21,9 +21,12 @@ from scpn_control.control import normalize_bounds
 # --- ADVANCED PHYSICS PARAMETERS ---
 L = 60
 TIME_STEPS = 10000
+# Diamond & Hahm, Phys. Plasmas 2, 3640 (1995): critical gradient for SOC avalanche
 Z_CRIT_BASE = 6.0
+# Kim & Diamond, Phys. Rev. Lett. 90, 185006 (2003): predator-prey zonal flow coupling
 FLOW_GENERATION = 0.2
 FLOW_DAMPING = 0.05
+# Biglari, Diamond & Terry, Phys. Fluids B 2, 1 (1990): shear suppression of turbulence
 SHEAR_EFFICIENCY = 3.0
 
 # --- Q-LEARNING PARAMETERS ---
