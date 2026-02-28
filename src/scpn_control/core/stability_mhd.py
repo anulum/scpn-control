@@ -176,6 +176,7 @@ def compute_q_profile(
     # Normalised pressure gradient (alpha_MHD)
     # alpha = -2 mu0 R0 q^2 / B0^2 * dp/dr
     # p = n_e * (Ti + Te) in keV * 10^19 m^-3 => convert to Pa
+    # 2019 SI exact: 1 eV = 1.602176634e-19 J; 1 keV = 1e3 eV
     e_keV_to_J = 1.602176634e-16
     p_Pa = ne * 1e19 * (Ti + Te) * e_keV_to_J  # pressure in Pa
     dp_drho = np.gradient(p_Pa, rho_safe)  # dp/d(rho)
@@ -255,6 +256,8 @@ def ballooning_stability(qp: QProfile) -> BallooningResult:
     s = qp.shear
     alpha = qp.alpha_mhd
 
+    # Connor, Hastie & Taylor, Phys. Rev. Lett. 40:396 (1978), Eq. 8:
+    # low-shear: alpha_crit = s(1 - s/2); high-shear: alpha_crit ≈ 0.6 s
     alpha_crit = np.where(s < 1.0, s * (1.0 - s / 2.0), 0.6 * s)
     alpha_crit = np.maximum(alpha_crit, 0.0)
 

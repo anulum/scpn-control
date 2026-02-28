@@ -60,7 +60,9 @@ class TokamakPhysicsEngine:
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
         self.density = np.zeros((self.size, self.size), dtype=np.float64)
 
-        # Plasma Parameters (ITER-like)
+        # ITER design: R0=6.2 m, a=2.0 m, κ=1.7, δ=0.33
+        # Scaled to R0=3.0, a=1.0 for reduced-grid demo (same aspect ratio)
+        # Aymar et al., Plasma Phys. Control. Fusion 44, 519 (2002), Table 1
         self.R0 = 3.0
         self.a = 1.0
         self.kappa = 1.7

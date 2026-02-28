@@ -10,6 +10,8 @@ from scpn_control.core.stability_mhd import (
     ballooning_stability,
     kruskal_shafranov_stability,
     troyon_beta_limit,
+    ntm_stability,
+    run_full_stability_check,
 )
 
 
@@ -92,3 +94,99 @@ class TestTroyon:
     def test_beta_n_positive(self):
         result = troyon_beta_limit(beta_t=0.025, Ip_MA=15.0, a=2.0, B0=5.3)
         assert result.beta_N > 0.0
+
+
+class TestNTM:
+    def test_returns_correct_shape(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.linspace(0.0, 0.3, n)
+        j_total = np.ones(n) * 1.0
+        result = ntm_stability(iter_like_qprofile, j_bs, j_total, a=2.0)
+        assert result.delta_prime.shape == (n,)
+        assert result.w_marginal.shape == (n,)
+
+    def test_zero_bootstrap_no_ntm(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.zeros(n)
+        j_total = np.ones(n)
+        result = ntm_stability(iter_like_qprofile, j_bs, j_total, a=2.0)
+        assert not np.any(result.ntm_unstable)
+        assert result.most_unstable_rho is None
+
+    def test_positive_bootstrap_triggers_ntm(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.ones(n) * 0.5
+        j_total = np.ones(n) * 1.0
+        result = ntm_stability(iter_like_qprofile, j_bs, j_total, a=2.0)
+        assert np.any(result.ntm_unstable)
+        assert result.most_unstable_rho is not None
+
+    def test_w_marginal_nonneg(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.linspace(0.0, 1.0, n)
+        j_total = np.ones(n) * 2.0
+        result = ntm_stability(iter_like_qprofile, j_bs, j_total, a=2.0)
+        assert np.all(result.w_marginal >= 0.0)
+
+    def test_positive_delta_prime_no_ntm(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.ones(n) * 0.5
+        j_total = np.ones(n) * 1.0
+        result = ntm_stability(
+            iter_like_qprofile, j_bs, j_total, a=2.0, r_s_delta_prime=2.0,
+        )
+        assert not np.any(result.ntm_unstable)
+
+
+class TestRunFullStabilityCheck:
+    def test_three_criteria_only(self, iter_like_qprofile):
+        summary = run_full_stability_check(iter_like_qprofile)
+        assert summary.n_criteria_checked == 3
+        assert summary.troyon is None
+        assert summary.ntm is None
+
+    def test_with_troyon(self, iter_like_qprofile):
+        summary = run_full_stability_check(
+            iter_like_qprofile, beta_t=0.01, Ip_MA=15.0, a=2.0, B0=5.3,
+        )
+        assert summary.n_criteria_checked == 4
+        assert summary.troyon is not None
+        assert summary.troyon.beta_N > 0.0
+
+    def test_with_ntm(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.linspace(0.0, 0.3, n)
+        j_total = np.ones(n) * 1.0
+        summary = run_full_stability_check(
+            iter_like_qprofile, a=2.0, j_bs=j_bs, j_total=j_total,
+        )
+        assert summary.n_criteria_checked == 4
+        assert summary.ntm is not None
+
+    def test_all_five_criteria(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.zeros(n)
+        j_total = np.ones(n) * 1.0
+        summary = run_full_stability_check(
+            iter_like_qprofile,
+            beta_t=0.01, Ip_MA=15.0, a=2.0, B0=5.3,
+            j_bs=j_bs, j_total=j_total,
+        )
+        assert summary.n_criteria_checked == 5
+        assert summary.n_criteria_stable >= 3  # KS, Troyon, NTM stable
+
+    def test_overall_unstable_when_kink(self):
+        qp = QProfile(
+            rho=np.array([0.0, 1.0]),
+            q=np.array([0.5, 0.8]),
+            shear=np.array([0.0, 0.5]),
+            alpha_mhd=np.array([0.0, 0.0]),
+            q_min=0.5, q_min_rho=0.0, q_edge=0.8,
+        )
+        summary = run_full_stability_check(qp)
+        assert not summary.overall_stable
+        assert not summary.kruskal_shafranov.stable
+
+    def test_n_stable_leq_n_checked(self, iter_like_qprofile):
+        summary = run_full_stability_check(iter_like_qprofile)
+        assert summary.n_criteria_stable <= summary.n_criteria_checked
