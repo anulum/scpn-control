@@ -112,7 +112,7 @@ scpn-control/
 │   ├── control/          # Controllers (17 modules, optional deps guarded)
 │   └── phase/            # Kuramoto/UPDE engine (7 modules)
 ├── scpn-control-rs/      # Rust workspace (5 crates)
-├── tests/                # 701 tests (50 files)
+├── tests/                # 1243 tests (56 files)
 ├── examples/             # 6 notebooks + 3 scripts
 ├── validation/           # DIII-D, JET, SPARC, ITER configs + reference data
 ├── docs/                 # MkDocs site

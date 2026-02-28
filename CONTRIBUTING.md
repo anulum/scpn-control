@@ -36,7 +36,7 @@ pre-commit run --all-files    # check everything
 pre-commit run ruff            # single hook
 ```
 
-Python (701 tests):
+Python (1243 tests):
 
 ```bash
 pytest                       # full suite

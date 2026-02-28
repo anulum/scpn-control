@@ -1,7 +1,7 @@
 """scpn-control: Neuro-symbolic Stochastic Petri Net controller."""
 from __future__ import annotations
 
-__version__ = "0.3.0"
+__version__ = "0.3.3"
 
 # Core solver
 from scpn_control.core import RUST_BACKEND, FusionKernel, TokamakConfig

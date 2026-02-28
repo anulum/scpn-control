@@ -58,7 +58,7 @@ pytest -m "not slow"                     # skip slow markers
 pytest --cov=scpn_control --cov-report=term  # coverage
 ```
 
-Minimum coverage: 50% (configured in `pyproject.toml`).
+Minimum coverage: 55% (configured in `pyproject.toml`). Current: 78%.
 
 ---
 
@@ -90,9 +90,17 @@ PEP 561 marker: `src/scpn_control/py.typed`.
 ## Docs
 
 ```bash
-pip install mkdocs-material
+pip install -e ".[docs]"
 mkdocs serve     # preview at http://127.0.0.1:8000
 mkdocs build     # static site in site/
 ```
 
-CI deploys to GitHub Pages on push to `main`.
+CI deploys to GitHub Pages on push to `main` via `.github/workflows/docs-pages.yml`.
+
+The docs site includes:
+
+- Full API reference via mkdocstrings (auto-generated from docstrings)
+- Theory page with rendered MathJax equations
+- Architecture diagrams via Mermaid
+- Notebook gallery with execution instructions
+- Changelog, benchmarks, and validation reports

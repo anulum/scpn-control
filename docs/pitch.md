@@ -70,7 +70,7 @@ only** using a PCA + MLP surrogate trained on SPARC geometries.
 You need real-time control **now**, not after a 3-year bespoke development
 cycle. scpn-control gives you:
 
-- Drop-in controller with 675 tests and CI-gated RMSE validation
+- Drop-in controller with 1243 tests and CI-gated RMSE validation
 - Runs on edge hardware (no data center required)
 - MIT/Apache-2.0 dual-licensed — no copyleft restrictions
 
@@ -96,7 +96,7 @@ scpn-control's 30 kHz loop gives you the headroom for:
 ## Architecture
 
 ```
-48 Python modules | 5 Rust crates | 675 tests | 14 CI jobs
+48 Python modules | 5 Rust crates | 1243 tests | 17 CI jobs
 ```
 
 ```

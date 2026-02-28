@@ -25,8 +25,12 @@ theme:
   features:
     - navigation.tabs
     - navigation.top
+    - navigation.sections
     - search.suggest
+    - search.highlight
     - content.code.copy
+    - content.tabs.link
+    - toc.follow
 
 plugins:
   - search
@@ -37,25 +41,40 @@ plugins:
           options:
             show_source: false
             show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
             members_order: source
+            merge_init_into_class: true
+            show_if_no_docstring: false
+            signature_crossrefs: true
+            separate_signature: true
 
 nav:
   - Home: index.md
-  - Pitch: pitch.md
-  - Use Cases: use_cases.md
-  - Competitive Analysis: competitive_analysis.md
-  - Theory: theory.md
-  - Architecture: architecture.md
-  - Tutorials: tutorials.md
-  - API Reference: api.md
-  - Benchmarks: benchmarks.md
-  - Validation and QA: validation.md
-  - Development: development.md
-  - Pricing: pricing.md
+  - Getting Started:
+    - Pitch: pitch.md
+    - Use Cases: use_cases.md
+    - Tutorials: tutorials.md
+    - Notebook Gallery: notebooks.md
+  - Reference:
+    - API Reference: api.md
+    - Theory: theory.md
+    - Architecture: architecture.md
+  - Validation:
+    - Benchmarks: benchmarks.md
+    - Validation and QA: validation.md
+    - Competitive Analysis: competitive_analysis.md
+  - Project:
+    - Development: development.md
+    - Changelog: changelog.md
+    - Pricing: pricing.md
 
 markdown_extensions:
   - admonition
   - tables
+  - attr_list
+  - def_list
   - toc:
       permalink: true
   - pymdownx.arithmatex:
@@ -65,6 +84,12 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
 
 extra_javascript:
   - javascripts/mathjax.js
