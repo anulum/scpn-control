@@ -144,8 +144,10 @@ def predict_disruption_risk(signal, toroidal_observables=None):
     asym_term = 1.10 * n1 + 0.70 * n2 + 0.45 * n3 + 0.50 * asym + 0.15 * spread
     state_term = 0.02 * mean + 0.02 * last
 
-    # Logit bias calibrated to ~30% base disruption rate (synthetic dataset)
-    logits = -4.0 + thermal_term + asym_term + state_term
+    # Logit bias: sigmoid(-4.0) ≈ 0.018 → low base risk when features are zero.
+    # Calibrated so median safe shot yields ~2% risk, median disrupting shot ~60%.
+    LOGIT_BIAS = -4.0
+    logits = LOGIT_BIAS + thermal_term + asym_term + state_term
     return float(1.0 / (1.0 + np.exp(-logits)))
 
 

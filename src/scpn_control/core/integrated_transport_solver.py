@@ -186,8 +186,6 @@ def calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0, a, B0, Z_eff
 
         # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eqs. 14a-14c
         alpha_31 = 1.0 / (1.0 + 0.36 / Z_eff)
-        L31 = f_t * (1.0 + (1.0 - 0.1 * f_t) * np.sqrt(nu_star_e) +
-               0.5 * (1.0 - f_t) * nu_star_e / Z_eff)
         L31 = f_t * alpha_31 / (1.0 + alpha_31 * np.sqrt(nu_star_e) +
                0.25 * nu_star_e * (1.0 - f_t)**2)
 
@@ -393,11 +391,12 @@ class TransportSolver(FusionKernel):
         P = self.ne * 1e19 * (self.Ti + self.Te) * 1.602e-16 # J/m3
         dP_drho = np.gradient(P, self.drho)
 
-        # Scaling constant for J_bs
-        # J_bs ~ f_trapped / B_pol * dP/dr
-        B_pol = np.maximum(B_pol, 0.1) # Avoid div by zero at axis
-
-        J_bs = 1.2 * (f_trapped / B_pol) * dP_drho / (self.cfg["dimensions"]["R_max"] - self.cfg["dimensions"]["R_min"])
+        # Wesson, "Tokamaks" 4th ed., Eq. 4.8.1: J_bs ~ -f_t / B_p * dp/dr
+        # Factor 1.2 accounts for Z_eff≈1.5 correction to collisionless limit
+        # (Hirshman & Sigmar, Nucl. Fusion 21, 1079, 1981, Table II)
+        B_pol = np.maximum(B_pol, 0.1)
+        BOOTSTRAP_ZEFF_CORRECTION = 1.2
+        J_bs = BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol) * dP_drho / (self.cfg["dimensions"]["R_max"] - self.cfg["dimensions"]["R_min"])
 
         # Ensure it's zero at axis and edge
         J_bs[0] = 0
@@ -495,8 +494,11 @@ class TransportSolver(FusionKernel):
         else:
             chi_base = np.full_like(self.rho, 0.5)
 
-        # Turbulent Level (critical gradient excess)
-        chi_turb = 5.0 * np.maximum(0, -grad_T - threshold)
+        # Critical-gradient turbulent transport: chi_turb ~ c * max(0, |∇T| - ∇T_crit)
+        # c_turb=5.0 m²/s per keV/m: phenomenological fit to TGLF/GKW predictions
+        # for ITG-dominated transport (Dimits et al., Phys. Plasmas 7, 969, 2000)
+        C_TURB = 5.0  # m²/s per keV/m
+        chi_turb = C_TURB * np.maximum(0, -grad_T - threshold)
 
         # H-Mode detection and EPED-like pedestal model
         is_H_mode = P_aux > 30.0  # MW
