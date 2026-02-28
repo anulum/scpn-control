@@ -79,8 +79,8 @@ def _resolve_git_sha() -> str:
         sha = result.stdout.strip()
         if sha:
             return sha[:7]
-    except Exception:
-        pass
+    except (OSError, subprocess.SubprocessError):
+        pass  # git not installed or not a repo — fallback below
 
     return "0000000"
 

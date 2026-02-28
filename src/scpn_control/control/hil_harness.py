@@ -491,27 +491,80 @@ def run_hil_benchmark(
 def run_hil_benchmark_detailed(n_steps=10000):
     """Run HIL benchmark with detailed per-stage profiling.
 
+    Exercises a realistic 4-state Kalman filter (predict + update) for
+    state estimation, a feedback gain K@x for control, and saturated
+    actuator output.  Matrices are pre-allocated outside the loop to
+    mirror real-time allocations.
+
     Returns dict with latency statistics and pipeline profile.
     """
     import time
+
+    # 4-state vertical-stability plant: x = [z, dz/dt, z_int, bias]
+    n_x = 4
+    n_u = 2
+    n_y = 2
+
+    dt = 1e-3  # 1 kHz loop
+    gamma = 100.0  # VDE growth rate
+
+    # Discrete-time plant (Euler)
+    A = np.eye(n_x)
+    A[0, 1] = dt
+    A[1, 0] = gamma**2 * dt
+    A[1, 1] = 1.0 - 10.0 * dt
+    A[2, 0] = dt  # integrator of z
+    A[3, 3] = 1.0  # bias random walk
+
+    B = np.zeros((n_x, n_u))
+    B[1, 0] = dt
+    B[1, 1] = -dt
+
+    C = np.zeros((n_y, n_x))
+    C[0, 0] = 1.0  # z measurement
+    C[1, 1] = 1.0  # dz/dt measurement
+
+    Q = np.diag([1e-6, 1e-4, 1e-8, 1e-6])  # process noise
+    R = np.diag([1e-4, 1e-3])                # measurement noise
+
+    # LQR-style gain (pre-computed)
+    K_ctrl = np.array([
+        [5000.0, 150.0, 100.0, 50.0],
+        [-5000.0, -150.0, -100.0, -50.0],
+    ])
+
+    # Pre-allocate Kalman state
+    x_hat = np.zeros(n_x)
+    P = np.eye(n_x) * 0.01
+    y_meas = np.zeros(n_y)
+    rng = np.random.default_rng(42)
+
     profiles = []
 
     for _ in range(n_steps):
         p = PipelineProfile()
+        y_meas[:] = rng.standard_normal(n_y) * 0.01
 
-        # Simulate state estimation
+        # Kalman predict + update
         t0 = time.perf_counter_ns()
-        np.dot(np.eye(10), np.zeros(10))  # timing stub — state estimator matmul
+        x_pred = A @ x_hat
+        P_pred = A @ P @ A.T + Q
+        S = C @ P_pred @ C.T + R
+        K_kal = P_pred @ C.T @ np.linalg.solve(S, np.eye(n_y))
+        innov = y_meas - C @ x_pred
+        x_hat = x_pred + K_kal @ innov
+        P = (np.eye(n_x) - K_kal @ C) @ P_pred
         p.state_estimation_us = (time.perf_counter_ns() - t0) / 1e3
 
-        # Simulate controller step
+        # Controller K@x
         t0 = time.perf_counter_ns()
-        np.dot(np.zeros((4, 2)).T, np.zeros(4))  # timing stub — controller K@x
+        u = K_ctrl @ x_hat
         p.controller_step_us = (time.perf_counter_ns() - t0) / 1e3
 
-        # Simulate actuator command
+        # Actuator saturation
         t0 = time.perf_counter_ns()
-        _ = np.clip(np.random.randn(4), -1, 1)
+        u = np.clip(u, -1.0, 1.0)
+        x_hat = A @ x_hat + B @ u
         p.actuator_command_us = (time.perf_counter_ns() - t0) / 1e3
 
         p.total_us = p.state_estimation_us + p.controller_step_us + p.actuator_command_us

@@ -273,6 +273,87 @@ class RustSnnController:
         return f"RustSnnController(target_r={self.target_r}, target_z={self.target_z})"
 
 
+class RustPIDController:
+    """Rust PID controller (kp, ki, kd gains with finite-input validation).
+
+    Parameters
+    ----------
+    kp, ki, kd : float
+        Proportional / integral / derivative gains.
+    """
+
+    def __init__(self, kp: float, ki: float, kd: float):
+        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]
+
+        self._inner = PyPIDController(kp, ki, kd)
+
+    @classmethod
+    def radial(cls) -> "RustPIDController":
+        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]
+
+        obj = cls.__new__(cls)
+        obj._inner = PyPIDController.radial()
+        return obj
+
+    @classmethod
+    def vertical(cls) -> "RustPIDController":
+        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]
+
+        obj = cls.__new__(cls)
+        obj._inner = PyPIDController.vertical()
+        return obj
+
+    def step(self, error: float) -> float:
+        return self._inner.step(error)
+
+    def reset(self) -> None:
+        self._inner.reset()
+
+    @property
+    def kp(self) -> float:
+        return self._inner.kp
+
+    @property
+    def ki(self) -> float:
+        return self._inner.ki
+
+    @property
+    def kd(self) -> float:
+        return self._inner.kd
+
+    def __repr__(self) -> str:
+        return f"RustPIDController(kp={self.kp}, ki={self.ki}, kd={self.kd})"
+
+
+class RustIsoFluxController:
+    """Rust iso-flux controller (decoupled R + Z PID).
+
+    Parameters
+    ----------
+    target_r, target_z : float
+        Target R, Z position [m].
+    """
+
+    def __init__(self, target_r: float, target_z: float):
+        from scpn_control_rs import PyIsoFluxController  # type: ignore[import-untyped]
+
+        self._inner = PyIsoFluxController(target_r, target_z)
+
+    def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
+        return self._inner.step(measured_r, measured_z)
+
+    @property
+    def target_r(self) -> float:
+        return self._inner.target_r
+
+    @property
+    def target_z(self) -> float:
+        return self._inner.target_z
+
+    def __repr__(self) -> str:
+        return f"RustIsoFluxController(target_r={self.target_r}, target_z={self.target_z})"
+
+
 def rust_multigrid_vcycle(
     source: np.ndarray,
     psi_bc: np.ndarray,

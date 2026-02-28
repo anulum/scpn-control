@@ -276,8 +276,8 @@ class NengoSNNController:
                     # Nengo stores decoder weights in simulator data
                     w = self._simulator.data[conn].weights
                     weights[label] = np.array(w)
-                except (AttributeError, KeyError):
-                    pass
+                except (AttributeError, KeyError) as exc:
+                    logger.debug("Weight extraction skipped for %s: %s", label, exc)
         return weights
 
     def export_fpga_weights(self, filename: str | Path) -> None:

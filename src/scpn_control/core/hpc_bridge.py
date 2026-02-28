@@ -120,8 +120,8 @@ class HPCBridge:
             self._setup_signatures()
             logger.info("Loaded C++ accelerator: %s", self.lib_path)
             self.loaded = True
-        except OSError:
-            pass
+        except OSError as exc:
+            logger.debug("C++ accelerator unavailable: %s", exc)
 
     def is_available(self) -> bool:
         """Return *True* if the compiled solver library was loaded."""
@@ -133,8 +133,8 @@ class HPCBridge:
             try:
                 if self.lib is not None and self._destroy_symbol is not None:
                     getattr(self.lib, self._destroy_symbol)(self.solver_ptr)
-            except Exception:
-                pass
+            except (OSError, AttributeError) as exc:
+                logger.debug("C++ solver cleanup failed: %s", exc)
             self.solver_ptr = None
 
     def __del__(self) -> None:

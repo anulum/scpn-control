@@ -55,10 +55,13 @@ def test_solve_equilibrium_divergence_reverts_when_fail_disabled(
 ) -> None:
     cfg_path = _write_cfg(tmp_path / "cfg_no_fail.json", fail_on_diverge=False)
     kernel = FusionKernel(cfg_path)
+    psi_before = kernel.Psi.copy()
     _force_divergence(kernel)
 
     kernel.solve_equilibrium()
     assert np.all(np.isfinite(kernel.Psi))
+    # Revert should restore state to pre-divergence snapshot
+    assert np.allclose(kernel.Psi, psi_before)
 
 
 def test_solve_equilibrium_divergence_raises_when_fail_enabled(

@@ -78,3 +78,19 @@ class TestAnalyticEquilibriumSolver:
         solver.apply_currents(currents)
         for i, coil in enumerate(solver.kernel.cfg["coils"]):
             assert coil["current"] == pytest.approx(currents[i])
+
+    def test_bv_shafranov_formula_magnitude(self, solver):
+        """Bv for ITER-like params: |Bv| should be O(0.01-1 T)."""
+        Bv = solver.calculate_required_Bv(R_geo=6.2, a_min=2.0, Ip_MA=15.0)
+        assert 0.001 < abs(Bv) < 10.0
+
+    def test_coil_efficiencies_positive(self, solver):
+        eff = solver.compute_coil_efficiencies(target_R=6.2)
+        assert np.all(np.isfinite(eff))
+
+    def test_solve_and_apply_round_trip(self, solver):
+        """Solve for coil currents then verify applied currents match."""
+        currents = solver.solve_coil_currents(target_Bv=-0.1, target_R=6.2)
+        solver.apply_currents(currents)
+        applied = np.array([c["current"] for c in solver.kernel.cfg["coils"]])
+        assert np.allclose(applied, currents)

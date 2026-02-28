@@ -17,6 +17,7 @@ use rand::{Rng, SeedableRng};
 
 use control_control::digital_twin::Plasma2D;
 use control_control::mpc::{MPController, NeuralSurrogate};
+use control_control::pid::{IsoFluxController, PIDController};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_core::kernel::FusionKernel;
 use control_core::transport::{self, NeoclassicalParams, TransportSolver};
@@ -702,6 +703,90 @@ impl PyRealtimeMonitor {
     }
 }
 
+// ─── PID controller ───
+
+#[pyclass]
+struct PyPIDController {
+    inner: PIDController,
+}
+
+#[pymethods]
+impl PyPIDController {
+    #[new]
+    fn new(kp: f64, ki: f64, kd: f64) -> PyResult<Self> {
+        let inner = PIDController::new(kp, ki, kd)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    #[staticmethod]
+    fn radial() -> PyResult<Self> {
+        let inner = PIDController::radial()
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    #[staticmethod]
+    fn vertical() -> PyResult<Self> {
+        let inner = PIDController::vertical()
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    fn step(&mut self, error: f64) -> PyResult<f64> {
+        self.inner
+            .step(error)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+    }
+
+    fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    #[getter]
+    fn kp(&self) -> f64 {
+        self.inner.kp
+    }
+    #[getter]
+    fn ki(&self) -> f64 {
+        self.inner.ki
+    }
+    #[getter]
+    fn kd(&self) -> f64 {
+        self.inner.kd
+    }
+}
+
+#[pyclass]
+struct PyIsoFluxController {
+    inner: IsoFluxController,
+}
+
+#[pymethods]
+impl PyIsoFluxController {
+    #[new]
+    fn new(target_r: f64, target_z: f64) -> PyResult<Self> {
+        let inner = IsoFluxController::new(target_r, target_z)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    fn step(&mut self, measured_r: f64, measured_z: f64) -> PyResult<(f64, f64)> {
+        self.inner
+            .step(measured_r, measured_z)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+    }
+
+    #[getter]
+    fn target_r(&self) -> f64 {
+        self.inner.target_r
+    }
+    #[getter]
+    fn target_z(&self) -> f64 {
+        self.inner.target_z
+    }
+}
+
 // ─── Module registration ───
 
 /// SCPN Control — Rust-accelerated control pipeline.
@@ -722,6 +807,8 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyMpcController>()?;
     m.add_class::<PyPlasma2D>()?;
     m.add_class::<PyTransportSolver>()?;
+    m.add_class::<PyPIDController>()?;
+    m.add_class::<PyIsoFluxController>()?;
     // Phase dynamics (Paper 27)
     m.add_function(wrap_pyfunction!(kuramoto_step, m)?)?;
     m.add_function(wrap_pyfunction!(kuramoto_run, m)?)?;

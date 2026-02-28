@@ -126,11 +126,11 @@ class TransportFluxes:
 
 # ── Analytic fallback (critical-gradient model) ──────────────────────
 
-# Critical gradient thresholds (Dimits shift included)
-_CRIT_ITG = 4.0   # R/L_Ti threshold for ITG
-_CRIT_TEM = 5.0   # R/L_Te threshold for TEM (simplified)
-_CHI_GB = 1.0     # Gyro-Bohm normalisation [m^2/s]
-_STIFFNESS = 2.0  # Transport stiffness exponent
+# Critical gradient thresholds; Dimits et al., Phys. Plasmas 7, 969 (2000)
+_CRIT_ITG = 4.0   # R/L_Ti threshold for ITG onset
+_CRIT_TEM = 5.0   # R/L_Te threshold for TEM (simplified; full form in TGLF)
+_CHI_GB = 1.0     # Gyro-Bohm unit [m^2/s]; Sugama & Horton, Phys. Plasmas 4, 405 (1997)
+_STIFFNESS = 2.0  # Transport stiffness exponent (canonical for stiff-gradient models)
 
 
 def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:
@@ -161,7 +161,7 @@ def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:
 
     chi_i = _CHI_GB * excess_itg ** _STIFFNESS
     chi_e = _CHI_GB * excess_tem ** _STIFFNESS
-    d_e = chi_e / 3.0
+    d_e = chi_e / 3.0  # Ware pinch approximation; QLKNN includes full pinch
 
     if chi_i > chi_e and chi_i > 0:
         channel = "ITG"

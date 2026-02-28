@@ -7,10 +7,13 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 try:
     import matplotlib.pyplot as plt
@@ -340,14 +343,14 @@ def run_control_room(
                 if len(coils) >= 5:
                     coils[0]["current"] = float(coils[0].get("current", 0.0)) + top_action
                     coils[4]["current"] = float(coils[4].get("current", 0.0)) + bot_action
-            except Exception:
-                pass
+            except (KeyError, TypeError, IndexError) as exc:
+                logger.warning("Coil current update failed at frame %d: %s", _frame, exc)
 
         if kernel is not None and hasattr(kernel, "solve_equilibrium"):
             try:
                 kernel.solve_equilibrium()
-            except Exception:
-                pass
+            except (RuntimeError, np.linalg.LinAlgError) as exc:
+                logger.warning("Equilibrium solve failed at frame %d: %s", _frame, exc)
 
         true_z = reactor.step_dynamics(top_action, bot_action)
         density, psi = reactor.solve_flux_surfaces()

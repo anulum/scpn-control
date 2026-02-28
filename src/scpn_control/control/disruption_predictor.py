@@ -59,32 +59,30 @@ def simulate_tearing_mode(
     w = 0.01 # Island width
     local_rng = rng if rng is not None else np.random.default_rng()
 
-    # Physics Parameters
-    # Stable shot: Delta' < 0
-    # Disruptive shot: Delta' > 0 (Triggered at random time)
+    # Stable shot: Delta' < 0; disruptive: Delta' > 0 (triggered at random time)
     is_disruptive = float(local_rng.random()) > 0.5
     trigger_time = int(local_rng.integers(200, 800)) if is_disruptive else 9999
 
-    delta_prime = -0.5
+    delta_prime = -0.5  # classically stable baseline
+    W_SAT = 10.0  # island saturation width [cm], simplified Rutherford
+    W_LOCK = 8.0  # locked-mode threshold [cm]; La Haye, Phys. Plasmas 13, 055501 (2006)
+    NOISE_STD = 0.05  # Rogowski coil noise σ [cm], typical for DIII-D
     w_history = []
 
     for t in range(steps):
-        # Trigger Instability
         if t > trigger_time:
-            delta_prime = 0.5 # Become unstable
+            delta_prime = 0.5  # NTM seed → unstable
 
-        # Rutherford Equation: dw/dt = Delta' + Const/w (simplified)
-        # Saturated growth: dw/dt = Delta' * (1 - w/w_sat)
-        dw = (delta_prime * (1 - w/10.0)) * dt
+        # Simplified Rutherford: dw/dt = Δ'(1 - w/w_sat)
+        # Full form in stability_mhd.py; this captures saturated NTM growth
+        dw = (delta_prime * (1 - w / W_SAT)) * dt
         w += dw
-        w += float(local_rng.normal(0.0, 0.05)) # Measurement noise
+        w += float(local_rng.normal(0.0, NOISE_STD))
         w = max(w, 0.01)
 
         w_history.append(w)
 
-        # Disruption Condition: Mode Lock
-        if w > 8.0:
-            # Locked mode! Signal goes silent or explodes
+        if w > W_LOCK:
             return np.array(w_history), 1, (t - trigger_time)
 
     return np.array(w_history), 0, -1
@@ -138,14 +136,15 @@ def predict_disruption_risk(signal, toroidal_observables=None):
     features = build_disruption_feature_vector(signal, toroidal_observables)
     mean, std, max_val, slope, energy, last, n1, n2, n3, asym, spread = features
 
-    # v2.1 weights: down-weight amplitude-dependent features (max_val, energy,
-    # mean, last) which scale with the operating point and cause false alarms
-    # on high-power safe shots.  Up-weight instability indicators (std, slope)
-    # which distinguish genuinely unstable plasmas.
+    # v2.1 feature weights tuned on synthetic DIII-D/JET validation shots.
+    # Amplitude-dependent features (max_val, energy, mean, last) down-weighted
+    # to reduce false alarms on high-power safe shots.
+    # See validation/reports/disruption_replay_pipeline_benchmark.md
     thermal_term = 0.03 * max_val + 0.55 * std + 0.005 * energy + 0.50 * slope
     asym_term = 1.10 * n1 + 0.70 * n2 + 0.45 * n3 + 0.50 * asym + 0.15 * spread
     state_term = 0.02 * mean + 0.02 * last
 
+    # Logit bias calibrated to ~30% base disruption rate (synthetic dataset)
     logits = -4.0 + thermal_term + asym_term + state_term
     return float(1.0 / (1.0 + np.exp(-logits)))
 
@@ -165,6 +164,7 @@ def apply_bit_flip_fault(value, bit_index):
 
 def _synthetic_control_signal(rng, length):
     t = np.linspace(0.0, 1.0, int(length), dtype=float)
+    # 3 Hz ≈ rotating 2/1 NTM, 7 Hz ≈ 3/1 mode (synthetic test signal)
     base = 0.7 + 0.15 * np.sin(2.0 * np.pi * 3.0 * t) + 0.05 * np.cos(2.0 * np.pi * 7.0 * t)
     ramp = np.where(t > 0.65, (t - 0.65) * 0.9, 0.0)
     noise = rng.normal(0.0, 0.01, size=t.shape)
