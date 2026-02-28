@@ -606,3 +606,20 @@ def test_ids_pulse_rejects_time_steps_kwarg() -> None:
             verbose=False,
             time_steps=20,
         )
+
+
+def test_run_digital_twin_verbose_prints_output(capsys) -> None:
+    run_digital_twin(time_steps=5, seed=0, save_plot=False, verbose=True)
+    captured = capsys.readouterr()
+    assert "TOKAMAK DIGITAL TWIN" in captured.out
+    assert "Training Neural Network" in captured.out
+
+
+def test_history_snapshots_rejects_zero_step() -> None:
+    with pytest.raises(ValueError, match="must be >= 1"):
+        _run_digital_twin_history_snapshots(
+            history_steps=[0],
+            seed=0,
+            save_plot=False,
+            verbose=False,
+        )

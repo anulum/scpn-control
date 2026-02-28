@@ -252,3 +252,46 @@ class TestRunHILBenchmarkDetailed:
         result = run_hil_benchmark_detailed(n_steps=100)
         assert result["mean_us"] <= result["max_us"]
         assert result["p50_us"] <= result["p99_us"]
+
+
+class TestHILBenchmarkVerbose:
+    def test_verbose_prints_output(self, capsys):
+        run_hil_benchmark(iterations=50, verbose=True)
+        captured = capsys.readouterr()
+        assert "HIL Benchmark Results" in captured.out
+        assert "P50 latency" in captured.out
+        assert "P95 latency" in captured.out
+        assert "Overruns" in captured.out
+        assert "Sub-ms" in captured.out
+
+    def test_verbose_with_fpga(self, capsys):
+        run_hil_benchmark(iterations=50, verbose=True, include_fpga_export=True)
+        captured = capsys.readouterr()
+        assert "FPGA neurons" in captured.out
+        assert "FPGA clock" in captured.out
+
+
+class TestHILDemoRunnerWeights:
+    def test_load_weights_from_controller(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+
+        class _MockController:
+            weights = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6], [0.7, 0.8]])
+            output_weights = np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]])
+
+        runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
+        runner.load_weights_from_controller(_MockController())
+        np.testing.assert_allclose(runner.weights, _MockController.weights)
+        np.testing.assert_allclose(runner.output_weights, _MockController.output_weights)
+
+    def test_load_weights_no_output_weights(self):
+        from scpn_control.control.hil_harness import HILDemoRunner
+
+        class _MockCtrlNoOutput:
+            weights = np.array([[0.1, 0.2], [0.3, 0.4]])
+
+        runner = HILDemoRunner(n_neurons=2, n_inputs=2, n_outputs=2)
+        runner.load_weights_from_controller(_MockCtrlNoOutput())
+        np.testing.assert_allclose(runner.weights, _MockCtrlNoOutput.weights)
+        # output_weights should remain zeros
+        assert np.all(runner.output_weights == 0.0)

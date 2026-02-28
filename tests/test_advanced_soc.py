@@ -218,3 +218,17 @@ class TestRunAdvancedLearningSim:
             size=10, time_steps=200, save_plot=False, verbose=False,
         )
         assert r["final_core_temp"] > 0.0
+
+    def test_verbose_prints_output(self, capsys):
+        run_advanced_learning_sim(
+            size=10, time_steps=20, save_plot=False, verbose=True,
+        )
+        captured = capsys.readouterr()
+        assert "Predator-Prey" in captured.out
+        assert "Step" in captured.out
+
+
+class TestFusionAIAgentFlowValidation:
+    def test_rejects_bad_n_states_flow(self):
+        with pytest.raises(ValueError, match="n_states_flow"):
+            FusionAIAgent(n_states_flow=0)

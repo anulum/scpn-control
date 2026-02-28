@@ -72,3 +72,38 @@ def test_live_help(runner):
     assert result.exit_code == 0
     assert "--port" in result.output
     assert "--zeta" in result.output
+
+
+def test_benchmark_text_output(runner):
+    result = runner.invoke(main, ["benchmark", "--n-bench", "50"])
+    assert result.exit_code == 0
+    assert "PID:" in result.output
+    assert "SNN:" in result.output
+    assert "Ratio:" in result.output
+
+
+def test_validate_text_output(runner):
+    result = runner.invoke(main, ["validate"])
+    assert result.exit_code == 0
+    assert "Transport solver:" in result.output
+    assert "Import clean:" in result.output
+    assert "Status:" in result.output
+
+
+def test_info_json_out(runner):
+    result = runner.invoke(main, ["info", "--json-out"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert "version" in data
+    assert "python" in data
+    assert "numpy" in data
+    assert "rust_backend" in data
+
+
+def test_info_text_output(runner):
+    result = runner.invoke(main, ["info"])
+    assert result.exit_code == 0
+    assert "scpn-control" in result.output
+    assert "Rust backend:" in result.output
+    assert "Python:" in result.output
+    assert "NumPy:" in result.output

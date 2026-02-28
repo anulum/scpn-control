@@ -197,3 +197,40 @@ def test_surrogate_rejects_invalid_perturbation() -> None:
     kernel = _DummyKernel("dummy.json")
     with pytest.raises(ValueError, match="perturbation"):
         surrogate.train_on_kernel(kernel, perturbation=0.0)
+
+
+def test_run_sota_simulation_default_config_path() -> None:
+    summary = run_sota_simulation(
+        config_file=None,
+        shot_length=8,
+        save_plot=False,
+        verbose=False,
+        kernel_factory=_DummyKernel,
+    )
+    assert "iter_config.json" in summary["config_path"]
+
+
+def test_run_sota_simulation_explicit_target_vector() -> None:
+    summary = run_sota_simulation(
+        config_file="dummy.json",
+        shot_length=8,
+        target_vector=np.array([6.1, 0.1, 5.2, -3.3]),
+        save_plot=False,
+        verbose=False,
+        kernel_factory=_DummyKernel,
+    )
+    assert summary["steps"] == 8
+    assert np.isfinite(summary["mean_tracking_error"])
+
+
+def test_run_sota_simulation_verbose_prints_output(capsys) -> None:
+    run_sota_simulation(
+        config_file="dummy.json",
+        shot_length=12,
+        save_plot=False,
+        verbose=True,
+        kernel_factory=_DummyKernel,
+    )
+    captured = capsys.readouterr()
+    assert "Neural-MPC Hybrid Control" in captured.out
+    assert "Simulation finished" in captured.out
