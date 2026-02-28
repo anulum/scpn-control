@@ -326,7 +326,7 @@ class NeuralTransportModel:
                 version,
                 self.weights_checksum,
             )
-        except Exception:
+        except (OSError, KeyError, ValueError, TypeError):
             logger.exception("Failed to load neural transport weights")
 
     def predict(self, inp: TransportInputs) -> TransportFluxes:

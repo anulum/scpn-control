@@ -42,12 +42,12 @@ def _resolve_fusion_kernel() -> Any:
         from scpn_control.core._rust_compat import FusionKernel as _FusionKernel
 
         return _FusionKernel
-    except Exception:
+    except ImportError:
         try:
             from scpn_control.core.fusion_kernel import FusionKernel as _FusionKernel
 
             return _FusionKernel
-        except Exception as exc:  # pragma: no cover - import-guard path
+        except ImportError as exc:  # pragma: no cover - import-guard path
             raise ImportError(
                 "Unable to import FusionKernel. Run with PYTHONPATH=src "
                 "or use `python -m scpn_control.control.neuro_cybernetic_controller`."

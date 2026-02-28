@@ -56,7 +56,7 @@ try:
     _rust_marking_update = _rust_marking_update_impl
     _rust_sample_firing = _rust_sample_firing_impl
     _HAS_RUST_SCPN_RUNTIME = True
-except Exception:
+except ImportError:
     _HAS_RUST_SCPN_RUNTIME = False
 
 

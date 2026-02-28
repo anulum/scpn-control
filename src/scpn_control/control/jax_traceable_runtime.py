@@ -15,7 +15,7 @@ try:
     import jax.numpy as jnp
 
     _HAS_JAX = True
-except Exception:
+except ImportError:
     jax = None  # type: ignore[assignment]
     jnp = None  # type: ignore[assignment]
     _HAS_JAX = False
@@ -24,7 +24,7 @@ try:
     import torch
 
     _HAS_TORCH = True
-except Exception:
+except ImportError:
     torch = None  # type: ignore[assignment]
     _HAS_TORCH = False
 
