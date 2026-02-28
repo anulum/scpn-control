@@ -259,7 +259,7 @@ class DirectorInterface:
             try:
                 self.visualize(output_path=output_path)
                 plot_saved = True
-            except Exception as exc:  # pragma: no cover - backend-dependent
+            except (OSError, ValueError) as exc:  # pragma: no cover - backend-dependent
                 plot_error = f"{exc.__class__.__name__}: {exc}"
 
         err = np.array([x["Err_R"] for x in self.log], dtype=np.float64)

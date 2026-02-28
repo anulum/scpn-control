@@ -274,7 +274,7 @@ class OptimalController:
             plt.close(fig)
             self._log(f"Analysis saved: {output_path}")
             return True, None
-        except Exception as exc:
+        except (OSError, ValueError) as exc:
             return False, str(exc)
 
 

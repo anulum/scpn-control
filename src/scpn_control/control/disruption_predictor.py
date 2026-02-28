@@ -675,7 +675,7 @@ def load_or_train_predictor(
                 "model_path": str(path),
                 "seq_len": int(loaded_seq_len),
             }
-        except Exception as exc:
+        except (RuntimeError, ValueError, KeyError, OSError) as exc:
             if not allow_fallback:
                 raise
             return None, {
@@ -701,7 +701,7 @@ def load_or_train_predictor(
     kwargs.setdefault("model_path", path)
     try:
         model, info = train_predictor(**kwargs)
-    except Exception as exc:
+    except (RuntimeError, ValueError, OSError) as exc:
         if not allow_fallback:
             raise
         return None, {
@@ -761,7 +761,7 @@ def predict_disruption_risk_safe(
         out_meta["mode"] = "checkpoint"
         out_meta["risk_source"] = "transformer"
         return model_risk, out_meta
-    except Exception as exc:
+    except (RuntimeError, ValueError, OSError) as exc:
         out_meta = dict(meta)
         out_meta["mode"] = "fallback"
         out_meta["risk_source"] = "predict_disruption_risk"

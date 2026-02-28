@@ -167,7 +167,7 @@ def _plot_telemetry(
         plt.savefig(output_path)
         plt.close(fig)
         return True, None
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         return False, str(exc)
 
 
