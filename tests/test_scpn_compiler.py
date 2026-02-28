@@ -705,3 +705,67 @@ class TestResolveGitSha:
         monkeypatch.delenv("CI_COMMIT_SHA", raising=False)
         sha = _resolve_git_sha()
         assert len(sha) == 7
+
+
+# ── Formal verification: verify_boundedness & verify_liveness ─────────
+
+
+class TestVerifyBoundedness:
+    def test_traffic_light_bounded(self, traffic_net: StochasticPetriNet) -> None:
+        result = traffic_net.verify_boundedness(n_steps=100, n_trials=20)
+        assert result["bounded"] is True
+        assert 0.0 <= result["min_marking"] <= 1.0
+        assert 0.0 <= result["max_marking"] <= 1.0
+        assert result["n_trials"] == 20
+        assert result["n_steps"] == 100
+
+    def test_uncompiled_raises(self) -> None:
+        net = StochasticPetriNet()
+        net.add_place("P", initial_tokens=0.5)
+        net.add_transition("T", threshold=0.5)
+        with pytest.raises(RuntimeError, match="compiled"):
+            net.verify_boundedness()
+
+    def test_single_place_self_loop(self) -> None:
+        net = StochasticPetriNet()
+        net.add_place("P", initial_tokens=0.7)
+        net.add_transition("T", threshold=0.3)
+        net.add_arc("P", "T", weight=0.5)
+        net.add_arc("T", "P", weight=0.5)
+        net.compile()
+        result = net.verify_boundedness(n_steps=50, n_trials=10)
+        assert result["bounded"] is True
+
+
+class TestVerifyLiveness:
+    def test_traffic_light_live(self, traffic_net: StochasticPetriNet) -> None:
+        result = traffic_net.verify_liveness(n_steps=200, n_trials=500)
+        assert result["live"] is True
+        assert result["min_fire_pct"] >= 0.99
+        assert set(result["transition_fire_pct"].keys()) == {"T_r2g", "T_g2y", "T_y2r"}
+        assert result["n_trials"] == 500
+        assert result["n_steps"] == 200
+
+    def test_uncompiled_raises(self) -> None:
+        net = StochasticPetriNet()
+        net.add_place("P", initial_tokens=0.5)
+        net.add_transition("T", threshold=0.5)
+        with pytest.raises(RuntimeError, match="compiled"):
+            net.verify_liveness()
+
+    def test_dead_transition_not_live(self) -> None:
+        """A transition with no input arc can fire; one without tokens cannot."""
+        net = StochasticPetriNet()
+        net.add_place("P1", initial_tokens=0.0)
+        net.add_place("P2", initial_tokens=0.0)
+        net.add_transition("T_active", threshold=0.01)
+        net.add_transition("T_dead", threshold=0.5)
+        # T_active: no input → always enabled; produces into P1
+        net.add_arc("T_active", "P1", weight=0.1)
+        # T_dead: needs P2 tokens but nothing produces into P2
+        net.add_arc("P2", "T_dead", weight=1.0)
+        net.add_arc("T_dead", "P1", weight=1.0)
+        net.compile()
+        result = net.verify_liveness(n_steps=100, n_trials=100)
+        assert result["live"] is False
+        assert result["transition_fire_pct"]["T_dead"] < 0.01

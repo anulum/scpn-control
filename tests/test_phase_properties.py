@@ -173,3 +173,76 @@ def test_upde_step_output_shapes(L, N_per):
     assert all(t.shape == (N_per,) for t in out["theta1"])
     assert out["R_layer"].shape == (L,)
     assert out["V_layer"].shape == (L,)
+
+
+# ── KnmSpec constructor validation ──────────────────────────────────
+
+class TestKnmSpecValidation:
+    def test_rejects_non_square_K(self):
+        with pytest.raises(ValueError, match="square"):
+            KnmSpec(K=np.ones((3, 4)))
+
+    def test_rejects_1d_K(self):
+        with pytest.raises(ValueError, match="square"):
+            KnmSpec(K=np.ones(4))
+
+    def test_rejects_alpha_shape_mismatch(self):
+        with pytest.raises(ValueError, match="alpha shape"):
+            KnmSpec(K=np.eye(3), alpha=np.zeros((2, 2)))
+
+    def test_rejects_zeta_shape_mismatch(self):
+        with pytest.raises(ValueError, match="zeta shape"):
+            KnmSpec(K=np.eye(4), zeta=np.zeros(3))
+
+    def test_rejects_layer_names_length_mismatch(self):
+        with pytest.raises(ValueError, match="layer_names"):
+            KnmSpec(K=np.eye(3), layer_names=["a", "b"])
+
+    def test_valid_full_spec(self):
+        spec = KnmSpec(
+            K=np.eye(3),
+            alpha=np.zeros((3, 3)),
+            zeta=np.ones(3),
+            layer_names=["L1", "L2", "L3"],
+        )
+        assert spec.L == 3
+
+    def test_L_property(self):
+        spec = KnmSpec(K=np.eye(5))
+        assert spec.L == 5
+
+
+class TestBuildKnmPaper27:
+    def test_small_L_skips_cross_hierarchy_boosts(self):
+        spec = build_knm_paper27(L=4)
+        assert spec.L == 4
+        assert spec.K.shape == (4, 4)
+
+    def test_calibration_anchors_applied(self):
+        spec = build_knm_paper27(L=16)
+        K = np.asarray(spec.K)
+        assert K[0, 1] == pytest.approx(0.302)
+        assert K[1, 0] == pytest.approx(0.302)
+        assert K[1, 2] == pytest.approx(0.201)
+        assert K[2, 3] == pytest.approx(0.252)
+
+    def test_cross_hierarchy_l1_l16(self):
+        spec = build_knm_paper27(L=16)
+        K = np.asarray(spec.K)
+        assert K[0, 15] >= 0.05
+        assert K[15, 0] >= 0.05
+
+    def test_cross_hierarchy_l5_l7(self):
+        spec = build_knm_paper27(L=16)
+        K = np.asarray(spec.K)
+        assert K[4, 6] >= 0.15
+        assert K[6, 4] >= 0.15
+
+    def test_zeta_none_when_uniform_zero(self):
+        spec = build_knm_paper27(L=8, zeta_uniform=0.0)
+        assert spec.zeta is None
+
+    def test_zeta_populated_when_nonzero(self):
+        spec = build_knm_paper27(L=8, zeta_uniform=0.3)
+        assert spec.zeta is not None
+        np.testing.assert_allclose(spec.zeta, 0.3)

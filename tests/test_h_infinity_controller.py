@@ -350,3 +350,56 @@ class TestEnforceRobustFeasibility:
         with caplog.at_level("WARNING", logger="scpn_control.control.h_infinity_controller"):
             ctrl = HInfinityController(A, B1, B2, C1, C2)
         assert isinstance(ctrl, HInfinityController)
+
+
+# ── 10. Auto-transpose 1D inputs ────────────────────────────────────
+
+class TestAutoTranspose:
+    def test_1d_B_inputs_auto_transposed(self) -> None:
+        """B1, B2 as 1D arrays are auto-transposed to column vectors."""
+        A = np.array([[0.0, 1.0], [100.0, -10.0]])
+        B1 = np.array([0.0, 0.5])  # 1D → should become (2,1)
+        B2 = np.array([0.0, 1.0])  # 1D → should become (2,1)
+        C1 = np.array([[1.0, 0.0], [0.0, 0.0]])
+        C2 = np.array([[1.0, 0.0]])
+        ctrl = HInfinityController(A, B1, B2, C1, C2)
+        assert ctrl.B1.shape == (2, 1)
+        assert ctrl.B2.shape == (2, 1)
+
+    def test_1d_C_inputs_auto_transposed(self) -> None:
+        """C1, C2 as 1D arrays are auto-transposed to row vectors."""
+        A = np.array([[0.0, 1.0], [100.0, -10.0]])
+        B1 = np.array([[0.0], [0.5]])
+        B2 = np.array([[0.0], [1.0]])
+        C1 = np.array([1.0, 0.0])  # 1D → becomes (1,1) then transposed to (1,2)
+        C2 = np.array([1.0, 0.0])  # same
+        ctrl = HInfinityController(A, B1, B2, C1, C2)
+        assert ctrl.C1.shape[1] == 2
+        assert ctrl.C2.shape[1] == 2
+
+
+# ── 11. Gain margin edge cases ──────────────────────────────────────
+
+class TestGainMargin:
+    def test_gain_margin_positive(self) -> None:
+        ctrl = get_radial_robust_controller(gamma_growth=100.0)
+        margin = ctrl.gain_margin_db
+        assert margin > 0.0
+
+    def test_gain_margin_stable_plant_returns_inf(self) -> None:
+        """A stable open-loop plant → infinite gain margin."""
+        A = np.array([[-5.0, 1.0], [0.0, -10.0]])
+        B1 = np.array([[0.0], [1.0]])
+        B2 = np.array([[0.0], [1.0]])
+        C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
+        C2 = np.array([[1.0, 0.0]])
+        ctrl = HInfinityController(A, B1, B2, C1, C2)
+        assert ctrl.gain_margin_db == float("inf")
+
+    def test_factory_rejects_nonpositive_damping(self) -> None:
+        with pytest.raises(ValueError, match="damping"):
+            get_radial_robust_controller(damping=0.0)
+
+    def test_factory_rejects_nan_damping(self) -> None:
+        with pytest.raises(ValueError, match="damping"):
+            get_radial_robust_controller(damping=float("nan"))

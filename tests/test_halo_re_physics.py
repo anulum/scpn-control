@@ -251,3 +251,62 @@ class TestDisruptionEnsemble:
         assert np.isfinite(report.p95_halo_peak_ma)
         assert np.isfinite(report.mean_re_peak_ma)
         assert np.isfinite(report.p95_re_peak_ma)
+
+
+# ─── Dreicer/avalanche NaN guard paths ───────────────────────────────
+
+class TestREGuardPaths:
+    def test_dreicer_rate_nan_field_returns_zero(self):
+        m = RunawayElectronModel()
+        assert m._dreicer_rate(float("nan"), 10.0) == 0.0
+
+    def test_dreicer_rate_nan_temp_returns_zero(self):
+        m = RunawayElectronModel()
+        assert m._dreicer_rate(1.0, float("nan")) == 0.0
+
+    def test_dreicer_rate_cold_plasma_returns_zero(self):
+        m = RunawayElectronModel()
+        assert m._dreicer_rate(m.E_D * 0.1, 0.001) == 0.0
+
+    def test_avalanche_rate_nan_returns_zero(self):
+        m = RunawayElectronModel()
+        assert m._avalanche_rate(float("nan"), 1e15) == 0.0
+
+    def test_avalanche_rate_below_critical_returns_zero(self):
+        m = RunawayElectronModel()
+        assert m._avalanche_rate(m.E_c * 0.5, 1e15) == 0.0
+
+    def test_avalanche_rate_zero_re_returns_zero(self):
+        m = RunawayElectronModel()
+        assert m._avalanche_rate(m.E_c * 2.0, 0.0) == 0.0
+
+    def test_momentum_space_nan_returns_zero(self):
+        m = RunawayElectronModel()
+        assert m._momentum_space_growth(float("nan"), 1e15) == 0.0
+
+    def test_momentum_space_below_critical_returns_zero(self):
+        m = RunawayElectronModel()
+        assert m._momentum_space_growth(m.E_c * 0.5, 1e15) == 0.0
+
+    def test_relativistic_loss_nan_returns_zero(self):
+        m = RunawayElectronModel(enable_relativistic_losses=True)
+        assert m._relativistic_loss_rate(E=float("nan"), n_re=1e15) == 0.0
+
+    def test_relativistic_loss_nan_nre_returns_zero(self):
+        m = RunawayElectronModel(enable_relativistic_losses=True)
+        assert m._relativistic_loss_rate(E=100.0, n_re=float("nan")) == 0.0
+
+    def test_high_neon_deconfinement_factor(self):
+        """neon_mol > 0.3 activates deconfinement suppression in avalanche."""
+        m = RunawayElectronModel(neon_mol=0.5)
+        rate = m._avalanche_rate(m.E_c * 3.0, 1e18)
+        m_low = RunawayElectronModel(neon_mol=0.0)
+        rate_low = m_low._avalanche_rate(m_low.E_c * 3.0, 1e18)
+        if rate_low > 0.0:
+            assert rate < rate_low
+
+    def test_dreicer_rate_very_high_ratio_returns_zero(self):
+        """Dreicer rate with ratio > 200 should return 0 (negligible generation)."""
+        m = RunawayElectronModel(n_e=1e20, T_e_keV=0.1)
+        rate = m._dreicer_rate(1e-10, 0.1)
+        assert rate == 0.0
