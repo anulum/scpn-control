@@ -23,6 +23,13 @@ from scpn_control.phase.kuramoto import (
     wrap_phase,
 )
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
+from scpn_control.phase.plasma_knm import (
+    OMEGA_PLASMA_8,
+    PLASMA_LAYER_NAMES,
+    build_knm_plasma,
+    build_knm_plasma_from_config,
+    plasma_omega,
+)
 from scpn_control.phase.realtime_monitor import RealtimeMonitor, TrajectoryRecorder
 from scpn_control.phase.upde import UPDESystem
 from scpn_control.phase.ws_phase_stream import PhaseStreamServer
@@ -36,6 +43,11 @@ __all__ = [
     "GlobalPsiDriver",
     "KnmSpec",
     "build_knm_paper27",
+    "build_knm_plasma",
+    "build_knm_plasma_from_config",
+    "plasma_omega",
+    "OMEGA_PLASMA_8",
+    "PLASMA_LAYER_NAMES",
     "UPDESystem",
     "LyapunovGuard",
     "RealtimeMonitor",
