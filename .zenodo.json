@@ -1,11 +1,12 @@
 {
   "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controller for Plasma Control",
-  "version": "0.3.3",
-  "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with formal verification guarantees. 48 Python modules, 5 Rust crates, 701 tests, 11.9 µs P50 control loop.",
+  "version": "0.4.0",
+  "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with formal verification guarantees. Features real-time adaptive Kuramoto coupling driven by tokamak diagnostics (beta, disruption risk, Mirnov, coherence PI), Lyapunov stability guard, H-infinity observer, plasma-native 8-layer Knm hierarchy, and WebSocket phase streaming. 52 Python modules, 5 Rust crates, 1888 tests.",
   "upload_type": "software",
-  "license": {
-    "id": "MIT"
-  },
+  "publication_date": "2026-03-01",
+  "access_right": "open",
+  "license": "MIT",
+  "language": "eng",
   "creators": [
     {
       "name": "Sotek, Miroslav",
@@ -23,15 +24,48 @@
     "spiking neural network",
     "plasma physics",
     "Kuramoto oscillators",
+    "adaptive coupling",
     "H-infinity control",
-    "neuro-symbolic AI"
+    "Lyapunov stability",
+    "neuro-symbolic AI",
+    "SCPN",
+    "phase dynamics",
+    "disruption prediction"
   ],
   "related_identifiers": [
+    {
+      "identifier": "https://github.com/anulum/scpn-control",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://pypi.org/project/scpn-control/",
+      "relation": "isAlternateIdentifier",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://anulum.github.io/scpn-control",
+      "relation": "isDocumentedBy",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://github.com/anulum/scpn-fusion-core",
+      "relation": "isRelatedTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://github.com/anulum/scpn-quantum-control",
+      "relation": "isRelatedTo",
+      "scheme": "url"
+    },
     {
       "identifier": "2004.06344",
       "relation": "isSupplementTo",
       "scheme": "arxiv"
     }
   ],
-  "access_right": "open"
+  "communities": [
+    {"identifier": "zenodo"}
+  ],
+  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.4.0 introduces real-time adaptive Knm coupling driven by tokamak diagnostics — the first Kuramoto phase dynamics engine with online-adaptive coupling from plasma state."
 }

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0] — 2026-03-01
+
+### Added
+- Real-time adaptive Knm engine driven by tokamak diagnostics
+  (`AdaptiveKnmEngine`, `DiagnosticSnapshot`, `AdaptiveKnmConfig`)
+- Five adaptation channels: beta scaling, MHD risk amplification,
+  coherence PI control, per-element rate limiting, Lyapunov guard veto
+- `K_override` parameter on `UPDESystem.step()`, `.run()`, `.run_lyapunov()`
+- `RealtimeMonitor.from_plasma()` constructor with adaptive engine support
+- Diagnostic kwargs (`beta_n`, `q95`, `disruption_risk`, `mirnov_rms`) on `tick()`
+- 46 new tests (1888 total)
+
+### Changed
+- `.zenodo.json`: complete Zenodo metadata (related identifiers, communities, notes)
+- `CITATION.cff`: version bump, date update
+
 ## [0.3.3] — 2026-02-27
 
 ### Changed
