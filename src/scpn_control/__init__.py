@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-__version__ = "0.3.3"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("scpn-control")
+except PackageNotFoundError:
+    __version__ = "0.0.0.dev"
 
 # Core solver
 from scpn_control.core import RUST_BACKEND, FusionKernel, TokamakConfig
