@@ -63,6 +63,7 @@ class TestLoadOrTrainNoFallback:
 
 
 class TestPredictSafeInferenceFailure:
+    @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
     def test_model_inference_failure_falls_back(self):
         """Model that raises on inference triggers fallback (lines 764-769)."""
 

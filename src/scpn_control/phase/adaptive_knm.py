@@ -117,9 +117,9 @@ class AdaptiveKnmEngine:
         np.maximum(K_new, 0.0, out=K_new)
 
         # 5. Rate limit: per-element clamp
-        delta = K_new - self._K_current
-        np.clip(delta, -cfg.max_delta_per_tick, cfg.max_delta_per_tick, out=delta)
-        K_new = self._K_current + delta
+        dK = K_new - self._K_current
+        np.clip(dK, -cfg.max_delta_per_tick, cfg.max_delta_per_tick, out=dK)
+        K_new = self._K_current + dK
 
         # Re-enforce invariants after rate limiting
         K_new = 0.5 * (K_new + K_new.T)
