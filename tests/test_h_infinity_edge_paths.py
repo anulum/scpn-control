@@ -15,38 +15,49 @@ from scpn_control.control.h_infinity_controller import HInfinityController
 
 
 class TestAutoTranspose:
-    def test_c1_auto_transpose(self):
-        """C1 with wrong orientation gets transposed (line 111)."""
+    def test_c1_column_transpose(self):
+        """C1 with shape (q, 1) triggers transpose (line 111)."""
         n = 3
         A = -0.5 * np.eye(n)
         B1 = np.eye(n)
         B2 = np.eye(n)
-        C1 = np.ones((1, n))  # (1, 3) → should be (q, n), ok as-is
+        C1 = np.ones((n, 1))  # shape[1]==1 triggers transpose to (1, n)
         C2 = np.eye(n)
         ctrl = HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
-        assert ctrl.q == 1 or ctrl.q == n
+        assert ctrl.C1.shape[1] == n
 
     def test_c2_column_transpose(self):
-        """C2 with (n,1) shape triggers transpose (line 113)."""
-        n = 2
-        A = -np.eye(n)
+        """C2 with shape (l, 1) triggers transpose (line 113)."""
+        n = 3
+        A = -0.5 * np.eye(n)
         B1 = np.eye(n)
         B2 = np.eye(n)
         C1 = np.eye(n)
-        C2 = np.ones((1, n))  # column shape that may trigger transpose
+        C2 = np.ones((n, 1))  # shape[1]==1 triggers transpose to (1, n)
         ctrl = HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
         assert ctrl.C2.shape[1] == n
 
 
 class TestDimensionMismatch:
     def test_b1_row_mismatch_raises(self):
-        """B1 with wrong row count raises ValueError (line 131)."""
+        """B1 with wrong row count raises ValueError (line 129)."""
         A = np.eye(3)
         B1 = np.eye(2)  # 2 rows, should be 3
         B2 = np.eye(3)
         C1 = np.eye(3)
         C2 = np.eye(3)
         with pytest.raises(ValueError, match="B1 row count"):
+            HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
+
+    def test_c1_column_mismatch_raises(self):
+        """C1 with wrong column count raises ValueError (line 131)."""
+        n = 3
+        A = -np.eye(n)
+        B1 = np.eye(n)
+        B2 = np.eye(n)
+        C1 = np.eye(2)  # 2 cols, should be 3
+        C2 = np.eye(n)
+        with pytest.raises(ValueError, match="C1 column count"):
             HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
 
 

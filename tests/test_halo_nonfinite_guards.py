@@ -19,6 +19,15 @@ from scpn_control.control.halo_re_physics import (
 )
 
 
+class TestAsNonNegativeFloat:
+    def test_negative_neon_mol_raises(self):
+        """_as_non_negative_float with negative value raises (line 85)."""
+        with pytest.raises(ValueError, match="must be >= 0"):
+            RunawayElectronModel(
+                n_e=1e20, T_e_keV=1.0, z_eff=2.0, neon_mol=-1.0,
+            )
+
+
 class TestAsRangeValidation:
     def test_low_below_min_allowed(self):
         """_as_range with low < min_allowed raises (line 96)."""
