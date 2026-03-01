@@ -86,7 +86,7 @@ PLASMA_LAYER_NAMES: tuple[str, ...] = (
 # P6 equil:   ~0.1 Hz equilibrium evolution → ω ~ 0.628
 # P7 PWI:     ~0.01 Hz wall recycling → ω ~ 0.063
 #
-# We log-normalise to [0.1, 10.0] for numerical stability in the
+# Log-normalised to [0.1, 10.0] for numerical stability in the
 # Kuramoto integrator (absolute timescale is handled by dt).
 OMEGA_PLASMA_8 = np.array(
     [

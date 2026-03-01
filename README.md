@@ -22,8 +22,8 @@
 **scpn-control** is a standalone neuro-symbolic control engine that compiles
 Stochastic Petri Nets into spiking neural network controllers with formal
 verification guarantees. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 48 source
-modules, 56 test files, **1243 tests**, 5 Rust crates, 17 CI jobs.
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 47 source
+modules, 113 test files, **1906 tests**, 5 Rust crates, 16 CI jobs.
 
 > **11.9 µs P50 control loop** — faster than any open-source fusion code,
 > competitive with the DIII-D PCS (4–10 kHz physics loops).
@@ -132,12 +132,12 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 1243 tests (56 files)
+tests/                 # 1906 tests (113 files)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (14-field NPZ)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
 +-- test_rust_realtime_parity.py  # Rust PyRealtimeMonitor parity
-+-- ...                # 44 more test files
++-- ...                # 108 more test files
 ```
 
 ## Paper 27 Phase Dynamics (Knm/UPDE Engine)

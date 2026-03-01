@@ -417,7 +417,7 @@ if __name__ == "__main__":
         N = 100
         bridge.initialize(N, N, (2.0, 10.0), (-5.0, 5.0))
 
-        # Dummy Current (Gaussian)
+        # Test current profile
         J = np.random.rand(N, N)
 
         # Run
