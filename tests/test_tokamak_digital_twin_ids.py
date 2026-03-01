@@ -30,6 +30,6 @@ class TestIdsHistoryValidation:
 class TestRunDigitalTwinMovingAvg:
     def test_many_steps_covers_moving_avg(self):
         """time_steps > 50 activates moving average branch (lines 337-338)."""
-        result = run_digital_twin(time_steps=60, seed=42, save_plot=True)
+        result = run_digital_twin(time_steps=60, seed=42, save_plot=False)
         assert result["steps"] == 60
         assert "final_avg_temp" in result

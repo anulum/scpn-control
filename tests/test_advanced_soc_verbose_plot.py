@@ -6,6 +6,10 @@
 """Coverage for verbose + plot_saved print (line 357)."""
 from __future__ import annotations
 
+import pytest
+
+pytest.importorskip("matplotlib")
+
 from scpn_control.control.advanced_soc_fusion_learning import run_advanced_learning_sim
 
 

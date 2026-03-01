@@ -35,8 +35,13 @@ class TestTrainPredictorTorchGuard:
 
 
 class TestLoadOrTrainFallback:
-    def test_train_failure_with_fallback(self, tmp_path):
+    def test_train_failure_with_fallback(self, tmp_path, monkeypatch):
         """Training failure with allow_fallback=True returns None (lines 704-707)."""
+        import scpn_control.control.disruption_predictor as dp
+
+        # Ensure torch appears available so the code reaches train_predictor
+        if dp.torch is None:
+            monkeypatch.setattr(dp, "torch", type(sys)("_fake_torch"))
         fake_path = tmp_path / "nonexistent.pt"
         with patch(
             "scpn_control.control.disruption_predictor.train_predictor",
