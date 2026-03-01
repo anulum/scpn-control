@@ -32,9 +32,11 @@ On a single CPU core the SNN controller achieves \SI{11.9}{\micro\second}
 median latency (84~kHz); with the Rust backend this drops to
 \SI{2.1}{\micro\second} (476~kHz), competitive with the DIII-D PCS physics
 loop rate of 4--10~kHz.
-The package integrates a 16-layer Kuramoto--Sakaguchi phase dynamics engine
-driven by the Paper~27 $K_{nm}$ coupling matrix~\cite{sotek2026knm} and a
-Unified Phase Dynamics Equation (UPDE) multi-layer solver, monitored by a
+The package integrates a multi-layer Kuramoto--Sakaguchi phase dynamics engine
+driven by both the Paper~27 $K_{nm}$ coupling matrix~\cite{sotek2026knm} and a
+plasma-native 8-layer $K_{nm}$ whose entries encode experimentally grounded
+interactions (drift-wave/zonal-flow, NTM/bootstrap-current, ELM/pedestal), with
+a Unified Phase Dynamics Equation (UPDE) multi-layer solver monitored by a
 Lyapunov sliding-window stability guard.
 Five runtime-selectable controllers (PID, MPC, $H_\infty$, SNN,
 neuro-cybernetic) operate on a shared Grad--Shafranov equilibrium solver
@@ -91,10 +93,12 @@ the compiled SNN is fast and neuromorphic-hardware-compatible.
         with stochastic bitstream encoding, antithetic variance
         reduction, and formal contract verification
         (Section~\ref{sec:compilation}).
-  \item A 16-layer Kuramoto--Sakaguchi phase dynamics engine with
-        the Paper~27 $K_{nm}$ coupling matrix, UPDE multi-layer solver,
-        PAC gating, and Lyapunov stability monitoring
-        (Section~\ref{sec:phase}).
+  \item A multi-layer Kuramoto--Sakaguchi phase dynamics engine with
+        the Paper~27 $K_{nm}$ coupling matrix, a plasma-native
+        8-layer $K_{nm}$ grounded in experimentally established
+        interactions~\cite{diamond2005,terry2000,lahaye2006,porcelli1996},
+        UPDE multi-layer solver, PAC gating, and Lyapunov stability
+        monitoring (Section~\ref{sec:phase}).
   \item Five runtime-selectable controllers (PID, MPC, $H_\infty$,
         SNN, neuro-cybernetic) sharing a common contract interface,
         with a Gymnasium-compatible environment for RL benchmarking
@@ -385,6 +389,115 @@ $c_{nm}$ & $0.154$ & $\geq 0.05$ & $\geq 0.15$ \\
 %
 The last two entries are cross-hierarchy boosts (L1$\leftrightarrow$L16
 and L5$\leftrightarrow$L7) from Paper~27 \S4.3.
+
+\subsection{Plasma-Native $K_{nm}$ Coupling Matrix}
+\label{sec:plasma_knm}
+
+The Paper~27 matrix was derived from a 16-layer model of consciousness
+dynamics.  Tokamak plasmas have their own multi-scale hierarchy.  We
+construct a dedicated $8 \times 8$ coupling matrix whose entries
+map directly onto experimentally established plasma physics
+interactions.
+
+\textbf{Layer hierarchy.}\quad
+Eight layers span the full range of tokamak timescales from
+micro-turbulence (${\sim}\mu$s) to plasma--wall interaction
+(${\sim}$s--min):
+%
+\begin{center}
+\begin{tabular}{clc}
+\toprule
+Layer & Process & Timescale \\
+\midrule
+P0 & Micro-turbulence (ITG/TEM) & $\mu$s \\
+P1 & Zonal flows ($E{\times}B$ shear) & ms \\
+P2 & MHD / tearing (NTM, 2/1 island) & ms--s \\
+P3 & Sawtooth / ELM cycles & 10--100~ms \\
+P4 & Transport barrier (H-mode pedestal) & $\sim$100~ms \\
+P5 & Current profile ($q(\rho), l_i$) & s \\
+P6 & Global equilibrium (GS $\psi(R,Z)$) & s \\
+P7 & Plasma--wall interaction & s--min \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Coupling construction.}\quad
+The backbone follows exponential distance decay as in
+Eq.~\eqref{eq:knm}, but with reduced base strength
+$K_\mathrm{base} = 0.30$ and steeper decay $\alpha_K = 0.5$
+to reflect the wider timescale separation in plasma:
+%
+\begin{equation}
+  K_{nm}^\mathrm{plasma} = K_\mathrm{base}\, e^{-\alpha_K |n-m|}
+  + \sum_{(i,j)\in\mathcal{P}} p_{ij}\,\delta_{ni}\delta_{mj}
+  \label{eq:plasma_knm}
+\end{equation}
+%
+The physics overlays $\mathcal{P}$ encode seven experimentally
+grounded interactions:
+%
+\begin{center}
+\begin{tabular}{cll}
+\toprule
+$(n,m)$ & $p_{nm}$ & Reference \\
+\midrule
+(0,1) & 0.42 & Drift-wave/zonal predator--prey~\cite{diamond2005} \\
+(1,4) & 0.28 & $E{\times}B$ shear suppression~\cite{terry2000} \\
+(2,5) & 0.35 & NTM $\leftrightarrow$ bootstrap current~\cite{lahaye2006} \\
+(3,5) & 0.30 & Sawtooth $\leftrightarrow$ current redistribution~\cite{porcelli1996} \\
+(3,4) & 0.32 & ELM crash depletes pedestal \\
+(4,6) & 0.25 & Transport $\leftrightarrow$ GS equilibrium~\cite{lutjens1996} \\
+(7,4) & 0.20 & PWI recycling modifies edge transport~\cite{stangeby2000} \\
+\bottomrule
+\end{tabular}
+\end{center}
+%
+All couplings are symmetrised ($K_{nm} = K_{mn}$) and clamped
+non-negative after overlay application.
+
+\textbf{Instability mode bias.}\quad
+A mode parameter $m \in \{\texttt{baseline}, \texttt{elm},
+\texttt{ntm}, \texttt{sawtooth}, \texttt{hybrid}\}$ multiplicatively
+amplifies couplings associated with the dominant instability.
+For example, \texttt{elm} mode scales $K_{34}$ and $K_{43}$ by
+$1.8\times$ (stronger pedestal--ELM interaction), while
+\texttt{hybrid} mode elevates all entries by $1.15\times$ to
+represent the tighter multi-scale coupling of advanced scenarios.
+This allows the phase engine to reflect the qualitative
+synchronization topology of a given operating regime without
+retuning individual entries.
+
+\textbf{Machine-parameter scaling.}\quad
+A configuration-driven builder adjusts $K_\mathrm{base}$ via a
+dimensionless beta proxy:
+%
+\begin{equation}
+  K_\mathrm{base}(R_0, a, B_0, n_e)
+  = 0.30\,\bigl(1 + 0.5\,\tilde{\beta}\bigr),\quad
+  \tilde{\beta} = \frac{n_e\, a}{B_0^2}
+  \label{eq:kbase_beta}
+\end{equation}
+%
+where $n_e$ is in units of $10^{19}$~m$^{-3}$, $a$ in metres, and
+$B_0$ in Tesla.  Higher beta implies more free energy driving
+instabilities, hence stronger multi-scale coupling.  The
+cylindrical safety factor $q_\mathrm{cyl} = 5 a^2 B_0 / (R_0 I_p)$
+is computed simultaneously; when $q_\mathrm{cyl} < 1$ the builder
+automatically selects sawtooth mode, reflecting the physical
+inevitability of internal kink activity at low $q$.
+
+\textbf{Design for online adaptation.}\quad
+The static mode-switchable architecture is designed as the
+offline-verified foundation for a future real-time adaptive $K_{nm}$
+where diagnostic signals update coupling strengths online.
+Mirnov coil amplitudes would modulate $K_{27}$ (MHD--PWI),
+Thomson scattering pedestal gradients would drive $K_{34}$
+(ELM--transport), and soft X-ray sawtooth inversion radius would
+scale $K_{35}$ (sawtooth--current).
+The mode-switching interface already supports per-tick calls with
+${\sim}15\,\mu$s overhead; the remaining step is closing the loop
+from diagnostic pre-processing to coupling update, which we address
+in Section~\ref{sec:conclusion}.
 
 \subsection{UPDE Multi-Layer Solver}
 
@@ -835,6 +948,11 @@ by inference:
   \item \textbf{Deployment}: Research-grade software.
     Not hardened for production PCS integration.
     No ITER CODAC, EPICS, or FPGA interface.
+  \item \textbf{Plasma $K_{nm}$ calibration}: Coupling strengths
+    are order-of-magnitude estimates derived from published
+    scalings, not fitted to experimental multi-diagnostic
+    correlation data.  Real-time adaptive mode requires
+    closing the diagnostic-to-coupling loop.
   \item \textbf{Rust acceleration}: Optional.
     Pure-Python fallback is 5--10$\times$ slower for GS solve
     and $2$--$3\times$ slower for Kuramoto steps at $N > 1000$.
@@ -860,10 +978,21 @@ plant, with five physics invariants monitored at runtime;
 P50 latency, exceeding the DIII-D PCS rate by ${\sim}50\times$;
 (iv) the 16-layer UPDE phase engine with Lyapunov monitoring
 converges to $R = 0.92$ (from $R_0 = 0.15$) with
-$\lambda = -0.47$ under Paper~27 $K_{nm}$ coupling.
+$\lambda = -0.47$ under Paper~27 $K_{nm}$ coupling;
+(v) a plasma-native 8-layer $K_{nm}$ grounded in
+drift-wave/zonal-flow~\cite{diamond2005},
+NTM/bootstrap-current~\cite{lahaye2006}, and
+ELM/pedestal interactions, with machine-parameter scaling
+via $\tilde{\beta}$ and automatic sawtooth-mode selection
+at $q_\mathrm{cyl} < 1$.
 
 Future work targets:
 \begin{itemize}
+  \item \textbf{Real-time adaptive $K_{nm}$}: closing the loop
+        from diagnostic pre-processing (Mirnov coils, Thomson
+        scattering, soft X-ray) to per-tick coupling updates,
+        making $K_{nm}(t)$ a function of the instantaneous
+        plasma state rather than a static operating-point selection
   \item Free-boundary GS with external coil current optimization
   \item TGLF/QuaLiKiz turbulence closure via neural surrogates
   \item Validation on real MDSplus shot data (DIII-D, EAST)
