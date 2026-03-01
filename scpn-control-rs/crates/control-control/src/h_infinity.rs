@@ -173,4 +173,32 @@ mod tests {
         let c2 = Array2::zeros((1, 2));
         assert!(HInfPlant::new(a, b1, b2, c1, c2).is_err());
     }
+
+    #[test]
+    fn test_controller_saturates_at_u_max() {
+        let plant = radial_robust_plant(100.0, 10.0);
+        let mut ctrl = HInfController::new(plant, 1.0, 5.0, 1e-3);
+        let u = ctrl.step(1e6, 1e-3);
+        assert!(u.abs() <= 5.0, "output {u} exceeds u_max=5.0");
+    }
+
+    #[test]
+    fn test_reset_zeroes_state() {
+        let plant = radial_robust_plant(100.0, 10.0);
+        let mut ctrl = HInfController::new(plant, 1.0, 10.0, 1e-3);
+        ctrl.step(1.0, 1e-3);
+        ctrl.reset();
+        assert!(ctrl.state.iter().all(|&v| v == 0.0));
+    }
+
+    #[test]
+    fn test_stable_under_zero_input() {
+        let plant = radial_robust_plant(100.0, 10.0);
+        let mut ctrl = HInfController::new(plant, 1.0, 10.0, 1e-3);
+        for _ in 0..100 {
+            let u = ctrl.step(0.0, 1e-3);
+            assert!(u.is_finite(), "control diverged under zero input");
+        }
+        assert!(ctrl.state.iter().all(|v| v.abs() < 1e-10));
+    }
 }

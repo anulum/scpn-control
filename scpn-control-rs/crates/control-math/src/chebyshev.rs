@@ -234,4 +234,42 @@ mod tests {
         assert!(result.residual.is_finite());
         assert!(psi.iter().all(|v| v.is_finite()));
     }
+
+    #[test]
+    fn test_zero_max_iters_returns_unconverged() {
+        let grid = Grid2D::new(16, 16, 1.0, 9.0, -5.0, 5.0);
+        let source = Array2::from_elem((16, 16), -1.0);
+        let mut psi = Array2::zeros((16, 16));
+        let result = chebyshev_sor_solve(
+            &mut psi,
+            &source,
+            &grid,
+            ChebyshevConfig {
+                warmup_iters: 3,
+                max_iters: 0,
+                tol: 1e-8,
+            },
+        );
+        assert!(!result.converged);
+        assert_eq!(result.iterations, 0);
+    }
+
+    #[test]
+    fn test_omega_stays_in_bounds() {
+        let grid = Grid2D::new(65, 65, 1.0, 9.0, -5.0, 5.0);
+        let source = Array2::from_elem((65, 65), -1.0);
+        let mut psi = Array2::zeros((65, 65));
+        let result = chebyshev_sor_solve(
+            &mut psi,
+            &source,
+            &grid,
+            ChebyshevConfig {
+                warmup_iters: 5,
+                max_iters: 50,
+                tol: 1e-12,
+            },
+        );
+        assert!(result.final_omega >= OMEGA_MIN);
+        assert!(result.final_omega <= OMEGA_MAX);
+    }
 }

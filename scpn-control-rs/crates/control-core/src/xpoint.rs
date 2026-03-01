@@ -165,4 +165,27 @@ mod tests {
             find_x_point(&psi, &grid, -1000.0).expect_err("empty divertor search region must fail");
         assert!(matches!(err, FusionError::ConfigError(_)));
     }
+
+    #[test]
+    fn test_find_x_point_rejects_nan_psi() {
+        let grid = Grid2D::new(16, 16, 1.0, 9.0, -5.0, 5.0);
+        let mut psi = Array2::zeros((16, 16));
+        psi[[4, 4]] = f64::NAN;
+        let err = find_x_point(&psi, &grid, -5.0).expect_err("NaN psi must fail");
+        assert!(matches!(err, FusionError::ConfigError(_)));
+    }
+
+    #[test]
+    fn test_find_x_point_result_finite() {
+        let grid = Grid2D::new(33, 33, 1.0, 9.0, -5.0, 5.0);
+        let psi = Array2::from_shape_fn((33, 33), |(iz, ir)| {
+            let r = grid.rr[[iz, ir]];
+            let z = grid.zz[[iz, ir]];
+            (r - 5.0).powi(2) - (z + 2.5).powi(2)
+        });
+        let ((r_x, z_x), psi_x) = find_x_point(&psi, &grid, -5.0).unwrap();
+        assert!(r_x.is_finite());
+        assert!(z_x.is_finite());
+        assert!(psi_x.is_finite());
+    }
 }

@@ -168,4 +168,30 @@ mod tests {
             .expect_err("shape mismatch must fail");
         assert!(matches!(err, FusionError::ConfigError(_)));
     }
+
+    #[test]
+    fn test_b_field_linear_psi_gradient() {
+        // Psi = R => dPsi/dR = 1, dPsi/dZ = 0 => B_R = 0, B_Z = 1/R
+        let grid = Grid2D::new(16, 16, 2.0, 6.0, -2.0, 2.0);
+        let psi = Array2::from_shape_fn((16, 16), |(_, ir)| grid.r[ir]);
+        let (b_r, b_z) = compute_b_field(&psi, &grid).unwrap();
+        for iz in 1..15 {
+            for ir in 1..15 {
+                assert!(b_r[[iz, ir]].abs() < 0.1, "B_R should be ~0 for Psi=R");
+                let expected_bz = 1.0 / grid.rr[[iz, ir]];
+                let rel_err = (b_z[[iz, ir]] - expected_bz).abs() / expected_bz;
+                assert!(rel_err < 0.15, "B_Z ~ 1/R for Psi=R, got rel_err={rel_err}");
+            }
+        }
+    }
+
+    #[test]
+    fn test_b_field_shape_matches_grid() {
+        // Grid2D::new(nr, nz, ...) stores arrays as (nz, nr)
+        let grid = Grid2D::new(20, 30, 1.0, 9.0, -5.0, 5.0);
+        let psi = Array2::zeros((grid.nz, grid.nr));
+        let (b_r, b_z) = compute_b_field(&psi, &grid).unwrap();
+        assert_eq!(b_r.shape(), &[grid.nz, grid.nr]);
+        assert_eq!(b_z.shape(), &[grid.nz, grid.nr]);
+    }
 }
