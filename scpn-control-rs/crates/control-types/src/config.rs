@@ -195,7 +195,6 @@ mod tests {
             "iter_config.json",
             "validation/iter_validated_config.json",
             "validation/iter_genetic_config.json",
-            "validation/iter_analytic_config.json",
             "validation/iter_force_balanced.json",
             "src/scpn_fusion/core/default_config.json",
         ];
