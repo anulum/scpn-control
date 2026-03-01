@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0] — 2026-03-02
+
+### Fixed
+- `__version__` now derived from package metadata (PEP 621), was stuck at 0.3.3
+- Rust H-inf `update_discretization` TODO tracked as gh-10, param renamed `_dt` → `dt`
+- README test/CI job counts updated to actual values
+
+### Added
+- 27 new tests: 9 Rust (h_infinity, xpoint, bfield, chebyshev) + 18 Python (rust_compat_wrapper)
+- `cargo-deny` supply-chain policy (`deny.toml`) + CI Job 15
+- `ruff format --check` CI gate + pre-commit hook
+- `UNDERDEVELOPED_REGISTER.md` tracking 6 known gaps
+- Python 3.13 in CI matrix
+
+### Changed
+- Coverage gate: 55% → 62% (actual: 93%)
+- Codecov `fail_ci_if_error: true`
+- Pre-commit: Rust hooks no longer gated to `stages: [manual]`
+- Removed unused `proptest` dev-dependency from 3 Cargo.toml files
+
 ## [0.4.0] — 2026-03-01
 
 ### Added
