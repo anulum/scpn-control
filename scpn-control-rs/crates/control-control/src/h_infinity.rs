@@ -134,11 +134,9 @@ impl HInfController {
         self.state.fill(0.0);
     }
 
-    fn update_discretization(&mut self, _dt: f64) {
-        // TODO(gh-XXX): Implement ZOH + DARE discretization.
-        // Requires ndarray-linalg for eigendecomposition / Schur.
-        // For now, gains remain at the design-point values.
-        self.cached_dt = _dt;
+    fn update_discretization(&mut self, dt: f64) {
+        // TODO(gh-10): Implement ZOH + DARE discretization.
+        self.cached_dt = dt;
     }
 }
 
