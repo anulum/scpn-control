@@ -14,7 +14,9 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-        files: ^src/
+        files: ^(src/|tests/)
+      - id: ruff-format
+        files: ^(src/|tests/)
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1
@@ -23,7 +25,6 @@ repos:
         pass_filenames: false
         additional_dependencies: [numpy>=1.24, scipy>=1.10, click>=8.0]
 
-  # Rust hooks: manual stage only (CI already runs cargo fmt/clippy)
   - repo: local
     hooks:
       - id: cargo-fmt
@@ -31,10 +32,8 @@ repos:
         entry: cargo fmt --manifest-path scpn-control-rs/Cargo.toml -- --check
         language: system
         pass_filenames: false
-        stages: [manual]
       - id: cargo-clippy
         name: cargo clippy
         entry: cargo clippy --manifest-path scpn-control-rs/Cargo.toml -- -D warnings
         language: system
         pass_filenames: false
-        stages: [manual]
