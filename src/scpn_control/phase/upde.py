@@ -50,6 +50,7 @@ class UPDESystem:
         psi_driver: Optional[float] = None,
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
+        K_override: Optional[FloatArray] = None,
     ) -> dict:
         """Advance all L layers by one Euler step.
 
@@ -66,8 +67,10 @@ class UPDESystem:
         pac_gamma : float
             PAC-like gating: boost inter-layer coupling by
             (1 + pac_gamma·(1 − R_source)).
+        K_override : array or None
+            Per-tick replacement for spec.K (adaptive coupling).
         """
-        K = np.asarray(self.spec.K, dtype=np.float64)
+        K = np.asarray(K_override if K_override is not None else self.spec.K, dtype=np.float64)
         L = K.shape[0]
         if len(theta_layers) != L or len(omega_layers) != L:
             raise ValueError(f"Expected {L} layers, got {len(theta_layers)}")
@@ -155,6 +158,7 @@ class UPDESystem:
         psi_driver: Optional[float] = None,
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
+        K_override: Optional[FloatArray] = None,
     ) -> dict:
         """Run n_steps and return trajectory of per-layer R and global R."""
         R_layer_hist = []
@@ -167,6 +171,7 @@ class UPDESystem:
                 psi_driver=psi_driver,
                 actuation_gain=actuation_gain,
                 pac_gamma=pac_gamma,
+                K_override=K_override,
             )
             current = out["theta1"]
             R_layer_hist.append(out["R_layer"].copy())
@@ -187,6 +192,7 @@ class UPDESystem:
         psi_driver: Optional[float] = None,
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
+        K_override: Optional[FloatArray] = None,
     ) -> dict:
         """Run n_steps with Lyapunov tracking.
 
@@ -205,6 +211,7 @@ class UPDESystem:
                 psi_driver=psi_driver,
                 actuation_gain=actuation_gain,
                 pac_gamma=pac_gamma,
+                K_override=K_override,
             )
             current = out["theta1"]
             R_layer_hist.append(out["R_layer"].copy())

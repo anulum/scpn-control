@@ -13,6 +13,11 @@ exogenous global field driver ζ sin(Ψ − θ), per the reviewer request
 referencing arXiv:2004.06344 and SCPN Paper 27.
 """
 
+from scpn_control.phase.adaptive_knm import (
+    AdaptiveKnmConfig,
+    AdaptiveKnmEngine,
+    DiagnosticSnapshot,
+)
 from scpn_control.phase.knm import KnmSpec, build_knm_paper27
 from scpn_control.phase.kuramoto import (
     GlobalPsiDriver,
@@ -35,6 +40,9 @@ from scpn_control.phase.upde import UPDESystem
 from scpn_control.phase.ws_phase_stream import PhaseStreamServer
 
 __all__ = [
+    "AdaptiveKnmConfig",
+    "AdaptiveKnmEngine",
+    "DiagnosticSnapshot",
     "kuramoto_sakaguchi_step",
     "order_parameter",
     "wrap_phase",

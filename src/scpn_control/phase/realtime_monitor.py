@@ -33,8 +33,10 @@ from typing import Union
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control.phase.adaptive_knm import AdaptiveKnmEngine, DiagnosticSnapshot
 from scpn_control.phase.knm import OMEGA_N_16, build_knm_paper27
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
+from scpn_control.phase.plasma_knm import build_knm_plasma, plasma_omega
 from scpn_control.phase.upde import UPDESystem
 
 FloatArray = NDArray[np.float64]
@@ -83,8 +85,13 @@ class RealtimeMonitor:
     omega_layers: list[FloatArray]
     psi_driver: float = 0.0
     pac_gamma: float = 0.0
+    adaptive_engine: AdaptiveKnmEngine | None = None
     _tick_count: int = field(default=0, init=False)
     _recorder: TrajectoryRecorder = field(default_factory=TrajectoryRecorder, init=False)
+    _last_R_layer: FloatArray | None = field(default=None, init=False, repr=False)
+    _last_V_layer: FloatArray | None = field(default=None, init=False, repr=False)
+    _last_lambda: float = field(default=0.0, init=False, repr=False)
+    _last_guard_approved: bool = field(default=True, init=False, repr=False)
 
     @classmethod
     def from_paper27(
@@ -115,19 +122,85 @@ class RealtimeMonitor:
             psi_driver=psi_driver, pac_gamma=pac_gamma,
         )
 
-    def tick(self, *, record: bool = True) -> dict:
+    @classmethod
+    def from_plasma(
+        cls,
+        L: int = 8,
+        N_per: int = 50,
+        *,
+        mode: str = "baseline",
+        dt: float = 1e-3,
+        zeta_uniform: float = 0.0,
+        psi_driver: float = 0.0,
+        pac_gamma: float = 0.0,
+        guard_window: int = 50,
+        guard_max_violations: int = 3,
+        adaptive_engine: AdaptiveKnmEngine | None = None,
+        seed: int = 42,
+    ) -> RealtimeMonitor:
+        """Build from plasma-native Knm defaults with optional adaptive engine."""
+        spec = build_knm_plasma(mode=mode, L=L, zeta_uniform=zeta_uniform)
+        upde = UPDESystem(spec=spec, dt=dt, psi_mode="external")
+        guard = LyapunovGuard(window=guard_window, dt=dt, max_violations=guard_max_violations)
+
+        rng = np.random.default_rng(seed)
+        omega_base = plasma_omega(L)
+        theta = [rng.uniform(-np.pi, np.pi, N_per) for _ in range(L)]
+        omega = [omega_base[m] + rng.normal(0, 0.2, N_per) for m in range(L)]
+
+        return cls(
+            upde=upde, guard=guard,
+            theta_layers=theta, omega_layers=omega,
+            psi_driver=psi_driver, pac_gamma=pac_gamma,
+            adaptive_engine=adaptive_engine,
+        )
+
+    def tick(
+        self,
+        *,
+        record: bool = True,
+        beta_n: float = 0.0,
+        q95: float = 3.0,
+        disruption_risk: float = 0.0,
+        mirnov_rms: float = 0.0,
+    ) -> dict:
         """Advance one UPDE step and return dashboard snapshot."""
         t0 = time.perf_counter_ns()
+
+        # Build adaptive K_override if engine is present
+        K_override = None
+        if self.adaptive_engine is not None:
+            L = len(self.theta_layers)
+            R_layer = self._last_R_layer if self._last_R_layer is not None else np.zeros(L)
+            V_layer = self._last_V_layer if self._last_V_layer is not None else np.zeros(L)
+            snap_diag = DiagnosticSnapshot(
+                R_layer=R_layer,
+                V_layer=V_layer,
+                lambda_exp=self._last_lambda,
+                beta_n=beta_n,
+                q95=q95,
+                disruption_risk=disruption_risk,
+                mirnov_rms=mirnov_rms,
+                guard_approved=self._last_guard_approved,
+            )
+            K_override = self.adaptive_engine.update(snap_diag)
 
         out = self.upde.step(
             self.theta_layers, self.omega_layers,
             psi_driver=self.psi_driver, pac_gamma=self.pac_gamma,
+            K_override=K_override,
         )
         self.theta_layers = out["theta1"]
         self._tick_count += 1
 
         all_theta = np.concatenate([t.ravel() for t in self.theta_layers])
         verdict = self.guard.check(all_theta, out["Psi_global"])
+
+        # Cache state for next tick's diagnostic snapshot
+        self._last_R_layer = out["R_layer"].copy()
+        self._last_V_layer = out["V_layer"].copy()
+        self._last_lambda = verdict.lambda_exp
+        self._last_guard_approved = verdict.approved
 
         elapsed_us = (time.perf_counter_ns() - t0) / 1000.0
 
@@ -145,6 +218,8 @@ class RealtimeMonitor:
             "latency_us": elapsed_us,
             "director_ai": self.guard.to_director_ai_dict(verdict),
         }
+        if self.adaptive_engine is not None:
+            snap["adaptive"] = self.adaptive_engine.adaptation_summary
         if record:
             self._recorder.record(snap)
         return snap
