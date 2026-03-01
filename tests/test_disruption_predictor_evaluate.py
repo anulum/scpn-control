@@ -19,6 +19,12 @@ from scpn_control.control.disruption_predictor import (
     run_anomaly_alarm_campaign,
 )
 
+try:
+    import torch as _torch  # noqa: F401
+    _HAS_TORCH = True
+except ImportError:
+    _HAS_TORCH = False
+
 
 class TestAnomalyCampaignPositiveLabel:
     def test_campaign_covers_positive_alarm(self):
@@ -40,6 +46,7 @@ class TestAnomalyCampaignPositiveLabel:
 
 
 class TestLoadOrTrainNoFallback:
+    @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
     def test_train_failure_no_fallback_raises(self, tmp_path):
         """Training failure with allow_fallback=False re-raises (line 706)."""
         with patch(
