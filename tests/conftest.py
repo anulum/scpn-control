@@ -2,6 +2,7 @@
 # SCPN Control — Test Configuration
 # ──────────────────────────────────────────────────────────────────────
 """Shared fixtures for scpn-control test suite."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -36,6 +37,7 @@ def minimal_petri_net():
 def reference_data_dir():
     """Path to validation reference data."""
     from pathlib import Path
+
     return Path(__file__).parent.parent / "validation" / "reference_data"
 
 
@@ -43,4 +45,5 @@ def reference_data_dir():
 def weights_dir():
     """Path to pretrained weights."""
     from pathlib import Path
+
     return Path(__file__).parent.parent / "weights"

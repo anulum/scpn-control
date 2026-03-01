@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests for click CLI commands: validate, version, info."""
+
 from __future__ import annotations
 
 import json

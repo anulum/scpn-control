@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for ws_phase_stream: handler, tick loop, serve."""
+
 from __future__ import annotations
 
 import asyncio

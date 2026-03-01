@@ -142,13 +142,11 @@ class HInfinityController:
 
         self.X, self.Y, self.F, self.L_gain = self._synthesize(self.gamma)
         self.spectral_radius_xy = float(np.max(np.abs(np.linalg.eigvals(self.X @ self.Y))))
-        self.robust_feasible = bool(
-            self.spectral_radius_xy < self.gamma ** 2 * (1.0 - 1e-6)
-        )
+        self.robust_feasible = bool(self.spectral_radius_xy < self.gamma**2 * (1.0 - 1e-6))
         if not self.robust_feasible:
             msg = (
                 "H-infinity spectral feasibility condition failed: "
-                f"rho(XY)={self.spectral_radius_xy:.6g} >= gamma^2={self.gamma ** 2:.6g}."
+                f"rho(XY)={self.spectral_radius_xy:.6g} >= gamma^2={self.gamma**2:.6g}."
             )
             if enforce_robust_feasibility:
                 raise ValueError(msg)
@@ -169,12 +167,18 @@ class HInfinityController:
 
         logger.info(
             "H-inf controller: n=%d, m=%d, gamma=%.4f, robust_feasible=%s",
-            self.n, self.m, self.gamma, self.robust_feasible,
+            self.n,
+            self.m,
+            self.gamma,
+            self.robust_feasible,
         )
 
     @staticmethod
     def _make_feedthrough(
-        value: Optional[npt.ArrayLike], rows: int, cols: int, name: str,
+        value: Optional[npt.ArrayLike],
+        rows: int,
+        cols: int,
+        name: str,
     ) -> np.ndarray:
         if value is not None:
             mat = np.atleast_2d(np.asarray(value, dtype=float))
@@ -221,8 +225,8 @@ class HInfinityController:
         Y = solve_continuous_are(self.A.T, B_aug_y, Q_y, R_aug_y)
         Y = 0.5 * (Y + Y.T)
 
-        F = -self.B2.T @ X       # shape (m, n) — state feedback
-        L = Y @ self.C2.T        # shape (n, l) — observer injection
+        F = -self.B2.T @ X  # shape (m, n) — state feedback
+        L = Y @ self.C2.T  # shape (n, l) — observer injection
 
         if not np.all(np.isfinite(F)) or not np.all(np.isfinite(L)):
             raise ValueError("Riccati synthesis produced non-finite gains.")
@@ -231,7 +235,7 @@ class HInfinityController:
 
     # Bisection bounds for gamma search.
     # H-inf feasibility requires gamma > ||D_11||_inf >= 1; Zhou & Doyle, Ch. 17
-    _GAMMA_SEARCH_MIN = 1.01   # 1% above unity to avoid numerical singularity
+    _GAMMA_SEARCH_MIN = 1.01  # 1% above unity to avoid numerical singularity
     _GAMMA_SEARCH_MAX = 1e6
     _GAMMA_FEASIBILITY_PAD = 1.005  # 0.5% headroom above bisection optimum
 
@@ -251,7 +255,7 @@ class HInfinityController:
                 X, Y, F, L = self._synthesize(gamma_try)
                 eigs = np.linalg.eigvals(X @ Y)
                 spec_rad = float(np.max(np.abs(eigs)))
-                if spec_rad < gamma_try ** 2:
+                if spec_rad < gamma_try**2:
                     best_gamma = gamma_try
                     gamma_max = gamma_try
                 else:
@@ -331,18 +335,13 @@ class HInfinityController:
         # Observer update with anti-windup back-calculation
         innovation = y - self.C2 @ self.state
         aw_correction = self._Bd_u @ (u - u_raw)
-        self.state = (
-            self._Ad @ self.state
-            + self._Bd_u @ u
-            + self._Ld @ innovation
-            + aw_correction
-        )
+        self.state = self._Ad @ self.state + self._Bd_u @ u + self._Ld @ innovation + aw_correction
 
         return float(u[0]) if u.size > 1 else float(u.item())
 
     def riccati_residual_norms(self) -> tuple[float, float]:
         """Return Frobenius norms of the two H-infinity Riccati residuals."""
-        g2 = self.gamma ** 2
+        g2 = self.gamma**2
         res_x = (
             self.A.T @ self.X
             + self.X @ self.A
@@ -355,13 +354,11 @@ class HInfinityController:
             - self.Y @ (self.C2.T @ self.C2 - self.C1.T @ self.C1 / g2) @ self.Y
             + self.B1 @ self.B1.T
         )
-        return float(np.linalg.norm(res_x, ord="fro")), float(
-            np.linalg.norm(res_y, ord="fro")
-        )
+        return float(np.linalg.norm(res_x, ord="fro")), float(np.linalg.norm(res_y, ord="fro"))
 
     def robust_feasibility_margin(self) -> float:
         """Return gamma^2 - rho(XY); positive values satisfy the strict test."""
-        return float(self.gamma ** 2 - self.spectral_radius_xy)
+        return float(self.gamma**2 - self.spectral_radius_xy)
 
     def reset(self) -> None:
         """Reset controller state to zero."""
@@ -416,19 +413,27 @@ def get_radial_robust_controller(
     """
     if not np.isfinite(damping) or damping <= 0.0:
         raise ValueError("damping must be a finite positive value.")
-    A = np.array([
-        [0.0, 1.0],
-        [gamma_growth**2, -damping],
-    ])
+    A = np.array(
+        [
+            [0.0, 1.0],
+            [gamma_growth**2, -damping],
+        ]
+    )
     B2 = np.array([[0.0], [1.0]])
     B1 = np.array([[0.0], [0.5]])
-    C1 = np.array([
-        [1.0, 0.0],
-        [0.0, 0.0],
-    ])
+    C1 = np.array(
+        [
+            [1.0, 0.0],
+            [0.0, 0.0],
+        ]
+    )
     C2 = np.array([[1.0, 0.0]])
 
     return HInfinityController(
-        A, B1, B2, C1, C2,
+        A,
+        B1,
+        B2,
+        C1,
+        C2,
         enforce_robust_feasibility=enforce_robust_feasibility,
     )

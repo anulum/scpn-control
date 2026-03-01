@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests for LyapunovGuard, LyapunovVerdict, and TrajectoryRecorder."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -115,10 +116,17 @@ class TestLyapunovGuard:
 class TestTrajectoryRecorder:
     def test_record_and_n_ticks(self):
         from scpn_control.phase.realtime_monitor import TrajectoryRecorder
+
         rec = TrajectoryRecorder()
         snap = {
-            "R_global": 0.5, "R_layer": [0.5], "V_global": 0.1, "V_layer": [0.1],
-            "lambda_exp": -0.01, "guard_approved": True, "latency_us": 12.0, "Psi_global": 0.0,
+            "R_global": 0.5,
+            "R_layer": [0.5],
+            "V_global": 0.1,
+            "V_layer": [0.1],
+            "lambda_exp": -0.01,
+            "guard_approved": True,
+            "latency_us": 12.0,
+            "Psi_global": 0.0,
         }
         rec.record(snap)
         rec.record(snap)
@@ -126,10 +134,17 @@ class TestTrajectoryRecorder:
 
     def test_clear(self):
         from scpn_control.phase.realtime_monitor import TrajectoryRecorder
+
         rec = TrajectoryRecorder()
         snap = {
-            "R_global": 0.5, "R_layer": [0.5], "V_global": 0.1, "V_layer": [0.1],
-            "lambda_exp": -0.01, "guard_approved": True, "latency_us": 12.0, "Psi_global": 0.0,
+            "R_global": 0.5,
+            "R_layer": [0.5],
+            "V_global": 0.1,
+            "V_layer": [0.1],
+            "lambda_exp": -0.01,
+            "guard_approved": True,
+            "latency_us": 12.0,
+            "Psi_global": 0.0,
         }
         rec.record(snap)
         rec.clear()

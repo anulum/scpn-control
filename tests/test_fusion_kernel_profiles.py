@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for fusion_kernel.py profile_mode setup, Anderson mixing
 LinAlgError branch, and alpha normalisation guard."""
+
 from __future__ import annotations
 
 import json

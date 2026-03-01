@@ -37,17 +37,13 @@ class _DummyKernel:
     def solve_equilibrium(self) -> None:
         self._ticks += 1
         radial_drive = float(self.cfg["coils"][2]["current"])
-        vertical_drive = float(self.cfg["coils"][4]["current"]) - float(
-            self.cfg["coils"][0]["current"]
-        )
+        vertical_drive = float(self.cfg["coils"][4]["current"]) - float(self.cfg["coils"][0]["current"])
         center_r = 6.1 + 0.05 * np.tanh(radial_drive / 10.0)
         center_z = 0.0 + 0.04 * np.tanh(vertical_drive / 10.0)
         ir = int(np.argmin(np.abs(self.R - center_r)))
         iz = int(np.argmin(np.abs(self.Z - center_z)))
         self.Psi.fill(-1.0)
-        self.Psi[iz, ir] = 1.0 + 0.001 * float(
-            self.cfg["physics"]["plasma_current_target"]
-        )
+        self.Psi[iz, ir] = 1.0 + 0.001 * float(self.cfg["physics"]["plasma_current_target"])
 
     def find_x_point(self, _psi: np.ndarray) -> tuple[tuple[float, float], float]:
         return (float(self.R[-2]), float(self.Z[1])), 0.0
@@ -211,6 +207,7 @@ def test_run_flight_sim_heating_tau_controls_actuator_lag() -> None:
 
 # ── FirstOrderActuator: rate limiting ────────────────────────────
 
+
 class TestActuatorRateLimiting:
     def test_rate_limit_clips_large_step(self):
         act = FirstOrderActuator(tau_s=0.01, dt_s=0.01, rate_limit=1.0)
@@ -233,10 +230,14 @@ class TestActuatorRateLimiting:
 
 # ── FirstOrderActuator: measurement delay & noise ────────────────
 
+
 class TestActuatorMeasurement:
     def test_delay_returns_past_value(self):
         act = FirstOrderActuator(
-            tau_s=0.01, dt_s=0.01, delay_steps=3, rate_limit=1e9,
+            tau_s=0.01,
+            dt_s=0.01,
+            delay_steps=3,
+            rate_limit=1e9,
         )
         values = []
         for i in range(6):
@@ -250,8 +251,10 @@ class TestActuatorMeasurement:
 
     def test_noise_adds_gaussian(self):
         act = FirstOrderActuator(
-            tau_s=0.01, dt_s=0.01,
-            sensor_noise_std=1.0, rng_seed=42,
+            tau_s=0.01,
+            dt_s=0.01,
+            sensor_noise_std=1.0,
+            rng_seed=42,
         )
         act.step(5.0)
         measurements = [act.get_measurement() for _ in range(200)]
@@ -267,6 +270,7 @@ class TestActuatorMeasurement:
 
 
 # ── IsoFluxController: verbose path ──────────────────────────────
+
 
 class TestIsoFluxControllerVerbose:
     def test_verbose_output(self, capsys):
@@ -292,6 +296,7 @@ class TestIsoFluxControllerVerbose:
 
 # ── run_flight_sim: config_file=None default path ────────────────
 
+
 class TestRunFlightSimConfigDefault:
     def test_config_none_uses_default_path(self):
         summary = run_flight_sim(
@@ -306,6 +311,7 @@ class TestRunFlightSimConfigDefault:
 
 
 # ── FirstOrderActuator: saturation limits ────────────────────────
+
 
 class TestActuatorSaturation:
     def test_u_max_clamp(self):

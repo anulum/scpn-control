@@ -12,6 +12,7 @@ Reads/writes the ``equilibrium`` IDS (time_slice → profiles_2d) via the
 OMAS Python package when available, or falls back to raw dict construction
 for environments without IMAS access.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,14 +30,15 @@ class EquilibriumIDS:
 
     Fields match ``equilibrium.time_slice[0].profiles_2d[0]``.
     """
-    r: FloatArray            # R grid [m], shape (nr,)
-    z: FloatArray            # Z grid [m], shape (nz,)
-    psi: FloatArray          # poloidal flux [Wb], shape (nz, nr)
-    j_tor: FloatArray        # toroidal current density [A/m²], shape (nz, nr)
-    ip: float                # plasma current [A]
-    b0: float                # vacuum toroidal field at R0 [T]
-    r0: float                # geometric center R [m]
-    time: float = 0.0        # time of slice [s]
+
+    r: FloatArray  # R grid [m], shape (nr,)
+    z: FloatArray  # Z grid [m], shape (nz,)
+    psi: FloatArray  # poloidal flux [Wb], shape (nz, nr)
+    j_tor: FloatArray  # toroidal current density [A/m²], shape (nz, nr)
+    ip: float  # plasma current [A]
+    b0: float  # vacuum toroidal field at R0 [T]
+    r0: float  # geometric center R [m]
+    time: float = 0.0  # time of slice [s]
 
 
 def from_kernel(kernel, time: float = 0.0) -> EquilibriumIDS:

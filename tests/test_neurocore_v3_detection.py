@@ -24,6 +24,7 @@ class TestNeurocore:
 
     def test_get_backend_importable(self) -> None:
         from sc_neurocore.accel import get_backend
+
         backend = get_backend()
         assert backend is not None
 
@@ -39,6 +40,7 @@ class TestNeurocore:
         net.add_arc("t0", "p1", weight=1)
 
         from scpn_control.scpn.compiler import FusionCompiler
+
         compiled = FusionCompiler(net).compile()
 
         marking = np.array([1.0, 0.0])

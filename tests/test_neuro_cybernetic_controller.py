@@ -33,14 +33,10 @@ class _DummyKernel:
 
     def solve_equilibrium(self) -> None:
         radial_drive = float(self.cfg["coils"][2]["current"])
-        vertical_drive = float(self.cfg["coils"][4]["current"]) - float(
-            self.cfg["coils"][0]["current"]
-        )
+        vertical_drive = float(self.cfg["coils"][4]["current"]) - float(self.cfg["coils"][0]["current"])
         center_r = 6.2 + 0.07 * np.tanh(radial_drive / 20.0)
         center_z = 0.0 + 0.05 * np.tanh(vertical_drive / 20.0)
-        self.Psi = 1.0 - (
-            (self.RR - center_r) ** 2 + ((self.ZZ - center_z) / 1.4) ** 2
-        )
+        self.Psi = 1.0 - ((self.RR - center_r) ** 2 + ((self.ZZ - center_z) / 1.4) ** 2)
 
 
 @pytest.fixture(autouse=True)
@@ -102,9 +98,7 @@ def test_spiking_pool_exposes_backend_name() -> None:
         ({"noise_std": -1.0e-3}, "noise_std"),
     ],
 )
-def test_spiking_pool_rejects_invalid_constructor_inputs(
-    kwargs: dict[str, float | int], match: str
-) -> None:
+def test_spiking_pool_rejects_invalid_constructor_inputs(kwargs: dict[str, float | int], match: str) -> None:
     params: dict[str, float | int | bool] = {
         "n_neurons": 8,
         "gain": 1.0,
@@ -215,7 +209,8 @@ def test_spiking_pool_numpy_population_fires_above_threshold() -> None:
 def test_spiking_pool_no_numpy_fallback_raises() -> None:
     with pytest.raises(RuntimeError, match="allow_numpy_fallback=False"):
         SpikingControllerPool(
-            n_neurons=8, allow_numpy_fallback=False,
+            n_neurons=8,
+            allow_numpy_fallback=False,
         )
 
 
@@ -228,8 +223,12 @@ def test_spiking_pool_last_rates_nonnegative() -> None:
 
 def test_controller_history_populated() -> None:
     from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+
     nc = NeuroCyberneticController(
-        "dummy.json", seed=42, shot_duration=20, kernel_factory=_DummyKernel,
+        "dummy.json",
+        seed=42,
+        shot_duration=20,
+        kernel_factory=_DummyKernel,
     )
     nc.run_shot(save_plot=False, verbose=False)
     assert len(nc.history["t"]) == 20
@@ -258,12 +257,13 @@ def test_controller_coils_updated() -> None:
             pass
 
     nc = NeuroCyberneticController(
-        "dummy.json", seed=42, shot_duration=30, kernel_factory=_OffsetKernel,
+        "dummy.json",
+        seed=42,
+        shot_duration=30,
+        kernel_factory=_OffsetKernel,
     )
     nc.run_shot(save_plot=False, verbose=False)
-    any_nonzero = any(
-        abs(float(c["current"])) > 0.0 for c in nc.kernel.cfg["coils"]
-    )
+    any_nonzero = any(abs(float(c["current"])) > 0.0 for c in nc.kernel.cfg["coils"])
     assert any_nonzero
 
 
@@ -278,6 +278,7 @@ def test_spiking_pool_rejects_nan_noise() -> None:
 
 
 # ── Verbose & coil-padding paths ─────────────────────────────────
+
 
 def test_run_neuro_cybernetic_control_verbose_output(capsys) -> None:
     run_neuro_cybernetic_control(
@@ -308,15 +309,17 @@ class _KernelFewCoils:
         self.solve_equilibrium()
 
     def solve_equilibrium(self) -> None:
-        self.Psi = 1.0 - (
-            (self.RR - 6.2) ** 2 + ((self.ZZ - 0.0) / 1.4) ** 2
-        )
+        self.Psi = 1.0 - ((self.RR - 6.2) ** 2 + ((self.ZZ - 0.0) / 1.4) ** 2)
 
 
 def test_controller_pads_coils_when_fewer_than_five() -> None:
     from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+
     nc = NeuroCyberneticController(
-        "dummy.json", seed=42, shot_duration=5, kernel_factory=_KernelFewCoils,
+        "dummy.json",
+        seed=42,
+        shot_duration=5,
+        kernel_factory=_KernelFewCoils,
     )
     nc.run_shot(save_plot=False, verbose=False)
     assert len(nc.kernel.cfg["coils"]) >= 5

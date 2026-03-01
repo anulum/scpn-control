@@ -6,6 +6,7 @@
 """Coverage for generate_emulated_stream validation (100, 103),
 RealtimeTwinHook buffer overflow (148), empty buffer (162),
 short horizon (165), run_realtime_twin_session empty plans (322)."""
+
 from __future__ import annotations
 
 import pytest
@@ -36,8 +37,12 @@ class TestRealtimeTwinHookEdgePaths:
         hook = RealtimeTwinHook("SPARC", max_buffer=64)
         for i in range(70):
             pkt = TelemetryPacket(
-                t_ms=i * 5, machine="SPARC", ip_ma=8.7,
-                beta_n=1.65, q95=3.9, density_1e19=8.2,
+                t_ms=i * 5,
+                machine="SPARC",
+                ip_ma=8.7,
+                beta_n=1.65,
+                q95=3.9,
+                density_1e19=8.2,
             )
             hook.ingest(pkt)
         assert len(hook.buffer) == 64
@@ -52,8 +57,12 @@ class TestRealtimeTwinHookEdgePaths:
         """horizon < 4 raises ValueError (line 165)."""
         hook = RealtimeTwinHook("SPARC")
         pkt = TelemetryPacket(
-            t_ms=0, machine="SPARC", ip_ma=8.7,
-            beta_n=1.65, q95=3.9, density_1e19=8.2,
+            t_ms=0,
+            machine="SPARC",
+            ip_ma=8.7,
+            beta_n=1.65,
+            q95=3.9,
+            density_1e19=8.2,
         )
         hook.ingest(pkt)
         with pytest.raises(ValueError, match="horizon must be >= 4"):
@@ -64,7 +73,10 @@ class TestRunSessionEmptyPlans:
     def test_plan_every_exceeds_samples(self):
         """plan_every > samples yields no plans → fallback dict (line 322)."""
         result = run_realtime_twin_session(
-            "SPARC", samples=32, plan_every=999, seed=42,
+            "SPARC",
+            samples=32,
+            plan_every=999,
+            seed=42,
         )
         assert result["samples"] == 32
         assert result.get("plan_count", 0) == 0

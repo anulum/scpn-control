@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests exercising every save_plot / save_animation / save_report matplotlib path."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -12,6 +13,7 @@ import pytest
 # ── Skip entire module if matplotlib is absent ──
 mpl = pytest.importorskip("matplotlib")
 import matplotlib
+
 matplotlib.use("Agg")
 
 from scpn_control.control.fusion_control_room import (
@@ -27,12 +29,16 @@ def _make_frames(n: int = 4) -> tuple:
     rng = np.random.default_rng(0)
     frames = []
     for _ in range(n):
-        frames.append({
-            "density": rng.random((10, 10)),
-            "psi": rng.random((10, 10)),
-            "r_min": 3.0, "r_max": 9.0,
-            "z_min": -5.0, "z_max": 5.0,
-        })
+        frames.append(
+            {
+                "density": rng.random((10, 10)),
+                "psi": rng.random((10, 10)),
+                "r_min": 3.0,
+                "r_max": 9.0,
+                "z_min": -5.0,
+                "z_max": 5.0,
+            }
+        )
     h_z = [rng.uniform(-0.5, 0.5) for _ in range(n)]
     h_top = [rng.uniform(0.0, 1.0) for _ in range(n)]
     h_bot = [rng.uniform(0.0, 1.0) for _ in range(n)]
@@ -47,9 +53,14 @@ class TestRenderOutputs:
         frames, h_z, h_top, h_bot = _make_frames()
         report = str(tmp_path / "report.png")
         anim_ok, anim_err, rep_ok, rep_err = _render_outputs(
-            frames, h_z, h_top, h_bot,
-            save_animation=False, save_report=True,
-            output_gif="unused.gif", output_report=report,
+            frames,
+            h_z,
+            h_top,
+            h_bot,
+            save_animation=False,
+            save_report=True,
+            output_gif="unused.gif",
+            output_report=report,
         )
         assert rep_ok is True
         assert rep_err is None
@@ -59,9 +70,14 @@ class TestRenderOutputs:
         frames, h_z, h_top, h_bot = _make_frames(3)
         gif = str(tmp_path / "anim.gif")
         anim_ok, anim_err, rep_ok, rep_err = _render_outputs(
-            frames, h_z, h_top, h_bot,
-            save_animation=True, save_report=False,
-            output_gif=gif, output_report="unused.png",
+            frames,
+            h_z,
+            h_top,
+            h_bot,
+            save_animation=True,
+            save_report=False,
+            output_gif=gif,
+            output_report="unused.png",
         )
         assert anim_ok is True
         assert anim_err is None
@@ -72,9 +88,14 @@ class TestRenderOutputs:
         gif = str(tmp_path / "both.gif")
         report = str(tmp_path / "both.png")
         anim_ok, anim_err, rep_ok, rep_err = _render_outputs(
-            frames, h_z, h_top, h_bot,
-            save_animation=True, save_report=True,
-            output_gif=gif, output_report=report,
+            frames,
+            h_z,
+            h_top,
+            h_bot,
+            save_animation=True,
+            save_report=True,
+            output_gif=gif,
+            output_report=report,
         )
         assert anim_ok is True
         assert rep_ok is True
@@ -83,9 +104,14 @@ class TestRenderOutputs:
         frames, h_z, h_top, h_bot = _make_frames(3)
         bad_path = str(tmp_path / "nonexistent_dir" / "anim.gif")
         anim_ok, anim_err, _, _ = _render_outputs(
-            frames, h_z, h_top, h_bot,
-            save_animation=True, save_report=False,
-            output_gif=bad_path, output_report="unused.png",
+            frames,
+            h_z,
+            h_top,
+            h_bot,
+            save_animation=True,
+            save_report=False,
+            output_gif=bad_path,
+            output_report="unused.png",
         )
         assert anim_ok is False
         assert anim_err is not None
@@ -94,9 +120,14 @@ class TestRenderOutputs:
         frames, h_z, h_top, h_bot = _make_frames(3)
         bad_path = str(tmp_path / "nonexistent_dir" / "report.png")
         _, _, rep_ok, rep_err = _render_outputs(
-            frames, h_z, h_top, h_bot,
-            save_animation=False, save_report=True,
-            output_gif="unused.gif", output_report=bad_path,
+            frames,
+            h_z,
+            h_top,
+            h_bot,
+            save_animation=False,
+            save_report=True,
+            output_gif="unused.gif",
+            output_report=bad_path,
         )
         assert rep_ok is False
         assert rep_err is not None
@@ -109,8 +140,10 @@ class TestControlRoomVisualization:
     def test_run_with_save_report(self, tmp_path):
         report = str(tmp_path / "cr_report.png")
         s = run_control_room(
-            sim_duration=5, seed=0,
-            save_animation=False, save_report=True,
+            sim_duration=5,
+            seed=0,
+            save_animation=False,
+            save_report=True,
             output_report=report,
         )
         assert s["report_saved"] is True
@@ -119,8 +152,10 @@ class TestControlRoomVisualization:
     def test_run_with_save_animation(self, tmp_path):
         gif = str(tmp_path / "cr_anim.gif")
         s = run_control_room(
-            sim_duration=3, seed=0,
-            save_animation=True, save_report=False,
+            sim_duration=3,
+            seed=0,
+            save_animation=True,
+            save_report=False,
             output_gif=gif,
         )
         assert s["animation_saved"] is True
@@ -136,8 +171,11 @@ class TestDigitalTwinVisualization:
     def test_save_plot_true(self, tmp_path):
         out = str(tmp_path / "twin.png")
         s = run_digital_twin(
-            time_steps=20, seed=0,
-            save_plot=True, output_path=out, verbose=False,
+            time_steps=20,
+            seed=0,
+            save_plot=True,
+            output_path=out,
+            verbose=False,
         )
         assert s["plot_saved"] is True
         assert s["plot_error"] is None
@@ -145,8 +183,11 @@ class TestDigitalTwinVisualization:
     def test_save_plot_bad_path(self, tmp_path):
         bad = str(tmp_path / "nonexistent" / "twin.png")
         s = run_digital_twin(
-            time_steps=20, seed=0,
-            save_plot=True, output_path=bad, verbose=True,
+            time_steps=20,
+            seed=0,
+            save_plot=True,
+            output_path=bad,
+            verbose=True,
         )
         assert s["plot_saved"] is False
         assert s["plot_error"] is not None
@@ -173,17 +214,13 @@ class _FlightKernel:
     def solve_equilibrium(self) -> None:
         self._ticks += 1
         radial_drive = float(self.cfg["coils"][2]["current"])
-        vertical_drive = float(self.cfg["coils"][4]["current"]) - float(
-            self.cfg["coils"][0]["current"]
-        )
+        vertical_drive = float(self.cfg["coils"][4]["current"]) - float(self.cfg["coils"][0]["current"])
         center_r = 6.1 + 0.05 * np.tanh(radial_drive / 10.0)
         center_z = 0.0 + 0.04 * np.tanh(vertical_drive / 10.0)
         ir = int(np.argmin(np.abs(self.R - center_r)))
         iz = int(np.argmin(np.abs(self.Z - center_z)))
         self.Psi.fill(-1.0)
-        self.Psi[iz, ir] = 1.0 + 0.001 * float(
-            self.cfg["physics"]["plasma_current_target"]
-        )
+        self.Psi[iz, ir] = 1.0 + 0.001 * float(self.cfg["physics"]["plasma_current_target"])
 
     def find_x_point(self, _psi):
         return (float(self.R[-2]), float(self.Z[1])), 0.0
@@ -193,8 +230,11 @@ class TestFlightSimVisualization:
     def test_save_plot_true(self, tmp_path):
         out = str(tmp_path / "flight.png")
         s = run_flight_sim(
-            shot_duration=10, seed=42,
-            save_plot=True, output_path=out, verbose=False,
+            shot_duration=10,
+            seed=42,
+            save_plot=True,
+            output_path=out,
+            verbose=False,
             kernel_factory=_FlightKernel,
         )
         assert s["plot_saved"] is True
@@ -203,8 +243,11 @@ class TestFlightSimVisualization:
     def test_save_plot_bad_path(self, tmp_path):
         bad = str(tmp_path / "nope" / "flight.png")
         s = run_flight_sim(
-            shot_duration=10, seed=42,
-            save_plot=True, output_path=bad, verbose=False,
+            shot_duration=10,
+            seed=42,
+            save_plot=True,
+            output_path=bad,
+            verbose=False,
             kernel_factory=_FlightKernel,
         )
         assert s["plot_saved"] is False
@@ -213,18 +256,25 @@ class TestFlightSimVisualization:
     def test_visualize_flight_mpl_unavailable(self, monkeypatch, tmp_path):
         """Cover the early-return path when matplotlib import fails."""
         from scpn_control.control.tokamak_flight_sim import IsoFluxController
+
         ctrl = IsoFluxController.__new__(IsoFluxController)
         ctrl.verbose = False
         ctrl.kernel = _FlightKernel("dummy")
         ctrl.history = {
-            "t": [0, 1], "Ip": [5.0, 5.1],
-            "R_axis": [6.2, 6.2], "Z_axis": [0.0, 0.0],
+            "t": [0, 1],
+            "Ip": [5.0, 5.1],
+            "R_axis": [6.2, 6.2],
+            "Z_axis": [0.0, 0.0],
             "X_point": [(0.0, 0.0), (0.0, 0.0)],
-            "ctrl_R_cmd": [0.0, 0.0], "ctrl_R_applied": [0.0, 0.0],
-            "ctrl_Z_cmd": [0.0, 0.0], "ctrl_Z_applied": [0.0, 0.0],
-            "beta_cmd": [1.0, 1.0], "beta_applied": [1.0, 1.0],
+            "ctrl_R_cmd": [0.0, 0.0],
+            "ctrl_R_applied": [0.0, 0.0],
+            "ctrl_Z_cmd": [0.0, 0.0],
+            "ctrl_Z_applied": [0.0, 0.0],
+            "beta_cmd": [1.0, 1.0],
+            "beta_applied": [1.0, 1.0],
         }
         import builtins
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -251,7 +301,10 @@ class TestAdvancedSOCVisualization:
         rng = np.random.default_rng(0)
         n = 200
         ok, err = _plot_learning(
-            rng.random(n), rng.random(n), rng.random(n), rng.random(n),
+            rng.random(n),
+            rng.random(n),
+            rng.random(n),
+            rng.random(n),
             rng.random((10, 10, 3)),
             str(tmp_path / "learning.png"),
         )
@@ -262,7 +315,10 @@ class TestAdvancedSOCVisualization:
         rng = np.random.default_rng(0)
         n = 50
         ok, err = _plot_learning(
-            rng.random(n), rng.random(n), rng.random(n), rng.random(n),
+            rng.random(n),
+            rng.random(n),
+            rng.random(n),
+            rng.random(n),
             rng.random((10, 10, 3)),
             str(tmp_path / "nope" / "learning.png"),
         )
@@ -272,8 +328,12 @@ class TestAdvancedSOCVisualization:
     def test_run_with_save_plot(self, tmp_path):
         out = str(tmp_path / "soc.png")
         s = run_advanced_learning_sim(
-            size=8, time_steps=20, seed=0,
-            save_plot=True, output_path=out, verbose=False,
+            size=8,
+            time_steps=20,
+            seed=0,
+            save_plot=True,
+            output_path=out,
+            verbose=False,
         )
         assert s["plot_saved"] is True
         assert s["plot_error"] is None
@@ -288,7 +348,9 @@ class TestSPIVisualization:
     def test_save_plot_true(self, tmp_path):
         out = str(tmp_path / "spi.png")
         s = run_spi_mitigation(
-            save_plot=True, output_path=out, verbose=False,
+            save_plot=True,
+            output_path=out,
+            verbose=False,
         )
         assert s["plot_saved"] is True
         assert s["plot_error"] is None
@@ -296,7 +358,9 @@ class TestSPIVisualization:
     def test_save_plot_bad_path(self, tmp_path):
         bad = str(tmp_path / "nope" / "spi.png")
         s = run_spi_mitigation(
-            save_plot=True, output_path=bad, verbose=True,
+            save_plot=True,
+            output_path=bad,
+            verbose=True,
         )
         assert s["plot_saved"] is False
         assert s["plot_error"] is not None
@@ -315,8 +379,7 @@ class _OptKernel:
         self.cfg = {
             "physics": {"plasma_current_target": 8.0},
             "coils": [
-                {"name": f"PF{i+1}", "r": 5.7 + 0.2 * i, "z": -0.25 + 0.125 * i, "current": 0.0}
-                for i in range(4)
+                {"name": f"PF{i + 1}", "r": 5.7 + 0.2 * i, "z": -0.25 + 0.125 * i, "current": 0.0} for i in range(4)
             ],
         }
         self.R = np.linspace(5.8, 6.3, 21)
@@ -333,18 +396,16 @@ class _OptKernel:
         ir = int(np.argmin(np.abs(self.R - center_r)))
         iz = int(np.argmin(np.abs(self.Z - center_z)))
         self.Psi.fill(-1.0)
-        self.Psi[iz, ir] = 1.0 + 0.001 * float(
-            self.cfg["physics"]["plasma_current_target"]
-        )
-        self.J_phi = np.exp(
-            -((self.RR - center_r) ** 2 + ((self.ZZ - center_z) / 1.5) ** 2)
-        )
+        self.Psi[iz, ir] = 1.0 + 0.001 * float(self.cfg["physics"]["plasma_current_target"])
+        self.J_phi = np.exp(-((self.RR - center_r) ** 2 + ((self.ZZ - center_z) / 1.5) ** 2))
 
 
 class TestOptimalControlVisualization:
     def test_plot_telemetry_direct(self, tmp_path):
         oc = OptimalController(
-            "dummy.json", kernel_factory=_OptKernel, verbose=False,
+            "dummy.json",
+            kernel_factory=_OptKernel,
+            verbose=False,
         )
         oc.identify_system()
         oc.run_optimal_shot(shot_steps=5, save_plot=False)
@@ -355,8 +416,11 @@ class TestOptimalControlVisualization:
     def test_run_with_save_plot(self, tmp_path):
         out = str(tmp_path / "opt_full.png")
         s = run_optimal_control(
-            shot_steps=5, seed=0,
-            save_plot=True, output_path=out, verbose=False,
+            shot_steps=5,
+            seed=0,
+            save_plot=True,
+            output_path=out,
+            verbose=False,
             kernel_factory=_OptKernel,
         )
         assert s["plot_saved"] is True
@@ -364,7 +428,9 @@ class TestOptimalControlVisualization:
 
     def test_plot_telemetry_bad_path(self, tmp_path):
         oc = OptimalController(
-            "dummy.json", kernel_factory=_OptKernel, verbose=False,
+            "dummy.json",
+            kernel_factory=_OptKernel,
+            verbose=False,
         )
         oc.identify_system()
         oc.run_optimal_shot(shot_steps=5, save_plot=False)
@@ -382,9 +448,7 @@ class _MPCKernel:
     def __init__(self, _cfg: str) -> None:
         self.cfg = {
             "physics": {"plasma_current_target": 7.0},
-            "coils": [
-                {"name": f"PF{i+1}", "current": 0.0} for i in range(4)
-            ],
+            "coils": [{"name": f"PF{i + 1}", "current": 0.0} for i in range(4)],
         }
         self.R = np.linspace(5.8, 6.3, 25)
         self.Z = np.linspace(-0.4, 0.4, 25)
@@ -399,9 +463,7 @@ class _MPCKernel:
         ir = int(np.argmin(np.abs(self.R - center_r)))
         iz = len(self.Z) // 2
         self.Psi.fill(-1.0)
-        self.Psi[iz, ir] = 1.0 + 0.001 * float(
-            self.cfg["physics"]["plasma_current_target"]
-        )
+        self.Psi[iz, ir] = 1.0 + 0.001 * float(self.cfg["physics"]["plasma_current_target"])
 
     def find_x_point(self, _psi):
         return self._xp, 0.0
@@ -412,8 +474,11 @@ class TestSOTAMPCVisualization:
         out = str(tmp_path / "mpc.png")
         s = run_sota_simulation(
             config_file="dummy.json",
-            shot_length=10, prediction_horizon=3,
-            save_plot=True, output_path=out, verbose=False,
+            shot_length=10,
+            prediction_horizon=3,
+            save_plot=True,
+            output_path=out,
+            verbose=False,
             kernel_factory=_MPCKernel,
         )
         assert s["plot_saved"] is True
@@ -423,8 +488,11 @@ class TestSOTAMPCVisualization:
         bad = str(tmp_path / "nope" / "mpc.png")
         s = run_sota_simulation(
             config_file="dummy.json",
-            shot_length=10, prediction_horizon=3,
-            save_plot=True, output_path=bad, verbose=False,
+            shot_length=10,
+            prediction_horizon=3,
+            save_plot=True,
+            output_path=bad,
+            verbose=False,
             kernel_factory=_MPCKernel,
         )
         assert s["plot_saved"] is False
@@ -454,8 +522,10 @@ class _DirKernel:
 
 class _DirNCC:
     """Minimal NeuroCyberneticController stand-in for DirectorInterface tests."""
+
     def __init__(self, _cfg: str) -> None:
         from scpn_control.control.neuro_cybernetic_controller import SpikingControllerPool
+
         self.kernel = _DirKernel(_cfg)
         self.brain_R = SpikingControllerPool(n_neurons=5, seed=0)
         self.brain_Z = SpikingControllerPool(n_neurons=5, seed=1)
@@ -476,7 +546,10 @@ class TestDirectorInterfaceVisualization:
             controller_factory=_DirNCC,
         )
         s = di.run_directed_mission(
-            duration=10, save_plot=True, output_path=out, verbose=False,
+            duration=10,
+            save_plot=True,
+            output_path=out,
+            verbose=False,
         )
         assert s["plot_saved"] is True
         assert s["plot_error"] is None
@@ -488,7 +561,10 @@ class TestDirectorInterfaceVisualization:
             controller_factory=_DirNCC,
         )
         s = di.run_directed_mission(
-            duration=10, save_plot=True, output_path=bad, verbose=False,
+            duration=10,
+            save_plot=True,
+            output_path=bad,
+            verbose=False,
         )
         assert s["plot_saved"] is False
         assert s["plot_error"] is not None

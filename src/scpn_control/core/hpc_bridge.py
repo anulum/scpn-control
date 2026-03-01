@@ -40,9 +40,7 @@ def _require_c_contiguous_f64(
     if not array.flags.c_contiguous:
         raise ValueError(f"{name} must be C-contiguous")
     if tuple(array.shape) != tuple(expected_shape):
-        raise ValueError(
-            f"{name} shape mismatch: expected {expected_shape}, received {tuple(array.shape)}"
-        )
+        raise ValueError(f"{name} shape mismatch: expected {expected_shape}, received {tuple(array.shape)}")
     return array  # type: ignore[return-value]
 
 
@@ -91,11 +89,7 @@ class HPCBridge:
         self._has_converged_api: bool = False
         self._has_boundary_api: bool = False
 
-        lib_name = (
-            "scpn_solver.dll"
-            if platform.system() == "Windows"
-            else "libscpn_solver.so"
-        )
+        lib_name = "scpn_solver.dll" if platform.system() == "Windows" else "libscpn_solver.so"
         env_path = os.environ.get("SCPN_SOLVER_LIB")
         if lib_path is None and env_path:
             lib_path = env_path
@@ -149,19 +143,22 @@ class HPCBridge:
     def _setup_signatures(self) -> None:
         assert self.lib is not None
         self.lib.create_solver.argtypes = [
-            ctypes.c_int, ctypes.c_int,
-            ctypes.c_double, ctypes.c_double,
-            ctypes.c_double, ctypes.c_double,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_double,
+            ctypes.c_double,
+            ctypes.c_double,
+            ctypes.c_double,
         ]
         self.lib.create_solver.restype = ctypes.c_void_p
 
         # void run_step(void* solver, double* j, double* psi, int size, int iter)
         self.lib.run_step.argtypes = [
             ctypes.c_void_p,
-            np.ctypeslib.ndpointer(dtype=np.float64, flags='C_CONTIGUOUS'),
-            np.ctypeslib.ndpointer(dtype=np.float64, flags='C_CONTIGUOUS'),
+            np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS"),
+            np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS"),
             ctypes.c_int,
-            ctypes.c_int
+            ctypes.c_int,
         ]
 
         # int run_step_converged(void* solver, const double* j, double* psi,
@@ -170,8 +167,8 @@ class HPCBridge:
         if hasattr(self.lib, "run_step_converged"):
             self.lib.run_step_converged.argtypes = [
                 ctypes.c_void_p,
-                np.ctypeslib.ndpointer(dtype=np.float64, flags='C_CONTIGUOUS'),
-                np.ctypeslib.ndpointer(dtype=np.float64, flags='C_CONTIGUOUS'),
+                np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS"),
+                np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS"),
                 ctypes.c_int,
                 ctypes.c_int,
                 ctypes.c_double,
@@ -216,19 +213,12 @@ class HPCBridge:
             return
         self.nr = nr
         self.nz = nz
-        self.solver_ptr = self.lib.create_solver(
-            nr, nz, r_range[0], r_range[1], z_range[0], z_range[1]
-        )
+        self.solver_ptr = self.lib.create_solver(nr, nz, r_range[0], r_range[1], z_range[0], z_range[1])
         self.set_boundary_dirichlet(boundary_value)
 
     def set_boundary_dirichlet(self, boundary_value: float = 0.0) -> None:
         """Set a fixed Dirichlet boundary value for psi edges, if supported."""
-        if (
-            not self.loaded
-            or self.solver_ptr is None
-            or self.lib is None
-            or not self._has_boundary_api
-        ):
+        if not self.loaded or self.solver_ptr is None or self.lib is None or not self._has_boundary_api:
             return
         self.lib.set_boundary_dirichlet(self.solver_ptr, float(boundary_value))
 
@@ -320,9 +310,7 @@ class HPCBridge:
             return None
         j_input, expected_shape = prepared
         psi_target = _require_c_contiguous_f64(psi_out, expected_shape, "psi_out")
-        max_iters, tol_safe, omega_safe = _sanitize_convergence_params(
-            max_iterations, tolerance, omega
-        )
+        max_iters, tol_safe, omega_safe = _sanitize_convergence_params(max_iterations, tolerance, omega)
 
         assert self.lib is not None
         if not self._has_converged_api:
@@ -350,17 +338,13 @@ class HPCBridge:
         )
         return iterations_used, float(final_delta.value)
 
-    def _prepare_inputs(
-        self, j_phi: NDArray[np.float64]
-    ) -> Optional[tuple[NDArray[np.float64], tuple[int, int]]]:
+    def _prepare_inputs(self, j_phi: NDArray[np.float64]) -> Optional[tuple[NDArray[np.float64], tuple[int, int]]]:
         if not self.loaded or self.solver_ptr is None:
             return None
 
         j_input = _as_contiguous_f64(j_phi)
         if j_input.ndim != 2:
-            raise ValueError(
-                f"j_phi must be a 2D array, received ndim={j_input.ndim}"
-            )
+            raise ValueError(f"j_phi must be a 2D array, received ndim={j_input.ndim}")
         if j_input.size == 0:
             raise ValueError("j_phi must be non-empty")
         if not np.all(np.isfinite(j_input)):
@@ -370,10 +354,9 @@ class HPCBridge:
             getattr(self, "nr", j_input.shape[-1]),
         )
         if tuple(j_input.shape) != tuple(expected_shape):
-            raise ValueError(
-                f"j_phi shape mismatch: expected {expected_shape}, received {tuple(j_input.shape)}"
-            )
+            raise ValueError(f"j_phi shape mismatch: expected {expected_shape}, received {tuple(j_input.shape)}")
         return j_input, expected_shape
+
 
 def compile_cpp() -> Optional[str]:
     """Compile the C++ solver from source.
@@ -387,9 +370,7 @@ def compile_cpp() -> Optional[str]:
         Path to the compiled library, or *None* on failure.
     """
     if os.environ.get("SCPN_ALLOW_NATIVE_BUILD") != "1":
-        logger.warning(
-            "Native build disabled. Set SCPN_ALLOW_NATIVE_BUILD=1 to enable."
-        )
+        logger.warning("Native build disabled. Set SCPN_ALLOW_NATIVE_BUILD=1 to enable.")
         return None
 
     logger.info("Compiling C++ solver kernel…")
@@ -423,6 +404,7 @@ def compile_cpp() -> Optional[str]:
 
     logger.info("Compilation succeeded: %s", out)
     return str(out)
+
 
 if __name__ == "__main__":
     # Test sequence

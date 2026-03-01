@@ -24,10 +24,27 @@ from numpy.typing import NDArray
 FloatArray = NDArray[np.float64]
 
 # ── Canonical 16-layer frequencies (rad/s) from SCPN calibration ─────
-OMEGA_N_16 = np.array([
-    1.329, 2.610, 0.844, 1.520, 0.710, 3.780, 1.055, 0.625,
-    2.210, 1.740, 0.480, 3.210, 0.915, 1.410, 2.830, 0.991,
-], dtype=np.float64)
+OMEGA_N_16 = np.array(
+    [
+        1.329,
+        2.610,
+        0.844,
+        1.520,
+        0.710,
+        3.780,
+        1.055,
+        0.625,
+        2.210,
+        1.740,
+        0.480,
+        3.210,
+        0.915,
+        1.410,
+        2.830,
+        0.991,
+    ],
+    dtype=np.float64,
+)
 
 
 @dataclass(frozen=True)
@@ -38,6 +55,7 @@ class KnmSpec:
     alpha  : (L, L) Sakaguchi phase-lag (optional).
     zeta   : (L,) per-layer global-driver gain ζ_m (optional).
     """
+
     K: FloatArray
     alpha: Optional[FloatArray] = None
     zeta: Optional[FloatArray] = None

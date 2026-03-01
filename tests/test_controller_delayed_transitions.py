@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for transition delay_ticks (lines 734-748), axis_count==0 paths,
 and action_count==0 / inj_count==0 edge paths."""
+
 from __future__ import annotations
 
 import numpy as np

@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for torax_hybrid_loop: campaign runner, helpers, edge cases."""
+
 from __future__ import annotations
 
 import numpy as np

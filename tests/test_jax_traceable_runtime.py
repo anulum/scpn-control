@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Full coverage for jax_traceable_runtime: validation, backends, parity."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -26,6 +27,7 @@ from scpn_control.control.jax_traceable_runtime import (
 
 
 # ── Spec validation ──────────────────────────────────────────────────
+
 
 class TestValidateSpec:
     def test_default_spec_passes(self):
@@ -95,6 +97,7 @@ class TestValidateBatchCommands:
 
 # ── Backend resolution ───────────────────────────────────────────────
 
+
 class TestResolveBackend:
     def test_numpy(self):
         assert _resolve_backend("numpy") == "numpy"
@@ -128,6 +131,7 @@ class TestAvailableBackends:
 
 
 # ── Single rollout ───────────────────────────────────────────────────
+
 
 class TestSimulateNumpy:
     def test_output_shape(self):
@@ -180,6 +184,7 @@ class TestRunTraceableControlLoop:
 
 # ── Batch rollout ────────────────────────────────────────────────────
 
+
 class TestSimulateNumpyBatch:
     def test_output_shape(self):
         cmd = np.ones((4, 20))
@@ -228,16 +233,21 @@ class TestRunTraceableControlBatch:
         cmd = np.ones((2, 16))
         with pytest.raises(ValueError, match="finite"):
             run_traceable_control_batch(
-                cmd, initial_state=np.array([0.0, float("nan")]), backend="numpy",
+                cmd,
+                initial_state=np.array([0.0, float("nan")]),
+                backend="numpy",
             )
 
 
 # ── Backend parity ───────────────────────────────────────────────────
 
+
 class TestValidateTraceableBackendParity:
     def test_numpy_only(self):
         reports = validate_traceable_backend_parity(
-            steps=32, batch=4, backends=["numpy"],
+            steps=32,
+            batch=4,
+            backends=["numpy"],
         )
         assert "numpy" in reports
         assert reports["numpy"].single_max_abs_err == 0.0
@@ -247,14 +257,19 @@ class TestValidateTraceableBackendParity:
         pytest.importorskip("jax")
         # JAX may use float32 unless JAX_ENABLE_X64 is set; use loose tol
         reports = validate_traceable_backend_parity(
-            steps=32, batch=4, backends=["jax"], atol=1e-4,
+            steps=32,
+            batch=4,
+            backends=["jax"],
+            atol=1e-4,
         )
         assert reports["jax"].single_within_tol
 
     def test_torchscript_parity(self):
         pytest.importorskip("torch")
         reports = validate_traceable_backend_parity(
-            steps=32, batch=4, backends=["torchscript"],
+            steps=32,
+            batch=4,
+            backends=["torchscript"],
         )
         assert reports["torchscript"].single_within_tol
 
@@ -277,6 +292,9 @@ class TestValidateTraceableBackendParity:
     def test_custom_spec(self):
         spec = TraceableRuntimeSpec(dt_s=5e-3, tau_s=20e-3)
         reports = validate_traceable_backend_parity(
-            steps=16, batch=2, spec=spec, backends=["numpy"],
+            steps=16,
+            batch=2,
+            spec=spec,
+            backends=["numpy"],
         )
         assert "numpy" in reports

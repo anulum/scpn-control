@@ -18,6 +18,7 @@ from scpn_control.control.advanced_soc_fusion_learning import (
 
 # ── CoupledSandpileReactor ───────────────────────────────────────────
 
+
 class TestCoupledSandpileReactor:
     def test_initial_state_zero(self):
         r = CoupledSandpileReactor()
@@ -100,6 +101,7 @@ class TestCoupledSandpileReactor:
 
 # ── FusionAIAgent ────────────────────────────────────────────────────
 
+
 class TestFusionAIAgent:
     def test_q_table_shape(self):
         agent = FusionAIAgent(n_states_turb=5, n_states_flow=5, n_actions=3)
@@ -163,6 +165,7 @@ class TestFusionAIAgent:
 
 # ── Backward-compatible alias ────────────────────────────────────────
 
+
 class TestFusionAIAgentAlias:
     def test_alias_is_subclass(self):
         agent = FusionAI_Agent()
@@ -171,10 +174,14 @@ class TestFusionAIAgentAlias:
 
 # ── run_advanced_learning_sim ────────────────────────────────────────
 
+
 class TestRunAdvancedLearningSim:
     def test_returns_expected_keys(self):
         result = run_advanced_learning_sim(
-            size=10, time_steps=50, save_plot=False, verbose=False,
+            size=10,
+            time_steps=50,
+            save_plot=False,
+            verbose=False,
         )
         assert "final_core_temp" in result
         assert "mean_turbulence" in result
@@ -183,17 +190,28 @@ class TestRunAdvancedLearningSim:
 
     def test_deterministic(self):
         a = run_advanced_learning_sim(
-            size=10, time_steps=100, seed=42, save_plot=False, verbose=False,
+            size=10,
+            time_steps=100,
+            seed=42,
+            save_plot=False,
+            verbose=False,
         )
         b = run_advanced_learning_sim(
-            size=10, time_steps=100, seed=42, save_plot=False, verbose=False,
+            size=10,
+            time_steps=100,
+            seed=42,
+            save_plot=False,
+            verbose=False,
         )
         assert a["total_reward"] == b["total_reward"]
         assert a["final_core_temp"] == b["final_core_temp"]
 
     def test_steps_stored(self):
         r = run_advanced_learning_sim(
-            size=10, time_steps=75, save_plot=False, verbose=False,
+            size=10,
+            time_steps=75,
+            save_plot=False,
+            verbose=False,
         )
         assert r["steps"] == 75
 
@@ -204,24 +222,36 @@ class TestRunAdvancedLearningSim:
     def test_rejects_bad_shear_step(self):
         with pytest.raises(ValueError, match="shear_step"):
             run_advanced_learning_sim(
-                time_steps=10, shear_step=-1.0, save_plot=False, verbose=False,
+                time_steps=10,
+                shear_step=-1.0,
+                save_plot=False,
+                verbose=False,
             )
 
     def test_rejects_bad_noise_prob(self):
         with pytest.raises(ValueError, match="noise_probability"):
             run_advanced_learning_sim(
-                time_steps=10, noise_probability=2.0, save_plot=False, verbose=False,
+                time_steps=10,
+                noise_probability=2.0,
+                save_plot=False,
+                verbose=False,
             )
 
     def test_core_temp_positive(self):
         r = run_advanced_learning_sim(
-            size=10, time_steps=200, save_plot=False, verbose=False,
+            size=10,
+            time_steps=200,
+            save_plot=False,
+            verbose=False,
         )
         assert r["final_core_temp"] > 0.0
 
     def test_verbose_prints_output(self, capsys):
         run_advanced_learning_sim(
-            size=10, time_steps=20, save_plot=False, verbose=True,
+            size=10,
+            time_steps=20,
+            save_plot=False,
+            verbose=True,
         )
         captured = capsys.readouterr()
         assert "Predator-Prey" in captured.out

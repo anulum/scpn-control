@@ -40,9 +40,7 @@ class FakeKernel:
 def solver(tmp_path):
     cfg = tmp_path / "test_config.json"
     cfg.write_text("{}")
-    return AnalyticEquilibriumSolver(
-        str(cfg), kernel_factory=FakeKernel, verbose=False
-    )
+    return AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernel, verbose=False)
 
 
 class TestAnalyticEquilibriumSolver:
@@ -98,6 +96,7 @@ class TestAnalyticEquilibriumSolver:
 
 # ── Zero-coil kernel edge case ────────────────────────────────────
 
+
 class FakeKernelNoCoils:
     def __init__(self, config_path: str):
         self.R = np.linspace(4.0, 8.5, 10)
@@ -113,9 +112,7 @@ class TestComputeCoilEfficienciesEdgeCases:
     def test_rejects_zero_coils(self, tmp_path):
         cfg = tmp_path / "test.json"
         cfg.write_text("{}")
-        solver = AnalyticEquilibriumSolver(
-            str(cfg), kernel_factory=FakeKernelNoCoils, verbose=False
-        )
+        solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernelNoCoils, verbose=False)
         with pytest.raises(ValueError, match="no coils"):
             solver.compute_coil_efficiencies(target_R=6.2)
 
@@ -131,6 +128,7 @@ class TestComputeCoilEfficienciesEdgeCases:
 
 # ── Ridge-regularized solve ──────────────────────────────────────
 
+
 class TestSolveCoilCurrentsRidge:
     def test_ridge_shrinks_norm(self, solver):
         c_noreg = solver.solve_coil_currents(target_Bv=-0.1, target_R=6.2, ridge_lambda=0.0)
@@ -145,9 +143,11 @@ class TestSolveCoilCurrentsRidge:
 
 # ── apply_and_save ───────────────────────────────────────────────
 
+
 class TestApplyAndSave:
     def test_writes_valid_json(self, solver, tmp_path):
         import json
+
         out = solver.apply_and_save(
             np.array([0.5, -0.3, 1.2]),
             output_path=str(tmp_path / "out.json"),
@@ -161,6 +161,7 @@ class TestApplyAndSave:
         # Just verify it doesn't raise when output_path=None
         # (writes to validation/ dir which may or may not exist)
         import os
+
         out = solver.apply_and_save(np.array([0.1, 0.2, 0.3]))
         assert os.path.isfile(out)
         os.remove(out)

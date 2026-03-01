@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests for load_or_train_predictor and predict_disruption_risk_safe."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -17,6 +18,7 @@ from scpn_control.control.disruption_predictor import (
 
 
 # ── Fallback tests: monkeypatch torch away ──────────────────────────
+
 
 class TestLoadOrTrainPredictorFallback:
     def test_returns_none_model_when_torch_absent(self, monkeypatch):
@@ -34,7 +36,8 @@ class TestLoadOrTrainPredictorFallback:
     def test_custom_model_path_in_meta(self, monkeypatch, tmp_path):
         monkeypatch.setattr(dp_mod, "torch", None)
         _, meta = load_or_train_predictor(
-            model_path=str(tmp_path / "custom.pth"), allow_fallback=True,
+            model_path=str(tmp_path / "custom.pth"),
+            allow_fallback=True,
         )
         assert "custom.pth" in meta["model_path"]
 
@@ -91,6 +94,7 @@ class TestLoadOrTrainMissingCheckpoint:
 
 # ── predict_disruption_risk_safe: fallback path ─────────────────────
 
+
 class TestPredictDisruptionRiskSafeFallback:
     def test_returns_bounded_risk_fallback(self, monkeypatch):
         monkeypatch.setattr(dp_mod, "torch", None)
@@ -117,6 +121,7 @@ class TestPredictDisruptionRiskSafeFallback:
 
 
 # ── predict_disruption_risk_safe: with torch (if available) ──────────
+
 
 class TestPredictDisruptionRiskSafeWithTorch:
     def test_returns_bounded_risk(self):

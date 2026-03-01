@@ -26,28 +26,28 @@ import numpy as np
 # IPB98(y,2) scaling: τ_E = C · I_p^α_I · B^α_B · P^α_P · n^α_n · R^α_R · A^α_A · κ^α_κ · M^α_M
 # Central values from ITER Physics Basis
 IPB98_CENTRAL = {
-    'C':     0.0562,
-    'alpha_I':  0.93,
-    'alpha_B':  0.15,
-    'alpha_P': -0.69,
-    'alpha_n':  0.41,
-    'alpha_R':  1.97,
-    'alpha_A': -0.58,
-    'alpha_kappa': 0.78,
-    'alpha_M':  0.19,
+    "C": 0.0562,
+    "alpha_I": 0.93,
+    "alpha_B": 0.15,
+    "alpha_P": -0.69,
+    "alpha_n": 0.41,
+    "alpha_R": 1.97,
+    "alpha_A": -0.58,
+    "alpha_kappa": 0.78,
+    "alpha_M": 0.19,
 }
 
 # 1-sigma uncertainties (from Verdoolaege 2021 Bayesian regression)
 IPB98_SIGMA = {
-    'C':     0.008,
-    'alpha_I':  0.04,
-    'alpha_B':  0.05,
-    'alpha_P':  0.03,
-    'alpha_n':  0.04,
-    'alpha_R':  0.08,
-    'alpha_A':  0.05,
-    'alpha_kappa': 0.06,
-    'alpha_M':  0.05,
+    "C": 0.008,
+    "alpha_I": 0.04,
+    "alpha_B": 0.05,
+    "alpha_P": 0.03,
+    "alpha_n": 0.04,
+    "alpha_R": 0.08,
+    "alpha_A": 0.05,
+    "alpha_kappa": 0.06,
+    "alpha_M": 0.05,
 }
 
 
@@ -64,23 +64,25 @@ def _validate_n_samples(n_samples: int) -> int:
 @dataclass
 class PlasmaScenario:
     """Input plasma parameters for a confinement prediction."""
-    I_p: float        # Plasma current (MA)
-    B_t: float        # Toroidal field (T)
-    P_heat: float     # Total heating power (MW)
-    n_e: float        # Line-average electron density (10^19 m^-3)
-    R: float          # Major radius (m)
-    A: float          # Aspect ratio R/a
-    kappa: float      # Elongation
-    M: float = 2.5    # Effective ion mass (AMU, 2.5 for D-T)
+
+    I_p: float  # Plasma current (MA)
+    B_t: float  # Toroidal field (T)
+    P_heat: float  # Total heating power (MW)
+    n_e: float  # Line-average electron density (10^19 m^-3)
+    R: float  # Major radius (m)
+    A: float  # Aspect ratio R/a
+    kappa: float  # Elongation
+    M: float = 2.5  # Effective ion mass (AMU, 2.5 for D-T)
 
 
 @dataclass
 class UQResult:
     """Uncertainty-quantified prediction result."""
+
     # Central estimates
-    tau_E: float          # Confinement time (s)
-    P_fusion: float       # Fusion power (MW)
-    Q: float              # Fusion gain Q = P_fus / P_heat
+    tau_E: float  # Confinement time (s)
+    P_fusion: float  # Fusion power (MW)
+    Q: float  # Fusion gain Q = P_fus / P_heat
 
     # Uncertainties (1-sigma)
     tau_E_sigma: float
@@ -96,8 +98,7 @@ class UQResult:
     n_samples: int = 0
 
 
-def ipb98_tau_e(scenario: PlasmaScenario,
-                params: Optional[dict] = None) -> float:
+def ipb98_tau_e(scenario: PlasmaScenario, params: Optional[dict] = None) -> float:
     """
     Compute IPB98(y,2) confinement time for given plasma parameters.
 
@@ -114,15 +115,15 @@ def ipb98_tau_e(scenario: PlasmaScenario,
     """
     p = params or IPB98_CENTRAL
     return (
-        p['C']
-        * scenario.I_p ** p['alpha_I']
-        * scenario.B_t ** p['alpha_B']
-        * scenario.P_heat ** p['alpha_P']
-        * scenario.n_e ** p['alpha_n']
-        * scenario.R ** p['alpha_R']
-        * scenario.A ** p['alpha_A']
-        * scenario.kappa ** p['alpha_kappa']
-        * scenario.M ** p['alpha_M']
+        p["C"]
+        * scenario.I_p ** p["alpha_I"]
+        * scenario.B_t ** p["alpha_B"]
+        * scenario.P_heat ** p["alpha_P"]
+        * scenario.n_e ** p["alpha_n"]
+        * scenario.R ** p["alpha_R"]
+        * scenario.A ** p["alpha_A"]
+        * scenario.kappa ** p["alpha_kappa"]
+        * scenario.M ** p["alpha_M"]
     )
 
 
@@ -153,10 +154,11 @@ class EquilibriumUncertainty:
     Captures how boundary perturbations propagate into psi-field and
     magnetic-axis location uncertainty.
     """
-    psi_nrmse_mean: float = 0.0     # Mean normalised RMSE of psi reconstruction
-    psi_nrmse_sigma: float = 0.01   # 1-sigma spread from boundary perturbation
-    R_axis_sigma: float = 0.02      # Magnetic axis R location uncertainty (m)
-    Z_axis_sigma: float = 0.01      # Magnetic axis Z location uncertainty (m)
+
+    psi_nrmse_mean: float = 0.0  # Mean normalised RMSE of psi reconstruction
+    psi_nrmse_sigma: float = 0.01  # 1-sigma spread from boundary perturbation
+    R_axis_sigma: float = 0.02  # Magnetic axis R location uncertainty (m)
+    Z_axis_sigma: float = 0.01  # Magnetic axis Z location uncertainty (m)
 
 
 @dataclass
@@ -166,7 +168,8 @@ class TransportUncertainty:
     Captures the dominant sources of uncertainty in the gyro-Bohm diffusivity
     model and the EPED pedestal prediction.
     """
-    chi_gB_factor_sigma: float = 0.3   # Gyro-Bohm coefficient fractional uncertainty (30%)
+
+    chi_gB_factor_sigma: float = 0.3  # Gyro-Bohm coefficient fractional uncertainty (30%)
     pedestal_height_sigma: float = 0.2  # EPED pedestal height fractional uncertainty (20%)
 
 
@@ -177,6 +180,7 @@ class FullChainUQResult:
 
     All ``*_bands`` fields are length-3 arrays: [5th, 50th, 95th] percentiles.
     """
+
     # Central estimates (medians)
     tau_E: float
     P_fusion: float
@@ -268,8 +272,8 @@ def quantify_full_chain(
         params = {}
         for key in IPB98_CENTRAL:
             params[key] = rng.normal(IPB98_CENTRAL[key], IPB98_SIGMA[key])
-        params['C'] = max(params['C'], 1e-4)
-        params['alpha_P'] = min(params['alpha_P'], -0.1)
+        params["C"] = max(params["C"], 1e-4)
+        params["alpha_P"] = min(params["alpha_P"], -0.1)
 
         # --- (b) Perturb gyro-Bohm transport coefficient ---
         chi_factor = rng.lognormal(0.0, chi_gB_sigma)
@@ -344,17 +348,20 @@ def quantify_full_chain(
         P_fusion_sigma=float(np.std(pfus_samples)),
         Q_sigma=float(np.std(q_samples)),
         psi_nrmse_bands=np.asarray(
-            np.percentile(psi_nrmse_samples, band_pcts), dtype=float,
+            np.percentile(psi_nrmse_samples, band_pcts),
+            dtype=float,
         ),
         tau_E_bands=np.asarray(np.percentile(tau_samples, band_pcts), dtype=float),
         P_fusion_bands=np.asarray(
-            np.percentile(pfus_samples, band_pcts), dtype=float,
+            np.percentile(pfus_samples, band_pcts),
+            dtype=float,
         ),
         Q_bands=np.asarray(np.percentile(q_samples, band_pcts), dtype=float),
         beta_N_bands=np.asarray(np.percentile(beta_n_samples, band_pcts), dtype=float),
         tau_E_percentiles=np.asarray(np.percentile(tau_samples, full_pcts), dtype=float),
         P_fusion_percentiles=np.asarray(
-            np.percentile(pfus_samples, full_pcts), dtype=float,
+            np.percentile(pfus_samples, full_pcts),
+            dtype=float,
         ),
         Q_percentiles=np.asarray(np.percentile(q_samples, full_pcts), dtype=float),
         n_samples=n_samples,
@@ -378,6 +385,7 @@ def summarize_uq(result: FullChainUQResult) -> dict:
     -------
     dict — JSON-serialisable summary.
     """
+
     def _round(x: float, sig: int = 6) -> float:
         return float(f"{x:.{sig}g}")
 
@@ -406,9 +414,7 @@ def summarize_uq(result: FullChainUQResult) -> dict:
     }
 
 
-def quantify_uncertainty(scenario: PlasmaScenario,
-                         n_samples: int = 10000,
-                         seed: Optional[int] = None) -> UQResult:
+def quantify_uncertainty(scenario: PlasmaScenario, n_samples: int = 10000, seed: Optional[int] = None) -> UQResult:
     """
     Monte Carlo uncertainty quantification for fusion performance.
 
@@ -442,8 +448,8 @@ def quantify_uncertainty(scenario: PlasmaScenario,
             params[key] = rng.normal(IPB98_CENTRAL[key], IPB98_SIGMA[key])
 
         # Ensure physical constraints
-        params['C'] = max(params['C'], 1e-4)
-        params['alpha_P'] = min(params['alpha_P'], -0.1)  # must be negative
+        params["C"] = max(params["C"], 1e-4)
+        params["alpha_P"] = min(params["alpha_P"], -0.1)  # must be negative
 
         tau = ipb98_tau_e(scenario, params)
         tau = max(tau, 1e-6)  # floor
@@ -468,7 +474,8 @@ def quantify_uncertainty(scenario: PlasmaScenario,
         Q_sigma=float(np.std(q_samples)),
         tau_E_percentiles=np.asarray(np.percentile(tau_samples, pcts), dtype=float),
         P_fusion_percentiles=np.asarray(
-            np.percentile(pfus_samples, pcts), dtype=float,
+            np.percentile(pfus_samples, pcts),
+            dtype=float,
         ),
         Q_percentiles=np.asarray(np.percentile(q_samples, pcts), dtype=float),
         n_samples=n_samples,

@@ -34,12 +34,8 @@ FloatArray = NDArray[np.float64]
 
 _HAS_RUST_SCPN_RUNTIME = False
 _rust_dense_activations: Optional[Callable[[FloatArray, FloatArray], object]] = None
-_rust_marking_update: Optional[
-    Callable[[FloatArray, FloatArray, FloatArray, FloatArray], object]
-] = None
-_rust_sample_firing: Optional[
-    Callable[[FloatArray, int, int, bool], object]
-] = None
+_rust_marking_update: Optional[Callable[[FloatArray, FloatArray, FloatArray, FloatArray], object]] = None
+_rust_sample_firing: Optional[Callable[[FloatArray, int, int, bool], object]] = None
 
 try:
     from scpn_control_rs import (  # type: ignore[import-not-found,unused-ignore]
@@ -102,17 +98,11 @@ class NeuroSymbolicController:
         self.scales = scales
         self._sc_n_passes = _require_int_ge("sc_n_passes", sc_n_passes, 1)
         self._sc_bitflip_rate = float(sc_bitflip_rate)
-        if (
-            not np.isfinite(self._sc_bitflip_rate)
-            or self._sc_bitflip_rate < 0.0
-            or self._sc_bitflip_rate > 1.0
-        ):
+        if not np.isfinite(self._sc_bitflip_rate) or self._sc_bitflip_rate < 0.0 or self._sc_bitflip_rate > 1.0:
             raise ValueError("sc_bitflip_rate must be finite and in [0, 1].")
         self._runtime_profile = runtime_profile.strip().lower()
         if self._runtime_profile not in {"adaptive", "deterministic", "traceable"}:
-            raise ValueError(
-                "runtime_profile must be 'adaptive', 'deterministic', or 'traceable'"
-            )
+            raise ValueError("runtime_profile must be 'adaptive', 'deterministic', or 'traceable'")
         self._sc_antithetic = bool(sc_antithetic)
         self._enable_oracle_diagnostics = bool(enable_oracle_diagnostics)
         self._feature_axes = list(feature_axes) if feature_axes is not None else None
@@ -122,9 +112,7 @@ class NeuroSymbolicController:
         self._rust_backend_min_problem_size = _require_int_ge(
             "rust_backend_min_problem_size", rust_backend_min_problem_size, 1
         )
-        self._sc_antithetic_chunk_size = _require_int_ge(
-            "sc_antithetic_chunk_size", sc_antithetic_chunk_size, 1
-        )
+        self._sc_antithetic_chunk_size = _require_int_ge("sc_antithetic_chunk_size", sc_antithetic_chunk_size, 1)
 
         if self._feature_axes is not None:
             axes = list(self._feature_axes)
@@ -148,14 +136,9 @@ class NeuroSymbolicController:
         self._feature_axes_effective = axes
         self._axis_count = len(axes)
         self._axis_obs_keys = [axis.obs_key for axis in axes]
-        self._axis_targets = np.asarray(
-            [axis.target for axis in axes], dtype=np.float64
-        )
+        self._axis_targets = np.asarray([axis.target for axis in axes], dtype=np.float64)
         self._axis_scales = np.asarray(
-            [
-                axis.scale if abs(axis.scale) > 1e-12 else 1e-12
-                for axis in axes
-            ],
+            [axis.scale if abs(axis.scale) > 1e-12 else 1e-12 for axis in axes],
             dtype=np.float64,
         )
         self._axis_pos_keys = [axis.pos_key for axis in axes]
@@ -181,26 +164,16 @@ class NeuroSymbolicController:
         self._tmp_marking_sc = np.zeros(self._nP, dtype=np.float64)
         self._tmp_marking_input = np.zeros(self._nP, dtype=np.float64)
         self._tmp_sc_counts = np.zeros(self._nT, dtype=np.int64)
-        self._thresholds = np.asarray(
-            [tr.threshold for tr in artifact.topology.transitions], dtype=np.float64
-        )
+        self._thresholds = np.asarray([tr.threshold for tr in artifact.topology.transitions], dtype=np.float64)
         self._delay_ticks = np.asarray(
             [max(int(getattr(tr, "delay_ticks", 0)), 0) for tr in artifact.topology.transitions],
             dtype=np.int64,
         )
-        self._delay_immediate_idx = np.flatnonzero(self._delay_ticks == 0).astype(
-            np.int64, copy=False
-        )
-        self._delay_delayed_idx = np.flatnonzero(self._delay_ticks > 0).astype(
-            np.int64, copy=False
-        )
+        self._delay_immediate_idx = np.flatnonzero(self._delay_ticks == 0).astype(np.int64, copy=False)
+        self._delay_delayed_idx = np.flatnonzero(self._delay_ticks > 0).astype(np.int64, copy=False)
         if self._delay_delayed_idx.size:
-            self._delay_delayed_offsets = np.asarray(
-                self._delay_ticks[self._delay_delayed_idx], dtype=np.int64
-            )
-            self._tmp_delay_slots = np.zeros(
-                self._delay_delayed_idx.size, dtype=np.int64
-            )
+            self._delay_delayed_offsets = np.asarray(self._delay_ticks[self._delay_delayed_idx], dtype=np.int64)
+            self._tmp_delay_slots = np.zeros(self._delay_delayed_idx.size, dtype=np.int64)
         else:
             self._delay_delayed_offsets = np.asarray([], dtype=np.int64)
             self._tmp_delay_slots = np.asarray([], dtype=np.int64)
@@ -214,9 +187,7 @@ class NeuroSymbolicController:
         default_margin = float(getattr(artifact.meta, "firing_margin", 0.05) or 0.05)
         self._margins = np.asarray(
             [
-                float(
-                    ((tr.margin if tr.margin is not None else default_margin) or default_margin)
-                )
+                float(((tr.margin if tr.margin is not None else default_margin) or default_margin))
                 for tr in artifact.topology.transitions
             ],
             dtype=np.float64,
@@ -232,9 +203,7 @@ class NeuroSymbolicController:
                 raise ValueError("sc_binary_margin must be finite and >= 0.")
 
         problem_size = int(self._nP * self._nT)
-        rust_eligible = _HAS_RUST_SCPN_RUNTIME and (
-            problem_size >= self._rust_backend_min_problem_size
-        )
+        rust_eligible = _HAS_RUST_SCPN_RUNTIME and (problem_size >= self._rust_backend_min_problem_size)
         if self._runtime_backend_request == "numpy":
             self._runtime_backend = "numpy"
         elif self._runtime_backend_request == "rust":
@@ -257,24 +226,14 @@ class NeuroSymbolicController:
             key_to_axis[key] = (i, False)
 
         # Live state
-        self._marking = np.asarray(
-            artifact.initial_state.marking, dtype=np.float64
-        ).copy()
+        self._marking = np.asarray(artifact.initial_state.marking, dtype=np.float64).copy()
         injections = artifact.initial_state.place_injections
         self._inj_sources = [inj.source for inj in injections]
         self._inj_count = len(self._inj_sources)
-        self._inj_place_ids = np.asarray(
-            [inj.place_id for inj in injections], dtype=np.int64
-        )
-        self._inj_scales = np.asarray(
-            [inj.scale for inj in injections], dtype=np.float64
-        )
-        self._inj_offsets = np.asarray(
-            [inj.offset for inj in injections], dtype=np.float64
-        )
-        self._inj_clamp_mask = np.asarray(
-            [bool(inj.clamp_0_1) for inj in injections], dtype=np.bool_
-        )
+        self._inj_place_ids = np.asarray([inj.place_id for inj in injections], dtype=np.int64)
+        self._inj_scales = np.asarray([inj.scale for inj in injections], dtype=np.float64)
+        self._inj_offsets = np.asarray([inj.offset for inj in injections], dtype=np.float64)
+        self._inj_clamp_mask = np.asarray([bool(inj.clamp_0_1) for inj in injections], dtype=np.bool_)
         self._inj_clamp_idx = np.flatnonzero(self._inj_clamp_mask)
         self._inj_has_clamp = bool(self._inj_clamp_idx.size)
         self._inj_source_axis_idx = np.full(self._inj_count, -1, dtype=np.int64)
@@ -292,17 +251,11 @@ class NeuroSymbolicController:
         self._inj_passthrough_pairs = passthrough_pairs
 
         self._action_names = [a.name for a in artifact.readout.actions]
-        self._action_pos_idx = np.asarray(
-            [a.pos_place for a in artifact.readout.actions], dtype=np.int64
-        )
-        self._action_neg_idx = np.asarray(
-            [a.neg_place for a in artifact.readout.actions], dtype=np.int64
-        )
+        self._action_pos_idx = np.asarray([a.pos_place for a in artifact.readout.actions], dtype=np.int64)
+        self._action_neg_idx = np.asarray([a.neg_place for a in artifact.readout.actions], dtype=np.int64)
         self._action_gains = np.asarray(artifact.readout.gains, dtype=np.float64)
         self._action_abs_max = np.asarray(artifact.readout.abs_max, dtype=np.float64)
-        self._action_slew_per_s = np.asarray(
-            artifact.readout.slew_per_s, dtype=np.float64
-        )
+        self._action_slew_per_s = np.asarray(artifact.readout.slew_per_s, dtype=np.float64)
         self._action_count = len(self._action_names)
         self._dt = float(artifact.meta.dt_control_s)
         self._action_max_delta = self._action_slew_per_s * self._dt
@@ -328,9 +281,7 @@ class NeuroSymbolicController:
         self._sc_cursor = 0
         self.last_oracle_firing = []
         self.last_sc_firing = []
-        self.last_oracle_marking = (
-            self._marking.tolist() if self._enable_oracle_diagnostics else []
-        )
+        self.last_oracle_marking = self._marking.tolist() if self._enable_oracle_diagnostics else []
         self.last_sc_marking = self._marking.tolist()
 
     @property
@@ -372,11 +323,7 @@ class NeuroSymbolicController:
 
         # 1. Feature extraction (fast compiled mapping)
         pos_vals, neg_vals = self._compute_feature_components(obs)
-        feats = (
-            self._build_feature_dict(obs, pos_vals, neg_vals)
-            if log_path is not None
-            else None
-        )
+        feats = self._build_feature_dict(obs, pos_vals, neg_vals) if log_path is not None else None
 
         # 2. Inject features into marking
         m = self._tmp_marking_input
@@ -396,9 +343,7 @@ class NeuroSymbolicController:
         # Diagnostics (used by deterministic benchmark gates)
         self.last_oracle_firing = f_oracle.tolist()
         self.last_sc_firing = f_sc.tolist()
-        self.last_oracle_marking = (
-            m_oracle.tolist() if self._enable_oracle_diagnostics else []
-        )
+        self.last_oracle_marking = m_oracle.tolist() if self._enable_oracle_diagnostics else []
         self.last_sc_marking = m_sc.tolist()
 
         # Commit SC state
@@ -443,9 +388,7 @@ class NeuroSymbolicController:
         lookups/dict allocation in tight control loops.
         """
         if not self._traceable_ready:
-            raise RuntimeError(
-                "step_traceable requires axis-only injections (no passthrough sources)"
-            )
+            raise RuntimeError("step_traceable requires axis-only injections (no passthrough sources)")
 
         t0 = time.perf_counter()
         pos_vals, neg_vals = self._compute_feature_components_vector(obs_vector)
@@ -464,9 +407,7 @@ class NeuroSymbolicController:
 
         self.last_oracle_firing = f_oracle.tolist()
         self.last_sc_firing = f_sc.tolist()
-        self.last_oracle_marking = (
-            m_oracle.tolist() if self._enable_oracle_diagnostics else []
-        )
+        self.last_oracle_marking = m_oracle.tolist() if self._enable_oracle_diagnostics else []
         self.last_sc_marking = m_sc.tolist()
 
         np.copyto(self._marking, m_sc)
@@ -474,10 +415,7 @@ class NeuroSymbolicController:
 
         t1 = time.perf_counter()
         if log_path is not None:
-            obs_payload = {
-                key: float(value)
-                for key, value in zip(self._axis_obs_keys, obs_vector)
-            }
+            obs_payload = {key: float(value) for key, value in zip(self._axis_obs_keys, obs_vector)}
             rec = {
                 "k": int(k),
                 "obs": obs_payload,
@@ -485,9 +423,7 @@ class NeuroSymbolicController:
                 "f_oracle": f_oracle.tolist(),
                 "f_sc": f_sc.tolist(),
                 "marking": m_sc.tolist(),
-                "actions": {
-                    name: float(actions_vec[i]) for i, name in enumerate(self._action_names)
-                },
+                "actions": {name: float(actions_vec[i]) for i, name in enumerate(self._action_names)},
                 "timing_ms": (t1 - t0) * 1000.0,
             }
             with open(log_path, "a", encoding="utf-8") as fh:
@@ -497,18 +433,14 @@ class NeuroSymbolicController:
 
     # ── Internal ─────────────────────────────────────────────────────────
 
-    def _compute_feature_components(
-        self, obs_map: Mapping[str, float]
-    ) -> Tuple[FloatArray, FloatArray]:
+    def _compute_feature_components(self, obs_map: Mapping[str, float]) -> Tuple[FloatArray, FloatArray]:
         if self._axis_count == 0:
             return self._empty, self._empty
 
         obs_vals = self._tmp_obs_vals
         for i, key in enumerate(self._axis_obs_keys):
             if key not in obs_map:
-                raise KeyError(
-                    f"Missing observation key for feature extraction: {key}"
-                )
+                raise KeyError(f"Missing observation key for feature extraction: {key}")
             obs_vals[i] = float(obs_map[key])
         return self._compute_feature_components_vector(obs_vals)
 
@@ -520,9 +452,7 @@ class NeuroSymbolicController:
 
         obs_vals = np.asarray(obs_vector, dtype=np.float64)
         if obs_vals.shape != (self._axis_count,):
-            raise ValueError(
-                f"obs_vector must have length {self._axis_count}, got {obs_vals.size}"
-            )
+            raise ValueError(f"obs_vector must have length {self._axis_count}, got {obs_vals.size}")
         np.subtract(self._axis_targets, obs_vals, out=self._tmp_feature_err)
         np.divide(self._tmp_feature_err, self._axis_scales, out=self._tmp_feature_err)
         np.clip(self._tmp_feature_err, -1.0, 1.0, out=self._tmp_feature_err)
@@ -575,9 +505,7 @@ class NeuroSymbolicController:
         np.multiply(values, self._inj_scales, out=values)
         values += self._inj_offsets
         if self._inj_has_clamp:
-            values[self._inj_clamp_idx] = np.clip(
-                values[self._inj_clamp_idx], 0.0, 1.0
-            )
+            values[self._inj_clamp_idx] = np.clip(values[self._inj_clamp_idx], 0.0, 1.0)
         marking[self._inj_place_ids] = values
 
     def _oracle_step(self, marking: FloatArray) -> Tuple[FloatArray, FloatArray]:
@@ -595,9 +523,7 @@ class NeuroSymbolicController:
         else:
             f = (a >= self._thresholds).astype(np.float64)
 
-        f_timed, self._oracle_cursor = self._apply_transition_timing(
-            f, self._oracle_pending, self._oracle_cursor
-        )
+        f_timed, self._oracle_cursor = self._apply_transition_timing(f, self._oracle_pending, self._oracle_cursor)
 
         # Marking update: m' = clip(m - W_in^T @ f + W_out @ f, 0, 1)
         m2 = self._marking_update(marking, f_timed, self._tmp_marking_oracle)
@@ -623,18 +549,12 @@ class NeuroSymbolicController:
                 # Binary mode keeps exact threshold semantics for stability.
                 p_fire = (a >= self._thresholds).astype(np.float64)
 
-        if self._sc_n_passes <= 1 or (
-            self._firing_mode == "binary" and self._sc_binary_margin <= 0.0
-        ):
+        if self._sc_n_passes <= 1 or (self._firing_mode == "binary" and self._sc_binary_margin <= 0.0):
             f = p_fire
             rng = None
         else:
             sample_seed = _seed64(self.seed_base, f"sc_step:{int(k)}")
-            if (
-                self._runtime_backend == "rust"
-                and _HAS_RUST_SCPN_RUNTIME
-                and _rust_sample_firing is not None
-            ):
+            if self._runtime_backend == "rust" and _HAS_RUST_SCPN_RUNTIME and _rust_sample_firing is not None:
                 sampled = _rust_sample_firing(
                     p_fire,
                     int(self._sc_n_passes),
@@ -643,9 +563,7 @@ class NeuroSymbolicController:
                 )
                 f = np.asarray(sampled, dtype=np.float64)
                 if self._sc_bitflip_rate > 0.0:
-                    rng = np.random.default_rng(
-                        _seed64(self.seed_base, f"sc_flip:{int(k)}")
-                    )
+                    rng = np.random.default_rng(_seed64(self.seed_base, f"sc_flip:{int(k)}"))
                 else:
                     rng = None
             else:
@@ -658,9 +576,7 @@ class NeuroSymbolicController:
                         base = rng.random((n_pairs, self._nT))
                         low_hits = np.sum(base < p_fire[None, :], axis=0, dtype=np.int64)
                         if self._sc_n_passes % 2 == 0:
-                            high_hits = np.sum(
-                                base > (1.0 - p_fire)[None, :], axis=0, dtype=np.int64
-                            )
+                            high_hits = np.sum(base > (1.0 - p_fire)[None, :], axis=0, dtype=np.int64)
                         else:
                             high_hits = np.sum(
                                 base[:-1, :] > (1.0 - p_fire)[None, :],
@@ -690,9 +606,7 @@ class NeuroSymbolicController:
                                     axis=0,
                                     dtype=np.int64,
                                 )
-                            counts[start:end] = np.asarray(
-                                low_hits + high_hits, dtype=np.int64
-                            )
+                            counts[start:end] = np.asarray(low_hits + high_hits, dtype=np.int64)
                 else:
                     np.copyto(
                         counts,
@@ -708,9 +622,7 @@ class NeuroSymbolicController:
                 rng = np.random.default_rng(_seed64(self.seed_base, f"sc_flip:{int(k)}"))
             f = self._apply_bit_flip_faults(f, rng)
 
-        f_timed, self._sc_cursor = self._apply_transition_timing(
-            f, self._sc_pending, self._sc_cursor
-        )
+        f_timed, self._sc_cursor = self._apply_transition_timing(f, self._sc_pending, self._sc_cursor)
         m2 = self._marking_update(marking, f_timed, self._tmp_marking_sc)
         if self._sc_bitflip_rate > 0.0:
             assert rng is not None
@@ -733,17 +645,13 @@ class NeuroSymbolicController:
 
         if self._delay_immediate_idx.size:
             idx = self._delay_immediate_idx
-            fired_now[idx] = np.clip(
-                fired_now[idx] + desired[idx], 0.0, 1.0
-            )
+            fired_now[idx] = np.clip(fired_now[idx] + desired[idx], 0.0, 1.0)
 
         if self._delay_delayed_idx.size:
             np.add(cursor, self._delay_delayed_offsets, out=self._tmp_delay_slots)
             self._tmp_delay_slots %= pending.shape[0]
             idx = self._delay_delayed_idx
-            pending[self._tmp_delay_slots, idx] = np.clip(
-                pending[self._tmp_delay_slots, idx] + desired[idx], 0.0, 1.0
-            )
+            pending[self._tmp_delay_slots, idx] = np.clip(pending[self._tmp_delay_slots, idx] + desired[idx], 0.0, 1.0)
 
         next_cursor = (cursor + 1) % pending.shape[0]
         return fired_now, next_cursor
@@ -756,9 +664,7 @@ class NeuroSymbolicController:
         self._tmp_activations[:] = self._W_in @ marking
         return self._tmp_activations
 
-    def _marking_update(
-        self, marking: FloatArray, firing: FloatArray, out: FloatArray
-    ) -> FloatArray:
+    def _marking_update(self, marking: FloatArray, firing: FloatArray, out: FloatArray) -> FloatArray:
         if self._runtime_backend == "rust" and _HAS_RUST_SCPN_RUNTIME:
             assert _rust_marking_update is not None
             rust_out = _rust_marking_update(marking, self._W_in, self._W_out, firing)
@@ -776,9 +682,7 @@ class NeuroSymbolicController:
         actions = self._decode_actions_vector(marking)
         if actions.size == 0:
             return {}
-        return {
-            name: float(actions[i]) for i, name in enumerate(self._action_names)
-        }
+        return {name: float(actions[i]) for i, name in enumerate(self._action_names)}
 
     def _decode_actions_vector(self, marking: FloatArray) -> FloatArray:
         if self._action_count == 0:
@@ -795,9 +699,7 @@ class NeuroSymbolicController:
         np.clip(raw, -self._action_abs_max, self._action_abs_max, out=self._prev_actions)
         return self._prev_actions
 
-    def _apply_bit_flip_faults(
-        self, values: FloatArray, rng: np.random.Generator
-    ) -> FloatArray:
+    def _apply_bit_flip_faults(self, values: FloatArray, rng: np.random.Generator) -> FloatArray:
         """Inject bounded deterministic bit-flip faults into float vectors."""
         out = np.asarray(values, dtype=np.float64).copy()
         if self._sc_bitflip_rate <= 0.0 or out.size == 0:

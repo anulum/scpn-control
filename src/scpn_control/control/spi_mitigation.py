@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -22,9 +23,7 @@ class ShatteredPelletInjection:
     Reduced SPI mitigation model for thermal/current quench campaigns.
     """
 
-    def __init__(
-        self, Plasma_Energy_MJ: float = 300.0, Plasma_Current_MA: float = 15.0
-    ):
+    def __init__(self, Plasma_Energy_MJ: float = 300.0, Plasma_Current_MA: float = 15.0):
         w_mj = float(Plasma_Energy_MJ)
         ip_ma = float(Plasma_Current_MA)
         if not np.isfinite(w_mj) or w_mj <= 0.0:
@@ -59,15 +58,9 @@ class ShatteredPelletInjection:
         argon_quantity_mol: float = 0.0,
         xenon_quantity_mol: float = 0.0,
     ) -> float:
-        neon = ShatteredPelletInjection._require_non_negative(
-            "neon_quantity_mol", neon_quantity_mol
-        )
-        argon = ShatteredPelletInjection._require_non_negative(
-            "argon_quantity_mol", argon_quantity_mol
-        )
-        xenon = ShatteredPelletInjection._require_non_negative(
-            "xenon_quantity_mol", xenon_quantity_mol
-        )
+        neon = ShatteredPelletInjection._require_non_negative("neon_quantity_mol", neon_quantity_mol)
+        argon = ShatteredPelletInjection._require_non_negative("argon_quantity_mol", argon_quantity_mol)
+        xenon = ShatteredPelletInjection._require_non_negative("xenon_quantity_mol", xenon_quantity_mol)
 
         # Empirical weighting: higher-Z gases radiate/ionize more efficiently per mol.
         weighted_moles = 1.00 * neon + 1.35 * argon + 1.90 * xenon
@@ -108,9 +101,7 @@ class ShatteredPelletInjection:
                 0.24,
             )
         )
-        heavy_drive = float(
-            np.clip(0.55 * risk + 0.45 * dist + 0.20 * max(action, 0.0), 0.0, 1.0)
-        )
+        heavy_drive = float(np.clip(0.55 * risk + 0.45 * dist + 0.20 * max(action, 0.0), 0.0, 1.0))
         xenon_frac = 0.05 + 0.30 * heavy_drive
         argon_frac = 0.15 + 0.25 * heavy_drive
         neon_frac = max(0.0, 1.0 - xenon_frac - argon_frac)
@@ -190,10 +181,7 @@ class ShatteredPelletInjection:
                 if self.Te < 5.0 and phase == "Thermal Quench":
                     phase = "Current Quench"
                     if verbose:
-                        print(
-                            f"  [t={t*1000:.1f}ms] Thermal Quench Complete. "
-                            "Entering Current Quench."
-                        )
+                        print(f"  [t={t * 1000:.1f}ms] Thermal Quench Complete. Entering Current Quench.")
 
             if phase == "Current Quench":
                 tau_cq_s = self.estimate_tau_cq(self.Te, self.Z_eff)
@@ -213,12 +201,8 @@ class ShatteredPelletInjection:
         if return_diagnostics:
             diagnostics = {
                 "z_eff": float(self.Z_eff),
-                "tau_cq_ms_mean": (
-                    float(np.mean(history_tau_cq)) if history_tau_cq else 0.0
-                ),
-                "tau_cq_ms_p95": (
-                    float(np.percentile(history_tau_cq, 95)) if history_tau_cq else 0.0
-                ),
+                "tau_cq_ms_mean": (float(np.mean(history_tau_cq)) if history_tau_cq else 0.0),
+                "tau_cq_ms_p95": (float(np.percentile(history_tau_cq, 95)) if history_tau_cq else 0.0),
                 "final_current_MA": float(self.Ip / 1e6),
                 "final_temperature_keV": float(self.Te),
                 "neon_quantity_mol": float(neon),

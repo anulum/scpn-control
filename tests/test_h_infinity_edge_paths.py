@@ -6,6 +6,7 @@
 """Coverage for C1/C2 auto-transpose (111,113), dimension mismatch (131),
 make_feedthrough shape (186), non-finite gamma (198), non-finite gains (228),
 gamma search LinAlgError (259-260), and gain_margin_db unstable (384)."""
+
 from __future__ import annotations
 
 import numpy as np

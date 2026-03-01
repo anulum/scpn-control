@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Edge case tests for disruption contracts and anomaly campaigns."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -31,6 +32,7 @@ from scpn_control.control.disruption_predictor import (
 
 
 # ── Small window_size triggers the signal_window.size < 8 continue branch ──
+
 
 def _build_shot(n: int) -> dict:
     t = np.linspace(0.0, 0.01 * n, n, dtype=np.float64)
@@ -74,6 +76,7 @@ def test_replay_minimum_window_size_8():
 
 # ── Anomaly campaign edge cases ──
 
+
 class TestAnomalyAlarmCampaignEdge:
     def test_minimal_episodes(self):
         r = run_anomaly_alarm_campaign(seed=0, episodes=1, window=32)
@@ -89,6 +92,7 @@ class TestAnomalyAlarmCampaignEdge:
 
 # ── Fault campaign edge cases ──
 
+
 class TestFaultCampaignEdge:
     def test_single_episode(self):
         r = run_fault_noise_campaign(seed=0, episodes=1, window=32)
@@ -102,6 +106,7 @@ class TestFaultCampaignEdge:
 
 
 # ── Feature vector computed asymmetry index ──
+
 
 class TestFeatureVectorAsymmetry:
     def test_asymmetry_computed_from_n_amps_when_absent(self):
@@ -130,6 +135,7 @@ class TestFeatureVectorAsymmetry:
 
 # ── Anomaly detector EMA convergence ──
 
+
 class TestAnomalyDetectorConvergence:
     def test_ema_tracks_mean(self):
         det = HybridAnomalyDetector(ema=0.5, threshold=0.99)
@@ -147,41 +153,61 @@ class TestAnomalyDetectorConvergence:
 
 # ── mcnp_lite_tbr edge: out-of-range inputs are clipped ──
 
+
 class TestMcnpLiteTbrClipping:
     def test_enrichment_over_one_clipped(self):
         tbr1, _ = mcnp_lite_tbr(
-            base_tbr=1.0, li6_enrichment=1.0, be_multiplier_fraction=0.5, reflector_albedo=0.5,
+            base_tbr=1.0,
+            li6_enrichment=1.0,
+            be_multiplier_fraction=0.5,
+            reflector_albedo=0.5,
         )
         tbr2, _ = mcnp_lite_tbr(
-            base_tbr=1.0, li6_enrichment=5.0, be_multiplier_fraction=0.5, reflector_albedo=0.5,
+            base_tbr=1.0,
+            li6_enrichment=5.0,
+            be_multiplier_fraction=0.5,
+            reflector_albedo=0.5,
         )
         assert tbr1 == tbr2  # clipped to 1.0 in both cases
 
     def test_negative_enrichment_clipped_to_zero(self):
         tbr1, _ = mcnp_lite_tbr(
-            base_tbr=1.0, li6_enrichment=0.0, be_multiplier_fraction=0.5, reflector_albedo=0.5,
+            base_tbr=1.0,
+            li6_enrichment=0.0,
+            be_multiplier_fraction=0.5,
+            reflector_albedo=0.5,
         )
         tbr2, _ = mcnp_lite_tbr(
-            base_tbr=1.0, li6_enrichment=-5.0, be_multiplier_fraction=0.5, reflector_albedo=0.5,
+            base_tbr=1.0,
+            li6_enrichment=-5.0,
+            be_multiplier_fraction=0.5,
+            reflector_albedo=0.5,
         )
         assert tbr1 == tbr2
 
 
 # ── post_disruption_halo_runaway edge ──
 
+
 class TestPostDisruptionEdge:
     def test_very_short_tau_cq(self):
         result = post_disruption_halo_runaway(
-            pre_current_ma=15.0, tau_cq_s=0.0001,
-            disturbance=0.5, mitigation_strength=0.5, zeff_eff=2.0,
+            pre_current_ma=15.0,
+            tau_cq_s=0.0001,
+            disturbance=0.5,
+            mitigation_strength=0.5,
+            zeff_eff=2.0,
         )
         for v in result.values():
             assert np.isfinite(v)
 
     def test_zero_disturbance_zero_mitigation(self):
         result = post_disruption_halo_runaway(
-            pre_current_ma=10.0, tau_cq_s=0.010,
-            disturbance=0.0, mitigation_strength=0.0, zeff_eff=1.0,
+            pre_current_ma=10.0,
+            tau_cq_s=0.010,
+            disturbance=0.0,
+            mitigation_strength=0.0,
+            zeff_eff=1.0,
         )
         assert result["runaway_beam_ma"] >= 0.0
         assert result["halo_current_ma"] >= 0.0
@@ -189,20 +215,28 @@ class TestPostDisruptionEdge:
 
 # ── impurity_transport_response: xenon-heavy cocktail ──
 
+
 class TestImpurityXenonHeavy:
     def test_xenon_increases_zeff(self):
         r_no_xe = impurity_transport_response(
-            neon_quantity_mol=0.5, argon_quantity_mol=0.2,
-            xenon_quantity_mol=0.0, disturbance=0.5, seed_shift=0,
+            neon_quantity_mol=0.5,
+            argon_quantity_mol=0.2,
+            xenon_quantity_mol=0.0,
+            disturbance=0.5,
+            seed_shift=0,
         )
         r_xe = impurity_transport_response(
-            neon_quantity_mol=0.5, argon_quantity_mol=0.2,
-            xenon_quantity_mol=0.5, disturbance=0.5, seed_shift=0,
+            neon_quantity_mol=0.5,
+            argon_quantity_mol=0.2,
+            xenon_quantity_mol=0.5,
+            disturbance=0.5,
+            seed_shift=0,
         )
         assert r_xe["zeff_eff"] > r_no_xe["zeff_eff"]
 
 
 # ── require_int from disruption_predictor: minimum=None message ──
+
 
 class TestRequireIntNoMinimum:
     def test_no_minimum_message(self):
@@ -215,6 +249,7 @@ class TestRequireIntNoMinimum:
 
 
 # ── synthetic_disruption_signal determinism ──
+
 
 class TestSyntheticSignalDeterminism:
     def test_deterministic(self):

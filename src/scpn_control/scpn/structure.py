@@ -65,8 +65,8 @@ class StochasticPetriNet:
         self._arcs: List[Tuple[str, str, float, bool]] = []
 
         # Compiled products ----------------------------------------------------
-        self.W_in: sparse.csr_matrix | None = None   # (nT, nP)
-        self.W_out: sparse.csr_matrix | None = None   # (nP, nT)
+        self.W_in: sparse.csr_matrix | None = None  # (nT, nP)
+        self.W_out: sparse.csr_matrix | None = None  # (nP, nT)
         self._compiled: bool = False
         self._last_validation_report: Dict[str, object] | None = None
 
@@ -77,9 +77,7 @@ class StochasticPetriNet:
         if name in self._kind:
             raise ValueError(f"Node '{name}' already exists.")
         if not 0.0 <= initial_tokens <= 1.0:
-            raise ValueError(
-                f"initial_tokens must be in [0, 1], got {initial_tokens}"
-            )
+            raise ValueError(f"initial_tokens must be in [0, 1], got {initial_tokens}")
         idx = len(self._places)
         self._places.append(name)
         self._place_tokens.append(initial_tokens)
@@ -87,9 +85,7 @@ class StochasticPetriNet:
         self._kind[name] = _NodeKind.PLACE
         self._compiled = False
 
-    def add_transition(
-        self, name: str, threshold: float = 0.5, delay_ticks: int = 0
-    ) -> None:
+    def add_transition(self, name: str, threshold: float = 0.5, delay_ticks: int = 0) -> None:
         """Add a transition (logic gate) with a firing threshold."""
         if name in self._kind:
             raise ValueError(f"Node '{name}' already exists.")
@@ -136,20 +132,13 @@ class StochasticPetriNet:
 
         if src_kind == tgt_kind:
             raise ValueError(
-                f"Arc must connect Place<->Transition, got "
-                f"{src_kind.name}->{tgt_kind.name} ('{source}'->'{target}')."
+                f"Arc must connect Place<->Transition, got {src_kind.name}->{tgt_kind.name} ('{source}'->'{target}')."
             )
         if inhibitor:
-            if not (
-                src_kind is _NodeKind.PLACE and tgt_kind is _NodeKind.TRANSITION
-            ):
-                raise ValueError(
-                    "inhibitor arcs are only supported for Place->Transition."
-                )
+            if not (src_kind is _NodeKind.PLACE and tgt_kind is _NodeKind.TRANSITION):
+                raise ValueError("inhibitor arcs are only supported for Place->Transition.")
             if weight <= 0.0:
-                raise ValueError(
-                    f"inhibitor arc weight must be > 0 (magnitude), got {weight}"
-                )
+                raise ValueError(f"inhibitor arc weight must be > 0 (magnitude), got {weight}")
             stored_weight = -abs(float(weight))
         else:
             if weight <= 0.0:
@@ -184,9 +173,7 @@ class StochasticPetriNet:
         nP = len(self._places)
         nT = len(self._transitions)
         if nP == 0 or nT == 0:
-            raise ValueError(
-                "Net must have at least one place and one transition."
-            )
+            raise ValueError("Net must have at least one place and one transition.")
 
         self._last_validation_report = None
         if validate_topology or strict_validation:
@@ -205,17 +192,10 @@ class StochasticPetriNet:
                 if report["dead_transitions"]:
                     issues.append(f"dead_transitions={report['dead_transitions']}")
                 if report["unseeded_place_cycles"]:
-                    issues.append(
-                        f"unseeded_place_cycles={report['unseeded_place_cycles']}"
-                    )
+                    issues.append(f"unseeded_place_cycles={report['unseeded_place_cycles']}")
                 if report["input_weight_overflow_transitions"]:
-                    issues.append(
-                        "input_weight_overflow_transitions="
-                        f"{report['input_weight_overflow_transitions']}"
-                    )
-                raise ValueError(
-                    "Topology validation failed: " + "; ".join(issues)
-                )
+                    issues.append(f"input_weight_overflow_transitions={report['input_weight_overflow_transitions']}")
+                raise ValueError("Topology validation failed: " + "; ".join(issues))
 
         # COO accumulators
         in_rows: List[int] = []
@@ -229,10 +209,7 @@ class StochasticPetriNet:
         for src, tgt, w, is_inhibitor in self._arcs:
             if self._kind[src] is _NodeKind.PLACE:
                 if w < 0.0 and not allow_inhibitor:
-                    raise ValueError(
-                        "Negative input arc weights detected; "
-                        "re-run compile with allow_inhibitor=True."
-                    )
+                    raise ValueError("Negative input arc weights detected; re-run compile with allow_inhibitor=True.")
                 # Place -> Transition  => W_in[transition_idx, place_idx]
                 t_idx = self._transition_idx[tgt]
                 p_idx = self._place_idx[src]
@@ -241,9 +218,7 @@ class StochasticPetriNet:
                 in_vals.append(w)
             else:
                 if is_inhibitor or w < 0.0:
-                    raise ValueError(
-                        "Inhibitor arcs are only valid on Place->Transition edges."
-                    )
+                    raise ValueError("Inhibitor arcs are only valid on Place->Transition edges.")
                 # Transition -> Place  => W_out[place_idx, transition_idx]
                 t_idx = self._transition_idx[src]
                 p_idx = self._place_idx[tgt]
@@ -251,12 +226,8 @@ class StochasticPetriNet:
                 out_cols.append(t_idx)
                 out_vals.append(w)
 
-        self.W_in = sparse.csr_matrix(
-            (in_vals, (in_rows, in_cols)), shape=(nT, nP), dtype=np.float64
-        )
-        self.W_out = sparse.csr_matrix(
-            (out_vals, (out_rows, out_cols)), shape=(nP, nT), dtype=np.float64
-        )
+        self.W_in = sparse.csr_matrix((in_vals, (in_rows, in_cols)), shape=(nT, nP), dtype=np.float64)
+        self.W_out = sparse.csr_matrix((out_vals, (out_rows, out_cols)), shape=(nP, nT), dtype=np.float64)
         self._compiled = True
 
     def validate_topology(self) -> Dict[str, object]:
@@ -274,9 +245,7 @@ class StochasticPetriNet:
         place_out_deg = {p: 0 for p in self._places}
         trans_in_deg = {t: 0 for t in self._transitions}
         trans_out_deg = {t: 0 for t in self._transitions}
-        transition_positive_input_weight_sum = {
-            t: 0.0 for t in self._transitions
-        }
+        transition_positive_input_weight_sum = {t: 0.0 for t in self._transitions}
 
         transition_inputs: Dict[str, List[str]] = {t: [] for t in self._transitions}
         transition_outputs: Dict[str, List[str]] = {t: [] for t in self._transitions}
@@ -293,16 +262,8 @@ class StochasticPetriNet:
                 place_in_deg[tgt] += 1
                 transition_outputs[src].append(tgt)
 
-        dead_places = sorted(
-            p
-            for p in self._places
-            if (place_in_deg[p] + place_out_deg[p]) == 0
-        )
-        dead_transitions = sorted(
-            t
-            for t in self._transitions
-            if (trans_in_deg[t] + trans_out_deg[t]) == 0
-        )
+        dead_places = sorted(p for p in self._places if (place_in_deg[p] + place_out_deg[p]) == 0)
+        dead_transitions = sorted(t for t in self._transitions if (trans_in_deg[t] + trans_out_deg[t]) == 0)
 
         place_adj: Dict[str, set[str]] = {p: set() for p in self._places}
         for t in self._transitions:
@@ -321,17 +282,12 @@ class StochasticPetriNet:
             if not has_cycle:
                 continue
 
-            if all(
-                self._place_tokens[self._place_idx[p]] <= 0.0
-                for p in comp
-            ):
+            if all(self._place_tokens[self._place_idx[p]] <= 0.0 for p in comp):
                 unseeded_place_cycles.append(sorted(comp))
 
         unseeded_place_cycles.sort(key=lambda c: tuple(c))
         input_weight_overflow_transitions = sorted(
-            t
-            for t, total_w in transition_positive_input_weight_sum.items()
-            if total_w > (1.0 + 1e-12)
+            t for t, total_w in transition_positive_input_weight_sum.items() if total_w > (1.0 + 1e-12)
         )
         return {
             "dead_places": dead_places,
@@ -341,9 +297,7 @@ class StochasticPetriNet:
         }
 
     @staticmethod
-    def _strongly_connected_components(
-        graph: Dict[str, set[str]]
-    ) -> List[List[str]]:
+    def _strongly_connected_components(graph: Dict[str, set[str]]) -> List[List[str]]:
         """Tarjan SCC for small place graphs."""
         index = 0
         stack: List[str] = []
@@ -429,20 +383,14 @@ class StochasticPetriNet:
             "",
             "Places:",
         ]
-        for i, (name, tok) in enumerate(
-            zip(self._places, self._place_tokens)
-        ):
+        for i, (name, tok) in enumerate(zip(self._places, self._place_tokens)):
             lines.append(f"  [{i}] {name:20s}  tokens={tok:.3f}")
 
         lines.append("")
         lines.append("Transitions:")
-        for i, (name, th) in enumerate(
-            zip(self._transitions, self._transition_thresholds)
-        ):
+        for i, (name, th) in enumerate(zip(self._transitions, self._transition_thresholds)):
             delay = self._transition_delays[i]
-            lines.append(
-                f"  [{i}] {name:20s}  threshold={th:.3f}  delay_ticks={delay}"
-            )
+            lines.append(f"  [{i}] {name:20s}  threshold={th:.3f}  delay_ticks={delay}")
 
         lines.append("")
         lines.append("Arcs:")
@@ -454,14 +402,8 @@ class StochasticPetriNet:
             assert self.W_in is not None
             assert self.W_out is not None
             lines.append("")
-            lines.append(
-                f"W_in  (nT={self.W_in.shape[0]}, nP={self.W_in.shape[1]})  "
-                f"nnz={self.W_in.nnz}"
-            )
-            lines.append(
-                f"W_out (nP={self.W_out.shape[0]}, nT={self.W_out.shape[1]})  "
-                f"nnz={self.W_out.nnz}"
-            )
+            lines.append(f"W_in  (nT={self.W_in.shape[0]}, nP={self.W_in.shape[1]})  nnz={self.W_in.nnz}")
+            lines.append(f"W_out (nP={self.W_out.shape[0]}, nT={self.W_out.shape[1]})  nnz={self.W_out.nnz}")
         return "\n".join(lines)
 
     # ── Formal verification ───────────────────────────────────────────────
@@ -490,17 +432,16 @@ class StochasticPetriNet:
         _W_out = self.W_out
         if _W_in is None or _W_out is None:
             raise RuntimeError("Net must be compiled before verification.")
-        W_in_dense: np.ndarray = _W_in.toarray() if hasattr(_W_in, 'toarray') else np.asarray(_W_in)
-        W_out_dense: np.ndarray = _W_out.toarray() if hasattr(_W_out, 'toarray') else np.asarray(_W_out)
+        W_in_dense: np.ndarray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
+        W_out_dense: np.ndarray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
 
         for _ in range(n_trials):
             marking = self.get_initial_marking().copy()
             for _ in range(n_steps):
-
                 # Check enabling
                 thresholds = self.get_thresholds()
                 enabled = np.all(W_in_dense <= marking[np.newaxis, :] + 1e-9, axis=1)
-                enabled &= (rng.random(len(thresholds)) < thresholds)
+                enabled &= rng.random(len(thresholds)) < thresholds
 
                 # Fire enabled transitions
                 for t in np.where(enabled)[0]:
@@ -544,8 +485,8 @@ class StochasticPetriNet:
         _W_out = self.W_out
         if _W_in is None or _W_out is None:
             raise RuntimeError("Net must be compiled before verification.")
-        W_in_dense: np.ndarray = _W_in.toarray() if hasattr(_W_in, 'toarray') else np.asarray(_W_in)
-        W_out_dense: np.ndarray = _W_out.toarray() if hasattr(_W_out, 'toarray') else np.asarray(_W_out)
+        W_in_dense: np.ndarray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
+        W_out_dense: np.ndarray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
         thresholds = self.get_thresholds()
 
         for _ in range(n_trials):
@@ -554,7 +495,7 @@ class StochasticPetriNet:
 
             for _ in range(n_steps):
                 enabled = np.all(W_in_dense <= marking[np.newaxis, :] + 1e-9, axis=1)
-                enabled &= (rng.random(n_T) < thresholds)
+                enabled &= rng.random(n_T) < thresholds
 
                 for t in np.where(enabled)[0]:
                     marking -= W_in_dense[t, :]
@@ -565,10 +506,7 @@ class StochasticPetriNet:
 
             fire_counts += fired_this_trial.astype(int)
 
-        fire_pct = {
-            name: round(float(fire_counts[i]) / n_trials, 4)
-            for i, name in enumerate(self._transitions)
-        }
+        fire_pct = {name: round(float(fire_counts[i]) / n_trials, 4) for i, name in enumerate(self._transitions)}
         min_pct = float(np.min(fire_counts)) / n_trials
 
         return {

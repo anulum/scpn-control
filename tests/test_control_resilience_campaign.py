@@ -56,9 +56,7 @@ def test_campaign_report_is_deterministic_for_same_seed() -> None:
 
 
 def test_render_markdown_contains_metrics_section() -> None:
-    report = control_resilience_campaign.generate_campaign_report(
-        seed=11, episodes=4, window=24
-    )
+    report = control_resilience_campaign.generate_campaign_report(seed=11, episodes=4, window=24)
     text = control_resilience_campaign.render_markdown(report)
     assert "# Control Resilience Campaign" in text
     assert "## Metrics" in text
@@ -77,9 +75,7 @@ def test_render_markdown_contains_metrics_section() -> None:
         ({"recovery_epsilon": 0.0}, "recovery_epsilon"),
     ],
 )
-def test_generate_campaign_report_validates_inputs(
-    kwargs: dict[str, float | int], match: str
-) -> None:
+def test_generate_campaign_report_validates_inputs(kwargs: dict[str, float | int], match: str) -> None:
     with pytest.raises(ValueError, match=match):
         control_resilience_campaign.generate_campaign_report(**kwargs)
 

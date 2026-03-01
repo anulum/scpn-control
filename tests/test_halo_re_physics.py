@@ -255,6 +255,7 @@ class TestDisruptionEnsemble:
 
 # ─── Dreicer/avalanche NaN guard paths ───────────────────────────────
 
+
 class TestREGuardPaths:
     def test_dreicer_rate_nan_field_returns_zero(self):
         m = RunawayElectronModel()

@@ -20,27 +20,19 @@ from scpn_control.scpn.contracts import (
 class TestPhysicsInvariantDataclass:
     def test_valid_comparators(self):
         for comp in ("gt", "lt", "gte", "lte"):
-            inv = PhysicsInvariant(
-                name="test", description="d", threshold=1.0, comparator=comp
-            )
+            inv = PhysicsInvariant(name="test", description="d", threshold=1.0, comparator=comp)
             assert inv.comparator == comp
 
     def test_invalid_comparator_raises(self):
         with pytest.raises(ValueError, match="Invalid comparator"):
-            PhysicsInvariant(
-                name="test", description="d", threshold=1.0, comparator="eq"
-            )
+            PhysicsInvariant(name="test", description="d", threshold=1.0, comparator="eq")
 
     def test_nonfinite_threshold_raises(self):
         with pytest.raises(ValueError, match="finite"):
-            PhysicsInvariant(
-                name="test", description="d", threshold=float("inf"), comparator="gt"
-            )
+            PhysicsInvariant(name="test", description="d", threshold=float("inf"), comparator="gt")
 
     def test_frozen(self):
-        inv = PhysicsInvariant(
-            name="test", description="d", threshold=1.0, comparator="gt"
-        )
+        inv = PhysicsInvariant(name="test", description="d", threshold=1.0, comparator="gt")
         with pytest.raises(AttributeError):
             inv.threshold = 2.0  # type: ignore[misc]
 
@@ -195,25 +187,17 @@ class TestShouldTriggerMitigation:
 
     def test_warning_only(self):
         inv = PhysicsInvariant(name="b", description="", threshold=2.8, comparator="lt")
-        v = PhysicsInvariantViolation(
-            invariant=inv, actual_value=3.0, margin=0.2, severity="warning"
-        )
+        v = PhysicsInvariantViolation(invariant=inv, actual_value=3.0, margin=0.2, severity="warning")
         assert should_trigger_mitigation([v]) is False
 
     def test_critical_triggers(self):
         inv = PhysicsInvariant(name="b", description="", threshold=2.8, comparator="lt")
-        v = PhysicsInvariantViolation(
-            invariant=inv, actual_value=5.0, margin=2.2, severity="critical"
-        )
+        v = PhysicsInvariantViolation(invariant=inv, actual_value=5.0, margin=2.2, severity="critical")
         assert should_trigger_mitigation([v]) is True
 
     def test_mixed_critical_and_warning(self):
         inv1 = PhysicsInvariant(name="a", description="", threshold=1.0, comparator="gt")
         inv2 = PhysicsInvariant(name="b", description="", threshold=2.8, comparator="lt")
-        v1 = PhysicsInvariantViolation(
-            invariant=inv1, actual_value=0.9, margin=0.1, severity="warning"
-        )
-        v2 = PhysicsInvariantViolation(
-            invariant=inv2, actual_value=5.0, margin=2.2, severity="critical"
-        )
+        v1 = PhysicsInvariantViolation(invariant=inv1, actual_value=0.9, margin=0.1, severity="warning")
+        v2 = PhysicsInvariantViolation(invariant=inv2, actual_value=5.0, margin=2.2, severity="critical")
         assert should_trigger_mitigation([v1, v2]) is True

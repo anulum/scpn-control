@@ -57,6 +57,7 @@ class CoilSet:
         Points ``(R, Z)`` on the desired separatrix for shape optimisation.
         Shape ``(n_pts, 2)``.
     """
+
     positions: list[tuple[float, float]] = field(default_factory=list)
     currents: NDArray[np.float64] = field(default_factory=lambda: np.array([]))
     turns: list[int] = field(default_factory=list)
@@ -159,9 +160,7 @@ class FusionKernel:
                 (self.Z[0], self.Z[-1]),
             )
         else:
-            logger.info(
-                "HPC Acceleration UNAVAILABLE (using Python fallback)."
-            )
+            logger.info("HPC Acceleration UNAVAILABLE (using Python fallback).")
 
     # ── vacuum field ──────────────────────────────────────────────────
 
@@ -201,9 +200,7 @@ class FusionKernel:
 
     # ── topology analysis ─────────────────────────────────────────────
 
-    def find_x_point(
-        self, Psi: FloatArray
-    ) -> tuple[tuple[float, float], float]:
+    def find_x_point(self, Psi: FloatArray) -> tuple[tuple[float, float], float]:
         """Locate the X-point (magnetic null) in the lower divertor region.
 
         Parameters
@@ -247,9 +244,7 @@ class FusionKernel:
     # ── profile functions ─────────────────────────────────────────────
 
     @staticmethod
-    def mtanh_profile(
-        psi_norm: FloatArray, params: dict[str, float]
-    ) -> FloatArray:
+    def mtanh_profile(psi_norm: FloatArray, params: dict[str, float]) -> FloatArray:
         """Evaluate a modified-tanh pedestal profile (vectorised).
 
         Parameters
@@ -283,9 +278,7 @@ class FusionKernel:
 
     # ── source term ───────────────────────────────────────────────────
 
-    def update_plasma_source_nonlinear(
-        self, Psi_axis: float, Psi_boundary: float
-    ) -> FloatArray:
+    def update_plasma_source_nonlinear(self, Psi_axis: float, Psi_boundary: float) -> FloatArray:
         """Compute the toroidal current density J_phi from the GS source.
 
         Uses ``J_phi = R p'(psi) + FF'(psi) / (mu0 R)`` with either
@@ -339,9 +332,7 @@ class FusionKernel:
 
     # ── elliptic sub-solvers ──────────────────────────────────────────
 
-    def _jacobi_step(
-        self, Psi: FloatArray, Source: FloatArray
-    ) -> FloatArray:
+    def _jacobi_step(self, Psi: FloatArray, Source: FloatArray) -> FloatArray:
         """Perform one Jacobi iteration on the interior grid points.
 
         Parameters
@@ -358,11 +349,7 @@ class FusionKernel:
         """
         Psi_new = Psi.copy()
         Psi_new[1:-1, 1:-1] = 0.25 * (
-            Psi[0:-2, 1:-1]
-            + Psi[2:, 1:-1]
-            + Psi[1:-1, 0:-2]
-            + Psi[1:-1, 2:]
-            - (self.dR**2) * Source[1:-1, 1:-1]
+            Psi[0:-2, 1:-1] + Psi[2:, 1:-1] + Psi[1:-1, 0:-2] + Psi[1:-1, 2:] - (self.dR**2) * Source[1:-1, 1:-1]
         )
         return Psi_new
 
@@ -398,8 +385,8 @@ class FusionKernel:
         """
         Psi_new = Psi.copy()
         NZ, NR = Psi.shape
-        dR2 = self.dR ** 2
-        dZ2 = self.dZ ** 2
+        dR2 = self.dR**2
+        dZ2 = self.dZ**2
 
         # Toroidal stencil coefficients (arrays over interior grid)
         R_int = self.RR[1:-1, 1:-1]
@@ -410,7 +397,7 @@ class FusionKernel:
         a_C = 2.0 / dR2 + 2.0 / dZ2  # scalar
 
         # Checkerboard mask for interior points
-        ii, jj = np.mgrid[1:NZ - 1, 1:NR - 1]
+        ii, jj = np.mgrid[1 : NZ - 1, 1 : NR - 1]
 
         for parity in (0, 1):  # 0 = red, 1 = black
             mask = ((ii + jj) % 2) == parity
@@ -454,10 +441,8 @@ class FusionKernel:
                 j = 2 * jc
                 coarse[ic, jc] = (
                     4.0 * fine[i, j]
-                    + 2.0 * (fine[i - 1, j] + fine[i + 1, j]
-                             + fine[i, j - 1] + fine[i, j + 1])
-                    + (fine[i - 1, j - 1] + fine[i - 1, j + 1]
-                       + fine[i + 1, j - 1] + fine[i + 1, j + 1])
+                    + 2.0 * (fine[i - 1, j] + fine[i + 1, j] + fine[i, j - 1] + fine[i, j + 1])
+                    + (fine[i - 1, j - 1] + fine[i - 1, j + 1] + fine[i + 1, j - 1] + fine[i + 1, j + 1])
                 ) / 16.0
 
         # Boundary: inject directly
@@ -513,8 +498,7 @@ class FusionKernel:
                 j = 2 * jc + 1
                 if j < nr_f:
                     fine[i, j] = 0.25 * (
-                        coarse[ic, jc] + coarse[ic + 1, jc]
-                        + coarse[ic, jc + 1] + coarse[ic + 1, jc + 1]
+                        coarse[ic, jc] + coarse[ic + 1, jc] + coarse[ic, jc + 1] + coarse[ic + 1, jc + 1]
                     )
 
         return fine
@@ -534,8 +518,8 @@ class FusionKernel:
         Works on arbitrary grid sizes (not just the root grid).
         """
         NZ, NR = Psi.shape
-        dR2 = dR ** 2
-        dZ2 = dZ ** 2
+        dR2 = dR**2
+        dZ2 = dZ**2
 
         R_int = R_grid[1:-1, 1:-1]
         R_safe = np.maximum(R_int, 1e-10)
@@ -544,7 +528,7 @@ class FusionKernel:
         a_NS = 1.0 / dZ2
         a_C = 2.0 / dR2 + 2.0 / dZ2
 
-        ii, jj = np.mgrid[1:NZ - 1, 1:NR - 1]
+        ii, jj = np.mgrid[1 : NZ - 1, 1 : NR - 1]
 
         for _ in range(n_sweeps):
             for parity in (0, 1):
@@ -573,8 +557,8 @@ class FusionKernel:
     ) -> FloatArray:
         """Compute GS* residual r = L*[Psi] - Source on given grid."""
         NZ, NR = Psi.shape
-        dR2 = dR ** 2
-        dZ2 = dZ ** 2
+        dR2 = dR**2
+        dZ2 = dZ**2
 
         residual = np.zeros_like(Psi)
         R_int = R_grid[1:-1, 1:-1]
@@ -629,9 +613,7 @@ class FusionKernel:
 
         # Base case: grid too coarse — solve directly with many SOR sweeps
         if NZ <= min_grid or NR <= min_grid:
-            return self._mg_smooth(
-                Psi.copy(), Source, R_grid, dR, dZ, omega, n_sweeps=50
-            )
+            return self._mg_smooth(Psi.copy(), Source, R_grid, dR, dZ, omega, n_sweeps=50)
 
         # 1. Pre-smooth
         Psi = self._mg_smooth(Psi.copy(), Source, R_grid, dR, dZ, omega, pre_smooth)
@@ -651,8 +633,14 @@ class FusionKernel:
         # 4. Solve coarse-grid correction: L*[e] = r
         e_coarse = np.zeros((nz_c, nr_c))
         e_coarse = self._multigrid_vcycle(
-            e_coarse, r_coarse, R_coarse, dR_c, dZ_c,
-            omega=omega, pre_smooth=pre_smooth, post_smooth=post_smooth,
+            e_coarse,
+            r_coarse,
+            R_coarse,
+            dR_c,
+            dZ_c,
+            omega=omega,
+            pre_smooth=pre_smooth,
+            post_smooth=post_smooth,
             min_grid=min_grid,
         )
 
@@ -704,7 +692,7 @@ class FusionKernel:
         # Solve min ||F @ alpha||^2 s.t. sum(alpha) = 1
         # via: delta_F[:,j] = F[:,j+1] - F[:,j], then solve normal equations
         dF = np.diff(F, axis=1)  # (N, mk-1)
-        rhs = F[:, -1]           # latest residual
+        rhs = F[:, -1]  # latest residual
 
         # Tikhonov regularisation for numerical stability
         gram = dF.T @ dF
@@ -732,9 +720,7 @@ class FusionKernel:
 
         return mixed
 
-    def _apply_boundary_conditions(
-        self, Psi: FloatArray, Psi_bc: FloatArray
-    ) -> None:
+    def _apply_boundary_conditions(self, Psi: FloatArray, Psi_bc: FloatArray) -> None:
         """Copy vacuum-field boundary values onto the edges of *Psi*.
 
         Parameters
@@ -749,9 +735,7 @@ class FusionKernel:
         Psi[:, 0] = Psi_bc[:, 0]
         Psi[:, -1] = Psi_bc[:, -1]
 
-    def _elliptic_solve(
-        self, Source: FloatArray, Psi_bc: FloatArray
-    ) -> FloatArray:
+    def _elliptic_solve(self, Source: FloatArray, Psi_bc: FloatArray) -> FloatArray:
         """Run the inner elliptic solve (HPC or Python fallback).
 
         The solver method is chosen from the config key
@@ -787,7 +771,11 @@ class FusionKernel:
             Psi_new = self._jacobi_step(self.Psi, Source)
         elif method == "multigrid":
             Psi_new = self._multigrid_vcycle(
-                self.Psi.copy(), Source, self.RR, self.dR, self.dZ,
+                self.Psi.copy(),
+                Source,
+                self.RR,
+                self.dR,
+                self.dZ,
                 omega=omega,
             )
         else:
@@ -807,10 +795,7 @@ class FusionKernel:
         mu0 : float
             Vacuum permeability.
         """
-        R_center = (
-            self.cfg["dimensions"]["R_min"]
-            + self.cfg["dimensions"]["R_max"]
-        ) / 2.0
+        R_center = (self.cfg["dimensions"]["R_min"] + self.cfg["dimensions"]["R_max"]) / 2.0
         dist_sq = (self.RR - R_center) ** 2 + self.ZZ**2
         self.J_phi = np.exp(-dist_sq / 2.0)
 
@@ -847,10 +832,7 @@ class FusionKernel:
         if boundary_flux is not None:
             psi_boundary = np.asarray(boundary_flux, dtype=np.float64)
             if psi_boundary.shape != self.Psi.shape:
-                raise ValueError(
-                    f"boundary_flux shape {psi_boundary.shape} "
-                    f"must match Psi shape {self.Psi.shape}"
-                )
+                raise ValueError(f"boundary_flux shape {psi_boundary.shape} must match Psi shape {self.Psi.shape}")
             psi_boundary = psi_boundary.copy()
         elif preserve_initial_state:
             psi_boundary = self.Psi.copy()
@@ -874,8 +856,8 @@ class FusionKernel:
         """
         Psi = self.Psi
         NZ, NR = Psi.shape
-        dR2 = self.dR ** 2
-        dZ2 = self.dZ ** 2
+        dR2 = self.dR**2
+        dZ2 = self.dZ**2
 
         residual = np.zeros_like(Psi)
         R_int = self.RR[1:-1, 1:-1]
@@ -904,8 +886,8 @@ class FusionKernel:
         Used as the matvec in the GMRES LinearOperator for Newton.
         """
         NZ, NR = v.shape
-        dR2 = self.dR ** 2
-        dZ2 = self.dZ ** 2
+        dR2 = self.dR**2
+        dZ2 = self.dZ**2
 
         result = np.zeros_like(v)
         R_int = self.RR[1:-1, 1:-1]
@@ -918,9 +900,7 @@ class FusionKernel:
         result[1:-1, 1:-1] = d2R - d1R / R_safe + d2Z
         return result
 
-    def _compute_profile_jacobian(
-        self, Psi_axis: float, Psi_boundary: float, mu0: float
-    ) -> FloatArray:
+    def _compute_profile_jacobian(self, Psi_axis: float, Psi_boundary: float, mu0: float) -> FloatArray:
         """Compute dJ_phi/dpsi as a 2D diagonal scaling field.
 
         For L-mode linear profiles:
@@ -975,9 +955,7 @@ class FusionKernel:
         tol: float = self.cfg["solver"]["convergence_threshold"]
         picard_alpha: float = self.cfg["solver"].get("relaxation_factor", 0.1)
         fail_on_diverge: bool = bool(self.cfg["solver"].get("fail_on_diverge", False))
-        require_gs_residual: bool = bool(
-            self.cfg["solver"].get("require_gs_residual", False)
-        )
+        require_gs_residual: bool = bool(self.cfg["solver"].get("require_gs_residual", False))
         gs_tol: float = float(self.cfg["solver"].get("gs_residual_threshold", tol))
         if require_gs_residual and gs_tol <= 0.0:
             raise ValueError("solver.gs_residual_threshold must be > 0")
@@ -1081,8 +1059,7 @@ class FusionKernel:
 
                 # Solve J_k * delta = -r_k
                 rhs = -r_k[1:-1, 1:-1].ravel()
-                delta_flat, info = gmres(J_op, rhs, maxiter=100, restart=50,
-                                         atol=1e-8, rtol=1e-6)
+                delta_flat, info = gmres(J_op, rhs, maxiter=100, restart=50, atol=1e-8, rtol=1e-6)
 
                 if info != 0:
                     logger.warning("GMRES did not converge at Newton iter %d (info=%d)", k, info)
@@ -1142,10 +1119,7 @@ class FusionKernel:
         from scpn_control.core._rust_compat import RustAcceleratedKernel, _rust_available
 
         if preserve_initial_state or boundary_flux is not None:
-            logger.warning(
-                "Boundary-constrained solve requested with rust_multigrid; "
-                "falling back to Python SOR."
-            )
+            logger.warning("Boundary-constrained solve requested with rust_multigrid; falling back to Python SOR.")
             prior_method = self.cfg["solver"].get("solver_method", "rust_multigrid")
             self.cfg["solver"]["solver_method"] = "sor"
             try:
@@ -1261,12 +1235,8 @@ class FusionKernel:
         max_iter: int = self.cfg["solver"]["max_iterations"]
         tol: float = self.cfg["solver"]["convergence_threshold"]
         alpha: float = self.cfg["solver"].get("relaxation_factor", 0.1)
-        fail_on_diverge: bool = bool(
-            self.cfg["solver"].get("fail_on_diverge", False)
-        )
-        require_gs_residual: bool = bool(
-            self.cfg["solver"].get("require_gs_residual", False)
-        )
+        fail_on_diverge: bool = bool(self.cfg["solver"].get("fail_on_diverge", False))
+        require_gs_residual: bool = bool(self.cfg["solver"].get("require_gs_residual", False))
         gs_tol: float = float(self.cfg["solver"].get("gs_residual_threshold", tol))
         if require_gs_residual and gs_tol <= 0.0:
             raise ValueError("solver.gs_residual_threshold must be > 0")
@@ -1300,9 +1270,7 @@ class FusionKernel:
 
             # 2. Source update
             if not getattr(self, "external_profile_mode", False):
-                self.J_phi = self.update_plasma_source_nonlinear(
-                    Psi_axis, Psi_boundary
-                )
+                self.J_phi = self.update_plasma_source_nonlinear(Psi_axis, Psi_boundary)
 
             # 3. Elliptic solve
             Source = -mu0 * self.RR * self.J_phi
@@ -1317,9 +1285,7 @@ class FusionKernel:
                 )
                 self.Psi = Psi_best
                 if fail_on_diverge:
-                    raise RuntimeError(
-                        f"Equilibrium solver diverged at iter={k}"
-                    )
+                    raise RuntimeError(f"Equilibrium solver diverged at iter={k}")
                 break
 
             # 4. Under-relaxation
@@ -1332,9 +1298,7 @@ class FusionKernel:
                 psi_history.append(self.Psi.copy())
                 res_history.append(Psi_new - self.Psi)
                 if len(psi_history) >= 3 and k % 3 == 0:
-                    mixed = self._anderson_step(
-                        psi_history, res_history, m=anderson_m
-                    )
+                    mixed = self._anderson_step(psi_history, res_history, m=anderson_m)
                     self._apply_boundary_conditions(mixed, Psi_vac_boundary)
                     self.Psi = mixed
                 # Trim history to avoid unbounded memory growth
@@ -1365,8 +1329,7 @@ class FusionKernel:
 
             if k % 100 == 0:
                 logger.debug(
-                    "Iter %d: res=%.2e | axis=%.2f | X-pt=%.2f "
-                    "at R=%.2f, Z=%.2f",
+                    "Iter %d: res=%.2e | axis=%.2f | X-pt=%.2f at R=%.2f, Z=%.2f",
                     k,
                     diff,
                     Psi_axis,
@@ -1421,13 +1384,14 @@ class FusionKernel:
     def _green_function(R_src, Z_src, R_obs, Z_obs):
         """Toroidal Green's function using elliptic integrals."""
         mu0 = 4e-7 * np.pi
-        denom = (R_obs + R_src)**2 + (Z_obs - Z_src)**2
+        denom = (R_obs + R_src) ** 2 + (Z_obs - Z_src) ** 2
         if denom < 1e-30:
             return 0.0
         k2 = 4.0 * R_obs * R_src / denom
         k2 = np.clip(k2, 1e-9, 0.999999)
         k = np.sqrt(k2)
         from scipy.special import ellipe, ellipk
+
         K_val = ellipk(k2)
         E_val = ellipe(k2)
         prefactor = mu0 / (2.0 * np.pi) * np.sqrt(R_obs * R_src)
@@ -1444,9 +1408,7 @@ class FusionKernel:
             I_eff = current * turns
             for iz in range(NZ):
                 for ir in range(NR):
-                    psi_ext[iz, ir] += I_eff * self._green_function(
-                        R_c, Z_c, self.R[ir], self.Z[iz]
-                    )
+                    psi_ext[iz, ir] += I_eff * self._green_function(R_c, Z_c, self.R[ir], self.Z[iz])
         return psi_ext
 
     def _build_mutual_inductance_matrix(
@@ -1532,10 +1494,12 @@ class FusionKernel:
             lb = -np.inf * np.ones(n_coils)
             ub = np.inf * np.ones(n_coils)
 
-        result = lsq_linear(A, b, bounds=(lb, ub), method='trf')
+        result = lsq_linear(A, b, bounds=(lb, ub), method="trf")
         logger.info(
             "Coil optimisation: cost=%.4e, status=%d (%s)",
-            result.cost, result.status, result.message,
+            result.cost,
+            result.status,
+            result.message,
         )
         return result.x.astype(np.float64)
 
@@ -1593,12 +1557,11 @@ class FusionKernel:
             if optimize_shape and coils.target_flux_points is not None:
                 obs = coils.target_flux_points
                 # Extract current flux at target points via interpolation
-                target_psi = np.array([
-                    float(self._interp_psi(R_t, Z_t))
-                    for R_t, Z_t in obs
-                ])
+                target_psi = np.array([float(self._interp_psi(R_t, Z_t)) for R_t, Z_t in obs])
                 new_currents = self.optimize_coil_currents(
-                    coils, target_psi, tikhonov_alpha=tikhonov_alpha,
+                    coils,
+                    target_psi,
+                    tikhonov_alpha=tikhonov_alpha,
                 )
                 coils.currents = new_currents
                 psi_ext = self._compute_external_flux(coils)
@@ -1610,9 +1573,9 @@ class FusionKernel:
                 break
 
         return {
-            'outer_iterations': outer + 1,
-            'final_diff': diff,
-            'coil_currents': coils.currents.copy(),
+            "outer_iterations": outer + 1,
+            "final_diff": diff,
+            "coil_currents": coils.currents.copy(),
         }
 
     def _interp_psi(self, R_pt: float, Z_pt: float) -> float:
@@ -1716,8 +1679,13 @@ class FusionKernel:
 
         for _ in range(n_steps):
             out = kuramoto_sakaguchi_step(
-                th, om, dt=dt, K=K_eff, zeta=zeta_eff,
-                psi_driver=psi_driver, psi_mode=psi_mode_eff,
+                th,
+                om,
+                dt=dt,
+                K=K_eff,
+                zeta=zeta_eff,
+                psi_driver=psi_driver,
+                psi_mode=psi_mode_eff,
             )
             th = out["theta1"]
             r_hist.append(out["R"])
@@ -1748,11 +1716,7 @@ if __name__ == "__main__":
     import sys
 
     logging.basicConfig(level=logging.INFO, format="%(name)s %(message)s")
-    config_file = (
-        sys.argv[1]
-        if len(sys.argv) > 1
-        else "03_CODE/SCPN-Fusion-Core/iter_config.json"
-    )
+    config_file = sys.argv[1] if len(sys.argv) > 1 else "03_CODE/SCPN-Fusion-Core/iter_config.json"
     fk = FusionKernel(config_file)
     fk.solve_equilibrium()
     fk.save_results("03_CODE/SCPN-Fusion-Core/final_state_nonlinear.npz")

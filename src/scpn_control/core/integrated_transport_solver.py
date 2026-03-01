@@ -14,6 +14,7 @@ import numpy as np
 
 try:
     import matplotlib.pyplot as plt  # noqa: F401
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -31,14 +32,11 @@ _logger = logging.getLogger(__name__)
 class PhysicsError(RuntimeError):
     """Raised when a physics constraint is violated."""
 
+
 # ── Gyro-Bohm coefficient loader ─────────────────────────────────────
 
 _GYRO_BOHM_COEFF_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "validation"
-    / "reference_data"
-    / "itpa"
-    / "gyro_bohm_coefficients.json"
+    Path(__file__).resolve().parents[3] / "validation" / "reference_data" / "itpa" / "gyro_bohm_coefficients.json"
 )
 
 _GYRO_BOHM_DEFAULT = 0.1  # ITPA Transport DB, Nucl. Fusion 39, 2175 (1999)
@@ -70,7 +68,9 @@ def _load_gyro_bohm_coefficient(
     except (FileNotFoundError, KeyError, json.JSONDecodeError, TypeError) as exc:
         _logger.warning(
             "Could not load c_gB from %s (%s), using default %.4f",
-            p, exc, _GYRO_BOHM_DEFAULT,
+            p,
+            exc,
+            _GYRO_BOHM_DEFAULT,
         )
         return _GYRO_BOHM_DEFAULT
 
@@ -119,17 +119,21 @@ def chang_hinton_chi_profile(rho, T_i, n_e_19, q, R0, a, B0, A_ion=2.0, Z_eff=1.
         # ion-ion collision frequency
         n_e = n_e_19[i] * 1e19
         ln_lambda = 17.0  # Wesson, "Tokamaks" 4th ed., Ch. 14.5
-        nu_ii = (n_e * Z_eff**2 * e_charge**4 * ln_lambda
-                 / (12.0 * np.pi**1.5 * eps0**2 * m_i**0.5 * T_J**1.5))
+        nu_ii = n_e * Z_eff**2 * e_charge**4 * ln_lambda / (12.0 * np.pi**1.5 * eps0**2 * m_i**0.5 * T_J**1.5)
 
         eps32 = epsilon**1.5
         nu_star = nu_ii * q[i] * R0 / (eps32 * v_ti)
 
         alpha_sh = epsilon
         # Chang & Hinton, Phys. Fluids 25, 1493 (1982), Eq. 10
-        chi_val = (0.66 * (1.0 + 1.54 * alpha_sh) * q[i]**2
-                   * rho_i**2 * nu_ii
-                   / (eps32 * (1.0 + 0.74 * nu_star**(2.0/3.0))))
+        chi_val = (
+            0.66
+            * (1.0 + 1.54 * alpha_sh)
+            * q[i] ** 2
+            * rho_i**2
+            * nu_ii
+            / (eps32 * (1.0 + 0.74 * nu_star ** (2.0 / 3.0)))
+        )
 
         chi_nc[i] = max(chi_val, 0.01) if np.isfinite(chi_val) else 0.01
 
@@ -167,7 +171,7 @@ def calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0, a, B0, Z_eff
             continue
 
         # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eq. 13
-        f_t = 1.0 - (1.0 - eps)**2 / (np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps)))
+        f_t = 1.0 - (1.0 - eps) ** 2 / (np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps)))
         f_t = max(0.0, min(f_t, 1.0))
 
         # Electron thermal velocity
@@ -177,32 +181,29 @@ def calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0, a, B0, Z_eff
         # Collision frequency
         n_e = ne[i] * 1e19
         ln_lambda = 17.0  # Wesson, "Tokamaks" 4th ed., Ch. 14.5
-        nu_ei = n_e * Z_eff * e_charge**4 * ln_lambda / (
-            12.0 * np.pi**1.5 * eps0**2 * m_e**0.5 * T_e_J**1.5
-        )
+        nu_ei = n_e * Z_eff * e_charge**4 * ln_lambda / (12.0 * np.pi**1.5 * eps0**2 * m_e**0.5 * T_e_J**1.5)
 
         # Collisionality
         nu_star_e = nu_ei * q[i] * R0 / (eps**1.5 * v_te) if v_te > 0 else 1e6
 
         # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eqs. 14a-14c
         alpha_31 = 1.0 / (1.0 + 0.36 / Z_eff)
-        L31 = f_t * alpha_31 / (1.0 + alpha_31 * np.sqrt(nu_star_e) +
-               0.25 * nu_star_e * (1.0 - f_t)**2)
+        L31 = f_t * alpha_31 / (1.0 + alpha_31 * np.sqrt(nu_star_e) + 0.25 * nu_star_e * (1.0 - f_t) ** 2)
 
         # Sauter L32 coefficient
         L32 = f_t * (0.05 + 0.62 * Z_eff) / (Z_eff * (1.0 + 0.44 * Z_eff))
-        L32 /= (1.0 + 0.22 * np.sqrt(nu_star_e) + 0.19 * nu_star_e * (1.0 - f_t))
+        L32 /= 1.0 + 0.22 * np.sqrt(nu_star_e) + 0.19 * nu_star_e * (1.0 - f_t)
 
         # Sauter L34 coefficient (ion contribution)
         L34 = L31 * Ti[i] / max(Te[i], 0.01)
 
         # Gradients (central differences)
-        dr = (rho[i+1] - rho[i-1]) * a
+        dr = (rho[i + 1] - rho[i - 1]) * a
         if abs(dr) < 1e-12:
             continue
-        dn_dr = (ne[i+1] - ne[i-1]) * 1e19 / dr
-        dTe_dr = (Te[i+1] - Te[i-1]) * 1e3 * e_charge / dr
-        dTi_dr = (Ti[i+1] - Ti[i-1]) * 1e3 * e_charge / dr
+        dn_dr = (ne[i + 1] - ne[i - 1]) * 1e19 / dr
+        dTe_dr = (Te[i + 1] - Te[i - 1]) * 1e3 * e_charge / dr
+        dTi_dr = (Ti[i + 1] - Ti[i - 1]) * 1e3 * e_charge / dr
 
         # Poloidal field
         B_pol = B0 * eps / max(q[i], 0.1)
@@ -212,9 +213,9 @@ def calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0, a, B0, Z_eff
         # Bootstrap current
         p_e = n_e * T_e_J
         j_bs[i] = -(p_e / B_pol) * (
-            L31 * dn_dr / max(n_e, 1e10) +
-            L32 * dTe_dr / max(T_e_J, 1e-30) +
-            L34 * dTi_dr / max(Ti[i] * 1e3 * e_charge, 1e-30)
+            L31 * dn_dr / max(n_e, 1e10)
+            + L32 * dTe_dr / max(T_e_J, 1e-30)
+            + L34 * dTi_dr / max(Ti[i] * 1e3 * e_charge, 1e-30)
         )
 
     return j_bs
@@ -231,10 +232,11 @@ class TransportSolver(FusionKernel):
     electron temperature Te, coronal-equilibrium tungsten radiation
     (Pütterich et al. 2010), and per-cell Bremsstrahlung.
     """
+
     def __init__(self, config_path: str | Path, *, multi_ion: bool = False) -> None:
         super().__init__(config_path)
-        self.external_profile_mode = True # Tell Kernel to respect our calculated profiles
-        self.nr = 50 # Radial grid points (normalized radius rho)
+        self.external_profile_mode = True  # Tell Kernel to respect our calculated profiles
+        self.nr = 50  # Radial grid points (normalized radius rho)
         self.rho = np.linspace(0, 1, self.nr)
         self.drho = 1.0 / (self.nr - 1)
 
@@ -242,14 +244,14 @@ class TransportSolver(FusionKernel):
 
         # PROFILES (Evolving state variables)
         # Te = Electron Temp (keV), Ti = Ion Temp (keV), ne = Density (10^19 m-3)
-        self.Te = 1.0 * (1 - self.rho**2) # Initial guess
+        self.Te = 1.0 * (1 - self.rho**2)  # Initial guess
         self.Ti = 1.0 * (1 - self.rho**2)
-        self.ne = 5.0 * (1 - self.rho**2)**0.5
+        self.ne = 5.0 * (1 - self.rho**2) ** 0.5
 
         # Transport Coefficients (Anomalous Transport Models)
-        self.chi_e = np.ones(self.nr) # Electron diffusivity
-        self.chi_i = np.ones(self.nr) # Ion diffusivity
-        self.D_n = np.ones(self.nr)   # Particle diffusivity
+        self.chi_e = np.ones(self.nr)  # Electron diffusivity
+        self.chi_i = np.ones(self.nr)  # Ion diffusivity
+        self.D_n = np.ones(self.nr)  # Particle diffusivity
 
         # Impurity Profile (Tungsten density)
         self.n_impurity = np.zeros(self.nr)
@@ -263,9 +265,9 @@ class TransportSolver(FusionKernel):
         # ── Multi-ion species (P1.1) ──
         # Densities in 10^19 m^-3 (same units as ne)
         if self.multi_ion:
-            self.n_D = 0.5 * self.ne.copy()       # Deuterium
-            self.n_T = 0.5 * self.ne.copy()       # Tritium
-            self.n_He = np.zeros(self.nr)          # He-4 ash
+            self.n_D = 0.5 * self.ne.copy()  # Deuterium
+            self.n_T = 0.5 * self.ne.copy()  # Tritium
+            self.n_He = np.zeros(self.nr)  # He-4 ash
         else:
             self.n_D = None  # type: ignore[assignment]
             self.n_T = None  # type: ignore[assignment]
@@ -298,9 +300,14 @@ class TransportSolver(FusionKernel):
         self._last_numerical_recovery_count: int = 0
 
     def set_neoclassical(
-        self, R0: float, a: float, B0: float,
-        A_ion: float = 2.0, Z_eff: float = 1.5,
-        q0: float = 1.0, q_edge: float = 3.0,
+        self,
+        R0: float,
+        a: float,
+        B0: float,
+        A_ion: float = 2.0,
+        Z_eff: float = 1.5,
+        q0: float = 1.0,
+        q_edge: float = 3.0,
     ) -> None:
         """Configure Chang-Hinton neoclassical transport model.
 
@@ -309,9 +316,12 @@ class TransportSolver(FusionKernel):
         """
         q_profile = q0 + (q_edge - q0) * self.rho**2
         self.neoclassical_params = {
-            'R0': R0, 'a': a, 'B0': B0,
-            'A_ion': A_ion, 'Z_eff': Z_eff,
-            'q_profile': q_profile,
+            "R0": R0,
+            "a": a,
+            "B0": B0,
+            "A_ion": A_ion,
+            "Z_eff": Z_eff,
+            "q_profile": q_profile,
         }
 
     def chang_hinton_chi_profile(self) -> np.ndarray:
@@ -349,9 +359,7 @@ class TransportSolver(FusionKernel):
         if q_profile.shape != rho.shape:
             q_profile = np.linspace(1.0, 3.0, len(rho), dtype=np.float64)
 
-        return chang_hinton_chi_profile(
-            rho, t_i, n_e, q_profile, R0, a, B0, A_ion=A_ion, Z_eff=Z_eff
-        )
+        return chang_hinton_chi_profile(rho, t_i, n_e, q_profile, R0, a, B0, A_ion=A_ion, Z_eff=Z_eff)
 
     def inject_impurities(self, flux_from_wall_per_sec, dt):
         """
@@ -368,7 +376,7 @@ class TransportSolver(FusionKernel):
         self.n_impurity[-1] += d_n_edge
 
         # Diffuse inward (Explicit step)
-        D_imp = 1.0 # m2/s
+        D_imp = 1.0  # m2/s
         new_imp = self.n_impurity.copy()
 
         grad = np.gradient(self.n_impurity, self.drho)
@@ -378,7 +386,7 @@ class TransportSolver(FusionKernel):
         new_imp += (-div) * dt
 
         # Boundary
-        new_imp[0] = new_imp[1] # Axis symmetry
+        new_imp[0] = new_imp[1]  # Axis symmetry
 
         self.n_impurity = np.maximum(0, new_imp)
 
@@ -400,8 +408,7 @@ class TransportSolver(FusionKernel):
         # Factor 1.2: Z_eff≈1.5 correction (Hirshman & Sigmar, NF 21, 1079, 1981)
         B_pol = np.maximum(B_pol, 0.1)
         BOOTSTRAP_ZEFF_CORRECTION = 1.2
-        J_bs = (BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol)
-                * dP_drho / delta_a)
+        J_bs = BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol) * dP_drho / delta_a
 
         # Ensure it's zero at axis and edge
         J_bs[0] = 0
@@ -411,13 +418,17 @@ class TransportSolver(FusionKernel):
 
     def calculate_bootstrap_current(self, R0, B_pol):
         """Calculate bootstrap current. Uses full Sauter if neoclassical params set."""
-        if hasattr(self, 'neoclassical_params') and self.neoclassical_params is not None:
+        if hasattr(self, "neoclassical_params") and self.neoclassical_params is not None:
             return calculate_sauter_bootstrap_current_full(
-                self.rho, self.Te, self.Ti, self.ne,
-                self.neoclassical_params.get('q_profile', np.linspace(1, 4, len(self.rho))),
-                R0, self.neoclassical_params.get('a', 2.0),
-                self.neoclassical_params.get('B0', 5.3),
-                self.neoclassical_params.get('Z_eff', 1.5),
+                self.rho,
+                self.Te,
+                self.Ti,
+                self.ne,
+                self.neoclassical_params.get("q_profile", np.linspace(1, 4, len(self.rho))),
+                R0,
+                self.neoclassical_params.get("a", 2.0),
+                self.neoclassical_params.get("B0", 5.3),
+                self.neoclassical_params.get("Z_eff", 1.5),
             )
         return self.calculate_bootstrap_current_simple(R0, B_pol)
 
@@ -439,15 +450,15 @@ class TransportSolver(FusionKernel):
             return np.full_like(self.rho, 0.5)
 
         p = self.neoclassical_params
-        R0 = p['R0']
-        a = p['a']
-        B0 = p['B0']
-        A_ion = p.get('A_ion', 2.0)
-        q = p['q_profile']
+        R0 = p["R0"]
+        a = p["a"]
+        B0 = p["B0"]
+        A_ion = p.get("A_ion", 2.0)
+        q = p["q_profile"]
 
         # Load c_gB: explicit param > JSON file > default
-        if 'c_gB' in p:
-            c_gB = p['c_gB']
+        if "c_gB" in p:
+            c_gB = p["c_gB"]
         else:
             c_gB = _load_gyro_bohm_coefficient()
 
@@ -490,9 +501,7 @@ class TransportSolver(FusionKernel):
         if self.neoclassical_params is not None:
             p = self.neoclassical_params
             chi_nc = chang_hinton_chi_profile(
-                self.rho, self.Ti, self.ne,
-                p['q_profile'], p['R0'], p['a'], p['B0'],
-                p['A_ion'], p['Z_eff']
+                self.rho, self.Ti, self.ne, p["q_profile"], p["R0"], p["a"], p["B0"], p["A_ion"], p["Z_eff"]
             )
             chi_gB = self._gyro_bohm_chi()
             chi_base = chi_nc + chi_gB
@@ -514,11 +523,13 @@ class TransportSolver(FusionKernel):
 
                 p = self.neoclassical_params
                 eped = EpedPedestalModel(
-                    R0=p['R0'], a=p['a'], B0=p['B0'],
-                    Ip_MA=p.get('Ip_MA', 15.0),
-                    kappa=p.get('kappa', 1.7),
-                    A_ion=p.get('A_ion', 2.0),
-                    Z_eff=p.get('Z_eff', 1.5),
+                    R0=p["R0"],
+                    a=p["a"],
+                    B0=p["B0"],
+                    Ip_MA=p.get("Ip_MA", 15.0),
+                    kappa=p.get("kappa", 1.7),
+                    A_ion=p.get("A_ion", 2.0),
+                    Z_eff=p.get("Z_eff", 1.5),
                 )
                 # Use current edge density for pedestal prediction
                 n_ped = max(float(self.ne[-5]), 1.0)
@@ -533,12 +544,10 @@ class TransportSolver(FusionKernel):
                 ped_idx = np.searchsorted(self.rho, ped_start)
                 if ped_idx < len(self.Te):
                     self.Te[ped_idx:] = np.minimum(
-                        self.Te[ped_idx:],
-                        ped.T_ped_keV * np.linspace(1.0, 0.1, len(self.Te[ped_idx:]))
+                        self.Te[ped_idx:], ped.T_ped_keV * np.linspace(1.0, 0.1, len(self.Te[ped_idx:]))
                     )
                     self.Ti[ped_idx:] = np.minimum(
-                        self.Ti[ped_idx:],
-                        ped.T_ped_keV * np.linspace(1.0, 0.1, len(self.Ti[ped_idx:]))
+                        self.Ti[ped_idx:], ped.T_ped_keV * np.linspace(1.0, 0.1, len(self.Ti[ped_idx:]))
                     )
             except (ImportError, ValueError, IndexError, AttributeError):
                 edge_mask = self.rho > 0.9
@@ -645,7 +654,7 @@ class TransportSolver(FusionKernel):
         n = len(self.rho)
         dr = self.drho
         a = np.zeros(n - 1)  # sub-diagonal
-        b = np.ones(n)       # main diagonal
+        b = np.ones(n)  # main diagonal
         c = np.zeros(n - 1)  # super-diagonal
 
         for i in range(1, n - 1):
@@ -660,8 +669,8 @@ class TransportSolver(FusionKernel):
 
             # Crank-Nicolson LHS: (I - 0.5·dt·L_h)
             b[i] = 1.0 + 0.5 * dt * (coeff_ip + coeff_im)
-            c[i] = -0.5 * dt * coeff_ip       # T_{i+1} coefficient
-            a[i - 1] = -0.5 * dt * coeff_im   # T_{i-1} coefficient
+            c[i] = -0.5 * dt * coeff_ip  # T_{i+1} coefficient
+            a[i - 1] = -0.5 * dt * coeff_im  # T_{i-1} coefficient
 
         return a, b, c
 
@@ -703,15 +712,11 @@ class TransportSolver(FusionKernel):
         recovered_total += n_ne
 
         chi_i_fb = np.where(np.isfinite(self.chi_i), self.chi_i, 0.5)
-        self.chi_i, n_chi_i = self._sanitize_with_fallback(
-            self.chi_i, chi_i_fb, floor=0.01, ceil=1e4
-        )
+        self.chi_i, n_chi_i = self._sanitize_with_fallback(self.chi_i, chi_i_fb, floor=0.01, ceil=1e4)
         recovered_total += n_chi_i
 
         chi_e_fb = np.where(np.isfinite(self.chi_e), self.chi_e, 0.5)
-        self.chi_e, n_chi_e = self._sanitize_with_fallback(
-            self.chi_e, chi_e_fb, floor=0.01, ceil=1e4
-        )
+        self.chi_e, n_chi_e = self._sanitize_with_fallback(self.chi_e, chi_e_fb, floor=0.01, ceil=1e4)
         recovered_total += n_chi_e
 
         dn_fb = np.where(np.isfinite(self.D_n), self.D_n, 0.1)
@@ -719,9 +724,7 @@ class TransportSolver(FusionKernel):
         recovered_total += n_dn
 
         imp_fb = np.where(np.isfinite(self.n_impurity), self.n_impurity, 0.0)
-        self.n_impurity, n_imp = self._sanitize_with_fallback(
-            self.n_impurity, imp_fb, floor=0.0, ceil=1e3
-        )
+        self.n_impurity, n_imp = self._sanitize_with_fallback(self.n_impurity, imp_fb, floor=0.0, ceil=1e3)
         recovered_total += n_imp
 
         if self.n_D is not None:
@@ -786,11 +789,7 @@ class TransportSolver(FusionKernel):
         e_keV_J = 1.602176634e-16
         ne_safe = np.maximum(self.ne, 0.1) * 1e19  # m^-3
 
-        electron_frac = (
-            float(np.clip(self.aux_heating_electron_fraction, 0.0, 1.0))
-            if self.multi_ion
-            else 0.0
-        )
+        electron_frac = float(np.clip(self.aux_heating_electron_fraction, 0.0, 1.0)) if self.multi_ion else 0.0
         ion_frac = 1.0 - electron_frac
         p_aux_w = float(P_aux_MW) * 1e6
 
@@ -844,7 +843,7 @@ class TransportSolver(FusionKernel):
                 5.0e-31 * np.ones_like(Te),
                 np.where(
                     Te < 20.0,
-                    2.0e-31 * Te ** 0.3,
+                    2.0e-31 * Te**0.3,
                     8.0e-31 * np.ones_like(Te),
                 ),
             ),
@@ -861,7 +860,7 @@ class TransportSolver(FusionKernel):
         """
         ne_m3 = ne_1e19 * 1e19
         Te = np.maximum(Te_keV, 0.01)
-        return 5.35e-37 * Z_eff * ne_m3 ** 2 * np.sqrt(Te)
+        return 5.35e-37 * Z_eff * ne_m3**2 * np.sqrt(Te)
 
     def _evolve_species(self, dt: float) -> tuple[np.ndarray, np.ndarray]:
         """Evolve D, T, He-ash densities for one time-step (explicit diffusion + sources).
@@ -895,19 +894,19 @@ class TransportSolver(FusionKernel):
         # Diffusion operator (explicit, simple Laplacian)
         def _diffuse(n: np.ndarray) -> np.ndarray:
             d2n = np.zeros_like(n)
-            d2n[1:-1] = (n[2:] - 2.0 * n[1:-1] + n[:-2]) / (self.drho ** 2)
+            d2n[1:-1] = (n[2:] - 2.0 * n[1:-1] + n[:-2]) / (self.drho**2)
             return self.D_species * d2n
 
         # CFL sub-stepping for explicit diffusion stability
-        dt_cfl = 0.4 * self.drho ** 2 / max(self.D_species, 1e-10)
+        dt_cfl = 0.4 * self.drho**2 / max(self.D_species, 1e-10)
         n_sub = max(1, int(np.ceil(dt / dt_cfl)))
         dt_sub = dt / n_sub
 
         for _ in range(n_sub):
             # Evolve D
             new_D = self.n_D + dt_sub * (_diffuse(self.n_D) - S_fuel)
-            new_D[0] = new_D[1]   # Neumann at axis
-            new_D[-1] = 0.01      # edge recycling floor
+            new_D[0] = new_D[1]  # Neumann at axis
+            new_D[-1] = 0.01  # edge recycling floor
             self.n_D = np.maximum(0.001, new_D)
 
             # Evolve T
@@ -933,9 +932,12 @@ class TransportSolver(FusionKernel):
         # Z_eff
         ne_m3 = self.ne * 1e19
         ne_safe = np.maximum(ne_m3, 1e10)
-        sum_nZ2 = (self.n_D * 1e19 * 1.0 + self.n_T * 1e19 * 1.0
-                   + self.n_He * 1e19 * 4.0
-                   + np.maximum(self.n_impurity, 0.0) * 1e19 * Z_W ** 2)
+        sum_nZ2 = (
+            self.n_D * 1e19 * 1.0
+            + self.n_T * 1e19 * 1.0
+            + self.n_He * 1e19 * 4.0
+            + np.maximum(self.n_impurity, 0.0) * 1e19 * Z_W**2
+        )
         self._Z_eff = float(np.clip(np.mean(sum_nZ2 / ne_safe), 1.0, 10.0))
 
         # Tungsten line radiation [W/m^3]
@@ -1014,11 +1016,9 @@ class TransportSolver(FusionKernel):
         a, b, c = self._build_cn_tridiag(self.chi_i, dt)
         new_Ti = self._thomas_solve(a, b, c, rhs)
 
-        new_Ti[0] = new_Ti[1]    # Neumann at core
-        new_Ti[-1] = 0.1         # Dirichlet at edge
-        self.Ti, n_ti_new = self._sanitize_with_fallback(
-            new_Ti, Ti_old, floor=0.01, ceil=1e3
-        )
+        new_Ti[0] = new_Ti[1]  # Neumann at core
+        new_Ti[-1] = 0.1  # Dirichlet at edge
+        self.Ti, n_ti_new = self._sanitize_with_fallback(new_Ti, Ti_old, floor=0.01, ceil=1e3)
         self._last_numerical_recovery_count += n_ti_new
 
         # ── Electron temperature ──
@@ -1059,9 +1059,7 @@ class TransportSolver(FusionKernel):
 
             new_Te[0] = new_Te[1]
             new_Te[-1] = 0.08  # cooler edge electrons
-            self.Te, n_te_new = self._sanitize_with_fallback(
-                new_Te, Te_old, floor=0.01, ceil=1e3
-            )
+            self.Te, n_te_new = self._sanitize_with_fallback(new_Te, Te_old, floor=0.01, ceil=1e3)
             self._last_numerical_recovery_count += n_te_new
         else:
             self.Te = self.Ti.copy()  # Assume equilibrated (legacy)
@@ -1091,9 +1089,7 @@ class TransportSolver(FusionKernel):
         dW_source = dt * 1.5 * np.sum(self.ne * 1e19 * net_source_i * e_keV_J * dV)
 
         dW_actual = W_after - W_before
-        self._last_conservation_error = (
-            abs(dW_actual - dW_source) / max(abs(W_before), 1e-10)
-        )
+        self._last_conservation_error = abs(dW_actual - dW_source) / max(abs(W_before), 1e-10)
         if not np.isfinite(self._last_conservation_error):
             self._last_conservation_error = float("inf")
 
@@ -1135,7 +1131,7 @@ class TransportSolver(FusionKernel):
         # 3. Calculate 1D Bootstrap Current
         dims = self.cfg["dimensions"]
         R0 = (dims["R_min"] + dims["R_max"]) / 2.0
-        I_target = self.cfg['physics']['plasma_current_target']
+        I_target = self.cfg["physics"]["plasma_current_target"]
         a_half = 0.5 * (dims["R_max"] - dims["R_min"])
         B_pol_est = (1.256e-6 * I_target) / (2 * np.pi * a_half)
         J_bs_1d = self.calculate_bootstrap_current(R0, B_pol_est)
@@ -1154,7 +1150,7 @@ class TransportSolver(FusionKernel):
         # Normalize to target current
         I_curr = np.sum(self.J_phi) * self.dR * self.dZ
         if I_curr > 1e-9:
-            self.J_phi *= (I_target / I_curr)
+            self.J_phi *= I_target / I_curr
 
     # ── Confinement time ───────────────────────────────────────────────
 
@@ -1270,24 +1266,25 @@ class TransportSolver(FusionKernel):
             self.solve_equilibrium()
 
             # 4. Compute psi convergence metric
-            psi_residual = float(
-                np.linalg.norm(self.Psi - Psi_old) / psi_old_norm
-            )
+            psi_residual = float(np.linalg.norm(self.Psi - Psi_old) / psi_old_norm)
             psi_residuals.append(psi_residual)
             n_outer_converged = outer + 1
 
             _logger.info(
                 "GS-transport outer iter %d/%d: psi_residual=%.4e",
-                outer + 1, n_outer, psi_residual,
+                outer + 1,
+                n_outer,
+                psi_residual,
             )
 
             # 5. Convergence check
             if psi_residual < psi_tol:
                 converged = True
                 _logger.info(
-                    "GS-transport converged after %d outer iterations "
-                    "(residual %.4e < tol %.4e).",
-                    outer + 1, psi_residual, psi_tol,
+                    "GS-transport converged after %d outer iterations (residual %.4e < tol %.4e).",
+                    outer + 1,
+                    psi_residual,
+                    psi_tol,
                 )
                 break
 

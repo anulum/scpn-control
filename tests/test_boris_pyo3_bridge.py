@@ -41,9 +41,7 @@ pytestmark = pytest.mark.skipif(
 
 def _seed(n: int = 64) -> list:
     """Seed alpha particles at R=6m, Z=0, 3.5 MeV, isotropic pitch."""
-    return scpn_control_rs.py_seed_alpha_particles(
-        n=n, r0=6.0, z0=0.0, energy_mev=3.5, pitch=0.5, weight=1.0
-    )
+    return scpn_control_rs.py_seed_alpha_particles(n=n, r0=6.0, z0=0.0, energy_mev=3.5, pitch=0.5, weight=1.0)
 
 
 # ─── tests ───

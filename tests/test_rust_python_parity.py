@@ -96,8 +96,8 @@ IP_MA = 1.0
 
 R_MIN = R0 - 1.5 * A_MINOR  # 0.95
 R_MAX = R0 + 1.5 * A_MINOR  # 2.45
-Z_MIN = -1.5 * A_MINOR      # -0.75
-Z_MAX = 1.5 * A_MINOR       # 0.75
+Z_MIN = -1.5 * A_MINOR  # -0.75
+Z_MAX = 1.5 * A_MINOR  # 0.75
 
 
 def _make_config(
@@ -200,14 +200,15 @@ class TestSORSolverParity:
         psi_rs = rust_kernel.Psi.copy()
 
         # --- Compare ---
-        assert psi_py.shape == psi_rs.shape, (
-            f"Shape mismatch: Python {psi_py.shape} vs Rust {psi_rs.shape}"
-        )
+        assert psi_py.shape == psi_rs.shape, f"Shape mismatch: Python {psi_py.shape} vs Rust {psi_rs.shape}"
         assert np.all(np.isfinite(psi_py)), "Python SOR produced non-finite values"
         assert np.all(np.isfinite(psi_rs)), "Rust SOR produced non-finite values"
 
         np.testing.assert_allclose(
-            psi_py, psi_rs, rtol=1e-3, atol=1e-6,
+            psi_py,
+            psi_rs,
+            rtol=1e-3,
+            atol=1e-6,
             err_msg=f"SOR parity failed: max rel diff = {_max_rel_diff(psi_py, psi_rs):.6e}",
         )
 
@@ -268,15 +269,26 @@ class TestMultigridSolverParity:
 
         # --- Python: single V-cycle ---
         psi_py = py_kernel._multigrid_vcycle(
-            Psi_init.copy(), Source, RR, dR, dZ, omega=1.6,
+            Psi_init.copy(),
+            Source,
+            RR,
+            dR,
+            dZ,
+            omega=1.6,
         )
 
         # --- Rust: full multigrid solve (multiple cycles) ---
         psi_rs, residual, n_cycles, converged = rust_multigrid_vcycle(
-            Source, Psi_init.copy(),
-            R_MIN, R_MAX, Z_MIN, Z_MAX,
-            NR, NZ,
-            tol=1e-6, max_cycles=500,
+            Source,
+            Psi_init.copy(),
+            R_MIN,
+            R_MAX,
+            Z_MIN,
+            Z_MAX,
+            NR,
+            NZ,
+            tol=1e-6,
+            max_cycles=500,
         )
 
         # --- Compare shape + finiteness (different convergence depth) ---
@@ -286,11 +298,17 @@ class TestMultigridSolverParity:
 
         # Boundary rows/columns must agree (both use Dirichlet BC)
         np.testing.assert_allclose(
-            psi_py[[0, -1], :], psi_rs[[0, -1], :], rtol=1e-3, atol=1e-6,
+            psi_py[[0, -1], :],
+            psi_rs[[0, -1], :],
+            rtol=1e-3,
+            atol=1e-6,
             err_msg="Multigrid boundary parity failed",
         )
         np.testing.assert_allclose(
-            psi_py[:, [0, -1]], psi_rs[:, [0, -1]], rtol=1e-3, atol=1e-6,
+            psi_py[:, [0, -1]],
+            psi_rs[:, [0, -1]],
+            rtol=1e-3,
+            atol=1e-6,
             err_msg="Multigrid boundary parity failed",
         )
 
@@ -322,11 +340,17 @@ class TestMultigridSolverParity:
         # stencil than the Python reference, so strict pointwise parity is not
         # expected yet. Keep a robust shape/quality parity guard instead.
         np.testing.assert_allclose(
-            psi_py[[0, -1], :], psi_rs[[0, -1], :], rtol=1e-3, atol=1e-6,
+            psi_py[[0, -1], :],
+            psi_rs[[0, -1], :],
+            rtol=1e-3,
+            atol=1e-6,
             err_msg="MG boundary parity failed",
         )
         np.testing.assert_allclose(
-            psi_py[:, [0, -1]], psi_rs[:, [0, -1]], rtol=1e-3, atol=1e-6,
+            psi_py[:, [0, -1]],
+            psi_rs[:, [0, -1]],
+            rtol=1e-3,
+            atol=1e-6,
             err_msg="MG boundary parity failed",
         )
 
@@ -388,7 +412,10 @@ class TestVacuumFieldParity:
         assert np.all(np.isfinite(psi_vac_rs)), "Rust vacuum field has NaN"
 
         np.testing.assert_allclose(
-            psi_vac_py, psi_vac_rs, rtol=1e-3, atol=1e-8,
+            psi_vac_py,
+            psi_vac_rs,
+            rtol=1e-3,
+            atol=1e-8,
             err_msg=f"Vacuum field parity failed: max rel diff = {_max_rel_diff(psi_vac_py, psi_vac_rs):.6e}",
         )
 
@@ -413,7 +440,10 @@ class TestVacuumFieldParity:
         assert psi_vac_py.shape == psi_vac_rs.shape
 
         np.testing.assert_allclose(
-            psi_vac_py, psi_vac_rs, rtol=1e-3, atol=1e-8,
+            psi_vac_py,
+            psi_vac_rs,
+            rtol=1e-3,
+            atol=1e-8,
             err_msg=f"shafranov_bv parity failed: max rel diff = {_max_rel_diff(psi_vac_py, psi_vac_rs):.6e}",
         )
 
@@ -451,14 +481,15 @@ class TestTransportSolverParity:
         assert np.all(np.isfinite(signal_py)), "Python tearing mode produced NaN"
         assert np.all(np.isfinite(signal_rs)), "Rust tearing mode produced NaN"
 
-        assert label_py == label_rs, (
-            f"Disruption label mismatch: Python={label_py}, Rust={label_rs}"
-        )
+        assert label_py == label_rs, f"Disruption label mismatch: Python={label_py}, Rust={label_rs}"
 
         min_len = min(len(signal_py), len(signal_rs))
         if min_len > 0:
             np.testing.assert_allclose(
-                signal_py[:min_len], signal_rs[:min_len], rtol=1e-3, atol=1e-4,
+                signal_py[:min_len],
+                signal_rs[:min_len],
+                rtol=1e-3,
+                atol=1e-4,
                 err_msg=f"Tearing mode parity failed: max rel diff = {_max_rel_diff(signal_py[:min_len], signal_rs[:min_len]):.6e}",
             )
 
@@ -494,7 +525,10 @@ class TestSCPNRuntimeParity:
         act_rs = np.asarray(_rust_dense_act(marking, weights))
 
         np.testing.assert_allclose(
-            act_py, act_rs, rtol=1e-6, atol=1e-10,
+            act_py,
+            act_rs,
+            rtol=1e-6,
+            atol=1e-10,
             err_msg=f"Dense activations parity failed: max rel diff = {_max_rel_diff(act_py, act_rs):.6e}",
         )
 
@@ -515,7 +549,10 @@ class TestSCPNRuntimeParity:
         mk_rs = np.asarray(_rust_marking_upd(marking, pre, post, firing))
 
         np.testing.assert_allclose(
-            mk_py, mk_rs, rtol=1e-6, atol=1e-10,
+            mk_py,
+            mk_rs,
+            rtol=1e-6,
+            atol=1e-10,
             err_msg=f"Marking update parity failed: max rel diff = {_max_rel_diff(mk_py, mk_rs):.6e}",
         )
 
@@ -600,17 +637,12 @@ class TestTopologyParity:
         # X-point position should be within 1 grid cell
         dR = (R_MAX - R_MIN) / (NR - 1)
         dZ = (Z_MAX - Z_MIN) / (NZ - 1)
-        assert abs(xpt_py[0] - xpt_rs[0]) < 2 * dR, (
-            f"X-point R mismatch: {xpt_py[0]:.4f} vs {xpt_rs[0]:.4f}"
-        )
-        assert abs(xpt_py[1] - xpt_rs[1]) < 2 * dZ, (
-            f"X-point Z mismatch: {xpt_py[1]:.4f} vs {xpt_rs[1]:.4f}"
-        )
+        assert abs(xpt_py[0] - xpt_rs[0]) < 2 * dR, f"X-point R mismatch: {xpt_py[0]:.4f} vs {xpt_rs[0]:.4f}"
+        assert abs(xpt_py[1] - xpt_rs[1]) < 2 * dZ, f"X-point Z mismatch: {xpt_py[1]:.4f} vs {xpt_rs[1]:.4f}"
 
         # Psi at X-point should agree
         if abs(psi_xpt_py) > 1e-10:
             rel_diff = abs(psi_xpt_py - psi_xpt_rs) / abs(psi_xpt_py)
             assert rel_diff < 1e-2, (
-                f"X-point Psi mismatch: {psi_xpt_py:.6e} vs {psi_xpt_rs:.6e} "
-                f"(rel diff = {rel_diff:.6e})"
+                f"X-point Psi mismatch: {psi_xpt_py:.6e} vs {psi_xpt_rs:.6e} (rel diff = {rel_diff:.6e})"
             )

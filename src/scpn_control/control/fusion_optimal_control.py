@@ -12,6 +12,7 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -54,12 +55,8 @@ class OptimalController:
         if not np.isfinite(correction_limit) or correction_limit <= 0.0:
             raise ValueError("correction_limit must be finite and > 0.")
         self.correction_limit = correction_limit
-        self.coil_current_limits = normalize_bounds(
-            coil_current_limits, "coil_current_limits"
-        )
-        self.current_target_limits = normalize_bounds(
-            current_target_limits, "current_target_limits"
-        )
+        self.coil_current_limits = normalize_bounds(coil_current_limits, "coil_current_limits")
+        self.current_target_limits = normalize_bounds(current_target_limits, "current_target_limits")
         self.history: Dict[str, list[float]] = {
             "t": [],
             "R_axis": [],
@@ -186,10 +183,7 @@ class OptimalController:
                 np.max(
                     np.abs(
                         np.asarray(
-                            [
-                                float(c.get("current", 0.0))
-                                for c in self.kernel.cfg.get("coils", [])
-                            ],
+                            [float(c.get("current", 0.0)) for c in self.kernel.cfg.get("coils", [])],
                             dtype=np.float64,
                         )
                     )
@@ -224,12 +218,8 @@ class OptimalController:
             "final_target_ip_ma": float(self.history["Ip"][-1]) if self.history["Ip"] else 0.0,
             "final_axis_r": float(r_arr[-1]) if r_arr.size else 0.0,
             "final_axis_z": float(z_arr[-1]) if z_arr.size else 0.0,
-            "mean_abs_r_error": float(np.mean(np.abs(r_arr - float(target_r))))
-            if r_arr.size
-            else 0.0,
-            "mean_abs_z_error": float(np.mean(np.abs(z_arr - float(target_z))))
-            if z_arr.size
-            else 0.0,
+            "mean_abs_r_error": float(np.mean(np.abs(r_arr - float(target_r)))) if r_arr.size else 0.0,
+            "mean_abs_z_error": float(np.mean(np.abs(z_arr - float(target_z)))) if z_arr.size else 0.0,
             "mean_error_norm": float(np.mean(e_arr)) if e_arr.size else 0.0,
             "max_abs_delta_i": float(np.max(di_arr)) if di_arr.size else 0.0,
             "max_abs_coil_current": float(np.max(coil_arr)) if coil_arr.size else 0.0,

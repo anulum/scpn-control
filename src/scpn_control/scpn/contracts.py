@@ -136,9 +136,7 @@ def extract_features(
             raise KeyError(f"Missing observation key for feature extraction: {axis.obs_key}")
         obs_value = float(obs[axis.obs_key])
         if not math.isfinite(obs_value):
-            raise ValueError(
-                f"Observation value for feature extraction must be finite: {axis.obs_key}"
-            )
+            raise ValueError(f"Observation value for feature extraction must be finite: {axis.obs_key}")
         target = float(axis.target)
         if not math.isfinite(target):
             raise ValueError(f"Feature axis target must be finite: {axis.obs_key}")
@@ -201,15 +199,8 @@ def decode_actions(
     dict mapping action name → clamped value.  Also mutates *prev* in-place.
     """
     n_actions = len(actions_spec)
-    if (
-        len(gains) != n_actions
-        or len(abs_max) != n_actions
-        or len(slew_per_s) != n_actions
-        or len(prev) != n_actions
-    ):
-        raise ValueError(
-            "actions_spec, gains, abs_max, slew_per_s, and prev must have equal lengths."
-        )
+    if len(gains) != n_actions or len(abs_max) != n_actions or len(slew_per_s) != n_actions or len(prev) != n_actions:
+        raise ValueError("actions_spec, gains, abs_max, slew_per_s, and prev must have equal lengths.")
     if not math.isfinite(dt) or dt <= 0.0:
         raise ValueError("dt must be finite and > 0.")
 
@@ -219,9 +210,7 @@ def decode_actions(
         if spec.pos_place < 0 or spec.neg_place < 0:
             raise ValueError("Action place indices must be >= 0.")
         if spec.pos_place >= n_places or spec.neg_place >= n_places:
-            raise ValueError(
-                "Action place index out of bounds for marking vector."
-            )
+            raise ValueError("Action place index out of bounds for marking vector.")
         pos = marking[spec.pos_place]
         neg = marking[spec.neg_place]
         raw = (pos - neg) * gains[i]
@@ -272,10 +261,7 @@ class PhysicsInvariant:
 
     def __post_init__(self) -> None:
         if self.comparator not in _VALID_COMPARATORS:
-            raise ValueError(
-                f"Invalid comparator {self.comparator!r}; "
-                f"must be one of {_VALID_COMPARATORS}"
-            )
+            raise ValueError(f"Invalid comparator {self.comparator!r}; must be one of {_VALID_COMPARATORS}")
         if not math.isfinite(self.threshold):
             raise ValueError("PhysicsInvariant threshold must be finite.")
 

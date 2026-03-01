@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for train_from_geqdsk, train_on_sparc, and the __main__ CLI block."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,9 +45,12 @@ def diiid_files():
 
 class TestTrainFromGeqdsk:
     def test_trains_and_returns_result(self, sparc_files):
-        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(
-            n_components=5, hidden_sizes=(16, 8),
-        ))
+        accel = NeuralEquilibriumAccelerator(
+            NeuralEqConfig(
+                n_components=5,
+                hidden_sizes=(16, 8),
+            )
+        )
         result = accel.train_from_geqdsk(sparc_files, n_perturbations=3, seed=0)
         assert result.n_samples > 0
         assert result.n_components == 5
@@ -57,9 +61,12 @@ class TestTrainFromGeqdsk:
         assert np.isfinite(result.test_mse)
 
     def test_predict_after_geqdsk_training(self, sparc_files):
-        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(
-            n_components=5, hidden_sizes=(16, 8),
-        ))
+        accel = NeuralEquilibriumAccelerator(
+            NeuralEqConfig(
+                n_components=5,
+                hidden_sizes=(16, 8),
+            )
+        )
         accel.train_from_geqdsk(sparc_files, n_perturbations=3, seed=0)
         assert accel.is_trained
 
@@ -73,9 +80,12 @@ class TestTrainFromGeqdsk:
         assert psi.shape[0] > 0 and psi.shape[1] > 0
 
     def test_save_load_after_geqdsk(self, sparc_files, tmp_path):
-        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(
-            n_components=5, hidden_sizes=(16, 8),
-        ))
+        accel = NeuralEquilibriumAccelerator(
+            NeuralEqConfig(
+                n_components=5,
+                hidden_sizes=(16, 8),
+            )
+        )
         accel.train_from_geqdsk(sparc_files, n_perturbations=3, seed=42)
 
         path = tmp_path / "geqdsk_weights.npz"
@@ -93,20 +103,27 @@ class TestTrainFromGeqdsk:
 
     def test_diiid_files_different_grid(self, diiid_files):
         """DIII-D files may have different grid sizes — tests interpolation path."""
-        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(
-            n_components=5, hidden_sizes=(16, 8),
-        ))
+        accel = NeuralEquilibriumAccelerator(
+            NeuralEqConfig(
+                n_components=5,
+                hidden_sizes=(16, 8),
+            )
+        )
         result = accel.train_from_geqdsk(diiid_files, n_perturbations=2, seed=7)
         assert result.n_samples > 0
         assert accel.is_trained
 
     def test_evaluate_after_geqdsk(self, sparc_files):
-        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(
-            n_components=5, hidden_sizes=(16, 8),
-        ))
+        accel = NeuralEquilibriumAccelerator(
+            NeuralEqConfig(
+                n_components=5,
+                hidden_sizes=(16, 8),
+            )
+        )
         accel.train_from_geqdsk(sparc_files, n_perturbations=3, seed=0)
 
         from scpn_control.core.eqdsk import read_geqdsk
+
         eq = read_geqdsk(sparc_files[0])
         X = np.ones((2, 12))
         Y = np.tile(eq.psirz.ravel(), (2, 1))
@@ -145,5 +162,6 @@ class TestTrainOnSparc:
             pytest.skip("No SPARC GEQDSK files found")
         # Just verify the path resolution — don't run full training
         from scpn_control.core.neural_equilibrium import REPO_ROOT
+
         default_dir = REPO_ROOT / "validation" / "reference_data" / "sparc"
         assert default_dir.exists()

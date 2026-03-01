@@ -86,9 +86,7 @@ def _as_non_negative_float(name: str, value: float) -> float:
     return out
 
 
-def _as_range(
-    name: str, value: tuple[float, float], *, min_allowed: float = -np.inf
-) -> tuple[float, float]:
+def _as_range(name: str, value: tuple[float, float], *, min_allowed: float = -np.inf) -> tuple[float, float]:
     """Validate a numeric range tuple as finite ascending bounds."""
     low = _as_finite_float(f"{name}[0]", value[0])
     high = _as_finite_float(f"{name}[1]", value[1])
@@ -175,16 +173,12 @@ class HaloCurrentModel:
         plasma_current_ma = _as_positive_float("plasma_current_ma", plasma_current_ma)
         minor_radius_m = _as_positive_float("minor_radius_m", minor_radius_m)
         major_radius_m = _as_positive_float("major_radius_m", major_radius_m)
-        wall_resistivity_ohm_m = _as_positive_float(
-            "wall_resistivity_ohm_m", wall_resistivity_ohm_m
-        )
+        wall_resistivity_ohm_m = _as_positive_float("wall_resistivity_ohm_m", wall_resistivity_ohm_m)
         wall_thickness_m = _as_positive_float("wall_thickness_m", wall_thickness_m)
         tpf = _as_positive_float("tpf", tpf)
         contact_fraction = _as_finite_float("contact_fraction", contact_fraction)
         if not (0.0 < contact_fraction <= 1.0):
-            raise ValueError(
-                f"contact_fraction must be in (0, 1], got {contact_fraction!r}"
-            )
+            raise ValueError(f"contact_fraction must be in (0, 1], got {contact_fraction!r}")
 
         self.Ip0 = plasma_current_ma * 1e6  # A
         self.a = minor_radius_m
@@ -196,13 +190,7 @@ class HaloCurrentModel:
 
         # Derived circuit parameters
         # Halo resistance: R_h = eta * 2*pi*R0 / (d_wall * a * f_contact)
-        self.R_h = (
-            self.eta_wall
-            * 2.0
-            * np.pi
-            * self.R0
-            / (self.d_wall * self.a * max(self.f_contact, 0.01))
-        )
+        self.R_h = self.eta_wall * 2.0 * np.pi * self.R0 / (self.d_wall * self.a * max(self.f_contact, 0.01))
         # Halo inductance: L_h = mu0 R0 (ln(8R0/a) - 2 + li/2), li=1 → -1.5
         self.L_h = _MU0 * self.R0 * (np.log(8.0 * self.R0 / self.a) - 1.5)
         # Mutual inductance: M ~ k * sqrt(L_p * L_h), k ~ f_contact
@@ -320,22 +308,12 @@ class RunawayElectronModel:
         # Collision time: based on free electrons
         v_th = np.sqrt(2.0 * self.T_e0 * 1e3 * _E_CHARGE / _M_ELECTRON)
         self.tau_coll = (
-            6.0
-            * np.pi**2
-            * _EPSILON0**2
-            * _M_ELECTRON**2
-            * v_th**3
-            / (self.n_e_free * _E_CHARGE**4 * _LN_LAMBDA)
+            6.0 * np.pi**2 * _EPSILON0**2 * _M_ELECTRON**2 * v_th**3 / (self.n_e_free * _E_CHARGE**4 * _LN_LAMBDA)
         )
 
         # Dreicer field E_D depends on FREE electron density
         T_e_joules = self.T_e0 * 1e3 * _E_CHARGE
-        self.E_D = (
-            self.n_e_free
-            * _E_CHARGE**3
-            * _LN_LAMBDA
-            / (4.0 * np.pi * _EPSILON0**2 * T_e_joules)
-        )
+        self.E_D = self.n_e_free * _E_CHARGE**3 * _LN_LAMBDA / (4.0 * np.pi * _EPSILON0**2 * T_e_joules)
 
         self.neon_mol = 0.0
         self.n_e_tot = self.n_e_free
@@ -359,17 +337,12 @@ class RunawayElectronModel:
         self.Z_eff = z_eff
 
         # Critical field E_c depends on TOTAL electron density (free + bound).
-        self.E_c = (
-            self.n_e_tot
-            * _E_CHARGE**3
-            * _LN_LAMBDA
-            / (4.0 * np.pi * _EPSILON0**2 * _M_ELECTRON * _C_LIGHT**2)
-        )
+        self.E_c = self.n_e_tot * _E_CHARGE**3 * _LN_LAMBDA / (4.0 * np.pi * _EPSILON0**2 * _M_ELECTRON * _C_LIGHT**2)
 
         # Avalanche time constant: slows with Z_eff and density.
-        self.tau_av = (
-            _M_ELECTRON * _C_LIGHT / (_E_CHARGE * max(self.E_c, 1e-6)) * _LN_LAMBDA
-        ) * (1.0 + 1.5 * (self.Z_eff - 1.0))
+        self.tau_av = (_M_ELECTRON * _C_LIGHT / (_E_CHARGE * max(self.E_c, 1e-6)) * _LN_LAMBDA) * (
+            1.0 + 1.5 * (self.Z_eff - 1.0)
+        )
 
     def _dreicer_rate(self, E: float, T_e_keV: float) -> float:
         """Primary (Dreicer) runaway generation rate (s^{-1} m^{-3}).
@@ -382,12 +355,7 @@ class RunawayElectronModel:
             return 0.0
 
         T_joules = T_e_keV * 1e3 * _E_CHARGE
-        E_D = (
-            self.n_e_free
-            * _E_CHARGE**3
-            * _LN_LAMBDA
-            / (4.0 * np.pi * _EPSILON0**2 * T_joules)
-        )
+        E_D = self.n_e_free * _E_CHARGE**3 * _LN_LAMBDA / (4.0 * np.pi * _EPSILON0**2 * T_joules)
 
         ratio = E_D / max(E, 1e-6)
         if not np.isfinite(ratio) or ratio <= 0.0:
@@ -403,12 +371,7 @@ class RunawayElectronModel:
         C_D = 0.35  # Connor-Hastie (1975) Eq. 2.12, 0.2-0.5 range
         ratio_term = float(np.exp(-h_z * np.log(max(ratio, 1e-20))))
         exp_arg = float(np.clip(-ratio / 4.0 - nu_eff, -700.0, 0.0))
-        rate = (
-            (self.n_e_free / max(self.tau_coll, 1e-20))
-            * C_D
-            * ratio_term
-            * np.exp(exp_arg)
-        )
+        rate = (self.n_e_free / max(self.tau_coll, 1e-20)) * C_D * ratio_term * np.exp(exp_arg)
         if not np.isfinite(rate):
             return 0.0
         return max(float(rate), 0.0)
@@ -471,9 +434,7 @@ class RunawayElectronModel:
         # synchrotron/bremsstrahlung cooling in ITER-like plasmas.
         # 0.08, 0.12 [s·T²] calibrated to match Martín-Solís et al., NF 57 (2017) 066025.
         tau_sync = 0.08 / max(self.B_t * self.B_t * gamma_eff, 1e-12)
-        tau_brem = 0.12 / max(
-            (1.0 + 0.08 * self.Z_eff) * (self.n_e_tot / 1e20) * gamma_eff, 1e-12
-        )
+        tau_brem = 0.12 / max((1.0 + 0.08 * self.Z_eff) * (self.n_e_tot / 1e20) * gamma_eff, 1e-12)
         tau_rel = max(min(tau_sync, tau_brem), 1e-6)
         loss = n_re / tau_rel
         if not np.isfinite(loss):
@@ -506,14 +467,8 @@ class RunawayElectronModel:
 
         seed_re_fraction = _as_finite_float("seed_re_fraction", seed_re_fraction)
         if not (0.0 < seed_re_fraction <= 1.0):
-            raise ValueError(
-                f"seed_re_fraction must be in (0, 1], got {seed_re_fraction!r}"
-            )
-        neon_mol_eff = (
-            self.neon_mol
-            if neon_mol is None
-            else _as_non_negative_float("neon_mol", neon_mol)
-        )
+            raise ValueError(f"seed_re_fraction must be in (0, 1], got {seed_re_fraction!r}")
+        neon_mol_eff = self.neon_mol if neon_mol is None else _as_non_negative_float("neon_mol", neon_mol)
         self._update_impurity_state(neon_mol=neon_mol_eff, z_eff=neon_z_eff)
 
         n_steps = max(int(duration_s / dt), 10)
@@ -557,9 +512,7 @@ class RunawayElectronModel:
             relativistic_loss = self._relativistic_loss_rate(E=E_tor, n_re=n_re)
 
             # 4. Collisional loss
-            loss_rate = (
-                n_re / max(self.tau_av * 5.0, 1e-12) if E_tor < self.E_c else 0.0
-            )
+            loss_rate = n_re / max(self.tau_av * 5.0, 1e-12) if E_tor < self.E_c else 0.0
             if not np.isfinite(loss_rate):
                 loss_rate = 0.0
 
@@ -585,9 +538,7 @@ class RunawayElectronModel:
 
         peak_re = max(re_current_ma) if re_current_ma else 0.0
         final_re = re_current_ma[-1] if re_current_ma else 0.0
-        avalanche_gain = (
-            n_re / max(self.n_e_free * seed_re_fraction, 1e-30) if n_re > 0 else 1.0
-        )
+        avalanche_gain = n_re / max(self.n_e_free * seed_re_fraction, 1e-30) if n_re > 0 else 1.0
 
         return RunawayElectronResult(
             time_ms=time_ms,
@@ -623,12 +574,8 @@ def run_disruption_ensemble(
     """
     if ensemble_runs <= 0:
         raise ValueError(f"ensemble_runs must be > 0, got {ensemble_runs!r}")
-    plasma_current_range = _as_range(
-        "plasma_current_range", plasma_current_range, min_allowed=0.0
-    )
-    plasma_energy_range = _as_range(
-        "plasma_energy_range", plasma_energy_range, min_allowed=0.0
-    )
+    plasma_current_range = _as_range("plasma_current_range", plasma_current_range, min_allowed=0.0)
+    plasma_energy_range = _as_range("plasma_energy_range", plasma_energy_range, min_allowed=0.0)
     neon_range = _as_range("neon_range", neon_range, min_allowed=0.0)
 
     rng = np.random.default_rng(seed)

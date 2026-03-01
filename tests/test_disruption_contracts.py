@@ -14,6 +14,7 @@ from scpn_control.control.disruption_contracts import (
     run_disruption_episode,
     run_real_shot_replay,
 )
+
 try:
     from scpn_control.core.global_design_scanner import GlobalDesignExplorer
 except ImportError:
@@ -284,6 +285,7 @@ def test_run_real_shot_replay_rejects_short_time_s() -> None:
 
 
 # ── SPI-triggered replay path ───────────────────────────────────
+
 
 def _build_severe_disruption_shot(n: int = 220) -> dict:
     """Shot with extreme perturbation: forces SPI trigger in replay."""

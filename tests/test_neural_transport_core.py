@@ -6,6 +6,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests for MLP internals, weight loading, and profile prediction."""
+
 import tempfile
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from scpn_control.core.neural_transport import (
 
 
 # ── Activation functions ────────────────────────────────────────────
+
 
 class TestRelu:
     def test_positive_passthrough(self):
@@ -49,6 +51,7 @@ class TestSoftplus:
 
 
 # ── MLP forward pass ───────────────────────────────────────────────
+
 
 def _make_weights(h1=16, h2=8):
     """Build a small random MLP weight set for testing."""
@@ -104,6 +107,7 @@ class TestMLPForward:
 
 # ── Weight loading via .npz ────────────────────────────────────────
 
+
 class TestNeuralTransportModel:
     def test_fallback_mode(self):
         model = NeuralTransportModel()
@@ -118,9 +122,14 @@ class TestNeuralTransportModel:
         with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
             np.savez(
                 f.name,
-                w1=w.w1, b1=w.b1, w2=w.w2, b2=w.b2,
-                w3=w.w3, b3=w.b3,
-                input_mean=w.input_mean, input_std=w.input_std,
+                w1=w.w1,
+                b1=w.b1,
+                w2=w.w2,
+                b2=w.b2,
+                w3=w.w3,
+                b3=w.b3,
+                input_mean=w.input_mean,
+                input_std=w.input_std,
                 output_scale=w.output_scale,
                 version=np.array(1),
             )
@@ -133,9 +142,14 @@ class TestNeuralTransportModel:
         with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
             np.savez(
                 f.name,
-                w1=w.w1, b1=w.b1, w2=w.w2, b2=w.b2,
-                w3=w.w3, b3=w.b3,
-                input_mean=w.input_mean, input_std=w.input_std,
+                w1=w.w1,
+                b1=w.b1,
+                w2=w.w2,
+                b2=w.b2,
+                w3=w.w3,
+                b3=w.b3,
+                input_mean=w.input_mean,
+                input_std=w.input_std,
                 output_scale=w.output_scale,
                 version=np.array(1),
             )
@@ -156,9 +170,14 @@ class TestNeuralTransportModel:
         with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
             np.savez(
                 f.name,
-                w1=w.w1, b1=w.b1, w2=w.w2, b2=w.b2,
-                w3=w.w3, b3=w.b3,
-                input_mean=w.input_mean, input_std=w.input_std,
+                w1=w.w1,
+                b1=w.b1,
+                w2=w.w2,
+                b2=w.b2,
+                w3=w.w3,
+                b3=w.b3,
+                input_mean=w.input_mean,
+                input_std=w.input_std,
                 output_scale=w.output_scale,
                 version=np.array(99),
             )
@@ -173,6 +192,7 @@ class TestNeuralTransportModel:
 
 
 # ── Profile prediction ─────────────────────────────────────────────
+
 
 class TestPredictProfile:
     def _make_profiles(self, n=32):
@@ -205,9 +225,14 @@ class TestPredictProfile:
         with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
             np.savez(
                 f.name,
-                w1=w.w1, b1=w.b1, w2=w.w2, b2=w.b2,
-                w3=w.w3, b3=w.b3,
-                input_mean=w.input_mean, input_std=w.input_std,
+                w1=w.w1,
+                b1=w.b1,
+                w2=w.w2,
+                b2=w.b2,
+                w3=w.w3,
+                b3=w.b3,
+                input_mean=w.input_mean,
+                input_std=w.input_std,
                 output_scale=w.output_scale,
                 version=np.array(1),
             )

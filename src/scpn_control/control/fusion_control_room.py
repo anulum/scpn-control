@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 try:
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation, PillowWriter
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -95,10 +96,7 @@ class TokamakPhysicsEngine:
             rho_sq = (
                 (self.RR - self.R0) ** 2
                 + ((self.ZZ - self.z_pos) / self.kappa) ** 2
-                - 2.0
-                * self.delta
-                * (self.RR - self.R0)
-                * ((self.RR - self.R0) ** 2)
+                - 2.0 * self.delta * (self.RR - self.R0) * ((self.RR - self.R0) ** 2)
             )
             psi = rho_sq / (self.a**2)
             psi = np.clip(psi, 0.0, None)
@@ -198,8 +196,8 @@ def _render_outputs(
     ax_trace.set_title("Vertical Displacement (Z-Pos)", color="white")
     ax_trace.set_ylim(-1.5, 1.5)
     ax_trace.grid(True, color="#444")
-    line_z, = ax_trace.plot([], [], "cyan", lw=2, animated=True)
-    line_setpoint, = ax_trace.plot([], [], "r--", alpha=0.5, animated=True)
+    (line_z,) = ax_trace.plot([], [], "cyan", lw=2, animated=True)
+    (line_setpoint,) = ax_trace.plot([], [], "r--", alpha=0.5, animated=True)
     ax_trace.set_xlim(0, max(50, len(frames)))
 
     ax_coils = fig.add_subplot(gs[1, 1])
@@ -212,8 +210,8 @@ def _render_outputs(
     ax_coils.set_xticklabels(["Top", "Bottom"], color="white")
     ax_coils.legend()
 
-    top_marker, = ax_plasma.plot(3.0, 2.9, "s", color="red", markersize=20, alpha=0.3)
-    bot_marker, = ax_plasma.plot(3.0, -2.9, "s", color="blue", markersize=20, alpha=0.3)
+    (top_marker,) = ax_plasma.plot(3.0, 2.9, "s", color="red", markersize=20, alpha=0.3)
+    (bot_marker,) = ax_plasma.plot(3.0, -2.9, "s", color="blue", markersize=20, alpha=0.3)
     wall = plt.Rectangle(
         (extent[0], extent[2] + 0.2),
         extent[1] - extent[0],
@@ -416,7 +414,4 @@ def run_control_room(
 
 if __name__ == "__main__":
     summary = run_control_room()
-    print(
-        "Control-room run complete "
-        f"(psi_source={summary['psi_source']}, steps={summary['steps']})."
-    )
+    print(f"Control-room run complete (psi_source={summary['psi_source']}, steps={summary['steps']}).")

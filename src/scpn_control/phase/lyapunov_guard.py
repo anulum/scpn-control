@@ -40,6 +40,7 @@ FloatArray = NDArray[np.float64]
 @dataclass(frozen=True)
 class LyapunovVerdict:
     """Result of a stability check — mirrors director_ai.CoherenceScore."""
+
     v: float
     lambda_exp: float
     approved: bool
@@ -103,7 +104,9 @@ class LyapunovGuard:
         if not approved:
             logger.warning(
                 "Lyapunov guard REFUSED: λ=%.4f > %.4f for %d consecutive windows",
-                lam, self._lambda_threshold, self._consecutive,
+                lam,
+                self._lambda_threshold,
+                self._consecutive,
             )
 
         return LyapunovVerdict(
@@ -116,8 +119,9 @@ class LyapunovGuard:
     def check_trajectory(self, v_hist: list[float]) -> LyapunovVerdict:
         """Batch check: compute λ from a full V(t) trajectory."""
         if len(v_hist) < 2:
-            return LyapunovVerdict(v=v_hist[-1] if v_hist else 0.0,
-                                   lambda_exp=0.0, approved=True, consecutive_violations=0)
+            return LyapunovVerdict(
+                v=v_hist[-1] if v_hist else 0.0, lambda_exp=0.0, approved=True, consecutive_violations=0
+            )
         lam = lyapunov_exponent(v_hist, self._dt)
         approved = lam <= self._lambda_threshold
         return LyapunovVerdict(
@@ -137,8 +141,8 @@ class LyapunovGuard:
             "h_logical": 0.0,
             "h_factual": float(max(0.0, verdict.lambda_exp)),
             "halt_reason": (
-                "" if verdict.approved
-                else f"λ={verdict.lambda_exp:.4f} > threshold"
-                     f" for {verdict.consecutive_violations} windows"
+                ""
+                if verdict.approved
+                else f"λ={verdict.lambda_exp:.4f} > threshold for {verdict.consecutive_violations} windows"
             ),
         }

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -56,8 +57,8 @@ def simulate_tearing_mode(
     """
     steps = _require_int("steps", steps, 1)
     # Rutherford (1973) modified; Fitzpatrick, Phys. Plasmas 2, 825 (1995)
-    DT_RUTHERFORD = 0.01        # s, integration timestep
-    W_INIT_CM = 0.01            # cm, seed island half-width
+    DT_RUTHERFORD = 0.01  # s, integration timestep
+    W_INIT_CM = 0.01  # cm, seed island half-width
     dt = DT_RUTHERFORD
     w = W_INIT_CM
     local_rng = rng if rng is not None else np.random.default_rng()
@@ -253,9 +254,7 @@ def run_fault_noise_campaign(
         }
         toroidal["toroidal_asymmetry_index"] = float(
             np.sqrt(
-                toroidal["toroidal_n1_amp"] ** 2
-                + toroidal["toroidal_n2_amp"] ** 2
-                + toroidal["toroidal_n3_amp"] ** 2
+                toroidal["toroidal_n1_amp"] ** 2 + toroidal["toroidal_n2_amp"] ** 2 + toroidal["toroidal_n3_amp"] ** 2
             )
         )
 
@@ -269,9 +268,7 @@ def run_fault_noise_campaign(
         for i in range(window_i):
             faulty_signal[i] += float(rng.normal(0.0, noise))
             if i % bit_flip_i == 0:
-                faulty_signal[i] = apply_bit_flip_fault(
-                    faulty_signal[i], int(rng.integers(0, 52))
-                )
+                faulty_signal[i] = apply_bit_flip_fault(faulty_signal[i], int(rng.integers(0, 52)))
                 faulty_indices.append(i)
 
         faulty_toroidal = dict(toroidal)
@@ -290,10 +287,7 @@ def run_fault_noise_campaign(
         )
 
         perturbed = np.array(
-            [
-                predict_disruption_risk(faulty_signal[: i + 1], faulty_toroidal)
-                for i in range(window_i)
-            ],
+            [predict_disruption_risk(faulty_signal[: i + 1], faulty_toroidal) for i in range(window_i)],
             dtype=float,
         )
 
@@ -495,8 +489,10 @@ def _prepare_signal_window(signal, seq_len):
         return flat[:seq_len]
     return np.pad(flat, (0, seq_len - flat.size), mode="edge")
 
+
 # --- AI: TRANSFORMER MODEL ---
 if torch is not None:
+
     class DisruptionTransformer(nn.Module):
         def __init__(self, seq_len=DEFAULT_SEQ_LEN):
             super().__init__()
@@ -515,27 +511,23 @@ if torch is not None:
 
         def forward(self, src):
             if src.ndim != 3:
-                raise ValueError(
-                    f"Input tensor must have shape [batch, seq, 1]; got rank {src.ndim}."
-                )
+                raise ValueError(f"Input tensor must have shape [batch, seq, 1]; got rank {src.ndim}.")
             if src.shape[1] < 1:
                 raise ValueError("Input sequence length must be >= 1.")
             if src.shape[2] != 1:
-                raise ValueError(
-                    f"Input feature dimension must be 1; got {src.shape[2]}."
-                )
+                raise ValueError(f"Input feature dimension must be 1; got {src.shape[2]}.")
             if src.shape[1] > self.seq_len:
-                raise ValueError(
-                    f"Input sequence length {src.shape[1]} exceeds configured seq_len {self.seq_len}."
-                )
-            x = self.embedding(src) + self.pos_encoder[:, :src.shape[1], :]
+                raise ValueError(f"Input sequence length {src.shape[1]} exceeds configured seq_len {self.seq_len}.")
+            x = self.embedding(src) + self.pos_encoder[:, : src.shape[1], :]
             output = self.transformer(x)
             last_step = output[:, -1, :]
             return self.sigmoid(self.classifier(last_step))
 else:  # pragma: no cover - only used without torch installed
+
     class DisruptionTransformer:  # type: ignore[no-redef]
         def __init__(self):
             raise RuntimeError("Torch is required for DisruptionTransformer.")
+
 
 def train_predictor(
     seq_len=DEFAULT_SEQ_LEN,
@@ -768,6 +760,7 @@ def predict_disruption_risk_safe(
         out_meta["reason"] = f"inference_failed:{exc.__class__.__name__}"
         return base_risk, out_meta
 
+
 def evaluate_predictor(
     model: Any,
     X_test: Any,
@@ -799,12 +792,12 @@ def evaluate_predictor(
     fpr = fp / max(fp + tn, 1)
 
     result = {
-        'accuracy': float(accuracy),
-        'precision': float(precision),
-        'recall': float(recall),
-        'f1': float(f1),
-        'false_positive_rate': float(fpr),
-        'confusion_matrix': {'tp': int(tp), 'fp': int(fp), 'tn': int(tn), 'fn': int(fn)},
+        "accuracy": float(accuracy),
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+        "false_positive_rate": float(fpr),
+        "confusion_matrix": {"tp": int(tp), "fp": int(fp), "tn": int(tn), "fn": int(fn)},
     }
 
     # Recall@T metrics
@@ -817,7 +810,7 @@ def evaluate_predictor(
                 recall_at_t = np.sum(predictions[mask] == 1) / mask.sum()
             else:
                 recall_at_t = 0.0
-            result[f'recall_at_{T_ms}ms'] = float(recall_at_t)
+            result[f"recall_at_{T_ms}ms"] = float(recall_at_t)
 
     return result
 

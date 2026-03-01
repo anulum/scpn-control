@@ -60,6 +60,7 @@ _WEIGHTS_FORMAT_VERSION = 1
 
 # ── Data containers ───────────────────────────────────────────────────
 
+
 @dataclass
 class TransportInputs:
     """Local plasma parameters at a single radial location.
@@ -127,10 +128,10 @@ class TransportFluxes:
 # ── Analytic fallback (critical-gradient model) ──────────────────────
 
 # Dimits et al., Phys. Plasmas 7, 969 (2000), Fig. 3
-_CRIT_ITG = 4.0   # R/L_Ti threshold for ITG onset (Cyclone base-case)
-_CRIT_TEM = 5.0   # R/L_Te threshold for TEM; simplified from TGLF Eq. (32)
+_CRIT_ITG = 4.0  # R/L_Ti threshold for ITG onset (Cyclone base-case)
+_CRIT_TEM = 5.0  # R/L_Te threshold for TEM; simplified from TGLF Eq. (32)
 # Sugama & Horton, Phys. Plasmas 4, 405 (1997), Eq. (1)
-_CHI_GB = 1.0     # Gyro-Bohm normalisation [m^2/s] at reference B, T, n
+_CHI_GB = 1.0  # Gyro-Bohm normalisation [m^2/s] at reference B, T, n
 # Garbet et al., Plasma Phys. Control. Fusion 46, B557 (2004), §3
 _STIFFNESS = 2.0  # Transport stiffness exponent above critical gradient
 
@@ -161,8 +162,8 @@ def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:
     excess_itg = max(0.0, inp.grad_ti - _CRIT_ITG)
     excess_tem = max(0.0, inp.grad_te - _CRIT_TEM)
 
-    chi_i = _CHI_GB * excess_itg ** _STIFFNESS
-    chi_e = _CHI_GB * excess_tem ** _STIFFNESS
+    chi_i = _CHI_GB * excess_itg**_STIFFNESS
+    chi_e = _CHI_GB * excess_tem**_STIFFNESS
     d_e = chi_e / 3.0  # Ware pinch approximation; QLKNN includes full pinch
 
     if chi_i > chi_e and chi_i > 0:
@@ -176,6 +177,7 @@ def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:
 
 
 # ── MLP inference engine ─────────────────────────────────────────────
+
 
 @dataclass
 class MLPWeights:
@@ -232,6 +234,7 @@ def _mlp_forward(x: FloatArray, weights: MLPWeights) -> FloatArray:
 
 # ── Main transport surrogate ─────────────────────────────────────────
 
+
 class NeuralTransportModel:
     """Neural transport surrogate with analytic fallback.
 
@@ -271,21 +274,17 @@ class NeuralTransportModel:
         """Attempt to load MLP weights from disk."""
         if self.weights_path is None or not self.weights_path.exists():
             logger.info(
-                "Neural transport weights not found at %s — using "
-                "critical-gradient fallback",
+                "Neural transport weights not found at %s — using critical-gradient fallback",
                 self.weights_path,
             )
             return
 
         try:
             data = np.load(self.weights_path)
-            required = ["w1", "b1", "w2", "b2", "w3", "b3",
-                        "input_mean", "input_std", "output_scale"]
+            required = ["w1", "b1", "w2", "b2", "w3", "b3", "input_mean", "input_std", "output_scale"]
             for key in required:
                 if key not in data:
-                    logger.warning(
-                        "Weight file missing key '%s' — falling back", key
-                    )
+                    logger.warning("Weight file missing key '%s' — falling back", key)
                     return
 
             # Version check (optional key, defaults to 1)
@@ -312,15 +311,11 @@ class NeuralTransportModel:
             self.is_neural = True
 
             # Compute checksum for reproducibility tracking
-            raw = b"".join(
-                data[k].tobytes() for k in sorted(data.files)
-                if k != "version"
-            )
+            raw = b"".join(data[k].tobytes() for k in sorted(data.files) if k != "version")
             self.weights_checksum = hashlib.sha256(raw).hexdigest()[:16]
 
             logger.info(
-                "Loaded neural transport weights from %s "
-                "(layers: %s→%s→%s→3, version=%d, sha256=%s)",
+                "Loaded neural transport weights from %s (layers: %s→%s→%s→3, version=%d, sha256=%s)",
                 self.weights_path,
                 self._weights.w1.shape[0],
                 self._weights.w1.shape[1],
@@ -350,11 +345,20 @@ class NeuralTransportModel:
         if not self.is_neural or self._weights is None:
             return critical_gradient_model(inp)
 
-        x = np.array([
-            inp.rho, inp.te_kev, inp.ti_kev, inp.ne_19,
-            inp.grad_te, inp.grad_ti, inp.grad_ne,
-            inp.q, inp.s_hat, inp.beta_e,
-        ])
+        x = np.array(
+            [
+                inp.rho,
+                inp.te_kev,
+                inp.ti_kev,
+                inp.ne_19,
+                inp.grad_te,
+                inp.grad_ti,
+                inp.grad_ne,
+                inp.q,
+                inp.s_hat,
+                inp.beta_e,
+            ]
+        )
         out = _mlp_forward(x, self._weights)
 
         chi_e = float(out[0])
@@ -407,6 +411,7 @@ class NeuralTransportModel:
         chi_e, chi_i, d_e : FloatArray
             Transport coefficient profiles, each shape ``(N,)``.
         """
+
         # Normalised gradients: R/L_X = -R * (1/X) * dX/dr
         def norm_grad(x: FloatArray) -> FloatArray:
             dx = np.gradient(x, rho)
@@ -420,11 +425,20 @@ class NeuralTransportModel:
 
         # ── Neural path: single batched forward pass ─────────────
         if self.is_neural and self._weights is not None:
-            x_batch = np.column_stack([
-                rho, te, ti, ne,
-                grad_te, grad_ti, grad_ne,
-                q_profile, s_hat_profile, beta_e,
-            ])  # (N, 10)
+            x_batch = np.column_stack(
+                [
+                    rho,
+                    te,
+                    ti,
+                    ne,
+                    grad_te,
+                    grad_ti,
+                    grad_ne,
+                    q_profile,
+                    s_hat_profile,
+                    beta_e,
+                ]
+            )  # (N, 10)
             out = _mlp_forward(x_batch, self._weights)  # (N, 3)
             chi_e_out = out[:, 0]
             chi_i_out = out[:, 1]
@@ -435,8 +449,8 @@ class NeuralTransportModel:
         excess_itg = np.maximum(0.0, grad_ti - _CRIT_ITG)
         excess_tem = np.maximum(0.0, grad_te - _CRIT_TEM)
 
-        chi_i_out = _CHI_GB * excess_itg ** _STIFFNESS
-        chi_e_out = _CHI_GB * excess_tem ** _STIFFNESS
+        chi_i_out = _CHI_GB * excess_itg**_STIFFNESS
+        chi_e_out = _CHI_GB * excess_tem**_STIFFNESS
         d_e_out = chi_e_out / 3.0
 
         return chi_e_out, chi_i_out, d_e_out

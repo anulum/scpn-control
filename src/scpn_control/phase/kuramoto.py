@@ -34,6 +34,7 @@ FloatArray = NDArray[np.float64]
 # Rust fast-path (sub-ms for N > 1000)
 try:
     from scpn_control_rs import kuramoto_step as _rust_step
+
     RUST_KURAMOTO = True
 except ImportError:
     RUST_KURAMOTO = False
@@ -71,6 +72,7 @@ class GlobalPsiDriver:
     mode="external"    : Ψ supplied by caller (intention/carrier, no dotΨ).
     mode="mean_field"  : Ψ = arg(<exp(iθ)>) from the oscillator population.
     """
+
     mode: str = "external"
 
     def resolve(self, theta: FloatArray, psi_external: Optional[float]) -> float:
@@ -132,7 +134,13 @@ def kuramoto_sakaguchi_step(
 
     if RUST_KURAMOTO and wrap and alpha == 0.0:
         th1, R, psi_r, psi_g = _rust_step(
-            th, om, dt, K, 0.0, zeta, Psi,
+            th,
+            om,
+            dt,
+            K,
+            0.0,
+            zeta,
+            Psi,
         )
         return {
             "theta1": th1,

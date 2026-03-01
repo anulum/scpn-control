@@ -67,56 +67,44 @@ class TestDirectorInterface:
     def test_format_state_stable(self):
         di = DirectorInterface.__new__(DirectorInterface)
         di.nc = None  # not needed for format_state_for_director
-        prompt = di.format_state_for_director(
-            t=10, ip=5.0, err_r=0.01, err_z=0.01, brain_activity=[0.1, 0.2]
-        )
+        prompt = di.format_state_for_director(t=10, ip=5.0, err_r=0.01, err_z=0.01, brain_activity=[0.1, 0.2])
         assert "Stability=Stable" in prompt
         assert "BrainEntropy=" in prompt
 
     def test_format_state_unstable(self):
         di = DirectorInterface.__new__(DirectorInterface)
-        prompt = di.format_state_for_director(
-            t=10, ip=5.0, err_r=0.2, err_z=0.0, brain_activity=[0.0, 0.0]
-        )
+        prompt = di.format_state_for_director(t=10, ip=5.0, err_r=0.2, err_z=0.0, brain_activity=[0.0, 0.0])
         assert "Stability=Unstable" in prompt
 
     def test_format_state_critical(self):
         di = DirectorInterface.__new__(DirectorInterface)
-        prompt = di.format_state_for_director(
-            t=10, ip=5.0, err_r=0.6, err_z=0.0, brain_activity=[0.0]
-        )
+        prompt = di.format_state_for_director(t=10, ip=5.0, err_r=0.6, err_z=0.0, brain_activity=[0.0])
         assert "Stability=Critical" in prompt
 
     def test_format_state_rejects_nonfinite(self):
         di = DirectorInterface.__new__(DirectorInterface)
         with pytest.raises(ValueError, match="ip must be finite"):
-            di.format_state_for_director(
-                t=0, ip=float("nan"), err_r=0, err_z=0, brain_activity=[0.0]
-            )
+            di.format_state_for_director(t=0, ip=float("nan"), err_r=0, err_z=0, brain_activity=[0.0])
         with pytest.raises(ValueError, match="brain_activity"):
-            di.format_state_for_director(
-                t=0, ip=5.0, err_r=0, err_z=0, brain_activity=[float("inf")]
-            )
+            di.format_state_for_director(t=0, ip=5.0, err_r=0, err_z=0, brain_activity=[float("inf")])
 
     def test_format_state_rejects_nonfinite_err_r(self):
         di = DirectorInterface.__new__(DirectorInterface)
         with pytest.raises(ValueError, match="err_r must be finite"):
-            di.format_state_for_director(
-                t=0, ip=5.0, err_r=float("inf"), err_z=0, brain_activity=[0.0]
-            )
+            di.format_state_for_director(t=0, ip=5.0, err_r=float("inf"), err_z=0, brain_activity=[0.0])
 
     def test_format_state_rejects_nonfinite_err_z(self):
         di = DirectorInterface.__new__(DirectorInterface)
         with pytest.raises(ValueError, match="err_z must be finite"):
-            di.format_state_for_director(
-                t=0, ip=5.0, err_r=0, err_z=float("nan"), brain_activity=[0.0]
-            )
+            di.format_state_for_director(t=0, ip=5.0, err_r=0, err_z=float("nan"), brain_activity=[0.0])
 
 
 # ── DirectorInterface with mock controller ─────────────────────────
 
+
 class _MockKernel:
     """Minimal kernel stand-in for run_directed_mission."""
+
     def __init__(self):
         self.cfg = {
             "physics": {"plasma_current_target": 5.0},
@@ -125,7 +113,7 @@ class _MockKernel:
         self.R = np.linspace(1.0, 5.0, 20)
         self.Z = np.linspace(-3.0, 3.0, 20)
         RR, ZZ = np.meshgrid(self.R, self.Z)
-        self.Psi = -((RR - 3.0) ** 2 + ZZ ** 2)
+        self.Psi = -((RR - 3.0) ** 2 + ZZ**2)
 
     def solve_equilibrium(self):
         pass
@@ -133,12 +121,14 @@ class _MockKernel:
 
 class _MockBrain:
     """Minimal SNN brain stand-in."""
+
     def step(self, error):
         return -0.1 * error
 
 
 class _MockNeuroCyberneticController:
     """Stand-in for NeuroCyberneticController."""
+
     def __init__(self, _config_path):
         self.kernel = _MockKernel()
         self.brain_R = _MockBrain()
@@ -155,10 +145,19 @@ class TestDirectorInterfaceRunMission:
             controller_factory=_MockNeuroCyberneticController,
         )
         result = di.run_directed_mission(
-            duration=20, save_plot=False, verbose=False,
+            duration=20,
+            save_plot=False,
+            verbose=False,
         )
-        for key in ("backend", "steps", "final_target_ip", "mean_abs_err_r",
-                     "intervention_count", "plot_saved", "plot_error"):
+        for key in (
+            "backend",
+            "steps",
+            "final_target_ip",
+            "mean_abs_err_r",
+            "intervention_count",
+            "plot_saved",
+            "plot_error",
+        ):
             assert key in result
         assert result["steps"] == 20
         assert result["backend"] == "fallback_rule_based"
@@ -166,37 +165,48 @@ class TestDirectorInterfaceRunMission:
 
     def test_run_directed_mission_deterministic(self):
         a = DirectorInterface(
-            "mock.json", controller_factory=_MockNeuroCyberneticController,
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
         ).run_directed_mission(duration=15, rng_seed=42, save_plot=False, verbose=False)
         b = DirectorInterface(
-            "mock.json", controller_factory=_MockNeuroCyberneticController,
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
         ).run_directed_mission(duration=15, rng_seed=42, save_plot=False, verbose=False)
         assert a["final_target_ip"] == b["final_target_ip"]
         assert a["intervention_count"] == b["intervention_count"]
 
     def test_run_directed_mission_rejects_bad_duration(self):
         di = DirectorInterface(
-            "mock.json", controller_factory=_MockNeuroCyberneticController,
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
         )
         with pytest.raises(ValueError, match="duration must be >= 1"):
             di.run_directed_mission(duration=0, save_plot=False, verbose=False)
 
     def test_run_directed_mission_rejects_bad_glitch_start(self):
         di = DirectorInterface(
-            "mock.json", controller_factory=_MockNeuroCyberneticController,
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
         )
         with pytest.raises(ValueError, match="glitch_start_step must be >= 0"):
             di.run_directed_mission(
-                duration=10, glitch_start_step=-1, save_plot=False, verbose=False,
+                duration=10,
+                glitch_start_step=-1,
+                save_plot=False,
+                verbose=False,
             )
 
     def test_run_directed_mission_rejects_bad_glitch_std(self):
         di = DirectorInterface(
-            "mock.json", controller_factory=_MockNeuroCyberneticController,
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
         )
         with pytest.raises(ValueError, match="glitch_std"):
             di.run_directed_mission(
-                duration=10, glitch_std=float("nan"), save_plot=False, verbose=False,
+                duration=10,
+                glitch_std=float("nan"),
+                save_plot=False,
+                verbose=False,
             )
 
     def test_injected_director(self):
@@ -218,20 +228,27 @@ class TestDirectorInterfaceRunMission:
 
     def test_glitch_triggers_intervention(self):
         di = DirectorInterface(
-            "mock.json", controller_factory=_MockNeuroCyberneticController,
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
         )
         result = di.run_directed_mission(
-            duration=100, glitch_start_step=10, glitch_std=5000.0,
-            save_plot=False, verbose=False,
+            duration=100,
+            glitch_start_step=10,
+            glitch_std=5000.0,
+            save_plot=False,
+            verbose=False,
         )
         assert result["intervention_count"] > 0
 
     def test_verbose_output(self, capsys):
         di = DirectorInterface(
-            "mock.json", controller_factory=_MockNeuroCyberneticController,
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
         )
         di.run_directed_mission(
-            duration=20, save_plot=False, verbose=True,
+            duration=20,
+            save_plot=False,
+            verbose=True,
         )
         out = capsys.readouterr().out
         assert "DIRECTOR-GHOSTED FUSION MISSION" in out
@@ -239,11 +256,16 @@ class TestDirectorInterfaceRunMission:
 
     def test_verbose_intervention_prints(self, capsys):
         di = DirectorInterface(
-            "mock.json", controller_factory=_MockNeuroCyberneticController,
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
         )
         di.run_directed_mission(
-            duration=100, glitch_start_step=5, glitch_std=50000.0,
-            save_plot=False, verbose=True, rng_seed=0,
+            duration=100,
+            glitch_start_step=5,
+            glitch_std=50000.0,
+            save_plot=False,
+            verbose=True,
+            rng_seed=0,
         )
         out = capsys.readouterr().out
         assert "APPROVED" in out or "DENIED" in out
@@ -259,7 +281,9 @@ class TestDirectorInterfaceRunMission:
             director=_HighEntropyDirector(),
         )
         result = di.run_directed_mission(
-            duration=20, save_plot=False, verbose=True,
+            duration=20,
+            save_plot=False,
+            verbose=True,
         )
         out = capsys.readouterr().out
         assert "DENIED" in out

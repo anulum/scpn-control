@@ -16,6 +16,7 @@ from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
 
 # ── helpers ──────────────────────────────────────────────────────────
 
+
 def _write_config(
     path: Path,
     *,
@@ -71,6 +72,7 @@ def small_kernel(tmp_path):
 
 # ── construction & grid ──────────────────────────────────────────────
 
+
 class TestConstruction:
     def test_grid_shape(self, kernel):
         assert kernel.Psi.shape == (16, 16)
@@ -107,6 +109,7 @@ class TestConstruction:
 
 # ── vacuum field ─────────────────────────────────────────────────────
 
+
 class TestVacuumField:
     def test_vacuum_field_shape(self, kernel):
         psi_vac = kernel.calculate_vacuum_field()
@@ -138,6 +141,7 @@ class TestVacuumField:
 
 # ── topology ─────────────────────────────────────────────────────────
 
+
 class TestTopology:
     def test_find_x_point_returns_tuple(self, kernel):
         psi_vac = kernel.calculate_vacuum_field()
@@ -154,6 +158,7 @@ class TestTopology:
 
 
 # ── profile functions ────────────────────────────────────────────────
+
 
 class TestProfiles:
     def test_mtanh_zero_outside(self):
@@ -177,6 +182,7 @@ class TestProfiles:
 
 
 # ── source term ──────────────────────────────────────────────────────
+
 
 class TestSourceTerm:
     def test_source_shape(self, kernel):
@@ -205,6 +211,7 @@ class TestSourceTerm:
 
 # ── elliptic sub-solvers ─────────────────────────────────────────────
 
+
 class TestSubSolvers:
     def test_jacobi_step_preserves_shape(self, small_kernel):
         src = np.ones_like(small_kernel.Psi)
@@ -222,18 +229,17 @@ class TestSubSolvers:
         small_kernel.Psi = rng.standard_normal(small_kernel.Psi.shape) * 0.01
         src = np.ones_like(small_kernel.Psi) * 0.001
 
-        r_before = small_kernel._mg_residual(
-            small_kernel.Psi, src, small_kernel.RR, small_kernel.dR, small_kernel.dZ
-        )
+        r_before = small_kernel._mg_residual(small_kernel.Psi, src, small_kernel.RR, small_kernel.dR, small_kernel.dZ)
         norm_before = float(np.sqrt(np.mean(r_before**2)))
 
         psi_after = small_kernel._multigrid_vcycle(
-            small_kernel.Psi.copy(), src, small_kernel.RR,
-            small_kernel.dR, small_kernel.dZ,
+            small_kernel.Psi.copy(),
+            src,
+            small_kernel.RR,
+            small_kernel.dR,
+            small_kernel.dZ,
         )
-        r_after = small_kernel._mg_residual(
-            psi_after, src, small_kernel.RR, small_kernel.dR, small_kernel.dZ
-        )
+        r_after = small_kernel._mg_residual(psi_after, src, small_kernel.RR, small_kernel.dR, small_kernel.dZ)
         norm_after = float(np.sqrt(np.mean(r_after**2)))
         assert norm_after < norm_before
 
@@ -246,6 +252,7 @@ class TestSubSolvers:
 
 
 # ── equilibrium solver ───────────────────────────────────────────────
+
 
 class TestSolveEquilibrium:
     def test_sor_converges(self, tmp_path):
@@ -267,8 +274,11 @@ class TestSolveEquilibrium:
 
     def test_anderson_converges(self, tmp_path):
         cfg = _write_config(
-            tmp_path / "and.json", grid=(16, 16), method="anderson",
-            max_iter=50, extra_solver={"anderson_depth": 3},
+            tmp_path / "and.json",
+            grid=(16, 16),
+            method="anderson",
+            max_iter=50,
+            extra_solver={"anderson_depth": 3},
         )
         fk = FusionKernel(cfg)
         result = fk.solve_equilibrium()
@@ -320,6 +330,7 @@ class TestSolveEquilibrium:
 
 # ── B-field ──────────────────────────────────────────────────────────
 
+
 class TestBField:
     def test_b_field_computed_after_solve(self, tmp_path):
         cfg = _write_config(tmp_path / "bf.json", grid=(16, 16), method="sor", max_iter=10)
@@ -335,11 +346,16 @@ class TestBField:
 
 # ── GS residual enforcement ─────────────────────────────────────────
 
+
 class TestGSResidual:
     def test_require_gs_residual_negative_threshold_raises(self, tmp_path):
         cfg = _write_config(
-            tmp_path / "gs_bad.json", grid=(8, 8), method="sor", max_iter=5,
-            require_gs_residual=True, gs_residual_threshold=-1.0,
+            tmp_path / "gs_bad.json",
+            grid=(8, 8),
+            method="sor",
+            max_iter=5,
+            require_gs_residual=True,
+            gs_residual_threshold=-1.0,
         )
         fk = FusionKernel(cfg)
         with pytest.raises(ValueError, match="gs_residual_threshold"):
@@ -356,6 +372,7 @@ class TestGSResidual:
 
 
 # ── CoilSet and free-boundary ────────────────────────────────────────
+
 
 class TestCoilSet:
     def test_coilset_defaults(self):
@@ -382,6 +399,7 @@ class TestCoilSet:
 
 # ── interpolation ────────────────────────────────────────────────────
 
+
 class TestInterpolation:
     def test_interp_psi_in_domain(self, tmp_path):
         cfg = _write_config(tmp_path / "interp.json", grid=(16, 16), method="sor", max_iter=10)
@@ -400,6 +418,7 @@ class TestInterpolation:
 
 
 # ── save results ─────────────────────────────────────────────────────
+
 
 class TestSaveResults:
     def test_save_creates_file(self, tmp_path, small_kernel):

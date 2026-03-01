@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for GEqdsk.psi_to_norm (line 103) and to_config."""
+
 from __future__ import annotations
 
 import numpy as np

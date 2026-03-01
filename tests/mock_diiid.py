@@ -6,6 +6,7 @@
 Each shot has 1000 timesteps at 1 kHz with the same field structure as
 real DIII-D disruption shots (time_s, Ip_MA, BT_T, beta_N, q95, etc.).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -43,8 +44,8 @@ def generate_mock_shot(
     lm = 0.001 * np.abs(rng.standard_normal(n_steps))
     if disruption:
         spike = np.exp(np.linspace(0, 4, 50))
-        n1[dt_idx - 50:dt_idx] += spike * 0.1
-        lm[dt_idx - 30:dt_idx] += np.exp(np.linspace(0, 3, 30)) * 0.05
+        n1[dt_idx - 50 : dt_idx] += spike * 0.1
+        lm[dt_idx - 30 : dt_idx] += np.exp(np.linspace(0, 3, 30)) * 0.05
 
     dbdt = np.gradient(np.cumsum(n1 + n2), time_s) * 100
     vpos = 0.01 * rng.standard_normal(n_steps)

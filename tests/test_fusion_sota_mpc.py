@@ -50,9 +50,7 @@ class _DummyKernel:
         ir = int(np.argmin(np.abs(self.R - center_r)))
         iz = int(np.argmin(np.abs(self.Z - center_z)))
         self.Psi.fill(-1.0)
-        self.Psi[iz, ir] = 1.0 + 0.001 * float(
-            self.cfg["physics"]["plasma_current_target"]
-        )
+        self.Psi[iz, ir] = 1.0 + 0.001 * float(self.cfg["physics"]["plasma_current_target"])
 
         xr = 5.0 + 0.03 * np.tanh((i[1] - i[0]) / 6.0)
         xz = -3.5 + 0.03 * np.tanh((i[3] - i[2]) / 6.0)
@@ -157,9 +155,7 @@ def test_mpc_plan_is_clipped_to_action_limit() -> None:
         ({"disturbance_start_step": -1}, "disturbance_start_step"),
     ],
 )
-def test_run_sota_simulation_rejects_invalid_runtime_inputs(
-    kwargs: dict[str, int], match: str
-) -> None:
+def test_run_sota_simulation_rejects_invalid_runtime_inputs(kwargs: dict[str, int], match: str) -> None:
     with pytest.raises(ValueError, match=match):
         run_sota_simulation(
             config_file="dummy.json",
@@ -180,9 +176,7 @@ def test_run_sota_simulation_rejects_invalid_runtime_inputs(
         ({"action_regularization": -1.0}, "action_regularization"),
     ],
 )
-def test_mpc_controller_rejects_invalid_constructor_inputs(
-    kwargs: dict[str, float | int], match: str
-) -> None:
+def test_mpc_controller_rejects_invalid_constructor_inputs(kwargs: dict[str, float | int], match: str) -> None:
     surrogate = NeuralSurrogate(n_coils=3, n_state=4, verbose=False)
     with pytest.raises(ValueError, match=match):
         ModelPredictiveController(

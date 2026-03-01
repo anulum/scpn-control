@@ -22,6 +22,7 @@ from scpn_control.control.tokamak_digital_twin import (
     run_digital_twin_ids_history,
     run_digital_twin_ids_pulse,
 )
+
 try:
     from scpn_control.io.imas_connector import (
         digital_twin_summary_to_ids,
@@ -31,6 +32,7 @@ try:
         validate_ids_pulse_payload,
         validate_ids_payload_sequence,
     )
+
     HAS_IMAS = True
 except ImportError:
     HAS_IMAS = False
@@ -109,9 +111,7 @@ def test_run_digital_twin_chaos_monkey_full_dropout_counts_all_channels() -> Non
         ({"sensor_noise_std": float("inf")}, "sensor_noise_std"),
     ],
 )
-def test_run_digital_twin_rejects_invalid_chaos_monkey_controls(
-    kwargs: dict[str, object], msg: str
-) -> None:
+def test_run_digital_twin_rejects_invalid_chaos_monkey_controls(kwargs: dict[str, object], msg: str) -> None:
     with pytest.raises(ValueError, match=msg):
         run_digital_twin(
             time_steps=4,
@@ -416,6 +416,7 @@ def test_run_digital_twin_ids_pulse_rejects_invalid_history_steps(history_steps)
 
 # ── TokamakTopoloy ───────────────────────────────────────────────
 
+
 class TestTokamakTopology:
     def test_q_profile_shape(self):
         topo = TokamakTopoloy(size=20)
@@ -451,6 +452,7 @@ class TestTokamakTopology:
 
 # ── Plasma2D ──────────────────────────────────────────────────────
 
+
 class TestPlasma2D:
     def test_step_returns_tuple(self):
         topo = TokamakTopoloy(size=40)
@@ -484,6 +486,7 @@ class TestPlasma2D:
 
 
 # ── SimpleNeuralNet ───────────────────────────────────────────────
+
 
 class TestSimpleNeuralNet:
     def test_forward_shape(self):
@@ -527,6 +530,7 @@ class TestSimpleNeuralNet:
 
 # ── _resolve_rng ──────────────────────────────────────────────────
 
+
 class TestResolveRng:
     def test_returns_generator_from_seed(self):
         rng = _resolve_rng(seed=42, rng=None)
@@ -543,6 +547,7 @@ class TestResolveRng:
 
 
 # ── _run_digital_twin_history_snapshots validation ────────────────
+
 
 class TestHistorySnapshots:
     def test_rejects_string_history_steps(self):
@@ -585,6 +590,7 @@ class TestHistorySnapshots:
 
 
 # ── run_digital_twin_ids_history kwarg rejection ──────────────────
+
 
 def test_ids_history_rejects_time_steps_kwarg() -> None:
     with pytest.raises(ValueError, match="time_steps is controlled"):

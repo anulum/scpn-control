@@ -8,6 +8,7 @@
 Target lines: 279, 289, 293, 306, 313, 318, 323, 338, 355, 366, 371,
 378, 383, 388, 394, 410, 418, 422, 424, 426, 692.
 """
+
 from __future__ import annotations
 
 import json
@@ -178,6 +179,7 @@ class TestMarkingValidation:
     def test_marking_value_out_of_range(self, artifact_path):
         def _mutate(obj):
             obj["initial_state"]["marking"][0] = 1.5
+
         with pytest.raises(ArtifactValidationError, match="marking"):
             _load_modified_raw(artifact_path, _mutate)
 
@@ -186,12 +188,14 @@ class TestPlaceInjectionValidation:
     def test_place_id_bool_type(self, artifact_path):
         def _mutate(obj):
             obj["initial_state"]["place_injections"][0]["place_id"] = True
+
         with pytest.raises(ArtifactValidationError, match="place_id"):
             _load_modified_raw(artifact_path, _mutate)
 
     def test_source_empty_string(self, artifact_path):
         def _mutate(obj):
             obj["initial_state"]["place_injections"][0]["source"] = ""
+
         with pytest.raises(ArtifactValidationError, match="source"):
             _load_modified_raw(artifact_path, _mutate)
 
@@ -200,12 +204,14 @@ class TestReadoutValidation:
     def test_action_pos_place_bool(self, artifact_path):
         def _mutate(obj):
             obj["readout"]["actions"][0]["pos_place"] = True
+
         with pytest.raises(ArtifactValidationError, match="pos_place"):
             _load_modified_raw(artifact_path, _mutate)
 
     def test_action_neg_place_out_of_bounds(self, artifact_path):
         def _mutate(obj):
             obj["readout"]["actions"][0]["neg_place"] = 999
+
         with pytest.raises(ArtifactValidationError, match="neg_place"):
             _load_modified_raw(artifact_path, _mutate)
 

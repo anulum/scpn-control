@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for train_predictor torch guard (549), load_or_train fallback
 (704-707), predict_disruption_risk_safe inference fallback (764-769)."""
+
 from __future__ import annotations
 
 import sys

@@ -15,6 +15,7 @@ import pytest
 
 try:
     import validation.collect_results as _collect_results  # noqa: F401
+
     HAS_COLLECT_RESULTS = True
 except (ImportError, ModuleNotFoundError):
     HAS_COLLECT_RESULTS = False
@@ -31,6 +32,7 @@ _skip_no_collect = pytest.mark.skipif(
 def test_episode_result_dataclass():
     """EpisodeResult should store all required fields."""
     from validation.stress_test_campaign import EpisodeResult
+
     ep = EpisodeResult(
         mean_abs_r_error=0.02,
         mean_abs_z_error=0.03,
@@ -48,6 +50,7 @@ def test_episode_result_dataclass():
 def test_controller_metrics_dataclass():
     """ControllerMetrics should have correct defaults."""
     from validation.stress_test_campaign import ControllerMetrics
+
     m = ControllerMetrics(name="test")
     assert m.name == "test"
     assert m.n_episodes == 0
@@ -65,21 +68,32 @@ def test_generate_summary_table_format():
         ControllerMetrics,
         generate_summary_table,
     )
+
     results = {
         "PID": ControllerMetrics(
-            name="PID", n_episodes=10,
-            mean_reward=-0.1, std_reward=0.05,
+            name="PID",
+            n_episodes=10,
+            mean_reward=-0.1,
+            std_reward=0.05,
             mean_r_error=0.03,
-            p50_latency_us=40.0, p95_latency_us=60.0, p99_latency_us=80.0,
-            disruption_rate=0.1, mean_def=0.9,
+            p50_latency_us=40.0,
+            p95_latency_us=60.0,
+            p99_latency_us=80.0,
+            disruption_rate=0.1,
+            mean_def=0.9,
             mean_energy_efficiency=0.85,
         ),
         "H-infinity": ControllerMetrics(
-            name="H-infinity", n_episodes=10,
-            mean_reward=-0.08, std_reward=0.04,
+            name="H-infinity",
+            n_episodes=10,
+            mean_reward=-0.08,
+            std_reward=0.04,
             mean_r_error=0.02,
-            p50_latency_us=45.0, p95_latency_us=70.0, p99_latency_us=100.0,
-            disruption_rate=0.05, mean_def=0.95,
+            p50_latency_us=45.0,
+            p95_latency_us=70.0,
+            p99_latency_us=100.0,
+            disruption_rate=0.05,
+            mean_def=0.95,
             mean_energy_efficiency=0.88,
         ),
     }
@@ -107,17 +121,23 @@ def test_run_controller_campaign_returns_dict():
     # Mock the campaign runner
     mock_results = {
         "PID": ControllerMetrics(
-            name="PID", n_episodes=5,
-            mean_reward=-0.1, std_reward=0.05,
+            name="PID",
+            n_episodes=5,
+            mean_reward=-0.1,
+            std_reward=0.05,
             mean_r_error=0.03,
-            p50_latency_us=40.0, p95_latency_us=60.0, p99_latency_us=80.0,
-            disruption_rate=0.1, mean_def=0.9,
+            p50_latency_us=40.0,
+            p95_latency_us=60.0,
+            p99_latency_us=80.0,
+            disruption_rate=0.1,
+            mean_def=0.9,
             mean_energy_efficiency=0.85,
         ),
     }
 
     with patch("validation.stress_test_campaign.run_campaign", return_value=mock_results):
         from validation.collect_results import run_controller_campaign
+
         result = run_controller_campaign(quick=True)
 
     assert result is not None
@@ -134,24 +154,37 @@ def test_campaign_controller_fields():
 
     mock_results = {
         "PID": ControllerMetrics(
-            name="PID", n_episodes=5,
-            mean_reward=-0.1, std_reward=0.05,
+            name="PID",
+            n_episodes=5,
+            mean_reward=-0.1,
+            std_reward=0.05,
             mean_r_error=0.03,
-            p50_latency_us=40.0, p95_latency_us=60.0, p99_latency_us=80.0,
-            disruption_rate=0.1, mean_def=0.9,
+            p50_latency_us=40.0,
+            p95_latency_us=60.0,
+            p99_latency_us=80.0,
+            disruption_rate=0.1,
+            mean_def=0.9,
             mean_energy_efficiency=0.85,
         ),
     }
 
     with patch("validation.stress_test_campaign.run_campaign", return_value=mock_results):
         from validation.collect_results import run_controller_campaign
+
         result = run_controller_campaign(quick=True)
 
     pid_data = result["controllers"]["PID"]
     expected_keys = [
-        "n_episodes", "mean_reward", "std_reward", "mean_r_error",
-        "p50_latency_us", "p95_latency_us", "p99_latency_us",
-        "disruption_rate", "mean_def", "mean_energy_efficiency",
+        "n_episodes",
+        "mean_reward",
+        "std_reward",
+        "mean_r_error",
+        "p50_latency_us",
+        "p95_latency_us",
+        "p99_latency_us",
+        "disruption_rate",
+        "mean_def",
+        "mean_energy_efficiency",
     ]
     for key in expected_keys:
         assert key in pid_data, f"Missing key: {key}"
@@ -164,6 +197,7 @@ def test_campaign_controller_fields():
 def test_generate_results_md_includes_campaign():
     """generate_results_md should include campaign table when provided."""
     from validation.collect_results import generate_results_md
+
     campaign = {
         "n_episodes": 5,
         "controllers": {
@@ -192,6 +226,7 @@ def test_generate_results_md_includes_campaign():
 def test_generate_results_md_without_campaign():
     """generate_results_md without campaign should not fail."""
     from validation.collect_results import generate_results_md
+
     md = generate_results_md(
         hw="Test HW",
         hil=None,
@@ -215,5 +250,6 @@ def test_generate_results_md_without_campaign():
 def test_controllers_registry_has_pid_and_hinf():
     """CONTROLLERS registry should always have PID and H-infinity."""
     from validation.stress_test_campaign import CONTROLLERS
+
     assert "PID" in CONTROLLERS
     assert "H-infinity" in CONTROLLERS

@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for save_hdf5 h5py ImportError guard (lines 177-178)."""
+
 from __future__ import annotations
 
 import sys

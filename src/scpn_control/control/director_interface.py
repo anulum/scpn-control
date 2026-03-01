@@ -13,6 +13,7 @@ from typing import Any, Callable, Optional
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -118,8 +119,7 @@ class DirectorInterface:
             self.director_backend = "fallback_rule_based"
         else:
             raise ImportError(
-                "Cannot initialize DirectorInterface without DIRECTOR_AI module "
-                "when allow_fallback=False."
+                "Cannot initialize DirectorInterface without DIRECTOR_AI module when allow_fallback=False."
             )
 
         self.step_count = 0
@@ -157,10 +157,7 @@ class DirectorInterface:
             stability = "Critical"
 
         neural_entropy = float(np.std(brain_activity_arr))
-        return (
-            f"Time={t}, Ip={ip:.1f}, Stability={stability}, "
-            f"BrainEntropy={neural_entropy:.2f}"
-        )
+        return f"Time={t}, Ip={ip:.1f}, Stability={stability}, BrainEntropy={neural_entropy:.2f}"
 
     def run_directed_mission(
         self,
@@ -200,9 +197,7 @@ class DirectorInterface:
             self.nc.kernel.cfg["physics"]["plasma_current_target"] = current_target_ip
 
             if t >= glitch_start_step and glitch_std > 0.0:
-                self.nc.kernel.cfg["coils"][2]["current"] += float(
-                    rng.normal(0.0, glitch_std)
-                )
+                self.nc.kernel.cfg["coils"][2]["current"] += float(rng.normal(0.0, glitch_std))
 
             idx_max = int(np.argmax(self.nc.kernel.Psi))
             iz, ir = np.unravel_index(idx_max, self.nc.kernel.Psi.shape)
@@ -223,9 +218,7 @@ class DirectorInterface:
             if t % 5 == 0:
                 brain_activity = [ctrl_r, ctrl_z]
                 proposed_action = f"Increase Ip to {current_target_ip + 1.0}"
-                prompt = self.format_state_for_director(
-                    t, current_target_ip, err_r, err_z, brain_activity
-                )
+                prompt = self.format_state_for_director(t, current_target_ip, err_r, err_z, brain_activity)
                 approved, sec_score = self.director.review_action(prompt, proposed_action)
 
                 if verbose:
@@ -263,9 +256,7 @@ class DirectorInterface:
                 plot_error = f"{exc.__class__.__name__}: {exc}"
 
         err = np.array([x["Err_R"] for x in self.log], dtype=np.float64)
-        interventions = np.array(
-            [x["Director_Intervention"] for x in self.log], dtype=np.float64
-        )
+        interventions = np.array([x["Director_Intervention"] for x in self.log], dtype=np.float64)
         return {
             "backend": self.director_backend,
             "steps": int(duration),

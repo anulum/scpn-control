@@ -11,10 +11,12 @@ Unlike the upstream core/__init__.py, this does NOT eagerly import
 equilibrium_3d, gpu_runtime, gyro_swin_surrogate, or pretrained_surrogates.
 Only the minimal FusionKernel is loaded.
 """
+
 try:
     from scpn_control.core._rust_compat import RUST_BACKEND, FusionKernel
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
+
     RUST_BACKEND = False
 
 from scpn_control.core.tokamak_config import TokamakConfig

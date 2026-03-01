@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for to_omas (lines 87-99) via a mocked omas.ODS."""
+
 from __future__ import annotations
 
 import sys

@@ -7,6 +7,7 @@
 negative value, _as_range low < min_allowed, _as_range high <= low,
 simulate dt > duration, simulate seed_re_fraction out of range,
 and dreicer edge cases for ratio > 200 and non-finite loss guards."""
+
 from __future__ import annotations
 
 import numpy as np

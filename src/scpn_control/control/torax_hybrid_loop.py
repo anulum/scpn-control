@@ -121,9 +121,7 @@ def _torax_step(
         0.18 - 0.33 * command + 0.62 * disturbance - 0.16 * (state.q95 - 4.9) + rng.normal(0.0, 0.006)
     )
     li3 = state.li3 + 0.050 * (0.06 * command - 0.11 * disturbance - 0.09 * (state.li3 - 0.95))
-    w_thermal = state.w_thermal_mj + 0.110 * (
-        10.0 * command - 5.0 * disturbance - 0.06 * (state.w_thermal_mj - 140.0)
-    )
+    w_thermal = state.w_thermal_mj + 0.110 * (10.0 * command - 5.0 * disturbance - 0.06 * (state.w_thermal_mj - 140.0))
     return ToraxPlasmaState(
         beta_n=float(np.clip(beta_n, 0.6, 3.2)),
         q95=float(np.clip(q95, 2.8, 7.5)),

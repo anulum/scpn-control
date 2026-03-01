@@ -168,9 +168,11 @@ class TestHILBenchmark:
 
 # ── HILDemoRunner ──────────────────────────────────────────────────
 
+
 class TestHILDemoRunner:
     def test_q16_roundtrip(self):
         from scpn_control.control.hil_harness import HILDemoRunner
+
         for val in [0.0, 0.5, -0.5, 1.0, -1.0, 0.123]:
             encoded = HILDemoRunner.float_to_q16_16(val)
             decoded = HILDemoRunner.q16_16_to_float(encoded)
@@ -178,6 +180,7 @@ class TestHILDemoRunner:
 
     def test_step_returns_output(self):
         from scpn_control.control.hil_harness import HILDemoRunner
+
         runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
         out = runner.step(np.array([0.1, 0.2]))
         assert out.shape == (2,)
@@ -185,6 +188,7 @@ class TestHILDemoRunner:
 
     def test_run_episode_no_faults(self):
         from scpn_control.control.hil_harness import HILDemoRunner
+
         runner = HILDemoRunner(n_neurons=4, n_inputs=4, n_outputs=4)
         report = runner.run_episode(n_steps=50, inject_faults=False)
         assert report["total_steps"] == 50
@@ -192,6 +196,7 @@ class TestHILDemoRunner:
 
     def test_run_episode_with_faults(self):
         from scpn_control.control.hil_harness import HILDemoRunner
+
         runner = HILDemoRunner(n_neurons=4, n_inputs=4, n_outputs=4)
         report = runner.run_episode(n_steps=200, inject_faults=True)
         assert report["total_steps"] == 200
@@ -199,6 +204,7 @@ class TestHILDemoRunner:
 
     def test_inject_bitflip(self):
         from scpn_control.control.hil_harness import HILDemoRunner
+
         runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
         runner.tmr_copies[0][0] = 0.5
         runner.tmr_copies[1][0] = 0.5
@@ -209,16 +215,27 @@ class TestHILDemoRunner:
 
     def test_report_keys(self):
         from scpn_control.control.hil_harness import HILDemoRunner
+
         runner = HILDemoRunner()
         runner.step(np.zeros(4))
         report = runner.report()
-        for key in ("total_steps", "tmr_mismatches", "tmr_mismatch_rate",
-                     "latency_mean_cycles", "latency_p95_cycles", "latency_max_cycles",
-                     "latency_mean_ns", "n_neurons", "n_inputs", "n_outputs"):
+        for key in (
+            "total_steps",
+            "tmr_mismatches",
+            "tmr_mismatch_rate",
+            "latency_mean_cycles",
+            "latency_p95_cycles",
+            "latency_max_cycles",
+            "latency_mean_ns",
+            "n_neurons",
+            "n_inputs",
+            "n_outputs",
+        ):
             assert key in report
 
     def test_tmr_vote_corrects_single_fault(self):
         from scpn_control.control.hil_harness import HILDemoRunner
+
         runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
         runner.tmr_copies[0][:] = [0.1, 0.2, 0.3, 0.4]
         runner.tmr_copies[1][:] = [0.1, 0.2, 0.3, 0.4]
@@ -230,17 +247,19 @@ class TestHILDemoRunner:
 
 # ── run_hil_benchmark_detailed ─────────────────────────────────────
 
+
 class TestRunHILBenchmarkDetailed:
     def test_returns_expected_keys(self):
         from scpn_control.control.hil_harness import run_hil_benchmark_detailed
+
         result = run_hil_benchmark_detailed(n_steps=100)
-        for key in ("n_steps", "mean_us", "p50_us", "p95_us", "p99_us", "max_us",
-                     "stage_breakdown"):
+        for key in ("n_steps", "mean_us", "p50_us", "p95_us", "p99_us", "max_us", "stage_breakdown"):
             assert key in result
         assert result["n_steps"] == 100
 
     def test_stage_breakdown_positive(self):
         from scpn_control.control.hil_harness import run_hil_benchmark_detailed
+
         result = run_hil_benchmark_detailed(n_steps=200)
         sb = result["stage_breakdown"]
         assert sb["state_estimation_mean_us"] >= 0.0
@@ -249,6 +268,7 @@ class TestRunHILBenchmarkDetailed:
 
     def test_mean_bounded_by_max(self):
         from scpn_control.control.hil_harness import run_hil_benchmark_detailed
+
         result = run_hil_benchmark_detailed(n_steps=100)
         assert result["mean_us"] <= result["max_us"]
         assert result["p50_us"] <= result["p99_us"]

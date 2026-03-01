@@ -40,7 +40,6 @@ def _zoh_discretize(A: np.ndarray, B: np.ndarray, dt: float):
 
 
 class TestFactory:
-
     def test_synthesis_succeeds(self):
         ctrl = get_radial_robust_controller()
         assert ctrl.gamma > 1.0
@@ -90,8 +89,7 @@ class TestClosedLoop:
             errors.append(abs(y))
 
         assert errors[-1] < 0.01 * errors[0], (
-            f"Controller did not converge: final={errors[-1]:.4e}, "
-            f"initial={errors[0]:.4e}"
+            f"Controller did not converge: final={errors[-1]:.4e}, initial={errors[0]:.4e}"
         )
 
     def test_large_dt_stable(self, ctrl):
@@ -146,9 +144,7 @@ class TestClosedLoop:
             x_plant = Ad_u @ x_plant + Bd_u.ravel() * u + Bd_w.ravel() * w
 
         final_err = abs((C2 @ x_plant).item())
-        assert final_err < 0.05, (
-            f"Disturbance not rejected: final={final_err:.4e}"
-        )
+        assert final_err < 0.05, f"Disturbance not rejected: final={final_err:.4e}"
 
     def test_output_saturation(self):
         """Output clipping limits the control signal."""

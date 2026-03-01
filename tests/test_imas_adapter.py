@@ -123,13 +123,16 @@ class TestFromOmas:
 
         class _DictLike(dict):
             """Dict that also supports .get()."""
+
             pass
 
-        p2d = _DictLike({
-            "grid": {"dim1": r, "dim2": z},
-            "psi": psi,
-            "j_tor": j_tor,
-        })
+        p2d = _DictLike(
+            {
+                "grid": {"dim1": r, "dim2": z},
+                "psi": psi,
+                "j_tor": j_tor,
+            }
+        )
         gq = _DictLike({"ip": 15e6, "magnetic_axis": {"r": 6.2}})
         ts = _DictLike({"profiles_2d": [p2d], "global_quantities": gq, "time": 1.5})
         ts.get = lambda k, d=None: ts[k] if k in ts else d

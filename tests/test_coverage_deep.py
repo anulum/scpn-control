@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Tests targeting deep coverage gaps: disruption_episode, IDS helpers,
 train_predictor, evaluate_predictor, coil warning, visualize."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -29,7 +30,10 @@ class TestRunDisruptionEpisode:
         agent = FusionAIAgent(epsilon=0.1)
         explorer = GlobalDesignExplorer()
         result = run_disruption_episode(
-            rng=rng, rl_agent=agent, base_tbr=1.05, explorer=explorer,
+            rng=rng,
+            rl_agent=agent,
+            base_tbr=1.05,
+            explorer=explorer,
         )
         assert 0.0 <= result["risk_before"] <= 1.0
         assert 0.0 <= result["risk_after"] <= 1.0
@@ -43,7 +47,10 @@ class TestRunDisruptionEpisode:
             agent = FusionAIAgent(epsilon=0.0)
             explorer = GlobalDesignExplorer()
             return run_disruption_episode(
-                rng=rng, rl_agent=agent, base_tbr=1.05, explorer=explorer,
+                rng=rng,
+                rl_agent=agent,
+                base_tbr=1.05,
+                explorer=explorer,
             )
 
         r1 = _run(123)
@@ -75,8 +82,11 @@ class TestRealShotReplayDeep:
         agent = FusionAIAgent(epsilon=0.0)
         shot = self._build_shot(50, disruptive=True)
         out = run_real_shot_replay(
-            shot_data=shot, rl_agent=agent,
-            risk_threshold=0.01, spi_trigger_risk=0.02, window_size=8,
+            shot_data=shot,
+            rl_agent=agent,
+            risk_threshold=0.01,
+            spi_trigger_risk=0.02,
+            window_size=8,
         )
         assert out["n_steps"] == 50
         assert isinstance(out["spi_triggered"], bool)
@@ -86,8 +96,11 @@ class TestRealShotReplayDeep:
         agent = FusionAIAgent(epsilon=0.0)
         shot = self._build_shot(50, disruptive=False)
         out = run_real_shot_replay(
-            shot_data=shot, rl_agent=agent,
-            risk_threshold=0.99, spi_trigger_risk=0.99, window_size=8,
+            shot_data=shot,
+            rl_agent=agent,
+            risk_threshold=0.99,
+            spi_trigger_risk=0.99,
+            window_size=8,
         )
         assert out["n_steps"] == 50
         assert out["spi_triggered"] is False
@@ -103,6 +116,7 @@ from scpn_control.control.tokamak_digital_twin import (
 
 try:
     from scpn_control.io.imas_connector import digital_twin_summary_to_ids
+
     _HAS_IMAS = True
 except ImportError:
     _HAS_IMAS = False
@@ -112,40 +126,60 @@ class TestDigitalTwinIDS:
     @pytest.mark.skipif(not _HAS_IMAS, reason="IMAS connector not available")
     def test_ids_roundtrip(self):
         result = run_digital_twin_ids(
-            time_steps=10, seed=0, save_plot=False, verbose=False,
+            time_steps=10,
+            seed=0,
+            save_plot=False,
+            verbose=False,
         )
         assert isinstance(result, dict)
 
     @pytest.mark.skipif(not _HAS_IMAS, reason="IMAS connector not available")
     def test_ids_history(self):
         result = run_digital_twin_ids_history(
-            [5, 10], seed=0, save_plot=False, verbose=False,
+            [5, 10],
+            seed=0,
+            save_plot=False,
+            verbose=False,
         )
         assert isinstance(result, dict)
 
     @pytest.mark.skipif(not _HAS_IMAS, reason="IMAS connector not available")
     def test_ids_pulse(self):
         result = run_digital_twin_ids_pulse(
-            [5, 10], seed=0, save_plot=False, verbose=False,
+            [5, 10],
+            seed=0,
+            save_plot=False,
+            verbose=False,
         )
         assert isinstance(result, dict)
 
     def test_ids_history_rejects_time_steps_kwarg(self):
         with pytest.raises(ValueError, match="time_steps"):
             run_digital_twin_ids_history(
-                [5], time_steps=20, seed=0, save_plot=False, verbose=False,
+                [5],
+                time_steps=20,
+                seed=0,
+                save_plot=False,
+                verbose=False,
             )
 
     def test_ids_pulse_rejects_time_steps_kwarg(self):
         with pytest.raises(ValueError, match="time_steps"):
             run_digital_twin_ids_pulse(
-                [5], time_steps=20, seed=0, save_plot=False, verbose=False,
+                [5],
+                time_steps=20,
+                seed=0,
+                save_plot=False,
+                verbose=False,
             )
 
     def test_ids_history_rejects_empty(self):
         with pytest.raises(ValueError, match="at least one"):
             run_digital_twin_ids_history(
-                [], seed=0, save_plot=False, verbose=False,
+                [],
+                seed=0,
+                save_plot=False,
+                verbose=False,
             )
 
 
@@ -156,15 +190,21 @@ from scpn_control.control.fusion_control_room import run_control_room
 
 class _KernelBadCoils:
     """Kernel where coil 'current' is None — float(None) raises TypeError."""
+
     def __init__(self, _cfg=None):
-        self.cfg = {"coils": [
-            {"current": None}, {"current": 0}, {"current": 0},
-            {"current": 0}, {"current": None},
-        ]}
+        self.cfg = {
+            "coils": [
+                {"current": None},
+                {"current": 0},
+                {"current": 0},
+                {"current": 0},
+                {"current": None},
+            ]
+        }
         self.R = np.linspace(5.8, 6.4, 10)
         self.Z = np.linspace(-0.3, 0.3, 10)
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
-        self.Psi = 1.0 - ((self.RR - 6.2) ** 2 + self.ZZ ** 2)
+        self.Psi = 1.0 - ((self.RR - 6.2) ** 2 + self.ZZ**2)
 
     def solve_equilibrium(self):
         pass
@@ -173,8 +213,10 @@ class _KernelBadCoils:
 class TestCoilWarningPath:
     def test_bad_coil_type_triggers_warning(self):
         s = run_control_room(
-            sim_duration=3, seed=0,
-            save_animation=False, save_report=False,
+            sim_duration=3,
+            seed=0,
+            save_animation=False,
+            save_report=False,
             kernel_factory=_KernelBadCoils,
         )
         assert s["steps"] == 3
@@ -184,6 +226,7 @@ class TestCoilWarningPath:
 
 mpl = pytest.importorskip("matplotlib")
 import matplotlib
+
 matplotlib.use("Agg")
 
 import scpn_control.control.neuro_cybernetic_controller as nc_mod
@@ -215,7 +258,10 @@ class TestNeuroCyberneticVisualize:
 
     def test_visualize_produces_file(self, tmp_path):
         nc = NeuroCyberneticController(
-            "dummy.json", seed=42, shot_duration=5, kernel_factory=_NCKernel,
+            "dummy.json",
+            seed=42,
+            shot_duration=5,
+            kernel_factory=_NCKernel,
         )
         nc.run_shot(save_plot=False, verbose=False)
         out = str(tmp_path / "nc_viz.png")
@@ -225,8 +271,12 @@ class TestNeuroCyberneticVisualize:
     def test_run_with_save_plot_true(self, tmp_path):
         out = str(tmp_path / "nc_run.png")
         s = run_neuro_cybernetic_control(
-            config_file="dummy.json", shot_duration=5, seed=42,
-            save_plot=True, verbose=False, output_path=out,
+            config_file="dummy.json",
+            shot_duration=5,
+            seed=42,
+            save_plot=True,
+            verbose=False,
+            output_path=out,
             kernel_factory=_NCKernel,
         )
         assert s["plot_saved"] is True
@@ -273,6 +323,7 @@ class TestEvaluatePredictor:
 
 # ── train_predictor (with torch) ─────────────────────────────────────
 
+
 class TestTrainPredictor:
     def test_train_minimal(self, tmp_path):
         try:
@@ -280,10 +331,15 @@ class TestTrainPredictor:
         except ImportError:
             pytest.skip("torch not available")
         from scpn_control.control.disruption_predictor import train_predictor
+
         model_path = str(tmp_path / "test_model.pth")
         model, info = train_predictor(
-            seq_len=32, n_shots=8, epochs=2,
-            model_path=model_path, seed=0, save_plot=False,
+            seq_len=32,
+            n_shots=8,
+            epochs=2,
+            model_path=model_path,
+            seed=0,
+            save_plot=False,
         )
         assert model is not None
         assert info["seq_len"] == 32
@@ -296,6 +352,7 @@ class TestTrainPredictor:
         except ImportError:
             pytest.skip("torch not available")
         from scpn_control.control.disruption_predictor import load_or_train_predictor
+
         model_path = str(tmp_path / "retrain_model.pth")
         model, meta = load_or_train_predictor(
             model_path=model_path,
@@ -318,10 +375,13 @@ class TestTrainPredictor:
             train_predictor,
             load_or_train_predictor,
         )
+
         path = str(tmp_path / "ckpt.pth")
         train_predictor(seq_len=32, n_shots=8, epochs=2, model_path=path, seed=0, save_plot=False)
         model, meta = load_or_train_predictor(
-            model_path=path, seq_len=32, allow_fallback=False,
+            model_path=path,
+            seq_len=32,
+            allow_fallback=False,
         )
         assert model is not None
         assert meta.get("fallback") is False
@@ -332,10 +392,13 @@ class TestTrainPredictor:
         except ImportError:
             pytest.skip("torch not available")
         from scpn_control.control.disruption_predictor import load_or_train_predictor
+
         bad_path = tmp_path / "corrupt.pth"
         torch.save({"state_dict": {"bogus_key": torch.tensor([1.0])}}, bad_path)
         model, meta = load_or_train_predictor(
-            model_path=str(bad_path), seq_len=32, allow_fallback=True,
+            model_path=str(bad_path),
+            seq_len=32,
+            allow_fallback=True,
         )
         assert model is None
         assert meta["fallback"] is True

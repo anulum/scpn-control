@@ -6,6 +6,7 @@
 """Coverage for run_anomaly_alarm_campaign positive label+alarm (453-456),
 load_or_train allow_fallback=False re-raise (706),
 predict_disruption_risk_safe model inference failure (764-769)."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -21,6 +22,7 @@ from scpn_control.control.disruption_predictor import (
 
 try:
     import torch as _torch  # noqa: F401
+
     _HAS_TORCH = True
 except ImportError:
     _HAS_TORCH = False
@@ -40,7 +42,10 @@ class TestAnomalyCampaignPositiveLabel:
             side_effect=_mock_tearing,
         ):
             result = run_anomaly_alarm_campaign(
-                window=50, episodes=10, seed=42, threshold=0.1,
+                window=50,
+                episodes=10,
+                seed=42,
+                threshold=0.1,
             )
         assert result["true_positive_rate"] > 0.0
 

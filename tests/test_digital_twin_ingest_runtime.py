@@ -110,8 +110,6 @@ def test_run_realtime_twin_session_rejects_invalid_machine() -> None:
         ({"chaos_noise_std": -0.1}, "chaos_noise_std"),
     ],
 )
-def test_run_realtime_twin_session_rejects_invalid_runtime_inputs(
-    kwargs: dict[str, float | int], match: str
-) -> None:
+def test_run_realtime_twin_session_rejects_invalid_runtime_inputs(kwargs: dict[str, float | int], match: str) -> None:
     with pytest.raises(ValueError, match=match):
         run_realtime_twin_session("SPARC", seed=1, **kwargs)

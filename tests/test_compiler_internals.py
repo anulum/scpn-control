@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests for _encode_weight_matrix_packed and _resolve_git_sha fallback."""
+
 from __future__ import annotations
 
 import subprocess

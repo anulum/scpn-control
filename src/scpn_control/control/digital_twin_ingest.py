@@ -60,22 +60,26 @@ def _build_snn_planner() -> NeuroSymbolicController:
     net.add_arc("T_Rn", "a_R_neg", weight=1.0)
     net.compile()
 
-    artifact = FusionCompiler.with_reactor_lif_defaults(
-        bitstream_length=1024,
-        seed=404,
-    ).compile(net, firing_mode="binary").export_artifact(
-        name="gdep01_digital_twin",
-        dt_control_s=0.001,
-        readout_config={
-            "actions": [{"name": "dI_PF3_A", "pos_place": 2, "neg_place": 3}],
-            "gains": [1800.0],
-            "abs_max": [3500.0],
-            "slew_per_s": [1e6],
-        },
-        injection_config=[
-            {"place_id": 0, "source": "x_R_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
-            {"place_id": 1, "source": "x_R_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
-        ],
+    artifact = (
+        FusionCompiler.with_reactor_lif_defaults(
+            bitstream_length=1024,
+            seed=404,
+        )
+        .compile(net, firing_mode="binary")
+        .export_artifact(
+            name="gdep01_digital_twin",
+            dt_control_s=0.001,
+            readout_config={
+                "actions": [{"name": "dI_PF3_A", "pos_place": 2, "neg_place": 3}],
+                "gains": [1800.0],
+                "abs_max": [3500.0],
+                "slew_per_s": [1e6],
+            },
+            injection_config=[
+                {"place_id": 0, "source": "x_R_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+                {"place_id": 1, "source": "x_R_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+            ],
+        )
     )
     return NeuroSymbolicController(
         artifact=artifact,
@@ -331,9 +335,7 @@ def run_realtime_twin_session(
             "chaos_dropouts_total": int(chaos_dropouts_total),
             "chaos_dropout_rate": float(chaos_dropouts_total / max(chaos_channels_total, 1)),
             "chaos_noise_injections_total": int(chaos_noise_injections_total),
-            "chaos_noise_injection_rate": float(
-                chaos_noise_injections_total / max(chaos_channels_total, 1)
-            ),
+            "chaos_noise_injection_rate": float(chaos_noise_injections_total / max(chaos_channels_total, 1)),
             "plan_count": 0,
             "planning_success_rate": 0.0,
             "mean_risk": 1.0,
@@ -357,9 +359,7 @@ def run_realtime_twin_session(
         "chaos_dropouts_total": int(chaos_dropouts_total),
         "chaos_dropout_rate": float(chaos_dropouts_total / max(chaos_channels_total, 1)),
         "chaos_noise_injections_total": int(chaos_noise_injections_total),
-        "chaos_noise_injection_rate": float(
-            chaos_noise_injections_total / max(chaos_channels_total, 1)
-        ),
+        "chaos_noise_injection_rate": float(chaos_noise_injections_total / max(chaos_channels_total, 1)),
         "plan_count": int(len(plans)),
         "planning_success_rate": success_rate,
         "mean_risk": mean_risk,

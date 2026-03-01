@@ -15,6 +15,7 @@ Reward: -|T_axis - T_target| - 10*(disruption) - 0.01*|u|
 
 Requires: ``pip install gymnasium`` (optional dependency).
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -79,14 +80,16 @@ class TokamakEnv:
             self._rng = np.random.default_rng(seed)
 
         # ITER-like initial condition with small perturbation
-        self._state = np.array([
-            10.0 + self._rng.normal(0, 0.5),   # T_axis [keV]
-            2.0 + self._rng.normal(0, 0.1),    # T_edge [keV]
-            1.5 + self._rng.normal(0, 0.1),    # beta_N
-            0.85 + self._rng.normal(0, 0.05),  # li
-            3.0 + self._rng.normal(0, 0.1),    # q95
-            15.0,                               # Ip [MA]
-        ])
+        self._state = np.array(
+            [
+                10.0 + self._rng.normal(0, 0.5),  # T_axis [keV]
+                2.0 + self._rng.normal(0, 0.1),  # T_edge [keV]
+                1.5 + self._rng.normal(0, 0.1),  # beta_N
+                0.85 + self._rng.normal(0, 0.05),  # li
+                3.0 + self._rng.normal(0, 0.1),  # q95
+                15.0,  # Ip [MA]
+            ]
+        )
         self._step_count = 0
         return self._observe(), {}
 
@@ -148,8 +151,4 @@ class TokamakEnv:
     def render(self) -> None:
         """Print current state."""
         T_ax, T_edge, beta_N, li, q95, Ip = self._state
-        print(
-            f"step={self._step_count:4d}  "
-            f"T_ax={T_ax:.1f}keV  β_N={beta_N:.2f}  "
-            f"q95={q95:.2f}  Ip={Ip:.1f}MA"
-        )
+        print(f"step={self._step_count:4d}  T_ax={T_ax:.1f}keV  β_N={beta_N:.2f}  q95={q95:.2f}  Ip={Ip:.1f}MA")

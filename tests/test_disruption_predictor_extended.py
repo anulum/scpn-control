@@ -24,6 +24,7 @@ from scpn_control.control.disruption_predictor import (
 
 # ── _require_int edge cases ──────────────────────────────────────────
 
+
 class TestRequireInt:
     def test_accepts_int(self):
         assert _require_int("x", 5) == 5
@@ -54,6 +55,7 @@ class TestRequireInt:
 
 # ── _prepare_signal_window ───────────────────────────────────────────
 
+
 class TestPrepareSignalWindow:
     def test_exact_length(self):
         sig = np.arange(50, dtype=float)
@@ -81,6 +83,7 @@ class TestPrepareSignalWindow:
 
 # ── _synthetic_control_signal ────────────────────────────────────────
 
+
 class TestSyntheticControlSignal:
     def test_shape(self):
         rng = np.random.default_rng(0)
@@ -99,6 +102,7 @@ class TestSyntheticControlSignal:
 
 
 # ── _normalize_fault_campaign_inputs ────────────────────────────────
+
 
 class TestNormalizeFaultCampaignInputs:
     def test_valid_inputs(self):
@@ -119,6 +123,7 @@ class TestNormalizeFaultCampaignInputs:
 
 
 # ── HybridAnomalyDetector ───────────────────────────────────────────
+
 
 class TestHybridAnomalyDetector:
     def test_score_returns_keys(self):
@@ -168,6 +173,7 @@ class TestHybridAnomalyDetector:
 
 # ── run_fault_noise_campaign ────────────────────────────────────────
 
+
 class TestRunFaultNoiseCampaign:
     def test_returns_expected_keys(self):
         result = run_fault_noise_campaign(seed=0, episodes=4, window=32)
@@ -194,6 +200,7 @@ class TestRunFaultNoiseCampaign:
 
 # ── run_anomaly_alarm_campaign ───────────────────────────────────────
 
+
 class TestRunAnomalyAlarmCampaign:
     def test_returns_expected_keys(self):
         r = run_anomaly_alarm_campaign(seed=0, episodes=4, window=64)
@@ -217,6 +224,7 @@ class TestRunAnomalyAlarmCampaign:
 
 
 # ── simulate_tearing_mode edge cases ─────────────────────────────────
+
 
 class TestSimulateTearingModeExtended:
     def test_disruption_returns_label_1(self):
@@ -243,8 +251,10 @@ class TestSimulateTearingModeExtended:
 
 # ── evaluate_predictor ───────────────────────────────────────────────
 
+
 class _DummyModel:
     """Minimal model that thresholds on max(seq)."""
+
     def predict(self, seq):
         return float(np.max(seq))
 
@@ -289,6 +299,7 @@ class TestEvaluatePredictor:
 
 
 # ── default_model_path ───────────────────────────────────────────────
+
 
 class TestDefaultModelPath:
     def test_returns_path(self):

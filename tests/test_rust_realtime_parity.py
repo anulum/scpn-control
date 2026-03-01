@@ -2,6 +2,7 @@
 # SCPN Control — Rust PyRealtimeMonitor parity test
 # ──────────────────────────────────────────────────────────────────────
 """Verify Rust PyRealtimeMonitor tick matches Python RealtimeMonitor."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -9,6 +10,7 @@ import pytest
 
 try:
     import scpn_control_rs  # noqa: F401
+
     HAS_RUST = True
 except ImportError:
     HAS_RUST = False
@@ -35,7 +37,12 @@ def shared_state():
 
     # Python monitor
     py_mon = RealtimeMonitor.from_paper27(
-        L=L, N_per=N_per, dt=dt, zeta_uniform=zeta_val, psi_driver=psi, seed=seed,
+        L=L,
+        N_per=N_per,
+        dt=dt,
+        zeta_uniform=zeta_val,
+        psi_driver=psi,
+        seed=seed,
     )
 
     # Rust monitor — needs flat arrays
@@ -45,8 +52,14 @@ def shared_state():
     omega_flat = np.concatenate([o.ravel() for o in py_mon.omega_layers]).astype(np.float64)
 
     rs_mon = scpn_control_rs.PyRealtimeMonitor(
-        knm_flat, zeta_flat, theta_flat, omega_flat,
-        L, N_per, dt=dt, psi_driver=psi,
+        knm_flat,
+        zeta_flat,
+        theta_flat,
+        omega_flat,
+        L,
+        N_per,
+        dt=dt,
+        psi_driver=psi,
     )
 
     return py_mon, rs_mon, L, N_per
@@ -61,7 +74,9 @@ def test_single_tick_parity(shared_state):
     assert rs_snap["tick"] == 1
     np.testing.assert_allclose(rs_snap["R_global"], py_snap["R_global"], atol=0.05)
     np.testing.assert_allclose(
-        np.array(rs_snap["R_layer"]), np.array(py_snap["R_layer"]), atol=0.05,
+        np.array(rs_snap["R_layer"]),
+        np.array(py_snap["R_layer"]),
+        atol=0.05,
     )
 
 

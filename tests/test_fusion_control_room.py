@@ -30,9 +30,7 @@ class _DummyKernel:
     def solve_equilibrium(self) -> None:
         self._ticks += 1
         radial_drive = float(self.cfg["coils"][2]["current"])
-        vertical_drive = float(self.cfg["coils"][4]["current"]) - float(
-            self.cfg["coils"][0]["current"]
-        )
+        vertical_drive = float(self.cfg["coils"][4]["current"]) - float(self.cfg["coils"][0]["current"])
         center_r = 3.0 + 0.2 * np.tanh(radial_drive / 25.0)
         center_z = 0.0 + 0.35 * np.tanh(vertical_drive / 25.0)
         self.Psi = (self.RR - center_r) ** 2 + ((self.ZZ - center_z) / 1.7) ** 2
@@ -117,6 +115,7 @@ def test_tokamak_physics_engine_rejects_invalid_size() -> None:
 
 # ── TokamakPhysicsEngine ──────────────────────────────────────────
 
+
 class TestTokamakPhysicsEngine:
     def test_grid_shape(self):
         eng = TokamakPhysicsEngine(size=20, seed=0)
@@ -145,6 +144,7 @@ class TestTokamakPhysicsEngine:
     def test_kernel_psi_rejects_small_array(self):
         class _TinyKernel:
             Psi = np.zeros((4, 4))
+
         eng = TokamakPhysicsEngine(size=16, seed=0, kernel=_TinyKernel())
         density, psi = eng.solve_flux_surfaces()
         assert density.shape == (16, 16)
@@ -152,6 +152,7 @@ class TestTokamakPhysicsEngine:
     def test_kernel_psi_rejects_1d(self):
         class _FlatKernel:
             Psi = np.zeros(100)
+
         eng = TokamakPhysicsEngine(size=16, seed=0, kernel=_FlatKernel())
         density, _ = eng.solve_flux_surfaces()
         assert density.shape == (16, 16)
@@ -177,9 +178,11 @@ class TestTokamakPhysicsEngine:
 
 # ── DiagnosticSystem ───────────────────────────────────────────────
 
+
 class TestDiagnosticSystem:
     def test_measure_near_true(self):
         from scpn_control.control.fusion_control_room import DiagnosticSystem
+
         rng = np.random.default_rng(0)
         diag = DiagnosticSystem(rng)
         measurements = [diag.measure_position(1.0) for _ in range(200)]
@@ -187,6 +190,7 @@ class TestDiagnosticSystem:
 
     def test_measure_returns_float(self):
         from scpn_control.control.fusion_control_room import DiagnosticSystem
+
         rng = np.random.default_rng(0)
         diag = DiagnosticSystem(rng)
         assert isinstance(diag.measure_position(0.0), float)
@@ -194,9 +198,11 @@ class TestDiagnosticSystem:
 
 # ── NeuralController ──────────────────────────────────────────────
 
+
 class TestNeuralController:
     def test_returns_pair(self):
         from scpn_control.control.fusion_control_room import NeuralController
+
         ctrl = NeuralController()
         top, bot = ctrl.compute_action(0.5)
         assert isinstance(top, float)
@@ -204,6 +210,7 @@ class TestNeuralController:
 
     def test_actions_bounded_by_one(self):
         from scpn_control.control.fusion_control_room import NeuralController
+
         ctrl = NeuralController()
         for z in [-10.0, -1.0, 0.0, 1.0, 10.0]:
             top, bot = ctrl.compute_action(z)
@@ -212,6 +219,7 @@ class TestNeuralController:
 
     def test_positive_z_activates_top_coil(self):
         from scpn_control.control.fusion_control_room import NeuralController
+
         ctrl = NeuralController()
         top, bot = ctrl.compute_action(1.0)
         assert top > 0.0
@@ -219,6 +227,7 @@ class TestNeuralController:
 
     def test_negative_z_activates_bottom_coil(self):
         from scpn_control.control.fusion_control_room import NeuralController
+
         ctrl = NeuralController()
         top, bot = ctrl.compute_action(-1.0)
         assert top == 0.0
@@ -227,38 +236,54 @@ class TestNeuralController:
 
 # ── run_control_room extended ──────────────────────────────────────
 
+
 class TestRunControlRoomExtended:
     def test_kernel_factory_error_falls_back(self):
         def _bad_factory(_cfg):
             raise RuntimeError("boom")
+
         summary = run_control_room(
-            sim_duration=5, seed=0,
-            save_animation=False, save_report=False, verbose=False,
-            kernel_factory=_bad_factory, config_file="x.json",
+            sim_duration=5,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=_bad_factory,
+            config_file="x.json",
         )
         assert summary["psi_source"] == "analytic"
         assert summary["kernel_error"] == "boom"
 
     def test_mean_abs_z_nonnegative(self):
         summary = run_control_room(
-            sim_duration=20, seed=0,
-            save_animation=False, save_report=False, verbose=False,
+            sim_duration=20,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
         )
         assert summary["mean_abs_z"] >= 0.0
 
     def test_actions_nonnegative(self):
         summary = run_control_room(
-            sim_duration=15, seed=0,
-            save_animation=False, save_report=False, verbose=False,
+            sim_duration=15,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
         )
         assert summary["mean_top_action"] >= 0.0
         assert summary["mean_bottom_action"] >= 0.0
 
     def test_kernel_backed_run(self):
         summary = run_control_room(
-            sim_duration=8, seed=0,
-            save_animation=False, save_report=False, verbose=False,
-            kernel_factory=_DummyKernel, config_file="test.json",
+            sim_duration=8,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=_DummyKernel,
+            config_file="test.json",
         )
         assert summary["psi_source"] == "kernel"
         assert summary["kernel_error"] is None
@@ -266,6 +291,7 @@ class TestRunControlRoomExtended:
 
 
 # ── Kernel coil/equilibrium edge cases ───────────────────────────
+
 
 class _KernelFewCoils:
     """Kernel with only 3 coils: coil update branch at line 345 is skipped."""
@@ -301,27 +327,39 @@ class _KernelBadEquilibrium:
 class TestKernelEdgeCases:
     def test_few_coils_skips_update(self):
         summary = run_control_room(
-            sim_duration=5, seed=0,
-            save_animation=False, save_report=False, verbose=False,
-            kernel_factory=_KernelFewCoils, config_file="x.json",
+            sim_duration=5,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=_KernelFewCoils,
+            config_file="x.json",
         )
         assert summary["psi_source"] == "kernel"
         assert np.isfinite(summary["final_z"])
 
     def test_bad_equilibrium_logs_warning(self):
         summary = run_control_room(
-            sim_duration=5, seed=0,
-            save_animation=False, save_report=False, verbose=False,
-            kernel_factory=_KernelBadEquilibrium, config_file="x.json",
+            sim_duration=5,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=_KernelBadEquilibrium,
+            config_file="x.json",
         )
         assert summary["psi_source"] == "kernel"
         assert np.isfinite(summary["final_z"])
 
     def test_verbose_kernel_path(self, capsys):
         run_control_room(
-            sim_duration=3, seed=0,
-            save_animation=False, save_report=False, verbose=True,
-            kernel_factory=_DummyKernel, config_file="x.json",
+            sim_duration=3,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=True,
+            kernel_factory=_DummyKernel,
+            config_file="x.json",
         )
         out = capsys.readouterr().out
         assert "kernel" in out.lower()
@@ -329,10 +367,15 @@ class TestKernelEdgeCases:
     def test_verbose_analytic_fallback_on_error(self, capsys):
         def _bad_factory(_cfg):
             raise RuntimeError("nope")
+
         run_control_room(
-            sim_duration=3, seed=0,
-            save_animation=False, save_report=False, verbose=True,
-            kernel_factory=_bad_factory, config_file="x.json",
+            sim_duration=3,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=True,
+            kernel_factory=_bad_factory,
+            config_file="x.json",
         )
         out = capsys.readouterr().out
         assert "nope" in out
@@ -345,9 +388,13 @@ class TestKernelEdgeCases:
         fcr_mod.FusionKernel = _DummyKernel
         try:
             summary = run_control_room(
-                sim_duration=3, seed=0,
-                save_animation=False, save_report=False, verbose=False,
-                kernel_factory=None, config_file="x.json",
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                kernel_factory=None,
+                config_file="x.json",
             )
             assert summary["psi_source"] == "kernel"
         finally:

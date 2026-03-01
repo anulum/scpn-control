@@ -16,6 +16,7 @@ Usage::
     scpn-control live --port 8765 --zeta 0.5
     scpn-control hil-test --shots-dir validation/reference_data/diiid/disruption_shots
 """
+
 from __future__ import annotations
 
 import json
@@ -145,6 +146,7 @@ def validate(json_out: bool):
     """Run RMSE validation dashboard."""
     try:
         from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
+
         has_transport = True
     except ImportError:
         has_transport = False
@@ -157,6 +159,7 @@ def validate(json_out: bool):
 
     # Check no import bombs
     import sys
+
     for mod in ["matplotlib", "torch", "streamlit"]:
         if mod in sys.modules:
             result["import_clean"] = False
@@ -180,8 +183,7 @@ def validate(json_out: bool):
 @click.option("--zeta", default=0.5, type=float, help="Global field coupling zeta")
 @click.option("--psi", default=0.0, type=float, help="Initial Psi driver")
 @click.option("--tick-interval", default=0.001, type=float, help="Seconds between ticks")
-def live(port: int, host: str, layers: int, n_per: int, zeta: float,
-         psi: float, tick_interval: float):
+def live(port: int, host: str, layers: int, n_per: int, zeta: float, psi: float, tick_interval: float):
     """Start real-time WebSocket phase sync server.
 
     Streams Kuramoto R/V/lambda tick snapshots over ws://<host>:<port>.
@@ -201,7 +203,10 @@ def live(port: int, host: str, layers: int, n_per: int, zeta: float,
     click.echo("  Ctrl-C to stop")
 
     mon = RealtimeMonitor.from_paper27(
-        L=layers, N_per=n_per, zeta_uniform=zeta, psi_driver=psi,
+        L=layers,
+        N_per=n_per,
+        zeta_uniform=zeta,
+        psi_driver=psi,
     )
     server = PhaseStreamServer(monitor=mon, tick_interval_s=tick_interval)
     server.serve_sync(host=host, port=port)
@@ -223,11 +228,13 @@ def hil_test(shots_dir: str, json_out: bool):
     results = []
     for sf in shot_files:
         data = np.load(sf, allow_pickle=True)
-        results.append({
-            "shot": sf.stem,
-            "keys": list(data.keys()),
-            "status": "loaded",
-        })
+        results.append(
+            {
+                "shot": sf.stem,
+                "keys": list(data.keys()),
+                "status": "loaded",
+            }
+        )
 
     summary = {
         "shots_dir": str(shots_dir),

@@ -32,6 +32,7 @@ from numpy.typing import NDArray
 
 # ── Dataclasses ──────────────────────────────────────────────────────
 
+
 @dataclass
 class QProfile:
     """Safety-factor profile and derived quantities."""
@@ -72,20 +73,20 @@ class KruskalShafranovResult:
     """External kink stability result (Kruskal-Shafranov criterion)."""
 
     q_edge: float
-    stable: bool       # True if q_edge > 1
-    margin: float      # q_edge - 1
+    stable: bool  # True if q_edge > 1
+    margin: float  # q_edge - 1
 
 
 @dataclass
 class TroyonResult:
     """Troyon normalised-beta-limit result."""
 
-    beta_N: float                # Normalised beta [% m T / MA]
-    beta_N_crit_nowall: float    # Critical beta_N without wall (g = 2.8)
-    beta_N_crit_wall: float      # Critical beta_N with ideal wall (g = 3.5)
+    beta_N: float  # Normalised beta [% m T / MA]
+    beta_N_crit_nowall: float  # Critical beta_N without wall (g = 2.8)
+    beta_N_crit_wall: float  # Critical beta_N with ideal wall (g = 3.5)
     stable_nowall: bool
     stable_wall: bool
-    margin_nowall: float         # beta_N_crit_nowall - beta_N
+    margin_nowall: float  # beta_N_crit_nowall - beta_N
 
 
 @dataclass
@@ -93,9 +94,9 @@ class NTMResult:
     """Neoclassical tearing mode seeding analysis result."""
 
     rho: NDArray[np.float64]
-    delta_prime: NDArray[np.float64]       # Classical stability index (< 0 = stable)
-    j_bs_drive: NDArray[np.float64]        # Bootstrap current fraction drive
-    w_marginal: NDArray[np.float64]        # Marginal island width [m]
+    delta_prime: NDArray[np.float64]  # Classical stability index (< 0 = stable)
+    j_bs_drive: NDArray[np.float64]  # Bootstrap current fraction drive
+    w_marginal: NDArray[np.float64]  # Marginal island width [m]
     ntm_unstable: NDArray[np.bool_]
     most_unstable_rho: float | None
 
@@ -107,14 +108,15 @@ class StabilitySummary:
     mercier: MercierResult
     ballooning: BallooningResult
     kruskal_shafranov: KruskalShafranovResult
-    troyon: TroyonResult | None      # None if beta_t not provided
-    ntm: NTMResult | None            # None if j_bs not provided
+    troyon: TroyonResult | None  # None if beta_t not provided
+    ntm: NTMResult | None  # None if j_bs not provided
     n_criteria_checked: int
     n_criteria_stable: int
     overall_stable: bool
 
 
 # ── Q-profile computation ───────────────────────────────────────────
+
 
 def compute_q_profile(
     rho: NDArray[np.float64],
@@ -191,12 +193,18 @@ def compute_q_profile(
     q_edge_val = float(q[-1])
 
     return QProfile(
-        rho=rho, q=q, shear=shear, alpha_mhd=alpha_mhd,
-        q_min=q_min, q_min_rho=q_min_rho, q_edge=q_edge_val,
+        rho=rho,
+        q=q,
+        shear=shear,
+        alpha_mhd=alpha_mhd,
+        q_min=q_min,
+        q_min_rho=q_min_rho,
+        q_edge=q_edge_val,
     )
 
 
 # ── Mercier criterion ────────────────────────────────────────────────
+
 
 def mercier_stability(qp: QProfile) -> MercierResult:
     """Evaluate the Mercier interchange stability criterion.
@@ -229,12 +237,15 @@ def mercier_stability(qp: QProfile) -> MercierResult:
             break
 
     return MercierResult(
-        rho=qp.rho, D_M=D_M.astype(np.float64), stable=stable,
+        rho=qp.rho,
+        D_M=D_M.astype(np.float64),
+        stable=stable,
         first_unstable_rho=first_unstable_rho,
     )
 
 
 # ── Ballooning stability ────────────────────────────────────────────
+
 
 def ballooning_stability(qp: QProfile) -> BallooningResult:
     """Evaluate the first ballooning stability boundary.
@@ -265,12 +276,17 @@ def ballooning_stability(qp: QProfile) -> BallooningResult:
     margin = alpha_crit - alpha
 
     return BallooningResult(
-        rho=qp.rho, s=s, alpha=alpha,
-        alpha_crit=alpha_crit, stable=stable, margin=margin,
+        rho=qp.rho,
+        s=s,
+        alpha=alpha,
+        alpha_crit=alpha_crit,
+        stable=stable,
+        margin=margin,
     )
 
 
 # ── Kruskal-Shafranov criterion ────────────────────────────────────
+
 
 def kruskal_shafranov_stability(qp: QProfile) -> KruskalShafranovResult:
     """Evaluate the Kruskal-Shafranov external kink stability criterion.
@@ -296,11 +312,14 @@ def kruskal_shafranov_stability(qp: QProfile) -> KruskalShafranovResult:
     stable = qp.q_edge > 1.0
     margin = qp.q_edge - 1.0
     return KruskalShafranovResult(
-        q_edge=qp.q_edge, stable=stable, margin=margin,
+        q_edge=qp.q_edge,
+        stable=stable,
+        margin=margin,
     )
 
 
 # ── Troyon beta limit ──────────────────────────────────────────────
+
 
 def troyon_beta_limit(
     beta_t: float,
@@ -362,6 +381,7 @@ def troyon_beta_limit(
 
 
 # ── NTM seeding threshold ──────────────────────────────────────────
+
 
 def ntm_stability(
     qp: QProfile,
@@ -448,6 +468,7 @@ def ntm_stability(
 
 
 # ── Full stability check (all 5 criteria) ──────────────────────────
+
 
 def run_full_stability_check(
     qp: QProfile,

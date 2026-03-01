@@ -16,13 +16,18 @@ from scpn_control.core.uncertainty import (
 )
 
 ITER = PlasmaScenario(
-    I_p=15.0, B_t=5.3, P_heat=50.0, n_e=10.1,
-    R=6.2, A=3.1, kappa=1.7, M=2.5,
+    I_p=15.0,
+    B_t=5.3,
+    P_heat=50.0,
+    n_e=10.1,
+    R=6.2,
+    A=3.1,
+    kappa=1.7,
+    M=2.5,
 )
 
 
 class TestQuantifyFullChain:
-
     def test_deterministic_with_seed(self):
         r1 = quantify_full_chain(ITER, n_samples=200, seed=42)
         r2 = quantify_full_chain(ITER, n_samples=200, seed=42)
@@ -44,8 +49,7 @@ class TestQuantifyFullChain:
 
     def test_bands_shape(self):
         r = quantify_full_chain(ITER, n_samples=200, seed=2)
-        for arr in [r.psi_nrmse_bands, r.tau_E_bands, r.P_fusion_bands,
-                     r.Q_bands, r.beta_N_bands]:
+        for arr in [r.psi_nrmse_bands, r.tau_E_bands, r.P_fusion_bands, r.Q_bands, r.beta_N_bands]:
             assert arr.shape == (3,), f"Expected (3,), got {arr.shape}"
 
     def test_percentiles_shape(self):
@@ -85,8 +89,12 @@ class TestQuantifyFullChain:
 
     def test_zero_sigmas_narrow_spread(self):
         r = quantify_full_chain(
-            ITER, n_samples=500, seed=10,
-            chi_gB_sigma=0.0, pedestal_sigma=0.0, boundary_sigma=0.0,
+            ITER,
+            n_samples=500,
+            seed=10,
+            chi_gB_sigma=0.0,
+            pedestal_sigma=0.0,
+            boundary_sigma=0.0,
         )
         # With zero transport/pedestal/boundary perturbation, spread comes only from
         # IPB98 coefficient sampling
@@ -99,7 +107,6 @@ class TestQuantifyFullChain:
 
 
 class TestSummarizeUQ:
-
     def test_returns_dict(self):
         r = quantify_full_chain(ITER, n_samples=100, seed=20)
         d = summarize_uq(r)
@@ -110,6 +117,7 @@ class TestSummarizeUQ:
 
     def test_json_serialisable(self):
         import json
+
         r = quantify_full_chain(ITER, n_samples=100, seed=21)
         d = summarize_uq(r)
         s = json.dumps(d)

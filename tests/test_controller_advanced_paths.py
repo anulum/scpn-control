@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for controller validation errors, passthrough sources, bitflip,
 antithetic sampling with odd passes, delayed transitions, and marking setter."""
+
 from __future__ import annotations
 
 import json

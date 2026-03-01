@@ -32,6 +32,7 @@ omega_arrays = st.integers(min_value=2, max_value=200).flatmap(
 
 # ── Order parameter invariants ───────────────────────────────────────
 
+
 @given(theta=phase_arrays)
 @settings(max_examples=100)
 def test_order_parameter_range(theta):
@@ -51,8 +52,7 @@ def test_uniform_phases_low_R(n):
     assert R < 0.2, f"Uniform phases gave R={R}, expected near 0"
 
 
-@given(n=st.integers(min_value=2, max_value=500),
-       phase=st.floats(-np.pi, np.pi))
+@given(n=st.integers(min_value=2, max_value=500), phase=st.floats(-np.pi, np.pi))
 @settings(max_examples=30)
 def test_synchronized_phases_high_R(n, phase):
     """All oscillators at the same phase should give R ≈ 1."""
@@ -63,6 +63,7 @@ def test_synchronized_phases_high_R(n, phase):
 
 
 # ── Lyapunov V invariants ────────────────────────────────────────────
+
 
 @given(theta=phase_arrays)
 @settings(max_examples=50)
@@ -84,6 +85,7 @@ def test_lyapunov_v_bounded(theta):
 
 # ── Phase wrap invariant ─────────────────────────────────────────────
 
+
 @given(theta=phase_arrays)
 @settings(max_examples=100)
 def test_wrap_phase_range(theta):
@@ -95,6 +97,7 @@ def test_wrap_phase_range(theta):
 
 
 # ── Kuramoto step invariants ─────────────────────────────────────────
+
 
 @given(
     n=st.integers(min_value=5, max_value=100),
@@ -108,13 +111,19 @@ def test_kuramoto_step_preserves_array_shape(n, K, zeta):
     theta = rng.uniform(-np.pi, np.pi, n)
     omega = rng.normal(0, 0.3, n)
     result = kuramoto_sakaguchi_step(
-        theta, omega, dt=1e-3, K=K, zeta=zeta,
-        psi_driver=0.0, psi_mode="external",
+        theta,
+        omega,
+        dt=1e-3,
+        K=K,
+        zeta=zeta,
+        psi_driver=0.0,
+        psi_mode="external",
     )
     assert result["theta1"].shape == theta.shape
 
 
 # ── KnmSpec symmetry ─────────────────────────────────────────────────
+
 
 @given(
     L=st.integers(min_value=2, max_value=16),
@@ -139,6 +148,7 @@ def test_knm_nonnegative(L):
 
 
 # ── UPDE step invariants ─────────────────────────────────────────────
+
 
 @given(
     L=st.integers(min_value=2, max_value=8),
@@ -176,6 +186,7 @@ def test_upde_step_output_shapes(L, N_per):
 
 
 # ── KnmSpec constructor validation ──────────────────────────────────
+
 
 class TestKnmSpecValidation:
     def test_rejects_non_square_K(self):

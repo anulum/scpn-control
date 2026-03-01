@@ -10,6 +10,7 @@
 Nengo, matplotlib, and torch are optional — use accessor functions
 to defer their import until actually needed.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -27,6 +28,7 @@ def normalize_bounds(bounds: tuple[float, float], name: str) -> tuple[float, flo
 def get_nengo_controller():
     """Lazy import of NengoSNNController (requires ``pip install scpn-control[nengo]``)."""
     from scpn_control.control.nengo_snn_wrapper import NengoSNNController
+
     return NengoSNNController
 
 

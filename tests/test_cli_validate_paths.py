@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for cli.py validate command: contamination check (lines 149-150,
 161-164), weight file iteration (278), and info --json-out path."""
+
 from __future__ import annotations
 
 import json

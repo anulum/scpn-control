@@ -32,6 +32,7 @@ import numpy as np
 @dc_dataclass
 class PipelineProfile:
     """Per-stage timing profile for the HIL control pipeline."""
+
     state_estimation_us: float = 0.0
     controller_step_us: float = 0.0
     actuator_command_us: float = 0.0
@@ -176,9 +177,7 @@ class HILControlLoop:
         self.sensor = sensor or SensorInterface()
         self._control_fn: Callable[[float, SensorInterface], float] | None = None
 
-    def set_controller(
-        self, fn: Callable[[float, SensorInterface], float]
-    ) -> None:
+    def set_controller(self, fn: Callable[[float, SensorInterface], float]) -> None:
         """Register the control callback: fn(error, sensor) -> command."""
         self._control_fn = fn
 
@@ -478,7 +477,7 @@ def run_hil_benchmark(
         print(f"  P99 latency:    {metrics.p99_latency_us:.1f} us")
         print(f"  Max latency:    {metrics.max_latency_us:.1f} us")
         print(f"  Jitter (std):   {metrics.jitter_std_us:.1f} us")
-        print(f"  Overruns:       {metrics.overrun_count} ({metrics.overrun_fraction*100:.1f}%)")
+        print(f"  Overruns:       {metrics.overrun_count} ({metrics.overrun_fraction * 100:.1f}%)")
         print(f"  Sub-ms (P95):   {'PASS' if metrics.sub_ms_achieved else 'FAIL'}")
         print(f"  1 kHz capable:  {'PASS' if result.passes_1khz else 'FAIL'}")
         if fpga_map:
@@ -525,13 +524,15 @@ def run_hil_benchmark_detailed(n_steps=10000):
     C[1, 1] = 1.0  # dz/dt measurement
 
     Q = np.diag([1e-6, 1e-4, 1e-8, 1e-6])  # process noise
-    R = np.diag([1e-4, 1e-3])                # measurement noise
+    R = np.diag([1e-4, 1e-3])  # measurement noise
 
     # LQR-style gain (pre-computed)
-    K_ctrl = np.array([
-        [5000.0, 150.0, 100.0, 50.0],
-        [-5000.0, -150.0, -100.0, -50.0],
-    ])
+    K_ctrl = np.array(
+        [
+            [5000.0, 150.0, 100.0, 50.0],
+            [-5000.0, -150.0, -100.0, -50.0],
+        ]
+    )
 
     # Pre-allocate Kalman state
     x_hat = np.zeros(n_x)
@@ -572,17 +573,17 @@ def run_hil_benchmark_detailed(n_steps=10000):
 
     totals = np.array([p.total_us for p in profiles])
     return {
-        'n_steps': n_steps,
-        'mean_us': float(np.mean(totals)),
-        'p50_us': float(np.percentile(totals, 50)),
-        'p95_us': float(np.percentile(totals, 95)),
-        'p99_us': float(np.percentile(totals, 99)),
-        'max_us': float(np.max(totals)),
-        'stage_breakdown': {
-            'state_estimation_mean_us': float(np.mean([p.state_estimation_us for p in profiles])),
-            'controller_step_mean_us': float(np.mean([p.controller_step_us for p in profiles])),
-            'actuator_command_mean_us': float(np.mean([p.actuator_command_us for p in profiles])),
-        }
+        "n_steps": n_steps,
+        "mean_us": float(np.mean(totals)),
+        "p50_us": float(np.percentile(totals, 50)),
+        "p95_us": float(np.percentile(totals, 95)),
+        "p99_us": float(np.percentile(totals, 99)),
+        "max_us": float(np.max(totals)),
+        "stage_breakdown": {
+            "state_estimation_mean_us": float(np.mean([p.state_estimation_us for p in profiles])),
+            "controller_step_mean_us": float(np.mean([p.controller_step_us for p in profiles])),
+            "actuator_command_mean_us": float(np.mean([p.actuator_command_us for p in profiles])),
+        },
     }
 
 
@@ -625,12 +626,12 @@ class HILDemoRunner:
 
     def load_weights_from_controller(self, controller: object) -> None:
         """Load weights from a Python SNN controller object."""
-        if hasattr(controller, 'weights'):
+        if hasattr(controller, "weights"):
             w = np.asarray(controller.weights, dtype=np.float64)
-            self.weights = w[:self.n_neurons, :self.n_inputs]
-        if hasattr(controller, 'output_weights'):
+            self.weights = w[: self.n_neurons, : self.n_inputs]
+        if hasattr(controller, "output_weights"):
             ow = np.asarray(controller.output_weights, dtype=np.float64)
-            self.output_weights = ow[:self.n_outputs, :self.n_neurons]
+            self.output_weights = ow[: self.n_outputs, : self.n_neurons]
 
     def _lif_step(self, state: np.ndarray, inputs: np.ndarray, dt_s: float = 0.001) -> tuple[np.ndarray, np.ndarray]:
         """Leaky Integrate-and-Fire neuron update."""
@@ -659,7 +660,7 @@ class HILDemoRunner:
     def step(self, inputs: np.ndarray) -> np.ndarray:
         """Execute one SNN inference step through simulated register pipeline."""
         t0 = time.perf_counter_ns()
-        inp = np.asarray(inputs[:self.n_inputs], dtype=np.float64)
+        inp = np.asarray(inputs[: self.n_inputs], dtype=np.float64)
 
         # Write input registers
         for i in range(self.n_inputs):

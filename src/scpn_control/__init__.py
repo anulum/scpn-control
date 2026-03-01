@@ -1,4 +1,5 @@
 """scpn-control: Neuro-symbolic Stochastic Petri Net controller."""
+
 from __future__ import annotations
 
 __version__ = "0.3.3"

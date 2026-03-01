@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for verbose + plot_saved print (line 357)."""
+
 from __future__ import annotations
 
 import pytest
@@ -18,8 +19,12 @@ class TestVerbosePlotSaved:
         """verbose=True + save_plot=True triggers line 357."""
         out = str(tmp_path / "soc.png")
         result = run_advanced_learning_sim(
-            size=8, time_steps=20, seed=0,
-            save_plot=True, output_path=out, verbose=True,
+            size=8,
+            time_steps=20,
+            seed=0,
+            save_plot=True,
+            output_path=out,
+            verbose=True,
         )
         assert result["plot_saved"] is True
         captured = capsys.readouterr()

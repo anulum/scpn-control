@@ -29,8 +29,12 @@ class TestNeuralEqConfig:
 class TestTrainingResult:
     def test_fields(self):
         r = TrainingResult(
-            n_samples=100, n_components=10, explained_variance=0.95,
-            final_loss=0.01, train_time_s=5.0, weights_path="/tmp/w.npz",
+            n_samples=100,
+            n_components=10,
+            explained_variance=0.95,
+            final_loss=0.01,
+            train_time_s=5.0,
+            weights_path="/tmp/w.npz",
         )
         assert r.n_samples == 100
         assert np.isnan(r.val_loss)

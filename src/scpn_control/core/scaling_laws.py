@@ -38,11 +38,7 @@ logger = logging.getLogger(__name__)
 # ── Default coefficient path ──────────────────────────────────────────
 
 _DEFAULT_COEFF_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "validation"
-    / "reference_data"
-    / "itpa"
-    / "ipb98y2_coefficients.json"
+    Path(__file__).resolve().parents[3] / "validation" / "reference_data" / "itpa" / "ipb98y2_coefficients.json"
 )
 
 _REQUIRED_EXPONENT_KEYS = (
@@ -58,6 +54,7 @@ _REQUIRED_EXPONENT_KEYS = (
 
 
 # ── Data container ────────────────────────────────────────────────────
+
 
 @dataclass
 class TransportBenchmarkResult:
@@ -132,9 +129,7 @@ def _validate_ipb98y2_coefficients(raw: Any) -> dict[str, Any]:
         for key, value in unc_raw.items():
             sigma = _require_finite_number(f"exponent_uncertainties.{key}", value)
             if sigma < 0.0:
-                raise ValueError(
-                    f"exponent_uncertainties.{key} must be >= 0, got {sigma!r}"
-                )
+                raise ValueError(f"exponent_uncertainties.{key} must be >= 0, got {sigma!r}")
             uncertainties[key] = sigma
         normalized["exponent_uncertainties"] = uncertainties
 
@@ -237,10 +232,7 @@ def ipb98y2_tau_e(
     )
     tau_f = float(tau)
     if not np.isfinite(tau_f) or tau_f <= 0:
-        raise ValueError(
-            "Computed IPB98(y,2) confinement time is invalid "
-            f"(tau={tau_f!r}) for supplied inputs."
-        )
+        raise ValueError(f"Computed IPB98(y,2) confinement time is invalid (tau={tau_f!r}) for supplied inputs.")
     return tau_f
 
 
@@ -291,16 +283,19 @@ def ipb98y2_with_uncertainty(
 
     # Published exponent uncertainties (Verdoolaege et al. NF 2021)
     # These are 1-sigma uncertainties on the log-space exponents.
-    exp_unc = coeff.get("exponent_uncertainties", {
-        "Ip_MA": 0.02,
-        "BT_T": 0.04,
-        "ne19_1e19m3": 0.03,
-        "Ploss_MW": 0.02,
-        "R_m": 0.09,
-        "kappa": 0.08,
-        "epsilon": 0.07,
-        "M_AMU": 0.04,
-    })
+    exp_unc = coeff.get(
+        "exponent_uncertainties",
+        {
+            "Ip_MA": 0.02,
+            "BT_T": 0.04,
+            "ne19_1e19m3": 0.03,
+            "Ploss_MW": 0.02,
+            "R_m": 0.09,
+            "kappa": 0.08,
+            "epsilon": 0.07,
+            "M_AMU": 0.04,
+        },
+    )
 
     # Log-linear error propagation:
     # ln(tau) = ln(C) + sum_k alpha_k * ln(x_k)
@@ -308,12 +303,17 @@ def ipb98y2_with_uncertainty(
     sigma_lnC = float(coeff.get("sigma_lnC", 0.14))
 
     inputs = {
-        "Ip_MA": Ip, "BT_T": BT, "ne19_1e19m3": ne19,
-        "Ploss_MW": Ploss, "R_m": R, "kappa": kappa,
-        "epsilon": epsilon, "M_AMU": M,
+        "Ip_MA": Ip,
+        "BT_T": BT,
+        "ne19_1e19m3": ne19,
+        "Ploss_MW": Ploss,
+        "R_m": R,
+        "kappa": kappa,
+        "epsilon": epsilon,
+        "M_AMU": M,
     }
 
-    var_ln_tau = sigma_lnC ** 2
+    var_ln_tau = sigma_lnC**2
     max_f64 = np.finfo(np.float64).max
     for key, val in inputs.items():
         if val > 0 and key in exp_unc:
@@ -334,10 +334,7 @@ def ipb98y2_with_uncertainty(
     # Convert from log-space: sigma_tau ≈ tau * sigma_ln_tau
     sigma_tau = float(tau * sigma_ln_tau)
     if not np.isfinite(sigma_tau) or sigma_tau < 0.0:
-        raise ValueError(
-            "Computed IPB98(y,2) uncertainty is invalid "
-            f"(sigma_tau={sigma_tau!r}) for supplied inputs."
-        )
+        raise ValueError(f"Computed IPB98(y,2) uncertainty is invalid (sigma_tau={sigma_tau!r}) for supplied inputs.")
 
     return float(tau), sigma_tau
 

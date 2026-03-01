@@ -29,7 +29,6 @@ from scpn_control.phase.realtime_monitor import RealtimeMonitor
 
 
 class TestOrderParameter:
-
     def test_fully_synchronized(self):
         theta = np.zeros(100)
         R, psi = order_parameter(theta)
@@ -59,7 +58,6 @@ class TestOrderParameter:
 
 
 class TestWrapPhase:
-
     def test_identity_in_range(self):
         x = np.array([-np.pi + 0.01, 0.0, np.pi - 0.01])
         np.testing.assert_allclose(wrap_phase(x), x, atol=1e-12)
@@ -75,7 +73,6 @@ class TestWrapPhase:
 
 
 class TestGlobalPsiDriver:
-
     def test_external_requires_value(self):
         d = GlobalPsiDriver(mode="external")
         with pytest.raises(ValueError):
@@ -96,13 +93,16 @@ class TestGlobalPsiDriver:
 
 
 class TestKuramotoSakaguchiStep:
-
     def test_synchronized_stays_synced(self):
         N = 64
         theta = np.zeros(N)
         omega = np.ones(N)
         out = kuramoto_sakaguchi_step(
-            theta, omega, dt=0.01, K=2.0, psi_mode="mean_field",
+            theta,
+            omega,
+            dt=0.01,
+            K=2.0,
+            psi_mode="mean_field",
         )
         assert out["R"] == pytest.approx(1.0, abs=1e-12)
         np.testing.assert_allclose(out["theta1"], wrap_phase(0.01 * omega), atol=1e-12)
@@ -117,7 +117,11 @@ class TestKuramotoSakaguchiStep:
         current = theta.copy()
         for _ in range(500):
             out = kuramoto_sakaguchi_step(
-                current, omega, dt=0.01, K=5.0, psi_mode="mean_field",
+                current,
+                omega,
+                dt=0.01,
+                K=5.0,
+                psi_mode="mean_field",
             )
             current = out["theta1"]
 
@@ -133,8 +137,13 @@ class TestKuramotoSakaguchiStep:
         current = theta.copy()
         for _ in range(300):
             out = kuramoto_sakaguchi_step(
-                current, omega, dt=0.01, K=0.0, zeta=3.0,
-                psi_driver=Psi_target, psi_mode="external",
+                current,
+                omega,
+                dt=0.01,
+                K=0.0,
+                zeta=3.0,
+                psi_driver=Psi_target,
+                psi_mode="external",
             )
             current = out["theta1"]
 
@@ -147,7 +156,11 @@ class TestKuramotoSakaguchiStep:
         theta = np.zeros(N)
         omega = np.zeros(N)
         out = kuramoto_sakaguchi_step(
-            theta, omega, dt=0.01, K=2.0, alpha=0.5,
+            theta,
+            omega,
+            dt=0.01,
+            K=2.0,
+            alpha=0.5,
             psi_mode="mean_field",
         )
         # With α=0.5, sin(ψ_r − θ − α) = sin(−0.5) ≠ 0
@@ -158,7 +171,6 @@ class TestKuramotoSakaguchiStep:
 
 
 class TestKnmSpec:
-
     def test_build_paper27_shape(self):
         spec = build_knm_paper27()
         assert spec.K.shape == (16, 16)
@@ -198,7 +210,6 @@ class TestKnmSpec:
 
 
 class TestUPDESystem:
-
     @staticmethod
     def _make_random_layers(L, N_per_layer, seed=42):
         rng = np.random.default_rng(seed)
@@ -267,10 +278,7 @@ class TestUPDESystem:
         out_pac = sys.step(theta, omega, pac_gamma=1.0)
 
         # dtheta should differ when PAC gate is active
-        diff = sum(
-            float(np.max(np.abs(a - b)))
-            for a, b in zip(out_base["dtheta"], out_pac["dtheta"])
-        )
+        diff = sum(float(np.max(np.abs(a - b))) for a, b in zip(out_base["dtheta"], out_pac["dtheta"]))
         assert diff > 0.0
 
     def test_wrong_layer_count_raises(self):
@@ -300,9 +308,11 @@ class TestFusionKernelPhaseSync:
             "phase_sync": {"K": 2.0, "zeta": 0.5, "psi_mode": "external"},
         }
         import json
+
         cfg_path = tmp_path / "test.json"
         cfg_path.write_text(json.dumps(cfg))
         from scpn_control.core.fusion_kernel import FusionKernel
+
         return FusionKernel(str(cfg_path))
 
     def test_phase_sync_step_runs(self, kernel):
@@ -329,8 +339,12 @@ class TestFusionKernelPhaseSync:
         theta = rng.uniform(-np.pi, np.pi, N)
         omega = np.zeros(N)
         out = kernel.phase_sync_step_lyapunov(
-            theta, omega, n_steps=100, dt=0.01,
-            zeta=3.0, psi_driver=0.5,
+            theta,
+            omega,
+            n_steps=100,
+            dt=0.01,
+            zeta=3.0,
+            psi_driver=0.5,
         )
         assert out["theta_final"].shape == (N,)
         assert out["R_hist"].shape == (100,)
@@ -343,7 +357,6 @@ class TestFusionKernelPhaseSync:
 
 
 class TestLyapunovV:
-
     def test_synced_is_zero(self):
         theta = np.full(100, 0.5)
         v = lyapunov_v(theta, 0.5)
@@ -365,7 +378,6 @@ class TestLyapunovV:
 
 
 class TestLyapunovExponent:
-
     def test_negative_for_decreasing_v(self):
         v_hist = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5]
         lam = lyapunov_exponent(v_hist, dt=0.01)
@@ -384,7 +396,6 @@ class TestLyapunovExponent:
 
 
 class TestUPDELyapunov:
-
     @staticmethod
     def _make(L, N, seed=42):
         rng = np.random.default_rng(seed)
@@ -427,7 +438,6 @@ class TestUPDELyapunov:
 
 
 class TestLyapunovGuard:
-
     def test_stable_trajectory_approved(self):
         guard = LyapunovGuard(window=20, dt=0.01)
         rng = np.random.default_rng(42)
@@ -485,7 +495,6 @@ class TestLyapunovGuard:
 
 
 class TestRealtimeMonitor:
-
     def test_from_paper27_defaults(self):
         mon = RealtimeMonitor.from_paper27(L=4, N_per=10)
         assert len(mon.theta_layers) == 4
@@ -510,8 +519,11 @@ class TestRealtimeMonitor:
 
     def test_convergence_with_strong_zeta(self):
         mon = RealtimeMonitor.from_paper27(
-            L=4, N_per=20, dt=0.005,
-            zeta_uniform=3.0, psi_driver=0.5,
+            L=4,
+            N_per=20,
+            dt=0.005,
+            zeta_uniform=3.0,
+            psi_driver=0.5,
         )
         for _ in range(200):
             snap = mon.tick()

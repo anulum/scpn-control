@@ -16,6 +16,7 @@ from scpn_control.phase.upde import UPDESystem
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
+
 def _make_spec(L: int = 8):
     return build_knm_plasma(mode="baseline", L=L)
 
@@ -42,8 +43,8 @@ def _make_snap(
 
 # ── DiagnosticSnapshot ───────────────────────────────────────────────
 
-class TestDiagnosticSnapshot:
 
+class TestDiagnosticSnapshot:
     def test_construction(self):
         snap = _make_snap()
         assert snap.beta_n == 0.0
@@ -58,8 +59,8 @@ class TestDiagnosticSnapshot:
 
 # ── AdaptiveKnmConfig ───────────────────────────────────────────────
 
-class TestAdaptiveKnmConfig:
 
+class TestAdaptiveKnmConfig:
     def test_defaults(self):
         cfg = AdaptiveKnmConfig()
         assert cfg.beta_scale == 0.3
@@ -73,8 +74,8 @@ class TestAdaptiveKnmConfig:
 
 # ── Beta channel ─────────────────────────────────────────────────────
 
-class TestBetaChannel:
 
+class TestBetaChannel:
     def test_zero_beta_noop(self):
         spec = _make_spec()
         engine = AdaptiveKnmEngine(spec)
@@ -109,8 +110,8 @@ class TestBetaChannel:
 
 # ── Risk channel ─────────────────────────────────────────────────────
 
-class TestRiskChannel:
 
+class TestRiskChannel:
     def test_zero_risk_noop(self):
         spec = _make_spec()
         engine = AdaptiveKnmEngine(spec)
@@ -137,8 +138,8 @@ class TestRiskChannel:
 
 # ── Coherence PI ─────────────────────────────────────────────────────
 
-class TestCoherencePI:
 
+class TestCoherencePI:
     def test_low_R_boosts_diagonal(self):
         spec = _make_spec()
         engine = AdaptiveKnmEngine(spec)
@@ -179,8 +180,8 @@ class TestCoherencePI:
 
 # ── Invariants ───────────────────────────────────────────────────────
 
-class TestInvariants:
 
+class TestInvariants:
     def test_always_symmetric(self):
         spec = _make_spec()
         engine = AdaptiveKnmEngine(spec)
@@ -210,8 +211,8 @@ class TestInvariants:
 
 # ── Rate limiting ────────────────────────────────────────────────────
 
-class TestRateLimiting:
 
+class TestRateLimiting:
     def test_large_jump_clamped(self):
         spec = _make_spec()
         cfg = AdaptiveKnmConfig(max_delta_per_tick=0.02)
@@ -236,8 +237,8 @@ class TestRateLimiting:
 
 # ── Guard veto ───────────────────────────────────────────────────────
 
-class TestGuardVeto:
 
+class TestGuardVeto:
     def test_refusal_reverts(self):
         spec = _make_spec()
         engine = AdaptiveKnmEngine(spec)
@@ -261,8 +262,8 @@ class TestGuardVeto:
 
 # ── Reset ────────────────────────────────────────────────────────────
 
-class TestReset:
 
+class TestReset:
     def test_returns_to_baseline(self):
         spec = _make_spec()
         engine = AdaptiveKnmEngine(spec)
@@ -284,8 +285,8 @@ class TestReset:
 
 # ── Integration ──────────────────────────────────────────────────────
 
-class TestIntegration:
 
+class TestIntegration:
     def test_ten_tick_stable(self):
         spec = _make_spec()
         engine = AdaptiveKnmEngine(spec)
@@ -306,8 +307,8 @@ class TestIntegration:
 
 # ── Hypothesis-style property tests ──────────────────────────────────
 
-class TestHypothesis:
 
+class TestHypothesis:
     @pytest.mark.parametrize("seed", range(10))
     def test_symmetric_under_random(self, seed):
         rng = np.random.default_rng(seed)
@@ -337,8 +338,8 @@ class TestHypothesis:
 
 # ── End-to-end UPDE integration ──────────────────────────────────────
 
-class TestE2E:
 
+class TestE2E:
     def test_50_tick_adaptive_loop(self):
         """Adaptive Knm feeds into UPDE for 50 ticks without divergence."""
         spec = _make_spec()
@@ -354,7 +355,9 @@ class TestE2E:
 
         for t in range(50):
             out = upde.step(
-                theta, omega, psi_driver=0.0,
+                theta,
+                omega,
+                psi_driver=0.0,
                 K_override=engine.K_current,
             )
             theta = out["theta1"]

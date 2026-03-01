@@ -102,11 +102,13 @@ class TestStochasticPetriNet:
         assert traffic_net.W_in.nnz == 3
         W = traffic_net.W_in.toarray()
         # T_r2g reads Red (col 0), T_g2y reads Green (col 1), T_y2r reads Yellow (col 2)
-        expected = np.array([
-            [1.0, 0.0, 0.0],  # T_r2g <- Red
-            [0.0, 1.0, 0.0],  # T_g2y <- Green
-            [0.0, 0.0, 1.0],  # T_y2r <- Yellow
-        ])
+        expected = np.array(
+            [
+                [1.0, 0.0, 0.0],  # T_r2g <- Red
+                [0.0, 1.0, 0.0],  # T_g2y <- Green
+                [0.0, 0.0, 1.0],  # T_y2r <- Yellow
+            ]
+        )
         np.testing.assert_array_equal(W, expected)
 
     def test_W_out_sparsity(self, traffic_net: StochasticPetriNet) -> None:
@@ -114,11 +116,13 @@ class TestStochasticPetriNet:
         assert traffic_net.W_out.nnz == 3
         W = traffic_net.W_out.toarray()
         # T_r2g -> Green (row 1), T_g2y -> Yellow (row 2), T_y2r -> Red (row 0)
-        expected = np.array([
-            [0.0, 0.0, 1.0],  # Red   <- T_y2r
-            [1.0, 0.0, 0.0],  # Green <- T_r2g
-            [0.0, 1.0, 0.0],  # Yellow <- T_g2y
-        ])
+        expected = np.array(
+            [
+                [0.0, 0.0, 1.0],  # Red   <- T_y2r
+                [1.0, 0.0, 0.0],  # Green <- T_r2g
+                [0.0, 1.0, 0.0],  # Yellow <- T_g2y
+            ]
+        )
         np.testing.assert_array_equal(W, expected)
 
     def test_summary(self, traffic_net: StochasticPetriNet) -> None:
@@ -273,9 +277,7 @@ class TestStochasticPetriNet:
         net.add_arc("P1", "T", weight=0.6)
         net.add_arc("T", "P0", weight=1.0)
 
-        with pytest.raises(
-            ValueError, match="input_weight_overflow_transitions"
-        ):
+        with pytest.raises(ValueError, match="input_weight_overflow_transitions"):
             net.compile(strict_validation=True)
 
     def test_inhibitor_arc_requires_opt_in_during_compile(self) -> None:
@@ -299,9 +301,7 @@ class TestStochasticPetriNet:
         net = StochasticPetriNet()
         net.add_place("P", initial_tokens=0.0)
         net.add_transition("T", threshold=0.5)
-        with pytest.raises(
-            ValueError, match="only supported for Place->Transition"
-        ):
+        with pytest.raises(ValueError, match="only supported for Place->Transition"):
             net.add_arc("T", "P", weight=1.0, inhibitor=True)
 
 
@@ -332,9 +332,7 @@ class TestFusionCompiler:
         net.add_arc("T", "P0", weight=1.0)
 
         compiler = FusionCompiler(bitstream_length=128, seed=7)
-        with pytest.raises(
-            ValueError, match="input_weight_overflow_transitions"
-        ):
+        with pytest.raises(ValueError, match="input_weight_overflow_transitions"):
             compiler.compile(net, strict_topology=True)
 
     def test_compile_validate_topology_populates_report(self) -> None:
@@ -378,35 +376,25 @@ class TestFusionCompiler:
         np.testing.assert_array_equal(compiled.transition_delay_ticks, [0, 0, 0])
 
     def test_initial_marking(self, compiled: CompiledNet) -> None:
-        np.testing.assert_array_equal(
-            compiled.initial_marking, [1.0, 0.0, 0.0]
-        )
+        np.testing.assert_array_equal(compiled.initial_marking, [1.0, 0.0, 0.0])
 
-    @pytest.mark.skipif(
-        not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed"
-    )
+    @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_neurons_count(self, compiled: CompiledNet) -> None:
         assert len(compiled.neurons) == 3
 
-    @pytest.mark.skipif(
-        not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed"
-    )
+    @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_neuron_thresholds(self, compiled: CompiledNet) -> None:
         for neuron in compiled.neurons:
             assert neuron.v_threshold == 0.5
 
-    @pytest.mark.skipif(
-        not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed"
-    )
+    @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_neuron_no_leak(self, compiled: CompiledNet) -> None:
         """tau_mem=1e6 means effectively no leak."""
         for neuron in compiled.neurons:
             assert neuron.tau_mem == 1e6
             assert neuron.noise_std == 0.0
 
-    @pytest.mark.skipif(
-        not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed"
-    )
+    @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_custom_lif_runtime_parameters(self, traffic_net: StochasticPetriNet) -> None:
         compiler = FusionCompiler(
             bitstream_length=128,
@@ -458,9 +446,7 @@ class TestFusionCompiler:
         with pytest.raises(ValueError, match="runtime_backend"):
             FusionCompiler.traceable_runtime_kwargs(runtime_backend="cuda")
 
-    @pytest.mark.skipif(
-        not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed"
-    )
+    @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_packed_weight_shapes(self, compiled: CompiledNet) -> None:
         n_words = int(np.ceil(1024 / 64))  # 16
         assert compiled.W_in_packed.shape == (3, 3, n_words)
@@ -487,12 +473,8 @@ class TestFusionCompiler:
         fired = compiled.lif_fire(currents)
         np.testing.assert_array_equal(fired, [0, 0, 0])
 
-    @pytest.mark.skipif(
-        not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed"
-    )
-    def test_dense_forward_stochastic_high_activation(
-        self, compiled: CompiledNet
-    ) -> None:
+    @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
+    def test_dense_forward_stochastic_high_activation(self, compiled: CompiledNet) -> None:
         """Marking [1.0, 0.0, 0.0] through W_in → T_r2g should be ~1.0."""
         marking = np.array([1.0, 0.0, 0.0])
         activations = compiled.dense_forward(compiled.W_in_packed, marking)
@@ -501,16 +483,12 @@ class TestFusionCompiler:
         assert activations[1] < 0.2, f"Expected ~0.0, got {activations[1]}"
         assert activations[2] < 0.2, f"Expected ~0.0, got {activations[2]}"
 
-    @pytest.mark.skipif(
-        not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed"
-    )
+    @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_stochastic_matches_float(self, compiled: CompiledNet) -> None:
         """Stochastic path should approximate float path within tolerance."""
         marking = np.array([0.8, 0.3, 0.0])
         float_result = compiled.dense_forward_float(compiled.W_in, marking)
-        stochastic_result = compiled.dense_forward(
-            compiled.W_in_packed, marking
-        )
+        stochastic_result = compiled.dense_forward(compiled.W_in_packed, marking)
         np.testing.assert_allclose(
             stochastic_result,
             float_result,
@@ -547,17 +525,13 @@ class TestCyclicFlow:
 
         for _ in range(10):
             # Phase 1: compute which transitions fire
-            activations = compiled.dense_forward_float(
-                compiled.W_in, marking
-            )
+            activations = compiled.dense_forward_float(compiled.W_in, marking)
             fired = compiled.lif_fire(activations)
             fired_float = fired.astype(np.float64)
 
             # Phase 2: update marking
             consumption = compiled.W_in.T @ fired_float
-            production = compiled.dense_forward_float(
-                compiled.W_out, fired_float
-            )
+            production = compiled.dense_forward_float(compiled.W_out, fired_float)
             marking = marking - consumption + production
             marking = np.clip(marking, 0.0, 1.0)
             history.append(marking.copy())
@@ -577,9 +551,7 @@ class TestCyclicFlow:
             [0.0, 1.0, 0.0],  # step 10: Green
         ]
 
-        for step, (actual, expected) in enumerate(
-            zip(history, expected_cycle)
-        ):
+        for step, (actual, expected) in enumerate(zip(history, expected_cycle)):
             np.testing.assert_allclose(
                 actual,
                 expected,
@@ -592,22 +564,16 @@ class TestCyclicFlow:
         marking = compiled.initial_marking.copy()
 
         for _ in range(30):
-            activations = compiled.dense_forward_float(
-                compiled.W_in, marking
-            )
+            activations = compiled.dense_forward_float(compiled.W_in, marking)
             fired = compiled.lif_fire(activations)
             fired_float = fired.astype(np.float64)
 
             consumption = compiled.W_in.T @ fired_float
-            production = compiled.dense_forward_float(
-                compiled.W_out, fired_float
-            )
+            production = compiled.dense_forward_float(compiled.W_out, fired_float)
             marking = marking - consumption + production
             marking = np.clip(marking, 0.0, 1.0)
 
-            assert abs(marking.sum() - 1.0) < 1e-10, (
-                f"Token mass {marking.sum()} != 1.0"
-            )
+            assert abs(marking.sum() - 1.0) < 1e-10, f"Token mass {marking.sum()} != 1.0"
 
     def test_summary_string(self, compiled: CompiledNet) -> None:
         s = compiled.summary()
@@ -689,17 +655,20 @@ class TestDenseForwardFloat:
 class TestResolveGitSha:
     def test_env_override(self, monkeypatch) -> None:
         from scpn_control.scpn.compiler import _resolve_git_sha
+
         monkeypatch.setenv("SCPN_GIT_SHA", "deadbeef1234567")
         assert _resolve_git_sha() == "deadbee"
 
     def test_github_sha_override(self, monkeypatch) -> None:
         from scpn_control.scpn.compiler import _resolve_git_sha
+
         monkeypatch.delenv("SCPN_GIT_SHA", raising=False)
         monkeypatch.setenv("GITHUB_SHA", "abcdef0123456789")
         assert _resolve_git_sha() == "abcdef0"
 
     def test_fallback_not_empty(self, monkeypatch) -> None:
         from scpn_control.scpn.compiler import _resolve_git_sha
+
         monkeypatch.delenv("SCPN_GIT_SHA", raising=False)
         monkeypatch.delenv("GITHUB_SHA", raising=False)
         monkeypatch.delenv("CI_COMMIT_SHA", raising=False)

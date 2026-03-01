@@ -47,9 +47,7 @@ class TestSimulation:
         assert len(result.history_density) == result.steps
 
     def test_custom_target(self):
-        result = simulate_iter_density_control(
-            target_density=2.0, initial_density=1.5, steps=300
-        )
+        result = simulate_iter_density_control(target_density=2.0, initial_density=1.5, steps=300)
         assert result.final_abs_error < 0.1
 
     def test_rejects_too_few_steps(self):

@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for DisruptionTransformer forward validation, train_predictor
 save_plot path, and predict_disruption_risk_safe inference failure path."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -58,18 +59,24 @@ class TestDisruptionTransformerForward:
 class TestTrainPredictorPlot:
     def test_train_with_save_plot(self, tmp_path):
         model, info = train_predictor(
-            seq_len=32, n_shots=8, epochs=2,
+            seq_len=32,
+            n_shots=8,
+            epochs=2,
             model_path=str(tmp_path / "model.pth"),
-            seed=0, save_plot=True,
+            seed=0,
+            save_plot=True,
         )
         assert model is not None
         assert info["epochs"] == 2
 
     def test_train_no_save_plot(self, tmp_path):
         model, info = train_predictor(
-            seq_len=32, n_shots=8, epochs=2,
+            seq_len=32,
+            n_shots=8,
+            epochs=2,
             model_path=str(tmp_path / "model.pth"),
-            seed=0, save_plot=False,
+            seed=0,
+            save_plot=False,
         )
         assert model is not None
 
@@ -79,12 +86,18 @@ class TestPredictSafeInferenceFailure:
         """Train a model, then use it via predict_disruption_risk_safe."""
         model_path = str(tmp_path / "safe_test.pth")
         train_predictor(
-            seq_len=32, n_shots=8, epochs=2,
-            model_path=model_path, seed=0, save_plot=False,
+            seq_len=32,
+            n_shots=8,
+            epochs=2,
+            model_path=model_path,
+            seed=0,
+            save_plot=False,
         )
         signal = np.ones(100) * 0.5
         risk, meta = predict_disruption_risk_safe(
-            signal, model_path=model_path, seq_len=32,
+            signal,
+            model_path=model_path,
+            seq_len=32,
         )
         assert 0.0 <= risk <= 1.0
         assert meta["mode"] in ("checkpoint", "fallback")

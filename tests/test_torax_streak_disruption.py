@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for streak_high_risk >= 3 disruption break (213, 217-218)."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -19,7 +20,9 @@ class TestStreakHighRiskDisruption:
             return_value=0.99,
         ):
             result = run_nstxu_torax_hybrid_campaign(
-                episodes=2, steps_per_episode=32, seed=42,
+                episodes=2,
+                steps_per_episode=32,
+                seed=42,
             )
 
         assert result.disruption_avoidance_rate < 1.0

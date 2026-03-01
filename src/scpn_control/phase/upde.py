@@ -37,6 +37,7 @@ FloatArray = NDArray[np.float64]
 @dataclass
 class UPDESystem:
     """Multi-layer UPDE driven by a KnmSpec."""
+
     spec: KnmSpec
     dt: float = 1e-3
     psi_mode: str = "external"
@@ -125,14 +126,10 @@ class UPDESystem:
             theta1.append(th_next)
             dtheta_all.append(dth)
 
-        R_global, Psi_r_global = order_parameter(
-            np.concatenate([np.asarray(t).ravel() for t in theta_layers])
-        )
+        R_global, Psi_r_global = order_parameter(np.concatenate([np.asarray(t).ravel() for t in theta_layers]))
 
         # Per-layer Lyapunov V_m(t) = (1/N_m) Σ (1 − cos(θ_{m,i} − Ψ))
-        V_layer = np.array([
-            lyapunov_v(theta1[m], Psi_global) for m in range(L)
-        ])
+        V_layer = np.array([lyapunov_v(theta1[m], Psi_global) for m in range(L)])
         V_global = lyapunov_v(
             np.concatenate([np.asarray(t).ravel() for t in theta1]),
             Psi_global,
@@ -167,7 +164,8 @@ class UPDESystem:
 
         for _ in range(n_steps):
             out = self.step(
-                current, omega_layers,
+                current,
+                omega_layers,
                 psi_driver=psi_driver,
                 actuation_gain=actuation_gain,
                 pac_gamma=pac_gamma,
@@ -207,7 +205,8 @@ class UPDESystem:
 
         for _ in range(n_steps):
             out = self.step(
-                current, omega_layers,
+                current,
+                omega_layers,
                 psi_driver=psi_driver,
                 actuation_gain=actuation_gain,
                 pac_gamma=pac_gamma,
@@ -223,9 +222,7 @@ class UPDESystem:
         V_global_arr = np.array(V_global_hist)  # (n_steps,)
 
         L = V_layer_arr.shape[1]
-        lambda_layer = np.array([
-            lyapunov_exponent(V_layer_arr[:, m].tolist(), self.dt) for m in range(L)
-        ])
+        lambda_layer = np.array([lyapunov_exponent(V_layer_arr[:, m].tolist(), self.dt) for m in range(L)])
         lambda_global = lyapunov_exponent(V_global_arr.tolist(), self.dt)
 
         return {

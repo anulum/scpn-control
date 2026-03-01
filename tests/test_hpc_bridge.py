@@ -394,6 +394,7 @@ def test_solve_rejects_empty_input() -> None:
 
 def test_require_c_contiguous_f64_wrong_dtype() -> None:
     from scpn_control.core.hpc_bridge import _require_c_contiguous_f64
+
     arr = np.zeros((3, 2), dtype=np.float32)
     with pytest.raises(ValueError, match="dtype float64"):
         _require_c_contiguous_f64(arr, (3, 2), "test")
@@ -401,6 +402,7 @@ def test_require_c_contiguous_f64_wrong_dtype() -> None:
 
 def test_sanitize_convergence_params_valid() -> None:
     from scpn_control.core.hpc_bridge import _sanitize_convergence_params
+
     iters, tol, omega = _sanitize_convergence_params(100, 1e-6, 1.5)
     assert iters == 100
     assert abs(tol - 1e-6) < 1e-12

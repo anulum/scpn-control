@@ -15,6 +15,7 @@ from typing import Any, Callable, Dict, Optional
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -112,17 +113,11 @@ class SpikingControllerPool:
         if SC_NEUROCORE_AVAILABLE:
             self.backend = "sc_neurocore"
             self.q_source = (
-                QuantumEntropySource(n_qubits=4)
-                if self.use_quantum and QuantumEntropySource is not None
-                else None
+                QuantumEntropySource(n_qubits=4) if self.use_quantum and QuantumEntropySource is not None else None
             )
-            self.pop_pos = [
-                StochasticLIFNeuron(seed=i, entropy_source=self.q_source)
-                for i in range(self.n_neurons)
-            ]
+            self.pop_pos = [StochasticLIFNeuron(seed=i, entropy_source=self.q_source) for i in range(self.n_neurons)]
             self.pop_neg = [
-                StochasticLIFNeuron(seed=i + 1000, entropy_source=self.q_source)
-                for i in range(self.n_neurons)
+                StochasticLIFNeuron(seed=i + 1000, entropy_source=self.q_source) for i in range(self.n_neurons)
             ]
             self._v_pos = None
             self._v_neg = None
@@ -135,9 +130,7 @@ class SpikingControllerPool:
             return
 
         if not allow_numpy_fallback:
-            raise RuntimeError(
-                "sc-neurocore is unavailable and allow_numpy_fallback=False."
-            )
+            raise RuntimeError("sc-neurocore is unavailable and allow_numpy_fallback=False.")
 
         self.backend = "numpy_lif"
         self.q_source = None
@@ -185,22 +178,14 @@ class SpikingControllerPool:
         else:
             assert self._v_pos is not None and self._rng_pos is not None
             assert self._v_neg is not None and self._rng_neg is not None
-            spikes_pos = self._step_numpy_population(
-                self._v_pos, self._rng_pos, self._i_bias + input_pos
-            )
-            spikes_neg = self._step_numpy_population(
-                self._v_neg, self._rng_neg, self._i_bias + input_neg
-            )
+            spikes_pos = self._step_numpy_population(self._v_pos, self._rng_pos, self._i_bias + input_pos)
+            spikes_neg = self._step_numpy_population(self._v_neg, self._rng_neg, self._i_bias + input_neg)
 
         self.history_pos.append(spikes_pos)
         self.history_neg.append(spikes_neg)
 
-        self.last_rate_pos = float(
-            sum(self.history_pos) / (self.window_size * self.n_neurons)
-        )
-        self.last_rate_neg = float(
-            sum(self.history_neg) / (self.window_size * self.n_neurons)
-        )
+        self.last_rate_pos = float(sum(self.history_pos) / (self.window_size * self.n_neurons))
+        self.last_rate_neg = float(sum(self.history_neg) / (self.window_size * self.n_neurons))
         return float((self.last_rate_pos - self.last_rate_neg) * self.gain)
 
 
@@ -344,9 +329,7 @@ class NeuroCyberneticController:
             self.history["Err_Z"].append(float(err_z))
             self.history["Control_R"].append(ctrl_r)
             self.history["Control_Z"].append(ctrl_z)
-            self.history["Spike_Rates"].append(
-                float(self.brain_R.last_rate_pos - self.brain_R.last_rate_neg)
-            )
+            self.history["Spike_Rates"].append(float(self.brain_R.last_rate_pos - self.brain_R.last_rate_neg))
 
             if verbose:
                 print(
@@ -412,11 +395,7 @@ class NeuroCyberneticController:
         ax2.set_xlabel("Time Step")
         ax2.legend()
 
-        filename = (
-            output_path
-            if output_path is not None
-            else f"{title.replace(' ', '_')}_Result.png"
-        )
+        filename = output_path if output_path is not None else f"{title.replace(' ', '_')}_Result.png"
         plt.tight_layout()
         plt.savefig(filename)
         plt.close(fig)
@@ -444,12 +423,8 @@ def run_neuro_cybernetic_control(
         kernel_factory=kernel_factory,
     )
     if quantum:
-        return controller.run_quantum_shot(
-            save_plot=save_plot, verbose=verbose, output_path=output_path
-        )
-    return controller.run_shot(
-        save_plot=save_plot, verbose=verbose, output_path=output_path
-    )
+        return controller.run_quantum_shot(save_plot=save_plot, verbose=verbose, output_path=output_path)
+    return controller.run_shot(save_plot=save_plot, verbose=verbose, output_path=output_path)
 
 
 if __name__ == "__main__":

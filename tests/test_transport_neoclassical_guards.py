@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for _evolve_species no multi-ion (877),
 confinement_time P_loss<=0 (1179)."""
+
 from __future__ import annotations
 
 import json
@@ -34,9 +35,9 @@ def solver(tmp_path: Path) -> TransportSolver:
     cfg = tmp_path / "cfg.json"
     cfg.write_text(json.dumps(MINIMAL_CONFIG), encoding="utf-8")
     ts = TransportSolver(str(cfg), multi_ion=False)
-    ts.Ti = 5.0 * (1 - ts.rho ** 2)
-    ts.Te = 5.0 * (1 - ts.rho ** 2)
-    ts.ne = 8.0 * (1 - ts.rho ** 2) ** 0.5
+    ts.Ti = 5.0 * (1 - ts.rho**2)
+    ts.Te = 5.0 * (1 - ts.rho**2)
+    ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
     return ts
 
 

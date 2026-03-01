@@ -10,6 +10,7 @@
 - halo_re_physics.py edge cases (dreicer NaN guard, ensemble verbose)
 - tokamak_digital_twin.py run_digital_twin_ids
 """
+
 from __future__ import annotations
 
 import json
@@ -157,7 +158,9 @@ class TestWSPhaseStreamServeSync:
     def test_main_help_exits(self):
         result = subprocess.run(
             [sys.executable, "-m", "scpn_control.phase.ws_phase_stream", "--help"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         assert result.returncode == 0
         assert "port" in result.stdout
@@ -166,6 +169,7 @@ class TestWSPhaseStreamServeSync:
 class TestHaloEdgeCases:
     def test_dreicer_nan_guard(self):
         from scpn_control.control.halo_re_physics import RunawayElectronModel
+
         model = RunawayElectronModel(n_e=1e20, T_e_keV=0.001, z_eff=2.0)
         assert model._dreicer_rate(E=float("nan"), T_e_keV=1.0) == 0.0
         assert model._dreicer_rate(E=0.0, T_e_keV=1.0) == 0.0
@@ -176,22 +180,28 @@ class TestHaloEdgeCases:
 
     def test_simulate_re_extreme_params(self):
         from scpn_control.control.halo_re_physics import RunawayElectronModel
+
         model = RunawayElectronModel(n_e=5e20, T_e_keV=0.1, z_eff=5.0, neon_mol=0.5)
         result = model.simulate(
-            plasma_current_ma=15.0, tau_cq_s=0.01,
-            T_e_quench_keV=0.5, duration_s=0.05, dt_s=0.001,
+            plasma_current_ma=15.0,
+            tau_cq_s=0.01,
+            T_e_quench_keV=0.5,
+            duration_s=0.05,
+            dt_s=0.001,
         )
         assert result.peak_re_current_ma >= 0.0
         assert np.isfinite(result.avalanche_gain)
 
     def test_run_disruption_ensemble(self):
         from scpn_control.control.halo_re_physics import run_disruption_ensemble
+
         result = run_disruption_ensemble(ensemble_runs=3, seed=42, verbose=False)
         assert result.prevention_rate >= 0.0
         assert len(result.per_run_details) == 3
 
     def test_run_disruption_ensemble_verbose(self, capsys):
         from scpn_control.control.halo_re_physics import run_disruption_ensemble
+
         run_disruption_ensemble(ensemble_runs=2, seed=7, verbose=True)
         captured = capsys.readouterr()
         assert "Run" in captured.out

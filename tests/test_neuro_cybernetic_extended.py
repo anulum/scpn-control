@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Tests for _resolve_fusion_kernel, save_plot error path, and edge cases."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -75,7 +76,10 @@ class TestSpikingPoolEdgeCases:
 class TestNeuroCyberneticControllerSavePlotError:
     def test_save_plot_error_captured_in_summary(self, monkeypatch):
         nc = NeuroCyberneticController(
-            "dummy.json", seed=42, shot_duration=5, kernel_factory=_DummyKernel,
+            "dummy.json",
+            seed=42,
+            shot_duration=5,
+            kernel_factory=_DummyKernel,
         )
         nc.initialize_brains(use_quantum=False)
 
@@ -84,14 +88,21 @@ class TestNeuroCyberneticControllerSavePlotError:
 
         monkeypatch.setattr(nc, "visualize", _bad_visualize)
         summary = nc._execute_simulation(
-            "Test", mode="classical", save_plot=True, verbose=False, output_path=None,
+            "Test",
+            mode="classical",
+            save_plot=True,
+            verbose=False,
+            output_path=None,
         )
         assert summary["plot_saved"] is False
         assert "matplotlib not available" in summary["plot_error"]
 
     def test_save_plot_error_with_verbose(self, monkeypatch, capsys):
         nc = NeuroCyberneticController(
-            "dummy.json", seed=42, shot_duration=3, kernel_factory=_DummyKernel,
+            "dummy.json",
+            seed=42,
+            shot_duration=3,
+            kernel_factory=_DummyKernel,
         )
         nc.initialize_brains(use_quantum=False)
 
@@ -100,7 +111,11 @@ class TestNeuroCyberneticControllerSavePlotError:
 
         monkeypatch.setattr(nc, "visualize", _bad_visualize)
         nc._execute_simulation(
-            "Test", mode="classical", save_plot=True, verbose=True, output_path=None,
+            "Test",
+            mode="classical",
+            save_plot=True,
+            verbose=True,
+            output_path=None,
         )
         out = capsys.readouterr().out
         assert "Plot export skipped" in out
@@ -137,7 +152,10 @@ class TestRunFunctionOutputPath:
 class TestControllerResetHistory:
     def test_reset_history_called_per_shot(self):
         nc = NeuroCyberneticController(
-            "dummy.json", seed=42, shot_duration=10, kernel_factory=_DummyKernel,
+            "dummy.json",
+            seed=42,
+            shot_duration=10,
+            kernel_factory=_DummyKernel,
         )
         nc.run_shot(save_plot=False, verbose=False)
         first_len = len(nc.history["t"])

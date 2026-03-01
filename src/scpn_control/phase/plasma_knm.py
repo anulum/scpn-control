@@ -88,19 +88,23 @@ PLASMA_LAYER_NAMES: tuple[str, ...] = (
 #
 # We log-normalise to [0.1, 10.0] for numerical stability in the
 # Kuramoto integrator (absolute timescale is handled by dt).
-OMEGA_PLASMA_8 = np.array([
-    8.50,   # P0: micro-turbulence (fastest)
-    5.20,   # P1: zonal flows
-    4.80,   # P2: MHD / tearing modes
-    3.10,   # P3: sawtooth / ELM cycles
-    2.40,   # P4: transport barrier dynamics
-    0.85,   # P5: current profile evolution
-    0.72,   # P6: global equilibrium
-    0.18,   # P7: plasma-wall interaction (slowest)
-], dtype=np.float64)
+OMEGA_PLASMA_8 = np.array(
+    [
+        8.50,  # P0: micro-turbulence (fastest)
+        5.20,  # P1: zonal flows
+        4.80,  # P2: MHD / tearing modes
+        3.10,  # P3: sawtooth / ELM cycles
+        2.40,  # P4: transport barrier dynamics
+        0.85,  # P5: current profile evolution
+        0.72,  # P6: global equilibrium
+        0.18,  # P7: plasma-wall interaction (slowest)
+    ],
+    dtype=np.float64,
+)
 
 
 # ── Coupling matrix builders ────────────────────────────────────────
+
 
 def _base_plasma_knm(L: int = 8, K_base: float = 0.30) -> NDArray[np.float64]:
     """Distance-decay baseline with plasma-specific physics overlays.
@@ -222,9 +226,7 @@ def build_knm_plasma(
         Ready for UPDESystem consumption.
     """
     if mode not in _VALID_MODES:
-        raise ValueError(
-            f"Unknown plasma mode {mode!r}; choose from {sorted(_VALID_MODES)}"
-        )
+        raise ValueError(f"Unknown plasma mode {mode!r}; choose from {sorted(_VALID_MODES)}")
 
     K = _base_plasma_knm(L, K_base)
     _apply_physics_couplings(K)
@@ -298,16 +300,19 @@ def build_knm_plasma_from_config(
     mode, L, zeta_uniform : same as build_knm_plasma
     """
     # β_proxy ~ p / (B^2/2μ0) ∝ n·T / B^2; T ∝ a·B via confinement
-    beta_proxy = n_e * a / max(B0 ** 2, 1e-6)
+    beta_proxy = n_e * a / max(B0**2, 1e-6)
     K_base = 0.30 * (1.0 + 0.5 * np.clip(beta_proxy, 0.0, 2.0))
 
     # q_cyl ≈ 5 a² B0 / (R0 Ip) — used to detect low-q (sawtooth-prone)
-    q_cyl = 5.0 * a ** 2 * B0 / max(R0 * Ip, 1e-6)
+    q_cyl = 5.0 * a**2 * B0 / max(R0 * Ip, 1e-6)
 
     auto_mode = mode
     if mode == "baseline" and q_cyl < 1.0:
         auto_mode = "sawtooth"
 
     return build_knm_plasma(
-        mode=auto_mode, L=L, K_base=K_base, zeta_uniform=zeta_uniform,
+        mode=auto_mode,
+        L=L,
+        K_base=K_base,
+        zeta_uniform=zeta_uniform,
     )

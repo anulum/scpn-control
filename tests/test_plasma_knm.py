@@ -21,8 +21,8 @@ from scpn_control.phase.upde import UPDESystem
 
 # ── Matrix invariants ───────────────────────────────────────────────
 
-class TestPlasmaKnmInvariants:
 
+class TestPlasmaKnmInvariants:
     @pytest.mark.parametrize("mode", ["baseline", "elm", "ntm", "sawtooth", "hybrid"])
     def test_symmetric(self, mode):
         spec = build_knm_plasma(mode=mode)
@@ -63,8 +63,8 @@ class TestPlasmaKnmInvariants:
 
 # ── Physics coupling values ─────────────────────────────────────────
 
-class TestPhysicsCouplings:
 
+class TestPhysicsCouplings:
     def test_micro_zonal_coupling(self):
         """Diamond 2005: drift-wave / zonal-flow predator-prey."""
         spec = build_knm_plasma()
@@ -109,8 +109,8 @@ class TestPhysicsCouplings:
 
 # ── Mode biases ─────────────────────────────────────────────────────
 
-class TestModeBias:
 
+class TestModeBias:
     def test_elm_mode_amplifies_sawtooth_transport(self):
         base = build_knm_plasma(mode="baseline")
         elm = build_knm_plasma(mode="elm")
@@ -141,8 +141,8 @@ class TestModeBias:
 
 # ── Custom overrides ────────────────────────────────────────────────
 
-class TestCustomOverrides:
 
+class TestCustomOverrides:
     def test_override_applies(self):
         spec = build_knm_plasma(custom_overrides={(0, 7): 0.99})
         K = np.asarray(spec.K)
@@ -156,8 +156,8 @@ class TestCustomOverrides:
 
 # ── Zeta / global driver ───────────────────────────────────────────
 
-class TestZeta:
 
+class TestZeta:
     def test_zeta_none_default(self):
         spec = build_knm_plasma()
         assert spec.zeta is None
@@ -170,8 +170,8 @@ class TestZeta:
 
 # ── Omega frequencies ──────────────────────────────────────────────
 
-class TestPlasmaOmega:
 
+class TestPlasmaOmega:
     def test_omega_8(self):
         w = plasma_omega(8)
         assert w.shape == (8,)
@@ -198,11 +198,15 @@ class TestPlasmaOmega:
 
 # ── Config-based builder ───────────────────────────────────────────
 
-class TestBuildFromConfig:
 
+class TestBuildFromConfig:
     def test_iter_baseline(self):
         spec = build_knm_plasma_from_config(
-            R0=6.2, a=2.0, B0=5.3, Ip=15.0, n_e=10.1,
+            R0=6.2,
+            a=2.0,
+            B0=5.3,
+            Ip=15.0,
+            n_e=10.1,
         )
         assert spec.L == 8
         K = np.asarray(spec.K)
@@ -211,16 +215,28 @@ class TestBuildFromConfig:
 
     def test_sparc_baseline(self):
         spec = build_knm_plasma_from_config(
-            R0=1.85, a=0.57, B0=12.2, Ip=8.7, n_e=30.0,
+            R0=1.85,
+            a=0.57,
+            B0=12.2,
+            Ip=8.7,
+            n_e=30.0,
         )
         assert spec.L == 8
 
     def test_high_beta_stronger_coupling(self):
         low_beta = build_knm_plasma_from_config(
-            R0=6.2, a=2.0, B0=10.0, Ip=15.0, n_e=3.0,
+            R0=6.2,
+            a=2.0,
+            B0=10.0,
+            Ip=15.0,
+            n_e=3.0,
         )
         high_beta = build_knm_plasma_from_config(
-            R0=6.2, a=2.0, B0=2.0, Ip=15.0, n_e=20.0,
+            R0=6.2,
+            a=2.0,
+            B0=2.0,
+            Ip=15.0,
+            n_e=20.0,
         )
         assert np.asarray(high_beta.K).sum() > np.asarray(low_beta.K).sum()
 
@@ -229,7 +245,11 @@ class TestBuildFromConfig:
         # q_cyl = 5 * a² * B0 / (R0 * Ip)
         # With a=0.5, B0=1.0, R0=6.0, Ip=5.0 → q_cyl ≈ 0.42
         spec = build_knm_plasma_from_config(
-            R0=6.0, a=0.5, B0=1.0, Ip=5.0, n_e=5.0,
+            R0=6.0,
+            a=0.5,
+            B0=1.0,
+            Ip=5.0,
+            n_e=5.0,
         )
         # Sawtooth-current coupling (P3↔P5) should be amplified
         K = np.asarray(spec.K)
@@ -240,8 +260,8 @@ class TestBuildFromConfig:
 
 # ── UPDE integration ───────────────────────────────────────────────
 
-class TestUPDEIntegration:
 
+class TestUPDEIntegration:
     def test_plasma_knm_drives_upde(self):
         """Plasma Knm plugs into UPDESystem and produces valid output."""
         spec = build_knm_plasma(mode="baseline", zeta_uniform=0.3)
@@ -251,10 +271,7 @@ class TestUPDEIntegration:
         N_osc = 16
         theta = [rng.uniform(-np.pi, np.pi, N_osc) for _ in range(L)]
         omega_base = plasma_omega(L)
-        omega = [
-            omega_base[m] + rng.normal(0, 0.1, N_osc)
-            for m in range(L)
-        ]
+        omega = [omega_base[m] + rng.normal(0, 0.1, N_osc) for m in range(L)]
         out = upde.step(theta, omega, psi_driver=0.0)
         assert 0.0 <= out["R_global"] <= 1.0 + 1e-12
         assert len(out["theta1"]) == L
@@ -269,10 +286,7 @@ class TestUPDEIntegration:
         N_osc = 32
         theta = [rng.uniform(-np.pi, np.pi, N_osc) for _ in range(L)]
         omega_base = plasma_omega(L)
-        omega = [
-            omega_base[m] + rng.normal(0, 0.05, N_osc)
-            for m in range(L)
-        ]
+        omega = [omega_base[m] + rng.normal(0, 0.05, N_osc) for m in range(L)]
         result = upde.run(200, theta, omega, psi_driver=0.0)
         R_hist = result["R_global_hist"]
         # Should not blow up
@@ -289,10 +303,7 @@ class TestUPDEIntegration:
         N_osc = 20
         theta = [rng.uniform(-np.pi, np.pi, N_osc) for _ in range(L)]
         omega_base = plasma_omega(L)
-        omega = [
-            omega_base[m] + rng.normal(0, 0.1, N_osc)
-            for m in range(L)
-        ]
+        omega = [omega_base[m] + rng.normal(0, 0.1, N_osc) for m in range(L)]
         result = upde.run_lyapunov(100, theta, omega, psi_driver=0.0)
         assert result["V_layer_hist"].shape == (100, L)
         assert np.all(np.isfinite(result["V_global_hist"]))
@@ -312,6 +323,7 @@ class TestUPDEIntegration:
 
 
 # ── Hypothesis property tests ──────────────────────────────────────
+
 
 @given(
     L=st.integers(min_value=2, max_value=8),
@@ -337,8 +349,8 @@ def test_plasma_knm_always_nonneg(L, K_base):
 
 # ── Constants ───────────────────────────────────────────────────────
 
-class TestConstants:
 
+class TestConstants:
     def test_omega_shape(self):
         assert OMEGA_PLASMA_8.shape == (8,)
 

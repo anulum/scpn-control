@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, Tuple
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -274,11 +275,7 @@ def run_advanced_learning_sim(
     if not np.isfinite(shear_step) or shear_step < 0.0:
         raise ValueError("shear_step must be finite and >= 0.")
     noise_probability = float(noise_probability)
-    if (
-        not np.isfinite(noise_probability)
-        or noise_probability < 0.0
-        or noise_probability > 1.0
-    ):
+    if not np.isfinite(noise_probability) or noise_probability < 0.0 or noise_probability > 1.0:
         raise ValueError("noise_probability must be finite and in [0, 1].")
     rng = np.random.default_rng(int(seed))
 

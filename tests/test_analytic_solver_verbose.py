@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for _log verbose path (46) and dR <= 0 guard (107)."""
+
 from __future__ import annotations
 
 import numpy as np

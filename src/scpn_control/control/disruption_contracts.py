@@ -105,9 +105,7 @@ def mcnp_lite_tbr(
 ) -> tuple[float, float]:
     base_tbr = require_positive_float("base_tbr", base_tbr)
     li6_enrichment = require_finite_float("li6_enrichment", li6_enrichment)
-    be_multiplier_fraction = require_finite_float(
-        "be_multiplier_fraction", be_multiplier_fraction
-    )
+    be_multiplier_fraction = require_finite_float("be_multiplier_fraction", be_multiplier_fraction)
     reflector_albedo = require_finite_float("reflector_albedo", reflector_albedo)
     factor = float(
         1.15
@@ -156,9 +154,7 @@ def impurity_transport_response(
         )
     )
     rad_mw = float(
-        (24.0 + 95.0 * weighted)
-        * (1.0 + 0.15 * disturbance)
-        * (1.0 + 0.035 * max(cocktail_zeff - 1.0, 0.0))
+        (24.0 + 95.0 * weighted) * (1.0 + 0.15 * disturbance) * (1.0 + 0.035 * max(cocktail_zeff - 1.0, 0.0))
     )
     return {
         "zeff_eff": zeff_eff,
@@ -204,13 +200,7 @@ def post_disruption_halo_runaway(
         # Rosenbluth & Putvinski, Nucl. Fusion 37, 1355 (1997): avalanche multiplication
         runaway = max(
             0.0,
-            runaway
-            + dt
-            * (
-                0.22 * re_source
-                + 0.48 * runaway * max(e_norm - 0.6, 0.0)
-                - impurity_damping * runaway
-            ),
+            runaway + dt * (0.22 * re_source + 0.48 * runaway * max(e_norm - 0.6, 0.0) - impurity_damping * runaway),
         )
         halo_hist.append(float(halo))
         re_hist.append(float(runaway))
@@ -273,14 +263,10 @@ def run_disruption_episode(
     )
     tau_cq_s = float(spi_diag["tau_cq_ms_mean"]) * 1e-3
     final_current_ma = float(spi_diag["final_current_MA"])
-    quench_fraction = float(
-        np.clip((pre_current_ma - final_current_ma) / pre_current_ma, 0.0, 1.0)
-    )
+    quench_fraction = float(np.clip((pre_current_ma - final_current_ma) / pre_current_ma, 0.0, 1.0))
     mitigation_strength = float(
         np.clip(
-            1.60 * total_impurity_mol
-            + 0.03 * float(spi_diag["z_eff"])
-            + 0.10 * (rl_action_bias + 1.0),
+            1.60 * total_impurity_mol + 0.03 * float(spi_diag["z_eff"]) + 0.10 * (rl_action_bias + 1.0),
             0.08,
             0.95,
         )
@@ -293,9 +279,7 @@ def run_disruption_episode(
         seed_shift=rl_action,
     )
     zeff = float(0.6 * float(spi_diag["z_eff"]) + 0.4 * impurity["zeff_eff"])
-    impurity_radiation_mw = float(
-        impurity["impurity_radiation_mw"] * (0.72 + 0.28 * quench_fraction)
-    )
+    impurity_radiation_mw = float(impurity["impurity_radiation_mw"] * (0.72 + 0.28 * quench_fraction))
     post_dyn = post_disruption_halo_runaway(
         pre_current_ma=pre_current_ma,
         tau_cq_s=tau_cq_s,
@@ -306,20 +290,13 @@ def run_disruption_episode(
     halo_current_ma = float(post_dyn["halo_current_ma"])
     runaway_beam_ma = float(post_dyn["runaway_beam_ma"])
     post_toroidal = {
-        "toroidal_n1_amp": float(
-            max(0.0, toroidal["toroidal_n1_amp"] * (1.0 - 0.75 * mitigation_strength))
-        ),
-        "toroidal_n2_amp": float(
-            max(0.0, toroidal["toroidal_n2_amp"] * (1.0 - 0.70 * mitigation_strength))
-        ),
-        "toroidal_n3_amp": float(
-            max(0.0, toroidal["toroidal_n3_amp"] * (1.0 - 0.65 * mitigation_strength))
-        ),
+        "toroidal_n1_amp": float(max(0.0, toroidal["toroidal_n1_amp"] * (1.0 - 0.75 * mitigation_strength))),
+        "toroidal_n2_amp": float(max(0.0, toroidal["toroidal_n2_amp"] * (1.0 - 0.70 * mitigation_strength))),
+        "toroidal_n3_amp": float(max(0.0, toroidal["toroidal_n3_amp"] * (1.0 - 0.65 * mitigation_strength))),
         "toroidal_asymmetry_index": float(
             max(
                 0.0,
-                toroidal["toroidal_asymmetry_index"]
-                * (1.0 - 0.72 * mitigation_strength),
+                toroidal["toroidal_asymmetry_index"] * (1.0 - 0.72 * mitigation_strength),
             )
         ),
         "toroidal_radial_spread": float(
@@ -332,18 +309,14 @@ def run_disruption_episode(
     post_signal = np.clip(signal * (1.0 - 0.60 * mitigation_strength), 0.01, None)
     risk_after_model = float(
         np.clip(
-            require_finite_float(
-                "risk_after_model", predict_disruption_risk(post_signal, post_toroidal)
-            ),
+            require_finite_float("risk_after_model", predict_disruption_risk(post_signal, post_toroidal)),
             0.0,
             1.0,
         )
     )
     risk_after = float(
         np.clip(
-            0.45 * risk_after_model
-            + 0.55
-            * (risk_before * (1.0 - 0.80 * mitigation_strength) + 0.03 * disturbance),
+            0.45 * risk_after_model + 0.55 * (risk_before * (1.0 - 0.80 * mitigation_strength) + 0.03 * disturbance),
             0.0,
             1.0,
         )
@@ -351,10 +324,7 @@ def run_disruption_episode(
 
     wall_damage_index = float(
         np.clip(
-            0.18 * halo_current_ma
-            + 0.55 * runaway_beam_ma
-            + 5.0e-4 * impurity_radiation_mw
-            + 0.10 * disturbance,
+            0.18 * halo_current_ma + 0.55 * runaway_beam_ma + 5.0e-4 * impurity_radiation_mw + 0.10 * disturbance,
             0.0,
             3.0,
         )
@@ -364,9 +334,7 @@ def run_disruption_episode(
     b_t = float(rng.uniform(9.0, 12.0))
     ip = float(rng.uniform(3.5, 8.0))
     design = explorer.evaluate_design(r_maj, b_t, ip)
-    q_proxy = float(
-        7.5 + 0.10 * np.sqrt(max(float(design["Q"]), 0.0)) * (1.0 - 0.25 * disturbance)
-    )
+    q_proxy = float(7.5 + 0.10 * np.sqrt(max(float(design["Q"]), 0.0)) * (1.0 - 0.25 * disturbance))
     li6_enrichment = float(rng.uniform(0.85, 1.0))
     be_multiplier_fraction = float(rng.uniform(0.35, 0.95))
     reflector_albedo = float(rng.uniform(0.30, 0.90))
@@ -389,9 +357,7 @@ def run_disruption_episode(
         - 1.4 * wall_damage_index
         - 1.1 * risk_after
     )
-    next_state = rl_agent.discretize_state(
-        12.0 * risk_after, 4.0 * max(0.0, disturbance - mitigation_strength)
-    )
+    next_state = rl_agent.discretize_state(12.0 * risk_after, 4.0 * max(0.0, disturbance - mitigation_strength))
     rl_agent.learn(rl_state, rl_action, next_state, reward)
 
     return {
@@ -467,9 +433,7 @@ def run_real_shot_replay(
 
     n_steps = int(time_s.size)
     if window_size > n_steps:
-        raise ValueError(
-            f"window_size must be <= number of samples ({n_steps}), got {window_size}."
-        )
+        raise ValueError(f"window_size must be <= number of samples ({n_steps}), got {window_size}.")
     n1_amp = require_1d_array(
         "shot_data.n1_amp",
         shot_data.get("n1_amp", np.zeros(n_steps, dtype=np.float64)),
@@ -500,9 +464,7 @@ def run_real_shot_replay(
     is_disruption = bool(shot_data.get("is_disruption", False))
     disruption_time_idx = int(shot_data.get("disruption_time_idx", -1))
     if disruption_time_idx >= n_steps:
-        raise ValueError(
-            f"disruption_time_idx must be < number of samples ({n_steps}), got {disruption_time_idx}."
-        )
+        raise ValueError(f"disruption_time_idx must be < number of samples ({n_steps}), got {disruption_time_idx}.")
     if disruption_time_idx < -1:
         raise ValueError("disruption_time_idx must be >= -1.")
 
@@ -523,17 +485,13 @@ def run_real_shot_replay(
             "toroidal_n1_amp": float(np.clip(n1_amp[t], 0, 10)),
             "toroidal_n2_amp": float(np.clip(n2_amp[t], 0, 10)),
             "toroidal_n3_amp": float(np.clip(n3_amp[t], 0, 10)),
-            "toroidal_asymmetry_index": float(
-                np.sqrt(n1_amp[t] ** 2 + n2_amp[t] ** 2 + n3_amp[t] ** 2)
-            ),
+            "toroidal_asymmetry_index": float(np.sqrt(n1_amp[t] ** 2 + n2_amp[t] ** 2 + n3_amp[t] ** 2)),
             "toroidal_radial_spread": float(0.02 + 0.05 * n1_amp[t]),
         }
 
         risk = float(
             np.clip(
-                require_finite_float(
-                    "replay_risk", predict_disruption_risk(signal_window, toroidal)
-                ),
+                require_finite_float("replay_risk", predict_disruption_risk(signal_window, toroidal)),
                 0.0,
                 1.0,
             )
@@ -595,18 +553,14 @@ def run_real_shot_replay(
     detection_lead_ms = -1.0
     if is_disruption and disruption_time_idx > 0 and first_alarm_idx > 0:
         dt_arr = time_s if time_s.size > 0 else np.arange(n_steps) * 0.001
-        detection_lead_ms = float(
-            (dt_arr[disruption_time_idx] - dt_arr[first_alarm_idx]) * 1000
-        )
+        detection_lead_ms = float((dt_arr[disruption_time_idx] - dt_arr[first_alarm_idx]) * 1000)
 
     # Prevention determination
     prevented = False
     if is_disruption:
         if spi_triggered and spi_trigger_idx < disruption_time_idx:
             # SPI triggered before disruption — check if it mitigated
-            post_risk = np.mean(
-                risk_series[spi_trigger_idx : min(spi_trigger_idx + 50, n_steps)]
-            )
+            post_risk = np.mean(risk_series[spi_trigger_idx : min(spi_trigger_idx + 50, n_steps)])
             prevented = bool(post_risk < 0.88 and tau_cq_ms > 0)
     else:
         prevented = not spi_triggered  # For safe shots, not triggering SPI = correct

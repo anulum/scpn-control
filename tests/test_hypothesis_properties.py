@@ -156,9 +156,7 @@ class TestCompilerProperties:
         compiler = FusionCompiler(bitstream_length=1024, seed=42)
         compiled = compiler.compile(net)
 
-        np.testing.assert_array_equal(
-            compiled.initial_marking, net.get_initial_marking()
-        )
+        np.testing.assert_array_equal(compiled.initial_marking, net.get_initial_marking())
 
     @given(petri_net())
     @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])

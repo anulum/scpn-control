@@ -9,6 +9,7 @@ End-to-end tests exercising the full RealtimeMonitor pipeline:
 3. Verify trajectory export (HDF5 + NPZ)
 4. Verify WebSocket server construction
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,13 +22,22 @@ from mock_diiid import generate_mock_shot, save_mock_shot  # via pythonpath=["te
 
 
 class TestMockDIIID:
-
     def test_generate_returns_all_keys(self):
         data = generate_mock_shot()
         expected = {
-            "time_s", "Ip_MA", "BT_T", "beta_N", "q95", "ne_1e19",
-            "n1_amp", "n2_amp", "locked_mode_amp", "dBdt_gauss_per_s",
-            "vertical_position_m", "is_disruption", "disruption_time_idx",
+            "time_s",
+            "Ip_MA",
+            "BT_T",
+            "beta_N",
+            "q95",
+            "ne_1e19",
+            "n1_amp",
+            "n2_amp",
+            "locked_mode_amp",
+            "dBdt_gauss_per_s",
+            "vertical_position_m",
+            "is_disruption",
+            "disruption_time_idx",
             "disruption_type",
         }
         assert set(data.keys()) == expected
@@ -50,14 +60,17 @@ class TestMockDIIID:
 
 
 class TestE2EPhaseSyncWithShot:
-
     def test_shot_driven_monitor(self):
         """Drive RealtimeMonitor with Ψ derived from mock shot beta_N."""
         shot = generate_mock_shot(n_steps=200, disruption=False, seed=7)
         beta_n = shot["beta_N"]
 
         mon = RealtimeMonitor.from_paper27(
-            L=4, N_per=20, dt=5e-3, zeta_uniform=1.0, psi_driver=0.0,
+            L=4,
+            N_per=20,
+            dt=5e-3,
+            zeta_uniform=1.0,
+            psi_driver=0.0,
         )
         for i in range(len(beta_n)):
             # Map beta_N → Ψ ∈ [-π, π]
@@ -74,8 +87,12 @@ class TestE2EPhaseSyncWithShot:
         vpos = shot["vertical_position_m"]
 
         mon = RealtimeMonitor.from_paper27(
-            L=4, N_per=20, dt=5e-3, zeta_uniform=0.5,
-            guard_window=10, guard_max_violations=2,
+            L=4,
+            N_per=20,
+            dt=5e-3,
+            zeta_uniform=0.5,
+            guard_window=10,
+            guard_max_violations=2,
         )
 
         for i in range(len(vpos)):
@@ -88,7 +105,6 @@ class TestE2EPhaseSyncWithShot:
 
 
 class TestTrajectoryExport:
-
     def test_npz_export(self, tmp_path):
         mon = RealtimeMonitor.from_paper27(L=4, N_per=10, zeta_uniform=1.0)
         for _ in range(50):
@@ -131,7 +147,6 @@ class TestTrajectoryExport:
 
 
 class TestWebSocketServer:
-
     def test_server_construction(self):
         from scpn_control.phase.ws_phase_stream import PhaseStreamServer
 

@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for history/pulse validation (428, 430) and
 run_digital_twin with time_steps > 50 (337-338, 365)."""
+
 from __future__ import annotations
 
 import pytest

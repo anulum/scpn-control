@@ -128,9 +128,7 @@ def _resolve_backend_set(backends: list[str] | tuple[str, ...] | None) -> list[s
     for raw in backends:
         name = str(raw).strip().lower()
         if name not in {"numpy", "jax", "torchscript"}:
-            raise ValueError(
-                f"Unsupported backend '{raw}'. Allowed: numpy, jax, torchscript."
-            )
+            raise ValueError(f"Unsupported backend '{raw}'. Allowed: numpy, jax, torchscript.")
         if name not in available:
             raise ValueError(f"Requested backend '{name}' is not available on this host.")
         if name not in seen:
@@ -141,9 +139,7 @@ def _resolve_backend_set(backends: list[str] | tuple[str, ...] | None) -> list[s
     return out
 
 
-def _simulate_numpy(
-    commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec
-) -> FloatArray:
+def _simulate_numpy(commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec) -> FloatArray:
     alpha = float(spec.dt_s / (spec.tau_s + spec.dt_s))
     state = float(initial_state)
     out = np.empty_like(commands, dtype=np.float64)
@@ -154,9 +150,7 @@ def _simulate_numpy(
     return out
 
 
-def _simulate_jax(
-    commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec
-) -> FloatArray:
+def _simulate_jax(commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec) -> FloatArray:
     if not _HAS_JAX:
         raise RuntimeError("JAX backend requested but JAX is not installed.")
     assert jnp is not None
@@ -223,9 +217,7 @@ else:
     _torchscript_rollout_batch = None  # type: ignore[assignment]
 
 
-def _simulate_torchscript(
-    commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec
-) -> FloatArray:
+def _simulate_torchscript(commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec) -> FloatArray:
     if not _HAS_TORCH or _torchscript_rollout is None:
         raise RuntimeError("TorchScript backend requested but torch is not installed.")
     assert torch is not None
@@ -242,9 +234,7 @@ def _simulate_torchscript(
     return np.asarray(hist.detach().cpu().numpy(), dtype=np.float64)
 
 
-def _simulate_numpy_batch(
-    commands: FloatArray, initial_state: FloatArray, spec: TraceableRuntimeSpec
-) -> FloatArray:
+def _simulate_numpy_batch(commands: FloatArray, initial_state: FloatArray, spec: TraceableRuntimeSpec) -> FloatArray:
     alpha = float(spec.dt_s / (spec.tau_s + spec.dt_s))
     state = np.asarray(initial_state, dtype=np.float64).copy()
     out = np.empty_like(commands, dtype=np.float64)
@@ -255,9 +245,7 @@ def _simulate_numpy_batch(
     return out
 
 
-def _simulate_jax_batch(
-    commands: FloatArray, initial_state: FloatArray, spec: TraceableRuntimeSpec
-) -> FloatArray:
+def _simulate_jax_batch(commands: FloatArray, initial_state: FloatArray, spec: TraceableRuntimeSpec) -> FloatArray:
     if not _HAS_JAX:
         raise RuntimeError("JAX backend requested but JAX is not installed.")
     assert jnp is not None
@@ -334,9 +322,7 @@ def run_traceable_control_loop(
 
     if b == "torchscript":
         return TraceableRuntimeResult(
-            state_history=_simulate_torchscript(
-                cmd_arr, float(initial_state), runtime_spec
-            ),
+            state_history=_simulate_torchscript(cmd_arr, float(initial_state), runtime_spec),
             backend_used="torchscript",
             compiled=True,
         )

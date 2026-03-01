@@ -66,8 +66,16 @@ class TrajectoryRecorder:
         self.Psi_global.append(snap["Psi_global"])
 
     def clear(self) -> None:
-        for lst in (self.R_global, self.R_layer, self.V_global, self.V_layer,
-                    self.lambda_exp, self.guard_approved, self.latency_us, self.Psi_global):
+        for lst in (
+            self.R_global,
+            self.R_layer,
+            self.V_global,
+            self.V_layer,
+            self.lambda_exp,
+            self.guard_approved,
+            self.latency_us,
+            self.Psi_global,
+        ):
             lst.clear()
 
     @property
@@ -117,9 +125,12 @@ class RealtimeMonitor:
         omega = [OMEGA_N_16[m % 16] + rng.normal(0, 0.2, N_per) for m in range(L)]
 
         return cls(
-            upde=upde, guard=guard,
-            theta_layers=theta, omega_layers=omega,
-            psi_driver=psi_driver, pac_gamma=pac_gamma,
+            upde=upde,
+            guard=guard,
+            theta_layers=theta,
+            omega_layers=omega,
+            psi_driver=psi_driver,
+            pac_gamma=pac_gamma,
         )
 
     @classmethod
@@ -149,9 +160,12 @@ class RealtimeMonitor:
         omega = [omega_base[m] + rng.normal(0, 0.2, N_per) for m in range(L)]
 
         return cls(
-            upde=upde, guard=guard,
-            theta_layers=theta, omega_layers=omega,
-            psi_driver=psi_driver, pac_gamma=pac_gamma,
+            upde=upde,
+            guard=guard,
+            theta_layers=theta,
+            omega_layers=omega,
+            psi_driver=psi_driver,
+            pac_gamma=pac_gamma,
             adaptive_engine=adaptive_engine,
         )
 
@@ -186,8 +200,10 @@ class RealtimeMonitor:
             K_override = self.adaptive_engine.update(snap_diag)
 
         out = self.upde.step(
-            self.theta_layers, self.omega_layers,
-            psi_driver=self.psi_driver, pac_gamma=self.pac_gamma,
+            self.theta_layers,
+            self.omega_layers,
+            psi_driver=self.psi_driver,
+            pac_gamma=self.pac_gamma,
             K_override=K_override,
         )
         self.theta_layers = out["theta1"]

@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for neural_equilibrium: MLP, PCA, Accelerator, save/load."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -75,8 +76,10 @@ class TestNeuralEquilibriumAccelerator:
         """Build a manually-trained accelerator on synthetic data."""
         rng = np.random.default_rng(42)
         cfg = NeuralEqConfig(
-            n_components=5, hidden_sizes=(16, 8),
-            n_input_features=12, grid_shape=(8, 8),
+            n_components=5,
+            hidden_sizes=(16, 8),
+            n_input_features=12,
+            grid_shape=(8, 8),
         )
         accel = NeuralEquilibriumAccelerator(cfg)
 
@@ -158,8 +161,12 @@ class TestNeuralEquilibriumAccelerator:
 class TestTrainingResult:
     def test_dataclass_fields(self):
         r = TrainingResult(
-            n_samples=100, n_components=20, explained_variance=0.99,
-            final_loss=0.01, train_time_s=5.0, weights_path="/tmp/w.npz",
+            n_samples=100,
+            n_components=20,
+            explained_variance=0.99,
+            final_loss=0.01,
+            train_time_s=5.0,
+            weights_path="/tmp/w.npz",
         )
         assert r.n_samples == 100
         assert np.isnan(r.val_loss)

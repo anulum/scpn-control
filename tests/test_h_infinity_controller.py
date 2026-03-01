@@ -20,6 +20,7 @@ from scpn_control.control.h_infinity_controller import (
 
 # ── Reference plant (canonical vertical stability model) ─────────────
 
+
 def _vertical_stability_plant(
     gamma_v: float = 10.0,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -32,7 +33,7 @@ def _vertical_stability_plant(
     C1 = [[1, 0], [0, 0.01]]  (penalize position + small control)
     C2 = [[1, 0]]  (measure position)
     """
-    A = np.array([[0.0, 1.0], [gamma_v ** 2, 0.0]])
+    A = np.array([[0.0, 1.0], [gamma_v**2, 0.0]])
     B1 = np.array([[0.0], [1.0]])
     B2 = np.array([[0.0], [1.0]])
     C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
@@ -42,8 +43,8 @@ def _vertical_stability_plant(
 
 # ── 1. Controller Synthesis ──────────────────────────────────────────
 
-class TestSynthesis:
 
+class TestSynthesis:
     def test_synthesis_2x2(self) -> None:
         """Synthesize an H-infinity controller for a 2-state vertical stability model."""
         A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
@@ -66,8 +67,8 @@ class TestSynthesis:
 
 # ── 2. Gain Shapes ──────────────────────────────────────────────────
 
-class TestGainShapes:
 
+class TestGainShapes:
     def test_feedback_gain_shape(self) -> None:
         """F matrix shape is (m, n) where m=num controls, n=num states."""
         A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
@@ -98,8 +99,8 @@ class TestGainShapes:
 
 # ── 3. Closed-Loop Stability ─────────────────────────────────────────
 
-class TestClosedLoopStability:
 
+class TestClosedLoopStability:
     def test_closed_loop_stable(self) -> None:
         """Closed loop A_cl = A + B2*F should have all eigenvalues in LHP."""
         A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
@@ -155,8 +156,8 @@ class TestClosedLoopStability:
 
 # ── 4. Gamma and Feasibility ─────────────────────────────────────────
 
-class TestGammaFeasibility:
 
+class TestGammaFeasibility:
     def test_gamma_positive(self) -> None:
         """Synthesized gamma > 0 and > 1."""
         A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
@@ -179,14 +180,14 @@ class TestGammaFeasibility:
     def test_robust_feasible_property(self) -> None:
         """robust_feasible flag should be consistent with spectral radius."""
         ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        expected = ctrl.spectral_radius_xy < ctrl.gamma ** 2
+        expected = ctrl.spectral_radius_xy < ctrl.gamma**2
         assert ctrl.robust_feasible == expected
 
 
 # ── 5. Riccati Residuals ─────────────────────────────────────────────
 
-class TestRiccatiResiduals:
 
+class TestRiccatiResiduals:
     def test_riccati_residual_small(self) -> None:
         """X and Y Riccati solutions should have small residual norms."""
         ctrl = get_radial_robust_controller(gamma_growth=100.0)
@@ -207,8 +208,8 @@ class TestRiccatiResiduals:
 
 # ── 6. Robustness Under Plant Perturbation ───────────────────────────
 
-class TestRobustness:
 
+class TestRobustness:
     def test_perturbed_plant_10_percent(self) -> None:
         """Perturb A by 10%; closed-loop should still be stable."""
         A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
@@ -222,9 +223,7 @@ class TestRobustness:
         A_cl_perturbed = A_perturbed + B2 @ ctrl.F
         eigs = np.linalg.eigvals(A_cl_perturbed)
         # All eigenvalues should still have negative real parts
-        assert np.all(np.real(eigs) < 0), (
-            f"Closed-loop unstable under 10% perturbation: eigs = {eigs}"
-        )
+        assert np.all(np.real(eigs) < 0), f"Closed-loop unstable under 10% perturbation: eigs = {eigs}"
 
     def test_perturbed_plant_simulation(self) -> None:
         """Simulate the controller (state feedback) on a 10% perturbed plant.
@@ -252,8 +251,8 @@ class TestRobustness:
 
 # ── 7. Input Validation ──────────────────────────────────────────────
 
-class TestInputValidation:
 
+class TestInputValidation:
     def test_rejects_invalid_gamma(self) -> None:
         """gamma must be > 1.0 and finite."""
         A, B1, B2, C1, C2 = _vertical_stability_plant()
@@ -298,8 +297,8 @@ class TestInputValidation:
 
 # ── 8. Reset and State Management ────────────────────────────────────
 
-class TestStateManagement:
 
+class TestStateManagement:
     def test_reset_zeros_state(self) -> None:
         """reset() should zero the controller internal state."""
         ctrl = get_radial_robust_controller(gamma_growth=100.0)
@@ -327,8 +326,8 @@ class TestStateManagement:
 
 # ── 9. Enforce Robust Feasibility ────────────────────────────────────
 
-class TestEnforceRobustFeasibility:
 
+class TestEnforceRobustFeasibility:
     def test_strict_mode_rejects_infeasible(self) -> None:
         """enforce_robust_feasibility=True raises on infeasible synthesis."""
         # Pathologically ill-conditioned: huge disturbance, tiny control authority
@@ -353,6 +352,7 @@ class TestEnforceRobustFeasibility:
 
 
 # ── 10. Auto-transpose 1D inputs ────────────────────────────────────
+
 
 class TestAutoTranspose:
     def test_1d_B_inputs_auto_transposed(self) -> None:
@@ -379,6 +379,7 @@ class TestAutoTranspose:
 
 
 # ── 11. Gain margin edge cases ──────────────────────────────────────
+
 
 class TestGainMargin:
     def test_gain_margin_positive(self) -> None:

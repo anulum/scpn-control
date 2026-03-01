@@ -6,6 +6,7 @@
 """Coverage for CoilSet ops: Green's function, mutual inductance,
 coil current optimization, free-boundary solve, interp_psi,
 and Rust multigrid fallback."""
+
 from __future__ import annotations
 
 import json
@@ -63,11 +64,13 @@ def _make_coilset(n_coils: int = 3, with_limits: bool = False, with_targets: boo
     if with_limits:
         cs.current_limits = np.ones(n_coils) * 5e4
     if with_targets:
-        cs.target_flux_points = np.array([
-            [3.5, 0.0],
-            [4.0, 0.5],
-            [4.5, -0.5],
-        ])
+        cs.target_flux_points = np.array(
+            [
+                [3.5, 0.0],
+                [4.0, 0.5],
+                [4.5, -0.5],
+            ]
+        )
     return cs
 
 
@@ -150,8 +153,11 @@ class TestFreeBoundarySolve:
     def test_with_shape_optimization(self, kernel):
         cs = _make_coilset(3, with_limits=True, with_targets=True)
         result = kernel.solve_free_boundary(
-            cs, max_outer_iter=2, tol=1e-2,
-            optimize_shape=True, tikhonov_alpha=1e-3,
+            cs,
+            max_outer_iter=2,
+            tol=1e-2,
+            optimize_shape=True,
+            tikhonov_alpha=1e-3,
         )
         assert "outer_iterations" in result
         assert result["coil_currents"].shape == (3,)
@@ -177,7 +183,9 @@ class TestInterpPsi:
 class TestRustMultigridFallback:
     def test_boundary_constraint_fallback(self, tmp_path):
         cfg = _write_config(
-            tmp_path / "rust.json", grid=(10, 10), max_iter=5,
+            tmp_path / "rust.json",
+            grid=(10, 10),
+            max_iter=5,
             method="rust_multigrid",
         )
         fk = FusionKernel(cfg)
@@ -189,7 +197,9 @@ class TestRustMultigridFallback:
 
     def test_rust_unavailable_fallback(self, tmp_path):
         cfg = _write_config(
-            tmp_path / "rust2.json", grid=(10, 10), max_iter=5,
+            tmp_path / "rust2.json",
+            grid=(10, 10),
+            max_iter=5,
             method="rust_multigrid",
         )
         fk = FusionKernel(cfg)
@@ -200,8 +210,10 @@ class TestRustMultigridFallback:
 class TestSolveEquilibriumMethods:
     def test_anderson_method(self, tmp_path):
         cfg = _write_config(
-            tmp_path / "anderson.json", grid=(10, 10),
-            max_iter=15, method="anderson",
+            tmp_path / "anderson.json",
+            grid=(10, 10),
+            max_iter=15,
+            method="anderson",
         )
         fk = FusionKernel(cfg)
         result = fk.solve_equilibrium()

@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for extract_features missing key (136), non-finite target (144),
 and passthrough non-finite value (157)."""
+
 from __future__ import annotations
 
 import math
@@ -33,8 +34,11 @@ class TestExtractFeaturesNonFinite:
         """Non-finite target raises ValueError (line 144)."""
         axes = [
             FeatureAxisSpec(
-                obs_key="x", target=float("inf"), scale=1.0,
-                pos_key="x_pos", neg_key="x_neg",
+                obs_key="x",
+                target=float("inf"),
+                scale=1.0,
+                pos_key="x_pos",
+                neg_key="x_neg",
             )
         ]
         with pytest.raises(ValueError, match="target must be finite"):
@@ -44,8 +48,11 @@ class TestExtractFeaturesNonFinite:
         """Non-finite scale raises ValueError (line 147)."""
         axes = [
             FeatureAxisSpec(
-                obs_key="x", target=1.0, scale=float("nan"),
-                pos_key="x_pos", neg_key="x_neg",
+                obs_key="x",
+                target=1.0,
+                scale=float("nan"),
+                pos_key="x_pos",
+                neg_key="x_neg",
             )
         ]
         with pytest.raises(ValueError, match="scale must be finite"):

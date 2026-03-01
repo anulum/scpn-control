@@ -9,6 +9,7 @@ import numpy as np
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -20,14 +21,15 @@ try:
         digital_twin_history_to_ids_pulse,
         digital_twin_summary_to_ids,
     )
+
     HAS_IMAS = True
 except ImportError:
     HAS_IMAS = False
 
 # --- HYPER-PARAMETERS ---
-GRID_SIZE = 40        # 40x40 Poloidal Cross-section
-TIME_STEPS = 10000    # Training duration (Increased)
-LEARNING_RATE = 0.0001 # Reduced for stability
+GRID_SIZE = 40  # 40x40 Poloidal Cross-section
+TIME_STEPS = 10000  # Training duration (Increased)
+LEARNING_RATE = 0.0001  # Reduced for stability
 HIDDEN_SIZE = 64
 BATCH_SIZE = 32
 MEMORY_SIZE = 1000
@@ -50,18 +52,19 @@ class TokamakTopoloy:
     Handles the magnetic geometry (Safety Factor q-profile).
     Instabilities occur at 'Rational Surfaces' (q = 2, q = 3, q = 1.5).
     """
+
     def __init__(self, size=GRID_SIZE):
         self.size = size
         # Create coordinate grid (centered)
-        y, x = np.ogrid[-size/2:size/2, -size/2:size/2]
-        self.r_map = np.sqrt(x**2 + y**2) / (size/2) # Normalized radius 0.0-1.0
-        self.mask = self.r_map <= 1.0 # Plasma is only inside the circle
+        y, x = np.ogrid[-size / 2 : size / 2, -size / 2 : size / 2]
+        self.r_map = np.sqrt(x**2 + y**2) / (size / 2)  # Normalized radius 0.0-1.0
+        self.mask = self.r_map <= 1.0  # Plasma is only inside the circle
 
         # Initial q-profile (Safety Factor)
         # q(r) usually rises from ~1.0 at core to ~4.0 at edge
         self.q0 = 1.0
         self.qa = 3.0
-        self.update_q_profile(0.0) # 0.0 = no extra modification
+        self.update_q_profile(0.0)  # 0.0 = no extra modification
 
     def update_q_profile(self, current_drive_action):
         """
@@ -91,13 +94,15 @@ class TokamakTopoloy:
 
         return danger_map
 
+
 class Plasma2D:
     """
     2D Diffusive-Reaction Model on a Poloidal Cross-section.
     """
+
     def __init__(self, topology, gyro_surrogate=None):
         self.topo = topology
-        self.T = np.zeros((GRID_SIZE, GRID_SIZE)) # Temperature Map
+        self.T = np.zeros((GRID_SIZE, GRID_SIZE))  # Temperature Map
         self.T_core_hist = []
         self._gyro_surrogate = gyro_surrogate
 
@@ -118,10 +123,10 @@ class Plasma2D:
         # 3. Diffusion with Topological Instability
         # D = D_base + D_turb (where q is rational)
         D_base = 0.01
-        D_turb = 0.5 # High diffusion in islands
+        D_turb = 0.5  # High diffusion in islands
 
         diffusivity = np.ones_like(self.T) * D_base
-        diffusivity[danger_zones] = D_turb # Islands are leaky!
+        diffusivity[danger_zones] = D_turb  # Islands are leaky!
         if self._gyro_surrogate is not None:
             # Optional reduced gyrokinetic surrogate hook.
             # Must return a multiplicative map with same shape as T.
@@ -130,9 +135,7 @@ class Plasma2D:
                 dtype=float,
             )
             if correction.shape != self.T.shape:
-                raise ValueError(
-                    f"gyro_surrogate correction shape must be {self.T.shape}, got {correction.shape}"
-                )
+                raise ValueError(f"gyro_surrogate correction shape must be {self.T.shape}, got {correction.shape}")
             correction = np.nan_to_num(correction, nan=1.0, posinf=2.0, neginf=0.5)
             np.clip(correction, 0.2, 5.0, out=correction)
             diffusivity *= correction
@@ -143,16 +146,16 @@ class Plasma2D:
         T_left = np.roll(self.T, -1, axis=1)
         T_right = np.roll(self.T, 1, axis=1)
 
-        laplacian = (T_up + T_down + T_left + T_right - 4*self.T)
+        laplacian = T_up + T_down + T_left + T_right - 4 * self.T
 
         # Update T
         # Radiation Loss (Stabilization) - Stefan-Boltzmann-like cooling
-        radiation = 0.0001 * (self.T**2) # Simplified T^2 for numeric stability
+        radiation = 0.0001 * (self.T**2)  # Simplified T^2 for numeric stability
         self.T += diffusivity * laplacian - radiation
 
         # Boundary Condition (Cold Walls)
         self.T[~self.topo.mask] = 0.0
-        self.T = np.clip(self.T, 0, 100.0) # Saturation limit (Physical Ceiling)
+        self.T = np.clip(self.T, 0, 100.0)  # Saturation limit (Physical Ceiling)
 
         # Metrics
         core_temp = self.T[center, center]
@@ -161,11 +164,13 @@ class Plasma2D:
 
         return self.T.flatten(), avg_temp
 
+
 class SimpleNeuralNet:
     """
     A lightweight Multi-Layer Perceptron (MLP) written in numpy.
     Implements a Policy Network for Continuous Control.
     """
+
     def __init__(
         self,
         input_size: int,
@@ -183,9 +188,9 @@ class SimpleNeuralNet:
     def forward(self, x):
         # x shape: (batch, input)
         self.z1 = np.dot(x, self.W1) + self.b1
-        self.a1 = np.tanh(self.z1) # Activation
+        self.a1 = np.tanh(self.z1)  # Activation
         self.z2 = np.dot(self.a1, self.W2) + self.b2
-        self.out = np.tanh(self.z2) # Output -1 to 1 (Action)
+        self.out = np.tanh(self.z2)  # Output -1 to 1 (Action)
         return self.out
 
     def train_step(self, x, target_action, advantage):
@@ -199,7 +204,7 @@ class SimpleNeuralNet:
         # Gradient of MSE loss: L = (pred - target)^2
         # For RL, treat 'target' as (pred + noise * advantage)
 
-        grad_out = -(advantage) # If advantage > 0, increase output
+        grad_out = -(advantage)  # If advantage > 0, increase output
 
         # Backprop through tanh output
         d_z2 = grad_out * (1 - self.out**2)
@@ -218,6 +223,7 @@ class SimpleNeuralNet:
         self.b2 -= LEARNING_RATE * d_b2
 
         return np.mean(np.abs(grad_out))
+
 
 def run_digital_twin(
     time_steps=TIME_STEPS,
@@ -270,18 +276,14 @@ def run_digital_twin(
         state_vector = np.asarray(plasma.T[midplane_idx, :], dtype=float).reshape(1, -1).copy()
         if chaos_monkey:
             if sensor_noise_std > 0.0:
-                state_vector += local_rng.normal(
-                    0.0, sensor_noise_std, size=state_vector.shape
-                )
+                state_vector += local_rng.normal(0.0, sensor_noise_std, size=state_vector.shape)
             if sensor_dropout_prob > 0.0:
                 dropout_mask = local_rng.random(state_vector.shape[1]) < sensor_dropout_prob
                 dropped = int(np.sum(dropout_mask, dtype=np.int64))
                 if dropped > 0:
                     state_vector[0, dropout_mask] = 0.0
                     sensor_dropouts_total += dropped
-            state_vector = np.nan_to_num(
-                state_vector, nan=0.0, posinf=100.0, neginf=0.0
-            )
+            state_vector = np.nan_to_num(state_vector, nan=0.0, posinf=100.0, neginf=0.0)
 
         # 2. Action (Explore vs Exploit)
         # Add exploration noise
@@ -299,7 +301,7 @@ def run_digital_twin(
         # 5. Learn (On-Policy / Immediate)
         # If reward is better than recent average, encourage this action direction
         baseline = np.mean(history_rewards[-50:]) if len(history_rewards) > 50 else 0
-        advantage = (reward - baseline) * noise # Simple derivative-free estimator trick
+        advantage = (reward - baseline) * noise  # Simple derivative-free estimator trick
 
         loss = brain.train_step(state_vector, None, advantage)
 
@@ -308,8 +310,7 @@ def run_digital_twin(
 
         if verbose and t % 500 == 0:
             n_islands = np.sum(topo.get_rational_surfaces())
-            print(f"Step {t}: AvgTemp={avg_temp:.2f} | Action={action:.2f}"
-                  f" | Loss={loss:.4f} | Islands={n_islands} px")
+            print(f"Step {t}: AvgTemp={avg_temp:.2f} | Action={action:.2f} | Loss={loss:.4f} | Islands={n_islands} px")
 
     plot_saved = False
     plot_error = None
@@ -320,22 +321,22 @@ def run_digital_twin(
 
             # 1. 2D Plasma Cross-Section (Heatmap)
             ax1 = fig.add_subplot(1, 3, 1)
-            im = ax1.imshow(plasma.T, cmap='inferno', origin='lower')
+            im = ax1.imshow(plasma.T, cmap="inferno", origin="lower")
             ax1.set_title("Final Plasma Cross-Section (2D)")
-            plt.colorbar(im, ax=ax1, label='Temperature (keV)')
+            plt.colorbar(im, ax=ax1, label="Temperature (keV)")
 
             # Overlay Magnetic Islands
             islands = topo.get_rational_surfaces()
-            ax1.contour(islands, colors='cyan', levels=[0.5], linewidths=1, alpha=0.5)
-            ax1.text(2, 2, "Cyan = q-Resonance (Islands)", color='cyan', fontsize=8)
+            ax1.contour(islands, colors="cyan", levels=[0.5], linewidths=1, alpha=0.5)
+            ax1.text(2, 2, "Cyan = q-Resonance (Islands)", color="cyan", fontsize=8)
 
             # 2. Learning Curve
             ax2 = fig.add_subplot(1, 3, 2)
-            ax2.plot(history_rewards, color='orange', alpha=0.6)
+            ax2.plot(history_rewards, color="orange", alpha=0.6)
             # Moving average
             if len(history_rewards) > 50:
-                mov_avg = np.convolve(history_rewards, np.ones(50)/50, mode='valid')
-                ax2.plot(range(len(mov_avg)), mov_avg, 'r-', linewidth=2, label='Moving Avg')
+                mov_avg = np.convolve(history_rewards, np.ones(50) / 50, mode="valid")
+                ax2.plot(range(len(mov_avg)), mov_avg, "r-", linewidth=2, label="Moving Avg")
             ax2.set_title("Neural Network Learning Curve")
             ax2.set_xlabel("Steps")
             ax2.set_ylabel("Reward (Confinement)")
@@ -343,14 +344,14 @@ def run_digital_twin(
 
             # 3. q-Profile and Stability
             ax3 = fig.add_subplot(1, 3, 3)
-            r_axis = np.linspace(0, 1, GRID_SIZE//2) # Fix: Match slice size
-            q_axis = topo.q_map[GRID_SIZE//2, GRID_SIZE//2:] # Radial slice
-            ax3.plot(r_axis, q_axis, 'b-', linewidth=2, label='Safety Factor q(r)')
+            r_axis = np.linspace(0, 1, GRID_SIZE // 2)  # Fix: Match slice size
+            q_axis = topo.q_map[GRID_SIZE // 2, GRID_SIZE // 2 :]  # Radial slice
+            ax3.plot(r_axis, q_axis, "b-", linewidth=2, label="Safety Factor q(r)")
 
             # Draw Danger Zones
             for q_res in [1.5, 2.0, 2.5, 3.0]:
-                ax3.axhline(q_res, color='red', linestyle='--', alpha=0.3)
-                ax3.text(0.1, q_res, f"q={q_res}", color='red', fontsize=8)
+                ax3.axhline(q_res, color="red", linestyle="--", alpha=0.3)
+                ax3.text(0.1, q_res, f"q={q_res}", color="red", fontsize=8)
 
             ax3.set_title("Final Safety Factor Profile")
             ax3.set_xlabel("Normalized Radius r/a")
@@ -362,9 +363,7 @@ def run_digital_twin(
             plt.close(fig)
             plot_saved = True
             if verbose:
-                print(
-                    f"\nDigital Twin Simulation Complete. Snapshot saved: {output_path}"
-                )
+                print(f"\nDigital Twin Simulation Complete. Snapshot saved: {output_path}")
         except (OSError, ValueError, RuntimeError) as exc:
             plot_error = str(exc)
             if verbose:
@@ -500,6 +499,7 @@ def _run_digital_twin_history_snapshots(
         )
         snapshots.append(summary)
     return snapshots
+
 
 if __name__ == "__main__":
     run_digital_twin()

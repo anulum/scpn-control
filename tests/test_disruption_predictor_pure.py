@@ -85,13 +85,16 @@ class TestPredictDisruptionRisk:
     def test_toroidal_increases_risk(self):
         sig = np.ones(100)
         risk_no_tor = predict_disruption_risk(sig)
-        risk_with_tor = predict_disruption_risk(sig, {
-            "toroidal_n1_amp": 1.0,
-            "toroidal_n2_amp": 0.5,
-            "toroidal_n3_amp": 0.3,
-            "toroidal_asymmetry_index": 1.2,
-            "toroidal_radial_spread": 0.1,
-        })
+        risk_with_tor = predict_disruption_risk(
+            sig,
+            {
+                "toroidal_n1_amp": 1.0,
+                "toroidal_n2_amp": 0.5,
+                "toroidal_n3_amp": 0.3,
+                "toroidal_asymmetry_index": 1.2,
+                "toroidal_radial_spread": 0.1,
+            },
+        )
         assert risk_with_tor > risk_no_tor
 
     def test_deterministic(self):

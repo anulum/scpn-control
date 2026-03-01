@@ -12,6 +12,7 @@ falls back to pure-Python implementations.
 Usage:
     from scpn_control.core._rust_compat import FusionKernel, RUST_BACKEND
 """
+
 import os
 from typing import Any, Optional
 
@@ -24,6 +25,7 @@ try:
         shafranov_bv,
         solve_coil_currents,
     )
+
     _RUST_AVAILABLE = True
 except ImportError:
     _RUST_AVAILABLE = False
@@ -50,7 +52,8 @@ class RustAcceleratedKernel:
 
         # Also load JSON config for attribute access (bridges read .cfg directly)
         import json
-        with open(config_path, 'r') as f:
+
+        with open(config_path, "r") as f:
             self.cfg = json.load(f)
 
         # Mirror grid attributes
@@ -122,7 +125,7 @@ class RustAcceleratedKernel:
         dPsi_dR, dPsi_dZ = np.gradient(Psi, self.dR, self.dZ)
         B_mag = np.sqrt(dPsi_dR**2 + dPsi_dZ**2)
 
-        mask_divertor = self.ZZ < (self.cfg['dimensions']['Z_min'] * 0.5)
+        mask_divertor = self.ZZ < (self.cfg["dimensions"]["Z_min"] * 0.5)
 
         if np.any(mask_divertor):
             masked_B = np.where(mask_divertor, B_mag, 1e9)
@@ -135,6 +138,7 @@ class RustAcceleratedKernel:
     def calculate_vacuum_field(self):
         """Compute vacuum field via Python FusionKernel (not yet in PyO3)."""
         from scpn_control.core.fusion_kernel import FusionKernel as _PyFK
+
         fk = _PyFK(self._config_path)
         return fk.calculate_vacuum_field()
 
@@ -168,6 +172,7 @@ else:
 
 # Re-export Rust-only helpers (with compatibility shims where needed)
 if _RUST_AVAILABLE:
+
     def rust_shafranov_bv(*args, **kwargs):
         """Compatibility wrapper for legacy config-path invocation.
 
@@ -189,11 +194,13 @@ if _RUST_AVAILABLE:
         from scpn_control.control.disruption_predictor import (
             simulate_tearing_mode as _py_tearing,
         )
+
         if seed is None:
             return _py_tearing(steps=int(steps))
         rng = np.random.default_rng(seed=int(seed))
         return _py_tearing(steps=int(steps), rng=rng)
 else:
+
     def rust_shafranov_bv(*args, **kwargs):
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
@@ -205,6 +212,7 @@ else:
         from scpn_control.control.disruption_predictor import (
             simulate_tearing_mode as _py_tearing,
         )
+
         if seed is None:
             return _py_tearing(steps=int(steps))
         rng = np.random.default_rng(seed=int(seed))
@@ -216,6 +224,7 @@ def rust_bosch_hale_dt(t_kev: float) -> float:
     if not _RUST_AVAILABLE:
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
     from scpn_control_rs import bosch_hale_dt
+
     return bosch_hale_dt(float(t_kev))
 
 
@@ -440,6 +449,7 @@ def rust_multigrid_vcycle(
     tuple of (psi, residual, n_cycles, converged)
     """
     from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]
+
     return _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
 
 
@@ -456,9 +466,7 @@ class RustSPIMitigation:
         Initial electron temperature [keV].
     """
 
-    def __init__(
-        self, w_th_mj: float = 300.0, ip_ma: float = 15.0, te_kev: float = 20.0
-    ):
+    def __init__(self, w_th_mj: float = 300.0, ip_ma: float = 15.0, te_kev: float = 20.0):
         from scpn_control_rs import PySPIMitigation  # type: ignore[import-untyped]
 
         self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)
@@ -490,6 +498,7 @@ def rust_svd_optimal_correction(
         Coil current deltas.
     """
     from scpn_control_rs import svd_optimal_correction as _rust_svd  # type: ignore[import-untyped]
+
     return _rust_svd(
         np.ascontiguousarray(response_matrix, dtype=np.float64),
         np.ascontiguousarray(error, dtype=np.float64),

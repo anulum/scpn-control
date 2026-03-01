@@ -53,9 +53,9 @@ def solver(config_file: Path) -> TransportSolver:
     """Create a single-ion TransportSolver with physical initial profiles."""
     ts = TransportSolver(str(config_file), multi_ion=False)
     # Set physically meaningful initial profiles
-    ts.Ti = 5.0 * (1 - ts.rho ** 2)
-    ts.Te = 5.0 * (1 - ts.rho ** 2)
-    ts.ne = 8.0 * (1 - ts.rho ** 2) ** 0.5
+    ts.Ti = 5.0 * (1 - ts.rho**2)
+    ts.Te = 5.0 * (1 - ts.rho**2)
+    ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
     ts.update_transport_model(50.0)
     return ts
 
@@ -64,9 +64,9 @@ def solver(config_file: Path) -> TransportSolver:
 def solver_multi(config_file: Path) -> TransportSolver:
     """Create a multi-ion TransportSolver with D, T, He-ash species."""
     ts = TransportSolver(str(config_file), multi_ion=True)
-    ts.Ti = 5.0 * (1 - ts.rho ** 2)
-    ts.Te = 5.0 * (1 - ts.rho ** 2)
-    ts.ne = 8.0 * (1 - ts.rho ** 2) ** 0.5
+    ts.Ti = 5.0 * (1 - ts.rho**2)
+    ts.Te = 5.0 * (1 - ts.rho**2)
+    ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
     ts.n_D = 0.5 * ts.ne.copy()
     ts.n_T = 0.5 * ts.ne.copy()
     ts.n_He = np.zeros(ts.nr)
@@ -76,8 +76,8 @@ def solver_multi(config_file: Path) -> TransportSolver:
 
 # ── 1. Initialization ────────────────────────────────────────────────
 
-class TestInitialization:
 
+class TestInitialization:
     def test_init_default(self, config_file: Path) -> None:
         """TransportSolver initializes with correct default profile shapes."""
         ts = TransportSolver(str(config_file))
@@ -133,8 +133,8 @@ class TestInitialization:
 
 # ── 2. Profile Evolution ─────────────────────────────────────────────
 
-class TestEvolveProfiles:
 
+class TestEvolveProfiles:
     def test_evolve_profiles_runs(self, solver: TransportSolver) -> None:
         """evolve_profiles returns (avg_T, core_T) as finite floats."""
         avg_T, core_T = solver.evolve_profiles(dt=0.01, P_aux=50.0)
@@ -252,8 +252,8 @@ class TestEvolveProfiles:
 
 # ── 3. Multi-Ion Species ──────────────────────────────────────────────
 
-class TestMultiIon:
 
+class TestMultiIon:
     def test_multi_ion_he_ash_grows(self, solver_multi: TransportSolver) -> None:
         """With multi_ion=True, after N steps, n_He should increase."""
         he_initial = np.sum(solver_multi.n_He)
@@ -311,7 +311,8 @@ class TestMultiIon:
             solver_multi.evolve_profiles(dt=0.01, P_aux=50.0)
         # ne = n_D + n_T + 2*n_He + Z_W * n_impurity
         ne_check = (
-            solver_multi.n_D + solver_multi.n_T
+            solver_multi.n_D
+            + solver_multi.n_T
             + 2.0 * solver_multi.n_He
             + 10.0 * np.maximum(solver_multi.n_impurity, 0.0)
         )
@@ -321,8 +322,8 @@ class TestMultiIon:
 
 # ── 4. Steady State Run ──────────────────────────────────────────────
 
-class TestSteadyState:
 
+class TestSteadyState:
     def test_run_to_steady_state_returns_dict(self, solver: TransportSolver) -> None:
         """run_to_steady_state returns a dict with expected keys."""
         result = solver.run_to_steady_state(P_aux=50.0, n_steps=10, dt=0.01)
@@ -353,8 +354,8 @@ class TestSteadyState:
 
 # ── 5. Neoclassical Transport ─────────────────────────────────────────
 
-class TestNeoclassical:
 
+class TestNeoclassical:
     def test_set_neoclassical_stores_params(self, solver: TransportSolver) -> None:
         """set_neoclassical stores parameters for Chang-Hinton model."""
         solver.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
@@ -366,9 +367,9 @@ class TestNeoclassical:
     def test_chang_hinton_profile_shape(self) -> None:
         """Chang-Hinton neoclassical chi should match input rho shape."""
         rho = np.linspace(0, 1, 50)
-        Ti = 5.0 * (1 - rho ** 2)
-        ne = 8.0 * (1 - rho ** 2) ** 0.5
-        q = 1.0 + 3.0 * rho ** 2
+        Ti = 5.0 * (1 - rho**2)
+        ne = 8.0 * (1 - rho**2) ** 0.5
+        q = 1.0 + 3.0 * rho**2
         chi = chang_hinton_chi_profile(rho, Ti, ne, q, R0=6.2, a=2.0, B0=5.3)
         assert chi.shape == (50,)
         assert np.all(np.isfinite(chi))
@@ -377,13 +378,11 @@ class TestNeoclassical:
     def test_bootstrap_current_shape(self) -> None:
         """Sauter bootstrap current profile should match rho shape."""
         rho = np.linspace(0, 1, 50)
-        Te = 5.0 * (1 - rho ** 2)
-        Ti = 5.0 * (1 - rho ** 2)
-        ne = 8.0 * (1 - rho ** 2) ** 0.5
-        q = 1.0 + 3.0 * rho ** 2
-        j_bs = calculate_sauter_bootstrap_current_full(
-            rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3
-        )
+        Te = 5.0 * (1 - rho**2)
+        Ti = 5.0 * (1 - rho**2)
+        ne = 8.0 * (1 - rho**2) ** 0.5
+        q = 1.0 + 3.0 * rho**2
+        j_bs = calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3)
         assert j_bs.shape == (50,)
         assert np.all(np.isfinite(j_bs))
         # Should be zero at the boundary (j_bs[0] and j_bs[-1])
@@ -393,8 +392,8 @@ class TestNeoclassical:
 
 # ── 6. Thomas Solver ─────────────────────────────────────────────────
 
-class TestThomasSolver:
 
+class TestThomasSolver:
     def test_thomas_identity_system(self) -> None:
         """Thomas solver with identity matrix returns the RHS."""
         n = 10
@@ -415,8 +414,10 @@ class TestThomasSolver:
         d = np.ones(n) * (1.0 / (n - 1)) ** 2
         d[0] = 0.0
         d[-1] = 0.0
-        b[0] = 1.0; c[0] = 0.0
-        a[-1] = 0.0; b[-1] = 1.0
+        b[0] = 1.0
+        c[0] = 0.0
+        a[-1] = 0.0
+        b[-1] = 1.0
         x = TransportSolver._thomas_solve(a, b, c, d)
         assert x.shape == (n,)
         assert np.all(np.isfinite(x))
@@ -424,8 +425,8 @@ class TestThomasSolver:
 
 # ── 7. Bosch-Hale D-T Reactivity ─────────────────────────────────────
 
-class TestBoschHale:
 
+class TestBoschHale:
     def test_sigmav_positive_for_fusion_temperatures(self) -> None:
         """Bosch-Hale <sigma*v> should be positive for T > 0.2 keV."""
         T = np.array([1.0, 5.0, 10.0, 20.0, 50.0])
@@ -440,15 +441,13 @@ class TestBoschHale:
         # The simplified NRL Formulary fit is monotonically increasing
         # over the range 1-100 keV (peak is beyond 100 keV for this fit)
         for i in range(1, len(sv)):
-            assert sv[i] > sv[i - 1], (
-                f"sigma_v not increasing: sv[{T[i]}] = {sv[i]} <= sv[{T[i-1]}] = {sv[i-1]}"
-            )
+            assert sv[i] > sv[i - 1], f"sigma_v not increasing: sv[{T[i]}] = {sv[i]} <= sv[{T[i - 1]}] = {sv[i - 1]}"
 
 
 # ── 8. Impurity Injection ────────────────────────────────────────────
 
-class TestImpurityInjection:
 
+class TestImpurityInjection:
     def test_inject_impurities_increases_edge(self, solver: TransportSolver) -> None:
         """Injecting impurities should increase the total impurity count."""
         imp_before = np.sum(solver.n_impurity)
@@ -464,8 +463,8 @@ class TestImpurityInjection:
 
 # ── 9. Gyro-Bohm & Neoclassical Method Adapter ───────────────────────
 
-class TestGyroBohm:
 
+class TestGyroBohm:
     def test_load_gyro_bohm_fallback_missing_file(self) -> None:
         val = _load_gyro_bohm_coefficient("/nonexistent/file.json")
         assert val == pytest.approx(0.1)
@@ -509,12 +508,12 @@ class TestGyroBohm:
 
 # ── 10. Zero Aux Heating Overshoot Guard ──────────────────────────────
 
-class TestZeroAuxHeatingGuard:
 
+class TestZeroAuxHeatingGuard:
     def test_evolve_with_zero_aux_heating(self, solver: TransportSolver) -> None:
-        solver.Ti = 5.0 * (1 - solver.rho ** 2)
+        solver.Ti = 5.0 * (1 - solver.rho**2)
         solver.Te = solver.Ti.copy()
-        solver.ne = 8.0 * (1 - solver.rho ** 2) ** 0.5
+        solver.ne = 8.0 * (1 - solver.rho**2) ** 0.5
         solver.update_transport_model(0.0)
         ti_before = solver.Ti.copy()
         solver.evolve_profiles(dt=0.001, P_aux=0.0)

@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for load_or_train_predictor fallback paths, evaluate_predictor,
 and predict_disruption_risk_safe inference failure path."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -33,7 +34,8 @@ class TestLoadOrTrainPredictor:
     def test_missing_checkpoint_train(self, tmp_path):
         model_path = str(tmp_path / "new.pth")
         model, meta = load_or_train_predictor(
-            model_path=model_path, seq_len=32,
+            model_path=model_path,
+            seq_len=32,
             train_kwargs={"n_shots": 8, "epochs": 2, "seed": 0, "save_plot": False},
         )
         assert model is not None
@@ -42,8 +44,10 @@ class TestLoadOrTrainPredictor:
     def test_missing_checkpoint_no_train_fallback(self, tmp_path):
         model_path = str(tmp_path / "missing.pth")
         model, meta = load_or_train_predictor(
-            model_path=model_path, seq_len=32,
-            train_if_missing=False, allow_fallback=True,
+            model_path=model_path,
+            seq_len=32,
+            train_if_missing=False,
+            allow_fallback=True,
         )
         assert model is None
         assert meta["fallback"] is True
@@ -53,16 +57,20 @@ class TestLoadOrTrainPredictor:
         model_path = str(tmp_path / "missing2.pth")
         with pytest.raises(FileNotFoundError, match="Checkpoint not found"):
             load_or_train_predictor(
-                model_path=model_path, seq_len=32,
-                train_if_missing=False, allow_fallback=False,
+                model_path=model_path,
+                seq_len=32,
+                train_if_missing=False,
+                allow_fallback=False,
             )
 
     def test_corrupt_checkpoint_fallback(self, tmp_path):
         model_path = tmp_path / "corrupt.pth"
         torch.save({"state_dict": {"bogus": torch.tensor([1.0])}}, model_path)
         model, meta = load_or_train_predictor(
-            model_path=str(model_path), seq_len=32,
-            allow_fallback=True, train_if_missing=False,
+            model_path=str(model_path),
+            seq_len=32,
+            allow_fallback=True,
+            train_if_missing=False,
         )
         assert model is None
         assert meta["fallback"] is True
@@ -73,8 +81,10 @@ class TestLoadOrTrainPredictor:
         torch.save({"state_dict": {"bogus": torch.tensor([1.0])}}, model_path)
         with pytest.raises((RuntimeError, ValueError, KeyError, OSError)):
             load_or_train_predictor(
-                model_path=str(model_path), seq_len=32,
-                allow_fallback=False, train_if_missing=False,
+                model_path=str(model_path),
+                seq_len=32,
+                allow_fallback=False,
+                train_if_missing=False,
             )
 
     def test_raw_state_dict_checkpoint(self, tmp_path):
@@ -93,8 +103,12 @@ class TestPredictDisruptionRiskSafeInferenceFail:
         model_path = tmp_path / "bad_inf.pth"
         # Train a valid model, then corrupt the weights file
         train_predictor(
-            seq_len=32, n_shots=8, epochs=2,
-            model_path=str(model_path), seed=0, save_plot=False,
+            seq_len=32,
+            n_shots=8,
+            epochs=2,
+            model_path=str(model_path),
+            seed=0,
+            save_plot=False,
         )
         # Overwrite with mismatched architecture
         small = DisruptionTransformer(seq_len=16)
@@ -102,7 +116,9 @@ class TestPredictDisruptionRiskSafeInferenceFail:
 
         signal = np.ones(100) * 0.5
         risk, meta = predict_disruption_risk_safe(
-            signal, model_path=str(model_path), seq_len=32,
+            signal,
+            model_path=str(model_path),
+            seq_len=32,
         )
         assert 0.0 <= risk <= 1.0
         assert meta["mode"] in ("checkpoint", "fallback")
@@ -127,8 +143,12 @@ class TestEvaluatePredictor:
     def test_evaluate_returns_metrics(self, tmp_path):
         model_path = str(tmp_path / "eval.pth")
         model, _ = train_predictor(
-            seq_len=32, n_shots=16, epochs=3,
-            model_path=model_path, seed=0, save_plot=False,
+            seq_len=32,
+            n_shots=16,
+            epochs=3,
+            model_path=model_path,
+            seed=0,
+            save_plot=False,
         )
         rng = np.random.default_rng(0)
         n = 20
@@ -144,8 +164,12 @@ class TestEvaluatePredictor:
     def test_evaluate_with_times(self, tmp_path):
         model_path = str(tmp_path / "eval2.pth")
         model, _ = train_predictor(
-            seq_len=32, n_shots=16, epochs=3,
-            model_path=model_path, seed=0, save_plot=False,
+            seq_len=32,
+            n_shots=16,
+            epochs=3,
+            model_path=model_path,
+            seed=0,
+            save_plot=False,
         )
         rng = np.random.default_rng(0)
         n = 20

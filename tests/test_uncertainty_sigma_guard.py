@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for full_chain_uq _validate_sigma non-parseable (lines 248-249)."""
+
 from __future__ import annotations
 
 import pytest
@@ -11,8 +12,13 @@ import pytest
 from scpn_control.core.uncertainty import PlasmaScenario, quantify_full_chain
 
 _SCENARIO = PlasmaScenario(
-    I_p=15.0, B_t=5.3, P_heat=50.0, n_e=10.0,
-    R=6.2, A=3.1, kappa=1.7,
+    I_p=15.0,
+    B_t=5.3,
+    P_heat=50.0,
+    n_e=10.0,
+    R=6.2,
+    A=3.1,
+    kappa=1.7,
 )
 
 

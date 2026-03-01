@@ -3,6 +3,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
 """Tests for the scpn-control Click CLI entry point."""
+
 from __future__ import annotations
 
 import json
@@ -63,9 +64,7 @@ def test_validate_json_out(runner):
 
 
 def test_hil_test_nonexistent_dir(runner):
-    result = runner.invoke(
-        main, ["hil-test", "--shots-dir", "nonexistent_dir_12345", "--json-out"]
-    )
+    result = runner.invoke(main, ["hil-test", "--shots-dir", "nonexistent_dir_12345", "--json-out"])
     assert result.exit_code != 0
 
 

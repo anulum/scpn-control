@@ -4,6 +4,7 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """Edge case tests for the u64 compact codec and artifact validation."""
+
 from __future__ import annotations
 
 import pytest
@@ -57,31 +58,39 @@ class TestDecodeErrors:
 
     def test_invalid_base64(self):
         with pytest.raises(ArtifactValidationError, match="Invalid base64"):
-            _decode_u64_compact({
-                "encoding": "u64-le-zlib-base64",
-                "data_u64_b64_zlib": "!!!not_base64!!!",
-            })
+            _decode_u64_compact(
+                {
+                    "encoding": "u64-le-zlib-base64",
+                    "data_u64_b64_zlib": "!!!not_base64!!!",
+                }
+            )
 
     def test_invalid_zlib_payload(self):
         import base64
+
         bad_bytes = base64.b64encode(b"not_valid_zlib").decode("ascii")
         with pytest.raises(ArtifactValidationError, match="Invalid compact"):
-            _decode_u64_compact({
-                "encoding": "u64-le-zlib-base64",
-                "data_u64_b64_zlib": bad_bytes,
-            })
+            _decode_u64_compact(
+                {
+                    "encoding": "u64-le-zlib-base64",
+                    "data_u64_b64_zlib": bad_bytes,
+                }
+            )
 
     def test_byte_length_not_multiple_of_8(self):
         import base64, zlib
+
         raw = b"\x00" * 7  # 7 bytes, not divisible by 8
         compressed = zlib.compress(raw)
         payload = base64.b64encode(compressed).decode("ascii")
         with pytest.raises(ArtifactValidationError, match="not divisible by 8"):
-            _decode_u64_compact({
-                "encoding": "u64-le-zlib-base64",
-                "data_u64_b64_zlib": payload,
-                "count": None,
-            })
+            _decode_u64_compact(
+                {
+                    "encoding": "u64-le-zlib-base64",
+                    "data_u64_b64_zlib": payload,
+                    "count": None,
+                }
+            )
 
     def test_negative_count(self):
         encoded = encode_u64_compact([1, 2])
@@ -97,15 +106,18 @@ class TestDecodeErrors:
 
     def test_invalid_count_type(self):
         import base64, zlib
+
         raw = b"\x00" * 8
         compressed = zlib.compress(raw)
         payload = base64.b64encode(compressed).decode("ascii")
         with pytest.raises(ArtifactValidationError, match="Invalid compact packed count type"):
-            _decode_u64_compact({
-                "encoding": "u64-le-zlib-base64",
-                "data_u64_b64_zlib": payload,
-                "count": "bad",
-            })
+            _decode_u64_compact(
+                {
+                    "encoding": "u64-le-zlib-base64",
+                    "data_u64_b64_zlib": payload,
+                    "count": "bad",
+                }
+            )
 
     def test_none_count_uses_available(self):
         encoded = encode_u64_compact([10, 20, 30])

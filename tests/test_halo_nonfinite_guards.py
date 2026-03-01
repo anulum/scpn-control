@@ -7,6 +7,7 @@
 avalanche non-finite (435), momentum non-finite (455), relativistic
 loss non-finite (480), simulate loop non-finite guards (564, 569, 572, 578),
 and ensemble prevention path (719)."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -24,7 +25,10 @@ class TestAsNonNegativeFloat:
         """_as_non_negative_float with negative value raises (line 85)."""
         with pytest.raises(ValueError, match="must be >= 0"):
             RunawayElectronModel(
-                n_e=1e20, T_e_keV=1.0, z_eff=2.0, neon_mol=-1.0,
+                n_e=1e20,
+                T_e_keV=1.0,
+                z_eff=2.0,
+                neon_mol=-1.0,
             )
 
 
@@ -73,7 +77,9 @@ class TestNonFiniteRateGuards:
     def test_relativistic_loss_non_finite(self):
         """_relativistic_loss_rate returns 0 for non-finite input (line 480)."""
         model = RunawayElectronModel(
-            n_e=1e20, T_e_keV=1.0, z_eff=2.0,
+            n_e=1e20,
+            T_e_keV=1.0,
+            z_eff=2.0,
             enable_relativistic_losses=True,
         )
         rate = model._relativistic_loss_rate(E=float("nan"), n_re=1e16)

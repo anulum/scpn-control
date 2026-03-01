@@ -37,6 +37,7 @@ from scpn_control.phase.knm import KnmSpec
 @dataclass(frozen=True)
 class DiagnosticSnapshot:
     """Per-tick plasma diagnostic bundle."""
+
     R_layer: NDArray[np.float64]
     V_layer: NDArray[np.float64]
     lambda_exp: float
@@ -50,6 +51,7 @@ class DiagnosticSnapshot:
 @dataclass(frozen=True)
 class AdaptiveKnmConfig:
     """Tuning knobs for each adaptation channel."""
+
     beta_scale: float = 0.3
     beta_max_boost: float = 0.5
     risk_pairs: tuple[tuple[int, int], ...] = ((2, 5), (3, 5), (2, 4))

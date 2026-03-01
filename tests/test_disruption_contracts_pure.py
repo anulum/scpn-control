@@ -90,26 +90,18 @@ class TestSyntheticDisruptionSignal:
 
 class TestMcnpLiteTbr:
     def test_nominal(self):
-        tbr, factor = mcnp_lite_tbr(
-            base_tbr=1.0, li6_enrichment=0.9, be_multiplier_fraction=0.6, reflector_albedo=0.5
-        )
+        tbr, factor = mcnp_lite_tbr(base_tbr=1.0, li6_enrichment=0.9, be_multiplier_fraction=0.6, reflector_albedo=0.5)
         assert np.isfinite(tbr)
         assert tbr > 0.0
         assert factor > 1.0
 
     def test_rejects_bad_base(self):
         with pytest.raises(ValueError, match="> 0"):
-            mcnp_lite_tbr(
-                base_tbr=0.0, li6_enrichment=0.9, be_multiplier_fraction=0.5, reflector_albedo=0.5
-            )
+            mcnp_lite_tbr(base_tbr=0.0, li6_enrichment=0.9, be_multiplier_fraction=0.5, reflector_albedo=0.5)
 
     def test_higher_enrichment_higher_tbr(self):
-        tbr_low, _ = mcnp_lite_tbr(
-            base_tbr=1.0, li6_enrichment=0.0, be_multiplier_fraction=0.5, reflector_albedo=0.5
-        )
-        tbr_high, _ = mcnp_lite_tbr(
-            base_tbr=1.0, li6_enrichment=1.0, be_multiplier_fraction=0.5, reflector_albedo=0.5
-        )
+        tbr_low, _ = mcnp_lite_tbr(base_tbr=1.0, li6_enrichment=0.0, be_multiplier_fraction=0.5, reflector_albedo=0.5)
+        tbr_high, _ = mcnp_lite_tbr(base_tbr=1.0, li6_enrichment=1.0, be_multiplier_fraction=0.5, reflector_albedo=0.5)
         assert tbr_high > tbr_low
 
 
@@ -140,12 +132,18 @@ class TestImpurityTransportResponse:
 
     def test_more_argon_higher_zeff(self):
         r1 = impurity_transport_response(
-            neon_quantity_mol=0.5, argon_quantity_mol=0.0,
-            xenon_quantity_mol=0.0, disturbance=0.5, seed_shift=0,
+            neon_quantity_mol=0.5,
+            argon_quantity_mol=0.0,
+            xenon_quantity_mol=0.0,
+            disturbance=0.5,
+            seed_shift=0,
         )
         r2 = impurity_transport_response(
-            neon_quantity_mol=0.0, argon_quantity_mol=0.5,
-            xenon_quantity_mol=0.0, disturbance=0.5, seed_shift=0,
+            neon_quantity_mol=0.0,
+            argon_quantity_mol=0.5,
+            xenon_quantity_mol=0.0,
+            disturbance=0.5,
+            seed_shift=0,
         )
         assert r2["zeff_eff"] > r1["zeff_eff"]
 
@@ -166,24 +164,34 @@ class TestPostDisruptionHaloRunaway:
 
     def test_higher_mitigation_less_runaway(self):
         r_low = post_disruption_halo_runaway(
-            pre_current_ma=15.0, tau_cq_s=0.010,
-            disturbance=0.8, mitigation_strength=0.1, zeff_eff=1.5,
+            pre_current_ma=15.0,
+            tau_cq_s=0.010,
+            disturbance=0.8,
+            mitigation_strength=0.1,
+            zeff_eff=1.5,
         )
         r_high = post_disruption_halo_runaway(
-            pre_current_ma=15.0, tau_cq_s=0.010,
-            disturbance=0.8, mitigation_strength=0.9, zeff_eff=1.5,
+            pre_current_ma=15.0,
+            tau_cq_s=0.010,
+            disturbance=0.8,
+            mitigation_strength=0.9,
+            zeff_eff=1.5,
         )
         assert r_high["runaway_peak_ma"] <= r_low["runaway_peak_ma"]
 
     def test_zero_current(self):
         result = post_disruption_halo_runaway(
-            pre_current_ma=0.0, tau_cq_s=0.010,
-            disturbance=0.0, mitigation_strength=0.5, zeff_eff=1.0,
+            pre_current_ma=0.0,
+            tau_cq_s=0.010,
+            disturbance=0.0,
+            mitigation_strength=0.5,
+            zeff_eff=1.0,
         )
         assert result["halo_peak_ma"] == pytest.approx(0.0, abs=1e-6)
 
 
 # ── require_1d_array ──────────────────────────────────────────────
+
 
 class TestRequire1dArray:
     def test_valid_1d(self):
@@ -222,6 +230,7 @@ class TestRequire1dArray:
 
 # ── require_finite_float edge cases ──────────────────────────────
 
+
 class TestRequireFiniteFloatExtended:
     def test_rejects_inf(self):
         with pytest.raises(ValueError, match="finite"):
@@ -237,6 +246,7 @@ class TestRequireFiniteFloatExtended:
 
 # ── require_positive_float edge cases ─────────────────────────────
 
+
 class TestRequirePositiveFloatExtended:
     def test_rejects_negative(self):
         with pytest.raises(ValueError, match="> 0"):
@@ -248,6 +258,7 @@ class TestRequirePositiveFloatExtended:
 
 
 # ── impurity_transport_response edge cases ────────────────────────
+
 
 class TestImpurityTransportResponseExtended:
     def test_negative_quantity_clamped_to_zero(self):
@@ -262,42 +273,61 @@ class TestImpurityTransportResponseExtended:
 
     def test_high_disturbance_higher_radiation(self):
         r_low = impurity_transport_response(
-            neon_quantity_mol=0.5, argon_quantity_mol=0.2,
-            xenon_quantity_mol=0.05, disturbance=0.0, seed_shift=0,
+            neon_quantity_mol=0.5,
+            argon_quantity_mol=0.2,
+            xenon_quantity_mol=0.05,
+            disturbance=0.0,
+            seed_shift=0,
         )
         r_high = impurity_transport_response(
-            neon_quantity_mol=0.5, argon_quantity_mol=0.2,
-            xenon_quantity_mol=0.05, disturbance=1.0, seed_shift=0,
+            neon_quantity_mol=0.5,
+            argon_quantity_mol=0.2,
+            xenon_quantity_mol=0.05,
+            disturbance=1.0,
+            seed_shift=0,
         )
         assert r_high["impurity_radiation_mw"] > r_low["impurity_radiation_mw"]
 
 
 # ── post_disruption_halo_runaway edge cases ───────────────────────
 
+
 class TestPostDisruptionExtended:
     def test_fast_cq_clamped(self):
         # tau_cq_s < 4ms gets clamped to 4ms (Pautasso 2017)
         result = post_disruption_halo_runaway(
-            pre_current_ma=15.0, tau_cq_s=0.001,
-            disturbance=0.5, mitigation_strength=0.5, zeff_eff=2.0,
+            pre_current_ma=15.0,
+            tau_cq_s=0.001,
+            disturbance=0.5,
+            mitigation_strength=0.5,
+            zeff_eff=2.0,
         )
         assert result["halo_current_ma"] >= 0.0
 
     def test_high_disturbance_more_halo(self):
         r_low = post_disruption_halo_runaway(
-            pre_current_ma=15.0, tau_cq_s=0.010,
-            disturbance=0.0, mitigation_strength=0.5, zeff_eff=2.0,
+            pre_current_ma=15.0,
+            tau_cq_s=0.010,
+            disturbance=0.0,
+            mitigation_strength=0.5,
+            zeff_eff=2.0,
         )
         r_high = post_disruption_halo_runaway(
-            pre_current_ma=15.0, tau_cq_s=0.010,
-            disturbance=1.0, mitigation_strength=0.5, zeff_eff=2.0,
+            pre_current_ma=15.0,
+            tau_cq_s=0.010,
+            disturbance=1.0,
+            mitigation_strength=0.5,
+            zeff_eff=2.0,
         )
         assert r_high["halo_peak_ma"] >= r_low["halo_peak_ma"]
 
     def test_all_outputs_finite(self):
         result = post_disruption_halo_runaway(
-            pre_current_ma=15.0, tau_cq_s=0.010,
-            disturbance=0.5, mitigation_strength=0.5, zeff_eff=2.0,
+            pre_current_ma=15.0,
+            tau_cq_s=0.010,
+            disturbance=0.5,
+            mitigation_strength=0.5,
+            zeff_eff=2.0,
         )
         for v in result.values():
             assert np.isfinite(v)

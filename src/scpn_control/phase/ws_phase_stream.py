@@ -21,6 +21,7 @@ Clients receive JSON frames every tick::
 
     {"tick": 1, "R_global": 0.42, "V_global": 0.83, "lambda_exp": -0.12, ...}
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -99,6 +100,7 @@ class PhaseStreamServer:
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="SCPN Phase Sync WebSocket Stream")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--host", default="0.0.0.0")  # nosec B104
@@ -111,8 +113,10 @@ def main():
 
     logging.basicConfig(level=logging.INFO)
     mon = RealtimeMonitor.from_paper27(
-        L=args.layers, N_per=args.n_per,
-        zeta_uniform=args.zeta, psi_driver=args.psi,
+        L=args.layers,
+        N_per=args.n_per,
+        zeta_uniform=args.zeta,
+        psi_driver=args.psi,
     )
     server = PhaseStreamServer(monitor=mon, tick_interval_s=args.tick_interval)
     server.serve_sync(host=args.host, port=args.port)

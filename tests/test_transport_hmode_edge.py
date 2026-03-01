@@ -5,6 +5,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for H-mode pedestal paths, neoclassical q-mismatch fallback,
 bootstrap current edge cases, and P_aux=0 numerical recovery."""
+
 from __future__ import annotations
 
 import json
@@ -91,7 +92,14 @@ class TestBootstrapEdgeCases:
         # q = 1e6 → eps/q → 0 → B_pol < 1e-10
         q = np.full(nr, 1e6)
         j_bs = calculate_sauter_bootstrap_current_full(
-            rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3,
+            rho,
+            Te,
+            Ti,
+            ne,
+            q,
+            R0=6.2,
+            a=2.0,
+            B0=5.3,
         )
         assert np.all(np.isfinite(j_bs))
 
@@ -104,7 +112,14 @@ class TestBootstrapEdgeCases:
         ne = np.zeros(nr)
         q = 1.0 + 2.0 * rho**2
         j_bs = calculate_sauter_bootstrap_current_full(
-            rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3,
+            rho,
+            Te,
+            Ti,
+            ne,
+            q,
+            R0=6.2,
+            a=2.0,
+            B0=5.3,
         )
         assert np.all(j_bs == 0.0)
 

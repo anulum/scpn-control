@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 try:
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
@@ -130,9 +131,7 @@ class ModelPredictiveController:
                 grads[t] = grad_step
                 temp_state = next_state
             planned_actions -= self.learning_rate * grads
-            planned_actions = np.clip(
-                planned_actions, -self.action_limit, self.action_limit
-            )
+            planned_actions = np.clip(planned_actions, -self.action_limit, self.action_limit)
 
         return np.asarray(planned_actions[0], dtype=np.float64)
 
@@ -305,15 +304,9 @@ def run_sota_simulation(
         "final_z_axis": float(h_z[-1]) if h_z else 0.0,
         "final_xpoint_r": float(h_xr[-1]) if h_xr else 0.0,
         "final_xpoint_z": float(h_xz[-1]) if h_xz else 0.0,
-        "mean_tracking_error": float(np.mean(np.asarray(h_error, dtype=np.float64)))
-        if h_error
-        else 0.0,
-        "max_abs_action": float(np.max(np.asarray(h_action, dtype=np.float64)))
-        if h_action
-        else 0.0,
-        "max_abs_coil_current": float(np.max(np.asarray(h_coil_abs, dtype=np.float64)))
-        if h_coil_abs
-        else 0.0,
+        "mean_tracking_error": float(np.mean(np.asarray(h_error, dtype=np.float64))) if h_error else 0.0,
+        "max_abs_action": float(np.max(np.asarray(h_action, dtype=np.float64))) if h_action else 0.0,
+        "max_abs_coil_current": float(np.max(np.asarray(h_coil_abs, dtype=np.float64))) if h_coil_abs else 0.0,
         "plot_saved": bool(plot_saved),
         "plot_error": plot_error,
     }
