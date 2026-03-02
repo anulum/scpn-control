@@ -138,7 +138,7 @@ filterwarnings = [
 xfail_strict = true
 
 [tool.coverage.report]
-fail_under = 62
+fail_under = 85
 
 [tool.ruff]
 line-length = 120

@@ -41,7 +41,7 @@ Python (1969 tests):
 ```bash
 pytest                       # full suite
 pytest tests/ -k "not slow"  # skip long-running regression tests
-pytest --cov=scpn_control    # with coverage (minimum: 62%)
+pytest --cov=scpn_control    # with coverage (minimum: 85%)
 ```
 
 Rust (5 crates: control-core, control-math, control-types, control-control, control-python):
