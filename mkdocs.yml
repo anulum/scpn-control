@@ -60,6 +60,7 @@ nav:
   - Reference:
     - API Reference: api.md
     - Theory: theory.md
+    - Paper 27 Phase Dynamics: paper27_phase_dynamics.md
     - Architecture: architecture.md
   - Validation:
     - Benchmarks: benchmarks.md
