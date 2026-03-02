@@ -27,19 +27,10 @@ except ImportError:  # pragma: no cover - optional dependency path
     nn = None  # type: ignore[assignment]
     optim = None  # type: ignore[assignment]
 
+from scpn_control.core._validators import require_int as _require_int
+
 DEFAULT_SEQ_LEN = 100
 DEFAULT_MODEL_FILENAME = "disruption_model.pth"
-
-
-def _require_int(name: str, value: object, minimum: int | None = None) -> int:
-    if isinstance(value, bool) or not isinstance(value, (int, np.integer)):
-        if minimum is None:
-            raise ValueError(f"{name} must be an integer.")
-        raise ValueError(f"{name} must be an integer >= {minimum}.")
-    parsed = int(value)
-    if minimum is not None and parsed < minimum:
-        raise ValueError(f"{name} must be an integer >= {minimum}.")
-    return parsed
 
 
 # --- PHYSICS: MODIFIED RUTHERFORD EQUATION ---

@@ -21,6 +21,8 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cas
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control.core._validators import require_int
+
 from .artifact import Artifact
 from .contracts import (
     ControlAction,
@@ -84,19 +86,11 @@ class NeuroSymbolicController:
         rust_backend_min_problem_size: int = 1,
         sc_antithetic_chunk_size: int = 2048,
     ) -> None:
-        def _require_int_ge(name: str, value: object, minimum: int) -> int:
-            if isinstance(value, bool) or not isinstance(value, (int, np.integer)):
-                raise ValueError(f"{name} must be an integer >= {minimum}.")
-            parsed = int(value)
-            if parsed < minimum:
-                raise ValueError(f"{name} must be an integer >= {minimum}.")
-            return parsed
-
         self.artifact = artifact
         self.seed_base = int(seed_base)
         self.targets = targets
         self.scales = scales
-        self._sc_n_passes = _require_int_ge("sc_n_passes", sc_n_passes, 1)
+        self._sc_n_passes = require_int("sc_n_passes", sc_n_passes, 1)
         self._sc_bitflip_rate = float(sc_bitflip_rate)
         if not np.isfinite(self._sc_bitflip_rate) or self._sc_bitflip_rate < 0.0 or self._sc_bitflip_rate > 1.0:
             raise ValueError("sc_bitflip_rate must be finite and in [0, 1].")
@@ -109,10 +103,10 @@ class NeuroSymbolicController:
         self._runtime_backend_request = runtime_backend.strip().lower()
         if self._runtime_backend_request not in {"auto", "numpy", "rust"}:
             raise ValueError("runtime_backend must be 'auto', 'numpy', or 'rust'")
-        self._rust_backend_min_problem_size = _require_int_ge(
+        self._rust_backend_min_problem_size = require_int(
             "rust_backend_min_problem_size", rust_backend_min_problem_size, 1
         )
-        self._sc_antithetic_chunk_size = _require_int_ge("sc_antithetic_chunk_size", sc_antithetic_chunk_size, 1)
+        self._sc_antithetic_chunk_size = require_int("sc_antithetic_chunk_size", sc_antithetic_chunk_size, 1)
 
         if self._feature_axes is not None:
             axes = list(self._feature_axes)

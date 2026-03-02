@@ -13,6 +13,13 @@ from numpy.typing import NDArray
 from scpn_control.control.advanced_soc_fusion_learning import FusionAIAgent
 from scpn_control.control.disruption_predictor import predict_disruption_risk
 from scpn_control.control.spi_mitigation import ShatteredPelletInjection
+from scpn_control.core._validators import (
+    require_1d_array,
+    require_finite_float,
+    require_fraction,
+    require_int,
+    require_positive_float,
+)
 
 try:
     from scpn_control.core.global_design_scanner import GlobalDesignExplorer
@@ -22,55 +29,6 @@ except ImportError:
 # Blanket neutronics MCNP→volumetric-code calibration factor;
 # Abdou et al., Fusion Eng. Des. 100 (2015), Table 3
 _TBR_EQUIVALENCE_SCALE = 1.45
-
-
-def require_finite_float(name: str, value: Any) -> float:
-    out = float(value)
-    if not np.isfinite(out):
-        raise ValueError(f"{name} must be finite.")
-    return out
-
-
-def require_positive_float(name: str, value: Any) -> float:
-    out = require_finite_float(name, value)
-    if out <= 0.0:
-        raise ValueError(f"{name} must be > 0.")
-    return out
-
-
-def require_int(name: str, value: Any, minimum: int) -> int:
-    if isinstance(value, bool) or not isinstance(value, (int, np.integer)):
-        raise ValueError(f"{name} must be an integer >= {minimum}.")
-    out = int(value)
-    if out < minimum:
-        raise ValueError(f"{name} must be an integer >= {minimum}.")
-    return out
-
-
-def require_fraction(name: str, value: Any) -> float:
-    out = require_finite_float(name, value)
-    if not np.isfinite(out) or out < 0.0 or out > 1.0:
-        raise ValueError(f"{name} must be finite and in [0, 1].")
-    return out
-
-
-def require_1d_array(
-    name: str,
-    value: Any,
-    *,
-    minimum_size: int = 1,
-    expected_size: int | None = None,
-) -> NDArray[np.float64]:
-    arr = np.asarray(value, dtype=np.float64)
-    if arr.ndim != 1:
-        raise ValueError(f"{name} must be a 1D array.")
-    if arr.size < minimum_size:
-        raise ValueError(f"{name} must have at least {minimum_size} samples.")
-    if expected_size is not None and arr.size != expected_size:
-        raise ValueError(f"{name} must have {expected_size} samples (got {arr.size}).")
-    if not np.all(np.isfinite(arr)):
-        raise ValueError(f"{name} must contain only finite values.")
-    return arr
 
 
 def synthetic_disruption_signal(
