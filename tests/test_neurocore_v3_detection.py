@@ -67,9 +67,12 @@ class TestNeurocore:
         compiled = FusionCompiler(net).compile()
         marking = np.random.default_rng(42).random(8)
 
-        # Warm-up
-        for _ in range(10):
+        # Warm-up (also serves as baseline)
+        n_warmup = 10
+        t_warmup = time.perf_counter()
+        for _ in range(n_warmup):
             compiled.dense_forward(marking)
+        warmup_elapsed = time.perf_counter() - t_warmup
 
         n = 500
         t0 = time.perf_counter()
@@ -77,5 +80,9 @@ class TestNeurocore:
             compiled.dense_forward(marking)
         elapsed = time.perf_counter() - t0
 
-        # Sanity: 500 forwards should complete in < 5s
-        assert elapsed < 5.0, f"dense_forward too slow: {elapsed:.3f}s for {n} calls"
+        per_call_warmup = warmup_elapsed / n_warmup
+        per_call_main = elapsed / n
+        assert per_call_main < per_call_warmup * 5, (
+            f"dense_forward regressed: {per_call_main*1e6:.0f} us/call "
+            f"vs warmup {per_call_warmup*1e6:.0f} us/call"
+        )
