@@ -17,7 +17,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence, TypedDict
+from typing import Mapping, Sequence, TypedDict
 
 SCALE_FLOOR = 1e-12  # prevent division-by-zero in feature extraction
 CONTROL_ERROR_CLAMP = 1.0  # symmetric saturation for normalized error
@@ -100,9 +100,9 @@ def extract_features(
     obs: Mapping[str, float],
     targets: ControlTargets,
     scales: ControlScales,
-    feature_axes: Optional[Sequence[FeatureAxisSpec]] = None,
-    passthrough_keys: Optional[Sequence[str]] = None,
-) -> Dict[str, float]:
+    feature_axes: Sequence[FeatureAxisSpec] | None = None,
+    passthrough_keys: Sequence[str] | None = None,
+) -> dict[str, float]:
     """Map observation → unipolar [0, 1] feature sources.
 
     By default returns keys ``x_R_pos``, ``x_R_neg``, ``x_Z_pos``, ``x_Z_neg``.
@@ -130,7 +130,7 @@ def extract_features(
         ]
     )
 
-    out: Dict[str, float] = {}
+    out: dict[str, float] = {}
     for axis in axes:
         if axis.obs_key not in obs:
             raise KeyError(f"Missing observation key for feature extraction: {axis.obs_key}")
@@ -174,14 +174,14 @@ class ActionSpec:
 
 
 def decode_actions(
-    marking: List[float],
-    actions_spec: List[ActionSpec],
-    gains: List[float],
-    abs_max: List[float],
-    slew_per_s: List[float],
+    marking: list[float],
+    actions_spec: list[ActionSpec],
+    gains: list[float],
+    abs_max: list[float],
+    slew_per_s: list[float],
     dt: float,
-    prev: List[float],
-) -> Dict[str, float]:
+    prev: list[float],
+) -> dict[str, float]:
     """Decode marking → actuator commands with gain, slew-rate, and abs clamp.
 
     Parameters
@@ -205,7 +205,7 @@ def decode_actions(
         raise ValueError("dt must be finite and > 0.")
 
     n_places = len(marking)
-    result: Dict[str, float] = {}
+    result: dict[str, float] = {}
     for i, spec in enumerate(actions_spec):
         if spec.pos_place < 0 or spec.neg_place < 0:
             raise ValueError("Action place indices must be >= 0.")
@@ -292,7 +292,7 @@ class PhysicsInvariantViolation:
 
 # ── Default tokamak physics invariants ──────────────────────────────────────
 
-DEFAULT_PHYSICS_INVARIANTS: List[PhysicsInvariant] = [
+DEFAULT_PHYSICS_INVARIANTS: list[PhysicsInvariant] = [
     PhysicsInvariant(
         name="q_min",
         description=(
@@ -367,7 +367,7 @@ def _is_satisfied(comparator: str, value: float, threshold: float) -> bool:
 def check_physics_invariant(
     invariant: PhysicsInvariant,
     value: float,
-) -> Optional[PhysicsInvariantViolation]:
+) -> PhysicsInvariantViolation | None:
     """Check a single physics invariant against a measured *value*.
 
     Returns ``None`` if the invariant is satisfied, otherwise returns a
@@ -411,9 +411,9 @@ def check_physics_invariant(
 
 
 def check_all_invariants(
-    values: Dict[str, float],
-    invariants: Optional[List[PhysicsInvariant]] = None,
-) -> List[PhysicsInvariantViolation]:
+    values: dict[str, float],
+    invariants: list[PhysicsInvariant] | None = None,
+) -> list[PhysicsInvariantViolation]:
     """Check every invariant whose name appears in *values*.
 
     Parameters
@@ -433,7 +433,7 @@ def check_all_invariants(
     if invariants is None:
         invariants = DEFAULT_PHYSICS_INVARIANTS
 
-    violations: List[PhysicsInvariantViolation] = []
+    violations: list[PhysicsInvariantViolation] = []
     for inv in invariants:
         if inv.name in values:
             v = check_physics_invariant(inv, values[inv.name])
@@ -443,7 +443,7 @@ def check_all_invariants(
 
 
 def should_trigger_mitigation(
-    violations: List[PhysicsInvariantViolation],
+    violations: list[PhysicsInvariantViolation],
 ) -> bool:
     """Return ``True`` if any violation has ``severity == "critical"``.
 

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Sequence, Tuple
+from typing import Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -47,8 +47,8 @@ def wrap_phase(x: FloatArray) -> FloatArray:
 
 def order_parameter(
     theta: FloatArray,
-    weights: Optional[FloatArray] = None,
-) -> Tuple[float, float]:
+    weights: FloatArray | None = None,
+) -> tuple[float, float]:
     """Kuramoto order parameter R·exp(i·ψ_r) = <w·exp(i·θ)> / W.
 
     Returns (R, ψ_r).
@@ -75,7 +75,7 @@ class GlobalPsiDriver:
 
     mode: str = "external"
 
-    def resolve(self, theta: FloatArray, psi_external: Optional[float]) -> float:
+    def resolve(self, theta: FloatArray, psi_external: float | None) -> float:
         if self.mode == "external":
             if psi_external is None:
                 raise ValueError("psi_external required when mode='external'")
@@ -116,7 +116,7 @@ def kuramoto_sakaguchi_step(
     K: float,
     alpha: float = 0.0,
     zeta: float = 0.0,
-    psi_driver: Optional[float] = None,
+    psi_driver: float | None = None,
     psi_mode: str = "external",
     wrap: bool = True,
 ) -> dict:

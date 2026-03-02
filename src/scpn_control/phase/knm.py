@@ -16,7 +16,7 @@ Off-diagonal: inter-layer bidirectional causality (bottom-up / top-down).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -57,9 +57,9 @@ class KnmSpec:
     """
 
     K: FloatArray
-    alpha: Optional[FloatArray] = None
-    zeta: Optional[FloatArray] = None
-    layer_names: Optional[Sequence[str]] = None
+    alpha: FloatArray | None = None
+    zeta: FloatArray | None = None
+    layer_names: Sequence[str] | None = None
 
     def __post_init__(self) -> None:
         K = np.asarray(self.K, dtype=np.float64)

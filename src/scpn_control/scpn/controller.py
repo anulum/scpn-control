@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
+from typing import Callable, Mapping, Sequence, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -35,9 +35,9 @@ from .contracts import (
 FloatArray = NDArray[np.float64]
 
 _HAS_RUST_SCPN_RUNTIME = False
-_rust_dense_activations: Optional[Callable[[FloatArray, FloatArray], object]] = None
-_rust_marking_update: Optional[Callable[[FloatArray, FloatArray, FloatArray, FloatArray], object]] = None
-_rust_sample_firing: Optional[Callable[[FloatArray, int, int, bool], object]] = None
+_rust_dense_activations: Callable[[FloatArray, FloatArray], object] | None = None
+_rust_marking_update: Callable[[FloatArray, FloatArray, FloatArray, FloatArray], object] | None = None
+_rust_sample_firing: Callable[[FloatArray, int, int, bool], object] | None = None
 
 try:
     from scpn_control_rs import (  # type: ignore[import-not-found,unused-ignore]
@@ -77,10 +77,10 @@ class NeuroSymbolicController:
         scales: ControlScales,
         sc_n_passes: int = 8,
         sc_bitflip_rate: float = 0.0,
-        sc_binary_margin: Optional[float] = None,
+        sc_binary_margin: float | None = None,
         sc_antithetic: bool = True,
         enable_oracle_diagnostics: bool = True,
-        feature_axes: Optional[Sequence[FeatureAxisSpec]] = None,
+        feature_axes: Sequence[FeatureAxisSpec] | None = None,
         runtime_profile: str = "adaptive",
         runtime_backend: str = "auto",
         rust_backend_min_problem_size: int = 1,
@@ -213,7 +213,7 @@ class NeuroSymbolicController:
                 passthrough_sources.append(src)
         self._passthrough_sources = passthrough_sources
         self._traceable_ready = len(self._passthrough_sources) == 0
-        key_to_axis: Dict[str, Tuple[int, bool]] = {}
+        key_to_axis: dict[str, tuple[int, bool]] = {}
         for i, key in enumerate(self._axis_pos_keys):
             key_to_axis[key] = (i, True)
         for i, key in enumerate(self._axis_neg_keys):
@@ -233,7 +233,7 @@ class NeuroSymbolicController:
         self._inj_source_axis_idx = np.full(self._inj_count, -1, dtype=np.int64)
         self._inj_source_axis_pos = np.zeros(self._inj_count, dtype=np.bool_)
         self._tmp_inj_values = np.zeros(self._inj_count, dtype=np.float64)
-        passthrough_pairs: list[Tuple[int, str]] = []
+        passthrough_pairs: list[tuple[int, str]] = []
         for i, src in enumerate(self._inj_sources):
             axis_info = key_to_axis.get(src)
             if axis_info is not None:
@@ -255,10 +255,10 @@ class NeuroSymbolicController:
         self._action_max_delta = self._action_slew_per_s * self._dt
         self._prev_actions = np.zeros(self._action_count, dtype=np.float64)
         self._tmp_actions = np.zeros(self._action_count, dtype=np.float64)
-        self.last_oracle_firing: List[float] = []
-        self.last_sc_firing: List[float] = []
-        self.last_oracle_marking: List[float] = self._marking.tolist()
-        self.last_sc_marking: List[float] = self._marking.tolist()
+        self.last_oracle_firing: list[float] = []
+        self.last_sc_firing: list[float] = []
+        self.last_oracle_marking: list[float] = self._marking.tolist()
+        self.last_sc_marking: list[float] = self._marking.tolist()
 
     # ── Public API ───────────────────────────────────────────────────────
 
@@ -287,8 +287,8 @@ class NeuroSymbolicController:
         return self._runtime_profile
 
     @property
-    def marking(self) -> List[float]:
-        return cast(List[float], self._marking.tolist())
+    def marking(self) -> list[float]:
+        return cast(list[float], self._marking.tolist())
 
     @marking.setter
     def marking(self, values: Sequence[float]) -> None:
@@ -301,7 +301,7 @@ class NeuroSymbolicController:
         self,
         obs: Mapping[str, float],
         k: int,
-        log_path: Optional[str] = None,
+        log_path: str | None = None,
     ) -> ControlAction:
         """Execute one control tick.
 
@@ -374,7 +374,7 @@ class NeuroSymbolicController:
         self,
         obs_vector: Sequence[float],
         k: int,
-        log_path: Optional[str] = None,
+        log_path: str | None = None,
     ) -> FloatArray:
         """Execute one control tick from a fixed-order observation vector.
 
@@ -427,7 +427,7 @@ class NeuroSymbolicController:
 
     # ── Internal ─────────────────────────────────────────────────────────
 
-    def _compute_feature_components(self, obs_map: Mapping[str, float]) -> Tuple[FloatArray, FloatArray]:
+    def _compute_feature_components(self, obs_map: Mapping[str, float]) -> tuple[FloatArray, FloatArray]:
         if self._axis_count == 0:
             return self._empty, self._empty
 
@@ -440,7 +440,7 @@ class NeuroSymbolicController:
 
     def _compute_feature_components_vector(
         self, obs_vector: Sequence[float] | FloatArray
-    ) -> Tuple[FloatArray, FloatArray]:
+    ) -> tuple[FloatArray, FloatArray]:
         if self._axis_count == 0:
             return self._empty, self._empty
 
@@ -457,8 +457,8 @@ class NeuroSymbolicController:
 
     def _build_feature_dict(
         self, obs_map: Mapping[str, float], pos_vals: FloatArray, neg_vals: FloatArray
-    ) -> Dict[str, float]:
-        feats: Dict[str, float] = {}
+    ) -> dict[str, float]:
+        feats: dict[str, float] = {}
         for i, key in enumerate(self._axis_pos_keys):
             feats[key] = float(pos_vals[i])
         for i, key in enumerate(self._axis_neg_keys):
@@ -502,7 +502,7 @@ class NeuroSymbolicController:
             values[self._inj_clamp_idx] = np.clip(values[self._inj_clamp_idx], 0.0, 1.0)
         marking[self._inj_place_ids] = values
 
-    def _oracle_step(self, marking: FloatArray) -> Tuple[FloatArray, FloatArray]:
+    def _oracle_step(self, marking: FloatArray) -> tuple[FloatArray, FloatArray]:
         """Float-path Petri step.
 
         Returns (firing_vector, next_marking).
@@ -524,7 +524,7 @@ class NeuroSymbolicController:
 
         return f_timed, m2
 
-    def _sc_step(self, marking: FloatArray, k: int) -> Tuple[FloatArray, FloatArray]:
+    def _sc_step(self, marking: FloatArray, k: int) -> tuple[FloatArray, FloatArray]:
         """Deterministic stochastic path with optional bit-flip fault injection."""
         a = self._dense_activations(marking)
 
@@ -629,7 +629,7 @@ class NeuroSymbolicController:
         desired_firing: FloatArray,
         pending: FloatArray,
         cursor: int,
-    ) -> Tuple[FloatArray, int]:
+    ) -> tuple[FloatArray, int]:
         desired = np.asarray(np.clip(desired_firing, 0.0, 1.0), dtype=np.float64)
         if self._max_delay_ticks <= 0:
             return desired, cursor
@@ -672,7 +672,7 @@ class NeuroSymbolicController:
         np.clip(out, 0.0, 1.0, out=out)
         return out
 
-    def _decode_actions(self, marking: FloatArray) -> Dict[str, float]:
+    def _decode_actions(self, marking: FloatArray) -> dict[str, float]:
         actions = self._decode_actions_vector(marking)
         if actions.size == 0:
             return {}

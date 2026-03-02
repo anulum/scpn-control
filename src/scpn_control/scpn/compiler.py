@@ -22,7 +22,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -133,19 +133,19 @@ class CompiledNet:
     # Topology
     n_places: int
     n_transitions: int
-    place_names: List[str]
-    transition_names: List[str]
+    place_names: list[str]
+    transition_names: list[str]
 
     # Dense weight matrices (float path)
     W_in: FloatArray  # (nT, nP)
     W_out: FloatArray  # (nP, nT)
 
     # Pre-packed weight bitstreams (stochastic path) — None if no sc_neurocore
-    W_in_packed: Optional[UInt64Array] = None  # (nT, nP, n_words) uint64
-    W_out_packed: Optional[UInt64Array] = None  # (nP, nT, n_words) uint64
+    W_in_packed: UInt64Array | None = None  # (nT, nP, n_words) uint64
+    W_out_packed: UInt64Array | None = None  # (nP, nT, n_words) uint64
 
     # LIF neurons (one per transition) — empty list if no sc_neurocore
-    neurons: List[Any] = field(default_factory=list)
+    neurons: list[Any] = field(default_factory=list)
 
     # Config
     bitstream_length: int = 1024
@@ -269,8 +269,8 @@ class CompiledNet:
         self,
         name: str = "controller",
         dt_control_s: float = 0.001,
-        readout_config: Optional[Dict[str, Any]] = None,
-        injection_config: Optional[List[Dict[str, Any]]] = None,
+        readout_config: dict[str, Any] | None = None,
+        injection_config: list[dict[str, Any]] | None = None,
     ) -> Any:
         """Build an ``Artifact`` from compiled state + user-provided config.
 
@@ -439,7 +439,7 @@ class FusionCompiler:
     def traceable_runtime_kwargs(
         *,
         runtime_backend: str = "auto",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Recommended controller kwargs for traceable runtime loops."""
         backend = runtime_backend.strip().lower()
         if backend not in {"auto", "numpy", "rust"}:

@@ -18,7 +18,6 @@ Builds two sparse matrices that encode the net topology:
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import Dict, List, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
@@ -48,27 +47,27 @@ class StochasticPetriNet:
 
     def __init__(self) -> None:
         # Ordered registries -------------------------------------------------
-        self._places: List[str] = []
-        self._place_tokens: List[float] = []
-        self._place_idx: Dict[str, int] = {}
+        self._places: list[str] = []
+        self._place_tokens: list[float] = []
+        self._place_idx: dict[str, int] = {}
 
-        self._transitions: List[str] = []
-        self._transition_thresholds: List[float] = []
-        self._transition_delays: List[int] = []
-        self._transition_idx: Dict[str, int] = {}
+        self._transitions: list[str] = []
+        self._transition_thresholds: list[float] = []
+        self._transition_delays: list[int] = []
+        self._transition_idx: dict[str, int] = {}
 
         # Node kind lookup (for arc validation) --------------------------------
-        self._kind: Dict[str, _NodeKind] = {}
+        self._kind: dict[str, _NodeKind] = {}
 
         # Arc storage (resolved at compile time) --------------------------------
         # Each arc: (source_name, target_name, weight, inhibitor_flag)
-        self._arcs: List[Tuple[str, str, float, bool]] = []
+        self._arcs: list[tuple[str, str, float, bool]] = []
 
         # Compiled products ----------------------------------------------------
         self.W_in: sparse.csr_matrix | None = None  # (nT, nP)
         self.W_out: sparse.csr_matrix | None = None  # (nP, nT)
         self._compiled: bool = False
-        self._last_validation_report: Dict[str, object] | None = None
+        self._last_validation_report: dict[str, object] | None = None
 
     # ── Builder API ──────────────────────────────────────────────────────────
 
@@ -186,7 +185,7 @@ class StochasticPetriNet:
                 or report["input_weight_overflow_transitions"]
             )
             if strict_validation and has_issues:
-                issues: List[str] = []
+                issues: list[str] = []
                 if report["dead_places"]:
                     issues.append(f"dead_places={report['dead_places']}")
                 if report["dead_transitions"]:
@@ -198,13 +197,13 @@ class StochasticPetriNet:
                 raise ValueError("Topology validation failed: " + "; ".join(issues))
 
         # COO accumulators
-        in_rows: List[int] = []
-        in_cols: List[int] = []
-        in_vals: List[float] = []
+        in_rows: list[int] = []
+        in_cols: list[int] = []
+        in_vals: list[float] = []
 
-        out_rows: List[int] = []
-        out_cols: List[int] = []
-        out_vals: List[float] = []
+        out_rows: list[int] = []
+        out_cols: list[int] = []
+        out_vals: list[float] = []
 
         for src, tgt, w, is_inhibitor in self._arcs:
             if self._kind[src] is _NodeKind.PLACE:
@@ -230,7 +229,7 @@ class StochasticPetriNet:
         self.W_out = sparse.csr_matrix((out_vals, (out_rows, out_cols)), shape=(nP, nT), dtype=np.float64)
         self._compiled = True
 
-    def validate_topology(self) -> Dict[str, object]:
+    def validate_topology(self) -> dict[str, object]:
         """Return topology diagnostics without mutating compiled matrices.
 
         Diagnostics:
@@ -247,8 +246,8 @@ class StochasticPetriNet:
         trans_out_deg = {t: 0 for t in self._transitions}
         transition_positive_input_weight_sum = {t: 0.0 for t in self._transitions}
 
-        transition_inputs: Dict[str, List[str]] = {t: [] for t in self._transitions}
-        transition_outputs: Dict[str, List[str]] = {t: [] for t in self._transitions}
+        transition_inputs: dict[str, list[str]] = {t: [] for t in self._transitions}
+        transition_outputs: dict[str, list[str]] = {t: [] for t in self._transitions}
 
         for src, tgt, w, _is_inhibitor in self._arcs:
             if self._kind[src] is _NodeKind.PLACE:
@@ -265,7 +264,7 @@ class StochasticPetriNet:
         dead_places = sorted(p for p in self._places if (place_in_deg[p] + place_out_deg[p]) == 0)
         dead_transitions = sorted(t for t in self._transitions if (trans_in_deg[t] + trans_out_deg[t]) == 0)
 
-        place_adj: Dict[str, set[str]] = {p: set() for p in self._places}
+        place_adj: dict[str, set[str]] = {p: set() for p in self._places}
         for t in self._transitions:
             inputs = transition_inputs[t]
             outputs = transition_outputs[t]
@@ -273,7 +272,7 @@ class StochasticPetriNet:
                 for dst_place in outputs:
                     place_adj[src_place].add(dst_place)
 
-        unseeded_place_cycles: List[List[str]] = []
+        unseeded_place_cycles: list[list[str]] = []
         for comp in self._strongly_connected_components(place_adj):
             has_cycle = len(comp) > 1
             if not has_cycle:
@@ -297,14 +296,14 @@ class StochasticPetriNet:
         }
 
     @staticmethod
-    def _strongly_connected_components(graph: Dict[str, set[str]]) -> List[List[str]]:
+    def _strongly_connected_components(graph: dict[str, set[str]]) -> list[list[str]]:
         """Tarjan SCC for small place graphs."""
         index = 0
-        stack: List[str] = []
+        stack: list[str] = []
         on_stack: set[str] = set()
-        indices: Dict[str, int] = {}
-        lowlink: Dict[str, int] = {}
-        components: List[List[str]] = []
+        indices: dict[str, int] = {}
+        lowlink: dict[str, int] = {}
+        components: list[list[str]] = []
 
         def strongconnect(v: str) -> None:
             nonlocal index
@@ -322,7 +321,7 @@ class StochasticPetriNet:
                     lowlink[v] = min(lowlink[v], indices[w])
 
             if lowlink[v] == indices[v]:
-                comp: List[str] = []
+                comp: list[str] = []
                 while True:
                     w = stack.pop()
                     on_stack.remove(w)
@@ -347,11 +346,11 @@ class StochasticPetriNet:
         return len(self._transitions)
 
     @property
-    def place_names(self) -> List[str]:
+    def place_names(self) -> list[str]:
         return list(self._places)
 
     @property
-    def transition_names(self) -> List[str]:
+    def transition_names(self) -> list[str]:
         return list(self._transitions)
 
     @property
@@ -359,7 +358,7 @@ class StochasticPetriNet:
         return self._compiled
 
     @property
-    def last_validation_report(self) -> Dict[str, object] | None:
+    def last_validation_report(self) -> dict[str, object] | None:
         return self._last_validation_report
 
     def get_initial_marking(self) -> FloatArray:
@@ -408,7 +407,7 @@ class StochasticPetriNet:
 
     # ── Formal verification ───────────────────────────────────────────────
 
-    def verify_boundedness(self, n_steps: int = 500, n_trials: int = 100) -> Dict[str, object]:
+    def verify_boundedness(self, n_steps: int = 500, n_trials: int = 100) -> dict[str, object]:
         """Verify that markings stay in [0, 1] under random firing.
 
         Runs *n_trials* random trajectories of *n_steps* each,
@@ -465,7 +464,7 @@ class StochasticPetriNet:
             "n_steps": n_steps,
         }
 
-    def verify_liveness(self, n_steps: int = 200, n_trials: int = 1000) -> Dict[str, object]:
+    def verify_liveness(self, n_steps: int = 200, n_trials: int = 1000) -> dict[str, object]:
         """Verify that all transitions fire at least once in random campaigns.
 
         Returns

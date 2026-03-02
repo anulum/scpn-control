@@ -23,7 +23,7 @@ K_{nm} (off-diagonal): inter-layer bidirectional causality
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional, Sequence
+from typing import Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -48,10 +48,10 @@ class UPDESystem:
         theta_layers: Sequence[FloatArray],
         omega_layers: Sequence[FloatArray],
         *,
-        psi_driver: Optional[float] = None,
+        psi_driver: float | None = None,
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
-        K_override: Optional[FloatArray] = None,
+        K_override: FloatArray | None = None,
     ) -> dict:
         """Advance all L layers by one Euler step.
 
@@ -98,8 +98,8 @@ class UPDESystem:
         alpha = np.zeros_like(K) if self.spec.alpha is None else np.asarray(self.spec.alpha, dtype=np.float64)
         zeta = np.zeros(L) if self.spec.zeta is None else np.asarray(self.spec.zeta, dtype=np.float64)
 
-        theta1: List[FloatArray] = []
-        dtheta_all: List[FloatArray] = []
+        theta1: list[FloatArray] = []
+        dtheta_all: list[FloatArray] = []
 
         for m in range(L):
             th = np.asarray(theta_layers[m], dtype=np.float64).ravel()
@@ -152,10 +152,10 @@ class UPDESystem:
         theta_layers: Sequence[FloatArray],
         omega_layers: Sequence[FloatArray],
         *,
-        psi_driver: Optional[float] = None,
+        psi_driver: float | None = None,
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
-        K_override: Optional[FloatArray] = None,
+        K_override: FloatArray | None = None,
     ) -> dict:
         """Run n_steps and return trajectory of per-layer R and global R."""
         R_layer_hist = []
@@ -187,10 +187,10 @@ class UPDESystem:
         theta_layers: Sequence[FloatArray],
         omega_layers: Sequence[FloatArray],
         *,
-        psi_driver: Optional[float] = None,
+        psi_driver: float | None = None,
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
-        K_override: Optional[FloatArray] = None,
+        K_override: FloatArray | None = None,
     ) -> dict:
         """Run n_steps with Lyapunov tracking.
 
