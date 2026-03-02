@@ -52,6 +52,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control.core._validators import (
+    require_finite_float,
+    require_non_negative_float,
+    require_positive_float,
+    require_range,
+)
+
 # ─── Physical constants ─────────────────────────────────────────────
 _E_CHARGE = 1.602e-19  # C
 _M_ELECTRON = 9.109e-31  # kg
@@ -59,41 +66,6 @@ _C_LIGHT = 2.998e8  # m/s
 _MU0 = 4.0 * np.pi * 1e-7  # H/m
 _EPSILON0 = 8.854e-12  # F/m
 _LN_LAMBDA = 15.0  # Coulomb logarithm, Wesson Ch. 14
-
-
-def _as_finite_float(name: str, value: float) -> float:
-    """Return finite ``float`` value or raise ``ValueError``."""
-    out = float(value)
-    if not np.isfinite(out):
-        raise ValueError(f"{name} must be finite, got {value!r}")
-    return out
-
-
-def _as_positive_float(name: str, value: float) -> float:
-    """Return positive finite ``float`` value or raise ``ValueError``."""
-    out = _as_finite_float(name, value)
-    if out <= 0.0:
-        raise ValueError(f"{name} must be > 0, got {value!r}")
-    return out
-
-
-def _as_non_negative_float(name: str, value: float) -> float:
-    """Return non-negative finite ``float`` value or raise ``ValueError``."""
-    out = _as_finite_float(name, value)
-    if out < 0.0:
-        raise ValueError(f"{name} must be >= 0, got {value!r}")
-    return out
-
-
-def _as_range(name: str, value: tuple[float, float], *, min_allowed: float = -np.inf) -> tuple[float, float]:
-    """Validate a numeric range tuple as finite ascending bounds."""
-    low = _as_finite_float(f"{name}[0]", value[0])
-    high = _as_finite_float(f"{name}[1]", value[1])
-    if low < min_allowed:
-        raise ValueError(f"{name}[0] must be >= {min_allowed}, got {low}")
-    if high <= low:
-        raise ValueError(f"{name} must satisfy low < high, got ({low}, {high})")
-    return (low, high)
 
 
 @dataclass
@@ -169,13 +141,13 @@ class HaloCurrentModel:
         tpf: float = 2.0,
         contact_fraction: float = 0.3,
     ) -> None:
-        plasma_current_ma = _as_positive_float("plasma_current_ma", plasma_current_ma)
-        minor_radius_m = _as_positive_float("minor_radius_m", minor_radius_m)
-        major_radius_m = _as_positive_float("major_radius_m", major_radius_m)
-        wall_resistivity_ohm_m = _as_positive_float("wall_resistivity_ohm_m", wall_resistivity_ohm_m)
-        wall_thickness_m = _as_positive_float("wall_thickness_m", wall_thickness_m)
-        tpf = _as_positive_float("tpf", tpf)
-        contact_fraction = _as_finite_float("contact_fraction", contact_fraction)
+        plasma_current_ma = require_positive_float("plasma_current_ma", plasma_current_ma)
+        minor_radius_m = require_positive_float("minor_radius_m", minor_radius_m)
+        major_radius_m = require_positive_float("major_radius_m", major_radius_m)
+        wall_resistivity_ohm_m = require_positive_float("wall_resistivity_ohm_m", wall_resistivity_ohm_m)
+        wall_thickness_m = require_positive_float("wall_thickness_m", wall_thickness_m)
+        tpf = require_positive_float("tpf", tpf)
+        contact_fraction = require_finite_float("contact_fraction", contact_fraction)
         if not (0.0 < contact_fraction <= 1.0):
             raise ValueError(f"contact_fraction must be in (0, 1], got {contact_fraction!r}")
 
@@ -215,9 +187,9 @@ class HaloCurrentModel:
         dt_s : float
             Time step (s).
         """
-        tau_cq_s = _as_positive_float("tau_cq_s", tau_cq_s)
-        duration_s = _as_positive_float("duration_s", duration_s)
-        dt = _as_positive_float("dt_s", dt_s)
+        tau_cq_s = require_positive_float("tau_cq_s", tau_cq_s)
+        duration_s = require_positive_float("duration_s", duration_s)
+        dt = require_positive_float("dt_s", dt_s)
         if dt > duration_s:
             raise ValueError(f"dt_s ({dt}) must be <= duration_s ({duration_s})")
 
@@ -298,10 +270,10 @@ class RunawayElectronModel:
         enable_relativistic_losses: bool = True,
         neon_mol: float = 0.0,
     ) -> None:
-        self.n_e_free = _as_positive_float("n_e", n_e)
-        self.T_e0 = _as_positive_float("T_e_keV", T_e_keV)
-        self.R0 = _as_positive_float("major_radius_m", major_radius_m)
-        self.B_t = _as_positive_float("magnetic_field_t", magnetic_field_t)
+        self.n_e_free = require_positive_float("n_e", n_e)
+        self.T_e0 = require_positive_float("T_e_keV", T_e_keV)
+        self.R0 = require_positive_float("major_radius_m", major_radius_m)
+        self.B_t = require_positive_float("magnetic_field_t", magnetic_field_t)
         self.enable_relativistic_losses = bool(enable_relativistic_losses)
 
         # Collision time: based on free electrons
@@ -323,8 +295,8 @@ class RunawayElectronModel:
 
     def _update_impurity_state(self, *, neon_mol: float, z_eff: float) -> None:
         """Update impurity-dependent fields used by avalanche dynamics."""
-        neon_mol = _as_non_negative_float("neon_mol", neon_mol)
-        z_eff = _as_finite_float("z_eff", z_eff)
+        neon_mol = require_non_negative_float("neon_mol", neon_mol)
+        z_eff = require_finite_float("z_eff", z_eff)
         if z_eff < 1.0:
             raise ValueError(f"z_eff must be >= 1.0, got {z_eff!r}")
 
@@ -456,18 +428,18 @@ class RunawayElectronModel:
         The toroidal electric field E is derived from Faraday's law:
             E = (L_p / (2*pi*R0)) * dI_p/dt
         """
-        plasma_current_ma = _as_positive_float("plasma_current_ma", plasma_current_ma)
-        tau_cq_s = _as_positive_float("tau_cq_s", tau_cq_s)
-        T_e = _as_positive_float("T_e_quench_keV", T_e_quench_keV)
-        duration_s = _as_positive_float("duration_s", duration_s)
-        dt = _as_positive_float("dt_s", dt_s)
+        plasma_current_ma = require_positive_float("plasma_current_ma", plasma_current_ma)
+        tau_cq_s = require_positive_float("tau_cq_s", tau_cq_s)
+        T_e = require_positive_float("T_e_quench_keV", T_e_quench_keV)
+        duration_s = require_positive_float("duration_s", duration_s)
+        dt = require_positive_float("dt_s", dt_s)
         if dt > duration_s:
             raise ValueError(f"dt_s ({dt}) must be <= duration_s ({duration_s})")
 
-        seed_re_fraction = _as_finite_float("seed_re_fraction", seed_re_fraction)
+        seed_re_fraction = require_finite_float("seed_re_fraction", seed_re_fraction)
         if not (0.0 < seed_re_fraction <= 1.0):
             raise ValueError(f"seed_re_fraction must be in (0, 1], got {seed_re_fraction!r}")
-        neon_mol_eff = self.neon_mol if neon_mol is None else _as_non_negative_float("neon_mol", neon_mol)
+        neon_mol_eff = self.neon_mol if neon_mol is None else require_non_negative_float("neon_mol", neon_mol)
         self._update_impurity_state(neon_mol=neon_mol_eff, z_eff=neon_z_eff)
 
         n_steps = max(int(duration_s / dt), 10)
@@ -573,9 +545,9 @@ def run_disruption_ensemble(
     """
     if ensemble_runs <= 0:
         raise ValueError(f"ensemble_runs must be > 0, got {ensemble_runs!r}")
-    plasma_current_range = _as_range("plasma_current_range", plasma_current_range, min_allowed=0.0)
-    plasma_energy_range = _as_range("plasma_energy_range", plasma_energy_range, min_allowed=0.0)
-    neon_range = _as_range("neon_range", neon_range, min_allowed=0.0)
+    plasma_current_range = require_range("plasma_current_range", plasma_current_range, min_allowed=0.0)
+    plasma_energy_range = require_range("plasma_energy_range", plasma_energy_range, min_allowed=0.0)
+    neon_range = require_range("neon_range", neon_range, min_allowed=0.0)
 
     rng = np.random.default_rng(seed)
 

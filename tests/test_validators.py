@@ -17,6 +17,7 @@ from scpn_control.core._validators import (
     require_int,
     require_non_negative_float,
     require_positive_float,
+    require_range,
 )
 
 
@@ -121,6 +122,32 @@ def test_fraction_rejects_outside_bounds(val):
 def test_fraction_rejects_nonfinite(val):
     with pytest.raises(ValueError, match="finite"):
         require_fraction("x", val)
+
+
+# ── require_range ────────────────────────────────────────────────────
+
+
+def test_range_accepts_valid():
+    assert require_range("x", (1.0, 5.0)) == (1.0, 5.0)
+
+
+def test_range_accepts_with_min_allowed():
+    assert require_range("x", (0.0, 10.0), min_allowed=0.0) == (0.0, 10.0)
+
+
+def test_range_rejects_low_below_min():
+    with pytest.raises(ValueError, match=">="):
+        require_range("x", (-1.0, 5.0), min_allowed=0.0)
+
+
+def test_range_rejects_high_le_low():
+    with pytest.raises(ValueError, match="low < high"):
+        require_range("x", (5.0, 5.0))
+
+
+def test_range_rejects_nonfinite():
+    with pytest.raises(ValueError, match="finite"):
+        require_range("x", (float("nan"), 5.0))
 
 
 # ── require_1d_array ─────────────────────────────────────────────────

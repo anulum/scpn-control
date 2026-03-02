@@ -47,6 +47,21 @@ def require_fraction(name: str, value: Any) -> float:
     return out
 
 
+def require_range(
+    name: str,
+    value: tuple[float, float],
+    *,
+    min_allowed: float = -np.inf,
+) -> tuple[float, float]:
+    low = require_finite_float(f"{name}[0]", value[0])
+    high = require_finite_float(f"{name}[1]", value[1])
+    if low < min_allowed:
+        raise ValueError(f"{name}[0] must be >= {min_allowed}, got {low}")
+    if high <= low:
+        raise ValueError(f"{name} must satisfy low < high, got ({low}, {high})")
+    return (low, high)
+
+
 def require_1d_array(
     name: str,
     value: Any,
