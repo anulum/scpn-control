@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.1] — 2026-03-02
+
+### Fixed
+- CITATION.cff DOI description said v0.4.0 (now v0.5.0)
+- `docs/api.md` version string stuck at 0.3.3 (now 0.5.0)
+- CONTRIBUTING.md stale test count (1243→~1900), coverage (50→62%), CI jobs (17→16)
+- `docs/development.md` stale coverage (55→62%) and release process (no longer uses `__init__.py`)
+- Two "Approximate" comments cleaned per anti-slop rule #4
+
+### Changed
+- `require_int` deduplicated: canonical `core/_validators.py` replaces 3 copies
+- `deny.toml` wildcards: "allow" → "deny"
+- Pre-commit: added `check-merge-conflict`, `detect-private-key` hooks
+- Paper 27 phase dynamics page added to mkdocs nav
+
+### Added
+- `SECURITY.md` responsible disclosure policy
+- `CODE_OF_CONDUCT.md` (Contributor Covenant v2.1)
+- U-007 in UNDERDEVELOPED_REGISTER (np.isfinite boilerplate)
+- GitHub issues gh-13, gh-14, gh-15 for U-003/004/005 Rust fallback gaps
+
 ## [0.5.0] — 2026-03-02
 
 ### Fixed
