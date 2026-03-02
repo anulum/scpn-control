@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_load_default_config() {
         let cfg =
-            ReactorConfig::from_file(&config_path("src/scpn_fusion/core/default_config.json"))
+            ReactorConfig::from_file(&config_path("scpn-control-rs/crates/control-types/test_data/default_config.json"))
                 .unwrap();
         assert_eq!(cfg.reactor_name, "SCPN-Standard-Model");
         assert_eq!(cfg.grid_resolution, [65, 65]);
@@ -196,7 +196,7 @@ mod tests {
             "validation/iter_validated_config.json",
             "validation/iter_genetic_config.json",
             "validation/iter_force_balanced.json",
-            "src/scpn_fusion/core/default_config.json",
+            "scpn-control-rs/crates/control-types/test_data/default_config.json",
         ];
         for relative in &configs {
             let path = config_path(relative);
