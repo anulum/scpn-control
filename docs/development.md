@@ -79,11 +79,11 @@ PEP 561 marker: `src/scpn_control/py.typed`.
 2. Tag and push:
 
     ```bash
-    git tag v0.2.1 && git push origin v0.2.1
+    git tag vX.Y.Z && git push origin vX.Y.Z
     ```
 
 3. CI publishes to PyPI via `publish-pypi.yml`
-4. Verify: `pip install scpn-control==0.2.1`
+4. Verify: `pip install scpn-control==X.Y.Z`
 
 ---
 

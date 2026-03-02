@@ -45,6 +45,6 @@ body:
     id: package-version
     attributes:
       label: scpn-control version
-      placeholder: "0.3.0"
+      placeholder: "0.5.x"
     validations:
       required: true
