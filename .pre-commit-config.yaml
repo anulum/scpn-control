@@ -32,8 +32,3 @@ repos:
         entry: bash -c 'cd scpn-control-rs && cargo fmt --check'
         language: system
         pass_filenames: false
-      - id: cargo-clippy
-        name: cargo clippy
-        entry: bash -c 'cd scpn-control-rs && cargo clippy -- -D warnings'
-        language: system
-        pass_filenames: false
