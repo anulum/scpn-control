@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import json
 
-import numpy as np
-
 from scpn_control.scpn.artifact import load_artifact, save_artifact
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.controller import (
@@ -19,35 +17,12 @@ from scpn_control.scpn.controller import (
     ControlTargets,
     NeuroSymbolicController,
 )
-from scpn_control.scpn.structure import StochasticPetriNet
 
 
-def _build_net():
-    net = StochasticPetriNet()
-    for name in ("P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7"):
-        net.add_place(name)
-    net.add_transition("T0", threshold=0.5)
-    net.add_transition("T1", threshold=0.5)
-    net.add_transition("T2", threshold=0.5)
-    net.add_transition("T3", threshold=0.5)
-    net.add_arc("P0", "T0", 0.8)
-    net.add_arc("P1", "T0", 0.6)
-    net.add_arc("T0", "P4", 0.7)
-    net.add_arc("P2", "T1", 0.8)
-    net.add_arc("P3", "T1", 0.6)
-    net.add_arc("T1", "P5", 0.7)
-    net.add_arc("P4", "T2", 0.5)
-    net.add_arc("T2", "P6", 0.9)
-    net.add_arc("P5", "T3", 0.5)
-    net.add_arc("T3", "P7", 0.9)
-    return net
-
-
-def _artifact_with_passthrough(tmp_path):
+def _artifact_with_passthrough(tmp_path, petri_net_std):
     """Create artifact with a passthrough injection source 'extra_sensor'."""
-    net = _build_net()
     compiler = FusionCompiler(bitstream_length=64, seed=0)
-    compiled = compiler.compile(net)
+    compiled = compiler.compile(petri_net_std)
     injection_config = [
         {"place_id": 0, "source": "x_R_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
         {"place_id": 1, "source": "x_R_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
@@ -75,9 +50,9 @@ def _artifact_with_passthrough(tmp_path):
 
 
 class TestLogPathPassthrough:
-    def test_step_with_log_path_covers_passthrough(self, tmp_path):
+    def test_step_with_log_path_covers_passthrough(self, tmp_path, petri_net_std):
         """step(log_path=...) triggers _build_feature_dict passthrough (542-545)."""
-        art_path = _artifact_with_passthrough(tmp_path)
+        art_path = _artifact_with_passthrough(tmp_path, petri_net_std)
         art = load_artifact(art_path)
         ctrl = NeuroSymbolicController(
             artifact=art,
@@ -92,7 +67,6 @@ class TestLogPathPassthrough:
         actions = ctrl.step(obs, k=0, log_path=str(log_file))
         assert isinstance(actions, dict)
         assert "dI_PF3_A" in actions
-        # Verify log was written
         assert log_file.exists()
         with open(log_file) as f:
             lines = f.readlines()

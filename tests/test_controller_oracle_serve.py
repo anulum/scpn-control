@@ -14,10 +14,8 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -30,34 +28,11 @@ from scpn_control.scpn.controller import (
     ControlTargets,
     NeuroSymbolicController,
 )
-from scpn_control.scpn.structure import StochasticPetriNet
 
 
-def _build_net():
-    net = StochasticPetriNet()
-    for name in ("P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7"):
-        net.add_place(name)
-    net.add_transition("T0", threshold=0.5)
-    net.add_transition("T1", threshold=0.5)
-    net.add_transition("T2", threshold=0.5)
-    net.add_transition("T3", threshold=0.5)
-    net.add_arc("P0", "T0", 0.8)
-    net.add_arc("P1", "T0", 0.6)
-    net.add_arc("T0", "P4", 0.7)
-    net.add_arc("P2", "T1", 0.8)
-    net.add_arc("P3", "T1", 0.6)
-    net.add_arc("T1", "P5", 0.7)
-    net.add_arc("P4", "T2", 0.5)
-    net.add_arc("T2", "P6", 0.9)
-    net.add_arc("P5", "T3", 0.5)
-    net.add_arc("T3", "P7", 0.9)
-    return net
-
-
-def _build_artifact_file(tmp_path: Path, injection_config=None) -> str:
-    net = _build_net()
+def _build_artifact_file(tmp_path: Path, petri_net_std, injection_config=None) -> str:
     compiler = FusionCompiler(bitstream_length=64, seed=0)
-    compiled = compiler.compile(net)
+    compiled = compiler.compile(petri_net_std)
 
     readout_config = {
         "actions": [
@@ -101,8 +76,8 @@ def _make_controller(artifact_path: str, **kwargs):
 
 
 class TestStepTraceableOracle:
-    def test_oracle_diagnostics_enabled(self, tmp_path):
-        art_path = _build_artifact_file(tmp_path)
+    def test_oracle_diagnostics_enabled(self, tmp_path, petri_net_std):
+        art_path = _build_artifact_file(tmp_path, petri_net_std)
         ctrl = _make_controller(
             art_path,
             runtime_profile="traceable",
@@ -113,8 +88,8 @@ class TestStepTraceableOracle:
         assert len(ctrl.last_oracle_firing) > 0
         assert len(ctrl.last_oracle_marking) > 0
 
-    def test_oracle_diagnostics_disabled(self, tmp_path):
-        art_path = _build_artifact_file(tmp_path)
+    def test_oracle_diagnostics_disabled(self, tmp_path, petri_net_std):
+        art_path = _build_artifact_file(tmp_path, petri_net_std)
         ctrl = _make_controller(
             art_path,
             runtime_profile="traceable",
@@ -125,8 +100,8 @@ class TestStepTraceableOracle:
         assert ctrl.last_oracle_firing == []
         assert ctrl.last_oracle_marking == []
 
-    def test_step_traceable_with_log(self, tmp_path):
-        art_path = _build_artifact_file(tmp_path)
+    def test_step_traceable_with_log(self, tmp_path, petri_net_std):
+        art_path = _build_artifact_file(tmp_path, petri_net_std)
         ctrl = _make_controller(
             art_path,
             runtime_profile="traceable",
@@ -143,12 +118,12 @@ class TestStepTraceableOracle:
         assert "f_oracle" in rec
         assert "timing_ms" in rec
 
-    def test_not_traceable_raises(self, tmp_path):
+    def test_not_traceable_raises(self, tmp_path, petri_net_std):
         """Controller with passthrough sources rejects step_traceable."""
         injection_config = [
             {"place_id": 0, "source": "external_sensor", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
         ]
-        art_path = _build_artifact_file(tmp_path, injection_config=injection_config)
+        art_path = _build_artifact_file(tmp_path, petri_net_std, injection_config=injection_config)
         ctrl = _make_controller(art_path, runtime_profile="traceable")
         with pytest.raises(RuntimeError, match="passthrough"):
             ctrl.step_traceable((6.2,), k=0)
