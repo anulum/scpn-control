@@ -27,7 +27,6 @@ growth rates).
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -87,9 +86,9 @@ class HInfinityController:
         B2: npt.ArrayLike,
         C1: npt.ArrayLike,
         C2: npt.ArrayLike,
-        gamma: Optional[float] = None,
-        D12: Optional[npt.ArrayLike] = None,
-        D21: Optional[npt.ArrayLike] = None,
+        gamma: float | None = None,
+        D12: npt.ArrayLike | None = None,
+        D21: npt.ArrayLike | None = None,
         enforce_robust_feasibility: bool = False,
     ) -> None:
         self.A = np.atleast_2d(np.asarray(A, dtype=float))
@@ -174,7 +173,7 @@ class HInfinityController:
 
     @staticmethod
     def _make_feedthrough(
-        value: Optional[npt.ArrayLike],
+        value: npt.ArrayLike | None,
         rows: int,
         cols: int,
         name: str,

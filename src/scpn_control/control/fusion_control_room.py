@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import numpy as np
 
@@ -47,7 +47,7 @@ class TokamakPhysicsEngine:
         size: int = RESOLUTION,
         *,
         seed: int = 42,
-        kernel: Optional[Any] = None,
+        kernel: Any | None = None,
     ) -> None:
         size = int(size)
         if size < 16:
@@ -73,7 +73,7 @@ class TokamakPhysicsEngine:
         self.z_pos = 0.0
         self.v_drift = 0.0
 
-    def _kernel_psi(self) -> Optional[np.ndarray]:
+    def _kernel_psi(self) -> np.ndarray | None:
         if self.kernel is None or not hasattr(self.kernel, "Psi"):
             return None
         psi = np.asarray(self.kernel.Psi, dtype=np.float64)
@@ -168,7 +168,7 @@ def _render_outputs(
     save_report: bool,
     output_gif: str,
     output_report: str,
-) -> tuple[bool, Optional[str], bool, Optional[str]]:
+) -> tuple[bool, str | None, bool, str | None]:
     fig = plt.figure(figsize=(12, 8), facecolor="#1e1e1e")
     gs = fig.add_gridspec(2, 2)
 
@@ -247,7 +247,7 @@ def _render_outputs(
         )
 
     animation_saved = False
-    animation_error: Optional[str] = None
+    animation_error: str | None = None
     if save_animation:
         try:
             ani = FuncAnimation(
@@ -263,7 +263,7 @@ def _render_outputs(
             animation_error = str(exc)
 
     report_saved = False
-    report_error: Optional[str] = None
+    report_error: str | None = None
     if save_report:
         try:
             update(len(frames) - 1)
@@ -286,8 +286,8 @@ def run_control_room(
     output_gif: str = "SCPN_Fusion_Control_Room.gif",
     output_report: str = "SCPN_Fusion_Status_Report.png",
     verbose: bool = True,
-    kernel_factory: Optional[Callable[[str], Any]] = None,
-    config_file: Optional[str] = None,
+    kernel_factory: Callable[[str], Any] | None = None,
+    config_file: str | None = None,
 ) -> dict[str, Any]:
     """
     Run the control-room loop and return deterministic summary metrics.
@@ -372,9 +372,9 @@ def run_control_room(
         )
 
     animation_saved = False
-    animation_error: Optional[str] = None
+    animation_error: str | None = None
     report_saved = False
-    report_error: Optional[str] = None
+    report_error: str | None = None
     if save_animation or save_report:
         (
             animation_saved,

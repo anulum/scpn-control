@@ -7,7 +7,7 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 try:
     import matplotlib.pyplot as plt
@@ -198,7 +198,7 @@ def _plot_learning(
     h_shear_ctrl: np.ndarray,
     q_table: np.ndarray,
     output_path: str,
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     try:
         fig = plt.figure(figsize=(14, 8))
         ax1 = fig.add_subplot(2, 3, 1)
@@ -340,7 +340,7 @@ def run_advanced_learning_sim(
     total_shear_arr = np.asarray(h_shear_total, dtype=np.float64)
 
     plot_saved = False
-    plot_error: Optional[str] = None
+    plot_error: str | None = None
     if save_plot:
         plot_saved, plot_error = _plot_learning(
             turb_arr,

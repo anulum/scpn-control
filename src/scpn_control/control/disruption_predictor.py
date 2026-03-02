@@ -14,7 +14,7 @@ try:
 except ImportError:
     HAS_MPL = False
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -37,7 +37,7 @@ DEFAULT_MODEL_FILENAME = "disruption_model.pth"
 def simulate_tearing_mode(
     steps=1000,
     *,
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ):
     """
     Generates synthetic shot data.

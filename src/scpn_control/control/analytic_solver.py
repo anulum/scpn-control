@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict
 
 import numpy as np
 
@@ -166,7 +166,7 @@ class AnalyticEquilibriumSolver:
     def apply_and_save(
         self,
         currents: np.ndarray,
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
     ) -> str:
         self.apply_currents(currents)
         if output_path is None:
@@ -182,7 +182,7 @@ class AnalyticEquilibriumSolver:
 
 
 def run_analytic_solver(
-    config_path: Optional[str] = None,
+    config_path: str | None = None,
     *,
     target_r: float = 6.2,
     target_z: float = 0.0,
@@ -192,7 +192,7 @@ def run_analytic_solver(
     li: float = 0.8,
     ridge_lambda: float = 0.0,
     save_config: bool = True,
-    output_config_path: Optional[str] = None,
+    output_config_path: str | None = None,
     verbose: bool = True,
     kernel_factory: Callable[[str], Any] = FusionKernel,
 ) -> Dict[str, Any]:
@@ -224,7 +224,7 @@ def run_analytic_solver(
         ridge_lambda=ridge_lambda,
     )
 
-    written_path: Optional[str] = None
+    written_path: str | None = None
     if save_config:
         written_path = solver.apply_and_save(currents, output_path=output_config_path)
     else:

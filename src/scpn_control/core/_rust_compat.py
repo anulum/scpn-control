@@ -13,8 +13,10 @@ Usage:
     from scpn_control.core._rust_compat import FusionKernel, RUST_BACKEND
 """
 
+from __future__ import annotations
+
 import os
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -189,7 +191,7 @@ if _RUST_AVAILABLE:
 
     rust_solve_coil_currents = solve_coil_currents
 
-    def rust_simulate_tearing_mode(steps: int, seed: Optional[int] = None):
+    def rust_simulate_tearing_mode(steps: int, seed: int | None = None):
         """Python tearing-mode simulation (no Rust implementation exists)."""
         from scpn_control.control.disruption_predictor import (
             simulate_tearing_mode as _py_tearing,
@@ -207,7 +209,7 @@ else:
     def rust_solve_coil_currents(*args, **kwargs):
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
-    def rust_simulate_tearing_mode(steps: int, seed: Optional[int] = None):
+    def rust_simulate_tearing_mode(steps: int, seed: int | None = None):
         """Python tearing-mode simulation fallback."""
         from scpn_control.control.disruption_predictor import (
             simulate_tearing_mode as _py_tearing,

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 try:
     import matplotlib.pyplot as plt
@@ -96,7 +96,7 @@ class DirectorInterface:
         config_path: str,
         *,
         allow_fallback: bool = True,
-        director: Optional[Any] = None,
+        director: Any | None = None,
         controller_factory: Callable[[str], Any] = NeuroCyberneticController,
         entropy_threshold: float = 0.3,
         history_window: int = 10,
@@ -246,7 +246,7 @@ class DirectorInterface:
             )
 
         self.step_count = duration
-        plot_error: Optional[str] = None
+        plot_error: str | None = None
         plot_saved = False
         if save_plot:
             try:

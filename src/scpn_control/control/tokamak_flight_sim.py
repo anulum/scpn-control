@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import numpy as np
 
@@ -61,7 +61,7 @@ class FirstOrderActuator:
         rate_limit: float = 1.0e6,
         sensor_noise_std: float = 0.0,
         delay_steps: int = 0,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ) -> None:
         tau_s = float(tau_s)
         dt_s = float(dt_s)
@@ -123,7 +123,7 @@ class IsoFluxController:
         kernel_factory: Callable[[str], Any] = FusionKernel,
         verbose: bool = True,
         actuator_tau_s: float = 0.06,
-        heating_actuator_tau_s: Optional[float] = None,
+        heating_actuator_tau_s: float | None = None,
         actuator_current_delta_limit: float = 1.0e9,
         heating_beta_max: float = 5.0,
         control_dt_s: float = 0.05,
@@ -356,7 +356,7 @@ class IsoFluxController:
     def visualize_flight(
         self,
         output_path: str = "Tokamak_Flight_Report.png",
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> Tuple[bool, str | None]:
         try:
             import matplotlib.pyplot as plt
         except ImportError as exc:
@@ -414,14 +414,14 @@ class IsoFluxController:
 
 
 def run_flight_sim(
-    config_file: Optional[str] = None,
+    config_file: str | None = None,
     shot_duration: int = SHOT_DURATION,
     seed: int = 42,
     save_plot: bool = True,
     output_path: str = "Tokamak_Flight_Report.png",
     verbose: bool = True,
     actuator_tau_s: float = 0.06,
-    heating_actuator_tau_s: Optional[float] = None,
+    heating_actuator_tau_s: float | None = None,
     actuator_current_delta_limit: float = 1.0e9,
     heating_beta_max: float = 5.0,
     control_dt_s: float = 0.05,

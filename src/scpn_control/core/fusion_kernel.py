@@ -24,7 +24,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -1609,12 +1609,12 @@ class FusionKernel:
         omega: FloatArray,
         *,
         dt: float = 1e-3,
-        K: Optional[float] = None,
-        alpha: Optional[float] = None,
-        zeta: Optional[float] = None,
-        psi_driver: Optional[float] = None,
-        psi_mode: Optional[str] = None,
-        actuation_gain: Optional[float] = None,
+        K: float | None = None,
+        alpha: float | None = None,
+        zeta: float | None = None,
+        psi_driver: float | None = None,
+        psi_mode: str | None = None,
+        actuation_gain: float | None = None,
     ) -> dict[str, Any]:
         """Reduced-order plasma sync kernel (phase reduction).
 
@@ -1651,10 +1651,10 @@ class FusionKernel:
         *,
         n_steps: int = 100,
         dt: float = 1e-3,
-        K: Optional[float] = None,
-        zeta: Optional[float] = None,
-        psi_driver: Optional[float] = None,
-        psi_mode: Optional[str] = None,
+        K: float | None = None,
+        zeta: float | None = None,
+        psi_driver: float | None = None,
+        psi_mode: str | None = None,
     ) -> dict[str, Any]:
         """Multi-step phase sync with Lyapunov stability tracking.
 

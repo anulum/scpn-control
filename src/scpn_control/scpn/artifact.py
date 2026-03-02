@@ -22,7 +22,7 @@ import math
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 ARTIFACT_SCHEMA_VERSION = "1.0.0"
 MAX_PACKED_WORDS = 10_000_000
@@ -65,7 +65,7 @@ class ArtifactMeta:
     seed_policy: SeedPolicy
     created_utc: str
     compiler: CompilerInfo
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @dataclass
@@ -79,7 +79,7 @@ class TransitionSpec:
     id: int
     name: str
     threshold: float
-    margin: Optional[float] = None
+    margin: float | None = None
     delay_ticks: int = 0
 
 
@@ -105,14 +105,14 @@ class PackedWeights:
 class PackedWeightsGroup:
     words_per_stream: int
     w_in_packed: PackedWeights
-    w_out_packed: Optional[PackedWeights] = None
+    w_out_packed: PackedWeights | None = None
 
 
 @dataclass
 class Weights:
     w_in: WeightMatrix
     w_out: WeightMatrix
-    packed: Optional[PackedWeightsGroup] = None
+    packed: PackedWeightsGroup | None = None
 
 
 @dataclass
@@ -513,7 +513,7 @@ def save_artifact(
     def _weight_matrix_dict(wm: WeightMatrix) -> Dict[str, Any]:
         return {"shape": wm.shape, "data": wm.data}
 
-    packed_dict: Optional[Dict[str, Any]] = None
+    packed_dict: Dict[str, Any] | None = None
     if artifact.weights.packed is not None:
         pg = artifact.weights.packed
         if compact_packed:

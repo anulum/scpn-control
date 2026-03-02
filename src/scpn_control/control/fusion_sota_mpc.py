@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 try:
     import matplotlib.pyplot as plt
@@ -143,7 +143,7 @@ def _plot_telemetry(
     h_xz: np.ndarray,
     target_vec: np.ndarray,
     output_path: str,
-) -> Tuple[bool, Optional[str]]:
+) -> Tuple[bool, str | None]:
     try:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
         ax1.set_title("MPC Axis Tracking")
@@ -171,10 +171,10 @@ def _plot_telemetry(
 
 
 def run_sota_simulation(
-    config_file: Optional[str] = None,
+    config_file: str | None = None,
     shot_length: int = SHOT_LENGTH,
     prediction_horizon: int = PREDICTION_HORIZON,
-    target_vector: Optional[np.ndarray] = None,
+    target_vector: np.ndarray | None = None,
     disturbance_start_step: int = 20,
     disturbance_per_step_ma: float = 0.1,
     current_target_bounds: Tuple[float, float] = (5.0, 16.0),
@@ -281,7 +281,7 @@ def run_sota_simulation(
         print(f"Simulation finished in {runtime_s:.2f}s")
 
     plot_saved = False
-    plot_error: Optional[str] = None
+    plot_error: str | None = None
     if save_plot:
         plot_saved, plot_error = _plot_telemetry(
             np.asarray(h_r, dtype=np.float64),

@@ -45,7 +45,6 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -260,11 +259,11 @@ class NeuralTransportModel:
     False
     """
 
-    def __init__(self, weights_path: Optional[str | Path] = None) -> None:
-        self._weights: Optional[MLPWeights] = None
+    def __init__(self, weights_path: str | Path | None = None) -> None:
+        self._weights: MLPWeights | None = None
         self.is_neural: bool = False
-        self.weights_path: Optional[Path] = None
-        self.weights_checksum: Optional[str] = None
+        self.weights_path: Path | None = None
+        self.weights_checksum: str | None = None
 
         if weights_path is not None:
             self.weights_path = Path(weights_path)

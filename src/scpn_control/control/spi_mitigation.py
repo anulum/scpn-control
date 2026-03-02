@@ -7,7 +7,7 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 try:
     import matplotlib.pyplot as plt
@@ -245,7 +245,7 @@ def run_spi_mitigation(
     i_arr = np.asarray(i, dtype=np.float64)
 
     plot_saved = False
-    plot_error: Optional[str] = None
+    plot_error: str | None = None
     if save_plot:
         try:
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))

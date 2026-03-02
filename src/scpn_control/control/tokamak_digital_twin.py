@@ -5,6 +5,10 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
+from __future__ import annotations
+
+from collections.abc import Sequence
+
 import numpy as np
 
 try:
@@ -13,7 +17,6 @@ try:
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
-from typing import Optional, Sequence
 
 try:
     from scpn_control.io.imas_connector import (
@@ -39,7 +42,7 @@ R_MAJ = 2.0  # Major Radius
 R_MIN = 0.8  # Minor Radius
 
 
-def _resolve_rng(seed: int, rng: Optional[np.random.Generator]) -> np.random.Generator:
+def _resolve_rng(seed: int, rng: np.random.Generator | None) -> np.random.Generator:
     if rng is not None:
         if not isinstance(rng, np.random.Generator):
             raise TypeError("rng must be a numpy.random.Generator when provided")
@@ -235,7 +238,7 @@ def run_digital_twin(
     chaos_monkey: bool = False,
     sensor_dropout_prob: float = 0.0,
     sensor_noise_std: float = 0.0,
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ):
     """
     Run deterministic digital-twin control simulation.

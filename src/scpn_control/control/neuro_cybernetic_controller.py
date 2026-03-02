@@ -11,7 +11,7 @@ import math
 import sys
 from collections import deque
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict
 
 try:
     import matplotlib.pyplot as plt
@@ -200,7 +200,7 @@ class NeuroCyberneticController:
         seed: int = 42,
         *,
         shot_duration: int = SHOT_DURATION,
-        kernel_factory: Optional[Callable[[str], Any]] = None,
+        kernel_factory: Callable[[str], Any] | None = None,
     ) -> None:
         if int(shot_duration) <= 0:
             raise ValueError("shot_duration must be > 0")
@@ -209,8 +209,8 @@ class NeuroCyberneticController:
         self.seed = int(seed)
         self.shot_duration = int(shot_duration)
         self.history: Dict[str, list[float]] = {}
-        self.brain_R: Optional[SpikingControllerPool] = None
-        self.brain_Z: Optional[SpikingControllerPool] = None
+        self.brain_R: SpikingControllerPool | None = None
+        self.brain_Z: SpikingControllerPool | None = None
         self._reset_history()
 
     def _reset_history(self) -> None:
@@ -247,7 +247,7 @@ class NeuroCyberneticController:
         *,
         save_plot: bool = True,
         verbose: bool = True,
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
     ) -> Dict[str, Any]:
         self.initialize_brains(use_quantum=False)
         return self._execute_simulation(
@@ -263,7 +263,7 @@ class NeuroCyberneticController:
         *,
         save_plot: bool = True,
         verbose: bool = True,
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
     ) -> Dict[str, Any]:
         self.initialize_brains(use_quantum=True)
         return self._execute_simulation(
@@ -281,7 +281,7 @@ class NeuroCyberneticController:
         mode: str,
         save_plot: bool,
         verbose: bool,
-        output_path: Optional[str],
+        output_path: str | None,
     ) -> Dict[str, Any]:
         assert self.brain_R is not None and self.brain_Z is not None
         if verbose:
@@ -339,7 +339,7 @@ class NeuroCyberneticController:
                 )
 
         plot_saved = False
-        plot_error: Optional[str] = None
+        plot_error: str | None = None
         if save_plot:
             try:
                 self.visualize(title, output_path=output_path, verbose=verbose)
@@ -375,7 +375,7 @@ class NeuroCyberneticController:
         self,
         title: str,
         *,
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
         verbose: bool = True,
     ) -> str:
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -412,8 +412,8 @@ def run_neuro_cybernetic_control(
     quantum: bool = False,
     save_plot: bool = False,
     verbose: bool = False,
-    output_path: Optional[str] = None,
-    kernel_factory: Optional[Callable[[str], Any]] = None,
+    output_path: str | None = None,
+    kernel_factory: Callable[[str], Any] | None = None,
 ) -> Dict[str, Any]:
     """Run neuro-cybernetic control in deterministic non-interactive mode."""
     controller = NeuroCyberneticController(

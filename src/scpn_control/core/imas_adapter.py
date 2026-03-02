@@ -16,7 +16,6 @@ for environments without IMAS access.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -76,7 +75,7 @@ def to_kernel_arrays(ids: EquilibriumIDS) -> dict:
     }
 
 
-def to_omas(ids: EquilibriumIDS) -> Optional[object]:
+def to_omas(ids: EquilibriumIDS) -> object | None:
     """Export to OMAS ODS object (requires ``pip install omas``).
 
     Returns None if omas is not installed.

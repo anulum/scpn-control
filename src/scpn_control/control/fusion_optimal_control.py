@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 try:
     import matplotlib.pyplot as plt
@@ -204,7 +204,7 @@ class OptimalController:
             )
 
         plot_saved = False
-        plot_error: Optional[str] = None
+        plot_error: str | None = None
         if save_plot:
             plot_saved, plot_error = self.plot_telemetry(output_path=output_path)
 
@@ -230,7 +230,7 @@ class OptimalController:
     def plot_telemetry(
         self,
         output_path: str = "Optimal_Control_Result.png",
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> Tuple[bool, str | None]:
         if not HAS_MPL:
             return False, "matplotlib not installed"
         try:
@@ -271,7 +271,7 @@ class OptimalController:
 
 
 def run_optimal_control(
-    config_file: Optional[str] = None,
+    config_file: str | None = None,
     shot_steps: int = SHOT_STEPS,
     target_r: float = TARGET_R,
     target_z: float = TARGET_Z,

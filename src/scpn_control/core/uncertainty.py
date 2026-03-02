@@ -18,8 +18,9 @@ References
 - Verdoolaege et al., Nucl. Fusion 61 (2021) 076006
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
 
@@ -98,7 +99,7 @@ class UQResult:
     n_samples: int = 0
 
 
-def ipb98_tau_e(scenario: PlasmaScenario, params: Optional[dict] = None) -> float:
+def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
     """
     Compute IPB98(y,2) confinement time for given plasma parameters.
 
@@ -209,7 +210,7 @@ class FullChainUQResult:
 def quantify_full_chain(
     scenario: PlasmaScenario,
     n_samples: int = 5000,
-    seed: Optional[int] = None,
+    seed: int | None = None,
     chi_gB_sigma: float = 0.3,
     pedestal_sigma: float = 0.2,
     boundary_sigma: float = 0.02,
@@ -414,7 +415,7 @@ def summarize_uq(result: FullChainUQResult) -> dict:
     }
 
 
-def quantify_uncertainty(scenario: PlasmaScenario, n_samples: int = 10000, seed: Optional[int] = None) -> UQResult:
+def quantify_uncertainty(scenario: PlasmaScenario, n_samples: int = 10000, seed: int | None = None) -> UQResult:
     """
     Monte Carlo uncertainty quantification for fusion performance.
 

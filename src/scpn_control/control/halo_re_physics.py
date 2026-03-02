@@ -49,7 +49,6 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -447,7 +446,7 @@ class RunawayElectronModel:
         tau_cq_s: float = 0.01,
         T_e_quench_keV: float = 0.5,
         neon_z_eff: float = 3.0,
-        neon_mol: Optional[float] = None,
+        neon_mol: float | None = None,
         duration_s: float = 0.05,
         dt_s: float = 1e-5,
         seed_re_fraction: float = 1e-8,

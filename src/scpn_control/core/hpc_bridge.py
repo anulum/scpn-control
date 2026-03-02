@@ -5,6 +5,8 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
+from __future__ import annotations
+
 import ctypes
 import logging
 import math
@@ -12,7 +14,6 @@ import os
 import platform
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -81,11 +82,11 @@ class HPCBridge:
         ``SCPN_SOLVER_LIB`` is set explicitly.
     """
 
-    def __init__(self, lib_path: Optional[str] = None) -> None:
-        self.lib: Optional[ctypes.CDLL] = None
+    def __init__(self, lib_path: str | None = None) -> None:
+        self.lib: ctypes.CDLL | None = None
         self.solver_ptr = None
         self.loaded: bool = False
-        self._destroy_symbol: Optional[str] = None
+        self._destroy_symbol: str | None = None
         self._has_converged_api: bool = False
         self._has_boundary_api: bool = False
 
@@ -226,7 +227,7 @@ class HPCBridge:
         self,
         j_phi: NDArray[np.float64],
         iterations: int = 100,
-    ) -> Optional[NDArray[np.float64]]:
+    ) -> NDArray[np.float64] | None:
         """Run the C++ solver for *iterations* sweeps.
 
         Returns *None* if the library is not loaded (caller should
@@ -248,7 +249,7 @@ class HPCBridge:
         j_phi: NDArray[np.float64],
         psi_out: NDArray[np.float64],
         iterations: int = 100,
-    ) -> Optional[NDArray[np.float64]]:
+    ) -> NDArray[np.float64] | None:
         """Run the C++ solver and write results into ``psi_out`` in-place."""
         prepared = self._prepare_inputs(j_phi)
         if prepared is None:
@@ -272,7 +273,7 @@ class HPCBridge:
         max_iterations: int = 1000,
         tolerance: float = 1e-6,
         omega: float = 1.8,
-    ) -> Optional[tuple[NDArray[np.float64], int, float]]:
+    ) -> tuple[NDArray[np.float64], int, float] | None:
         """Run solver until convergence, if native API is available.
 
         Returns ``(psi, iterations_used, final_delta)``. If the library is
@@ -303,7 +304,7 @@ class HPCBridge:
         max_iterations: int = 1000,
         tolerance: float = 1e-6,
         omega: float = 1.8,
-    ) -> Optional[tuple[int, float]]:
+    ) -> tuple[int, float] | None:
         """Run convergence API and write results into ``psi_out`` in-place."""
         prepared = self._prepare_inputs(j_phi)
         if prepared is None:
@@ -338,7 +339,7 @@ class HPCBridge:
         )
         return iterations_used, float(final_delta.value)
 
-    def _prepare_inputs(self, j_phi: NDArray[np.float64]) -> Optional[tuple[NDArray[np.float64], tuple[int, int]]]:
+    def _prepare_inputs(self, j_phi: NDArray[np.float64]) -> tuple[NDArray[np.float64], tuple[int, int]] | None:
         if not self.loaded or self.solver_ptr is None:
             return None
 
@@ -358,7 +359,7 @@ class HPCBridge:
         return j_input, expected_shape
 
 
-def compile_cpp() -> Optional[str]:
+def compile_cpp() -> str | None:
     """Compile the C++ solver from source.
 
     Looks for ``solver.cpp`` in the same directory as this module and
