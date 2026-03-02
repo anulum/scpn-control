@@ -58,7 +58,7 @@ pytest -m "not slow"                     # skip slow markers
 pytest --cov=scpn_control --cov-report=term  # coverage
 ```
 
-Minimum coverage: 55% (configured in `pyproject.toml`). Current: 78%.
+Minimum coverage: 62% (configured in `pyproject.toml`).
 
 ---
 
@@ -75,7 +75,7 @@ PEP 561 marker: `src/scpn_control/py.typed`.
 
 ## Release Process
 
-1. Bump version in `pyproject.toml` and `src/scpn_control/__init__.py`
+1. Bump version in `pyproject.toml`, `CITATION.cff`, and `.zenodo.json`
 2. Tag and push:
 
     ```bash

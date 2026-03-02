@@ -921,7 +921,7 @@ class FusionKernel:
         # dJ_phi/dpsi = dJ_phi/dpsi_norm * dpsi_norm/dpsi = -c * R / denom
         # c from Ip normalisation: I_p = ∫ J_phi dA
         I_target = self.cfg["physics"]["plasma_current_target"]
-        # Approximate: I = integral(J_phi) dA ≈ c * sum_plasma((1-psi_norm)*R) * dR*dZ
+        # I = ∫ J_phi dA ≈ c · Σ_plasma((1-ψ_norm)·R)·ΔR·ΔZ  (midpoint quadrature)
         s = float(np.sum(np.where(mask_plasma, (1 - Psi_norm) * self.RR, 0.0))) * self.dR * self.dZ
         c = I_target / max(abs(s), 1e-9)
 

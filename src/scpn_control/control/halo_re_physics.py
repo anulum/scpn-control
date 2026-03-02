@@ -419,7 +419,7 @@ class RunawayElectronModel:
         return float(max(fp_rate, 0.0))
 
     def _relativistic_loss_rate(self, *, E: float, n_re: float) -> float:
-        """Approximate synchrotron + bremsstrahlung damping rate (s^-1 m^-3)."""
+        """Synchrotron + bremsstrahlung damping rate [s^-1 m^-3], classical regime."""
         if not self.enable_relativistic_losses:
             return 0.0
         if not np.isfinite(E) or not np.isfinite(n_re):
