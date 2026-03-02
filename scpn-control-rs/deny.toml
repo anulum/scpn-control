@@ -13,7 +13,6 @@ allow = [
     "Unicode-3.0",
     "Unicode-DFS-2016",
 ]
-copyleft = "deny"
 
 [bans]
 multiple-versions = "warn"
