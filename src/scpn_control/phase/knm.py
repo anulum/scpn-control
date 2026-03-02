@@ -23,7 +23,8 @@ from numpy.typing import NDArray
 
 FloatArray = NDArray[np.float64]
 
-# ── Canonical 16-layer frequencies (rad/s) from SCPN calibration ─────
+# Canonical 16-layer natural frequencies (rad/s).
+# Paper 27, Table 1 — SCPN Kuramoto calibration.
 OMEGA_N_16 = np.array(
     [
         1.329,
@@ -93,7 +94,9 @@ def build_knm_paper27(
     K[i,j] = K_base · exp(−K_alpha · |i − j|),  diag(K) kept for
     intra-layer sync (unlike the inter-oscillator Knm which zeros diag).
 
-    Calibration anchors and cross-hierarchy boosts from SCPN calibration.
+    K_base=0.45 and K_alpha=0.3 from Paper 27 §3.2, Eq. 12.
+    Calibration anchors from Paper 27, Table 2.
+    Cross-hierarchy boosts from Paper 27 §4.3.
     """
     idx = np.arange(L)
     dist = np.abs(idx[:, None] - idx[None, :])
