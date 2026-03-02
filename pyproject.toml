@@ -7,9 +7,10 @@ name = "scpn-control"
 version = "0.5.2"
 description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
 authors = [
-    {name = "Miroslav Sotek"},
+    {name = "Miroslav Sotek", email = "protoscience@anulum.li"},
     {name = "Michal Reiprich"}
 ]
+keywords = ["tokamak", "plasma-control", "petri-net", "snn", "Kuramoto"]
 license = "MIT OR Apache-2.0"
 classifiers = [
     "Development Status :: 3 - Alpha",

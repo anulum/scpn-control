@@ -10,4 +10,4 @@ Tracks known gaps, stubs, and incomplete implementations.
 | U-004 | `core/_rust_compat.py` `rust_multigrid_vcycle` | No Python fallback; Rust-only | P2 | [gh-14](https://github.com/anulum/scpn-control/issues/14) |
 | U-005 | `core/_rust_compat.py` `rust_svd_optimal_correction` | No Python fallback; Rust-only | P2 | [gh-15](https://github.com/anulum/scpn-control/issues/15) |
 | U-006 | `control/jax_traceable_runtime.py` | JAX tracing gated on `jax` install; untested in CI matrix | P3 | [gh-12](https://github.com/anulum/scpn-control/issues/12) |
-| U-007 | 21 files (124 occurrences) | Repeated `np.isfinite` validation boilerplate | P3 | — |
+| U-007 | 21 files (124 occurrences) | Repeated `np.isfinite` validation boilerplate | P3 | [gh-17](https://github.com/anulum/scpn-control/issues/17) |
