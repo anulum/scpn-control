@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "SCPN Control - GS solver, transport, confinement scaling"
+repository = "https://github.com/anulum/scpn-control"
 
 [features]
 default = []

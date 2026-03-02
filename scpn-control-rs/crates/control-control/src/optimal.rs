@@ -19,10 +19,6 @@ const SV_CUTOFF: f64 = 1e-2;
 /// Maximum coil current delta [A]. Python: 5.0.
 const MAX_DELTA: f64 = 5.0;
 
-/// Default gain factor. Python: 0.8.
-#[allow(dead_code)]
-const DEFAULT_GAIN: f64 = 0.8;
-
 /// Computes SVD pseudoinverse of a 2×N response matrix.
 ///
 /// Returns (delta_currents) given position error.

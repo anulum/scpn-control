@@ -5,6 +5,7 @@ name = "scpn-control-rs"
 version = "0.1.0"
 edition = "2021"
 description = "SCPN Control - Slim Python bindings via PyO3 (control-only)"
+repository = "https://github.com/anulum/scpn-control"
 
 [lib]
 name = "scpn_control_rs"
