@@ -1,3 +1,10 @@
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Shared Input Validators
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
+# ORCID: https://orcid.org/0009-0009-3560-0851
+# License: MIT OR Apache-2.0
+# ──────────────────────────────────────────────────────────────────────
 """Shared input validators for public API boundaries."""
 
 from __future__ import annotations

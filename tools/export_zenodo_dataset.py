@@ -2,7 +2,7 @@
 """Bundle scpn-control source + validation data into a Zenodo-ready zip.
 
 Usage:
-    python tools/export_zenodo_dataset.py [--output scpn-control-0.3.0.zip]
+    python tools/export_zenodo_dataset.py [--output scpn-control-0.7.0.zip]
 
 Upload the resulting zip manually at https://zenodo.org/deposit/new
 with metadata from .zenodo.json.

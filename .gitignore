@@ -76,5 +76,10 @@ site/
 *.tar.gz
 !dist/*.tar.gz
 
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
+
 # Jupyter
 .ipynb_checkpoints/
