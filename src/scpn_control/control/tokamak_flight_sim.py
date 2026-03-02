@@ -17,11 +17,11 @@ try:
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
 
-# --- FLIGHT PARAMETERS ---
-SHOT_DURATION = 50  # Time steps
-TARGET_R = 6.2  # Target Major Radius
-TARGET_Z = 0.0  # Target Vertical Position
-TARGET_ELONGATION = 1.7
+# ITER Physics Basis, NF 39 (1999) Table 1
+SHOT_DURATION = 50  # time steps
+TARGET_R = 6.2  # m, ITER major radius
+TARGET_Z = 0.0  # m, midplane
+TARGET_ELONGATION = 1.7  # ITER reference elongation
 
 
 class FirstOrderActuator:

@@ -152,8 +152,7 @@ class HInfinityController:
                 raise ValueError(msg)
             logger.warning(msg)
 
-        # Output saturation (anti-windup)
-        self.u_max: float = 1e8
+        self.u_max: float = 1e8  # A, effectively unconstrained
 
         # Discrete gains cache (recomputed when dt changes)
         self._cached_dt: float = 0.0

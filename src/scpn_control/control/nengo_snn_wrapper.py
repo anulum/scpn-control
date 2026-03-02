@@ -69,7 +69,7 @@ class NengoSNNController:
 
     Builds a Nengo network with LIF neuron ensembles implementing a
     push-pull control scheme similar to :class:`SpikingControllerPool`
-    but leveraging Nengo's Neural Engineering Framework for principled
+    but using Nengo's Neural Engineering Framework for principled
     weight computation.
 
     Parameters

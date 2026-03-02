@@ -31,10 +31,10 @@ except ImportError:  # pragma: no cover - optional dependency path
     StochasticLIFNeuron = None
     QuantumEntropySource = None
 
-# --- CONTROL PARAMETERS ---
-SHOT_DURATION = 100
-TARGET_R = 6.2
-TARGET_Z = 0.0
+# ITER Physics Basis, NF 39 (1999) Table 1
+SHOT_DURATION = 100  # time steps
+TARGET_R = 6.2  # m, ITER major radius
+TARGET_Z = 0.0  # m, midplane
 
 
 def _resolve_fusion_kernel() -> Any:

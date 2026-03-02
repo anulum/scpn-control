@@ -646,10 +646,9 @@ class HILDemoRunner:
 
     def _tmr_vote(self) -> np.ndarray:
         """Majority vote across TMR copies. Returns voted state."""
-        # For continuous values, use median (robust to single fault)
+        # TMR median voter
         stacked = np.stack(self.tmr_copies, axis=0)
         voted = np.median(stacked, axis=0)
-        # Check for mismatches
         for i in range(3):
             if not np.allclose(self.tmr_copies[i], voted, atol=0.01):
                 self.tmr_mismatches += 1
