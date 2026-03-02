@@ -88,8 +88,8 @@ was comprehensively addressed.
 1. Fork the repository and create a feature branch off `main`.
 2. Keep commits atomic. One logical change per commit.
 3. Open a pull request against `main`.
-4. CI must pass (16 jobs: lint, type-check, pre-commit, pytest matrix,
-   cargo test/clippy, maturin build, mkdocs build, coverage gate).
+4. CI must pass (15 jobs: lint, type-check, pre-commit, pytest matrix,
+   cargo test/clippy, maturin build, coverage gate).
 5. At least one maintainer review is required before merge.
 
 If your change touches Rust code, ensure `cargo clippy -- -D warnings` is clean.

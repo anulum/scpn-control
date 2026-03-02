@@ -17,7 +17,7 @@ allow = [
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+wildcards = "allow"  # path deps in workspace are co-versioned
 
 [sources]
 unknown-registry = "warn"
