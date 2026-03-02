@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.2] — 2026-03-02
+
+### Fixed
+- Codecov `fail_ci_if_error: false` → `true` (matches v0.5.0 CHANGELOG claim)
+- Stale doc counts: architecture.md (17→21 modules, 1243→~1900 tests), pitch.md, use_cases.md
+- Bug report template version placeholder 0.3.0 → 0.5.x
+- Development.md release example v0.2.1 → vX.Y.Z
+- Magic number citations: ITER Physics Basis for SHOT_DURATION, TARGET_R, TARGET_Z, u_max
+- Anti-slop: "leveraging" → "using" (nengo), narration → TMR median voter (hil), dead pass block (eqdsk)
+
+### Changed
+- `docs/changelog.md` synced with root CHANGELOG (was frozen at v0.3.3)
+- ROADMAP.md rewritten for v0.5.x shipped state
+- `require_non_negative_float` added to `core/_validators.py`; scaling_laws and spi_mitigation use shared validators
+- `control/__init__.__all__` includes `normalize_bounds`
+- Legacy typing imports replaced in 7 files (phase/ + scpn/): Optional→|None, List→list, Dict→dict, Tuple→tuple
+
 ## [0.5.1] — 2026-03-02
 
 ### Fixed
