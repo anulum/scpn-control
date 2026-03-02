@@ -30,7 +30,7 @@
 - [x] Zenodo metadata (.zenodo.json, CITATION.cff)
 - [x] CI: 15 jobs, 1888 tests
 
-### v0.5.x — 2026-03-02 (current)
+### v0.5.x — 2026-03-02
 - [x] PEP 621 `__version__`, cargo-deny supply-chain policy
 - [x] UNDERDEVELOPED_REGISTER tracking gaps
 - [x] SECURITY.md, CODE_OF_CONDUCT.md
@@ -39,15 +39,25 @@
 - [x] Python 3.13 in CI matrix
 - [x] CI: 15 jobs, ~1900 tests
 
+### v0.6.0 — 2026-03-02
+- [x] .editorconfig, CODEOWNERS, copyright headers on CI workflows
+- [x] Typing modernization (`from __future__ import annotations`, `Optional[X]` → `X | None`)
+- [x] Shared test fixtures (conftest.py deduplication)
+- [x] 63 new tests (validators + Hypothesis property tests)
+- [x] Paper 27 citations on OMEGA_N_16 and build_knm_paper27
+- [x] Anti-slop cleanup (dead constants, narration comments, print→logging)
+- [x] Rust Cargo.toml `repository` fields
+- [x] CI: 15 jobs, 1969 tests
+
 ## Next
 
-### v0.6.0
-- [ ] Codecov badge ≥ 65% (from 62% gate)
+### v0.7.0
+- [ ] Codecov badge ≥ 85% (from 62% gate)
 - [ ] mypy `strict = true` (incremental, per-module)
 - [ ] IMAS IDS round-trip tests with real `omas` install
 - [ ] Streamlit dashboard v2 (shot replay + multi-machine)
 
-### v0.7.0
+### v0.8.0
 - [ ] GPU-accelerated Grad-Shafranov (CuPy / JAX backend)
 - [ ] Real MDSplus data ingest (DIII-D, JET public shots)
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
