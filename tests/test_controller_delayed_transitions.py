@@ -107,3 +107,22 @@ class TestDelayedTransitions:
         for k in range(8):
             actions = ctrl.step_traceable((6.25, 0.01), k=k)
             assert actions.shape == (2,)
+
+    def test_delayed_transitions_produce_dict(self, tmp_path):
+        """After multiple steps, delayed transitions produce valid dicts."""
+        art_path = _artifact_delayed(tmp_path)
+        ctrl = _ctrl(art_path)
+        obs = {"R_axis_m": 6.8, "Z_axis_m": 0.5}
+        for k in range(20):
+            a = ctrl.step(obs, k=k)
+            assert isinstance(a, dict)
+            assert len(a) == 2
+
+    def test_zero_delay_fires_immediately(self, tmp_path):
+        """Transition with delay_ticks=0 produces output from step 0."""
+        art_path = _artifact_delayed(tmp_path)
+        ctrl = _ctrl(art_path)
+        obs = {"R_axis_m": 6.3, "Z_axis_m": 0.05}
+        actions = ctrl.step(obs, k=0)
+        assert isinstance(actions, dict)
+        assert len(actions) == 2

@@ -73,3 +73,23 @@ def test_solve_equilibrium_divergence_raises_when_fail_enabled(
 
     with pytest.raises(RuntimeError, match="diverged"):
         kernel.solve_equilibrium()
+
+
+def test_solve_equilibrium_converges_without_forced_divergence(
+    tmp_path: Path,
+) -> None:
+    """Normal solve (no forced divergence) should produce finite Psi."""
+    cfg_path = _write_cfg(tmp_path / "cfg_normal.json", fail_on_diverge=True)
+    kernel = FusionKernel(cfg_path)
+    kernel.solve_equilibrium()
+    assert np.all(np.isfinite(kernel.Psi))
+
+
+def test_solve_equilibrium_iterations_bounded(tmp_path: Path) -> None:
+    """Solver respects max_iterations from config."""
+    cfg_path = _write_cfg(tmp_path / "cfg_bounded.json", fail_on_diverge=False)
+    kernel = FusionKernel(cfg_path)
+    _force_divergence(kernel)
+    kernel.solve_equilibrium()
+    # After max_iterations=3 with divergence, should have reverted
+    assert np.all(np.isfinite(kernel.Psi))

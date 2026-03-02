@@ -26,3 +26,35 @@ class TestStreakHighRiskDisruption:
             )
 
         assert result.disruption_avoidance_rate < 1.0
+
+    def test_low_risk_avoids_disruption(self):
+        """Consistently low risk keeps avoidance rate at 100%."""
+        with patch(
+            "scpn_control.control.torax_hybrid_loop._predict_disruption_risk",
+            return_value=0.10,
+        ):
+            result = run_nstxu_torax_hybrid_campaign(
+                episodes=2,
+                steps_per_episode=32,
+                seed=99,
+            )
+        assert result.disruption_avoidance_rate == 1.0
+
+    def test_moderate_risk_no_streak(self):
+        """Risk above threshold but not sustained (alternating) avoids disruption."""
+        call_count = {"n": 0}
+
+        def _alternating_risk(*args, **kwargs):
+            call_count["n"] += 1
+            return 0.95 if call_count["n"] % 2 == 0 else 0.50
+
+        with patch(
+            "scpn_control.control.torax_hybrid_loop._predict_disruption_risk",
+            side_effect=_alternating_risk,
+        ):
+            result = run_nstxu_torax_hybrid_campaign(
+                episodes=1,
+                steps_per_episode=32,
+                seed=77,
+            )
+        assert result.disruption_avoidance_rate == 1.0
