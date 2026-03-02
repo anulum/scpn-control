@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.6.0] — 2026-03-02
+
+### Added
+- `.editorconfig` and `.github/CODEOWNERS`
+- Copyright headers on all 3 CI workflow files
+- `repository` field in all 5 Rust Cargo.toml files
+- `tests/test_validators.py` — 49 parametrized tests for `core/_validators.py`
+- `tests/test_phase_properties_extended.py` — 14 Hypothesis property tests (knm, upde, adaptive_knm)
+- Paper 27 citations on `OMEGA_N_16` and `build_knm_paper27` constants
+
+### Fixed
+- `.zenodo.json` license `"MIT"` → `"MIT OR Apache-2.0"` (matches pyproject.toml)
+- `docs/api.md` version stuck at `"0.5.0"` → `"0.6.0"`
+- `print()` → `logger.info()` in `spi_mitigation.py` (3 sites)
+- Anti-slop: renamed unused param `proposed_action` → `_proposed_action`, deleted 4 narration comments in `cli.py`
+- Flaky timing test: absolute 5s threshold → relative warmup baseline
+- Dead `DEFAULT_GAIN` constant removed from Rust `optimal.rs`
+
+### Changed
+- Typing modernization: `from __future__ import annotations` + `Optional[X]` → `X | None` in 21 files
+- Shared test fixtures extracted to `conftest.py` (3 controller test files deduplicated)
+- `pyproject.toml` keywords + author email added
+
 ## [0.5.2] — 2026-03-02
 
 ### Fixed
