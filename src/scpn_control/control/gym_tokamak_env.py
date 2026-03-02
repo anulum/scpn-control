@@ -18,7 +18,11 @@ Requires: ``pip install gymnasium`` (optional dependency).
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class TokamakEnv:
@@ -151,4 +155,4 @@ class TokamakEnv:
     def render(self) -> None:
         """Print current state."""
         T_ax, T_edge, beta_N, li, q95, Ip = self._state
-        print(f"step={self._step_count:4d}  T_ax={T_ax:.1f}keV  β_N={beta_N:.2f}  q95={q95:.2f}  Ip={Ip:.1f}MA")
+        logger.info("step=%4d  T_ax=%.1fkeV  beta_N=%.2f  q95=%.2f  Ip=%.1fMA", self._step_count, T_ax, beta_N, q95, Ip)

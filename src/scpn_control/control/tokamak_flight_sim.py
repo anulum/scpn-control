@@ -7,10 +7,13 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, Tuple
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 try:
     from scpn_control.core._rust_compat import FusionKernel
@@ -193,7 +196,7 @@ class IsoFluxController:
 
     def _log(self, message: str) -> None:
         if self.verbose:
-            print(message)
+            logger.info(message)
 
     def pid_step(self, pid: Dict[str, float], error: float) -> float:
         pid["err_sum"] += error

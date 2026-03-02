@@ -7,8 +7,11 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, Tuple
+
+logger = logging.getLogger(__name__)
 
 try:
     import matplotlib.pyplot as plt
@@ -69,7 +72,7 @@ class OptimalController:
 
     def _log(self, message: str) -> None:
         if self.verbose:
-            print(message)
+            logger.info(message)
 
     def identify_system(self, perturbation: float = 0.5) -> None:
         """

@@ -318,11 +318,11 @@ def run_control_room(
             psi_source = "analytic"
 
     if verbose:
-        print("--- SCPN FUSION CONTROL ROOM: Grad-Shafranov VDE Simulation ---")
+        logger.info("--- SCPN FUSION CONTROL ROOM: Grad-Shafranov VDE Simulation ---")
         if psi_source == "kernel":
-            print("Using kernel-backed Psi source.")
+            logger.info("Using kernel-backed Psi source.")
         elif kernel_error:
-            print(f"Kernel init failed, fallback to analytic Psi: {kernel_error}")
+            logger.info("Kernel init failed, fallback to analytic Psi: %s", kernel_error)
 
     reactor = TokamakPhysicsEngine(seed=seed, kernel=kernel)
     sensors = DiagnosticSystem(rng=rng)

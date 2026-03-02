@@ -7,7 +7,10 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, Tuple
+
+logger = logging.getLogger(__name__)
 
 try:
     import matplotlib.pyplot as plt
@@ -280,7 +283,7 @@ def run_advanced_learning_sim(
     rng = np.random.default_rng(int(seed))
 
     if verbose:
-        print("--- SCPN MASTERPIECE: Predator-Prey Physics + Q-Learning Control ---")
+        logger.info("--- SCPN MASTERPIECE: Predator-Prey Physics + Q-Learning Control ---")
 
     reactor = CoupledSandpileReactor(size=int(size))
     brain = FusionAIAgent(epsilon=float(epsilon))
@@ -327,10 +330,9 @@ def run_advanced_learning_sim(
         h_shear_total.append(float(total_shear))
 
         if verbose and (t % cadence == 0 or t == steps - 1):
-            print(
-                f"Step {t}: Temp={core_temp:.2f} | Flow={flow_val:.3f} | "
-                f"Turb={av_size} | AI_Shear={current_ext_shear:.3f} | "
-                f"Q-Avg={float(np.mean(brain.q_table)):.4f}"
+            logger.info(
+                "Step %d: Temp=%.2f | Flow=%.3f | Turb=%s | AI_Shear=%.3f | Q-Avg=%.4f",
+                t, core_temp, flow_val, av_size, current_ext_shear, float(np.mean(brain.q_table)),
             )
 
     turb_arr = np.asarray(h_turb, dtype=np.float64)
@@ -351,7 +353,7 @@ def run_advanced_learning_sim(
             output_path,
         )
         if verbose and plot_saved:
-            print(f"Simulation complete. Analysis saved: {output_path}")
+            logger.info("Simulation complete. Analysis saved: %s", output_path)
 
     return {
         "seed": int(seed),

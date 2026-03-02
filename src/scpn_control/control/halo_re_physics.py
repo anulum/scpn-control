@@ -48,9 +48,12 @@ References:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 from scpn_control.core._validators import (
     require_finite_float,
@@ -661,10 +664,10 @@ def run_disruption_ensemble(
 
         if verbose:
             status = "PREVENTED" if prevented else "FAILED"
-            print(
-                f"  Run {run_idx:3d}: Ip={Ip_ma:.1f}MA impurities={impurity_total_mol:.3f}mol "
-                f"halo={halo_result.peak_halo_ma:.2f}MA "
-                f"RE={re_result.peak_re_current_ma:.3f}MA → {status}"
+            logger.info(
+                "  Run %3d: Ip=%.1fMA impurities=%.3fmol halo=%.2fMA RE=%.3fMA -> %s",
+                run_idx, Ip_ma, impurity_total_mol,
+                halo_result.peak_halo_ma, re_result.peak_re_current_ma, status,
             )
 
     prevention_rate = prevented_count / max(ensemble_runs, 1)
