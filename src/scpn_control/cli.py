@@ -262,8 +262,8 @@ def info(json_out: bool):
         "python": sys.version.split()[0],
         "numpy": np.__version__,
         "weights": [w.name for w in weight_files],
-        "source_modules": 49,
-        "test_files": 49,
+        "source_modules": len(list((Path(__file__).resolve().parent).rglob("*.py"))),
+        "test_files": len(list((Path(__file__).resolve().parent.parent.parent.parent / "tests").glob("test_*.py"))),
     }
 
     if json_out:
