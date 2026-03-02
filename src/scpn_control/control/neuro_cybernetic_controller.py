@@ -19,7 +19,11 @@ try:
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 try:
     from sc_neurocore.neurons.stochastic_lif import StochasticLIFNeuron
@@ -285,9 +289,9 @@ class NeuroCyberneticController:
     ) -> Dict[str, Any]:
         assert self.brain_R is not None and self.brain_Z is not None
         if verbose:
-            print(f"--- {title.upper()} PLASMA INTERFACE ---")
-            print("Initializing Stochastic Neural Network (SNN)...")
-            print(f"Neurons: {self.brain_R.n_neurons * 4} (Push-Pull Configuration)")
+            logger.info(f"--- {title.upper()} PLASMA INTERFACE ---")
+            logger.info("Initializing Stochastic Neural Network (SNN)...")
+            logger.info(f"Neurons: {self.brain_R.n_neurons * 4} (Push-Pull Configuration)")
 
         self._reset_history()
 
@@ -332,7 +336,7 @@ class NeuroCyberneticController:
             self.history["Spike_Rates"].append(float(self.brain_R.last_rate_pos - self.brain_R.last_rate_neg))
 
             if verbose:
-                print(
+                logger.info(
                     f"T={t}: Pos=({curr_r:.2f}, {curr_z:.2f}) | "
                     f"Err=({err_r:.3f}, {err_z:.3f}) | "
                     f"Brain_Out=({ctrl_r:.3f}, {ctrl_z:.3f})"
@@ -347,7 +351,7 @@ class NeuroCyberneticController:
             except (OSError, ValueError, RuntimeError) as exc:
                 plot_error = str(exc)
                 if verbose:
-                    print(f"Plot export skipped due to error: {exc}")
+                    logger.info(f"Plot export skipped due to error: {exc}")
 
         err_r_arr = np.asarray(self.history["Err_R"], dtype=np.float64)
         err_z_arr = np.asarray(self.history["Err_Z"], dtype=np.float64)
@@ -400,7 +404,7 @@ class NeuroCyberneticController:
         plt.savefig(filename)
         plt.close(fig)
         if verbose:
-            print(f"Analysis saved: {filename}")
+            logger.info(f"Analysis saved: {filename}")
         return filename
 
 

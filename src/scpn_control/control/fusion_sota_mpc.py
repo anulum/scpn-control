@@ -24,7 +24,11 @@ try:
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
 
+import logging
+
 from scpn_control.control import normalize_bounds
+
+logger = logging.getLogger(__name__)
 
 # --- SOTA PARAMETERS ---
 PREDICTION_HORIZON = 10
@@ -43,7 +47,7 @@ class NeuralSurrogate:
 
     def _log(self, message: str) -> None:
         if self.verbose:
-            print(message)
+            logger.info(message)
 
     def train_on_kernel(self, kernel: Any, perturbation: float = 1.0) -> None:
         self._log("[SOTA] Training Neural Surrogate on Physics Kernel...")
@@ -204,7 +208,7 @@ def run_sota_simulation(
         target_vec = np.asarray(target_vector, dtype=np.float64).reshape(4)
 
     if verbose:
-        print("\n--- SCPN FUSION SOTA: Neural-MPC Hybrid Control ---")
+        logger.info("\n--- SCPN FUSION SOTA: Neural-MPC Hybrid Control ---")
 
     kernel = kernel_factory(str(config_file))
     surrogate = NeuralSurrogate(
@@ -234,7 +238,7 @@ def run_sota_simulation(
     physics_cfg["plasma_current_target"] = target_ip_ma
 
     if verbose:
-        print(f"Starting {steps} step simulation with MPC Horizon={prediction_horizon}...")
+        logger.info(f"Starting {steps} step simulation with MPC Horizon={prediction_horizon}...")
     start_time = time.time()
     for t in range(steps):
         curr_state = surrogate.get_state(kernel)
@@ -271,14 +275,14 @@ def run_sota_simulation(
         h_error.append(err)
 
         if verbose and t % 10 == 0:
-            print(
+            logger.info(
                 f"Step {t}: R={curr_state[0]:.2f}, Z={curr_state[1]:.2f} | "
                 f"X-Point=({curr_state[2]:.2f},{curr_state[3]:.2f}) | Err={err:.3f}"
             )
 
     runtime_s = float(time.time() - start_time)
     if verbose:
-        print(f"Simulation finished in {runtime_s:.2f}s")
+        logger.info(f"Simulation finished in {runtime_s:.2f}s")
 
     plot_saved = False
     plot_error: str | None = None
@@ -292,7 +296,7 @@ def run_sota_simulation(
             output_path,
         )
         if verbose and plot_saved:
-            print(f"SOTA Analysis saved: {output_path}")
+            logger.info(f"SOTA Analysis saved: {output_path}")
 
     return {
         "config_path": str(config_file),

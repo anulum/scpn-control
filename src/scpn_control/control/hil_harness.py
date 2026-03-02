@@ -26,7 +26,11 @@ from dataclasses import dataclass
 from dataclasses import dataclass as dc_dataclass
 from typing import Callable
 
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 @dc_dataclass
@@ -469,20 +473,20 @@ def run_hil_benchmark(
     )
 
     if verbose:
-        print("=== HIL Benchmark Results ===")
-        print(f"  Iterations:     {metrics.iterations}")
-        print(f"  Target rate:    {target_rate_hz:.0f} Hz ({metrics.target_dt_us:.0f} us)")
-        print(f"  P50 latency:    {metrics.p50_latency_us:.1f} us")
-        print(f"  P95 latency:    {metrics.p95_latency_us:.1f} us")
-        print(f"  P99 latency:    {metrics.p99_latency_us:.1f} us")
-        print(f"  Max latency:    {metrics.max_latency_us:.1f} us")
-        print(f"  Jitter (std):   {metrics.jitter_std_us:.1f} us")
-        print(f"  Overruns:       {metrics.overrun_count} ({metrics.overrun_fraction * 100:.1f}%)")
-        print(f"  Sub-ms (P95):   {'PASS' if metrics.sub_ms_achieved else 'FAIL'}")
-        print(f"  1 kHz capable:  {'PASS' if result.passes_1khz else 'FAIL'}")
+        logger.info("=== HIL Benchmark Results ===")
+        logger.info(f"  Iterations:     {metrics.iterations}")
+        logger.info(f"  Target rate:    {target_rate_hz:.0f} Hz ({metrics.target_dt_us:.0f} us)")
+        logger.info(f"  P50 latency:    {metrics.p50_latency_us:.1f} us")
+        logger.info(f"  P95 latency:    {metrics.p95_latency_us:.1f} us")
+        logger.info(f"  P99 latency:    {metrics.p99_latency_us:.1f} us")
+        logger.info(f"  Max latency:    {metrics.max_latency_us:.1f} us")
+        logger.info(f"  Jitter (std):   {metrics.jitter_std_us:.1f} us")
+        logger.info(f"  Overruns:       {metrics.overrun_count} ({metrics.overrun_fraction * 100:.1f}%)")
+        logger.info(f"  Sub-ms (P95):   {'PASS' if metrics.sub_ms_achieved else 'FAIL'}")
+        logger.info(f"  1 kHz capable:  {'PASS' if result.passes_1khz else 'FAIL'}")
         if fpga_map:
-            print(f"  FPGA neurons:   {fpga_map.n_neurons}")
-            print(f"  FPGA clock:     {fpga_map.clock_hz / 1e6:.0f} MHz")
+            logger.info(f"  FPGA neurons:   {fpga_map.n_neurons}")
+            logger.info(f"  FPGA clock:     {fpga_map.clock_hz / 1e6:.0f} MHz")
 
     return result
 

@@ -27,7 +27,11 @@ except ImportError:  # pragma: no cover - optional dependency path
     nn = None  # type: ignore[assignment]
     optim = None  # type: ignore[assignment]
 
+import logging
+
 from scpn_control.core._validators import require_int as _require_int
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_SEQ_LEN = 100
 DEFAULT_MODEL_FILENAME = "disruption_model.pth"
@@ -542,10 +546,10 @@ def train_predictor(
     model_path = Path(model_path) if model_path is not None else default_model_path()
     model_path.parent.mkdir(parents=True, exist_ok=True)
 
-    print("--- SCPN SAFETY AI: Disruption Prediction (Transformer) ---")
-    print(f"Sequence length: {seq_len} | Shots: {n_shots} | Epochs: {epochs}")
+    logger.info("--- SCPN SAFETY AI: Disruption Prediction (Transformer) ---")
+    logger.info(f"Sequence length: {seq_len} | Shots: {n_shots} | Epochs: {epochs}")
 
-    print("Generating synthetic shots (Rutherford Physics)...")
+    logger.info("Generating synthetic shots (Rutherford Physics)...")
     X_train = []
     y_train = []
 
@@ -563,7 +567,7 @@ def train_predictor(
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.BCELoss()
 
-    print("Training Transformer...")
+    logger.info("Training Transformer...")
     losses = []
     for epoch in range(epochs):
         optimizer.zero_grad()
@@ -574,9 +578,9 @@ def train_predictor(
         losses.append(loss.item())
 
         if epoch % 10 == 0 or epoch == epochs - 1:
-            print(f"Epoch {epoch}: Loss={loss.item():.4f}")
+            logger.info(f"Epoch {epoch}: Loss={loss.item():.4f}")
 
-    print("Validating on a new shot...")
+    logger.info("Validating on a new shot...")
     test_sig, test_lbl, _ = simulate_tearing_mode(steps=sim_steps, rng=eval_rng)
     input_sig = _prepare_signal_window(test_sig, seq_len)
     input_tensor = torch.tensor(input_sig, dtype=torch.float32).reshape(1, -1, 1)
@@ -585,11 +589,11 @@ def train_predictor(
     with torch.no_grad():
         risk = model(input_tensor).item()
 
-    print(f"Test Shot Ground Truth: {'DISRUPTIVE' if test_lbl else 'SAFE'}")
-    print(f"AI Prediction Risk: {risk * 100:.1f}%")
+    logger.info(f"Test Shot Ground Truth: {'DISRUPTIVE' if test_lbl else 'SAFE'}")
+    logger.info(f"AI Prediction Risk: {risk * 100:.1f}%")
 
     torch.save({"state_dict": model.state_dict(), "seq_len": int(seq_len)}, model_path)
-    print(f"Saved model: {model_path}")
+    logger.info(f"Saved model: {model_path}")
 
     plot_path = _repo_root() / "artifacts" / "Disruption_AI_Result.png"
     if save_plot:
@@ -603,7 +607,7 @@ def train_predictor(
         plt.tight_layout()
         plt.savefig(plot_path)
         plt.close(fig)
-        print(f"Saved: {plot_path}")
+        logger.info(f"Saved: {plot_path}")
 
     return model, {
         "seq_len": int(seq_len),

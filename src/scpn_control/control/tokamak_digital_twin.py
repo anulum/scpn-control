@@ -29,6 +29,10 @@ try:
 except ImportError:
     HAS_IMAS = False
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # --- HYPER-PARAMETERS ---
 GRID_SIZE = 40  # 40x40 Poloidal Cross-section
 TIME_STEPS = 10000  # Training duration (Increased)
@@ -261,7 +265,7 @@ def run_digital_twin(
         raise ValueError("sensor_noise_std must be finite and >= 0.")
     local_rng = _resolve_rng(seed=int(seed), rng=rng)
     if verbose:
-        print("--- SCPN 2D TOKAMAK DIGITAL TWIN + NEURAL CONTROL ---")
+        logger.info("--- SCPN 2D TOKAMAK DIGITAL TWIN + NEURAL CONTROL ---")
 
     topo = TokamakTopology()
     plasma = Plasma2D(topo, gyro_surrogate=gyro_surrogate)
@@ -274,7 +278,7 @@ def run_digital_twin(
     sensor_dropouts_total = 0
 
     if verbose:
-        print(f"Training Neural Network for {steps} steps...")
+        logger.info(f"Training Neural Network for {steps} steps...")
 
     for t in range(steps):
         # 1. Observe State (Midplane Profile)
@@ -316,7 +320,7 @@ def run_digital_twin(
 
         if verbose and t % 500 == 0:
             n_islands = np.sum(topo.get_rational_surfaces())
-            print(f"Step {t}: AvgTemp={avg_temp:.2f} | Action={action:.2f} | Loss={loss:.4f} | Islands={n_islands} px")
+            logger.info(f"Step {t}: AvgTemp={avg_temp:.2f} | Action={action:.2f} | Loss={loss:.4f} | Islands={n_islands} px")
 
     plot_saved = False
     plot_error = None
@@ -369,11 +373,11 @@ def run_digital_twin(
             plt.close(fig)
             plot_saved = True
             if verbose:
-                print(f"\nDigital Twin Simulation Complete. Snapshot saved: {output_path}")
+                logger.info(f"\nDigital Twin Simulation Complete. Snapshot saved: {output_path}")
         except (OSError, ValueError, RuntimeError) as exc:
             plot_error = str(exc)
             if verbose:
-                print(f"\nDigital Twin completed without plot artifact: {exc}")
+                logger.info(f"\nDigital Twin completed without plot artifact: {exc}")
 
     islands_final = int(np.sum(topo.get_rational_surfaces()))
     final_avg_temp = float(history_rewards[-1] + islands_final * 0.05) if history_rewards else 0.0
