@@ -5,6 +5,8 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "SCPN Control - Mathematical primitives (LIF neuron, boris pusher, matrix ops)"
 repository = "https://github.com/anulum/scpn-control"
+keywords = ["plasma", "tokamak", "control", "snn", "fusion"]
+categories = ["science", "simulation"]
 
 [dependencies]
 control-types = { path = "../control-types" }

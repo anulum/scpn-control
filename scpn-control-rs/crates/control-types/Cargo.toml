@@ -6,6 +6,8 @@ version = "0.1.0"
 edition = "2021"
 description = "SCPN Control - Type definitions and configuration"
 repository = "https://github.com/anulum/scpn-control"
+keywords = ["plasma", "tokamak", "control", "snn", "fusion"]
+categories = ["science", "simulation"]
 
 [dependencies]
 serde = { workspace = true }

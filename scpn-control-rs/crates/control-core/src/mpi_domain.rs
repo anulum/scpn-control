@@ -25,15 +25,18 @@ pub struct DomainSlice {
 }
 
 impl DomainSlice {
+    /// True if this rank has a neighbour with a lower rank index (z-direction).
     pub fn has_upper_neighbor(&self) -> bool {
         self.rank > 0
     }
 
+    /// True if this rank has a neighbour with a higher rank index (z-direction).
     pub fn has_lower_neighbor(&self) -> bool {
         self.rank + 1 < self.nranks
     }
 }
 
+/// Partition the Z-axis of a 1D domain into `nranks` contiguous slices.
 pub fn decompose_z(global_nz: usize, nranks: usize, halo: usize) -> FusionResult<Vec<DomainSlice>> {
     if global_nz < 2 {
         return Err(FusionError::PhysicsViolation(
@@ -73,6 +76,7 @@ pub fn decompose_z(global_nz: usize, nranks: usize, halo: usize) -> FusionResult
     Ok(out)
 }
 
+/// Extract the top and bottom halo strips from a local block.
 pub fn pack_halo_rows(
     local: &Array2<f64>,
     halo: usize,
@@ -105,6 +109,7 @@ pub fn pack_halo_rows(
     Ok((top, bottom))
 }
 
+/// Write received halo strips into the top/bottom ghost rows of a local block.
 pub fn apply_halo_rows(
     local: &mut Array2<f64>,
     halo: usize,
@@ -166,6 +171,7 @@ pub fn apply_halo_rows(
     Ok(())
 }
 
+/// Split a global array into per-rank local blocks with halo overlap.
 pub fn split_with_halo(
     global: &Array2<f64>,
     slices: &[DomainSlice],
@@ -209,6 +215,7 @@ pub fn split_with_halo(
     Ok(out)
 }
 
+/// Reassemble per-rank local blocks (excluding halos) into a global array.
 pub fn stitch_without_halo(
     locals: &[Array2<f64>],
     slices: &[DomainSlice],
@@ -263,6 +270,7 @@ pub fn stitch_without_halo(
     Ok(global)
 }
 
+/// Perform a serial (single-threaded) halo exchange across 1D domain slices.
 pub fn serial_halo_exchange(
     locals: &mut [Array2<f64>],
     slices: &[DomainSlice],
@@ -315,6 +323,7 @@ pub fn serial_halo_exchange(
     Ok(())
 }
 
+/// Compute the L2 norm of the element-wise difference between two arrays.
 pub fn l2_norm_delta(a: &Array2<f64>, b: &Array2<f64>) -> FusionResult<f64> {
     if a.dim() != b.dim() {
         return Err(FusionError::PhysicsViolation(format!(

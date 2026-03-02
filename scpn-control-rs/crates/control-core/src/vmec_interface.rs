@@ -92,6 +92,7 @@ impl VmecBoundaryState {
     }
 }
 
+/// Serialise a VMEC boundary state to the `vmec_like_v1` text format.
 pub fn export_vmec_like_text(state: &VmecBoundaryState) -> FusionResult<String> {
     state.validate()?;
     let mut out = String::new();
@@ -133,6 +134,7 @@ where
     })
 }
 
+/// Parse a `vmec_like_v1` text blob into a validated `VmecBoundaryState`.
 pub fn import_vmec_like_text(text: &str) -> FusionResult<VmecBoundaryState> {
     let mut format_seen = false;
     let mut r_axis: Option<f64> = None;

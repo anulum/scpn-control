@@ -85,16 +85,6 @@ fn flat_index(iz: usize, ir: usize, nr: usize) -> usize {
     (iz - 1) * (nr - 2) + (ir - 1)
 }
 
-/// Map flat index → interior (iz, ir).
-#[inline]
-#[allow(dead_code)]
-fn grid_index(k: usize, nr: usize) -> (usize, usize) {
-    let cols = nr - 2;
-    let iz = k / cols + 1;
-    let ir = k % cols + 1;
-    (iz, ir)
-}
-
 // ─────────────────────── helper: grid ↔ flat vector ─────────────────
 
 /// Extract the interior of an [nz, nr] array into a flat Vec.
