@@ -182,9 +182,10 @@ mod tests {
 
     #[test]
     fn test_load_default_config() {
-        let cfg =
-            ReactorConfig::from_file(&config_path("scpn-control-rs/crates/control-types/test_data/default_config.json"))
-                .unwrap();
+        let cfg = ReactorConfig::from_file(&config_path(
+            "scpn-control-rs/crates/control-types/test_data/default_config.json",
+        ))
+        .unwrap();
         assert_eq!(cfg.reactor_name, "SCPN-Standard-Model");
         assert_eq!(cfg.grid_resolution, [65, 65]);
     }
