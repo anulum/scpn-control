@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -217,14 +219,14 @@ def test_run_sota_simulation_explicit_target_vector() -> None:
     assert np.isfinite(summary["mean_tracking_error"])
 
 
-def test_run_sota_simulation_verbose_prints_output(capsys) -> None:
-    run_sota_simulation(
-        config_file="dummy.json",
-        shot_length=12,
-        save_plot=False,
-        verbose=True,
-        kernel_factory=_DummyKernel,
-    )
-    captured = capsys.readouterr()
-    assert "Neural-MPC Hybrid Control" in captured.out
-    assert "Simulation finished" in captured.out
+def test_run_sota_simulation_verbose_prints_output(caplog) -> None:
+    with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_sota_mpc"):
+        run_sota_simulation(
+            config_file="dummy.json",
+            shot_length=12,
+            save_plot=False,
+            verbose=True,
+            kernel_factory=_DummyKernel,
+        )
+    assert "Neural-MPC Hybrid Control" in caplog.text
+    assert "Simulation finished" in caplog.text

@@ -320,7 +320,9 @@ def run_digital_twin(
 
         if verbose and t % 500 == 0:
             n_islands = np.sum(topo.get_rational_surfaces())
-            logger.info(f"Step {t}: AvgTemp={avg_temp:.2f} | Action={action:.2f} | Loss={loss:.4f} | Islands={n_islands} px")
+            logger.info(
+                f"Step {t}: AvgTemp={avg_temp:.2f} | Action={action:.2f} | Loss={loss:.4f} | Islands={n_islands} px"
+            )
 
     plot_saved = False
     plot_error = None

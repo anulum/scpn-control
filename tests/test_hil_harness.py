@@ -1,5 +1,7 @@
 """Tests for Hardware-in-the-Loop test harness."""
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -275,20 +277,20 @@ class TestRunHILBenchmarkDetailed:
 
 
 class TestHILBenchmarkVerbose:
-    def test_verbose_prints_output(self, capsys):
-        run_hil_benchmark(iterations=50, verbose=True)
-        captured = capsys.readouterr()
-        assert "HIL Benchmark Results" in captured.out
-        assert "P50 latency" in captured.out
-        assert "P95 latency" in captured.out
-        assert "Overruns" in captured.out
-        assert "Sub-ms" in captured.out
+    def test_verbose_prints_output(self, caplog):
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.hil_harness"):
+            run_hil_benchmark(iterations=50, verbose=True)
+        assert "HIL Benchmark Results" in caplog.text
+        assert "P50 latency" in caplog.text
+        assert "P95 latency" in caplog.text
+        assert "Overruns" in caplog.text
+        assert "Sub-ms" in caplog.text
 
-    def test_verbose_with_fpga(self, capsys):
-        run_hil_benchmark(iterations=50, verbose=True, include_fpga_export=True)
-        captured = capsys.readouterr()
-        assert "FPGA neurons" in captured.out
-        assert "FPGA clock" in captured.out
+    def test_verbose_with_fpga(self, caplog):
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.hil_harness"):
+            run_hil_benchmark(iterations=50, verbose=True, include_fpga_export=True)
+        assert "FPGA neurons" in caplog.text
+        assert "FPGA clock" in caplog.text
 
 
 class TestHILDemoRunnerWeights:

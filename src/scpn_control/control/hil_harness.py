@@ -21,12 +21,11 @@ format provides the register map and port definitions.
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from dataclasses import dataclass as dc_dataclass
 from typing import Callable
-
-import logging
 
 import numpy as np
 

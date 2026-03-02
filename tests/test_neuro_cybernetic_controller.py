@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -280,18 +282,18 @@ def test_spiking_pool_rejects_nan_noise() -> None:
 # ── Verbose & coil-padding paths ─────────────────────────────────
 
 
-def test_run_neuro_cybernetic_control_verbose_output(capsys) -> None:
-    run_neuro_cybernetic_control(
-        config_file="dummy.json",
-        shot_duration=3,
-        seed=42,
-        quantum=False,
-        save_plot=False,
-        verbose=True,
-        kernel_factory=_DummyKernel,
-    )
-    out = capsys.readouterr().out
-    assert "SNN" in out or "PLASMA" in out
+def test_run_neuro_cybernetic_control_verbose_output(caplog) -> None:
+    with caplog.at_level(logging.INFO, logger="scpn_control.control.neuro_cybernetic_controller"):
+        run_neuro_cybernetic_control(
+            config_file="dummy.json",
+            shot_duration=3,
+            seed=42,
+            quantum=False,
+            save_plot=False,
+            verbose=True,
+            kernel_factory=_DummyKernel,
+        )
+    assert "SNN" in caplog.text or "PLASMA" in caplog.text
 
 
 class _KernelFewCoils:

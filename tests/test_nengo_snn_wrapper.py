@@ -19,6 +19,7 @@ import pytest
 # performs during build_network() and step().
 # ---------------------------------------------------------------------------
 
+
 def _make_mock_nengo():
     mock = MagicMock()
     mock.LIF = MagicMock(return_value=MagicMock())

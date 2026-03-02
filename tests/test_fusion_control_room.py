@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -351,34 +353,34 @@ class TestKernelEdgeCases:
         assert summary["psi_source"] == "kernel"
         assert np.isfinite(summary["final_z"])
 
-    def test_verbose_kernel_path(self, capsys):
-        run_control_room(
-            sim_duration=3,
-            seed=0,
-            save_animation=False,
-            save_report=False,
-            verbose=True,
-            kernel_factory=_DummyKernel,
-            config_file="x.json",
-        )
-        out = capsys.readouterr().out
-        assert "kernel" in out.lower()
+    def test_verbose_kernel_path(self, caplog):
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_control_room"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=True,
+                kernel_factory=_DummyKernel,
+                config_file="x.json",
+            )
+        assert "kernel" in caplog.text.lower()
 
-    def test_verbose_analytic_fallback_on_error(self, capsys):
+    def test_verbose_analytic_fallback_on_error(self, caplog):
         def _bad_factory(_cfg):
             raise RuntimeError("nope")
 
-        run_control_room(
-            sim_duration=3,
-            seed=0,
-            save_animation=False,
-            save_report=False,
-            verbose=True,
-            kernel_factory=_bad_factory,
-            config_file="x.json",
-        )
-        out = capsys.readouterr().out
-        assert "nope" in out
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_control_room"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=True,
+                kernel_factory=_bad_factory,
+                config_file="x.json",
+            )
+        assert "nope" in caplog.text
 
     def test_auto_kernel_factory_from_config_file(self):
         """When kernel_factory=None but config_file set, FusionKernel is used automatically."""

@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -35,14 +37,14 @@ class _BadDrKernel(_FakeKernel):
 
 
 class TestVerboseLog:
-    def test_verbose_logs_output(self, tmp_path, capsys):
-        """verbose=True triggers _log print (line 46)."""
+    def test_verbose_logs_output(self, tmp_path, caplog):
+        """verbose=True triggers _log logging (line 46)."""
         cfg = tmp_path / "cfg.json"
         cfg.write_text("{}")
         solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=_FakeKernel, verbose=True)
-        solver.calculate_required_Bv(R_geo=6.2, a_min=2.0, Ip_MA=15.0)
-        captured = capsys.readouterr()
-        assert "SHAFRANOV" in captured.out
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.analytic_solver"):
+            solver.calculate_required_Bv(R_geo=6.2, a_min=2.0, Ip_MA=15.0)
+        assert "SHAFRANOV" in caplog.text
 
 
 class TestDrGuard:

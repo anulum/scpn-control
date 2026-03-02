@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -97,7 +99,7 @@ class TestNeuroCyberneticControllerSavePlotError:
         assert summary["plot_saved"] is False
         assert "matplotlib not available" in summary["plot_error"]
 
-    def test_save_plot_error_with_verbose(self, monkeypatch, capsys):
+    def test_save_plot_error_with_verbose(self, monkeypatch, caplog):
         nc = NeuroCyberneticController(
             "dummy.json",
             seed=42,
@@ -110,15 +112,15 @@ class TestNeuroCyberneticControllerSavePlotError:
             raise ValueError("bad shape")
 
         monkeypatch.setattr(nc, "visualize", _bad_visualize)
-        nc._execute_simulation(
-            "Test",
-            mode="classical",
-            save_plot=True,
-            verbose=True,
-            output_path=None,
-        )
-        out = capsys.readouterr().out
-        assert "Plot export skipped" in out
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.neuro_cybernetic_controller"):
+            nc._execute_simulation(
+                "Test",
+                mode="classical",
+                save_plot=True,
+                verbose=True,
+                output_path=None,
+            )
+        assert "Plot export skipped" in caplog.text
 
 
 class TestRunFunctionOutputPath:

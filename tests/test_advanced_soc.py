@@ -246,16 +246,18 @@ class TestRunAdvancedLearningSim:
         )
         assert r["final_core_temp"] > 0.0
 
-    def test_verbose_prints_output(self, capsys):
-        run_advanced_learning_sim(
-            size=10,
-            time_steps=20,
-            save_plot=False,
-            verbose=True,
-        )
-        captured = capsys.readouterr()
-        assert "Predator-Prey" in captured.out
-        assert "Step" in captured.out
+    def test_verbose_logs_output(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.advanced_soc_fusion_learning"):
+            run_advanced_learning_sim(
+                size=10,
+                time_steps=20,
+                save_plot=False,
+                verbose=True,
+            )
+        assert "Predator-Prey" in caplog.text
+        assert "Step" in caplog.text
 
 
 class TestFusionAIAgentFlowValidation:

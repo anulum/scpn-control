@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -273,25 +275,25 @@ class TestActuatorMeasurement:
 
 
 class TestIsoFluxControllerVerbose:
-    def test_verbose_output(self, capsys):
-        sim = IsoFluxController(
-            config_file="dummy.json",
-            kernel_factory=_DummyKernel,
-            verbose=True,
-        )
-        sim.run_shot(shot_duration=3, save_plot=False)
-        out = capsys.readouterr().out
-        assert "TOKAMAK FLIGHT SIMULATOR" in out
+    def test_verbose_output(self, caplog):
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.tokamak_flight_sim"):
+            sim = IsoFluxController(
+                config_file="dummy.json",
+                kernel_factory=_DummyKernel,
+                verbose=True,
+            )
+            sim.run_shot(shot_duration=3, save_plot=False)
+        assert "TOKAMAK FLIGHT SIMULATOR" in caplog.text
 
-    def test_nonverbose_no_output(self, capsys):
-        sim = IsoFluxController(
-            config_file="dummy.json",
-            kernel_factory=_DummyKernel,
-            verbose=False,
-        )
-        sim.run_shot(shot_duration=3, save_plot=False)
-        out = capsys.readouterr().out
-        assert out == ""
+    def test_nonverbose_no_output(self, caplog):
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.tokamak_flight_sim"):
+            sim = IsoFluxController(
+                config_file="dummy.json",
+                kernel_factory=_DummyKernel,
+                verbose=False,
+            )
+            sim.run_shot(shot_duration=3, save_plot=False)
+        assert caplog.text == ""
 
 
 # ── run_flight_sim: config_file=None default path ────────────────

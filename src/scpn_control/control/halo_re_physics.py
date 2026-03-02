@@ -53,14 +53,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
-
 from scpn_control.core._validators import (
     require_finite_float,
     require_non_negative_float,
     require_positive_float,
     require_range,
 )
+
+logger = logging.getLogger(__name__)
 
 # ─── Physical constants ─────────────────────────────────────────────
 _E_CHARGE = 1.602e-19  # C
@@ -666,8 +666,12 @@ def run_disruption_ensemble(
             status = "PREVENTED" if prevented else "FAILED"
             logger.info(
                 "  Run %3d: Ip=%.1fMA impurities=%.3fmol halo=%.2fMA RE=%.3fMA -> %s",
-                run_idx, Ip_ma, impurity_total_mol,
-                halo_result.peak_halo_ma, re_result.peak_re_current_ma, status,
+                run_idx,
+                Ip_ma,
+                impurity_total_mol,
+                halo_result.peak_halo_ma,
+                re_result.peak_re_current_ma,
+                status,
             )
 
     prevention_rate = prevented_count / max(ensemble_runs, 1)

@@ -1,5 +1,7 @@
 # Tests for Director Interface and RuleBasedDirector fallback.
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -240,37 +242,37 @@ class TestDirectorInterfaceRunMission:
         )
         assert result["intervention_count"] > 0
 
-    def test_verbose_output(self, capsys):
+    def test_verbose_output(self, caplog):
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
         )
-        di.run_directed_mission(
-            duration=20,
-            save_plot=False,
-            verbose=True,
-        )
-        out = capsys.readouterr().out
-        assert "DIRECTOR-GHOSTED FUSION MISSION" in out
-        assert "fallback_rule_based" in out
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.director_interface"):
+            di.run_directed_mission(
+                duration=20,
+                save_plot=False,
+                verbose=True,
+            )
+        assert "DIRECTOR-GHOSTED FUSION MISSION" in caplog.text
+        assert "fallback_rule_based" in caplog.text
 
-    def test_verbose_intervention_prints(self, capsys):
+    def test_verbose_intervention_prints(self, caplog):
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
         )
-        di.run_directed_mission(
-            duration=100,
-            glitch_start_step=5,
-            glitch_std=50000.0,
-            save_plot=False,
-            verbose=True,
-            rng_seed=0,
-        )
-        out = capsys.readouterr().out
-        assert "APPROVED" in out or "DENIED" in out
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.director_interface"):
+            di.run_directed_mission(
+                duration=100,
+                glitch_start_step=5,
+                glitch_std=50000.0,
+                save_plot=False,
+                verbose=True,
+                rng_seed=0,
+            )
+        assert "APPROVED" in caplog.text or "DENIED" in caplog.text
 
-    def test_verbose_with_denied_intervention(self, capsys):
+    def test_verbose_with_denied_intervention(self, caplog):
         class _HighEntropyDirector:
             def review_action(self, prompt, action):
                 return False, 9.9
@@ -280,12 +282,12 @@ class TestDirectorInterfaceRunMission:
             controller_factory=_MockNeuroCyberneticController,
             director=_HighEntropyDirector(),
         )
-        result = di.run_directed_mission(
-            duration=20,
-            save_plot=False,
-            verbose=True,
-        )
-        out = capsys.readouterr().out
-        assert "DENIED" in out
-        assert "INTERVENTION" in out
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.director_interface"):
+            result = di.run_directed_mission(
+                duration=20,
+                save_plot=False,
+                verbose=True,
+            )
+        assert "DENIED" in caplog.text
+        assert "INTERVENTION" in caplog.text
         assert result["intervention_count"] > 0

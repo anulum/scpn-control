@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -614,11 +616,11 @@ def test_ids_pulse_rejects_time_steps_kwarg() -> None:
         )
 
 
-def test_run_digital_twin_verbose_prints_output(capsys) -> None:
-    run_digital_twin(time_steps=5, seed=0, save_plot=False, verbose=True)
-    captured = capsys.readouterr()
-    assert "TOKAMAK DIGITAL TWIN" in captured.out
-    assert "Training Neural Network" in captured.out
+def test_run_digital_twin_verbose_prints_output(caplog) -> None:
+    with caplog.at_level(logging.INFO, logger="scpn_control.control.tokamak_digital_twin"):
+        run_digital_twin(time_steps=5, seed=0, save_plot=False, verbose=True)
+    assert "TOKAMAK DIGITAL TWIN" in caplog.text
+    assert "Training Neural Network" in caplog.text
 
 
 def test_history_snapshots_rejects_zero_step() -> None:

@@ -227,7 +227,11 @@ class DirectorInterface:
                     status = "APPROVED" if approved else "DENIED"
                     logger.info(
                         "[Director] T=%d | State: %s | Proposal: %s -> %s (SEC=%.2f)",
-                        t, prompt, proposed_action, status, sec_score,
+                        t,
+                        prompt,
+                        proposed_action,
+                        status,
+                        sec_score,
                     )
 
                 if approved:

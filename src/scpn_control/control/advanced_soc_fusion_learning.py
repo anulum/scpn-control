@@ -332,7 +332,12 @@ def run_advanced_learning_sim(
         if verbose and (t % cadence == 0 or t == steps - 1):
             logger.info(
                 "Step %d: Temp=%.2f | Flow=%.3f | Turb=%s | AI_Shear=%.3f | Q-Avg=%.4f",
-                t, core_temp, flow_val, av_size, current_ext_shear, float(np.mean(brain.q_table)),
+                t,
+                core_temp,
+                flow_val,
+                av_size,
+                current_ext_shear,
+                float(np.mean(brain.q_table)),
             )
 
     turb_arr = np.asarray(h_turb, dtype=np.float64)

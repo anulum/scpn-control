@@ -174,9 +174,11 @@ class TestHaloEdgeCases:
         assert result.prevention_rate >= 0.0
         assert len(result.per_run_details) == 3
 
-    def test_run_disruption_ensemble_verbose(self, capsys):
+    def test_run_disruption_ensemble_verbose(self, caplog):
+        import logging
+
         from scpn_control.control.halo_re_physics import run_disruption_ensemble
 
-        run_disruption_ensemble(ensemble_runs=2, seed=7, verbose=True)
-        captured = capsys.readouterr()
-        assert "Run" in captured.out
+        with caplog.at_level(logging.INFO, logger="scpn_control.control.halo_re_physics"):
+            run_disruption_ensemble(ensemble_runs=2, seed=7, verbose=True)
+        assert "Run" in caplog.text

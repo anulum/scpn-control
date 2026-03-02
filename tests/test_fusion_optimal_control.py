@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 
@@ -206,19 +208,19 @@ def test_optimal_controller_rejects_invalid_limits_and_knobs() -> None:
         )
 
 
-def test_optimal_controller_verbose_logging(capsys) -> None:
-    pilot = OptimalController(
-        "dummy.json",
-        kernel_factory=_DummyKernel,
-        verbose=True,
-        correction_limit=5.0,
-        coil_current_limits=(-2.0, 2.0),
-        current_target_limits=(7.0, 9.0),
-    )
-    pilot.identify_system(perturbation=0.3)
-    captured = capsys.readouterr()
-    assert "Identifying System Response Matrix" in captured.out
-    assert "System Identification Complete" in captured.out
+def test_optimal_controller_verbose_logging(caplog) -> None:
+    with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_optimal_control"):
+        pilot = OptimalController(
+            "dummy.json",
+            kernel_factory=_DummyKernel,
+            verbose=True,
+            correction_limit=5.0,
+            coil_current_limits=(-2.0, 2.0),
+            current_target_limits=(7.0, 9.0),
+        )
+        pilot.identify_system(perturbation=0.3)
+    assert "Identifying System Response Matrix" in caplog.text
+    assert "System Identification Complete" in caplog.text
 
 
 def test_run_optimal_shot_identify_first() -> None:

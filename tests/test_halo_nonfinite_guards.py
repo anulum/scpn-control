@@ -3,7 +3,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for _as_range low < min_allowed (96), high <= low (98),
+"""Coverage for require_range low < min_allowed, high <= low,
 avalanche non-finite (435), momentum non-finite (455), relativistic
 loss non-finite (480), simulate loop non-finite guards (564, 569, 572, 578),
 and ensemble prevention path (719)."""
@@ -15,9 +15,9 @@ import pytest
 
 from scpn_control.control.halo_re_physics import (
     RunawayElectronModel,
-    _as_range,
     run_disruption_ensemble,
 )
+from scpn_control.core._validators import require_range
 
 
 class TestAsNonNegativeFloat:
@@ -34,19 +34,16 @@ class TestAsNonNegativeFloat:
 
 class TestAsRangeValidation:
     def test_low_below_min_allowed(self):
-        """_as_range with low < min_allowed raises (line 96)."""
         with pytest.raises(ValueError, match="must be >="):
-            _as_range("test", (-1.0, 10.0), min_allowed=0.0)
+            require_range("test", (-1.0, 10.0), min_allowed=0.0)
 
     def test_high_equal_low(self):
-        """_as_range with high == low raises (line 98)."""
         with pytest.raises(ValueError, match="low < high"):
-            _as_range("test", (5.0, 5.0))
+            require_range("test", (5.0, 5.0))
 
     def test_high_below_low(self):
-        """_as_range with high < low raises (line 98)."""
         with pytest.raises(ValueError, match="low < high"):
-            _as_range("test", (10.0, 5.0))
+            require_range("test", (10.0, 5.0))
 
 
 class TestNonFiniteRateGuards:
