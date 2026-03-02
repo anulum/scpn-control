@@ -147,6 +147,7 @@ target-version = "py39"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
 ignore = [
+    "E402",   # module-level import after try/except (conditional deps)
     "E501",   # line length handled by formatter
     "E741",   # ambiguous variable (physics code uses l, I, O)
 ]
