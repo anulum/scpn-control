@@ -50,7 +50,7 @@ def _resolve_rng(seed: int, rng: np.random.Generator | None) -> np.random.Genera
     return np.random.default_rng(int(seed))
 
 
-class TokamakTopoloy:
+class TokamakTopology:
     """
     Handles the magnetic geometry (Safety Factor q-profile).
     Instabilities occur at 'Rational Surfaces' (q = 2, q = 3, q = 1.5).
@@ -96,6 +96,9 @@ class TokamakTopoloy:
             danger_map = np.logical_or(danger_map, mask)
 
         return danger_map
+
+
+TokamakTopoloy = TokamakTopology  # deprecated alias
 
 
 class Plasma2D:
@@ -260,7 +263,7 @@ def run_digital_twin(
     if verbose:
         print("--- SCPN 2D TOKAMAK DIGITAL TWIN + NEURAL CONTROL ---")
 
-    topo = TokamakTopoloy()
+    topo = TokamakTopology()
     plasma = Plasma2D(topo, gyro_surrogate=gyro_surrogate)
 
     state_dim = GRID_SIZE  # midplane radial samples

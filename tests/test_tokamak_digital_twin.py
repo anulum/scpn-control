@@ -15,7 +15,7 @@ import pytest
 from scpn_control.control.tokamak_digital_twin import (
     Plasma2D,
     SimpleNeuralNet,
-    TokamakTopoloy,
+    TokamakTopology,
     _resolve_rng,
     _run_digital_twin_history_snapshots,
     run_digital_twin,
@@ -414,38 +414,38 @@ def test_run_digital_twin_ids_pulse_rejects_invalid_history_steps(history_steps)
         )
 
 
-# ── TokamakTopoloy ───────────────────────────────────────────────
+# ── TokamakTopology ──────────────────────────────────────────────
 
 
 class TestTokamakTopology:
     def test_q_profile_shape(self):
-        topo = TokamakTopoloy(size=20)
+        topo = TokamakTopology(size=20)
         assert topo.q_map.shape == (20, 20)
 
     def test_q_profile_center_near_q0(self):
-        topo = TokamakTopoloy(size=40)
+        topo = TokamakTopology(size=40)
         center = 40 // 2
         assert abs(topo.q_map[center, center] - topo.q0) < 0.5
 
     def test_update_q_profile_changes_map(self):
-        topo = TokamakTopoloy(size=20)
+        topo = TokamakTopology(size=20)
         q_before = topo.q_map.copy()
         topo.update_q_profile(1.0)
         assert not np.array_equal(q_before, topo.q_map)
 
     def test_rational_surfaces_boolean(self):
-        topo = TokamakTopoloy(size=40)
+        topo = TokamakTopology(size=40)
         danger = topo.get_rational_surfaces()
         assert danger.dtype == bool
         assert danger.shape == (40, 40)
 
     def test_rational_surfaces_only_inside_plasma(self):
-        topo = TokamakTopoloy(size=40)
+        topo = TokamakTopology(size=40)
         danger = topo.get_rational_surfaces()
         assert not np.any(danger & ~topo.mask)
 
     def test_mask_circular(self):
-        topo = TokamakTopoloy(size=40)
+        topo = TokamakTopology(size=40)
         assert topo.mask[20, 20] is np.True_
         assert topo.mask[0, 0] is np.False_
 
@@ -455,14 +455,14 @@ class TestTokamakTopology:
 
 class TestPlasma2D:
     def test_step_returns_tuple(self):
-        topo = TokamakTopoloy(size=40)
+        topo = TokamakTopology(size=40)
         plasma = Plasma2D(topo)
         state, avg = plasma.step(0.0)
         assert isinstance(avg, float)
         assert state.shape == (40 * 40,)
 
     def test_core_heats_up(self):
-        topo = TokamakTopoloy(size=40)
+        topo = TokamakTopology(size=40)
         plasma = Plasma2D(topo)
         for _ in range(10):
             plasma.step(0.0)
@@ -470,7 +470,7 @@ class TestPlasma2D:
         assert plasma.T[center, center] > 0.0
 
     def test_temperature_bounded(self):
-        topo = TokamakTopoloy(size=40)
+        topo = TokamakTopology(size=40)
         plasma = Plasma2D(topo)
         for _ in range(100):
             plasma.step(0.0)
@@ -478,7 +478,7 @@ class TestPlasma2D:
         assert np.all(plasma.T <= 100.0)
 
     def test_boundary_cold(self):
-        topo = TokamakTopoloy(size=40)
+        topo = TokamakTopology(size=40)
         plasma = Plasma2D(topo)
         for _ in range(20):
             plasma.step(0.0)
