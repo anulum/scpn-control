@@ -42,7 +42,6 @@ def demo(scenario: str, steps: int, json_out: bool):
     from scpn_control.scpn.compiler import FusionCompiler
     from scpn_control.scpn.structure import StochasticPetriNet
 
-    # Build a minimal Petri net
     net = StochasticPetriNet()
     net.add_place("plasma_state", initial_tokens=1.0)
     net.add_place("control_signal", initial_tokens=0.0)
@@ -57,7 +56,6 @@ def demo(scenario: str, steps: int, json_out: bool):
     compiler = FusionCompiler()
     compiled = compiler.compile(net)
 
-    # Run closed-loop simulation
     rng = np.random.default_rng(42)
     target = 1.0
     state = 0.5
@@ -99,7 +97,6 @@ def demo(scenario: str, steps: int, json_out: bool):
 def benchmark(n_bench: int, json_out: bool):
     """Timing benchmark: PID vs SNN control step latency."""
 
-    # PID benchmark
     t0 = time.perf_counter()
     kp, ki, kd = 1.0, 0.1, 0.01
     integral, prev_error = 0.0, 0.0
@@ -111,7 +108,6 @@ def benchmark(n_bench: int, json_out: bool):
         prev_error = error
     pid_time = (time.perf_counter() - t0) / n_bench * 1e6  # microseconds
 
-    # SNN benchmark (simplified LIF population)
     t0 = time.perf_counter()
     n_neurons = 50
     v = np.zeros(n_neurons)
@@ -156,9 +152,6 @@ def validate(json_out: bool):
         "import_clean": True,
         "status": "pass",
     }
-
-    # Check no import bombs
-    import sys
 
     for mod in ["matplotlib", "torch", "streamlit"]:
         if mod in sys.modules:

@@ -21,7 +21,7 @@ from enum import Enum, auto
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import sparse  # noqa: F401
+from scipy import sparse
 
 FloatArray = NDArray[np.float64]
 

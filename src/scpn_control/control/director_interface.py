@@ -57,8 +57,7 @@ class _RuleBasedDirector:
         self.history_window = history_window
         self._scores: list[float] = []
 
-    def review_action(self, prompt: str, proposed_action: str) -> tuple[bool, float]:
-        del proposed_action
+    def review_action(self, prompt: str, _proposed_action: str) -> tuple[bool, float]:
         m_stability = re.search(r"Stability=([A-Za-z]+)", prompt)
         stability = m_stability.group(1) if m_stability else "Unstable"
 
