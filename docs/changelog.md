@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.5.1] — 2026-03-02
+
+### Fixed
+- CITATION.cff DOI description said v0.4.0 (now v0.5.0)
+- `docs/api.md` version string stuck at 0.3.3 (now 0.5.0)
+- CONTRIBUTING.md stale test count (1243→~1900), coverage (50→62%), CI jobs (17→16)
+- `docs/development.md` stale coverage (55→62%) and release process (no longer uses `__init__.py`)
+- Two "Approximate" comments cleaned per anti-slop rule #4
+
+### Changed
+- `require_int` deduplicated: canonical `core/_validators.py` replaces 3 copies
+- `deny.toml` wildcards: "allow" → "deny"
+- Pre-commit: added `check-merge-conflict`, `detect-private-key` hooks
+- Paper 27 phase dynamics page added to mkdocs nav
+
+### Added
+- `SECURITY.md` responsible disclosure policy
+- `CODE_OF_CONDUCT.md` (Contributor Covenant v2.1)
+- U-007 in UNDERDEVELOPED_REGISTER (np.isfinite boilerplate)
+- GitHub issues gh-13, gh-14, gh-15 for U-003/004/005 Rust fallback gaps
+
+## [0.5.0] — 2026-03-02
+
+### Fixed
+- `__version__` now derived from package metadata (PEP 621), was stuck at 0.3.3
+- Rust H-inf `update_discretization` TODO tracked as gh-10, param renamed `_dt` → `dt`
+- README test/CI job counts updated to actual values
+
+### Added
+- 27 new tests: 9 Rust (h_infinity, xpoint, bfield, chebyshev) + 18 Python (rust_compat_wrapper)
+- `cargo-deny` supply-chain policy (`deny.toml`) + CI Job 15
+- `ruff format --check` CI gate + pre-commit hook
+- `UNDERDEVELOPED_REGISTER.md` tracking 6 known gaps
+- Python 3.13 in CI matrix
+
+### Changed
+- Coverage gate: 55% → 62% (actual: 93%)
+- Codecov `fail_ci_if_error: true`
+- Pre-commit: Rust hooks no longer gated to `stages: [manual]`
+- Removed unused `proptest` dev-dependency from 3 Cargo.toml files
+
+## [0.4.0] — 2026-03-01
+
+### Added
+- Real-time adaptive Knm engine driven by tokamak diagnostics
+  (`AdaptiveKnmEngine`, `DiagnosticSnapshot`, `AdaptiveKnmConfig`)
+- Five adaptation channels: beta scaling, MHD risk amplification,
+  coherence PI control, per-element rate limiting, Lyapunov guard veto
+- `K_override` parameter on `UPDESystem.step()`, `.run()`, `.run_lyapunov()`
+- `RealtimeMonitor.from_plasma()` constructor with adaptive engine support
+- Diagnostic kwargs (`beta_n`, `q95`, `disruption_risk`, `mirnov_rms`) on `tick()`
+- 46 new tests (1888 total)
+
+### Changed
+- `.zenodo.json`: complete Zenodo metadata (related identifiers, communities, notes)
+- `CITATION.cff`: version bump, date update
+
 ## [0.3.3] — 2026-02-27
 
 ### Changed
@@ -90,7 +147,7 @@
 ### Changed (vs scpn-fusion-core)
 - Required deps: numpy, scipy, click ONLY (was: numpy, scipy, matplotlib, streamlit)
 - matplotlib, streamlit, torch, nengo moved to optional extras
-- All imports renamed: `scpn_fusion` → `scpn_control`, `scpn_fusion_rs` → `scpn_control_rs`
+- All imports renamed: `scpn_fusion` -> `scpn_control`, `scpn_fusion_rs` -> `scpn_control_rs`
 - Rust workspace reduced from 11 crates to 5
 - CI reduced from 13 jobs to 6
 - `hpc_bridge.py` relocated from `hpc/` to `core/` subpackage
