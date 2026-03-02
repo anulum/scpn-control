@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.7.0] — 2026-03-02
+
+### Added
+- `tests/test_nengo_snn_wrapper.py` — 14 mocked tests for the only untested module (389 LOC)
+- `tests/test_e2e_compile_to_control.py` — 5 E2E integration tests (compile → artifact → controller → step)
+- `require_range` validator in `core/_validators.py`
+- `///` doc comments on 11 public Rust functions (`mpi_domain.rs`, `vmec_interface.rs`)
+- `keywords` and `categories` in all 5 Rust `Cargo.toml` files
+- Paper 27 Reviewer Integration page in mkdocs nav
+
+### Fixed
+- Public API typo: `TokamakTopoloy` → `TokamakTopology` (deprecated alias retained)
+- `print()` → `logging` in 13 control modules (58 call sites total)
+- Remaining `Union[str, Path]` → `str | Path` in 3 files (`eqdsk.py`, `realtime_monitor.py`, `artifact.py`)
+- CLI hardcoded module/test counts → dynamic `Path.rglob` computation
+- Magic number `b0=5.3` → named constant `ITER_B0_VACUUM_T` with citation
+- Stale doc counts across README, architecture, pitch, use_cases, CONTRIBUTING (53 modules, 115 files, 1969 tests, 15 CI)
+- Dead `grid_index()` function removed from Rust `gmres.rs`
+
+### Changed
+- Coverage gate ratcheted: `fail_under = 62` → `85`
+- `from __future__ import annotations` added to `core/__init__.py` and `scpn/__init__.py`
+- 4 duplicate validators in `halo_re_physics.py` replaced with `core._validators` imports
+- ROADMAP.md rewritten: v0.6.0 moved to Shipped, unshipped items to v0.7.0+
+- 12 additional tests across 5 thin test files
+
 ## [0.6.0] — 2026-03-02
 
 ### Added
