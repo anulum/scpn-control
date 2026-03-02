@@ -28,7 +28,6 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -254,7 +253,7 @@ class RealtimeMonitor:
         self._recorder.clear()
         self._tick_count = 0
 
-    def save_hdf5(self, path: Union[str, Path]) -> Path:
+    def save_hdf5(self, path: str | Path) -> Path:
         """Export recorded trajectory to HDF5.
 
         Datasets: R_global, R_layer, V_global, V_layer, lambda_exp,
@@ -286,7 +285,7 @@ class RealtimeMonitor:
             f.attrs["n_ticks"] = rec.n_ticks
         return path
 
-    def save_npz(self, path: Union[str, Path]) -> Path:
+    def save_npz(self, path: str | Path) -> Path:
         """Export recorded trajectory to compressed NPZ (no h5py needed)."""
         path = Path(path)
         rec = self._recorder

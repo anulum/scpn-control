@@ -5,6 +5,8 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
+from __future__ import annotations
+
 """SCPN Petri net to SNN compilation pipeline."""
 
 from scpn_control.scpn.artifact import Artifact, load_artifact, save_artifact

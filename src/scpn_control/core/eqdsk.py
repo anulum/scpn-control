@@ -34,7 +34,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import IO, Union
+from typing import IO
 
 import numpy as np
 from numpy.typing import NDArray
@@ -149,7 +149,7 @@ def _parse_header(line: str) -> tuple[str, int, int]:
     return desc, nw, nh
 
 
-def read_geqdsk(path: Union[str, Path]) -> GEqdsk:
+def read_geqdsk(path: str | Path) -> GEqdsk:
     """
     Read a G-EQDSK file and return a :class:`GEqdsk` container.
 
@@ -274,7 +274,7 @@ def read_geqdsk(path: Union[str, Path]) -> GEqdsk:
 # ── Writer ────────────────────────────────────────────────────────────
 
 
-def write_geqdsk(eq: GEqdsk, path: Union[str, Path]) -> None:
+def write_geqdsk(eq: GEqdsk, path: str | Path) -> None:
     """
     Write a :class:`GEqdsk` to a G-EQDSK file.
 

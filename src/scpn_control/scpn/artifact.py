@@ -22,7 +22,7 @@ import math
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 ARTIFACT_SCHEMA_VERSION = "1.0.0"
 MAX_PACKED_WORDS = 10_000_000
@@ -374,7 +374,7 @@ def _validate(artifact: Artifact) -> None:
 # ── Load / Save ─────────────────────────────────────────────────────────────
 
 
-def load_artifact(path: Union[str, Path]) -> Artifact:
+def load_artifact(path: str | Path) -> Artifact:
     """Parse a ``.scpnctl.json`` file into an ``Artifact`` dataclass."""
     with open(path, "r", encoding="utf-8") as f:
         obj = json.load(f)
@@ -505,7 +505,7 @@ def load_artifact(path: Union[str, Path]) -> Artifact:
 
 def save_artifact(
     artifact: Artifact,
-    path: Union[str, Path],
+    path: str | Path,
     compact_packed: bool = False,
 ) -> None:
     """Serialize an ``Artifact`` to indented JSON."""
