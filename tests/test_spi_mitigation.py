@@ -12,6 +12,7 @@ from __future__ import annotations
 import numpy as np
 
 from scpn_control.control.spi_mitigation import ShatteredPelletInjection
+from scpn_control.core._validators import require_non_negative_float
 
 
 def test_estimate_z_eff_increases_with_neon_quantity() -> None:
@@ -100,17 +101,17 @@ def test_rejects_nan_energy() -> None:
         ShatteredPelletInjection(Plasma_Energy_MJ=float("nan"))
 
 
-# ── _require_non_negative ─────────────────────────────────────────
+# ── require_non_negative_float ────────────────────────────────────
 
 
 def test_require_non_negative_rejects_inf() -> None:
     with pytest.raises(ValueError, match="finite"):
-        ShatteredPelletInjection._require_non_negative("x", float("inf"))
+        require_non_negative_float("x", float("inf"))
 
 
 def test_require_non_negative_rejects_negative() -> None:
     with pytest.raises(ValueError, match=">= 0"):
-        ShatteredPelletInjection._require_non_negative("x", -0.1)
+        require_non_negative_float("x", -0.1)
 
 
 # ── estimate_mitigation_cocktail validation ───────────────────────

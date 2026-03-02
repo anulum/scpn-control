@@ -76,13 +76,14 @@ class TransportBenchmarkResult:
 def _require_finite_number(name: str, value: Any) -> float:
     """Validate generic numeric metadata loaded from coefficient files.
 
-    Unlike require_finite_float, this wraps TypeError from non-numeric
-    JSON values (e.g. strings) into ValueError for clearer diagnostics.
+    Wraps non-numeric inputs (strings, None) into ValueError before
+    delegating the finiteness check to require_finite_float.
     """
     try:
-        return require_finite_float(name, value)
-    except TypeError as exc:
+        float(value)
+    except (TypeError, ValueError) as exc:
         raise ValueError(f"{name} must be numeric, got {value!r}") from exc
+    return require_finite_float(name, value)
 
 
 def _validate_ipb98y2_coefficients(raw: Any) -> dict[str, Any]:

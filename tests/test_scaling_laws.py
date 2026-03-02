@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
+from scpn_control.core._validators import require_positive_float
 from scpn_control.core.scaling_laws import (
     _require_finite_number,
-    _require_positive_finite,
     _validate_ipb98y2_coefficients,
     ipb98y2_tau_e,
     ipb98y2_with_uncertainty,
@@ -97,28 +97,28 @@ class TestIPB98y2:
             )
 
 
-# ── _require_positive_finite / _require_finite_number ─────────────────
+# ── require_positive_float / _require_finite_number ─────────────────
 
 
 class TestRequirePositiveFinite:
     def test_accepts_positive(self):
-        assert _require_positive_finite("x", 1.5) == 1.5
+        assert require_positive_float("x", 1.5) == 1.5
 
     def test_rejects_zero(self):
         with pytest.raises(ValueError, match="x"):
-            _require_positive_finite("x", 0.0)
+            require_positive_float("x", 0.0)
 
     def test_rejects_negative(self):
         with pytest.raises(ValueError, match="x"):
-            _require_positive_finite("x", -1.0)
+            require_positive_float("x", -1.0)
 
     def test_rejects_nan(self):
         with pytest.raises(ValueError, match="x"):
-            _require_positive_finite("x", float("nan"))
+            require_positive_float("x", float("nan"))
 
     def test_rejects_inf(self):
         with pytest.raises(ValueError, match="x"):
-            _require_positive_finite("x", float("inf"))
+            require_positive_float("x", float("inf"))
 
 
 class TestRequireFiniteNumber:
