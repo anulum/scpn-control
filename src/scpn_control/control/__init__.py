@@ -32,4 +32,4 @@ def get_nengo_controller():
     return NengoSNNController
 
 
-__all__ = ["get_nengo_controller"]
+__all__ = ["get_nengo_controller", "normalize_bounds"]

@@ -17,6 +17,8 @@ except ImportError:
     HAS_MPL = False
 import numpy as np
 
+from scpn_control.core._validators import require_non_negative_float
+
 
 class ShatteredPelletInjection:
     """
@@ -37,13 +39,6 @@ class ShatteredPelletInjection:
         self.last_tau_cq_s = 0.02
 
     @staticmethod
-    def _require_non_negative(name: str, value: float) -> float:
-        out = float(value)
-        if not np.isfinite(out) or out < 0.0:
-            raise ValueError(f"{name} must be finite and >= 0.")
-        return out
-
-    @staticmethod
     def estimate_z_eff(neon_quantity_mol: float) -> float:
         return ShatteredPelletInjection.estimate_z_eff_cocktail(
             neon_quantity_mol=neon_quantity_mol,
@@ -58,9 +53,9 @@ class ShatteredPelletInjection:
         argon_quantity_mol: float = 0.0,
         xenon_quantity_mol: float = 0.0,
     ) -> float:
-        neon = ShatteredPelletInjection._require_non_negative("neon_quantity_mol", neon_quantity_mol)
-        argon = ShatteredPelletInjection._require_non_negative("argon_quantity_mol", argon_quantity_mol)
-        xenon = ShatteredPelletInjection._require_non_negative("xenon_quantity_mol", xenon_quantity_mol)
+        neon = require_non_negative_float("neon_quantity_mol", neon_quantity_mol)
+        argon = require_non_negative_float("argon_quantity_mol", argon_quantity_mol)
+        xenon = require_non_negative_float("xenon_quantity_mol", xenon_quantity_mol)
 
         # Empirical weighting: higher-Z gases radiate/ionize more efficiently per mol.
         weighted_moles = 1.00 * neon + 1.35 * argon + 1.90 * xenon
@@ -135,9 +130,9 @@ class ShatteredPelletInjection:
         dt_s: float = 1e-5,
         verbose: bool = True,
     ):
-        neon = self._require_non_negative("neon_quantity_mol", neon_quantity_mol)
-        argon = self._require_non_negative("argon_quantity_mol", argon_quantity_mol)
-        xenon = self._require_non_negative("xenon_quantity_mol", xenon_quantity_mol)
+        neon = require_non_negative_float("neon_quantity_mol", neon_quantity_mol)
+        argon = require_non_negative_float("argon_quantity_mol", argon_quantity_mol)
+        xenon = require_non_negative_float("xenon_quantity_mol", xenon_quantity_mol)
         total_impurity = neon + argon + xenon
         duration = float(duration_s)
         dt = float(dt_s)

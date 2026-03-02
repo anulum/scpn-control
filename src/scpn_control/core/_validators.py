@@ -33,6 +33,13 @@ def require_int(name: str, value: Any, minimum: int | None = None) -> int:
     return out
 
 
+def require_non_negative_float(name: str, value: Any) -> float:
+    out = require_finite_float(name, value)
+    if out < 0.0:
+        raise ValueError(f"{name} must be >= 0.")
+    return out
+
+
 def require_fraction(name: str, value: Any) -> float:
     out = require_finite_float(name, value)
     if out < 0.0 or out > 1.0:

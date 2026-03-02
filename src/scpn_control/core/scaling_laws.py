@@ -33,6 +33,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from scpn_control.core._validators import require_finite_float, require_positive_float
+
 logger = logging.getLogger(__name__)
 
 # ── Default coefficient path ──────────────────────────────────────────
@@ -71,23 +73,16 @@ class TransportBenchmarkResult:
 # ── Core functions ────────────────────────────────────────────────────
 
 
-def _require_positive_finite(name: str, value: float) -> float:
-    """Validate scalar inputs for confinement scaling calculations."""
-    value_f = float(value)
-    if not np.isfinite(value_f) or value_f <= 0:
-        raise ValueError(f"{name} must be finite and > 0, got {value!r}")
-    return value_f
-
-
 def _require_finite_number(name: str, value: Any) -> float:
-    """Validate generic numeric metadata loaded from coefficient files."""
+    """Validate generic numeric metadata loaded from coefficient files.
+
+    Unlike require_finite_float, this wraps TypeError from non-numeric
+    JSON values (e.g. strings) into ValueError for clearer diagnostics.
+    """
     try:
-        parsed = float(value)
-    except (TypeError, ValueError) as exc:
+        return require_finite_float(name, value)
+    except TypeError as exc:
         raise ValueError(f"{name} must be numeric, got {value!r}") from exc
-    if not np.isfinite(parsed):
-        raise ValueError(f"{name} must be finite, got {value!r}")
-    return parsed
 
 
 def _validate_ipb98y2_coefficients(raw: Any) -> dict[str, Any]:
@@ -202,14 +197,14 @@ def ipb98y2_tau_e(
     ValueError
         If any input is non-finite or non-positive.
     """
-    Ip = _require_positive_finite("Ip", Ip)
-    BT = _require_positive_finite("BT", BT)
-    ne19 = _require_positive_finite("ne19", ne19)
-    Ploss = _require_positive_finite("Ploss", Ploss)
-    R = _require_positive_finite("R", R)
-    kappa = _require_positive_finite("kappa", kappa)
-    epsilon = _require_positive_finite("epsilon", epsilon)
-    M = _require_positive_finite("M", M)
+    Ip = require_positive_float("Ip", Ip)
+    BT = require_positive_float("BT", BT)
+    ne19 = require_positive_float("ne19", ne19)
+    Ploss = require_positive_float("Ploss", Ploss)
+    R = require_positive_float("R", R)
+    kappa = require_positive_float("kappa", kappa)
+    epsilon = require_positive_float("epsilon", epsilon)
+    M = require_positive_float("M", M)
 
     if coefficients is None:
         coefficients = load_ipb98y2_coefficients()
