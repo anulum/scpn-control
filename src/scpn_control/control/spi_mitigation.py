@@ -10,6 +10,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import numpy as np
+
+from scpn_control.core._validators import require_non_negative_float
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -18,9 +22,6 @@ try:
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
-import numpy as np
-
-from scpn_control.core._validators import require_non_negative_float
 
 
 class ShatteredPelletInjection:
@@ -146,9 +147,10 @@ class ShatteredPelletInjection:
 
         if verbose:
             logger.info(
-                "DISRUPTION DETECTED — SPI triggered "
-                "(Ne=%.3f mol, Ar=%.3f mol, Xe=%.3f mol)",
-                neon, argon, xenon,
+                "DISRUPTION DETECTED — SPI triggered (Ne=%.3f mol, Ar=%.3f mol, Xe=%.3f mol)",
+                neon,
+                argon,
+                xenon,
             )
 
         t_mix = 0.002

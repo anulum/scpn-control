@@ -83,6 +83,5 @@ class TestNeurocore:
         per_call_warmup = warmup_elapsed / n_warmup
         per_call_main = elapsed / n
         assert per_call_main < per_call_warmup * 5, (
-            f"dense_forward regressed: {per_call_main*1e6:.0f} us/call "
-            f"vs warmup {per_call_warmup*1e6:.0f} us/call"
+            f"dense_forward regressed: {per_call_main * 1e6:.0f} us/call vs warmup {per_call_warmup * 1e6:.0f} us/call"
         )
