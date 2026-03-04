@@ -27,6 +27,30 @@ cd scpn-control-rs/crates/control-python
 maturin develop --release
 ```
 
+## Preflight (blocks push)
+
+One-time setup:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This wires `tools/preflight.py` as a pre-push hook. It mirrors CI locally
+(10 gates, ~3 min). To run manually:
+
+```bash
+python tools/preflight.py            # full (lint + test + Rust)
+python tools/preflight.py --no-tests # lint-only (~10 sec)
+python tools/preflight.py --coverage # full + 80% coverage gate (CI uses 85% on Linux)
+python tools/preflight.py --no-rust  # skip cargo gates
+```
+
+Bypass once (when you know what you're doing):
+
+```bash
+git push --no-verify
+```
+
 ## Running tests
 
 Pre-commit hooks (ruff, mypy, yaml, whitespace):

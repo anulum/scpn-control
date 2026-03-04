@@ -34,3 +34,10 @@ repos:
         entry: bash -c 'cd scpn-control-rs && cargo fmt --check'
         language: system
         pass_filenames: false
+
+      - id: check-version-sync
+        name: version consistency
+        entry: python tools/check_version_sync.py
+        language: system
+        pass_filenames: false
+        files: (pyproject\.toml|CITATION\.cff|\.zenodo\.json|docs/api\.md)

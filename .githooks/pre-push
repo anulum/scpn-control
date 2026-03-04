@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# SCPN Control — pre-push hook
+# Runs full CI preflight before allowing push.
+# Install: git config core.hooksPath .githooks
+# Skip once: git push --no-verify
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# License: MIT OR Apache-2.0
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+echo "pre-push: running preflight..."
+python "$REPO_ROOT/tools/preflight.py"
