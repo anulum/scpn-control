@@ -56,7 +56,9 @@ pub fn forward_model_response(
     let mut results = Vec::with_capacity(probe_psi_norm.len());
     for &psi in probe_psi_norm {
         if !psi.is_finite() {
-            return Err(FusionError::ConfigError("non-finite psi_norm in probe".to_string()));
+            return Err(FusionError::ConfigError(
+                "non-finite psi_norm in probe".to_string(),
+            ));
         }
         let p_val = mtanh_profile(psi, params_p);
         let ff_val = mtanh_profile(psi, params_ff);
@@ -190,7 +192,12 @@ mod tests {
         for i in 0..2 {
             for j in 0..8 {
                 let diff = (jac_ana[i][j] - jac_fd[i][j]).abs();
-                assert!(diff < 1e-5, "Jacobian mismatch at ({i}, {j}): ana={}, fd={}", jac_ana[i][j], jac_fd[i][j]);
+                assert!(
+                    diff < 1e-5,
+                    "Jacobian mismatch at ({i}, {j}): ana={}, fd={}",
+                    jac_ana[i][j],
+                    jac_fd[i][j]
+                );
             }
         }
     }

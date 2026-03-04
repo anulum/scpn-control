@@ -1716,7 +1716,7 @@ if __name__ == "__main__":
     import sys
 
     logging.basicConfig(level=logging.INFO, format="%(name)s %(message)s")
-    config_file = sys.argv[1] if len(sys.argv) > 1 else "03_CODE/SCPN-Fusion-Core/iter_config.json"
+    config_file = sys.argv[1] if len(sys.argv) > 1 else "iter_config.json"
     fk = FusionKernel(config_file)
     fk.solve_equilibrium()
-    fk.save_results("03_CODE/SCPN-Fusion-Core/final_state_nonlinear.npz")
+    fk.save_results("final_state_nonlinear.npz")

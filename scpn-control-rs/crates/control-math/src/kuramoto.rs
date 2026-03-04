@@ -382,7 +382,8 @@ mod tests {
             knm[m * l + m] = 2.0;
         }
         let zeta = vec![0.5; l];
-        let res = upde_tick(&theta, &omega, &knm, &zeta, l, n, 0.01, 0.3, 0.0);
+        let alpha = vec![0.0; l * l];
+        let res = upde_tick(&theta, &omega, &knm, &alpha, &zeta, l, n, 0.01, 0.3, 0.0);
         assert_eq!(res.theta_flat.len(), l * n);
         assert_eq!(res.r_layer.len(), l);
         assert_eq!(res.v_layer.len(), l);
@@ -402,11 +403,12 @@ mod tests {
             knm[m * l + m] = 1.0;
         }
         let zeta = vec![3.0; l];
+        let alpha = vec![0.0; l * l];
         let psi = 0.5;
 
         let mut th = theta.clone();
         for _ in 0..300 {
-            let res = upde_tick(&th, &omega, &knm, &zeta, l, n, 0.005, psi, 0.0);
+            let res = upde_tick(&th, &omega, &knm, &alpha, &zeta, l, n, 0.005, psi, 0.0);
             th = res.theta_flat;
         }
         let v = lyapunov_v(&th, psi);

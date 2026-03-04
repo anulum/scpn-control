@@ -9,9 +9,9 @@
 
 use crate::jacobian::{compute_analytical_jacobian, compute_fd_jacobian, forward_model_response};
 use crate::kernel::FusionKernel;
-use crate::source::{self, mtanh_profile, mtanh_profile_derivatives};
-use control_types::config::ProfileParams;
+use crate::source::{mtanh_profile, mtanh_profile_derivatives};
 use control_math::linalg::pinv_svd;
+use control_types::config::ProfileParams;
 use control_types::config::ReactorConfig;
 use control_types::error::{FusionError, FusionResult};
 use control_types::state::Grid2D;
@@ -558,23 +558,29 @@ fn solve_linearized_sensitivity(
 
     let mut delta: Array2<f64> = Array2::zeros((grid.nz, grid.nr));
     let mut next = delta.clone();
-    let dr_sq: f64 = grid.dr * grid.dr;
+    let dr_sq = grid.dr * grid.dr;
+    let dz_sq = grid.dz * grid.dz;
+    let denom = 2.0 / dr_sq + 2.0 / dz_sq;
 
     for _ in 0..iterations {
         for iz in 1..grid.nz - 1 {
             for ir in 1..grid.nr - 1 {
-                let coupled_rhs: f64 = ds_dpsi[[iz, ir]] * delta[[iz, ir]] + ds_dx[[iz, ir]];
+                let coupled_rhs = ds_dpsi[[iz, ir]] * delta[[iz, ir]] + ds_dx[[iz, ir]];
                 if !coupled_rhs.is_finite() {
                     return Err(FusionError::LinAlg(
                         "sensitivity coupled RHS became non-finite".to_string(),
                     ));
                 }
-                let jacobi: f64 = 0.25_f64
-                    * (delta[[iz - 1, ir]]
-                        + delta[[iz + 1, ir]]
-                        + delta[[iz, ir - 1]]
-                        + delta[[iz, ir + 1]]
-                        - dr_sq * coupled_rhs);
+
+                let r = grid.r_at(iz, ir);
+                let inv_r_dr = 1.0 / (2.0 * r * grid.dr);
+
+                let sum_r = delta[[iz, ir + 1]] * (1.0 / dr_sq - inv_r_dr)
+                    + delta[[iz, ir - 1]] * (1.0 / dr_sq + inv_r_dr);
+                let sum_z = (delta[[iz + 1, ir]] + delta[[iz - 1, ir]]) / dz_sq;
+
+                let jacobi = (sum_r + sum_z - coupled_rhs) / denom;
+
                 if !jacobi.is_finite() {
                     return Err(FusionError::LinAlg(
                         "sensitivity jacobi update became non-finite".to_string(),
@@ -851,7 +857,6 @@ pub fn reconstruct_equilibrium(
                 compute_fd_jacobian(probe_psi_norm, &params_p, &params_ff, config.fd_step)?
             }
         };
-
 
         let j = to_array2(&jac_matrix, N_PARAMS, "inverse jacobian")?;
         let delta = compute_lm_delta(&j, &residual_vec, config.tikhonov, "inverse.delta")?;

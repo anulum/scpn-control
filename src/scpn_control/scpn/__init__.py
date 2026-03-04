@@ -9,7 +9,12 @@ from __future__ import annotations
 
 """SCPN Petri net to SNN compilation pipeline."""
 
-from scpn_control.scpn.artifact import Artifact, load_artifact, save_artifact
+from scpn_control.scpn.artifact import (
+    Artifact,
+    get_artifact_json_schema,
+    load_artifact,
+    save_artifact,
+)
 from scpn_control.scpn.compiler import CompiledNet, FusionCompiler
 from scpn_control.scpn.contracts import (
     ControlAction,
@@ -35,5 +40,6 @@ __all__ = [
     "Artifact",
     "load_artifact",
     "save_artifact",
+    "get_artifact_json_schema",
     "NeuroSymbolicController",
 ]

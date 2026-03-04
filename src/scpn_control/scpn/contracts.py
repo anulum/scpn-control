@@ -35,9 +35,10 @@ class ControlObservation(TypedDict):
 
 class ControlAction(TypedDict, total=False):
     """Actuator command output for a single control tick.
-    
+
     Keys are dynamic and depend on the Petri Net readout configuration.
     """
+
     # Common keys for type hinting, but any key is allowed.
     dI_PF3_A: float
     dI_PF_topbot_A: float

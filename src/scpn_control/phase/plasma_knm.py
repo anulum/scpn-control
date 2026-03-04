@@ -74,6 +74,27 @@ PLASMA_LAYER_NAMES: tuple[str, ...] = (
     "plasma_wall",
 )
 
+# ── 16-layer plasma hierarchy (refined decomposition) ─────────────────
+
+PLASMA_LAYER_NAMES_16: tuple[str, ...] = (
+    "micro_turbulence_itg",
+    "micro_turbulence_tem",
+    "zonal_flow_shear",
+    "geodesic_acoustic_mode",
+    "mhd_tearing_islands",
+    "mhd_resistive_wall",
+    "sawtooth_reconnection",
+    "elm_peeling_ballooning",
+    "transport_barrier_pedestal",
+    "transport_barrier_itb",
+    "current_profile_ohmic",
+    "current_profile_bootstrap",
+    "global_equilibrium_gs",
+    "global_equilibrium_shape",
+    "plasma_wall_sputtering",
+    "plasma_wall_recycling",
+)
+
 # Natural frequencies [rad/s] — order-of-magnitude representative
 # timescales for each process, derived from diagnostic observations.
 #
@@ -130,29 +151,32 @@ def _apply_physics_couplings(K: NDArray[np.float64]) -> None:
     if L < 8:
         return
 
+    # Scale indices for L=16 if needed
+    s = L // 8
+
     # Diamond et al. 2005: drift-wave / zonal-flow predator–prey
-    K[0, 1] = K[1, 0] = 0.42
+    K[0 * s, 1 * s] = K[1 * s, 0 * s] = 0.42
 
     # Terry 2000: E×B shear suppression of turbulent transport
-    K[1, 4] = K[4, 1] = 0.28
+    K[1 * s, 4 * s] = K[4 * s, 1 * s] = 0.28
 
     # La Haye 2006: NTM ↔ bootstrap current (q-profile flattening)
-    K[2, 5] = K[5, 2] = 0.35
+    K[2 * s, 5 * s] = K[5 * s, 2 * s] = 0.35
 
     # Porcelli 1996: sawtooth ↔ current redistribution
-    K[3, 5] = K[5, 3] = 0.30
+    K[3 * s, 5 * s] = K[5 * s, 3 * s] = 0.30
 
     # Sawtooth/ELM ↔ transport barrier (ELM crash depletes pedestal)
-    K[3, 4] = K[4, 3] = 0.32
+    K[3 * s, 4 * s] = K[4 * s, 3 * s] = 0.32
 
     # Transport–equilibrium: pressure ↔ GS reconstruction
-    K[4, 6] = K[6, 4] = 0.25
+    K[4 * s, 6 * s] = K[6 * s, 4 * s] = 0.25
 
     # PWI ↔ edge transport (recycling, impurity influx)
-    K[7, 4] = K[4, 7] = 0.20
+    K[7 * s, 4 * s] = K[4 * s, 7 * s] = 0.20
 
     # PWI ↔ equilibrium (wall conditioning affects global)
-    K[7, 6] = K[6, 7] = 0.15
+    K[7 * s, 6 * s] = K[6 * s, 7 * s] = 0.15
 
 
 def _apply_mode_bias(K: NDArray[np.float64], mode: str) -> None:
@@ -161,29 +185,31 @@ def _apply_mode_bias(K: NDArray[np.float64], mode: str) -> None:
     if L < 8:
         return
 
+    s = L // 8
+
     if mode == "elm":
         # Enhanced sawtooth/ELM ↔ transport barrier interaction
-        K[3, 4] *= 1.8
-        K[4, 3] *= 1.8
+        K[3 * s, 4 * s] *= 1.8
+        K[4 * s, 3 * s] *= 1.8
         # ELM crashes couple to PWI (wall heat load)
-        K[3, 7] = max(K[3, 7], 0.22)
-        K[7, 3] = max(K[7, 3], 0.22)
+        K[3 * s, 7 * s] = max(K[3 * s, 7 * s], 0.22)
+        K[7 * s, 3 * s] = max(K[7 * s, 3 * s], 0.22)
 
     elif mode == "ntm":
         # Enhanced NTM ↔ current profile coupling
-        K[2, 5] *= 1.6
-        K[5, 2] *= 1.6
+        K[2 * s, 5 * s] *= 1.6
+        K[5 * s, 2 * s] *= 1.6
         # NTM couples to transport barrier (island flattens gradient)
-        K[2, 4] = max(K[2, 4], 0.25)
-        K[4, 2] = max(K[4, 2], 0.25)
+        K[2 * s, 4 * s] = max(K[2 * s, 4 * s], 0.25)
+        K[4 * s, 2 * s] = max(K[4 * s, 2 * s], 0.25)
 
     elif mode == "sawtooth":
         # Enhanced sawtooth ↔ current coupling
-        K[3, 5] *= 1.7
-        K[5, 3] *= 1.7
+        K[3 * s, 5 * s] *= 1.7
+        K[5 * s, 3 * s] *= 1.7
         # Sawtooth modulates core turbulence
-        K[3, 0] = max(K[3, 0], 0.18)
-        K[0, 3] = max(K[0, 3], 0.18)
+        K[3 * s, 0 * s] = max(K[3 * s, 0 * s], 0.18)
+        K[0 * s, 3 * s] = max(K[0 * s, 3 * s], 0.18)
 
     elif mode == "hybrid":
         # Advanced scenario: all couplings slightly elevated
@@ -218,7 +244,8 @@ def build_knm_plasma(
         Explicit (i, j) → value overrides applied last.
         Automatically symmetrised.
     layer_names : sequence of str, optional
-        Layer labels.  Defaults to PLASMA_LAYER_NAMES[:L].
+        Layer labels.  Defaults to PLASMA_LAYER_NAMES[:L] or
+        PLASMA_LAYER_NAMES_16[:L].
 
     Returns
     -------
@@ -247,7 +274,12 @@ def build_knm_plasma(
 
     zeta = np.full(L, zeta_uniform, dtype=np.float64) if zeta_uniform != 0.0 else None
 
-    names = list(layer_names) if layer_names else list(PLASMA_LAYER_NAMES[:L])
+    if layer_names:
+        names = list(layer_names)
+    elif L == 16:
+        names = list(PLASMA_LAYER_NAMES_16)
+    else:
+        names = list(PLASMA_LAYER_NAMES[:L])
 
     return KnmSpec(K=K, zeta=zeta, layer_names=names)
 

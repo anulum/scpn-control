@@ -1,6 +1,6 @@
 {
     "reactor_name": "ITER-Like-Demo",
-    "grid_resolution": [128, 128],
+    "grid_resolution": [129, 129],
     "dimensions": {
         "R_min": 2.0,
         "R_max": 10.0,
@@ -21,8 +21,10 @@
         { "name": "CS",  "r": 1.7, "z": 0.0, "current": 0.1543 }
     ],
     "solver": {
+        "solver_method": "multigrid",
         "max_iterations": 1000,
         "convergence_threshold": 0.0001,
-        "relaxation_factor": 0.1
+        "relaxation_factor": 0.1,
+        "sor_omega": 1.8
     }
 }

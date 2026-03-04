@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+from typing import Mapping, cast
 
 import click
 import numpy as np
@@ -40,24 +41,24 @@ def main():
 def demo(scenario: str, steps: int, json_out: bool):
     """Run a closed-loop control demo."""
     from scpn_control.scpn.compiler import FusionCompiler
-    from scpn_control.scpn.structure import StochasticPetriNet
+    from scpn_control.scpn.contracts import ControlScales, ControlTargets, FeatureAxisSpec
     from scpn_control.scpn.controller import NeuroSymbolicController
-    from scpn_control.scpn.contracts import ControlTargets, ControlScales, FeatureAxisSpec
+    from scpn_control.scpn.structure import StochasticPetriNet
 
     # Build a simple control Petri Net
     net = StochasticPetriNet()
     # Observation places (axis-based error mapping)
-    net.add_place("x_err_pos", initial_tokens=0.0) # idx 0
-    net.add_place("x_err_neg", initial_tokens=0.0) # idx 1
+    net.add_place("x_err_pos", initial_tokens=0.0)  # idx 0
+    net.add_place("x_err_neg", initial_tokens=0.0)  # idx 1
     # Action places
-    net.add_place("a_ctrl_pos", initial_tokens=0.0) # idx 2
-    net.add_place("a_ctrl_neg", initial_tokens=0.0) # idx 3
-    
+    net.add_place("a_ctrl_pos", initial_tokens=0.0)  # idx 2
+    net.add_place("a_ctrl_neg", initial_tokens=0.0)  # idx 3
+
     # Logic: if error is positive, fire positive control
     net.add_transition("t_pos", threshold=0.01)
     net.add_arc("x_err_pos", "t_pos", weight=0.1)
     net.add_arc("t_pos", "a_ctrl_pos", weight=0.1)
-    
+
     # Logic: if error is negative, fire negative control
     net.add_transition("t_neg", threshold=0.01)
     net.add_arc("x_err_neg", "t_neg", weight=0.1)
@@ -65,7 +66,7 @@ def demo(scenario: str, steps: int, json_out: bool):
 
     compiler = FusionCompiler()
     compiled = compiler.compile(net)
-    
+
     # Create the controller with mapping
     artifact = compiled.export_artifact(
         name="demo_controller",
@@ -77,27 +78,27 @@ def demo(scenario: str, steps: int, json_out: bool):
             "actions": [{"name": "ctrl", "pos_place": 2, "neg_place": 3}],
             "gains": [0.2],
             "abs_max": [1.0],
-        }
+        },
     )
-    
+
     # Map a generic 'error' feature to our places
     feat_axes = [
         FeatureAxisSpec(
             obs_key="err",
-            target=1.0, # target state
+            target=1.0,  # target state
             scale=1.0,
             pos_key="x_err_pos",
             neg_key="x_err_neg",
         )
     ]
-    
+
     controller = NeuroSymbolicController(
-        artifact, 
-        seed_base=42, 
+        artifact,
+        seed_base=42,
         targets=ControlTargets(R_target_m=1.0, Z_target_m=0.0),
         scales=ControlScales(R_scale_m=1.0, Z_scale_m=1.0),
         feature_axes=feat_axes,
-        sc_binary_margin=0.0
+        sc_binary_margin=0.0,
     )
 
     rng = np.random.default_rng(42)
@@ -106,22 +107,22 @@ def demo(scenario: str, steps: int, json_out: bool):
     trajectory = []
 
     for step in range(steps):
-        # The controller internal logic: 
+        # The controller internal logic:
         # 1. Takes 'err' observation
-        # 2. Subtracts target (1.0) -> if state is 0.5, err_val is 0.5. 
+        # 2. Subtracts target (1.0) -> if state is 0.5, err_val is 0.5.
         #    Wait, obs is usually the measured value.
         #    Controller computes: feature_err = target - measurement
-        
+
         obs = {"err": float(state)}
         actions = controller.step(obs, step)
-        action = float(actions.get("ctrl", 0.0))
-        
+        action = float(cast(Mapping[str, float], actions).get("ctrl", 0.0))
+
         if scenario == "pid":
             # Override with PID for comparison
             action = 0.1 * (target - state) + 0.01 * rng.standard_normal()
         elif scenario == "combined":
             action += 0.05 * (target - state)
-        
+
         state += action
         state = np.clip(state, 0.0, 2.0)
         error = target - state

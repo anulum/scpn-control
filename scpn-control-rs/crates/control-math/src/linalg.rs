@@ -9,9 +9,9 @@
 //!
 //! SVD, 2x2 eigendecomposition, pseudoinverse with Tikhonov regularization.
 
+use control_types::error::{FusionError, FusionResult};
 use ndarray::{Array1, Array2};
 use ndarray_linalg::SVD;
-use control_types::error::{FusionError, FusionResult};
 
 /// 2x2 eigenvalue decomposition.
 ///
@@ -70,7 +70,11 @@ pub fn eig_2x2(a: &[[f64; 2]; 2]) -> ([f64; 2], [[f64; 2]; 2]) {
 /// Replaces the unstable one-sided Jacobi implementation.
 pub fn svd_small(a: &Array2<f64>) -> (Array2<f64>, Array1<f64>, Array2<f64>) {
     let (u, sigma, vt) = a.svd(true, true).expect("SVD decomposition failed");
-    (u.expect("U matrix missing"), sigma, vt.expect("Vt matrix missing"))
+    (
+        u.expect("U matrix missing"),
+        sigma,
+        vt.expect("Vt matrix missing"),
+    )
 }
 
 /// Pseudoinverse with SVD and singular value cutoff.
@@ -102,36 +106,45 @@ pub fn pinv_svd(a: &Array2<f64>, sv_cutoff: f64) -> Array2<f64> {
 /// X = A^T X A - (A^T X B)(R + B^T X B)^-1 (B^T X A) + Q
 ///
 /// Returns the stabilising solution X.
-pub fn solve_dare(a: &Array2<f64>, b: &Array2<f64>, q: &Array2<f64>, r: &Array2<f64>) -> FusionResult<Array2<f64>> {
+pub fn solve_dare(
+    a: &Array2<f64>,
+    b: &Array2<f64>,
+    q: &Array2<f64>,
+    r: &Array2<f64>,
+) -> FusionResult<Array2<f64>> {
     use ndarray_linalg::Inverse;
-    
+
     let n = a.nrows();
     let mut ak = a.clone();
     let mut qk = q.clone();
-    let r_inv: Array2<f64> = r.inv().map_err(|e| FusionError::LinAlg(format!("R not invertible: {e}")))?;
+    let r_inv: Array2<f64> = r
+        .inv()
+        .map_err(|e| FusionError::LinAlg(format!("R not invertible: {e}")))?;
     let mut gk = b.dot(&r_inv).dot(&b.t());
-    
+
     let max_iter = 50;
     let tol = 1e-12;
-    
+
     for _ in 0..max_iter {
         let ident = Array2::eye(n);
-        let inv_term: Array2<f64> = (ident + gk.dot(&qk)).inv().map_err(|e| FusionError::LinAlg(format!("DARE inversion failed: {e}")))?;
-        
+        let inv_term: Array2<f64> = (ident + gk.dot(&qk))
+            .inv()
+            .map_err(|e| FusionError::LinAlg(format!("DARE inversion failed: {e}")))?;
+
         let ak_next = ak.dot(&inv_term).dot(&ak);
         let qk_next = &qk + &ak.t().dot(&qk).dot(&inv_term).dot(&ak);
         let gk_next = &gk + &ak.dot(&inv_term).dot(&gk).dot(&ak.t());
-        
+
         let diff = (&qk_next - &qk).mapv(|v| v.abs()).sum();
         ak = ak_next;
         qk = qk_next;
         gk = gk_next;
-        
+
         if diff < tol {
             return Ok(qk);
         }
     }
-    
+
     Ok(qk)
 }
 
@@ -180,7 +193,7 @@ mod tests {
         let b = Array2::eye(2);
         let q = Array2::eye(2);
         let r = Array2::eye(2);
-        
+
         let x = solve_dare(&a, &b, &q, &r).unwrap();
         assert_eq!(x.shape(), &[2, 2]);
         assert!(x[[0, 0]] > 1.0);

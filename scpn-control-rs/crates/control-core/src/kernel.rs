@@ -9,18 +9,14 @@
 
 use std::time::Instant;
 
-use ndarray::{Array1, Array2, Axis};
-use ndarray_linalg::Inverse;
+use ndarray::Array2;
 
 use control_math::multigrid::{multigrid_solve, MultigridConfig};
-use control_types::config::ReactorConfig;
 use control_types::config::ProfileParams;
-use control_types::error::{FusionError, FusionResult};
-use control_types::state::{Grid2D, PlasmaState, ThermodynamicsResult};
+use control_types::config::ReactorConfig;
+use control_types::error::FusionResult;
+use control_types::state::{Grid2D, PlasmaState};
 
-use crate::bfield;
-use crate::ignition;
-use crate::particles::{self, ChargedParticle, ParticleSummary};
 use crate::source;
 use crate::xpoint;
 
@@ -28,12 +24,7 @@ use crate::xpoint;
 const SEED_GAUSSIAN_SIGMA: f64 = 0.3;
 
 /// Red-Black SOR step for poloidal flux.
-pub fn sor_step(
-    psi: &mut Array2<f64>,
-    source: &Array2<f64>,
-    grid: &Grid2D,
-    omega: f64,
-) {
+pub fn sor_step(psi: &mut Array2<f64>, source: &Array2<f64>, grid: &Grid2D, omega: f64) {
     let nz = grid.nz;
     let nr = grid.nr;
     let dr2 = grid.dr * grid.dr;
@@ -186,7 +177,11 @@ impl FusionKernel {
         self.profile_params_ff = Some(params_ff);
     }
 
-    pub fn solve_equilibrium_with_profiles(&mut self, params_p: ProfileParams, params_ff: ProfileParams) -> FusionResult<EquilibriumResult> {
+    pub fn solve_equilibrium_with_profiles(
+        &mut self,
+        params_p: ProfileParams,
+        params_ff: ProfileParams,
+    ) -> FusionResult<EquilibriumResult> {
         self.set_external_profiles(params_p, params_ff);
         self.solve_equilibrium()
     }
@@ -209,7 +204,8 @@ impl FusionKernel {
                 let r = self.grid.r_at(iz, ir);
                 let z = self.grid.z_at(iz, ir);
                 let dist_sq = (r - r_center).powi(2) + (z - z_center).powi(2);
-                self.state.j_phi[[iz, ir]] = (-dist_sq / (2.0 * SEED_GAUSSIAN_SIGMA * SEED_GAUSSIAN_SIGMA)).exp();
+                self.state.j_phi[[iz, ir]] =
+                    (-dist_sq / (2.0 * SEED_GAUSSIAN_SIGMA * SEED_GAUSSIAN_SIGMA)).exp();
             }
         }
 
@@ -220,7 +216,7 @@ impl FusionKernel {
 
         for k in 0..self.config.solver.max_iterations {
             iterations = k + 1;
-            
+
             // Source = -μ₀ R J_phi
             let mut source = Array2::zeros((nz, nr));
             for iz in 0..nz {
@@ -233,7 +229,12 @@ impl FusionKernel {
             match self.solver_method {
                 SolverMethod::PicardSor => {
                     for _ in 0..10 {
-                        sor_step(&mut psi_new, &source, &self.grid, self.config.solver.sor_omega);
+                        sor_step(
+                            &mut psi_new,
+                            &source,
+                            &self.grid,
+                            self.config.solver.sor_omega,
+                        );
                     }
                 }
                 SolverMethod::PicardMultigrid => {
@@ -242,7 +243,9 @@ impl FusionKernel {
                 }
             }
 
-            let diff = (&psi_new - &self.state.psi).mapv(|v| v.abs()).fold(0.0, |acc, &x| f64::max(acc, x));
+            let diff = (&psi_new - &self.state.psi)
+                .mapv(|v| v.abs())
+                .fold(0.0, |acc, &x| f64::max(acc, x));
             self.state.psi.assign(&psi_new);
             last_residual = diff;
 
@@ -250,13 +253,37 @@ impl FusionKernel {
                 converged = true;
                 break;
             }
-            
-            // Update current density from flux (Simplified model)
-            // J_phi = c * (1 - psi_norm) * R
-            // ... (In a real implementation, this uses P' and FF' profiles)
+
+            // 4. Update current density from flux (Picard step)
+            let (_axis_pos, psi_axis) = xpoint::find_axis(&self.state.psi, &self.grid)?;
+            let (_x_pos, psi_boundary) = xpoint::find_x_point(&self.state.psi, &self.grid, -1.0)?;
+
+            if self.external_profile_mode {
+                let params_p = self.profile_params_p.as_ref().unwrap();
+                let params_ff = self.profile_params_ff.as_ref().unwrap();
+                source::update_plasma_source_with_profiles(
+                    &self.state.psi,
+                    &mut self.state.j_phi,
+                    &self.grid,
+                    psi_axis,
+                    psi_boundary,
+                    params_p,
+                    params_ff,
+                    mu0,
+                    self.config.physics.plasma_current_target,
+                )?;
+            } else {
+                source::update_plasma_source_nonlinear(
+                    &self.state.psi,
+                    &mut self.state.j_phi,
+                    &self.grid,
+                    psi_axis,
+                    psi_boundary,
+                )?;
+            }
         }
 
-        // Post-processing: find axis and X-point
+        // Post-processing: final find axis and X-point
         let (axis_pos, psi_axis) = xpoint::find_axis(&self.state.psi, &self.grid)?;
         let (x_pos, psi_boundary) = xpoint::find_x_point(&self.state.psi, &self.grid, -1.0)?;
 
@@ -264,10 +291,10 @@ impl FusionKernel {
             converged,
             iterations,
             residual: last_residual,
-            axis_position: axis_pos,
-            x_point_position: x_pos,
             psi_axis,
             psi_boundary,
+            axis_position: axis_pos,
+            x_point_position: x_pos,
             solve_time_ms: t0.elapsed().as_secs_f64() * 1000.0,
         })
     }

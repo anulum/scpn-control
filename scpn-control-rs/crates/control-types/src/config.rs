@@ -5,12 +5,12 @@
 // ORCID: https://orcid.org/0009-0009-3560-0851
 // License: MIT OR Apache-2.0
 // ─────────────────────────────────────────────────────────────────────
+use crate::error::FusionResult;
+use crate::state::Grid2D;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::fs::File;
 use std::io::Read;
-use crate::error::{FusionError, FusionResult};
-use crate::state::Grid2D;
+use std::path::Path;
 
 /// Top-level reactor configuration.
 /// Maps 1:1 to iter_config.json schema.
@@ -149,7 +149,8 @@ mod tests {
 
     #[test]
     fn test_load_validated_config() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json")).unwrap();
+        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
+            .unwrap();
         assert_eq!(cfg.reactor_name, "ITER-V1");
     }
 

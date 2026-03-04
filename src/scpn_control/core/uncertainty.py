@@ -35,7 +35,7 @@ IPB98_CENTRAL = {
     "alpha_P": _COEFFS["exponents"]["Ploss_MW"],
     "alpha_n": _COEFFS["exponents"]["ne19_1e19m3"],
     "alpha_R": _COEFFS["exponents"]["R_m"],
-    "alpha_A": -_COEFFS["exponents"]["epsilon"], # ε = a/R = 1/A
+    "alpha_A": -_COEFFS["exponents"]["epsilon"],  # ε = a/R = 1/A
     "alpha_kappa": _COEFFS["exponents"]["kappa"],
     "alpha_M": _COEFFS["exponents"]["M_AMU"],
 }
@@ -210,15 +210,15 @@ class FullChainUQResult:
 
 def _build_ipb98_covariance() -> np.ndarray:
     """Build the covariance matrix for IPB98(y,2) coefficients.
-    
+
     Incorporates known physical correlations (Verdoolaege et al. 2021).
     """
     keys = ["C", "alpha_I", "alpha_B", "alpha_P", "alpha_n", "alpha_R", "alpha_A", "alpha_kappa", "alpha_M"]
     sigmas = np.array([IPB98_SIGMA[k] for k in keys])
-    
+
     # Start with diagonal covariance (uncorrelated)
     cov = np.diag(sigmas**2)
-    
+
     # Add known physical correlations
     # Correlation between prefactor C and R_major exponent is typically ~ -0.7
     idx_c = 0
@@ -226,14 +226,14 @@ def _build_ipb98_covariance() -> np.ndarray:
     corr_cr = -0.7
     cov[idx_c, idx_r] = corr_cr * sigmas[idx_c] * sigmas[idx_r]
     cov[idx_r, idx_c] = cov[idx_c, idx_r]
-    
+
     # Correlation between Ip and BT exponents is typically ~ 0.4
     idx_i = 1
     idx_b = 2
     corr_ib = 0.4
     cov[idx_i, idx_b] = corr_ib * sigmas[idx_i] * sigmas[idx_b]
     cov[idx_b, idx_i] = cov[idx_i, idx_b]
-    
+
     return cov
 
 

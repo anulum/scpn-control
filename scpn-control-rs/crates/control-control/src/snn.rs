@@ -10,8 +10,8 @@
 //! Port of `neuro_cybernetic_controller.py`.
 //! Biologically plausible rate-coded control using populations of LIF neurons.
 
-use ndarray::{Array1, Array2};
 use control_types::error::{FusionError, FusionResult};
+use ndarray::{Array1, Array2};
 
 /// Default number of neurons per population. Python: 20 (50 for control).
 #[cfg(test)]
@@ -43,7 +43,13 @@ pub struct RealtimeMonitor {
 }
 
 impl RealtimeMonitor {
-    pub fn new(knm: Array2<f64>, alpha: Array2<f64>, n_layers: usize, n_per: usize, dt: f64) -> Self {
+    pub fn new(
+        knm: Array2<f64>,
+        alpha: Array2<f64>,
+        n_layers: usize,
+        n_per: usize,
+        dt: f64,
+    ) -> Self {
         RealtimeMonitor {
             knm,
             alpha,

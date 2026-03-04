@@ -13,9 +13,6 @@ use control_types::config::ProfileParams;
 use control_types::error::{FusionError, FusionResult};
 use control_types::state::Grid2D;
 
-/// Constant for default beta mixing ratio (pressure vs current).
-const DEFAULT_BETA_MIX: f64 = 0.5;
-
 /// Bilinear interpolation of a 2D field.
 pub fn interpolate_2d(
     field: &Array2<f64>,
@@ -72,7 +69,10 @@ pub fn update_plasma_source_nonlinear(
     if psi.nrows() != grid.nz || psi.ncols() != grid.nr {
         return Err(FusionError::ConfigError(format!(
             "source update psi shape mismatch: expected ({}, {}), got ({}, {})",
-            grid.nz, grid.nr, psi.nrows(), psi.ncols()
+            grid.nz,
+            grid.nr,
+            psi.nrows(),
+            psi.ncols()
         )));
     }
 
@@ -123,12 +123,66 @@ pub fn update_plasma_source_nonlinear(
     Ok(())
 }
 
+/// Update plasma current density using full mTanh profiles for P' and FF'.
+#[allow(clippy::too_many_arguments)]
+pub fn update_plasma_source_with_profiles(
+    psi: &Array2<f64>,
+    j_phi: &mut Array2<f64>,
+    grid: &Grid2D,
+    psi_axis: f64,
+    psi_boundary: f64,
+    params_p: &ProfileParams,
+    params_ff: &ProfileParams,
+    mu0: f64,
+    i_target: f64,
+) -> FusionResult<()> {
+    let nz = grid.nz;
+    let nr = grid.nr;
+    let psi_range = psi_boundary - psi_axis;
+    let denom = if psi_range.abs() < 1e-12 {
+        1e-12
+    } else {
+        psi_range
+    };
+
+    let mut raw = Array2::zeros((nz, nr));
+    let mut inside = vec![];
+
+    for iz in 0..nz {
+        for ir in 0..nr {
+            let psi_n = (psi[[iz, ir]] - psi_axis) / denom;
+            if (0.0..1.0).contains(&psi_n) {
+                let r = grid.r_at(iz, ir).max(1e-6);
+                let p = mtanh_profile(psi_n, params_p);
+                let ff = mtanh_profile(psi_n, params_ff);
+
+                // j_phi = SOURCE_BETA_MIX * R * P' + (1 - SOURCE_BETA_MIX) * (FF' / (mu0 * R))
+                raw[[iz, ir]] = 0.5 * r * p + 0.5 * (ff / (mu0 * r));
+                inside.push((iz, ir));
+            } else {
+                raw[[iz, ir]] = 0.0;
+            }
+        }
+    }
+
+    // Normalize to target current
+    let i_raw = raw.iter().sum::<f64>() * grid.dr * grid.dz;
+    if i_raw.abs() > 1e-14 {
+        let scale = i_target / i_raw;
+        j_phi.assign(&(raw * scale));
+    } else {
+        j_phi.fill(0.0);
+    }
+
+    Ok(())
+}
+
 /// Modified tanh profile (mTanh) for H-mode pedestals.
 pub fn mtanh_profile(psi_norm: f64, params: &ProfileParams) -> f64 {
     let w = params.ped_width.abs().max(1e-8);
     let y = (params.ped_top - psi_norm) / w;
     let tanh_y = y.tanh();
-    
+
     let core = if psi_norm < params.ped_top {
         params.core_alpha * (1.0 - (psi_norm / params.ped_top).powi(2))
     } else {
@@ -146,14 +200,17 @@ pub fn mtanh_profile_derivatives(psi_norm: f64, params: &ProfileParams) -> [f64;
     let sech2_y = 1.0 - tanh_y * tanh_y;
 
     // d(mTanh)/d(ped_top)
-    let d_ped_top = 0.5 * params.ped_height * sech2_y / w;
-    
+    let mut d_ped_top = 0.5 * params.ped_height * sech2_y / w;
+    if psi_norm < params.ped_top && params.ped_top.abs() > 1e-8 {
+        d_ped_top += 2.0 * params.core_alpha * psi_norm.powi(2) / params.ped_top.powi(3);
+    }
+
     // d(mTanh)/d(ped_width)
     let d_ped_width = 0.5 * params.ped_height * sech2_y * (-y / w);
-    
+
     // d(mTanh)/d(ped_height)
     let d_ped_height = 0.5 * (1.0 + tanh_y);
-    
+
     // d(mTanh)/d(core_alpha)
     let d_core_alpha = if psi_norm < params.ped_top {
         1.0 - (psi_norm / params.ped_top).powi(2)
@@ -165,14 +222,18 @@ pub fn mtanh_profile_derivatives(psi_norm: f64, params: &ProfileParams) -> [f64;
 }
 
 /// Derivative of mTanh profile with respect to psi_norm.
-pub fn mtanh_profile_dpsi_norm(psi_norm: f64, params: &ProfileParams, label: &str) -> FusionResult<f64> {
+pub fn mtanh_profile_dpsi_norm(
+    psi_norm: f64,
+    params: &ProfileParams,
+    label: &str,
+) -> FusionResult<f64> {
     let w = params.ped_width.abs().max(1e-8);
     let y = (params.ped_top - psi_norm) / w;
     let tanh_y = y.tanh();
     let sech2_y = 1.0 - tanh_y * tanh_y;
 
     let d_ped = -0.5 * params.ped_height * sech2_y / w;
-    
+
     let d_core = if psi_norm < params.ped_top {
         -2.0 * params.core_alpha * psi_norm / (params.ped_top * params.ped_top)
     } else {
@@ -181,7 +242,9 @@ pub fn mtanh_profile_dpsi_norm(psi_norm: f64, params: &ProfileParams, label: &st
 
     let res = d_ped + d_core;
     if !res.is_finite() {
-        return Err(FusionError::ConfigError(format!("{label} gradient became non-finite")));
+        return Err(FusionError::ConfigError(format!(
+            "{label} gradient became non-finite"
+        )));
     }
     Ok(res)
 }
@@ -210,7 +273,7 @@ mod tests {
         let mut psi = Array2::zeros((17, 17));
         psi.fill(2.0); // Outside boundary
         let mut j_phi = Array2::zeros((17, 17));
-        
+
         update_plasma_source_nonlinear(&psi, &mut j_phi, &grid, 0.0, 1.0).unwrap();
         assert!(j_phi.iter().all(|&x| x == 0.0));
     }

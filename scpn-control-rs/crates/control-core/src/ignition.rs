@@ -138,6 +138,8 @@ pub fn calculate_thermodynamics(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use control_types::state::Grid2D;
+    use ndarray::Array2;
     use std::path::PathBuf;
 
     fn project_root() -> PathBuf {
@@ -171,7 +173,7 @@ mod tests {
     #[test]
     fn test_ignition_rejects_invalid_inputs() {
         let grid = Grid2D::new(17, 17, 1.0, 9.0, -5.0, 5.0);
-        let psi = Array2::zeros((17, 17));
+        let psi = Array2::<f64>::zeros((17, 17));
         assert!(bosch_hale_dt(f64::NAN).is_err());
         assert!(bosch_hale_dt(-1.0).is_err());
 

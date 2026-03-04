@@ -569,8 +569,8 @@ pub fn deposit_toroidal_current_density(
         let ir = nearest_index(&grid.r, r, "particle current R-axis")?;
         let iz = nearest_index(&grid.z, z, "particle current Z-axis")?;
         let v_phi = particle.toroidal_velocity_m_s();
-        let j_contrib = (particle.charge_c * particle.weight * v_phi)
-            / (2.0 * std::f64::consts::PI * r * area);
+        let j_contrib =
+            (particle.charge_c * particle.weight * v_phi) / (2.0 * std::f64::consts::PI * r * area);
         if !j_contrib.is_finite() {
             return Err(FusionError::PhysicsViolation(format!(
                 "particle[{idx}] toroidal current contribution became non-finite"
@@ -1279,7 +1279,7 @@ mod tests {
             .expect_err("non-finite grid mesh must fail");
         match err {
             FusionError::PhysicsViolation(msg) => {
-                assert!(msg.contains("mesh coordinates"));
+                assert!(msg.contains("grid axes"));
             }
             other => panic!("Unexpected error: {other:?}"),
         }
@@ -1568,17 +1568,20 @@ mod tests {
             mass_kg: 1.0,
             weight: 1.0,
         };
-        
+
         let particles = vec![p];
         let j_phi = deposit_toroidal_current_density(&particles, &grid).unwrap();
-        
+
         let total_current = j_phi.sum() * grid.dr * grid.dz;
         let expected_current = 1.0 / (2.0 * std::f64::consts::PI * 5.0);
-        
+
         println!("Total Current (deposited): {}", total_current);
         println!("Expected Current (physical): {}", expected_current);
-        
+
         // After fix: total_current should match expected_current
-        assert!((total_current - expected_current).abs() < 1e-10, "Physical bug fixed: total current should match expected");
+        assert!(
+            (total_current - expected_current).abs() < 1e-10,
+            "Physical bug fixed: total current should match expected"
+        );
     }
 }

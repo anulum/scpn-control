@@ -146,7 +146,7 @@ mod tests {
         let mut grid = Grid2D::new(16, 16, 1.0, 9.0, -5.0, 5.0);
         let psi = Array2::from_elem((16, 16), 1.0);
 
-        grid.rr[[0, 0]] = 0.0;
+        grid.r[0] = 0.0;
         let err = compute_b_field(&psi, &grid).expect_err("non-positive radius must fail");
         assert!(matches!(err, FusionError::ConfigError(_)));
 

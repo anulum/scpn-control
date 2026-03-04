@@ -9,30 +9,31 @@
 //! PyO3 Python bindings for SCPN Control (Modern Bound API).
 
 use ndarray::{Array1, Array2};
-use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
+use numpy::{
+    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods,
+};
+use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::exceptions::{PyValueError, PyRuntimeError, PyIOError};
 use pyo3::types::{PyDict, PyList};
 
 use control_control::analytic;
 use control_control::digital_twin::Plasma2D;
 use control_control::h_infinity::HInfController;
 use control_control::mpc::{MPController, NeuralSurrogate};
-use control_control::optimal;
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_control::spi::SPIMitigation;
 use control_core::amr_kernel::{AmrKernelConfig, AmrKernelSolver};
-use control_core::vmec_interface::{self, VmecBoundaryState, VmecSolverConfig, VmecFourierMode};
-use control_core::bout_interface::{self, BoutGridConfig};
 use control_core::bfield;
+use control_core::bout_interface::{self, BoutGridConfig};
 use control_core::ignition;
 use control_core::kernel::FusionKernel;
 use control_core::particles::{self, ChargedParticle};
 use control_core::transport::TransportSolver;
+use control_core::vmec_interface::{self, VmecBoundaryState, VmecFourierMode, VmecSolverConfig};
 use control_core::xpoint;
 use control_math::kuramoto;
-use control_math::tridiag;
 use control_math::multigrid::{multigrid_solve, MultigridConfig};
+use control_math::tridiag;
 use control_types::state::Grid2D;
 
 // ─── Equilibrium solver ───
@@ -71,13 +72,15 @@ struct PyEquilibriumResult {
 impl PyFusionKernel {
     #[new]
     fn new(config_path: &str) -> PyResult<Self> {
-        let inner = FusionKernel::from_file(config_path)
-            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let inner =
+            FusionKernel::from_file(config_path).map_err(|e| PyIOError::new_err(e.to_string()))?;
         Ok(PyFusionKernel { inner })
     }
 
     fn solve_equilibrium<'py>(&mut self, _py: Python<'py>) -> PyResult<PyEquilibriumResult> {
-        let result = self.inner.solve_equilibrium()
+        let result = self
+            .inner
+            .solve_equilibrium()
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(PyEquilibriumResult {
             converged: result.converged,
@@ -105,7 +108,11 @@ impl PyFusionKernel {
         self.inner.grid().z.clone().into_pyarray(py)
     }
 
-    fn compute_b_field<'py>(&self, py: Python<'py>) -> PyResult<(Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<f64>>)> {
+    #[allow(clippy::type_complexity)]
+    fn compute_b_field<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<(Bound<'py, PyArray2<f64>>, Bound<'py, PyArray2<f64>>)> {
         let (br, bz) = bfield::compute_b_field(self.inner.psi(), self.inner.grid())
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok((br.into_pyarray(py), bz.into_pyarray(py)))
@@ -119,8 +126,12 @@ impl PyFusionKernel {
     /// Calculate the vacuum magnetic flux from the external coil set.
     fn calculate_vacuum_field<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let mu0 = 4.0 * std::f64::consts::PI * 1e-7; // Default mu0
-        let psi_vac = control_core::vacuum::calculate_vacuum_field(self.inner.grid(), self.inner.coils(), mu0)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let psi_vac = control_core::vacuum::calculate_vacuum_field(
+            self.inner.grid(),
+            self.inner.coils(),
+            mu0,
+        )
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(psi_vac.into_pyarray(py))
     }
 
@@ -130,7 +141,11 @@ impl PyFusionKernel {
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
-    fn calculate_thermodynamics<'py>(&self, py: Python<'py>, p_aux_mw: f64) -> PyResult<Bound<'py, PyDict>> {
+    fn calculate_thermodynamics<'py>(
+        &self,
+        py: Python<'py>,
+        p_aux_mw: f64,
+    ) -> PyResult<Bound<'py, PyDict>> {
         let result = ignition::calculate_thermodynamics(&self.inner, p_aux_mw)
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
         let dict = PyDict::new(py);
@@ -181,7 +196,12 @@ fn scpn_marking_update<'py>(
 // ─── Control ───
 
 #[pyfunction]
-fn shafranov_bv<'py>(py: Python<'py>, r_major: f64, a_minor: f64, ip_ma: f64) -> PyResult<Bound<'py, PyDict>> {
+fn shafranov_bv<'py>(
+    py: Python<'py>,
+    r_major: f64,
+    a_minor: f64,
+    ip_ma: f64,
+) -> PyResult<Bound<'py, PyDict>> {
     let res = analytic::shafranov_bv(r_major, a_minor, ip_ma)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let dict = PyDict::new(py);
@@ -198,7 +218,9 @@ fn solve_coil_currents<'py>(
     target_bv: f64,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
     let resp = response_matrix.as_array().to_owned();
-    let flat_resp = resp.as_slice().ok_or_else(|| PyValueError::new_err("response_matrix not contiguous"))?;
+    let flat_resp = resp
+        .as_slice()
+        .ok_or_else(|| PyValueError::new_err("response_matrix not contiguous"))?;
     let currents = analytic::solve_coil_currents(flat_resp, target_bv)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     Ok(Array1::from_vec(currents).into_pyarray(py))
@@ -219,7 +241,9 @@ impl PySnnPool {
     }
 
     fn step(&mut self, error: f64) -> PyResult<f64> {
-        self.inner.step(error).map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        self.inner
+            .step(error)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 }
 
@@ -238,7 +262,9 @@ impl PySnnController {
     }
 
     fn step(&mut self, r_err: f64, z_err: f64) -> PyResult<(f64, f64)> {
-        self.inner.step(r_err, z_err).map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        self.inner
+            .step(r_err, z_err)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 }
 
@@ -250,16 +276,28 @@ struct PyMpcController {
 #[pymethods]
 impl PyMpcController {
     #[new]
-    fn new(weights: PyReadonlyArray2<'_, f64>, target: PyReadonlyArray1<'_, f64>) -> PyResult<Self> {
-        let model = NeuralSurrogate { b_matrix: weights.as_array().to_owned() };
+    fn new(
+        weights: PyReadonlyArray2<'_, f64>,
+        target: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<Self> {
+        let model = NeuralSurrogate {
+            b_matrix: weights.as_array().to_owned(),
+        };
         let inner = MPController::new(model, target.as_array().to_owned())
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(PyMpcController { inner })
     }
 
-    fn plan<'py>(&self, py: Python<'py>, state: PyReadonlyArray1<'py, f64>) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    fn plan<'py>(
+        &self,
+        py: Python<'py>,
+        state: PyReadonlyArray1<'py, f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         let s = state.as_array().to_owned();
-        let u = self.inner.plan(&s).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let u = self
+            .inner
+            .plan(&s)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(u.into_pyarray(py))
     }
 }
@@ -273,11 +311,15 @@ struct PyPlasma2D {
 impl PyPlasma2D {
     #[new]
     fn new() -> Self {
-        PyPlasma2D { inner: Plasma2D::new() }
+        PyPlasma2D {
+            inner: Plasma2D::new(),
+        }
     }
 
     fn step(&mut self, action: f64) -> PyResult<(f64, f64)> {
-        self.inner.step(action).map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        self.inner
+            .step(action)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 }
 
@@ -290,11 +332,15 @@ struct PyTransportSolver {
 impl PyTransportSolver {
     #[new]
     fn new() -> Self {
-        PyTransportSolver { inner: TransportSolver::new() }
+        PyTransportSolver {
+            inner: TransportSolver::new(),
+        }
     }
 
     fn step(&mut self, dt: f64, p_heat: f64) -> PyResult<()> {
-        self.inner.step(dt, p_heat).map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        self.inner
+            .step(dt, p_heat)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     fn get_te<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
@@ -310,14 +356,21 @@ struct PyHInfController {
 #[pymethods]
 impl PyHInfController {
     #[new]
-    fn new(a: PyReadonlyArray2<'_, f64>, b2: PyReadonlyArray2<'_, f64>, c2: PyReadonlyArray2<'_, f64>, gamma: f64, dt: f64) -> PyResult<Self> {
+    fn new(
+        a: PyReadonlyArray2<'_, f64>,
+        b2: PyReadonlyArray2<'_, f64>,
+        c2: PyReadonlyArray2<'_, f64>,
+        gamma: f64,
+        dt: f64,
+    ) -> PyResult<Self> {
         let plant = control_control::h_infinity::HInfPlant::new(
             a.as_array().to_owned(),
-            Array2::zeros((a.shape()[0], 1)), 
+            Array2::zeros((a.shape()[0], 1)),
             b2.as_array().to_owned(),
-            Array2::zeros((1, a.shape()[0])), 
+            Array2::zeros((1, a.shape()[0])),
             c2.as_array().to_owned(),
-        ).map_err(PyValueError::new_err)?;
+        )
+        .map_err(PyValueError::new_err)?;
         Ok(PyHInfController {
             inner: HInfController::new(plant, gamma, 1e6, dt),
         })
@@ -351,20 +404,43 @@ struct PyAmrSolver {
 impl PyAmrSolver {
     #[new]
     #[pyo3(signature = (max_levels=2, refinement_threshold=0.1, omega=1.8, coarse_iters=400, patch_iters=300, blend=0.5))]
-    fn new(max_levels: usize, refinement_threshold: f64, omega: f64, coarse_iters: usize, patch_iters: usize, blend: f64) -> PyResult<Self> {
-        let config = AmrKernelConfig { max_levels, refinement_threshold, omega, coarse_iters, patch_iters, blend };
-        let inner = AmrKernelSolver::new(config).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    fn new(
+        max_levels: usize,
+        refinement_threshold: f64,
+        omega: f64,
+        coarse_iters: usize,
+        patch_iters: usize,
+        blend: f64,
+    ) -> PyResult<Self> {
+        let config = AmrKernelConfig {
+            max_levels,
+            refinement_threshold,
+            omega,
+            coarse_iters,
+            patch_iters,
+            blend,
+        };
+        let inner =
+            AmrKernelSolver::new(config).map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(PyAmrSolver { inner })
     }
 
-    fn solve_with_hierarchy<'py>(&self, py: Python<'py>, psi: PyReadonlyArray2<'py, f64>, r: PyReadonlyArray1<'py, f64>, z: PyReadonlyArray1<'py, f64>) -> PyResult<Bound<'py, PyArray2<f64>>> {
+    fn solve_with_hierarchy<'py>(
+        &self,
+        py: Python<'py>,
+        psi: PyReadonlyArray2<'py, f64>,
+        r: PyReadonlyArray1<'py, f64>,
+        z: PyReadonlyArray1<'py, f64>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
         let rs = r.as_slice()?;
         let zs = z.as_slice()?;
         let nr = r.shape()[0];
         let nz = z.shape()[0];
-        let grid = Grid2D::new(nr, nz, rs[0], rs[nr-1], zs[0], zs[nz-1]);
-        let mut psi_out = psi.as_array().to_owned();
-        self.inner.solve_with_hierarchy(&grid, &mut psi_out).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let grid = Grid2D::new(nr, nz, rs[0], rs[nr - 1], zs[0], zs[nz - 1]);
+        let psi_out = psi.as_array().to_owned();
+        self.inner
+            .solve_with_hierarchy(&grid, &psi_out)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(psi_out.into_pyarray(py))
     }
 }
@@ -378,18 +454,73 @@ struct PyVmecSolver {
 impl PyVmecSolver {
     #[new]
     #[pyo3(signature = (m_pol=6, n_tor=0, ns=25, ntheta=32, nzeta=1, max_iter=500, tol=1e-8, step_size=5e-3))]
-    fn new(m_pol: usize, n_tor: usize, ns: usize, ntheta: usize, nzeta: usize, max_iter: usize, tol: f64, step_size: f64) -> Self {
-        PyVmecSolver { config: VmecSolverConfig { m_pol, n_tor, ns, ntheta, nzeta, max_iter, tol, step_size } }
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        m_pol: usize,
+        n_tor: usize,
+        ns: usize,
+        ntheta: usize,
+        nzeta: usize,
+        max_iter: usize,
+        tol: f64,
+        step_size: f64,
+    ) -> Self {
+        PyVmecSolver {
+            config: VmecSolverConfig {
+                m_pol,
+                n_tor,
+                ns,
+                ntheta,
+                nzeta,
+                max_iter,
+                tol,
+                step_size,
+            },
+        }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn solve_fixed_boundary<'py>(
-        &self, py: Python<'py>, r_axis: f64, z_axis: f64, a_minor: f64, kappa: f64, triangularity: f64,
-        modes: Vec<(i32, i32, f64, f64, f64, f64)>, pressure: PyReadonlyArray1<'py, f64>, iota: PyReadonlyArray1<'py, f64>, phi_edge: f64
+        &self,
+        py: Python<'py>,
+        r_axis: f64,
+        z_axis: f64,
+        a_minor: f64,
+        kappa: f64,
+        triangularity: f64,
+        modes: Vec<(i32, i32, f64, f64, f64, f64)>,
+        pressure: PyReadonlyArray1<'py, f64>,
+        iota: PyReadonlyArray1<'py, f64>,
+        phi_edge: f64,
     ) -> PyResult<PyObject> {
-        let fourier_modes: Vec<VmecFourierMode> = modes.into_iter().map(|(m, n, r_cos, r_sin, z_cos, z_sin)| VmecFourierMode { m, n, r_cos, r_sin, z_cos, z_sin }).collect();
-        let boundary = VmecBoundaryState { r_axis, z_axis, a_minor, kappa, triangularity, nfp: 1, modes: fourier_modes };
-        let result = vmec_interface::vmec_fixed_boundary_solve(&boundary, &self.config, pressure.as_slice()?, iota.as_slice()?, phi_edge)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let fourier_modes: Vec<VmecFourierMode> = modes
+            .into_iter()
+            .map(|(m, n, r_cos, r_sin, z_cos, z_sin)| VmecFourierMode {
+                m,
+                n,
+                r_cos,
+                r_sin,
+                z_cos,
+                z_sin,
+            })
+            .collect();
+        let boundary = VmecBoundaryState {
+            r_axis,
+            z_axis,
+            a_minor,
+            kappa,
+            triangularity,
+            nfp: 1,
+            modes: fourier_modes,
+        };
+        let result = vmec_interface::vmec_fixed_boundary_solve(
+            &boundary,
+            &self.config,
+            pressure.as_slice()?,
+            iota.as_slice()?,
+            phi_edge,
+        )
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         let dict = PyDict::new(py);
         dict.set_item("rmnc", result.rmnc.into_pyarray(py))?;
         dict.set_item("zmns", result.zmns.into_pyarray(py))?;
@@ -421,6 +552,7 @@ impl PyBoutInterface {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn generate_grid<'py>(
         &self,
         py: Python<'py>,
@@ -435,7 +567,7 @@ impl PyBoutInterface {
         let zs = z.as_slice()?;
         let nr = r.shape()[0];
         let nz = z.shape()[0];
-        let grid_2d = Grid2D::new(nr, nz, rs[0], rs[nr-1], zs[0], zs[nz-1]);
+        let grid_2d = Grid2D::new(nr, nz, rs[0], rs[nr - 1], zs[0], zs[nz - 1]);
         let psi_arr = psi.as_array().to_owned();
 
         let result = bout_interface::generate_bout_grid(
@@ -475,7 +607,10 @@ impl PySPIMitigation {
     }
 
     fn run<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
-        let history = self.inner.run().map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let history = self
+            .inner
+            .run()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         let list = PyList::empty(py);
         for snap in history {
             let dict = PyDict::new(py);
@@ -514,13 +649,14 @@ fn deposit_toroidal_current<'py>(
     let zs = z.as_slice()?;
     let nr = r.shape()[0];
     let nz = z.shape()[0];
-    let grid = Grid2D::new(nr, nz, rs[0], rs[nr-1], zs[0], zs[nz-1]);
+    let grid = Grid2D::new(nr, nz, rs[0], rs[nr - 1], zs[0], zs[nz - 1]);
     let j_phi = particles::deposit_toroidal_current_density(&particles, &grid)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(j_phi.into_pyarray(py))
 }
 
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
 fn kuramoto_step<'py>(
     py: Python<'py>,
     theta: PyReadonlyArray1<'py, f64>,
@@ -543,6 +679,7 @@ fn kuramoto_step<'py>(
 }
 
 #[pyfunction]
+#[allow(clippy::too_many_arguments)]
 fn kuramoto_run<'py>(
     py: Python<'py>,
     theta: PyReadonlyArray1<'py, f64>,
@@ -556,12 +693,14 @@ fn kuramoto_run<'py>(
 ) -> PyResult<(Bound<'py, PyArray1<f64>>, Vec<f64>)> {
     let th = theta.as_slice()?;
     let om = omega.as_slice()?;
-    let (final_th, r_hist) = kuramoto::kuramoto_sakaguchi_run(th, om, n_steps, dt, k, alpha, zeta, psi_external);
+    let (final_th, r_hist) =
+        kuramoto::kuramoto_sakaguchi_run(th, om, n_steps, dt, k, alpha, zeta, psi_external);
     Ok((final_th.into_pyarray(py), r_hist))
 }
 
 #[pyfunction]
 #[pyo3(signature = (theta, omega, n_steps, dt, k, alpha=0.0, zeta=0.0, psi_external=None))]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn kuramoto_run_lyapunov<'py>(
     py: Python<'py>,
     theta: PyReadonlyArray1<'py, f64>,
@@ -572,11 +711,22 @@ fn kuramoto_run_lyapunov<'py>(
     alpha: f64,
     zeta: f64,
     psi_external: Option<f64>,
-) -> PyResult<(Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>, f64)> {
+) -> PyResult<(
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    f64,
+)> {
     let th = theta.as_slice()?;
     let om = omega.as_slice()?;
-    let (final_th, r_hist, v_hist, lyap) = kuramoto::kuramoto_run_lyapunov(th, om, n_steps, dt, k, alpha, zeta, psi_external);
-    Ok((final_th.into_pyarray(py), Array1::from_vec(r_hist).into_pyarray(py), Array1::from_vec(v_hist).into_pyarray(py), lyap))
+    let (final_th, r_hist, v_hist, lyap) =
+        kuramoto::kuramoto_run_lyapunov(th, om, n_steps, dt, k, alpha, zeta, psi_external);
+    Ok((
+        final_th.into_pyarray(py),
+        Array1::from_vec(r_hist).into_pyarray(py),
+        Array1::from_vec(v_hist).into_pyarray(py),
+        lyap,
+    ))
 }
 
 #[pyfunction]
@@ -591,10 +741,17 @@ fn py_multigrid_solve<'py>(
     let zs = z.as_slice()?;
     let nr = r.shape()[0];
     let nz = z.shape()[0];
-    let grid = Grid2D::new(nr, nz, rs[0], rs[nr-1], zs[0], zs[nz-1]);
+    let grid = Grid2D::new(nr, nz, rs[0], rs[nr - 1], zs[0], zs[nz - 1]);
     let mut psi_out = psi.as_array().to_owned();
     let config = MultigridConfig::default();
-    multigrid_solve(&mut psi_out, &source.as_array().to_owned(), &grid, &config, 100, 1e-8);
+    multigrid_solve(
+        &mut psi_out,
+        &source.as_array().to_owned(),
+        &grid,
+        &config,
+        100,
+        1e-8,
+    );
     Ok(psi_out.into_pyarray(py))
 }
 

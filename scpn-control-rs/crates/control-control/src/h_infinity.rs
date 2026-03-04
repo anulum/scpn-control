@@ -136,27 +136,26 @@ impl HInfController {
 
     fn update_discretization(&mut self, dt: f64) {
         use control_math::linalg::solve_dare;
-        use ndarray::stack;
         use ndarray::Axis;
         use ndarray_linalg::Inverse;
 
         let n = self.plant.a.nrows();
-        
+
         // 1. ZOH Discretization: Ad = exp(A*dt), Bd = (Ad - I) A^-1 B
         // Simple Euler approximation for now (matches Python ref)
         let ad = Array2::eye(n) + &self.plant.a * dt;
         let bd_u = &self.plant.b2 * dt;
         let bd_w = &self.plant.b1 * dt;
-        
+
         self.fd = ad.clone();
-        
+
         // 2. Solve Feedback DARE (Discrete H-infinity)
         // H-inf DARE has augmented B and R
         use ndarray::concatenate;
         let b_aug = concatenate![Axis(1), bd_u, bd_w.mapv(|v| v / self.gamma)];
         let r_aug = Array2::from_diag(&Array1::from_vec(vec![1.0, -1.0]));
         let q = self.plant.c1.t().dot(&self.plant.c1);
-        
+
         if let Ok(x) = solve_dare(&ad, &b_aug, &q, &r_aug) {
             // kd = (R + B^T X B)^-1 B^T X A
             let r_u = Array2::eye(1);
@@ -168,10 +167,17 @@ impl HInfController {
         // 3. Solve Observer DARE (Dual)
         let q_obs = &bd_w.dot(&bd_w.t()) + Array2::eye(n) * 1e-6;
         let r_obs = Array2::eye(1);
-        if let Ok(y) = solve_dare(&ad.t().to_owned(), &self.plant.c2.t().to_owned(), &q_obs, &r_obs) {
+        if let Ok(y) = solve_dare(
+            &ad.t().to_owned(),
+            &self.plant.c2.t().to_owned(),
+            &q_obs,
+            &r_obs,
+        ) {
             // ld = A Y C^T (R + C Y C^T)^-1
             let r_y = Array2::eye(1);
-            let l_term = (&r_y + &self.plant.c2.dot(&y).dot(&self.plant.c2.t())).inv().unwrap();
+            let l_term = (&r_y + &self.plant.c2.dot(&y).dot(&self.plant.c2.t()))
+                .inv()
+                .unwrap();
             let ld_mat = ad.dot(&y).dot(&self.plant.c2.t()).dot(&l_term);
             self.ld = ld_mat.column(0).to_owned();
         }

@@ -241,8 +241,8 @@ mod tests {
         let r0 = grid.r[grid.nr - 1] - 0.08 * (grid.r[grid.nr - 1] - grid.r[0]);
         let z0 = 0.0;
         Array2::from_shape_fn((grid.nz, grid.nr), |(iz, ir)| {
-            let dr = grid.rr[[iz, ir]] - r0;
-            let dz = grid.zz[[iz, ir]] - z0;
+            let dr = grid.r_at(iz, ir) - r0;
+            let dz = grid.z_at(iz, ir) - z0;
             -(-((dr * dr) / 0.02 + (dz * dz) / 0.04)).exp()
         })
     }

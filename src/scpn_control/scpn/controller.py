@@ -364,7 +364,7 @@ class NeuroSymbolicController:
                 fh.write(json.dumps(rec) + "\n")
 
         # Build result from all decoded actions
-        return dict(actions_dict)
+        return cast(ControlAction, dict(actions_dict))
 
     def step_traceable(
         self,
