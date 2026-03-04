@@ -6,19 +6,19 @@
 // License: MIT OR Apache-2.0
 // ──────────────────────────────────────────────────────────────────────
 
-//! PyO3 Python bindings for SCPN Control.
+//! PyO3 Python bindings for SCPN Control (Modern Bound API).
 
 use ndarray::{Array1, Array2};
 use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyValueError, PyRuntimeError, PyIOError};
+use pyo3::types::{PyDict, PyList};
 
 use control_control::analytic;
 use control_control::digital_twin::Plasma2D;
 use control_control::h_infinity::HInfController;
 use control_control::mpc::{MPController, NeuralSurrogate};
 use control_control::optimal;
-use control_control::pid::PIDController;
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_control::spi::SPIMitigation;
 use control_core::amr_kernel::{AmrKernelConfig, AmrKernelSolver};
@@ -30,9 +30,10 @@ use control_core::kernel::FusionKernel;
 use control_core::particles::{self, ChargedParticle};
 use control_core::transport::TransportSolver;
 use control_core::xpoint;
+use control_math::kuramoto;
 use control_math::tridiag;
+use control_math::multigrid::{multigrid_solve, MultigridConfig};
 use control_types::state::Grid2D;
-use control_types::error::FusionError;
 
 // ─── Equilibrium solver ───
 
@@ -75,7 +76,7 @@ impl PyFusionKernel {
         Ok(PyFusionKernel { inner })
     }
 
-    fn solve_equilibrium(&mut self) -> PyResult<PyEquilibriumResult> {
+    fn solve_equilibrium<'py>(&mut self, _py: Python<'py>) -> PyResult<PyEquilibriumResult> {
         let result = self.inner.solve_equilibrium()
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(PyEquilibriumResult {
@@ -121,10 +122,10 @@ impl PyFusionKernel {
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
-    fn calculate_thermodynamics<'py>(&self, py: Python<'py>, p_aux_mw: f64) -> PyResult<PyObject> {
+    fn calculate_thermodynamics<'py>(&self, py: Python<'py>, p_aux_mw: f64) -> PyResult<Bound<'py, PyDict>> {
         let result = ignition::calculate_thermodynamics(&self.inner, p_aux_mw)
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let dict = pyo3::types::PyDict::new(py);
+        let dict = PyDict::new(py);
         dict.set_item("p_fusion_mw", result.p_fusion_mw)?;
         dict.set_item("p_alpha_mw", result.p_alpha_mw)?;
         dict.set_item("p_loss_mw", result.p_loss_mw)?;
@@ -133,7 +134,7 @@ impl PyFusionKernel {
         dict.set_item("q_factor", result.q_factor)?;
         dict.set_item("t_peak_kev", result.t_peak_kev)?;
         dict.set_item("w_thermal_mj", result.w_thermal_mj)?;
-        Ok(dict.into())
+        Ok(dict)
     }
 }
 
@@ -172,14 +173,14 @@ fn scpn_marking_update<'py>(
 // ─── Control ───
 
 #[pyfunction]
-fn shafranov_bv(py: Python<'_>, r_major: f64, a_minor: f64, ip_ma: f64) -> PyResult<PyObject> {
+fn shafranov_bv<'py>(py: Python<'py>, r_major: f64, a_minor: f64, ip_ma: f64) -> PyResult<Bound<'py, PyDict>> {
     let res = analytic::shafranov_bv(r_major, a_minor, ip_ma)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let dict = pyo3::types::PyDict::new(py);
+    let dict = PyDict::new(py);
     dict.set_item("bv_required", res.bv_required)?;
     dict.set_item("term_log", res.term_log)?;
     dict.set_item("term_physics", res.term_physics)?;
-    Ok(dict.into())
+    Ok(dict)
 }
 
 #[pyfunction]
@@ -188,7 +189,7 @@ fn solve_coil_currents<'py>(
     response_matrix: PyReadonlyArray2<'py, f64>,
     target_bv: f64,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-    let resp = response_matrix.as_array();
+    let resp = response_matrix.as_array().to_owned();
     let flat_resp = resp.as_slice().ok_or_else(|| PyValueError::new_err("response_matrix not contiguous"))?;
     let currents = analytic::solve_coil_currents(flat_resp, target_bv)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
@@ -241,7 +242,7 @@ struct PyMpcController {
 #[pymethods]
 impl PyMpcController {
     #[new]
-    fn new<'py>(weights: PyReadonlyArray2<'py, f64>, target: PyReadonlyArray1<'py, f64>) -> PyResult<Self> {
+    fn new(weights: PyReadonlyArray2<'_, f64>, target: PyReadonlyArray1<'_, f64>) -> PyResult<Self> {
         let model = NeuralSurrogate { b_matrix: weights.as_array().to_owned() };
         let inner = MPController::new(model, target.as_array().to_owned())
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -301,7 +302,7 @@ struct PyHInfController {
 #[pymethods]
 impl PyHInfController {
     #[new]
-    fn new<'py>(a: PyReadonlyArray2<'py, f64>, b2: PyReadonlyArray2<'py, f64>, c2: PyReadonlyArray2<'py, f64>, gamma: f64, dt: f64) -> PyResult<Self> {
+    fn new(a: PyReadonlyArray2<'_, f64>, b2: PyReadonlyArray2<'_, f64>, c2: PyReadonlyArray2<'_, f64>, gamma: f64, dt: f64) -> PyResult<Self> {
         let plant = control_control::h_infinity::HInfPlant::new(
             a.as_array().to_owned(),
             Array2::zeros((a.shape()[0], 1)), 
@@ -322,7 +323,7 @@ impl PyHInfController {
 // ─── Math Solvers ───
 
 #[pyfunction]
-fn thomas_solve<'py>(
+fn py_thomas_solve<'py>(
     py: Python<'py>,
     a: PyReadonlyArray1<'py, f64>,
     b: PyReadonlyArray1<'py, f64>,
@@ -381,13 +382,13 @@ impl PyVmecSolver {
         let boundary = VmecBoundaryState { r_axis, z_axis, a_minor, kappa, triangularity, nfp: 1, modes: fourier_modes };
         let result = vmec_interface::vmec_fixed_boundary_solve(&boundary, &self.config, pressure.as_slice()?, iota.as_slice()?, phi_edge)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-        let dict = pyo3::types::PyDict::new(py);
+        let dict = PyDict::new(py);
         dict.set_item("rmnc", result.rmnc.into_pyarray(py))?;
         dict.set_item("zmns", result.zmns.into_pyarray(py))?;
         dict.set_item("iterations", result.iterations)?;
         dict.set_item("force_residual", result.force_residual)?;
         dict.set_item("converged", result.converged)?;
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 }
 
@@ -421,7 +422,7 @@ impl PyBoutInterface {
         psi_axis: f64,
         psi_boundary: f64,
         b_toroidal: f64,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Bound<'py, PyDict>> {
         let rs = r.as_slice()?;
         let zs = z.as_slice()?;
         let nr = r.shape()[0];
@@ -440,14 +441,14 @@ impl PyBoutInterface {
         )
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
-        let dict = pyo3::types::PyDict::new(py);
+        let dict = PyDict::new(py);
         dict.set_item("psi_n", result.psi_n.into_pyarray(py))?;
         dict.set_item("g_xx", result.g_xx.into_pyarray(py))?;
         dict.set_item("g_yy", result.g_yy.into_pyarray(py))?;
         dict.set_item("g_zz", result.g_zz.into_pyarray(py))?;
         dict.set_item("jacobian", result.jacobian.into_pyarray(py))?;
         dict.set_item("b_mag", result.b_mag.into_pyarray(py))?;
-        Ok(dict.into())
+        Ok(dict)
     }
 }
 
@@ -465,18 +466,18 @@ impl PySPIMitigation {
         }
     }
 
-    fn run<'py>(&mut self, py: Python<'py>) -> PyResult<PyObject> {
+    fn run<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
         let history = self.inner.run().map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-        let list = pyo3::types::PyList::empty(py);
+        let list = PyList::empty(py);
         for snap in history {
-            let dict = pyo3::types::PyDict::new(py);
+            let dict = PyDict::new(py);
             dict.set_item("time", snap.time)?;
             dict.set_item("w_th_mj", snap.w_th_mj)?;
             dict.set_item("ip_ma", snap.ip_ma)?;
             dict.set_item("te_kev", snap.te_kev)?;
             list.append(dict)?;
         }
-        Ok(list.into())
+        Ok(list)
     }
 }
 
@@ -511,10 +512,88 @@ fn deposit_toroidal_current<'py>(
     Ok(j_phi.into_pyarray(py))
 }
 
+#[pyfunction]
+fn kuramoto_step<'py>(
+    py: Python<'py>,
+    theta: PyReadonlyArray1<'py, f64>,
+    omega: PyReadonlyArray1<'py, f64>,
+    dt: f64,
+    k: f64,
+    alpha: f64,
+    zeta: f64,
+    psi_external: Option<f64>,
+) -> PyResult<Bound<'py, PyDict>> {
+    let th = theta.as_slice()?;
+    let om = omega.as_slice()?;
+    let res = kuramoto::kuramoto_sakaguchi_step(th, om, dt, k, alpha, zeta, psi_external);
+    let dict = PyDict::new(py);
+    dict.set_item("theta", res.theta.into_pyarray(py))?;
+    dict.set_item("r", res.r)?;
+    dict.set_item("psi_r", res.psi_r)?;
+    dict.set_item("psi_global", res.psi_global)?;
+    Ok(dict)
+}
+
+#[pyfunction]
+fn kuramoto_run<'py>(
+    py: Python<'py>,
+    theta: PyReadonlyArray1<'py, f64>,
+    omega: PyReadonlyArray1<'py, f64>,
+    n_steps: usize,
+    dt: f64,
+    k: f64,
+    alpha: f64,
+    zeta: f64,
+    psi_external: Option<f64>,
+) -> PyResult<(Bound<'py, PyArray1<f64>>, Vec<f64>)> {
+    let th = theta.as_slice()?;
+    let om = omega.as_slice()?;
+    let (final_th, r_hist) = kuramoto::kuramoto_sakaguchi_run(th, om, n_steps, dt, k, alpha, zeta, psi_external);
+    Ok((final_th.into_pyarray(py), r_hist))
+}
+
+#[pyfunction]
+#[pyo3(signature = (theta, omega, n_steps, dt, k, alpha=0.0, zeta=0.0, psi_external=None))]
+fn kuramoto_run_lyapunov<'py>(
+    py: Python<'py>,
+    theta: PyReadonlyArray1<'py, f64>,
+    omega: PyReadonlyArray1<'py, f64>,
+    n_steps: usize,
+    dt: f64,
+    k: f64,
+    alpha: f64,
+    zeta: f64,
+    psi_external: Option<f64>,
+) -> PyResult<(Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>, f64)> {
+    let th = theta.as_slice()?;
+    let om = omega.as_slice()?;
+    let (final_th, r_hist, v_hist, lyap) = kuramoto::kuramoto_run_lyapunov(th, om, n_steps, dt, k, alpha, zeta, psi_external);
+    Ok((final_th.into_pyarray(py), Array1::from_vec(r_hist).into_pyarray(py), Array1::from_vec(v_hist).into_pyarray(py), lyap))
+}
+
+#[pyfunction]
+fn py_multigrid_solve<'py>(
+    py: Python<'py>,
+    psi: PyReadonlyArray2<'py, f64>,
+    source: PyReadonlyArray2<'py, f64>,
+    r: PyReadonlyArray1<'py, f64>,
+    z: PyReadonlyArray1<'py, f64>,
+) -> PyResult<Bound<'py, PyArray2<f64>>> {
+    let rs = r.as_slice()?;
+    let zs = z.as_slice()?;
+    let nr = r.shape()[0];
+    let nz = z.shape()[0];
+    let grid = Grid2D::new(nr, nz, rs[0], rs[nr-1], zs[0], zs[nz-1]);
+    let mut psi_out = psi.as_array().to_owned();
+    let config = MultigridConfig::default();
+    multigrid_solve(&mut psi_out, &source.as_array().to_owned(), &grid, &config, 100, 1e-8);
+    Ok(psi_out.into_pyarray(py))
+}
+
 // ─── Module registration ───
 
 #[pymodule]
-fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
     m.add_class::<PyFusionKernel>()?;
     m.add_class::<PyEquilibriumResult>()?;
     m.add_function(wrap_pyfunction!(scpn_dense_activations, m)?)?;
@@ -527,7 +606,7 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyPlasma2D>()?;
     m.add_class::<PyTransportSolver>()?;
     m.add_class::<PyHInfController>()?;
-    m.add_function(wrap_pyfunction!(thomas_solve, m)?)?;
+    m.add_function(wrap_pyfunction!(py_thomas_solve, m)?)?;
     m.add_class::<PyAmrSolver>()?;
     m.add_class::<PyVmecSolver>()?;
     m.add_class::<PyBoutInterface>()?;
@@ -535,5 +614,9 @@ fn scpn_control_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(boris_push_step, m)?)?;
     m.add_function(wrap_pyfunction!(deposit_toroidal_current, m)?)?;
     m.add_class::<PySPIMitigation>()?;
+    m.add_function(wrap_pyfunction!(kuramoto_step, m)?)?;
+    m.add_function(wrap_pyfunction!(kuramoto_run, m)?)?;
+    m.add_function(wrap_pyfunction!(kuramoto_run_lyapunov, m)?)?;
+    m.add_function(wrap_pyfunction!(py_multigrid_solve, m)?)?;
     Ok(())
 }

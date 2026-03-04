@@ -199,6 +199,7 @@ pub fn upde_tick(
     theta_flat: &[f64],
     omega_flat: &[f64],
     knm_flat: &[f64],
+    alpha_flat: &[f64],
     zeta: &[f64],
     n_layers: usize,
     n_per: usize,
@@ -209,6 +210,7 @@ pub fn upde_tick(
     assert_eq!(theta_flat.len(), n_layers * n_per);
     assert_eq!(omega_flat.len(), n_layers * n_per);
     assert_eq!(knm_flat.len(), n_layers * n_layers);
+    assert_eq!(alpha_flat.len(), n_layers * n_layers);
     assert_eq!(zeta.len(), n_layers);
 
     // Per-layer order parameters
@@ -235,9 +237,10 @@ pub fn upde_tick(
             let th = theta_flat[idx];
             let om = omega_flat[idx];
 
-            // Intra-layer: K_mm * R_m * sin(ψ_m - θ)
+            // Intra-layer: K_mm * R_m * sin(ψ_m - θ - α_mm)
             let k_mm = knm_flat[m * n_layers + m];
-            let mut dth = om + k_mm * r_layer[m] * (psi_layer[m] - th).sin();
+            let a_mm = alpha_flat[m * n_layers + m];
+            let mut dth = om + k_mm * r_layer[m] * (psi_layer[m] - th - a_mm).sin();
 
             // ζ sin(Ψ - θ)
             if z != 0.0 {
@@ -250,10 +253,11 @@ pub fn upde_tick(
                     continue;
                 }
                 let k_mn = knm_flat[m * n_layers + n];
+                let a_mn = alpha_flat[m * n_layers + n];
                 if k_mn == 0.0 {
                     continue;
                 }
-                let mut gain = k_mn * r_layer[n] * (psi_layer[n] - th).sin();
+                let mut gain = k_mn * r_layer[n] * (psi_layer[n] - th - a_mn).sin();
                 // PAC gate: amplify when source layer is incoherent
                 if pac_gamma != 0.0 {
                     gain *= 1.0 + pac_gamma * (1.0 - r_layer[n]);

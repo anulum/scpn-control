@@ -12,6 +12,7 @@ categories = ["science", "simulation"]
 [dependencies]
 control-types = { path = "../control-types" }
 ndarray = { workspace = true }
+ndarray-linalg = { workspace = true }
 rayon = { workspace = true }
 rustfft = { workspace = true }
 num-complex = { workspace = true }
