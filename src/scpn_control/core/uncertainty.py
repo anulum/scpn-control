@@ -208,6 +208,35 @@ class FullChainUQResult:
     n_samples: int = 0
 
 
+def _build_ipb98_covariance() -> np.ndarray:
+    """Build the covariance matrix for IPB98(y,2) coefficients.
+    
+    Incorporates known physical correlations (Verdoolaege et al. 2021).
+    """
+    keys = ["C", "alpha_I", "alpha_B", "alpha_P", "alpha_n", "alpha_R", "alpha_A", "alpha_kappa", "alpha_M"]
+    sigmas = np.array([IPB98_SIGMA[k] for k in keys])
+    
+    # Start with diagonal covariance (uncorrelated)
+    cov = np.diag(sigmas**2)
+    
+    # Add known physical correlations
+    # Correlation between prefactor C and R_major exponent is typically ~ -0.7
+    idx_c = 0
+    idx_r = 5
+    corr_cr = -0.7
+    cov[idx_c, idx_r] = corr_cr * sigmas[idx_c] * sigmas[idx_r]
+    cov[idx_r, idx_c] = cov[idx_c, idx_r]
+    
+    # Correlation between Ip and BT exponents is typically ~ 0.4
+    idx_i = 1
+    idx_b = 2
+    corr_ib = 0.4
+    cov[idx_i, idx_b] = corr_ib * sigmas[idx_i] * sigmas[idx_b]
+    cov[idx_b, idx_i] = cov[idx_i, idx_b]
+    
+    return cov
+
+
 def quantify_full_chain(
     scenario: PlasmaScenario,
     n_samples: int = 5000,
@@ -220,31 +249,7 @@ def quantify_full_chain(
     Full-chain Monte Carlo uncertainty propagation:
     equilibrium -> transport -> fusion power -> gain.
 
-    Extends :func:`quantify_uncertainty` by additionally perturbing the
-    gyro-Bohm transport coefficient, EPED pedestal height, and equilibrium
-    boundary shape, then computing normalised beta as an extra observable.
-
-    Parameters
-    ----------
-    scenario : PlasmaScenario
-        Nominal plasma parameters (held at central values; perturbations are
-        multiplicative).
-    n_samples : int
-        Number of Monte Carlo draws (default 5000).
-    seed : int, optional
-        Random seed for reproducibility.
-    chi_gB_sigma : float
-        Log-normal sigma for gyro-Bohm coefficient perturbation (default 0.3).
-    pedestal_sigma : float
-        Gaussian sigma (fractional) for pedestal height perturbation (default 0.2).
-    boundary_sigma : float
-        Gaussian sigma (fractional) for major-radius boundary perturbation
-        (default 0.02, i.e. 2%).
-
-    Returns
-    -------
-    FullChainUQResult
-        Bands at [5%, 50%, 95%] for psi_nrmse, tau_E, P_fusion, Q, beta_N.
+    Now uses correlated sampling for IPB98 coefficients.
     """
     n_samples = _validate_n_samples(n_samples)
 
@@ -269,11 +274,15 @@ def quantify_full_chain(
     beta_n_samples = np.zeros(n_samples)
     psi_nrmse_samples = np.zeros(n_samples)
 
+    # 1. Pre-sample correlated IPB98 coefficients
+    keys = ["C", "alpha_I", "alpha_B", "alpha_P", "alpha_n", "alpha_R", "alpha_A", "alpha_kappa", "alpha_M"]
+    means = np.array([IPB98_CENTRAL[k] for k in keys])
+    cov = _build_ipb98_covariance()
+    ipb_samples = rng.multivariate_normal(means, cov, size=n_samples)
+
     for i in range(n_samples):
-        # --- (a) Perturb IPB98 scaling-law coefficients ---
-        params = {}
-        for key in IPB98_CENTRAL:
-            params[key] = rng.normal(IPB98_CENTRAL[key], IPB98_SIGMA[key])
+        # --- (a) Extract perturbed IPB98 scaling-law coefficients ---
+        params = {keys[j]: ipb_samples[i, j] for j in range(len(keys))}
         params["C"] = max(params["C"], 1e-4)
         params["alpha_P"] = min(params["alpha_P"], -0.1)
 

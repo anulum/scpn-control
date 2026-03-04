@@ -127,14 +127,13 @@ def compute_q_profile(
     a: float,
     B0: float,
     Ip_MA: float,
+    kappa: float = 1.0,
+    delta: float = 0.0,
 ) -> QProfile:
-    """Compute the safety-factor profile from cylindrical approximation.
+    """Compute the safety-factor profile from a shape-aware approximation.
 
-    Uses a parabolic current profile:
-        I_enclosed(rho) = Ip * (2*rho^2 - rho^4)
-
-    and the cylindrical safety factor:
-        q(rho) = rho * a * B0 / (R0 * B_theta(rho))
+    Uses a parabolic current profile and the Uckan-style geometric correction
+    for elongation (kappa) and triangularity (delta).
 
     Parameters
     ----------
@@ -145,6 +144,8 @@ def compute_q_profile(
     a : float — minor radius [m]
     B0 : float — toroidal field on axis [T]
     Ip_MA : float — total plasma current [MA]
+    kappa : float — elongation
+    delta : float — triangularity
 
     Returns
     -------
@@ -152,22 +153,30 @@ def compute_q_profile(
     """
     mu0 = 4.0 * np.pi * 1e-7
     Ip = Ip_MA * 1e6  # MA -> A
+    epsilon = a / R0
+
+    # Shape correction factor (Uckan formula / ITER-scaling proxy)
+    # f_shape accounts for the increased path length in a D-shaped plasma.
+    f_shape = (1.0 + kappa**2 * (1.0 + 2.0 * delta**2 - 1.2 * delta**3)) / 2.0
+    # Aspect ratio correction
+    f_aspect = (1.17 - 0.65 * epsilon) / (1.0 - epsilon**2)
+    f_total = f_shape * f_aspect
 
     # Parabolic current profile: j(rho) ∝ (1 - rho^2)
-    # => I_enclosed(rho) = Ip * (2*rho^2 - rho^4)
     rho_safe = np.maximum(rho, 1e-10)
     I_enc = Ip * (2.0 * rho_safe**2 - rho_safe**4)
 
+    # q_cyl(rho) = rho * a * B0 / (R0 * B_theta)
     # B_theta(rho) = mu0 * I_enc / (2 * pi * rho * a)
     B_theta = mu0 * I_enc / (2.0 * np.pi * rho_safe * a)
     B_theta = np.maximum(B_theta, 1e-12)
+    q_cyl = rho_safe * a * B0 / (R0 * B_theta)
 
-    # q(rho) = rho * a * B0 / (R0 * B_theta)
-    q = rho_safe * a * B0 / (R0 * B_theta)
+    # Final shape-aware q-profile
+    q = q_cyl * f_total
 
-    # Fix axis: q(0) = q(eps) (L'Hopital limit gives q0 = a^2 B0 / (R0 mu0 Ip / pi))
-    # Analytic: q0 = 2 pi a^2 B0 / (mu0 R0 Ip * 2) for parabolic j
-    q0 = np.pi * a**2 * B0 / (mu0 * R0 * Ip)
+    # Fix axis: q0 = f_total * (pi * a^2 * B0) / (mu0 * R0 * Ip)
+    q0 = f_total * np.pi * a**2 * B0 / (mu0 * R0 * Ip)
     q[0] = q0
 
     # Magnetic shear: s = (rho/q) * dq/drho

@@ -23,7 +23,7 @@ def iter_like_qprofile():
     ne = 10.0 * (1 - 0.8 * rho**2)
     Ti = 15.0 * (1 - rho**2) ** 1.5
     Te = 15.0 * (1 - rho**2) ** 1.5
-    return compute_q_profile(rho, ne, Ti, Te, R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0)
+    return compute_q_profile(rho, ne, Ti, Te, R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0, kappa=1.7, delta=0.3)
 
 
 class TestComputeQProfile:
