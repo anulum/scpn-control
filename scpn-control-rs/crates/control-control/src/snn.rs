@@ -10,6 +10,7 @@
 //! Port of `neuro_cybernetic_controller.py`.
 //! Biologically plausible rate-coded control using populations of LIF neurons.
 
+use ndarray::{Array1, Array2};
 use control_types::error::{FusionError, FusionResult};
 
 /// Default number of neurons per population. Python: 20 (50 for control).
@@ -25,6 +26,53 @@ const I_SCALE: f64 = 5.0;
 
 /// Spontaneous activity bias [nA]. Python: 0.1.
 const I_BIAS: f64 = 0.1;
+
+use control_math::kuramoto::{self, UpdeTick};
+
+/// Real-time phase sync monitor for multi-layer UPDE systems.
+pub struct RealtimeMonitor {
+    pub knm: Array2<f64>,
+    pub alpha: Array2<f64>,
+    pub n_layers: usize,
+    pub n_per: usize,
+    pub dt: f64,
+    pub theta_flat: Array1<f64>,
+    pub omega_flat: Array1<f64>,
+    pub zeta: Array1<f64>,
+    pub psi_driver: f64,
+}
+
+impl RealtimeMonitor {
+    pub fn new(knm: Array2<f64>, alpha: Array2<f64>, n_layers: usize, n_per: usize, dt: f64) -> Self {
+        RealtimeMonitor {
+            knm,
+            alpha,
+            n_layers,
+            n_per,
+            dt,
+            theta_flat: Array1::zeros(n_layers * n_per),
+            omega_flat: Array1::zeros(n_layers * n_per),
+            zeta: Array1::zeros(n_layers),
+            psi_driver: 0.0,
+        }
+    }
+
+    pub fn tick(&mut self, theta: &Array1<f64>) -> UpdeTick {
+        self.theta_flat.assign(theta);
+        kuramoto::upde_tick(
+            self.theta_flat.as_slice().unwrap(),
+            self.omega_flat.as_slice().unwrap(),
+            self.knm.as_slice().unwrap(),
+            self.alpha.as_slice().unwrap(),
+            self.zeta.as_slice().unwrap(),
+            self.n_layers,
+            self.n_per,
+            self.dt,
+            self.psi_driver,
+            0.0, // pac_gamma default
+        )
+    }
+}
 
 /// Stochastic Leaky Integrate-and-Fire neuron.
 #[derive(Debug, Clone)]
