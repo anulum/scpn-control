@@ -755,6 +755,57 @@ fn py_multigrid_solve<'py>(
     Ok(psi_out.into_pyarray(py))
 }
 
+#[pyfunction]
+fn scpn_sample_firing<'py>(
+    py: Python<'py>,
+    p_fire: PyReadonlyArray1<'py, f64>,
+    n_passes: usize,
+    seed: u64,
+    antithetic: bool,
+) -> PyResult<Bound<'py, PyArray1<f64>>> {
+    use rand::{Rng, SeedableRng};
+    use rand_chacha::ChaCha8Rng;
+
+    let p = p_fire.as_array();
+    let n = p.len();
+    let mut counts = Vec::with_capacity(n);
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
+
+    if antithetic && n_passes >= 2 {
+        #[allow(clippy::manual_div_ceil)]
+        let n_pairs = (n_passes + 1) / 2;
+        let mut c = vec![0usize; n];
+        for pair_idx in 0..n_pairs {
+            for i in 0..n {
+                let u: f64 = rng.gen();
+                if u < p[i] {
+                    c[i] += 1;
+                }
+                // Antithetic sample
+                #[allow(clippy::manual_is_multiple_of)]
+                if (n_passes % 2 == 0 || pair_idx < n_pairs - 1) && (1.0 - u) < p[i] {
+                    c[i] += 1;
+                }
+            }
+        }
+        for val in c {
+            counts.push(val as f64 / n_passes as f64);
+        }
+    } else {
+        for i in 0..n {
+            let mut c = 0usize;
+            for _ in 0..n_passes {
+                if rng.gen::<f64>() < p[i] {
+                    c += 1;
+                }
+            }
+            counts.push(c as f64 / n_passes as f64);
+        }
+    }
+
+    Ok(Array1::from_vec(counts).into_pyarray(py))
+}
+
 // ─── Module registration ───
 
 #[pymodule]
@@ -763,6 +814,7 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_class::<PyEquilibriumResult>()?;
     m.add_function(wrap_pyfunction!(scpn_dense_activations, m)?)?;
     m.add_function(wrap_pyfunction!(scpn_marking_update, m)?)?;
+    m.add_function(wrap_pyfunction!(scpn_sample_firing, m)?)?;
     m.add_function(wrap_pyfunction!(shafranov_bv, m)?)?;
     m.add_function(wrap_pyfunction!(solve_coil_currents, m)?)?;
     m.add_class::<PySnnPool>()?;

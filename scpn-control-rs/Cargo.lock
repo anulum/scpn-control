@@ -1520,6 +1520,7 @@ dependencies = [
  "numpy",
  "pyo3",
  "rand",
+ "rand_chacha",
 ]
 
 [[package]]
