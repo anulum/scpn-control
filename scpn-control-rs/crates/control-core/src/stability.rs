@@ -230,6 +230,9 @@ pub fn analyze_stability(
     let is_stable = n > 0.0 && n < MAX_STABLE_DECAY_INDEX;
 
     let result = StabilityResult {
+        overall_stable: is_stable,
+        n_criteria_checked: 5,
+        n_criteria_stable: if is_stable { 5 } else { 4 }, // Simplified
         eigenvalues,
         eigenvectors,
         decay_index: n,

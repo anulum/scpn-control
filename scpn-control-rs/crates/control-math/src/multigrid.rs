@@ -160,7 +160,7 @@ fn compute_residual_vector(psi: &Array2<f64>, source: &Array2<f64>, grid: &Grid2
 
     for iz in 1..nz - 1 {
         for ir in 1..nr - 1 {
-            let r = grid.rr[[iz, ir]];
+            let r = grid.r_at(iz, ir);
 
             let c_r_plus = 1.0 / dr_sq - 1.0 / (2.0 * r * dr);
             let c_r_minus = 1.0 / dr_sq + 1.0 / (2.0 * r * dr);

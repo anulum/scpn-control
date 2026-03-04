@@ -154,6 +154,8 @@ mod tests {
             ti,
             ne,
             n_impurity,
+            q: Array1::from_elem(n, 1.0),
+            fpol: Array1::from_elem(n, 1.0),
         }
     }
 
@@ -223,6 +225,8 @@ mod tests {
             ti: Array1::from_elem(n, 0.06),
             ne: Array1::from_elem(n, 2.0e-4),
             n_impurity: Array1::zeros(n),
+            q: Array1::from_elem(n, 1.0),
+            fpol: Array1::from_elem(n, 1.0),
         };
 
         model.apply_elm_crash(&mut profiles);

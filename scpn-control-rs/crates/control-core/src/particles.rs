@@ -32,6 +32,14 @@ const BOLTZMANN_J_PER_KEV: f64 = 1.602_176_634e-16;
 
 use pyo3::prelude::*;
 
+/// Summary of a particle population for diagnostics.
+pub struct ParticleSummary {
+    pub count: usize,
+    pub total_weight: f64,
+    pub max_energy_mev: f64,
+    pub total_current_ma: f64,
+}
+
 /// Charged macro-particle state.
 #[pyclass]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -173,20 +181,6 @@ fn validate_particle_projection_grid(grid: &Grid2D, label: &str) -> FusionResult
             grid.nr,
             grid.z.len(),
             grid.nz
-        )));
-    }
-    if grid.rr.dim() != (grid.nz, grid.nr) || grid.zz.dim() != (grid.nz, grid.nr) {
-        return Err(FusionError::PhysicsViolation(format!(
-            "{label} grid mesh shape mismatch: rr={:?}, zz={:?}, expected=({}, {})",
-            grid.rr.dim(),
-            grid.zz.dim(),
-            grid.nz,
-            grid.nr
-        )));
-    }
-    if grid.rr.iter().any(|v| !v.is_finite()) || grid.zz.iter().any(|v| !v.is_finite()) {
-        return Err(FusionError::PhysicsViolation(format!(
-            "{label} grid mesh coordinates must be finite"
         )));
     }
     if !grid.dr.is_finite() || !grid.dz.is_finite() || grid.dr == 0.0 || grid.dz == 0.0 {
@@ -1278,7 +1272,7 @@ mod tests {
     #[test]
     fn test_blend_particle_current_rejects_non_finite_grid_mesh() {
         let mut grid = Grid2D::new(8, 8, 1.0, 5.0, -2.0, 2.0);
-        grid.rr[[0, 0]] = f64::NAN;
+        grid.r[0] = f64::NAN;
         let fluid = Array2::from_elem((8, 8), 2.0);
         let particle = Array2::from_elem((8, 8), 6.0);
         let err = blend_particle_current(&fluid, &particle, &grid, 1.0, 0.5)

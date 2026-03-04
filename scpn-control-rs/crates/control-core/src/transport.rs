@@ -427,6 +427,8 @@ impl TransportSolver {
                 ti,
                 ne,
                 n_impurity,
+                q: Array1::from_elem(TRANSPORT_NR, 1.0),
+                fpol: Array1::from_elem(TRANSPORT_NR, 1.0),
             },
             chi,
             dt: 0.01,

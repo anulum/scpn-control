@@ -60,23 +60,10 @@ pub fn compute_b_field(
             psi.ncols()
         )));
     }
-    if grid.rr.nrows() != grid.nz || grid.rr.ncols() != grid.nr {
-        return Err(FusionError::ConfigError(format!(
-            "b-field grid.rr shape mismatch: expected ({}, {}), got ({}, {})",
-            grid.nz,
-            grid.nr,
-            grid.rr.nrows(),
-            grid.rr.ncols()
-        )));
-    }
-    if grid.zz.nrows() != grid.nz || grid.zz.ncols() != grid.nr {
-        return Err(FusionError::ConfigError(format!(
-            "b-field grid.zz shape mismatch: expected ({}, {}), got ({}, {})",
-            grid.nz,
-            grid.nr,
-            grid.zz.nrows(),
-            grid.zz.ncols()
-        )));
+    if grid.r.iter().any(|v| !v.is_finite()) || grid.z.iter().any(|v| !v.is_finite()) {
+        return Err(FusionError::ConfigError(
+            "b-field grid coordinates must be finite".to_string(),
+        ));
     }
     if psi.iter().any(|v| !v.is_finite()) {
         return Err(FusionError::ConfigError(
@@ -93,7 +80,7 @@ pub fn compute_b_field(
 
     for iz in 0..nz {
         for ir in 0..nr {
-            let r = grid.rr[[iz, ir]];
+            let r = grid.r_at(iz, ir);
             if !r.is_finite() || r <= 0.0 {
                 return Err(FusionError::ConfigError(format!(
                     "b-field radius must be finite and > 0 at ({iz}, {ir}), got {r}"
@@ -145,8 +132,8 @@ mod tests {
         let grid = Grid2D::new(33, 33, 1.0, 9.0, -5.0, 5.0);
         // Gaussian-like flux
         let psi = Array2::from_shape_fn((33, 33), |(iz, ir)| {
-            let r = grid.rr[[iz, ir]];
-            let z = grid.zz[[iz, ir]];
+            let r = grid.r_at(iz, ir);
+            let z = grid.z_at(iz, ir);
             (-(((r - 5.0).powi(2) + z.powi(2)) / 4.0)).exp()
         });
         let (b_r, b_z) = compute_b_field(&psi, &grid).expect("valid b-field inputs");
@@ -178,7 +165,7 @@ mod tests {
         for iz in 1..15 {
             for ir in 1..15 {
                 assert!(b_r[[iz, ir]].abs() < 0.1, "B_R should be ~0 for Psi=R");
-                let expected_bz = 1.0 / grid.rr[[iz, ir]];
+                let expected_bz = 1.0 / grid.r[ir];
                 let rel_err = (b_z[[iz, ir]] - expected_bz).abs() / expected_bz;
                 assert!(rel_err < 0.15, "B_Z ~ 1/R for Psi=R, got rel_err={rel_err}");
             }

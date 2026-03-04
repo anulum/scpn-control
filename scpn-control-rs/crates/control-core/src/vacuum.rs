@@ -41,25 +41,7 @@ pub fn calculate_vacuum_field(
             "vacuum field grid must have nz,nr >= 1".to_string(),
         ));
     }
-    if grid.rr.nrows() != grid.nz || grid.rr.ncols() != grid.nr {
-        return Err(FusionError::ConfigError(format!(
-            "grid.rr shape mismatch: expected ({}, {}), got ({}, {})",
-            grid.nz,
-            grid.nr,
-            grid.rr.nrows(),
-            grid.rr.ncols()
-        )));
-    }
-    if grid.zz.nrows() != grid.nz || grid.zz.ncols() != grid.nr {
-        return Err(FusionError::ConfigError(format!(
-            "grid.zz shape mismatch: expected ({}, {}), got ({}, {})",
-            grid.nz,
-            grid.nr,
-            grid.zz.nrows(),
-            grid.zz.ncols()
-        )));
-    }
-    if grid.rr.iter().any(|v| !v.is_finite()) || grid.zz.iter().any(|v| !v.is_finite()) {
+    if grid.r.iter().any(|v| !v.is_finite()) || grid.z.iter().any(|v| !v.is_finite()) {
         return Err(FusionError::ConfigError(
             "vacuum field grid coordinates must be finite".to_string(),
         ));
@@ -94,8 +76,8 @@ pub fn calculate_vacuum_field(
 
         for iz in 0..nz {
             for ir in 0..nr {
-                let r = grid.rr[[iz, ir]];
-                let z = grid.zz[[iz, ir]];
+                let r = grid.r_at(iz, ir);
+                let z = grid.z_at(iz, ir);
 
                 let dz = z - zc;
                 let r_plus_rc = r + rc;

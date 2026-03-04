@@ -9,7 +9,8 @@
 
 use crate::jacobian::{compute_analytical_jacobian, compute_fd_jacobian, forward_model_response};
 use crate::kernel::FusionKernel;
-use crate::source::{mtanh_profile, mtanh_profile_derivatives, ProfileParams};
+use crate::source::{self, mtanh_profile, mtanh_profile_derivatives};
+use control_types::config::ProfileParams;
 use control_math::linalg::pinv_svd;
 use control_types::config::ReactorConfig;
 use control_types::error::{FusionError, FusionResult};
@@ -641,8 +642,8 @@ fn kernel_analytical_forward_and_jacobian(
     )?;
     let grid = kernel.grid();
     let psi = kernel.psi();
-    let mu0 = kernel.config().physics.vacuum_permeability;
-    let i_target = kernel.config().physics.plasma_current_target;
+    let mu0 = kernel.config.physics.vacuum_permeability;
+    let i_target = kernel.config.physics.plasma_current_target;
     if !mu0.is_finite() || mu0 <= 0.0 {
         return Err(FusionError::ConfigError(format!(
             "kernel inverse mu0 must be finite and > 0, got {mu0}"
@@ -674,7 +675,7 @@ fn kernel_analytical_forward_and_jacobian(
                 continue;
             }
 
-            let r = validate_radius(grid.rr[[iz, ir]], "kernel inverse in-plasma radius")?;
+            let r = validate_radius(grid.r_at(iz, ir), "kernel inverse in-plasma radius")?;
             let p = mtanh_profile(psi_n, &params_p);
             let ff = mtanh_profile(psi_n, &params_ff);
             let dp_dpsi = mtanh_profile_dpsi_norm(psi_n, &params_p, "params_p")?;
@@ -707,7 +708,7 @@ fn kernel_analytical_forward_and_jacobian(
             if !inside[[iz, ir]] {
                 continue;
             }
-            let r = validate_radius(grid.rr[[iz, ir]], "kernel inverse in-plasma radius")?;
+            let r = validate_radius(grid.r_at(iz, ir), "kernel inverse in-plasma radius")?;
             let dj_dpsi = scale * raw_dpsi_norm[[iz, ir]] / flux_denom;
             ds_dpsi[[iz, ir]] = -mu0 * r * dj_dpsi;
         }
@@ -726,7 +727,7 @@ fn kernel_analytical_forward_and_jacobian(
                 }
 
                 let psi_n = psi_norm[[iz, ir]];
-                let r = validate_radius(grid.rr[[iz, ir]], "kernel inverse in-plasma radius")?;
+                let r = validate_radius(grid.r_at(iz, ir), "kernel inverse in-plasma radius")?;
                 if col < 4 {
                     let dp = mtanh_profile_derivatives(psi_n, &params_p)[col];
                     d_raw[[iz, ir]] = SOURCE_BETA_MIX * r * dp;
@@ -744,7 +745,7 @@ fn kernel_analytical_forward_and_jacobian(
                 if !inside[[iz, ir]] {
                     continue;
                 }
-                let r = validate_radius(grid.rr[[iz, ir]], "kernel inverse in-plasma radius")?;
+                let r = validate_radius(grid.r_at(iz, ir), "kernel inverse in-plasma radius")?;
                 let dj = scale * (d_raw[[iz, ir]] - raw[[iz, ir]] * d_i / i_raw);
                 ds_dx[[iz, ir]] = -mu0 * r * dj;
             }
@@ -842,16 +843,17 @@ pub fn reconstruct_equilibrium(
             break;
         }
 
-        let jac = match config.jacobian_mode {
+        let jac_matrix = match config.jacobian_mode {
             JacobianMode::Analytical => {
-                compute_analytical_jacobian(&params_p, &params_ff, probe_psi_norm)
+                compute_analytical_jacobian(probe_psi_norm, &params_p, &params_ff)?
             }
             JacobianMode::FiniteDifference => {
-                compute_fd_jacobian(&params_p, &params_ff, probe_psi_norm, config.fd_step)
+                compute_fd_jacobian(probe_psi_norm, &params_p, &params_ff, config.fd_step)?
             }
-        }?;
+        };
 
-        let j = to_array2(&jac, N_PARAMS, "inverse jacobian")?;
+
+        let j = to_array2(&jac_matrix, N_PARAMS, "inverse jacobian")?;
         let delta = compute_lm_delta(&j, &residual_vec, config.tikhonov, "inverse.delta")?;
 
         let mut accepted = false;

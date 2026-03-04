@@ -116,6 +116,14 @@ impl PyFusionKernel {
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
+    /// Calculate the vacuum magnetic flux from the external coil set.
+    fn calculate_vacuum_field<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let mu0 = 4.0 * std::f64::consts::PI * 1e-7; // Default mu0
+        let psi_vac = control_core::vacuum::calculate_vacuum_field(self.inner.grid(), self.inner.coils(), mu0)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        Ok(psi_vac.into_pyarray(py))
+    }
+
     fn sample_psi_at(&self, r: f64, z: f64) -> PyResult<f64> {
         self.inner
             .sample_psi_at(r, z)

@@ -79,7 +79,7 @@ pub fn sor_residual(psi: &Array2<f64>, source: &Array2<f64>, grid: &Grid2D) -> f
 
     for iz in 1..nz - 1 {
         for ir in 1..nr - 1 {
-            let r = grid.rr[[iz, ir]];
+            let r = grid.r_at(iz, ir);
 
             let c_r_plus = 1.0 / dr_sq - 1.0 / (2.0 * r * dr);
             let c_r_minus = 1.0 / dr_sq + 1.0 / (2.0 * r * dr);
@@ -120,7 +120,7 @@ fn update_point(
     dr: f64,
     omega: f64,
 ) {
-    let r = grid.rr[[iz, ir]];
+    let r = grid.r_at(iz, ir);
 
     // Elliptic operator stencil (5-point) with 1/R toroidal correction
     let c_r_plus = 1.0 / dr_sq - 1.0 / (2.0 * r * dr);

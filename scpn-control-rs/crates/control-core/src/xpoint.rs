@@ -15,6 +15,22 @@ use control_types::error::{FusionError, FusionResult};
 use control_types::state::Grid2D;
 use ndarray::Array2;
 
+/// Find the magnetic axis (minimum flux point).
+pub fn find_axis(psi: &Array2<f64>, grid: &Grid2D) -> FusionResult<((f64, f64), f64)> {
+    let mut best_val = f64::INFINITY;
+    let mut best_pos = (0.0, 0.0);
+    for iz in 0..grid.nz {
+        for ir in 0..grid.nr {
+            let val = psi[[iz, ir]];
+            if val < best_val {
+                best_val = val;
+                best_pos = (grid.r_at(iz, ir), grid.z_at(iz, ir));
+            }
+        }
+    }
+    Ok((best_pos, best_val))
+}
+
 /// Find the X-point (magnetic null) in the lower divertor region.
 ///
 /// Algorithm:
@@ -82,7 +98,7 @@ pub fn find_x_point(
 
     for iz in 0..nz {
         for ir in 0..nr {
-            let z = grid.zz[[iz, ir]];
+            let z = grid.z_at(iz, ir);
 
             // Only search in divertor region (Z < Z_min * 0.5)
             if z < z_threshold {
@@ -130,8 +146,8 @@ mod tests {
         let grid = Grid2D::new(33, 33, 1.0, 9.0, -5.0, 5.0);
         // Create a simple field with a null at (5.0, -2.5)
         let psi = Array2::from_shape_fn((33, 33), |(iz, ir)| {
-            let r = grid.rr[[iz, ir]];
-            let z = grid.zz[[iz, ir]];
+            let r = grid.r_at(iz, ir);
+            let z = grid.z_at(iz, ir);
             // Saddle point-like field
             (r - 5.0).powi(2) - (z + 2.5).powi(2)
         });
@@ -153,8 +169,8 @@ mod tests {
     fn test_find_x_point_rejects_invalid_runtime_inputs() {
         let grid = Grid2D::new(33, 33, 1.0, 9.0, -5.0, 5.0);
         let psi = Array2::from_shape_fn((33, 33), |(iz, ir)| {
-            let r = grid.rr[[iz, ir]];
-            let z = grid.zz[[iz, ir]];
+            let r = grid.r_at(iz, ir);
+            let z = grid.z_at(iz, ir);
             (r - 5.0).powi(2) - (z + 2.5).powi(2)
         });
 
@@ -179,8 +195,8 @@ mod tests {
     fn test_find_x_point_result_finite() {
         let grid = Grid2D::new(33, 33, 1.0, 9.0, -5.0, 5.0);
         let psi = Array2::from_shape_fn((33, 33), |(iz, ir)| {
-            let r = grid.rr[[iz, ir]];
-            let z = grid.zz[[iz, ir]];
+            let r = grid.r_at(iz, ir);
+            let z = grid.z_at(iz, ir);
             (r - 5.0).powi(2) - (z + 2.5).powi(2)
         });
         let ((r_x, z_x), psi_x) = find_x_point(&psi, &grid, -5.0).unwrap();
