@@ -755,6 +755,51 @@ fn py_multigrid_solve<'py>(
     Ok(psi_out.into_pyarray(py))
 }
 
+#[pyclass]
+struct PyUpdeTick {
+    #[pyo3(get)]
+    theta_flat: Py<PyArray1<f64>>,
+    #[pyo3(get)]
+    r_layer: Py<PyArray1<f64>>,
+    #[pyo3(get)]
+    v_layer: Py<PyArray1<f64>>,
+    #[pyo3(get)]
+    r_global: f64,
+}
+
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn upde_tick<'py>(
+    py: Python<'py>,
+    theta_flat: PyReadonlyArray1<'py, f64>,
+    omega_flat: PyReadonlyArray1<'py, f64>,
+    knm_flat: PyReadonlyArray1<'py, f64>,
+    alpha_flat: PyReadonlyArray1<'py, f64>,
+    zeta: PyReadonlyArray1<'py, f64>,
+    n_layers: usize,
+    n_per: usize,
+    dt: f64,
+    psi_driver: f64,
+    pac_gamma: f64,
+) -> PyResult<PyUpdeTick> {
+    let th = theta_flat.as_slice()?;
+    let om = omega_flat.as_slice()?;
+    let knm = knm_flat.as_slice()?;
+    let alph = alpha_flat.as_slice()?;
+    let z = zeta.as_slice()?;
+
+    let res = kuramoto::upde_tick(
+        th, om, knm, alph, z, n_layers, n_per, dt, psi_driver, pac_gamma,
+    );
+
+    Ok(PyUpdeTick {
+        theta_flat: Array1::from_vec(res.theta_flat).into_pyarray(py).unbind(),
+        r_layer: Array1::from_vec(res.r_layer).into_pyarray(py).unbind(),
+        v_layer: Array1::from_vec(res.v_layer).into_pyarray(py).unbind(),
+        r_global: res.r_global,
+    })
+}
+
 #[pyfunction]
 fn scpn_sample_firing<'py>(
     py: Python<'py>,
@@ -812,6 +857,8 @@ fn scpn_sample_firing<'py>(
 fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
     m.add_class::<PyFusionKernel>()?;
     m.add_class::<PyEquilibriumResult>()?;
+    m.add_class::<PyUpdeTick>()?;
+    m.add_function(wrap_pyfunction!(upde_tick, m)?)?;
     m.add_function(wrap_pyfunction!(scpn_dense_activations, m)?)?;
     m.add_function(wrap_pyfunction!(scpn_marking_update, m)?)?;
     m.add_function(wrap_pyfunction!(scpn_sample_firing, m)?)?;
