@@ -123,6 +123,30 @@ OMEGA_PLASMA_8 = np.array(
     dtype=np.float64,
 )
 
+# ── 16-layer plasma natural frequencies (refined) ──────────────────
+
+OMEGA_PLASMA_16 = np.array(
+    [
+        9.20,  # micro_turbulence_itg
+        8.80,  # micro_turbulence_tem
+        5.80,  # zonal_flow_shear
+        5.40,  # geodesic_acoustic_mode (GAM)
+        5.00,  # mhd_tearing_islands
+        4.60,  # mhd_resistive_wall
+        3.40,  # sawtooth_reconnection
+        2.80,  # elm_peeling_ballooning
+        2.50,  # transport_barrier_pedestal
+        2.20,  # transport_barrier_itb
+        0.95,  # current_profile_ohmic
+        0.75,  # current_profile_bootstrap
+        0.70,  # global_equilibrium_gs
+        0.65,  # global_equilibrium_shape
+        0.22,  # plasma_wall_sputtering
+        0.12,  # plasma_wall_recycling
+    ],
+    dtype=np.float64,
+)
+
 
 # ── Coupling matrix builders ────────────────────────────────────────
 
@@ -288,16 +312,21 @@ def plasma_omega(L: int = 8) -> NDArray[np.float64]:
     """Return natural frequencies for L plasma layers.
 
     For L <= 8, returns OMEGA_PLASMA_8[:L].
-    For L > 8, interpolates log-linearly between the fastest (P0)
+    For L == 16, returns OMEGA_PLASMA_16.
+    For other L > 8, interpolates log-linearly between the fastest (P0)
     and slowest (P7) process timescales.
     """
     if L <= 8:
         return OMEGA_PLASMA_8[:L].copy()
+    if L == 16:
+        return OMEGA_PLASMA_16.copy()
+
     # Log-linear interpolation across the timescale range
     return np.logspace(
         np.log10(OMEGA_PLASMA_8[0]),
         np.log10(OMEGA_PLASMA_8[-1]),
-        L,
+        num=L,
+        base=10.0,
     )
 
 
