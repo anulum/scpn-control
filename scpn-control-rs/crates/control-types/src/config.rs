@@ -86,12 +86,22 @@ pub struct CoilConfig {
     pub current: f64,
 }
 
+fn default_solver_method() -> String {
+    "sor".to_string()
+}
+
+fn default_sor_omega() -> f64 {
+    1.8
+}
+
 /// Linear solver configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SolverConfig {
+    #[serde(default = "default_solver_method")]
     pub solver_method: String,
     pub max_iterations: usize,
     pub convergence_threshold: f64,
+    #[serde(default = "default_sor_omega")]
     pub sor_omega: f64,
 }
 
@@ -138,20 +148,20 @@ mod tests {
             .join("test_data")
             .join("default_config.json");
         let cfg = ReactorConfig::from_file(path).unwrap();
-        assert_eq!(cfg.reactor_name, "ITER-Like");
+        assert_eq!(cfg.reactor_name, "SCPN-Standard-Model");
     }
 
     #[test]
     fn test_load_iter_config() {
         let cfg = ReactorConfig::from_file(&config_path("iter_config.json")).unwrap();
-        assert_eq!(cfg.reactor_name, "ITER-Like");
+        assert_eq!(cfg.reactor_name, "ITER-Like-Demo");
     }
 
     #[test]
     fn test_load_validated_config() {
         let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
             .unwrap();
-        assert_eq!(cfg.reactor_name, "ITER-V1");
+        assert_eq!(cfg.reactor_name, "ITER-Validated");
     }
 
     #[test]

@@ -147,7 +147,7 @@ class TestIPB98y2Formula:
     def test_with_uncertainty_rejects_non_finite_propagated_sigma(self):
         """Propagated uncertainty must stay finite; overflow should hard-fail."""
         coeff = load_ipb98y2_coefficients(_COEFF_PATH)
-        coeff["exponent_uncertainties"] = {"Ip_MA": 1e308}
+        coeff["uncertainties_1sigma"] = {"Ip_MA": 1e308}
         with pytest.raises(ValueError, match="sigma_tau"):
             ipb98y2_with_uncertainty(
                 Ip=15.0,
@@ -167,10 +167,10 @@ class TestIPB98y2Formula:
     ):
         """Coefficient loader should reject negative exponent uncertainty."""
         coeff = load_ipb98y2_coefficients(_COEFF_PATH)
-        coeff["exponent_uncertainties"] = {"Ip_MA": -0.01}
+        coeff["uncertainties_1sigma"] = {"Ip_MA": -0.01}
         path = tmp_path / "bad_coeff_negative_uncertainty.json"
         path.write_text(json.dumps(coeff), encoding="utf-8")
-        with pytest.raises(ValueError, match="exponent_uncertainties.Ip_MA"):
+        with pytest.raises(ValueError, match="uncertainties_1sigma.Ip_MA"):
             load_ipb98y2_coefficients(path)
 
     def test_tau_monotonic_in_ip(self):

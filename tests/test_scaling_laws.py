@@ -206,20 +206,20 @@ class TestValidateIPB98y2Coefficients:
 
     def test_validates_exponent_uncertainties(self):
         raw = self._minimal_valid()
-        raw["exponent_uncertainties"] = {"Ip_MA": 0.02, "BT_T": 0.04}
+        raw["uncertainties_1sigma"] = {"Ip_MA": 0.02, "BT_T": 0.04}
         result = _validate_ipb98y2_coefficients(raw)
-        assert result["exponent_uncertainties"]["Ip_MA"] == pytest.approx(0.02)
+        assert result["uncertainties_1sigma"]["Ip_MA"] == pytest.approx(0.02)
 
     def test_rejects_negative_exponent_uncertainty(self):
         raw = self._minimal_valid()
-        raw["exponent_uncertainties"] = {"Ip_MA": -0.01}
-        with pytest.raises(ValueError, match="exponent_uncertainties.Ip_MA"):
+        raw["uncertainties_1sigma"] = {"Ip_MA": -0.01}
+        with pytest.raises(ValueError, match="uncertainties_1sigma.Ip_MA"):
             _validate_ipb98y2_coefficients(raw)
 
     def test_rejects_non_dict_exponent_uncertainties(self):
         raw = self._minimal_valid()
-        raw["exponent_uncertainties"] = "bad"
-        with pytest.raises(ValueError, match="exponent_uncertainties must be an object"):
+        raw["uncertainties_1sigma"] = []
+        with pytest.raises(ValueError, match="uncertainties_1sigma must be an object"):
             _validate_ipb98y2_coefficients(raw)
 
 

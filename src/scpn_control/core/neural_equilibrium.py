@@ -316,8 +316,8 @@ class NeuralEquilibriumAccelerator:
 
         # ── Train/val/test split (70/15/15) ────────────────────────
         indices = rng.permutation(n_samples)
-        n_train = int(0.70 * n_samples)
-        n_val = int(0.15 * n_samples)
+        n_val = max(1, int(0.15 * n_samples)) if n_samples >= 3 else 0
+        n_train = n_samples - n_val - (1 if n_samples >= 3 else 0)
         train_idx = indices[:n_train]
         val_idx = indices[n_train : n_train + n_val]
         test_idx = indices[n_train + n_val :]
@@ -345,7 +345,7 @@ class NeuralEquilibriumAccelerator:
         self.mlp = SimpleMLP(layer_sizes, seed=seed)
 
         # Mini-batch SGD with momentum
-        lr = 1e-3
+        lr = 1e-4
         momentum = 0.9
         n_epochs = 500
         batch_size = min(32, len(X_train))
@@ -392,14 +392,15 @@ class NeuralEquilibriumAccelerator:
 
                 epoch_loss += loss * len(idx)
 
-                # Backprop (on MSE part; GS is treated as a monitoring
-                # penalty — its gradient flows implicitly through the
-                # PCA reconstruction but we approximate with MSE grads
-                # to keep pure-NumPy backprop tractable)
+                # Backprop
                 delta = 2.0 * error / len(idx)
                 for i in range(len(self.mlp.weights) - 1, -1, -1):
                     grad_w = activations[i].T @ delta
                     grad_b = delta.sum(axis=0)
+
+                    # Gradient clipping to prevent explosive gradients
+                    np.clip(grad_w, -1.0, 1.0, out=grad_w)
+                    np.clip(grad_b, -1.0, 1.0, out=grad_b)
 
                     velocity[i] = momentum * velocity[i] - lr * grad_w
                     velocity_b[i] = momentum * velocity_b[i] - lr * grad_b
@@ -417,14 +418,17 @@ class NeuralEquilibriumAccelerator:
                 best_train_loss = epoch_loss
 
             # ── Validation loss (MSE + lambda_gs * GS) ────────────
-            val_pred = self.mlp.forward(X_val)
-            val_mse = float(np.mean((val_pred - Y_val) ** 2))
-            val_gs = 0.0
-            for row in range(len(X_val)):
-                psi_pred_flat = self.pca.inverse_transform(val_pred[row : row + 1])[0]
-                val_gs += self._gs_residual_loss(psi_pred_flat, self.cfg.grid_shape)
-            val_gs /= max(len(X_val), 1)
-            val_loss = val_mse + self.cfg.lambda_gs * val_gs
+            if len(X_val) > 0:
+                val_pred = self.mlp.forward(X_val)
+                val_mse = float(np.mean((val_pred - Y_val) ** 2))
+                val_gs = 0.0
+                for row in range(len(X_val)):
+                    psi_pred_flat = self.pca.inverse_transform(val_pred[row : row + 1])[0]
+                    val_gs += self._gs_residual_loss(psi_pred_flat, self.cfg.grid_shape)
+                val_gs /= len(X_val)
+                val_loss = val_mse + self.cfg.lambda_gs * val_gs
+            else:
+                val_loss = epoch_loss
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss

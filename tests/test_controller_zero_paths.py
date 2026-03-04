@@ -123,8 +123,8 @@ class TestZeroActions:
         assert ctrl._action_count == 0
         obs = {"R_axis_m": 6.2, "Z_axis_m": 0.0}
         actions = ctrl.step(obs, k=0)
-        assert actions["dI_PF3_A"] == 0.0
-        assert actions["dI_PF_topbot_A"] == 0.0
+        assert len(actions) == 0
+        assert "dI_PF3_A" not in actions
 
     def test_decode_actions_vector_empty(self, tmp_path):
         """_decode_actions_vector returns empty array (line 785)."""
