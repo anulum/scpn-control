@@ -14,6 +14,7 @@ control-types = { path = "../control-types" }
 control-math = { path = "../control-math" }
 control-core = { path = "../control-core" }
 ndarray = { workspace = true }
+ndarray-linalg = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 

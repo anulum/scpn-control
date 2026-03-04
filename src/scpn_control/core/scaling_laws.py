@@ -117,17 +117,17 @@ def _validate_ipb98y2_coefficients(raw: Any) -> dict[str, Any]:
             raise ValueError(f"sigma_lnC must be >= 0, got {sigma_lnc!r}")
         normalized["sigma_lnC"] = sigma_lnc
 
-    if "exponent_uncertainties" in normalized:
-        unc_raw = normalized["exponent_uncertainties"]
+    if "uncertainties_1sigma" in normalized:
+        unc_raw = normalized["uncertainties_1sigma"]
         if not isinstance(unc_raw, dict):
-            raise ValueError("exponent_uncertainties must be an object")
+            raise ValueError("uncertainties_1sigma must be an object")
         uncertainties: dict[str, float] = {}
         for key, value in unc_raw.items():
-            sigma = _require_finite_number(f"exponent_uncertainties.{key}", value)
+            sigma = _require_finite_number(f"uncertainties_1sigma.{key}", value)
             if sigma < 0.0:
-                raise ValueError(f"exponent_uncertainties.{key} must be >= 0, got {sigma!r}")
+                raise ValueError(f"uncertainties_1sigma.{key} must be >= 0, got {sigma!r}")
             uncertainties[key] = sigma
-        normalized["exponent_uncertainties"] = uncertainties
+        normalized["uncertainties_1sigma"] = uncertainties
 
     return normalized
 
@@ -280,15 +280,15 @@ def ipb98y2_with_uncertainty(
     # Published exponent uncertainties (Verdoolaege et al. NF 2021)
     # These are 1-sigma uncertainties on the log-space exponents.
     exp_unc = coeff.get(
-        "exponent_uncertainties",
+        "uncertainties_1sigma",
         {
-            "Ip_MA": 0.02,
-            "BT_T": 0.04,
-            "ne19_1e19m3": 0.03,
+            "Ip_MA": 0.03,
+            "BT_T": 0.05,
+            "ne19_1e19m3": 0.04,
             "Ploss_MW": 0.02,
-            "R_m": 0.09,
-            "kappa": 0.08,
-            "epsilon": 0.07,
+            "R_m": 0.08,
+            "kappa": 0.07,
+            "epsilon": 0.06,
             "M_AMU": 0.04,
         },
     )

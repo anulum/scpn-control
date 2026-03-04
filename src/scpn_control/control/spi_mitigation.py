@@ -175,7 +175,7 @@ class ShatteredPelletInjection:
                 P_rad = 1e9 * (self.Z_eff**0.5) * (self.Te / 1.0) ** 0.5
                 dW = -P_rad * dt
                 prev_W = self.W_th
-                self.W_th += dW
+                self.W_th = max(0.0, self.W_th + dW)
                 denom = max(prev_W - dW, 1e-12)
                 self.Te = max(0.01, self.Te * (self.W_th / denom))
 

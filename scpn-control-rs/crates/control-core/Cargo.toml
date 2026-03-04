@@ -16,6 +16,8 @@ default = []
 control-types = { path = "../control-types" }
 control-math = { path = "../control-math" }
 ndarray = { workspace = true }
+ndarray-linalg = { workspace = true }
+pyo3 = { workspace = true }
 rayon = { workspace = true }
 log = { workspace = true }
 

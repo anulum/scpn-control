@@ -41,20 +41,64 @@ def demo(scenario: str, steps: int, json_out: bool):
     """Run a closed-loop control demo."""
     from scpn_control.scpn.compiler import FusionCompiler
     from scpn_control.scpn.structure import StochasticPetriNet
+    from scpn_control.scpn.controller import NeuroSymbolicController
+    from scpn_control.scpn.contracts import ControlTargets, ControlScales, FeatureAxisSpec
 
+    # Build a simple control Petri Net
     net = StochasticPetriNet()
-    net.add_place("plasma_state", initial_tokens=1.0)
-    net.add_place("control_signal", initial_tokens=0.0)
-    net.add_place("actuator_response", initial_tokens=0.0)
-    net.add_transition("sense", threshold=0.5)
-    net.add_transition("actuate", threshold=0.5)
-    net.add_arc("plasma_state", "sense", weight=1.0)
-    net.add_arc("sense", "control_signal", weight=1.0)
-    net.add_arc("control_signal", "actuate", weight=1.0)
-    net.add_arc("actuate", "actuator_response", weight=1.0)
+    # Observation places (axis-based error mapping)
+    net.add_place("x_err_pos", initial_tokens=0.0) # idx 0
+    net.add_place("x_err_neg", initial_tokens=0.0) # idx 1
+    # Action places
+    net.add_place("a_ctrl_pos", initial_tokens=0.0) # idx 2
+    net.add_place("a_ctrl_neg", initial_tokens=0.0) # idx 3
+    
+    # Logic: if error is positive, fire positive control
+    net.add_transition("t_pos", threshold=0.01)
+    net.add_arc("x_err_pos", "t_pos", weight=0.1)
+    net.add_arc("t_pos", "a_ctrl_pos", weight=0.1)
+    
+    # Logic: if error is negative, fire negative control
+    net.add_transition("t_neg", threshold=0.01)
+    net.add_arc("x_err_neg", "t_neg", weight=0.1)
+    net.add_arc("t_neg", "a_ctrl_neg", weight=0.1)
 
     compiler = FusionCompiler()
     compiled = compiler.compile(net)
+    
+    # Create the controller with mapping
+    artifact = compiled.export_artifact(
+        name="demo_controller",
+        injection_config=[
+            {"place_id": 0, "source": "x_err_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+            {"place_id": 1, "source": "x_err_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+        ],
+        readout_config={
+            "actions": [{"name": "ctrl", "pos_place": 2, "neg_place": 3}],
+            "gains": [0.2],
+            "abs_max": [1.0],
+        }
+    )
+    
+    # Map a generic 'error' feature to our places
+    feat_axes = [
+        FeatureAxisSpec(
+            obs_key="err",
+            target=1.0, # target state
+            scale=1.0,
+            pos_key="x_err_pos",
+            neg_key="x_err_neg",
+        )
+    ]
+    
+    controller = NeuroSymbolicController(
+        artifact, 
+        seed_base=42, 
+        targets=ControlTargets(R_target_m=1.0, Z_target_m=0.0),
+        scales=ControlScales(R_scale_m=1.0, Z_scale_m=1.0),
+        feature_axes=feat_axes,
+        sc_binary_margin=0.0
+    )
 
     rng = np.random.default_rng(42)
     target = 1.0
@@ -62,11 +106,25 @@ def demo(scenario: str, steps: int, json_out: bool):
     trajectory = []
 
     for step in range(steps):
-        error = target - state
-        # Simple proportional control
-        action = 0.1 * error + 0.01 * rng.standard_normal()
-        state = state + action
+        # The controller internal logic: 
+        # 1. Takes 'err' observation
+        # 2. Subtracts target (1.0) -> if state is 0.5, err_val is 0.5. 
+        #    Wait, obs is usually the measured value.
+        #    Controller computes: feature_err = target - measurement
+        
+        obs = {"err": float(state)}
+        actions = controller.step(obs, step)
+        action = float(actions.get("ctrl", 0.0))
+        
+        if scenario == "pid":
+            # Override with PID for comparison
+            action = 0.1 * (target - state) + 0.01 * rng.standard_normal()
+        elif scenario == "combined":
+            action += 0.05 * (target - state)
+        
+        state += action
         state = np.clip(state, 0.0, 2.0)
+        error = target - state
         trajectory.append({"step": step, "state": float(state), "error": float(error)})
 
     final_error = abs(trajectory[-1]["error"])

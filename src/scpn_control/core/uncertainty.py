@@ -24,31 +24,32 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-# IPB98(y,2) scaling: τ_E = C · I_p^α_I · B^α_B · P^α_P · n^α_n · R^α_R · A^α_A · κ^α_κ · M^α_M
-# Central values from ITER Physics Basis
+from scpn_control.core.scaling_laws import load_ipb98y2_coefficients
+
+# Load central values and uncertainties from the global registry
+_COEFFS = load_ipb98y2_coefficients()
 IPB98_CENTRAL = {
-    "C": 0.0562,
-    "alpha_I": 0.93,
-    "alpha_B": 0.15,
-    "alpha_P": -0.69,
-    "alpha_n": 0.41,
-    "alpha_R": 1.97,
-    "alpha_A": -0.58,
-    "alpha_kappa": 0.78,
-    "alpha_M": 0.19,
+    "C": _COEFFS["C"],
+    "alpha_I": _COEFFS["exponents"]["Ip_MA"],
+    "alpha_B": _COEFFS["exponents"]["BT_T"],
+    "alpha_P": _COEFFS["exponents"]["Ploss_MW"],
+    "alpha_n": _COEFFS["exponents"]["ne19_1e19m3"],
+    "alpha_R": _COEFFS["exponents"]["R_m"],
+    "alpha_A": -_COEFFS["exponents"]["epsilon"], # ε = a/R = 1/A
+    "alpha_kappa": _COEFFS["exponents"]["kappa"],
+    "alpha_M": _COEFFS["exponents"]["M_AMU"],
 }
 
-# 1-sigma uncertainties (from Verdoolaege 2021 Bayesian regression)
 IPB98_SIGMA = {
-    "C": 0.008,
-    "alpha_I": 0.04,
-    "alpha_B": 0.05,
-    "alpha_P": 0.03,
-    "alpha_n": 0.04,
-    "alpha_R": 0.08,
-    "alpha_A": 0.05,
-    "alpha_kappa": 0.06,
-    "alpha_M": 0.05,
+    "C": _COEFFS["uncertainties_1sigma"]["C"],
+    "alpha_I": _COEFFS["uncertainties_1sigma"]["Ip_MA"],
+    "alpha_B": _COEFFS["uncertainties_1sigma"]["BT_T"],
+    "alpha_P": _COEFFS["uncertainties_1sigma"]["Ploss_MW"],
+    "alpha_n": _COEFFS["uncertainties_1sigma"]["ne19_1e19m3"],
+    "alpha_R": _COEFFS["uncertainties_1sigma"]["R_m"],
+    "alpha_A": _COEFFS["uncertainties_1sigma"]["epsilon"],
+    "alpha_kappa": _COEFFS["uncertainties_1sigma"]["kappa"],
+    "alpha_M": _COEFFS["uncertainties_1sigma"]["M_AMU"],
 }
 
 

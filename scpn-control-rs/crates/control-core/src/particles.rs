@@ -30,18 +30,59 @@ const PROTON_MASS_KG: f64 = 1.672_621_923_69e-27;
 const VACUUM_PERMITTIVITY: f64 = 8.854_187_812_8e-12;
 const BOLTZMANN_J_PER_KEV: f64 = 1.602_176_634e-16;
 
+use pyo3::prelude::*;
+
 /// Charged macro-particle state.
+#[pyclass]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChargedParticle {
+    #[pyo3(get, set)]
     pub x_m: f64,
+    #[pyo3(get, set)]
     pub y_m: f64,
+    #[pyo3(get, set)]
     pub z_m: f64,
+    #[pyo3(get, set)]
     pub vx_m_s: f64,
+    #[pyo3(get, set)]
     pub vy_m_s: f64,
+    #[pyo3(get, set)]
     pub vz_m_s: f64,
+    #[pyo3(get, set)]
     pub charge_c: f64,
+    #[pyo3(get, set)]
     pub mass_kg: f64,
+    #[pyo3(get, set)]
     pub weight: f64,
+}
+
+#[pymethods]
+impl ChargedParticle {
+    #[new]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        x_m: f64,
+        y_m: f64,
+        z_m: f64,
+        vx_m_s: f64,
+        vy_m_s: f64,
+        vz_m_s: f64,
+        charge_c: f64,
+        mass_kg: f64,
+        weight: f64,
+    ) -> Self {
+        Self {
+            x_m,
+            y_m,
+            z_m,
+            vx_m_s,
+            vy_m_s,
+            vz_m_s,
+            charge_c,
+            mass_kg,
+            weight,
+        }
+    }
 }
 
 impl ChargedParticle {
@@ -534,7 +575,8 @@ pub fn deposit_toroidal_current_density(
         let ir = nearest_index(&grid.r, r, "particle current R-axis")?;
         let iz = nearest_index(&grid.z, z, "particle current Z-axis")?;
         let v_phi = particle.toroidal_velocity_m_s();
-        let j_contrib = particle.charge_c * particle.weight * v_phi / area;
+        let j_contrib = (particle.charge_c * particle.weight * v_phi)
+            / (2.0 * std::f64::consts::PI * r * area);
         if !j_contrib.is_finite() {
             return Err(FusionError::PhysicsViolation(format!(
                 "particle[{idx}] toroidal current contribution became non-finite"
@@ -1515,5 +1557,34 @@ mod tests {
             assert!((dot(e1, e1).sqrt() - 1.0).abs() < 1e-10);
             assert!((dot(e2, e2).sqrt() - 1.0).abs() < 1e-10);
         }
+    }
+
+    #[test]
+    fn test_deposit_toroidal_current_integral_reproduce_o002() {
+        // Reproduce O-002: Missing 2*PI*R factor in current deposition.
+        let grid = Grid2D::new(101, 101, 1.0, 9.0, -5.0, 5.0);
+        let p = ChargedParticle {
+            x_m: 5.0,
+            y_m: 0.0,
+            z_m: 0.0,
+            vx_m_s: 0.0,
+            vy_m_s: 1.0,
+            vz_m_s: 0.0,
+            charge_c: 1.0,
+            mass_kg: 1.0,
+            weight: 1.0,
+        };
+        
+        let particles = vec![p];
+        let j_phi = deposit_toroidal_current_density(&particles, &grid).unwrap();
+        
+        let total_current = j_phi.sum() * grid.dr * grid.dz;
+        let expected_current = 1.0 / (2.0 * std::f64::consts::PI * 5.0);
+        
+        println!("Total Current (deposited): {}", total_current);
+        println!("Expected Current (physical): {}", expected_current);
+        
+        // After fix: total_current should match expected_current
+        assert!((total_current - expected_current).abs() < 1e-10, "Physical bug fixed: total current should match expected");
     }
 }
