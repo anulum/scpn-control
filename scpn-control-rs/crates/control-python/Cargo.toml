@@ -22,4 +22,4 @@ pyo3 = { workspace = true }
 numpy = { workspace = true }
 ndarray = { workspace = true }
 rand = { workspace = true }
-rand_chacha = "0.3"
+rand_chacha = "0.10"
