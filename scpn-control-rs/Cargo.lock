@@ -226,7 +226,7 @@ dependencies = [
  "control-math",
  "control-types",
  "criterion",
- "ndarray",
+ "ndarray 0.16.1",
  "ndarray-linalg",
  "rand",
  "rand_distr",
@@ -240,7 +240,7 @@ dependencies = [
  "control-types",
  "criterion",
  "log",
- "ndarray",
+ "ndarray 0.16.1",
  "ndarray-linalg",
  "pyo3",
  "rayon",
@@ -253,7 +253,7 @@ dependencies = [
  "approx 0.5.1",
  "control-types",
  "criterion",
- "ndarray",
+ "ndarray 0.16.1",
  "ndarray-linalg",
  "num-complex",
  "rayon",
@@ -264,7 +264,7 @@ dependencies = [
 name = "control-types"
 version = "0.1.0"
 dependencies = [
- "ndarray",
+ "ndarray 0.16.1",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -969,6 +969,21 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rawpointer",
+]
+
+[[package]]
+name = "ndarray"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "882ed72dce9365842bf196bdeedf5055305f11fc8c03dee7bb0194a6cad34841"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "portable-atomic",
+ "portable-atomic-util",
+ "rawpointer",
  "serde",
 ]
 
@@ -981,7 +996,7 @@ dependencies = [
  "cauchy",
  "katexit",
  "lax",
- "ndarray",
+ "ndarray 0.15.6",
  "num-complex",
  "num-traits",
  "rand",
@@ -1025,7 +1040,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7cfbf3f0feededcaa4d289fe3079b03659e85c5b5a177f4ba6fb01ab4fb3e39"
 dependencies = [
  "libc",
- "ndarray",
+ "ndarray 0.16.1",
  "num-complex",
  "num-integer",
  "num-traits",
@@ -1149,6 +1164,15 @@ name = "portable-atomic"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
+
+[[package]]
+name = "portable-atomic-util"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a9db96d7fa8782dd8c15ce32ffe8680bbd1e978a43bf51a34d39483540495f5"
+dependencies = [
+ "portable-atomic",
+]
 
 [[package]]
 name = "potential_utf"
@@ -1516,7 +1540,7 @@ dependencies = [
  "control-core",
  "control-math",
  "control-types",
- "ndarray",
+ "ndarray 0.16.1",
  "numpy",
  "pyo3",
  "rand",

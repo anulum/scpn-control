@@ -14,7 +14,7 @@ license = "MIT OR Apache-2.0"
 edition = "2021"
 
 [workspace.dependencies]
-ndarray = { version = "0.15", features = ["serde"] }
+ndarray = { version = "0.16", features = ["serde"] }
 nalgebra = "0.33"
 rayon = "1.10"
 serde = { version = "1.0", features = ["derive"] }
