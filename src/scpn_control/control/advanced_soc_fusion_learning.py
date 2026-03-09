@@ -21,6 +21,11 @@ except ImportError:
 import numpy as np
 
 from scpn_control.control import normalize_bounds
+from scpn_control.core._validators import (
+    require_bounded_float,
+    require_fraction,
+    require_non_negative_float,
+)
 
 # --- ADVANCED PHYSICS PARAMETERS ---
 L = 60
@@ -63,15 +68,9 @@ class CoupledSandpileReactor:
             raise ValueError("size must be >= 8.")
         self.size = size
         self.z_crit_base = float(z_crit_base)
-        flow_generation = float(flow_generation)
-        if not np.isfinite(flow_generation) or flow_generation < 0.0:
-            raise ValueError("flow_generation must be finite and >= 0.")
-        flow_damping = float(flow_damping)
-        if not np.isfinite(flow_damping) or flow_damping < 0.0 or flow_damping >= 1.0:
-            raise ValueError("flow_damping must be finite and in [0, 1).")
-        shear_efficiency = float(shear_efficiency)
-        if not np.isfinite(shear_efficiency) or shear_efficiency < 0.0:
-            raise ValueError("shear_efficiency must be finite and >= 0.")
+        flow_generation = require_non_negative_float("flow_generation", flow_generation)
+        flow_damping = require_bounded_float("flow_damping", flow_damping, low=0.0, high=1.0, high_exclusive=True)
+        shear_efficiency = require_non_negative_float("shear_efficiency", shear_efficiency)
         max_sub_steps = int(max_sub_steps)
         if max_sub_steps < 1:
             raise ValueError("max_sub_steps must be >= 1.")
@@ -131,15 +130,9 @@ class FusionAIAgent:
         n_states_flow: int = N_STATES_FLOW,
         n_actions: int = N_ACTIONS,
     ) -> None:
-        alpha = float(alpha)
-        if not np.isfinite(alpha) or alpha < 0.0 or alpha > 1.0:
-            raise ValueError("alpha must be finite and in [0, 1].")
-        gamma = float(gamma)
-        if not np.isfinite(gamma) or gamma < 0.0 or gamma > 1.0:
-            raise ValueError("gamma must be finite and in [0, 1].")
-        epsilon = float(epsilon)
-        if not np.isfinite(epsilon) or epsilon < 0.0 or epsilon > 1.0:
-            raise ValueError("epsilon must be finite and in [0, 1].")
+        alpha = require_fraction("alpha", alpha)
+        gamma = require_fraction("gamma", gamma)
+        epsilon = require_fraction("epsilon", epsilon)
         n_states_turb = int(n_states_turb)
         if n_states_turb < 1:
             raise ValueError("n_states_turb must be >= 1.")
@@ -274,12 +267,8 @@ def run_advanced_learning_sim(
     if steps < 1:
         raise ValueError("time_steps must be >= 1.")
     lo_shear, hi_shear = normalize_bounds(shear_bounds, "shear_bounds")
-    shear_step = float(shear_step)
-    if not np.isfinite(shear_step) or shear_step < 0.0:
-        raise ValueError("shear_step must be finite and >= 0.")
-    noise_probability = float(noise_probability)
-    if not np.isfinite(noise_probability) or noise_probability < 0.0 or noise_probability > 1.0:
-        raise ValueError("noise_probability must be finite and in [0, 1].")
+    shear_step = require_non_negative_float("shear_step", shear_step)
+    noise_probability = require_fraction("noise_probability", noise_probability)
     rng = np.random.default_rng(int(seed))
 
     if verbose:

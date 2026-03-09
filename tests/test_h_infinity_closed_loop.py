@@ -182,12 +182,12 @@ class TestEdgeCases:
 
     def test_negative_dt_raises(self):
         ctrl = get_radial_robust_controller()
-        with pytest.raises(ValueError, match="finite and > 0"):
+        with pytest.raises(ValueError, match="must be > 0"):
             ctrl.step(0.0, -0.01)
 
     def test_zero_dt_raises(self):
         ctrl = get_radial_robust_controller()
-        with pytest.raises(ValueError, match="finite and > 0"):
+        with pytest.raises(ValueError, match="must be > 0"):
             ctrl.step(0.0, 0.0)
 
     def test_dt_change_updates_cache(self):

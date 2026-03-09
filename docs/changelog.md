@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0] — 2026-03-09
+
+### Added
+- Python fallback for `rust_svd_optimal_correction()`: truncated SVD pseudoinverse
+- Python fallback for `RustSPIMitigation`: 3-phase disruption sim matching Rust constants
+- Python fallback for `rust_multigrid_vcycle()`: delegates to FusionKernel
+- `require_bounded_float`, `require_finite_array` shared validators
+- `tests/test_rust_fallbacks.py` — 16 tests
+
+### Changed
+- 3 P1 modules: inline `np.isfinite` → shared validators
+- U-003, U-004, U-005, U-007 marked RESOLVED
+
 ## [0.7.1] — 2026-03-09
 
 ### Added

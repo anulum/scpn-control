@@ -66,14 +66,18 @@
 - [x] 17 GitHub labels, squash-only merge, discussions enabled
 - [x] Dependabot PR triage (1 merged, 4 closed as incompatible)
 
+### v0.8.0 — 2026-03-09
+- [x] Python fallback for `RustSPIMitigation` ([gh-13](https://github.com/anulum/scpn-control/issues/13), U-003)
+- [x] Python fallback for `rust_multigrid_vcycle` ([gh-14](https://github.com/anulum/scpn-control/issues/14), U-004)
+- [x] Python fallback for `rust_svd_optimal_correction` ([gh-15](https://github.com/anulum/scpn-control/issues/15), U-005)
+- [x] Factor `np.isfinite` validation boilerplate ([gh-17](https://github.com/anulum/scpn-control/issues/17), U-007)
+- [x] `require_bounded_float`, `require_finite_array` validators
+- [x] 16 new fallback tests
+
 ## Next
 
-### v0.8.0 — Core gap resolution
+### v0.9.0 — Core gap resolution + CI expansion
 - [ ] ZOH + DARE discretization in Rust H-inf controller ([gh-10](https://github.com/anulum/scpn-control/issues/10), U-001, P1)
-- [ ] Python fallback for `RustSPIMitigation` ([gh-13](https://github.com/anulum/scpn-control/issues/13), U-003)
-- [ ] Python fallback for `rust_multigrid_vcycle` ([gh-14](https://github.com/anulum/scpn-control/issues/14), U-004)
-- [ ] Python fallback for `rust_svd_optimal_correction` ([gh-15](https://github.com/anulum/scpn-control/issues/15), U-005)
-- [ ] Factor `np.isfinite` validation boilerplate ([gh-17](https://github.com/anulum/scpn-control/issues/17), U-007)
 - [ ] mypy `strict = true` (incremental, per-module)
 
 ### v0.9.0 — CI expansion + data ingest

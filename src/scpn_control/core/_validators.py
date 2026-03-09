@@ -69,6 +69,54 @@ def require_range(
     return (low, high)
 
 
+def require_bounded_float(
+    name: str,
+    value: Any,
+    *,
+    low: float = -np.inf,
+    high: float = np.inf,
+    low_exclusive: bool = False,
+    high_exclusive: bool = False,
+) -> float:
+    """Validate scalar is finite and within [low, high] (or exclusive bounds).
+
+    Subsumes require_positive_float, require_non_negative_float, require_fraction
+    for arbitrary bound combinations.
+    """
+    out = float(value)
+    if not np.isfinite(out):
+        raise ValueError(f"{name} must be finite, got {value}")
+    if low_exclusive:
+        if out <= low:
+            raise ValueError(f"{name} must be > {low}, got {out}")
+    elif out < low:
+        raise ValueError(f"{name} must be >= {low}, got {out}")
+    if high_exclusive:
+        if out >= high:
+            raise ValueError(f"{name} must be < {high}, got {out}")
+    elif out > high:
+        raise ValueError(f"{name} must be <= {high}, got {out}")
+    return out
+
+
+def require_finite_array(
+    name: str,
+    value: Any,
+    *,
+    ndim: int | None = None,
+    shape: tuple[int, ...] | None = None,
+) -> NDArray[np.float64]:
+    """Validate array is finite with optional shape/ndim constraint."""
+    arr = np.asarray(value, dtype=np.float64)
+    if ndim is not None and arr.ndim != ndim:
+        raise ValueError(f"{name} must be {ndim}D, got {arr.ndim}D")
+    if shape is not None and arr.shape != shape:
+        raise ValueError(f"{name} must have shape {shape}, got {arr.shape}")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values.")
+    return arr
+
+
 def require_1d_array(
     name: str,
     value: Any,

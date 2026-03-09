@@ -256,9 +256,9 @@ class TestInputValidation:
     def test_rejects_invalid_gamma(self) -> None:
         """gamma must be > 1.0 and finite."""
         A, B1, B2, C1, C2 = _vertical_stability_plant()
-        with pytest.raises(ValueError, match="gamma must be finite and > 1.0"):
+        with pytest.raises(ValueError, match="gamma must be > 1.0"):
             HInfinityController(A, B1, B2, C1, C2, gamma=1.0)
-        with pytest.raises(ValueError, match="gamma must be finite and > 1.0"):
+        with pytest.raises(ValueError, match="gamma must be finite"):
             HInfinityController(A, B1, B2, C1, C2, gamma=float("nan"))
 
     def test_rejects_nonfinite_A(self) -> None:
@@ -291,7 +291,7 @@ class TestInputValidation:
     def test_rejects_zero_dt(self) -> None:
         """step() rejects dt <= 0."""
         ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        with pytest.raises(ValueError, match="dt must be finite and > 0"):
+        with pytest.raises(ValueError, match="dt must be > 0"):
             ctrl.step(0.1, dt=0.0)
 
 

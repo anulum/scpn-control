@@ -455,19 +455,71 @@ def rust_multigrid_vcycle(
     tol: float = 1e-6,
     max_cycles: int = 500,
 ) -> tuple[np.ndarray, float, int, bool]:
-    """Call Rust multigrid V-cycle if available, else raise ImportError.
+    """Multigrid V-cycle GS solver. Uses Rust backend when available,
+    falls back to FusionKernel's Python multigrid.
 
     Returns
     -------
     tuple of (psi, residual, n_cycles, converged)
     """
-    from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]
+    try:
+        from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]
 
-    return _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
+        return _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
+    except ImportError:
+        return _python_multigrid_vcycle(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
+
+
+def _python_multigrid_vcycle(
+    source: np.ndarray,
+    psi_bc: np.ndarray,
+    r_min: float,
+    r_max: float,
+    z_min: float,
+    z_max: float,
+    nr: int,
+    nz: int,
+    tol: float,
+    max_cycles: int,
+) -> tuple[np.ndarray, float, int, bool]:
+    """Pure-Python multigrid V-cycle via FusionKernel methods."""
+    from scpn_control.core.fusion_kernel import FusionKernel
+
+    source = np.ascontiguousarray(source, dtype=np.float64)
+    psi = np.ascontiguousarray(psi_bc, dtype=np.float64).copy()
+
+    R = np.linspace(r_min, r_max, nr)
+    Z = np.linspace(z_min, z_max, nz)
+    RR, _ = np.meshgrid(R, Z)
+    dR = R[1] - R[0]
+    dZ = Z[1] - Z[0]
+
+    fk = object.__new__(FusionKernel)
+
+    residual_norm = float("inf")
+    for cycle in range(max_cycles):
+        psi = fk._multigrid_vcycle(psi, source, RR, dR, dZ)
+        residual = fk._mg_residual(psi, source, RR, dR, dZ)
+        residual_norm = float(np.max(np.abs(residual)))
+        if residual_norm < tol:
+            return psi, residual_norm, cycle + 1, True
+
+    return psi, residual_norm, max_cycles, False
+
+
+# SPI fallback constants — match Rust spi.rs exactly
+_SPI_DT = 1e-5  # [s]
+_SPI_T_TOTAL = 0.05  # [s]
+_SPI_T_MIX = 0.002  # [s] assimilation cutoff
+_SPI_TQ_THRESHOLD = 0.1  # [keV]
+_SPI_P_RAD_COEFF = 1e10  # [W·keV^{-0.5}]
+_SPI_TE_FLOOR = 0.01  # [keV]
+_SPI_L_PLASMA = 1e-6  # [H]
 
 
 class RustSPIMitigation:
-    """Rust SPI disruption-mitigation simulator (10-20x faster than Python).
+    """SPI disruption-mitigation simulator. Uses Rust backend when available,
+    falls back to pure-Python implementation matching Rust constants.
 
     Parameters
     ----------
@@ -480,13 +532,63 @@ class RustSPIMitigation:
     """
 
     def __init__(self, w_th_mj: float = 300.0, ip_ma: float = 15.0, te_kev: float = 20.0):
-        from scpn_control_rs import PySPIMitigation  # type: ignore[import-untyped]
+        for name, val in [("w_th_mj", w_th_mj), ("ip_ma", ip_ma), ("te_kev", te_kev)]:
+            if not np.isfinite(val) or val <= 0.0:
+                raise ValueError(f"{name} must be finite and > 0, got {val}")
 
-        self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)
+        try:
+            from scpn_control_rs import PySPIMitigation  # type: ignore[import-untyped]
+
+            self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)
+            self._use_rust = True
+        except ImportError:
+            self._use_rust = False
+            self._w_th = w_th_mj * 1e6  # J
+            self._ip = ip_ma * 1e6  # A
+            self._te = te_kev
 
     def run(self) -> list[dict]:
         """Run full SPI simulation and return snapshot history."""
-        return self._inner.run()
+        if self._use_rust:
+            return self._inner.run()
+
+        w_th, ip, te = self._w_th, self._ip, self._te
+        n_steps = int(_SPI_T_TOTAL / _SPI_DT)
+        history: list[dict] = []
+        t = 0.0
+        phase = "Assimilation"
+
+        for _ in range(n_steps):
+            history.append(
+                {
+                    "time": t,
+                    "w_th_mj": w_th / 1e6,
+                    "ip_ma": ip / 1e6,
+                    "te_kev": te,
+                    "phase": phase,
+                }
+            )
+
+            if t > _SPI_T_MIX:
+                if phase == "Assimilation":
+                    phase = "ThermalQuench"
+
+                if phase == "ThermalQuench":
+                    p_rad = _SPI_P_RAD_COEFF * np.sqrt(te)
+                    w_old = w_th
+                    w_th = max(0.0, w_th - p_rad * _SPI_DT)
+                    if w_old > 0.0:
+                        te = max(_SPI_TE_FLOOR, te * (w_th / w_old))
+                    if te < _SPI_TQ_THRESHOLD:
+                        phase = "CurrentQuench"
+
+                if phase == "CurrentQuench":
+                    r_plasma = 1e-6 / (te**1.5)
+                    ip = max(0.0, ip - (r_plasma / _SPI_L_PLASMA) * ip * _SPI_DT)
+
+            t += _SPI_DT
+
+        return history
 
 
 def rust_svd_optimal_correction(
@@ -494,7 +596,8 @@ def rust_svd_optimal_correction(
     error: np.ndarray,
     gain: float = 0.8,
 ) -> np.ndarray:
-    """Rust SVD-based coil current correction (3-5x faster for 2xN).
+    """SVD-based coil current correction. Uses Rust backend when available,
+    falls back to NumPy SVD pseudoinverse.
 
     Parameters
     ----------
@@ -510,10 +613,36 @@ def rust_svd_optimal_correction(
     ndarray, shape (n,)
         Coil current deltas.
     """
-    from scpn_control_rs import svd_optimal_correction as _rust_svd  # type: ignore[import-untyped]
+    try:
+        from scpn_control_rs import svd_optimal_correction as _rust_svd  # type: ignore[import-untyped]
 
-    return _rust_svd(
-        np.ascontiguousarray(response_matrix, dtype=np.float64),
-        np.ascontiguousarray(error, dtype=np.float64),
-        float(gain),
-    )
+        return _rust_svd(
+            np.ascontiguousarray(response_matrix, dtype=np.float64),
+            np.ascontiguousarray(error, dtype=np.float64),
+            float(gain),
+        )
+    except ImportError:
+        return _python_svd_optimal_correction(response_matrix, error, gain)
+
+
+def _python_svd_optimal_correction(
+    response_matrix: np.ndarray,
+    error: np.ndarray,
+    gain: float,
+    sv_cutoff: float = 1e-6,
+) -> np.ndarray:
+    """Truncated SVD pseudoinverse with singular value cutoff.
+
+    Matches Rust linalg.rs svd_optimal_correction algorithm.
+    """
+    J = np.ascontiguousarray(response_matrix, dtype=np.float64)
+    e = np.asarray(error, dtype=np.float64).ravel()
+
+    if J.ndim != 2:
+        raise ValueError(f"response_matrix must be 2D, got {J.ndim}D")
+    if e.shape[0] != J.shape[0]:
+        raise ValueError(f"error length {e.shape[0]} != matrix rows {J.shape[0]}")
+
+    u, sigma, vt = np.linalg.svd(J, full_matrices=False)
+    sigma_inv = np.where(sigma > sv_cutoff, 1.0 / sigma, 0.0)
+    return np.asarray(gain * (vt.T @ (sigma_inv * (u.T @ e))), dtype=np.float64)

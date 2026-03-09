@@ -29,7 +29,14 @@ except ImportError:  # pragma: no cover - optional dependency path
 
 import logging
 
-from scpn_control.core._validators import require_int as _require_int
+from scpn_control.core._validators import (
+    require_bounded_float,
+    require_finite_array,
+    require_fraction,
+    require_int as _require_int,
+    require_non_negative_float,
+    require_positive_float,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +106,7 @@ def build_disruption_feature_vector(signal, toroidal_observables=None):
     sig = np.asarray(signal, dtype=float).reshape(-1)
     if sig.size == 0:
         raise ValueError("signal must contain at least one sample")
-    if not np.all(np.isfinite(sig)):
-        raise ValueError("signal must be finite.")
+    require_finite_array("signal", sig)
 
     mean = float(np.mean(sig))
     std = float(np.std(sig))
@@ -116,8 +122,7 @@ def build_disruption_feature_vector(signal, toroidal_observables=None):
     asym_raw = obs.get("toroidal_asymmetry_index")
     asym = float(asym_raw) if asym_raw is not None else float(np.sqrt(n1 * n1 + n2 * n2 + n3 * n3))
     spread = float(obs.get("toroidal_radial_spread", 0.0))
-    if not np.all(np.isfinite([n1, n2, n3, asym, spread])):
-        raise ValueError("toroidal observables must be finite.")
+    require_finite_array("toroidal observables", [n1, n2, n3, asym, spread])
 
     return np.array(
         [mean, std, max_val, slope, energy, last, n1, n2, n3, asym, spread],
@@ -184,14 +189,10 @@ def _normalize_fault_campaign_inputs(
     seed_i = _require_int("seed", seed, 0)
     episodes_i = _require_int("episodes", episodes, 1)
     window_i = _require_int("window", window, 16)
-    noise = float(noise_std)
+    noise = require_non_negative_float("noise_std", noise_std)
     bit_flip_i = _require_int("bit_flip_interval", bit_flip_interval, 1)
     recovery_window_i = _require_int("recovery_window", recovery_window, 1)
-    recovery_eps = float(recovery_epsilon)
-    if not np.isfinite(noise) or noise < 0.0:
-        raise ValueError("noise_std must be finite and >= 0.")
-    if not np.isfinite(recovery_eps) or recovery_eps <= 0.0:
-        raise ValueError("recovery_epsilon must be finite and > 0.")
+    recovery_eps = require_positive_float("recovery_epsilon", recovery_epsilon)
 
     return (
         seed_i,
@@ -348,14 +349,8 @@ class HybridAnomalyDetector:
     """
 
     def __init__(self, threshold=0.50, ema=0.05):
-        threshold_f = float(threshold)
-        ema_f = float(ema)
-        if not np.isfinite(threshold_f) or threshold_f < 0.0 or threshold_f > 1.0:
-            raise ValueError("threshold must be finite and in [0, 1].")
-        if not np.isfinite(ema_f) or ema_f <= 0.0 or ema_f > 1.0:
-            raise ValueError("ema must be finite and in (0, 1].")
-        self.threshold = threshold_f
-        self.ema = ema_f
+        self.threshold = require_fraction("threshold", threshold)
+        self.ema = require_bounded_float("ema", ema, low=0.0, high=1.0, low_exclusive=True)
         self.mean = 0.0
         self.var = 1.0
         self.initialized = False
@@ -398,9 +393,7 @@ def run_anomaly_alarm_campaign(
     seed_i = _require_int("seed", seed, 0)
     episodes_i = _require_int("episodes", episodes, 1)
     window_i = _require_int("window", window, 16)
-    threshold_f = float(threshold)
-    if not np.isfinite(threshold_f) or threshold_f < 0.0 or threshold_f > 1.0:
-        raise ValueError("threshold must be finite and in [0, 1].")
+    threshold_f = require_fraction("threshold", threshold)
 
     rng = np.random.default_rng(seed_i)
     detector = HybridAnomalyDetector(threshold=threshold_f)

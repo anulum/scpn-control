@@ -32,12 +32,14 @@ import numpy as np
 import numpy.typing as npt
 from scipy.linalg import expm, solve_continuous_are, solve_discrete_are
 
+from scpn_control.core._validators import (
+    require_bounded_float,
+    require_finite_array,
+    require_finite_float,
+    require_positive_float,
+)
+
 logger = logging.getLogger(__name__)
-
-
-def _check_finite(mat: np.ndarray, name: str) -> None:
-    if not np.all(np.isfinite(mat)):
-        raise ValueError(f"{name} must contain only finite values.")
 
 
 def _zoh_discretize(A: np.ndarray, B: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray]:
@@ -99,7 +101,7 @@ class HInfinityController:
 
         if self.A.ndim != 2 or self.A.shape[0] != self.A.shape[1]:
             raise ValueError("A must be a finite square matrix.")
-        _check_finite(self.A, "A")
+        require_finite_array("A", self.A)
 
         # Auto-transpose 1D inputs to column vectors
         if self.B1.shape[0] == 1 and self.A.shape[0] > 1:
@@ -123,7 +125,7 @@ class HInfinityController:
             ("C1", self.C1, None, self.n),
             ("C2", self.C2, None, self.n),
         ]:
-            _check_finite(mat, name)
+            require_finite_array(name, mat)
             if expected_rows is not None and mat.shape[0] != expected_rows:
                 raise ValueError(f"{name} row count must match A ({expected_rows}).")
             if expected_cols is not None and mat.shape[1] != expected_cols:
@@ -135,9 +137,7 @@ class HInfinityController:
         if gamma is None:
             self.gamma = self._find_optimal_gamma()
         else:
-            self.gamma = float(gamma)
-            if not np.isfinite(self.gamma) or self.gamma <= 1.0:
-                raise ValueError("gamma must be finite and > 1.0.")
+            self.gamma = require_bounded_float("gamma", gamma, low=1.0, low_exclusive=True)
 
         self.X, self.Y, self.F, self.L_gain = self._synthesize(self.gamma)
         self.spectral_radius_xy = float(np.max(np.abs(np.linalg.eigvals(self.X @ self.Y))))
@@ -186,7 +186,7 @@ class HInfinityController:
             mat[:min_dim, :min_dim] = np.eye(min_dim)
         if mat.shape != (rows, cols):
             raise ValueError(f"{name} must have shape ({rows}, {cols}).")
-        _check_finite(mat, name)
+        require_finite_array(name, mat)
         return mat
 
     def _synthesize(self, gamma: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -196,8 +196,7 @@ class HInfinityController:
             F = -B2^T X  (state feedback gain)
             L = Y C2^T   (observer injection gain)
         """
-        if not np.isfinite(gamma) or gamma <= 1.0:
-            raise ValueError("gamma must be finite and > 1.0.")
+        require_bounded_float("gamma", gamma, low=1.0, low_exclusive=True)
 
         # State-feedback H-infinity ARE
         B_aug_x = np.hstack((self.B2, self.B1 / gamma))
@@ -226,8 +225,8 @@ class HInfinityController:
         F = -self.B2.T @ X  # shape (m, n) — state feedback
         L = Y @ self.C2.T  # shape (n, l) — observer injection
 
-        if not np.all(np.isfinite(F)) or not np.all(np.isfinite(L)):
-            raise ValueError("Riccati synthesis produced non-finite gains.")
+        require_finite_array("F (state feedback gain)", F)
+        require_finite_array("L (observer gain)", L)
 
         return X, Y, F, L
 
@@ -316,10 +315,8 @@ class HInfinityController:
         float
             Control action u.
         """
-        if not np.isfinite(error):
-            raise ValueError("error must be finite.")
-        if not np.isfinite(dt) or dt <= 0.0:
-            raise ValueError("dt must be finite and > 0.")
+        require_finite_float("error", error)
+        dt = require_positive_float("dt", dt)
 
         if dt != self._cached_dt:
             self._update_discretization(dt)
@@ -409,8 +406,7 @@ def get_radial_robust_controller(
     HInfinityController
         Riccati-synthesized robust controller.
     """
-    if not np.isfinite(damping) or damping <= 0.0:
-        raise ValueError("damping must be a finite positive value.")
+    damping = require_positive_float("damping", damping)
     A = np.array(
         [
             [0.0, 1.0],

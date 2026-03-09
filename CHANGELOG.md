@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.8.0] — 2026-03-09
+
+### Added
+- Python fallback for `rust_svd_optimal_correction()`: truncated SVD pseudoinverse
+  with singular-value cutoff (`_python_svd_optimal_correction`)
+- Python fallback for `RustSPIMitigation`: 3-phase disruption sim matching Rust
+  spi.rs constants (Assimilation → ThermalQuench → CurrentQuench)
+- Python fallback for `rust_multigrid_vcycle()`: delegates to
+  `FusionKernel._multigrid_vcycle` with isolated instance
+- `require_bounded_float` validator: arbitrary inclusive/exclusive bound checks
+- `require_finite_array` validator: ndim/shape constraints + finiteness
+- `tests/test_rust_fallbacks.py` — 16 tests (SVD, SPI, multigrid fallbacks)
+- Input validation on `RustSPIMitigation.__init__()` for both Rust and Python paths
+
+### Changed
+- `h_infinity_controller.py`: inline `np.isfinite` checks replaced with shared validators
+- `disruption_predictor.py`: 7 inline checks replaced with shared validators
+- `advanced_soc_fusion_learning.py`: 8 inline checks replaced with shared validators
+- U-003, U-004, U-005 marked RESOLVED in UNDERDEVELOPED_REGISTER
+- U-007 marked RESOLVED (shared validators in place, P1 modules converted)
+
 ## [0.7.1] — 2026-03-09
 
 ### Added
