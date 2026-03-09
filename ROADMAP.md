@@ -49,19 +49,46 @@
 - [x] Rust Cargo.toml `repository` fields
 - [x] CI: 15 jobs, 1969 tests
 
+### v0.7.0 — 2026-03-02
+- [x] Coverage gate ratcheted 62% → 85%
+- [x] Nengo SNN wrapper tests (14 mocked)
+- [x] E2E compile-to-control integration tests
+- [x] `require_range` validator, doc comments on 11 Rust functions
+- [x] `print()` → `logging` in 13 control modules (58 sites)
+- [x] TokamakTopology rename, stale doc sweep
+
+### v0.7.1 — 2026-03-09
+- [x] Enterprise repo hardening (18 new files, 5 new workflows)
+- [x] SHA-pinned GitHub Actions across all workflows
+- [x] Top-level `permissions: {}`, concurrency groups, SPDX headers
+- [x] Typos checker with domain-specific allowlist (46 terms)
+- [x] OpenSSF Scorecard, CodeQL, pre-commit, release, stale workflows
+- [x] 17 GitHub labels, squash-only merge, discussions enabled
+- [x] Dependabot PR triage (1 merged, 4 closed as incompatible)
+
 ## Next
 
-### v0.7.0
-- [ ] Codecov badge ≥ 85% (from 62% gate)
+### v0.8.0 — Core gap resolution
+- [ ] ZOH + DARE discretization in Rust H-inf controller ([gh-10](https://github.com/anulum/scpn-control/issues/10), U-001, P1)
+- [ ] Python fallback for `RustSPIMitigation` ([gh-13](https://github.com/anulum/scpn-control/issues/13), U-003)
+- [ ] Python fallback for `rust_multigrid_vcycle` ([gh-14](https://github.com/anulum/scpn-control/issues/14), U-004)
+- [ ] Python fallback for `rust_svd_optimal_correction` ([gh-15](https://github.com/anulum/scpn-control/issues/15), U-005)
+- [ ] Factor `np.isfinite` validation boilerplate ([gh-17](https://github.com/anulum/scpn-control/issues/17), U-007)
 - [ ] mypy `strict = true` (incremental, per-module)
-- [ ] IMAS IDS round-trip tests with real `omas` install
-- [ ] Streamlit dashboard v2 (shot replay + multi-machine)
 
-### v0.8.0
-- [ ] GPU-accelerated Grad-Shafranov (CuPy / JAX backend)
+### v0.9.0 — CI expansion + data ingest
+- [ ] Nengo Loihi emulator CI test ([gh-11](https://github.com/anulum/scpn-control/issues/11), U-002)
+- [ ] JAX tracing in optional CI matrix ([gh-12](https://github.com/anulum/scpn-control/issues/12), U-006)
+- [ ] IMAS IDS round-trip tests with real `omas` install
 - [ ] Real MDSplus data ingest (DIII-D, JET public shots)
+- [ ] Codecov badge + token setup ([gh-17 TODO](https://github.com/anulum/scpn-control/issues/17))
+
+### v1.0.0 — Production readiness
+- [ ] Streamlit dashboard v2 (shot replay + multi-machine selector)
+- [ ] GPU-accelerated Grad-Shafranov (CuPy / JAX backend)
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
 - [ ] TORAX hybrid transport coupling
+- [ ] Coordinated Rust dep upgrade (ndarray 0.16+, ndarray-linalg 0.18+, rand 0.9)
 
 ## Future
 - [ ] Stellarator geometry support (Wendelstein 7-X)

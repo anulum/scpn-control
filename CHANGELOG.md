@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.7.1] — 2026-03-09
+
+### Added
+- Enterprise root files: SUPPORT.md, GOVERNANCE.md, CONTRIBUTORS.md, NOTICE.md,
+  ARCHITECTURE.md, VALIDATION.md, REUSE.toml, .gitattributes, .dockerignore,
+  Makefile, requirements-dev.txt
+- Workflows: pre-commit.yml, codeql.yml, scorecard.yml, release.yml, stale.yml
+- .github/ISSUE_TEMPLATE/config.yml (Security Advisories + SUPPORT.md links)
+- `_typos.toml` domain allowlist (46 terms: physics, plasma, Rust identifiers)
+- 17 GitHub labels (dependencies, ci, security, performance, plasma-control, etc.)
+
+### Changed
+- ci.yml, docs-pages.yml, publish-pypi.yml: SHA-pinned all actions, `permissions: {}`,
+  concurrency groups, SPDX headers
+- pyproject.toml: ruff UP/SIM rules, coverage exclude_lines, dev deps added
+- .pre-commit-config.yaml: check-toml + crate-ci/typos hooks
+- dependabot.yml: commit-message prefixes, dependency groups
+- FUNDING.yml: github sponsor link
+- SECURITY.md: Security Advisories as preferred reporting method
+- scorecard-action bumped v2.4.0 → v2.4.3
+- black bumped 25.1.0 → 25.11.0
+
+### Repository
+- Squash-only merge, delete-branch-on-merge, discussions enabled
+- 10 topic tags, homepage set to GH Pages docs URL
+- Dependabot PR triage: 1 merged (#21 black), 4 closed (incompatible Cargo bumps)
+
 ## [0.7.0] — 2026-03-02
 
 ### Added

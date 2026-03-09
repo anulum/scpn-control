@@ -15,8 +15,8 @@ authors:
     orcid: "https://orcid.org/0009-0009-3560-0851"
   - family-names: "Reiprich"
     given-names: "Michal"
-version: "0.7.0"
-date-released: "2026-03-02"
+version: "0.7.1"
+date-released: "2026-03-09"
 license: "MIT OR Apache-2.0"
 repository-code: "https://github.com/anulum/scpn-control"
 url: "https://www.anulum.li"
@@ -24,7 +24,7 @@ doi: "10.5281/zenodo.18821816"
 identifiers:
   - type: doi
     value: "10.5281/zenodo.18821816"
-    description: "Zenodo archive (v0.7.0)"
+    description: "Zenodo archive (v0.7.1)"
   - type: doi
     value: "10.5281/zenodo.18804939"
     description: "Zenodo concept DOI (all versions)"
