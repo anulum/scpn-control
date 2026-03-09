@@ -79,7 +79,10 @@ class RustAcceleratedKernel:
 
         # Sync arrays back to Python attributes
         self.Psi = np.asarray(self._rust.get_psi())
-        self.J_phi = np.asarray(self._rust.get_j_phi())
+        try:
+            self.J_phi = np.asarray(self._rust.get_j_phi())
+        except AttributeError:
+            pass
 
         # Compute B-field from Psi (matching Python FusionKernel.compute_b_field)
         self.compute_b_field()
