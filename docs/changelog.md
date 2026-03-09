@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.1] — 2026-03-10
+
+### Added
+- Rust H-inf: Padé(6,6) `matrix_exp` + `zoh_discretize` (replaces Euler)
+- `benchmarks/e2e_control_latency.py` — E2E pipeline benchmark
+
+### Changed
+- Honesty sweep across README, pitch, use_cases, VALIDATION, competitive_analysis
+- U-001 RESOLVED (last P1 issue)
+
 ## [0.8.0] — 2026-03-09
 
 ### Added

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.1] — 2026-03-10
+
+### Added
+- Rust H-inf: Padé(6,6) scaling-and-squaring `matrix_exp` replacing Euler discretization
+- Rust H-inf: `zoh_discretize` matching Python `_zoh_discretize` (exact ZOH via matrix exponential)
+- 6 new Rust tests for matrix_exp + ZOH (diagonal, nilpotent, large-norm, Euler agreement)
+- `benchmarks/e2e_control_latency.py` — honest E2E pipeline benchmark (sensor→equilibrium→transport→control→actuator)
+
+### Changed
+- README, pitch.md, use_cases.md, VALIDATION.md, competitive_analysis.md: honesty sweep
+  - "formal verification" → "contract-based checking"
+  - "DIII-D shot replay" → stated as synthetic mock data
+  - Comparison table: kernel step ≠ full control cycle caveat
+  - VALIDATION.md: Scope & Limitations table, "What does NOT exist" list
+  - use_cases.md: added "Real tokamak data" and "Peer-reviewed papers" rows (both No)
+- U-001 marked RESOLVED in UNDERDEVELOPED_REGISTER
+- Stale doc counts: 2019 tests, 118 files, 54 modules
+
 ## [0.8.0] — 2026-03-09
 
 ### Added

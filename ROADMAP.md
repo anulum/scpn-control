@@ -74,13 +74,16 @@
 - [x] `require_bounded_float`, `require_finite_array` validators
 - [x] 16 new fallback tests
 
+### v0.8.1 — 2026-03-10
+- [x] Rust H-inf: Euler → Padé(6,6) matrix exponential ZOH + DARE ([gh-10](https://github.com/anulum/scpn-control/issues/10), U-001)
+- [x] E2E control latency benchmark (`benchmarks/e2e_control_latency.py`)
+- [x] Honesty sweep: fix overstated claims in README, pitch, use_cases, VALIDATION, competitive_analysis
+- [x] Stale doc counts updated (2019 tests, 118 files, 54 modules)
+
 ## Next
 
-### v0.9.0 — Core gap resolution + CI expansion
-- [ ] ZOH + DARE discretization in Rust H-inf controller ([gh-10](https://github.com/anulum/scpn-control/issues/10), U-001, P1)
-- [ ] mypy `strict = true` (incremental, per-module)
-
 ### v0.9.0 — CI expansion + data ingest
+- [ ] mypy `strict = true` (incremental, per-module)
 - [ ] Nengo Loihi emulator CI test ([gh-11](https://github.com/anulum/scpn-control/issues/11), U-002)
 - [ ] JAX tracing in optional CI matrix ([gh-12](https://github.com/anulum/scpn-control/issues/12), U-006)
 - [ ] IMAS IDS round-trip tests with real `omas` install
