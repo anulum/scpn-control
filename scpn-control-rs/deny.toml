@@ -17,6 +17,15 @@ allow = [
     "CDLA-Permissive-2.0",
 ]
 
+exceptions = [
+    { allow = ["MIT"], crate = "intel-mkl-src" },
+]
+
+[[licenses.clarify]]
+name = "intel-mkl-src"
+expression = "MIT"
+license-files = [{ path = "License.txt", hash = 0x3bf8c2d0 }]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"  # path deps in workspace are co-versioned
