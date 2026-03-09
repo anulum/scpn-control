@@ -13,6 +13,35 @@ from scpn_control.core import _rust_compat
 
 _HAS_RUST = _rust_compat._rust_available()
 
+_HAS_RUST_PID = False
+_HAS_RUST_ISOFLUX = False
+_HAS_RUST_MG_VCYCLE = False
+_HAS_RUST_SVD = False
+try:
+    from scpn_control_rs import PyPIDController  # noqa: F401
+
+    _HAS_RUST_PID = True
+except ImportError:
+    pass
+try:
+    from scpn_control_rs import PyIsoFluxController  # noqa: F401
+
+    _HAS_RUST_ISOFLUX = True
+except ImportError:
+    pass
+try:
+    from scpn_control_rs import multigrid_vcycle  # noqa: F401
+
+    _HAS_RUST_MG_VCYCLE = True
+except ImportError:
+    pass
+try:
+    from scpn_control_rs import svd_optimal_correction  # noqa: F401
+
+    _HAS_RUST_SVD = True
+except ImportError:
+    pass
+
 
 class _DummyRustKernel:
     def __init__(self, _config_path: str) -> None:
@@ -225,7 +254,7 @@ def test_rust_snn_controller_step() -> None:
     assert np.isfinite(u_r) and np.isfinite(u_z)
 
 
-@pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
+@pytest.mark.skipif(not _HAS_RUST_PID, reason="Rust PyPIDController not available")
 def test_rust_pid_radial() -> None:
     ctrl = _rust_compat.RustPIDController.radial()
     u = ctrl.step(0.5)
@@ -234,14 +263,14 @@ def test_rust_pid_radial() -> None:
     assert np.isfinite(ctrl.kp)
 
 
-@pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
+@pytest.mark.skipif(not _HAS_RUST_PID, reason="Rust PyPIDController not available")
 def test_rust_pid_vertical() -> None:
     ctrl = _rust_compat.RustPIDController.vertical()
     u = ctrl.step(-0.3)
     assert np.isfinite(u)
 
 
-@pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
+@pytest.mark.skipif(not _HAS_RUST_ISOFLUX, reason="Rust PyIsoFluxController not available")
 def test_rust_isoflux_step() -> None:
     ctrl = _rust_compat.RustIsoFluxController(target_r=6.2, target_z=0.0)
     u_r, u_z = ctrl.step(6.3, 0.1)
@@ -263,7 +292,7 @@ def test_rust_spi_mitigation_run() -> None:
     assert len(result) > 0
 
 
-@pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
+@pytest.mark.skipif(not _HAS_RUST_MG_VCYCLE, reason="Rust multigrid_vcycle not available")
 def test_rust_multigrid_vcycle() -> None:
     nr, nz = 17, 17
     source = np.ones((nz, nr))
@@ -275,7 +304,7 @@ def test_rust_multigrid_vcycle() -> None:
     assert np.isfinite(residual)
 
 
-@pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
+@pytest.mark.skipif(not _HAS_RUST_SVD, reason="Rust svd_optimal_correction not available")
 def test_rust_svd_optimal_correction() -> None:
     response = np.array([[1.0, 0.5], [0.0, 1.0]])
     error = np.array([0.1, -0.2])

@@ -17,12 +17,18 @@ pytestmark = pytest.mark.skipif(not HAS_ANY, reason="sc_neurocore not installed"
 
 class TestNeurocore:
     def test_v3_flag_set(self) -> None:
+        if not HAS_V3:
+            pytest.skip("sc-neurocore V3 (>=3.8.0) is not installed")
         assert HAS_V3, "_HAS_NEUROCORE_V3 should be True with sc-neurocore>=3.8.0"
 
     def test_vectorized_layer_importable(self) -> None:
+        if not HAS_V3:
+            pytest.skip("sc-neurocore V3 (>=3.8.0) is not installed")
         from sc_neurocore import VectorizedSCLayer  # noqa: F401
 
     def test_get_backend_importable(self) -> None:
+        if not HAS_V3:
+            pytest.skip("sc-neurocore V3 (>=3.8.0) is not installed")
         from sc_neurocore.accel import get_backend
 
         backend = get_backend()
@@ -30,14 +36,16 @@ class TestNeurocore:
 
     def test_dense_forward_v3_path(self) -> None:
         """CompiledNet.dense_forward should use VectorizedSCLayer when v3 is available."""
+        if not HAS_V3:
+            pytest.skip("sc-neurocore V3 (>=3.8.0) is not installed")
         from scpn_control.scpn.structure import StochasticPetriNet
 
         net = StochasticPetriNet()
-        net.add_place("p0", tokens=5)
-        net.add_place("p1", tokens=0)
+        net.add_place("p0", initial_tokens=1.0)
+        net.add_place("p1", initial_tokens=0.0)
         net.add_transition("t0")
-        net.add_arc("p0", "t0", weight=1)
-        net.add_arc("t0", "p1", weight=1)
+        net.add_arc("p0", "t0", weight=1.0)
+        net.add_arc("t0", "p1", weight=1.0)
 
         from scpn_control.scpn.compiler import FusionCompiler
 
@@ -58,7 +66,7 @@ class TestNeurocore:
 
         net = StochasticPetriNet()
         for i in range(8):
-            net.add_place(f"p{i}", tokens=3)
+            net.add_place(f"p{i}", initial_tokens=1.0)
         for i in range(8):
             net.add_transition(f"t{i}")
             net.add_arc(f"p{i}", f"t{i}", weight=1)

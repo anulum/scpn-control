@@ -15,6 +15,11 @@ allow = [
     "Unicode-DFS-2016",
 ]
 
+[[licenses.clarify]]
+name = "intel-mkl-src"
+expression = "MIT"
+license-files = []
+
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"  # path deps in workspace are co-versioned

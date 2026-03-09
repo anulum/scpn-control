@@ -522,7 +522,7 @@ class TestSCPNRuntimeParity:
         weights = np.random.rand(n_transitions, n_places).astype(np.float64)
 
         act_py = weights @ marking
-        act_rs = np.asarray(_rust_dense_act(marking, weights))
+        act_rs = np.asarray(_rust_dense_act(weights, marking))
 
         np.testing.assert_allclose(
             act_py,
@@ -537,16 +537,21 @@ class TestSCPNRuntimeParity:
         reason="Rust SCPN runtime (dense_activations, marking_update) not available",
     )
     def test_marking_update_parity(self) -> None:
-        """Compare Rust scpn_marking_update vs NumPy equivalent."""
-        np.random.seed(1001)
-        n_places = 16
-        marking = np.random.rand(n_places).astype(np.float64)
-        pre = np.random.rand(n_places).astype(np.float64)
-        post = np.random.rand(n_places).astype(np.float64)
-        firing = np.random.rand(n_places).astype(np.float64)
+        """Compare Rust scpn_marking_update vs NumPy equivalent.
 
-        mk_py = marking - pre * firing + post * firing
-        mk_rs = np.asarray(_rust_marking_upd(marking, pre, post, firing))
+        Rust signature: marking_update(marking: 1D, wi: 2D, wo: 2D, firing: 1D)
+        Computes: m_new = marking - wi^T @ firing + wo @ firing
+        """
+        np.random.seed(1001)
+        n_places = 8
+        n_transitions = 4
+        marking = np.random.rand(n_places).astype(np.float64)
+        wi = np.random.rand(n_transitions, n_places).astype(np.float64)
+        wo = np.random.rand(n_places, n_transitions).astype(np.float64)
+        firing = np.random.rand(n_transitions).astype(np.float64)
+
+        mk_py = marking - wi.T @ firing + wo @ firing
+        mk_rs = np.asarray(_rust_marking_upd(marking, wi, wo, firing))
 
         np.testing.assert_allclose(
             mk_py,

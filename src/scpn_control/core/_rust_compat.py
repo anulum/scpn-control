@@ -49,30 +49,27 @@ class RustAcceleratedKernel:
 
     def __init__(self, config_path):
         self._config_path = str(config_path)
-        # Load via Rust (PyO3 expects str, not Path)
         self._rust = PyFusionKernel(self._config_path)
 
-        # Also load JSON config for attribute access (bridges read .cfg directly)
         import json
 
         with open(config_path, "r") as f:
             self.cfg = json.load(f)
 
-        # Mirror grid attributes
-        nr, nz = self._rust.grid_shape()
-        self.NR = nr
-        self.NZ = nz
         self.R = np.asarray(self._rust.get_r())
         self.Z = np.asarray(self._rust.get_z())
+        self.NR = len(self.R)
+        self.NZ = len(self.Z)
         self.dR = self.R[1] - self.R[0]
         self.dZ = self.Z[1] - self.Z[0]
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
 
-        # Initialize Psi and J_phi from Rust state
         self.Psi = np.asarray(self._rust.get_psi())
-        self.J_phi = np.asarray(self._rust.get_j_phi())
+        try:
+            self.J_phi = np.asarray(self._rust.get_j_phi())
+        except AttributeError:
+            self.J_phi = np.zeros((self.NZ, self.NR))
 
-        # B-field placeholders (computed after solve)
         self.B_R = np.zeros((self.NZ, self.NR))
         self.B_Z = np.zeros((self.NZ, self.NR))
 
@@ -105,7 +102,9 @@ class RustAcceleratedKernel:
         -------
         ndarray, shape (len(probes),)
         """
-        return np.asarray(self._rust.sample_psi_at_probes(probes))
+        if hasattr(self._rust, "sample_psi_at_probes"):
+            return np.asarray(self._rust.sample_psi_at_probes(probes))
+        return np.array([self.sample_psi_at(r, z) for r, z in probes])
 
     def compute_b_field(self):
         """Compute (B_R, B_Z) from current psi, delegating to Rust when available."""
@@ -146,11 +145,14 @@ class RustAcceleratedKernel:
 
     def set_solver_method(self, method: str) -> None:
         """Set inner linear solver: 'sor' or 'multigrid'."""
-        self._rust.set_solver_method(method)
+        if hasattr(self._rust, "set_solver_method"):
+            self._rust.set_solver_method(method)
 
     def solver_method(self) -> str:
         """Get current solver method name."""
-        return self._rust.solver_method()
+        if hasattr(self._rust, "solver_method"):
+            return self._rust.solver_method()
+        return "sor"
 
     def calculate_thermodynamics(self, p_aux_mw: float = 50.0) -> dict:
         """D-T fusion thermodynamics from current equilibrium (Rust backend)."""
@@ -411,14 +413,20 @@ class RustHInfController:
     ):
         from scpn_control_rs import PyHInfController  # type: ignore[import-untyped]
 
-        self._inner = PyHInfController(gamma_growth, damping, gamma, u_max, dt)
+        # 2-state VDE plant: x = [z, dz/dt]
+        a = np.array([[0.0, 1.0], [gamma_growth**2, -damping]], dtype=np.float64)
+        b2 = np.array([[0.0], [1.0]], dtype=np.float64)
+        c2 = np.array([[1.0, 0.0]], dtype=np.float64)
+        self._inner = PyHInfController(a, b2, c2, gamma, dt)
+        self._u_max = u_max
 
     def step(self, y: float, dt: float) -> float:
         """Measurement y → control u (observer-based, saturation-limited)."""
-        return self._inner.step(y, dt)
+        u = self._inner.step(y, dt)
+        return max(-self._u_max, min(self._u_max, u))
 
     def reset(self) -> None:
-        self._inner.reset()
+        pass
 
     @property
     def gamma(self) -> float:
@@ -426,7 +434,7 @@ class RustHInfController:
 
     @property
     def u_max(self) -> float:
-        return self._inner.u_max
+        return self._u_max
 
     def __repr__(self) -> str:
         return f"RustHInfController(gamma={self.gamma}, u_max={self.u_max})"

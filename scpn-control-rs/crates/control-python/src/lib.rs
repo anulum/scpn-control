@@ -234,6 +234,7 @@ struct PySnnPool {
 #[pymethods]
 impl PySnnPool {
     #[new]
+    #[pyo3(signature = (n_neurons=50, gain=10.0, window_size=20))]
     fn new(n_neurons: usize, gain: f64, window_size: usize) -> PyResult<Self> {
         let inner = SpikingControllerPool::new(n_neurons, gain, window_size)
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -243,7 +244,17 @@ impl PySnnPool {
     fn step(&mut self, error: f64) -> PyResult<f64> {
         self.inner
             .step(error)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    #[getter]
+    fn n_neurons(&self) -> usize {
+        self.inner.n_neurons
+    }
+
+    #[getter]
+    fn gain(&self) -> f64 {
+        self.inner.gain
     }
 }
 
@@ -264,7 +275,17 @@ impl PySnnController {
     fn step(&mut self, r_err: f64, z_err: f64) -> PyResult<(f64, f64)> {
         self.inner
             .step(r_err, z_err)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    #[getter]
+    fn target_r(&self) -> f64 {
+        self.inner.target_r
+    }
+
+    #[getter]
+    fn target_z(&self) -> f64 {
+        self.inner.target_z
     }
 }
 
@@ -378,6 +399,16 @@ impl PyHInfController {
 
     fn step(&mut self, y: f64, dt: f64) -> f64 {
         self.inner.step(y, dt)
+    }
+
+    #[getter]
+    fn gamma(&self) -> f64 {
+        self.inner.gamma
+    }
+
+    #[getter]
+    fn u_max(&self) -> f64 {
+        self.inner.u_max
     }
 }
 
@@ -600,10 +631,11 @@ struct PySPIMitigation {
 #[pymethods]
 impl PySPIMitigation {
     #[new]
-    fn new() -> Self {
-        PySPIMitigation {
-            inner: SPIMitigation::default(),
-        }
+    #[pyo3(signature = (w_th_mj=300.0, ip_ma=15.0, te_kev=20.0))]
+    fn new(w_th_mj: f64, ip_ma: f64, te_kev: f64) -> PyResult<Self> {
+        let inner = SPIMitigation::new(w_th_mj, ip_ma, te_kev)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(PySPIMitigation { inner })
     }
 
     fn run<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
