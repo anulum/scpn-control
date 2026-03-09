@@ -1,8 +1,6 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — PyPI Publishing
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: MIT OR Apache-2.0
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# © 1998-2026 Miroslav Sotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
 name: Publish PyPI
 
 on:
@@ -20,12 +18,18 @@ on:
           - testpypi
           - pypi
 
+permissions: {}
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: "3.12"
       - name: Build distributions
@@ -34,7 +38,7 @@ jobs:
           python -m pip install build twine
           python -m build
           python -m twine check dist/*
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7
         with:
           name: dist
           path: dist/
@@ -48,20 +52,20 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3  # v8
         with:
           name: dist
           path: dist/
 
       - name: Publish to TestPyPI
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.repository == 'testpypi'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           skip-existing: true
 
       - name: Publish to PyPI
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.repository == 'pypi')
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1
         with:
           skip-existing: true

@@ -1,0 +1,35 @@
+# NOTICE -- Licensing
+
+Copyright 1998-2026 Miroslav Sotek. All rights reserved.
+Contact: www.anulum.li | protoscience@anulum.li
+
+## License
+
+SCPN Control is dual-licensed under MIT or Apache-2.0, at your option.
+
+- [MIT License](LICENSE-MIT)
+- [Apache License 2.0](LICENSE-APACHE)
+
+## Usage Clarification
+
+| Use Case | License |
+|----------|---------|
+| Academic research | MIT or Apache-2.0 (free) |
+| Internal simulation | MIT or Apache-2.0 (free) |
+| SaaS / cloud service | MIT or Apache-2.0 (free, attribution required) |
+| Embedded in closed-source product | MIT or Apache-2.0 (free, attribution required) |
+| Commercial support / custom builds | Contact protoscience@anulum.li |
+
+## Third-Party Components
+
+| Component | License | Role |
+|-----------|---------|------|
+| NumPy | BSD-3-Clause | Runtime dependency |
+| SciPy | BSD-3-Clause | Runtime dependency |
+| Click | BSD-3-Clause | CLI framework |
+| PyO3 | MIT/Apache-2.0 | Rust-Python bindings |
+| ndarray | MIT/Apache-2.0 | Rust numerical arrays |
+| ndarray-linalg | MIT/Apache-2.0 | Rust linear algebra |
+
+See `sbom.json` (attached to each GitHub Release) for the full software
+bill of materials.

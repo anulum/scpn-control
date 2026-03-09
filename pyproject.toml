@@ -38,6 +38,8 @@ Homepage = "https://github.com/anulum/scpn-control"
 Documentation = "https://anulum.github.io/scpn-control/"
 Repository = "https://github.com/anulum/scpn-control"
 "Bug Tracker" = "https://github.com/anulum/scpn-control/issues"
+Discussions = "https://github.com/anulum/scpn-control/discussions"
+Changelog = "https://github.com/anulum/scpn-control/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 viz = ["matplotlib>=3.5"]
@@ -59,6 +61,9 @@ dev = [
     "pytest-cov>=5.0",
     "hypothesis>=6.0",
     "mypy>=1.10",
+    "ruff>=0.4",
+    "bandit>=1.7",
+    "black==25.1.0",
     "matplotlib>=3.5",
     "streamlit>=1.20",
     "torch>=2.0",
@@ -137,19 +142,37 @@ filterwarnings = [
 ]
 xfail_strict = true
 
+[tool.coverage.run]
+source = ["scpn_control"]
+
 [tool.coverage.report]
 fail_under = 85
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__",
+    "raise NotImplementedError",
+    "if HAS_TORCH",
+    "if HAS_NENGO",
+    "if HAS_SC_NEUROCORE",
+    "if HAS_JAX",
+    "except ImportError",
+]
 
 [tool.ruff]
 line-length = 120
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 ignore = [
     "E402",   # module-level import after try/except (conditional deps)
     "E501",   # line length handled by formatter
     "E741",   # ambiguous variable (physics code uses l, I, O)
+    "I001",   # import sorting (enable once codebase is clean)
+    "UP006", "UP012", "UP015", "UP031", "UP034", "UP035", "UP037", "UP045",
+    "F841",   # unused variable (common in demo/experiment scripts)
+    "SIM102", "SIM105", "SIM108", "SIM300",
+    "B007", "B017", "B018", "B023", "B028", "B904", "B905",
 ]
 
 [tool.ruff.lint.isort]

@@ -1,17 +1,25 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "ci"
     labels:
       - "dependencies"
-      - "github-actions"
+      - "github_actions"
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "deps"
     labels:
       - "dependencies"
       - "python"
@@ -20,6 +28,8 @@ updates:
     directory: "/scpn-control-rs"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "deps(rust)"
     ignore:
       - dependency-name: "ndarray"
         versions:

@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+[default.extend-words]
+# Domain-specific terms
+iz = "iz"
+Lond = "Lond"
+nli = "nli"
+fpr = "fpr"
+numer = "numer"
+Equil = "Equil"
+equil = "equil"
+Comput = "Comput"
+Commun = "Commun"
+GAM = "GAM"
+pn = "pn"
+mape = "mape"
+arange = "arange"
+tpe = "tpe"
+cll = "cll"
+multline = "multline"
+alph = "alph"
+iy = "iy"
+snn = "snn"
+lif = "lif"
+rng = "rng"
+psi = "psi"
+sor = "sor"
+mhd = "mhd"
+spi = "spi"
+hil = "hil"
+knm = "knm"
+upde = "upde"
+eqdsk = "eqdsk"
+geqdsk = "geqdsk"
+tokamak = "tokamak"
+diiid = "diiid"
+sparc = "sparc"
+iter = "iter"
+thr = "thr"
+inh = "inh"
+exc = "exc"
+nd = "nd"
+ot = "ot"
+fom = "fom"
+ser = "ser"
+noo = "noo"
+
+[files]
+extend-exclude = [
+    "*.npz",
+    "*.npy",
+    "*.pkl",
+    "*.pt",
+    "*.h5",
+    "scpn-control-rs/target/",
+    "weights/",
+    "artifacts/",
+    ".benchmarks/",
+]

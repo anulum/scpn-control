@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/anulum/scpn-control/security/advisories/new
+    about: Report security issues via Security Advisories, not public issues.
+  - name: Question / Help
+    url: https://github.com/anulum/scpn-control/blob/main/SUPPORT.md
+    about: Usage questions -- check the support guide first.

@@ -18,8 +18,8 @@ pip install --upgrade scpn-control
 If you discover a security vulnerability in SCPN Control, please report it
 responsibly:
 
-1. **Email:** protoscience@anulum.li
-2. **Subject:** `[SECURITY] SCPN Control — <brief description>`
+1. **Preferred:** [GitHub Security Advisories](https://github.com/anulum/scpn-control/security/advisories/new)
+2. **Email:** protoscience@anulum.li (subject: `[SECURITY] SCPN Control`)
 3. **Do not** open a public GitHub issue for security vulnerabilities.
 
 We will acknowledge receipt within 48 hours and aim to provide a fix within

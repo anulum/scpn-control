@@ -330,7 +330,7 @@ class StochasticPetriNet:
                         break
                 components.append(comp)
 
-        for node in graph.keys():
+        for node in graph:
             if node not in indices:
                 strongconnect(node)
         return components

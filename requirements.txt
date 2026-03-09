@@ -1,3 +1,5 @@
-.
-streamlit>=1.20
-matplotlib>=3.5
+# Pinned runtime dependencies for scpn-control
+# Canonical source of truth: pyproject.toml [project.dependencies]
+numpy>=1.24
+scipy>=1.10
+click>=8.0

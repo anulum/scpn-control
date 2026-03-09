@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+.git
+.github
+.claude
+.coordination
+.githooks
+.pre-commit-config.yaml
+.editorconfig
+_typos.toml
+
+# Documentation & metadata
+docs/
+*.md
+!README.md
+mkdocs.yml
+CITATION.cff
+.zenodo.json
+papers/
+
+# Tests & benchmarks
+tests/
+benches/
+validation/
+.benchmarks/
+.hypothesis/
+
+# Build artifacts
+scpn-control-rs/target/
+dist/
+*.egg-info
+__pycache__
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov/
+site/
+
+# Binary assets
+*.npz
+*.pkl
+*.pt
+*.png
+*.jpg
+*.mp4
+*.gif
