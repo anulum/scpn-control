@@ -79,24 +79,26 @@
 | No autodiff | Cannot do gradient-based plasma scenario optimisation | TORAX (JAX), FUSE (Julia) |
 | No GPU equilibrium | P-EFIT achieves <1 ms on GPU; scpn-control is CPU-only | P-EFIT |
 | Simpler turbulence | Critical-gradient vs QLKNN/TGLF trained on gyrokinetic data | TORAX, FUSE |
-| No RL integration | No Gym environment for controller training | Gym-TORAX |
+| No RL validation | Gym TokamakEnv exists but no trained RL agent published | Gym-TORAX (published results) |
 | Smaller community | Single-team vs DeepMind / General Atomics resources | TORAX, FUSE |
 
 ## 6. scpn-control Unique Position
 
-1. **Only open-source code with reactor-grade real-time control** -- 11.9 us
-   P50 control loop, faster than any published DIII-D physics loop. No other
-   open-source fusion code offers real-time control at this latency.
+1. **Fastest open-source kernel step** — 11.9 µs P50 (Criterion-verified).
+   This is a bare kernel call, not a complete control cycle. No head-to-head
+   end-to-end comparison has been published.
 
-2. **Neuro-symbolic SNN + formal verification + digital twin** -- the Petri
-   Net to SNN compiler with contract-based verification is architecturally
+2. **Neuro-symbolic SNN + contract checking + digital twin** — the Petri
+   Net to SNN compiler with runtime contract assertions is architecturally
    unique in the fusion simulation space.
 
-3. **Neural equilibrium at 0.39 ms without GPU** -- achieves P-EFIT-class
-   reconstruction speed on CPU only, enabling edge/embedded deployment.
+3. **Neural equilibrium at 0.39 ms without GPU** — not cross-validated
+   against P-EFIT on identical equilibria, but demonstrates CPU-only
+   sub-ms reconstruction is achievable.
 
-4. **Full-stack control breadth** -- equilibrium, transport, control,
-   disruption mitigation, digital twin in one focused 41-file package.
+4. **Full-stack control breadth** — equilibrium, transport, control,
+   disruption mitigation, digital twin in one focused 54-module package.
+   Trade-off: breadth over depth in any single area.
 
 ## References
 

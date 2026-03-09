@@ -1,4 +1,4 @@
-# SCPN Control — The Fastest Open-Source Fusion Controller
+# SCPN Control — Neuro-Symbolic Fusion Controller
 
 <p align="center">
   <img src="../scpn_control_header.png" alt="SCPN Control" width="100%">
@@ -8,55 +8,63 @@
 
 ## The Problem
 
-Fusion energy is within reach, but **real-time plasma control** remains the
-bottleneck. Today's tokamak control systems are:
+Fusion energy is within reach, but **real-time plasma control** remains a
+bottleneck. Current tokamak control systems are:
 
 - **Slow** — physics loops at 4--10 kHz, limited by Fortran/C legacy code
-- **Fragile** — no formal verification, no disruption prediction
-- **Monolithic** — tightly coupled to specific machines (DIII-D, ITER)
+- **Coupled** — tightly bound to specific machines (DIII-D, ITER)
 - **GPU-locked** — P-EFIT needs CUDA for sub-ms reconstruction
+- **No SNN path** — no open-source Petri Net → SNN compilation for fusion
 
-**scpn-control solves all four.**
+scpn-control addresses these with a different architecture.
 
 ---
 
 ## The Solution
 
 A standalone neuro-symbolic control engine that compiles Stochastic Petri Nets
-into spiking neural network controllers — with formal verification, sub-ms
-latency, and zero GPU dependency.
+into spiking neural network controllers — with contract-based pre/post-condition
+checking, sub-ms kernel latency, and zero GPU dependency.
 
-### 11.9 microsecond control loop
+### 11.9 microsecond kernel step
 
-Faster than any open-source fusion code. Faster than the DIII-D PCS physics
-loops. On commodity hardware. No FPGA. No InfiniBand.
+The Rust control kernel benchmarks at 11.9 µs P50 (Criterion-verified on
+GitHub Actions ubuntu-latest). This is a **single kernel step**, not a
+complete control cycle including I/O, diagnostics, and actuator commands.
 
 | Metric | scpn-control | DIII-D PCS | TORAX | ITER PCS |
 |--------|-------------|-----------|-------|----------|
-| Control frequency | **10--30 kHz** | 4--10 kHz | Offline | ~100 Hz |
-| Step latency (P50) | **11.9 us** | 100--250 us | ~ms | 5--10 ms |
+| Kernel step (P50) | **11.9 us** | 100--250 us (physics cycle) | ~ms (sim step) | 5--10 ms |
 | Language | Rust + Python | C/Fortran | JAX | TBD |
 | GPU required | **No** | No | Yes | TBD |
+| Deployment | Research / Alpha | Production | Offline sim | Spec |
+
+> **Caveat:** DIII-D PCS timings include I/O, diagnostics, and actuator
+> commands within a full physics cycle. scpn-control's 11.9 µs is a bare
+> kernel call. A fair comparison would require equivalent end-to-end
+> measurement on comparable hardware.
 
 ### 0.39 ms neural equilibrium — without GPU
 
-P-EFIT achieves <1 ms on GPU hardware. scpn-control matches this on **CPU
-only** using a PCA + MLP surrogate trained on SPARC geometries.
+P-EFIT achieves <1 ms on GPU hardware. scpn-control's PCA + MLP surrogate
+achieves 0.39 ms on **CPU only**. Not validated against P-EFIT on identical
+equilibria — the MLP was trained on SPARC geometries, not the DIII-D shapes
+P-EFIT typically reconstructs.
 
 ### Full-stack control in one package
 
 | Capability | Status |
 |-----------|--------|
-| Grad-Shafranov equilibrium solver | Production |
-| 1.5D coupled transport | Production |
-| PID controller | Production |
-| H-infinity controller (Riccati) | Production |
-| MPC (gradient-based, surrogate dynamics) | Production |
-| Spiking neural network controller (Nengo) | Production |
-| Phase dynamics (Kuramoto/UPDE) | Production |
-| WebSocket live telemetry | Production |
-| Formal contract verification | Production |
-| ML disruption prediction (Transformer) | Experimental |
+| Grad-Shafranov equilibrium solver | Tested (CI-gated RMSE) |
+| 1.5D coupled transport | Tested |
+| PID controller | Tested |
+| H-infinity controller (Riccati) | Tested |
+| MPC (gradient-based, surrogate dynamics) | Tested |
+| Spiking neural network controller (Nengo) | Tested (mocked CI; Loihi untested) |
+| Phase dynamics (Kuramoto/UPDE) | Tested |
+| WebSocket live telemetry | Tested |
+| Contract-based pre/post-condition checking | Tested |
+| ML disruption prediction (Transformer) | Experimental (synthetic data only) |
 | SPI ablation mitigation | Experimental |
 | Real-time digital twin | Experimental |
 | Neuro-cybernetic controller | Experimental |
@@ -67,36 +75,40 @@ only** using a PCA + MLP surrogate trained on SPARC geometries.
 
 ### For Fusion Startups
 
-You need real-time control **now**, not after a 3-year bespoke development
-cycle. scpn-control gives you:
+You need real-time control prototyping **now**, not after a 3-year bespoke
+development cycle. scpn-control gives you:
 
-- Drop-in controller with 1969 tests and CI-gated RMSE validation
-- Runs on edge hardware (no data center required)
+- A tested controller with 2019 tests and CI-gated RMSE validation
+- Runs on commodity hardware (no GPU or data center required)
 - MIT/Apache-2.0 dual-licensed — no copyleft restrictions
+
+**Caveat:** This is Alpha-stage research software, not a production PCS.
+Integration with real hardware requires significant additional work.
 
 ### For National Labs
 
-Your PCS is decades old. scpn-control offers:
+scpn-control offers a modern alternative for offline analysis and
+rapid prototyping:
 
-- Modern Rust + Python stack replacing legacy Fortran
-- Formal verification via contract-based pre/post-condition checking
-- Digital twin for offline commissioning and operator training
+- Modern Rust + Python stack alongside legacy Fortran
+- Contract-based pre/post-condition checking on control boundaries
+- Digital twin for offline commissioning and algorithm development
 
-### For ITER / DEMO
+### For ITER / DEMO (Speculative)
 
-The 100 Hz diagnostic cycle won't cut it for disruption mitigation.
-scpn-control's 30 kHz loop gives you the headroom for:
+The architecture *could* support future integration, but:
 
-- Real-time disruption prediction (ML-based, <1 ms inference)
-- SPI pellet injection with halo current / runaway electron physics
-- Closed-loop SNN feedback replacing hardwired interlock logic
+- Not currently hardened for ITER CODAC or EPICS
+- Disruption prediction is trained on synthetic data only
+- SPI mitigation physics is experimental, not validated against
+  real disruption databases
 
 ---
 
 ## Architecture
 
 ```
-53 Python modules | 5 Rust crates | 1969 tests | 15 CI jobs
+54 Python modules | 5 Rust crates | 2019 tests | 15 CI jobs
 ```
 
 ```
@@ -133,16 +145,21 @@ Interactive controls for coupling strength, oscillator count, and Psi driver.
 
 ## Validation
 
-Every claim is CI-verified. Every benchmark is reproducible.
+All benchmarks are CI-reproducible. See [VALIDATION.md](../VALIDATION.md)
+for scope and limitations.
 
-| Validation | Method | Result |
-|-----------|--------|--------|
-| DIII-D shot replay | 16 reference shots, RMSE gated | < 15% Te RMSE |
-| SPARC equilibrium | 8 EFIT reference equilibria | < 5% flux error |
-| IPB98(y,2) scaling | ITPA multi-machine database | 26.6% RMSE |
-| Kuramoto convergence | R -> 0.92, V -> 0, lambda < 0 | 500-tick verified |
-| Control latency | Criterion benchmark (P50/P99) | 11.9 / 23.9 us |
-| Neural equilibrium | PCA + MLP vs Picard ground truth | 0.39 ms mean |
+| Validation | Method | Result | Data Source |
+|-----------|--------|--------|-------------|
+| DIII-D shot replay | 16 reference shots, RMSE gated | < 15% Te RMSE | **Synthetic** (mock_diiid.py) |
+| SPARC equilibrium | 8 EFIT reference equilibria | < 5% flux error | Public GEQDSK files |
+| IPB98(y,2) scaling | ITPA multi-machine database | 26.6% RMSE | Published coefficients |
+| Kuramoto convergence | R -> 0.92, V -> 0, lambda < 0 | 500-tick verified | Simulation |
+| Control latency | Criterion benchmark (P50/P99) | 11.9 / 23.9 us | CI ubuntu-latest |
+| Neural equilibrium | PCA + MLP vs Picard ground truth | 0.39 ms mean | Simulation |
+
+> **Important:** "DIII-D shot replay" uses **synthetic mock shots**, not real
+> MDSplus experimental data. No real tokamak data has been ingested or validated
+> against. The SPARC GEQDSK files are publicly available design equilibria.
 
 ---
 

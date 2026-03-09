@@ -1,15 +1,39 @@
 # Validation
 
+## Scope & Limitations
+
+> This section states what is and is not validated. Read this first.
+
+| Claim | Validated Against | Data Source | Limitation |
+|-------|-------------------|-------------|------------|
+| "DIII-D shot replay" | Synthetic mock shots | `tests/mock_diiid.py` | **Not real MDSplus data** |
+| SPARC equilibrium RMSE | Published GEQDSK design files | CFS public data | Design equilibria, not experimental |
+| IPB98(y,2) scaling | Published ITPA coefficients | Wesson, ITER Physics Basis | Coefficient comparison only |
+| Control latency 11.9 µs | Rust Criterion benchmark | CI ubuntu-latest | Bare kernel step, not E2E cycle |
+| Neural equilibrium 0.39 ms | PCA+MLP vs Picard solver | Internal simulation | Not cross-validated against P-EFIT |
+| "Formal verification" | Runtime contract assertions | `scpn/contracts.py` | Not theorem-proved (no Coq/Lean) |
+| Disruption prediction | Synthetic training data | Internal generator | Not validated on real disruption DBs |
+| SPI mitigation physics | Physics equations only | Literature constants | Not validated against JET/ITER data |
+| SNN controller | Mocked Nengo CI tests | Simulated neurons | Nengo Loihi hardware untested |
+
+**What does NOT exist:**
+- No real MDSplus shot data ingestion
+- No experimental tokamak validation (DIII-D, JET, KSTAR, EAST)
+- No peer-reviewed fusion journal publication
+- No real hardware deployment (PCS, EPICS, CODAC)
+- No cross-validation against P-EFIT, TORAX, or FUSE on identical scenarios
+- No radiation-hardened or ARM deployment testing
+
 ## Test Matrix
 
 | Suite | Count | Scope |
 |-------|------:|-------|
-| Python unit/integration | 1969 | `pytest tests/` across 115 files |
+| Python unit/integration | 2019 | `pytest tests/` across 118 files |
 | Rust engine | 108+ | `cargo test --workspace` in `scpn-control-rs/` |
 | Rust-Python interop | 3 files | PyO3 parity tests via maturin |
 | Notebooks | 5 | Executed in CI via `nbconvert` |
-| E2E (DIII-D mock) | 1 file | Full shot-driven control loop |
-| RMSE gate | 1 file | Regression against DIII-D/SPARC reference |
+| E2E (DIII-D mock) | 1 file | Full shot-driven control loop (**synthetic data**) |
+| RMSE gate | 1 file | Regression against SPARC GEQDSK + synthetic DIII-D |
 
 CI runs tests on Python 3.9-3.13 (Ubuntu), Rust on Ubuntu.
 
@@ -47,8 +71,11 @@ All gates must pass before merge to `main`.
 ## RMSE Validation
 
 The `validation/rmse_dashboard.py` script computes pointwise RMSE against
-reference GEQDSK equilibria (DIII-D, SPARC) and enforces bounds in CI
-via `tools/ci_rmse_gate.py`.
+reference GEQDSK equilibria (SPARC design files, synthetic DIII-D) and
+enforces bounds in CI via `tools/ci_rmse_gate.py`.
+
+> The DIII-D reference files are **synthetically generated** by
+> `tests/mock_diiid.py`, not downloaded from MDSplus or D3D archives.
 
 ## Benchmark Gates
 
@@ -57,3 +84,7 @@ via `tools/ci_rmse_gate.py`.
 | Kuramoto step (N=1000) | < 5 ms P50 | Single-step latency |
 | Kuramoto step (N=4096) | < 5 ms P50 | DIII-D scale |
 | RealtimeMonitor tick | < 50 ms P50 | 16 layers x 50 oscillators |
+
+> Benchmark budgets are regression gates (vs. previous CI runs), not
+> comparisons against external codes. No head-to-head benchmarks against
+> TORAX, FUSE, or DIII-D PCS have been published.

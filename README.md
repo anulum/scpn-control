@@ -20,16 +20,18 @@
 ---
 
 **scpn-control** is a standalone neuro-symbolic control engine that compiles
-Stochastic Petri Nets into spiking neural network controllers with formal
-verification guarantees. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 53 source
-modules, 115 test files, **1969 tests**, 5 Rust crates, 15 CI jobs.
+Stochastic Petri Nets into spiking neural network controllers with
+contract-based pre/post-condition checking. Extracted from
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 54 source
+modules, 118 test files, **2019 tests**, 5 Rust crates, 15 CI jobs.
 
-> **11.9 µs P50 control loop** — faster than any open-source fusion code,
-> competitive with the DIII-D PCS (4–10 kHz physics loops).
-> With `sc-neurocore` installed, the SNN compiler uses `VectorizedSCLayer` +
-> Rust backend for **512× real-time** spiking neural network execution.
-> See [competitive analysis](docs/competitive_analysis.md) for full benchmarks.
+> **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
+> This is a bare Rust kernel call, not a complete control cycle.
+> See [competitive analysis](docs/competitive_analysis.md) for full benchmarks
+> and [Limitations](#limitations) for honest scope.
+>
+> **Status: Alpha / Research.** Not a production PCS. No real tokamak
+> deployment. Validated against synthetic data and published GEQDSK files only.
 
 ## Quick Start
 
@@ -85,13 +87,13 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 ## Features
 
 - **Petri Net to SNN compilation** -- Translates Stochastic Petri Nets into spiking neural network controllers with LIF neurons and bitstream encoding
-- **Formal verification** -- Contract-based pre/post-condition checking on all control observations and actions
+- **Contract checking** -- Runtime pre/post-condition assertions on control observations and actions (not theorem-proved formal verification)
 - **Sub-millisecond latency** -- <1ms control loop with optional Rust-accelerated kernels
 - **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update, Boris integration, SNN pools, and MPC
 - **Multiple controller types** -- PID, MPC, H-infinity, SNN, neuro-cybernetic dual R+Z
 - **Grad-Shafranov solver** -- Free-boundary equilibrium solver with L-mode/H-mode profile support
 - **Digital twin integration** -- Real-time telemetry ingest, closed-loop simulation, and flight simulator
-- **RMSE validation** -- CI-gated regression testing against DIII-D and SPARC experimental reference data
+- **RMSE validation** -- CI-gated regression testing against synthetic DIII-D shots and published SPARC GEQDSK files
 - **Disruption prediction** -- ML-based predictor with SPI mitigation and halo/RE physics
 
 ## Architecture
@@ -132,12 +134,12 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 1969 tests (115 files)
-+-- mock_diiid.py      # Synthetic DIII-D shot generator (14-field NPZ)
+tests/                 # 2019 tests (118 files)
++-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
 +-- test_rust_realtime_parity.py  # Rust PyRealtimeMonitor parity
-+-- ...                # 108 more test files
++-- ...                # 111 more test files
 ```
 
 ## Paper 27 Phase Dynamics (Knm/UPDE Engine)
@@ -310,20 +312,34 @@ git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```
 
-## Limitations
+## Limitations & Honest Scope
 
-- **Equilibrium solver**: Fixed-boundary Grad-Shafranov only. Free-boundary with
-  external coil currents is not implemented. No stellarator geometry.
+> These are not future roadmap items — they are current architectural
+> constraints that users must understand.
+
+- **No real tokamak data**: All "DIII-D shots" are synthetic (mock_diiid.py).
+  No MDSplus, no experimental replay, no real-world validation.
+- **No peer-reviewed fusion publication**: Paper 27 (arXiv:2004.06344) is
+  unpublished in a fusion journal. No external citations.
+- **Not a production PCS**: Alpha-stage research software. No ITER CODAC,
+  no EPICS interface, no safety certification, no real hardware deployment.
+- **"Formal verification" is contract checking**: Runtime pre/post-condition
+  assertions, not theorem-proved guarantees (no Coq/Lean/TLA+).
+- **Benchmark comparisons are not apples-to-apples**: The 11.9 µs number is a
+  bare Rust kernel step. DIII-D PCS timings include I/O, diagnostics, and
+  actuator commands. A fair comparison requires equivalent end-to-end
+  measurement on comparable hardware.
+- **Equilibrium solver**: Fixed-boundary Grad-Shafranov only. No free-boundary
+  with external coil currents. No stellarator geometry.
 - **Transport**: 1.5D flux-surface-averaged. No turbulence micro-instability
   models (TGLF/QuaLiKiz) — uses Chang-Hinton neoclassical + scaling-law anomalous.
-- **Validation scope**: Benchmarked against analytic Solov'ev solutions and
-  published DIII-D/SPARC equilibria (GEQDSK). No real MDSplus shot data yet.
 - **Disruption predictor**: Synthetic training data only. Not validated on
   experimental disruption databases.
+- **No autodifferentiation**: Cannot do gradient-based scenario optimization.
+  TORAX (JAX) and FUSE (Julia) have this.
+- **No GPU equilibrium**: P-EFIT is faster on GPU hardware.
 - **Rust acceleration**: Optional. Pure-Python fallback is complete but 5-10x
   slower for GS solve and Kuramoto steps at N > 1000.
-- **Deployment**: Research-grade. Not hardened for real-time PCS integration.
-  No ITER CODAC or EPICS interface.
 
 ## Support the Project
 

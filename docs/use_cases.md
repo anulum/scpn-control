@@ -2,25 +2,29 @@
 
 ## Fusion Reactor Control
 
-### Tokamak Real-Time Plasma Control
+### Tokamak Control Algorithm Prototyping
 
-Deploy scpn-control as the real-time controller for experimental or
-commercial tokamaks. The 11.9 us P50 control loop enables:
+> **Status:** Research / Alpha. Not a production PCS. Real hardware
+> integration requires significant additional work (EPICS/CODAC interface,
+> deterministic OS, safety certification).
 
-- **Shape control** at 10--30 kHz (vs. 4 kHz on current DIII-D systems)
-- **Disruption prediction** with ML inference under 1 ms
-- **SPI mitigation** with halo current and runaway electron physics
-- **Profile control** via neuro-cybernetic dual R+Z SNN feedback
+scpn-control provides a prototyping platform for control algorithm
+development. The 11.9 µs kernel step (Criterion-verified) enables:
 
-**Target users:** Fusion startups (Commonwealth Fusion Systems, TAE, Tokamak
-Energy, Zap Energy), national labs (DIII-D, JET, KSTAR, EAST).
+- **Shape control algorithm R&D** — develop and test at high loop rates
+- **Disruption prediction prototyping** — ML inference pipeline (synthetic training data)
+- **SPI mitigation modeling** — halo current and runaway electron physics
+- **Profile control R&D** — neuro-cybernetic dual R+Z SNN feedback
 
-### ITER / DEMO Integration
+**Target users:** Control algorithm researchers, fusion startups in early design,
+graduate students.
 
-The formal verification layer (contract-based pre/post-condition checking)
-directly addresses ITER nuclear safety requirements. The SNN controller
-provides fail-safe operation: if the Lyapunov guard detects instability,
-the system halts to safe state within one control cycle.
+### ITER / DEMO (Future, Speculative)
+
+The contract-based pre/post-condition checking layer provides runtime
+assertion checking — not formal theorem-proved verification. The SNN
+controller includes a Lyapunov stability guard, but this has not been
+validated against real disruption scenarios or certified for nuclear safety.
 
 ---
 
@@ -52,12 +56,12 @@ and control fidelity against experimental baselines.
 
 scpn-control is the only open-source implementation of:
 
-- Stochastic Petri Net to SNN compilation
-- Kuramoto-Sakaguchi phase dynamics with formal Lyapunov stability
+- Stochastic Petri Net to SNN compilation for fusion control
+- Kuramoto-Sakaguchi phase dynamics with Lyapunov stability monitoring
 - Phase-amplitude coupling (PAC) between oscillator populations
 
-These are active research frontiers in both fusion plasma physics
-and computational neuroscience.
+These are active research frontiers. The implementation is tested but
+not yet validated in peer-reviewed fusion publications.
 
 ### Graduate-Level Course Material
 
@@ -65,8 +69,8 @@ The codebase includes:
 
 - 5 tutorial notebooks (Jupyter) with step-by-step walkthroughs
 - A live Streamlit dashboard for interactive exploration
-- 1969 tests demonstrating expected behavior and edge cases
-- Full competitive analysis against state-of-the-art codes
+- 2019 tests demonstrating expected behavior and edge cases
+- Competitive analysis against state-of-the-art codes
 
 ---
 
@@ -74,11 +78,12 @@ The codebase includes:
 
 ### No GPU Required
 
-The neural equilibrium kernel achieves P-EFIT-class speed (0.39 ms)
-on CPU only. This enables deployment on:
+The neural equilibrium kernel achieves 0.39 ms on CPU only (not
+head-to-head validated against P-EFIT on identical equilibria).
+This *potentially* enables deployment on:
 
-- ARM-based edge controllers
-- Radiation-hardened embedded systems
+- ARM-based edge controllers (not tested on ARM)
+- Embedded systems (not tested in radiation-hard environments)
 - Air-gapped control networks (no cloud dependency)
 
 ### Rust Native Backend
@@ -96,16 +101,18 @@ The 5-crate Rust workspace provides:
 
 | Use Case | scpn-control | TORAX | FUSE | FreeGS |
 |----------|-------------|-------|------|--------|
-| Real-time control | 11.9 us | No | No | No |
-| Disruption prediction | ML-based | No | No | No |
-| SPI mitigation | Yes | No | No | No |
-| Digital twin | Real-time | No | No | No |
-| Neural equilibrium | 0.39 ms (CPU) | No | No | No |
-| SNN controller | Yes | No | No | No |
-| Formal verification | Contracts | No | No | No |
-| Edge deployment | Yes (Rust) | No (JAX) | No (Julia) | Partial |
-| Autodifferentiation | No | Yes (JAX) | Yes (Julia) | No |
-| GPU transport | No | Yes | Yes | No |
+| Real-time kernel | 11.9 µs (bare step) | No | No | No |
+| Disruption prediction | Experimental (synthetic) | No | No | No |
+| SPI mitigation | Experimental | No | No | No |
+| Digital twin | Experimental | No | No | No |
+| Neural equilibrium | 0.39 ms (CPU, not cross-validated) | No | No | No |
+| SNN controller | Yes (Nengo, mocked CI) | No | No | No |
+| Contract checking | Yes (runtime assertions) | No | No | No |
+| Edge deployment | Possible (Rust, untested on ARM) | No (JAX) | No (Julia) | Partial |
+| Autodifferentiation | **No** | **Yes (JAX)** | **Yes (Julia)** | No |
+| GPU transport | **No** | **Yes** | **Yes** | No |
+| Real tokamak data | **No** | **Yes** | **Yes** | **Yes** |
+| Peer-reviewed papers | **No** | **Yes** | **Yes** | **Yes** |
 
 ---
 
