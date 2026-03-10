@@ -41,13 +41,17 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e . pytest pytest-cov hypothesis mypy
       - name: Test
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/ -v --tb=short -x
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: pytest -p hypothesis.extra.pytestplugin tests/ -v --tb=short -x
       - name: Mypy (ubuntu 3.12 only)
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         run: python -m mypy
       - name: Coverage (ubuntu 3.12 only)
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=85
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=85
       - name: Upload coverage artifact
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7
@@ -396,7 +400,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[jax]" pytest hypothesis
       - name: JAX tests
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_jax_traceable_runtime.py -v --tb=short
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: pytest -p hypothesis.extra.pytestplugin tests/test_jax_traceable_runtime.py -v --tb=short
 
   # ─── Job 17: Nengo Loihi emulator ───
   nengo-loihi:
@@ -409,6 +415,8 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[nengo]" pytest
+          python -m pip install -e ".[nengo]" "numpy<2" pytest
       - name: Nengo tests
-        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/test_nengo_snn_wrapper.py -v --tb=short
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: pytest tests/test_nengo_snn_wrapper.py -v --tb=short

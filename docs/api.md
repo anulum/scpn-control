@@ -60,15 +60,15 @@ scpn_control.RealtimeMonitor
 
 ### Neural Equilibrium
 
-::: scpn_control.core.neural_equilibrium.NeuralEquilibrium
+::: scpn_control.core.neural_equilibrium.NeuralEquilibriumAccelerator
 
 ### Neural Transport
 
-::: scpn_control.core.neural_transport.NeuralTransport
+::: scpn_control.core.neural_transport.NeuralTransportModel
 
 ### MHD Stability
 
-::: scpn_control.core.stability_mhd.StabilityAnalyzer
+::: scpn_control.core.stability_mhd.run_full_stability_check
 
 ### IMAS Adapter
 
@@ -170,7 +170,7 @@ scpn_control.RealtimeMonitor
 
 ### Plasma Knm
 
-::: scpn_control.phase.plasma_knm.PlasmaKnmBuilder
+::: scpn_control.phase.plasma_knm.build_knm_plasma
 
 ### WebSocket Stream
 
@@ -236,7 +236,7 @@ scpn_control.RealtimeMonitor
 
 ### Analytic Solver
 
-::: scpn_control.control.analytic_solver.AnalyticSolver
+::: scpn_control.control.analytic_solver.AnalyticEquilibriumSolver
 
 ### Bio-Holonomic Controller
 
@@ -244,7 +244,7 @@ scpn_control.RealtimeMonitor
 
 ### Digital Twin Ingest
 
-::: scpn_control.control.digital_twin_ingest.DigitalTwinIngest
+::: scpn_control.control.digital_twin_ingest.RealtimeTwinHook
 
 ### Director Interface
 
@@ -252,7 +252,7 @@ scpn_control.RealtimeMonitor
 
 ### Fueling Mode Controller
 
-::: scpn_control.control.fueling_mode.FuelingModeController
+::: scpn_control.control.fueling_mode.IcePelletFuelingController
 
 ### Halo RE Physics
 
@@ -260,13 +260,13 @@ scpn_control.RealtimeMonitor
 
 ### HIL Test Harness
 
-::: scpn_control.control.hil_harness.HILTestHarness
+::: scpn_control.control.hil_harness.HILControlLoop
 
 ### JAX Traceable Runtime
 
 Requires `pip install "scpn-control[jax]"`.
 
-::: scpn_control.control.jax_traceable_runtime.TraceableRuntime
+::: scpn_control.control.jax_traceable_runtime.TraceableRuntimeSpec
 
 ### Nengo SNN Controller
 
@@ -280,7 +280,7 @@ Requires `pip install "scpn-control[nengo]"`.
 
 ### TORAX Hybrid Loop
 
-::: scpn_control.control.torax_hybrid_loop.ToraxHybridLoop
+::: scpn_control.control.torax_hybrid_loop.run_nstxu_torax_hybrid_campaign
 
 ### Advanced SOC Learning
 

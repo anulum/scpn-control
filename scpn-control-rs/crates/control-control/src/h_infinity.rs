@@ -30,13 +30,13 @@ fn matrix_exp(a: &Array2<f64>) -> Array2<f64> {
 
     // Padé(6,6) coefficients: c_k = (2p - k)! p! / ((2p)! k! (p-k)!)  for p=6
     const C: [f64; 7] = [
-        1.0,                                 // c0
-        0.5,                                 // c1 = 1/2
-        0.11363636363636363636,              // c2 = 5/44
-        1.515151515151515e-2,                // c3 = 1/66
-        1.262626262626263e-3,                // c4 = 5/3960
-        6.313131313131313e-5,                // c5 = 1/15840
-        1.503126503126503e-6,                // c6 = 1/665280
+        1.0,                    // c0
+        0.5,                    // c1 = 1/2
+        0.11363636363636363636, // c2 = 5/44
+        1.515151515151515e-2,   // c3 = 1/66
+        1.262626262626263e-3,   // c4 = 5/3960
+        6.313131313131313e-5,   // c5 = 1/15840
+        1.503126503126503e-6,   // c6 = 1/665280
     ];
 
     // Scaling: find s such that ||A / 2^s||_inf <= 1
@@ -75,7 +75,9 @@ fn matrix_exp(a: &Array2<f64>) -> Array2<f64> {
 
     // result = denom^{-1} * numer
     use ndarray_linalg::Inverse;
-    let denom_inv = denom.inv().expect("Padé denominator singular in matrix_exp");
+    let denom_inv = denom
+        .inv()
+        .expect("Padé denominator singular in matrix_exp");
     let mut result = denom_inv.dot(&numer);
 
     // Squaring: result = result^{2^s}

@@ -867,7 +867,7 @@ class TransportSolver(FusionKernel):
                 ),
             ),
         )
-        return Lz
+        return np.asarray(Lz)
 
     @staticmethod
     def _bremsstrahlung_power_density(ne_1e19: np.ndarray, Te_keV: np.ndarray, Z_eff: float) -> np.ndarray:

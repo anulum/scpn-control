@@ -513,7 +513,7 @@ if torch is not None:
 else:  # pragma: no cover - only used without torch installed
 
     class DisruptionTransformer:  # type: ignore[no-redef]
-        def __init__(self):
+        def __init__(self) -> None:
             raise RuntimeError("Torch is required for DisruptionTransformer.")
 
 
