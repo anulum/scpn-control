@@ -113,10 +113,14 @@
 - [x] Training script `tools/train_neural_transport_qlknn.py` + `--synthetic` CI mode
 - [x] Auto-discovery: `NeuralTransportModel()` loads weights from `weights/`
 - [x] 20 QLKNN tests (weight validation, inference, profile, training E2E)
+- [x] PPO agent on TokamakEnv (stable-baselines3 PPO, 50K timesteps)
+- [x] Gymnasium wrapper (`GymTokamakEnv`) with proper `spaces.Box`
+- [x] RL vs PID vs MPC benchmark (`benchmarks/rl_vs_classical.py`)
+- [x] 14 RL tests (wrapper, PID, agent loading, training E2E)
+- [x] `[rl]` optional dependency group
+- [x] TokamakEnv q95 physics fix (elongation factor)
 
-### v0.13.0 — RL agent + JOSS
-- [ ] Trained PPO agent on TokamakEnv (stable-baselines3)
-- [ ] RL vs PID/MPC/H-inf benchmark
+### v0.13.0 — JOSS submission
 - [ ] JOSS paper submission (fact-checked, updated claims)
 
 ### v1.0.0 — Production readiness

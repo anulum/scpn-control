@@ -8,11 +8,16 @@
 - Training script `tools/train_neural_transport_qlknn.py` with `--synthetic` CI mode
   and `--data-dir` for real Zenodo dataset
 - Auto-discovery: `NeuralTransportModel()` loads weights from `weights/` if present
-- 20 new tests (`tests/test_qlknn_transport.py`): weight validation, inference,
-  gradient monotonicity, profile prediction, training script E2E
+- **PPO agent** on `TokamakEnv` via stable-baselines3 (`tools/train_rl_tokamak.py`)
+- Gymnasium-compatible `GymTokamakEnv` wrapper with proper `spaces.Box` definitions
+- PID and 1-step MPC baseline controllers for comparison
+- RL vs classical benchmark (`benchmarks/rl_vs_classical.py`): PPO vs PID vs MPC
+- `[rl]` optional dependency group (`stable-baselines3`, `gymnasium`)
+- 20 QLKNN tests + 14 RL tests (weight loading, inference, training E2E, benchmark)
 
 ### Fixed
 - NumPy 2.x deprecation: `int(data["version"])` → `int(data["version"].item())`
+- TokamakEnv q95 formula: added elongation factor (q95 ≈ 3.0 at 15 MA, was 1.77)
 
 ## [0.11.0] — 2026-03-10
 

@@ -1,0 +1,23 @@
+{
+  "PPO": {
+    "mean_reward": -1766.30760329691,
+    "std_reward": 51.78765411757458,
+    "mean_length": 500.0,
+    "disruption_rate": 0.0,
+    "n_episodes": 20
+  },
+  "PID": {
+    "mean_reward": -1204.3047341558527,
+    "std_reward": 15.105532664776408,
+    "mean_length": 500.0,
+    "disruption_rate": 0.0,
+    "n_episodes": 20
+  },
+  "MPC": {
+    "mean_reward": -247.52105607176645,
+    "std_reward": 18.693363882599577,
+    "mean_length": 500.0,
+    "disruption_rate": 0.0,
+    "n_episodes": 20
+  }
+}

@@ -5,10 +5,14 @@
 ### Added
 - QLKNN-10D trained neural transport model (`tools/train_neural_transport_qlknn.py`)
 - Auto-discovery: `NeuralTransportModel()` loads from `weights/` if present
-- 20 new QLKNN tests (weight validation, inference, training E2E)
+- PPO agent on TokamakEnv, Gymnasium wrapper, PID/MPC baselines
+- RL vs classical benchmark (`benchmarks/rl_vs_classical.py`)
+- `[rl]` optional dependency group
+- 20 QLKNN tests + 14 RL tests
 
 ### Fixed
 - NumPy 2.x deprecation in weight loader (`version` array → scalar)
+- TokamakEnv q95 formula: added elongation factor (was causing instant disruption)
 
 ## [0.11.0] — 2026-03-10
 

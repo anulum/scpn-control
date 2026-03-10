@@ -74,6 +74,7 @@ site/
 
 # Release archives
 *.zip
+!weights/ppo_tokamak.zip
 *.tar.gz
 !dist/*.tar.gz
 

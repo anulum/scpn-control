@@ -1,0 +1,19 @@
+{
+  "ppo": {
+    "mean_reward": -1766.30760329691,
+    "std_reward": 51.78765411757458,
+    "mean_length": 500.0,
+    "disruption_rate": 0.0,
+    "n_episodes": 20
+  },
+  "pid": {
+    "mean_reward": -1204.3047341558527,
+    "std_reward": 15.105532664776408,
+    "mean_length": 500.0,
+    "disruption_rate": 0.0,
+    "n_episodes": 20
+  },
+  "timesteps": 50000,
+  "train_time_s": 460.0647160000008,
+  "ppo_advantage": -562.0028691410573
+}

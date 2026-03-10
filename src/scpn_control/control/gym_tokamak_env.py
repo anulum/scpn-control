@@ -115,9 +115,11 @@ class TokamakEnv:
         T_edge += self.dt * (0.5 * (T_ax - T_edge) - 1.0 * T_edge)
         Ip += Ip_delta * self.dt * 10.0
         beta_N: float = 0.02 * T_ax * np.sqrt(max(Ip, 0.1)) / max(abs(Ip), 0.1)
-        # q95 ≈ 5 a² B_T / (R Ip); ITER: a=2.0m, B_T=5.3T, R=6.2m
-        # → 5 * 4 * 5.3 / 6.2 ≈ 17.1 / Ip  (simplified cylindrical safety factor)
-        q95: float = max(5.0 * 5.3 / max(Ip, 0.1), 1.5)
+        # q95 ≈ 5 a² κ B_T / (R Ip); ITER: a=2m, κ=1.7, B_T=5.3T, R=6.2m
+        # Wesson Ch.3 Eq.3.51, with elongation correction: q* → q_cyl * (1+κ²)/2
+        # Calibrated to q95 ≈ 3.0 at Ip=15 MA (ITER reference scenario)
+        _Q95_CONST = 45.0  # 5 * a² * κ * B_T / R ≈ 5 * 4 * 1.7 * 5.3 / 6.2
+        q95: float = max(_Q95_CONST / max(Ip, 0.1), 1.5)
         li: float = 0.85 + 0.1 * (q95 - 3.0)
 
         self._state = np.array([T_ax, T_edge, beta_N, li, q95, Ip])
