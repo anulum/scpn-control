@@ -108,9 +108,13 @@
 - [x] `jax.vmap` batch equilibrium (100+ simultaneous)
 - [x] NumPy fallback when JAX unavailable
 
-### v0.12.0 — Transport fidelity + RL + JOSS
-- [ ] QLKNN-10D trained transport model (Zenodo dataset)
-- [ ] Training script + reproducibility docs
+### v0.12.0 — 2026-03-10
+- [x] QLKNN-10D trained transport model (synthetic critical-gradient, Zenodo-ready)
+- [x] Training script `tools/train_neural_transport_qlknn.py` + `--synthetic` CI mode
+- [x] Auto-discovery: `NeuralTransportModel()` loads weights from `weights/`
+- [x] 20 QLKNN tests (weight validation, inference, profile, training E2E)
+
+### v0.13.0 — RL agent + JOSS
 - [ ] Trained PPO agent on TokamakEnv (stable-baselines3)
 - [ ] RL vs PID/MPC/H-inf benchmark
 - [ ] JOSS paper submission (fact-checked, updated claims)

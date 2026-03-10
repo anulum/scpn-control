@@ -108,7 +108,7 @@ class TestMLPForward:
 
 class TestNeuralTransportModel:
     def test_fallback_mode(self):
-        model = NeuralTransportModel()
+        model = NeuralTransportModel(auto_discover=False)
         assert not model.is_neural
 
     def test_missing_path_falls_back(self):
@@ -158,7 +158,7 @@ class TestNeuralTransportModel:
         assert fluxes.chi_i >= 0
 
     def test_predict_fallback(self):
-        model = NeuralTransportModel()
+        model = NeuralTransportModel(auto_discover=False)
         fluxes = model.predict(TransportInputs(grad_ti=8.0))
         expected = critical_gradient_model(TransportInputs(grad_ti=8.0))
         assert fluxes.chi_i == expected.chi_i
@@ -203,7 +203,7 @@ class TestPredictProfile:
         return rho, te, ti, ne, q, s_hat
 
     def test_fallback_profile_shape(self):
-        model = NeuralTransportModel()
+        model = NeuralTransportModel(auto_discover=False)
         rho, te, ti, ne, q, s_hat = self._make_profiles()
         chi_e, chi_i, d_e = model.predict_profile(rho, te, ti, ne, q, s_hat)
         assert chi_e.shape == rho.shape
@@ -211,7 +211,7 @@ class TestPredictProfile:
         assert d_e.shape == rho.shape
 
     def test_fallback_profile_nonneg(self):
-        model = NeuralTransportModel()
+        model = NeuralTransportModel(auto_discover=False)
         rho, te, ti, ne, q, s_hat = self._make_profiles()
         chi_e, chi_i, d_e = model.predict_profile(rho, te, ti, ne, q, s_hat)
         assert np.all(chi_e >= 0)
@@ -241,7 +241,7 @@ class TestPredictProfile:
         assert chi_i.shape == rho.shape
 
     def test_d_e_proportional_to_chi_e(self):
-        model = NeuralTransportModel()
+        model = NeuralTransportModel(auto_discover=False)
         rho, te, ti, ne, q, s_hat = self._make_profiles()
         chi_e, _, d_e = model.predict_profile(rho, te, ti, ne, q, s_hat)
         mask = chi_e > 0

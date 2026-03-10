@@ -1,6 +1,6 @@
 {
   "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controller for Plasma Control",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with formal verification guarantees. Features JAX-accelerated transport and neural equilibrium (GPU + autodiff), real-time adaptive Kuramoto coupling, Lyapunov stability guard, H-infinity observer, and WebSocket phase streaming. 50 Python modules, 5 Rust crates, 2100+ tests.",
   "upload_type": "software",
   "publication_date": "2026-03-10",
@@ -67,5 +67,5 @@
   "communities": [
     {"identifier": "zenodo"}
   ],
-  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.10.0: JAX-accelerated transport primitives (autodiff, GPU, vmap batching), real DIII-D shot validation (17 shots, 95 tests), JOSS paper draft, 25 CI jobs."
+  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.12.0: QLKNN-10D trained neural transport model, auto-discovered weights, training script with reproducibility, 20 QLKNN-specific tests."
 }

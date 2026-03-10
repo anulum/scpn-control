@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.0] — 2026-03-10
+
+### Added
+- QLKNN-10D trained neural transport model (`tools/train_neural_transport_qlknn.py`)
+- Auto-discovery: `NeuralTransportModel()` loads from `weights/` if present
+- 20 new QLKNN tests (weight validation, inference, training E2E)
+
+### Fixed
+- NumPy 2.x deprecation in weight loader (`version` array → scalar)
+
 ## [0.11.0] — 2026-03-10
 
 ### Added

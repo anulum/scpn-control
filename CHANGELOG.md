@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.0] — 2026-03-10
+
+### Added
+- **QLKNN-10D trained neural transport model**: 3-layer MLP (10→128→64→3) trained
+  on synthetic critical-gradient data (5000 samples, van de Plassche et al. 2020 paradigm)
+- Training script `tools/train_neural_transport_qlknn.py` with `--synthetic` CI mode
+  and `--data-dir` for real Zenodo dataset
+- Auto-discovery: `NeuralTransportModel()` loads weights from `weights/` if present
+- 20 new tests (`tests/test_qlknn_transport.py`): weight validation, inference,
+  gradient monotonicity, profile prediction, training script E2E
+
+### Fixed
+- NumPy 2.x deprecation: `int(data["version"])` → `int(data["version"].item())`
+
 ## [0.11.0] — 2026-03-10
 
 ### Added

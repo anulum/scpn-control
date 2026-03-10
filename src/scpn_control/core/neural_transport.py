@@ -55,6 +55,7 @@ FloatArray = NDArray[np.float64]
 
 # Weight file format version expected by this loader.
 _WEIGHTS_FORMAT_VERSION = 1
+_DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parents[3] / "weights" / "neural_transport_qlknn.npz"
 
 
 # ── Data containers ───────────────────────────────────────────────────
@@ -259,7 +260,7 @@ class NeuralTransportModel:
     False
     """
 
-    def __init__(self, weights_path: str | Path | None = None) -> None:
+    def __init__(self, weights_path: str | Path | None = None, *, auto_discover: bool = True) -> None:
         self._weights: MLPWeights | None = None
         self.is_neural: bool = False
         self.weights_path: Path | None = None
@@ -267,6 +268,9 @@ class NeuralTransportModel:
 
         if weights_path is not None:
             self.weights_path = Path(weights_path)
+            self._try_load_weights()
+        elif auto_discover and _DEFAULT_WEIGHTS_PATH.exists():
+            self.weights_path = _DEFAULT_WEIGHTS_PATH
             self._try_load_weights()
 
     def _try_load_weights(self) -> None:
@@ -287,7 +291,7 @@ class NeuralTransportModel:
                     return
 
             # Version check (optional key, defaults to 1)
-            version = int(data["version"]) if "version" in data else 1
+            version = int(data["version"].item()) if "version" in data else 1
             if version != _WEIGHTS_FORMAT_VERSION:
                 logger.warning(
                     "Weight file version %d != expected %d — falling back",
