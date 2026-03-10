@@ -42,7 +42,10 @@ repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root / "src"))
 
 from scpn_control.control.tokamak_flight_sim import IsoFluxController
-from scpn_control.control.h_infinity_controller import get_radial_robust_controller
+from scpn_control.control.h_infinity_controller import (
+    get_flight_sim_controller,
+    get_radial_robust_controller,
+)
 
 # Optional controller imports
 _mpc_available = False
@@ -118,10 +121,24 @@ def _run_pid_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResult
 
 
 def _run_hinf_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResult:
-    """Run a single H-infinity episode."""
+    """Run a single H-infinity episode.
+
+    Uses two independent H-inf controllers (one per axis), each
+    synthesized for the flight sim's quasi-static equilibrium dynamics
+    (error + first-order actuator lag).
+    """
     ctrl = IsoFluxController(config_path, verbose=False)
-    hinf = get_radial_robust_controller()
-    ctrl.pid_step = lambda pid, err: hinf.step(err, 0.05)
+    dt = 0.05
+    hinf_R = get_flight_sim_controller(response_gain=0.05, actuator_tau=0.06)
+    hinf_Z = get_flight_sim_controller(response_gain=0.02, actuator_tau=0.06)
+    pid_R_id = id(ctrl.pid_R)
+
+    def hinf_step(pid: Any, err: float) -> float:
+        if id(pid) == pid_R_id:
+            return hinf_R.step(err, dt)
+        return hinf_Z.step(err, dt)
+
+    ctrl.pid_step = hinf_step
     t0 = time.perf_counter_ns()
     result = ctrl.run_shot(shot_duration=shot_duration, save_plot=False)
     total_us = (time.perf_counter_ns() - t0) / 1e3

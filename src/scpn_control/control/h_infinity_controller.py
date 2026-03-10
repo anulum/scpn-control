@@ -383,6 +383,43 @@ class HInfinityController:
         return float(20.0 * np.log10(1.0 + margin_ratio))
 
 
+def get_flight_sim_controller(
+    response_gain: float = 0.05,
+    actuator_tau: float = 0.06,
+    enforce_robust_feasibility: bool = False,
+) -> HInfinityController:
+    """H-inf controller matched to IsoFluxController flight-sim dynamics.
+
+    Plant model: quasi-static equilibrium response through first-order actuator.
+
+        dx1/dt = alpha*x1 - g*x2   error with Shafranov drift
+        dx2/dt = (u - x2) / tau    first-order actuator lag
+        y = x1                     error measurement
+
+    Parameters
+    ----------
+    response_gain : float
+        Sensitivity of position error to accumulated coil current [1/s].
+        Radial channel: ~0.05, vertical: ~0.02.
+    actuator_tau : float
+        First-order actuator time constant [s]. Default 0.06.
+    """
+    response_gain = require_positive_float("response_gain", response_gain)
+    actuator_tau = require_positive_float("actuator_tau", actuator_tau)
+    inv_tau = 1.0 / actuator_tau
+    # Positive growth rate: Shafranov shift causes position drift (~1/s)
+    # if uncorrected. Also gives the ARE solver a clean Hamiltonian spectrum.
+    A = np.array([[1.0, -response_gain], [0.0, -inv_tau]])
+    B2 = np.array([[0.0], [inv_tau]])
+    B1 = np.array([[1.0], [0.0]])
+    C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
+    C2 = np.array([[1.0, 0.0]])
+    return HInfinityController(
+        A, B1, B2, C1, C2,
+        enforce_robust_feasibility=enforce_robust_feasibility,
+    )
+
+
 def get_radial_robust_controller(
     gamma_growth: float = 100.0,
     *,
