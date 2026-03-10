@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.0] — 2026-03-10
+
+### Added
+- **JAX-accelerated neural equilibrium** (`scpn_control.core.jax_neural_equilibrium`):
+  JIT-compiled PCA + MLP surrogate for Grad-Shafranov equilibrium with GPU dispatch,
+  `jax.grad` for adjoint-based shape optimization, and `jax.vmap` batch inference
+- 13 new tests: JAX/NumPy parity, autodiff gradients, batched vmap, weight conversion
+- JAX neural equilibrium tests added to `jax-parity` CI job
+
 ## [0.10.0] — 2026-03-10
 
 ### Added

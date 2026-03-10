@@ -5,7 +5,7 @@
 ```python
 import scpn_control
 
-scpn_control.__version__       # "0.10.0"
+scpn_control.__version__       # "0.11.0"
 scpn_control.FusionKernel      # Grad-Shafranov equilibrium solver
 scpn_control.RUST_BACKEND      # True if Rust acceleration available
 scpn_control.TokamakConfig     # Preset tokamak geometries
@@ -73,6 +73,16 @@ Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib 
 ### Neural Equilibrium
 
 ::: scpn_control.core.neural_equilibrium.NeuralEquilibriumAccelerator
+
+### JAX-Accelerated Neural Equilibrium
+
+Requires `pip install "scpn-control[jax]"`. GPU and autodiff via `jax.grad`.
+
+::: scpn_control.core.jax_neural_equilibrium.jax_neural_eq_predict
+
+::: scpn_control.core.jax_neural_equilibrium.jax_neural_eq_predict_batched
+
+::: scpn_control.core.jax_neural_equilibrium.load_weights_as_jax
 
 ### Neural Transport
 

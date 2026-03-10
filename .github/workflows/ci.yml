@@ -424,6 +424,7 @@ jobs:
         run: |
           pytest -p hypothesis.extra.pytestplugin tests/test_jax_traceable_runtime.py -v --tb=short
           pytest tests/test_jax_solvers.py -v --tb=short
+          pytest tests/test_jax_neural_equilibrium.py -v --tb=short
 
   # ─── Job 17: Nengo Loihi emulator ───
   nengo-loihi:

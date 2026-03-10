@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0] — 2026-03-10
+
+### Added
+- JAX-accelerated neural equilibrium (`jax_neural_equilibrium`): GPU + autodiff + vmap batch
+- 13 tests: JAX/NumPy parity, autodiff, batched vmap, weight conversion
+- JAX neural equilibrium tests in `jax-parity` CI job
+
 ## [0.10.0] — 2026-03-10
 
 ### Added

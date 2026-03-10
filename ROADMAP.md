@@ -101,10 +101,23 @@
 
 ## Next
 
+### v0.11.0 — 2026-03-10
+- [x] JAX neural equilibrium MLP (`jax_neural_equilibrium.py`)
+- [x] GPU-accelerated equilibrium inference via jaxlib
+- [x] `jax.grad` through equilibrium predict (adjoint-based shape optimization)
+- [x] `jax.vmap` batch equilibrium (100+ simultaneous)
+- [x] NumPy fallback when JAX unavailable
+
+### v0.12.0 — Transport fidelity + RL + JOSS
+- [ ] QLKNN-10D trained transport model (Zenodo dataset)
+- [ ] Training script + reproducibility docs
+- [ ] Trained PPO agent on TokamakEnv (stable-baselines3)
+- [ ] RL vs PID/MPC/H-inf benchmark
+- [ ] JOSS paper submission (fact-checked, updated claims)
+
 ### v1.0.0 — Production readiness
 - [ ] IMAS IDS round-trip tests with real `omas` install
 - [ ] Streamlit dashboard v2 (shot replay + multi-machine selector)
-- [ ] GPU-accelerated Grad-Shafranov (CuPy / JAX backend)
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
 - [ ] TORAX hybrid transport coupling
 - [ ] Coordinated Rust dep upgrade (ndarray 0.16+, ndarray-linalg 0.18+, rand 0.9)

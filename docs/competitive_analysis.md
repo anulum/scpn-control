@@ -1,6 +1,6 @@
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-02-20.
+> **Last updated:** 2026-03-10 (v0.10.0).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 
@@ -69,20 +69,36 @@
 | Neutronics / TBR | Yes (1-D slab) | No | Yes | No | Yes | No |
 | **Digital twin (real-time)** | **Yes** | No | No | No | No | No |
 | **Rust native backend** | **Yes (5 crates)** | No | No | No | No | No |
-| GPU acceleration | Planned (wgpu) | Yes (JAX) | No | No | JAX | No |
-| Autodifferentiation | No | **Yes (JAX)** | No | No | **Yes (Julia)** | No |
+| GPU acceleration | **Yes (JAX)** | Yes (JAX) | No | No | JAX | No |
+| Autodifferentiation | **Yes (JAX)** | **Yes (JAX)** | No | No | **Yes (Julia)** | No |
 
 ## 5. Where Competitors Lead
 
 | Weakness | Detail | Who Does It Better |
 |----------|--------|-------------------|
-| No autodiff | Cannot do gradient-based plasma scenario optimisation | TORAX (JAX), FUSE (Julia) |
-| No GPU equilibrium | P-EFIT achieves <1 ms on GPU; scpn-control is CPU-only | P-EFIT |
+| Transport-only autodiff | JAX-traced Thomas + CN solvers, but GS equilibrium not differentiable | TORAX (full-stack JAX), FUSE (full-stack Julia AD) |
+| No GPU equilibrium | P-EFIT achieves <1 ms on GPU; scpn-control neural eq is CPU-only | P-EFIT |
 | Simpler turbulence | Critical-gradient vs QLKNN/TGLF trained on gyrokinetic data | TORAX, FUSE |
 | No RL validation | Gym TokamakEnv exists but no trained RL agent published | Gym-TORAX (published results) |
+| No peer-reviewed publication | JOSS paper drafted but not yet submitted | TORAX (NF 2024), FUSE (FED 2024) |
 | Smaller community | Single-team vs DeepMind / General Atomics resources | TORAX, FUSE |
 
-## 6. scpn-control Unique Position
+## 6. Codebase Metrics (v0.10.0)
+
+| Metric | Value |
+|--------|-------|
+| Python source modules | 50 |
+| Python source LOC | 22,123 |
+| Rust crates | 5 |
+| Rust LOC (all .rs) | ~61,900 |
+| Test files | 120 |
+| Tests collected | 2,129 |
+| CI jobs | 18 |
+| Real DIII-D shots | 16 disruption + 1 safe baseline |
+| SPARC GEQDSK files | 3 |
+| Pretrained weight files | 3 |
+
+## 7. scpn-control Unique Position
 
 1. **Fastest open-source kernel step** — 11.9 µs P50 (Criterion-verified).
    This is a bare kernel call, not a complete control cycle. No head-to-head
@@ -97,8 +113,19 @@
    sub-ms reconstruction is achievable.
 
 4. **Full-stack control breadth** — equilibrium, transport, control,
-   disruption mitigation, digital twin in one focused 54-module package.
+   disruption mitigation, digital twin in one focused 50-module package.
    Trade-off: breadth over depth in any single area.
+
+## 8. Gap Resolution Roadmap
+
+| Gap | Resolution | Target Version |
+|-----|-----------|----------------|
+| Transport-only autodiff | JAX-port neural equilibrium MLP (differentiable eq) | v0.11.0 |
+| No GPU equilibrium | Same JAX neural eq port → GPU via jaxlib | v0.11.0 |
+| Simpler turbulence | Train MLP on QLKNN-10D public dataset from Zenodo | v0.12.0 |
+| No RL validation | Train PPO agent on TokamakEnv, benchmark vs MPC/H-inf | v0.12.0 |
+| No peer-reviewed pub | Submit JOSS paper after v0.12.0 milestone | v0.12.0 |
+| Smaller community | External action: talks, workshops, issue triage | Ongoing |
 
 ## References
 
