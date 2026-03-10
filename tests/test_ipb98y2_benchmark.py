@@ -50,7 +50,7 @@ pytestmark = pytest.mark.skipif(
 def _load_itpa_dataset():
     """Load the 20-shot ITPA H-mode confinement dataset."""
     rows = []
-    with open(_CSV_PATH) as f:
+    with open(_CSV_PATH, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             rows.append(row)

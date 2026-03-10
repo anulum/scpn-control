@@ -1483,8 +1483,8 @@ class AdaptiveTimeController:
         T_half = solver.Ti.copy()
 
         # Richardson error estimate: ||T_full - T_half|| / (2^p - 1)
-        error = float(np.linalg.norm(T_full - T_half)) / (2**self.p - 1)
-        error = float(max(error, 1e-15))
+        error: float = float(np.linalg.norm(T_full - T_half)) / (2**self.p - 1)
+        error = max(error, 1e-15)
 
         # Accept the half-step result (more accurate)
         solver.Ti = T_half
