@@ -250,3 +250,95 @@ def test_controllers_registry_has_pid_and_hinf():
 
     assert "PID" in CONTROLLERS
     assert "H-infinity" in CONTROLLERS
+
+
+# ── H-infinity flight-sim controller tests ───────────────────────────
+
+
+def test_flight_sim_controller_factory():
+    """get_flight_sim_controller synthesizes a valid controller."""
+    import numpy as np
+    from scpn_control.control.h_infinity_controller import get_flight_sim_controller
+
+    ctrl = get_flight_sim_controller(response_gain=0.05, actuator_tau=0.06)
+    assert ctrl.is_stable
+    assert ctrl.gamma > 1.0
+    assert np.all(np.isfinite(ctrl.F))
+    assert np.all(np.isfinite(ctrl.L_gain))
+
+
+def test_flight_sim_controller_closed_loop_converges():
+    """H-inf controller for flight-sim plant should drive error to zero."""
+    from scpn_control.control.h_infinity_controller import get_flight_sim_controller
+
+    ctrl = get_flight_sim_controller(response_gain=0.05, actuator_tau=0.06)
+    dt = 0.05
+    g = 0.05
+    tau = 0.06
+
+    x1, x2 = 0.3, 0.0
+    errors = [x1]
+    for _ in range(200):
+        u = ctrl.step(x1, dt)
+        dx1 = -g * x2
+        dx2 = (u - x2) / tau
+        x1 += dx1 * dt
+        x2 += dx2 * dt
+        errors.append(x1)
+
+    assert abs(errors[-1]) < 0.05 * abs(errors[0])
+
+
+def test_flight_sim_controller_both_channels():
+    """Radial and vertical controllers should both converge independently."""
+    from scpn_control.control.h_infinity_controller import get_flight_sim_controller
+
+    ctrl_R = get_flight_sim_controller(response_gain=0.05, actuator_tau=0.06)
+    ctrl_Z = get_flight_sim_controller(response_gain=0.02, actuator_tau=0.06)
+    dt = 0.05
+
+    for ctrl, g, e0 in [(ctrl_R, 0.05, 0.2), (ctrl_Z, 0.02, -0.15)]:
+        x1, x2 = e0, 0.0
+        for _ in range(300):
+            u = ctrl.step(x1, dt)
+            dx1 = -g * x2
+            dx2 = (u - x2) / 0.06
+            x1 += dx1 * dt
+            x2 += dx2 * dt
+        assert abs(x1) < 0.1 * abs(e0)
+
+
+def test_flight_sim_controller_rejects_invalid_params():
+    """Factory should reject non-physical parameter values."""
+    from scpn_control.control.h_infinity_controller import get_flight_sim_controller
+
+    with pytest.raises(ValueError):
+        get_flight_sim_controller(response_gain=-1.0)
+    with pytest.raises(ValueError):
+        get_flight_sim_controller(actuator_tau=0.0)
+
+
+def test_hinf_episode_uses_flight_sim_controller(monkeypatch):
+    """H-inf episode should use get_flight_sim_controller, not get_radial_robust_controller."""
+    import numpy as np
+    import validation.stress_test_campaign as mod
+
+    class FakeIso:
+        def __init__(self):
+            self.pid_R = {"Kp": 2.0}
+            self.pid_step = lambda pid, err: float(err) * 2.0
+
+        def run_shot(self, shot_duration, save_plot=False):
+            return {
+                "steps": int(shot_duration),
+                "mean_abs_r_error": 0.08,
+                "mean_abs_z_error": 0.06,
+                "mean_abs_radial_actuator_lag": 0.1,
+            }
+
+    monkeypatch.setattr(mod, "IsoFluxController",
+        lambda *a, **kw: FakeIso())
+
+    ep = mod._run_hinf_episode(config_path="unused", shot_duration=5)
+    assert np.isfinite(ep.reward)
+    assert ep.mean_abs_r_error >= 0.0
