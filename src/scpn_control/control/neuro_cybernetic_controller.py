@@ -44,9 +44,9 @@ TARGET_Z = 0.0  # m, midplane
 def _resolve_fusion_kernel() -> Any:
     """Resolve FusionKernel lazily to keep pool-only paths dependency-light."""
     try:
-        from scpn_control.core._rust_compat import FusionKernel as _FusionKernel
+        from scpn_control.core._rust_compat import FusionKernel as _FusionKernel  # pragma: no cover
 
-        return _FusionKernel
+        return _FusionKernel  # pragma: no cover
     except ImportError:
         try:
             from scpn_control.core.fusion_kernel import FusionKernel as _FusionKernel

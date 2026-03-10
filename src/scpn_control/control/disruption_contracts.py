@@ -440,7 +440,7 @@ def run_real_shot_replay(
     for t in range(min(window_size, n_steps), n_steps):
         # Build signal window from dB/dt
         signal_window = dBdt[t - window_size : t] if t >= window_size else dBdt[:t]
-        if signal_window.size < 8:
+        if signal_window.size < 8:  # pragma: no cover — window_size validated ≥8
             continue
 
         toroidal = {

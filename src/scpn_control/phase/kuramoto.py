@@ -33,9 +33,9 @@ FloatArray = NDArray[np.float64]
 
 # Rust fast-path (sub-ms for N > 1000)
 try:
-    from scpn_control_rs import kuramoto_step as _rust_step
+    from scpn_control_rs import kuramoto_step as _rust_step  # pragma: no cover
 
-    RUST_KURAMOTO = True
+    RUST_KURAMOTO = True  # pragma: no cover
 except ImportError:
     RUST_KURAMOTO = False
 

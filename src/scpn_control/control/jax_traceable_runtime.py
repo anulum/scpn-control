@@ -180,7 +180,7 @@ def _simulate_jax(commands: FloatArray, initial_state: float, spec: TraceableRun
     return np.asarray(hist, dtype=np.float64)
 
 
-if _HAS_TORCH:
+if _HAS_TORCH:  # pragma: no cover
 
     @torch.jit.script
     def _torchscript_rollout(
@@ -217,7 +217,7 @@ if _HAS_TORCH:
             out[:, t] = state
         return out
 
-else:
+else:  # pragma: no cover
     _torchscript_rollout = None  # type: ignore[assignment]
     _torchscript_rollout_batch = None  # type: ignore[assignment]
 

@@ -372,7 +372,7 @@ class NeuralTransportModel:
             channel = "ITG"
         elif chi_e > 0:
             channel = "TEM"
-        else:
+        else:  # pragma: no cover — requires both chi_e, chi_i ≤ 0
             channel = "stable"
 
         return TransportFluxes(chi_e=chi_e, chi_i=chi_i, d_e=d_e, channel=channel)

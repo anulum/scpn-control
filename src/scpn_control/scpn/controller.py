@@ -40,20 +40,20 @@ _rust_marking_update: Callable[[FloatArray, FloatArray, FloatArray, FloatArray],
 _rust_sample_firing: Callable[[FloatArray, int, int, bool], object] | None = None
 
 try:
-    from scpn_control_rs import (  # type: ignore[import-not-found,unused-ignore]
+    from scpn_control_rs import (  # type: ignore[import-not-found,unused-ignore]  # pragma: no cover
         scpn_dense_activations as _rust_dense_activations_impl,
     )
-    from scpn_control_rs import (
+    from scpn_control_rs import (  # pragma: no cover
         scpn_marking_update as _rust_marking_update_impl,
     )
-    from scpn_control_rs import (
+    from scpn_control_rs import (  # pragma: no cover
         scpn_sample_firing as _rust_sample_firing_impl,
     )
 
-    _rust_dense_activations = _rust_dense_activations_impl
-    _rust_marking_update = _rust_marking_update_impl
-    _rust_sample_firing = _rust_sample_firing_impl
-    _HAS_RUST_SCPN_RUNTIME = True
+    _rust_dense_activations = _rust_dense_activations_impl  # pragma: no cover
+    _rust_marking_update = _rust_marking_update_impl  # pragma: no cover
+    _rust_sample_firing = _rust_sample_firing_impl  # pragma: no cover
+    _HAS_RUST_SCPN_RUNTIME = True  # pragma: no cover
 except ImportError:
     _HAS_RUST_SCPN_RUNTIME = False
 

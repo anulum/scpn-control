@@ -28,7 +28,7 @@ try:
         solve_coil_currents,
     )
 
-    _RUST_AVAILABLE = True
+    _RUST_AVAILABLE = True  # pragma: no cover
 except ImportError:
     _RUST_AVAILABLE = False
 
@@ -155,9 +155,9 @@ class RustAcceleratedKernel:
         """Get current solver method name."""
         if hasattr(self._rust, "solver_method"):
             return str(self._rust.solver_method())
-        return "sor"
+        return "sor"  # pragma: no cover
 
-    def calculate_thermodynamics(self, p_aux_mw: float = 50.0) -> dict[str, Any]:
+    def calculate_thermodynamics(self, p_aux_mw: float = 50.0) -> dict[str, Any]:  # pragma: no cover
         """D-T fusion thermodynamics from current equilibrium (Rust backend)."""
         return dict(self._rust.calculate_thermodynamics(p_aux_mw))
 
@@ -170,7 +170,7 @@ class RustAcceleratedKernel:
 
 FusionKernel: Any
 
-if _RUST_AVAILABLE:
+if _RUST_AVAILABLE:  # pragma: no cover
     FusionKernel = RustAcceleratedKernel
     RUST_BACKEND = True
 else:
@@ -178,7 +178,7 @@ else:
 
 
 # Re-export Rust-only helpers (with compatibility shims where needed)
-if _RUST_AVAILABLE:
+if _RUST_AVAILABLE:  # pragma: no cover
 
     def rust_shafranov_bv(*args: Any, **kwargs: Any) -> Any:
         """Compatibility wrapper for legacy config-path invocation.
@@ -230,9 +230,9 @@ def rust_bosch_hale_dt(t_kev: float) -> float:
     """Bosch-Hale D-T reaction rate [m³/s] at temperature t_kev [keV]."""
     if not _RUST_AVAILABLE:
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
-    from scpn_control_rs import bosch_hale_dt
+    from scpn_control_rs import bosch_hale_dt  # pragma: no cover
 
-    return float(bosch_hale_dt(float(t_kev)))
+    return float(bosch_hale_dt(float(t_kev)))  # pragma: no cover
 
 
 class RustSnnPool:
@@ -251,9 +251,9 @@ class RustSnnPool:
     """
 
     def __init__(self, n_neurons: int = 50, gain: float = 10.0, window_size: int = 20):
-        from scpn_control_rs import PySnnPool  # type: ignore[import-untyped]
+        from scpn_control_rs import PySnnPool  # type: ignore[import-untyped]  # pragma: no cover
 
-        self._inner = PySnnPool(n_neurons, gain, window_size)
+        self._inner = PySnnPool(n_neurons, gain, window_size)  # pragma: no cover
 
     def step(self, error: float) -> float:
         """Process *error* through SNN pool and return scalar control output."""
@@ -285,9 +285,9 @@ class RustSnnController:
     """
 
     def __init__(self, target_r: float = 6.2, target_z: float = 0.0):
-        from scpn_control_rs import PySnnController  # type: ignore[import-untyped]
+        from scpn_control_rs import PySnnController  # type: ignore[import-untyped]  # pragma: no cover
 
-        self._inner = PySnnController(target_r, target_z)
+        self._inner = PySnnController(target_r, target_z)  # pragma: no cover
 
     def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
         """Process measured (R, Z) position and return (ctrl_R, ctrl_Z)."""
@@ -316,25 +316,25 @@ class RustPIDController:
     """
 
     def __init__(self, kp: float, ki: float, kd: float):
-        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]
+        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
 
-        self._inner = PyPIDController(kp, ki, kd)
+        self._inner = PyPIDController(kp, ki, kd)  # pragma: no cover
 
     @classmethod
     def radial(cls) -> "RustPIDController":
-        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]
+        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
 
-        obj = cls.__new__(cls)
-        obj._inner = PyPIDController.radial()
-        return obj
+        obj = cls.__new__(cls)  # pragma: no cover
+        obj._inner = PyPIDController.radial()  # pragma: no cover
+        return obj  # pragma: no cover
 
     @classmethod
     def vertical(cls) -> "RustPIDController":
-        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]
+        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
 
-        obj = cls.__new__(cls)
-        obj._inner = PyPIDController.vertical()
-        return obj
+        obj = cls.__new__(cls)  # pragma: no cover
+        obj._inner = PyPIDController.vertical()  # pragma: no cover
+        return obj  # pragma: no cover
 
     def step(self, error: float) -> float:
         return float(self._inner.step(error))
@@ -368,9 +368,9 @@ class RustIsoFluxController:
     """
 
     def __init__(self, target_r: float, target_z: float):
-        from scpn_control_rs import PyIsoFluxController  # type: ignore[import-untyped]
+        from scpn_control_rs import PyIsoFluxController  # type: ignore[import-untyped]  # pragma: no cover
 
-        self._inner = PyIsoFluxController(target_r, target_z)
+        self._inner = PyIsoFluxController(target_r, target_z)  # pragma: no cover
 
     def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
         r, z = self._inner.step(measured_r, measured_z)
@@ -416,14 +416,13 @@ class RustHInfController:
         u_max: float = 10.0,
         dt: float = 1e-3,
     ):
-        from scpn_control_rs import PyHInfController  # type: ignore[import-untyped]
+        from scpn_control_rs import PyHInfController  # type: ignore[import-untyped]  # pragma: no cover
 
-        # 2-state VDE plant: x = [z, dz/dt]
-        a = np.array([[0.0, 1.0], [gamma_growth**2, -damping]], dtype=np.float64)
-        b2 = np.array([[0.0], [1.0]], dtype=np.float64)
-        c2 = np.array([[1.0, 0.0]], dtype=np.float64)
-        self._inner = PyHInfController(a, b2, c2, gamma, dt)
-        self._u_max = u_max
+        a = np.array([[0.0, 1.0], [gamma_growth**2, -damping]], dtype=np.float64)  # pragma: no cover
+        b2 = np.array([[0.0], [1.0]], dtype=np.float64)  # pragma: no cover
+        c2 = np.array([[1.0, 0.0]], dtype=np.float64)  # pragma: no cover
+        self._inner = PyHInfController(a, b2, c2, gamma, dt)  # pragma: no cover
+        self._u_max = u_max  # pragma: no cover
 
     def step(self, y: float, dt: float) -> float:
         """Measurement y → control u (observer-based, saturation-limited)."""
@@ -465,10 +464,10 @@ def rust_multigrid_vcycle(
     tuple of (psi, residual, n_cycles, converged)
     """
     try:
-        from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]
+        from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]  # pragma: no cover
 
-        result = _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
-        return (np.asarray(result[0]), float(result[1]), int(result[2]), bool(result[3]))
+        result = _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)  # pragma: no cover
+        return (np.asarray(result[0]), float(result[1]), int(result[2]), bool(result[3]))  # pragma: no cover
     except ImportError:
         return _python_multigrid_vcycle(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
 
@@ -540,10 +539,10 @@ class RustSPIMitigation:
                 raise ValueError(f"{name} must be finite and > 0, got {val}")
 
         try:
-            from scpn_control_rs import PySPIMitigation  # type: ignore[import-untyped]
+            from scpn_control_rs import PySPIMitigation  # type: ignore[import-untyped]  # pragma: no cover
 
-            self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)
-            self._use_rust = True
+            self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)  # pragma: no cover
+            self._use_rust = True  # pragma: no cover
         except ImportError:
             self._use_rust = False
             self._w_th = w_th_mj * 1e6  # J
@@ -552,7 +551,7 @@ class RustSPIMitigation:
 
     def run(self) -> list[dict]:
         """Run full SPI simulation and return snapshot history."""
-        if self._use_rust:
+        if self._use_rust:  # pragma: no cover
             return list(self._inner.run())
 
         w_th, ip, te = self._w_th, self._ip, self._te
@@ -617,9 +616,9 @@ def rust_svd_optimal_correction(
         Coil current deltas.
     """
     try:
-        from scpn_control_rs import svd_optimal_correction as _rust_svd  # type: ignore[import-untyped]
+        from scpn_control_rs import svd_optimal_correction as _rust_svd  # type: ignore[import-untyped]  # pragma: no cover
 
-        return np.asarray(
+        return np.asarray(  # pragma: no cover
             _rust_svd(
                 np.ascontiguousarray(response_matrix, dtype=np.float64),
                 np.ascontiguousarray(error, dtype=np.float64),

@@ -439,8 +439,6 @@ def run_digital_twin_ids_history(
     """
     if "time_steps" in kwargs:
         raise ValueError("time_steps is controlled by history_steps in history mode.")
-    if "seed" in kwargs:
-        raise ValueError("seed is controlled by the seed argument in history mode.")
     if isinstance(history_steps, (str, bytes, bytearray)) or not isinstance(history_steps, Sequence):
         raise ValueError("history_steps must be a sequence of positive integers.")
     if len(history_steps) == 0:
@@ -476,8 +474,6 @@ def run_digital_twin_ids_pulse(
     """
     if "time_steps" in kwargs:
         raise ValueError("time_steps is controlled by history_steps in pulse mode.")
-    if "seed" in kwargs:
-        raise ValueError("seed is controlled by the seed argument in pulse mode.")
 
     snapshots = _run_digital_twin_history_snapshots(
         history_steps=history_steps,

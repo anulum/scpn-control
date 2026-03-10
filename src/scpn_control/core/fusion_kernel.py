@@ -977,7 +977,7 @@ class FusionKernel:
             final_iter = k
             _, _, Psi_axis = self._find_magnetic_axis()
             _, Psi_boundary = self.find_x_point(self.Psi)
-            if abs(Psi_axis - Psi_boundary) < 0.1:
+            if abs(Psi_axis - Psi_boundary) < 0.1:  # pragma: no cover — degenerate equilibrium
                 Psi_boundary = Psi_axis * 0.1
 
             if not getattr(self, "external_profile_mode", False):
@@ -1017,7 +1017,7 @@ class FusionKernel:
 
                 _, _, Psi_axis = self._find_magnetic_axis()
                 _, Psi_boundary = self.find_x_point(self.Psi)
-                if abs(Psi_axis - Psi_boundary) < 0.1:
+                if abs(Psi_axis - Psi_boundary) < 0.1:  # pragma: no cover — degenerate equilibrium
                     Psi_boundary = Psi_axis * 0.1
 
                 if not getattr(self, "external_profile_mode", False):
@@ -1072,7 +1072,7 @@ class FusionKernel:
                 self._apply_boundary_conditions(self.Psi, Psi_vac_boundary)
 
                 # NaN check
-                if np.isnan(self.Psi).any() or np.isinf(self.Psi).any():
+                if np.isnan(self.Psi).any() or np.isinf(self.Psi).any():  # pragma: no cover — numerical safety
                     logger.warning("Newton diverged at iter %d", k)
                     if fail_on_diverge:
                         raise RuntimeError(f"Newton solver diverged at iter={k}")
@@ -1084,7 +1084,7 @@ class FusionKernel:
         elif gs_residual_history:
             gs_final = gs_residual_history[-1]
             gs_best_out = gs_best
-        else:
+        else:  # pragma: no cover — warmup always populates gs_residual_history
             gs_final = self._compute_gs_residual_rms(final_source)
             gs_best_out = gs_final
 

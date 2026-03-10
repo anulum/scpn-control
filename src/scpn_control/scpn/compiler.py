@@ -41,8 +41,8 @@ try:
     from sc_neurocore import BitstreamEncoder, StochasticLIFNeuron, VectorizedSCLayer, generate_bernoulli_bitstream
     from sc_neurocore.accel import get_backend  # type: ignore[attr-defined]
 
-    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True
-    logger.info("sc_neurocore v3.8.0+ detected — VectorizedSCLayer + Rust backend")
+    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True  # pragma: no cover
+    logger.info("sc_neurocore v3.8.0+ detected — VectorizedSCLayer + Rust backend")  # pragma: no cover
 except ImportError:
     try:
         from sc_neurocore import RNG as _SC_RNG

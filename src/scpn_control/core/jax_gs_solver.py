@@ -254,13 +254,6 @@ if _HAS_JAX:
         """
         a_E, a_W, a_NS, a_C = _precompute_stencil(R_grid, dR, dZ)
 
-        def jacobi_body(_, psi_j: jnp.ndarray) -> jnp.ndarray:
-            return _jacobi_gs_step_jax(psi_j, source_ref[0], a_E, a_W, a_NS, a_C, omega_j)
-
-        # Mutable reference for source (closure over list to update per Picard step)
-        # Actually, for lax.fori_loop we need a different approach.
-        # Pack source into the carry.
-
         def picard_body(_, psi: jnp.ndarray) -> jnp.ndarray:
             source = _compute_source_jax(psi, R_grid, mu0, Ip_target, beta_mix, dR, dZ)
 

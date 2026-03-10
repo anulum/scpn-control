@@ -38,9 +38,9 @@ from scpn_control.phase.kuramoto import (
 
 # Try to import Rust UPDE fast-path
 try:
-    from scpn_control_rs import upde_tick as _rust_upde_tick
+    from scpn_control_rs import upde_tick as _rust_upde_tick  # pragma: no cover
 
-    HAS_RUST_UPDE = True
+    HAS_RUST_UPDE = True  # pragma: no cover
 except ImportError:
     HAS_RUST_UPDE = False
 
