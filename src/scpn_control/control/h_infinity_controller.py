@@ -415,7 +415,11 @@ def get_flight_sim_controller(
     C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
     C2 = np.array([[1.0, 0.0]])
     return HInfinityController(
-        A, B1, B2, C1, C2,
+        A,
+        B1,
+        B2,
+        C1,
+        C2,
         enforce_robust_feasibility=enforce_robust_feasibility,
     )
 
