@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0] — 2026-03-10
+
+### Added
+- JAX-accelerated transport primitives (`jax_solvers`): Thomas solver, Crank-Nicolson,
+  batched transport via `jax.vmap` — JIT-compiled, GPU-compatible, autodiff via `jax.grad`
+- Real DIII-D shot validation: 95 tests across 17 real disruption shots
+- CI: `real-diiid` job, JAX solver tests in `jax-parity` (25 total CI jobs)
+- JOSS paper draft (`paper.md`, `paper.bib`)
+
 ## [0.9.0] — 2026-03-10
 
 ### Added

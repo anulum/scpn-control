@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.10.0] — 2026-03-10
+
+### Added
+- **JAX-accelerated transport primitives** (`scpn_control.core.jax_solvers`):
+  Thomas tridiagonal solver, Crank-Nicolson diffusion operator, and batched
+  transport via `jax.vmap` — all JIT-compiled, GPU-compatible, and
+  differentiable via `jax.grad` for sensitivity analysis
+- **Real DIII-D shot validation** (`tests/test_real_diiid_shots.py`): 95 tests
+  validating data integrity, physical ranges, disruption labels, phase-sync
+  pipeline handling, and disruption-precursor feature extraction against 17
+  real DIII-D disruption shots (H-mode, VDE, beta-limit, locked-mode,
+  density-limit, tearing, snowflake, negative-delta, high-beta)
+- CI Job: `real-diiid` — validates against real DIII-D shot data (25 CI jobs total)
+- CI: JAX solver parity tests added to `jax-parity` job
+- **JOSS paper** (`paper.md`, `paper.bib`): submission-ready for Journal of
+  Open Source Software review
+- API docs: JAX transport primitives added to `docs/api.md`
+
 ## [0.9.0] — 2026-03-10
 
 ### Added

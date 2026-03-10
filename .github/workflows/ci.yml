@@ -312,6 +312,24 @@ jobs:
           path: "*.json"
           if-no-files-found: ignore
 
+  # ─── Job 10b: Real DIII-D shot validation ───
+  real-diiid:
+    needs: python-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+      - name: Validate real DIII-D shots
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: pytest tests/test_real_diiid_shots.py -v --tb=short
+
   # ─── Job 11: Python lint (ruff) ───
   python-lint:
     runs-on: ubuntu-latest
@@ -399,10 +417,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[jax]" pytest hypothesis
-      - name: JAX tests
+      - name: JAX runtime + solver tests
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
-        run: pytest -p hypothesis.extra.pytestplugin tests/test_jax_traceable_runtime.py -v --tb=short
+          JAX_ENABLE_X64: "1"
+        run: |
+          pytest -p hypothesis.extra.pytestplugin tests/test_jax_traceable_runtime.py -v --tb=short
+          pytest tests/test_jax_solvers.py -v --tb=short
 
   # ─── Job 17: Nengo Loihi emulator ───
   nengo-loihi:

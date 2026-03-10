@@ -92,13 +92,17 @@
 - [x] `[jax]` and `[loihi]` optional dependency groups
 - [x] All 7 UNDERDEVELOPED_REGISTER items RESOLVED
 
+### v0.10.0 — 2026-03-10
+- [x] JAX-accelerated transport primitives (Thomas solver, Crank-Nicolson, vmap batching)
+- [x] Autodifferentiation through transport solver (`jax.grad`)
+- [x] Real DIII-D shot validation (17 shots, 95 tests, CI job)
+- [x] JOSS paper draft (`paper.md`, `paper.bib`)
+- [x] 25 CI jobs, 2024+ tests
+
 ## Next
 
 ### v1.0.0 — Production readiness
 - [ ] IMAS IDS round-trip tests with real `omas` install
-- [ ] Real MDSplus data ingest (DIII-D, JET public shots)
-
-### v1.0.0 — Production readiness
 - [ ] Streamlit dashboard v2 (shot replay + multi-machine selector)
 - [ ] GPU-accelerated Grad-Shafranov (CuPy / JAX backend)
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)

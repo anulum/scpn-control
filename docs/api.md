@@ -58,6 +58,18 @@ scpn_control.RealtimeMonitor
 
 ::: scpn_control.core.uncertainty.quantify_full_chain
 
+### JAX-Accelerated Transport Primitives
+
+Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib has CUDA/ROCm.
+
+::: scpn_control.core.jax_solvers.thomas_solve
+
+::: scpn_control.core.jax_solvers.diffusion_rhs
+
+::: scpn_control.core.jax_solvers.crank_nicolson_step
+
+::: scpn_control.core.jax_solvers.batched_crank_nicolson
+
 ### Neural Equilibrium
 
 ::: scpn_control.core.neural_equilibrium.NeuralEquilibriumAccelerator
