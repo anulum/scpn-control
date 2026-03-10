@@ -67,10 +67,7 @@ def _jacobi_gs_step_np(
     a_C = 2.0 / dR2 + 2.0 / dZ2
 
     update = (
-        a_E * psi[1:-1, 2:]
-        + a_W * psi[1:-1, :-2]
-        + a_NS * (psi[:-2, 1:-1] + psi[2:, 1:-1])
-        - source[1:-1, 1:-1]
+        a_E * psi[1:-1, 2:] + a_W * psi[1:-1, :-2] + a_NS * (psi[:-2, 1:-1] + psi[2:, 1:-1]) - source[1:-1, 1:-1]
     ) / a_C
 
     psi_new = psi.copy()
@@ -152,9 +149,7 @@ def gs_solve_np(
         source = _compute_source_np(psi, RR, mu0, Ip_target, beta_mix, dR, dZ)
         psi_elliptic = psi.copy()
         for _ in range(n_jacobi):
-            psi_elliptic = _jacobi_gs_step_np(
-                psi_elliptic, source, R_interior, dR, dZ, omega_j
-            )
+            psi_elliptic = _jacobi_gs_step_np(psi_elliptic, source, R_interior, dR, dZ, omega_j)
         psi = (1.0 - alpha) * psi + alpha * psi_elliptic
 
     return psi
@@ -195,10 +190,7 @@ if _HAS_JAX:
     ) -> jnp.ndarray:
         """Single damped Jacobi step for GS* (JAX, JIT-compatible)."""
         update = (
-            a_E * psi[1:-1, 2:]
-            + a_W * psi[1:-1, :-2]
-            + a_NS * (psi[:-2, 1:-1] + psi[2:, 1:-1])
-            - source[1:-1, 1:-1]
+            a_E * psi[1:-1, 2:] + a_W * psi[1:-1, :-2] + a_NS * (psi[:-2, 1:-1] + psi[2:, 1:-1]) - source[1:-1, 1:-1]
         ) / a_C
         interior = (1.0 - omega_j) * psi[1:-1, 1:-1] + omega_j * update
         return psi.at[1:-1, 1:-1].set(interior)
@@ -326,14 +318,34 @@ def jax_gs_solve(
         psi_init = psi_init.at[:, -1].set(0.0)
 
         psi_jax = _jax_gs_solve_impl(
-            RR, dR, dZ, psi_init,
-            Ip_target, mu0, n_picard, n_jacobi, alpha, omega_j, beta_mix,
+            RR,
+            dR,
+            dZ,
+            psi_init,
+            Ip_target,
+            mu0,
+            n_picard,
+            n_jacobi,
+            alpha,
+            omega_j,
+            beta_mix,
         )
         return np.asarray(psi_jax)
 
     return gs_solve_np(
-        R_min, R_max, Z_min, Z_max, NR, NZ,
-        Ip_target, mu0, n_picard, n_jacobi, alpha, omega_j, beta_mix,
+        R_min,
+        R_max,
+        Z_min,
+        Z_max,
+        NR,
+        NZ,
+        Ip_target,
+        mu0,
+        n_picard,
+        n_jacobi,
+        alpha,
+        omega_j,
+        beta_mix,
     )
 
 
@@ -416,8 +428,17 @@ def jax_gs_grad_Ip(
 
     def objective(Ip: float) -> float:
         psi = _jax_gs_solve_impl(
-            RR, dR, dZ, psi_init,
-            Ip, mu0, n_picard, n_jacobi, alpha, omega_j, beta_mix,
+            RR,
+            dR,
+            dZ,
+            psi_init,
+            Ip,
+            mu0,
+            n_picard,
+            n_jacobi,
+            alpha,
+            omega_j,
+            beta_mix,
         )
         return jnp.sum(psi)
 

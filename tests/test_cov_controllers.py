@@ -86,14 +86,13 @@ class TestNeuroCyberneticVisualize:
     def test_visualize_verbose_logs(self, tmp_path, monkeypatch, caplog):
         import logging
         import matplotlib
+
         matplotlib.use("Agg")
         import scpn_control.control.neuro_cybernetic_controller as mod
 
         monkeypatch.setattr(mod, "SC_NEUROCORE_AVAILABLE", False)
 
-        nc = mod.NeuroCyberneticController(
-            "dummy.json", seed=42, shot_duration=3, kernel_factory=_DummyKernel
-        )
+        nc = mod.NeuroCyberneticController("dummy.json", seed=42, shot_duration=3, kernel_factory=_DummyKernel)
         nc.run_shot(save_plot=False, verbose=False)
         out = tmp_path / "test_plot.png"
         with caplog.at_level(logging.INFO, logger="scpn_control.control.neuro_cybernetic_controller"):
@@ -223,16 +222,15 @@ class TestNengoLoihiExport:
 
 
 def _write_iter_config():
-    import tempfile, os
+    import tempfile
+    import os
+
     cfg = {
         "reactor_name": "test",
         "grid_resolution": [8, 8],
         "dimensions": {"R_min": 4.0, "R_max": 8.4, "Z_min": -4.0, "Z_max": 4.0},
         "physics": {"plasma_current_target": 15.0, "vacuum_permeability": 1.0},
-        "coils": [
-            {"name": f"PF{i}", "r": 3.0 + i, "z": (-1) ** i * 3.0, "current": 1.0}
-            for i in range(6)
-        ],
+        "coils": [{"name": f"PF{i}", "r": 3.0 + i, "z": (-1) ** i * 3.0, "current": 1.0} for i in range(6)],
         "solver": {"max_iterations": 5, "tolerance": 1e-4},
     }
     fd, path = tempfile.mkstemp(suffix=".json")
@@ -274,7 +272,11 @@ class TestTransportSolverSauterDispatch:
         cfg_path = _write_iter_config()
         solver = TransportSolver(cfg_path)
         solver.neoclassical_params = {
-            "R0": 6.2, "a": 2.0, "B0": 5.3, "A_ion": 2.0, "Z_eff": 1.5,
+            "R0": 6.2,
+            "a": 2.0,
+            "B0": 5.3,
+            "A_ion": 2.0,
+            "Z_eff": 1.5,
             "q_profile": np.linspace(1, 4, len(solver.rho)),
         }
         B_pol = np.full_like(solver.rho, 0.5)
@@ -289,7 +291,11 @@ class TestTransportSolverGyroBohm:
         cfg_path = _write_iter_config()
         solver = TransportSolver(cfg_path)
         solver.neoclassical_params = {
-            "R0": 6.2, "a": 2.0, "B0": 5.3, "A_ion": 2.0, "Z_eff": 1.5,
+            "R0": 6.2,
+            "a": 2.0,
+            "B0": 5.3,
+            "A_ion": 2.0,
+            "Z_eff": 1.5,
             "q_profile": np.linspace(1, 4, len(solver.rho)),
             "c_gB": 0.2,
         }
@@ -305,9 +311,14 @@ class TestTransportEpedPedestalPath:
         cfg_path = _write_iter_config()
         solver = TransportSolver(cfg_path)
         solver.neoclassical_params = {
-            "R0": 6.2, "a": 2.0, "B0": 5.3, "A_ion": 2.0, "Z_eff": 1.5,
+            "R0": 6.2,
+            "a": 2.0,
+            "B0": 5.3,
+            "A_ion": 2.0,
+            "Z_eff": 1.5,
             "q_profile": np.linspace(1, 4, len(solver.rho)),
-            "Ip_MA": 15.0, "kappa": 1.7,
+            "Ip_MA": 15.0,
+            "kappa": 1.7,
         }
         solver.Ti = np.linspace(10.0, 0.5, len(solver.rho))
         solver.Te = solver.Ti.copy()
@@ -357,8 +368,12 @@ class TestDigitalTwinIdsRun:
         monkeypatch.setattr(dt_mod, "digital_twin_summary_to_ids", mock_to_ids, raising=False)
         monkeypatch.setattr(dt_mod, "HAS_IMAS", True, raising=False)
         result = dt_mod.run_digital_twin_ids(
-            machine="TEST", shot=1, run=0,
-            time_steps=5, save_plot=False, verbose=False,
+            machine="TEST",
+            shot=1,
+            run=0,
+            time_steps=5,
+            save_plot=False,
+            verbose=False,
         )
         assert isinstance(result, dict)
         mock_to_ids.assert_called_once()
@@ -370,8 +385,12 @@ class TestDigitalTwinIdsRun:
         monkeypatch.setattr(dt_mod, "digital_twin_history_to_ids_pulse", mock_pulse, raising=False)
         monkeypatch.setattr(dt_mod, "HAS_IMAS", True, raising=False)
         result = dt_mod.run_digital_twin_ids_pulse(
-            [3, 5], machine="TEST", shot=1, run=0,
-            save_plot=False, verbose=False,
+            [3, 5],
+            machine="TEST",
+            shot=1,
+            run=0,
+            save_plot=False,
+            verbose=False,
         )
         assert isinstance(result, dict)
         mock_pulse.assert_called_once()
@@ -383,8 +402,12 @@ class TestDigitalTwinIdsRun:
         monkeypatch.setattr(dt_mod, "digital_twin_history_to_ids", mock_hist, raising=False)
         monkeypatch.setattr(dt_mod, "HAS_IMAS", True, raising=False)
         result = dt_mod.run_digital_twin_ids_history(
-            [3, 5], machine="TEST", shot=1, run=0,
-            save_plot=False, verbose=False,
+            [3, 5],
+            machine="TEST",
+            shot=1,
+            run=0,
+            save_plot=False,
+            verbose=False,
         )
         assert isinstance(result, dict)
         mock_hist.assert_called_once()
@@ -394,14 +417,18 @@ class TestDigitalTwinPlotAndVerbose:
     def test_verbose_log_after_plot_save(self, tmp_path, caplog):
         import logging
         import matplotlib
+
         matplotlib.use("Agg")
         from scpn_control.control.tokamak_digital_twin import run_digital_twin
 
         out = str(tmp_path / "twin.png")
         with caplog.at_level(logging.INFO, logger="scpn_control.control.tokamak_digital_twin"):
             result = run_digital_twin(
-                time_steps=60, seed=42, save_plot=True,
-                output_path=out, verbose=True,
+                time_steps=60,
+                seed=42,
+                save_plot=True,
+                output_path=out,
+                verbose=True,
             )
         if result["plot_saved"]:
             assert "saved" in caplog.text.lower() or "Complete" in caplog.text
@@ -500,8 +527,12 @@ class TestRESimulateNonFinite:
 
         m = RunawayElectronModel(n_e=1e20, T_e_keV=20.0, z_eff=1.0)
         result = m.simulate(
-            plasma_current_ma=15.0, tau_cq_s=1e-6, T_e_quench_keV=0.02,
-            neon_z_eff=3.0, duration_s=0.001, dt_s=1e-4,
+            plasma_current_ma=15.0,
+            tau_cq_s=1e-6,
+            T_e_quench_keV=0.02,
+            neon_z_eff=3.0,
+            duration_s=0.001,
+            dt_s=1e-4,
         )
         assert np.isfinite(result.peak_re_current_ma)
         assert np.isfinite(result.final_re_current_ma)
@@ -516,8 +547,12 @@ class TestRESimulateNonFinite:
         m.tau_av = 0.0
         m.E_c = 0.0
         result = m.simulate(
-            plasma_current_ma=15.0, tau_cq_s=1e-10, T_e_quench_keV=0.001,
-            neon_z_eff=1.0, duration_s=1e-6, dt_s=1e-7,
+            plasma_current_ma=15.0,
+            tau_cq_s=1e-10,
+            T_e_quench_keV=0.001,
+            neon_z_eff=1.0,
+            duration_s=1e-6,
+            dt_s=1e-7,
         )
         assert np.isfinite(result.peak_re_current_ma)
         assert np.isfinite(result.final_re_current_ma)
@@ -552,13 +587,18 @@ class TestCliLiveCommand:
         mock_ws_mod = MagicMock()
         mock_ws_mod.PhaseStreamServer.return_value = mock_server
 
-        with patch.dict("sys.modules", {
-            "scpn_control.phase.realtime_monitor": mock_rt_mod,
-            "scpn_control.phase.ws_phase_stream": mock_ws_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "scpn_control.phase.realtime_monitor": mock_rt_mod,
+                "scpn_control.phase.ws_phase_stream": mock_ws_mod,
+            },
+        ):
             runner = CliRunner()
-            result = runner.invoke(main, ["live", "--port", "9999", "--host", "127.0.0.1",
-                                          "--layers", "4", "--n-per", "10", "--zeta", "0.3"])
+            result = runner.invoke(
+                main,
+                ["live", "--port", "9999", "--host", "127.0.0.1", "--layers", "4", "--n-per", "10", "--zeta", "0.3"],
+            )
         mock_server.serve_sync.assert_called_once()
 
 
@@ -637,8 +677,10 @@ class TestCompilerDenseForwardFloat:
         monkeypatch.setattr(compiler_mod, "_HAS_SC_NEUROCORE", False)
 
         net = CompiledNet(
-            n_places=2, n_transitions=1,
-            place_names=["p0", "p1"], transition_names=["t0"],
+            n_places=2,
+            n_transitions=1,
+            place_names=["p0", "p1"],
+            transition_names=["t0"],
             W_in=np.array([[0.5, 0.0]]),
             W_out=np.array([[0.0], [0.5]]),
             W_in_packed=np.zeros((1, 2, 1), dtype=np.uint64),
@@ -679,7 +721,9 @@ class TestControllerPassthroughMissingKey:
             name="pt_test",
             readout_config={
                 "actions": [{"name": "ctrl", "pos_place": 2, "neg_place": 3}],
-                "gains": [1.0], "abs_max": [1.0], "slew_per_s": [1e6],
+                "gains": [1.0],
+                "abs_max": [1.0],
+                "slew_per_s": [1e6],
             },
             injection_config=[
                 {"place_id": 0, "source": "x_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
@@ -693,7 +737,8 @@ class TestControllerPassthroughMissingKey:
 
         loaded = load_artifact(str(path))
         ctrl = NeuroSymbolicController(
-            artifact=loaded, seed_base=42,
+            artifact=loaded,
+            seed_base=42,
             targets=ControlTargets(R_target_m=1.0, Z_target_m=0.0),
             scales=ControlScales(R_scale_m=1.0, Z_scale_m=1.0),
             feature_axes=[FeatureAxisSpec(obs_key="err", target=1.0, scale=1.0, pos_key="x_pos", neg_key="x_neg")],
@@ -734,10 +779,24 @@ class TestArtifactDecodeInvalidCountType:
 class TestArtifactLoadPackedCompact:
     def test_load_with_compact_packed(self, tmp_path):
         from scpn_control.scpn.artifact import (
-            save_artifact, load_artifact, Artifact, ArtifactMeta, FixedPoint,
-            SeedPolicy, CompilerInfo, Topology, PlaceSpec, TransitionSpec,
-            WeightMatrix, Weights, PackedWeightsGroup, PackedWeights,
-            Readout, ActionReadout, InitialState, PlaceInjection,
+            save_artifact,
+            load_artifact,
+            Artifact,
+            ArtifactMeta,
+            FixedPoint,
+            SeedPolicy,
+            CompilerInfo,
+            Topology,
+            PlaceSpec,
+            TransitionSpec,
+            WeightMatrix,
+            Weights,
+            PackedWeightsGroup,
+            PackedWeights,
+            Readout,
+            ActionReadout,
+            InitialState,
+            PlaceInjection,
         )
 
         pw = PackedWeights(shape=[1, 2, 1], data_u64=[42, 99])
@@ -745,7 +804,9 @@ class TestArtifactLoadPackedCompact:
         packed = PackedWeightsGroup(words_per_stream=1, w_in_packed=pw, w_out_packed=pw_out)
         art = Artifact(
             meta=ArtifactMeta(
-                artifact_version="1.0.0", name="test", dt_control_s=0.001,
+                artifact_version="1.0.0",
+                name="test",
+                dt_control_s=0.001,
                 stream_length=64,
                 fixed_point=FixedPoint(data_width=16, fraction_bits=10, signed=False),
                 firing_mode="binary",
@@ -764,7 +825,9 @@ class TestArtifactLoadPackedCompact:
             ),
             readout=Readout(
                 actions=[ActionReadout(id=0, name="ctrl", pos_place=0, neg_place=1)],
-                gains=[1.0], abs_max=[1.0], slew_per_s=[1e6],
+                gains=[1.0],
+                abs_max=[1.0],
+                slew_per_s=[1e6],
             ),
             initial_state=InitialState(
                 marking=[0.0, 0.0],
@@ -796,10 +859,22 @@ class TestArtifactJsonSchema:
 class TestArtifactSavePackedNonCompact:
     def test_save_non_compact_with_w_out(self, tmp_path):
         from scpn_control.scpn.artifact import (
-            save_artifact, Artifact, ArtifactMeta, FixedPoint,
-            SeedPolicy, CompilerInfo, Topology, PlaceSpec, TransitionSpec,
-            WeightMatrix, Weights, PackedWeightsGroup, PackedWeights,
-            Readout, ActionReadout, InitialState,
+            save_artifact,
+            Artifact,
+            ArtifactMeta,
+            FixedPoint,
+            SeedPolicy,
+            CompilerInfo,
+            Topology,
+            PlaceSpec,
+            TransitionSpec,
+            WeightMatrix,
+            Weights,
+            PackedWeightsGroup,
+            PackedWeights,
+            Readout,
+            ActionReadout,
+            InitialState,
         )
 
         pw = PackedWeights(shape=[1, 2, 1], data_u64=[1])
@@ -808,7 +883,9 @@ class TestArtifactSavePackedNonCompact:
 
         art = Artifact(
             meta=ArtifactMeta(
-                artifact_version="1.0.0", name="test2", dt_control_s=0.001,
+                artifact_version="1.0.0",
+                name="test2",
+                dt_control_s=0.001,
                 stream_length=64,
                 fixed_point=FixedPoint(data_width=16, fraction_bits=10, signed=False),
                 firing_mode="binary",
@@ -827,7 +904,9 @@ class TestArtifactSavePackedNonCompact:
             ),
             readout=Readout(
                 actions=[ActionReadout(id=0, name="c", pos_place=0, neg_place=1)],
-                gains=[1.0], abs_max=[1.0], slew_per_s=[1e6],
+                gains=[1.0],
+                abs_max=[1.0],
+                slew_per_s=[1e6],
             ),
             initial_state=InitialState(marking=[0.0, 0.0], place_injections=[]),
         )

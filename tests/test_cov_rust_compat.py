@@ -211,9 +211,7 @@ def test_calculate_vacuum_field(monkeypatch, tmp_path):
         def calculate_vacuum_field(self):
             return np.ones((3, 3))
 
-    monkeypatch.setattr(
-        "scpn_control.core.fusion_kernel.FusionKernel", _MockPyFK, raising=True
-    )
+    monkeypatch.setattr("scpn_control.core.fusion_kernel.FusionKernel", _MockPyFK, raising=True)
     result = w.calculate_vacuum_field()
     np.testing.assert_array_equal(result, np.ones((3, 3)))
 
@@ -272,16 +270,12 @@ def test_spi_run_python_path():
 
 def test_python_svd_rejects_3d_matrix():
     with pytest.raises(ValueError, match="2D"):
-        _rust_compat._python_svd_optimal_correction(
-            np.zeros((2, 2, 2)), np.zeros(2), 1.0
-        )
+        _rust_compat._python_svd_optimal_correction(np.zeros((2, 2, 2)), np.zeros(2), 1.0)
 
 
 def test_python_svd_rejects_length_mismatch():
     with pytest.raises(ValueError, match="error length"):
-        _rust_compat._python_svd_optimal_correction(
-            np.eye(2), np.zeros(3), 1.0
-        )
+        _rust_compat._python_svd_optimal_correction(np.eye(2), np.zeros(3), 1.0)
 
 
 # ── Rust wrapper method bodies (bypassing __init__ via object.__new__) ──

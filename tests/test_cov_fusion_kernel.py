@@ -70,9 +70,7 @@ class TestHPCBridgeAvailable:
         mock_hpc.is_available.return_value = True
         with patch("scpn_control.core.fusion_kernel.HPCBridge", return_value=mock_hpc):
             fk.setup_accelerator()
-        mock_hpc.initialize.assert_called_once_with(
-            fk.NR, fk.NZ, (fk.R[0], fk.R[-1]), (fk.Z[0], fk.Z[-1])
-        )
+        mock_hpc.initialize.assert_called_once_with(fk.NR, fk.NZ, (fk.R[0], fk.R[-1]), (fk.Z[0], fk.Z[-1]))
 
 
 # ── Line 227: find_x_point no divertor region ────────────────────────
@@ -498,12 +496,15 @@ class TestRustMultigridPath:
         mock_rk.B_R = np.zeros_like(fk.Psi)
         mock_rk.B_Z = np.zeros_like(fk.Psi)
 
-        with patch(
-            "scpn_control.core._rust_compat._rust_available",
-            return_value=True,
-        ), patch(
-            "scpn_control.core._rust_compat.RustAcceleratedKernel",
-            return_value=mock_rk,
+        with (
+            patch(
+                "scpn_control.core._rust_compat._rust_available",
+                return_value=True,
+            ),
+            patch(
+                "scpn_control.core._rust_compat.RustAcceleratedKernel",
+                return_value=mock_rk,
+            ),
         ):
             result = fk.solve_equilibrium()
 

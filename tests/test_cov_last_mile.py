@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import platform
-from pathlib import Path
-from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -40,9 +38,16 @@ class TestNeuralTransportStableChannel:
         if model._weights is None:
             pytest.skip("no weights available")
         inp = TransportInputs(
-            rho=0.5, te_kev=0.001, ti_kev=0.001, ne_19=1.0,
-            grad_te=0.001, grad_ti=0.001, grad_ne=0.001,
-            q=1.5, s_hat=0.5, beta_e=0.01,
+            rho=0.5,
+            te_kev=0.001,
+            ti_kev=0.001,
+            ne_19=1.0,
+            grad_te=0.001,
+            grad_ti=0.001,
+            grad_ne=0.001,
+            q=1.5,
+            s_hat=0.5,
+            beta_e=0.01,
         )
         result = model.predict(inp)
         assert result.channel in ("ITG", "TEM", "stable")
@@ -58,9 +63,7 @@ class TestDigitalTwinTimeStepsRejected:
         )
 
         with pytest.raises(ValueError, match="time_steps is controlled"):
-            run_digital_twin_ids_history(
-                history_steps=[10], time_steps=100
-            )
+            run_digital_twin_ids_history(history_steps=[10], time_steps=100)
 
     def test_pulse_time_steps_kwarg_raises(self):
         from scpn_control.control.tokamak_digital_twin import (
@@ -68,9 +71,7 @@ class TestDigitalTwinTimeStepsRejected:
         )
 
         with pytest.raises(ValueError, match="time_steps is controlled"):
-            run_digital_twin_ids_pulse(
-                history_steps=[10], time_steps=100
-            )
+            run_digital_twin_ids_pulse(history_steps=[10], time_steps=100)
 
 
 # ── hpc_bridge: candidate lib found on disk (lines 106-107) ──
@@ -169,5 +170,3 @@ class TestHaloNonFiniteGuards:
 
         result = run_disruption_ensemble(ensemble_runs=50, seed=42)
         assert result.prevention_rate >= 0.0
-
-

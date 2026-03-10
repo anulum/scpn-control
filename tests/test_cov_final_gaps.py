@@ -118,8 +118,13 @@ class TestSimulateNonFiniteGuards:
         m = self._make_model()
         m.tau_av = 0.0
         result = m.simulate(
-            plasma_current_ma=15.0, tau_cq_s=0.01, T_e_quench_keV=0.5,
-            neon_z_eff=1.0, neon_mol=0.0, duration_s=0.001, dt_s=1e-4,
+            plasma_current_ma=15.0,
+            tau_cq_s=0.01,
+            T_e_quench_keV=0.5,
+            neon_z_eff=1.0,
+            neon_mol=0.0,
+            duration_s=0.001,
+            dt_s=1e-4,
         )
         assert all(np.isfinite(v) for v in result.runaway_current_ma)
 
@@ -130,8 +135,13 @@ class TestSimulateNonFiniteGuards:
         # huge values that when summed and multiplied by dt overflow. Ensure
         # the simulation still completes with finite output.
         result = m.simulate(
-            plasma_current_ma=15.0, tau_cq_s=1e-6, T_e_quench_keV=0.5,
-            neon_z_eff=1.0, neon_mol=0.0, duration_s=0.001, dt_s=1e-5,
+            plasma_current_ma=15.0,
+            tau_cq_s=1e-6,
+            T_e_quench_keV=0.5,
+            neon_z_eff=1.0,
+            neon_mol=0.0,
+            duration_s=0.001,
+            dt_s=1e-5,
         )
         assert all(np.isfinite(v) for v in result.runaway_current_ma)
 
@@ -139,8 +149,13 @@ class TestSimulateNonFiniteGuards:
         """Line 499: non-finite n_re → reset to 0."""
         m = self._make_model()
         result = m.simulate(
-            plasma_current_ma=15.0, tau_cq_s=0.01, T_e_quench_keV=0.5,
-            neon_z_eff=1.0, neon_mol=0.0, duration_s=0.001, dt_s=1e-4,
+            plasma_current_ma=15.0,
+            tau_cq_s=0.01,
+            T_e_quench_keV=0.5,
+            neon_z_eff=1.0,
+            neon_mol=0.0,
+            duration_s=0.001,
+            dt_s=1e-4,
         )
         assert np.isfinite(result.peak_re_current_ma)
 
@@ -149,8 +164,13 @@ class TestSimulateNonFiniteGuards:
         m = self._make_model()
         # Run with extremely high seed fraction to trigger large n_re
         result = m.simulate(
-            plasma_current_ma=15.0, tau_cq_s=0.01, T_e_quench_keV=0.5,
-            neon_z_eff=1.0, neon_mol=0.0, duration_s=0.005, dt_s=1e-5,
+            plasma_current_ma=15.0,
+            tau_cq_s=0.01,
+            T_e_quench_keV=0.5,
+            neon_z_eff=1.0,
+            neon_mol=0.0,
+            duration_s=0.005,
+            dt_s=1e-5,
             seed_re_fraction=0.99,
         )
         assert np.isfinite(result.peak_re_current_ma)
@@ -163,7 +183,8 @@ class TestDisruptionEnsemblePrevented:
         from scpn_control.control.halo_re_physics import run_disruption_ensemble
 
         report = run_disruption_ensemble(
-            ensemble_runs=5, seed=42,
+            ensemble_runs=5,
+            seed=42,
             neon_range=(0.5, 0.8),  # Heavy neon → strong RE suppression
         )
         # At least some runs should be prevented with heavy neon injection
@@ -183,7 +204,6 @@ class TestTorchScriptSingleRolloutBody:
     def test_single_via_run_traceable(self):
         pytest.importorskip("torch")
         from scpn_control.control.jax_traceable_runtime import (
-            TraceableRuntimeSpec,
             run_traceable_control_loop,
         )
 
@@ -201,7 +221,6 @@ class TestTorchScriptBatchRolloutBody:
     def test_batch_via_run_traceable(self):
         pytest.importorskip("torch")
         from scpn_control.control.jax_traceable_runtime import (
-            TraceableRuntimeSpec,
             run_traceable_control_batch,
         )
 
@@ -242,10 +261,16 @@ class TestLoadWeightsAsJax:
         np.savez(
             path,
             n_layers=np.array([n_layers]),
-            w0=w0, b0=b0, w1=w1, b1=b1,
-            pca_mean=pca_mean, pca_components=pca_components,
-            input_mean=input_mean, input_std=input_std,
-            grid_nh=grid_nh, grid_nw=grid_nw,
+            w0=w0,
+            b0=b0,
+            w1=w1,
+            b1=b1,
+            pca_mean=pca_mean,
+            pca_components=pca_components,
+            input_mean=input_mean,
+            input_std=input_std,
+            grid_nh=grid_nh,
+            grid_nw=grid_nw,
         )
 
         mlp_w, pca_p, norm_p, grid_shape = load_weights_as_jax(str(path))
@@ -270,9 +295,7 @@ class TestProlongateBilinearSkipBranches:
     def test_small_fine_grid(self):
         from scpn_control.core.fusion_kernel import FusionKernel
 
-        coarse = np.array([[1.0, 2.0, 3.0],
-                           [4.0, 5.0, 6.0],
-                           [7.0, 8.0, 9.0]])
+        coarse = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
         # Fine grid smaller than 2*coarse → triggers skip branches
         fine = FusionKernel._prolongate_bilinear(coarse, nz_f=3, nr_f=3)
         assert fine.shape == (3, 3)
@@ -302,7 +325,10 @@ class TestNewtonPsiAxisBoundaryClose:
         from scpn_control.core.fusion_kernel import FusionKernel
 
         cfg_path = _write_fk_config(
-            tmp_path / "cfg.json", grid=(9, 9), max_iter=6, method="newton",
+            tmp_path / "cfg.json",
+            grid=(9, 9),
+            max_iter=6,
+            method="newton",
         )
         fk = FusionKernel(cfg_path)
         # Flat Psi so axis ≈ boundary
@@ -319,8 +345,11 @@ class TestNewtonDivergeAtFirstIteration:
         from scpn_control.core.fusion_kernel import FusionKernel
 
         cfg_path = _write_fk_config(
-            tmp_path / "cfg.json", grid=(9, 9), max_iter=5,
-            fail_on_diverge=True, method="newton",
+            tmp_path / "cfg.json",
+            grid=(9, 9),
+            max_iter=5,
+            fail_on_diverge=True,
+            method="newton",
         )
         fk = FusionKernel(cfg_path)
 
@@ -336,7 +365,10 @@ class TestNewtonDivergeAtFirstIteration:
         from scpn_control.core.fusion_kernel import FusionKernel
 
         cfg_path = _write_fk_config(
-            tmp_path / "cfg.json", grid=(9, 9), max_iter=4, method="newton",
+            tmp_path / "cfg.json",
+            grid=(9, 9),
+            max_iter=4,
+            method="newton",
         )
         fk = FusionKernel(cfg_path)
 
@@ -460,8 +492,12 @@ class TestGsSolverJaxPicardBody:
         psi_init[:, -1] = 0.0
 
         psi = jax_gs_solve_from_grid(
-            np.asarray(RR), psi_init, dR, dZ,
-            n_picard=10, n_jacobi=20,
+            np.asarray(RR),
+            psi_init,
+            dR,
+            dZ,
+            n_picard=10,
+            n_jacobi=20,
         )
         assert psi.shape == (NZ, NR)
         assert np.all(np.isfinite(psi))
@@ -489,10 +525,14 @@ class TestNeuralTransportWeightLoadException:
         bad = tmp_path / "type_err.npz"
         # Save with correct keys but wrong shapes to cause TypeError
         np.savez(
-            bad, version=np.array([1]),
-            w1=np.array([1.0]), b1=np.array([1.0]),
-            w2=np.array([1.0]), b2=np.array([1.0]),
-            w3=np.array([1.0]), b3=np.array([1.0]),
+            bad,
+            version=np.array([1]),
+            w1=np.array([1.0]),
+            b1=np.array([1.0]),
+            w2=np.array([1.0]),
+            b2=np.array([1.0]),
+            w3=np.array([1.0]),
+            b3=np.array([1.0]),
         )
         s = NeuralTransportSurrogate(weights_path=bad, auto_discover=False)
         assert s.is_neural is False
@@ -510,8 +550,12 @@ class TestNeuralTransportStableChannel:
         s = NeuralTransportSurrogate(auto_discover=False)
         # Very low gradients and temperatures → analytical returns near-zero chi
         inp = TransportInputs(
-            grad_te=0.001, grad_ti=0.001, grad_ne=0.001,
-            te_kev=0.001, ti_kev=0.001, beta_e=0.0001,
+            grad_te=0.001,
+            grad_ti=0.001,
+            grad_ne=0.001,
+            te_kev=0.001,
+            ti_kev=0.001,
+            beta_e=0.0001,
         )
         f = s.predict(inp)
         assert f.channel == "stable"
@@ -562,7 +606,9 @@ class TestBioHolonomicLowHrv:
 
         ctrl = BioHolonomicController(dt_s=0.01, seed=42)
         snap = BioTelemetrySnapshot(
-            heart_rate_bpm=80.0, eeg_coherence_r=0.1, galvanic_skin_response=2.0,
+            heart_rate_bpm=80.0,
+            eeg_coherence_r=0.1,
+            galvanic_skin_response=2.0,
         )
         # Force L5 adapter to return low HRV coherence
         ctrl.l5_adapter.get_metrics = lambda: {
@@ -585,11 +631,14 @@ class TestDisruptionPredictorSignalPad:
         def short_signal(steps=1000, *, rng=None):
             sig, label, ttd = original_sim(steps=steps, rng=rng)
             # Return a signal shorter than requested steps
-            return sig[:max(steps // 2, 1)], label, ttd
+            return sig[: max(steps // 2, 1)], label, ttd
 
         monkeypatch.setattr(dp_mod, "simulate_tearing_mode", short_signal)
         result = dp_mod.run_anomaly_alarm_campaign(
-            seed=0, episodes=2, window=16, threshold=0.5,
+            seed=0,
+            episodes=2,
+            window=16,
+            threshold=0.5,
         )
         assert "episodes" in result
 
@@ -607,7 +656,7 @@ class TestNeuroCyberneticResolveKernel:
         """Force _rust_compat import to fail, fall through to fusion_kernel."""
         import scpn_control.control.neuro_cybernetic_controller as ncc_mod
 
-        original_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
+        original_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
 
         def patched_import(name, *args, **kwargs):
             if name == "scpn_control.core._rust_compat":
@@ -696,7 +745,9 @@ class TestNeuralEquilibriumEmptyValSet:
         with patch("scpn_control.core.eqdsk.read_geqdsk", return_value=mock_eq):
             accel = NeuralEquilibriumAccelerator(
                 config=NeuralEqConfig(
-                    n_components=1, hidden_sizes=(4,), grid_shape=(8, 8),
+                    n_components=1,
+                    hidden_sizes=(4,),
+                    grid_shape=(8, 8),
                 )
             )
             # n_perturbations=1 + 1 file = 2 samples → n_samples < 3 → n_val = 0

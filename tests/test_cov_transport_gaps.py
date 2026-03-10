@@ -1,4 +1,5 @@
 """Targeted coverage tests for integrated_transport_solver.py uncovered lines."""
+
 from __future__ import annotations
 
 import json
@@ -77,9 +78,7 @@ def test_bootstrap_bpol_near_zero():
     ne = 8.0 * (1 - rho**2) ** 0.5
     q = 1.0 + 3.0 * rho**2
     # B0 ~ 0 forces B_pol < 1e-10 for all interior points
-    j_bs = calculate_sauter_bootstrap_current_full(
-        rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=1e-15
-    )
+    j_bs = calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=1e-15)
     assert j_bs.shape == (nr,)
     assert np.all(np.isfinite(j_bs))
     # All interior points should be zero (skipped)

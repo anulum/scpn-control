@@ -38,48 +38,40 @@ class TestGsSolveNumpy:
     """Verify the NumPy Picard+Jacobi GS solver."""
 
     def test_returns_correct_shape(self):
-        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                          n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
         assert psi.shape == (NZ, NR)
 
     def test_boundary_zero(self):
-        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                          n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
         assert np.allclose(psi[0, :], 0.0)
         assert np.allclose(psi[-1, :], 0.0)
         assert np.allclose(psi[:, 0], 0.0)
         assert np.allclose(psi[:, -1], 0.0)
 
     def test_finite_values(self):
-        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                          n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
         assert np.all(np.isfinite(psi))
 
     def test_nonzero_interior(self):
-        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                          n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
         assert np.max(np.abs(psi[1:-1, 1:-1])) > 0.0
 
     def test_vertical_symmetry(self):
         """Z-symmetric boundary → approximately Z-symmetric psi."""
-        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                          n_picard=40, n_jacobi=100)
+        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=40, n_jacobi=100)
         psi_flipped = psi[::-1, :]
         # Not exact due to finite iterations, but should be close
         np.testing.assert_allclose(psi, psi_flipped, atol=1e-4)
 
     def test_higher_current_larger_flux(self):
         """Doubling Ip should increase the flux magnitude."""
-        psi_lo = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                             n_picard=N_PICARD, n_jacobi=N_JACOBI)
-        psi_hi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, 2.0 * IP_TARGET,
-                             n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi_lo = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi_hi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, 2.0 * IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
         assert np.max(np.abs(psi_hi)) > np.max(np.abs(psi_lo))
 
     def test_finer_grid_finite(self):
         """Solve on 33x33 grid stays finite."""
-        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, 33, 33, IP_TARGET,
-                          n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, 33, 33, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
         assert psi.shape == (33, 33)
         assert np.all(np.isfinite(psi))
 
@@ -88,14 +80,16 @@ class TestGsSolvePublicAPI:
     """Test jax_gs_solve dispatches correctly."""
 
     def test_numpy_fallback(self):
-        psi = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                           n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=False)
+        psi = jax_gs_solve(
+            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=False
+        )
         assert psi.shape == (NZ, NR)
         assert np.all(np.isfinite(psi))
 
     def test_boundary_zero_api(self):
-        psi = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                           n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=False)
+        psi = jax_gs_solve(
+            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=False
+        )
         assert np.allclose(psi[0, :], 0.0)
         assert np.allclose(psi[-1, :], 0.0)
 
@@ -105,42 +99,46 @@ class TestGsSolveJAX:
     """JAX-accelerated GS solver tests."""
 
     def test_jax_returns_correct_shape(self):
-        psi = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                           n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True)
+        psi = jax_gs_solve(
+            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True
+        )
         assert psi.shape == (NZ, NR)
 
     def test_jax_boundary_zero(self):
-        psi = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                           n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True)
+        psi = jax_gs_solve(
+            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True
+        )
         assert np.allclose(psi[0, :], 0.0)
         assert np.allclose(psi[-1, :], 0.0)
         assert np.allclose(psi[:, 0], 0.0)
         assert np.allclose(psi[:, -1], 0.0)
 
     def test_jax_finite(self):
-        psi = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                           n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True)
+        psi = jax_gs_solve(
+            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True
+        )
         assert np.all(np.isfinite(psi))
 
     def test_jax_nonzero_interior(self):
-        psi = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                           n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True)
+        psi = jax_gs_solve(
+            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True
+        )
         assert np.max(np.abs(psi[1:-1, 1:-1])) > 0.0
 
     def test_jax_numpy_parity(self):
         """JAX and NumPy solvers produce similar results."""
-        psi_np = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                              n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=False)
-        psi_jax = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                               n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True)
+        psi_np = jax_gs_solve(
+            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=False
+        )
+        psi_jax = jax_gs_solve(
+            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True
+        )
         # Same algorithm, should match closely
         np.testing.assert_allclose(psi_jax, psi_np, rtol=1e-5, atol=1e-10)
 
     def test_jax_higher_current_larger_flux(self):
-        psi_lo = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET,
-                              n_picard=N_PICARD, n_jacobi=N_JACOBI)
-        psi_hi = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, 2.0 * IP_TARGET,
-                              n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi_lo = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
+        psi_hi = jax_gs_solve(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, 2.0 * IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
         assert np.max(np.abs(psi_hi)) > np.max(np.abs(psi_lo))
 
 
@@ -152,8 +150,15 @@ class TestGsAutodiff:
         from scpn_control.core.jax_gs_solver import jax_gs_grad_Ip
 
         grad_val = jax_gs_grad_Ip(
-            IP_TARGET, R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ,
-            n_picard=10, n_jacobi=30,
+            IP_TARGET,
+            R_MIN,
+            R_MAX,
+            Z_MIN,
+            Z_MAX,
+            NR,
+            NZ,
+            n_picard=10,
+            n_jacobi=30,
         )
         assert np.isfinite(grad_val)
 
@@ -161,8 +166,15 @@ class TestGsAutodiff:
         from scpn_control.core.jax_gs_solver import jax_gs_grad_Ip
 
         grad_val = jax_gs_grad_Ip(
-            IP_TARGET, R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ,
-            n_picard=10, n_jacobi=30,
+            IP_TARGET,
+            R_MIN,
+            R_MAX,
+            Z_MIN,
+            Z_MAX,
+            NR,
+            NZ,
+            n_picard=10,
+            n_jacobi=30,
         )
         assert abs(grad_val) > 0.0
 
@@ -171,8 +183,15 @@ class TestGsAutodiff:
         from scpn_control.core.jax_gs_solver import jax_gs_grad_Ip
 
         grad_val = jax_gs_grad_Ip(
-            IP_TARGET, R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ,
-            n_picard=10, n_jacobi=30,
+            IP_TARGET,
+            R_MIN,
+            R_MAX,
+            Z_MIN,
+            Z_MAX,
+            NR,
+            NZ,
+            n_picard=10,
+            n_jacobi=30,
         )
         # For positive Ip, increasing it should increase psi interior values
         # (flux scales with current). Gradient should be nonzero.
@@ -201,9 +220,17 @@ class TestGsAutodiff:
 
         def obj(beta: float) -> float:
             psi = _jax_gs_solve_impl(
-                RR, dR, dZ, psi_init,
-                float(IP_TARGET), float(MU0),
-                10, 30, 0.1, 0.667, beta,
+                RR,
+                dR,
+                dZ,
+                psi_init,
+                float(IP_TARGET),
+                float(MU0),
+                10,
+                30,
+                0.1,
+                0.667,
+                beta,
             )
             return jnp.sum(psi)
 
@@ -217,17 +244,38 @@ class TestGsAutodiff:
         Ip0 = 1e6
         eps = 1e3
         grad_ad = jax_gs_grad_Ip(
-            Ip0, R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ,
-            n_picard=10, n_jacobi=30,
+            Ip0,
+            R_MIN,
+            R_MAX,
+            Z_MIN,
+            Z_MAX,
+            NR,
+            NZ,
+            n_picard=10,
+            n_jacobi=30,
         )
 
         psi_plus = jax_gs_solve(
-            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, Ip0 + eps,
-            n_picard=10, n_jacobi=30,
+            R_MIN,
+            R_MAX,
+            Z_MIN,
+            Z_MAX,
+            NR,
+            NZ,
+            Ip0 + eps,
+            n_picard=10,
+            n_jacobi=30,
         )
         psi_minus = jax_gs_solve(
-            R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, Ip0 - eps,
-            n_picard=10, n_jacobi=30,
+            R_MIN,
+            R_MAX,
+            Z_MIN,
+            Z_MAX,
+            NR,
+            NZ,
+            Ip0 - eps,
+            n_picard=10,
+            n_jacobi=30,
         )
         grad_fd = (np.sum(psi_plus) - np.sum(psi_minus)) / (2.0 * eps)
 

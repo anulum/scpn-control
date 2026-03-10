@@ -49,10 +49,7 @@ def _write_iter_config(path: Path) -> Path:
         "grid_resolution": [8, 8],
         "dimensions": {"R_min": 2.0, "R_max": 10.0, "Z_min": -6.0, "Z_max": 6.0},
         "physics": {"plasma_current_target": 5.0, "vacuum_permeability": 1.0},
-        "coils": [
-            {"name": f"PF{i}", "r": 3.0 + i, "z": (-1) ** i * 3.0, "current": 1.0}
-            for i in range(6)
-        ],
+        "coils": [{"name": f"PF{i}", "r": 3.0 + i, "z": (-1) ** i * 3.0, "current": 1.0} for i in range(6)],
         "solver": {"max_iterations": 5, "convergence_threshold": 1e-4},
     }
     path.write_text(json.dumps(cfg))
@@ -130,7 +127,9 @@ def test_disruption_contracts_small_window():
     # This requires the else branch (t < window_size), which is unreachable
     # given current validation. Test the normal path to confirm it runs.
     result = run_real_shot_replay(
-        shot_data=shot, rl_agent=agent, window_size=8,
+        shot_data=shot,
+        rl_agent=agent,
+        window_size=8,
     )
     assert "risk_series" in result
 
@@ -166,7 +165,8 @@ def test_fueling_target_density_zero():
 
 
 def test_sota_mpc_verbose_plot(tmp_path):
-    import json, matplotlib
+    import matplotlib
+
     matplotlib.use("Agg")
 
     from scpn_control.control.fusion_sota_mpc import run_sota_simulation
@@ -175,7 +175,10 @@ def test_sota_mpc_verbose_plot(tmp_path):
     out = tmp_path / "mpc.png"
     result = run_sota_simulation(
         config_file=str(cfg),
-        shot_length=2, save_plot=True, verbose=True, output_path=str(out),
+        shot_length=2,
+        save_plot=True,
+        verbose=True,
+        output_path=str(out),
     )
     assert result["plot_saved"] is True
 
@@ -208,6 +211,7 @@ def test_spi_verbose_log(tmp_path):
 
 def test_spi_run_spi_test(tmp_path, monkeypatch):
     import matplotlib
+
     matplotlib.use("Agg")
 
     monkeypatch.chdir(tmp_path)
@@ -223,6 +227,7 @@ def test_spi_run_spi_test(tmp_path, monkeypatch):
 
 def test_flight_sim_no_divertor(tmp_path):
     import matplotlib
+
     matplotlib.use("Agg")
 
     from scpn_control.control.tokamak_flight_sim import IsoFluxController
@@ -393,8 +398,12 @@ def test_neural_transport_stable_channel():
 
     s = NeuralTransportSurrogate(auto_discover=False)
     inp = TransportInputs(
-        grad_te=0.1, grad_ti=0.1, grad_ne=0.1,
-        te_kev=0.01, ti_kev=0.01, beta_e=0.001,
+        grad_te=0.1,
+        grad_ti=0.1,
+        grad_ne=0.1,
+        te_kev=0.01,
+        ti_kev=0.01,
+        beta_e=0.001,
     )
     f = s.predict(inp)
     assert f.channel == "stable"
@@ -414,36 +423,64 @@ def test_scaling_laws_nonfinite_sigma_alpha():
     good_coeff = _sl.load_ipb98y2_coefficients()
     good_coeff["uncertainties_1sigma"]["Ip_MA"] = float("nan")
 
-    with patch.object(_sl, "_validate_ipb98y2_coefficients", return_value=good_coeff):
-        with pytest.raises(ValueError, match="uncertainty is invalid"):
-            _sl.ipb98y2_with_uncertainty(
-                Ip=15.0, BT=5.3, ne19=10.1, Ploss=87.0,
-                R=6.2, kappa=1.7, epsilon=0.32, M=2.5,
-                coefficients=good_coeff,
-            )
+    with (
+        patch.object(_sl, "_validate_ipb98y2_coefficients", return_value=good_coeff),
+        pytest.raises(ValueError, match="uncertainty is invalid"),
+    ):
+        _sl.ipb98y2_with_uncertainty(
+            Ip=15.0,
+            BT=5.3,
+            ne19=10.1,
+            Ploss=87.0,
+            R=6.2,
+            kappa=1.7,
+            epsilon=0.32,
+            M=2.5,
+            coefficients=good_coeff,
+        )
 
 
 def test_scaling_laws_overflow_guard():
     """Extreme but finite sigma_alpha triggers overflow guard (lines 323-325)."""
     from scpn_control.core.scaling_laws import ipb98y2_with_uncertainty
 
-    huge = {k: 1e200 for k in [
-        "Ip_MA", "BT_T", "ne19_1e19m3", "Ploss_MW",
-        "R_m", "kappa", "epsilon", "M_AMU",
-    ]}
+    huge = {
+        k: 1e200
+        for k in [
+            "Ip_MA",
+            "BT_T",
+            "ne19_1e19m3",
+            "Ploss_MW",
+            "R_m",
+            "kappa",
+            "epsilon",
+            "M_AMU",
+        ]
+    }
     coeff = {
         "C": 0.0562,
         "exponents": {
-            "Ip_MA": 0.93, "BT_T": 0.15, "ne19_1e19m3": 0.41,
-            "Ploss_MW": -0.69, "R_m": 1.97, "kappa": 0.78,
-            "epsilon": 0.58, "M_AMU": 0.19,
+            "Ip_MA": 0.93,
+            "BT_T": 0.15,
+            "ne19_1e19m3": 0.41,
+            "Ploss_MW": -0.69,
+            "R_m": 1.97,
+            "kappa": 0.78,
+            "epsilon": 0.58,
+            "M_AMU": 0.19,
         },
         "uncertainties_1sigma": huge,
     }
     with pytest.raises(ValueError, match="uncertainty is invalid"):
         ipb98y2_with_uncertainty(
-            Ip=15.0, BT=5.3, ne19=10.1, Ploss=87.0,
-            R=6.2, kappa=1.7, epsilon=0.32, M=2.5,
+            Ip=15.0,
+            BT=5.3,
+            ne19=10.1,
+            Ploss=87.0,
+            R=6.2,
+            kappa=1.7,
+            epsilon=0.32,
+            M=2.5,
             coefficients=coeff,
         )
 
@@ -461,8 +498,12 @@ def test_mercier_first_unstable_rho():
     alpha = np.zeros_like(rho)
 
     qp = QProfile(
-        rho=rho, q=q, shear=s, alpha_mhd=alpha,
-        q_min=float(q.min()), q_min_rho=float(rho[np.argmin(q)]),
+        rho=rho,
+        q=q,
+        shear=s,
+        alpha_mhd=alpha,
+        q_min=float(q.min()),
+        q_min_rho=float(rho[np.argmin(q)]),
         q_edge=float(q[-1]),
     )
     result = mercier_stability(qp)

@@ -104,8 +104,8 @@ def numpy_weights_to_jax(
     pm = jnp.asarray(pca_mean, dtype=jnp.float64)
     pc = jnp.asarray(pca_components, dtype=jnp.float64)
     im = jnp.asarray(input_mean, dtype=jnp.float64)
-    ist = jnp.asarray(input_std, dtype=jnp.float64)
-    return (ws, bs), (pm, pc), (im, ist)
+    isd = jnp.asarray(input_std, dtype=jnp.float64)
+    return (ws, bs), (pm, pc), (im, isd)
 
 
 # ── JAX implementations ──────────────────────────────────────────

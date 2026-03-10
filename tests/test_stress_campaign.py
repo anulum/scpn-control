@@ -336,8 +336,7 @@ def test_hinf_episode_uses_flight_sim_controller(monkeypatch):
                 "mean_abs_radial_actuator_lag": 0.1,
             }
 
-    monkeypatch.setattr(mod, "IsoFluxController",
-        lambda *a, **kw: FakeIso())
+    monkeypatch.setattr(mod, "IsoFluxController", lambda *a, **kw: FakeIso())
 
     ep = mod._run_hinf_episode(config_path="unused", shot_duration=5)
     assert np.isfinite(ep.reward)

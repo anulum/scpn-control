@@ -453,7 +453,9 @@ class StochasticPetriNet:
                 max_seen = max(max_seen, float(np.max(marking)))
                 min_seen = min(min_seen, float(np.min(marking)))
 
-                if np.any(marking < -1e-9) or np.any(marking > 1.0 + 1e-9):  # pragma: no cover — np.clip above guarantees [0,1]
+                if np.any(marking < -1e-9) or np.any(
+                    marking > 1.0 + 1e-9
+                ):  # pragma: no cover — np.clip above guarantees [0,1]
                     bounded = False
 
         return {

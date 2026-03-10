@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-import types
 from unittest import mock
 
 import numpy as np
@@ -162,9 +161,7 @@ class TestNeuralEquilibriumNoJax:
 
         monkeypatch.setattr(mod, "_HAS_JAX", False)
         with pytest.raises(RuntimeError, match="JAX"):
-            mod.jax_neural_eq_predict(
-                np.zeros(5), ((), ()), (np.zeros(5), np.eye(5)), (np.zeros(5), np.ones(5))
-            )
+            mod.jax_neural_eq_predict(np.zeros(5), ((), ()), (np.zeros(5), np.eye(5)), (np.zeros(5), np.ones(5)))
 
     def test_jax_neural_eq_predict_batched_no_jax(self, monkeypatch):
         import scpn_control.core.jax_neural_equilibrium as mod
@@ -232,8 +229,12 @@ class TestGsSolveFromGrid:
         psi_init[:, -1] = 0.0
 
         psi = jax_gs_solve_from_grid(
-            np.asarray(RR), psi_init, dR, dZ,
-            n_picard=5, n_jacobi=10,
+            np.asarray(RR),
+            psi_init,
+            dR,
+            dZ,
+            n_picard=5,
+            n_jacobi=10,
         )
         assert psi.shape == (NZ, NR)
         assert np.all(np.isfinite(psi))
@@ -342,7 +343,6 @@ class TestWsPhaseStreamServe:
             with mock.patch("scpn_control.phase.ws_phase_stream.websockets", create=True) as ws_mock:
                 ws_mock.serve = mock.MagicMock(return_value=mock_ws_serve)
                 # Monkey-patch module-level import
-                import scpn_control.phase.ws_phase_stream as ws_mod_local
 
                 original = None
                 try:
@@ -377,10 +377,25 @@ class TestWsPhaseStreamMain:
         from scpn_control.phase import ws_phase_stream as ws_mod
 
         monkeypatch.setattr(
-            sys, "argv",
-            ["ws_phase_stream", "--port", "9999", "--host", "127.0.0.1",
-             "--layers", "3", "--n-per", "8", "--zeta", "0.3",
-             "--psi", "0.1", "--tick-interval", "0.01"],
+            sys,
+            "argv",
+            [
+                "ws_phase_stream",
+                "--port",
+                "9999",
+                "--host",
+                "127.0.0.1",
+                "--layers",
+                "3",
+                "--n-per",
+                "8",
+                "--zeta",
+                "0.3",
+                "--psi",
+                "0.1",
+                "--tick-interval",
+                "0.01",
+            ],
         )
 
         serve_sync_calls = []
@@ -413,7 +428,10 @@ class TestRealtimeMonitorAdaptive:
         engine = AdaptiveKnmEngine(baseline_spec=spec, config=AdaptiveKnmConfig())
 
         mon = RealtimeMonitor.from_plasma(
-            L=L, N_per=10, adaptive_engine=engine, seed=42,
+            L=L,
+            N_per=10,
+            adaptive_engine=engine,
+            seed=42,
         )
         snap1 = mon.tick()
         assert snap1["tick"] == 1
@@ -493,8 +511,15 @@ class TestKuramotoRustPath:
         monkeypatch.setattr(kmod, "_rust_step", fake_rust_step, raising=False)
 
         out = kmod.kuramoto_sakaguchi_step(
-            theta, omega, dt=0.01, K=2.0, alpha=0.0, zeta=0.5,
-            psi_driver=0.0, psi_mode="external", wrap=True,
+            theta,
+            omega,
+            dt=0.01,
+            K=2.0,
+            alpha=0.0,
+            zeta=0.5,
+            psi_driver=0.0,
+            psi_mode="external",
+            wrap=True,
         )
         assert out["R"] == pytest.approx(0.6)
         assert out["theta1"].shape == (N,)
@@ -520,8 +545,13 @@ class TestKuramotoNonRustWithAlpha:
         theta = np.zeros(10)
         omega = np.zeros(10)
         out = kmod.kuramoto_sakaguchi_step(
-            theta, omega, dt=0.01, K=1.0, alpha=0.5,
-            psi_mode="mean_field", wrap=True,
+            theta,
+            omega,
+            dt=0.01,
+            K=1.0,
+            alpha=0.5,
+            psi_mode="mean_field",
+            wrap=True,
         )
         assert not called["rust"]
         assert "dtheta" in out
