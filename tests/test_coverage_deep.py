@@ -115,7 +115,7 @@ from scpn_control.control.tokamak_digital_twin import (
 )
 
 try:
-    from scpn_control.io.imas_connector import digital_twin_summary_to_ids
+    from scpn_control.io.imas_connector import digital_twin_summary_to_ids  # noqa: F401
 
     _HAS_IMAS = True
 except ImportError:
@@ -327,7 +327,7 @@ class TestEvaluatePredictor:
 class TestTrainPredictor:
     def test_train_minimal(self, tmp_path):
         try:
-            import torch
+            import torch  # noqa: F401
         except ImportError:
             pytest.skip("torch not available")
         from scpn_control.control.disruption_predictor import train_predictor
@@ -348,7 +348,7 @@ class TestTrainPredictor:
 
     def test_load_or_train_retrain_path(self, tmp_path):
         try:
-            import torch
+            import torch  # noqa: F401
         except ImportError:
             pytest.skip("torch not available")
         from scpn_control.control.disruption_predictor import load_or_train_predictor
@@ -368,7 +368,7 @@ class TestTrainPredictor:
 
     def test_load_checkpoint(self, tmp_path):
         try:
-            import torch
+            import torch  # noqa: F401
         except ImportError:
             pytest.skip("torch not available")
         from scpn_control.control.disruption_predictor import (

@@ -28,6 +28,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
 
@@ -43,7 +44,7 @@ class PhaseStreamServer:
     _clients: set = field(default_factory=set, init=False, repr=False)
     _running: bool = field(default=False, init=False, repr=False)
 
-    async def _handler(self, websocket):
+    async def _handler(self, websocket: Any) -> None:
         self._clients.add(websocket)
         logger.info("Client connected (%d total)", len(self._clients))
         try:
@@ -64,7 +65,7 @@ class PhaseStreamServer:
             self._clients.discard(websocket)
             logger.info("Client disconnected (%d remain)", len(self._clients))
 
-    async def _tick_loop(self):
+    async def _tick_loop(self) -> None:
         self._running = True
         while self._running:
             if not self._clients:
@@ -81,7 +82,7 @@ class PhaseStreamServer:
             self._clients -= dead
             await asyncio.sleep(self.tick_interval_s)
 
-    async def serve(self, host: str = "0.0.0.0", port: int = 8765):  # nosec B104
+    async def serve(self, host: str = "0.0.0.0", port: int = 8765) -> None:  # nosec B104
         """Start WebSocket server and tick loop."""
         try:
             import websockets  # noqa: F811
@@ -93,12 +94,12 @@ class PhaseStreamServer:
             logger.info("Phase stream listening on ws://%s:%d", host, port)
             await tick_task
 
-    def serve_sync(self, host: str = "0.0.0.0", port: int = 8765):  # nosec B104
+    def serve_sync(self, host: str = "0.0.0.0", port: int = 8765) -> None:  # nosec B104
         """Blocking entry point."""
         asyncio.run(self.serve(host, port))
 
 
-def main():
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="SCPN Phase Sync WebSocket Stream")

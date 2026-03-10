@@ -161,7 +161,7 @@ def _base_plasma_knm(L: int = 8, K_base: float = 0.30) -> NDArray[np.float64]:
     idx = np.arange(L)
     dist = np.abs(idx[:, None] - idx[None, :])
     K = K_base * np.exp(-K_ALPHA * dist)
-    return K
+    return np.asarray(K, dtype=np.float64)
 
 
 def _apply_physics_couplings(K: NDArray[np.float64]) -> None:

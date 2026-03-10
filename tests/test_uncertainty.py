@@ -6,7 +6,6 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 import pytest
-import numpy as np
 
 from scpn_control.core.uncertainty import (
     PlasmaScenario,

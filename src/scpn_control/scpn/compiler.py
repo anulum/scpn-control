@@ -39,7 +39,7 @@ _HAS_NEUROCORE_V3 = False
 try:
     from sc_neurocore import RNG as _SC_RNG
     from sc_neurocore import BitstreamEncoder, StochasticLIFNeuron, VectorizedSCLayer, generate_bernoulli_bitstream
-    from sc_neurocore.accel import get_backend
+    from sc_neurocore.accel import get_backend  # type: ignore[attr-defined]
 
     _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True
     logger.info("sc_neurocore v3.8.0+ detected — VectorizedSCLayer + Rust backend")
@@ -188,9 +188,9 @@ class CompiledNet:
 
         # v3.8.0+ path: VectorizedSCLayer handles encode+forward in one call
         if _HAS_NEUROCORE_V3:
-            encoder = BitstreamEncoder(length=self.bitstream_length, seed=self.seed + 1_000_000)
-            layer = VectorizedSCLayer(W_packed, encoder, backend=get_backend())
-            return np.asarray(layer.forward(input_probs), dtype=np.float64)
+            encoder = BitstreamEncoder(length=self.bitstream_length, seed=self.seed + 1_000_000)  # type: ignore[call-arg]
+            layer = VectorizedSCLayer(W_packed, encoder, backend=get_backend())  # type: ignore[call-arg,arg-type]
+            return np.asarray(layer.forward(input_probs), dtype=np.float64)  # type: ignore[arg-type]
 
         # Legacy path: manual pack + AND + popcount
         n_out, n_in, n_words = W_packed.shape

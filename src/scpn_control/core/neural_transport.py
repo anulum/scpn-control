@@ -202,7 +202,7 @@ def _relu(x: FloatArray) -> FloatArray:
 
 
 def _softplus(x: FloatArray) -> FloatArray:
-    return np.log1p(np.exp(np.clip(x, -20.0, 20.0)))
+    return np.asarray(np.log1p(np.exp(np.clip(x, -20.0, 20.0))))
 
 
 def _mlp_forward(x: FloatArray, weights: MLPWeights) -> FloatArray:
@@ -415,7 +415,7 @@ class NeuralTransportModel:
         def norm_grad(x: FloatArray) -> FloatArray:
             dx = np.gradient(x, rho)
             safe_x = np.maximum(np.abs(x), 1e-6)
-            return -r_major * dx / safe_x
+            return np.asarray(-r_major * dx / safe_x)
 
         grad_te = np.clip(norm_grad(te), 0, 50)
         grad_ti = np.clip(norm_grad(ti), 0, 50)

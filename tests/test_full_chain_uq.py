@@ -10,7 +10,6 @@ import numpy as np
 
 from scpn_control.core.uncertainty import (
     PlasmaScenario,
-    FullChainUQResult,
     quantify_full_chain,
     summarize_uq,
 )

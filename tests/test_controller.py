@@ -35,7 +35,7 @@ import pytest
 
 from scpn_control import __version__ as PACKAGE_VERSION
 from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.compiler import FusionCompiler, CompiledNet, _HAS_SC_NEUROCORE
+from scpn_control.scpn.compiler import FusionCompiler, _HAS_SC_NEUROCORE
 from scpn_control.scpn.contracts import (
     ActionSpec,
     ControlAction,
@@ -49,7 +49,6 @@ from scpn_control.scpn.contracts import (
 )
 from scpn_control.scpn.artifact import (
     ARTIFACT_SCHEMA_VERSION,
-    Artifact,
     ArtifactValidationError,
     PackedWeights,
     PackedWeightsGroup,

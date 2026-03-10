@@ -1044,7 +1044,7 @@ class FusionKernel:
                 dJ_dpsi = self._compute_profile_jacobian(Psi_axis, Psi_boundary, mu0)
                 diag_term = -mu0 * self.RR * dJ_dpsi  # the source derivative
 
-                def matvec(v_flat: np.ndarray, _dt=diag_term) -> np.ndarray:  # noqa: B006
+                def matvec(v_flat: np.ndarray, _dt: np.ndarray = diag_term) -> np.ndarray:  # noqa: B006
                     v2d = np.zeros((NZ, NR_grid))
                     v2d[1:-1, 1:-1] = v_flat.reshape(NZ - 2, NR_grid - 2)
                     Lv = self._apply_gs_operator(v2d)
@@ -1381,7 +1381,7 @@ class FusionKernel:
         self.B_Z = (1.0 / R_safe) * dPsi_dR
 
     @staticmethod
-    def _green_function(R_src, Z_src, R_obs, Z_obs):
+    def _green_function(R_src: float, Z_src: float, R_obs: float, Z_obs: float) -> float:
         """Toroidal Green's function using elliptic integrals."""
         mu0 = 4e-7 * np.pi
         denom = (R_obs + R_src) ** 2 + (Z_obs - Z_src) ** 2
@@ -1398,7 +1398,7 @@ class FusionKernel:
         psi = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / k
         return float(psi)
 
-    def _compute_external_flux(self, coils):
+    def _compute_external_flux(self, coils: Any) -> np.ndarray:
         """Sum Green's function contributions on boundary from CoilSet."""
         NR, NZ = len(self.R), len(self.Z)
         psi_ext = np.zeros((NZ, NR))
@@ -1501,7 +1501,7 @@ class FusionKernel:
             result.status,
             result.message,
         )
-        return result.x.astype(np.float64)
+        return np.asarray(result.x, dtype=np.float64)
 
     def solve_free_boundary(
         self,

@@ -133,7 +133,7 @@ class ShatteredPelletInjection:
         duration_s: float = 0.05,
         dt_s: float = 1e-5,
         verbose: bool = True,
-    ):
+    ) -> Any:
         neon = require_non_negative_float("neon_quantity_mol", neon_quantity_mol)
         argon = require_non_negative_float("argon_quantity_mol", argon_quantity_mol)
         xenon = require_non_negative_float("xenon_quantity_mol", xenon_quantity_mol)

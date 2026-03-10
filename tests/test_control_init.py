@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from scpn_control.control import normalize_bounds, get_nengo_controller

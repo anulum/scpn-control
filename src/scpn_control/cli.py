@@ -30,7 +30,7 @@ import numpy as np
 
 @click.group()
 @click.version_option(package_name="scpn-control")
-def main():
+def main() -> None:
     """SCPN Control — Neuro-symbolic Stochastic Petri Net controller."""
 
 
@@ -38,7 +38,7 @@ def main():
 @click.option("--scenario", default="combined", type=click.Choice(["pid", "snn", "combined"]))
 @click.option("--steps", default=1000, type=int, help="Simulation time steps")
 @click.option("--json-out", is_flag=True, help="Emit JSON instead of text")
-def demo(scenario: str, steps: int, json_out: bool):
+def demo(scenario: str, steps: int, json_out: bool) -> None:
     """Run a closed-loop control demo."""
     from scpn_control.scpn.compiler import FusionCompiler
     from scpn_control.scpn.contracts import ControlScales, ControlTargets, FeatureAxisSpec
@@ -153,7 +153,7 @@ def demo(scenario: str, steps: int, json_out: bool):
 @main.command()
 @click.option("--n-bench", default=5000, type=int, help="Number of benchmark iterations")
 @click.option("--json-out", is_flag=True, help="Emit JSON")
-def benchmark(n_bench: int, json_out: bool):
+def benchmark(n_bench: int, json_out: bool) -> None:
     """Timing benchmark: PID vs SNN control step latency."""
 
     t0 = time.perf_counter()
@@ -197,7 +197,7 @@ def benchmark(n_bench: int, json_out: bool):
 
 @main.command()
 @click.option("--json-out", is_flag=True, help="Emit JSON")
-def validate(json_out: bool):
+def validate(json_out: bool) -> None:
     """Run RMSE validation dashboard."""
     try:
         from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
@@ -235,7 +235,7 @@ def validate(json_out: bool):
 @click.option("--zeta", default=0.5, type=float, help="Global field coupling zeta")
 @click.option("--psi", default=0.0, type=float, help="Initial Psi driver")
 @click.option("--tick-interval", default=0.001, type=float, help="Seconds between ticks")
-def live(port: int, host: str, layers: int, n_per: int, zeta: float, psi: float, tick_interval: float):
+def live(port: int, host: str, layers: int, n_per: int, zeta: float, psi: float, tick_interval: float) -> None:
     """Start real-time WebSocket phase sync server.
 
     Streams Kuramoto R/V/lambda tick snapshots over ws://<host>:<port>.
@@ -267,7 +267,7 @@ def live(port: int, host: str, layers: int, n_per: int, zeta: float, psi: float,
 @main.command(name="hil-test")
 @click.option("--shots-dir", default="validation/reference_data/diiid/disruption_shots", type=str)
 @click.option("--json-out", is_flag=True, help="Emit JSON")
-def hil_test(shots_dir: str, json_out: bool):
+def hil_test(shots_dir: str, json_out: bool) -> None:
     """Hardware-in-the-loop test campaign against reference shots."""
     from pathlib import Path
 
@@ -304,7 +304,7 @@ def hil_test(shots_dir: str, json_out: bool):
 
 @main.command()
 @click.option("--json-out", is_flag=True, help="Emit JSON")
-def info(json_out: bool):
+def info(json_out: bool) -> None:
     """Print environment and backend information."""
     from pathlib import Path
 

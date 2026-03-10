@@ -46,10 +46,10 @@ DEFAULT_MODEL_FILENAME = "disruption_model.pth"
 
 # --- PHYSICS: MODIFIED RUTHERFORD EQUATION ---
 def simulate_tearing_mode(
-    steps=1000,
+    steps: int = 1000,
     *,
     rng: np.random.Generator | None = None,
-):
+) -> tuple[np.ndarray, int, int]:
     """
     Generates synthetic shot data.
     Returns:
@@ -94,7 +94,7 @@ def simulate_tearing_mode(
     return np.array(w_history), 0, -1
 
 
-def build_disruption_feature_vector(signal, toroidal_observables=None):
+def build_disruption_feature_vector(signal: Any, toroidal_observables: dict[str, float] | None = None) -> np.ndarray:
     """
     Build a compact feature vector for control-oriented disruption scoring.
 
@@ -130,7 +130,7 @@ def build_disruption_feature_vector(signal, toroidal_observables=None):
     )
 
 
-def predict_disruption_risk(signal, toroidal_observables=None):
+def predict_disruption_risk(signal: Any, toroidal_observables: dict[str, float] | None = None) -> float:
     """
     Lightweight deterministic disruption risk estimator (0..1) for control loops.
 
@@ -155,7 +155,7 @@ def predict_disruption_risk(signal, toroidal_observables=None):
     return float(1.0 / (1.0 + np.exp(-logits)))
 
 
-def apply_bit_flip_fault(value, bit_index):
+def apply_bit_flip_fault(value: float, bit_index: int) -> float:
     """Inject a deterministic single-bit fault into a float."""
     if isinstance(bit_index, bool) or not isinstance(bit_index, (int, np.integer)):
         raise ValueError("bit_index must be an integer in [0, 63].")
@@ -168,24 +168,24 @@ def apply_bit_flip_fault(value, bit_index):
     return float(out if np.isfinite(out) else value)
 
 
-def _synthetic_control_signal(rng, length):
+def _synthetic_control_signal(rng: np.random.Generator, length: int) -> np.ndarray:
     t = np.linspace(0.0, 1.0, int(length), dtype=float)
     # 3 Hz ≈ rotating 2/1 NTM, 7 Hz ≈ 3/1 mode (synthetic test signal)
     base = 0.7 + 0.15 * np.sin(2.0 * np.pi * 3.0 * t) + 0.05 * np.cos(2.0 * np.pi * 7.0 * t)
     ramp = np.where(t > 0.65, (t - 0.65) * 0.9, 0.0)
     noise = rng.normal(0.0, 0.01, size=t.shape)
-    return np.clip(base + ramp + noise, 0.01, None)
+    return np.asarray(np.clip(base + ramp + noise, 0.01, None))
 
 
 def _normalize_fault_campaign_inputs(
-    seed,
-    episodes,
-    window,
-    noise_std,
-    bit_flip_interval,
-    recovery_window,
-    recovery_epsilon,
-):
+    seed: int,
+    episodes: int,
+    window: int,
+    noise_std: float,
+    bit_flip_interval: int,
+    recovery_window: int,
+    recovery_epsilon: float,
+) -> tuple[int, int, int, float, int, int, float]:
     seed_i = _require_int("seed", seed, 0)
     episodes_i = _require_int("episodes", episodes, 1)
     window_i = _require_int("window", window, 16)
@@ -206,14 +206,14 @@ def _normalize_fault_campaign_inputs(
 
 
 def run_fault_noise_campaign(
-    seed=42,
-    episodes=64,
-    window=128,
-    noise_std=0.03,
-    bit_flip_interval=11,
-    recovery_window=6,
-    recovery_epsilon=0.03,
-):
+    seed: int = 42,
+    episodes: int = 64,
+    window: int = 128,
+    noise_std: float = 0.03,
+    bit_flip_interval: int = 11,
+    recovery_window: int = 6,
+    recovery_epsilon: float = 0.03,
+) -> dict[str, Any]:
     """
     Run deterministic synthetic fault/noise campaign for disruption-risk resilience.
     """
@@ -348,14 +348,14 @@ class HybridAnomalyDetector:
     - Unsupervised term: online z-score novelty on recent risk stream.
     """
 
-    def __init__(self, threshold=0.50, ema=0.05):
+    def __init__(self, threshold: float = 0.50, ema: float = 0.05) -> None:
         self.threshold = require_fraction("threshold", threshold)
         self.ema = require_bounded_float("ema", ema, low=0.0, high=1.0, low_exclusive=True)
         self.mean = 0.0
         self.var = 1.0
         self.initialized = False
 
-    def score(self, signal, toroidal_observables=None):
+    def score(self, signal: Any, toroidal_observables: dict[str, float] | None = None) -> dict[str, Any]:
         supervised = predict_disruption_risk(signal, toroidal_observables)
         value = float(supervised)
 
@@ -382,11 +382,11 @@ class HybridAnomalyDetector:
 
 
 def run_anomaly_alarm_campaign(
-    seed=42,
-    episodes=32,
-    window=128,
-    threshold=0.50,
-):
+    seed: int = 42,
+    episodes: int = 32,
+    window: int = 128,
+    threshold: float = 0.50,
+) -> dict[str, Any]:
     """
     Deterministic anomaly-alarm campaign under random perturbations.
     """
@@ -466,11 +466,11 @@ def default_model_path() -> Path:
     return _repo_root() / "artifacts" / DEFAULT_MODEL_FILENAME
 
 
-def _normalize_seq_len(seq_len):
+def _normalize_seq_len(seq_len: int) -> int:
     return _require_int("seq_len", seq_len, 8)
 
 
-def _prepare_signal_window(signal, seq_len):
+def _prepare_signal_window(signal: Any, seq_len: int) -> np.ndarray:
     seq_len = _normalize_seq_len(seq_len)
     flat = np.asarray(signal, dtype=float).reshape(-1)
     if flat.size >= seq_len:
@@ -482,7 +482,7 @@ def _prepare_signal_window(signal, seq_len):
 if torch is not None:
 
     class DisruptionTransformer(nn.Module):
-        def __init__(self, seq_len=DEFAULT_SEQ_LEN):
+        def __init__(self, seq_len: int = DEFAULT_SEQ_LEN) -> None:
             super().__init__()
             self.seq_len = _normalize_seq_len(seq_len)
             self.embedding = nn.Linear(1, 32)
@@ -497,7 +497,7 @@ if torch is not None:
             self.classifier = nn.Linear(32, 1)
             self.sigmoid = nn.Sigmoid()
 
-        def forward(self, src):
+        def forward(self, src: Any) -> Any:
             if src.ndim != 3:
                 raise ValueError(f"Input tensor must have shape [batch, seq, 1]; got rank {src.ndim}.")
             if src.shape[1] < 1:
@@ -518,13 +518,13 @@ else:  # pragma: no cover - only used without torch installed
 
 
 def train_predictor(
-    seq_len=DEFAULT_SEQ_LEN,
-    n_shots=500,
-    epochs=50,
-    model_path=None,
-    seed=42,
-    save_plot=True,
-):
+    seq_len: int = DEFAULT_SEQ_LEN,
+    n_shots: int = 500,
+    epochs: int = 50,
+    model_path: str | Path | None = None,
+    seed: int = 42,
+    save_plot: bool = True,
+) -> tuple[Any, dict[str, Any]]:
     if torch is None or optim is None:
         raise RuntimeError("Torch is required for train_predictor().")
 
@@ -613,13 +613,13 @@ def train_predictor(
 
 
 def load_or_train_predictor(
-    model_path=None,
-    seq_len=DEFAULT_SEQ_LEN,
-    force_retrain=False,
-    train_kwargs=None,
-    train_if_missing=True,
-    allow_fallback=True,
-):
+    model_path: str | Path | None = None,
+    seq_len: int = DEFAULT_SEQ_LEN,
+    force_retrain: bool = False,
+    train_kwargs: dict[str, Any] | None = None,
+    train_if_missing: bool = True,
+    allow_fallback: bool = True,
+) -> tuple[Any, dict[str, Any]]:
     if torch is None:
         if not allow_fallback:
             raise RuntimeError("Torch is required for load_or_train_predictor().")
@@ -697,12 +697,12 @@ def load_or_train_predictor(
 
 
 def predict_disruption_risk_safe(
-    signal,
-    toroidal_observables=None,
+    signal: Any,
+    toroidal_observables: dict[str, float] | None = None,
     *,
-    model_path=None,
-    seq_len=DEFAULT_SEQ_LEN,
-    train_if_missing=False,
+    model_path: str | Path | None = None,
+    seq_len: int = DEFAULT_SEQ_LEN,
+    train_if_missing: bool = False,
 ) -> tuple[float, dict[str, Any]]:
     """
     Predict disruption risk with checkpoint path if available, else deterministic fallback.

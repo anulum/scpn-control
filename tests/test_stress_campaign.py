@@ -7,10 +7,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import numpy as np
 import pytest
 
 try:
@@ -115,7 +113,6 @@ def test_run_controller_campaign_returns_dict():
     """run_controller_campaign should return a dict with expected keys."""
     from validation.stress_test_campaign import (
         ControllerMetrics,
-        EpisodeResult,
     )
 
     # Mock the campaign runner

@@ -78,7 +78,8 @@ class TestDecodeErrors:
             )
 
     def test_byte_length_not_multiple_of_8(self):
-        import base64, zlib
+        import base64
+        import zlib
 
         raw = b"\x00" * 7  # 7 bytes, not divisible by 8
         compressed = zlib.compress(raw)
@@ -105,7 +106,8 @@ class TestDecodeErrors:
             _decode_u64_compact(encoded)
 
     def test_invalid_count_type(self):
-        import base64, zlib
+        import base64
+        import zlib
 
         raw = b"\x00" * 8
         compressed = zlib.compress(raw)

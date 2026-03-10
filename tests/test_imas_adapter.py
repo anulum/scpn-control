@@ -135,7 +135,7 @@ class TestFromOmas:
         )
         gq = _DictLike({"ip": 15e6, "magnetic_axis": {"r": 6.2}})
         ts = _DictLike({"profiles_2d": [p2d], "global_quantities": gq, "time": 1.5})
-        ts.get = lambda k, d=None: ts[k] if k in ts else d
+        ts.get = lambda k, d=None: ts[k] if k in ts else d  # noqa: SIM401
         ods = {"equilibrium": {"time_slice": [ts]}}
         return ods
 

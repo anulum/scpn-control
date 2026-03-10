@@ -15,9 +15,6 @@ from scpn_control.control.disruption_contracts import (
     impurity_transport_response,
     mcnp_lite_tbr,
     post_disruption_halo_runaway,
-    require_1d_array,
-    require_fraction,
-    require_int,
     run_real_shot_replay,
     synthetic_disruption_signal,
 )
@@ -25,7 +22,6 @@ from scpn_control.control.disruption_predictor import (
     HybridAnomalyDetector,
     _require_int,
     build_disruption_feature_vector,
-    predict_disruption_risk,
     run_anomaly_alarm_campaign,
     run_fault_noise_campaign,
 )

@@ -10,7 +10,6 @@ and dreicer edge cases for ratio > 200 and non-finite loss guards."""
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from scpn_control.control.halo_re_physics import (

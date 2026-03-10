@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scpn-control"
-version = "0.8.1"
+version = "0.9.0"
 description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
 authors = [
     {name = "Miroslav Sotek", email = "protoscience@anulum.li"},
@@ -47,8 +47,10 @@ dashboard = ["streamlit>=1.20", "matplotlib>=3.5"]
 hdf5 = ["h5py>=3.0"]
 ws = ["websockets>=12.0"]
 ml = ["torch>=2.0"]
+jax = ["jax>=0.4.20", "jaxlib>=0.4.20"]
 neuro = ["sc-neurocore>=3.8.0"]
 nengo = ["nengo>=4.0"]
+loihi = ["nengo>=4.0", "nengo-loihi>=1.0"]
 benchmark = ["freegs>=0.6"]
 docs = [
     "mkdocs-material>=9.5",
@@ -63,7 +65,6 @@ dev = [
     "mypy>=1.10",
     "ruff>=0.4",
     "bandit>=1.7",
-    "black==25.11.0",
     "matplotlib>=3.5",
     "streamlit>=1.20",
     "torch>=2.0",
@@ -79,34 +80,13 @@ where = ["src"]
 
 [tool.mypy]
 strict = false
+warn_return_any = true
+warn_unused_configs = true
 check_untyped_defs = true
+disallow_untyped_defs = true
 ignore_missing_imports = true
 files = [
-    "src/scpn_control/scpn/",
-    "src/scpn_control/core/",
-    "src/scpn_control/phase/",
-    "src/scpn_control/control/advanced_soc_fusion_learning.py",
-    "src/scpn_control/control/analytic_solver.py",
-    "src/scpn_control/control/digital_twin_ingest.py",
-    "src/scpn_control/control/director_interface.py",
-    "src/scpn_control/control/disruption_contracts.py",
-    "src/scpn_control/control/disruption_predictor.py",
-    "src/scpn_control/control/fueling_mode.py",
-    "src/scpn_control/control/fusion_control_room.py",
-    "src/scpn_control/control/fusion_optimal_control.py",
-    "src/scpn_control/control/fusion_sota_mpc.py",
-    "src/scpn_control/control/h_infinity_controller.py",
-    "src/scpn_control/control/halo_re_physics.py",
-    "src/scpn_control/control/hil_harness.py",
-    "src/scpn_control/control/jax_traceable_runtime.py",
-    "src/scpn_control/control/nengo_snn_wrapper.py",
-    "src/scpn_control/control/neuro_cybernetic_controller.py",
-    "src/scpn_control/control/spi_mitigation.py",
-    "src/scpn_control/control/tokamak_digital_twin.py",
-    "src/scpn_control/control/tokamak_flight_sim.py",
-    "src/scpn_control/control/torax_hybrid_loop.py",
-    "src/scpn_control/control/gym_tokamak_env.py",
-    "src/scpn_control/cli.py",
+    "src/scpn_control/",
 ]
 
 [[tool.mypy.overrides]]

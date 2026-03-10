@@ -8,8 +8,6 @@ and action_count==0 / inj_count==0 edge paths."""
 
 from __future__ import annotations
 
-import numpy as np
-import pytest
 
 from scpn_control.scpn.artifact import load_artifact, save_artifact
 from scpn_control.scpn.compiler import FusionCompiler

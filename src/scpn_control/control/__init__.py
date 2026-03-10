@@ -25,7 +25,7 @@ def normalize_bounds(bounds: tuple[float, float], name: str) -> tuple[float, flo
     return lo, hi
 
 
-def get_nengo_controller():
+def get_nengo_controller() -> type:
     """Lazy import of NengoSNNController (requires ``pip install scpn-control[nengo]``)."""
     from scpn_control.control.nengo_snn_wrapper import NengoSNNController
 

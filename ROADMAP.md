@@ -80,15 +80,23 @@
 - [x] Honesty sweep: fix overstated claims in README, pitch, use_cases, VALIDATION, competitive_analysis
 - [x] Stale doc counts updated (2019 tests, 118 files, 54 modules)
 
+### v0.9.0 — 2026-03-10
+- [x] mypy `disallow_untyped_defs`, `warn_return_any` across all 54 modules
+- [x] Nengo Loihi CI job (Job 17, [gh-11](https://github.com/anulum/scpn-control/issues/11), U-002)
+- [x] JAX parity CI job (Job 16, [gh-12](https://github.com/anulum/scpn-control/issues/12), U-006)
+- [x] Cross-platform CI: Windows + macOS runners
+- [x] Codecov `fail_ci_if_error: true`
+- [x] PEP 561 `py.typed` marker
+- [x] Complete API docs (16 modules added)
+- [x] RMSE threshold documentation
+- [x] `[jax]` and `[loihi]` optional dependency groups
+- [x] All 7 UNDERDEVELOPED_REGISTER items RESOLVED
+
 ## Next
 
-### v0.9.0 — CI expansion + data ingest
-- [ ] mypy `strict = true` (incremental, per-module)
-- [ ] Nengo Loihi emulator CI test ([gh-11](https://github.com/anulum/scpn-control/issues/11), U-002)
-- [ ] JAX tracing in optional CI matrix ([gh-12](https://github.com/anulum/scpn-control/issues/12), U-006)
+### v1.0.0 — Production readiness
 - [ ] IMAS IDS round-trip tests with real `omas` install
 - [ ] Real MDSplus data ingest (DIII-D, JET public shots)
-- [ ] Codecov badge + token setup ([gh-17 TODO](https://github.com/anulum/scpn-control/issues/17))
 
 ### v1.0.0 — Production readiness
 - [ ] Streamlit dashboard v2 (shot replay + multi-machine selector)

@@ -121,11 +121,11 @@ class MinimalPCA:
 
     def transform(self, X: NDArray) -> NDArray:
         assert self.mean_ is not None and self.components_ is not None
-        return (X - self.mean_) @ self.components_.T
+        return np.asarray((X - self.mean_) @ self.components_.T)
 
     def inverse_transform(self, Z: NDArray) -> NDArray:
         assert self.mean_ is not None and self.components_ is not None
-        return Z @ self.components_ + self.mean_
+        return np.asarray(Z @ self.components_ + self.mean_)
 
     def fit_transform(self, X: NDArray) -> NDArray:
         self.fit(X)

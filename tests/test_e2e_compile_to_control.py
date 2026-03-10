@@ -7,12 +7,10 @@
 
 from __future__ import annotations
 
-import json
 
 import numpy as np
-import pytest
 
-from scpn_control.scpn.artifact import Artifact, load_artifact, save_artifact
+from scpn_control.scpn.artifact import load_artifact, save_artifact
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.controller import (
     ControlScales,

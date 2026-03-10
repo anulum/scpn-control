@@ -25,7 +25,7 @@ import logging
 import time
 from dataclasses import dataclass
 from dataclasses import dataclass as dc_dataclass
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 
@@ -490,7 +490,7 @@ def run_hil_benchmark(
     return result
 
 
-def run_hil_benchmark_detailed(n_steps=10000):
+def run_hil_benchmark_detailed(n_steps: int = 10000) -> dict[str, Any]:
     """Run HIL benchmark with detailed per-stage profiling.
 
     Exercises a realistic 4-state Kalman filter (predict + update) for
@@ -657,7 +657,7 @@ class HILDemoRunner:
                 self.tmr_mismatches += 1
                 self.tmr_copies[i] = voted.copy()
                 break
-        return voted
+        return np.asarray(voted)
 
     def step(self, inputs: np.ndarray) -> np.ndarray:
         """Execute one SNN inference step through simulated register pipeline."""
@@ -680,7 +680,7 @@ class HILDemoRunner:
             self.registers[0x20 // 4 + i] = self.float_to_q16_16(float(voted[i]))
 
         # Compute output
-        output = self.output_weights @ voted
+        output = np.asarray(self.output_weights @ voted)
         for i in range(self.n_outputs):
             self.registers[0x70 // 4 + i] = self.float_to_q16_16(float(output[i]))
 

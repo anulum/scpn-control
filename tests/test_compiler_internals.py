@@ -10,7 +10,6 @@ from __future__ import annotations
 import subprocess
 
 import numpy as np
-import pytest
 
 from scpn_control.scpn.compiler import (
     _encode_weight_matrix_packed,

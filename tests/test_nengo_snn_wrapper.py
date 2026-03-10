@@ -99,9 +99,11 @@ def test_construction_without_nengo():
     """ImportError when nengo is unavailable."""
     from scpn_control.control.nengo_snn_wrapper import NengoSNNController
 
-    with patch("scpn_control.control.nengo_snn_wrapper._nengo_available", False):
-        with pytest.raises(ImportError, match="Nengo is required"):
-            NengoSNNController()
+    with (
+        patch("scpn_control.control.nengo_snn_wrapper._nengo_available", False),
+        pytest.raises(ImportError, match="Nengo is required"),
+    ):
+        NengoSNNController()
 
 
 @pytest.mark.usefixtures("_patch_nengo")

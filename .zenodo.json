@@ -1,6 +1,6 @@
 {
   "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controller for Plasma Control",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with formal verification guarantees. Features real-time adaptive Kuramoto coupling driven by tokamak diagnostics (beta, disruption risk, Mirnov, coherence PI), Lyapunov stability guard, H-infinity observer, plasma-native 8-layer Knm hierarchy, and WebSocket phase streaming. 53 Python modules, 5 Rust crates, 1969 tests.",
   "upload_type": "software",
   "publication_date": "2026-03-10",
@@ -67,5 +67,5 @@
   "communities": [
     {"identifier": "zenodo"}
   ],
-  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.8.1: Rust H-inf ZOH+DARE via matrix exponential, E2E benchmark, honesty sweep."
+  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.9.0: cross-platform CI (Windows/macOS), JAX+Nengo CI jobs, complete API docs, PEP 561 py.typed, all UNDERDEVELOPED_REGISTER issues resolved."
 }

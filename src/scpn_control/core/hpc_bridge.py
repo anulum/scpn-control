@@ -138,7 +138,7 @@ class HPCBridge:
     def __enter__(self) -> "HPCBridge":
         return self
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *exc: object) -> None:
         self.close()
 
     def _setup_signatures(self) -> None:

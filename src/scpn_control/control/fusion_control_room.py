@@ -222,7 +222,7 @@ def _render_outputs(
     )
     ax_plasma.add_patch(wall)
 
-    def update(frame_idx: int):
+    def update(frame_idx: int) -> tuple:
         rec = frames[frame_idx]
         im.set_data(np.asarray(rec["density"]))
         line_z.set_data(range(frame_idx + 1), history_z[: frame_idx + 1])

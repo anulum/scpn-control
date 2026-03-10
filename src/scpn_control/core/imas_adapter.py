@@ -16,6 +16,7 @@ for environments without IMAS access.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -42,7 +43,7 @@ class EquilibriumIDS:
     time: float = 0.0  # time of slice [s]
 
 
-def from_kernel(kernel, time: float = 0.0) -> EquilibriumIDS:
+def from_kernel(kernel: Any, time: float = 0.0) -> EquilibriumIDS:
     """Extract EquilibriumIDS from a solved FusionKernel instance."""
     cfg = kernel.cfg if hasattr(kernel, "cfg") else {}
     physics = cfg.get("physics", {})
@@ -77,7 +78,7 @@ def to_kernel_arrays(ids: EquilibriumIDS) -> dict:
     }
 
 
-def to_omas(ids: EquilibriumIDS) -> object | None:
+def to_omas(ids: EquilibriumIDS) -> Any:
     """Export to OMAS ODS object (requires ``pip install omas``).
 
     Returns None if omas is not installed.
@@ -102,7 +103,7 @@ def to_omas(ids: EquilibriumIDS) -> object | None:
     return ods
 
 
-def from_omas(ods, time_index: int = 0) -> EquilibriumIDS:
+def from_omas(ods: Any, time_index: int = 0) -> EquilibriumIDS:
     """Import from OMAS ODS object.
 
     Parameters

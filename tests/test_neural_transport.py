@@ -1,11 +1,9 @@
 """Tests for scpn_control.core.neural_transport."""
 
-import numpy as np
 import pytest
 
 from scpn_control.core.neural_transport import (
     TransportInputs,
-    TransportFluxes,
     critical_gradient_model,
 )
 

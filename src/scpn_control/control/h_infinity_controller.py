@@ -187,7 +187,7 @@ class HInfinityController:
         if mat.shape != (rows, cols):
             raise ValueError(f"{name} must have shape ({rows}, {cols}).")
         require_finite_array(name, mat)
-        return mat
+        return np.asarray(mat)
 
     def _synthesize(self, gamma: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Solve the two continuous Riccati equations and extract gains.

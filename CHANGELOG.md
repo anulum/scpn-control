@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.9.0] — 2026-03-10
+
+### Added
+- `py.typed` PEP 561 marker for downstream IDE type inference
+- `[jax]` optional dependency group (`jax>=0.4.20`, `jaxlib>=0.4.20`)
+- `[loihi]` optional dependency group (`nengo>=4.0`, `nengo-loihi>=1.0`)
+- CI Job 16: JAX backend parity (`jax-parity`) — validates `jax_traceable_runtime.py`
+- CI Job 17: Nengo Loihi test (`nengo-loihi`) — validates `nengo_snn_wrapper.py`
+- CI: Windows and macOS runners in python-tests matrix (Python 3.12)
+- API docs: 16 previously undocumented modules added to `docs/api.md`
+  (neural_equilibrium, neural_transport, stability_mhd, hpc_bridge,
+  adaptive_knm, plasma_knm, analytic_solver, bio_holonomic, digital_twin_ingest,
+  director_interface, fueling_mode, halo_re, hil_harness, jax_traceable,
+  neuro_cybernetic, torax_hybrid_loop)
+- VALIDATION.md: RMSE regression threshold table with sources
+
+### Changed
+- mypy: `disallow_untyped_defs = true`, `warn_return_any = true` across all 54 modules (134 annotations added)
+- mypy: `files` simplified to `["src/scpn_control/"]` (full package)
+- Codecov: `fail_ci_if_error: true` (was false with TODO)
+- Removed `black` from dev extras (redundant with ruff-format)
+- Cleaned 49 unused imports across 30+ test files (ruff auto-fix)
+- U-002 (Nengo Loihi) marked RESOLVED
+- U-006 (JAX CI) marked RESOLVED
+- All 7 UNDERDEVELOPED_REGISTER items now RESOLVED
+
 ## [0.8.1] — 2026-03-10
 
 ### Added

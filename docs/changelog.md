@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.0] — 2026-03-10
+
+### Added
+- `py.typed` PEP 561 marker
+- `[jax]` and `[loihi]` optional dependency groups
+- CI Jobs 16-17: JAX parity + Nengo Loihi testing
+- CI: Windows/macOS runners (Python 3.12)
+- API docs: 16 undocumented modules added
+- VALIDATION.md: RMSE threshold table
+
+### Changed
+- mypy `disallow_untyped_defs`, `warn_return_any` across all 54 modules
+- Codecov `fail_ci_if_error: true`
+- Removed `black` from dev extras
+- U-002, U-006 RESOLVED (all 7 items now RESOLVED)
+
 ## [0.8.1] — 2026-03-10
 
 ### Added

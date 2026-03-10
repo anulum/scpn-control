@@ -28,7 +28,7 @@
 
 | Suite | Count | Scope |
 |-------|------:|-------|
-| Python unit/integration | 2019 | `pytest tests/` across 118 files |
+| Python unit/integration | 2019+ | `pytest tests/` across 118 files |
 | Rust engine | 108+ | `cargo test --workspace` in `scpn-control-rs/` |
 | Rust-Python interop | 3 files | PyO3 parity tests via maturin |
 | Notebooks | 5 | Executed in CI via `nbconvert` |
@@ -76,6 +76,20 @@ enforces bounds in CI via `tools/ci_rmse_gate.py`.
 
 > The DIII-D reference files are **synthetically generated** by
 > `tests/mock_diiid.py`, not downloaded from MDSplus or D3D archives.
+
+### RMSE Regression Thresholds
+
+Thresholds are set ~30% above current best values. They catch regressions,
+not noise. Source: `tools/ci_rmse_gate.py`.
+
+| Metric | Threshold | Current Best | Source |
+|--------|-----------|-------------|--------|
+| `confinement_itpa_tau_rmse_s` | 0.20 s | ~0.129 s | 20 ITPA H-mode points |
+| `sparc_axis_rmse_m` | 2.50 m | ~1.60 m | SPARC GEQDSKs (synthetic lmode dominates) |
+| `beta_iter_sparc_beta_n_rmse` | 0.10 | ~0.042 | ITER/SPARC design points |
+| `disruption_fpr` | 0.15 | — | Hard gate since v3.1 |
+| `tbr_min` / `tbr_max` | 1.00 / 1.40 | — | Tritium self-sufficiency range |
+| `q_max` | 15.0 | — | 0-D model artifact ceiling |
 
 ## Benchmark Gates
 

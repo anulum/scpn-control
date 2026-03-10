@@ -66,7 +66,7 @@ class TestLoadOrTrainMissingCheckpoint:
     def test_missing_checkpoint_no_train_no_fallback_raises(self, tmp_path):
         """When torch is available but checkpoint missing and no fallback allowed."""
         try:
-            import torch
+            import torch  # noqa: F401
         except ImportError:
             pytest.skip("torch not available")
         with pytest.raises(FileNotFoundError, match="Checkpoint not found"):
@@ -79,7 +79,7 @@ class TestLoadOrTrainMissingCheckpoint:
     def test_missing_checkpoint_train_if_missing_false_fallback(self, tmp_path):
         """When torch available, checkpoint missing, train=False, fallback=True."""
         try:
-            import torch
+            import torch  # noqa: F401
         except ImportError:
             pytest.skip("torch not available")
         model, meta = load_or_train_predictor(

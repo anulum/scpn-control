@@ -5,7 +5,7 @@
 ```python
 import scpn_control
 
-scpn_control.__version__       # "0.8.1"
+scpn_control.__version__       # "0.9.0"
 scpn_control.FusionKernel      # Grad-Shafranov equilibrium solver
 scpn_control.RUST_BACKEND      # True if Rust acceleration available
 scpn_control.TokamakConfig     # Preset tokamak geometries
@@ -58,6 +58,18 @@ scpn_control.RealtimeMonitor
 
 ::: scpn_control.core.uncertainty.quantify_full_chain
 
+### Neural Equilibrium
+
+::: scpn_control.core.neural_equilibrium.NeuralEquilibrium
+
+### Neural Transport
+
+::: scpn_control.core.neural_transport.NeuralTransport
+
+### MHD Stability
+
+::: scpn_control.core.stability_mhd.StabilityAnalyzer
+
 ### IMAS Adapter
 
 ::: scpn_control.core.imas_adapter.EquilibriumIDS
@@ -65,6 +77,10 @@ scpn_control.RealtimeMonitor
 ::: scpn_control.core.imas_adapter.from_geqdsk
 
 ::: scpn_control.core.imas_adapter.from_kernel
+
+### HPC Bridge
+
+::: scpn_control.core.hpc_bridge.HPCBridge
 
 ---
 
@@ -144,6 +160,18 @@ scpn_control.RealtimeMonitor
 
 ::: scpn_control.phase.realtime_monitor.TrajectoryRecorder
 
+### Adaptive Knm Engine
+
+::: scpn_control.phase.adaptive_knm.AdaptiveKnmEngine
+
+::: scpn_control.phase.adaptive_knm.AdaptiveKnmConfig
+
+::: scpn_control.phase.adaptive_knm.DiagnosticSnapshot
+
+### Plasma Knm
+
+::: scpn_control.phase.plasma_knm.PlasmaKnmBuilder
+
 ### WebSocket Stream
 
 ::: scpn_control.phase.ws_phase_stream.PhaseStreamServer
@@ -206,17 +234,53 @@ scpn_control.RealtimeMonitor
 
 ::: scpn_control.control.gym_tokamak_env.TokamakEnv
 
+### Analytic Solver
+
+::: scpn_control.control.analytic_solver.AnalyticSolver
+
+### Bio-Holonomic Controller
+
+::: scpn_control.control.bio_holonomic_controller.BioHolonomicController
+
+### Digital Twin Ingest
+
+::: scpn_control.control.digital_twin_ingest.DigitalTwinIngest
+
+### Director Interface
+
+::: scpn_control.control.director_interface.DirectorInterface
+
+### Fueling Mode Controller
+
+::: scpn_control.control.fueling_mode.FuelingModeController
+
+### Halo RE Physics
+
+::: scpn_control.control.halo_re_physics.HaloCurrentModel
+
+### HIL Test Harness
+
+::: scpn_control.control.hil_harness.HILTestHarness
+
+### JAX Traceable Runtime
+
+Requires `pip install "scpn-control[jax]"`.
+
+::: scpn_control.control.jax_traceable_runtime.TraceableRuntime
+
 ### Nengo SNN Controller
 
 Requires `pip install "scpn-control[nengo]"`.
 
-```python
-from scpn_control.control import get_nengo_controller
+::: scpn_control.control.nengo_snn_wrapper.NengoSNNController
 
-NengoSNNController = get_nengo_controller()
-ctrl = NengoSNNController()
-u = ctrl.step(np.array([0.05, -0.02]))
-```
+### Neuro-Cybernetic Controller
+
+::: scpn_control.control.neuro_cybernetic_controller.NeuroCyberneticController
+
+### TORAX Hybrid Loop
+
+::: scpn_control.control.torax_hybrid_loop.ToraxHybridLoop
 
 ### Advanced SOC Learning
 

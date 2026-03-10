@@ -33,7 +33,7 @@ except ImportError:
     _RUST_AVAILABLE = False
 
 
-def _rust_available():
+def _rust_available() -> bool:
     """Check if the Rust backend is loadable."""
     return _RUST_AVAILABLE
 
@@ -47,7 +47,7 @@ class RustAcceleratedKernel:
     all attribute accesses compatible with downstream code.
     """
 
-    def __init__(self, config_path):
+    def __init__(self, config_path: str | os.PathLike[str]) -> None:
         self._config_path = str(config_path)
         self._rust = PyFusionKernel(self._config_path)
 
@@ -73,7 +73,7 @@ class RustAcceleratedKernel:
         self.B_R = np.zeros((self.NZ, self.NR))
         self.B_Z = np.zeros((self.NZ, self.NR))
 
-    def solve_equilibrium(self):
+    def solve_equilibrium(self) -> Any:
         """Solve Grad-Shafranov equilibrium via Rust backend."""
         result = self._rust.solve_equilibrium()
 
@@ -91,7 +91,7 @@ class RustAcceleratedKernel:
 
     def sample_psi_at(self, r: float, z: float) -> float:
         """Interpolate psi at a single (R, Z) point via Rust bilinear interpolation."""
-        return self._rust.sample_psi_at(float(r), float(z))
+        return float(self._rust.sample_psi_at(float(r), float(z)))
 
     def sample_psi_at_probes(self, probes: list) -> np.ndarray:
         """Interpolate psi at multiple (R, Z) probe positions.
@@ -109,7 +109,7 @@ class RustAcceleratedKernel:
             return np.asarray(self._rust.sample_psi_at_probes(probes))
         return np.array([self.sample_psi_at(r, z) for r, z in probes])
 
-    def compute_b_field(self):
+    def compute_b_field(self) -> None:
         """Compute (B_R, B_Z) from current psi, delegating to Rust when available."""
         try:
             br, bz = self._rust.compute_b_field()
@@ -121,7 +121,7 @@ class RustAcceleratedKernel:
             self.B_R = -(1.0 / R_safe) * dPsi_dZ
             self.B_Z = (1.0 / R_safe) * dPsi_dR
 
-    def find_x_point(self, Psi):
+    def find_x_point(self, Psi: np.ndarray) -> tuple[tuple[Any, Any], Any]:
         """
         Locate the null point (B=0) using local minimization.
         Matches Python FusionKernel.find_x_point() interface.
@@ -139,7 +139,7 @@ class RustAcceleratedKernel:
         else:
             return (0, 0), np.min(Psi)
 
-    def calculate_vacuum_field(self):
+    def calculate_vacuum_field(self) -> Any:
         """Compute vacuum field via Python FusionKernel (not yet in PyO3)."""
         from scpn_control.core.fusion_kernel import FusionKernel as _PyFK
 
@@ -154,14 +154,14 @@ class RustAcceleratedKernel:
     def solver_method(self) -> str:
         """Get current solver method name."""
         if hasattr(self._rust, "solver_method"):
-            return self._rust.solver_method()
+            return str(self._rust.solver_method())
         return "sor"
 
-    def calculate_thermodynamics(self, p_aux_mw: float = 50.0) -> dict:
+    def calculate_thermodynamics(self, p_aux_mw: float = 50.0) -> dict[str, Any]:
         """D-T fusion thermodynamics from current equilibrium (Rust backend)."""
-        return self._rust.calculate_thermodynamics(p_aux_mw)
+        return dict(self._rust.calculate_thermodynamics(p_aux_mw))
 
-    def save_results(self, filename="equilibrium_nonlinear.npz"):
+    def save_results(self, filename: str = "equilibrium_nonlinear.npz") -> None:
         """Save current state to .npz file."""
         np.savez(filename, R=self.R, Z=self.Z, Psi=self.Psi, J_phi=self.J_phi)
 
@@ -180,7 +180,7 @@ else:
 # Re-export Rust-only helpers (with compatibility shims where needed)
 if _RUST_AVAILABLE:
 
-    def rust_shafranov_bv(*args, **kwargs):
+    def rust_shafranov_bv(*args: Any, **kwargs: Any) -> Any:
         """Compatibility wrapper for legacy config-path invocation.
 
         Supported call forms:
@@ -196,7 +196,7 @@ if _RUST_AVAILABLE:
 
     rust_solve_coil_currents = solve_coil_currents
 
-    def rust_simulate_tearing_mode(steps: int, seed: int | None = None):
+    def rust_simulate_tearing_mode(steps: int, seed: int | None = None) -> Any:
         """Python tearing-mode simulation (no Rust implementation exists)."""
         from scpn_control.control.disruption_predictor import (
             simulate_tearing_mode as _py_tearing,
@@ -208,13 +208,13 @@ if _RUST_AVAILABLE:
         return _py_tearing(steps=int(steps), rng=rng)
 else:
 
-    def rust_shafranov_bv(*args, **kwargs):
+    def rust_shafranov_bv(*args: Any, **kwargs: Any) -> Any:
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
-    def rust_solve_coil_currents(*args, **kwargs):
+    def rust_solve_coil_currents(*args: Any, **kwargs: Any) -> Any:
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
-    def rust_simulate_tearing_mode(steps: int, seed: int | None = None):
+    def rust_simulate_tearing_mode(steps: int, seed: int | None = None) -> Any:
         """Python tearing-mode simulation fallback."""
         from scpn_control.control.disruption_predictor import (
             simulate_tearing_mode as _py_tearing,
@@ -232,7 +232,7 @@ def rust_bosch_hale_dt(t_kev: float) -> float:
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
     from scpn_control_rs import bosch_hale_dt
 
-    return bosch_hale_dt(float(t_kev))
+    return float(bosch_hale_dt(float(t_kev)))
 
 
 class RustSnnPool:
@@ -257,15 +257,15 @@ class RustSnnPool:
 
     def step(self, error: float) -> float:
         """Process *error* through SNN pool and return scalar control output."""
-        return self._inner.step(error)
+        return float(self._inner.step(error))
 
     @property
     def n_neurons(self) -> int:
-        return self._inner.n_neurons
+        return int(self._inner.n_neurons)
 
     @property
     def gain(self) -> float:
-        return self._inner.gain
+        return float(self._inner.gain)
 
     def __repr__(self) -> str:
         return f"RustSnnPool(n_neurons={self.n_neurons}, gain={self.gain})"
@@ -291,15 +291,16 @@ class RustSnnController:
 
     def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
         """Process measured (R, Z) position and return (ctrl_R, ctrl_Z)."""
-        return self._inner.step(measured_r, measured_z)
+        r, z = self._inner.step(measured_r, measured_z)
+        return float(r), float(z)
 
     @property
     def target_r(self) -> float:
-        return self._inner.target_r
+        return float(self._inner.target_r)
 
     @property
     def target_z(self) -> float:
-        return self._inner.target_z
+        return float(self._inner.target_z)
 
     def __repr__(self) -> str:
         return f"RustSnnController(target_r={self.target_r}, target_z={self.target_z})"
@@ -336,22 +337,22 @@ class RustPIDController:
         return obj
 
     def step(self, error: float) -> float:
-        return self._inner.step(error)
+        return float(self._inner.step(error))
 
     def reset(self) -> None:
         self._inner.reset()
 
     @property
     def kp(self) -> float:
-        return self._inner.kp
+        return float(self._inner.kp)
 
     @property
     def ki(self) -> float:
-        return self._inner.ki
+        return float(self._inner.ki)
 
     @property
     def kd(self) -> float:
-        return self._inner.kd
+        return float(self._inner.kd)
 
     def __repr__(self) -> str:
         return f"RustPIDController(kp={self.kp}, ki={self.ki}, kd={self.kd})"
@@ -372,15 +373,16 @@ class RustIsoFluxController:
         self._inner = PyIsoFluxController(target_r, target_z)
 
     def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
-        return self._inner.step(measured_r, measured_z)
+        r, z = self._inner.step(measured_r, measured_z)
+        return float(r), float(z)
 
     @property
     def target_r(self) -> float:
-        return self._inner.target_r
+        return float(self._inner.target_r)
 
     @property
     def target_z(self) -> float:
-        return self._inner.target_z
+        return float(self._inner.target_z)
 
     def __repr__(self) -> str:
         return f"RustIsoFluxController(target_r={self.target_r}, target_z={self.target_z})"
@@ -426,18 +428,18 @@ class RustHInfController:
     def step(self, y: float, dt: float) -> float:
         """Measurement y → control u (observer-based, saturation-limited)."""
         u = self._inner.step(y, dt)
-        return max(-self._u_max, min(self._u_max, u))
+        return float(max(-self._u_max, min(self._u_max, u)))
 
     def reset(self) -> None:
         pass
 
     @property
     def gamma(self) -> float:
-        return self._inner.gamma
+        return float(self._inner.gamma)
 
     @property
     def u_max(self) -> float:
-        return self._u_max
+        return float(self._u_max)
 
     def __repr__(self) -> str:
         return f"RustHInfController(gamma={self.gamma}, u_max={self.u_max})"
@@ -465,7 +467,8 @@ def rust_multigrid_vcycle(
     try:
         from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]
 
-        return _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
+        result = _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
+        return (np.asarray(result[0]), float(result[1]), int(result[2]), bool(result[3]))
     except ImportError:
         return _python_multigrid_vcycle(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
 
@@ -550,7 +553,7 @@ class RustSPIMitigation:
     def run(self) -> list[dict]:
         """Run full SPI simulation and return snapshot history."""
         if self._use_rust:
-            return self._inner.run()
+            return list(self._inner.run())
 
         w_th, ip, te = self._w_th, self._ip, self._te
         n_steps = int(_SPI_T_TOTAL / _SPI_DT)
@@ -616,10 +619,12 @@ def rust_svd_optimal_correction(
     try:
         from scpn_control_rs import svd_optimal_correction as _rust_svd  # type: ignore[import-untyped]
 
-        return _rust_svd(
-            np.ascontiguousarray(response_matrix, dtype=np.float64),
-            np.ascontiguousarray(error, dtype=np.float64),
-            float(gain),
+        return np.asarray(
+            _rust_svd(
+                np.ascontiguousarray(response_matrix, dtype=np.float64),
+                np.ascontiguousarray(error, dtype=np.float64),
+                float(gain),
+            )
         )
     except ImportError:
         return _python_svd_optimal_correction(response_matrix, error, gain)

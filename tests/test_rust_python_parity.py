@@ -22,7 +22,6 @@ For each test, a simple Solov'ev equilibrium problem is set up
 from __future__ import annotations
 
 import json
-import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +35,7 @@ try:
         _rust_available,
         rust_multigrid_vcycle,
         RustAcceleratedKernel,
-        RUST_BACKEND,
+        RUST_BACKEND,  # noqa: F401
     )
 
     HAS_RUST = _rust_available()
@@ -46,7 +45,7 @@ except ImportError:
 # Also probe for individual Rust symbols used in specific tests
 _HAS_RUST_MG = False
 try:
-    from scpn_control_rs import multigrid_vcycle as _rust_mg_fn  # type: ignore[import-not-found]
+    from scpn_control_rs import multigrid_vcycle as _rust_mg_fn  # type: ignore[import-not-found]  # noqa: F401
 
     _HAS_RUST_MG = True
 except ImportError:
@@ -54,7 +53,7 @@ except ImportError:
 
 _HAS_RUST_SHAFRANOV = False
 try:
-    from scpn_control_rs import shafranov_bv as _rust_shafranov_bv  # type: ignore[import-not-found]
+    from scpn_control_rs import shafranov_bv as _rust_shafranov_bv  # type: ignore[import-not-found]  # noqa: F401
 
     _HAS_RUST_SHAFRANOV = True
 except ImportError:
@@ -62,7 +61,7 @@ except ImportError:
 
 _HAS_RUST_TEARING = False
 try:
-    from scpn_control_rs import simulate_tearing_mode as _rust_tearing  # type: ignore[import-not-found]
+    from scpn_control_rs import simulate_tearing_mode as _rust_tearing  # type: ignore[import-not-found]  # noqa: F401
 
     _HAS_RUST_TEARING = True
 except ImportError:

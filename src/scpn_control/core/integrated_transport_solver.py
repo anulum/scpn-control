@@ -75,7 +75,17 @@ def _load_gyro_bohm_coefficient(
         return _GYRO_BOHM_DEFAULT
 
 
-def chang_hinton_chi_profile(rho, T_i, n_e_19, q, R0, a, B0, A_ion=2.0, Z_eff=1.5):
+def chang_hinton_chi_profile(
+    rho: np.ndarray,
+    T_i: np.ndarray,
+    n_e_19: np.ndarray,
+    q: np.ndarray,
+    R0: float,
+    a: float,
+    B0: float,
+    A_ion: float = 2.0,
+    Z_eff: float = 1.5,
+) -> np.ndarray:
     """
     Chang-Hinton (1982) neoclassical ion thermal diffusivity profile [m²/s].
 
@@ -140,7 +150,17 @@ def chang_hinton_chi_profile(rho, T_i, n_e_19, q, R0, a, B0, A_ion=2.0, Z_eff=1.
     return chi_nc
 
 
-def calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0, a, B0, Z_eff=1.5):
+def calculate_sauter_bootstrap_current_full(
+    rho: np.ndarray,
+    Te: np.ndarray,
+    Ti: np.ndarray,
+    ne: np.ndarray,
+    q: np.ndarray,
+    R0: float,
+    a: float,
+    B0: float,
+    Z_eff: float = 1.5,
+) -> np.ndarray:
     """Full Sauter bootstrap current model (Sauter et al., Phys. Plasmas 6, 1999).
 
     Parameters
@@ -361,7 +381,7 @@ class TransportSolver(FusionKernel):
 
         return chang_hinton_chi_profile(rho, t_i, n_e, q_profile, R0, a, B0, A_ion=A_ion, Z_eff=Z_eff)
 
-    def inject_impurities(self, flux_from_wall_per_sec, dt):
+    def inject_impurities(self, flux_from_wall_per_sec: float, dt: float) -> None:
         """
         Models impurity influx from PWI erosion.
         Simple diffusion model: Source at edge, diffuses inward.
@@ -390,7 +410,7 @@ class TransportSolver(FusionKernel):
 
         self.n_impurity = np.maximum(0, new_imp)
 
-    def calculate_bootstrap_current_simple(self, R0, B_pol):
+    def calculate_bootstrap_current_simple(self, R0: float, B_pol: np.ndarray) -> np.ndarray:
         """
         Calculates the neoclassical bootstrap current density [A/m2]
         using a simplified Sauter model.
@@ -410,13 +430,12 @@ class TransportSolver(FusionKernel):
         BOOTSTRAP_ZEFF_CORRECTION = 1.2
         J_bs = BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol) * dP_drho / delta_a
 
-        # Ensure it's zero at axis and edge
         J_bs[0] = 0
         J_bs[-1] = 0
 
-        return J_bs
+        return np.asarray(J_bs)
 
-    def calculate_bootstrap_current(self, R0, B_pol):
+    def calculate_bootstrap_current(self, R0: float, B_pol: np.ndarray) -> np.ndarray:
         """Calculate bootstrap current. Uses full Sauter if neoclassical params set."""
         if hasattr(self, "neoclassical_params") and self.neoclassical_params is not None:
             return calculate_sauter_bootstrap_current_full(
@@ -482,7 +501,7 @@ class TransportSolver(FusionKernel):
 
         return chi_gB
 
-    def update_transport_model(self, P_aux):
+    def update_transport_model(self, P_aux: float) -> None:
         """
         Gyro-Bohm + neoclassical transport model with EPED-like pedestal.
 
@@ -564,7 +583,7 @@ class TransportSolver(FusionKernel):
     # ── Tridiagonal (Thomas) solver ─────────────────────────────────
 
     @staticmethod
-    def _thomas_solve(a, b, c, d):
+    def _thomas_solve(a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray) -> np.ndarray:
         """O(n) tridiagonal solver (Thomas algorithm).
 
         Solves  A x = d  where A is tridiagonal with sub-diagonal *a*,
@@ -617,7 +636,7 @@ class TransportSolver(FusionKernel):
 
     # ── Crank-Nicolson helpers ───────────────────────────────────────
 
-    def _explicit_diffusion_rhs(self, T, chi):
+    def _explicit_diffusion_rhs(self, T: np.ndarray, chi: np.ndarray) -> np.ndarray:
         """Compute explicit diffusion operator L_h(T) = (1/r) d/dr(r chi dT/dr).
 
         Uses half-grid diffusivities and central differences on the
@@ -642,7 +661,7 @@ class TransportSolver(FusionKernel):
 
         return Lh
 
-    def _build_cn_tridiag(self, chi, dt):
+    def _build_cn_tridiag(self, chi: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Build tridiagonal coefficients for the Crank-Nicolson LHS.
 
         The implicit system is:
@@ -747,7 +766,7 @@ class TransportSolver(FusionKernel):
         dims = self.cfg["dimensions"]
         r0 = (dims["R_min"] + dims["R_max"]) / 2.0
         a_minor = (dims["R_max"] - dims["R_min"]) / 2.0
-        return 2.0 * np.pi * r0 * 2.0 * np.pi * self.rho * a_minor**2 * self.drho
+        return np.asarray(2.0 * np.pi * r0 * 2.0 * np.pi * self.rho * a_minor**2 * self.drho)
 
     def _compute_aux_heating_sources(self, P_aux_MW: float) -> tuple[np.ndarray, np.ndarray]:
         """Return ion/electron auxiliary-heating sources in keV/s.
@@ -822,7 +841,7 @@ class TransportSolver(FusionKernel):
         Valid for 0.2 < T < 100 keV.
         """
         T = np.maximum(T_keV, 0.2)
-        return 3.68e-18 / (T ** (2.0 / 3.0)) * np.exp(-19.94 / (T ** (1.0 / 3.0)))
+        return np.asarray(3.68e-18 / (T ** (2.0 / 3.0)) * np.exp(-19.94 / (T ** (1.0 / 3.0))))
 
     @staticmethod
     def _tungsten_radiation_rate(Te_keV: np.ndarray) -> np.ndarray:
@@ -860,7 +879,7 @@ class TransportSolver(FusionKernel):
         """
         ne_m3 = ne_1e19 * 1e19
         Te = np.maximum(Te_keV, 0.01)
-        return 5.35e-37 * Z_eff * ne_m3**2 * np.sqrt(Te)
+        return np.asarray(5.35e-37 * Z_eff * ne_m3**2 * np.sqrt(Te))
 
     def _evolve_species(self, dt: float) -> tuple[np.ndarray, np.ndarray]:
         """Evolve D, T, He-ash densities for one time-step (explicit diffusion + sources).
@@ -1106,7 +1125,7 @@ class TransportSolver(FusionKernel):
         core_ti: float = self.Ti[0].item()
         return avg_ti, core_ti
 
-    def map_profiles_to_2d(self):
+    def map_profiles_to_2d(self) -> None:
         """
         Projects the 1D radial profiles back onto the 2D Grad-Shafranov grid,
         including neoclassical bootstrap current.
@@ -1465,7 +1484,7 @@ class AdaptiveTimeController:
 
         # Richardson error estimate: ||T_full - T_half|| / (2^p - 1)
         error = float(np.linalg.norm(T_full - T_half)) / (2**self.p - 1)
-        error = max(error, 1e-15)
+        error = float(max(error, 1e-15))
 
         # Accept the half-step result (more accurate)
         solver.Ti = T_half

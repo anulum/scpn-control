@@ -12,7 +12,6 @@ import json
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from scpn_control.core.fusion_kernel import FusionKernel
 

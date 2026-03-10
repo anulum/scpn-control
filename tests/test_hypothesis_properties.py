@@ -17,11 +17,11 @@ Covers:
 
 import numpy as np
 import pytest
-from hypothesis import given, settings, assume, HealthCheck
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 
 from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.compiler import FusionCompiler, CompiledNet
+from scpn_control.scpn.compiler import FusionCompiler
 
 
 def _to_dense(arr):

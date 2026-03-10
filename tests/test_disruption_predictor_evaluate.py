@@ -54,17 +54,19 @@ class TestLoadOrTrainNoFallback:
     @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
     def test_train_failure_no_fallback_raises(self, tmp_path):
         """Training failure with allow_fallback=False re-raises (line 706)."""
-        with patch(
-            "scpn_control.control.disruption_predictor.train_predictor",
-            side_effect=RuntimeError("mock train failure"),
+        with (
+            patch(
+                "scpn_control.control.disruption_predictor.train_predictor",
+                side_effect=RuntimeError("mock train failure"),
+            ),
+            pytest.raises(RuntimeError, match="mock train failure"),
         ):
-            with pytest.raises(RuntimeError, match="mock train failure"):
-                load_or_train_predictor(
-                    model_path=tmp_path / "x.pt",
-                    force_retrain=True,
-                    allow_fallback=False,
-                    train_if_missing=True,
-                )
+            load_or_train_predictor(
+                model_path=tmp_path / "x.pt",
+                force_retrain=True,
+                allow_fallback=False,
+                train_if_missing=True,
+            )
 
 
 class TestPredictSafeInferenceFailure:

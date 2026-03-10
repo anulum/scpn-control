@@ -8,10 +8,8 @@
 """Tests for MLP internals, weight loading, and profile prediction."""
 
 import tempfile
-from pathlib import Path
 
 import numpy as np
-import pytest
 
 from scpn_control.core.neural_transport import (
     MLPWeights,

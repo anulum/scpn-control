@@ -8,7 +8,6 @@ and passthrough non-finite value (157)."""
 
 from __future__ import annotations
 
-import math
 
 import pytest
 

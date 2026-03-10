@@ -116,7 +116,7 @@ def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
     float — confinement time in seconds.
     """
     p = params or IPB98_CENTRAL
-    return (
+    return float(
         p["C"]
         * scenario.I_p ** p["alpha_I"]
         * scenario.B_t ** p["alpha_B"]

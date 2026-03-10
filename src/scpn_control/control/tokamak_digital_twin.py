@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -60,10 +61,11 @@ class TokamakTopology:
     Instabilities occur at 'Rational Surfaces' (q = 2, q = 3, q = 1.5).
     """
 
-    def __init__(self, size=GRID_SIZE):
+    def __init__(self, size: int = GRID_SIZE) -> None:
         self.size = size
         # Create coordinate grid (centered)
-        y, x = np.ogrid[-size / 2 : size / 2, -size / 2 : size / 2]
+        half = size // 2
+        y, x = np.ogrid[-half:half, -half:half]
         self.r_map = np.sqrt(x**2 + y**2) / (size / 2)  # Normalized radius 0.0-1.0
         self.mask = self.r_map <= 1.0  # Plasma is only inside the circle
 
@@ -73,7 +75,7 @@ class TokamakTopology:
         self.qa = 3.0
         self.update_q_profile(0.0)  # 0.0 = no extra modification
 
-    def update_q_profile(self, current_drive_action):
+    def update_q_profile(self, current_drive_action: float) -> None:
         """
         Action modifies the magnetic shear (twisting of lines).
         current_drive: -1.0 to 1.0 (Non-inductive current drive)
@@ -85,7 +87,7 @@ class TokamakTopology:
         # Parabolic q-profile: q(r) = q0 + (qa-q0)*r^2
         self.q_map = mod_q0 + (mod_qa - mod_q0) * (self.r_map**2)
 
-    def get_rational_surfaces(self):
+    def get_rational_surfaces(self) -> np.ndarray:
         """
         Returns a boolean map of where Magnetic Islands are likely to form.
         Resonances at q = 1.5, 2.0, 2.5, 3.0
@@ -110,13 +112,13 @@ class Plasma2D:
     2D Diffusive-Reaction Model on a Poloidal Cross-section.
     """
 
-    def __init__(self, topology, gyro_surrogate=None):
+    def __init__(self, topology: TokamakTopology, gyro_surrogate: Any = None) -> None:
         self.topo = topology
         self.T = np.zeros((GRID_SIZE, GRID_SIZE))  # Temperature Map
-        self.T_core_hist = []
+        self.T_core_hist: list[float] = []
         self._gyro_surrogate = gyro_surrogate
 
-    def step(self, action):
+    def step(self, action: float) -> tuple[np.ndarray, float]:
         """
         Evolves plasma for one time step.
         action: Control signal for current drive (modifies q-profile).
@@ -195,15 +197,15 @@ class SimpleNeuralNet:
         self.W2 = rng.standard_normal((hidden_size, output_size)) * np.sqrt(1 / hidden_size)
         self.b2 = np.zeros((1, output_size))
 
-    def forward(self, x):
+    def forward(self, x: np.ndarray) -> np.ndarray:
         # x shape: (batch, input)
         self.z1 = np.dot(x, self.W1) + self.b1
         self.a1 = np.tanh(self.z1)  # Activation
         self.z2 = np.dot(self.a1, self.W2) + self.b2
         self.out = np.tanh(self.z2)  # Output -1 to 1 (Action)
-        return self.out
+        return np.asarray(self.out)
 
-    def train_step(self, x, target_action, advantage):
+    def train_step(self, x: np.ndarray, target_action: Any, advantage: float) -> float:
         """
         Simplified Policy Gradient update (REINFORCE-like).
         We want to move the output closer to 'target_action' scaled by 'advantage'.
@@ -232,21 +234,21 @@ class SimpleNeuralNet:
         self.W2 -= LEARNING_RATE * d_W2
         self.b2 -= LEARNING_RATE * d_b2
 
-        return np.mean(np.abs(grad_out))
+        return float(np.mean(np.abs(grad_out)))
 
 
 def run_digital_twin(
-    time_steps=TIME_STEPS,
-    seed=42,
-    save_plot=True,
-    output_path="Tokamak_Digital_Twin.png",
-    verbose=True,
-    gyro_surrogate=None,
+    time_steps: int = TIME_STEPS,
+    seed: int = 42,
+    save_plot: bool = True,
+    output_path: str = "Tokamak_Digital_Twin.png",
+    verbose: bool = True,
+    gyro_surrogate: Any = None,
     chaos_monkey: bool = False,
     sensor_dropout_prob: float = 0.0,
     sensor_noise_std: float = 0.0,
     rng: np.random.Generator | None = None,
-):
+) -> dict[str, Any]:
     """
     Run deterministic digital-twin control simulation.
 
@@ -407,17 +409,19 @@ def run_digital_twin_ids(
     machine: str = "ITER",
     shot: int = 0,
     run: int = 0,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> dict[str, Any]:
     """
     Run digital twin and return IDS-like equilibrium payload.
     """
     summary = run_digital_twin(**kwargs)
-    return digital_twin_summary_to_ids(
-        summary,
-        machine=machine,
-        shot=shot,
-        run=run,
+    return dict(
+        digital_twin_summary_to_ids(
+            summary,
+            machine=machine,
+            shot=shot,
+            run=run,
+        )
     )
 
 
@@ -428,8 +432,8 @@ def run_digital_twin_ids_history(
     shot: int = 0,
     run: int = 0,
     seed: int = 42,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> dict[str, Any]:
     """
     Run digital twin at multiple horizons and return IDS-like payload sequence.
     """
@@ -448,11 +452,13 @@ def run_digital_twin_ids_history(
         **kwargs,
     )
 
-    return digital_twin_history_to_ids(
-        snapshots,
-        machine=machine,
-        shot=shot,
-        run=run,
+    return dict(
+        digital_twin_history_to_ids(
+            snapshots,
+            machine=machine,
+            shot=shot,
+            run=run,
+        )
     )
 
 
@@ -463,8 +469,8 @@ def run_digital_twin_ids_pulse(
     shot: int = 0,
     run: int = 0,
     seed: int = 42,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> dict[str, Any]:
     """
     Run digital twin at multiple horizons and return pulse-style IDS container.
     """
@@ -478,11 +484,13 @@ def run_digital_twin_ids_pulse(
         seed=seed,
         **kwargs,
     )
-    return digital_twin_history_to_ids_pulse(
-        snapshots,
-        machine=machine,
-        shot=shot,
-        run=run,
+    return dict(
+        digital_twin_history_to_ids_pulse(
+            snapshots,
+            machine=machine,
+            shot=shot,
+            run=run,
+        )
     )
 
 
@@ -490,7 +498,7 @@ def _run_digital_twin_history_snapshots(
     *,
     history_steps: Sequence[int],
     seed: int,
-    **kwargs,
+    **kwargs: Any,
 ) -> list[dict[str, object]]:
     if isinstance(history_steps, (str, bytes, bytearray)) or not isinstance(history_steps, Sequence):
         raise ValueError("history_steps must be a sequence of positive integers.")

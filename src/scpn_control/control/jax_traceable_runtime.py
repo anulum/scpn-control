@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -165,13 +166,13 @@ def _simulate_jax(commands: FloatArray, initial_state: float, spec: TraceableRun
     gain = jnp.asarray(spec.gain, dtype=jnp.float64)
     limit = jnp.asarray(spec.command_limit, dtype=jnp.float64)
 
-    def _step(state, u):
+    def _step(state: Any, u: Any) -> tuple[Any, Any]:
         u_clip = jnp.clip(u, -limit, limit)
         next_state = state + alpha * ((gain * u_clip) - state)
         return next_state, next_state
 
     @jax.jit
-    def _rollout(x0, u):
+    def _rollout(x0: Any, u: Any) -> Any:
         _, hist = jax.lax.scan(_step, x0, u)
         return hist
 
@@ -261,13 +262,13 @@ def _simulate_jax_batch(commands: FloatArray, initial_state: FloatArray, spec: T
     gain = jnp.asarray(spec.gain, dtype=jnp.float64)
     limit = jnp.asarray(spec.command_limit, dtype=jnp.float64)
 
-    def _step(state, u_t):
+    def _step(state: Any, u_t: Any) -> tuple[Any, Any]:
         u_clip = jnp.clip(u_t, -limit, limit)
         next_state = state + alpha * ((gain * u_clip) - state)
         return next_state, next_state
 
     @jax.jit
-    def _rollout_batch(batch_x0, batch_u):
+    def _rollout_batch(batch_x0: Any, batch_u: Any) -> Any:
         _, hist_tb = jax.lax.scan(_step, batch_x0, jnp.swapaxes(batch_u, 0, 1))
         return jnp.swapaxes(hist_tb, 0, 1)
 

@@ -32,8 +32,8 @@ try:
     SC_NEUROCORE_AVAILABLE = True
 except ImportError:  # pragma: no cover - optional dependency path
     SC_NEUROCORE_AVAILABLE = False
-    StochasticLIFNeuron = None
-    QuantumEntropySource = None
+    StochasticLIFNeuron = None  # type: ignore[assignment,misc]
+    QuantumEntropySource = None  # type: ignore[assignment,misc]
 
 # ITER Physics Basis, NF 39 (1999) Table 1
 SHOT_DURATION = 100  # time steps

@@ -1,7 +1,5 @@
 """Tests for P2.1: Physics Invariant contracts."""
 
-import math
-
 import pytest
 
 from scpn_control.scpn.contracts import (

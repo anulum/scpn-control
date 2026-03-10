@@ -10,9 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
-import types
 
-import pytest
 from click.testing import CliRunner
 
 from scpn_control.cli import main
