@@ -145,7 +145,7 @@ Interactive controls for coupling strength, oscillator count, and Psi driver.
 
 ## Validation
 
-All benchmarks are CI-reproducible. See [VALIDATION.md](../VALIDATION.md)
+All benchmarks are CI-reproducible. See [VALIDATION.md](https://github.com/anulum/scpn-control/blob/main/VALIDATION.md)
 for scope and limitations.
 
 | Validation | Method | Result | Data Source |

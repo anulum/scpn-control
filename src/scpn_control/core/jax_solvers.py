@@ -127,7 +127,7 @@ if _HAS_JAX:
         n = d.shape[0]
 
         # Forward sweep
-        def fwd_step(carry, i):
+        def fwd_step(carry: tuple, i: jnp.ndarray) -> tuple:
             cp_prev, dp_prev = carry
             # Use where to handle i==0 (no previous cp/dp)
             ai = jnp.where(i > 0, a[i - 1], 0.0)
@@ -141,7 +141,7 @@ if _HAS_JAX:
         _, (cp_all, dp_all) = lax.scan(fwd_step, init, jnp.arange(n))
 
         # Back substitution
-        def bwd_step(x_next, i):
+        def bwd_step(x_next: jnp.ndarray, i: jnp.ndarray) -> tuple:
             x_i = dp_all[i] - cp_all[i] * x_next
             return x_i, x_i
 
@@ -380,7 +380,7 @@ def batched_crank_nicolson(
     rho_j = jnp.asarray(rho, dtype=jnp.float64)
 
     @jax.vmap
-    def step(T_single):
+    def step(T_single: jnp.ndarray) -> jnp.ndarray:
         return _cn_step_jax(T_single, chi_j, source_j, rho_j, float(drho), float(dt), float(T_edge))
 
     return np.asarray(step(jnp.asarray(T_batch, dtype=jnp.float64)))
