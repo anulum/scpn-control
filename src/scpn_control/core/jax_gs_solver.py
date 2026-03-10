@@ -106,7 +106,8 @@ def _compute_source_np(
     scale = Ip_target / max(abs(I_current), 1e-9)
     J_phi = J_raw * scale
 
-    return -mu0 * R_grid * J_phi
+    result: NDArray = -mu0 * R_grid * J_phi
+    return result
 
 
 def gs_solve_np(
@@ -152,7 +153,8 @@ def gs_solve_np(
             psi_elliptic = _jacobi_gs_step_np(psi_elliptic, source, R_interior, dR, dZ, omega_j)
         psi = (1.0 - alpha) * psi + alpha * psi_elliptic
 
-    return psi
+    result: NDArray = psi
+    return result
 
 
 # ── JAX implementation ────────────────────────────────────────────
@@ -246,16 +248,17 @@ if _HAS_JAX:
         """
         a_E, a_W, a_NS, a_C = _precompute_stencil(R_grid, dR, dZ)
 
-        def picard_body(_, psi: jnp.ndarray) -> jnp.ndarray:
+        def picard_body(_: int, psi: jnp.ndarray) -> jnp.ndarray:
             source = _compute_source_jax(psi, R_grid, mu0, Ip_target, beta_mix, dR, dZ)
 
-            def inner_body(__, psi_j: jnp.ndarray) -> jnp.ndarray:
+            def inner_body(__: int, psi_j: jnp.ndarray) -> jnp.ndarray:
                 return _jacobi_gs_step_jax(psi_j, source, a_E, a_W, a_NS, a_C, omega_j)
 
-            psi_elliptic = lax.fori_loop(0, n_jacobi, inner_body, psi)
+            psi_elliptic: jnp.ndarray = lax.fori_loop(0, n_jacobi, inner_body, psi)
             return (1.0 - alpha) * psi + alpha * psi_elliptic
 
-        return lax.fori_loop(0, n_picard, picard_body, psi_init)
+        result: jnp.ndarray = lax.fori_loop(0, n_picard, picard_body, psi_init)
+        return result
 
 
 # ── Public API ────────────────────────────────────────────────────
@@ -440,6 +443,6 @@ def jax_gs_grad_Ip(
             omega_j,
             beta_mix,
         )
-        return jnp.sum(psi)
+        return float(jnp.sum(psi))
 
     return float(jax.grad(objective)(jnp.float64(Ip_target)))
