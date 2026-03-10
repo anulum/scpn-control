@@ -120,8 +120,19 @@
 - [x] `[rl]` optional dependency group
 - [x] TokamakEnv q95 physics fix (elongation factor)
 
-### v0.13.0 — JOSS submission
-- [ ] JOSS paper submission (fact-checked, updated claims)
+### v0.13.0 — 2026-03-10
+- [x] JAX-differentiable Grad-Shafranov solver (Picard + Jacobi via `lax.fori_loop`)
+- [x] `jax.grad` through full equilibrium solve (closes autodiff depth gap)
+- [x] Reward shaping for PPO training (survival bonus, progress, Ng et al. 1999)
+- [x] `examples/quickstart.py` — 30-second Python demo
+- [x] README quickstart block
+- [x] JOSS paper updated to v0.13.0 metrics (57 modules, 2,201 tests)
+- [x] 20 new JAX GS solver tests
+
+### v0.14.0 — RL maturity + JOSS
+- [ ] PPO 500K training on cloud GPU (UpCloud/JarvisLabs)
+- [ ] PPO matches or beats PID performance
+- [ ] JOSS paper submission (fact-checked, final claims)
 
 ### v1.0.0 — Production readiness
 - [ ] IMAS IDS round-trip tests with real `omas` install

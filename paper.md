@@ -59,7 +59,7 @@ monitoring via a Lyapunov stability guard.
 
 # Implementation
 
-The Python package (56 modules, ~22,400 lines) is organised into four layers:
+The Python package (57 modules, ~22,900 lines) is organised into four layers:
 
 - **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration with
   multigrid V-cycle or SOR elliptic solve), 1D Crank-Nicolson transport with
@@ -84,7 +84,10 @@ diffusion operator with automatic differentiation support, enabling gradient-bas
 sensitivity analysis and ensemble runs via `jax.vmap`. A JAX neural equilibrium
 accelerator (`scpn_control.core.jax_neural_equilibrium`) provides GPU-dispatched
 MLP + PCA inference for Grad-Shafranov equilibria with `jax.grad` support for
-adjoint-based shape optimisation.
+adjoint-based shape optimisation. A JAX-differentiable fixed-boundary
+Grad-Shafranov solver (`scpn_control.core.jax_gs_solver`) implements the full
+Picard iteration via `jax.lax.fori_loop`, enabling `jax.grad` through the
+complete equilibrium solve — matching the autodiff depth of TORAX and FUSE.
 
 A QLKNN-10D neural transport model (`scpn_control.core.neural_transport`)
 trained on critical-gradient data provides millisecond-scale turbulent
@@ -101,7 +104,7 @@ configurations), SPARC GEQDSK equilibria from CFS SPARCPublic, and the ITPA
 CI enforces <2% RMSE on pressure and safety-factor profiles via an automated
 RMSE gate.
 
-The test suite comprises 2,176 Python tests and 108 Rust tests across 25 CI jobs
+The test suite comprises 2,201 Python tests and 108 Rust tests across 25 CI jobs
 (Python 3.9--3.13 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo Loihi
 emulator, real DIII-D validation). Coverage gate is 85%.
 

@@ -50,6 +50,24 @@ cd scpn-control
 pip install -e ".[dev]"
 ```
 
+### Python in 30 Seconds
+
+```python
+from scpn_control.core.jax_gs_solver import jax_gs_solve
+psi = jax_gs_solve(NR=33, NZ=33, Ip_target=1e6, n_picard=40, n_jacobi=100)
+
+from scpn_control.scpn.structure import StochasticPetriNet
+from scpn_control.scpn.compiler import FusionCompiler
+net = StochasticPetriNet()
+net.add_place("idle", initial_tokens=1.0)
+net.add_place("heating"); net.add_transition("ignite")
+net.add_arc("idle", "ignite"); net.add_arc("ignite", "heating")
+net.compile()
+artifact = FusionCompiler().compile(net)  # SPN -> SNN
+```
+
+Full walkthrough: `python examples/quickstart.py`
+
 ## Documentation and Tutorials
 
 - Documentation site: https://anulum.github.io/scpn-control/

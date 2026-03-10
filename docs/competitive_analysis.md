@@ -70,13 +70,13 @@
 | **Digital twin (real-time)** | **Yes** | No | No | No | No | No |
 | **Rust native backend** | **Yes (5 crates)** | No | No | No | No | No |
 | GPU acceleration | **Yes (JAX)** | Yes (JAX) | No | No | JAX | No |
-| Autodifferentiation | **Yes (JAX)** | **Yes (JAX)** | No | No | **Yes (Julia)** | No |
+| Autodifferentiation | **Yes (JAX, full GS)** | **Yes (JAX)** | No | No | **Yes (Julia)** | No |
 
 ## 5. Where Competitors Lead
 
 | Weakness | Detail | Who Does It Better |
 |----------|--------|-------------------|
-| Equilibrium autodiff depth | JAX neural eq is differentiable; full GS iteration is not | TORAX (full-stack JAX), FUSE (full-stack Julia AD) |
+| ~~Equilibrium autodiff depth~~ | **RESOLVED** v0.13.0: JAX Picard GS solver with `jax.grad` through full solve | — |
 | No peer-reviewed publication | JOSS paper drafted but not yet submitted | TORAX (NF 2024), FUSE (FED 2024) |
 | Smaller community | Single-team vs DeepMind / General Atomics resources | TORAX, FUSE |
 | RL agent maturity | PPO trained 50K steps; PID/MPC outperform at current budget | Gym-TORAX (published results) |
@@ -86,17 +86,18 @@
 - Transport autodiff: JAX-traced Thomas + CN + neural eq (v0.10.0–v0.11.0)
 - Trained transport model: QLKNN-10D MLP with auto-discovery (v0.12.0)
 - RL agent: PPO on TokamakEnv with PID/MPC benchmark (v0.12.0)
+- Equilibrium autodiff depth: JAX Picard GS solver with `jax.grad` through full solve (v0.13.0)
 
 ## 6. Codebase Metrics (v0.12.0)
 
 | Metric | Value |
 |--------|-------|
-| Python source modules | 56 |
-| Python source LOC | ~22,400 |
+| Python source modules | 57 |
+| Python source LOC | ~22,900 |
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
 | Test files | 122 |
-| Tests collected | 2,176 |
+| Tests collected | 2,201 |
 | CI jobs | 25 |
 | Real DIII-D shots | 16 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |
@@ -128,6 +129,7 @@
 | No GPU equilibrium | JAX neural eq with GPU dispatch (v0.11.0) | **RESOLVED** |
 | Simpler turbulence | QLKNN-10D trained MLP (v0.12.0) | **RESOLVED** |
 | No RL validation | PPO + PID + MPC benchmark (v0.12.0) | **RESOLVED** |
+| Equilibrium autodiff depth | JAX Picard GS solver, `jax.grad` through full solve (v0.13.0) | **RESOLVED** |
 | No peer-reviewed pub | JOSS paper fact-checked, ready for submission | v0.13.0 |
 | Smaller community | External action: talks, workshops, issue triage | Ongoing |
 

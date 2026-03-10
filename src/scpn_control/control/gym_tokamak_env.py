@@ -63,6 +63,7 @@ class TokamakEnv:
         # State: [T_axis, T_edge, beta_N, li, q95, Ip_MA]
         self._state = np.zeros(6, dtype=np.float64)
         self._step_count = 0
+        self._prev_temp_err = 0.0
 
         # Bounds
         self.observation_low = np.array([0.0, 0.0, 0.0, 0.0, 1.0, 0.0])
@@ -95,6 +96,7 @@ class TokamakEnv:
             ]
         )
         self._step_count = 0
+        self._prev_temp_err = abs(self._state[0] - self.T_target)
         return self._observe(), {}
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
@@ -128,9 +130,17 @@ class TokamakEnv:
         # Disruption check: q95 < 2 or beta_N > 3.5
         disrupted = q95 < 2.0 or beta_N > 3.5
 
-        # Reward
+        # Reward: tracking error + potential-based shaping (Ng et al. 1999)
         temp_err = abs(T_ax - self.T_target)
-        reward = -temp_err - 10.0 * float(disrupted) - 0.01 * np.linalg.norm(action)
+        progress = max(0.0, self._prev_temp_err - temp_err)
+        self._prev_temp_err = temp_err
+        reward = (
+            -temp_err
+            + 5.0 * progress
+            + 0.5  # survival bonus
+            - 50.0 * float(disrupted)
+            - 0.01 * np.linalg.norm(action)
+        )
 
         terminated = bool(disrupted)
         truncated = bool(self._step_count >= self.max_steps)

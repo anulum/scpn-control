@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.13.0] — 2026-03-10
+
+### Added
+- **JAX-differentiable Grad-Shafranov solver** (`jax_gs_solver.py`): full Picard
+  iteration via `jax.lax.fori_loop` with damped Jacobi inner sweeps
+- `jax.grad` through the complete equilibrium solve — closes autodiff depth gap
+  with TORAX (JAX) and FUSE (Julia AD)
+- `jax_gs_solve()` public API with NumPy fallback
+- `jax_gs_grad_Ip()` convenience function for d(psi)/d(Ip) gradient
+- 20 JAX GS tests: NumPy parity, boundary conditions, symmetry, autodiff
+  (finite, nonzero, sign, beta_mix, finite-difference agreement)
+- `examples/quickstart.py` — 30-second Python demo (equilibrium + transport +
+  SNN compile + autodiff)
+- README "Python in 30 Seconds" quickstart block
+
+### Changed
+- TokamakEnv reward: added survival bonus, progress shaping (Ng et al. 1999),
+  increased disruption penalty — improves PPO learning speed
+- JOSS paper updated: 57 modules, ~22,900 LOC, 2,201 tests, JAX GS mention
+- Competitive analysis: equilibrium autodiff depth marked RESOLVED (5/6 gaps closed)
+
 ## [0.12.0] — 2026-03-10
 
 ### Added
