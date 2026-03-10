@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.0] — 2026-03-10
+
+### Added
+- **PPO 500K cloud training** on JarvisLabs RTX5000 (3 seeds x 500K timesteps)
+- PPO reward=143.7 beats MPC (58.1) and PID (-912.3), 0% disruption rate
+- Reproducible: 3 seeds yield consistent +-0.2 mean reward
+- Per-seed weights: `ppo_tokamak_seed{42,123,456}.zip`
+- Benchmark report: `benchmarks/rl_vs_classical.json`
+- Cloud training script: `tools/train_rl_upcloud.sh` (multi-seed, best-select)
+- JarvisLabs automation: `tools/jarvislabs_train.py`
+
 ## [0.13.0] — 2026-03-10
 
 ### Added

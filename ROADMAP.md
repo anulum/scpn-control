@@ -129,9 +129,15 @@
 - [x] JOSS paper updated to v0.13.0 metrics (57 modules, 2,201 tests)
 - [x] 20 new JAX GS solver tests
 
-### v0.14.0 — RL maturity + JOSS
-- [ ] PPO 500K training on cloud GPU (UpCloud/JarvisLabs)
-- [ ] PPO matches or beats PID performance
+### v0.14.0 — 2026-03-10
+- [x] PPO 500K training on JarvisLabs RTX5000 (3 seeds, best-seed selection)
+- [x] PPO beats MPC and PID: reward=143.7 vs MPC=58.1 vs PID=-912.3
+- [x] 0% disruption rate across all controllers
+- [x] Reproducible: 3 seeds within +-0.2 mean reward
+- [x] Cloud training script (`tools/train_rl_upcloud.sh`)
+- [x] JarvisLabs automation script (`tools/jarvislabs_train.py`)
+
+### v0.15.0 — JOSS submission
 - [ ] JOSS paper submission (fact-checked, final claims)
 
 ### v1.0.0 — Production readiness

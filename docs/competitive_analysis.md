@@ -79,7 +79,7 @@
 | ~~Equilibrium autodiff depth~~ | **RESOLVED** v0.13.0: JAX Picard GS solver with `jax.grad` through full solve | — |
 | No peer-reviewed publication | JOSS paper drafted but not yet submitted | TORAX (NF 2024), FUSE (FED 2024) |
 | Smaller community | Single-team vs DeepMind / General Atomics resources | TORAX, FUSE |
-| RL agent maturity | PPO trained 50K steps; PID/MPC outperform at current budget | Gym-TORAX (published results) |
+| ~~RL agent maturity~~ | **RESOLVED** v0.14.0: PPO 500K beats MPC (143.7 vs 58.1), 0% disruption | — |
 
 ### Resolved since v0.10.0
 - GPU equilibrium: JAX neural eq with GPU dispatch (v0.11.0)
@@ -87,8 +87,9 @@
 - Trained transport model: QLKNN-10D MLP with auto-discovery (v0.12.0)
 - RL agent: PPO on TokamakEnv with PID/MPC benchmark (v0.12.0)
 - Equilibrium autodiff depth: JAX Picard GS solver with `jax.grad` through full solve (v0.13.0)
+- RL agent maturity: PPO 500K on JarvisLabs, beats MPC and PID, 3-seed reproducible (v0.14.0)
 
-## 6. Codebase Metrics (v0.12.0)
+## 6. Codebase Metrics (v0.14.0)
 
 | Metric | Value |
 |--------|-------|

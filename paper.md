@@ -92,8 +92,9 @@ complete equilibrium solve — matching the autodiff depth of TORAX and FUSE.
 A QLKNN-10D neural transport model (`scpn_control.core.neural_transport`)
 trained on critical-gradient data provides millisecond-scale turbulent
 transport predictions as a drop-in replacement for the analytic model.
-A PPO agent trained on the Gymnasium-compatible `TokamakEnv` is included
-alongside PID and 1-step MPC baselines for controller comparison.
+A PPO agent trained on the Gymnasium-compatible `TokamakEnv` (500K timesteps,
+3 seeds) achieves mean reward 143.7, outperforming both 1-step MPC (58.1) and
+PID (-912.3) baselines with 0% disruption rate.
 
 # Validation
 

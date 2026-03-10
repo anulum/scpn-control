@@ -1,23 +1,23 @@
 {
   "PPO": {
-    "mean_reward": -1766.30760329691,
-    "std_reward": 51.78765411757458,
+    "mean_reward": 121.09560807146596,
+    "std_reward": 31.45723036180098,
     "mean_length": 500.0,
     "disruption_rate": 0.0,
-    "n_episodes": 20
+    "n_episodes": 50
   },
   "PID": {
-    "mean_reward": -1204.3047341558527,
-    "std_reward": 15.105532664776408,
+    "mean_reward": -911.229410812395,
+    "std_reward": 14.682812910817763,
     "mean_length": 500.0,
     "disruption_rate": 0.0,
-    "n_episodes": 20
+    "n_episodes": 50
   },
   "MPC": {
-    "mean_reward": -247.52105607176645,
-    "std_reward": 18.693363882599577,
+    "mean_reward": 59.355506777256316,
+    "std_reward": 18.679716200916378,
     "mean_length": 500.0,
     "disruption_rate": 0.0,
-    "n_episodes": 20
+    "n_episodes": 50
   }
 }

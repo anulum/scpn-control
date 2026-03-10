@@ -161,6 +161,7 @@ def main() -> None:
         clip_range=0.2,
         verbose=0,
         seed=42,
+        device="cpu",
     )
     model.learn(total_timesteps=args.timesteps)
     elapsed = time.perf_counter() - t0
