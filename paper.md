@@ -30,9 +30,12 @@ with formal contract verification for tokamak plasma control. The package
 provides a complete closed-loop control stack: a free-boundary Grad-Shafranov
 equilibrium solver, a 1D Crank-Nicolson transport solver with multi-ion physics,
 five runtime-selectable controllers (PID, MPC, $H_\infty$, SNN, neuro-cybernetic),
-disruption prediction with shattered pellet injection mitigation, and a
-Gymnasium-compatible reinforcement learning environment. A companion Rust
-backend (5 crates, PyO3 bindings) achieves 2.1 µs median kernel latency.
+disruption prediction with shattered pellet injection mitigation, a trained
+QLKNN-10D neural transport surrogate, a Gymnasium-compatible reinforcement
+learning environment with a trained PPO agent, and JAX-accelerated transport and
+equilibrium primitives with GPU dispatch and automatic differentiation.
+A companion Rust backend (5 crates, PyO3 bindings) achieves 2.1 µs median
+kernel latency.
 
 # Statement of Need
 
@@ -56,7 +59,7 @@ monitoring via a Lyapunov stability guard.
 
 # Implementation
 
-The Python package (54 modules, ~16,000 lines) is organised into four layers:
+The Python package (56 modules, ~22,400 lines) is organised into four layers:
 
 - **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration with
   multigrid V-cycle or SOR elliptic solve), 1D Crank-Nicolson transport with
@@ -78,7 +81,16 @@ monitor. All solvers automatically dispatch to the Rust backend when available.
 JAX-accelerated transport primitives (`scpn_control.core.jax_solvers`) provide
 JIT-compiled, GPU-compatible Thomas tridiagonal solver and Crank-Nicolson
 diffusion operator with automatic differentiation support, enabling gradient-based
-sensitivity analysis and ensemble runs via `jax.vmap`.
+sensitivity analysis and ensemble runs via `jax.vmap`. A JAX neural equilibrium
+accelerator (`scpn_control.core.jax_neural_equilibrium`) provides GPU-dispatched
+MLP + PCA inference for Grad-Shafranov equilibria with `jax.grad` support for
+adjoint-based shape optimisation.
+
+A QLKNN-10D neural transport model (`scpn_control.core.neural_transport`)
+trained on critical-gradient data provides millisecond-scale turbulent
+transport predictions as a drop-in replacement for the analytic model.
+A PPO agent trained on the Gymnasium-compatible `TokamakEnv` is included
+alongside PID and 1-step MPC baselines for controller comparison.
 
 # Validation
 
@@ -89,9 +101,9 @@ configurations), SPARC GEQDSK equilibria from CFS SPARCPublic, and the ITPA
 CI enforces <2% RMSE on pressure and safety-factor profiles via an automated
 RMSE gate.
 
-The test suite comprises 2019 Python tests and 108 Rust tests across 25 CI jobs
+The test suite comprises 2,176 Python tests and 108 Rust tests across 25 CI jobs
 (Python 3.9--3.13 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo Loihi
-emulator). Coverage gate is 85%.
+emulator, real DIII-D validation). Coverage gate is 85%.
 
 # Acknowledgements
 
