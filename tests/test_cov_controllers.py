@@ -85,8 +85,8 @@ class TestNeuroCyberneticScNeurocore:
 class TestNeuroCyberneticVisualize:
     def test_visualize_verbose_logs(self, tmp_path, monkeypatch, caplog):
         import logging
-        import matplotlib
 
+        matplotlib = pytest.importorskip("matplotlib")
         matplotlib.use("Agg")
         import scpn_control.control.neuro_cybernetic_controller as mod
 
@@ -416,8 +416,8 @@ class TestDigitalTwinIdsRun:
 class TestDigitalTwinPlotAndVerbose:
     def test_verbose_log_after_plot_save(self, tmp_path, caplog):
         import logging
-        import matplotlib
 
+        matplotlib = pytest.importorskip("matplotlib")
         matplotlib.use("Agg")
         from scpn_control.control.tokamak_digital_twin import run_digital_twin
 

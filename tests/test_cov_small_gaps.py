@@ -165,8 +165,7 @@ def test_fueling_target_density_zero():
 
 
 def test_sota_mpc_verbose_plot(tmp_path):
-    import matplotlib
-
+    matplotlib = pytest.importorskip("matplotlib")
     matplotlib.use("Agg")
 
     from scpn_control.control.fusion_sota_mpc import run_sota_simulation
@@ -210,8 +209,7 @@ def test_spi_verbose_log(tmp_path):
 
 
 def test_spi_run_spi_test(tmp_path, monkeypatch):
-    import matplotlib
-
+    matplotlib = pytest.importorskip("matplotlib")
     matplotlib.use("Agg")
 
     monkeypatch.chdir(tmp_path)
@@ -226,8 +224,7 @@ def test_spi_run_spi_test(tmp_path, monkeypatch):
 
 
 def test_flight_sim_no_divertor(tmp_path):
-    import matplotlib
-
+    matplotlib = pytest.importorskip("matplotlib")
     matplotlib.use("Agg")
 
     from scpn_control.control.tokamak_flight_sim import IsoFluxController
