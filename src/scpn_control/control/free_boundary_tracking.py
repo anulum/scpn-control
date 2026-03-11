@@ -18,13 +18,15 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import numpy as np
+from numpy.typing import NDArray
 
 from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
 
 logger = logging.getLogger(__name__)
+FloatArray = NDArray[np.float64]
 
 
 @dataclass(frozen=True)
@@ -165,7 +167,7 @@ class FreeBoundaryTrackingController:
                 merged[key] = tol_value
         return merged
 
-    def _build_target_vector(self) -> tuple[np.ndarray, tuple[_ObjectiveBlock, ...]]:
+    def _build_target_vector(self) -> tuple[FloatArray, tuple[_ObjectiveBlock, ...]]:
         values: list[float] = []
         blocks: list[_ObjectiveBlock] = []
         start = 0
@@ -211,26 +213,32 @@ class FreeBoundaryTrackingController:
         self._sync_config_currents()
         solve = getattr(self.kernel, "solve", None)
         if callable(solve):
-            return solve(
-                boundary_variant="free_boundary",
-                coils=self.coils,
-                max_outer_iter=self.solve_max_outer_iter,
-                tol=self.solve_tol,
-                optimize_shape=False,
+            return cast(
+                dict[str, Any],
+                solve(
+                    boundary_variant="free_boundary",
+                    coils=self.coils,
+                    max_outer_iter=self.solve_max_outer_iter,
+                    tol=self.solve_tol,
+                    optimize_shape=False,
+                ),
             )
 
         solve_free_boundary = getattr(self.kernel, "solve_free_boundary", None)
         if callable(solve_free_boundary):
-            return solve_free_boundary(
-                self.coils,
-                max_outer_iter=self.solve_max_outer_iter,
-                tol=self.solve_tol,
-                optimize_shape=False,
+            return cast(
+                dict[str, Any],
+                solve_free_boundary(
+                    self.coils,
+                    max_outer_iter=self.solve_max_outer_iter,
+                    tol=self.solve_tol,
+                    optimize_shape=False,
+                ),
             )
 
         raise AttributeError("kernel must define solve() or solve_free_boundary() for free-boundary tracking.")
 
-    def _observe_objectives(self) -> np.ndarray:
+    def _observe_objectives(self) -> FloatArray:
         observed: list[float] = []
         for block in self.objective_blocks:
             if block.name == "shape_flux":
@@ -260,7 +268,7 @@ class FreeBoundaryTrackingController:
                 raise ValueError(f"Unknown objective block {block.name!r}.")
         return np.asarray(observed, dtype=np.float64)
 
-    def identify_response_matrix(self, perturbation: float | None = None) -> np.ndarray:
+    def identify_response_matrix(self, perturbation: float | None = None) -> FloatArray:
         p = self.identification_perturbation if perturbation is None else float(perturbation)
         if not np.isfinite(p) or p <= 0.0:
             raise ValueError("perturbation must be finite and > 0.")
@@ -292,7 +300,7 @@ class FreeBoundaryTrackingController:
         self._solve_free_boundary_state()
         return self.response_matrix.copy()
 
-    def compute_correction(self, observation: np.ndarray) -> np.ndarray:
+    def compute_correction(self, observation: FloatArray) -> FloatArray:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
         if obs.shape != self.target_vector.shape:
             raise ValueError("observation must match the free-boundary target vector shape.")
@@ -305,18 +313,19 @@ class FreeBoundaryTrackingController:
         )
         aug_rhs = np.concatenate([error, np.zeros(self.n_coils, dtype=np.float64)])
         delta, *_ = np.linalg.lstsq(aug_matrix, aug_rhs, rcond=None)
-        return np.clip(np.asarray(delta, dtype=np.float64), -self.correction_limit, self.correction_limit)
+        clipped = np.clip(np.asarray(delta, dtype=np.float64), -self.correction_limit, self.correction_limit)
+        return cast(FloatArray, np.asarray(clipped, dtype=np.float64))
 
-    def _apply_correction(self, delta_currents: np.ndarray, gain: float) -> np.ndarray:
+    def _apply_correction(self, delta_currents: FloatArray, gain: float) -> FloatArray:
         g = float(gain)
         if not np.isfinite(g) or g <= 0.0:
             raise ValueError("gain must be finite and > 0.")
-        updated = self.coils.currents.copy()
+        updated = np.asarray(self.coils.currents.copy(), dtype=np.float64)
         for idx in range(self.n_coils):
             limit = float(self.coil_current_limits[idx])
             updated[idx] = float(np.clip(updated[idx] + g * float(delta_currents[idx]), -limit, limit))
         self.coils.currents = updated
-        return updated.copy()
+        return cast(FloatArray, np.asarray(updated.copy(), dtype=np.float64))
 
     def evaluate_objectives(self, observation: np.ndarray) -> dict[str, Any]:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
