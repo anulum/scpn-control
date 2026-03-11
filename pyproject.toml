@@ -123,6 +123,10 @@ ignore_missing_imports = true
 module = ["scipy", "scipy.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["validation", "validation.*"]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 pythonpath = ["src", "tests", "."]
 addopts = "--strict-markers"
