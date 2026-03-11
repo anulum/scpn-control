@@ -234,7 +234,9 @@ Experimental closed-loop free-boundary tracking that keeps the full
 `FusionKernel` in the loop and re-identifies the local coil-response map from
 repeated solves. Safe-current fallback targets can be supplied through the
 `free_boundary_tracking.fallback_currents` config block when supervisor
-rejection should ramp the coils toward a predefined safe state.
+rejection should ramp the coils toward a predefined safe state. Persistent
+objective residuals can also be accumulated with the config-driven
+`free_boundary_tracking.observer_gain` and `observer_max_abs` settings.
 
 ```python
 from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking

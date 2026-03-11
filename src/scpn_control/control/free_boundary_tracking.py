@@ -11,7 +11,9 @@ The controller re-identifies the local coil-to-objective response directly
 from repeated :class:`scpn_control.core.fusion_kernel.FusionKernel` solves and
 applies bounded least-squares coil corrections. When configured, supervisor
 rejection can ramp the coil set toward explicit safe fallback currents instead
-of freezing at the previous command.
+of freezing at the previous command, and an objective-space disturbance
+observer can accumulate persistent residuals without introducing a reduced-order
+plant model.
 """
 
 from __future__ import annotations
@@ -148,6 +150,21 @@ class FreeBoundaryTrackingController:
             tracking_cfg.get("supervisor_limits"),
             supervisor_limits,
         )
+        self.observer_gain = self._resolve_nonnegative_float(
+            tracking_cfg.get("observer_gain"),
+            default=0.0,
+            name="free_boundary_tracking.observer_gain",
+        )
+        self.observer_forgetting = self._resolve_fraction(
+            tracking_cfg.get("observer_forgetting"),
+            default=0.0,
+            name="free_boundary_tracking.observer_forgetting",
+        )
+        self.observer_max_abs = self._resolve_nonnegative_float(
+            tracking_cfg.get("observer_max_abs"),
+            default=np.inf,
+            name="free_boundary_tracking.observer_max_abs",
+        )
         self.fallback_currents = self._resolve_fallback_currents(
             tracking_cfg.get("fallback_currents"),
         )
@@ -161,6 +178,7 @@ class FreeBoundaryTrackingController:
         self.target_vector, self.objective_blocks = self._build_target_vector()
         if self.target_vector.size < 1:
             raise ValueError("free-boundary tracking requires explicit target values.")
+        self.objective_bias_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
 
         self.response_matrix = np.zeros((self.target_vector.size, self.n_coils), dtype=np.float64)
         self.history: dict[str, list[Any]] = {
@@ -177,6 +195,8 @@ class FreeBoundaryTrackingController:
             "max_abs_actuator_lag": [],
             "accepted_gain": [],
             "objective_converged": [],
+            "max_abs_objective_bias_estimate": [],
+            "mean_abs_objective_bias_estimate": [],
             "supervisor_intervened": [],
             "supervisor_safe": [],
             "supervisor_hold_steps_remaining": [],
@@ -253,6 +273,34 @@ class FreeBoundaryTrackingController:
         value = int(raw_value)
         if value < 0:
             raise ValueError(f"{name} must be >= 0.")
+        return value
+
+    @staticmethod
+    def _resolve_nonnegative_float(
+        cfg_value: Any,
+        *,
+        default: float,
+        name: str,
+    ) -> float:
+        raw_value = default if cfg_value is None else cfg_value
+        value = float(raw_value)
+        if not np.isfinite(value) and not np.isinf(value):
+            raise ValueError(f"{name} must be finite or infinity.")
+        if value < 0.0:
+            raise ValueError(f"{name} must be >= 0.")
+        return value
+
+    @staticmethod
+    def _resolve_fraction(
+        cfg_value: Any,
+        *,
+        default: float,
+        name: str,
+    ) -> float:
+        raw_value = default if cfg_value is None else cfg_value
+        value = float(raw_value)
+        if not np.isfinite(value) or value < 0.0 or value > 1.0:
+            raise ValueError(f"{name} must be finite and in [0, 1].")
         return value
 
     def _resolve_coil_slew_limits(
@@ -400,6 +448,18 @@ class FreeBoundaryTrackingController:
         for idx in range(self.n_coils):
             coils_cfg[idx]["current"] = float(self.coils.currents[idx])
 
+    def _reset_objective_observer(self) -> None:
+        self.objective_bias_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
+
+    def _update_objective_observer(self, observation: FloatArray) -> None:
+        if self.observer_gain <= 0.0 or self.objective_bias_estimate.size < 1:
+            return
+        residual = self.target_vector - np.asarray(observation, dtype=np.float64).reshape(-1)
+        updated = (1.0 - self.observer_forgetting) * self.objective_bias_estimate + self.observer_gain * residual
+        if np.isfinite(self.observer_max_abs):
+            updated = np.clip(updated, -self.observer_max_abs, self.observer_max_abs)
+        self.objective_bias_estimate = np.asarray(updated, dtype=np.float64)
+
     def _command_currents(self, delta_currents: FloatArray, gain: float) -> FloatArray:
         g = float(gain)
         if not np.isfinite(g) or g <= 0.0:
@@ -517,7 +577,7 @@ class FreeBoundaryTrackingController:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
         if obs.shape != self.target_vector.shape:
             raise ValueError("observation must match the free-boundary target vector shape.")
-        error = self.target_vector - obs
+        error = self.target_vector + self.objective_bias_estimate - obs
         aug_matrix = np.vstack(
             [
                 self.response_matrix,
@@ -661,6 +721,7 @@ class FreeBoundaryTrackingController:
         start_time = time.time()
         self.history = {key: [] for key in self.history}
         self._hold_steps_remaining = 0
+        self._reset_objective_observer()
         self._sync_actuators_from_coils()
         self._solve_free_boundary_state()
         last_metrics = self.evaluate_objectives(self._observe_objectives())
@@ -679,6 +740,7 @@ class FreeBoundaryTrackingController:
                 self.identify_response_matrix()
 
             observation_before = self._observe_objectives()
+            self._update_objective_observer(observation_before)
             metrics_before = self.evaluate_objectives(observation_before)
             delta_currents = self.compute_correction(observation_before)
             baseline_currents = self.coils.currents.copy()
@@ -766,6 +828,9 @@ class FreeBoundaryTrackingController:
             self.history["max_abs_actuator_lag"].append(max_abs_actuator_lag)
             self.history["accepted_gain"].append(float(accepted_gain))
             self.history["objective_converged"].append(bool(last_metrics["objective_converged"]))
+            bias_abs = np.abs(self.objective_bias_estimate)
+            self.history["max_abs_objective_bias_estimate"].append(float(np.max(bias_abs)) if bias_abs.size else 0.0)
+            self.history["mean_abs_objective_bias_estimate"].append(float(np.mean(bias_abs)) if bias_abs.size else 0.0)
             self.history["supervisor_intervened"].append(bool(supervisor_intervened))
             self.history["supervisor_safe"].append(bool(last_supervisor["supervisor_safe"]))
             self.history["supervisor_hold_steps_remaining"].append(int(self._hold_steps_remaining))
@@ -774,6 +839,7 @@ class FreeBoundaryTrackingController:
             self._log(
                 f"Step {step}: err={last_metrics['tracking_error_norm']:.4e} | "
                 f"max dI={max_abs_delta:.3e} | gain={accepted_gain:.3e} | "
+                f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
                 f"lag={max_abs_actuator_lag:.3e} | fallback={fallback_active} | "
                 f"safe={last_supervisor['supervisor_safe']} | "
                 f"converged={last_metrics['objective_converged']}"
@@ -787,6 +853,8 @@ class FreeBoundaryTrackingController:
         coil_arr = np.asarray(self.history["max_abs_coil_current"], dtype=np.float64)
         lag_arr = np.asarray(self.history["max_abs_actuator_lag"], dtype=np.float64)
         gain_arr = np.asarray(self.history["accepted_gain"], dtype=np.float64)
+        bias_max_arr = np.asarray(self.history["max_abs_objective_bias_estimate"], dtype=np.float64)
+        bias_mean_arr = np.asarray(self.history["mean_abs_objective_bias_estimate"], dtype=np.float64)
         supervisor_arr = np.asarray(self.history["supervisor_intervened"], dtype=np.float64)
         fallback_arr = np.asarray(self.history["fallback_active"], dtype=np.float64)
         return {
@@ -801,6 +869,10 @@ class FreeBoundaryTrackingController:
             "mean_abs_actuator_lag": float(np.mean(lag_arr)) if lag_arr.size else 0.0,
             "mean_accepted_gain": float(np.mean(gain_arr)) if gain_arr.size else 0.0,
             "min_accepted_gain": float(np.min(gain_arr)) if gain_arr.size else 0.0,
+            "observer_enabled": bool(self.observer_gain > 0.0),
+            "observer_gain": float(self.observer_gain),
+            "max_abs_objective_bias_estimate": float(np.max(bias_max_arr)) if bias_max_arr.size else 0.0,
+            "mean_abs_objective_bias_estimate": float(np.mean(bias_mean_arr)) if bias_mean_arr.size else 0.0,
             "objective_tolerances": last_metrics["objective_tolerances"],
             "objective_checks": last_metrics["objective_checks"],
             "objective_convergence_active": last_metrics["objective_convergence_active"],

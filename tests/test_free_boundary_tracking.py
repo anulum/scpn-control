@@ -159,6 +159,15 @@ class _FallbackKernel(_DummyFreeBoundaryKernel):
         }
 
 
+class _ObserverKernel(_DummyFreeBoundaryKernel):
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        self.cfg["free_boundary_tracking"] = {
+            "observer_gain": 0.45,
+            "observer_max_abs": 0.35,
+        }
+
+
 def _write_real_kernel_tracking_config(path: Path) -> Path:
     cfg = {
         "reactor_name": "Real-Free-Boundary-Tracking-Test",
@@ -399,6 +408,35 @@ def test_controller_uses_safe_current_fallback_when_configured() -> None:
     )
     assert controller.history["fallback_active"] == [True, True, True, True]
     assert summary["max_abs_coil_current"] > 0.0
+
+
+def test_objective_observer_reduces_persistent_disturbance_error() -> None:
+    kwargs = dict(
+        config_file="dummy.json",
+        shot_steps=4,
+        gain=0.18,
+        verbose=False,
+        stop_on_convergence=False,
+    )
+
+    def disturbance(kernel: _DummyFreeBoundaryKernel, _coils: CoilSet, _step: int) -> None:
+        kernel.cfg.setdefault("physics", {})["drift_scale"] = 1.0
+
+    baseline = run_free_boundary_tracking(
+        kernel_factory=_DummyFreeBoundaryKernel,
+        disturbance_callback=disturbance,
+        **kwargs,
+    )
+    observed = run_free_boundary_tracking(
+        kernel_factory=_ObserverKernel,
+        disturbance_callback=disturbance,
+        **kwargs,
+    )
+
+    assert baseline["observer_enabled"] is False
+    assert observed["observer_enabled"] is True
+    assert observed["max_abs_objective_bias_estimate"] > 0.0
+    assert observed["final_tracking_error_norm"] < baseline["final_tracking_error_norm"]
 
 
 def test_run_free_boundary_tracking_with_real_kernel_smoke(tmp_path: Path) -> None:
