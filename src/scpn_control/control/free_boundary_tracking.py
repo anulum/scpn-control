@@ -23,6 +23,7 @@ from typing import Any, Callable, cast
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control.control.tokamak_flight_sim import FirstOrderActuator
 from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,12 @@ class _ObjectiveBlock:
     name: str
     start: int
     stop: int
+
+
+@dataclass(frozen=True)
+class _ActuatorSnapshot:
+    state: float
+    delay_buffer: tuple[float, ...]
 
 
 class FreeBoundaryTrackingController:
@@ -68,6 +75,11 @@ class FreeBoundaryTrackingController:
         solve_max_outer_iter: int = 10,
         solve_tol: float = 1e-4,
         objective_tolerances: dict[str, float] | None = None,
+        control_dt_s: float | None = None,
+        coil_actuator_tau_s: float | None = None,
+        coil_slew_limits: float | list[float] | None = None,
+        supervisor_limits: dict[str, float] | None = None,
+        hold_steps_after_reject: int | None = None,
     ) -> None:
         self.kernel = kernel_factory(config_file)
         self.verbose = bool(verbose)
@@ -107,6 +119,36 @@ class FreeBoundaryTrackingController:
             if np.any(~np.isfinite(self.coil_current_limits)) or np.any(self.coil_current_limits <= 0.0):
                 raise ValueError("CoilSet.current_limits must be finite and > 0.")
 
+        tracking_cfg = self.kernel.cfg.get("free_boundary_tracking", {})
+        self.control_dt_s = self._resolve_positive_float(
+            tracking_cfg.get("control_dt_s"),
+            control_dt_s,
+            default=0.05,
+            name="control_dt_s",
+        )
+        self.coil_actuator_tau_s = self._resolve_positive_float(
+            tracking_cfg.get("coil_actuator_tau_s"),
+            coil_actuator_tau_s,
+            default=1e-6,
+            name="coil_actuator_tau_s",
+        )
+        self.coil_slew_limits = self._resolve_coil_slew_limits(
+            tracking_cfg.get("coil_slew_limits"),
+            coil_slew_limits,
+        )
+        self.hold_steps_after_reject = self._resolve_nonnegative_int(
+            tracking_cfg.get("hold_steps_after_reject"),
+            hold_steps_after_reject,
+            default=0,
+            name="hold_steps_after_reject",
+        )
+        self.supervisor_limits = self._resolve_supervisor_limits(
+            tracking_cfg.get("supervisor_limits"),
+            supervisor_limits,
+        )
+        self._hold_steps_remaining = 0
+        self._coil_actuators = self._build_coil_actuators()
+
         self.objective_tolerances = self._resolve_objective_tolerances(
             self.kernel.cfg.get("free_boundary", {}).get("objective_tolerances"),
             objective_tolerances,
@@ -127,8 +169,12 @@ class FreeBoundaryTrackingController:
             "divertor_max_abs": [],
             "max_abs_delta_i": [],
             "max_abs_coil_current": [],
+            "max_abs_actuator_lag": [],
             "accepted_gain": [],
             "objective_converged": [],
+            "supervisor_intervened": [],
+            "supervisor_safe": [],
+            "supervisor_hold_steps_remaining": [],
         }
 
     def _log(self, message: str) -> None:
@@ -166,6 +212,133 @@ class FreeBoundaryTrackingController:
                     raise ValueError(f"{name}.{key} must be finite and >= 0.")
                 merged[key] = tol_value
         return merged
+
+    @staticmethod
+    def _resolve_positive_float(
+        cfg_value: Any,
+        override_value: float | None,
+        *,
+        default: float,
+        name: str,
+    ) -> float:
+        raw_value = (
+            default
+            if override_value is None and cfg_value is None
+            else (cfg_value if override_value is None else override_value)
+        )
+        value = float(raw_value)
+        if not np.isfinite(value) or value <= 0.0:
+            raise ValueError(f"{name} must be finite and > 0.")
+        return value
+
+    @staticmethod
+    def _resolve_nonnegative_int(
+        cfg_value: Any,
+        override_value: int | None,
+        *,
+        default: int,
+        name: str,
+    ) -> int:
+        raw_value = (
+            default
+            if override_value is None and cfg_value is None
+            else (cfg_value if override_value is None else override_value)
+        )
+        value = int(raw_value)
+        if value < 0:
+            raise ValueError(f"{name} must be >= 0.")
+        return value
+
+    def _resolve_coil_slew_limits(
+        self,
+        cfg_limits: Any,
+        override_limits: float | list[float] | None,
+    ) -> FloatArray:
+        raw = cfg_limits if override_limits is None else override_limits
+        if raw is None:
+            return np.full(self.n_coils, np.inf, dtype=np.float64)
+        if np.isscalar(raw):
+            limits = np.full(self.n_coils, float(cast(Any, raw)), dtype=np.float64)
+        else:
+            limits = np.asarray(raw, dtype=np.float64).reshape(-1)
+        if limits.shape != (self.n_coils,):
+            raise ValueError("coil_slew_limits must be a scalar or match the number of coils.")
+        if np.any(~np.isfinite(limits)) or np.any(limits <= 0.0):
+            raise ValueError("coil_slew_limits must contain finite values > 0.")
+        return cast(FloatArray, np.asarray(limits, dtype=np.float64))
+
+    @staticmethod
+    def _resolve_supervisor_limits(
+        cfg_limits: Any,
+        override_limits: dict[str, float] | None,
+    ) -> dict[str, float]:
+        allowed = {
+            "tracking_error_norm",
+            "shape_rms",
+            "shape_max_abs",
+            "x_point_position",
+            "x_point_flux",
+            "divertor_rms",
+            "divertor_max_abs",
+            "max_abs_coil_current",
+            "max_abs_actuator_lag",
+        }
+        merged: dict[str, float] = {}
+        for raw, source_name in (
+            (cfg_limits, "free_boundary_tracking.supervisor_limits"),
+            (override_limits, "supervisor_limits"),
+        ):
+            if raw is None:
+                continue
+            if not isinstance(raw, dict):
+                raise ValueError(f"{source_name} must be a mapping of limit names to non-negative floats.")
+            for key, value in raw.items():
+                if key not in allowed:
+                    allowed_keys = ", ".join(sorted(allowed))
+                    raise ValueError(f"Unknown {source_name} key {key!r}. Allowed keys: {allowed_keys}.")
+                limit_value = float(value)
+                if not np.isfinite(limit_value) or limit_value < 0.0:
+                    raise ValueError(f"{source_name}.{key} must be finite and >= 0.")
+                merged[key] = limit_value
+        return merged
+
+    def _build_coil_actuators(self) -> list[FirstOrderActuator]:
+        actuators: list[FirstOrderActuator] = []
+        for idx in range(self.n_coils):
+            limit = float(self.coil_current_limits[idx])
+            actuator = FirstOrderActuator(
+                tau_s=self.coil_actuator_tau_s,
+                dt_s=self.control_dt_s,
+                u_min=-limit,
+                u_max=limit,
+                rate_limit=float(self.coil_slew_limits[idx]),
+            )
+            actuator.state = float(self.coils.currents[idx])
+            actuator._delay_buffer = [float(self.coils.currents[idx])] * max(actuator.delay_steps, 1)
+            actuators.append(actuator)
+        return actuators
+
+    def _snapshot_actuator_states(self) -> tuple[_ActuatorSnapshot, ...]:
+        return tuple(
+            _ActuatorSnapshot(
+                state=float(actuator.state),
+                delay_buffer=tuple(float(v) for v in actuator._delay_buffer),
+            )
+            for actuator in self._coil_actuators
+        )
+
+    def _restore_actuator_states(self, snapshots: tuple[_ActuatorSnapshot, ...]) -> None:
+        if len(snapshots) != len(self._coil_actuators):
+            raise ValueError("actuator snapshot count must match the number of coils.")
+        for actuator, snapshot in zip(self._coil_actuators, snapshots, strict=True):
+            actuator.state = float(snapshot.state)
+            actuator._delay_buffer = [float(v) for v in snapshot.delay_buffer]
+
+    def _sync_actuators_from_coils(self) -> None:
+        for idx, actuator in enumerate(self._coil_actuators):
+            current = float(self.coils.currents[idx])
+            actuator.state = current
+            actuator._delay_buffer = [current] * max(actuator.delay_steps, 1)
 
     def _build_target_vector(self) -> tuple[FloatArray, tuple[_ObjectiveBlock, ...]]:
         values: list[float] = []
@@ -208,6 +381,16 @@ class FreeBoundaryTrackingController:
             coils_cfg.append({})
         for idx in range(self.n_coils):
             coils_cfg[idx]["current"] = float(self.coils.currents[idx])
+
+    def _command_currents(self, delta_currents: FloatArray, gain: float) -> FloatArray:
+        g = float(gain)
+        if not np.isfinite(g) or g <= 0.0:
+            raise ValueError("gain must be finite and > 0.")
+        commanded = np.asarray(self.coils.currents.copy(), dtype=np.float64)
+        for idx in range(self.n_coils):
+            limit = float(self.coil_current_limits[idx])
+            commanded[idx] = float(np.clip(commanded[idx] + g * float(delta_currents[idx]), -limit, limit))
+        return cast(FloatArray, np.asarray(commanded, dtype=np.float64))
 
     def _solve_free_boundary_state(self) -> dict[str, Any]:
         self._sync_config_currents()
@@ -275,6 +458,7 @@ class FreeBoundaryTrackingController:
 
         self._solve_free_boundary_state()
         original_currents = self.coils.currents.copy()
+        actuator_snapshot = self._snapshot_actuator_states()
         for idx in range(self.n_coils):
             hi = float(self.coil_current_limits[idx])
             plus = original_currents.copy()
@@ -297,6 +481,7 @@ class FreeBoundaryTrackingController:
             self.response_matrix[:, idx] = (obs_plus - obs_minus) / denom
 
         self.coils.currents = original_currents
+        self._restore_actuator_states(actuator_snapshot)
         self._solve_free_boundary_state()
         return self.response_matrix.copy()
 
@@ -317,15 +502,12 @@ class FreeBoundaryTrackingController:
         return cast(FloatArray, np.asarray(clipped, dtype=np.float64))
 
     def _apply_correction(self, delta_currents: FloatArray, gain: float) -> FloatArray:
-        g = float(gain)
-        if not np.isfinite(g) or g <= 0.0:
-            raise ValueError("gain must be finite and > 0.")
-        updated = np.asarray(self.coils.currents.copy(), dtype=np.float64)
-        for idx in range(self.n_coils):
-            limit = float(self.coil_current_limits[idx])
-            updated[idx] = float(np.clip(updated[idx] + g * float(delta_currents[idx]), -limit, limit))
-        self.coils.currents = updated
-        return cast(FloatArray, np.asarray(updated.copy(), dtype=np.float64))
+        commanded = self._command_currents(delta_currents, gain=gain)
+        applied = np.zeros(self.n_coils, dtype=np.float64)
+        for idx, actuator in enumerate(self._coil_actuators):
+            applied[idx] = float(actuator.step(float(commanded[idx])))
+        self.coils.currents = applied
+        return cast(FloatArray, np.asarray(applied.copy(), dtype=np.float64))
 
     def evaluate_objectives(self, observation: np.ndarray) -> dict[str, Any]:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
@@ -376,6 +558,35 @@ class FreeBoundaryTrackingController:
         metrics["objective_tolerances"] = self.objective_tolerances.copy()
         return metrics
 
+    def evaluate_supervisor(
+        self,
+        metrics: dict[str, Any],
+        *,
+        max_abs_coil_current: float,
+        max_abs_actuator_lag: float,
+    ) -> dict[str, Any]:
+        metric_map = {
+            "tracking_error_norm": metrics.get("tracking_error_norm"),
+            "shape_rms": metrics.get("shape_rms"),
+            "shape_max_abs": metrics.get("shape_max_abs"),
+            "x_point_position": metrics.get("x_point_position_error"),
+            "x_point_flux": metrics.get("x_point_flux_error"),
+            "divertor_rms": metrics.get("divertor_rms"),
+            "divertor_max_abs": metrics.get("divertor_max_abs"),
+            "max_abs_coil_current": max_abs_coil_current,
+            "max_abs_actuator_lag": max_abs_actuator_lag,
+        }
+        checks: dict[str, bool] = {}
+        for key, limit in self.supervisor_limits.items():
+            value = metric_map.get(key)
+            checks[key] = bool(value is not None and np.isfinite(float(value)) and float(abs(value)) <= limit)
+        return {
+            "supervisor_limits": self.supervisor_limits.copy(),
+            "supervisor_checks": checks,
+            "supervisor_active": bool(checks),
+            "supervisor_safe": all(checks.values()) if checks else True,
+        }
+
     def run_tracking_shot(
         self,
         *,
@@ -392,8 +603,15 @@ class FreeBoundaryTrackingController:
             raise ValueError("gain must be finite and > 0.")
         start_time = time.time()
         self.history = {key: [] for key in self.history}
+        self._hold_steps_remaining = 0
+        self._sync_actuators_from_coils()
         self._solve_free_boundary_state()
         last_metrics = self.evaluate_objectives(self._observe_objectives())
+        last_supervisor = self.evaluate_supervisor(
+            last_metrics,
+            max_abs_coil_current=float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0,
+            max_abs_actuator_lag=0.0,
+        )
 
         for step in range(steps):
             if disturbance_callback is not None:
@@ -407,28 +625,75 @@ class FreeBoundaryTrackingController:
             metrics_before = self.evaluate_objectives(observation_before)
             delta_currents = self.compute_correction(observation_before)
             baseline_currents = self.coils.currents.copy()
+            actuator_snapshot = self._snapshot_actuator_states()
             accepted_gain = 0.0
             last_metrics = metrics_before
+            supervisor_intervened = False
+            max_abs_actuator_lag = 0.0
 
-            trial_gain = gain_value
-            for _ in range(6):
-                self.coils.currents = baseline_currents.copy()
-                self._apply_correction(delta_currents, gain=trial_gain)
-                self._solve_free_boundary_state()
-                observation_after = self._observe_objectives()
-                metrics_after = self.evaluate_objectives(observation_after)
-                improved = metrics_after["tracking_error_norm"] <= metrics_before["tracking_error_norm"] + 1e-12
-                newly_converged = (not metrics_before["objective_converged"]) and metrics_after["objective_converged"]
-                if improved or newly_converged:
-                    accepted_gain = trial_gain
-                    last_metrics = metrics_after
-                    break
-                trial_gain *= 0.5
-
-            if accepted_gain == 0.0:
+            if self._hold_steps_remaining > 0:
+                self._hold_steps_remaining -= 1
+                delta_currents = np.zeros_like(delta_currents)
+                self._restore_actuator_states(actuator_snapshot)
                 self.coils.currents = baseline_currents.copy()
                 self._solve_free_boundary_state()
-                last_metrics = metrics_before
+                last_metrics = self.evaluate_objectives(self._observe_objectives())
+                last_supervisor = self.evaluate_supervisor(
+                    last_metrics,
+                    max_abs_coil_current=float(np.max(np.abs(self.coils.currents)))
+                    if self.coils.currents.size > 0
+                    else 0.0,
+                    max_abs_actuator_lag=0.0,
+                )
+                supervisor_intervened = True
+            else:
+                trial_gain = gain_value
+                for _ in range(6):
+                    self._restore_actuator_states(actuator_snapshot)
+                    self.coils.currents = baseline_currents.copy()
+                    commanded_currents = self._command_currents(delta_currents, gain=trial_gain)
+                    applied_currents = self._apply_correction(delta_currents, gain=trial_gain)
+                    max_abs_actuator_lag = (
+                        float(np.max(np.abs(commanded_currents - applied_currents)))
+                        if applied_currents.size > 0
+                        else 0.0
+                    )
+                    self._solve_free_boundary_state()
+                    observation_after = self._observe_objectives()
+                    metrics_after = self.evaluate_objectives(observation_after)
+                    supervisor_after = self.evaluate_supervisor(
+                        metrics_after,
+                        max_abs_coil_current=(
+                            float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
+                        ),
+                        max_abs_actuator_lag=max_abs_actuator_lag,
+                    )
+                    improved = metrics_after["tracking_error_norm"] <= metrics_before["tracking_error_norm"] + 1e-12
+                    newly_converged = (not metrics_before["objective_converged"]) and metrics_after[
+                        "objective_converged"
+                    ]
+                    if (improved or newly_converged) and supervisor_after["supervisor_safe"]:
+                        accepted_gain = trial_gain
+                        last_metrics = metrics_after
+                        last_supervisor = supervisor_after
+                        break
+                    trial_gain *= 0.5
+
+                if accepted_gain == 0.0:
+                    self._restore_actuator_states(actuator_snapshot)
+                    self.coils.currents = baseline_currents.copy()
+                    self._solve_free_boundary_state()
+                    last_metrics = metrics_before
+                    last_supervisor = self.evaluate_supervisor(
+                        last_metrics,
+                        max_abs_coil_current=(
+                            float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
+                        ),
+                        max_abs_actuator_lag=0.0,
+                    )
+                    supervisor_intervened = True
+                    if self.hold_steps_after_reject > 0:
+                        self._hold_steps_remaining = self.hold_steps_after_reject
 
             max_abs_delta = float(np.max(np.abs(delta_currents))) if delta_currents.size > 0 else 0.0
             max_abs_coil = float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
@@ -442,12 +707,17 @@ class FreeBoundaryTrackingController:
             self.history["divertor_max_abs"].append(last_metrics["divertor_max_abs"])
             self.history["max_abs_delta_i"].append(max_abs_delta)
             self.history["max_abs_coil_current"].append(max_abs_coil)
+            self.history["max_abs_actuator_lag"].append(max_abs_actuator_lag)
             self.history["accepted_gain"].append(float(accepted_gain))
             self.history["objective_converged"].append(bool(last_metrics["objective_converged"]))
+            self.history["supervisor_intervened"].append(bool(supervisor_intervened))
+            self.history["supervisor_safe"].append(bool(last_supervisor["supervisor_safe"]))
+            self.history["supervisor_hold_steps_remaining"].append(int(self._hold_steps_remaining))
 
             self._log(
                 f"Step {step}: err={last_metrics['tracking_error_norm']:.4e} | "
                 f"max dI={max_abs_delta:.3e} | gain={accepted_gain:.3e} | "
+                f"lag={max_abs_actuator_lag:.3e} | safe={last_supervisor['supervisor_safe']} | "
                 f"converged={last_metrics['objective_converged']}"
             )
             if stop_on_convergence and last_metrics["objective_converged"]:
@@ -457,7 +727,9 @@ class FreeBoundaryTrackingController:
         error_arr = np.asarray(self.history["tracking_error_norm"], dtype=np.float64)
         delta_arr = np.asarray(self.history["max_abs_delta_i"], dtype=np.float64)
         coil_arr = np.asarray(self.history["max_abs_coil_current"], dtype=np.float64)
+        lag_arr = np.asarray(self.history["max_abs_actuator_lag"], dtype=np.float64)
         gain_arr = np.asarray(self.history["accepted_gain"], dtype=np.float64)
+        supervisor_arr = np.asarray(self.history["supervisor_intervened"], dtype=np.float64)
         return {
             "steps": int(len(self.history["t"])),
             "runtime_seconds": float(runtime_seconds),
@@ -466,12 +738,20 @@ class FreeBoundaryTrackingController:
             "mean_tracking_error_norm": float(np.mean(error_arr)) if error_arr.size else 0.0,
             "max_abs_delta_i": float(np.max(delta_arr)) if delta_arr.size else 0.0,
             "max_abs_coil_current": float(np.max(coil_arr)) if coil_arr.size else 0.0,
+            "max_abs_actuator_lag": float(np.max(lag_arr)) if lag_arr.size else 0.0,
+            "mean_abs_actuator_lag": float(np.mean(lag_arr)) if lag_arr.size else 0.0,
             "mean_accepted_gain": float(np.mean(gain_arr)) if gain_arr.size else 0.0,
             "min_accepted_gain": float(np.min(gain_arr)) if gain_arr.size else 0.0,
             "objective_tolerances": last_metrics["objective_tolerances"],
             "objective_checks": last_metrics["objective_checks"],
             "objective_convergence_active": last_metrics["objective_convergence_active"],
             "objective_converged": last_metrics["objective_converged"],
+            "supervisor_limits": last_supervisor["supervisor_limits"],
+            "supervisor_checks": last_supervisor["supervisor_checks"],
+            "supervisor_active": last_supervisor["supervisor_active"],
+            "supervisor_safe": last_supervisor["supervisor_safe"],
+            "supervisor_intervention_count": int(np.sum(supervisor_arr)),
+            "hold_steps_after_reject": int(self.hold_steps_after_reject),
             "shape_rms": last_metrics["shape_rms"],
             "shape_max_abs": last_metrics["shape_max_abs"],
             "x_point_position_error": last_metrics["x_point_position_error"],
@@ -489,6 +769,11 @@ def run_free_boundary_tracking(
     verbose: bool = True,
     kernel_factory: Callable[[str], Any] = FusionKernel,
     objective_tolerances: dict[str, float] | None = None,
+    control_dt_s: float | None = None,
+    coil_actuator_tau_s: float | None = None,
+    coil_slew_limits: float | list[float] | None = None,
+    supervisor_limits: dict[str, float] | None = None,
+    hold_steps_after_reject: int | None = None,
     disturbance_callback: Callable[[Any, CoilSet, int], None] | None = None,
     stop_on_convergence: bool = False,
 ) -> dict[str, Any]:
@@ -509,6 +794,11 @@ def run_free_boundary_tracking(
         kernel_factory=kernel_factory,
         verbose=verbose,
         objective_tolerances=objective_tolerances,
+        control_dt_s=control_dt_s,
+        coil_actuator_tau_s=coil_actuator_tau_s,
+        coil_slew_limits=coil_slew_limits,
+        supervisor_limits=supervisor_limits,
+        hold_steps_after_reject=hold_steps_after_reject,
     )
     summary = controller.run_tracking_shot(
         shot_steps=shot_steps,

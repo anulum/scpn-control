@@ -242,9 +242,12 @@ summary = run_free_boundary_tracking(
     shot_steps=5,
     gain=0.8,
     verbose=False,
+    coil_slew_limits=2.5e5,
+    supervisor_limits={"x_point_position": 0.15, "max_abs_actuator_lag": 1.0e5},
+    hold_steps_after_reject=2,
 )
 
-print(summary["shape_rms"], summary["objective_converged"])
+print(summary["shape_rms"], summary["objective_converged"], summary["supervisor_intervention_count"])
 ```
 
 ::: scpn_control.control.free_boundary_tracking.FreeBoundaryTrackingController

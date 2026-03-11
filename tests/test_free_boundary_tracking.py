@@ -315,6 +315,55 @@ def test_controller_backtracks_aggressive_gain() -> None:
     assert summary["final_tracking_error_norm"] < 0.25
 
 
+def test_controller_enforces_coil_slew_limits() -> None:
+    summary = run_free_boundary_tracking(
+        config_file="dummy.json",
+        shot_steps=1,
+        gain=8.0,
+        verbose=False,
+        kernel_factory=_DummyFreeBoundaryKernel,
+        control_dt_s=0.1,
+        coil_actuator_tau_s=0.05,
+        coil_slew_limits=0.5,
+        stop_on_convergence=False,
+    )
+
+    assert summary["max_abs_coil_current"] <= 0.05 + 1e-9
+    assert summary["max_abs_actuator_lag"] > 0.01
+    assert summary["mean_abs_actuator_lag"] > 0.01
+
+
+def test_controller_supervisor_rejects_and_holds_unsafe_updates() -> None:
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_DummyFreeBoundaryKernel,
+        verbose=False,
+        control_dt_s=0.1,
+        coil_actuator_tau_s=0.05,
+        coil_slew_limits=0.5,
+        supervisor_limits={"max_abs_actuator_lag": 0.0},
+        hold_steps_after_reject=2,
+    )
+    controller._solve_free_boundary_state()
+    initial_metrics = controller.evaluate_objectives(controller._observe_objectives())
+
+    summary = controller.run_tracking_shot(
+        shot_steps=4,
+        gain=8.0,
+        stop_on_convergence=False,
+    )
+
+    assert summary["supervisor_active"] is True
+    assert summary["supervisor_intervention_count"] >= 3
+    assert summary["hold_steps_after_reject"] == 2
+    assert controller.history["supervisor_intervened"][0] is True
+    assert controller.history["supervisor_hold_steps_remaining"][0] == 2
+    assert controller.history["supervisor_hold_steps_remaining"][1] == 1
+    assert controller.history["supervisor_hold_steps_remaining"][2] == 0
+    assert summary["final_tracking_error_norm"] == pytest.approx(initial_metrics["tracking_error_norm"])
+    assert summary["max_abs_coil_current"] == pytest.approx(0.0)
+
+
 def test_run_free_boundary_tracking_with_real_kernel_smoke(tmp_path: Path) -> None:
     cfg_path = _write_real_kernel_tracking_config(tmp_path / "real_tracking.json")
 
