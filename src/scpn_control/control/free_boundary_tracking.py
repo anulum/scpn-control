@@ -207,6 +207,7 @@ class FreeBoundaryTrackingController:
             "response_condition_number": [],
             "response_max_singular_value": [],
             "response_degenerate": [],
+            "active_control_rows": [],
             "supervisor_intervened": [],
             "supervisor_safe": [],
             "supervisor_hold_steps_remaining": [],
@@ -630,13 +631,39 @@ class FreeBoundaryTrackingController:
         self.response_condition_number = float(sigma_max / float(nonzero[-1])) if nonzero.size > 0 else float("inf")
         self.response_degenerate = bool((not np.isfinite(sigma_max)) or sigma_max <= cutoff or nonzero.size < 1)
 
-    def compute_correction(self, observation: FloatArray) -> FloatArray:
+    def _build_control_activation_mask(self, metrics: dict[str, Any]) -> FloatArray:
+        objective_checks = cast(dict[str, bool], metrics.get("objective_checks", {}))
+        mask = np.ones(self.target_vector.shape, dtype=np.float64)
+        for block in self.objective_blocks:
+            if block.name == "shape_flux":
+                relevant = [key for key in ("shape_rms", "shape_max_abs") if key in self.objective_tolerances]
+            elif block.name == "x_point_position":
+                relevant = [key for key in ("x_point_position",) if key in self.objective_tolerances]
+            elif block.name == "x_point_flux":
+                relevant = [key for key in ("x_point_flux",) if key in self.objective_tolerances]
+            elif block.name == "divertor_flux":
+                relevant = [key for key in ("divertor_rms", "divertor_max_abs") if key in self.objective_tolerances]
+            else:
+                raise ValueError(f"Unknown objective block {block.name!r}.")
+            if relevant and all(objective_checks.get(key, False) for key in relevant):
+                mask[block.start : block.stop] = 0.0
+        return cast(FloatArray, mask)
+
+    def compute_correction(
+        self,
+        observation: FloatArray,
+        *,
+        metrics: dict[str, Any] | None = None,
+    ) -> FloatArray:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
         if obs.shape != self.target_vector.shape:
             raise ValueError("observation must match the free-boundary target vector shape.")
+        metrics_now = self.evaluate_objectives(obs) if metrics is None else metrics
+        control_mask = self._build_control_activation_mask(metrics_now)
         error = self.target_vector + self.objective_bias_estimate - obs
-        weighted_response = self.control_objective_weights[:, None] * self.response_matrix
-        weighted_error = self.control_objective_weights * error
+        weight_vector = self.control_objective_weights * control_mask
+        weighted_response = weight_vector[:, None] * self.response_matrix
+        weighted_error = weight_vector * error
         aug_matrix = np.vstack(
             [
                 weighted_response,
@@ -688,16 +715,16 @@ class FreeBoundaryTrackingController:
     def evaluate_objectives(self, observation: np.ndarray) -> dict[str, Any]:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
         error = self.target_vector - obs
-        control_error = self.control_objective_weights * error
         metrics: dict[str, Any] = {
             "tracking_error_norm": float(np.linalg.norm(error)),
-            "control_error_norm": float(np.linalg.norm(control_error)),
+            "control_error_norm": 0.0,
             "shape_rms": None,
             "shape_max_abs": None,
             "x_point_position_error": None,
             "x_point_flux_error": None,
             "divertor_rms": None,
             "divertor_max_abs": None,
+            "active_control_rows": 0,
         }
 
         for block in self.objective_blocks:
@@ -734,6 +761,10 @@ class FreeBoundaryTrackingController:
         metrics["objective_convergence_active"] = bool(checks)
         metrics["objective_converged"] = all(checks.values()) if checks else True
         metrics["objective_tolerances"] = self.objective_tolerances.copy()
+        control_mask = self._build_control_activation_mask(metrics)
+        control_error = control_mask * self.control_objective_weights * error
+        metrics["control_error_norm"] = float(np.linalg.norm(control_error))
+        metrics["active_control_rows"] = int(np.count_nonzero(np.abs(control_error) > 1.0e-12))
         return metrics
 
     def evaluate_supervisor(
@@ -831,7 +862,7 @@ class FreeBoundaryTrackingController:
             observation_before = self._observe_objectives()
             self._update_objective_observer(observation_before)
             metrics_before = self.evaluate_objectives(observation_before)
-            delta_currents = self.compute_correction(observation_before)
+            delta_currents = self.compute_correction(observation_before, metrics=metrics_before)
             baseline_currents = self.coils.currents.copy()
             actuator_snapshot = self._snapshot_actuator_states()
             accepted_gain = 0.0
@@ -948,6 +979,7 @@ class FreeBoundaryTrackingController:
             self.history["response_condition_number"].append(float(self.response_condition_number))
             self.history["response_max_singular_value"].append(float(self.response_max_singular_value))
             self.history["response_degenerate"].append(bool(self.response_degenerate))
+            self.history["active_control_rows"].append(int(last_metrics["active_control_rows"]))
             self.history["supervisor_intervened"].append(bool(supervisor_intervened))
             self.history["supervisor_safe"].append(bool(last_supervisor["supervisor_safe"]))
             self.history["supervisor_hold_steps_remaining"].append(int(self._hold_steps_remaining))
@@ -957,6 +989,7 @@ class FreeBoundaryTrackingController:
             self._log(
                 f"Step {step}: err={last_metrics['tracking_error_norm']:.4e} | "
                 f"ctrl={last_metrics['control_error_norm']:.4e} | "
+                f"active={int(last_metrics['active_control_rows'])} | "
                 f"max dI={max_abs_delta:.3e} | gain={accepted_gain:.3e} | "
                 f"resp_rank={self.response_rank} | resp_deg={self.response_degenerate} | "
                 f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
@@ -980,6 +1013,7 @@ class FreeBoundaryTrackingController:
         response_cond_arr = np.asarray(self.history["response_condition_number"], dtype=np.float64)
         response_sigma_arr = np.asarray(self.history["response_max_singular_value"], dtype=np.float64)
         response_deg_arr = np.asarray(self.history["response_degenerate"], dtype=np.float64)
+        active_control_arr = np.asarray(self.history["active_control_rows"], dtype=np.float64)
         supervisor_arr = np.asarray(self.history["supervisor_intervened"], dtype=np.float64)
         fallback_arr = np.asarray(self.history["fallback_active"], dtype=np.float64)
         tolerance_block_arr = np.asarray(self.history["tolerance_regression_blocked"], dtype=np.float64)
@@ -1005,6 +1039,8 @@ class FreeBoundaryTrackingController:
             "max_response_condition_number": float(np.max(response_cond_arr)) if response_cond_arr.size else 0.0,
             "max_response_singular_value": float(np.max(response_sigma_arr)) if response_sigma_arr.size else 0.0,
             "response_degenerate_count": int(np.sum(response_deg_arr)),
+            "final_active_control_rows": int(active_control_arr[-1]) if active_control_arr.size else 0,
+            "mean_active_control_rows": float(np.mean(active_control_arr)) if active_control_arr.size else 0.0,
             "objective_tolerances": last_metrics["objective_tolerances"],
             "objective_checks": last_metrics["objective_checks"],
             "objective_convergence_active": last_metrics["objective_convergence_active"],

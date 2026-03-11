@@ -243,7 +243,9 @@ divertor targets take precedence over looser shape goals, and it refuses trial
 steps that would push an already-satisfied objective back outside tolerance. If
 the identified coil-response map loses authority entirely, the controller marks
 that degraded state explicitly and drops into the safe-state recovery path
-instead of silently accepting a zero-action step.
+instead of silently accepting a zero-action step. Residuals already inside the
+configured tolerances are also treated as deadband, so the controller stops
+chattering the coils once the protected objectives are met.
 
 ```python
 from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking
