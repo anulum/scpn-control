@@ -9,7 +9,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/ 
 Coverage gate (matches CI threshold):
 
 ```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=term --cov-fail-under=50
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=term --cov-fail-under=99
 ```
 
 ## Rust workspace checks
@@ -43,12 +43,20 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/t
 
 ## CI quality gates in `.github/workflows/ci.yml`
 
-- `python-tests` (3.9/3.10/3.11/3.12, mypy + coverage on 3.12)
+- `python-tests` (3.9/3.10/3.11/3.12/3.13 Ubuntu + 3.12 Windows + 3.12 macOS; mypy + coverage on 3.12)
+- `python-lint` (ruff check + ruff format)
+- `python-security` (bandit SAST)
+- `python-audit` (`pip_audit`)
+- `python-benchmark` (E2E control latency)
 - `notebook-smoke` (executes CI notebook set; full neuro notebook only if `sc_neurocore` is available)
 - `package-quality` (`build` + `twine check`)
-- `python-audit` (`pip_audit`)
-- `rmse-gate`
-- `rust-tests`
-- `rust-python-interop`
-- `rust-benchmarks` (uploads `bench-results` artifact from `scpn-control-rs/target/criterion/`)
-- `rust-audit`
+- `rmse-gate` (SPARC GEQDSK + synthetic DIII-D regression bounds)
+- `e2e-diiid` (end-to-end mock DIII-D shot test)
+- `real-diiid` (17 real DIII-D disruption shots)
+- `jax-parity` (JAX transport, neural equilibrium, GS solver parity tests)
+- `nengo-loihi` (Nengo SNN wrapper emulator tests)
+- `rust-tests` (`cargo test --workspace` + clippy + fmt)
+- `rust-python-interop` (maturin build + PyO3 parity)
+- `rust-benchmarks` (Criterion, uploads `bench-results` artifact)
+- `rust-audit` (cargo-audit vulnerability scan)
+- `cargo-deny` (license + advisory supply-chain policy)

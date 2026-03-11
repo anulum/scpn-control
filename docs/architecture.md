@@ -106,13 +106,13 @@ sequenceDiagram
 
 ```
 scpn-control/
-├── src/scpn_control/     # 53 Python modules
+├── src/scpn_control/     # 57 Python modules
 │   ├── scpn/             # SPN → SNN compiler (6 modules)
-│   ├── core/             # Equilibrium, transport, scaling (14 modules)
+│   ├── core/             # Equilibrium, transport, scaling (18 modules)
 │   ├── control/          # Controllers (22 modules, optional deps guarded)
 │   └── phase/            # Kuramoto/UPDE engine (9 modules)
 ├── scpn-control-rs/      # Rust workspace (5 crates)
-├── tests/                # 2019 tests (118 files)
+├── tests/                # 2,404 tests (135 files, 100% coverage)
 ├── examples/             # 6 notebooks + 3 scripts
 ├── validation/           # DIII-D, JET, SPARC, ITER configs + reference data
 ├── docs/                 # MkDocs site

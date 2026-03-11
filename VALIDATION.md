@@ -28,14 +28,14 @@
 
 | Suite | Count | Scope |
 |-------|------:|-------|
-| Python unit/integration | 2019+ | `pytest tests/` across 118 files |
+| Python unit/integration | 2,404 | `pytest tests/` across 135 files |
 | Rust engine | 108+ | `cargo test --workspace` in `scpn-control-rs/` |
 | Rust-Python interop | 3 files | PyO3 parity tests via maturin |
 | Notebooks | 5 | Executed in CI via `nbconvert` |
 | E2E (DIII-D mock) | 1 file | Full shot-driven control loop (**synthetic data**) |
 | RMSE gate | 1 file | Regression against SPARC GEQDSK + synthetic DIII-D |
 
-CI runs tests on Python 3.9-3.13 (Ubuntu), Rust on Ubuntu.
+CI runs tests on Python 3.9-3.13 (Ubuntu), Python 3.12 (Windows + macOS), Rust on Ubuntu.
 
 ## CI Validation Gates
 
@@ -46,13 +46,17 @@ All gates must pass before merge to `main`.
 | ruff check | `ci.yml` | Import hygiene, code quality |
 | ruff format | `ci.yml` | Consistent formatting |
 | bandit | `ci.yml` | Security static analysis (SAST) |
-| test + coverage | `ci.yml` | `pytest --cov-fail-under=85` on Python 3.12 |
+| test + coverage | `ci.yml` | `pytest --cov-fail-under=99` on Python 3.12 |
 | mypy | `ci.yml` | Type checking (scoped files) |
 | notebook smoke | `ci.yml` | All tutorial notebooks execute |
 | package quality | `ci.yml` | `twine check` on built sdist/wheel |
 | pip-audit | `ci.yml` | No known vulnerabilities in deps |
 | RMSE gate | `ci.yml` | Regression bounds vs. reference data |
 | E2E DIII-D | `ci.yml` | End-to-end mock shot test |
+| real DIII-D | `ci.yml` | 17 real disruption shots validation |
+| JAX parity | `ci.yml` | JAX transport, neural eq, GS solver parity |
+| Nengo Loihi | `ci.yml` | SNN wrapper emulator tests |
+| E2E benchmark | `ci.yml` | Control latency regression |
 | rust-tests | `ci.yml` | `cargo test --workspace` + clippy + fmt |
 | rust-python-interop | `ci.yml` | Maturin build + parity tests |
 | rust-benchmarks | `ci.yml` | Criterion benchmarks (no regression gate) |
@@ -64,7 +68,7 @@ All gates must pass before merge to `main`.
 
 ## Coverage Policy
 
-- Threshold: 85% (enforced by `pytest --cov-fail-under=85`)
+- Threshold: 99% (enforced by `pytest --cov-fail-under=99`). Current: 100% (9,652 statements, 0 missed).
 - Excluded lines: `pragma: no cover`, `if __name__`, `raise NotImplementedError`,
   conditional imports (`HAS_TORCH`, `HAS_NENGO`, `HAS_SC_NEUROCORE`, `except ImportError`)
 

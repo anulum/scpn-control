@@ -68,6 +68,10 @@ P-EFIT typically reconstructs.
 | SPI ablation mitigation | Experimental |
 | Real-time digital twin | Experimental |
 | Neuro-cybernetic controller | Experimental |
+| JAX autodiff (transport + GS solver) | Tested |
+| QLKNN-10D neural transport | Tested |
+| PPO reinforcement learning agent | Tested (beats MPC + PID) |
+| GPU dispatch (JAX) | Tested |
 
 ---
 
@@ -78,7 +82,7 @@ P-EFIT typically reconstructs.
 You need real-time control prototyping **now**, not after a 3-year bespoke
 development cycle. scpn-control gives you:
 
-- A tested controller with 2019 tests and CI-gated RMSE validation
+- A tested controller with 2,404 tests (100% coverage) and CI-gated RMSE validation
 - Runs on commodity hardware (no GPU or data center required)
 - MIT/Apache-2.0 dual-licensed — no copyleft restrictions
 
@@ -108,7 +112,7 @@ The architecture *could* support future integration, but:
 ## Architecture
 
 ```
-54 Python modules | 5 Rust crates | 2019 tests | 15 CI jobs
+57 Python modules | 5 Rust crates | 2,404 tests (100% coverage) | 25 CI jobs
 ```
 
 ```
@@ -166,7 +170,7 @@ for scope and limitations.
 ## Getting Started
 
 ```bash
-pip install scpn-control          # From PyPI (v0.2.0)
+pip install scpn-control          # From PyPI
 scpn-control demo --steps 1000    # Closed-loop control demo
 scpn-control benchmark            # PID vs SNN timing
 scpn-control live --zeta 0.5      # Real-time WS phase sync

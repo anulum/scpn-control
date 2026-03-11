@@ -1,6 +1,6 @@
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-03-10 (v0.10.0).
+> **Last updated:** 2026-03-11 (v0.14.0).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 
@@ -97,7 +97,7 @@
 | Python source LOC | ~22,900 |
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
-| Test files | 133 |
+| Test files | 135 |
 | Tests collected | 2,404 |
 | Test coverage | 100% (9,652 stmts, gate=99%) |
 | CI jobs | 25 |
@@ -120,7 +120,7 @@
    sub-ms reconstruction is achievable.
 
 4. **Full-stack control breadth** — equilibrium, transport, control,
-   disruption mitigation, digital twin in one focused 56-module package.
+   disruption mitigation, digital twin in one focused 57-module package.
    Trade-off: breadth over depth in any single area.
 
 ## 8. Gap Resolution Status

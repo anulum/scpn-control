@@ -60,12 +60,12 @@ pre-commit run --all-files    # check everything
 pre-commit run ruff            # single hook
 ```
 
-Python (2019 tests):
+Python (2,404 tests, 100% coverage):
 
 ```bash
 pytest                       # full suite
 pytest tests/ -k "not slow"  # skip long-running regression tests
-pytest --cov=scpn_control    # with coverage (minimum: 85%)
+pytest --cov=scpn_control    # with coverage (gate: 99%)
 ```
 
 Rust (5 crates: control-core, control-math, control-types, control-control, control-python):
@@ -112,8 +112,9 @@ was comprehensively addressed.
 1. Fork the repository and create a feature branch off `main`.
 2. Keep commits atomic. One logical change per commit.
 3. Open a pull request against `main`.
-4. CI must pass (15 jobs: lint, type-check, pre-commit, pytest matrix,
-   cargo test/clippy, maturin build, coverage gate).
+4. CI must pass (25 jobs: lint, type-check, pre-commit, pytest matrix ×7,
+   cargo test/clippy/deny/audit/bench, maturin interop, JAX parity,
+   nengo-loihi, coverage gate, RMSE gate, notebook smoke).
 5. At least one maintainer review is required before merge.
 
 If your change touches Rust code, ensure `cargo clippy -- -D warnings` is clean.

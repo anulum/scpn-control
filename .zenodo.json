@@ -1,7 +1,7 @@
 {
   "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controller for Plasma Control",
   "version": "0.14.0",
-  "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with formal verification guarantees. Features JAX-accelerated transport and neural equilibrium (GPU + autodiff), real-time adaptive Kuramoto coupling, Lyapunov stability guard, H-infinity observer, and WebSocket phase streaming. 50 Python modules, 5 Rust crates, 2100+ tests.",
+  "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with contract-based verification. Features JAX-accelerated transport, neural equilibrium, and full Grad-Shafranov solver (GPU + autodiff), QLKNN-10D neural transport surrogate, PPO reinforcement learning agent (beats MPC and PID), real-time adaptive Kuramoto coupling, Lyapunov stability guard, H-infinity observer, and WebSocket phase streaming. 57 Python modules, 5 Rust crates, 2,404 tests (100% coverage).",
   "upload_type": "software",
   "publication_date": "2026-03-10",
   "access_right": "open",
@@ -30,7 +30,12 @@
     "neuro-symbolic AI",
     "SCPN",
     "phase dynamics",
-    "disruption prediction"
+    "disruption prediction",
+    "reinforcement learning",
+    "PPO",
+    "JAX",
+    "autodifferentiation",
+    "QLKNN"
   ],
   "related_identifiers": [
     {
@@ -67,5 +72,5 @@
   "communities": [
     {"identifier": "zenodo"}
   ],
-  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.12.0: QLKNN-10D trained neural transport model, auto-discovered weights, training script with reproducibility, 20 QLKNN-specific tests."
+  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.14.0: PPO 500K cloud training beats MPC (143.7 vs 58.1) and PID (-912.3) with 0% disruption rate. v0.13.0: JAX-differentiable Grad-Shafranov solver (jax.grad through full Picard iteration). v0.12.0: QLKNN-10D trained neural transport model, PPO agent on Gymnasium TokamakEnv."
 }

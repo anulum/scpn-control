@@ -78,7 +78,7 @@
 - [x] Rust H-inf: Euler → Padé(6,6) matrix exponential ZOH + DARE ([gh-10](https://github.com/anulum/scpn-control/issues/10), U-001)
 - [x] E2E control latency benchmark (`benchmarks/e2e_control_latency.py`)
 - [x] Honesty sweep: fix overstated claims in README, pitch, use_cases, VALIDATION, competitive_analysis
-- [x] Stale doc counts updated (2019 tests, 118 files, 54 modules)
+- [x] Stale doc counts updated
 
 ### v0.9.0 — 2026-03-10
 - [x] mypy `disallow_untyped_defs`, `warn_return_any` across all 54 modules
@@ -98,8 +98,6 @@
 - [x] Real DIII-D shot validation (17 shots, 95 tests, CI job)
 - [x] JOSS paper draft (`paper.md`, `paper.bib`)
 - [x] 25 CI jobs, 2024+ tests
-
-## Next
 
 ### v0.11.0 — 2026-03-10
 - [x] JAX neural equilibrium MLP (`jax_neural_equilibrium.py`)
@@ -136,6 +134,11 @@
 - [x] Reproducible: 3 seeds within +-0.2 mean reward
 - [x] Cloud training script (`tools/train_rl_upcloud.sh`)
 - [x] JarvisLabs automation script (`tools/jarvislabs_train.py`)
+- [x] 100% test coverage: 2,404 tests, 9,652 statements, 0 missed
+- [x] Coverage gate ratcheted: 85% → 99%
+- [x] 25 CI jobs all green
+
+## Next
 
 ### v0.15.0 — JOSS submission
 - [ ] JOSS paper submission (fact-checked, final claims)

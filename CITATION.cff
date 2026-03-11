@@ -24,7 +24,7 @@ doi: "10.5281/zenodo.18821816"
 identifiers:
   - type: doi
     value: "10.5281/zenodo.18821816"
-    description: "Zenodo archive (v0.8.1)"
+    description: "Zenodo archive (v0.14.0)"
   - type: doi
     value: "10.5281/zenodo.18804939"
     description: "Zenodo concept DOI (all versions)"

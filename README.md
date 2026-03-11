@@ -22,8 +22,8 @@
 **scpn-control** is a standalone neuro-symbolic control engine that compiles
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 54 source
-modules, 118 test files, **2019 tests**, 5 Rust crates, 15 CI jobs.
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 57 source
+modules, 135 test files, **2,404 tests** (100% coverage), 5 Rust crates, 25 CI jobs.
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
@@ -108,8 +108,11 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 - **Contract checking** -- Runtime pre/post-condition assertions on control observations and actions (not theorem-proved formal verification)
 - **Sub-millisecond latency** -- <1ms control loop with optional Rust-accelerated kernels
 - **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update, Boris integration, SNN pools, and MPC
-- **Multiple controller types** -- PID, MPC, H-infinity, SNN, neuro-cybernetic dual R+Z
-- **Grad-Shafranov solver** -- Free-boundary equilibrium solver with L-mode/H-mode profile support
+- **Multiple controller types** -- PID, MPC, H-infinity, SNN, neuro-cybernetic dual R+Z, PPO reinforcement learning
+- **Grad-Shafranov solver** -- Fixed-boundary equilibrium solver with L-mode profiles, JAX-differentiable (`jax.grad` through full Picard solve)
+- **JAX autodiff** -- Thomas solver, Crank-Nicolson transport, neural equilibrium, GS solver — all JIT-compiled and GPU-compatible
+- **PPO agent** -- 500K-step cloud-trained RL controller (reward 143.7 vs MPC 58.1 vs PID −912.3), 3-seed reproducible
+- **Neural transport** -- QLKNN-10D trained MLP with auto-discovered weights
 - **Digital twin integration** -- Real-time telemetry ingest, closed-loop simulation, and flight simulator
 - **RMSE validation** -- CI-gated regression testing against synthetic DIII-D shots and published SPARC GEQDSK files
 - **Disruption prediction** -- ML-based predictor with SPI mitigation and halo/RE physics
@@ -136,7 +139,7 @@ src/scpn_control/
 |   +-- tokamak_digital_twin.py    # Digital twin
 |   +-- tokamak_flight_sim.py      # IsoFlux flight simulator
 |   +-- neuro_cybernetic_controller.py  # Dual R+Z SNN
-+-- phase/             # Paper 27 Knm/UPDE phase dynamics (NEW)
++-- phase/             # Paper 27 Knm/UPDE phase dynamics
 |   +-- kuramoto.py    #   Kuramoto-Sakaguchi step + order parameter
 |   +-- knm.py         #   Paper 27 Knm coupling matrix builder
 |   +-- upde.py        #   UPDE multi-layer solver
@@ -152,12 +155,12 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 2019 tests (118 files)
+tests/                 # 2,404 tests (135 files, 100% coverage)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
 +-- test_rust_realtime_parity.py  # Rust PyRealtimeMonitor parity
-+-- ...                # 111 more test files
++-- ...                # 128 more test files
 ```
 
 ## Paper 27 Phase Dynamics (Knm/UPDE Engine)
@@ -353,9 +356,8 @@ git push --tags
   models (TGLF/QuaLiKiz) — uses Chang-Hinton neoclassical + scaling-law anomalous.
 - **Disruption predictor**: Synthetic training data only. Not validated on
   experimental disruption databases.
-- **No autodifferentiation**: Cannot do gradient-based scenario optimization.
-  TORAX (JAX) and FUSE (Julia) have this.
-- **No GPU equilibrium**: P-EFIT is faster on GPU hardware.
+- **No GPU equilibrium**: P-EFIT is faster on GPU hardware. JAX neural equilibrium
+  runs on GPU if available but is not cross-validated against P-EFIT.
 - **Rust acceleration**: Optional. Pure-Python fallback is complete but 5-10x
   slower for GS solve and Kuramoto steps at N > 1000.
 

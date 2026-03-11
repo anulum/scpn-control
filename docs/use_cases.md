@@ -69,7 +69,7 @@ The codebase includes:
 
 - 5 tutorial notebooks (Jupyter) with step-by-step walkthroughs
 - A live Streamlit dashboard for interactive exploration
-- 2019 tests demonstrating expected behavior and edge cases
+- 2,404 tests (100% coverage) demonstrating expected behavior and edge cases
 - Competitive analysis against state-of-the-art codes
 
 ---
@@ -108,9 +108,11 @@ The 5-crate Rust workspace provides:
 | Neural equilibrium | 0.39 ms (CPU, not cross-validated) | No | No | No |
 | SNN controller | Yes (Nengo, mocked CI) | No | No | No |
 | Contract checking | Yes (runtime assertions) | No | No | No |
+| QLKNN-10D transport | Yes (trained MLP) | Yes (QLKNN10D) | No | No |
+| PPO RL agent | Yes (beats MPC + PID) | No | No | No |
 | Edge deployment | Possible (Rust, untested on ARM) | No (JAX) | No (Julia) | Partial |
-| Autodifferentiation | **No** | **Yes (JAX)** | **Yes (Julia)** | No |
-| GPU transport | **No** | **Yes** | **Yes** | No |
+| Autodifferentiation | **Yes (JAX)** | **Yes (JAX)** | **Yes (Julia)** | No |
+| GPU transport | **Yes (JAX)** | **Yes** | **Yes** | No |
 | Real tokamak data | **No** | **Yes** | **Yes** | **Yes** |
 | Peer-reviewed papers | **No** | **Yes** | **Yes** | **Yes** |
 

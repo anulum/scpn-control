@@ -58,7 +58,7 @@ pytest -m "not slow"                     # skip slow markers
 pytest --cov=scpn_control --cov-report=term  # coverage
 ```
 
-Minimum coverage: 62% (configured in `pyproject.toml`).
+Coverage gate: 99% (configured in `pyproject.toml`). Current: 100% (9,652 statements, 0 missed).
 
 ---
 
@@ -68,7 +68,7 @@ Minimum coverage: 62% (configured in `pyproject.toml`).
 mypy
 ```
 
-Scope: `scpn/`, select `core/` and `control/` modules.
+Scope: all modules under `src/scpn_control/` (`disallow_untyped_defs = true`, `warn_return_any = true`).
 PEP 561 marker: `src/scpn_control/py.typed`.
 
 ---

@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.14.0] — 2026-03-10
+
+### Added
+- **PPO 500K cloud training** on JarvisLabs RTX5000 (3 seeds x 500K timesteps)
+- PPO reward=143.7 beats MPC (58.1) and PID (-912.3), 0% disruption rate
+- Reproducible: 3 seeds yield consistent +-0.2 mean reward
+- Per-seed weights: `ppo_tokamak_seed{42,123,456}.zip`
+- Benchmark report: `benchmarks/rl_vs_classical.json`
+- Cloud training script: `tools/train_rl_upcloud.sh` (multi-seed, best-select)
+- JarvisLabs automation: `tools/jarvislabs_train.py`
+- 100% test coverage: 2,404 tests, 9,652 statements, 0 missed (gate=99%)
+
+## [0.13.0] — 2026-03-10
+
+### Added
+- **JAX-differentiable Grad-Shafranov solver** (`jax_gs_solver.py`): full Picard
+  iteration via `jax.lax.fori_loop` with damped Jacobi inner sweeps
+- `jax.grad` through the complete equilibrium solve — closes autodiff depth gap
+  with TORAX (JAX) and FUSE (Julia AD)
+- `jax_gs_solve()` public API with NumPy fallback
+- `jax_gs_grad_Ip()` convenience function for d(psi)/d(Ip) gradient
+- 20 JAX GS tests
+- `examples/quickstart.py` — 30-second Python demo
+
+### Changed
+- TokamakEnv reward shaping (survival bonus, progress, Ng et al. 1999)
+- JOSS paper updated to v0.13.0 metrics
+- Competitive analysis: equilibrium autodiff depth RESOLVED (5/6 gaps closed)
+
 ## [0.12.0] — 2026-03-10
 
 ### Added

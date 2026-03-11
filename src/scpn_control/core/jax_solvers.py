@@ -24,6 +24,8 @@ arrays otherwise. GPU execution is automatic when jaxlib has CUDA/ROCm.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 try:
@@ -138,14 +140,18 @@ if _HAS_JAX:
             return (cp_i, dp_i), (cp_i, dp_i)
 
         init = (jnp.float64(0.0), jnp.float64(0.0))
-        _, (cp_all, dp_all) = lax.scan(fwd_step, init, jnp.arange(n))
+        scan_result: Any = lax.scan(fwd_step, init, jnp.arange(n))
+        _, stacked = scan_result
+        cp_all: jnp.ndarray = stacked[0]
+        dp_all: jnp.ndarray = stacked[1]
 
         # Back substitution
         def bwd_step(x_next: jnp.ndarray, i: jnp.ndarray) -> tuple:
             x_i = dp_all[i] - cp_all[i] * x_next
             return x_i, x_i
 
-        _, x_rev = lax.scan(bwd_step, dp_all[-1], jnp.arange(n - 2, -1, -1))
+        bwd_result: Any = lax.scan(bwd_step, dp_all[-1], jnp.arange(n - 2, -1, -1))
+        _, x_rev = bwd_result
         x = jnp.concatenate([jnp.flip(x_rev), dp_all[-1:]])
         return x
 
@@ -228,7 +234,8 @@ if _HAS_JAX:
         # Boundary conditions: Neumann at core, Dirichlet at edge
         T_new = T_new.at[0].set(T_new[1])
         T_new = T_new.at[-1].set(T_edge)
-        return T_new
+        result: jnp.ndarray = T_new
+        return result
 
 
 # ── Public API ────────────────────────────────────────────────────
@@ -381,6 +388,7 @@ def batched_crank_nicolson(
 
     @jax.vmap
     def step(T_single: jnp.ndarray) -> jnp.ndarray:
-        return _cn_step_jax(T_single, chi_j, source_j, rho_j, float(drho), float(dt), float(T_edge))
+        result: jnp.ndarray = _cn_step_jax(T_single, chi_j, source_j, rho_j, float(drho), float(dt), float(T_edge))
+        return result
 
     return np.asarray(step(jnp.asarray(T_batch, dtype=jnp.float64)))
