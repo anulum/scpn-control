@@ -116,7 +116,12 @@ class TokamakEnv:
         T_ax += self.dt * (50.0 * P_aux_delta - 3.0 * (T_ax - T_edge))
         T_edge += self.dt * (0.5 * (T_ax - T_edge) - 1.0 * T_edge)
         Ip += Ip_delta * self.dt * 10.0
-        beta_N: float = 0.02 * T_ax * np.sqrt(max(Ip, 0.1)) / max(abs(Ip), 0.1)
+        # beta_N = beta_t * a * B_T / Ip (Troyon, Phys. Rev. Lett. 53, 1984)
+        # ITER: a=2m, B_T=5.3T. With beta_t ~ n*T/(B²/2mu0), simplified:
+        # beta_N ≈ c * <T> / Ip where c absorbs geometry. Calibrated so
+        # beta_N ≈ 1.8 at T_ax=10 keV, Ip=15 MA (ITER baseline).
+        _BETA_N_COEFF = 0.27  # [%-m-T/MA], ITER calibration
+        beta_N: float = _BETA_N_COEFF * T_ax / max(abs(Ip), 0.1)
         # q95 ≈ 5 a² κ B_T / (R Ip); ITER: a=2m, κ=1.7, B_T=5.3T, R=6.2m
         # Wesson Ch.3 Eq.3.51, with elongation correction: q* → q_cyl * (1+κ²)/2
         # Calibrated to q95 ≈ 3.0 at Ip=15 MA (ITER reference scenario)

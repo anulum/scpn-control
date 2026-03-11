@@ -344,8 +344,11 @@ class FusionKernel:
         R_int = self.RR[1:-1, 1:-1]
         R_safe = np.maximum(R_int, 1e-10)
 
-        a_E = 1.0 / dR2 + 1.0 / (2.0 * R_safe * self.dR)
-        a_W = 1.0 / dR2 - 1.0 / (2.0 * R_safe * self.dR)
+        # GS* operator: ∂²ψ/∂R² − (1/R)∂ψ/∂R + ∂²ψ/∂Z²
+        # East (R+dR) coefficient: 1/dR² − 1/(2R·dR)
+        # West (R−dR) coefficient: 1/dR² + 1/(2R·dR)
+        a_E = 1.0 / dR2 - 1.0 / (2.0 * R_safe * self.dR)
+        a_W = 1.0 / dR2 + 1.0 / (2.0 * R_safe * self.dR)
         a_NS = 1.0 / dZ2
         a_C = 2.0 / dR2 + 2.0 / dZ2
 
@@ -392,8 +395,9 @@ class FusionKernel:
         # Toroidal stencil coefficients (arrays over interior grid)
         R_int = self.RR[1:-1, 1:-1]
         R_safe = np.maximum(R_int, 1e-10)
-        a_E = 1.0 / dR2 + 1.0 / (2.0 * R_safe * self.dR)  # (NZ-2, NR-2)
-        a_W = 1.0 / dR2 - 1.0 / (2.0 * R_safe * self.dR)  # (NZ-2, NR-2)
+        # GS* east/west coefficients (matches Rust sor.rs)
+        a_E = 1.0 / dR2 - 1.0 / (2.0 * R_safe * self.dR)  # (NZ-2, NR-2)
+        a_W = 1.0 / dR2 + 1.0 / (2.0 * R_safe * self.dR)  # (NZ-2, NR-2)
         a_NS = 1.0 / dZ2  # scalar — same for north and south
         a_C = 2.0 / dR2 + 2.0 / dZ2  # scalar
 
@@ -524,8 +528,9 @@ class FusionKernel:
 
         R_int = R_grid[1:-1, 1:-1]
         R_safe = np.maximum(R_int, 1e-10)
-        a_E = 1.0 / dR2 + 1.0 / (2.0 * R_safe * dR)
-        a_W = 1.0 / dR2 - 1.0 / (2.0 * R_safe * dR)
+        # GS* east/west coefficients (matches Rust sor.rs)
+        a_E = 1.0 / dR2 - 1.0 / (2.0 * R_safe * dR)
+        a_W = 1.0 / dR2 + 1.0 / (2.0 * R_safe * dR)
         a_NS = 1.0 / dZ2
         a_C = 2.0 / dR2 + 2.0 / dZ2
 

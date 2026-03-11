@@ -1,10 +1,18 @@
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Fusion Sota MPC
+# SCPN Control — Gradient-Based Trajectory MPC
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
+"""Gradient-based trajectory optimizer over a linearized surrogate.
+
+Not a full MPC in the Rawlings-Mayne sense: no terminal cost, no
+explicit state constraints, no convergence guarantee. The surrogate
+is a finite-difference Jacobian linearization of the equilibrium
+solver, not a neural network despite the class name.
+"""
+
 from __future__ import annotations
 
 import time

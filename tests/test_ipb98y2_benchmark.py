@@ -327,7 +327,7 @@ class TestITPABenchmark:
             )
 
         # Hard failure only if something is fundamentally broken
-        assert rmse_pct < 200.0, f"RMSE = {rmse_pct:.1f}% — formula broken"
+        assert rmse_pct < 80.0, f"RMSE = {rmse_pct:.1f}% — scaling law implementation broken"
 
     def test_h_factor_near_unity_for_reference(self):
         """ITER design point should have H98 ≈ 1.0."""

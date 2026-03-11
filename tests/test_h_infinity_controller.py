@@ -194,8 +194,8 @@ class TestRiccatiResiduals:
         res_x, res_y = ctrl.riccati_residual_norms()
         # X Riccati residual should be very small (direct ARE solution)
         assert res_x < 1e-3, f"X residual {res_x} exceeds tolerance"
-        # Y Riccati may have slightly larger residual but should still be small
-        assert res_y < 1.0, f"Y residual {res_y} exceeds tolerance"
+        # Y Riccati (observer ARE) must also be well-solved
+        assert res_y < 0.01, f"Y residual {res_y} exceeds tolerance"
 
     def test_riccati_residuals_finite(self) -> None:
         """Residual norms should be finite."""

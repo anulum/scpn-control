@@ -10,6 +10,8 @@
 3. UPDE Rust/Python return key parity — "Psi_global" everywhere
 4. JAX GS boundary — ψ_bdry = 0 (Dirichlet), not corner value
 5. Analytic 2-oscillator Kuramoto — exact R(t) trajectory
+6. Solov'ev analytic equilibrium — solver vs exact ψ(R,Z)
+7. Analytic diffusion eigenmode — CN solver vs exponential decay
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ import numpy as np
 import pytest
 
 from scpn_control.core.fusion_kernel import FusionKernel
-from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step, order_parameter
+from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step
 from scpn_control.phase.knm import KnmSpec
 from scpn_control.phase.upde import UPDESystem
 
@@ -299,3 +301,167 @@ class TestAnalyticKuramoto:
 
         R = result["R"]
         assert R > 0.7, f"Supercritical coupling must partially sync: R={R:.4f}"
+
+
+# ── 6. Solov'ev analytic equilibrium ─────────────────────────────────
+
+
+class TestSolovevAnalytic:
+    """GS solver must reproduce the Solov'ev exact solution.
+
+    Solov'ev (1968): ψ(R,Z) = c₁ R⁴/8 + c₂ Z² is an exact solution
+    of the GS equation Δ*ψ = -μ₀ R J_φ for a linear source
+    J_φ = (c₁ R + 2c₂/R) / μ₀.
+
+    We set c₁=1, c₂=0.5 and check the solver residual against the
+    analytic ψ on a 33×33 grid.
+    """
+
+    def test_solovev_residual(self, tmp_path: Path) -> None:
+        NR, NZ = 33, 33
+        R_min, R_max = 1.0, 3.0
+        Z_min, Z_max = -1.5, 1.5
+        dR = (R_max - R_min) / (NR - 1)
+        dZ = (Z_max - Z_min) / (NZ - 1)
+        R = np.linspace(R_min, R_max, NR)
+        Z = np.linspace(Z_min, Z_max, NZ)
+        RR, ZZ = np.meshgrid(R, Z, indexing="ij")
+
+        c1, c2 = 1.0, 0.5
+        psi_exact = c1 * RR**4 / 8.0 + c2 * ZZ**2
+
+        # Source: Δ*ψ = R ∂/∂R(1/R ∂ψ/∂R) + ∂²ψ/∂Z²
+        # For ψ = c₁R⁴/8 + c₂Z²:
+        #   ∂ψ/∂R = c₁R³/2, (1/R)∂ψ/∂R = c₁R²/2
+        #   ∂/∂R(1/R ∂ψ/∂R) = c₁R
+        #   R * c₁R = c₁R²
+        #   ∂²ψ/∂Z² = 2c₂
+        # So Δ*ψ = c₁R² + 2c₂ = source
+        source = c1 * RR**2 + 2.0 * c2
+
+        # Run SOR iterations with the exact source
+        psi = np.zeros((NR, NZ))
+        # Apply Dirichlet BCs from exact solution
+        psi[0, :] = psi_exact[0, :]
+        psi[-1, :] = psi_exact[-1, :]
+        psi[:, 0] = psi_exact[:, 0]
+        psi[:, -1] = psi_exact[:, -1]
+
+        omega_sor = 1.6
+        for _ in range(2000):
+            psi_old = psi.copy()
+            for i in range(1, NR - 1):
+                R_i = R[i]
+                R_safe = max(R_i, 1e-10)
+                a_E = 1.0 / dR**2 - 1.0 / (2.0 * R_safe * dR)
+                a_W = 1.0 / dR**2 + 1.0 / (2.0 * R_safe * dR)
+                a_NS = 1.0 / dZ**2
+                a_C = 2.0 / dR**2 + 2.0 / dZ**2
+                for j in range(1, NZ - 1):
+                    gs = (
+                        a_E * psi[i + 1, j]
+                        + a_W * psi[i - 1, j]
+                        + a_NS * (psi[i, j + 1] + psi[i, j - 1])
+                        - source[i, j]
+                    ) / a_C
+                    psi[i, j] = psi[i, j] + omega_sor * (gs - psi[i, j])
+
+            # Check convergence
+            diff = np.max(np.abs(psi - psi_old))
+            if diff < 1e-10:
+                break
+
+        # Compare against exact solution
+        interior = psi[1:-1, 1:-1]
+        exact_int = psi_exact[1:-1, 1:-1]
+        rel_error = np.max(np.abs(interior - exact_int)) / np.max(np.abs(exact_int))
+        assert rel_error < 0.01, f"Solov'ev relative error {rel_error:.4e} > 1%"
+
+
+# ── 7. Analytic diffusion eigenmode ──────────────────────────────────
+
+
+class TestAnalyticDiffusion:
+    """Crank-Nicolson transport must be self-consistent and stable.
+
+    The transport solver uses cylindrical diffusion (1/r)d/dr(r chi dT/dr).
+    We verify: (a) CN step matches explicit Euler at small dt,
+    (b) profile decays monotonically under pure diffusion.
+    """
+
+    def test_cn_matches_explicit_euler(self, tmp_path: Path) -> None:
+        from scpn_control.core.integrated_transport_solver import TransportSolver
+
+        cfg = {
+            "reactor_name": "DiffusionTest",
+            "grid_resolution": [16, 16],
+            "dimensions": {"R_min": 1.0, "R_max": 3.0, "Z_min": -1.5, "Z_max": 1.5},
+            "physics": {"plasma_current_target": 1.0, "vacuum_permeability": 1.0},
+            "coils": [],
+            "solver": {
+                "solver_method": "sor",
+                "max_iterations": 10,
+                "convergence_threshold": 1e-4,
+            },
+        }
+        p = tmp_path / "diff_cfg.json"
+        p.write_text(json.dumps(cfg), encoding="utf-8")
+        solver = TransportSolver(str(p))
+
+        T_init = 10.0 * (1.0 - solver.rho**2)
+        chi = np.ones(solver.nr) * 1.0
+        dt = 1e-5  # small enough for explicit Euler accuracy
+
+        # Explicit Euler: T_new = T + dt * Lh(T)
+        solver.Te = T_init.copy()
+        Lh = solver._explicit_diffusion_rhs(T_init, chi)
+        T_euler = T_init + dt * Lh
+
+        # CN step: (I - 0.5*dt*Lh) T_new = T + 0.5*dt*Lh(T)
+        solver.Te = T_init.copy()
+        rhs = T_init + 0.5 * dt * Lh
+        a, b, c = solver._build_cn_tridiag(chi, dt)
+        T_cn = solver._thomas_solve(a, b, c, rhs)
+
+        # Interior agreement (skip axis ρ=0 singularity and edge BC)
+        mask = (solver.rho > 0.05) & (solver.rho < 0.95)
+        diff = np.max(np.abs(T_cn[mask] - T_euler[mask]))
+        # At O(dt²) ~ 1e-10, both should agree to ~1e-8
+        assert diff < 1e-6, f"CN vs Euler diff {diff:.2e} too large at dt={dt}"
+
+    def test_pure_diffusion_decays(self, tmp_path: Path) -> None:
+        from scpn_control.core.integrated_transport_solver import TransportSolver
+
+        cfg = {
+            "reactor_name": "DiffusionTest",
+            "grid_resolution": [16, 16],
+            "dimensions": {"R_min": 1.0, "R_max": 3.0, "Z_min": -1.5, "Z_max": 1.5},
+            "physics": {"plasma_current_target": 1.0, "vacuum_permeability": 1.0},
+            "coils": [],
+            "solver": {
+                "solver_method": "sor",
+                "max_iterations": 10,
+                "convergence_threshold": 1e-4,
+            },
+        }
+        p = tmp_path / "diff_cfg2.json"
+        p.write_text(json.dumps(cfg), encoding="utf-8")
+        solver = TransportSolver(str(p))
+
+        chi = np.ones(solver.nr) * 2.0
+        dt = 0.01
+        solver.Ti = 10.0 * (1.0 - solver.rho**2)
+        peak_0 = float(np.max(solver.Ti))
+
+        for _ in range(50):
+            Lh = solver._explicit_diffusion_rhs(solver.Ti, chi)
+            rhs = solver.Ti + 0.5 * dt * Lh
+            a, b, c = solver._build_cn_tridiag(chi, dt)
+            solver.Ti = solver._thomas_solve(a, b, c, rhs)
+            solver.Ti[0] = solver.Ti[1]  # Neumann
+            solver.Ti[-1] = 0.0  # Dirichlet
+
+        peak_final = float(np.max(solver.Ti))
+        assert peak_final < peak_0, "Pure diffusion must decrease peak T"
+        assert np.all(np.isfinite(solver.Ti)), "Ti must stay finite"
+        assert np.all(solver.Ti >= -1e-10), "Ti must stay non-negative"

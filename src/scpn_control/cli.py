@@ -198,7 +198,7 @@ def benchmark(n_bench: int, json_out: bool) -> None:
 @main.command()
 @click.option("--json-out", is_flag=True, help="Emit JSON")
 def validate(json_out: bool) -> None:
-    """Run RMSE validation dashboard."""
+    """Quick import and contamination check."""
     try:
         from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
 
@@ -225,6 +225,25 @@ def validate(json_out: bool) -> None:
         click.echo(f"Transport solver: {'OK' if has_transport else 'MISSING'}")
         click.echo(f"Import clean: {'OK' if result['import_clean'] else 'FAIL'}")
         click.echo(f"Status: {result['status']}")
+
+
+@main.command("validate-rmse")
+@click.option("--json-out", is_flag=True, help="Print JSON report to stdout")
+@click.option("--output-json", default="artifacts/rmse_report.json", help="JSON path")
+@click.option("--output-md", default="artifacts/rmse_report.md", help="Markdown path")
+def validate_rmse(json_out: bool, output_json: str, output_md: str) -> None:
+    """Run full RMSE validation dashboard against reference data."""
+    from validation.rmse_dashboard import main as rmse_main
+
+    sys.argv = ["rmse_dashboard", "--output-json", output_json, "--output-md", output_md]
+    exit_code = rmse_main()
+    if json_out:
+        from pathlib import Path as _P
+
+        p = _P(output_json)
+        if p.exists():
+            click.echo(p.read_text(encoding="utf-8"))
+    sys.exit(exit_code or 0)
 
 
 @main.command()

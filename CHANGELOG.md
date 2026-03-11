@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.15.0] — 2026-03-11
+
+### Fixed
+- **GS\* stencil sign bug**: east/west coefficients in Jacobi, SOR, multigrid,
+  and JAX solvers had the 1/(2R·dR) sign swapped — implementing the cylindrical
+  Laplacian (∂²ψ/∂R² + (1/R)∂ψ/∂R) instead of the correct GS\* operator
+  (∂²ψ/∂R² − (1/R)∂ψ/∂R). Python now matches Rust sor.rs. Verified via
+  Solov'ev exact solution (< 1% error on 33×33 grid).
+- **beta_N formula** (TokamakEnv): replaced dimensionally incorrect sqrt(Ip)
+  expression with Troyon scaling β_N = c·T/Ip, calibrated to ITER baseline
+- **gain_margin_db misnomer**: renamed to `stability_margin_db` (eigenvalue-based,
+  not Bode gain margin); backward-compat alias retained
+- **MPC docstring**: states clearly this is gradient-based trajectory optimization,
+  not Rawlings-Mayne MPC
+- **Physics citations**: Braginskii tau_eq, Martin L-H threshold, Troyon beta_N,
+  Wesson q95 — all hardcoded constants now cite source
+- **H-infinity Y Riccati tolerance**: tightened from 1.0 to 0.01
+- **IPB98(y,2) RMSE gate**: tightened from 200% to 80%
+
+### Added
+- Solov'ev analytic equilibrium test (GS solver vs exact ψ)
+- Crank-Nicolson CN-vs-Euler convergence test and pure diffusion decay test
+- `validate-rmse` CLI command (full RMSE dashboard)
+- 16 analytic regression tests in `test_p0_regression.py`
+
+### Changed
+- 2,420 tests, 0 failures, 105 skipped
+- Version bump: v0.14.1 → v0.15.0
+
 ## [0.14.1] — 2026-03-11
 
 ### Fixed

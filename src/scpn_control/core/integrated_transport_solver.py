@@ -536,6 +536,9 @@ class TransportSolver(FusionKernel):
         chi_turb = C_TURB * np.maximum(0, -grad_T - threshold)
 
         # H-Mode detection and EPED-like pedestal model
+        # Simplified L-H threshold proxy. Real codes use Martin et al.,
+        # J. Phys.: Conf. Ser. 123, 012033 (2008) P_LH scaling with n_e, B_t, S.
+        # 30 MW is approximate for ITER-class devices at n_e ~ 1e20 m^-3.
         is_H_mode = P_aux > 30.0  # MW
 
         if is_H_mode and self.neoclassical_params is not None:
@@ -1054,9 +1057,11 @@ class TransportSolver(FusionKernel):
             S_rad_e = P_rad_line_Wm3 / (ne_safe_e * e_keV_J) * 0.5
 
             # Electron-ion coupling (collisional equilibration)
-            # nu_ei_eq ~ n_e * Z^2 * ln_lambda / (T_e^1.5 * m_i)
-            # Simplified: S_eq = (Ti - Te) / tau_eq, tau_eq ~ 0.1 s for ITER
-            tau_eq = 0.1  # s
+            # Braginskii, Reviews of Plasma Physics 1, 205 (1965):
+            # tau_eq ~ 0.2 * (T_e[keV])^1.5 / (n_e[1e19] * Z^2 * ln_Lambda)
+            # For n_e=1e20, T_e=10 keV, Z=1, ln_Lambda=17: tau_eq ~ 0.37 s
+            # Constant 0.1 s is order-of-magnitude for T_e ~ 5 keV, n_e ~ 5e19
+            tau_eq = 0.1  # s, Braginskii collisional equilibration time
             S_equil = (self.Ti - Te_old) / tau_eq
 
             net_source_e = S_heat_e - S_rad_e - S_brem_e + S_equil

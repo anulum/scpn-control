@@ -367,8 +367,13 @@ class HInfinityController:
         return bool(np.all(np.real(eigs) < 0))
 
     @property
-    def gain_margin_db(self) -> float:
-        """Gain margin in dB for the continuous closed-loop system."""
+    def stability_margin_db(self) -> float:
+        """Eigenvalue-based stability margin in dB.
+
+        This is NOT the classical Bode gain margin. It measures the ratio
+        of closed-loop to open-loop dominant eigenvalue real parts. For
+        the standard frequency-domain gain margin, use a Bode analysis.
+        """
         A_cl = self.A + self.B2 @ self.F
         eigs = np.linalg.eigvals(A_cl)
         real_parts = np.real(eigs)
@@ -381,6 +386,11 @@ class HInfinityController:
             return float("inf")
         margin_ratio = -max_cl_real / max_ol_real
         return float(20.0 * np.log10(1.0 + margin_ratio))
+
+    @property
+    def gain_margin_db(self) -> float:
+        """Alias for stability_margin_db (backward compatibility)."""
+        return self.stability_margin_db
 
 
 def get_flight_sim_controller(

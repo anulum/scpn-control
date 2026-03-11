@@ -63,8 +63,9 @@ def _jacobi_gs_step_np(
     dR2 = dR * dR
     dZ2 = dZ * dZ
     R_safe = np.maximum(R_interior, 1e-10)
-    a_E = 1.0 / dR2 + 1.0 / (2.0 * R_safe * dR)
-    a_W = 1.0 / dR2 - 1.0 / (2.0 * R_safe * dR)
+    # GS* east/west: a_E = 1/dR² − 1/(2R·dR), a_W = 1/dR² + 1/(2R·dR)
+    a_E = 1.0 / dR2 - 1.0 / (2.0 * R_safe * dR)
+    a_W = 1.0 / dR2 + 1.0 / (2.0 * R_safe * dR)
     a_NS = 1.0 / dZ2
     a_C = 2.0 / dR2 + 2.0 / dZ2
 
@@ -177,8 +178,8 @@ if _HAS_JAX:
         R_safe = jnp.maximum(R_int, 1e-10)
         dR2 = dR * dR
         dZ2 = dZ * dZ
-        a_E = 1.0 / dR2 + 1.0 / (2.0 * R_safe * dR)
-        a_W = 1.0 / dR2 - 1.0 / (2.0 * R_safe * dR)
+        a_E = 1.0 / dR2 - 1.0 / (2.0 * R_safe * dR)
+        a_W = 1.0 / dR2 + 1.0 / (2.0 * R_safe * dR)
         a_NS = 1.0 / dZ2
         a_C = 2.0 / dR2 + 2.0 / dZ2
         return a_E, a_W, a_NS, a_C
