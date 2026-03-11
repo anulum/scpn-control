@@ -88,7 +88,7 @@ def _compute_source_np(
 ) -> NDArray:
     """Compute GS RHS = -μ₀ R J_φ from L-mode profiles (NumPy)."""
     psi_axis = np.max(psi[1:-1, 1:-1])
-    psi_bdry = psi[0, 0]
+    psi_bdry = 0.0  # Dirichlet ψ=0 on boundary
     denom = psi_bdry - psi_axis
     if abs(denom) < 1e-9:
         denom = np.sign(denom) * 1e-9 if denom != 0 else 1e-9
@@ -210,7 +210,7 @@ if _HAS_JAX:
     ) -> jnp.ndarray:
         """Compute GS RHS = -μ₀ R J_φ from L-mode linear profiles (JAX)."""
         psi_axis = jnp.max(psi[1:-1, 1:-1])
-        psi_bdry = psi[0, 0]
+        psi_bdry = 0.0  # Dirichlet ψ=0 on boundary
         denom = psi_bdry - psi_axis
         denom = jnp.where(jnp.abs(denom) < 1e-9, 1e-9, denom)
 

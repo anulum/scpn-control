@@ -418,8 +418,10 @@ class TransportSolver(FusionKernel):
         """
         # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eq. 13 (simplified)
         dims = self.cfg["dimensions"]
-        delta_a = dims["R_max"] - dims["R_min"]
-        f_trapped = 1.46 * np.sqrt(self.rho * delta_a / (2 * R0))
+        R0 = 0.5 * (dims["R_max"] + dims["R_min"]) if R0 == 0.0 else R0
+        neo = self.neoclassical_params or {}
+        a = neo.get("a", 0.5 * (dims["R_max"] - dims["R_min"]))
+        f_trapped = 1.46 * np.sqrt(self.rho * a / (2 * R0))
 
         P = self.ne * 1e19 * (self.Ti + self.Te) * 1.602e-16  # J/m3
         dP_drho = np.gradient(P, self.drho)
@@ -428,7 +430,7 @@ class TransportSolver(FusionKernel):
         # Factor 1.2: Z_eff≈1.5 correction (Hirshman & Sigmar, NF 21, 1079, 1981)
         B_pol = np.maximum(B_pol, 0.1)
         BOOTSTRAP_ZEFF_CORRECTION = 1.2
-        J_bs = BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol) * dP_drho / delta_a
+        J_bs = BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol) * dP_drho / a
 
         J_bs[0] = 0
         J_bs[-1] = 0

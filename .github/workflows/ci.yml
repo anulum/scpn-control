@@ -103,6 +103,28 @@ jobs:
           name: executed-notebooks
           path: artifacts/notebook-exec/
 
+  # ─── Job 2b: Tutorial script smoke tests ───
+  tutorial-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[viz]"
+      - name: Run tutorial 01 (closed-loop control)
+        run: PYTHONIOENCODING=utf-8 python examples/tutorial_01_closed_loop_control.py
+        timeout-minutes: 5
+      - name: Run tutorial 04 (neural transport)
+        run: PYTHONIOENCODING=utf-8 python examples/tutorial_04_neural_transport.py
+        timeout-minutes: 5
+      - name: Run tutorial 05 (phase dynamics)
+        run: PYTHONIOENCODING=utf-8 python examples/tutorial_05_adaptive_phase_dynamics.py
+        timeout-minutes: 5
+
   # ─── Job 3: Package quality gate ───
   package-quality:
     runs-on: ubuntu-latest

@@ -14,10 +14,11 @@ inference speeds.  When no trained weights are available the module
 falls back to an analytic critical-gradient model, so existing code
 keeps working without any neural network dependency.
 
-The architecture follows the QLKNN paradigm (van de Plassche et al.,
-*Phys. Plasmas* 27, 022310, 2020): a small MLP maps local plasma
-parameters to turbulent fluxes (heat, particle) across ITG/TEM/ETG
-channels.
+Inspired by the QLKNN paradigm (van de Plassche et al.,
+*Phys. Plasmas* 27, 022310, 2020).  The current implementation is a
+compact MLP (10→128→64→3) that maps local plasma parameters to
+turbulent fluxes; it does not replicate the full QLKNN-10D
+multi-branch architecture.
 
 Training data
 -------------

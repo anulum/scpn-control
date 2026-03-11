@@ -180,7 +180,7 @@ class FusionKernel:
 
         for coil in self.cfg["coils"]:
             Rc, Zc = coil["r"], coil["z"]
-            I_coil = coil["current"]
+            I_coil = coil["current"] * coil.get("turns", 1)
 
             dZ = self.ZZ - Zc
             R_plus_Rc_sq = (self.RR + Rc) ** 2
@@ -333,24 +333,25 @@ class FusionKernel:
     # ── elliptic sub-solvers ──────────────────────────────────────────
 
     def _jacobi_step(self, Psi: FloatArray, Source: FloatArray) -> FloatArray:
-        """Perform one Jacobi iteration on the interior grid points.
+        """Perform one Jacobi iteration with toroidal 1/R stencil.
 
-        Parameters
-        ----------
-        Psi : FloatArray
-            Current flux estimate.
-        Source : FloatArray
-            Right-hand-side source term ``-mu0 R J_phi``.
-
-        Returns
-        -------
-        FloatArray
-            Updated flux array (boundaries unchanged).
+        Solves the GS* operator ∂²ψ/∂R² - (1/R)∂ψ/∂R + ∂²ψ/∂Z² = Source
+        using the same cylindrical coefficients as ``_sor_step``.
         """
         Psi_new = Psi.copy()
-        Psi_new[1:-1, 1:-1] = 0.25 * (
-            Psi[0:-2, 1:-1] + Psi[2:, 1:-1] + Psi[1:-1, 0:-2] + Psi[1:-1, 2:] - (self.dR**2) * Source[1:-1, 1:-1]
-        )
+        dR2 = self.dR**2
+        dZ2 = self.dZ**2
+        R_int = self.RR[1:-1, 1:-1]
+        R_safe = np.maximum(R_int, 1e-10)
+
+        a_E = 1.0 / dR2 + 1.0 / (2.0 * R_safe * self.dR)
+        a_W = 1.0 / dR2 - 1.0 / (2.0 * R_safe * self.dR)
+        a_NS = 1.0 / dZ2
+        a_C = 2.0 / dR2 + 2.0 / dZ2
+
+        Psi_new[1:-1, 1:-1] = (
+            a_E * Psi[1:-1, 2:] + a_W * Psi[1:-1, 0:-2] + a_NS * (Psi[0:-2, 1:-1] + Psi[2:, 1:-1]) - Source[1:-1, 1:-1]
+        ) / a_C
         return Psi_new
 
     def _sor_step(
@@ -1389,13 +1390,12 @@ class FusionKernel:
             return 0.0
         k2 = 4.0 * R_obs * R_src / denom
         k2 = np.clip(k2, 1e-9, 0.999999)
-        k = np.sqrt(k2)
         from scipy.special import ellipe, ellipk
 
         K_val = ellipk(k2)
         E_val = ellipe(k2)
         prefactor = mu0 / (2.0 * np.pi) * np.sqrt(R_obs * R_src)
-        psi = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / k
+        psi = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / k2
         return float(psi)
 
     def _compute_external_flux(self, coils: Any) -> np.ndarray:

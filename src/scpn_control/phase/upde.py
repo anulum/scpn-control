@@ -139,7 +139,7 @@ class UPDESystem:
                     "R_layer": np.asarray(res.r_layer),
                     "Psi_layer": np.asarray(res.v_layer),  # Rust v_layer is psi_layer
                     "R_global": res.r_global,
-                    "Psi": Psi_global,
+                    "Psi_global": Psi_global,
                     "V_layer": np.array([lyapunov_v(theta1_rust[m], Psi_global) for m in range(L)]),
                     "V_global": lyapunov_v(theta1_flat, Psi_global),
                 }

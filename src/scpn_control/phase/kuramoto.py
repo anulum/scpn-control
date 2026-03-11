@@ -89,9 +89,8 @@ class GlobalPsiDriver:
 def lyapunov_v(theta: FloatArray, psi: float) -> float:
     """Lyapunov candidate V(t) = (1/N) Σ (1 − cos(θ_i − Ψ)).
 
-    V=0 at perfect sync (all θ_i = Ψ), V→2 at maximal desync.
-    Scaling by 0.5 yields V ∈ [0, 1] (standard SCPN normalization).
-    Mirror of control-math/kuramoto.rs::lyapunov_v.
+    V=0 at perfect sync (all θ_i = Ψ), V=2 at maximal desync.
+    Range: [0, 2].  Mirror of control-math/kuramoto.rs::lyapunov_v.
     """
     th = np.asarray(theta, dtype=np.float64).ravel()
     if th.size == 0:
