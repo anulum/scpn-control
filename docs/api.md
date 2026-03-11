@@ -245,7 +245,9 @@ the identified coil-response map loses authority entirely, the controller marks
 that degraded state explicitly and drops into the safe-state recovery path
 instead of silently accepting a zero-action step. Residuals already inside the
 configured tolerances are also treated as deadband, so the controller stops
-chattering the coils once the protected objectives are met.
+chattering the coils once the protected objectives are met. Coil allocation is
+also headroom-aware, so the regularized solve prefers actuators that still have
+current authority instead of leaning equally on a nearly saturated coil.
 
 ```python
 from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking

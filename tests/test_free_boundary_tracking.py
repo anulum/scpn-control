@@ -464,6 +464,75 @@ class _WithinToleranceKernel:
         return float(self._state[0])
 
 
+class _HeadroomAllocationKernel:
+    """Plant where two coils are equally effective but one starts near its current limit."""
+
+    def __init__(self, _config_file: str) -> None:
+        self._boundary_points = np.array([[3.8, 0.0]], dtype=np.float64)
+        self._target_vector = np.array([0.0], dtype=np.float64)
+        self._nominal_currents = np.array([9.8, 0.0], dtype=np.float64)
+        self._response_matrix = np.array([[1.0, 1.0]], dtype=np.float64)
+        self._bias = np.array([0.4], dtype=np.float64)
+        self.cfg = {
+            "coils": [
+                {"name": "PF1", "current": float(self._nominal_currents[0])},
+                {"name": "PF2", "current": float(self._nominal_currents[1])},
+            ],
+        }
+        self.R = np.linspace(3.0, 5.0, 6)
+        self.Z = np.linspace(-2.0, 1.0, 6)
+        self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = np.zeros((len(self.Z), len(self.R)), dtype=np.float64)
+        self._state = self._target_vector + self._bias
+        self.solve()
+
+    def build_coilset_from_config(self) -> CoilSet:
+        return CoilSet(
+            positions=[(3.2, 2.0), (4.8, -2.0)],
+            currents=self._nominal_currents.copy(),
+            turns=[12, 12],
+            current_limits=np.array([10.0, 10.0], dtype=np.float64),
+            target_flux_points=self._boundary_points.copy(),
+            target_flux_values=self._target_vector.copy(),
+        )
+
+    def solve(
+        self,
+        *,
+        boundary_variant: str | None = None,
+        coils: CoilSet | None = None,
+        max_outer_iter: int = 20,
+        tol: float = 1e-4,
+        optimize_shape: bool = False,
+        tikhonov_alpha: float = 1e-4,
+    ) -> dict[str, float | bool | str]:
+        del boundary_variant, max_outer_iter, tol, optimize_shape, tikhonov_alpha
+        active_coils = coils if coils is not None else self.build_coilset_from_config()
+        currents = np.asarray(active_coils.currents, dtype=np.float64).reshape(-1)
+        delta_currents = currents - self._nominal_currents
+        self._state = self._target_vector + self._bias + self._response_matrix @ delta_currents
+        self.Psi.fill(0.0)
+        return {
+            "boundary_variant": "free_boundary",
+            "converged": True,
+            "outer_iterations": 1,
+            "final_diff": float(np.linalg.norm(self._response_matrix @ delta_currents)),
+        }
+
+    def _sample_flux_at_points(self, points: np.ndarray) -> np.ndarray:
+        pts = np.asarray(points, dtype=np.float64)
+        if pts.shape == self._boundary_points.shape and np.allclose(pts, self._boundary_points):
+            return self._state.copy()
+        raise ValueError("Unexpected probe points for headroom-allocation kernel.")
+
+    def find_x_point(self, _psi: np.ndarray) -> tuple[tuple[float, float], float]:
+        return (4.2, -1.4), 0.0
+
+    def _interp_psi(self, r_pt: float, z_pt: float) -> float:
+        del r_pt, z_pt
+        return float(self._state[0])
+
+
 def _write_real_kernel_tracking_config(path: Path) -> Path:
     cfg = {
         "reactor_name": "Real-Free-Boundary-Tracking-Test",
@@ -827,6 +896,28 @@ def test_controller_uses_tolerance_deadband_to_avoid_chatter() -> None:
     assert summary["max_abs_coil_current"] == pytest.approx(0.0)
     assert summary["final_active_control_rows"] == 0
     assert controller.history["active_control_rows"] == [0]
+
+
+def test_controller_prefers_coils_with_remaining_headroom() -> None:
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_HeadroomAllocationKernel,
+        verbose=False,
+        response_regularization=0.5,
+    )
+    initial_currents = controller.coils.currents.copy()
+
+    summary = controller.run_tracking_shot(
+        shot_steps=1,
+        gain=1.0,
+        stop_on_convergence=False,
+    )
+    delta_currents = controller.coils.currents - initial_currents
+
+    assert delta_currents.shape == (2,)
+    assert abs(delta_currents[0]) > abs(delta_currents[1])
+    assert summary["max_coil_penalty"] > 1.0
+    assert summary["max_abs_coil_current"] <= 10.0 + 1e-9
 
 
 def test_run_free_boundary_tracking_with_real_kernel_smoke(tmp_path: Path) -> None:

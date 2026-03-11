@@ -186,6 +186,7 @@ class FreeBoundaryTrackingController:
         self.response_condition_number = float("inf")
         self.response_max_singular_value = 0.0
         self.response_degenerate = True
+        self.last_coil_penalties = np.ones(self.n_coils, dtype=np.float64)
         self.history: dict[str, list[Any]] = {
             "t": [],
             "tracking_error_norm": [],
@@ -208,6 +209,7 @@ class FreeBoundaryTrackingController:
             "response_max_singular_value": [],
             "response_degenerate": [],
             "active_control_rows": [],
+            "max_coil_penalty": [],
             "supervisor_intervened": [],
             "supervisor_safe": [],
             "supervisor_hold_steps_remaining": [],
@@ -649,6 +651,32 @@ class FreeBoundaryTrackingController:
                 mask[block.start : block.stop] = 0.0
         return cast(FloatArray, mask)
 
+    def _build_coil_penalties(self, delta_hint: FloatArray) -> FloatArray:
+        headrooms = np.ones(self.n_coils, dtype=np.float64)
+        penalties = np.ones(self.n_coils, dtype=np.float64)
+        for idx in range(self.n_coils):
+            limit = float(self.coil_current_limits[idx])
+            if not np.isfinite(limit) or limit <= 0.0:
+                headrooms[idx] = np.inf
+                continue
+            current = float(self.coils.currents[idx])
+            direction = float(delta_hint[idx]) if idx < delta_hint.size else 0.0
+            if direction > 1.0e-12:
+                headroom = limit - current
+            elif direction < -1.0e-12:
+                headroom = limit + current
+            else:
+                headroom = limit - abs(current)
+            headrooms[idx] = max(headroom, 1.0e-9)
+        finite_headrooms = headrooms[np.isfinite(headrooms)]
+        reference_headroom = float(np.max(finite_headrooms)) if finite_headrooms.size > 0 else 1.0
+        for idx in range(self.n_coils):
+            if not np.isfinite(headrooms[idx]):
+                penalties[idx] = 1.0
+                continue
+            penalties[idx] = float(np.sqrt(max(reference_headroom / float(headrooms[idx]), 1.0)))
+        return cast(FloatArray, penalties)
+
     def compute_correction(
         self,
         observation: FloatArray,
@@ -664,10 +692,17 @@ class FreeBoundaryTrackingController:
         weight_vector = self.control_objective_weights * control_mask
         weighted_response = weight_vector[:, None] * self.response_matrix
         weighted_error = weight_vector * error
+        base_reg = np.sqrt(self.response_regularization) * np.eye(self.n_coils, dtype=np.float64)
+        base_aug_matrix = np.vstack([weighted_response, base_reg])
+        base_aug_rhs = np.concatenate([weighted_error, np.zeros(self.n_coils, dtype=np.float64)])
+        delta_hint, *_ = np.linalg.lstsq(base_aug_matrix, base_aug_rhs, rcond=None)
+        delta_hint = np.asarray(delta_hint, dtype=np.float64)
+        coil_penalties = self._build_coil_penalties(delta_hint)
+        self.last_coil_penalties = np.asarray(coil_penalties, dtype=np.float64)
         aug_matrix = np.vstack(
             [
                 weighted_response,
-                np.sqrt(self.response_regularization) * np.eye(self.n_coils, dtype=np.float64),
+                np.sqrt(self.response_regularization) * np.diag(coil_penalties),
             ]
         )
         aug_rhs = np.concatenate([weighted_error, np.zeros(self.n_coils, dtype=np.float64)])
@@ -980,6 +1015,9 @@ class FreeBoundaryTrackingController:
             self.history["response_max_singular_value"].append(float(self.response_max_singular_value))
             self.history["response_degenerate"].append(bool(self.response_degenerate))
             self.history["active_control_rows"].append(int(last_metrics["active_control_rows"]))
+            self.history["max_coil_penalty"].append(
+                float(np.max(self.last_coil_penalties)) if self.last_coil_penalties.size else 1.0
+            )
             self.history["supervisor_intervened"].append(bool(supervisor_intervened))
             self.history["supervisor_safe"].append(bool(last_supervisor["supervisor_safe"]))
             self.history["supervisor_hold_steps_remaining"].append(int(self._hold_steps_remaining))
@@ -991,6 +1029,7 @@ class FreeBoundaryTrackingController:
                 f"ctrl={last_metrics['control_error_norm']:.4e} | "
                 f"active={int(last_metrics['active_control_rows'])} | "
                 f"max dI={max_abs_delta:.3e} | gain={accepted_gain:.3e} | "
+                f"coil_pen={self.history['max_coil_penalty'][-1]:.2f} | "
                 f"resp_rank={self.response_rank} | resp_deg={self.response_degenerate} | "
                 f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
                 f"lag={max_abs_actuator_lag:.3e} | fallback={fallback_active} | "
@@ -1014,6 +1053,7 @@ class FreeBoundaryTrackingController:
         response_sigma_arr = np.asarray(self.history["response_max_singular_value"], dtype=np.float64)
         response_deg_arr = np.asarray(self.history["response_degenerate"], dtype=np.float64)
         active_control_arr = np.asarray(self.history["active_control_rows"], dtype=np.float64)
+        coil_penalty_arr = np.asarray(self.history["max_coil_penalty"], dtype=np.float64)
         supervisor_arr = np.asarray(self.history["supervisor_intervened"], dtype=np.float64)
         fallback_arr = np.asarray(self.history["fallback_active"], dtype=np.float64)
         tolerance_block_arr = np.asarray(self.history["tolerance_regression_blocked"], dtype=np.float64)
@@ -1041,6 +1081,7 @@ class FreeBoundaryTrackingController:
             "response_degenerate_count": int(np.sum(response_deg_arr)),
             "final_active_control_rows": int(active_control_arr[-1]) if active_control_arr.size else 0,
             "mean_active_control_rows": float(np.mean(active_control_arr)) if active_control_arr.size else 0.0,
+            "max_coil_penalty": float(np.max(coil_penalty_arr)) if coil_penalty_arr.size else 1.0,
             "objective_tolerances": last_metrics["objective_tolerances"],
             "objective_checks": last_metrics["objective_checks"],
             "objective_convergence_active": last_metrics["objective_convergence_active"],
