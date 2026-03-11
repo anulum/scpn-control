@@ -182,6 +182,10 @@ class FreeBoundaryTrackingController:
         self.objective_bias_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
 
         self.response_matrix = np.zeros((self.target_vector.size, self.n_coils), dtype=np.float64)
+        self.response_rank = 0
+        self.response_condition_number = float("inf")
+        self.response_max_singular_value = 0.0
+        self.response_degenerate = True
         self.history: dict[str, list[Any]] = {
             "t": [],
             "tracking_error_norm": [],
@@ -199,6 +203,10 @@ class FreeBoundaryTrackingController:
             "objective_converged": [],
             "max_abs_objective_bias_estimate": [],
             "mean_abs_objective_bias_estimate": [],
+            "response_rank": [],
+            "response_condition_number": [],
+            "response_max_singular_value": [],
+            "response_degenerate": [],
             "supervisor_intervened": [],
             "supervisor_safe": [],
             "supervisor_hold_steps_remaining": [],
@@ -599,7 +607,28 @@ class FreeBoundaryTrackingController:
         self.coils.currents = original_currents
         self._restore_actuator_states(actuator_snapshot)
         self._solve_free_boundary_state()
+        self._update_response_diagnostics()
         return self.response_matrix.copy()
+
+    def _update_response_diagnostics(self) -> None:
+        singular_values = np.asarray(np.linalg.svd(self.response_matrix, compute_uv=False), dtype=np.float64).reshape(
+            -1
+        )
+        if singular_values.size < 1:
+            self.response_rank = 0
+            self.response_condition_number = float("inf")
+            self.response_max_singular_value = 0.0
+            self.response_degenerate = True
+            return
+
+        sigma_max = float(np.max(singular_values))
+        eps = float(np.finfo(np.float64).eps)
+        cutoff = float(max(eps * max(1.0, sigma_max), 1.0e-12))
+        nonzero = singular_values[np.asarray(singular_values > cutoff, dtype=np.bool_)]
+        self.response_rank = int(nonzero.size)
+        self.response_max_singular_value = sigma_max
+        self.response_condition_number = float(sigma_max / float(nonzero[-1])) if nonzero.size > 0 else float("inf")
+        self.response_degenerate = bool((not np.isfinite(sigma_max)) or sigma_max <= cutoff or nonzero.size < 1)
 
     def compute_correction(self, observation: FloatArray) -> FloatArray:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
@@ -812,7 +841,22 @@ class FreeBoundaryTrackingController:
             fallback_active = False
             tolerance_regression_blocked = False
 
-            if self._hold_steps_remaining > 0:
+            if self.response_degenerate:
+                delta_currents = np.zeros_like(delta_currents)
+                (
+                    last_metrics,
+                    last_supervisor,
+                    max_abs_actuator_lag,
+                    fallback_active,
+                ) = self._recover_to_safe_state(
+                    actuator_snapshot=actuator_snapshot,
+                    baseline_currents=baseline_currents,
+                    metrics_before=metrics_before,
+                )
+                supervisor_intervened = True
+                if self.hold_steps_after_reject > 0:
+                    self._hold_steps_remaining = self.hold_steps_after_reject
+            elif self._hold_steps_remaining > 0:
                 self._hold_steps_remaining -= 1
                 delta_currents = np.zeros_like(delta_currents)
                 (
@@ -900,6 +944,10 @@ class FreeBoundaryTrackingController:
             bias_abs = np.abs(self.objective_bias_estimate)
             self.history["max_abs_objective_bias_estimate"].append(float(np.max(bias_abs)) if bias_abs.size else 0.0)
             self.history["mean_abs_objective_bias_estimate"].append(float(np.mean(bias_abs)) if bias_abs.size else 0.0)
+            self.history["response_rank"].append(int(self.response_rank))
+            self.history["response_condition_number"].append(float(self.response_condition_number))
+            self.history["response_max_singular_value"].append(float(self.response_max_singular_value))
+            self.history["response_degenerate"].append(bool(self.response_degenerate))
             self.history["supervisor_intervened"].append(bool(supervisor_intervened))
             self.history["supervisor_safe"].append(bool(last_supervisor["supervisor_safe"]))
             self.history["supervisor_hold_steps_remaining"].append(int(self._hold_steps_remaining))
@@ -910,6 +958,7 @@ class FreeBoundaryTrackingController:
                 f"Step {step}: err={last_metrics['tracking_error_norm']:.4e} | "
                 f"ctrl={last_metrics['control_error_norm']:.4e} | "
                 f"max dI={max_abs_delta:.3e} | gain={accepted_gain:.3e} | "
+                f"resp_rank={self.response_rank} | resp_deg={self.response_degenerate} | "
                 f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
                 f"lag={max_abs_actuator_lag:.3e} | fallback={fallback_active} | "
                 f"safe={last_supervisor['supervisor_safe']} | "
@@ -927,6 +976,10 @@ class FreeBoundaryTrackingController:
         gain_arr = np.asarray(self.history["accepted_gain"], dtype=np.float64)
         bias_max_arr = np.asarray(self.history["max_abs_objective_bias_estimate"], dtype=np.float64)
         bias_mean_arr = np.asarray(self.history["mean_abs_objective_bias_estimate"], dtype=np.float64)
+        response_rank_arr = np.asarray(self.history["response_rank"], dtype=np.float64)
+        response_cond_arr = np.asarray(self.history["response_condition_number"], dtype=np.float64)
+        response_sigma_arr = np.asarray(self.history["response_max_singular_value"], dtype=np.float64)
+        response_deg_arr = np.asarray(self.history["response_degenerate"], dtype=np.float64)
         supervisor_arr = np.asarray(self.history["supervisor_intervened"], dtype=np.float64)
         fallback_arr = np.asarray(self.history["fallback_active"], dtype=np.float64)
         tolerance_block_arr = np.asarray(self.history["tolerance_regression_blocked"], dtype=np.float64)
@@ -948,6 +1001,10 @@ class FreeBoundaryTrackingController:
             "observer_gain": float(self.observer_gain),
             "max_abs_objective_bias_estimate": float(np.max(bias_max_arr)) if bias_max_arr.size else 0.0,
             "mean_abs_objective_bias_estimate": float(np.mean(bias_mean_arr)) if bias_mean_arr.size else 0.0,
+            "min_response_rank": int(np.min(response_rank_arr)) if response_rank_arr.size else 0,
+            "max_response_condition_number": float(np.max(response_cond_arr)) if response_cond_arr.size else 0.0,
+            "max_response_singular_value": float(np.max(response_sigma_arr)) if response_sigma_arr.size else 0.0,
+            "response_degenerate_count": int(np.sum(response_deg_arr)),
             "objective_tolerances": last_metrics["objective_tolerances"],
             "objective_checks": last_metrics["objective_checks"],
             "objective_convergence_active": last_metrics["objective_convergence_active"],

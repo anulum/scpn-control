@@ -316,6 +316,80 @@ class _ProtectedObjectiveKernel:
         return float(self._state[0])
 
 
+class _ZeroAuthorityKernel:
+    """Plant with no coil authority over any tracked objective."""
+
+    def __init__(self, _config_file: str) -> None:
+        self._boundary_points = np.array([[3.8, 0.0]], dtype=np.float64)
+        self._x_target = np.array([4.2, -1.4], dtype=np.float64)
+        self._target_vector = np.array([0.0, 4.2, -1.4, 0.0], dtype=np.float64)
+        self._response_matrix = np.zeros((4, 1), dtype=np.float64)
+        self._bias = np.array([1.0, 0.0, 0.0, 0.5], dtype=np.float64)
+        self.cfg = {
+            "coils": [{"name": "PF1", "current": 0.0}],
+            "free_boundary": {
+                "objective_tolerances": {
+                    "shape_rms": 0.1,
+                    "x_point_flux": 0.1,
+                }
+            },
+        }
+        self.R = np.linspace(3.0, 5.0, 6)
+        self.Z = np.linspace(-2.0, 1.0, 6)
+        self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = np.zeros((len(self.Z), len(self.R)), dtype=np.float64)
+        self._state = self._target_vector + self._bias
+        self.solve()
+
+    def build_coilset_from_config(self) -> CoilSet:
+        return CoilSet(
+            positions=[(3.2, 2.0)],
+            currents=np.zeros(1, dtype=np.float64),
+            turns=[12],
+            current_limits=np.array([3.0], dtype=np.float64),
+            target_flux_points=self._boundary_points.copy(),
+            target_flux_values=self._target_vector[:1].copy(),
+            x_point_target=self._x_target.copy(),
+            x_point_flux_target=float(self._target_vector[3]),
+        )
+
+    def solve(
+        self,
+        *,
+        boundary_variant: str | None = None,
+        coils: CoilSet | None = None,
+        max_outer_iter: int = 20,
+        tol: float = 1e-4,
+        optimize_shape: bool = False,
+        tikhonov_alpha: float = 1e-4,
+    ) -> dict[str, float | bool | str]:
+        del max_outer_iter, tol, optimize_shape, tikhonov_alpha
+        active_coils = coils if coils is not None else self.build_coilset_from_config()
+        currents = np.asarray(active_coils.currents, dtype=np.float64).reshape(-1)
+        self._state = self._target_vector + self._bias + self._response_matrix @ currents
+        self.Psi.fill(0.0)
+        return {
+            "boundary_variant": "free_boundary" if boundary_variant is None else str(boundary_variant),
+            "converged": True,
+            "outer_iterations": 1,
+            "final_diff": float(np.linalg.norm(self._response_matrix @ currents)),
+        }
+
+    def _sample_flux_at_points(self, points: np.ndarray) -> np.ndarray:
+        pts = np.asarray(points, dtype=np.float64)
+        if pts.shape == self._boundary_points.shape and np.allclose(pts, self._boundary_points):
+            return self._state[:1].copy()
+        raise ValueError("Unexpected probe points for zero-authority kernel.")
+
+    def find_x_point(self, _psi: np.ndarray) -> tuple[tuple[float, float], float]:
+        return (float(self._x_target[0]), float(self._x_target[1])), float(self._state[3])
+
+    def _interp_psi(self, r_pt: float, z_pt: float) -> float:
+        if np.allclose([r_pt, z_pt], self._x_target):
+            return float(self._state[3])
+        return float(self._state[0])
+
+
 def _write_real_kernel_tracking_config(path: Path) -> Path:
     cfg = {
         "reactor_name": "Real-Free-Boundary-Tracking-Test",
@@ -636,6 +710,28 @@ def test_controller_does_not_sacrifice_already_met_tolerance() -> None:
     assert summary["tolerance_regression_blocked_count"] == 1
     assert controller.history["tolerance_regression_blocked"] == [True]
     assert summary["max_abs_coil_current"] == pytest.approx(0.0)
+
+
+def test_controller_flags_zero_response_authority() -> None:
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_ZeroAuthorityKernel,
+        verbose=False,
+    )
+
+    summary = controller.run_tracking_shot(
+        shot_steps=1,
+        gain=1.0,
+        stop_on_convergence=False,
+    )
+
+    assert summary["response_degenerate_count"] == 1
+    assert summary["min_response_rank"] == 0
+    assert summary["supervisor_intervention_count"] == 1
+    assert controller.history["response_degenerate"] == [True]
+    assert controller.history["response_rank"] == [0]
+    assert summary["max_abs_coil_current"] == pytest.approx(0.0)
+    assert summary["final_tracking_error_norm"] > 0.0
 
 
 def test_run_free_boundary_tracking_with_real_kernel_smoke(tmp_path: Path) -> None:
