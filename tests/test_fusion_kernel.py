@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
+from scpn_control.core.fusion_kernel import CoilSet, FusionKernel, _select_x_point_index
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -127,6 +127,13 @@ class TestBoundaryVariants:
                 "current_limits": [5.0e4, 5.0e4],
                 "target_flux_points": [[3.5, 0.0], [4.0, 0.5]],
                 "target_flux_values": [0.1, 0.2],
+                "x_point_target": [4.2, -1.4],
+                "x_point_flux_target": 0.15,
+                "x_point_weight": 2.0,
+                "x_point_null_weight": 3.0,
+                "divertor_strike_points": [[3.1, -2.6], [4.9, -2.6]],
+                "divertor_flux_value": 0.15,
+                "divertor_weight": 0.75,
             },
         )
         kernel = FusionKernel(cfg)
@@ -139,6 +146,16 @@ class TestBoundaryVariants:
         assert coils.target_flux_points.shape == (2, 2)
         assert coils.target_flux_values is not None
         np.testing.assert_allclose(coils.target_flux_values, [0.1, 0.2])
+        assert coils.x_point_target is not None
+        np.testing.assert_allclose(coils.x_point_target, [4.2, -1.4])
+        assert coils.x_point_flux_target == pytest.approx(0.15)
+        assert coils.x_point_weight == pytest.approx(2.0)
+        assert coils.x_point_null_weight == pytest.approx(3.0)
+        assert coils.divertor_strike_points is not None
+        assert coils.divertor_strike_points.shape == (2, 2)
+        assert coils.divertor_flux_values is not None
+        np.testing.assert_allclose(coils.divertor_flux_values, [0.15, 0.15])
+        assert coils.divertor_weight == pytest.approx(0.75)
 
     def test_build_coilset_from_config_scalar_target_flux(self, tmp_path):
         cfg = _write_config(
@@ -154,6 +171,42 @@ class TestBoundaryVariants:
 
         assert coils.target_flux_values is not None
         np.testing.assert_allclose(coils.target_flux_values, [0.125, 0.125])
+
+    def test_build_coilset_from_config_scalar_divertor_flux(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "free_divertor_scalar.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "divertor_strike_points": [[3.25, -2.5], [4.75, -2.5]],
+                "divertor_flux_value": 0.2,
+            },
+        )
+        kernel = FusionKernel(cfg)
+        coils = kernel.build_coilset_from_config()
+
+        assert coils.divertor_flux_values is not None
+        np.testing.assert_allclose(coils.divertor_flux_values, [0.2, 0.2])
+
+    def test_free_boundary_objective_tolerances_from_config(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "free_objective_tolerances.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "x_point_target": [4.2, -1.4],
+                "objective_tolerances": {"x_point_position": 0.25},
+            },
+        )
+        kernel = FusionKernel(cfg)
+        coils = kernel.build_coilset_from_config()
+        result = kernel.solve_free_boundary(
+            coils,
+            max_outer_iter=1,
+            tol=1e10,
+            optimize_shape=True,
+        )
+
+        assert result["objective_tolerances"]["x_point_position"] == pytest.approx(0.25)
+        assert result["objective_convergence_active"] is True
 
     def test_solve_dispatch_fixed(self, tmp_path, monkeypatch):
         cfg = _write_config(tmp_path / "fixed_dispatch.json")
@@ -242,6 +295,38 @@ class TestTopology:
         pos, psi_x = kernel.find_x_point(psi_vac)
         assert len(pos) == 2
         assert isinstance(psi_x, float)
+
+    def test_select_x_point_index_prefers_saddle_candidates(self):
+        gradient_norm = np.array(
+            [
+                [0.40, 0.01, 0.30],
+                [0.50, 0.20, 0.25],
+                [0.60, 0.70, 0.80],
+            ],
+            dtype=float,
+        )
+        hessian_det = np.array(
+            [
+                [1.0, 1.0, 1.0],
+                [-0.5, 1.0, 1.0],
+                [1.0, 1.0, 1.0],
+            ],
+            dtype=float,
+        )
+        search_mask = np.ones_like(gradient_norm, dtype=bool)
+
+        iz, ir, used_saddle = _select_x_point_index(gradient_norm, search_mask, hessian_det)
+
+        assert (iz, ir) == (1, 0)
+        assert used_saddle is True
+
+    def test_find_x_point_identifies_saddle_field(self, kernel):
+        kernel.Psi = (kernel.RR - 4.0) ** 2 - (kernel.ZZ + 2.0) ** 2
+        pos, psi_x = kernel.find_x_point(kernel.Psi)
+
+        assert abs(pos[0] - 4.0) <= kernel.dR
+        assert abs(pos[1] + 2.0) <= kernel.dZ
+        assert abs(psi_x) <= 4.0 * max(kernel.dR, kernel.dZ)
 
     def test_magnetic_axis_initial(self, kernel):
         kernel.Psi = kernel.calculate_vacuum_field()
@@ -436,6 +521,17 @@ class TestBField:
         assert fk.B_Z.shape == fk.Psi.shape
         assert np.all(np.isfinite(fk.B_R))
         assert np.all(np.isfinite(fk.B_Z))
+
+    def test_compute_b_field_matches_analytic_quadratic(self, kernel):
+        kernel.Psi = kernel.RR**2 + 2.0 * kernel.ZZ**2
+        kernel.compute_b_field()
+
+        r_safe = np.maximum(kernel.RR, 1e-6)
+        expected_b_r = -(4.0 * kernel.ZZ) / r_safe
+        expected_b_z = np.full_like(kernel.RR, 2.0)
+
+        np.testing.assert_allclose(kernel.B_R[1:-1, 1:-1], expected_b_r[1:-1, 1:-1], atol=1e-10)
+        np.testing.assert_allclose(kernel.B_Z[1:-1, 1:-1], expected_b_z[1:-1, 1:-1], atol=1e-10)
 
 
 # ── GS residual enforcement ─────────────────────────────────────────

@@ -57,6 +57,8 @@ def _make_coilset(
     with_limits: bool = False,
     with_targets: bool = False,
     with_target_flux_values: bool = False,
+    with_x_point_target: bool = False,
+    with_divertor_targets: bool = False,
 ):
     positions = [(3.0 + i * 0.5, 2.0 * (-1) ** i) for i in range(n_coils)]
     currents = np.ones(n_coils) * 1e4
@@ -78,6 +80,21 @@ def _make_coilset(
         )
         if with_target_flux_values:
             cs.target_flux_values = np.array([0.10, 0.20, 0.15], dtype=float)
+    if with_x_point_target:
+        cs.x_point_target = np.array([4.0, -1.5], dtype=float)
+        cs.x_point_flux_target = 0.15
+        cs.x_point_weight = 2.0
+        cs.x_point_null_weight = 3.0
+    if with_divertor_targets:
+        cs.divertor_strike_points = np.array(
+            [
+                [3.2, -2.5],
+                [4.8, -2.5],
+            ],
+            dtype=float,
+        )
+        cs.divertor_flux_values = np.array([0.15, 0.15], dtype=float)
+        cs.divertor_weight = 0.75
     return cs
 
 
@@ -174,6 +191,10 @@ class TestFreeBoundarySolve:
         cs = _make_coilset(2)
         result = kernel.solve_free_boundary(cs, max_outer_iter=50, tol=1e10)
         assert result["outer_iterations"] == 1
+        assert result["converged"] is True
+        assert result["equilibrium_converged"] is True
+        assert result["objective_convergence_active"] is False
+        assert result["objective_converged"] is True
 
     def test_with_explicit_target_flux_values_reports_shape_error(self, kernel):
         cs = _make_coilset(3, with_limits=True, with_targets=True, with_target_flux_values=True)
@@ -193,12 +214,87 @@ class TestFreeBoundarySolve:
         assert np.isfinite(result["shape_error_final_rms"])
         assert np.isfinite(result["shape_error_final_max_abs"])
 
+    def test_objective_tolerances_gate_convergence(self, kernel):
+        cs = _make_coilset(
+            3,
+            with_limits=True,
+            with_x_point_target=True,
+        )
+        cs.x_point_target = np.array([5.5, 2.0], dtype=float)
+        result = kernel.solve_free_boundary(
+            cs,
+            max_outer_iter=2,
+            tol=1e10,
+            optimize_shape=True,
+            tikhonov_alpha=1e-3,
+            objective_tolerances={"x_point_position": 1e-6},
+        )
+
+        assert result["outer_iterations"] == 2
+        assert result["equilibrium_converged"] is True
+        assert result["objective_convergence_active"] is True
+        assert result["objective_converged"] is False
+        assert result["converged"] is False
+        assert result["objective_checks"]["x_point_position"] is False
+
     def test_sample_flux_at_points_shape(self, kernel):
         cs = _make_coilset(3, with_targets=True)
         kernel.solve_equilibrium()
         flux = kernel._sample_flux_at_points(cs.target_flux_points)
         assert flux.shape == (3,)
         assert np.all(np.isfinite(flux))
+
+    def test_with_x_point_and_divertor_constraints_reports_metrics(self, kernel):
+        cs = _make_coilset(
+            3,
+            with_limits=True,
+            with_targets=True,
+            with_target_flux_values=True,
+            with_x_point_target=True,
+            with_divertor_targets=True,
+        )
+        result = kernel.solve_free_boundary(
+            cs,
+            max_outer_iter=2,
+            tol=1e-2,
+            optimize_shape=True,
+            tikhonov_alpha=1e-3,
+        )
+
+        assert result["x_point_objective_mode"] == "explicit_target"
+        assert result["x_point_target"] is not None
+        assert result["x_point_flux_target"] is not None
+        assert result["x_point_flux_actual"] is not None
+        assert result["x_point_target_gradient_norm"] is not None
+        assert len(result["x_point_gradient_norm_history"]) >= 1
+        assert result["divertor_objective_mode"] == "explicit_target"
+        assert result["divertor_configuration"] == "double_strike"
+        assert result["divertor_strike_points"] is not None
+        assert result["divertor_flux_target"] is not None
+        assert result["divertor_flux_actual"] is not None
+        assert result["divertor_error_final_rms"] is not None
+        assert result["divertor_error_final_max_abs"] is not None
+        assert np.isfinite(result["x_point_target_gradient_norm"])
+        assert np.isfinite(result["divertor_error_final_rms"])
+
+    def test_x_point_only_objective_runs_without_shape_targets(self, kernel):
+        cs = _make_coilset(
+            3,
+            with_limits=True,
+            with_x_point_target=True,
+        )
+        result = kernel.solve_free_boundary(
+            cs,
+            max_outer_iter=2,
+            tol=1e-2,
+            optimize_shape=True,
+            tikhonov_alpha=1e-3,
+        )
+
+        assert result["shape_objective_mode"] == "disabled"
+        assert result["x_point_objective_mode"] == "explicit_target"
+        assert result["x_point_flux_target"] is not None
+        assert result["coil_currents"].shape == (3,)
 
 
 class TestInterpPsi:

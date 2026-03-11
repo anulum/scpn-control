@@ -20,6 +20,13 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control.core.fusion_kernel import (
+    _psi_gradient_fields,
+    _psi_hessian_determinant,
+    _select_x_point_index,
+    _x_point_search_mask,
+)
+
 try:
     from scpn_control_rs import (
         PyEquilibriumResult,  # noqa: F401
@@ -116,7 +123,7 @@ class RustAcceleratedKernel:
             self.B_R = np.asarray(br)
             self.B_Z = np.asarray(bz)
         except (AttributeError, RuntimeError):
-            dPsi_dR, dPsi_dZ = np.gradient(self.Psi, self.dR, self.dZ)
+            dPsi_dR, dPsi_dZ = _psi_gradient_fields(self.Psi, self.dR, self.dZ)
             R_safe = np.maximum(self.RR, 1e-6)
             self.B_R = -(1.0 / R_safe) * dPsi_dZ
             self.B_Z = (1.0 / R_safe) * dPsi_dR
@@ -126,18 +133,15 @@ class RustAcceleratedKernel:
         Locate the null point (B=0) using local minimization.
         Matches Python FusionKernel.find_x_point() interface.
         """
-        dPsi_dR, dPsi_dZ = np.gradient(Psi, self.dR, self.dZ)
-        B_mag = np.sqrt(dPsi_dR**2 + dPsi_dZ**2)
+        dPsi_dR, dPsi_dZ = _psi_gradient_fields(np.asarray(Psi, dtype=float), self.dR, self.dZ)
+        gradient_norm = np.hypot(dPsi_dR, dPsi_dZ)
+        hessian_det = _psi_hessian_determinant(np.asarray(Psi, dtype=float), self.dR, self.dZ)
+        mask_divertor = _x_point_search_mask(self.ZZ, float(self.cfg["dimensions"]["Z_min"]))
+        iz, ir, _ = _select_x_point_index(gradient_norm, mask_divertor, hessian_det)
 
-        mask_divertor = self.ZZ < (self.cfg["dimensions"]["Z_min"] * 0.5)
-
-        if np.any(mask_divertor):
-            masked_B = np.where(mask_divertor, B_mag, 1e9)
-            idx_min = np.argmin(masked_B)
-            iz, ir = np.unravel_index(idx_min, Psi.shape)
+        if iz >= 0 and ir >= 0:
             return (self.R[ir], self.Z[iz]), Psi[iz, ir]
-        else:
-            return (0, 0), np.min(Psi)
+        return (0, 0), np.min(Psi)
 
     def calculate_vacuum_field(self) -> Any:
         """Compute vacuum field via Python FusionKernel (not yet in PyO3)."""

@@ -173,6 +173,20 @@ def test_compute_b_field_fallback(monkeypatch, tmp_path):
     assert np.all(np.isfinite(w.B_R))
 
 
+def test_compute_b_field_fallback_matches_analytic_field(monkeypatch, tmp_path):
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _NoJPhiKernel, raising=False)
+    w = _rust_compat.RustAcceleratedKernel(str(_cfg_path(tmp_path)))
+    w.Psi = w.RR**2 + 2.0 * w.ZZ**2
+    w.compute_b_field()
+
+    r_safe = np.maximum(w.RR, 1e-6)
+    expected_b_r = -(4.0 * w.ZZ) / r_safe
+    expected_b_z = np.full_like(w.RR, 2.0)
+
+    np.testing.assert_allclose(w.B_R[1:-1, 1:-1], expected_b_r[1:-1, 1:-1], atol=1e-10)
+    np.testing.assert_allclose(w.B_Z[1:-1, 1:-1], expected_b_z[1:-1, 1:-1], atol=1e-10)
+
+
 def test_sample_psi_at_probes_no_rust_method(monkeypatch, tmp_path):
     """Line 110: sample_psi_at_probes absent → per-point loop."""
     monkeypatch.setattr(_rust_compat, "PyFusionKernel", _NoProbesKernel, raising=False)
@@ -196,6 +210,18 @@ def test_find_x_point_no_divertor_mask(monkeypatch, tmp_path):
     assert rx == 0
     assert zx == 0
     assert psi_x == np.min(psi)
+
+
+def test_find_x_point_prefers_saddle_field(monkeypatch, tmp_path):
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _NoProbesKernel, raising=False)
+    w = _rust_compat.RustAcceleratedKernel(str(_cfg_path(tmp_path)))
+    psi = (w.RR - 2.0) ** 2 - (w.ZZ + 0.75) ** 2
+
+    (rx, zx), psi_x = w.find_x_point(psi)
+
+    assert abs(rx - 2.0) <= w.dR
+    assert abs(zx + 0.75) <= w.dZ
+    assert abs(float(psi_x)) <= 4.0 * max(w.dR, w.dZ)
 
 
 def test_calculate_vacuum_field(monkeypatch, tmp_path):
