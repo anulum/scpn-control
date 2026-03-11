@@ -26,6 +26,8 @@ NumPy fallback provided when JAX is unavailable.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -429,7 +431,7 @@ def jax_gs_grad_Ip(
     psi_init = psi_init.at[:, 0].set(0.0)
     psi_init = psi_init.at[:, -1].set(0.0)
 
-    def objective(Ip: float) -> float:
+    def objective(Ip: Any) -> Any:
         psi = _jax_gs_solve_impl(
             RR,
             dR,
@@ -443,6 +445,6 @@ def jax_gs_grad_Ip(
             omega_j,
             beta_mix,
         )
-        return float(jnp.sum(psi))
+        return jnp.sum(psi)
 
     return float(jax.grad(objective)(jnp.float64(Ip_target)))

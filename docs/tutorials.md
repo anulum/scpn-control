@@ -11,6 +11,27 @@ scpn-control live --port 8765 --zeta 0.5
 
 ---
 
+## Tutorial Scripts
+
+Five self-contained scripts in `examples/` covering the full stack.
+Each prints structured output and runs without GPU or optional dependencies.
+
+| # | Script | Topics | Extra deps |
+|---|--------|--------|------------|
+| 01 | `tutorial_01_closed_loop_control.py` | Machine configs, GS equilibrium, transport, SPN compiler, H-inf controller, digital twin | none |
+| 02 | `tutorial_02_jax_autodiff.py` | Thomas solver, Crank-Nicolson + `jax.grad`, batched `jax.vmap`, JAX GS solver, d(psi)/d(Ip) | `jax` |
+| 03 | `tutorial_03_ppo_rl_agent.py` | TokamakEnv, PID baseline, random rollout, PPO training, pre-trained eval, PPO vs PID vs MPC | `stable-baselines3` (optional) |
+| 04 | `tutorial_04_neural_transport.py` | Critical-gradient model, QLKNN-10D input space, regime classification, gradient scan, CN coupling | none |
+| 05 | `tutorial_05_adaptive_phase_dynamics.py` | Kuramoto sync, 16-layer UPDE, Lyapunov guard, RealtimeMonitor, adaptive Knm, closed-loop | none |
+
+Run any tutorial:
+
+```bash
+python examples/tutorial_01_closed_loop_control.py
+```
+
+---
+
 ## Controller Walkthrough
 
 Four controller tiers in `scpn_control.control`:
@@ -41,6 +62,18 @@ mpc = ModelPredictiveController(
     surrogate, target, prediction_horizon=10, iterations=20, action_limit=2.0,
 )
 action = mpc.plan_trajectory(np.array([1.60, 0.05, 1.35, -1.05]))
+```
+
+### PPO Reinforcement Learning
+
+```python
+from scpn_control.control.gym_tokamak_env import TokamakEnv
+
+env = TokamakEnv(dt=1e-3, max_steps=500, T_target=20.0)
+obs, _ = env.reset(seed=42)
+for _ in range(500):
+    action = np.array([0.5 * (20.0 - obs[0]), 0.0], dtype=np.float32)
+    obs, reward, terminated, truncated, _ = env.step(action)
 ```
 
 ### SNN (Nengo LIF)
@@ -111,7 +144,7 @@ print(f"Neurons: {compiled.n_neurons}")
 | Notebook | Description | Extra deps |
 |----------|-------------|------------|
 | `q10_breakeven_demo.ipynb` | Transport + breakeven analysis | none |
-| `snn_compiler_walkthrough.ipynb` | Petri net → SNN compilation | none |
+| `snn_compiler_walkthrough.ipynb` | Petri net to SNN compilation | none |
 | `h_infinity_controller_demo.ipynb` | DARE H-inf closed-loop control | matplotlib |
 | `neuro_symbolic_control_demo.ipynb` | Full closed-loop controller | `sc_neurocore` |
 
