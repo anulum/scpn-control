@@ -203,6 +203,7 @@ class FreeBoundaryTrackingController:
             "supervisor_safe": [],
             "supervisor_hold_steps_remaining": [],
             "fallback_active": [],
+            "tolerance_regression_blocked": [],
         }
 
     def _log(self, message: str) -> None:
@@ -735,6 +736,34 @@ class FreeBoundaryTrackingController:
             "supervisor_safe": all(checks.values()) if checks else True,
         }
 
+    @staticmethod
+    def _detect_tolerance_regressions(
+        metrics_before: dict[str, Any],
+        metrics_after: dict[str, Any],
+    ) -> dict[str, bool]:
+        metric_names = {
+            "shape_rms": "shape_rms",
+            "shape_max_abs": "shape_max_abs",
+            "x_point_position": "x_point_position_error",
+            "x_point_flux": "x_point_flux_error",
+            "divertor_rms": "divertor_rms",
+            "divertor_max_abs": "divertor_max_abs",
+        }
+        tolerances = cast(dict[str, float], metrics_before.get("objective_tolerances", {}))
+        regressions: dict[str, bool] = {}
+        for key, metric_name in metric_names.items():
+            tolerance = tolerances.get(key)
+            if tolerance is None:
+                continue
+            before_value = metrics_before.get(metric_name)
+            after_value = metrics_after.get(metric_name)
+            if before_value is None or after_value is None:
+                continue
+            before_scalar = float(before_value)
+            after_scalar = float(after_value)
+            regressions[key] = bool(before_scalar <= tolerance + 1.0e-12 and after_scalar > tolerance + 1.0e-12)
+        return regressions
+
     def run_tracking_shot(
         self,
         *,
@@ -781,6 +810,7 @@ class FreeBoundaryTrackingController:
             supervisor_intervened = False
             max_abs_actuator_lag = 0.0
             fallback_active = False
+            tolerance_regression_blocked = False
 
             if self._hold_steps_remaining > 0:
                 self._hold_steps_remaining -= 1
@@ -818,16 +848,22 @@ class FreeBoundaryTrackingController:
                         ),
                         max_abs_actuator_lag=max_abs_actuator_lag,
                     )
-                    improved = metrics_after["tracking_error_norm"] <= metrics_before["tracking_error_norm"] + 1e-12
                     improved = bool(metrics_after["control_error_norm"] <= metrics_before["control_error_norm"] + 1e-12)
+                    tolerance_regressions = self._detect_tolerance_regressions(metrics_before, metrics_after)
                     newly_converged = (not metrics_before["objective_converged"]) and metrics_after[
                         "objective_converged"
                     ]
-                    if (improved or newly_converged) and supervisor_after["supervisor_safe"]:
+                    if (
+                        (improved or newly_converged)
+                        and supervisor_after["supervisor_safe"]
+                        and not any(tolerance_regressions.values())
+                    ):
                         accepted_gain = trial_gain
                         last_metrics = metrics_after
                         last_supervisor = supervisor_after
                         break
+                    if any(tolerance_regressions.values()):
+                        tolerance_regression_blocked = True
                     trial_gain *= 0.5
 
                 if accepted_gain == 0.0:
@@ -868,6 +904,7 @@ class FreeBoundaryTrackingController:
             self.history["supervisor_safe"].append(bool(last_supervisor["supervisor_safe"]))
             self.history["supervisor_hold_steps_remaining"].append(int(self._hold_steps_remaining))
             self.history["fallback_active"].append(bool(fallback_active))
+            self.history["tolerance_regression_blocked"].append(bool(tolerance_regression_blocked))
 
             self._log(
                 f"Step {step}: err={last_metrics['tracking_error_norm']:.4e} | "
@@ -892,6 +929,7 @@ class FreeBoundaryTrackingController:
         bias_mean_arr = np.asarray(self.history["mean_abs_objective_bias_estimate"], dtype=np.float64)
         supervisor_arr = np.asarray(self.history["supervisor_intervened"], dtype=np.float64)
         fallback_arr = np.asarray(self.history["fallback_active"], dtype=np.float64)
+        tolerance_block_arr = np.asarray(self.history["tolerance_regression_blocked"], dtype=np.float64)
         return {
             "steps": int(len(self.history["t"])),
             "runtime_seconds": float(runtime_seconds),
@@ -921,6 +959,7 @@ class FreeBoundaryTrackingController:
             "supervisor_intervention_count": int(np.sum(supervisor_arr)),
             "fallback_configured": bool(self.fallback_currents is not None),
             "fallback_active_steps": int(np.sum(fallback_arr)),
+            "tolerance_regression_blocked_count": int(np.sum(tolerance_block_arr)),
             "hold_steps_after_reject": int(self.hold_steps_after_reject),
             "shape_rms": last_metrics["shape_rms"],
             "shape_max_abs": last_metrics["shape_max_abs"],
