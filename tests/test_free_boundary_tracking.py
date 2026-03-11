@@ -151,6 +151,14 @@ class _NoTargetKernel(_DummyFreeBoundaryKernel):
         return coils
 
 
+class _FallbackKernel(_DummyFreeBoundaryKernel):
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        self.cfg["free_boundary_tracking"] = {
+            "fallback_currents": [0.20, -0.20, 0.10, -0.10],
+        }
+
+
 def _write_real_kernel_tracking_config(path: Path) -> Path:
     cfg = {
         "reactor_name": "Real-Free-Boundary-Tracking-Test",
@@ -362,6 +370,35 @@ def test_controller_supervisor_rejects_and_holds_unsafe_updates() -> None:
     assert controller.history["supervisor_hold_steps_remaining"][2] == 0
     assert summary["final_tracking_error_norm"] == pytest.approx(initial_metrics["tracking_error_norm"])
     assert summary["max_abs_coil_current"] == pytest.approx(0.0)
+
+
+def test_controller_uses_safe_current_fallback_when_configured() -> None:
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_FallbackKernel,
+        verbose=False,
+        control_dt_s=0.1,
+        coil_actuator_tau_s=0.05,
+        coil_slew_limits=0.5,
+        supervisor_limits={"max_abs_actuator_lag": 0.0},
+        hold_steps_after_reject=2,
+    )
+
+    summary = controller.run_tracking_shot(
+        shot_steps=4,
+        gain=8.0,
+        stop_on_convergence=False,
+    )
+
+    assert summary["fallback_configured"] is True
+    assert summary["fallback_active_steps"] >= 4
+    assert np.allclose(
+        controller.coils.currents,
+        np.array([0.20, -0.20, 0.10, -0.10], dtype=np.float64),
+        atol=5.0e-2,
+    )
+    assert controller.history["fallback_active"] == [True, True, True, True]
+    assert summary["max_abs_coil_current"] > 0.0
 
 
 def test_run_free_boundary_tracking_with_real_kernel_smoke(tmp_path: Path) -> None:
