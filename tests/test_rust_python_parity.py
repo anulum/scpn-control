@@ -359,7 +359,8 @@ class TestMultigridSolverParity:
         rel_l2 = np.linalg.norm(psi_py - psi_rs) / max(np.linalg.norm(psi_py), 1e-12)
         mae = float(np.mean(np.abs(psi_py - psi_rs)))
         assert rel_l2 < 0.4, f"MG parity rel-L2 too large: {rel_l2:.6e}"
-        assert mae < 0.25, f"MG parity MAE too large: {mae:.6e}"
+        # Rust MG uses Cartesian smoothing; Python now has toroidal 1/R stencil.
+        assert mae < 0.35, f"MG parity MAE too large: {mae:.6e}"
 
 
 # ── 3. Vacuum Field Parity ──────────────────────────────────────────
