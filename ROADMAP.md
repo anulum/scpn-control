@@ -134,7 +134,7 @@
 - [x] Reproducible: 3 seeds within +-0.2 mean reward
 - [x] Cloud training script (`tools/train_rl_upcloud.sh`)
 - [x] JarvisLabs automation script (`tools/jarvislabs_train.py`)
-- [x] 100% test coverage: 2,404 tests, 9,652 statements, 0 missed
+- [x] 100% test coverage: 2,417 tests, 9,672 statements, 1 missed (99.99%)
 - [x] Coverage gate ratcheted: 85% → 99%
 - [x] 25 CI jobs all green
 

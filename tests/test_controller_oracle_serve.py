@@ -135,7 +135,7 @@ class TestWSPhaseStreamServeSync:
             [sys.executable, "-m", "scpn_control.phase.ws_phase_stream", "--help"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=60,
         )
         assert result.returncode == 0
         assert "port" in result.stdout

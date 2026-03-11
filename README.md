@@ -23,7 +23,7 @@
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
 [scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 57 source
-modules, 135 test files, **2,404 tests** (100% coverage), 5 Rust crates, 25 CI jobs.
+modules, 136 test files, **2,417 tests** (99.99% coverage), 5 Rust crates, 26 CI jobs.
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
@@ -155,7 +155,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 2,404 tests (135 files, 100% coverage)
+tests/                 # 2,417 tests (136 files, 99.99% coverage)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests

@@ -60,7 +60,7 @@ pre-commit run --all-files    # check everything
 pre-commit run ruff            # single hook
 ```
 
-Python (2,404 tests, 100% coverage):
+Python (2,417 tests, 99.99% coverage):
 
 ```bash
 pytest                       # full suite

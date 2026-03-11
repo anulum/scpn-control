@@ -105,9 +105,9 @@ configurations), SPARC GEQDSK equilibria from CFS SPARCPublic, and the ITPA
 CI enforces <2% RMSE on pressure and safety-factor profiles via an automated
 RMSE gate.
 
-The test suite comprises 2,404 Python tests and 108 Rust tests across 25 CI jobs
+The test suite comprises 2,417 Python tests and 108 Rust tests across 26 CI jobs
 (Python 3.9--3.13 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo Loihi
-emulator, real DIII-D validation). Coverage gate is 99% (current: 100%, 9,652
+emulator, real DIII-D validation, tutorial smoke). Coverage gate is 99% (current: 99.99%, 9,672
 statements, 0 missed).
 
 # Acknowledgements

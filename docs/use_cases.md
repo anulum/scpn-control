@@ -69,7 +69,7 @@ The codebase includes:
 
 - 5 tutorial notebooks (Jupyter) with step-by-step walkthroughs
 - A live Streamlit dashboard for interactive exploration
-- 2,404 tests (100% coverage) demonstrating expected behavior and edge cases
+- 2,417 tests (99.99% coverage) demonstrating expected behavior and edge cases
 - Competitive analysis against state-of-the-art codes
 
 ---

@@ -82,7 +82,7 @@ P-EFIT typically reconstructs.
 You need real-time control prototyping **now**, not after a 3-year bespoke
 development cycle. scpn-control gives you:
 
-- A tested controller with 2,404 tests (100% coverage) and CI-gated RMSE validation
+- A tested controller with 2,417 tests (99.99% coverage) and CI-gated RMSE validation
 - Runs on commodity hardware (no GPU or data center required)
 - MIT/Apache-2.0 dual-licensed — no copyleft restrictions
 
@@ -112,7 +112,7 @@ The architecture *could* support future integration, but:
 ## Architecture
 
 ```
-57 Python modules | 5 Rust crates | 2,404 tests (100% coverage) | 25 CI jobs
+57 Python modules | 5 Rust crates | 2,417 tests (99.99% coverage) | 26 CI jobs
 ```
 
 ```

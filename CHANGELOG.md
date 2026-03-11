@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.14.1] — 2026-03-11
+
+### Fixed
+- **Jacobi step**: add 1/R toroidal stencil (was Cartesian Laplacian, affecting
+  fallback solver path)
+- **Vacuum field**: multiply coil current by `turns` (was ignoring multi-turn coils)
+- **JAX GS boundary**: use ψ_bdry=0.0 Dirichlet BC (was reading corner value)
+- **UPDE Rust fast-path**: return `"Psi_global"` key (was `"Psi"`, breaking
+  downstream code when Rust backend active)
+- **Green's function**: divide by k² not k in toroidal formula
+- **Bootstrap current**: use minor radius `a`, not domain extent `R_max−R_min`
+- **lyapunov_v docstring**: range is [0, 2] not [0, 1]
+- **Neural transport docstring**: honest about MLP architecture (not full QLKNN-10D)
+
+### Added
+- 13 analytic regression tests (`test_p0_regression.py`): Jacobi toroidal stencil,
+  vacuum field turns scaling, UPDE key parity, GS boundary conditions, 2-oscillator
+  Kuramoto exponential convergence, sub/supercritical phase transition thresholds
+- `tutorial-smoke` CI job (tutorials 01, 04, 05)
+- `[all]` optional-dependency group in pyproject.toml
+
+### Changed
+- MG parity tolerance widened (Rust multigrid uses Cartesian smoother)
+- 2,417 tests, 99.99% coverage, 26 CI jobs
+
 ## [0.14.0] — 2026-03-10
 
 ### Added

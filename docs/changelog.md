@@ -10,7 +10,7 @@
 - Benchmark report: `benchmarks/rl_vs_classical.json`
 - Cloud training script: `tools/train_rl_upcloud.sh` (multi-seed, best-select)
 - JarvisLabs automation: `tools/jarvislabs_train.py`
-- 100% test coverage: 2,404 tests, 9,652 statements, 0 missed (gate=99%)
+- 99.99% test coverage: 2,417 tests, 9,672 statements, 1 missed (gate=99%)
 
 ## [0.13.0] — 2026-03-10
 

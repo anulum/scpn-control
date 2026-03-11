@@ -97,10 +97,10 @@
 | Python source LOC | ~22,900 |
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
-| Test files | 135 |
-| Tests collected | 2,404 |
-| Test coverage | 100% (9,652 stmts, gate=99%) |
-| CI jobs | 25 |
+| Test files | 136 |
+| Tests collected | 2,417 |
+| Test coverage | 99.99% (9,672 stmts, gate=99%) |
+| CI jobs | 26 |
 | Real DIII-D shots | 16 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |
 | Pretrained weight files | 5 (MLP, FNO, neural eq, QLKNN, PPO) |
