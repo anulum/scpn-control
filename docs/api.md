@@ -228,6 +228,29 @@ Requires `pip install "scpn-control[jax]"`. GPU and autodiff via `jax.grad`.
 
 ::: scpn_control.control.tokamak_flight_sim.run_flight_sim
 
+### Free-Boundary Tracking
+
+Experimental closed-loop free-boundary tracking that keeps the full
+`FusionKernel` in the loop and re-identifies the local coil-response map from
+repeated solves.
+
+```python
+from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking
+
+summary = run_free_boundary_tracking(
+    "iter_config.json",
+    shot_steps=5,
+    gain=0.8,
+    verbose=False,
+)
+
+print(summary["shape_rms"], summary["objective_converged"])
+```
+
+::: scpn_control.control.free_boundary_tracking.FreeBoundaryTrackingController
+
+::: scpn_control.control.free_boundary_tracking.run_free_boundary_tracking
+
 ### Disruption Predictor
 
 ::: scpn_control.control.disruption_predictor.DisruptionTransformer
