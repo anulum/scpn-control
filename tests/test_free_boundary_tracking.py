@@ -168,6 +168,80 @@ class _ObserverKernel(_DummyFreeBoundaryKernel):
         }
 
 
+class _PriorityConflictKernel:
+    """Single-coil plant where shape and X-point flux objectives conflict."""
+
+    def __init__(self, _config_file: str) -> None:
+        self._boundary_points = np.array([[3.8, 0.0]], dtype=np.float64)
+        self._x_target = np.array([4.2, -1.4], dtype=np.float64)
+        self._target_vector = np.array([0.0, 4.2, -1.4, 0.0], dtype=np.float64)
+        self._response_matrix = np.array([[1.0], [0.0], [0.0], [-1.0]], dtype=np.float64)
+        self._bias = np.array([1.0, 0.0, 0.0, 1.0], dtype=np.float64)
+        self.cfg = {
+            "coils": [{"name": "PF1", "current": 0.0}],
+            "free_boundary": {
+                "objective_tolerances": {
+                    "shape_rms": 1.0,
+                    "x_point_flux": 0.05,
+                }
+            },
+        }
+        self.R = np.linspace(3.0, 5.0, 6)
+        self.Z = np.linspace(-2.0, 1.0, 6)
+        self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = np.zeros((len(self.Z), len(self.R)), dtype=np.float64)
+        self._state = self._target_vector + self._bias
+        self.solve()
+
+    def build_coilset_from_config(self) -> CoilSet:
+        return CoilSet(
+            positions=[(3.2, 2.0)],
+            currents=np.zeros(1, dtype=np.float64),
+            turns=[12],
+            current_limits=np.array([3.0], dtype=np.float64),
+            target_flux_points=self._boundary_points.copy(),
+            target_flux_values=self._target_vector[:1].copy(),
+            x_point_target=self._x_target.copy(),
+            x_point_flux_target=float(self._target_vector[3]),
+        )
+
+    def solve(
+        self,
+        *,
+        boundary_variant: str | None = None,
+        coils: CoilSet | None = None,
+        max_outer_iter: int = 20,
+        tol: float = 1e-4,
+        optimize_shape: bool = False,
+        tikhonov_alpha: float = 1e-4,
+    ) -> dict[str, float | bool | str]:
+        del max_outer_iter, tol, optimize_shape, tikhonov_alpha
+        active_coils = coils if coils is not None else self.build_coilset_from_config()
+        currents = np.asarray(active_coils.currents, dtype=np.float64).reshape(-1)
+        self._state = self._target_vector + self._bias + self._response_matrix @ currents
+        self.Psi.fill(0.0)
+        return {
+            "boundary_variant": "free_boundary" if boundary_variant is None else str(boundary_variant),
+            "converged": True,
+            "outer_iterations": 1,
+            "final_diff": float(np.linalg.norm(self._response_matrix @ currents)),
+        }
+
+    def _sample_flux_at_points(self, points: np.ndarray) -> np.ndarray:
+        pts = np.asarray(points, dtype=np.float64)
+        if pts.shape == self._boundary_points.shape and np.allclose(pts, self._boundary_points):
+            return self._state[:1].copy()
+        raise ValueError("Unexpected probe points for priority-conflict kernel.")
+
+    def find_x_point(self, _psi: np.ndarray) -> tuple[tuple[float, float], float]:
+        return (float(self._x_target[0]), float(self._x_target[1])), float(self._state[3])
+
+    def _interp_psi(self, r_pt: float, z_pt: float) -> float:
+        if np.allclose([r_pt, z_pt], self._x_target):
+            return float(self._state[3])
+        return float(self._state[0])
+
+
 def _write_real_kernel_tracking_config(path: Path) -> Path:
     cfg = {
         "reactor_name": "Real-Free-Boundary-Tracking-Test",
@@ -223,6 +297,8 @@ def test_run_free_boundary_tracking_returns_bounded_converged_summary() -> None:
         "boundary_variant",
         "final_tracking_error_norm",
         "mean_tracking_error_norm",
+        "final_control_error_norm",
+        "mean_control_error_norm",
         "max_abs_delta_i",
         "max_abs_coil_current",
         "objective_convergence_active",
@@ -437,6 +513,30 @@ def test_objective_observer_reduces_persistent_disturbance_error() -> None:
     assert observed["observer_enabled"] is True
     assert observed["max_abs_objective_bias_estimate"] > 0.0
     assert observed["final_tracking_error_norm"] < baseline["final_tracking_error_norm"]
+
+
+def test_controller_prioritizes_tighter_x_point_flux_tolerance_under_conflict() -> None:
+    weighted = run_free_boundary_tracking(
+        config_file="dummy.json",
+        shot_steps=1,
+        gain=1.0,
+        verbose=False,
+        kernel_factory=_PriorityConflictKernel,
+        stop_on_convergence=False,
+    )
+    flat = run_free_boundary_tracking(
+        config_file="dummy.json",
+        shot_steps=1,
+        gain=1.0,
+        verbose=False,
+        kernel_factory=_PriorityConflictKernel,
+        objective_tolerances={"shape_rms": 1.0, "x_point_flux": 1.0},
+        stop_on_convergence=False,
+    )
+
+    assert weighted["x_point_flux_error"] < flat["x_point_flux_error"]
+    assert weighted["shape_rms"] > flat["shape_rms"]
+    assert weighted["max_abs_delta_i"] > flat["max_abs_delta_i"]
 
 
 def test_run_free_boundary_tracking_with_real_kernel_smoke(tmp_path: Path) -> None:

@@ -178,12 +178,14 @@ class FreeBoundaryTrackingController:
         self.target_vector, self.objective_blocks = self._build_target_vector()
         if self.target_vector.size < 1:
             raise ValueError("free-boundary tracking requires explicit target values.")
+        self.control_objective_weights = self._build_control_objective_weights()
         self.objective_bias_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
 
         self.response_matrix = np.zeros((self.target_vector.size, self.n_coils), dtype=np.float64)
         self.history: dict[str, list[Any]] = {
             "t": [],
             "tracking_error_norm": [],
+            "control_error_norm": [],
             "shape_rms": [],
             "shape_max_abs": [],
             "x_point_position_error": [],
@@ -441,6 +443,31 @@ class FreeBoundaryTrackingController:
 
         return np.asarray(values, dtype=np.float64), tuple(blocks)
 
+    def _weight_from_tolerances(self, *keys: str) -> float:
+        weight = 1.0
+        for key in keys:
+            tol = self.objective_tolerances.get(key)
+            if tol is None:
+                continue
+            weight = max(weight, 1.0 / max(float(tol), 1.0e-12))
+        return float(weight)
+
+    def _build_control_objective_weights(self) -> FloatArray:
+        weights = np.ones(self.target_vector.shape, dtype=np.float64)
+        for block in self.objective_blocks:
+            if block.name == "shape_flux":
+                block_weight = self._weight_from_tolerances("shape_rms", "shape_max_abs")
+            elif block.name == "x_point_position":
+                block_weight = self._weight_from_tolerances("x_point_position")
+            elif block.name == "x_point_flux":
+                block_weight = self._weight_from_tolerances("x_point_flux")
+            elif block.name == "divertor_flux":
+                block_weight = self._weight_from_tolerances("divertor_rms", "divertor_max_abs")
+            else:
+                raise ValueError(f"Unknown objective block {block.name!r}.")
+            weights[block.start : block.stop] = block_weight
+        return cast(FloatArray, np.asarray(weights, dtype=np.float64))
+
     def _sync_config_currents(self) -> None:
         coils_cfg = self.kernel.cfg.setdefault("coils", [])
         while len(coils_cfg) < self.n_coils:
@@ -578,13 +605,15 @@ class FreeBoundaryTrackingController:
         if obs.shape != self.target_vector.shape:
             raise ValueError("observation must match the free-boundary target vector shape.")
         error = self.target_vector + self.objective_bias_estimate - obs
+        weighted_response = self.control_objective_weights[:, None] * self.response_matrix
+        weighted_error = self.control_objective_weights * error
         aug_matrix = np.vstack(
             [
-                self.response_matrix,
+                weighted_response,
                 np.sqrt(self.response_regularization) * np.eye(self.n_coils, dtype=np.float64),
             ]
         )
-        aug_rhs = np.concatenate([error, np.zeros(self.n_coils, dtype=np.float64)])
+        aug_rhs = np.concatenate([weighted_error, np.zeros(self.n_coils, dtype=np.float64)])
         delta, *_ = np.linalg.lstsq(aug_matrix, aug_rhs, rcond=None)
         clipped = np.clip(np.asarray(delta, dtype=np.float64), -self.correction_limit, self.correction_limit)
         return cast(FloatArray, np.asarray(clipped, dtype=np.float64))
@@ -629,8 +658,10 @@ class FreeBoundaryTrackingController:
     def evaluate_objectives(self, observation: np.ndarray) -> dict[str, Any]:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
         error = self.target_vector - obs
+        control_error = self.control_objective_weights * error
         metrics: dict[str, Any] = {
             "tracking_error_norm": float(np.linalg.norm(error)),
+            "control_error_norm": float(np.linalg.norm(control_error)),
             "shape_rms": None,
             "shape_max_abs": None,
             "x_point_position_error": None,
@@ -788,6 +819,7 @@ class FreeBoundaryTrackingController:
                         max_abs_actuator_lag=max_abs_actuator_lag,
                     )
                     improved = metrics_after["tracking_error_norm"] <= metrics_before["tracking_error_norm"] + 1e-12
+                    improved = bool(metrics_after["control_error_norm"] <= metrics_before["control_error_norm"] + 1e-12)
                     newly_converged = (not metrics_before["objective_converged"]) and metrics_after[
                         "objective_converged"
                     ]
@@ -817,6 +849,7 @@ class FreeBoundaryTrackingController:
             max_abs_coil = float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
             self.history["t"].append(int(step))
             self.history["tracking_error_norm"].append(last_metrics["tracking_error_norm"])
+            self.history["control_error_norm"].append(last_metrics["control_error_norm"])
             self.history["shape_rms"].append(last_metrics["shape_rms"])
             self.history["shape_max_abs"].append(last_metrics["shape_max_abs"])
             self.history["x_point_position_error"].append(last_metrics["x_point_position_error"])
@@ -838,6 +871,7 @@ class FreeBoundaryTrackingController:
 
             self._log(
                 f"Step {step}: err={last_metrics['tracking_error_norm']:.4e} | "
+                f"ctrl={last_metrics['control_error_norm']:.4e} | "
                 f"max dI={max_abs_delta:.3e} | gain={accepted_gain:.3e} | "
                 f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
                 f"lag={max_abs_actuator_lag:.3e} | fallback={fallback_active} | "
@@ -849,6 +883,7 @@ class FreeBoundaryTrackingController:
 
         runtime_seconds = time.time() - start_time
         error_arr = np.asarray(self.history["tracking_error_norm"], dtype=np.float64)
+        control_error_arr = np.asarray(self.history["control_error_norm"], dtype=np.float64)
         delta_arr = np.asarray(self.history["max_abs_delta_i"], dtype=np.float64)
         coil_arr = np.asarray(self.history["max_abs_coil_current"], dtype=np.float64)
         lag_arr = np.asarray(self.history["max_abs_actuator_lag"], dtype=np.float64)
@@ -863,6 +898,8 @@ class FreeBoundaryTrackingController:
             "boundary_variant": "free_boundary",
             "final_tracking_error_norm": float(error_arr[-1]) if error_arr.size else 0.0,
             "mean_tracking_error_norm": float(np.mean(error_arr)) if error_arr.size else 0.0,
+            "final_control_error_norm": float(control_error_arr[-1]) if control_error_arr.size else 0.0,
+            "mean_control_error_norm": float(np.mean(control_error_arr)) if control_error_arr.size else 0.0,
             "max_abs_delta_i": float(np.max(delta_arr)) if delta_arr.size else 0.0,
             "max_abs_coil_current": float(np.max(coil_arr)) if coil_arr.size else 0.0,
             "max_abs_actuator_lag": float(np.max(lag_arr)) if lag_arr.size else 0.0,
