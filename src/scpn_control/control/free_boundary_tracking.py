@@ -330,7 +330,7 @@ class FreeBoundaryTrackingController:
     def _restore_actuator_states(self, snapshots: tuple[_ActuatorSnapshot, ...]) -> None:
         if len(snapshots) != len(self._coil_actuators):
             raise ValueError("actuator snapshot count must match the number of coils.")
-        for actuator, snapshot in zip(self._coil_actuators, snapshots, strict=True):
+        for actuator, snapshot in zip(self._coil_actuators, snapshots):
             actuator.state = float(snapshot.state)
             actuator._delay_buffer = [float(v) for v in snapshot.delay_buffer]
 
