@@ -26,7 +26,7 @@ try:
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
 
-from scpn_control.control import normalize_bounds
+from scpn_control.control import normalize_bounds, solve_kernel
 
 # --- MISSION PARAMETERS ---
 TARGET_R = 6.2  # ITER major radius [m]; ITER Physics Basis, NF 47 (2007) S1
@@ -79,7 +79,7 @@ class OptimalController:
         Perturb each coil and measure plasma-axis response to build Jacobian.
         """
         self._log("[OptControl] Identifying System Response Matrix...")
-        self.kernel.solve_equilibrium()
+        solve_kernel(self.kernel)
         base_r, base_z = self.get_plasma_pos()
         self._log(f"  Base Position: R={base_r:.3f}, Z={base_z:.3f}")
 
@@ -90,15 +90,15 @@ class OptimalController:
             orig_i = float(self.kernel.cfg["coils"][i].get("current", 0.0))
 
             self.kernel.cfg["coils"][i]["current"] = orig_i + p
-            self.kernel.solve_equilibrium()
+            solve_kernel(self.kernel)
             pos_plus = self.get_plasma_pos()
 
             self.kernel.cfg["coils"][i]["current"] = orig_i - p
-            self.kernel.solve_equilibrium()
+            solve_kernel(self.kernel)
             pos_minus = self.get_plasma_pos()
 
             self.kernel.cfg["coils"][i]["current"] = orig_i
-            self.kernel.solve_equilibrium()
+            solve_kernel(self.kernel)
 
             d_r = float((pos_plus[0] - pos_minus[0]) / (2.0 * p))
             d_z = float((pos_plus[1] - pos_minus[1]) / (2.0 * p))
@@ -168,7 +168,7 @@ class OptimalController:
         target_vec = np.array([float(target_r), float(target_z)], dtype=np.float64)
         self.history = {k: [] for k in self.history}
 
-        self.kernel.solve_equilibrium()
+        solve_kernel(self.kernel)
         lo_ip, hi_ip = self.current_target_limits
         for t in range(steps):
             frac = float(t) / float(max(steps, 1))
@@ -178,7 +178,7 @@ class OptimalController:
             curr_pos = self.get_plasma_pos()
             d_i = self.compute_optimal_correction(curr_pos, target_vec)
             self._apply_corrections(d_i, gain=float(gain))
-            self.kernel.solve_equilibrium()
+            solve_kernel(self.kernel)
 
             err = float(np.linalg.norm(target_vec - curr_pos))
             max_abs_delta_i = float(np.max(np.abs(d_i))) if d_i.size > 0 else 0.0

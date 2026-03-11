@@ -350,8 +350,10 @@ git push --tags
   bare Rust kernel step. DIII-D PCS timings include I/O, diagnostics, and
   actuator commands. A fair comparison requires equivalent end-to-end
   measurement on comparable hardware.
-- **Equilibrium solver**: Fixed-boundary Grad-Shafranov only. No free-boundary
-  with external coil currents. No stellarator geometry.
+- **Equilibrium solver**: Two variants exist: stable fixed-boundary GS, plus an
+  experimental free-boundary external-coil scaffold. The free-boundary path is
+  not yet sufficient for full shape control, X-point geometry, or divertor
+  configuration. No stellarator geometry.
 - **Transport**: 1.5D flux-surface-averaged. No turbulence micro-instability
   models (TGLF/QuaLiKiz) — uses Chang-Hinton neoclassical + scaling-law anomalous.
 - **Disruption predictor**: Synthetic training data only. Not validated on

@@ -52,7 +52,12 @@ def kernel(tmp_path):
     return FusionKernel(cfg)
 
 
-def _make_coilset(n_coils: int = 3, with_limits: bool = False, with_targets: bool = False):
+def _make_coilset(
+    n_coils: int = 3,
+    with_limits: bool = False,
+    with_targets: bool = False,
+    with_target_flux_values: bool = False,
+):
     positions = [(3.0 + i * 0.5, 2.0 * (-1) ** i) for i in range(n_coils)]
     currents = np.ones(n_coils) * 1e4
     turns = [10] * n_coils
@@ -71,6 +76,8 @@ def _make_coilset(n_coils: int = 3, with_limits: bool = False, with_targets: boo
                 [4.5, -0.5],
             ]
         )
+        if with_target_flux_values:
+            cs.target_flux_values = np.array([0.10, 0.20, 0.15], dtype=float)
     return cs
 
 
@@ -161,11 +168,37 @@ class TestFreeBoundarySolve:
         )
         assert "outer_iterations" in result
         assert result["coil_currents"].shape == (3,)
+        assert result["shape_objective_mode"] == "self_flux_tracking"
 
     def test_convergence(self, kernel):
         cs = _make_coilset(2)
         result = kernel.solve_free_boundary(cs, max_outer_iter=50, tol=1e10)
         assert result["outer_iterations"] == 1
+
+    def test_with_explicit_target_flux_values_reports_shape_error(self, kernel):
+        cs = _make_coilset(3, with_limits=True, with_targets=True, with_target_flux_values=True)
+        result = kernel.solve_free_boundary(
+            cs,
+            max_outer_iter=2,
+            tol=1e-2,
+            optimize_shape=True,
+            tikhonov_alpha=1e-3,
+        )
+        assert result["shape_objective_mode"] == "explicit_target"
+        assert result["shape_target_flux"] is not None
+        assert result["shape_current_flux"] is not None
+        assert result["shape_error_final_rms"] is not None
+        assert result["shape_error_final_max_abs"] is not None
+        assert len(result["shape_error_history"]) >= 1
+        assert np.isfinite(result["shape_error_final_rms"])
+        assert np.isfinite(result["shape_error_final_max_abs"])
+
+    def test_sample_flux_at_points_shape(self, kernel):
+        cs = _make_coilset(3, with_targets=True)
+        kernel.solve_equilibrium()
+        flux = kernel._sample_flux_at_points(cs.target_flux_points)
+        assert flux.shape == (3,)
+        assert np.all(np.isfinite(flux))
 
 
 class TestInterpPsi:

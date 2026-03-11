@@ -34,7 +34,7 @@ except ImportError:
 
 import logging
 
-from scpn_control.control import normalize_bounds
+from scpn_control.control import normalize_bounds, solve_kernel
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class NeuralSurrogate:
 
     def train_on_kernel(self, kernel: Any, perturbation: float = 1.0) -> None:
         self._log("[SOTA] Training Neural Surrogate on Physics Kernel...")
-        kernel.solve_equilibrium()
+        solve_kernel(kernel)
         base_state = self.get_state(kernel)
         p = float(perturbation)
         if not np.isfinite(p) or p <= 0.0:
@@ -68,12 +68,12 @@ class NeuralSurrogate:
         for i in range(len(kernel.cfg["coils"])):
             old_i = float(kernel.cfg["coils"][i].get("current", 0.0))
             kernel.cfg["coils"][i]["current"] = old_i + p
-            kernel.solve_equilibrium()
+            solve_kernel(kernel)
             new_state = self.get_state(kernel)
             self.B[:, i] = (new_state - base_state) / p
             kernel.cfg["coils"][i]["current"] = old_i
 
-        kernel.solve_equilibrium()
+        solve_kernel(kernel)
         self._log("[SOTA] Surrogate Training Complete.")
 
     def get_state(self, kernel: Any) -> np.ndarray:
@@ -261,7 +261,7 @@ def run_sota_simulation(
             target_ip_ma = float(np.clip(target_ip_ma + drift_per, lo_ip, hi_ip))
             physics_cfg["plasma_current_target"] = target_ip_ma
 
-        kernel.solve_equilibrium()
+        solve_kernel(kernel)
         h_coil_abs.append(
             float(
                 np.max(

@@ -13,6 +13,8 @@ to defer their import until actually needed.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 
@@ -25,6 +27,24 @@ def normalize_bounds(bounds: tuple[float, float], name: str) -> tuple[float, flo
     return lo, hi
 
 
+def solve_kernel(kernel: Any) -> Any:
+    """Solve via boundary-aware dispatch when available.
+
+    Prefers ``kernel.solve()`` so controller flows can opt into the
+    configured boundary variant. Falls back to ``solve_equilibrium()``
+    for legacy mocks and the Rust compatibility wrapper.
+    """
+    solve = getattr(kernel, "solve", None)
+    if callable(solve):
+        return solve()
+
+    solve_equilibrium = getattr(kernel, "solve_equilibrium", None)
+    if callable(solve_equilibrium):
+        return solve_equilibrium()
+
+    raise AttributeError("kernel must define solve() or solve_equilibrium().")
+
+
 def get_nengo_controller() -> type:
     """Lazy import of NengoSNNController (requires ``pip install scpn-control[nengo]``)."""
     from scpn_control.control.nengo_snn_wrapper import NengoSNNController
@@ -32,4 +52,4 @@ def get_nengo_controller() -> type:
     return NengoSNNController
 
 
-__all__ = ["get_nengo_controller", "normalize_bounds"]
+__all__ = ["get_nengo_controller", "normalize_bounds", "solve_kernel"]

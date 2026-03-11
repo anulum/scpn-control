@@ -24,6 +24,7 @@ import logging
 import numpy as np
 
 logger = logging.getLogger(__name__)
+from scpn_control.control import solve_kernel
 
 try:
     from sc_neurocore.neurons.stochastic_lif import StochasticLIFNeuron
@@ -295,7 +296,7 @@ class NeuroCyberneticController:
 
         self._reset_history()
 
-        self.kernel.solve_equilibrium()
+        solve_kernel(self.kernel)
 
         physics_cfg = self.kernel.cfg.setdefault("physics", {})
         coils = self.kernel.cfg.setdefault("coils", [{} for _ in range(5)])
@@ -323,7 +324,7 @@ class NeuroCyberneticController:
             coils[0]["current"] = float(coils[0]["current"]) - ctrl_z
             coils[4]["current"] = float(coils[4]["current"]) + ctrl_z
 
-            self.kernel.solve_equilibrium()
+            solve_kernel(self.kernel)
 
             self.history["t"].append(float(t))
             self.history["Ip"].append(float(target_ip))

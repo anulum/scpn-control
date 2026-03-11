@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, Tuple
 import numpy as np
 
 logger = logging.getLogger(__name__)
+from scpn_control.control import solve_kernel
 
 try:
     from scpn_control.core._rust_compat import FusionKernel
@@ -223,7 +224,7 @@ class IsoFluxController:
         self._log("Scenario: Current Ramp-Up & Divertor Formation")
 
         # Initial Solve
-        self.kernel.solve_equilibrium()
+        solve_kernel(self.kernel)
 
         # Physics Evolution Loop
         for t in range(steps):
@@ -273,7 +274,7 @@ class IsoFluxController:
             self._add_coil_current(4, ctrl_vertical_bottom)  # Bottom
 
             # Hot-start from previous Psi
-            self.kernel.solve_equilibrium()
+            solve_kernel(self.kernel)
 
             # Log
             self.history["t"].append(t)

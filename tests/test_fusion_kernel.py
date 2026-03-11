@@ -29,6 +29,7 @@ def _write_config(
     require_gs_residual: bool = False,
     gs_residual_threshold: float | None = None,
     extra_solver: dict | None = None,
+    free_boundary: dict | None = None,
 ) -> Path:
     cfg: dict = {
         "reactor_name": "Test-Reactor",
@@ -54,6 +55,8 @@ def _write_config(
         cfg["physics"]["profiles"] = {"mode": profile_mode}
     if extra_solver:
         cfg["solver"].update(extra_solver)
+    if free_boundary:
+        cfg["free_boundary"] = free_boundary
     path.write_text(json.dumps(cfg), encoding="utf-8")
     return path
 
@@ -105,6 +108,97 @@ class TestConstruction:
     def test_missing_config_raises(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             FusionKernel(tmp_path / "nonexistent.json")
+
+    def test_default_boundary_variant_is_fixed(self, kernel):
+        assert kernel.boundary_variant == "fixed_boundary"
+
+    def test_invalid_boundary_variant_raises(self, tmp_path):
+        cfg = _write_config(tmp_path / "bad_variant.json", extra_solver={"boundary_variant": "chaos"})
+        with pytest.raises(ValueError, match="boundary_variant"):
+            FusionKernel(cfg)
+
+
+class TestBoundaryVariants:
+    def test_build_coilset_from_config(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "free.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "current_limits": [5.0e4, 5.0e4],
+                "target_flux_points": [[3.5, 0.0], [4.0, 0.5]],
+                "target_flux_values": [0.1, 0.2],
+            },
+        )
+        kernel = FusionKernel(cfg)
+        coils = kernel.build_coilset_from_config()
+
+        assert coils.positions == [(3.0, 4.0), (5.0, -4.0)]
+        np.testing.assert_allclose(coils.currents, [2.0, -1.0])
+        np.testing.assert_allclose(coils.current_limits, [5.0e4, 5.0e4])
+        assert coils.target_flux_points is not None
+        assert coils.target_flux_points.shape == (2, 2)
+        assert coils.target_flux_values is not None
+        np.testing.assert_allclose(coils.target_flux_values, [0.1, 0.2])
+
+    def test_build_coilset_from_config_scalar_target_flux(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "free_scalar.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "target_flux_points": [[3.5, 0.0], [4.0, 0.5]],
+                "target_flux_value": 0.125,
+            },
+        )
+        kernel = FusionKernel(cfg)
+        coils = kernel.build_coilset_from_config()
+
+        assert coils.target_flux_values is not None
+        np.testing.assert_allclose(coils.target_flux_values, [0.125, 0.125])
+
+    def test_solve_dispatch_fixed(self, tmp_path, monkeypatch):
+        cfg = _write_config(tmp_path / "fixed_dispatch.json")
+        kernel = FusionKernel(cfg)
+        calls: dict[str, int] = {"fixed": 0}
+
+        def fake_fixed(*, preserve_initial_state=False, boundary_flux=None):
+            calls["fixed"] += 1
+            return {"boundary_variant": "fixed_boundary", "converged": True}
+
+        monkeypatch.setattr(kernel, "solve_fixed_boundary", fake_fixed)
+        result = kernel.solve()
+
+        assert calls["fixed"] == 1
+        assert result["boundary_variant"] == "fixed_boundary"
+
+    def test_solve_dispatch_free_from_config(self, tmp_path, monkeypatch):
+        cfg = _write_config(
+            tmp_path / "free_dispatch.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "current_limits": [5.0e4, 5.0e4],
+                "target_flux_points": [[3.5, 0.0], [4.0, 0.5]],
+            },
+        )
+        kernel = FusionKernel(cfg)
+        seen: dict[str, CoilSet] = {}
+
+        def fake_free(coils, max_outer_iter=20, tol=1e-4, optimize_shape=False, tikhonov_alpha=1e-4):
+            seen["coils"] = coils
+            return {"boundary_variant": "free_boundary", "outer_iterations": 1, "final_diff": 0.0}
+
+        monkeypatch.setattr(kernel, "solve_free_boundary", fake_free)
+        result = kernel.solve()
+
+        assert result["boundary_variant"] == "free_boundary"
+        assert "coils" in seen
+        assert seen["coils"].target_flux_points is not None
+        assert seen["coils"].target_flux_points.shape == (2, 2)
+
+    def test_solve_equilibrium_reports_fixed_variant(self, tmp_path):
+        cfg = _write_config(tmp_path / "fixed_variant_result.json", grid=(10, 10), max_iter=3)
+        kernel = FusionKernel(cfg)
+        result = kernel.solve_fixed_boundary()
+        assert result["boundary_variant"] == "fixed_boundary"
 
 
 # ── vacuum field ─────────────────────────────────────────────────────

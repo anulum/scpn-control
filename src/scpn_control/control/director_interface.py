@@ -44,6 +44,7 @@ except ImportError:
         ) from exc
 
 from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+from scpn_control.control import solve_kernel
 
 
 class _RuleBasedDirector:
@@ -189,7 +190,7 @@ class DirectorInterface:
             logger.info("Layer 16 (Director) is now overseeing Layer 2 (Neurocore).")
             logger.info("Director backend: %s", self.director_backend)
 
-        self.nc.kernel.solve_equilibrium()
+        solve_kernel(self.nc.kernel)
         self.nc.initialize_brains(use_quantum=bool(use_quantum))
 
         current_target_ip = 5.0
@@ -241,7 +242,7 @@ class DirectorInterface:
                         logger.info("[Director] INTERVENTION: Reducing Power to restore Coherence.")
                     current_target_ip = max(1.0, current_target_ip - 2.0)
 
-            self.nc.kernel.solve_equilibrium()
+            solve_kernel(self.nc.kernel)
             self.log.append(
                 {
                     "t": float(t),

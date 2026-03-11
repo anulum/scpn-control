@@ -14,6 +14,7 @@ from typing import Any, Callable
 import numpy as np
 
 logger = logging.getLogger(__name__)
+from scpn_control.control import solve_kernel
 
 try:
     import matplotlib.pyplot as plt
@@ -346,9 +347,9 @@ def run_control_room(
             except (KeyError, TypeError, IndexError) as exc:
                 logger.warning("Coil current update failed at frame %d: %s", _frame, exc)
 
-        if kernel is not None and hasattr(kernel, "solve_equilibrium"):
+        if kernel is not None:
             try:
-                kernel.solve_equilibrium()
+                solve_kernel(kernel)
             except (RuntimeError, np.linalg.LinAlgError) as exc:
                 logger.warning("Equilibrium solve failed at frame %d: %s", _frame, exc)
 

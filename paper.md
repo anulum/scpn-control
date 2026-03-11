@@ -27,8 +27,9 @@ bibliography: paper.bib
 `scpn-control` is an open-source neuro-symbolic control engine that compiles
 Stochastic Petri Net (SPN) graphs into spiking neural network (SNN) controllers
 with formal contract verification for tokamak plasma control. The package
-provides a complete closed-loop control stack: a free-boundary Grad-Shafranov
-equilibrium solver, a 1D Crank-Nicolson transport solver with multi-ion physics,
+provides a complete closed-loop control stack: a fixed-boundary Grad-Shafranov
+equilibrium solver with an experimental external-coil boundary-shaping scaffold,
+a 1D Crank-Nicolson transport solver with multi-ion physics,
 five runtime-selectable controllers (PID, MPC, $H_\infty$, SNN, neuro-cybernetic),
 disruption prediction with shattered pellet injection mitigation, a trained
 QLKNN-10D neural transport surrogate, a Gymnasium-compatible reinforcement

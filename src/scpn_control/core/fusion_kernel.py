@@ -6,7 +6,10 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """
-Non-linear free-boundary Grad-Shafranov equilibrium solver.
+Non-linear Grad-Shafranov equilibrium solver with two boundary variants:
+
+- fixed-boundary: stable default path
+- free-boundary: experimental external-coil outer loop
 
 Solves the Grad-Shafranov equation for toroidal plasma equilibrium using
 Picard iteration with under-relaxation.  Supports both L-mode (linear)
@@ -38,9 +41,24 @@ logger = logging.getLogger(__name__)
 FloatArray = NDArray[np.float64]
 
 
+def _normalize_boundary_variant(variant: str | None) -> str:
+    raw = "fixed_boundary" if variant is None else str(variant).strip().lower()
+    raw = raw.replace("-", "_").replace(" ", "_")
+
+    if raw in {"fixed", "fixed_boundary", "fixedboundary"}:
+        return "fixed_boundary"
+    if raw in {"free", "free_boundary", "freeboundary"}:
+        return "free_boundary"
+
+    raise ValueError(
+        "solver.boundary_variant must be one of: "
+        "'fixed_boundary', 'free_boundary', 'fixed', 'free'."
+    )
+
+
 @dataclass
 class CoilSet:
-    """External coil set for free-boundary solve.
+    """External coil set for the free-boundary variant.
 
     Attributes
     ----------
@@ -56,6 +74,10 @@ class CoilSet:
     target_flux_points : NDArray or None
         Points ``(R, Z)`` on the desired separatrix for shape optimisation.
         Shape ``(n_pts, 2)``.
+    target_flux_values : NDArray or None
+        Explicit target flux values at ``target_flux_points``.  When set, the
+        free-boundary shape objective becomes an actual target-tracking problem
+        instead of reproducing the current solved boundary flux.
     """
 
     positions: list[tuple[float, float]] = field(default_factory=list)
@@ -63,10 +85,11 @@ class CoilSet:
     turns: list[int] = field(default_factory=list)
     current_limits: NDArray[np.float64] | None = None
     target_flux_points: NDArray[np.float64] | None = None
+    target_flux_values: NDArray[np.float64] | None = None
 
 
 class FusionKernel:
-    """Non-linear free-boundary Grad-Shafranov equilibrium solver.
+    """Non-linear Grad-Shafranov equilibrium solver.
 
     Parameters
     ----------
@@ -102,6 +125,9 @@ class FusionKernel:
         """
         with open(path, "r") as f:
             self.cfg: dict[str, Any] = json.load(f)
+        solver_cfg = self.cfg.setdefault("solver", {})
+        self.boundary_variant: str = _normalize_boundary_variant(solver_cfg.get("boundary_variant", "fixed_boundary"))
+        solver_cfg["boundary_variant"] = self.boundary_variant
         logger.info("Loaded configuration for: %s", self.cfg["reactor_name"])
 
     def initialize_grid(self) -> None:
@@ -161,6 +187,104 @@ class FusionKernel:
             )
         else:
             logger.info("HPC Acceleration UNAVAILABLE (using Python fallback).")
+
+    def build_coilset_from_config(self) -> CoilSet:
+        """Build a free-boundary ``CoilSet`` from the active JSON configuration."""
+        coils_cfg = list(self.cfg.get("coils", []))
+        positions = [(float(coil["r"]), float(coil["z"])) for coil in coils_cfg]
+        currents = np.asarray([float(coil.get("current", 0.0)) for coil in coils_cfg], dtype=np.float64)
+        turns = [int(coil.get("turns", 1)) for coil in coils_cfg]
+
+        fb_cfg = self.cfg.get("free_boundary", {})
+
+        current_limits_raw = fb_cfg.get("current_limits")
+        current_limits: NDArray[np.float64] | None = None
+        if current_limits_raw is not None:
+            current_limits = np.asarray(current_limits_raw, dtype=np.float64).reshape(-1)
+            if current_limits.shape != currents.shape:
+                raise ValueError("free_boundary.current_limits must match the number of coils.")
+
+        target_points_raw = fb_cfg.get("target_flux_points")
+        target_flux_points: NDArray[np.float64] | None = None
+        if target_points_raw is not None:
+            target_flux_points = np.asarray(target_points_raw, dtype=np.float64)
+            if target_flux_points.ndim != 2 or target_flux_points.shape[1] != 2:
+                raise ValueError("free_boundary.target_flux_points must have shape (n_pts, 2).")
+
+        target_flux_values_raw = fb_cfg.get("target_flux_values")
+        target_flux_values: NDArray[np.float64] | None = None
+        if target_flux_values_raw is not None:
+            target_flux_values = np.asarray(target_flux_values_raw, dtype=np.float64).reshape(-1)
+
+        target_flux_value_raw = fb_cfg.get("target_flux_value")
+        if target_flux_value_raw is not None:
+            if target_flux_values is not None:
+                raise ValueError("Specify only one of free_boundary.target_flux_values or free_boundary.target_flux_value.")
+            if target_flux_points is None:
+                raise ValueError("free_boundary.target_flux_value requires free_boundary.target_flux_points.")
+            target_flux_scalar = float(target_flux_value_raw)
+            if not np.isfinite(target_flux_scalar):
+                raise ValueError("free_boundary.target_flux_value must be finite.")
+            target_flux_values = np.full(target_flux_points.shape[0], target_flux_scalar, dtype=np.float64)
+
+        if target_flux_values is not None:
+            if target_flux_points is None:
+                raise ValueError("free_boundary.target_flux_values requires free_boundary.target_flux_points.")
+            if target_flux_values.shape != (target_flux_points.shape[0],):
+                raise ValueError("free_boundary.target_flux_values must match the number of target_flux_points.")
+
+        return CoilSet(
+            positions=positions,
+            currents=currents,
+            turns=turns,
+            current_limits=current_limits,
+            target_flux_points=target_flux_points,
+            target_flux_values=target_flux_values,
+        )
+
+    def solve(
+        self,
+        *,
+        boundary_variant: str | None = None,
+        coils: CoilSet | None = None,
+        preserve_initial_state: bool = False,
+        boundary_flux: FloatArray | None = None,
+        max_outer_iter: int = 20,
+        tol: float = 1e-4,
+        optimize_shape: bool = False,
+        tikhonov_alpha: float = 1e-4,
+    ) -> dict[str, Any]:
+        """Solve using the requested boundary variant.
+
+        The default is taken from ``solver.boundary_variant`` in the active config.
+        """
+        variant = _normalize_boundary_variant(boundary_variant or self.boundary_variant)
+
+        if variant == "fixed_boundary":
+            return self.solve_fixed_boundary(
+                preserve_initial_state=preserve_initial_state,
+                boundary_flux=boundary_flux,
+            )
+
+        coilset = coils if coils is not None else self.build_coilset_from_config()
+        return self.solve_free_boundary(
+            coilset,
+            max_outer_iter=max_outer_iter,
+            tol=tol,
+            optimize_shape=optimize_shape,
+            tikhonov_alpha=tikhonov_alpha,
+        )
+
+    def solve_fixed_boundary(
+        self,
+        preserve_initial_state: bool = False,
+        boundary_flux: FloatArray | None = None,
+    ) -> dict[str, Any]:
+        """Explicit entry point for the fixed-boundary variant."""
+        return self.solve_equilibrium(
+            preserve_initial_state=preserve_initial_state,
+            boundary_flux=boundary_flux,
+        )
 
     # ── vacuum field ──────────────────────────────────────────────────
 
@@ -1375,6 +1499,7 @@ class FusionKernel:
             "gs_residual_history": gs_residual_history,
             "wall_time_s": elapsed,
             "solver_method": method,
+            "boundary_variant": "fixed_boundary",
         }
 
     # ── post-processing ───────────────────────────────────────────────
@@ -1449,6 +1574,34 @@ class FusionKernel:
 
         return M
 
+    def _sample_flux_at_points(self, obs_points: FloatArray) -> FloatArray:
+        """Sample the current ``Psi`` field at arbitrary observation points."""
+        return np.asarray([float(self._interp_psi(R_obs, Z_obs)) for R_obs, Z_obs in obs_points], dtype=np.float64)
+
+    @staticmethod
+    def _shape_error_metrics(current_flux: FloatArray, target_flux: FloatArray) -> dict[str, float]:
+        """Compute RMS and max-abs error for a boundary-shape target."""
+        residual = np.asarray(current_flux, dtype=np.float64) - np.asarray(target_flux, dtype=np.float64)
+        if residual.size == 0:
+            return {"shape_error_rms": 0.0, "shape_error_max_abs": 0.0}
+        return {
+            "shape_error_rms": float(np.sqrt(np.mean(residual * residual))),
+            "shape_error_max_abs": float(np.max(np.abs(residual))),
+        }
+
+    def _resolve_shape_target_flux(
+        self,
+        coils: CoilSet,
+        current_flux: FloatArray,
+    ) -> tuple[FloatArray, str]:
+        """Resolve the shape objective target for free-boundary optimisation."""
+        if coils.target_flux_values is not None:
+            target_flux = np.asarray(coils.target_flux_values, dtype=np.float64).reshape(-1)
+            if target_flux.shape != current_flux.shape:
+                raise ValueError("CoilSet.target_flux_values must match the sampled target_flux_points shape.")
+            return target_flux, "explicit_target"
+        return np.asarray(current_flux, dtype=np.float64).copy(), "self_flux_tracking"
+
     def optimize_coil_currents(
         self,
         coils: CoilSet,
@@ -1516,19 +1669,24 @@ class FusionKernel:
         optimize_shape: bool = False,
         tikhonov_alpha: float = 1e-4,
     ) -> dict[str, Any]:
-        """Free-boundary GS solve with external coil currents.
+        """Experimental external-coil outer loop around the fixed-boundary GS solve.
 
         Iterates between updating boundary flux from coils and solving the
         internal GS equation.  When ``optimize_shape=True`` and the coil set
         has ``target_flux_points``, an additional outer loop optimises the
         coil currents to match the desired plasma boundary shape.
 
+        This helper should not be interpreted as a complete production-grade
+        free-boundary solver.  The current project standard for closing the
+        free-boundary roadmap item is higher: shape control, X-point geometry,
+        and divertor-configuration support must all be demonstrated.
+
         Parameters
         ----------
         coils : CoilSet
             External coil set.
         max_outer_iter : int
-            Maximum free-boundary iterations.
+            Maximum outer-loop iterations for the experimental coil-coupled path.
         tol : float
             Convergence tolerance on max |delta psi|.
         optimize_shape : bool
@@ -1543,6 +1701,11 @@ class FusionKernel:
             "coil_currents": NDArray}``
         """
         psi_ext = self._compute_external_flux(coils)
+        shape_error_history: list[float] = []
+        shape_error_max_history: list[float] = []
+        shape_objective_mode = "disabled"
+        target_flux_used: FloatArray | None = None
+        currents_updated = False
 
         for outer in range(max_outer_iter):
             # Apply external flux as boundary condition
@@ -1561,8 +1724,12 @@ class FusionKernel:
             # Optional: optimise coil currents to match target shape
             if optimize_shape and coils.target_flux_points is not None:
                 obs = coils.target_flux_points
-                # Extract current flux at target points via interpolation
-                target_psi = np.array([float(self._interp_psi(R_t, Z_t)) for R_t, Z_t in obs])
+                current_flux = self._sample_flux_at_points(obs)
+                target_psi, shape_objective_mode = self._resolve_shape_target_flux(coils, current_flux)
+                target_flux_used = target_psi.copy()
+                metrics = self._shape_error_metrics(current_flux, target_psi)
+                shape_error_history.append(metrics["shape_error_rms"])
+                shape_error_max_history.append(metrics["shape_error_max_abs"])
                 new_currents = self.optimize_coil_currents(
                     coils,
                     target_psi,
@@ -1570,6 +1737,7 @@ class FusionKernel:
                 )
                 coils.currents = new_currents
                 psi_ext = self._compute_external_flux(coils)
+                currents_updated = True
 
             # Check convergence
             diff = float(np.max(np.abs(self.Psi - psi_old)))
@@ -1577,10 +1745,39 @@ class FusionKernel:
                 logger.info("Free-boundary converged at outer iter %d (diff=%.2e)", outer, diff)
                 break
 
+        # Keep the returned Psi consistent with the final coil currents.
+        if currents_updated:
+            self.solve_equilibrium(
+                preserve_initial_state=True,
+                boundary_flux=psi_ext,
+            )
+
+        shape_error_final_rms: float | None = None
+        shape_error_final_max_abs: float | None = None
+        current_flux_final: FloatArray | None = None
+        if optimize_shape and coils.target_flux_points is not None:
+            current_flux_final = self._sample_flux_at_points(coils.target_flux_points)
+            target_final, shape_objective_mode = self._resolve_shape_target_flux(coils, current_flux_final)
+            target_flux_used = target_final.copy()
+            metrics_final = self._shape_error_metrics(current_flux_final, target_final)
+            shape_error_final_rms = metrics_final["shape_error_rms"]
+            shape_error_final_max_abs = metrics_final["shape_error_max_abs"]
+            if not shape_error_history:
+                shape_error_history.append(shape_error_final_rms)
+                shape_error_max_history.append(shape_error_final_max_abs)
+
         return {
             "outer_iterations": outer + 1,
             "final_diff": diff,
             "coil_currents": coils.currents.copy(),
+            "boundary_variant": "free_boundary",
+            "shape_objective_mode": shape_objective_mode,
+            "shape_error_history": shape_error_history,
+            "shape_error_max_history": shape_error_max_history,
+            "shape_error_final_rms": shape_error_final_rms,
+            "shape_error_final_max_abs": shape_error_final_max_abs,
+            "shape_target_flux": None if target_flux_used is None else target_flux_used.copy(),
+            "shape_current_flux": None if current_flux_final is None else current_flux_final.copy(),
         }
 
     def _interp_psi(self, R_pt: float, Z_pt: float) -> float:
