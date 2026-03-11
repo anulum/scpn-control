@@ -50,10 +50,7 @@ def _normalize_boundary_variant(variant: str | None) -> str:
     if raw in {"free", "free_boundary", "freeboundary"}:
         return "free_boundary"
 
-    raise ValueError(
-        "solver.boundary_variant must be one of: "
-        "'fixed_boundary', 'free_boundary', 'fixed', 'free'."
-    )
+    raise ValueError("solver.boundary_variant must be one of: 'fixed_boundary', 'free_boundary', 'fixed', 'free'.")
 
 
 @dataclass
@@ -219,7 +216,9 @@ class FusionKernel:
         target_flux_value_raw = fb_cfg.get("target_flux_value")
         if target_flux_value_raw is not None:
             if target_flux_values is not None:
-                raise ValueError("Specify only one of free_boundary.target_flux_values or free_boundary.target_flux_value.")
+                raise ValueError(
+                    "Specify only one of free_boundary.target_flux_values or free_boundary.target_flux_value."
+                )
             if target_flux_points is None:
                 raise ValueError("free_boundary.target_flux_value requires free_boundary.target_flux_points.")
             target_flux_scalar = float(target_flux_value_raw)
