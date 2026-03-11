@@ -201,6 +201,7 @@ def test_hinf_gain_margin_unstable():
 
 
 def test_spi_verbose_log(tmp_path):
+    pytest.importorskip("matplotlib")
     from scpn_control.control.spi_mitigation import run_spi_mitigation
 
     out = tmp_path / "spi.png"
