@@ -119,6 +119,19 @@ class TestPredictDisruptionRiskSafeFallback:
         assert 0.0 <= risk <= 1.0
         assert meta["seq_len"] == 64
 
+    def test_fallback_returns_probabilistic_metadata(self, monkeypatch):
+        monkeypatch.setattr(dp_mod, "torch", None)
+        signal = np.linspace(0.2, 1.8, 96)
+        risk, meta = predict_disruption_risk_safe(signal)
+        assert 0.0 <= risk <= 1.0
+        assert meta["probabilistic_output"] is True
+        assert meta["probabilistic_method"] == "deterministic_sigma_points"
+        assert 0.0 <= meta["risk_p05"] <= meta["risk_p95"] <= 1.0
+        assert meta["risk_interval"][0] == pytest.approx(meta["risk_p05"])
+        assert meta["risk_interval"][1] == pytest.approx(meta["risk_p95"])
+        assert meta["risk_samples_used"] == len(dp_mod.PROBABILISTIC_SIGMA_LEVELS)
+        assert meta["risk_std"] >= 0.0
+
 
 # ── predict_disruption_risk_safe: with torch (if available) ──────────
 
@@ -140,3 +153,54 @@ class TestPredictDisruptionRiskSafeWithTorch:
         _, meta = predict_disruption_risk_safe(signal)
         assert "mode" in meta
         assert meta["mode"] in ("fallback", "checkpoint")
+
+    def test_checkpoint_like_path_returns_probabilistic_metadata(self, monkeypatch):
+        class _FakeNoGrad:
+            def __enter__(self):
+                return None
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        class _FakeTorch:
+            float32 = np.float32
+
+            @staticmethod
+            def tensor(data, dtype=None):
+                return np.asarray(data, dtype=np.float32 if dtype is not None else float)
+
+            @staticmethod
+            def no_grad():
+                return _FakeNoGrad()
+
+        class _FakeTensor:
+            def __init__(self, value: float) -> None:
+                self._value = value
+
+            def item(self) -> float:
+                return self._value
+
+        class _FakeModel:
+            def eval(self) -> None:
+                return None
+
+            def __call__(self, x):
+                risk = float(np.clip(0.25 + 0.35 * float(np.mean(np.asarray(x))), 0.0, 1.0))
+                return _FakeTensor(risk)
+
+        monkeypatch.setattr(dp_mod, "torch", _FakeTorch())
+        monkeypatch.setattr(
+            dp_mod,
+            "load_or_train_predictor",
+            lambda **_: (_FakeModel(), {"seq_len": 64, "trained": True, "fallback": False}),
+        )
+        signal = np.linspace(0.1, 1.1, 90)
+        risk, meta = predict_disruption_risk_safe(signal)
+        assert 0.0 <= risk <= 1.0
+        assert meta["mode"] == "checkpoint"
+        assert meta["risk_source"] == "transformer"
+        assert meta["probabilistic_output"] is True
+        assert meta["probabilistic_method"] == "transformer_plus_sigma_points"
+        assert 0.0 <= meta["risk_p05"] <= meta["risk_p95"] <= 1.0
+        assert meta["risk_samples_used"] >= len(dp_mod.PROBABILISTIC_SIGMA_LEVELS) + 2
+        assert meta["risk_std"] >= 0.0

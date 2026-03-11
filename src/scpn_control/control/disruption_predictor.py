@@ -42,6 +42,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SEQ_LEN = 100
 DEFAULT_MODEL_FILENAME = "disruption_model.pth"
+PROBABILISTIC_SIGMA_LEVELS = (-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5)
+TOROIDAL_PERTURB_FRACTION = 0.08
+MIN_PROBABILISTIC_NOISE_SCALE = 1.0e-4
 
 
 # --- PHYSICS: MODIFIED RUTHERFORD EQUATION ---
@@ -478,6 +481,96 @@ def _prepare_signal_window(signal: Any, seq_len: int) -> np.ndarray:
     return np.pad(flat, (0, seq_len - flat.size), mode="edge")
 
 
+def _estimate_signal_noise_scale(signal: Any) -> float:
+    flat = np.asarray(signal, dtype=float).reshape(-1)
+    if flat.size < 2:
+        return MIN_PROBABILISTIC_NOISE_SCALE
+    diff_scale = float(np.std(np.diff(flat)))
+    return max(diff_scale, MIN_PROBABILISTIC_NOISE_SCALE)
+
+
+def _sigma_point_pattern(length: int) -> np.ndarray:
+    n = _require_int("length", length, 1)
+    if n == 1:
+        return np.ones(1, dtype=float)
+    pattern = np.linspace(-1.0, 1.0, n, dtype=float)
+    rms = float(np.sqrt(np.mean(pattern * pattern)))
+    return pattern / max(rms, 1.0e-12)
+
+
+def _perturb_toroidal_observables(
+    toroidal_observables: dict[str, float] | None,
+    sigma_level: float,
+) -> dict[str, float] | None:
+    if toroidal_observables is None:
+        return None
+    scale = 1.0 + TOROIDAL_PERTURB_FRACTION * float(sigma_level)
+    return {key: float(value) * scale for key, value in toroidal_observables.items()}
+
+
+def _summarize_risk_samples(
+    samples: Any,
+    *,
+    center_risk: float,
+    method: str,
+) -> dict[str, Any]:
+    clipped = np.clip(np.asarray(samples, dtype=float).reshape(-1), 0.0, 1.0)
+    if clipped.size < 1:
+        clipped = np.asarray([center_risk], dtype=float)
+    q05, q50, q95 = np.quantile(clipped, [0.05, 0.50, 0.95])
+    return {
+        "probabilistic_output": True,
+        "probabilistic_method": method,
+        "risk_mean": float(np.mean(clipped)),
+        "risk_std": float(np.std(clipped)),
+        "risk_p05": float(q05),
+        "risk_p50": float(q50),
+        "risk_p95": float(q95),
+        "risk_interval": [float(q05), float(q95)],
+        "risk_interval_width": float(q95 - q05),
+        "risk_samples_used": int(clipped.size),
+        "risk_center": float(center_risk),
+    }
+
+
+def _deterministic_risk_samples(
+    signal: Any,
+    toroidal_observables: dict[str, float] | None,
+) -> np.ndarray:
+    flat = np.asarray(signal, dtype=float).reshape(-1)
+    noise_scale = _estimate_signal_noise_scale(flat)
+    pattern = _sigma_point_pattern(max(flat.size, 1))
+    samples = [
+        predict_disruption_risk(
+            flat + float(level) * noise_scale * pattern,
+            _perturb_toroidal_observables(toroidal_observables, float(level)),
+        )
+        for level in PROBABILISTIC_SIGMA_LEVELS
+    ]
+    return np.asarray(samples, dtype=float)
+
+
+def _model_risk_samples(
+    model: Any,
+    signal: Any,
+    *,
+    seq_len: int,
+) -> np.ndarray:
+    if torch is None:
+        raise RuntimeError("Torch is required for model-based risk samples.")
+    prepared = _prepare_signal_window(signal, seq_len)
+    noise_scale = _estimate_signal_noise_scale(prepared)
+    pattern = _sigma_point_pattern(prepared.size)
+    samples: list[float] = []
+    model.eval()
+    for level in PROBABILISTIC_SIGMA_LEVELS:
+        perturbed = prepared + float(level) * noise_scale * pattern
+        input_tensor = torch.tensor(perturbed, dtype=torch.float32).reshape(1, -1, 1)
+        with torch.no_grad():
+            samples.append(float(np.clip(float(model(input_tensor).item()), 0.0, 1.0)))
+    return np.asarray(samples, dtype=float)
+
+
 # --- AI: TRANSFORMER MODEL ---
 if torch is not None:
 
@@ -728,6 +821,13 @@ def predict_disruption_risk_safe(
         out_meta = dict(meta)
         out_meta["mode"] = "fallback"
         out_meta["risk_source"] = "predict_disruption_risk"
+        out_meta.update(
+            _summarize_risk_samples(
+                _deterministic_risk_samples(signal, toroidal_observables),
+                center_risk=base_risk,
+                method="deterministic_sigma_points",
+            )
+        )
         return base_risk, out_meta
 
     try:
@@ -740,12 +840,33 @@ def predict_disruption_risk_safe(
         out_meta = dict(meta)
         out_meta["mode"] = "checkpoint"
         out_meta["risk_source"] = "transformer"
+        samples = np.concatenate(
+            [
+                _model_risk_samples(model, signal, seq_len=model_seq_len),
+                _deterministic_risk_samples(signal, toroidal_observables),
+                np.asarray([model_risk, base_risk], dtype=float),
+            ]
+        )
+        out_meta.update(
+            _summarize_risk_samples(
+                samples,
+                center_risk=model_risk,
+                method="transformer_plus_sigma_points",
+            )
+        )
         return model_risk, out_meta
     except (RuntimeError, ValueError, OSError) as exc:
         out_meta = dict(meta)
         out_meta["mode"] = "fallback"
         out_meta["risk_source"] = "predict_disruption_risk"
         out_meta["reason"] = f"inference_failed:{exc.__class__.__name__}"
+        out_meta.update(
+            _summarize_risk_samples(
+                _deterministic_risk_samples(signal, toroidal_observables),
+                center_risk=base_risk,
+                method="deterministic_sigma_points",
+            )
+        )
         return base_risk, out_meta
 
 

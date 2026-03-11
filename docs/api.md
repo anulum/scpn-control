@@ -271,9 +271,16 @@ print(summary["shape_rms"], summary["objective_converged"], summary["supervisor_
 
 ### Disruption Predictor
 
+`predict_disruption_risk_safe()` still returns a bounded scalar risk, but its
+metadata now includes deterministic sigma-point uncertainty summaries
+(`risk_p05`, `risk_p50`, `risk_p95`, `risk_std`, `risk_interval`) for both
+fallback and checkpoint inference paths.
+
 ::: scpn_control.control.disruption_predictor.DisruptionTransformer
 
 ::: scpn_control.control.disruption_predictor.predict_disruption_risk
+
+::: scpn_control.control.disruption_predictor.predict_disruption_risk_safe
 
 ### Disruption Contracts
 
