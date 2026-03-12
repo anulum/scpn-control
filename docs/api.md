@@ -259,6 +259,12 @@ configured tolerances are also treated as deadband, so the controller stops
 chattering the coils once the protected objectives are met. Coil allocation is
 also headroom-aware, so the regularized solve prefers actuators that still have
 current authority instead of leaning equally on a nearly saturated coil.
+Deterministic objective-space sensor bias and per-step drift can be injected
+through `free_boundary_tracking.measurement_bias` and
+`measurement_drift_per_step`, and known calibration corrections can be applied
+with `measurement_correction_bias` and `measurement_correction_drift_per_step`.
+The run summary reports both measured and hidden true objective errors so
+calibration faults cannot masquerade as control success in acceptance tests.
 
 ```python
 from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking

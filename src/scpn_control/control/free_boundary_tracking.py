@@ -13,7 +13,9 @@ applies bounded least-squares coil corrections. When configured, supervisor
 rejection can ramp the coil set toward explicit safe fallback currents instead
 of freezing at the previous command, and an objective-space disturbance
 observer can accumulate persistent residuals without introducing a reduced-order
-plant model.
+plant model. Deterministic objective-space sensor bias and drift can also be
+applied and compensated through configuration so hidden plant performance stays
+visible during calibration-fault stress tests.
 """
 
 from __future__ import annotations
@@ -178,6 +180,24 @@ class FreeBoundaryTrackingController:
         self.target_vector, self.objective_blocks = self._build_target_vector()
         if self.target_vector.size < 1:
             raise ValueError("free-boundary tracking requires explicit target values.")
+        self.measurement_bias_vector = self._resolve_measurement_vector(
+            tracking_cfg.get("measurement_bias"),
+            name="free_boundary_tracking.measurement_bias",
+        )
+        self.measurement_drift_per_step = self._resolve_measurement_vector(
+            tracking_cfg.get("measurement_drift_per_step"),
+            name="free_boundary_tracking.measurement_drift_per_step",
+        )
+        self.measurement_correction_bias = self._resolve_measurement_vector(
+            tracking_cfg.get("measurement_correction_bias"),
+            name="free_boundary_tracking.measurement_correction_bias",
+        )
+        self.measurement_correction_drift_per_step = self._resolve_measurement_vector(
+            tracking_cfg.get("measurement_correction_drift_per_step"),
+            name="free_boundary_tracking.measurement_correction_drift_per_step",
+        )
+        self.measurement_drift_state = np.zeros_like(self.target_vector, dtype=np.float64)
+        self.measurement_correction_drift_state = np.zeros_like(self.target_vector, dtype=np.float64)
         self.control_objective_weights = self._build_control_objective_weights()
         self.objective_bias_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
 
@@ -190,16 +210,26 @@ class FreeBoundaryTrackingController:
         self.history: dict[str, list[Any]] = {
             "t": [],
             "tracking_error_norm": [],
+            "true_tracking_error_norm": [],
             "control_error_norm": [],
+            "true_control_error_norm": [],
             "shape_rms": [],
+            "true_shape_rms": [],
             "shape_max_abs": [],
+            "true_shape_max_abs": [],
             "x_point_position_error": [],
+            "true_x_point_position_error": [],
             "x_point_flux_error": [],
+            "true_x_point_flux_error": [],
             "divertor_rms": [],
+            "true_divertor_rms": [],
             "divertor_max_abs": [],
+            "true_divertor_max_abs": [],
             "max_abs_delta_i": [],
             "max_abs_coil_current": [],
             "max_abs_actuator_lag": [],
+            "max_abs_measurement_offset": [],
+            "mean_abs_measurement_offset": [],
             "accepted_gain": [],
             "objective_converged": [],
             "max_abs_objective_bias_estimate": [],
@@ -455,6 +485,33 @@ class FreeBoundaryTrackingController:
 
         return np.asarray(values, dtype=np.float64), tuple(blocks)
 
+    def _resolve_measurement_vector(self, raw_value: Any, *, name: str) -> FloatArray:
+        vector = np.zeros_like(self.target_vector, dtype=np.float64)
+        if raw_value is None:
+            return cast(FloatArray, vector)
+        if not isinstance(raw_value, dict):
+            raise ValueError(f"{name} must be a mapping of objective block names to finite scalars or vectors.")
+
+        block_map = {block.name: block for block in self.objective_blocks}
+        allowed_keys = ", ".join(sorted(block_map))
+        for key, raw_block_value in raw_value.items():
+            block = block_map.get(key)
+            if block is None:
+                raise ValueError(f"Unknown {name} key {key!r}. Allowed keys: {allowed_keys}.")
+            width = block.stop - block.start
+            if np.isscalar(raw_block_value):
+                block_values = np.full(width, float(cast(Any, raw_block_value)), dtype=np.float64)
+            else:
+                block_values = np.asarray(raw_block_value, dtype=np.float64).reshape(-1)
+                if block_values.size == 1:
+                    block_values = np.full(width, float(block_values[0]), dtype=np.float64)
+            if block_values.shape != (width,):
+                raise ValueError(f"{name}.{key} must be a scalar or contain exactly {width} entries.")
+            if np.any(~np.isfinite(block_values)):
+                raise ValueError(f"{name}.{key} must contain only finite values.")
+            vector[block.start : block.stop] = block_values
+        return cast(FloatArray, np.asarray(vector, dtype=np.float64))
+
     def _weight_from_tolerances(self, *keys: str) -> float:
         weight = 1.0
         for key in keys:
@@ -489,6 +546,32 @@ class FreeBoundaryTrackingController:
 
     def _reset_objective_observer(self) -> None:
         self.objective_bias_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
+
+    def _reset_measurement_offsets(self) -> None:
+        self.measurement_drift_state = np.zeros_like(self.target_vector, dtype=np.float64)
+        self.measurement_correction_drift_state = np.zeros_like(self.target_vector, dtype=np.float64)
+
+    def _advance_measurement_offsets(self) -> None:
+        self.measurement_drift_state = np.asarray(
+            self.measurement_drift_state + self.measurement_drift_per_step,
+            dtype=np.float64,
+        )
+        self.measurement_correction_drift_state = np.asarray(
+            self.measurement_correction_drift_state + self.measurement_correction_drift_per_step,
+            dtype=np.float64,
+        )
+
+    def _current_measurement_offset(self) -> FloatArray:
+        return cast(
+            FloatArray,
+            np.asarray(
+                self.measurement_bias_vector
+                + self.measurement_drift_state
+                - self.measurement_correction_bias
+                - self.measurement_correction_drift_state,
+                dtype=np.float64,
+            ),
+        )
 
     def _update_objective_observer(self, observation: FloatArray) -> None:
         if self.observer_gain <= 0.0 or self.objective_bias_estimate.size < 1:
@@ -548,7 +631,7 @@ class FreeBoundaryTrackingController:
 
         raise AttributeError("kernel must define solve() or solve_free_boundary() for free-boundary tracking.")
 
-    def _observe_objectives(self) -> FloatArray:
+    def _observe_true_objectives(self) -> FloatArray:
         observed: list[float] = []
         for block in self.objective_blocks:
             if block.name == "shape_flux":
@@ -577,6 +660,13 @@ class FreeBoundaryTrackingController:
             else:
                 raise ValueError(f"Unknown objective block {block.name!r}.")
         return np.asarray(observed, dtype=np.float64)
+
+    def _observe_objectives(self) -> FloatArray:
+        true_observation = self._observe_true_objectives()
+        return cast(
+            FloatArray,
+            np.asarray(true_observation + self._current_measurement_offset(), dtype=np.float64),
+        )
 
     def identify_response_matrix(self, perturbation: float | None = None) -> FloatArray:
         p = self.identification_perturbation if perturbation is None else float(perturbation)
@@ -728,7 +818,8 @@ class FreeBoundaryTrackingController:
         actuator_snapshot: tuple[_ActuatorSnapshot, ...],
         baseline_currents: FloatArray,
         metrics_before: dict[str, Any],
-    ) -> tuple[dict[str, Any], dict[str, Any], float, bool]:
+        true_metrics_before: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], float, bool]:
         self._restore_actuator_states(actuator_snapshot)
         self.coils.currents = baseline_currents.copy()
         fallback_active = False
@@ -738,14 +829,16 @@ class FreeBoundaryTrackingController:
             fallback_active = True
         self._solve_free_boundary_state()
         metrics_after = self.evaluate_objectives(self._observe_objectives())
+        true_metrics_after = self.evaluate_objectives(self._observe_true_objectives())
         if not fallback_active:
             metrics_after = metrics_before
+            true_metrics_after = true_metrics_before
         supervisor_after = self.evaluate_supervisor(
             metrics_after,
             max_abs_coil_current=float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0,
             max_abs_actuator_lag=max_abs_actuator_lag,
         )
-        return metrics_after, supervisor_after, max_abs_actuator_lag, fallback_active
+        return metrics_after, true_metrics_after, supervisor_after, max_abs_actuator_lag, fallback_active
 
     def evaluate_objectives(self, observation: np.ndarray) -> dict[str, Any]:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
@@ -877,9 +970,11 @@ class FreeBoundaryTrackingController:
         self.history = {key: [] for key in self.history}
         self._hold_steps_remaining = 0
         self._reset_objective_observer()
+        self._reset_measurement_offsets()
         self._sync_actuators_from_coils()
         self._solve_free_boundary_state()
         last_metrics = self.evaluate_objectives(self._observe_objectives())
+        last_true_metrics = self.evaluate_objectives(self._observe_true_objectives())
         last_supervisor = self.evaluate_supervisor(
             last_metrics,
             max_abs_coil_current=float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0,
@@ -895,13 +990,16 @@ class FreeBoundaryTrackingController:
                 self.identify_response_matrix()
 
             observation_before = self._observe_objectives()
+            true_observation_before = self._observe_true_objectives()
             self._update_objective_observer(observation_before)
             metrics_before = self.evaluate_objectives(observation_before)
+            true_metrics_before = self.evaluate_objectives(true_observation_before)
             delta_currents = self.compute_correction(observation_before, metrics=metrics_before)
             baseline_currents = self.coils.currents.copy()
             actuator_snapshot = self._snapshot_actuator_states()
             accepted_gain = 0.0
             last_metrics = metrics_before
+            last_true_metrics = true_metrics_before
             supervisor_intervened = False
             max_abs_actuator_lag = 0.0
             fallback_active = False
@@ -911,6 +1009,7 @@ class FreeBoundaryTrackingController:
                 delta_currents = np.zeros_like(delta_currents)
                 (
                     last_metrics,
+                    last_true_metrics,
                     last_supervisor,
                     max_abs_actuator_lag,
                     fallback_active,
@@ -918,6 +1017,7 @@ class FreeBoundaryTrackingController:
                     actuator_snapshot=actuator_snapshot,
                     baseline_currents=baseline_currents,
                     metrics_before=metrics_before,
+                    true_metrics_before=true_metrics_before,
                 )
                 supervisor_intervened = True
                 if self.hold_steps_after_reject > 0:
@@ -927,6 +1027,7 @@ class FreeBoundaryTrackingController:
                 delta_currents = np.zeros_like(delta_currents)
                 (
                     last_metrics,
+                    last_true_metrics,
                     last_supervisor,
                     max_abs_actuator_lag,
                     fallback_active,
@@ -934,6 +1035,7 @@ class FreeBoundaryTrackingController:
                     actuator_snapshot=actuator_snapshot,
                     baseline_currents=baseline_currents,
                     metrics_before=metrics_before,
+                    true_metrics_before=true_metrics_before,
                 )
                 supervisor_intervened = True
             else:
@@ -950,7 +1052,9 @@ class FreeBoundaryTrackingController:
                     )
                     self._solve_free_boundary_state()
                     observation_after = self._observe_objectives()
+                    true_observation_after = self._observe_true_objectives()
                     metrics_after = self.evaluate_objectives(observation_after)
+                    true_metrics_after = self.evaluate_objectives(true_observation_after)
                     supervisor_after = self.evaluate_supervisor(
                         metrics_after,
                         max_abs_coil_current=(
@@ -970,6 +1074,7 @@ class FreeBoundaryTrackingController:
                     ):
                         accepted_gain = trial_gain
                         last_metrics = metrics_after
+                        last_true_metrics = true_metrics_after
                         last_supervisor = supervisor_after
                         break
                     if any(tolerance_regressions.values()):
@@ -979,6 +1084,7 @@ class FreeBoundaryTrackingController:
                 if accepted_gain == 0.0:
                     (
                         last_metrics,
+                        last_true_metrics,
                         last_supervisor,
                         max_abs_actuator_lag,
                         fallback_active,
@@ -986,6 +1092,7 @@ class FreeBoundaryTrackingController:
                         actuator_snapshot=actuator_snapshot,
                         baseline_currents=baseline_currents,
                         metrics_before=metrics_before,
+                        true_metrics_before=true_metrics_before,
                     )
                     supervisor_intervened = True
                     if self.hold_steps_after_reject > 0:
@@ -993,18 +1100,34 @@ class FreeBoundaryTrackingController:
 
             max_abs_delta = float(np.max(np.abs(delta_currents))) if delta_currents.size > 0 else 0.0
             max_abs_coil = float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
+            measurement_offset = self._current_measurement_offset()
+            measurement_offset_abs = np.abs(measurement_offset)
             self.history["t"].append(int(step))
             self.history["tracking_error_norm"].append(last_metrics["tracking_error_norm"])
+            self.history["true_tracking_error_norm"].append(last_true_metrics["tracking_error_norm"])
             self.history["control_error_norm"].append(last_metrics["control_error_norm"])
+            self.history["true_control_error_norm"].append(last_true_metrics["control_error_norm"])
             self.history["shape_rms"].append(last_metrics["shape_rms"])
+            self.history["true_shape_rms"].append(last_true_metrics["shape_rms"])
             self.history["shape_max_abs"].append(last_metrics["shape_max_abs"])
+            self.history["true_shape_max_abs"].append(last_true_metrics["shape_max_abs"])
             self.history["x_point_position_error"].append(last_metrics["x_point_position_error"])
+            self.history["true_x_point_position_error"].append(last_true_metrics["x_point_position_error"])
             self.history["x_point_flux_error"].append(last_metrics["x_point_flux_error"])
+            self.history["true_x_point_flux_error"].append(last_true_metrics["x_point_flux_error"])
             self.history["divertor_rms"].append(last_metrics["divertor_rms"])
+            self.history["true_divertor_rms"].append(last_true_metrics["divertor_rms"])
             self.history["divertor_max_abs"].append(last_metrics["divertor_max_abs"])
+            self.history["true_divertor_max_abs"].append(last_true_metrics["divertor_max_abs"])
             self.history["max_abs_delta_i"].append(max_abs_delta)
             self.history["max_abs_coil_current"].append(max_abs_coil)
             self.history["max_abs_actuator_lag"].append(max_abs_actuator_lag)
+            self.history["max_abs_measurement_offset"].append(
+                float(np.max(measurement_offset_abs)) if measurement_offset_abs.size else 0.0
+            )
+            self.history["mean_abs_measurement_offset"].append(
+                float(np.mean(measurement_offset_abs)) if measurement_offset_abs.size else 0.0
+            )
             self.history["accepted_gain"].append(float(accepted_gain))
             self.history["objective_converged"].append(bool(last_metrics["objective_converged"]))
             bias_abs = np.abs(self.objective_bias_estimate)
@@ -1032,19 +1155,25 @@ class FreeBoundaryTrackingController:
                 f"coil_pen={self.history['max_coil_penalty'][-1]:.2f} | "
                 f"resp_rank={self.response_rank} | resp_deg={self.response_degenerate} | "
                 f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
+                f"meas_off={self.history['max_abs_measurement_offset'][-1]:.3e} | "
                 f"lag={max_abs_actuator_lag:.3e} | fallback={fallback_active} | "
                 f"safe={last_supervisor['supervisor_safe']} | "
                 f"converged={last_metrics['objective_converged']}"
             )
+            self._advance_measurement_offsets()
             if stop_on_convergence and last_metrics["objective_converged"]:
                 break
 
         runtime_seconds = time.time() - start_time
         error_arr = np.asarray(self.history["tracking_error_norm"], dtype=np.float64)
+        true_error_arr = np.asarray(self.history["true_tracking_error_norm"], dtype=np.float64)
         control_error_arr = np.asarray(self.history["control_error_norm"], dtype=np.float64)
+        true_control_error_arr = np.asarray(self.history["true_control_error_norm"], dtype=np.float64)
         delta_arr = np.asarray(self.history["max_abs_delta_i"], dtype=np.float64)
         coil_arr = np.asarray(self.history["max_abs_coil_current"], dtype=np.float64)
         lag_arr = np.asarray(self.history["max_abs_actuator_lag"], dtype=np.float64)
+        measurement_offset_max_arr = np.asarray(self.history["max_abs_measurement_offset"], dtype=np.float64)
+        measurement_offset_mean_arr = np.asarray(self.history["mean_abs_measurement_offset"], dtype=np.float64)
         gain_arr = np.asarray(self.history["accepted_gain"], dtype=np.float64)
         bias_max_arr = np.asarray(self.history["max_abs_objective_bias_estimate"], dtype=np.float64)
         bias_mean_arr = np.asarray(self.history["mean_abs_objective_bias_estimate"], dtype=np.float64)
@@ -1057,22 +1186,43 @@ class FreeBoundaryTrackingController:
         supervisor_arr = np.asarray(self.history["supervisor_intervened"], dtype=np.float64)
         fallback_arr = np.asarray(self.history["fallback_active"], dtype=np.float64)
         tolerance_block_arr = np.asarray(self.history["tolerance_regression_blocked"], dtype=np.float64)
+        measurement_distortion_enabled = bool(
+            np.any(np.abs(self.measurement_bias_vector) > 0.0) or np.any(np.abs(self.measurement_drift_per_step) > 0.0)
+        )
+        measurement_compensation_enabled = bool(
+            np.any(np.abs(self.measurement_correction_bias) > 0.0)
+            or np.any(np.abs(self.measurement_correction_drift_per_step) > 0.0)
+        )
         return {
             "steps": int(len(self.history["t"])),
             "runtime_seconds": float(runtime_seconds),
             "boundary_variant": "free_boundary",
             "final_tracking_error_norm": float(error_arr[-1]) if error_arr.size else 0.0,
             "mean_tracking_error_norm": float(np.mean(error_arr)) if error_arr.size else 0.0,
+            "final_true_tracking_error_norm": float(true_error_arr[-1]) if true_error_arr.size else 0.0,
+            "mean_true_tracking_error_norm": float(np.mean(true_error_arr)) if true_error_arr.size else 0.0,
             "final_control_error_norm": float(control_error_arr[-1]) if control_error_arr.size else 0.0,
             "mean_control_error_norm": float(np.mean(control_error_arr)) if control_error_arr.size else 0.0,
+            "final_true_control_error_norm": float(true_control_error_arr[-1]) if true_control_error_arr.size else 0.0,
+            "mean_true_control_error_norm": float(np.mean(true_control_error_arr))
+            if true_control_error_arr.size
+            else 0.0,
             "max_abs_delta_i": float(np.max(delta_arr)) if delta_arr.size else 0.0,
             "max_abs_coil_current": float(np.max(coil_arr)) if coil_arr.size else 0.0,
             "max_abs_actuator_lag": float(np.max(lag_arr)) if lag_arr.size else 0.0,
             "mean_abs_actuator_lag": float(np.mean(lag_arr)) if lag_arr.size else 0.0,
+            "max_abs_measurement_offset": (
+                float(np.max(measurement_offset_max_arr)) if measurement_offset_max_arr.size else 0.0
+            ),
+            "mean_abs_measurement_offset": (
+                float(np.mean(measurement_offset_mean_arr)) if measurement_offset_mean_arr.size else 0.0
+            ),
             "mean_accepted_gain": float(np.mean(gain_arr)) if gain_arr.size else 0.0,
             "min_accepted_gain": float(np.min(gain_arr)) if gain_arr.size else 0.0,
             "observer_enabled": bool(self.observer_gain > 0.0),
             "observer_gain": float(self.observer_gain),
+            "measurement_distortion_enabled": measurement_distortion_enabled,
+            "measurement_compensation_enabled": measurement_compensation_enabled,
             "max_abs_objective_bias_estimate": float(np.max(bias_max_arr)) if bias_max_arr.size else 0.0,
             "mean_abs_objective_bias_estimate": float(np.mean(bias_mean_arr)) if bias_mean_arr.size else 0.0,
             "min_response_rank": int(np.min(response_rank_arr)) if response_rank_arr.size else 0,
@@ -1096,11 +1246,17 @@ class FreeBoundaryTrackingController:
             "tolerance_regression_blocked_count": int(np.sum(tolerance_block_arr)),
             "hold_steps_after_reject": int(self.hold_steps_after_reject),
             "shape_rms": last_metrics["shape_rms"],
+            "true_shape_rms": last_true_metrics["shape_rms"],
             "shape_max_abs": last_metrics["shape_max_abs"],
+            "true_shape_max_abs": last_true_metrics["shape_max_abs"],
             "x_point_position_error": last_metrics["x_point_position_error"],
+            "true_x_point_position_error": last_true_metrics["x_point_position_error"],
             "x_point_flux_error": last_metrics["x_point_flux_error"],
+            "true_x_point_flux_error": last_true_metrics["x_point_flux_error"],
             "divertor_rms": last_metrics["divertor_rms"],
+            "true_divertor_rms": last_true_metrics["divertor_rms"],
             "divertor_max_abs": last_metrics["divertor_max_abs"],
+            "true_divertor_max_abs": last_true_metrics["divertor_max_abs"],
         }
 
 

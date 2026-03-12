@@ -168,6 +168,53 @@ class _ObserverKernel(_DummyFreeBoundaryKernel):
         }
 
 
+class _MeasurementDistortionKernel(_DummyFreeBoundaryKernel):
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        self.cfg["free_boundary_tracking"] = {
+            "measurement_bias": {
+                "shape_flux": [0.04, -0.02, 0.03],
+                "x_point_position": [0.06, -0.05],
+                "x_point_flux": 0.025,
+                "divertor_flux": [0.03, -0.02],
+            },
+            "measurement_drift_per_step": {
+                "shape_flux": [0.006, -0.003, 0.004],
+                "x_point_position": [0.01, -0.008],
+                "x_point_flux": 0.004,
+                "divertor_flux": [0.005, -0.003],
+            },
+        }
+
+
+class _MeasurementCorrectedKernel(_MeasurementDistortionKernel):
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        tracking_cfg = self.cfg["free_boundary_tracking"]
+        tracking_cfg["measurement_correction_bias"] = {
+            "shape_flux": [0.04, -0.02, 0.03],
+            "x_point_position": [0.06, -0.05],
+            "x_point_flux": 0.025,
+            "divertor_flux": [0.03, -0.02],
+        }
+        tracking_cfg["measurement_correction_drift_per_step"] = {
+            "shape_flux": [0.006, -0.003, 0.004],
+            "x_point_position": [0.01, -0.008],
+            "x_point_flux": 0.004,
+            "divertor_flux": [0.005, -0.003],
+        }
+
+
+class _InvalidMeasurementKernel(_DummyFreeBoundaryKernel):
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        self.cfg["free_boundary_tracking"] = {
+            "measurement_bias": {
+                "x_point_position": [0.1, 0.2, 0.3],
+            }
+        }
+
+
 class _PriorityConflictKernel:
     """Single-coil plant where shape and X-point flux objectives conflict."""
 
@@ -804,6 +851,87 @@ def test_objective_observer_reduces_persistent_disturbance_error() -> None:
     assert observed["observer_enabled"] is True
     assert observed["max_abs_objective_bias_estimate"] > 0.0
     assert observed["final_tracking_error_norm"] < baseline["final_tracking_error_norm"]
+
+
+def test_controller_reports_hidden_true_metrics_under_measurement_distortion() -> None:
+    summary = run_free_boundary_tracking(
+        config_file="dummy.json",
+        shot_steps=4,
+        gain=0.18,
+        verbose=False,
+        kernel_factory=_MeasurementDistortionKernel,
+        stop_on_convergence=False,
+    )
+
+    assert summary["measurement_distortion_enabled"] is True
+    assert summary["measurement_compensation_enabled"] is False
+    assert summary["max_abs_measurement_offset"] > 0.0
+    assert summary["mean_abs_measurement_offset"] > 0.0
+    assert abs(summary["final_tracking_error_norm"] - summary["final_true_tracking_error_norm"]) > 1.0e-4
+    for key in (
+        "final_true_tracking_error_norm",
+        "mean_true_tracking_error_norm",
+        "true_shape_rms",
+        "true_x_point_position_error",
+        "true_x_point_flux_error",
+        "true_divertor_rms",
+    ):
+        assert key in summary
+
+
+def test_measurement_compensation_restores_true_tracking_baseline() -> None:
+    kwargs = dict(
+        config_file="dummy.json",
+        shot_steps=4,
+        gain=0.18,
+        verbose=False,
+        stop_on_convergence=False,
+    )
+    baseline = run_free_boundary_tracking(
+        kernel_factory=_DummyFreeBoundaryKernel,
+        **kwargs,
+    )
+    distorted = run_free_boundary_tracking(
+        kernel_factory=_MeasurementDistortionKernel,
+        **kwargs,
+    )
+    corrected = run_free_boundary_tracking(
+        kernel_factory=_MeasurementCorrectedKernel,
+        **kwargs,
+    )
+
+    assert distorted["measurement_compensation_enabled"] is False
+    assert distorted["final_true_tracking_error_norm"] != pytest.approx(
+        baseline["final_true_tracking_error_norm"],
+        rel=0.0,
+        abs=1.0e-4,
+    )
+    assert distorted["final_tracking_error_norm"] != pytest.approx(
+        distorted["final_true_tracking_error_norm"],
+        rel=0.0,
+        abs=1.0e-4,
+    )
+    assert corrected["measurement_compensation_enabled"] is True
+    for key in (
+        "final_tracking_error_norm",
+        "mean_tracking_error_norm",
+        "final_true_tracking_error_norm",
+        "mean_true_tracking_error_norm",
+        "true_shape_rms",
+        "true_x_point_position_error",
+        "true_x_point_flux_error",
+        "true_divertor_rms",
+    ):
+        assert corrected[key] == pytest.approx(baseline[key], rel=0.0, abs=1.0e-12)
+
+
+def test_controller_rejects_invalid_measurement_bias_shape() -> None:
+    with pytest.raises(ValueError, match="measurement_bias.x_point_position must be a scalar or contain exactly 2"):
+        FreeBoundaryTrackingController(
+            "dummy.json",
+            kernel_factory=_InvalidMeasurementKernel,
+            verbose=False,
+        )
 
 
 def test_controller_prioritizes_tighter_x_point_flux_tolerance_under_conflict() -> None:
