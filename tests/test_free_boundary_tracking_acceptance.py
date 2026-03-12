@@ -39,6 +39,8 @@ def test_campaign_is_deterministic() -> None:
             b["scenarios"][scenario]["summary"]["final_tracking_error_norm"]
         )
         assert a["scenarios"][scenario]["passes_thresholds"] == b["scenarios"][scenario]["passes_thresholds"]
+    for sweep in ("measurement_fault_scale", "actuator_slew_limit"):
+        assert a["sweeps"][sweep]["passes_thresholds"] == b["sweeps"][sweep]["passes_thresholds"]
 
 
 def test_campaign_thresholds_pass() -> None:
@@ -48,6 +50,8 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["coil_kick"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_corrected"]["passes_thresholds"] is True
+    assert out["sweeps"]["measurement_fault_scale"]["passes_thresholds"] is True
+    assert out["sweeps"]["actuator_slew_limit"]["passes_thresholds"] is True
 
 
 def test_measurement_fault_scenarios_expose_and_remove_gap() -> None:
@@ -67,10 +71,42 @@ def test_measurement_fault_scenarios_expose_and_remove_gap() -> None:
     )
 
 
+def test_measurement_sweep_gap_and_offset_grow_monotonically() -> None:
+    out = free_boundary_tracking_acceptance.run_campaign()
+    sweep = out["sweeps"]["measurement_fault_scale"]
+    gaps = [entry["measured_true_gap"] for entry in sweep["entries"]]
+    offsets = [entry["max_abs_measurement_offset"] for entry in sweep["entries"]]
+
+    assert sweep["checks"]["measured_true_gap_monotone"] is True
+    assert sweep["checks"]["measurement_offset_monotone"] is True
+    assert gaps[0] == pytest.approx(0.0)
+    assert offsets[0] == pytest.approx(0.0)
+    assert gaps[-1] > gaps[1]
+    assert offsets[-1] > offsets[1]
+
+
+def test_actuator_slew_sweep_lag_grows_as_limits_tighten() -> None:
+    out = free_boundary_tracking_acceptance.run_campaign()
+    sweep = out["sweeps"]["actuator_slew_limit"]
+    max_lag = [entry["max_abs_actuator_lag"] for entry in sweep["entries"]]
+    mean_lag = [entry["mean_abs_actuator_lag"] for entry in sweep["entries"]]
+    max_coil_current = [entry["max_abs_coil_current"] for entry in sweep["entries"]]
+
+    assert sweep["checks"]["max_abs_actuator_lag_monotone"] is True
+    assert sweep["checks"]["mean_abs_actuator_lag_monotone"] is True
+    assert sweep["checks"]["max_abs_coil_current_monotone"] is True
+    assert max_lag[-1] > max_lag[0]
+    assert mean_lag[-1] > mean_lag[0]
+    assert max_coil_current[-1] < max_coil_current[0]
+
+
 def test_render_markdown_contains_sections() -> None:
     report = free_boundary_tracking_acceptance.generate_report()
     text = free_boundary_tracking_acceptance.render_markdown(report)
     assert "# Free-Boundary Tracking Acceptance" in text
     assert "## Scenarios" in text
+    assert "## Sweeps" in text
     assert "nominal" in text
     assert "measurement_fault_uncorrected" in text
+    assert "measurement_fault_scale" in text
+    assert "actuator_slew_limit" in text

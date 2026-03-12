@@ -47,6 +47,8 @@ CORRECTED_THRESHOLDS = {
     "max_shape_rms": 0.015,
     "require_objective_converged": True,
 }
+MEASUREMENT_SWEEP_SCALES = (0.0, 0.5, 1.0, 1.5)
+ACTUATOR_SLEW_LIMIT_SWEEP = (1.0e3, 1.0e2, 1.0e1, 1.0, 0.1)
 
 
 def _write_tracking_config(path: Path, *, tracking_cfg: dict[str, Any] | None = None) -> Path:
@@ -133,6 +135,35 @@ def _run_measurement_fault(config_path: Path) -> dict[str, Any]:
     )
 
 
+def _run_actuator_limited_kick(config_path: Path, *, coil_slew_limits: float) -> dict[str, Any]:
+    return run_free_boundary_tracking(
+        config_file=str(config_path),
+        shot_steps=4,
+        gain=8.0,
+        verbose=False,
+        kernel_factory=FusionKernel,
+        disturbance_callback=_coil_kick_disturbance,
+        control_dt_s=0.1,
+        coil_actuator_tau_s=0.05,
+        coil_slew_limits=coil_slew_limits,
+        stop_on_convergence=False,
+    )
+
+
+def _measurement_tracking_cfg(scale: float, *, corrected: bool) -> dict[str, Any] | None:
+    scale_value = float(scale)
+    if scale_value == 0.0 and not corrected:
+        return None
+    tracking_cfg: dict[str, Any] = {
+        "measurement_bias": {"shape_flux": [0.03 * scale_value, -0.02 * scale_value]},
+        "measurement_drift_per_step": {"shape_flux": [0.004 * scale_value, -0.003 * scale_value]},
+    }
+    if corrected:
+        tracking_cfg["measurement_correction_bias"] = tracking_cfg["measurement_bias"]
+        tracking_cfg["measurement_correction_drift_per_step"] = tracking_cfg["measurement_drift_per_step"]
+    return tracking_cfg
+
+
 def _evaluate_nominal(summary: dict[str, Any]) -> dict[str, Any]:
     checks = {
         "final_tracking_error_norm": bool(
@@ -202,6 +233,78 @@ def _evaluate_corrected(summary: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _is_monotone_non_decreasing(values: list[float], *, atol: float = 1.0e-12) -> bool:
+    return all(float(b) + atol >= float(a) for a, b in zip(values[:-1], values[1:]))
+
+
+def _is_monotone_non_increasing(values: list[float], *, atol: float = 1.0e-12) -> bool:
+    return all(float(b) <= float(a) + atol for a, b in zip(values[:-1], values[1:]))
+
+
+def _run_measurement_sweep(tmp_path: Path) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for scale in MEASUREMENT_SWEEP_SCALES:
+        cfg = _write_tracking_config(
+            tmp_path / f"measurement_sweep_{scale:.1f}.json",
+            tracking_cfg=_measurement_tracking_cfg(scale, corrected=False),
+        )
+        summary = _run_measurement_fault(cfg)
+        measured_true_gap = abs(
+            float(summary["final_tracking_error_norm"]) - float(summary["final_true_tracking_error_norm"])
+        )
+        entries.append(
+            {
+                "scale": float(scale),
+                "final_tracking_error_norm": float(summary["final_tracking_error_norm"]),
+                "final_true_tracking_error_norm": float(summary["final_true_tracking_error_norm"]),
+                "measured_true_gap": float(measured_true_gap),
+                "max_abs_measurement_offset": float(summary["max_abs_measurement_offset"]),
+                "shape_rms": float(summary["shape_rms"]),
+                "true_shape_rms": float(summary["true_shape_rms"]),
+            }
+        )
+    measured_true_gaps = [float(entry["measured_true_gap"]) for entry in entries]
+    measurement_offsets = [float(entry["max_abs_measurement_offset"]) for entry in entries]
+    checks = {
+        "measured_true_gap_monotone": _is_monotone_non_decreasing(measured_true_gaps),
+        "measurement_offset_monotone": _is_monotone_non_decreasing(measurement_offsets),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
+def _run_actuator_slew_sweep(tmp_path: Path) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for slew_limit in ACTUATOR_SLEW_LIMIT_SWEEP:
+        cfg = _write_tracking_config(tmp_path / f"actuator_slew_{slew_limit}.json")
+        summary = _run_actuator_limited_kick(cfg, coil_slew_limits=float(slew_limit))
+        entries.append(
+            {
+                "coil_slew_limit": float(slew_limit),
+                "max_abs_actuator_lag": float(summary["max_abs_actuator_lag"]),
+                "mean_abs_actuator_lag": float(summary["mean_abs_actuator_lag"]),
+                "max_abs_coil_current": float(summary["max_abs_coil_current"]),
+                "final_tracking_error_norm": float(summary["final_tracking_error_norm"]),
+            }
+        )
+    max_lag = [float(entry["max_abs_actuator_lag"]) for entry in entries]
+    mean_lag = [float(entry["mean_abs_actuator_lag"]) for entry in entries]
+    max_coil_current = [float(entry["max_abs_coil_current"]) for entry in entries]
+    checks = {
+        "max_abs_actuator_lag_monotone": _is_monotone_non_decreasing(max_lag),
+        "mean_abs_actuator_lag_monotone": _is_monotone_non_decreasing(mean_lag),
+        "max_abs_coil_current_monotone": _is_monotone_non_increasing(max_coil_current),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
 def run_campaign() -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="scpn_free_boundary_acceptance_") as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -231,6 +334,9 @@ def run_campaign() -> dict[str, Any]:
         )
         corrected = _run_measurement_fault(corrected_cfg)
 
+        measurement_sweep = _run_measurement_sweep(tmp_path)
+        actuator_slew_sweep = _run_actuator_slew_sweep(tmp_path)
+
     scenarios = {
         "nominal": {
             "summary": nominal,
@@ -249,11 +355,18 @@ def run_campaign() -> dict[str, Any]:
             **_evaluate_corrected(corrected),
         },
     }
-    passes_thresholds = all(bool(entry["passes_thresholds"]) for entry in scenarios.values())
+    sweeps = {
+        "measurement_fault_scale": measurement_sweep,
+        "actuator_slew_limit": actuator_slew_sweep,
+    }
+    passes_thresholds = all(bool(entry["passes_thresholds"]) for entry in scenarios.values()) and all(
+        bool(entry["passes_thresholds"]) for entry in sweeps.values()
+    )
     return {
         "benchmark": "free_boundary_tracking_acceptance",
         "steps_per_scenario": 4,
         "scenarios": scenarios,
+        "sweeps": sweeps,
         "passes_thresholds": passes_thresholds,
     }
 
@@ -295,6 +408,33 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"- Max measurement offset: `{summary['max_abs_measurement_offset']:.6e}`",
                 "",
             ]
+        )
+    lines.extend(
+        [
+            "## Sweeps",
+            "",
+            "### measurement_fault_scale",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["measurement_fault_scale"]["entries"]:
+        lines.append(
+            "- "
+            f"scale `{entry['scale']:.1f}`: gap `{entry['measured_true_gap']:.6e}`, "
+            f"offset `{entry['max_abs_measurement_offset']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### actuator_slew_limit",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["actuator_slew_limit"]["entries"]:
+        lines.append(
+            "- "
+            f"slew `{entry['coil_slew_limit']:.3e}`: max lag `{entry['max_abs_actuator_lag']:.6e}`, "
+            f"mean lag `{entry['mean_abs_actuator_lag']:.6e}`"
         )
     return "\n".join(lines)
 
