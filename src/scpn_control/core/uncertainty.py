@@ -202,7 +202,7 @@ def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict
     # Numerical derivatives
     eps = 1e-3
 
-    def get_p(n_e: float, p_heat: float):
+    def get_p(n_e: float, p_heat: float) -> float:
         sc = PlasmaScenario(scenario.I_p, scenario.B_t, p_heat, n_e, scenario.R, scenario.A, scenario.kappa, scenario.M)
         return fusion_power_from_tau(sc, tau_E)
 
