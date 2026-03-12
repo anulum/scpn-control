@@ -15,13 +15,16 @@ of freezing at the previous command, and an objective-space disturbance
 observer can accumulate persistent residuals without introducing a reduced-order
 plant model. Deterministic objective-space sensor bias and drift can also be
 applied and compensated through configuration so hidden plant performance stays
-visible during calibration-fault stress tests.
+visible during calibration-fault stress tests. Fixed-step measurement latency
+can be injected in the same objective space, and an extrapolating current-state
+estimator can compensate that latency without replacing the full kernel.
 """
 
 from __future__ import annotations
 
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, cast
@@ -47,6 +50,14 @@ class _ObjectiveBlock:
 class _ActuatorSnapshot:
     state: float
     delay_buffer: tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class _ObservationSnapshot:
+    true: FloatArray
+    measured: FloatArray
+    delayed: FloatArray
+    effective: FloatArray
 
 
 class FreeBoundaryTrackingController:
@@ -196,10 +207,29 @@ class FreeBoundaryTrackingController:
             tracking_cfg.get("measurement_correction_drift_per_step"),
             name="free_boundary_tracking.measurement_correction_drift_per_step",
         )
+        self.measurement_latency_steps = self._resolve_nonnegative_int(
+            tracking_cfg.get("measurement_latency_steps"),
+            None,
+            default=0,
+            name="free_boundary_tracking.measurement_latency_steps",
+        )
+        self.latency_compensation_gain = self._resolve_fraction(
+            tracking_cfg.get("latency_compensation_gain"),
+            default=0.0,
+            name="free_boundary_tracking.latency_compensation_gain",
+        )
+        self.latency_rate_max_abs = self._resolve_nonnegative_float(
+            tracking_cfg.get("latency_rate_max_abs"),
+            default=np.inf,
+            name="free_boundary_tracking.latency_rate_max_abs",
+        )
         self.measurement_drift_state = np.zeros_like(self.target_vector, dtype=np.float64)
         self.measurement_correction_drift_state = np.zeros_like(self.target_vector, dtype=np.float64)
         self.control_objective_weights = self._build_control_objective_weights()
         self.objective_bias_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
+        self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
+        self._measurement_latency_buffer: deque[FloatArray] = deque()
+        self._last_delayed_measurement: FloatArray | None = None
 
         self.response_matrix = np.zeros((self.target_vector.size, self.n_coils), dtype=np.float64)
         self.response_rank = 0
@@ -230,10 +260,14 @@ class FreeBoundaryTrackingController:
             "max_abs_actuator_lag": [],
             "max_abs_measurement_offset": [],
             "mean_abs_measurement_offset": [],
+            "measurement_error_norm": [],
+            "delayed_observation_error_norm": [],
+            "estimated_observation_error_norm": [],
             "accepted_gain": [],
             "objective_converged": [],
             "max_abs_objective_bias_estimate": [],
             "mean_abs_objective_bias_estimate": [],
+            "max_abs_objective_rate_estimate": [],
             "response_rank": [],
             "response_condition_number": [],
             "response_max_singular_value": [],
@@ -551,6 +585,11 @@ class FreeBoundaryTrackingController:
         self.measurement_drift_state = np.zeros_like(self.target_vector, dtype=np.float64)
         self.measurement_correction_drift_state = np.zeros_like(self.target_vector, dtype=np.float64)
 
+    def _reset_latency_estimator(self) -> None:
+        self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
+        self._measurement_latency_buffer.clear()
+        self._last_delayed_measurement = None
+
     def _advance_measurement_offsets(self) -> None:
         self.measurement_drift_state = np.asarray(
             self.measurement_drift_state + self.measurement_drift_per_step,
@@ -571,6 +610,75 @@ class FreeBoundaryTrackingController:
                 - self.measurement_correction_drift_state,
                 dtype=np.float64,
             ),
+        )
+
+    def _apply_measurement_latency(self, measurement: FloatArray, *, record: bool) -> FloatArray:
+        measured = np.asarray(measurement, dtype=np.float64).reshape(-1)
+        if (not record) or self.measurement_latency_steps < 1:
+            return cast(FloatArray, measured.copy())
+        self._measurement_latency_buffer.append(measured.copy())
+        max_buffer = self.measurement_latency_steps + 1
+        while len(self._measurement_latency_buffer) > max_buffer:
+            self._measurement_latency_buffer.popleft()
+        return cast(FloatArray, np.asarray(self._measurement_latency_buffer[0].copy(), dtype=np.float64))
+
+    def _predict_current_objectives(
+        self,
+        delayed_observation: FloatArray,
+        *,
+        allow_compensation: bool,
+        update_state: bool,
+    ) -> FloatArray:
+        delayed = np.asarray(delayed_observation, dtype=np.float64).reshape(-1)
+        prediction_horizon = 1.0 if self.measurement_latency_steps > 0 else 0.0
+        if self.measurement_latency_steps < 1:
+            if update_state:
+                self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
+                self._last_delayed_measurement = delayed.copy()
+            return cast(FloatArray, delayed.copy())
+        if self._last_delayed_measurement is None:
+            delta = np.zeros_like(delayed, dtype=np.float64)
+        else:
+            delta = np.asarray(delayed - self._last_delayed_measurement, dtype=np.float64)
+        latency_projection_ready = bool(np.linalg.norm(delta) > 1.0e-12)
+        if update_state:
+            self._last_delayed_measurement = delayed.copy()
+        if (not allow_compensation) or self.latency_compensation_gain <= 0.0:
+            if update_state:
+                self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
+            return cast(FloatArray, delayed.copy())
+        if not latency_projection_ready:
+            if update_state:
+                self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
+            return cast(FloatArray, delayed.copy())
+        if not update_state:
+            predicted = delayed + prediction_horizon * delta
+            return cast(FloatArray, np.asarray(predicted, dtype=np.float64))
+        updated = (1.0 - self.latency_compensation_gain) * self.objective_rate_estimate
+        updated = np.asarray(updated + self.latency_compensation_gain * delta, dtype=np.float64)
+        if np.isfinite(self.latency_rate_max_abs):
+            updated = np.clip(updated, -self.latency_rate_max_abs, self.latency_rate_max_abs)
+        self.objective_rate_estimate = cast(FloatArray, np.asarray(updated, dtype=np.float64))
+        predicted = delayed + prediction_horizon * self.objective_rate_estimate
+        return cast(FloatArray, np.asarray(predicted, dtype=np.float64))
+
+    def _observe_snapshot(self, *, apply_latency: bool = True) -> _ObservationSnapshot:
+        true_observation = self._observe_true_objectives()
+        measured_observation = cast(
+            FloatArray,
+            np.asarray(true_observation + self._current_measurement_offset(), dtype=np.float64),
+        )
+        delayed_observation = self._apply_measurement_latency(measured_observation, record=apply_latency)
+        effective_observation = self._predict_current_objectives(
+            delayed_observation,
+            allow_compensation=apply_latency,
+            update_state=apply_latency,
+        )
+        return _ObservationSnapshot(
+            true=true_observation,
+            measured=measured_observation,
+            delayed=delayed_observation,
+            effective=effective_observation,
         )
 
     def _update_objective_observer(self, observation: FloatArray) -> None:
@@ -662,11 +770,7 @@ class FreeBoundaryTrackingController:
         return np.asarray(observed, dtype=np.float64)
 
     def _observe_objectives(self) -> FloatArray:
-        true_observation = self._observe_true_objectives()
-        return cast(
-            FloatArray,
-            np.asarray(true_observation + self._current_measurement_offset(), dtype=np.float64),
-        )
+        return self._observe_snapshot().effective
 
     def identify_response_matrix(self, perturbation: float | None = None) -> FloatArray:
         p = self.identification_perturbation if perturbation is None else float(perturbation)
@@ -689,11 +793,11 @@ class FreeBoundaryTrackingController:
 
             self.coils.currents = plus
             self._solve_free_boundary_state()
-            obs_plus = self._observe_objectives()
+            obs_plus = self._observe_snapshot(apply_latency=False).effective
 
             self.coils.currents = minus
             self._solve_free_boundary_state()
-            obs_minus = self._observe_objectives()
+            obs_minus = self._observe_snapshot(apply_latency=False).effective
 
             self.response_matrix[:, idx] = (obs_plus - obs_minus) / denom
 
@@ -971,10 +1075,12 @@ class FreeBoundaryTrackingController:
         self._hold_steps_remaining = 0
         self._reset_objective_observer()
         self._reset_measurement_offsets()
+        self._reset_latency_estimator()
         self._sync_actuators_from_coils()
         self._solve_free_boundary_state()
-        last_metrics = self.evaluate_objectives(self._observe_objectives())
-        last_true_metrics = self.evaluate_objectives(self._observe_true_objectives())
+        initial_snapshot = self._observe_snapshot()
+        last_metrics = self.evaluate_objectives(initial_snapshot.effective)
+        last_true_metrics = self.evaluate_objectives(initial_snapshot.true)
         last_supervisor = self.evaluate_supervisor(
             last_metrics,
             max_abs_coil_current=float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0,
@@ -989,8 +1095,9 @@ class FreeBoundaryTrackingController:
             if step % self.response_refresh_steps == 0:
                 self.identify_response_matrix()
 
-            observation_before = self._observe_objectives()
-            true_observation_before = self._observe_true_objectives()
+            observation_snapshot_before = self._observe_snapshot()
+            observation_before = observation_snapshot_before.effective
+            true_observation_before = observation_snapshot_before.true
             self._update_objective_observer(observation_before)
             metrics_before = self.evaluate_objectives(observation_before)
             true_metrics_before = self.evaluate_objectives(true_observation_before)
@@ -1051,8 +1158,9 @@ class FreeBoundaryTrackingController:
                         else 0.0
                     )
                     self._solve_free_boundary_state()
-                    observation_after = self._observe_objectives()
-                    true_observation_after = self._observe_true_objectives()
+                    observation_snapshot_after = self._observe_snapshot(apply_latency=False)
+                    observation_after = observation_snapshot_after.effective
+                    true_observation_after = observation_snapshot_after.true
                     metrics_after = self.evaluate_objectives(observation_after)
                     true_metrics_after = self.evaluate_objectives(true_observation_after)
                     supervisor_after = self.evaluate_supervisor(
@@ -1102,6 +1210,15 @@ class FreeBoundaryTrackingController:
             max_abs_coil = float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
             measurement_offset = self._current_measurement_offset()
             measurement_offset_abs = np.abs(measurement_offset)
+            measurement_error_norm = float(
+                np.linalg.norm(observation_snapshot_before.measured - observation_snapshot_before.true)
+            )
+            delayed_observation_error_norm = float(
+                np.linalg.norm(observation_snapshot_before.delayed - observation_snapshot_before.true)
+            )
+            estimated_observation_error_norm = float(
+                np.linalg.norm(observation_snapshot_before.effective - observation_snapshot_before.true)
+            )
             self.history["t"].append(int(step))
             self.history["tracking_error_norm"].append(last_metrics["tracking_error_norm"])
             self.history["true_tracking_error_norm"].append(last_true_metrics["tracking_error_norm"])
@@ -1128,11 +1245,16 @@ class FreeBoundaryTrackingController:
             self.history["mean_abs_measurement_offset"].append(
                 float(np.mean(measurement_offset_abs)) if measurement_offset_abs.size else 0.0
             )
+            self.history["measurement_error_norm"].append(measurement_error_norm)
+            self.history["delayed_observation_error_norm"].append(delayed_observation_error_norm)
+            self.history["estimated_observation_error_norm"].append(estimated_observation_error_norm)
             self.history["accepted_gain"].append(float(accepted_gain))
             self.history["objective_converged"].append(bool(last_metrics["objective_converged"]))
             bias_abs = np.abs(self.objective_bias_estimate)
             self.history["max_abs_objective_bias_estimate"].append(float(np.max(bias_abs)) if bias_abs.size else 0.0)
             self.history["mean_abs_objective_bias_estimate"].append(float(np.mean(bias_abs)) if bias_abs.size else 0.0)
+            rate_abs = np.abs(self.objective_rate_estimate)
+            self.history["max_abs_objective_rate_estimate"].append(float(np.max(rate_abs)) if rate_abs.size else 0.0)
             self.history["response_rank"].append(int(self.response_rank))
             self.history["response_condition_number"].append(float(self.response_condition_number))
             self.history["response_max_singular_value"].append(float(self.response_max_singular_value))
@@ -1156,6 +1278,8 @@ class FreeBoundaryTrackingController:
                 f"resp_rank={self.response_rank} | resp_deg={self.response_degenerate} | "
                 f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
                 f"meas_off={self.history['max_abs_measurement_offset'][-1]:.3e} | "
+                f"delay_obs={delayed_observation_error_norm:.3e} | "
+                f"est_obs={estimated_observation_error_norm:.3e} | "
                 f"lag={max_abs_actuator_lag:.3e} | fallback={fallback_active} | "
                 f"safe={last_supervisor['supervisor_safe']} | "
                 f"converged={last_metrics['objective_converged']}"
@@ -1174,9 +1298,13 @@ class FreeBoundaryTrackingController:
         lag_arr = np.asarray(self.history["max_abs_actuator_lag"], dtype=np.float64)
         measurement_offset_max_arr = np.asarray(self.history["max_abs_measurement_offset"], dtype=np.float64)
         measurement_offset_mean_arr = np.asarray(self.history["mean_abs_measurement_offset"], dtype=np.float64)
+        measurement_error_arr = np.asarray(self.history["measurement_error_norm"], dtype=np.float64)
+        delayed_error_arr = np.asarray(self.history["delayed_observation_error_norm"], dtype=np.float64)
+        estimated_error_arr = np.asarray(self.history["estimated_observation_error_norm"], dtype=np.float64)
         gain_arr = np.asarray(self.history["accepted_gain"], dtype=np.float64)
         bias_max_arr = np.asarray(self.history["max_abs_objective_bias_estimate"], dtype=np.float64)
         bias_mean_arr = np.asarray(self.history["mean_abs_objective_bias_estimate"], dtype=np.float64)
+        rate_max_arr = np.asarray(self.history["max_abs_objective_rate_estimate"], dtype=np.float64)
         response_rank_arr = np.asarray(self.history["response_rank"], dtype=np.float64)
         response_cond_arr = np.asarray(self.history["response_condition_number"], dtype=np.float64)
         response_sigma_arr = np.asarray(self.history["response_max_singular_value"], dtype=np.float64)
@@ -1193,6 +1321,8 @@ class FreeBoundaryTrackingController:
             np.any(np.abs(self.measurement_correction_bias) > 0.0)
             or np.any(np.abs(self.measurement_correction_drift_per_step) > 0.0)
         )
+        measurement_latency_enabled = bool(self.measurement_latency_steps > 0)
+        latency_compensation_enabled = bool(measurement_latency_enabled and self.latency_compensation_gain > 0.0)
         return {
             "steps": int(len(self.history["t"])),
             "runtime_seconds": float(runtime_seconds),
@@ -1217,14 +1347,29 @@ class FreeBoundaryTrackingController:
             "mean_abs_measurement_offset": (
                 float(np.mean(measurement_offset_mean_arr)) if measurement_offset_mean_arr.size else 0.0
             ),
+            "max_measurement_error_norm": float(np.max(measurement_error_arr)) if measurement_error_arr.size else 0.0,
+            "mean_measurement_error_norm": float(np.mean(measurement_error_arr)) if measurement_error_arr.size else 0.0,
+            "max_delayed_observation_error_norm": float(np.max(delayed_error_arr)) if delayed_error_arr.size else 0.0,
+            "mean_delayed_observation_error_norm": float(np.mean(delayed_error_arr)) if delayed_error_arr.size else 0.0,
+            "max_estimated_observation_error_norm": (
+                float(np.max(estimated_error_arr)) if estimated_error_arr.size else 0.0
+            ),
+            "mean_estimated_observation_error_norm": (
+                float(np.mean(estimated_error_arr)) if estimated_error_arr.size else 0.0
+            ),
             "mean_accepted_gain": float(np.mean(gain_arr)) if gain_arr.size else 0.0,
             "min_accepted_gain": float(np.min(gain_arr)) if gain_arr.size else 0.0,
             "observer_enabled": bool(self.observer_gain > 0.0),
             "observer_gain": float(self.observer_gain),
             "measurement_distortion_enabled": measurement_distortion_enabled,
             "measurement_compensation_enabled": measurement_compensation_enabled,
+            "measurement_latency_enabled": measurement_latency_enabled,
+            "measurement_latency_steps": int(self.measurement_latency_steps),
+            "latency_compensation_enabled": latency_compensation_enabled,
+            "latency_compensation_gain": float(self.latency_compensation_gain),
             "max_abs_objective_bias_estimate": float(np.max(bias_max_arr)) if bias_max_arr.size else 0.0,
             "mean_abs_objective_bias_estimate": float(np.mean(bias_mean_arr)) if bias_mean_arr.size else 0.0,
+            "max_abs_objective_rate_estimate": float(np.max(rate_max_arr)) if rate_max_arr.size else 0.0,
             "min_response_rank": int(np.min(response_rank_arr)) if response_rank_arr.size else 0,
             "max_response_condition_number": float(np.max(response_cond_arr)) if response_cond_arr.size else 0.0,
             "max_response_singular_value": float(np.max(response_sigma_arr)) if response_sigma_arr.size else 0.0,

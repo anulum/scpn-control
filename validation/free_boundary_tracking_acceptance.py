@@ -48,6 +48,15 @@ CORRECTED_THRESHOLDS = {
     "max_shape_rms": 0.015,
     "require_objective_converged": True,
 }
+LATENCY_THRESHOLDS = {
+    "min_delayed_observation_error_norm": 0.005,
+    "max_true_tracking_error_norm": 0.02,
+}
+LATENCY_CORRECTED_THRESHOLDS = {
+    "max_estimated_observation_error_norm": 0.01,
+    "max_final_true_tracking_error_norm": 0.02,
+    "require_objective_converged": True,
+}
 TOPOLOGY_THRESHOLDS = {
     "max_final_tracking_error_norm": 0.02,
     "max_shape_rms": 0.015,
@@ -98,6 +107,7 @@ SUPERVISOR_FALLBACK_THRESHOLDS = {
     "require_objective_converged": True,
 }
 MEASUREMENT_SWEEP_SCALES = (0.0, 0.5, 1.0, 1.5)
+LATENCY_STEP_SWEEP = (0, 1, 2, 3)
 ACTUATOR_SLEW_LIMIT_SWEEP = (1.0e3, 1.0e2, 1.0e1, 1.0, 0.1)
 COIL_KICK_SCALE_SWEEP = (0.0, 0.5, 1.0, 2.0, 4.0, 8.0)
 TOPOLOGY_KICK_SCALE_SWEEP = (1.0, 2.0, 4.0)
@@ -257,6 +267,18 @@ def _run_measurement_fault(config_path: Path) -> dict[str, Any]:
     )
 
 
+def _run_latency_fault(config_path: Path) -> dict[str, Any]:
+    return run_free_boundary_tracking(
+        config_file=str(config_path),
+        shot_steps=4,
+        gain=0.6,
+        verbose=False,
+        kernel_factory=FusionKernel,
+        disturbance_callback=_make_coil_kick_disturbance(32.0),
+        stop_on_convergence=False,
+    )
+
+
 def _run_actuator_limited_kick(config_path: Path, *, coil_slew_limits: float) -> dict[str, Any]:
     return run_free_boundary_tracking(
         config_file=str(config_path),
@@ -298,6 +320,19 @@ def _measurement_tracking_cfg(scale: float, *, corrected: bool) -> dict[str, Any
     if corrected:
         tracking_cfg["measurement_correction_bias"] = tracking_cfg["measurement_bias"]
         tracking_cfg["measurement_correction_drift_per_step"] = tracking_cfg["measurement_drift_per_step"]
+    return tracking_cfg
+
+
+def _latency_tracking_cfg(latency_steps: int, *, corrected: bool) -> dict[str, Any] | None:
+    steps = int(latency_steps)
+    if steps == 0 and not corrected:
+        return None
+    tracking_cfg: dict[str, Any] = {
+        "measurement_latency_steps": steps,
+    }
+    if corrected and steps > 0:
+        tracking_cfg["latency_compensation_gain"] = 1.0
+        tracking_cfg["latency_rate_max_abs"] = 0.5
     return tracking_cfg
 
 
@@ -387,6 +422,48 @@ def _evaluate_corrected(summary: dict[str, Any]) -> dict[str, Any]:
         "checks": checks,
         "passes_thresholds": all(checks.values()),
         "measured_true_gap": float(measured_true_gap),
+    }
+
+
+def _evaluate_latency_fault(summary: dict[str, Any]) -> dict[str, Any]:
+    checks = {
+        "delayed_observation_error_norm": bool(
+            float(summary["max_delayed_observation_error_norm"])
+            >= LATENCY_THRESHOLDS["min_delayed_observation_error_norm"]
+        ),
+        "true_tracking_error_norm": bool(
+            float(summary["final_true_tracking_error_norm"]) <= LATENCY_THRESHOLDS["max_true_tracking_error_norm"]
+        ),
+    }
+    return {
+        "thresholds": LATENCY_THRESHOLDS.copy(),
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+        "delayed_observation_error_norm": float(summary["max_delayed_observation_error_norm"]),
+        "estimated_observation_error_norm": float(summary["max_estimated_observation_error_norm"]),
+    }
+
+
+def _evaluate_latency_corrected(summary: dict[str, Any]) -> dict[str, Any]:
+    checks = {
+        "estimated_observation_error_norm": bool(
+            float(summary["max_estimated_observation_error_norm"])
+            <= LATENCY_CORRECTED_THRESHOLDS["max_estimated_observation_error_norm"]
+        ),
+        "final_true_tracking_error_norm": bool(
+            float(summary["final_true_tracking_error_norm"])
+            <= LATENCY_CORRECTED_THRESHOLDS["max_final_true_tracking_error_norm"]
+        ),
+        "objective_converged": bool(
+            summary["objective_converged"] is LATENCY_CORRECTED_THRESHOLDS["require_objective_converged"]
+        ),
+    }
+    return {
+        "thresholds": LATENCY_CORRECTED_THRESHOLDS.copy(),
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+        "delayed_observation_error_norm": float(summary["max_delayed_observation_error_norm"]),
+        "estimated_observation_error_norm": float(summary["max_estimated_observation_error_norm"]),
     }
 
 
@@ -701,6 +778,80 @@ def _run_corrected_measurement_sweep(tmp_path: Path, *, template_cfg: dict[str, 
         "tracking_error_constant": bool(
             max(final_tracking_error) - min(final_tracking_error) <= CORRECTED_THRESHOLDS["max_measured_true_gap"]
         ),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
+def _run_latency_step_sweep(tmp_path: Path, *, template_cfg: dict[str, Any]) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for latency_steps in LATENCY_STEP_SWEEP:
+        cfg = _write_tracking_config(
+            tmp_path / f"latency_sweep_{latency_steps}.json",
+            template_cfg=template_cfg,
+            tracking_cfg=_latency_tracking_cfg(latency_steps, corrected=False),
+        )
+        summary = _run_latency_fault(cfg)
+        entries.append(
+            {
+                "latency_steps": int(latency_steps),
+                "delayed_observation_error_norm": float(summary["max_delayed_observation_error_norm"]),
+                "estimated_observation_error_norm": float(summary["max_estimated_observation_error_norm"]),
+                "final_true_tracking_error_norm": float(summary["final_true_tracking_error_norm"]),
+                "objective_converged": bool(summary["objective_converged"]),
+            }
+        )
+    delayed_error = [float(entry["delayed_observation_error_norm"]) for entry in entries]
+    final_true_tracking_error = [float(entry["final_true_tracking_error_norm"]) for entry in entries]
+    checks = {
+        "delayed_observation_error_monotone": _is_monotone_non_decreasing(delayed_error, atol=1.0e-6),
+        "delayed_observation_error_active": bool(
+            max(delayed_error) >= LATENCY_THRESHOLDS["min_delayed_observation_error_norm"]
+        ),
+        "final_true_tracking_error_bounded": all(
+            value <= LATENCY_THRESHOLDS["max_true_tracking_error_norm"] for value in final_true_tracking_error
+        ),
+        "objective_converged_all": all(bool(entry["objective_converged"]) for entry in entries),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
+def _run_corrected_latency_step_sweep(tmp_path: Path, *, template_cfg: dict[str, Any]) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for latency_steps in LATENCY_STEP_SWEEP:
+        cfg = _write_tracking_config(
+            tmp_path / f"latency_corrected_sweep_{latency_steps}.json",
+            template_cfg=template_cfg,
+            tracking_cfg=_latency_tracking_cfg(latency_steps, corrected=True),
+        )
+        summary = _run_latency_fault(cfg)
+        entries.append(
+            {
+                "latency_steps": int(latency_steps),
+                "delayed_observation_error_norm": float(summary["max_delayed_observation_error_norm"]),
+                "estimated_observation_error_norm": float(summary["max_estimated_observation_error_norm"]),
+                "final_true_tracking_error_norm": float(summary["final_true_tracking_error_norm"]),
+                "objective_converged": bool(summary["objective_converged"]),
+            }
+        )
+    estimated_error = [float(entry["estimated_observation_error_norm"]) for entry in entries]
+    final_true_tracking_error = [float(entry["final_true_tracking_error_norm"]) for entry in entries]
+    checks = {
+        "estimated_observation_error_bounded": all(
+            value <= LATENCY_CORRECTED_THRESHOLDS["max_estimated_observation_error_norm"] for value in estimated_error
+        ),
+        "final_true_tracking_error_bounded": all(
+            value <= LATENCY_CORRECTED_THRESHOLDS["max_final_true_tracking_error_norm"]
+            for value in final_true_tracking_error
+        ),
+        "objective_converged_all": all(bool(entry["objective_converged"]) for entry in entries),
     }
     return {
         "entries": entries,
@@ -1173,6 +1324,20 @@ def run_campaign() -> dict[str, Any]:
         )
         corrected = _run_measurement_fault(corrected_cfg)
 
+        latency_cfg = _write_tracking_config(
+            tmp_path / "latency.json",
+            template_cfg=template_cfg,
+            tracking_cfg=_latency_tracking_cfg(2, corrected=False),
+        )
+        latency_fault = _run_latency_fault(latency_cfg)
+
+        latency_corrected_cfg = _write_tracking_config(
+            tmp_path / "latency_corrected.json",
+            template_cfg=template_cfg,
+            tracking_cfg=_latency_tracking_cfg(2, corrected=True),
+        )
+        latency_corrected = _run_latency_fault(latency_corrected_cfg)
+
         topology_template_cfg = _build_topology_tracking_template(tmp_path, template_cfg=template_cfg)
         topology_cfg = _write_tracking_config(
             tmp_path / "topology_kick.json",
@@ -1253,6 +1418,8 @@ def run_campaign() -> dict[str, Any]:
 
         measurement_sweep = _run_measurement_sweep(tmp_path, template_cfg=template_cfg)
         corrected_measurement_sweep = _run_corrected_measurement_sweep(tmp_path, template_cfg=template_cfg)
+        latency_step_sweep = _run_latency_step_sweep(tmp_path, template_cfg=template_cfg)
+        corrected_latency_step_sweep = _run_corrected_latency_step_sweep(tmp_path, template_cfg=template_cfg)
         actuator_slew_sweep = _run_actuator_slew_sweep(tmp_path, template_cfg=template_cfg)
         coil_kick_scale_sweep = _run_coil_kick_scale_sweep(tmp_path, template_cfg=template_cfg)
         topology_kick_scale_sweep = _run_topology_kick_scale_sweep(
@@ -1296,6 +1463,14 @@ def run_campaign() -> dict[str, Any]:
         "measurement_fault_corrected": {
             "summary": corrected,
             **_evaluate_corrected(corrected),
+        },
+        "measurement_latency_uncorrected": {
+            "summary": latency_fault,
+            **_evaluate_latency_fault(latency_fault),
+        },
+        "measurement_latency_corrected": {
+            "summary": latency_corrected,
+            **_evaluate_latency_corrected(latency_corrected),
         },
         "x_point_divertor_kick": {
             "summary": topology_kick,
@@ -1343,6 +1518,8 @@ def run_campaign() -> dict[str, Any]:
     sweeps = {
         "measurement_fault_scale": measurement_sweep,
         "measurement_fault_corrected_scale": corrected_measurement_sweep,
+        "measurement_latency_steps": latency_step_sweep,
+        "measurement_latency_corrected_steps": corrected_latency_step_sweep,
         "actuator_slew_limit": actuator_slew_sweep,
         "coil_kick_scale": coil_kick_scale_sweep,
         "topology_kick_scale": topology_kick_scale_sweep,
@@ -1450,6 +1627,32 @@ def render_markdown(report: dict[str, Any]) -> str:
             "- "
             f"scale `{entry['scale']:.1f}`: gap `{entry['measured_true_gap']:.6e}`, "
             f"offset `{entry['max_abs_measurement_offset']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### measurement_latency_steps",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["measurement_latency_steps"]["entries"]:
+        lines.append(
+            "- "
+            f"steps `{entry['latency_steps']}`: delayed err `{entry['delayed_observation_error_norm']:.6e}`, "
+            f"estimated err `{entry['estimated_observation_error_norm']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### measurement_latency_corrected_steps",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["measurement_latency_corrected_steps"]["entries"]:
+        lines.append(
+            "- "
+            f"steps `{entry['latency_steps']}`: delayed err `{entry['delayed_observation_error_norm']:.6e}`, "
+            f"estimated err `{entry['estimated_observation_error_norm']:.6e}`"
         )
     lines.extend(
         [

@@ -40,6 +40,8 @@ def test_campaign_is_deterministic() -> None:
         "coil_kick",
         "measurement_fault_uncorrected",
         "measurement_fault_corrected",
+        "measurement_latency_uncorrected",
+        "measurement_latency_corrected",
         "x_point_divertor_kick",
         "x_point_divertor_supervisor_measurement_fault_uncorrected",
         "x_point_divertor_supervisor_measurement_fault_corrected",
@@ -56,6 +58,8 @@ def test_campaign_is_deterministic() -> None:
     for sweep in (
         "measurement_fault_scale",
         "measurement_fault_corrected_scale",
+        "measurement_latency_steps",
+        "measurement_latency_corrected_steps",
         "actuator_slew_limit",
         "coil_kick_scale",
         "topology_kick_scale",
@@ -75,6 +79,8 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["coil_kick"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_corrected"]["passes_thresholds"] is True
+    assert out["scenarios"]["measurement_latency_uncorrected"]["passes_thresholds"] is True
+    assert out["scenarios"]["measurement_latency_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_kick"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_supervisor_measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_supervisor_measurement_fault_corrected"]["passes_thresholds"] is True
@@ -85,6 +91,8 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["supervisor_fallback_kick"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_corrected_scale"]["passes_thresholds"] is True
+    assert out["sweeps"]["measurement_latency_steps"]["passes_thresholds"] is True
+    assert out["sweeps"]["measurement_latency_corrected_steps"]["passes_thresholds"] is True
     assert out["sweeps"]["actuator_slew_limit"]["passes_thresholds"] is True
     assert out["sweeps"]["coil_kick_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["topology_kick_scale"]["passes_thresholds"] is True
@@ -124,6 +132,56 @@ def test_measurement_sweep_gap_and_offset_grow_monotonically() -> None:
     assert offsets[0] == pytest.approx(0.0)
     assert gaps[-1] > gaps[1]
     assert offsets[-1] > offsets[1]
+
+
+def test_latency_scenarios_bound_delayed_and_corrected_observation_error() -> None:
+    out = _campaign_cached()
+    uncorrected = out["scenarios"]["measurement_latency_uncorrected"]
+    corrected = out["scenarios"]["measurement_latency_corrected"]
+
+    assert (
+        uncorrected["delayed_observation_error_norm"]
+        >= uncorrected["thresholds"]["min_delayed_observation_error_norm"]
+    )
+    assert (
+        uncorrected["summary"]["final_true_tracking_error_norm"]
+        <= uncorrected["thresholds"]["max_true_tracking_error_norm"]
+    )
+    assert corrected["summary"]["latency_compensation_enabled"] is True
+    assert (
+        corrected["estimated_observation_error_norm"]
+        <= corrected["thresholds"]["max_estimated_observation_error_norm"]
+    )
+    assert (
+        corrected["summary"]["final_true_tracking_error_norm"]
+        <= corrected["thresholds"]["max_final_true_tracking_error_norm"]
+    )
+    assert corrected["estimated_observation_error_norm"] <= uncorrected["delayed_observation_error_norm"] + 1.0e-3
+    assert abs(
+        corrected["summary"]["final_true_tracking_error_norm"]
+        - uncorrected["summary"]["final_true_tracking_error_norm"]
+    ) <= 1.0e-6
+
+
+def test_latency_sweeps_activate_with_delay_and_stay_corrected() -> None:
+    out = _campaign_cached()
+    uncorrected = out["sweeps"]["measurement_latency_steps"]
+    corrected = out["sweeps"]["measurement_latency_corrected_steps"]
+    delayed_error = [entry["delayed_observation_error_norm"] for entry in uncorrected["entries"]]
+    corrected_error = [entry["estimated_observation_error_norm"] for entry in corrected["entries"]]
+
+    assert uncorrected["checks"]["delayed_observation_error_monotone"] is True
+    assert uncorrected["checks"]["delayed_observation_error_active"] is True
+    assert uncorrected["checks"]["final_true_tracking_error_bounded"] is True
+    assert corrected["checks"]["estimated_observation_error_bounded"] is True
+    assert corrected["checks"]["final_true_tracking_error_bounded"] is True
+    assert delayed_error[0] == pytest.approx(0.0)
+    assert delayed_error[1] > delayed_error[0]
+    assert delayed_error[-1] >= delayed_error[1] - 1.0e-6
+    assert (
+        max(corrected_error)
+        <= free_boundary_tracking_acceptance.LATENCY_CORRECTED_THRESHOLDS["max_estimated_observation_error_norm"]
+    )
 
 
 def test_actuator_slew_sweep_lag_grows_as_limits_tighten() -> None:
@@ -582,6 +640,8 @@ def test_render_markdown_contains_sections() -> None:
     assert "## Sweeps" in text
     assert "nominal" in text
     assert "measurement_fault_uncorrected" in text
+    assert "measurement_latency_uncorrected" in text
+    assert "measurement_latency_corrected" in text
     assert "x_point_divertor_kick" in text
     assert "x_point_divertor_supervisor_measurement_fault_uncorrected" in text
     assert "x_point_divertor_supervisor_measurement_fault_corrected" in text
@@ -592,6 +652,8 @@ def test_render_markdown_contains_sections() -> None:
     assert "supervisor_fallback_kick" in text
     assert "measurement_fault_scale" in text
     assert "measurement_fault_corrected_scale" in text
+    assert "measurement_latency_steps" in text
+    assert "measurement_latency_corrected_steps" in text
     assert "actuator_slew_limit" in text
     assert "coil_kick_scale" in text
     assert "topology_kick_scale" in text

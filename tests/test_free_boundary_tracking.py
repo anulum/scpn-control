@@ -205,6 +205,22 @@ class _MeasurementCorrectedKernel(_MeasurementDistortionKernel):
         }
 
 
+class _MeasurementLatencyKernel(_DummyFreeBoundaryKernel):
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        self.cfg["free_boundary_tracking"] = {
+            "measurement_latency_steps": 2,
+        }
+
+
+class _MeasurementLatencyCompensatedKernel(_MeasurementLatencyKernel):
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        tracking_cfg = self.cfg["free_boundary_tracking"]
+        tracking_cfg["latency_compensation_gain"] = 1.0
+        tracking_cfg["latency_rate_max_abs"] = 0.5
+
+
 class _InvalidMeasurementKernel(_DummyFreeBoundaryKernel):
     def __init__(self, config_file: str) -> None:
         super().__init__(config_file)
@@ -923,6 +939,47 @@ def test_measurement_compensation_restores_true_tracking_baseline() -> None:
         "true_divertor_rms",
     ):
         assert corrected[key] == pytest.approx(baseline[key], rel=0.0, abs=1.0e-12)
+
+
+def test_latency_compensation_reduces_delayed_observation_error() -> None:
+    kwargs = dict(
+        config_file="dummy.json",
+        shot_steps=4,
+        gain=0.18,
+        verbose=False,
+        stop_on_convergence=False,
+    )
+
+    def disturbance(kernel: _DummyFreeBoundaryKernel, _coils: CoilSet, step: int) -> None:
+        drift_schedule = (0.0, 1.0, 0.45, 0.10)
+        kernel.cfg.setdefault("physics", {})["drift_scale"] = drift_schedule[min(step, len(drift_schedule) - 1)]
+
+    delayed = run_free_boundary_tracking(
+        kernel_factory=_MeasurementLatencyKernel,
+        disturbance_callback=disturbance,
+        **kwargs,
+    )
+    compensated = run_free_boundary_tracking(
+        kernel_factory=_MeasurementLatencyCompensatedKernel,
+        disturbance_callback=disturbance,
+        **kwargs,
+    )
+
+    assert delayed["measurement_latency_enabled"] is True
+    assert delayed["latency_compensation_enabled"] is False
+    assert delayed["measurement_latency_steps"] == 2
+    assert delayed["max_delayed_observation_error_norm"] > 0.0
+    assert delayed["max_estimated_observation_error_norm"] == pytest.approx(
+        delayed["max_delayed_observation_error_norm"],
+        rel=0.0,
+        abs=1.0e-12,
+    )
+    assert compensated["measurement_latency_enabled"] is True
+    assert compensated["latency_compensation_enabled"] is True
+    assert compensated["max_abs_objective_rate_estimate"] > 0.0
+    assert compensated["mean_estimated_observation_error_norm"] < delayed["max_delayed_observation_error_norm"]
+    assert compensated["max_estimated_observation_error_norm"] <= delayed["max_delayed_observation_error_norm"] + 0.02
+    assert compensated["final_true_tracking_error_norm"] < delayed["final_true_tracking_error_norm"]
 
 
 def test_controller_rejects_invalid_measurement_bias_shape() -> None:
