@@ -191,8 +191,13 @@ def test_supervisor_fallback_kick_reduces_lag_and_stays_safe() -> None:
     assert scenario["checks"]["max_abs_actuator_lag"] is True
     assert scenario["checks"]["lag_reduction_factor"] is True
     assert scenario["checks"]["final_tracking_error_norm"] is True
+    assert scenario["checks"]["x_point_position_error"] is True
+    assert scenario["checks"]["x_point_flux_error"] is True
+    assert scenario["checks"]["divertor_rms"] is True
+    assert scenario["checks"]["divertor_max_abs"] is True
     assert scenario["checks"]["supervisor_active"] is True
     assert scenario["checks"]["supervisor_safe"] is True
+    assert scenario["checks"]["objective_converged"] is True
     assert summary["supervisor_intervention_count"] >= thresholds["min_supervisor_intervention_count"]
     assert summary["fallback_active_steps"] >= thresholds["min_fallback_active_steps"]
     assert summary["supervisor_active"] is True
@@ -201,6 +206,15 @@ def test_supervisor_fallback_kick_reduces_lag_and_stays_safe() -> None:
     assert scenario["lag_reduction_factor"] >= thresholds["min_lag_reduction_factor"]
     assert reference["max_abs_actuator_lag"] > summary["max_abs_actuator_lag"]
     assert summary["final_tracking_error_norm"] <= thresholds["max_final_tracking_error_norm"]
+    assert summary["x_point_position_error"] is not None
+    assert summary["x_point_flux_error"] is not None
+    assert summary["divertor_rms"] is not None
+    assert summary["divertor_max_abs"] is not None
+    assert summary["x_point_position_error"] <= thresholds["max_x_point_position_error"]
+    assert summary["x_point_flux_error"] <= thresholds["max_x_point_flux_error"]
+    assert summary["divertor_rms"] <= thresholds["max_divertor_rms"]
+    assert summary["divertor_max_abs"] <= thresholds["max_divertor_max_abs"]
+    assert summary["objective_converged"] is True
 
 
 def test_topology_kick_sweep_keeps_objectives_bounded() -> None:

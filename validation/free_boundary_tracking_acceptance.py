@@ -63,8 +63,13 @@ SUPERVISOR_FALLBACK_THRESHOLDS = {
     "max_abs_actuator_lag": 2.0,
     "min_lag_reduction_factor": 100.0,
     "max_final_tracking_error_norm": 0.02,
+    "max_x_point_position_error": TOPOLOGY_THRESHOLDS["max_x_point_position_error"],
+    "max_x_point_flux_error": TOPOLOGY_THRESHOLDS["max_x_point_flux_error"],
+    "max_divertor_rms": TOPOLOGY_THRESHOLDS["max_divertor_rms"],
+    "max_divertor_max_abs": TOPOLOGY_THRESHOLDS["max_divertor_max_abs"],
     "require_supervisor_active": True,
     "require_supervisor_safe": True,
+    "require_objective_converged": True,
 }
 MEASUREMENT_SWEEP_SCALES = (0.0, 0.5, 1.0, 1.5)
 ACTUATOR_SLEW_LIMIT_SWEEP = (1.0e3, 1.0e2, 1.0e1, 1.0, 0.1)
@@ -398,10 +403,33 @@ def _evaluate_supervisor_fallback(
         "final_tracking_error_norm": bool(
             float(summary["final_tracking_error_norm"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_final_tracking_error_norm"]
         ),
+        "x_point_position_error": bool(
+            summary["x_point_position_error"] is not None
+            and np.isfinite(float(summary["x_point_position_error"]))
+            and float(summary["x_point_position_error"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_x_point_position_error"]
+        ),
+        "x_point_flux_error": bool(
+            summary["x_point_flux_error"] is not None
+            and np.isfinite(float(summary["x_point_flux_error"]))
+            and float(summary["x_point_flux_error"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_x_point_flux_error"]
+        ),
+        "divertor_rms": bool(
+            summary["divertor_rms"] is not None
+            and np.isfinite(float(summary["divertor_rms"]))
+            and float(summary["divertor_rms"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_divertor_rms"]
+        ),
+        "divertor_max_abs": bool(
+            summary["divertor_max_abs"] is not None
+            and np.isfinite(float(summary["divertor_max_abs"]))
+            and float(summary["divertor_max_abs"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_divertor_max_abs"]
+        ),
         "supervisor_active": bool(
             summary["supervisor_active"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_active"]
         ),
         "supervisor_safe": bool(summary["supervisor_safe"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_safe"]),
+        "objective_converged": bool(
+            summary["objective_converged"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_objective_converged"]
+        ),
     }
     return {
         "thresholds": SUPERVISOR_FALLBACK_THRESHOLDS.copy(),
@@ -735,13 +763,13 @@ def run_campaign() -> dict[str, Any]:
 
         unsupervised_safety_cfg = _write_tracking_config(
             tmp_path / "unsupervised_safety_reference.json",
-            template_cfg=template_cfg,
+            template_cfg=topology_template_cfg,
         )
         unsupervised_safety_reference = _run_supervisor_fallback_kick(unsupervised_safety_cfg)
 
         supervisor_fallback_cfg = _write_tracking_config(
             tmp_path / "supervisor_fallback.json",
-            template_cfg=template_cfg,
+            template_cfg=topology_template_cfg,
             tracking_cfg={
                 "fallback_currents": [0.0, 0.0],
                 "supervisor_limits": {"max_abs_actuator_lag": 2.0},
