@@ -81,3 +81,26 @@ class TestTokamakEnv:
         env = TokamakEnv()
         assert env.observation_space_shape == (6,)
         assert env.action_space_shape == (2,)
+
+    def test_energy_balance_steady_state(self):
+        """Verify that temperature settles towards a steady state balance."""
+        env = TokamakEnv(max_steps=2000, dt=0.01) # Long time, large steps
+        env.reset()
+        
+        # High power heating
+        action = np.array([5.0, 0.0]) # Add 5MW per step up to limit?
+        # Actually P_aux is stateful now. 5MW delta.
+        
+        temps = []
+        for _ in range(500):
+            obs, _, _, _, _ = env.step(action)
+            temps.append(obs[0])
+            action = np.array([0.0, 0.0]) # Maintain P_aux
+            
+        # Should converge
+        final_temp = temps[-1]
+        assert 2.0 < final_temp < 50.0
+        # Rate of change should decrease
+        dT_dt = abs(temps[-1] - temps[-2])
+        dT_dt_start = abs(temps[1] - temps[0])
+        assert dT_dt < dT_dt_start
