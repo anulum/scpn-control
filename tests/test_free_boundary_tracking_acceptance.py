@@ -47,6 +47,8 @@ def test_campaign_is_deterministic() -> None:
         "x_point_divertor_measurement_latency_corrected",
         "x_point_divertor_supervisor_measurement_fault_uncorrected",
         "x_point_divertor_supervisor_measurement_fault_corrected",
+        "x_point_divertor_supervisor_measurement_latency_uncorrected",
+        "x_point_divertor_supervisor_measurement_latency_corrected",
         "x_point_divertor_combined_fault_uncorrected",
         "x_point_divertor_combined_fault_corrected",
         "x_point_divertor_measurement_fault_uncorrected",
@@ -88,6 +90,8 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["x_point_divertor_measurement_latency_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_supervisor_measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_supervisor_measurement_fault_corrected"]["passes_thresholds"] is True
+    assert out["scenarios"]["x_point_divertor_supervisor_measurement_latency_uncorrected"]["passes_thresholds"] is True
+    assert out["scenarios"]["x_point_divertor_supervisor_measurement_latency_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_combined_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_combined_fault_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_measurement_fault_uncorrected"]["passes_thresholds"] is True
@@ -414,6 +418,46 @@ def test_topology_supervisor_measurement_scenarios_stay_safe_and_remove_gap() ->
     assert corrected["summary"]["objective_converged"] is True
 
 
+def test_topology_supervisor_latency_scenarios_stay_safe_and_bound_combined_faults() -> None:
+    out = _campaign_cached()
+    uncorrected = out["scenarios"]["x_point_divertor_supervisor_measurement_latency_uncorrected"]
+    corrected = out["scenarios"]["x_point_divertor_supervisor_measurement_latency_corrected"]
+
+    assert uncorrected["checks"]["supervisor_intervention_count"] is True
+    assert uncorrected["checks"]["fallback_active_steps"] is True
+    assert uncorrected["checks"]["max_abs_actuator_lag"] is True
+    assert uncorrected["checks"]["supervisor_active"] is True
+    assert uncorrected["checks"]["supervisor_safe"] is True
+    assert uncorrected["x_point_position_gap"] >= uncorrected["thresholds"]["min_x_point_position_gap"]
+    assert uncorrected["x_point_flux_gap"] >= uncorrected["thresholds"]["min_x_point_flux_gap"]
+    assert uncorrected["divertor_rms_gap"] >= uncorrected["thresholds"]["min_divertor_rms_gap"]
+    assert uncorrected["divertor_max_abs_gap"] >= uncorrected["thresholds"]["min_divertor_max_abs_gap"]
+    assert (
+        uncorrected["delayed_observation_error_norm"]
+        >= uncorrected["thresholds"]["min_delayed_observation_error_norm"]
+    )
+    assert uncorrected["summary"]["objective_converged"] is False
+
+    assert corrected["checks"]["supervisor_intervention_count"] is True
+    assert corrected["checks"]["fallback_active_steps"] is True
+    assert corrected["checks"]["max_abs_actuator_lag"] is True
+    assert corrected["checks"]["supervisor_active"] is True
+    assert corrected["checks"]["supervisor_safe"] is True
+    assert corrected["x_point_position_gap"] <= corrected["thresholds"]["max_x_point_position_gap"]
+    assert corrected["x_point_flux_gap"] <= corrected["thresholds"]["max_x_point_flux_gap"]
+    assert corrected["divertor_rms_gap"] <= corrected["thresholds"]["max_divertor_rms_gap"]
+    assert corrected["divertor_max_abs_gap"] <= corrected["thresholds"]["max_divertor_max_abs_gap"]
+    assert (
+        corrected["estimated_observation_error_norm"]
+        <= corrected["thresholds"]["max_estimated_observation_error_norm"]
+    )
+    assert (
+        corrected["summary"]["final_true_tracking_error_norm"]
+        <= corrected["thresholds"]["max_final_true_tracking_error_norm"]
+    )
+    assert corrected["summary"]["objective_converged"] is True
+
+
 def test_supervisor_fallback_kick_reduces_lag_and_stays_safe() -> None:
     out = _campaign_cached()
     scenario = out["scenarios"]["supervisor_fallback_kick"]
@@ -682,6 +726,8 @@ def test_render_markdown_contains_sections() -> None:
     assert "x_point_divertor_measurement_latency_corrected" in text
     assert "x_point_divertor_supervisor_measurement_fault_uncorrected" in text
     assert "x_point_divertor_supervisor_measurement_fault_corrected" in text
+    assert "x_point_divertor_supervisor_measurement_latency_uncorrected" in text
+    assert "x_point_divertor_supervisor_measurement_latency_corrected" in text
     assert "x_point_divertor_combined_fault_uncorrected" in text
     assert "x_point_divertor_combined_fault_corrected" in text
     assert "x_point_divertor_measurement_fault_uncorrected" in text
