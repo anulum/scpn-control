@@ -22,6 +22,7 @@ from scpn_control.core.neural_transport import (
     TransportFluxes,
     TransportInputs,
     _DEFAULT_WEIGHTS_PATH,
+    cross_validate_neural_transport,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -159,6 +160,30 @@ class TestQLKNNProfile:
         assert np.all(np.isfinite(chi_e))
         assert np.all(np.isfinite(chi_i))
         assert np.all(np.isfinite(d_e))
+
+
+class TestReferenceCrossValidation:
+    def test_fallback_matches_reference_exactly(self) -> None:
+        model = NeuralTransportModel(auto_discover=False)
+        metrics = cross_validate_neural_transport(model)
+        assert metrics["mode"] == "analytic_fallback"
+        assert metrics["channel_agreement"] == pytest.approx(1.0)
+        assert metrics["max_abs_error"] == pytest.approx(0.0)
+        assert np.allclose(metrics["per_channel_rmse"], 0.0)
+        assert np.allclose(metrics["per_channel_mae"], 0.0)
+        assert np.allclose(metrics["profile_per_channel_rmse"], 0.0)
+
+    def test_neural_model_stays_close_to_reference_benchmark(self) -> None:
+        model = NeuralTransportModel(WEIGHTS_PATH)
+        metrics = cross_validate_neural_transport(model)
+        assert metrics["mode"] == "neural"
+        assert metrics["n_cases"] == 7
+        assert len(metrics["per_channel_relative_rmse"]) == 3
+        assert len(metrics["profile_per_channel_relative_rmse"]) == 3
+        assert metrics["channel_agreement"] >= 5.0 / 7.0
+        assert max(metrics["per_channel_relative_rmse"]) < 0.65
+        assert max(metrics["profile_per_channel_relative_rmse"]) < 0.35
+        assert metrics["max_abs_error"] < 12.0
 
 
 # ── Training script ──────────────────────────────────────────────────

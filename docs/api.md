@@ -86,7 +86,14 @@ Requires `pip install "scpn-control[jax]"`. GPU and autodiff via `jax.grad`.
 
 ### Neural Transport
 
+`cross_validate_neural_transport()` benchmarks the active surrogate against the
+analytic critical-gradient reference across fixed regime cases and a canonical
+profile, so shipped weights can be checked against a deterministic local
+baseline instead of only reporting synthetic training RMSE.
+
 ::: scpn_control.core.neural_transport.NeuralTransportModel
+
+::: scpn_control.core.neural_transport.cross_validate_neural_transport
 
 ### MHD Stability
 
