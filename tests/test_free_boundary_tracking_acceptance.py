@@ -56,6 +56,8 @@ def test_campaign_is_deterministic() -> None:
         "coil_kick_scale",
         "topology_kick_scale",
         "topology_actuator_slew_limit",
+        "topology_measurement_fault_scale",
+        "topology_measurement_corrected_scale",
     ):
         assert a["sweeps"][sweep]["passes_thresholds"] == b["sweeps"][sweep]["passes_thresholds"]
 
@@ -77,6 +79,8 @@ def test_campaign_thresholds_pass() -> None:
     assert out["sweeps"]["coil_kick_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["topology_kick_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["topology_actuator_slew_limit"]["passes_thresholds"] is True
+    assert out["sweeps"]["topology_measurement_fault_scale"]["passes_thresholds"] is True
+    assert out["sweeps"]["topology_measurement_corrected_scale"]["passes_thresholds"] is True
 
 
 def test_measurement_fault_scenarios_expose_and_remove_gap() -> None:
@@ -298,6 +302,66 @@ def test_topology_actuator_slew_sweep_tracks_constraint_tradeoff() -> None:
     assert max(divertor_max_abs) <= free_boundary_tracking_acceptance.TOPOLOGY_THRESHOLDS["max_divertor_max_abs"]
 
 
+def test_topology_measurement_sweep_gaps_grow_monotonically() -> None:
+    out = _campaign_cached()
+    sweep = out["sweeps"]["topology_measurement_fault_scale"]
+    x_point_position_gap = [entry["x_point_position_gap"] for entry in sweep["entries"]]
+    x_point_flux_gap = [entry["x_point_flux_gap"] for entry in sweep["entries"]]
+    divertor_rms_gap = [entry["divertor_rms_gap"] for entry in sweep["entries"]]
+    divertor_max_abs_gap = [entry["divertor_max_abs_gap"] for entry in sweep["entries"]]
+    measurement_offset = [entry["max_abs_measurement_offset"] for entry in sweep["entries"]]
+
+    assert sweep["checks"]["x_point_position_gap_monotone"] is True
+    assert sweep["checks"]["x_point_flux_gap_monotone"] is True
+    assert sweep["checks"]["divertor_rms_gap_monotone"] is True
+    assert sweep["checks"]["divertor_max_abs_gap_monotone"] is True
+    assert sweep["checks"]["measurement_offset_monotone"] is True
+    assert x_point_position_gap[0] == pytest.approx(0.0)
+    assert x_point_flux_gap[0] == pytest.approx(0.0)
+    assert divertor_rms_gap[0] == pytest.approx(0.0)
+    assert divertor_max_abs_gap[0] == pytest.approx(0.0)
+    assert measurement_offset[0] == pytest.approx(0.0)
+    assert x_point_position_gap[-1] > x_point_position_gap[1]
+    assert x_point_flux_gap[-1] > x_point_flux_gap[1]
+    assert divertor_rms_gap[-1] > divertor_rms_gap[1]
+    assert divertor_max_abs_gap[-1] > divertor_max_abs_gap[1]
+    assert measurement_offset[-1] > measurement_offset[1]
+
+
+def test_topology_corrected_measurement_sweep_keeps_gaps_collapsed() -> None:
+    out = _campaign_cached()
+    sweep = out["sweeps"]["topology_measurement_corrected_scale"]
+    x_point_position_gap = [entry["x_point_position_gap"] for entry in sweep["entries"]]
+    x_point_flux_gap = [entry["x_point_flux_gap"] for entry in sweep["entries"]]
+    divertor_rms_gap = [entry["divertor_rms_gap"] for entry in sweep["entries"]]
+    divertor_max_abs_gap = [entry["divertor_max_abs_gap"] for entry in sweep["entries"]]
+    measurement_offset = [entry["max_abs_measurement_offset"] for entry in sweep["entries"]]
+    objective_converged = [entry["objective_converged"] for entry in sweep["entries"]]
+
+    assert sweep["checks"]["max_x_point_position_gap"] is True
+    assert sweep["checks"]["max_x_point_flux_gap"] is True
+    assert sweep["checks"]["max_divertor_rms_gap"] is True
+    assert sweep["checks"]["max_divertor_max_abs_gap"] is True
+    assert sweep["checks"]["max_measurement_offset"] is True
+    assert sweep["checks"]["objective_converged_all"] is True
+    assert max(x_point_position_gap) <= free_boundary_tracking_acceptance.TOPOLOGY_CORRECTED_THRESHOLDS[
+        "max_x_point_position_gap"
+    ]
+    assert max(x_point_flux_gap) <= free_boundary_tracking_acceptance.TOPOLOGY_CORRECTED_THRESHOLDS[
+        "max_x_point_flux_gap"
+    ]
+    assert max(divertor_rms_gap) <= free_boundary_tracking_acceptance.TOPOLOGY_CORRECTED_THRESHOLDS[
+        "max_divertor_rms_gap"
+    ]
+    assert max(divertor_max_abs_gap) <= free_boundary_tracking_acceptance.TOPOLOGY_CORRECTED_THRESHOLDS[
+        "max_divertor_max_abs_gap"
+    ]
+    assert max(measurement_offset) <= free_boundary_tracking_acceptance.TOPOLOGY_CORRECTED_THRESHOLDS[
+        "max_measurement_offset"
+    ]
+    assert all(objective_converged)
+
+
 def test_render_markdown_contains_sections() -> None:
     report = {
         "generated_at_utc": "2026-03-12T00:00:00+00:00",
@@ -320,3 +384,5 @@ def test_render_markdown_contains_sections() -> None:
     assert "coil_kick_scale" in text
     assert "topology_kick_scale" in text
     assert "topology_actuator_slew_limit" in text
+    assert "topology_measurement_fault_scale" in text
+    assert "topology_measurement_corrected_scale" in text

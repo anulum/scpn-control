@@ -48,7 +48,8 @@ topology-aware X-point/divertor tracking under kick disturbance,
 measurement-fault exposure and correction for both generic shape tracking and
 topology-aware X-point/divertor tracking, supervisor/fallback safety under a
 large kick, and severity sweeps for generic disturbance, topology-aware
-disturbance, measurement, and actuator limits.
+disturbance, generic measurement faults, topology-aware measurement faults, and
+actuator limits.
 
 This writes:
 

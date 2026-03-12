@@ -301,17 +301,18 @@ def _measurement_tracking_cfg(scale: float, *, corrected: bool) -> dict[str, Any
     return tracking_cfg
 
 
-def _topology_measurement_tracking_cfg(*, corrected: bool) -> dict[str, Any]:
+def _topology_measurement_tracking_cfg(scale: float = 1.0, *, corrected: bool) -> dict[str, Any]:
+    scale_value = float(scale)
     tracking_cfg: dict[str, Any] = {
         "measurement_bias": {
-            "x_point_position": [0.06, -0.05],
-            "x_point_flux": 0.025,
-            "divertor_flux": [0.03, -0.02],
+            "x_point_position": [0.06 * scale_value, -0.05 * scale_value],
+            "x_point_flux": 0.025 * scale_value,
+            "divertor_flux": [0.03 * scale_value, -0.02 * scale_value],
         },
         "measurement_drift_per_step": {
-            "x_point_position": [0.01, -0.008],
-            "x_point_flux": 0.004,
-            "divertor_flux": [0.005, -0.003],
+            "x_point_position": [0.01 * scale_value, -0.008 * scale_value],
+            "x_point_flux": 0.004 * scale_value,
+            "divertor_flux": [0.005 * scale_value, -0.003 * scale_value],
         },
     }
     if corrected:
@@ -853,6 +854,102 @@ def _run_topology_actuator_slew_sweep(tmp_path: Path, *, topology_template_cfg: 
     }
 
 
+def _run_topology_measurement_sweep(tmp_path: Path, *, topology_template_cfg: dict[str, Any]) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for scale in MEASUREMENT_SWEEP_SCALES:
+        cfg = _write_tracking_config(
+            tmp_path / f"topology_measurement_scale_{scale:.1f}.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg=None if scale == 0.0 else _topology_measurement_tracking_cfg(scale, corrected=False),
+        )
+        summary = _run_measurement_fault(cfg)
+        entries.append(
+            {
+                "scale": float(scale),
+                "x_point_position_gap": abs(
+                    float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"])
+                ),
+                "x_point_flux_gap": abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])),
+                "divertor_rms_gap": abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"])),
+                "divertor_max_abs_gap": abs(
+                    float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"])
+                ),
+                "max_abs_measurement_offset": float(summary["max_abs_measurement_offset"]),
+                "objective_converged": bool(summary["objective_converged"]),
+            }
+        )
+    x_point_position_gap = [float(entry["x_point_position_gap"]) for entry in entries]
+    x_point_flux_gap = [float(entry["x_point_flux_gap"]) for entry in entries]
+    divertor_rms_gap = [float(entry["divertor_rms_gap"]) for entry in entries]
+    divertor_max_abs_gap = [float(entry["divertor_max_abs_gap"]) for entry in entries]
+    measurement_offset = [float(entry["max_abs_measurement_offset"]) for entry in entries]
+    checks = {
+        "x_point_position_gap_monotone": _is_monotone_non_decreasing(x_point_position_gap),
+        "x_point_flux_gap_monotone": _is_monotone_non_decreasing(x_point_flux_gap),
+        "divertor_rms_gap_monotone": _is_monotone_non_decreasing(divertor_rms_gap),
+        "divertor_max_abs_gap_monotone": _is_monotone_non_decreasing(divertor_max_abs_gap),
+        "measurement_offset_monotone": _is_monotone_non_decreasing(measurement_offset),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
+def _run_topology_corrected_measurement_sweep(tmp_path: Path, *, topology_template_cfg: dict[str, Any]) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for scale in MEASUREMENT_SWEEP_SCALES:
+        cfg = _write_tracking_config(
+            tmp_path / f"topology_measurement_corrected_scale_{scale:.1f}.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg=_topology_measurement_tracking_cfg(scale, corrected=True),
+        )
+        summary = _run_measurement_fault(cfg)
+        entries.append(
+            {
+                "scale": float(scale),
+                "x_point_position_gap": abs(
+                    float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"])
+                ),
+                "x_point_flux_gap": abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])),
+                "divertor_rms_gap": abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"])),
+                "divertor_max_abs_gap": abs(
+                    float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"])
+                ),
+                "max_abs_measurement_offset": float(summary["max_abs_measurement_offset"]),
+                "objective_converged": bool(summary["objective_converged"]),
+            }
+        )
+    checks = {
+        "max_x_point_position_gap": bool(
+            max(float(entry["x_point_position_gap"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_x_point_position_gap"]
+        ),
+        "max_x_point_flux_gap": bool(
+            max(float(entry["x_point_flux_gap"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_x_point_flux_gap"]
+        ),
+        "max_divertor_rms_gap": bool(
+            max(float(entry["divertor_rms_gap"]) for entry in entries) <= TOPOLOGY_CORRECTED_THRESHOLDS["max_divertor_rms_gap"]
+        ),
+        "max_divertor_max_abs_gap": bool(
+            max(float(entry["divertor_max_abs_gap"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_divertor_max_abs_gap"]
+        ),
+        "max_measurement_offset": bool(
+            max(float(entry["max_abs_measurement_offset"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_measurement_offset"]
+        ),
+        "objective_converged_all": all(bool(entry["objective_converged"]) for entry in entries),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
 def run_campaign() -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="scpn_free_boundary_acceptance_") as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -942,6 +1039,14 @@ def run_campaign() -> dict[str, Any]:
             tmp_path,
             topology_template_cfg=topology_template_cfg,
         )
+        topology_measurement_sweep = _run_topology_measurement_sweep(
+            tmp_path,
+            topology_template_cfg=topology_template_cfg,
+        )
+        topology_corrected_measurement_sweep = _run_topology_corrected_measurement_sweep(
+            tmp_path,
+            topology_template_cfg=topology_template_cfg,
+        )
 
     scenarios = {
         "nominal": {
@@ -988,6 +1093,8 @@ def run_campaign() -> dict[str, Any]:
         "coil_kick_scale": coil_kick_scale_sweep,
         "topology_kick_scale": topology_kick_scale_sweep,
         "topology_actuator_slew_limit": topology_actuator_slew_sweep,
+        "topology_measurement_fault_scale": topology_measurement_sweep,
+        "topology_measurement_corrected_scale": topology_corrected_measurement_sweep,
     }
     passes_thresholds = all(bool(entry["passes_thresholds"]) for entry in scenarios.values()) and all(
         bool(entry["passes_thresholds"]) for entry in sweeps.values()
@@ -1126,6 +1233,32 @@ def render_markdown(report: dict[str, Any]) -> str:
             "- "
             f"slew `{entry['coil_slew_limit']:.3e}`: max lag `{entry['max_abs_actuator_lag']:.6e}`, "
             f"x-flux err `{entry['x_point_flux_error']:.6e}`, divertor rms `{entry['divertor_rms']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### topology_measurement_fault_scale",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["topology_measurement_fault_scale"]["entries"]:
+        lines.append(
+            "- "
+            f"scale `{entry['scale']:.1f}`: x-pos gap `{entry['x_point_position_gap']:.6e}`, "
+            f"x-flux gap `{entry['x_point_flux_gap']:.6e}`, divertor rms gap `{entry['divertor_rms_gap']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### topology_measurement_corrected_scale",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["topology_measurement_corrected_scale"]["entries"]:
+        lines.append(
+            "- "
+            f"scale `{entry['scale']:.1f}`: x-pos gap `{entry['x_point_position_gap']:.6e}`, "
+            f"x-flux gap `{entry['x_point_flux_gap']:.6e}`, divertor rms gap `{entry['divertor_rms_gap']:.6e}`"
         )
     return "\n".join(lines)
 
