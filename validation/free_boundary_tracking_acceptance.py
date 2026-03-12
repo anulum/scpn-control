@@ -48,6 +48,15 @@ CORRECTED_THRESHOLDS = {
     "max_shape_rms": 0.015,
     "require_objective_converged": True,
 }
+TOPOLOGY_THRESHOLDS = {
+    "max_final_tracking_error_norm": 0.02,
+    "max_shape_rms": 0.015,
+    "max_x_point_position_error": 0.1,
+    "max_x_point_flux_error": 0.01,
+    "max_divertor_rms": 0.01,
+    "max_divertor_max_abs": 0.01,
+    "require_objective_converged": True,
+}
 SUPERVISOR_FALLBACK_THRESHOLDS = {
     "min_supervisor_intervention_count": 1,
     "min_fallback_active_steps": 1,
@@ -60,6 +69,10 @@ SUPERVISOR_FALLBACK_THRESHOLDS = {
 MEASUREMENT_SWEEP_SCALES = (0.0, 0.5, 1.0, 1.5)
 ACTUATOR_SLEW_LIMIT_SWEEP = (1.0e3, 1.0e2, 1.0e1, 1.0, 0.1)
 COIL_KICK_SCALE_SWEEP = (0.0, 0.5, 1.0, 2.0, 4.0, 8.0)
+TOPOLOGY_DIVERTOR_STRIKE_POINTS = (
+    (3.2, -2.0),
+    (4.8, -2.0),
+)
 
 
 def _base_tracking_config() -> dict[str, Any]:
@@ -101,6 +114,42 @@ def _build_tracking_template(tmp_path: Path) -> dict[str, Any]:
     )
     flux_targets = kernel._sample_flux_at_points(coils.target_flux_points)
     cfg["free_boundary"]["target_flux_values"] = [float(v) for v in flux_targets]
+    return cfg
+
+
+def _build_topology_tracking_template(tmp_path: Path, *, template_cfg: dict[str, Any]) -> dict[str, Any]:
+    cfg = deepcopy(template_cfg)
+    topology_path = tmp_path / "topology_template.json"
+    topology_path.write_text(json.dumps(cfg), encoding="utf-8")
+    kernel = FusionKernel(topology_path)
+    coils = kernel.build_coilset_from_config()
+    kernel.solve_free_boundary(
+        coils,
+        max_outer_iter=2,
+        tol=1.0e-2,
+        optimize_shape=False,
+    )
+    x_pos, _ = kernel.find_x_point(kernel.Psi)
+    x_target = np.asarray(x_pos, dtype=np.float64).reshape(2)
+    divertor_points = np.asarray(TOPOLOGY_DIVERTOR_STRIKE_POINTS, dtype=np.float64)
+    objective_tolerances = deepcopy(cfg["free_boundary"].get("objective_tolerances", {}))
+    objective_tolerances.update(
+        {
+            "x_point_position": TOPOLOGY_THRESHOLDS["max_x_point_position_error"],
+            "x_point_flux": TOPOLOGY_THRESHOLDS["max_x_point_flux_error"],
+            "divertor_rms": TOPOLOGY_THRESHOLDS["max_divertor_rms"],
+            "divertor_max_abs": TOPOLOGY_THRESHOLDS["max_divertor_max_abs"],
+        }
+    )
+    cfg["free_boundary"].update(
+        {
+            "x_point_target": [float(x_target[0]), float(x_target[1])],
+            "x_point_flux_target": float(kernel._interp_psi(float(x_target[0]), float(x_target[1]))),
+            "divertor_strike_points": divertor_points.tolist(),
+            "divertor_flux_values": [float(v) for v in kernel._sample_flux_at_points(divertor_points)],
+            "objective_tolerances": objective_tolerances,
+        }
+    )
     return cfg
 
 
@@ -149,6 +198,18 @@ def _run_kick(config_path: Path) -> dict[str, Any]:
         verbose=False,
         kernel_factory=FusionKernel,
         disturbance_callback=_make_coil_kick_disturbance(),
+        stop_on_convergence=False,
+    )
+
+
+def _run_topology_kick(config_path: Path) -> dict[str, Any]:
+    return run_free_boundary_tracking(
+        config_file=str(config_path),
+        shot_steps=4,
+        gain=0.6,
+        verbose=False,
+        kernel_factory=FusionKernel,
+        disturbance_callback=_make_coil_kick_disturbance(2.0),
         stop_on_convergence=False,
     )
 
@@ -274,6 +335,43 @@ def _evaluate_corrected(summary: dict[str, Any]) -> dict[str, Any]:
         "checks": checks,
         "passes_thresholds": all(checks.values()),
         "measured_true_gap": float(measured_true_gap),
+    }
+
+
+def _evaluate_topology(summary: dict[str, Any]) -> dict[str, Any]:
+    checks = {
+        "final_tracking_error_norm": bool(
+            float(summary["final_tracking_error_norm"]) <= TOPOLOGY_THRESHOLDS["max_final_tracking_error_norm"]
+        ),
+        "shape_rms": bool(float(summary["shape_rms"]) <= TOPOLOGY_THRESHOLDS["max_shape_rms"]),
+        "x_point_position_error": bool(
+            summary["x_point_position_error"] is not None
+            and np.isfinite(float(summary["x_point_position_error"]))
+            and float(summary["x_point_position_error"]) <= TOPOLOGY_THRESHOLDS["max_x_point_position_error"]
+        ),
+        "x_point_flux_error": bool(
+            summary["x_point_flux_error"] is not None
+            and np.isfinite(float(summary["x_point_flux_error"]))
+            and float(summary["x_point_flux_error"]) <= TOPOLOGY_THRESHOLDS["max_x_point_flux_error"]
+        ),
+        "divertor_rms": bool(
+            summary["divertor_rms"] is not None
+            and np.isfinite(float(summary["divertor_rms"]))
+            and float(summary["divertor_rms"]) <= TOPOLOGY_THRESHOLDS["max_divertor_rms"]
+        ),
+        "divertor_max_abs": bool(
+            summary["divertor_max_abs"] is not None
+            and np.isfinite(float(summary["divertor_max_abs"]))
+            and float(summary["divertor_max_abs"]) <= TOPOLOGY_THRESHOLDS["max_divertor_max_abs"]
+        ),
+        "objective_converged": bool(
+            summary["objective_converged"] is TOPOLOGY_THRESHOLDS["require_objective_converged"]
+        ),
+    }
+    return {
+        "thresholds": TOPOLOGY_THRESHOLDS.copy(),
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
     }
 
 
@@ -508,6 +606,13 @@ def run_campaign() -> dict[str, Any]:
         )
         corrected = _run_measurement_fault(corrected_cfg)
 
+        topology_template_cfg = _build_topology_tracking_template(tmp_path, template_cfg=template_cfg)
+        topology_cfg = _write_tracking_config(
+            tmp_path / "topology_kick.json",
+            template_cfg=topology_template_cfg,
+        )
+        topology_kick = _run_topology_kick(topology_cfg)
+
         unsupervised_safety_cfg = _write_tracking_config(
             tmp_path / "unsupervised_safety_reference.json",
             template_cfg=template_cfg,
@@ -546,6 +651,10 @@ def run_campaign() -> dict[str, Any]:
         "measurement_fault_corrected": {
             "summary": corrected,
             **_evaluate_corrected(corrected),
+        },
+        "x_point_divertor_kick": {
+            "summary": topology_kick,
+            **_evaluate_topology(topology_kick),
         },
         "supervisor_fallback_kick": {
             "summary": supervisor_fallback,

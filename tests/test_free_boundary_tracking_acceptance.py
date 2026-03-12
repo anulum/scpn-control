@@ -40,6 +40,7 @@ def test_campaign_is_deterministic() -> None:
         "coil_kick",
         "measurement_fault_uncorrected",
         "measurement_fault_corrected",
+        "x_point_divertor_kick",
         "supervisor_fallback_kick",
     ):
         assert a["scenarios"][scenario]["summary"]["final_tracking_error_norm"] == pytest.approx(
@@ -62,6 +63,7 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["coil_kick"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_corrected"]["passes_thresholds"] is True
+    assert out["scenarios"]["x_point_divertor_kick"]["passes_thresholds"] is True
     assert out["scenarios"]["supervisor_fallback_kick"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_corrected_scale"]["passes_thresholds"] is True
@@ -149,6 +151,30 @@ def test_kick_scale_sweep_requires_more_coil_authority_but_stays_bounded() -> No
     ]
 
 
+def test_x_point_divertor_kick_tracks_topology_objectives() -> None:
+    out = _campaign_cached()
+    scenario = out["scenarios"]["x_point_divertor_kick"]
+    summary = scenario["summary"]
+    thresholds = scenario["thresholds"]
+
+    assert scenario["checks"]["final_tracking_error_norm"] is True
+    assert scenario["checks"]["shape_rms"] is True
+    assert scenario["checks"]["x_point_position_error"] is True
+    assert scenario["checks"]["x_point_flux_error"] is True
+    assert scenario["checks"]["divertor_rms"] is True
+    assert scenario["checks"]["divertor_max_abs"] is True
+    assert scenario["checks"]["objective_converged"] is True
+    assert summary["x_point_position_error"] is not None
+    assert summary["x_point_flux_error"] is not None
+    assert summary["divertor_rms"] is not None
+    assert summary["divertor_max_abs"] is not None
+    assert summary["x_point_position_error"] <= thresholds["max_x_point_position_error"]
+    assert summary["x_point_flux_error"] <= thresholds["max_x_point_flux_error"]
+    assert summary["divertor_rms"] <= thresholds["max_divertor_rms"]
+    assert summary["divertor_max_abs"] <= thresholds["max_divertor_max_abs"]
+    assert summary["objective_converged"] is True
+
+
 def test_supervisor_fallback_kick_reduces_lag_and_stays_safe() -> None:
     out = _campaign_cached()
     scenario = out["scenarios"]["supervisor_fallback_kick"]
@@ -181,6 +207,7 @@ def test_render_markdown_contains_sections() -> None:
     assert "## Sweeps" in text
     assert "nominal" in text
     assert "measurement_fault_uncorrected" in text
+    assert "x_point_divertor_kick" in text
     assert "supervisor_fallback_kick" in text
     assert "measurement_fault_scale" in text
     assert "measurement_fault_corrected_scale" in text
