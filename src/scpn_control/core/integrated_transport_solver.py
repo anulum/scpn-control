@@ -973,6 +973,11 @@ class TransportSolver(FusionKernel):
 
     # ── Main evolution (Crank-Nicolson) ──────────────────────────────
 
+    @property
+    def energy_balance_error(self) -> float:
+        """Relative energy conservation error from the last evolution step."""
+        return float(self._last_conservation_error)
+
     def evolve_profiles(self, dt: float, P_aux: float, enforce_conservation: bool = False) -> tuple[float, float]:
         """Advance Ti by one time step using Crank-Nicolson implicit diffusion.
 
@@ -999,6 +1004,7 @@ class TransportSolver(FusionKernel):
         self._last_numerical_recovery_count = self._sanitize_runtime_state()
         Ti_old = self.Ti.copy()
         Te_old = self.Te.copy()
+        e_keV_J = 1.602176634e-16
 
         # ── Multi-ion: evolve species and get radiation ──
         if self.multi_ion:
@@ -1011,9 +1017,6 @@ class TransportSolver(FusionKernel):
 
         # ── Sinks (ion channel radiation) ──
         if self.multi_ion:
-            # Use coronal tungsten radiation (already in W/m^3)
-            # Convert to keV / s per 10^19:  P [W/m^3] / (n_e [10^19 m^-3] * 1e19 * e_keV_J)
-            e_keV_J = 1.602176634e-16
             ne_safe = np.maximum(self.ne, 0.1) * 1e19
             S_rad_i = P_rad_line_Wm3 / (ne_safe * e_keV_J) * 0.5  # half to ions
         else:
@@ -1048,20 +1051,13 @@ class TransportSolver(FusionKernel):
         # ── Electron temperature ──
         if self.multi_ion:
             # Independent electron temperature evolution
-            # Electrons receive configured auxiliary-heating split.
             S_heat_e = S_heat_e_aux
             P_brem = self._bremsstrahlung_power_density(self.ne, Te_old, self._Z_eff)
             ne_safe_e = np.maximum(self.ne, 0.1) * 1e19
             S_brem_e = P_brem / (ne_safe_e * e_keV_J)
-            # Tungsten radiation on electrons (other half)
             S_rad_e = P_rad_line_Wm3 / (ne_safe_e * e_keV_J) * 0.5
 
-            # Electron-ion coupling (collisional equilibration)
-            # Braginskii, Reviews of Plasma Physics 1, 205 (1965):
-            # tau_eq ~ 0.2 * (T_e[keV])^1.5 / (n_e[1e19] * Z^2 * ln_Lambda)
-            # For n_e=1e20, T_e=10 keV, Z=1, ln_Lambda=17: tau_eq ~ 0.37 s
-            # Constant 0.1 s is order-of-magnitude for T_e ~ 5 keV, n_e ~ 5e19
-            tau_eq = 0.1  # s, Braginskii collisional equilibration time
+            tau_eq = 0.1  # s
             S_equil = (self.Ti - Te_old) / tau_eq
 
             net_source_e = S_heat_e - S_rad_e - S_brem_e + S_equil
@@ -1084,14 +1080,37 @@ class TransportSolver(FusionKernel):
             new_Te = self._thomas_solve(a_e, b_e, c_e, rhs_e)
 
             new_Te[0] = new_Te[1]
-            new_Te[-1] = 0.08  # cooler edge electrons
+            new_Te[-1] = 0.08
             self.Te, n_te_new = self._sanitize_with_fallback(new_Te, Te_old, floor=0.01, ceil=1e3)
             self._last_numerical_recovery_count += n_te_new
         else:
-            self.Te = self.Ti.copy()  # Assume equilibrated (legacy)
+            self.Te = self.Ti.copy()
+            net_source_e = net_source_i # simplified legacy balance
 
-        # No auxiliary heating: forbid unphysical mean-temperature growth due to
-        # numerical overshoot in the diffusion solve on coarse toy grids.
+        # ── Energy conservation diagnostic (Improved) ──
+        dV = self._rho_volume_element()
+        ne_m3 = self.ne * 1e19
+        
+        # W = 3/2 * (ne * Te + ni * Ti) * V. Assume ni = ne for energy calc.
+        W_before = 1.5 * np.sum(ne_m3 * (Te_old + Ti_old) * e_keV_J * dV)
+        W_after = 1.5 * np.sum(ne_m3 * (self.Te + self.Ti) * e_keV_J * dV)
+        
+        # Source term integrated over volume
+        dW_source_total = dt * 1.5 * np.sum(ne_m3 * (net_source_i + net_source_e) * e_keV_J * dV)
+
+        dW_actual = W_after - W_before
+        self._last_conservation_error = abs(dW_actual - dW_source_total) / max(abs(W_before), 1e-10)
+        
+        if self._last_conservation_error > 0.05:
+            _logger.debug("Energy balance error: %.4e", self._last_conservation_error)
+
+        if enforce_conservation and self._last_conservation_error > 0.01:
+            raise PhysicsError(
+                f"Energy conservation violated: relative error "
+                f"{self._last_conservation_error:.4e} > 1% threshold."
+            )
+
+        # No auxiliary heating safety (Legacy logic)
         if P_aux <= 0.0:
             mean_ti_old = float(np.mean(Ti_old))
             mean_ti_new = float(np.mean(self.Ti))
@@ -1104,28 +1123,6 @@ class TransportSolver(FusionKernel):
                 if not self.multi_ion:
                     self.Te = self.Ti.copy()
                 self._last_numerical_recovery_count += 1
-
-        # ── Energy conservation diagnostic ──
-        if not self.multi_ion:
-            e_keV_J = 1.602176634e-16
-        dV = self._rho_volume_element()
-
-        W_before = 1.5 * np.sum(self.ne * 1e19 * Ti_old * e_keV_J * dV)
-        W_after = 1.5 * np.sum(self.ne * 1e19 * self.Ti * e_keV_J * dV)
-        dW_source = dt * 1.5 * np.sum(self.ne * 1e19 * net_source_i * e_keV_J * dV)
-
-        dW_actual = W_after - W_before
-        self._last_conservation_error = abs(dW_actual - dW_source) / max(abs(W_before), 1e-10)
-        if not np.isfinite(self._last_conservation_error):
-            self._last_conservation_error = float("inf")
-
-        if enforce_conservation and self._last_conservation_error > 0.01:
-            raise PhysicsError(
-                f"Energy conservation violated: relative error "
-                f"{self._last_conservation_error:.4e} > 1% threshold. "
-                f"W_before={W_before:.4e} J, W_after={W_after:.4e} J, "
-                f"dW_source={dW_source:.4e} J."
-            )
 
         self._last_numerical_recovery_count += self._sanitize_runtime_state()
         avg_ti: float = np.mean(self.Ti).item()
