@@ -39,7 +39,12 @@ def test_campaign_is_deterministic() -> None:
             b["scenarios"][scenario]["summary"]["final_tracking_error_norm"]
         )
         assert a["scenarios"][scenario]["passes_thresholds"] == b["scenarios"][scenario]["passes_thresholds"]
-    for sweep in ("measurement_fault_scale", "measurement_fault_corrected_scale", "actuator_slew_limit"):
+    for sweep in (
+        "measurement_fault_scale",
+        "measurement_fault_corrected_scale",
+        "actuator_slew_limit",
+        "coil_kick_scale",
+    ):
         assert a["sweeps"][sweep]["passes_thresholds"] == b["sweeps"][sweep]["passes_thresholds"]
 
 
@@ -53,6 +58,7 @@ def test_campaign_thresholds_pass() -> None:
     assert out["sweeps"]["measurement_fault_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_corrected_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["actuator_slew_limit"]["passes_thresholds"] is True
+    assert out["sweeps"]["coil_kick_scale"]["passes_thresholds"] is True
 
 
 def test_measurement_fault_scenarios_expose_and_remove_gap() -> None:
@@ -118,6 +124,23 @@ def test_corrected_measurement_sweep_keeps_gap_collapsed() -> None:
     ]
 
 
+def test_kick_scale_sweep_requires_more_coil_authority_but_stays_bounded() -> None:
+    out = free_boundary_tracking_acceptance.run_campaign()
+    sweep = out["sweeps"]["coil_kick_scale"]
+    max_coil_current = [entry["max_abs_coil_current"] for entry in sweep["entries"]]
+    final_tracking_error = [entry["final_tracking_error_norm"] for entry in sweep["entries"]]
+    objective_converged = [entry["objective_converged"] for entry in sweep["entries"]]
+
+    assert sweep["checks"]["max_abs_coil_current_monotone"] is True
+    assert sweep["checks"]["objective_converged_all"] is True
+    assert sweep["checks"]["final_tracking_error_bounded"] is True
+    assert max_coil_current[-1] > max_coil_current[1]
+    assert all(objective_converged)
+    assert max(final_tracking_error) <= free_boundary_tracking_acceptance.NOMINAL_THRESHOLDS[
+        "max_final_tracking_error_norm"
+    ]
+
+
 def test_render_markdown_contains_sections() -> None:
     report = free_boundary_tracking_acceptance.generate_report()
     text = free_boundary_tracking_acceptance.render_markdown(report)
@@ -129,3 +152,4 @@ def test_render_markdown_contains_sections() -> None:
     assert "measurement_fault_scale" in text
     assert "measurement_fault_corrected_scale" in text
     assert "actuator_slew_limit" in text
+    assert "coil_kick_scale" in text

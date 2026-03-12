@@ -49,6 +49,7 @@ CORRECTED_THRESHOLDS = {
 }
 MEASUREMENT_SWEEP_SCALES = (0.0, 0.5, 1.0, 1.5)
 ACTUATOR_SLEW_LIMIT_SWEEP = (1.0e3, 1.0e2, 1.0e1, 1.0, 0.1)
+COIL_KICK_SCALE_SWEEP = (0.0, 0.5, 1.0, 2.0, 4.0, 8.0)
 
 
 def _write_tracking_config(path: Path, *, tracking_cfg: dict[str, Any] | None = None) -> Path:
@@ -92,13 +93,17 @@ def _write_tracking_config(path: Path, *, tracking_cfg: dict[str, Any] | None = 
     return path
 
 
-def _coil_kick_disturbance(kernel: FusionKernel, coils: CoilSet, step: int) -> None:
-    del kernel
-    if step != 1:
-        return
-    kick = np.array([2000.0, -1500.0], dtype=np.float64)
+def _make_coil_kick_disturbance(scale: float = 1.0) -> Any:
+    kick = np.array([2000.0, -1500.0], dtype=np.float64) * float(scale)
     limits = np.array([5.0e4, 5.0e4], dtype=np.float64)
-    coils.currents = np.clip(np.asarray(coils.currents, dtype=np.float64) + kick, -limits, limits)
+
+    def disturbance(kernel: FusionKernel, coils: CoilSet, step: int) -> None:
+        del kernel
+        if step != 1:
+            return
+        coils.currents = np.clip(np.asarray(coils.currents, dtype=np.float64) + kick, -limits, limits)
+
+    return disturbance
 
 
 def _run_nominal(config_path: Path) -> dict[str, Any]:
@@ -119,7 +124,7 @@ def _run_kick(config_path: Path) -> dict[str, Any]:
         gain=0.6,
         verbose=False,
         kernel_factory=FusionKernel,
-        disturbance_callback=_coil_kick_disturbance,
+        disturbance_callback=_make_coil_kick_disturbance(),
         stop_on_convergence=False,
     )
 
@@ -142,7 +147,7 @@ def _run_actuator_limited_kick(config_path: Path, *, coil_slew_limits: float) ->
         gain=8.0,
         verbose=False,
         kernel_factory=FusionKernel,
-        disturbance_callback=_coil_kick_disturbance,
+        disturbance_callback=_make_coil_kick_disturbance(),
         control_dt_s=0.1,
         coil_actuator_tau_s=0.05,
         coil_slew_limits=coil_slew_limits,
@@ -344,6 +349,44 @@ def _run_actuator_slew_sweep(tmp_path: Path) -> dict[str, Any]:
     }
 
 
+def _run_coil_kick_scale_sweep(tmp_path: Path) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for scale in COIL_KICK_SCALE_SWEEP:
+        cfg = _write_tracking_config(tmp_path / f"coil_kick_scale_{scale:.1f}.json")
+        summary = run_free_boundary_tracking(
+            config_file=str(cfg),
+            shot_steps=4,
+            gain=0.6,
+            verbose=False,
+            kernel_factory=FusionKernel,
+            disturbance_callback=_make_coil_kick_disturbance(scale),
+            stop_on_convergence=False,
+        )
+        entries.append(
+            {
+                "kick_scale": float(scale),
+                "final_tracking_error_norm": float(summary["final_tracking_error_norm"]),
+                "mean_tracking_error_norm": float(summary["mean_tracking_error_norm"]),
+                "shape_rms": float(summary["shape_rms"]),
+                "max_abs_coil_current": float(summary["max_abs_coil_current"]),
+                "objective_converged": bool(summary["objective_converged"]),
+            }
+        )
+    max_coil_current = [float(entry["max_abs_coil_current"]) for entry in entries]
+    final_tracking_error = [float(entry["final_tracking_error_norm"]) for entry in entries]
+    objective_converged = [bool(entry["objective_converged"]) for entry in entries]
+    checks = {
+        "max_abs_coil_current_monotone": _is_monotone_non_decreasing(max_coil_current),
+        "objective_converged_all": all(objective_converged),
+        "final_tracking_error_bounded": max(final_tracking_error) <= NOMINAL_THRESHOLDS["max_final_tracking_error_norm"],
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
 def run_campaign() -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="scpn_free_boundary_acceptance_") as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -376,6 +419,7 @@ def run_campaign() -> dict[str, Any]:
         measurement_sweep = _run_measurement_sweep(tmp_path)
         corrected_measurement_sweep = _run_corrected_measurement_sweep(tmp_path)
         actuator_slew_sweep = _run_actuator_slew_sweep(tmp_path)
+        coil_kick_scale_sweep = _run_coil_kick_scale_sweep(tmp_path)
 
     scenarios = {
         "nominal": {
@@ -399,6 +443,7 @@ def run_campaign() -> dict[str, Any]:
         "measurement_fault_scale": measurement_sweep,
         "measurement_fault_corrected_scale": corrected_measurement_sweep,
         "actuator_slew_limit": actuator_slew_sweep,
+        "coil_kick_scale": coil_kick_scale_sweep,
     }
     passes_thresholds = all(bool(entry["passes_thresholds"]) for entry in scenarios.values()) and all(
         bool(entry["passes_thresholds"]) for entry in sweeps.values()
@@ -489,6 +534,19 @@ def render_markdown(report: dict[str, Any]) -> str:
             "- "
             f"scale `{entry['scale']:.1f}`: gap `{entry['measured_true_gap']:.6e}`, "
             f"offset `{entry['max_abs_measurement_offset']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### coil_kick_scale",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["coil_kick_scale"]["entries"]:
+        lines.append(
+            "- "
+            f"scale `{entry['kick_scale']:.1f}`: max coil `{entry['max_abs_coil_current']:.6e}`, "
+            f"final err `{entry['final_tracking_error_norm']:.6e}`"
         )
     return "\n".join(lines)
 
