@@ -41,6 +41,8 @@ def test_campaign_is_deterministic() -> None:
         "measurement_fault_uncorrected",
         "measurement_fault_corrected",
         "x_point_divertor_kick",
+        "x_point_divertor_measurement_fault_uncorrected",
+        "x_point_divertor_measurement_fault_corrected",
         "supervisor_fallback_kick",
     ):
         assert a["scenarios"][scenario]["summary"]["final_tracking_error_norm"] == pytest.approx(
@@ -66,6 +68,8 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_kick"]["passes_thresholds"] is True
+    assert out["scenarios"]["x_point_divertor_measurement_fault_uncorrected"]["passes_thresholds"] is True
+    assert out["scenarios"]["x_point_divertor_measurement_fault_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["supervisor_fallback_kick"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_corrected_scale"]["passes_thresholds"] is True
@@ -179,6 +183,34 @@ def test_x_point_divertor_kick_tracks_topology_objectives() -> None:
     assert summary["objective_converged"] is True
 
 
+def test_topology_measurement_fault_scenarios_expose_and_remove_topology_gap() -> None:
+    out = _campaign_cached()
+    uncorrected = out["scenarios"]["x_point_divertor_measurement_fault_uncorrected"]
+    corrected = out["scenarios"]["x_point_divertor_measurement_fault_corrected"]
+
+    assert uncorrected["x_point_position_gap"] >= uncorrected["thresholds"]["min_x_point_position_gap"]
+    assert uncorrected["x_point_flux_gap"] >= uncorrected["thresholds"]["min_x_point_flux_gap"]
+    assert uncorrected["divertor_rms_gap"] >= uncorrected["thresholds"]["min_divertor_rms_gap"]
+    assert uncorrected["divertor_max_abs_gap"] >= uncorrected["thresholds"]["min_divertor_max_abs_gap"]
+    assert uncorrected["summary"]["max_abs_measurement_offset"] >= uncorrected["thresholds"]["min_measurement_offset"]
+    assert uncorrected["summary"]["true_x_point_position_error"] <= uncorrected["thresholds"]["max_true_x_point_position_error"]
+    assert uncorrected["summary"]["true_x_point_flux_error"] <= uncorrected["thresholds"]["max_true_x_point_flux_error"]
+    assert uncorrected["summary"]["true_divertor_rms"] <= uncorrected["thresholds"]["max_true_divertor_rms"]
+    assert uncorrected["summary"]["true_divertor_max_abs"] <= uncorrected["thresholds"]["max_true_divertor_max_abs"]
+    assert uncorrected["summary"]["objective_converged"] is False
+
+    assert corrected["x_point_position_gap"] <= corrected["thresholds"]["max_x_point_position_gap"]
+    assert corrected["x_point_flux_gap"] <= corrected["thresholds"]["max_x_point_flux_gap"]
+    assert corrected["divertor_rms_gap"] <= corrected["thresholds"]["max_divertor_rms_gap"]
+    assert corrected["divertor_max_abs_gap"] <= corrected["thresholds"]["max_divertor_max_abs_gap"]
+    assert corrected["summary"]["max_abs_measurement_offset"] <= corrected["thresholds"]["max_measurement_offset"]
+    assert corrected["summary"]["x_point_position_error"] <= corrected["thresholds"]["max_x_point_position_error"]
+    assert corrected["summary"]["x_point_flux_error"] <= corrected["thresholds"]["max_x_point_flux_error"]
+    assert corrected["summary"]["divertor_rms"] <= corrected["thresholds"]["max_divertor_rms"]
+    assert corrected["summary"]["divertor_max_abs"] <= corrected["thresholds"]["max_divertor_max_abs"]
+    assert corrected["summary"]["objective_converged"] is True
+
+
 def test_supervisor_fallback_kick_reduces_lag_and_stays_safe() -> None:
     out = _campaign_cached()
     scenario = out["scenarios"]["supervisor_fallback_kick"]
@@ -279,6 +311,8 @@ def test_render_markdown_contains_sections() -> None:
     assert "nominal" in text
     assert "measurement_fault_uncorrected" in text
     assert "x_point_divertor_kick" in text
+    assert "x_point_divertor_measurement_fault_uncorrected" in text
+    assert "x_point_divertor_measurement_fault_corrected" in text
     assert "supervisor_fallback_kick" in text
     assert "measurement_fault_scale" in text
     assert "measurement_fault_corrected_scale" in text
