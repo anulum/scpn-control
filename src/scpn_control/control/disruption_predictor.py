@@ -47,54 +47,94 @@ TOROIDAL_PERTURB_FRACTION = 0.08
 MIN_PROBABILISTIC_NOISE_SCALE = 1.0e-4
 
 
-# --- PHYSICS: MODIFIED RUTHERFORD EQUATION ---
+# --- PHYSICS: DISRUPTION MODELS (NTM, DENSITY LIMIT, VDE) ---
 def simulate_tearing_mode(
     steps: int = 1000,
     *,
+    mode: str = "ntm",
     rng: np.random.Generator | None = None,
 ) -> tuple[np.ndarray, int, int]:
     """
-    Generates synthetic shot data.
-    Returns:
-        signal (array): Magnetic sensor data (dB/dt)
-        label (int): 1 if disrupted, 0 if safe
-        time_to_disruption (array): Time remaining (or -1 if safe)
+    Generates synthetic shot data for multiple disruption mechanisms.
+
+    Parameters
+    ----------
+    steps : int
+        Number of steps to simulate.
+    mode : str
+        Disruption mechanism: "ntm", "density_limit", or "vde".
+    rng : np.random.Generator, optional
+        Random number generator.
+
+    Returns
+    -------
+    signal : ndarray
+        Magnetic or diagnostic sensor data.
+    label : int
+        1 if disrupted, 0 if safe.
+    time_to_disruption : int
+        Time remaining (steps) or -1 if safe.
     """
     steps = _require_int("steps", steps, 1)
-    # Rutherford (1973) modified; Fitzpatrick, Phys. Plasmas 2, 825 (1995)
-    DT_RUTHERFORD = 0.01  # s, integration timestep
-    W_INIT_CM = 0.01  # cm, seed island half-width
-    dt = DT_RUTHERFORD
-    w = W_INIT_CM
     local_rng = rng if rng is not None else np.random.default_rng()
 
     is_disruptive = float(local_rng.random()) > 0.5
     trigger_time = int(local_rng.integers(200, 800)) if is_disruptive else 9999
+    dt = 0.01  # s
 
-    delta_prime = -0.5  # Δ' < 0 → classically stable; flips at trigger_time
-    # La Haye, Phys. Plasmas 13, 055501 (2006), Fig. 6
-    W_SAT = 10.0  # cm, island saturation width (NTM m/n=2/1 on DIII-D)
-    W_LOCK = 8.0  # cm, locked-mode threshold
-    NOISE_STD = 0.05  # cm, Rogowski coil noise σ (DIII-D shot #164549)
-    w_history = []
+    signal_history = []
 
-    for t in range(steps):
-        if t > trigger_time:
-            delta_prime = 0.5  # NTM seed → unstable
+    if mode == "ntm":
+        # Rutherford (1973) modified; Fitzpatrick, Phys. Plasmas 2, 825 (1995)
+        w = 0.01  # cm, seed island half-width
+        delta_prime = -0.5
+        W_SAT = 10.0  # cm
+        W_LOCK = 8.0  # cm
+        NOISE_STD = 0.05
+        for t in range(steps):
+            if t > trigger_time:
+                delta_prime = 0.5
+            dw = (delta_prime * (1 - w / W_SAT)) * dt
+            w += dw + float(local_rng.normal(0.0, NOISE_STD))
+            w = max(w, 0.01)
+            signal_history.append(w)
+            if w > W_LOCK:
+                return np.array(signal_history), 1, (t - trigger_time)
 
-        # Simplified Rutherford: dw/dt = Δ'(1 - w/w_sat)
-        # Full form in stability_mhd.py; this captures saturated NTM growth
-        dw = (delta_prime * (1 - w / W_SAT)) * dt
-        w += dw
-        w += float(local_rng.normal(0.0, NOISE_STD))
-        w = max(w, 0.01)
+    elif mode == "density_limit":
+        # Greenwald density limit: n_G = Ip / (pi a^2)
+        # M. Greenwald, Plasma Phys. Control. Fusion 44, R27 (2002)
+        Ip = 15.0  # MA
+        a = 2.0  # m
+        n_G = Ip / (np.pi * a**2)
+        n_e = 0.5 * n_G  # start at 50% limit
+        n_drift = 0.0
+        for t in range(steps):
+            if t > trigger_time:
+                n_drift = 0.005  # density ramp
+            n_e += n_drift + float(local_rng.normal(0.0, 0.001))
+            signal_history.append(n_e)
+            if n_e > n_G:
+                return np.array(signal_history), 1, (t - trigger_time)
 
-        w_history.append(w)
+    elif mode == "vde":
+        # Vertical Displacement Event (VDE): exponential z growth
+        # Naydon instability timescale
+        z = 0.001  # m, initial vertical offset
+        z_growth_rate = 0.0  # s^-1
+        Z_LIMIT = 0.5  # m, wall contact
+        for t in range(steps):
+            if t > trigger_time:
+                z_growth_rate = 50.0  # 50 Hz growth
+            dz = (z_growth_rate * z) * dt
+            z += dz + float(local_rng.normal(0.0, 0.0005))
+            signal_history.append(abs(z))
+            if abs(z) > Z_LIMIT:
+                return np.array(signal_history), 1, (t - trigger_time)
+    else:
+        raise ValueError(f"Unknown disruption mode: {mode}")
 
-        if w > W_LOCK:
-            return np.array(w_history), 1, (t - trigger_time)
-
-    return np.array(w_history), 0, -1
+    return np.array(signal_history), 0, -1
 
 
 def build_disruption_feature_vector(signal: Any, toroidal_observables: dict[str, float] | None = None) -> np.ndarray:
@@ -575,7 +615,13 @@ def _model_risk_samples(
 if torch is not None:
 
     class DisruptionTransformer(nn.Module):
-        def __init__(self, seq_len: int = DEFAULT_SEQ_LEN) -> None:
+        """Transformer encoder for disruption prediction with MC dropout.
+
+        Reference: Gal, Y. & Ghahramani, Z. (2016). "Dropout as a Bayesian
+        Approximation: Representing Model Uncertainty in Deep Learning."
+        """
+
+        def __init__(self, seq_len: int = DEFAULT_SEQ_LEN, dropout: float = 0.1) -> None:
             super().__init__()
             self.seq_len = _normalize_seq_len(seq_len)
             self.embedding = nn.Linear(1, 32)
@@ -584,10 +630,16 @@ if torch is not None:
                 d_model=32,
                 nhead=4,
                 dim_feedforward=64,
+                dropout=dropout,
                 batch_first=True,
             )
             self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=2)
-            self.classifier = nn.Linear(32, 1)
+            self.classifier = nn.Sequential(
+                nn.Linear(32, 16),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Linear(16, 1),
+            )
             self.sigmoid = nn.Sigmoid()
 
         def forward(self, src: Any) -> Any:
@@ -603,6 +655,15 @@ if torch is not None:
             output = self.transformer(x)
             last_step = output[:, -1, :]
             return self.sigmoid(self.classifier(last_step))
+
+        def predict_with_uncertainty(self, src: Any, n_samples: int = 10) -> tuple[float, float]:
+            """Perform MC dropout inference to estimate mean and variance."""
+            self.train()  # Enable dropout for MC sampling
+            samples = []
+            with torch.no_grad():
+                for _ in range(n_samples):
+                    samples.append(float(self.forward(src).item()))
+            return float(np.mean(samples)), float(np.std(samples))
 else:  # pragma: no cover - only used without torch installed
 
     class DisruptionTransformer:  # type: ignore[no-redef]
@@ -796,15 +857,16 @@ def predict_disruption_risk_safe(
     model_path: str | Path | None = None,
     seq_len: int = DEFAULT_SEQ_LEN,
     train_if_missing: bool = False,
+    mc_samples: int = 10,
 ) -> tuple[float, dict[str, Any]]:
     """
-    Predict disruption risk with checkpoint path if available, else deterministic fallback.
+    Predict disruption risk with MC dropout uncertainty if model is available.
 
     Returns
     -------
     risk, metadata
-        ``risk`` is always a bounded float in ``[0, 1]``.
-        ``metadata`` includes whether fallback mode was used.
+        ``risk`` is the MC mean risk in ``[0, 1]``.
+        ``metadata`` includes ``risk_std`` (epistemic uncertainty).
     """
     base_risk = float(np.clip(predict_disruption_risk(signal, toroidal_observables), 0.0, 1.0))
 
@@ -831,30 +893,31 @@ def predict_disruption_risk_safe(
         return base_risk, out_meta
 
     try:
-        model.eval()
         model_seq_len = int(meta.get("seq_len", _normalize_seq_len(seq_len)))
         input_sig = _prepare_signal_window(signal, model_seq_len)
         input_tensor = torch.tensor(input_sig, dtype=torch.float32).reshape(1, -1, 1)
-        with torch.no_grad():
-            model_risk = float(np.clip(float(model(input_tensor).item()), 0.0, 1.0))
+
+        # MC Dropout inference
+        mean_risk, std_risk = model.predict_with_uncertainty(input_tensor, n_samples=mc_samples)
+
         out_meta = dict(meta)
         out_meta["mode"] = "checkpoint"
-        out_meta["risk_source"] = "transformer"
-        samples = np.concatenate(
-            [
-                _model_risk_samples(model, signal, seq_len=model_seq_len),
-                _deterministic_risk_samples(signal, toroidal_observables),
-                np.asarray([model_risk, base_risk], dtype=float),
-            ]
-        )
+        out_meta["risk_source"] = "transformer_mc_dropout"
+        out_meta["risk_std"] = std_risk
+        out_meta["risk_mean"] = mean_risk
+
+        # Combine with sigma points for input-noise sensitivity
+        input_samples = _deterministic_risk_samples(signal, toroidal_observables)
+        combined_samples = np.append(input_samples, [mean_risk])
+
         out_meta.update(
             _summarize_risk_samples(
-                samples,
-                center_risk=model_risk,
-                method="transformer_plus_sigma_points",
+                combined_samples,
+                center_risk=mean_risk,
+                method="transformer_mc_plus_sigma_points",
             )
         )
-        return model_risk, out_meta
+        return mean_risk, out_meta
     except (RuntimeError, ValueError, OSError) as exc:
         out_meta = dict(meta)
         out_meta["mode"] = "fallback"
