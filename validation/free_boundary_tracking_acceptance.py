@@ -79,6 +79,10 @@ TOPOLOGY_MEASUREMENT_THRESHOLDS = {
     "max_true_divertor_max_abs": TOPOLOGY_THRESHOLDS["max_divertor_max_abs"],
     "require_objective_converged": False,
 }
+TOPOLOGY_LATENCY_MEASUREMENT_THRESHOLDS = {
+    **TOPOLOGY_MEASUREMENT_THRESHOLDS,
+    "min_divertor_max_abs_gap": 0.039,
+}
 TOPOLOGY_CORRECTED_THRESHOLDS = {
     "max_x_point_position_gap": 1.0e-10,
     "max_x_point_flux_gap": 1.0e-10,
@@ -206,6 +210,14 @@ def _write_tracking_config(
         cfg["free_boundary_tracking"] = tracking_cfg
     path.write_text(json.dumps(cfg), encoding="utf-8")
     return path
+
+
+def _merge_tracking_cfg(*parts: dict[str, Any] | None) -> dict[str, Any] | None:
+    merged: dict[str, Any] = {}
+    for part in parts:
+        if part:
+            merged.update(part)
+    return merged or None
 
 
 def _make_coil_kick_disturbance(scale: float = 1.0) -> Any:
@@ -504,45 +516,50 @@ def _evaluate_topology(summary: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _evaluate_topology_measurement_fault(summary: dict[str, Any]) -> dict[str, Any]:
+def _evaluate_topology_measurement_fault(
+    summary: dict[str, Any],
+    *,
+    thresholds: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    threshold_set = TOPOLOGY_MEASUREMENT_THRESHOLDS if thresholds is None else thresholds
     x_point_position_gap = abs(float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"]))
     x_point_flux_gap = abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"]))
     divertor_rms_gap = abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"]))
     divertor_max_abs_gap = abs(float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"]))
     checks = {
         "x_point_position_gap": bool(
-            x_point_position_gap >= TOPOLOGY_MEASUREMENT_THRESHOLDS["min_x_point_position_gap"]
+            x_point_position_gap >= threshold_set["min_x_point_position_gap"]
         ),
-        "x_point_flux_gap": bool(x_point_flux_gap >= TOPOLOGY_MEASUREMENT_THRESHOLDS["min_x_point_flux_gap"]),
-        "divertor_rms_gap": bool(divertor_rms_gap >= TOPOLOGY_MEASUREMENT_THRESHOLDS["min_divertor_rms_gap"]),
+        "x_point_flux_gap": bool(x_point_flux_gap >= threshold_set["min_x_point_flux_gap"]),
+        "divertor_rms_gap": bool(divertor_rms_gap >= threshold_set["min_divertor_rms_gap"]),
         "divertor_max_abs_gap": bool(
-            divertor_max_abs_gap >= TOPOLOGY_MEASUREMENT_THRESHOLDS["min_divertor_max_abs_gap"]
+            divertor_max_abs_gap >= threshold_set["min_divertor_max_abs_gap"]
         ),
         "measurement_offset": bool(
-            float(summary["max_abs_measurement_offset"]) >= TOPOLOGY_MEASUREMENT_THRESHOLDS["min_measurement_offset"]
+            float(summary["max_abs_measurement_offset"]) >= threshold_set["min_measurement_offset"]
         ),
         "true_tracking_error_norm": bool(
-            float(summary["final_true_tracking_error_norm"]) <= TOPOLOGY_MEASUREMENT_THRESHOLDS["max_true_tracking_error_norm"]
+            float(summary["final_true_tracking_error_norm"]) <= threshold_set["max_true_tracking_error_norm"]
         ),
         "true_x_point_position_error": bool(
             float(summary["true_x_point_position_error"])
-            <= TOPOLOGY_MEASUREMENT_THRESHOLDS["max_true_x_point_position_error"]
+            <= threshold_set["max_true_x_point_position_error"]
         ),
         "true_x_point_flux_error": bool(
-            float(summary["true_x_point_flux_error"]) <= TOPOLOGY_MEASUREMENT_THRESHOLDS["max_true_x_point_flux_error"]
+            float(summary["true_x_point_flux_error"]) <= threshold_set["max_true_x_point_flux_error"]
         ),
         "true_divertor_rms": bool(
-            float(summary["true_divertor_rms"]) <= TOPOLOGY_MEASUREMENT_THRESHOLDS["max_true_divertor_rms"]
+            float(summary["true_divertor_rms"]) <= threshold_set["max_true_divertor_rms"]
         ),
         "true_divertor_max_abs": bool(
-            float(summary["true_divertor_max_abs"]) <= TOPOLOGY_MEASUREMENT_THRESHOLDS["max_true_divertor_max_abs"]
+            float(summary["true_divertor_max_abs"]) <= threshold_set["max_true_divertor_max_abs"]
         ),
         "objective_converged": bool(
-            summary["objective_converged"] is TOPOLOGY_MEASUREMENT_THRESHOLDS["require_objective_converged"]
+            summary["objective_converged"] is threshold_set["require_objective_converged"]
         ),
     }
     return {
-        "thresholds": TOPOLOGY_MEASUREMENT_THRESHOLDS.copy(),
+        "thresholds": dict(threshold_set),
         "checks": checks,
         "passes_thresholds": all(checks.values()),
         "x_point_position_gap": x_point_position_gap,
@@ -1399,6 +1416,26 @@ def run_campaign() -> dict[str, Any]:
         )
         topology_measurement_corrected = _run_measurement_fault(topology_corrected_cfg)
 
+        topology_measurement_latency_cfg = _write_tracking_config(
+            tmp_path / "topology_measurement_latency.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg=_merge_tracking_cfg(
+                _topology_measurement_tracking_cfg(corrected=False),
+                _latency_tracking_cfg(2, corrected=False),
+            ),
+        )
+        topology_measurement_latency_fault = _run_measurement_fault(topology_measurement_latency_cfg)
+
+        topology_measurement_latency_corrected_cfg = _write_tracking_config(
+            tmp_path / "topology_measurement_latency_corrected.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg=_merge_tracking_cfg(
+                _topology_measurement_tracking_cfg(corrected=True),
+                _latency_tracking_cfg(2, corrected=True),
+            ),
+        )
+        topology_measurement_latency_corrected = _run_measurement_fault(topology_measurement_latency_corrected_cfg)
+
         unsupervised_safety_cfg = _write_tracking_config(
             tmp_path / "unsupervised_safety_reference.json",
             template_cfg=topology_template_cfg,
@@ -1505,6 +1542,23 @@ def run_campaign() -> dict[str, Any]:
         "x_point_divertor_measurement_fault_corrected": {
             "summary": topology_measurement_corrected,
             **_evaluate_topology_corrected(topology_measurement_corrected),
+        },
+        "x_point_divertor_measurement_latency_uncorrected": {
+            "summary": topology_measurement_latency_fault,
+            **_combine_evaluations(
+                _evaluate_topology_measurement_fault(
+                    topology_measurement_latency_fault,
+                    thresholds=TOPOLOGY_LATENCY_MEASUREMENT_THRESHOLDS,
+                ),
+                _evaluate_latency_fault(topology_measurement_latency_fault),
+            ),
+        },
+        "x_point_divertor_measurement_latency_corrected": {
+            "summary": topology_measurement_latency_corrected,
+            **_combine_evaluations(
+                _evaluate_topology_corrected(topology_measurement_latency_corrected),
+                _evaluate_latency_corrected(topology_measurement_latency_corrected),
+            ),
         },
         "supervisor_fallback_kick": {
             "summary": supervisor_fallback,
