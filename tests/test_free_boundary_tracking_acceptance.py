@@ -41,6 +41,8 @@ def test_campaign_is_deterministic() -> None:
         "measurement_fault_uncorrected",
         "measurement_fault_corrected",
         "x_point_divertor_kick",
+        "x_point_divertor_supervisor_measurement_fault_uncorrected",
+        "x_point_divertor_supervisor_measurement_fault_corrected",
         "x_point_divertor_combined_fault_uncorrected",
         "x_point_divertor_combined_fault_corrected",
         "x_point_divertor_measurement_fault_uncorrected",
@@ -72,6 +74,8 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_kick"]["passes_thresholds"] is True
+    assert out["scenarios"]["x_point_divertor_supervisor_measurement_fault_uncorrected"]["passes_thresholds"] is True
+    assert out["scenarios"]["x_point_divertor_supervisor_measurement_fault_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_combined_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_combined_fault_corrected"]["passes_thresholds"] is True
     assert out["scenarios"]["x_point_divertor_measurement_fault_uncorrected"]["passes_thresholds"] is True
@@ -259,6 +263,56 @@ def test_topology_combined_fault_scenarios_expose_and_remove_topology_gap() -> N
     assert corrected["summary"]["objective_converged"] is True
 
 
+def test_topology_supervisor_measurement_scenarios_stay_safe_and_remove_gap() -> None:
+    out = _campaign_cached()
+    baseline = out["scenarios"]["supervisor_fallback_kick"]
+    uncorrected = out["scenarios"]["x_point_divertor_supervisor_measurement_fault_uncorrected"]
+    corrected = out["scenarios"]["x_point_divertor_supervisor_measurement_fault_corrected"]
+
+    assert uncorrected["checks"]["supervisor_intervention_count"] is True
+    assert uncorrected["checks"]["fallback_active_steps"] is True
+    assert uncorrected["checks"]["max_abs_actuator_lag"] is True
+    assert uncorrected["checks"]["supervisor_active"] is True
+    assert uncorrected["checks"]["supervisor_safe"] is True
+    assert uncorrected["x_point_position_gap"] >= uncorrected["thresholds"]["min_x_point_position_gap"]
+    assert uncorrected["x_point_flux_gap"] >= uncorrected["thresholds"]["min_x_point_flux_gap"]
+    assert uncorrected["divertor_rms_gap"] >= uncorrected["thresholds"]["min_divertor_rms_gap"]
+    assert uncorrected["divertor_max_abs_gap"] >= uncorrected["thresholds"]["min_divertor_max_abs_gap"]
+    assert uncorrected["summary"]["max_abs_measurement_offset"] >= uncorrected["thresholds"]["min_measurement_offset"]
+    assert uncorrected["summary"]["true_x_point_flux_error"] <= uncorrected["thresholds"]["max_true_x_point_flux_error"]
+    assert uncorrected["summary"]["true_divertor_rms"] <= uncorrected["thresholds"]["max_true_divertor_rms"]
+    assert uncorrected["summary"]["true_divertor_max_abs"] <= uncorrected["thresholds"]["max_true_divertor_max_abs"]
+    assert uncorrected["summary"]["objective_converged"] is False
+
+    assert corrected["checks"]["supervisor_intervention_count"] is True
+    assert corrected["checks"]["fallback_active_steps"] is True
+    assert corrected["checks"]["max_abs_actuator_lag"] is True
+    assert corrected["checks"]["supervisor_active"] is True
+    assert corrected["checks"]["supervisor_safe"] is True
+    assert corrected["summary"]["final_tracking_error_norm"] == pytest.approx(
+        baseline["summary"]["final_tracking_error_norm"],
+        rel=0.0,
+        abs=1.0e-12,
+    )
+    assert corrected["summary"]["x_point_flux_error"] == pytest.approx(
+        baseline["summary"]["x_point_flux_error"],
+        rel=0.0,
+        abs=1.0e-12,
+    )
+    assert corrected["summary"]["divertor_rms"] == pytest.approx(
+        baseline["summary"]["divertor_rms"],
+        rel=0.0,
+        abs=1.0e-12,
+    )
+    assert corrected["summary"]["divertor_max_abs"] == pytest.approx(
+        baseline["summary"]["divertor_max_abs"],
+        rel=0.0,
+        abs=1.0e-12,
+    )
+    assert corrected["summary"]["max_abs_measurement_offset"] <= corrected["thresholds"]["max_measurement_offset"]
+    assert corrected["summary"]["objective_converged"] is True
+
+
 def test_supervisor_fallback_kick_reduces_lag_and_stays_safe() -> None:
     out = _campaign_cached()
     scenario = out["scenarios"]["supervisor_fallback_kick"]
@@ -419,6 +473,8 @@ def test_render_markdown_contains_sections() -> None:
     assert "nominal" in text
     assert "measurement_fault_uncorrected" in text
     assert "x_point_divertor_kick" in text
+    assert "x_point_divertor_supervisor_measurement_fault_uncorrected" in text
+    assert "x_point_divertor_supervisor_measurement_fault_corrected" in text
     assert "x_point_divertor_combined_fault_uncorrected" in text
     assert "x_point_divertor_combined_fault_corrected" in text
     assert "x_point_divertor_measurement_fault_uncorrected" in text

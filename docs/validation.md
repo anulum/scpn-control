@@ -50,7 +50,7 @@ topology-aware X-point/divertor tracking, supervisor/fallback safety under a
 large kick, and severity sweeps for generic disturbance, topology-aware
 disturbance, generic measurement faults, topology-aware measurement faults, and
 actuator limits, plus combined topology disturbance-and-calibration-fault
-scenarios.
+scenarios including actuator-constrained supervisor/fallback lanes.
 
 This writes:
 

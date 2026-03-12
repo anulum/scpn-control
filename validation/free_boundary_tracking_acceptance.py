@@ -520,6 +520,53 @@ def _evaluate_topology_corrected(summary: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _evaluate_supervisor_only(summary: dict[str, Any]) -> dict[str, Any]:
+    checks = {
+        "supervisor_intervention_count": bool(
+            int(summary["supervisor_intervention_count"]) >= SUPERVISOR_FALLBACK_THRESHOLDS["min_supervisor_intervention_count"]
+        ),
+        "fallback_active_steps": bool(
+            int(summary["fallback_active_steps"]) >= SUPERVISOR_FALLBACK_THRESHOLDS["min_fallback_active_steps"]
+        ),
+        "max_abs_actuator_lag": bool(
+            float(summary["max_abs_actuator_lag"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_abs_actuator_lag"]
+        ),
+        "supervisor_active": bool(
+            summary["supervisor_active"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_active"]
+        ),
+        "supervisor_safe": bool(summary["supervisor_safe"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_safe"]),
+    }
+    return {
+        "thresholds": {
+            "min_supervisor_intervention_count": SUPERVISOR_FALLBACK_THRESHOLDS["min_supervisor_intervention_count"],
+            "min_fallback_active_steps": SUPERVISOR_FALLBACK_THRESHOLDS["min_fallback_active_steps"],
+            "max_abs_actuator_lag": SUPERVISOR_FALLBACK_THRESHOLDS["max_abs_actuator_lag"],
+            "require_supervisor_active": SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_active"],
+            "require_supervisor_safe": SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_safe"],
+        },
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
+def _combine_evaluations(*evaluations: dict[str, Any]) -> dict[str, Any]:
+    thresholds: dict[str, Any] = {}
+    checks: dict[str, bool] = {}
+    extras: dict[str, Any] = {}
+    for evaluation in evaluations:
+        thresholds.update(dict(evaluation["thresholds"]))
+        checks.update(dict(evaluation["checks"]))
+        for key, value in evaluation.items():
+            if key not in {"thresholds", "checks", "passes_thresholds"}:
+                extras[key] = value
+    return {
+        "thresholds": thresholds,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+        **extras,
+    }
+
+
 def _evaluate_supervisor_fallback(
     summary: dict[str, Any],
     *,
@@ -996,6 +1043,32 @@ def run_campaign() -> dict[str, Any]:
         )
         topology_kick = _run_topology_kick(topology_cfg)
 
+        topology_supervisor_measurement_fault_cfg = _write_tracking_config(
+            tmp_path / "topology_supervisor_measurement_fault.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg={
+                "fallback_currents": [0.0, 0.0],
+                "supervisor_limits": {"max_abs_actuator_lag": 2.0},
+                "hold_steps_after_reject": 2,
+                **_topology_measurement_tracking_cfg(corrected=False),
+            },
+        )
+        topology_supervisor_measurement_fault = _run_supervisor_fallback_kick(topology_supervisor_measurement_fault_cfg)
+
+        topology_supervisor_measurement_corrected_cfg = _write_tracking_config(
+            tmp_path / "topology_supervisor_measurement_corrected.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg={
+                "fallback_currents": [0.0, 0.0],
+                "supervisor_limits": {"max_abs_actuator_lag": 2.0},
+                "hold_steps_after_reject": 2,
+                **_topology_measurement_tracking_cfg(corrected=True),
+            },
+        )
+        topology_supervisor_measurement_corrected = _run_supervisor_fallback_kick(
+            topology_supervisor_measurement_corrected_cfg
+        )
+
         topology_combined_measurement_cfg = _write_tracking_config(
             tmp_path / "topology_combined_measurement.json",
             template_cfg=topology_template_cfg,
@@ -1082,6 +1155,20 @@ def run_campaign() -> dict[str, Any]:
         "x_point_divertor_kick": {
             "summary": topology_kick,
             **_evaluate_topology(topology_kick),
+        },
+        "x_point_divertor_supervisor_measurement_fault_uncorrected": {
+            "summary": topology_supervisor_measurement_fault,
+            **_combine_evaluations(
+                _evaluate_topology_measurement_fault(topology_supervisor_measurement_fault),
+                _evaluate_supervisor_only(topology_supervisor_measurement_fault),
+            ),
+        },
+        "x_point_divertor_supervisor_measurement_fault_corrected": {
+            "summary": topology_supervisor_measurement_corrected,
+            **_combine_evaluations(
+                _evaluate_topology_corrected(topology_supervisor_measurement_corrected),
+                _evaluate_supervisor_only(topology_supervisor_measurement_corrected),
+            ),
         },
         "x_point_divertor_combined_fault_uncorrected": {
             "summary": topology_combined_measurement_fault,
