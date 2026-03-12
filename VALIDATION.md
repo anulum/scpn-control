@@ -28,7 +28,7 @@
 
 | Suite | Count | Scope |
 |-------|------:|-------|
-| Python unit/integration | 2,417 | `pytest tests/` across 136 files |
+| Python unit/integration | 2,641 | `pytest tests/` across 136 files |
 | Rust engine | 108+ | `cargo test --workspace` in `scpn-control-rs/` |
 | Rust-Python interop | 3 files | PyO3 parity tests via maturin |
 | Notebooks | 5 | Executed in CI via `nbconvert` |
@@ -68,7 +68,7 @@ All gates must pass before merge to `main`.
 
 ## Coverage Policy
 
-- Threshold: 99% (enforced by `pytest --cov-fail-under=99`). Current: 100% (9,652 statements, 0 missed).
+- Threshold: 99% (enforced by `pytest --cov-fail-under=99`). Current: 100% (10,142 statements, 0 missed).
 - Excluded lines: `pragma: no cover`, `if __name__`, `raise NotImplementedError`,
   conditional imports (`HAS_TORCH`, `HAS_NENGO`, `HAS_SC_NEUROCORE`, `except ImportError`)
 

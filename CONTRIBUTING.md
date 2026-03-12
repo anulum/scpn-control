@@ -60,7 +60,7 @@ pre-commit run --all-files    # check everything
 pre-commit run ruff            # single hook
 ```
 
-Python (2,417 tests, 99.99% coverage):
+Python (2,641 tests, 99.99% coverage):
 
 ```bash
 pytest                       # full suite
@@ -112,7 +112,7 @@ was comprehensively addressed.
 1. Fork the repository and create a feature branch off `main`.
 2. Keep commits atomic. One logical change per commit.
 3. Open a pull request against `main`.
-4. CI must pass (25 jobs: lint, type-check, pre-commit, pytest matrix ×7,
+4. CI must pass (23 jobs: lint, type-check, pre-commit, pytest matrix ×7,
    cargo test/clippy/deny/audit/bench, maturin interop, JAX parity,
    nengo-loihi, coverage gate, RMSE gate, notebook smoke).
 5. At least one maintainer review is required before merge.

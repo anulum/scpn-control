@@ -23,7 +23,7 @@
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
 [scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 57 source
-modules, 136 test files, **2,417 tests** (99.99% coverage), 5 Rust crates, 26 CI jobs.
+modules, 136 test files, **2,641 tests** (99.99% coverage), 5 Rust crates, 26 CI jobs.
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
