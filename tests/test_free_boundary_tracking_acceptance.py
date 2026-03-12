@@ -53,6 +53,7 @@ def test_campaign_is_deterministic() -> None:
         "actuator_slew_limit",
         "coil_kick_scale",
         "topology_kick_scale",
+        "topology_actuator_slew_limit",
     ):
         assert a["sweeps"][sweep]["passes_thresholds"] == b["sweeps"][sweep]["passes_thresholds"]
 
@@ -71,6 +72,7 @@ def test_campaign_thresholds_pass() -> None:
     assert out["sweeps"]["actuator_slew_limit"]["passes_thresholds"] is True
     assert out["sweeps"]["coil_kick_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["topology_kick_scale"]["passes_thresholds"] is True
+    assert out["sweeps"]["topology_actuator_slew_limit"]["passes_thresholds"] is True
 
 
 def test_measurement_fault_scenarios_expose_and_remove_gap() -> None:
@@ -224,6 +226,32 @@ def test_topology_kick_sweep_keeps_objectives_bounded() -> None:
     assert max(divertor_max_abs) <= free_boundary_tracking_acceptance.TOPOLOGY_THRESHOLDS["max_divertor_max_abs"]
 
 
+def test_topology_actuator_slew_sweep_tracks_constraint_tradeoff() -> None:
+    out = _campaign_cached()
+    sweep = out["sweeps"]["topology_actuator_slew_limit"]
+    max_abs_actuator_lag = [entry["max_abs_actuator_lag"] for entry in sweep["entries"]]
+    x_point_flux_error = [entry["x_point_flux_error"] for entry in sweep["entries"]]
+    divertor_rms = [entry["divertor_rms"] for entry in sweep["entries"]]
+    divertor_max_abs = [entry["divertor_max_abs"] for entry in sweep["entries"]]
+    max_abs_coil_current = [entry["max_abs_coil_current"] for entry in sweep["entries"]]
+    objective_converged = [entry["objective_converged"] for entry in sweep["entries"]]
+
+    assert sweep["checks"]["max_abs_actuator_lag_monotone"] is True
+    assert sweep["checks"]["x_point_flux_error_monotone"] is True
+    assert sweep["checks"]["divertor_rms_monotone"] is True
+    assert sweep["checks"]["divertor_max_abs_monotone"] is True
+    assert sweep["checks"]["max_abs_coil_current_monotone"] is True
+    assert sweep["checks"]["objective_converged_all"] is True
+    assert sweep["checks"]["topology_errors_bounded"] is True
+    assert max_abs_actuator_lag[-1] > max_abs_actuator_lag[0]
+    assert x_point_flux_error[-1] > x_point_flux_error[0]
+    assert divertor_rms[-1] > divertor_rms[0]
+    assert divertor_max_abs[-1] > divertor_max_abs[0]
+    assert max_abs_coil_current[-1] < max_abs_coil_current[0]
+    assert all(objective_converged)
+    assert max(divertor_max_abs) <= free_boundary_tracking_acceptance.TOPOLOGY_THRESHOLDS["max_divertor_max_abs"]
+
+
 def test_render_markdown_contains_sections() -> None:
     report = {
         "generated_at_utc": "2026-03-12T00:00:00+00:00",
@@ -243,3 +271,4 @@ def test_render_markdown_contains_sections() -> None:
     assert "actuator_slew_limit" in text
     assert "coil_kick_scale" in text
     assert "topology_kick_scale" in text
+    assert "topology_actuator_slew_limit" in text
