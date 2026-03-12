@@ -48,6 +48,15 @@ CORRECTED_THRESHOLDS = {
     "max_shape_rms": 0.015,
     "require_objective_converged": True,
 }
+SUPERVISOR_FALLBACK_THRESHOLDS = {
+    "min_supervisor_intervention_count": 1,
+    "min_fallback_active_steps": 1,
+    "max_abs_actuator_lag": 2.0,
+    "min_lag_reduction_factor": 100.0,
+    "max_final_tracking_error_norm": 0.02,
+    "require_supervisor_active": True,
+    "require_supervisor_safe": True,
+}
 MEASUREMENT_SWEEP_SCALES = (0.0, 0.5, 1.0, 1.5)
 ACTUATOR_SLEW_LIMIT_SWEEP = (1.0e3, 1.0e2, 1.0e1, 1.0, 0.1)
 COIL_KICK_SCALE_SWEEP = (0.0, 0.5, 1.0, 2.0, 4.0, 8.0)
@@ -170,6 +179,21 @@ def _run_actuator_limited_kick(config_path: Path, *, coil_slew_limits: float) ->
     )
 
 
+def _run_supervisor_fallback_kick(config_path: Path) -> dict[str, Any]:
+    return run_free_boundary_tracking(
+        config_file=str(config_path),
+        shot_steps=4,
+        gain=8.0,
+        verbose=False,
+        kernel_factory=FusionKernel,
+        disturbance_callback=_make_coil_kick_disturbance(8.0),
+        control_dt_s=0.1,
+        coil_actuator_tau_s=0.05,
+        coil_slew_limits=0.05,
+        stop_on_convergence=False,
+    )
+
+
 def _measurement_tracking_cfg(scale: float, *, corrected: bool) -> dict[str, Any] | None:
     scale_value = float(scale)
     if scale_value == 0.0 and not corrected:
@@ -250,6 +274,41 @@ def _evaluate_corrected(summary: dict[str, Any]) -> dict[str, Any]:
         "checks": checks,
         "passes_thresholds": all(checks.values()),
         "measured_true_gap": float(measured_true_gap),
+    }
+
+
+def _evaluate_supervisor_fallback(
+    summary: dict[str, Any],
+    *,
+    unsupervised_reference: dict[str, Any],
+) -> dict[str, Any]:
+    safe_lag = float(summary["max_abs_actuator_lag"])
+    reference_lag = float(unsupervised_reference["max_abs_actuator_lag"])
+    lag_reduction_factor = float(reference_lag / max(safe_lag, 1.0e-12))
+    checks = {
+        "supervisor_intervention_count": bool(
+            int(summary["supervisor_intervention_count"]) >= SUPERVISOR_FALLBACK_THRESHOLDS["min_supervisor_intervention_count"]
+        ),
+        "fallback_active_steps": bool(
+            int(summary["fallback_active_steps"]) >= SUPERVISOR_FALLBACK_THRESHOLDS["min_fallback_active_steps"]
+        ),
+        "max_abs_actuator_lag": bool(safe_lag <= SUPERVISOR_FALLBACK_THRESHOLDS["max_abs_actuator_lag"]),
+        "lag_reduction_factor": bool(
+            lag_reduction_factor >= SUPERVISOR_FALLBACK_THRESHOLDS["min_lag_reduction_factor"]
+        ),
+        "final_tracking_error_norm": bool(
+            float(summary["final_tracking_error_norm"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_final_tracking_error_norm"]
+        ),
+        "supervisor_active": bool(
+            summary["supervisor_active"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_active"]
+        ),
+        "supervisor_safe": bool(summary["supervisor_safe"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_safe"]),
+    }
+    return {
+        "thresholds": SUPERVISOR_FALLBACK_THRESHOLDS.copy(),
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+        "lag_reduction_factor": lag_reduction_factor,
     }
 
 
@@ -449,6 +508,23 @@ def run_campaign() -> dict[str, Any]:
         )
         corrected = _run_measurement_fault(corrected_cfg)
 
+        unsupervised_safety_cfg = _write_tracking_config(
+            tmp_path / "unsupervised_safety_reference.json",
+            template_cfg=template_cfg,
+        )
+        unsupervised_safety_reference = _run_supervisor_fallback_kick(unsupervised_safety_cfg)
+
+        supervisor_fallback_cfg = _write_tracking_config(
+            tmp_path / "supervisor_fallback.json",
+            template_cfg=template_cfg,
+            tracking_cfg={
+                "fallback_currents": [0.0, 0.0],
+                "supervisor_limits": {"max_abs_actuator_lag": 2.0},
+                "hold_steps_after_reject": 2,
+            },
+        )
+        supervisor_fallback = _run_supervisor_fallback_kick(supervisor_fallback_cfg)
+
         measurement_sweep = _run_measurement_sweep(tmp_path, template_cfg=template_cfg)
         corrected_measurement_sweep = _run_corrected_measurement_sweep(tmp_path, template_cfg=template_cfg)
         actuator_slew_sweep = _run_actuator_slew_sweep(tmp_path, template_cfg=template_cfg)
@@ -470,6 +546,14 @@ def run_campaign() -> dict[str, Any]:
         "measurement_fault_corrected": {
             "summary": corrected,
             **_evaluate_corrected(corrected),
+        },
+        "supervisor_fallback_kick": {
+            "summary": supervisor_fallback,
+            "unsupervised_reference": unsupervised_safety_reference,
+            **_evaluate_supervisor_fallback(
+                supervisor_fallback,
+                unsupervised_reference=unsupervised_safety_reference,
+            ),
         },
     }
     sweeps = {
@@ -525,9 +609,18 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"- Shape RMS: `{summary['shape_rms']:.6e}`",
                 f"- Max coil current: `{summary['max_abs_coil_current']:.6e}`",
                 f"- Max measurement offset: `{summary['max_abs_measurement_offset']:.6e}`",
+                f"- Supervisor interventions: `{summary['supervisor_intervention_count']}`",
+                f"- Fallback active steps: `{summary['fallback_active_steps']}`",
                 "",
             ]
         )
+        if "lag_reduction_factor" in data:
+            lines.extend(
+                [
+                    f"- Lag reduction factor vs unsupervised: `{data['lag_reduction_factor']:.2f}`",
+                    "",
+                ]
+            )
     lines.extend(
         [
             "## Sweeps",

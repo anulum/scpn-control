@@ -43,6 +43,11 @@ Free-boundary tracking acceptance on the real `FusionKernel` path:
 python validation/free_boundary_tracking_acceptance.py
 ```
 
+The acceptance report covers nominal tracking, external coil-current kicks,
+measurement-fault exposure and correction, supervisor/fallback safety under a
+large kick, and severity sweeps for disturbance, measurement, and actuator
+limits.
+
 This writes:
 
 - `validation/reports/free_boundary_tracking_acceptance.json`

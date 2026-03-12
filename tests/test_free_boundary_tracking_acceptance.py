@@ -40,6 +40,7 @@ def test_campaign_is_deterministic() -> None:
         "coil_kick",
         "measurement_fault_uncorrected",
         "measurement_fault_corrected",
+        "supervisor_fallback_kick",
     ):
         assert a["scenarios"][scenario]["summary"]["final_tracking_error_norm"] == pytest.approx(
             b["scenarios"][scenario]["summary"]["final_tracking_error_norm"]
@@ -61,6 +62,7 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["coil_kick"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_corrected"]["passes_thresholds"] is True
+    assert out["scenarios"]["supervisor_fallback_kick"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_corrected_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["actuator_slew_limit"]["passes_thresholds"] is True
@@ -147,6 +149,30 @@ def test_kick_scale_sweep_requires_more_coil_authority_but_stays_bounded() -> No
     ]
 
 
+def test_supervisor_fallback_kick_reduces_lag_and_stays_safe() -> None:
+    out = _campaign_cached()
+    scenario = out["scenarios"]["supervisor_fallback_kick"]
+    summary = scenario["summary"]
+    reference = scenario["unsupervised_reference"]
+    thresholds = scenario["thresholds"]
+
+    assert scenario["checks"]["supervisor_intervention_count"] is True
+    assert scenario["checks"]["fallback_active_steps"] is True
+    assert scenario["checks"]["max_abs_actuator_lag"] is True
+    assert scenario["checks"]["lag_reduction_factor"] is True
+    assert scenario["checks"]["final_tracking_error_norm"] is True
+    assert scenario["checks"]["supervisor_active"] is True
+    assert scenario["checks"]["supervisor_safe"] is True
+    assert summary["supervisor_intervention_count"] >= thresholds["min_supervisor_intervention_count"]
+    assert summary["fallback_active_steps"] >= thresholds["min_fallback_active_steps"]
+    assert summary["supervisor_active"] is True
+    assert summary["supervisor_safe"] is True
+    assert summary["max_abs_actuator_lag"] <= thresholds["max_abs_actuator_lag"]
+    assert scenario["lag_reduction_factor"] >= thresholds["min_lag_reduction_factor"]
+    assert reference["max_abs_actuator_lag"] > summary["max_abs_actuator_lag"]
+    assert summary["final_tracking_error_norm"] <= thresholds["max_final_tracking_error_norm"]
+
+
 def test_render_markdown_contains_sections() -> None:
     report = free_boundary_tracking_acceptance.generate_report()
     text = free_boundary_tracking_acceptance.render_markdown(report)
@@ -155,6 +181,7 @@ def test_render_markdown_contains_sections() -> None:
     assert "## Sweeps" in text
     assert "nominal" in text
     assert "measurement_fault_uncorrected" in text
+    assert "supervisor_fallback_kick" in text
     assert "measurement_fault_scale" in text
     assert "measurement_fault_corrected_scale" in text
     assert "actuator_slew_limit" in text
