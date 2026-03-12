@@ -58,8 +58,12 @@ def test_run_digital_twin_returns_finite_summary_without_plot() -> None:
         "chaos_monkey",
         "sensor_dropout_prob",
         "sensor_noise_std",
+        "sensor_bias_std",
+        "sensor_drift_std",
         "sensor_dropouts_total",
         "sensor_dropout_rate",
+        "sensor_bias_mean_abs",
+        "sensor_bias_max_abs",
         "plot_saved",
     ):
         assert key in summary
@@ -71,6 +75,8 @@ def test_run_digital_twin_returns_finite_summary_without_plot() -> None:
     assert np.isfinite(summary["reward_mean_last_50"])
     assert summary["chaos_monkey"] is False
     assert summary["sensor_dropouts_total"] == 0
+    assert summary["sensor_bias_mean_abs"] == 0.0
+    assert summary["sensor_bias_max_abs"] == 0.0
 
 
 def test_run_digital_twin_chaos_monkey_is_deterministic_for_fixed_seed() -> None:
@@ -103,6 +109,22 @@ def test_run_digital_twin_chaos_monkey_full_dropout_counts_all_channels() -> Non
     assert summary["sensor_dropout_rate"] == 1.0
 
 
+def test_run_digital_twin_sensor_bias_and_drift_are_deterministic() -> None:
+    kwargs = dict(
+        time_steps=20,
+        seed=19,
+        save_plot=False,
+        verbose=False,
+        sensor_bias_std=0.03,
+        sensor_drift_std=0.01,
+    )
+    a = run_digital_twin(**kwargs)
+    b = run_digital_twin(**kwargs)
+    assert a == b
+    assert a["sensor_bias_mean_abs"] > 0.0
+    assert a["sensor_bias_max_abs"] >= a["sensor_bias_mean_abs"]
+
+
 @pytest.mark.parametrize(
     ("kwargs", "msg"),
     [
@@ -111,6 +133,12 @@ def test_run_digital_twin_chaos_monkey_full_dropout_counts_all_channels() -> Non
         ({"sensor_dropout_prob": float("nan")}, "sensor_dropout_prob"),
         ({"sensor_noise_std": -0.01}, "sensor_noise_std"),
         ({"sensor_noise_std": float("inf")}, "sensor_noise_std"),
+        ({"sensor_bias_std": -0.01}, "sensor_bias_std"),
+        ({"sensor_bias_std": float("inf")}, "sensor_bias_std"),
+        ({"sensor_bias_std": float("nan")}, "sensor_bias_std"),
+        ({"sensor_drift_std": -0.01}, "sensor_drift_std"),
+        ({"sensor_drift_std": float("inf")}, "sensor_drift_std"),
+        ({"sensor_drift_std": float("nan")}, "sensor_drift_std"),
     ],
 )
 def test_run_digital_twin_rejects_invalid_chaos_monkey_controls(kwargs: dict[str, object], msg: str) -> None:

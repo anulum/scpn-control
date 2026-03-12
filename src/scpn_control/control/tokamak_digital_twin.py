@@ -55,6 +55,13 @@ def _resolve_rng(seed: int, rng: np.random.Generator | None) -> np.random.Genera
     return np.random.default_rng(int(seed))
 
 
+def _require_non_negative_finite(name: str, value: float) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar < 0.0:
+        raise ValueError(f"{name} must be finite and >= 0.")
+    return scalar
+
+
 class TokamakTopology:
     """
     Handles the magnetic geometry (Safety Factor q-profile).
@@ -247,6 +254,8 @@ def run_digital_twin(
     chaos_monkey: bool = False,
     sensor_dropout_prob: float = 0.0,
     sensor_noise_std: float = 0.0,
+    sensor_bias_std: float = 0.0,
+    sensor_drift_std: float = 0.0,
     rng: np.random.Generator | None = None,
 ) -> dict[str, Any]:
     """
@@ -260,11 +269,11 @@ def run_digital_twin(
         raise ValueError("time_steps must be >= 1.")
     chaos_monkey = bool(chaos_monkey)
     sensor_dropout_prob = float(sensor_dropout_prob)
-    sensor_noise_std = float(sensor_noise_std)
+    sensor_noise_std = _require_non_negative_finite("sensor_noise_std", sensor_noise_std)
+    sensor_bias_std = _require_non_negative_finite("sensor_bias_std", sensor_bias_std)
+    sensor_drift_std = _require_non_negative_finite("sensor_drift_std", sensor_drift_std)
     if not np.isfinite(sensor_dropout_prob) or sensor_dropout_prob < 0.0 or sensor_dropout_prob > 1.0:
         raise ValueError("sensor_dropout_prob must be finite and in [0, 1].")
-    if not np.isfinite(sensor_noise_std) or sensor_noise_std < 0.0:
-        raise ValueError("sensor_noise_std must be finite and >= 0.")
     local_rng = _resolve_rng(seed=int(seed), rng=rng)
     if verbose:
         logger.info("--- SCPN 2D TOKAMAK DIGITAL TWIN + NEURAL CONTROL ---")
@@ -278,6 +287,11 @@ def run_digital_twin(
     history_rewards: list[float] = []
     history_actions: list[float] = []
     sensor_dropouts_total = 0
+    sensor_bias = np.zeros(state_dim, dtype=float)
+    if sensor_bias_std > 0.0:
+        sensor_bias = np.asarray(local_rng.normal(0.0, sensor_bias_std, size=state_dim), dtype=float)
+    sensor_bias_mean_abs_history: list[float] = []
+    sensor_bias_max_abs_history: list[float] = []
 
     if verbose:
         logger.info(f"Training Neural Network for {steps} steps...")
@@ -286,6 +300,10 @@ def run_digital_twin(
         # 1. Observe State (Midplane Profile)
         midplane_idx = GRID_SIZE // 2
         state_vector = np.asarray(plasma.T[midplane_idx, :], dtype=float).reshape(1, -1).copy()
+        if sensor_drift_std > 0.0:
+            sensor_bias += np.asarray(local_rng.normal(0.0, sensor_drift_std, size=sensor_bias.shape), dtype=float)
+        if sensor_bias_std > 0.0 or sensor_drift_std > 0.0:
+            state_vector += sensor_bias.reshape(1, -1)
         if chaos_monkey:
             if sensor_noise_std > 0.0:
                 state_vector += local_rng.normal(0.0, sensor_noise_std, size=state_vector.shape)
@@ -296,6 +314,9 @@ def run_digital_twin(
                     state_vector[0, dropout_mask] = 0.0
                     sensor_dropouts_total += dropped
             state_vector = np.nan_to_num(state_vector, nan=0.0, posinf=100.0, neginf=0.0)
+        sensor_bias_abs = np.abs(sensor_bias)
+        sensor_bias_mean_abs_history.append(float(np.mean(sensor_bias_abs)) if sensor_bias_abs.size else 0.0)
+        sensor_bias_max_abs_history.append(float(np.max(sensor_bias_abs)) if sensor_bias_abs.size else 0.0)
 
         # 2. Action (Explore vs Exploit)
         # Add exploration noise
@@ -396,8 +417,12 @@ def run_digital_twin(
         "chaos_monkey": chaos_monkey,
         "sensor_dropout_prob": sensor_dropout_prob,
         "sensor_noise_std": sensor_noise_std,
+        "sensor_bias_std": sensor_bias_std,
+        "sensor_drift_std": sensor_drift_std,
         "sensor_dropouts_total": int(sensor_dropouts_total),
         "sensor_dropout_rate": float(sensor_dropouts_total / (steps * GRID_SIZE)),
+        "sensor_bias_mean_abs": float(np.mean(sensor_bias_mean_abs_history)) if sensor_bias_mean_abs_history else 0.0,
+        "sensor_bias_max_abs": float(np.max(sensor_bias_max_abs_history)) if sensor_bias_max_abs_history else 0.0,
         "plot_saved": bool(plot_saved),
         "plot_error": plot_error,
     }

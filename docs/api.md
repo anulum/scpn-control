@@ -227,6 +227,10 @@ baseline instead of only reporting synthetic training RMSE.
 
 ### Digital Twin
 
+`run_digital_twin()` now supports persistent sensor calibration bias and drift
+in addition to dropout and white-noise corruption, so controller replay can be
+stress-tested against non-memoryless diagnostic error.
+
 ::: scpn_control.control.tokamak_digital_twin.run_digital_twin
 
 ### Flight Simulator
