@@ -62,6 +62,13 @@ def _require_non_negative_finite(name: str, value: float) -> float:
     return scalar
 
 
+def _require_finite(name: str, value: float) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite.")
+    return scalar
+
+
 class TokamakTopology:
     """
     Handles the magnetic geometry (Safety Factor q-profile).
@@ -256,6 +263,10 @@ def run_digital_twin(
     sensor_noise_std: float = 0.0,
     sensor_bias_std: float = 0.0,
     sensor_drift_std: float = 0.0,
+    actuator_bias: float = 0.0,
+    actuator_drift_std: float = 0.0,
+    actuator_tau_steps: float = 0.0,
+    actuator_rate_limit: float = 2.0,
     rng: np.random.Generator | None = None,
 ) -> dict[str, Any]:
     """
@@ -272,6 +283,10 @@ def run_digital_twin(
     sensor_noise_std = _require_non_negative_finite("sensor_noise_std", sensor_noise_std)
     sensor_bias_std = _require_non_negative_finite("sensor_bias_std", sensor_bias_std)
     sensor_drift_std = _require_non_negative_finite("sensor_drift_std", sensor_drift_std)
+    actuator_bias = _require_finite("actuator_bias", actuator_bias)
+    actuator_drift_std = _require_non_negative_finite("actuator_drift_std", actuator_drift_std)
+    actuator_tau_steps = _require_non_negative_finite("actuator_tau_steps", actuator_tau_steps)
+    actuator_rate_limit = _require_non_negative_finite("actuator_rate_limit", actuator_rate_limit)
     if not np.isfinite(sensor_dropout_prob) or sensor_dropout_prob < 0.0 or sensor_dropout_prob > 1.0:
         raise ValueError("sensor_dropout_prob must be finite and in [0, 1].")
     local_rng = _resolve_rng(seed=int(seed), rng=rng)
@@ -286,12 +301,21 @@ def run_digital_twin(
 
     history_rewards: list[float] = []
     history_actions: list[float] = []
+    history_commanded_actions: list[float] = []
+    actuator_lag_history: list[float] = []
     sensor_dropouts_total = 0
     sensor_bias = np.zeros(state_dim, dtype=float)
     if sensor_bias_std > 0.0:
         sensor_bias = np.asarray(local_rng.normal(0.0, sensor_bias_std, size=state_dim), dtype=float)
     sensor_bias_mean_abs_history: list[float] = []
     sensor_bias_max_abs_history: list[float] = []
+    actuator_bias_state = float(actuator_bias)
+    actuator_applied_action = 0.0
+    actuator_bias_mean_abs_history: list[float] = []
+    actuator_bias_max_abs_history: list[float] = []
+    actuator_rate_clipped_steps = 0
+    actuator_saturation_count = 0
+    actuator_alpha = 1.0 if actuator_tau_steps <= 0.0 else float(1.0 - np.exp(-1.0 / actuator_tau_steps))
 
     if verbose:
         logger.info(f"Training Neural Network for {steps} steps...")
@@ -322,7 +346,24 @@ def run_digital_twin(
         # Add exploration noise
         noise = float(local_rng.normal(0.0, 0.2))
         raw_action = brain.forward(state_vector)
-        action = float(np.clip(raw_action + noise, -1.0, 1.0)[0, 0])
+        commanded_action = float(np.clip(raw_action + noise, -1.0, 1.0)[0, 0])
+        if actuator_drift_std > 0.0:
+            actuator_bias_state += float(local_rng.normal(0.0, actuator_drift_std))
+        requested_action = commanded_action + actuator_bias_state
+        clipped_requested_action = float(np.clip(requested_action, -1.0, 1.0))
+        if clipped_requested_action != requested_action:
+            actuator_saturation_count += 1
+        lagged_action = actuator_applied_action + actuator_alpha * (clipped_requested_action - actuator_applied_action)
+        delta_action = lagged_action - actuator_applied_action
+        limited_delta_action = float(np.clip(delta_action, -actuator_rate_limit, actuator_rate_limit))
+        if abs(limited_delta_action - delta_action) > 1.0e-12:
+            actuator_rate_clipped_steps += 1
+        actuator_applied_action = float(np.clip(actuator_applied_action + limited_delta_action, -1.0, 1.0))
+        action = actuator_applied_action
+        actuator_lag_history.append(float(abs(commanded_action - action)))
+        actuator_bias_abs = abs(actuator_bias_state)
+        actuator_bias_mean_abs_history.append(float(actuator_bias_abs))
+        actuator_bias_max_abs_history.append(float(actuator_bias_abs))
 
         # 3. Physics Step
         _, avg_temp = plasma.step(action)
@@ -340,11 +381,13 @@ def run_digital_twin(
 
         history_rewards.append(reward)
         history_actions.append(action)
+        history_commanded_actions.append(commanded_action)
 
         if verbose and t % 500 == 0:
             n_islands = np.sum(topo.get_rational_surfaces())
             logger.info(
-                f"Step {t}: AvgTemp={avg_temp:.2f} | Action={action:.2f} | Loss={loss:.4f} | Islands={n_islands} px"
+                f"Step {t}: AvgTemp={avg_temp:.2f} | Cmd={commanded_action:.2f} | "
+                f"Applied={action:.2f} | Loss={loss:.4f} | Islands={n_islands} px"
             )
 
     plot_saved = False
@@ -412,6 +455,8 @@ def run_digital_twin(
         "final_avg_temp": float(final_avg_temp),
         "final_reward": float(history_rewards[-1]) if history_rewards else 0.0,
         "final_action": float(history_actions[-1]) if history_actions else 0.0,
+        "final_commanded_action": float(history_commanded_actions[-1]) if history_commanded_actions else 0.0,
+        "final_applied_action": float(history_actions[-1]) if history_actions else 0.0,
         "final_islands_px": islands_final,
         "reward_mean_last_50": float(np.mean(history_rewards[-50:])) if history_rewards else 0.0,
         "chaos_monkey": chaos_monkey,
@@ -419,10 +464,22 @@ def run_digital_twin(
         "sensor_noise_std": sensor_noise_std,
         "sensor_bias_std": sensor_bias_std,
         "sensor_drift_std": sensor_drift_std,
+        "actuator_bias": actuator_bias,
+        "actuator_drift_std": actuator_drift_std,
+        "actuator_tau_steps": actuator_tau_steps,
+        "actuator_rate_limit": actuator_rate_limit,
         "sensor_dropouts_total": int(sensor_dropouts_total),
         "sensor_dropout_rate": float(sensor_dropouts_total / (steps * GRID_SIZE)),
         "sensor_bias_mean_abs": float(np.mean(sensor_bias_mean_abs_history)) if sensor_bias_mean_abs_history else 0.0,
         "sensor_bias_max_abs": float(np.max(sensor_bias_max_abs_history)) if sensor_bias_max_abs_history else 0.0,
+        "actuator_bias_mean_abs": (
+            float(np.mean(actuator_bias_mean_abs_history)) if actuator_bias_mean_abs_history else 0.0
+        ),
+        "actuator_bias_max_abs": float(np.max(actuator_bias_max_abs_history)) if actuator_bias_max_abs_history else 0.0,
+        "max_abs_actuator_lag": float(np.max(actuator_lag_history)) if actuator_lag_history else 0.0,
+        "mean_abs_actuator_lag": float(np.mean(actuator_lag_history)) if actuator_lag_history else 0.0,
+        "actuator_rate_clipped_steps": int(actuator_rate_clipped_steps),
+        "actuator_saturation_count": int(actuator_saturation_count),
         "plot_saved": bool(plot_saved),
         "plot_error": plot_error,
     }

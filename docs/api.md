@@ -228,8 +228,11 @@ baseline instead of only reporting synthetic training RMSE.
 ### Digital Twin
 
 `run_digital_twin()` now supports persistent sensor calibration bias and drift
-in addition to dropout and white-noise corruption, so controller replay can be
-stress-tested against non-memoryless diagnostic error.
+in addition to dropout and white-noise corruption, and it can now stress the
+command path with deterministic actuator bias, drift, first-order lag, and
+rate limiting. The returned summary exposes both commanded and applied actions
+plus actuator-lag telemetry so replay tests can see what the plant actually
+received.
 
 ::: scpn_control.control.tokamak_digital_twin.run_digital_twin
 

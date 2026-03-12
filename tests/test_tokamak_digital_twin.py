@@ -53,6 +53,8 @@ def test_run_digital_twin_returns_finite_summary_without_plot() -> None:
         "final_avg_temp",
         "final_reward",
         "final_action",
+        "final_commanded_action",
+        "final_applied_action",
         "final_islands_px",
         "reward_mean_last_50",
         "chaos_monkey",
@@ -60,10 +62,20 @@ def test_run_digital_twin_returns_finite_summary_without_plot() -> None:
         "sensor_noise_std",
         "sensor_bias_std",
         "sensor_drift_std",
+        "actuator_bias",
+        "actuator_drift_std",
+        "actuator_tau_steps",
+        "actuator_rate_limit",
         "sensor_dropouts_total",
         "sensor_dropout_rate",
         "sensor_bias_mean_abs",
         "sensor_bias_max_abs",
+        "actuator_bias_mean_abs",
+        "actuator_bias_max_abs",
+        "max_abs_actuator_lag",
+        "mean_abs_actuator_lag",
+        "actuator_rate_clipped_steps",
+        "actuator_saturation_count",
         "plot_saved",
     ):
         assert key in summary
@@ -72,11 +84,19 @@ def test_run_digital_twin_returns_finite_summary_without_plot() -> None:
     assert np.isfinite(summary["final_avg_temp"])
     assert np.isfinite(summary["final_reward"])
     assert np.isfinite(summary["final_action"])
+    assert summary["final_action"] == summary["final_applied_action"]
+    assert summary["final_commanded_action"] == pytest.approx(summary["final_applied_action"])
     assert np.isfinite(summary["reward_mean_last_50"])
     assert summary["chaos_monkey"] is False
     assert summary["sensor_dropouts_total"] == 0
     assert summary["sensor_bias_mean_abs"] == 0.0
     assert summary["sensor_bias_max_abs"] == 0.0
+    assert summary["actuator_bias_mean_abs"] == 0.0
+    assert summary["actuator_bias_max_abs"] == 0.0
+    assert summary["max_abs_actuator_lag"] == pytest.approx(0.0)
+    assert summary["mean_abs_actuator_lag"] == pytest.approx(0.0)
+    assert summary["actuator_rate_clipped_steps"] == 0
+    assert summary["actuator_saturation_count"] == 0
 
 
 def test_run_digital_twin_chaos_monkey_is_deterministic_for_fixed_seed() -> None:
@@ -125,6 +145,28 @@ def test_run_digital_twin_sensor_bias_and_drift_are_deterministic() -> None:
     assert a["sensor_bias_max_abs"] >= a["sensor_bias_mean_abs"]
 
 
+def test_run_digital_twin_actuator_bias_drift_and_lag_are_deterministic() -> None:
+    kwargs = dict(
+        time_steps=20,
+        seed=29,
+        save_plot=False,
+        verbose=False,
+        actuator_bias=0.08,
+        actuator_drift_std=0.01,
+        actuator_tau_steps=3.0,
+        actuator_rate_limit=0.04,
+    )
+    a = run_digital_twin(**kwargs)
+    b = run_digital_twin(**kwargs)
+    assert a == b
+    assert a["actuator_bias_mean_abs"] > 0.0
+    assert a["actuator_bias_max_abs"] >= a["actuator_bias_mean_abs"]
+    assert a["max_abs_actuator_lag"] > 0.0
+    assert a["mean_abs_actuator_lag"] > 0.0
+    assert a["actuator_rate_clipped_steps"] > 0
+    assert abs(a["final_commanded_action"] - a["final_applied_action"]) > 1.0e-6
+
+
 @pytest.mark.parametrize(
     ("kwargs", "msg"),
     [
@@ -139,6 +181,17 @@ def test_run_digital_twin_sensor_bias_and_drift_are_deterministic() -> None:
         ({"sensor_drift_std": -0.01}, "sensor_drift_std"),
         ({"sensor_drift_std": float("inf")}, "sensor_drift_std"),
         ({"sensor_drift_std": float("nan")}, "sensor_drift_std"),
+        ({"actuator_bias": float("inf")}, "actuator_bias"),
+        ({"actuator_bias": float("nan")}, "actuator_bias"),
+        ({"actuator_drift_std": -0.01}, "actuator_drift_std"),
+        ({"actuator_drift_std": float("inf")}, "actuator_drift_std"),
+        ({"actuator_drift_std": float("nan")}, "actuator_drift_std"),
+        ({"actuator_tau_steps": -1.0}, "actuator_tau_steps"),
+        ({"actuator_tau_steps": float("inf")}, "actuator_tau_steps"),
+        ({"actuator_tau_steps": float("nan")}, "actuator_tau_steps"),
+        ({"actuator_rate_limit": -0.01}, "actuator_rate_limit"),
+        ({"actuator_rate_limit": float("inf")}, "actuator_rate_limit"),
+        ({"actuator_rate_limit": float("nan")}, "actuator_rate_limit"),
     ],
 )
 def test_run_digital_twin_rejects_invalid_chaos_monkey_controls(kwargs: dict[str, object], msg: str) -> None:
@@ -159,6 +212,8 @@ def test_run_digital_twin_is_deterministic_for_fixed_seed() -> None:
     assert a["final_avg_temp"] == b["final_avg_temp"]
     assert a["final_reward"] == b["final_reward"]
     assert a["final_action"] == b["final_action"]
+    assert a["final_commanded_action"] == b["final_commanded_action"]
+    assert a["final_applied_action"] == b["final_applied_action"]
     assert a["final_islands_px"] == b["final_islands_px"]
     assert a["reward_mean_last_50"] == b["reward_mean_last_50"]
 
