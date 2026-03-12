@@ -46,8 +46,8 @@ python validation/free_boundary_tracking_acceptance.py
 The acceptance report covers nominal tracking, external coil-current kicks,
 topology-aware X-point/divertor tracking under kick disturbance,
 measurement-fault exposure and correction, supervisor/fallback safety under a
-large kick, and severity sweeps for disturbance, measurement, and actuator
-limits.
+large kick, and severity sweeps for generic disturbance, topology-aware
+disturbance, measurement, and actuator limits.
 
 This writes:
 

@@ -69,6 +69,7 @@ SUPERVISOR_FALLBACK_THRESHOLDS = {
 MEASUREMENT_SWEEP_SCALES = (0.0, 0.5, 1.0, 1.5)
 ACTUATOR_SLEW_LIMIT_SWEEP = (1.0e3, 1.0e2, 1.0e1, 1.0, 0.1)
 COIL_KICK_SCALE_SWEEP = (0.0, 0.5, 1.0, 2.0, 4.0, 8.0)
+TOPOLOGY_KICK_SCALE_SWEEP = (1.0, 2.0, 4.0)
 TOPOLOGY_DIVERTOR_STRIKE_POINTS = (
     (3.2, -2.0),
     (4.8, -2.0),
@@ -567,6 +568,64 @@ def _run_coil_kick_scale_sweep(tmp_path: Path, *, template_cfg: dict[str, Any]) 
     }
 
 
+def _run_topology_kick_scale_sweep(tmp_path: Path, *, topology_template_cfg: dict[str, Any]) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for scale in TOPOLOGY_KICK_SCALE_SWEEP:
+        cfg = _write_tracking_config(
+            tmp_path / f"topology_kick_scale_{scale:.1f}.json",
+            template_cfg=topology_template_cfg,
+        )
+        summary = run_free_boundary_tracking(
+            config_file=str(cfg),
+            shot_steps=4,
+            gain=0.6,
+            verbose=False,
+            kernel_factory=FusionKernel,
+            disturbance_callback=_make_coil_kick_disturbance(scale),
+            stop_on_convergence=False,
+        )
+        entries.append(
+            {
+                "kick_scale": float(scale),
+                "final_tracking_error_norm": float(summary["final_tracking_error_norm"]),
+                "x_point_position_error": float(summary["x_point_position_error"]),
+                "x_point_flux_error": float(summary["x_point_flux_error"]),
+                "divertor_rms": float(summary["divertor_rms"]),
+                "divertor_max_abs": float(summary["divertor_max_abs"]),
+                "objective_converged": bool(summary["objective_converged"]),
+                "max_abs_coil_current": float(summary["max_abs_coil_current"]),
+            }
+        )
+    max_coil_current = [float(entry["max_abs_coil_current"]) for entry in entries]
+    x_point_flux_error = [float(entry["x_point_flux_error"]) for entry in entries]
+    divertor_rms = [float(entry["divertor_rms"]) for entry in entries]
+    divertor_max_abs = [float(entry["divertor_max_abs"]) for entry in entries]
+    objective_converged = [bool(entry["objective_converged"]) for entry in entries]
+    checks = {
+        "max_abs_coil_current_monotone": _is_monotone_non_decreasing(max_coil_current),
+        "x_point_flux_error_monotone": _is_monotone_non_decreasing(x_point_flux_error),
+        "divertor_rms_monotone": _is_monotone_non_decreasing(divertor_rms),
+        "divertor_max_abs_monotone": _is_monotone_non_decreasing(divertor_max_abs),
+        "objective_converged_all": all(objective_converged),
+        "topology_errors_bounded": bool(
+            max(float(entry["final_tracking_error_norm"]) for entry in entries)
+            <= TOPOLOGY_THRESHOLDS["max_final_tracking_error_norm"]
+            and max(float(entry["x_point_position_error"]) for entry in entries)
+            <= TOPOLOGY_THRESHOLDS["max_x_point_position_error"]
+            and max(float(entry["x_point_flux_error"]) for entry in entries)
+            <= TOPOLOGY_THRESHOLDS["max_x_point_flux_error"]
+            and max(float(entry["divertor_rms"]) for entry in entries) <= TOPOLOGY_THRESHOLDS["max_divertor_rms"]
+            and max(float(entry["divertor_max_abs"]) for entry in entries)
+            <= TOPOLOGY_THRESHOLDS["max_divertor_max_abs"]
+        ),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
 def run_campaign() -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="scpn_free_boundary_acceptance_") as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -634,6 +693,10 @@ def run_campaign() -> dict[str, Any]:
         corrected_measurement_sweep = _run_corrected_measurement_sweep(tmp_path, template_cfg=template_cfg)
         actuator_slew_sweep = _run_actuator_slew_sweep(tmp_path, template_cfg=template_cfg)
         coil_kick_scale_sweep = _run_coil_kick_scale_sweep(tmp_path, template_cfg=template_cfg)
+        topology_kick_scale_sweep = _run_topology_kick_scale_sweep(
+            tmp_path,
+            topology_template_cfg=topology_template_cfg,
+        )
 
     scenarios = {
         "nominal": {
@@ -670,6 +733,7 @@ def run_campaign() -> dict[str, Any]:
         "measurement_fault_corrected_scale": corrected_measurement_sweep,
         "actuator_slew_limit": actuator_slew_sweep,
         "coil_kick_scale": coil_kick_scale_sweep,
+        "topology_kick_scale": topology_kick_scale_sweep,
     }
     passes_thresholds = all(bool(entry["passes_thresholds"]) for entry in scenarios.values()) and all(
         bool(entry["passes_thresholds"]) for entry in sweeps.values()
@@ -782,6 +846,19 @@ def render_markdown(report: dict[str, Any]) -> str:
             "- "
             f"scale `{entry['kick_scale']:.1f}`: max coil `{entry['max_abs_coil_current']:.6e}`, "
             f"final err `{entry['final_tracking_error_norm']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### topology_kick_scale",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["topology_kick_scale"]["entries"]:
+        lines.append(
+            "- "
+            f"scale `{entry['kick_scale']:.1f}`: x-flux err `{entry['x_point_flux_error']:.6e}`, "
+            f"divertor rms `{entry['divertor_rms']:.6e}`, max coil `{entry['max_abs_coil_current']:.6e}`"
         )
     return "\n".join(lines)
 
