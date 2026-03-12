@@ -997,6 +997,143 @@ def _run_topology_corrected_measurement_sweep(tmp_path: Path, *, topology_templa
     }
 
 
+def _run_topology_supervisor_measurement_sweep(tmp_path: Path, *, topology_template_cfg: dict[str, Any]) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for scale in MEASUREMENT_SWEEP_SCALES:
+        tracking_cfg: dict[str, Any] = {
+            "fallback_currents": [0.0, 0.0],
+            "supervisor_limits": {"max_abs_actuator_lag": 2.0},
+            "hold_steps_after_reject": 2,
+        }
+        if scale != 0.0:
+            tracking_cfg.update(_topology_measurement_tracking_cfg(scale, corrected=False))
+        cfg = _write_tracking_config(
+            tmp_path / f"topology_supervisor_measurement_scale_{scale:.1f}.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg=tracking_cfg,
+        )
+        summary = _run_supervisor_fallback_kick(cfg)
+        entries.append(
+            {
+                "scale": float(scale),
+                "x_point_position_gap": abs(
+                    float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"])
+                ),
+                "x_point_flux_gap": abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])),
+                "divertor_rms_gap": abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"])),
+                "divertor_max_abs_gap": abs(
+                    float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"])
+                ),
+                "max_abs_measurement_offset": float(summary["max_abs_measurement_offset"]),
+                "objective_converged": bool(summary["objective_converged"]),
+                "supervisor_active": bool(summary["supervisor_active"]),
+                "supervisor_safe": bool(summary["supervisor_safe"]),
+                "supervisor_intervention_count": int(summary["supervisor_intervention_count"]),
+                "fallback_active_steps": int(summary["fallback_active_steps"]),
+                "max_abs_actuator_lag": float(summary["max_abs_actuator_lag"]),
+            }
+        )
+    checks = {
+        "x_point_position_gap_monotone": _is_monotone_non_decreasing(
+            [float(entry["x_point_position_gap"]) for entry in entries]
+        ),
+        "x_point_flux_gap_monotone": _is_monotone_non_decreasing([float(entry["x_point_flux_gap"]) for entry in entries]),
+        "divertor_rms_gap_monotone": _is_monotone_non_decreasing([float(entry["divertor_rms_gap"]) for entry in entries]),
+        "divertor_max_abs_gap_monotone": _is_monotone_non_decreasing(
+            [float(entry["divertor_max_abs_gap"]) for entry in entries]
+        ),
+        "measurement_offset_monotone": _is_monotone_non_decreasing(
+            [float(entry["max_abs_measurement_offset"]) for entry in entries]
+        ),
+        "supervisor_active_all": all(bool(entry["supervisor_active"]) for entry in entries),
+        "supervisor_safe_all": all(bool(entry["supervisor_safe"]) for entry in entries),
+        "intervention_all": all(int(entry["supervisor_intervention_count"]) >= 1 for entry in entries),
+        "fallback_all": all(int(entry["fallback_active_steps"]) >= 1 for entry in entries),
+        "lag_bounded_all": all(
+            float(entry["max_abs_actuator_lag"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_abs_actuator_lag"]
+            for entry in entries
+        ),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
+def _run_topology_supervisor_corrected_measurement_sweep(
+    tmp_path: Path, *, topology_template_cfg: dict[str, Any]
+) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for scale in MEASUREMENT_SWEEP_SCALES:
+        cfg = _write_tracking_config(
+            tmp_path / f"topology_supervisor_measurement_corrected_scale_{scale:.1f}.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg={
+                "fallback_currents": [0.0, 0.0],
+                "supervisor_limits": {"max_abs_actuator_lag": 2.0},
+                "hold_steps_after_reject": 2,
+                **_topology_measurement_tracking_cfg(scale, corrected=True),
+            },
+        )
+        summary = _run_supervisor_fallback_kick(cfg)
+        entries.append(
+            {
+                "scale": float(scale),
+                "x_point_position_gap": abs(
+                    float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"])
+                ),
+                "x_point_flux_gap": abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])),
+                "divertor_rms_gap": abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"])),
+                "divertor_max_abs_gap": abs(
+                    float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"])
+                ),
+                "max_abs_measurement_offset": float(summary["max_abs_measurement_offset"]),
+                "objective_converged": bool(summary["objective_converged"]),
+                "supervisor_active": bool(summary["supervisor_active"]),
+                "supervisor_safe": bool(summary["supervisor_safe"]),
+                "supervisor_intervention_count": int(summary["supervisor_intervention_count"]),
+                "fallback_active_steps": int(summary["fallback_active_steps"]),
+                "max_abs_actuator_lag": float(summary["max_abs_actuator_lag"]),
+            }
+        )
+    checks = {
+        "max_x_point_position_gap": bool(
+            max(float(entry["x_point_position_gap"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_x_point_position_gap"]
+        ),
+        "max_x_point_flux_gap": bool(
+            max(float(entry["x_point_flux_gap"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_x_point_flux_gap"]
+        ),
+        "max_divertor_rms_gap": bool(
+            max(float(entry["divertor_rms_gap"]) for entry in entries) <= TOPOLOGY_CORRECTED_THRESHOLDS["max_divertor_rms_gap"]
+        ),
+        "max_divertor_max_abs_gap": bool(
+            max(float(entry["divertor_max_abs_gap"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_divertor_max_abs_gap"]
+        ),
+        "max_measurement_offset": bool(
+            max(float(entry["max_abs_measurement_offset"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_measurement_offset"]
+        ),
+        "objective_converged_all": all(bool(entry["objective_converged"]) for entry in entries),
+        "supervisor_active_all": all(bool(entry["supervisor_active"]) for entry in entries),
+        "supervisor_safe_all": all(bool(entry["supervisor_safe"]) for entry in entries),
+        "intervention_all": all(int(entry["supervisor_intervention_count"]) >= 1 for entry in entries),
+        "fallback_all": all(int(entry["fallback_active_steps"]) >= 1 for entry in entries),
+        "lag_bounded_all": all(
+            float(entry["max_abs_actuator_lag"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_abs_actuator_lag"]
+            for entry in entries
+        ),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
 def run_campaign() -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="scpn_free_boundary_acceptance_") as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -1134,6 +1271,14 @@ def run_campaign() -> dict[str, Any]:
             tmp_path,
             topology_template_cfg=topology_template_cfg,
         )
+        topology_supervisor_measurement_sweep = _run_topology_supervisor_measurement_sweep(
+            tmp_path,
+            topology_template_cfg=topology_template_cfg,
+        )
+        topology_supervisor_corrected_measurement_sweep = _run_topology_supervisor_corrected_measurement_sweep(
+            tmp_path,
+            topology_template_cfg=topology_template_cfg,
+        )
 
     scenarios = {
         "nominal": {
@@ -1204,6 +1349,8 @@ def run_campaign() -> dict[str, Any]:
         "topology_actuator_slew_limit": topology_actuator_slew_sweep,
         "topology_measurement_fault_scale": topology_measurement_sweep,
         "topology_measurement_corrected_scale": topology_corrected_measurement_sweep,
+        "topology_supervisor_measurement_fault_scale": topology_supervisor_measurement_sweep,
+        "topology_supervisor_measurement_corrected_scale": topology_supervisor_corrected_measurement_sweep,
     }
     passes_thresholds = all(bool(entry["passes_thresholds"]) for entry in scenarios.values()) and all(
         bool(entry["passes_thresholds"]) for entry in sweeps.values()
@@ -1368,6 +1515,32 @@ def render_markdown(report: dict[str, Any]) -> str:
             "- "
             f"scale `{entry['scale']:.1f}`: x-pos gap `{entry['x_point_position_gap']:.6e}`, "
             f"x-flux gap `{entry['x_point_flux_gap']:.6e}`, divertor rms gap `{entry['divertor_rms_gap']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### topology_supervisor_measurement_fault_scale",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["topology_supervisor_measurement_fault_scale"]["entries"]:
+        lines.append(
+            "- "
+            f"scale `{entry['scale']:.1f}`: x-pos gap `{entry['x_point_position_gap']:.6e}`, "
+            f"x-flux gap `{entry['x_point_flux_gap']:.6e}`, lag `{entry['max_abs_actuator_lag']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### topology_supervisor_measurement_corrected_scale",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["topology_supervisor_measurement_corrected_scale"]["entries"]:
+        lines.append(
+            "- "
+            f"scale `{entry['scale']:.1f}`: x-pos gap `{entry['x_point_position_gap']:.6e}`, "
+            f"x-flux gap `{entry['x_point_flux_gap']:.6e}`, lag `{entry['max_abs_actuator_lag']:.6e}`"
         )
     return "\n".join(lines)
 
