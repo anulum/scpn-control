@@ -35,6 +35,19 @@ python -c "import importlib.util; from scpn_control.core._rust_compat import _ru
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
 ```
 
+## Local acceptance campaigns
+
+Free-boundary tracking acceptance on the real `FusionKernel` path:
+
+```bash
+python validation/free_boundary_tracking_acceptance.py
+```
+
+This writes:
+
+- `validation/reports/free_boundary_tracking_acceptance.json`
+- `validation/reports/free_boundary_tracking_acceptance.md`
+
 ## CI workflows
 
 - Core CI: `.github/workflows/ci.yml`
