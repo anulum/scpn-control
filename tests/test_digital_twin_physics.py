@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from scpn_control.control.tokamak_digital_twin import (
     GRID_SIZE,
@@ -19,26 +18,26 @@ from scpn_control.control.tokamak_digital_twin import (
 def test_bremsstrahlung_scaling():
     """Verify Bremsstrahlung radiation scales as n_e^2 * sqrt(T)."""
     topo = TokamakTopology()
-    
+
     # Baseline
     plasma1 = Plasma2D(topo, n_e=1e20, Z_eff=1.0)
     # Fill whole array to make Laplacian zero everywhere
-    plasma1.T.fill(10.0)  
-    
+    plasma1.T.fill(10.0)
+
     # Let's perform a step and check the cooling rate at a point inside mask
     # but away from center (which has heat source).
     # r = 5/20 = 0.25 < 1.0
     idx = GRID_SIZE // 2 + 5
     plasma1.step(0.0)
-    cooling1 = 10.0 - plasma1.T[GRID_SIZE // 2, idx] 
-    
+    cooling1 = 10.0 - plasma1.T[GRID_SIZE // 2, idx]
+
     plasma2 = Plasma2D(topo, n_e=2e20, Z_eff=1.0)
     plasma2.T.fill(10.0)
     plasma2.step(0.0)
     cooling2 = 10.0 - plasma2.T[GRID_SIZE // 2, idx]
-    
+
     assert cooling2 > cooling1
-    # n_e^2 scaling: 2^2 = 4. 
+    # n_e^2 scaling: 2^2 = 4.
     ratio = cooling2 / cooling1
     assert 3.9 < ratio < 4.1
 
@@ -53,7 +52,7 @@ def test_sensor_thermal_lag():
         verbose=False,
         save_plot=False
     )
-    
+
     # With 1s lag and 10ms total time, the sensor should barely move from 0
     # while the plasma heats up.
     assert summary["final_avg_temp"] > 0.0

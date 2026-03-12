@@ -6,10 +6,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import numpy as np
-import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
 from scpn_control.core.fusion_kernel import FusionKernel
@@ -40,11 +38,11 @@ def test_gs_sor_convergence_property(tmp_path, omega):
         },
     }
     config.write_text(json.dumps(cfg))
-    
+
     fk = FusionKernel(config)
     # Perform a few steps
     fk.solve_equilibrium()
-    
+
     assert np.all(np.isfinite(fk.Psi))
 
 
@@ -66,17 +64,17 @@ def test_transport_non_negative_property(tmp_path, chi, dt):
         "coils": [],
     }
     config.write_text(json.dumps(cfg))
-    
+
     solver = TransportSolver(config)
     solver.chi_i.fill(chi)
     solver.chi_e.fill(chi)
-    
+
     # Reset to a physical state
     solver.Ti.fill(5.0)
     solver.Te.fill(5.0)
-    
+
     solver.evolve_profiles(dt=dt, P_aux=50.0)
-    
+
     assert np.all(solver.Ti >= 0.0)
     assert np.all(solver.Te >= 0.0)
     assert np.all(np.isfinite(solver.Ti))
@@ -95,10 +93,10 @@ def test_kuramoto_order_parameter_bounds(theta, K, zeta):
     th = np.array(theta)
     R, _ = order_parameter(th)
     assert 0.0 <= R <= 1.0 + 1e-9
-    
+
     # Step properties
     omega = np.ones_like(th)
     result = kuramoto_sakaguchi_step(th, omega, dt=0.01, K=K, zeta=zeta, psi_driver=0.0)
-    
+
     assert 0.0 <= result["R"] <= 1.0 + 1e-9
     assert np.all(np.isfinite(result["theta1"]))

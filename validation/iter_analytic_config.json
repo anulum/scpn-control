@@ -64,6 +64,7 @@
         "convergence_threshold": 0.0001,
         "relaxation_factor": 0.1,
         "sor_omega": 1.8,
-        "fail_on_diverge": true
+        "fail_on_diverge": true,
+        "boundary_variant": "fixed_boundary"
     }
 }

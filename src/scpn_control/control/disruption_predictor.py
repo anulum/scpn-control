@@ -57,6 +57,11 @@ def simulate_tearing_mode(
     """
     Generates synthetic shot data for multiple disruption mechanisms.
 
+    Physics models:
+    - ntm: Modified Rutherford equation (Rutherford 1973).
+    - density_limit: Greenwald density limit (Greenwald 2002).
+    - vde: Exponential growth on Naydon instability timescale.
+
     Parameters
     ----------
     steps : int
@@ -898,7 +903,14 @@ def predict_disruption_risk_safe(
         input_tensor = torch.tensor(input_sig, dtype=torch.float32).reshape(1, -1, 1)
 
         # MC Dropout inference
-        mean_risk, std_risk = model.predict_with_uncertainty(input_tensor, n_samples=mc_samples)
+        if hasattr(model, "predict_with_uncertainty"):
+            mean_risk, std_risk = model.predict_with_uncertainty(input_tensor, n_samples=mc_samples)
+        else:
+            # Handle non-probabilistic models (e.g. from older weights or mocks)
+            model.eval()
+            with torch.no_grad():
+                mean_risk = float(model(input_tensor).item())
+            std_risk = 0.0
 
         out_meta = dict(meta)
         out_meta["mode"] = "checkpoint"

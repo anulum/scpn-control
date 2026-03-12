@@ -19,6 +19,8 @@ import math
 from dataclasses import dataclass
 from typing import Mapping, Sequence, TypedDict
 
+import numpy as np
+
 SCALE_FLOOR = 1e-12  # prevent division-by-zero in feature extraction
 CONTROL_ERROR_CLAMP = 1.0  # symmetric saturation for normalized error
 INVARIANT_CRITICAL_FRACTION = 0.20  # 20% deviation from threshold → "critical"
@@ -456,3 +458,60 @@ def should_trigger_mitigation(
     massive gas injection, current quench, or safe ramp-down).
     """
     return any(v.severity == "critical" for v in violations)
+
+
+# ── Petri Net Logic Invariants ──────────────────────────────────────────────
+# Formal properties of the compiled Petri Net.
+# ────────────────────────────────────────────────────────────────────────────
+
+def check_marking_conservation(
+    marking_before: list[float],
+    marking_after: list[float],
+) -> bool:
+    """Verify that total token count is conserved.
+
+    For conservative Petri Nets, Σ M_before == Σ M_after.
+    """
+    sum_before = float(sum(marking_before))
+    sum_after = float(sum(marking_after))
+    return abs(sum_before - sum_after) < 1e-9
+
+
+def check_deadlock(
+    marking: list[float],
+    incidence_matrix: np.ndarray,
+    is_terminal: bool = False,
+) -> bool:
+    """Detect if the net is in a non-terminal deadlock state.
+
+    A net is deadlocked if no transitions are enabled and it's not a
+    configured terminal state.
+    """
+    if is_terminal:
+        return False
+
+    # A transition j is enabled if all input places i have M[i] >= W[i,j]
+    # Here incidence_matrix is (places, transitions).
+    # W_minus = max(0, -incidence_matrix)
+    W_minus = np.maximum(0, -incidence_matrix)
+    n_places, n_trans = incidence_matrix.shape
+
+    enabled_count = 0
+    for j in range(n_trans):
+        enabled = True
+        for i in range(n_places):
+            if marking[i] < W_minus[i, j]:
+                enabled = False
+                break
+        if enabled:
+            enabled_count += 1
+
+    return enabled_count == 0
+
+
+def check_boundedness(
+    marking: list[float],
+    max_capacity: float = 1e6,
+) -> bool:
+    """Verify that no place exceeds its maximum token capacity."""
+    return all(m <= max_capacity for m in marking)

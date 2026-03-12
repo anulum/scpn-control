@@ -374,5 +374,28 @@ def compute_betan(beta_t_pct: float, a_m: float, BT_T: float, Ip_MA: float) -> f
     a = require_positive_float("a_m", a_m)
     B = require_positive_float("BT_T", BT_T)
     Ip = require_positive_float("Ip_MA", Ip_MA)
-    
+
     return float(bt / (Ip / (a * B)))
+
+
+def compute_h_factor(tau_actual: float, tau_predicted: float) -> float:
+    """Compute the H-factor (enhancement factor over scaling law).
+
+    Parameters
+    ----------
+    tau_actual : float
+        Measured or simulated confinement time [s].
+    tau_predicted : float
+        IPB98(y,2) predicted confinement time [s].
+
+    Returns
+    -------
+    float
+        H98(y,2) = tau_actual / tau_predicted.
+    """
+    tau_actual_f = _require_finite_number("tau_actual", tau_actual)
+    tau_predicted_f = _require_finite_number("tau_predicted", tau_predicted)
+
+    if tau_predicted_f <= 0:
+        return float("inf")
+    return tau_actual_f / tau_predicted_f

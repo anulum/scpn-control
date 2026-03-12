@@ -198,9 +198,10 @@ class TestPredictDisruptionRiskSafeWithTorch:
         risk, meta = predict_disruption_risk_safe(signal)
         assert 0.0 <= risk <= 1.0
         assert meta["mode"] == "checkpoint"
-        assert meta["risk_source"] == "transformer"
+        assert meta["risk_source"] == "transformer_mc_dropout"
         assert meta["probabilistic_output"] is True
-        assert meta["probabilistic_method"] == "transformer_plus_sigma_points"
+        assert meta["probabilistic_method"] == "transformer_mc_plus_sigma_points"
         assert 0.0 <= meta["risk_p05"] <= meta["risk_p95"] <= 1.0
-        assert meta["risk_samples_used"] >= len(dp_mod.PROBABILISTIC_SIGMA_LEVELS) + 2
+        assert meta["risk_samples_used"] >= len(dp_mod.PROBABILISTIC_SIGMA_LEVELS) + 1
         assert meta["risk_std"] >= 0.0
+

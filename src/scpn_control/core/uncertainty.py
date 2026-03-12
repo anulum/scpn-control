@@ -178,12 +178,12 @@ def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
     a = scenario.R / scenario.A
     V = 2.0 * np.pi**2 * scenario.R * a**2 * scenario.kappa
     n_m3 = scenario.n_e * 1e19
-    
+
     T_avg = (scenario.P_heat * 1e6 * tau_E) / (3.0 * n_m3 * V * e_J_per_kev)
-    
+
     # 2. Compute reactivity
     sig_v = bosch_hale_reactivity(T_avg)
-    
+
     # 3. Fusion power: P_fus = 1/4 * n_e^2 * <σv> * V * E_fus
     # E_fus = 17.6 MeV = 2.82e-12 J
     E_fus_J = 2.82e-12
@@ -201,7 +201,7 @@ def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict
     """
     # Numerical derivatives
     eps = 1e-3
-    
+
     def get_p(n_e: float, p_heat: float):
         sc = PlasmaScenario(scenario.I_p, scenario.B_t, p_heat, n_e, scenario.R, scenario.A, scenario.kappa, scenario.M)
         return fusion_power_from_tau(sc, tau_E)
@@ -210,7 +210,7 @@ def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict
     p_plus = get_p(scenario.n_e * (1 + eps), scenario.P_heat)
     p_minus = get_p(scenario.n_e * (1 - eps), scenario.P_heat)
     dP_dn = (p_plus - p_minus) / (2 * scenario.n_e * eps)
-    
+
     # dP/dT is more indirect via P_heat (T ~ P_heat * tau / n)
     p_plus_t = get_p(scenario.n_e, scenario.P_heat * (1 + eps))
     p_minus_t = get_p(scenario.n_e, scenario.P_heat * (1 - eps))
@@ -221,7 +221,7 @@ def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict
     V = 2.0 * np.pi**2 * scenario.R * a**2 * scenario.kappa
     c = 1e6 * tau_E / (3.0 * scenario.n_e * 1e19 * V * e_J_per_kev)
     dP_dT = (p_plus_t - p_minus_t) / (2 * scenario.P_heat * eps) / c
-    
+
     return {"dP_dT": float(dP_dT), "dP_dn": float(dP_dn)}
 
 

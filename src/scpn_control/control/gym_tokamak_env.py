@@ -6,14 +6,16 @@
 # License: MIT OR Apache-2.0
 # ──────────────────────────────────────────────────────────────────────
 """
-Gymnasium-compatible environment wrapping the TokamakDigitalTwin.
+Gymnasium-compatible environment for tokamak plasma control.
 
-Observation: [T_axis, T_edge, beta_N, li, q95, Ip_err]  (6-dim)
-Action:      [P_aux_delta, Ip_delta]                      (2-dim, continuous)
+Implements simplified 0D physics-based dynamics for temperature and
+plasma current using energy balance ($dW/dt = P_{heat} - P_{loss}$)
+with IPB98(y,2) confinement scaling and Bremsstrahlung radiation.
 
-Reward: -|T_axis - T_target| - 10*(disruption) - 0.01*|u|
+Reference: Wesson, J. (2011). Tokamaks. 4th Edition.
 
-Requires: ``pip install gymnasium`` (optional dependency).
+Observation: [T_axis, T_edge, beta_N, li, q95, Ip]  (6-dim)
+Action:      [P_aux_delta, Ip_delta]               (2-dim, continuous)
 """
 
 from __future__ import annotations
@@ -129,29 +131,29 @@ class TokamakEnv:
         # 2. Physics: Energy Balance (Wesson Ch. 3 & Ch. 14)
         # Average temperature assuming parabolic profile: <T> = 0.5 * (T_ax + T_edge)
         T_avg = 0.5 * (T_ax + T_edge)
-        
+
         # Stored Energy: W = 3/2 * (n_e + n_i) * <T> * V. Assume n_e = n_i.
         # W [MJ] = 3 * n_e_20 * T_avg_keV * V * 1.602e-19 * 1e20 * 1e-6
         # W [MJ] = 0.04806 * n_e_20 * T_avg * V
         W_th = 0.04806 * self.n_e_20 * T_avg * self.V_plasma
-        
+
         # Confinement Time: Simplified IPB98(y,2) scaling
         # tau_E ~ Ip^0.93 * P^-0.69. Calibrated to ~2.0s for ITER at 15MA, 50MW.
         tau_E = 2.0 * (Ip / 15.0)**0.93 * (max(self.P_aux, 1.0) / 50.0)**-0.69
-        
+
         # Losses: P_loss = W / tau_E [MW]
         P_loss = W_th / max(tau_E, 0.1)
-        
+
         # Bremsstrahlung: P_br [MW] = 0.00535 * n_e_20^2 * Z_eff * sqrt(Te) * V
         # Reference: Wesson Ch. 14.5.1. Z_eff = 1.5.
         P_rad = 0.00535 * (self.n_e_20**2) * 1.5 * np.sqrt(max(T_avg, 0.1)) * self.V_plasma
-        
+
         # Energy rate: dW/dt = P_aux - P_loss - P_rad
         dW_dt = self.P_aux - P_loss - P_rad
-        
+
         # Temperature rate: d<T>/dt = dW_dt / (0.04806 * n_e_20 * V)
         dT_avg_dt = dW_dt / (0.04806 * self.n_e_20 * self.V_plasma)
-        
+
         # Update T_ax and T_edge (simple profile relaxation)
         T_avg += dT_avg_dt * self.dt
         T_ax = 1.8 * T_avg # Maintain profile ratio
@@ -160,7 +162,7 @@ class TokamakEnv:
         # beta_N = beta_t * a * B_T / Ip (Troyon, Phys. Rev. Lett. 53, 1984)
         _BETA_N_COEFF = 0.27  # [%-m-T/MA], ITER calibration
         beta_N: float = _BETA_N_COEFF * T_ax / max(abs(Ip), 0.1)
-        
+
         # q95 ≈ 5 a² κ B_T / (R Ip); ITER: a=2m, κ=1.7, B_T=5.3T, R=6.2m
         # Wesson Ch.3 Eq.3.51
         _Q95_CONST = 45.0

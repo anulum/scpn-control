@@ -338,7 +338,7 @@ def run_digital_twin(
     sensor_bias = np.zeros(state_dim, dtype=float)
     if sensor_bias_std > 0.0:
         sensor_bias = np.asarray(local_rng.normal(0.0, sensor_bias_std, size=state_dim), dtype=float)
-    
+
     # Thermal lag state (first-order filter)
     # tau_TC = 50ms typical for thermocouple
     sensor_state_lagged = np.zeros(state_dim, dtype=float)
@@ -361,7 +361,7 @@ def run_digital_twin(
         # 1. Observe State (Midplane Profile)
         midplane_idx = GRID_SIZE // 2
         true_profile = np.asarray(plasma.T[midplane_idx, :], dtype=float)
-        
+
         # Apply thermal lag
         sensor_state_lagged += sensor_alpha * (true_profile - sensor_state_lagged)
         state_vector = sensor_state_lagged.reshape(1, -1).copy()

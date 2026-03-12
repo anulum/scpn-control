@@ -14,7 +14,7 @@ from scpn_control.control.disruption_predictor import (
 )
 
 try:
-    import torch
+    import torch  # noqa: F401
 
     HAS_TORCH = True
 except ImportError:
@@ -57,7 +57,6 @@ def test_mc_dropout_uncertainty(tmp_path):
     """Verify MC dropout produces uncertainty (std > 0) for ambiguous signals."""
     from scpn_control.control.disruption_predictor import (
         DEFAULT_MODEL_FILENAME,
-        DisruptionTransformer,
         train_predictor,
     )
 

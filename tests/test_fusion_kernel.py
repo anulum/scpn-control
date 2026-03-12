@@ -270,7 +270,7 @@ class TestVacuumField:
         psi_vac = kernel.calculate_vacuum_field()
         assert np.max(np.abs(psi_vac)) > 0
         # Physics: Flux should be higher at the edge closer to coils
-        # PF1 at (3, 4), PF2 at (5, -4). 
+        # PF1 at (3, 4), PF2 at (5, -4).
         # Grid R in [2, 6], Z in [-3, 3].
         # Point (3, 3) is closer to PF1 than (3, 0)
         assert abs(psi_vac[-1, 4]) > abs(psi_vac[len(kernel.Z)//2, 4])
