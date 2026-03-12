@@ -464,6 +464,7 @@ def should_trigger_mitigation(
 # Formal properties of the compiled Petri Net.
 # ────────────────────────────────────────────────────────────────────────────
 
+
 def check_marking_conservation(
     marking_before: list[float],
     marking_after: list[float],

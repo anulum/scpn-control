@@ -188,7 +188,7 @@ def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
     # E_fus = 17.6 MeV = 2.82e-12 J
     E_fus_J = 2.82e-12
     P_fus_W = 0.25 * (n_m3**2) * sig_v * V * E_fus_J
-    return float(P_fus_W * 1e-6) # MW
+    return float(P_fus_W * 1e-6)  # MW
 
 
 def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict[str, float]:

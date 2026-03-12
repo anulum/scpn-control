@@ -382,7 +382,9 @@ def _evaluate_nominal(summary: dict[str, Any]) -> dict[str, Any]:
             float(summary["final_tracking_error_norm"]) <= NOMINAL_THRESHOLDS["max_final_tracking_error_norm"]
         ),
         "shape_rms": bool(float(summary["shape_rms"]) <= NOMINAL_THRESHOLDS["max_shape_rms"]),
-        "objective_converged": bool(summary["objective_converged"] is NOMINAL_THRESHOLDS["require_objective_converged"]),
+        "objective_converged": bool(
+            summary["objective_converged"] is NOMINAL_THRESHOLDS["require_objective_converged"]
+        ),
     }
     return {
         "thresholds": NOMINAL_THRESHOLDS.copy(),
@@ -408,10 +410,14 @@ def _evaluate_kick(summary: dict[str, Any]) -> dict[str, Any]:
 
 
 def _evaluate_measurement_fault(summary: dict[str, Any]) -> dict[str, Any]:
-    measured_true_gap = abs(float(summary["final_tracking_error_norm"]) - float(summary["final_true_tracking_error_norm"]))
+    measured_true_gap = abs(
+        float(summary["final_tracking_error_norm"]) - float(summary["final_true_tracking_error_norm"])
+    )
     checks = {
         "measured_true_gap": bool(measured_true_gap >= MEASUREMENT_THRESHOLDS["min_measured_true_gap"]),
-        "measurement_offset": bool(float(summary["max_abs_measurement_offset"]) >= MEASUREMENT_THRESHOLDS["min_measurement_offset"]),
+        "measurement_offset": bool(
+            float(summary["max_abs_measurement_offset"]) >= MEASUREMENT_THRESHOLDS["min_measurement_offset"]
+        ),
         "true_tracking_error_norm": bool(
             float(summary["final_true_tracking_error_norm"]) <= MEASUREMENT_THRESHOLDS["max_true_tracking_error_norm"]
         ),
@@ -425,10 +431,14 @@ def _evaluate_measurement_fault(summary: dict[str, Any]) -> dict[str, Any]:
 
 
 def _evaluate_corrected(summary: dict[str, Any]) -> dict[str, Any]:
-    measured_true_gap = abs(float(summary["final_tracking_error_norm"]) - float(summary["final_true_tracking_error_norm"]))
+    measured_true_gap = abs(
+        float(summary["final_tracking_error_norm"]) - float(summary["final_true_tracking_error_norm"])
+    )
     checks = {
         "measured_true_gap": bool(measured_true_gap <= CORRECTED_THRESHOLDS["max_measured_true_gap"]),
-        "measurement_offset": bool(float(summary["max_abs_measurement_offset"]) <= CORRECTED_THRESHOLDS["max_measurement_offset"]),
+        "measurement_offset": bool(
+            float(summary["max_abs_measurement_offset"]) <= CORRECTED_THRESHOLDS["max_measurement_offset"]
+        ),
         "final_tracking_error_norm": bool(
             float(summary["final_tracking_error_norm"]) <= CORRECTED_THRESHOLDS["max_final_tracking_error_norm"]
         ),
@@ -478,9 +488,7 @@ def _evaluate_latency_corrected(
         "final_true_tracking_error_norm": bool(
             float(summary["final_true_tracking_error_norm"]) <= threshold_set["max_final_true_tracking_error_norm"]
         ),
-        "objective_converged": bool(
-            summary["objective_converged"] is threshold_set["require_objective_converged"]
-        ),
+        "objective_converged": bool(summary["objective_converged"] is threshold_set["require_objective_converged"]),
     }
     return {
         "thresholds": dict(threshold_set),
@@ -539,14 +547,10 @@ def _evaluate_topology_measurement_fault(
     divertor_rms_gap = abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"]))
     divertor_max_abs_gap = abs(float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"]))
     checks = {
-        "x_point_position_gap": bool(
-            x_point_position_gap >= threshold_set["min_x_point_position_gap"]
-        ),
+        "x_point_position_gap": bool(x_point_position_gap >= threshold_set["min_x_point_position_gap"]),
         "x_point_flux_gap": bool(x_point_flux_gap >= threshold_set["min_x_point_flux_gap"]),
         "divertor_rms_gap": bool(divertor_rms_gap >= threshold_set["min_divertor_rms_gap"]),
-        "divertor_max_abs_gap": bool(
-            divertor_max_abs_gap >= threshold_set["min_divertor_max_abs_gap"]
-        ),
+        "divertor_max_abs_gap": bool(divertor_max_abs_gap >= threshold_set["min_divertor_max_abs_gap"]),
         "measurement_offset": bool(
             float(summary["max_abs_measurement_offset"]) >= threshold_set["min_measurement_offset"]
         ),
@@ -554,21 +558,16 @@ def _evaluate_topology_measurement_fault(
             float(summary["final_true_tracking_error_norm"]) <= threshold_set["max_true_tracking_error_norm"]
         ),
         "true_x_point_position_error": bool(
-            float(summary["true_x_point_position_error"])
-            <= threshold_set["max_true_x_point_position_error"]
+            float(summary["true_x_point_position_error"]) <= threshold_set["max_true_x_point_position_error"]
         ),
         "true_x_point_flux_error": bool(
             float(summary["true_x_point_flux_error"]) <= threshold_set["max_true_x_point_flux_error"]
         ),
-        "true_divertor_rms": bool(
-            float(summary["true_divertor_rms"]) <= threshold_set["max_true_divertor_rms"]
-        ),
+        "true_divertor_rms": bool(float(summary["true_divertor_rms"]) <= threshold_set["max_true_divertor_rms"]),
         "true_divertor_max_abs": bool(
             float(summary["true_divertor_max_abs"]) <= threshold_set["max_true_divertor_max_abs"]
         ),
-        "objective_converged": bool(
-            summary["objective_converged"] is threshold_set["require_objective_converged"]
-        ),
+        "objective_converged": bool(summary["objective_converged"] is threshold_set["require_objective_converged"]),
     }
     return {
         "thresholds": dict(threshold_set),
@@ -592,14 +591,10 @@ def _evaluate_topology_corrected(
     divertor_rms_gap = abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"]))
     divertor_max_abs_gap = abs(float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"]))
     checks = {
-        "x_point_position_gap": bool(
-            x_point_position_gap <= threshold_set["max_x_point_position_gap"]
-        ),
+        "x_point_position_gap": bool(x_point_position_gap <= threshold_set["max_x_point_position_gap"]),
         "x_point_flux_gap": bool(x_point_flux_gap <= threshold_set["max_x_point_flux_gap"]),
         "divertor_rms_gap": bool(divertor_rms_gap <= threshold_set["max_divertor_rms_gap"]),
-        "divertor_max_abs_gap": bool(
-            divertor_max_abs_gap <= threshold_set["max_divertor_max_abs_gap"]
-        ),
+        "divertor_max_abs_gap": bool(divertor_max_abs_gap <= threshold_set["max_divertor_max_abs_gap"]),
         "measurement_offset": bool(
             float(summary["max_abs_measurement_offset"]) <= threshold_set["max_measurement_offset"]
         ),
@@ -609,16 +604,10 @@ def _evaluate_topology_corrected(
         "x_point_position_error": bool(
             float(summary["x_point_position_error"]) <= threshold_set["max_x_point_position_error"]
         ),
-        "x_point_flux_error": bool(
-            float(summary["x_point_flux_error"]) <= threshold_set["max_x_point_flux_error"]
-        ),
+        "x_point_flux_error": bool(float(summary["x_point_flux_error"]) <= threshold_set["max_x_point_flux_error"]),
         "divertor_rms": bool(float(summary["divertor_rms"]) <= threshold_set["max_divertor_rms"]),
-        "divertor_max_abs": bool(
-            float(summary["divertor_max_abs"]) <= threshold_set["max_divertor_max_abs"]
-        ),
-        "objective_converged": bool(
-            summary["objective_converged"] is threshold_set["require_objective_converged"]
-        ),
+        "divertor_max_abs": bool(float(summary["divertor_max_abs"]) <= threshold_set["max_divertor_max_abs"]),
+        "objective_converged": bool(summary["objective_converged"] is threshold_set["require_objective_converged"]),
     }
     return {
         "thresholds": dict(threshold_set),
@@ -634,7 +623,8 @@ def _evaluate_topology_corrected(
 def _evaluate_supervisor_only(summary: dict[str, Any]) -> dict[str, Any]:
     checks = {
         "supervisor_intervention_count": bool(
-            int(summary["supervisor_intervention_count"]) >= SUPERVISOR_FALLBACK_THRESHOLDS["min_supervisor_intervention_count"]
+            int(summary["supervisor_intervention_count"])
+            >= SUPERVISOR_FALLBACK_THRESHOLDS["min_supervisor_intervention_count"]
         ),
         "fallback_active_steps": bool(
             int(summary["fallback_active_steps"]) >= SUPERVISOR_FALLBACK_THRESHOLDS["min_fallback_active_steps"]
@@ -645,7 +635,9 @@ def _evaluate_supervisor_only(summary: dict[str, Any]) -> dict[str, Any]:
         "supervisor_active": bool(
             summary["supervisor_active"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_active"]
         ),
-        "supervisor_safe": bool(summary["supervisor_safe"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_safe"]),
+        "supervisor_safe": bool(
+            summary["supervisor_safe"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_safe"]
+        ),
     }
     return {
         "thresholds": {
@@ -688,7 +680,8 @@ def _evaluate_supervisor_fallback(
     lag_reduction_factor = float(reference_lag / max(safe_lag, 1.0e-12))
     checks = {
         "supervisor_intervention_count": bool(
-            int(summary["supervisor_intervention_count"]) >= SUPERVISOR_FALLBACK_THRESHOLDS["min_supervisor_intervention_count"]
+            int(summary["supervisor_intervention_count"])
+            >= SUPERVISOR_FALLBACK_THRESHOLDS["min_supervisor_intervention_count"]
         ),
         "fallback_active_steps": bool(
             int(summary["fallback_active_steps"]) >= SUPERVISOR_FALLBACK_THRESHOLDS["min_fallback_active_steps"]
@@ -698,7 +691,8 @@ def _evaluate_supervisor_fallback(
             lag_reduction_factor >= SUPERVISOR_FALLBACK_THRESHOLDS["min_lag_reduction_factor"]
         ),
         "final_tracking_error_norm": bool(
-            float(summary["final_tracking_error_norm"]) <= SUPERVISOR_FALLBACK_THRESHOLDS["max_final_tracking_error_norm"]
+            float(summary["final_tracking_error_norm"])
+            <= SUPERVISOR_FALLBACK_THRESHOLDS["max_final_tracking_error_norm"]
         ),
         "x_point_position_error": bool(
             summary["x_point_position_error"] is not None
@@ -723,7 +717,9 @@ def _evaluate_supervisor_fallback(
         "supervisor_active": bool(
             summary["supervisor_active"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_active"]
         ),
-        "supervisor_safe": bool(summary["supervisor_safe"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_safe"]),
+        "supervisor_safe": bool(
+            summary["supervisor_safe"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_supervisor_safe"]
+        ),
         "objective_converged": bool(
             summary["objective_converged"] is SUPERVISOR_FALLBACK_THRESHOLDS["require_objective_converged"]
         ),
@@ -958,7 +954,8 @@ def _run_coil_kick_scale_sweep(tmp_path: Path, *, template_cfg: dict[str, Any]) 
     checks = {
         "max_abs_coil_current_monotone": _is_monotone_non_decreasing(max_coil_current),
         "objective_converged_all": all(objective_converged),
-        "final_tracking_error_bounded": max(final_tracking_error) <= NOMINAL_THRESHOLDS["max_final_tracking_error_norm"],
+        "final_tracking_error_bounded": max(final_tracking_error)
+        <= NOMINAL_THRESHOLDS["max_final_tracking_error_norm"],
     }
     return {
         "entries": entries,
@@ -1101,7 +1098,9 @@ def _run_topology_measurement_sweep(tmp_path: Path, *, topology_template_cfg: di
                 "x_point_position_gap": abs(
                     float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"])
                 ),
-                "x_point_flux_gap": abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])),
+                "x_point_flux_gap": abs(
+                    float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])
+                ),
                 "divertor_rms_gap": abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"])),
                 "divertor_max_abs_gap": abs(
                     float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"])
@@ -1129,7 +1128,9 @@ def _run_topology_measurement_sweep(tmp_path: Path, *, topology_template_cfg: di
     }
 
 
-def _run_topology_corrected_measurement_sweep(tmp_path: Path, *, topology_template_cfg: dict[str, Any]) -> dict[str, Any]:
+def _run_topology_corrected_measurement_sweep(
+    tmp_path: Path, *, topology_template_cfg: dict[str, Any]
+) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for scale in MEASUREMENT_SWEEP_SCALES:
         cfg = _write_tracking_config(
@@ -1144,7 +1145,9 @@ def _run_topology_corrected_measurement_sweep(tmp_path: Path, *, topology_templa
                 "x_point_position_gap": abs(
                     float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"])
                 ),
-                "x_point_flux_gap": abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])),
+                "x_point_flux_gap": abs(
+                    float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])
+                ),
                 "divertor_rms_gap": abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"])),
                 "divertor_max_abs_gap": abs(
                     float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"])
@@ -1163,7 +1166,8 @@ def _run_topology_corrected_measurement_sweep(tmp_path: Path, *, topology_templa
             <= TOPOLOGY_CORRECTED_THRESHOLDS["max_x_point_flux_gap"]
         ),
         "max_divertor_rms_gap": bool(
-            max(float(entry["divertor_rms_gap"]) for entry in entries) <= TOPOLOGY_CORRECTED_THRESHOLDS["max_divertor_rms_gap"]
+            max(float(entry["divertor_rms_gap"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_divertor_rms_gap"]
         ),
         "max_divertor_max_abs_gap": bool(
             max(float(entry["divertor_max_abs_gap"]) for entry in entries)
@@ -1182,7 +1186,9 @@ def _run_topology_corrected_measurement_sweep(tmp_path: Path, *, topology_templa
     }
 
 
-def _run_topology_supervisor_measurement_sweep(tmp_path: Path, *, topology_template_cfg: dict[str, Any]) -> dict[str, Any]:
+def _run_topology_supervisor_measurement_sweep(
+    tmp_path: Path, *, topology_template_cfg: dict[str, Any]
+) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for scale in MEASUREMENT_SWEEP_SCALES:
         tracking_cfg: dict[str, Any] = {
@@ -1204,7 +1210,9 @@ def _run_topology_supervisor_measurement_sweep(tmp_path: Path, *, topology_templ
                 "x_point_position_gap": abs(
                     float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"])
                 ),
-                "x_point_flux_gap": abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])),
+                "x_point_flux_gap": abs(
+                    float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])
+                ),
                 "divertor_rms_gap": abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"])),
                 "divertor_max_abs_gap": abs(
                     float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"])
@@ -1222,8 +1230,12 @@ def _run_topology_supervisor_measurement_sweep(tmp_path: Path, *, topology_templ
         "x_point_position_gap_monotone": _is_monotone_non_decreasing(
             [float(entry["x_point_position_gap"]) for entry in entries]
         ),
-        "x_point_flux_gap_monotone": _is_monotone_non_decreasing([float(entry["x_point_flux_gap"]) for entry in entries]),
-        "divertor_rms_gap_monotone": _is_monotone_non_decreasing([float(entry["divertor_rms_gap"]) for entry in entries]),
+        "x_point_flux_gap_monotone": _is_monotone_non_decreasing(
+            [float(entry["x_point_flux_gap"]) for entry in entries]
+        ),
+        "divertor_rms_gap_monotone": _is_monotone_non_decreasing(
+            [float(entry["divertor_rms_gap"]) for entry in entries]
+        ),
         "divertor_max_abs_gap_monotone": _is_monotone_non_decreasing(
             [float(entry["divertor_max_abs_gap"]) for entry in entries]
         ),
@@ -1268,7 +1280,9 @@ def _run_topology_supervisor_corrected_measurement_sweep(
                 "x_point_position_gap": abs(
                     float(summary["x_point_position_error"]) - float(summary["true_x_point_position_error"])
                 ),
-                "x_point_flux_gap": abs(float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])),
+                "x_point_flux_gap": abs(
+                    float(summary["x_point_flux_error"]) - float(summary["true_x_point_flux_error"])
+                ),
                 "divertor_rms_gap": abs(float(summary["divertor_rms"]) - float(summary["true_divertor_rms"])),
                 "divertor_max_abs_gap": abs(
                     float(summary["divertor_max_abs"]) - float(summary["true_divertor_max_abs"])
@@ -1292,7 +1306,8 @@ def _run_topology_supervisor_corrected_measurement_sweep(
             <= TOPOLOGY_CORRECTED_THRESHOLDS["max_x_point_flux_gap"]
         ),
         "max_divertor_rms_gap": bool(
-            max(float(entry["divertor_rms_gap"]) for entry in entries) <= TOPOLOGY_CORRECTED_THRESHOLDS["max_divertor_rms_gap"]
+            max(float(entry["divertor_rms_gap"]) for entry in entries)
+            <= TOPOLOGY_CORRECTED_THRESHOLDS["max_divertor_rms_gap"]
         ),
         "max_divertor_max_abs_gap": bool(
             max(float(entry["divertor_max_abs_gap"]) for entry in entries)

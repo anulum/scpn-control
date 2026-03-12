@@ -204,4 +204,3 @@ class TestPredictDisruptionRiskSafeWithTorch:
         assert 0.0 <= meta["risk_p05"] <= meta["risk_p95"] <= 1.0
         assert meta["risk_samples_used"] >= len(dp_mod.PROBABILISTIC_SIGMA_LEVELS) + 1
         assert meta["risk_std"] >= 0.0
-

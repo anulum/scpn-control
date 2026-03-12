@@ -19,15 +19,7 @@ def test_bosch_hale_iter_q10_point():
     ITER: R=6.2, A=3.1, kappa=1.7, n_e=10.1e19, tau_E=3.7s, P_aux=50MW.
     """
     # Using P_heat = 100 MW (balanced aux + partial alpha)
-    scenario = PlasmaScenario(
-        I_p=15.0,
-        B_t=5.3,
-        P_heat=100.0,
-        n_e=10.1,
-        R=6.2,
-        A=3.1,
-        kappa=1.7
-    )
+    scenario = PlasmaScenario(I_p=15.0, B_t=5.3, P_heat=100.0, n_e=10.1, R=6.2, A=3.1, kappa=1.7)
 
     pfus = fusion_power_from_tau(scenario, tau_E=3.7)
 
@@ -37,9 +29,7 @@ def test_bosch_hale_iter_q10_point():
 
 def test_fusion_sensitivities():
     """Verify that sensitivities have physical signs."""
-    scenario = PlasmaScenario(
-        I_p=15.0, B_t=5.3, P_heat=50.0, n_e=10.0, R=6.2, A=3.1, kappa=1.7
-    )
+    scenario = PlasmaScenario(I_p=15.0, B_t=5.3, P_heat=50.0, n_e=10.0, R=6.2, A=3.1, kappa=1.7)
 
     sens = compute_fusion_sensitivities(scenario, tau_E=3.0)
 
@@ -52,8 +42,6 @@ def test_fusion_sensitivities():
 
 def test_bosch_hale_low_temp():
     """Verify reactivity is near-zero at very low temperature."""
-    scenario = PlasmaScenario(
-        I_p=1.0, B_t=1.0, P_heat=0.1, n_e=1.0, R=1.0, A=3.0, kappa=1.0
-    )
+    scenario = PlasmaScenario(I_p=1.0, B_t=1.0, P_heat=0.1, n_e=1.0, R=1.0, A=3.0, kappa=1.0)
     pfus = fusion_power_from_tau(scenario, tau_E=0.01)
     assert pfus < 1e-3

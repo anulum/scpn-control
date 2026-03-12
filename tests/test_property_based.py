@@ -17,6 +17,7 @@ from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step, order_parameter
 
 # ── GS Solver Properties ─────────────────────────────────────────────
 
+
 @settings(deadline=None, max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(omega=st.floats(1.0, 1.95))
 def test_gs_sor_convergence_property(tmp_path, omega):
@@ -48,11 +49,9 @@ def test_gs_sor_convergence_property(tmp_path, omega):
 
 # ── Transport Properties ─────────────────────────────────────────────
 
+
 @settings(deadline=None, max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    chi=st.floats(0.0, 10.0),
-    dt=st.floats(0.001, 0.1)
-)
+@given(chi=st.floats(0.0, 10.0), dt=st.floats(0.001, 0.1))
 def test_transport_non_negative_property(tmp_path, chi, dt):
     """Verify that temperature stays non-negative for any valid chi and dt."""
     config = tmp_path / "cfg.json"
@@ -82,11 +81,10 @@ def test_transport_non_negative_property(tmp_path, chi, dt):
 
 # ── Kuramoto Properties ──────────────────────────────────────────────
 
+
 @settings(max_examples=50)
 @given(
-    theta=st.lists(st.floats(0, 2*np.pi), min_size=2, max_size=10),
-    K=st.floats(0.0, 10.0),
-    zeta=st.floats(0.0, 1.0)
+    theta=st.lists(st.floats(0, 2 * np.pi), min_size=2, max_size=10), K=st.floats(0.0, 10.0), zeta=st.floats(0.0, 1.0)
 )
 def test_kuramoto_order_parameter_bounds(theta, K, zeta):
     """Verify that order parameter R is always in [0, 1]."""

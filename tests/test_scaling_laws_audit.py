@@ -22,10 +22,10 @@ def test_ipb98y2_iter_point():
     Ip = 15.0
     BT = 5.3
     ne19 = 10.1
-    Ploss = 150.0 # MW (includes alpha heating)
+    Ploss = 150.0  # MW (includes alpha heating)
     R = 6.2
     kappa = 1.7
-    epsilon = 2.0 / 6.2 # a/R
+    epsilon = 2.0 / 6.2  # a/R
     M = 2.5
 
     tau = ipb98y2_tau_e(Ip, BT, ne19, Ploss, R, kappa, epsilon, M)

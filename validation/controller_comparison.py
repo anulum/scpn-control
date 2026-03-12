@@ -18,12 +18,10 @@ Produces markdown and LaTeX comparison tables.
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
 
 import numpy as np
 
@@ -40,19 +38,21 @@ _snn_available = False
 
 try:
     from scpn_control.control.fusion_sota_mpc import (
-        ModelPredictiveController,
-        NeuralSurrogate,
+        ModelPredictiveController,  # noqa: F401
+        NeuralSurrogate,  # noqa: F401
     )
+
     _mpc_available = True
 except ImportError:
     pass
 
 try:
     from scpn_control.control.nengo_snn_wrapper import (
-        NengoSNNController,
-        NengoSNNConfig,
+        NengoSNNController,  # noqa: F401
+        NengoSNNConfig,  # noqa: F401
         nengo_available,
     )
+
     _snn_available = nengo_available()
 except ImportError:
     pass
@@ -61,6 +61,7 @@ except ImportError:
 @dataclass
 class EpisodeResult:
     """Metrics from a single controller episode."""
+
     mean_abs_r_error: float
     mean_abs_z_error: float
     reward: float
@@ -73,6 +74,7 @@ class EpisodeResult:
 @dataclass
 class ControllerMetrics:
     """Aggregate metrics for a controller across episodes."""
+
     name: str
     n_episodes: int = 0
     mean_reward: float = 0.0
@@ -96,8 +98,10 @@ def _run_pid_episode(config_path, shot_duration=30):
     actuator_effort = result.get("mean_abs_radial_actuator_lag", 0.0)
     disrupted = r_err > 0.5 or z_err > 0.5
     return EpisodeResult(
-        mean_abs_r_error=r_err, mean_abs_z_error=z_err,
-        reward=-(r_err + z_err), latency_us=per_step_us,
+        mean_abs_r_error=r_err,
+        mean_abs_z_error=z_err,
+        reward=-(r_err + z_err),
+        latency_us=per_step_us,
         disrupted=disrupted,
         t_disruption=float(shot_duration) if not disrupted else float(shot_duration) * 0.5,
         energy_efficiency=1.0 / (1.0 + actuator_effort),
@@ -117,8 +121,10 @@ def _run_hinf_episode(config_path, shot_duration=30):
     actuator_effort = result.get("mean_abs_radial_actuator_lag", 0.0)
     disrupted = r_err > 0.5 or z_err > 0.5
     return EpisodeResult(
-        mean_abs_r_error=r_err, mean_abs_z_error=z_err,
-        reward=-(r_err + z_err), latency_us=per_step_us,
+        mean_abs_r_error=r_err,
+        mean_abs_z_error=z_err,
+        reward=-(r_err + z_err),
+        latency_us=per_step_us,
         disrupted=disrupted,
         t_disruption=float(shot_duration) if not disrupted else float(shot_duration) * 0.5,
         energy_efficiency=1.0 / (1.0 + actuator_effort),
@@ -136,7 +142,7 @@ def run_comparison(n_episodes=100, shot_duration=30, config_path=None):
     if config_path is None:
         config_path = repo_root / "iter_config.json"
 
-    print(f"=== 4-Way Controller Comparison ===")
+    print("=== 4-Way Controller Comparison ===")
     print(f"Episodes: {n_episodes} | Controllers: {', '.join(CONTROLLERS.keys())}")
 
     results = {}

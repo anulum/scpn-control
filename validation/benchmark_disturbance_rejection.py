@@ -57,10 +57,10 @@ import json
 import sys
 import time
 import warnings
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import numpy as np
 
@@ -78,9 +78,10 @@ _snn_available = False
 
 try:
     from scpn_control.control.h_infinity_controller import (
-        HInfinityController,
+        HInfinityController,  # noqa: F401
         get_radial_robust_controller,
     )
+
     _hinf_available = True
 except ImportError:
     warnings.warn(
@@ -92,6 +93,7 @@ except ImportError:
 
 try:
     from scipy.linalg import solve_continuous_are
+
     _scipy_are_available = True
 except ImportError:
     _scipy_are_available = False
@@ -100,6 +102,7 @@ try:
     from scpn_control.control.neuro_cybernetic_controller import (
         SpikingControllerPool,
     )
+
     _snn_available = True
 except Exception:
     warnings.warn(
@@ -128,15 +131,16 @@ except ImportError:
 DT = 1.0e-4  # 100 us timestep for all scenarios
 
 SCENARIO_DURATIONS = {
-    "VDE": 2.0,           # 2 s
+    "VDE": 2.0,  # 2 s
     "Density ramp": 4.0,  # 4 s
-    "ELM pacing": 3.0,    # 3 s
+    "ELM pacing": 3.0,  # 3 s
 }
 
 
 # ===================================================================
 # Controller protocol and implementations
 # ===================================================================
+
 
 class ControllerProtocol(Protocol):
     """Minimal controller interface."""
@@ -148,6 +152,7 @@ class ControllerProtocol(Protocol):
 # -------------------------------------------------------------------
 # PID Controller
 # -------------------------------------------------------------------
+
 
 class PIDController:
     """Textbook PID controller with anti-windup clamp.
@@ -204,6 +209,7 @@ class PIDController:
 # LQR Robust Controller (fallback for H-infinity)
 # -------------------------------------------------------------------
 
+
 class LQRRobustController:
     """LQR-based robust controller with observer for vertical stability.
 
@@ -215,10 +221,12 @@ class LQRRobustController:
     def __init__(self, gamma_growth: float = 100.0) -> None:
         self.gamma_growth = float(gamma_growth)
 
-        self.A = np.array([
-            [0.0, 1.0],
-            [gamma_growth ** 2, -10.0],
-        ])
+        self.A = np.array(
+            [
+                [0.0, 1.0],
+                [gamma_growth**2, -10.0],
+            ]
+        )
         self.B = np.array([[0.0], [1.0]])
         self.C = np.array([[1.0, 0.0]])
 
@@ -242,10 +250,12 @@ class LQRRobustController:
         tr_a = self.A[0, 0] + self.A[1, 1]
         det_a = self.A[0, 0] * self.A[1, 1] - self.A[0, 1] * self.A[1, 0]
         a01 = self.A[0, 1]
-        self.L_obs = np.array([
-            [alpha1 + tr_a],
-            [(alpha0 - det_a) / a01 + alpha1 + tr_a],
-        ])
+        self.L_obs = np.array(
+            [
+                [alpha1 + tr_a],
+                [(alpha0 - det_a) / a01 + alpha1 + tr_a],
+            ]
+        )
 
         self.n = 2
         self.x_hat = np.zeros(2)
@@ -259,11 +269,7 @@ class LQRRobustController:
 
         u = float((-self.K @ self.x_hat).flat[0])
 
-        dx_hat = (
-            self.A @ self.x_hat
-            + self.B.flatten() * u
-            + self.L_obs.flatten() * float(innovation.flat[0])
-        )
+        dx_hat = self.A @ self.x_hat + self.B.flatten() * u + self.L_obs.flatten() * float(innovation.flat[0])
         self.x_hat = self.x_hat + dx_hat * dt
         return u
 
@@ -278,6 +284,7 @@ class LQRRobustController:
 # -------------------------------------------------------------------
 # MPC Controller (quadratic cost, 10-step horizon)
 # -------------------------------------------------------------------
+
 
 class MPCController:
     """Model Predictive Controller with quadratic cost.
@@ -302,10 +309,12 @@ class MPCController:
         learning_rate: float = 0.1,
         u_max: float = 1.0e6,
     ) -> None:
-        self.A = np.array([
-            [0.0, 1.0],
-            [gamma_growth ** 2, -10.0],
-        ])
+        self.A = np.array(
+            [
+                [0.0, 1.0],
+                [gamma_growth**2, -10.0],
+            ]
+        )
         self.B = np.array([0.0, 1.0])
         self.C = np.array([1.0, 0.0])
 
@@ -364,10 +373,7 @@ class MPCController:
                 # For simplicity, use finite-difference-like sensitivity
                 # through the chain: dJ/du_k ~ 2*R*u_k + 2*Q*z_{k+1}*dz/du
                 sens_z = self.B[1] * dt_f * dt_f  # dz ~ B[1]*dt*dt through A
-                grad[k] = (
-                    2.0 * self.r_weight * u_seq[k]
-                    + 2.0 * self.q_weight * z_k1 * sens_z
-                )
+                grad[k] = 2.0 * self.r_weight * u_seq[k] + 2.0 * self.q_weight * z_k1 * sens_z
 
             u_seq -= self.lr * grad
             u_seq = np.clip(u_seq, -self.u_max, self.u_max)
@@ -384,6 +390,7 @@ class MPCController:
 # -------------------------------------------------------------------
 # SNN Controller Wrapper
 # -------------------------------------------------------------------
+
 
 class SNNControllerWrapper:
     """Wraps SpikingControllerPool with the step(error, dt) / reset() API.
@@ -433,6 +440,7 @@ class SNNControllerWrapper:
 # Linearised plant model
 # ===================================================================
 
+
 class LinearPlant:
     """Linearised vertical-stability plant for disturbance-rejection tests.
 
@@ -448,10 +456,12 @@ class LinearPlant:
 
     def __init__(self, gamma_growth: float = 100.0) -> None:
         self.gamma_growth = float(gamma_growth)
-        self.A = np.array([
-            [0.0, 1.0],
-            [gamma_growth ** 2, -10.0],
-        ])
+        self.A = np.array(
+            [
+                [0.0, 1.0],
+                [gamma_growth**2, -10.0],
+            ]
+        )
         self.B = np.array([0.0, 1.0])
         self.B_d = np.array([0.0, 0.5])
         self.x = np.zeros(2)
@@ -480,6 +490,7 @@ class LinearPlant:
 # ===================================================================
 # Disturbance scenario definitions
 # ===================================================================
+
 
 def _disturbance_vde(t: float) -> float:
     """VDE: exponentially growing vertical displacement.
@@ -514,7 +525,7 @@ def _disturbance_elm_pacing(t: float) -> float:
     Each ELM causes a 5 % beta_N drop, modelled as a short (0.5 ms)
     disturbance pulse every 100 ms.
     """
-    period = 0.1       # 10 Hz
+    period = 0.1  # 10 Hz
     pulse_width = 0.5e-3
     phase = t % period
     if phase < pulse_width:
@@ -532,8 +543,7 @@ SCENARIOS: Dict[str, Dict[str, Any]] = {
         "x0": np.array([0.01, 0.0]),  # 1 cm initial displacement
         "settling_threshold": 0.05,
         "description": (
-            "Vertical Displacement Event: gamma=100/s exponential "
-            "instability, impulsive kick. Duration: 2 s."
+            "Vertical Displacement Event: gamma=100/s exponential instability, impulsive kick. Duration: 2 s."
         ),
     },
     "Density ramp": {
@@ -544,8 +554,7 @@ SCENARIOS: Dict[str, Dict[str, Any]] = {
         "x0": np.array([0.0, 0.0]),
         "settling_threshold": 0.05,
         "description": (
-            "Linear density ramp 0.5 to 1.2 Greenwald fraction "
-            "over 2 s, then 2 s settling. Duration: 4 s."
+            "Linear density ramp 0.5 to 1.2 Greenwald fraction over 2 s, then 2 s settling. Duration: 4 s."
         ),
     },
     "ELM pacing": {
@@ -555,10 +564,7 @@ SCENARIOS: Dict[str, Dict[str, Any]] = {
         "target_z": 0.0,
         "x0": np.array([0.0, 0.0]),
         "settling_threshold": 0.05,
-        "description": (
-            "ELM pacing at 10 Hz, 5 % beta_N drop per burst, "
-            "recovery tracking. Duration: 3 s."
-        ),
+        "description": ("ELM pacing at 10 Hz, 5 % beta_N drop per burst, recovery tracking. Duration: 3 s."),
     },
 }
 
@@ -567,17 +573,19 @@ SCENARIOS: Dict[str, Dict[str, Any]] = {
 # Metrics dataclass
 # ===================================================================
 
+
 @dataclass
 class ScenarioMetrics:
     """Aggregated metrics from one (controller, scenario) pair."""
+
     controller: str
     scenario: str
-    ise: float                 # Integral of Squared Error
-    settling_time_s: float     # Time to within 5 % of setpoint permanently
-    peak_overshoot: float      # Max |deviation| from setpoint
-    control_effort: float      # Integral of |u|
-    wall_clock_s: float        # Wall-clock time for this run
-    stable: bool               # True if plant stayed bounded
+    ise: float  # Integral of Squared Error
+    settling_time_s: float  # Time to within 5 % of setpoint permanently
+    peak_overshoot: float  # Max |deviation| from setpoint
+    control_effort: float  # Integral of |u|
+    wall_clock_s: float  # Wall-clock time for this run
+    stable: bool  # True if plant stayed bounded
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -586,6 +594,7 @@ class ScenarioMetrics:
 # ===================================================================
 # Simulation engine
 # ===================================================================
+
 
 def _compute_settling_time(
     times: np.ndarray,
@@ -620,6 +629,7 @@ def _compute_settling_time(
 @dataclass
 class TraceData:
     """Time-series data from a simulation run, for plotting."""
+
     times: np.ndarray
     positions: np.ndarray
     errors: np.ndarray
@@ -672,21 +682,21 @@ def run_scenario(
 
         if abs(plant.z) > 10.0:
             stable = False
-            errors[k + 1:] = error
-            controls[k + 1:] = u
-            positions[k + 1:] = plant.z
-            times[k + 1:] = np.arange(k + 1, n_steps) * dt
+            errors[k + 1 :] = error
+            controls[k + 1 :] = u
+            positions[k + 1 :] = plant.z
+            times[k + 1 :] = np.arange(k + 1, n_steps) * dt
             break
 
     wall_clock = time.perf_counter() - t_wall_start
 
     # --- Compute metrics ---
 
-    ise = float(np.trapz(errors ** 2, times))
+    ise = float(np.trapz(errors**2, times))
 
     ref_amp = max(
         abs(x0[0]),
-        float(np.max(np.abs(positions[:min(100, n_steps)]))),
+        float(np.max(np.abs(positions[: min(100, n_steps)]))),
         1.0e-3,
     )
     settling_time = _compute_settling_time(times, errors, settle_thresh, ref_amp)
@@ -718,6 +728,7 @@ def run_scenario(
 # Controller factory
 # ===================================================================
 
+
 def _build_hinf_controller(gamma_growth: float = 100.0) -> Any:
     """Build the H-infinity controller with LQR fallback."""
     if not _hinf_available:
@@ -727,9 +738,7 @@ def _build_hinf_controller(gamma_growth: float = 100.0) -> Any:
         print("    [H-infinity] Riccati synthesis: OK")
         return ctrl
     except (ValueError, np.linalg.LinAlgError) as exc:
-        print(
-            f"    [H-infinity] ARE failed ({exc}); using LQR fallback"
-        )
+        print(f"    [H-infinity] ARE failed ({exc}); using LQR fallback")
         ctrl = LQRRobustController(gamma_growth=gamma_growth)
         assert ctrl.is_stable, "LQR closed-loop must be stable"
         return ctrl
@@ -744,7 +753,9 @@ def build_controllers() -> Dict[str, Any]:
 
     # PID -- always available (pure Python/NumPy)
     controllers["PID"] = PIDController(
-        kp=1.5e4, ki=3.0e3, kd=1.5e2,
+        kp=1.5e4,
+        ki=3.0e3,
+        kd=1.5e2,
     )
     print("    [PID] Initialised: Kp=1.5e4, Ki=3.0e3, Kd=1.5e2")
 
@@ -779,10 +790,7 @@ def build_controllers() -> Dict[str, Any]:
                 tau_window=20,
                 seed=42,
             )
-            print(
-                f"    [SNN] Initialised: 50 neurons, "
-                f"backend={controllers['SNN']._pool.backend}"
-            )
+            print(f"    [SNN] Initialised: 50 neurons, backend={controllers['SNN']._pool.backend}")
         except Exception as exc:
             warnings.warn(f"SNN controller skipped: {exc}")
     else:
@@ -794,6 +802,7 @@ def build_controllers() -> Dict[str, Any]:
 # ===================================================================
 # Output formatting
 # ===================================================================
+
 
 def _fmt_sci(v: float, width: int = 12) -> str:
     """Format a number in scientific notation for table display."""
@@ -837,8 +846,7 @@ def generate_markdown_report(all_metrics: List[ScenarioMetrics]) -> str:
     lines: List[str] = [
         "# Disturbance Rejection Benchmark",
         "",
-        "ITER-like parameters: Ip=15 MA, BT=5.3 T, R=6.2 m, a=2.0 m, "
-        "gamma_growth=100/s",
+        "ITER-like parameters: Ip=15 MA, BT=5.3 T, R=6.2 m, a=2.0 m, gamma_growth=100/s",
         "",
         "## Results",
         "",
@@ -863,12 +871,10 @@ def generate_markdown_report(all_metrics: List[ScenarioMetrics]) -> str:
         )
         lines.append("")
         lines.append(
-            "| Controller | ISE | Settling Time (s) | Peak Overshoot "
-            "| Control Effort | Wall-Clock (s) | Stable |"
+            "| Controller | ISE | Settling Time (s) | Peak Overshoot | Control Effort | Wall-Clock (s) | Stable |"
         )
         lines.append(
-            "|------------|----:|-------------------:|---------------:"
-            "|---------------:|---------------:|--------|"
+            "|------------|----:|-------------------:|---------------:|---------------:|---------------:|--------|"
         )
         for m in sc_metrics:
             lines.append(
@@ -886,26 +892,11 @@ def generate_markdown_report(all_metrics: List[ScenarioMetrics]) -> str:
     lines.append("## Metrics Definitions")
     lines.append("")
     lines.append("- **ISE**: Integral of Squared Error (lower is better)")
-    lines.append(
-        "- **Settling Time**: Time to reach and stay within 5 % band "
-        "(lower is better)"
-    )
-    lines.append(
-        "- **Peak Overshoot**: Maximum absolute deviation from setpoint "
-        "(lower is better)"
-    )
-    lines.append(
-        "- **Control Effort**: Integral of |u| over time "
-        "(lower = more efficient)"
-    )
-    lines.append(
-        "- **Wall-Clock**: Real execution time in seconds "
-        "(lower = faster)"
-    )
-    lines.append(
-        "- **Stable**: Whether the plant state remained bounded "
-        "during the scenario"
-    )
+    lines.append("- **Settling Time**: Time to reach and stay within 5 % band (lower is better)")
+    lines.append("- **Peak Overshoot**: Maximum absolute deviation from setpoint (lower is better)")
+    lines.append("- **Control Effort**: Integral of |u| over time (lower = more efficient)")
+    lines.append("- **Wall-Clock**: Real execution time in seconds (lower = faster)")
+    lines.append("- **Stable**: Whether the plant state remained bounded during the scenario")
     lines.append("")
 
     # Verdict
@@ -916,10 +907,7 @@ def generate_markdown_report(all_metrics: List[ScenarioMetrics]) -> str:
         stable_m = [m for m in sc_metrics if m.stable]
         if stable_m:
             best = min(stable_m, key=lambda m: m.ise)
-            lines.append(
-                f"- **{scenario}**: Best ISE = {best.controller} "
-                f"({best.ise:.3e})"
-            )
+            lines.append(f"- **{scenario}**: Best ISE = {best.controller} ({best.ise:.3e})")
         else:
             lines.append(f"- **{scenario}**: ALL CONTROLLERS UNSTABLE")
     lines.append("")
@@ -951,6 +939,7 @@ def generate_json_results(all_metrics: List[ScenarioMetrics]) -> Dict[str, Any]:
 # ===================================================================
 # Plotting
 # ===================================================================
+
 
 def save_overlay_plots(
     all_traces: Dict[Tuple[str, str], TraceData],
@@ -1067,6 +1056,7 @@ def save_overlay_plots(
 # Main
 # ===================================================================
 
+
 def main(output_dir: Optional[str] = None) -> None:
     """Run all (controller x scenario) pairs and output results."""
     if output_dir is None:
@@ -1095,16 +1085,15 @@ def main(output_dir: Optional[str] = None) -> None:
         n_steps = int(scenario_cfg["duration_s"] / scenario_cfg["dt_s"])
         print(f"--- Scenario: {scenario_name} ---")
         print(f"    {scenario_cfg['description']}")
-        print(
-            f"    Duration: {scenario_cfg['duration_s']:.1f} s, "
-            f"dt: {scenario_cfg['dt_s']:.0e} s, "
-            f"steps: {n_steps:,}"
-        )
+        print(f"    Duration: {scenario_cfg['duration_s']:.1f} s, dt: {scenario_cfg['dt_s']:.0e} s, steps: {n_steps:,}")
         print()
 
         for ctrl_name, ctrl in controllers.items():
             metrics, traces = run_scenario(
-                ctrl_name, ctrl, scenario_name, scenario_cfg,
+                ctrl_name,
+                ctrl,
+                scenario_name,
+                scenario_cfg,
             )
             all_metrics.append(metrics)
             all_traces[(ctrl_name, scenario_name)] = traces
@@ -1154,55 +1143,37 @@ def main(output_dir: Optional[str] = None) -> None:
     print("=" * 72)
 
     for scenario_name in SCENARIOS:
-        scenario_results = [
-            m for m in all_metrics if m.scenario == scenario_name
-        ]
+        scenario_results = [m for m in all_metrics if m.scenario == scenario_name]
         stable_results = [m for m in scenario_results if m.stable]
         if stable_results:
             best = min(stable_results, key=lambda m: m.ise)
-            print(
-                f"  {scenario_name:<16}: Best ISE = {best.controller} "
-                f"({best.ise:.3e})"
-            )
+            print(f"  {scenario_name:<16}: Best ISE = {best.controller} ({best.ise:.3e})")
         else:
             print(f"  {scenario_name:<16}: ALL CONTROLLERS UNSTABLE")
 
     # Overall winner by ISE wins
     wins: Dict[str, int] = {}
     for scenario_name in SCENARIOS:
-        stable_results = [
-            m
-            for m in all_metrics
-            if m.scenario == scenario_name and m.stable
-        ]
+        stable_results = [m for m in all_metrics if m.scenario == scenario_name and m.stable]
         if stable_results:
             best = min(stable_results, key=lambda m: m.ise)
             wins[best.controller] = wins.get(best.controller, 0) + 1
 
     if wins:
         overall_winner = max(wins, key=lambda k: wins[k])
-        print(
-            f"\n  Overall winner (by ISE wins): {overall_winner} "
-            f"({wins[overall_winner]}/{len(SCENARIOS)} scenarios)"
-        )
+        print(f"\n  Overall winner (by ISE wins): {overall_winner} ({wins[overall_winner]}/{len(SCENARIOS)} scenarios)")
     print("=" * 72)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=(
-            "Benchmark SNN vs MPC vs H-infinity vs PID on three "
-            "tokamak disturbance-rejection scenarios."
-        ),
+        description=("Benchmark SNN vs MPC vs H-infinity vs PID on three tokamak disturbance-rejection scenarios."),
     )
     parser.add_argument(
         "--output-dir",
         type=str,
         default=None,
-        help=(
-            "Directory for output artifacts (JSON, markdown, plots). "
-            "Defaults to <repo>/artifacts/"
-        ),
+        help=("Directory for output artifacts (JSON, markdown, plots). Defaults to <repo>/artifacts/"),
     )
     args = parser.parse_args()
     main(output_dir=args.output_dir)

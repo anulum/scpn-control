@@ -24,8 +24,10 @@ import numpy as np
 
 try:
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     _HAS_MPL = True
 except ImportError:
     _HAS_MPL = False
@@ -38,27 +40,39 @@ ROOT = Path(__file__).resolve().parents[1]
 # direction="range" means value outside [lo, hi] is bad.
 THRESHOLDS: dict[str, dict[str, Any]] = {
     "tau_rmse_pct": {
-        "warn": 25.0, "fail": 30.0, "direction": "lower_better",
+        "warn": 25.0,
+        "fail": 30.0,
+        "direction": "lower_better",
         "label": "tau_E MAE %",
     },
     "beta_n_rmse": {
-        "warn": 0.08, "fail": 0.10, "direction": "lower_better",
+        "warn": 0.08,
+        "fail": 0.10,
+        "direction": "lower_better",
         "label": "beta_N RMSE",
     },
     "sparc_axis_rmse_m": {
-        "warn": 0.08, "fail": 0.10, "direction": "lower_better",
+        "warn": 0.08,
+        "fail": 0.10,
+        "direction": "lower_better",
         "label": "SPARC axis RMSE (m)",
     },
     "fpr": {
-        "warn": 0.10, "fail": 0.15, "direction": "lower_better",
+        "warn": 0.10,
+        "fail": 0.15,
+        "direction": "lower_better",
         "label": "Disruption FPR",
     },
     "tbr": {
-        "lo": 1.00, "hi": 1.40, "direction": "range",
+        "lo": 1.00,
+        "hi": 1.40,
+        "direction": "range",
         "label": "TBR (corrected)",
     },
     "q_max": {
-        "warn": 12.0, "fail": 15.0, "direction": "lower_better",
+        "warn": 12.0,
+        "fail": 15.0,
+        "direction": "lower_better",
         "label": "Q peak",
     },
 }
@@ -84,6 +98,7 @@ def _flag(value: float, key: str) -> str:
 _FLAG_EMOJI = {"PASS": "[PASS]", "WARN": "[WARN]", "FAIL": "[FAIL]", "": ""}
 
 from scpn_control.core.eqdsk import GEqdsk, read_geqdsk
+
 try:
     from scpn_control.core.fusion_ignition_sim import FusionBurnPhysics
 except ImportError:
@@ -95,6 +110,7 @@ except ImportError:
 
 try:
     from validation.psi_pointwise_rmse import sparc_psi_rmse as _sparc_psi_rmse
+
     _HAS_PSI_RMSE = True
 except ImportError:
     _HAS_PSI_RMSE = False
@@ -127,9 +143,7 @@ def ipb98_tau_e(
 def rmse(y_true: list[float], y_pred: list[float]) -> float:
     if not y_true or len(y_true) != len(y_pred):
         raise ValueError("RMSE requires non-empty lists of equal length.")
-    return math.sqrt(
-        statistics.mean((float(t) - float(p)) ** 2 for t, p in zip(y_true, y_pred))
-    )
+    return math.sqrt(statistics.mean((float(t) - float(p)) ** 2 for t, p in zip(y_true, y_pred)))
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -210,9 +224,7 @@ def confinement_rmse_itpa(csv_path: Path) -> dict[str, Any]:
             "reason": "no rows in ITPA confinement dataset",
         }
 
-    tau_rel_abs_pct = [
-        abs(t - p) / t * 100.0 for t, p in zip(tau_true, tau_pred) if t > 0
-    ]
+    tau_rel_abs_pct = [abs(t - p) / t * 100.0 for t, p in zip(tau_true, tau_pred) if t > 0]
     return {
         "count": len(tau_true),
         "tau_rmse_s": rmse(tau_true, tau_pred),
@@ -307,8 +319,13 @@ def estimate_beta_n_from_burn(
         from scpn_control.core.fusion_ignition_sim import DynamicBurnModel
 
         model = DynamicBurnModel(
-            R0=r_m, a=a_m, B_t=b_t, I_p=i_p,
-            kappa=kappa, n_e20=n_e20, M_eff=2.5,
+            R0=r_m,
+            a=a_m,
+            B_t=b_t,
+            I_p=i_p,
+            kappa=kappa,
+            n_e20=n_e20,
+            M_eff=2.5,
         )
         result = model.simulate(P_aux_mw=p_aux, duration_s=100.0, dt_s=0.01)
 
@@ -370,9 +387,7 @@ def beta_rmse_iter_sparc(reference_dir: Path, validation_dir: Path) -> dict[str,
                 "scenario": ref["scenario"],
                 "beta_n_measured": beta_obs,
                 "beta_n_estimated": beta_est,
-                "relative_error_pct": ((beta_est - beta_obs) / beta_obs * 100.0)
-                if beta_obs
-                else 0.0,
+                "relative_error_pct": ((beta_est - beta_obs) / beta_obs * 100.0) if beta_obs else 0.0,
                 "model_q": float(metrics["Q"]),
                 "model_p_fusion_mw": float(metrics["P_fusion_MW"]),
             }
@@ -481,12 +496,9 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     sparc_axis = report["sparc_axis"]
 
     flag_rows: list[tuple[str, float, str, str]] = [
-        ("tau_E MAE %", itpa["tau_mae_rel_pct"], "tau_rmse_pct",
-         f"{itpa['tau_mae_rel_pct']:.2f}%"),
-        ("beta_N RMSE", beta["beta_n_rmse"], "beta_n_rmse",
-         f"{beta['beta_n_rmse']:.4f}"),
-        ("SPARC axis RMSE (m)", sparc_axis["axis_rmse_m"], "sparc_axis_rmse_m",
-         f"{sparc_axis['axis_rmse_m']:.6f}"),
+        ("tau_E MAE %", itpa["tau_mae_rel_pct"], "tau_rmse_pct", f"{itpa['tau_mae_rel_pct']:.2f}%"),
+        ("beta_N RMSE", beta["beta_n_rmse"], "beta_n_rmse", f"{beta['beta_n_rmse']:.4f}"),
+        ("SPARC axis RMSE (m)", sparc_axis["axis_rmse_m"], "sparc_axis_rmse_m", f"{sparc_axis['axis_rmse_m']:.6f}"),
     ]
 
     lines.append("## Auto-Flag Summary")
@@ -505,8 +517,7 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     lines.append(f"- Samples: `{itpa['count']}`")
     lines.append(f"- `tau_E` RMSE: `{itpa['tau_rmse_s']:.4f} s`")
     lines.append(
-        f"- `tau_E` mean absolute relative error: `{itpa['tau_mae_rel_pct']:.2f}%` "
-        f"**{_FLAG_EMOJI[tau_flag]}**"
+        f"- `tau_E` mean absolute relative error: `{itpa['tau_mae_rel_pct']:.2f}%` **{_FLAG_EMOJI[tau_flag]}**"
     )
     lines.append(f"- `H98(y,2)` RMSE: `{itpa['h98_rmse']:.4f}`")
     lines.append("")
@@ -528,10 +539,7 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     lines.append("## Beta_N RMSE (ITER + SPARC references)")
     lines.append("")
     lines.append(f"- Samples: `{beta['count']}`")
-    lines.append(
-        f"- `beta_N` RMSE: `{beta['beta_n_rmse']:.4f}` "
-        f"**{_FLAG_EMOJI[beta_flag]}**"
-    )
+    lines.append(f"- `beta_N` RMSE: `{beta['beta_n_rmse']:.4f}` **{_FLAG_EMOJI[beta_flag]}**")
     lines.append("")
 
     if plot_dir:
@@ -543,10 +551,7 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     lines.append("## SPARC GEQDSK Axis Error")
     lines.append("")
     lines.append(f"- Files: `{sparc_axis['count']}`")
-    lines.append(
-        f"- Axis RMSE: `{sparc_axis['axis_rmse_m']:.6f} m` "
-        f"**{_FLAG_EMOJI[axis_flag]}**"
-    )
+    lines.append(f"- Axis RMSE: `{sparc_axis['axis_rmse_m']:.6f} m` **{_FLAG_EMOJI[axis_flag]}**")
     lines.append("")
 
     # ── Psi RMSE ──────────────────────────────────────────────────────
@@ -566,13 +571,9 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     if isinstance(fwd, dict):
         lines.append("## Forward Diagnostics RMSE")
         lines.append("")
-        lines.append(
-            f"- Interferometer channels: `{fwd['count_interferometer_channels']}`"
-        )
+        lines.append(f"- Interferometer channels: `{fwd['count_interferometer_channels']}`")
         lines.append(f"- Interferometer phase RMSE: `{fwd['phase_rmse_rad']:.6e} rad`")
-        lines.append(
-            f"- Neutron-count relative error: `{fwd['neutron_rate_rel_error_pct']:.3f}%`"
-        )
+        lines.append(f"- Neutron-count relative error: `{fwd['neutron_rate_rel_error_pct']:.3f}%`")
         if "thomson_voltage_rmse_v" in fwd:
             lines.append(f"- Thomson channels: `{fwd.get('count_thomson_channels', 0)}`")
             lines.append(f"- Thomson voltage RMSE: `{fwd['thomson_voltage_rmse_v']:.6e} V`")
@@ -630,8 +631,7 @@ def render_plots(report: dict[str, Any], output_dir: Path) -> list[Path]:
         labels = [r["scenario"] for r in beta["rows"]]
         ax.scatter(bm, bp, s=80, edgecolors="black", linewidths=0.5, zorder=3)
         for x, y, lbl in zip(bm, bp, labels):
-            ax.annotate(lbl, (x, y), textcoords="offset points",
-                        xytext=(6, 6), fontsize=8)
+            ax.annotate(lbl, (x, y), textcoords="offset points", xytext=(6, 6), fontsize=8)
         lo = min(min(bm), min(bp)) * 0.7
         hi = max(max(bm), max(bp)) * 1.3
         ax.plot([lo, hi], [lo, hi], "k--", alpha=0.4, label="y = x")

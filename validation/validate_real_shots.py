@@ -36,18 +36,19 @@ from scpn_control.core.scaling_laws import (
 # ── Thresholds ────────────────────────────────────────────────────────
 
 THRESHOLDS = {
-    "psi_nrmse_max": 5.0,                 # GS residual / psi_range < 5.0 (self-consistency)
-    "psi_pass_fraction": 0.60,            # >= 60% of shots
-    "q95_error_max": 0.5,                 # |q95_pred - q95_ref| < 0.5
-    "q95_pass_fraction": 0.60,            # >= 60% of shots
-    "tau_e_2sigma_fraction": 0.80,        # >= 80% of shots within 2-sigma
-    "disruption_recall_min": 0.60,        # > 60% recall
-    "disruption_fpr_max": 0.40,           # FPR <= 40% for full PASS
-    "disruption_detection_ms": 50.0,      # within 50ms of TQ
+    "psi_nrmse_max": 5.0,  # GS residual / psi_range < 5.0 (self-consistency)
+    "psi_pass_fraction": 0.60,  # >= 60% of shots
+    "q95_error_max": 0.5,  # |q95_pred - q95_ref| < 0.5
+    "q95_pass_fraction": 0.60,  # >= 60% of shots
+    "tau_e_2sigma_fraction": 0.80,  # >= 80% of shots within 2-sigma
+    "disruption_recall_min": 0.60,  # > 60% recall
+    "disruption_fpr_max": 0.40,  # FPR <= 40% for full PASS
+    "disruption_detection_ms": 50.0,  # within 50ms of TQ
 }
 
 
 # ── Lane 1: Equilibrium Validation ───────────────────────────────────
+
 
 def nrmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """Normalised RMSE: RMSE / range(y_true)."""
@@ -105,23 +106,27 @@ def validate_equilibrium(ref_dirs: list[Path]) -> dict[str, Any]:
                 # A real solver comparison would replace this with solver output
                 psi_nrmse = gs_residual_norm / max(psi_range, 1e-12)
 
-                results.append({
-                    "file": geqdsk_path.name,
-                    "machine": _guess_machine(geqdsk_path),
-                    "q95": round(q95, 2),
-                    "psi_nrmse": round(psi_nrmse, 6),
-                    "gs_residual_norm": round(gs_residual_norm, 6),
-                    "psi_range": round(psi_range, 4),
-                    "q95_pass": True,  # Self-reference, always passes
-                    "psi_pass": bool(psi_nrmse < THRESHOLDS["psi_nrmse_max"]),
-                })
+                results.append(
+                    {
+                        "file": geqdsk_path.name,
+                        "machine": _guess_machine(geqdsk_path),
+                        "q95": round(q95, 2),
+                        "psi_nrmse": round(psi_nrmse, 6),
+                        "gs_residual_norm": round(gs_residual_norm, 6),
+                        "psi_range": round(psi_range, 4),
+                        "q95_pass": True,  # Self-reference, always passes
+                        "psi_pass": bool(psi_nrmse < THRESHOLDS["psi_nrmse_max"]),
+                    }
+                )
             except Exception as e:
-                results.append({
-                    "file": geqdsk_path.name,
-                    "error": str(e),
-                    "psi_pass": False,
-                    "q95_pass": False,
-                })
+                results.append(
+                    {
+                        "file": geqdsk_path.name,
+                        "error": str(e),
+                        "psi_pass": False,
+                        "q95_pass": False,
+                    }
+                )
 
     n_total = len(results)
     n_psi_pass = sum(1 for r in results if r.get("psi_pass", False))
@@ -137,8 +142,7 @@ def validate_equilibrium(ref_dirs: list[Path]) -> dict[str, Any]:
         "psi_pass_fraction": round(psi_pass_frac, 2),
         "q95_pass_fraction": round(q95_pass_frac, 2),
         "passes": bool(
-            psi_pass_frac >= THRESHOLDS["psi_pass_fraction"]
-            and q95_pass_frac >= THRESHOLDS["q95_pass_fraction"]
+            psi_pass_frac >= THRESHOLDS["psi_pass_fraction"] and q95_pass_frac >= THRESHOLDS["q95_pass_fraction"]
         ),
         "results": results,
     }
@@ -156,6 +160,7 @@ def _guess_machine(path: Path) -> str:
 
 
 # ── Lane 2: Transport Validation ─────────────────────────────────────
+
 
 def validate_transport(itpa_csv: Path) -> dict[str, Any]:
     """Validate IPB98(y,2) predictions against ITPA H-mode database."""
@@ -182,11 +187,25 @@ def validate_transport(itpa_csv: Path) -> dict[str, Any]:
             epsilon = a / R
 
             tau_pred = ipb98y2_tau_e(
-                Ip, BT, ne19, Ploss, R, kappa, epsilon, M,
+                Ip,
+                BT,
+                ne19,
+                Ploss,
+                R,
+                kappa,
+                epsilon,
+                M,
                 coefficients=coefficients,
             )
             tau_unc, sigma = ipb98y2_with_uncertainty(
-                Ip, BT, ne19, Ploss, R, kappa, epsilon, M,
+                Ip,
+                BT,
+                ne19,
+                Ploss,
+                R,
+                kappa,
+                epsilon,
+                M,
                 coefficients=coefficients,
             )
 
@@ -195,15 +214,17 @@ def validate_transport(itpa_csv: Path) -> dict[str, Any]:
                 within_2sigma += 1
 
             rel_error = (tau_pred - tau_meas) / max(tau_meas, 1e-9)
-            results.append({
-                "machine": row["machine"],
-                "shot": row["shot"],
-                "tau_measured_s": tau_meas,
-                "tau_predicted_s": round(tau_pred, 4),
-                "sigma_s": round(sigma, 4),
-                "relative_error": round(rel_error, 4),
-                "within_2sigma": in_2sig,
-            })
+            results.append(
+                {
+                    "machine": row["machine"],
+                    "shot": row["shot"],
+                    "tau_measured_s": tau_meas,
+                    "tau_predicted_s": round(tau_pred, 4),
+                    "sigma_s": round(sigma, 4),
+                    "relative_error": round(rel_error, 4),
+                    "within_2sigma": in_2sig,
+                }
+            )
             tau_measured.append(tau_meas)
             tau_predicted.append(tau_pred)
 
@@ -212,6 +233,7 @@ def validate_transport(itpa_csv: Path) -> dict[str, Any]:
         return {"n_shots": 0, "passes": False, "error": "No ITPA data"}
 
     import math
+
     rmse_val = math.sqrt(sum((m - p) ** 2 for m, p in zip(tau_measured, tau_predicted)) / n)
     mean_meas = sum(tau_measured) / n
     rmse_rel = rmse_val / max(mean_meas, 1e-9)
@@ -228,6 +250,7 @@ def validate_transport(itpa_csv: Path) -> dict[str, Any]:
 
 
 # ── Lane 3: Disruption Validation ────────────────────────────────────
+
 
 def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
     """Validate disruption predictor on reference disruption shots."""
@@ -254,10 +277,12 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
         signal = np.asarray(data.get("dBdt_gauss_per_s", data.get("n1_amp", [])))
 
         if signal.size == 0:
-            results.append({
-                "file": npz_path.name,
-                "error": "No signal data",
-            })
+            results.append(
+                {
+                    "file": npz_path.name,
+                    "error": "No signal data",
+                }
+            )
             continue
 
         # Run predictor on sliding windows
@@ -266,7 +291,7 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
         detection_idx = -1
 
         for t in range(window_size, signal.size):
-            window = signal[t - window_size:t]
+            window = signal[t - window_size : t]
             # Build toroidal observables from available data
             n1 = float(data["n1_amp"][t]) if "n1_amp" in data else 0.1
             n2 = float(data["n2_amp"][t]) if "n2_amp" in data else 0.05
@@ -288,14 +313,16 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
             if detected:
                 # Time between detection and actual disruption
                 time_arr = data.get("time_s", None)
-                if time_arr is not None and hasattr(time_arr, "__len__") and len(time_arr) > max(disruption_time_idx, detection_idx):
+                if (
+                    time_arr is not None
+                    and hasattr(time_arr, "__len__")
+                    and len(time_arr) > max(disruption_time_idx, detection_idx)
+                ):
                     dt_arr = np.asarray(time_arr, dtype=np.float64)
                     detection_ms = float((dt_arr[disruption_time_idx] - dt_arr[detection_idx]) * 1000)
                 else:
                     detection_ms = float(disruption_time_idx - detection_idx) * 3.0  # ~3ms per index at 1kHz
-                within_threshold = bool(
-                    detection_ms >= 0 and detection_ms <= THRESHOLDS["disruption_detection_ms"]
-                )
+                within_threshold = bool(detection_ms >= 0 and detection_ms <= THRESHOLDS["disruption_detection_ms"])
                 true_positives += 1
             else:
                 false_negatives += 1
@@ -305,14 +332,16 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
             else:
                 true_negatives += 1
 
-        results.append({
-            "file": npz_path.name,
-            "is_disruption": is_disruption,
-            "detected": detected,
-            "detection_idx": detection_idx,
-            "detection_lead_ms": round(detection_ms, 1),
-            "within_threshold": within_threshold,
-        })
+        results.append(
+            {
+                "file": npz_path.name,
+                "is_disruption": is_disruption,
+                "detected": detected,
+                "detection_idx": detection_idx,
+                "detection_lead_ms": round(detection_ms, 1),
+                "within_threshold": within_threshold,
+            }
+        )
 
     n_disruptions = true_positives + false_negatives
     recall = true_positives / max(n_disruptions, 1)
@@ -331,14 +360,8 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
         "false_positive_rate": round(fpr, 2),
         "recall_ok": bool(recall >= THRESHOLDS["disruption_recall_min"]),
         "fpr_ok": bool(fpr <= THRESHOLDS["disruption_fpr_max"]),
-        "passes": bool(
-            recall >= THRESHOLDS["disruption_recall_min"]
-            and fpr <= THRESHOLDS["disruption_fpr_max"]
-        ),
-        "partial_pass": bool(
-            recall >= THRESHOLDS["disruption_recall_min"]
-            and fpr > THRESHOLDS["disruption_fpr_max"]
-        ),
+        "passes": bool(recall >= THRESHOLDS["disruption_recall_min"] and fpr <= THRESHOLDS["disruption_fpr_max"]),
+        "partial_pass": bool(recall >= THRESHOLDS["disruption_recall_min"] and fpr > THRESHOLDS["disruption_fpr_max"]),
         "fpr_note": (
             f"FPR {fpr:.0%} exceeds operational threshold "
             f"({THRESHOLDS['disruption_fpr_max']:.0%}); tuning planned for v2.1"
@@ -350,6 +373,7 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
 
 
 # ── Output ────────────────────────────────────────────────────────────
+
 
 def render_markdown(report: dict[str, Any]) -> str:
     """Render validation report as markdown."""
@@ -384,8 +408,16 @@ def render_markdown(report: dict[str, Any]) -> str:
     tr = report["transport"]
     lines.append("## 2. Transport Validation (ITPA)")
     lines.append(f"- Shots: {tr['n_shots']}")
-    lines.append(f"- RMSE: {tr.get('rmse_s', 'N/A')} s ({tr.get('rmse_relative', 'N/A'):.1%} relative)" if isinstance(tr.get('rmse_relative'), float) else f"- RMSE: N/A")
-    lines.append(f"- Within 2-sigma: {tr.get('within_2sigma_fraction', 'N/A'):.0%}" if isinstance(tr.get('within_2sigma_fraction'), float) else f"- Within 2-sigma: N/A")
+    lines.append(
+        f"- RMSE: {tr.get('rmse_s', 'N/A')} s ({tr.get('rmse_relative', 'N/A'):.1%} relative)"
+        if isinstance(tr.get("rmse_relative"), float)
+        else "- RMSE: N/A"
+    )
+    lines.append(
+        f"- Within 2-sigma: {tr.get('within_2sigma_fraction', 'N/A'):.0%}"
+        if isinstance(tr.get("within_2sigma_fraction"), float)
+        else "- Within 2-sigma: N/A"
+    )
     lines.append(f"- **Status**: {'PASS' if tr['passes'] else 'FAIL'}")
     lines.append("")
 
@@ -411,16 +443,25 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append("")
     lines.append("| Lane | Status | Key Metric |")
     lines.append("|------|--------|------------|")
-    lines.append(f"| Equilibrium | {'PASS' if eq['passes'] else 'FAIL'} | Psi NRMSE pass {eq['psi_pass_fraction']:.0%} |")
-    tr_metric = f"2-sigma {tr.get('within_2sigma_fraction', 0):.0%}" if isinstance(tr.get('within_2sigma_fraction'), float) else "N/A"
+    lines.append(
+        f"| Equilibrium | {'PASS' if eq['passes'] else 'FAIL'} | Psi NRMSE pass {eq['psi_pass_fraction']:.0%} |"
+    )
+    tr_metric = (
+        f"2-sigma {tr.get('within_2sigma_fraction', 0):.0%}"
+        if isinstance(tr.get("within_2sigma_fraction"), float)
+        else "N/A"
+    )
     lines.append(f"| Transport | {'PASS' if tr['passes'] else 'FAIL'} | {tr_metric} |")
-    lines.append(f"| Disruption | {dis_status} | Recall {dis.get('recall', 0):.0%}, FPR {dis.get('false_positive_rate', 0):.0%} |")
+    lines.append(
+        f"| Disruption | {dis_status} | Recall {dis.get('recall', 0):.0%}, FPR {dis.get('false_positive_rate', 0):.0%} |"
+    )
     lines.append("")
 
     return "\n".join(lines)
 
 
 # ── Main ──────────────────────────────────────────────────────────────
+
 
 def main(
     output_json: Path | None = None,
@@ -479,7 +520,9 @@ def main(
             status = "PASS"
         else:
             status = "FAIL"
-        print(f"  {status}: Recall={dis_result.get('recall', 0):.0%}, FPR={dis_result.get('false_positive_rate', 0):.0%}")
+        print(
+            f"  {status}: Recall={dis_result.get('recall', 0):.0%}, FPR={dis_result.get('false_positive_rate', 0):.0%}"
+        )
         if dis_result.get("fpr_note"):
             print(f"  NOTE: {dis_result['fpr_note']}")
     else:

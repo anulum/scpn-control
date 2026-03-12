@@ -273,7 +273,7 @@ class TestVacuumField:
         # PF1 at (3, 4), PF2 at (5, -4).
         # Grid R in [2, 6], Z in [-3, 3].
         # Point (3, 3) is closer to PF1 than (3, 0)
-        assert abs(psi_vac[-1, 4]) > abs(psi_vac[len(kernel.Z)//2, 4])
+        assert abs(psi_vac[-1, 4]) > abs(psi_vac[len(kernel.Z) // 2, 4])
 
     def test_no_coils_gives_zero_vac(self, tmp_path):
         cfg = {
@@ -390,7 +390,7 @@ class TestSourceTerm:
         J = kernel.update_plasma_source_nonlinear(Psi_axis=psi_ax, Psi_boundary=0.0)
         I_total = float(np.sum(J)) * kernel.dR * kernel.dZ
         I_target = kernel.cfg["physics"]["plasma_current_target"]
-        assert abs(I_total - I_target) < 0.01 * abs(I_target) # Tighten to 1%
+        assert abs(I_total - I_target) < 0.01 * abs(I_target)  # Tighten to 1%
 
     def test_hmode_profile(self, tmp_path):
         cfg = _write_config(tmp_path / "hmode.json", profile_mode="h-mode")

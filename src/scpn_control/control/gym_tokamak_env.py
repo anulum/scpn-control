@@ -139,7 +139,7 @@ class TokamakEnv:
 
         # Confinement Time: Simplified IPB98(y,2) scaling
         # tau_E ~ Ip^0.93 * P^-0.69. Calibrated to ~2.0s for ITER at 15MA, 50MW.
-        tau_E = 2.0 * (Ip / 15.0)**0.93 * (max(self.P_aux, 1.0) / 50.0)**-0.69
+        tau_E = 2.0 * (Ip / 15.0) ** 0.93 * (max(self.P_aux, 1.0) / 50.0) ** -0.69
 
         # Losses: P_loss = W / tau_E [MW]
         P_loss = W_th / max(tau_E, 0.1)
@@ -156,7 +156,7 @@ class TokamakEnv:
 
         # Update T_ax and T_edge (simple profile relaxation)
         T_avg += dT_avg_dt * self.dt
-        T_ax = 1.8 * T_avg # Maintain profile ratio
+        T_ax = 1.8 * T_avg  # Maintain profile ratio
         T_edge = 0.2 * T_avg
 
         # beta_N = beta_t * a * B_T / Ip (Troyon, Phys. Rev. Lett. 53, 1984)

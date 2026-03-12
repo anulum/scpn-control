@@ -44,7 +44,6 @@ sys.path.insert(0, str(repo_root / "src"))
 from scpn_control.control.tokamak_flight_sim import IsoFluxController
 from scpn_control.control.h_infinity_controller import (
     get_flight_sim_controller,
-    get_radial_robust_controller,
 )
 
 # Optional controller imports
@@ -53,19 +52,21 @@ _snn_available = False
 
 try:
     from scpn_control.control.fusion_sota_mpc import (
-        ModelPredictiveController,
-        NeuralSurrogate,
+        ModelPredictiveController,  # noqa: F401
+        NeuralSurrogate,  # noqa: F401
     )
+
     _mpc_available = True
 except ImportError:
     pass
 
 try:
     from scpn_control.control.nengo_snn_wrapper import (
-        NengoSNNController,
-        NengoSNNConfig,
+        NengoSNNController,  # noqa: F401
+        NengoSNNConfig,  # noqa: F401
         nengo_available,
     )
+
     _snn_available = nengo_available()
 except ImportError:
     pass
@@ -74,6 +75,7 @@ except ImportError:
 @dataclass
 class EpisodeResult:
     """Metrics from a single controller episode."""
+
     mean_abs_r_error: float
     mean_abs_z_error: float
     reward: float
@@ -86,6 +88,7 @@ class EpisodeResult:
 @dataclass
 class ControllerMetrics:
     """Aggregate metrics for a controller across episodes."""
+
     name: str
     n_episodes: int = 0
     mean_reward: float = 0.0
@@ -112,8 +115,10 @@ def _run_pid_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResult
     actuator_effort = result.get("mean_abs_radial_actuator_lag", 0.0)
     disrupted = r_err > 0.5 or z_err > 0.5
     return EpisodeResult(
-        mean_abs_r_error=r_err, mean_abs_z_error=z_err,
-        reward=-(r_err + z_err), latency_us=per_step_us,
+        mean_abs_r_error=r_err,
+        mean_abs_z_error=z_err,
+        reward=-(r_err + z_err),
+        latency_us=per_step_us,
         disrupted=disrupted,
         t_disruption=float(shot_duration) if not disrupted else float(shot_duration) * 0.5,
         energy_efficiency=1.0 / (1.0 + actuator_effort),
@@ -148,8 +153,10 @@ def _run_hinf_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResul
     actuator_effort = result.get("mean_abs_radial_actuator_lag", 0.0)
     disrupted = r_err > 0.5 or z_err > 0.5
     return EpisodeResult(
-        mean_abs_r_error=r_err, mean_abs_z_error=z_err,
-        reward=-(r_err + z_err), latency_us=per_step_us,
+        mean_abs_r_error=r_err,
+        mean_abs_z_error=z_err,
+        reward=-(r_err + z_err),
+        latency_us=per_step_us,
         disrupted=disrupted,
         t_disruption=float(shot_duration) if not disrupted else float(shot_duration) * 0.5,
         energy_efficiency=1.0 / (1.0 + actuator_effort),
@@ -188,9 +195,9 @@ def run_campaign(
     if config_path is None:
         config_path = repo_root / "iter_config.json"
 
-    print(f"=== 1000-Shot Stress-Test Campaign ===")
+    print("=== 1000-Shot Stress-Test Campaign ===")
     print(f"Episodes: {n_episodes} | Shot duration: {shot_duration}s")
-    print(f"Noise: {noise_level*100:.0f}% | Delay: {delay_ms:.0f}ms")
+    print(f"Noise: {noise_level * 100:.0f}% | Delay: {delay_ms:.0f}ms")
     print(f"Controllers: {', '.join(CONTROLLERS.keys())}")
 
     results: dict[str, ControllerMetrics] = {}
@@ -216,21 +223,13 @@ def run_campaign(
             metrics.n_episodes = len(metrics.episodes)
             metrics.mean_reward = float(np.mean(rewards))
             metrics.std_reward = float(np.std(rewards))
-            metrics.mean_r_error = float(
-                np.mean([e.mean_abs_r_error for e in metrics.episodes])
-            )
+            metrics.mean_r_error = float(np.mean([e.mean_abs_r_error for e in metrics.episodes]))
             metrics.p50_latency_us = float(np.percentile(latencies, 50))
             metrics.p95_latency_us = float(np.percentile(latencies, 95))
             metrics.p99_latency_us = float(np.percentile(latencies, 99))
-            metrics.disruption_rate = float(
-                np.mean([e.disrupted for e in metrics.episodes])
-            )
-            metrics.mean_def = float(
-                np.mean([e.t_disruption / shot_duration for e in metrics.episodes])
-            )
-            metrics.mean_energy_efficiency = float(
-                np.mean([e.energy_efficiency for e in metrics.episodes])
-            )
+            metrics.disruption_rate = float(np.mean([e.disrupted for e in metrics.episodes]))
+            metrics.mean_def = float(np.mean([e.t_disruption / shot_duration for e in metrics.episodes]))
+            metrics.mean_energy_efficiency = float(np.mean([e.energy_efficiency for e in metrics.episodes]))
         results[ctrl_name] = metrics
 
     return results
@@ -255,9 +254,7 @@ def generate_summary_table(results: dict[str, ControllerMetrics]) -> str:
     return "\n".join(lines)
 
 
-def save_results_json(
-    results: dict[str, ControllerMetrics], path: Path
-) -> None:
+def save_results_json(results: dict[str, ControllerMetrics], path: Path) -> None:
     """Persist campaign results to JSON."""
     data = {}
     for name, m in results.items():
@@ -279,19 +276,22 @@ def save_results_json(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="1000-Shot Stress-Test Campaign"
-    )
+    parser = argparse.ArgumentParser(description="1000-Shot Stress-Test Campaign")
     parser.add_argument(
-        "--episodes", type=int, default=1000,
+        "--episodes",
+        type=int,
+        default=1000,
         help="Number of episodes per controller (default: 1000)",
     )
     parser.add_argument(
-        "--quick", action="store_true",
+        "--quick",
+        action="store_true",
         help="Quick mode: 10 episodes for CI validation",
     )
     parser.add_argument(
-        "--output", type=str, default=None,
+        "--output",
+        type=str,
+        default=None,
         help="Path to save JSON results",
     )
     args = parser.parse_args()

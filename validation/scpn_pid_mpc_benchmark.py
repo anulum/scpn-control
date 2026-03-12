@@ -100,9 +100,7 @@ def _build_scpn_controller(
         "sc_bitflip_rate": 0.0,
     }
     if runtime_profile_norm == "traceable":
-        controller_kwargs.update(
-            FusionCompiler.traceable_runtime_kwargs(runtime_backend=runtime_backend)
-        )
+        controller_kwargs.update(FusionCompiler.traceable_runtime_kwargs(runtime_backend=runtime_backend))
     else:
         controller_kwargs.update(
             {

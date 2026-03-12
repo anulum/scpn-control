@@ -47,10 +47,10 @@ def test_sensor_thermal_lag():
     # Run twin for a few steps with a massive lag
     summary = run_digital_twin(
         time_steps=10,
-        sensor_thermal_lag_tau=1.0, # 1 second lag
-        dt=0.001, # 1ms steps
+        sensor_thermal_lag_tau=1.0,  # 1 second lag
+        dt=0.001,  # 1ms steps
         verbose=False,
-        save_plot=False
+        save_plot=False,
     )
 
     # With 1s lag and 10ms total time, the sensor should barely move from 0
@@ -64,7 +64,7 @@ def test_sensor_thermal_lag():
 def test_digital_twin_brem_non_negative():
     """Verify temperature stays non-negative with Bremsstrahlung."""
     topo = TokamakTopology()
-    plasma = Plasma2D(topo, n_e=5e20, Z_eff=10.0) # extreme radiation
+    plasma = Plasma2D(topo, n_e=5e20, Z_eff=10.0)  # extreme radiation
     plasma.T.fill(0.1)
     for _ in range(10):
         plasma.step(0.0)

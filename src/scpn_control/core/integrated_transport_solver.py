@@ -1085,7 +1085,7 @@ class TransportSolver(FusionKernel):
             self._last_numerical_recovery_count += n_te_new
         else:
             self.Te = self.Ti.copy()
-            net_source_e = net_source_i # simplified legacy balance
+            net_source_e = net_source_i  # simplified legacy balance
 
         # ── Energy conservation diagnostic (Improved) ──
         dV = self._rho_volume_element()
@@ -1109,8 +1109,7 @@ class TransportSolver(FusionKernel):
 
         if enforce_conservation and self._last_conservation_error > 0.01:
             raise PhysicsError(
-                f"Energy conservation violated: relative error "
-                f"{self._last_conservation_error:.4e} > 1% threshold."
+                f"Energy conservation violated: relative error {self._last_conservation_error:.4e} > 1% threshold."
             )
 
         # No auxiliary heating safety (Legacy logic)
