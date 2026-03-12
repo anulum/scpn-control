@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -52,8 +53,8 @@ ACTUATOR_SLEW_LIMIT_SWEEP = (1.0e3, 1.0e2, 1.0e1, 1.0, 0.1)
 COIL_KICK_SCALE_SWEEP = (0.0, 0.5, 1.0, 2.0, 4.0, 8.0)
 
 
-def _write_tracking_config(path: Path, *, tracking_cfg: dict[str, Any] | None = None) -> Path:
-    cfg: dict[str, Any] = {
+def _base_tracking_config() -> dict[str, Any]:
+    return {
         "reactor_name": "Free-Boundary-Acceptance",
         "grid_resolution": [12, 12],
         "dimensions": {"R_min": 2.0, "R_max": 6.0, "Z_min": -3.0, "Z_max": 3.0},
@@ -75,11 +76,13 @@ def _write_tracking_config(path: Path, *, tracking_cfg: dict[str, Any] | None = 
             "objective_tolerances": {"shape_rms": 0.25, "shape_max_abs": 0.35},
         },
     }
-    if tracking_cfg is not None:
-        cfg["free_boundary_tracking"] = tracking_cfg
-    path.write_text(json.dumps(cfg), encoding="utf-8")
 
-    kernel = FusionKernel(path)
+
+def _build_tracking_template(tmp_path: Path) -> dict[str, Any]:
+    cfg = _base_tracking_config()
+    template_path = tmp_path / "template.json"
+    template_path.write_text(json.dumps(cfg), encoding="utf-8")
+    kernel = FusionKernel(template_path)
     coils = kernel.build_coilset_from_config()
     kernel.solve_free_boundary(
         coils,
@@ -89,6 +92,18 @@ def _write_tracking_config(path: Path, *, tracking_cfg: dict[str, Any] | None = 
     )
     flux_targets = kernel._sample_flux_at_points(coils.target_flux_points)
     cfg["free_boundary"]["target_flux_values"] = [float(v) for v in flux_targets]
+    return cfg
+
+
+def _write_tracking_config(
+    path: Path,
+    *,
+    template_cfg: dict[str, Any],
+    tracking_cfg: dict[str, Any] | None = None,
+) -> Path:
+    cfg = deepcopy(template_cfg)
+    if tracking_cfg is not None:
+        cfg["free_boundary_tracking"] = tracking_cfg
     path.write_text(json.dumps(cfg), encoding="utf-8")
     return path
 
@@ -246,11 +261,12 @@ def _is_monotone_non_increasing(values: list[float], *, atol: float = 1.0e-12) -
     return all(float(b) <= float(a) + atol for a, b in zip(values[:-1], values[1:]))
 
 
-def _run_measurement_sweep(tmp_path: Path) -> dict[str, Any]:
+def _run_measurement_sweep(tmp_path: Path, *, template_cfg: dict[str, Any]) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for scale in MEASUREMENT_SWEEP_SCALES:
         cfg = _write_tracking_config(
             tmp_path / f"measurement_sweep_{scale:.1f}.json",
+            template_cfg=template_cfg,
             tracking_cfg=_measurement_tracking_cfg(scale, corrected=False),
         )
         summary = _run_measurement_fault(cfg)
@@ -281,11 +297,12 @@ def _run_measurement_sweep(tmp_path: Path) -> dict[str, Any]:
     }
 
 
-def _run_corrected_measurement_sweep(tmp_path: Path) -> dict[str, Any]:
+def _run_corrected_measurement_sweep(tmp_path: Path, *, template_cfg: dict[str, Any]) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for scale in MEASUREMENT_SWEEP_SCALES:
         cfg = _write_tracking_config(
             tmp_path / f"measurement_corrected_sweep_{scale:.1f}.json",
+            template_cfg=template_cfg,
             tracking_cfg=_measurement_tracking_cfg(scale, corrected=True),
         )
         summary = _run_measurement_fault(cfg)
@@ -320,10 +337,13 @@ def _run_corrected_measurement_sweep(tmp_path: Path) -> dict[str, Any]:
     }
 
 
-def _run_actuator_slew_sweep(tmp_path: Path) -> dict[str, Any]:
+def _run_actuator_slew_sweep(tmp_path: Path, *, template_cfg: dict[str, Any]) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for slew_limit in ACTUATOR_SLEW_LIMIT_SWEEP:
-        cfg = _write_tracking_config(tmp_path / f"actuator_slew_{slew_limit}.json")
+        cfg = _write_tracking_config(
+            tmp_path / f"actuator_slew_{slew_limit}.json",
+            template_cfg=template_cfg,
+        )
         summary = _run_actuator_limited_kick(cfg, coil_slew_limits=float(slew_limit))
         entries.append(
             {
@@ -349,10 +369,13 @@ def _run_actuator_slew_sweep(tmp_path: Path) -> dict[str, Any]:
     }
 
 
-def _run_coil_kick_scale_sweep(tmp_path: Path) -> dict[str, Any]:
+def _run_coil_kick_scale_sweep(tmp_path: Path, *, template_cfg: dict[str, Any]) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for scale in COIL_KICK_SCALE_SWEEP:
-        cfg = _write_tracking_config(tmp_path / f"coil_kick_scale_{scale:.1f}.json")
+        cfg = _write_tracking_config(
+            tmp_path / f"coil_kick_scale_{scale:.1f}.json",
+            template_cfg=template_cfg,
+        )
         summary = run_free_boundary_tracking(
             config_file=str(cfg),
             shot_steps=4,
@@ -390,14 +413,23 @@ def _run_coil_kick_scale_sweep(tmp_path: Path) -> dict[str, Any]:
 def run_campaign() -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="scpn_free_boundary_acceptance_") as tmp_dir:
         tmp_path = Path(tmp_dir)
-        nominal_cfg = _write_tracking_config(tmp_path / "nominal.json")
+        template_cfg = _build_tracking_template(tmp_path)
+
+        nominal_cfg = _write_tracking_config(
+            tmp_path / "nominal.json",
+            template_cfg=template_cfg,
+        )
         nominal = _run_nominal(nominal_cfg)
 
-        kick_cfg = _write_tracking_config(tmp_path / "kick.json")
+        kick_cfg = _write_tracking_config(
+            tmp_path / "kick.json",
+            template_cfg=template_cfg,
+        )
         kick = _run_kick(kick_cfg)
 
         measurement_cfg = _write_tracking_config(
             tmp_path / "measurement.json",
+            template_cfg=template_cfg,
             tracking_cfg={
                 "measurement_bias": {"shape_flux": [0.03, -0.02]},
                 "measurement_drift_per_step": {"shape_flux": [0.004, -0.003]},
@@ -407,6 +439,7 @@ def run_campaign() -> dict[str, Any]:
 
         corrected_cfg = _write_tracking_config(
             tmp_path / "measurement_corrected.json",
+            template_cfg=template_cfg,
             tracking_cfg={
                 "measurement_bias": {"shape_flux": [0.03, -0.02]},
                 "measurement_drift_per_step": {"shape_flux": [0.004, -0.003]},
@@ -416,10 +449,10 @@ def run_campaign() -> dict[str, Any]:
         )
         corrected = _run_measurement_fault(corrected_cfg)
 
-        measurement_sweep = _run_measurement_sweep(tmp_path)
-        corrected_measurement_sweep = _run_corrected_measurement_sweep(tmp_path)
-        actuator_slew_sweep = _run_actuator_slew_sweep(tmp_path)
-        coil_kick_scale_sweep = _run_coil_kick_scale_sweep(tmp_path)
+        measurement_sweep = _run_measurement_sweep(tmp_path, template_cfg=template_cfg)
+        corrected_measurement_sweep = _run_corrected_measurement_sweep(tmp_path, template_cfg=template_cfg)
+        actuator_slew_sweep = _run_actuator_slew_sweep(tmp_path, template_cfg=template_cfg)
+        coil_kick_scale_sweep = _run_coil_kick_scale_sweep(tmp_path, template_cfg=template_cfg)
 
     scenarios = {
         "nominal": {

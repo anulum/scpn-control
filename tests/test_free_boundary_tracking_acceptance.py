@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 import importlib.util
 from pathlib import Path
 import sys
@@ -22,6 +23,11 @@ assert SPEC and SPEC.loader
 free_boundary_tracking_acceptance = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = free_boundary_tracking_acceptance
 SPEC.loader.exec_module(free_boundary_tracking_acceptance)
+
+
+@lru_cache(maxsize=1)
+def _campaign_cached() -> dict[str, object]:
+    return free_boundary_tracking_acceptance.run_campaign()
 
 
 def test_campaign_is_deterministic() -> None:
@@ -49,7 +55,7 @@ def test_campaign_is_deterministic() -> None:
 
 
 def test_campaign_thresholds_pass() -> None:
-    out = free_boundary_tracking_acceptance.run_campaign()
+    out = _campaign_cached()
     assert out["passes_thresholds"] is True
     assert out["scenarios"]["nominal"]["passes_thresholds"] is True
     assert out["scenarios"]["coil_kick"]["passes_thresholds"] is True
@@ -62,7 +68,7 @@ def test_campaign_thresholds_pass() -> None:
 
 
 def test_measurement_fault_scenarios_expose_and_remove_gap() -> None:
-    out = free_boundary_tracking_acceptance.run_campaign()
+    out = _campaign_cached()
     uncorrected = out["scenarios"]["measurement_fault_uncorrected"]
     corrected = out["scenarios"]["measurement_fault_corrected"]
     nominal = out["scenarios"]["nominal"]
@@ -79,7 +85,7 @@ def test_measurement_fault_scenarios_expose_and_remove_gap() -> None:
 
 
 def test_measurement_sweep_gap_and_offset_grow_monotonically() -> None:
-    out = free_boundary_tracking_acceptance.run_campaign()
+    out = _campaign_cached()
     sweep = out["sweeps"]["measurement_fault_scale"]
     gaps = [entry["measured_true_gap"] for entry in sweep["entries"]]
     offsets = [entry["max_abs_measurement_offset"] for entry in sweep["entries"]]
@@ -93,7 +99,7 @@ def test_measurement_sweep_gap_and_offset_grow_monotonically() -> None:
 
 
 def test_actuator_slew_sweep_lag_grows_as_limits_tighten() -> None:
-    out = free_boundary_tracking_acceptance.run_campaign()
+    out = _campaign_cached()
     sweep = out["sweeps"]["actuator_slew_limit"]
     max_lag = [entry["max_abs_actuator_lag"] for entry in sweep["entries"]]
     mean_lag = [entry["mean_abs_actuator_lag"] for entry in sweep["entries"]]
@@ -108,7 +114,7 @@ def test_actuator_slew_sweep_lag_grows_as_limits_tighten() -> None:
 
 
 def test_corrected_measurement_sweep_keeps_gap_collapsed() -> None:
-    out = free_boundary_tracking_acceptance.run_campaign()
+    out = _campaign_cached()
     corrected = out["sweeps"]["measurement_fault_corrected_scale"]
     gaps = [entry["measured_true_gap"] for entry in corrected["entries"]]
     offsets = [entry["max_abs_measurement_offset"] for entry in corrected["entries"]]
@@ -125,7 +131,7 @@ def test_corrected_measurement_sweep_keeps_gap_collapsed() -> None:
 
 
 def test_kick_scale_sweep_requires_more_coil_authority_but_stays_bounded() -> None:
-    out = free_boundary_tracking_acceptance.run_campaign()
+    out = _campaign_cached()
     sweep = out["sweeps"]["coil_kick_scale"]
     max_coil_current = [entry["max_abs_coil_current"] for entry in sweep["entries"]]
     final_tracking_error = [entry["final_tracking_error_norm"] for entry in sweep["entries"]]
