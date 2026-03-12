@@ -129,24 +129,100 @@ def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
     )
 
 
+def bosch_hale_reactivity(T_i_kev: float) -> float:
+    """
+    Compute D-T fusion reactivity <σv> using Bosch-Hale parameterization.
+
+    Reference: Bosch, H.S. & Hale, G.M. (1992). "Improved formulas for fusion
+    cross-sections and thermal reactivities." Nucl. Fusion 32, 611.
+
+    Parameters
+    ----------
+    T_i_kev : float
+        Ion temperature in keV.
+
+    Returns
+    -------
+    float — Reactivity in m^3/s.
+    """
+    T = float(max(T_i_kev, 0.1))
+    # D-T coefficients from Table VII
+    B_G = 34.3827
+    m_rc2 = 1124656.0
+    C1 = 1.17302e-9
+    C2 = 1.51361e-2
+    C3 = 7.51886e-2
+    C4 = 4.60643e-3
+    C5 = 1.35302e-2
+    C6 = -1.06750e-4
+    C7 = 1.36600e-5
+
+    theta = T / (1.0 - T * (C2 + T * (C4 + T * C6)) / (1.0 + T * (C3 + T * (C5 + T * C7))))
+    xi = (B_G**2 / (4.0 * theta)) ** (1.0 / 3.0)
+    sig_v = C1 * theta * np.sqrt(xi / (m_rc2 * T**3)) * np.exp(-3.0 * xi)
+    return float(sig_v * 1.0e-6)  # Convert cm^3/s to m^3/s
+
+
 def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
     """
-    Estimate fusion power from confinement time using simplified power balance.
+    Estimate fusion power using energy balance and Bosch-Hale reactivity.
 
-    P_fus ≈ 5 · n_e^2 · <σv> · V · E_fus / (4 · tau_E_loss_factor)
+    P_fus = 1/4 * n_e^2 * <σv>(T_i) * V * E_fus
 
-    For a rough estimate we use the empirical relation:
-    P_fus ≈ (n_e * tau_E * T_i)^2 scaling, simplified to:
-    P_fus ≈ C_fus · (n_e · 1e19)^2 · tau_E^2 · R^3 / A^2 · kappa
-
-    The constant C_fus is calibrated to ITER Q=10 scenario.
+    Where T_i is estimated from P_heat, tau_E and V.
     """
-    # Simplified fusion power model calibrated to ITER:
-    # ITER: n=10.1e19, tau=3.7s, R=6.2, A=3.1, kappa=1.7 → P_fus=500 MW
-    C_fus = 500.0 / (10.1**2 * 3.7**2 * 6.2**3 / 3.1**2 * 1.7)
-    n19 = scenario.n_e  # already in 10^19 m^-3
-    V_factor = scenario.R**3 / scenario.A**2 * scenario.kappa
-    return C_fus * n19**2 * tau_E**2 * V_factor
+    # 1. Estimate average temperature from energy balance
+    # W = 3 * n_e * T_avg * V = P_heat * tau_E
+    # T_avg [keV] = (P_heat [MW] * tau_E [s]) / (3 * n_e [10^19] * V [m^3] * e_J_per_kev * 1e19 * 1e-6)
+    e_J_per_kev = 1.602176634e-16
+    a = scenario.R / scenario.A
+    V = 2.0 * np.pi**2 * scenario.R * a**2 * scenario.kappa
+    n_m3 = scenario.n_e * 1e19
+    
+    T_avg = (scenario.P_heat * 1e6 * tau_E) / (3.0 * n_m3 * V * e_J_per_kev)
+    
+    # 2. Compute reactivity
+    sig_v = bosch_hale_reactivity(T_avg)
+    
+    # 3. Fusion power: P_fus = 1/4 * n_e^2 * <σv> * V * E_fus
+    # E_fus = 17.6 MeV = 2.82e-12 J
+    E_fus_J = 2.82e-12
+    P_fus_W = 0.25 * (n_m3**2) * sig_v * V * E_fus_J
+    return float(P_fus_W * 1e-6) # MW
+
+
+def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict[str, float]:
+    """
+    Compute derivatives of P_fusion with respect to temperature and density.
+
+    Returns
+    -------
+    dict: {'dP_dT': ..., 'dP_dn': ...} in MW/keV and MW/(10^19 m^-3).
+    """
+    # Numerical derivatives
+    eps = 1e-3
+    
+    def get_p(n_e: float, p_heat: float):
+        sc = PlasmaScenario(scenario.I_p, scenario.B_t, p_heat, n_e, scenario.R, scenario.A, scenario.kappa, scenario.M)
+        return fusion_power_from_tau(sc, tau_E)
+
+    # dP/dn (fixed tau_E and P_heat)
+    p_plus = get_p(scenario.n_e * (1 + eps), scenario.P_heat)
+    p_minus = get_p(scenario.n_e * (1 - eps), scenario.P_heat)
+    dP_dn = (p_plus - p_minus) / (2 * scenario.n_e * eps)
+    
+    # dP/dT is more indirect via P_heat (T ~ P_heat * tau / n)
+    p_plus_t = get_p(scenario.n_e, scenario.P_heat * (1 + eps))
+    p_minus_t = get_p(scenario.n_e, scenario.P_heat * (1 - eps))
+    # T = c * P_heat -> dT = c * dP_heat -> dP/dT = (dP/dP_heat) / c
+    # c = tau / (3 * n * V * e)
+    e_J_per_kev = 1.602176634e-16
+    a = scenario.R / scenario.A
+    V = 2.0 * np.pi**2 * scenario.R * a**2 * scenario.kappa
+    c = 1e6 * tau_E / (3.0 * scenario.n_e * 1e19 * V * e_J_per_kev)
+    dP_dT = (p_plus_t - p_minus_t) / (2 * scenario.P_heat * eps) / c
+    
+    return {"dP_dT": float(dP_dT), "dP_dn": float(dP_dn)}
 
 
 @dataclass
