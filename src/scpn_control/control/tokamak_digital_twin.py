@@ -69,6 +69,13 @@ def _require_finite(name: str, value: float) -> float:
     return scalar
 
 
+def _require_positive_float(name: str, value: float) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0.")
+    return scalar
+
+
 class TokamakTopology:
     """
     Handles the magnetic geometry (Safety Factor q-profile).
@@ -124,13 +131,32 @@ TokamakTopoloy = TokamakTopology  # deprecated alias
 class Plasma2D:
     """
     2D Diffusive-Reaction Model on a Poloidal Cross-section.
+
+    Parameters
+    ----------
+    topology : TokamakTopology
+        Magnetic geometry.
+    gyro_surrogate : Any, optional
+        Reduced gyrokinetic surrogate hook.
+    n_e : float
+        Electron density [m^-3]. Default 1e20 (ITER-like).
+    Z_eff : float
+        Effective ion charge. Default 1.5.
     """
 
-    def __init__(self, topology: TokamakTopology, gyro_surrogate: Any = None) -> None:
+    def __init__(
+        self,
+        topology: TokamakTopology,
+        gyro_surrogate: Any = None,
+        n_e: float = 1.0e20,
+        Z_eff: float = 1.5,
+    ) -> None:
         self.topo = topology
-        self.T = np.zeros((GRID_SIZE, GRID_SIZE))  # Temperature Map
+        self.T = np.zeros((GRID_SIZE, GRID_SIZE))  # Temperature Map [keV]
         self.T_core_hist: list[float] = []
         self._gyro_surrogate = gyro_surrogate
+        self.n_e = _require_non_negative_finite("n_e", n_e)
+        self.Z_eff = _require_non_negative_finite("Z_eff", Z_eff)
 
     def step(self, action: float) -> tuple[np.ndarray, float]:
         """
@@ -155,7 +181,6 @@ class Plasma2D:
         diffusivity[danger_zones] = D_turb  # Islands are leaky!
         if self._gyro_surrogate is not None:
             # Optional reduced gyrokinetic surrogate hook.
-            # Must return a multiplicative map with same shape as T.
             correction = np.asarray(
                 self._gyro_surrogate(self.T, self.topo.q_map, danger_zones),
                 dtype=float,
@@ -175,8 +200,10 @@ class Plasma2D:
         laplacian = T_up + T_down + T_left + T_right - 4 * self.T
 
         # Update T
-        # Radiation Loss (Stabilization) - Stefan-Boltzmann-like cooling
-        radiation = 0.0001 * (self.T**2)  # Simplified T^2 for numeric stability
+        # Bremsstrahlung Radiation Loss: P_br = 5.35e-37 * n_e^2 * Z_eff * sqrt(Te) [W/m^3]
+        # Reference: Wesson, Tokamaks (2011), Ch. 14, Eq. 14.5.1
+        # Scaled by 1e-6 to match the normalized units of the 2D diffusion model.
+        radiation = 5.35e-37 * (self.n_e**2) * self.Z_eff * np.sqrt(np.maximum(self.T, 1e-6)) * 1e-6
         self.T += diffusivity * laplacian - radiation
 
         # Boundary Condition (Cold Walls)
@@ -263,6 +290,8 @@ def run_digital_twin(
     sensor_noise_std: float = 0.0,
     sensor_bias_std: float = 0.0,
     sensor_drift_std: float = 0.0,
+    sensor_thermal_lag_tau: float = 0.05,
+    dt: float = 0.001,
     actuator_bias: float = 0.0,
     actuator_drift_std: float = 0.0,
     actuator_tau_steps: float = 0.0,
@@ -283,6 +312,8 @@ def run_digital_twin(
     sensor_noise_std = _require_non_negative_finite("sensor_noise_std", sensor_noise_std)
     sensor_bias_std = _require_non_negative_finite("sensor_bias_std", sensor_bias_std)
     sensor_drift_std = _require_non_negative_finite("sensor_drift_std", sensor_drift_std)
+    sensor_thermal_lag_tau = _require_non_negative_finite("sensor_thermal_lag_tau", sensor_thermal_lag_tau)
+    dt = _require_positive_float("dt", dt)
     actuator_bias = _require_finite("actuator_bias", actuator_bias)
     actuator_drift_std = _require_non_negative_finite("actuator_drift_std", actuator_drift_std)
     actuator_tau_steps = _require_non_negative_finite("actuator_tau_steps", actuator_tau_steps)
@@ -307,6 +338,12 @@ def run_digital_twin(
     sensor_bias = np.zeros(state_dim, dtype=float)
     if sensor_bias_std > 0.0:
         sensor_bias = np.asarray(local_rng.normal(0.0, sensor_bias_std, size=state_dim), dtype=float)
+    
+    # Thermal lag state (first-order filter)
+    # tau_TC = 50ms typical for thermocouple
+    sensor_state_lagged = np.zeros(state_dim, dtype=float)
+    sensor_alpha = 1.0 if sensor_thermal_lag_tau <= 0.0 else float(1.0 - np.exp(-dt / sensor_thermal_lag_tau))
+
     sensor_bias_mean_abs_history: list[float] = []
     sensor_bias_max_abs_history: list[float] = []
     actuator_bias_state = float(actuator_bias)
@@ -323,7 +360,12 @@ def run_digital_twin(
     for t in range(steps):
         # 1. Observe State (Midplane Profile)
         midplane_idx = GRID_SIZE // 2
-        state_vector = np.asarray(plasma.T[midplane_idx, :], dtype=float).reshape(1, -1).copy()
+        true_profile = np.asarray(plasma.T[midplane_idx, :], dtype=float)
+        
+        # Apply thermal lag
+        sensor_state_lagged += sensor_alpha * (true_profile - sensor_state_lagged)
+        state_vector = sensor_state_lagged.reshape(1, -1).copy()
+
         if sensor_drift_std > 0.0:
             sensor_bias += np.asarray(local_rng.normal(0.0, sensor_drift_std, size=sensor_bias.shape), dtype=float)
         if sensor_bias_std > 0.0 or sensor_drift_std > 0.0:
