@@ -39,7 +39,7 @@ def test_campaign_is_deterministic() -> None:
             b["scenarios"][scenario]["summary"]["final_tracking_error_norm"]
         )
         assert a["scenarios"][scenario]["passes_thresholds"] == b["scenarios"][scenario]["passes_thresholds"]
-    for sweep in ("measurement_fault_scale", "actuator_slew_limit"):
+    for sweep in ("measurement_fault_scale", "measurement_fault_corrected_scale", "actuator_slew_limit"):
         assert a["sweeps"][sweep]["passes_thresholds"] == b["sweeps"][sweep]["passes_thresholds"]
 
 
@@ -51,6 +51,7 @@ def test_campaign_thresholds_pass() -> None:
     assert out["scenarios"]["measurement_fault_uncorrected"]["passes_thresholds"] is True
     assert out["scenarios"]["measurement_fault_corrected"]["passes_thresholds"] is True
     assert out["sweeps"]["measurement_fault_scale"]["passes_thresholds"] is True
+    assert out["sweeps"]["measurement_fault_corrected_scale"]["passes_thresholds"] is True
     assert out["sweeps"]["actuator_slew_limit"]["passes_thresholds"] is True
 
 
@@ -100,6 +101,23 @@ def test_actuator_slew_sweep_lag_grows_as_limits_tighten() -> None:
     assert max_coil_current[-1] < max_coil_current[0]
 
 
+def test_corrected_measurement_sweep_keeps_gap_collapsed() -> None:
+    out = free_boundary_tracking_acceptance.run_campaign()
+    corrected = out["sweeps"]["measurement_fault_corrected_scale"]
+    gaps = [entry["measured_true_gap"] for entry in corrected["entries"]]
+    offsets = [entry["max_abs_measurement_offset"] for entry in corrected["entries"]]
+    tracking = [entry["final_tracking_error_norm"] for entry in corrected["entries"]]
+
+    assert corrected["checks"]["max_measured_true_gap"] is True
+    assert corrected["checks"]["max_measurement_offset"] is True
+    assert corrected["checks"]["tracking_error_constant"] is True
+    assert max(gaps) <= free_boundary_tracking_acceptance.CORRECTED_THRESHOLDS["max_measured_true_gap"]
+    assert max(offsets) <= free_boundary_tracking_acceptance.CORRECTED_THRESHOLDS["max_measurement_offset"]
+    assert max(tracking) - min(tracking) <= free_boundary_tracking_acceptance.CORRECTED_THRESHOLDS[
+        "max_measured_true_gap"
+    ]
+
+
 def test_render_markdown_contains_sections() -> None:
     report = free_boundary_tracking_acceptance.generate_report()
     text = free_boundary_tracking_acceptance.render_markdown(report)
@@ -109,4 +127,5 @@ def test_render_markdown_contains_sections() -> None:
     assert "nominal" in text
     assert "measurement_fault_uncorrected" in text
     assert "measurement_fault_scale" in text
+    assert "measurement_fault_corrected_scale" in text
     assert "actuator_slew_limit" in text

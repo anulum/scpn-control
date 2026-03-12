@@ -276,6 +276,45 @@ def _run_measurement_sweep(tmp_path: Path) -> dict[str, Any]:
     }
 
 
+def _run_corrected_measurement_sweep(tmp_path: Path) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for scale in MEASUREMENT_SWEEP_SCALES:
+        cfg = _write_tracking_config(
+            tmp_path / f"measurement_corrected_sweep_{scale:.1f}.json",
+            tracking_cfg=_measurement_tracking_cfg(scale, corrected=True),
+        )
+        summary = _run_measurement_fault(cfg)
+        measured_true_gap = abs(
+            float(summary["final_tracking_error_norm"]) - float(summary["final_true_tracking_error_norm"])
+        )
+        entries.append(
+            {
+                "scale": float(scale),
+                "final_tracking_error_norm": float(summary["final_tracking_error_norm"]),
+                "final_true_tracking_error_norm": float(summary["final_true_tracking_error_norm"]),
+                "measured_true_gap": float(measured_true_gap),
+                "max_abs_measurement_offset": float(summary["max_abs_measurement_offset"]),
+                "shape_rms": float(summary["shape_rms"]),
+                "true_shape_rms": float(summary["true_shape_rms"]),
+            }
+        )
+    measured_true_gaps = [float(entry["measured_true_gap"]) for entry in entries]
+    measurement_offsets = [float(entry["max_abs_measurement_offset"]) for entry in entries]
+    final_tracking_error = [float(entry["final_tracking_error_norm"]) for entry in entries]
+    checks = {
+        "max_measured_true_gap": bool(max(measured_true_gaps) <= CORRECTED_THRESHOLDS["max_measured_true_gap"]),
+        "max_measurement_offset": bool(max(measurement_offsets) <= CORRECTED_THRESHOLDS["max_measurement_offset"]),
+        "tracking_error_constant": bool(
+            max(final_tracking_error) - min(final_tracking_error) <= CORRECTED_THRESHOLDS["max_measured_true_gap"]
+        ),
+    }
+    return {
+        "entries": entries,
+        "checks": checks,
+        "passes_thresholds": all(checks.values()),
+    }
+
+
 def _run_actuator_slew_sweep(tmp_path: Path) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for slew_limit in ACTUATOR_SLEW_LIMIT_SWEEP:
@@ -335,6 +374,7 @@ def run_campaign() -> dict[str, Any]:
         corrected = _run_measurement_fault(corrected_cfg)
 
         measurement_sweep = _run_measurement_sweep(tmp_path)
+        corrected_measurement_sweep = _run_corrected_measurement_sweep(tmp_path)
         actuator_slew_sweep = _run_actuator_slew_sweep(tmp_path)
 
     scenarios = {
@@ -357,6 +397,7 @@ def run_campaign() -> dict[str, Any]:
     }
     sweeps = {
         "measurement_fault_scale": measurement_sweep,
+        "measurement_fault_corrected_scale": corrected_measurement_sweep,
         "actuator_slew_limit": actuator_slew_sweep,
     }
     passes_thresholds = all(bool(entry["passes_thresholds"]) for entry in scenarios.values()) and all(
@@ -435,6 +476,19 @@ def render_markdown(report: dict[str, Any]) -> str:
             "- "
             f"slew `{entry['coil_slew_limit']:.3e}`: max lag `{entry['max_abs_actuator_lag']:.6e}`, "
             f"mean lag `{entry['mean_abs_actuator_lag']:.6e}`"
+        )
+    lines.extend(
+        [
+            "",
+            "### measurement_fault_corrected_scale",
+            "",
+        ]
+    )
+    for entry in campaign["sweeps"]["measurement_fault_corrected_scale"]["entries"]:
+        lines.append(
+            "- "
+            f"scale `{entry['scale']:.1f}`: gap `{entry['measured_true_gap']:.6e}`, "
+            f"offset `{entry['max_abs_measurement_offset']:.6e}`"
         )
     return "\n".join(lines)
 
