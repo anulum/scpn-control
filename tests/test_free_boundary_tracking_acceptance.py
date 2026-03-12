@@ -148,8 +148,7 @@ def test_latency_scenarios_bound_delayed_and_corrected_observation_error() -> No
     corrected = out["scenarios"]["measurement_latency_corrected"]
 
     assert (
-        uncorrected["delayed_observation_error_norm"]
-        >= uncorrected["thresholds"]["min_delayed_observation_error_norm"]
+        uncorrected["delayed_observation_error_norm"] >= uncorrected["thresholds"]["min_delayed_observation_error_norm"]
     )
     assert (
         uncorrected["summary"]["final_true_tracking_error_norm"]
@@ -157,18 +156,20 @@ def test_latency_scenarios_bound_delayed_and_corrected_observation_error() -> No
     )
     assert corrected["summary"]["latency_compensation_enabled"] is True
     assert (
-        corrected["estimated_observation_error_norm"]
-        <= corrected["thresholds"]["max_estimated_observation_error_norm"]
+        corrected["estimated_observation_error_norm"] <= corrected["thresholds"]["max_estimated_observation_error_norm"]
     )
     assert (
         corrected["summary"]["final_true_tracking_error_norm"]
         <= corrected["thresholds"]["max_final_true_tracking_error_norm"]
     )
     assert corrected["estimated_observation_error_norm"] <= uncorrected["delayed_observation_error_norm"] + 1.0e-3
-    assert abs(
-        corrected["summary"]["final_true_tracking_error_norm"]
-        - uncorrected["summary"]["final_true_tracking_error_norm"]
-    ) <= 1.0e-6
+    assert (
+        abs(
+            corrected["summary"]["final_true_tracking_error_norm"]
+            - uncorrected["summary"]["final_true_tracking_error_norm"]
+        )
+        <= 1.0e-6
+    )
 
 
 def test_latency_sweeps_activate_with_delay_and_stay_corrected() -> None:
@@ -307,10 +308,12 @@ def test_topology_measurement_latency_scenarios_expose_gap_and_restore_tracking(
     assert uncorrected["divertor_rms_gap"] >= uncorrected["thresholds"]["min_divertor_rms_gap"]
     assert uncorrected["divertor_max_abs_gap"] >= uncorrected["thresholds"]["min_divertor_max_abs_gap"]
     assert (
-        uncorrected["delayed_observation_error_norm"]
-        >= uncorrected["thresholds"]["min_delayed_observation_error_norm"]
+        uncorrected["delayed_observation_error_norm"] >= uncorrected["thresholds"]["min_delayed_observation_error_norm"]
     )
-    assert uncorrected["summary"]["final_true_tracking_error_norm"] <= uncorrected["thresholds"]["max_true_tracking_error_norm"]
+    assert (
+        uncorrected["summary"]["final_true_tracking_error_norm"]
+        <= uncorrected["thresholds"]["max_true_tracking_error_norm"]
+    )
     assert uncorrected["summary"]["objective_converged"] is False
 
     assert corrected["x_point_position_gap"] <= corrected["thresholds"]["max_x_point_position_gap"]
@@ -318,8 +321,7 @@ def test_topology_measurement_latency_scenarios_expose_gap_and_restore_tracking(
     assert corrected["divertor_rms_gap"] <= corrected["thresholds"]["max_divertor_rms_gap"]
     assert corrected["divertor_max_abs_gap"] <= corrected["thresholds"]["max_divertor_max_abs_gap"]
     assert (
-        corrected["estimated_observation_error_norm"]
-        <= corrected["thresholds"]["max_estimated_observation_error_norm"]
+        corrected["estimated_observation_error_norm"] <= corrected["thresholds"]["max_estimated_observation_error_norm"]
     )
     assert (
         corrected["summary"]["final_true_tracking_error_norm"]
@@ -433,8 +435,7 @@ def test_topology_supervisor_latency_scenarios_stay_safe_and_bound_combined_faul
     assert uncorrected["divertor_rms_gap"] >= uncorrected["thresholds"]["min_divertor_rms_gap"]
     assert uncorrected["divertor_max_abs_gap"] >= uncorrected["thresholds"]["min_divertor_max_abs_gap"]
     assert (
-        uncorrected["delayed_observation_error_norm"]
-        >= uncorrected["thresholds"]["min_delayed_observation_error_norm"]
+        uncorrected["delayed_observation_error_norm"] >= uncorrected["thresholds"]["min_delayed_observation_error_norm"]
     )
     assert uncorrected["summary"]["objective_converged"] is False
 
@@ -448,8 +449,7 @@ def test_topology_supervisor_latency_scenarios_stay_safe_and_bound_combined_faul
     assert corrected["divertor_rms_gap"] <= corrected["thresholds"]["max_divertor_rms_gap"]
     assert corrected["divertor_max_abs_gap"] <= corrected["thresholds"]["max_divertor_max_abs_gap"]
     assert (
-        corrected["estimated_observation_error_norm"]
-        <= corrected["thresholds"]["max_estimated_observation_error_norm"]
+        corrected["estimated_observation_error_norm"] <= corrected["thresholds"]["max_estimated_observation_error_norm"]
     )
     assert (
         corrected["summary"]["final_true_tracking_error_norm"]
