@@ -996,6 +996,20 @@ def run_campaign() -> dict[str, Any]:
         )
         topology_kick = _run_topology_kick(topology_cfg)
 
+        topology_combined_measurement_cfg = _write_tracking_config(
+            tmp_path / "topology_combined_measurement.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg=_topology_measurement_tracking_cfg(corrected=False),
+        )
+        topology_combined_measurement_fault = _run_topology_kick(topology_combined_measurement_cfg)
+
+        topology_combined_corrected_cfg = _write_tracking_config(
+            tmp_path / "topology_combined_measurement_corrected.json",
+            template_cfg=topology_template_cfg,
+            tracking_cfg=_topology_measurement_tracking_cfg(corrected=True),
+        )
+        topology_combined_measurement_corrected = _run_topology_kick(topology_combined_corrected_cfg)
+
         topology_measurement_cfg = _write_tracking_config(
             tmp_path / "topology_measurement.json",
             template_cfg=topology_template_cfg,
@@ -1068,6 +1082,14 @@ def run_campaign() -> dict[str, Any]:
         "x_point_divertor_kick": {
             "summary": topology_kick,
             **_evaluate_topology(topology_kick),
+        },
+        "x_point_divertor_combined_fault_uncorrected": {
+            "summary": topology_combined_measurement_fault,
+            **_evaluate_topology_measurement_fault(topology_combined_measurement_fault),
+        },
+        "x_point_divertor_combined_fault_corrected": {
+            "summary": topology_combined_measurement_corrected,
+            **_evaluate_topology_corrected(topology_combined_measurement_corrected),
         },
         "x_point_divertor_measurement_fault_uncorrected": {
             "summary": topology_measurement_fault,

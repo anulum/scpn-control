@@ -49,7 +49,8 @@ measurement-fault exposure and correction for both generic shape tracking and
 topology-aware X-point/divertor tracking, supervisor/fallback safety under a
 large kick, and severity sweeps for generic disturbance, topology-aware
 disturbance, generic measurement faults, topology-aware measurement faults, and
-actuator limits.
+actuator limits, plus combined topology disturbance-and-calibration-fault
+scenarios.
 
 This writes:
 
