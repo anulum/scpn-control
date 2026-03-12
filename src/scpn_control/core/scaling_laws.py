@@ -335,24 +335,44 @@ def ipb98y2_with_uncertainty(
     return float(tau), sigma_tau
 
 
-def compute_h_factor(tau_actual: float, tau_predicted: float) -> float:
-    """Compute the H-factor (enhancement factor over scaling law).
+def greenwald_limit(Ip_MA: float, a_m: float) -> float:
+    """Compute the Greenwald density limit.
+
+    Reference: Greenwald, M., Plasma Phys. Control. Fusion 44 (2002) R27.
+    n_GW = Ip / (pi * a^2) [10^20 m^-3].
 
     Parameters
     ----------
-    tau_actual : float
-        Measured or simulated confinement time [s].
-    tau_predicted : float
-        IPB98(y,2) predicted confinement time [s].
-
-    Returns
-    -------
-    float
-        H98(y,2) = tau_actual / tau_predicted.
+    Ip_MA : float
+        Plasma current in Mega-Amperes.
+    a_m : float
+        Minor radius in meters.
     """
-    tau_actual_f = _require_finite_number("tau_actual", tau_actual)
-    tau_predicted_f = _require_finite_number("tau_predicted", tau_predicted)
+    Ip = require_positive_float("Ip_MA", Ip_MA)
+    a = require_positive_float("a_m", a_m)
+    return float(Ip / (np.pi * a**2))
 
-    if tau_predicted_f <= 0:
-        return float("inf")
-    return tau_actual_f / tau_predicted_f
+
+def compute_betan(beta_t_pct: float, a_m: float, BT_T: float, Ip_MA: float) -> float:
+    """Compute the normalised beta (Troyon beta).
+
+    Reference: Troyon et al., Plasma Phys. Control. Fusion 26 (1984) 209.
+    beta_N = beta_t (%) / (Ip / (a * BT)).
+
+    Parameters
+    ----------
+    beta_t_pct : float
+        Toroidal beta in percent.
+    a_m : float
+        Minor radius in meters.
+    BT_T : float
+        Toroidal magnetic field in Tesla.
+    Ip_MA : float
+        Plasma current in Mega-Amperes.
+    """
+    bt = require_positive_float("beta_t_pct", beta_t_pct)
+    a = require_positive_float("a_m", a_m)
+    B = require_positive_float("BT_T", BT_T)
+    Ip = require_positive_float("Ip_MA", Ip_MA)
+    
+    return float(bt / (Ip / (a * B)))
