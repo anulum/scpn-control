@@ -106,17 +106,17 @@ Implementation: `scpn_control.phase.lyapunov_guard.LyapunovGuard`.
 
 ## Bosch-Hale DT Reactivity
 
-The DT fusion reactivity $\langle \sigma v \rangle$ is estimated using the 
+The DT fusion reactivity $\langle \sigma v \rangle$ is estimated using the
 Padé polynomial fit (Bosch & Hale 1992):
 
 $$
 \langle \sigma v \rangle = 1.1 \times 10^{-24} \cdot \theta \cdot \sqrt{\frac{\xi}{m_r c^2 T^3}} \exp(-3 \xi)
 $$
 
-where $\xi = (\frac{B_G^2}{4\theta})^{1/3}$ and $\theta$ is the modified 
+where $\xi = (\frac{B_G^2}{4\theta})^{1/3}$ and $\theta$ is the modified
 temperature. This provides accurate cross-sections from 0.1 keV to 100 keV.
 
-Ref: Bosch, H.-S. and Hale, G. M. (1992). *Nuclear Fusion*, 32, 611.  
+Ref: Bosch, H.-S. and Hale, G. M. (1992). *Nuclear Fusion*, 32, 611.
 Implementation: `scpn_control.core.uncertainty.bosch_hale_reactivity`.
 
 ## Bremsstrahlung Radiation
@@ -129,7 +129,7 @@ $$
 
 where $n_e$ is in $m^{-3}$ and $T_e$ is in keV.
 
-Ref: Wesson, J. (2011). *Tokamaks*. 4th Edition, Chapter 14.  
+Ref: Wesson, J. (2011). *Tokamaks*. 4th Edition, Chapter 14.
 Implementation: `scpn_control.control.tokamak_digital_twin.TokamakDigitalTwin`.
 
 ## Energy Conservation Diagnostic
@@ -146,12 +146,12 @@ Implementation: `scpn_control.core.integrated_transport_solver.TransportSolver.e
 
 ## Disruption Mechanisms
 
-1.  **NTM (Neoclassical Tearing Mode):** Evolved via the Modified Rutherford Equation 
+1.  **NTM (Neoclassical Tearing Mode):** Evolved via the Modified Rutherford Equation
     for island width $w$:
     $$\frac{\tau_R}{r} \frac{dw}{dt} = r \Delta' + r \beta_p \frac{L_q}{L_p} \frac{w}{w^2 + w_c^2}$$
-2.  **Greenwald Limit:** Disruption risk increases as density approaches 
+2.  **Greenwald Limit:** Disruption risk increases as density approaches
     $n_G = I_p / (\pi a^2)$.
-3.  **VDE (Vertical Displacement Event):** Exponential growth of vertical 
+3.  **VDE (Vertical Displacement Event):** Exponential growth of vertical
     position $z$ driven by plasma elongation $\kappa$.
 
 Implementation: `scpn_control.control.disruption_predictor.simulate_tearing_mode`.
@@ -164,24 +164,24 @@ $$
 \tau_{98,y2} = 0.0562 \, I_p^{0.93} B_T^{0.15} P^{-0.69} n_e^{0.41} M^{0.19} R^{1.97} \epsilon^{0.58} \kappa_a^{0.78}
 $$
 
-The implementation includes a $\pm 2\sigma$ uncertainty band based on the 
+The implementation includes a $\pm 2\sigma$ uncertainty band based on the
 ITPA database variance.
 
-Ref: ITER Physics Basis (1999). *Nuclear Fusion*, 39, 2175.  
+Ref: ITER Physics Basis (1999). *Nuclear Fusion*, 39, 2175.
 Implementation: `scpn_control.core.scaling_laws.ipb98y2_with_uncertainty`.
 
 ## Free-Boundary Grad-Shafranov
 
-The free-boundary equilibrium is determined by solving $\Delta^* \psi = -\mu_0 R J_\phi$ 
-where the boundary value $\psi_{bc}$ is the sum of contributions from all 
+The free-boundary equilibrium is determined by solving $\Delta^* \psi = -\mu_0 R J_\phi$
+where the boundary value $\psi_{bc}$ is the sum of contributions from all
 external coils:
 
 $$
 \psi_{ext}(R, Z) = \sum_{i} I_i \, G(R, Z; R_i, Z_i)
 $$
 
-$G$ is the toroidal Green's function involving complete elliptic integrals 
+$G$ is the toroidal Green's function involving complete elliptic integrals
 $K(k)$ and $E(k)$.
 
-Ref: Lao, L. L. et al. (1985). *Nuclear Fusion*, 25, 1611.  
+Ref: Lao, L. L. et al. (1985). *Nuclear Fusion*, 25, 1611.
 Implementation: `scpn_control.core.fusion_kernel.FusionKernel`.

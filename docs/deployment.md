@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide describes how to deploy `scpn-control` in various environments, 
+This guide describes how to deploy `scpn-control` in various environments,
 from local Docker containers to HPC clusters and real-time control systems.
 
 ## 1. Docker (Python-only, CPU)
@@ -61,7 +61,7 @@ python tools/run_parameter_scan.py --config configs/iter_scan.json
 
 ## 4. Real-Time Mode (Rust + PyO3)
 
-To achieve the 11.9 µs P50 latency target, ensure the Rust backend is 
+To achieve the 11.9 µs P50 latency target, ensure the Rust backend is
 compiled and available.
 
 1.  **Build Rust Extension**:

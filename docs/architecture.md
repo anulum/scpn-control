@@ -46,7 +46,7 @@ graph TD
 
 ## Logical Data Flow
 
-The following diagram illustrates the signal path from equilibrium input to real-time 
+The following diagram illustrates the signal path from equilibrium input to real-time
 actuation through the optional Rust acceleration layer.
 
 ```text

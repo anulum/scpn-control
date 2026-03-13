@@ -132,6 +132,7 @@ pythonpath = ["src", "tests", "."]
 addopts = "--strict-markers"
 markers = [
     "slow: marks long-running regression tests",
+    "benchmark: marks benchmark/stress tests",
 ]
 filterwarnings = [
     "error::DeprecationWarning",

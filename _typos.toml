@@ -43,6 +43,8 @@ ot = "ot"
 fom = "fom"
 ser = "ser"
 noo = "noo"
+dne = "dne"
+gae = "gae"
 
 [files]
 extend-exclude = [
