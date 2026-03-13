@@ -129,7 +129,7 @@ def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
     )
 
 
-def bosch_hale_reactivity(T_i_kev: float) -> float:
+def bosch_hale_reactivity(T_i_kev: float | np.ndarray) -> float | np.ndarray:
     """
     Compute D-T fusion reactivity <σv> using Bosch-Hale parameterization.
 
@@ -138,14 +138,14 @@ def bosch_hale_reactivity(T_i_kev: float) -> float:
 
     Parameters
     ----------
-    T_i_kev : float
+    T_i_kev : float | np.ndarray
         Ion temperature in keV.
 
     Returns
     -------
-    float — Reactivity in m^3/s.
+    float | np.ndarray — Reactivity in m^3/s.
     """
-    T = float(max(T_i_kev, 0.1))
+    T = np.maximum(T_i_kev, 0.1)
     # D-T coefficients from Table VII
     B_G = 34.3827
     m_rc2 = 1124656.0
@@ -160,6 +160,9 @@ def bosch_hale_reactivity(T_i_kev: float) -> float:
     theta = T / (1.0 - T * (C2 + T * (C4 + T * C6)) / (1.0 + T * (C3 + T * (C5 + T * C7))))
     xi = (B_G**2 / (4.0 * theta)) ** (1.0 / 3.0)
     sig_v = C1 * theta * np.sqrt(xi / (m_rc2 * T**3)) * np.exp(-3.0 * xi)
+
+    if isinstance(T_i_kev, np.ndarray):
+        return sig_v * 1.0e-6
     return float(sig_v * 1.0e-6)  # Convert cm^3/s to m^3/s
 
 
