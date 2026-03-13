@@ -54,11 +54,11 @@ def test_eigenfunction_decays_stable():
 
 
 def test_eigenfunction_grows_unstable():
-    # For alpha > alpha_crit, mode is unstable (CROSSES zero)
-    eq = BallooningEquation(s=1.0, alpha=0.9)
+    # For alpha >> alpha_crit (~0.6 at s=1), mode is unstable (CROSSES zero)
+    eq = BallooningEquation(s=1.0, alpha=1.5)
     res = eq.solve()
     assert not res.is_stable
-    assert np.any(res.xi <= 0)  # Crosses zero
+    assert np.any(res.xi <= 0)
 
 
 def test_compute_stability_diagram():

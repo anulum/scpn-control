@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+from scipy.integrate import trapezoid
 
 from scpn_control.control.disruption_predictor import (
     predict_disruption_risk,
@@ -102,7 +103,7 @@ def main():
     fpr_sorted = np.array(fpr_list)[idx]
     tpr_sorted = np.array(tpr_list)[idx]
 
-    auc = np.trapz(tpr_sorted, fpr_sorted)
+    auc = trapezoid(tpr_sorted, fpr_sorted)
 
     results = {"auc": float(auc), "tpr": [float(x) for x in tpr_list], "fpr": [float(x) for x in fpr_list]}
     report_dir = Path("validation/reports")

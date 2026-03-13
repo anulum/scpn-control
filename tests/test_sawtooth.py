@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy.integrate import trapezoid
 
 from scpn_control.core.sawtooth import SawtoothCycler, SawtoothMonitor, kadomtsev_crash
 
@@ -64,7 +65,7 @@ def test_density_conservation():
     T_new, n_new, q_new, rho_1, rho_mix = kadomtsev_crash(rho, T, n, q, R0=2.0, a=0.5)
 
     def total_particles(n_prof):
-        return np.trapz(n_prof * rho, rho)
+        return trapezoid(n_prof * rho, rho)
 
     N_before = total_particles(n)
     N_after = total_particles(n_new)

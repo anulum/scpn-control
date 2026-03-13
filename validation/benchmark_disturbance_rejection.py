@@ -63,6 +63,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import numpy as np
+from scipy.integrate import trapezoid
 
 # ---------------------------------------------------------------------------
 # Path setup -- make ``src/`` importable when running from repo root
@@ -692,7 +693,7 @@ def run_scenario(
 
     # --- Compute metrics ---
 
-    ise = float(np.trapz(errors**2, times))
+    ise = float(trapezoid(errors**2, times))
 
     ref_amp = max(
         abs(x0[0]),
@@ -703,7 +704,7 @@ def run_scenario(
 
     peak_overshoot = float(np.max(np.abs(positions - target)))
 
-    control_effort = float(np.trapz(np.abs(controls), times))
+    control_effort = float(trapezoid(np.abs(controls), times))
 
     metrics = ScenarioMetrics(
         controller=controller_name,
