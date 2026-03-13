@@ -257,8 +257,16 @@ class TransportSolver(FusionKernel):
     (Pütterich et al. 2010), and per-cell Bremsstrahlung.
     """
 
-    def __init__(self, config_path: str | Path, *, nr: int = 50, multi_ion: bool = False) -> None:
+    def __init__(
+        self,
+        config_path: str | Path,
+        *,
+        nr: int = 50,
+        multi_ion: bool = False,
+        transport_model: str = "gyro_bohm",
+    ) -> None:
         super().__init__(config_path)
+        self.transport_model = transport_model
         self.external_profile_mode = True  # Tell Kernel to respect our calculated profiles
         self.nr = nr  # Radial grid points (normalized radius rho)
         self.rho = np.linspace(0, 1, self.nr)
@@ -528,7 +536,32 @@ class TransportSolver(FusionKernel):
             chi_nc = chang_hinton_chi_profile(
                 self.rho, self.Ti, self.ne, p["q_profile"], p["R0"], p["a"], p["B0"], p["A_ion"], p["Z_eff"]
             )
-            chi_gB = self._gyro_bohm_chi()
+            if getattr(self, "transport_model", "gyro_bohm") == "gyrokinetic":
+                from scpn_control.core.gyrokinetic_transport import GyrokineticTransportModel
+
+                gk_model = GyrokineticTransportModel()
+                dTe_dr = np.gradient(self.Te, self.rho * p["a"])
+                dTi_dr = np.gradient(self.Ti, self.rho * p["a"])
+                dne_dr = np.gradient(self.ne, self.rho * p["a"])
+                profiles_dict = {
+                    "R0": p["R0"],
+                    "a": p["a"],
+                    "B0": p["B0"],
+                    "q": p["q_profile"],
+                    "Te": self.Te,
+                    "Ti": self.Ti,
+                    "ne": self.ne,
+                    "dTe_dr": dTe_dr,
+                    "dTi_dr": dTi_dr,
+                    "dne_dr": dne_dr,
+                    "Z_eff": p.get("Z_eff", 1.5),
+                }
+                chi_i_gk, chi_e_gk, D_e_gk = gk_model.evaluate_profile(self.rho, profiles_dict)
+                chi_gB = chi_i_gk  # Use for base ion chi
+                self.chi_e = chi_e_gk  # Update electron chi directly
+                self.D_n = D_e_gk  # Update particle diffusivity directly
+            else:
+                chi_gB = self._gyro_bohm_chi()
             chi_base = chi_nc + chi_gB
         else:
             chi_base = np.full_like(self.rho, 0.5)
