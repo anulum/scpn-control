@@ -7,8 +7,7 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: release-${{ github.ref }}
@@ -17,6 +16,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
@@ -26,13 +27,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build sdist
+      - name: Build sdist and SBOM
         run: |
-          pip install build cyclonedx-bom
+          pip install --require-hashes -r requirements/ci-release.txt
           python -m build --sdist
-
-      - name: Generate SBOM
-        run: cyclonedx-py environment -o sbom.json --output-format json
+          cyclonedx-py environment -o sbom.json --output-format json
 
       - name: Extract changelog for this tag
         id: changelog

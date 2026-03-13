@@ -16,6 +16,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  PYTHONPATH: ${{ github.workspace }}/src
 
 jobs:
   # ─── Job 1: Python tests ───
@@ -38,8 +39,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e . pytest pytest-cov hypothesis mypy
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
       - name: Test
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
@@ -76,8 +77,9 @@ jobs:
           python-version: "3.12"
       - name: Install notebook dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[viz]" jupyter nbconvert
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-viz.txt
+          pip install --require-hashes -r requirements/ci-notebook.txt
       - name: Execute notebooks
         run: |
           mkdir -p artifacts/notebook-exec
@@ -115,8 +117,8 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[viz]"
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-viz.txt
       - name: Run tutorial 01 (closed-loop control)
         run: PYTHONIOENCODING=utf-8 python examples/tutorial_01_closed_loop_control.py
         timeout-minutes: 5
@@ -136,9 +138,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install packaging tools
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install build twine
+        run: pip install --require-hashes -r requirements/ci-build.txt
       - name: Build package
         run: python -m build
       - name: Validate package metadata
@@ -158,8 +158,8 @@ jobs:
           python-version: "3.12"
       - name: Install project and audit tools
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e . pip-audit
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-audit.txt
       - name: Run pip audit
         run: python -m pip_audit
 
@@ -174,8 +174,8 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e . matplotlib
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-viz.txt
       - name: RMSE Dashboard
         run: python validation/rmse_dashboard.py --output-json artifacts/rmse_dashboard_ci.json --output-md artifacts/rmse_dashboard_ci.md
       - name: RMSE Gate
@@ -214,21 +214,18 @@ jobs:
       - name: Install toolchain deps
         run: |
           . .venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install maturin pytest hypothesis
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-interop.txt
       - name: Build Rust bindings
         run: |
           . .venv/bin/activate
           cd scpn-control-rs/crates/control-python
           python -m maturin develop --release
-      - name: Install package
-        run: |
-          . .venv/bin/activate
-          python -m pip install -e .
       - name: Verify Rust bindings
         run: |
           . .venv/bin/activate
-          python - <<'PY'
+          PYTHONPATH=$PWD/src python - <<'PY'
           import importlib.util
           from scpn_control.core._rust_compat import _rust_available
 
@@ -241,7 +238,7 @@ jobs:
       - name: Parity tests
         run: |
           . .venv/bin/activate
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
+          PYTHONPATH=$PWD/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
 
   # ─── Job 8: Rust benchmarks ───
   rust-benchmarks:
@@ -269,9 +266,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .
+        run: pip install --require-hashes -r requirements/ci-deps.txt
       - name: Kuramoto benchmark (DIII-D scale)
         run: |
           python - <<'PY'
@@ -326,8 +321,9 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e . pytest h5py
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-hdf5.txt
       - name: E2E mock DIII-D + trajectory export
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/test_e2e_phase_diiid.py -v --tb=short
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7
@@ -347,8 +343,8 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e . pytest
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
       - name: Validate real DIII-D shots
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
@@ -363,7 +359,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: python -m pip install ruff
+        run: pip install --require-hashes -r requirements/ci-lint.txt
       - name: Ruff check
         run: ruff check src/scpn_control/
       - name: Ruff format check
@@ -378,7 +374,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install Bandit
-        run: python -m pip install bandit[toml]
+        run: pip install --require-hashes -r requirements/ci-security.txt
       - name: Run Bandit
         run: bandit -r src/scpn_control/ -c pyproject.toml -ll -f json -o bandit-report.json
       - name: Summary
@@ -400,9 +396,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install pre-commit
+        run: pip install --require-hashes -r requirements/ci-precommit.txt
       - name: Run pre-commit
         run: pre-commit run --all-files
 
@@ -439,8 +433,9 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[jax]" pytest hypothesis
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-jax.txt
       - name: JAX runtime + solver tests
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
@@ -460,8 +455,9 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[nengo]" "numpy<2" pytest
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-nengo.txt
       - name: Nengo tests
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
