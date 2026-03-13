@@ -113,7 +113,7 @@ baseline instead of only reporting synthetic training RMSE.
 
 ### Gyrokinetic Transport (v0.16.0)
 
-::: scpn_control.core.gyrokinetic_transport.GyroBohmTransport
+::: scpn_control.core.gyrokinetic_transport.GyrokineticTransportModel
 
 ### Ballooning Solver (v0.16.0)
 
@@ -149,19 +149,11 @@ baseline instead of only reporting synthetic training RMSE.
 
 ::: scpn_control.core.sol_model.TwoPointSOL
 
-### RZIp Model (v0.16.0)
-
-::: scpn_control.core.rzip_model.RZIpModel
-
 ### Integrated Scenario (v0.16.0)
 
 ::: scpn_control.core.integrated_scenario.IntegratedScenarioSimulator
 
 ::: scpn_control.core.integrated_scenario.iter_baseline_scenario
-
-### RWM Feedback (v0.16.0)
-
-::: scpn_control.core.rwm_feedback.RWMFeedbackController
 
 ---
 
@@ -430,7 +422,7 @@ Requires `pip install "scpn-control[nengo]"`.
 
 ### NMPC Controller (v0.16.0)
 
-::: scpn_control.control.nmpc_controller.NMPCController
+::: scpn_control.control.nmpc_controller.NonlinearMPC
 
 ### Mu-Synthesis (v0.16.0)
 
@@ -448,27 +440,31 @@ Requires `pip install "scpn-control[nengo]"`.
 
 ### Shape Controller (v0.16.0)
 
-::: scpn_control.control.shape_controller.ShapeController
+::: scpn_control.control.shape_controller.PlasmaShapeController
 
 ### Safe RL Controller (v0.16.0)
 
-::: scpn_control.control.safe_rl_controller.SafeRLController
+::: scpn_control.control.safe_rl_controller.LagrangianPPO
 
 ### Sliding-Mode Vertical (v0.16.0)
 
-::: scpn_control.control.sliding_mode_vertical.SlidingModeVerticalController
+::: scpn_control.control.sliding_mode_vertical.VerticalStabilizer
 
 ### Scenario Scheduler (v0.16.0)
 
-::: scpn_control.control.scenario_scheduler.ScenarioScheduler
+::: scpn_control.control.scenario_scheduler.ScenarioOptimizer
 
 ### Fault-Tolerant Control (v0.16.0)
 
-::: scpn_control.control.fault_tolerant_control.FaultTolerantController
+::: scpn_control.control.fault_tolerant_control.ReconfigurableController
 
-### Control Benchmark Suite (v0.16.0)
+### RZIp Model (v0.16.0)
 
-::: scpn_control.control.control_benchmark_suite.ControlBenchmarkSuite
+::: scpn_control.control.rzip_model.RZIPModel
+
+### RWM Feedback (v0.16.0)
+
+::: scpn_control.control.rwm_feedback.RWMFeedbackController
 
 ---
 
