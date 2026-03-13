@@ -5,7 +5,7 @@
 ```python
 import scpn_control
 
-scpn_control.__version__       # "0.15.0"
+scpn_control.__version__       # "0.16.0"
 scpn_control.FusionKernel      # Grad-Shafranov equilibrium solver
 scpn_control.RUST_BACKEND      # True if Rust acceleration available
 scpn_control.TokamakConfig     # Preset tokamak geometries
@@ -110,6 +110,58 @@ baseline instead of only reporting synthetic training RMSE.
 ### HPC Bridge
 
 ::: scpn_control.core.hpc_bridge.HPCBridge
+
+### Gyrokinetic Transport (v0.16.0)
+
+::: scpn_control.core.gyrokinetic_transport.GyroBohmTransport
+
+### Ballooning Solver (v0.16.0)
+
+::: scpn_control.core.ballooning_solver.BallooningEquation
+
+::: scpn_control.core.ballooning_solver.BallooningStabilityAnalysis
+
+::: scpn_control.core.ballooning_solver.find_marginal_stability
+
+### Current Diffusion (v0.16.0)
+
+::: scpn_control.core.current_diffusion.CurrentDiffusionSolver
+
+### Current Drive (v0.16.0)
+
+::: scpn_control.core.current_drive.ECCDSource
+
+::: scpn_control.core.current_drive.NBISource
+
+::: scpn_control.core.current_drive.CurrentDriveMix
+
+### NTM Dynamics (v0.16.0)
+
+::: scpn_control.core.ntm_dynamics.NTMController
+
+### Sawtooth Model (v0.16.0)
+
+::: scpn_control.core.sawtooth.SawtoothCycler
+
+::: scpn_control.core.sawtooth.kadomtsev_crash
+
+### SOL Model (v0.16.0)
+
+::: scpn_control.core.sol_model.TwoPointSOL
+
+### RZIp Model (v0.16.0)
+
+::: scpn_control.core.rzip_model.RZIpModel
+
+### Integrated Scenario (v0.16.0)
+
+::: scpn_control.core.integrated_scenario.IntegratedScenarioSimulator
+
+::: scpn_control.core.integrated_scenario.iter_baseline_scenario
+
+### RWM Feedback (v0.16.0)
+
+::: scpn_control.core.rwm_feedback.RWMFeedbackController
 
 ---
 
@@ -375,6 +427,48 @@ Requires `pip install "scpn-control[nengo]"`.
 ### Advanced SOC Learning
 
 ::: scpn_control.control.advanced_soc_fusion_learning.run_advanced_learning_sim
+
+### NMPC Controller (v0.16.0)
+
+::: scpn_control.control.nmpc_controller.NMPCController
+
+### Mu-Synthesis (v0.16.0)
+
+::: scpn_control.control.mu_synthesis.MuSynthesisController
+
+::: scpn_control.control.mu_synthesis.compute_mu_upper_bound
+
+### Real-Time EFIT (v0.16.0)
+
+::: scpn_control.control.realtime_efit.RealtimeEFIT
+
+### Gain-Scheduled Controller (v0.16.0)
+
+::: scpn_control.control.gain_scheduled_controller.GainScheduledController
+
+### Shape Controller (v0.16.0)
+
+::: scpn_control.control.shape_controller.ShapeController
+
+### Safe RL Controller (v0.16.0)
+
+::: scpn_control.control.safe_rl_controller.SafeRLController
+
+### Sliding-Mode Vertical (v0.16.0)
+
+::: scpn_control.control.sliding_mode_vertical.SlidingModeVerticalController
+
+### Scenario Scheduler (v0.16.0)
+
+::: scpn_control.control.scenario_scheduler.ScenarioScheduler
+
+### Fault-Tolerant Control (v0.16.0)
+
+::: scpn_control.control.fault_tolerant_control.FaultTolerantController
+
+### Control Benchmark Suite (v0.16.0)
+
+::: scpn_control.control.control_benchmark_suite.ControlBenchmarkSuite
 
 ---
 

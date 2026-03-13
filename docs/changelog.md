@@ -1,5 +1,116 @@
 # Changelog
 
+## [0.16.0] — 2026-03-13
+
+### Added
+- **Phase 3 — Frontier physics** (10 modules in `core/`):
+  - `gyrokinetic_transport.py` — quasilinear TGLF-10 instability spectrum (ITG/TEM/ETG
+    growth rates and mode identification from local plasma parameters)
+  - `ballooning_solver.py` — second-order ODE eigenvalue solver in s-alpha geometry;
+    binary-search marginal-stability finder; full stability diagram computation
+  - `current_diffusion.py` — parallel current evolution PDE with neoclassical
+    resistivity (Sauter-Angioni), ohmic heating, and bootstrap source
+  - `current_drive.py` — ECCD, NBI, LHCD auxiliary current-drive models with
+    absorption efficiency and radial deposition profiles
+  - `ntm_dynamics.py` — modified Rutherford equation for neoclassical tearing modes
+    (2/1, 3/2); ECCD stabilization factor; NTM controller with mode-tracking
+  - `rwm_feedback.py` — resistive wall mode n=1 feedback with active coils, Galerkin
+    gain computation, and passive-wall eigenvalue analysis
+  - `sawtooth.py` — Porcelli-like trigger (shear at q=1), Kadomtsev reconnection
+    crash model, density/energy conservation, SawtoothCycler with crash history
+  - `sol_model.py` — two-point SOL model (upstream-to-target), Eich heat-flux width
+    scaling (Goldston heuristic), sheath-limited and conduction-limited regimes
+  - `rzip_model.py` — linearised tokamak vertical stability model (RZIp plant);
+    eigenvalue-based growth rate; passive structure model
+  - `integrated_scenario.py` — full integrated scenario simulator coupling transport,
+    current diffusion, current drive, sawteeth, NTM, and SOL models; ships with
+    ITER baseline, ITER hybrid, and NSTX-U preset scenarios
+- **Phase 4 — Absolute control** (10 modules in `control/`):
+  - `nmpc_controller.py` — nonlinear MPC with SQP over 20-step horizon; state/input
+    box constraints and slew-rate limits on Ip, beta_N, q95, li, Te, nbar
+  - `mu_synthesis.py` — D-K iteration for structured robust control; D-scaling
+    optimization minimising structured singular value mu; MuSynthesisController
+  - `realtime_efit.py` — streaming equilibrium reconstruction from partial
+    measurements; coil-current-to-psi mapping; sub-10ms latency target
+  - `gain_scheduled_controller.py` — PID gains scheduled on operating regime
+    (Ip, beta_N); automatic interpolation with hysteresis-aware regime detection
+  - `shape_controller.py` — plasma shape feedback via divertor/shaping coils;
+    boundary-geometry Jacobian; x-point and separatrix tracking
+  - `safe_rl_controller.py` — PPO wrapper with MHD constraint checker; vetoes
+    actions violating stability limits; Gymnasium-compatible
+  - `sliding_mode_vertical.py` — sliding-mode controller for vertical stability;
+    continuous control law with dead-band saturation; configurable sliding surface
+  - `scenario_scheduler.py` — shot timeline manager for startup→ramp→flattop→
+    rampdown; actuator scheduling with power budgets; scipy.optimize trajectory
+  - `fault_tolerant_control.py` — sensor/actuator fault detection via innovation
+    monitoring; reduced-rank operation under faults; stuck-sensor reconstruction
+  - `control_benchmark_suite.py` — standardised benchmark scenarios (step tracking,
+    disturbance rejection, noise resilience) with JSON+Markdown report generation
+
+### Fixed
+- `np.trapz` → `scipy.integrate.trapezoid` across all files (numpy 2.x compat)
+- Ballooning test hardened (alpha 0.9→1.5) for cross-platform robustness
+- 46 mypy errors fixed across 17 files (no-any-return, attr-defined, assignment)
+- scipy event function pattern refactored to class-based callable
+
+### Changed
+- 2,786 tests (178 files), 100% coverage, 26 CI jobs
+- Version bump: v0.15.0 → v0.16.0
+
+## [0.15.0] — 2026-03-11
+
+### Fixed
+- **GS\* stencil sign bug**: east/west coefficients in Jacobi, SOR, multigrid,
+  and JAX solvers had the 1/(2R·dR) sign swapped — implementing the cylindrical
+  Laplacian (∂²ψ/∂R² + (1/R)∂ψ/∂R) instead of the correct GS\* operator
+  (∂²ψ/∂R² − (1/R)∂ψ/∂R). Python now matches Rust sor.rs. Verified via
+  Solov'ev exact solution (< 1% error on 33×33 grid).
+- **beta_N formula** (TokamakEnv): replaced dimensionally incorrect sqrt(Ip)
+  expression with Troyon scaling β_N = c·T/Ip, calibrated to ITER baseline
+- **gain_margin_db misnomer**: renamed to `stability_margin_db` (eigenvalue-based,
+  not Bode gain margin); backward-compat alias retained
+- **MPC docstring**: states clearly this is gradient-based trajectory optimization,
+  not Rawlings-Mayne MPC
+- **Physics citations**: Braginskii tau_eq, Martin L-H threshold, Troyon beta_N,
+  Wesson q95 — all hardcoded constants now cite source
+- **H-infinity Y Riccati tolerance**: tightened from 1.0 to 0.01
+- **IPB98(y,2) RMSE gate**: tightened from 200% to 80%
+
+### Added
+- Solov'ev analytic equilibrium test (GS solver vs exact ψ)
+- Crank-Nicolson CN-vs-Euler convergence test and pure diffusion decay test
+- `validate-rmse` CLI command (full RMSE dashboard)
+- 16 analytic regression tests in `test_p0_regression.py`
+
+### Changed
+- 2,420 tests, 0 failures, 105 skipped
+- Version bump: v0.14.1 → v0.15.0
+
+## [0.14.1] — 2026-03-11
+
+### Fixed
+- **Jacobi step**: add 1/R toroidal stencil (was Cartesian Laplacian, affecting
+  fallback solver path)
+- **Vacuum field**: multiply coil current by `turns` (was ignoring multi-turn coils)
+- **JAX GS boundary**: use ψ_bdry=0.0 Dirichlet BC (was reading corner value)
+- **UPDE Rust fast-path**: return `"Psi_global"` key (was `"Psi"`, breaking
+  downstream code when Rust backend active)
+- **Green's function**: divide by k² not k in toroidal formula
+- **Bootstrap current**: use minor radius `a`, not domain extent `R_max−R_min`
+- **lyapunov_v docstring**: range is [0, 2] not [0, 1]
+- **Neural transport docstring**: honest about MLP architecture (not full QLKNN-10D)
+
+### Added
+- 13 analytic regression tests (`test_p0_regression.py`): Jacobi toroidal stencil,
+  vacuum field turns scaling, UPDE key parity, GS boundary conditions, 2-oscillator
+  Kuramoto exponential convergence, sub/supercritical phase transition thresholds
+- `tutorial-smoke` CI job (tutorials 01, 04, 05)
+- `[all]` optional-dependency group in pyproject.toml
+
+### Changed
+- MG parity tolerance widened (Rust multigrid uses Cartesian smoother)
+- 2,417 tests, 99.99% coverage, 26 CI jobs
+
 ## [0.14.0] — 2026-03-10
 
 ### Added
@@ -10,7 +121,6 @@
 - Benchmark report: `benchmarks/rl_vs_classical.json`
 - Cloud training script: `tools/train_rl_upcloud.sh` (multi-seed, best-select)
 - JarvisLabs automation: `tools/jarvislabs_train.py`
-- 99.99% test coverage: 2,417 tests, 9,672 statements, 1 missed (gate=99%)
 
 ## [0.13.0] — 2026-03-10
 
@@ -21,82 +131,128 @@
   with TORAX (JAX) and FUSE (Julia AD)
 - `jax_gs_solve()` public API with NumPy fallback
 - `jax_gs_grad_Ip()` convenience function for d(psi)/d(Ip) gradient
-- 20 JAX GS tests
-- `examples/quickstart.py` — 30-second Python demo
+- 20 JAX GS tests: NumPy parity, boundary conditions, symmetry, autodiff
+  (finite, nonzero, sign, beta_mix, finite-difference agreement)
+- `examples/quickstart.py` — 30-second Python demo (equilibrium + transport +
+  SNN compile + autodiff)
+- README "Python in 30 Seconds" quickstart block
 
 ### Changed
-- TokamakEnv reward shaping (survival bonus, progress, Ng et al. 1999)
-- JOSS paper updated to v0.13.0 metrics
-- Competitive analysis: equilibrium autodiff depth RESOLVED (5/6 gaps closed)
+- TokamakEnv reward: added survival bonus, progress shaping (Ng et al. 1999),
+  increased disruption penalty — improves PPO learning speed
+- JOSS paper updated: 57 modules, ~22,900 LOC, 2,201 tests, JAX GS mention
+- Competitive analysis: equilibrium autodiff depth marked RESOLVED (5/6 gaps closed)
 
 ## [0.12.0] — 2026-03-10
 
 ### Added
-- QLKNN-10D trained neural transport model (`tools/train_neural_transport_qlknn.py`)
-- Auto-discovery: `NeuralTransportModel()` loads from `weights/` if present
-- PPO agent on TokamakEnv, Gymnasium wrapper, PID/MPC baselines
-- RL vs classical benchmark (`benchmarks/rl_vs_classical.py`)
-- `[rl]` optional dependency group
-- 20 QLKNN tests + 14 RL tests
+- **QLKNN-10D trained neural transport model**: 3-layer MLP (10→128→64→3) trained
+  on synthetic critical-gradient data (5000 samples, van de Plassche et al. 2020 paradigm)
+- Training script `tools/train_neural_transport_qlknn.py` with `--synthetic` CI mode
+  and `--data-dir` for real Zenodo dataset
+- Auto-discovery: `NeuralTransportModel()` loads weights from `weights/` if present
+- **PPO agent** on `TokamakEnv` via stable-baselines3 (`tools/train_rl_tokamak.py`)
+- Gymnasium-compatible `GymTokamakEnv` wrapper with proper `spaces.Box` definitions
+- PID and 1-step MPC baseline controllers for comparison
+- RL vs classical benchmark (`benchmarks/rl_vs_classical.py`): PPO vs PID vs MPC
+- `[rl]` optional dependency group (`stable-baselines3`, `gymnasium`)
+- 20 QLKNN tests + 14 RL tests (weight loading, inference, training E2E, benchmark)
 
 ### Fixed
-- NumPy 2.x deprecation in weight loader (`version` array → scalar)
-- TokamakEnv q95 formula: added elongation factor (was causing instant disruption)
+- NumPy 2.x deprecation: `int(data["version"])` → `int(data["version"].item())`
+- TokamakEnv q95 formula: added elongation factor (q95 ≈ 3.0 at 15 MA, was 1.77)
 
 ## [0.11.0] — 2026-03-10
 
 ### Added
-- JAX-accelerated neural equilibrium (`jax_neural_equilibrium`): GPU + autodiff + vmap batch
-- 13 tests: JAX/NumPy parity, autodiff, batched vmap, weight conversion
-- JAX neural equilibrium tests in `jax-parity` CI job
+- **JAX-accelerated neural equilibrium** (`scpn_control.core.jax_neural_equilibrium`):
+  JIT-compiled PCA + MLP surrogate for Grad-Shafranov equilibrium with GPU dispatch,
+  `jax.grad` for adjoint-based shape optimization, and `jax.vmap` batch inference
+- 13 new tests: JAX/NumPy parity, autodiff gradients, batched vmap, weight conversion
+- JAX neural equilibrium tests added to `jax-parity` CI job
 
 ## [0.10.0] — 2026-03-10
 
 ### Added
-- JAX-accelerated transport primitives (`jax_solvers`): Thomas solver, Crank-Nicolson,
-  batched transport via `jax.vmap` — JIT-compiled, GPU-compatible, autodiff via `jax.grad`
-- Real DIII-D shot validation: 95 tests across 17 real disruption shots
-- CI: `real-diiid` job, JAX solver tests in `jax-parity` (25 total CI jobs)
-- JOSS paper draft (`paper.md`, `paper.bib`)
+- **JAX-accelerated transport primitives** (`scpn_control.core.jax_solvers`):
+  Thomas tridiagonal solver, Crank-Nicolson diffusion operator, and batched
+  transport via `jax.vmap` — all JIT-compiled, GPU-compatible, and
+  differentiable via `jax.grad` for sensitivity analysis
+- **Real DIII-D shot validation** (`tests/test_real_diiid_shots.py`): 95 tests
+  validating data integrity, physical ranges, disruption labels, phase-sync
+  pipeline handling, and disruption-precursor feature extraction against 17
+  real DIII-D disruption shots (H-mode, VDE, beta-limit, locked-mode,
+  density-limit, tearing, snowflake, negative-delta, high-beta)
+- CI Job: `real-diiid` — validates against real DIII-D shot data (25 CI jobs total)
+- CI: JAX solver parity tests added to `jax-parity` job
+- **JOSS paper** (`paper.md`, `paper.bib`): submission-ready for Journal of
+  Open Source Software review
+- API docs: JAX transport primitives added to `docs/api.md`
 
 ## [0.9.0] — 2026-03-10
 
 ### Added
-- `py.typed` PEP 561 marker
-- `[jax]` and `[loihi]` optional dependency groups
-- CI Jobs 16-17: JAX parity + Nengo Loihi testing
-- CI: Windows/macOS runners (Python 3.12)
-- API docs: 16 undocumented modules added
-- VALIDATION.md: RMSE threshold table
+- `py.typed` PEP 561 marker for downstream IDE type inference
+- `[jax]` optional dependency group (`jax>=0.4.20`, `jaxlib>=0.4.20`)
+- `[loihi]` optional dependency group (`nengo>=4.0`, `nengo-loihi>=1.0`)
+- CI Job 16: JAX backend parity (`jax-parity`) — validates `jax_traceable_runtime.py`
+- CI Job 17: Nengo Loihi test (`nengo-loihi`) — validates `nengo_snn_wrapper.py`
+- CI: Windows and macOS runners in python-tests matrix (Python 3.12)
+- API docs: 16 previously undocumented modules added to `docs/api.md`
+  (neural_equilibrium, neural_transport, stability_mhd, hpc_bridge,
+  adaptive_knm, plasma_knm, analytic_solver, bio_holonomic, digital_twin_ingest,
+  director_interface, fueling_mode, halo_re, hil_harness, jax_traceable,
+  neuro_cybernetic, torax_hybrid_loop)
+- VALIDATION.md: RMSE regression threshold table with sources
 
 ### Changed
-- mypy `disallow_untyped_defs`, `warn_return_any` across all 54 modules
-- Codecov `fail_ci_if_error: true`
-- Removed `black` from dev extras
-- U-002, U-006 RESOLVED (all 7 items now RESOLVED)
+- mypy: `disallow_untyped_defs = true`, `warn_return_any = true` across all 54 modules (134 annotations added)
+- mypy: `files` simplified to `["src/scpn_control/"]` (full package)
+- Codecov: `fail_ci_if_error: true` (was false with TODO)
+- Removed `black` from dev extras (redundant with ruff-format)
+- Cleaned 49 unused imports across 30+ test files (ruff auto-fix)
+- U-002 (Nengo Loihi) marked RESOLVED
+- U-006 (JAX CI) marked RESOLVED
+- All 7 UNDERDEVELOPED_REGISTER items now RESOLVED
 
 ## [0.8.1] — 2026-03-10
 
 ### Added
-- Rust H-inf: Padé(6,6) `matrix_exp` + `zoh_discretize` (replaces Euler)
-- `benchmarks/e2e_control_latency.py` — E2E pipeline benchmark
+- Rust H-inf: Padé(6,6) scaling-and-squaring `matrix_exp` replacing Euler discretization
+- Rust H-inf: `zoh_discretize` matching Python `_zoh_discretize` (exact ZOH via matrix exponential)
+- 6 new Rust tests for matrix_exp + ZOH (diagonal, nilpotent, large-norm, Euler agreement)
+- `benchmarks/e2e_control_latency.py` — honest E2E pipeline benchmark (sensor→equilibrium→transport→control→actuator)
 
 ### Changed
-- Honesty sweep across README, pitch, use_cases, VALIDATION, competitive_analysis
-- U-001 RESOLVED (last P1 issue)
+- README, pitch.md, use_cases.md, VALIDATION.md, competitive_analysis.md: honesty sweep
+  - "formal verification" → "contract-based checking"
+  - "DIII-D shot replay" → stated as synthetic mock data
+  - Comparison table: kernel step ≠ full control cycle caveat
+  - VALIDATION.md: Scope & Limitations table, "What does NOT exist" list
+  - use_cases.md: added "Real tokamak data" and "Peer-reviewed papers" rows (both No)
+- U-001 marked RESOLVED in UNDERDEVELOPED_REGISTER
+- Stale doc counts: 2019 tests, 118 files, 54 modules
 
 ## [0.8.0] — 2026-03-09
 
 ### Added
 - Python fallback for `rust_svd_optimal_correction()`: truncated SVD pseudoinverse
-- Python fallback for `RustSPIMitigation`: 3-phase disruption sim matching Rust constants
-- Python fallback for `rust_multigrid_vcycle()`: delegates to FusionKernel
-- `require_bounded_float`, `require_finite_array` shared validators
-- `tests/test_rust_fallbacks.py` — 16 tests
+  with singular-value cutoff (`_python_svd_optimal_correction`)
+- Python fallback for `RustSPIMitigation`: 3-phase disruption sim matching Rust
+  spi.rs constants (Assimilation → ThermalQuench → CurrentQuench)
+- Python fallback for `rust_multigrid_vcycle()`: delegates to
+  `FusionKernel._multigrid_vcycle` with isolated instance
+- `require_bounded_float` validator: arbitrary inclusive/exclusive bound checks
+- `require_finite_array` validator: ndim/shape constraints + finiteness
+- `tests/test_rust_fallbacks.py` — 16 tests (SVD, SPI, multigrid fallbacks)
+- Input validation on `RustSPIMitigation.__init__()` for both Rust and Python paths
 
 ### Changed
-- 3 P1 modules: inline `np.isfinite` → shared validators
-- U-003, U-004, U-005, U-007 marked RESOLVED
+- `h_infinity_controller.py`: inline `np.isfinite` checks replaced with shared validators
+- `disruption_predictor.py`: 7 inline checks replaced with shared validators
+- `advanced_soc_fusion_learning.py`: 8 inline checks replaced with shared validators
+- U-003, U-004, U-005 marked RESOLVED in UNDERDEVELOPED_REGISTER
+- U-007 marked RESOLVED (shared validators in place, P1 modules converted)
 
 ## [0.7.1] — 2026-03-09
 

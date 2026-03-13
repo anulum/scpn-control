@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scpn-control"
-version = "0.15.0"
+version = "0.16.0"
 description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
 authors = [
     {name = "Miroslav Sotek", email = "protoscience@anulum.li"},
     {name = "Michal Reiprich"}
 ]
-keywords = ["tokamak", "plasma-control", "petri-net", "snn", "Kuramoto"]
+keywords = ["tokamak", "plasma-control", "petri-net", "snn", "Kuramoto", "MHD", "gyrokinetic", "H-infinity", "mu-synthesis", "NMPC"]
 license = "MIT OR Apache-2.0"
 classifiers = [
     "Development Status :: 3 - Alpha",

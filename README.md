@@ -22,8 +22,8 @@
 **scpn-control** is a standalone neuro-symbolic control engine that compiles
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 57 source
-modules, 136 test files, **2,641 tests** (99.99% coverage), 5 Rust crates, 26 CI jobs.
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 78 source
+modules, 178 test files, **2,786 tests** (100% coverage), 5 Rust crates, 26 CI jobs.
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
@@ -108,14 +108,18 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 - **Contract checking** -- Runtime pre/post-condition assertions on control observations and actions (not theorem-proved formal verification)
 - **Sub-millisecond latency** -- <1ms control loop with optional Rust-accelerated kernels
 - **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update, Boris integration, SNN pools, and MPC
-- **Multiple controller types** -- PID, MPC, H-infinity, SNN, neuro-cybernetic dual R+Z, PPO reinforcement learning
-- **Grad-Shafranov solver** -- Fixed-boundary equilibrium solver with L-mode profiles, JAX-differentiable (`jax.grad` through full Picard solve)
+- **10 controller types** -- PID, MPC, NMPC, H-infinity, mu-synthesis, gain-scheduled, sliding-mode, fault-tolerant, SNN, PPO reinforcement learning
+- **Grad-Shafranov solver** -- Fixed + free-boundary equilibrium solver with L/H-mode profiles, JAX-differentiable (`jax.grad` through full Picard solve)
+- **Frontier physics** -- Gyrokinetic transport (TGLF-10), ballooning eigenvalue solver, sawtooth Kadomtsev model, NTM dynamics, current diffusion/drive, SOL two-point model
+- **MHD stability** -- Five independent criteria: Mercier interchange, ballooning, Kruskal-Shafranov kink, Troyon beta limit, NTM seeding
 - **JAX autodiff** -- Thomas solver, Crank-Nicolson transport, neural equilibrium, GS solver — all JIT-compiled and GPU-compatible
 - **PPO agent** -- 500K-step cloud-trained RL controller (reward 143.7 vs MPC 58.1 vs PID −912.3), 3-seed reproducible
 - **Neural transport** -- QLKNN-10D trained MLP with auto-discovered weights
-- **Digital twin integration** -- Real-time telemetry ingest, closed-loop simulation, and flight simulator
+- **Scenario management** -- Integrated scenario simulator (transport + current diffusion + sawteeth + NTM + SOL), scenario scheduler, ITER/NSTX-U presets
+- **Digital twin integration** -- Real-time telemetry ingest, closed-loop simulation, real-time EFIT, and flight simulator
 - **RMSE validation** -- CI-gated regression testing against synthetic DIII-D shots and published SPARC GEQDSK files
 - **Disruption prediction** -- ML-based predictor with SPI mitigation and halo/RE physics
+- **Robust control** -- H-infinity DARE synthesis, mu-synthesis D-K iteration, fault-tolerant degraded-mode operation, shape controller with boundary Jacobian
 
 ## Architecture
 
@@ -126,20 +130,39 @@ src/scpn_control/
 |   +-- compiler.py    #   FusionCompiler -> CompiledNet (LIF + bitstream)
 |   +-- contracts.py   #   ControlObservation, ControlAction, ControlTargets
 |   +-- controller.py  #   NeuroSymbolicController (main entry point)
-+-- core/              # Solver + plant model (clean init, no import bombs)
-|   +-- fusion_kernel.py           # Grad-Shafranov equilibrium solver
-|   +-- integrated_transport_solver.py  # Multi-species transport
++-- core/              # Physics solvers + plant models (29 modules)
+|   +-- fusion_kernel.py           # Grad-Shafranov equilibrium (fixed + free boundary)
+|   +-- integrated_transport_solver.py  # Multi-species transport PDE
+|   +-- gyrokinetic_transport.py   # Quasilinear TGLF-10 (ITG/TEM/ETG)
+|   +-- ballooning_solver.py       # s-alpha ballooning eigenvalue ODE
+|   +-- sawtooth.py                # Kadomtsev crash + Porcelli trigger
+|   +-- ntm_dynamics.py            # Modified Rutherford NTM + ECCD stabilization
+|   +-- current_diffusion.py       # Parallel current evolution PDE
+|   +-- current_drive.py           # ECCD, NBI, LHCD deposition models
+|   +-- sol_model.py               # Two-point SOL + Eich heat-flux width
+|   +-- rzip_model.py              # Linearised vertical stability (RZIp)
+|   +-- integrated_scenario.py     # Full scenario simulator (ITER/NSTX-U presets)
+|   +-- stability_mhd.py           # 5 MHD stability criteria
 |   +-- scaling_laws.py            # IPB98y2 confinement scaling
-|   +-- eqdsk.py                   # GEQDSK/EQDSK file I/O
-|   +-- uncertainty.py             # Monte Carlo UQ
-+-- control/           # Controllers (optional deps guarded)
-|   +-- h_infinity_controller.py   # H-inf robust control
-|   +-- fusion_sota_mpc.py         # Model Predictive Control
-|   +-- disruption_predictor.py    # ML disruption prediction
+|   +-- neural_transport.py        # QLKNN-10D trained surrogate
+|   +-- neural_equilibrium.py      # PCA+MLP GS surrogate (1000x speedup)
+|   +-- ...                        # 14 more (eqdsk, uncertainty, pedestal, ...)
++-- control/           # Controllers (37 modules, optional deps guarded)
+|   +-- h_infinity_controller.py   # H-inf robust control (DARE)
+|   +-- mu_synthesis.py            # D-K iteration (structured singular value)
+|   +-- nmpc_controller.py         # Nonlinear MPC (SQP, 20-step horizon)
+|   +-- gain_scheduled_controller.py  # PID scheduled on operating regime
+|   +-- sliding_mode_vertical.py   # Sliding-mode vertical stabilizer
+|   +-- fault_tolerant_control.py  # Fault detection + degraded-mode operation
+|   +-- shape_controller.py        # Plasma shape via boundary Jacobian
+|   +-- safe_rl_controller.py      # PPO + MHD constraint checker
+|   +-- scenario_scheduler.py      # Shot timeline + actuator scheduling
+|   +-- realtime_efit.py           # Streaming equilibrium reconstruction
+|   +-- control_benchmark_suite.py # Standardised benchmark scenarios
+|   +-- disruption_predictor.py    # ML disruption prediction + SPI
 |   +-- tokamak_digital_twin.py    # Digital twin
-|   +-- tokamak_flight_sim.py      # IsoFlux flight simulator
-|   +-- neuro_cybernetic_controller.py  # Dual R+Z SNN
-+-- phase/             # Paper 27 Knm/UPDE phase dynamics
+|   +-- ...                        # 24 more (MPC, flight sim, HIL, ...)
++-- phase/             # Paper 27 Knm/UPDE phase dynamics (8 modules)
 |   +-- kuramoto.py    #   Kuramoto-Sakaguchi step + order parameter
 |   +-- knm.py         #   Paper 27 Knm coupling matrix builder
 |   +-- upde.py        #   UPDE multi-layer solver
@@ -155,12 +178,12 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 2,417 tests (136 files, 99.99% coverage)
+tests/                 # 2,786 tests (178 files, 100% coverage)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
 +-- test_rust_realtime_parity.py  # Rust PyRealtimeMonitor parity
-+-- ...                # 128 more test files
++-- ...                # 170+ more test files
 ```
 
 ## Paper 27 Phase Dynamics (Knm/UPDE Engine)

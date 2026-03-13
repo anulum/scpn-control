@@ -138,12 +138,31 @@
 - [x] Coverage gate ratcheted: 85% → 99%
 - [x] 25 CI jobs all green
 
+### v0.15.0 — 2026-03-11
+- [x] GS* stencil sign bug fix (cylindrical Laplacian → GS* operator)
+- [x] Solov'ev analytic equilibrium test
+- [x] 16 analytic regression tests
+- [x] Physics citations on all hardcoded constants
+- [x] H-infinity Y Riccati tolerance tightened (1.0 → 0.01)
+- [x] `validate-rmse` CLI command
+- [x] 2,420 tests
+
+### v0.16.0 — 2026-03-13
+- [x] **Phase 3 — Frontier physics** (10 new modules in `core/`):
+  gyrokinetic_transport, ballooning_solver, current_diffusion, current_drive,
+  ntm_dynamics, rwm_feedback, sawtooth, sol_model, rzip_model, integrated_scenario
+- [x] **Phase 4 — Absolute control** (10 new modules in `control/`):
+  nmpc_controller, mu_synthesis, realtime_efit, gain_scheduled_controller,
+  shape_controller, safe_rl_controller, sliding_mode_vertical, scenario_scheduler,
+  fault_tolerant_control, control_benchmark_suite
+- [x] numpy 2.x compatibility (np.trapz → scipy.integrate.trapezoid)
+- [x] 46 mypy errors fixed across 17 files
+- [x] 2,786 tests (178 files), 100% coverage
+
 ## Next
 
-### v0.15.0 — JOSS submission
-- [ ] JOSS paper submission (fact-checked, final claims)
-
 ### v1.0.0 — Production readiness
+- [ ] JOSS paper submission (fact-checked, final claims)
 - [ ] IMAS IDS round-trip tests with real `omas` install
 - [ ] Streamlit dashboard v2 (shot replay + multi-machine selector)
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)

@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.16.0] — 2026-03-13
+
+### Added
+- **Phase 3 — Frontier physics** (10 modules in `core/`):
+  - `gyrokinetic_transport.py` — quasilinear TGLF-10 instability spectrum (ITG/TEM/ETG
+    growth rates and mode identification from local plasma parameters)
+  - `ballooning_solver.py` — second-order ODE eigenvalue solver in s-alpha geometry;
+    binary-search marginal-stability finder; full stability diagram computation
+  - `current_diffusion.py` — parallel current evolution PDE with neoclassical
+    resistivity (Sauter-Angioni), ohmic heating, and bootstrap source
+  - `current_drive.py` — ECCD, NBI, LHCD auxiliary current-drive models with
+    absorption efficiency and radial deposition profiles
+  - `ntm_dynamics.py` — modified Rutherford equation for neoclassical tearing modes
+    (2/1, 3/2); ECCD stabilization factor; NTM controller with mode-tracking
+  - `rwm_feedback.py` — resistive wall mode n=1 feedback with active coils, Galerkin
+    gain computation, and passive-wall eigenvalue analysis
+  - `sawtooth.py` — Porcelli-like trigger (shear at q=1), Kadomtsev reconnection
+    crash model, density/energy conservation, SawtoothCycler with crash history
+  - `sol_model.py` — two-point SOL model (upstream-to-target), Eich heat-flux width
+    scaling (Goldston heuristic), sheath-limited and conduction-limited regimes
+  - `rzip_model.py` — linearised tokamak vertical stability model (RZIp plant);
+    eigenvalue-based growth rate; passive structure model
+  - `integrated_scenario.py` — full integrated scenario simulator coupling transport,
+    current diffusion, current drive, sawteeth, NTM, and SOL models; ships with
+    ITER baseline, ITER hybrid, and NSTX-U preset scenarios
+- **Phase 4 — Absolute control** (10 modules in `control/`):
+  - `nmpc_controller.py` — nonlinear MPC with SQP over 20-step horizon; state/input
+    box constraints and slew-rate limits on Ip, beta_N, q95, li, Te, nbar
+  - `mu_synthesis.py` — D-K iteration for structured robust control; D-scaling
+    optimization minimising structured singular value mu; MuSynthesisController
+  - `realtime_efit.py` — streaming equilibrium reconstruction from partial
+    measurements; coil-current-to-psi mapping; sub-10ms latency target
+  - `gain_scheduled_controller.py` — PID gains scheduled on operating regime
+    (Ip, beta_N); automatic interpolation with hysteresis-aware regime detection
+  - `shape_controller.py` — plasma shape feedback via divertor/shaping coils;
+    boundary-geometry Jacobian; x-point and separatrix tracking
+  - `safe_rl_controller.py` — PPO wrapper with MHD constraint checker; vetoes
+    actions violating stability limits; Gymnasium-compatible
+  - `sliding_mode_vertical.py` — sliding-mode controller for vertical stability;
+    continuous control law with dead-band saturation; configurable sliding surface
+  - `scenario_scheduler.py` — shot timeline manager for startup→ramp→flattop→
+    rampdown; actuator scheduling with power budgets; scipy.optimize trajectory
+  - `fault_tolerant_control.py` — sensor/actuator fault detection via innovation
+    monitoring; reduced-rank operation under faults; stuck-sensor reconstruction
+  - `control_benchmark_suite.py` — standardised benchmark scenarios (step tracking,
+    disturbance rejection, noise resilience) with JSON+Markdown report generation
+
+### Fixed
+- `np.trapz` → `scipy.integrate.trapezoid` across all files (numpy 2.x compat)
+- Ballooning test hardened (alpha 0.9→1.5) for cross-platform robustness
+- 46 mypy errors fixed across 17 files (no-any-return, attr-defined, assignment)
+- scipy event function pattern refactored to class-based callable
+
+### Changed
+- 2,786 tests (178 files), 100% coverage, 26 CI jobs
+- Version bump: v0.15.0 → v0.16.0
+
 ## [0.15.0] — 2026-03-11
 
 ### Fixed

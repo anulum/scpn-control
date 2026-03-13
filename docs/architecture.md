@@ -16,21 +16,27 @@ graph TD
         CON[contracts.py] --> NSC
     end
 
-    subgraph "core/ — Physics Solvers"
+    subgraph "core/ — Physics Solvers (29 modules)"
         FK[fusion_kernel.py] --> TC[tokamak_config.py]
         ITS[integrated_transport_solver.py]
         NEQ[neural_equilibrium.py]
-        SL[scaling_laws.py]
-        EQ[eqdsk.py]
-        IMAS[imas_adapter.py]
+        GT2[gyrokinetic_transport.py]
+        BS2[ballooning_solver.py]
+        ST2[sawtooth.py]
+        NTM2[ntm_dynamics.py]
+        CD2[current_diffusion.py]
+        SOL2[sol_model.py]
+        ISS2[integrated_scenario.py]
     end
 
-    subgraph "control/ — Controllers"
-        HINF[h_infinity_controller.py]
-        MPC[fusion_sota_mpc.py]
-        DT[tokamak_digital_twin.py]
-        FS[tokamak_flight_sim.py]
-        NCC[neuro_cybernetic_controller.py]
+    subgraph "control/ — Controllers (37 modules)"
+        HINF2[h_infinity_controller.py]
+        MU2[mu_synthesis.py]
+        NMPC2[nmpc_controller.py]
+        GS_C[gain_scheduled_controller.py]
+        SM2[sliding_mode_vertical.py]
+        FT2[fault_tolerant_control.py]
+        SC2[shape_controller.py]
         DP[disruption_predictor.py]
         GYM[gym_tokamak_env.py]
     end
@@ -60,10 +66,15 @@ NeuralEquilibrium   IntegratedTransportSolver
     └──────┬─────────────┘
            ↓
     Controller Selection
-    ├── PID (IsoFluxController)
+    ├── PID / Gain-Scheduled (GainScheduledController)
     ├── H-infinity (HInfinityController)
+    ├── Mu-Synthesis (MuSynthesisController)
+    ├── NMPC (NMPCController, SQP 20-step)
     ├── MPC (ModelPredictiveController)
-    ├── RL/PPO (GymTokamakEnv + SB3)
+    ├── Sliding-Mode (SlidingModeVerticalController)
+    ├── Fault-Tolerant (FaultTolerantController)
+    ├── Shape (ShapeController)
+    ├── RL/PPO (SafeRLController + SB3)
     └── SNN (NengoSNNController)
            ↓
     DisruptionPredictor
@@ -88,7 +99,14 @@ graph LR
     subgraph "Controllers"
         MPC[fusion_sota_mpc]
         HINF[h_infinity_controller]
+        MU[mu_synthesis]
+        NMPC[nmpc_controller]
+        GS_CTRL[gain_scheduled]
+        SM[sliding_mode_vertical]
+        FT[fault_tolerant]
+        SC[shape_controller]
         SNN[nengo_snn_wrapper]
+        SRL[safe_rl_controller]
     end
 
     subgraph "Core Physics"
@@ -96,6 +114,13 @@ graph LR
         FK[fusion_kernel]
         NEQ[neural_equilibrium]
         NT[neural_transport]
+        GT[gyrokinetic_transport]
+        BS[ballooning_solver]
+        ST[sawtooth]
+        NTM[ntm_dynamics]
+        CD[current_diffusion]
+        SOL[sol_model]
+        ISS[integrated_scenario]
     end
 
     subgraph "Foundation"
