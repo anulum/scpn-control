@@ -13,8 +13,10 @@ scpn-control live --port 8765 --zeta 0.5
 
 ## Tutorial Scripts
 
-Five self-contained scripts in `examples/` covering the full stack.
+Seven self-contained scripts in `examples/` covering the full stack.
 Each prints structured output and runs without GPU or optional dependencies.
+
+### Core Tutorials (01-05)
 
 | # | Script | Topics | Extra deps |
 |---|--------|--------|------------|
@@ -23,6 +25,13 @@ Each prints structured output and runs without GPU or optional dependencies.
 | 03 | `tutorial_03_ppo_rl_agent.py` | TokamakEnv, PID baseline, random rollout, PPO training, pre-trained eval, PPO vs PID vs MPC | `stable-baselines3` (optional) |
 | 04 | `tutorial_04_neural_transport.py` | Critical-gradient model, QLKNN-10D input space, regime classification, gradient scan, CN coupling | none |
 | 05 | `tutorial_05_adaptive_phase_dynamics.py` | Kuramoto sync, 16-layer UPDE, Lyapunov guard, RealtimeMonitor, adaptive Knm, closed-loop | none |
+
+### Elite Tutorials (06-07) — Expert Level
+
+| # | Script | Topics | Extra deps |
+|---|--------|--------|------------|
+| 06 | `tutorial_06_frontier_physics.py` | Gyrokinetic transport (ITG/TEM/ETG), ballooning stability (s-alpha), current diffusion, current drive (ECCD+NBI), NTM dynamics (Modified Rutherford), sawtooth cycler, SOL two-point model, integrated scenario (ITER baseline) | none |
+| 07 | `tutorial_07_advanced_controllers.py` | Sliding-mode vertical (super-twisting SMC), gain-scheduled controller, RWM feedback, mu-synthesis (D-K iteration), fault-tolerant control (FDI), shape controller (isoflux), scenario scheduler, controller comparison (H-inf vs MPC vs PID) | none |
 
 Run any tutorial:
 

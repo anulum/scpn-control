@@ -119,6 +119,43 @@ jupyter nbconvert --to notebook --execute examples/scpn_full_stack_demo_2026.ipy
 
 ---
 
+## Frontier Physics Demo
+
+**File:** `examples/frontier_physics_demo.ipynb`
+**Extra deps:** matplotlib
+
+Demonstrates all Phase 3 frontier physics modules with matplotlib
+visualizations: gyrokinetic transport (ITG spectrum + radial chi profile),
+ballooning stability (s-alpha diagram), current diffusion + current drive
+(ECCD+NBI profiles), NTM dynamics (Modified Rutherford Equation), sawtooth
+cycles (Kadomtsev crash), SOL model (two-point), and a coupled ITER 15MA
+integrated scenario.
+
+```bash
+pip install "scpn-control[viz]"
+jupyter nbconvert --to notebook --execute examples/frontier_physics_demo.ipynb
+```
+
+---
+
+## Advanced Control Demo
+
+**File:** `examples/advanced_control_demo.ipynb`
+**Extra deps:** matplotlib
+
+Demonstrates all Phase 4 advanced control modules: super-twisting
+sliding-mode vertical stabilizer, gain-scheduled multi-regime controller,
+RWM feedback stabilization (open vs closed-loop growth rates), mu-synthesis
+(structured singular value), fault-tolerant control (sensor dropout FDI),
+and isoflux shape controller convergence.
+
+```bash
+pip install "scpn-control[viz]"
+jupyter nbconvert --to notebook --execute examples/advanced_control_demo.ipynb
+```
+
+---
+
 ## Example Scripts
 
 In addition to Jupyter notebooks, the following Python scripts demonstrate

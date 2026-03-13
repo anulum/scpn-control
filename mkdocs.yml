@@ -55,8 +55,13 @@ nav:
   - Getting Started:
     - Pitch: pitch.md
     - Use Cases: use_cases.md
+    - First Steps: tutorials/first_steps.md
     - Tutorials: tutorials.md
     - Notebook Gallery: notebooks.md
+  - Learning:
+    - Plasma Physics Primer: learning/plasma_physics_primer.md
+    - Control Theory Primer: learning/control_theory_primer.md
+    - Glossary: learning/glossary.md
   - Reference:
     - API Reference: api.md
     - Theory: theory.md
