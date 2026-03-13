@@ -23,12 +23,12 @@ def test_ablation_rate():
     rate2 = ngs_ablation_rate(0.002, 1e20, 2000.0, 2.0)
 
     # Te^(5/3)
-    assert np.isclose(rate2 / rate1, 2.0**(5.0/3.0))
+    assert np.isclose(rate2 / rate1, 2.0 ** (5.0 / 3.0))
 
 
 def test_pellet_trajectory_penetration():
-    params1 = PelletParams(r_p_mm=4.0, v_p_m_s=300.0) # Slower
-    params2 = PelletParams(r_p_mm=4.0, v_p_m_s=1000.0) # Faster
+    params1 = PelletParams(r_p_mm=4.0, v_p_m_s=300.0)  # Slower
+    params2 = PelletParams(r_p_mm=4.0, v_p_m_s=1000.0)  # Faster
 
     rho = np.linspace(0, 1, 50)
     ne = np.ones(50) * 5.0  # 5e19

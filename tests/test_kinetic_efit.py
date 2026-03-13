@@ -23,7 +23,7 @@ def mock_kin_constraints() -> KineticConstraints:
         Te_points=[(6.2, 0.0, 10.0)],
         ne_points=[(6.2, 0.0, 5.0)],
         Ti_points=[(6.2, 0.0, 10.0)],
-        mse_points=[(6.5, 0.0, 5.0)]
+        mse_points=[(6.5, 0.0, 5.0)],
     )
 
 
@@ -37,7 +37,7 @@ def test_fast_ion_pressure():
     p_iso = fi.p_isotropic_equivalent(rho, ne)
 
     assert np.all(p_perp > p_par)
-    assert np.allclose((2*p_perp + p_par)/3.0, p_iso)
+    assert np.allclose((2 * p_perp + p_par) / 3.0, p_iso)
 
 
 def test_mse_pitch_angle():

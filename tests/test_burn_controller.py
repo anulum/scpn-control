@@ -42,7 +42,7 @@ def test_Q_definition():
 
     # Ignition
     Q_ign = alpha.Q(P_alpha_MW=20.0, P_aux_MW=0.0)
-    assert Q_ign == float('inf')
+    assert Q_ign == float("inf")
 
 
 def test_stability_boundary():

@@ -33,7 +33,7 @@ def test_impurity_pinch():
     q = np.ones(50)
     eps = 0.3 * rho
 
-    V_W = neoclassical_impurity_pinch(74, ne, 5000.0*np.ones(50), Ti, q, rho, 6.2, 2.0, eps)
+    V_W = neoclassical_impurity_pinch(74, ne, 5000.0 * np.ones(50), Ti, q, rho, 6.2, 2.0, eps)
 
     # Since grad_ne is negative, grad_ne_over_n is negative.
     # V = -Z * D * Z * grad_n/n.
@@ -63,7 +63,7 @@ def test_zero_source():
 
 
 def test_steady_source():
-    species = [ImpuritySpecies("W", 74, 183.8, source_rate=1e16)] # atoms/m2/s
+    species = [ImpuritySpecies("W", 74, 183.8, source_rate=1e16)]  # atoms/m2/s
     solver = ImpurityTransportSolver(np.linspace(0, 1, 50), 6.2, 2.0, species)
 
     res = solver.step(0.1, np.ones(50), np.ones(50), np.ones(50), 1.0, {"W": np.zeros(50)})
@@ -87,8 +87,8 @@ def test_total_radiated_power():
 
 def test_accumulation_diagnostic():
     ne = np.ones(50) * 1e20
-    nW = np.ones(50) * 1e16 # c_W = 1e-4 -> critical
-    nW[0] = 1e17 # Core peaked -> peaking factor 10
+    nW = np.ones(50) * 1e16  # c_W = 1e-4 -> critical
+    nW[0] = 1e17  # Core peaked -> peaking factor 10
 
     diag = tungsten_accumulation_diagnostic(nW, ne)
 

@@ -36,7 +36,7 @@ def test_sputtering_angular_dependence():
 def test_erosion_model():
     erosion = ErosionModel()
 
-    flux = 1e24 # High flux
+    flux = 1e24  # High flux
     gross = erosion.gross_erosion_rate(flux, 1000.0)
 
     assert gross > 0.0
@@ -48,7 +48,7 @@ def test_erosion_model():
 def test_wall_thermal_steady_state():
     wall = WallThermalModel()
 
-    T_steady = wall.step(10.0, 10.0) # 10 MW/m2
+    T_steady = wall.step(10.0, 10.0)  # 10 MW/m2
 
     assert T_steady > 400.0
     assert T_steady < wall.T_melt
@@ -58,7 +58,7 @@ def test_wall_thermal_steady_state():
 def test_wall_thermal_melting():
     wall = WallThermalModel()
 
-    T_steady = wall.step(10.0, 100.0) # 100 MW/m2 -> guaranteed to melt W
+    T_steady = wall.step(10.0, 100.0)  # 100 MW/m2 -> guaranteed to melt W
 
     assert T_steady > wall.T_melt
     assert wall.is_melted()

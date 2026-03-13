@@ -17,7 +17,7 @@ from scpn_control.core.alfven_eigenmodes import (
 def test_continuum_gaps():
     rho = np.linspace(0, 1, 100)
     q = np.linspace(1.0, 3.0, 100)
-    ne = np.ones(100) * 5.0 # 5e19
+    ne = np.ones(100) * 5.0  # 5e19
 
     cont = AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
 
@@ -32,7 +32,7 @@ def test_continuum_gaps():
     # Since q goes 1 to 3, we should find at least two gaps
     assert len(gaps) >= 2
 
-    q_gaps = [(2.0*g.m_coupling + 1.0)/(2.0) for g in gaps]
+    q_gaps = [(2.0 * g.m_coupling + 1.0) / (2.0) for g in gaps]
     assert 1.5 in q_gaps
     assert 2.5 in q_gaps
 

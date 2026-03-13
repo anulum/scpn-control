@@ -38,7 +38,7 @@ def test_dreicer_generation():
     params = RunawayParams(ne_20=1.0, Te_keV=1.0, E_par=0.0, Z_eff=1.5, B0=5.3, R0=6.2)
     # E_D is large for Te=1keV
     # Let's set E_par artificially high to get Dreicer
-    E_D = params.ne_20 * 1e20 * 1.6e-19**3 * 15.0 / (4 * np.pi * 8.85e-12**2 * 1.6e-16) # rough
+    E_D = params.ne_20 * 1e20 * 1.6e-19**3 * 15.0 / (4 * np.pi * 8.85e-12**2 * 1.6e-16)  # rough
     params.E_par = 100.0  # Massive field, e.g. TQ
 
     rate = dreicer_generation_rate(params)
