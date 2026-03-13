@@ -97,7 +97,7 @@ def total_radiated_power(
 
     # Integrate over volume: dV = 4 pi^2 R0 a^2 rho drho
     vol_element = 4.0 * np.pi**2 * R0 * a**2 * rho
-    P_rad_W = np.trapz(p_rad_density * vol_element, rho)
+    P_rad_W = np.trapezoid(p_rad_density * vol_element, rho)
 
     return float(P_rad_W / 1e6)
 
