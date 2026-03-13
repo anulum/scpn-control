@@ -13,7 +13,6 @@ other pathological but technically valid scenarios to ensure robustness.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -33,10 +32,10 @@ def minimal_config(tmp_path):
         "physics": {"plasma_current_target": 0.1, "vacuum_permeability": 1.0},
         "coils": [{"name": "PF1", "r": 1.5, "z": 2.0, "current": 1.0}],
         "solver": {
-            "boundary_variant": "fixed_boundary", 
-            "max_iterations": 10, 
+            "boundary_variant": "fixed_boundary",
+            "max_iterations": 10,
             "convergence_threshold": 1e-4,
-            "omega": 1.0
+            "omega": 1.0,
         },
         "free_boundary": {
             "target_flux_points": [[1.2, 0.0], [1.8, 0.0]],
@@ -44,7 +43,7 @@ def minimal_config(tmp_path):
         },
         "free_boundary_tracking": {
             "control_dt_s": 0.1,
-        }
+        },
     }
     cfg_path = tmp_path / "edge_case_config.json"
     cfg_path.write_text(json.dumps(cfg), encoding="utf-8")
@@ -67,19 +66,19 @@ def test_transport_solver_zero_chi(minimal_config):
     nr = solver.nr
     solver.chi_i = np.zeros(nr)
     solver.chi_e = np.zeros(nr)
-    
+
     # Use initial profiles that match the solver's hardcoded boundary conditions
     # to ensure "unchanged" status is not tripped by BC enforcement.
     # Ti edge = 0.1.
     solver.Ti = np.full(nr, 0.1)
     solver.Te = np.full(nr, 0.1)
-    
+
     ti_before = solver.Ti.copy()
     te_before = solver.Te.copy()
-    
+
     # Evolve with zero heating and zero chi
     solver.evolve_profiles(dt=0.1, P_aux=0.0)
-    
+
     np.testing.assert_allclose(solver.Ti, ti_before)
     np.testing.assert_allclose(solver.Te, te_before)
 
@@ -88,10 +87,10 @@ def test_transport_solver_zero_dt(minimal_config):
     """3. Transport solver with dt = 0.0 — unchanged state returned."""
     solver = IntegratedTransportSolver(minimal_config)
     ti_before = solver.Ti.copy()
-    
+
     # This should now return early due to our fix in integrated_transport_solver.py
     solver.evolve_profiles(dt=0.0, P_aux=1.0)
-    
+
     np.testing.assert_allclose(solver.Ti, ti_before)
 
 
@@ -115,12 +114,12 @@ def test_fusion_kernel_zero_iter(minimal_config):
     cfg["solver"]["max_iterations"] = 0
     with open(minimal_config, "w") as f:
         json.dump(cfg, f)
-        
+
     kernel_zero = FusionKernel(minimal_config)
     # At this point, kernel_zero.Psi is all zeros from initialize_grid()
     psi_init = kernel_zero.Psi.copy()
     result = kernel_zero.solve()
-    
+
     assert result["iterations"] == 0
     # Our fix in fusion_kernel.py ensures it returns early before any seeding
     np.testing.assert_allclose(kernel_zero.Psi, psi_init)

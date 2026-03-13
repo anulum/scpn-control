@@ -25,7 +25,7 @@ def generate_scenario_batch(n_total: int = 100) -> list[dict]:
     modes = ["ntm", "density_limit", "vde"]
     n_disrupt_target = n_total // 2
     n_disrupt, n_safe = 0, 0
-    
+
     while len(shots) < n_total:
         mode = rng.choice(modes)
         signal, label, t_disrupt = simulate_tearing_mode(steps=500, mode=mode, rng=rng)
@@ -46,28 +46,36 @@ def evaluate_batch(shots: list[dict], threshold: float) -> dict:
         detected = False
         t_detect = -1
         for t in range(win_size, len(signal), 20):
-            window = signal[t-win_size:t]
+            window = signal[t - win_size : t]
             val = window[-1]
             obs = {}
             # More realistic scaling to match predictor weights
-            if mode == "ntm": obs["toroidal_n1_amp"] = val * 0.2
-            elif mode == "density_limit": obs["toroidal_n2_amp"] = val * 0.1
-            elif mode == "vde": obs["toroidal_radial_spread"] = val * 1.0
-            else: obs["toroidal_n1_amp"] = 0.05
-            
+            if mode == "ntm":
+                obs["toroidal_n1_amp"] = val * 0.2
+            elif mode == "density_limit":
+                obs["toroidal_n2_amp"] = val * 0.1
+            elif mode == "vde":
+                obs["toroidal_radial_spread"] = val * 1.0
+            else:
+                obs["toroidal_n1_amp"] = 0.05
+
             risk = predict_disruption_risk(window, obs)
             if risk > threshold:
                 detected = True
                 t_detect = t
                 break
-        
+
         if label == 1:
             # TP only if detected BEFORE actual disruption
-            if detected and t_detect < t_dis_true: tp += 1
-            else: fn += 1
+            if detected and t_detect < t_dis_true:
+                tp += 1
+            else:
+                fn += 1
         else:
-            if detected: fp += 1
-            else: tn += 1
+            if detected:
+                fp += 1
+            else:
+                tn += 1
     return {"tpr": tp / max(tp + fn, 1), "fpr": fp / max(fp + tn, 1)}
 
 
@@ -81,19 +89,21 @@ def main():
         res = evaluate_batch(shots, th)
         tpr_list.append(res["tpr"])
         fpr_list.append(res["fpr"])
-    
+
     # Ensure (0,0) and (1,1)
     if not any(f == 0.0 for f in fpr_list):
-        fpr_list.append(0.0); tpr_list.append(0.0)
+        fpr_list.append(0.0)
+        tpr_list.append(0.0)
     if not any(f == 1.0 for f in fpr_list):
-        fpr_list.append(1.0); tpr_list.append(1.0)
-        
+        fpr_list.append(1.0)
+        tpr_list.append(1.0)
+
     idx = np.argsort(fpr_list)
     fpr_sorted = np.array(fpr_list)[idx]
     tpr_sorted = np.array(tpr_list)[idx]
-    
+
     auc = np.trapz(tpr_sorted, fpr_sorted)
-    
+
     results = {"auc": float(auc), "tpr": [float(x) for x in tpr_list], "fpr": [float(x) for x in fpr_list]}
     report_dir = Path("validation/reports")
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -103,6 +113,7 @@ def main():
         f.write(f"# Disruption Predictor ROC Analysis\n\n- **AUC**: {auc:.4f}\n")
         f.write(f"Result: {'PASS' if auc > 0.85 else 'FAIL'}\n")
     print(f"AUC={auc:.4f}")
+
 
 if __name__ == "__main__":
     main()

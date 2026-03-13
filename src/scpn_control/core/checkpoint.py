@@ -55,7 +55,7 @@ def save_checkpoint(
         "episode": episode,
         "solver_state": _serializable(solver_state),
         "metrics": _serializable(metrics),
-        "timestamp": float(np.datetime64('now').astype(float)) # Simple epoch
+        "timestamp": float(np.datetime64("now").astype(float)),  # Simple epoch
     }
 
     with open(path, "w", encoding="utf-8") as f:

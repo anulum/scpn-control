@@ -60,7 +60,7 @@ class VesselModel:
         self.elements = elements
         self.n_elements = len(elements)
         self.I = np.zeros(self.n_elements)
-        
+
         # Build mutual inductance matrix M
         self.M = np.zeros((self.n_elements, self.n_elements))
         for i in range(self.n_elements):
@@ -69,13 +69,12 @@ class VesselModel:
                     self.M[i, j] = elements[i].inductance
                 else:
                     self.M[i, j] = self._calculate_mutual_inductance(
-                        elements[i].R, elements[i].Z,
-                        elements[j].R, elements[j].Z
+                        elements[i].R, elements[i].Z, elements[j].R, elements[j].Z
                     )
-        
+
         # Precompute resistance diagonal matrix
         self.R_mat = np.diag([el.resistance for el in elements])
-        
+
         # LU decompose M for fast stepping
         # (Using direct inverse for simplicity in this module)
         try:
@@ -86,15 +85,15 @@ class VesselModel:
 
     def _calculate_mutual_inductance(self, R1: float, Z1: float, R2: float, Z2: float) -> float:
         """Calculate mutual inductance between two toroidal loops."""
-        denom = (R1 + R2)**2 + (Z1 - Z2)**2
+        denom = (R1 + R2) ** 2 + (Z1 - Z2) ** 2
         if denom < 1e-30:
             return 0.0
         k2 = 4.0 * R1 * R2 / denom
         k2 = np.clip(k2, 1e-9, 0.999999)
-        
+
         K_val = ellipk(k2)
         E_val = ellipe(k2)
-        
+
         # M = mu0 * sqrt(R1*R2) * [ (2/k - k)*K(k) - 2/k*E(k) ]
         # Note: standard formula uses k = sqrt(k2)
         prefactor = _MU0 * np.sqrt(R1 * R2)
@@ -122,7 +121,7 @@ class VesselModel:
         """
         if dt <= 0:
             return self.I
-            
+
         # Explicit Euler for simplicity (or Trapezoidal if needed)
         # V_ind = -dphi_ext_dt
         dI_dt = self.M_inv @ (-self.R_mat @ self.I - dphi_ext_dt)
@@ -145,24 +144,24 @@ class VesselModel:
         R_flat = R.flatten()
         Z_flat = Z.flatten()
         psi = np.zeros_like(R_flat)
-        
+
         # Prefactor for Green's function (mu0/2pi * sqrt(R_obs*R_src))
         # Wait, the Green's function in fusion_kernel returns psi per unit current.
         for i in range(self.n_elements):
             el = self.elements[i]
             if abs(self.I[i]) < 1e-6:
                 continue
-                
+
             # Vectorized Green's function eval
-            denom = (R_flat + el.R)**2 + (Z_flat - el.Z)**2
+            denom = (R_flat + el.R) ** 2 + (Z_flat - el.Z) ** 2
             k2 = 4.0 * R_flat * el.R / np.maximum(denom, 1e-30)
             k2 = np.clip(k2, 1e-9, 0.999999)
-            
+
             K_val = ellipk(k2)
             E_val = ellipe(k2)
-            
+
             prefactor = (_MU0 / (2.0 * np.pi)) * np.sqrt(R_flat * el.R)
             g = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / np.sqrt(k2)
             psi += g * self.I[i]
-            
+
         return psi.reshape(out_shape)

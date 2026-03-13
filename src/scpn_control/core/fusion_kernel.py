@@ -208,11 +208,11 @@ class FusionKernel:
         self.NZ: int = res[1]
         self.R: FloatArray = np.linspace(dims["R_min"], dims["R_max"], self.NR)
         self.Z: FloatArray = np.linspace(dims["Z_min"], dims["Z_max"], self.NZ)
-        
+
         # Fundamental geometry
         self.R0: float = float(dims["R_min"] + dims["R_max"]) / 2.0
         self.a: float = float(dims["R_max"] - dims["R_min"]) / 2.0
-        
+
         self.dR: float = float(self.R[1] - self.R[0])
         self.dZ: float = float(self.Z[1] - self.Z[0])
         self.RR: FloatArray

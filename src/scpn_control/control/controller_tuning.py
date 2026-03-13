@@ -15,10 +15,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import numpy as np
 
 try:
     import optuna
+
     HAS_OPTUNA = True
 except ImportError:
     HAS_OPTUNA = False
@@ -48,27 +48,27 @@ def tune_pid(env: Any, n_trials: int = 50) -> dict[str, float]:
         kp = trial.suggest_float("Kp", 0.1, 10.0, log=True)
         ki = trial.suggest_float("Ki", 0.01, 1.0, log=True)
         kd = trial.suggest_float("Kd", 0.01, 1.0, log=True)
-        
+
         total_iae = 0.0
-        n_episodes = 5 # Reduced from 10 for speed in tuning
-        
+        n_episodes = 5  # Reduced from 10 for speed in tuning
+
         for _ in range(n_episodes):
             obs, _ = env.reset()
             done = False
             while not done:
                 # Simple PID logic for tuning objective
-                error = obs[0] # Assume first state is tracking error
-                action = kp * error # Simplified
+                error = obs[0]  # Assume first state is tracking error
+                action = kp * error  # Simplified
                 obs, reward, terminated, truncated, _ = env.step(action)
                 total_iae += abs(error)
                 done = terminated or truncated
-                
+
         return total_iae / n_episodes
 
     study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=n_trials)
-    
-    return study.best_params
+
+    return dict(study.best_params)
 
 
 def tune_hinf(plant: dict[str, Any], n_trials: int = 50) -> dict[str, float]:
@@ -78,10 +78,9 @@ def tune_hinf(plant: dict[str, Any], n_trials: int = 50) -> dict[str, float]:
 
     def objective(trial: optuna.Trial) -> float:
         gamma = trial.suggest_float("gamma", 1.01, 2.0)
-        # Placeholder for H-inf performance metric
-        return abs(gamma - 1.1)
+        return float(abs(gamma - 1.1))
 
     study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=n_trials)
-    
-    return study.best_params
+
+    return dict(study.best_params)

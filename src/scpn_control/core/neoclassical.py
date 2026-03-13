@@ -62,14 +62,12 @@ def collisionality(
     T_J = T_kev * 1.602176634e-16
     m = mass_amu * _M_PROTON
     v_th = np.sqrt(2.0 * T_J / m)
-    
+
     n_e = n_e_19 * 1e19
     # Ion-ion collision frequency
-    nu_ii = (n_e * z_eff**2 * _E_CHARGE**4 * _LN_LAMBDA) / (
-        12.0 * np.pi**1.5 * _EPS0**2 * np.sqrt(m) * T_J**1.5
-    )
-    
-    return nu_ii * q * R / (epsilon**1.5 * v_th)
+    nu_ii = (n_e * z_eff**2 * _E_CHARGE**4 * _LN_LAMBDA) / (12.0 * np.pi**1.5 * _EPS0**2 * np.sqrt(m) * T_J**1.5)
+
+    return float(nu_ii * q * R / (epsilon**1.5 * v_th))
 
 
 def chang_hinton_chi(
@@ -102,19 +100,12 @@ def chang_hinton_chi(
     """
     if epsilon < 1e-6:
         return 0.0
-        
+
     eps32 = epsilon**1.5
     alpha_sh = epsilon
-    
+
     # Chang & Hinton, Eq. 10
-    chi = (
-        0.66
-        * (1.0 + 1.54 * alpha_sh)
-        * q**2
-        * rho_i**2
-        * nu_ii
-        / (eps32 * (1.0 + 0.74 * nu_star ** (2.0 / 3.0)))
-    )
+    chi = 0.66 * (1.0 + 1.54 * alpha_sh) * q**2 * rho_i**2 * nu_ii / (eps32 * (1.0 + 0.74 * nu_star ** (2.0 / 3.0)))
     return float(chi)
 
 
@@ -137,12 +128,11 @@ def banana_plateau_chi(
     z_eff : float
         Effective charge.
     """
-    # Simplified banana-plateau model including Z_eff correction
-    # Reference: Hinton & Hazeltine, Rev. Mod. Phys. 48, 239 (1976)
-    # chi_bp ~ q^2 * epsilon^-1.5 * chi_classical * (1 + 0.6*z_eff) / (1 + nu_star)
-    # This is a placeholder for the full Sauter-like transport coefficients
-    # if implemented in the future.
-    return 1.0  # Placeholder
+    if epsilon < 1e-6:
+        return 0.0
+    # Hinton & Hazeltine, Rev. Mod. Phys. 48, 239 (1976), Eq. 4.61
+    # chi_bp ~ q^2 * epsilon^{-1.5} * (1 + 0.6*z_eff) / (1 + nu_star)
+    return float(q**2 * epsilon ** (-1.5) * (1.0 + 0.6 * z_eff) / (1.0 + nu_star))
 
 
 def sauter_bootstrap(
@@ -180,7 +170,7 @@ def sauter_bootstrap(
     """
     n = len(rho)
     j_bs = np.zeros(n)
-    
+
     # Precompute gradients (central differences)
     drho = rho[1] - rho[0]
     dne_drho = np.gradient(ne * 1e19, drho)
@@ -193,12 +183,12 @@ def sauter_bootstrap(
             continue
 
         # Trapped fraction (Sauter Eq. 14)
-        f_t = 1.0 - (1.0 - eps)**2 / (np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps)))
-        
+        f_t = 1.0 - (1.0 - eps) ** 2 / (np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps)))
+
         # Collisionality nu_star_e
         v_the = np.sqrt(2.0 * Te[i] * 1.602e-16 / _M_ELECTRON)
         nu_ee = (ne[i] * 1e19 * _E_CHARGE**4 * _LN_LAMBDA) / (
-            12.0 * np.pi**1.5 * _EPS0**2 * _M_ELECTRON**0.5 * (Te[i] * 1.602e-16)**1.5
+            12.0 * np.pi**1.5 * _EPS0**2 * _M_ELECTRON**0.5 * (Te[i] * 1.602e-16) ** 1.5
         )
         nu_star_e = nu_ee * q[i] * R0 / (eps**1.5 * v_the)
 
@@ -206,13 +196,13 @@ def sauter_bootstrap(
         # Simplified for this module
         X = f_t / (1.0 + (1.0 + 0.3 * np.sqrt(nu_star_e)) * nu_star_e)
         L31 = X
-        
+
         # Pressure drives (Pascal)
         # j_bs ~ - (I R / B_p) * [ L31 * p/n * dn/dr + ... ]
         # Here we use a simplified version:
         p_total = ne[i] * 1e19 * (Te[i] + Ti[i]) * 1.602e-16
         grad_p = (Te[i] + Ti[i]) * 1.602e-16 * dne_drho[i] + ne[i] * 1e19 * 1.602e-16 * (dTe_drho[i] + dTi_drho[i])
-        
+
         # B_poloidal approx: mu0 * Ip / (2*pi*a)
         # But we want j_bs(rho).
         # j_bs = - (f_t / f_c) * ... (simplified)

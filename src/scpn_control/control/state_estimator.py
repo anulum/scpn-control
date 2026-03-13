@@ -44,7 +44,7 @@ class ExtendedKalmanFilter:
         self.P = P0.astype(float)
         self.Q = Q.astype(float)
         self.R = R_cov.astype(float)
-        
+
         # Linear measurement matrix H (4x6)
         self.H = np.zeros((4, 6))
         self.H[0, 0] = 1.0  # R
@@ -72,13 +72,13 @@ class ExtendedKalmanFilter:
         F = np.eye(6)
         F[0, 2] = dt
         F[1, 3] = dt
-        
+
         self.x = F @ self.x
-        
+
         # 2. Covariance propagation
         # Q is usually scaled by dt or dt^2
         self.P = F @ self.P @ F.T + self.Q * dt
-        
+
         return self.x
 
     def update(self, z: np.ndarray) -> np.ndarray:
@@ -95,18 +95,18 @@ class ExtendedKalmanFilter:
         """
         # 1. Innovation
         y = z - self.H @ self.x
-        
+
         # 2. Innovation covariance
         S = self.H @ self.P @ self.H.T + self.R
-        
+
         # 3. Optimal Kalman gain
         K = self.P @ self.H.T @ np.linalg.inv(S)
-        
+
         # 4. Update state and covariance
         self.x = self.x + K @ y
         I = np.eye(6)
         self.P = (I - K @ self.H) @ self.P
-        
+
         return self.x
 
     def estimate(self) -> np.ndarray:

@@ -9,7 +9,6 @@ Regression tests for the transport validation benchmark.
 
 from __future__ import annotations
 
-import pytest
 
 from validation.benchmark_transport import run_pure_diffusion_benchmark, run_threshold_benchmark
 

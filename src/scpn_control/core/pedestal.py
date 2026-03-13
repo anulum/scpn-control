@@ -55,7 +55,8 @@ class PedestalProfile:
         """Core mtanh function: ((1+ay)e^y - e^-y) / (e^y + e^-y)."""
         exp_y = np.exp(np.clip(y, -20, 20))
         exp_ny = np.exp(np.clip(-y, -20, 20))
-        return ((1.0 + self.p.a * y) * exp_y - exp_ny) / (exp_y + exp_ny)
+        result: np.ndarray = ((1.0 + self.p.a * y) * exp_y - exp_ny) / (exp_y + exp_ny)
+        return result
 
     def evaluate(self, rho: np.ndarray) -> np.ndarray:
         """Evaluate the pedestal profile at given radial points.
@@ -87,4 +88,4 @@ def pedestal_width_eped1(beta_p_ped: float, delta_psi: float = 0.0) -> float:
     """
     # Standard EPED1 width scaling (Delta_psi approx Delta_rho for simple geometry)
     # Snyder 2009, Eq. 1: Delta = 0.076 * sqrt(beta_p,ped)
-    return 0.076 * np.sqrt(max(beta_p_ped, 0.0))
+    return float(0.076 * np.sqrt(max(beta_p_ped, 0.0)))

@@ -27,8 +27,10 @@ except ImportError:
 
 from enum import Enum
 
+
 class MitigationState(Enum):
     """States for the disruption mitigation controller."""
+
     IDLE = 0
     ARMED = 1
     FIRED = 2
@@ -120,12 +122,14 @@ class DisruptionMitigationController:
     def _log_transition(self, old: MitigationState, new: MitigationState, p: float) -> None:
         msg = f"SPI State Transition: {old.name} -> {new.name} (p={p:.3f})"
         logger.info(msg)
-        self.history.append({
-            "timestamp": time.time(),
-            "old_state": old.name,
-            "new_state": new.name,
-            "p_disrupt": p,
-        })
+        self.history.append(
+            {
+                "timestamp": time.time(),
+                "old_state": old.name,
+                "new_state": new.name,
+                "p_disrupt": p,
+            }
+        )
 
 
 class ShatteredPelletInjection:

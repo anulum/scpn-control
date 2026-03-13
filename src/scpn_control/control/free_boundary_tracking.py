@@ -676,9 +676,9 @@ class FreeBoundaryTrackingController:
         if self.state_estimator is not None:
             # Predict step (assuming control_dt_s as time step)
             self.state_estimator.predict(self.control_dt_s)
-            
+
             # Map measured observation to EKF measurement vector [R, Z, Ip, Te]
-            # Since the observation vector format can vary, we only update 
+            # Since the observation vector format can vary, we only update
             # if we can find R, Z from x_point_position objective.
             z_ekf = self._map_observation_to_ekf(measured_observation)
             if z_ekf is not None:
@@ -1424,19 +1424,18 @@ class FreeBoundaryTrackingController:
             "true_divertor_max_abs": last_true_metrics["divertor_max_abs"],
         }
 
-
     def _map_observation_to_ekf(self, observation: FloatArray) -> FloatArray | None:
         """Extract [R, Z, Ip, Te] measurement from observation vector."""
         z = np.zeros(4)
         found_rz = False
-        
+
         for block in self.objective_blocks:
             if block.name == "x_point_position":
-                z[0] = observation[block.start]      # R
+                z[0] = observation[block.start]  # R
                 z[1] = observation[block.start + 1]  # Z
                 found_rz = True
             # Note: Ip and Te could be added if they were tracked objectives
-            
+
         return z if found_rz else None
 
     def _map_ekf_to_observation(self, observation: FloatArray, x_ekf: np.ndarray) -> FloatArray:
@@ -1444,7 +1443,7 @@ class FreeBoundaryTrackingController:
         refined = observation.copy()
         for block in self.objective_blocks:
             if block.name == "x_point_position":
-                refined[block.start] = x_ekf[0]      # R_est
+                refined[block.start] = x_ekf[0]  # R_est
                 refined[block.start + 1] = x_ekf[1]  # Z_est
         return refined
 

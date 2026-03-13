@@ -128,4 +128,4 @@ def test_gradient_scaling_monotonicity(model):
 
     # Check monotonicity (allowing small neural wiggle)
     for i in range(len(chi_i_list) - 1):
-        assert chi_i_list[i+1] >= chi_i_list[i] - 1e-6
+        assert chi_i_list[i + 1] >= chi_i_list[i] - 1e-6
