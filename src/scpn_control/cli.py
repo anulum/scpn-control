@@ -27,9 +27,11 @@ from typing import Mapping, cast
 import click
 import numpy as np
 
+import scpn_control
+
 
 @click.group()
-@click.version_option(package_name="scpn-control")
+@click.version_option(version=scpn_control.__version__, prog_name="scpn-control")
 def main() -> None:
     """SCPN Control — Neuro-symbolic Stochastic Petri Net controller."""
 

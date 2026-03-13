@@ -716,7 +716,7 @@ python-json-logger==4.0.0 \
     --hash=sha256:af09c9daf6a813aa4cc7180395f50f2a9e5fa056034c9953aec92e381c5ba1e2 \
     --hash=sha256:f58e68eb46e1faed27e0f574a55a0455eecd7b8a5b88b85a784519ba3cff047f
     # via jupyter-events
-pywinpty==3.0.3 \
+pywinpty==3.0.3 ; sys_platform == "win32" \
     --hash=sha256:0c37e224a47a971d1a6e08649a1714dac4f63c11920780977829ed5c8cadead1 \
     --hash=sha256:0f10e81d52d7f2c4d927f645f247028e64eaf205a3ed9e64dbd998122108a218 \
     --hash=sha256:15c7c0b6f8e9d87aabbaff76468dabf6e6121332c40fc1d83548d02a9d6a3759 \
