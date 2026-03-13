@@ -1,6 +1,6 @@
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-03-11 (v0.14.0).
+> **Last updated:** 2026-03-12 (v0.15.0).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 
@@ -11,7 +11,9 @@
 | **scpn-control (Rust)** | **10--30 kHz** | **11.9 us P50 / 23.9 us P99** | Rust + Python | CI Criterion |
 | DIII-D PCS (production) | 4--10 kHz (physics loops) | 100--250 us per physics cycle | C / Fortran | Penaflor 2024; Barr 2024 |
 | P-EFIT (GPU) | N/A (reconstruction) | 300--375 us per iter (129x129) | Fortran + CUDA | Sabbagh 2023 |
+| RT-GSFit | ~5 kHz | ~200 us | C++ | Tokamak Energy 2025 |
 | TORAX | N/A (offline sim) | ~ms per timestep | Python / JAX | Citrin 2024 |
+| Gym-TORAX | 10--100 Hz | ~10 ms (RL env step) | Python / JAX | DeepMind 2025 |
 | ITER PCS (spec) | ~100 Hz diagnostics | 5--10 ms processing | TBD | ITER RTF docs |
 | FUSE | N/A (design code) | N/A | Julia | Meneghini 2024 |
 
@@ -45,13 +47,14 @@
 |------|------|--------|---------|--------|
 | EFIT (Fortran) | 65x65 | Current-filament Picard | ~2 s full recon | Lao 1985 |
 | P-EFIT (GPU) | 65x65 | GPU-accelerated Picard | <1 ms per iter | Sabbagh 2023 |
+| RT-GSFit | 65x65 | Real-time reconstruction | ~200 us | Tokamak Energy 2025 |
 | CHEASE (Fortran) | 257x257 | Fixed-boundary cubic Hermite | ~5 s | Lutjens 1996 |
 | HELENA | 201 flux | Isoparametric | ~10 s | Huysmans 1991 |
 | FreeGS | Variable | Picard + multigrid | ~seconds | FreeGS GitHub |
 | FreeGSNKE | Variable | Newton-Krylov | Faster than FreeGS | FreeGSNKE 2024 |
 | **scpn-control (Rust)** | 65x65 | Picard + SOR | **~100 ms** | Measured |
 | **scpn-control (Neural)** | 129x129 | PCA + MLP surrogate | **0.39 ms mean** | CI verified |
-| **scpn-control (Multigrid)** | 65x65 | V-cycle | **~15 ms** | Projected |
+| **scpn-control (Multigrid)** | 65x65 | V-cycle | **~12 ms** | Measured v0.15.0 |
 
 > The Neural Equilibrium Kernel achieves P-EFIT-class speed (0.39 ms) on
 > **CPU only**, without requiring CUDA or GPU hardware.
@@ -61,7 +64,7 @@
 | Feature | scpn-control | TORAX | PROCESS | FREEGS | FUSE | DREAM |
 |---------|-------------|-------|---------|--------|------|-------|
 | GS Equilibrium | Yes (multigrid) | Yes (spectral) | No | Yes (Picard) | Yes | No |
-| Free-boundary solve | Partial / experimental scaffold | Partial | No | Yes | Yes | No |
+| Free-boundary solve | **Yes (v0.15.0)** | Partial | No | Yes | Yes | No |
 | Transport solver | 1.5D coupled | 1D flux-driven | 0D | No | 1D | 0--1D |
 | **Neuro-symbolic SNN** | **Yes** | No | No | No | No | No |
 | **Disruption prediction (ML)** | **Yes** | No | No | No | No | N/A |
@@ -69,6 +72,7 @@
 | Neutronics / TBR | Yes (1-D slab) | No | Yes | No | Yes | No |
 | **Digital twin (real-time)** | **Yes** | No | No | No | No | No |
 | **Rust native backend** | **Yes (5 crates)** | No | No | No | No | No |
+| IMAS Integration | **Yes (Dec 2025)** | Yes | No | No | No | No |
 | GPU acceleration | **Yes (JAX)** | Yes (JAX) | No | No | JAX | No |
 | Autodifferentiation | **Yes (JAX, full GS)** | **Yes (JAX)** | No | No | **Yes (Julia)** | No |
 
@@ -79,7 +83,7 @@
 | ~~Equilibrium autodiff depth~~ | **RESOLVED** v0.13.0: JAX Picard GS solver with `jax.grad` through full solve | — |
 | No peer-reviewed publication | JOSS paper drafted but not yet submitted | TORAX (NF 2024), FUSE (FED 2024) |
 | Smaller community | Single-team vs DeepMind / General Atomics resources | TORAX, FUSE |
-| ~~RL agent maturity~~ | **RESOLVED** v0.14.0: PPO 500K beats MPC (143.7 vs 58.1), 0% disruption | — |
+| ~~RL agent maturity~~ | **RESOLVED** v0.15.0: PPO 500K beats MPC (143.7 vs 58.1), 0% disruption | — |
 
 ### Resolved since v0.10.0
 - GPU equilibrium: JAX neural eq with GPU dispatch (v0.11.0)
@@ -89,7 +93,7 @@
 - Equilibrium autodiff depth: JAX Picard GS solver with `jax.grad` through full solve (v0.13.0)
 - RL agent maturity: PPO 500K on JarvisLabs, beats MPC and PID, 3-seed reproducible (v0.14.0)
 
-## 6. Codebase Metrics (v0.14.0)
+## 6. Codebase Metrics (v0.15.0)
 
 | Metric | Value |
 |--------|-------|
@@ -98,10 +102,10 @@
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
 | Test files | 136 |
-| Tests collected | 2,417 |
-| Test coverage | 99.99% (9,672 stmts, gate=99%) |
+| Tests collected | 2,683 |
+| Test coverage | 100.0% (10,142 stmts, gate=99%) |
 | CI jobs | 26 |
-| Real DIII-D shots | 16 disruption + 1 safe baseline |
+| Real DIII-D shots | 17 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |
 | Pretrained weight files | 5 (MLP, FNO, neural eq, QLKNN, PPO) |
 

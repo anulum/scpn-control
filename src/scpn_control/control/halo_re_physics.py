@@ -62,12 +62,12 @@ from scpn_control.core._validators import (
 
 logger = logging.getLogger(__name__)
 
-# ─── Physical constants ─────────────────────────────────────────────
-_E_CHARGE = 1.602e-19  # C
-_M_ELECTRON = 9.109e-31  # kg
-_C_LIGHT = 2.998e8  # m/s
-_MU0 = 4.0 * np.pi * 1e-7  # H/m
-_EPSILON0 = 8.854e-12  # F/m
+# ─── Physical constants (CODATA 2018) ───────────────────────────────
+_E_CHARGE = 1.602176634e-19  # C
+_M_ELECTRON = 9.1093837015e-31  # kg
+_C_LIGHT = 299792458.0  # m/s
+_MU0 = 4.0 * np.pi * 1e-7  # H/m, vacuum permeability
+_EPSILON0 = 8.8541878128e-12  # F/m, vacuum permittivity
 _LN_LAMBDA = 15.0  # Coulomb logarithm, Wesson Ch. 14
 
 

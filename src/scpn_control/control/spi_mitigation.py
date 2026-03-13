@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 import numpy as np
@@ -22,6 +23,109 @@ try:
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
+
+
+from enum import Enum
+
+class MitigationState(Enum):
+    """States for the disruption mitigation controller."""
+    IDLE = 0
+    ARMED = 1
+    FIRED = 2
+    COOLDOWN = 3
+
+
+class DisruptionMitigationController:
+    """Closed-loop controller for shattered pellet injection (SPI).
+
+    Coordinates the transition from disruption detection to mitigation
+    actuation, with safeguards against false triggers and re-fire chatter.
+
+    Parameters
+    ----------
+    threshold_arm : float
+        Probability threshold to ARM the system.
+    threshold_fire : float
+        Probability threshold to FIRE the pellets.
+    n_consecutive : int
+        Number of consecutive above-threshold samples required to ARM.
+    tau_cooldown_s : float
+        Minimum time [s] between fire events.
+    """
+
+    def __init__(
+        self,
+        threshold_arm: float = 0.5,
+        threshold_fire: float = 0.8,
+        n_consecutive: int = 3,
+        tau_cooldown_s: float = 0.1,
+    ) -> None:
+        self.threshold_arm = threshold_arm
+        self.threshold_fire = threshold_fire
+        self.n_consecutive = n_consecutive
+        self.tau_cooldown_s = tau_cooldown_s
+
+        self.state = MitigationState.IDLE
+        self.consecutive_count = 0
+        self.cooldown_timer = 0.0
+        self.history: list[dict[str, Any]] = []
+
+    def update(self, p_disrupt: float, dt: float) -> MitigationState:
+        """Update controller state based on disruption probability.
+
+        Parameters
+        ----------
+        p_disrupt : float
+            Disruption probability from predictor [0, 1].
+        dt : float
+            Time since last update [s].
+
+        Returns
+        -------
+        MitigationState — The current state of the controller.
+        """
+        old_state = self.state
+
+        if self.state == MitigationState.COOLDOWN:
+            self.cooldown_timer -= dt
+            if self.cooldown_timer <= 0:
+                self.state = MitigationState.IDLE
+                self._log_transition(old_state, self.state, p_disrupt)
+
+        elif self.state == MitigationState.IDLE:
+            if p_disrupt > self.threshold_arm:
+                self.consecutive_count += 1
+                if self.consecutive_count >= self.n_consecutive:
+                    self.state = MitigationState.ARMED
+                    self._log_transition(old_state, self.state, p_disrupt)
+            else:
+                self.consecutive_count = 0
+
+        elif self.state == MitigationState.ARMED:
+            if p_disrupt > self.threshold_fire:
+                self.state = MitigationState.FIRED
+                self._log_transition(old_state, self.state, p_disrupt)
+                # Auto-transition to cooldown after firing
+                self.state = MitigationState.COOLDOWN
+                self.cooldown_timer = self.tau_cooldown_s
+                self._log_transition(MitigationState.FIRED, self.state, p_disrupt)
+            elif p_disrupt < self.threshold_arm * 0.8:
+                # Hysteresis to return to IDLE if threat subsides
+                self.state = MitigationState.IDLE
+                self.consecutive_count = 0
+                self._log_transition(old_state, self.state, p_disrupt)
+
+        return self.state
+
+    def _log_transition(self, old: MitigationState, new: MitigationState, p: float) -> None:
+        msg = f"SPI State Transition: {old.name} -> {new.name} (p={p:.3f})"
+        logger.info(msg)
+        self.history.append({
+            "timestamp": time.time(),
+            "old_state": old.name,
+            "new_state": new.name,
+            "p_disrupt": p,
+        })
 
 
 class ShatteredPelletInjection:

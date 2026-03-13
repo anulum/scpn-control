@@ -465,35 +465,74 @@ def should_trigger_mitigation(
 # ────────────────────────────────────────────────────────────────────────────
 
 
+@dataclass(frozen=True)
+class LogicInvariant:
+    """A formal property of the Petri Net state.
+
+    Parameters
+    ----------
+    name : str
+        Short identifier for the invariant (e.g. "marking_conservation").
+    description : str
+        Human-readable description of the formal property.
+    """
+
+    name: str
+    description: str
+
+
+@dataclass(frozen=True)
+class LogicInvariantViolation:
+    """Record of a logic invariant violation.
+
+    Parameters
+    ----------
+    invariant : LogicInvariant
+        The invariant that was violated.
+    message : str
+        Specific details about why the invariant failed.
+    """
+
+    invariant: LogicInvariant
+    message: str
+
+
 def check_marking_conservation(
     marking_before: list[float],
     marking_after: list[float],
-) -> bool:
+) -> LogicInvariantViolation | None:
     """Verify that total token count is conserved.
 
     For conservative Petri Nets, Σ M_before == Σ M_after.
     """
     sum_before = float(sum(marking_before))
     sum_after = float(sum(marking_after))
-    return abs(sum_before - sum_after) < 1e-9
+    if abs(sum_before - sum_after) >= 1e-9:
+        inv = LogicInvariant(
+            name="marking_conservation",
+            description="Total token count must be conserved in conservative nets.",
+        )
+        return LogicInvariantViolation(
+            invariant=inv,
+            message=f"Token sum mismatch: before={sum_before:.6e}, after={sum_after:.6e}",
+        )
+    return None
 
 
 def check_deadlock(
     marking: list[float],
     incidence_matrix: np.ndarray,
     is_terminal: bool = False,
-) -> bool:
+) -> LogicInvariantViolation | None:
     """Detect if the net is in a non-terminal deadlock state.
 
     A net is deadlocked if no transitions are enabled and it's not a
     configured terminal state.
     """
     if is_terminal:
-        return False
+        return None
 
-    # A transition j is enabled if all input places i have M[i] >= W[i,j]
-    # Here incidence_matrix is (places, transitions).
-    # W_minus = max(0, -incidence_matrix)
+    # A transition j is enabled if all input places i have M[i] >= W_minus[i,j]
     W_minus = np.maximum(0, -incidence_matrix)
     n_places, n_trans = incidence_matrix.shape
 
@@ -507,12 +546,31 @@ def check_deadlock(
         if enabled:
             enabled_count += 1
 
-    return enabled_count == 0
+    if enabled_count == 0:
+        inv = LogicInvariant(
+            name="deadlock",
+            description="No transitions enabled in a non-terminal state.",
+        )
+        return LogicInvariantViolation(
+            invariant=inv,
+            message=f"Non-terminal deadlock detected: marking={marking}",
+        )
+    return None
 
 
 def check_boundedness(
     marking: list[float],
     max_capacity: float = 1e6,
-) -> bool:
+) -> LogicInvariantViolation | None:
     """Verify that no place exceeds its maximum token capacity."""
-    return all(m <= max_capacity for m in marking)
+    for i, m in enumerate(marking):
+        if m > max_capacity:
+            inv = LogicInvariant(
+                name="boundedness",
+                description="Place token count must not exceed capacity.",
+            )
+            return LogicInvariantViolation(
+                invariant=inv,
+                message=f"Place {i} exceeds capacity {max_capacity}: value={m}",
+            )
+    return None

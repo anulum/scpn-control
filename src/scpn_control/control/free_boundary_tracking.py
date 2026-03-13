@@ -34,6 +34,7 @@ from numpy.typing import NDArray
 
 from scpn_control.control.tokamak_flight_sim import FirstOrderActuator
 from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
+from scpn_control.control.state_estimator import ExtendedKalmanFilter
 
 logger = logging.getLogger(__name__)
 FloatArray = NDArray[np.float64]
@@ -97,8 +98,10 @@ class FreeBoundaryTrackingController:
         coil_slew_limits: float | list[float] | None = None,
         supervisor_limits: dict[str, float] | None = None,
         hold_steps_after_reject: int | None = None,
+        state_estimator: ExtendedKalmanFilter | None = None,
     ) -> None:
         self.kernel = kernel_factory(config_file)
+        self.state_estimator = state_estimator
         self.verbose = bool(verbose)
         self.identification_perturbation = float(identification_perturbation)
         if not np.isfinite(self.identification_perturbation) or self.identification_perturbation <= 0.0:
@@ -668,6 +671,23 @@ class FreeBoundaryTrackingController:
             FloatArray,
             np.asarray(true_observation + self._current_measurement_offset(), dtype=np.float64),
         )
+
+        # ── Optional EKF Refinement ──
+        if self.state_estimator is not None:
+            # Predict step (assuming control_dt_s as time step)
+            self.state_estimator.predict(self.control_dt_s)
+            
+            # Map measured observation to EKF measurement vector [R, Z, Ip, Te]
+            # Since the observation vector format can vary, we only update 
+            # if we can find R, Z from x_point_position objective.
+            z_ekf = self._map_observation_to_ekf(measured_observation)
+            if z_ekf is not None:
+                self.state_estimator.update(z_ekf)
+                # Refine the measured observation with EKF state estimate
+                measured_observation = self._map_ekf_to_observation(
+                    measured_observation, self.state_estimator.estimate()
+                )
+
         delayed_observation = self._apply_measurement_latency(measured_observation, record=apply_latency)
         effective_observation = self._predict_current_objectives(
             delayed_observation,
@@ -1403,6 +1423,30 @@ class FreeBoundaryTrackingController:
             "divertor_max_abs": last_metrics["divertor_max_abs"],
             "true_divertor_max_abs": last_true_metrics["divertor_max_abs"],
         }
+
+
+    def _map_observation_to_ekf(self, observation: FloatArray) -> FloatArray | None:
+        """Extract [R, Z, Ip, Te] measurement from observation vector."""
+        z = np.zeros(4)
+        found_rz = False
+        
+        for block in self.objective_blocks:
+            if block.name == "x_point_position":
+                z[0] = observation[block.start]      # R
+                z[1] = observation[block.start + 1]  # Z
+                found_rz = True
+            # Note: Ip and Te could be added if they were tracked objectives
+            
+        return z if found_rz else None
+
+    def _map_ekf_to_observation(self, observation: FloatArray, x_ekf: np.ndarray) -> FloatArray:
+        """Inject EKF estimate [R, Z] back into observation vector."""
+        refined = observation.copy()
+        for block in self.objective_blocks:
+            if block.name == "x_point_position":
+                refined[block.start] = x_ekf[0]      # R_est
+                refined[block.start + 1] = x_ekf[1]  # Z_est
+        return refined
 
 
 def run_free_boundary_tracking(

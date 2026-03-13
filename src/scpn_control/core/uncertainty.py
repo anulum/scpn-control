@@ -167,7 +167,9 @@ def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
     """
     Estimate fusion power using energy balance and Bosch-Hale reactivity.
 
+    Based on the simplified fusion power model:
     P_fus = 1/4 * n_e^2 * <σv>(T_i) * V * E_fus
+    Ref: Wesson, J. (2011). Tokamaks. 4th Edition, Chapter 1.
 
     Where T_i is estimated from P_heat, tau_E and V.
     """

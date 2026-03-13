@@ -36,13 +36,13 @@ from scpn_control.core.scaling_laws import (
 # ── Thresholds ────────────────────────────────────────────────────────
 
 THRESHOLDS = {
-    "psi_nrmse_max": 5.0,  # GS residual / psi_range < 5.0 (self-consistency)
-    "psi_pass_fraction": 0.60,  # >= 60% of shots
-    "q95_error_max": 0.5,  # |q95_pred - q95_ref| < 0.5
-    "q95_pass_fraction": 0.60,  # >= 60% of shots
+    "psi_nrmse_max": 2.5,  # GS residual / psi_range < 2.5 (self-consistency)
+    "psi_pass_fraction": 0.75,  # >= 75% of shots
+    "q95_error_max": 0.3,  # |q95_pred - q95_ref| < 0.3
+    "q95_pass_fraction": 0.75,  # >= 75% of shots
     "tau_e_2sigma_fraction": 0.80,  # >= 80% of shots within 2-sigma
-    "disruption_recall_min": 0.60,  # > 60% recall
-    "disruption_fpr_max": 0.40,  # FPR <= 40% for full PASS
+    "disruption_recall_min": 0.80,  # > 80% recall
+    "disruption_fpr_max": 0.25,  # FPR <= 25% for full PASS
     "disruption_detection_ms": 50.0,  # within 50ms of TQ
 }
 

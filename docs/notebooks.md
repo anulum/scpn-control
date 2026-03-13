@@ -104,6 +104,44 @@ jupyter nbconvert --to notebook --execute examples/neuro_symbolic_control_demo.i
 
 ---
 
+## Full Stack Demo (2026)
+
+**File:** `examples/scpn_full_stack_demo_2026.ipynb`
+**Extra deps:** matplotlib
+
+Comprehensive end-to-end demonstration of the v0.15.0 control stack.
+Includes equilibrium initialization, transport evolution, SNN controller
+coupling, and real-time WebSocket telemetry visualization.
+
+```bash
+jupyter nbconvert --to notebook --execute examples/scpn_full_stack_demo_2026.ipynb
+```
+
+---
+
+## Example Scripts
+
+In addition to Jupyter notebooks, the following Python scripts demonstrate
+high-performance and deployment scenarios.
+
+### Digital Twin Performance
+
+**File:** `examples/digital_twin_demo.py`
+
+Runs the real-time digital twin with 10kHz control loop and simulated
+diagnostics. Benchmarks the Rust kernel vs Python fallback and reports
+P50/P99 latencies.
+
+### Full Pipeline Benchmark
+
+**File:** `examples/full_pipeline_benchmark.py`
+
+Stresses the entire 16-layer stack (including Kuramoto and SPN logic)
+under various CPU/GPU dispatch configurations. Generates performance scaling
+reports for large-scale ensembles.
+
+---
+
 ## Running All Notebooks
 
 ```bash

@@ -104,20 +104,84 @@ A session is flagged unstable when $\lambda > 0$ persists for more than
 
 Implementation: `scpn_control.phase.lyapunov_guard.LyapunovGuard`.
 
-## H-infinity Robust Control
+## Bosch-Hale DT Reactivity
 
-The H-infinity controller solves the DARE (Discrete Algebraic Riccati Equation)
-for the worst-case disturbance attenuation level $\gamma$:
+The DT fusion reactivity $\langle \sigma v \rangle$ is estimated using the 
+Padé polynomial fit (Bosch & Hale 1992):
 
 $$
-A^{\top} X A - X - A^{\top} X B (R + B^{\top} X B)^{-1} B^{\top} X A + Q = 0
+\langle \sigma v \rangle = 1.1 \times 10^{-24} \cdot \theta \cdot \sqrt{\frac{\xi}{m_r c^2 T^3}} \exp(-3 \xi)
 $$
 
-where $R = \text{diag}(R_u, -\gamma^2 I_w)$ partitions control and disturbance
-inputs. The controller gain $F = -(R + B^{\top} X B)^{-1} B^{\top} X A$
-guarantees $\|T_{zw}\|_\infty < \gamma$.
+where $\xi = (\frac{B_G^2}{4\theta})^{1/3}$ and $\theta$ is the modified 
+temperature. This provides accurate cross-sections from 0.1 keV to 100 keV.
 
-Anti-windup: output is clipped to $[-u_{\max}, u_{\max}]$ and the integrator
-state is conditionally frozen.
+Ref: Bosch, H.-S. and Hale, G. M. (1992). *Nuclear Fusion*, 32, 611.  
+Implementation: `scpn_control.core.uncertainty.bosch_hale_reactivity`.
 
-Implementation: `scpn_control.control.h_infinity_controller.HInfinityController`.
+## Bremsstrahlung Radiation
+
+Losses from electron-ion Bremsstrahlung are calculated per unit volume:
+
+$$
+P_{br} = 5.35 \times 10^{-37} n_e^2 Z_{eff} \sqrt{T_e} \quad [W/m^3]
+$$
+
+where $n_e$ is in $m^{-3}$ and $T_e$ is in keV.
+
+Ref: Wesson, J. (2011). *Tokamaks*. 4th Edition, Chapter 14.  
+Implementation: `scpn_control.control.tokamak_digital_twin.TokamakDigitalTwin`.
+
+## Energy Conservation Diagnostic
+
+The transport solver monitors the global energy balance error $\epsilon_W$:
+
+$$
+\epsilon_W = \frac{|(W_{n+1} - W_n) - \Delta t \sum (S_i - L_i) V_i|}{W_n}
+$$
+
+where $W = \frac{3}{2} \int (n_e T_e + n_i T_i) dV$ is the stored energy.
+
+Implementation: `scpn_control.core.integrated_transport_solver.TransportSolver.evolve_profiles`.
+
+## Disruption Mechanisms
+
+1.  **NTM (Neoclassical Tearing Mode):** Evolved via the Modified Rutherford Equation 
+    for island width $w$:
+    $$\frac{\tau_R}{r} \frac{dw}{dt} = r \Delta' + r \beta_p \frac{L_q}{L_p} \frac{w}{w^2 + w_c^2}$$
+2.  **Greenwald Limit:** Disruption risk increases as density approaches 
+    $n_G = I_p / (\pi a^2)$.
+3.  **VDE (Vertical Displacement Event):** Exponential growth of vertical 
+    position $z$ driven by plasma elongation $\kappa$.
+
+Implementation: `scpn_control.control.disruption_predictor.simulate_tearing_mode`.
+
+## IPB98(y,2) Scaling Law
+
+Global H-mode thermal energy confinement time $\tau_E$ scaling:
+
+$$
+\tau_{98,y2} = 0.0562 \, I_p^{0.93} B_T^{0.15} P^{-0.69} n_e^{0.41} M^{0.19} R^{1.97} \epsilon^{0.58} \kappa_a^{0.78}
+$$
+
+The implementation includes a $\pm 2\sigma$ uncertainty band based on the 
+ITPA database variance.
+
+Ref: ITER Physics Basis (1999). *Nuclear Fusion*, 39, 2175.  
+Implementation: `scpn_control.core.scaling_laws.ipb98y2_with_uncertainty`.
+
+## Free-Boundary Grad-Shafranov
+
+The free-boundary equilibrium is determined by solving $\Delta^* \psi = -\mu_0 R J_\phi$ 
+where the boundary value $\psi_{bc}$ is the sum of contributions from all 
+external coils:
+
+$$
+\psi_{ext}(R, Z) = \sum_{i} I_i \, G(R, Z; R_i, Z_i)
+$$
+
+$G$ is the toroidal Green's function involving complete elliptic integrals 
+$K(k)$ and $E(k)$.
+
+Ref: Lao, L. L. et al. (1985). *Nuclear Fusion*, 25, 1611.  
+Implementation: `scpn_control.core.fusion_kernel.FusionKernel`.

@@ -26,6 +26,8 @@ try:
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel  # type: ignore[assignment]
 
+from scpn_control.core.pedestal import PedestalProfile
+
 _logger = logging.getLogger(__name__)
 
 
@@ -105,9 +107,10 @@ def chang_hinton_chi_profile(
     -------
     chi_nc : array  — neoclassical chi_i [m²/s]
     """
-    e_charge = 1.602176634e-19
-    eps0 = 8.854187812e-12
-    m_p = 1.672621924e-27
+    # Fundamental constants (CODATA 2018)
+    e_charge = 1.602176634e-19  # C
+    eps0 = 8.8541878128e-12  # F/m
+    m_p = 1.67262192369e-27  # kg
     m_i = A_ion * m_p
 
     chi_nc = np.zeros_like(rho)
@@ -181,9 +184,10 @@ def calculate_sauter_bootstrap_current_full(
     """
     n = len(rho)
     j_bs = np.zeros(n)
-    e_charge = 1.602176634e-19
-    m_e = 9.10938370e-31
-    eps0 = 8.854187812e-12
+    # Fundamental constants (CODATA 2018)
+    e_charge = 1.602176634e-19  # C
+    m_e = 9.1093837015e-31  # kg
+    eps0 = 8.8541878128e-12  # F/m
 
     for i in range(1, n - 1):
         eps = rho[i] * a / R0
@@ -253,10 +257,10 @@ class TransportSolver(FusionKernel):
     (Pütterich et al. 2010), and per-cell Bremsstrahlung.
     """
 
-    def __init__(self, config_path: str | Path, *, multi_ion: bool = False) -> None:
+    def __init__(self, config_path: str | Path, *, nr: int = 50, multi_ion: bool = False) -> None:
         super().__init__(config_path)
         self.external_profile_mode = True  # Tell Kernel to respect our calculated profiles
-        self.nr = 50  # Radial grid points (normalized radius rho)
+        self.nr = nr  # Radial grid points (normalized radius rho)
         self.rho = np.linspace(0, 1, self.nr)
         self.drho = 1.0 / (self.nr - 1)
 
@@ -642,7 +646,7 @@ class TransportSolver(FusionKernel):
     # ── Crank-Nicolson helpers ───────────────────────────────────────
 
     def _explicit_diffusion_rhs(self, T: np.ndarray, chi: np.ndarray) -> np.ndarray:
-        """Compute explicit diffusion operator L_h(T) = (1/r) d/dr(r chi dT/dr).
+        """Compute explicit diffusion operator L_h(T) = (1/a^2) * (1/rho) d/drho(rho chi dT/drho).
 
         Uses half-grid diffusivities and central differences on the
         interior, returning an array of the same length as *T*.
@@ -650,6 +654,10 @@ class TransportSolver(FusionKernel):
         n = len(T)
         Lh = np.zeros(n)
         dr = self.drho
+        a_minor = self.a  # Minor radius from FusionKernel
+
+        # Precompute 1/a^2 factor for units [1/s]
+        scale = 1.0 / max(a_minor**2, 1e-6)
 
         for i in range(1, n - 1):
             r = self.rho[i]
@@ -662,7 +670,7 @@ class TransportSolver(FusionKernel):
             flux_ip = chi_ip * r_ip * (T[i + 1] - T[i]) / dr
             flux_im = chi_im * r_im * (T[i] - T[i - 1]) / dr
 
-            Lh[i] = (flux_ip - flux_im) / (r * dr)
+            Lh[i] = scale * (flux_ip - flux_im) / (r * dr)
 
         return Lh
 
@@ -677,6 +685,9 @@ class TransportSolver(FusionKernel):
         """
         n = len(self.rho)
         dr = self.drho
+        a_minor = self.a
+        scale = 1.0 / max(a_minor**2, 1e-6)
+
         a = np.zeros(n - 1)  # sub-diagonal
         b = np.ones(n)  # main diagonal
         c = np.zeros(n - 1)  # super-diagonal
@@ -688,8 +699,8 @@ class TransportSolver(FusionKernel):
             r_ip = r + 0.5 * dr
             r_im = r - 0.5 * dr
 
-            coeff_ip = chi_ip * r_ip / (r * dr * dr)
-            coeff_im = chi_im * r_im / (r * dr * dr)
+            coeff_ip = scale * chi_ip * r_ip / (r * dr * dr)
+            coeff_im = scale * chi_im * r_im / (r * dr * dr)
 
             # Crank-Nicolson LHS: (I - 0.5·dt·L_h)
             b[i] = 1.0 + 0.5 * dt * (coeff_ip + coeff_im)
@@ -978,7 +989,14 @@ class TransportSolver(FusionKernel):
         """Relative energy conservation error from the last evolution step."""
         return float(self._last_conservation_error)
 
-    def evolve_profiles(self, dt: float, P_aux: float, enforce_conservation: bool = False) -> tuple[float, float]:
+    def evolve_profiles(
+        self,
+        dt: float,
+        P_aux: float,
+        enforce_conservation: bool = False,
+        ped_te: PedestalProfile | None = None,
+        ped_ti: PedestalProfile | None = None,
+    ) -> tuple[float, float]:
         """Advance Ti by one time step using Crank-Nicolson implicit diffusion.
 
         The scheme is unconditionally stable, allowing dt up to ~1.0 s
@@ -995,9 +1013,15 @@ class TransportSolver(FusionKernel):
         enforce_conservation : bool
             When True, raise :class:`PhysicsError` if the per-step energy
             conservation error exceeds 1%.
+        ped_te : PedestalProfile, optional
+            Pedestal profile model for electron temperature.
+        ped_ti : PedestalProfile, optional
+            Pedestal profile model for ion temperature.
         """
-        if (not np.isfinite(dt)) or dt <= 0.0:
-            raise ValueError(f"dt must be finite and > 0, got {dt!r}")
+        if (not np.isfinite(dt)) or dt < 0.0:
+            raise ValueError(f"dt must be finite and >= 0, got {dt!r}")
+        if dt == 0.0:
+            return 0.0, 0.0
         if not np.isfinite(P_aux):
             raise ValueError(f"P_aux must be finite, got {P_aux!r}")
 
@@ -1086,6 +1110,18 @@ class TransportSolver(FusionKernel):
         else:
             self.Te = self.Ti.copy()
             net_source_e = net_source_i  # simplified legacy balance
+
+        # ── Pedestal Boundary Conditions ──
+        if ped_ti is not None:
+            # Apply pedestal from top (x_ped - 2*delta) to edge
+            rho_ped_top = ped_ti.p.x_ped - 2.0 * ped_ti.p.delta
+            mask = self.rho >= rho_ped_top
+            self.Ti[mask] = ped_ti.evaluate(self.rho[mask])
+
+        if ped_te is not None:
+            rho_ped_top = ped_te.p.x_ped - 2.0 * ped_te.p.delta
+            mask = self.rho >= rho_ped_top
+            self.Te[mask] = ped_te.evaluate(self.rho[mask])
 
         # ── Energy conservation diagnostic (Improved) ──
         dV = self._rho_volume_element()

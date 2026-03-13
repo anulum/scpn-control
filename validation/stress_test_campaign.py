@@ -294,12 +294,25 @@ if __name__ == "__main__":
         default=None,
         help="Path to save JSON results",
     )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to reactor config JSON",
+    )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=30,
+        help="Simulated shot duration (steps)",
+    )
     args = parser.parse_args()
 
     if args.quick:
         args.episodes = 10
+        args.duration = 10
 
-    results = run_campaign(n_episodes=args.episodes)
+    results = run_campaign(n_episodes=args.episodes, shot_duration=args.duration, config_path=args.config)
     print("\n" + generate_summary_table(results))
 
     if args.output:

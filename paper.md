@@ -35,7 +35,7 @@ disruption prediction with shattered pellet injection mitigation, a trained
 QLKNN-10D neural transport surrogate, a Gymnasium-compatible reinforcement
 learning environment with a trained PPO agent, and JAX-accelerated transport and
 equilibrium primitives with GPU dispatch and automatic differentiation.
-A companion Rust backend (5 crates, PyO3 bindings) achieves 2.1 µs median
+A companion Rust backend (5 crates, PyO3 bindings) achieves 11.9 µs median
 kernel latency.
 
 # Statement of Need
@@ -56,7 +56,10 @@ The multi-layer Kuramoto-Sakaguchi phase engine, driven by both a theoretical
 $K_{nm}$ coupling matrix [@sotek2026knm] and a plasma-native 8-layer $K_{nm}$
 encoding experimentally grounded interactions (drift-wave/zonal-flow,
 NTM/bootstrap-current, ELM/pedestal), enables cross-scale synchronisation
-monitoring via a Lyapunov stability guard.
+monitoring via a Lyapunov stability guard. The package implements standard
+fusion physics formulations including Bosch-Hale reactivity [@bosch1992],
+Sauter bootstrap current [@sauter1999], and Greenwald density limit
+heuristics [@greenwald2002].
 
 # Implementation
 
@@ -64,8 +67,8 @@ The Python package (57 modules, ~22,900 lines) is organised into four layers:
 
 - **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration with
   multigrid V-cycle or SOR elliptic solve), 1D Crank-Nicolson transport with
-  gyro-Bohm diffusivity, GEQDSK/IMAS I/O, IPB98(y,2) scaling law benchmark,
-  neural equilibrium accelerator, uncertainty quantification.
+  gyro-Bohm diffusivity, GEQDSK/IMAS I/O, IPB98(y,2) scaling law benchmark
+  [@ipb1999], neural equilibrium accelerator, uncertainty quantification.
 - **Phase** (`scpn_control.phase`): Kuramoto-Sakaguchi stepper, UPDE multi-layer
   solver, adaptive $K_{nm}$ engine, Lyapunov guard, WebSocket real-time monitor.
 - **SCPN** (`scpn_control.scpn`): SPN structure, compiler, contract system,
@@ -77,7 +80,8 @@ The Python package (57 modules, ~22,900 lines) is organised into four layers:
 
 The Rust backend (`scpn-control-rs`, 5 crates) provides PyO3 bindings for the
 Grad-Shafranov solver, SNN pool, MPC controller, transport solver, and realtime
-monitor. All solvers automatically dispatch to the Rust backend when available.
+monitor. All solvers automatically dispatch to the Rust backend when available,
+achieving a median kernel latency of 11.9 µs.
 
 JAX-accelerated transport primitives (`scpn_control.core.jax_solvers`) provide
 JIT-compiled, GPU-compatible Thomas tridiagonal solver and Crank-Nicolson
@@ -91,7 +95,7 @@ Picard iteration via `jax.lax.fori_loop`, enabling `jax.grad` through the
 complete equilibrium solve — matching the autodiff depth of TORAX and FUSE.
 
 A QLKNN-10D neural transport model (`scpn_control.core.neural_transport`)
-trained on critical-gradient data provides millisecond-scale turbulent
+trained on theory-based data [@plassche2020] provides millisecond-scale turbulent
 transport predictions as a drop-in replacement for the analytic model.
 A PPO agent trained on the Gymnasium-compatible `TokamakEnv` (500K timesteps,
 3 seeds) achieves mean reward 143.7, outperforming both 1-step MPC (58.1) and
@@ -106,9 +110,9 @@ configurations), SPARC GEQDSK equilibria from CFS SPARCPublic, and the ITPA
 CI enforces <2% RMSE on pressure and safety-factor profiles via an automated
 RMSE gate.
 
-The test suite comprises 2,641 Python tests and 108 Rust tests across 26 CI jobs
+The test suite comprises 2,683 Python tests and 108 Rust tests across 26 CI jobs
 (Python 3.9--3.13 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo Loihi
-emulator, real DIII-D validation, tutorial smoke). Coverage gate is 99% (current: 99.99%, 10,142
+emulator, real DIII-D validation, tutorial smoke). Coverage gate is 99% (current: 100.0%, 10,142
 statements, 0 missed).
 
 # Acknowledgements

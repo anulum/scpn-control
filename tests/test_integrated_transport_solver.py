@@ -188,10 +188,11 @@ class TestEvolveProfiles:
         assert T_end != T_start
 
     def test_evolve_rejects_nonpositive_or_nonfinite_dt(self, solver: TransportSolver) -> None:
-        """dt must be finite and strictly positive."""
-        with pytest.raises(ValueError):
-            solver.evolve_profiles(dt=0.0, P_aux=50.0)
-        with pytest.raises(ValueError):
+        """dt must be finite and non-negative."""
+        # dt=0.0 is now allowed (returns early)
+        solver.evolve_profiles(dt=0.0, P_aux=50.0)
+        
+        with pytest.raises(ValueError, match="finite and >= 0"):
             solver.evolve_profiles(dt=-0.01, P_aux=50.0)
         with pytest.raises(ValueError):
             solver.evolve_profiles(dt=float("nan"), P_aux=50.0)

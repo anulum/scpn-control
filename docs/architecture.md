@@ -44,6 +44,76 @@ graph TD
     end
 ```
 
+## Logical Data Flow
+
+The following diagram illustrates the signal path from equilibrium input to real-time 
+actuation through the optional Rust acceleration layer.
+
+```text
+GEQDSK/IMAS Input
+    ↓
+FusionKernel (GS solver, 65×65)
+    ↓                    ↓
+NeuralEquilibrium   IntegratedTransportSolver
+(0.39ms surrogate)    (1.5D Crank-Nicolson)
+    ↓                    ↓
+    └──────┬─────────────┘
+           ↓
+    Controller Selection
+    ├── PID (IsoFluxController)
+    ├── H-infinity (HInfinityController)
+    ├── MPC (ModelPredictiveController)
+    ├── RL/PPO (GymTokamakEnv + SB3)
+    └── SNN (NengoSNNController)
+           ↓
+    DisruptionPredictor
+    (LSTM + Greenwald + VDE)
+           ↓
+    SPIMitigation → CoilSet actuation
+           ↓
+    Rust Kernel (11.9 µs, PyO3)
+```
+
+## Module Dependencies
+
+Simplified internal dependency graph (arrows indicate "imports"):
+
+```mermaid
+graph LR
+    subgraph "High Level"
+        FS[tokamak_flight_sim]
+        GYM[gym_tokamak_env]
+    end
+
+    subgraph "Controllers"
+        MPC[fusion_sota_mpc]
+        HINF[h_infinity_controller]
+        SNN[nengo_snn_wrapper]
+    end
+
+    subgraph "Core Physics"
+        ITS[integrated_transport_solver]
+        FK[fusion_kernel]
+        NEQ[neural_equilibrium]
+        NT[neural_transport]
+    end
+
+    subgraph "Foundation"
+        RC[_rust_compat]
+        VAL[_validators]
+    end
+
+    FS --> MPC
+    FS --> HINF
+    GYM --> FK
+    MPC --> NEQ
+    ITS --> FK
+    ITS --> NT
+    FK --> RC
+    NEQ --> RC
+    RC --> VAL
+```
+
 ## Rust / Python Boundary
 
 ```mermaid

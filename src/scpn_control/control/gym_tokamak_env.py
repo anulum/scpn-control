@@ -30,6 +30,10 @@ logger = logging.getLogger(__name__)
 class TokamakEnv:
     """Minimal Gymnasium-compatible tokamak control environment.
 
+    Implements a simplified plasma response model for energy and current
+    evolution based on 0D lumped-parameter equations.
+    Ref: Wesson, J. (2011). Tokamaks. 4th Edition, Chapter 1.
+
     Follows the gymnasium.Env interface (reset/step/render) without
     requiring gymnasium as a hard dependency. If gymnasium is installed,
     this class can be registered via ``gymnasium.register()``.

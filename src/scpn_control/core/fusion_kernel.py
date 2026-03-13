@@ -208,6 +208,11 @@ class FusionKernel:
         self.NZ: int = res[1]
         self.R: FloatArray = np.linspace(dims["R_min"], dims["R_max"], self.NR)
         self.Z: FloatArray = np.linspace(dims["Z_min"], dims["Z_max"], self.NZ)
+        
+        # Fundamental geometry
+        self.R0: float = float(dims["R_min"] + dims["R_max"]) / 2.0
+        self.a: float = float(dims["R_max"] - dims["R_min"]) / 2.0
+        
         self.dR: float = float(self.R[1] - self.R[0])
         self.dZ: float = float(self.Z[1] - self.Z[0])
         self.RR: FloatArray
@@ -1476,7 +1481,24 @@ class FusionKernel:
         """
         t0 = time.time()
 
+        max_iter: int = self.cfg["solver"]["max_iterations"]
         method: str = self.cfg["solver"].get("solver_method", "multigrid")
+
+        if max_iter <= 0:
+            self.compute_b_field()
+            return {
+                "psi": self.Psi,
+                "converged": False,
+                "iterations": 0,
+                "residual": 1.0,
+                "residual_history": [],
+                "gs_residual": float("inf"),
+                "gs_residual_best": float("inf"),
+                "gs_residual_history": [],
+                "wall_time_s": time.time() - t0,
+                "solver_method": method,
+                "boundary_variant": "fixed_boundary",
+            }
 
         # ── Fast-path dispatches ──
         if method == "rust_multigrid":
@@ -1495,7 +1517,6 @@ class FusionKernel:
             boundary_flux=boundary_flux,
         )
 
-        max_iter: int = self.cfg["solver"]["max_iterations"]
         tol: float = self.cfg["solver"]["convergence_threshold"]
         alpha: float = self.cfg["solver"].get("relaxation_factor", 0.1)
         fail_on_diverge: bool = bool(self.cfg["solver"].get("fail_on_diverge", False))
