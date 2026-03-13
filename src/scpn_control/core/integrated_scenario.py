@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+from scipy.integrate import trapezoid
 
 from scpn_control.core.current_diffusion import CurrentDiffusionSolver
 from scpn_control.core.current_drive import CurrentDriveMix, ECCDSource, NBISource
@@ -222,7 +223,7 @@ class IntegratedScenarioSimulator:
         vol = 2.0 * np.pi**2 * self.config.R0 * self.config.a**2 * self.config.kappa
         e_charge = 1.602e-19
         energy_dens = 1.5 * (self.ts_solver.ne * 1e19) * (self.ts_solver.Te + self.ts_solver.Ti) * 1e3 * e_charge
-        W_th = np.trapz(energy_dens * self.rho, self.rho) * vol * 2.0  # rough integral
+        W_th = trapezoid(energy_dens * self.rho, self.rho) * vol * 2.0
 
         P_loss = self.config.P_aux_MW  # steady state assumption
         tau_E = (W_th / 1e6) / max(P_loss, 1.0)

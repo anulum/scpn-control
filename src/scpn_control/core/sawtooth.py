@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.integrate import trapezoid
 
 
 @dataclass
@@ -112,8 +113,8 @@ def kadomtsev_crash(
 
     def volume_average(prof: np.ndarray) -> float:
         prof_inner = prof[:idx_mix]
-        vol_int = np.trapz(prof_inner * rho_inner, rho_inner)
-        vol_tot = np.trapz(rho_inner, rho_inner)
+        vol_int = trapezoid(prof_inner * rho_inner, rho_inner)
+        vol_tot = trapezoid(rho_inner, rho_inner)
         if vol_tot == 0:
             return float(prof_inner[0])
         return float(vol_int / vol_tot)
@@ -161,7 +162,7 @@ class SawtoothCycler:
             def plasma_energy(Te: np.ndarray, ne: np.ndarray) -> float:
                 energy_dens = 1.5 * (ne * 1e19) * (Te * 1e3 * e_charge)
                 vol_element = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.rho
-                return float(np.trapz(energy_dens * vol_element, self.rho))
+                return float(trapezoid(energy_dens * vol_element, self.rho))
 
             W_before = plasma_energy(T, n)
 
