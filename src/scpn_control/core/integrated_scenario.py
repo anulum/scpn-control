@@ -309,6 +309,8 @@ class IntegratedScenarioSimulator:
         return self._build_state()
 
     def run(self) -> list[ScenarioState]:
+        if not hasattr(self, "ts_solver"):
+            self.initialize()
         states = []
         n_steps = int((self.config.t_end - self.config.t_start) / self.config.dt)
         for _ in range(n_steps):

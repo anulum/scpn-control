@@ -86,6 +86,8 @@ jobs:
             "examples/snn_compiler_walkthrough.ipynb"
             "examples/paper27_phase_dynamics_demo.ipynb"
             "examples/h_infinity_controller_demo.ipynb"
+            "examples/frontier_physics_demo.ipynb"
+            "examples/advanced_control_demo.ipynb"
           )
 
           if python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('sc_neurocore') is not None else 1)"
