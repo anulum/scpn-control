@@ -86,8 +86,8 @@ class VMECLiteSolver:
                 self.R_mn[:, i] = R00_bound
                 self.Z_mn[:, i] = 0.0
             else:
-                self.R_mn[:, i] = self.s_grid**(m/2.0) * self.R_mn[-1, i]
-                self.Z_mn[:, i] = self.s_grid**(m/2.0) * self.Z_mn[-1, i]
+                self.R_mn[:, i] = self.s_grid ** (m / 2.0) * self.R_mn[-1, i]
+                self.Z_mn[:, i] = self.s_grid ** (m / 2.0) * self.Z_mn[-1, i]
 
     def _mhd_energy(self) -> float:
         # Mock energy functional: W = int (B^2 / 2mu0 + p / (gamma-1)) dV
@@ -95,8 +95,8 @@ class VMECLiteSolver:
         W = 0.0
         for s in range(self.n_s):
             # Penalty for R, Z deviations to simulate force balance
-            dev_R = np.sum(self.R_mn[s]**2)
-            dev_Z = np.sum(self.Z_mn[s]**2)
+            dev_R = np.sum(self.R_mn[s] ** 2)
+            dev_Z = np.sum(self.Z_mn[s] ** 2)
             W += dev_R + dev_Z - self.pressure[s]
         return W
 
@@ -104,7 +104,7 @@ class VMECLiteSolver:
         self._initial_guess()
 
         converged = False
-        residual = float('inf')
+        residual = float("inf")
 
         # Extremely simplified steepest descent mock
         # Real VMEC evaluates spectral forces F_R, F_Z via FFTs.
@@ -117,15 +117,15 @@ class VMECLiteSolver:
             F_Z = np.zeros_like(self.Z_mn)
 
             for i in range(1, self.n_s - 1):
-                F_R[i] = (self.R_mn[i+1] - 2*self.R_mn[i] + self.R_mn[i-1]) * 2.0
-                F_Z[i] = (self.Z_mn[i+1] - 2*self.Z_mn[i] + self.Z_mn[i-1]) * 2.0
+                F_R[i] = (self.R_mn[i + 1] - 2 * self.R_mn[i] + self.R_mn[i - 1]) * 2.0
+                F_Z[i] = (self.Z_mn[i + 1] - 2 * self.Z_mn[i] + self.Z_mn[i - 1]) * 2.0
 
             # Add pressure drive (mock shift)
             idx_10 = self.basis.mn_modes.index((1, 0)) if (1, 0) in self.basis.mn_modes else -1
             if idx_10 >= 0:
                 for i in range(1, self.n_s - 1):
                     # Shafranov shift mock: R_00 shifts due to pressure
-                    dp = self.pressure[i] - self.pressure[i-1]
+                    dp = self.pressure[i] - self.pressure[i - 1]
                     F_R[i, 0] -= dp * 0.001
 
             residual = np.max(np.abs(F_R)) + np.max(np.abs(F_Z))
@@ -153,11 +153,9 @@ class AxisymmetricTokamakBoundary:
         b_R = {
             (0, 0): R0,
             (1, 0): a,
-            (2, 0): -0.5 * a * delta # mock shaping harmonic
+            (2, 0): -0.5 * a * delta,  # mock shaping harmonic
         }
-        b_Z = {
-            (1, 0): a * kappa
-        }
+        b_Z = {(1, 0): a * kappa}
         return b_R, b_Z
 
 
@@ -165,14 +163,6 @@ class StellaratorBoundary:
     @staticmethod
     def w7x_standard() -> tuple[dict, dict]:
         # N_fp = 5
-        b_R = {
-            (0, 0): 5.5,
-            (1, 0): 0.5,
-            (1, 1): 0.1,
-            (0, 1): 0.2
-        }
-        b_Z = {
-            (1, 0): 0.6,
-            (1, 1): -0.1
-        }
+        b_R = {(0, 0): 5.5, (1, 0): 0.5, (1, 1): 0.1, (0, 1): 0.2}
+        b_Z = {(1, 0): 0.6, (1, 1): -0.1}
         return b_R, b_Z

@@ -66,7 +66,9 @@ class VoltSecondOptimizer:
 
 class BootstrapCurrentEstimate:
     @staticmethod
-    def from_profiles(ne: np.ndarray, Te: np.ndarray, Ti: np.ndarray, q: np.ndarray, rho: np.ndarray, R0: float, a: float) -> float:
+    def from_profiles(
+        ne: np.ndarray, Te: np.ndarray, Ti: np.ndarray, q: np.ndarray, rho: np.ndarray, R0: float, a: float
+    ) -> float:
         # Simplistic proxy: I_bs scales with pressure gradient and epsilon^0.5
         # We assume a fixed profile and just return a scalable estimate
         epsilon = a / R0
@@ -79,6 +81,7 @@ class BootstrapCurrentEstimate:
 
         I_bs_MA = max(0.0, J_bs_integral * 0.1)
         return float(I_bs_MA)
+
 
 import math
 
@@ -100,7 +103,7 @@ class FluxConsumptionMonitor:
             flux_consumed_Vs=self.consumed,
             flux_remaining_Vs=max(0.0, rem),
             estimated_remaining_time_s=est_time,
-            fraction_consumed=frac
+            fraction_consumed=frac,
         )
 
 
@@ -129,5 +132,5 @@ class ScenarioFluxAnalysis:
             ramp_down_flux=down_flux,
             total_flux=tot,
             within_budget=tot <= self.budget.Phi_CS_Vs,
-            margin_Vs=self.budget.Phi_CS_Vs - tot
+            margin_Vs=self.budget.Phi_CS_Vs - tot,
         )

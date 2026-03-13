@@ -3,7 +3,6 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-import dataclasses
 import math
 from dataclasses import dataclass
 from typing import Callable
