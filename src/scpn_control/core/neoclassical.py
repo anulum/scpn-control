@@ -143,6 +143,7 @@ def sauter_bootstrap(
     q: np.ndarray,
     R0: float,
     a: float,
+    B0: float = 5.3,
     z_eff: float = 1.5,
 ) -> np.ndarray:
     """Compute the Sauter bootstrap current density profile.
@@ -161,6 +162,8 @@ def sauter_bootstrap(
         Safety factor profile.
     R0, a : float
         Major and minor radii [m].
+    B0 : float
+        Toroidal magnetic field [T].
     z_eff : float
         Effective charge.
 
@@ -197,15 +200,15 @@ def sauter_bootstrap(
         X = f_t / (1.0 + (1.0 + 0.3 * np.sqrt(nu_star_e)) * nu_star_e)
         L31 = X
 
-        # Pressure drives (Pascal)
-        # j_bs ~ - (I R / B_p) * [ L31 * p/n * dn/dr + ... ]
-        # Here we use a simplified version:
-        p_total = ne[i] * 1e19 * (Te[i] + Ti[i]) * 1.602e-16
+        # dp/dρ in Pa
         grad_p = (Te[i] + Ti[i]) * 1.602e-16 * dne_drho[i] + ne[i] * 1e19 * 1.602e-16 * (dTe_drho[i] + dTi_drho[i])
 
-        # B_poloidal approx: mu0 * Ip / (2*pi*a)
-        # But we want j_bs(rho).
-        # j_bs = - (f_t / f_c) * ... (simplified)
-        j_bs[i] = abs(L31 * grad_p / (R0 * 1e-6))  # Rough scaling
+        # B_pol ≈ B₀ ε / q  (from q = rB_T / (R₀B_θ))
+        B_pol = B0 * eps / max(q[i], 0.1)
+        if B_pol < 1e-10:
+            continue
+
+        # j_bs ≈ -L31 (dp/dr) / B_pol, with dp/dr = (dp/dρ)/a
+        j_bs[i] = abs(L31 * grad_p / (a * B_pol))
 
     return j_bs

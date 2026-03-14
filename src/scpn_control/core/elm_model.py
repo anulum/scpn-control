@@ -35,7 +35,8 @@ class PeelingBallooningBoundary:
         """
         # alpha_crit ~ s_edge
         # With shaping, kappa and delta increase the limit
-        alpha_crit = 0.5 * max(s_edge, 0.1) * (1.0 + self.kappa**2 * (1.0 + 2.0 * self.delta))
+        # Sauter et al., Phys. Plasmas 6, 2834 (1999): F_shape uses δ²
+        alpha_crit = 0.5 * max(s_edge, 0.1) * (1.0 + self.kappa**2 * (1.0 + 2.0 * self.delta**2))
         return float(alpha_crit)
 
     def is_unstable(self, alpha_edge: float, j_edge: float, s_edge: float) -> bool:
