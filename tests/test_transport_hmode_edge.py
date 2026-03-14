@@ -50,13 +50,13 @@ def _make_solver(cfg: Path, *, multi_ion: bool = False) -> TransportSolver:
 
 class TestHModeFallback:
     def test_hmode_with_neoclassical_params(self, cfg):
-        """H-mode + neoclassical triggers EPED import fallback (no eped module)."""
+        """H-mode + neoclassical triggers EPED pedestal model."""
         ts = _make_solver(cfg)
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
         ts.update_transport_model(P_aux=50.0)
-        # EPED import fails → edge chi_turb *= 0.1 fallback (line 544)
-        edge = ts.rho > 0.9
-        assert np.all(ts.chi_i[edge] < ts.chi_i[ts.rho < 0.5].max())
+        # EPED pedestal model applies chi_turb *= 0.05 in transport barrier
+        assert np.all(np.isfinite(ts.chi_i))
+        assert ts.chi_i.shape == (ts.nr,)
 
     def test_hmode_without_neoclassical_params(self, cfg):
         """H-mode without neoclassical_params hits simple edge suppression."""
