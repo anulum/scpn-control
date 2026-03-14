@@ -223,7 +223,7 @@ pub fn apply_chaos_monkey<R: Rng + ?Sized>(
     };
     let mut out = channels.clone();
     for v in out.iter_mut() {
-        if rng.gen::<f64>() < cfg.dropout_prob {
+        if rng.random::<f64>() < cfg.dropout_prob {
             *v = 0.0;
             continue;
         }
@@ -319,7 +319,7 @@ impl SimpleMLP {
             ));
         }
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let scale1 = (1.0 / input_dim as f64).sqrt();
         let scale2 = (1.0 / HIDDEN as f64).sqrt();
 

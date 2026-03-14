@@ -854,7 +854,7 @@ fn scpn_sample_firing<'py>(
         let mut c = vec![0usize; n];
         for pair_idx in 0..n_pairs {
             for i in 0..n {
-                let u: f64 = rng.gen();
+                let u: f64 = rng.random();
                 if u < p[i] {
                     c[i] += 1;
                 }
@@ -872,7 +872,7 @@ fn scpn_sample_firing<'py>(
         for i in 0..n {
             let mut c = 0usize;
             for _ in 0..n_passes {
-                if rng.gen::<f64>() < p[i] {
+                if rng.random::<f64>() < p[i] {
                     c += 1;
                 }
             }

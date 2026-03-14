@@ -172,9 +172,9 @@ impl FusionAgent {
     /// Choose action (ε-greedy).
     pub fn choose_action(&self, state: (usize, usize)) -> FusionResult<usize> {
         self.validate_state(state)?;
-        let mut rng = rand::thread_rng();
-        if rng.gen::<f64>() < EPSILON {
-            Ok(rng.gen_range(0..N_ACTIONS))
+        let mut rng = rand::rng();
+        if rng.random::<f64>() < EPSILON {
+            Ok(rng.random_range(0..N_ACTIONS))
         } else {
             let mut best_a = 0;
             let mut best_q = f64::NEG_INFINITY;
