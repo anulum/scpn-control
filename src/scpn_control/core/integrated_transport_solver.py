@@ -291,8 +291,9 @@ class TransportSolver(FusionKernel):
         # Neoclassical transport configuration (None = constant chi_base=0.5)
         self.neoclassical_params: dict[str, Any] | None = None
 
-        # Energy conservation diagnostic (updated each evolve_profiles call)
+        # Conservation diagnostics (updated each evolve_profiles call)
         self._last_conservation_error: float = 0.0
+        self._last_particle_balance_error: float = 0.0
 
         # ── Multi-ion species (P1.1) ──
         # Densities in 10^19 m^-3 (same units as ne)
@@ -941,7 +942,12 @@ class TransportSolver(FusionKernel):
           P_rad_line  — line radiation power density from tungsten [keV / s per 10^19]
         """
         if not self.multi_ion or self.n_D is None:
+            self._last_particle_balance_error = 0.0
             return np.zeros(self.nr), np.zeros(self.nr)
+
+        # Particle inventory before evolution (10^19 m^-3 units × volume)
+        dV = self._rho_volume_element()
+        N_before = float(np.sum((self.n_D + self.n_T + self.n_He) * 1e19 * dV))
 
         # Fusion source: S_fus = n_D * n_T * <sigma_v> (reactions per m^3 per s)
         # n_D, n_T are in 10^19 m^-3 => multiply by (1e19)^2
@@ -958,6 +964,10 @@ class TransportSolver(FusionKernel):
 
         # D and T consumption rate (in 10^19 / s)
         S_fuel = S_fus / 1e19
+
+        # Integrated source: D+T consumed = -2·S_fus, He produced = +S_fus, He pumped = -S_He_pump
+        # Net = -S_fus - S_He_pump (in 10^19/s units, per cell)
+        dN_source_expected = float(dt * np.sum((-S_fuel - S_fuel + S_He - S_He_pump) * 1e19 * dV))
 
         # Diffusion operator (explicit, simple Laplacian)
         def _diffuse(n: np.ndarray) -> np.ndarray:
@@ -988,6 +998,12 @@ class TransportSolver(FusionKernel):
             new_He[0] = new_He[1]
             new_He[-1] = 0.0
             self.n_He = np.maximum(0.0, new_He)
+
+        # Particle balance diagnostic
+        N_after = float(np.sum((self.n_D + self.n_T + self.n_He) * 1e19 * dV))
+        dN_actual = N_after - N_before
+        # Relative error (includes boundary flux + clipping residuals)
+        self._last_particle_balance_error = abs(dN_actual - dN_source_expected) / max(abs(N_before), 1e-10)
 
         # Recompute ne from quasineutrality: ne = n_D + n_T + 2*n_He + Z_imp*n_imp
         # Pütterich et al., Nucl. Fusion 50, 025012 (2010) — mean charge
@@ -1021,6 +1037,14 @@ class TransportSolver(FusionKernel):
     def energy_balance_error(self) -> float:
         """Relative energy conservation error from the last evolution step."""
         return float(self._last_conservation_error)
+
+    @property
+    def particle_balance_error(self) -> float:
+        """Relative particle conservation error from the last evolution step.
+
+        Only meaningful in multi-ion mode. Returns 0.0 otherwise.
+        """
+        return float(self._last_particle_balance_error)
 
     def evolve_profiles(
         self,
