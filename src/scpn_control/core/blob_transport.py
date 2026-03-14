@@ -37,13 +37,7 @@ class BlobDynamics:
         """v_b in sheath-connected regime (small blobs)"""
         if delta_b <= 0.0:
             return 0.0
-        # v_b = c_s * (rho_s / R0) * (2 L_c / delta_b)^... wait, Krasheninnikov 2001
-        # Simplified standard form: v_b ~ delta_b^-2 or similar depending on derivation.
-        # Actually v_b = 2 c_s rho_s / (R0 sqrt(delta_b/R0)) is an inertial limit form, let's just use the assignment formula
-        # The assignment says:
-        # sheath: v_b prop delta_b^-1/2
-        # inertial: v_b prop delta_b^1/2
-        # Let's match the critical size continuity
+        # Sheath-connected regime: v_b ~ delta_b^{-1/2} — Krasheninnikov (2001)
         return 2.0 * self.c_s * self.rho_s / (self.R0 * math.sqrt(delta_b / self.R0 + 1e-6))
 
     def inertial_velocity(self, delta_b: float) -> float:

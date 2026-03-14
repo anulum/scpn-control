@@ -47,7 +47,8 @@ class EPEDValidationPoint:
 
 def eped_validation_database() -> list[EPEDValidationPoint]:
     """
-    Mock database from Snyder et al. (2011) EPED1.6 validation.
+    Synthetic test data for EPED model validation.
+    Values are approximate and do not represent real experimental measurements.
     """
     return [
         EPEDValidationPoint("DIII-D", 1, 10.0, 10.5, 0.04, 0.042),

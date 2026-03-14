@@ -138,8 +138,17 @@ class VMECLiteSolver:
             self.R_mn[1:-1] += lr * F_R[1:-1]
             self.Z_mn[1:-1] += lr * F_Z[1:-1]
 
-        # Mock B_mn output
-        B_mn = np.ones_like(self.R_mn)
+        # B ~ 1/R → B_mn from inverse of R Fourier expansion
+        B_mn = np.zeros_like(self.R_mn)
+        idx_00 = self.basis.mn_modes.index((0, 0)) if (0, 0) in self.basis.mn_modes else -1
+        for s in range(self.n_s):
+            R_00 = self.R_mn[s, idx_00] if idx_00 >= 0 else 1.0
+            R_00 = max(abs(R_00), 1e-6)
+            if idx_00 >= 0:
+                B_mn[s, idx_00] = 1.0
+            for k in range(self.basis.n_modes):
+                if k != idx_00:
+                    B_mn[s, k] = -self.R_mn[s, k] / R_00
 
         return VMECResult(self.R_mn.copy(), self.Z_mn.copy(), B_mn, float(residual), it + 1, converged)
 

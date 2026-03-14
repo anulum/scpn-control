@@ -55,14 +55,29 @@ def test_analytic_targets_critical_gradient():
 def test_neural_transport_trainer():
     trainer = NeuralTransportTrainer()
 
-    X = np.random.randn(100, 10)
-    y = np.random.randn(100, 3)
+    gen = TrainingDataGenerator()
+    X = gen.generate_parameter_scan(200)
+    y = gen.generate_analytic_targets(X)
 
-    # We test the mock convergence since full numpy backprop is excessive
-    hist = trainer.train_mock_convergence(epochs=200)
+    hist = trainer.train(X, y, epochs=50, lr=1e-3)
 
-    assert len(hist["train_loss"]) == 200
-    assert hist["val_loss"][-1] < 0.05
+    assert len(hist["train_loss"]) == 50
+    assert hist["train_loss"][-1] < hist["train_loss"][0]
+
+
+def test_surrogate_save_load(tmp_path):
+    model = QLKNNSurrogate(hidden_layers=[16, 8])
+    x = np.random.randn(5, 10)
+    out_before = model.forward(x)
+
+    path = str(tmp_path / "weights.npz")
+    model.save_weights(path)
+
+    model2 = QLKNNSurrogate(hidden_layers=[16, 8])
+    model2.load_weights(path)
+    out_after = model2.forward(x)
+
+    np.testing.assert_array_almost_equal(out_before, out_after)
 
 
 def test_qlknn_transport_model_denormalization():

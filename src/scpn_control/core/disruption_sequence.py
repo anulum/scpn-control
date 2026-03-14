@@ -113,11 +113,12 @@ class ThermalQuench:
 
 
 class CurrentQuench:
-    def __init__(self, Ip_MA: float, L_plasma_uH: float, R0: float, a: float):
+    def __init__(self, Ip_MA: float, L_plasma_uH: float, R0: float, a: float, kappa: float = 1.0):
         self.Ip_MA = Ip_MA
         self.L_plasma_H = L_plasma_uH * 1e-6
         self.R0 = R0
         self.a = a
+        self.kappa = kappa
 
     def resistivity_post_tq(self, Te_eV: float, Z_eff: float) -> float:
         """Spitzer resistivity [Ohm m]"""
@@ -129,9 +130,8 @@ class CurrentQuench:
     def cq_timescale(self, Te_eV: float, Z_eff: float) -> float:
         """tau_CQ = L / R_p [ms]"""
         eta = self.resistivity_post_tq(Te_eV, Z_eff)
-        # R_p = eta * 2 pi R0 / (pi a^2 kappa)
-        # Assuming kappa ~ 1 for cross section scaling simplicity
-        R_p = eta * 2.0 * self.R0 / (self.a**2)
+        # R_p = eta * 2 R0 / (a^2 kappa) — toroidal resistance
+        R_p = eta * 2.0 * self.R0 / (self.a**2 * self.kappa)
 
         tau_s = self.L_plasma_H / R_p
         return tau_s * 1000.0
@@ -243,7 +243,7 @@ class DisruptionSequence:
             Z_eff = 1.5
 
         # Phase 2: CQ
-        cq = CurrentQuench(self.config.Ip_MA, 10.0, self.config.R0, self.config.a)
+        cq = CurrentQuench(self.config.Ip_MA, 10.0, self.config.R0, self.config.a, self.config.kappa)
 
         # We want to simulate ~150 ms
         dt = 1e-3
@@ -260,7 +260,7 @@ class DisruptionSequence:
             from scpn_control.core.runaway_electrons import hot_tail_seed
 
             seed = hot_tail_seed(self.config.Te_pre_keV, post_T / 1000.0, ne_20, tau_tq_ms)
-        except Exception:
+        except ImportError:
             pass
 
         n_RE = seed

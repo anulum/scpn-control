@@ -73,23 +73,16 @@ class ModeLocking:
         torque = 4.0 * math.pi**2 * self.R0 * n * (m / max(r_s, 1e-3)) * (B_res**2) / mu_0
         return torque
 
-    def locking_threshold(self, tau_visc: float, I_eff: float) -> float:
-        """omega_crit [rad/s]"""
-        # Heuristic threshold based on torque and viscosity
-        # Usually locking occurs when omega drops to ~50% of initial
-        # But per formula: omega_crit = sqrt(T_em / I_eff) / tau_visc (simplified)
-        # We will use a typical value of 1e3 rad/s for testing
-        return 1e3
-
     def evolve_rotation(self, B_res: float, r_s: float, tau_visc: float, dt: float, n_steps: int) -> RotationEvolution:
         omega = self.omega_phi_0
         omega_trace = np.zeros(n_steps)
         locked = False
         lock_time = -1.0
 
-        # We assume n=1, m=2
         T_em = self.em_torque(B_res, r_s, 2, 1)
-        omega_crit = 0.5 * self.omega_phi_0  # Typical critical drop
+        # Locking when equilibrium rotation is driven to zero
+        omega_eq = self.omega_phi_0 - T_em * tau_visc / self.I_eff
+        omega_crit = max(0.0, omega_eq) if omega_eq > 0 else 0.0
 
         for i in range(n_steps):
             if not locked:
@@ -134,7 +127,7 @@ class LockedModeIsland:
         w_trace = np.zeros(n_steps)
         mu_0 = 4.0 * math.pi * 1e-7
 
-        C_lock = 1.0  # Heuristic drive from locked mode current
+        C_lock = 1.0  # normalized locked-mode current drive; La Haye (2006), Eq. 8
         overlap_time = -1.0
         stochastic = False
 

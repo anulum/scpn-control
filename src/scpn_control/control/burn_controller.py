@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -42,7 +43,7 @@ class AlphaHeating:
         # dV = 4 pi^2 R0 a^2 kappa rho drho
         dV = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.kappa * rho
 
-        _trapz = getattr(np, "trapezoid", np.trapz)
+        _trapz: Any = getattr(np, "trapezoid", None) or getattr(np, "trapz")
         P_tot = _trapz(p_dens * dV, rho)
         return float(P_tot)
 

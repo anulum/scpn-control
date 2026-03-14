@@ -3,6 +3,7 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Callable
 
@@ -81,9 +82,6 @@ class BootstrapCurrentEstimate:
 
         I_bs_MA = max(0.0, J_bs_integral * 0.1)
         return float(I_bs_MA)
-
-
-import math
 
 
 class FluxConsumptionMonitor:

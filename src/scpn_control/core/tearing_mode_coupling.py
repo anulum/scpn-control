@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from scpn_control.core.locked_mode import LockedModeIsland
 from scpn_control.core.sawtooth import SawtoothCycler
 
 
@@ -171,9 +170,8 @@ class DisruptionPath:
 
 
 class DisruptionTriggerAssessment:
-    def __init__(self, coupled: CoupledTearingModes, locked_mode: LockedModeIsland):
+    def __init__(self, coupled: CoupledTearingModes):
         self.coupled = coupled
-        self.locked_mode = locked_mode
 
     def run_scenario(self, j_bs: float, j_phi: float, omega_phi: float, seed_energy: float) -> DisruptionPath:
         st_seed = SawtoothNTMSeeding(None)

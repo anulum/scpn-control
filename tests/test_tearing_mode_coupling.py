@@ -37,29 +37,24 @@ def test_sawtooth_seeding():
 def test_coupled_tearing_modes():
     c = CoupledTearingModes((3, 2), (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)
 
-    # Evolve without seed -> no disruption
+    # Evolve without seed -> no disruption, islands stay small
     res_no_seed = c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=1e6, eta=1e-7, dt=0.01, n_steps=200)
     assert not res_no_seed.disruption
+    assert res_no_seed.w1_trace[-1] < 0.1
+    assert res_no_seed.w2_trace[-1] < 0.1
 
-    # Evolve with large seed -> disruption via overlap
-    # We give w2_0 a small seed (e.g. 2e-3) so bootstrap term isn't completely suppressed by the w_d threshold
+    # Strong bootstrap + seed -> disruption via Chirikov overlap
     res_seed = c.evolve(
         1e-6, 2e-3, j_bs=8e5, j_phi=1e6, eta=1e-5, dt=0.01, n_steps=1000, seed_time=0.1, seed_amplitude=0.1
     )
-
-    # A large 3/2 seed coupled with high bootstrap should trigger 2/1 and overlap
-    if res_seed.disruption:
-        assert res_seed.overlap_time >= 0.0
-    else:
-        # If it doesn't disrupt, at least w1 and w2 should have grown
-        assert res_seed.w1_trace[-1] > 0.1
-        assert res_seed.w2_trace[-1] > 1e-4
+    assert res_seed.disruption
+    assert res_seed.overlap_time >= 0.0
+    assert np.any(res_seed.chirikov_trace > 1.0)
 
 
 def test_disruption_trigger_assessment():
     c = CoupledTearingModes((3, 2), (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)
-    # Locked mode not strictly necessary for this logic mock
-    ass = DisruptionTriggerAssessment(c, None)
+    ass = DisruptionTriggerAssessment(c)
 
     path = ass.run_scenario(j_bs=1e6, j_phi=1e6, omega_phi=1e4, seed_energy=10.0)
 

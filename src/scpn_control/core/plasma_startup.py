@@ -18,24 +18,23 @@ class PaschenBreakdown:
         self.R0 = R0
         self.a = a
 
-        # Townsend coefficients for Deuterium (rough approximations)
-        # C1 in 1/(Pa m)
-        # C2 dimensionless
-        self.C1 = 44.7
-        self.C2 = 2.64
+        # Townsend coefficients for D₂ — Lieberman & Lichtenberg (2005), Ch. 14
+        self.A = 44.7  # effective ionization coefficient [1/(Pa·m)]
+        self.C2 = 2.64  # ln(ln(1+1/gamma_SE)) term [dimensionless]
+        self.B_V = 155.0  # excitation coefficient [V/(Pa·m)]
 
     def breakdown_voltage(self, p_Pa: float, connection_length_m: float) -> float:
+        """Paschen breakdown voltage [V]."""
         pd = p_Pa * connection_length_m
 
         if pd <= 0.0:
             return float("inf")
 
-        denom = self.C1 * math.log(max(pd, 1e-6)) - self.C2
+        denom = self.A * math.log(max(pd, 1e-6)) - self.C2
         if denom <= 0.0:
             return float("inf")
 
-        E_breakdown = p_Pa / denom
-        return float(E_breakdown * connection_length_m)
+        return float(self.B_V * pd / denom)
 
     def is_breakdown(self, V_loop: float, p_Pa: float, connection_length_m: float = 100.0) -> bool:
         V_req = self.breakdown_voltage(p_Pa, connection_length_m)
@@ -45,8 +44,8 @@ class PaschenBreakdown:
         return np.array([self.breakdown_voltage(p, connection_length_m) for p in p_range])
 
     def optimal_prefill_pressure(self, V_loop_max: float, connection_length_m: float = 100.0) -> float:
-        # Minimum of V_breakdown occurs at pd = exp(1 + C2/C1)
-        pd_opt = math.exp(1.0 + self.C2 / self.C1)
+        # Minimum of V_breakdown occurs at pd = exp(1 + C2/A)
+        pd_opt = math.exp(1.0 + self.C2 / self.A)
         return float(pd_opt / connection_length_m)
 
 

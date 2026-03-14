@@ -71,8 +71,12 @@ class ParticleTransportModel:
         return self.gas_puff_source(outflux * recycling_coeff, penetration_depth=0.02)
 
     def step(self, ne: np.ndarray, sources: np.ndarray, dt: float) -> np.ndarray:
-        # Implicit diffusion step (simplified to explicit for mock, stability check required if real)
-        # dn/dt = 1/V' d/drho ( V' D dn/drho - V' V_p n ) + S
+        # Explicit forward-Euler diffusion: CFL requires dt < drho^2 / (2 * D_max)
+        D_max = np.max(self.D)
+        if D_max > 0.0:
+            dt_cfl = (self.drho * self.a) ** 2 / (2.0 * D_max)
+            if dt > dt_cfl:
+                dt = dt_cfl
 
         flux = np.zeros(self.n_rho + 1)
         for i in range(1, self.n_rho):

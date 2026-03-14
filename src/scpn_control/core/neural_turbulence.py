@@ -61,10 +61,16 @@ class QLKNNSurrogate:
         return np.asarray(out)
 
     def load_weights(self, path: str) -> None:
-        pass
+        data = np.load(path, allow_pickle=True)
+        self.weights = [data[f"w{i}"] for i in range(len(self.weights))]
+        self.biases = [data[f"b{i}"] for i in range(len(self.biases))]
 
     def save_weights(self, path: str) -> None:
-        pass
+        arrays = {}
+        for i, (w, b) in enumerate(zip(self.weights, self.biases)):
+            arrays[f"w{i}"] = w
+            arrays[f"b{i}"] = b
+        np.savez(path, **arrays)
 
 
 class TransportInputNormalizer:
@@ -188,44 +194,69 @@ class TrainingDataGenerator:
 
 
 class NeuralTransportTrainer:
+    def _activate_deriv(self, x: np.ndarray, activation: str) -> np.ndarray:
+        if activation == "elu":
+            return np.where(x > 0, 1.0, np.exp(x))
+        if activation == "relu":
+            return np.where(x > 0, 1.0, 0.0)
+        if activation == "tanh":
+            return np.asarray(1.0 - np.tanh(x) ** 2)
+        return np.ones_like(x)
+
     def train(self, X: np.ndarray, y: np.ndarray, epochs: int = 200, lr: float = 1e-3, val_frac: float = 0.2) -> dict:
-        """
-        Simple pure numpy SGD/Adam training loop for testing architecture.
-        """
         n_samples = X.shape[0]
-        n_val = int(n_samples * val_frac)
+        n_val = max(int(n_samples * val_frac), 1)
 
         X_train, y_train = X[:-n_val], y[:-n_val]
         X_val, y_val = X[-n_val:], y[-n_val:]
 
         model = QLKNNSurrogate()
 
-        # We will mock the training process to just shrink the weights
-        # so validation loss drops, simulating learning for the test,
-        # as a full numpy autodiff is excessive for this integration task.
-
         history: dict[str, list[float]] = {"train_loss": [], "val_loss": []}
 
         for epoch in range(epochs):
-            # Evaluate current model
-            pred_train = model.forward(X_train)
-            loss_train = np.mean((pred_train - y_train) ** 2)
+            # Forward pass — store pre-activations for backprop
+            activations = [X_train]
+            pre_acts = []
+            out = X_train
+            for i in range(len(model.weights) - 1):
+                z = out @ model.weights[i] + model.biases[i]
+                pre_acts.append(z)
+                out = model._activate(z)
+                activations.append(out)
+            z_last = out @ model.weights[-1] + model.biases[-1]
+            pre_acts.append(z_last)
+            pred = z_last
+            activations.append(pred)
+
+            loss_train = float(np.mean((pred - y_train) ** 2))
+
+            # Backprop
+            n_train = X_train.shape[0]
+            delta = 2.0 * (pred - y_train) / (n_train * y_train.shape[1])
+
+            for i in range(len(model.weights) - 1, -1, -1):
+                dW = activations[i].T @ delta
+                db = np.sum(delta, axis=0)
+                # Gradient clipping to prevent explosion
+                dW_norm = np.linalg.norm(dW)
+                if dW_norm > 1.0:
+                    dW = dW / dW_norm
+                    db = db / max(np.linalg.norm(db), 1e-8)
+                model.weights[i] -= lr * dW
+                model.biases[i] -= lr * db
+                if i > 0:
+                    delta = (delta @ model.weights[i].T) * self._activate_deriv(pre_acts[i - 1], model.activation)
+                    np.clip(delta, -1e6, 1e6, out=delta)
 
             pred_val = model.forward(X_val)
-            loss_val = np.mean((pred_val - y_val) ** 2)
+            loss_val = float(np.mean((pred_val - y_val) ** 2))
 
             history["train_loss"].append(loss_train)
             history["val_loss"].append(loss_val)
 
-            # "Train" by forcing weights to produce exactly the target
-            # (Just a mock to make the test pass and prove integration structure)
-
+        self._model = model
         return history
-
-    def train_mock_convergence(self, epochs: int) -> dict:
-        """Returns fake convergence history matching test expectations."""
-        losses = np.linspace(10.0, 0.01, epochs)
-        return {"train_loss": losses, "val_loss": losses + 0.01}
 
 
 @dataclass
