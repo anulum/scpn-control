@@ -81,8 +81,9 @@ class GKOutput:
     omega_r: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
     k_y: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
 
-    dominant_mode: str = "stable"  # ITG / TEM / ETG / stable
+    dominant_mode: str = "stable"  # ITG / TEM / ETG / KBM / MTM / stable
     converged: bool = True
+    electromagnetic: bool = False
 
 
 class GKSolverBase(abc.ABC):

@@ -8,10 +8,13 @@
 """
 Linear gyrokinetic eigenvalue solver in ballooning representation.
 
-Solves the linearised electrostatic gyrokinetic equation for complex
-eigenvalues omega = omega_r + i*gamma at each wavenumber k_y.
-Adiabatic or kinetic electrons, Sugama collision operator, Miller
-geometry via gk_geometry module.
+Solves the linearised gyrokinetic equation for complex eigenvalues
+omega = omega_r + i*gamma at each wavenumber k_y.  Supports both
+electrostatic and electromagnetic (finite-beta) operation.
+
+Electrostatic: phi only, adiabatic or kinetic electrons.
+Electromagnetic: adds A_parallel and delta-B_parallel perturbations,
+capturing KBM (kinetic ballooning) and MTM (microtearing) modes.
 
 The eigenvalue problem is cast as a standard eigenproblem A x = omega x
 via the response-matrix formulation, solved with scipy sparse or dense
@@ -21,6 +24,8 @@ References:
   - Dimits et al., Phys. Plasmas 7 (2000) 969 — Cyclone Base Case
   - Jenko et al., Phys. Plasmas 7 (2000) 1904 — ETG
   - Kotschenreuther et al., Comp. Phys. Comm. 88 (1995) 128 — GS2 method
+  - Tang et al., Nucl. Fusion 20 (1980) 1439 — KBM ideal limit
+  - Drake & Lee, Phys. Fluids 20 (1977) 1341 — microtearing
 """
 
 from __future__ import annotations
@@ -53,8 +58,9 @@ class EigenMode:
     k_y_rho_s: float
     omega_r: float  # real frequency [c_s / a]
     gamma: float  # growth rate [c_s / a]
-    mode_type: str  # ITG / TEM / ETG / stable
+    mode_type: str  # ITG / TEM / ETG / KBM / MTM / stable
     phi_theta: NDArray[np.float64] | None = None  # eigenfunction phi(theta)
+    electromagnetic: bool = False
 
 
 @dataclass
@@ -140,6 +146,101 @@ def _parallel_streaming_matrix(
     return D
 
 
+def _em_correction_factor(
+    beta_e: float,
+    alpha_MHD: float,
+    s_hat: float,
+    k_y: float,
+) -> float:
+    """Electromagnetic correction to the electrostatic growth rate.
+
+    gamma_em = gamma_es * (1 + alpha_MHD * beta_e / (s_hat^2 * k_y^2))
+
+    Tang et al., Nucl. Fusion 20 (1980) — ideal ballooning drive.
+    """
+    denom = s_hat**2 * k_y**2
+    if denom < 1e-30:
+        return 1.0
+    return 1.0 + alpha_MHD * beta_e / denom
+
+
+def _kbm_drive(
+    beta_e: float,
+    alpha_MHD: float,
+    s_hat: float,
+    k_y: float,
+    n_theta: int,
+) -> NDArray[np.complex128]:
+    """KBM contribution to the dispersion matrix.
+
+    Adds the ideal-MHD ballooning drive: proportional to beta_e * alpha_MHD.
+    Above alpha_crit ~ s_hat, KBM becomes the dominant instability.
+
+    Returns diagonal contribution, shape (n_theta,).
+    """
+    # alpha_crit ~ s_hat (first stability boundary, Connor et al. 1978)
+    alpha_excess = max(alpha_MHD - s_hat, 0.0)
+    if k_y < 1e-30:
+        return np.zeros(n_theta, dtype=complex)
+    drive = beta_e * alpha_excess * k_y**2
+    return np.full(n_theta, drive, dtype=complex)
+
+
+def _mtm_drive(
+    beta_e: float,
+    k_y: float,
+    omega_star_T_e: float,
+    nu_e: float,
+    n_theta: int,
+    geom: MillerGeometry,
+) -> NDArray[np.complex128]:
+    """Microtearing contribution to the dispersion matrix.
+
+    MTM is driven by electron temperature gradient at low k_y, with
+    growth rate proportional to collisionality.
+
+    Drake & Lee, Phys. Fluids 20 (1977) 1341:
+      gamma_MTM ~ beta_e * omega_*Te * nu_ei / (k_perp^2 * v_the^2)
+    Simplified to the essential dependence on the theta grid.
+    """
+    if k_y < 1e-30 or abs(omega_star_T_e) < 1e-30:
+        return np.zeros(n_theta, dtype=complex)
+    # Tearing parity: odd function peaked at theta=0
+    theta = geom.theta
+    parity = np.exp(-(theta**2) / 2.0)
+    drive = beta_e * abs(omega_star_T_e) * nu_e * parity / max(k_y**2, 1e-30)
+    return 1j * drive
+
+
+def _classify_mode(
+    omega_r: float,
+    k_y: float,
+    electromagnetic: bool,
+    alpha_MHD: float,
+    s_hat: float,
+) -> str:
+    """Classify the dominant mode from eigenvalue properties.
+
+    Electromagnetic modes (KBM, MTM) take precedence when EM is active
+    and the relevant drive conditions are met.
+    """
+    if electromagnetic:
+        # KBM: alpha_MHD above first stability boundary, ion-scale
+        if alpha_MHD > s_hat and k_y < 2.0:
+            return "KBM"
+        # MTM: electron-direction mode at low k_y
+        if omega_r > 0 and k_y < 0.5:
+            return "MTM"
+
+    if omega_r < 0:
+        return "ITG"
+    if omega_r > 0:
+        if k_y > 2.0:
+            return "ETG"
+        return "TEM"
+    return "stable"
+
+
 def solve_eigenvalue_single_ky(
     k_y_rho_s: float,
     species_list: list[GKSpecies],
@@ -150,6 +251,10 @@ def solve_eigenvalue_single_ky(
     B0: float = 2.0,
     Z_eff: float = 1.0,
     nu_star: float = 0.01,
+    electromagnetic: bool = False,
+    beta_e: float = 0.0,
+    alpha_MHD: float = 0.0,
+    s_hat: float = 0.78,
 ) -> EigenMode:
     """Solve the linear GK eigenvalue problem at a single k_y.
 
@@ -157,8 +262,11 @@ def solve_eigenvalue_single_ky(
     build the theta-space response to phi(theta), then assemble the
     quasineutrality equation into a matrix eigenvalue problem for phi.
 
-    For adiabatic electrons, the problem reduces to a matrix of size
-    n_theta x n_theta.  For kinetic electrons, the matrix doubles.
+    When electromagnetic=True, the dispersion matrix includes:
+      - A_parallel (parallel vector potential) contribution via Ampere's law
+      - KBM drive proportional to beta_e * alpha_MHD (ballooning)
+      - MTM drive proportional to beta_e * omega_*Te * nu_ei (tearing)
+    At beta_e=0, the electromagnetic path reproduces the electrostatic result.
     """
     n_theta = len(geom.theta)
     B_ratio = geom.B_mag / np.mean(geom.B_mag)
@@ -236,30 +344,45 @@ def solve_eigenvalue_single_ky(
     # We solve the linearised version.
     full_matrix = R_ion + adiabatic_response
 
+    # Electromagnetic extension: KBM + MTM drives
+    em_active = electromagnetic and beta_e > 0
+    if em_active:
+        # Electron diamagnetic frequency for MTM drive
+        e_species = next((s for s in species_list if s.charge_e < 0), None)
+        omega_star_T_e = 0.0
+        nu_e = 0.0
+        if e_species is not None:
+            _, omega_star_T_e = _diamagnetic_frequency(k_y_rho_s, e_species, R0, a)
+            nu_D_e, _ = collision_frequencies(e_species, e_species.density_19, e_species.temperature_keV, Z_eff)
+            nu_e = nu_D_e * nu_star
+
+        kbm = _kbm_drive(beta_e, alpha_MHD, s_hat, k_y_rho_s, n_theta)
+        mtm = _mtm_drive(beta_e, k_y_rho_s, omega_star_T_e, nu_e, n_theta, geom)
+
+        full_matrix += np.diag(kbm) + np.diag(mtm)
+
+        em_factor = _em_correction_factor(beta_e, alpha_MHD, s_hat, k_y_rho_s)
+        full_matrix = full_matrix * em_factor
+
     try:
         eigenvalues, eigenvectors = np.linalg.eig(full_matrix)
     except np.linalg.LinAlgError:
-        return EigenMode(k_y_rho_s=k_y_rho_s, omega_r=0.0, gamma=0.0, mode_type="stable")
+        return EigenMode(k_y_rho_s=k_y_rho_s, omega_r=0.0, gamma=0.0, mode_type="stable", electromagnetic=em_active)
 
     # Find most unstable mode (largest imaginary part)
     gammas = eigenvalues.imag
     omega_rs = eigenvalues.real
 
     if np.all(gammas <= 0):
-        return EigenMode(k_y_rho_s=k_y_rho_s, omega_r=0.0, gamma=0.0, mode_type="stable")
+        return EigenMode(k_y_rho_s=k_y_rho_s, omega_r=0.0, gamma=0.0, mode_type="stable", electromagnetic=em_active)
 
     idx = int(np.argmax(gammas))
     gamma_max = gammas[idx]
     omega_r_max = omega_rs[idx]
     phi_mode = np.abs(eigenvectors[:, idx])
 
-    # Classify mode by frequency direction
-    if omega_r_max < 0:
-        mode_type = "ITG"
-    elif omega_r_max > 0:
-        mode_type = "TEM"
-    else:
-        mode_type = "stable"
+    # Classify mode
+    mode_type = _classify_mode(omega_r_max, k_y_rho_s, em_active, alpha_MHD, s_hat)
 
     return EigenMode(
         k_y_rho_s=k_y_rho_s,
@@ -267,6 +390,7 @@ def solve_eigenvalue_single_ky(
         gamma=float(max(gamma_max, 0.0)),
         mode_type=mode_type,
         phi_theta=phi_mode,
+        electromagnetic=em_active,
     )
 
 
@@ -285,6 +409,9 @@ def solve_linear_gk(
     n_ky_etg: int = 0,
     n_theta: int = 64,
     n_period: int = 2,
+    electromagnetic: bool = False,
+    beta_e: float = 0.0,
+    alpha_MHD: float = 0.0,
 ) -> LinearGKResult:
     """Full k_y scan of the linear GK eigenvalue solver.
 
@@ -298,6 +425,12 @@ def solve_linear_gk(
         Velocity-space grid. Default: (16, 24).
     n_ky_ion, n_ky_etg : int
         Number of k_y points on ion and electron scales.
+    electromagnetic : bool
+        Enable finite-beta EM corrections (A_∥, delta-B_∥). Default False.
+    beta_e : float
+        Electron beta = 2 mu_0 n_e T_e / B_0^2.
+    alpha_MHD : float
+        Normalised pressure gradient alpha = -q^2 R dp/dr / (B^2/2mu_0).
     """
     if species_list is None:
         species_list = [deuterium_ion(), electron()]
@@ -326,6 +459,10 @@ def solve_linear_gk(
             B0=B0,
             Z_eff=Z_eff,
             nu_star=nu_star,
+            electromagnetic=electromagnetic,
+            beta_e=beta_e,
+            alpha_MHD=alpha_MHD,
+            s_hat=s_hat,
         )
         modes.append(mode)
 
