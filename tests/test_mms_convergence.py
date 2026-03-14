@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Method of Manufactured Solutions Convergence Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: MIT OR Apache-2.0
+# License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """
 MMS convergence tests for the Grad-Shafranov elliptic solver.

@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — FusionKernel Profile Config & Anderson Mixing Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: MIT OR Apache-2.0
+# License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for fusion_kernel.py profile_mode setup, Anderson mixing
 LinAlgError branch, and alpha normalisation guard."""

@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — H-infinity Controller Edge Path Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: MIT OR Apache-2.0
+# License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for C1/C2 auto-transpose (111,113), dimension mismatch (131),
 make_feedthrough shape (186), non-finite gamma (198), non-finite gains (228),

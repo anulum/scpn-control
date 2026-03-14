@@ -3,7 +3,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
-# License: MIT OR Apache-2.0
+# License: AGPL-3.0-or-later
 # ─────────────────────────────────────────────────────────────────────
 cff-version: 1.2.0
 title: "SCPN Control"
@@ -17,7 +17,7 @@ authors:
     given-names: "Michal"
 version: "0.16.0"
 date-released: "2026-03-13"
-license: "MIT OR Apache-2.0"
+license: "AGPL-3.0-or-later"
 repository-code: "https://github.com/anulum/scpn-control"
 url: "https://www.anulum.li"
 doi: "10.5281/zenodo.18821816"

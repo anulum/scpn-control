@@ -198,10 +198,10 @@ cd crates/control-python && maturin develop --release
 
 | | |
 |---|---|
-| **Open Source** | MIT OR Apache-2.0 — permissive, no copyleft |
+| **Open Source** | AGPL-3.0-or-later — permissive, no copyleft |
 | **Contact** | [protoscience@anulum.li](mailto:protoscience@anulum.li) |
 | **Organization** | ANULUM CH & LI |
-| **Authors** | Miroslav Sotek ([ORCID](https://orcid.org/0009-0009-3560-0851)), Michal Reiprich |
+| **Authors** | Miroslav Sotek ([ORCID](https://orcid.org/0009-0009-3560-0851)) |
 
 ---
 

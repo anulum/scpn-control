@@ -318,7 +318,7 @@
 - Paper 27 citations on `OMEGA_N_16` and `build_knm_paper27` constants
 
 ### Fixed
-- `.zenodo.json` license `"MIT"` → `"MIT OR Apache-2.0"` (matches pyproject.toml)
+- `.zenodo.json` license `"MIT"` → `"AGPL-3.0-or-later"` (matches pyproject.toml)
 - `docs/api.md` version stuck at `"0.5.0"` → `"0.6.0"`
 - `print()` → `logger.info()` in `spi_mitigation.py` (3 sites)
 - Anti-slop: renamed unused param `proposed_action` → `_proposed_action`, deleted 4 narration comments in `cli.py`
@@ -407,7 +407,7 @@
 ## [0.3.3] — 2026-02-27
 
 ### Changed
-- License: AGPL-3.0 → MIT OR Apache-2.0 dual (137 files, zero AGPL remaining)
+- License: AGPL-3.0 → AGPL-3.0-or-later dual (137 files, zero AGPL remaining)
 - README: `pip install -e "."` → `pip install scpn-control` (PyPI install path)
 - CONTRIBUTING: CI job count 14 → 17
 

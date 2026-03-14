@@ -20,7 +20,7 @@
 - [x] Gymnasium TokamakEnv
 - [x] IMAS/OMAS adapter
 - [x] VectorizedSCLayer + Rust SNN path
-- [x] MIT OR Apache-2.0 dual license
+- [x] AGPL-3.0-or-later dual license
 - [x] Pre-commit hooks, Docker, devcontainer
 - [x] MkDocs site (theory, architecture, mkdocstrings)
 - [x] CI: 13 jobs, 701 tests

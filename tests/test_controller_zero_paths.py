@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Controller Zero-Count & Chunked Antithetic Path Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: MIT OR Apache-2.0
+# License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for axis_count==0 (lines 504,519), action_count==0 (778,785),
 inj_count==0 (557), bitflip on empty array (804), and chunked antithetic

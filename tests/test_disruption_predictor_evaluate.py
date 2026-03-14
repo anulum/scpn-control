@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Disruption predictor evaluate + inference fallback tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: MIT OR Apache-2.0
+# License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for run_anomaly_alarm_campaign positive label+alarm (453-456),
 load_or_train allow_fallback=False re-raise (706),

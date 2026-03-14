@@ -1,6 +1,6 @@
 [package]
-authors = ["Miroslav Sotek", "Michal Reiprich"]
-license = "MIT OR Apache-2.0"
+authors = ["Miroslav Sotek"]
+license = "AGPL-3.0-or-later"
 name = "scpn-control-rs"
 version = "0.1.0"
 edition = "2021"

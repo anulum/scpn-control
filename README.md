@@ -8,7 +8,7 @@
   <a href="https://pypi.org/project/scpn-control/"><img src="https://img.shields.io/pypi/v/scpn-control" alt="PyPI version"></a>
   <a href="https://pypi.org/project/scpn-control/"><img src="https://img.shields.io/pypi/pyversions/scpn-control" alt="Python versions"></a>
   <a href="https://scpn-control.streamlit.app"><img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Open in Streamlit"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg" alt="License: MIT OR Apache-2.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg" alt="License: AGPL-3.0-or-later"></a>
   <a href="https://orcid.org/0009-0009-3560-0851"><img src="https://img.shields.io/badge/ORCID-0009--0009--3560--0851-green.svg" alt="ORCID"></a>
   <a href="https://arxiv.org/abs/2004.06344"><img src="https://img.shields.io/badge/arXiv-2004.06344-b31b1b.svg" alt="arXiv"></a>
   <a href="docs/REVIEWER_PAPER27_INTEGRATION.pdf"><img src="https://img.shields.io/badge/Paper_27-PDF-informational.svg" alt="Paper 27 PDF"></a>
@@ -329,7 +329,7 @@ The Rust backend provides PyO3 bindings for:
   author  = {Sotek, Miroslav and Reiprich, Michal},
   year    = {2026},
   url     = {https://github.com/anulum/scpn-control},
-  license = {MIT OR Apache-2.0}
+  license = {AGPL-3.0-or-later}
 }
 ```
 
@@ -406,12 +406,12 @@ Full tier details (Pro, Academic, Enterprise, Sponsorships): [docs/pricing.md](d
 ## Authors
 
 - **Miroslav Sotek** — ANULUM CH & LI — [ORCID](https://orcid.org/0009-0009-3560-0851)
-- **Michal Reiprich** — ANULUM CH & LI
+- **** — ANULUM CH & LI
 
 ## License
 
 - Concepts: Copyright 1996-2026
 - Code: Copyright 2024-2026
-- License: MIT OR Apache-2.0
+- License: AGPL-3.0-or-later
 
 Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.

@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Delayed Transition + Zero-axis Controller Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: MIT OR Apache-2.0
+# License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Coverage for transition delay_ticks (lines 734-748), axis_count==0 paths,
 and action_count==0 / inj_count==0 edge paths."""

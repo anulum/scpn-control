@@ -13,7 +13,7 @@ authors:
     orcid: 0009-0009-3560-0851
     affiliation: 1
     corresponding: true
-  - name: Michal Reiprich
+  - name: 
     affiliation: 1
 affiliations:
   - name: ANULUM CH & LI

@@ -8,10 +8,9 @@ version = "0.16.0"
 description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
 authors = [
     {name = "Miroslav Sotek", email = "protoscience@anulum.li"},
-    {name = "Michal Reiprich"}
 ]
 keywords = ["tokamak", "plasma-control", "petri-net", "snn", "Kuramoto", "MHD", "gyrokinetic", "H-infinity", "mu-synthesis", "NMPC"]
-license = "MIT OR Apache-2.0"
+license = {text = "AGPL-3.0-or-later"}
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",

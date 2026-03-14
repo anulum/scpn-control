@@ -9,7 +9,7 @@ SCPN Control is developed and maintained by the [Anulum Institute](https://www.a
 
 ## Contributors
 
-- **Michal Reiprich** — Research collaboration, documentation
+- **** — Research collaboration, documentation
 
 ---
 

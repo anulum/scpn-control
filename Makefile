@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT OR Apache-2.0
+# SPDX-License-Identifier: AGPL-3.0-or-later
 .PHONY: test test-rust test-all lint fmt bandit sast preflight preflight-fast docs docs-build bench bench-rust bridge build install-hooks docker-build docker-run clean
 
 test:

@@ -138,4 +138,4 @@ scpn-control is dual-licensed under MIT or Apache-2.0, at your option.
 Contributions are released under the same dual license. No CLA is required.
 
 By submitting a pull request, you agree that your contribution is licensed
-under MIT OR Apache-2.0.
+under AGPL-3.0-or-later.
