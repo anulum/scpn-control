@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 import numpy as np
 
@@ -140,7 +141,7 @@ class RunawayEvolution:
         return float(n_RE + dn_RE)
 
     def evolve(
-        self, n_RE_0: float, E_par_profile: callable, t_span: tuple[float, float], dt: float
+        self, n_RE_0: float, E_par_profile: Callable[[float], float], t_span: tuple[float, float], dt: float
     ) -> tuple[np.ndarray, np.ndarray]:
         t_start, t_end = t_span
         n_steps = int(np.ceil((t_end - t_start) / dt))

@@ -161,7 +161,7 @@ class DetachmentBifurcation:
             fluxes.append(flux)
 
         max_idx = np.argmax(fluxes)
-        return sr_scan[max_idx]
+        return float(sr_scan[max_idx])
 
 
 class MultiImpuritySeeding:

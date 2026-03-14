@@ -26,24 +26,19 @@ class CoolingCurve:
         self.element = element
 
     def L_z(self, Te_eV: np.ndarray) -> np.ndarray:
+        log_Te = np.log(Te_eV)
         if self.element == "W":
-            # Putterich et al. 2010 fit
-            # Peaks near 1500 eV and 50 eV
-            L = 1e-31 * np.exp(-(((np.log(Te_eV) - np.log(1500.0)) / 1.5) ** 2))
-            L += 3e-33 * np.exp(-(((np.log(Te_eV) - np.log(50.0)) / 1.0) ** 2))
-            return L
-        elif self.element == "C":
-            # Carbon peak ~ 10 eV
-            L = 1e-32 * np.exp(-(((np.log(Te_eV) - np.log(10.0)) / 0.5) ** 2))
-            return L
-        elif self.element == "Ar":
-            L = 1e-32 * np.exp(-(((np.log(Te_eV) - np.log(200.0)) / 1.0) ** 2))
-            return L
-        elif self.element == "Ne":
-            L = 1e-32 * np.exp(-(((np.log(Te_eV) - np.log(50.0)) / 1.0) ** 2))
-            return L
-        else:
-            return np.zeros_like(Te_eV)
+            # Putterich et al. 2010 fit — peaks near 1500 eV and 50 eV
+            L = 1e-31 * np.exp(-(((log_Te - np.log(1500.0)) / 1.5) ** 2))
+            L += 3e-33 * np.exp(-(((log_Te - np.log(50.0)) / 1.0) ** 2))
+            return np.asarray(L)
+        if self.element == "C":
+            return np.asarray(1e-32 * np.exp(-(((log_Te - np.log(10.0)) / 0.5) ** 2)))
+        if self.element == "Ar":
+            return np.asarray(1e-32 * np.exp(-(((log_Te - np.log(200.0)) / 1.0) ** 2)))
+        if self.element == "Ne":
+            return np.asarray(1e-32 * np.exp(-(((log_Te - np.log(50.0)) / 1.0) ** 2)))
+        return np.zeros_like(Te_eV)
 
 
 def neoclassical_impurity_pinch(
@@ -73,7 +68,7 @@ def neoclassical_impurity_pinch(
     H_Z = 0.5  # screening factor, banana regime trace impurities
 
     V_neo = -Z * D_neo * (Z * grad_ne_over_n + (Z / 2.0 - H_Z) * grad_Ti_over_T)
-    return V_neo
+    return np.asarray(V_neo)
 
 
 def total_radiated_power(
@@ -97,7 +92,8 @@ def total_radiated_power(
 
     # Integrate over volume: dV = 4 pi^2 R0 a^2 rho drho
     vol_element = 4.0 * np.pi**2 * R0 * a**2 * rho
-    P_rad_W = np.trapezoid(p_rad_density * vol_element, rho)
+    _trapz = getattr(np, "trapezoid", np.trapz)
+    P_rad_W = _trapz(p_rad_density * vol_element, rho)
 
     return float(P_rad_W / 1e6)
 

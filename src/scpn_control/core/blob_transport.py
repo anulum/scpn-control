@@ -26,7 +26,7 @@ class BlobDynamics:
         """delta_b* [m]"""
         if L_parallel <= 0.0:
             return float("inf")
-        return 2.0 * self.rho_s * (L_parallel / (self.R0 * self.rho_s)) ** 0.2
+        return float(2.0 * self.rho_s * (L_parallel / (self.R0 * self.rho_s)) ** 0.2)
 
     def max_velocity(self, L_parallel: float) -> float:
         """v_b at delta_b*"""
@@ -126,18 +126,17 @@ class SOLBlobProfile:
         # With blobs, effective transport is enhanced, flattening profile
         # Simple analytic proxy
         if D_perp <= 0:
-            return np.exp(-r / lambda_n)
+            return np.asarray(np.exp(-r / lambda_n))
 
         blob_enhancement = 1.0 + Gamma_blob / (D_perp + 1e-6) * 1e-19
         eff_lambda = lambda_n * math.sqrt(blob_enhancement)
 
-        return np.exp(-r / eff_lambda)
+        return np.asarray(np.exp(-r / eff_lambda))
 
     @staticmethod
     def wall_flux(r_wall: float, Gamma_blob: float, lambda_n: float) -> float:
-        # Simplistic flux to wall
         eff_lambda = lambda_n * math.sqrt(1.0 + Gamma_blob * 1e-19)
-        return Gamma_blob * math.exp(-r_wall / eff_lambda)
+        return float(Gamma_blob * math.exp(-r_wall / eff_lambda))
 
 
 @dataclass

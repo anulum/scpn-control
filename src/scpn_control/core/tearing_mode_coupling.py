@@ -149,7 +149,7 @@ class CoupledTearingModes:
 
 
 class SawtoothNTMSeeding:
-    def __init__(self, sawtooth_cycler: SawtoothCycler):
+    def __init__(self, sawtooth_cycler: SawtoothCycler | None):
         self.st = sawtooth_cycler
 
     def seed_amplitude(self, crash_energy_MJ: float, r_s: float) -> float:

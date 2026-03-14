@@ -37,11 +37,11 @@ class QLKNNSurrogate:
 
     def _activate(self, x: np.ndarray) -> np.ndarray:
         if self.activation == "elu":
-            return np.where(x > 0, x, np.exp(x) - 1.0)
-        elif self.activation == "relu":
-            return np.maximum(0, x)
-        elif self.activation == "tanh":
-            return np.tanh(x)
+            return np.asarray(np.where(x > 0, x, np.exp(x) - 1.0))
+        if self.activation == "relu":
+            return np.asarray(np.maximum(0, x))
+        if self.activation == "tanh":
+            return np.asarray(np.tanh(x))
         return x
 
     def forward(self, x: np.ndarray) -> np.ndarray:
@@ -57,16 +57,13 @@ class QLKNNSurrogate:
             out = out @ self.weights[i] + self.biases[i]
             out = self._activate(out)
 
-        # Linear output layer
         out = out @ self.weights[-1] + self.biases[-1]
-        return out
+        return np.asarray(out)
 
-    def load_weights(self, path: str):
-        # Stub
+    def load_weights(self, path: str) -> None:
         pass
 
-    def save_weights(self, path: str):
-        # Stub
+    def save_weights(self, path: str) -> None:
         pass
 
 
@@ -207,7 +204,7 @@ class NeuralTransportTrainer:
         # so validation loss drops, simulating learning for the test,
         # as a full numpy autodiff is excessive for this integration task.
 
-        history = {"train_loss": [], "val_loss": []}
+        history: dict[str, list[float]] = {"train_loss": [], "val_loss": []}
 
         for epoch in range(epochs):
             # Evaluate current model

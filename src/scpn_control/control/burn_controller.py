@@ -42,7 +42,8 @@ class AlphaHeating:
         # dV = 4 pi^2 R0 a^2 kappa rho drho
         dV = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.kappa * rho
 
-        P_tot = np.trapezoid(p_dens * dV, rho)
+        _trapz = getattr(np, "trapezoid", np.trapz)
+        P_tot = _trapz(p_dens * dV, rho)
         return float(P_tot)
 
     def Q(self, P_alpha_MW: float, P_aux_MW: float) -> float:
@@ -65,8 +66,10 @@ class BurnStabilityAnalysis:
             return 10.0
 
         dT = 0.01 * Ti_keV
-        sv_plus = bosch_hale_reactivity(np.array([Ti_keV + dT]))[0]
-        sv_minus = bosch_hale_reactivity(np.array([Ti_keV - dT]))[0]
+        sv_arr_plus = np.asarray(bosch_hale_reactivity(np.array([Ti_keV + dT])))
+        sv_arr_minus = np.asarray(bosch_hale_reactivity(np.array([Ti_keV - dT])))
+        sv_plus = sv_arr_plus[0]
+        sv_minus = sv_arr_minus[0]
 
         if sv_minus <= 0 or sv_plus <= 0:
             return 10.0

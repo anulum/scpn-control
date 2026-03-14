@@ -46,7 +46,7 @@ class AlfvenContinuum:
         omega_A(rho) = |n*q - m| / (q*R0) * v_A
         """
         k_par = np.abs(n * self.q - m) / np.maximum(self.q * self.R0, 1e-6)
-        return k_par * self.v_A
+        return np.asarray(k_par * self.v_A)
 
     def find_gaps(self, n: int) -> list[AlfvenGap]:
         """
@@ -171,7 +171,7 @@ class AlfvenStabilityAnalysis:
                 freq_kHz = tae.frequency_kHz()
 
                 # Approximate ne_20
-                idx = np.searchsorted(self.continuum.rho, gap.rho_location)
+                idx = int(np.searchsorted(self.continuum.rho, gap.rho_location))
                 idx = min(idx, len(self.continuum.ne) - 1)
                 ne_20 = self.continuum.ne[idx] / 10.0  # if ne is in 10^19
 
@@ -201,7 +201,7 @@ class AlfvenStabilityAnalysis:
 
     def critical_beta_fast(self, n: int) -> float:
         """Find beta_fast where gamma_net = 0 for the most unstable mode."""
-        res = self.tae_stability([n])
+        res = self.tae_stability(range(n, n + 1))
         if not res:
             return float("inf")
 

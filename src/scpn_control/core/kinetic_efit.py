@@ -39,7 +39,7 @@ class FastIonPressure:
     def p_isotropic_equivalent(self, rho: np.ndarray, ne_19: np.ndarray) -> np.ndarray:
         p_perp = self.p_perp(rho, ne_19)
         p_par = self.p_par(rho, ne_19)
-        return (2.0 * p_perp + p_par) / 3.0
+        return np.asarray((2.0 * p_perp + p_par) / 3.0)
 
 
 @dataclass

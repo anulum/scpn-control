@@ -34,7 +34,7 @@ class SputteringYield:
         self.Gamma = 1.0
 
     def threshold_energy(self) -> float:
-        return self.E_th_val
+        return float(self.E_th_val)
 
     def yield_at_energy(self, E_ion_eV: float, theta_deg: float = 0.0) -> float:
         if E_ion_eV <= self.threshold_energy():
@@ -147,7 +147,7 @@ class WallThermalModel:
         return float(self.T_nodes[0])
 
     def is_melted(self) -> bool:
-        return self.T_nodes[0] > self.T_melt
+        return bool(self.T_nodes[0] > self.T_melt)
 
 
 class TransientThermalLoad:

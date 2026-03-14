@@ -125,10 +125,9 @@ class MonteCarloEnsemble:
         self.R0 = R0
         self.a = a
         self.B0 = B0
-        self.particles = []
+        self.particles: list[GuidingCenterOrbit] = []
 
     def initialize(self, ne_profile: np.ndarray, Te_profile: np.ndarray, rho: np.ndarray) -> None:
-        # Simple random generation
         self.particles = []
         for _ in range(self.n_particles):
             # Peaked centrally

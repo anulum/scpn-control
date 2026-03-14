@@ -62,7 +62,7 @@ class PeelingBallooningBoundary:
         j_norm = max(0.0, j_edge / j_crit)
         a_norm = max(0.0, alpha_edge / a_crit)
 
-        return 1.0 - np.sqrt(j_norm**2 + a_norm**2)
+        return float(1.0 - np.sqrt(j_norm**2 + a_norm**2))
 
 
 @dataclass

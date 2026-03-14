@@ -153,20 +153,61 @@ class PedestalProfileGenerator:
         rho_sym = 1.0 - self.res.delta_ped / 2.0
         width = self.res.delta_ped
 
-        def mtanh(r, height, sep):
-            # To ensure it reaches `sep` at the edge (r=1) and `height` at the core
-            # we make the transition much sharper.
+        def mtanh(r: np.ndarray, height: float, sep: float) -> np.ndarray:
             z = 2.0 * (rho_sym - r) / max(width / 2.0, 1e-3)
-            # Use a strict clipping at the edge to guarantee the exact sep value
-            prof = (height - sep) / 2.0 * (np.tanh(z) + 1.0) + sep
-            # Force edge value exactly to prevent floating point test issues
-            if isinstance(r, np.ndarray):
-                prof[r >= 1.0] = sep
-            elif r >= 1.0:
-                prof = sep
+            prof = np.asarray((height - sep) / 2.0 * (np.tanh(z) + 1.0) + sep)
+            prof[r >= 1.0] = sep
             return prof
 
         Te = mtanh(rho, self.res.T_ped_keV, self.Te_sep_keV)
         ne = mtanh(rho, self.res.n_ped_19, self.ne_sep)
 
         return Te, ne
+
+
+@dataclass
+class EpedPedestalPrediction:
+    Delta_ped: float
+    T_ped_keV: float
+    p_ped_kPa: float
+
+
+class EpedPedestalModel:
+    """Wrapper for integrated_transport_solver compatibility."""
+
+    def __init__(
+        self,
+        R0: float,
+        a: float,
+        B0: float,
+        Ip_MA: float,
+        kappa: float = 1.7,
+        A_ion: float = 2.0,
+        Z_eff: float = 1.5,
+    ) -> None:
+        mu_0 = 4.0 * math.pi * 1e-7
+        B_pol = mu_0 * Ip_MA * 1e6 / (2.0 * math.pi * a * math.sqrt(kappa))
+        self._R0 = R0
+        self._a = a
+        self._B0 = B0
+        self._Ip_MA = Ip_MA
+        self._kappa = kappa
+        self._B_pol_ped = B_pol
+
+    def predict(self, ne_ped_19: float) -> EpedPedestalPrediction:
+        cfg = EPEDConfig(
+            R0=self._R0,
+            a=self._a,
+            B0=self._B0,
+            kappa=self._kappa,
+            delta=0.33,
+            Ip_MA=self._Ip_MA,
+            ne_ped_19=ne_ped_19,
+            B_pol_ped=self._B_pol_ped,
+        )
+        res = eped1_predict(cfg)
+        return EpedPedestalPrediction(
+            Delta_ped=res.delta_ped,
+            T_ped_keV=res.T_ped_keV,
+            p_ped_kPa=res.p_ped_kPa,
+        )

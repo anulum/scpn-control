@@ -162,8 +162,8 @@ def bosch_hale_reactivity(T_i_kev: float | np.ndarray) -> float | np.ndarray:
     sig_v = C1 * theta * np.sqrt(xi / (m_rc2 * T**3)) * np.exp(-3.0 * xi)
 
     if isinstance(T_i_kev, np.ndarray):
-        return sig_v * 1.0e-6
-    return float(sig_v * 1.0e-6)  # Convert cm^3/s to m^3/s
+        return np.asarray(sig_v * 1.0e-6)
+    return float(sig_v * 1.0e-6)
 
 
 def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:

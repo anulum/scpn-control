@@ -124,7 +124,7 @@ class CurrentQuench:
         ln_Lambda = 10.0  # Typically lower in cold plasma
         # eta = 1.65e-9 * Z_eff * ln_Lambda / (Te_keV^1.5)
         Te_keV = max(Te_eV / 1000.0, 1e-6)
-        return 1.65e-9 * Z_eff * ln_Lambda / (Te_keV**1.5)
+        return float(1.65e-9 * Z_eff * ln_Lambda / (Te_keV**1.5))
 
     def cq_timescale(self, Te_eV: float, Z_eff: float) -> float:
         """tau_CQ = L / R_p [ms]"""
@@ -147,15 +147,13 @@ class CurrentQuench:
         t_arr = np.linspace(0, n_steps * dt, n_steps)
         Ip_trace = self.Ip_MA * 1e6 * np.exp(-t_arr / tau_cq_s)
 
-        # dIp/dt = -Ip0/tau * exp(-t/tau)
         dIp_dt = -(self.Ip_MA * 1e6) / tau_cq_s * np.exp(-t_arr / tau_cq_s)
-
-        E_par_trace = self.induced_electric_field(dIp_dt)
+        E_par_trace = self.L_plasma_H / (2.0 * math.pi * self.R0) * np.abs(dIp_dt)
 
         return CQResult(
             cq_duration_ms=tau_cq_ms,
-            Ip_trace=Ip_trace / 1e6,  # back to MA
-            E_par_trace=E_par_trace,
+            Ip_trace=np.asarray(Ip_trace / 1e6),
+            E_par_trace=np.asarray(E_par_trace),
         )
 
 

@@ -33,7 +33,7 @@ class ParticleTransportModel:
         # Simple exponential decay from edge
         decay = np.exp(-(1.0 - self.rho) / penetration_depth)
         decay /= np.sum(decay * self.V_prime * self.drho) + 1e-10
-        return rate * decay
+        return np.asarray(rate * decay)
 
     def pellet_source(self, speed_ms: float, radius_mm: float, launch_angle_deg: float = 0.0) -> np.ndarray:
         """Simple NGS mock. Penetrates deeper with higher speed and radius."""
@@ -46,7 +46,7 @@ class ParticleTransportModel:
         # Gaussian deposition
         dep = np.exp(-((self.rho - pen_rho) ** 2) / (0.1**2))
         dep /= np.sum(dep * self.V_prime * self.drho) + 1e-10
-        return N_pellet * dep
+        return np.asarray(N_pellet * dep)
 
     def nbi_source(self, beam_energy_keV: float, power_MW: float) -> np.ndarray:
         """Broad core source."""
@@ -58,7 +58,7 @@ class ParticleTransportModel:
 
         dep = np.exp(-((self.rho - 0.3) ** 2) / (0.3**2))
         dep /= np.sum(dep * self.V_prime * self.drho) + 1e-10
-        return rate * dep
+        return np.asarray(rate * dep)
 
     def cryopump_sink(self, pump_speed: float, ne_edge: float) -> np.ndarray:
         """Extracts particles from the edge."""
@@ -99,7 +99,7 @@ class ParticleTransportModel:
             dne_dt[i] = -div_flux + sources[i]
 
         ne_new = ne + dne_dt * dt
-        return np.maximum(ne_new, 1e16)  # Floor
+        return np.asarray(np.maximum(ne_new, 1e16))
 
 
 @dataclass

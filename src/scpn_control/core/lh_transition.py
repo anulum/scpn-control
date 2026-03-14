@@ -59,9 +59,8 @@ class PredatorPreyModel:
         tau_e = self.confinement_time(eps)
         d_p = Q_heating - p / tau_e
 
-        new_state = state + np.array([d_eps, d_V, d_p]) * dt
-        new_state = np.maximum(new_state, 0.0)
-        return new_state
+        new_state = np.maximum(state + np.array([d_eps, d_V, d_p]) * dt, 0.0)
+        return np.asarray(new_state)
 
     def evolve(self, Q_heating: float, t_span: tuple[float, float], dt: float) -> PredatorPreyResult:
         n_steps = int((t_span[1] - t_span[0]) / dt)
@@ -112,7 +111,7 @@ class MartinThreshold:
         """
         if ne_19 <= 0 or B_T <= 0 or S_m2 <= 0:
             return 0.0
-        return 0.0488 * (ne_19**0.717) * (B_T**0.803) * (S_m2**0.941)
+        return float(0.0488 * (ne_19**0.717) * (B_T**0.803) * (S_m2**0.941))
 
 
 class IPhaseDetector:
@@ -129,7 +128,7 @@ class IPhaseDetector:
         mean_val = np.mean(recent)
         std_val = np.std(recent)
 
-        return mean_val > 0 and std_val / mean_val > 0.1
+        return bool(mean_val > 0 and std_val / mean_val > 0.1)
 
 
 class LHTransitionController:

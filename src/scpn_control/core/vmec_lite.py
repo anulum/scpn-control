@@ -146,16 +146,18 @@ class VMECLiteSolver:
 
 class AxisymmetricTokamakBoundary:
     @staticmethod
-    def from_parameters(R0: float, a: float, kappa: float, delta: float) -> dict[tuple[int, int], float]:
+    def from_parameters(
+        R0: float, a: float, kappa: float, delta: float
+    ) -> tuple[dict[tuple[int, int], float], dict[tuple[int, int], float]]:
         # R = R0 + a * cos(theta + delta * sin(theta))
         # Z = a * kappa * sin(theta)
         # Approximate to low order Fourier
-        b_R = {
+        b_R: dict[tuple[int, int], float] = {
             (0, 0): R0,
             (1, 0): a,
-            (2, 0): -0.5 * a * delta,  # mock shaping harmonic
+            (2, 0): -0.5 * a * delta,
         }
-        b_Z = {(1, 0): a * kappa}
+        b_Z: dict[tuple[int, int], float] = {(1, 0): a * kappa}
         return b_R, b_Z
 
 

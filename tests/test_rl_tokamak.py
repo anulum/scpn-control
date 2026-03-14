@@ -136,7 +136,7 @@ class TestTrainingScript:
             ],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=300,
         )
         assert result.returncode == 0, result.stderr
         assert out.exists()

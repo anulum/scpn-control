@@ -16,8 +16,7 @@ def nbi_torque(P_nbi_profile: np.ndarray, R0: float, v_beam: float, theta_inj_de
 
     theta_rad = np.radians(theta_inj_deg)
     # T = P * R₀ sin(θ) / v_beam [N·m/m³]
-    torque = P_nbi_profile * R0 * np.sin(theta_rad) / v_beam
-    return torque
+    return np.asarray(P_nbi_profile * R0 * np.sin(theta_rad) / v_beam)
 
 
 def intrinsic_rotation_torque(grad_Ti: np.ndarray, grad_ne: np.ndarray, R0: float, a: float) -> np.ndarray:
@@ -49,7 +48,7 @@ def exb_shearing_rate(
     B_tot = np.sqrt(B0**2 + B_theta**2)
 
     rate = (R0 * B_theta / np.maximum(B_tot, 1e-6)) * domega_dr
-    return np.abs(rate)
+    return np.asarray(np.abs(rate))
 
 
 def turbulence_suppression_factor(omega_ExB: np.ndarray, gamma_max: np.ndarray) -> np.ndarray:
@@ -59,7 +58,7 @@ def turbulence_suppression_factor(omega_ExB: np.ndarray, gamma_max: np.ndarray) 
     """
     # Guard against zero gamma
     gamma_safe = np.maximum(gamma_max, 1e-6)
-    return 1.0 / (1.0 + (omega_ExB / gamma_safe) ** 2)
+    return np.asarray(1.0 / (1.0 + (omega_ExB / gamma_safe) ** 2))
 
 
 def radial_electric_field(
@@ -89,7 +88,7 @@ def radial_electric_field(
     v_phi = R0 * omega_phi
     term2 = v_phi * B_theta
 
-    return term1 + term2
+    return np.asarray(term1 + term2)
 
 
 class RotationDiagnostics:
@@ -100,14 +99,14 @@ class RotationDiagnostics:
         m_i = 2.0 * 1.67e-27
 
         c_s = np.sqrt(Ti_keV * 1e3 * e_charge / m_i)
-        return np.abs(v_phi) / np.maximum(c_s, 1e-3)
+        return np.asarray(np.abs(v_phi) / np.maximum(c_s, 1e-3))
 
     @staticmethod
     def rwm_stabilization_criterion(omega_phi: np.ndarray, tau_wall: float) -> bool:
         # Simplified criterion: omega_phi * tau_wall > 1% of something?
         # Typically Omega * tau_wall > O(1) for stabilization
         omega_core = np.abs(omega_phi[0])
-        return omega_core * tau_wall > 0.01
+        return bool(omega_core * tau_wall > 0.01)
 
 
 class MomentumTransportSolver:
