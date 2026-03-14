@@ -242,7 +242,7 @@ class NeuralTransportTrainer:
                 dW_norm = np.linalg.norm(dW)
                 if dW_norm > 1.0:
                     dW = dW / dW_norm
-                    db = db / max(np.linalg.norm(db), 1e-8)
+                    db = db / max(float(np.linalg.norm(db)), 1e-8)
                 model.weights[i] -= lr * dW
                 model.biases[i] -= lr * db
                 if i > 0:
