@@ -48,6 +48,7 @@ benchmarks/results/
 !weights/pretrained_mlp_itpa.npz
 !weights/pretrained_fno_eurofusion_jet.npz
 !weights/neural_equilibrium_sparc.npz
+!weights/neural_equilibrium_iter.npz
 !weights/neural_transport_qlknn.npz
 !validation/reference_data/diiid/disruption_shots/*.npz
 
