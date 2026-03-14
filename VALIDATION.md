@@ -28,14 +28,32 @@
 
 | Suite | Count | Scope |
 |-------|------:|-------|
-| Python unit/integration | 2,786 | `pytest tests/` across 178 files |
-| Rust engine | 108+ | `cargo test --workspace` in `scpn-control-rs/` |
+| Python unit/integration | 3,015 | `pytest tests/` across 220+ files |
+| Rust engine | 140+ | `cargo test --workspace` in `scpn-control-rs/` |
 | Rust-Python interop | 3 files | PyO3 parity tests via maturin |
 | Notebooks | 5 | Executed in CI via `nbconvert` |
 | E2E (DIII-D mock) | 1 file | Full shot-driven control loop (**synthetic data**) |
 | RMSE gate | 1 file | Regression against SPARC GEQDSK + synthetic DIII-D |
+| GK eigenvalue | 54 | Native linear GK solver (geometry, species, eigenvalue, quasilinear) |
+| GK external codes | 34 | TGLF, GENE, GS2, CGYRO, QuaLiKiz (mock subprocess, input/output parsing) |
+| GK hybrid layer | 55 | OOD detection, scheduling, correction, online learning, verification |
+| GK validation | 20 | Cyclone Base Case, SPARC/ITER scans, multi-code comparison, hybrid accuracy |
 
-CI runs tests on Python 3.9-3.13 (Ubuntu), Python 3.12 (Windows + macOS), Rust on Ubuntu.
+CI runs tests on Python 3.10-3.13 (Ubuntu), Python 3.12 (Windows + macOS), Rust on Ubuntu.
+
+## Gyrokinetic Transport Validation
+
+| Claim | Validated Against | Data Source | Limitation |
+|-------|-------------------|-------------|------------|
+| Cyclone Base Case ITG | GENE/GS2/GYRO published γ_max | Dimits et al. 2000 | Linearised solver, not nonlinear |
+| SPARC/ITER GK parameters | Internal eigenvalue solver | Synthetic equilibrium | Not cross-validated against TGLF runs |
+| Hybrid surrogate correction | Internal GK vs critical-gradient | Synthetic spot-checks | No experimental validation |
+| 5 external code interfaces | Mock subprocess tests | Input deck generation + output parsing | No actual GK binaries in CI |
+
+**What does NOT exist for GK:**
+- No nonlinear gyrokinetic validation (GENE/CGYRO flux comparison)
+- No experimental turbulence profile comparison (DIII-D BES, KSTAR ECE)
+- No TGLF binary in CI (mock subprocess only)
 
 ## CI Validation Gates
 

@@ -1,6 +1,6 @@
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-03-12 (v0.15.0).
+> **Last updated:** 2026-03-14 (v0.17.0).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 
@@ -36,10 +36,12 @@
 | **scpn-control (MLP)** | Neural surrogate | **24 ns single-point** | Trained surrogate | CI Criterion |
 | QLKNN (TensorFlow) | NN inference | ~100 us (25 outputs) | Surrogate | van de Plassche 2020 |
 
-> **Fidelity caveat:** scpn-control uses a critical-gradient transport model,
-> not QLKNN or TGLF trained on gyrokinetic data. The speed advantage is partly
-> because the physics is simpler. This is an intentional trade-off: reactor-
-> grade control latency in exchange for reduced turbulence fidelity.
+> **Fidelity note (v0.17.0):** scpn-control now offers three transport tiers:
+> (1) critical-gradient model (fastest, ~µs), (2) QLKNN-10D MLP surrogate
+> (~24 ns single-point), (3) native linear GK eigenvalue solver (~0.3s per
+> flux surface). External GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) can
+> be called via subprocess. The hybrid layer validates the surrogate against
+> GK spot-checks in real time.
 
 ## 3. Equilibrium Reconstruction
 
@@ -66,6 +68,11 @@
 | GS Equilibrium | Yes (multigrid) | Yes (spectral) | No | Yes (Picard) | Yes | No |
 | Free-boundary solve | **Yes (v0.15.0)** | Partial | No | Yes | Yes | No |
 | Transport solver | 1.5D coupled | 1D flux-driven | 0D | No | 1D | 0--1D |
+| **External GK coupling** | **5 codes (TGLF/GENE/GS2/CGYRO/QuaLiKiz)** | TGLF only | No | No | TGLF only | No |
+| **Native linear GK solver** | **Yes (ballooning eigenvalue)** | No | No | No | No | No |
+| **GK-surrogate hybrid** | **Yes + OOD + online learning** | No | No | No | No | No |
+| **SCPN phase coupling** | **Yes (8-layer UPDE bridge)** | No | No | No | No | No |
+| Neural surrogate (QLKNN) | Yes | External | No | No | No | No |
 | **Neuro-symbolic SNN** | **Yes** | No | No | No | No | No |
 | **Disruption prediction (ML)** | **Yes** | No | No | No | No | N/A |
 | **SPI mitigation** | **Yes** | No | No | No | No | Yes |
@@ -93,39 +100,50 @@
 - Equilibrium autodiff depth: JAX Picard GS solver with `jax.grad` through full solve (v0.13.0)
 - RL agent maturity: PPO 500K on JarvisLabs, beats MPC and PID, 3-seed reproducible (v0.14.0)
 
-## 6. Codebase Metrics (v0.15.0)
+## 6. Codebase Metrics (v0.17.0)
 
 | Metric | Value |
 |--------|-------|
-| Python source modules | 57 |
-| Python source LOC | ~22,900 |
+| Python source modules | 98 |
+| Python source LOC | ~28,400 |
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
-| Test files | 136 |
-| Tests collected | 2,683 |
-| Test coverage | 100.0% (10,142 stmts, gate=99%) |
-| CI jobs | 26 |
+| Test files | 220+ |
+| Tests collected | 3,015 |
+| Test coverage | 100.0% (gate=99%) |
+| CI jobs | 20 |
 | Real DIII-D shots | 17 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |
+| External GK code interfaces | 5 (TGLF, GENE, GS2, CGYRO, QuaLiKiz) |
 | Pretrained weight files | 5 (MLP, FNO, neural eq, QLKNN, PPO) |
 
 ## 7. scpn-control Unique Position
 
 1. **Fastest open-source kernel step** — 11.9 µs P50 (Criterion-verified).
-   This is a bare kernel call, not a complete control cycle. No head-to-head
-   end-to-end comparison has been published.
+   Bare kernel call, not a complete control cycle.
 
-2. **Neuro-symbolic SNN + contract checking + digital twin** — the Petri
+2. **Only code with native GK eigenvalue solver + 5 external GK interfaces +
+   hybrid surrogate validation** — no competing code (TORAX, FUSE, DREAM,
+   FreeGS) has a self-contained linear GK solver. TORAX and FUSE interface
+   TGLF only; scpn-control interfaces TGLF, GENE, GS2, CGYRO, and QuaLiKiz,
+   plus solves the ballooning eigenvalue problem natively.
+
+3. **Neuro-symbolic SNN + contract checking + digital twin** — the Petri
    Net to SNN compiler with runtime contract assertions is architecturally
    unique in the fusion simulation space.
 
-3. **Neural equilibrium at 0.39 ms without GPU** — not cross-validated
+4. **GK → SCPN phase bridge** — GK growth rates and fluxes modulate the
+   8-layer UPDE Kuramoto coupling matrix in real time. No other code
+   connects first-principles gyrokinetic transport to multi-timescale
+   phase dynamics.
+
+5. **Neural equilibrium at 0.39 ms without GPU** — not cross-validated
    against P-EFIT on identical equilibria, but demonstrates CPU-only
    sub-ms reconstruction is achievable.
 
-4. **Full-stack control breadth** — equilibrium, transport, control,
-   disruption mitigation, digital twin in one focused 57-module package.
-   Trade-off: breadth over depth in any single area.
+6. **Full-stack breadth** — equilibrium, transport (3 tiers), gyrokinetic
+   (3 paths), control (7 controllers), disruption mitigation, digital twin
+   in one focused 98-module package.
 
 ## 8. Gap Resolution Status
 
@@ -136,6 +154,8 @@
 | Simpler turbulence | QLKNN-10D trained MLP (v0.12.0) | **RESOLVED** |
 | No RL validation | PPO + PID + MPC benchmark (v0.12.0) | **RESOLVED** |
 | Equilibrium autodiff depth | JAX Picard GS solver, `jax.grad` through full solve (v0.13.0) | **RESOLVED** |
+| No first-principles GK | Native linear eigenvalue solver + 5 external codes + hybrid (v0.17.0) | **RESOLVED** |
+| No GK-surrogate hybrid | OOD detection + spot-check + correction + online learning (v0.17.0) | **RESOLVED** |
 | No peer-reviewed pub | JOSS paper fact-checked, ready for submission | v0.13.0 |
 | Smaller community | External action: talks, workshops, issue triage | Ongoing |
 

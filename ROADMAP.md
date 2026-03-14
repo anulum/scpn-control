@@ -159,9 +159,22 @@
 - [x] 46 mypy errors fixed across 17 files
 - [x] 2,786 tests (178 files), 100% coverage
 
+### v0.17.0 — 2026-03-14
+- [x] **Gyrokinetic Three-Path Transport System** (16 new modules, 163 tests)
+  - Path A: 5 external GK code interfaces (TGLF, GENE, GS2, CGYRO, QuaLiKiz)
+  - Path B: Native linear GK eigenvalue solver (Miller geometry, Sugama collision, ballooning-space response-matrix, mixing-length quasilinear)
+  - Path C: Hybrid surrogate+GK validation (OOD detection, spot-check scheduling, correction layer, online retraining, verification reports)
+  - SCPN phase bridge: GK fluxes → adaptive K_nm modulation
+  - Cyclone Base Case validation (Dimits et al. 2000)
+- [x] License change: AGPL-3.0-or-later (commercial licensing available)
+- [x] CII Best Practices badge earned
+- [x] 3,015 tests, 100% coverage, 20 CI jobs
+
 ## Next
 
 ### v1.0.0 — Production readiness
+- [ ] JAX GK backend (GPU-accelerated eigenvalue solver, `jax.vmap` over k_y)
+- [ ] Electromagnetic GK extension (finite-beta KBM/microtearing modes)
 - [ ] JOSS paper submission (fact-checked, final claims)
 - [ ] IMAS IDS round-trip tests with real `omas` install
 - [ ] Streamlit dashboard v2 (shot replay + multi-machine selector)
@@ -174,3 +187,4 @@
 - [ ] Federated learning for multi-machine disruption prediction
 - [ ] FPGA bitstream export from SNN compiler
 - [ ] ITER CODAC interface prototype
+- [ ] Nonlinear GK validation (GENE/CGYRO cross-code comparison)

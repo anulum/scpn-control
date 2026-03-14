@@ -19,7 +19,22 @@ scpn-control/
 │   │   ├── scaling_laws.py    IPB98y2 confinement scaling
 │   │   ├── eqdsk.py           GEQDSK/EQDSK file I/O
 │   │   ├── uncertainty.py     Monte Carlo UQ
-│   │   └── _rust_compat.py    Rust backend wrapper (PyO3 fallback)
+│   │   ├── _rust_compat.py    Rust backend wrapper (PyO3 fallback)
+│   │   ├── gk_interface.py    GK solver ABC + GKLocalParams + GKOutput
+│   │   ├── gk_tglf.py         TGLF external solver
+│   │   ├── gk_gene.py         GENE external solver
+│   │   ├── gk_gs2.py          GS2 external solver
+│   │   ├── gk_cgyro.py        CGYRO external solver
+│   │   ├── gk_qualikiz.py     QuaLiKiz external solver
+│   │   ├── gk_geometry.py     Miller flux-tube geometry
+│   │   ├── gk_species.py      Species + velocity grid + collision
+│   │   ├── gk_eigenvalue.py   Linear GK eigenvalue solver
+│   │   ├── gk_quasilinear.py  Quasilinear transport fluxes
+│   │   ├── gk_ood_detector.py OOD detection (3 methods)
+│   │   ├── gk_scheduler.py    GK spot-check scheduler
+│   │   ├── gk_corrector.py    Surrogate correction layer
+│   │   ├── gk_online_learner.py  Online surrogate retraining
+│   │   └── gk_verification_report.py  Session verification stats
 │   ├── control/               Controllers (optional deps guarded)
 │   │   ├── h_infinity_controller.py   H-inf robust control
 │   │   ├── fusion_sota_mpc.py         Model Predictive Control
@@ -34,7 +49,8 @@ scpn-control/
 │   │   ├── upde.py            UPDE multi-layer solver
 │   │   ├── lyapunov_guard.py  Sliding-window stability monitor
 │   │   ├── realtime_monitor.py Tick-by-tick UPDE + trajectory recorder
-│   │   └── ws_phase_stream.py Async WebSocket live stream
+│   │   ├── ws_phase_stream.py Async WebSocket live stream
+│   │   └── gk_upde_bridge.py  GK fluxes → adaptive K_nm modulation
 │   └── cli.py                 Click CLI
 │
 ├── scpn-control-rs/           Rust workspace (5 crates)
@@ -46,7 +62,7 @@ scpn-control/
 │   │   └── control-python/    PyO3 bindings
 │   └── deny.toml              cargo-deny supply-chain policy
 │
-├── tests/                     2019 tests (118 files)
+├── tests/                     3015 tests (220+ files)
 ├── validation/                RMSE dashboards + reference data
 ├── examples/                  Jupyter notebooks + demo scripts
 ├── dashboard/                 Streamlit control dashboard

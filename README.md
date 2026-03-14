@@ -23,8 +23,9 @@
 **scpn-control** is a standalone neuro-symbolic control engine that compiles
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 78 source
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 98 source
 modules, 220+ test files, **3,015 tests** (100% coverage), 5 Rust crates, 20 CI jobs.
+Three-path gyrokinetic transport: native eigenvalue solver + 5 external GK codes + hybrid surrogate validation.
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.

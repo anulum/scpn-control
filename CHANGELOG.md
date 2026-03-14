@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.17.0] — 2026-03-14
+
+### Added
+- **Gyrokinetic Three-Path Transport System** (16 new modules):
+  - **Path A — External GK coupling** (5 codes):
+    `gk_interface.py` (universal ABC + GKLocalParams/GKOutput),
+    `gk_tglf.py` (TGLF namelist generation + subprocess),
+    `gk_gene.py` (GENE parameters + nrg parsing),
+    `gk_gs2.py` (GS2 namelist + NetCDF/omega parsing),
+    `gk_cgyro.py` (CGYRO input + freq parsing),
+    `gk_qualikiz.py` (Python API + subprocess fallback)
+  - **Path B — Native linear GK eigenvalue solver**:
+    `gk_geometry.py` (Miller flux-tube parameterisation, metric coefficients, curvature),
+    `gk_species.py` (species, Gauss-Legendre velocity grid, Sugama collision operator),
+    `gk_eigenvalue.py` (response-matrix eigenvalue solver in ballooning space),
+    `gk_quasilinear.py` (mixing-length saturation, quasilinear chi_i/chi_e/D_e)
+  - **Path C — Hybrid surrogate+GK validation layer**:
+    `gk_ood_detector.py` (Mahalanobis + range + ensemble OOD detection),
+    `gk_scheduler.py` (periodic/adaptive/critical-region spot-check scheduling),
+    `gk_corrector.py` (multiplicative/additive/replace correction with EMA smoothing),
+    `gk_online_learner.py` (buffer-based retraining with validation holdout + rollback),
+    `gk_verification_report.py` (per-session verification stats, JSON export)
+  - **SCPN phase bridge**: `phase/gk_upde_bridge.py` (GK fluxes → adaptive K_nm for
+    P0↔P1 microturbulence↔zonal, P1↔P4 zonal↔barrier, P3↔P4 sawtooth↔barrier)
+  - `"external_gk"` transport mode wired into `integrated_transport_solver.py`
+  - Cyclone Base Case validation (Dimits et al. 2000) with reference data
+  - `validation/benchmark_gk_linear.py` — CBC, gradient scan, multi-code, SPARC/ITER
+  - `validation/benchmark_hybrid_accuracy.py` — end-to-end hybrid accuracy
+  - `examples/tutorial_08_gyrokinetic_solver.py` — 5-section GK demo
+  - 163 new tests across 15 test files
+
+### Changed
+- License: MIT OR Apache-2.0 → **GNU AGPL v3 | Commercial licensing available**
+- Removed Michal Reiprich from all authorship records
+- 3,015 tests (220+ files), 100% coverage, 20 CI jobs
+
 ## [0.16.0] — 2026-03-13
 
 ### Added
