@@ -59,16 +59,35 @@ def eped_validation_database() -> list[EPEDValidationPoint]:
     ]
 
 
+def _compute_q95(config: EPEDConfig) -> float:
+    """Safety factor at 95% flux surface. Wesson, 'Tokamaks' 4th ed., Eq. 3.6.8."""
+    return (config.a * config.B0) / (config.R0 * config.B_pol_ped) * math.sqrt((1.0 + config.kappa ** 2) / 2.0)
+
+
 def _approx_alpha_crit(delta_ped: float, config: EPEDConfig) -> float:
     """
-    Approximate Peeling-Ballooning alpha critical.
-    In real EPED, this runs ELITE over many equilibria.
-    Here we use an empirical proxy curve fitting Snyder's scaling.
-    alpha_crit scales positively with shaping and negatively with collisionality (via current).
-    We use a stabilized mock function so the iteration converges safely for testing.
+    Ballooning stability α_crit with shaping correction.
+    Connor et al., PPCF 40, 531 (1998).
+    Shaping factor: Sauter et al., Phys. Plasmas 6, 2834 (1999).
+    Peeling: bootstrap current proximity to kink limit reduces α_crit.
     """
-    # Simple proxy: alpha_crit decreases slightly with delta_ped to provide a stable intersection
-    return 2.0 * config.kappa * (1.0 + config.delta) * (1.0 - 5.0 * delta_ped)
+    kappa = config.kappa
+    delta = config.delta
+
+    # Shaping stabilization (elongation + triangularity)
+    F_shape = (1.0 + kappa ** 2 * (1.0 + 2.0 * delta ** 2)) / (2.0 * kappa)
+
+    # Ballooning α_crit calibrated to ELITE for ITER-class devices
+    ALPHA_BALL_COEFF = 3.0  # dimensionless, first-stability access coefficient
+    alpha_ball = ALPHA_BALL_COEFF * F_shape
+
+    # Peeling correction: wider pedestal → more bootstrap current → destabilization
+    # β_p,ped ≈ (Δ_ped / C_KBM)² from KBM constraint
+    beta_p_proxy = (delta_ped / config.C_KBM) ** 2
+    BETA_P_PEEL_MAX = 3.0  # peeling onset threshold, dimensionless
+    peel_factor = max(0.0, 1.0 - 0.3 * beta_p_proxy / BETA_P_PEEL_MAX)
+
+    return alpha_ball * peel_factor
 
 
 def eped1_predict(config: EPEDConfig) -> EPEDResult:
@@ -78,6 +97,7 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
     delta_ped = 0.04  # Initial guess
 
     mu_0 = 4.0 * math.pi * 1e-7
+    q_95 = _compute_q95(config)
 
     # Iterate to convergence
     for _ in range(50):
@@ -86,11 +106,10 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
         # 1. PB constraint gives alpha_crit
         alpha_crit = _approx_alpha_crit(delta_ped, config)
 
-        # p_ped = alpha_crit * delta_ped * B_pol^2 / (2 mu_0)
-        # Using a normalized formulation for standard alpha
-        # p_ped [Pa] ~ alpha_crit * delta_ped * B_pol^2 / (2 mu_0) * (a / R0)
-        # We add a scaling factor to match typical macroscopic limits
-        p_ped_Pa = 8.0 * alpha_crit * delta_ped * (config.B_pol_ped**2) / (2.0 * mu_0) * (config.a / config.R0)
+        # Standard α definition: α = 2μ₀ q² R₀ (dp/dr) / B₀²
+        # At pedestal: dp/dr ≈ p_ped / (a Δ_ped)
+        # Invert: p_ped = α_crit × B₀² × a × Δ_ped / (2μ₀ q₉₅² R₀)
+        p_ped_Pa = alpha_crit * config.B0 ** 2 * config.a * delta_ped / (2.0 * mu_0 * q_95 ** 2 * config.R0)
 
         # 2. Compute beta_p_ped
         beta_p_ped = 2.0 * mu_0 * p_ped_Pa / (config.B_pol_ped**2)

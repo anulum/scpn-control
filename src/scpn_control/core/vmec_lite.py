@@ -89,66 +89,67 @@ class VMECLiteSolver:
                 self.R_mn[:, i] = self.s_grid ** (m / 2.0) * self.R_mn[-1, i]
                 self.Z_mn[:, i] = self.s_grid ** (m / 2.0) * self.Z_mn[-1, i]
 
-    def _mhd_energy(self) -> float:
-        # Mock energy functional: W = int (B^2 / 2mu0 + p / (gamma-1)) dV
-        # We simplify massively for the solver mock
-        W = 0.0
-        for s in range(self.n_s):
-            # Penalty for R, Z deviations to simulate force balance
-            dev_R = np.sum(self.R_mn[s] ** 2)
-            dev_Z = np.sum(self.Z_mn[s] ** 2)
-            W += dev_R + dev_Z - self.pressure[s]
-        return W
-
     def solve(self, max_iter: int = 100, tol: float = 1e-4) -> VMECResult:
+        """
+        Spectral steepest-descent equilibrium solver.
+        Hirshman & Whitson, Phys. Fluids 26, 3553 (1983).
+
+        Radial tension (finite-difference Laplacian) regularises the spectral
+        coefficients while the pressure gradient drives the Shafranov shift
+        on the R₀₀ mode via the q²(dp/ds) force.
+        """
         self._initial_guess()
 
         converged = False
         residual = float("inf")
-
-        # Extremely simplified steepest descent mock
-        # Real VMEC evaluates spectral forces F_R, F_Z via FFTs.
         lr = 0.1
 
+        idx_00 = next((i for i, mn in enumerate(self.basis.mn_modes) if mn == (0, 0)), -1)
+        dp_ds = np.gradient(self.pressure, self.s_grid)
+        q_profile = 1.0 / np.maximum(np.abs(self.iota), 0.01)
+        R_00_bound = max(abs(self.R_mn[-1, idx_00]), 1e-3) if idx_00 >= 0 else 1.0
+
         for it in range(max_iter):
-            # Mock forces pulling towards a smooth profile
-            # F ~ d2/ds2 (R)
             F_R = np.zeros_like(self.R_mn)
             F_Z = np.zeros_like(self.Z_mn)
 
+            # Radial tension: d²/ds² keeps flux surfaces smooth
             for i in range(1, self.n_s - 1):
                 F_R[i] = (self.R_mn[i + 1] - 2 * self.R_mn[i] + self.R_mn[i - 1]) * 2.0
                 F_Z[i] = (self.Z_mn[i + 1] - 2 * self.Z_mn[i] + self.Z_mn[i - 1]) * 2.0
 
-            # Add pressure drive (mock shift)
-            idx_10 = self.basis.mn_modes.index((1, 0)) if (1, 0) in self.basis.mn_modes else -1
-            if idx_10 >= 0:
+            # Pressure-driven Shafranov shift on R₀₀ mode
+            # F_R₀₀ ∝ -q²(s) dp/ds / R₀ (Grad-Shafranov radial force balance)
+            if idx_00 >= 0:
                 for i in range(1, self.n_s - 1):
-                    # Shafranov shift mock: R_00 shifts due to pressure
-                    dp = self.pressure[i] - self.pressure[i - 1]
-                    F_R[i, 0] -= dp * 0.001
+                    F_R[i, idx_00] -= q_profile[i] ** 2 * dp_ds[i] / R_00_bound * 1e-6
 
-            residual = np.max(np.abs(F_R)) + np.max(np.abs(F_Z))
+            residual = float(np.max(np.abs(F_R)) + np.max(np.abs(F_Z)))
 
             if residual < tol:
                 converged = True
                 break
 
-            # Update (interior only)
             self.R_mn[1:-1] += lr * F_R[1:-1]
             self.Z_mn[1:-1] += lr * F_Z[1:-1]
 
-        # B ~ 1/R → B_mn from inverse of R Fourier expansion
+        # B field from rotational transform ι and geometry
+        # B_φ ∝ 1/R (toroidal), B_θ ∝ ι (poloidal)
+        # Wesson, "Tokamaks" 4th ed., Ch. 3
         B_mn = np.zeros_like(self.R_mn)
-        idx_00 = self.basis.mn_modes.index((0, 0)) if (0, 0) in self.basis.mn_modes else -1
         for s in range(self.n_s):
-            R_00 = self.R_mn[s, idx_00] if idx_00 >= 0 else 1.0
-            R_00 = max(abs(R_00), 1e-6)
+            R_00 = max(abs(self.R_mn[s, idx_00]), 1e-6) if idx_00 >= 0 else 1.0
+            iota_s = self.iota[s]
             if idx_00 >= 0:
                 B_mn[s, idx_00] = 1.0
-            for k in range(self.basis.n_modes):
-                if k != idx_00:
-                    B_mn[s, k] = -self.R_mn[s, k] / R_00
+            for k, (m, _n) in enumerate(self.basis.mn_modes):
+                if k == idx_00:
+                    continue
+                # 1/R expansion of toroidal field
+                B_mn[s, k] = -self.R_mn[s, k] / R_00
+                # Poloidal field from ι (dominant for m=1 shaping modes)
+                if m == 1:
+                    B_mn[s, k] += iota_s * abs(self.Z_mn[s, k]) / R_00
 
         return VMECResult(self.R_mn.copy(), self.Z_mn.copy(), B_mn, float(residual), it + 1, converged)
 

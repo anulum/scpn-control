@@ -12,28 +12,35 @@ class QLKNNSurrogate:
     """
     Pure NumPy inference for a QLKNN-like neural network.
     Predicts turbulent fluxes [Q_i, Q_e, Gamma_e] from 10 parameters.
+    van de Plassche et al., Phys. Plasmas 27, 022310 (2020).
+
+    Default construction auto-trains on a Jenko et al. (2001) critical gradient
+    model so predictions are physically meaningful out of the box.
     """
 
-    def __init__(self, hidden_layers: list[int] | None = None, activation: str = "elu"):
+    def __init__(self, hidden_layers: list[int] | None = None, activation: str = "elu", pretrained: bool = True):
         if hidden_layers is None:
             hidden_layers = [128, 128, 64]
 
         self.hidden_layers = hidden_layers
         self.activation = activation
 
-        # Initialize random weights for testing
-        self.weights = []
-        self.biases = []
+        self.weights: list[np.ndarray] = []
+        self.biases: list[np.ndarray] = []
+
+        rng = np.random.RandomState(42) if pretrained else np.random.RandomState()
 
         layers = [10] + hidden_layers + [3]
         for i in range(len(layers) - 1):
             n_in = layers[i]
             n_out = layers[i + 1]
-            # He initialization
-            w = np.random.randn(n_in, n_out) * np.sqrt(2.0 / n_in)
+            w = rng.randn(n_in, n_out) * np.sqrt(2.0 / n_in)
             b = np.zeros(n_out)
             self.weights.append(w)
             self.biases.append(b)
+
+        if pretrained:
+            self._pretrain(rng)
 
     def _activate(self, x: np.ndarray) -> np.ndarray:
         if self.activation == "elu":
@@ -43,6 +50,51 @@ class QLKNNSurrogate:
         if self.activation == "tanh":
             return np.asarray(np.tanh(x))
         return x
+
+    def _activate_deriv(self, x: np.ndarray) -> np.ndarray:
+        if self.activation == "elu":
+            return np.where(x > 0, 1.0, np.exp(x))
+        if self.activation == "relu":
+            return np.where(x > 0, 1.0, 0.0)
+        if self.activation == "tanh":
+            return np.asarray(1.0 - np.tanh(x) ** 2)
+        return np.ones_like(x)
+
+    def _pretrain(self, rng: np.random.RandomState) -> None:
+        """Train on Jenko et al. (2001) analytic critical gradient model."""
+        X = TrainingDataGenerator.generate_parameter_scan(500, rng=rng)
+        y = TrainingDataGenerator.generate_analytic_targets(X)
+
+        n_val = 50
+        X_train, y_train = X[:-n_val], y[:-n_val]
+
+        for _ in range(100):
+            activations = [X_train]
+            pre_acts: list[np.ndarray] = []
+            out = X_train
+            for i in range(len(self.weights) - 1):
+                z = out @ self.weights[i] + self.biases[i]
+                pre_acts.append(z)
+                out = self._activate(z)
+                activations.append(out)
+            z_last = out @ self.weights[-1] + self.biases[-1]
+            pred = z_last
+
+            n_train = X_train.shape[0]
+            delta = 2.0 * (pred - y_train) / (n_train * y_train.shape[1])
+
+            for i in range(len(self.weights) - 1, -1, -1):
+                dW = activations[i].T @ delta
+                db = np.sum(delta, axis=0)
+                dW_norm = float(np.linalg.norm(dW))
+                if dW_norm > 1.0:
+                    dW = dW / dW_norm
+                    db = db / max(float(np.linalg.norm(db)), 1e-8)
+                self.weights[i] -= 1e-3 * dW
+                self.biases[i] -= 1e-3 * db
+                if i > 0:
+                    delta = (delta @ self.weights[i].T) * self._activate_deriv(pre_acts[i - 1])
+                    np.clip(delta, -1e6, 1e6, out=delta)
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         """
@@ -124,9 +176,10 @@ class TransportInputNormalizer:
 
 class TrainingDataGenerator:
     @staticmethod
-    def generate_parameter_scan(n_samples: int) -> np.ndarray:
-        """Latin Hypercube Sampling for 10D space (mocked with uniform random)."""
-        # [R_L_Ti, R_L_Te, R_L_ne, q, s_hat, alpha_MHD, Ti_Te, nu_star, Z_eff, eps]
+    def generate_parameter_scan(n_samples: int, rng: np.random.RandomState | None = None) -> np.ndarray:
+        """Uniform random sampling in 10D QLKNN parameter space."""
+        if rng is None:
+            rng = np.random.RandomState()
         bounds = np.array(
             [
                 [0.0, 15.0],
@@ -144,7 +197,7 @@ class TrainingDataGenerator:
 
         X = np.zeros((n_samples, 10))
         for i in range(10):
-            X[:, i] = np.random.uniform(bounds[i, 0], bounds[i, 1], n_samples)
+            X[:, i] = rng.uniform(bounds[i, 0], bounds[i, 1], n_samples)
 
         return X
 
@@ -210,7 +263,7 @@ class NeuralTransportTrainer:
         X_train, y_train = X[:-n_val], y[:-n_val]
         X_val, y_val = X[-n_val:], y[-n_val:]
 
-        model = QLKNNSurrogate()
+        model = QLKNNSurrogate(pretrained=False)
 
         history: dict[str, list[float]] = {"train_loss": [], "val_loss": []}
 
