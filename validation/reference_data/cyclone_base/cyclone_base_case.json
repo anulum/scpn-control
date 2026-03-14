@@ -1,0 +1,27 @@
+{
+  "name": "Cyclone Base Case",
+  "reference": "Dimits et al., Phys. Plasmas 7 (2000) 969",
+  "geometry": "circular",
+  "R_over_a": 2.78,
+  "q": 1.4,
+  "s_hat": 0.78,
+  "R_L_Ti": 6.9,
+  "R_L_ne": 2.2,
+  "Te_Ti": 1.0,
+  "beta_e": 0.0,
+  "nu_star": 0.0,
+  "species": ["deuterium", "adiabatic_electron"],
+  "expected": {
+    "gamma_max_cs_over_a": {"min": 0.05, "max": 0.4, "nominal": 0.2},
+    "k_y_rho_s_at_max": {"min": 0.15, "max": 0.5, "nominal": 0.3},
+    "dominant_mode": "ITG",
+    "linear_critical_R_L_Ti": {"min": 2.5, "max": 5.0, "nominal": 3.5},
+    "dimits_shift_R_L_Ti": {"min": 4.0, "max": 5.5, "nominal": 4.5}
+  },
+  "benchmark_codes": {
+    "GENE": {"gamma_max": 0.18, "k_y_max": 0.3},
+    "GS2": {"gamma_max": 0.20, "k_y_max": 0.3},
+    "GYRO": {"gamma_max": 0.19, "k_y_max": 0.35}
+  },
+  "notes": "Dimits shift is nonlinear — linear threshold ~3.5, nonlinear ~4.5"
+}
