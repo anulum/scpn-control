@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -118,7 +119,7 @@ class QLKNNSurrogate:
         self.biases = [data[f"b{i}"] for i in range(len(self.biases))]
 
     def save_weights(self, path: str) -> None:
-        arrays = {}
+        arrays: dict[str, Any] = {}
         for i, (w, b) in enumerate(zip(self.weights, self.biases)):
             arrays[f"w{i}"] = w
             arrays[f"b{i}"] = b

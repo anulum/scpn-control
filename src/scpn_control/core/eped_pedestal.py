@@ -61,7 +61,7 @@ def eped_validation_database() -> list[EPEDValidationPoint]:
 
 def _compute_q95(config: EPEDConfig) -> float:
     """Safety factor at 95% flux surface. Wesson, 'Tokamaks' 4th ed., Eq. 3.6.8."""
-    return (config.a * config.B0) / (config.R0 * config.B_pol_ped) * math.sqrt((1.0 + config.kappa ** 2) / 2.0)
+    return (config.a * config.B0) / (config.R0 * config.B_pol_ped) * math.sqrt((1.0 + config.kappa**2) / 2.0)
 
 
 def _approx_alpha_crit(delta_ped: float, config: EPEDConfig) -> float:
@@ -75,7 +75,7 @@ def _approx_alpha_crit(delta_ped: float, config: EPEDConfig) -> float:
     delta = config.delta
 
     # Shaping stabilization (elongation + triangularity)
-    F_shape = (1.0 + kappa ** 2 * (1.0 + 2.0 * delta ** 2)) / (2.0 * kappa)
+    F_shape = (1.0 + kappa**2 * (1.0 + 2.0 * delta**2)) / (2.0 * kappa)
 
     # Ballooning α_crit calibrated to ELITE for ITER-class devices
     ALPHA_BALL_COEFF = 3.0  # dimensionless, first-stability access coefficient
@@ -109,7 +109,7 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
         # Standard α definition: α = 2μ₀ q² R₀ (dp/dr) / B₀²
         # At pedestal: dp/dr ≈ p_ped / (a Δ_ped)
         # Invert: p_ped = α_crit × B₀² × a × Δ_ped / (2μ₀ q₉₅² R₀)
-        p_ped_Pa = alpha_crit * config.B0 ** 2 * config.a * delta_ped / (2.0 * mu_0 * q_95 ** 2 * config.R0)
+        p_ped_Pa = alpha_crit * config.B0**2 * config.a * delta_ped / (2.0 * mu_0 * q_95**2 * config.R0)
 
         # 2. Compute beta_p_ped
         beta_p_ped = 2.0 * mu_0 * p_ped_Pa / (config.B_pol_ped**2)
