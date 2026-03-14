@@ -40,7 +40,7 @@ def critical_field(ne_20: float, coulomb_log: float = 15.0) -> float:
     """
     Critical field E_c = n_e e^3 lnΛ / (4π ε₀² m_e c²).
     Rosenbluth & Putvinski, Nucl. Fusion 37, 1355 (1997).
-    E_D / E_c = m_e c² / (2 T_e) ≈ 25 at T_e = 10 keV.
+    E_D / E_c = m_e c² / T_e ≈ 51 at T_e = 10 keV.
     """
     n_e = ne_20 * 1e20
     return float(n_e * E_CHARGE**3 * coulomb_log / (4.0 * np.pi * EPS_0**2 * M_E * C_LIGHT**2))

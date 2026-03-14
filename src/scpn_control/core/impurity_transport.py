@@ -67,7 +67,7 @@ def neoclassical_impurity_pinch(
 
     H_Z = 0.5  # screening factor, banana regime trace impurities
 
-    V_neo = -Z * D_neo * (Z * grad_ne_over_n + (Z / 2.0 - H_Z) * grad_Ti_over_T)
+    V_neo = -D_neo * (Z * grad_ne_over_n + (Z / 2.0 - H_Z) * grad_Ti_over_T)
     return np.asarray(V_neo)
 
 

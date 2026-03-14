@@ -26,6 +26,11 @@ try:
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel  # type: ignore[assignment]
 
+from scpn_control.core.momentum_transport import (
+    MomentumTransportSolver,
+    intrinsic_rotation_torque,
+    nbi_torque,
+)
 from scpn_control.core.pedestal import PedestalProfile
 
 _logger = logging.getLogger(__name__)
@@ -332,6 +337,10 @@ class TransportSolver(FusionKernel):
         # Numerical hardening telemetry (non-finite replacements per step)
         self._last_numerical_recovery_count: int = 0
 
+        # Momentum transport (rotation profile)
+        self.omega_phi = np.zeros(self.nr)
+        self._momentum_solver: MomentumTransportSolver | None = None
+
     def set_neoclassical(
         self,
         R0: float,
@@ -356,6 +365,7 @@ class TransportSolver(FusionKernel):
             "Z_eff": Z_eff,
             "q_profile": q_profile,
         }
+        self._momentum_solver = MomentumTransportSolver(self.rho, R0, a, B0)
 
     def chang_hinton_chi_profile(self) -> np.ndarray:
         """Backward-compatible Chang-Hinton profile helper.
@@ -1220,6 +1230,22 @@ class TransportSolver(FusionKernel):
                 self._last_numerical_recovery_count += 1
 
         self._last_numerical_recovery_count += self._sanitize_runtime_state()
+
+        # Momentum transport step (rotation profile evolution)
+        if self._momentum_solver is not None:
+            p = self.neoclassical_params
+            assert p is not None
+            dr = self.drho * p["a"]
+            grad_Ti = np.gradient(self.Ti, dr)
+            grad_ne = np.gradient(self.ne, dr)
+            T_intr = intrinsic_rotation_torque(grad_Ti, grad_ne, p["R0"], p["a"])
+            T_nbi = nbi_torque(
+                np.zeros(self.nr), p["R0"], 1e6, 0.0
+            )
+            self.omega_phi = self._momentum_solver.step(
+                dt, self.chi_i, self.ne, self.Ti, T_nbi, T_intr
+            )
+
         avg_ti: float = np.mean(self.Ti).item()
         core_ti: float = self.Ti[0].item()
         return avg_ti, core_ti

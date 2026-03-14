@@ -95,11 +95,11 @@ class PelletTrajectory:
 
             # Distribute dN to profile
             if idx < len(rho):
-                # volume of shell
-                r1 = rho[idx - 1] if idx > 0 else 0.0
-                r2 = rho[idx]
+                dep_idx = max(idx - 1, 0)
+                r1 = rho[dep_idx] if dep_idx > 0 else 0.0
+                r2 = rho[min(dep_idx + 1, len(rho) - 1)]
                 vol = 2.0 * np.pi**2 * self.R0 * self.a**2 * (r2**2 - r1**2)
-                deposition[idx - 1] += dN / max(vol, 1e-6)
+                deposition[dep_idx] += dN / max(vol, 1e-6)
 
             # Update radius based on lost mass
             # N = 4/3 pi r^3 n_solid => r = (3N / 4 pi n_solid)^(1/3)

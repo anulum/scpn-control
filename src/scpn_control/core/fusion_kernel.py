@@ -243,10 +243,15 @@ class FusionKernel:
         profiles_cfg = self.cfg.get("physics", {}).get("profiles")
         if profiles_cfg:
             self.profile_mode = profiles_cfg.get("mode", "l-mode")
-            if "p_prime" in profiles_cfg:
-                self.ped_params_p.update(profiles_cfg["p_prime"])
-            if "ff_prime" in profiles_cfg:
-                self.ped_params_ff.update(profiles_cfg["ff_prime"])
+            if self.profile_mode == "external":
+                self._ext_pprime = np.array(profiles_cfg["pprime_values"])
+                self._ext_ffprime = np.array(profiles_cfg["ffprime_values"])
+                self._ext_psi_grid = np.array(profiles_cfg["psi_grid"])
+            else:
+                if "p_prime" in profiles_cfg:
+                    self.ped_params_p.update(profiles_cfg["p_prime"])
+                if "ff_prime" in profiles_cfg:
+                    self.ped_params_ff.update(profiles_cfg["ff_prime"])
 
     def setup_accelerator(self) -> None:
         """Initialise the optional C++ HPC acceleration bridge."""
@@ -568,7 +573,13 @@ class FusionKernel:
         Psi_norm = (self.Psi - Psi_axis) / denom
         mask_plasma = (Psi_norm >= 0) & (Psi_norm < 1.0)
 
-        if self.profile_mode in ("h-mode", "H-mode", "hmode"):
+        if self.profile_mode == "external":
+            psi_flat = np.clip(Psi_norm.ravel(), 0.0, 1.0)
+            p_profile = np.interp(psi_flat, self._ext_psi_grid, self._ext_pprime).reshape(Psi_norm.shape)
+            ff_profile = np.interp(psi_flat, self._ext_psi_grid, self._ext_ffprime).reshape(Psi_norm.shape)
+            p_profile[~mask_plasma] = 0.0
+            ff_profile[~mask_plasma] = 0.0
+        elif self.profile_mode in ("h-mode", "H-mode", "hmode"):
             p_profile = self.mtanh_profile(Psi_norm, self.ped_params_p)
             ff_profile = self.mtanh_profile(Psi_norm, self.ped_params_ff)
         else:

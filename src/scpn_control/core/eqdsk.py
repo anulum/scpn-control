@@ -101,11 +101,18 @@ class GEqdsk:
         """Map raw ψ to normalised ψ_N."""
         return (psi - self.simag) / (self.sibry - self.simag)
 
-    def to_config(self, name: str = "eqdsk") -> dict[str, object]:
-        """Convert to FusionKernel JSON config dict (approximate)."""
+    def to_config(self, name: str = "eqdsk", *, external_profiles: bool = False) -> dict[str, object]:
+        """Convert to FusionKernel JSON config dict.
+
+        Parameters
+        ----------
+        external_profiles : bool
+            When True, include pprime/ffprime arrays so the GS solver
+            uses the GEQDSK source profiles instead of its parametric model.
+        """
         r = self.r
         z = self.z
-        return {
+        cfg: dict[str, object] = {
             "reactor_name": name,
             "grid_resolution": [self.nw, self.nh],
             "dimensions": {
@@ -118,13 +125,23 @@ class GEqdsk:
                 "plasma_current_target": float(self.current / 1e6),
                 "vacuum_permeability": 1.0,
             },
-            "coils": [],  # not stored in GEQDSK
+            "coils": [],
             "solver": {
                 "max_iterations": 1000,
                 "convergence_threshold": 1e-4,
                 "relaxation_factor": 0.1,
             },
         }
+        if external_profiles and len(self.pprime) > 0 and len(self.ffprime) > 0:
+            physics = cfg["physics"]
+            assert isinstance(physics, dict)
+            physics["profiles"] = {
+                "mode": "external",
+                "pprime_values": self.pprime.tolist(),
+                "ffprime_values": self.ffprime.tolist(),
+                "psi_grid": self.psi_norm.tolist(),
+            }
+        return cfg
 
 
 # ── Reader ────────────────────────────────────────────────────────────

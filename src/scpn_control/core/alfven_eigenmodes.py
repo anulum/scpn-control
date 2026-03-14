@@ -21,12 +21,15 @@ class AlfvenContinuum:
     Shear Alfven wave continuum and gap structure.
     """
 
-    def __init__(self, rho: np.ndarray, q: np.ndarray, ne: np.ndarray, B0: float, R0: float, m_i_amu: float = 2.5):
+    def __init__(
+        self, rho: np.ndarray, q: np.ndarray, ne: np.ndarray, B0: float, R0: float, m_i_amu: float = 2.5, a: float = 2.0
+    ):
         self.rho = rho
         self.q = q
         self.ne = ne
         self.B0 = B0
         self.R0 = R0
+        self.a = a
 
         m_i = m_i_amu * 1.67e-27
         m_e = 9.11e-31
@@ -73,7 +76,7 @@ class AlfvenContinuum:
                 omega_0 = v_A_gap / (2.0 * q_gap * self.R0)
 
                 # Gap width proxy (depends on inverse aspect ratio epsilon)
-                eps = rho_gap * 2.0 / self.R0  # assuming a=2.0 for default
+                eps = rho_gap * self.a / self.R0
                 omega_lower = omega_0 * (1.0 - eps)
                 omega_upper = omega_0 * (1.0 + eps)
 
