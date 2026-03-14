@@ -135,7 +135,7 @@ markers = [
 ]
 filterwarnings = [
     "error::DeprecationWarning",
-    "ignore:numpy\\.core is deprecated:DeprecationWarning",
+    "ignore:numpy\\.core.*is deprecated:DeprecationWarning",
     "ignore:.*oneOf.*[dD]eprecated.*:Warning",
     "default::UserWarning",
 ]
