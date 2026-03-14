@@ -1239,12 +1239,8 @@ class TransportSolver(FusionKernel):
             grad_Ti = np.gradient(self.Ti, dr)
             grad_ne = np.gradient(self.ne, dr)
             T_intr = intrinsic_rotation_torque(grad_Ti, grad_ne, p["R0"], p["a"])
-            T_nbi = nbi_torque(
-                np.zeros(self.nr), p["R0"], 1e6, 0.0
-            )
-            self.omega_phi = self._momentum_solver.step(
-                dt, self.chi_i, self.ne, self.Ti, T_nbi, T_intr
-            )
+            T_nbi = nbi_torque(np.zeros(self.nr), p["R0"], 1e6, 0.0)
+            self.omega_phi = self._momentum_solver.step(dt, self.chi_i, self.ne, self.Ti, T_nbi, T_intr)
 
         avg_ti: float = np.mean(self.Ti).item()
         core_ti: float = self.Ti[0].item()
