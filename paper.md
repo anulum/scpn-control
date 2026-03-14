@@ -39,8 +39,14 @@ NMPC, SNN, safe RL), disruption prediction with SPI mitigation, and a
 companion Rust backend (5 crates, PyO3 bindings) achieving 11.9 µs median
 kernel latency.
 
-The codebase comprises 98 Python source modules and 5 Rust crates with
-3,061+ tests at 100% coverage across 20 CI jobs.
+Pre-trained neural equilibrium weights for both SPARC and ITER geometries
+enable sub-10ms CPU-only equilibrium inference. An interactive Streamlit
+dashboard provides multi-machine shot replay (DIII-D, SPARC, ITER, NSTX-U,
+JET), real-time GK transport visualisation, and OOD monitoring.
+
+The codebase comprises 98 Python source modules and 5 Rust crates
+(ndarray 0.16, rand 0.9, PyO3 0.24) with 3,074+ Python tests and 317 Rust
+tests at 100% coverage across 20 CI jobs.
 
 # Statement of Need
 
@@ -106,9 +112,10 @@ The Python package (98 modules) is organised into four layers:
   vertical stability, scenario scheduler, fault-tolerant control, digital
   twin, flight simulator, Gymnasium environment, JAX-traceable runtime.
 
-The Rust backend (`scpn-control-rs`, 5 crates) provides PyO3 bindings for
-performance-critical paths, achieving a median kernel latency of 11.9 µs
-(Criterion-verified).
+The Rust backend (`scpn-control-rs`, 5 crates, ndarray 0.16, rand 0.9)
+provides PyO3 bindings for performance-critical paths, achieving a median
+kernel latency of 11.9 µs (Criterion-verified). The workspace passes 317
+Rust tests with zero clippy warnings.
 
 A JAX-accelerated GK backend (`jax_gk_solver.py`) batches eigenvalue solves
 across the $k_y$ grid via `jax.vmap` and computes transport stiffness
@@ -122,7 +129,8 @@ The solver is validated against:
   $q = 1.4$, $\hat{s} = 0.78$, $R/L_{T_i} = 6.9$), producing positive
   ITG growth rates consistent with published benchmarks.
 - **SPARC/ITER equilibria**: RMSE-gated against CFS SPARCPublic GEQDSK files
-  and ITER design parameters.
+  and ITER design parameters. Pre-trained neural equilibrium weights for both
+  machines achieve sub-10ms inference with <15% normalised RMSE.
 - **DIII-D disruption shots**: 17 synthetic shots covering H-mode, VDE,
   beta-limit, locked-mode, density-limit, tearing, and snowflake
   configurations.
@@ -130,10 +138,10 @@ The solver is validated against:
   with bitwise fidelity on psi, pressure, and profile arrays.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
-The test suite comprises 3,061+ Python tests and 140+ Rust tests across 20 CI
+The test suite comprises 3,074+ Python tests and 317 Rust tests across 20 CI
 jobs (Python 3.10–3.13 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo
 Loihi emulator, CodeQL security analysis, OpenSSF Scorecard). Coverage gate
-is 99% (current: 100%).
+is 99% (current: 100%). The project holds an OpenSSF CII Best Practices badge.
 
 **Limitations**: the native GK solver is linearised (no nonlinear turbulence);
 the collision operator is simplified Sugama (pitch-angle only); external GK
