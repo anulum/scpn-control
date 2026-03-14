@@ -84,7 +84,7 @@ def q_from_psi(rho: np.ndarray, psi: np.ndarray, R0: float, a: float, B0: float)
         q[0] = q[1]
 
     # Handle negative q if psi profile is inverted
-    q = np.abs(q)
+    np.abs(q, out=q)
     return q
 
 

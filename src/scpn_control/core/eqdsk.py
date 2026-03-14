@@ -83,19 +83,19 @@ class GEqdsk:
     # ── Derived grids ─────────────────────────────────────────────────
 
     @property
-    def r(self) -> NDArray[np.float64]:
+    def r(self) -> np.ndarray:
         """1-D array of R grid values."""
-        return np.linspace(self.rleft, self.rleft + self.rdim, self.nw)
+        return np.asarray(np.linspace(self.rleft, self.rleft + self.rdim, self.nw))
 
     @property
-    def z(self) -> NDArray[np.float64]:
+    def z(self) -> np.ndarray:
         """1-D array of Z grid values."""
-        return np.linspace(self.zmid - self.zdim / 2, self.zmid + self.zdim / 2, self.nh)
+        return np.asarray(np.linspace(self.zmid - self.zdim / 2, self.zmid + self.zdim / 2, self.nh))
 
     @property
-    def psi_norm(self) -> NDArray[np.float64]:
+    def psi_norm(self) -> np.ndarray:
         """Normalised poloidal flux ψ_N ∈ [0, 1] (axis=0, boundary=1)."""
-        return np.linspace(0.0, 1.0, self.nw)
+        return np.asarray(np.linspace(0.0, 1.0, self.nw))
 
     def psi_to_norm(self, psi: NDArray[np.float64]) -> NDArray[np.float64]:
         """Map raw ψ to normalised ψ_N."""

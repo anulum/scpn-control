@@ -111,7 +111,7 @@ class CoupledSandpileReactor:
         return int(total_topple), float(self.flow), eff_shear
 
     def get_profile_energy(self) -> float:
-        self.h = np.cumsum(self.Z[::-1])[::-1]
+        self.h[:] = np.cumsum(self.Z[::-1])[::-1]
         return float(self.h[0] if self.h.size else 0.0)
 
 

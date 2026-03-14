@@ -420,7 +420,7 @@ class TransportSolver(FusionKernel):
         # Boundary
         new_imp[0] = new_imp[1]  # Axis symmetry
 
-        self.n_impurity = np.maximum(0, new_imp)
+        np.maximum(0, new_imp, out=self.n_impurity)
 
     def calculate_bootstrap_current_simple(self, R0: float, B_pol: np.ndarray) -> np.ndarray:
         """
@@ -620,7 +620,7 @@ class TransportSolver(FusionKernel):
 
         self.chi_e = chi_base + chi_turb
         self.chi_i = chi_base + chi_turb
-        self.D_n = 0.1 * self.chi_e
+        self.D_n[:] = 0.1 * self.chi_e
 
     # ── Tridiagonal (Thomas) solver ─────────────────────────────────
 

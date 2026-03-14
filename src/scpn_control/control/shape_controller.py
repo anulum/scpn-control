@@ -57,7 +57,7 @@ class ShapeJacobian:
 
         # Precompute random well-conditioned mock Jacobian for testing
         np.random.seed(42)
-        self.J = np.random.randn(self.n_errors, coil_set.n_coils) * 1e-4
+        self.J[:] = np.random.randn(self.n_errors, coil_set.n_coils) * 1e-4
 
     def compute(self) -> np.ndarray:
         return self.J

@@ -143,7 +143,7 @@ class ModelPredictiveController:
                 grads[t] = grad_step
                 temp_state = next_state
             planned_actions -= self.learning_rate * grads
-            planned_actions = np.clip(planned_actions, -self.action_limit, self.action_limit)
+            np.clip(planned_actions, -self.action_limit, self.action_limit, out=planned_actions)
 
         return np.asarray(planned_actions[0], dtype=np.float64)
 

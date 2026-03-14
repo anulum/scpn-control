@@ -169,8 +169,8 @@ class NeuroSymbolicController:
             self._delay_delayed_offsets = np.asarray(self._delay_ticks[self._delay_delayed_idx], dtype=np.int64)
             self._tmp_delay_slots = np.zeros(self._delay_delayed_idx.size, dtype=np.int64)
         else:
-            self._delay_delayed_offsets = np.asarray([], dtype=np.int64)
-            self._tmp_delay_slots = np.asarray([], dtype=np.int64)
+            self._delay_delayed_offsets = np.zeros(0, dtype=np.int64)
+            self._tmp_delay_slots = np.zeros(0, dtype=np.int64)
         self._max_delay_ticks = int(np.max(self._delay_ticks)) if self._delay_ticks.size else 0
         pending_len = self._max_delay_ticks + 1
         self._oracle_pending = np.zeros((pending_len, self._nT), dtype=np.float64)
@@ -681,10 +681,11 @@ class NeuroSymbolicController:
         raw = self._tmp_actions
         np.subtract(marking[self._action_pos_idx], marking[self._action_neg_idx], out=raw)
         raw *= self._action_gains
-        raw = np.clip(
+        np.clip(
             raw,
             self._prev_actions - self._action_max_delta,
             self._prev_actions + self._action_max_delta,
+            out=raw,
         )
         np.clip(raw, -self._action_abs_max, self._action_abs_max, out=self._prev_actions)
         return self._prev_actions

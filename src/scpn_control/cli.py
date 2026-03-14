@@ -176,7 +176,7 @@ def benchmark(n_bench: int, json_out: bool) -> None:
     decay = 0.9
     for _ in range(n_bench):
         error = np.random.randn()
-        v = v * decay + error * np.random.randn(n_neurons) * 0.1
+        v[:] = v * decay + error * np.random.randn(n_neurons) * 0.1
         spikes = v > threshold
         v[spikes] = 0.0
         _ = np.mean(spikes.astype(float))

@@ -912,7 +912,7 @@ class FreeBoundaryTrackingController:
         delta_hint, *_ = np.linalg.lstsq(base_aug_matrix, base_aug_rhs, rcond=None)
         delta_hint = np.asarray(delta_hint, dtype=np.float64)
         coil_penalties = self._build_coil_penalties(delta_hint)
-        self.last_coil_penalties = np.asarray(coil_penalties, dtype=np.float64)
+        self.last_coil_penalties[:] = coil_penalties
         aug_matrix = np.vstack(
             [
                 weighted_response,

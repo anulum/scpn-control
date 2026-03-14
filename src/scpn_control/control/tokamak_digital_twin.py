@@ -208,7 +208,7 @@ class Plasma2D:
 
         # Boundary Condition (Cold Walls)
         self.T[~self.topo.mask] = 0.0
-        self.T = np.clip(self.T, 0, 100.0)  # Saturation limit (Physical Ceiling)
+        np.clip(self.T, 0, 100.0, out=self.T)  # Saturation limit (Physical Ceiling)
 
         # Metrics
         core_temp = self.T[center, center]
@@ -337,7 +337,7 @@ def run_digital_twin(
     sensor_dropouts_total = 0
     sensor_bias = np.zeros(state_dim, dtype=float)
     if sensor_bias_std > 0.0:
-        sensor_bias = np.asarray(local_rng.normal(0.0, sensor_bias_std, size=state_dim), dtype=float)
+        sensor_bias[:] = local_rng.normal(0.0, sensor_bias_std, size=state_dim)
 
     # Thermal lag state (first-order filter)
     # tau_TC = 50ms typical for thermocouple
@@ -379,7 +379,7 @@ def run_digital_twin(
                 if dropped > 0:
                     state_vector[0, dropout_mask] = 0.0
                     sensor_dropouts_total += dropped
-            state_vector = np.nan_to_num(state_vector, nan=0.0, posinf=100.0, neginf=0.0)
+            np.nan_to_num(state_vector, copy=False, nan=0.0, posinf=100.0, neginf=0.0)
         sensor_bias_abs = np.abs(sensor_bias)
         sensor_bias_mean_abs_history.append(float(np.mean(sensor_bias_abs)) if sensor_bias_abs.size else 0.0)
         sensor_bias_max_abs_history.append(float(np.max(sensor_bias_abs)) if sensor_bias_abs.size else 0.0)

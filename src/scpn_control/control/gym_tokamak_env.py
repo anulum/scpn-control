@@ -100,16 +100,14 @@ class TokamakEnv:
             self._rng = np.random.default_rng(seed)
 
         # ITER-like initial condition with small perturbation
-        self._state = np.array(
-            [
-                10.0 + self._rng.normal(0, 0.5),  # T_axis [keV]
-                2.0 + self._rng.normal(0, 0.1),  # T_edge [keV]
-                1.5 + self._rng.normal(0, 0.1),  # beta_N
-                0.85 + self._rng.normal(0, 0.05),  # li
-                3.0 + self._rng.normal(0, 0.1),  # q95
-                15.0,  # Ip [MA]
-            ]
-        )
+        self._state[:] = [
+            10.0 + self._rng.normal(0, 0.5),
+            2.0 + self._rng.normal(0, 0.1),
+            1.5 + self._rng.normal(0, 0.1),
+            0.85 + self._rng.normal(0, 0.05),
+            3.0 + self._rng.normal(0, 0.1),
+            15.0,
+        ]
         self._step_count = 0
         self._prev_temp_err = abs(self._state[0] - self.T_target)
         self.P_aux = 50.0
@@ -173,7 +171,7 @@ class TokamakEnv:
         q95: float = max(_Q95_CONST / max(Ip, 0.1), 1.5)
         li: float = 0.85 + 0.1 * (q95 - 3.0)
 
-        self._state = np.array([T_ax, T_edge, beta_N, li, q95, Ip])
+        self._state[:] = [T_ax, T_edge, beta_N, li, q95, Ip]
         self._step_count += 1
 
         # Disruption check: q95 < 2 or beta_N > 3.5

@@ -900,7 +900,7 @@ class FusionKernel:
 
         # 4. Solve coarse-grid correction: L*[e] = r
         e_coarse = np.zeros((nz_c, nr_c))
-        e_coarse = self._multigrid_vcycle(
+        e_coarse[:] = self._multigrid_vcycle(
             e_coarse,
             r_coarse,
             R_coarse,
@@ -1415,8 +1415,8 @@ class FusionKernel:
         # Sync state back
         self.Psi = rk.Psi
         self.J_phi = rk.J_phi
-        self.B_R = rk.B_R
-        self.B_Z = rk.B_Z
+        self.B_R: np.ndarray = rk.B_R
+        self.B_Z: np.ndarray = rk.B_Z
 
         mu0: float = self.cfg["physics"]["vacuum_permeability"]
         source = -mu0 * self.RR * self.J_phi
@@ -1662,8 +1662,8 @@ class FusionKernel:
         """Derive the magnetic field components from the solved Psi."""
         dPsi_dR, dPsi_dZ = _psi_gradient_fields(self.Psi, self.dR, self.dZ)
         R_safe = np.maximum(self.RR, 1e-6)
-        self.B_R = -(1.0 / R_safe) * dPsi_dZ
-        self.B_Z = (1.0 / R_safe) * dPsi_dR
+        self.B_R = np.asarray(-(1.0 / R_safe) * dPsi_dZ)
+        self.B_Z = np.asarray((1.0 / R_safe) * dPsi_dR)
 
     @staticmethod
     def _green_function(R_src: float, Z_src: float, R_obs: float, Z_obs: float) -> float:

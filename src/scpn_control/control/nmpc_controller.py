@@ -143,10 +143,10 @@ class NonlinearMPC:
                 dU_new[k] = u_full - self.u_traj[k]
 
             if np.max(np.abs(dU_new - dU)) < self.config.tol:
-                dU = dU_new
+                dU[:] = dU_new
                 break
 
-            dU = dU_new
+            dU[:] = dU_new
 
         return dU
 

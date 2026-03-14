@@ -330,7 +330,7 @@ class HInfinityController:
         # Observer update with anti-windup back-calculation
         innovation = y - self.C2 @ self.state
         aw_correction = self._Bd_u @ (u - u_raw)
-        self.state = self._Ad @ self.state + self._Bd_u @ u + self._Ld @ innovation + aw_correction
+        self.state = (self._Ad @ self.state + self._Bd_u @ u + self._Ld @ innovation + aw_correction).ravel()
 
         return float(u[0]) if u.size > 1 else float(u.item())
 

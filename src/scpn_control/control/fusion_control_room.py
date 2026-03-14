@@ -60,7 +60,7 @@ class TokamakPhysicsEngine:
         self.R = np.linspace(1.0, 5.0, self.size)
         self.Z = np.linspace(-3.0, 3.0, self.size)
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
-        self.density = np.zeros((self.size, self.size), dtype=np.float64)
+        self.density: np.ndarray = np.zeros((self.size, self.size), dtype=np.float64)
 
         # ITER design: R0=6.2 m, a=2.0 m, κ=1.7, δ=0.33
         # Scaled to R0=3.0, a=1.0 for reduced-grid demo (same aspect ratio)
@@ -103,9 +103,9 @@ class TokamakPhysicsEngine:
             psi = np.clip(psi, 0.0, None)
 
         core_term = np.maximum(1.0 - psi, 0.0)
-        self.density = np.where(psi < 1.0, core_term**1.5, 0.0)
+        self.density = np.asarray(np.where(psi < 1.0, core_term**1.5, 0.0))
         noise = self.rng.normal(0.0, 0.05, size=self.density.shape) * self.density
-        self.density = np.clip(self.density + noise, 0.0, None)
+        self.density = np.asarray(np.clip(self.density + noise, 0.0, None))
         return self.density, psi
 
     def step_dynamics(self, coil_action_top: float, coil_action_bottom: float) -> float:
