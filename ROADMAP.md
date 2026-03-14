@@ -169,17 +169,26 @@
 - [x] License change: AGPL-3.0-or-later (commercial licensing available)
 - [x] CII Best Practices badge earned
 - [x] 3,015 tests, 100% coverage, 20 CI jobs
+- [x] **Electromagnetic GK extension** — KBM (Tang 1980) + MTM (Drake & Lee 1977),
+  mode classification extended, beta_e=0 reproduces ES exactly. 19 tests.
+- [x] **JAX GK backend** (`jax_gk_solver.py`) — `jax.vmap` over k_y,
+  `jax.grad` transport stiffness, JIT hot path, NumPy fallback. 10 tests.
+- [x] **IMAS round-trip tests** — real `omas` ODS for equilibrium + core_profiles,
+  solver interop, edge cases. 17 tests.
+- [x] 3,061+ tests total
 
 ## Next
 
+### v0.18.0 — Linux validation (requires reboot)
+- [ ] Real GK binary testing: install GACODE (TGLF/CGYRO), run CBC with real TGLF
+- [ ] Cross-code benchmark: native GK eigenvalue vs real TGLF growth rates
+- [ ] TORAX coupling: install torax, profile comparison at ITER/SPARC parameters
+- [ ] Handover prepared: `.coordination/handovers/scpn-control/HANDOVER_LINUX_GK_BINARY_TORAX.md`
+
 ### v1.0.0 — Production readiness
-- [ ] JAX GK backend (GPU-accelerated eigenvalue solver, `jax.vmap` over k_y)
-- [ ] Electromagnetic GK extension (finite-beta KBM/microtearing modes)
 - [ ] JOSS paper submission (fact-checked, final claims)
-- [ ] IMAS IDS round-trip tests with real `omas` install
 - [ ] Streamlit dashboard v2 (shot replay + multi-machine selector)
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
-- [ ] TORAX hybrid transport coupling
 - [ ] Coordinated Rust dep upgrade (ndarray 0.16+, ndarray-linalg 0.18+, rand 0.9)
 
 ## Future
@@ -188,3 +197,6 @@
 - [ ] FPGA bitstream export from SNN compiler
 - [ ] ITER CODAC interface prototype
 - [ ] Nonlinear GK validation (GENE/CGYRO cross-code comparison)
+- [ ] Experimental tokamak validation (requires MDSplus + real shot data)
+- [ ] Neural eq cross-validation vs P-EFIT (requires proprietary P-EFIT equilibria)
+- [ ] Production hardware deployment (CODAC/EPICS integration)
