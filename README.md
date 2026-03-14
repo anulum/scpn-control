@@ -8,7 +8,8 @@
   <a href="https://pypi.org/project/scpn-control/"><img src="https://img.shields.io/pypi/v/scpn-control" alt="PyPI version"></a>
   <a href="https://pypi.org/project/scpn-control/"><img src="https://img.shields.io/pypi/pyversions/scpn-control" alt="Python versions"></a>
   <a href="https://scpn-control.streamlit.app"><img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Open in Streamlit"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg" alt="License: AGPL-3.0-or-later"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0-or-later"></a>
+  <a href="https://www.bestpractices.dev/projects/12176"><img src="https://www.bestpractices.dev/projects/12176/badge" alt="OpenSSF Best Practices"></a>
   <a href="https://orcid.org/0009-0009-3560-0851"><img src="https://img.shields.io/badge/ORCID-0009--0009--3560--0851-green.svg" alt="ORCID"></a>
   <a href="https://arxiv.org/abs/2004.06344"><img src="https://img.shields.io/badge/arXiv-2004.06344-b31b1b.svg" alt="arXiv"></a>
   <a href="docs/REVIEWER_PAPER27_INTEGRATION.pdf"><img src="https://img.shields.io/badge/Paper_27-PDF-informational.svg" alt="Paper 27 PDF"></a>
@@ -23,7 +24,7 @@
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
 [scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 78 source
-modules, 178 test files, **2,786 tests** (100% coverage), 5 Rust crates, 26 CI jobs.
+modules, 220+ test files, **3,015 tests** (100% coverage), 5 Rust crates, 20 CI jobs.
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
