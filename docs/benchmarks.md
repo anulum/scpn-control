@@ -86,6 +86,28 @@ interactive Vega-Lite chart with legend-click filtering:
 Open in the [Vega Editor](https://vega.github.io/editor/) or embed via
 `<vega-embed>` / `vegaEmbed()`.  Click legend entries to isolate series.
 
+## Gyrokinetic Linear Benchmark (v0.17.0)
+
+The native linear GK eigenvalue solver is benchmarked via
+`validation/benchmark_gk_linear.py`:
+
+| Case | Parameters | gamma_max | Dominant | Runtime |
+|------|-----------|-----------|----------|---------|
+| Cyclone Base Case | R/a=2.78, q=1.4, s_hat=0.78, R/L_Ti=6.9 | >0 | ITG | ~2s (12 k_y, n_theta=32) |
+| SPARC mid-radius | R0=1.85, B0=12.2, q=1.8 | finite | — | ~1s (6 k_y) |
+| ITER mid-radius | R0=6.2, B0=5.3, q=1.5 | finite | — | ~1s (6 k_y) |
+
+Multi-code comparison (`benchmark_gk_linear.run_multi_code_comparison()`):
+
+| Model | gamma_max | chi_i | chi_e |
+|-------|-----------|-------|-------|
+| Native GK eigenvalue | from solver | from quasilinear | from quasilinear |
+| Quasilinear dispersion | from analytic | from mixing-length | from mixing-length |
+
+Hybrid accuracy (`validation/benchmark_hybrid_accuracy.py`) measures the
+correction layer convergence over 20 transport steps with periodic GK
+spot-checks.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:

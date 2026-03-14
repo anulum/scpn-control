@@ -64,6 +64,10 @@ P-EFIT typically reconstructs.
 | Phase dynamics (Kuramoto/UPDE) | Tested |
 | WebSocket live telemetry | Tested |
 | Contract-based pre/post-condition checking | Tested |
+| **Native linear GK eigenvalue solver** | **Tested (Cyclone Base Case)** |
+| **External GK coupling (TGLF/GENE/GS2/CGYRO/QuaLiKiz)** | **Tested (mock subprocess)** |
+| **Hybrid surrogate+GK validation** | **Tested (OOD + correction + online learning)** |
+| **GK → UPDE phase bridge** | **Tested** |
 | ML disruption prediction (Transformer) | Experimental (synthetic data only) |
 | SPI ablation mitigation | Experimental |
 | Real-time digital twin | Experimental |
@@ -82,9 +86,10 @@ P-EFIT typically reconstructs.
 You need real-time control prototyping **now**, not after a 3-year bespoke
 development cycle. scpn-control gives you:
 
-- A tested controller with 2,417 tests (99.99% coverage) and CI-gated RMSE validation
+- A tested controller with 3,015 tests (100% coverage) and CI-gated RMSE validation
+- Three-tier gyrokinetic transport (native solver + 5 external codes + hybrid validation)
 - Runs on commodity hardware (no GPU or data center required)
-- MIT/Apache-2.0 dual-licensed — no copyleft restrictions
+- AGPL-3.0 open source; commercial licensing available
 
 **Caveat:** This is Alpha-stage research software, not a production PCS.
 Integration with real hardware requires significant additional work.
@@ -112,13 +117,13 @@ The architecture *could* support future integration, but:
 ## Architecture
 
 ```
-57 Python modules | 5 Rust crates | 2,417 tests (99.99% coverage) | 26 CI jobs
+98 Python modules | 5 Rust crates | 3,015 tests (100% coverage) | 20 CI jobs
 ```
 
 ```
 src/scpn_control/
 +-- scpn/       Petri Net -> SNN compiler (formal contracts)
-+-- core/       GS solver, transport, scaling laws
++-- core/       GS solver, transport, scaling laws, gyrokinetic (16 GK modules)
 +-- control/    PID, MPC, H-inf, SNN, digital twin
 +-- phase/      Paper 27 Kuramoto/UPDE engine (7 modules)
 
@@ -198,7 +203,7 @@ cd crates/control-python && maturin develop --release
 
 | | |
 |---|---|
-| **Open Source** | AGPL-3.0-or-later — permissive, no copyleft |
+| **Open Source** | AGPL-3.0-or-later; commercial licensing available |
 | **Contact** | [protoscience@anulum.li](mailto:protoscience@anulum.li) |
 | **Organization** | ANULUM CH & LI |
 | **Authors** | Miroslav Sotek ([ORCID](https://orcid.org/0009-0009-3560-0851)) |
