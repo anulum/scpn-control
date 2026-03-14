@@ -74,6 +74,7 @@ nav:
     - Validation and QA: validation.md
     - Competitive Analysis: competitive_analysis.md
   - Project:
+    - JOSS Paper: joss_paper.md
     - Development: development.md
     - Changelog: changelog.md
     - Pricing: pricing.md
