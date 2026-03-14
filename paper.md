@@ -1,10 +1,11 @@
 ---
-title: 'SCPN Control: Compiling Stochastic Petri Nets into Spiking Neural Network Controllers for Real-Time Tokamak Plasma Control'
+title: 'SCPN Control: Neuro-Symbolic Stochastic Petri Net Controllers with First-Principles Gyrokinetic Transport for Real-Time Tokamak Plasma Control'
 tags:
   - Python
   - Rust
   - plasma physics
   - tokamak control
+  - gyrokinetics
   - spiking neural networks
   - Petri nets
   - neuro-symbolic AI
@@ -13,111 +14,137 @@ authors:
     orcid: 0009-0009-3560-0851
     affiliation: 1
     corresponding: true
-  - name: 
-    affiliation: 1
 affiliations:
   - name: ANULUM CH & LI
     index: 1
-date: 10 March 2026
+date: 14 March 2026
 bibliography: paper.bib
 ---
 
 # Summary
 
-`scpn-control` is an open-source neuro-symbolic control engine that compiles
-Stochastic Petri Net (SPN) graphs into spiking neural network (SNN) controllers
-with formal contract verification for tokamak plasma control. The package
-provides a complete closed-loop control stack: a fixed-boundary Grad-Shafranov
-equilibrium solver with an experimental external-coil boundary-shaping scaffold,
-a 1D Crank-Nicolson transport solver with multi-ion physics,
-five runtime-selectable controllers (PID, MPC, $H_\infty$, SNN, neuro-cybernetic),
-disruption prediction with shattered pellet injection mitigation, a trained
-QLKNN-10D neural transport surrogate, a Gymnasium-compatible reinforcement
-learning environment with a trained PPO agent, and JAX-accelerated transport and
-equilibrium primitives with GPU dispatch and automatic differentiation.
-A companion Rust backend (5 crates, PyO3 bindings) achieves 11.9 µs median
+`scpn-control` is an open-source neuro-symbolic control engine for tokamak
+plasma control combining Stochastic Petri Net (SPN) compilation into spiking
+neural network (SNN) controllers, a three-path gyrokinetic transport system,
+and an 8-layer Kuramoto-Sakaguchi phase dynamics engine.
+
+The package provides: a Grad-Shafranov equilibrium solver (fixed and free
+boundary, JAX-differentiable), a 1.5D Crank-Nicolson transport solver with
+multi-ion physics, a native linear gyrokinetic eigenvalue solver with
+electromagnetic extension (electrostatic + KBM + microtearing modes),
+interfaces to five external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz),
+a hybrid surrogate+GK validation layer with out-of-distribution detection
+and online retraining, seven controllers (PID, MPC, $H_\infty$, $\mu$-synthesis,
+NMPC, SNN, safe RL), disruption prediction with SPI mitigation, and a
+companion Rust backend (5 crates, PyO3 bindings) achieving 11.9 µs median
 kernel latency.
+
+The codebase comprises 98 Python source modules and 5 Rust crates with
+3,061+ tests at 100% coverage across 20 CI jobs.
 
 # Statement of Need
 
-Real-time plasma control in magnetic confinement fusion requires sub-millisecond
-decision latencies, formal safety guarantees, and validated physics models.
-Existing open-source tools address subsets of this problem: TORAX
-[@torax2024] provides differentiable transport, TCV-RL [@degrave2022] applies
-deep RL to tokamak control, and FreeGS [@freegs] solves free-boundary equilibria.
-No single package combines compilable control logic (SPNs), neuromorphic
-execution (SNNs), multi-layer phase dynamics, and validated equilibrium solvers
-in one coherent stack.
+Real-time plasma control in magnetic confinement fusion requires
+sub-millisecond decision latencies, validated transport physics, and robust
+safety guarantees. Existing open-source tools address subsets of this problem:
+TORAX [@torax2024] provides JAX-differentiable transport with TGLF coupling,
+TCV-RL [@degrave2022] applies deep RL to tokamak control, FreeGS [@freegs]
+solves free-boundary equilibria, and FUSE [@fuse2024] offers integrated
+design-to-operations modelling. No single package combines compilable control
+logic (SPNs), neuromorphic execution (SNNs), first-principles gyrokinetic
+transport (native eigenvalue solver + external code coupling + hybrid
+surrogate validation), and multi-layer phase dynamics in one coherent stack.
 
-`scpn-control` fills this gap. The SPN-to-SNN compiler translates control graphs
-into leaky integrate-and-fire neuron pools with stochastic bitstream encoding,
-enforcing pre/post-condition contracts on every observation and action.
-The multi-layer Kuramoto-Sakaguchi phase engine, driven by both a theoretical
-$K_{nm}$ coupling matrix [@sotek2026knm] and a plasma-native 8-layer $K_{nm}$
-encoding experimentally grounded interactions (drift-wave/zonal-flow,
-NTM/bootstrap-current, ELM/pedestal), enables cross-scale synchronisation
-monitoring via a Lyapunov stability guard. The package implements standard
-fusion physics formulations including Bosch-Hale reactivity [@bosch1992],
-Sauter bootstrap current [@sauter1999], and Greenwald density limit
-heuristics [@greenwald2002].
+`scpn-control` fills this gap with three distinguishing capabilities:
+
+1. **Three-path gyrokinetic transport** — a native linear GK eigenvalue
+   solver in ballooning space (Miller geometry, Sugama collision operator)
+   [@dimits2000; @miller1998; @sugama2006], interfaces to five external
+   GK codes via subprocess, and a hybrid layer that validates the QLKNN
+   surrogate [@plassche2020] against GK spot-checks with OOD detection,
+   correction, and online retraining. No competing code has all three paths.
+
+2. **SPN-to-SNN compilation** — translates control graphs into leaky
+   integrate-and-fire neuron pools with stochastic bitstream encoding
+   [@murata1989; @maass1997], enforcing pre/post-condition contracts on
+   every observation and action.
+
+3. **8-layer plasma phase dynamics** — a Kuramoto-Sakaguchi multi-layer
+   UPDE engine [@kuramoto1975; @sotek2026knm] encoding experimentally
+   grounded interactions (drift-wave/zonal-flow, NTM/bootstrap-current,
+   ELM/pedestal), with GK-driven adaptive $K_{nm}$ coupling and Lyapunov
+   stability monitoring.
 
 # Implementation
 
-The Python package (57 modules, ~22,900 lines) is organised into four layers:
+The Python package (98 modules) is organised into four layers:
 
-- **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration with
-  multigrid V-cycle or SOR elliptic solve), 1D Crank-Nicolson transport with
-  gyro-Bohm diffusivity, GEQDSK/IMAS I/O, IPB98(y,2) scaling law benchmark
-  [@ipb1999], neural equilibrium accelerator, uncertainty quantification.
-- **Phase** (`scpn_control.phase`): Kuramoto-Sakaguchi stepper, UPDE multi-layer
-  solver, adaptive $K_{nm}$ engine, Lyapunov guard, WebSocket real-time monitor.
+- **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration
+  with multigrid or SOR), 1.5D Crank-Nicolson transport, GEQDSK/IMAS I/O,
+  IPB98(y,2) scaling [@ipb1999], neural equilibrium accelerator, uncertainty
+  quantification, and the gyrokinetic transport stack:
+    - *Native GK*: Miller flux-tube geometry [@miller1998], per-species
+      Gauss-Legendre velocity grid, Sugama collision operator [@sugama2006],
+      response-matrix eigenvalue solver, mixing-length quasilinear fluxes.
+      Electromagnetic extension adds KBM [@tang1980] and microtearing
+      [@drake1977] modes via $A_\parallel$ and $\delta B_\parallel$.
+    - *External GK*: TGLF [@staebler2007], GENE [@jenko2000], GS2
+      [@kotschenreuther1995], CGYRO [@candy2003], QuaLiKiz [@bourdelle2007]
+      via subprocess with automatic input deck generation and output parsing.
+    - *Hybrid*: OOD detection (Mahalanobis + ensemble + range), spot-check
+      scheduling (periodic/adaptive/critical-region), multiplicative/additive
+      correction with EMA smoothing, online surrogate retraining with
+      validation holdout and rollback.
+- **Phase** (`scpn_control.phase`): Kuramoto-Sakaguchi stepper, UPDE
+  multi-layer solver, adaptive $K_{nm}$ engine with GK→UPDE bridge,
+  Lyapunov guard, WebSocket real-time monitor.
 - **SCPN** (`scpn_control.scpn`): SPN structure, compiler, contract system,
   artifact serialisation.
-- **Control** (`scpn_control.control`): $H_\infty$ (Riccati DARE), MPC with
-  neural surrogate, optimal control, SNN controller, disruption predictor
-  (transformer-based), SPI mitigation, digital twin, flight simulator,
-  Gymnasium environment, JAX-traceable runtime.
+- **Control** (`scpn_control.control`): $H_\infty$ (Riccati DARE),
+  $\mu$-synthesis (D-K iteration), NMPC (SQP), gain-scheduled PID,
+  shape controller, safe RL (PPO with MHD constraint veto), sliding-mode
+  vertical stability, scenario scheduler, fault-tolerant control, digital
+  twin, flight simulator, Gymnasium environment, JAX-traceable runtime.
 
-The Rust backend (`scpn-control-rs`, 5 crates) provides PyO3 bindings for the
-Grad-Shafranov solver, SNN pool, MPC controller, transport solver, and realtime
-monitor. All solvers automatically dispatch to the Rust backend when available,
-achieving a median kernel latency of 11.9 µs.
+The Rust backend (`scpn-control-rs`, 5 crates) provides PyO3 bindings for
+performance-critical paths, achieving a median kernel latency of 11.9 µs
+(Criterion-verified).
 
-JAX-accelerated transport primitives (`scpn_control.core.jax_solvers`) provide
-JIT-compiled, GPU-compatible Thomas tridiagonal solver and Crank-Nicolson
-diffusion operator with automatic differentiation support, enabling gradient-based
-sensitivity analysis and ensemble runs via `jax.vmap`. A JAX neural equilibrium
-accelerator (`scpn_control.core.jax_neural_equilibrium`) provides GPU-dispatched
-MLP + PCA inference for Grad-Shafranov equilibria with `jax.grad` support for
-adjoint-based shape optimisation. A JAX-differentiable fixed-boundary
-Grad-Shafranov solver (`scpn_control.core.jax_gs_solver`) implements the full
-Picard iteration via `jax.lax.fori_loop`, enabling `jax.grad` through the
-complete equilibrium solve — matching the autodiff depth of TORAX and FUSE.
-
-A QLKNN-10D neural transport model (`scpn_control.core.neural_transport`)
-trained on theory-based data [@plassche2020] provides millisecond-scale turbulent
-transport predictions as a drop-in replacement for the analytic model.
-A PPO agent trained on the Gymnasium-compatible `TokamakEnv` (500K timesteps,
-3 seeds) achieves mean reward 143.7, outperforming both 1-step MPC (58.1) and
-PID (-912.3) baselines with 0% disruption rate.
+A JAX-accelerated GK backend (`jax_gk_solver.py`) batches eigenvalue solves
+across the $k_y$ grid via `jax.vmap` and computes transport stiffness
+$d\chi_i / d(R/L_{T_i})$ analytically via `jax.grad`.
 
 # Validation
 
-The solver is validated against real DIII-D disruption shot data (17 shots covering
-H-mode, VDE, beta-limit, locked-mode, density-limit, tearing, and snowflake
-configurations), SPARC GEQDSK equilibria from CFS SPARCPublic, and the ITPA
-20-tokamak H-mode confinement database with IPB98(y,2) scaling law benchmarks.
-CI enforces <2% RMSE on pressure and safety-factor profiles via an automated
-RMSE gate.
+The solver is validated against:
 
-The test suite comprises 2,683 Python tests and 108 Rust tests across 26 CI jobs
-(Python 3.9--3.13 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo Loihi
-emulator, real DIII-D validation, tutorial smoke). Coverage gate is 99% (current: 100.0%, 10,142
-statements, 0 missed).
+- **Cyclone Base Case** [@dimits2000]: circular geometry ($R/a = 2.78$,
+  $q = 1.4$, $\hat{s} = 0.78$, $R/L_{T_i} = 6.9$), producing positive
+  ITG growth rates consistent with published benchmarks.
+- **SPARC/ITER equilibria**: RMSE-gated against CFS SPARCPublic GEQDSK files
+  and ITER design parameters.
+- **DIII-D disruption shots**: 17 synthetic shots covering H-mode, VDE,
+  beta-limit, locked-mode, density-limit, tearing, and snowflake
+  configurations.
+- **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS,
+  with bitwise fidelity on psi, pressure, and profile arrays.
+- **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
+
+The test suite comprises 3,061+ Python tests and 140+ Rust tests across 20 CI
+jobs (Python 3.10–3.13 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo
+Loihi emulator, CodeQL security analysis, OpenSSF Scorecard). Coverage gate
+is 99% (current: 100%).
+
+**Limitations**: the native GK solver is linearised (no nonlinear turbulence);
+the collision operator is simplified Sugama (pitch-angle only); external GK
+interfaces are mock-tested (no real Fortran binaries in CI); DIII-D shots use
+synthetic data, not real MDSplus archives. The neural equilibrium has not been
+cross-validated against P-EFIT on identical equilibria.
 
 # Acknowledgements
 
-We thank the CFS SPARCPublic team for SPARC equilibrium data and the ITPA
-H-mode confinement database contributors.
+We thank the CFS SPARCPublic team for SPARC equilibrium data, the ITPA
+H-mode confinement database contributors, and the GACODE, GENE, GS2, and
+QuaLiKiz development teams for their publicly documented input/output formats.
 
 # References
