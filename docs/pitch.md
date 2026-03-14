@@ -203,7 +203,7 @@ cd crates/control-python && maturin develop --release
 
 | | |
 |---|---|
-| **Open Source** | AGPL-3.0-or-later; commercial licensing available |
+| **Open Source** | AGPL-3.0-or-later (strong copyleft); commercial licensing available |
 | **Contact** | [protoscience@anulum.li](mailto:protoscience@anulum.li) |
 | **Organization** | ANULUM CH & LI |
 | **Authors** | Miroslav Sotek ([ORCID](https://orcid.org/0009-0009-3560-0851)) |

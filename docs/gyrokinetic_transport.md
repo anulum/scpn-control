@@ -97,12 +97,24 @@ fluxes = quasilinear_fluxes_from_spectrum(result, species[0], R0=2.78, a=1.0, B0
 print(f"chi_i = {fluxes.chi_i:.4f} m²/s, dominant: {fluxes.dominant_mode}")
 ```
 
+### Known Limitations
+
+- **Electrostatic only** — no A∥ or B∥ (no KBM, no microtearing)
+- **Collision operator**: pitch-angle scattering only (no energy diffusion,
+  no inter-species drag). Adequate for growth rate ordering, not for
+  quantitative collisional damping
+- **Adiabatic electrons**: kinetic electron path exists but not fully wired
+- **Resolution**: default (n_E=12, n_lambda=16) gives qualitative instability
+  detection. Quantitative γ within 20% of GENE/GS2 requires higher resolution
+  and is not yet benchmarked
+
 ### Validation
 
 Cyclone Base Case (Dimits et al., Phys. Plasmas 7, 969, 2000):
 - Circular geometry, R/a=2.78, q=1.4, s_hat=0.78, R/L_Ti=6.9
 - Produces positive γ_max with ITG classification
 - Reference data in `validation/reference_data/cyclone_base/`
+- **Not yet quantitatively benchmarked** against GENE/GS2 to 20% tolerance
 
 ## Path C: Hybrid Surrogate + GK Validation
 

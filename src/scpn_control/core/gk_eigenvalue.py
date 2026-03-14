@@ -304,7 +304,7 @@ def solve_linear_gk(
     if geom is None:
         geom = circular_geometry(R0=R0, a=a, q=q, s_hat=s_hat, B0=B0, n_theta=n_theta, n_period=n_period)
     if vgrid is None:
-        vgrid = VelocityGrid(n_energy=8, n_lambda=12)
+        vgrid = VelocityGrid(n_energy=12, n_lambda=16)
 
     # Ion-scale k_y grid (log-spaced)
     k_y_ion = np.logspace(np.log10(0.05), np.log10(2.0), n_ky_ion) if n_ky_ion > 0 else np.array([])

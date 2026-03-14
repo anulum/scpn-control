@@ -5,7 +5,7 @@
 ```python
 import scpn_control
 
-scpn_control.__version__       # "0.16.0"
+scpn_control.__version__       # "0.17.0"
 scpn_control.FusionKernel      # Grad-Shafranov equilibrium solver
 scpn_control.RUST_BACKEND      # True if Rust acceleration available
 scpn_control.TokamakConfig     # Preset tokamak geometries
@@ -114,6 +114,28 @@ baseline instead of only reporting synthetic training RMSE.
 ### Gyrokinetic Transport (v0.16.0)
 
 ::: scpn_control.core.gyrokinetic_transport.GyrokineticTransportModel
+
+### GK Solver Interface (v0.17.0)
+
+::: scpn_control.core.gk_interface.GKSolverBase
+
+::: scpn_control.core.gk_interface.GKLocalParams
+
+::: scpn_control.core.gk_interface.GKOutput
+
+### Native Linear GK Solver (v0.17.0)
+
+::: scpn_control.core.gk_eigenvalue.solve_linear_gk
+
+::: scpn_control.core.gk_quasilinear.quasilinear_fluxes_from_spectrum
+
+### GK Hybrid Validation (v0.17.0)
+
+::: scpn_control.core.gk_ood_detector.OODDetector
+
+::: scpn_control.core.gk_scheduler.GKScheduler
+
+::: scpn_control.core.gk_corrector.GKCorrector
 
 ### Ballooning Solver (v0.16.0)
 

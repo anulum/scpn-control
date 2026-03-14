@@ -10,7 +10,14 @@ Species definitions and collision operator for the linear GK solver.
 
 Velocity-space discretisation uses (energy, lambda) coordinates with
 Gauss-Legendre quadrature.  The collision operator implements a
-simplified Sugama model (pitch-angle scattering + energy diffusion).
+simplified Sugama model (pitch-angle scattering only).
+
+Limitations:
+  - Pitch-angle scattering only (no energy diffusion, no field-particle)
+  - No inter-species collisions (no electron-ion drag)
+  - Not the full linearised Fokker-Planck operator
+  These simplifications are adequate for ITG/TEM growth rate ordering
+  but not for quantitative collisional damping rates.
 
 References:
   - Sugama & Watanabe, Phys. Plasmas 13 (2006) 012501
