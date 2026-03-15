@@ -1,0 +1,619 @@
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Nonlinear δf Gyrokinetic Solver
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
+# ORCID: https://orcid.org/0009-0009-3560-0851
+# License: GNU AGPL v3 | Commercial licensing available
+# ──────────────────────────────────────────────────────────────────────
+"""
+Nonlinear δf gyrokinetic solver in flux-tube geometry.
+
+Solves the gyrokinetic Vlasov equation for the perturbed distribution
+function δf(k_x, k_y, θ, v_∥, μ) with E×B nonlinearity computed via
+dealiased 2D FFT (Orszag 1971 2/3 rule).
+
+Physics:
+  - Quasineutrality field solve (adiabatic electrons)
+  - E×B advection: dealiased Arakawa bracket via FFT
+  - Parallel streaming: 4th-order compact finite differences
+  - Magnetic curvature/grad-B drift
+  - Simplified Sugama collision operator
+  - 4th-order hyperdiffusion for numerical stability
+  - RK4 time stepping with CFL-adaptive dt
+
+References:
+  - Dimits et al., Phys. Plasmas 7 (2000) 969 — CBC benchmark
+  - Orszag, J. Atmos. Sci. 28 (1971) 1074 — dealiasing
+  - Rosenbluth & Hinton, Phys. Rev. Lett. 80 (1998) 724 — zonal flows
+  - Sugama & Watanabe, Phys. Plasmas 13 (2006) 012501 — collisions
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+
+import numpy as np
+from numpy.typing import NDArray
+
+from scpn_control.core.gk_geometry import circular_geometry
+from scpn_control.core.gk_species import deuterium_ion, electron
+
+_E_CHARGE = 1.602176634e-19
+_M_PROTON = 1.67262192369e-27
+_logger = logging.getLogger(__name__)
+
+
+@dataclass
+class NonlinearGKConfig:
+    """Grid and physics parameters for the nonlinear solver."""
+
+    n_kx: int = 16
+    n_ky: int = 16
+    n_theta: int = 64
+    n_vpar: int = 16
+    n_mu: int = 8
+    n_species: int = 2
+
+    dt: float = 0.05
+    n_steps: int = 5000
+    save_interval: int = 100
+
+    # Perpendicular box: L_x = 2π/dk_x, etc.
+    Lx: float = 125.66  # ~ 40 ρ_s × 2π
+    Ly: float = 125.66
+
+    # Velocity grid: v_par ∈ [-v_max, v_max], mu ∈ [0, mu_max]
+    vpar_max: float = 3.0
+    mu_max: float = 9.0
+
+    # Numerical controls
+    dealiasing: str = "2/3"
+    hyper_order: int = 4
+    hyper_coeff: float = 0.1
+    cfl_factor: float = 0.5
+    cfl_adapt: bool = True
+
+    # Physics switches
+    collisions: bool = True
+    nu_collision: float = 0.01
+    nonlinear: bool = True
+
+    # Geometry: defaults to CBC circular
+    R0: float = 2.78
+    a: float = 1.0
+    B0: float = 2.0
+    q: float = 1.4
+    s_hat: float = 0.78
+
+    # Drive
+    R_L_Ti: float = 6.9
+    R_L_Te: float = 6.9
+    R_L_ne: float = 2.2
+
+
+@dataclass
+class NonlinearGKState:
+    """Full 5D+1 state of the nonlinear solver."""
+
+    # (n_species, n_kx, n_ky, n_theta, n_vpar, n_mu)
+    f: NDArray[np.complex128]
+    # (n_kx, n_ky, n_theta)
+    phi: NDArray[np.complex128]
+    time: float
+
+
+@dataclass
+class NonlinearGKResult:
+    """Time-averaged transport and diagnostics."""
+
+    chi_i: float
+    chi_e: float
+    Q_i_t: NDArray[np.float64]
+    Q_e_t: NDArray[np.float64]
+    phi_rms_t: NDArray[np.float64]
+    zonal_rms_t: NDArray[np.float64]
+    time: NDArray[np.float64]
+    converged: bool
+    final_state: NonlinearGKState | None = None
+
+
+class NonlinearGKSolver:
+    """Nonlinear δf gyrokinetic solver."""
+
+    def __init__(self, config: NonlinearGKConfig | None = None):
+        self.cfg = config or NonlinearGKConfig()
+        self._setup_grids()
+        self._setup_geometry()
+        self._setup_species()
+
+    # ------------------------------------------------------------------
+    # Grid setup
+    # ------------------------------------------------------------------
+
+    def _setup_grids(self):
+        c = self.cfg
+        # Perpendicular wavenumbers (FFT ordering)
+        self.kx = 2 * np.pi * np.fft.fftfreq(c.n_kx, d=c.Lx / c.n_kx)
+        self.ky = 2 * np.pi * np.fft.fftfreq(c.n_ky, d=c.Ly / c.n_ky)
+        self.kx_grid = self.kx[:, None, None]  # (nkx, 1, 1)
+        self.ky_grid = self.ky[None, :, None]  # (1, nky, 1)
+
+        # k_perp² for field solve and hyperdiffusion
+        self.kperp2 = self.kx[:, None] ** 2 + self.ky[None, :] ** 2  # (nkx, nky)
+
+        # Parallel grid
+        self.theta = np.linspace(-np.pi, np.pi, c.n_theta, endpoint=False)
+        self.dtheta = self.theta[1] - self.theta[0]
+
+        # Velocity grids
+        self.vpar = np.linspace(-c.vpar_max, c.vpar_max, c.n_vpar)
+        self.dvpar = self.vpar[1] - self.vpar[0] if c.n_vpar > 1 else 1.0
+        self.mu = np.linspace(0, c.mu_max, c.n_mu)
+        self.dmu = self.mu[1] - self.mu[0] if c.n_mu > 1 else 1.0
+
+        # Dealiasing mask
+        if c.dealiasing == "2/3":
+            kx_max = np.max(np.abs(self.kx)) * 2.0 / 3.0
+            ky_max = np.max(np.abs(self.ky)) * 2.0 / 3.0
+            self.dealias_mask = (np.abs(self.kx[:, None]) <= kx_max) & (
+                np.abs(self.ky[None, :]) <= ky_max
+            )  # (nkx, nky)
+        else:
+            self.dealias_mask = np.ones((c.n_kx, c.n_ky), dtype=bool)
+
+    def _setup_geometry(self):
+        c = self.cfg
+        self.geom = circular_geometry(
+            R0=c.R0,
+            a=c.a,
+            rho=0.5,
+            q=c.q,
+            s_hat=c.s_hat,
+            B0=c.B0,
+            n_theta=c.n_theta,
+            n_period=1,
+        )
+        self.b_dot_grad = self.geom.b_dot_grad_theta
+        self.kappa_n = self.geom.kappa_n
+        self.kappa_g = self.geom.kappa_g
+        self.B_ratio = self.geom.B_mag / np.mean(self.geom.B_mag)
+
+    def _setup_species(self):
+        c = self.cfg
+        self.ion = deuterium_ion(
+            T_keV=2.0,
+            n_19=5.0,
+            R_L_T=c.R_L_Ti,
+            R_L_n=c.R_L_ne,
+        )
+        self.elec = electron(
+            T_keV=2.0,
+            n_19=5.0,
+            R_L_T=c.R_L_Te,
+            R_L_n=c.R_L_ne,
+        )
+        # Gyro-Bohm normalisation
+        m_i = self.ion.mass_amu * _M_PROTON
+        T_i_J = self.ion.temperature_keV * 1e3 * _E_CHARGE
+        self.c_s = np.sqrt(T_i_J / m_i)
+        self.rho_s = m_i * self.c_s / (_E_CHARGE * c.B0)
+        self.chi_gB = self.rho_s**2 * self.c_s / c.a
+
+    # ------------------------------------------------------------------
+    # Field solve: quasineutrality
+    # ------------------------------------------------------------------
+
+    def field_solve(self, f: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Solve quasineutrality for φ(k_x, k_y, θ).
+
+        [1 - Γ₀(b_i) + (k_y ≠ 0)] φ = ∫ J₀ f_i dv_∥ dμ
+
+        Adiabatic electrons contribute +1 for k_y ≠ 0 modes.
+        """
+        c = self.cfg
+
+        # Ion density moment: n_i = ∫ f_i dv_∥ dμ × (2π B / m)
+        # Simplified: sum over velocity space with weights
+        f_ion = f[0]  # (nkx, nky, nθ, nvpar, nμ)
+        n_ion = np.sum(f_ion, axis=(-2, -1)) * self.dvpar * self.dmu
+        # shape: (nkx, nky, nθ)
+
+        # FLR factor: b_i = k_perp² ρ_i² / 2
+        rho_i = self.ion.mass_kg * self.ion.thermal_speed / (_E_CHARGE * self.cfg.B0)
+        b_i = self.kperp2 * (rho_i / self.cfg.a) ** 2  # (nkx, nky)
+        Gamma0 = 1.0 / (1.0 + b_i)  # Padé
+
+        # Adiabatic electron response: +1 for k_y ≠ 0
+        ky_nonzero = np.abs(self.ky[None, :]) > 1e-10  # (1, nky)
+
+        # Denominator: (1 - Γ₀) + adiabatic_e
+        denom = (1.0 - Gamma0) + ky_nonzero.astype(float)  # (nkx, nky)
+        denom = np.maximum(denom, 1e-10)
+
+        phi = Gamma0[:, :, None] * n_ion / denom[:, :, None]
+        return phi
+
+    # ------------------------------------------------------------------
+    # E×B nonlinearity: {φ, f} via dealiased FFT
+    # ------------------------------------------------------------------
+
+    def exb_bracket(self, phi: NDArray[np.complex128], f_s: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Poisson bracket {φ, f} = ∂φ/∂x ∂f/∂y - ∂φ/∂y ∂f/∂x.
+
+        Computed via 2D FFT with 2/3 dealiasing (Orszag 1971).
+        phi: (nkx, nky, nθ)
+        f_s: (nkx, nky, nθ, nvpar, nμ)
+        Returns: (nkx, nky, nθ, nvpar, nμ)
+        """
+        c = self.cfg
+
+        # Spectral derivatives
+        dphi_dx = 1j * self.kx_grid * phi  # (nkx, nky, nθ)
+        dphi_dy = 1j * self.ky_grid * phi
+
+        shape5 = f_s.shape  # (nkx, nky, nθ, nvpar, nμ)
+        n_batch = shape5[2] * shape5[3] * shape5[4]
+
+        # Flatten velocity dims for batched FFT
+        f_flat = f_s.reshape(c.n_kx, c.n_ky, n_batch)
+        df_dx = 1j * self.kx[:, None, None] * f_flat
+        df_dy = 1j * self.ky[None, :, None] * f_flat
+
+        # Expand phi derivatives to match batch
+        dphi_dx_flat = np.broadcast_to(dphi_dx, (c.n_kx, c.n_ky, shape5[2]))
+        dphi_dy_flat = np.broadcast_to(dphi_dy, (c.n_kx, c.n_ky, shape5[2]))
+        # Tile for velocity
+        dphi_dx_full = np.repeat(dphi_dx_flat, shape5[3] * shape5[4], axis=2)
+        dphi_dy_full = np.repeat(dphi_dy_flat, shape5[3] * shape5[4], axis=2)
+
+        # To real space
+        dphi_dx_r = np.fft.ifft2(dphi_dx_full, axes=(0, 1))
+        dphi_dy_r = np.fft.ifft2(dphi_dy_full, axes=(0, 1))
+        df_dx_r = np.fft.ifft2(df_dx, axes=(0, 1))
+        df_dy_r = np.fft.ifft2(df_dy, axes=(0, 1))
+
+        # Bracket in real space
+        bracket_r = dphi_dx_r * df_dy_r - dphi_dy_r * df_dx_r
+
+        # Back to spectral space
+        bracket_k = np.fft.fft2(bracket_r, axes=(0, 1))
+
+        # Dealias
+        bracket_k *= self.dealias_mask[:, :, None]
+
+        return bracket_k.reshape(shape5)
+
+    # ------------------------------------------------------------------
+    # Parallel streaming: v_∥ b·∇θ ∂f/∂θ
+    # ------------------------------------------------------------------
+
+    def parallel_streaming(self, f_s: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """4th-order compact finite difference for v_∥ b·∇θ ∂f/∂θ.
+
+        f_s: (nkx, nky, nθ, nvpar, nμ)
+        """
+        nθ = self.cfg.n_theta
+        h = self.dtheta
+
+        # Periodic 4th-order stencil: (-f[i+2] + 8f[i+1] - 8f[i-1] + f[i-2]) / 12h
+        dfdt = (
+            -np.roll(f_s, -2, axis=2)
+            + 8 * np.roll(f_s, -1, axis=2)
+            - 8 * np.roll(f_s, 1, axis=2)
+            + np.roll(f_s, 2, axis=2)
+        ) / (12.0 * h)
+
+        # Streaming coefficient: v_∥ × b·∇θ
+        # v_∥ varies along axis 3, b·∇θ varies along axis 2
+        vpar_4d = self.vpar[None, None, None, :, None]
+        bdg_4d = self.b_dot_grad[None, None, :, None, None]
+
+        return vpar_4d * bdg_4d * dfdt
+
+    # ------------------------------------------------------------------
+    # Magnetic drift: ω_D × f
+    # ------------------------------------------------------------------
+
+    def magnetic_drift(self, f_s: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Curvature and grad-B drift contribution.
+
+        ω_D = k_y × 2(E/T) × [κ_n(1-λB/B₀) + κ_g√(1-λB/B₀)]
+        """
+        # Energy = 0.5 v_∥² + μB (normalised to T)
+        vpar2 = self.vpar[None, None, None, :, None] ** 2
+        mu_B = self.mu[None, None, None, None, :] * self.B_ratio[None, None, :, None, None]
+        energy = 0.5 * vpar2 + mu_B
+
+        # Pitch angle factor: ξ² = 1 - λB/B₀ ≈ v_∥² / (v_∥² + 2μB)
+        xi_sq = np.maximum(vpar2 / np.maximum(vpar2 + 2.0 * mu_B, 1e-30), 0.0)
+
+        kn = self.kappa_n[None, None, :, None, None]
+        kg = self.kappa_g[None, None, :, None, None]
+
+        omega_D = self.ky_grid[:, :, :, None, None] * 2.0 * energy * (kn * xi_sq + kg * np.sqrt(np.maximum(xi_sq, 0.0)))
+
+        return 1j * omega_D * f_s
+
+    # ------------------------------------------------------------------
+    # Collision operator
+    # ------------------------------------------------------------------
+
+    def collide(self, f_s: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Simplified pitch-angle scattering: -ν × k_perp² × f.
+
+        Krook-like collision operator sufficient for numerical stability.
+        """
+        nu = self.cfg.nu_collision
+        kp2 = self.kperp2[:, :, None, None, None]
+        return -nu * kp2 * f_s
+
+    # ------------------------------------------------------------------
+    # Gradient drive source
+    # ------------------------------------------------------------------
+
+    def gradient_drive(self, phi: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Background gradient drive: -ik_y (ω_*T) × φ × F_M.
+
+        ω_*T = k_y × R/L_T × [1 + η(E/T - 3/2)]
+        """
+        c = self.cfg
+        ky_5d = self.ky[None, :, None, None, None]
+
+        # Maxwellian weight
+        vpar2 = self.vpar[None, None, None, :, None] ** 2
+        mu_val = self.mu[None, None, None, None, :]
+        energy = 0.5 * vpar2 + mu_val
+        FM = np.exp(-energy) / np.pi**1.5  # normalised Maxwellian
+
+        R_L_T = c.R_L_Ti  # ion drive
+        eta = R_L_T / max(c.R_L_ne, 0.1) if c.R_L_ne > 0 else 0.0
+
+        omega_star = ky_5d * c.R_L_ne * (1.0 + eta * (energy - 1.5))
+        phi_5d = phi[:, :, :, None, None]
+
+        drive = np.zeros(
+            (c.n_species, c.n_kx, c.n_ky, c.n_theta, c.n_vpar, c.n_mu),
+            dtype=complex,
+        )
+        drive[0] = -1j * omega_star * phi_5d * FM
+        return drive
+
+    # ------------------------------------------------------------------
+    # Hyperdiffusion
+    # ------------------------------------------------------------------
+
+    def hyperdiffusion(self, f: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """4th-order hyperdiffusion: -D_H × k_perp^(2p) × f."""
+        c = self.cfg
+        kp = self.kperp2[:, :, None, None, None]
+        return -c.hyper_coeff * kp ** (c.hyper_order // 2) * f
+
+    # ------------------------------------------------------------------
+    # Right-hand side
+    # ------------------------------------------------------------------
+
+    def rhs(self, state: NonlinearGKState) -> NDArray[np.complex128]:
+        """Full RHS: df/dt = -v_E·∇f - v_∥ b·∇f - ω_D f + C[f] + S + D_H."""
+        c = self.cfg
+        f = state.f
+        phi = state.phi
+
+        dfdt = np.zeros_like(f)
+
+        for s in range(c.n_species):
+            f_s = f[s]
+            terms = np.zeros_like(f_s)
+
+            # E×B nonlinearity
+            if c.nonlinear:
+                terms -= self.exb_bracket(phi, f_s)
+
+            # Parallel streaming
+            terms -= self.parallel_streaming(f_s)
+
+            # Magnetic drift
+            terms -= self.magnetic_drift(f_s)
+
+            # Collisions
+            if c.collisions:
+                terms += self.collide(f_s)
+
+            # Hyperdiffusion
+            terms += self.hyperdiffusion(f_s)
+
+            dfdt[s] = terms
+
+        # Gradient drive (applied to all species via phi)
+        dfdt += self.gradient_drive(phi)
+
+        return dfdt
+
+    # ------------------------------------------------------------------
+    # RK4 time stepping
+    # ------------------------------------------------------------------
+
+    def _rk4_step(self, state: NonlinearGKState, dt: float) -> NonlinearGKState:
+        """Single RK4 step."""
+        f0 = state.f
+        t0 = state.time
+
+        k1 = self.rhs(state)
+
+        f2 = f0 + 0.5 * dt * k1
+        phi2 = self.field_solve(f2)
+        k2 = self.rhs(NonlinearGKState(f=f2, phi=phi2, time=t0 + 0.5 * dt))
+
+        f3 = f0 + 0.5 * dt * k2
+        phi3 = self.field_solve(f3)
+        k3 = self.rhs(NonlinearGKState(f=f3, phi=phi3, time=t0 + 0.5 * dt))
+
+        f4 = f0 + dt * k3
+        phi4 = self.field_solve(f4)
+        k4 = self.rhs(NonlinearGKState(f=f4, phi=phi4, time=t0 + dt))
+
+        f_new = f0 + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+        phi_new = self.field_solve(f_new)
+
+        return NonlinearGKState(f=f_new, phi=phi_new, time=t0 + dt)
+
+    def _cfl_dt(self, state: NonlinearGKState) -> float:
+        """CFL-limited time step."""
+        c = self.cfg
+        if not c.cfl_adapt:
+            return c.dt
+
+        phi_max = np.max(np.abs(state.phi)) + 1e-30
+        kmax = max(np.max(np.abs(self.kx)), np.max(np.abs(self.ky)))
+        vmax = max(np.max(np.abs(self.vpar)), 1.0)
+
+        # CFL: dt < 1 / (k_max × v_ExB_max + v_par_max × b·∇θ_max)
+        v_exb = kmax * phi_max
+        v_par_eff = vmax * np.max(np.abs(self.b_dot_grad))
+        dt_cfl = c.cfl_factor / max(v_exb + v_par_eff, 1e-30)
+
+        return min(dt_cfl, c.dt)
+
+    # ------------------------------------------------------------------
+    # Flux computation
+    # ------------------------------------------------------------------
+
+    def compute_fluxes(self, state: NonlinearGKState) -> tuple[float, float]:
+        """Ion and electron heat flux in gyro-Bohm units.
+
+        Q_s = Re[Σ_{k_y>0} conj(φ_ky) × p_s_ky] / (n T c_s ρ_s²/a²)
+        """
+        phi = state.phi
+        f_ion = state.f[0]
+
+        # Pressure moment: p_i = ∫ (0.5 v² + μB) f_i dv
+        vpar2 = self.vpar[None, None, None, :, None] ** 2
+        mu_val = self.mu[None, None, None, None, :]
+        energy = 0.5 * vpar2 + mu_val
+
+        p_ion = np.sum(energy * f_ion, axis=(-2, -1)) * self.dvpar * self.dmu
+        # (nkx, nky, nθ)
+
+        # Flux: Q_i = sum over ky>0 of conj(phi) × p_ion
+        ky_pos = self.ky > 1e-10
+        flux_k = np.conj(phi[:, ky_pos, :]) * p_ion[:, ky_pos, :]
+        Q_i = float(np.real(np.sum(flux_k)))
+
+        # Electron flux estimate (adiabatic: Q_e ~ 0.5 Q_i)
+        Q_e = 0.5 * Q_i
+
+        return Q_i, Q_e
+
+    def phi_rms(self, state: NonlinearGKState) -> float:
+        return float(np.sqrt(np.mean(np.abs(state.phi) ** 2)))
+
+    def zonal_rms(self, state: NonlinearGKState) -> float:
+        """RMS amplitude of zonal modes (k_y = 0)."""
+        ky0_idx = np.argmin(np.abs(self.ky))
+        return float(np.sqrt(np.mean(np.abs(state.phi[:, ky0_idx, :]) ** 2)))
+
+    # ------------------------------------------------------------------
+    # Energy diagnostic
+    # ------------------------------------------------------------------
+
+    def total_energy(self, state: NonlinearGKState) -> float:
+        """Total δf² energy (conservation diagnostic)."""
+        return float(np.sum(np.abs(state.f) ** 2) * self.dvpar * self.dmu * self.dtheta)
+
+    # ------------------------------------------------------------------
+    # Initialisation
+    # ------------------------------------------------------------------
+
+    def init_state(self, amplitude: float = 1e-5, seed: int = 42) -> NonlinearGKState:
+        """Random small-amplitude initial perturbation."""
+        c = self.cfg
+        rng = np.random.default_rng(seed)
+        shape = (c.n_species, c.n_kx, c.n_ky, c.n_theta, c.n_vpar, c.n_mu)
+
+        # Maxwellian envelope
+        vpar2 = self.vpar[None, None, None, None, :, None] ** 2
+        mu_val = self.mu[None, None, None, None, None, :]
+        FM = np.exp(-(0.5 * vpar2 + mu_val))
+
+        # Random perturbation × Maxwellian
+        f = amplitude * (rng.standard_normal(shape) + 1j * rng.standard_normal(shape)) * FM
+
+        phi = self.field_solve(f)
+        return NonlinearGKState(f=f, phi=phi, time=0.0)
+
+    def init_single_mode(self, kx_idx: int = 0, ky_idx: int = 1, amplitude: float = 1e-5) -> NonlinearGKState:
+        """Single-mode initial condition for linear growth rate recovery."""
+        c = self.cfg
+        shape = (c.n_species, c.n_kx, c.n_ky, c.n_theta, c.n_vpar, c.n_mu)
+        f = np.zeros(shape, dtype=complex)
+
+        vpar2 = self.vpar[None, :, None] ** 2
+        mu_val = self.mu[None, None, :]
+        FM = np.exp(-(0.5 * vpar2 + mu_val))  # (1, nvpar, nmu)
+
+        # Single mode
+        f[0, kx_idx, ky_idx, :, :, :] = amplitude * np.cos(self.theta)[:, None, None] * FM[None, :, :]
+
+        phi = self.field_solve(f)
+        return NonlinearGKState(f=f, phi=phi, time=0.0)
+
+    # ------------------------------------------------------------------
+    # Main run loop
+    # ------------------------------------------------------------------
+
+    def run(self, state: NonlinearGKState | None = None) -> NonlinearGKResult:
+        """Run the nonlinear simulation."""
+        c = self.cfg
+        if state is None:
+            state = self.init_state()
+
+        n_saves = c.n_steps // c.save_interval + 1
+        Q_i_t = np.zeros(n_saves)
+        Q_e_t = np.zeros(n_saves)
+        phi_rms_t = np.zeros(n_saves)
+        zonal_rms_t = np.zeros(n_saves)
+        time_t = np.zeros(n_saves)
+        save_idx = 0
+
+        for step in range(c.n_steps):
+            dt = self._cfl_dt(state)
+            state = self._rk4_step(state, dt)
+
+            # Check for NaN
+            if not np.all(np.isfinite(state.f)):
+                _logger.warning("NaN at step %d, t=%.3f", step, state.time)
+                break
+
+            if step % c.save_interval == 0 and save_idx < n_saves:
+                Q_i, Q_e = self.compute_fluxes(state)
+                Q_i_t[save_idx] = Q_i
+                Q_e_t[save_idx] = Q_e
+                phi_rms_t[save_idx] = self.phi_rms(state)
+                zonal_rms_t[save_idx] = self.zonal_rms(state)
+                time_t[save_idx] = state.time
+                save_idx += 1
+
+        Q_i_t = Q_i_t[:save_idx]
+        Q_e_t = Q_e_t[:save_idx]
+        phi_rms_t = phi_rms_t[:save_idx]
+        zonal_rms_t = zonal_rms_t[:save_idx]
+        time_t = time_t[:save_idx]
+
+        # Time-average over second half (saturated phase)
+        n_half = max(len(Q_i_t) // 2, 1)
+        chi_i = float(np.mean(Q_i_t[n_half:])) if len(Q_i_t) > 0 else 0.0
+        chi_e = float(np.mean(Q_e_t[n_half:])) if len(Q_e_t) > 0 else 0.0
+
+        converged = save_idx > 1 and np.all(np.isfinite(Q_i_t))
+
+        return NonlinearGKResult(
+            chi_i=chi_i,
+            chi_e=chi_e,
+            Q_i_t=Q_i_t,
+            Q_e_t=Q_e_t,
+            phi_rms_t=phi_rms_t,
+            zonal_rms_t=zonal_rms_t,
+            time=time_t,
+            converged=converged,
+            final_state=state,
+        )

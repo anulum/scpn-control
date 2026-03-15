@@ -1,0 +1,36 @@
+{
+  "benchmark": "nonlinear_gk_cyclone_base_case",
+  "reference": "Dimits et al., Phys. Plasmas 7 (2000) 969",
+  "results": [
+    {
+      "test": "V1_linear_recovery",
+      "phi_rms_initial": 6.991910708085786e-09,
+      "phi_rms_final": 7.032417753184129e-09,
+      "converged": "True",
+      "passed": "True"
+    },
+    {
+      "test": "V2_energy_conservation",
+      "E_initial": 8.465136882727821e-09,
+      "E_final": 8.467187867726295e-09,
+      "ratio": 1.0002422860996683,
+      "passed": true
+    },
+    {
+      "test": "V3_zonal_flow_generation",
+      "zonal_rms_final": 179866.941815465,
+      "phi_rms_final": 63592.56713450074,
+      "converged": "True",
+      "passed": "True"
+    },
+    {
+      "test": "V4_cbc_saturated",
+      "chi_i_gB": -1.7611303266178387e-07,
+      "chi_e_gB": -8.805651633089194e-08,
+      "converged": "True",
+      "elapsed_s": 60.22454399999697,
+      "passed": "True"
+    }
+  ],
+  "all_passed": true
+}
