@@ -128,6 +128,7 @@ class NonlinearGKSolver:
     def __init__(self, config: NonlinearGKConfig | None = None):
         self.cfg = config or NonlinearGKConfig()
         self._setup_grids()
+        self._setup_ballooning()
         self._setup_geometry()
         self._setup_species()
 
@@ -165,6 +166,51 @@ class NonlinearGKSolver:
             )  # (nkx, nky)
         else:
             self.dealias_mask = np.ones((c.n_kx, c.n_ky), dtype=bool)
+
+    def _setup_ballooning(self):
+        """Precompute phase factors for ballooning connection BC.
+
+        At θ boundaries, kx shifts by ±s_hat × ky per poloidal turn:
+        f(kx, ky, θ+2π) = f(kx + s_hat·ky, ky, θ).
+        Implemented via FFT → phase multiply → IFFT in the x direction.
+        """
+        c = self.cfg
+        x = np.arange(c.n_kx) * c.Lx / c.n_kx
+        delta_kx = c.s_hat * self.ky  # (n_ky,)
+        # Forward: kx → kx + s_hat·ky (continuing past θ_max)
+        self._ball_phase_fwd = np.exp(1j * delta_kx[None, :] * x[:, None])
+        # Backward: kx → kx - s_hat·ky (continuing past θ_min)
+        self._ball_phase_bwd = np.conj(self._ball_phase_fwd)
+
+    def _apply_kx_shift(self, f_slice: NDArray[np.complex128], phase: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Shift kx via IFFT → phase × → FFT for one θ slice.
+
+        f_slice: (n_kx, n_ky, n_vpar, n_mu)
+        phase:   (n_kx, n_ky) — exp(±i s_hat ky x)
+        """
+        shape = f_slice.shape
+        n_batch = shape[2] * shape[3] if len(shape) == 4 else 1
+        f_flat = f_slice.reshape(self.cfg.n_kx, self.cfg.n_ky, n_batch)
+        f_x = np.fft.ifft(f_flat, axis=0)
+        f_x *= phase[:, :, None]
+        return np.fft.fft(f_x, axis=0).reshape(shape)
+
+    def _roll_ballooning(self, f_s: NDArray[np.complex128], shift: int) -> NDArray[np.complex128]:
+        """Roll along θ (axis 2) with ballooning kx shift at boundaries."""
+        rolled = np.roll(f_s, shift, axis=2)
+        n_theta = self.cfg.n_theta
+
+        if shift > 0:
+            # Backward wrap: θ_min accessed past θ_max → kx - s_hat·ky
+            for j in range(shift):
+                rolled[:, :, j] = self._apply_kx_shift(rolled[:, :, j], self._ball_phase_bwd)
+        elif shift < 0:
+            # Forward wrap: θ_max accessed past θ_min → kx + s_hat·ky
+            for j in range(abs(shift)):
+                idx = n_theta - 1 - j
+                rolled[:, :, idx] = self._apply_kx_shift(rolled[:, :, idx], self._ball_phase_fwd)
+
+        return rolled
 
     def _setup_geometry(self):
         c = self.cfg
@@ -297,19 +343,19 @@ class NonlinearGKSolver:
     # ------------------------------------------------------------------
 
     def parallel_streaming(self, f_s: NDArray[np.complex128]) -> NDArray[np.complex128]:
-        """4th-order compact finite difference for v_∥ b·∇θ ∂f/∂θ.
+        """4th-order FD for v_∥ b·∇θ ∂f/∂θ with ballooning connection BC.
 
+        At θ boundaries, kx shifts by ±s_hat×ky per poloidal turn.
         f_s: (nkx, nky, nθ, nvpar, nμ)
         """
-        nθ = self.cfg.n_theta
         h = self.dtheta
 
-        # Periodic 4th-order stencil: (-f[i+2] + 8f[i+1] - 8f[i-1] + f[i-2]) / 12h
+        # 4th-order stencil with ballooning-connected rolls at θ boundaries
         dfdt = (
-            -np.roll(f_s, -2, axis=2)
-            + 8 * np.roll(f_s, -1, axis=2)
-            - 8 * np.roll(f_s, 1, axis=2)
-            + np.roll(f_s, 2, axis=2)
+            -self._roll_ballooning(f_s, -2)
+            + 8 * self._roll_ballooning(f_s, -1)
+            - 8 * self._roll_ballooning(f_s, 1)
+            + self._roll_ballooning(f_s, 2)
         ) / (12.0 * h)
 
         # Streaming coefficient: v_∥ × b·∇θ
