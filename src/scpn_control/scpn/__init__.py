@@ -25,6 +25,13 @@ from scpn_control.scpn.contracts import (
     extract_features,
 )
 from scpn_control.scpn.controller import NeuroSymbolicController
+from scpn_control.scpn.fpga_export import (
+    FPGAConfig,
+    compile_to_verilog,
+    compile_to_vhdl,
+    estimate_resources,
+    export_bitstream_project,
+)
 from scpn_control.scpn.structure import StochasticPetriNet
 
 __all__ = [
@@ -42,4 +49,9 @@ __all__ = [
     "save_artifact",
     "get_artifact_json_schema",
     "NeuroSymbolicController",
+    "FPGAConfig",
+    "compile_to_verilog",
+    "compile_to_vhdl",
+    "estimate_resources",
+    "export_bitstream_project",
 ]
