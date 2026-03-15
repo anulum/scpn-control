@@ -1,0 +1,31 @@
+{
+  "gpu": "Quadro RTX 6000 24GB (JarvisLabs)",
+  "linear_cbc": {
+    "gamma_max": 0.3916,
+    "k_y_max": 0.358,
+    "elapsed_s": 0.1
+  },
+  "tglf_native": {
+    "chi_i": 84.4968,
+    "chi_e": 84.4969,
+    "mode": "ITG",
+    "elapsed_s": 0.1
+  },
+  "numpy_16x16x64x16x8": {
+    "per_step_s": 4.86,
+    "projected_5000_s": 24297
+  },
+  "jax_16x16x64x16x8": {
+    "per_step_s": 0.079,
+    "projected_5000_s": 394,
+    "speedup_vs_numpy": 61.7,
+    "nan_at_step": 44,
+    "note": "NaN at step 44 \u2014 dt=0.02 too large for JAX precision; needs CFL or smaller dt"
+  },
+  "summary": {
+    "jax_speedup": "61.7x over NumPy",
+    "numpy_5000_steps": "~405 min (6.75 hr)",
+    "jax_5000_steps": "~6.6 min",
+    "stability_issue": "JAX NaN at step 44 \u2014 CFL-adaptive dt or reduced dt needed"
+  }
+}

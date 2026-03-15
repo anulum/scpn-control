@@ -200,6 +200,11 @@ class NonlinearGKSolver:
         self.rho_s = m_i * self.c_s / (_E_CHARGE * c.B0)
         self.chi_gB = self.rho_s**2 * self.c_s / c.a
 
+        # ρ_i/ρ_s for correct FLR normalisation (k_y in ρ_s units)
+        self.rho_ratio = np.sqrt(
+            2.0 * self.ion.temperature_keV / max(self.elec.temperature_keV, 0.01)
+        )
+
     # ------------------------------------------------------------------
     # Field solve: quasineutrality
     # ------------------------------------------------------------------
@@ -219,10 +224,9 @@ class NonlinearGKSolver:
         n_ion = np.sum(f_ion, axis=(-2, -1)) * self.dvpar * self.dmu
         # shape: (nkx, nky, nθ)
 
-        # FLR factor: b_i = k_perp² ρ_i² / 2
-        rho_i = self.ion.mass_kg * self.ion.thermal_speed / (_E_CHARGE * self.cfg.B0)
-        b_i = self.kperp2 * (rho_i / self.cfg.a) ** 2  # (nkx, nky)
-        Gamma0 = 1.0 / (1.0 + b_i)  # Padé
+        # FLR: b_i = k_perp² (ρ_i/ρ_s)² / 2  (k in ρ_s units)
+        b_i = 0.5 * self.kperp2 * self.rho_ratio**2
+        Gamma0 = 1.0 / (1.0 + b_i)
 
         # Adiabatic electron response: +1 for k_y ≠ 0
         ky_nonzero = np.abs(self.ky[None, :]) > 1e-10  # (1, nky)
@@ -232,6 +236,8 @@ class NonlinearGKSolver:
         denom = np.maximum(denom, 1e-10)
 
         phi = Gamma0[:, :, None] * n_ion / denom[:, :, None]
+        # (kx=0, ky=0) is the equilibrium mode — excluded in δf formulation
+        phi[0, 0, :] = 0.0
         return phi
 
     # ------------------------------------------------------------------

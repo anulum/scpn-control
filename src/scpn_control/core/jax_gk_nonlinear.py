@@ -81,12 +81,15 @@ class JaxNonlinearGKSolver:
         f_ion = f[0]
         n_ion = jnp.sum(f_ion, axis=(-2, -1)) * self._np_solver.dvpar * self._np_solver.dmu
 
-        rho_i = self._np_solver.ion.mass_kg * self._np_solver.ion.thermal_speed / (1.602176634e-19 * c.B0)
-        b_i = self._kperp2_j * (rho_i / c.a) ** 2
+        rr = self._np_solver.rho_ratio  # ρ_i/ρ_s
+        b_i = 0.5 * self._kperp2_j * rr**2
         Gamma0 = 1.0 / (1.0 + b_i)
         ky_nonzero = (jnp.abs(self._ky_j[None, :]) > 1e-10).astype(float)
         denom = jnp.maximum((1.0 - Gamma0) + ky_nonzero, 1e-10)
-        return Gamma0[:, :, None] * n_ion / denom[:, :, None]
+        phi = Gamma0[:, :, None] * n_ion / denom[:, :, None]
+        # (kx=0, ky=0) = equilibrium mode, excluded in δf
+        phi = phi.at[0, 0, :].set(0.0)
+        return phi
 
     # ------------------------------------------------------------------
     # JAX E×B bracket
@@ -217,7 +220,14 @@ class JaxNonlinearGKSolver:
 
         f = jnp.array(state.f)
         t = state.time
-        dt = c.dt
+
+        # Pre-compute CFL ceiling from grid parameters
+        kmax = max(
+            float(jnp.max(jnp.abs(self._kx_j))),
+            float(jnp.max(jnp.abs(self._ky_j))),
+        )
+        vmax = float(jnp.max(jnp.abs(self._vpar_j)))
+        bdg_max = float(jnp.max(jnp.abs(self._b_dot_grad_j)))
 
         n_saves = c.n_steps // c.save_interval + 1
         Q_i_list = []
@@ -227,6 +237,14 @@ class JaxNonlinearGKSolver:
         time_list = []
 
         for step in range(c.n_steps):
+            # CFL-adaptive dt
+            phi = self._jax_field_solve(f)
+            phi_max = float(jnp.max(jnp.abs(phi))) + 1e-30
+            v_exb = kmax * phi_max
+            v_par_eff = vmax * bdg_max
+            dt_cfl = c.cfl_factor / max(v_exb + v_par_eff, 1e-30)
+            dt = min(dt_cfl, c.dt)
+
             f = self._jax_rk4_step(f, dt)
             t += dt
 
