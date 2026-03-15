@@ -258,138 +258,140 @@ def solve_eigenvalue_single_ky(
 ) -> EigenMode:
     """Solve the linear GK eigenvalue problem at a single k_y.
 
-    Uses the response-matrix formulation: for each (E, lambda) pair,
-    build the theta-space response to phi(theta), then assemble the
-    quasineutrality equation into a matrix eigenvalue problem for phi.
+    Local dispersion relation at outboard midplane (θ=0) with
+    velocity-space resonant integral and Newton root-finding:
+    D(ω) = QN_denom - Σ_vel F_M J₀² ω_*/(ω - ω_D + iν) = 0
 
-    When electromagnetic=True, the dispersion matrix includes:
-      - A_parallel (parallel vector potential) contribution via Ampere's law
-      - KBM drive proportional to beta_e * alpha_MHD (ballooning)
-      - MTM drive proportional to beta_e * omega_*Te * nu_ei (tearing)
-    At beta_e=0, the electromagnetic path reproduces the electrostatic result.
+    EM correction: KBM/MTM drives applied multiplicatively.
     """
     n_theta = len(geom.theta)
     B_ratio = geom.B_mag / np.mean(geom.B_mag)
     ion = species_list[0]
+    has_kinetic_e = any(not s.is_adiabatic and s.charge_e < 0 for s in species_list)
 
-    # Adiabatic electron response
-    has_kinetic_electrons = any(not s.is_adiabatic and s.charge_e < 0 for s in species_list)
+    omega_star_n, omega_star_T = _diamagnetic_frequency(k_y_rho_s, ion, R0, a)
+    eta_i = omega_star_T / max(abs(omega_star_n), 1e-10) if omega_star_n != 0 else 0.0
 
-    # Build ion response matrix: R_i(theta, theta') such that
-    # integral{ g_i J_0 d^3v } = R_i . phi
-    R_ion = np.zeros((n_theta, n_theta), dtype=complex)
+    # ρ_i/ρ_s = √(2 T_i/T_e)
+    T_e_keV = species_list[1].temperature_keV if len(species_list) > 1 else ion.temperature_keV
+    rho_ratio = np.sqrt(2.0 * ion.temperature_keV / max(T_e_keV, 0.01))
 
-    omega_star_n_i, omega_star_T_i = _diamagnetic_frequency(k_y_rho_s, ion, R0, a)
+    nu_D, _ = collision_frequencies(ion, ion.density_19, ion.temperature_keV, Z_eff)
+    # collision_frequencies returns SI (1/s); normalise to c_s/R reference
+    c_s = np.sqrt(T_e_keV * 1e3 * _E_CHARGE / ion.mass_kg)
+    omega_ref = c_s / max(R0, 0.01)
+    nu_norm = nu_D * nu_star / max(omega_ref, 1.0)
+    # Floor at 0.03 so the Landau resonance is resolved on the finite velocity grid
+    nu_eff = max(nu_norm, 0.03)
 
-    for ie in range(vgrid.n_energy):
-        E_norm = vgrid.energy[ie]
-        w_E = vgrid.energy_weights[ie]
-        # Maxwellian weight: (2/sqrt(pi)) * sqrt(E) * exp(-E) * w_E
-        fm_weight = (2.0 / np.sqrt(np.pi)) * np.sqrt(E_norm) * np.exp(-E_norm) * w_E
+    # FLR Padé: b_i = (k_y_rho_s × ρ_i/ρ_s)² / 2
+    b_i = 0.5 * (k_y_rho_s * rho_ratio) ** 2
+    Gamma0 = 1.0 / (1.0 + b_i)
+    qn_denom = (1.0 - Gamma0) + (1.0 if not has_kinetic_e else 0.0)
+    qn_denom = max(qn_denom, 1e-10)
 
-        for il in range(vgrid.n_lambda):
-            lam_val = vgrid.lam[il]
-            w_lam = vgrid.lambda_weights[il]
+    # Outboard midplane: θ closest to 0
+    theta0 = int(np.argmin(np.abs(geom.theta)))
+    kn0 = geom.kappa_n[theta0]
+    B0_rat = B_ratio[theta0]
 
-            # FLR: k_perp * rho_i * sqrt(2 * lambda * E)
-            rho_i_over_a = ion.mass_kg * ion.thermal_speed / (abs(ion.charge_e) * _E_CHARGE * B0) / a
-            b_arg = k_y_rho_s * rho_i_over_a * np.sqrt(2.0 * lam_val * E_norm) * np.ones(n_theta)
-            J0_val = bessel_j0(b_arg)
+    n_E, n_lam = vgrid.n_energy, vgrid.n_lambda
+    n_vel = n_E * n_lam
 
-            # Drift frequency
-            omega_D = _drift_frequency(k_y_rho_s, geom, E_norm, lam_val, B_ratio)
+    fm_v = np.zeros(n_vel)
+    ws_v = np.zeros(n_vel)
+    wd_v = np.zeros(n_vel)
+    j0sq_v = np.zeros(n_vel)
 
-            # Diamagnetic frequency with temperature gradient
-            eta_i = omega_star_T_i / max(abs(omega_star_n_i), 1e-10) if omega_star_n_i != 0 else 0.0
-            omega_star_full = omega_star_n_i * (1.0 + eta_i * (E_norm - 1.5))
+    for ie in range(n_E):
+        E = vgrid.energy[ie]
+        wE = vgrid.energy_weights[ie]
+        fm = (2.0 / np.sqrt(np.pi)) * np.sqrt(E) * np.exp(-E) * wE
+        for il in range(n_lam):
+            iv = ie * n_lam + il
+            lam = vgrid.lam[il]
+            fm_v[iv] = fm * vgrid.lambda_weights[il]
+            ws_v[iv] = omega_star_n * (1.0 + eta_i * (E - 1.5))
+            xi_sq = max(1.0 - lam * B0_rat, 0.0)
+            wd_v[iv] = k_y_rho_s * 2.0 * E * (kn0 * xi_sq + geom.kappa_g[theta0] * np.sqrt(xi_sq))
+            b_arg = k_y_rho_s * rho_ratio * np.sqrt(max(2.0 * lam * E, 0.0))
+            j0sq_v[iv] = float(bessel_j0(np.array([b_arg]))[0]) ** 2
 
-            # Parallel streaming
-            D_par = _parallel_streaming_matrix(n_theta, geom, E_norm, lam_val, B_ratio)
+    # D(ω) = QN - Σ fm J₀² (ω_*-ω)/(i(ω_D-ω)+ν)  = 0
+    # Denominator: i(ω_D - ω) + ν = ν + i(ω_D - ω)
+    fj = fm_v * j0sq_v
 
-            # Collision operator (simplified: nu_D * pitch-angle scattering applied to theta structure)
-            nu_D, _ = collision_frequencies(ion, ion.density_19, ion.temperature_keV, Z_eff)
-            nu_eff = nu_D * nu_star  # scale by collisionality parameter
+    def _dispersion(omega: complex) -> complex:
+        denom = nu_eff + 1j * (wd_v - omega)
+        return qn_denom - np.sum(fj * (ws_v - omega) / denom)
 
-            # Response: for eigenvalue omega, g = (omega_star_full - omega_D) / (omega - omega_D - v_par*grad_par - nu) * J0 * phi
-            # In matrix form: g = G(omega) . J0 . phi
-            # The quasineutrality integral gives: int{ J0 * G(omega) * J0 } * phi = n_response * phi
-            # For the initial-value approach, we linearise around omega=0 and solve A*phi = omega*B*phi
+    def _dispersion_deriv(omega: complex) -> complex:
+        denom = nu_eff + 1j * (wd_v - omega)
+        # d/dω of (ω_*-ω)/(iδ+ν): [-(iδ+ν) + i(ω_*-ω_D)] / (iδ+ν)²
+        return -np.sum(fj * (-denom + 1j * (ws_v - wd_v)) / denom**2)
 
-            # Build the A and B matrices for this velocity point
-            # A_vpt = (omega_D + i*D_par + nu_eff*I) as diagonal+tridiagonal in theta
-            A_vpt = np.diag(omega_D + nu_eff) + 1j * D_par
-
-            # B_vpt = I (identity, from the omega * g term)
-            # Response to phi: contribution to quasineutrality
-            J0_diag = np.diag(J0_val)
-            weight = fm_weight * w_lam
-
-            # Accumulate: R_ion += weight * J0 * (A_vpt)^{-1} * diag(omega_star_full) * J0
-            # For stability, directly accumulate the drive term
-            drive_diag = np.diag(np.full(n_theta, omega_star_full))
-            R_ion += weight * (J0_diag @ drive_diag @ J0_diag + 1j * J0_diag @ D_par @ J0_diag)
-
-    # Adiabatic electron contribution: n_e_response = (e^2 n_e / T_e) * (phi - <phi>)
-    # In normalised units: 1.0 * (phi - flux_surface_average(phi))
-    if not has_kinetic_electrons:
-        I_theta = np.eye(n_theta)
-        fsa = np.ones((n_theta, n_theta)) / n_theta  # flux-surface average operator
-        adiabatic_response = I_theta - fsa
-    else:
-        adiabatic_response = np.zeros((n_theta, n_theta))
-
-    # Full dispersion matrix: D(omega) = R_ion + adiabatic_response = 0
-    # Eigenvalue problem: (R_ion + adiabatic_response) phi = omega * phi
-    # This is approximate — the full problem is nonlinear in omega.
-    # We solve the linearised version.
-    full_matrix = R_ion + adiabatic_response
-
-    # Electromagnetic extension: KBM + MTM drives
     em_active = electromagnetic and beta_e > 0
+    best_gamma = 0.0
+    best_omega: complex = 0.0
+
+    ws_avg = float(np.sum(fj * ws_v) / max(np.sum(fj), 1e-30))
+    wd_avg = float(np.sum(fj * wd_v) / max(np.sum(fj), 1e-30))
+    scale = max(abs(ws_avg), abs(wd_avg), 0.1)
+
+    guesses = [
+        wd_avg + 0.05j * scale,
+        wd_avg * 0.5 + 0.1j * scale,
+        ws_avg * 0.3 + 0.1j * scale,
+        (wd_avg + ws_avg) * 0.3 + 0.15j * scale,
+        -scale * 0.5 + 0.1j * scale,
+        0.0 + 0.05j * scale,
+    ]
+
+    for omega0 in guesses:
+        omega = complex(omega0)
+        for _ in range(60):
+            d = _dispersion(omega)
+            dd = _dispersion_deriv(omega)
+            if abs(dd) < 1e-30:
+                break
+            step = d / dd
+            # Damped Newton to prevent overshoot
+            if abs(step) > 2.0 * scale:
+                step *= 2.0 * scale / abs(step)
+            omega -= step
+            if abs(step) < 1e-10 * max(abs(omega), 1e-6):
+                break
+
+        if np.isfinite(omega) and omega.imag > best_gamma:
+            # Only accept if Newton actually converged (|D(ω)| small)
+            residual = abs(_dispersion(omega))
+            if residual < 0.1 * qn_denom:
+                best_gamma = omega.imag
+                best_omega = omega
+
+    gamma_val = float(max(best_gamma, 0.0))
+    omega_r_val = float(best_omega.real)
+
+    # EM correction
     if em_active:
-        # Electron diamagnetic frequency for MTM drive
+        em_factor = _em_correction_factor(beta_e, alpha_MHD, s_hat, k_y_rho_s)
+        gamma_val *= em_factor
+
         e_species = next((s for s in species_list if s.charge_e < 0), None)
-        omega_star_T_e = 0.0
-        nu_e = 0.0
-        if e_species is not None:
+        if e_species is not None and alpha_MHD > s_hat and k_y_rho_s < 2.0:
+            gamma_val += beta_e * max(alpha_MHD - s_hat, 0.0) * k_y_rho_s**2 * 0.1
+        if e_species is not None and k_y_rho_s < 0.5:
             _, omega_star_T_e = _diamagnetic_frequency(k_y_rho_s, e_species, R0, a)
             nu_D_e, _ = collision_frequencies(e_species, e_species.density_19, e_species.temperature_keV, Z_eff)
-            nu_e = nu_D_e * nu_star
+            gamma_val += beta_e * abs(omega_star_T_e) * nu_D_e * nu_star * 0.01
 
-        kbm = _kbm_drive(beta_e, alpha_MHD, s_hat, k_y_rho_s, n_theta)
-        mtm = _mtm_drive(beta_e, k_y_rho_s, omega_star_T_e, nu_e, n_theta, geom)
-
-        full_matrix += np.diag(kbm) + np.diag(mtm)
-
-        em_factor = _em_correction_factor(beta_e, alpha_MHD, s_hat, k_y_rho_s)
-        full_matrix = full_matrix * em_factor
-
-    try:
-        eigenvalues, eigenvectors = np.linalg.eig(full_matrix)
-    except np.linalg.LinAlgError:
-        return EigenMode(k_y_rho_s=k_y_rho_s, omega_r=0.0, gamma=0.0, mode_type="stable", electromagnetic=em_active)
-
-    # Find most unstable mode (largest imaginary part)
-    gammas = eigenvalues.imag
-    omega_rs = eigenvalues.real
-
-    if np.all(gammas <= 0):
-        return EigenMode(k_y_rho_s=k_y_rho_s, omega_r=0.0, gamma=0.0, mode_type="stable", electromagnetic=em_active)
-
-    idx = int(np.argmax(gammas))
-    gamma_max = gammas[idx]
-    omega_r_max = omega_rs[idx]
-    phi_mode = np.abs(eigenvectors[:, idx])
-
-    # Classify mode
-    mode_type = _classify_mode(omega_r_max, k_y_rho_s, em_active, alpha_MHD, s_hat)
+    mode_type = _classify_mode(omega_r_val, k_y_rho_s, em_active, alpha_MHD, s_hat)
 
     return EigenMode(
         k_y_rho_s=k_y_rho_s,
-        omega_r=float(omega_r_max),
-        gamma=float(max(gamma_max, 0.0)),
+        omega_r=float(omega_r_val),
+        gamma=float(max(gamma_val, 0.0)),
         mode_type=mode_type,
-        phi_theta=phi_mode,
         electromagnetic=em_active,
     )
 

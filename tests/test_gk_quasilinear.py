@@ -105,7 +105,7 @@ def test_quasilinear_chi_increases_with_gradient():
     out_strong = quasilinear_fluxes_from_spectrum(r_strong, ion_strong)
 
     # Stronger gradient → more transport (or at least not less)
-    assert out_strong.chi_i >= out_weak.chi_i or out_strong.gamma_max >= 0
+    assert out_strong.chi_i >= out_weak.chi_i or max(out_strong.gamma) >= 0
 
 
 def test_quasilinear_gk_output_has_spectrum():
