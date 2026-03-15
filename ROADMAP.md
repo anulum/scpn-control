@@ -177,13 +177,34 @@
   solver interop, edge cases. 17 tests.
 - [x] 3,061+ tests total
 
+### v0.17.0+ — Nonlinear GK + Native TGLF (2026-03-15)
+- [x] **Nonlinear δf gyrokinetic solver** (`gk_nonlinear.py`):
+  5D Vlasov in flux-tube, dealiased E×B bracket (Orszag 2/3 rule),
+  4th-order parallel streaming, curvature/grad-B drift, RK4 + CFL.
+  Energy conservation V2: 0.024% over 50 steps.
+- [x] **JAX-accelerated variant** (`jax_gk_nonlinear.py`):
+  `jax.checkpoint` RK4, NumPy fallback when JAX absent.
+- [x] **Native TGLF-equivalent model** (`gk_tglf_native.py`):
+  SAT0/SAT1/SAT2 (Staebler 2007/2017), E×B shear quench (Waltz 1997),
+  trapped-particle damping (Connor 1974), multi-scale ITG-ETG (Maeyama 2015).
+- [x] `"tglf_native"` transport mode wired into `integrated_transport_solver.py`
+- [x] CBC validation benchmark (`validation/gk_nonlinear_cyclone.py`, 4/4 pass)
+- [x] 53 new tests (27 TGLF native + 26 nonlinear), 3,300 total
+- [x] Stellarator geometry (W7-X) — Boozer coordinates, ISS04 scaling
+- [x] Federated disruption prediction — FedAvg/FedProx + differential privacy
+- [x] FPGA bitstream export from SNN compiler — Verilog/VHDL generation
+- [x] ITER CODAC/EPICS interface — PV channels, safety interlocks, cycle timer
+
 ## Next
 
-### v0.18.0 — Linux validation (requires reboot)
-- [ ] Real GK binary testing: install GACODE (TGLF/CGYRO), run CBC with real TGLF
-- [ ] Cross-code benchmark: native GK eigenvalue vs real TGLF growth rates
+### v0.18.0 — GK quantitative accuracy
+- [ ] Fix linear GK eigenvalue solver: response-matrix drive term produces γ~10⁻¹⁶
+  for CBC instead of γ~0.2. Debug velocity-space integration or switch to
+  initial-value / shooting method.
+- [ ] Full-resolution nonlinear CBC on GPU (16×16×64×16×8 × 5000 steps, JAX on L40S).
+  Target: χ_i ∈ [1, 5] χ_gB matching GENE/GS2 published range.
+- [ ] Cross-code benchmark: native GK vs real TGLF growth rates (requires GACODE on Linux)
 - [ ] TORAX coupling: install torax, profile comparison at ITER/SPARC parameters
-- [ ] Handover prepared: `.coordination/handovers/scpn-control/HANDOVER_LINUX_GK_BINARY_TORAX.md`
 
 ### v1.0.0 — Production readiness
 - [ ] JOSS paper submission (fact-checked, final claims)
@@ -192,11 +213,7 @@
 - [ ] Coordinated Rust dep upgrade (ndarray 0.16+, ndarray-linalg 0.18+, rand 0.9)
 
 ## Future
-- [ ] Stellarator geometry support (Wendelstein 7-X)
-- [ ] Federated learning for multi-machine disruption prediction
-- [ ] FPGA bitstream export from SNN compiler
-- [ ] ITER CODAC interface prototype
-- [ ] Nonlinear GK validation (GENE/CGYRO cross-code comparison)
+- [ ] Nonlinear GK cross-code validation (GENE/CGYRO comparison at full resolution)
 - [ ] Experimental tokamak validation (requires MDSplus + real shot data)
 - [ ] Neural eq cross-validation vs P-EFIT (requires proprietary P-EFIT equilibria)
 - [ ] Production hardware deployment (CODAC/EPICS integration)

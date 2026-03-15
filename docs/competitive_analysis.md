@@ -1,6 +1,6 @@
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-03-14 (v0.17.0).
+> **Last updated:** 2026-03-15 (v0.17.0+).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 
@@ -105,21 +105,22 @@
 - Equilibrium autodiff depth: JAX Picard GS solver with `jax.grad` through full solve (v0.13.0)
 - RL agent maturity: PPO 500K on JarvisLabs, beats MPC and PID, 3-seed reproducible (v0.14.0)
 
-## 6. Codebase Metrics (v0.17.0)
+## 6. Codebase Metrics (v0.17.0+)
 
 | Metric | Value |
 |--------|-------|
-| Python source modules | 98 |
-| Python source LOC | ~28,400 |
+| Python source modules | 101 |
+| Python source LOC | ~30,700 |
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
-| Test files | 220+ |
-| Tests collected | 3,015 |
+| Test files | 234 |
+| Tests collected | 3,300 |
 | Test coverage | 100.0% (gate=99%) |
 | CI jobs | 20 |
 | Real DIII-D shots | 17 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |
 | External GK code interfaces | 5 (TGLF, GENE, GS2, CGYRO, QuaLiKiz) |
+| Native GK transport tiers | 5 (crit-grad, surrogate, linear, TGLF-native, nonlinear δf) |
 | Pretrained weight files | 5 (MLP, FNO, neural eq, QLKNN, PPO) |
 
 ## 7. scpn-control Unique Position
@@ -127,11 +128,12 @@
 1. **Fastest open-source kernel step** — 11.9 µs P50 (Criterion-verified).
    Bare kernel call, not a complete control cycle.
 
-2. **Only code with native GK eigenvalue solver + 5 external GK interfaces +
+2. **Only code with nonlinear δf GK + native TGLF + 5 external GK interfaces +
    hybrid surrogate validation** — no competing code (TORAX, FUSE, DREAM,
-   FreeGS) has a self-contained linear GK solver. TORAX and FUSE interface
-   TGLF only; scpn-control interfaces TGLF, GENE, GS2, CGYRO, and QuaLiKiz,
-   plus solves the ballooning eigenvalue problem natively.
+   FreeGS) has a self-contained nonlinear GK solver or native TGLF-equivalent.
+   TORAX and FUSE interface external TGLF only (Fortran binary dependency);
+   scpn-control has 5 transport tiers from critical-gradient to nonlinear δf,
+   all pip-installable, no Fortran.
 
 3. **Neuro-symbolic SNN + contract checking + digital twin** — the Petri
    Net to SNN compiler with runtime contract assertions is architecturally
@@ -146,9 +148,9 @@
    against P-EFIT on identical equilibria, but demonstrates CPU-only
    sub-ms reconstruction is achievable.
 
-6. **Full-stack breadth** — equilibrium, transport (3 tiers), gyrokinetic
-   (3 paths), control (7 controllers), disruption mitigation, digital twin
-   in one focused 98-module package.
+6. **Full-stack breadth** — equilibrium, transport (5 tiers), gyrokinetic
+   (3 paths + nonlinear δf), control (7 controllers), disruption mitigation,
+   digital twin in one focused 101-module package.
 
 ## 8. Gap Resolution Status
 
@@ -159,8 +161,9 @@
 | Simpler turbulence | QLKNN-10D trained MLP (v0.12.0) | **RESOLVED** |
 | No RL validation | PPO + PID + MPC benchmark (v0.12.0) | **RESOLVED** |
 | Equilibrium autodiff depth | JAX Picard GS solver, `jax.grad` through full solve (v0.13.0) | **RESOLVED** |
-| No first-principles GK | Native linear eigenvalue solver + 5 external codes + hybrid (v0.17.0) | **RESOLVED** |
+| No first-principles GK | Native linear eigenvalue + nonlinear δf + TGLF-native + 5 external codes + hybrid (v0.17.0+) | **RESOLVED** |
 | No GK-surrogate hybrid | OOD detection + spot-check + correction + online learning (v0.17.0) | **RESOLVED** |
+| Linear GK quantitative accuracy | Response-matrix produces γ~10⁻¹⁶ for CBC; need drive-term debug or method switch | **OPEN** |
 | No peer-reviewed pub | JOSS paper fact-checked, ready for submission | v0.13.0 |
 | Smaller community | External action: talks, workshops, issue triage | Ongoing |
 
