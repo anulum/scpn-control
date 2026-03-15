@@ -67,7 +67,7 @@ class _Lowpass:
         self._val = np.zeros(n)
 
     def step(self, x: NDArray) -> NDArray:
-        self._val = self._decay * self._val + (1.0 - self._decay) * x
+        self._val = np.asarray(self._decay * self._val + (1.0 - self._decay) * x)
         return self._val
 
     def reset(self) -> None:
@@ -120,7 +120,7 @@ class _LIFPopulation:
         spiked = self.voltage >= 1.0
         self.voltage[spiked] = 0.0
         self.ref_time[spiked] = self.tau_ref
-        self.ref_time = np.maximum(self.ref_time - self.dt, 0.0)
+        self.ref_time = np.asarray(np.maximum(self.ref_time - self.dt, 0.0))
 
         return spiked.astype(np.float64) / self.dt
 
@@ -133,15 +133,17 @@ class _LIFPopulation:
         rates = np.zeros_like(J)
         ok = J > 1.0
         rates[ok] = 1.0 / (self.tau_ref - self.tau_rc * np.log1p(-1.0 / J[ok]))
-        return rates
+        return np.asarray(rates)
 
     def reset(self) -> None:
         self.voltage[:] = 0.0
         self.ref_time[:] = 0.0
 
 
+from typing import Callable as _Callable
+
 def _nef_decoder(
-    pop: _LIFPopulation, fn, n_eval: int = 200, reg: float = 0.1
+    pop: _LIFPopulation, fn: _Callable[..., NDArray], n_eval: int = 200, reg: float = 0.1
 ) -> NDArray:
     """Least-squares NEF decoder for target function fn(x).
 
@@ -276,7 +278,7 @@ class NengoSNNController:
             [ch.step(error[i]) for i, ch in enumerate(self._channels)]
         )
         self._step_count += 1
-        self._last_output = output
+        self._last_output = np.asarray(output)
 
         probe_out = self._output_probe_filt.step(output)
         self._output_history.append(probe_out.copy())
@@ -340,7 +342,7 @@ class NengoSNNController:
             "gain": np.array([self.cfg.gain]),
         }
         payload.update(self.export_weights())
-        np.savez(str(path), **payload)
+        np.savez(str(path), **payload)  # type: ignore[arg-type]
         logger.info("Exported FPGA weights to %s", path)
 
     def export_loihi(self, filename: str | Path) -> None:
@@ -377,7 +379,7 @@ class NengoSNNController:
 class NengoSNNControllerStub:
     """Backward-compat stub. No longer needed — controller always works."""
 
-    def __init__(self, *_args, **_kwargs) -> None:
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
         raise ImportError(
             "NengoSNNControllerStub is deprecated. "
             "Use NengoSNNController directly — no external dependencies required."

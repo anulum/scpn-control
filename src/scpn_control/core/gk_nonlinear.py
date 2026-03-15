@@ -31,7 +31,7 @@ References:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from numpy.typing import NDArray
@@ -111,14 +111,15 @@ class NonlinearGKState:
 class NonlinearGKResult:
     """Time-averaged transport and diagnostics."""
 
-    chi_i: float
+    chi_i: float  # raw Q_i mean (code units)
     chi_e: float
-    Q_i_t: NDArray[np.float64]
-    Q_e_t: NDArray[np.float64]
-    phi_rms_t: NDArray[np.float64]
-    zonal_rms_t: NDArray[np.float64]
-    time: NDArray[np.float64]
-    converged: bool
+    chi_i_gB: float = 0.0  # χ_i in gyro-Bohm units: Q_i / R_L_Ti
+    Q_i_t: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
+    Q_e_t: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
+    phi_rms_t: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
+    zonal_rms_t: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
+    time: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
+    converged: bool = False
     final_state: NonlinearGKState | None = None
 
 
@@ -672,11 +673,19 @@ class NonlinearGKSolver:
         chi_i = float(np.mean(Q_i_t[n_half:])) if len(Q_i_t) > 0 else 0.0
         chi_e = float(np.mean(Q_e_t[n_half:])) if len(Q_e_t) > 0 else 0.0
 
+        # χ_i in gyro-Bohm units: χ_i/χ_gB = Q_i / R_L_Ti
+        # In the GK normalization (ρ_s lengths, c_s/R time), Q_i is already
+        # the turbulent heat flux normalised to n T c_s ρ_s²/R², and dividing
+        # by R/L_Ti gives the diffusivity in χ_gB = ρ_s² c_s / a units.
+        r_l_ti = max(c.R_L_Ti, 0.01)
+        chi_i_gB = chi_i / r_l_ti
+
         converged = bool(save_idx > 1 and np.all(np.isfinite(Q_i_t)))
 
         return NonlinearGKResult(
             chi_i=chi_i,
             chi_e=chi_e,
+            chi_i_gB=chi_i_gB,
             Q_i_t=Q_i_t,
             Q_e_t=Q_e_t,
             phi_rms_t=phi_rms_t,
