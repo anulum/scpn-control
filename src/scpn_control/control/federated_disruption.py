@@ -92,11 +92,11 @@ MACHINE_PROFILES: dict[str, dict[str, tuple[float, float]]] = {
 
 
 def _relu(x: np.ndarray) -> np.ndarray:
-    return np.maximum(0.0, x)
+    return np.asarray(np.maximum(0.0, x), dtype=x.dtype)
 
 
 def _sigmoid(x: np.ndarray) -> np.ndarray:
-    return 1.0 / (1.0 + np.exp(-np.clip(x, -20.0, 20.0)))
+    return np.asarray(1.0 / (1.0 + np.exp(-np.clip(x, -20.0, 20.0))), dtype=x.dtype)
 
 
 def _binary_cross_entropy(y_pred: np.ndarray, y_true: np.ndarray) -> float:
@@ -283,7 +283,7 @@ class MachineClient:
         self._weights: dict[str, np.ndarray] = {}
 
     def get_data_size(self) -> int:
-        return self.X_train.shape[0]
+        return int(self.X_train.shape[0])
 
     def local_train(
         self,

@@ -19,6 +19,7 @@ References:
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -59,7 +60,7 @@ def _require_jax() -> None:
 # Abramowitz & Stegun 9.4.1 / 9.4.3 — max error < 5e-8.
 
 
-def _bessel_j0_jax(x):
+def _bessel_j0_jax(x: Any) -> Any:
     """J_0(x) via rational Chebyshev approximation, differentiable under JAX."""
     ax = jnp.abs(x)
 
@@ -85,22 +86,22 @@ def _bessel_j0_jax(x):
 
 
 def _build_response_matrix_single_ky(
-    k_y_rho_s,
-    ion_R_L_n,
-    ion_R_L_T,
-    rho_i_over_a,
-    nu_eff,
-    B_ratio,
-    kappa_n,
-    kappa_g,
-    b_dot_grad_theta,
-    theta,
-    energy,
-    energy_weights,
-    lam,
-    lambda_weights,
-    has_kinetic_electrons,
-):
+    k_y_rho_s: Any,
+    ion_R_L_n: float,
+    ion_R_L_T: float,
+    rho_i_over_a: float,
+    nu_eff: float,
+    B_ratio: Any,
+    kappa_n: Any,
+    kappa_g: Any,
+    b_dot_grad_theta: Any,
+    theta: Any,
+    energy: Any,
+    energy_weights: Any,
+    lam: Any,
+    lambda_weights: Any,
+    has_kinetic_electrons: bool,
+) -> tuple[Any, Any, Any]:
     """Build the response matrix for a single k_y. Pure JAX, no side effects.
 
     nu_eff and rho_i_over_a are pre-computed outside the traced path to
@@ -169,7 +170,7 @@ def _build_response_matrix_single_ky(
     return full_real, full_imag, R_ion_real
 
 
-def _solve_eigenvalue_from_matrix(full_real, full_imag):
+def _solve_eigenvalue_from_matrix(full_real: Any, full_imag: Any) -> tuple[float, float, str, np.ndarray | None]:
     """Extract most unstable eigenmode from the response matrix (NumPy)."""
     full_matrix = np.asarray(full_real) + 1j * np.asarray(full_imag)
 
@@ -199,7 +200,7 @@ def _solve_eigenvalue_from_matrix(full_real, full_imag):
     return float(max(gamma_max, 0.0)), omega_r_max, mode_type, phi_mode
 
 
-def _precompute_ion_params(ion, B0, a, Z_eff, nu_star):
+def _precompute_ion_params(ion: Any, B0: float, a: float, Z_eff: float, nu_star: float) -> tuple[float, float]:
     """Pre-compute collision frequency and FLR scale outside JAX trace."""
     rho_i_over_a = ion.mass_kg * ion.thermal_speed / (abs(ion.charge_e) * _E_CHARGE * B0) / a
     nu_D, _ = collision_frequencies(ion, ion.density_19, ion.temperature_keV, Z_eff)
@@ -208,24 +209,24 @@ def _precompute_ion_params(ion, B0, a, Z_eff, nu_star):
 
 
 def _make_batched_builder(
-    ion_R_L_n,
-    ion_R_L_T,
-    rho_i_over_a,
-    nu_eff,
-    B_ratio,
-    kappa_n,
-    kappa_g,
-    b_dot_grad_theta,
-    theta,
-    energy,
-    energy_weights,
-    lam,
-    lambda_weights,
-    has_kinetic_electrons,
-):
+    ion_R_L_n: float,
+    ion_R_L_T: float,
+    rho_i_over_a: float,
+    nu_eff: float,
+    B_ratio: Any,
+    kappa_n: Any,
+    kappa_g: Any,
+    b_dot_grad_theta: Any,
+    theta: Any,
+    energy: Any,
+    energy_weights: Any,
+    lam: Any,
+    lambda_weights: Any,
+    has_kinetic_electrons: bool,
+) -> Any:
     """Return a vmap'd function that builds response matrices for all k_y at once."""
 
-    def _build_single(k_y_rho_s):
+    def _build_single(k_y_rho_s: Any) -> tuple[Any, Any, Any]:
         return _build_response_matrix_single_ky(
             k_y_rho_s,
             ion_R_L_n,
@@ -248,9 +249,9 @@ def _make_batched_builder(
 
 
 def solve_linear_gk_jax(
-    species_list=None,
-    geom=None,
-    vgrid=None,
+    species_list: Any = None,
+    geom: Any = None,
+    vgrid: Any = None,
     R0: float = 2.78,
     a: float = 1.0,
     B0: float = 2.0,
@@ -335,22 +336,22 @@ def solve_linear_gk_jax(
 
 
 def _chi_i_proxy(
-    R_L_Ti,
-    R_L_n,
-    rho_i_over_a,
-    nu_eff,
-    B_ratio,
-    kappa_n,
-    kappa_g,
-    b_dot_grad_theta,
-    theta,
-    energy,
-    energy_weights,
-    lam,
-    lambda_weights,
-    has_kinetic_electrons,
-    n_ky_ion,
-):
+    R_L_Ti: Any,
+    R_L_n: float,
+    rho_i_over_a: float,
+    nu_eff: float,
+    B_ratio: Any,
+    kappa_n: Any,
+    kappa_g: Any,
+    b_dot_grad_theta: Any,
+    theta: Any,
+    energy: Any,
+    energy_weights: Any,
+    lam: Any,
+    lambda_weights: Any,
+    has_kinetic_electrons: bool,
+    n_ky_ion: int,
+) -> Any:
     """R_L_Ti -> differentiable scalar proxy for chi_i.
 
     Uses the squared Frobenius norm of the ion drive matrix (R_ion_real)

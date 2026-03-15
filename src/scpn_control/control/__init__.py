@@ -7,7 +7,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Control modules (heavy imports guarded).
 
-Nengo, matplotlib, and torch are optional — use accessor functions
+Matplotlib and torch are optional — use accessor functions
 to defer their import until actually needed.
 """
 

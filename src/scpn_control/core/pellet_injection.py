@@ -73,7 +73,7 @@ class PelletTrajectory:
 
         while N_p > 0 and current_rho > 0.0:
             # Interpolate plasma parameters
-            idx = np.searchsorted(rho, current_rho)
+            idx = int(np.searchsorted(rho, current_rho))
             if idx == 0:
                 n_local = ne[0]
                 T_local = Te_eV[0]
@@ -95,7 +95,7 @@ class PelletTrajectory:
 
             # Distribute dN to profile
             if idx < len(rho):
-                dep_idx = max(idx - 1, 0)
+                dep_idx = max(int(idx) - 1, 0)
                 r1 = rho[dep_idx] if dep_idx > 0 else 0.0
                 r2 = rho[min(dep_idx + 1, len(rho) - 1)]
                 vol = 2.0 * np.pi**2 * self.R0 * self.a**2 * (r2**2 - r1**2)

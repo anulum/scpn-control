@@ -112,7 +112,7 @@ def _drift_frequency(
     In normalised units (v_th/R scale).
     """
     xi_sq = np.maximum(1.0 - lam * B_ratio, 0.0)
-    return k_y * 2.0 * energy_norm * (geom.kappa_n * xi_sq + geom.kappa_g * np.sqrt(xi_sq))
+    return np.asarray(k_y * 2.0 * energy_norm * (geom.kappa_n * xi_sq + geom.kappa_g * np.sqrt(xi_sq)), dtype=np.float64)
 
 
 def _parallel_streaming_matrix(
@@ -209,7 +209,7 @@ def _mtm_drive(
     theta = geom.theta
     parity = np.exp(-(theta**2) / 2.0)
     drive = beta_e * abs(omega_star_T_e) * nu_e * parity / max(k_y**2, 1e-30)
-    return 1j * drive
+    return (1j * drive).astype(np.complex128)
 
 
 def _classify_mode(
@@ -323,12 +323,12 @@ def solve_eigenvalue_single_ky(
 
     def _dispersion(omega: complex) -> complex:
         denom = nu_eff + 1j * (wd_v - omega)
-        return qn_denom - np.sum(fj * (ws_v - omega) / denom)
+        return complex(qn_denom - np.sum(fj * (ws_v - omega) / denom))
 
     def _dispersion_deriv(omega: complex) -> complex:
         denom = nu_eff + 1j * (wd_v - omega)
         # d/dω of (ω_*-ω)/(iδ+ν): [-(iδ+ν) + i(ω_*-ω_D)] / (iδ+ν)²
-        return -np.sum(fj * (-denom + 1j * (ws_v - wd_v)) / denom**2)
+        return complex(-np.sum(fj * (-denom + 1j * (ws_v - wd_v)) / denom**2))
 
     em_active = electromagnetic and beta_e > 0
     best_gamma = 0.0

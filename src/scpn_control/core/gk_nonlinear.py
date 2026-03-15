@@ -136,7 +136,7 @@ class NonlinearGKSolver:
     # Grid setup
     # ------------------------------------------------------------------
 
-    def _setup_grids(self):
+    def _setup_grids(self) -> None:
         c = self.cfg
         # Perpendicular wavenumbers (FFT ordering)
         self.kx = 2 * np.pi * np.fft.fftfreq(c.n_kx, d=c.Lx / c.n_kx)
@@ -167,7 +167,7 @@ class NonlinearGKSolver:
         else:
             self.dealias_mask = np.ones((c.n_kx, c.n_ky), dtype=bool)
 
-    def _setup_ballooning(self):
+    def _setup_ballooning(self) -> None:
         """Precompute phase factors for ballooning connection BC.
 
         At θ boundaries, kx shifts by ±s_hat × ky per poloidal turn:
@@ -212,7 +212,7 @@ class NonlinearGKSolver:
 
         return rolled
 
-    def _setup_geometry(self):
+    def _setup_geometry(self) -> None:
         c = self.cfg
         self.geom = circular_geometry(
             R0=c.R0,
@@ -229,7 +229,7 @@ class NonlinearGKSolver:
         self.kappa_g = self.geom.kappa_g
         self.B_ratio = self.geom.B_mag / np.mean(self.geom.B_mag)
 
-    def _setup_species(self):
+    def _setup_species(self) -> None:
         c = self.cfg
         self.ion = deuterium_ion(
             T_keV=2.0,
@@ -296,7 +296,7 @@ class NonlinearGKSolver:
         phi = Gamma0[:, :, None] * n_ion / denom[:, :, None]
         # (kx=0, ky=0) is the equilibrium mode — excluded in δf formulation
         phi[0, 0, :] = 0.0
-        return phi
+        return np.asarray(phi, dtype=np.complex128)
 
     # ------------------------------------------------------------------
     # E×B nonlinearity: {φ, f} via dealiased FFT
@@ -373,7 +373,7 @@ class NonlinearGKSolver:
         vpar_4d = self.vpar[None, None, None, :, None]
         bdg_4d = self.b_dot_grad[None, None, :, None, None]
 
-        return vpar_4d * bdg_4d * dfdt
+        return np.asarray(vpar_4d * bdg_4d * dfdt, dtype=np.complex128)
 
     # ------------------------------------------------------------------
     # Magnetic drift: ω_D × f
@@ -397,7 +397,7 @@ class NonlinearGKSolver:
 
         omega_D = self.ky_grid[:, :, :, None, None] * 2.0 * energy * (kn * xi_sq + kg * np.sqrt(np.maximum(xi_sq, 0.0)))
 
-        return 1j * omega_D * f_s
+        return np.asarray(1j * omega_D * f_s, dtype=np.complex128)
 
     # ------------------------------------------------------------------
     # Collision operator
@@ -541,7 +541,7 @@ class NonlinearGKSolver:
         v_par_eff = vmax * np.max(np.abs(self.b_dot_grad))
         dt_cfl = c.cfl_factor / max(v_exb + v_par_eff, 1e-30)
 
-        return min(dt_cfl, c.dt)
+        return float(min(dt_cfl, c.dt))
 
     # ------------------------------------------------------------------
     # Flux computation
@@ -636,11 +636,11 @@ class NonlinearGKSolver:
             state = self.init_state()
 
         n_saves = c.n_steps // c.save_interval + 1
-        Q_i_t = np.zeros(n_saves)
-        Q_e_t = np.zeros(n_saves)
-        phi_rms_t = np.zeros(n_saves)
-        zonal_rms_t = np.zeros(n_saves)
-        time_t = np.zeros(n_saves)
+        Q_i_t: NDArray[np.float64] = np.zeros(n_saves)
+        Q_e_t: NDArray[np.float64] = np.zeros(n_saves)
+        phi_rms_t: NDArray[np.float64] = np.zeros(n_saves)
+        zonal_rms_t: NDArray[np.float64] = np.zeros(n_saves)
+        time_t: NDArray[np.float64] = np.zeros(n_saves)
         save_idx = 0
 
         for step in range(c.n_steps):
@@ -661,18 +661,18 @@ class NonlinearGKSolver:
                 time_t[save_idx] = state.time
                 save_idx += 1
 
-        Q_i_t = Q_i_t[:save_idx]
-        Q_e_t = Q_e_t[:save_idx]
-        phi_rms_t = phi_rms_t[:save_idx]
-        zonal_rms_t = zonal_rms_t[:save_idx]
-        time_t = time_t[:save_idx]
+        Q_i_t = np.asarray(Q_i_t[:save_idx], dtype=np.float64)
+        Q_e_t = np.asarray(Q_e_t[:save_idx], dtype=np.float64)
+        phi_rms_t = np.asarray(phi_rms_t[:save_idx], dtype=np.float64)
+        zonal_rms_t = np.asarray(zonal_rms_t[:save_idx], dtype=np.float64)
+        time_t = np.asarray(time_t[:save_idx], dtype=np.float64)
 
         # Time-average over second half (saturated phase)
         n_half = max(len(Q_i_t) // 2, 1)
         chi_i = float(np.mean(Q_i_t[n_half:])) if len(Q_i_t) > 0 else 0.0
         chi_e = float(np.mean(Q_e_t[n_half:])) if len(Q_e_t) > 0 else 0.0
 
-        converged = save_idx > 1 and np.all(np.isfinite(Q_i_t))
+        converged = bool(save_idx > 1 and np.all(np.isfinite(Q_i_t)))
 
         return NonlinearGKResult(
             chi_i=chi_i,

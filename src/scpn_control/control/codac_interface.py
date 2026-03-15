@@ -23,7 +23,7 @@ import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping
 
 from scpn_control.scpn.contracts import ControlAction, ControlObservation
 
@@ -140,7 +140,7 @@ _HARD_LIMITS: dict[str, tuple[float, float]] = {
 class CODACInterface:
     """Binds a NeuroSymbolicController to ITER CODAC I&C channels."""
 
-    def __init__(self, config: CODACConfig, controller: object) -> None:
+    def __init__(self, config: CODACConfig, controller: Any) -> None:
         self.config = config
         self.controller = controller
         self._input_channels = _build_input_channels(config.pv_prefix)

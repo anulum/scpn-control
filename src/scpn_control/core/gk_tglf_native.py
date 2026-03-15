@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -112,7 +113,7 @@ def trapped_particle_damping(params: GKLocalParams) -> float:
 
 def gamma_0_flr(b: NDArray[np.float64]) -> NDArray[np.float64]:
     """Γ₀(b) = I₀(b)e^{-b} ≈ 1/(1+b).  Padé approximant, <5% error for b<3."""
-    return 1.0 / (1.0 + np.maximum(b, 0.0))
+    return cast(NDArray[np.float64], 1.0 / (1.0 + np.maximum(b, 0.0)))
 
 
 def spectral_weight(
@@ -127,7 +128,7 @@ def spectral_weight(
     total = raw.sum()
     if total < 1e-30:
         return np.zeros_like(gamma_net)
-    return raw / total
+    return np.asarray(raw / total, dtype=np.float64)
 
 
 # ---------------------------------------------------------------------------

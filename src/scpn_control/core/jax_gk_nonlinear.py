@@ -58,7 +58,7 @@ class JaxNonlinearGKSolver:
         if _HAS_JAX:
             self._compile_kernels()
 
-    def _compile_kernels(self):
+    def _compile_kernels(self) -> None:
         c = self.cfg
         self._kx_j = jnp.array(self._np_solver.kx)
         self._ky_j = jnp.array(self._np_solver.ky)
@@ -89,7 +89,7 @@ class JaxNonlinearGKSolver:
         phi = Gamma0[:, :, None] * n_ion / denom[:, :, None]
         # (kx=0, ky=0) = equilibrium mode, excluded in δf
         phi = phi.at[0, 0, :].set(0.0)
-        return phi
+        return jnp.asarray(phi)
 
     # ------------------------------------------------------------------
     # JAX E×B bracket
@@ -165,7 +165,7 @@ class JaxNonlinearGKSolver:
         kp2 = self._kperp2_j[:, :, None, None, None]
         terms = terms - c.hyper_coeff * kp2 ** (c.hyper_order // 2) * f_s
 
-        return terms
+        return jnp.asarray(terms)
 
     # ------------------------------------------------------------------
     # JAX RK4 step
@@ -175,7 +175,7 @@ class JaxNonlinearGKSolver:
         """Single RK4 step with checkpointing."""
         phi0 = self._jax_field_solve(f)
 
-        def rhs_full(f_in):
+        def rhs_full(f_in: jnp.ndarray) -> jnp.ndarray:
             phi = self._jax_field_solve(f_in)
             dfdt = jnp.zeros_like(f_in)
             for s in range(self.cfg.n_species):
@@ -203,7 +203,7 @@ class JaxNonlinearGKSolver:
         k3 = rhs_ckpt(f + 0.5 * dt * k2)
         k4 = rhs_ckpt(f + dt * k3)
 
-        return f + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+        return jnp.asarray(f + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4))
 
     # ------------------------------------------------------------------
     # Run
@@ -286,6 +286,6 @@ class JaxNonlinearGKSolver:
             phi_rms_t=phi_rms_t,
             zonal_rms_t=zonal_rms_t,
             time=time_t,
-            converged=len(Q_i_t) > 1 and np.all(np.isfinite(Q_i_t)),
+            converged=bool(len(Q_i_t) > 1 and np.all(np.isfinite(Q_i_t))),
             final_state=final,
         )

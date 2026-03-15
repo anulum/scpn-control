@@ -1,191 +1,227 @@
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Nengo SNN Wrapper Tests
+# SCPN Control — SNN Wrapper Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Tests for nengo_snn_wrapper with mocked nengo dependency."""
-
 from __future__ import annotations
-
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
-
-# ---------------------------------------------------------------------------
-# Build a mock nengo module that satisfies all attribute accesses the wrapper
-# performs during build_network() and step().
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_nengo():
-    mock = MagicMock()
-    mock.LIF = MagicMock(return_value=MagicMock())
-    mock.dists.Uniform = MagicMock(return_value=MagicMock())
-
-    network_ctx = MagicMock()
-    network_ctx.__enter__ = MagicMock(return_value=network_ctx)
-    network_ctx.__exit__ = MagicMock(return_value=False)
-    network_ctx.all_connections = []
-    mock.Network.return_value = network_ctx
-
-    node = MagicMock()
-    node.__getitem__ = MagicMock(return_value=MagicMock())
-    mock.Node.return_value = node
-
-    mock.Ensemble.return_value = MagicMock()
-    mock.Connection.return_value = MagicMock()
-
-    probe = MagicMock()
-    mock.Probe.return_value = probe
-
-    sim = MagicMock()
-    sim.data = {probe: np.zeros((1, 2))}
-    sim.step = MagicMock()
-    sim.reset = MagicMock()
-    mock.Simulator.return_value = sim
-
-    return mock, sim, probe
+from scpn_control.control.nengo_snn_wrapper import (
+    NengoSNNConfig,
+    NengoSNNController,
+    NengoSNNControllerStub,
+    _LIFPopulation,
+    _Lowpass,
+    _nef_decoder,
+    nengo_available,
+)
 
 
-@pytest.fixture()
-def _patch_nengo(monkeypatch):
-    """Patch the wrapper module so _nengo_available=True and _nengo is our mock."""
-    mock_nengo, sim, probe = _make_mock_nengo()
-    import scpn_control.control.nengo_snn_wrapper as mod
-
-    monkeypatch.setattr(mod, "_nengo", mock_nengo)
-    monkeypatch.setattr(mod, "_nengo_available", True)
-    return SimpleNamespace(mock=mock_nengo, sim=sim, probe=probe, mod=mod)
+# ── nengo_available / config ─────────────────────────────────────────
 
 
-# ── NengoSNNConfig ───────────────────────────────────────────────────
+def test_nengo_available_always_true() -> None:
+    assert nengo_available() is True
 
 
-def test_config_defaults():
-    from scpn_control.control.nengo_snn_wrapper import NengoSNNConfig
-
+def test_config_defaults() -> None:
     cfg = NengoSNNConfig()
     assert cfg.n_neurons == 200
     assert cfg.n_channels == 2
     assert cfg.dt == 0.001
 
 
-def test_config_custom():
-    from scpn_control.control.nengo_snn_wrapper import NengoSNNConfig
-
+def test_config_custom() -> None:
     cfg = NengoSNNConfig(n_neurons=100, n_channels=4, gain=10.0)
     assert cfg.n_neurons == 100
     assert cfg.n_channels == 4
     assert cfg.gain == 10.0
 
 
-# ── nengo_available() ────────────────────────────────────────────────
+# ── Lowpass ──────────────────────────────────────────────────────────
 
 
-def test_nengo_available_reflects_flag():
-    from scpn_control.control.nengo_snn_wrapper import nengo_available
-
-    # The real module has _nengo_available set at import; just verify it's callable.
-    assert isinstance(nengo_available(), bool)
-
-
-# ── NengoSNNController ──────────────────────────────────────────────
+def test_lowpass_converges() -> None:
+    lp = _Lowpass(0.01, 0.001, 1)
+    for _ in range(200):
+        lp.step(np.array([1.0]))
+    assert abs(lp._val[0] - 1.0) < 0.01
 
 
-def test_construction_without_nengo():
-    """ImportError when nengo is unavailable."""
-    from scpn_control.control.nengo_snn_wrapper import NengoSNNController
-
-    with (
-        patch("scpn_control.control.nengo_snn_wrapper._nengo_available", False),
-        pytest.raises(ImportError, match="Nengo is required"),
-    ):
-        NengoSNNController()
+def test_lowpass_reset() -> None:
+    lp = _Lowpass(0.01, 0.001, 1)
+    lp.step(np.array([5.0]))
+    lp.reset()
+    assert lp._val[0] == 0.0
 
 
-@pytest.mark.usefixtures("_patch_nengo")
-def test_construction_with_mock(_patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
+# ── LIF Population ──────────────────────────────────────────────────
+
+
+def _make_pop(n: int = 50, seed: int = 42) -> _LIFPopulation:
+    rng = np.random.default_rng(seed)
+    return _LIFPopulation(
+        n=n, tau_rc=0.02, tau_ref=0.002,
+        max_rates=rng.uniform(100, 200, n),
+        intercepts=rng.uniform(-0.8, 0.8, n),
+        encoders=rng.choice([-1.0, 1.0], n),
+        dt=0.001,
+    )
+
+
+def test_lif_steady_rates_nonnegative() -> None:
+    pop = _make_pop()
+    rates = pop.steady_rates(np.array([0.5]))
+    assert rates.shape == (50, 1)
+    assert np.all(rates >= 0)
+
+
+def test_lif_spikes_for_strong_input() -> None:
+    pop = _make_pop(n=100, seed=0)
+    pop.encoders = np.ones(100)
+    total = sum(np.sum(pop.step(1.0) > 0) for _ in range(100))
+    assert total > 0
+
+
+def test_lif_no_spikes_below_threshold() -> None:
+    pop = _LIFPopulation(
+        n=50, tau_rc=0.02, tau_ref=0.002,
+        max_rates=np.full(50, 100.0),
+        intercepts=np.full(50, 0.9),
+        encoders=np.ones(50), dt=0.001,
+    )
+    total = sum(np.sum(pop.step(0.1) > 0) for _ in range(50))
+    assert total == 0
+
+
+def test_lif_reset_clears_voltage() -> None:
+    pop = _make_pop()
+    for _ in range(10):
+        pop.step(1.0)
+    pop.reset()
+    assert np.all(pop.voltage == 0.0)
+    assert np.all(pop.ref_time == 0.0)
+
+
+# ── NEF Decoder ─────────────────────────────────────────────────────
+
+
+def test_nef_identity_decode() -> None:
+    pop = _make_pop(n=200)
+    D = _nef_decoder(pop, lambda x: x)
+    x_test = np.array([-0.5, 0.0, 0.5])
+    decoded = D @ pop.steady_rates(x_test)
+    np.testing.assert_allclose(decoded, x_test, atol=0.15)
+
+
+def test_nef_gain_decode() -> None:
+    pop = _make_pop(n=200)
+    gain = 5.0
+    D = _nef_decoder(pop, lambda x: gain * x)
+    x_test = np.array([-0.5, 0.0, 0.5])
+    decoded = D @ pop.steady_rates(x_test)
+    np.testing.assert_allclose(decoded, gain * x_test, atol=0.5)
+
+
+# ── NengoSNNController ─────────────────────────────────────────────
+
+
+def test_controller_builds() -> None:
+    ctrl = NengoSNNController()
     assert ctrl._built is True
     assert ctrl._step_count == 0
 
 
-@pytest.mark.usefixtures("_patch_nengo")
-def test_step_returns_array(_patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
-    error = np.array([0.1, -0.2])
-    out = ctrl.step(error)
+def test_step_shape() -> None:
+    ctrl = NengoSNNController()
+    out = ctrl.step(np.array([0.1, -0.2]))
     assert isinstance(out, np.ndarray)
     assert out.shape == (2,)
 
 
-@pytest.mark.usefixtures("_patch_nengo")
-def test_step_increments_count(_patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
+def test_step_increments_count() -> None:
+    ctrl = NengoSNNController()
     ctrl.step(np.zeros(2))
     ctrl.step(np.zeros(2))
     assert ctrl._step_count == 2
 
 
-@pytest.mark.usefixtures("_patch_nengo")
-def test_reset_clears_state(_patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
+def test_reset_clears_state() -> None:
+    ctrl = NengoSNNController()
     ctrl.step(np.ones(2))
     ctrl.reset()
     assert ctrl._step_count == 0
     assert np.all(ctrl._last_output == 0.0)
 
 
-@pytest.mark.usefixtures("_patch_nengo")
-def test_get_spike_data_keys(_patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
+def test_responds_to_input() -> None:
+    ctrl = NengoSNNController(NengoSNNConfig(n_neurons=200, seed=42))
+    for _ in range(500):
+        out = ctrl.step(np.array([0.5, -0.3]))
+    assert np.any(np.abs(out) > 0.01)
+
+
+def test_deterministic() -> None:
+    cfg = NengoSNNConfig(seed=99)
+    ctrl1 = NengoSNNController(cfg)
+    ctrl2 = NengoSNNController(cfg)
+    err = np.array([0.3, -0.1])
+    for _ in range(100):
+        o1 = ctrl1.step(err)
+        o2 = ctrl2.step(err)
+    np.testing.assert_array_equal(o1, o2)
+
+
+def test_get_spike_data_keys() -> None:
+    ctrl = NengoSNNController()
     ctrl.step(np.zeros(2))
     data = ctrl.get_spike_data()
     assert "output" in data
+    assert "error_ch0" in data
 
 
-@pytest.mark.usefixtures("_patch_nengo")
-def test_export_weights_returns_dict(_patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
+def test_export_weights_contents() -> None:
+    ctrl = NengoSNNController()
     weights = ctrl.export_weights()
     assert isinstance(weights, dict)
+    assert "ch0_D_gain" in weights
+    assert weights["ch0_D_gain"].shape == (200,)
 
 
-@pytest.mark.usefixtures("_patch_nengo")
-def test_export_fpga_weights(tmp_path, _patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
+def test_export_fpga_weights(tmp_path) -> None:
+    ctrl = NengoSNNController()
     out = tmp_path / "fpga_weights.npz"
     ctrl.export_fpga_weights(out)
     assert out.exists()
     loaded = np.load(str(out))
     assert "n_neurons" in loaded
     assert "n_channels" in loaded
+    assert "ch0_D_gain" in loaded
 
 
-@pytest.mark.usefixtures("_patch_nengo")
-def test_benchmark_returns_stats(_patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
+def test_export_loihi_raises() -> None:
+    ctrl = NengoSNNController()
+    with pytest.raises(NotImplementedError, match="Loihi export"):
+        ctrl.export_loihi("out.npz")
+
+
+def test_benchmark_stats() -> None:
+    ctrl = NengoSNNController()
     stats = ctrl.benchmark(n_steps=10)
     assert "mean_us" in stats
     assert "p95_us" in stats
-    assert stats["mean_us"] >= 0.0
+    assert stats["mean_us"] > 0.0
 
 
-# ── NengoSNNControllerStub ──────────────────────────────────────────
+def test_custom_channels() -> None:
+    cfg = NengoSNNConfig(n_channels=3, n_neurons=50)
+    ctrl = NengoSNNController(cfg)
+    out = ctrl.step(np.array([0.1, 0.2, 0.3]))
+    assert out.shape == (3,)
 
 
-def test_stub_raises():
-    from scpn_control.control.nengo_snn_wrapper import NengoSNNControllerStub
-
-    with pytest.raises(ImportError, match="Nengo is required"):
+def test_stub_raises() -> None:
+    with pytest.raises(ImportError, match="deprecated"):
         NengoSNNControllerStub()
-
-
-@pytest.mark.usefixtures("_patch_nengo")
-def test_export_loihi_raises_without_loihi(_patch_nengo):
-    ctrl = _patch_nengo.mod.NengoSNNController()
-    with pytest.raises(ImportError, match="nengo_loihi"):
-        ctrl.export_loihi("out.npz")

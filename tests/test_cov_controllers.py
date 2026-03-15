@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import zlib
 import base64
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -101,119 +100,9 @@ class TestNeuroCyberneticVisualize:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 2. nengo_snn_wrapper.py — lines 217, 247, 263, 267-274, 297-298, 320-339
+# 2. nengo_snn_wrapper.py — replaced by pure LIF+NEF engine (2026-03-15)
+#    Full test coverage in tests/test_nengo_snn_wrapper.py (24 tests)
 # ═══════════════════════════════════════════════════════════════════════
-
-
-def _make_mock_nengo():
-    mock = MagicMock()
-    mock.LIF = MagicMock(return_value=MagicMock())
-    mock.dists.Uniform = MagicMock(return_value=MagicMock())
-
-    network_ctx = MagicMock()
-    network_ctx.__enter__ = MagicMock(return_value=network_ctx)
-    network_ctx.__exit__ = MagicMock(return_value=False)
-
-    conn_mock = MagicMock()
-    conn_mock.solver = MagicMock()
-    conn_mock.label = "test_conn"
-    network_ctx.all_connections = [conn_mock]
-
-    mock.Network.return_value = network_ctx
-
-    node = MagicMock()
-    node.__getitem__ = MagicMock(return_value=MagicMock())
-    mock.Node.return_value = node
-    mock.Ensemble.return_value = MagicMock()
-    mock.Connection.return_value = MagicMock()
-
-    probe = MagicMock()
-    mock.Probe.return_value = probe
-
-    sim = MagicMock()
-    sim.data = {probe: np.zeros((1, 2))}
-    sim.step = MagicMock()
-    sim.reset = MagicMock()
-    mock.Simulator.return_value = sim
-
-    return mock, sim, probe, conn_mock
-
-
-@pytest.fixture()
-def patched_nengo(monkeypatch):
-    mock_nengo, sim, probe, conn = _make_mock_nengo()
-    import scpn_control.control.nengo_snn_wrapper as mod
-
-    monkeypatch.setattr(mod, "_nengo", mock_nengo)
-    monkeypatch.setattr(mod, "_nengo_available", True)
-    return SimpleNamespace(mock=mock_nengo, sim=sim, probe=probe, conn=conn, mod=mod)
-
-
-class TestNengoStepNotBuilt:
-    def test_step_raises_when_not_built(self, patched_nengo):
-        ctrl = patched_nengo.mod.NengoSNNController()
-        ctrl._built = False
-        with pytest.raises(RuntimeError, match="not built"):
-            ctrl.step(np.zeros(2))
-
-
-class TestNengoGetSpikeDataNone:
-    def test_returns_empty_when_no_simulator(self, patched_nengo):
-        ctrl = patched_nengo.mod.NengoSNNController()
-        ctrl._simulator = None
-        assert ctrl.get_spike_data() == {}
-
-
-class TestNengoExportWeightsNotBuilt:
-    def test_raises_when_not_built(self, patched_nengo):
-        ctrl = patched_nengo.mod.NengoSNNController()
-        ctrl._built = False
-        with pytest.raises(RuntimeError, match="not built"):
-            ctrl.export_weights()
-
-
-class TestNengoExportWeightsConnections:
-    def test_weight_extraction_success(self, patched_nengo):
-        ctrl = patched_nengo.mod.NengoSNNController()
-        w = np.eye(3)
-        weight_data = MagicMock()
-        weight_data.weights = w
-        patched_nengo.sim.data[patched_nengo.conn] = weight_data
-        weights = ctrl.export_weights()
-        assert "test_conn" in weights
-        np.testing.assert_array_equal(weights["test_conn"], w)
-
-    def test_weight_extraction_attr_error(self, patched_nengo):
-        ctrl = patched_nengo.mod.NengoSNNController()
-        patched_nengo.sim.data[patched_nengo.conn] = MagicMock(spec=[])
-        weights = ctrl.export_weights()
-        assert "test_conn" not in weights
-
-
-class TestNengoFpgaExportWithWeights:
-    def test_fpga_weights_includes_connection_weights(self, patched_nengo, tmp_path):
-        ctrl = patched_nengo.mod.NengoSNNController()
-        w = np.eye(2)
-        weight_data = MagicMock()
-        weight_data.weights = w
-        patched_nengo.sim.data[patched_nengo.conn] = weight_data
-        out = tmp_path / "fpga.npz"
-        ctrl.export_fpga_weights(out)
-        loaded = np.load(str(out))
-        assert "weight_test_conn" in loaded
-
-
-class TestNengoLoihiExport:
-    def test_loihi_export_with_mock(self, patched_nengo, tmp_path):
-        ctrl = patched_nengo.mod.NengoSNNController()
-        mock_loihi = MagicMock()
-        mock_loihi_sim = MagicMock()
-        mock_loihi.Simulator.return_value = mock_loihi_sim
-        out = tmp_path / "loihi.npz"
-        with patch.dict("sys.modules", {"nengo_loihi": mock_loihi}):
-            ctrl.export_loihi(str(out))
-        assert out.exists()
-        mock_loihi_sim.close.assert_called_once()
 
 
 # ═══════════════════════════════════════════════════════════════════════
