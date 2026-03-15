@@ -59,9 +59,12 @@ class NonlinearGKConfig:
     n_steps: int = 5000
     save_interval: int = 100
 
-    # Perpendicular box: L_x = 2π/dk_x, etc.
-    Lx: float = 125.66  # ~ 40 ρ_s × 2π
-    Ly: float = 125.66
+    # Perpendicular box in ρ_s units.
+    # Lx sets radial kx range: kx_max = (n_kx/2) × 2π/Lx.
+    # Small Lx → large kx → stronger E×B cascade → saturation.
+    # Ly sets binormal ky_min: ky_min = 2π/Ly.
+    Lx: float = 12.57  # 4π ρ_s → kx_max ≈ 4 for n_kx=16
+    Ly: float = 62.83  # 20π ρ_s → ky_min ≈ 0.1, ky_max ≈ 0.8 for n_ky=16
 
     # Velocity grid: v_par ∈ [-v_max, v_max], mu ∈ [0, mu_max]
     vpar_max: float = 3.0
@@ -201,9 +204,7 @@ class NonlinearGKSolver:
         self.chi_gB = self.rho_s**2 * self.c_s / c.a
 
         # ρ_i/ρ_s for correct FLR normalisation (k_y in ρ_s units)
-        self.rho_ratio = np.sqrt(
-            2.0 * self.ion.temperature_keV / max(self.elec.temperature_keV, 0.01)
-        )
+        self.rho_ratio = np.sqrt(2.0 * self.ion.temperature_keV / max(self.elec.temperature_keV, 0.01))
 
     # ------------------------------------------------------------------
     # Field solve: quasineutrality
@@ -503,11 +504,7 @@ class NonlinearGKSolver:
         # Radial flux: Q_i = Σ_{ky>0} Re[ik_y conj(φ) p_i]
         ky_pos = self.ky > 1e-10
         ky_vals = self.ky[ky_pos]
-        flux_k = (
-            1j * ky_vals[None, :, None]
-            * np.conj(phi[:, ky_pos, :])
-            * p_ion[:, ky_pos, :]
-        )
+        flux_k = 1j * ky_vals[None, :, None] * np.conj(phi[:, ky_pos, :]) * p_ion[:, ky_pos, :]
         Q_i = float(np.real(np.sum(flux_k)))
 
         Q_e = 0.5 * Q_i
