@@ -60,11 +60,12 @@ class NonlinearGKConfig:
     save_interval: int = 100
 
     # Perpendicular box in ρ_s units.
-    # Lx sets radial kx range: kx_max = (n_kx/2) × 2π/Lx.
-    # Small Lx → large kx → stronger E×B cascade → saturation.
-    # Ly sets binormal ky_min: ky_min = 2π/Ly.
-    Lx: float = 12.57  # 4π ρ_s → kx_max ≈ 4 for n_kx=16
-    Ly: float = 62.83  # 20π ρ_s → ky_min ≈ 0.1, ky_max ≈ 0.8 for n_ky=16
+    # Lx: must be large enough for zonal flow scale kx ~ s_hat × ky.
+    # Ly: sets ky_min = 2π/Ly.
+    # Note: without ballooning connection BC (kx shift at θ=±π),
+    # nonlinear saturation requires large n_kx to resolve cascade.
+    Lx: float = 80.0  # kx_min ≈ 0.08, resolves zonal flow at s_hat×ky
+    Ly: float = 62.83  # 20π ρ_s → ky_min ≈ 0.1
 
     # Velocity grid: v_par ∈ [-v_max, v_max], mu ∈ [0, mu_max]
     vpar_max: float = 3.0
