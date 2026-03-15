@@ -487,27 +487,30 @@ class NonlinearGKSolver:
     def compute_fluxes(self, state: NonlinearGKState) -> tuple[float, float]:
         """Ion and electron heat flux in gyro-Bohm units.
 
-        Q_s = Re[Σ_{k_y>0} conj(φ_ky) × p_s_ky] / (n T c_s ρ_s²/a²)
+        Q_i = Re[Σ_{ky>0} ik_y conj(φ) p_i] — radial E×B flux of pressure.
+        The ik_y factor gives the radial component of v_E = ∇φ×b̂/B.
         """
         phi = state.phi
         f_ion = state.f[0]
 
-        # Pressure moment: p_i = ∫ (0.5 v² + μB) f_i dv
+        # Pressure moment: p_i = ∫ (0.5 v_∥² + μB) f_i dv_∥ dμ
         vpar2 = self.vpar[None, None, None, :, None] ** 2
         mu_val = self.mu[None, None, None, None, :]
         energy = 0.5 * vpar2 + mu_val
 
         p_ion = np.sum(energy * f_ion, axis=(-2, -1)) * self.dvpar * self.dmu
-        # (nkx, nky, nθ)
 
-        # Flux: Q_i = sum over ky>0 of conj(phi) × p_ion
+        # Radial flux: Q_i = Σ_{ky>0} Re[ik_y conj(φ) p_i]
         ky_pos = self.ky > 1e-10
-        flux_k = np.conj(phi[:, ky_pos, :]) * p_ion[:, ky_pos, :]
+        ky_vals = self.ky[ky_pos]
+        flux_k = (
+            1j * ky_vals[None, :, None]
+            * np.conj(phi[:, ky_pos, :])
+            * p_ion[:, ky_pos, :]
+        )
         Q_i = float(np.real(np.sum(flux_k)))
 
-        # Electron flux estimate (adiabatic: Q_e ~ 0.5 Q_i)
         Q_e = 0.5 * Q_i
-
         return Q_i, Q_e
 
     def phi_rms(self, state: NonlinearGKState) -> float:
