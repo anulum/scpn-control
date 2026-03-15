@@ -36,10 +36,13 @@
 | **scpn-control (MLP)** | Neural surrogate | **24 ns single-point** | Trained surrogate | CI Criterion |
 | QLKNN (TensorFlow) | NN inference | ~100 us (25 outputs) | Surrogate | van de Plassche 2020 |
 
-> **Fidelity note (v0.17.0):** scpn-control now offers three transport tiers:
+> **Fidelity note (v0.17.0+):** scpn-control now offers five transport tiers:
 > (1) critical-gradient model (fastest, ~µs), (2) QLKNN-10D MLP surrogate
 > (~24 ns single-point), (3) native linear GK eigenvalue solver (~0.3s per
-> flux surface). External GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) can
+> flux surface), **(4) native TGLF-equivalent model** (SAT0/SAT1/SAT2 with
+> E×B shear quench, ~0.5s per surface, no external binary), **(5) nonlinear
+> δf gyrokinetic solver** (5D Vlasov, JAX-accelerable, ~15s/surface on GPU).
+> External GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) can
 > be called via subprocess. The hybrid layer validates the surrogate against
 > GK spot-checks in real time.
 
@@ -70,6 +73,8 @@
 | Transport solver | 1.5D coupled | 1D flux-driven | 0D | No | 1D | 0--1D |
 | **External GK coupling** | **5 codes (TGLF/GENE/GS2/CGYRO/QuaLiKiz)** | TGLF only | No | No | TGLF only | No |
 | **Native linear GK solver** | **Yes (ballooning eigenvalue)** | No | No | No | No | No |
+| **Native TGLF-equivalent** | **Yes (SAT0/SAT1/SAT2, no binary)** | No | No | No | No | No |
+| **Nonlinear δf GK solver** | **Yes (5D Vlasov, JAX-accelerable)** | No | No | No | No | No |
 | **GK-surrogate hybrid** | **Yes + OOD + online learning** | No | No | No | No | No |
 | **SCPN phase coupling** | **Yes (8-layer UPDE bridge)** | No | No | No | No | No |
 | Neural surrogate (QLKNN) | Yes | External | No | No | No | No |

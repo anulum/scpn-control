@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Nonlinear δf gyrokinetic solver** (`gk_nonlinear.py`):
+  5D Vlasov in flux-tube geometry with dealiased E×B bracket (Orszag 2/3 rule),
+  4th-order parallel streaming, curvature/grad-B drift, Krook collision operator,
+  RK4 with CFL-adaptive dt, zonal flow diagnostics.
+  JAX-accelerated variant (`jax_gk_nonlinear.py`) with `jax.checkpoint`.
+  CBC validation: linear recovery, energy conservation, zonal flows, saturated state.
+- **Native TGLF-equivalent model** (`gk_tglf_native.py`):
+  SAT0/SAT1/SAT2 spectral saturation (Staebler 2007/2017),
+  E×B shear quench (Waltz 1997), trapped-particle damping (Connor 1974),
+  multi-scale ITG-ETG cross-scale coupling (Maeyama 2015, α_cs=3.0),
+  quasilinear weights with Γ₀ FLR + particle pinch.
+  Implements `GKSolverBase` — usable as drop-in for external TGLF.
+- `"tglf_native"` transport mode in `integrated_transport_solver.py`
+- `validation/gk_nonlinear_cyclone.py` — CBC benchmark (4 tests, all passing)
+- 53 new tests (27 TGLF native + 26 nonlinear)
+
 ## [0.17.0] — 2026-03-14
 
 ### Added

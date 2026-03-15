@@ -615,6 +615,89 @@ class TransportSolver(FusionKernel):
         self.D_n = D_e_out
         return chi_i_out
 
+    def _tglf_native_transport(self, p: dict) -> np.ndarray:
+        """Run the native TGLF-equivalent solver at each flux surface.
+
+        Uses SAT1 spectral saturation with E×B shear quench.  Also
+        updates self.chi_e and self.D_n.  Falls back to gyro-Bohm on
+        unconverged surfaces.
+        """
+        from scpn_control.core.gk_interface import GKLocalParams
+        from scpn_control.core.gk_tglf_native import TGLFNativeConfig, TGLFNativeSolver
+
+        solver: TGLFNativeSolver | None = getattr(self, "_tglf_native_solver", None)
+        if solver is None:
+            solver = TGLFNativeSolver(TGLFNativeConfig(sat_model="SAT1", n_ky_ion=12, n_theta=32))
+            self._tglf_native_solver = solver
+
+        R0 = p["R0"]
+        a = p["a"]
+        B0 = p["B0"]
+        q_prof = p["q_profile"]
+        Z_eff = p.get("Z_eff", 1.5)
+        kappa = p.get("kappa", 1.0)
+        delta = p.get("delta", 0.0)
+
+        dTe_dr = np.gradient(self.Te, self.rho * a)
+        dTi_dr = np.gradient(self.Ti, self.rho * a)
+        dne_dr = np.gradient(self.ne, self.rho * a)
+
+        chi_i_out = np.zeros_like(self.rho)
+        chi_e_out = np.zeros_like(self.rho)
+        D_e_out = np.zeros_like(self.rho)
+
+        for i in range(len(self.rho)):
+            if self.rho[i] <= 0.05:
+                chi_i_out[i] = 0.01
+                chi_e_out[i] = 0.01
+                D_e_out[i] = 0.01
+                continue
+
+            Te_keV = max(self.Te[i], 0.01)
+            Ti_keV = max(self.Ti[i], 0.01)
+            qi = max(q_prof[i], 0.5)
+            eps_i = max(self.rho[i] * a / R0, 1e-3)
+
+            R_L_Te = -R0 / Te_keV * dTe_dr[i] if Te_keV > 0.01 else 0.0
+            R_L_Ti = -R0 / Ti_keV * dTi_dr[i] if Ti_keV > 0.01 else 0.0
+            R_L_ne = -R0 / max(self.ne[i], 1e-3) * dne_dr[i]
+
+            params = GKLocalParams(
+                R_L_Ti=max(R_L_Ti, 0.0),
+                R_L_Te=max(R_L_Te, 0.0),
+                R_L_ne=max(R_L_ne, -5.0),
+                q=qi,
+                s_hat=1.0,  # TODO(gh-XXX): compute from q profile
+                Te_Ti=Te_keV / Ti_keV,
+                Z_eff=Z_eff,
+                nu_star=0.1,
+                beta_e=0.01,
+                epsilon=eps_i,
+                kappa=kappa,
+                delta=delta,
+                rho=self.rho[i],
+                R0=R0,
+                a=a,
+                B0=B0,
+                n_e=self.ne[i],
+                T_e_keV=Te_keV,
+                T_i_keV=Ti_keV,
+            )
+
+            result = solver.run_from_params(params)
+            if result.converged:
+                chi_i_out[i] = max(result.chi_i, 0.01)
+                chi_e_out[i] = max(result.chi_e, 0.01)
+                D_e_out[i] = max(result.D_e, 0.001)
+            else:
+                chi_i_out[i] = max(self._gyro_bohm_chi()[i], 0.01)
+                chi_e_out[i] = chi_i_out[i]
+                D_e_out[i] = 0.1 * chi_e_out[i]
+
+        self.chi_e = chi_e_out
+        self.D_n = D_e_out
+        return chi_i_out
+
     def update_transport_model(self, P_aux: float) -> None:
         """
         Gyro-Bohm + neoclassical transport model with EPED-like pedestal.
@@ -661,6 +744,8 @@ class TransportSolver(FusionKernel):
                 chi_gB = chi_i_gk  # Use for base ion chi
                 self.chi_e = chi_e_gk  # Update electron chi directly
                 self.D_n = D_e_gk  # Update particle diffusivity directly
+            elif transport_mode == "tglf_native":
+                chi_gB = self._tglf_native_transport(p)
             elif transport_mode == "external_gk":
                 chi_gB = self._external_gk_transport(p)
             else:
