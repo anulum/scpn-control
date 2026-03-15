@@ -253,6 +253,16 @@ class NonlinearGKSolver:
         # ρ_i/ρ_s for correct FLR normalisation (k_y in ρ_s units)
         self.rho_ratio = np.sqrt(2.0 * self.ion.temperature_keV / max(self.elec.temperature_keV, 0.01))
 
+        # Rosenbluth-Hinton zonal flow relaxation parameters.
+        # Phys. Rev. Lett. 80 (1998) 724.
+        # Zonal f is Krook-damped toward the RH residual on the bounce timescale.
+        eps = 0.5 * c.a / max(c.R0, 0.01)
+        self._rh_neo_pol = 1.6 * c.q**2 / max(np.sqrt(eps), 0.01)
+        self._rh_residual = 1.0 / (1.0 + self._rh_neo_pol)
+        self._rh_tau = c.q / max(np.sqrt(eps), 0.01)  # bounce time (normalised)
+        self._rh_rate = (1.0 - self._rh_residual) / self._rh_tau
+        self._ky_zero_5d = np.abs(self.ky[None, :, None, None, None]) < 1e-10
+
     # ------------------------------------------------------------------
     # Field solve: quasineutrality
     # ------------------------------------------------------------------
@@ -278,9 +288,9 @@ class NonlinearGKSolver:
 
         # Adiabatic electron response: +1 for k_y ≠ 0
         ky_nonzero = np.abs(self.ky[None, :]) > 1e-10  # (1, nky)
-
-        # Denominator: (1 - Γ₀) + adiabatic_e
-        denom = (1.0 - Gamma0) + ky_nonzero.astype(float)  # (nkx, nky)
+        # Denominator: (1-Γ₀) + adiabatic(ky≠0).
+        # RH neoclassical polarization applied as dynamic relaxation in rhs().
+        denom = (1.0 - Gamma0) + ky_nonzero.astype(float)
         denom = np.maximum(denom, 1e-10)
 
         phi = Gamma0[:, :, None] * n_ion / denom[:, :, None]
@@ -480,6 +490,11 @@ class NonlinearGKSolver:
 
         # Gradient drive (applied to all species via phi)
         dfdt += self.gradient_drive(phi)
+
+        # Rosenbluth-Hinton zonal flow relaxation: Krook damp ky=0 modes
+        # toward the neoclassical residual on the bounce timescale.
+        # Without this, zonal energy accumulates without bound.
+        dfdt -= self._rh_rate * f * self._ky_zero_5d
 
         return dfdt
 
