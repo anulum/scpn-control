@@ -82,6 +82,9 @@ class NonlinearGKConfig:
     collisions: bool = True
     nu_collision: float = 0.01
     nonlinear: bool = True
+    kinetic_electrons: bool = False
+    # Reduced mass ratio (real: 1/3672, reduced: 1/400 standard in GK research)
+    mass_ratio_me_mi: float = 1.0 / 400.0
 
     # Geometry: defaults to CBC circular
     R0: float = 2.78
@@ -254,6 +257,11 @@ class NonlinearGKSolver:
         # ρ_i/ρ_s for correct FLR normalisation (k_y in ρ_s units)
         self.rho_ratio = np.sqrt(2.0 * self.ion.temperature_keV / max(self.elec.temperature_keV, 0.01))
 
+        # Electron FLR: ρ_e/ρ_s = sqrt(2 T_e m_e / (T_e m_i)) = sqrt(2 m_e/m_i)
+        self.rho_ratio_e = np.sqrt(2.0 * c.mass_ratio_me_mi)
+        # Electron thermal speed ratio: v_th_e / v_th_i = sqrt(m_i/m_e)
+        self.vth_ratio_e = np.sqrt(1.0 / max(c.mass_ratio_me_mi, 1e-6))
+
         # Rosenbluth-Hinton zonal flow relaxation parameters.
         # Phys. Rev. Lett. 80 (1998) 724.
         # Zonal f is Krook-damped toward the RH residual on the bounce timescale.
@@ -271,31 +279,32 @@ class NonlinearGKSolver:
     def field_solve(self, f: NDArray[np.complex128]) -> NDArray[np.complex128]:
         """Solve quasineutrality for φ(k_x, k_y, θ).
 
-        [1 - Γ₀(b_i) + (k_y ≠ 0)] φ = ∫ J₀ f_i dv_∥ dμ
-
-        Adiabatic electrons contribute +1 for k_y ≠ 0 modes.
+        Adiabatic: [(1-Γ₀_i) + 1] φ = ∫ J₀_i h_i dv
+        Kinetic e: (1-Γ₀_i + 1-Γ₀_e) φ = ∫ J₀_i h_i dv - ∫ J₀_e h_e dv
         """
         c = self.cfg
 
-        # Ion density moment: n_i = ∫ f_i dv_∥ dμ × (2π B / m)
-        # Simplified: sum over velocity space with weights
-        f_ion = f[0]  # (nkx, nky, nθ, nvpar, nμ)
+        f_ion = f[0]
         n_ion = np.sum(f_ion, axis=(-2, -1)) * self.dvpar * self.dmu
-        # shape: (nkx, nky, nθ)
 
-        # FLR: b_i = k_perp² (ρ_i/ρ_s)² / 2  (k in ρ_s units)
         b_i = 0.5 * self.kperp2 * self.rho_ratio**2
-        Gamma0 = 1.0 / (1.0 + b_i)
+        Gamma0_i = 1.0 / (1.0 + b_i)
 
-        # Adiabatic electron response: +1 for k_y ≠ 0
-        ky_nonzero = np.abs(self.ky[None, :]) > 1e-10  # (1, nky)
-        # Denominator: (1-Γ₀) + adiabatic(ky≠0).
-        # RH neoclassical polarization applied as dynamic relaxation in rhs().
-        denom = (1.0 - Gamma0) + ky_nonzero.astype(float)
-        denom = np.maximum(denom, 1e-10)
+        if c.kinetic_electrons:
+            f_elec = f[1]
+            n_elec = np.sum(f_elec, axis=(-2, -1)) * self.dvpar * self.dmu
+            b_e = 0.5 * self.kperp2 * self.rho_ratio_e**2
+            Gamma0_e = 1.0 / (1.0 + b_e)
+            denom = (1.0 - Gamma0_i) + (1.0 - Gamma0_e)
+            denom = np.maximum(denom, 1e-10)
+            rhs_qn = Gamma0_i[:, :, None] * n_ion - Gamma0_e[:, :, None] * n_elec
+            phi = rhs_qn / denom[:, :, None]
+        else:
+            ky_nonzero = np.abs(self.ky[None, :]) > 1e-10
+            denom = (1.0 - Gamma0_i) + ky_nonzero.astype(float)
+            denom = np.maximum(denom, 1e-10)
+            phi = Gamma0_i[:, :, None] * n_ion / denom[:, :, None]
 
-        phi = Gamma0[:, :, None] * n_ion / denom[:, :, None]
-        # (kx=0, ky=0) is the equilibrium mode — excluded in δf formulation
         phi[0, 0, :] = 0.0
         return np.asarray(phi, dtype=np.complex128)
 
@@ -431,17 +440,23 @@ class NonlinearGKSolver:
         energy = 0.5 * vpar2 + mu_val
         FM = np.exp(-energy) / np.pi**1.5  # normalised Maxwellian
 
-        R_L_T = c.R_L_Ti  # ion drive
-        eta = R_L_T / max(c.R_L_ne, 0.1) if c.R_L_ne > 0 else 0.0
-
-        omega_star = ky_5d * c.R_L_ne * (1.0 + eta * (energy - 1.5))
         phi_5d = phi[:, :, :, None, None]
-
         drive = np.zeros(
             (c.n_species, c.n_kx, c.n_ky, c.n_theta, c.n_vpar, c.n_mu),
             dtype=complex,
         )
-        drive[0] = -1j * omega_star * phi_5d * FM
+
+        # Ion drive: ω_*i = k_y R/L_ne (1 + η_i (E-3/2))
+        eta_i = c.R_L_Ti / max(c.R_L_ne, 0.1) if c.R_L_ne > 0 else 0.0
+        omega_star_i = ky_5d * c.R_L_ne * (1.0 + eta_i * (energy - 1.5))
+        drive[0] = -1j * omega_star_i * phi_5d * FM
+
+        if c.kinetic_electrons:
+            # Electron drive: ω_*e = -k_y R/L_ne (1 + η_e (E-3/2)), opposite sign
+            eta_e = c.R_L_Te / max(c.R_L_ne, 0.1) if c.R_L_ne > 0 else 0.0
+            omega_star_e = -ky_5d * c.R_L_ne * (1.0 + eta_e * (energy - 1.5))
+            drive[1] = -1j * omega_star_e * phi_5d * FM
+
         return drive
 
     # ------------------------------------------------------------------
@@ -467,18 +482,24 @@ class NonlinearGKSolver:
         dfdt = np.zeros_like(f)
 
         for s in range(c.n_species):
+            if s == 1 and not c.kinetic_electrons:
+                continue
             f_s = f[s]
             terms = np.zeros_like(f_s)
 
-            # E×B nonlinearity
+            # Species velocity scaling: electrons are faster by sqrt(m_i/m_e)
+            v_scale = self.vth_ratio_e if (s == 1 and c.kinetic_electrons) else 1.0
+
+            # E×B nonlinearity (same for all species — v_E doesn't depend on mass)
             if c.nonlinear:
                 terms -= self.exb_bracket(phi, f_s)
 
-            # Parallel streaming
-            terms -= self.parallel_streaming(f_s)
+            # Parallel streaming (scaled by v_th_s)
+            terms -= v_scale * self.parallel_streaming(f_s)
 
-            # Magnetic drift
-            terms -= self.magnetic_drift(f_s)
+            # Magnetic drift (scales with energy/charge, sign flips for electrons)
+            charge_sign = -1.0 if s == 1 else 1.0
+            terms -= charge_sign * self.magnetic_drift(f_s)
 
             # Collisions
             if c.collisions:
@@ -539,7 +560,9 @@ class NonlinearGKSolver:
 
         # CFL: dt < 1 / (k_max × v_ExB_max + v_par_max × b·∇θ_max)
         v_exb = kmax * phi_max
-        v_par_eff = vmax * np.max(np.abs(self.b_dot_grad))
+        # Electron streaming is faster by sqrt(m_i/m_e)
+        v_scale = self.vth_ratio_e if c.kinetic_electrons else 1.0
+        v_par_eff = vmax * v_scale * np.max(np.abs(self.b_dot_grad))
         dt_cfl = c.cfl_factor / max(v_exb + v_par_eff, 1e-30)
 
         return float(min(dt_cfl, c.dt))
