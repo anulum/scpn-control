@@ -86,7 +86,9 @@ def miller_geometry(
         Number of poloidal periods (ballooning copies).
     """
     r = rho * a
-    theta: NDArray[np.float64] = np.linspace(-n_period * np.pi, n_period * np.pi, n_theta * n_period, endpoint=False).astype(np.float64)
+    theta: NDArray[np.float64] = np.linspace(
+        -n_period * np.pi, n_period * np.pi, n_theta * n_period, endpoint=False
+    ).astype(np.float64)
 
     # Miller et al. Eq. (1)-(2): flux surface shape
     delta_angle = np.arcsin(delta)

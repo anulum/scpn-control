@@ -63,7 +63,9 @@ def test_lowpass_reset() -> None:
 def _make_pop(n: int = 50, seed: int = 42) -> _LIFPopulation:
     rng = np.random.default_rng(seed)
     return _LIFPopulation(
-        n=n, tau_rc=0.02, tau_ref=0.002,
+        n=n,
+        tau_rc=0.02,
+        tau_ref=0.002,
         max_rates=rng.uniform(100, 200, n),
         intercepts=rng.uniform(-0.8, 0.8, n),
         encoders=rng.choice([-1.0, 1.0], n),
@@ -87,10 +89,13 @@ def test_lif_spikes_for_strong_input() -> None:
 
 def test_lif_no_spikes_below_threshold() -> None:
     pop = _LIFPopulation(
-        n=50, tau_rc=0.02, tau_ref=0.002,
+        n=50,
+        tau_rc=0.02,
+        tau_ref=0.002,
         max_rates=np.full(50, 100.0),
         intercepts=np.full(50, 0.9),
-        encoders=np.ones(50), dt=0.001,
+        encoders=np.ones(50),
+        dt=0.001,
     )
     total = sum(np.sum(pop.step(0.1) > 0) for _ in range(50))
     assert total == 0

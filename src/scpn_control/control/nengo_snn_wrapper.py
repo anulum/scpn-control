@@ -126,10 +126,7 @@ class _LIFPopulation:
 
     def steady_rates(self, x_eval: NDArray) -> NDArray:
         """Analytic steady-state firing rates. Shape (n, len(x_eval))."""
-        J = (
-            self.alpha[:, None] * self.encoders[:, None] * x_eval[None, :]
-            + self.J_bias[:, None]
-        )
+        J = self.alpha[:, None] * self.encoders[:, None] * x_eval[None, :] + self.J_bias[:, None]
         rates = np.zeros_like(J)
         ok = J > 1.0
         rates[ok] = 1.0 / (self.tau_ref - self.tau_rc * np.log1p(-1.0 / J[ok]))
@@ -142,9 +139,8 @@ class _LIFPopulation:
 
 from typing import Callable as _Callable
 
-def _nef_decoder(
-    pop: _LIFPopulation, fn: _Callable[..., NDArray], n_eval: int = 200, reg: float = 0.1
-) -> NDArray:
+
+def _nef_decoder(pop: _LIFPopulation, fn: _Callable[..., NDArray], n_eval: int = 200, reg: float = 0.1) -> NDArray:
     """Least-squares NEF decoder for target function fn(x).
 
     Tikhonov regularization matches Nengo's LstsqL2 default.
@@ -274,9 +270,7 @@ class NengoSNNController:
             raise RuntimeError("Network not built.")
 
         error = np.asarray(state, dtype=float).ravel()[: self.cfg.n_channels]
-        output = np.array(
-            [ch.step(error[i]) for i, ch in enumerate(self._channels)]
-        )
+        output = np.array([ch.step(error[i]) for i, ch in enumerate(self._channels)])
         self._step_count += 1
         self._last_output = np.asarray(output)
 
@@ -348,8 +342,7 @@ class NengoSNNController:
     def export_loihi(self, filename: str | Path) -> None:
         """Loihi export requires the original nengo + nengo_loihi packages."""
         raise NotImplementedError(
-            "Loihi export requires nengo + nengo_loihi. "
-            "Use export_fpga_weights() for hardware deployment."
+            "Loihi export requires nengo + nengo_loihi. Use export_fpga_weights() for hardware deployment."
         )
 
     def benchmark(self, n_steps: int = 1000) -> dict[str, float]:
@@ -381,6 +374,5 @@ class NengoSNNControllerStub:
 
     def __init__(self, *_args: object, **_kwargs: object) -> None:
         raise ImportError(
-            "NengoSNNControllerStub is deprecated. "
-            "Use NengoSNNController directly — no external dependencies required."
+            "NengoSNNControllerStub is deprecated. Use NengoSNNController directly — no external dependencies required."
         )

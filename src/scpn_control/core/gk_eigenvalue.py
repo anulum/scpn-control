@@ -111,7 +111,9 @@ def _drift_frequency(
     In normalised units (v_th/R scale).
     """
     xi_sq = np.maximum(1.0 - lam * B_ratio, 0.0)
-    return np.asarray(k_y * 2.0 * energy_norm * (geom.kappa_n * xi_sq + geom.kappa_g * np.sqrt(xi_sq)), dtype=np.float64)
+    return np.asarray(
+        k_y * 2.0 * energy_norm * (geom.kappa_n * xi_sq + geom.kappa_g * np.sqrt(xi_sq)), dtype=np.float64
+    )
 
 
 def _parallel_streaming_matrix(
