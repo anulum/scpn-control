@@ -83,8 +83,11 @@ class NonlinearGKConfig:
     nu_collision: float = 0.01
     nonlinear: bool = True
     kinetic_electrons: bool = False
-    # Reduced mass ratio (real: 1/3672, reduced: 1/400 standard in GK research)
+    # Reduced mass ratio. Real: 1/3672. Research standard: 1/400.
+    # For explicit RK4: 1/25 is the largest stable with CFL (v_th_e/v_th_i=5).
     mass_ratio_me_mi: float = 1.0 / 400.0
+    # Semi-implicit electron streaming: treats v_∥_e ∂f_e/∂θ implicitly
+    implicit_electrons: bool = False
 
     # Geometry: defaults to CBC circular
     R0: float = 2.78
@@ -487,8 +490,10 @@ class NonlinearGKSolver:
             f_s = f[s]
             terms = np.zeros_like(f_s)
 
-            # Species velocity scaling: electrons are faster by sqrt(m_i/m_e)
-            v_scale = self.vth_ratio_e if (s == 1 and c.kinetic_electrons) else 1.0
+            # Species velocity scaling: electrons faster by sqrt(m_i/m_e).
+            # If implicit_electrons, the fast streaming is handled post-RK4.
+            is_elec = s == 1 and c.kinetic_electrons
+            v_scale = self.vth_ratio_e if (is_elec and not c.implicit_electrons) else 1.0
 
             # E×B nonlinearity (same for all species — v_E doesn't depend on mass)
             if c.nonlinear:
@@ -544,9 +549,70 @@ class NonlinearGKSolver:
         k4 = self.rhs(NonlinearGKState(f=f4, phi=phi4, time=t0 + dt))
 
         f_new = f0 + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
-        phi_new = self.field_solve(f_new)
 
+        # Semi-implicit electron parallel streaming correction.
+        # After the explicit step, solve (I + α L_∥) f_e^{n+1} = f_e^*
+        # where L_∥ = v_∥ b·∇θ ∂/∂θ and α = dt × v_th_e/v_th_i.
+        # This removes the electron CFL constraint entirely.
+        if self.cfg.kinetic_electrons and self.cfg.implicit_electrons:
+            f_new = self._implicit_electron_streaming(f_new, dt)
+
+        phi_new = self.field_solve(f_new)
         return NonlinearGKState(f=f_new, phi=phi_new, time=t0 + dt)
+
+    def _implicit_electron_streaming(self, f: NDArray[np.complex128], dt: float) -> NDArray[np.complex128]:
+        """Implicit backward-Euler correction for electron parallel streaming.
+
+        Solves (I + α D_θ) f_e = f_e* where D_θ is the 2nd-order central
+        difference operator for v_∥ b·∇θ ∂/∂θ and α = dt × v_th_e_scale.
+        Periodic tridiagonal via Sherman-Morrison.
+        """
+
+        c = self.cfg
+        nθ = c.n_theta
+        h = self.dtheta
+        v_scale = self.vth_ratio_e
+
+        f_e = f[1].copy()
+        shape = f_e.shape  # (nkx, nky, nθ, nvpar, nmu)
+
+        for iv in range(c.n_vpar):
+            vp = self.vpar[iv]
+            for imu in range(c.n_mu):
+                # Streaming coefficient at each θ: α_j = dt × v_scale × v_∥ × b·∇θ_j / (2h)
+                alpha = dt * v_scale * vp * self.b_dot_grad / (2.0 * h)
+
+                # Tridiagonal: (I + α D) where D is central-diff
+                # Main diagonal: 1, upper: +α_j, lower: -α_j
+                # For periodic: corners connect θ_0 ↔ θ_{N-1}
+                diag_main = np.ones(nθ, dtype=complex)
+                diag_upper = alpha.copy().astype(complex)
+                diag_lower = -alpha.copy().astype(complex)
+
+                # Build banded matrix for solve_banded (non-periodic part)
+                # Periodic correction via Sherman-Morrison:
+                # A_periodic = A_tridiag + u v^T where
+                # u = [-diag_upper[-1], 0, ..., 0, diag_lower[0]]
+                # v = [1, 0, ..., 0, -1]
+                # But for simplicity, approximate with large periodic domain
+                # (error O(alpha^n_theta), negligible for n_theta >= 16)
+
+                # Direct periodic solve: just use dense for now (nθ=32, cheap)
+                A = np.diag(diag_main) + np.diag(diag_upper[:-1], 1) + np.diag(diag_lower[1:], -1)
+                # Periodic corners
+                A[0, -1] = diag_lower[0]
+                A[-1, 0] = diag_upper[-1]
+
+                # Solve A @ f_new = f_old for each (kx, ky) mode
+                rhs_slice = f_e[:, :, :, iv, imu]  # (nkx, nky, nθ)
+                # Reshape to (nkx*nky, nθ) for batched solve
+                rhs_flat = rhs_slice.reshape(-1, nθ)
+                sol_flat = np.linalg.solve(A, rhs_flat.T).T  # (nkx*nky, nθ)
+                f_e[:, :, :, iv, imu] = sol_flat.reshape(shape[0], shape[1], nθ)
+
+        f_out = f.copy()
+        f_out[1] = f_e
+        return f_out
 
     def _cfl_dt(self, state: NonlinearGKState) -> float:
         """CFL-limited time step."""
@@ -560,8 +626,10 @@ class NonlinearGKSolver:
 
         # CFL: dt < 1 / (k_max × v_ExB_max + v_par_max × b·∇θ_max)
         v_exb = kmax * phi_max
-        # Electron streaming is faster by sqrt(m_i/m_e)
-        v_scale = self.vth_ratio_e if c.kinetic_electrons else 1.0
+        # Electron streaming: if implicit, CFL only limited by ion speed
+        v_scale = 1.0
+        if c.kinetic_electrons and not c.implicit_electrons:
+            v_scale = self.vth_ratio_e
         v_par_eff = vmax * v_scale * np.max(np.abs(self.b_dot_grad))
         dt_cfl = c.cfl_factor / max(v_exb + v_par_eff, 1e-30)
 
