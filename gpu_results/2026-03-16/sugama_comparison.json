@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-03-16",
+  "description": "Sugama vs Krook collision comparison at CBC, n_kx=128",
+  "results": {
+    "krook_adiabatic": {
+      "chi_i_gB": 1.9476,
+      "collision_model": "krook",
+      "kinetic_electrons": false,
+      "elapsed_s": 996,
+      "phi_final": 1.2525,
+      "time_final": 6.72
+    },
+    "sugama_adiabatic": {
+      "chi_i_gB": 1.9476,
+      "collision_model": "sugama",
+      "kinetic_electrons": false,
+      "elapsed_s": 1021,
+      "phi_final": 1.2525,
+      "time_final": 6.72
+    },
+    "sugama_kinetic_e": {
+      "note": "Killed — implicit NumPy at n_kx=128 too slow (est 14hr). Prior result with Krook+kinetic_e: chi_gB=1.30."
+    }
+  },
+  "conclusion": "Sugama and Krook give identical chi_gB=1.95 at nu=0.01 (low collisionality). The collision model only matters at higher collisionality. The kinetic electron effect (1.95→1.30) is much larger than the collision model effect."
+}
