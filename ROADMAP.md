@@ -197,27 +197,43 @@
 
 ## Next
 
-### v0.18.0 — GK quantitative accuracy
+### v0.18.0 — GK quantitative accuracy (2026-03-15/16)
 - [x] Fix linear GK eigenvalue solver: local dispersion + Newton root-finding.
   CBC: γ_max = 0.14 c_s/a at k_y = 0.37 (GENE: 0.18 at 0.3, within 21%).
 - [x] GPU nonlinear CBC benchmark (JarvisLabs RTX 5000, JAX 0.6.2):
-  62× JAX speedup, 5000 steps in 18 min, linear growth rate confirmed,
-  zonal flow generation confirmed.
-- [ ] **Ballooning connection BC** — kx shift at θ=±π: f(kx, ky, θ+2π) =
-  f(kx + s_hat × ky, ky, θ). Required for proper kx cascade and nonlinear
-  saturation. Without it, energy piles up at the injection scale. Every
-  flux-tube code (GENE, GS2, CGYRO) uses this — it's the standard BC.
-- [ ] Cross-code benchmark: native GK vs real TGLF growth rates (requires GACODE on Linux)
-- [ ] TORAX coupling: install torax, profile comparison at ITER/SPARC parameters
+  62× JAX speedup, 9 GPU runs, systematic convergence n_kx=8→128.
+- [x] **Ballooning connection BC** — kx shift at θ=±π via FFT phase multiply.
+- [x] **Rosenbluth-Hinton zonal Krook damping** — dynamic relaxation on bounce time.
+- [x] **Turbulent saturation** at n_kx=128: phi oscillates ~1.1, chi_i=2.0 χ_gB
+  (GENE CBC range: 1-5 χ_gB). Late growth rate 0.10.
+- [x] **Nengo replaced** with pure LIF+NEF engine (numpy 2.x compatible).
+- [x] **All mypy errors fixed** across 10 source files.
+- [x] **chi_i normalization**: Q_i / R_L_Ti = 2.0 χ_gB at CBC.
+- [x] **Dimits shift scan**: 7-point R/L_Ti={3..6.9}, transport stiffness confirmed
+  (chi_gB rises 1.15→1.95). Subcritical decay visible at 20K steps (phi -10%)
+  but full Dimits gap requires kinetic electrons for proper critical gradient.
+- [ ] Cross-code benchmark: native GK vs real TGLF (requires GACODE on Linux)
+- [ ] TORAX coupling
+
+### v0.19.0 — Kinetic electrons (Phase 2)
+- [ ] Add kinetic electron species to field solve (remove adiabatic approximation)
+- [ ] Full quasineutrality: n_e(kinetic) + n_i(kinetic) = 0
+- [ ] Electron parallel streaming, magnetic drift, FLR (mass ratio m_e/m_i)
+- [ ] TEM modes from first principles
+- [ ] Proper linear critical gradient → clean Dimits shift
+
+### v0.20.0 — Sugama collision operator (Phase 3)
+- [ ] Replace Krook with pitch-angle + energy diffusion
+- [ ] Conservation of particles, momentum, energy
 
 ### v1.0.0 — Production readiness
-- [ ] JOSS paper submission (fact-checked, final claims)
-- [ ] Streamlit dashboard v2 (shot replay + multi-machine selector)
+- [ ] JOSS paper submission
+- [ ] Electromagnetic nonlinear extension (A_∥, KBM, MTM)
+- [ ] Streamlit dashboard v2
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
-- [ ] Coordinated Rust dep upgrade (ndarray 0.16+, ndarray-linalg 0.18+, rand 0.9)
 
 ## Future
-- [ ] Nonlinear GK cross-code validation (GENE/CGYRO comparison at full resolution)
+- [ ] Nonlinear GK cross-code validation (GENE/CGYRO comparison)
 - [ ] Experimental tokamak validation (requires MDSplus + real shot data)
-- [ ] Neural eq cross-validation vs P-EFIT (requires proprietary P-EFIT equilibria)
+- [ ] Neural eq cross-validation vs P-EFIT
 - [ ] Production hardware deployment (CODAC/EPICS integration)
