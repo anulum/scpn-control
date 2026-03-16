@@ -17,7 +17,7 @@ authors:
 affiliations:
   - name: ANULUM CH & LI
     index: 1
-date: 14 March 2026
+date: 16 March 2026
 bibliography: paper.bib
 ---
 
@@ -25,13 +25,16 @@ bibliography: paper.bib
 
 `scpn-control` is an open-source neuro-symbolic control engine for tokamak
 plasma control combining Stochastic Petri Net (SPN) compilation into spiking
-neural network (SNN) controllers, a three-path gyrokinetic transport system,
-and an 8-layer Kuramoto-Sakaguchi phase dynamics engine.
+neural network (SNN) controllers, a five-tier gyrokinetic transport system
+including a nonlinear $\delta f$ solver, and an 8-layer Kuramoto-Sakaguchi
+phase dynamics engine.
 
 The package provides: a Grad-Shafranov equilibrium solver (fixed and free
 boundary, JAX-differentiable), a 1.5D Crank-Nicolson transport solver with
 multi-ion physics, a native linear gyrokinetic eigenvalue solver with
-electromagnetic extension (electrostatic + KBM + microtearing modes),
+electromagnetic extension, a native TGLF-equivalent quasilinear model
+(SAT0/SAT1/SAT2 saturation rules), a nonlinear $\delta f$ gyrokinetic
+solver in flux-tube geometry with JAX GPU acceleration (62$\times$ speedup),
 interfaces to five external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz),
 a hybrid surrogate+GK validation layer with out-of-distribution detection
 and online retraining, seven controllers (PID, MPC, $H_\infty$, $\mu$-synthesis,
@@ -39,14 +42,13 @@ NMPC, SNN, safe RL), disruption prediction with SPI mitigation, and a
 companion Rust backend (5 crates, PyO3 bindings) achieving 11.9 µs median
 kernel latency.
 
-Pre-trained neural equilibrium weights for both SPARC and ITER geometries
-enable sub-10ms CPU-only equilibrium inference. An interactive Streamlit
-dashboard provides multi-machine shot replay (DIII-D, SPARC, ITER, NSTX-U,
-JET), real-time GK transport visualisation, and OOD monitoring.
+The nonlinear gyrokinetic solver reproduces the Cyclone Base Case
+benchmark [@dimits2000] with $\chi_i = 2.0\,\chi_{gB}$ (adiabatic electrons)
+and $\chi_i = 1.3\,\chi_{gB}$ (kinetic electrons), both within the published
+GENE/GS2 range of 1–5 $\chi_{gB}$.
 
-The codebase comprises 98 Python source modules and 5 Rust crates
-(ndarray 0.16, rand 0.9, PyO3 0.24) with 3,074+ Python tests and 317 Rust
-tests at 100% coverage across 20 CI jobs.
+The codebase comprises 125 Python source modules and 5 Rust crates with
+3,300+ Python tests at 100% coverage across 20 CI jobs.
 
 # Statement of Need
 
@@ -58,24 +60,36 @@ TCV-RL [@degrave2022] applies deep RL to tokamak control, FreeGS [@freegs]
 solves free-boundary equilibria, and FUSE [@fuse2024] offers integrated
 design-to-operations modelling. No single package combines compilable control
 logic (SPNs), neuromorphic execution (SNNs), first-principles gyrokinetic
-transport (native eigenvalue solver + external code coupling + hybrid
-surrogate validation), and multi-layer phase dynamics in one coherent stack.
+transport from quasilinear through nonlinear, and multi-layer phase dynamics
+in one coherent stack.
 
-`scpn-control` fills this gap with three distinguishing capabilities:
+`scpn-control` fills this gap with four distinguishing capabilities:
 
-1. **Three-path gyrokinetic transport** — a native linear GK eigenvalue
-   solver in ballooning space (Miller geometry, Sugama collision operator)
-   [@dimits2000; @miller1998; @sugama2006], interfaces to five external
-   GK codes via subprocess, and a hybrid layer that validates the QLKNN
-   surrogate [@plassche2020] against GK spot-checks with OOD detection,
-   correction, and online retraining. No competing code has all three paths.
+1. **Five-tier gyrokinetic transport** — spanning critical-gradient models
+   ($\sim\mu$s), QLKNN surrogates ($\sim$24 ns), a native linear GK
+   eigenvalue solver ($\sim$0.3 s per flux surface) [@dimits2000; @miller1998],
+   a native TGLF-equivalent model with SAT0/SAT1/SAT2 spectral saturation
+   [@staebler2007; @staebler2017; @maeyama2015], and a nonlinear $\delta f$
+   gyrokinetic solver with dealiased E$\times$B bracket, ballooning connection
+   boundary conditions, Rosenbluth-Hinton zonal flow physics
+   [@rosenbluth1998], Sugama collision operator [@sugama2006], and optional
+   kinetic electrons via semi-implicit backward-Euler treatment.
+   JAX GPU acceleration delivers 62$\times$ speedup on commodity hardware.
 
-2. **SPN-to-SNN compilation** — translates control graphs into leaky
+2. **Cyclone Base Case validation** — the nonlinear solver achieves turbulent
+   saturation at $n_{kx}=128$ with $\chi_i = 2.0\,\chi_{gB}$ (adiabatic) and
+   $\chi_i = 1.3\,\chi_{gB}$ (kinetic electrons), within the published GENE/GS2
+   range [@dimits2000]. The linear solver reproduces CBC growth rates within 21%
+   of GENE. Transport stiffness (increasing $\chi_i$ with $R/L_{T_i}$) is
+   confirmed across a 7-point gradient scan.
+
+3. **SPN-to-SNN compilation** — translates control graphs into leaky
    integrate-and-fire neuron pools with stochastic bitstream encoding
    [@murata1989; @maass1997], enforcing pre/post-condition contracts on
-   every observation and action.
+   every observation and action. The pure-NumPy LIF+NEF engine requires
+   no external dependencies.
 
-3. **8-layer plasma phase dynamics** — a Kuramoto-Sakaguchi multi-layer
+4. **8-layer plasma phase dynamics** — a Kuramoto-Sakaguchi multi-layer
    UPDE engine [@kuramoto1975; @sotek2026knm] encoding experimentally
    grounded interactions (drift-wave/zonal-flow, NTM/bootstrap-current,
    ELM/pedestal), with GK-driven adaptive $K_{nm}$ coupling and Lyapunov
@@ -83,71 +97,89 @@ surrogate validation), and multi-layer phase dynamics in one coherent stack.
 
 # Implementation
 
-The Python package (98 modules) is organised into four layers:
+The Python package (125 modules) is organised into four layers:
 
 - **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration
   with multigrid or SOR), 1.5D Crank-Nicolson transport, GEQDSK/IMAS I/O,
   IPB98(y,2) scaling [@ipb1999], neural equilibrium accelerator, uncertainty
   quantification, and the gyrokinetic transport stack:
-    - *Native GK*: Miller flux-tube geometry [@miller1998], per-species
-      Gauss-Legendre velocity grid, Sugama collision operator [@sugama2006],
-      response-matrix eigenvalue solver, mixing-length quasilinear fluxes.
-      Electromagnetic extension adds KBM [@tang1980] and microtearing
-      [@drake1977] modes via $A_\parallel$ and $\delta B_\parallel$.
+    - *Native linear GK*: Miller flux-tube geometry [@miller1998], per-species
+      Gauss-Legendre velocity grid, local dispersion relation with Newton
+      root-finding, mixing-length quasilinear fluxes. Electromagnetic
+      extension adds KBM [@tang1980] and microtearing [@drake1977] modes.
+    - *Native TGLF-equivalent*: SAT0/SAT1/SAT2 spectral saturation
+      [@staebler2007; @staebler2017], E$\times$B shear quench [@waltz1997],
+      trapped-particle damping [@connor1974], multi-scale ITG-ETG coupling
+      [@maeyama2015]. No external binary required.
+    - *Nonlinear $\delta f$*: 5D Vlasov in flux-tube geometry, dealiased
+      E$\times$B bracket (Orszag 2/3 rule), 4th-order parallel streaming with
+      ballooning connection BC, Rosenbluth-Hinton zonal Krook damping
+      [@rosenbluth1998], Sugama collision operator [@sugama2006] with
+      particle/momentum/energy conservation, optional kinetic electrons
+      (semi-implicit backward-Euler for electron parallel streaming),
+      RK4 with CFL-adaptive dt, JAX-accelerated variant (62$\times$ on GPU).
     - *External GK*: TGLF [@staebler2007], GENE [@jenko2000], GS2
       [@kotschenreuther1995], CGYRO [@candy2003], QuaLiKiz [@bourdelle2007]
       via subprocess with automatic input deck generation and output parsing.
     - *Hybrid*: OOD detection (Mahalanobis + ensemble + range), spot-check
-      scheduling (periodic/adaptive/critical-region), multiplicative/additive
-      correction with EMA smoothing, online surrogate retraining with
-      validation holdout and rollback.
+      scheduling, multiplicative/additive correction with EMA smoothing,
+      online surrogate retraining with validation holdout and rollback.
 - **Phase** (`scpn_control.phase`): Kuramoto-Sakaguchi stepper, UPDE
   multi-layer solver, adaptive $K_{nm}$ engine with GK→UPDE bridge,
   Lyapunov guard, WebSocket real-time monitor.
 - **SCPN** (`scpn_control.scpn`): SPN structure, compiler, contract system,
-  artifact serialisation.
+  artifact serialisation, FPGA bitstream export.
 - **Control** (`scpn_control.control`): $H_\infty$ (Riccati DARE),
   $\mu$-synthesis (D-K iteration), NMPC (SQP), gain-scheduled PID,
   shape controller, safe RL (PPO with MHD constraint veto), sliding-mode
   vertical stability, scenario scheduler, fault-tolerant control, digital
-  twin, flight simulator, Gymnasium environment, JAX-traceable runtime.
+  twin, flight simulator, Gymnasium environment, JAX-traceable runtime,
+  ITER CODAC/EPICS interface, federated disruption prediction.
 
 The Rust backend (`scpn-control-rs`, 5 crates, ndarray 0.16, rand 0.9)
 provides PyO3 bindings for performance-critical paths, achieving a median
-kernel latency of 11.9 µs (Criterion-verified). The workspace passes 317
-Rust tests with zero clippy warnings.
-
-A JAX-accelerated GK backend (`jax_gk_solver.py`) batches eigenvalue solves
-across the $k_y$ grid via `jax.vmap` and computes transport stiffness
-$d\chi_i / d(R/L_{T_i})$ analytically via `jax.grad`.
+kernel latency of 11.9 µs (Criterion-verified).
 
 # Validation
 
 The solver is validated against:
 
-- **Cyclone Base Case** [@dimits2000]: circular geometry ($R/a = 2.78$,
-  $q = 1.4$, $\hat{s} = 0.78$, $R/L_{T_i} = 6.9$), producing positive
-  ITG growth rates consistent with published benchmarks.
+- **Cyclone Base Case** [@dimits2000]: nonlinear turbulent saturation at
+  $n_{kx}=128$ produces $\chi_i = 2.0\,\chi_{gB}$ (Krook collisions,
+  adiabatic electrons) and $\chi_i = 1.3\,\chi_{gB}$ (Sugama collisions,
+  kinetic electrons via semi-implicit advance). Both values lie within
+  the published GENE/GS2 range of 1–5 $\chi_{gB}$. The linear eigenvalue
+  solver reproduces CBC ITG growth rates ($\gamma_{max} = 0.14\,c_s/a$ at
+  $k_y\rho_s = 0.37$) within 21% of GENE ($\gamma_{max} \approx 0.18$).
+  A convergence study from $n_{kx}=8$ to $n_{kx}=128$ demonstrates
+  systematic reduction of late-time growth rate from 0.93 to 0.10.
+  Transport stiffness (monotonic $\chi_i(R/L_{T_i})$) is confirmed over
+  a 7-point gradient scan ($R/L_{T_i} = 3$–$6.9$).
+- **Sugama collision operator**: pitch-angle scattering with energy-dependent
+  collision rate ($\nu(v) \propto v^{-3}$) and conservation corrections.
+  Verified: $\int C[f]\,dv < 3\times10^{-8}$ (particles),
+  $\int v_\parallel C[f]\,dv < 10^{-23}$ (momentum),
+  $\int E\,C[f]\,dv < 2\times10^{-8}$ (energy). At low collisionality
+  ($\nu = 0.01$), Sugama and Krook give identical saturated $\chi_i$.
 - **SPARC/ITER equilibria**: RMSE-gated against CFS SPARCPublic GEQDSK files
-  and ITER design parameters. Pre-trained neural equilibrium weights for both
-  machines achieve sub-10ms inference with <15% normalised RMSE.
+  and ITER design parameters.
 - **DIII-D disruption shots**: 17 synthetic shots covering H-mode, VDE,
   beta-limit, locked-mode, density-limit, tearing, and snowflake
   configurations.
-- **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS,
-  with bitwise fidelity on psi, pressure, and profile arrays.
+- **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
-The test suite comprises 3,074+ Python tests and 317 Rust tests across 20 CI
-jobs (Python 3.10–3.13 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo
-Loihi emulator, CodeQL security analysis, OpenSSF Scorecard). Coverage gate
-is 99% (current: 100%). The project holds an OpenSSF CII Best Practices badge.
+The test suite comprises 3,300+ Python tests across 20 CI jobs (Python
+3.10–3.13 on Linux/Windows/macOS, Rust stable, JAX parity, CodeQL security
+analysis, OpenSSF Scorecard). Coverage gate is 99% (current: 100%). The
+project holds an OpenSSF CII Best Practices badge.
 
-**Limitations**: the native GK solver is linearised (no nonlinear turbulence);
-the collision operator is simplified Sugama (pitch-angle only); external GK
-interfaces are mock-tested (no real Fortran binaries in CI); DIII-D shots use
-synthetic data, not real MDSplus archives. The neural equilibrium has not been
-cross-validated against P-EFIT on identical equilibria.
+**Limitations**: external GK interfaces are mock-tested (no real Fortran
+binaries in CI); DIII-D shots use synthetic data, not real MDSplus archives;
+the neural equilibrium has not been cross-validated against P-EFIT on
+identical equilibria; the Dimits shift is qualitatively correct (subcritical
+transport decays, supercritical grows) but the sharp onset requires longer
+runs or higher resolution.
 
 # Acknowledgements
 
