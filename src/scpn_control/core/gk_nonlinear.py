@@ -88,6 +88,9 @@ class NonlinearGKConfig:
     mass_ratio_me_mi: float = 1.0 / 400.0
     # Semi-implicit electron streaming: treats v_∥_e ∂f_e/∂θ implicitly
     implicit_electrons: bool = False
+    # Electromagnetic: adds A_∥ via Ampere's law, enables KBM/MTM
+    electromagnetic: bool = False
+    beta_e: float = 0.01  # 2μ₀ n_e T_e / B₀²
 
     # Geometry: defaults to CBC circular
     R0: float = 2.78
@@ -111,6 +114,8 @@ class NonlinearGKState:
     # (n_kx, n_ky, n_theta)
     phi: NDArray[np.complex128]
     time: float
+    # A_∥(n_kx, n_ky, n_theta) — parallel vector potential (EM only)
+    A_par: NDArray[np.complex128] | None = None
 
 
 @dataclass
@@ -311,6 +316,32 @@ class NonlinearGKSolver:
         phi[0, 0, :] = 0.0
         return np.asarray(phi, dtype=np.complex128)
 
+    def ampere_solve(self, f: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Ampere's law for A_∥: k_perp² A_∥ = β_e Σ_s q_s ∫ v_∥ J₀ h_s dv.
+
+        Returns A_par(n_kx, n_ky, n_theta). Zero when electromagnetic=False.
+        """
+        c = self.cfg
+        if not c.electromagnetic:
+            return np.zeros((c.n_kx, c.n_ky, c.n_theta), dtype=complex)
+
+        vpar_5d = self.vpar[None, None, None, :, None]
+        dv = self.dvpar * self.dmu
+
+        # Ion current: j_i = ∫ v_∥ J₀_i h_i dv
+        j_par = np.sum(vpar_5d * f[0], axis=(-2, -1)) * dv
+
+        # Electron current (kinetic electrons only, opposite charge)
+        if c.kinetic_electrons:
+            v_scale_e = self.vth_ratio_e
+            j_par -= v_scale_e * np.sum(vpar_5d * f[1], axis=(-2, -1)) * dv
+
+        # k_perp² A_∥ = β_e × j_∥
+        kp2 = self.kperp2[:, :, None]
+        A_par = c.beta_e * j_par / np.maximum(kp2, 1e-10)
+        A_par[0, 0, :] = 0.0
+        return np.asarray(A_par, dtype=np.complex128)
+
     # ------------------------------------------------------------------
     # E×B nonlinearity: {φ, f} via dealiased FFT
     # ------------------------------------------------------------------
@@ -487,30 +518,42 @@ class NonlinearGKSolver:
     # Gradient drive source
     # ------------------------------------------------------------------
 
-    def gradient_drive(self, phi: NDArray[np.complex128]) -> NDArray[np.complex128]:
-        """Background gradient drive: -ik_y (ω_*T) × φ × F_M.
+    def gradient_drive(
+        self,
+        phi: NDArray[np.complex128],
+        A_par: NDArray[np.complex128] | None = None,
+    ) -> NDArray[np.complex128]:
+        """Background gradient drive: -ik_y ω_* × (φ - v_∥ A_∥) × F_M.
 
-        ω_*T = k_y × R/L_T × [1 + η(E/T - 3/2)]
+        EM contribution: the effective potential is φ - v_∥ A_∥/c, which
+        adds the magnetic flutter drive for KBM/MTM at finite β.
         """
         c = self.cfg
         ky_5d = self.ky[None, :, None, None, None]
 
-        # Maxwellian weight
         vpar2 = self.vpar[None, None, None, :, None] ** 2
+        vpar_5d = self.vpar[None, None, None, :, None]
         mu_val = self.mu[None, None, None, None, :]
         energy = 0.5 * vpar2 + mu_val
-        FM = np.exp(-energy) / np.pi**1.5  # normalised Maxwellian
+        FM = np.exp(-energy) / np.pi**1.5
 
+        # Effective potential: φ_eff = φ - v_∥ A_∥ (EM) or just φ (ES)
         phi_5d = phi[:, :, :, None, None]
+        if c.electromagnetic and A_par is not None:
+            A_5d = A_par[:, :, :, None, None]
+            phi_eff = phi_5d - vpar_5d * A_5d
+        else:
+            phi_eff = phi_5d
+
         drive = np.zeros(
             (c.n_species, c.n_kx, c.n_ky, c.n_theta, c.n_vpar, c.n_mu),
             dtype=complex,
         )
 
-        # Ion drive: ω_*i = k_y R/L_ne (1 + η_i (E-3/2))
+        # Ion drive
         eta_i = c.R_L_Ti / max(c.R_L_ne, 0.1) if c.R_L_ne > 0 else 0.0
         omega_star_i = ky_5d * c.R_L_ne * (1.0 + eta_i * (energy - 1.5))
-        drive[0] = -1j * omega_star_i * phi_5d * FM
+        drive[0] = -1j * omega_star_i * phi_eff * FM
 
         if c.kinetic_electrons:
             # Electron drive: ω_*e = -k_y R/L_ne (1 + η_e (E-3/2)), opposite sign
@@ -573,8 +616,9 @@ class NonlinearGKSolver:
 
             dfdt[s] = terms
 
-        # Gradient drive (applied to all species via phi)
-        dfdt += self.gradient_drive(phi)
+        # Gradient drive (with EM A_∥ contribution when electromagnetic=True)
+        A_par = self.ampere_solve(f) if c.electromagnetic else None
+        dfdt += self.gradient_drive(phi, A_par)
 
         # Rosenbluth-Hinton zonal flow relaxation: Krook damp ky=0 modes
         # toward the neoclassical residual on the bounce timescale.
@@ -616,7 +660,8 @@ class NonlinearGKSolver:
             f_new = self._implicit_electron_streaming(f_new, dt)
 
         phi_new = self.field_solve(f_new)
-        return NonlinearGKState(f=f_new, phi=phi_new, time=t0 + dt)
+        A_par_new = self.ampere_solve(f_new) if self.cfg.electromagnetic else None
+        return NonlinearGKState(f=f_new, phi=phi_new, time=t0 + dt, A_par=A_par_new)
 
     def _implicit_electron_streaming(self, f: NDArray[np.complex128], dt: float) -> NDArray[np.complex128]:
         """Implicit backward-Euler correction for electron parallel streaming.
@@ -757,7 +802,8 @@ class NonlinearGKSolver:
         f = amplitude * (rng.standard_normal(shape) + 1j * rng.standard_normal(shape)) * FM
 
         phi = self.field_solve(f)
-        return NonlinearGKState(f=f, phi=phi, time=0.0)
+        A_par = self.ampere_solve(f) if c.electromagnetic else None
+        return NonlinearGKState(f=f, phi=phi, time=0.0, A_par=A_par)
 
     def init_single_mode(self, kx_idx: int = 0, ky_idx: int = 1, amplitude: float = 1e-5) -> NonlinearGKState:
         """Single-mode initial condition for linear growth rate recovery."""
