@@ -78,16 +78,28 @@ class JaxNonlinearGKSolver:
 
     def _jax_field_solve(self, f: jnp.ndarray) -> jnp.ndarray:
         c = self.cfg
+        dv = self._np_solver.dvpar * self._np_solver.dmu
         f_ion = f[0]
-        n_ion = jnp.sum(f_ion, axis=(-2, -1)) * self._np_solver.dvpar * self._np_solver.dmu
+        n_ion = jnp.sum(f_ion, axis=(-2, -1)) * dv
 
-        rr = self._np_solver.rho_ratio  # ρ_i/ρ_s
+        rr = self._np_solver.rho_ratio
         b_i = 0.5 * self._kperp2_j * rr**2
-        Gamma0 = 1.0 / (1.0 + b_i)
-        ky_nonzero = (jnp.abs(self._ky_j[None, :]) > 1e-10).astype(float)
-        denom = jnp.maximum((1.0 - Gamma0) + ky_nonzero, 1e-10)
-        phi = Gamma0[:, :, None] * n_ion / denom[:, :, None]
-        # (kx=0, ky=0) = equilibrium mode, excluded in δf
+        Gamma0_i = 1.0 / (1.0 + b_i)
+
+        if c.kinetic_electrons:
+            f_elec = f[1]
+            n_elec = jnp.sum(f_elec, axis=(-2, -1)) * dv
+            rr_e = self._np_solver.rho_ratio_e
+            b_e = 0.5 * self._kperp2_j * rr_e**2
+            Gamma0_e = 1.0 / (1.0 + b_e)
+            denom = jnp.maximum((1.0 - Gamma0_i) + (1.0 - Gamma0_e), 1e-10)
+            rhs_qn = Gamma0_i[:, :, None] * n_ion - Gamma0_e[:, :, None] * n_elec
+            phi = rhs_qn / denom[:, :, None]
+        else:
+            ky_nonzero = (jnp.abs(self._ky_j[None, :]) > 1e-10).astype(float)
+            denom = jnp.maximum((1.0 - Gamma0_i) + ky_nonzero, 1e-10)
+            phi = Gamma0_i[:, :, None] * n_ion / denom[:, :, None]
+
         phi = phi.at[0, 0, :].set(0.0)
         return jnp.asarray(phi)
 
@@ -126,14 +138,17 @@ class JaxNonlinearGKSolver:
     # JAX RHS
     # ------------------------------------------------------------------
 
-    def _jax_rhs_species(self, f_s: jnp.ndarray, phi: jnp.ndarray) -> jnp.ndarray:
+    def _jax_rhs_species(self, f_s: jnp.ndarray, phi: jnp.ndarray, species_idx: int = 0) -> jnp.ndarray:
         c = self.cfg
         terms = jnp.zeros_like(f_s)
+
+        v_scale = self._np_solver.vth_ratio_e if (species_idx == 1 and c.kinetic_electrons) else 1.0
+        charge_sign = -1.0 if species_idx == 1 else 1.0
 
         if c.nonlinear:
             terms = terms - self._jax_exb_bracket(phi, f_s)
 
-        # Parallel streaming
+        # Parallel streaming (scaled by v_th for electrons)
         h = self._np_solver.dtheta
         dfdt = (
             -jnp.roll(f_s, -2, axis=2)
@@ -143,9 +158,9 @@ class JaxNonlinearGKSolver:
         ) / (12.0 * h)
         vpar_5d = self._vpar_j[None, None, None, :, None]
         bdg_5d = self._b_dot_grad_j[None, None, :, None, None]
-        terms = terms - vpar_5d * bdg_5d * dfdt
+        terms = terms - v_scale * vpar_5d * bdg_5d * dfdt
 
-        # Magnetic drift
+        # Magnetic drift (charge sign flips for electrons)
         vpar2 = self._vpar_j[None, None, None, :, None] ** 2
         mu_B = self._mu_j[None, None, None, None, :] * self._B_ratio_j[None, None, :, None, None]
         energy = 0.5 * vpar2 + mu_B
@@ -154,7 +169,7 @@ class JaxNonlinearGKSolver:
         kg = self._kappa_g_j[None, None, :, None, None]
         ky_5d = self._ky_j[None, :, None, None, None]
         omega_D = ky_5d * 2.0 * energy * (kn * xi_sq + kg * jnp.sqrt(jnp.maximum(xi_sq, 0.0)))
-        terms = terms - 1j * omega_D * f_s
+        terms = terms - charge_sign * 1j * omega_D * f_s
 
         # Collisions
         if c.collisions:
@@ -179,18 +194,25 @@ class JaxNonlinearGKSolver:
             phi = self._jax_field_solve(f_in)
             dfdt = jnp.zeros_like(f_in)
             for s in range(self.cfg.n_species):
-                dfdt = dfdt.at[s].set(self._jax_rhs_species(f_in[s], phi))
+                if s == 1 and not self.cfg.kinetic_electrons:
+                    continue
+                dfdt = dfdt.at[s].set(self._jax_rhs_species(f_in[s], phi, s))
             # Gradient drive
             ky_5d = self._ky_j[None, None, :, None, None, None]
             vpar2 = self._vpar_j[None, None, None, None, :, None] ** 2
             mu_val = self._mu_j[None, None, None, None, None, :]
             energy = 0.5 * vpar2 + mu_val
             FM = jnp.exp(-energy) / jnp.pi**1.5
-            eta = self.cfg.R_L_Ti / max(self.cfg.R_L_ne, 0.1)
-            omega_star = ky_5d * self.cfg.R_L_ne * (1.0 + eta * (energy - 1.5))
             phi_6d = phi[None, :, :, :, None, None]
-            drive = -1j * omega_star * phi_6d * FM
-            dfdt = dfdt.at[0].add(drive[0])
+            # Ion drive
+            eta_i = self.cfg.R_L_Ti / max(self.cfg.R_L_ne, 0.1)
+            omega_star_i = ky_5d * self.cfg.R_L_ne * (1.0 + eta_i * (energy - 1.5))
+            dfdt = dfdt.at[0].add((-1j * omega_star_i * phi_6d * FM)[0])
+            # Electron drive (kinetic only)
+            if self.cfg.kinetic_electrons:
+                eta_e = self.cfg.R_L_Te / max(self.cfg.R_L_ne, 0.1)
+                omega_star_e = -ky_5d * self.cfg.R_L_ne * (1.0 + eta_e * (energy - 1.5))
+                dfdt = dfdt.at[1].add((-1j * omega_star_e * phi_6d * FM)[0])
             return dfdt
 
         if _HAS_JAX:
@@ -227,7 +249,8 @@ class JaxNonlinearGKSolver:
             float(jnp.max(jnp.abs(self._ky_j))),
         )
         vmax = float(jnp.max(jnp.abs(self._vpar_j)))
-        bdg_max = float(jnp.max(jnp.abs(self._b_dot_grad_j)))
+        v_scale = self._np_solver.vth_ratio_e if c.kinetic_electrons else 1.0
+        bdg_max = float(jnp.max(jnp.abs(self._b_dot_grad_j))) * v_scale
 
         n_saves = c.n_steps // c.save_interval + 1
         Q_i_list = []
