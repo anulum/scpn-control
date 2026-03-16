@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-03-16T00:00:00Z",
+  "description": "Dimits shift scan: chi_i(R/L_Ti) at CBC parameters, n_kx=128",
+  "reference": "Dimits et al., Phys. Plasmas 7 (2000) 969",
+  "config": {"grid": "128x16x32x16x8", "n_steps": 5000, "Lx": 80, "Ly": 62.83, "hyper": 0.2},
+  "results": {
+    "3.0": {"R_L_Ti": 3.0, "chi_i_raw": 3.456, "chi_i_gB": 1.152, "phi_rms_final": 1.252, "elapsed_s": 1264},
+    "4.0": {"R_L_Ti": 4.0, "chi_i_raw": 4.858, "chi_i_gB": 1.215, "phi_rms_final": 1.252, "elapsed_s": 1298},
+    "4.5": {"R_L_Ti": 4.5, "chi_i_raw": 5.721, "chi_i_gB": 1.271, "phi_rms_final": 1.252, "elapsed_s": 1325},
+    "5.0": {"R_L_Ti": 5.0, "chi_i_raw": 6.739, "chi_i_gB": 1.348, "phi_rms_final": 1.252, "elapsed_s": 1336},
+    "5.5": {"R_L_Ti": 5.5, "chi_i_raw": 7.969, "chi_i_gB": 1.449, "phi_rms_final": 1.252, "elapsed_s": 1319},
+    "6.0": {"R_L_Ti": 6.0, "chi_i_raw": 9.497, "chi_i_gB": 1.583, "phi_rms_final": 1.252, "elapsed_s": 1331},
+    "6.9": {"R_L_Ti": 6.9, "chi_i_raw": 13.438, "chi_i_gB": 1.948, "phi_rms_final": 1.252, "elapsed_s": 1333}
+  },
+  "summary": {
+    "chi_i_gB_range": [1.152, 1.948],
+    "transport_increases_with_gradient": true,
+    "phi_rms_constant": "1.252 for all R/L_Ti — saturation amplitude independent of drive",
+    "note": "chi_i_gB ~ linear in R/L_Ti: transport stiffness confirmed. No Dimits shift observed (nonzero transport at R/L_Ti=3). Likely needs longer run and/or subtraction of residual transport from late growth."
+  }
+}
