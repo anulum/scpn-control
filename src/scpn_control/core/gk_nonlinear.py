@@ -80,6 +80,7 @@ class NonlinearGKConfig:
     # Physics switches
     collisions: bool = True
     nu_collision: float = 0.01
+    collision_model: str = "krook"  # "krook" or "sugama"
     nonlinear: bool = True
     kinetic_electrons: bool = False
     # Reduced mass ratio. Real: 1/3672. Research standard: 1/400.
@@ -416,13 +417,71 @@ class NonlinearGKSolver:
     # ------------------------------------------------------------------
 
     def collide(self, f_s: NDArray[np.complex128]) -> NDArray[np.complex128]:
-        """Simplified pitch-angle scattering: -ν × k_perp² × f.
+        """Dispatch to Krook or Sugama collision model."""
+        if self.cfg.collision_model == "sugama":
+            return self._collide_sugama(f_s)
+        return self._collide_krook(f_s)
 
-        Krook-like collision operator sufficient for numerical stability.
-        """
+    def _collide_krook(self, f_s: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Krook: -ν k_perp² f.  No conservation laws."""
         nu = self.cfg.nu_collision
         kp2 = self.kperp2[:, :, None, None, None]
         return -nu * kp2 * f_s
+
+    def _collide_sugama(self, f_s: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        """Sugama-like pitch-angle + energy diffusion with conservation.
+
+        Sugama & Watanabe, Phys. Plasmas 13 (2006) 012501.
+        1. Pitch-angle scattering: ν(v) × (1-ξ²) ∂²f/∂v_∥²
+        2. Energy-dependent ν(v) = ν₀ / max(v³, 1)
+        3. Conservation: project out (1, v_∥, E) × F_M moments
+        """
+        nu = self.cfg.nu_collision
+        dvp = self.dvpar
+        dmu = self.dmu
+
+        # ∂²f/∂v_∥² (2nd-order central FD, axis 3)
+        d2f = (np.roll(f_s, -1, axis=3) - 2 * f_s + np.roll(f_s, 1, axis=3)) / (dvp**2)
+        # Zero-flux BC at v_∥ boundaries
+        d2f[:, :, :, 0, :] = 0.0
+        d2f[:, :, :, -1, :] = 0.0
+
+        vpar2 = self.vpar[None, None, None, :, None] ** 2
+        mu_val = self.mu[None, None, None, None, :]
+        v2 = vpar2 + 2.0 * mu_val
+        energy = 0.5 * vpar2 + mu_val
+
+        # ν(v) = ν₀ / v³, capped to avoid singularity at v=0
+        v3 = np.maximum(v2, 0.1) ** 1.5
+        nu_v = nu * np.minimum(1.0 / v3, 10.0)
+
+        # Pitch-angle factor: (1 - v_∥²/v²) = 2μ/(v_∥²+2μ)
+        pitch = 2.0 * mu_val / np.maximum(v2, 0.01)
+
+        Cf = nu_v * pitch * d2f
+
+        # Conservation: subtract (a₀ + a₁ v_∥ + a₂ E) F_M
+        # so ∫ Cf dv = 0, ∫ v_∥ Cf dv = 0, ∫ E Cf dv = 0
+        FM = np.exp(-energy) / np.pi**1.5
+        vpar_5d = self.vpar[None, None, None, :, None]
+        dv = dvp * dmu
+
+        # Compute moments of Cf
+        m0 = np.sum(Cf * dv, axis=(-2, -1), keepdims=True)
+        m1 = np.sum(Cf * vpar_5d * dv, axis=(-2, -1), keepdims=True)
+        m2 = np.sum(Cf * energy * dv, axis=(-2, -1), keepdims=True)
+
+        # FM basis norms: <1·FM>, <v_∥²·FM>, <E²·FM>
+        n0 = np.sum(FM * dv, axis=(-2, -1), keepdims=True)
+        n1 = np.sum(FM * vpar_5d**2 * dv, axis=(-2, -1), keepdims=True)
+        n2 = np.sum(FM * energy**2 * dv, axis=(-2, -1), keepdims=True)
+
+        a0 = m0 / np.maximum(n0, 1e-30)
+        a1 = m1 / np.maximum(n1, 1e-30)
+        a2 = m2 / np.maximum(n2, 1e-30)
+
+        correction = (a0 + a1 * vpar_5d + a2 * energy) * FM
+        return np.asarray(Cf - correction, dtype=np.complex128)
 
     # ------------------------------------------------------------------
     # Gradient drive source
