@@ -1,6 +1,6 @@
 {
   "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controller for Plasma Control",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Standalone neuro-symbolic control engine that compiles Stochastic Petri Nets into spiking neural network controllers with contract-based verification. Features full Grad-Shafranov equilibrium solver (fixed + free boundary, JAX-differentiable), three-path gyrokinetic transport (native linear eigenvalue solver + 5 external GK code interfaces + hybrid surrogate+GK validation with OOD detection and online learning), ballooning eigenvalue solver, sawtooth Kadomtsev crash model, NTM dynamics, current diffusion/drive, SOL two-point model, H-infinity/mu-synthesis/NMPC/gain-scheduled/sliding-mode/fault-tolerant controllers, safe RL (PPO 500K), scenario scheduling, real-time EFIT, shape control, integrated scenario simulator, QLKNN neural transport surrogate, adaptive Kuramoto coupling with GK-driven K_nm bridge, Lyapunov guard, and WebSocket streaming. 98 Python modules, 5 Rust crates, 3,015 tests (100% coverage), 20 CI jobs.",
   "upload_type": "software",
   "publication_date": "2026-03-13",

@@ -47,6 +47,8 @@ dne = "dne"
 gae = "gae"
 abl = "abl"
 Strang = "Strang"
+thi = "thi"
+Ane = "Ane"
 
 [files]
 extend-exclude = [
