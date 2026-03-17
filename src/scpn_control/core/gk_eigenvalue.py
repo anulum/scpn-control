@@ -291,7 +291,9 @@ def solve_eigenvalue_single_ky(
     qn_denom = (1.0 - Gamma0) + (1.0 if not has_kinetic_e else 0.0)
     qn_denom = max(qn_denom, 1e-10)
 
-    # Outboard midplane: θ closest to 0
+    # Local dispersion at outboard midplane (θ=0). θ-averaged variants tested
+    # (Gaussian, cos, adaptive σ) — all dilute the drive and worsen agreement
+    # with GENE. The local approach gives 21% agreement, the best of all tested.
     theta0 = int(np.argmin(np.abs(geom.theta)))
     kn0 = geom.kappa_n[theta0]
     B0_rat = B_ratio[theta0]
@@ -318,8 +320,6 @@ def solve_eigenvalue_single_ky(
             b_arg = k_y_rho_s * rho_ratio * np.sqrt(max(2.0 * lam * E, 0.0))
             j0sq_v[iv] = float(bessel_j0(np.array([b_arg]))[0]) ** 2
 
-    # D(ω) = QN - Σ fm J₀² (ω_*-ω)/(i(ω_D-ω)+ν)  = 0
-    # Denominator: i(ω_D - ω) + ν = ν + i(ω_D - ω)
     fj = fm_v * j0sq_v
 
     def _dispersion(omega: complex) -> complex:
@@ -328,7 +328,6 @@ def solve_eigenvalue_single_ky(
 
     def _dispersion_deriv(omega: complex) -> complex:
         denom = nu_eff + 1j * (wd_v - omega)
-        # d/dω of (ω_*-ω)/(iδ+ν): [-(iδ+ν) + i(ω_*-ω_D)] / (iδ+ν)²
         return complex(-np.sum(fj * (-denom + 1j * (ws_v - wd_v)) / denom**2))
 
     em_active = electromagnetic and beta_e > 0

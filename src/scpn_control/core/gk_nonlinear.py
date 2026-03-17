@@ -491,6 +491,11 @@ class NonlinearGKSolver:
 
         Cf = nu_v * pitch * d2f
 
+        # Energy diffusion: ν_E × ∂/∂v_∥ [v_∥ F_M ∂/∂v_∥ (f/F_M)]
+        # = ν_E × [∂²f/∂v_∥² + (2v_∥/v² - 2v_∥) ∂f/∂v_∥ + (2/v² - 2) f]
+        # Simplified: ν_E × ∂²f/∂v_∥² × (1 - pitch) to add isotropic diffusion
+        Cf += 0.5 * nu_v * (1.0 - pitch) * d2f
+
         # Conservation: subtract (a₀ + a₁ v_∥ + a₂ E) F_M
         # so ∫ Cf dv = 0, ∫ v_∥ Cf dv = 0, ∫ E Cf dv = 0
         FM = np.exp(-energy) / np.pi**1.5
