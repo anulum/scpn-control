@@ -23,6 +23,7 @@ Carrera et al. 1986 : R. Carrera, R.D. Hazeltine, M. Kotschenreuther, Phys.
 La Haye 2006        : R.J. La Haye, Phys. Plasmas 13, 055501 (2006).
                       [MRE coefficient fits a1–a3]
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,13 +35,13 @@ MU_0: float = 4.0 * np.pi * 1e-7  # H/m
 
 # ─── MRE fit coefficients ────────────────────────────────────────────────────
 # La Haye 2006, Phys. Plasmas 13, 055501, Table I
-_A1: float = 6.35   # bootstrap drive coefficient
-_A2: float = 1.2    # polarization stabilization coefficient
-_A3: float = 9.36   # ECCD stabilization coefficient
+_A1: float = 6.35  # bootstrap drive coefficient
+_A2: float = 1.2  # polarization stabilization coefficient
+_A3: float = 9.36  # ECCD stabilization coefficient
 
 # Diamagnetic shear stabilization (Sauter et al. 1997, Eq. 20)
-_A4: float = 0.86         # Sauter 1997, Eq. 20 fit coefficient
-_S_HAT_REF: float = 1.0   # reference shear, dimensionless
+_A4: float = 0.86  # Sauter 1997, Eq. 20 fit coefficient
+_S_HAT_REF: float = 1.0  # reference shear, dimensionless
 
 
 @dataclass
@@ -336,9 +337,7 @@ class NTMIslandDynamics:
         f_eccd = eccd_stabilization_factor(d_cd, w)
         term_cd = -self.a3 * j_cd_ratio * (self.r_s / w) * f_eccd
 
-        dw_dt_val = (self.r_s / tau_R) * (
-            term_classical + term_bs + term_pol + term_dia + term_cd
-        )
+        dw_dt_val = (self.r_s / tau_R) * (term_classical + term_bs + term_pol + term_dia + term_cd)
         return float(dw_dt_val)
 
     def evolve(

@@ -30,6 +30,7 @@ Jardin 2010    : S. Jardin, "Computational Methods in Plasma Physics",
                   CRC Press (2010).
 Sauter 1999    : O. Sauter et al., Phys. Plasmas 6, 2834 (1999).
 """
+
 from __future__ import annotations
 
 import json
@@ -56,8 +57,8 @@ from scpn_control.core.sol_model import TwoPointSOL
 
 # ── Physical constants (CODATA 2018) ─────────────────────────────────────────
 _E_CHARGE: float = 1.602176634e-19  # C
-_LN_LAMBDA: float = 17.0            # Coulomb logarithm, Wesson 2011, Ch. 14
-_MU_0: float = 4.0 * np.pi * 1e-7   # H/m
+_LN_LAMBDA: float = 17.0  # Coulomb logarithm, Wesson 2011, Ch. 14
+_MU_0: float = 4.0 * np.pi * 1e-7  # H/m
 
 # Spitzer 1962, "Physics of Fully Ionized Gases" — resistivity coefficient
 # η = SPITZER_COEFF * Z_eff * ln_Λ / T_e^1.5   [Ω·m],  T_e in keV
@@ -310,9 +311,7 @@ class IntegratedScenarioSimulator:
             self.nbi = NBISource(self.config.P_nbi_MW, self.config.E_nbi_keV, 0.2)
             self.cd_mix.add_source(self.nbi)
 
-        self.cd_solver = CurrentDiffusionSolver(
-            self.rho, self.config.R0, self.config.a, self.config.B0
-        )
+        self.cd_solver = CurrentDiffusionSolver(self.rho, self.config.R0, self.config.a, self.config.B0)
 
         self.sawtooth = SawtoothCycler(self.rho, self.config.R0, self.config.a)
         self.n_crashes = 0
@@ -359,12 +358,10 @@ class IntegratedScenarioSimulator:
             json.dump(cfg_dict, f)
             temp_path = f.name
 
-        solver = TransportSolver(
-            temp_path, nr=self.nr, transport_model=self.config.transport_model
-        )
-        solver.Te = np.ones(self.nr) * 1.0   # keV
+        solver = TransportSolver(temp_path, nr=self.nr, transport_model=self.config.transport_model)
+        solver.Te = np.ones(self.nr) * 1.0  # keV
         solver.Ti = np.ones(self.nr) * 1.0
-        solver.ne = np.ones(self.nr) * 5.0   # 10^19 m^-3
+        solver.ne = np.ones(self.nr) * 5.0  # 10^19 m^-3
         return solver
 
     def initialize(self, profiles: dict | None = None) -> ScenarioState:
@@ -429,9 +426,7 @@ class IntegratedScenarioSimulator:
         for i in range(self.nr):
             eps = self.rho[i] * self.config.a / self.config.R0
             if eps > 1e-6:
-                f_t[i] = 1.0 - (1.0 - eps) ** 2 / (
-                    np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps))
-                )
+                f_t[i] = 1.0 - (1.0 - eps) ** 2 / (np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps)))
 
         # E_loop ≈ μ_0 * R0 * V_loop / (2π), approximate with η·j_total
         # j_total reconstructed from psi gradient (Jardin 2010, Ch. 7)
@@ -539,9 +534,7 @@ class IntegratedScenarioSimulator:
             self.config.a,
             self.config.B0,
         )
-        j_cd_profile = self.cd_mix.total_j_cd(
-            self.rho, self.ts_solver.ne, self.ts_solver.Te, self.ts_solver.Ti
-        )
+        j_cd_profile = self.cd_mix.total_j_cd(self.rho, self.ts_solver.ne, self.ts_solver.Te, self.ts_solver.Ti)
 
         for surf in surfaces:
             key = f"{surf.m}/{surf.n}"
@@ -627,9 +620,7 @@ class IntegratedScenarioSimulator:
         return float(trapezoid(energy_dens * self.rho, self.rho) * vol * 2.0)
 
     def _build_state(self) -> ScenarioState:
-        q_prof = q_from_psi(
-            self.rho, self.cd_solver.psi, self.config.R0, self.config.a, self.config.B0
-        )
+        q_prof = q_from_psi(self.rho, self.cd_solver.psi, self.config.R0, self.config.a, self.config.B0)
 
         W_th = self._compute_W_thermal()
         P_aux_W = self.config.P_aux_MW * 1e6
@@ -644,9 +635,7 @@ class IntegratedScenarioSimulator:
             self.config.a,
             self.config.B0,
         )
-        j_cd = self.cd_mix.total_j_cd(
-            self.rho, self.ts_solver.ne, self.ts_solver.Te, self.ts_solver.Ti
-        )
+        j_cd = self.cd_mix.total_j_cd(self.rho, self.ts_solver.ne, self.ts_solver.Te, self.ts_solver.Ti)
         eta_prof = _spitzer_resistivity(self.ts_solver.Te, Z_eff=1.5)
 
         # Trapped-fraction correction for ohmic current
@@ -654,9 +643,7 @@ class IntegratedScenarioSimulator:
         for i in range(self.nr):
             eps = self.rho[i] * self.config.a / self.config.R0
             if eps > 1e-6:
-                f_t[i] = 1.0 - (1.0 - eps) ** 2 / (
-                    np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps))
-                )
+                f_t[i] = 1.0 - (1.0 - eps) ** 2 / (np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps)))
 
         # j_ohmic = E_loop / (η * (1 - f_t))
         # Spitzer 1962; Wesson 2011, Ch. 3 — approximate E_loop from η·j_tot
@@ -666,14 +653,12 @@ class IntegratedScenarioSimulator:
         # Power balance: dW/dt = P_aux + P_ohm - P_loss
         # P_ohm = ∫ η j_ohm^2 dV
         vol = 2.0 * np.pi**2 * self.config.R0 * self.config.a**2 * self.config.kappa
-        P_ohm = float(
-            trapezoid(eta_prof * j_ohmic**2 * self.rho, self.rho) * vol * 2.0
-        )
+        P_ohm = float(trapezoid(eta_prof * j_ohmic**2 * self.rho, self.rho) * vol * 2.0)
 
         P_loss = max(P_aux_W + P_ohm, 1.0)
         tau_E = (W_th / 1e6) / max(P_loss / 1e6, 1.0)
         beta_N = 2.0  # placeholder — stability module provides full value
-        li = 1.0     # placeholder — inductance from current profile
+        li = 1.0  # placeholder — inductance from current profile
 
         T_t, q_peak, detached = 0.0, 0.0, False
         if self.config.include_sol:
@@ -724,9 +709,7 @@ class IntegratedScenarioSimulator:
         dt = self.config.dt
         dt_half = 0.5 * dt
 
-        q_prof = q_from_psi(
-            self.rho, self.cd_solver.psi, self.config.R0, self.config.a, self.config.B0
-        )
+        q_prof = q_from_psi(self.rho, self.cd_solver.psi, self.config.R0, self.config.a, self.config.B0)
 
         # ── (a) half-step transport ───────────────────────────────────────────
         self._transport_step(dt_half, q_prof)
@@ -742,21 +725,15 @@ class IntegratedScenarioSimulator:
             self.config.a,
             self.config.B0,
         )
-        j_cd = self.cd_mix.total_j_cd(
-            self.rho, self.ts_solver.ne, self.ts_solver.Te, self.ts_solver.Ti
-        )
+        j_cd = self.cd_mix.total_j_cd(self.rho, self.ts_solver.ne, self.ts_solver.Te, self.ts_solver.Ti)
 
         self.cd_solver.step(dt, self.ts_solver.Te, self.ts_solver.ne, 1.5, j_bs, j_cd)
-        q_prof = q_from_psi(
-            self.rho, self.cd_solver.psi, self.config.R0, self.config.a, self.config.B0
-        )
+        q_prof = q_from_psi(self.rho, self.cd_solver.psi, self.config.R0, self.config.a, self.config.B0)
 
         # ── (c) full-step MHD events ──────────────────────────────────────────
         if self.config.include_sawteeth:
             shear = np.gradient(q_prof, self.rho) * (self.rho / np.maximum(q_prof, 1e-3))
-            event = self.sawtooth.step(
-                dt, q_prof, shear, self.ts_solver.Te, self.ts_solver.ne
-            )
+            event = self.sawtooth.step(dt, q_prof, shear, self.ts_solver.Te, self.ts_solver.ne)
             if event:
                 self.n_crashes += 1
                 self.last_crash_time = event.crash_time

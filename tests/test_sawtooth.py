@@ -106,10 +106,11 @@ def test_sawtooth_cycler():
 # Porcelli 1996 trigger tests
 # ---------------------------------------------------------------------------
 
+
 def _base_profile(N: int = 100):
     """Shared analytic profile: q=1 at rho~0.316, parabolic T, flat-ish n."""
     rho = np.linspace(0, 1, N)
-    q = 0.8 + 2.0 * rho**2       # q=1 at rho=sqrt(0.1)≈0.316
+    q = 0.8 + 2.0 * rho**2  # q=1 at rho=sqrt(0.1)≈0.316
     shear = 2.0 * rho / np.maximum(q, 0.1)  # s = (rho/q) dq/drho
     return rho, q, shear
 
@@ -124,12 +125,10 @@ def test_porcelli_condition1_triggers():
     rho, q, shear = _base_profile()
     # Peaked T profile → high β_p1
     T = 20.0 * (1 - rho**2) ** 2
-    n = 5.0 * np.ones_like(rho)   # flat density, 5×10¹⁹ m⁻³
+    n = 5.0 * np.ones_like(rho)  # flat density, 5×10¹⁹ m⁻³
 
     # Low-resistivity, low-field params → δW_crit is small
-    params = PorcelliParams(
-        B_T=1.0, B_pol=0.1, T_i_keV=2.0, eta=1e-8, v_A=5e6
-    )
+    params = PorcelliParams(B_T=1.0, B_pol=0.1, T_i_keV=2.0, eta=1e-8, v_A=5e6)
     result = porcelli_trigger(rho, T, n, q, shear, R0=3.0, a=1.0, params=params)
     assert result, "High β_p1 profile should trigger Condition 1"
 
@@ -143,7 +142,7 @@ def test_porcelli_stable():
     """
     rho = np.linspace(0, 1, 100)
     # Build q so q=1 is crossed with large shear (steep q slope at crossing)
-    q = 0.5 + 3.0 * rho**2         # q=1 at rho≈0.408, dq/drho large
+    q = 0.5 + 3.0 * rho**2  # q=1 at rho≈0.408, dq/drho large
     shear = 6.0 * rho / np.maximum(q, 0.1)
 
     # Very low temperature → negligible pressure → β_p1 ≈ 0
@@ -178,9 +177,7 @@ def test_porcelli_vs_shear_consistency():
         n=n,
         R0=3.0,
         a=1.0,
-        porcelli_params=PorcelliParams(
-            B_T=2.0, B_pol=0.2, T_i_keV=2.0, eta=1e-7, v_A=5e6
-        ),
+        porcelli_params=PorcelliParams(B_T=2.0, B_pol=0.2, T_i_keV=2.0, eta=1e-7, v_A=5e6),
     )
 
     assert shear_fires, "Shear model should fire for this profile"
@@ -213,5 +210,5 @@ def test_crash_energy_conservation():
     assert W_before > 0.0
     assert abs(W_after - W_before) / W_before < 0.05, (
         f"Energy not conserved: before={W_before:.4g} J, after={W_after:.4g} J, "
-        f"rel_err={abs(W_after-W_before)/W_before:.3%}"
+        f"rel_err={abs(W_after - W_before) / W_before:.3%}"
     )

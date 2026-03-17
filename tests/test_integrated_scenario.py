@@ -89,6 +89,7 @@ def test_energy_and_current_conservation_contracts():
 
 # ── New tests for deepened physics ────────────────────────────────────────────
 
+
 def _minimal_config(P_aux_MW: float = 0.0) -> ScenarioConfig:
     """Minimal fast-running config: small machine, 5 steps, no MHD events."""
     return ScenarioConfig(
@@ -121,7 +122,7 @@ def test_transport_evolves_profiles():
     sim = IntegratedScenarioSimulator(config)
 
     rho = np.linspace(0, 1, 50)
-    Te_peaked = 5.0 * (1.0 - rho**2) + 0.5   # keV, peaked on axis
+    Te_peaked = 5.0 * (1.0 - rho**2) + 0.5  # keV, peaked on axis
     sim.initialize({"Te": Te_peaked.copy()})
     Te_init = Te_peaked.copy()
 
@@ -129,9 +130,7 @@ def test_transport_evolves_profiles():
     assert len(states) == 5
 
     # Axis temperature must have dropped (energy conducted outward)
-    assert states[-1].Te[0] < Te_init[0], (
-        f"Axis Te did not decrease: {states[-1].Te[0]:.4f} vs {Te_init[0]:.4f}"
-    )
+    assert states[-1].Te[0] < Te_init[0], f"Axis Te did not decrease: {states[-1].Te[0]:.4f} vs {Te_init[0]:.4f}"
     # Profile shape must differ
     assert not np.allclose(states[-1].Te, Te_init, atol=1e-6), (
         "Te profile unchanged after 5 transport steps with peaked initial profile"
@@ -214,6 +213,7 @@ def test_ohmic_heating_increases_energy():
     assert W1 > 0.0, "W_thermal must be positive after ohmic heating step"
     # Additionally verify ohmic source fires: j_total from psi should be non-zero
     from scpn_control.core.current_diffusion import q_from_psi
+
     q_prof = q_from_psi(rho, sim.cd_solver.psi, config.R0, config.a, config.B0)
     j_arr = sim._j_total_from_psi(q_prof)
     assert np.any(np.abs(j_arr) > 0), "j_total is zero — ohmic term cannot fire"
@@ -263,6 +263,7 @@ def test_ntm_flattens_island():
 
     # Seed a large island at q=2 so flattening triggers
     from scpn_control.core.ntm_dynamics import find_rational_surfaces
+
     q_prof = q_from_psi(rho, sim.cd_solver.psi, config.R0, config.a, config.B0)
     surfaces = find_rational_surfaces(q_prof, rho, config.a, m_max=3, n_max=2)
     for surf in surfaces:

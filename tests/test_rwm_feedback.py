@@ -90,8 +90,11 @@ def test_rotation_stabilization():
     # Need γ_rot < −40, i.e. Ω_φ τ_wall ≫ 1.  Use Ω_φ = 10 000 rad/s → x = 100.
     omega_high = 10_000.0  # rad s⁻¹; Ω_φ τ_wall = 100 ≫ 1
     rwm = RWMPhysics(
-        beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5,
-        tau_wall=tau_wall, omega_phi=omega_high,
+        beta_n=3.0,
+        beta_n_nowall=2.8,
+        beta_n_wall=3.5,
+        tau_wall=tau_wall,
+        omega_phi=omega_high,
     )
     assert rwm.growth_rate() < 0.0, "rotation should suppress RWM growth rate below zero"
 
@@ -103,20 +106,19 @@ def test_critical_rotation():
     Bondeson & Ward 1994, Phys. Rev. Lett. 72, 2709, Eq. (7):
       Ω_crit = (1/τ_eff) √[(β_wall − β_N)/(β_N − β_nowall)]
     """
-    rwm_ref = RWMPhysics(
-        beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01
-    )
+    rwm_ref = RWMPhysics(beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
     omega_c = rwm_ref.critical_rotation()
     assert math.isfinite(omega_c) and omega_c > 0.0
 
     rwm_at_crit = RWMPhysics(
-        beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5,
-        tau_wall=0.01, omega_phi=omega_c,
+        beta_n=3.0,
+        beta_n_nowall=2.8,
+        beta_n_wall=3.5,
+        tau_wall=0.01,
+        omega_phi=omega_c,
     )
     # γ_wall + γ_rot = 0 at Ω_crit by construction
-    assert abs(rwm_at_crit.growth_rate()) < 1e-9, (
-        f"expected γ ≈ 0 at Ω_crit, got {rwm_at_crit.growth_rate()}"
-    )
+    assert abs(rwm_at_crit.growth_rate()) < 1e-9, f"expected γ ≈ 0 at Ω_crit, got {rwm_at_crit.growth_rate()}"
 
 
 def test_wall_geometry():
@@ -131,8 +133,12 @@ def test_wall_geometry():
     d = 0.5  # plasma-edge minor radius, m  →  b/d = 1.2 > 1
 
     rwm = RWMPhysics(
-        beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5,
-        tau_wall=tau_wall, wall_radius=b, plasma_radius=d,
+        beta_n=3.0,
+        beta_n_nowall=2.8,
+        beta_n_wall=3.5,
+        tau_wall=tau_wall,
+        wall_radius=b,
+        plasma_radius=d,
     )
     tau_e = rwm.tau_eff()
     expected = tau_wall * (b / d) ** 2
@@ -157,17 +163,20 @@ def test_rotation_plus_feedback():
 
     rwm_no_rot = RWMPhysics(beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=tau_wall)
     rwm_rot = RWMPhysics(
-        beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5,
-        tau_wall=tau_wall, omega_phi=omega_moderate,
+        beta_n=3.0,
+        beta_n_nowall=2.8,
+        beta_n_wall=3.5,
+        tau_wall=tau_wall,
+        omega_phi=omega_moderate,
     )
 
     # G_p just above the no-rotation required gain (1.004) — marginally stabilizes
     # without rotation, and more deeply stabilizes with rotation.
     ctrl = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=1.005, G_d=0.0, M_coil=1.0)
 
-    gamma_fb_only = ctrl.effective_growth_rate(rwm_no_rot)    # ≈ −0.040 s⁻¹
-    gamma_rot_only = rwm_rot.growth_rate()                     # ≈ +20 s⁻¹
-    gamma_combined = ctrl.effective_growth_rate(rwm_rot)       # ≈ −0.060 s⁻¹
+    gamma_fb_only = ctrl.effective_growth_rate(rwm_no_rot)  # ≈ −0.040 s⁻¹
+    gamma_rot_only = rwm_rot.growth_rate()  # ≈ +20 s⁻¹
+    gamma_combined = ctrl.effective_growth_rate(rwm_rot)  # ≈ −0.060 s⁻¹
 
     assert gamma_combined < gamma_fb_only, "combined must beat feedback alone"
     assert gamma_combined < gamma_rot_only, "combined must beat rotation alone"

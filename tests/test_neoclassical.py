@@ -201,16 +201,12 @@ def test_bootstrap_trapped_fraction():
 
     # f_t values corresponding to epsilon ≈ 0.05, 0.15, 0.30 (Sauter 1999, Eq. 14)
     eps_values = np.array([0.05, 0.15, 0.30])
-    f_t_values = 1.0 - (1.0 - eps_values) ** 2 / (
-        np.sqrt(1.0 - eps_values**2) * (1.0 + 1.46 * np.sqrt(eps_values))
-    )
+    f_t_values = 1.0 - (1.0 - eps_values) ** 2 / (np.sqrt(1.0 - eps_values**2) * (1.0 + 1.46 * np.sqrt(eps_values)))
 
     L31_values = np.array([_sauter_L31(ft, nu_e, Z) for ft in f_t_values])
 
     # L31 must increase strictly with f_t
-    assert L31_values[0] < L31_values[1] < L31_values[2], (
-        f"L31 not monotone with f_t: {L31_values}"
-    )
+    assert L31_values[0] < L31_values[1] < L31_values[2], f"L31 not monotone with f_t: {L31_values}"
 
 
 def test_sauter_L31_zero_trapped():

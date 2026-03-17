@@ -32,20 +32,20 @@ _ALPHA_BALL_COEFF: float = 3.0
 _BETA_P_PEEL_MAX: float = 3.0
 
 # Reference shape parameters for F_shape normalisation (ITER-like)
-_KAPPA_REF: float = 1.7   # ITER design elongation
+_KAPPA_REF: float = 1.7  # ITER design elongation
 _DELTA_REF: float = 0.33  # ITER design triangularity
 
 
 @dataclass
 class EPEDConfig:
-    R0: float          # Major radius [m]
-    a: float           # Minor radius [m]
-    B0: float          # Vacuum toroidal field [T]
-    kappa: float       # Elongation
-    delta: float       # Triangularity
-    Ip_MA: float       # Plasma current [MA]
-    ne_ped_19: float   # Pedestal electron density [10^19 m^-3]
-    B_pol_ped: float   # Poloidal field at pedestal [T]
+    R0: float  # Major radius [m]
+    a: float  # Minor radius [m]
+    B0: float  # Vacuum toroidal field [T]
+    kappa: float  # Elongation
+    delta: float  # Triangularity
+    Ip_MA: float  # Plasma current [MA]
+    ne_ped_19: float  # Pedestal electron density [10^19 m^-3]
+    B_pol_ped: float  # Poloidal field at pedestal [T]
     C_KBM: float = C_KBM_DEFAULT  # [S09] Eq. 4
     n_mode_min: int = 5
     n_mode_max: int = 30
@@ -89,11 +89,7 @@ def eped_validation_database() -> list[EPEDValidationPoint]:
 
 def _compute_q95(config: EPEDConfig) -> float:
     """Safety factor at 95% flux surface. [W04] Eq. 3.6.8."""
-    return (
-        (config.a * config.B0)
-        / (config.R0 * config.B_pol_ped)
-        * math.sqrt((1.0 + config.kappa**2) / 2.0)
-    )
+    return (config.a * config.B0) / (config.R0 * config.B_pol_ped) * math.sqrt((1.0 + config.kappa**2) / 2.0)
 
 
 def _shaping_factor(kappa: float, delta: float) -> float:
@@ -164,10 +160,7 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
 
         # Invert α definition: α = 2μ₀ q² R₀ |dp/dρ| / B₀²
         # with |dp/dρ| ≈ p_ped / (a · Δ_ped)  — [S09] Eq. 2
-        p_ped_Pa = (
-            alpha_crit * config.B0**2 * config.a * delta_ped
-            / (2.0 * mu_0 * q_95**2 * config.R0)
-        )
+        p_ped_Pa = alpha_crit * config.B0**2 * config.a * delta_ped / (2.0 * mu_0 * q_95**2 * config.R0)
 
         beta_p_ped = 2.0 * mu_0 * p_ped_Pa / config.B_pol_ped**2
 
@@ -184,10 +177,7 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
 
     # Re-evaluate p_ped at the collisionality-corrected width
     alpha_crit = _approx_alpha_crit(delta_ped, config)
-    p_ped_Pa = (
-        alpha_crit * config.B0**2 * config.a * delta_ped
-        / (2.0 * mu_0 * q_95**2 * config.R0)
-    )
+    p_ped_Pa = alpha_crit * config.B0**2 * config.a * delta_ped / (2.0 * mu_0 * q_95**2 * config.R0)
     beta_p_ped = 2.0 * mu_0 * p_ped_Pa / config.B_pol_ped**2
     p_ped_kPa = p_ped_Pa / 1000.0
 
@@ -235,9 +225,7 @@ class PedestalProfileGenerator:
             prof[r >= 1.0] = sep
             return prof
 
-        return _mtanh(rho, self.res.T_ped_keV, self.Te_sep_keV), _mtanh(
-            rho, self.res.n_ped_19, self.ne_sep
-        )
+        return _mtanh(rho, self.res.T_ped_keV, self.Te_sep_keV), _mtanh(rho, self.res.n_ped_19, self.ne_sep)
 
 
 @dataclass

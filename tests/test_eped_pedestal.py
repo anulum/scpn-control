@@ -88,8 +88,14 @@ def test_pedestal_profile_generator():
 
 def _iter_base() -> EPEDConfig:
     return EPEDConfig(
-        R0=6.2, a=2.0, B0=5.3, kappa=1.7, delta=0.33,
-        Ip_MA=15.0, ne_ped_19=6.0, B_pol_ped=0.8,
+        R0=6.2,
+        a=2.0,
+        B0=5.3,
+        kappa=1.7,
+        delta=0.33,
+        Ip_MA=15.0,
+        ne_ped_19=6.0,
+        B_pol_ped=0.8,
     )
 
 

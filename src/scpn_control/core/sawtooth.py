@@ -34,6 +34,7 @@ class SawtoothEvent:
 # Bussac / Porcelli MHD energy integral
 # ---------------------------------------------------------------------------
 
+
 def _bussac_dW_mhd(beta_p1: float, s1: float) -> float:
     """Bussac normalised MHD energy integral for the (1,1) mode.
 
@@ -79,9 +80,7 @@ def _alfven_time(R0: float, v_A: float, s1: float) -> float:
     return R0 / (v_A * max(s1, 1e-6))
 
 
-def _resistive_crit_dW(
-    eps_1: float, omega_star_i: float, tau_R: float, s1: float
-) -> float:
+def _resistive_crit_dW(eps_1: float, omega_star_i: float, tau_R: float, s1: float) -> float:
     """Critical δW for the resistive internal-kink trigger (Condition 1).
 
     δW_crit = π² ε_1⁴ ω_*i² τ_R / (12 s_1)
@@ -100,9 +99,7 @@ def _resistive_time(r1_m: float, eta: float) -> float:
     return MU_0 * r1_m**2 / (1.22 * max(eta, 1e-12))
 
 
-def _ion_diamagnetic_freq(
-    k_theta: float, Ti_keV: float, B_T: float, r1_m: float
-) -> float:
+def _ion_diamagnetic_freq(k_theta: float, Ti_keV: float, B_T: float, r1_m: float) -> float:
     """Ion diamagnetic frequency ω_*i at q=1 surface.
 
     ω_*i = k_θ T_i / (e B r_1)
@@ -117,17 +114,19 @@ def _ion_diamagnetic_freq(
 # Porcelli trigger
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PorcelliParams:
     """Parameters for the Porcelli 1996 trigger criterion.
 
     All SI except T_i_keV (keV) and n (10¹⁹ m⁻³).
     """
-    B_T: float = 2.0       # Tesla — toroidal field on axis
-    B_pol: float = 0.3     # Tesla — poloidal field at q=1
-    T_i_keV: float = 1.0   # keV  — ion temperature at q=1
-    eta: float = 1e-7      # Ω·m  — plasma resistivity at q=1
-    v_A: float = 1e7       # m/s  — Alfvén speed (B/√(μ₀ρ_mass))
+
+    B_T: float = 2.0  # Tesla — toroidal field on axis
+    B_pol: float = 0.3  # Tesla — poloidal field at q=1
+    T_i_keV: float = 1.0  # keV  — ion temperature at q=1
+    eta: float = 1e-7  # Ω·m  — plasma resistivity at q=1
+    v_A: float = 1e7  # m/s  — Alfvén speed (B/√(μ₀ρ_mass))
 
 
 def porcelli_trigger(
@@ -168,8 +167,8 @@ def porcelli_trigger(
 
     dW = _bussac_dW_mhd(beta_p1, s1)
 
-    r1_m = rho_1 * a          # q=1 radius in metres
-    eps_1 = r1_m / R0          # inverse aspect ratio at q=1
+    r1_m = rho_1 * a  # q=1 radius in metres
+    eps_1 = r1_m / R0  # inverse aspect ratio at q=1
 
     k_theta = 1.0 / max(r1_m, 1e-4)  # m=1 poloidal wavenumber
     omega_star = _ion_diamagnetic_freq(k_theta, params.T_i_keV, params.B_T, r1_m)
@@ -190,6 +189,7 @@ def porcelli_trigger(
 # ---------------------------------------------------------------------------
 # Monitor
 # ---------------------------------------------------------------------------
+
 
 class SawtoothMonitor:
     def __init__(self, rho: np.ndarray, s_crit: float = 0.1):
@@ -234,9 +234,7 @@ class SawtoothMonitor:
         if trigger_model == "porcelli":
             if T is None or n is None:
                 raise ValueError("porcelli trigger requires T and n arrays")
-            return porcelli_trigger(
-                self.rho, T, n, q, shear, R0, a, porcelli_params
-            )
+            return porcelli_trigger(self.rho, T, n, q, shear, R0, a, porcelli_params)
 
         # Default: shear threshold at q=1
         rho_1 = self.find_q1_radius(q)
@@ -262,6 +260,7 @@ class SawtoothMonitor:
 # Kadomtsev crash
 # ---------------------------------------------------------------------------
 
+
 def kadomtsev_crash(
     rho: np.ndarray, T: np.ndarray, n: np.ndarray, q: np.ndarray, R0: float, a: float
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, float]:
@@ -285,9 +284,7 @@ def kadomtsev_crash(
     integrand = rho * (1.0 / np.maximum(q, 1e-6) - 1.0)
     psi_star = np.zeros_like(rho)
     for i in range(1, len(rho)):
-        psi_star[i] = psi_star[i - 1] + 0.5 * (integrand[i - 1] + integrand[i]) * (
-            rho[i] - rho[i - 1]
-        )
+        psi_star[i] = psi_star[i - 1] + 0.5 * (integrand[i - 1] + integrand[i]) * (rho[i] - rho[i - 1])
 
     idx_1 = np.searchsorted(rho, rho_1)
     rho_mix = rho[-1]
@@ -330,6 +327,7 @@ def kadomtsev_crash(
 # ---------------------------------------------------------------------------
 # Cycler
 # ---------------------------------------------------------------------------
+
 
 class SawtoothCycler:
     """Tracks and triggers sawtooth crashes."""
@@ -384,9 +382,7 @@ class SawtoothCycler:
             return float(trapezoid(energy_dens * vol_element, self.rho))
 
         W_before = _plasma_energy(T, n)
-        T_new, n_new, q_new, rho_1, rho_mix = kadomtsev_crash(
-            self.rho, T, n, q, self.R0, self.a
-        )
+        T_new, n_new, q_new, rho_1, rho_mix = kadomtsev_crash(self.rho, T, n, q, self.R0, self.a)
         W_after = _plasma_energy(T_new, n_new)
 
         np.copyto(T, T_new)
@@ -397,10 +393,7 @@ class SawtoothCycler:
         # Seed energy for NTM seeding: pressure drop in the q=1 cylinder
         # Bussac et al. 1975, Phys. Rev. Lett. 35, 1638
         core_energy_drop = (
-            1.5
-            * (n[0] * 1e19)
-            * (T_drop * 1e3 * E_CHARGE)
-            * (2.0 * np.pi**2 * self.R0 * (rho_1 * self.a) ** 2)
+            1.5 * (n[0] * 1e19) * (T_drop * 1e3 * E_CHARGE) * (2.0 * np.pi**2 * self.R0 * (rho_1 * self.a) ** 2)
         )
         _ = W_before - W_after  # retained for caller diagnostics if needed
 

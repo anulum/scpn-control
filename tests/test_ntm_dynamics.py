@@ -135,8 +135,8 @@ def test_diamagnetic_stabilizes_small_islands():
     """
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0, s_hat=1.0)
 
-    w_d = 5e-3   # banana width [m]
-    w = 1e-3     # island width < w_d → diamagnetic dominates
+    w_d = 5e-3  # banana width [m]
+    w = 1e-3  # island width < w_d → diamagnetic dominates
 
     # Provide enough bootstrap to normally grow the island at larger w,
     # but the w < w_d condition makes term_dia >> term_bs.
@@ -147,7 +147,7 @@ def test_diamagnetic_stabilizes_small_islands():
         j_cd=0.0,
         eta=1e-7,
         w_d=w_d,
-        w_pol=1e-6,   # disable polarization to isolate diamagnetic effect
+        w_pol=1e-6,  # disable polarization to isolate diamagnetic effect
     )
     assert dw_dt_val < 0.0, f"Expected negative dw/dt for w < w_d; got {dw_dt_val}"
 
@@ -180,8 +180,8 @@ def test_sauter_bootstrap_vs_direct():
     """
     pressure_gradient = -5e4  # Pa/m
     epsilon = 0.3
-    B_pol = 0.3     # T
-    L31 = 0.3       # Sauter 1999, Eq. 14 coefficient (typical banana regime)
+    B_pol = 0.3  # T
+    L31 = 0.3  # Sauter 1999, Eq. 14 coefficient (typical banana regime)
 
     j_bs_computed = bootstrap_from_local(pressure_gradient, epsilon, B_pol, L31)
 
@@ -215,7 +215,4 @@ def test_seed_island_threshold():
         w_d=w_d,
         w_pol=w_pol,
     )
-    assert dw_dt_val <= 0.0, (
-        f"Seed island should not grow below polarization/diamagnetic floor; "
-        f"dw/dt={dw_dt_val}"
-    )
+    assert dw_dt_val <= 0.0, f"Seed island should not grow below polarization/diamagnetic floor; dw/dt={dw_dt_val}"

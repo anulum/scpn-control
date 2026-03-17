@@ -23,11 +23,11 @@ from __future__ import annotations
 import numpy as np
 
 # ─── Physical constants (CODATA 2018) ───────────────────────────────────────
-_E_CHARGE = 1.602176634e-19    # C
+_E_CHARGE = 1.602176634e-19  # C
 _M_PROTON = 1.67262192369e-27  # kg
 _M_ELECTRON = 9.1093837015e-31  # kg
-_EPS0 = 8.8541878128e-12       # F/m
-_LN_LAMBDA = 17.0              # Coulomb logarithm, Wesson Ch. 14
+_EPS0 = 8.8541878128e-12  # F/m
+_LN_LAMBDA = 17.0  # Coulomb logarithm, Wesson Ch. 14
 
 
 def collisionality(
@@ -76,9 +76,7 @@ def collisionality(
 
     n_e = n_e_19 * 1e19
     # Ion-ion collision frequency — Wesson 2011, Eq. 14.2.3
-    nu_ii = (n_e * z_eff**2 * _E_CHARGE**4 * _LN_LAMBDA) / (
-        12.0 * np.pi**1.5 * _EPS0**2 * np.sqrt(m) * T_J**1.5
-    )
+    nu_ii = (n_e * z_eff**2 * _E_CHARGE**4 * _LN_LAMBDA) / (12.0 * np.pi**1.5 * _EPS0**2 * np.sqrt(m) * T_J**1.5)
 
     return float(nu_ii * q * R / (epsilon**1.5 * v_th))
 
@@ -91,10 +89,7 @@ def _ion_collision_freq(n_e_19: float, T_kev: float, mass_amu: float, z_eff: flo
     T_J = T_kev * 1.602176634e-16
     m = mass_amu * _M_PROTON
     n_e = n_e_19 * 1e19
-    return float(
-        (n_e * z_eff**2 * _E_CHARGE**4 * _LN_LAMBDA)
-        / (12.0 * np.pi**1.5 * _EPS0**2 * np.sqrt(m) * T_J**1.5)
-    )
+    return float((n_e * z_eff**2 * _E_CHARGE**4 * _LN_LAMBDA) / (12.0 * np.pi**1.5 * _EPS0**2 * np.sqrt(m) * T_J**1.5))
 
 
 def _larmor_radius(T_kev: float, B: float, mass_amu: float) -> float:
@@ -145,14 +140,7 @@ def chang_hinton_chi(
     alpha_sh = epsilon  # shaping correction, Chang & Hinton 1982 Eq. 10
 
     # Chang & Hinton 1982, Eq. 10
-    chi = (
-        0.66
-        * (1.0 + 1.54 * alpha_sh)
-        * q**2
-        * rho_i**2
-        * nu_ii
-        / (eps32 * (1.0 + 0.74 * nu_star ** (2.0 / 3.0)))
-    )
+    chi = 0.66 * (1.0 + 1.54 * alpha_sh) * q**2 * rho_i**2 * nu_ii / (eps32 * (1.0 + 0.74 * nu_star ** (2.0 / 3.0)))
     return float(chi)
 
 
@@ -318,12 +306,7 @@ def _sauter_L31(f_t: float, nu_e: float, Z: float) -> float:
         Effective ion charge Z_eff.
     """
     # Sauter 1999, Eq. 14
-    L31 = (
-        (1.0 + 1.4 / (Z + 1.0)) * f_t
-        - 1.9 / (Z + 1.0) * f_t**2
-        + 0.3 / (Z + 1.0) * f_t**3
-        + 0.2 / (Z + 1.0) * f_t**4
-    )
+    L31 = (1.0 + 1.4 / (Z + 1.0)) * f_t - 1.9 / (Z + 1.0) * f_t**2 + 0.3 / (Z + 1.0) * f_t**3 + 0.2 / (Z + 1.0) * f_t**4
     return float(L31)
 
 
@@ -367,10 +350,7 @@ def _sauter_L34(f_t: float, nu_e: float, Z: float) -> float:
         Effective ion charge Z_eff.
     """
     # Sauter 1999, Eq. 16: L34 = L31 to leading order
-    L34 = (
-        (1.0 + 1.4 / (Z + 1.0)) * f_t
-        - 1.9 / (Z + 1.0) * f_t**2
-    )
+    L34 = (1.0 + 1.4 / (Z + 1.0)) * f_t - 1.9 / (Z + 1.0) * f_t**2
     return float(L34)
 
 
@@ -462,10 +442,6 @@ def sauter_bootstrap(
 
         # Sauter 1999, Eqs. 14–16 combined:
         # j_bs = -(p_e / B_pol) * (L31 * dln_pe + L32 * dln_Te + L34*(Ti/Te)*dln_Ti)
-        j_bs[i] = -(p_e / B_pol) * (
-            L31 * dln_pe_dr
-            + L32 * dln_Te_dr
-            + L34 * (T_i_J / T_e_J) * dln_Ti_dr
-        )
+        j_bs[i] = -(p_e / B_pol) * (L31 * dln_pe_dr + L32 * dln_Te_dr + L34 * (T_i_J / T_e_J) * dln_Ti_dr)
 
     return j_bs
