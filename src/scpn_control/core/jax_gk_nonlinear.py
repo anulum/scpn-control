@@ -205,8 +205,16 @@ class JaxNonlinearGKSolver:
             phi_6d = phi[None, :, :, :, None, None]
             # EM: effective potential φ_eff = φ - v_∥ A_∥
             if self.cfg.electromagnetic:
-                A_par = self._np_solver.ampere_solve(np.asarray(f_in))
-                A_6d = jnp.array(A_par)[None, :, :, :, None, None]
+                # JAX-native Ampere: k_perp² A_∥ = β_e ∫ v_∥ h_i dv
+                dv = self._np_solver.dvpar * self._np_solver.dmu
+                vpar_vel = self._vpar_j[None, None, None, :, None]
+                j_par = jnp.sum(vpar_vel * f_in[0], axis=(-2, -1)) * dv
+                if self.cfg.kinetic_electrons:
+                    j_par = j_par - self._np_solver.vth_ratio_e * jnp.sum(vpar_vel * f_in[1], axis=(-2, -1)) * dv
+                kp2 = self._kperp2_j[:, :, None]
+                A_par = self.cfg.beta_e * j_par / jnp.maximum(kp2, 1e-10)
+                A_par = A_par.at[0, 0, :].set(0.0)
+                A_6d = A_par[None, :, :, :, None, None]
                 vpar_6d = self._vpar_j[None, None, None, None, :, None]
                 phi_eff = phi_6d - vpar_6d * A_6d
             else:
