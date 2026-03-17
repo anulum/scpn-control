@@ -203,15 +203,23 @@ class JaxNonlinearGKSolver:
             energy = 0.5 * vpar2 + mu_val
             FM = jnp.exp(-energy) / jnp.pi**1.5
             phi_6d = phi[None, :, :, :, None, None]
+            # EM: effective potential φ_eff = φ - v_∥ A_∥
+            if self.cfg.electromagnetic:
+                A_par = self._np_solver.ampere_solve(np.asarray(f_in))
+                A_6d = jnp.array(A_par)[None, :, :, :, None, None]
+                vpar_6d = self._vpar_j[None, None, None, None, :, None]
+                phi_eff = phi_6d - vpar_6d * A_6d
+            else:
+                phi_eff = phi_6d
             # Ion drive
             eta_i = self.cfg.R_L_Ti / max(self.cfg.R_L_ne, 0.1)
             omega_star_i = ky_5d * self.cfg.R_L_ne * (1.0 + eta_i * (energy - 1.5))
-            dfdt = dfdt.at[0].add((-1j * omega_star_i * phi_6d * FM)[0])
+            dfdt = dfdt.at[0].add((-1j * omega_star_i * phi_eff * FM)[0])
             # Electron drive (kinetic only)
             if self.cfg.kinetic_electrons:
                 eta_e = self.cfg.R_L_Te / max(self.cfg.R_L_ne, 0.1)
                 omega_star_e = -ky_5d * self.cfg.R_L_ne * (1.0 + eta_e * (energy - 1.5))
-                dfdt = dfdt.at[1].add((-1j * omega_star_e * phi_6d * FM)[0])
+                dfdt = dfdt.at[1].add((-1j * omega_star_e * phi_eff * FM)[0])
             return dfdt
 
         if _HAS_JAX:
