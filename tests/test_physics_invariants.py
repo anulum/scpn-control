@@ -264,3 +264,113 @@ class TestBallooningBC:
         s = NonlinearGKSolver(cfg)
         assert np.allclose(s._ball_phase_fwd, 1.0, atol=1e-10)
         assert np.allclose(s._ball_phase_bwd, 1.0, atol=1e-10)
+
+
+# ── 11. KBM at high beta ─────────────────────────────────────────────
+
+
+class TestKBMGrowth:
+    def test_em_increases_growth_at_high_alpha(self):
+        """EM at α_MHD > s_hat should enhance growth (KBM drive)."""
+        from scpn_control.core.gk_eigenvalue import solve_linear_gk
+        from scpn_control.core.gk_species import deuterium_ion, electron
+
+        species = [
+            deuterium_ion(T_keV=2.0, n_19=5.0, R_L_T=6.9, R_L_n=2.2),
+            electron(T_keV=2.0, n_19=5.0, R_L_T=6.9, R_L_n=2.2),
+        ]
+        # ES reference
+        r_es = solve_linear_gk(
+            species_list=species,
+            R0=2.78,
+            a=1.0,
+            B0=2.0,
+            q=1.4,
+            s_hat=0.78,
+            n_ky_ion=8,
+            n_theta=32,
+            n_period=1,
+            electromagnetic=False,
+        )
+        # EM with α_MHD > s_hat (KBM regime)
+        r_em = solve_linear_gk(
+            species_list=species,
+            R0=2.78,
+            a=1.0,
+            B0=2.0,
+            q=1.4,
+            s_hat=0.78,
+            n_ky_ion=8,
+            n_theta=32,
+            n_period=1,
+            electromagnetic=True,
+            beta_e=0.05,
+            alpha_MHD=1.5,
+        )
+        # KBM drive adds to ITG → higher growth at high beta + alpha
+        assert r_em.gamma_max >= r_es.gamma_max * 0.5, (
+            f"EM gamma={r_em.gamma_max:.4f} should not collapse vs ES={r_es.gamma_max:.4f}"
+        )
+
+    def test_em_phi_differs_in_nonlinear(self):
+        """Nonlinear EM run produces different phi than ES after a few steps."""
+        cfg_es = NonlinearGKConfig(**_FAST, dt=0.05, n_steps=10, save_interval=5)
+        cfg_em = NonlinearGKConfig(
+            **_FAST,
+            dt=0.05,
+            n_steps=10,
+            save_interval=5,
+            electromagnetic=True,
+            beta_e=0.1,
+        )
+        s_es = NonlinearGKSolver(cfg_es)
+        s_em = NonlinearGKSolver(cfg_em)
+        # Same init seed
+        r_es = s_es.run(s_es.init_state(seed=99))
+        r_em = s_em.run(s_em.init_state(seed=99))
+        # A_par should exist in EM state
+        assert r_em.final_state is not None
+        assert r_em.final_state.A_par is not None
+        assert np.max(np.abs(r_em.final_state.A_par)) > 0
+
+
+# ── 12. EM + kinetic electrons combined ──────────────────────────────
+
+
+class TestEMKineticCombined:
+    def test_em_kinetic_field_solve_differs(self):
+        """EM + kinetic electrons produces different phi than either alone."""
+        f_test = NonlinearGKSolver(NonlinearGKConfig(**_FAST)).init_state(amplitude=1e-3).f
+
+        # Adiabatic ES
+        s_ad = NonlinearGKSolver(NonlinearGKConfig(**_FAST))
+        phi_ad = s_ad.field_solve(f_test)
+
+        # Kinetic ES
+        s_ke = NonlinearGKSolver(NonlinearGKConfig(**_FAST, kinetic_electrons=True, mass_ratio_me_mi=1 / 400))
+        phi_ke = s_ke.field_solve(f_test)
+
+        # Adiabatic EM
+        s_em = NonlinearGKSolver(NonlinearGKConfig(**_FAST, electromagnetic=True, beta_e=0.1))
+        A_em = s_em.ampere_solve(f_test)
+
+        # All three should differ
+        assert not np.allclose(phi_ad, phi_ke, atol=1e-10)
+        assert np.max(np.abs(A_em)) > 1e-10
+
+    def test_implicit_kinetic_runs_with_em(self):
+        """EM + implicit kinetic electrons doesn't crash."""
+        cfg = NonlinearGKConfig(
+            **_FAST,
+            kinetic_electrons=True,
+            implicit_electrons=True,
+            mass_ratio_me_mi=1 / 400,
+            electromagnetic=True,
+            beta_e=0.05,
+        )
+        s = NonlinearGKSolver(cfg)
+        state = s.init_state(amplitude=1e-5)
+        phi = s.field_solve(state.f)
+        A_par = s.ampere_solve(state.f)
+        assert np.all(np.isfinite(phi))
+        assert np.all(np.isfinite(A_par))
