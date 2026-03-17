@@ -6,7 +6,9 @@ from __future__ import annotations
 import numpy as np
 
 from scpn_control.core.current_diffusion import (
+    MU_0,
     CurrentDiffusionSolver,
+    coulomb_log,
     neoclassical_resistivity,
     q_from_psi,
     resistive_diffusion_time,
@@ -100,3 +102,49 @@ def test_bootstrap_steepens_q():
     q = q_from_psi(rho, solver.psi, 2.0, 0.5, 1.0)
     # Due to off-axis current, q-profile should be hollow or steepened
     assert q[0] > 0
+
+
+def test_coulomb_log_varies_with_temperature():
+    """ln_Λ(1 keV) < ln_Λ(10 keV) — Wesson 2011 Eq. 2.12.4."""
+    ne_19 = 1.0  # 10¹⁹ m⁻³, fixed
+    ln_lam_1kev = coulomb_log(Te_keV=1.0, ne_19=ne_19)
+    ln_lam_10kev = coulomb_log(Te_keV=10.0, ne_19=ne_19)
+    assert ln_lam_1kev < ln_lam_10kev
+    # Both must be physically reasonable: 10 < ln_Λ < 30
+    assert 10.0 < ln_lam_1kev < 30.0
+    assert 10.0 < ln_lam_10kev < 30.0
+
+
+def test_current_diffusion_conserves_ip():
+    """Total Ip approximately conserved over short time with no source.
+
+    Ip ∝ ∫ j_∥ dA = ∫ (1/μ₀) ∇²ψ dA; with Dirichlet edge BC the integral
+    can drift, but over short times (dt << τ_R) the change should be small.
+    Reference: Jardin (2010), Ch. 8, Eq. 8.5.
+    """
+    rho = np.linspace(0, 1, 50)
+    R0, a, B0 = 2.0, 0.5, 1.0
+    solver = CurrentDiffusionSolver(rho, R0=R0, a=a, B0=B0)
+
+    Te = np.ones(50) * 1.0  # 1 keV
+    ne = np.ones(50)  # 10¹⁹ m⁻³
+    j_bs = np.zeros(50)
+    j_cd = np.zeros(50)
+
+    # Ip proxy: ∑ (−∂ψ/∂ρ / (μ₀ a)) Δρ  (sign from toroidal current definition)
+    drho = rho[1] - rho[0]
+
+    def ip_proxy() -> float:
+        dpsi = np.gradient(solver.psi, drho)
+        return float(np.sum(-dpsi / (MU_0 * a)) * drho)
+
+    ip0 = ip_proxy()
+    tau_R = resistive_diffusion_time(a, neoclassical_resistivity(1.0, 1.0, 1.5, 0.1))
+    # Step for 0.1 % of τ_R — negligible diffusion expected
+    dt = 1e-3 * tau_R
+    for _ in range(5):
+        solver.step(dt, Te, ne, 1.5, j_bs, j_cd)
+
+    ip1 = ip_proxy()
+    # Relative change < 5 %
+    assert abs(ip1 - ip0) / (abs(ip0) + 1e-30) < 0.05

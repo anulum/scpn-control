@@ -3,8 +3,6 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-import numpy as np
-
 from scpn_control.core.plasma_startup import (
     BurnThrough,
     PaschenBreakdown,
@@ -12,17 +10,18 @@ from scpn_control.core.plasma_startup import (
     StartupPhase,
     StartupSequence,
     TownsendAvalanche,
+    _E_IZ_EV,
 )
 
 
 def test_paschen_breakdown():
     pb = PaschenBreakdown("D2")
 
-    # Check optimal pressure
-    p_opt = pb.optimal_prefill_pressure(V_loop_max=10.0)
+    # V_min ≈ 305 V for D₂ at SI Townsend coefficients (Lieberman 2005)
+    p_opt = pb.optimal_prefill_pressure(V_loop_max=400.0)
     assert p_opt > 0.0
 
-    # Check curve shape
+    # Curve is U-shaped: voltages away from minimum are higher
     V_opt = pb.breakdown_voltage(p_opt, 100.0)
     V_high = pb.breakdown_voltage(p_opt * 10.0, 100.0)
     V_low = pb.breakdown_voltage(p_opt * 0.1, 100.0)
@@ -30,16 +29,16 @@ def test_paschen_breakdown():
     assert V_high > V_opt
     assert V_low > V_opt
 
-    assert pb.is_breakdown(V_loop=20.0, p_Pa=p_opt)
+    # 400 V exceeds V_min; well below minimum does not break down
+    assert pb.is_breakdown(V_loop=400.0, p_Pa=p_opt)
     assert not pb.is_breakdown(V_loop=0.01, p_Pa=p_opt)
 
 
 def test_townsend_avalanche():
     pb = PaschenBreakdown()
-    p_opt = pb.optimal_prefill_pressure(20.0)
+    p_opt = pb.optimal_prefill_pressure(400.0)
 
-    # Above threshold
-    ava = TownsendAvalanche(V_loop=20.0, p_Pa=p_opt, R0=6.2, a=2.0)
+    ava = TownsendAvalanche(V_loop=400.0, p_Pa=p_opt, R0=6.2, a=2.0)
     res = ava.evolve(1e-4, 100)
 
     assert res.time_to_full_ionization_ms > 0.0
@@ -49,13 +48,13 @@ def test_townsend_avalanche():
 def test_burn_through():
     bt = BurnThrough(R0=6.2, a=2.0, B0=5.3, V_loop=15.0)
 
-    # Clean plasma
+    # Clean plasma: low density, low impurity fraction
     res_clean = bt.evolve(ne_19=0.1, f_imp=1e-4, dt=1e-3, n_steps=100, impurity="C")
     assert res_clean.success
     assert res_clean.time_to_burn_through_ms > 0.0
 
-    # Very Dirty plasma -> fails to burn through
-    res_dirty = bt.evolve(ne_19=0.1, f_imp=0.9, dt=1e-3, n_steps=100, impurity="C")
+    # Dense dirty plasma: ne_19=1.0 raises radiation above ohmic power
+    res_dirty = bt.evolve(ne_19=1.0, f_imp=0.9, dt=1e-3, n_steps=100, impurity="C")
     assert not res_dirty.success
 
 
@@ -71,8 +70,8 @@ def test_critical_impurity_fraction():
 
 def test_startup_sequence():
     pb = PaschenBreakdown("D2")
-    p_opt = pb.optimal_prefill_pressure(V_loop_max=15.0)
-    seq = StartupSequence(R0=6.2, a=2.0, B0=5.3, V_loop=15.0, p_prefill_Pa=p_opt, f_imp=1e-4)
+    p_opt = pb.optimal_prefill_pressure(V_loop_max=400.0)
+    seq = StartupSequence(R0=6.2, a=2.0, B0=5.3, V_loop=400.0, p_prefill_Pa=p_opt, f_imp=1e-4)
     res = seq.run()
 
     assert res.success
@@ -98,3 +97,32 @@ def test_startup_controller():
     c4 = ctrl.step(ne=1e19, Te=100.0, Ip=200.0, t=0.3, dt=0.01)
     assert c4.phase == StartupPhase.RAMP
     assert c4.V_loop == 7.5
+
+
+def test_paschen_minimum_exists():
+    """V_min > 0 at finite pressure — Lieberman 2005 Eq. 14.3.2."""
+    pb = PaschenBreakdown("D2")
+    # V_min = e·B/A·ln(1/γ+1) > 0 by construction
+    assert pb.v_paschen_min > 0.0
+    # pd at minimum > 0
+    assert pb.pd_at_minimum > 0.0
+    # Verify the Paschen curve is U-shaped: voltages far from minimum are higher
+    pd_min = pb.pd_at_minimum
+    conn = 1.0
+    p_min = pd_min / conn
+    V_at_min = pb.breakdown_voltage(p_min, conn)
+    assert V_at_min > 0.0
+    assert pb.breakdown_voltage(p_min * 10.0, conn) > V_at_min
+    assert pb.breakdown_voltage(p_min * 0.1, conn) > V_at_min
+
+
+def test_ionization_rate_positive():
+    """k_iz·n₀ > 0 for T_e > E_iz — Janev 1987 Ch. 2."""
+    pb = PaschenBreakdown()
+    p_opt = pb.optimal_prefill_pressure(20.0)
+    ava = TownsendAvalanche(V_loop=20.0, p_Pa=p_opt, R0=6.2, a=2.0)
+    # Rate must be positive for T_e well above threshold
+    rate = ava.ionization_rate(_E_IZ_EV * 2.0)
+    assert rate > 0.0
+    # Rate must be zero at very cold Te
+    assert ava.ionization_rate(0.05) == 0.0
