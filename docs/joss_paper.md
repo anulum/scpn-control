@@ -130,10 +130,13 @@ The solver is validated against:
   with bitwise fidelity on psi, pressure, and profile arrays.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
-The test suite comprises 3,074+ Python tests and 317 Rust tests across 20 CI
+The test suite comprises 3,150+ Python tests and 317 Rust tests across 20 CI
 jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo
 Loihi emulator, CodeQL security analysis, OpenSSF Scorecard). Coverage gate
 is 99% (current: 100%). The project holds an OpenSSF CII Best Practices badge.
+All physics equations cite their source papers; ~50 citations spanning
+Porcelli (1996), Sauter (1999), Rosenbluth-Putvinski (1997), Connor-Hastie
+(1975), Stix (1972), Martin (2008), Fitzpatrick (2001), and others.
 
 **Limitations**: the native GK solver is linearised (no nonlinear turbulence);
 the collision operator is simplified Sugama (pitch-angle only); external GK

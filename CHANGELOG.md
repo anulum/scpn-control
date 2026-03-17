@@ -26,14 +26,36 @@
 - **Ballooning connection BC**: kx shift at θ boundaries via FFT phase multiply
 - **Rosenbluth-Hinton zonal Krook damping**: dynamic relaxation on bounce time
 - 53 new tests (27 TGLF native + 26 nonlinear)
+- **Physics deepening sprint** — 18 modules, ~50 paper citations, 118 new tests:
+  - Neoclassical: Pfirsch-Schlüter regime, regime auto-detection, full Sauter L31/L32/L34 bootstrap
+  - EPED pedestal: collisionality-dependent width (Snyder 2011), shaping factor (Connor 1998)
+  - Sawtooth: Porcelli 1996 three-condition trigger, Bussac δW_MHD
+  - RWM feedback: rotation stabilization (Fitzpatrick 2001), wall geometry, critical rotation
+  - NTM dynamics: diamagnetic shear (Sauter 1997), GGJ Δ' (Glasser 1975), bootstrap from local params
+  - Alfvén eigenmodes: electron Landau damping (Rosenbluth 1975), Fu-Van Dam resonance, RSAE+BAE
+  - Integrated scenario: transport solver wired, Strang splitting, bootstrap+ohmic, NTM coupling
+  - Current drive: Fisch-Boozer ECCD, Stix slowing-down, Prater geometric efficiency
+  - L-H transition: Martin 2008 scaling, low-density branch (Ryter 2014), Kim-Diamond predator-prey
+  - Momentum transport: Prandtl number (Peeters 2011), Rice rotation, Burrell ExB shear
+  - Orbit following: Boozer 2004 equations, Stix slowing-down, Goldston first-orbit loss
+  - Locked mode: Fitzpatrick 1993 EM torque, La Haye locking condition
+  - Tearing coupling: Chirikov 1979 overlap, La Haye-Buttery 2009 coupling
+  - MARFE: Drake 1987 instability, Greenwald 2002, Lipschultz 1987 onset
+  - Impurity transport: Hirshman-Sigmar 1981 pinch, Post 1977 radiation
+  - Runaway electrons: Wesson Coulomb log, R&P full avalanche, Martin-Solis synchrotron limit
+  - Plasma startup: Lieberman-Lichtenberg Townsend, Janev ionization rate
+  - Current diffusion: temperature-dependent ln_Λ, Jardin 2010 citations
+- Python 3.14 added to CI matrix and classifiers
 
 ### Changed
 - **Nengo replaced** with pure LIF+NEF engine (numpy 2.x compatible, no external dependency)
 - All mypy errors fixed across 10 source files
-- 3,300+ tests (220+ files), 100% coverage, 20 CI jobs
+- 3,157+ tests (220+ files), 100% coverage, 20 CI jobs
 
 ### Fixed
 - CFL fix for hyperdiffusion stability in nonlinear GK solver
+- Subprocess PYTHONPATH in test_controller_oracle_serve for Python 3.14
+- Martin L-H scaling 10x density unit bug (n_e19 → n_e20 conversion)
 
 ## [0.17.0] — 2026-03-14
 

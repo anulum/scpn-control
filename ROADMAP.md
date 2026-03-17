@@ -227,13 +227,23 @@
 - [x] Conservation: particles <3e-8, momentum <1e-23, energy <2e-8
 - [x] GPU verified: Sugama = Krook at ν=0.01 (low collisionality)
 
+### v0.18.0+ — Physics deepening sprint (2026-03-17)
+- [x] **18 modules deepened** with ~50 paper citations and 118 new tests:
+  neoclassical (Sauter L31/L32/L34, PS regime), EPED (Snyder 2011 width),
+  sawtooth (Porcelli 1996 trigger), RWM (Fitzpatrick rotation), NTM (GGJ Δ'),
+  Alfvén (electron Landau damping), integrated scenario (transport wired),
+  current drive (Stix slowing-down), L-H (Martin 2008), momentum (Prandtl),
+  orbit (Boozer/Goldston), locked mode (EM torque), tearing (Chirikov),
+  MARFE (Drake instability), impurity (H&S pinch), runaway electrons
+  (R&P full avalanche), plasma startup (Janev ionization), current diffusion
+  (temperature-dependent Coulomb log)
+- [x] Python 3.14 added to CI matrix (continue-on-error until scipy wheels ship)
+- [x] 3,150+ tests, 0 failures
+
 ### v1.0.0 — Production readiness
-- [x] JOSS paper updated (paper.md): "SCPN Control: Neuro-Symbolic Stochastic
-  Petri Net Controllers with First-Principles Gyrokinetic Transport for
-  Real-Time Tokamak Plasma Control"
+- [x] JOSS paper updated with citation count and test metrics
 - [x] Electromagnetic nonlinear extension (A_∥, KBM, MTM)
-- [x] 30 CI-gated physics invariant tests (conservation, analytic limits,
-  edge cases, numerical methods, NumPy↔JAX parity, regression pins)
+- [x] 42 CI-gated physics invariant tests + 118 physics deepening tests
 - [x] Backup: `stable-v0.18.0-20260317` tag + bundle
 - [ ] JOSS submission (review + editorial)
 - [ ] Streamlit dashboard v2
