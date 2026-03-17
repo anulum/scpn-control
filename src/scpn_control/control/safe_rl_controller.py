@@ -64,7 +64,7 @@ def cbf_beta_n(x: np.ndarray, beta_n_limit: float = BETA_N_LIMIT) -> float:
     Ames et al. 2017, IEEE TAC 62, 3861, Definition 2.
     obs = [I_p, β_N, q_95, ...]
     """
-    return beta_n_limit - x[1]
+    return float(beta_n_limit - x[1])
 
 
 def cbf_q95(x: np.ndarray, q95_min: float = Q95_MIN) -> float:
@@ -73,7 +73,7 @@ def cbf_q95(x: np.ndarray, q95_min: float = Q95_MIN) -> float:
     h(x) = q_95 - q_min  >  0 inside safe set.
     Wesson 2004, §3.4; Ames et al. 2017, Definition 2.
     """
-    return x[2] - q95_min
+    return float(x[2] - q95_min)
 
 
 class ConstrainedGymTokamakEnv:

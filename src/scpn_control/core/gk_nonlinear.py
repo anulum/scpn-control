@@ -805,7 +805,10 @@ class NonlinearGKSolver:
         FM = np.exp(-(0.5 * vpar2 + mu_val))
 
         # Random perturbation × Maxwellian
-        f = amplitude * (rng.standard_normal(shape) + 1j * rng.standard_normal(shape)) * FM
+        f = np.asarray(
+            amplitude * (rng.standard_normal(shape) + 1j * rng.standard_normal(shape)) * FM,
+            dtype=np.complex128,
+        )
 
         phi = self.field_solve(f)
         A_par = self.ampere_solve(f) if c.electromagnetic else None

@@ -48,9 +48,9 @@ class RZIPModel:
         # Finite difference for mutual inductance derivative w.r.t Z1
         # vessel._calculate_mutual_inductance takes (R1, Z1, R2, Z2)
         dZ = 1e-4
-        M_plus = self.vessel._calculate_mutual_inductance(R1, Z1 + dZ, R2, Z2)
-        M_minus = self.vessel._calculate_mutual_inductance(R1, Z1 - dZ, R2, Z2)
-        return (M_plus - M_minus) / (2.0 * dZ)
+        M_plus = self.vessel._mutual_inductance(R1, Z1 + dZ, R2, Z2)
+        M_minus = self.vessel._mutual_inductance(R1, Z1 - dZ, R2, Z2)
+        return float((M_plus - M_minus) / (2.0 * dZ))
 
     def build_state_space(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         # x = [Z, dZ/dt, I_1, ..., I_n]
@@ -83,7 +83,7 @@ class RZIPModel:
                 if i == j:
                     M_mat[i, j] = el_i.inductance
                 else:
-                    M_mat[i, j] = self.vessel._calculate_mutual_inductance(el_i.R, el_i.Z, el_j.R, el_j.Z)
+                    M_mat[i, j] = self.vessel._mutual_inductance(el_i.R, el_i.Z, el_j.R, el_j.Z)
 
         try:
             M_inv = np.linalg.inv(M_mat)
