@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-03-16/17",
+  "results": {
+    "es_beta0": {"chi_i_gB": 1.9476, "phi_final": 1.252, "late_growth": 0.0935, "elapsed_s": 1013},
+    "em_beta002": {"chi_i_gB": 1.9476, "phi_final": 1.252, "late_growth": 0.0935, "elapsed_s": 1027,
+      "note": "Identical to ES — JAX rhs_full lacks EM phi_eff, needs same fix as kinetic electrons"},
+    "em_beta01": {"chi_i_gB": 1.9476, "phi_final": 1.252, "late_growth": 0.0935, "elapsed_s": 1043,
+      "note": "Identical to ES — same JAX issue"},
+    "dimits_3_256": {"chi_i_gB": -36312238368637.5, "phi_final": 379600, "late_growth": 5.77, "elapsed_s": 3454,
+      "note": "UNSTABLE at n_kx=256 — ballooning BC phase accumulation at high kx causes blowup"},
+    "dimits_69_256": {"note": "Killed — instance destroyed after n_kx=256 instability"}
+  },
+  "conclusions": {
+    "em_effect": "EM not propagated to JAX solver drive (same pattern as kinetic_electrons). Need to update JAX rhs_full with phi_eff = phi - v_par * A_par.",
+    "n_kx_256": "Unstable — the ballooning BC at n_kx=256 amplifies high-kx modes. n_kx=128 is the practical limit with current numerics.",
+    "dimits": "n_kx=128 remains the best resolution. The Dimits shift direction (subcritical decay, supercritical growth) is confirmed at n_kx=128."
+  }
+}
