@@ -60,3 +60,45 @@ def test_basis_evaluation():
     assert np.isclose(R_val[0], 8.2)  # 6.2 + 2.0 * cos(0)
     assert np.isclose(R_val[1], 6.2)  # 6.2 + 2.0 * cos(pi/2)
     assert np.isclose(R_val[2], 4.2)  # 6.2 + 2.0 * cos(pi)
+
+
+# ── New citation-driven tests ─────────────────────────────────────────
+
+
+def test_vmec_spectral_reconstruction():
+    """Hirshman & Whitson 1983: R and Z finite for all s, θ, ζ.
+
+    R(s,θ,ζ) = Σ R_mn cos(mθ − nζ),  Z = Σ Z_mn sin(mθ − nζ)  [Eqs. 1–2].
+    """
+    solver = VMECLiteSolver(n_s=11, m_pol=2, n_tor=1, n_fp=5)
+    b_R, b_Z = StellaratorBoundary.w7x_standard()
+    solver.set_boundary(b_R, b_Z)
+    solver.set_profiles(np.linspace(5e4, 0.0, 11), np.ones(11) * 0.9)
+    res = solver.solve(max_iter=100, tol=1e-3)
+
+    theta = np.linspace(0, 2 * np.pi, 32, endpoint=False)
+    zeta = np.linspace(0, 2 * np.pi, 32, endpoint=False)
+    TH, ZE = np.meshgrid(theta, zeta, indexing="ij")
+
+    for s_idx in range(solver.n_s):
+        R_surf = solver.basis.evaluate(res.R_mn[s_idx], TH.ravel(), ZE.ravel(), is_sin=False)
+        Z_surf = solver.basis.evaluate(res.Z_mn[s_idx], TH.ravel(), ZE.ravel(), is_sin=True)
+        assert np.all(np.isfinite(R_surf)), f"R not finite at s_idx={s_idx}"
+        assert np.all(np.isfinite(Z_surf)), f"Z not finite at s_idx={s_idx}"
+
+
+def test_vmec_force_balance_residual():
+    """Force balance residual |∇p − J×B| proxy stays bounded.
+
+    Freidberg 2014, Ideal MHD, Ch. 3: ∇p = J × B in equilibrium.
+    The solver minimises this residual; after convergence it must be small.
+    """
+    solver = VMECLiteSolver(n_s=11, m_pol=2, n_tor=0, n_fp=1)
+    b_R, b_Z = AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=1.7, delta=0.33)
+    solver.set_boundary(b_R, b_Z)
+    solver.set_profiles(np.linspace(1e5, 0.0, 11), np.linspace(1.0, 0.3, 11))
+    res = solver.solve(max_iter=200, tol=1e-4)
+    # Residual must be finite and not worse than the starting point (inf)
+    assert np.isfinite(res.force_residual)
+    # Convergence to within a reasonable bound (not asking for full physics)
+    assert res.force_residual < 1.0

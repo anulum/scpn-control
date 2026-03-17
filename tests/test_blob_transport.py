@@ -86,3 +86,42 @@ def test_blob_detector():
     avg = det.conditional_average(sig, events, window=20)
     assert len(avg) == 41
     assert avg[20] > 1.0  # Center of average is the spike
+
+
+# ── New citation-driven tests ─────────────────────────────────────────
+
+
+def test_blob_velocity_positive():
+    """Blob radial velocity is positive for outward propagation.
+
+    Krasheninnikov 2001, Phys. Lett. A 283, 368, Eq. 5:
+        v_b = 2 T_e / (e B R δ_b) × c_s/Ω_i > 0  for δ_b > 0.
+    D'Ippolito et al. 2011, Phys. Plasmas 18, 060501: both regimes outward.
+    """
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    L_par = 10.0
+
+    # sheath regime
+    v_sh, regime_sh = dyn.blob_velocity(dyn.critical_size(L_par) * 0.5, 1e19, L_par)
+    assert v_sh > 0.0
+    assert regime_sh == "sheath"
+
+    # inertial regime
+    v_in, regime_in = dyn.blob_velocity(dyn.critical_size(L_par) * 2.0, 1e19, L_par)
+    assert v_in > 0.0
+    assert regime_in == "inertial"
+
+
+def test_blob_size_scaling():
+    """Critical blob size increases with connection length.
+
+    Myra et al. 2006, Phys. Plasmas 13, 112502, Eq. 12:
+        δ_b* ≈ 2 ρ_s (L_∥ / (R ρ_s))^(1/5) — monotone in L_∥.
+    """
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+
+    delta_short = dyn.critical_size(L_parallel=5.0)
+    delta_long = dyn.critical_size(L_parallel=50.0)
+
+    assert delta_long > delta_short
+    assert delta_short > 0.0
