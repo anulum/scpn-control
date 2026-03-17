@@ -73,3 +73,41 @@ def test_mu_controller_robustness():
     u = ctrl.step(x, 0.1)
 
     assert u.shape == (2,)
+
+
+# ── Physics-motivated citation tests ────────────────────────────────
+
+
+def test_mu_upper_bound() -> None:
+    """μ(M) ≤ σ̄(M) for any M and any structured Δ.
+
+    Doyle 1982, IEE Proc. D 129, 242: the unstructured singular value is
+    always an upper bound on the structured singular value.  The D-scaling
+    approach can only tighten, never exceed, σ̄(M).
+    """
+    M = np.array([[2.0, 10.0], [0.0, 2.0]], dtype=complex)
+    struct = [(1, "complex_scalar"), (1, "complex_scalar")]
+
+    sigma_max = float(np.max(np.linalg.svd(M)[1]))
+    mu_bound = compute_mu_upper_bound(M, struct)
+
+    assert mu_bound <= sigma_max + 1e-10, f"μ upper bound {mu_bound} exceeds σ̄(M) = {sigma_max}"
+
+
+def test_dk_iteration_converges() -> None:
+    """μ_peak must decrease monotonically with D-K iterations.
+
+    Skogestad & Postlethwaite 2005, §8.5: each outer D-K iterate either
+    reduces or maintains the peak μ upper bound.
+    """
+    A = np.eye(2)
+    B = np.eye(2)
+    C = np.eye(2)
+    D = np.zeros((2, 2))
+    plant = (A, B, C, D)
+    unc = StructuredUncertainty([UncertaintyBlock("plasma_position", 2, 0.1, "full")])
+
+    _, mu_1, _ = dk_iteration(plant, unc, n_iter=1)
+    _, mu_5, _ = dk_iteration(plant, unc, n_iter=5)
+
+    assert mu_5 <= mu_1, f"μ did not decrease: {mu_5} > {mu_1} after 5 vs 1 iteration"

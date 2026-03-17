@@ -1,7 +1,10 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Density Controller Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
 from __future__ import annotations
+
+import math
 
 import numpy as np
 
@@ -109,3 +112,41 @@ def test_fueling_optimizer():
     assert len(sched.speeds) == 3
     assert len(sched.sizes) == 3
     assert sched.times[0] == 0.25  # 1.0 / 4
+
+
+def test_greenwald_limit_iter():
+    """n_GW ≈ 1.19×10^20 m^-3 for ITER (15 MA, a=2.0 m).
+
+    Greenwald 2002, PPCF 44, R27, Eq. 1: n_GW = I_p / (π a²) [10^20 m^-3].
+    ITER parameters: I_p = 15 MA, a = 2.0 m.
+    """
+    I_p_MA = 15.0
+    a_m = 2.0
+    n_GW = DensityController.compute_greenwald_limit(I_p_MA, a_m)
+
+    # Expected: 15 / (π × 4) × 10^20 ≈ 1.194×10^20 m^-3
+    expected = 15.0 / (math.pi * 4.0) * 1e20
+    assert abs(n_GW - expected) < 1e16, f"n_GW={n_GW:.4e} expected≈{expected:.4e}"
+    # Must be between 1.0 and 1.3 × 10^20 m^-3 for ITER parameters.
+    assert 1.0e20 < n_GW < 1.3e20
+
+
+def test_density_below_greenwald():
+    """Controller keeps n < n_GW after triggering the pump-out threshold.
+
+    When n/n_GW exceeds 0.95 the controller activates maximum pumping with
+    zero fueling, pushing density back below the limit.
+    Greenwald 2002, PPCF 44, R27, Eq. 1.
+    """
+    model = ParticleTransportModel(n_rho=10, R0=6.2, a=2.0)
+    ctrl = DensityController(model, dt_control=0.01)
+
+    # Set n_GW to 1e19 so that a flat profile of 2×10^19 is well above limit.
+    ctrl.set_constraints(n_GW=1e19, gas_max=1e22, pellet_freq_max=10.0, pump_max=10.0)
+    ctrl.set_target(np.ones(10) * 5e19)
+
+    ne_over = np.ones(10) * 2e19
+    cmd = ctrl.step(ne_over)
+
+    assert cmd.gas_puff_rate == 0.0, "No fueling when above Greenwald limit"
+    assert cmd.cryo_pump_speed == ctrl.pump_max, "Max pumping when above Greenwald limit"

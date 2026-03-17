@@ -404,3 +404,32 @@ class TestGainMargin:
     def test_factory_rejects_nan_damping(self) -> None:
         with pytest.raises(ValueError, match="damping"):
             get_radial_robust_controller(damping=float("nan"))
+
+
+# ── 12. Physics-motivated citation tests ─────────────────────────────
+
+
+class TestPhysicsCitations:
+    """Verify numerical properties cited in Doyle et al. 1989 and Zhou 1996."""
+
+    def test_hinf_riccati_solves_psd(self) -> None:
+        """X must be positive semi-definite for a stable plant.
+
+        Zhou, Doyle & Glover 1996, Theorem 14.2: the stabilising solution X
+        to the state-feedback ARE is PSD when (A, B2) is stabilisable and
+        (C1, A) is detectable.
+        """
+        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
+        ctrl = HInfinityController(A, B1, B2, C1, C2)
+        eigs_x = np.linalg.eigvalsh(ctrl.X)
+        assert np.all(eigs_x >= -1e-10), f"X not PSD: min eigenvalue {eigs_x.min()}"
+
+    def test_hinf_gamma_bound(self) -> None:
+        """Synthesised gamma must be strictly less than the initial search upper bound.
+
+        Green & Limebeer 1995, Ch. 13: binary search converges to optimal gamma*
+        below the initial upper limit _GAMMA_SEARCH_MAX.
+        """
+        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
+        ctrl = HInfinityController(A, B1, B2, C1, C2)
+        assert ctrl.gamma < HInfinityController._GAMMA_SEARCH_MAX

@@ -1,6 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Divertor Detachment Control Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import numpy as np
@@ -11,6 +12,7 @@ from scpn_control.control.detachment_controller import (
     DetachmentState,
     MultiImpuritySeeding,
     RadiationFrontModel,
+    two_point_q_parallel,
 )
 from scpn_control.core.sol_model import TwoPointSOL
 
@@ -88,3 +90,45 @@ def test_multi_impurity_seeding():
     assert "N2" in rates
     assert "Ne" in rates
     assert rates["N2"] > 0.0
+
+
+def test_detachment_onset_low_temperature():
+    """T_div < 5 eV places the divertor in the detached state.
+
+    Stangeby 2000, "The Plasma Boundary of Magnetic Fusion Devices", Ch. 16:
+    volumetric recombination and ion-neutral friction dominate below 5 eV,
+    decoupling the target from upstream conditions.
+    """
+    ctrl = DetachmentController(target_T_t_eV=3.0)
+
+    # T_t = 2 eV < 5 eV → fully detached
+    ctrl.step(T_t_measured=2.0, n_t_measured=5.0, P_rad_measured=20.0, rho_front=0.1, dt=0.1)
+    assert ctrl.state == DetachmentState.FULLY_DETACHED
+
+    # T_t = 6 eV > 5 eV → partially detached (above onset, below bifurcation)
+    ctrl2 = DetachmentController(target_T_t_eV=3.0)
+    ctrl2.step(T_t_measured=6.0, n_t_measured=5.0, P_rad_measured=10.0, rho_front=0.1, dt=0.1)
+    assert ctrl2.state == DetachmentState.PARTIALLY_DETACHED
+
+
+def test_two_point_model_parallel():
+    """q_∥ > 0 for T_u > T_div; q_∥ = 0 at T_u = 0.
+
+    Stangeby 2000, Eq. 5.69: q_∥ = κ₀ T_u^(7/2) / (7 L_∥).
+    κ₀ = 2390 W m^-1 eV^(-7/2) (Spitzer electron conductivity, Eq. 5.67).
+    """
+    L_par = 200.0  # [m], typical ITER connection length q95~3 → L ≈ π q95 R0 ≈ 200 m
+
+    q_zero = two_point_q_parallel(T_upstream_eV=0.0, L_parallel_m=L_par)
+    assert q_zero == 0.0
+
+    q_low = two_point_q_parallel(T_upstream_eV=3.0, L_parallel_m=L_par)
+    q_high = two_point_q_parallel(T_upstream_eV=100.0, L_parallel_m=L_par)
+
+    assert q_low > 0.0, "q_∥ must be positive for T_u > 0"
+    assert q_high > q_low, "q_∥ increases with T_u (T^3.5 dependence)"
+
+    # Quantitative check for T_u=100 eV, L=200 m:
+    # q = 2390 × 100^3.5 / (7 × 200) = 2390 × 1e7 / 1400 ≈ 1.707×10^7 W m^-2
+    expected = 2390.0 * 100.0**3.5 / (7.0 * L_par)
+    assert abs(q_high - expected) / expected < 1e-9
