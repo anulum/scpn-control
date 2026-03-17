@@ -17,7 +17,7 @@ authors:
 affiliations:
   - name: ANULUM CH & LI
     index: 1
-date: 16 March 2026
+date: 17 March 2026
 bibliography: paper.bib
 ---
 
@@ -37,8 +37,9 @@ electromagnetic extension, a native TGLF-equivalent quasilinear model
 solver in flux-tube geometry with JAX GPU acceleration (62$\times$ speedup),
 interfaces to five external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz),
 a hybrid surrogate+GK validation layer with out-of-distribution detection
-and online retraining, seven controllers (PID, MPC, $H_\infty$, $\mu$-synthesis,
-NMPC, SNN, safe RL), disruption prediction with SPI mitigation, and a
+and online retraining, ten controllers (PID, MPC, $H_\infty$, $\mu$-synthesis,
+NMPC, SNN, safe RL, sliding-mode, gain-scheduled, fault-tolerant),
+disruption prediction with SPI mitigation, and a
 companion Rust backend (5 crates, PyO3 bindings) achieving 11.9 µs median
 kernel latency.
 
@@ -50,7 +51,7 @@ the critical gradient due to zonal flow suppression — is demonstrated at
 $n_{kx}=256$.
 
 The codebase comprises 125 Python source modules and 5 Rust crates with
-3,300+ Python tests at 100% coverage across 20 CI jobs.
+3,164+ Python tests at 100% coverage across 20 CI jobs.
 
 # Statement of Need
 
@@ -177,10 +178,16 @@ The solver is validated against:
 - **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
-The test suite comprises 3,300+ Python tests across 20 CI jobs (Python
-3.10–3.13 on Linux/Windows/macOS, Rust stable, JAX parity, CodeQL security
-analysis, OpenSSF Scorecard). Coverage gate is 99% (current: 100%). The
-project holds an OpenSSF CII Best Practices badge.
+The test suite comprises 3,164+ Python tests and 317 Rust tests across 20
+CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity,
+CodeQL security analysis, OpenSSF Scorecard). Coverage gate is 99%
+(current: 100%). The project holds an OpenSSF CII Best Practices badge.
+All physics equations cite their source papers; ~80 citations spanning
+Porcelli (1996), Sauter (1999), Rosenbluth-Putvinski (1997), Stix (1972),
+Bosch-Hale (1992), Doyle (1989), Rawlings (2017), Stangeby (2000),
+Hirshman (1983), and others. Twelve cross-module integration tests verify
+consistency across physics chains (bootstrap→NTM, EPED→Troyon, L-H→EPED,
+runaway→SPI).
 
 **Limitations**: external GK interfaces are mock-tested (no real Fortran
 binaries in CI); DIII-D shots use synthetic data, not real MDSplus archives;
