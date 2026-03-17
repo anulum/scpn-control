@@ -1,8 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — State Estimator Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
 """
 Tests for the Extended Kalman Filter (EKF) state estimator.
 """
@@ -78,3 +77,53 @@ def test_ekf_covariance_shrinkage():
 
     tr_after = np.trace(ekf.P)
     assert tr_after < tr_before
+
+
+def test_ekf_covariance_psd():
+    """P must remain positive semi-definite after predict + update.
+
+    Simon 2006, "Optimal State Estimation", Ch. 13: the EKF covariance
+    update (I − KH)P preserves PSD if the initial P₀ is PSD and Q, R ≥ 0.
+    """
+    x0 = np.array([6.2, 0.0, 0.1, 0.05, 15.0, 10.0])
+    P0 = np.eye(6) * 1.0
+    Q = np.eye(6) * 0.01
+    R_cov = np.eye(4) * 0.1
+
+    ekf = ExtendedKalmanFilter(x0, P0, Q, R_cov)
+
+    rng = np.random.default_rng(7)
+    for _ in range(20):
+        ekf.predict(0.05)
+        z = np.array([6.2, 0.0, 15.0, 10.0]) + rng.normal(0, 0.1, 4)
+        ekf.update(z)
+
+    eigvals = np.linalg.eigvalsh(ekf.P)
+    assert np.all(eigvals >= -1e-10), f"P has negative eigenvalue: {eigvals.min()}"
+
+
+def test_ekf_estimate_converges():
+    """Estimation error must decrease as more measurements are assimilated.
+
+    Lister et al. 1997, Nucl. Fusion 37, 1633: real-time magnetic
+    reconstruction converges within ~10 ms for JET-scale plasmas.
+    """
+    rng = np.random.default_rng(13)
+
+    x_true = np.array([6.2, 0.05, 0.0, 0.0, 14.0, 9.5])
+    x0 = x_true + np.array([0.5, 0.3, 0.0, 0.0, 1.0, 1.0])
+    P0 = np.eye(6) * 2.0
+    Q = np.eye(6) * 0.001
+    R_cov = np.eye(4) * 0.05
+
+    ekf = ExtendedKalmanFilter(x0, P0, Q, R_cov)
+
+    err_initial = np.linalg.norm(ekf.estimate() - x_true)
+
+    for _ in range(50):
+        ekf.predict(0.05)
+        z = np.array([x_true[0], x_true[1], x_true[4], x_true[5]]) + rng.normal(0, 0.05, 4)
+        ekf.update(z)
+
+    err_final = np.linalg.norm(ekf.estimate() - x_true)
+    assert err_final < err_initial

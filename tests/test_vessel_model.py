@@ -1,8 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Vessel Model Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
 """
 Tests for the vacuum vessel eddy current model.
 """
@@ -12,7 +11,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from scpn_control.core.vessel_model import VesselElement, VesselModel
+from scpn_control.core.vessel_model import (
+    TPF,
+    VesselElement,
+    VesselModel,
+    halo_current,
+    halo_em_force,
+    vessel_time_constant,
+)
 
 
 def test_vessel_current_decay():
@@ -76,3 +82,36 @@ def test_psi_vessel_axisymmetry():
     assert psi[0] != psi[1]
     assert psi[0] != psi[2]
     assert np.all(psi > 0)  # Current is positive, R is positive -> psi should be positive
+
+
+def test_halo_current_bounded():
+    """I_halo = TPF × I_p must be exactly TPF times the plasma current.
+
+    ITER Physics Basis 1999, Ch. 3, §3.8.3.
+    """
+    I_p = 15.0e6  # 15 MA — ITER full-current scenario
+    I_halo = halo_current(I_p)
+    assert I_halo == pytest.approx(TPF * I_p)
+    assert I_halo < TPF * I_p + 1.0  # strictly bounded by TPF × I_p
+
+
+def test_vessel_time_constant():
+    """τ_vessel = μ₀ σ d R must be positive.
+
+    Wesson 2011, "Tokamaks", 4th ed., Eq. 6.6.6.
+    Stainless steel 316L: σ ≈ 1.35e6 S/m; d = 0.04 m; R = 6.2 m (ITER).
+    """
+    tau = vessel_time_constant(conductivity=1.35e6, wall_thickness=0.04, major_radius=6.2)
+    assert tau > 0.0
+    # Sanity: τ should be in the range [1 ms, 10 s] for metallic tokamak walls.
+    assert 1e-3 < tau < 10.0
+
+
+def test_halo_em_force_positive():
+    """F = I_halo × B_pol × L must be positive for positive inputs.
+
+    Noll et al. 1993, Fusion Eng. Des. 22, 315.
+    """
+    F = halo_em_force(halo_current_a=1e6, b_poloidal=0.5, path_length=2.0)
+    assert F > 0.0
+    assert F == pytest.approx(1e6 * 0.5 * 2.0)

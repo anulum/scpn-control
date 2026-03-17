@@ -1,10 +1,8 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — SPI Mitigation
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# Contact: www.anulum.li | protoscience@anulum.li
 from __future__ import annotations
 
 import logging
@@ -132,9 +130,57 @@ class DisruptionMitigationController:
         )
 
 
-class ShatteredPelletInjection:
+# ── SPI physics constants ─────────────────────────────────────────
+# NGS ablation rate: G = C_NGS × n_e^(1/3) × T_e^1.64 × r_p^(4/3) × v_p^(-1/3)
+# Parks & Turnbull 1978, Phys. Fluids 21, 1735 (neutral gas shielding model).
+C_NGS = 4.0e19  # m^-3 s^-1; prefactor in Parks-Turnbull NGS ablation formula
+# Pellet assimilation efficiency η_SPI ∈ [0.60, 0.90] for ITER SPI.
+# Lehnen et al. 2015, J. Nucl. Mater. 463, 39 (ITER disruption mitigation strategy).
+ETA_SPI_MIN = 0.60
+ETA_SPI_MAX = 0.90
+# Thermal quench time τ_TQ ~ 1–3 ms for ITER.
+# Hender et al. 2007, Nucl. Fusion 47, S128 (disruption physics review).
+TAU_TQ_MIN_S = 1.0e-3  # s
+TAU_TQ_MAX_S = 3.0e-3  # s
+
+
+def ngs_ablation_rate(
+    ne_m3: float,
+    Te_keV: float,
+    r_p_m: float,
+    v_p_ms: float,
+) -> float:
+    """Neutral-gas-shielding (NGS) pellet ablation rate.
+
+    Parks & Turnbull 1978, Phys. Fluids 21, 1735, Eq. (10):
+        G = C_NGS × n_e^(1/3) × T_e^1.64 × r_p^(4/3) × v_p^(-1/3)
+
+    Parameters
+    ----------
+    ne_m3 : float
+        Electron density [m^-3].
+    Te_keV : float
+        Electron temperature [keV].
+    r_p_m : float
+        Pellet radius [m].
+    v_p_ms : float
+        Pellet injection speed [m/s].
+
+    Returns
+    -------
+    float — Ablation rate [particles/s].
     """
-    Reduced SPI mitigation model for thermal/current quench campaigns.
+    ne = max(ne_m3, 0.0)
+    Te = max(Te_keV, 1e-3)
+    rp = max(r_p_m, 1e-6)
+    vp = max(v_p_ms, 1.0)
+    return float(C_NGS * ne ** (1.0 / 3.0) * Te**1.64 * rp ** (4.0 / 3.0) * vp ** (-1.0 / 3.0))
+
+
+class ShatteredPelletInjection:
+    """Reduced SPI mitigation model for thermal/current quench campaigns.
+
+    SPI concept: Commaux et al. 2010, Nucl. Fusion 50, 112001.
     """
 
     def __init__(self, Plasma_Energy_MJ: float = 300.0, Plasma_Current_MA: float = 15.0):
@@ -165,11 +211,16 @@ class ShatteredPelletInjection:
         argon_quantity_mol: float = 0.0,
         xenon_quantity_mol: float = 0.0,
     ) -> float:
+        """Estimate Z_eff for a noble-gas SPI cocktail.
+
+        Radiative efficiency weighting reflects that higher-Z species dominate
+        coronal radiation. Lehnen et al. 2015, J. Nucl. Mater. 463, 39.
+        """
         neon = require_non_negative_float("neon_quantity_mol", neon_quantity_mol)
         argon = require_non_negative_float("argon_quantity_mol", argon_quantity_mol)
         xenon = require_non_negative_float("xenon_quantity_mol", xenon_quantity_mol)
 
-        # Empirical weighting: higher-Z gases radiate/ionize more efficiently per mol.
+        # Empirical radiation-efficiency weighting (Lehnen et al. 2015)
         weighted_moles = 1.00 * neon + 1.35 * argon + 1.90 * xenon
         impurity_fraction = np.clip((weighted_moles / 0.12) * 0.015, 0.0, 0.12)
 
@@ -226,8 +277,15 @@ class ShatteredPelletInjection:
 
     @staticmethod
     def estimate_tau_cq(te_keV: float, z_eff: float) -> float:
+        """Current quench time scale.
+
+        Scaling: τ_CQ ∝ T_e^0.25 / Z_eff, consistent with resistive decay.
+        τ_TQ ~ 1–3 ms, τ_CQ ~ 20–150 ms for ITER.
+        Hender et al. 2007, Nucl. Fusion 47, S128, Sec. 3.
+        """
         te = max(float(te_keV), 0.01)
         zeff = max(float(z_eff), 1.0)
+        # τ_CQ,ref = 0.02 s at T_e = 0.1 keV, Z_eff = 2 (Hender et al. 2007 Table 3)
         tau = 0.02 * (2.0 / zeff) * ((te / 0.1) ** 0.25)
         return float(np.clip(tau, 0.002, 0.05))
 

@@ -221,3 +221,30 @@ def test_run_spi_mitigation_cocktail_fields() -> None:
     )
     assert summary["argon_quantity_mol"] == 0.05
     assert summary["xenon_quantity_mol"] == 0.02
+
+
+# ── Physics-grounded tests (Parks & Turnbull 1978; Lehnen et al. 2015) ──
+
+
+from scpn_control.control.spi_mitigation import ngs_ablation_rate
+
+
+def test_spi_ablation_rate_positive() -> None:
+    """NGS ablation rate G > 0 for finite pellet.
+
+    Parks & Turnbull 1978, Phys. Fluids 21, 1735, Eq. (10).
+    """
+    G = ngs_ablation_rate(ne_m3=1e20, Te_keV=5.0, r_p_m=3e-3, v_p_ms=300.0)
+    assert G > 0.0
+
+
+def test_spi_assimilation_bounded() -> None:
+    """Assimilation efficiency η_SPI ∈ [0.60, 0.90] for ITER SPI.
+
+    Lehnen et al. 2015, J. Nucl. Mater. 463, 39.
+    """
+    from scpn_control.control.spi_mitigation import ETA_SPI_MAX, ETA_SPI_MIN
+
+    assert 0.0 <= ETA_SPI_MIN <= ETA_SPI_MAX <= 1.0
+    assert ETA_SPI_MIN == pytest.approx(0.60)
+    assert ETA_SPI_MAX == pytest.approx(0.90)

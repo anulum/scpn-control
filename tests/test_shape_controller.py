@@ -1,9 +1,11 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Plasma Shape Controller Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.shape_controller import (
     CoilSet,
@@ -82,3 +84,24 @@ def test_shape_performance_metrics():
     # min_gap should not be wildly negative for the mock error
     assert res.min_gap > 0.0
     assert res.xpoint_error > 0.0
+
+
+def test_shape_gap_positive():
+    """min_gap > 0 for a centered plasma with small errors.
+
+    Ferron et al. 1998, Nucl. Fusion 38, 1055: ISOFLUX control maintains
+    plasma-wall clearance (gap > 0) during normal operation.
+
+    Use psi=0 (no shape error) so e_gap = 0 and min_gap = min(gap_targets).
+    """
+    target = iter_lower_single_null_target()
+    coils = CoilSet(n_coils=10)
+    ctrl = PlasmaShapeController(target, coils, kernel=None)
+
+    # psi=0 triggers no shape error in the mock (_compute_shape_error returns zeros)
+    psi_zero = np.zeros((33, 33))
+    res = ctrl.evaluate_performance(psi_zero)
+
+    # All gap targets are 0.1 m; with zero gap error, min_gap = min(gap_targets) = 0.1
+    assert res.min_gap > 0.0
+    assert res.min_gap == pytest.approx(min(target.gap_targets))

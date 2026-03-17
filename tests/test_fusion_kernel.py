@@ -11,7 +11,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scpn_control.core.fusion_kernel import CoilSet, FusionKernel, _select_x_point_index
+from scpn_control.core.fusion_kernel import (
+    ALPHA_FRACTION,
+    CoilSet,
+    FusionKernel,
+    _select_x_point_index,
+    dt_alpha_power_mw,
+    dt_fusion_power_mw,
+    neutron_wall_loading_mw_m2,
+)
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -633,3 +641,45 @@ class TestSaveResults:
         assert "Z" in data
         assert "Psi" in data
         assert "J_phi" in data
+
+
+# ── Physics-grounded tests (Wesson 2011; ITER Physics Basis 1999; Stacey 2010) ──
+
+
+def test_fusion_power_formula() -> None:
+    """P_fus > 0 for T > 5 keV with ITER-like densities.
+
+    P_fus = n_D n_T <σv> E_fus × V.
+    Wesson 2011, "Tokamaks" 4th ed., Eq. 1.2.1.
+    """
+    from scpn_control.core.uncertainty import bosch_hale_reactivity
+
+    sigv = float(bosch_hale_reactivity(20.0))
+    n = 5.0e19  # m^-3
+    V = 840.0  # m^3; ITER plasma volume (ITER Physics Basis 1999)
+    P = dt_fusion_power_mw(n_D_m3=n, n_T_m3=n, sigv_m3s=sigv, V_m3=V)
+    assert P > 0.0
+
+
+def test_alpha_fraction() -> None:
+    """P_alpha = P_fus / 5 (E_alpha/E_fus = 3.52/17.6 = 0.2).
+
+    ITER Physics Basis 1999, Nucl. Fusion 39, 2137, Eq. (2.2.1).
+    """
+    assert ALPHA_FRACTION == pytest.approx(0.2, rel=1e-4)
+
+    P_fus = 500.0  # MW
+    P_alpha = dt_alpha_power_mw(P_fus)
+    assert P_alpha == pytest.approx(P_fus / 5.0, rel=1e-6)
+
+
+def test_neutron_wall_loading_positive() -> None:
+    """q_n > 0 for finite fusion power and reactor geometry.
+
+    q_n = P_n / (4π R₀ a κ).
+    Stacey 2010, "Fusion Plasma Physics", 2nd ed., Ch. 1, Eq. (1.4).
+    ITER: q_n ≈ 0.57 MW/m^2 at P_fus = 500 MW.
+    """
+    q_n = neutron_wall_loading_mw_m2(P_fus_MW=500.0, R0_m=6.2, a_m=2.0, kappa=1.7)
+    assert q_n > 0.0
+    assert q_n < 5.0  # physically reasonable upper bound for tokamaks

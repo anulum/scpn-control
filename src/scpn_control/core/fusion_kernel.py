@@ -1,10 +1,8 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Fusion Kernel
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# Contact: www.anulum.li | protoscience@anulum.li
 """
 Non-linear Grad-Shafranov equilibrium solver with two boundary variants:
 
@@ -37,9 +35,82 @@ from scpn_control.core.hpc_bridge import HPCBridge
 
 logger = logging.getLogger(__name__)
 
+# ── Fusion physics constants ──────────────────────────────────────────
+# DT reaction: d + t → ⁴He (3.52 MeV) + n (14.1 MeV), total E_fus = 17.6 MeV.
+# Wesson 2011, "Tokamaks" 4th ed., Eq. 1.2.1.
+_EV_J = 1.602176634e-19  # J/eV (CODATA 2018)
+E_FUS_J = 17.6e6 * _EV_J  # J; total DT fusion energy
+E_ALPHA_J = 3.52e6 * _EV_J  # J; alpha particle birth energy
+E_NEUTRON_J = 14.1e6 * _EV_J  # J; neutron energy
+
+# P_α = P_fus / 5  (E_α/E_fus = 3.52/17.6 = 0.2).
+# ITER Physics Basis 1999, Nucl. Fusion 39, 2137, Eq. (2.2.1).
+ALPHA_FRACTION = E_ALPHA_J / E_FUS_J  # 0.2 exactly
+
+# Bosch-Hale DT reactivity coefficients — Table IV (T in 0.2–100 keV range).
+# Bosch & Hale 1992, Nucl. Fusion 32, 611.
+_BH_BG = 34.3827  # dimensionless; Gamow peak parameter for D-T
+_BH_MRC2 = 1124656.0  # keV; reduced mass energy m_r c^2 for D-T
+_BH_C1 = 1.17302e-9  # cm^3/s; Bosch-Hale Table IV
+_BH_C2 = 1.51361e-2  # keV^-1
+_BH_C3 = 7.51886e-2  # keV^-1
+_BH_C4 = 4.60643e-3  # keV^-2
+_BH_C5 = 1.35302e-2  # keV^-2
+_BH_C6 = -1.06750e-4  # keV^-3
+_BH_C7 = 1.36600e-5  # keV^-3
+
 # ── Type aliases ──────────────────────────────────────────────────────
 FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
+
+
+def dt_fusion_power_mw(n_D_m3: float, n_T_m3: float, sigv_m3s: float, V_m3: float) -> float:
+    """DT fusion power [MW].
+
+    P_fus = n_D n_T <σv> E_fus × V.
+    Wesson 2011, "Tokamaks" 4th ed., Eq. 1.2.1.
+
+    Parameters
+    ----------
+    n_D_m3, n_T_m3 : float
+        Deuterium and tritium densities [m^-3].
+    sigv_m3s : float
+        DT reactivity <σv> [m^3/s].  Bosch & Hale 1992, Nucl. Fusion 32, 611.
+    V_m3 : float
+        Plasma volume [m^3].
+    """
+    return float(n_D_m3 * n_T_m3 * sigv_m3s * E_FUS_J * V_m3 * 1e-6)
+
+
+def dt_alpha_power_mw(P_fus_MW: float) -> float:
+    """Alpha heating power [MW].
+
+    P_α = P_fus / 5  (E_α/E_fus = 3.52/17.6).
+    ITER Physics Basis 1999, Nucl. Fusion 39, 2137, Eq. (2.2.1).
+    """
+    return P_fus_MW * ALPHA_FRACTION
+
+
+def neutron_wall_loading_mw_m2(P_fus_MW: float, R0_m: float, a_m: float, kappa: float) -> float:
+    """Neutron wall loading [MW/m^2].
+
+    q_n = P_n / (4π R₀ a κ),  P_n = P_fus × (1 − ALPHA_FRACTION) = 0.8 P_fus.
+    Stacey 2010, "Fusion Plasma Physics", 2nd ed., Ch. 1, Eq. (1.4).
+
+    Parameters
+    ----------
+    P_fus_MW : float
+        Total fusion power [MW].
+    R0_m : float
+        Major radius [m].
+    a_m : float
+        Minor radius [m].
+    kappa : float
+        Elongation (dimensionless).
+    """
+    P_n_MW = P_fus_MW * (1.0 - ALPHA_FRACTION)
+    A_wall = 4.0 * np.pi * R0_m * a_m * kappa  # m^2; first-wall area approximation
+    return float(P_n_MW / max(A_wall, 1e-6))
 
 
 def _normalize_boundary_variant(variant: str | None) -> str:

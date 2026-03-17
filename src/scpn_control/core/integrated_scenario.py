@@ -465,7 +465,9 @@ class IntegratedScenarioSimulator:
         # Normalise to total power: P = ∫ S dV,  dV ≈ 2π² R0 a² κ * 2ρ dρ
         # We work per unit normalised volume: S_tot [W] = P_aux * 1e6
         vol_norm = 2.0 * np.pi**2 * self.config.R0 * self.config.a**2 * self.config.kappa
-        return np.asarray(profile * self.config.P_aux_MW * 1e6 / (vol_norm * trapezoid(2.0 * self.rho * profile, self.rho) + 1e-12))
+        return np.asarray(
+            profile * self.config.P_aux_MW * 1e6 / (vol_norm * trapezoid(2.0 * self.rho * profile, self.rho) + 1e-12)
+        )
 
     def _transport_step(self, dt: float, q_prof: np.ndarray) -> None:
         """Explicit cylindrical diffusion for Te and Ti.
