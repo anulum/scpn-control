@@ -67,7 +67,7 @@ This writes:
 
 ## CI quality gates in `.github/workflows/ci.yml`
 
-- `python-tests` (3.9/3.10/3.11/3.12/3.13 Ubuntu + 3.12 Windows + 3.12 macOS; mypy + coverage on 3.12)
+- `python-tests` (3.10/3.11/3.12/3.13/3.14 Ubuntu + 3.12 Windows + 3.12 macOS; mypy + coverage on 3.12)
 - `python-lint` (ruff check + ruff format)
 - `python-security` (bandit SAST)
 - `python-audit` (`pip_audit`)

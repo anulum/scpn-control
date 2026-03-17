@@ -39,7 +39,7 @@
 | GK hybrid layer | 55 | OOD detection, scheduling, correction, online learning, verification |
 | GK validation | 20 | Cyclone Base Case, SPARC/ITER scans, multi-code comparison, hybrid accuracy |
 
-CI runs tests on Python 3.10-3.13 (Ubuntu), Python 3.12 (Windows + macOS), Rust on Ubuntu.
+CI runs tests on Python 3.10-3.14 (Ubuntu), Python 3.12 (Windows + macOS), Rust on Ubuntu.
 
 ## Gyrokinetic Transport Validation
 

@@ -131,11 +131,17 @@ class TestStepTraceableOracle:
 
 class TestWSPhaseStreamServeSync:
     def test_main_help_exits(self):
+        import os
+
+        env = os.environ.copy()
+        src_dir = str(Path(__file__).resolve().parents[1] / "src")
+        env["PYTHONPATH"] = src_dir + os.pathsep + env.get("PYTHONPATH", "")
         result = subprocess.run(
             [sys.executable, "-m", "scpn_control.phase.ws_phase_stream", "--help"],
             capture_output=True,
             text=True,
             timeout=60,
+            env=env,
         )
         assert result.returncode == 0
         assert "port" in result.stdout
