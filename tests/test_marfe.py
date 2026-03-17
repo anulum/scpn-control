@@ -1,7 +1,10 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — MARFE Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851 — Contact: protoscience@anulum.li
 from __future__ import annotations
+
+import math
 
 import numpy as np
 
@@ -72,3 +75,35 @@ def test_marfe_stability_diagram():
     assert res[0, -1] == 1
     # High density, low power should be unstable (-1)
     assert res[-1, 0] == -1
+
+
+def test_marfe_onset_temperature():
+    """
+    MARFE onset is in a region where dL_Z/dT < 0.
+    Lipschultz 1987, J. Nucl. Mater. 145-147, 15.
+    For W the main cooling peak is at ~1500 eV; the slope turns negative just
+    above that peak.  T_MARFE must therefore fall on the high-T side (>1500 eV).
+    """
+    rc = RadiationCondensation("W", ne_20=1.0, f_imp=1e-4)
+    Te_scan = np.linspace(50.0, 5000.0, 500)
+    T_marfe = rc.onset_temperature(Te_scan)
+
+    assert not math.isnan(T_marfe), "onset_temperature returned nan — no negative dL/dT found"
+    # Must be above the W high-T cooling peak (~1500 eV)
+    assert T_marfe > 1500.0
+
+
+def test_greenwald_limit():
+    """
+    n_GW = I_p / (π a²)  [10^20 m^-3].
+    Greenwald 2002, Plasma Phys. Control. Fusion 44, R27, Eq. 1.
+    Doubling I_p doubles n_GW; quadrupling a quarters it.
+    """
+    n1 = DensityLimitPredictor.greenwald_limit(Ip_MA=10.0, a=2.0)
+    n2 = DensityLimitPredictor.greenwald_limit(Ip_MA=20.0, a=2.0)
+    n3 = DensityLimitPredictor.greenwald_limit(Ip_MA=10.0, a=4.0)
+
+    assert abs(n2 / n1 - 2.0) < 1e-10, "n_GW must scale linearly with I_p"
+    assert abs(n3 / n1 - 0.25) < 1e-10, "n_GW must scale as 1/a²"
+    # Absolute check: 10 MA / (π × 4 m²) ≈ 0.796 × 10^20 m^-3
+    assert abs(n1 - 10.0 / (math.pi * 4.0)) < 1e-10

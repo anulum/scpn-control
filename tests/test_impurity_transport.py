@@ -1,6 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Impurity Transport Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851 — Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import numpy as np
@@ -94,3 +95,49 @@ def test_accumulation_diagnostic():
 
     assert diag["danger_level"] == "critical"
     assert diag["peaking_factor"] == 10.0
+
+
+def test_neoclassical_pinch_inward():
+    """
+    Peaked density profile drives inward neoclassical impurity pinch.
+
+    For peaked n_e (dn_e/dr < 0) with flat T_i:
+      V_neo = -D_neo [Z * (dn_e/dr)/n_e + 0]
+    Since dn_e/dr < 0 and Z > 0, the bracket is negative, so V_neo > 0 —
+    this is outward for the density-gradient term in this sign convention.
+
+    For the thermal term to drive inward: (Z/2 - H_Z) * dT_i/T_i/dr < 0
+    requires dT_i/dr > 0 (hollow T_i profile) when Z/2 > H_Z (always true for W).
+    Hirshman & Sigmar 1981, Nucl. Fusion 21, 1079, Eq. 4.17.
+
+    This test verifies the sign convention is self-consistent: a hollow T_i
+    profile (edge-peaked, dT_i/dr > 0) with flat density produces V_neo < 0
+    (inward) for W (Z=74).
+    """
+    rho = np.linspace(0, 1, 50)
+    ne = np.ones(50) * 1e20  # flat density — only T_i gradient term active
+    # Hollow T_i: dT_i/dr > 0 → (Z/2 - H_Z) * dT_i/T_i > 0 → V_neo = -D*bracket < 0 (inward)
+    Ti = 1000.0 + 4000.0 * rho**2  # edge-peaked: dT_i/dr > 0
+    q = np.ones(50)
+    eps = 0.3 * rho
+
+    V = neoclassical_impurity_pinch(74, ne, ne, Ti, q, rho, 6.2, 2.0, eps)
+
+    # Interior points (avoid one-sided boundary gradient)
+    assert np.all(V[5:45] < 0.0), "hollow T_i must produce inward (negative) pinch for W"
+
+
+def test_radiation_power_positive():
+    """
+    P_rad = ∫ n_e n_Z L_Z(T_e) dV > 0 for any finite impurity density.
+
+    Post et al. 1977, At. Data Nucl. Data Tables 20, 397.
+    """
+    rho = np.linspace(0, 1, 50)
+    ne = np.ones(50) * 1e20
+    Te = np.ones(50) * 200.0  # 200 eV — near Ar cooling peak
+
+    n_Ar = ne * 1e-3
+    P_rad = total_radiated_power(ne, {"Ar": n_Ar}, Te, rho, 6.2, 2.0)
+
+    assert P_rad > 0.0, "P_rad must be positive for non-zero impurity density"

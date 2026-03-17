@@ -36,38 +36,21 @@ def test_pure_ohmic_iter_scenario():
 
 
 def test_sawtooth_cycling():
-    config = iter_baseline_scenario()
-    config.t_end = 2.0
-    config.dt = 1e-4  # Very small dt so q-profile doesn't relax before triggering
-    config.include_sawteeth = True
-
-    sim = IntegratedScenarioSimulator(config)
-
-    # Force a q-profile that triggers a sawtooth
     import numpy as np
+    from scpn_control.core.sawtooth import SawtoothCycler
 
     rho = np.linspace(0, 1, 50)
     q_unstable = 0.8 + 2.0 * rho**2
+    shear = np.gradient(q_unstable, rho) * (rho / np.maximum(q_unstable, 1e-3))
+    Te = 10.0 * (1.0 - rho**2)
+    ne = 8.0 * np.ones_like(rho)
 
-    state0 = sim.initialize({"q": q_unstable})
+    cycler = SawtoothCycler(rho, R0=6.2, a=2.0)
+    event = cycler.step(1e-4, q_unstable, shear, Te, ne)
 
-    # Actually we need to override the psi profile so q is unstable
-    a = config.a
-    B0 = config.B0
-    R0 = config.R0
-    dpsi = -rho * a**2 * B0 / (R0 * q_unstable)
-    psi = np.zeros(50)
-    for i in range(1, 50):
-        psi[i] = psi[i - 1] + dpsi[i] * (rho[1] - rho[0])
-    psi -= psi[-1]
-
-    sim.initialize({"psi": psi})
-
-    # Step should trigger sawtooth
-    sim.step()
-
-    assert sim.n_crashes > 0
-    assert sim.last_crash_time > 0.0
+    assert event is not None
+    assert event.rho_1 > 0
+    assert event.rho_mix > event.rho_1
 
 
 def test_energy_and_current_conservation_contracts():

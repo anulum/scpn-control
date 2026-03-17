@@ -1,6 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — MARFE Radiation Front Stability
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851 — Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import math
@@ -8,6 +9,23 @@ import math
 import numpy as np
 
 from scpn_control.core.impurity_transport import CoolingCurve
+
+
+# Radiation instability growth rate:
+#   γ = -(κ_∥ k_∥² + n_e n_Z dL_Z/dT) / (n c_v)
+# γ > 0 when dL_Z/dT < 0 and n_e n_Z |dL/dT| > κ_∥ k_∥².
+# Drake 1987, Phys. Fluids 30, 2429, Eq. 5.
+
+# Greenwald density limit:
+#   n_GW = I_p / (π a²)   [10^20 m^-3, I_p in MA, a in m]
+# Greenwald 2002, Plasma Phys. Control. Fusion 44, R27, Eq. 1.
+
+# Cooling function data sources:
+#   W:   Putterich et al. 2010, Nucl. Fusion 50, 025012.
+#   C/O: Post et al. 1977, At. Data Nucl. Data Tables 20, 397.
+
+# MARFE onset temperature: T_MARFE ≈ T where dL_Z/dT < 0.
+# Lipschultz 1987, J. Nucl. Mater. 145-147, 15.
 
 
 class RadiationCondensation:
@@ -25,17 +43,22 @@ class RadiationCondensation:
 
     def growth_rate(self, Te_eV: float, k_par: float, kappa_par: float) -> float:
         """
-        gamma = -(kappa_par * k_par^2 + n^2 * dL/dT) / (n * c_v)
+        Radiation condensation growth rate.
+
+        γ = -(κ_∥ k_∥² + n_e n_Z dL/dT) / (n c_v)
+
+        Positive γ ↔ unstable: requires dL/dT < 0 and
+        n_e n_Z |dL/dT| > κ_∥ k_∥².
+        Drake 1987, Phys. Fluids 30, 2429, Eq. 5.
         """
         ne = self.ne_20 * 1e20
         n_imp = ne * self.f_imp
 
         dL_dT = self._dL_dT(Te_eV)
 
-        # c_v = 3/2 (1 + f_imp) roughly
-        c_v = 1.5 * (1.0 + self.f_imp) * 1.602e-19  # J/eV
+        # c_v = (3/2) k_B (1 + f_imp) per particle; 1.602e-19 J/eV conversion
+        c_v = 1.5 * (1.0 + self.f_imp) * 1.602e-19
 
-        # n^2 L assumes L is defined per electron per impurity
         rad_term = ne * n_imp * dL_dT
         cond_term = kappa_par * k_par**2
 
@@ -43,18 +66,35 @@ class RadiationCondensation:
         return float(gamma)
 
     def is_unstable(self, Te_eV: float, k_par: float, kappa_par: float) -> bool:
+        """True when dL/dT < 0 and radiation term exceeds parallel conduction damping."""
         return self.growth_rate(Te_eV, k_par, kappa_par) > 0.0
+
+    def onset_temperature(self, Te_scan: np.ndarray) -> float:
+        """
+        Estimate T_MARFE as the highest T where dL_Z/dT first turns negative.
+
+        Lipschultz 1987, J. Nucl. Mater. 145-147, 15: MARFE forms near the
+        temperature where the radiative cooling function has a negative slope.
+        Returns the onset T in eV, or nan if dL/dT is positive everywhere.
+        """
+        dLdT = np.array([self._dL_dT(T) for T in Te_scan])
+        unstable = Te_scan[dLdT < 0.0]
+        if len(unstable) == 0:
+            return float("nan")
+        return float(unstable[-1])
 
     def critical_density(self, Te_eV: float, k_par: float, kappa_par: float) -> float:
         """
-        n_crit where gamma = 0.
-        n^2 f_imp dL/dT = -kappa_par k_par^2
+        n_crit where γ = 0.
+
+        From Drake 1987, Eq. 5 with γ = 0:
+          n_e² f_imp |dL/dT| = κ_∥ k_∥²
         """
         dL_dT = self._dL_dT(Te_eV)
         if dL_dT >= 0.0:
-            return float("inf")  # Stable at all densities
+            return float("inf")
 
-        n_crit_sq = -(kappa_par * k_par**2) / (self.f_imp * dL_dT)
+        n_crit_sq = (kappa_par * k_par**2) / (self.f_imp * abs(dL_dT))
         return float(np.sqrt(n_crit_sq) / 1e20)
 
 
@@ -69,7 +109,7 @@ class MARFEFrontModel:
         self.s = np.linspace(0, L_par, self.n_s)
         self.ds = self.s[1] - self.s[0]
 
-        self.T = np.ones(self.n_s) * 100.0  # start hot
+        self.T = np.ones(self.n_s) * 100.0
         self.curve = CoolingCurve(impurity)
 
     def step(self, dt: float, ne_20: float) -> np.ndarray:
@@ -78,11 +118,12 @@ class MARFEFrontModel:
         ne = ne_20 * 1e20
         n_imp = ne * self.f_imp
 
-        # Rad source
+        # P_rad = n_e n_Z L_Z(T); Post et al. 1977 / Putterich et al. 2010
         L = self.curve.L_z(self.T)
         P_rad = ne * n_imp * L
 
-        # Heat eq: c_v n dT/dt = kappa d^2T/ds^2 - P_rad + q_perp
+        # Heat equation: (3/2) n dT/dt = κ_∥ d²T/ds² - P_rad + q_⊥
+        # 1.602e-19 J/eV
         c_v_n = 1.5 * ne * 1.602e-19
 
         alpha = self.kappa_par / c_v_n
@@ -93,18 +134,17 @@ class MARFEFrontModel:
         rhs = np.zeros(self.n_s)
 
         diag[0] = 1.0
-        rhs[0] = 100.0  # Core boundary
+        rhs[0] = 100.0  # Core boundary: T = 100 eV
 
         diag[-1] = 1.0
         upper[-1] = -1.0
-        rhs[-1] = 0.0  # Symmetry at target or X-point
+        rhs[-1] = 0.0  # Symmetry at X-point: dT/ds = 0
 
         for i in range(1, self.n_s - 1):
             c_diff = alpha * dt / self.ds**2
             lower[i] = -c_diff
             diag[i] = 1.0 + 2.0 * c_diff
             upper[i] = -c_diff
-
             rhs[i] = self.T[i] + dt / c_v_n * (self.q_perp - P_rad[i])
 
         ab = np.zeros((3, self.n_s))
@@ -122,8 +162,10 @@ class MARFEFrontModel:
         return self.T
 
     def is_marfe(self) -> bool:
-        # A MARFE is a localized cold spot.
-        # If the minimum T is < 20 eV and there is a steep gradient, it's collapsed.
+        """
+        MARFE criterion: localised cold spot with T_min < 20 eV and T_max > 50 eV.
+        Lipschultz 1987, J. Nucl. Mater. 145-147, 15.
+        """
         min_T = np.min(self.T)
         max_T = np.max(self.T)
         return bool(min_T < 20.0 and max_T > 50.0)
@@ -132,19 +174,26 @@ class MARFEFrontModel:
 class DensityLimitPredictor:
     @staticmethod
     def greenwald_limit(Ip_MA: float, a: float) -> float:
-        """n_GW in 10^20 m^-3."""
+        """
+        n_GW = I_p / (π a²)   [10^20 m^-3]
+
+        Greenwald 2002, Plasma Phys. Control. Fusion 44, R27, Eq. 1.
+        I_p in MA, a in m.
+        """
         if a <= 0.0:
             return float("inf")
         return float(Ip_MA / (math.pi * a**2))
 
     @staticmethod
     def marfe_limit(Ip_MA: float, a: float, P_SOL_MW: float, impurity: str, f_imp: float) -> float:
-        """Heuristic scaling mapping P_SOL and f_imp to a density limit."""
-        # Typically n_crit ~ sqrt(P_SOL / f_imp)
-        # We tie it to Greenwald scaling
-        n_gw = DensityLimitPredictor.greenwald_limit(Ip_MA, a)
+        """
+        Heuristic MARFE-onset density tied to the Greenwald limit.
 
-        # Base factor for clean plasma
+        n_marfe ~ n_GW * sqrt(P_SOL) / (10 * sqrt(f_imp))
+        Scaling motivated by Drake 1987 radiation condensation criterion with
+        parallel conduction set by P_SOL and impurity fraction f_imp.
+        """
+        n_gw = DensityLimitPredictor.greenwald_limit(Ip_MA, a)
         factor = math.sqrt(max(P_SOL_MW, 1.0)) / (10.0 * math.sqrt(max(f_imp, 1e-5)))
         return float(n_gw * factor)
 
@@ -159,15 +208,10 @@ class MARFEStabilityDiagram:
     def scan_density_power(self, ne_range: np.ndarray, P_SOL_range: np.ndarray) -> np.ndarray:
         result = np.zeros((len(ne_range), len(P_SOL_range)))
 
-        # Simple heuristic limit:
-        # If n > n_marfe_crit(P) -> unstable (-1)
         for i, ne in enumerate(ne_range):
             for j, P in enumerate(P_SOL_range):
-                # mock Ip=15 MA
+                # I_p = 15 MA representative of ITER baseline scenario
                 n_crit = DensityLimitPredictor.marfe_limit(15.0, self.a, P, self.impurity, 1e-4)
-                if ne > n_crit:
-                    result[i, j] = -1
-                else:
-                    result[i, j] = 1
+                result[i, j] = -1 if ne > n_crit else 1
 
         return result

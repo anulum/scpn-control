@@ -1,6 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Current Drive Physics Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import numpy as np
@@ -10,6 +11,9 @@ from scpn_control.core.current_drive import (
     ECCDSource,
     LHCDSource,
     NBISource,
+    eccd_efficiency,
+    nbi_critical_energy,
+    nbi_slowing_down_time,
 )
 
 
@@ -108,23 +112,53 @@ def test_current_drive_mix():
 
 def test_current_drive_efficiency():
     rho = np.linspace(0, 1, 200)
-    ne = np.ones(200) * 1.0  # 1e19
-    Te = np.ones(200) * 1.0  # 1 keV
+    ne = np.ones(200) * 1.0
+    Te = np.ones(200) * 1.0
     Ti = np.ones(200) * 1.0
 
-    # eta_cd = 0.03 A/W
     eccd = ECCDSource(P_ec_MW=10.0, rho_dep=0.5, sigma_rho=0.05, eta_cd=0.03)
     mix = CurrentDriveMix(a=1.0)
     mix.add_source(eccd)
 
     I_cd = mix.total_driven_current(rho, ne, Te, Ti)
-    # The total power is roughly 10 MW (if completely inside the domain).
-    # Expected I_cd ~ eta * P = 0.03 * 10e6 = 300 kA
-    # Since P_abs is strictly power density in W/m^3, we should check integration.
-    # Wait, my P_abs integration was just P_abs(rho) * dA?
-    # P_abs = P_W / (sqrt(2pi) sigma) * exp(...)
-    # integral P_abs dA = integral (P_W / ...) * 2 pi rho a^2 drho.
-    # This won't strictly equal P_W because of the `2 pi rho a^2` factor!
-    # The prompt formula for P_abs is very simplified and might not conserve total power
-    # if integrated with dA. But it produces a profile.
-    assert I_cd > 1000.0  # Just ensure it's a macroscopic current
+    assert I_cd > 1000.0
+
+
+def test_eccd_efficiency_scaling():
+    # Higher T_e → higher η_ECCD — Prater 2004, Phys. Plasmas 11, 2349, Eq. 5
+    Z_eff = 1.5
+    N_parallel = 0.3
+    eta_low = eccd_efficiency(Te_keV=5.0, Z_eff=Z_eff, N_parallel=N_parallel)
+    eta_high = eccd_efficiency(Te_keV=20.0, Z_eff=Z_eff, N_parallel=N_parallel)
+    assert eta_high > eta_low
+    # Scaling must be linear in T_e (all else fixed)
+    assert abs(eta_high / eta_low - 20.0 / 5.0) < 1e-9
+
+
+def test_nbi_slowing_down_positive():
+    # τ_s > 0 for physical parameters — Stix 1972, Plasma Physics 14, 367, Eq. 6
+    tau_s = nbi_slowing_down_time(Te_keV=10.0, ne_19=5.0)
+    assert float(tau_s) > 0.0
+
+
+def test_critical_energy():
+    # E_crit ∝ T_e — Stix 1972, Plasma Physics 14, 367, Eq. 8
+    E1 = nbi_critical_energy(Te_keV=5.0)
+    E2 = nbi_critical_energy(Te_keV=10.0)
+    assert abs(float(E2) / float(E1) - 2.0) < 1e-9
+
+
+def test_lhcd_efficiency_range():
+    # η_LHCD ∈ [0.1, 0.2] for ITER-like conditions — Fisch 1978, PRL 41, 873
+    rho = np.array([0.7])
+    ne = np.array([5.0])  # 5 × 10^19 m^-3
+    Te = np.array([10.0])  # 10 keV
+
+    for eta in [0.10, 0.15, 0.20]:
+        lhcd = LHCDSource(P_lh_MW=20.0, rho_dep=0.7, sigma_rho=0.1, eta_cd=eta)
+        j = lhcd.j_cd(rho, ne, Te)
+        assert j[0] > 0.0
+
+    # Confirm the default sits within the ITER range
+    lhcd_default = LHCDSource(P_lh_MW=20.0, rho_dep=0.7, sigma_rho=0.1)
+    assert 0.10 <= lhcd_default.eta_cd <= 0.20
