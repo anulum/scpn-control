@@ -7,6 +7,8 @@ import numpy as np
 
 from scpn_control.core.ntm_dynamics import (
     NTMIslandDynamics,
+    _ggj_delta_prime,
+    bootstrap_from_local,
     find_rational_surfaces,
 )
 
@@ -122,3 +124,98 @@ def test_polarization_threshold():
 
     dw_dt_small = ntm.dw_dt(w0_small, j_bs, j_phi, 0.0, eta, w_d=1e-3, w_pol=5e-4)
     assert dw_dt_small <= 0.0
+
+
+def test_diamagnetic_stabilizes_small_islands():
+    """w < w_d → diamagnetic term dominates; dw/dt must be negative.
+
+    Sauter et al. 1997, Phys. Plasmas 4, 1654, Eq. 20:
+      term_dia = -a4 * (w_d/w)² * (s_hat/s_hat_ref)
+    For w < w_d this term drives dw/dt strongly negative.
+    """
+    ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0, s_hat=1.0)
+
+    w_d = 5e-3   # banana width [m]
+    w = 1e-3     # island width < w_d → diamagnetic dominates
+
+    # Provide enough bootstrap to normally grow the island at larger w,
+    # but the w < w_d condition makes term_dia >> term_bs.
+    dw_dt_val = ntm.dw_dt(
+        w,
+        j_bs=1e5,
+        j_phi=1e6,
+        j_cd=0.0,
+        eta=1e-7,
+        w_d=w_d,
+        w_pol=1e-6,   # disable polarization to isolate diamagnetic effect
+    )
+    assert dw_dt_val < 0.0, f"Expected negative dw/dt for w < w_d; got {dw_dt_val}"
+
+
+def test_ggj_delta_prime():
+    """Unfavorable pressure gradient (D_R > 0) makes Δ'_GGJ negative → more stable.
+
+    Glasser, Greene & Johnson 1975, Phys. Fluids 18, 875, Eq. 42:
+      D_R = -2 μ_0 q² R₀² p' / (s² B_pol²)
+    For p' < 0 (peaked profile) D_R > 0 → Δ'_GGJ = -m*D_R/(r_s*s) < 0.
+    """
+    m, r_s, s_hat = 2, 0.5, 1.5
+    q, R0, B_pol = 2.0, 3.0, 0.3
+    pressure_gradient = -5e4  # Pa/m (peaked, inward-directed gradient)
+
+    delta_ggj = _ggj_delta_prime(m, r_s, s_hat, pressure_gradient, B_pol, q, R0)
+    # D_R > 0 for p' < 0 → Δ'_GGJ < 0 (stabilizing)
+    assert delta_ggj < 0.0, f"Expected Δ'_GGJ < 0 for unfavorable curvature; got {delta_ggj}"
+
+    # Flat-gradient baseline → Δ'_GGJ = 0
+    delta_flat = _ggj_delta_prime(m, r_s, s_hat, 0.0, B_pol, q, R0)
+    assert delta_flat == 0.0
+
+
+def test_sauter_bootstrap_vs_direct():
+    """bootstrap_from_local and direct j_bs agree within 20%.
+
+    For a typical ITER-like surface: ε=0.3, p'=-5e4 Pa/m, B_pol=0.3 T, L31≈0.3.
+    Both paths use Sauter 1999, Eq. 14.
+    """
+    pressure_gradient = -5e4  # Pa/m
+    epsilon = 0.3
+    B_pol = 0.3     # T
+    L31 = 0.3       # Sauter 1999, Eq. 14 coefficient (typical banana regime)
+
+    j_bs_computed = bootstrap_from_local(pressure_gradient, epsilon, B_pol, L31)
+
+    # Direct formula: j_bs = -ε^0.5 * p' * L31 / B_pol
+    j_bs_direct = -np.sqrt(epsilon) * pressure_gradient * L31 / B_pol
+
+    assert abs(j_bs_computed) > 0.0
+    assert abs(j_bs_computed - j_bs_direct) / max(abs(j_bs_direct), 1.0) < 0.20
+
+
+def test_seed_island_threshold():
+    """Below the combined polarization + diamagnetic floor, islands don't grow.
+
+    For w < max(w_pol, w_d), the stabilizing terms (term_pol + term_dia)
+    overwhelm bootstrap drive, so dw/dt <= 0 even with active bootstrap.
+    Sauter 1997, Eqs. 19–20.
+    """
+    ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0, s_hat=1.0)
+
+    w_pol = 3e-3
+    w_d = 2e-3
+    # Island well below both thresholds
+    w_seed = 5e-4
+
+    dw_dt_val = ntm.dw_dt(
+        w_seed,
+        j_bs=1e5,
+        j_phi=1e6,
+        j_cd=0.0,
+        eta=1e-7,
+        w_d=w_d,
+        w_pol=w_pol,
+    )
+    assert dw_dt_val <= 0.0, (
+        f"Seed island should not grow below polarization/diamagnetic floor; "
+        f"dw/dt={dw_dt_val}"
+    )
