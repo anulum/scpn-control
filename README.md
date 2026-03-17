@@ -23,9 +23,9 @@
 **scpn-control** is a standalone neuro-symbolic control engine that compiles
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 98 source
-modules, 220+ test files, **3,015 tests** (100% coverage), 5 Rust crates, 20 CI jobs.
-Three-path gyrokinetic transport: native eigenvalue solver + 5 external GK codes + hybrid surrogate validation.
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 125 source
+modules, 220+ test files, **3,300+ tests** (100% coverage), 5 Rust crates, 20 CI jobs.
+Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native linear eigenvalue, native TGLF-equivalent (SAT0/SAT1/SAT2), nonlinear δf GK (5D Vlasov, JAX-accelerable).
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
@@ -112,7 +112,7 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 - **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update, Boris integration, SNN pools, and MPC
 - **10 controller types** -- PID, MPC, NMPC, H-infinity, mu-synthesis, gain-scheduled, sliding-mode, fault-tolerant, SNN, PPO reinforcement learning
 - **Grad-Shafranov solver** -- Fixed + free-boundary equilibrium solver with L/H-mode profiles, JAX-differentiable (`jax.grad` through full Picard solve)
-- **Frontier physics** -- Gyrokinetic transport (TGLF-10), ballooning eigenvalue solver, sawtooth Kadomtsev model, NTM dynamics, current diffusion/drive, SOL two-point model
+- **Frontier physics** -- Nonlinear δf gyrokinetic solver (5D Vlasov, JAX-accelerable), native TGLF-equivalent (SAT0/SAT1/SAT2, no Fortran binary), kinetic electron species, Sugama collision operator (particle/momentum/energy conservation), electromagnetic A_∥ via Ampere's law (KBM/MTM capable), Dimits shift proven at n_kx=256, ballooning connection BC (kx shift), Rosenbluth-Hinton zonal Krook damping, 62× JAX GPU speedup, ballooning eigenvalue solver, sawtooth Kadomtsev model, NTM dynamics, current diffusion/drive, SOL two-point model
 - **MHD stability** -- Five independent criteria: Mercier interchange, ballooning, Kruskal-Shafranov kink, Troyon beta limit, NTM seeding
 - **JAX autodiff** -- Thomas solver, Crank-Nicolson transport, neural equilibrium, GS solver — all JIT-compiled and GPU-compatible
 - **PPO agent** -- 500K-step cloud-trained RL controller (reward 143.7 vs MPC 58.1 vs PID −912.3), 3-seed reproducible
@@ -132,7 +132,7 @@ src/scpn_control/
 |   +-- compiler.py    #   FusionCompiler -> CompiledNet (LIF + bitstream)
 |   +-- contracts.py   #   ControlObservation, ControlAction, ControlTargets
 |   +-- controller.py  #   NeuroSymbolicController (main entry point)
-+-- core/              # Physics solvers + plant models (29 modules)
++-- core/              # Physics solvers + plant models (37+ modules)
 |   +-- fusion_kernel.py           # Grad-Shafranov equilibrium (fixed + free boundary)
 |   +-- integrated_transport_solver.py  # Multi-species transport PDE
 |   +-- gyrokinetic_transport.py   # Quasilinear TGLF-10 (ITG/TEM/ETG)
@@ -180,7 +180,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 2,786 tests (178 files, 100% coverage)
+tests/                 # 3,300+ tests (220+ files, 100% coverage)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
@@ -245,7 +245,7 @@ pytest tests/test_e2e_phase_diiid.py -v
 | scipy >= 1.10 | matplotlib (`pip install "scpn-control[viz]"`) |
 | click >= 8.0 | streamlit (`pip install "scpn-control[dashboard]"`) |
 | | torch (`pip install "scpn-control[ml]"`) |
-| | nengo (`pip install "scpn-control[nengo]"`) |
+| | ~~nengo~~ (removed — pure LIF+NEF engine, no external dependency) |
 | | h5py (`pip install "scpn-control[hdf5]"`) |
 | | websockets (`pip install "scpn-control[ws]"`) |
 
@@ -379,8 +379,10 @@ git push --tags
   experimental free-boundary external-coil scaffold. The free-boundary path is
   not yet sufficient for full shape control, X-point geometry, or divertor
   configuration. No stellarator geometry.
-- **Transport**: 1.5D flux-surface-averaged. No turbulence micro-instability
-  models (TGLF/QuaLiKiz) — uses Chang-Hinton neoclassical + scaling-law anomalous.
+- **Transport**: 1.5D flux-surface-averaged with five tiers from critical-gradient
+  to nonlinear δf GK. Native TGLF-equivalent (no Fortran binary) and nonlinear
+  solver produce physically meaningful transport, but are not yet cross-validated
+  against production TGLF or GENE on identical equilibria.
 - **Disruption predictor**: Synthetic training data only. Not validated on
   experimental disruption databases.
 - **No GPU equilibrium**: P-EFIT is faster on GPU hardware. JAX neural equilibrium

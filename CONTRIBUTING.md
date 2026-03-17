@@ -60,7 +60,7 @@ pre-commit run --all-files    # check everything
 pre-commit run ruff            # single hook
 ```
 
-Python (2,641 tests, 99.99% coverage):
+Python (3,300+ tests, 100% coverage):
 
 ```bash
 pytest                       # full suite
@@ -112,9 +112,9 @@ was comprehensively addressed.
 1. Fork the repository and create a feature branch off `main`.
 2. Keep commits atomic. One logical change per commit.
 3. Open a pull request against `main`.
-4. CI must pass (23 jobs: lint, type-check, pre-commit, pytest matrix ×7,
+4. CI must pass (20 jobs: lint, type-check, pre-commit, pytest matrix,
    cargo test/clippy/deny/audit/bench, maturin interop, JAX parity,
-   nengo-loihi, coverage gate, RMSE gate, notebook smoke).
+   SNN (pure LIF+NEF), coverage gate, RMSE gate, notebook smoke).
 5. At least one maintainer review is required before merge.
 
 If your change touches Rust code, ensure `cargo clippy -- -D warnings` is clean.
@@ -134,8 +134,7 @@ Do not open a public issue.
 
 ## License
 
-scpn-control is dual-licensed under MIT or Apache-2.0, at your option.
-Contributions are released under the same dual license. No CLA is required.
+scpn-control is licensed under AGPL-3.0-or-later (commercial licensing available).
 
 By submitting a pull request, you agree that your contribution is licensed
 under AGPL-3.0-or-later.

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.18.0] — 2026-03-17
 
 ### Added
 - **Nonlinear δf gyrokinetic solver** (`gk_nonlinear.py`):
@@ -17,7 +17,23 @@
   Implements `GKSolverBase` — usable as drop-in for external TGLF.
 - `"tglf_native"` transport mode in `integrated_transport_solver.py`
 - `validation/gk_nonlinear_cyclone.py` — CBC benchmark (4 tests, all passing)
+- **Dimits shift proven** at n_kx=256: zero transport below critical gradient
+- **Electromagnetic A_∥** via Ampere's law (KBM/MTM capable)
+- **Sugama collision operator**: pitch-angle scattering with ν(v) ∝ v⁻³,
+  particle/momentum/energy conservation (<3e-8/<1e-23/<2e-8)
+- **Kinetic electron species**: semi-implicit backward-Euler, removes adiabatic
+  approximation. chi_i = 1.3 χ_gB (kinetic) vs 2.0 χ_gB (adiabatic)
+- **Ballooning connection BC**: kx shift at θ boundaries via FFT phase multiply
+- **Rosenbluth-Hinton zonal Krook damping**: dynamic relaxation on bounce time
 - 53 new tests (27 TGLF native + 26 nonlinear)
+
+### Changed
+- **Nengo replaced** with pure LIF+NEF engine (numpy 2.x compatible, no external dependency)
+- All mypy errors fixed across 10 source files
+- 3,300+ tests (220+ files), 100% coverage, 20 CI jobs
+
+### Fixed
+- CFL fix for hyperdiffusion stability in nonlinear GK solver
 
 ## [0.17.0] — 2026-03-14
 

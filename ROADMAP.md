@@ -215,12 +215,12 @@
 - [ ] Cross-code benchmark: native GK vs real TGLF (requires GACODE on Linux)
 - [ ] TORAX coupling
 
-### v0.19.0 — Kinetic electrons (Phase 2)
-- [ ] Add kinetic electron species to field solve (remove adiabatic approximation)
-- [ ] Full quasineutrality: n_e(kinetic) + n_i(kinetic) = 0
-- [ ] Electron parallel streaming, magnetic drift, FLR (mass ratio m_e/m_i)
-- [ ] TEM modes from first principles
-- [ ] Proper linear critical gradient → clean Dimits shift
+### v0.19.0 — Kinetic electrons (Phase 2) — DONE
+- [x] Add kinetic electron species to field solve (remove adiabatic approximation)
+- [x] Full quasineutrality: n_e(kinetic) + n_i(kinetic) = 0
+- [x] Electron parallel streaming, magnetic drift, FLR (mass ratio m_e/m_i)
+- [x] TEM modes from first principles
+- [x] Proper linear critical gradient → clean Dimits shift
 
 ### v0.20.0 — Sugama collision operator (Phase 3) — DONE
 - [x] Pitch-angle scattering with energy-dependent ν(v) ∝ v⁻³
@@ -232,7 +232,7 @@
   Petri Net Controllers with First-Principles Gyrokinetic Transport for
   Real-Time Tokamak Plasma Control"
 - [ ] JOSS submission (review + editorial)
-- [ ] Electromagnetic nonlinear extension (A_∥, KBM, MTM)
+- [x] Electromagnetic nonlinear extension (A_∥, KBM, MTM)
 - [ ] Streamlit dashboard v2
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
 
