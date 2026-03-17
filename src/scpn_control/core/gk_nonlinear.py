@@ -727,14 +727,15 @@ class NonlinearGKSolver:
         kmax = max(np.max(np.abs(self.kx)), np.max(np.abs(self.ky)))
         vmax = max(np.max(np.abs(self.vpar)), 1.0)
 
-        # CFL: dt < 1 / (k_max × v_ExB_max + v_par_max × b·∇θ_max)
+        # CFL: dt < 1 / (v_ExB + v_par + v_hyper)
         v_exb = kmax * phi_max
-        # Electron streaming: if implicit, CFL only limited by ion speed
         v_scale = 1.0
         if c.kinetic_electrons and not c.implicit_electrons:
             v_scale = self.vth_ratio_e
         v_par_eff = vmax * v_scale * np.max(np.abs(self.b_dot_grad))
-        dt_cfl = c.cfl_factor / max(v_exb + v_par_eff, 1e-30)
+        # Hyperdiffusion stability: D_H × k_perp^(2p) limits dt at high k
+        v_hyper = c.hyper_coeff * float(np.max(self.kperp2)) ** (c.hyper_order // 2)
+        dt_cfl = c.cfl_factor / max(v_exb + v_par_eff + v_hyper, 1e-30)
 
         return float(min(dt_cfl, c.dt))
 

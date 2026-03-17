@@ -266,6 +266,8 @@ class JaxNonlinearGKSolver:
         vmax = float(jnp.max(jnp.abs(self._vpar_j)))
         v_scale = self._np_solver.vth_ratio_e if c.kinetic_electrons else 1.0
         bdg_max = float(jnp.max(jnp.abs(self._b_dot_grad_j))) * v_scale
+        # Hyperdiffusion CFL ceiling
+        v_hyper = c.hyper_coeff * float(jnp.max(self._kperp2_j)) ** (c.hyper_order // 2)
 
         n_saves = c.n_steps // c.save_interval + 1
         Q_i_list = []
@@ -280,7 +282,7 @@ class JaxNonlinearGKSolver:
             phi_max = float(jnp.max(jnp.abs(phi))) + 1e-30
             v_exb = kmax * phi_max
             v_par_eff = vmax * bdg_max
-            dt_cfl = c.cfl_factor / max(v_exb + v_par_eff, 1e-30)
+            dt_cfl = c.cfl_factor / max(v_exb + v_par_eff + v_hyper, 1e-30)
             dt = min(dt_cfl, c.dt)
 
             f = self._jax_rk4_step(f, dt)
