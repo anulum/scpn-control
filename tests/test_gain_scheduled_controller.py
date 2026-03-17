@@ -1,6 +1,8 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Gain Scheduled Controller Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import numpy as np
@@ -109,3 +111,52 @@ def test_iter_baseline_schedule():
     val_455 = sched.evaluate(455.0)
     # Midpoint between 430 and 480
     assert val_455["Ip"] == 6.0
+
+
+def test_gain_schedule_interpolates():
+    """Gains vary smoothly between operating points during bumpless transfer.
+
+    Rugh & Shamma 2000, Automatica 36, 1401, §3: gain-scheduled controllers
+    must not produce step transients at regime boundaries.
+    Linear interpolation: K(α) = (1-α) K_old + α K_new, α ∈ [0,1].
+    """
+    Kp_ramp = np.ones(1) * 4.0
+    Kp_flat = np.ones(1) * 1.0
+
+    controllers = {
+        OperatingRegime.RAMP_UP: RegimeController(
+            OperatingRegime.RAMP_UP,
+            Kp=Kp_ramp,
+            Ki=np.zeros(1),
+            Kd=np.zeros(1),
+            x_ref=np.ones(1),
+            constraints={},
+        ),
+        OperatingRegime.L_MODE_FLAT: RegimeController(
+            OperatingRegime.L_MODE_FLAT,
+            Kp=Kp_flat,
+            Ki=np.zeros(1),
+            Kd=np.zeros(1),
+            x_ref=np.ones(1),
+            constraints={},
+        ),
+    }
+
+    gsc = GainScheduledController(controllers)
+    x = np.zeros(1)
+
+    # Step to L_MODE_FLAT at t=0.0; tau_switch=0.5 s
+    tau = gsc.tau_switch
+    n_steps = 20
+    kp_samples = []
+    for i in range(n_steps + 1):
+        t = i * tau / n_steps
+        dt = tau / n_steps
+        gsc.step(x, t, dt, OperatingRegime.L_MODE_FLAT)
+        kp_samples.append(float(gsc.Kp[0]))
+
+    # Gains must be monotonically decreasing from Kp_ramp toward Kp_flat
+    diffs = np.diff(kp_samples)
+    assert np.all(diffs <= 1e-9), "gains not monotonically decreasing during bumpless transfer"
+    # After tau_switch, gain must equal Kp_flat
+    assert np.isclose(kp_samples[-1], float(Kp_flat[0]), atol=1e-9)

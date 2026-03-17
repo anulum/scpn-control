@@ -108,3 +108,32 @@ def test_controllability_check():
     # Check graceful shutdown
     sd = ctrl.graceful_shutdown()
     assert np.all(sd == 0.0)
+
+
+# --- New citation-backed tests ---
+
+
+def test_fdir_detects_fault():
+    # Blanke et al. 2006, Ch. 3 — FDI raises fault flag when actuator fails.
+    fdi = FDIMonitor(n_sensors=2, n_actuators=1, threshold_sigma=3.0, n_alert=3)
+    fdi.S_diag = np.array([0.01, 1.0])  # tight variance on sensor 0
+
+    y_pred = np.array([0.0, 1.0])
+    y_meas_fault = np.array([5.0, 1.0])  # sensor 0 stuck far from prediction
+
+    detected = []
+    for t in range(5):
+        detected.extend(fdi.update(y_meas_fault, y_pred, float(t)))
+
+    assert any(r.component_index == 0 for r in detected)
+
+
+def test_control_allocation_feasible():
+    # Bodson 2002, J. Guidance 25, 307 — u = B^+ v gives finite output.
+    J = np.array([[1.0, 0.5], [0.5, 1.0]])
+    ctrl = ReconfigurableController(None, J, 2, 2)
+
+    error = np.array([1.0, 1.0])
+    u = ctrl.step(error, 0.01)
+
+    assert np.all(np.isfinite(u)), "pseudo-inverse must yield finite commands"

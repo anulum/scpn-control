@@ -1,6 +1,8 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Super-Twisting SMC Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import math
@@ -89,3 +91,46 @@ def test_vertical_stabilizer_wrapper():
 
     u = vs.step(Z_meas=0.1, Z_ref=0.0, dZ_dt_meas=0.0, dt=0.01)
     assert u != 0.0
+
+
+def test_smc_chattering_bounded():
+    """Boundary-layer output magnitude < k (Slotine & Li 1991, Ch. 7, §7.2).
+
+    |u| ≤ α |s|^{1/2} |sat(s)| + |v|.  With |sat(s)| ≤ 1, the
+    continuous term is bounded by k = u_max.
+    """
+    k = 10.0
+    smc = SuperTwistingSMC(alpha=5.0, beta=2.0, c=1.0, u_max=k)
+
+    outputs = []
+    s_val = 0.5
+    for _ in range(50):
+        u = smc.step(s_val, 0.0, 0.01)
+        outputs.append(abs(u))
+        s_val *= 0.9
+
+    assert all(o <= k + 1e-9 for o in outputs), "output exceeds u_max (chattering not bounded)"
+
+
+def test_smc_reaching_condition():
+    """Sliding condition: s · ds/dt < 0 outside the boundary layer.
+
+    Utkin 1992, Ch. 2: reaching condition s ṡ < 0 guarantees
+    the state trajectory moves toward s = 0.
+    """
+    smc = SuperTwistingSMC(alpha=20.0, beta=10.0, c=1.0, u_max=200.0)
+    dt = 0.001
+
+    # Initial condition far from sliding surface
+    e, de_dt = 2.0, 0.0
+
+    s_prev = smc.sliding_surface(e, de_dt)
+    u = smc.step(e, de_dt, dt)
+
+    # Approximate ṡ = de/dt + c * u (double integrator, dë = u)
+    de_dt_next = de_dt + u * dt
+    e_next = e + de_dt * dt
+    s_next = smc.sliding_surface(e_next, de_dt_next)
+
+    ds_dt = (s_next - s_prev) / dt
+    assert s_prev * ds_dt < 0.0, f"reaching condition violated: s={s_prev:.4f}, ds/dt={ds_dt:.4f}"

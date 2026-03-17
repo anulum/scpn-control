@@ -5,10 +5,14 @@ from __future__ import annotations
 
 import numpy as np
 
+import math
+
 from scpn_control.control.volt_second_manager import (
     BootstrapCurrentEstimate,
+    C_EJIMA,
     FluxBudget,
     FluxConsumptionMonitor,
+    MU_0,
     ScenarioFluxAnalysis,
     VoltSecondOptimizer,
 )
@@ -70,3 +74,45 @@ def test_scenario():
 
     assert rep.ramp_flux > 150.0
     assert rep.within_budget
+
+
+# --- New citation-backed tests ---
+
+
+def test_volt_second_balance():
+    # Wesson 2011, Tokamaks 4th ed., Eq. 3.7.4:
+    #   ∫ V_loop dt = L_p dI_p + R_p I_p dt
+    # Verify: resistive_flux_ramp + inductive_flux ≈ total consumed for a linear ramp.
+    L_uH = 8.0
+    R_uOhm = 0.5
+    Ip_final_MA = 10.0
+    n = 200
+    dt = 0.5  # s; total ramp = 100 s
+
+    fb = FluxBudget(Phi_CS_Vs=500.0, L_plasma_uH=L_uH, R_plasma_uOhm=R_uOhm)
+    Ip_trace = np.linspace(0.0, Ip_final_MA, n)
+
+    L_dI = fb.inductive_flux(Ip_final_MA)  # L_p · ΔI_p
+    R_I_dt = fb.resistive_flux_ramp(Ip_trace, dt)  # ∫ R_p I_p dt
+
+    total = L_dI + R_I_dt
+
+    # Both terms must be positive and the sum must exceed the inductive term alone.
+    assert L_dI > 0.0
+    assert R_I_dt > 0.0
+    assert total > L_dI
+
+
+def test_ejima_coefficient():
+    # Ejima et al. 1982, Nucl. Fusion 22, 1313 — startup flux coefficient.
+    # C_Ejima ≈ 0.4 for ITER (R₀ = 6.2 m, I_p = 15 MA).
+    R0_m = 6.2  # m, ITER major radius
+    Ip_MA = 15.0  # MA, ITER full performance
+
+    fb = FluxBudget(Phi_CS_Vs=500.0, L_plasma_uH=10.0, R_plasma_uOhm=0.01)
+    psi_startup = fb.ejima_startup_flux(R0_m, Ip_MA)
+
+    expected = C_EJIMA * MU_0 * R0_m * (Ip_MA * 1e6)
+    assert math.isclose(psi_startup, expected, rel_tol=1e-9)
+    # C_EJIMA = 0.4 (Ejima et al. 1982)
+    assert math.isclose(C_EJIMA, 0.4, rel_tol=1e-9)

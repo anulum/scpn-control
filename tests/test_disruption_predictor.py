@@ -100,3 +100,36 @@ class TestApplyBitFlipFault:
     def test_rejects_non_integer(self):
         with pytest.raises(ValueError):
             apply_bit_flip_fault(1.0, 3.5)
+
+
+# --- New citation-backed tests ---
+
+from scpn_control.control.disruption_predictor import (  # noqa: E402 — appended block
+    disruption_warning_time,
+    LOCKED_MODE_ALARM_THRESHOLD,
+    TAU_WARNING_MIN_S,
+)
+
+
+def test_disruption_warning_time():
+    # Lehnen et al. 2015, J. Nucl. Mater. 463, 39 — τ_warning > 10 ms for ITER.
+    # Ramp signal with large n=1 locked-mode amplitude trips risk > 0.5.
+    sig = np.concatenate([np.ones(300) * 0.5, np.linspace(0.5, 20.0, 100)])
+    obs = {"toroidal_n1_amp": 1.5, "toroidal_n2_amp": 1.0, "toroidal_n3_amp": 0.5}
+    tau = disruption_warning_time(sig, obs, risk_threshold=0.5, dt=0.001)
+    assert tau > 0.0, "alarm must fire before end of signal"
+    assert tau > TAU_WARNING_MIN_S, f"τ_warning {tau:.4f}s < minimum {TAU_WARNING_MIN_S}s"
+
+
+def test_locked_mode_triggers_alarm():
+    # de Vries et al. 2011, Nucl. Fusion 51, 053018 — locked-mode amplitude
+    # is the dominant disruption precursor across JET/DIII-D/AUG.
+    # n1 = 2.0 (>> LOCKED_MODE_ALARM_THRESHOLD = 0.15) pushes risk above 0.5.
+    sig = np.ones(100) * 0.3
+    obs = {
+        "toroidal_n1_amp": 2.0,  # >> LOCKED_MODE_ALARM_THRESHOLD; de Vries 2011
+        "toroidal_n2_amp": 1.0,
+        "toroidal_n3_amp": 0.5,
+    }
+    risk = predict_disruption_risk(sig, obs)
+    assert risk > 0.5, f"locked-mode amplitude 2.0 >> threshold {LOCKED_MODE_ALARM_THRESHOLD} must drive risk above 0.5"
