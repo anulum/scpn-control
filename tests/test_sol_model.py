@@ -1,6 +1,8 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — SOL Two-Point Model Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import numpy as np
@@ -82,3 +84,30 @@ def test_power_scan():
     assert res_high_p.T_upstream_eV > res_low_p.T_upstream_eV
     # Higher power -> higher target temp (need radiation to avoid this)
     assert res_high_p.T_target_eV > res_low_p.T_target_eV
+
+
+def test_sol_width_scaling():
+    """
+    λ_q > 0 and decreases with B_pol.
+    Eich et al. 2013, Nucl. Fusion 53, 093031, Eq. 6: λ_q ∝ B_pol^{-0.92}.
+    """
+    lam_low_b = eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.3, epsilon=0.32)
+    lam_high_b = eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.9, epsilon=0.32)
+
+    assert lam_low_b > 0.0
+    assert lam_high_b > 0.0
+    assert lam_low_b > lam_high_b
+
+
+def test_two_point_model_temperature():
+    """
+    T_target < T_upstream when divertor radiation removes most power.
+    Stangeby 2000, Eq. 5.69: T_t → 0 as q_par_t → 0.
+    """
+    sol = TwoPointSOL(R0=6.2, a=2.0, q95=3.0, B_pol=0.56)
+    # f_rad=0.95 drops q_par_t to 5% of upstream, pushing T_t well below T_u.
+    res = sol.solve(P_SOL_MW=80.0, n_u_19=5.0, f_rad=0.95)
+
+    assert res.T_upstream_eV > 0.0
+    assert res.T_target_eV > 0.0
+    assert res.T_target_eV < res.T_upstream_eV

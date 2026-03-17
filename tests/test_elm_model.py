@@ -1,15 +1,21 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — ELM Model Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.elm_model import (
+    ELM_ENERGY_FRACTION_MAX,
+    ELM_ENERGY_FRACTION_MIN,
     ELMCrashModel,
     ELMCycler,
     PeelingBallooningBoundary,
     RMPSuppression,
+    Type3ELMCrashModel,
     elm_power_balance_frequency,
 )
 
@@ -94,3 +100,33 @@ def test_elm_cycler():
     ev2 = cycler.step(0.1, alpha_edge=10.0, j_edge=1e6, s_edge=2.0, T_ped=5.0, n_ped=5.0, W_ped=100.0)
     assert ev2 is not None
     assert ev2.delta_W_MJ == 10.0
+
+
+def test_elm_energy_loss_fraction():
+    """ΔW/W_ped ∈ [0.04, 0.15] for Type I. Loarte et al. 2003, PPCF 45, 1549, Fig. 12."""
+    W_ped = 50.0
+    for frac in [ELM_ENERGY_FRACTION_MIN, 0.08, ELM_ENERGY_FRACTION_MAX]:
+        crash = ELMCrashModel(f_elm_fraction=frac)
+        res = crash.crash(T_ped=5.0, n_ped=4.0, W_ped=W_ped)
+        ratio = res.delta_W_MJ / W_ped
+        assert ELM_ENERGY_FRACTION_MIN <= ratio <= ELM_ENERGY_FRACTION_MAX
+
+
+def test_elm_fraction_out_of_range():
+    """ELMCrashModel rejects fractions outside Type I bounds."""
+    with pytest.raises(ValueError):
+        ELMCrashModel(f_elm_fraction=0.001)
+    with pytest.raises(ValueError):
+        ELMCrashModel(f_elm_fraction=0.5)
+
+
+def test_elm_type3_smaller():
+    """Type III ΔW < Type I ΔW for identical W_ped. Zohm 1996, PPCF 38, 105."""
+    W_ped = 50.0
+    type1 = ELMCrashModel(f_elm_fraction=0.08)
+    type3 = Type3ELMCrashModel()
+
+    res1 = type1.crash(T_ped=5.0, n_ped=4.0, W_ped=W_ped)
+    res3 = type3.crash(T_ped=5.0, n_ped=4.0, W_ped=W_ped)
+
+    assert res3.delta_W_MJ < res1.delta_W_MJ

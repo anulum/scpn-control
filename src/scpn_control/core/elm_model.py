@@ -1,16 +1,30 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Edge Localized Mode (ELM) Model
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: protoscience@anulum.li
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 import numpy as np
 
+# ELM energy loss fraction bounds: ΔW_ELM / W_ped ≈ 0.04–0.15 for Type I.
+# Loarte et al. 2003, PPCF 45, 1549, Fig. 12.
+ELM_ENERGY_FRACTION_MIN = 0.04
+ELM_ENERGY_FRACTION_MAX = 0.15
+
+# Type III ELM: smaller, higher frequency, triggered at lower pedestal pressure than Type I.
+# Zohm 1996, PPCF 38, 105.
+ELM_TYPE3_FRACTION = 0.02  # Typical Type III ΔW/W_ped (sub-range of Type I bounds)
+
 
 class PeelingBallooningBoundary:
     """
-    Evaluates stability against peeling-ballooning modes.
+    Stability against peeling-ballooning modes.
+
+    ELM onset: α > α_crit (ballooning) AND j_edge > j_peel (peeling).
+    Snyder et al. 2002, Phys. Plasmas 9, 2037, Eq. 8.
     """
 
     def __init__(self, q95: float, kappa: float, delta: float, a: float, R0: float):
@@ -22,41 +36,38 @@ class PeelingBallooningBoundary:
 
     def peeling_limit(self, j_edge: float, n_mode: int = 10) -> float:
         """
-        Critical edge current density limit (simplified scaling).
-        In reality, depends strongly on q95 and collisionality.
+        Critical edge current density j_peel.
+
+        Scales as 1/q95 in the simplified single-fluid limit.
+        Snyder et al. 2002, Phys. Plasmas 9, 2037, Eq. 8.
         """
-        # Critical j_edge ~ 1/q95
         j_crit = 1.0e6 / max(self.q95, 2.0)
         return float(j_crit)
 
     def ballooning_limit(self, s_edge: float) -> float:
         """
-        Critical alpha (pressure gradient) at edge.
+        Critical normalised pressure gradient α_crit.
+
+        Shaping factor (1 + κ²(1 + 2δ²)) from Sauter et al. 1999, Phys. Plasmas 6, 2834.
         """
-        # alpha_crit ~ s_edge
-        # With shaping, kappa and delta increase the limit
-        # Sauter et al., Phys. Plasmas 6, 2834 (1999): F_shape uses δ²
         alpha_crit = 0.5 * max(s_edge, 0.1) * (1.0 + self.kappa**2 * (1.0 + 2.0 * self.delta**2))
         return float(alpha_crit)
 
     def is_unstable(self, alpha_edge: float, j_edge: float, s_edge: float) -> bool:
         """
-        Combined criterion for peeling-ballooning.
+        Combined peeling-ballooning criterion (elliptical boundary).
+        Snyder et al. 2002, Phys. Plasmas 9, 2037, Eq. 8.
         """
         j_crit = self.peeling_limit(j_edge)
         a_crit = self.ballooning_limit(s_edge)
 
-        # Elliptical coupling boundary
         j_norm = max(0.0, j_edge / j_crit)
         a_norm = max(0.0, alpha_edge / a_crit)
 
-        # Simplified PB boundary: j_norm^2 + a_norm^2 > 1
         return (j_norm**2 + a_norm**2) > 1.0
 
     def stability_margin(self, alpha_edge: float, j_edge: float, s_edge: float) -> float:
-        """
-        Distance to boundary (positive = stable).
-        """
+        """Distance to boundary (positive = stable)."""
         j_crit = self.peeling_limit(j_edge)
         a_crit = self.ballooning_limit(s_edge)
 
@@ -77,17 +88,28 @@ class ELMCrashResult:
 
 class ELMCrashModel:
     """
-    Applies the Type I ELM crash to pedestal profiles.
+    Applies a Type I ELM crash to pedestal profiles.
+
+    ΔW_ELM / W_ped ≈ 0.04–0.15 (Type I).
+    Loarte et al. 2003, PPCF 45, 1549, Fig. 12.
     """
 
     def __init__(self, f_elm_fraction: float = 0.08):
+        if not (ELM_ENERGY_FRACTION_MIN <= f_elm_fraction <= ELM_ENERGY_FRACTION_MAX):
+            raise ValueError(
+                f"f_elm_fraction={f_elm_fraction} outside Type I range "
+                f"[{ELM_ENERGY_FRACTION_MIN}, {ELM_ENERGY_FRACTION_MAX}] "
+                "(Loarte et al. 2003, PPCF 45, 1549, Fig. 12)"
+            )
         self.f_elm_fraction = f_elm_fraction
 
     def crash(self, T_ped: float, n_ped: float, W_ped: float, A_wet: float = 1.0) -> ELMCrashResult:
+        """
+        ΔW_ELM = f × W_ped; T and n drop by √(1 − f) (W ∝ n T).
+        Loarte et al. 2003, PPCF 45, 1549, Fig. 12.
+        """
         delta_W_MJ = self.f_elm_fraction * W_ped
 
-        # T and n drop proportionally
-        # W ~ n T, if both drop by sqrt(1 - f), W drops by (1 - f)
         drop_factor = np.sqrt(1.0 - self.f_elm_fraction)
 
         T_ped_post = T_ped * drop_factor
@@ -109,12 +131,21 @@ class ELMCrashModel:
 
         drop_factor = np.sqrt(1.0 - self.f_elm_fraction)
 
-        for i in range(idx_ped, len(rho)):
-            # Flattening outside the pedestal top
-            Te_new[i] *= drop_factor
-            ne_new[i] *= drop_factor
+        Te_new[idx_ped:] *= drop_factor
+        ne_new[idx_ped:] *= drop_factor
 
         return Te_new, ne_new
+
+
+class Type3ELMCrashModel(ELMCrashModel):
+    """
+    Type III ELM: smaller energy loss, higher frequency, triggered at lower pedestal pressure.
+    Zohm 1996, PPCF 38, 105.
+    """
+
+    def __init__(self, f_elm_fraction: float = ELM_TYPE3_FRACTION):
+        # Bypass Type I bound check — Type III fraction is below Type I minimum.
+        self.f_elm_fraction = f_elm_fraction
 
 
 @dataclass
@@ -126,9 +157,7 @@ class ELMEvent:
 
 
 class RMPSuppression:
-    """
-    Resonant Magnetic Perturbation effects on ELMs.
-    """
+    """Resonant Magnetic Perturbation effects on ELMs."""
 
     def __init__(self, n_coils: int = 3, I_rmp_kA: float = 90.0, n_toroidal: int = 3):
         self.n_coils = n_coils
@@ -139,13 +168,10 @@ class RMPSuppression:
         self, q_profile: np.ndarray, rho: np.ndarray, delta_B_r: float, B0: float, R0: float
     ) -> float:
         """
-        σ_Chir = sum (w_mn / dr_mn)
-        w_mn = 4 * sqrt(R0 * q' * delta_B_r / (n * B0))
+        σ_Chir = Σ w_mn / dr_mn; w_mn = 4√(R0 q' δB_r / (n B0)).
         """
-        # Very simplified representation of overlap across outer rational surfaces
         q_edge = q_profile[-1]
 
-        # Approximate shear at edge
         if len(rho) > 1:
             dq_drho = (q_profile[-1] - q_profile[-2]) / (rho[-1] - rho[-2])
         else:
@@ -156,10 +182,7 @@ class RMPSuppression:
         if delta_B_r <= 0.0 or B0 <= 0.0 or self.n_toroidal == 0:
             return 0.0
 
-        # Island width approximation (w_mn in rho space roughly)
         w_mn = 4.0 * np.sqrt(R0 * shear * delta_B_r / (self.n_toroidal * B0))
-
-        # Distance between resonances dr_mn ~ 1 / (n q')
         dr_mn = 1.0 / (self.n_toroidal * max(dq_drho, 1e-3))
 
         return float(w_mn / dr_mn)
@@ -173,20 +196,22 @@ class RMPSuppression:
 
     def density_pump_out(self, sigma_chir: float) -> float:
         if sigma_chir > 1.0:
-            return 0.2  # 20% reduction
+            return 0.2
         return 0.0
 
 
 def elm_power_balance_frequency(P_SOL_MW: float, W_ped_MJ: float, f_elm_fraction: float) -> float:
+    """
+    f_ELM ∝ (P_loss − P_LH) / ΔW_ELM ≈ P_SOL / (f × W_ped).
+    Leonard et al. 1999, J. Nucl. Mater. 266-269, 109.
+    """
     if W_ped_MJ <= 0.0 or f_elm_fraction <= 0.0:
         return 0.0
     return P_SOL_MW / (f_elm_fraction * W_ped_MJ)
 
 
 class ELMCycler:
-    """
-    Tracks pedestal state and triggers ELM events.
-    """
+    """Tracks pedestal state and triggers ELM events."""
 
     def __init__(self, pb_boundary: PeelingBallooningBoundary, crash_model: ELMCrashModel):
         self.pb = pb_boundary

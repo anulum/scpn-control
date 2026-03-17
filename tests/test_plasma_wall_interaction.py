@@ -1,11 +1,14 @@
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Plasma Wall Interaction Tests
-# ──────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: protoscience@anulum.li
 from __future__ import annotations
 
 import numpy as np
 
 from scpn_control.core.plasma_wall_interaction import (
+    E_TH_D_W_EV,
     DivertorLifetimeAssessment,
     ErosionModel,
     SputteringYield,
@@ -16,6 +19,10 @@ from scpn_control.core.sol_model import TwoPointSOL
 
 
 def test_sputtering_threshold():
+    """
+    No sputtering below E_th ≈ 160 eV (D→W).
+    Behrisch & Eckstein 2007, "Sputtering by Particle Bombardment", Table 3.1.
+    """
     sputt = SputteringYield()
 
     assert sputt.yield_at_energy(100.0) == 0.0
@@ -89,3 +96,32 @@ def test_divertor_lifetime_assessment():
         assert rep.lifetime_years == 0.0
     else:
         assert rep.lifetime_years > 0.0
+
+
+def test_sputtering_below_threshold_zero():
+    """
+    Y = 0 for E_ion ≤ E_th.
+    Behrisch & Eckstein 2007, "Sputtering by Particle Bombardment", Table 3.1.
+    """
+    sputt = SputteringYield()
+    assert sputt.yield_at_energy(E_TH_D_W_EV) == 0.0
+    assert sputt.yield_at_energy(E_TH_D_W_EV - 1.0) == 0.0
+    assert sputt.yield_at_energy(1.0) == 0.0
+
+
+def test_sputtering_yield_positive_above_threshold():
+    """
+    Y > 0 for E_ion > E_th.
+    Eckstein & Preuss 2003, J. Nucl. Mater. 320, 209.
+    """
+    sputt = SputteringYield()
+    Y = sputt.yield_at_energy(E_TH_D_W_EV + 100.0)
+    assert Y > 0.0
+
+
+def test_sputtering_yield_monotone_above_threshold():
+    """Y increases from threshold through the near-threshold region."""
+    sputt = SputteringYield()
+    Y_low = sputt.yield_at_energy(E_TH_D_W_EV + 50.0)
+    Y_high = sputt.yield_at_energy(E_TH_D_W_EV + 500.0)
+    assert Y_high > Y_low
