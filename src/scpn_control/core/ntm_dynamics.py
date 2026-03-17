@@ -367,27 +367,29 @@ class NTMIslandDynamics:
         w_arr = np.zeros(n_steps + 1)
         w_arr[0] = max(w0, 1e-6)
 
-        kw = dict(
-            j_bs=j_bs,
-            j_phi=j_phi,
-            j_cd=j_cd,
-            eta=eta,
-            w_d=w_d,
-            w_pol=w_pol,
-            d_cd=d_cd,
-            pressure_gradient=pressure_gradient,
-            B_pol=B_pol,
-            rho_theta_i=rho_theta_i,
-            beta_pol=beta_pol,
-        )
+        def _rhs(w_val: float) -> float:
+            return self.dw_dt(
+                w_val,
+                j_bs=j_bs,
+                j_phi=j_phi,
+                j_cd=j_cd,
+                eta=eta,
+                w_d=w_d,
+                w_pol=w_pol,
+                d_cd=d_cd,
+                pressure_gradient=pressure_gradient,
+                B_pol=B_pol,
+                rho_theta_i=rho_theta_i,
+                beta_pol=beta_pol,
+            )
 
         for i in range(n_steps):
             w_curr = w_arr[i]
 
-            k1 = self.dw_dt(w_curr, **kw)
-            k2 = self.dw_dt(max(w_curr + 0.5 * dt * k1, 1e-6), **kw)
-            k3 = self.dw_dt(max(w_curr + 0.5 * dt * k2, 1e-6), **kw)
-            k4 = self.dw_dt(max(w_curr + dt * k3, 1e-6), **kw)
+            k1 = _rhs(w_curr)
+            k2 = _rhs(max(w_curr + 0.5 * dt * k1, 1e-6))
+            k3 = _rhs(max(w_curr + 0.5 * dt * k2, 1e-6))
+            k4 = _rhs(max(w_curr + dt * k3, 1e-6))
 
             w_next = w_curr + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
             w_arr[i + 1] = max(w_next, 1e-6)

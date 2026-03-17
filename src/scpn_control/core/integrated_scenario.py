@@ -196,7 +196,7 @@ def _spitzer_resistivity(Te_keV: np.ndarray, Z_eff: float) -> np.ndarray:
     Spitzer 1962, "Physics of Fully Ionized Gases", Interscience, Ch. 5.
     Returns Ω·m; T_e in keV.
     """
-    return _SPITZER_COEFF * Z_eff * _LN_LAMBDA / np.maximum(Te_keV, 0.01) ** 1.5
+    return np.asarray(_SPITZER_COEFF * Z_eff * _LN_LAMBDA / np.maximum(Te_keV, 0.01) ** 1.5)
 
 
 def _gyro_bohm_chi(
@@ -223,7 +223,7 @@ def _gyro_bohm_chi(
 
     # Wesson 2011, Ch. 7 — chi_gB proportional to rho_i * v_ti * (rho_i/a)^2
     chi = _C_GB * rho_i * v_ti * (rho_i / a) ** 2 * np.maximum(q, 0.5) ** 2
-    return np.maximum(chi, _CHI_FLOOR)
+    return np.asarray(np.maximum(chi, _CHI_FLOOR))
 
 
 def _diffusion_step(
@@ -402,12 +402,12 @@ class IntegratedScenarioSimulator:
             self.config.a,
             self.config.B0,
         )
-        return chi_neo + chi_anom
+        return np.asarray(chi_neo + chi_anom)
 
     def _source_density(self, S_heat_W_m3: np.ndarray) -> np.ndarray:
         """Convert volumetric power density [W/m^3] to keV/s / (10^19 m^-3)."""
         n_si = np.maximum(self.ts_solver.ne, 0.01) * 1e19
-        return S_heat_W_m3 / (_E_CHARGE * 1e3 * n_si)
+        return np.asarray(S_heat_W_m3 / (_E_CHARGE * 1e3 * n_si))
 
     def _ohmic_power_density(self, q_prof: np.ndarray) -> np.ndarray:
         """Ohmic heating power density.
@@ -432,7 +432,7 @@ class IntegratedScenarioSimulator:
         # j_total reconstructed from psi gradient (Jardin 2010, Ch. 7)
         j_total = self._j_total_from_psi(q_prof)
         P_ohm = eta * j_total**2 * (1.0 - f_t)
-        return np.maximum(P_ohm, 0.0)
+        return np.asarray(np.maximum(P_ohm, 0.0))
 
     def _j_total_from_psi(self, q_prof: np.ndarray) -> np.ndarray:
         """Approximate toroidal current density from q profile.
@@ -445,7 +445,7 @@ class IntegratedScenarioSimulator:
         dinvq_drho = np.gradient(inv_q, self.rho)
         r = np.maximum(self.rho, 1e-4) * self.config.a
         j_tor = (self.config.B0 * self.config.a / (_MU_0 * self.config.R0)) * dinvq_drho / r
-        return j_tor
+        return np.asarray(j_tor)
 
     def _aux_source_profile(self, q_prof: np.ndarray) -> np.ndarray:
         """Gaussian auxiliary heating profile [W/m^3].
@@ -465,7 +465,7 @@ class IntegratedScenarioSimulator:
         # Normalise to total power: P = ∫ S dV,  dV ≈ 2π² R0 a² κ * 2ρ dρ
         # We work per unit normalised volume: S_tot [W] = P_aux * 1e6
         vol_norm = 2.0 * np.pi**2 * self.config.R0 * self.config.a**2 * self.config.kappa
-        return profile * self.config.P_aux_MW * 1e6 / (vol_norm * trapezoid(2.0 * self.rho * profile, self.rho) + 1e-12)
+        return np.asarray(profile * self.config.P_aux_MW * 1e6 / (vol_norm * trapezoid(2.0 * self.rho * profile, self.rho) + 1e-12))
 
     def _transport_step(self, dt: float, q_prof: np.ndarray) -> None:
         """Explicit cylindrical diffusion for Te and Ti.

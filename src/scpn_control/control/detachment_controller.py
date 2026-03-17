@@ -99,7 +99,7 @@ def two_point_q_parallel(T_upstream_eV: float, L_parallel_m: float) -> float:
     """
     if T_upstream_eV <= 0.0 or L_parallel_m <= 0.0:
         return 0.0
-    return _KAPPA_0_SPITZER * T_upstream_eV**3.5 / (7.0 * L_parallel_m)
+    return float(_KAPPA_0_SPITZER * T_upstream_eV**3.5 / (7.0 * L_parallel_m))
 
 
 class DetachmentController:

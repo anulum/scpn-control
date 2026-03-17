@@ -90,7 +90,8 @@ def nbi_slowing_down_time(
 
     numerator = _TAU_S_PREFACTOR * m_beam * Te_J**1.5
     denominator = 4.0 * np.sqrt(M_E) * ne * E_CHARGE**4 * _LN_LAMBDA * Z_eff
-    return numerator / denominator
+    result = numerator / denominator
+    return float(result) if np.ndim(result) == 0 else np.asarray(result)
 
 
 def nbi_critical_energy(
@@ -114,7 +115,8 @@ def nbi_critical_energy(
     -------
     E_crit [keV]
     """
-    return _E_CRIT_PREFACTOR * np.asarray(Te_keV) * (A_beam / A_ion) ** (2.0 / 3.0)
+    result = _E_CRIT_PREFACTOR * np.asarray(Te_keV) * (A_beam / A_ion) ** (2.0 / 3.0)
+    return float(result) if np.ndim(result) == 0 else np.asarray(result)
 
 
 class ECCDSource:

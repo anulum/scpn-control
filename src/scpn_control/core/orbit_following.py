@@ -275,7 +275,7 @@ class SlowingDown:
         # Stix 1972, Eq. 12 prefactor: (3√π/4)
         vc3 = (3.0 * math.sqrt(math.pi) / 4.0) * (_M_E / m_fast) * sum_nZ2 * v_te3
         E_crit_J = 0.5 * m_fast * vc3 ** (2.0 / 3.0)
-        return E_crit_J / _E_C / 1e3  # keV
+        return float(E_crit_J / _E_C / 1e3)  # keV
 
     @staticmethod
     def critical_velocity(Te_keV: float, ne_20: float) -> float:
@@ -289,7 +289,7 @@ class SlowingDown:
         # Σ Z²/A for 50/50 DT: Z²/A_D + Z²/A_T = 1/2 + 1/3 = 5/6
         sum_ZA = 5.0 / 6.0
         vc3 = (3.0 * math.sqrt(math.pi) / 4.0) * (_M_E / m_alpha) * sum_ZA * v_te3
-        return vc3 ** (1.0 / 3.0)
+        return float(vc3 ** (1.0 / 3.0))
 
     @staticmethod
     def tau_sd(Te_keV: float, ne_20: float, Z_eff: float) -> float:
@@ -325,7 +325,7 @@ class SlowingDown:
         Above E_crit the term < 1, so electron drag dominates.
         """
         ratio = (E_crit_keV / max(E_keV, 1e-6)) ** 1.5
-        return -(E_keV / tau_s) * (1.0 + ratio)
+        return float(-(E_keV / tau_s) * (1.0 + ratio))
 
     @staticmethod
     def heating_partition(v: float, v_c: float) -> tuple[float, float]:
