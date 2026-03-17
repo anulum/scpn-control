@@ -46,6 +46,7 @@ noo = "noo"
 dne = "dne"
 gae = "gae"
 abl = "abl"
+Strang = "Strang"
 
 [files]
 extend-exclude = [
