@@ -231,13 +231,17 @@
 - [x] JOSS paper updated (paper.md): "SCPN Control: Neuro-Symbolic Stochastic
   Petri Net Controllers with First-Principles Gyrokinetic Transport for
   Real-Time Tokamak Plasma Control"
-- [ ] JOSS submission (review + editorial)
 - [x] Electromagnetic nonlinear extension (A_∥, KBM, MTM)
+- [x] 30 CI-gated physics invariant tests (conservation, analytic limits,
+  edge cases, numerical methods, NumPy↔JAX parity, regression pins)
+- [x] Backup: `stable-v0.18.0-20260317` tag + bundle
+- [ ] JOSS submission (review + editorial)
 - [ ] Streamlit dashboard v2
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
 
-## Future
-- [ ] Nonlinear GK cross-code validation (GENE/CGYRO comparison)
+## Future (requires external resources)
+- [ ] Cross-code benchmark: native GK vs real TGLF/CGYRO (requires Linux + GACODE)
+- [ ] TORAX coupling (requires Linux + torax install)
 - [ ] Experimental tokamak validation (requires MDSplus + real shot data)
-- [ ] Neural eq cross-validation vs P-EFIT
+- [ ] Neural eq cross-validation vs P-EFIT (requires proprietary data)
 - [ ] Production hardware deployment (CODAC/EPICS integration)
