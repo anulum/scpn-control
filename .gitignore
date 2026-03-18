@@ -86,3 +86,6 @@ site/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Internal business docs — never commit
+docs/internal/

@@ -381,10 +381,19 @@ class TestElectronDriveUsePhiEff:
 
     def test_em_electron_drive_differs_from_es(self):
         cfg_em = NonlinearGKConfig(
-            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
-            dt=0.02, n_steps=1, save_interval=1,
-            kinetic_electrons=True, electromagnetic=True,
-            beta_e=0.02, nonlinear=False, cfl_adapt=False,
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            kinetic_electrons=True,
+            electromagnetic=True,
+            beta_e=0.02,
+            nonlinear=False,
+            cfl_adapt=False,
         )
         solver = NonlinearGKSolver(cfg_em)
         state = solver.init_state(amplitude=1e-5)
@@ -397,10 +406,18 @@ class TestElectronDriveUsePhiEff:
 
     def test_es_electron_drive_same_with_none(self):
         cfg = NonlinearGKConfig(
-            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
-            dt=0.02, n_steps=1, save_interval=1,
-            kinetic_electrons=True, electromagnetic=False,
-            nonlinear=False, cfl_adapt=False,
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            kinetic_electrons=True,
+            electromagnetic=False,
+            nonlinear=False,
+            cfl_adapt=False,
         )
         solver = NonlinearGKSolver(cfg)
         state = solver.init_state(amplitude=1e-5)
@@ -415,10 +432,19 @@ class TestAmpereSkinDepth:
 
     def test_d_e_sq_zero_recovers_original(self):
         cfg = NonlinearGKConfig(
-            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
-            electromagnetic=True, beta_e=0.01, d_e_sq=0.0,
-            kinetic_electrons=True, dt=0.02, n_steps=1,
-            save_interval=1, cfl_adapt=False,
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            electromagnetic=True,
+            beta_e=0.01,
+            d_e_sq=0.0,
+            kinetic_electrons=True,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
         )
         solver = NonlinearGKSolver(cfg)
         state = solver.init_state(amplitude=1e-5)
@@ -428,16 +454,34 @@ class TestAmpereSkinDepth:
     def test_d_e_sq_reduces_A_par(self):
         """Nonzero skin depth adds to denominator → smaller A_par amplitude."""
         cfg_no_skin = NonlinearGKConfig(
-            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
-            electromagnetic=True, beta_e=0.01, d_e_sq=0.0,
-            kinetic_electrons=True, dt=0.02, n_steps=1,
-            save_interval=1, cfl_adapt=False,
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            electromagnetic=True,
+            beta_e=0.01,
+            d_e_sq=0.0,
+            kinetic_electrons=True,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
         )
         cfg_skin = NonlinearGKConfig(
-            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
-            electromagnetic=True, beta_e=0.01, d_e_sq=1.0,
-            kinetic_electrons=True, dt=0.02, n_steps=1,
-            save_interval=1, cfl_adapt=False,
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            electromagnetic=True,
+            beta_e=0.01,
+            d_e_sq=1.0,
+            kinetic_electrons=True,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
         )
         solver_no = NonlinearGKSolver(cfg_no_skin)
         solver_yes = NonlinearGKSolver(cfg_skin)
@@ -454,11 +498,22 @@ class TestCFLVExB:
     def test_cfl_uses_k_squared(self):
         # Use small Ly to get kmax > 1 (ky_max ~ 2π/Ly * n_ky/2)
         cfg = NonlinearGKConfig(
-            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
-            dt=1.0, Lx=6.0, Ly=6.0,
-            cfl_adapt=True, cfl_factor=0.5,
-            collisions=False, hyper_coeff=0.0,
-            nonlinear=True, R_L_Ti=0.0, R_L_Te=0.0, R_L_ne=0.0,
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            dt=1.0,
+            Lx=6.0,
+            Ly=6.0,
+            cfl_adapt=True,
+            cfl_factor=0.5,
+            collisions=False,
+            hyper_coeff=0.0,
+            nonlinear=True,
+            R_L_Ti=0.0,
+            R_L_Te=0.0,
+            R_L_ne=0.0,
         )
         solver = NonlinearGKSolver(cfg)
         state = solver.init_state(amplitude=1e-3)
@@ -479,9 +534,18 @@ class TestSugamaGramMatrix:
 
     def test_sugama_conserves_density(self):
         cfg = NonlinearGKConfig(
-            n_kx=4, n_ky=4, n_theta=8, n_vpar=8, n_mu=4,
-            collisions=True, collision_model="sugama", nu_collision=0.1,
-            dt=0.01, n_steps=1, save_interval=1, cfl_adapt=False,
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=8,
+            n_mu=4,
+            collisions=True,
+            collision_model="sugama",
+            nu_collision=0.1,
+            dt=0.01,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
         )
         solver = NonlinearGKSolver(cfg)
         state = solver.init_state(amplitude=1e-4)
@@ -491,9 +555,18 @@ class TestSugamaGramMatrix:
 
     def test_sugama_conserves_momentum(self):
         cfg = NonlinearGKConfig(
-            n_kx=4, n_ky=4, n_theta=8, n_vpar=8, n_mu=4,
-            collisions=True, collision_model="sugama", nu_collision=0.1,
-            dt=0.01, n_steps=1, save_interval=1, cfl_adapt=False,
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=8,
+            n_mu=4,
+            collisions=True,
+            collision_model="sugama",
+            nu_collision=0.1,
+            dt=0.01,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
         )
         solver = NonlinearGKSolver(cfg)
         state = solver.init_state(amplitude=1e-4)
@@ -504,9 +577,18 @@ class TestSugamaGramMatrix:
 
     def test_sugama_conserves_energy(self):
         cfg = NonlinearGKConfig(
-            n_kx=4, n_ky=4, n_theta=8, n_vpar=8, n_mu=4,
-            collisions=True, collision_model="sugama", nu_collision=0.1,
-            dt=0.01, n_steps=1, save_interval=1, cfl_adapt=False,
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=8,
+            n_mu=4,
+            collisions=True,
+            collision_model="sugama",
+            nu_collision=0.1,
+            dt=0.01,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
         )
         solver = NonlinearGKSolver(cfg)
         state = solver.init_state(amplitude=1e-4)
