@@ -101,23 +101,29 @@ class TwoPointSOL:
 
         q_par_t_W_m2 = max(q_par_u_W_m2 * (1.0 - f_rad), 1e3)
 
-        # Pressure balance n_u T_u = 2 n_t T_t and sheath energy equation.
-        # Stangeby 2000, Ch. 2.
         e_charge = 1.602e-19  # J eV^{-1}
         m_i = 2.0 * 1.6726e-27  # kg, deuterium
-
         n_u = n_u_19 * 1e19
 
-        denom = n_u * T_u * GAMMA_SHEATH * e_charge * np.sqrt(2.0 * e_charge / m_i)
+        # Two-point model: conduction integral gives T_t from T_u.
+        # T_t^{7/2} = T_u^{7/2} - (7/2) q_∥ L_∥ / κ_0
+        # Stangeby 2000, Eq. 5.69 (integrated form).
+        T_t_72 = T_u**3.5 - 3.5 * q_par_t_W_m2 * self.L_par / KAPPA_0_ELECTRON
+        T_t_cond = T_t_72 ** (2.0 / 7.0) if T_t_72 > 0.0 else 0.0
 
-        if denom <= 0.0:
-            T_t = 0.1
+        # Sheath-limited: q_∥ = γ n_t T_t √(eT_t/m_i), with n_u T_u = 2 n_t T_t.
+        # Stangeby 2000, Ch. 2, Eqs. 2.84-2.86.
+        # Solving for T_t: T_t = [2 q_∥ / (γ n_u T_u e)]² × m_i / e
+        sheath_denom = GAMMA_SHEATH * n_u * max(T_u, 0.1) * e_charge
+        if sheath_denom > 0.0:
+            T_t_sheath = (2.0 * q_par_t_W_m2 / sheath_denom) ** 2 * m_i / e_charge
         else:
-            sqrt_Tt = 2.0 * q_par_t_W_m2 / denom
-            T_t = sqrt_Tt**2
+            T_t_sheath = 0.1
 
+        T_t = max(T_t_cond, T_t_sheath, 0.1)
         T_t = min(T_t, T_u)
 
+        # Pressure balance: n_u T_u = 2 n_t T_t  (Stangeby 2000, Ch. 2)
         n_t = n_u * T_u / (2.0 * max(T_t, 0.1))
 
         return SOLSolution(

@@ -1325,7 +1325,15 @@ class TransportSolver(FusionKernel):
             S_brem_e = P_brem / (ne_safe_e * e_keV_J)
             S_rad_e = P_rad_line_Wm3 / (ne_safe_e * e_keV_J) * 0.5
 
-            tau_eq = 0.1  # s
+            # Braginskii 1965, §2.5 — electron-ion energy equilibration time
+            # tau_eq = 0.252 * Te_keV^1.5 / (ne_19 * Z_eff * ln_Lambda) [s]
+            ln_Lambda = 17.0  # Wesson, "Tokamaks" 4th ed., Ch. 14.5
+            Te_safe = np.maximum(Te_old, 0.01)
+            ne_safe_eq = np.maximum(self.ne, 0.1)
+            tau_eq = np.maximum(
+                0.252 * Te_safe**1.5 / (ne_safe_eq * self._Z_eff * ln_Lambda),
+                1e-4,
+            )
             S_equil = (self.Ti - Te_old) / tau_eq
 
             net_source_e = S_heat_e - S_rad_e - S_brem_e + S_equil

@@ -181,7 +181,8 @@ def porcelli_trigger(
         return True
 
     # Condition 2 — ideal kink (Porcelli 1996, Eq. 14)
-    dW_ideal_thresh = -0.5 * _C_RHO**2 * eps_1 * omega_star * (omega_star * tau_A)
+    # Both dW (Bussac) and the threshold are dimensionless; ω_*i·τ_A is dimensionless.
+    dW_ideal_thresh = -0.5 * _C_RHO**2 * eps_1 * (omega_star * tau_A)
     # Condition 3 — fast-ion fishbone: inactive without fast-ion β
     return dW < dW_ideal_thresh
 

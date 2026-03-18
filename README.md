@@ -24,7 +24,7 @@
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
 [scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 125 source
-modules, 220+ test files, **3,300+ tests** (100% coverage), 5 Rust crates, 20 CI jobs.
+modules, 220+ test files, **3,400+ tests** (100% coverage), 5 Rust crates, 20 CI jobs.
 Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native linear eigenvalue, native TGLF-equivalent (SAT0/SAT1/SAT2), nonlinear δf GK (5D Vlasov, JAX-accelerable).
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).

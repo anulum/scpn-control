@@ -68,6 +68,7 @@ class TGLFNativeResult:
 
     k_y: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
     gamma: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
+    omega_r: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
     gamma_net: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
     phi_sq: NDArray[np.float64] = field(default_factory=lambda: np.empty(0))
 
@@ -311,7 +312,7 @@ class TGLFNativeSolver(GKSolverBase):
             D_e=r.D_e,
             D_i=r.D_i,
             gamma=r.gamma,
-            omega_r=r.gamma_net,
+            omega_r=r.omega_r,
             k_y=r.k_y,
             dominant_mode=r.dominant_mode,
             converged=r.converged,
@@ -369,6 +370,7 @@ class TGLFNativeSolver(GKSolverBase):
             V_e=V_e,
             k_y=linear.k_y,
             gamma=linear.gamma,
+            omega_r=linear.omega_r,
             gamma_net=gamma_net,
             phi_sq=phi_sq,
             gamma_exb=gamma_exb_val,

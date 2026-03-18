@@ -28,7 +28,7 @@
 
 | Suite | Count | Scope |
 |-------|------:|-------|
-| Python unit/integration | 3,150+ | `pytest tests/` across 220+ files |
+| Python unit/integration | 3,400+ | `pytest tests/` across 230+ files |
 | Rust engine | 140+ | `cargo test --workspace` in `scpn-control-rs/` |
 | Rust-Python interop | 3 files | PyO3 parity tests via maturin |
 | Notebooks | 5 | Executed in CI via `nbconvert` |

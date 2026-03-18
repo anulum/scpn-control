@@ -35,7 +35,7 @@ from scpn_control.core._validators import require_positive_float
 ISS04_PREFACTOR: float = 0.134  # dimensionless
 
 # ISS04 reference radius for ι evaluation — Yamada et al. 2005, Eq. 4
-ISS04_S_REF: float = 2.0 / 3.0  # normalised toroidal flux
+ISS04_S_REF: float = (2.0 / 3.0) ** 2  # normalised toroidal flux s = (r/a)²; Yamada 2005 evaluates at r/a = 2/3
 
 # Physical constants used in neoclassical transport
 _M_D: float = 3.344e-27  # deuteron mass [kg]

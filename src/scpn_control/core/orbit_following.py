@@ -98,7 +98,8 @@ class GuidingCenterOrbit:
         bxg_phi = B_Z * dB_dR - B_R * dB_dZ
         bxg_Z = -B_phi * dB_dR
 
-        drift_coeff = (self.m * v_par**2 + self.mu * B_mag) / (self.Z_charge * B_mag**2)
+        # bxg = B × ∇B (not b̂ × ∇B), so divide by B_mag³ instead of B_mag²
+        drift_coeff = (self.m * v_par**2 + self.mu * B_mag) / (self.Z_charge * B_mag**3)
 
         dR_dt = v_par * B_R / B_mag + drift_coeff * bxg_R
         dZ_dt = v_par * B_Z / B_mag + drift_coeff * bxg_Z

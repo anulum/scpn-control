@@ -47,11 +47,11 @@ E_NEUTRON_J = 14.1e6 * _EV_J  # J; neutron energy
 # ITER Physics Basis 1999, Nucl. Fusion 39, 2137, Eq. (2.2.1).
 ALPHA_FRACTION = E_ALPHA_J / E_FUS_J  # 0.2 exactly
 
-# Bosch-Hale DT reactivity coefficients — Table IV (T in 0.2–100 keV range).
+# Bosch-Hale DT reactivity coefficients — Table VII (T in 0.2–100 keV range).
 # Bosch & Hale 1992, Nucl. Fusion 32, 611.
 _BH_BG = 34.3827  # dimensionless; Gamow peak parameter for D-T
 _BH_MRC2 = 1124656.0  # keV; reduced mass energy m_r c^2 for D-T
-_BH_C1 = 1.17302e-9  # cm^3/s; Bosch-Hale Table IV
+_BH_C1 = 1.17302e-9  # cm^3/s; Bosch-Hale Table VII
 _BH_C2 = 1.51361e-2  # keV^-1
 _BH_C3 = 7.51886e-2  # keV^-1
 _BH_C4 = 4.60643e-3  # keV^-2
@@ -661,8 +661,7 @@ class FusionKernel:
         J_p = self.RR * p_profile
         J_f = (1.0 / (mu0 * self.RR)) * ff_profile
 
-        beta_mix = 0.5
-        J_raw = beta_mix * J_p + (1 - beta_mix) * J_f
+        J_raw = J_p + J_f
 
         I_current = float(np.sum(J_raw)) * self.dR * self.dZ
         I_target: float = self.cfg["physics"]["plasma_current_target"]

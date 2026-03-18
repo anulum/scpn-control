@@ -117,13 +117,14 @@ def test_regime_auto_detection():
     v_thi = 1.0e5
     R = 6.2
 
-    # nu_star < 1  →  banana
-    nu_banana = 0.3
+    # nu_star < epsilon^1.5 → banana (Hinton & Hazeltine 1976, Sec. IV)
+    # epsilon^1.5 = 0.1^1.5 ≈ 0.0316
+    nu_banana = 0.01
     chi_auto = neoclassical_chi(nu_banana, q, epsilon, rho_i, nu_ii, v_thi, R)
     chi_ch = chang_hinton_chi(q, epsilon, nu_banana, rho_i, nu_ii)
     assert abs(chi_auto - chi_ch) < 1e-15
 
-    # 1 < nu_star < q^2/eps^1.5  →  plateau
+    # epsilon^1.5 < nu_star < q^2/eps^1.5 → plateau
     # q^2/eps^1.5 = 4/0.031623 ≈ 126.5
     nu_plateau = 5.0
     chi_auto_pl = neoclassical_chi(nu_plateau, q, epsilon, rho_i, nu_ii, v_thi, R)

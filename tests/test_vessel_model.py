@@ -85,14 +85,16 @@ def test_psi_vessel_axisymmetry():
 
 
 def test_halo_current_bounded():
-    """I_halo = TPF × I_p must be exactly TPF times the plasma current.
+    """I_halo = f_halo × TPF × I_p (ITER Physics Basis 1999, §3.8.3).
 
-    ITER Physics Basis 1999, Ch. 3, §3.8.3.
+    f_halo ∈ [0.1, 0.5] is the halo current fraction; TPF ≈ 2 toroidal peaking.
+    Peak halo current must always be < I_p.
     """
     I_p = 15.0e6  # 15 MA — ITER full-current scenario
-    I_halo = halo_current(I_p)
-    assert I_halo == pytest.approx(TPF * I_p)
-    assert I_halo < TPF * I_p + 1.0  # strictly bounded by TPF × I_p
+    f_halo = 0.3  # ITER default
+    I_halo = halo_current(I_p, f_halo=f_halo)
+    assert I_halo == pytest.approx(f_halo * TPF * I_p)
+    assert I_halo < I_p  # halo current must be < plasma current
 
 
 def test_vessel_time_constant():

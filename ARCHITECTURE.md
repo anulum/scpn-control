@@ -62,7 +62,7 @@ scpn-control/
 │   │   └── control-python/    PyO3 bindings
 │   └── deny.toml              cargo-deny supply-chain policy
 │
-├── tests/                     3,300+ tests (220+ files)
+├── tests/                     3,400+ tests (230+ files)
 ├── validation/                RMSE dashboards + reference data
 ├── examples/                  Jupyter notebooks + demo scripts
 ├── dashboard/                 Streamlit control dashboard

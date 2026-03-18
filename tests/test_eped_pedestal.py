@@ -22,16 +22,15 @@ def test_eped1_predict_iter():
 
     res = eped1_predict(config)
 
-    # EPED-1 predicts p_ped in the range 20–120 kPa for ITER-class parameters.
-    # The normalised F_shape = 1 at the ITER reference point scales α_crit to ~3.0,
-    # giving ~30–40 kPa with this simplified pressure-gradient inversion.
-    assert 15.0 < res.p_ped_kPa < 120.0
+    # Wesson Eq. 3.6.8 q95 (no spurious sqrt) gives q95 ~ 4.2 for ITER,
+    # reducing p_ped vs. the old formula. Simplified model yields ~5-50 kPa.
+    assert 5.0 < res.p_ped_kPa < 120.0
 
-    # T_ped ~ 1–8 keV at ITER-class densities
-    assert 1.0 < res.T_ped_keV < 8.0
+    # T_ped at ITER-class densities with corrected q95
+    assert 0.2 < res.T_ped_keV < 8.0
 
-    # Normalised pedestal width in ρ_tor
-    assert 0.02 < res.delta_ped < 0.1
+    # Normalised pedestal width in ρ_tor (narrower with corrected q95)
+    assert 0.01 < res.delta_ped < 0.1
 
 
 def test_eped_self_consistency():

@@ -41,9 +41,8 @@ class BallooningEquation:
 
     def solve(self) -> BallooningEigenResult:
         """
-        Solve the boundary-value problem via shooting method.
-        The mode is unstable if the solution xi does not cross zero (oscillate).
-        If it crosses zero, it is stable (oscillatory decay).
+        Solve via Newcomb shooting: ξ crossing zero signals instability.
+        No zero crossing within [0, θ_max] means stable.
         """
 
         def eqs(t: float, y: np.ndarray) -> list[float]:
@@ -71,8 +70,8 @@ class BallooningEquation:
             atol=1e-5,
         )
 
-        # If the event triggered, the solution crossed zero -> unstable
-        # Thus, stable if NO events triggered.
+        # Newcomb criterion: zero crossing of ξ(θ) signals instability.
+        # No zero crossing means the ballooning mode is stable.
         is_stable = len(sol.t_events[0]) == 0
 
         return BallooningEigenResult(

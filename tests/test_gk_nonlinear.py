@@ -373,6 +373,151 @@ class TestFluxDiagnostics:
 # ── JAX fallback ─────────────────────────────────────────────────────
 
 
+# ── Bug fix regressions ────────────────────────────────────────────
+
+
+class TestElectronDriveUsePhiEff:
+    """Fix 3: electron drive must use phi_eff = phi - v_par*A_par, not phi."""
+
+    def test_em_electron_drive_differs_from_es(self):
+        cfg_em = NonlinearGKConfig(
+            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
+            dt=0.02, n_steps=1, save_interval=1,
+            kinetic_electrons=True, electromagnetic=True,
+            beta_e=0.02, nonlinear=False, cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg_em)
+        state = solver.init_state(amplitude=1e-5)
+        # Manually set A_par to something nonzero
+        A_par = 1e-4 * np.ones_like(state.phi)
+        drive_with_A = solver.gradient_drive(state.phi, A_par)
+        drive_no_A = solver.gradient_drive(state.phi, None)
+        # Electron species (index 1) should differ when A_par != 0
+        assert not np.allclose(drive_with_A[1], drive_no_A[1])
+
+    def test_es_electron_drive_same_with_none(self):
+        cfg = NonlinearGKConfig(
+            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
+            dt=0.02, n_steps=1, save_interval=1,
+            kinetic_electrons=True, electromagnetic=False,
+            nonlinear=False, cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-5)
+        drive = solver.gradient_drive(state.phi, None)
+        # Both ion and electron drives should be nonzero
+        assert np.max(np.abs(drive[0])) > 0
+        assert np.max(np.abs(drive[1])) > 0
+
+
+class TestAmpereSkinDepth:
+    """Fix 4: Ampere's law denominator must include d_e_sq skin-depth."""
+
+    def test_d_e_sq_zero_recovers_original(self):
+        cfg = NonlinearGKConfig(
+            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
+            electromagnetic=True, beta_e=0.01, d_e_sq=0.0,
+            kinetic_electrons=True, dt=0.02, n_steps=1,
+            save_interval=1, cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-5)
+        A_par = solver.ampere_solve(state.f)
+        assert np.all(np.isfinite(A_par))
+
+    def test_d_e_sq_reduces_A_par(self):
+        """Nonzero skin depth adds to denominator → smaller A_par amplitude."""
+        cfg_no_skin = NonlinearGKConfig(
+            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
+            electromagnetic=True, beta_e=0.01, d_e_sq=0.0,
+            kinetic_electrons=True, dt=0.02, n_steps=1,
+            save_interval=1, cfl_adapt=False,
+        )
+        cfg_skin = NonlinearGKConfig(
+            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
+            electromagnetic=True, beta_e=0.01, d_e_sq=1.0,
+            kinetic_electrons=True, dt=0.02, n_steps=1,
+            save_interval=1, cfl_adapt=False,
+        )
+        solver_no = NonlinearGKSolver(cfg_no_skin)
+        solver_yes = NonlinearGKSolver(cfg_skin)
+        state = solver_no.init_state(amplitude=1e-5, seed=42)
+        # Use same f for both
+        A_no = solver_no.ampere_solve(state.f)
+        A_yes = solver_yes.ampere_solve(state.f)
+        assert np.max(np.abs(A_yes)) <= np.max(np.abs(A_no))
+
+
+class TestCFLVExB:
+    """Fix 5: CFL v_ExB must scale as kmax**2 * phi, not kmax * phi."""
+
+    def test_cfl_uses_k_squared(self):
+        # Use small Ly to get kmax > 1 (ky_max ~ 2π/Ly * n_ky/2)
+        cfg = NonlinearGKConfig(
+            n_kx=8, n_ky=8, n_theta=16, n_vpar=8, n_mu=4,
+            dt=1.0, Lx=6.0, Ly=6.0,
+            cfl_adapt=True, cfl_factor=0.5,
+            collisions=False, hyper_coeff=0.0,
+            nonlinear=True, R_L_Ti=0.0, R_L_Te=0.0, R_L_ne=0.0,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-3)
+        phi_max = np.max(np.abs(state.phi)) + 1e-30
+        kmax = max(np.max(np.abs(solver.kx)), np.max(np.abs(solver.ky)))
+        assert kmax > 1.0
+        # The CFL dt should reflect k^2 scaling
+        dt_val = solver._cfl_dt(state)
+        v_exb_k2 = kmax**2 * phi_max
+        vmax = max(np.max(np.abs(solver.vpar)), 1.0)
+        v_par_eff = vmax * np.max(np.abs(solver.b_dot_grad))
+        dt_expected = cfg.cfl_factor / max(v_exb_k2 + v_par_eff, 1e-30)
+        np.testing.assert_allclose(dt_val, min(dt_expected, cfg.dt), rtol=1e-10)
+
+
+class TestSugamaGramMatrix:
+    """Fix 6: Sugama conservation must use 3x3 Gram matrix, not diagonal."""
+
+    def test_sugama_conserves_density(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4, n_ky=4, n_theta=8, n_vpar=8, n_mu=4,
+            collisions=True, collision_model="sugama", nu_collision=0.1,
+            dt=0.01, n_steps=1, save_interval=1, cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-4)
+        Cf = solver._collide_sugama(state.f[0])
+        density_moment = np.sum(Cf, axis=(-2, -1)) * solver.dvpar * solver.dmu
+        np.testing.assert_allclose(density_moment, 0.0, atol=1e-12)
+
+    def test_sugama_conserves_momentum(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4, n_ky=4, n_theta=8, n_vpar=8, n_mu=4,
+            collisions=True, collision_model="sugama", nu_collision=0.1,
+            dt=0.01, n_steps=1, save_interval=1, cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-4)
+        Cf = solver._collide_sugama(state.f[0])
+        vpar_5d = solver.vpar[None, None, None, :, None]
+        mom_moment = np.sum(Cf * vpar_5d, axis=(-2, -1)) * solver.dvpar * solver.dmu
+        np.testing.assert_allclose(mom_moment, 0.0, atol=1e-12)
+
+    def test_sugama_conserves_energy(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4, n_ky=4, n_theta=8, n_vpar=8, n_mu=4,
+            collisions=True, collision_model="sugama", nu_collision=0.1,
+            dt=0.01, n_steps=1, save_interval=1, cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-4)
+        Cf = solver._collide_sugama(state.f[0])
+        vpar2 = solver.vpar[None, None, None, :, None] ** 2
+        mu_val = solver.mu[None, None, None, None, :]
+        energy = 0.5 * vpar2 + mu_val
+        energy_moment = np.sum(Cf * energy, axis=(-2, -1)) * solver.dvpar * solver.dmu
+        np.testing.assert_allclose(energy_moment, 0.0, atol=1e-12)
+
+
 class TestJaxFallback:
     def test_jax_solver_import(self):
         from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver

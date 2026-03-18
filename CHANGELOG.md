@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.19.0] — 2026-03-18
+
+### Fixed — Physics Audit (33 equation corrections)
+- **Integration wiring**: sawtooth crash→psi writeback, NTM seeding from crash
+  energy, ELM/stability/L-H modules connected to scenario loop, beta_N and li
+  computed from profiles (were hardcoded placeholders)
+- **GK**: Te/Ti ratio in quasilinear (was trivially 1.0), omega_r←gamma_net in
+  TGLF native output, electron drive phi→phi_eff for EM flutter, Ampere skin-depth
+  term, CFL k→k² for Poisson bracket, Sugama conservation via 3×3 Gram matrix
+- **MHD**: NTM MRE prefactor (extra r_s removed), polarization (w_pol/w)³,
+  Porcelli Condition 2 units, EPED q95 sqrt→linear, TAE k_∥=1/(2qR₀),
+  locked-mode I_eff from geometry (was 5 orders too small)
+- **Transport**: Sauter L31 collisionality denominator, banana boundary ε^(3/2),
+  GS residual → GS* operator, tau_eq from Braginskii, halo f_halo=0.3,
+  orbit drift ÷B³, ISS04 s_ref=(2/3)²
+- **Edge**: Connor-Hastie h(Z) E_ratio removed, hot-tail→erfc, SOL sheath BC
+  two-point model, GS source full weight (was 50/50 blend), BH Table VII citation,
+  noqa dead code removed
+- 3,400+ tests (230+ files), 100% coverage, 20 CI jobs
+
 ## [0.18.0] — 2026-03-17
 
 ### Added
@@ -50,7 +70,7 @@
 ### Changed
 - **Nengo replaced** with pure LIF+NEF engine (numpy 2.x compatible, no external dependency)
 - All mypy errors fixed across 10 source files
-- 3,157+ tests (220+ files), 100% coverage, 20 CI jobs
+- 3,400+ tests (230+ files), 100% coverage, 20 CI jobs
 
 ### Fixed
 - CFL fix for hyperdiffusion stability in nonlinear GK solver

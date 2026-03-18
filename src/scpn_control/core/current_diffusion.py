@@ -65,19 +65,6 @@ def neoclassical_resistivity(
     f_t = 1.0 - (1.0 - epsilon) ** 2 / (np.sqrt(1.0 - epsilon**2) * (1.0 + 1.46 * np.sqrt(epsilon)))
     f_t = float(np.clip(f_t, 0.0, 1.0))
 
-    # Electron collisionality ν*_e — Sauter 1999 Eq. A.5
-    e_charge = 1.602e-19
-    m_e = 9.109e-31
-    v_te = np.sqrt(2.0 * Te_keV * 1e3 * e_charge / m_e)
-    nu_ei = (
-        (ne_19 * 1e19)
-        * Z_eff
-        * e_charge**4
-        * ln_lam
-        / (12.0 * np.pi**1.5 * (8.854e-12) ** 2 * np.sqrt(m_e) * (Te_keV * 1e3 * e_charge) ** 1.5)
-    )
-    nu_star_e = nu_ei * max(q, 0.5) * R0 / (epsilon**1.5 * v_te)  # noqa: F841 — retained for future PS-regime branch
-
     # Sauter 2002 Eq. 8 — banana regime analytical limit
     C_R = 1.0 - (1.0 + 0.36 / Z_eff) * f_t + (0.59 / Z_eff) * f_t**2
 
@@ -111,6 +98,24 @@ def q_from_psi(rho: np.ndarray, psi: np.ndarray, R0: float, a: float, B0: float)
 
     np.abs(q, out=q)
     return q
+
+
+def psi_from_q(rho: np.ndarray, q: np.ndarray, R0: float, a: float, B0: float) -> np.ndarray:
+    """Reconstruct poloidal flux ψ(ρ) from a safety-factor profile q(ρ).
+
+    Inverse of q_from_psi.  From q = −ρ a² B₀ / (R₀ dψ/dρ):
+        dψ/dρ = −ρ a² B₀ / (R₀ q)
+    Integrate with ψ(edge) = 0 convention.
+
+    Reference: Jardin (2010), Ch. 8, Eq. 8.2 (inverted).
+    """
+    drho = rho[1] - rho[0]
+    integrand = -rho * a**2 * B0 / (R0 * np.maximum(q, 0.5))
+    psi = np.zeros_like(rho)
+    for i in range(1, len(rho)):
+        psi[i] = psi[i - 1] + 0.5 * (integrand[i - 1] + integrand[i]) * drho
+    psi -= psi[-1]  # ψ(edge) = 0
+    return psi
 
 
 def resistive_diffusion_time(a: float, eta: float) -> float:

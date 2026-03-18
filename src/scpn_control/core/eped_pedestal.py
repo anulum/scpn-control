@@ -89,7 +89,7 @@ def eped_validation_database() -> list[EPEDValidationPoint]:
 
 def _compute_q95(config: EPEDConfig) -> float:
     """Safety factor at 95% flux surface. [W04] Eq. 3.6.8."""
-    return (config.a * config.B0) / (config.R0 * config.B_pol_ped) * math.sqrt((1.0 + config.kappa**2) / 2.0)
+    return (config.a * config.B0) / (config.R0 * config.B_pol_ped) * (1.0 + config.kappa**2) / 2.0
 
 
 def _shaping_factor(kappa: float, delta: float) -> float:

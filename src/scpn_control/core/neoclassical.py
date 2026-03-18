@@ -250,7 +250,8 @@ def neoclassical_chi(
     # Hinton & Hazeltine 1976, Section IV
     nu_ps_boundary = q**2 / epsilon**1.5
 
-    if nu_star < 1.0:
+    # Hinton & Hazeltine 1976, Section IV: banana regime for nu_star < epsilon^1.5
+    if nu_star < epsilon**1.5:
         return chang_hinton_chi(q, epsilon, nu_star, rho_i, nu_ii)
     elif nu_star < nu_ps_boundary:
         return plateau_chi(q, rho_i, v_thi, R)
@@ -305,8 +306,13 @@ def _sauter_L31(f_t: float, nu_e: float, Z: float) -> float:
     Z : float
         Effective ion charge Z_eff.
     """
-    # Sauter 1999, Eq. 14
-    L31 = (1.0 + 1.4 / (Z + 1.0)) * f_t - 1.9 / (Z + 1.0) * f_t**2 + 0.3 / (Z + 1.0) * f_t**3 + 0.2 / (Z + 1.0) * f_t**4
+    # Sauter 1999, Eq. 14 — banana-limit numerator
+    L31_banana = (
+        (1.0 + 1.4 / (Z + 1.0)) * f_t - 1.9 / (Z + 1.0) * f_t**2 + 0.3 / (Z + 1.0) * f_t**3 + 0.2 / (Z + 1.0) * f_t**4
+    )
+    # Sauter 1999, Eq. 14 — collisionality-dependent denominator
+    alpha_31 = 1.0 / (1.0 + 0.36 / Z)
+    L31 = L31_banana / (1.0 + alpha_31 * nu_e**0.5)
     return float(L31)
 
 

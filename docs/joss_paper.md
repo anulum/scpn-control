@@ -39,7 +39,7 @@ dashboard provides multi-machine shot replay (DIII-D, SPARC, ITER, NSTX-U,
 JET), real-time GK transport visualisation, and OOD monitoring.
 
 The codebase comprises 125 Python source modules and 5 Rust crates
-(ndarray 0.16, rand 0.9, PyO3 0.24) with 3,164+ Python tests and 317 Rust
+(ndarray 0.16, rand 0.9, PyO3 0.24) with 3,400+ Python tests and 317 Rust
 tests at 100% coverage across 20 CI jobs.
 
 ## Statement of Need
@@ -159,7 +159,7 @@ The solver is validated against:
   across modules (bootstrap→NTM, IPB98→power balance, EPED→Troyon limit,
   sawtooth→NTM seed, L-H→H-mode→EPED, runaway→SPI trigger).
 
-The test suite comprises 3,164+ Python tests and 317 Rust tests across 20 CI
+The test suite comprises 3,400+ Python tests and 317 Rust tests across 20 CI
 jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo
 Loihi emulator, CodeQL security analysis, OpenSSF Scorecard). Coverage gate
 is 99% (current: 100%). The project holds an OpenSSF CII Best Practices badge.

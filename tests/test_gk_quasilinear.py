@@ -11,7 +11,7 @@ from scpn_control.core.gk_quasilinear import (
     mixing_length_saturation,
     quasilinear_fluxes_from_spectrum,
 )
-from scpn_control.core.gk_species import deuterium_ion
+from scpn_control.core.gk_species import GKSpecies, deuterium_ion, electron
 
 
 def test_mixing_length_positive_gamma():
@@ -130,3 +130,43 @@ def test_critical_gradient_scan_monotonic():
     _, gamma = critical_gradient_scan(rlt, n_ky=2)
     assert np.all(gamma >= 0)
     assert np.all(np.isfinite(gamma))
+
+
+def test_te_ti_ratio_affects_chi_i():
+    """Te/Ti != 1 should change the ITG drive strength."""
+    result = LinearGKResult(
+        k_y=np.array([0.3]),
+        gamma=np.array([0.2]),
+        omega_r=np.array([-0.8]),
+        mode_type=["ITG"],
+        modes=[],
+    )
+    ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+    elec_hot = electron(T_keV=4.0, adiabatic=True)
+    elec_equal = electron(T_keV=2.0, adiabatic=True)
+
+    out_equal = quasilinear_fluxes_from_spectrum(result, ion, electron=elec_equal)
+    out_hot = quasilinear_fluxes_from_spectrum(result, ion, electron=elec_hot)
+
+    # Te/Ti=2 vs Te/Ti=1: different ω_*i scaling → different chi_i
+    assert out_equal.chi_i != out_hot.chi_i
+    # Higher Te/Ti means larger denominator → lower omega_star_i → lower chi_i
+    assert out_hot.chi_i < out_equal.chi_i
+
+
+def test_te_ti_defaults_to_unity_without_electron():
+    """Omitting electron species should give Te/Ti=1 (backward compat)."""
+    result = LinearGKResult(
+        k_y=np.array([0.3]),
+        gamma=np.array([0.2]),
+        omega_r=np.array([-0.8]),
+        mode_type=["ITG"],
+        modes=[],
+    )
+    ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+    elec = electron(T_keV=2.0, adiabatic=True)
+
+    out_none = quasilinear_fluxes_from_spectrum(result, ion)
+    out_explicit = quasilinear_fluxes_from_spectrum(result, ion, electron=elec)
+
+    np.testing.assert_allclose(out_none.chi_i, out_explicit.chi_i, rtol=1e-12)

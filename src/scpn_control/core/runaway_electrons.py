@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
+from scipy.special import erfc
 
 
 # SI fundamental constants
@@ -114,7 +115,7 @@ def dreicer_generation_rate(params: RunawayParams) -> float:
     Z = params.Z_eff
     E_ratio = params.E_par / E_D
 
-    h_z = (Z + 1.0) / 16.0 * (Z + 1.0 + 2.0 * np.sqrt(1.0 + 1.0 / Z) + E_ratio)
+    h_z = (Z + 1.0) / 16.0 * (Z + 1.0 + 2.0 * np.sqrt(1.0 + 1.0 / Z))
 
     # Prefactor C_D = 0.35 — Connor & Hastie (1975), Eq. 63
     C_D = 0.35
@@ -179,11 +180,11 @@ def hot_tail_seed(Te_pre_keV: float, Te_post_keV: float, ne_20: float, quench_ti
     v_c_v_te = V_C_V_TE_REF * (quench_time_ms / 1.0) ** 0.2
 
     n_e = ne_20 * 1e20
-    exponent = -(v_c_v_te**2)
-    if exponent < -500:
+
+    if v_c_v_te > 30.0:
         return 0.0
 
-    n_seed = n_e * v_c_v_te**3 * np.exp(exponent) * ratio**1.5
+    n_seed = n_e * erfc(v_c_v_te) * ratio**1.5
     return float(max(0.0, n_seed))
 
 

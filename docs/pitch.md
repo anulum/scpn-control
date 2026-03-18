@@ -86,7 +86,7 @@ P-EFIT typically reconstructs.
 You need real-time control prototyping **now**, not after a 3-year bespoke
 development cycle. scpn-control gives you:
 
-- A tested controller with 3,015 tests (100% coverage) and CI-gated RMSE validation
+- A tested controller with 3,400+ tests (100% coverage) and CI-gated RMSE validation
 - Three-tier gyrokinetic transport (native solver + 5 external codes + hybrid validation)
 - Runs on commodity hardware (no GPU or data center required)
 - AGPL-3.0 open source; commercial licensing available
@@ -117,7 +117,7 @@ The architecture *could* support future integration, but:
 ## Architecture
 
 ```
-98 Python modules | 5 Rust crates | 3,015 tests (100% coverage) | 20 CI jobs
+98 Python modules | 5 Rust crates | 3,400+ tests (100% coverage) | 20 CI jobs
 ```
 
 ```

@@ -53,6 +53,7 @@ def quasilinear_fluxes_from_spectrum(
     a: float = 1.0,
     B0: float = 2.0,
     saturation: str = "mixing_length",
+    electron: GKSpecies | None = None,
 ) -> GKOutput:
     """Convert linear GK spectrum to physical transport fluxes.
 
@@ -66,15 +67,17 @@ def quasilinear_fluxes_from_spectrum(
         Geometry and field for dimensional conversion.
     saturation : str
         Saturation model: "mixing_length" (default).
+    electron : GKSpecies | None
+        Electron species for Te/Ti ratio. Defaults to ion temperature (Te/Ti=1).
     """
     if len(result.k_y) == 0:
         return GKOutput(chi_i=0.0, chi_e=0.0, D_e=0.0, converged=True, dominant_mode="stable")
 
     phi_sq = mixing_length_saturation(result.gamma, result.omega_r, result.k_y)
 
-    # Quasilinear weights
-    # chi_i ~ sum_ky gamma_k * phi_sq_k * (omega_*Ti / omega_r_k)
-    # chi_e ~ sum_ky gamma_k * phi_sq_k * (omega_*Te / omega_r_k)
+    Te_keV = electron.temperature_keV if electron is not None else ion.temperature_keV
+    Te_Ti = Te_keV / max(ion.temperature_keV, 1e-30)
+
     chi_i_norm = 0.0
     chi_e_norm = 0.0
     D_e_norm = 0.0
@@ -91,7 +94,7 @@ def quasilinear_fluxes_from_spectrum(
 
         mt = result.mode_type[i]
         if mt == "ITG":
-            omega_star_i = -ky * ion.R_L_T / max(ion.temperature_keV / ion.temperature_keV, 0.1)
+            omega_star_i = -ky * ion.R_L_T / max(Te_Ti, 0.1)
             chi_i_norm += amp * abs(omega_star_i / omega_r)
         elif mt == "TEM":
             omega_star_e = ky * ion.R_L_T  # electron R/L_T as proxy

@@ -151,8 +151,8 @@ class TAEMode:
         T_e_J = self.T_e_keV * 1e3 * _E_C  # keV → J
         v_the = np.sqrt(2.0 * T_e_J / _M_E)  # thermal electron speed, m/s
 
-        # k_∥ = (n − m/q) / (q R₀)  — Cheng & Chance 1986, Eq. 2
-        k_par = (self.n - self.m / self.q) / (self.q * self.R0)
+        # TAE eigenmode k_∥ = 1/(2qR₀) — Cheng & Chance 1986, Eq. 3.5
+        k_par = 1.0 / (2.0 * self.q * self.R0)
         k_par_abs = abs(k_par)
 
         if k_par_abs < 1e-12 or v_the < 1.0:

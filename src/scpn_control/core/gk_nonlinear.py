@@ -91,6 +91,7 @@ class NonlinearGKConfig:
     # Electromagnetic: adds A_∥ via Ampere's law, enables KBM/MTM
     electromagnetic: bool = False
     beta_e: float = 0.01  # 2μ₀ n_e T_e / B₀²
+    d_e_sq: float = 0.0  # electron skin depth squared (k_De²), 0 recovers ideal MHD
 
     # Geometry: defaults to CBC circular
     R0: float = 2.78
@@ -336,9 +337,9 @@ class NonlinearGKSolver:
             v_scale_e = self.vth_ratio_e
             j_par -= v_scale_e * np.sum(vpar_5d * f[1], axis=(-2, -1)) * dv
 
-        # k_perp² A_∥ = β_e × j_∥
+        # (k_perp² + β_e d_e²) A_∥ = β_e × j_∥
         kp2 = self.kperp2[:, :, None]
-        A_par = c.beta_e * j_par / np.maximum(kp2, 1e-10)
+        A_par = c.beta_e * j_par / np.maximum(kp2 + c.beta_e * c.d_e_sq, 1e-10)
         A_par[0, 0, :] = 0.0
         return np.asarray(A_par, dtype=np.complex128)
 
@@ -497,26 +498,33 @@ class NonlinearGKSolver:
         Cf += 0.5 * nu_v * (1.0 - pitch) * d2f
 
         # Conservation: subtract (a₀ + a₁ v_∥ + a₂ E) F_M
-        # so ∫ Cf dv = 0, ∫ v_∥ Cf dv = 0, ∫ E Cf dv = 0
+        # so ∫ ψ_i Cf dv = 0 for ψ = {1, v_∥, E}.
+        # Solve 3×3 Gram matrix G_ij = ∫ ψ_i ψ_j FM dv for coefficients.
         FM = np.exp(-energy) / np.pi**1.5
         vpar_5d = self.vpar[None, None, None, :, None]
         dv = dvp * dmu
 
-        # Compute moments of Cf
-        m0 = np.sum(Cf * dv, axis=(-2, -1), keepdims=True)
-        m1 = np.sum(Cf * vpar_5d * dv, axis=(-2, -1), keepdims=True)
-        m2 = np.sum(Cf * energy * dv, axis=(-2, -1), keepdims=True)
+        psi = [
+            np.ones_like(vpar_5d),
+            vpar_5d,
+            energy,
+        ]
 
-        # FM basis norms: <1·FM>, <v_∥²·FM>, <E²·FM>
-        n0 = np.sum(FM * dv, axis=(-2, -1), keepdims=True)
-        n1 = np.sum(FM * vpar_5d**2 * dv, axis=(-2, -1), keepdims=True)
-        n2 = np.sum(FM * energy**2 * dv, axis=(-2, -1), keepdims=True)
+        # Gram matrix G_ij = <ψ_i ψ_j FM> (scalar, v-space integral)
+        # Moment vector m_i = <ψ_i Cf> (varies with kx, ky, θ)
+        G = np.empty((3, 3))
+        m_vec = []
+        for i in range(3):
+            m_vec.append(np.sum(Cf * psi[i] * dv, axis=(-2, -1), keepdims=True))
+            for j in range(3):
+                G[i, j] = float(np.sum(psi[i] * psi[j] * FM * dv))
 
-        a0 = m0 / np.maximum(n0, 1e-30)
-        a1 = m1 / np.maximum(n1, 1e-30)
-        a2 = m2 / np.maximum(n2, 1e-30)
+        G_inv = np.linalg.inv(G)
+        a0 = sum(G_inv[0, j] * m_vec[j] for j in range(3))
+        a1 = sum(G_inv[1, j] * m_vec[j] for j in range(3))
+        a2 = sum(G_inv[2, j] * m_vec[j] for j in range(3))
 
-        correction = (a0 + a1 * vpar_5d + a2 * energy) * FM
+        correction = (a0 * psi[0] + a1 * psi[1] + a2 * psi[2]) * FM
         return np.asarray(Cf - correction, dtype=np.complex128)
 
     # ------------------------------------------------------------------
@@ -561,10 +569,9 @@ class NonlinearGKSolver:
         drive[0] = -1j * omega_star_i * phi_eff * FM
 
         if c.kinetic_electrons:
-            # Electron drive: ω_*e = -k_y R/L_ne (1 + η_e (E-3/2)), opposite sign
             eta_e = c.R_L_Te / max(c.R_L_ne, 0.1) if c.R_L_ne > 0 else 0.0
             omega_star_e = -ky_5d * c.R_L_ne * (1.0 + eta_e * (energy - 1.5))
-            drive[1] = -1j * omega_star_e * phi_5d * FM
+            drive[1] = -1j * omega_star_e * phi_eff * FM
 
         return drive
 
@@ -733,7 +740,8 @@ class NonlinearGKSolver:
         vmax = max(np.max(np.abs(self.vpar)), 1.0)
 
         # CFL: dt < 1 / (v_ExB + v_par + v_hyper)
-        v_exb = kmax * phi_max
+        # v_E = k_perp × phi → advection speed ~ k_perp² × phi (Poisson bracket)
+        v_exb = kmax**2 * phi_max
         v_scale = 1.0
         if c.kinetic_electrons and not c.implicit_electrons:
             v_scale = self.vth_ratio_e

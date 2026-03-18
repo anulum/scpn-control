@@ -357,3 +357,24 @@ class TestPhysicsValidation:
     def test_is_available(self):
         solver = TGLFNativeSolver()
         assert solver.is_available()
+
+    def test_run_from_params_omega_r_is_frequency(self):
+        """omega_r in GKOutput must be the real frequency, not gamma_net."""
+        solver = TGLFNativeSolver(TGLFNativeConfig(n_ky_ion=8, n_theta=32))
+        out = solver.run_from_params(_CBC)
+        result = solver.solve(_CBC)
+        # omega_r must match the linear eigenvalue frequencies
+        np.testing.assert_array_equal(out.omega_r, result.omega_r)
+        # gamma_net is always >= 0; omega_r has negative values for ITG
+        if len(out.omega_r) > 0 and result.dominant_mode == "ITG":
+            assert np.any(out.omega_r < 0)
+
+    def test_tglf_result_has_omega_r(self):
+        """TGLFNativeResult stores the linear real frequency."""
+        solver = TGLFNativeSolver(TGLFNativeConfig(n_ky_ion=4, n_theta=16))
+        result = solver.solve(_CBC)
+        assert hasattr(result, "omega_r")
+        assert len(result.omega_r) == len(result.k_y)
+        # For CBC ITG, omega_r should be mostly negative
+        if result.dominant_mode == "ITG":
+            assert np.any(result.omega_r < 0)

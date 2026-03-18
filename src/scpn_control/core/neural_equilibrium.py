@@ -52,6 +52,8 @@ class NeuralEqConfig:
     n_input_features: int = 12
     grid_shape: tuple[int, int] = (129, 129)  # (nh, nw)
     lambda_gs: float = 0.1
+    R_min: float = 1.0  # [m] inner R boundary of computational grid
+    R_max: float = 2.5  # [m] outer R boundary of computational grid
 
 
 @dataclass
@@ -154,12 +156,22 @@ class NeuralEquilibriumAccelerator:
     # ── GS residual loss ───────────────────────────────────────────
 
     def _gs_residual_loss(self, psi_pred_flat: NDArray, grid_shape: tuple[int, int]) -> float:
-        """GS residual loss: penalizes Laplacian of predicted psi."""
+        """GS* residual loss: d²ψ/dR² - (1/R)dψ/dR + d²ψ/dZ²."""
         nh, nw = grid_shape
         psi = psi_pred_flat.reshape(nh, nw)
-        lap = np.zeros_like(psi)
-        lap[1:-1, 1:-1] = psi[2:, 1:-1] + psi[:-2, 1:-1] + psi[1:-1, 2:] + psi[1:-1, :-2] - 4 * psi[1:-1, 1:-1]
-        return float(np.mean(lap[1:-1, 1:-1] ** 2))
+        R_1d = np.linspace(self.cfg.R_min, self.cfg.R_max, nw)
+        dR = R_1d[1] - R_1d[0]
+        R_interior = R_1d[np.newaxis, 1:-1]
+
+        # All terms carry a factor of dR² (unnormalized finite differences)
+        d2_dR2 = psi[1:-1, 2:] - 2 * psi[1:-1, 1:-1] + psi[1:-1, :-2]
+        d2_dZ2 = psi[2:, 1:-1] - 2 * psi[1:-1, 1:-1] + psi[:-2, 1:-1]
+        # -(1/R) dψ/dR: central difference gives (ψ_{i+1} - ψ_{i-1})/(2 dR),
+        # multiply by -(dR²/R) to match the dR² scaling of the other terms
+        dpsi_dR_correction = (dR / (2.0 * R_interior)) * (psi[1:-1, 2:] - psi[1:-1, :-2])
+
+        gs_star = d2_dR2 - dpsi_dR_correction + d2_dZ2
+        return float(np.mean(gs_star**2))
 
     # ── Evaluation ────────────────────────────────────────────────
 

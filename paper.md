@@ -51,7 +51,7 @@ the critical gradient due to zonal flow suppression — is demonstrated at
 $n_{kx}=256$.
 
 The codebase comprises 125 Python source modules and 5 Rust crates with
-3,164+ Python tests at 100% coverage across 20 CI jobs.
+3,400+ Python tests at 100% coverage across 20 CI jobs.
 
 # Statement of Need
 
@@ -178,7 +178,7 @@ The solver is validated against:
 - **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
-The test suite comprises 3,164+ Python tests and 317 Rust tests across 20
+The test suite comprises 3,400+ Python tests and 317 Rust tests across 20
 CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity,
 CodeQL security analysis, OpenSSF Scorecard). Coverage gate is 99%
 (current: 100%). The project holds an OpenSSF CII Best Practices badge.

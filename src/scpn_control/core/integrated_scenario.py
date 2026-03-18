@@ -43,17 +43,26 @@ from scipy.integrate import trapezoid
 
 from scpn_control.core.current_diffusion import (
     CurrentDiffusionSolver,
+    psi_from_q,
     q_from_psi,
 )
 from scpn_control.core.current_drive import CurrentDriveMix, ECCDSource, NBISource
+from scpn_control.core.elm_model import ELMCrashModel, ELMCycler, PeelingBallooningBoundary
 from scpn_control.core.integrated_transport_solver import (
     TransportSolver,
     chang_hinton_chi_profile,
 )
+from scpn_control.core.lh_transition import MartinThreshold
 from scpn_control.core.neoclassical import sauter_bootstrap
 from scpn_control.core.ntm_dynamics import NTMController, NTMIslandDynamics, find_rational_surfaces
 from scpn_control.core.sawtooth import SawtoothCycler
 from scpn_control.core.sol_model import TwoPointSOL
+from scpn_control.core.stability_mhd import (
+    QProfile,
+    ballooning_stability,
+    troyon_beta_limit,
+)
+from scpn_control.core.tearing_mode_coupling import SawtoothNTMSeeding
 
 # ── Physical constants (CODATA 2018) ─────────────────────────────────────────
 _E_CHARGE: float = 1.602176634e-19  # C
@@ -108,6 +117,8 @@ class ScenarioConfig:
     include_sawteeth: bool = True
     include_ntm: bool = True
     include_sol: bool = True
+    include_elm: bool = True
+    include_stability: bool = True
 
 
 @dataclass
@@ -329,6 +340,20 @@ class IntegratedScenarioSimulator:
         self.ntm_widths: dict[str, float] = {}
         self._ntm_islands: dict[str, NTMIslandDynamics] = {}
         self.ntm_controller = NTMController()
+        self.ntm_seeding = SawtoothNTMSeeding(self.sawtooth)
+
+        # ELM cycler
+        pb_boundary = PeelingBallooningBoundary(
+            q95=3.0,
+            kappa=self.config.kappa,
+            delta=self.config.delta,
+            a=self.config.a,
+            R0=self.config.R0,
+        )
+        self.elm_cycler = ELMCycler(pb_boundary, ELMCrashModel())
+
+        # L-H transition threshold
+        self.lh_threshold = MartinThreshold()
 
     # ── initialisation ────────────────────────────────────────────────────────
 
@@ -556,10 +581,10 @@ class IntegratedScenarioSimulator:
             j_tor_s = float(abs(self._j_total_from_psi(q_prof)[i_s]))
             j_phi = max(j_tor_s, 1e3)  # A/m^2
 
-            # Pressure gradient at surface: dp/dr ≈ (d/dr)(n_e * T_e) [Pa/m]
+            # Pressure gradient at surface: dp/dr ≈ (d/dr)(n_e * (T_e + T_i)) [Pa/m]
             n_si = self.ts_solver.ne * 1e19
-            Te_J = self.ts_solver.Te * 1.602176634e-16
-            p = n_si * Te_J
+            T_total_J = (self.ts_solver.Te + self.ts_solver.Ti) * 1.602176634e-16
+            p = n_si * T_total_J
             dp_dr = float(np.gradient(p, self.rho * self.config.a)[i_s])
             B_pol = self.config.B0 * (surf.rho * self.config.a / self.config.R0) / max(q_prof[i_s], 0.1)
 
@@ -659,8 +684,47 @@ class IntegratedScenarioSimulator:
 
         P_loss = max(P_aux_W + P_ohm, 1.0)
         tau_E = (W_th / 1e6) / max(P_loss / 1e6, 1.0)
-        beta_N = 2.0  # placeholder — stability module provides full value
-        li = 1.0  # placeholder — inductance from current profile
+
+        # INT-7: compute beta_N from profiles — Troyon et al. 1984
+        # beta_t = 2 mu_0 <p> / B0^2
+        n_si_avg = self.ts_solver.ne * 1e19
+        p_avg = n_si_avg * (self.ts_solver.Te + self.ts_solver.Ti) * _E_CHARGE * 1e3
+        p_vol = float(trapezoid(p_avg * self.rho, self.rho) * 2.0 / max(trapezoid(self.rho, self.rho), 1e-12))
+        beta_t = 2.0 * _MU_0 * p_vol / self.config.B0**2
+        I_N = self.config.Ip_MA / max(self.config.a * self.config.B0, 1e-10)
+        beta_N = 100.0 * beta_t / max(I_N, 1e-10)
+
+        # INT-7: compute li from current profile — Wesson 2011 Ch. 3
+        # li = <B_pol^2> / B_pol(a)^2 ≈ 2 ∫ j^2 rho drho / j_avg^2
+        j_tor_sq = j_tor**2
+        j2_vol = trapezoid(j_tor_sq * self.rho, self.rho)
+        j_vol = trapezoid(np.abs(j_tor) * self.rho, self.rho)
+        li = float(j2_vol / max(j_vol**2, 1e-20)) if j_vol > 1e-10 else 1.0
+
+        # INT-5: run stability checks
+        ballooning_ok = True
+        troyon_ok = True
+        if self.config.include_stability:
+            shear_prof = np.gradient(q_prof, self.rho) * (self.rho / np.maximum(q_prof, 1e-3))
+            # alpha_MHD ≈ -q² R0 dp/dr / (B0²/(2 mu_0))
+            p_prof_Pa = n_si_avg * (self.ts_solver.Te + self.ts_solver.Ti) * _E_CHARGE * 1e3
+            dp_drho = np.gradient(p_prof_Pa, self.rho)
+            alpha_mhd = -(q_prof**2) * self.config.R0 * dp_drho / (self.config.B0**2 / (2.0 * _MU_0))
+
+            qp = QProfile(
+                rho=self.rho,
+                q=q_prof,
+                shear=shear_prof,
+                alpha_mhd=alpha_mhd,
+                q_min=float(np.min(q_prof)),
+                q_min_rho=float(self.rho[int(np.argmin(q_prof))]),
+                q_edge=float(q_prof[-1]),
+            )
+            ball_res = ballooning_stability(qp)
+            ballooning_ok = bool(np.all(ball_res.stable))
+
+            troyon_res = troyon_beta_limit(beta_t, self.config.Ip_MA, self.config.a, self.config.B0)
+            troyon_ok = troyon_res.stable_nowall
 
         T_t, q_peak, detached = 0.0, 0.0, False
         if self.config.include_sol:
@@ -687,8 +751,8 @@ class IntegratedScenarioSimulator:
             P_loss=P_loss,
             W_thermal=W_th,
             li=li,
-            ballooning_stable=True,
-            troyon_stable=True,
+            ballooning_stable=ballooning_ok,
+            troyon_stable=troyon_ok,
             ntm_island_widths=dict(self.ntm_widths),
             T_target=T_t,
             q_peak=q_peak,
@@ -739,6 +803,26 @@ class IntegratedScenarioSimulator:
             if event:
                 self.n_crashes += 1
                 self.last_crash_time = event.crash_time
+
+                # INT-1: write crashed q back to psi so current diffusion is consistent
+                self.cd_solver.psi = psi_from_q(self.rho, q_prof, self.config.R0, self.config.a, self.config.B0)
+
+                # Also flatten Ti inside the mixing radius (sawtooth only crashes Te+ne)
+                if event.rho_mix > 0:
+                    idx_mix = int(np.searchsorted(self.rho, event.rho_mix))
+                    if idx_mix > 1:
+                        rho_inner = self.rho[:idx_mix]
+                        vol_int = trapezoid(self.ts_solver.Ti[:idx_mix] * rho_inner, rho_inner)
+                        vol_tot = trapezoid(rho_inner, rho_inner)
+                        Ti_mix = vol_int / vol_tot if vol_tot > 0 else self.ts_solver.Ti[0]
+                        self.ts_solver.Ti[:idx_mix] = Ti_mix
+
+                # INT-6: seed NTM from sawtooth crash energy
+                for key, island in self._ntm_islands.items():
+                    w_seed = self.ntm_seeding.seed_amplitude(event.seed_energy / 1e6, island.r_s)
+                    if w_seed > self.ntm_widths.get(key, 0.0):
+                        self.ntm_widths[key] = w_seed
+
                 q_prof = q_from_psi(
                     self.rho,
                     self.cd_solver.psi,
@@ -756,6 +840,33 @@ class IntegratedScenarioSimulator:
                 self.config.a,
                 self.config.B0,
             )
+
+        # ── ELM check ──────────────────────────────────────────────────────────
+        if self.config.include_elm:
+            # Pedestal values at rho ~ 0.95
+            i_ped = min(int(0.95 * self.nr), self.nr - 2)
+            T_ped = float(self.ts_solver.Te[i_ped])
+            n_ped = float(self.ts_solver.ne[i_ped])
+            W_ped = self._compute_W_thermal() * 0.3  # pedestal fraction ~30%
+
+            s_edge = float(np.gradient(q_prof, self.rho)[i_ped] * self.rho[i_ped] / max(q_prof[i_ped], 1e-3))
+            n_si_edge = n_ped * 1e19
+            T_J_edge = T_ped * _E_CHARGE * 1e3
+            dp_dr_edge = float(np.gradient(n_si_edge * T_J_edge * np.ones(self.nr), self.rho * self.config.a)[i_ped])
+            alpha_edge = float(
+                -(q_prof[i_ped] ** 2) * self.config.R0 * dp_dr_edge / (self.config.B0**2 / (2.0 * _MU_0))
+            )
+            j_edge = float(abs(self._j_total_from_psi(q_prof)[i_ped]))
+
+            elm_event = self.elm_cycler.step(dt, alpha_edge, j_edge, s_edge, T_ped, n_ped, W_ped)
+            if elm_event:
+                # Apply ELM crash: energy fraction lost from pedestal
+                frac_lost = min(elm_event.delta_W_MJ * 1e6 / max(W_ped, 1.0), 0.5)
+                drop = np.sqrt(max(1.0 - frac_lost, 0.25))
+                ped_mask = self.rho >= 0.9
+                self.ts_solver.Te[ped_mask] *= drop
+                self.ts_solver.Ti[ped_mask] *= drop
+                self.ts_solver.ne[ped_mask] *= drop
 
         # ── (d) half-step transport ───────────────────────────────────────────
         self._transport_step(dt_half, q_prof)

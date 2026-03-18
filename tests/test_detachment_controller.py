@@ -71,7 +71,13 @@ def test_detachment_bifurcation():
 
     assert len(pts) == 50
     assert pts[0].state == DetachmentState.ATTACHED
-    assert pts[-1].state in [DetachmentState.FULLY_DETACHED, DetachmentState.XPOINT_MARFE]
+    # Corrected two-point model raises the sheath-limited T_t floor, so
+    # max seeding_rate=10 reaches at least partial detachment at 100 MW.
+    assert pts[-1].state in [
+        DetachmentState.PARTIALLY_DETACHED,
+        DetachmentState.FULLY_DETACHED,
+        DetachmentState.XPOINT_MARFE,
+    ]
 
     # Verify rollover exists by supplying low power so it detaches easily
     sr_rollover = bif.find_rollover_point(P_SOL_MW=10.0, n_u_19=4.0)

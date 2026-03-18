@@ -103,15 +103,28 @@ class ModeLocking:
     viscous restoring torque that maintains plasma rotation.
     """
 
-    def __init__(self, R0: float, a: float, B0: float, Ip_MA: float, omega_phi_0: float):
+    def __init__(
+        self,
+        R0: float,
+        a: float,
+        B0: float,
+        Ip_MA: float,
+        omega_phi_0: float,
+        ne_19: float | None = None,
+        kappa: float = 1.7,
+        m_i_kg: float = 3.3e-27,
+    ):
         self.R0 = R0
         self.a = a
         self.B0 = B0
         self.Ip = Ip_MA * 1e6
         self.omega_phi_0 = omega_phi_0
-        # Effective moment of inertia proxy for a deuterium plasma annulus.
-        # Not taken from a single reference; scales as ρ_i × V_plasma.
-        self._I_eff: float = 0.01  # kg m²
+        # I_eff = n_e * m_i * Volume * R0^2,  Volume = 2 pi^2 R0 a^2 kappa
+        if ne_19 is not None:
+            volume = 2.0 * math.pi**2 * R0 * a**2 * kappa
+            self._I_eff: float = ne_19 * 1e19 * m_i_kg * volume * R0**2
+        else:
+            self._I_eff = 0.01
 
     def em_torque(self, B_res: float, r_s: float, m: int, n: int) -> float:
         """Electromagnetic braking torque on the (m, n) mode.

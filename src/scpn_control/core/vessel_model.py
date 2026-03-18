@@ -83,23 +83,25 @@ def vessel_time_constant(conductivity: float, wall_thickness: float, major_radiu
     return _MU0 * conductivity * wall_thickness * major_radius
 
 
-def halo_current(plasma_current: float) -> float:
-    """Return peak halo current I_halo = TPF × I_p.
+def halo_current(plasma_current: float, f_halo: float = 0.3) -> float:
+    """Return peak halo current I_halo = f_halo × TPF × I_p.
 
     ITER Physics Basis 1999, Ch. 3, §3.8.3:
-    I_halo = TPF × I_p, with TPF ≈ 2 representing the toroidal asymmetry
-    of halo currents during a vertical displacement event.
+    f_halo is the fraction of plasma current flowing in the halo
+    (ITER default 0.3), TPF ≈ 2 is the toroidal peaking factor.
 
     Parameters
     ----------
     plasma_current : float
         Total plasma current I_p [A].
+    f_halo : float
+        Halo current fraction (default 0.3, ITER Physics Basis).
 
     Returns
     -------
     float — Peak halo current [A].
     """
-    return TPF * plasma_current
+    return f_halo * TPF * plasma_current
 
 
 def halo_em_force(halo_current_a: float, b_poloidal: float, path_length: float) -> float:

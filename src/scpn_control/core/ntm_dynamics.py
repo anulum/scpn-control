@@ -323,7 +323,7 @@ class NTMIslandDynamics:
 
         # ── Polarization stabilization ────────────────────────────────────────
         # Sauter et al. 1997, Phys. Plasmas 4, 1654, Eq. 19
-        term_pol = -self.a2 * (w_pol**2 / w**3)
+        term_pol = -self.a2 * (w_pol / w) ** 3
 
         # ── Diamagnetic shear stabilization ───────────────────────────────────
         # Sauter et al. 1997, Phys. Plasmas 4, 1654, Eq. 20
@@ -337,7 +337,7 @@ class NTMIslandDynamics:
         f_eccd = eccd_stabilization_factor(d_cd, w)
         term_cd = -self.a3 * j_cd_ratio * (self.r_s / w) * f_eccd
 
-        dw_dt_val = (self.r_s / tau_R) * (term_classical + term_bs + term_pol + term_dia + term_cd)
+        dw_dt_val = (1.0 / tau_R) * (term_classical + term_bs + term_pol + term_dia + term_cd)
         return float(dw_dt_val)
 
     def evolve(
