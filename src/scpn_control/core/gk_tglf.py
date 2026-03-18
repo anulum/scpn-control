@@ -131,9 +131,9 @@ def parse_tglf_output(run_dir: Path) -> GKOutput:
         except (ValueError, IndexError) as exc:
             _logger.warning("TGLF transport parse error: %s", exc)
 
-    gamma = np.empty(0)
-    omega_r = np.empty(0)
-    k_y = np.empty(0)
+    gamma: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.empty(0)
+    omega_r: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.empty(0)
+    k_y: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.empty(0)
 
     if eigenvalue_file.exists():
         try:
