@@ -9,9 +9,7 @@ JAX-accelerated nonlinear δf gyrokinetic solver.
 
 Wraps the same physics as gk_nonlinear.py but uses JAX for:
   - FFT-based E×B bracket (~100× over NumPy on GPU)
-  - lax.scan for the time-stepping loop (compiled once)
   - jax.checkpoint for memory-efficient RK4
-  - vmap over species dimension
 
 Falls back to the NumPy solver when JAX is unavailable.
 """
@@ -58,7 +56,6 @@ class JaxNonlinearGKSolver:
             self._compile_kernels()
 
     def _compile_kernels(self) -> None:
-        c = self.cfg
         self._kx_j = jnp.array(self._np_solver.kx)
         self._ky_j = jnp.array(self._np_solver.ky)
         self._kperp2_j = jnp.array(self._np_solver.kperp2)
@@ -70,6 +67,28 @@ class JaxNonlinearGKSolver:
         self._vpar_j = jnp.array(self._np_solver.vpar)
         self._mu_j = jnp.array(self._np_solver.mu)
         self._theta_j = jnp.array(self._np_solver.theta)
+        self._dv_j = self._np_solver.dvpar * self._np_solver.dmu
+
+        vpar_5d = self._vpar_j[None, None, None, :, None]
+        mu_5d = self._mu_j[None, None, None, None, :]
+        energy = 0.5 * vpar_5d**2 + mu_5d
+        ones = jnp.broadcast_to(jnp.ones_like(vpar_5d), energy.shape)
+        vpar_full = jnp.broadcast_to(vpar_5d, energy.shape)
+        self._sugama_fm_j = jnp.exp(-energy) / jnp.pi**1.5
+        self._sugama_psi_j = jnp.stack(
+            (
+                ones,
+                vpar_full,
+                energy,
+            ),
+            axis=0,
+        )
+
+        gram = jnp.sum(
+            self._sugama_psi_j[:, None] * self._sugama_psi_j[None, :] * self._sugama_fm_j * self._dv_j,
+            axis=(-2, -1),
+        )[:, :, 0, 0, 0]
+        self._sugama_gram_inv_j = jnp.linalg.inv(gram)
 
     # ------------------------------------------------------------------
     # JAX field solve
@@ -91,8 +110,14 @@ class JaxNonlinearGKSolver:
             rr_e = self._np_solver.rho_ratio_e
             b_e = 0.5 * self._kperp2_j * rr_e**2
             Gamma0_e = 1.0 / (1.0 + b_e)
-            denom = jnp.maximum((1.0 - Gamma0_i) + (1.0 - Gamma0_e), 1e-10)
-            rhs_qn = Gamma0_i[:, :, None] * n_ion - Gamma0_e[:, :, None] * n_elec
+            # Modified adiabatic electrons for zonal modes (ky=0):
+            # Dimits et al. 2000, §III.B — standard in GENE/GS2/CGYRO
+            ky_is_zero = (jnp.abs(self._ky_j[None, :]) < 1e-10).astype(float)
+            ky_nonzero = 1.0 - ky_is_zero
+            denom = jnp.maximum(
+                (1.0 - Gamma0_i) + ky_nonzero * (1.0 - Gamma0_e) + ky_is_zero, 1e-10
+            )
+            rhs_qn = Gamma0_i[:, :, None] * n_ion - ky_nonzero[:, :, None] * Gamma0_e[:, :, None] * n_elec
             phi = rhs_qn / denom[:, :, None]
         else:
             ky_nonzero = (jnp.abs(self._ky_j[None, :]) > 1e-10).astype(float)
@@ -134,6 +159,64 @@ class JaxNonlinearGKSolver:
         return bracket_k.reshape(shape5)
 
     # ------------------------------------------------------------------
+    # JAX electromagnetic solve
+    # ------------------------------------------------------------------
+
+    def _jax_ampere_solve(self, f: jnp.ndarray) -> jnp.ndarray:
+        c = self.cfg
+        if not c.electromagnetic:
+            return jnp.zeros((c.n_kx, c.n_ky, c.n_theta), dtype=f.dtype)
+
+        vpar_5d = self._vpar_j[None, None, None, :, None]
+        j_par = jnp.sum(vpar_5d * f[0], axis=(-2, -1)) * self._dv_j
+
+        if c.kinetic_electrons:
+            j_par = j_par - self._np_solver.vth_ratio_e * jnp.sum(vpar_5d * f[1], axis=(-2, -1)) * self._dv_j
+
+        kp2 = self._kperp2_j[:, :, None]
+        denom = jnp.maximum(kp2 + c.beta_e * c.d_e_sq, 1e-10)
+        A_par = c.beta_e * j_par / denom
+        A_par = A_par.at[0, 0, :].set(0.0)
+        return jnp.asarray(A_par)
+
+    # ------------------------------------------------------------------
+    # JAX collision operators
+    # ------------------------------------------------------------------
+
+    def _jax_collide(self, f_s: jnp.ndarray) -> jnp.ndarray:
+        if self.cfg.collision_model == "sugama":
+            return self._jax_collide_sugama(f_s)
+        return self._jax_collide_krook(f_s)
+
+    def _jax_collide_krook(self, f_s: jnp.ndarray) -> jnp.ndarray:
+        kp2 = self._kperp2_j[:, :, None, None, None]
+        return -self.cfg.nu_collision * kp2 * f_s
+
+    def _jax_collide_sugama(self, f_s: jnp.ndarray) -> jnp.ndarray:
+        nu = self.cfg.nu_collision
+        dvp = self._np_solver.dvpar
+
+        d2f = (jnp.roll(f_s, -1, axis=3) - 2 * f_s + jnp.roll(f_s, 1, axis=3)) / (dvp**2)
+        d2f = d2f.at[:, :, :, 0, :].set(0.0)
+        d2f = d2f.at[:, :, :, -1, :].set(0.0)
+
+        vpar2 = self._vpar_j[None, None, None, :, None] ** 2
+        mu_val = self._mu_j[None, None, None, None, :]
+        v2 = vpar2 + 2.0 * mu_val
+
+        v3 = jnp.maximum(v2, 0.1) ** 1.5
+        nu_v = nu * jnp.minimum(1.0 / v3, 10.0)
+        pitch = 2.0 * mu_val / jnp.maximum(v2, 0.01)
+
+        Cf = nu_v * pitch * d2f
+        Cf = Cf + 0.5 * nu_v * (1.0 - pitch) * d2f
+
+        moments = jnp.sum(Cf[None] * self._sugama_psi_j * self._dv_j, axis=(-2, -1), keepdims=True)
+        coeffs = jnp.tensordot(self._sugama_gram_inv_j, moments, axes=([1], [0]))
+        correction = jnp.sum(coeffs * self._sugama_psi_j, axis=0) * self._sugama_fm_j
+        return jnp.asarray(Cf - correction)
+
+    # ------------------------------------------------------------------
     # JAX RHS
     # ------------------------------------------------------------------
 
@@ -172,8 +255,7 @@ class JaxNonlinearGKSolver:
 
         # Collisions
         if c.collisions:
-            kp2 = self._kperp2_j[:, :, None, None, None]
-            terms = terms - c.nu_collision * kp2 * f_s
+            terms = terms + self._jax_collide(f_s)
 
         # Hyperdiffusion
         kp2 = self._kperp2_j[:, :, None, None, None]
@@ -181,14 +263,62 @@ class JaxNonlinearGKSolver:
 
         return jnp.asarray(terms)
 
+    def _jax_gradient_drive(self, f: jnp.ndarray, phi: jnp.ndarray) -> jnp.ndarray:
+        ky_5d = self._ky_j[None, None, :, None, None, None]
+        vpar2 = self._vpar_j[None, None, None, None, :, None] ** 2
+        vpar_6d = self._vpar_j[None, None, None, None, :, None]
+        mu_val = self._mu_j[None, None, None, None, None, :]
+        energy = 0.5 * vpar2 + mu_val
+        FM = jnp.exp(-energy) / jnp.pi**1.5
+        phi_6d = phi[None, :, :, :, None, None]
+
+        if self.cfg.electromagnetic:
+            A_par = self._jax_ampere_solve(f)
+            phi_eff = phi_6d - vpar_6d * A_par[None, :, :, :, None, None]
+        else:
+            phi_eff = phi_6d
+
+        dfdt = jnp.zeros_like(f)
+
+        eta_i = self.cfg.R_L_Ti / max(self.cfg.R_L_ne, 0.1)
+        omega_star_i = ky_5d * self.cfg.R_L_ne * (1.0 + eta_i * (energy - 1.5))
+        dfdt = dfdt.at[0].add((-1j * omega_star_i * phi_eff * FM)[0])
+
+        if self.cfg.kinetic_electrons:
+            eta_e = self.cfg.R_L_Te / max(self.cfg.R_L_ne, 0.1)
+            omega_star_e = -ky_5d * self.cfg.R_L_ne * (1.0 + eta_e * (energy - 1.5))
+            dfdt = dfdt.at[1].add((-1j * omega_star_e * phi_eff * FM)[0])
+
+        return dfdt
+
+    def _jax_cfl_dt(self, phi: jnp.ndarray) -> float:
+        c = self.cfg
+        if not c.cfl_adapt:
+            return float(c.dt)
+
+        phi_max = float(jnp.max(jnp.abs(phi))) + 1e-30
+        kmax = max(
+            float(jnp.max(jnp.abs(self._kx_j))),
+            float(jnp.max(jnp.abs(self._ky_j))),
+        )
+        vmax = float(jnp.max(jnp.abs(self._vpar_j)))
+        v_scale = 1.0
+        if c.kinetic_electrons and not c.implicit_electrons:
+            v_scale = self._np_solver.vth_ratio_e
+        bdg_max = float(jnp.max(jnp.abs(self._b_dot_grad_j))) * v_scale
+        v_hyper = c.hyper_coeff * float(jnp.max(self._kperp2_j)) ** (c.hyper_order // 2)
+
+        v_exb = kmax**2 * phi_max
+        v_par_eff = vmax * bdg_max
+        dt_cfl = c.cfl_factor / max(v_exb + v_par_eff + v_hyper, 1e-30)
+        return float(min(dt_cfl, c.dt))
+
     # ------------------------------------------------------------------
     # JAX RK4 step
     # ------------------------------------------------------------------
 
     def _jax_rk4_step(self, f: jnp.ndarray, dt: float) -> jnp.ndarray:
         """Single RK4 step with checkpointing."""
-        phi0 = self._jax_field_solve(f)
-
         def rhs_full(f_in: jnp.ndarray) -> jnp.ndarray:
             phi = self._jax_field_solve(f_in)
             dfdt = jnp.zeros_like(f_in)
@@ -196,39 +326,7 @@ class JaxNonlinearGKSolver:
                 if s == 1 and not self.cfg.kinetic_electrons:
                     continue
                 dfdt = dfdt.at[s].set(self._jax_rhs_species(f_in[s], phi, s))
-            # Gradient drive
-            ky_5d = self._ky_j[None, None, :, None, None, None]
-            vpar2 = self._vpar_j[None, None, None, None, :, None] ** 2
-            mu_val = self._mu_j[None, None, None, None, None, :]
-            energy = 0.5 * vpar2 + mu_val
-            FM = jnp.exp(-energy) / jnp.pi**1.5
-            phi_6d = phi[None, :, :, :, None, None]
-            # EM: effective potential φ_eff = φ - v_∥ A_∥
-            if self.cfg.electromagnetic:
-                # JAX-native Ampere: k_perp² A_∥ = β_e ∫ v_∥ h_i dv
-                dv = self._np_solver.dvpar * self._np_solver.dmu
-                vpar_vel = self._vpar_j[None, None, None, :, None]
-                j_par = jnp.sum(vpar_vel * f_in[0], axis=(-2, -1)) * dv
-                if self.cfg.kinetic_electrons:
-                    j_par = j_par - self._np_solver.vth_ratio_e * jnp.sum(vpar_vel * f_in[1], axis=(-2, -1)) * dv
-                kp2 = self._kperp2_j[:, :, None]
-                A_par = self.cfg.beta_e * j_par / jnp.maximum(kp2, 1e-10)
-                A_par = A_par.at[0, 0, :].set(0.0)
-                A_6d = A_par[None, :, :, :, None, None]
-                vpar_6d = self._vpar_j[None, None, None, None, :, None]
-                phi_eff = phi_6d - vpar_6d * A_6d
-            else:
-                phi_eff = phi_6d
-            # Ion drive
-            eta_i = self.cfg.R_L_Ti / max(self.cfg.R_L_ne, 0.1)
-            omega_star_i = ky_5d * self.cfg.R_L_ne * (1.0 + eta_i * (energy - 1.5))
-            dfdt = dfdt.at[0].add((-1j * omega_star_i * phi_eff * FM)[0])
-            # Electron drive (kinetic only)
-            if self.cfg.kinetic_electrons:
-                eta_e = self.cfg.R_L_Te / max(self.cfg.R_L_ne, 0.1)
-                omega_star_e = -ky_5d * self.cfg.R_L_ne * (1.0 + eta_e * (energy - 1.5))
-                dfdt = dfdt.at[1].add((-1j * omega_star_e * phi_eff * FM)[0])
-            return dfdt
+            return dfdt + self._jax_gradient_drive(f_in, phi)
 
         if _HAS_JAX:
             rhs_ckpt = jax.checkpoint(rhs_full)
@@ -258,18 +356,6 @@ class JaxNonlinearGKSolver:
         f = jnp.array(state.f)
         t = state.time
 
-        # Pre-compute CFL ceiling from grid parameters
-        kmax = max(
-            float(jnp.max(jnp.abs(self._kx_j))),
-            float(jnp.max(jnp.abs(self._ky_j))),
-        )
-        vmax = float(jnp.max(jnp.abs(self._vpar_j)))
-        v_scale = self._np_solver.vth_ratio_e if c.kinetic_electrons else 1.0
-        bdg_max = float(jnp.max(jnp.abs(self._b_dot_grad_j))) * v_scale
-        # Hyperdiffusion CFL ceiling
-        v_hyper = c.hyper_coeff * float(jnp.max(self._kperp2_j)) ** (c.hyper_order // 2)
-
-        n_saves = c.n_steps // c.save_interval + 1
         Q_i_list = []
         Q_e_list = []
         phi_rms_list = []
@@ -277,13 +363,8 @@ class JaxNonlinearGKSolver:
         time_list = []
 
         for step in range(c.n_steps):
-            # CFL-adaptive dt
             phi = self._jax_field_solve(f)
-            phi_max = float(jnp.max(jnp.abs(phi))) + 1e-30
-            v_exb = kmax * phi_max
-            v_par_eff = vmax * bdg_max
-            dt_cfl = c.cfl_factor / max(v_exb + v_par_eff + v_hyper, 1e-30)
-            dt = min(dt_cfl, c.dt)
+            dt = self._jax_cfl_dt(phi)
 
             f = self._jax_rk4_step(f, dt)
             t += dt
@@ -313,14 +394,17 @@ class JaxNonlinearGKSolver:
         n_half = max(len(Q_i_t) // 2, 1)
         chi_i = float(np.mean(Q_i_t[n_half:])) if len(Q_i_t) > 0 else 0.0
         chi_e = float(np.mean(Q_e_t[n_half:])) if len(Q_e_t) > 0 else 0.0
+        chi_i_gB = chi_i / max(c.R_L_Ti, 0.01)
 
         f_np = np.asarray(f)
         phi_np = np.asarray(self._jax_field_solve(f))
-        final = NonlinearGKState(f=f_np, phi=phi_np, time=float(t))
+        A_par_np = np.asarray(self._jax_ampere_solve(f)) if c.electromagnetic else None
+        final = NonlinearGKState(f=f_np, phi=phi_np, time=float(t), A_par=A_par_np)
 
         return NonlinearGKResult(
             chi_i=chi_i,
             chi_e=chi_e,
+            chi_i_gB=chi_i_gB,
             Q_i_t=Q_i_t,
             Q_e_t=Q_e_t,
             phi_rms_t=phi_rms_t,

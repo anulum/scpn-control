@@ -304,9 +304,18 @@ class NonlinearGKSolver:
             n_elec = np.sum(f_elec, axis=(-2, -1)) * self.dvpar * self.dmu
             b_e = 0.5 * self.kperp2 * self.rho_ratio_e**2
             Gamma0_e = 1.0 / (1.0 + b_e)
-            denom = (1.0 - Gamma0_i) + (1.0 - Gamma0_e)
+            # Modified adiabatic electron response for zonal modes (ky=0):
+            # electrons respond adiabatically to zonal perturbations but
+            # kinetically to drift waves. Without this, zonal flows are
+            # unregulated and transport diverges.
+            # Standard in GENE, GS2, CGYRO — see Dimits et al. 2000, §III.B.
+            ky_is_zero = (np.abs(self.ky[None, :]) < 1e-10).astype(float)
+            ky_nonzero = 1.0 - ky_is_zero
+            # ky≠0: full kinetic electron polarisation
+            # ky=0: adiabatic electron response (+1)
+            denom = (1.0 - Gamma0_i) + ky_nonzero * (1.0 - Gamma0_e) + ky_is_zero
             denom = np.maximum(denom, 1e-10)
-            rhs_qn = Gamma0_i[:, :, None] * n_ion - Gamma0_e[:, :, None] * n_elec
+            rhs_qn = Gamma0_i[:, :, None] * n_ion - ky_nonzero[:, :, None] * Gamma0_e[:, :, None] * n_elec
             phi = rhs_qn / denom[:, :, None]
         else:
             ky_nonzero = np.abs(self.ky[None, :]) > 1e-10
