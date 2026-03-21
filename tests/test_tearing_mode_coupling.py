@@ -134,3 +134,30 @@ def test_chirikov_parametric(w1: float, w2: float, delta_r: float, expected_stoc
         assert not is_s  # exactly 1.0 is not stochastic
     else:
         assert is_s == expected_stochastic
+
+
+def test_chirikov_parameter_delta_r_zero_returns_inf():
+    assert ChirikovOverlap.parameter(0.1, 0.1, 0.0) == float("inf")
+
+
+def test_chirikov_parameter_delta_r_negative_returns_inf():
+    assert ChirikovOverlap.parameter(0.05, 0.05, -0.3) == float("inf")
+
+
+def test_stochastic_region_width_overlapping():
+    w1, w2, delta_r = 0.4, 0.4, 0.2
+    width = ChirikovOverlap.stochastic_region_width(w1, w2, delta_r)
+    assert width == pytest.approx(delta_r + w1 / 2 + w2 / 2)
+
+
+def test_stochastic_region_width_non_overlapping():
+    width = ChirikovOverlap.stochastic_region_width(0.05, 0.05, 0.2)
+    assert width == 0.0
+
+
+def test_disruption_trigger_no_disruption_path():
+    c = CoupledTearingModes((3, 2), (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)
+    ass = DisruptionTriggerAssessment(c)
+    path = ass.run_scenario(j_bs=1e3, j_phi=1e6, omega_phi=1e4, seed_energy=0.01)
+    assert path.warning_time_ms == -1.0
+    assert path.avoidable is True

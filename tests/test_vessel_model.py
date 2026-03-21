@@ -117,3 +117,45 @@ def test_halo_em_force_positive():
     F = halo_em_force(halo_current_a=1e6, b_poloidal=0.5, path_length=2.0)
     assert F > 0.0
     assert F == pytest.approx(1e6 * 0.5 * 2.0)
+
+
+def test_singular_inductance_matrix(monkeypatch):
+    el1 = VesselElement(R=1.0, Z=0.0, resistance=1e-3, cross_section=0.01, inductance=1e-6)
+    el2 = VesselElement(R=2.0, Z=0.0, resistance=1e-3, cross_section=0.01, inductance=1e-6)
+
+    def _inv_raise(m):
+        raise np.linalg.LinAlgError("singular")
+
+    monkeypatch.setattr(np.linalg, "inv", _inv_raise)
+    model = VesselModel([el1, el2])
+    np.testing.assert_array_equal(model.M_inv, np.zeros((2, 2)))
+
+
+def test_mutual_inductance_coincident_returns_zero():
+    el = VesselElement(R=0.0, Z=0.0, resistance=1e-3, cross_section=0.01, inductance=1e-6)
+    model = VesselModel([el])
+    assert model._mutual_inductance(0.0, 0.0, 0.0, 0.0) == 0.0
+
+
+def test_step_nonpositive_dt_returns_unchanged():
+    el = VesselElement(R=1.0, Z=0.0, resistance=1e-3, cross_section=0.01, inductance=1e-6)
+    model = VesselModel([el])
+    model.I = np.array([42.0])
+    result = model.step(0.0, np.array([10.0]))
+    assert result[0] == pytest.approx(42.0)
+    result = model.step(-1.0, np.array([10.0]))
+    assert result[0] == pytest.approx(42.0)
+
+
+def test_psi_vessel_skips_zero_current():
+    el1 = VesselElement(R=1.0, Z=0.0, resistance=1e-3, cross_section=0.01, inductance=1e-6)
+    el2 = VesselElement(R=2.0, Z=0.0, resistance=1e-3, cross_section=0.01, inductance=1e-6)
+    model = VesselModel([el1, el2])
+    model.I = np.array([0.0, 100.0])
+    R_obs = np.array([1.5])
+    Z_obs = np.array([0.0])
+    psi = model.psi_vessel(R_obs, Z_obs)
+    model2 = VesselModel([el2])
+    model2.I = np.array([100.0])
+    psi2 = model2.psi_vessel(R_obs, Z_obs)
+    assert psi[0] == pytest.approx(psi2[0], rel=1e-6)

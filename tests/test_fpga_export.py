@@ -14,6 +14,7 @@ import pytest
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.fpga_export import (
     FPGAConfig,
+    _leak_shift,
     compile_to_verilog,
     compile_to_vhdl,
     estimate_resources,
@@ -190,3 +191,69 @@ class TestFPGAConfigValidation:
         cfg = FPGAConfig(n_neurons_max=1)
         with pytest.raises(ValueError, match="exceeds"):
             compile_to_verilog(cnet, cfg)
+
+    def test_invalid_n_neurons_max(self):
+        with pytest.raises(ValueError, match="n_neurons_max"):
+            FPGAConfig(n_neurons_max=0)
+
+    def test_invalid_fifo_depth(self):
+        with pytest.raises(ValueError, match="fifo_depth"):
+            FPGAConfig(fifo_depth=0)
+
+
+class TestLeakShift:
+    def test_tau_mem_zero_returns_zero(self):
+        assert _leak_shift(0.0, 1.0) == 0
+
+    def test_tau_mem_negative_returns_zero(self):
+        assert _leak_shift(-1.0, 1.0) == 0
+
+    def test_dt_zero_returns_zero(self):
+        assert _leak_shift(1.0, 0.0) == 0
+
+    def test_ratio_leq_one_returns_zero(self):
+        assert _leak_shift(1.0, 1.0) == 0
+        assert _leak_shift(0.5, 1.0) == 0
+
+    def test_normal_ratio(self):
+        shift = _leak_shift(8.0, 1.0)
+        assert shift == 3
+
+
+class TestCompileToVHDLExceedsMax:
+    def test_vhdl_exceeds_neuron_max(self):
+        cnet = _compile_small_net()
+        cfg = FPGAConfig(n_neurons_max=1)
+        with pytest.raises(ValueError, match="exceeds"):
+            compile_to_vhdl(cnet, cfg)
+
+
+class TestWeightsMemZeroPad:
+    def test_zero_padded_weight_entries(self, tmp_path):
+        net = StochasticPetriNet()
+        net.add_place("P0", initial_tokens=0.8)
+        net.add_transition("T0", threshold=0.5)
+        net.add_transition("T1", threshold=0.6)
+        net.add_transition("T2", threshold=0.7)
+        net.add_arc("P0", "T0", weight=0.6)
+        net.add_arc("T0", "P0", weight=0.9)
+        net.add_arc("P0", "T1", weight=0.4)
+        net.add_arc("T1", "P0", weight=0.3)
+        net.add_arc("P0", "T2", weight=0.5)
+        net.add_arc("T2", "P0", weight=0.2)
+        compiler = FusionCompiler(bitstream_length=256, seed=7)
+        cnet = compiler.compile(net)
+        assert cnet.n_transitions > cnet.n_places
+
+        cfg = FPGAConfig()
+        out = tmp_path / "fpga_pad"
+        export_bitstream_project(cnet, cfg, out)
+        lines = [ln for ln in (out / "weights.mem").read_text().splitlines() if ln.strip()]
+        n = cnet.n_transitions
+        hw = (cfg.lif_bit_width + 3) // 4
+        assert len(lines) == n * n
+        for i in range(n):
+            for j in range(n):
+                idx = i * n + j
+                if j >= cnet.n_places:
+                    assert lines[idx].strip() == "0" * hw

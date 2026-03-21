@@ -102,3 +102,13 @@ def test_vmec_force_balance_residual():
     assert np.isfinite(res.force_residual)
     # Convergence to within a reasonable bound (not asking for full physics)
     assert res.force_residual < 1.0
+
+
+def test_vmec_converges_with_loose_tolerance():
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    b_R, b_Z = AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=1.7, delta=0.33)
+    solver.set_boundary(b_R, b_Z)
+    solver.set_profiles(np.zeros(11), np.linspace(1.0, 0.3, 11))
+    res = solver.solve(max_iter=500, tol=1e10)
+    assert res.converged is True
+    assert res.force_residual < 1e10

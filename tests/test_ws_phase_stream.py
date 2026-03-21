@@ -163,3 +163,39 @@ class TestPhaseStreamServer:
                 await server.serve()
 
         asyncio.run(_run())
+
+    def test_serve_creates_tick_task_and_starts_websocket_server(self, monkeypatch):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01)
+
+            serve_called = {}
+
+            class _FakeServeCtx:
+                def __init__(self, handler, host, port):
+                    serve_called["handler"] = handler
+                    serve_called["host"] = host
+                    serve_called["port"] = port
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    pass
+
+            import types
+            fake_ws = types.ModuleType("websockets")
+            fake_ws.serve = _FakeServeCtx
+            monkeypatch.setitem(sys.modules, "websockets", fake_ws)
+
+            async def _stop_tick():
+                await asyncio.sleep(0.02)
+                server._running = False
+
+            stop_task = asyncio.create_task(_stop_tick())
+            await server.serve(host="127.0.0.1", port=9999)
+            await stop_task
+            assert serve_called["host"] == "127.0.0.1"
+            assert serve_called["port"] == 9999
+
+        asyncio.run(_run())

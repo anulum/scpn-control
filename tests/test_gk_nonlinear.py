@@ -615,8 +615,120 @@ class TestJaxFallback:
         result = solver.run()
         assert result.converged or len(result.Q_i_t) > 0
         assert np.all(np.isfinite(result.Q_i_t))
+        if np.isfinite(result.chi_i):
+            expected = result.chi_i / max(_FAST_CFG.R_L_Ti, 0.01)
+            assert abs(result.chi_i_gB - expected) < 1e-10
 
     def test_jax_available_bool(self):
         from scpn_control.core.jax_gk_nonlinear import jax_available
 
         assert isinstance(jax_available(), bool)
+
+
+class TestJaxV019Parity:
+    def test_jax_ampere_solve_matches_numpy_with_skin_depth(self):
+        from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver, jax_available
+
+        if not jax_available():
+            return
+
+        import jax.numpy as jnp
+
+        cfg = NonlinearGKConfig(
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            electromagnetic=True,
+            beta_e=0.01,
+            d_e_sq=1.0,
+            kinetic_electrons=True,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
+        )
+        np_solver = NonlinearGKSolver(cfg)
+        jax_solver = JaxNonlinearGKSolver(cfg)
+        state = np_solver.init_state(amplitude=1e-5, seed=42)
+
+        A_np = np_solver.ampere_solve(state.f)
+        A_jax = np.asarray(jax_solver._jax_ampere_solve(jnp.array(state.f)))
+        np.testing.assert_allclose(A_jax, A_np, rtol=1e-6, atol=1e-8)
+
+    def test_jax_cfl_uses_k_squared(self):
+        from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver, jax_available
+
+        if not jax_available():
+            return
+
+        import jax.numpy as jnp
+
+        cfg = NonlinearGKConfig(
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            dt=1.0,
+            Lx=6.0,
+            Ly=6.0,
+            cfl_adapt=True,
+            cfl_factor=0.5,
+            collisions=False,
+            hyper_coeff=0.0,
+            nonlinear=True,
+            R_L_Ti=0.0,
+            R_L_Te=0.0,
+            R_L_ne=0.0,
+        )
+        solver = JaxNonlinearGKSolver(cfg)
+        state = solver._np_solver.init_state(amplitude=1e-3)
+        phi = solver._jax_field_solve(jnp.array(state.f))
+
+        dt_val = solver._jax_cfl_dt(phi)
+        phi_max = np.max(np.abs(np.asarray(phi))) + 1e-30
+        kmax = max(np.max(np.abs(solver._np_solver.kx)), np.max(np.abs(solver._np_solver.ky)))
+        vmax = max(np.max(np.abs(solver._np_solver.vpar)), 1.0)
+        v_par_eff = vmax * np.max(np.abs(solver._np_solver.b_dot_grad))
+        dt_expected = cfg.cfl_factor / max(kmax**2 * phi_max + v_par_eff, 1e-30)
+        np.testing.assert_allclose(dt_val, min(dt_expected, cfg.dt), rtol=1e-8)
+
+    def test_jax_sugama_conserves_moments(self):
+        from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver, jax_available
+
+        if not jax_available():
+            return
+
+        import jax.numpy as jnp
+
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=8,
+            n_mu=4,
+            collisions=True,
+            collision_model="sugama",
+            nu_collision=0.1,
+            dt=0.01,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
+        )
+        solver = JaxNonlinearGKSolver(cfg)
+        state = solver._np_solver.init_state(amplitude=1e-4, seed=42)
+        Cf = np.asarray(solver._jax_collide_sugama(jnp.array(state.f[0])))
+
+        density = np.sum(Cf, axis=(-2, -1)) * solver._np_solver.dvpar * solver._np_solver.dmu
+        vpar_5d = solver._np_solver.vpar[None, None, None, :, None]
+        momentum = np.sum(Cf * vpar_5d, axis=(-2, -1)) * solver._np_solver.dvpar * solver._np_solver.dmu
+        vpar2 = solver._np_solver.vpar[None, None, None, :, None] ** 2
+        mu_val = solver._np_solver.mu[None, None, None, None, :]
+        energy = 0.5 * vpar2 + mu_val
+        energy_moment = np.sum(Cf * energy, axis=(-2, -1)) * solver._np_solver.dvpar * solver._np_solver.dmu
+
+        np.testing.assert_allclose(density, 0.0, atol=1e-5)
+        np.testing.assert_allclose(momentum, 0.0, atol=1e-5)
+        np.testing.assert_allclose(energy_moment, 0.0, atol=1e-5)

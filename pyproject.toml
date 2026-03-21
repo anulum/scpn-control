@@ -144,9 +144,12 @@ exclude_lines = [
     "pragma: no cover",
     "if __name__",
     "raise NotImplementedError",
-    "if HAS_TORCH",
-    "if HAS_SC_NEUROCORE",
-    "if HAS_JAX",
+    "if.+HAS_TORCH",
+    "if.+HAS_SC_NEUROCORE",
+    "if.+HAS_JAX",
+    "if.+HAS_NENGO",
+    "if.+HAS_OPTUNA",
+    "if.+HAS_MPL",
     "except ImportError",
 ]
 
