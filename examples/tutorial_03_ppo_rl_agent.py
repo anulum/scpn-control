@@ -119,7 +119,7 @@ for step in range(500):
 
 print(f"  Random policy reward: {total_reward:.1f} (500 steps)")
 print(f"  Final T_axis: {obs[0]:.2f} keV")
-print(f"  (Random policy serves as a lower bound)")
+print("  (Random policy serves as a lower bound)")
 
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║ Section 4: PPO Training (Short Demo)                            ║
@@ -157,7 +157,8 @@ try:
 
     gym_env = _GymWrapper(TokamakEnv(dt=1e-3, max_steps=500, T_target=20.0, seed=42))
     model = PPO(
-        "MlpPolicy", gym_env,
+        "MlpPolicy",
+        gym_env,
         learning_rate=3e-4,
         n_steps=256,
         batch_size=64,
@@ -180,7 +181,7 @@ try:
 
     print(f"  PPO (5K demo) reward: {total_reward:.1f}")
     print(f"  Final T_axis: {obs[0]:.2f} keV")
-    print(f"  (Full 500K training yields reward ~143.7)")
+    print("  (Full 500K training yields reward ~143.7)")
 
 except ImportError:
     print("  stable-baselines3 or gymnasium not installed.")
@@ -223,7 +224,7 @@ if ppo_zip.exists():
 
         print(f"  Mean reward:  {np.mean(rewards):.1f} +/- {np.std(rewards):.1f}")
         print(f"  Per seed:     {', '.join(f'{r:.1f}' for r in rewards)}")
-        print(f"  Disruptions:  0/3")
+        print("  Disruptions:  0/3")
 
     except (ImportError, NameError):
         print("  Skipped (requires stable-baselines3 + gymnasium).")
@@ -241,7 +242,7 @@ print("═" * 60)
 print("  Published results (500K training, 3-seed average):")
 print()
 print(f"  {'Controller':>12s}  {'Reward':>8s}  {'Disruption':>10s}")
-print(f"  {'─'*12}  {'─'*8}  {'─'*10}")
+print(f"  {'─' * 12}  {'─' * 8}  {'─' * 10}")
 print(f"  {'PPO':>12s}  {'143.7':>8s}  {'0%':>10s}")
 print(f"  {'MPC':>12s}  {'58.1':>8s}  {'0%':>10s}")
 print(f"  {'PID':>12s}  {'-912.3':>8s}  {'0%':>10s}")

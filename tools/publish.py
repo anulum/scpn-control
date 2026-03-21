@@ -30,6 +30,7 @@ For CI-based publishing, use the GitHub Actions workflow instead::
     .github/workflows/publish-pypi.yml
     # Triggered by git tag: git tag v0.2.0 && git push --tags
 """
+
 from __future__ import annotations
 
 import argparse
@@ -106,11 +107,19 @@ def upload(target: str):
 
 def run_tests():
     env_flag = "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1"
-    _run([
-        sys.executable, "-m", "pytest",
-        "-p", "hypothesis.extra.pytestplugin",
-        "tests/", "-x", "-q", "--tb=short",
-    ])
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-p",
+            "hypothesis.extra.pytestplugin",
+            "tests/",
+            "-x",
+            "-q",
+            "--tb=short",
+        ]
+    )
 
 
 def main():
@@ -120,31 +129,36 @@ def main():
         epilog=__doc__,
     )
     parser.add_argument(
-        "--target", choices=["pypi", "testpypi"], default="testpypi",
+        "--target",
+        choices=["pypi", "testpypi"],
+        default="testpypi",
         help="Upload target (default: testpypi)",
     )
     parser.add_argument(
-        "--bump", choices=["major", "minor", "patch"],
+        "--bump",
+        choices=["major", "minor", "patch"],
         help="Bump version before publishing",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="Build and check only, do not upload",
     )
     parser.add_argument(
-        "--skip-tests", action="store_true",
+        "--skip-tests",
+        action="store_true",
         help="Skip pytest before building",
     )
     parser.add_argument(
-        "--confirm", action="store_true",
+        "--confirm",
+        action="store_true",
         help="Required for PyPI uploads (safety gate)",
     )
     args = parser.parse_args()
 
     if args.target == "pypi" and not args.dry_run and not args.confirm:
         raise SystemExit(
-            "PyPI upload requires --confirm flag. "
-            "Use --dry-run to preview, or --target testpypi for testing."
+            "PyPI upload requires --confirm flag. Use --dry-run to preview, or --target testpypi for testing."
         )
 
     print("=" * 60)

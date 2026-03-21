@@ -119,9 +119,11 @@ rho_j = jnp.asarray(rho, dtype=jnp.float64)
 
 from scpn_control.core.jax_solvers import _cn_step_jax  # type: ignore[attr-defined]
 
+
 def axis_temp_vs_dt(dt_val):
     T_out = _cn_step_jax(T_j, chi_j, src_j, rho_j, drho, dt_val, 0.1)
     return T_out[0]
+
 
 grad_fn = jax.grad(axis_temp_vs_dt)
 dT_ddt = float(grad_fn(jnp.float64(1e-4)))
@@ -143,17 +145,10 @@ print("═" * 60)
 # One JIT'd call processes all ensemble members simultaneously.
 
 n_ensemble = 100
-T_batch = np.stack(
-    [
-        (10.0 + 2.0 * np.random.randn()) * (1.0 - rho**2)
-        for _ in range(n_ensemble)
-    ]
-)
+T_batch = np.stack([(10.0 + 2.0 * np.random.randn()) * (1.0 - rho**2) for _ in range(n_ensemble)])
 
 t0 = time.perf_counter()
-T_out = batched_crank_nicolson(
-    T_batch, chi, source, rho, drho, dt=1e-4, T_edge=0.1
-)
+T_out = batched_crank_nicolson(T_batch, chi, source, rho, drho, dt=1e-4, T_edge=0.1)
 elapsed = time.perf_counter() - t0
 
 print(f"  Ensemble size: {n_ensemble}")
@@ -177,11 +172,17 @@ from scpn_control.core.jax_gs_solver import jax_gs_solve
 # Entire pipeline is jax.grad-compatible.
 
 psi = jax_gs_solve(
-    R_min=0.1, R_max=2.0, Z_min=-1.5, Z_max=1.5,
-    NR=33, NZ=33, Ip_target=1e6,
-    n_picard=40, n_jacobi=100,
+    R_min=0.1,
+    R_max=2.0,
+    Z_min=-1.5,
+    Z_max=1.5,
+    NR=33,
+    NZ=33,
+    Ip_target=1e6,
+    n_picard=40,
+    n_jacobi=100,
 )
-print(f"  Grid: 33x33, Picard=40, Jacobi=100")
+print("  Grid: 33x33, Picard=40, Jacobi=100")
 print(f"  max|ψ| = {float(np.max(np.abs(psi))):.4e} Wb")
 print(f"  ψ shape: {psi.shape}")
 
@@ -201,8 +202,10 @@ from scpn_control.core.jax_gs_solver import jax_gs_grad_Ip
 try:
     grad = jax_gs_grad_Ip(
         Ip_target=1e6,
-        n_picard=10, n_jacobi=30,
-        NR=17, NZ=17,
+        n_picard=10,
+        n_jacobi=30,
+        NR=17,
+        NZ=17,
     )
     print(f"  d(Σ|ψ|)/d(Ip) = {grad:.6e}")
     print(f"  Sign: {'positive (more current → more flux)' if grad > 0 else 'negative'}")
@@ -210,14 +213,26 @@ try:
     # Verify with finite difference
     eps = 1e3
     psi_p = jax_gs_solve(
-        R_min=0.1, R_max=2.0, Z_min=-1.5, Z_max=1.5,
-        NR=17, NZ=17, Ip_target=1e6 + eps,
-        n_picard=10, n_jacobi=30,
+        R_min=0.1,
+        R_max=2.0,
+        Z_min=-1.5,
+        Z_max=1.5,
+        NR=17,
+        NZ=17,
+        Ip_target=1e6 + eps,
+        n_picard=10,
+        n_jacobi=30,
     )
     psi_m = jax_gs_solve(
-        R_min=0.1, R_max=2.0, Z_min=-1.5, Z_max=1.5,
-        NR=17, NZ=17, Ip_target=1e6 - eps,
-        n_picard=10, n_jacobi=30,
+        R_min=0.1,
+        R_max=2.0,
+        Z_min=-1.5,
+        Z_max=1.5,
+        NR=17,
+        NZ=17,
+        Ip_target=1e6 - eps,
+        n_picard=10,
+        n_jacobi=30,
     )
     fd_grad = (float(np.sum(np.abs(psi_p))) - float(np.sum(np.abs(psi_m)))) / (2 * eps)
     print(f"  Finite diff:    {fd_grad:.6e}")

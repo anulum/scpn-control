@@ -8,6 +8,7 @@ Measures the full Python-side latency of:
 Run: pytest benches/bench_fusion_snn_hook.py -v
 Requires: pytest-benchmark
 """
+
 from __future__ import annotations
 
 import json
@@ -18,6 +19,7 @@ import pytest
 from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step
 
 # ── Minimal LIF layer (mirrors SNN controller hot path) ──────────────
+
 
 class LIFLayer:
     """Minimal LIF population for benchmarking."""
@@ -50,13 +52,13 @@ def rate_to_psi(spikes: np.ndarray, nu_max: float = 100.0) -> float:
 
 # ── Benchmarks ────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def rng():
     return np.random.default_rng(42)
 
 
 class TestFusionSNNHookBench:
-
     @pytest.mark.benchmark(group="phase_sync_step")
     @pytest.mark.parametrize("N", [256, 1000, 4096])
     def test_phase_sync_step_only(self, benchmark, rng, N):
@@ -64,9 +66,13 @@ class TestFusionSNNHookBench:
         omega = rng.normal(0, 0.5, N)
         benchmark(
             kuramoto_sakaguchi_step,
-            theta, omega,
-            dt=1e-3, K=2.0, zeta=0.5,
-            psi_driver=0.3, psi_mode="external",
+            theta,
+            omega,
+            dt=1e-3,
+            K=2.0,
+            zeta=0.5,
+            psi_driver=0.3,
+            psi_mode="external",
         )
 
     @pytest.mark.benchmark(group="snn_lif_step")
@@ -89,17 +95,20 @@ class TestFusionSNNHookBench:
             nonlocal theta, psi
             # Kuramoto step with current Ψ
             out = kuramoto_sakaguchi_step(
-                theta, omega, dt=1e-3, K=2.0, zeta=0.5,
-                psi_driver=psi, psi_mode="external",
+                theta,
+                omega,
+                dt=1e-3,
+                K=2.0,
+                zeta=0.5,
+                psi_driver=psi,
+                psi_mode="external",
             )
             theta = out["theta1"]
             R = out["R"]
             psi_r = out["Psi_r"]
 
             # Inject Kuramoto coherence into SNN synaptic current
-            i_syn = 10.0 + 5.0 * R * np.cos(
-                psi_r - np.linspace(0, 2 * np.pi, N_lif, endpoint=False)
-            )
+            i_syn = 10.0 + 5.0 * R * np.cos(psi_r - np.linspace(0, 2 * np.pi, N_lif, endpoint=False))
             spikes = lif.step(i_syn)
 
             # Decode spike rate → Ψ for next tick
@@ -121,13 +130,16 @@ class TestFusionSNNHookBench:
             psi = 0.0
             for _ in range(100):
                 out = kuramoto_sakaguchi_step(
-                    theta, omega, dt=1e-4, K=2.0, zeta=0.5,
-                    psi_driver=psi, psi_mode="external",
+                    theta,
+                    omega,
+                    dt=1e-4,
+                    K=2.0,
+                    zeta=0.5,
+                    psi_driver=psi,
+                    psi_mode="external",
                 )
                 theta = out["theta1"]
-                i_syn = 10.0 + 5.0 * out["R"] * np.cos(
-                    out["Psi_r"] - np.linspace(0, 2 * np.pi, N_lif, endpoint=False)
-                )
+                i_syn = 10.0 + 5.0 * out["R"] * np.cos(out["Psi_r"] - np.linspace(0, 2 * np.pi, N_lif, endpoint=False))
                 spikes = lif.step(i_syn)
                 psi = rate_to_psi(spikes)
             return out["R"]
@@ -149,6 +161,7 @@ class TestFusionSNNHookBench:
         cfg_path = tmp_path / "bench.json"
         cfg_path.write_text(json.dumps(cfg))
         from scpn_control.core.fusion_kernel import FusionKernel
+
         kernel = FusionKernel(str(cfg_path))
 
         N = 1000

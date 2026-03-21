@@ -114,9 +114,7 @@ class JaxNonlinearGKSolver:
             # Dimits et al. 2000, §III.B — standard in GENE/GS2/CGYRO
             ky_is_zero = (jnp.abs(self._ky_j[None, :]) < 1e-10).astype(float)
             ky_nonzero = 1.0 - ky_is_zero
-            denom = jnp.maximum(
-                (1.0 - Gamma0_i) + ky_nonzero * (1.0 - Gamma0_e) + ky_is_zero, 1e-10
-            )
+            denom = jnp.maximum((1.0 - Gamma0_i) + ky_nonzero * (1.0 - Gamma0_e) + ky_is_zero, 1e-10)
             rhs_qn = Gamma0_i[:, :, None] * n_ion - ky_nonzero[:, :, None] * Gamma0_e[:, :, None] * n_elec
             phi = rhs_qn / denom[:, :, None]
         else:
@@ -319,6 +317,7 @@ class JaxNonlinearGKSolver:
 
     def _jax_rk4_step(self, f: jnp.ndarray, dt: float) -> jnp.ndarray:
         """Single RK4 step with checkpointing."""
+
         def rhs_full(f_in: jnp.ndarray) -> jnp.ndarray:
             phi = self._jax_field_solve(f_in)
             dfdt = jnp.zeros_like(f_in)

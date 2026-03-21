@@ -6,6 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Kinetic Electron Dual Test
 """Test both kinetic electron modes on GPU: implicit (A) and reduced mass (B)."""
+
 from __future__ import annotations
 
 import json
@@ -21,18 +22,36 @@ def run_case(label: str, ke: bool, implicit: bool, mass_ratio: float, n_steps: i
 
     print(f"\n=== {label} ===", flush=True)
     cfg = NonlinearGKConfig(
-        n_kx=128, n_ky=16, n_theta=32, n_vpar=16, n_mu=8,
-        dt=0.05, n_steps=n_steps, save_interval=100,
-        R_L_Ti=6.9, R_L_Te=6.9, R_L_ne=2.2,
-        q=1.4, s_hat=0.78, R0=2.78, a=1.0, B0=2.0,
-        cfl_adapt=True, cfl_factor=0.5,
-        nonlinear=True, collisions=True, nu_collision=0.01, hyper_coeff=0.2,
-        kinetic_electrons=ke, implicit_electrons=implicit,
+        n_kx=128,
+        n_ky=16,
+        n_theta=32,
+        n_vpar=16,
+        n_mu=8,
+        dt=0.05,
+        n_steps=n_steps,
+        save_interval=100,
+        R_L_Ti=6.9,
+        R_L_Te=6.9,
+        R_L_ne=2.2,
+        q=1.4,
+        s_hat=0.78,
+        R0=2.78,
+        a=1.0,
+        B0=2.0,
+        cfl_adapt=True,
+        cfl_factor=0.5,
+        nonlinear=True,
+        collisions=True,
+        nu_collision=0.01,
+        hyper_coeff=0.2,
+        kinetic_electrons=ke,
+        implicit_electrons=implicit,
         mass_ratio_me_mi=mass_ratio,
     )
     # Implicit electrons use NumPy solver (JAX doesn't have the tridiag solve)
     if implicit:
         from scpn_control.core.gk_nonlinear import NonlinearGKSolver
+
         solver = NonlinearGKSolver(cfg)
     else:
         solver = JaxNonlinearGKSolver(cfg)
@@ -53,15 +72,20 @@ def run_case(label: str, ke: bool, implicit: bool, mass_ratio: float, n_steps: i
             pr = r.phi_rms_t[i]
             print(f"    t={r.time[i]:.2f} phi={pr:.3e} Q={r.Q_i_t[i]:.3e}", flush=True)
     return {
-        "label": label, "chi_i_gB": float(chi_gB) if np.isfinite(chi_gB) else None,
-        "elapsed_s": elapsed, "converged": bool(r.converged),
-        "phi_rms": r.phi_rms_t.tolist(), "Q_i": r.Q_i_t.tolist(), "time": r.time.tolist(),
+        "label": label,
+        "chi_i_gB": float(chi_gB) if np.isfinite(chi_gB) else None,
+        "elapsed_s": elapsed,
+        "converged": bool(r.converged),
+        "phi_rms": r.phi_rms_t.tolist(),
+        "Q_i": r.Q_i_t.tolist(),
+        "time": r.time.tolist(),
     }
 
 
 def main() -> None:
     try:
         import jax
+
         print(f"JAX {jax.__version__}, {jax.devices()}", flush=True)
     except ImportError:
         pass
@@ -70,15 +94,21 @@ def main() -> None:
 
     # B: Reduced mass ratio (JAX, fast)
     results["explicit_1_25"] = run_case(
-        "B: explicit, m_e/m_i=1/25", ke=True, implicit=False,
-        mass_ratio=1.0 / 25.0, n_steps=5000,
+        "B: explicit, m_e/m_i=1/25",
+        ke=True,
+        implicit=False,
+        mass_ratio=1.0 / 25.0,
+        n_steps=5000,
     )
 
     # A: Semi-implicit (NumPy only, slower per step but no electron CFL)
     # Use fewer steps since NumPy is ~60× slower per step
     results["implicit_1_400"] = run_case(
-        "A: implicit, m_e/m_i=1/400", ke=True, implicit=True,
-        mass_ratio=1.0 / 400.0, n_steps=200,
+        "A: implicit, m_e/m_i=1/400",
+        ke=True,
+        implicit=True,
+        mass_ratio=1.0 / 400.0,
+        n_steps=200,
     )
 
     out = Path("gpu_results")

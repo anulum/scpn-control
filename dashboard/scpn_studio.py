@@ -3,6 +3,7 @@
 
 Runs Kuramoto-Sakaguchi phase dynamics via scpn-control (no inlined engine).
 """
+
 from __future__ import annotations
 
 import threading
@@ -37,10 +38,7 @@ if "buffer" not in st.session_state:
 
 # -- Header --
 st.title("SCPN Phase Sync")
-st.caption(
-    "Kuramoto-Sakaguchi mean-field | Paper 27 Knm coupling | "
-    "[GitHub](https://github.com/anulum/scpn-control)"
-)
+st.caption("Kuramoto-Sakaguchi mean-field | Paper 27 Knm coupling | [GitHub](https://github.com/anulum/scpn-control)")
 
 # -- Sidebar --
 with st.sidebar:
@@ -62,8 +60,10 @@ with st.sidebar:
         st.session_state.stop.clear()
         st.session_state.buffer.clear()
         monitor = RealtimeMonitor.from_paper27(
-            L=layers, N_per=n_per,
-            zeta_uniform=zeta, psi_driver=psi,
+            L=layers,
+            N_per=n_per,
+            zeta_uniform=zeta,
+            psi_driver=psi,
         )
         st.session_state.thread = threading.Thread(
             target=_tick_loop,
@@ -78,13 +78,14 @@ with st.sidebar:
         st.session_state.running = False
 
 # -- Auto-start on first visit with defaults --
-if not st.session_state.running and (
-    st.session_state.thread is None or not st.session_state.thread.is_alive()
-):
+if not st.session_state.running and (st.session_state.thread is None or not st.session_state.thread.is_alive()):
     st.session_state.stop.clear()
     st.session_state.buffer.clear()
     monitor = RealtimeMonitor.from_paper27(
-        L=16, N_per=50, zeta_uniform=0.5, psi_driver=0.0,
+        L=16,
+        N_per=50,
+        zeta_uniform=0.5,
+        psi_driver=0.0,
     )
     st.session_state.thread = threading.Thread(
         target=_tick_loop,
@@ -98,9 +99,7 @@ if not st.session_state.running and (
 # -- Main --
 frames = list(st.session_state.buffer)
 is_live = (
-    st.session_state.thread is not None
-    and st.session_state.thread.is_alive()
-    and not st.session_state.stop.is_set()
+    st.session_state.thread is not None and st.session_state.thread.is_alive() and not st.session_state.stop.is_set()
 )
 
 c1, c2 = st.columns(2)
@@ -128,8 +127,10 @@ m4.metric("Guard", "PASS" if last["guard_approved"] else "HALT")
 # -- Charts --
 try:
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False

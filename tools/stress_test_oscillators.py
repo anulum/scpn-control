@@ -3,6 +3,7 @@ import numpy as np
 import scpn_control_rs as rs
 from scpn_control.phase.plasma_knm import plasma_omega
 
+
 def stress_test():
     print("SCPN-CONTROL: Oscillator Capacity Stress Test (16 Layers)")
     print("-" * 60)
@@ -16,8 +17,8 @@ def stress_test():
 
     omega_base = plasma_omega(L)
     dt = 0.001
-    K_flat = np.random.uniform(0, 0.5, L*L).astype(np.float64)
-    alpha_flat = np.zeros(L*L, dtype=np.float64)
+    K_flat = np.random.uniform(0, 0.5, L * L).astype(np.float64)
+    alpha_flat = np.zeros(L * L, dtype=np.float64)
     zeta = np.ones(L, dtype=np.float64) * 0.5
     Psi_global = 0.3
     pac_gamma = 1.0
@@ -28,7 +29,7 @@ def stress_test():
         total_n = L * n_per
 
         # Initialize phases and frequencies
-        theta_flat = np.random.uniform(0, 2*np.pi, total_n).astype(np.float64)
+        theta_flat = np.random.uniform(0, 2 * np.pi, total_n).astype(np.float64)
         omega_flat = np.concatenate([np.full(n_per, omega_base[m]) for m in range(L)]).astype(np.float64)
 
         # Warmup
@@ -56,6 +57,7 @@ def stress_test():
     else:
         print("-" * 60)
         print("Completed full sweep.")
+
 
 if __name__ == "__main__":
     stress_test()

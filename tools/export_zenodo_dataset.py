@@ -7,6 +7,7 @@ Usage:
 Upload the resulting zip manually at https://zenodo.org/deposit/new
 with metadata from .zenodo.json.
 """
+
 from __future__ import annotations
 
 import argparse

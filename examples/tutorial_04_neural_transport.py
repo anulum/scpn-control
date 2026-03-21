@@ -25,7 +25,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from scpn_control.core.neural_transport import (
     NeuralTransportModel,
-    TransportFluxes,
     TransportInputs,
     critical_gradient_model,
 )
@@ -75,7 +74,7 @@ print("═" * 60)
 
 print("  TransportInputs fields:")
 print(f"    {'Field':>10s}  {'Description':>30s}  {'Default':>8s}  {'Units':<12s}")
-print(f"    {'─'*10}  {'─'*30}  {'─'*8}  {'─'*12}")
+print(f"    {'─' * 10}  {'─' * 30}  {'─' * 8}  {'─' * 12}")
 fields = [
     ("rho", "normalized flux coordinate", "0.5", "[-]"),
     ("te_kev", "electron temperature", "5.0", "[keV]"),
@@ -112,13 +111,14 @@ scenarios = [
     ("Pedestal top", TransportInputs(rho=0.95, grad_ti=15.0, grad_te=14.0, q=5.0)),
 ]
 
-print(f"  {'Scenario':>18s}  {'ρ':>4s}  {'R/L_Ti':>6s}  {'R/L_Te':>6s}  "
-      f"{'χ_i':>6s}  {'χ_e':>6s}  {'Channel':>8s}")
-print(f"  {'─'*18}  {'─'*4}  {'─'*6}  {'─'*6}  {'─'*6}  {'─'*6}  {'─'*8}")
+print(f"  {'Scenario':>18s}  {'ρ':>4s}  {'R/L_Ti':>6s}  {'R/L_Te':>6s}  {'χ_i':>6s}  {'χ_e':>6s}  {'Channel':>8s}")
+print(f"  {'─' * 18}  {'─' * 4}  {'─' * 6}  {'─' * 6}  {'─' * 6}  {'─' * 6}  {'─' * 8}")
 for name, inp in scenarios:
     f = critical_gradient_model(inp)
-    print(f"  {name:>18s}  {inp.rho:4.2f}  {inp.grad_ti:6.1f}  {inp.grad_te:6.1f}  "
-          f"{f.chi_i:6.3f}  {f.chi_e:6.3f}  {f.channel:>8s}")
+    print(
+        f"  {name:>18s}  {inp.rho:4.2f}  {inp.grad_ti:6.1f}  {inp.grad_te:6.1f}  "
+        f"{f.chi_i:6.3f}  {f.chi_e:6.3f}  {f.channel:>8s}"
+    )
 
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║ Section 4: Gradient Scan                                        ║
@@ -157,11 +157,11 @@ weights_path = Path(__file__).resolve().parents[1] / "weights" / "neural_transpo
 try:
     model = NeuralTransportModel(weights_path=weights_path)
     print(f"  Neural model loaded from: {weights_path}")
-    print(f"  Architecture: 10→128→64→3 MLP")
+    print("  Architecture: 10→128→64→3 MLP")
     print()
 
     print(f"  {'R/L_Ti':>6s}  {'Analytic χ_i':>12s}  {'Neural χ_i':>10s}  {'Δ%':>6s}")
-    print(f"  {'─'*6}  {'─'*12}  {'─'*10}  {'─'*6}")
+    print(f"  {'─' * 6}  {'─' * 12}  {'─' * 10}  {'─' * 6}")
     for g in [3.0, 5.0, 6.0, 8.0, 10.0, 12.0]:
         inp = TransportInputs(rho=0.5, grad_ti=g, grad_te=g * 0.9, q=1.5)
         f_analytic = critical_gradient_model(inp)
@@ -209,22 +209,24 @@ for step in range(100):
     if step % 20 == 19:
         T_history.append(T.copy())
 
-print(f"  Grid: {nr} points, dt={dt*1e3:.1f} ms, 100 steps")
+print(f"  Grid: {nr} points, dt={dt * 1e3:.1f} ms, 100 steps")
 print(f"  Initial T_axis = {T_history[0][0]:.2f} keV")
 print(f"  Final T_axis   = {T_history[-1][0]:.4f} keV")
 print(f"  χ_core = {chi_profile[0]:.3f} m²/s, χ_edge = {chi_profile[-1]:.3f} m²/s")
 
 # Profile evolution table
 print(f"\n  {'Step':>5s}  {'T_axis':>7s}  {'T(0.3)':>7s}  {'T(0.5)':>7s}  {'T(0.7)':>7s}  {'T(0.9)':>7s}")
-print(f"  {'─'*5}  {'─'*7}  {'─'*7}  {'─'*7}  {'─'*7}  {'─'*7}")
+print(f"  {'─' * 5}  {'─' * 7}  {'─' * 7}  {'─' * 7}  {'─' * 7}  {'─' * 7}")
 for i, T_snap in enumerate(T_history):
     step_n = i * 20 if i > 0 else 0
     i03 = int(0.3 / drho)
     i05 = int(0.5 / drho)
     i07 = int(0.7 / drho)
     i09 = int(0.9 / drho)
-    print(f"  {step_n:5d}  {T_snap[0]:7.3f}  {T_snap[i03]:7.3f}  "
-          f"{T_snap[i05]:7.3f}  {T_snap[i07]:7.3f}  {T_snap[min(i09, nr-1)]:7.3f}")
+    print(
+        f"  {step_n:5d}  {T_snap[0]:7.3f}  {T_snap[i03]:7.3f}  "
+        f"{T_snap[i05]:7.3f}  {T_snap[i07]:7.3f}  {T_snap[min(i09, nr - 1)]:7.3f}"
+    )
 
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║ Summary                                                         ║

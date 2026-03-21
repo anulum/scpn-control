@@ -32,15 +32,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # ── JarvisLabs setup ──────────────────────────────────────────────
 
+
 def setup_jarvislabs(token: str):
     """Configure jlclient with token."""
     from jlclient import jarvisclient
+
     jarvisclient.token = token
     return jarvisclient
 
 
 def get_balance(jarvisclient):
     from jlclient.jarvisclient import User
+
     balance = User.get_balance()
     print(f"JarvisLabs balance: {balance}")
     return balance
@@ -48,6 +51,7 @@ def get_balance(jarvisclient):
 
 def list_instances(jarvisclient):
     from jlclient.jarvisclient import User
+
     instances = User.get_instances()
     print(f"Active instances: {len(instances)}")
     for inst in instances:
@@ -83,8 +87,8 @@ def wait_for_ready(instance, timeout: int = 300):
         try:
             # Refresh instance info
             inst = Instance.get_by_id(instance.machine_id)
-            if hasattr(inst, 'status') and inst.status == 'Running':
-                ssh_str = getattr(inst, 'ssh_str', None)
+            if hasattr(inst, "status") and inst.status == "Running":
+                ssh_str = getattr(inst, "ssh_str", None)
                 if ssh_str:
                     print(f"Instance ready! SSH: {ssh_str}")
                     return inst
@@ -101,15 +105,13 @@ def run_ssh_command(ssh_str: str, command: str, timeout: int = 1800):
     parts = ssh_str.strip().split()
     ssh_args = parts[1:]  # skip the 'ssh' prefix
 
-    full_cmd = ["ssh"] + ssh_args + [
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "ConnectTimeout=30",
-        command
-    ]
+    full_cmd = ["ssh"] + ssh_args + ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=30", command]
     print(f"[SSH] {command[:100]}...")
     result = subprocess.run(
         full_cmd,
-        capture_output=True, text=True, timeout=timeout,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
     )
     if result.stdout:
         print(result.stdout[-500:])
@@ -130,11 +132,7 @@ def scp_upload(ssh_str: str, local_path: str, remote_path: str):
         if p == "-p" and i + 1 < len(parts):
             port = parts[i + 1]
 
-    cmd = [
-        "scp", "-P", port,
-        "-o", "StrictHostKeyChecking=no",
-        "-r", local_path, f"{user_host}:{remote_path}"
-    ]
+    cmd = ["scp", "-P", port, "-o", "StrictHostKeyChecking=no", "-r", local_path, f"{user_host}:{remote_path}"]
     print(f"[SCP] {local_path} -> {remote_path}")
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
@@ -151,11 +149,7 @@ def scp_download(ssh_str: str, remote_path: str, local_path: str):
         if p == "-p" and i + 1 < len(parts):
             port = parts[i + 1]
 
-    cmd = [
-        "scp", "-P", port,
-        "-o", "StrictHostKeyChecking=no",
-        "-r", f"{user_host}:{remote_path}", local_path
-    ]
+    cmd = ["scp", "-P", port, "-o", "StrictHostKeyChecking=no", "-r", f"{user_host}:{remote_path}", local_path]
     print(f"[SCP] {remote_path} -> {local_path}")
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
@@ -214,11 +208,7 @@ def main():
             scp_upload(ssh, local, remote)
 
         # 4. Run training
-        train_cmd = (
-            "cd scpn-control && "
-            "export CUDA_VISIBLE_DEVICES='' && "
-            "bash tools/train_rl_upcloud.sh 500000 50"
-        )
+        train_cmd = "cd scpn-control && export CUDA_VISIBLE_DEVICES='' && bash tools/train_rl_upcloud.sh 500000 50"
         result = run_ssh_command(ssh, train_cmd, timeout=3600)
 
         # 5. Download results
@@ -229,14 +219,18 @@ def main():
         ]
         # Also download per-seed files
         for seed in [42, 123, 456]:
-            downloads.append((
-                f"scpn-control/weights/ppo_tokamak_seed{seed}.zip",
-                str(REPO_ROOT / "weights" / f"ppo_tokamak_seed{seed}.zip"),
-            ))
-            downloads.append((
-                f"scpn-control/weights/ppo_tokamak_seed{seed}.metrics.json",
-                str(REPO_ROOT / "weights" / f"ppo_tokamak_seed{seed}.metrics.json"),
-            ))
+            downloads.append(
+                (
+                    f"scpn-control/weights/ppo_tokamak_seed{seed}.zip",
+                    str(REPO_ROOT / "weights" / f"ppo_tokamak_seed{seed}.zip"),
+                )
+            )
+            downloads.append(
+                (
+                    f"scpn-control/weights/ppo_tokamak_seed{seed}.metrics.json",
+                    str(REPO_ROOT / "weights" / f"ppo_tokamak_seed{seed}.metrics.json"),
+                )
+            )
 
         for remote_path, local_path in downloads:
             scp_download(ssh, remote_path, local_path)
@@ -257,12 +251,15 @@ def main():
             results = json.loads(bench_path.read_text())
             for name in ["mpc", "pid", "ppo"]:
                 d = results[name]
-                print(f"  {name.upper():>4}: reward={d['mean_reward']:8.1f} +/- {d['std_reward']:5.1f}  "
-                      f"disruption={d['disruption_rate']*100:.0f}%")
+                print(
+                    f"  {name.upper():>4}: reward={d['mean_reward']:8.1f} +/- {d['std_reward']:5.1f}  "
+                    f"disruption={d['disruption_rate'] * 100:.0f}%"
+                )
 
     except Exception as e:
         print(f"\nERROR: {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:

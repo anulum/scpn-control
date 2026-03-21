@@ -20,9 +20,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from scpn_control.core.jax_gs_solver import jax_gs_solve
 
 psi = jax_gs_solve(
-    R_min=0.1, R_max=2.0, Z_min=-1.5, Z_max=1.5,
-    NR=33, NZ=33, Ip_target=1e6,
-    n_picard=40, n_jacobi=100,
+    R_min=0.1,
+    R_max=2.0,
+    Z_min=-1.5,
+    Z_max=1.5,
+    NR=33,
+    NZ=33,
+    Ip_target=1e6,
+    n_picard=40,
+    n_jacobi=100,
 )
 print(f"Equilibrium: {psi.shape} grid, max(|psi|) = {np.max(np.abs(psi)):.4e}")
 
@@ -59,11 +65,7 @@ net.compile()
 
 compiler = FusionCompiler()
 artifact = compiler.compile(net)
-print(
-    f"SNN compiler: {net.n_places} places -> "
-    f"{artifact.n_transitions} LIF neurons, "
-    f"W_in shape {artifact.W_in.shape}"
-)
+print(f"SNN compiler: {net.n_places} places -> {artifact.n_transitions} LIF neurons, W_in shape {artifact.W_in.shape}")
 
 # -- 4. JAX autodiff through full GS solve -------------------------------
 

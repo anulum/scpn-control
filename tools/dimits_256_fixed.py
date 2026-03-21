@@ -6,6 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Dimits Shift at n_kx=256 with CFL Fix
 """n_kx=256 Dimits: R/L_Ti=3 vs 6.9, hyper=0.02 for faster time advancement."""
+
 from __future__ import annotations
 
 import json
@@ -21,17 +22,32 @@ def run(label: str, rlt: float) -> dict:
 
     print(f"\n=== {label} ===", flush=True)
     cfg = NonlinearGKConfig(
-        n_kx=256, n_ky=16, n_theta=32, n_vpar=16, n_mu=8,
-        dt=0.05, n_steps=10000, save_interval=200,
-        R_L_Ti=rlt, R_L_Te=rlt, R_L_ne=2.2,
-        q=1.4, s_hat=0.78, R0=2.78, a=1.0, B0=2.0,
-        cfl_adapt=True, cfl_factor=0.5,
-        nonlinear=True, collisions=True, nu_collision=0.01,
+        n_kx=256,
+        n_ky=16,
+        n_theta=32,
+        n_vpar=16,
+        n_mu=8,
+        dt=0.05,
+        n_steps=10000,
+        save_interval=200,
+        R_L_Ti=rlt,
+        R_L_Te=rlt,
+        R_L_ne=2.2,
+        q=1.4,
+        s_hat=0.78,
+        R0=2.78,
+        a=1.0,
+        B0=2.0,
+        cfl_adapt=True,
+        cfl_factor=0.5,
+        nonlinear=True,
+        collisions=True,
+        nu_collision=0.01,
         hyper_coeff=0.02,  # reduced for faster dt at n_kx=256
     )
     solver = JaxNonlinearGKSolver(cfg)
     kx = solver._np_solver.kx
-    print(f"  kx_max={np.max(np.abs(kx)):.1f}, hyper_max={0.02*np.max(np.abs(kx))**4:.0f}", flush=True)
+    print(f"  kx_max={np.max(np.abs(kx)):.1f}, hyper_max={0.02 * np.max(np.abs(kx)) ** 4:.0f}", flush=True)
     t0 = time.perf_counter()
     r = solver.run()
     elapsed = time.perf_counter() - t0
@@ -48,16 +64,21 @@ def run(label: str, rlt: float) -> dict:
         for i in range(0, len(r.phi_rms_t), max(1, len(r.phi_rms_t) // 8)):
             print(f"    t={r.time[i]:.2f} phi={r.phi_rms_t[i]:.3e} Q={r.Q_i_t[i]:.3e}", flush=True)
     return {
-        "label": label, "R_L_Ti": rlt,
+        "label": label,
+        "R_L_Ti": rlt,
         "chi_i_gB": float(chi_gB) if np.isfinite(chi_gB) else None,
-        "elapsed_s": elapsed, "converged": bool(r.converged),
-        "phi_rms": r.phi_rms_t.tolist(), "Q_i": r.Q_i_t.tolist(), "time": r.time.tolist(),
+        "elapsed_s": elapsed,
+        "converged": bool(r.converged),
+        "phi_rms": r.phi_rms_t.tolist(),
+        "Q_i": r.Q_i_t.tolist(),
+        "time": r.time.tolist(),
     }
 
 
 def main() -> None:
     try:
         import jax
+
         print(f"JAX {jax.__version__}, {jax.devices()}", flush=True)
     except ImportError:
         pass

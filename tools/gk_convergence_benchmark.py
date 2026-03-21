@@ -8,12 +8,13 @@ Usage:
 
 Writes results to /tmp/gk_convergence.json after each run completes.
 """
+
 import json
 import time
-import sys
 
 # Verify JAX backend
 import jax
+
 devices = jax.devices()
 backend = jax.default_backend()
 print(f"JAX backend: {backend}, devices: {devices}", flush=True)
@@ -34,9 +35,9 @@ def save(results):
 
 
 def run_benchmark(name, config):
-    print(f"\n{'='*60}", flush=True)
+    print(f"\n{'=' * 60}", flush=True)
     print(f"[{name}] n_kx={config.n_kx} n_ky={config.n_ky} steps={config.n_steps} dt={config.dt}", flush=True)
-    print(f"{'='*60}", flush=True)
+    print(f"{'=' * 60}", flush=True)
     t0 = time.time()
     solver = JaxNonlinearGKSolver(config)
     result = solver.run()
@@ -60,9 +61,15 @@ def main():
     print("\n[CALIBRATION] 10 steps at n_kx=128 to estimate total time...", flush=True)
     t0 = time.time()
     c_cal = NonlinearGKConfig(
-        n_kx=128, n_ky=32, n_vpar=16, n_mu=8,
-        n_steps=10, dt=0.02, save_interval=10,
-        kinetic_electrons=False, beta_e=0.0,
+        n_kx=128,
+        n_ky=32,
+        n_vpar=16,
+        n_mu=8,
+        n_steps=10,
+        dt=0.02,
+        save_interval=10,
+        kinetic_electrons=False,
+        beta_e=0.0,
     )
     solver_cal = JaxNonlinearGKSolver(c_cal)
     _ = solver_cal.run()
@@ -82,18 +89,30 @@ def main():
 
     # 2. Adiabatic CBC
     c_adi = NonlinearGKConfig(
-        n_kx=128, n_ky=32, n_vpar=16, n_mu=8,
-        n_steps=n_steps_main, dt=0.02, save_interval=max(n_steps_main // 10, 1),
-        kinetic_electrons=False, beta_e=0.0,
+        n_kx=128,
+        n_ky=32,
+        n_vpar=16,
+        n_mu=8,
+        n_steps=n_steps_main,
+        dt=0.02,
+        save_interval=max(n_steps_main // 10, 1),
+        kinetic_electrons=False,
+        beta_e=0.0,
     )
     results["adiabatic"] = run_benchmark("ADIABATIC", c_adi)
     save(results)
 
     # 3. Kinetic electrons
     c_kin = NonlinearGKConfig(
-        n_kx=128, n_ky=32, n_vpar=16, n_mu=8,
-        n_steps=n_steps_main, dt=0.02, save_interval=max(n_steps_main // 10, 1),
-        kinetic_electrons=True, beta_e=0.01,
+        n_kx=128,
+        n_ky=32,
+        n_vpar=16,
+        n_mu=8,
+        n_steps=n_steps_main,
+        dt=0.02,
+        save_interval=max(n_steps_main // 10, 1),
+        kinetic_electrons=True,
+        beta_e=0.01,
     )
     results["kinetic"] = run_benchmark("KINETIC", c_kin)
     save(results)
@@ -101,9 +120,15 @@ def main():
     # 4. Grid convergence scan (adiabatic, 500 steps each)
     for nkx in [64, 256]:
         c_grid = NonlinearGKConfig(
-            n_kx=nkx, n_ky=32, n_vpar=16, n_mu=8,
-            n_steps=500, dt=0.02, save_interval=50,
-            kinetic_electrons=False, beta_e=0.0,
+            n_kx=nkx,
+            n_ky=32,
+            n_vpar=16,
+            n_mu=8,
+            n_steps=500,
+            dt=0.02,
+            save_interval=50,
+            kinetic_electrons=False,
+            beta_e=0.0,
         )
         results[f"grid_nkx{nkx}"] = run_benchmark(f"GRID nkx={nkx}", c_grid)
         save(results)

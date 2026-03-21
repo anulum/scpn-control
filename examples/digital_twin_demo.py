@@ -8,10 +8,10 @@ sensor fault injection.
 Usage:
     python examples/digital_twin_demo.py
 """
+
 from __future__ import annotations
 
 import json
-import sys
 
 import numpy as np
 
@@ -84,9 +84,7 @@ def main() -> None:
             "gamma": float(ctrl.gamma),
             "gain_margin_db": float(ctrl.gain_margin_db),
             "final_error": float(errors[-1]),
-            "converged_step": next(
-                (i for i, e in enumerate(errors) if e < 0.01 * errors[0]), steps
-            ),
+            "converged_step": next((i for i, e in enumerate(errors) if e < 0.01 * errors[0]), steps),
         },
     }
 

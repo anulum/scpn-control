@@ -11,7 +11,7 @@ from scpn_control.core.gk_quasilinear import (
     mixing_length_saturation,
     quasilinear_fluxes_from_spectrum,
 )
-from scpn_control.core.gk_species import GKSpecies, deuterium_ion, electron
+from scpn_control.core.gk_species import deuterium_ion, electron
 
 
 def test_mixing_length_positive_gamma():

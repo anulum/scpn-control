@@ -6,6 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Kinetic Electron Comparison
 """Kinetic electron benchmark: compare adiabatic vs kinetic at CBC."""
+
 from __future__ import annotations
 
 import json
@@ -60,9 +61,7 @@ def run_case(label: str, kinetic_e: bool, n_steps: int = 5000) -> dict:
     phi_lq = r.phi_rms_t[n4:]
     late_growth = 0.0
     if len(phi_lq) > 2 and phi_lq[0] > 0:
-        late_growth = (phi_lq[-1] - phi_lq[0]) / (
-            phi_lq[0] * max(r.time[-1] - r.time[n4], 0.01)
-        )
+        late_growth = (phi_lq[-1] - phi_lq[0]) / (phi_lq[0] * max(r.time[-1] - r.time[n4], 0.01))
     print(f"  late_growth={late_growth:.4f}", flush=True)
 
     for i in range(0, len(r.phi_rms_t), max(1, len(r.phi_rms_t) // 10)):

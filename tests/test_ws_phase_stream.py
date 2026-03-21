@@ -184,6 +184,7 @@ class TestPhaseStreamServer:
                     pass
 
             import types
+
             fake_ws = types.ModuleType("websockets")
             fake_ws.serve = _FakeServeCtx
             monkeypatch.setitem(sys.modules, "websockets", fake_ws)

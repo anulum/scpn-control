@@ -74,9 +74,7 @@ def load_allowlist(path: Path) -> set[str]:
             raise ValueError(f"allowlisted_modules[{idx}] must be an object.")
         path_value = entry.get("path")
         if not isinstance(path_value, str) or not path_value:
-            raise ValueError(
-                f"allowlisted_modules[{idx}].path must be a non-empty string."
-            )
+            raise ValueError(f"allowlisted_modules[{idx}].path must be a non-empty string.")
         paths.add(path_value)
     return paths
 
@@ -105,9 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     test_root = _resolve(args.test_root)
     allowlist_path = _resolve(args.allowlist)
 
-    unlinked = set(
-        collect_unlinked_modules(source_root=source_root, test_root=test_root)
-    )
+    unlinked = set(collect_unlinked_modules(source_root=source_root, test_root=test_root))
     allowlisted = load_allowlist(allowlist_path)
 
     unexpected = sorted(unlinked - allowlisted)

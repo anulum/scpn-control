@@ -54,9 +54,7 @@ def main() -> int:
         tau_rmse = itpa.get("tau_rmse_s", 0.0)
         thresh = THRESHOLDS["confinement_itpa_tau_rmse_s"]
         if tau_rmse > thresh:
-            failures.append(
-                f"confinement_itpa: tau_rmse {tau_rmse:.4f} s > {thresh:.4f} s"
-            )
+            failures.append(f"confinement_itpa: tau_rmse {tau_rmse:.4f} s > {thresh:.4f} s")
         else:
             print(f"PASS  confinement_itpa: tau_rmse {tau_rmse:.4f} s <= {thresh:.4f} s")
 
@@ -66,9 +64,7 @@ def main() -> int:
         axis_rmse = sparc.get("axis_rmse_m", 0.0)
         thresh = THRESHOLDS["sparc_axis_rmse_m"]
         if axis_rmse > thresh:
-            failures.append(
-                f"sparc_axis: RMSE {axis_rmse:.4f} m > {thresh:.4f} m"
-            )
+            failures.append(f"sparc_axis: RMSE {axis_rmse:.4f} m > {thresh:.4f} m")
         else:
             print(f"PASS  sparc_axis: RMSE {axis_rmse:.4f} m <= {thresh:.4f} m")
 
@@ -78,9 +74,7 @@ def main() -> int:
         beta_rmse = beta.get("beta_n_rmse", 0.0)
         thresh = THRESHOLDS["beta_iter_sparc_beta_n_rmse"]
         if beta_rmse > thresh:
-            failures.append(
-                f"beta_iter_sparc: beta_N RMSE {beta_rmse:.4f} > {thresh:.4f}"
-            )
+            failures.append(f"beta_iter_sparc: beta_N RMSE {beta_rmse:.4f} > {thresh:.4f}")
         else:
             print(f"PASS  beta_iter_sparc: beta_N RMSE {beta_rmse:.4f} <= {thresh:.4f}")
 
@@ -92,10 +86,7 @@ def main() -> int:
         fpr = dis.get("false_positive_rate", 0.0)
         fpr_thresh = THRESHOLDS["disruption_fpr"]
         if fpr > fpr_thresh:
-            failures.append(
-                f"disruption FPR: {fpr:.2f} > {fpr_thresh:.2f} "
-                f"(hard gate since v3.1 — FPR must be <= 15%)"
-            )
+            failures.append(f"disruption FPR: {fpr:.2f} > {fpr_thresh:.2f} (hard gate since v3.1 — FPR must be <= 15%)")
         else:
             print(f"PASS  disruption FPR: {fpr:.2f} <= {fpr_thresh:.2f}")
 
@@ -105,15 +96,9 @@ def main() -> int:
             tbr_lo = THRESHOLDS["tbr_min"]
             tbr_hi = THRESHOLDS["tbr_max"]
             if tbr < tbr_lo:
-                failures.append(
-                    f"TBR: {tbr:.3f} < {tbr_lo:.2f} "
-                    f"(below tritium self-sufficiency)"
-                )
+                failures.append(f"TBR: {tbr:.3f} < {tbr_lo:.2f} (below tritium self-sufficiency)")
             elif tbr > tbr_hi:
-                failures.append(
-                    f"TBR: {tbr:.3f} > {tbr_hi:.2f} "
-                    f"(unrealistically high — missing correction factors?)"
-                )
+                failures.append(f"TBR: {tbr:.3f} > {tbr_hi:.2f} (unrealistically high — missing correction factors?)")
             else:
                 print(f"PASS  TBR: {tbr:.3f} in [{tbr_lo:.2f}, {tbr_hi:.2f}]")
 
@@ -123,8 +108,7 @@ def main() -> int:
             q_thresh = THRESHOLDS["q_max"]
             if q_peak > q_thresh:
                 failures.append(
-                    f"Q_peak: {q_peak:.1f} > {q_thresh:.1f} "
-                    f"(0-D model artifact — check temperature/density caps)"
+                    f"Q_peak: {q_peak:.1f} > {q_thresh:.1f} (0-D model artifact — check temperature/density caps)"
                 )
             else:
                 print(f"PASS  Q_peak: {q_peak:.1f} <= {q_thresh:.1f}")

@@ -18,6 +18,7 @@ Or run server and client from a single process (embedded mode)::
 
     streamlit run examples/streamlit_ws_client.py -- --embedded
 """
+
 from __future__ import annotations
 
 import argparse
@@ -144,6 +145,7 @@ with st.sidebar:
     if st.button("Send set_psi"):
         try:
             import websockets.sync.client as ws_sync
+
             with ws_sync.connect(ws_url) as ws:
                 ws.send(json.dumps({"action": "set_psi", "value": new_psi}))
         except Exception as e:
@@ -152,6 +154,7 @@ with st.sidebar:
     if st.button("Send reset"):
         try:
             import websockets.sync.client as ws_sync
+
             with ws_sync.connect(ws_url) as ws:
                 ws.send(json.dumps({"action": "reset"}))
         except Exception as e:

@@ -712,10 +712,10 @@ class IntegratedScenarioSimulator:
             alpha_mhd = -(q_prof**2) * self.config.R0 * dp_drho / (self.config.B0**2 / (2.0 * _MU_0))
 
             qp = QProfile(
-                rho=self.rho,
-                q=q_prof,
-                shear=shear_prof,
-                alpha_mhd=alpha_mhd,
+                rho=self.rho.astype(np.float64),
+                q=q_prof.astype(np.float64),
+                shear=shear_prof.astype(np.float64),
+                alpha_mhd=alpha_mhd.astype(np.float64),
                 q_min=float(np.min(q_prof)),
                 q_min_rho=float(self.rho[int(np.argmin(q_prof))]),
                 q_edge=float(q_prof[-1]),

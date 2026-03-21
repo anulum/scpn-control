@@ -19,11 +19,11 @@ Usage:
     python benchmarks/e2e_control_latency.py --json
     python benchmarks/e2e_control_latency.py --iterations 5000
 """
+
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 import tempfile
 import time
 from pathlib import Path
@@ -90,9 +90,7 @@ def bench_e2e(transport, hinf, n_warmup: int, n_iter: int) -> np.ndarray:
     times_ns = np.empty(n_iter, dtype=np.int64)
     for i in range(n_iter):
         t0 = time.perf_counter_ns()
-        u_prev = _e2e_iteration(
-            transport, hinf, rng, source, dt_transport, dt_control, P_aux, u_max, slew_max, u_prev
-        )
+        u_prev = _e2e_iteration(transport, hinf, rng, source, dt_transport, dt_control, P_aux, u_max, slew_max, u_prev)
         times_ns[i] = time.perf_counter_ns() - t0
     return times_ns
 
@@ -174,7 +172,7 @@ def main():
     print(f"  Iterations: {args.iterations}   Warmup: {args.warmup}   Grid: 16x16")
     print()
     print(f"  {'Stage':<30} {'P50 µs':>8} {'P95 µs':>8} {'P99 µs':>8}")
-    print(f"  {'-'*30} {'-'*8} {'-'*8} {'-'*8}")
+    print(f"  {'-' * 30} {'-' * 8} {'-' * 8} {'-' * 8}")
     for label, key in [("Kernel only (1 SOR step)", "kernel_only_us"), ("Full E2E control cycle", "e2e_us")]:
         d = results[key]
         print(f"  {label:<30} {d['p50']:>8.1f} {d['p95']:>8.1f} {d['p99']:>8.1f}")

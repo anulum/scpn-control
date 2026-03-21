@@ -64,8 +64,17 @@ LOCAL_COV_THRESHOLD = "80"
 
 COVERAGE_PYTEST: tuple[str, list[str], Path | None] = (
     "pytest (coverage)",
-    [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q",
-     "--cov=scpn_control", f"--cov-fail-under={LOCAL_COV_THRESHOLD}"],
+    [
+        _PY,
+        "-m",
+        "pytest",
+        "tests/",
+        "-x",
+        "--tb=short",
+        "-q",
+        "--cov=scpn_control",
+        f"--cov-fail-under={LOCAL_COV_THRESHOLD}",
+    ],
     None,
 )
 
@@ -103,11 +112,15 @@ def _requirements_changed() -> bool:
     """True if any requirements/ file is in the staged or unstaged diff."""
     result = subprocess.run(  # noqa: S603
         ["git", "diff", "--name-only", "HEAD"],
-        cwd=ROOT, capture_output=True, text=True,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
     )
     staged = subprocess.run(  # noqa: S603
         ["git", "diff", "--cached", "--name-only"],
-        cwd=ROOT, capture_output=True, text=True,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
     )
     changed = (result.stdout or "") + (staged.stdout or "")
     return any("requirements/" in line for line in changed.splitlines())
@@ -173,7 +186,10 @@ def run_hash_pin_check() -> bool:
             continue
         result = subprocess.run(  # noqa: S603
             [_PY, "-m", "pip", "install", "--require-hashes", "--dry-run", "-r", str(req_path)],
-            cwd=ROOT, capture_output=True, encoding="utf-8", errors="replace",
+            cwd=ROOT,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=120,
         )
         if result.returncode != 0:

@@ -76,9 +76,7 @@ kernel.dZ = Z_1d[1] - Z_1d[0]
 
 # Simple analytic current profile J_φ = J0 * (1 - ρ²)
 R0, a = 1.05, 0.7
-rho = np.sqrt(
-    ((kernel.R_grid - R0) / a) ** 2 + (kernel.Z_grid / (1.5 * a)) ** 2
-)
+rho = np.sqrt(((kernel.R_grid - R0) / a) ** 2 + (kernel.Z_grid / (1.5 * a)) ** 2)
 kernel.J_phi = np.where(rho < 1.0, 1e6 * (1.0 - rho**2), 0.0)
 kernel.Psi = np.zeros_like(kernel.R_grid)
 
@@ -101,7 +99,7 @@ for i in range(30):
 
 psi_max = float(np.max(np.abs(kernel.Psi)))
 print(f"  Grid: {kernel.NR}x{kernel.NZ}")
-print(f"  Picard iterations: 30 (under-relaxation ω=0.7)")
+print("  Picard iterations: 30 (under-relaxation ω=0.7)")
 print(f"  max|ψ| = {psi_max:.4e} Wb")
 
 # ╔══════════════════════════════════════════════════════════════════╗
@@ -123,19 +121,19 @@ print("═" * 60)
 
 rho_pts = np.linspace(0.1, 0.9, 9)
 print(f"  {'ρ':>5s}  {'R/L_Ti':>7s}  {'χ_e':>8s}  {'χ_i':>8s}  {'channel':>8s}")
-print(f"  {'─'*5}  {'─'*7}  {'─'*8}  {'─'*8}  {'─'*8}")
+print(f"  {'─' * 5}  {'─' * 7}  {'─' * 8}  {'─' * 8}  {'─' * 8}")
 for rho_val in rho_pts:
     grad_ti = 2.0 + 6.0 * rho_val  # gradient increases toward edge
     inp = TransportInputs(
-        rho=rho_val, te_kev=10.0 * (1 - rho_val**2),
-        ti_kev=10.0 * (1 - rho_val**2), grad_ti=grad_ti,
-        grad_te=grad_ti * 0.9, q=1.5 + 2.0 * rho_val**2,
+        rho=rho_val,
+        te_kev=10.0 * (1 - rho_val**2),
+        ti_kev=10.0 * (1 - rho_val**2),
+        grad_ti=grad_ti,
+        grad_te=grad_ti * 0.9,
+        q=1.5 + 2.0 * rho_val**2,
     )
     fluxes = critical_gradient_model(inp)
-    print(
-        f"  {rho_val:5.2f}  {grad_ti:7.2f}  {fluxes.chi_e:8.3f}  "
-        f"{fluxes.chi_i:8.3f}  {fluxes.channel:>8s}"
-    )
+    print(f"  {rho_val:5.2f}  {grad_ti:7.2f}  {fluxes.chi_e:8.3f}  {fluxes.chi_i:8.3f}  {fluxes.channel:>8s}")
 
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║ Section 4: SPN → SNN Compilation                                ║
@@ -235,7 +233,7 @@ result = run_digital_twin(
 )
 elapsed = time.perf_counter() - t0
 
-print(f"  Time steps:     100")
+print("  Time steps:     100")
 print(f"  Final avg temp: {result['final_avg_temp']:.2f}")
 print(f"  MHD islands:    {result['final_islands_px']} px")
 print(f"  Final reward:   {result['final_reward']:.2f}")
@@ -251,7 +249,7 @@ result_chaos = run_digital_twin(
     sensor_noise_std=0.05,
     chaos_monkey=True,
 )
-print(f"\n  With chaos monkey (10% dropout, 5% noise):")
+print("\n  With chaos monkey (10% dropout, 5% noise):")
 print(f"  Final avg temp: {result_chaos['final_avg_temp']:.2f}")
 print(f"  Sensor dropouts: {result_chaos['sensor_dropouts_total']}")
 print(f"  Final reward:   {result_chaos['final_reward']:.2f}")

@@ -7,6 +7,7 @@ Reports per-stage timing and total throughput.
 Usage:
     python examples/full_pipeline_benchmark.py [--n-iter 1000]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,7 +16,6 @@ import time
 
 import numpy as np
 
-from scpn_control.core.fusion_kernel import FusionKernel
 from scpn_control.core.scaling_laws import ipb98y2_tau_e, load_ipb98y2_coefficients
 from scpn_control.core.neural_transport import TransportInputs, critical_gradient_model
 from scpn_control.control.h_infinity_controller import get_radial_robust_controller

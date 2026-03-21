@@ -10,6 +10,7 @@
 Installs JAX[cuda], runs the full-resolution Cyclone Base Case,
 and saves results to gpu_results/.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,11 +23,18 @@ from pathlib import Path
 def install_jax():
     """Install JAX with CUDA support."""
     print("=== Installing JAX[cuda] ===")
-    subprocess.check_call([
-        sys.executable, "-m", "pip", "install", "-q",
-        "jax[cuda12]",
-    ])
+    subprocess.check_call(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "-q",
+            "jax[cuda12]",
+        ]
+    )
     import jax
+
     print(f"JAX {jax.__version__}, devices: {jax.devices()}")
     return True
 
@@ -43,8 +51,15 @@ def run_linear_benchmark():
     ]
     t0 = time.perf_counter()
     result = solve_linear_gk(
-        species_list=species, R0=2.78, a=1.0, B0=2.0,
-        q=1.4, s_hat=0.78, n_ky_ion=16, n_theta=64, n_period=2,
+        species_list=species,
+        R0=2.78,
+        a=1.0,
+        B0=2.0,
+        q=1.4,
+        s_hat=0.78,
+        n_ky_ion=16,
+        n_theta=64,
+        n_period=2,
     )
     elapsed = time.perf_counter() - t0
     print(f"  gamma_max={result.gamma_max:.4f} at k_y={result.k_y_max:.3f}")
@@ -65,12 +80,27 @@ def run_nonlinear_numpy(n_steps=500, label="numpy"):
 
     print(f"\n=== Nonlinear GK — {label} (16x16x64x16x8 x {n_steps}) ===")
     cfg = NonlinearGKConfig(
-        n_kx=16, n_ky=16, n_theta=64, n_vpar=16, n_mu=8,
-        dt=0.02, n_steps=n_steps, save_interval=50,
-        R_L_Ti=6.9, R_L_Te=6.9, R_L_ne=2.2,
-        q=1.4, s_hat=0.78, R0=2.78, a=1.0, B0=2.0,
-        cfl_adapt=False, nonlinear=True, collisions=True,
-        nu_collision=0.01, hyper_coeff=0.1,
+        n_kx=16,
+        n_ky=16,
+        n_theta=64,
+        n_vpar=16,
+        n_mu=8,
+        dt=0.02,
+        n_steps=n_steps,
+        save_interval=50,
+        R_L_Ti=6.9,
+        R_L_Te=6.9,
+        R_L_ne=2.2,
+        q=1.4,
+        s_hat=0.78,
+        R0=2.78,
+        a=1.0,
+        B0=2.0,
+        cfl_adapt=False,
+        nonlinear=True,
+        collisions=True,
+        nu_collision=0.01,
+        hyper_coeff=0.1,
     )
     solver = NonlinearGKSolver(cfg)
     t0 = time.perf_counter()
@@ -98,6 +128,7 @@ def run_nonlinear_jax(n_steps=500, label="jax"):
     """JAX-accelerated: same grid, compare timing."""
     try:
         from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver, jax_available
+
         if not jax_available():
             print(f"\n=== Nonlinear GK — {label}: JAX not available, skipping ===")
             return {"label": label, "skipped": True, "reason": "JAX not available"}
@@ -109,12 +140,27 @@ def run_nonlinear_jax(n_steps=500, label="jax"):
 
     print(f"\n=== Nonlinear GK — {label} (16x16x64x16x8 x {n_steps}) ===")
     cfg = NonlinearGKConfig(
-        n_kx=16, n_ky=16, n_theta=64, n_vpar=16, n_mu=8,
-        dt=0.02, n_steps=n_steps, save_interval=50,
-        R_L_Ti=6.9, R_L_Te=6.9, R_L_ne=2.2,
-        q=1.4, s_hat=0.78, R0=2.78, a=1.0, B0=2.0,
-        cfl_adapt=False, nonlinear=True, collisions=True,
-        nu_collision=0.01, hyper_coeff=0.1,
+        n_kx=16,
+        n_ky=16,
+        n_theta=64,
+        n_vpar=16,
+        n_mu=8,
+        dt=0.02,
+        n_steps=n_steps,
+        save_interval=50,
+        R_L_Ti=6.9,
+        R_L_Te=6.9,
+        R_L_ne=2.2,
+        q=1.4,
+        s_hat=0.78,
+        R0=2.78,
+        a=1.0,
+        B0=2.0,
+        cfl_adapt=False,
+        nonlinear=True,
+        collisions=True,
+        nu_collision=0.01,
+        hyper_coeff=0.1,
     )
     solver = JaxNonlinearGKSolver(cfg)
     t0 = time.perf_counter()
@@ -143,9 +189,18 @@ def run_tglf_native():
 
     print("\n=== Native TGLF — CBC ===")
     params = GKLocalParams(
-        R_L_Ti=6.9, R_L_Te=6.9, R_L_ne=2.2, q=1.4, s_hat=0.78,
-        R0=2.78, a=1.0, B0=2.0, epsilon=0.18,
-        T_e_keV=2.0, T_i_keV=2.0, n_e=5.0,
+        R_L_Ti=6.9,
+        R_L_Te=6.9,
+        R_L_ne=2.2,
+        q=1.4,
+        s_hat=0.78,
+        R0=2.78,
+        a=1.0,
+        B0=2.0,
+        epsilon=0.18,
+        T_e_keV=2.0,
+        T_i_keV=2.0,
+        n_e=5.0,
     )
     t0 = time.perf_counter()
     solver = TGLFNativeSolver(TGLFNativeConfig(sat_model="SAT1", n_ky_ion=16, n_theta=64))
@@ -200,6 +255,7 @@ if __name__ == "__main__":
     # Install JAX if needed
     try:
         import jax
+
         print(f"JAX already installed: {jax.__version__}, devices: {jax.devices()}")
     except ImportError:
         install_jax()

@@ -15,6 +15,7 @@ Usage::
     python tools/generate_phase_video.py
     python tools/generate_phase_video.py --ticks 500 --fps 30 --layers 8
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,6 +24,7 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
@@ -35,7 +37,11 @@ DOCS = ROOT / "docs"
 
 def generate(n_ticks: int, L: int, N_per: int, zeta: float, fps: int):
     mon = RealtimeMonitor.from_paper27(
-        L=L, N_per=N_per, zeta_uniform=zeta, psi_driver=0.0, seed=42,
+        L=L,
+        N_per=N_per,
+        zeta_uniform=zeta,
+        psi_driver=0.0,
+        seed=42,
     )
 
     # Pre-compute all ticks
@@ -67,12 +73,14 @@ def generate(n_ticks: int, L: int, N_per: int, zeta: float, fps: int):
 
     fig.suptitle(
         f"SCPN Phase Sync — {L} layers × {N_per} osc, ζ={zeta}",
-        color="#e2e8f0", fontsize=13, fontweight="bold",
+        color="#e2e8f0",
+        fontsize=13,
+        fontweight="bold",
     )
 
     # R_global
     ax_r = axes[0, 0]
-    line_r, = ax_r.plot([], [], color="#3b82f6", linewidth=1.5)
+    (line_r,) = ax_r.plot([], [], color="#3b82f6", linewidth=1.5)
     ax_r.set_xlim(0, n_ticks)
     ax_r.set_ylim(0, 1.05)
     ax_r.set_ylabel("R_global", color="#94a3b8", fontsize=10)
@@ -81,7 +89,7 @@ def generate(n_ticks: int, L: int, N_per: int, zeta: float, fps: int):
 
     # V_global
     ax_v = axes[0, 1]
-    line_v, = ax_v.plot([], [], color="#8b5cf6", linewidth=1.5)
+    (line_v,) = ax_v.plot([], [], color="#8b5cf6", linewidth=1.5)
     ax_v.set_xlim(0, n_ticks)
     ax_v.set_ylim(0, max(v_global) * 1.1 + 0.01)
     ax_v.set_ylabel("V_global", color="#94a3b8", fontsize=10)
@@ -89,7 +97,7 @@ def generate(n_ticks: int, L: int, N_per: int, zeta: float, fps: int):
 
     # Lambda
     ax_l = axes[1, 0]
-    line_l, = ax_l.plot([], [], color="#f59e0b", linewidth=1.5)
+    (line_l,) = ax_l.plot([], [], color="#f59e0b", linewidth=1.5)
     ax_l.set_xlim(0, n_ticks)
     lam_min = min(lam_exp) * 1.2 if min(lam_exp) < 0 else -1
     lam_max = max(max(lam_exp) * 1.2, 0.5)
@@ -113,9 +121,14 @@ def generate(n_ticks: int, L: int, N_per: int, zeta: float, fps: int):
 
     # Metrics text
     metrics_text = fig.text(
-        0.5, 0.01,
-        "", ha="center", va="bottom",
-        color="#94a3b8", fontsize=10, fontfamily="monospace",
+        0.5,
+        0.01,
+        "",
+        ha="center",
+        va="bottom",
+        color="#94a3b8",
+        fontsize=10,
+        fontfamily="monospace",
     )
 
     fig.tight_layout(rect=[0, 0.04, 1, 0.95])
@@ -166,6 +179,7 @@ def generate(n_ticks: int, L: int, N_per: int, zeta: float, fps: int):
         mp4_path = DOCS / "phase_sync_live.mp4"
         print(f"Writing {mp4_path}...")
         from matplotlib.animation import FFMpegWriter
+
         anim.save(str(mp4_path), writer=FFMpegWriter(fps=fps, bitrate=2000))
         mp4_size = mp4_path.stat().st_size / 1024 / 1024
         print(f"  {mp4_path.name}: {mp4_size:.1f} MB")
