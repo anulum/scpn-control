@@ -148,3 +148,31 @@ def test_current_diffusion_conserves_ip():
     ip1 = ip_proxy()
     # Relative change < 5 %
     assert abs(ip1 - ip0) / (abs(ip0) + 1e-30) < 0.05
+
+
+def test_q_from_psi_singular_denom():
+    """Line 92: abs(denom) < 1e-12 falls back to previous q value."""
+
+    rho = np.linspace(0, 1, 50)
+    # Flat psi near center means dpsi/drho ~ 0 at ρ=0
+    psi = np.zeros(50)
+    psi[0] = 0.0
+    psi[1] = 1e-15
+    psi[2] = 3e-15
+    for i in range(3, 50):
+        psi[i] = -float(i) * 0.01
+    q = q_from_psi(rho, psi, R0=2.0, a=0.5, B0=1.0)
+    assert np.all(np.isfinite(q))
+    assert np.all(q >= 0)
+
+
+def test_psi_from_q_roundtrip():
+    """Lines 112-118: psi_from_q inverts q_from_psi."""
+    from scpn_control.core.current_diffusion import psi_from_q
+
+    rho = np.linspace(0, 1, 50)
+    q_input = 1.0 + 2.0 * rho**2
+    psi_recon = psi_from_q(rho, q_input, R0=2.0, a=0.5, B0=1.0)
+    assert psi_recon[-1] == 0.0
+    q_back = q_from_psi(rho, psi_recon, R0=2.0, a=0.5, B0=1.0)
+    assert np.allclose(q_back[5:], q_input[5:], rtol=0.1)

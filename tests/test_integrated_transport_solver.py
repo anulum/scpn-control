@@ -520,3 +520,57 @@ class TestZeroAuxHeatingGuard:
         solver.evolve_profiles(dt=0.001, P_aux=0.0)
         assert np.all(np.isfinite(solver.Ti))
         assert float(np.mean(solver.Ti)) <= float(np.mean(ti_before)) + 1e-8
+
+
+# ── 11. Coverage gap closers ─────────────────────────────────────────
+
+
+class TestTransportModelBranches:
+    def test_gyrokinetic_transport_model(self, config_file: Path) -> None:
+        """transport_model='gyrokinetic' exercises GyrokineticTransportModel path."""
+        ts = TransportSolver(str(config_file), transport_model="gyrokinetic")
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        ts.update_transport_model(50.0)
+        assert np.all(np.isfinite(ts.chi_i))
+        assert np.all(ts.chi_i > 0)
+
+    def test_tglf_native_transport_model(self, config_file: Path) -> None:
+        """transport_model='tglf_native' exercises TGLFNativeSolver path."""
+        ts = TransportSolver(str(config_file), transport_model="tglf_native")
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        ts.update_transport_model(50.0)
+        assert np.all(np.isfinite(ts.chi_i))
+        assert np.all(ts.chi_i > 0)
+
+
+class TestBoschHaleClamping:
+    def test_sigmav_at_clamped_temperature(self) -> None:
+        """Bosch-Hale clamps T below 0.2 keV — no divergence or NaN."""
+        T_low = np.array([0.0, 0.05, 0.1, 0.19, 0.2])
+        sv = TransportSolver._bosch_hale_sigmav(T_low)
+        assert np.all(np.isfinite(sv))
+        assert np.all(sv > 0)
+        # T<0.2 clamped to 0.2, so first 4 entries should give the same value
+        np.testing.assert_allclose(sv[:4], sv[4], rtol=1e-12)
+
+
+class TestAuxHeatingZeroVolume:
+    def test_compute_aux_heating_zero_volume_element(self, config_file: Path) -> None:
+        """_compute_aux_heating_sources handles degenerate volume gracefully."""
+        ts = TransportSolver(str(config_file))
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = ts.Ti.copy()
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        # Patch volume element to return zeros — exercises the fallback path
+        original_rve = ts._rho_volume_element
+        ts._rho_volume_element = lambda: np.zeros(ts.nr)
+        s_i, s_e = ts._compute_aux_heating_sources(50.0)
+        assert np.all(s_i == 0.0)
+        assert np.all(s_e == 0.0)
+        ts._rho_volume_element = original_rve

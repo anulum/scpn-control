@@ -162,3 +162,39 @@ def test_lhcd_efficiency_range():
     # Confirm the default sits within the ITER range
     lhcd_default = LHCDSource(P_lh_MW=20.0, rho_dep=0.7, sigma_rho=0.1)
     assert 0.10 <= lhcd_default.eta_cd <= 0.20
+
+
+def test_eccd_zero_sigma():
+    """Line 146: sigma_rho <= 0 returns zeros from P_absorbed."""
+    eccd = ECCDSource(P_ec_MW=10.0, rho_dep=0.5, sigma_rho=0.0)
+    rho = np.linspace(0, 1, 50)
+    assert np.allclose(eccd.P_absorbed(rho), 0.0)
+
+
+def test_nbi_zero_sigma():
+    """Line 193: sigma_rho <= 0 returns zeros from P_heating."""
+    nbi = NBISource(P_nbi_MW=10.0, E_beam_keV=100.0, rho_tangency=0.3, sigma_rho=0.0)
+    rho = np.linspace(0, 1, 50)
+    assert np.allclose(nbi.P_heating(rho), 0.0)
+
+
+def test_lhcd_zero_sigma():
+    """Line 262: sigma_rho <= 0 returns zeros from P_absorbed."""
+    lhcd = LHCDSource(P_lh_MW=5.0, rho_dep=0.7, sigma_rho=0.0)
+    rho = np.linspace(0, 1, 50)
+    assert np.allclose(lhcd.P_absorbed(rho), 0.0)
+
+
+def test_mix_with_nbi():
+    """Lines 300, 309: CurrentDriveMix dispatches NBI sources correctly."""
+    rho = np.linspace(0, 1, 50)
+    ne = np.ones(50) * 5.0
+    Te = np.ones(50) * 10.0
+    Ti = np.ones(50) * 10.0
+    nbi = NBISource(P_nbi_MW=10.0, E_beam_keV=100.0, rho_tangency=0.3)
+    mix = CurrentDriveMix(a=2.0)
+    mix.add_source(nbi)
+    j_tot = mix.total_j_cd(rho, ne, Te, Ti)
+    p_tot = mix.total_heating_power(rho)
+    assert np.max(j_tot) > 0.0
+    assert np.max(p_tot) > 0.0

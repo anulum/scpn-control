@@ -134,3 +134,24 @@ def test_custom_species_and_geometry(cbc_params):
     result = solve_linear_gk_jax(species_list=[ion, e], geom=geom, vgrid=vgrid, **cbc_params, n_ky_ion=4, n_theta=16)
     assert isinstance(result, LinearGKResult)
     assert len(result.modes) == 4
+
+
+# ---------------------------------------------------------------------------
+# Nonlinear GK JAX solver fallback test
+# ---------------------------------------------------------------------------
+
+
+def test_nonlinear_jax_gk_numpy_fallback():
+    """JaxNonlinearGKSolver falls back to NumPy when _HAS_JAX=False."""
+    from scpn_control.core.gk_nonlinear import NonlinearGKConfig
+    import scpn_control.core.jax_gk_nonlinear as nl_mod
+
+    cfg = NonlinearGKConfig(n_steps=2, save_interval=1)
+
+    with mock.patch.object(nl_mod, "_HAS_JAX", False):
+        solver = nl_mod.JaxNonlinearGKSolver(cfg)
+        result = solver.run()
+
+    assert result.chi_i_gB >= 0.0
+    assert result.final_state is not None
+    assert result.final_state.f is not None

@@ -125,3 +125,34 @@ def test_sputtering_yield_monotone_above_threshold():
     Y_low = sputt.yield_at_energy(E_TH_D_W_EV + 50.0)
     Y_high = sputt.yield_at_energy(E_TH_D_W_EV + 500.0)
     assert Y_high > Y_low
+
+
+def test_erosion_lifetime_zero_rate():
+    """Lines 117-120: net_rate <= 0 returns inf lifetime."""
+    erosion = ErosionModel()
+    assert erosion.lifetime_estimate(wall_thickness_mm=10.0, net_rate_m_s=0.0) == float("inf")
+
+
+def test_tritium_retention():
+    """Line 129: retention scales linearly with fluence."""
+    erosion = ErosionModel()
+    ret_low = erosion.tritium_retention(ion_fluence_D_m2=1e23)
+    ret_high = erosion.tritium_retention(ion_fluence_D_m2=1e24)
+    assert ret_high > ret_low
+    assert ret_high > 0.0
+
+
+def test_transient_elm_zero_area():
+    """Lines 194, 205: elm_load returns 0 for A_wet <= 0 or tau <= 0."""
+    wall = WallThermalModel()
+    trans = TransientThermalLoad(wall)
+    assert trans.elm_load(delta_W_MJ=10.0, A_wet_m2=0.0) == 0.0
+    assert trans.elm_load(delta_W_MJ=10.0, A_wet_m2=1.0, tau_IR_ms=0.0) == 0.0
+
+
+def test_fatigue_small_delta_t():
+    """Line 210: delta_T < 100 K returns 10^7 cycles."""
+    wall = WallThermalModel()
+    trans = TransientThermalLoad(wall)
+    cycles = trans.n_elm_cycles_to_fatigue(delta_T_K=50.0)
+    assert cycles == 10000000

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from scpn_control.control.controller_tuning import HAS_OPTUNA, tune_pid
+from scpn_control.control.controller_tuning import HAS_OPTUNA, tune_hinf, tune_pid
 
 
 def test_optuna_guard_behavior():
@@ -32,3 +32,19 @@ def test_tune_pid_with_optuna():
     """Placeholder for full tuning test if optuna available."""
     # This would require a mock gymnasium environment
     pass
+
+
+def test_tune_hinf_no_optuna_fallback():
+    """tune_hinf returns defaults when Optuna is absent."""
+    if not HAS_OPTUNA:
+        result = tune_hinf(plant={}, n_trials=1)
+        assert result == {"gamma": 1.1, "bandwidth": 0.5}
+    else:
+        # Optuna available — exercise the no-optuna path via mock
+        import unittest.mock as mock
+
+        import scpn_control.control.controller_tuning as ct
+
+        with mock.patch.object(ct, "HAS_OPTUNA", False):
+            result = ct.tune_hinf(plant={}, n_trials=1)
+            assert result == {"gamma": 1.1, "bandwidth": 0.5}

@@ -266,3 +266,59 @@ def test_ntm_flattens_island():
     assert np.mean(grad_after[region]) < np.mean(grad_before[region]) + 1e-6, (
         "NTM island did not reduce local Te gradient"
     )
+
+
+# ── Coverage gap closers ───────────────────────────────────────────────────
+
+
+def test_iter_hybrid_scenario_call():
+    """iter_hybrid_scenario() returns a valid ScenarioConfig with ITER hybrid params."""
+    from scpn_control.core.integrated_scenario import iter_hybrid_scenario
+
+    cfg = iter_hybrid_scenario()
+    assert cfg.R0 == 6.2
+    assert cfg.Ip_MA == 12.0
+    assert cfg.t_end == 100.0
+
+
+def test_iter_hybrid_scenario_runs_with_all_physics():
+    """Run iter_hybrid_scenario() with all physics flags for 2 steps.
+
+    Exercises the full operator-splitting pipeline: sawteeth, NTM,
+    SOL, ELM, and MHD stability checks simultaneously.
+    """
+    from scpn_control.core.integrated_scenario import iter_hybrid_scenario
+
+    cfg = iter_hybrid_scenario()
+    cfg.t_end = 2.0
+    cfg.dt = 1.0
+    cfg.include_elm = True
+    cfg.include_stability = True
+    cfg.include_sol = True
+    cfg.include_sawteeth = True
+    cfg.include_ntm = True
+
+    sim = IntegratedScenarioSimulator(cfg)
+    sim.initialize()
+    states = sim.run()
+
+    assert len(states) == 2
+    for s in states:
+        assert np.all(np.isfinite(s.Te))
+        assert np.all(np.isfinite(s.Ti))
+        assert s.W_thermal > 0
+
+
+def test_spitzer_resistivity_near_zero_te():
+    """_spitzer_resistivity clamps Te to 0.01 keV to avoid divergence.
+
+    Spitzer 1962 — eta ~ 1/Te^1.5, so Te->0 would blow up.
+    """
+    from scpn_control.core.integrated_scenario import _spitzer_resistivity
+
+    Te_near_zero = np.array([0.0, 1e-5, 0.005])
+    eta = _spitzer_resistivity(Te_near_zero, Z_eff=1.5)
+    assert np.all(np.isfinite(eta))
+    assert np.all(eta > 0)
+    # All sub-0.01 keV values get clamped to 0.01, so results should be equal
+    assert np.allclose(eta, eta[0])

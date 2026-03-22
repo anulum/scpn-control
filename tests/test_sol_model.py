@@ -9,6 +9,7 @@ import numpy as np
 
 from scpn_control.core.sol_model import (
     TwoPointSOL,
+    detachment_threshold,
     eich_heat_flux_width,
     peak_target_heat_flux,
 )
@@ -113,3 +114,19 @@ def test_two_point_model_temperature():
     assert res.T_upstream_eV > 0.0
     assert res.T_target_eV > 0.0
     assert res.T_target_eV < res.T_upstream_eV
+
+
+def test_peak_heat_flux_zero_lambda():
+    """Line 54: lambda_q_m <= 0 returns 0."""
+    assert peak_target_heat_flux(P_SOL_MW=100.0, R0=6.2, lambda_q_m=0.0) == 0.0
+
+
+def test_detachment_threshold_placeholder():
+    """Line 62: detachment_threshold always returns False (placeholder)."""
+    assert detachment_threshold(n_u_19=5.0, P_SOL_MW=100.0, L_par=50.0) is False
+
+
+def test_eich_width_invalid_inputs():
+    """Line 121 (via eich_heat_flux_width): returns 1.0 for invalid inputs."""
+    assert eich_heat_flux_width(P_SOL_MW=0.0, R0=6.2, B_pol=0.56, epsilon=0.32) == 1.0
+    assert eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.0, epsilon=0.32) == 1.0

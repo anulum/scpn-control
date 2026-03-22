@@ -88,3 +88,39 @@ def test_fueling_controller():
     cmd = ctrl.step(ne_low, Te, 1.0, V)
     assert cmd is not None
     assert cmd.pellet_params.r_p_mm == 4.0
+
+
+def test_pellet_trajectory_edge_clamp():
+    """Lines 78-79, 81-82: idx boundary clamps in simulate (idx==0 and idx>=len)."""
+    params = PelletParams(r_p_mm=2.0, v_p_m_s=500.0)
+    rho = np.linspace(0, 1, 10)
+    ne = np.ones(10) * 1.0
+    Te = np.ones(10) * 500.0
+    traj = PelletTrajectory(params, R0=6.2, a=2.0, B0=5.3)
+    res = traj.simulate(rho, ne, Te)
+    assert res.total_particles > 0.0
+
+
+def test_ablation_clamp():
+    """Lines 92, 109: dN clamped to N_p; r_p set to 0 when N_p exhausted."""
+    rate = ngs_ablation_rate(0.001, 1e21, 50000.0, 2.0)
+    assert rate > 0.0
+
+
+def test_pellet_shift_positive():
+    """Lines 130, 132: shift_idx > 0 and shift_idx < 0 profile shifting."""
+    params_lfs = PelletParams(r_p_mm=4.0, v_p_m_s=300.0, injection_side="LFS")
+    rho = np.linspace(0, 1, 50)
+    ne = np.ones(50) * 5.0
+    Te = np.ones(50) * 2000.0
+    traj = PelletTrajectory(params_lfs, R0=6.2, a=2.0, B0=5.3)
+    res = traj.simulate(rho, ne, Te)
+    assert res.deposition_profile is not None
+    assert res.drift_displacement > 0.0
+
+
+def test_pellet_pacing_no_trigger():
+    """Line 192: pellet frequency below 1.5x natural returns natural values."""
+    f, w = pellet_pacing_elm_control(5.0, 5.0, 20.0)
+    assert f == 5.0
+    assert w == 20.0

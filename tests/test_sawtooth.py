@@ -8,12 +8,19 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from scipy.integrate import trapezoid
 
 from scpn_control.core.sawtooth import (
     PorcelliParams,
     SawtoothCycler,
     SawtoothMonitor,
+    _alfven_time,
+    _bussac_dW_mhd,
+    _ion_diamagnetic_freq,
+    _poloidal_beta_q1,
+    _resistive_crit_dW,
+    _resistive_time,
     kadomtsev_crash,
     porcelli_trigger,
 )
@@ -212,3 +219,160 @@ def test_crash_energy_conservation():
         f"Energy not conserved: before={W_before:.4g} J, after={W_after:.4g} J, "
         f"rel_err={abs(W_after - W_before) / W_before:.3%}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Coverage gap closers
+# ---------------------------------------------------------------------------
+
+
+def test_poloidal_beta_q1_small_idx():
+    """_poloidal_beta_q1 returns 0 when the q=1 surface is at rho < 2 grid pts (line 64)."""
+    rho = np.linspace(0, 1, 100)
+    T = 5.0 * np.ones_like(rho)
+    n = 5.0 * np.ones_like(rho)
+    # rho_1 = 0.005 → searchsorted gives idx < 2
+    result = _poloidal_beta_q1(rho, T, n, B_pol=0.3, rho_1=0.005)
+    assert result == 0.0
+
+
+def test_porcelli_no_q1_surface():
+    """porcelli_trigger returns False when q > 1 everywhere (line 160)."""
+    rho = np.linspace(0, 1, 50)
+    q = np.linspace(1.1, 3.0, 50)
+    shear = np.full(50, 0.5)
+    T = 10.0 * (1 - rho**2)
+    n = 5.0 * np.ones_like(rho)
+    assert not porcelli_trigger(rho, T, n, q, shear, R0=3.0, a=1.0)
+
+
+def test_porcelli_condition2_ideal_kink():
+    """Condition 2 (ideal kink) fires with high beta_p1 and very low resistivity.
+
+    Porcelli 1996, Eq. 14 — ideal-kink trigger with very low eta so
+    Condition 1 (resistive) does not fire first but Condition 2 does.
+    """
+    rho = np.linspace(0, 1, 100)
+    q = 0.8 + 2.0 * rho**2
+    shear = 2.0 * rho / np.maximum(q, 0.1)
+    T = 30.0 * (1 - rho**2) ** 2
+    n = 8.0 * np.ones_like(rho)
+
+    params = PorcelliParams(B_T=1.0, B_pol=0.05, T_i_keV=5.0, eta=1e-10, v_A=5e6)
+    result = porcelli_trigger(rho, T, n, q, shear, R0=3.0, a=1.0, params=params)
+    assert result, "High beta_p1 + low eta should fire Condition 2 (ideal kink)"
+
+
+def test_resistive_crit_dW_formula():
+    """_resistive_crit_dW matches Porcelli 1996, Eq. 18 hand computation."""
+    eps_1 = 0.1
+    omega_star_i = 1e4
+    tau_R = 1e3
+    s1 = 0.5
+    expected = (np.pi**2 * eps_1**4 * omega_star_i**2 * tau_R) / (12.0 * s1)
+    assert _resistive_crit_dW(eps_1, omega_star_i, tau_R, s1) == pytest.approx(expected)
+
+
+def test_alfven_time_formula():
+    """_alfven_time matches tau_A = R / (v_A * s1)."""
+    assert _alfven_time(R0=3.0, v_A=1e7, s1=0.5) == pytest.approx(3.0 / (1e7 * 0.5))
+
+
+def test_alfven_time_near_zero_shear():
+    """_alfven_time clamps s1 to 1e-6 to avoid division by zero (line 80)."""
+    tau = _alfven_time(R0=3.0, v_A=1e7, s1=0.0)
+    assert np.isfinite(tau)
+    assert tau > 0
+
+
+def test_resistive_time_formula():
+    """_resistive_time matches tau_R = mu_0 * r1^2 / (1.22 * eta)."""
+    from scpn_control.core.sawtooth import MU_0
+
+    r1 = 0.3
+    eta = 1e-7
+    expected = MU_0 * r1**2 / (1.22 * eta)
+    assert _resistive_time(r1, eta) == pytest.approx(expected)
+
+
+def test_ion_diamagnetic_freq_formula():
+    """_ion_diamagnetic_freq matches omega_*i = k_theta * T_i / (e * B * r1)."""
+    from scpn_control.core.sawtooth import E_CHARGE
+
+    Ti_keV = 2.0
+    Ti_J = Ti_keV * 1e3 * E_CHARGE
+    k_theta = 1.0 / 0.3
+    B_T = 2.0
+    r1 = 0.3
+    expected = k_theta * Ti_J / (E_CHARGE * B_T * r1)
+    assert _ion_diamagnetic_freq(k_theta, Ti_keV, B_T, r1) == pytest.approx(expected)
+
+
+def test_bussac_dW_mhd_formula():
+    """_bussac_dW_mhd = -0.5*(beta_p1 - s1^2)."""
+    assert _bussac_dW_mhd(beta_p1=1.0, s1=0.5) == pytest.approx(-0.5 * (1.0 - 0.25))
+    # Stable case: s1^2 > beta_p1 → dW > 0
+    assert _bussac_dW_mhd(beta_p1=0.1, s1=1.0) > 0
+
+
+def test_kadomtsev_crash_no_q1():
+    """kadomtsev_crash returns copies unchanged when q > 1 everywhere (line 283)."""
+    rho = np.linspace(0, 1, 50)
+    q = np.linspace(1.5, 3.0, 50)
+    T = 5.0 * np.ones_like(rho)
+    n = 2.0 * np.ones_like(rho)
+    T_new, n_new, q_new, rho_1, rho_mix = kadomtsev_crash(rho, T, n, q, R0=2.0, a=0.5)
+    np.testing.assert_array_equal(T_new, T)
+    np.testing.assert_array_equal(n_new, n)
+    assert rho_1 == 0.0
+    assert rho_mix == 0.0
+
+
+def test_kadomtsev_crash_idx_mix_zero():
+    """kadomtsev_crash handles degenerate case where mixing radius is at edge (line 303)."""
+    rho = np.linspace(0, 1, 50)
+    # q slightly below 1 at the very core only, mixing radius at rho=0 effectively
+    q = 0.99 + 3.0 * rho**2
+    T = 5.0 * (1 - rho**2)
+    n = 2.0 * np.ones_like(rho)
+    T_new, n_new, q_new, rho_1, rho_mix = kadomtsev_crash(rho, T, n, q, R0=2.0, a=0.5)
+    assert np.all(np.isfinite(T_new))
+    assert np.all(np.isfinite(n_new))
+
+
+def test_monitor_check_trigger_porcelli_missing_profiles():
+    """SawtoothMonitor.check_trigger raises ValueError when porcelli model lacks T/n."""
+    rho = np.linspace(0, 1, 50)
+    q = 0.8 + 2.0 * rho**2
+    shear = np.full(50, 0.5)
+    monitor = SawtoothMonitor(rho)
+    with pytest.raises(ValueError, match="porcelli trigger requires"):
+        monitor.check_trigger(q, shear, trigger_model="porcelli")
+
+
+def test_monitor_find_q1_equal_values():
+    """find_q1_radius handles q1 == q2 at crossing (line 211)."""
+    rho = np.linspace(0, 1, 50)
+    q = 0.8 + 2.0 * rho**2
+    # Force q values exactly equal at the crossing
+    idx = np.where(np.diff(np.sign(q - 1.0)))[0][0]
+    q[idx] = 1.0
+    q[idx + 1] = 1.0
+    monitor = SawtoothMonitor(rho)
+    rho_1 = monitor.find_q1_radius(q)
+    assert rho_1 is not None
+    assert rho_1 == pytest.approx(rho[idx])
+
+
+def test_monitor_check_trigger_shear_edge_cases():
+    """check_trigger handles idx==0 and idx>=len(rho) shear interpolation (lines 246-248)."""
+    rho = np.linspace(0, 1, 50)
+    # q=1 right at the first grid point
+    q = np.ones_like(rho)
+    q[0] = 0.99
+    q[1:] = 1.01 + np.arange(49) * 0.01
+    shear = np.full(50, 0.2)
+    monitor = SawtoothMonitor(rho, s_crit=0.1)
+    result = monitor.check_trigger(q, shear)
+    # Should not crash regardless of the interpolation edge case
+    assert isinstance(result, bool)

@@ -125,3 +125,42 @@ def test_blob_size_scaling():
 
     assert delta_long > delta_short
     assert delta_short > 0.0
+
+
+def test_critical_size_zero_l_par():
+    """Line 69: L_parallel <= 0 returns inf."""
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    assert dyn.critical_size(L_parallel=0.0) == float("inf")
+    assert dyn.critical_size(L_parallel=-1.0) == float("inf")
+
+
+def test_sheath_velocity_zero_delta():
+    """Line 85: delta_b <= 0 returns 0."""
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    assert dyn.sheath_velocity(0.0) == 0.0
+    assert dyn.sheath_velocity(-0.01) == 0.0
+
+
+def test_sol_blob_profile_zero_d_perp():
+    """Line 185: D_perp <= 0 returns simple exponential."""
+    r = np.array([0.05])
+    prof = SOLBlobProfile.radial_density(r, Gamma_blob=1e20, D_perp=0.0, lambda_n=0.02)
+    expected = np.exp(-r / 0.02)
+    np.testing.assert_allclose(prof, expected)
+
+
+def test_blob_detector_flat_signal():
+    """Line 219: std == 0 returns empty events list."""
+    det = BlobDetector()
+    flat = np.ones(200)
+    events = det.detect_blobs(flat)
+    assert events == []
+
+
+def test_conditional_average_empty():
+    """Line 245: empty events returns zero array."""
+    det = BlobDetector()
+    sig = np.random.randn(200)
+    avg = det.conditional_average(sig, [], window=10)
+    assert len(avg) == 21
+    assert np.allclose(avg, 0.0)

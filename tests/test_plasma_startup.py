@@ -3,6 +3,8 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import numpy as np
+
 from scpn_control.core.plasma_startup import (
     BurnThrough,
     PaschenBreakdown,
@@ -126,3 +128,27 @@ def test_ionization_rate_positive():
     assert rate > 0.0
     # Rate must be zero at very cold Te
     assert ava.ionization_rate(0.05) == 0.0
+
+
+def test_paschen_breakdown_edge_cases():
+    """Lines 85, 88: pd <= 0 and log_arg <= 1 return inf."""
+    pb = PaschenBreakdown("D2")
+    assert pb.breakdown_voltage(0.0, 100.0) == float("inf")
+    assert pb.breakdown_voltage(1e-10, 100.0) == float("inf")
+
+
+def test_paschen_curve_array():
+    """Line 98: paschen_curve returns an array of voltages."""
+    pb = PaschenBreakdown("D2")
+    p_range = np.array([0.01, 0.1, 1.0])
+    curve = pb.paschen_curve(p_range, connection_length_m=100.0)
+    assert len(curve) == 3
+    assert all(v > 0 for v in curve)
+
+
+def test_startup_sequence_no_breakdown():
+    """Lines 225, 231, 292: sequence with impossible breakdown returns failure."""
+    seq = StartupSequence(R0=6.2, a=2.0, B0=5.3, V_loop=0.001, p_prefill_Pa=1e-10, f_imp=0.5)
+    res = seq.run()
+    assert not res.success
+    assert res.breakdown_time_ms == -1.0

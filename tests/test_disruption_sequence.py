@@ -96,3 +96,32 @@ def test_disruption_sequence_mitigated():
 
     # Mitigation should change the evolution
     assert res_mit.cq_result.cq_duration_ms != res_unmit.cq_result.cq_duration_ms
+
+
+def test_tq_zero_dBr():
+    """Line 86: dBr_over_B <= 0 returns inf quench timescale."""
+    tq = ThermalQuench(W_th_MJ=350.0, a=2.0, R0=6.2, q=3.0, B0=5.3)
+    assert tq.quench_timescale(dBr_over_B=0.0, Te_pre_keV=20.0) == float("inf")
+
+
+def test_tq_heat_zero_area():
+    """Line 102: A_wall <= 0 returns inf heat deposition."""
+    tq = ThermalQuench(W_th_MJ=350.0, a=2.0, R0=6.2, q=3.0, B0=5.3)
+    assert tq.heat_deposition(350.0, 0.0) == float("inf")
+
+
+def test_cq_induced_field():
+    """Line 141: induced_electric_field computes E from L and dIp/dt."""
+    cq = CurrentQuench(Ip_MA=15.0, L_plasma_uH=10.0, R0=6.2, a=2.0)
+    E = cq.induced_electric_field(dIp_dt=1e6)
+    assert E > 0.0
+
+
+def test_re_termination_heat_load_zero_area():
+    """Line 179: A_deposition <= 0 returns inf."""
+    from scpn_control.core.disruption_sequence import REBeamPhase
+    from scpn_control.core.runaway_electrons import RunawayEvolution, RunawayParams
+
+    params = RunawayParams(ne_20=1.0, Te_keV=0.01, E_par=5.0, Z_eff=1.5, B0=5.3, R0=6.2)
+    re_phase = REBeamPhase(RunawayEvolution(params))
+    assert re_phase.termination_heat_load(W_RE_MJ=100.0, A_deposition_m2=0.0) == float("inf")

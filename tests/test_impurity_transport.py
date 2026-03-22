@@ -141,3 +141,33 @@ def test_radiation_power_positive():
     P_rad = total_radiated_power(ne, {"Ar": n_Ar}, Te, rho, 6.2, 2.0)
 
     assert P_rad > 0.0, "P_rad must be positive for non-zero impurity density"
+
+
+def test_cooling_curve_unknown_element():
+    """Lines 70-74: unknown element returns zeros."""
+    c_unknown = CoolingCurve("Xe")
+    L = c_unknown.L_z(np.array([100.0, 500.0, 1500.0]))
+    assert np.allclose(L, 0.0)
+
+
+def test_accumulation_diagnostic_safe():
+    """Lines 160, 162: safe and warning danger levels."""
+    ne = np.ones(50) * 1e20
+    n_safe = np.ones(50) * 1e14
+    diag_safe = tungsten_accumulation_diagnostic(n_safe, ne)
+    assert diag_safe["danger_level"] == "safe"
+
+    n_warn = np.ones(50) * 3e15
+    diag_warn = tungsten_accumulation_diagnostic(n_warn, ne)
+    assert diag_warn["danger_level"] == "warning"
+
+
+def test_transport_solver_negative_pinch():
+    """Lines 226-228: solver handles negative V (outward convection) branch."""
+    rho = np.linspace(0, 1, 30)
+    species = [ImpuritySpecies("Ar", 18, 40.0, source_rate=1e14)]
+    solver = ImpurityTransportSolver(rho, 6.2, 2.0, species)
+    V_outward = {"Ar": -0.1 * np.ones(30)}
+    solver.n_z["Ar"] = np.ones(30) * 1e14
+    res = solver.step(0.01, np.ones(30) * 1e20, np.ones(30) * 500.0, np.ones(30) * 500.0, 1.0, V_outward)
+    assert np.all(res["Ar"] >= 0.0)

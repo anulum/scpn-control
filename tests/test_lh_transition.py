@@ -118,3 +118,33 @@ def test_i_phase_frequency():
     model = PredatorPreyModel()
     f_I = IPhaseFrequency.estimate_hz(model)
     assert f_I > 0.0, f"I-phase frequency {f_I} Hz must be positive"
+
+
+def test_lh_trigger_all_l_mode():
+    """Line 134: find_threshold returns last Q when no H-mode is found."""
+    model = PredatorPreyModel()
+    Q_range = np.array([0.1, 0.5, 1.0])
+    Q_th = LHTrigger(model).find_threshold(Q_range)
+    assert Q_th == 1.0
+
+
+def test_martin_threshold_zero_inputs():
+    """Line 162: zero or negative inputs return 0."""
+    assert MartinThreshold.power_threshold_MW(ne_19=0.0, B_T=5.3, S_m2=680.0) == 0.0
+    assert MartinThreshold.power_threshold_MW(ne_19=5.0, B_T=0.0, S_m2=680.0) == 0.0
+    assert MartinThreshold.power_threshold_MW(ne_19=5.0, B_T=5.3, S_m2=0.0) == 0.0
+
+
+def test_low_density_branch_zero_geometry():
+    """Lines 199: I_p_MA <= 0 or a_m <= 0 falls back to plain Martin."""
+    p_plain = MartinThreshold.power_threshold_MW(ne_19=5.0, B_T=5.3, S_m2=680.0)
+    p_zero_ip = MartinThreshold.power_threshold_with_low_density_branch_MW(
+        ne_19=5.0, B_T=5.3, S_m2=680.0, I_p_MA=0.0, a_m=2.0
+    )
+    assert p_zero_ip == p_plain
+
+
+def test_i_phase_detector_short_trace():
+    """Line 220: trace shorter than window returns False."""
+    det = IPhaseDetector(window_size=100)
+    assert not det.detect(np.ones(50))

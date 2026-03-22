@@ -96,3 +96,53 @@ def test_qlknn_transport_model_denormalization():
     assert fluxes.Q_e_W_m2.shape == (50,)
     assert fluxes.Gamma_e_inv_m2_s.shape == (50,)
     assert np.all(np.isfinite(fluxes.Q_i_W_m2))
+
+
+def test_activate_relu_and_tanh():
+    """Lines 49-53: _activate covers relu and tanh branches."""
+    model_relu = QLKNNSurrogate(hidden_layers=[16], activation="relu", pretrained=False)
+    x = np.array([[1.0] * 10, [-1.0] * 10])
+    out_relu = model_relu.forward(x)
+    assert out_relu.shape == (2, 3)
+    assert np.all(np.isfinite(out_relu))
+
+    model_tanh = QLKNNSurrogate(hidden_layers=[16], activation="tanh", pretrained=False)
+    out_tanh = model_tanh.forward(x)
+    assert out_tanh.shape == (2, 3)
+    assert np.all(np.isfinite(out_tanh))
+
+
+def test_activate_deriv_branches():
+    """Lines 58-62: _activate_deriv covers relu and tanh branches."""
+    model = QLKNNSurrogate(hidden_layers=[16], activation="relu", pretrained=False)
+    x = np.array([1.0, -1.0, 0.0])
+    d_relu = model._activate_deriv(x)
+    assert d_relu[0] == 1.0
+    assert d_relu[1] == 0.0
+
+    model_tanh = QLKNNSurrogate(hidden_layers=[16], activation="tanh", pretrained=False)
+    d_tanh = model_tanh._activate_deriv(x)
+    assert np.all(np.isfinite(d_tanh))
+
+
+def test_forward_single_sample():
+    """Line 106: forward handles 1D input (single sample)."""
+    model = QLKNNSurrogate(hidden_layers=[16], pretrained=False)
+    x_1d = np.ones(10)
+    out = model.forward(x_1d)
+    assert out.shape == (1, 3)
+
+
+def test_trainer_activate_deriv_relu_tanh():
+    """Lines 254-258: NeuralTransportTrainer._activate_deriv relu and tanh."""
+    trainer = NeuralTransportTrainer()
+    x = np.array([1.0, -1.0, 0.0])
+    d_relu = trainer._activate_deriv(x, "relu")
+    assert d_relu[0] == 1.0
+    assert d_relu[1] == 0.0
+
+    d_tanh = trainer._activate_deriv(x, "tanh")
+    assert np.all(np.isfinite(d_tanh))
+
+    d_unknown = trainer._activate_deriv(x, "linear")
+    assert np.allclose(d_unknown, 1.0)

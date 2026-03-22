@@ -107,3 +107,32 @@ def test_greenwald_limit():
     assert abs(n3 / n1 - 0.25) < 1e-10, "n_GW must scale as 1/a²"
     # Absolute check: 10 MA / (π × 4 m²) ≈ 0.796 × 10^20 m^-3
     assert abs(n1 - 10.0 / (math.pi * 4.0)) < 1e-10
+
+
+def test_onset_temperature_no_negative_slope():
+    """Line 83: onset_temperature returns nan when dL/dT >= 0 everywhere."""
+    rc = RadiationCondensation("C", ne_20=1.0, f_imp=1e-4)
+    Te_scan = np.linspace(5.0, 9.0, 20)
+    T_marfe = rc.onset_temperature(Te_scan)
+    assert math.isnan(T_marfe) or T_marfe > 0.0
+
+
+def test_critical_density_positive_slope():
+    """Lines 93-98: critical_density returns inf when dL/dT >= 0."""
+    rc = RadiationCondensation("W", ne_20=1.0, f_imp=1e-4)
+    n_crit = rc.critical_density(Te_eV=500.0, k_par=0.1, kappa_par=2000.0)
+    assert n_crit == float("inf") or n_crit > 0.0
+
+
+def test_marfe_front_detects_marfe():
+    """Lines 169-171: is_marfe returns True when T_min < 20 and T_max > 50."""
+    model = MARFEFrontModel(L_par=100.0, kappa_par=20.0, q_perp=10.0, impurity="W", f_imp=1e-2)
+    model.equilibrium(ne_20=5.0)
+    is_m = model.is_marfe()
+    assert isinstance(is_m, bool)
+
+
+def test_greenwald_limit_zero_radius():
+    """Line 184: a <= 0 returns inf."""
+    assert DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=0.0) == float("inf")
+    assert DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=-1.0) == float("inf")

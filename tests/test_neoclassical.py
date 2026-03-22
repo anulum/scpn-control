@@ -11,12 +11,15 @@ from __future__ import annotations
 import numpy as np
 
 from scpn_control.core.neoclassical import (
+    banana_plateau_chi,
     chang_hinton_chi,
     collisionality,
     neoclassical_chi,
     pfirsch_schluter_chi,
     plateau_chi,
     sauter_bootstrap,
+    _ion_collision_freq,
+    _larmor_radius,
     _sauter_L31,
     _sauter_L32,
     _sauter_L34,
@@ -237,3 +240,91 @@ def test_sauter_coefficients_physical_range():
             assert abs(L31) < 5.0
             assert abs(L32) < 5.0
             assert abs(L34) < 5.0
+
+
+# ── Coverage gap closers ──────────────────────────────────────────────────
+
+
+def test_collisionality_near_zero_Te():
+    """collisionality returns 0 when T_kev <= 0.01 (line 71 guard)."""
+    assert collisionality(n_e_19=5.0, T_kev=0.0, q=2.0, R=6.2, epsilon=0.1) == 0.0
+    assert collisionality(n_e_19=5.0, T_kev=0.01, q=2.0, R=6.2, epsilon=0.1) == 0.0
+
+
+def test_collisionality_zero_epsilon():
+    """collisionality returns 0 when epsilon < 1e-6."""
+    assert collisionality(n_e_19=5.0, T_kev=2.0, q=2.0, R=6.2, epsilon=0.0) == 0.0
+
+
+def test_collisionality_zero_density():
+    """collisionality returns 0 when n_e_19 <= 0."""
+    assert collisionality(n_e_19=0.0, T_kev=2.0, q=2.0, R=6.2, epsilon=0.1) == 0.0
+    assert collisionality(n_e_19=-1.0, T_kev=2.0, q=2.0, R=6.2, epsilon=0.1) == 0.0
+
+
+def test_ion_collision_freq_returns_positive():
+    """_ion_collision_freq returns a finite positive collision frequency."""
+    nu = _ion_collision_freq(n_e_19=5.0, T_kev=2.0, mass_amu=2.0, z_eff=1.5)
+    assert nu > 0
+    assert np.isfinite(nu)
+
+
+def test_ion_collision_freq_density_scaling():
+    """nu_ii scales linearly with density — Wesson 2011, Eq. 14.2.3."""
+    nu1 = _ion_collision_freq(n_e_19=5.0, T_kev=2.0, mass_amu=2.0, z_eff=1.0)
+    nu2 = _ion_collision_freq(n_e_19=10.0, T_kev=2.0, mass_amu=2.0, z_eff=1.0)
+    assert abs(nu2 / nu1 - 2.0) < 1e-10
+
+
+def test_larmor_radius_returns_positive():
+    """_larmor_radius returns a finite positive value — Wesson 2011, Eq. 14.1.1."""
+    rho_i = _larmor_radius(T_kev=2.0, B=5.3, mass_amu=2.0)
+    assert rho_i > 0
+    assert np.isfinite(rho_i)
+
+
+def test_larmor_radius_field_scaling():
+    """rho_i scales as 1/B — doubling B halves rho_i."""
+    r1 = _larmor_radius(T_kev=2.0, B=2.0, mass_amu=2.0)
+    r2 = _larmor_radius(T_kev=2.0, B=4.0, mass_amu=2.0)
+    assert abs(r2 / r1 - 0.5) < 1e-10
+
+
+def test_chang_hinton_zero_epsilon():
+    """chang_hinton_chi returns 0 when epsilon < 1e-6 (line 137)."""
+    assert chang_hinton_chi(q=2.0, epsilon=0.0, nu_star=0.01, rho_i=0.01, nu_ii=100.0) == 0.0
+
+
+def test_banana_plateau_chi_positive():
+    """banana_plateau_chi returns a positive value — Hinton & Hazeltine 1976, Eq. 4.61."""
+    chi = banana_plateau_chi(q=2.0, epsilon=0.1, nu_star=0.5, z_eff=1.5)
+    assert chi > 0
+    assert np.isfinite(chi)
+
+
+def test_banana_plateau_chi_zero_epsilon():
+    """banana_plateau_chi returns 0 when epsilon < 1e-6 (line 288)."""
+    assert banana_plateau_chi(q=2.0, epsilon=0.0, nu_star=0.5, z_eff=1.5) == 0.0
+
+
+def test_banana_plateau_chi_zeff_scaling():
+    """Higher Z_eff increases banana-plateau chi — Hinton & Hazeltine 1976, Eq. 4.61."""
+    chi_z1 = banana_plateau_chi(q=2.0, epsilon=0.1, nu_star=0.5, z_eff=1.0)
+    chi_z3 = banana_plateau_chi(q=2.0, epsilon=0.1, nu_star=0.5, z_eff=3.0)
+    assert chi_z3 > chi_z1
+
+
+def test_sauter_bootstrap_low_bpol_skip():
+    """sauter_bootstrap skips grid points where B_pol < 1e-10 (line 447).
+
+    With very small B0 and large q, B_pol = B0*eps/q can fall below 1e-10.
+    Those points should be left at j_bs = 0.
+    """
+    rho = np.linspace(0, 1, 50)
+    Te = 5.0 * (1 - rho**2)
+    Ti = 5.0 * (1 - rho**2)
+    ne = 5.0 * (1 - rho**2)
+    q = 1.0 + 2.0 * rho**2
+    # Tiny B0 so B_pol is below threshold at inner radii
+    j_bs = sauter_bootstrap(rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=1e-12)
+    assert np.all(j_bs == 0.0)

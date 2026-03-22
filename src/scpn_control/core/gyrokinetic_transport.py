@@ -343,22 +343,26 @@ class GyrokineticTransportModel:
                 D_e[i] = 0.01
                 continue
 
+            def _at(key, default):
+                v = profiles.get(key, default)
+                return float(v[i]) if hasattr(v, "__getitem__") and not isinstance(v, (int, float)) else float(v)
+
             local_profs = {
                 "R0": R0,
                 "a": a,
                 "B0": B0,
-                "q": profiles["q"][i] if "q" in profiles else 1.0,
-                "s_hat": profiles["s_hat"][i] if "s_hat" in profiles else 1.0,
-                "Te": profiles["Te"][i] if "Te" in profiles else 1.0,
-                "Ti": profiles["Ti"][i] if "Ti" in profiles else 1.0,
-                "ne": profiles["ne"][i] if "ne" in profiles else 1.0,
-                "dTe_dr": profiles["dTe_dr"][i] if "dTe_dr" in profiles else 0.0,
-                "dTi_dr": profiles["dTi_dr"][i] if "dTi_dr" in profiles else 0.0,
-                "dne_dr": profiles["dne_dr"][i] if "dne_dr" in profiles else 0.0,
-                "nu_star": profiles["nu_star"][i] if "nu_star" in profiles else 0.1,
-                "beta_e": profiles["beta_e"][i] if "beta_e" in profiles else 0.01,
-                "alpha_MHD": profiles["alpha_MHD"][i] if "alpha_MHD" in profiles else 0.0,
-                "Z_eff": profiles["Z_eff"][i] if "Z_eff" in profiles else 1.5,
+                "q": _at("q", 1.0),
+                "s_hat": _at("s_hat", 1.0),
+                "Te": _at("Te", 1.0),
+                "Ti": _at("Ti", 1.0),
+                "ne": _at("ne", 1.0),
+                "dTe_dr": _at("dTe_dr", 0.0),
+                "dTi_dr": _at("dTi_dr", 0.0),
+                "dne_dr": _at("dne_dr", 0.0),
+                "nu_star": _at("nu_star", 0.1),
+                "beta_e": _at("beta_e", 0.01),
+                "alpha_MHD": _at("alpha_MHD", 0.0),
+                "Z_eff": _at("Z_eff", 1.5),
             }
             ci, ce, de = self.evaluate(rho[i], local_profs)
             chi_i[i] = ci

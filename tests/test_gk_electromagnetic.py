@@ -180,7 +180,10 @@ def test_classify_mode_kbm():
 
 
 def test_classify_mode_mtm():
-    assert _classify_mode(omega_r=0.5, k_y=0.3, electromagnetic=True, alpha_MHD=0.5, s_hat=0.78, beta_e=0.02, nu_e=0.1) == "MTM"
+    assert (
+        _classify_mode(omega_r=0.5, k_y=0.3, electromagnetic=True, alpha_MHD=0.5, s_hat=0.78, beta_e=0.02, nu_e=0.1)
+        == "MTM"
+    )
 
 
 def test_classify_mode_itg_when_not_em():

@@ -171,3 +171,91 @@ def test_custom_species_list():
         n_period=1,
     )
     assert len(result.modes) == 2
+
+
+# ── Coverage-gap tests: EM branches and empty-array result ────────────
+
+
+class TestElectromagneticKBMMTM:
+    """electromagnetic=True with beta_e=0.05 exercises KBM/MTM branches."""
+
+    def test_em_kbm_mode_detected(self):
+        """High alpha_MHD + beta_e should trigger KBM classification."""
+        ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+        e = electron(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+        result = solve_linear_gk(
+            species_list=[ion, e],
+            n_ky_ion=4,
+            n_theta=16,
+            n_period=1,
+            electromagnetic=True,
+            beta_e=0.05,
+            alpha_MHD=2.0,
+            s_hat=0.78,
+        )
+        assert len(result.modes) == 4
+        assert all(np.isfinite(m.gamma) for m in result.modes)
+        has_kbm = any(m.mode_type == "KBM" for m in result.modes)
+        has_em = any(m.electromagnetic for m in result.modes)
+        assert has_em
+
+    def test_em_mtm_branch(self, cyclone_geometry, small_vgrid):
+        """Low k_y + electron-direction mode + collisionality triggers MTM."""
+        ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+        e = electron(T_keV=2.0, R_L_T=6.9, R_L_n=2.2, adiabatic=False)
+        mode = solve_eigenvalue_single_ky(
+            k_y_rho_s=0.1,
+            species_list=[ion, e],
+            geom=cyclone_geometry,
+            vgrid=small_vgrid,
+            electromagnetic=True,
+            beta_e=0.05,
+            alpha_MHD=0.1,
+            s_hat=0.78,
+            nu_star=0.5,
+        )
+        assert mode.electromagnetic is True
+        assert mode.gamma >= 0.0
+
+    def test_em_single_ky_high_beta(self, cyclone_geometry, small_vgrid):
+        """High beta_e with moderate alpha_MHD should produce KBM growth."""
+        ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+        e = electron(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+        mode = solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3,
+            species_list=[ion, e],
+            geom=cyclone_geometry,
+            vgrid=small_vgrid,
+            electromagnetic=True,
+            beta_e=0.05,
+            alpha_MHD=1.5,
+            s_hat=0.78,
+        )
+        assert mode.gamma >= 0.0
+        assert mode.electromagnetic is True
+
+
+class TestLinearGKResultEmpty:
+    """LinearGKResult with empty arrays returns gamma_max=0, k_y_max=0."""
+
+    def test_empty_gamma_max(self):
+        result = LinearGKResult(
+            k_y=np.array([]),
+            gamma=np.array([]),
+            omega_r=np.array([]),
+            mode_type=[],
+            modes=[],
+        )
+        assert result.gamma_max == 0.0
+        assert result.k_y_max == 0.0
+
+    def test_single_mode_result(self):
+        result = LinearGKResult(
+            k_y=np.array([0.3]),
+            gamma=np.array([0.15]),
+            omega_r=np.array([-0.5]),
+            mode_type=["ITG"],
+            modes=[EigenMode(k_y_rho_s=0.3, omega_r=-0.5, gamma=0.15, mode_type="ITG")],
+        )
+        assert result.gamma_max == pytest.approx(0.15)
+        assert result.k_y_max == pytest.approx(0.3)

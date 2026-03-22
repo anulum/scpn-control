@@ -547,3 +547,175 @@ class TestPicardFinalSourceNone:
         result = fk.solve_equilibrium()
         assert result["gs_residual"] == float("inf")
         assert result["gs_residual_best"] == float("inf")
+
+
+# ── build_coilset_from_config validation branches ─────────────────────
+
+
+def _fb_config(
+    tmp_path: Path,
+    fb_extra: dict | None = None,
+) -> Path:
+    cfg = {
+        "reactor_name": "Test-Reactor",
+        "grid_resolution": [8, 8],
+        "dimensions": {"R_min": 2.0, "R_max": 6.0, "Z_min": -3.0, "Z_max": 3.0},
+        "physics": {"plasma_current_target": 1.0, "vacuum_permeability": 1.0},
+        "coils": [
+            {"name": "PF1", "r": 3.0, "z": 4.0, "current": 2.0},
+            {"name": "PF2", "r": 5.0, "z": -4.0, "current": -1.0},
+        ],
+        "solver": {"max_iterations": 3, "convergence_threshold": 1e-4, "relaxation_factor": 0.1},
+        "free_boundary": fb_extra or {},
+    }
+    p = tmp_path / "fb.json"
+    p.write_text(json.dumps(cfg), encoding="utf-8")
+    return p
+
+
+class TestBuildCoilsetTargetFluxValueWithTargetFluxValues:
+    """target_flux_value + target_flux_values both set raises ValueError."""
+
+    def test_both_target_flux_raises(self, tmp_path):
+        cfg_path = _fb_config(
+            tmp_path,
+            {
+                "target_flux_points": [[3.0, 0.0], [4.0, 0.0]],
+                "target_flux_values": [0.1, 0.2],
+                "target_flux_value": 0.5,
+            },
+        )
+        fk = FusionKernel(cfg_path)
+        with pytest.raises(ValueError, match="Specify only one"):
+            fk.build_coilset_from_config()
+
+
+class TestBuildCoilsetTargetFluxValueWithoutPoints:
+    """target_flux_value without target_flux_points raises ValueError."""
+
+    def test_target_flux_value_without_points_raises(self, tmp_path):
+        cfg_path = _fb_config(tmp_path, {"target_flux_value": 0.5})
+        fk = FusionKernel(cfg_path)
+        with pytest.raises(ValueError, match="requires free_boundary.target_flux_points"):
+            fk.build_coilset_from_config()
+
+
+class TestBuildCoilsetNonFiniteTargetFluxValue:
+    """Non-finite target_flux_value raises ValueError."""
+
+    def test_non_finite_target_flux_value_raises(self, tmp_path):
+        cfg_path = _fb_config(
+            tmp_path,
+            {
+                "target_flux_points": [[3.0, 0.0], [4.0, 0.0]],
+                "target_flux_value": float("inf"),
+            },
+        )
+        fk = FusionKernel(cfg_path)
+        with pytest.raises(ValueError, match="must be finite"):
+            fk.build_coilset_from_config()
+
+
+class TestBuildCoilsetDivertorFluxValueBothSet:
+    """divertor_flux_value + divertor_flux_values both set raises ValueError."""
+
+    def test_both_divertor_flux_raises(self, tmp_path):
+        cfg_path = _fb_config(
+            tmp_path,
+            {
+                "divertor_strike_points": [[3.0, -2.0], [5.0, -2.0]],
+                "divertor_flux_values": [0.1, 0.2],
+                "divertor_flux_value": 0.3,
+            },
+        )
+        fk = FusionKernel(cfg_path)
+        with pytest.raises(ValueError, match="Specify only one"):
+            fk.build_coilset_from_config()
+
+
+class TestBuildCoilsetDivertorFluxValueWithoutPoints:
+    """divertor_flux_value without divertor_strike_points raises ValueError."""
+
+    def test_divertor_flux_value_without_points_raises(self, tmp_path):
+        cfg_path = _fb_config(tmp_path, {"divertor_flux_value": 0.3})
+        fk = FusionKernel(cfg_path)
+        with pytest.raises(ValueError, match="requires free_boundary.divertor_strike_points"):
+            fk.build_coilset_from_config()
+
+
+class TestBuildCoilsetNonFiniteDivertorFluxValue:
+    """Non-finite divertor_flux_value raises ValueError."""
+
+    def test_non_finite_divertor_flux_value_raises(self, tmp_path):
+        cfg_path = _fb_config(
+            tmp_path,
+            {
+                "divertor_strike_points": [[3.0, -2.0], [5.0, -2.0]],
+                "divertor_flux_value": float("nan"),
+            },
+        )
+        fk = FusionKernel(cfg_path)
+        with pytest.raises(ValueError, match="must be finite"):
+            fk.build_coilset_from_config()
+
+
+class TestBuildCoilsetTargetFluxValueScalarBroadcast:
+    """target_flux_value with points broadcasts to all points."""
+
+    def test_scalar_broadcast(self, tmp_path):
+        cfg_path = _fb_config(
+            tmp_path,
+            {
+                "target_flux_points": [[3.0, 0.0], [4.0, 0.0]],
+                "target_flux_value": 0.42,
+            },
+        )
+        fk = FusionKernel(cfg_path)
+        cs = fk.build_coilset_from_config()
+        assert cs.target_flux_values is not None
+        np.testing.assert_allclose(cs.target_flux_values, [0.42, 0.42])
+
+
+class TestBuildCoilsetDivertorFluxValueScalarBroadcast:
+    """divertor_flux_value with points broadcasts to all points."""
+
+    def test_scalar_broadcast(self, tmp_path):
+        cfg_path = _fb_config(
+            tmp_path,
+            {
+                "divertor_strike_points": [[3.0, -2.0], [5.0, -2.0]],
+                "divertor_flux_value": 0.33,
+            },
+        )
+        fk = FusionKernel(cfg_path)
+        cs = fk.build_coilset_from_config()
+        assert cs.divertor_flux_values is not None
+        np.testing.assert_allclose(cs.divertor_flux_values, [0.33, 0.33])
+
+
+# ── update_plasma_source_nonlinear with "external" profile mode ───────
+
+
+class TestExternalProfileMode:
+    """Cover the 'external' branch in update_plasma_source_nonlinear."""
+
+    def test_external_profile_interpolation(self, tmp_path):
+        psi_grid = [0.0, 0.25, 0.5, 0.75, 1.0]
+        pprime = [1.0, 0.8, 0.5, 0.2, 0.0]
+        ffprime = [0.5, 0.4, 0.3, 0.1, 0.0]
+        cfg_path = _write_config(
+            tmp_path / "ext.json",
+            grid=(8, 8),
+            extra_physics={
+                "profiles": {
+                    "mode": "external",
+                    "psi_grid": psi_grid,
+                    "pprime_values": pprime,
+                    "ffprime_values": ffprime,
+                },
+            },
+        )
+        fk = FusionKernel(cfg_path)
+        assert fk.profile_mode == "external"
+        J = fk.update_plasma_source_nonlinear(Psi_axis=0.0, Psi_boundary=1.0)
+        assert np.all(np.isfinite(J))

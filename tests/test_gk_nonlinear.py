@@ -625,6 +625,147 @@ class TestJaxFallback:
         assert isinstance(jax_available(), bool)
 
 
+# ── Coverage-gap tests: EM paths, negative-shift ballooning, minimal config ──
+
+
+class TestElectromagneticCodePaths:
+    """electromagnetic=True exercises ampere_solve and gradient_drive EM branch."""
+
+    def test_em_rhs_finite(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            electromagnetic=True,
+            beta_e=0.02,
+            d_e_sq=0.5,
+            kinetic_electrons=True,
+            dt=0.02,
+            n_steps=2,
+            save_interval=1,
+            nonlinear=False,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-5)
+        assert state.A_par is not None
+        assert np.all(np.isfinite(state.A_par))
+        rhs_val = solver.rhs(state)
+        assert np.all(np.isfinite(rhs_val))
+
+    def test_em_run_converges(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            electromagnetic=True,
+            beta_e=0.02,
+            d_e_sq=0.0,
+            kinetic_electrons=True,
+            dt=0.02,
+            n_steps=4,
+            save_interval=2,
+            nonlinear=False,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        result = solver.run()
+        assert np.all(np.isfinite(result.Q_i_t))
+
+    def test_ampere_solve_ion_only(self):
+        """ampere_solve with kinetic_electrons=False uses ion current only."""
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            electromagnetic=True,
+            beta_e=0.01,
+            kinetic_electrons=False,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-5)
+        A_par = solver.ampere_solve(state.f)
+        assert np.all(np.isfinite(A_par))
+        assert A_par[0, 0, :].tolist() == [0.0] * cfg.n_theta
+
+
+class TestRollBallooningNegativeShift:
+    """_roll_ballooning with shift < 0 wraps forward at theta_max."""
+
+    def test_negative_shift_applies_forward_phase(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
+            s_hat=0.78,
+        )
+        solver = NonlinearGKSolver(cfg)
+        f_s = np.random.default_rng(7).standard_normal((4, 4, 8, 4, 4)).astype(complex)
+        rolled_neg = solver._roll_ballooning(f_s, shift=-1)
+        rolled_pos = solver._roll_ballooning(f_s, shift=1)
+        assert rolled_neg.shape == f_s.shape
+        assert rolled_pos.shape == f_s.shape
+        # Negative and positive shifts should differ
+        assert not np.allclose(rolled_neg, rolled_pos)
+
+    def test_negative_shift_2(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        f_s = np.random.default_rng(8).standard_normal((4, 4, 8, 4, 4)).astype(complex)
+        rolled = solver._roll_ballooning(f_s, shift=-2)
+        assert rolled.shape == f_s.shape
+        assert np.all(np.isfinite(rolled))
+
+
+class TestMinimalGridConfig:
+    """Run with n_kx=4, n_ky=4, n_theta=8, n_vpar=4, n_mu=4, n_steps=2."""
+
+    def test_minimal_run(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            dt=0.02,
+            n_steps=2,
+            save_interval=1,
+            nonlinear=True,
+            collisions=True,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        result = solver.run()
+        assert result.Q_i_t.size > 0
+        assert np.all(np.isfinite(result.Q_i_t))
+
+
 class TestJaxV019Parity:
     def test_jax_ampere_solve_matches_numpy_with_skin_depth(self):
         from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver, jax_available

@@ -130,3 +130,27 @@ def test_elm_type3_smaller():
     res3 = type3.crash(T_ped=5.0, n_ped=4.0, W_ped=W_ped)
 
     assert res3.delta_W_MJ < res1.delta_W_MJ
+
+
+def test_rmp_single_element_profile():
+    """Line 178: chirikov_parameter falls back to dq_drho=10 for len(rho)==1."""
+    rmp = RMPSuppression()
+    q = np.array([3.0])
+    rho = np.array([1.0])
+    chir = rmp.chirikov_parameter(q, rho, delta_B_r=0.01, B0=5.3, R0=6.2)
+    assert chir > 0.0
+
+
+def test_rmp_chirikov_zero_delta_B():
+    """Line 183: delta_B_r <= 0 returns 0."""
+    rmp = RMPSuppression()
+    q = np.linspace(1, 3, 50)
+    rho = np.linspace(0, 1, 50)
+    assert rmp.chirikov_parameter(q, rho, delta_B_r=0.0, B0=5.3, R0=6.2) == 0.0
+    assert rmp.chirikov_parameter(q, rho, delta_B_r=-1.0, B0=5.3, R0=6.2) == 0.0
+
+
+def test_elm_power_balance_zero_inputs():
+    """Lines 194-195, 209: zero W_ped or f_elm returns 0."""
+    assert elm_power_balance_frequency(P_SOL_MW=100.0, W_ped_MJ=0.0, f_elm_fraction=0.1) == 0.0
+    assert elm_power_balance_frequency(P_SOL_MW=100.0, W_ped_MJ=100.0, f_elm_fraction=0.0) == 0.0
