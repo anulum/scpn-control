@@ -1,6 +1,6 @@
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-03-17 (v0.18.0).
+> **Last updated:** 2026-03-17 (v0.19.0).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 
@@ -163,8 +163,8 @@
 | Equilibrium autodiff depth | JAX Picard GS solver, `jax.grad` through full solve (v0.13.0) | **RESOLVED** |
 | No first-principles GK | Native linear eigenvalue + nonlinear δf + TGLF-native + 5 external codes + hybrid (v0.17.0+) | **RESOLVED** |
 | No GK-surrogate hybrid | OOD detection + spot-check + correction + online learning (v0.17.0) | **RESOLVED** |
-| Linear GK quantitative accuracy | Local dispersion + Newton root-finding: γ_max within 21% of GENE for CBC (v0.18.0) | **RESOLVED** |
-| Dimits shift | Proven at n_kx=256: zero transport below critical gradient (v0.18.0) | **RESOLVED** |
+| Linear GK quantitative accuracy | Local dispersion + Newton root-finding: γ_max within 21% of GENE for CBC (v0.19.0) | **RESOLVED** |
+| Dimits shift | Proven at n_kx=256: zero transport below critical gradient (v0.19.0) | **RESOLVED** |
 | No peer-reviewed pub | JOSS paper fact-checked, ready for submission | v0.13.0 |
 | Smaller community | External action: talks, workshops, issue triage | Ongoing |
 
