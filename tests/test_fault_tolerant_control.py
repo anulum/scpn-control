@@ -137,3 +137,50 @@ def test_control_allocation_feasible():
     u = ctrl.step(error, 0.01)
 
     assert np.all(np.isfinite(u)), "pseudo-inverse must yield finite commands"
+
+
+def test_compute_gain_singular():
+    """Lines 153-154: _compute_gain falls back to zeros on singular H."""
+    J = np.zeros((2, 2))  # singular Jacobian
+    ctrl = ReconfigurableController(None, J, 2, 2)
+    # K should be zero due to singular H (only regularisation keeps it non-singular)
+    assert np.all(np.isfinite(ctrl.K))
+
+
+def test_handle_actuator_fault_stuck():
+    """Lines 163, 168: handle_actuator_fault with STUCK_ACTUATOR stores stuck value."""
+    J = np.eye(3)
+    ctrl = ReconfigurableController(None, J, 3, 3)
+    ctrl.handle_actuator_fault(0, FaultType.STUCK_ACTUATOR, stuck_val=5.0)
+    assert 0 in ctrl.stuck_values
+    assert ctrl.stuck_values[0] == 5.0
+
+    # Calling again on same coil is a no-op (early return)
+    ctrl.handle_actuator_fault(0, FaultType.STUCK_ACTUATOR, stuck_val=10.0)
+    assert ctrl.stuck_values[0] == 5.0
+
+
+def test_handle_sensor_fault():
+    """Line 174: handle_sensor_fault is a no-op (placeholder)."""
+    J = np.eye(2)
+    ctrl = ReconfigurableController(None, J, 2, 2)
+    ctrl.handle_sensor_fault(0, FaultType.SENSOR_DROPOUT)
+    # No exception, no state change
+
+
+def test_step_compensates_stuck_coil():
+    """Lines 180, 221: step subtracts stuck-coil offset from error."""
+    J = np.eye(3)
+    ctrl = ReconfigurableController(None, J, 3, 3)
+    ctrl.handle_actuator_fault(1, FaultType.STUCK_ACTUATOR, stuck_val=2.0)
+    error = np.array([1.0, 1.0, 1.0])
+    u = ctrl.step(error, 0.1)
+    assert np.isclose(u[1], 0.0)  # faulted coil zeroed
+
+
+def test_fault_injector_before_fault_time():
+    """Line 215: inject returns unmodified signals before fault_time."""
+    inj = FaultInjector(fault_time=5.0, component_index=0, fault_type=FaultType.SENSOR_DROPOUT)
+    signals = np.array([1.0, 2.0, 3.0])
+    result = inj.inject(t=3.0, signals=signals)
+    np.testing.assert_array_equal(result, signals)

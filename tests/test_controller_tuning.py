@@ -48,3 +48,10 @@ def test_tune_hinf_no_optuna_fallback():
         with mock.patch.object(ct, "HAS_OPTUNA", False):
             result = ct.tune_hinf(plant={}, n_trials=1)
             assert result == {"gamma": 1.1, "bandwidth": 0.5}
+
+
+def test_has_optuna_import_branch():
+    """Cover controller_tuning.py line 22: HAS_OPTUNA set on import."""
+    import scpn_control.control.controller_tuning as ct
+
+    assert isinstance(ct.HAS_OPTUNA, bool)

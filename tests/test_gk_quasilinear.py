@@ -170,3 +170,57 @@ def test_te_ti_defaults_to_unity_without_electron():
     out_explicit = quasilinear_fluxes_from_spectrum(result, ion, electron=elec)
 
     np.testing.assert_allclose(out_none.chi_i, out_explicit.chi_i, rtol=1e-12)
+
+
+def test_quasilinear_skips_zero_omega_r():
+    """Line 91: modes with abs(omega_r) < 1e-10 are skipped."""
+    result = LinearGKResult(
+        k_y=np.array([0.3]),
+        gamma=np.array([0.2]),
+        omega_r=np.array([0.0]),  # near-zero omega_r
+        mode_type=["ITG"],
+        modes=[],
+    )
+    ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+    out = quasilinear_fluxes_from_spectrum(result, ion)
+    assert out.chi_i == 0.0
+
+
+def test_quasilinear_tem_etg_branches():
+    """Lines 99-106: TEM and ETG mode branches produce transport."""
+    ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+
+    result_tem = LinearGKResult(
+        k_y=np.array([0.3]),
+        gamma=np.array([0.15]),
+        omega_r=np.array([0.5]),  # positive omega_r → TEM
+        mode_type=["TEM"],
+        modes=[],
+    )
+    out_tem = quasilinear_fluxes_from_spectrum(result_tem, ion)
+    assert out_tem.chi_e > 0.0
+    assert out_tem.D_e > 0.0
+
+    result_etg = LinearGKResult(
+        k_y=np.array([5.0]),
+        gamma=np.array([0.3]),
+        omega_r=np.array([2.0]),  # high k_y → ETG
+        mode_type=["ETG"],
+        modes=[],
+    )
+    out_etg = quasilinear_fluxes_from_spectrum(result_etg, ion)
+    assert out_etg.chi_e > 0.0
+
+
+def test_quasilinear_all_stable():
+    """Line 124: dominant_mode is 'stable' when all gamma <= 0."""
+    result = LinearGKResult(
+        k_y=np.array([0.3, 0.5]),
+        gamma=np.array([0.0, 0.0]),
+        omega_r=np.array([-0.5, -0.3]),
+        mode_type=["stable", "stable"],
+        modes=[],
+    )
+    ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+    out = quasilinear_fluxes_from_spectrum(result, ion)
+    assert out.dominant_mode == "stable"

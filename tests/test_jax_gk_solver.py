@@ -155,3 +155,118 @@ def test_nonlinear_jax_gk_numpy_fallback():
     assert result.chi_i_gB >= 0.0
     assert result.final_state is not None
     assert result.final_state.f is not None
+
+
+def test_nonlinear_jax_kinetic_electrons():
+    """JAX solver with kinetic_electrons=True exercises the electron field solve."""
+    from scpn_control.core.gk_nonlinear import NonlinearGKConfig
+    from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
+
+    cfg = NonlinearGKConfig(
+        n_kx=8,
+        n_ky=8,
+        n_theta=16,
+        n_vpar=8,
+        n_mu=4,
+        n_steps=2,
+        save_interval=1,
+        kinetic_electrons=True,
+        nonlinear=False,
+        cfl_adapt=False,
+        dt=0.01,
+    )
+    solver = JaxNonlinearGKSolver(cfg)
+    result = solver.run()
+
+    assert np.all(np.isfinite(result.Q_i_t))
+    assert result.final_state is not None
+
+
+def test_nonlinear_jax_electromagnetic():
+    """JAX solver with electromagnetic=True exercises Ampere solve and EM gradient drive."""
+    from scpn_control.core.gk_nonlinear import NonlinearGKConfig
+    from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
+
+    cfg = NonlinearGKConfig(
+        n_kx=8,
+        n_ky=8,
+        n_theta=16,
+        n_vpar=8,
+        n_mu=4,
+        n_steps=2,
+        save_interval=1,
+        electromagnetic=True,
+        beta_e=0.01,
+        nonlinear=False,
+        cfl_adapt=False,
+        dt=0.01,
+    )
+    solver = JaxNonlinearGKSolver(cfg)
+    result = solver.run()
+
+    assert result.final_state is not None
+    assert result.final_state.A_par is not None
+    assert np.all(np.isfinite(result.final_state.A_par))
+
+
+def test_solve_eigenvalue_all_stable():
+    """Cover jax_gk_solver.py lines 178-179, 185: all gammas <= 0 -> stable."""
+    from scpn_control.core.jax_gk_solver import _solve_eigenvalue_from_matrix
+
+    M_real = np.array([[1.0, 0.0], [0.0, 2.0]])
+    M_imag = np.array([[-1.0, 0.0], [0.0, -2.0]])
+    gamma, omega_r, mode_type, phi = _solve_eigenvalue_from_matrix(M_real, M_imag)
+    assert gamma == 0.0
+    assert mode_type == "stable"
+    assert phi is None
+
+
+def test_solve_eigenvalue_itg_vs_tem():
+    """Cover jax_gk_solver.py lines 193, 197: ITG (omega<0) vs TEM (omega>0) vs stable."""
+    from scpn_control.core.jax_gk_solver import _solve_eigenvalue_from_matrix
+
+    # omega_r < 0 -> ITG
+    M_real = np.array([[-1.0, 0.0], [0.0, -2.0]])
+    M_imag = np.array([[0.5, 0.0], [0.0, 0.3]])
+    gamma, omega_r, mode_type, phi = _solve_eigenvalue_from_matrix(M_real, M_imag)
+    assert gamma > 0.0
+    assert mode_type == "ITG"
+
+    # omega_r > 0 -> TEM
+    M_real2 = np.array([[1.0, 0.0], [0.0, 2.0]])
+    M_imag2 = np.array([[0.5, 0.0], [0.0, 0.3]])
+    _, _, mode_type2, _ = _solve_eigenvalue_from_matrix(M_real2, M_imag2)
+    assert mode_type2 == "TEM"
+
+    # omega_r == 0 -> stable
+    M_real3 = np.array([[0.0, 0.0], [0.0, 0.0]])
+    M_imag3 = np.array([[0.5, 0.0], [0.0, 0.3]])
+    _, _, mode_type3, _ = _solve_eigenvalue_from_matrix(M_real3, M_imag3)
+    assert mode_type3 == "stable"
+
+
+def test_nonlinear_jax_kinetic_electrons_em():
+    """JAX solver with both kinetic_electrons and electromagnetic."""
+    from scpn_control.core.gk_nonlinear import NonlinearGKConfig
+    from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
+
+    cfg = NonlinearGKConfig(
+        n_kx=8,
+        n_ky=8,
+        n_theta=16,
+        n_vpar=8,
+        n_mu=4,
+        n_steps=2,
+        save_interval=1,
+        kinetic_electrons=True,
+        electromagnetic=True,
+        beta_e=0.01,
+        nonlinear=False,
+        cfl_adapt=False,
+        dt=0.01,
+    )
+    solver = JaxNonlinearGKSolver(cfg)
+    result = solver.run()
+
+    assert result.final_state is not None
+    assert result.final_state.A_par is not None

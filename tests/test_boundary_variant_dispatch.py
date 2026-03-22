@@ -104,6 +104,15 @@ def test_solve_kernel_prefers_solve_method() -> None:
     assert kernel.solve_equilibrium_calls == 0
 
 
+def test_solve_kernel_raises_for_no_method() -> None:
+    """Cover control/__init__.py line 45: kernel with neither method."""
+    import pytest
+
+    obj = object()
+    with pytest.raises(AttributeError, match="solve"):
+        solve_kernel(obj)
+
+
 def test_neuro_cybernetic_controller_prefers_variant_dispatch() -> None:
     _VariantAwareKernel.last_instance = None
     nc = NeuroCyberneticController(

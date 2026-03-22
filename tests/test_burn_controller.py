@@ -140,3 +140,15 @@ def test_burn_fraction_positive() -> None:
     sigv = float(bosch_hale_reactivity(20.0))
     fb = burn_fraction(n_dt_m3=1.0e20, sigv=sigv, v_th_ms=1.0e6, a_m=2.0)
     assert fb > 0.0
+
+
+def test_reactivity_exponent_edge_cases():
+    """Cover burn_controller.py lines 122, 131: Ti_keV <= 0.1 and sv_minus <= 0."""
+    alpha = AlphaHeating(R0=6.2, a=2.0)
+    analysis = BurnStabilityAnalysis(alpha)
+
+    # Ti_keV <= 0.1 returns 10.0 (line 122)
+    assert analysis.reactivity_exponent(0.05) == 10.0
+
+    # Ti_keV exactly at threshold
+    assert analysis.reactivity_exponent(0.1) == 10.0

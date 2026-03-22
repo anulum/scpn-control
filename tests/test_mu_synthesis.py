@@ -111,3 +111,22 @@ def test_dk_iteration_converges() -> None:
     _, mu_5, _ = dk_iteration(plant, unc, n_iter=5)
 
     assert mu_5 <= mu_1, f"μ did not decrease: {mu_5} > {mu_1} after 5 vs 1 iteration"
+
+
+def test_unsynthesized_step_raises():
+    """Cover mu_synthesis.py line 239: step without synthesize raises."""
+    import pytest
+
+    unc = StructuredUncertainty([UncertaintyBlock("t", 2, 0.1, "full")])
+    ctrl = MuSynthesisController((np.eye(2), np.eye(2), np.eye(2), np.zeros((2, 2))), unc)
+    with pytest.raises(RuntimeError, match="not synthesized"):
+        ctrl.step(np.array([1.0, -1.0]), 0.1)
+
+
+def test_robustness_margin_zero_mu():
+    """Cover mu_synthesis.py line 249: mu_peak <= 0 returns inf."""
+    unc = StructuredUncertainty([UncertaintyBlock("t", 2, 0.1, "full")])
+    ctrl = MuSynthesisController((np.eye(2), np.eye(2), np.eye(2), np.zeros((2, 2))), unc)
+    ctrl.K = np.ones((2, 2)) * 0.1
+    ctrl.mu_peak = 0.0
+    assert ctrl.robustness_margin() == float("inf")

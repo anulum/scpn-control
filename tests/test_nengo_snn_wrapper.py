@@ -230,3 +230,26 @@ def test_custom_channels() -> None:
 def test_stub_raises() -> None:
     with pytest.raises(ImportError, match="deprecated"):
         NengoSNNControllerStub()
+
+
+def test_step_before_build_raises() -> None:
+    """Cover nengo_snn_wrapper.py line 270: step on unbuilt controller."""
+    ctrl = NengoSNNController.__new__(NengoSNNController)
+    ctrl._built = False
+    with pytest.raises(RuntimeError, match="not built"):
+        ctrl.step(np.zeros(2))
+
+
+def test_get_spike_data_empty() -> None:
+    """Cover nengo_snn_wrapper.py line 294: empty output_history returns {}."""
+    ctrl = NengoSNNController()
+    ctrl._output_history.clear()
+    assert ctrl.get_spike_data() == {}
+
+
+def test_export_weights_before_build_raises() -> None:
+    """Cover nengo_snn_wrapper.py line 311: export on unbuilt controller."""
+    ctrl = NengoSNNController.__new__(NengoSNNController)
+    ctrl._built = False
+    with pytest.raises(RuntimeError, match="not built"):
+        ctrl.export_weights()

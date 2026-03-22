@@ -245,3 +245,45 @@ class TestSerialisation:
                 atol=1e-12,
             )
         assert restored.config.aggregation == "fedavg"
+
+
+class TestConfigValidation:
+    """Lines 244-257: FederatedConfig.__post_init__ raises on invalid params."""
+
+    def test_invalid_n_rounds(self):
+        with pytest.raises(ValueError, match="n_rounds"):
+            FederatedConfig(n_rounds=0, machines=["DIII-D", "JET"])
+
+    def test_invalid_local_epochs(self):
+        with pytest.raises(ValueError, match="local_epochs"):
+            FederatedConfig(local_epochs=0, machines=["DIII-D", "JET"])
+
+    def test_invalid_learning_rate(self):
+        with pytest.raises(ValueError, match="learning_rate"):
+            FederatedConfig(learning_rate=-0.01, machines=["DIII-D", "JET"])
+
+    def test_invalid_aggregation(self):
+        with pytest.raises(ValueError, match="aggregation"):
+            FederatedConfig(aggregation="invalid", machines=["DIII-D", "JET"])
+
+    def test_invalid_mu_proximal(self):
+        with pytest.raises(ValueError, match="mu_proximal"):
+            FederatedConfig(mu_proximal=-1.0, machines=["DIII-D", "JET"])
+
+    def test_invalid_min_clients(self):
+        with pytest.raises(ValueError, match="min_clients"):
+            FederatedConfig(min_clients=0, machines=["DIII-D", "JET"])
+
+    def test_invalid_machine_name(self):
+        with pytest.raises(ValueError, match="Unknown machine"):
+            FederatedConfig(machines=["DIII-D", "NONEXISTENT"])
+
+
+class TestMachineClientValidation:
+    """Line 276: MachineClient rejects unknown machine names."""
+
+    def test_unknown_machine_raises(self):
+        from scpn_control.control.federated_disruption import MachineClient
+
+        with pytest.raises(ValueError, match="Unknown machine"):
+            MachineClient("TOKAMAK_X", np.zeros((10, 8)), np.zeros(10), np.zeros((5, 8)), np.zeros(5))

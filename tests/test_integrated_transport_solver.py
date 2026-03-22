@@ -574,3 +574,78 @@ class TestAuxHeatingZeroVolume:
         assert np.all(s_i == 0.0)
         assert np.all(s_e == 0.0)
         ts._rho_volume_element = original_rve
+
+
+class TestExternalGKSolverFallback:
+    def test_gk_solver_unconverged_fallback(self, config_file: Path) -> None:
+        """Cover ITS lines 703-705: GK solver returns unconverged -> gyro-Bohm fallback."""
+        ts = TransportSolver(str(config_file), transport_model="gyrokinetic")
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+
+        from unittest.mock import MagicMock
+        from scpn_control.core.gk_interface import GKOutput
+
+        mock_solver = MagicMock()
+        mock_solver.run_from_params.return_value = GKOutput(chi_i=0.0, chi_e=0.0, D_e=0.0, converged=False)
+        ts._gk_solver = mock_solver
+
+        chi_i = ts._external_gk_transport(ts.neoclassical_params)
+        assert np.all(np.isfinite(chi_i))
+        assert np.all(chi_i >= 0.01)
+
+    def test_gk_solver_lazy_init(self, config_file: Path) -> None:
+        """Cover ITS lines 540-543: lazy init of _gk_solver."""
+        ts = TransportSolver(str(config_file), transport_model="gyrokinetic")
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+
+        if hasattr(ts, "_gk_solver"):
+            delattr(ts, "_gk_solver")
+
+        chi_i = ts._external_gk_transport(ts.neoclassical_params)
+        assert hasattr(ts, "_gk_solver")
+        assert np.all(np.isfinite(chi_i))
+
+
+class TestPedestalBoundary:
+    def test_eped_import_error_fallback(self, config_file: Path) -> None:
+        """Cover ITS lines 811-813: ImportError in EPED -> fallback chi suppression."""
+        from unittest.mock import patch
+
+        ts = TransportSolver(str(config_file))
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        # P_aux > 30 triggers is_H_mode, neoclassical set -> EPED path
+        # Patch EPED import to fail -> lines 811-813 fallback
+        with patch.dict("sys.modules", {"scpn_control.core.eped_pedestal": None}):
+            ts.update_transport_model(50.0)
+        assert np.all(np.isfinite(ts.chi_e))
+        # Edge chi should be suppressed by 0.1 factor
+        edge_mask = ts.rho > 0.9
+        assert np.all(ts.chi_e[edge_mask] > 0)
+
+    def test_pedestal_boundary_conditions(self, config_file: Path) -> None:
+        """Cover ITS lines 1379-1386: pedestal boundary conditions in evolve."""
+        from scpn_control.core.pedestal import PedestalParams, PedestalProfile
+
+        ts = TransportSolver(str(config_file))
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.update_transport_model(50.0)
+
+        ped_params = PedestalParams(f_ped=3.0, f_sep=0.1, x_ped=0.95, delta=0.04)
+        ped = PedestalProfile(ped_params)
+
+        ts.evolve_profiles(dt=0.01, P_aux=50.0, ped_ti=ped, ped_te=ped)
+        # Pedestal applied from rho >= x_ped - 2*delta = 0.87
+        mask = ts.rho >= 0.87
+        assert np.all(np.isfinite(ts.Ti[mask]))
+        assert np.all(np.isfinite(ts.Te[mask]))

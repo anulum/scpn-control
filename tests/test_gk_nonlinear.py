@@ -766,6 +766,104 @@ class TestMinimalGridConfig:
         assert np.all(np.isfinite(result.Q_i_t))
 
 
+class TestNoDealiasing:
+    """Line 194: dealiasing != '2/3' uses all-ones mask."""
+
+    def test_no_dealiasing_mask(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            dealiasing="none",
+            dt=0.02,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        assert np.all(solver.dealias_mask)
+
+
+class TestImplicitElectronStreaming:
+    """Lines 694, 708-752: implicit electron streaming correction."""
+
+    def test_implicit_electrons_runs(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            kinetic_electrons=True,
+            implicit_electrons=True,
+            electromagnetic=False,
+            dt=0.02,
+            n_steps=2,
+            save_interval=1,
+            nonlinear=False,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-6)
+        result = solver.run(state)
+        assert np.all(np.isfinite(result.Q_i_t))
+
+
+class TestCFLElectronScaling:
+    """Line 769: CFL includes electron velocity scaling for explicit kinetic electrons."""
+
+    def test_cfl_electron_vscale(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            kinetic_electrons=True,
+            implicit_electrons=False,
+            dt=1.0,
+            cfl_adapt=True,
+            cfl_factor=0.5,
+            nonlinear=False,
+            collisions=False,
+            hyper_coeff=0.0,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-5)
+        dt_val = solver._cfl_dt(state)
+        # With kinetic (explicit) electrons, CFL should be more restrictive
+        assert dt_val < cfg.dt
+
+
+class TestRunNaNBreak:
+    """Lines 888-889: run() breaks early on NaN."""
+
+    def test_nan_breaks_early(self):
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            dt=0.02,
+            n_steps=50,
+            save_interval=10,
+            nonlinear=True,
+            collisions=False,
+            hyper_coeff=0.0,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_state(amplitude=1e-5)
+        # Inject NaN into f to trigger the break
+        state.f[0, 0, 0, 0, 0, 0] = float("nan")
+        result = solver.run(state)
+        # Should stop early — fewer saves than expected
+        assert result.Q_i_t.size <= cfg.n_steps // cfg.save_interval + 1
+
+
 class TestJaxV019Parity:
     def test_jax_ampere_solve_matches_numpy_with_skin_depth(self):
         from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver, jax_available

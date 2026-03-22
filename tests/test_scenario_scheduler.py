@@ -93,3 +93,25 @@ def test_factory_scenarios():
     nstx_sched = nstx_u_1ma_standard()
     assert len(nstx_sched.validate()) == 0
     assert nstx_sched.duration() == 2.0
+
+
+def test_scenario_empty_duration():
+    """Cover scenario_scheduler.py line 36: empty waveforms returns 0."""
+    sched = ScenarioSchedule({})
+    assert sched.duration() == 0.0
+
+
+def test_scenario_negative_power_validation():
+    """Cover scenario_scheduler.py line 50: negative heating power flagged."""
+    wf = ScenarioWaveform("P_NBI", np.array([0, 10]), np.array([5.0, -1.0]))
+    sched = ScenarioSchedule({"P_NBI": wf})
+    errors = sched.validate()
+    assert any("negative heating" in e for e in errors)
+
+
+def test_scenario_non_positive_density_validation():
+    """Cover scenario_scheduler.py line 53: non-positive density flagged."""
+    wf = ScenarioWaveform("n_e", np.array([0, 10]), np.array([1.0, 0.0]))
+    sched = ScenarioSchedule({"n_e": wf})
+    errors = sched.validate()
+    assert any("non-positive density" in e for e in errors)

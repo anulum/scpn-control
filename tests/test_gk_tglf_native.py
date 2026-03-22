@@ -378,3 +378,67 @@ class TestPhysicsValidation:
         # For CBC ITG, omega_r should be mostly negative
         if result.dominant_mode == "ITG":
             assert np.any(result.omega_r < 0)
+
+
+def test_exb_shear_zero_q():
+    """Cover gk_tglf_native.py line 94: q near zero returns 0."""
+    p = GKLocalParams(R_L_Ti=6.9, R_L_Te=6.9, R_L_ne=2.2, q=0.0, s_hat=0.78, epsilon=0.18)
+    assert exb_shear_rate(p) == 0.0
+
+
+def test_quasilinear_weights_etg_modes():
+    """Cover gk_tglf_native.py lines 261-266: ETG branch in quasilinear_weights."""
+    linear = _make_linear(
+        k_y=[0.3, 5.0, 10.0],
+        gamma=[0.2, 0.15, 0.1],
+        omega_r=[-0.8, 1.0, 1.5],
+        mode_type=["ITG", "ETG", "ETG"],
+    )
+    cfg = TGLFNativeConfig(sat_model="SAT1")
+    phi_sq, gamma_net = sat1(linear, 0.0, 1.0, cfg)
+    chi_i, chi_e, D_e, V_e, chi_e_etg = quasilinear_weights(linear, phi_sq, gamma_net, 2.0, 2.0, _CBC)
+    assert chi_e_etg >= 0.0
+    assert chi_e >= chi_e_etg
+
+
+def test_quasilinear_weights_zero_omega_skipped():
+    """Cover gk_tglf_native.py line 247: omega_r near zero skipped."""
+    linear = _make_linear(
+        k_y=[0.3],
+        gamma=[0.2],
+        omega_r=[0.0],
+        mode_type=["ITG"],
+    )
+    cfg = TGLFNativeConfig(sat_model="SAT0")
+    phi_sq, gamma_net = sat0(linear, 0.0, 1.0, cfg)
+    chi_i, chi_e, D_e, V_e, chi_e_etg = quasilinear_weights(linear, phi_sq, gamma_net, 2.0, 2.0, _CBC)
+    assert chi_i == 0.0
+
+
+def test_solver_subcritical_returns_zero():
+    """Cover gk_tglf_native.py line 351: all stable -> zero transport."""
+    p = GKLocalParams(
+        R_L_Ti=0.001,
+        R_L_Te=0.001,
+        R_L_ne=0.001,
+        q=1.4,
+        s_hat=0.001,
+        R0=2.78,
+        a=1.0,
+        B0=2.0,
+        epsilon=0.001,
+        T_e_keV=0.01,
+        T_i_keV=0.01,
+        n_e=5.0,
+    )
+    solver = TGLFNativeSolver(TGLFNativeConfig(n_ky_ion=4, n_theta=16))
+    result = solver.solve(p)
+    assert result.chi_i == 0.0
+    assert result.chi_e == 0.0
+
+
+def test_solver_unknown_sat_model_raises():
+    """Cover gk_tglf_native.py line 358: unknown SAT model raises ValueError."""
+    solver = TGLFNativeSolver(TGLFNativeConfig(sat_model="SAT99"))
+    with pytest.raises(ValueError, match="Unknown SAT model"):
+        solver.solve(_CBC)

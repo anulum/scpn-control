@@ -113,3 +113,38 @@ def test_weights_have_correct_shapes():
         assert result["b1"].shape == (64,)
         assert result["w2"].shape == (64, 32)
         assert result["w3"].shape == (32, 3)
+
+
+def test_retrain_with_existing_weights():
+    """Cover gk_online_learner.py lines 113-115: retrain from existing weights."""
+    learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=3))
+    rng = np.random.default_rng(42)
+    for inp, tgt in _random_samples(10, rng):
+        learner.add_sample(inp, tgt)
+    weights = learner.try_retrain()
+    assert weights is not None
+
+    # Second round with existing weights
+    for inp, tgt in _random_samples(10, rng):
+        learner.add_sample(inp, tgt)
+    result2 = learner.try_retrain(current_weights=weights)
+    # May succeed or rollback; either way exercises the branch
+    assert learner.generation >= 1
+
+
+def test_retrain_rollback_on_worse_loss():
+    """Cover gk_online_learner.py lines 164-166: rollback when val_loss worsens."""
+    learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=1))
+    rng = np.random.default_rng(42)
+    for inp, tgt in _random_samples(10, rng):
+        learner.add_sample(inp, tgt)
+    w1 = learner.try_retrain()
+    assert w1 is not None
+
+    # Force a very low best_val_loss so next retrain rolls back
+    learner._best_val_loss = 0.0
+    for inp, tgt in _random_samples(10, rng):
+        learner.add_sample(inp, tgt)
+    w2 = learner.try_retrain()
+    assert w2 is None
+    assert learner.retrain_history[-1]["accepted"] is False

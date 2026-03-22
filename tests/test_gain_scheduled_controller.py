@@ -160,3 +160,66 @@ def test_gain_schedule_interpolates():
     assert np.all(diffs <= 1e-9), "gains not monotonically decreasing during bumpless transfer"
     # After tau_switch, gain must equal Kp_flat
     assert np.isclose(kp_samples[-1], float(Kp_flat[0]), atol=1e-9)
+
+
+def test_ramp_down_detection():
+    """Cover gain_scheduled_controller.py line 102: dIp_dt < -ramp_rate -> RAMP_DOWN."""
+    detector = RegimeDetector()
+    state = np.zeros(2)
+    dstate = np.array([-0.2, 0.0])  # dIp/dt = -0.2 < -0.1
+    for _ in range(6):
+        reg = detector.detect(state, dstate, tau_E=1.0, p_disrupt=0.0)
+    assert reg == OperatingRegime.RAMP_DOWN
+
+
+def test_disruption_resets_integral():
+    """Cover gain_scheduled_controller.py line 165: disruption zeros integral_error."""
+    controllers = {
+        OperatingRegime.RAMP_UP: RegimeController(
+            OperatingRegime.RAMP_UP,
+            Kp=np.ones(1),
+            Ki=np.ones(1),
+            Kd=np.zeros(1),
+            x_ref=np.ones(1),
+            constraints={},
+        ),
+        OperatingRegime.DISRUPTION_MITIGATION: RegimeController(
+            OperatingRegime.DISRUPTION_MITIGATION,
+            Kp=np.ones(1) * 0.1,
+            Ki=np.zeros(1),
+            Kd=np.zeros(1),
+            x_ref=np.zeros(1),
+            constraints={},
+        ),
+    }
+    gsc = GainScheduledController(controllers)
+    # Accumulate integral in RAMP_UP: error = x_ref(1) - x(0) = 1, integral += 1*dt
+    gsc.step(np.zeros(1), 0.0, 0.1, OperatingRegime.RAMP_UP)
+    gsc.step(np.zeros(1), 0.1, 0.1, OperatingRegime.RAMP_UP)
+    integral_before = gsc.integral_error.copy()
+    assert np.any(integral_before != 0.0)
+
+    # Switch to DISRUPTION at x=x_ref so error=0 after the reset
+    # During bumpless transfer alpha=0 -> x_ref=old(1), so use x=1 to make error=0
+    gsc.step(np.ones(1), 0.2, 0.1, OperatingRegime.DISRUPTION_MITIGATION)
+    # The integral was reset to 0, then error=(1-1)*dt=0 added -> integral=0
+    assert np.all(gsc.integral_error == 0.0)
+
+
+def test_empty_scenario_duration():
+    """Cover gain_scheduled_controller.py line 217: empty waveforms -> duration 0."""
+    from scpn_control.control.gain_scheduled_controller import ScenarioSchedule
+
+    sched = ScenarioSchedule({})
+    assert sched.duration() == 0.0
+
+
+def test_scenario_validate_non_monotonic():
+    """Cover gain_scheduled_controller.py line 224: non-monotonic times error."""
+    from scpn_control.control.gain_scheduled_controller import ScenarioSchedule
+
+    wf = ScenarioWaveform("bad", np.array([0.0, 5.0, 3.0]), np.array([1.0, 2.0, 3.0]))
+    sched = ScenarioSchedule({"bad": wf})
+    errors = sched.validate()
+    assert len(errors) > 0
+    assert "non-monotonic" in errors[0]

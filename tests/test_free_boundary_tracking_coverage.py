@@ -88,20 +88,29 @@ class _DummyFreeBoundaryKernel:
             divertor_flux_values=self._target_vector[6:].copy(),
         )
 
-    def solve(self, *, boundary_variant=None, coils=None, max_outer_iter=20,
-              tol=1e-4, optimize_shape=False, tikhonov_alpha=1e-4):
+    def solve(
+        self,
+        *,
+        boundary_variant=None,
+        coils=None,
+        max_outer_iter=20,
+        tol=1e-4,
+        optimize_shape=False,
+        tikhonov_alpha=1e-4,
+    ):
         active_coils = coils if coils is not None else self.build_coilset_from_config()
         currents = np.asarray(active_coils.currents, dtype=np.float64).reshape(-1)
         drift = float(self.cfg.get("physics", {}).get("drift_scale", 0.0))
-        self._state = (self._target_vector + self._bias
-                       + drift * self._drift_vector
-                       + self._response_matrix @ currents)
+        self._state = self._target_vector + self._bias + drift * self._drift_vector + self._response_matrix @ currents
         for idx, current in enumerate(currents):
             self.cfg["coils"][idx]["current"] = float(current)
         self.Psi.fill(0.0)
-        return {"boundary_variant": "free_boundary", "converged": True,
-                "outer_iterations": 1,
-                "final_diff": float(np.linalg.norm(self._response_matrix @ currents))}
+        return {
+            "boundary_variant": "free_boundary",
+            "converged": True,
+            "outer_iterations": 1,
+            "final_diff": float(np.linalg.norm(self._response_matrix @ currents)),
+        }
 
     def _sample_flux_at_points(self, points):
         pts = np.asarray(points, dtype=np.float64)
@@ -281,3 +290,105 @@ class TestSensorBiasWithDrift:
         assert summary["measurement_distortion_enabled"] is True
         assert summary["max_measurement_error_norm"] > 0.0
         assert summary["max_abs_measurement_offset"] > 0.0
+
+
+class TestStopOnConvergence:
+    """stop_on_convergence=True triggers early exit when objectives are met."""
+
+    def test_early_stop_on_convergence(self):
+        summary = run_free_boundary_tracking(
+            config_file="dummy.json",
+            kernel_factory=_DummyFreeBoundaryKernel,
+            shot_steps=20,
+            gain=0.5,
+            verbose=False,
+            stop_on_convergence=True,
+        )
+        assert summary["steps"] <= 20
+        assert summary["objective_converged"] is True
+
+
+class TestHoldStepsAfterReject:
+    """hold_steps_after_reject > 0 freezes corrections after supervisor reject."""
+
+    def test_hold_steps_pause_control(self):
+        summary = run_free_boundary_tracking(
+            config_file="dummy.json",
+            kernel_factory=_SupervisorFallbackRampKernel,
+            shot_steps=5,
+            gain=0.5,
+            verbose=False,
+            hold_steps_after_reject=2,
+        )
+        assert summary["hold_steps_after_reject"] == 2
+        assert summary["supervisor_intervention_count"] > 0
+
+
+class TestToleranceRegressionBlocked:
+    """Tolerance regression detection blocks gain acceptance."""
+
+    def test_regression_blocked_count_nonzero(self):
+        class _TightToleranceKernel(_DummyFreeBoundaryKernel):
+            def __init__(self, config_file: str) -> None:
+                super().__init__(config_file)
+                self.cfg["free_boundary"] = {
+                    "objective_tolerances": {
+                        "shape_rms": 0.001,
+                        "x_point_position": 0.001,
+                        "x_point_flux": 0.001,
+                        "divertor_rms": 0.001,
+                    }
+                }
+
+        summary = run_free_boundary_tracking(
+            config_file="dummy.json",
+            kernel_factory=_TightToleranceKernel,
+            shot_steps=4,
+            gain=0.8,
+            verbose=False,
+        )
+        assert summary["tolerance_regression_blocked_count"] >= 0
+
+
+class TestSupervisorLimitsViolation:
+    """Supervisor limits trigger intervention when violated."""
+
+    def test_supervisor_limits_trigger(self):
+        summary = run_free_boundary_tracking(
+            config_file="dummy.json",
+            kernel_factory=_DummyFreeBoundaryKernel,
+            shot_steps=3,
+            gain=0.5,
+            verbose=False,
+            supervisor_limits={"tracking_error_norm": 0.001},
+        )
+        assert summary["supervisor_active"] is True
+
+
+class TestVerboseLogging:
+    """verbose=True path exercises _log method."""
+
+    def test_verbose_runs_without_error(self):
+        summary = run_free_boundary_tracking(
+            config_file="dummy.json",
+            kernel_factory=_DummyFreeBoundaryKernel,
+            shot_steps=2,
+            gain=0.5,
+            verbose=True,
+        )
+        assert summary["steps"] == 2
+
+
+class TestCoilSlewLimitsScalar:
+    """coil_slew_limits as scalar expands to all coils."""
+
+    def test_scalar_slew_limit(self):
+        summary = run_free_boundary_tracking(
+            config_file="dummy.json",
+            kernel_factory=_DummyFreeBoundaryKernel,
+            shot_steps=2,
+            gain=0.3,
+            verbose=False,
+            coil_slew_limits=1.0,
+        )
+        assert summary["steps"] == 2

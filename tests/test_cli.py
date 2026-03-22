@@ -160,3 +160,38 @@ def test_demo_snn_text(runner):
     result = runner.invoke(main, ["demo", "--scenario", "snn", "--steps", "3"])
     assert result.exit_code == 0
     assert "Scenario: snn" in result.output
+
+
+def test_validate_rmse_command(runner, tmp_path, monkeypatch):
+    """Cover cli.py lines 238-248: validate-rmse imports rmse_dashboard."""
+    called = {}
+
+    def fake_rmse_main():
+        import json as _json
+        from pathlib import Path as _P
+
+        out = _P(tmp_path) / "rmse_report.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(_json.dumps({"status": "pass"}))
+        called["invoked"] = True
+        return 0
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "validation.rmse_dashboard",
+        type("M", (), {"main": staticmethod(fake_rmse_main)})(),
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "validate-rmse",
+            "--json-out",
+            "--output-json",
+            str(tmp_path / "rmse_report.json"),
+            "--output-md",
+            str(tmp_path / "rmse_report.md"),
+        ],
+    )
+    assert called.get("invoked")
+    assert "pass" in result.output

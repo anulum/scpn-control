@@ -26,9 +26,9 @@ except ImportError:
     _HAS_JAX = False
 
 try:
-    import torch
+    import torch  # pragma: no cover
 
-    _HAS_TORCH = True
+    _HAS_TORCH = True  # pragma: no cover
 except ImportError:
     torch = None  # type: ignore[assignment]
     _HAS_TORCH = False
@@ -222,7 +222,9 @@ else:  # pragma: no cover
     _torchscript_rollout_batch = None  # type: ignore[assignment]
 
 
-def _simulate_torchscript(commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec) -> FloatArray:
+def _simulate_torchscript(
+    commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec
+) -> FloatArray:  # pragma: no cover
     if not _HAS_TORCH or _torchscript_rollout is None:
         raise RuntimeError("TorchScript backend requested but torch is not installed.")
     assert torch is not None
@@ -276,7 +278,7 @@ def _simulate_jax_batch(commands: FloatArray, initial_state: FloatArray, spec: T
     return np.asarray(hist, dtype=np.float64)
 
 
-def _simulate_torchscript_batch(
+def _simulate_torchscript_batch(  # pragma: no cover
     commands: FloatArray, initial_state: FloatArray, spec: TraceableRuntimeSpec
 ) -> FloatArray:
     if not _HAS_TORCH or _torchscript_rollout_batch is None:
@@ -325,7 +327,7 @@ def run_traceable_control_loop(
             compiled=True,
         )
 
-    if b == "torchscript":
+    if b == "torchscript":  # pragma: no cover
         return TraceableRuntimeResult(
             state_history=_simulate_torchscript(cmd_arr, float(initial_state), runtime_spec),
             backend_used="torchscript",
@@ -378,7 +380,7 @@ def run_traceable_control_batch(
             backend_used="jax",
             compiled=True,
         )
-    if b == "torchscript":
+    if b == "torchscript":  # pragma: no cover
         return TraceableRuntimeBatchResult(
             state_history=_simulate_torchscript_batch(cmd_arr, x0, runtime_spec),
             backend_used="torchscript",

@@ -134,3 +134,17 @@ def test_smc_reaching_condition():
 
     ds_dt = (s_next - s_prev) / dt
     assert s_prev * ds_dt < 0.0, f"reaching condition violated: s={s_prev:.4f}, ds/dt={ds_dt:.4f}"
+
+
+def test_vertical_stabilizer_K_vs():
+    """Cover sliding_mode_vertical.py line 121: K_vs property."""
+    smc = SuperTwistingSMC(alpha=10.0, beta=20.0, c=1.0, u_max=100.0)
+    vs = VerticalStabilizer(n_index=-1.0, Ip_MA=15.0, R0=6.2, m_eff=1.0, tau_wall=0.01, smc=smc)
+    K = vs.K_vs
+    assert K > 0.0  # n_index < 0 -> K_vs > 0
+
+
+def test_convergence_time_marginal_alpha():
+    """Cover sliding_mode_vertical.py lines 151, 155: alpha <= sqrt(2*L) returns inf."""
+    assert estimate_convergence_time(alpha=2.0, beta=5.0, L_max=2.0, s0=1.0) == float("inf")
+    assert estimate_convergence_time(alpha=0.5, beta=5.0, L_max=-1.0, s0=1.0) == float("inf")

@@ -141,3 +141,28 @@ def test_nmpc_cost_decreases():
 
     J_opt = nmpc.compute_cost(nmpc.x_traj, nmpc.u_traj, x_ref)
     assert J_opt <= J_zero
+
+
+def test_terminal_cost_scipy_fallback():
+    """Cover nmpc_controller.py lines 119-120: DARE fallback to 10*Q."""
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=1)
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+    # Force DARE failure by patching scipy.linalg.solve_discrete_are
+    from unittest.mock import patch
+
+    with patch("scipy.linalg.solve_discrete_are", side_effect=ValueError("singular")):
+        A = np.eye(6)
+        B = np.eye(6, 3)
+        P = nmpc._compute_terminal_cost(A, B)
+    np.testing.assert_array_equal(P, cfg.Q * 10.0)
+
+
+def test_nmpc_step_converges_early():
+    """Cover nmpc_controller.py line 209: SQP early convergence when dU < tol."""
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=10, tol=1e10)
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+    x0 = np.array([5.0, 5.0, 3.0, 1.0, 5.0, 2.0])
+    x_ref = x0.copy()
+    u_prev = np.zeros(3)
+    u = nmpc.step(x0, x_ref, u_prev)
+    assert u.shape == (3,)

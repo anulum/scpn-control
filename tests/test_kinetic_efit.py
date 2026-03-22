@@ -96,3 +96,27 @@ def test_mse_constraint_q_profile():
 
     # MSE should constrain q to be closer to 1.0 at axis
     assert res_mse.q_profile[0] < res_no_mse.q_profile[0]
+
+
+def test_kinetic_efit_missing_ne_points():
+    """Cover kinetic_efit.py line 99: empty ne_points -> default ne_core=5.0."""
+    diag = mock_diagnostics()
+    kin = KineticConstraints(Te_points=[(6.2, 0.0, 10.0)], ne_points=[], Ti_points=[], mse_points=[])
+    fi = FastIonPressure(100.0, 0.0, 0.0)
+    R = np.linspace(4, 8, 33)
+    Z = np.linspace(-3, 3, 33)
+    kefit = KineticEFIT(diag, kin, fi, R, Z)
+    res = kefit.reconstruct({})
+    assert len(res.p_kinetic) == 50
+
+
+def test_kinetic_efit_missing_te_points():
+    """Cover kinetic_efit.py line 104: empty Te_points -> default Te_core=10.0."""
+    diag = mock_diagnostics()
+    kin = KineticConstraints(Te_points=[], ne_points=[(6.2, 0.0, 5.0)], Ti_points=[], mse_points=[])
+    fi = FastIonPressure(100.0, 0.0, 0.0)
+    R = np.linspace(4, 8, 33)
+    Z = np.linspace(-3, 3, 33)
+    kefit = KineticEFIT(diag, kin, fi, R, Z)
+    res = kefit.reconstruct({})
+    assert len(res.p_kinetic) == 50

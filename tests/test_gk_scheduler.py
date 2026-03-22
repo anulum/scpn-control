@@ -129,3 +129,27 @@ def test_reset():
     sched.reset()
     assert sched._step == 0
     assert sched._prev_chi_i is None
+
+
+def test_adaptive_no_indices_returns_none():
+    """Cover gk_scheduler.py lines 112-113: adaptive, no OOD, no change, no anchors -> None."""
+    cfg = SchedulerConfig(strategy="adaptive", anchor_rho=(), budget=0)
+    sched = GKScheduler(cfg)
+    rho = _rho_grid()
+    chi = np.ones(50)
+    sched.step(rho, chi)
+    ood_ok = [OODResult(is_ood=False, confidence=0.0, method="combined", details={}) for _ in range(50)]
+    req = sched.step(rho, chi, ood_ok)
+    assert req is None
+
+
+def test_critical_region_anchor_added():
+    """Cover gk_scheduler.py lines 122, 127: anchor added in critical_region."""
+    cfg = SchedulerConfig(strategy="critical_region", pedestal_rho=0.99, axis_rho=0.01, budget=3, anchor_rho=(0.5,))
+    sched = GKScheduler(cfg)
+    rho = _rho_grid()
+    chi = np.ones(50)
+    req = sched.step(rho, chi)
+    assert req is not None
+    rho_vals = [rho[i] for i in req.rho_indices]
+    assert any(abs(r - 0.5) < 0.05 for r in rho_vals)

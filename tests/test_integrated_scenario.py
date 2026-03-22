@@ -322,3 +322,74 @@ def test_spitzer_resistivity_near_zero_te():
     assert np.all(eta > 0)
     # All sub-0.01 keV values get clamped to 0.01, so results should be equal
     assert np.allclose(eta, eta[0])
+
+
+def test_use_transport_solver_flag():
+    """use_transport_solver=True delegates to TransportSolver.evolve_profiles."""
+    config = _minimal_config(P_aux_MW=5.0)
+    config.use_transport_solver = True
+    config.t_end = 0.01
+    config.dt = 0.01
+
+    sim = IntegratedScenarioSimulator(config)
+    state0 = sim.initialize()
+    state1 = sim.step()
+
+    assert np.all(np.isfinite(state1.Te))
+    assert np.all(np.isfinite(state1.Ti))
+    assert state1.W_thermal > 0
+
+
+def test_include_phase_bridge():
+    """include_phase_bridge=True runs adaptive_knm and gk_natural_frequencies."""
+    from scpn_control.core.gk_interface import GKOutput
+
+    config = _minimal_config(P_aux_MW=5.0)
+    config.include_phase_bridge = True
+    config.t_end = 0.01
+    config.dt = 0.01
+
+    sim = IntegratedScenarioSimulator(config)
+    sim.initialize()
+
+    sim._last_gk_output = GKOutput(
+        chi_i=1.5,
+        chi_e=1.0,
+        D_e=0.5,
+        gamma=np.array([0.1, 0.2]),
+        omega_r=np.array([0.5, -0.3]),
+        k_y=np.array([0.3, 0.6]),
+        dominant_mode="ITG",
+    )
+
+    state = sim.step()
+    assert state is not None
+    assert sim._phase_K_nm is not None
+    assert sim._phase_omega is not None
+
+
+def test_to_json(tmp_path):
+    """to_json() writes valid JSON containing all state fields."""
+    import json
+
+    config = _minimal_config(P_aux_MW=0.0)
+    config.t_end = 0.01
+    config.dt = 0.01
+
+    sim = IntegratedScenarioSimulator(config)
+    sim.initialize()
+
+    out_path = tmp_path / "scenario_state.json"
+    sim.to_json(out_path)
+
+    assert out_path.exists()
+    with open(out_path) as f:
+        data = json.load(f)
+
+    assert "Te" in data
+    assert "Ti" in data
+    assert "ne" in data
+    assert "q" in data
+    assert "beta_N" in data
+    assert isinstance(data["rho"], list)
+    assert len(data["rho"]) == 50

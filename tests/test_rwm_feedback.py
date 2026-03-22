@@ -180,3 +180,77 @@ def test_rotation_plus_feedback():
 
     assert gamma_combined < gamma_fb_only, "combined must beat feedback alone"
     assert gamma_combined < gamma_rot_only, "combined must beat rotation alone"
+
+
+def test_tau_eff_zero_plasma_radius():
+    """Line 73: tau_eff returns tau_wall when plasma_radius <= 0."""
+    rwm = RWMPhysics(
+        beta_n=3.0,
+        beta_n_nowall=2.8,
+        beta_n_wall=3.5,
+        tau_wall=0.01,
+        wall_radius=0.6,
+        plasma_radius=0.0,
+    )
+    assert rwm.tau_eff() == 0.01
+
+
+def test_controller_step_unequal_sensors_coils():
+    """Line 205: step averages signals when n_sensors != n_coils."""
+    ctrl = RWMFeedbackController(n_sensors=3, n_coils=2, G_p=1.0, G_d=0.0)
+    B_r = np.array([1.0, 2.0, 3.0])
+    I_coil = ctrl.step(B_r, dt=0.01)
+    assert I_coil.shape == (2,)
+    assert np.allclose(I_coil, np.mean(B_r))
+
+
+def test_critical_rotation_stable():
+    """Line 153: critical_rotation returns 0 when beta_n <= beta_n_nowall."""
+    rwm = RWMPhysics(beta_n=2.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    assert rwm.critical_rotation() == 0.0
+
+
+def test_critical_rotation_ideal_kink():
+    """Lines 151, 155: critical_rotation returns inf for tau<=0 or beta_n>=beta_n_wall."""
+    rwm_ideal = RWMPhysics(beta_n=3.6, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    assert rwm_ideal.critical_rotation() == math.inf
+
+    rwm_zero_tau = RWMPhysics(beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.0)
+    assert rwm_zero_tau.critical_rotation() == math.inf
+
+
+def test_critical_rotation_a_ge_1():
+    """Line 160: critical_rotation returns inf when a >= 1 (midpoint of unstable window)."""
+    rwm = RWMPhysics(beta_n=3.15, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    # a = (3.15 - 2.8) / (3.5 - 3.15) = 0.35 / 0.35 = 1.0 -> inf
+    assert rwm.critical_rotation() == math.inf
+
+
+def test_effective_growth_rate_zero_gamma():
+    """Line 218: effective_growth_rate returns 0 when growth_rate is 0."""
+    rwm = RWMPhysics(beta_n=2.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    ctrl = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=2.0, G_d=0.0)
+    assert ctrl.effective_growth_rate(rwm) == 0.0
+
+
+def test_effective_growth_rate_ideal_kink():
+    """Line 220: effective_growth_rate returns ideal kink rate for beta_n >= beta_n_wall."""
+    rwm = RWMPhysics(beta_n=3.6, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    ctrl = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=2.0, G_d=0.0)
+    assert ctrl.effective_growth_rate(rwm) >= 1e6
+
+
+def test_required_gain_stable():
+    """Line 264: required_feedback_gain returns 0 when already stable."""
+    gain = RWMStabilityAnalysis.required_feedback_gain(
+        beta_n=2.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01, tau_controller=1e-4
+    )
+    assert gain == 0.0
+
+
+def test_required_gain_ideal_kink():
+    """Line 266: required_feedback_gain returns inf for ideal kink."""
+    gain = RWMStabilityAnalysis.required_feedback_gain(
+        beta_n=3.6, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01, tau_controller=1e-4
+    )
+    assert gain == float("inf")

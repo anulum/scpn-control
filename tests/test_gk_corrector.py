@@ -134,3 +134,37 @@ def test_history_tracking(rho50):
     corr.update(records, rho50)
     corr.update(records, rho50)
     assert len(corr.history) == 2
+
+
+def test_rel_error_chi_i_near_zero_gk():
+    """Cover gk_corrector.py line 40: chi_i_gk near zero returns 0."""
+    r = CorrectionRecord(
+        rho_idx=0,
+        rho=0.0,
+        chi_i_surrogate=1.0,
+        chi_i_gk=0.0,
+        chi_e_surrogate=1.0,
+        chi_e_gk=0.0,
+        D_e_surrogate=0.1,
+        D_e_gk=0.1,
+    )
+    assert r.rel_error_chi_i == 0.0
+    assert r.rel_error_chi_e == 0.0
+
+
+def test_correct_update_empty_records(rho50):
+    """Cover gk_corrector.py line 81: empty records returns early."""
+    corr = GKCorrector(nr=50)
+    corr.update([], rho50)
+    assert len(corr.history) == 0
+
+
+def test_correct_unknown_mode(rho50):
+    """Cover gk_corrector.py line 138: unknown mode returns unchanged."""
+    corr = GKCorrector(nr=50, config=CorrectorConfig(mode="unknown_mode"))
+    chi_i = np.ones(50)
+    chi_e = np.ones(50)
+    D_e = np.ones(50) * 0.1
+    out_i, out_e, out_d = corr.correct(chi_i, chi_e, D_e)
+    np.testing.assert_array_equal(out_i, chi_i)
+    np.testing.assert_array_equal(out_e, chi_e)

@@ -9,6 +9,11 @@ import pytest
 from scpn_control.core.gk_eigenvalue import (
     EigenMode,
     LinearGKResult,
+    _drift_frequency,
+    _kbm_drive,
+    _mtm_drive,
+    _mtm_growth_rate,
+    _parallel_streaming_matrix,
     solve_eigenvalue_single_ky,
     solve_linear_gk,
 )
@@ -259,3 +264,77 @@ class TestLinearGKResultEmpty:
         )
         assert result.gamma_max == pytest.approx(0.15)
         assert result.k_y_max == pytest.approx(0.3)
+
+
+class TestDriftFrequency:
+    """Lines 113-114: _drift_frequency computes omega_D(theta, E, lambda)."""
+
+    def test_drift_frequency_shape(self, cyclone_geometry):
+        B_ratio = cyclone_geometry.B_mag / np.mean(cyclone_geometry.B_mag)
+        wd = _drift_frequency(0.3, cyclone_geometry, 1.0, 0.5, B_ratio)
+        assert wd.shape == cyclone_geometry.theta.shape
+        assert np.all(np.isfinite(wd))
+
+
+class TestParallelStreamingMatrix:
+    """Lines 131-147: _parallel_streaming_matrix builds central FD operator."""
+
+    def test_streaming_matrix_shape(self, cyclone_geometry):
+        B_ratio = cyclone_geometry.B_mag / np.mean(cyclone_geometry.B_mag)
+        n_theta = len(cyclone_geometry.theta)
+        D = _parallel_streaming_matrix(n_theta, cyclone_geometry, 1.0, 0.5, B_ratio)
+        assert D.shape == (n_theta, n_theta)
+        assert np.all(np.isfinite(D))
+        # Periodic BC: corners should be non-zero
+        assert D[0, -1] != 0.0
+        assert D[-1, 0] != 0.0
+
+
+class TestMTMGrowthRate:
+    """Line 187: _mtm_growth_rate returns 0 for zero denominator."""
+
+    def test_zero_denom(self):
+        assert _mtm_growth_rate(0.05, 0.3, 0.0, 0.0) == 0.0
+
+
+class TestKBMDriveHelpers:
+    """Lines 208, 231: _kbm_drive and _mtm_drive edge cases."""
+
+    def test_kbm_drive_shape(self):
+        drive = _kbm_drive(0.05, 2.0, 0.78, 0.3, 16)
+        assert drive.shape == (16,)
+        assert drive.dtype == complex
+
+    def test_kbm_drive_zero_ky(self):
+        drive = _kbm_drive(0.05, 2.0, 0.78, 0.0, 16)
+        np.testing.assert_array_equal(drive, np.zeros(16, dtype=complex))
+
+    def test_mtm_drive_zero_ky(self, cyclone_geometry):
+        drive = _mtm_drive(0.05, 0.0, 1.0, 0.1, len(cyclone_geometry.theta), cyclone_geometry)
+        np.testing.assert_array_equal(drive, np.zeros(len(cyclone_geometry.theta), dtype=complex))
+
+    def test_mtm_drive_nonzero(self, cyclone_geometry):
+        drive = _mtm_drive(0.05, 0.3, 1.0, 0.1, len(cyclone_geometry.theta), cyclone_geometry)
+        assert drive.shape == (len(cyclone_geometry.theta),)
+        assert np.max(np.abs(drive)) > 0
+
+
+class TestMTMBranchSelection:
+    """Line 433: MTM branch selected when electron-direction + collisional drive."""
+
+    def test_mtm_branch_selected(self, cyclone_geometry, small_vgrid):
+        ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
+        e = electron(T_keV=2.0, R_L_T=6.9, R_L_n=2.2, adiabatic=False)
+        mode = solve_eigenvalue_single_ky(
+            k_y_rho_s=0.1,
+            species_list=[ion, e],
+            geom=cyclone_geometry,
+            vgrid=small_vgrid,
+            electromagnetic=True,
+            beta_e=0.1,
+            alpha_MHD=0.01,
+            s_hat=0.78,
+            nu_star=10.0,
+        )
+        assert mode.electromagnetic is True
+        assert mode.gamma >= 0.0

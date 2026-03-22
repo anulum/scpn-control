@@ -203,3 +203,72 @@ def test_resonance_function_peaks():
     F_at_one = drive.resonance_function(v_A, v_A)
     F_off = drive.resonance_function(3.0 * v_A, v_A)
     assert F_at_one > F_off
+
+
+def test_continuum_spectrum():
+    """Lines 62-63: AlfvenContinuum.continuum returns omega_A(rho) for (m,n)."""
+    rho = np.linspace(0, 1, 50)
+    q = np.linspace(1.0, 3.0, 50)
+    ne = np.ones(50) * 5.0
+    cont = AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
+    omega = cont.continuum(m=1, n=1)
+    assert omega.shape == (50,)
+    assert np.all(np.isfinite(omega))
+    assert np.all(omega >= 0)
+
+
+def test_find_gaps_equal_q():
+    """Line 80: find_gaps skips crossing when q1 == q2 (constant q segment)."""
+    rho = np.linspace(0, 1, 10)
+    q = np.ones(10) * 1.5  # flat q profile
+    ne = np.ones(10) * 5.0
+    cont = AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
+    gaps = cont.find_gaps(n=1)
+    assert len(gaps) == 0
+
+
+def test_electron_landau_damping_no_te():
+    """Line 159: electron_landau_damping fallback when T_e_keV is None."""
+    tae = TAEMode(n=1, q_rational=1.5, v_A=1e7, R0=6.0, T_e_keV=None)
+    gamma = tae.electron_landau_damping()
+    assert gamma == 0.01 * tae.frequency()
+
+
+def test_critical_beta_fast_no_gaps():
+    """Lines 302, 306: critical_beta_fast returns inf when no gaps found."""
+    rho = np.linspace(0, 1, 10)
+    q = np.ones(10) * 0.5  # q < 1 → no gaps for typical m, n
+    ne = np.ones(10) * 5.0
+    cont = AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
+    drive = FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=0.01)
+    analysis = AlfvenStabilityAnalysis(cont, drive)
+    beta_crit = analysis.critical_beta_fast(n=1)
+    assert beta_crit == float("inf")
+
+
+def test_critical_beta_fast_zero_drive():
+    """Line 310: critical_beta_fast returns inf when beta_fast is zero."""
+    rho = np.linspace(0, 1, 100)
+    q = np.linspace(1.0, 3.0, 100)
+    ne = np.ones(100) * 5.0
+    cont = AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
+    # Zero fast fraction → zero beta_fast → inf critical beta
+    drive = FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=0.0)
+    analysis = AlfvenStabilityAnalysis(cont, drive)
+    beta_crit = analysis.critical_beta_fast(n=1)
+    assert beta_crit == float("inf")
+
+
+def test_alpha_particle_loss_estimate():
+    """Lines 316-318: alpha_particle_loss_estimate computes loss fraction."""
+    rho = np.linspace(0, 1, 100)
+    q = np.linspace(1.0, 3.0, 100)
+    ne = np.ones(100) * 5.0
+    cont = AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
+    drive = FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=0.01)
+    analysis = AlfvenStabilityAnalysis(cont, drive)
+
+    assert analysis.alpha_particle_loss_estimate(-1.0) == 0.0
+    assert analysis.alpha_particle_loss_estimate(0.0) == 0.0
+    loss = analysis.alpha_particle_loss_estimate(1e4, tau_sd=0.5)
+    assert 0.0 < loss <= 1.0

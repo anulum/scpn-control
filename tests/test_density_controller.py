@@ -150,3 +150,91 @@ def test_density_below_greenwald():
 
     assert cmd.gas_puff_rate == 0.0, "No fueling when above Greenwald limit"
     assert cmd.cryo_pump_speed == ctrl.pump_max, "Max pumping when above Greenwald limit"
+
+
+def test_set_transport():
+    """Lines 42-43: ParticleTransportModel.set_transport sets D and V_pinch."""
+    model = ParticleTransportModel(n_rho=10)
+    D_new = np.ones(10) * 2.0
+    V_new = -np.ones(10) * 0.5
+    model.set_transport(D_new, V_new)
+    np.testing.assert_array_equal(model.D, D_new)
+    np.testing.assert_array_equal(model.V_pinch, V_new)
+
+
+def test_pellet_source_zero_radius():
+    """Line 64: pellet_source returns zeros when radius_mm <= 0."""
+    model = ParticleTransportModel(n_rho=10)
+    result = model.pellet_source(speed_ms=500.0, radius_mm=0.0)
+    np.testing.assert_array_equal(result, np.zeros(10))
+    result_neg = model.pellet_source(speed_ms=500.0, radius_mm=-1.0)
+    np.testing.assert_array_equal(result_neg, np.zeros(10))
+
+
+def test_nbi_source_zero_power():
+    """Line 78: nbi_source returns zeros when power_MW <= 0."""
+    model = ParticleTransportModel(n_rho=10)
+    result = model.nbi_source(beam_energy_keV=100.0, power_MW=0.0)
+    np.testing.assert_array_equal(result, np.zeros(10))
+
+
+def test_recycling_source():
+    """Line 98: recycling_source delegates to gas_puff_source with 0.97 coeff."""
+    model = ParticleTransportModel(n_rho=10)
+    outflux = 1e20
+    recycled = model.recycling_source(outflux, recycling_coeff=0.97)
+    assert recycled.shape == (10,)
+    assert np.all(recycled >= 0)
+    assert np.sum(recycled) > 0
+
+
+def test_step_cfl_dt_clamp():
+    """Lines 105-106: step clamps dt to CFL limit when dt exceeds it."""
+    model = ParticleTransportModel(n_rho=10)
+    ne = np.ones(10) * 1e19
+    sources = np.zeros(10)
+    # D_max=1.0, drho=0.111, a=2.0: dt_cfl = (0.111*2)^2 / (2*1) ~ 0.025
+    # Passing dt=1.0 >> dt_cfl forces clamping
+    ne_new = model.step(ne, sources, dt=1.0)
+    assert np.all(np.isfinite(ne_new))
+
+
+def test_greenwald_fraction():
+    """Lines 190-195: greenwald_fraction computes volume-averaged n / n_GW."""
+    model = ParticleTransportModel(n_rho=10, R0=6.2, a=2.0)
+    ctrl = DensityController(model)
+    ne = np.ones(10) * 1e19
+    frac = ctrl.greenwald_fraction(ne, I_p_MA=15.0, a=2.0)
+    assert 0.0 < frac < 1.0
+    assert np.isfinite(frac)
+
+
+def test_below_greenwald_safety_margin():
+    """Lines 202-204: below_greenwald_safety_margin returns True/False."""
+    model = ParticleTransportModel(n_rho=10)
+    ctrl = DensityController(model)
+    ctrl.n_GW = 1e20
+
+    ne_low = np.ones(10) * 1e18
+    assert ctrl.below_greenwald_safety_margin(ne_low) is True
+
+    ne_high = np.ones(10) * 1e20
+    assert ctrl.below_greenwald_safety_margin(ne_high) is False
+
+
+def test_kalman_predict():
+    """Lines 255-257: KalmanDensityEstimator.predict."""
+    est = KalmanDensityEstimator(n_rho=10, n_chords=4)
+    ne = np.ones(10) * 1e19
+    ne_pred = est.predict(ne, dt=0.01)
+    np.testing.assert_array_equal(ne_pred, ne)
+    assert est.P[0, 0] > 1e38  # P grew by Q*dt
+
+
+def test_fueling_optimizer_zero_pellets():
+    """Line 282: optimize_pellet_sequence with n_pellets=0 returns empty."""
+    opt = FuelingOptimizer()
+    sched = opt.optimize_pellet_sequence(np.zeros(10), np.ones(10), n_pellets=0, time_horizon=1.0)
+    assert sched.times == []
+    assert sched.speeds == []
+    assert sched.sizes == []

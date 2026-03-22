@@ -6,9 +6,11 @@ from __future__ import annotations
 import numpy as np
 
 from scpn_control.core.ntm_dynamics import (
+    NTMController,
     NTMIslandDynamics,
     _ggj_delta_prime,
     bootstrap_from_local,
+    eccd_stabilization_factor,
     find_rational_surfaces,
 )
 
@@ -214,3 +216,67 @@ def test_seed_island_threshold():
         w_pol=w_pol,
     )
     assert dw_dt_val <= 0.0, f"Seed island should not grow below polarization/diamagnetic floor; dw/dt={dw_dt_val}"
+
+
+def test_eccd_stabilization_factor_edge():
+    """Line 67: eccd_stabilization_factor returns 0 for w <= 0 or d_cd <= 0."""
+    assert eccd_stabilization_factor(0.05, 0.0) == 0.0
+    assert eccd_stabilization_factor(0.0, 0.05) == 0.0
+    assert eccd_stabilization_factor(-0.1, 0.05) == 0.0
+    assert eccd_stabilization_factor(0.05, -0.1) == 0.0
+
+
+def test_find_rational_surfaces_equal_q():
+    """Line 88: find_rational_surfaces skips crossings where q1 == q2."""
+    rho = np.linspace(0, 1, 10)
+    q = np.ones(10) * 2.0  # flat q = 2/1
+    surfaces = find_rational_surfaces(q, rho, a=1.0)
+    assert len(surfaces) == 0
+
+
+def test_ggj_delta_prime_zero_shear():
+    """Line 154: _ggj_delta_prime returns 0 for tiny s_hat or B_pol."""
+    assert _ggj_delta_prime(2, 0.5, 1e-7, -5e4, 0.3, 2.0, 3.0) == 0.0
+    assert _ggj_delta_prime(2, 0.5, 1.0, -5e4, 1e-11, 2.0, 3.0) == 0.0
+
+
+def test_bootstrap_from_local_edge():
+    """Line 188: bootstrap_from_local returns 0 for tiny B_pol or negative epsilon."""
+    assert bootstrap_from_local(-5e4, 0.3, 1e-11, 0.3) == 0.0
+    assert bootstrap_from_local(-5e4, -0.1, 0.3, 0.3) == 0.0
+
+
+def test_dw_dt_with_rho_theta_i_override():
+    """Line 309: dw_dt uses rho_theta_i * sqrt(2*beta_pol) as w_d override."""
+    ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
+    dw1 = ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7, w_d=1e-3)
+    dw2 = ntm.dw_dt(
+        0.02,
+        j_bs=1e5,
+        j_phi=1e6,
+        j_cd=0.0,
+        eta=1e-7,
+        rho_theta_i=0.01,
+        beta_pol=0.5,
+    )
+    # w_d override should produce a different result
+    assert dw1 != dw2
+
+
+def test_ntm_controller_deactivation():
+    """Lines 419-420: NTMController deactivates when w drops below w_target."""
+    ctrl = NTMController(w_onset=0.02, w_target=0.005)
+
+    # Activate
+    power = ctrl.step(w=0.03, rho_rs=0.5, max_power=20.0)
+    assert ctrl.active is True
+    assert power == 20.0
+
+    # Still active — w above target
+    power = ctrl.step(w=0.01, rho_rs=0.5, max_power=20.0)
+    assert ctrl.active is True
+
+    # Drop below target — deactivate
+    power = ctrl.step(w=0.004, rho_rs=0.5, max_power=20.0)
+    assert ctrl.active is False
+    assert power == 0.0
