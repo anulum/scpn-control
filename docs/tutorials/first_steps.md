@@ -19,7 +19,7 @@ For optional extras:
 
 ```bash
 pip install scpn-control[jax]     # JAX autodiff solvers
-pip install scpn-control[nengo]   # Nengo SNN backend
+pip install scpn-control[snn]     # SNN engine (pure NumPy)
 pip install scpn-control[rl]      # stable-baselines3 PPO agent
 ```
 

@@ -58,7 +58,7 @@ pytest -m "not slow"                     # skip slow markers
 pytest --cov=scpn_control --cov-report=term  # coverage
 ```
 
-Coverage gate: 99% (configured in `pyproject.toml`). Current: 100% (9,652 statements, 0 missed).
+Coverage gate: 99% (configured in `pyproject.toml`). Current: 100% coverage.
 
 ---
 

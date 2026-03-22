@@ -1,6 +1,6 @@
 # Pricing & Support
 
-**scpn-control** is open-source under MIT / Apache-2.0.
+**scpn-control** is open-source under AGPL-3.0-or-later (commercial license available).
 The code is free. These tiers fund compute, validation data, and development time.
 
 ## Sponsor Tiers (Stripe)

@@ -841,8 +841,15 @@ class IntegratedScenarioSimulator:
                 self.config.B0,
             )
 
-        # ── ELM check ──────────────────────────────────────────────────────────
-        if self.config.include_elm:
+        # ── L-H transition check ──────────────────────────────────────────────
+        # Martin et al. 2008, J. Phys.: Conf. Ser. 123, 012033
+        S_plasma = 4.0 * np.pi**2 * self.config.R0 * self.config.a * np.sqrt((1.0 + self.config.kappa**2) / 2.0)
+        ne_avg = float(np.mean(self.ts_solver.ne))
+        P_lh = self.lh_threshold.power_threshold_MW(ne_avg, self.config.B0, S_plasma)
+        is_H_mode = self.config.P_aux_MW > P_lh
+
+        # ── ELM check (H-mode only) ──────────────────────────────────────────
+        if self.config.include_elm and is_H_mode:
             # Pedestal values at rho ~ 0.95
             i_ped = min(int(0.95 * self.nr), self.nr - 2)
             T_ped = float(self.ts_solver.Te[i_ped])

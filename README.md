@@ -24,7 +24,7 @@
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
 [scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 125 source
-modules, 220+ test files, **3,400+ tests** (100% coverage), 5 Rust crates, 20 CI jobs.
+modules, 235 test files, **3,300+ tests** (100% coverage), 5 Rust crates, 20 CI jobs.
 Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native linear eigenvalue, native TGLF-equivalent (SAT0/SAT1/SAT2), nonlinear δf GK (5D Vlasov, JAX-accelerable).
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
@@ -132,7 +132,7 @@ src/scpn_control/
 |   +-- compiler.py    #   FusionCompiler -> CompiledNet (LIF + bitstream)
 |   +-- contracts.py   #   ControlObservation, ControlAction, ControlTargets
 |   +-- controller.py  #   NeuroSymbolicController (main entry point)
-+-- core/              # Physics solvers + plant models (37+ modules)
++-- core/              # Physics solvers + plant models (67 modules)
 |   +-- fusion_kernel.py           # Grad-Shafranov equilibrium (fixed + free boundary)
 |   +-- integrated_transport_solver.py  # Multi-species transport PDE
 |   +-- gyrokinetic_transport.py   # Quasilinear TGLF-10 (ITG/TEM/ETG)
@@ -149,7 +149,7 @@ src/scpn_control/
 |   +-- neural_transport.py        # QLKNN-10D trained surrogate
 |   +-- neural_equilibrium.py      # PCA+MLP GS surrogate (1000x speedup)
 |   +-- ...                        # 14 more (eqdsk, uncertainty, pedestal, ...)
-+-- control/           # Controllers (37 modules, optional deps guarded)
++-- control/           # Controllers (42 modules, optional deps guarded)
 |   +-- h_infinity_controller.py   # H-inf robust control (DARE)
 |   +-- mu_synthesis.py            # D-K iteration (structured singular value)
 |   +-- nmpc_controller.py         # Nonlinear MPC (SQP, 20-step horizon)
@@ -164,7 +164,7 @@ src/scpn_control/
 |   +-- disruption_predictor.py    # ML disruption prediction + SPI
 |   +-- tokamak_digital_twin.py    # Digital twin
 |   +-- ...                        # 24 more (MPC, flight sim, HIL, ...)
-+-- phase/             # Paper 27 Knm/UPDE phase dynamics (8 modules)
++-- phase/             # Paper 27 Knm/UPDE phase dynamics (9 modules)
 |   +-- kuramoto.py    #   Kuramoto-Sakaguchi step + order parameter
 |   +-- knm.py         #   Paper 27 Knm coupling matrix builder
 |   +-- upde.py        #   UPDE multi-layer solver
@@ -180,7 +180,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 3,300+ tests (220+ files, 100% coverage)
+tests/                 # 3,300+ tests (235 files, 100% coverage)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
@@ -193,7 +193,7 @@ tests/                 # 3,300+ tests (220+ files, 100% coverage)
 Implements the generalized Kuramoto-Sakaguchi mean-field model with exogenous
 global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
 
-**Modules:** `src/scpn_control/phase/` (7 files)
+**Modules:** `src/scpn_control/phase/` (9 modules)
 
 | Module | Purpose |
 |--------|---------|
@@ -392,8 +392,8 @@ git push --tags
 
 ## Support the Project
 
-**scpn-control** is open-source (MIT / Apache-2.0). Funding goes to compute,
-validation data, and development time.
+**scpn-control** is open-source (AGPL-3.0-or-later | commercial license available).
+Funding goes to compute, validation data, and development time.
 
 | | | |
 |---|---|---|
@@ -418,4 +418,4 @@ Full tier details (Pro, Academic, Enterprise, Sponsorships): [docs/pricing.md](d
 - Code: Copyright 2024-2026
 - License: AGPL-3.0-or-later
 
-Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+Commercial licensing available — contact protoscience@anulum.li.

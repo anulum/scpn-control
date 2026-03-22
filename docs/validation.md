@@ -78,7 +78,7 @@ This writes:
 - `e2e-diiid` (end-to-end mock DIII-D shot test)
 - `real-diiid` (17 real DIII-D disruption shots)
 - `jax-parity` (JAX transport, neural equilibrium, GS solver parity tests)
-- `nengo-loihi` (Nengo SNN wrapper emulator tests)
+- `nengo-loihi` (LIF+NEF SNN wrapper emulator tests)
 - `rust-tests` (`cargo test --workspace` + clippy + fmt)
 - `rust-python-interop` (maturin build + PyO3 parity)
 - `rust-benchmarks` (Criterion, uploads `bench-results` artifact)

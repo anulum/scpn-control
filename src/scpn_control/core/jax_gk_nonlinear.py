@@ -63,6 +63,10 @@ class JaxNonlinearGKSolver:
         self._b_dot_grad_j = jnp.array(self._np_solver.b_dot_grad)
         self._kappa_n_j = jnp.array(self._np_solver.kappa_n)
         self._kappa_g_j = jnp.array(self._np_solver.kappa_g)
+
+        # Rosenbluth-Hinton zonal flow relaxation (Phys. Rev. Lett. 80, 1998, 724)
+        self._rh_rate_j = float(self._np_solver._rh_rate)
+        self._ky_zero_5d_j = jnp.array(self._np_solver._ky_zero_5d)
         self._B_ratio_j = jnp.array(self._np_solver.B_ratio)
         self._vpar_j = jnp.array(self._np_solver.vpar)
         self._mu_j = jnp.array(self._np_solver.mu)
@@ -325,7 +329,11 @@ class JaxNonlinearGKSolver:
                 if s == 1 and not self.cfg.kinetic_electrons:
                     continue
                 dfdt = dfdt.at[s].set(self._jax_rhs_species(f_in[s], phi, s))
-            return dfdt + self._jax_gradient_drive(f_in, phi)
+            dfdt = dfdt + self._jax_gradient_drive(f_in, phi)
+            # Rosenbluth-Hinton zonal flow relaxation — damps ky=0 modes
+            # toward their neoclassical residual (Phys. Rev. Lett. 80, 1998, 724)
+            dfdt = dfdt - self._rh_rate_j * f_in * self._ky_zero_5d_j
+            return dfdt
 
         if _HAS_JAX:
             rhs_ckpt = jax.checkpoint(rhs_full)

@@ -113,8 +113,8 @@
 | Python source LOC | ~30,700 |
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
-| Test files | 234 |
-| Tests collected | 3,300 |
+| Test files | 235 |
+| Tests collected | 3,300+ |
 | Test coverage | 100.0% (gate=99%) |
 | CI jobs | 20 |
 | Real DIII-D shots | 17 disruption + 1 safe baseline |

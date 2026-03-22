@@ -17,7 +17,7 @@
 
 `scpn-control` is an open-source neuro-symbolic control engine for tokamak
 plasma control combining Stochastic Petri Net (SPN) compilation into spiking
-neural network (SNN) controllers, a three-path gyrokinetic transport system,
+neural network (SNN) controllers, a five-tier gyrokinetic transport system,
 and an 8-layer Kuramoto-Sakaguchi phase dynamics engine.
 
 The package provides: a Grad-Shafranov equilibrium solver (fixed and free
@@ -39,7 +39,7 @@ dashboard provides multi-machine shot replay (DIII-D, SPARC, ITER, NSTX-U,
 JET), real-time GK transport visualisation, and OOD monitoring.
 
 The codebase comprises 125 Python source modules and 5 Rust crates
-(ndarray 0.16, rand 0.9, PyO3 0.24) with 3,400+ Python tests and 317 Rust
+(ndarray 0.16, rand 0.9, PyO3 0.25) with 3,300+ Python tests and 317 Rust
 tests at 100% coverage across 20 CI jobs.
 
 ## Statement of Need
@@ -57,12 +57,14 @@ surrogate validation), and multi-layer phase dynamics in one coherent stack.
 
 `scpn-control` fills this gap with three distinguishing capabilities:
 
-1. **Three-path gyrokinetic transport** — a native linear GK eigenvalue
-   solver in ballooning space (Miller geometry, Sugama collision operator)
-   [@dimits2000; @miller1998; @sugama2006], interfaces to five external
-   GK codes via subprocess, and a hybrid layer that validates the QLKNN
-   surrogate [@plassche2020] against GK spot-checks with OOD detection,
-   correction, and online retraining. No competing code has all three paths.
+1. **Five-tier gyrokinetic transport** — critical-gradient baseline,
+   QLKNN surrogate [@plassche2020], native linear GK eigenvalue solver
+   in ballooning space (Miller geometry, Sugama collision operator)
+   [@dimits2000; @miller1998; @sugama2006], native TGLF-equivalent
+   (SAT0/SAT1/SAT2, no Fortran binary), and nonlinear δf GK (5D Vlasov,
+   JAX-accelerable). Interfaces to five external GK codes via subprocess,
+   plus a hybrid layer that validates the surrogate against GK spot-checks
+   with OOD detection, correction, and online retraining.
 
 2. **SPN-to-SNN compilation** — translates control graphs into leaky
    integrate-and-fire neuron pools with stochastic bitstream encoding
@@ -159,9 +161,9 @@ The solver is validated against:
   across modules (bootstrap→NTM, IPB98→power balance, EPED→Troyon limit,
   sawtooth→NTM seed, L-H→H-mode→EPED, runaway→SPI trigger).
 
-The test suite comprises 3,400+ Python tests and 317 Rust tests across 20 CI
-jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity, Nengo
-Loihi emulator, CodeQL security analysis, OpenSSF Scorecard). Coverage gate
+The test suite comprises 3,300+ Python tests and 317 Rust tests across 20 CI
+jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity,
+LIF+NEF SNN emulator, CodeQL security analysis, OpenSSF Scorecard). Coverage gate
 is 99% (current: 100%). The project holds an OpenSSF CII Best Practices badge.
 All physics equations cite their source papers; ~80 citations spanning
 Porcelli (1996), Sauter (1999), Rosenbluth-Putvinski (1997), Connor-Hastie

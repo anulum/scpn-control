@@ -106,7 +106,7 @@ The 5-crate Rust workspace provides:
 | SPI mitigation | Experimental | No | No | No |
 | Digital twin | Experimental | No | No | No |
 | Neural equilibrium | 0.39 ms (CPU, not cross-validated) | No | No | No |
-| SNN controller | Yes (Nengo, mocked CI) | No | No | No |
+| SNN controller | Yes (pure LIF+NEF, mocked CI) | No | No | No |
 | Contract checking | Yes (runtime assertions) | No | No | No |
 | QLKNN-10D transport | Yes (trained MLP) | Yes (QLKNN10D) | No | No |
 | PPO RL agent | Yes (beats MPC + PID) | No | No | No |

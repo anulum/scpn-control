@@ -217,8 +217,8 @@ def neoclassical_chi(
 
     Regime boundaries follow Hinton & Hazeltine 1976, Rev. Mod. Phys. 48, 239,
     Section IV and Wesson 2011, Ch. 14.5:
-      - nu_star < 1                    : banana (Chang & Hinton 1982, Eq. 10)
-      - 1 <= nu_star < q^2/epsilon^1.5 : plateau (Hinton & Hazeltine 1976, Eq. 4.66)
+      - nu_star < epsilon^1.5           : banana (Chang & Hinton 1982, Eq. 10)
+      - epsilon^1.5 <= nu_star < q^2/epsilon^1.5 : plateau (Hinton & Hazeltine 1976, Eq. 4.66)
       - nu_star >= q^2/epsilon^1.5     : Pfirsch-Schlüter (Wesson 2011, Eq. 14.5.7)
 
     Parameters

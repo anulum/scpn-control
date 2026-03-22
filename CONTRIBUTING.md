@@ -41,7 +41,7 @@ This wires `tools/preflight.py` as a pre-push hook. It mirrors CI locally
 ```bash
 python tools/preflight.py            # full (lint + test + Rust)
 python tools/preflight.py --no-tests # lint-only (~10 sec)
-python tools/preflight.py --coverage # full + 80% coverage gate (CI uses 85% on Linux)
+python tools/preflight.py --coverage # full + 99% coverage gate
 python tools/preflight.py --no-rust  # skip cargo gates
 ```
 
@@ -60,7 +60,7 @@ pre-commit run --all-files    # check everything
 pre-commit run ruff            # single hook
 ```
 
-Python (3,400+ tests, 100% coverage):
+Python (3,300+ tests, 100% coverage):
 
 ```bash
 pytest                       # full suite

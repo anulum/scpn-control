@@ -16,7 +16,7 @@ graph TD
         CON[contracts.py] --> NSC
     end
 
-    subgraph "core/ — Physics Solvers (29 modules)"
+    subgraph "core/ — Physics Solvers (67 modules)"
         FK[fusion_kernel.py] --> TC[tokamak_config.py]
         ITS[integrated_transport_solver.py]
         NEQ[neural_equilibrium.py]
@@ -29,7 +29,7 @@ graph TD
         ISS2[integrated_scenario.py]
     end
 
-    subgraph "control/ — Controllers (37 modules)"
+    subgraph "control/ — Controllers (42 modules)"
         HINF2[h_infinity_controller.py]
         MU2[mu_synthesis.py]
         NMPC2[nmpc_controller.py]
@@ -75,7 +75,7 @@ NeuralEquilibrium   IntegratedTransportSolver
     ├── Fault-Tolerant (FaultTolerantController)
     ├── Shape (ShapeController)
     ├── RL/PPO (SafeRLController + SB3)
-    └── SNN (NengoSNNController)
+    └── SNN (LIF+NEF SNN Controller)
            ↓
     DisruptionPredictor
     (LSTM + Greenwald + VDE)
@@ -105,7 +105,7 @@ graph LR
         SM[sliding_mode_vertical]
         FT[fault_tolerant]
         SC[shape_controller]
-        SNN[nengo_snn_wrapper]
+        SNN[snn_controller]
         SRL[safe_rl_controller]
     end
 
@@ -201,13 +201,13 @@ sequenceDiagram
 
 ```
 scpn-control/
-├── src/scpn_control/     # 57 Python modules
+├── src/scpn_control/     # 130 Python modules (125 non-init)
 │   ├── scpn/             # SPN → SNN compiler (6 modules)
-│   ├── core/             # Equilibrium, transport, scaling (18 modules)
-│   ├── control/          # Controllers (22 modules, optional deps guarded)
+│   ├── core/             # Equilibrium, transport, scaling (67 modules)
+│   ├── control/          # Controllers (42 modules, optional deps guarded)
 │   └── phase/            # Kuramoto/UPDE engine (9 modules)
 ├── scpn-control-rs/      # Rust workspace (5 crates)
-tests/                 # 2,641 tests (136 files, 99.99% coverage)
+├── tests/                # 3,300+ tests (235 files, 100% coverage)
 
 
 ├── examples/             # 6 notebooks + 3 scripts

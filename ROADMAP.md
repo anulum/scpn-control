@@ -238,7 +238,7 @@
   (R&P full avalanche), plasma startup (Janev ionization), current diffusion
   (temperature-dependent Coulomb log)
 - [x] Python 3.14 added to CI matrix (continue-on-error until scipy wheels ship)
-- [x] 3,400+ tests, 0 failures
+- [x] 3,300+ tests, 0 failures
 
 ### v1.0.0 — Production readiness
 - [x] JOSS paper updated with citation count and test metrics

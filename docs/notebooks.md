@@ -109,7 +109,7 @@ jupyter nbconvert --to notebook --execute examples/neuro_symbolic_control_demo.i
 **File:** `examples/scpn_full_stack_demo_2026.ipynb`
 **Extra deps:** matplotlib
 
-Comprehensive end-to-end demonstration of the v0.15.0 control stack.
+Comprehensive end-to-end demonstration of the v0.19.0 control stack.
 Includes equilibrium initialization, transport evolution, SNN controller
 coupling, and real-time WebSocket telemetry visualization.
 

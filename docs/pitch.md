@@ -60,7 +60,7 @@ P-EFIT typically reconstructs.
 | PID controller | Tested |
 | H-infinity controller (Riccati) | Tested |
 | MPC (gradient-based, surrogate dynamics) | Tested |
-| Spiking neural network controller (Nengo) | Tested (mocked CI; Loihi untested) |
+| Spiking neural network controller (pure LIF+NEF engine) | Tested (mocked CI; Loihi untested) |
 | Phase dynamics (Kuramoto/UPDE) | Tested |
 | WebSocket live telemetry | Tested |
 | Contract-based pre/post-condition checking | Tested |
@@ -86,8 +86,8 @@ P-EFIT typically reconstructs.
 You need real-time control prototyping **now**, not after a 3-year bespoke
 development cycle. scpn-control gives you:
 
-- A tested controller with 3,400+ tests (100% coverage) and CI-gated RMSE validation
-- Three-tier gyrokinetic transport (native solver + 5 external codes + hybrid validation)
+- A tested controller with 3,300+ tests (100% coverage) and CI-gated RMSE validation
+- Five-tier gyrokinetic transport (native solver + 5 external codes + hybrid validation)
 - Runs on commodity hardware (no GPU or data center required)
 - AGPL-3.0 open source; commercial licensing available
 
@@ -117,7 +117,7 @@ The architecture *could* support future integration, but:
 ## Architecture
 
 ```
-98 Python modules | 5 Rust crates | 3,400+ tests (100% coverage) | 20 CI jobs
+125 Python modules | 5 Rust crates | 3,300+ tests (100% coverage) | 20 CI jobs
 ```
 
 ```
@@ -125,7 +125,7 @@ src/scpn_control/
 +-- scpn/       Petri Net -> SNN compiler (formal contracts)
 +-- core/       GS solver, transport, scaling laws, gyrokinetic (16 GK modules)
 +-- control/    PID, MPC, H-inf, SNN, digital twin
-+-- phase/      Paper 27 Kuramoto/UPDE engine (7 modules)
++-- phase/      Paper 27 Kuramoto/UPDE engine (9 modules)
 
 scpn-control-rs/
 +-- control-types/    PlasmaState, EquilibriumConfig

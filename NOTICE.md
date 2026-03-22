@@ -5,19 +5,20 @@ Contact: www.anulum.li | protoscience@anulum.li
 
 ## License
 
-SCPN Control is dual-licensed under MIT or Apache-2.0, at your option.
+SCPN Control is licensed under the GNU Affero General Public License v3.0
+or later (AGPL-3.0-or-later). See [LICENSE](LICENSE) for the full text.
 
-- [MIT License](LICENSE-MIT)
-- [Apache License 2.0](LICENSE-APACHE)
+Commercial licensing is available for organisations that cannot use AGPL.
+Contact protoscience@anulum.li for terms.
 
 ## Usage Clarification
 
 | Use Case | License |
 |----------|---------|
-| Academic research | MIT or Apache-2.0 (free) |
-| Internal simulation | MIT or Apache-2.0 (free) |
-| SaaS / cloud service | MIT or Apache-2.0 (free, attribution required) |
-| Embedded in closed-source product | MIT or Apache-2.0 (free, attribution required) |
+| Academic research | AGPL-3.0-or-later (free, share modifications) |
+| Internal simulation | AGPL-3.0-or-later (free, share modifications if distributed) |
+| SaaS / cloud service | AGPL-3.0-or-later (must share source of modified versions) |
+| Embedded in closed-source product | Commercial license required |
 | Commercial support / custom builds | Contact protoscience@anulum.li |
 
 ## Third-Party Components

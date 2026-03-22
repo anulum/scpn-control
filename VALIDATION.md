@@ -28,7 +28,7 @@
 
 | Suite | Count | Scope |
 |-------|------:|-------|
-| Python unit/integration | 3,400+ | `pytest tests/` across 230+ files |
+| Python unit/integration | 3,300+ | `pytest tests/` across 235 files |
 | Rust engine | 140+ | `cargo test --workspace` in `scpn-control-rs/` |
 | Rust-Python interop | 3 files | PyO3 parity tests via maturin |
 | Notebooks | 5 | Executed in CI via `nbconvert` |
@@ -73,9 +73,9 @@ All gates must pass before merge to `main`.
 | pip-audit | `ci.yml` | No known vulnerabilities in deps |
 | RMSE gate | `ci.yml` | Regression bounds vs. reference data |
 | E2E DIII-D | `ci.yml` | End-to-end mock shot test |
-| real DIII-D | `ci.yml` | 17 real disruption shots validation |
+| real DIII-D | `ci.yml` | 17 real disruption shots (synthetic) validation |
 | JAX parity | `ci.yml` | JAX transport, neural eq, GS solver parity |
-| Nengo Loihi | `ci.yml` | SNN wrapper emulator tests |
+| LIF+NEF SNN | `ci.yml` | SNN wrapper emulator tests |
 | E2E benchmark | `ci.yml` | Control latency regression |
 | rust-tests | `ci.yml` | `cargo test --workspace` + clippy + fmt |
 | rust-python-interop | `ci.yml` | Maturin build + parity tests |

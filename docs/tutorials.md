@@ -85,15 +85,12 @@ for _ in range(500):
     obs, reward, terminated, truncated, _ = env.step(action)
 ```
 
-### SNN (Nengo LIF)
-
-Requires `pip install scpn-control[nengo]`.
+### SNN (LIF+NEF)
 
 ```python
-from scpn_control.control import get_nengo_controller
+from scpn_control.control.nengo_snn_wrapper import NengoSNNController
 import numpy as np
 
-NengoSNNController = get_nengo_controller()
 ctrl = NengoSNNController()
 u = ctrl.step(np.array([0.05, -0.02]))
 ```

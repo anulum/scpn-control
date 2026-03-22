@@ -18,7 +18,7 @@
 - **Edge**: Connor-Hastie h(Z) E_ratio removed, hot-tail→erfc, SOL sheath BC
   two-point model, GS source full weight (was 50/50 blend), BH Table VII citation,
   noqa dead code removed
-- 3,400+ tests (230+ files), 100% coverage, 20 CI jobs
+- 3,300+ tests (235 files), 100% coverage, 20 CI jobs
 
 ## [0.18.0] — 2026-03-17
 
@@ -70,7 +70,7 @@
 ### Changed
 - **Nengo replaced** with pure LIF+NEF engine (numpy 2.x compatible, no external dependency)
 - All mypy errors fixed across 10 source files
-- 3,400+ tests (230+ files), 100% coverage, 20 CI jobs
+- 3,300+ tests (235 files), 100% coverage, 20 CI jobs
 
 ### Fixed
 - CFL fix for hyperdiffusion stability in nonlinear GK solver

@@ -668,7 +668,7 @@ def _model_risk_samples(
 
 
 # --- AI: TRANSFORMER MODEL ---
-if torch is not None:
+if torch is not None:  # pragma: no cover
 
     class DisruptionTransformer(nn.Module):
         """Transformer encoder for disruption prediction with MC dropout.

@@ -424,9 +424,7 @@ Requires `pip install "scpn-control[jax]"`.
 
 ::: scpn_control.control.jax_traceable_runtime.TraceableRuntimeSpec
 
-### Nengo SNN Controller
-
-Requires `pip install "scpn-control[nengo]"`.
+### LIF+NEF SNN Controller
 
 ::: scpn_control.control.nengo_snn_wrapper.NengoSNNController
 
