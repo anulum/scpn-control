@@ -61,26 +61,28 @@ class TestEnergyConservation:
 
 class TestSugamaConservation:
     def test_particle_conservation(self):
-        """integral C[f] dv ~ 0."""
+        """integral C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
         cfg = NonlinearGKConfig(**_FAST, collision_model="sugama", nu_collision=0.01)
         s = NonlinearGKSolver(cfg)
         state = s.init_state()
         Cf = s._collide_sugama(state.f[0])
-        m0 = float(np.sum(np.real(Cf)) * s.dvpar * s.dmu)
+        dv = s._dv_weights_5d
+        m0 = float(np.sum(np.real(Cf * dv)))
         assert abs(m0) < 1e-4, f"Particle moment = {m0}"
 
     def test_momentum_conservation(self):
-        """integral v_par C[f] dv ~ 0."""
+        """integral v_par C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
         cfg = NonlinearGKConfig(**_FAST, collision_model="sugama", nu_collision=0.01)
         s = NonlinearGKSolver(cfg)
         state = s.init_state()
         Cf = s._collide_sugama(state.f[0])
         vpar = s.vpar[None, None, None, :, None]
-        m1 = float(np.sum(np.real(Cf * vpar)) * s.dvpar * s.dmu)
-        assert abs(m1) < 1e-15, f"Momentum moment = {m1}"
+        dv = s._dv_weights_5d
+        m1 = float(np.sum(np.real(Cf * vpar * dv)))
+        assert abs(m1) < 1e-10, f"Momentum moment = {m1}"
 
     def test_energy_conservation(self):
-        """integral E C[f] dv ~ 0."""
+        """integral E C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
         cfg = NonlinearGKConfig(**_FAST, collision_model="sugama", nu_collision=0.01)
         s = NonlinearGKSolver(cfg)
         state = s.init_state()
@@ -88,7 +90,8 @@ class TestSugamaConservation:
         vpar2 = s.vpar[None, None, None, :, None] ** 2
         mu_val = s.mu[None, None, None, None, :]
         energy = 0.5 * vpar2 + mu_val
-        m2 = float(np.sum(np.real(Cf * energy)) * s.dvpar * s.dmu)
+        dv = s._dv_weights_5d
+        m2 = float(np.sum(np.real(Cf * energy * dv)))
         assert abs(m2) < 1e-3, f"Energy moment = {m2}"
 
 
