@@ -63,6 +63,8 @@ from scpn_control.core.stability_mhd import (
     troyon_beta_limit,
 )
 from scpn_control.core.tearing_mode_coupling import SawtoothNTMSeeding
+from scpn_control.core.gk_interface import GKOutput
+from scpn_control.phase.gk_upde_bridge import adaptive_knm, gk_natural_frequencies
 
 # ── Physical constants (CODATA 2018) ─────────────────────────────────────────
 _E_CHARGE: float = 1.602176634e-19  # C
@@ -119,6 +121,8 @@ class ScenarioConfig:
     include_sol: bool = True
     include_elm: bool = True
     include_stability: bool = True
+    include_phase_bridge: bool = False
+    use_transport_solver: bool = False
 
 
 @dataclass
@@ -355,6 +359,11 @@ class IntegratedScenarioSimulator:
         # L-H transition threshold
         self.lh_threshold = MartinThreshold()
 
+        # Phase bridge state (populated when include_phase_bridge=True)
+        self._phase_K_nm: np.ndarray | None = None
+        self._phase_omega: np.ndarray | None = None
+        self._last_gk_output: GKOutput | None = None
+
     # ── initialisation ────────────────────────────────────────────────────────
 
     def _setup_transport_solver(self) -> TransportSolver:
@@ -400,6 +409,23 @@ class IntegratedScenarioSimulator:
                 self.ts_solver.ne = profiles["ne"]
             if "psi" in profiles:
                 self.cd_solver.psi = profiles["psi"]
+
+        if self.config.use_transport_solver:
+            q_prof = q_from_psi(
+                self.rho,
+                self.cd_solver.psi,
+                self.config.R0,
+                self.config.a,
+                self.config.B0,
+            )
+            self.ts_solver.set_neoclassical(
+                R0=self.config.R0,
+                a=self.config.a,
+                B0=self.config.B0,
+                q0=float(q_prof[0]),
+                q_edge=float(q_prof[-1]),
+            )
+
         return self._build_state()
 
     # ── internal physics helpers ──────────────────────────────────────────────
@@ -495,13 +521,19 @@ class IntegratedScenarioSimulator:
         )
 
     def _transport_step(self, dt: float, q_prof: np.ndarray) -> None:
-        """Explicit cylindrical diffusion for Te and Ti.
+        """Advance Te and Ti by one transport half-step.
 
-        dT/dt = (1/r) d/dr [ r chi n dT/dr ] / n  + S/n
+        When ``config.use_transport_solver`` is True, delegates to the full
+        Crank-Nicolson solver (``TransportSolver.evolve_profiles``).
+        Otherwise falls back to the explicit Euler sub-stepped diffusion.
+
         Wesson 2011, "Tokamaks" 4th ed., Ch. 14, Eq. (14.5.1).
-
-        Sub-steps to satisfy parabolic CFL: dt_sub ≤ drho^2 / (2 chi_max).
         """
+        if self.config.use_transport_solver:
+            self.ts_solver.update_transport_model(self.config.P_aux_MW)
+            self.ts_solver.evolve_profiles(dt, self.config.P_aux_MW)
+            return
+
         chi = self._chi_total(q_prof)
 
         # CFL sub-stepping, Jardin 2010, Ch. 7
@@ -780,6 +812,26 @@ class IntegratedScenarioSimulator:
         # ── (a) half-step transport ───────────────────────────────────────────
         self._transport_step(dt_half, q_prof)
 
+        # ── phase bridge: GK output → K_nm modulation ────────────────────────
+        if self.config.include_phase_bridge and self._last_gk_output is not None:
+            from scpn_control.phase.plasma_knm import build_knm_plasma
+
+            if self._phase_K_nm is None:
+                knm_spec = build_knm_plasma()
+                self._phase_K_nm = knm_spec.K.copy()
+                self._phase_omega = np.zeros(knm_spec.K.shape[0])
+
+            chi_i_profile = self._chi_total(q_prof)
+            self._phase_K_nm = adaptive_knm(
+                self._phase_K_nm,
+                self._last_gk_output,
+                chi_i_profile=chi_i_profile,
+            )
+            self._phase_omega = gk_natural_frequencies(
+                self._phase_omega,
+                self._last_gk_output,
+            )
+
         # ── (b) full-step current drive + bootstrap + current diffusion ───────
         j_bs = sauter_bootstrap(
             self.rho,
@@ -891,4 +943,30 @@ class IntegratedScenarioSimulator:
         return states
 
     def to_json(self, path: Path) -> None:
-        pass
+        state = self._build_state()
+        data = {
+            "time": state.time,
+            "rho": state.rho.tolist(),
+            "Te": state.Te.tolist(),
+            "Ti": state.Ti.tolist(),
+            "ne": state.ne.tolist(),
+            "q": state.q.tolist(),
+            "psi": state.psi.tolist(),
+            "j_total": state.j_total.tolist(),
+            "j_bs": state.j_bs.tolist(),
+            "j_cd": state.j_cd.tolist(),
+            "Ip_MA": state.Ip_MA,
+            "beta_N": state.beta_N,
+            "tau_E": state.tau_E,
+            "P_loss": state.P_loss,
+            "W_thermal": state.W_thermal,
+            "li": state.li,
+            "ballooning_stable": state.ballooning_stable,
+            "troyon_stable": state.troyon_stable,
+            "ntm_island_widths": state.ntm_island_widths,
+            "T_target": state.T_target,
+            "q_peak": state.q_peak,
+            "detached": state.detached,
+        }
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)

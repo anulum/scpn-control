@@ -147,22 +147,45 @@ def _parallel_streaming_matrix(
     return D
 
 
-def _em_correction_factor(
+def _kbm_growth_rate(
+    gamma_es: float,
     beta_e: float,
     alpha_MHD: float,
     s_hat: float,
-    k_y: float,
 ) -> float:
-    """Electromagnetic correction to the electrostatic growth rate.
+    """KBM growth rate from the coupled (phi, A_par) dispersion relation.
 
-    gamma_em = gamma_es * (1 + alpha_MHD * beta_e / (s_hat^2 * k_y^2))
+    Tang et al., Nucl. Fusion 20 (1980) 1439, Eq. 4.3:
+    The ideal ballooning drive modifies the ES eigenvalue as
+      gamma_KBM = gamma_ES * sqrt(1 + alpha_MHD * beta_e / (s_hat^2 + eps))
+    where eps floors the denominator for low-shear safety.
 
-    Tang et al., Nucl. Fusion 20 (1980) — ideal ballooning drive.
+    Returns the KBM growth rate (not a multiplicative factor).
     """
-    denom = s_hat**2 * k_y**2
+    # eps = 1e-4: regulariser for near-zero magnetic shear
+    ballooning_drive = alpha_MHD * beta_e / (s_hat**2 + 1e-4)
+    return gamma_es * np.sqrt(1.0 + ballooning_drive)
+
+
+def _mtm_growth_rate(
+    beta_e: float,
+    k_y_rho_s: float,
+    omega_star_e: float,
+    nu_e: float,
+) -> float:
+    """MTM growth rate from the resistive tearing dispersion relation.
+
+    Drake & Lee, Phys. Fluids 20 (1977) 1341, Eq. 15:
+      gamma_MTM = beta_e * (k_y * rho_s)^2 * nu_e * omega_star_e
+                  / (omega_star_e^2 + nu_e^2)
+
+    This is a separate branch of the dispersion relation,
+    not an additive correction to the ES solution.
+    """
+    denom = omega_star_e**2 + nu_e**2
     if denom < 1e-30:
-        return 1.0
-    return 1.0 + alpha_MHD * beta_e / denom
+        return 0.0
+    return beta_e * k_y_rho_s**2 * nu_e * abs(omega_star_e) / denom
 
 
 def _kbm_drive(
@@ -219,18 +242,26 @@ def _classify_mode(
     electromagnetic: bool,
     alpha_MHD: float,
     s_hat: float,
+    beta_e: float = 0.0,
+    nu_e: float = 0.0,
 ) -> str:
     """Classify the dominant mode from eigenvalue properties.
 
-    Electromagnetic modes (KBM, MTM) take precedence when EM is active
-    and the relevant drive conditions are met.
+    EM modes are separate dispersion-relation branches (not corrections):
+      KBM: alpha_MHD exceeds the first stability boundary AND beta_e
+           is above the kinetic threshold.
+      MTM: electron-direction mode at low k_y with sufficient
+           collisional drive (beta_e * nu_e).
     """
     if electromagnetic:
-        # KBM: alpha_MHD above first stability boundary, ion-scale
-        if alpha_MHD > s_hat and k_y < 2.0:
+        # KBM: alpha_MHD above first stability boundary + finite beta
+        # Connor et al. 1978: alpha_crit ~ s_hat
+        # beta_e threshold ~ 1e-3 (kinetic modification becomes relevant)
+        if alpha_MHD > s_hat and beta_e > 1e-3 and k_y < 2.0:
             return "KBM"
-        # MTM: electron-direction mode at low k_y
-        if omega_r > 0 and k_y < 0.5:
+        # MTM: electron-direction propagation + collisional drive
+        # Drake & Lee 1977: requires beta_e * nu_e > threshold
+        if omega_r > 0 and k_y < 0.5 and beta_e * nu_e > 1e-6:
             return "MTM"
 
     if omega_r < 0:
@@ -372,20 +403,44 @@ def solve_eigenvalue_single_ky(
     gamma_val = float(max(best_gamma, 0.0))
     omega_r_val = float(best_omega.real)
 
-    # EM correction
+    # EM branch selection: KBM and MTM are separate dispersion-relation
+    # branches, not additive corrections to the ES solution.
+    nu_e_for_classify = 0.0
     if em_active:
-        em_factor = _em_correction_factor(beta_e, alpha_MHD, s_hat, k_y_rho_s)
-        gamma_val *= em_factor
-
         e_species = next((s for s in species_list if s.charge_e < 0), None)
-        if e_species is not None and alpha_MHD > s_hat and k_y_rho_s < 2.0:
-            gamma_val += beta_e * max(alpha_MHD - s_hat, 0.0) * k_y_rho_s**2 * 0.1
-        if e_species is not None and k_y_rho_s < 0.5:
-            _, omega_star_T_e = _diamagnetic_frequency(k_y_rho_s, e_species, R0, a)
-            nu_D_e, _ = collision_frequencies(e_species, e_species.density_19, e_species.temperature_keV, Z_eff)
-            gamma_val += beta_e * abs(omega_star_T_e) * nu_D_e * nu_star * 0.01
 
-    mode_type = _classify_mode(omega_r_val, k_y_rho_s, em_active, alpha_MHD, s_hat)
+        gamma_kbm = _kbm_growth_rate(gamma_val, beta_e, alpha_MHD, s_hat)
+
+        gamma_mtm = 0.0
+        if e_species is not None:
+            _, omega_star_T_e = _diamagnetic_frequency(k_y_rho_s, e_species, R0, a)
+            nu_D_e, _ = collision_frequencies(
+                e_species,
+                e_species.density_19,
+                e_species.temperature_keV,
+                Z_eff,
+            )
+            nu_e_norm = nu_D_e * nu_star / max(omega_ref, 1.0)
+            nu_e_for_classify = nu_e_norm
+            gamma_mtm = _mtm_growth_rate(beta_e, k_y_rho_s, omega_star_T_e, nu_e_norm)
+
+        # Select dominant EM branch
+        # Tang 1980: KBM dominates when alpha_MHD > alpha_crit (~s_hat)
+        # Drake & Lee 1977: MTM is a separate branch at low k_y
+        if alpha_MHD > s_hat and beta_e > 1e-3 and k_y_rho_s < 2.0:
+            gamma_val = max(gamma_kbm, gamma_val)
+        elif omega_r_val > 0 and beta_e * nu_e_for_classify > 1e-6 and k_y_rho_s < 0.5:
+            gamma_val = max(gamma_mtm, gamma_val)
+
+    mode_type = _classify_mode(
+        omega_r_val,
+        k_y_rho_s,
+        em_active,
+        alpha_MHD,
+        s_hat,
+        beta_e=beta_e,
+        nu_e=nu_e_for_classify,
+    )
 
     return EigenMode(
         k_y_rho_s=k_y_rho_s,

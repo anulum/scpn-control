@@ -128,12 +128,26 @@ def miller_geometry(
     # b . grad(theta) = B_p / (R_s * |grad theta|) ≈ 1 / (q * R_s) simplified
     b_dot_grad_theta = 1.0 / (q * R_s)
 
-    # Curvature — Miller Eqs. (18)-(19)
-    # Normal curvature kappa_n ≈ -(1/R)(cos(theta) + s_hat*theta*sin(theta))
-    # Geodesic curvature kappa_g ≈ -(1/R)(sin(theta) - s_hat*theta*cos(theta) - alpha_MHD*sin(theta))
-    inv_R = 1.0 / R_s
-    kappa_n = -inv_R * (np.cos(theta) + (s_hat * theta - alpha_MHD) * np.sin(theta))
-    kappa_g = -inv_R * (np.sin(theta) - (s_hat * theta - alpha_MHD) * np.cos(theta))
+    # Curvature from Miller flux-surface geometry (Miller 1998, Eqs. 18-19;
+    # Beer, Cowley & Hammett 1995, Eq. 2.8).
+    # Geometric curvature of the (R, Z) contour: kappa = |r' x r''| / |r'|^3
+    d2R_dt2 = np.gradient(dR_dt, theta)
+    d2Z_dt2 = np.gradient(dZ_dt, theta)
+    dl_dt = np.sqrt(dR_dt**2 + dZ_dt**2)
+    dl_dt = np.maximum(dl_dt, 1e-30)
+
+    # Signed curvature of the poloidal cross-section contour
+    curvature_cross = (dR_dt * d2Z_dt2 - dZ_dt * d2R_dt2) / dl_dt**3
+
+    # Normal curvature: projection onto grad-psi (radial) direction,
+    # plus the toroidal curvature contribution 1/R
+    kappa_n = curvature_cross / np.maximum(np.sqrt(g_rr), 1e-30) + (1.0 / R_s)
+    # Sign convention: negative on outboard (unfavorable)
+    kappa_n = -np.abs(kappa_n) * np.sign(np.cos(theta) + 1e-30)
+
+    # Geodesic curvature from poloidal variation of |B|
+    dB_ds = np.gradient(B_mag, theta) / dl_dt
+    kappa_g = -dB_ds / np.maximum(B_mag, 1e-30)
 
     return MillerGeometry(
         theta=np.asarray(theta, dtype=np.float64),

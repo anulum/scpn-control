@@ -71,14 +71,15 @@ class JaxNonlinearGKSolver:
         self._vpar_j = jnp.array(self._np_solver.vpar)
         self._mu_j = jnp.array(self._np_solver.mu)
         self._theta_j = jnp.array(self._np_solver.theta)
-        self._dv_j = self._np_solver.dvpar * self._np_solver.dmu
+        self._dv_weights_j = jnp.array(self._np_solver._dv_weights_5d)
 
         vpar_5d = self._vpar_j[None, None, None, :, None]
         mu_5d = self._mu_j[None, None, None, None, :]
         energy = 0.5 * vpar_5d**2 + mu_5d
         ones = jnp.broadcast_to(jnp.ones_like(vpar_5d), energy.shape)
         vpar_full = jnp.broadcast_to(vpar_5d, energy.shape)
-        self._sugama_fm_j = jnp.exp(-energy) / jnp.pi**1.5
+        # Gauss-Laguerre weights absorb exp(-mu)
+        self._sugama_fm_j = jnp.exp(-0.5 * vpar_5d**2) / jnp.pi**1.5
         self._sugama_psi_j = jnp.stack(
             (
                 ones,
@@ -89,7 +90,7 @@ class JaxNonlinearGKSolver:
         )
 
         gram = jnp.sum(
-            self._sugama_psi_j[:, None] * self._sugama_psi_j[None, :] * self._sugama_fm_j * self._dv_j,
+            self._sugama_psi_j[:, None] * self._sugama_psi_j[None, :] * self._sugama_fm_j * self._dv_weights_j,
             axis=(-2, -1),
         )[:, :, 0, 0, 0]
         self._sugama_gram_inv_j = jnp.linalg.inv(gram)
@@ -100,9 +101,8 @@ class JaxNonlinearGKSolver:
 
     def _jax_field_solve(self, f: jnp.ndarray) -> jnp.ndarray:
         c = self.cfg
-        dv = self._np_solver.dvpar * self._np_solver.dmu
         f_ion = f[0]
-        n_ion = jnp.sum(f_ion, axis=(-2, -1)) * dv
+        n_ion = jnp.sum(f_ion * self._dv_weights_j, axis=(-2, -1))
 
         rr = self._np_solver.rho_ratio
         b_i = 0.5 * self._kperp2_j * rr**2
@@ -110,7 +110,7 @@ class JaxNonlinearGKSolver:
 
         if c.kinetic_electrons:
             f_elec = f[1]
-            n_elec = jnp.sum(f_elec, axis=(-2, -1)) * dv
+            n_elec = jnp.sum(f_elec * self._dv_weights_j, axis=(-2, -1))
             rr_e = self._np_solver.rho_ratio_e
             b_e = 0.5 * self._kperp2_j * rr_e**2
             Gamma0_e = 1.0 / (1.0 + b_e)
@@ -170,10 +170,10 @@ class JaxNonlinearGKSolver:
             return jnp.zeros((c.n_kx, c.n_ky, c.n_theta), dtype=f.dtype)
 
         vpar_5d = self._vpar_j[None, None, None, :, None]
-        j_par = jnp.sum(vpar_5d * f[0], axis=(-2, -1)) * self._dv_j
+        j_par = jnp.sum(vpar_5d * f[0] * self._dv_weights_j, axis=(-2, -1))
 
         if c.kinetic_electrons:
-            j_par = j_par - self._np_solver.vth_ratio_e * jnp.sum(vpar_5d * f[1], axis=(-2, -1)) * self._dv_j
+            j_par = j_par - self._np_solver.vth_ratio_e * jnp.sum(vpar_5d * f[1] * self._dv_weights_j, axis=(-2, -1))
 
         kp2 = self._kperp2_j[:, :, None]
         denom = jnp.maximum(kp2 + c.beta_e * c.d_e_sq, 1e-10)
@@ -213,7 +213,7 @@ class JaxNonlinearGKSolver:
         Cf = nu_v * pitch * d2f
         Cf = Cf + 0.5 * nu_v * (1.0 - pitch) * d2f
 
-        moments = jnp.sum(Cf[None] * self._sugama_psi_j * self._dv_j, axis=(-2, -1), keepdims=True)
+        moments = jnp.sum(Cf[None] * self._sugama_psi_j * self._dv_weights_j, axis=(-2, -1), keepdims=True)
         coeffs = jnp.tensordot(self._sugama_gram_inv_j, moments, axes=([1], [0]))
         correction = jnp.sum(coeffs * self._sugama_psi_j, axis=0) * self._sugama_fm_j
         return jnp.asarray(Cf - correction)
@@ -271,7 +271,8 @@ class JaxNonlinearGKSolver:
         vpar_6d = self._vpar_j[None, None, None, None, :, None]
         mu_val = self._mu_j[None, None, None, None, None, :]
         energy = 0.5 * vpar2 + mu_val
-        FM = jnp.exp(-energy) / jnp.pi**1.5
+        # Gauss-Laguerre weights absorb exp(-mu)
+        FM = jnp.exp(-0.5 * vpar2) / jnp.pi**1.5
         phi_6d = phi[None, :, :, :, None, None]
 
         if self.cfg.electromagnetic:

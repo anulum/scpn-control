@@ -550,7 +550,7 @@ class TestSugamaGramMatrix:
         solver = NonlinearGKSolver(cfg)
         state = solver.init_state(amplitude=1e-4)
         Cf = solver._collide_sugama(state.f[0])
-        density_moment = np.sum(Cf, axis=(-2, -1)) * solver.dvpar * solver.dmu
+        density_moment = np.sum(Cf * solver._dv_weights_5d, axis=(-2, -1))
         np.testing.assert_allclose(density_moment, 0.0, atol=1e-12)
 
     def test_sugama_conserves_momentum(self):
@@ -572,7 +572,7 @@ class TestSugamaGramMatrix:
         state = solver.init_state(amplitude=1e-4)
         Cf = solver._collide_sugama(state.f[0])
         vpar_5d = solver.vpar[None, None, None, :, None]
-        mom_moment = np.sum(Cf * vpar_5d, axis=(-2, -1)) * solver.dvpar * solver.dmu
+        mom_moment = np.sum(Cf * vpar_5d * solver._dv_weights_5d, axis=(-2, -1))
         np.testing.assert_allclose(mom_moment, 0.0, atol=1e-12)
 
     def test_sugama_conserves_energy(self):
@@ -596,7 +596,7 @@ class TestSugamaGramMatrix:
         vpar2 = solver.vpar[None, None, None, :, None] ** 2
         mu_val = solver.mu[None, None, None, None, :]
         energy = 0.5 * vpar2 + mu_val
-        energy_moment = np.sum(Cf * energy, axis=(-2, -1)) * solver.dvpar * solver.dmu
+        energy_moment = np.sum(Cf * energy * solver._dv_weights_5d, axis=(-2, -1))
         np.testing.assert_allclose(energy_moment, 0.0, atol=1e-12)
 
 
@@ -721,13 +721,13 @@ class TestJaxV019Parity:
         state = solver._np_solver.init_state(amplitude=1e-4, seed=42)
         Cf = np.asarray(solver._jax_collide_sugama(jnp.array(state.f[0])))
 
-        density = np.sum(Cf, axis=(-2, -1)) * solver._np_solver.dvpar * solver._np_solver.dmu
+        density = np.sum(Cf * solver._np_solver._dv_weights_5d, axis=(-2, -1))
         vpar_5d = solver._np_solver.vpar[None, None, None, :, None]
-        momentum = np.sum(Cf * vpar_5d, axis=(-2, -1)) * solver._np_solver.dvpar * solver._np_solver.dmu
+        momentum = np.sum(Cf * vpar_5d * solver._np_solver._dv_weights_5d, axis=(-2, -1))
         vpar2 = solver._np_solver.vpar[None, None, None, :, None] ** 2
         mu_val = solver._np_solver.mu[None, None, None, None, :]
         energy = 0.5 * vpar2 + mu_val
-        energy_moment = np.sum(Cf * energy, axis=(-2, -1)) * solver._np_solver.dvpar * solver._np_solver.dmu
+        energy_moment = np.sum(Cf * energy * solver._np_solver._dv_weights_5d, axis=(-2, -1))
 
         np.testing.assert_allclose(density, 0.0, atol=1e-5)
         np.testing.assert_allclose(momentum, 0.0, atol=1e-5)

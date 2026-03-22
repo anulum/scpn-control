@@ -554,6 +554,10 @@ class TransportSolver(FusionKernel):
         dTi_dr = np.gradient(self.Ti, self.rho * a)
         dne_dr = np.gradient(self.ne, self.rho * a)
 
+        # Magnetic shear: s = (rho/q) * dq/drho
+        dq_drho = np.gradient(q_prof, self.rho)
+        s_hat_profile = self.rho * dq_drho / np.maximum(q_prof, 0.5)
+
         chi_i_out = np.zeros_like(self.rho)
         chi_e_out = np.zeros_like(self.rho)
         D_e_out = np.zeros_like(self.rho)
@@ -569,6 +573,7 @@ class TransportSolver(FusionKernel):
             Ti_keV = max(self.Ti[i], 0.01)
             qi = max(q_prof[i], 0.5)
             eps_i = max(self.rho[i] * a / R0, 1e-3)
+            s_hat_local = float(s_hat_profile[i]) if i < len(s_hat_profile) else 1.0
 
             R_L_Te = -R0 / Te_keV * dTe_dr[i] if Te_keV > 0.01 else 0.0
             R_L_Ti = -R0 / Ti_keV * dTi_dr[i] if Ti_keV > 0.01 else 0.0
@@ -579,7 +584,7 @@ class TransportSolver(FusionKernel):
                 R_L_Te=max(R_L_Te, 0.0),
                 R_L_ne=max(R_L_ne, -5.0),
                 q=qi,
-                s_hat=1.0,  # TODO(gh-XXX): compute magnetic shear from q profile
+                s_hat=s_hat_local,
                 Te_Ti=Te_keV / Ti_keV,
                 Z_eff=Z_eff,
                 nu_star=0.1,
@@ -642,6 +647,10 @@ class TransportSolver(FusionKernel):
         dTi_dr = np.gradient(self.Ti, self.rho * a)
         dne_dr = np.gradient(self.ne, self.rho * a)
 
+        # Magnetic shear: s = (rho/q) * dq/drho
+        dq_drho = np.gradient(q_prof, self.rho)
+        s_hat_profile = self.rho * dq_drho / np.maximum(q_prof, 0.5)
+
         chi_i_out = np.zeros_like(self.rho)
         chi_e_out = np.zeros_like(self.rho)
         D_e_out = np.zeros_like(self.rho)
@@ -657,6 +666,7 @@ class TransportSolver(FusionKernel):
             Ti_keV = max(self.Ti[i], 0.01)
             qi = max(q_prof[i], 0.5)
             eps_i = max(self.rho[i] * a / R0, 1e-3)
+            s_hat_local = float(s_hat_profile[i]) if i < len(s_hat_profile) else 1.0
 
             R_L_Te = -R0 / Te_keV * dTe_dr[i] if Te_keV > 0.01 else 0.0
             R_L_Ti = -R0 / Ti_keV * dTi_dr[i] if Ti_keV > 0.01 else 0.0
@@ -667,7 +677,7 @@ class TransportSolver(FusionKernel):
                 R_L_Te=max(R_L_Te, 0.0),
                 R_L_ne=max(R_L_ne, -5.0),
                 q=qi,
-                s_hat=1.0,  # TODO(gh-XXX): compute from q profile
+                s_hat=s_hat_local,
                 Te_Ti=Te_keV / Ti_keV,
                 Z_eff=Z_eff,
                 nu_star=0.1,

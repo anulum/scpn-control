@@ -11,9 +11,10 @@ import pytest
 
 from scpn_control.core.gk_eigenvalue import (
     _classify_mode,
-    _em_correction_factor,
     _kbm_drive,
+    _kbm_growth_rate,
     _mtm_drive,
+    _mtm_growth_rate,
     solve_eigenvalue_single_ky,
     solve_linear_gk,
 )
@@ -134,14 +135,28 @@ def test_mtm_driven_by_R_L_Te(geom, vgrid):
         assert mode.mode_type == "MTM"
 
 
-def test_em_correction_factor_unity_at_zero_beta():
-    assert _em_correction_factor(0.0, 1.0, 0.78, 0.3) == 1.0
+def test_kbm_growth_rate_equals_es_at_zero_beta():
+    """Tang 1980: zero beta_e gives gamma_KBM == gamma_ES."""
+    assert _kbm_growth_rate(gamma_es=0.5, beta_e=0.0, alpha_MHD=1.0, s_hat=0.78) == pytest.approx(0.5, abs=1e-10)
 
 
-def test_em_correction_factor_increases_with_beta():
-    f1 = _em_correction_factor(0.01, 1.0, 0.78, 0.3)
-    f2 = _em_correction_factor(0.05, 1.0, 0.78, 0.3)
-    assert f2 > f1 > 1.0
+def test_kbm_growth_rate_increases_with_beta():
+    """Tang 1980 Eq 4.3: higher beta_e increases ballooning drive."""
+    g1 = _kbm_growth_rate(gamma_es=0.5, beta_e=0.01, alpha_MHD=1.0, s_hat=0.78)
+    g2 = _kbm_growth_rate(gamma_es=0.5, beta_e=0.05, alpha_MHD=1.0, s_hat=0.78)
+    assert g2 > g1 > 0.5
+
+
+def test_mtm_growth_rate_zero_without_drive():
+    """Drake & Lee 1977: no collisionality → no MTM drive."""
+    assert _mtm_growth_rate(beta_e=0.02, k_y_rho_s=0.3, omega_star_e=6.9, nu_e=0.0) == 0.0
+
+
+def test_mtm_growth_rate_scales_with_beta():
+    """Drake & Lee 1977 Eq 15: gamma_MTM proportional to beta_e."""
+    g1 = _mtm_growth_rate(beta_e=0.01, k_y_rho_s=0.3, omega_star_e=6.9, nu_e=0.1)
+    g2 = _mtm_growth_rate(beta_e=0.05, k_y_rho_s=0.3, omega_star_e=6.9, nu_e=0.1)
+    assert g2 > g1 > 0
 
 
 def test_kbm_drive_zero_below_threshold():
@@ -161,11 +176,11 @@ def test_mtm_drive_purely_imaginary(geom):
 
 
 def test_classify_mode_kbm():
-    assert _classify_mode(omega_r=0.5, k_y=0.3, electromagnetic=True, alpha_MHD=2.0, s_hat=0.78) == "KBM"
+    assert _classify_mode(omega_r=0.5, k_y=0.3, electromagnetic=True, alpha_MHD=2.0, s_hat=0.78, beta_e=0.05) == "KBM"
 
 
 def test_classify_mode_mtm():
-    assert _classify_mode(omega_r=0.5, k_y=0.3, electromagnetic=True, alpha_MHD=0.5, s_hat=0.78) == "MTM"
+    assert _classify_mode(omega_r=0.5, k_y=0.3, electromagnetic=True, alpha_MHD=0.5, s_hat=0.78, beta_e=0.02, nu_e=0.1) == "MTM"
 
 
 def test_classify_mode_itg_when_not_em():

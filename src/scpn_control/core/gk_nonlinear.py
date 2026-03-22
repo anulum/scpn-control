@@ -167,8 +167,21 @@ class NonlinearGKSolver:
         # Velocity grids
         self.vpar = np.linspace(-c.vpar_max, c.vpar_max, c.n_vpar)
         self.dvpar = self.vpar[1] - self.vpar[0] if c.n_vpar > 1 else 1.0
-        self.mu = np.linspace(0, c.mu_max, c.n_mu)
-        self.dmu = self.mu[1] - self.mu[0] if c.n_mu > 1 else 1.0
+        # Gauss-Laguerre quadrature for mu integration.
+        # sum(w_i * f(x_i)) = integral(f(x) * exp(-x), 0, inf)
+        # The exp(-mu) Maxwellian factor is absorbed into the weights,
+        # so FM = exp(-0.5*v_par^2) / pi^1.5 (no exp(-mu)).
+        from numpy.polynomial.laguerre import laggauss
+
+        nodes, weights = laggauss(c.n_mu)
+        self.mu = nodes
+        self.mu_weights = weights
+        self.dmu = 1.0  # sentinel — use mu_weights for integration
+
+        # Precomputed velocity-space integration weights (n_vpar, n_mu).
+        # Replaces dvpar * dmu everywhere: sum(f * _dv_weights) over (vpar, mu).
+        self._dv_weights = self.dvpar * self.mu_weights[None, :]
+        self._dv_weights_5d = self._dv_weights[None, None, None, :, :]
 
         # Dealiasing mask
         if c.dealiasing == "2/3":
@@ -294,14 +307,14 @@ class NonlinearGKSolver:
         c = self.cfg
 
         f_ion = f[0]
-        n_ion = np.sum(f_ion, axis=(-2, -1)) * self.dvpar * self.dmu
+        n_ion = np.sum(f_ion * self._dv_weights_5d, axis=(-2, -1))
 
         b_i = 0.5 * self.kperp2 * self.rho_ratio**2
         Gamma0_i = 1.0 / (1.0 + b_i)
 
         if c.kinetic_electrons:
             f_elec = f[1]
-            n_elec = np.sum(f_elec, axis=(-2, -1)) * self.dvpar * self.dmu
+            n_elec = np.sum(f_elec * self._dv_weights_5d, axis=(-2, -1))
             b_e = 0.5 * self.kperp2 * self.rho_ratio_e**2
             Gamma0_e = 1.0 / (1.0 + b_e)
             # Modified adiabatic electron response for zonal modes (ky=0):
@@ -336,15 +349,14 @@ class NonlinearGKSolver:
             return np.zeros((c.n_kx, c.n_ky, c.n_theta), dtype=complex)
 
         vpar_5d = self.vpar[None, None, None, :, None]
-        dv = self.dvpar * self.dmu
 
         # Ion current: j_i = ∫ v_∥ J₀_i h_i dv
-        j_par = np.sum(vpar_5d * f[0], axis=(-2, -1)) * dv
+        j_par = np.sum(vpar_5d * f[0] * self._dv_weights_5d, axis=(-2, -1))
 
         # Electron current (kinetic electrons only, opposite charge)
         if c.kinetic_electrons:
             v_scale_e = self.vth_ratio_e
-            j_par -= v_scale_e * np.sum(vpar_5d * f[1], axis=(-2, -1)) * dv
+            j_par -= v_scale_e * np.sum(vpar_5d * f[1] * self._dv_weights_5d, axis=(-2, -1))
 
         # (k_perp² + β_e d_e²) A_∥ = β_e × j_∥
         kp2 = self.kperp2[:, :, None]
@@ -479,7 +491,6 @@ class NonlinearGKSolver:
         """
         nu = self.cfg.nu_collision
         dvp = self.dvpar
-        dmu = self.dmu
 
         # ∂²f/∂v_∥² (2nd-order central FD, axis 3)
         d2f = (np.roll(f_s, -1, axis=3) - 2 * f_s + np.roll(f_s, 1, axis=3)) / (dvp**2)
@@ -509,9 +520,10 @@ class NonlinearGKSolver:
         # Conservation: subtract (a₀ + a₁ v_∥ + a₂ E) F_M
         # so ∫ ψ_i Cf dv = 0 for ψ = {1, v_∥, E}.
         # Solve 3×3 Gram matrix G_ij = ∫ ψ_i ψ_j FM dv for coefficients.
-        FM = np.exp(-energy) / np.pi**1.5
+        # Gauss-Laguerre weights absorb exp(-mu), so FM = exp(-0.5*v^2)/pi^1.5
+        FM = np.exp(-0.5 * vpar2) / np.pi**1.5
         vpar_5d = self.vpar[None, None, None, :, None]
-        dv = dvp * dmu
+        dv_w = self._dv_weights_5d
 
         psi = [
             np.ones_like(vpar_5d),
@@ -524,9 +536,9 @@ class NonlinearGKSolver:
         G = np.empty((3, 3))
         m_vec = []
         for i in range(3):
-            m_vec.append(np.sum(Cf * psi[i] * dv, axis=(-2, -1), keepdims=True))
+            m_vec.append(np.sum(Cf * psi[i] * dv_w, axis=(-2, -1), keepdims=True))
             for j in range(3):
-                G[i, j] = float(np.sum(psi[i] * psi[j] * FM * dv))
+                G[i, j] = float(np.sum(psi[i] * psi[j] * FM * dv_w))
 
         G_inv = np.linalg.inv(G)
         a0 = sum(G_inv[0, j] * m_vec[j] for j in range(3))
@@ -557,7 +569,8 @@ class NonlinearGKSolver:
         vpar_5d = self.vpar[None, None, None, :, None]
         mu_val = self.mu[None, None, None, None, :]
         energy = 0.5 * vpar2 + mu_val
-        FM = np.exp(-energy) / np.pi**1.5
+        # Gauss-Laguerre weights absorb exp(-mu), so FM = exp(-0.5*v^2)/pi^1.5
+        FM = np.exp(-0.5 * vpar2) / np.pi**1.5
 
         # Effective potential: φ_eff = φ - v_∥ A_∥ (EM) or just φ (ES)
         phi_5d = phi[:, :, :, None, None]
@@ -779,7 +792,7 @@ class NonlinearGKSolver:
         mu_val = self.mu[None, None, None, None, :]
         energy = 0.5 * vpar2 + mu_val
 
-        p_ion = np.sum(energy * f_ion, axis=(-2, -1)) * self.dvpar * self.dmu
+        p_ion = np.sum(energy * f_ion * self._dv_weights_5d, axis=(-2, -1))
 
         # Radial flux: Q_i = Σ_{ky>0} Re[ik_y conj(φ) p_i]
         ky_pos = self.ky > 1e-10
@@ -804,7 +817,9 @@ class NonlinearGKSolver:
 
     def total_energy(self, state: NonlinearGKState) -> float:
         """Total δf² energy (conservation diagnostic)."""
-        return float(np.sum(np.abs(state.f) ** 2) * self.dvpar * self.dmu * self.dtheta)
+        # Species dimension is axis 0; _dv_weights_5d broadcasts over (kx, ky, theta, vpar, mu)
+        dv_6d = self._dv_weights_5d[None, :, :, :, :, :]
+        return float(np.sum(np.abs(state.f) ** 2 * dv_6d) * self.dtheta)
 
     # ------------------------------------------------------------------
     # Initialisation
@@ -816,10 +831,9 @@ class NonlinearGKSolver:
         rng = np.random.default_rng(seed)
         shape = (c.n_species, c.n_kx, c.n_ky, c.n_theta, c.n_vpar, c.n_mu)
 
-        # Maxwellian envelope
+        # Maxwellian envelope — exp(-mu) absorbed into Gauss-Laguerre weights
         vpar2 = self.vpar[None, None, None, None, :, None] ** 2
-        mu_val = self.mu[None, None, None, None, None, :]
-        FM = np.exp(-(0.5 * vpar2 + mu_val))
+        FM = np.exp(-0.5 * vpar2)
 
         # Random perturbation × Maxwellian
         f = np.asarray(
@@ -838,8 +852,8 @@ class NonlinearGKSolver:
         f = np.zeros(shape, dtype=complex)
 
         vpar2 = self.vpar[None, :, None] ** 2
-        mu_val = self.mu[None, None, :]
-        FM = np.exp(-(0.5 * vpar2 + mu_val))  # (1, nvpar, nmu)
+        # exp(-mu) absorbed into Gauss-Laguerre weights
+        FM = np.exp(-0.5 * vpar2) * np.ones((1, 1, c.n_mu))  # (1, nvpar, nmu)
 
         # Single mode
         f[0, kx_idx, ky_idx, :, :, :] = amplitude * np.cos(self.theta)[:, None, None] * FM[None, :, :]
