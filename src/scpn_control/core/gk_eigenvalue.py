@@ -164,7 +164,7 @@ def _kbm_growth_rate(
     """
     # eps = 1e-4: regulariser for near-zero magnetic shear
     ballooning_drive = alpha_MHD * beta_e / (s_hat**2 + 1e-4)
-    return gamma_es * np.sqrt(1.0 + ballooning_drive)
+    return float(gamma_es * np.sqrt(1.0 + ballooning_drive))
 
 
 def _mtm_growth_rate(

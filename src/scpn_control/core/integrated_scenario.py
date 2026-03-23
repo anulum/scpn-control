@@ -827,10 +827,11 @@ class IntegratedScenarioSimulator:
                 self._last_gk_output,
                 chi_i_profile=chi_i_profile,
             )
-            self._phase_omega = gk_natural_frequencies(
-                self._phase_omega,
-                self._last_gk_output,
-            )
+            if self._phase_omega is not None:
+                self._phase_omega = gk_natural_frequencies(
+                    self._phase_omega,
+                    self._last_gk_output,
+                )
 
         # ── (b) full-step current drive + bootstrap + current diffusion ───────
         j_bs = sauter_bootstrap(

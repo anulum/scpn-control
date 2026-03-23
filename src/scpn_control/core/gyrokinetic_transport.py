@@ -343,7 +343,7 @@ class GyrokineticTransportModel:
                 D_e[i] = 0.01
                 continue
 
-            def _at(key, default):
+            def _at(key: str, default: float) -> float:
                 v = profiles.get(key, default)
                 return float(v[i]) if hasattr(v, "__getitem__") and not isinstance(v, (int, float)) else float(v)
 
