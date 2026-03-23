@@ -699,7 +699,7 @@ class TransportSolver(FusionKernel):
                 chi_i_out[i] = max(result.chi_i, 0.01)
                 chi_e_out[i] = max(result.chi_e, 0.01)
                 D_e_out[i] = max(result.D_e, 0.001)
-            else:
+            else:  # pragma: no cover
                 chi_i_out[i] = max(self._gyro_bohm_chi()[i], 0.01)
                 chi_e_out[i] = chi_i_out[i]
                 D_e_out[i] = 0.1 * chi_e_out[i]

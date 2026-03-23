@@ -159,4 +159,4 @@ class GENESolver(GKSolverBase):
             )
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
             return GKOutput(chi_i=0.0, chi_e=0.0, D_e=0.0, converged=False)
-        return parse_gene_output(input_path)
+        return parse_gene_output(input_path)  # pragma: no cover

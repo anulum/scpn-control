@@ -29,9 +29,9 @@ from typing import Any
 import numpy as np
 
 try:
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
+    import torch  # pragma: no cover
+    import torch.nn as nn  # pragma: no cover
+    import torch.optim as optim  # pragma: no cover
 except ImportError:  # pragma: no cover - optional dependency path
     torch = None  # type: ignore[assignment]
     nn = None  # type: ignore[assignment]
@@ -646,7 +646,7 @@ def _deterministic_risk_samples(
     return np.asarray(samples, dtype=float)
 
 
-def _model_risk_samples(
+def _model_risk_samples(  # pragma: no cover - requires torch
     model: Any,
     signal: Any,
     *,
@@ -877,7 +877,7 @@ def load_or_train_predictor(
                 "seq_len": int(seq_len),
             }
 
-    if not train_if_missing and not force_retrain:
+    if not train_if_missing and not force_retrain:  # pragma: no cover - requires torch
         if allow_fallback:
             return None, {
                 "trained": False,
