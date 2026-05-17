@@ -71,6 +71,7 @@ def render_geometry_neutral_markdown(report: object) -> str:
 
     return _impl(report)  # type: ignore[arg-type]
 
+
 __all__ = [
     "StochasticPetriNet",
     "FusionCompiler",

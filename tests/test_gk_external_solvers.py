@@ -176,9 +176,11 @@ def test_cgyro_run_subprocess_failure(cbc_params, tmp_path):
 
     solver = CGYROSolver(work_dir=tmp_path)
     solver.prepare_input(cbc_params)
-    with patch("shutil.which", return_value="/usr/bin/cgyro"):
-        with patch("subprocess.run", side_effect=FileNotFoundError):
-            result = solver.run(tmp_path)
+    with (
+        patch("shutil.which", return_value="/usr/bin/cgyro"),
+        patch("subprocess.run", side_effect=FileNotFoundError),
+    ):
+        result = solver.run(tmp_path)
     assert not result.converged
 
 
@@ -211,9 +213,11 @@ def test_gene_run_subprocess_failure(cbc_params, tmp_path):
 
     solver = GENESolver(work_dir=tmp_path)
     solver.prepare_input(cbc_params)
-    with patch("shutil.which", return_value="/usr/bin/gene"):
-        with patch("subprocess.run", side_effect=FileNotFoundError):
-            result = solver.run(tmp_path)
+    with (
+        patch("shutil.which", return_value="/usr/bin/gene"),
+        patch("subprocess.run", side_effect=FileNotFoundError),
+    ):
+        result = solver.run(tmp_path)
     assert not result.converged
 
 

@@ -45,7 +45,6 @@ except ImportError:
 
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.animation as animation
 
     HAS_MPL = True
 except ImportError:
