@@ -121,9 +121,26 @@ def test_peak_heat_flux_zero_lambda():
     assert peak_target_heat_flux(P_SOL_MW=100.0, R0=6.2, lambda_q_m=0.0) == 0.0
 
 
-def test_detachment_threshold_placeholder():
-    """Line 62: detachment_threshold always returns False (placeholder)."""
+def test_detachment_threshold_density_rollover():
+    """Higher upstream density drives the sheath target below 5 eV."""
+    assert detachment_threshold(n_u_19=20.0, P_SOL_MW=100.0, L_par=50.0) is True
     assert detachment_threshold(n_u_19=5.0, P_SOL_MW=100.0, L_par=50.0) is False
+
+
+def test_detachment_threshold_power_and_connection_length():
+    """Higher heat flux delays detachment; longer connection length favours it."""
+    assert detachment_threshold(n_u_19=10.0, P_SOL_MW=50.0, L_par=50.0) is True
+    assert detachment_threshold(n_u_19=10.0, P_SOL_MW=200.0, L_par=50.0) is False
+    assert detachment_threshold(n_u_19=10.0, P_SOL_MW=100.0, L_par=250.0) is True
+
+
+def test_detachment_threshold_rejects_invalid_inputs():
+    try:
+        detachment_threshold(n_u_19=0.0, P_SOL_MW=100.0, L_par=50.0)
+    except ValueError as exc:
+        assert "positive" in str(exc)
+    else:
+        raise AssertionError("invalid detachment inputs must fail fast")
 
 
 def test_eich_width_invalid_inputs():

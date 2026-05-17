@@ -17,6 +17,10 @@ KAPPA_0_ELECTRON = 2000.0
 # Stangeby 2000, Ch. 2.
 GAMMA_SHEATH = 7.0
 
+# Divertor detachment onset criterion T_t <= 5 eV.
+# Stangeby 2000, Ch. 16; Lipschultz et al. 1999, PPCF 41, A585.
+DETACHMENT_ONSET_EV = 5.0
+
 
 @dataclass
 class SOLSolution:
@@ -58,8 +62,25 @@ def peak_target_heat_flux(
 
 
 def detachment_threshold(n_u_19: float, P_SOL_MW: float, L_par: float) -> bool:
-    """Placeholder — detachment evaluated inside TwoPointSOL.solve."""
-    return False
+    """Return whether the two-point sheath target is below detachment onset.
+
+    `P_SOL_MW` is interpreted as parallel heat-flux density in MW m^-2 for
+    this local threshold helper.  The upstream temperature follows the Spitzer
+    conduction integral, then the sheath heat-transmission relation gives the
+    target temperature.  Detachment onset is taken as T_target <= 5 eV.
+    """
+    if n_u_19 <= 0.0 or P_SOL_MW <= 0.0 or L_par <= 0.0:
+        raise ValueError("n_u_19, P_SOL_MW, and L_par must be positive")
+
+    q_parallel_W_m2 = P_SOL_MW * 1.0e6
+    T_upstream_eV = ((3.5 * L_par * q_parallel_W_m2) / KAPPA_0_ELECTRON) ** (2.0 / 7.0)
+
+    e_charge = 1.602e-19
+    m_i = 2.0 * 1.6726e-27
+    n_u = n_u_19 * 1.0e19
+    sheath_denom = GAMMA_SHEATH * n_u * T_upstream_eV * e_charge
+    T_target_eV = (2.0 * q_parallel_W_m2 / sheath_denom) ** 2 * m_i / e_charge
+    return bool(T_target_eV <= DETACHMENT_ONSET_EV)
 
 
 class TwoPointSOL:
