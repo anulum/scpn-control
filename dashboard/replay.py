@@ -63,11 +63,13 @@ def _validate_step_idx(step_idx: int, n_steps: int) -> int:
     return step_idx
 
 
-def _disruption_time_idx(shot_data: ShotData, n_steps: int) -> int:
+def _disruption_time_idx(shot_data: ShotData, n_steps: int, *, is_disruption: bool) -> int:
     raw = shot_data.get("disruption_time_idx", n_steps - 1)
     if isinstance(raw, bool):
         raise ValueError("disruption_time_idx must be an integer index.")
     idx = int(raw)
+    if not is_disruption and idx == -1:
+        return n_steps - 1
     if idx < 0 or idx >= n_steps:
         raise ValueError(f"disruption_time_idx must be within [0, {n_steps - 1}].")
     return idx
@@ -104,7 +106,8 @@ def build_replay_frame(
     checked_step_idx = _validate_step_idx(step_idx, n_steps)
     time_fraction = checked_step_idx / max(n_steps - 1, 1)
     phase_label = shot_phase_label(time_fraction)
-    disruption_time_idx = _disruption_time_idx(shot_data, n_steps)
+    is_disruption = bool(shot_data.get("is_disruption", False))
+    disruption_time_idx = _disruption_time_idx(shot_data, n_steps, is_disruption=is_disruption)
     signal_keys = available_signal_keys(shot_data)
 
     return ReplayFrame(
@@ -115,7 +118,7 @@ def build_replay_frame(
         duration_s=float(time_s[-1]),
         time_fraction=float(time_fraction),
         phase_label=phase_label,
-        is_disruption=bool(shot_data.get("is_disruption", False)),
+        is_disruption=is_disruption,
         disruption_time_idx=disruption_time_idx,
         disruption_type=str(shot_data.get("disruption_type", "N/A")),
         signals=_signals(shot_data, signal_keys),

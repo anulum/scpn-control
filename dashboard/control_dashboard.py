@@ -33,6 +33,7 @@ import json
 import time
 from pathlib import Path
 
+from dashboard.reference_shots import list_reference_shots, load_reference_shot
 from dashboard.replay import build_replay_frame
 from dashboard.state import (
     MACHINE_PRESETS,
@@ -316,11 +317,11 @@ with tab_replay:
 
     if replay_source == "Reference shots (DIII-D)":
         if shots_dir.exists():
-            shot_files = sorted(shots_dir.glob("*.npz"))
+            shot_files = list_reference_shots(shots_dir)
             if shot_files:
                 selected = st.selectbox("Shot", [f.stem for f in shot_files], key="replay_shot_sel")
                 if selected:
-                    shot_data = dict(np.load(shots_dir / f"{selected}.npz", allow_pickle=True))
+                    shot_data = load_reference_shot(shots_dir / f"{selected}.npz")
                     shot_label = selected
             else:
                 st.warning("No .npz files in disruption_shots directory.")

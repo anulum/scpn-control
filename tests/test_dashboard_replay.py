@@ -63,6 +63,19 @@ def test_build_replay_frame_returns_valid_current_state_and_profiles() -> None:
     assert frame.profiles["Te_keV"][0] > frame.profiles["Te_keV"][-1]
 
 
+def test_build_replay_frame_accepts_safe_reference_shot_without_disruption_index() -> None:
+    shot = _shot()
+    shot["is_disruption"] = False
+    shot["disruption_time_idx"] = -1
+    shot["disruption_type"] = "safe"
+
+    frame = build_replay_frame(shot, MACHINE_PRESETS["DIII-D"], "safe_reference", step_idx=3)
+
+    assert frame.is_disruption is False
+    assert frame.disruption_time_idx == 7
+    assert frame.disruption_type == "safe"
+
+
 @pytest.mark.parametrize(
     "mutation",
     [
