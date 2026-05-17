@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # First Steps
 
 A hands-on introduction to scpn-control. No plasma physics background required.

@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Validation Reference Data
 
 Experimental and design reference data for cross-validating SCPN Fusion Core

@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Control Theory Primer for Fusion Applications
 
 **Prerequisites**: Linear algebra (eigenvalues, SVD, matrix exponential), calculus (ODEs, Laplace transform basics).

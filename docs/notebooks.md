@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Notebook Gallery
 
 Interactive Jupyter notebooks demonstrating scpn-control capabilities.

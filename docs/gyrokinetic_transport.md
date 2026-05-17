@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Gyrokinetic Transport — Three-Path Architecture
 
 scpn-control implements all three gyrokinetic transport paths in a single

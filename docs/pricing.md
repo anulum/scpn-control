@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Pricing & Support
 
 **scpn-control** is open-source under AGPL-3.0-or-later (commercial license available).

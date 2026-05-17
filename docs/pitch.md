@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # SCPN Control — Neuro-Symbolic Fusion Controller
 
 <p align="center">

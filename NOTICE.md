@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # NOTICE -- Licensing
 
 Copyright 1998-2026 Miroslav Sotek. All rights reserved.

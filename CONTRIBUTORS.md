@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Contributors
 
 SCPN Control is developed and maintained by the [Anulum Institute](https://www.anulum.li).

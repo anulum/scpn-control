@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Deployment Guide
 
 This guide describes how to deploy `scpn-control` in various environments,

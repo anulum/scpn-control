@@ -20,6 +20,8 @@ affiliations:
 date: 17 March 2026
 bibliography: paper.bib
 ---
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 
 # Summary
 

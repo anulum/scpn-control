@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Physics Methods Reference
 
 This document catalogs the primary physics models, equations, and scaling laws implemented in `scpn-control`.

@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Changelog
 
 ## [0.16.0] — 2026-03-13

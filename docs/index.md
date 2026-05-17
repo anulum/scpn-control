@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # SCPN Control
 
 SCPN Control is a standalone neuro-symbolic control engine that compiles

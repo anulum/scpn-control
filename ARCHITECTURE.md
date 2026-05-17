@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Architecture
 
 SCPN Control is a two-tier neuro-symbolic control engine: a Python

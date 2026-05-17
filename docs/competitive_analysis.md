@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Competitive Analysis — scpn-control
 
 > **Last updated:** 2026-03-17 (v0.19.0).

@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Validation Summary — scpn-control
 
 This document provides a high-level summary of the validation evidence supporting the

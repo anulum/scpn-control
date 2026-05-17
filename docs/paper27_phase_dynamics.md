@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Paper 27 — Knm Phase Dynamics in scpn-control
 
 Demonstrates the integration of **SCPN Paper 27** (*The Knm Matrix: A Simulation

@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Glossary
 
 Terms from fusion plasma physics and control theory used in scpn-control.

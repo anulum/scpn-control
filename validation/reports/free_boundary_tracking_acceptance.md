@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+
 # Free-Boundary Tracking Acceptance
 
 - Generated: `2026-03-12T06:04:55.320376+00:00`
