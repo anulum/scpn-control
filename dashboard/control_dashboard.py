@@ -33,121 +33,12 @@ import json
 import time
 from pathlib import Path
 
-# ─── Machine Presets ──────────────────────────────────────────────────
-# Parameters: R0 [m], a [m], B0 [T], Ip [MA], kappa, delta, q95,
-#             ne_1e19, Te0_keV, P_aux_MW
-
-MACHINE_PRESETS: dict[str, dict] = {
-    "DIII-D": {
-        "R0": 1.67,
-        "a": 0.67,
-        "B0": 2.2,
-        "Ip": 1.5,
-        "kappa": 1.8,
-        "delta": 0.35,
-        "q95": 3.5,
-        "ne_1e19": 5.0,
-        "Te0_keV": 3.5,
-        "P_aux_MW": 15.0,
-        "description": "GA general-purpose tokamak, H-mode reference",
-    },
-    "SPARC": {
-        "R0": 1.85,
-        "a": 0.57,
-        "B0": 12.2,
-        "Ip": 8.7,
-        "kappa": 1.97,
-        "delta": 0.54,
-        "q95": 3.4,
-        "ne_1e19": 37.0,
-        "Te0_keV": 21.0,
-        "P_aux_MW": 25.0,
-        "description": "CFS compact high-field, Q > 2 target",
-    },
-    "ITER": {
-        "R0": 6.2,
-        "a": 2.0,
-        "B0": 5.3,
-        "Ip": 15.0,
-        "kappa": 1.7,
-        "delta": 0.33,
-        "q95": 3.0,
-        "ne_1e19": 10.1,
-        "Te0_keV": 25.0,
-        "P_aux_MW": 50.0,
-        "description": "ITER 15 MA baseline scenario, Q = 10",
-    },
-    "NSTX-U": {
-        "R0": 0.93,
-        "a": 0.63,
-        "B0": 1.0,
-        "Ip": 2.0,
-        "kappa": 2.8,
-        "delta": 0.6,
-        "q95": 8.0,
-        "ne_1e19": 6.0,
-        "Te0_keV": 1.5,
-        "P_aux_MW": 12.0,
-        "description": "PPPL spherical tokamak, high beta, strong shaping",
-    },
-    "JET": {
-        "R0": 2.96,
-        "a": 1.25,
-        "B0": 3.45,
-        "Ip": 3.5,
-        "kappa": 1.68,
-        "delta": 0.27,
-        "q95": 3.3,
-        "ne_1e19": 8.0,
-        "Te0_keV": 8.0,
-        "P_aux_MW": 30.0,
-        "description": "UKAEA large tokamak, DT record holder",
-    },
-}
-
-
-def _shot_phase_label(frac: float) -> str:
-    """Map normalised time fraction to shot phase name."""
-    if frac < 0.10:
-        return "STARTUP"
-    if frac < 0.25:
-        return "RAMP-UP"
-    if frac < 0.75:
-        return "FLATTOP"
-    if frac < 0.90:
-        return "RAMP-DOWN"
-    return "TERMINATION"
-
-
-def _synth_profiles(machine: dict, n_rho: int = 50, time_frac: float = 0.5) -> dict:
-    """Generate synthetic Te/Ti/ne profiles for a given machine at time_frac.
-
-    Pedestal profiles use tanh model. Time fraction modulates amplitude
-    (ramp-up → 0.3x, flattop → 1.0x, ramp-down → 0.6x).
-    """
-    rho = np.linspace(0.0, 1.0, n_rho)
-    rho_ped = 0.9
-    width = 0.05
-    # Pedestal tanh: value = core*(1 + tanh((rho_ped - rho)/width))/2
-    pedestal = 0.5 * (1.0 + np.tanh((rho_ped - rho) / width))
-    # Time-phase amplitude multiplier
-    if time_frac < 0.10:
-        amp = 0.2 + 8.0 * time_frac
-    elif time_frac < 0.25:
-        amp = 0.6 + 2.67 * (time_frac - 0.10)
-    elif time_frac < 0.75:
-        amp = 1.0
-    elif time_frac < 0.90:
-        amp = 1.0 - 2.67 * (time_frac - 0.75)
-    else:
-        amp = 0.6 - 6.0 * (time_frac - 0.90)
-    amp = max(amp, 0.05)
-
-    Te = amp * machine["Te0_keV"] * (0.1 + 0.9 * pedestal)
-    Ti = Te * 0.9
-    ne = machine["ne_1e19"] * (0.3 + 0.7 * pedestal) * amp
-
-    return {"rho": rho, "Te_keV": Te, "Ti_keV": Ti, "ne_1e19": ne}
+from dashboard.state import (
+    MACHINE_PRESETS,
+    derived_machine_metrics,
+    shot_phase_label,
+    synthetic_profiles,
+)
 
 
 # ─── Page Config ──────────────────────────────────────────────────────
@@ -178,14 +69,12 @@ param_labels = [
 for key, label in param_labels:
     st.sidebar.text(f"  {label}: {machine[key]}")
 
-# Derived quantities
-epsilon = machine["a"] / machine["R0"]
-aspect_ratio = machine["R0"] / machine["a"]
+metrics = derived_machine_metrics(machine)
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Derived**")
-st.sidebar.text(f"  \u03b5 = a/R\u2080: {epsilon:.3f}")
-st.sidebar.text(f"  A = R\u2080/a: {aspect_ratio:.2f}")
-st.sidebar.text(f"  B_pol \u2248 {machine['Ip'] * 0.4 / machine['a']:.2f} T")
+st.sidebar.text(f"  \u03b5 = a/R\u2080: {metrics['epsilon']:.3f}")
+st.sidebar.text(f"  A = R\u2080/a: {metrics['aspect_ratio']:.2f}")
+st.sidebar.text(f"  B_pol \u2248 {metrics['b_pol_t']:.2f} T")
 
 # ─── Tabs ─────────────────────────────────────────────────────────────
 tab_traj, tab_phase, tab_vega, tab_rmse, tab_bench, tab_replay, tab_gk = st.tabs(
@@ -483,7 +372,7 @@ with tab_replay:
             help="Scrub through shot phases",
         )
         time_frac = step_idx / max(n_steps - 1, 1)
-        phase_label = _shot_phase_label(time_frac)
+        phase_label = shot_phase_label(time_frac)
         st.markdown(
             f"**t = {time_s[step_idx]:.3f} s** &nbsp;&nbsp; "
             f"Step {step_idx}/{n_steps - 1} &nbsp;&nbsp; "
@@ -532,7 +421,7 @@ with tab_replay:
 
         # Synthetic Te/Ti/ne profiles at current timeline position
         st.subheader("Kinetic Profiles at Current Time")
-        profiles = _synth_profiles(machine, n_rho=80, time_frac=time_frac)
+        profiles = synthetic_profiles(machine, n_rho=80, time_frac=time_frac)
 
         if HAS_MPL:
             fig_p, (ax_te, ax_ne) = plt.subplots(1, 2, figsize=(10, 3.5))
