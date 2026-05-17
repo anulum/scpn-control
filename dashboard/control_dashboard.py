@@ -34,6 +34,7 @@ import time
 from pathlib import Path
 
 from dashboard.gk_state import dominant_mode_from_types
+from dashboard.phase_state import bridge_coupling_indicators
 from dashboard.reference_shots import list_reference_shots, load_reference_shot
 from dashboard.replay import build_replay_frame
 from dashboard.state import (
@@ -214,15 +215,12 @@ with tab_phase:
             "Coupling modulation from gyrokinetic growth rates to Kuramoto K_nm layers P0\u2013P5 (gk_upde_bridge.py)"
         )
         r_final = final["R_global"]
-        # Synthetic coupling strength indicators derived from coherence
-        coupling_p0_p1 = 0.5 * (1.0 + 0.5 * np.tanh(r_final / 0.2))
-        coupling_p1_p4 = 0.5 * (1.0 + 0.3 * np.clip(r_final, 0, 2))
-        coupling_p3_p4 = 0.5 * (1.0 + 0.4 * (r_final - 0.5))
+        coupling = bridge_coupling_indicators(float(r_final))
 
         bc1, bc2, bc3 = st.columns(3)
-        bc1.metric("K[P0,P1] turb\u2194zonal", f"{coupling_p0_p1:.3f}")
-        bc2.metric("K[P1,P4] zonal\u2194barrier", f"{coupling_p1_p4:.3f}")
-        bc3.metric("K[P3,P4] ELM\u2194barrier", f"{coupling_p3_p4:.3f}")
+        bc1.metric("K[P0,P1] turb\u2194zonal", f"{coupling.p0_p1_turb_zonal:.3f}")
+        bc2.metric("K[P1,P4] zonal\u2194barrier", f"{coupling.p1_p4_zonal_barrier:.3f}")
+        bc3.metric("K[P3,P4] ELM\u2194barrier", f"{coupling.p3_p4_elm_barrier:.3f}")
 
 
 # ═══════════════════════════════════════════════════════════════════════
