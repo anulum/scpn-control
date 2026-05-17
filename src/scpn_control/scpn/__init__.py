@@ -51,6 +51,26 @@ from scpn_control.scpn.fpga_export import (
 )
 from scpn_control.scpn.structure import StochasticPetriNet
 
+GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay.v1"
+
+
+def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> dict[str, object]:
+    from scpn_control.scpn.geometry_neutral_replay import generate_geometry_neutral_report as _impl
+
+    return _impl(steps=steps, seed=seed)
+
+
+def validate_geometry_neutral_report(report: object) -> None:
+    from scpn_control.scpn.geometry_neutral_replay import validate_geometry_neutral_report as _impl
+
+    _impl(report)  # type: ignore[arg-type]
+
+
+def render_geometry_neutral_markdown(report: object) -> str:
+    from scpn_control.scpn.geometry_neutral_replay import render_geometry_neutral_markdown as _impl
+
+    return _impl(report)  # type: ignore[arg-type]
+
 __all__ = [
     "StochasticPetriNet",
     "FusionCompiler",
@@ -68,6 +88,10 @@ __all__ = [
     "DiagnosticFrame",
     "ControlObjective",
     "ReplayScenario",
+    "GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION",
+    "generate_geometry_neutral_report",
+    "validate_geometry_neutral_report",
+    "render_geometry_neutral_markdown",
     "Artifact",
     "load_artifact",
     "save_artifact",
