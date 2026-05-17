@@ -10,10 +10,56 @@
 from __future__ import annotations
 
 import numpy as np
-import xarray as xr
-from xarray import DataTree
 
 from validation import code_to_code_benchmark as c2c
+
+
+class _FakeCoord:
+    def __init__(self, values: np.ndarray) -> None:
+        self.values = values
+
+
+class _FakeSeries:
+    def __init__(self, values: np.ndarray) -> None:
+        self.values = values
+
+    def isel(self, *, time: int) -> _FakeSeries:
+        return _FakeSeries(np.asarray(self.values[time]))
+
+
+class _FakeDataset:
+    def __init__(
+        self,
+        values: dict[str, np.ndarray],
+        *,
+        rho: np.ndarray | None = None,
+    ) -> None:
+        self._values = values
+        self.coords = {}
+        if rho is not None:
+            self.coords["rho_norm"] = _FakeCoord(rho)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._values
+
+    def __getitem__(self, name: str) -> _FakeSeries:
+        return _FakeSeries(self._values[name])
+
+
+class _FakeTreeNode:
+    def __init__(self, dataset: _FakeDataset) -> None:
+        self.dataset = dataset
+
+
+class _FakeDataTree:
+    def __init__(self, profiles: _FakeDataset, scalars: _FakeDataset) -> None:
+        self._nodes = {
+            "profiles": _FakeTreeNode(profiles),
+            "scalars": _FakeTreeNode(scalars),
+        }
+
+    def __getitem__(self, name: str) -> _FakeTreeNode:
+        return self._nodes[name.strip("/")]
 
 
 def test_torax_config_maps_scenario_fields() -> None:
@@ -28,24 +74,22 @@ def test_torax_config_maps_scenario_fields() -> None:
 
 
 def test_extract_torax_result_reads_profiles_and_scalars() -> None:
-    time = np.array([0.0, 1.0])
     rho = np.array([0.0, 0.5, 1.0])
-    profiles = xr.Dataset(
+    profiles = _FakeDataset(
         {
-            "T_e": (("time", "rho_norm"), np.array([[1.0, 0.8, 0.2], [8.0, 5.0, 1.0]])),
-            "T_i": (("time", "rho_norm"), np.array([[1.1, 0.9, 0.2], [7.0, 4.0, 0.8]])),
-            "n_e": (("time", "rho_norm"), np.array([[1e20, 8e19, 3e19], [9e19, 7e19, 2e19]])),
+            "T_e": np.array([[1.0, 0.8, 0.2], [8.0, 5.0, 1.0]]),
+            "T_i": np.array([[1.1, 0.9, 0.2], [7.0, 4.0, 0.8]]),
+            "n_e": np.array([[1e20, 8e19, 3e19], [9e19, 7e19, 2e19]]),
         },
-        coords={"time": time, "rho_norm": rho},
+        rho=rho,
     )
-    scalars = xr.Dataset(
+    scalars = _FakeDataset(
         {
-            "W_thermal_total": ("time", np.array([1.0e8, 2.5e8])),
-            "tau_E": ("time", np.array([0.7, 1.2])),
-        },
-        coords={"time": time},
+            "W_thermal_total": np.array([1.0e8, 2.5e8]),
+            "tau_E": np.array([0.7, 1.2]),
+        }
     )
-    tree = DataTree.from_dict({"/profiles": profiles, "/scalars": scalars})
+    tree = _FakeDataTree(profiles, scalars)
 
     result = c2c._extract_torax_result(tree, c2c.ITER_SCENARIO, wall_time=0.25)
 

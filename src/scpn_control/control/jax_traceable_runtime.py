@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+import warnings
 
 import numpy as np
 from numpy.typing import NDArray
@@ -180,10 +181,20 @@ def _simulate_jax(commands: FloatArray, initial_state: float, spec: TraceableRun
     return np.asarray(hist, dtype=np.float64)
 
 
-if _HAS_TORCH:  # pragma: no cover
+_torchscript_rollout = None
+_torchscript_rollout_batch = None
 
-    @torch.jit.script
-    def _torchscript_rollout(
+
+def _compile_torchscript_rollouts() -> tuple[Any, Any]:
+    """Compile optional TorchScript kernels lazily to keep module import warning-clean."""
+    global _torchscript_rollout, _torchscript_rollout_batch
+    if not _HAS_TORCH:
+        raise RuntimeError("TorchScript backend requested but torch is not installed.")
+    if _torchscript_rollout is not None and _torchscript_rollout_batch is not None:
+        return _torchscript_rollout, _torchscript_rollout_batch
+    assert torch is not None
+
+    def _rollout_impl(
         cmd: torch.Tensor,
         initial_state: float,
         alpha: float,
@@ -199,8 +210,7 @@ if _HAS_TORCH:  # pragma: no cover
             out[i] = state
         return out
 
-    @torch.jit.script
-    def _torchscript_rollout_batch(
+    def _rollout_batch_impl(
         cmd: torch.Tensor,
         initial_state: torch.Tensor,
         alpha: float,
@@ -217,21 +227,26 @@ if _HAS_TORCH:  # pragma: no cover
             out[:, t] = state
         return out
 
-else:  # pragma: no cover
-    _torchscript_rollout = None  # type: ignore[assignment]
-    _torchscript_rollout_batch = None  # type: ignore[assignment]
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"`torch\.jit\.script` is deprecated.*",
+            category=DeprecationWarning,
+        )
+        _torchscript_rollout = torch.jit.script(_rollout_impl)
+        _torchscript_rollout_batch = torch.jit.script(_rollout_batch_impl)
+    return _torchscript_rollout, _torchscript_rollout_batch
 
 
 def _simulate_torchscript(
     commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec
 ) -> FloatArray:  # pragma: no cover
-    if not _HAS_TORCH or _torchscript_rollout is None:
-        raise RuntimeError("TorchScript backend requested but torch is not installed.")
     assert torch is not None
+    rollout, _ = _compile_torchscript_rollouts()
 
     cmd = torch.as_tensor(commands, dtype=torch.float64)
     alpha = float(spec.dt_s / (spec.tau_s + spec.dt_s))
-    hist = _torchscript_rollout(
+    hist = rollout(
         cmd,
         float(initial_state),
         alpha,
@@ -281,14 +296,13 @@ def _simulate_jax_batch(commands: FloatArray, initial_state: FloatArray, spec: T
 def _simulate_torchscript_batch(  # pragma: no cover
     commands: FloatArray, initial_state: FloatArray, spec: TraceableRuntimeSpec
 ) -> FloatArray:
-    if not _HAS_TORCH or _torchscript_rollout_batch is None:
-        raise RuntimeError("TorchScript backend requested but torch is not installed.")
     assert torch is not None
+    _, rollout_batch = _compile_torchscript_rollouts()
 
     cmd = torch.as_tensor(commands, dtype=torch.float64)
     x0 = torch.as_tensor(initial_state, dtype=torch.float64)
     alpha = float(spec.dt_s / (spec.tau_s + spec.dt_s))
-    hist = _torchscript_rollout_batch(
+    hist = rollout_batch(
         cmd,
         x0,
         alpha,
