@@ -38,6 +38,7 @@ from dashboard.state import (
     MACHINE_PRESETS,
     derived_machine_metrics,
 )
+from dashboard.synthetic_shots import DISRUPTION_TYPES, generate_synthetic_diiid_shot
 
 
 # ─── Page Config ──────────────────────────────────────────────────────
@@ -302,10 +303,10 @@ with tab_replay:
     repo_root = Path(__file__).resolve().parent.parent
     shots_dir = repo_root / "validation" / "reference_data" / "diiid" / "disruption_shots"
 
-    # Source selector: real shots or synthetic via mock_diiid
+    # Source selector: reference shots or deterministic synthetic shots
     replay_source = st.radio(
         "Data source",
-        ["Reference shots (DIII-D)", "Synthetic (mock_diiid)"],
+        ["Reference shots (DIII-D)", "Synthetic DIII-D"],
         horizontal=True,
         key="replay_source",
     )
@@ -332,20 +333,15 @@ with tab_replay:
         synth_disruption = synth_col2.checkbox("Include disruption", value=True, key="synth_dis")
         synth_type = synth_col3.selectbox(
             "Disruption type",
-            ["hmode", "locked_mode", "density_limit", "vde", "beta_limit"],
+            list(DISRUPTION_TYPES),
             key="synth_dtype",
         )
-        try:
-            from tests.mock_diiid import generate_mock_shot
-
-            shot_data = generate_mock_shot(
-                shot_id=int(synth_id),
-                disruption=synth_disruption,
-                disruption_type=synth_type,
-            )
-            shot_label = f"synthetic_{synth_id}"
-        except ImportError:
-            st.error("Cannot import tests.mock_diiid — run from repo root.")
+        shot_data = generate_synthetic_diiid_shot(
+            shot_id=int(synth_id),
+            disruption=synth_disruption,
+            disruption_type=synth_type,
+        )
+        shot_label = f"synthetic_{synth_id}"
 
     if shot_data is not None:
         time_s = np.asarray(shot_data["time_s"], dtype=np.float64)
