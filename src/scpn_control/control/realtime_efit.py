@@ -132,24 +132,75 @@ class RealtimeEFIT:
         self.response = DiagnosticResponse(diagnostics, R_grid, Z_grid)
 
     def _solve_gs_with_sources(self, p_coeffs: np.ndarray, ff_coeffs: np.ndarray) -> np.ndarray:
-        """
-        Solve Grad-Shafranov with polynomial source profiles.
-        This is a highly simplified proxy that just returns a generic psi field
-        scaled by the coefficients, to avoid a full 2D PDE solve in this mock.
-        """
-        R2, Z2 = np.meshgrid(self.R, self.Z, indexing="ij")
+        """Solve fixed-boundary Grad-Shafranov with polynomial source profiles."""
 
-        # Simple generic Solov'ev-like proxy for tests
-        # psi(R, Z) = p_0 * (R^2*Z^2/2 + (R^2-R0^2)^2/8) + ...
-        R0 = np.mean(self.R)
-        a = (self.R[-1] - self.R[0]) / 2.0
+        from scipy.sparse import lil_matrix
+        from scipy.sparse.linalg import spsolve
 
-        base_psi = 1.0 - ((R2 - R0) / a) ** 2 - (Z2 / a) ** 2
-        base_psi[base_psi < 0] = 0.0
+        p_arr = np.asarray(p_coeffs, dtype=float)
+        ff_arr = np.asarray(ff_coeffs, dtype=float)
+        if p_arr.ndim != 1 or ff_arr.ndim != 1:
+            raise ValueError("source coefficients must be one-dimensional")
+        if p_arr.size == 0 or ff_arr.size == 0:
+            raise ValueError("source coefficient arrays must be non-empty")
+        if not np.all(np.isfinite(p_arr)) or not np.all(np.isfinite(ff_arr)):
+            raise ValueError("source coefficients must be finite")
 
-        # Scale by leading terms
-        amp = p_coeffs[0] + ff_coeffs[0] if len(p_coeffs) > 0 and len(ff_coeffs) > 0 else 1.0
-        return np.asarray(base_psi * amp)
+        r_steps = np.diff(self.R)
+        z_steps = np.diff(self.Z)
+        if self.nR < 3 or self.nZ < 3:
+            raise ValueError("EFIT grid must contain at least three R and Z points")
+        if not np.allclose(r_steps, r_steps[0]) or not np.allclose(z_steps, z_steps[0]):
+            raise ValueError("fixed-boundary GS solve requires uniform R/Z spacing")
+
+        dR = float(r_steps[0])
+        dZ = float(z_steps[0])
+        rr, zz = np.meshgrid(self.R, self.Z, indexing="ij")
+        R0 = float(np.mean(self.R))
+        minor_radius = max(float(0.5 * (self.R[-1] - self.R[0])), 1e-12)
+        vertical_radius = max(float(0.5 * (self.Z[-1] - self.Z[0])), 1e-12)
+        rho = np.clip(np.sqrt(((rr - R0) / minor_radius) ** 2 + (zz / vertical_radius) ** 2), 0.0, 1.0)
+
+        p_prime = sum(coeff * rho**idx for idx, coeff in enumerate(p_arr))
+        ff_prime = sum(coeff * rho**idx for idx, coeff in enumerate(ff_arr))
+        source = -(MU0 * rr**2 * p_prime + ff_prime)
+
+        n_r_inner = self.nR - 2
+        n_z_inner = self.nZ - 2
+        n_unknown = n_r_inner * n_z_inner
+
+        def flat_index(i_inner: int, j_inner: int) -> int:
+            return i_inner * n_z_inner + j_inner
+
+        inv_dR2 = 1.0 / (dR * dR)
+        inv_dZ2 = 1.0 / (dZ * dZ)
+        matrix = lil_matrix((n_unknown, n_unknown), dtype=float)
+        rhs = np.empty(n_unknown, dtype=float)
+
+        for i in range(1, self.nR - 1):
+            r_safe = max(float(self.R[i]), 1e-12)
+            coeff_r_plus = inv_dR2 - 1.0 / (2.0 * r_safe * dR)
+            coeff_r_minus = inv_dR2 + 1.0 / (2.0 * r_safe * dR)
+            for j in range(1, self.nZ - 1):
+                row = flat_index(i - 1, j - 1)
+                matrix[row, row] = -(2.0 * inv_dR2 + 2.0 * inv_dZ2)
+                if i + 1 < self.nR - 1:
+                    matrix[row, flat_index(i, j - 1)] = coeff_r_plus
+                if i - 1 > 0:
+                    matrix[row, flat_index(i - 2, j - 1)] = coeff_r_minus
+                if j + 1 < self.nZ - 1:
+                    matrix[row, flat_index(i - 1, j)] = inv_dZ2
+                if j - 1 > 0:
+                    matrix[row, flat_index(i - 1, j - 2)] = inv_dZ2
+                rhs[row] = source[i, j]
+
+        interior = spsolve(matrix.tocsr(), rhs)
+        if not np.all(np.isfinite(interior)):
+            raise RuntimeError("fixed-boundary GS solve produced non-finite flux")
+
+        psi = np.zeros((self.nR, self.nZ), dtype=float)
+        psi[1:-1, 1:-1] = interior.reshape((n_r_inner, n_z_inner))
+        return psi
 
     def reconstruct(self, measurements: dict[str, Any]) -> ReconstructionResult:
         """

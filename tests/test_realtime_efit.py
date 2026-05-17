@@ -14,6 +14,7 @@ from __future__ import annotations
 import numpy as np
 
 from scpn_control.control.realtime_efit import (
+    MU0,
     MagneticDiagnostics,
     RealtimeEFIT,
 )
@@ -83,6 +84,33 @@ def test_reconstruction_solovev():
     assert res.shape.Ip_reconstructed == 15.0e6
     assert res.wall_time_ms < 100.0  # Should be fast
     assert res.n_iterations > 0
+
+
+def test_gs_solver_satisfies_constant_source_residual():
+    diag = create_mock_diagnostics()
+    R = np.linspace(4.2, 8.2, 41)
+    Z = np.linspace(-3.0, 3.0, 41)
+    efit = RealtimeEFIT(diag, R, Z)
+
+    p_prime = 2.0e5
+    ff_prime = 0.4
+    psi = efit._solve_gs_with_sources(np.array([p_prime]), np.array([ff_prime]))
+
+    dpsi_dR = np.gradient(psi, R, axis=0, edge_order=2)
+    d2psi_dR2 = np.gradient(dpsi_dR, R, axis=0, edge_order=2)
+    dpsi_dZ = np.gradient(psi, Z, axis=1, edge_order=2)
+    d2psi_dZ2 = np.gradient(dpsi_dZ, Z, axis=1, edge_order=2)
+    delta_star = d2psi_dR2 - dpsi_dR / R[:, np.newaxis] + d2psi_dZ2
+    source = np.broadcast_to(
+        -(MU0 * R[:, np.newaxis] ** 2 * p_prime + ff_prime),
+        psi.shape,
+    )
+
+    interior = np.s_[2:-2, 2:-2]
+    residual = delta_star[interior] - source[interior]
+    assert np.linalg.norm(residual) / np.linalg.norm(source[interior]) < 0.08
+    assert np.allclose(psi[[0, -1], :], 0.0)
+    assert np.allclose(psi[:, [0, -1]], 0.0)
 
 
 def test_xpoint_detection():
