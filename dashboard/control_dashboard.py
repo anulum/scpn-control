@@ -33,6 +33,7 @@ import json
 import time
 from pathlib import Path
 
+from dashboard.benchmark_state import benchmark_controller_latency
 from dashboard.gk_state import dominant_mode_from_types
 from dashboard.phase_state import bridge_coupling_indicators
 from dashboard.reference_shots import list_reference_shots, load_reference_shot
@@ -260,30 +261,12 @@ with tab_bench:
     st.header("Controller Latency Benchmark")
     n_bench = st.number_input("Iterations", 100, 50000, 5000, step=1000)
     if st.button("Run Benchmark", key="run_bench"):
-        t0 = time.perf_counter()
-        kp, ki, kd = 1.0, 0.1, 0.01
-        integral, prev_error = 0.0, 0.0
-        for _ in range(int(n_bench)):
-            error = np.random.randn()
-            integral += error
-            derivative = error - prev_error
-            _ = kp * error + ki * integral + kd * derivative
-            prev_error = error
-        pid_us = (time.perf_counter() - t0) / n_bench * 1e6
-
-        t0 = time.perf_counter()
-        v = np.zeros(50)
-        for _ in range(int(n_bench)):
-            error = np.random.randn()
-            v = v * 0.9 + error * np.random.randn(50) * 0.1
-            spikes = v > 1.0
-            v[spikes] = 0.0
-        snn_us = (time.perf_counter() - t0) / n_bench * 1e6
+        timing = benchmark_controller_latency(iterations=int(n_bench))
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("PID", f"{pid_us:.1f} \u00b5s/step")
-        col2.metric("SNN", f"{snn_us:.1f} \u00b5s/step")
-        col3.metric("Ratio", f"{pid_us / max(snn_us, 1e-9):.1f}x")
+        col1.metric("PID", f"{timing.pid_us_per_step:.1f} \u00b5s/step")
+        col2.metric("SNN", f"{timing.snn_us_per_step:.1f} \u00b5s/step")
+        col3.metric("Ratio", f"{timing.ratio:.1f}x")
 
 
 # ═══════════════════════════════════════════════════════════════════════
