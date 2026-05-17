@@ -35,8 +35,10 @@ from scpn_control.core.scaling_laws import (
 
 # ── Thresholds ────────────────────────────────────────────────────────
 
+MU0 = 4.0e-7 * np.pi
+
 THRESHOLDS = {
-    "psi_nrmse_max": 2.5,  # GS residual / psi_range < 2.5 (self-consistency)
+    "psi_nrmse_max": 2.5,  # source-balanced ||Delta* psi + mu0 R J_phi||
     "psi_pass_fraction": 0.75,  # >= 75% of shots
     "q95_error_max": 0.3,  # |q95_pred - q95_ref| < 0.3
     "q95_pass_fraction": 0.75,  # >= 75% of shots
@@ -57,13 +59,72 @@ def nrmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return rmse / max(rng, 1e-12)
 
 
+def _gs_operator(psi: np.ndarray, r_grid: np.ndarray, z_grid: np.ndarray) -> np.ndarray:
+    """Evaluate the cylindrical Grad-Shafranov operator on interior cells."""
+    if psi.shape != (len(z_grid), len(r_grid)):
+        raise ValueError("psi shape must match z/r grid lengths")
+    if psi.shape[0] < 3 or psi.shape[1] < 3:
+        raise ValueError("psi grid must have at least 3x3 points")
+
+    dR = float(r_grid[1] - r_grid[0])
+    dZ = float(z_grid[1] - z_grid[0])
+    if dR <= 0.0 or dZ <= 0.0:
+        raise ValueError("r_grid and z_grid must be strictly increasing")
+
+    r_safe = np.maximum(r_grid[1:-1][np.newaxis, :], 1e-10)
+    d2R = (psi[1:-1, 2:] - 2.0 * psi[1:-1, 1:-1] + psi[1:-1, 0:-2]) / dR**2
+    d1R = (psi[1:-1, 2:] - psi[1:-1, 0:-2]) / (2.0 * dR)
+    d2Z = (psi[2:, 1:-1] - 2.0 * psi[1:-1, 1:-1] + psi[0:-2, 1:-1]) / dZ**2
+    return d2R - d1R / r_safe + d2Z
+
+
+def _interpolate_profiles_to_flux(eq: Any, psi: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Map GEQDSK pprime and ffprime profiles onto the 2-D flux grid."""
+    if len(eq.pprime) != eq.nw:
+        raise ValueError(f"pprime length {len(eq.pprime)} does not match nw {eq.nw}")
+    if len(eq.ffprime) != eq.nw:
+        raise ValueError(f"ffprime length {len(eq.ffprime)} does not match nw {eq.nw}")
+
+    psi_span = float(eq.sibry - eq.simag)
+    if abs(psi_span) < 1e-14:
+        raise ValueError("degenerate psi range: sibry equals simag")
+
+    psi_norm = np.clip((psi - eq.simag) / psi_span, 0.0, 1.0)
+    profile_grid = np.linspace(0.0, 1.0, eq.nw)
+    pprime = np.interp(psi_norm.ravel(), profile_grid, np.asarray(eq.pprime, dtype=np.float64))
+    ffprime = np.interp(psi_norm.ravel(), profile_grid, np.asarray(eq.ffprime, dtype=np.float64))
+    return pprime.reshape(psi.shape), ffprime.reshape(psi.shape)
+
+
+def _geqdsk_source_residual(eq: Any) -> tuple[float, float, float, float]:
+    """Return true GEQDSK GS source residual and normalisation terms."""
+    psi = np.asarray(eq.psirz, dtype=np.float64)
+    r_grid = np.asarray(eq.r, dtype=np.float64)
+    z_grid = np.asarray(eq.z, dtype=np.float64)
+    lpsi = _gs_operator(psi, r_grid, z_grid)
+    pprime, ffprime = _interpolate_profiles_to_flux(eq, psi)
+
+    r_inner = r_grid[1:-1][np.newaxis, :]
+    pprime_inner = pprime[1:-1, 1:-1]
+    ffprime_inner = ffprime[1:-1, 1:-1]
+    j_phi = r_inner * pprime_inner + ffprime_inner / (MU0 * np.maximum(r_inner, 1e-10))
+    source = MU0 * r_inner * j_phi
+    residual = lpsi + source
+
+    residual_norm = float(np.sqrt(np.mean(residual**2)))
+    source_norm = float(np.sqrt(np.mean(source**2)))
+    psi_norm = float(np.sqrt(np.mean(psi[1:-1, 1:-1] ** 2)))
+    psi_range = float(np.max(psi) - np.min(psi))
+    return residual_norm, source_norm, psi_norm, psi_range
+
+
 def validate_equilibrium(ref_dirs: list[Path]) -> dict[str, Any]:
     """Validate equilibrium against GEQDSK reference files.
 
     For each GEQDSK:
-    - Compute GS residual norm (self-consistency check)
+    - Compute true GS source residual norm (self-consistency check)
     - Extract q95 from q-profile
-    - Compute Psi NRMSE of solver reconstruction (future: vs EFIT)
+    - Compute source-balanced Psi NRMSE from the true GS residual
     """
     results = []
 
@@ -84,27 +145,8 @@ def validate_equilibrium(ref_dirs: list[Path]) -> dict[str, Any]:
                 else:
                     q95 = float("nan")
 
-                # Grid info
-                nr, nz = eq.nw, eq.nh
-                r_grid = np.linspace(eq.rleft, eq.rleft + eq.rdim, nr)
-                z_grid = np.linspace(eq.zmid - eq.zdim / 2, eq.zmid + eq.zdim / 2, nz)
-                dR = r_grid[1] - r_grid[0]
-                dZ = z_grid[1] - z_grid[0]
-                RR, ZZ = np.meshgrid(r_grid, z_grid)
-                R_safe = np.maximum(RR[1:-1, 1:-1], 1e-10)
-
-                # GS* residual of EFIT Psi (self-consistency)
-                d2R = (psi_efit[1:-1, 2:] - 2.0 * psi_efit[1:-1, 1:-1] + psi_efit[1:-1, 0:-2]) / dR**2
-                d1R = (psi_efit[1:-1, 2:] - psi_efit[1:-1, 0:-2]) / (2.0 * dR)
-                d2Z = (psi_efit[2:, 1:-1] - 2.0 * psi_efit[1:-1, 1:-1] + psi_efit[0:-2, 1:-1]) / dZ**2
-                Lpsi = d2R - d1R / R_safe + d2Z
-
-                gs_residual_norm = float(np.sqrt(np.mean(Lpsi**2)))
-                psi_range = float(np.max(psi_efit) - np.min(psi_efit))
-
-                # Psi NRMSE: for self-consistency, use GS residual as proxy
-                # A real solver comparison would replace this with solver output
-                psi_nrmse = gs_residual_norm / max(psi_range, 1e-12)
+                gs_residual_norm, gs_source_norm, psi_norm, psi_range = _geqdsk_source_residual(eq)
+                psi_nrmse = gs_residual_norm / max(gs_source_norm, psi_range, 1e-12)
 
                 results.append(
                     {
@@ -113,6 +155,8 @@ def validate_equilibrium(ref_dirs: list[Path]) -> dict[str, Any]:
                         "q95": round(q95, 2),
                         "psi_nrmse": round(psi_nrmse, 6),
                         "gs_residual_norm": round(gs_residual_norm, 6),
+                        "gs_source_norm": round(gs_source_norm, 6),
+                        "psi_norm": round(psi_norm, 4),
                         "psi_range": round(psi_range, 4),
                         "q95_pass": True,  # Self-reference, always passes
                         "psi_pass": bool(psi_nrmse < THRESHOLDS["psi_nrmse_max"]),

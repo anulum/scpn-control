@@ -15,6 +15,7 @@ build/
 
 # Virtual environments
 .venv/
+.venv-*/
 venv/
 env/
 
@@ -57,6 +58,9 @@ artifacts/
 !artifacts/.gitkeep
 site/
 
+# Local generated validation reports
+validation/reports/code_to_code_benchmark.json
+
 # Streamlit (allow config.toml for Cloud deployment)
 .streamlit/secrets.toml
 
@@ -89,3 +93,16 @@ site/
 
 # Internal business docs — never commit
 docs/internal/
+.agent_metadata.json
+docs/assets/orcid_qr.png
+
+# Local agent config — never commit
+CLAUDE.md
+.claude/
+
+# Local backups — never committed
+BACKUP/
+ARCHIVE/
+
+# Internal advisory reports
+docs/internal/gemini/

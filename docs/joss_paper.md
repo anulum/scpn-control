@@ -98,8 +98,10 @@ The Python package (125 modules) is organised into four layers:
       E×B bracket, ballooning connection BC, Rosenbluth-Hinton zonal Krook,
       kinetic electrons (semi-implicit backward-Euler), Sugama collisions
       (pitch-angle + energy diffusion), electromagnetic $A_\parallel$.
-      Dimits shift validated at $n_{kx}=256$; $\chi_i = 2.0\;\chi_{gB}$
-      at CBC (GENE range: 1–5).
+      CBC, Dimits-shift, kinetic-electron, and Sugama-collision machinery are
+      implemented, but the latest audited nonlinear heat-flux traces had not
+      reached saturated $\chi_i$ after 2000 steps. Quantitative nonlinear CBC
+      agreement is therefore a revalidation target, not a submitted claim.
     - *Native linear GK*: Miller flux-tube geometry [@miller1998], per-species
       Gauss-Legendre velocity grid, Sugama collision operator [@sugama2006],
       response-matrix eigenvalue solver, mixing-length quasilinear fluxes.
@@ -155,8 +157,9 @@ The solver is validated against:
 - **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS,
   with bitwise fidelity on psi, pressure, and profile arrays.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
-- **Dimits shift**: zero transport below the critical gradient at $n_{kx}=256$,
-  verified against Dimits et al. (2000).
+- **Dimits shift**: subcritical/supercritical scan machinery is present, but
+  the full Dimits-gap result must be reverified after the kinetic-electron and
+  velocity-grid changes.
 - **Cross-module chains**: 12 integration tests verify physics consistency
   across modules (bootstrap→NTM, IPB98→power balance, EPED→Troyon limit,
   sawtooth→NTM seed, L-H→H-mode→EPED, runaway→SPI trigger).

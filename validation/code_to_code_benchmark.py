@@ -27,11 +27,14 @@ Results are saved to validation/reports/code_to_code_benchmark.json.
 from __future__ import annotations
 
 import json
+import pprint
 import sys
 import time
 from pathlib import Path
 
 import numpy as np
+
+TORAX_TMP_CONFIG = Path("validation/reports/_tmp_torax_c2c_config.py")
 
 
 # ── Scenario Definition ──────────────────────────────────────────────
@@ -117,30 +120,149 @@ def _run_scpn_control(scenario: dict) -> dict:
 # ── TORAX run (optional) ─────────────────────────────────────────────
 
 
+def _torax_config_dict(scenario: dict) -> dict:
+    """Build a TORAX config dictionary from the shared benchmark scenario."""
+    edge_temp = max(0.1, min(float(scenario["T_e0"]) * 0.05, 1.0))
+    edge_density = max(0.1e20, float(scenario["n_e0"]) * 0.1e20)
+    fixed_dt = max(float(scenario["dt"]), min(float(scenario["t_final"]) / 5.0, 0.25))
+    return {
+        "plasma_composition": {
+            "main_ion": {"D": 0.5, "T": 0.5},
+            "impurity": "Ne",
+            "Z_eff": 1.6,
+        },
+        "profile_conditions": {
+            "Ip": float(scenario["I_p"]),
+            "T_i": {0.0: {0.0: float(scenario["T_i0"]), 1.0: edge_temp}},
+            "T_i_right_bc": edge_temp,
+            "T_e": {0.0: {0.0: float(scenario["T_e0"]), 1.0: edge_temp}},
+            "T_e_right_bc": edge_temp,
+            "n_e": {0.0: {0.0: float(scenario["n_e0"]) * 1.0e19, 1.0: edge_density}},
+            "n_e_right_bc": edge_density,
+            "nbar": float(scenario["n_e0"]) * 0.8e19,
+            "n_e_nbar_is_fGW": False,
+            "normalize_n_e_to_nbar": False,
+            "initial_psi_mode": "j",
+        },
+        "numerics": {
+            "t_final": float(scenario["t_final"]),
+            "fixed_dt": fixed_dt,
+            "evolve_ion_heat": True,
+            "evolve_electron_heat": True,
+            "evolve_current": True,
+            "evolve_density": True,
+            "resistivity_multiplier": 50.0,
+            "max_dt": fixed_dt,
+        },
+        "geometry": {
+            "geometry_type": "circular",
+            "n_rho": int(scenario["n_rho"]),
+            "R_major": float(scenario["R0"]),
+            "a_minor": float(scenario["a"]),
+            "B_0": float(scenario["B0"]),
+            "elongation_LCFS": float(scenario["kappa"]),
+        },
+        "neoclassical": {
+            "bootstrap_current": {},
+        },
+        "sources": {
+            "generic_current": {
+                "fraction_of_total_current": 0.15,
+                "gaussian_width": 0.075,
+                "gaussian_location": 0.36,
+            },
+            "generic_particle": {
+                "S_total": 0.0,
+                "deposition_location": 0.3,
+                "particle_width": 0.25,
+            },
+            "gas_puff": {
+                "S_total": 0.0,
+                "puff_decay_length": 0.3,
+            },
+            "pellet": {
+                "S_total": 0.0,
+                "pellet_width": 0.1,
+                "pellet_deposition_location": 0.85,
+            },
+            "generic_heat": {
+                "P_total": float(scenario["P_aux"]) * 1.0e6,
+                "electron_heat_fraction": 0.5,
+                "gaussian_location": 0.2,
+                "gaussian_width": 0.25,
+            },
+            "fusion": {},
+            "ei_exchange": {},
+            "ohmic": {},
+        },
+        "pedestal": {},
+        "transport": {
+            "model_name": "constant",
+        },
+        "solver": {
+            "solver_type": "linear",
+        },
+        "time_step_calculator": {
+            "calculator_type": "fixed",
+        },
+    }
+
+
+def _write_torax_config(path: Path, scenario: dict) -> None:
+    """Write a temporary Python config module consumable by TORAX."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = pprint.pformat(_torax_config_dict(scenario), sort_dicts=True, width=100)
+    path.write_text(f"CONFIG = {payload}\n", encoding="utf-8")
+
+
+def _extract_torax_result(data_tree, scenario: dict, wall_time: float) -> dict:
+    """Extract comparable final profiles and scalar metrics from TORAX output."""
+    profiles = data_tree["profiles"].dataset
+    scalars = data_tree["scalars"].dataset
+
+    rho = np.asarray(profiles.coords["rho_norm"].values, dtype=np.float64)
+    te = np.asarray(profiles["T_e"].isel(time=-1).values, dtype=np.float64)
+    ti = np.asarray(profiles["T_i"].isel(time=-1).values, dtype=np.float64)
+    ne = np.asarray(profiles["n_e"].isel(time=-1).values, dtype=np.float64)
+
+    result = {
+        "code": "torax",
+        "scenario": scenario["name"],
+        "status": "done",
+        "rho": rho.tolist(),
+        "Te_final": te.tolist(),
+        "Ti_final": ti.tolist(),
+        "ne_final": ne.tolist(),
+        "Te_avg": float(np.mean(te)),
+        "Ti_avg": float(np.mean(ti)),
+        "ne_avg_m3": float(np.mean(ne)),
+        "wall_time_s": wall_time,
+    }
+    if "W_thermal_total" in scalars:
+        result["W_thermal_total_J"] = float(scalars["W_thermal_total"].isel(time=-1).values)
+    if "tau_E" in scalars:
+        result["tau_E_s"] = float(scalars["tau_E"].isel(time=-1).values)
+    return result
+
+
 def _run_torax(scenario: dict) -> dict | None:
     """Run TORAX on the same scenario, if installed."""
     try:
-        import torax  # noqa: F401
+        import torax
     except ImportError:
         print("TORAX not installed — skipping TORAX comparison.")
         print("Install with: pip install torax")
         return None
 
-    # TORAX integration would go here.
-    # The API shape depends on the TORAX version, but the typical pattern is:
-    #   config = torax.Config(...)
-    #   sim = torax.Sim(config)
-    #   sim.run(t_final=...)
-    #   Te = sim.state.Te
-    #
-    # For now, return a placeholder indicating TORAX was found but
-    # the integration is not yet wired.
-    return {
-        "code": "torax",
-        "scenario": scenario["name"],
-        "status": "installed_but_not_wired",
-        "message": "TORAX API integration pending — wire config mapping here",
-    }
+    _write_torax_config(TORAX_TMP_CONFIG, scenario)
+    try:
+        cfg = torax.build_torax_config_from_file(TORAX_TMP_CONFIG.resolve())
+        t0 = time.perf_counter()
+        data_tree, _ = torax.run_simulation(cfg, progress_bar=False)
+        wall_time = time.perf_counter() - t0
+        return _extract_torax_result(data_tree, scenario, wall_time)
+    finally:
+        TORAX_TMP_CONFIG.unlink(missing_ok=True)
 
 
 # ── Comparison ────────────────────────────────────────────────────────
@@ -166,9 +288,26 @@ def _compare_results(scpn: dict, torax: dict | None) -> dict:
         else:
             Te_torax_interp = Te_torax
 
-        rmse = float(np.sqrt(np.mean((Te_scpn - Te_torax_interp) ** 2)))
-        comparison["comparison"]["Te_rmse_keV"] = rmse
+        comparison["comparison"]["Te_rmse_keV"] = float(np.sqrt(np.mean((Te_scpn - Te_torax_interp) ** 2)))
         comparison["comparison"]["Te_max_diff_keV"] = float(np.max(np.abs(Te_scpn - Te_torax_interp)))
+
+    if torax is not None and "Ti_final" in torax and "Ti_final" in scpn:
+        Ti_scpn = np.array(scpn["Ti_final"])
+        Ti_torax = np.array(torax["Ti_final"])
+
+        if len(Ti_scpn) != len(Ti_torax):
+            rho_scpn = np.array(scpn["rho"])
+            rho_torax = np.array(torax.get("rho", np.linspace(0, 1, len(Ti_torax))))
+            Ti_torax_interp = np.interp(rho_scpn, rho_torax, Ti_torax)
+        else:
+            Ti_torax_interp = Ti_torax
+
+        comparison["comparison"]["Ti_rmse_keV"] = float(np.sqrt(np.mean((Ti_scpn - Ti_torax_interp) ** 2)))
+        comparison["comparison"]["Ti_max_diff_keV"] = float(np.max(np.abs(Ti_scpn - Ti_torax_interp)))
+
+    if torax is not None:
+        if "tau_E_s" in torax:
+            comparison["comparison"]["torax_tau_E_s"] = torax["tau_E_s"]
 
     return comparison
 

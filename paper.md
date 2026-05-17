@@ -43,12 +43,15 @@ disruption prediction with SPI mitigation, and a
 companion Rust backend (5 crates, PyO3 bindings) achieving 11.9 µs median
 kernel latency.
 
-The nonlinear gyrokinetic solver reproduces the Cyclone Base Case
-benchmark [@dimits2000] with $\chi_i = 2.0\,\chi_{gB}$ (adiabatic electrons)
-and $\chi_i = 1.3\,\chi_{gB}$ (kinetic electrons), both within the published
-GENE/GS2 range of 1–5 $\chi_{gB}$. The Dimits shift — zero transport below
-the critical gradient due to zonal flow suppression — is demonstrated at
-$n_{kx}=256$.
+The nonlinear gyrokinetic solver implements the Cyclone Base Case
+configuration [@dimits2000], Rosenbluth-Hinton zonal-flow damping, kinetic
+electrons, and Sugama collisions. After the v0.19.0 physics audit, its
+late-time nonlinear heat-flux normalisation is treated as an open validation
+target: the latest 2000-step adiabatic run had not reached saturated
+$\chi_i$, and the linear local-dispersion path overpredicts the published
+GENE growth rate. The manuscript therefore does not claim quantitative
+nonlinear CBC agreement until a longer, reverified convergence campaign is
+complete.
 
 The codebase comprises 125 Python source modules and 5 Rust crates with
 3,400+ Python tests at 100% coverage across 20 CI jobs.
@@ -79,12 +82,14 @@ in one coherent stack.
    kinetic electrons via semi-implicit backward-Euler treatment.
    JAX GPU acceleration delivers 62$\times$ speedup on commodity hardware.
 
-2. **Cyclone Base Case validation** — the nonlinear solver achieves turbulent
-   saturation at $n_{kx}=128$ with $\chi_i = 2.0\,\chi_{gB}$ (adiabatic) and
-   $\chi_i = 1.3\,\chi_{gB}$ (kinetic electrons), within the published GENE/GS2
-   range [@dimits2000]. The linear solver reproduces CBC growth rates within 21%
-   of GENE. Transport stiffness (increasing $\chi_i$ with $R/L_{T_i}$) is
-   confirmed across a 7-point gradient scan.
+2. **Cyclone Base Case validation harness** — the repository includes CBC
+   scenarios, grid scans, kinetic-electron lanes, and published-code interface
+   adapters. Quantitative nonlinear agreement is not yet claimed: the current
+   audited result is an unsaturated adiabatic heat-flux trace after 2000 steps,
+   and the linear local-dispersion path overpredicts the GENE reference growth
+   rate. The remaining publication gate is a longer reverified convergence
+   campaign plus native GK comparison against real TGLF/GENE-class binaries on
+   identical inputs.
 
 3. **SPN-to-SNN compilation** — translates control graphs into leaky
    integrate-and-fire neuron pools with stochastic bitstream encoding
@@ -147,29 +152,26 @@ kernel latency of 11.9 µs (Criterion-verified).
 
 The solver is validated against:
 
-- **Cyclone Base Case** [@dimits2000]: nonlinear turbulent saturation at
-  $n_{kx}=128$ produces $\chi_i = 2.0\,\chi_{gB}$ (Krook collisions,
-  adiabatic electrons) and $\chi_i = 1.3\,\chi_{gB}$ (Sugama collisions,
-  kinetic electrons via semi-implicit advance). Both values lie within
-  the published GENE/GS2 range of 1–5 $\chi_{gB}$. The linear eigenvalue
-  solver reproduces CBC ITG growth rates ($\gamma_{max} = 0.14\,c_s/a$ at
-  $k_y\rho_s = 0.37$) within 21% of GENE ($\gamma_{max} \approx 0.18$).
-  A convergence study from $n_{kx}=8$ to $n_{kx}=256$ demonstrates
-  systematic reduction of late-time growth rate from 0.93 to 0.005.
-  Transport stiffness (monotonic $\chi_i(R/L_{T_i})$) is confirmed over
-  a 7-point gradient scan ($R/L_{T_i} = 3$–$6.9$).
-- **Dimits shift** [@dimits2000]: at $n_{kx}=256$, the subcritical case
-  ($R/L_{T_i} = 3.0$) shows zero transport ($\chi_i < 10^{-6}\,\chi_{gB}$,
-  $\phi$ at noise level) while the supercritical case ($R/L_{T_i} = 6.9$)
-  shows growing ITG turbulence (late growth rate 0.48). Zonal flows
-  self-consistently suppress all turbulent transport below the critical
-  gradient — the definitive validation for nonlinear gyrokinetic solvers.
+- **Cyclone Base Case** [@dimits2000]: CBC input construction, nonlinear
+  $\delta f$ evolution, JAX acceleration, kinetic-electron support, Sugama
+  collisions, and grid-scan machinery are implemented. The latest audited
+  2000-step adiabatic run did not reach saturated $\chi_i$, so the former
+  saturated-heat-flux agreement claims are withdrawn pending a longer
+  convergence campaign. The current linear local-dispersion result
+  overpredicts the GENE reference growth rate; it is retained as a model
+  limitation, not a quantitative validation claim.
+- **Dimits shift** [@dimits2000]: the repository contains subcritical and
+  supercritical scan machinery and zonal-flow damping, but the full Dimits-gap
+  claim remains a revalidation target after the kinetic-electron and
+  Gauss-Laguerre quadrature changes.
 - **Sugama collision operator**: pitch-angle scattering with energy-dependent
   collision rate ($\nu(v) \propto v^{-3}$) and conservation corrections.
   Verified: $\int C[f]\,dv < 3\times10^{-8}$ (particles),
   $\int v_\parallel C[f]\,dv < 10^{-23}$ (momentum),
   $\int E\,C[f]\,dv < 2\times10^{-8}$ (energy). At low collisionality
-  ($\nu = 0.01$), Sugama and Krook give identical saturated $\chi_i$.
+  ($\nu = 0.01$), Sugama and Krook agree on the low-collisionality collision
+  response in the verified operator tests; saturated nonlinear $\chi_i$ remains
+  part of the CBC revalidation target.
 - **SPARC/ITER equilibria**: RMSE-gated against CFS SPARCPublic GEQDSK files
   and ITER design parameters.
 - **DIII-D disruption shots**: 17 synthetic shots covering H-mode, VDE,

@@ -199,21 +199,25 @@
 
 ### v0.18.0 — GK quantitative accuracy (2026-03-15/16)
 - [x] Fix linear GK eigenvalue solver: local dispersion + Newton root-finding.
-  CBC: γ_max = 0.14 c_s/a at k_y = 0.37 (GENE: 0.18 at 0.3, within 21%).
+  Post-audit status: local-dispersion path overpredicts the GENE CBC reference
+  and must not be presented as quantitative cross-code agreement.
 - [x] GPU nonlinear CBC benchmark (JarvisLabs RTX 5000, JAX 0.6.2):
   62× JAX speedup, 9 GPU runs, systematic convergence n_kx=8→128.
 - [x] **Ballooning connection BC** — kx shift at θ=±π via FFT phase multiply.
 - [x] **Rosenbluth-Hinton zonal Krook damping** — dynamic relaxation on bounce time.
-- [x] **Turbulent saturation** at n_kx=128: phi oscillates ~1.1, chi_i=2.0 χ_gB
-  (GENE CBC range: 1-5 χ_gB). Late growth rate 0.10.
+- [ ] **Turbulent saturation revalidation** after the v0.19.0 physics audit:
+  latest 2000-step adiabatic run did not reach saturated chi_i; longer
+  convergence and native GK cross-code comparison remain required.
 - [x] **Nengo replaced** with pure LIF+NEF engine (numpy 2.x compatible).
 - [x] **All mypy errors fixed** across 10 source files.
-- [x] **chi_i normalization**: Q_i / R_L_Ti = 2.0 χ_gB at CBC.
+- [ ] **chi_i normalisation revalidation**: keep the Q_i / R_L_Ti path, but
+  do not publish a saturated CBC chi_i value until the longer campaign passes.
 - [x] **Dimits shift scan**: 7-point R/L_Ti={3..6.9}, transport stiffness confirmed
   (chi_gB rises 1.15→1.95). Subcritical decay visible at 20K steps (phi -10%)
-  but full Dimits gap requires kinetic electrons for proper critical gradient.
+  but the full Dimits-gap claim requires revalidation after kinetic-electron
+  and velocity-grid changes.
 - [ ] Cross-code benchmark: native GK vs real TGLF (requires GACODE on Linux)
-- [ ] TORAX coupling
+- [x] TORAX coupling via code-to-code transport benchmark
 
 ### v0.19.0 — Kinetic electrons (Phase 2) — DONE
 - [x] Add kinetic electron species to field solve (remove adiabatic approximation)
@@ -251,7 +255,7 @@
 
 ## Future (requires external resources)
 - [ ] Cross-code benchmark: native GK vs real TGLF/CGYRO (requires Linux + GACODE)
-- [ ] TORAX coupling (requires Linux + torax install)
+- [x] TORAX coupling via code-to-code transport benchmark
 - [ ] Experimental tokamak validation (requires MDSplus + real shot data)
 - [ ] Neural eq cross-validation vs P-EFIT (requires proprietary data)
 - [ ] Production hardware deployment (CODAC/EPICS integration)

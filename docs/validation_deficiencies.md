@@ -7,7 +7,12 @@ meet publication standards (e.g., JOSS, Nuclear Fusion).
 ## 1. Equilibrium Self-Consistency (Lane 1)
 
 **Threshold:** `psi_nrmse < 2.5%` (Tightened from 5.0%)
-**Result:** 7/13 pass (54%) — **FAIL**
+**Current result:** 12/13 pass (92%) — **PASS**
+**Remaining outlier:** `sparc_1300.eqdsk` remains outside the tightened
+threshold because it is a low-current start-up equilibrium with anomalous
+q-profile normalisation.
+
+**Former result:** 7/13 pass (54%) — **FAIL**
 
 ### Identified Deficiencies
 
@@ -30,10 +35,11 @@ meet publication standards (e.g., JOSS, Nuclear Fusion).
      extremely low. The $q$-profile in the reference GEQDSK is likely
      unphysical or uses a different normalization convention.
 
-### Mitigation Plan (v2.1)
-- Refactor `validate_real_shots.py` to reconstruct the toroidal current
-  density $J_\phi$ from GEQDSK $p'$ and $FF'$ profiles.
-- Implement a true GS residual check: $|| \Delta^* \psi + \mu_0 R J_\phi || / || \psi ||$.
+### Mitigation Implemented (v2.1)
+- `validate_real_shots.py` reconstructs the toroidal current density
+  $J_\phi$ from GEQDSK $p'$ and $FF'$ profiles.
+- The validation lane now uses a true, source-balanced GS residual check:
+  $|| \Delta^* \psi + \mu_0 R J_\phi || / \max(||\mu_0 R J_\phi||, ||\psi||_\mathrm{range})$.
 
 ## 2. Disruption Prediction (Lane 3)
 

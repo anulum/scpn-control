@@ -45,9 +45,9 @@ CI runs tests on Python 3.10-3.14 (Ubuntu), Python 3.12 (Windows + macOS), Rust 
 
 | Claim | Validated Against | Data Source | Limitation |
 |-------|-------------------|-------------|------------|
-| Cyclone Base Case ITG | GENE/GS2/GYRO published γ_max | Dimits et al. 2000 | Linear solver within 21% of GENE for CBC |
-| Dimits shift | Zero transport below critical gradient at n_kx=256 | Dimits et al. 2000 | Proven with adiabatic electrons; kinetic electrons yield chi_i=1.3 χ_gB |
-| Turbulent saturation | chi_i = 2.0 χ_gB (adiabatic), 1.3 χ_gB (kinetic) | GENE CBC range 1-5 χ_gB | Within expected range |
+| Cyclone Base Case ITG | GENE/GS2/GYRO published γ_max | Dimits et al. 2000 | Local-dispersion path currently overpredicts the GENE reference; quantitative cross-code agreement is not claimed |
+| Dimits shift | Subcritical/supercritical scan machinery | Dimits et al. 2000 | Full Dimits-gap result requires revalidation after kinetic-electron and velocity-grid changes |
+| Turbulent saturation | CBC nonlinear run harness | GENE CBC range 1-5 chi_gB | Latest audited 2000-step adiabatic run had not reached saturated chi_i; previous saturated-heat-flux claims are withdrawn pending longer convergence |
 | SPARC/ITER GK parameters | Internal eigenvalue solver | Synthetic equilibrium | Not cross-validated against TGLF runs |
 | Hybrid surrogate correction | Internal GK vs critical-gradient | Synthetic spot-checks | No experimental validation |
 | 5 external code interfaces | Mock subprocess tests | Input deck generation + output parsing | No actual GK binaries in CI |
@@ -56,6 +56,8 @@ CI runs tests on Python 3.10-3.14 (Ubuntu), Python 3.12 (Windows + macOS), Rust 
 - No cross-code nonlinear GK validation (GENE/CGYRO flux comparison on identical equilibria)
 - No experimental turbulence profile comparison (DIII-D BES, KSTAR ECE)
 - No TGLF binary in CI (mock subprocess only)
+- No current published saturated nonlinear CBC chi_i value after the v0.19.0
+  physics audit
 
 ## CI Validation Gates
 
