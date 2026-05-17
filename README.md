@@ -23,8 +23,8 @@
 **scpn-control** is a standalone neuro-symbolic control engine that compiles
 Stochastic Petri Nets into spiking neural network controllers with
 contract-based pre/post-condition checking. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 125 source
-modules, 235 test files, **3,300+ tests** (100% coverage), 5 Rust crates, 20 CI jobs.
+[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 130 source
+modules, 235+ test files, **3,700+ collected Python tests**, 5 Rust crates, and a 20-job CI matrix.
 Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native linear eigenvalue, native TGLF-equivalent (SAT0/SAT1/SAT2), nonlinear δf GK (5D Vlasov, JAX-accelerable).
 
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
@@ -180,7 +180,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 3,300+ tests (235 files, 100% coverage)
+tests/                 # 3,700+ collected Python tests
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests

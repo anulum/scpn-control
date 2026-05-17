@@ -22,25 +22,27 @@ and an 8-layer Kuramoto-Sakaguchi phase dynamics engine.
 
 The package provides: a Grad-Shafranov equilibrium solver (fixed and free
 boundary, JAX-differentiable), a 1.5D Crank-Nicolson transport solver with
-multi-ion physics, a nonlinear $\delta f$ gyrokinetic solver with turbulent
-saturation, kinetic electrons, Sugama collisions, and electromagnetic
-$A_\parallel$ extension (KBM + microtearing modes), a native linear GK
-eigenvalue solver, interfaces to five external GK codes (TGLF, GENE, GS2,
-CGYRO, QuaLiKiz), a hybrid surrogate+GK validation layer with
-out-of-distribution detection and online retraining, ten controllers (PID,
-MPC, $H_\infty$, $\mu$-synthesis, NMPC, SNN, safe RL, sliding-mode,
-gain-scheduled, fault-tolerant), disruption prediction with SPI mitigation,
-and a companion Rust backend (5 crates, PyO3 bindings) achieving 11.9 µs
-median kernel latency.
+multi-ion physics, a native linear gyrokinetic eigenvalue solver with
+electromagnetic extension, a native TGLF-equivalent quasilinear model
+(SAT0/SAT1/SAT2 saturation rules), a nonlinear $\delta f$ gyrokinetic
+solver in flux-tube geometry with JAX GPU acceleration, interfaces to five
+external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz), a hybrid
+surrogate+GK validation layer with out-of-distribution detection and online
+retraining, ten controllers (PID, MPC, $H_\infty$, $\mu$-synthesis, NMPC,
+SNN, safe RL, sliding-mode, gain-scheduled, fault-tolerant), disruption
+prediction with SPI mitigation, and a companion Rust backend (5 crates,
+PyO3 bindings) achieving 11.9 µs median kernel latency.
 
-Pre-trained neural equilibrium weights for both SPARC and ITER geometries
-enable sub-10ms CPU-only equilibrium inference. An interactive Streamlit
-dashboard provides multi-machine shot replay (DIII-D, SPARC, ITER, NSTX-U,
-JET), real-time GK transport visualisation, and OOD monitoring.
+The nonlinear gyrokinetic solver implements the Cyclone Base Case
+configuration, Rosenbluth-Hinton zonal-flow damping, kinetic electrons, and
+Sugama collisions. After the v0.19.0 physics audit, its late-time nonlinear
+heat-flux normalisation is treated as an open validation target: the latest
+2000-step adiabatic run had not reached saturated $\chi_i$, and the linear
+local-dispersion path overpredicts the published GENE growth rate.
 
-The codebase comprises 125 Python source modules and 5 Rust crates
-(ndarray 0.16, rand 0.9, PyO3 0.25) with 3,300+ Python tests and 317 Rust
-tests at 100% coverage across 20 CI jobs.
+The codebase comprises 130 Python source modules and 5 Rust crates
+(ndarray 0.16, rand 0.9, PyO3 0.25) with 3,700+ collected Python tests, a
+99% local package-coverage gate, and a 20-job CI matrix.
 
 ## Statement of Need
 
@@ -145,12 +147,13 @@ $d\chi_i / d(R/L_{T_i})$ analytically via `jax.grad`.
 
 The solver is validated against:
 
-- **Cyclone Base Case** [@dimits2000]: circular geometry ($R/a = 2.78$,
-  $q = 1.4$, $\hat{s} = 0.78$, $R/L_{T_i} = 6.9$), producing positive
-  ITG growth rates consistent with published benchmarks.
+- **Cyclone Base Case** [@dimits2000]: CBC input construction, nonlinear
+  $\delta f$ evolution, JAX acceleration, kinetic-electron support, Sugama
+  collisions, and grid-scan machinery are implemented. The latest audited
+  2000-step adiabatic run did not reach saturated $\chi_i$, so quantitative
+  nonlinear heat-flux agreement remains a revalidation target.
 - **SPARC/ITER equilibria**: RMSE-gated against CFS SPARCPublic GEQDSK files
-  and ITER design parameters. Pre-trained neural equilibrium weights for both
-  machines achieve sub-10ms inference with <15% normalised RMSE.
+  and ITER design parameters.
 - **DIII-D disruption shots**: 17 synthetic shots covering H-mode, VDE,
   beta-limit, locked-mode, density-limit, tearing, and snowflake
   configurations.
@@ -164,10 +167,13 @@ The solver is validated against:
   across modules (bootstrap→NTM, IPB98→power balance, EPED→Troyon limit,
   sawtooth→NTM seed, L-H→H-mode→EPED, runaway→SPI trigger).
 
-The test suite comprises 3,300+ Python tests and 317 Rust tests across 20 CI
-jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity,
-LIF+NEF SNN emulator, CodeQL security analysis, OpenSSF Scorecard). Coverage gate
-is 99% (current: 100%). The project holds an OpenSSF CII Best Practices badge.
+The test suite comprises 3,700+ collected Python tests and Rust workspace
+tests across 20 CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust
+stable, JAX parity, LIF+NEF SNN emulator, CodeQL security analysis, OpenSSF
+Scorecard). The local coverage configuration enforces a 99% package-coverage
+gate; the GitHub coverage upload lane currently uses an 85% fail-under while
+publishing XML coverage to Codecov. The project holds an OpenSSF CII Best
+Practices badge.
 All physics equations cite their source papers; ~80 citations spanning
 Porcelli (1996), Sauter (1999), Rosenbluth-Putvinski (1997), Connor-Hastie
 (1975), Stix (1972), Martin (2008), Fitzpatrick (2001), Bosch-Hale (1992),
