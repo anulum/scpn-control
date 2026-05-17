@@ -41,6 +41,7 @@ from dashboard.state import (
     derived_machine_metrics,
 )
 from dashboard.synthetic_shots import DISRUPTION_TYPES, generate_synthetic_diiid_shot
+from dashboard.trajectory import SCENARIOS, simulate_closed_loop_trajectory
 
 
 # ─── Page Config ──────────────────────────────────────────────────────
@@ -98,32 +99,23 @@ tab_traj, tab_phase, tab_vega, tab_rmse, tab_bench, tab_replay, tab_gk = st.tabs
 with tab_traj:
     st.header("Closed-Loop Trajectory")
     steps = st.slider("Simulation steps", 100, 5000, 1000, step=100)
-    scenario = st.selectbox("Scenario", ["PID", "SNN", "Combined"])
+    scenario = st.selectbox("Scenario", list(SCENARIOS))
 
     if st.button("Run Simulation", key="run_traj"):
-        rng = np.random.default_rng(42)
-        target = 1.0
-        state = 0.5
-        states, errors = [], []
-        for _ in range(steps):
-            error = target - state
-            action = 0.1 * error + 0.01 * rng.standard_normal()
-            state = np.clip(state + action, 0.0, 2.0)
-            states.append(state)
-            errors.append(error)
+        trajectory = simulate_closed_loop_trajectory(steps=int(steps), scenario=str(scenario))
 
         if HAS_MPL:
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
-            ax1.plot(states, linewidth=0.8)
-            ax1.axhline(target, color="r", linestyle="--", alpha=0.7, label="Target")
+            ax1.plot(trajectory.states, linewidth=0.8)
+            ax1.axhline(trajectory.target, color="r", linestyle="--", alpha=0.7, label="Target")
             ax1.set_ylabel("State")
             ax1.legend()
-            ax2.plot(errors, linewidth=0.8, color="orange")
+            ax2.plot(trajectory.errors, linewidth=0.8, color="orange")
             ax2.set_ylabel("Error")
             ax2.set_xlabel("Step")
             st.pyplot(fig)
         else:
-            st.line_chart({"state": states, "error": errors})
+            st.line_chart({"state": trajectory.states, "error": trajectory.errors})
 
 
 # ═══════════════════════════════════════════════════════════════════════
