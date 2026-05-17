@@ -33,6 +33,7 @@ import json
 import time
 from pathlib import Path
 
+from dashboard.gk_state import dominant_mode_from_types
 from dashboard.reference_shots import list_reference_shots, load_reference_shot
 from dashboard.replay import build_replay_frame
 from dashboard.state import (
@@ -536,14 +537,7 @@ with tab_gk:
 
         # ── Metrics row ──
         gm1, gm2, gm3, gm4 = st.columns(4)
-        dominant = "stable"
-        if len(result.mode_type) > 0:
-            mode_counts: dict[str, int] = {}
-            for mt in result.mode_type:
-                if mt != "stable":
-                    mode_counts[mt] = mode_counts.get(mt, 0) + 1
-            if mode_counts:
-                dominant = max(mode_counts, key=mode_counts.get)  # type: ignore[arg-type]
+        dominant = dominant_mode_from_types(result.mode_type)
         gm1.metric("\u03b3_max [c_s/a]", f"{result.gamma_max:.4f}")
         gm2.metric("k_y at \u03b3_max", f"{result.k_y_max:.3f}")
         gm3.metric("Dominant Mode", dominant)
