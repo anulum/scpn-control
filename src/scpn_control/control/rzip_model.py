@@ -142,12 +142,87 @@ class RZIPModel:
 
 class VerticalStabilityAnalysis:
     @staticmethod
+    def _differentiate_radial(field: np.ndarray, r_axis: np.ndarray) -> np.ndarray:
+        derivative = np.empty_like(field, dtype=float)
+        derivative[:, 0] = (field[:, 1] - field[:, 0]) / (r_axis[1] - r_axis[0])
+        derivative[:, -1] = (field[:, -1] - field[:, -2]) / (r_axis[-1] - r_axis[-2])
+
+        for idx in range(1, r_axis.size - 1):
+            h_left = r_axis[idx] - r_axis[idx - 1]
+            h_right = r_axis[idx + 1] - r_axis[idx]
+            derivative[:, idx] = (
+                -(h_right / (h_left * (h_left + h_right))) * field[:, idx - 1]
+                + ((h_right - h_left) / (h_left * h_right)) * field[:, idx]
+                + (h_left / (h_right * (h_left + h_right))) * field[:, idx + 1]
+            )
+        return derivative
+
+    @staticmethod
+    def _grid_axes(R: np.ndarray, Z: np.ndarray, shape: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+        if R.ndim == 1 and Z.ndim == 1:
+            if R.size != shape[1] or Z.size != shape[0]:
+                raise ValueError("R/Z axes must match psi shape")
+            r_axis = R.astype(float)
+            z_axis = Z.astype(float)
+        elif R.shape == shape and Z.shape == shape:
+            r_axis = R[0, :].astype(float)
+            z_axis = Z[:, 0].astype(float)
+            if not np.allclose(R, r_axis[None, :]) or not np.allclose(Z, z_axis[:, None]):
+                raise ValueError("R/Z grids must be rectilinear")
+        else:
+            raise ValueError("R and Z must be 1-D axes or rectilinear 2-D grids")
+
+        if r_axis.size < 3 or z_axis.size < 3:
+            raise ValueError("psi grid requires at least three R and Z points")
+        if not (np.all(np.isfinite(r_axis)) and np.all(np.isfinite(z_axis))):
+            raise ValueError("R/Z axes must be finite")
+        if np.any(np.diff(r_axis) <= 0.0) or np.any(np.diff(z_axis) <= 0.0):
+            raise ValueError("R/Z axes must be strictly increasing")
+        if np.any(r_axis <= 0.0):
+            raise ValueError("R axis must be positive")
+        return r_axis, z_axis
+
+    @staticmethod
     def compute_n_index(psi: np.ndarray, R: np.ndarray, Z: np.ndarray, R0: float) -> float:
         """
-        n_index = -(R0/Bz) * dBz/dR
-        For testing purposes, we just return a stub value based on kappa.
+        Compute the vertical field index at the magnetic-axis radius.
+
+        The axisymmetric poloidal flux convention gives
+        ``B_Z = (1 / R) d psi / dR``.  The RZIP vertical stability index is
+        then evaluated on the midplane as ``n = -(R0 / B_Z) dB_Z / dR``.
         """
-        return -1.0  # Just a stub
+        psi_arr = np.asarray(psi, dtype=float)
+        r_arr = np.asarray(R, dtype=float)
+        z_arr = np.asarray(Z, dtype=float)
+        r0 = float(R0)
+
+        if psi_arr.ndim != 2:
+            raise ValueError("psi must be a 2-D rectilinear flux grid")
+        if not np.all(np.isfinite(psi_arr)):
+            raise ValueError("psi grid must be finite")
+        if not np.isfinite(r0) or r0 <= 0.0:
+            raise ValueError("R0 must be finite and positive")
+
+        r_axis, z_axis = VerticalStabilityAnalysis._grid_axes(r_arr, z_arr, psi_arr.shape)
+        if r0 < r_axis[0] or r0 > r_axis[-1]:
+            raise ValueError("R0 must lie inside the R grid")
+
+        dpsi_dR = VerticalStabilityAnalysis._differentiate_radial(psi_arr, r_axis)
+        bz = dpsi_dR / r_axis[None, :]
+        dBz_dR = VerticalStabilityAnalysis._differentiate_radial(bz, r_axis)
+
+        midplane_idx = int(np.argmin(np.abs(z_axis)))
+        bz_midplane = bz[midplane_idx, :]
+        dBz_dR_midplane = dBz_dR[midplane_idx, :]
+
+        bz_at_r0 = float(np.interp(r0, r_axis, bz_midplane))
+        dBz_dR_at_r0 = float(np.interp(r0, r_axis, dBz_dR_midplane))
+        if not np.isfinite(bz_at_r0) or abs(bz_at_r0) <= 1e-12:
+            raise ValueError("vertical field at R0 is degenerate")
+        if not np.isfinite(dBz_dR_at_r0):
+            raise ValueError("vertical field radial gradient is not finite")
+
+        return float(-(r0 / bz_at_r0) * dBz_dR_at_r0)
 
     @staticmethod
     def passive_stability_margin(n_index: float, tau_wall: float) -> float:

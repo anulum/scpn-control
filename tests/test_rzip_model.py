@@ -136,12 +136,32 @@ def test_stability_margin(simple_vessel):
     assert rzip.stability_margin() == -0.5
 
 
-def test_compute_n_index():
-    """Line 142: VerticalStabilityAnalysis.compute_n_index returns stub."""
+def test_compute_n_index_from_flux_gradient():
     from scpn_control.control.rzip_model import VerticalStabilityAnalysis
 
-    result = VerticalStabilityAnalysis.compute_n_index(np.zeros(10), np.zeros(10), np.zeros(10), 2.0)
-    assert result == -1.0
+    r0 = 2.0
+    target_n = 0.72
+    b_axis = 3.1
+    r_axis = np.linspace(1.4, 2.6, 121)
+    z_axis = np.linspace(-0.35, 0.35, 41)
+    rr, zz = np.meshgrid(r_axis, z_axis)
+
+    psi = b_axis * ((1.0 + target_n) * rr**2 / 2.0 - target_n * rr**3 / (3.0 * r0))
+
+    result = VerticalStabilityAnalysis.compute_n_index(psi, rr, zz, r0)
+
+    assert result == pytest.approx(target_n, rel=2e-3, abs=2e-3)
+
+
+def test_compute_n_index_rejects_degenerate_vertical_field():
+    from scpn_control.control.rzip_model import VerticalStabilityAnalysis
+
+    r_axis = np.linspace(1.0, 3.0, 9)
+    z_axis = np.linspace(-0.2, 0.2, 5)
+    rr, zz = np.meshgrid(r_axis, z_axis)
+
+    with pytest.raises(ValueError, match="vertical field"):
+        VerticalStabilityAnalysis.compute_n_index(np.zeros_like(rr), rr, zz, 2.0)
 
 
 def test_passive_stability_margin():
