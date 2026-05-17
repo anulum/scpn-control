@@ -156,16 +156,26 @@ def _simulate_numpy(commands: FloatArray, initial_state: float, spec: TraceableR
     return out
 
 
+def _jax_float_dtype() -> Any:
+    if not _HAS_JAX:
+        raise RuntimeError("JAX backend requested but JAX is not installed.")
+    assert jnp is not None
+    assert jax is not None
+    x64_enabled = bool(getattr(jax.config, "jax_enable_x64", False))
+    return jnp.float64 if x64_enabled else jnp.float32
+
+
 def _simulate_jax(commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec) -> FloatArray:
     if not _HAS_JAX:
         raise RuntimeError("JAX backend requested but JAX is not installed.")
     assert jnp is not None
     assert jax is not None
 
-    cmd = jnp.asarray(commands, dtype=jnp.float64)
-    alpha = jnp.asarray(spec.dt_s / (spec.tau_s + spec.dt_s), dtype=jnp.float64)
-    gain = jnp.asarray(spec.gain, dtype=jnp.float64)
-    limit = jnp.asarray(spec.command_limit, dtype=jnp.float64)
+    dtype = _jax_float_dtype()
+    cmd = jnp.asarray(commands, dtype=dtype)
+    alpha = jnp.asarray(spec.dt_s / (spec.tau_s + spec.dt_s), dtype=dtype)
+    gain = jnp.asarray(spec.gain, dtype=dtype)
+    limit = jnp.asarray(spec.command_limit, dtype=dtype)
 
     def _step(state: Any, u: Any) -> tuple[Any, Any]:
         u_clip = jnp.clip(u, -limit, limit)
@@ -177,7 +187,7 @@ def _simulate_jax(commands: FloatArray, initial_state: float, spec: TraceableRun
         _, hist = jax.lax.scan(_step, x0, u)
         return hist
 
-    hist = _rollout(jnp.asarray(initial_state, dtype=jnp.float64), cmd)
+    hist = _rollout(jnp.asarray(initial_state, dtype=dtype), cmd)
     return np.asarray(hist, dtype=np.float64)
 
 
@@ -273,11 +283,12 @@ def _simulate_jax_batch(commands: FloatArray, initial_state: FloatArray, spec: T
     assert jnp is not None
     assert jax is not None
 
-    cmd = jnp.asarray(commands, dtype=jnp.float64)
-    x0 = jnp.asarray(initial_state, dtype=jnp.float64)
-    alpha = jnp.asarray(spec.dt_s / (spec.tau_s + spec.dt_s), dtype=jnp.float64)
-    gain = jnp.asarray(spec.gain, dtype=jnp.float64)
-    limit = jnp.asarray(spec.command_limit, dtype=jnp.float64)
+    dtype = _jax_float_dtype()
+    cmd = jnp.asarray(commands, dtype=dtype)
+    x0 = jnp.asarray(initial_state, dtype=dtype)
+    alpha = jnp.asarray(spec.dt_s / (spec.tau_s + spec.dt_s), dtype=dtype)
+    gain = jnp.asarray(spec.gain, dtype=dtype)
+    limit = jnp.asarray(spec.command_limit, dtype=dtype)
 
     def _step(state: Any, u_t: Any) -> tuple[Any, Any]:
         u_clip = jnp.clip(u_t, -limit, limit)

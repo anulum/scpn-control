@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import warnings
 
 from scpn_control.control.jax_traceable_runtime import (
     TraceableRuntimeSpec,
@@ -160,6 +161,22 @@ class TestRunTraceableControlLoop:
         assert result.backend_used == "jax"
         assert result.compiled
 
+    def test_jax_backend_uses_supported_dtype_without_warning(self):
+        pytest.importorskip("jax")
+        cmd = np.sin(np.linspace(0, 2 * np.pi, 64))
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = run_traceable_control_loop(cmd, backend="jax")
+
+        assert result.backend_used == "jax"
+        assert not [
+            warning
+            for warning in caught
+            if "Explicitly requested dtype" in str(warning.message)
+            and "will be truncated to dtype float32" in str(warning.message)
+        ]
+
     def test_torchscript_backend(self):
         pytest.importorskip("torch")
         cmd = np.sin(np.linspace(0, 2 * np.pi, 64))
@@ -206,6 +223,22 @@ class TestRunTraceableControlBatch:
         result = run_traceable_control_batch(cmd, backend="jax")
         assert result.backend_used == "jax"
         assert result.state_history.shape == (4, 32)
+
+    def test_jax_batch_uses_supported_dtype_without_warning(self):
+        pytest.importorskip("jax")
+        cmd = np.random.default_rng(0).normal(size=(4, 32))
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = run_traceable_control_batch(cmd, backend="jax")
+
+        assert result.backend_used == "jax"
+        assert not [
+            warning
+            for warning in caught
+            if "Explicitly requested dtype" in str(warning.message)
+            and "will be truncated to dtype float32" in str(warning.message)
+        ]
 
     def test_torchscript_batch(self):
         pytest.importorskip("torch")
