@@ -169,11 +169,35 @@ def test_handle_actuator_fault_stuck():
 
 
 def test_handle_sensor_fault():
-    """Line 174: handle_sensor_fault is a no-op (placeholder)."""
+    """Sensor fault isolation removes the bad residual from allocation."""
+    J = np.eye(3)
+    ctrl = ReconfigurableController(None, J, 3, 3)
+
+    nominal = ctrl.step(np.array([1.0, 5.0, 1.0]), 0.1)
+    assert np.isclose(nominal[1], 5.0, atol=1e-3)
+
+    ctrl.handle_sensor_fault(1, FaultType.SENSOR_DROPOUT)
+
+    assert 1 in ctrl.faulted_sensors
+    assert ctrl.sensor_fault_types[1] is FaultType.SENSOR_DROPOUT
+    assert np.allclose(ctrl.W[1, :], 0.0)
+    assert np.allclose(ctrl.W[:, 1], 0.0)
+
+    reconfigured = ctrl.step(np.array([1.0, 5.0, 1.0]), 0.1)
+    assert np.isclose(reconfigured[1], 0.0, atol=1e-9)
+    assert np.isclose(reconfigured[0], 1.0, atol=1e-3)
+    assert np.isclose(reconfigured[2], 1.0, atol=1e-3)
+
+
+def test_handle_sensor_fault_rejects_invalid_index():
     J = np.eye(2)
     ctrl = ReconfigurableController(None, J, 2, 2)
-    ctrl.handle_sensor_fault(0, FaultType.SENSOR_DROPOUT)
-    # No exception, no state change
+    try:
+        ctrl.handle_sensor_fault(2, FaultType.SENSOR_DRIFT)
+    except IndexError as exc:
+        assert "sensor_index" in str(exc)
+    else:
+        raise AssertionError("invalid sensor index must fail fast")
 
 
 def test_step_compensates_stuck_coil():

@@ -133,7 +133,9 @@ class ReconfigurableController:
         self.n_sensors = n_sensors
 
         self.faulted_coils: set[int] = set()
+        self.faulted_sensors: set[int] = set()
         self.stuck_values: dict[int, float] = {}
+        self.sensor_fault_types: dict[int, FaultType] = {}
 
         self.W = np.eye(jacobian.shape[0])
         self.lambda_reg = GAIN_REGULARISATION
@@ -171,11 +173,29 @@ class ReconfigurableController:
         self.K = self._compute_gain()
 
     def handle_sensor_fault(self, sensor_index: int, fault_type: FaultType) -> None:
-        pass
+        if sensor_index < 0 or sensor_index >= self.n_sensors:
+            raise IndexError("sensor_index outside configured sensor range")
+        if fault_type not in {
+            FaultType.SENSOR_DROPOUT,
+            FaultType.SENSOR_DRIFT,
+            FaultType.SENSOR_NOISE_INCREASE,
+        }:
+            raise ValueError("fault_type must describe a sensor fault")
+        if sensor_index in self.faulted_sensors:
+            return
+
+        self.faulted_sensors.add(sensor_index)
+        self.sensor_fault_types[sensor_index] = fault_type
+        self.W[sensor_index, :] = 0.0
+        self.W[:, sensor_index] = 0.0
+        self.K = self._compute_gain()
 
     def step(self, error: np.ndarray, dt: float) -> np.ndarray:
         """Apply reconfigured gain; compensate for stuck-coil offsets."""
         adjusted_error = error.copy()
+        for sensor_idx in self.faulted_sensors:
+            adjusted_error[sensor_idx] = 0.0
+
         for c_idx, val in self.stuck_values.items():
             adjusted_error -= self.nominal_jacobian[:, c_idx] * val
 
