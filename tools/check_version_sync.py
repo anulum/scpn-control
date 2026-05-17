@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Check Version Sync
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
+# ORCID: https://orcid.org/0009-0009-3560-0851
+# ──────────────────────────────────────────────────────────────────────
+
 # SCPN Control — Version sync guard
 # Asserts pyproject.toml, CITATION.cff, .zenodo.json, and docs/api.md share the same version.
 # © 1998–2026 Miroslav Šotek. All rights reserved.

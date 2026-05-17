@@ -1,3 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Test Cov 100 Pct
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
+# ORCID: https://orcid.org/0009-0009-3560-0851
+# ──────────────────────────────────────────────────────────────────────
+
 """Tests to close the last ~260 missed lines across 44 files."""
 
 from __future__ import annotations

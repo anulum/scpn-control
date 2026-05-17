@@ -1,3 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Bench Fusion Snn Hook
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
+# ORCID: https://orcid.org/0009-0009-3560-0851
+# ──────────────────────────────────────────────────────────────────────
+
 """Benchmark: FusionKernel.phase_sync_step() → SNN closed-loop hook.
 
 Measures the full Python-side latency of:

@@ -1,3 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Scpn Package
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
+# ORCID: https://orcid.org/0009-0009-3560-0851
+# ──────────────────────────────────────────────────────────────────────
+
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Neuro-Symbolic Logic Compiler
 # © 1998–2026 Miroslav Šotek. All rights reserved.
@@ -24,6 +32,15 @@ from scpn_control.scpn.contracts import (
     decode_actions,
     extract_features,
 )
+from scpn_control.scpn.geometry_neutral_contracts import (
+    ActuatorChannel,
+    ActuatorSet,
+    ControlObjective,
+    DiagnosticChannel,
+    DiagnosticFrame,
+    MagneticConfiguration,
+    ReplayScenario,
+)
 from scpn_control.scpn.controller import NeuroSymbolicController
 from scpn_control.scpn.fpga_export import (
     FPGAConfig,
@@ -44,6 +61,13 @@ __all__ = [
     "ControlScales",
     "extract_features",
     "decode_actions",
+    "MagneticConfiguration",
+    "ActuatorChannel",
+    "ActuatorSet",
+    "DiagnosticChannel",
+    "DiagnosticFrame",
+    "ControlObjective",
+    "ReplayScenario",
     "Artifact",
     "load_artifact",
     "save_artifact",

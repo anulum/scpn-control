@@ -1,3 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Test H Infinity Edge Paths
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Contact: www.anulum.li | protoscience@anulum.li
+# ORCID: https://orcid.org/0009-0009-3560-0851
+# ──────────────────────────────────────────────────────────────────────
+
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — H-infinity Controller Edge Path Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.

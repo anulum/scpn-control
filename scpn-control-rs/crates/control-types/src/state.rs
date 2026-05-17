@@ -1,10 +1,11 @@
-// ─────────────────────────────────────────────────────────────────────
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// ──────────────────────────────────────────────────────────────────────
 // SCPN Control — State
 // © 1998–2026 Miroslav Šotek. All rights reserved.
 // Contact: www.anulum.li | protoscience@anulum.li
 // ORCID: https://orcid.org/0009-0009-3560-0851
-// License: GNU AGPL v3 | Commercial licensing available
-// ─────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
+
 //! Physical state representations for the tokamak plasma.
 
 use ndarray::{Array1, Array2};
