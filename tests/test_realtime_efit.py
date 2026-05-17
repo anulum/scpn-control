@@ -76,3 +76,25 @@ def test_xpoint_detection():
 
     assert xp is not None
     assert xp[0] > 0.0
+
+
+def test_find_lcfs_extracts_elliptical_boundary():
+    diag = create_mock_diagnostics()
+    R = np.linspace(4.2, 8.2, 81)
+    Z = np.linspace(-3.0, 3.0, 81)
+    efit = RealtimeEFIT(diag, R, Z)
+
+    rr, zz = np.meshgrid(R, Z, indexing="ij")
+    R0 = 6.2
+    a = 1.3
+    kappa = 1.6
+    psi = 1.0 - ((rr - R0) / a) ** 2 - (zz / (kappa * a)) ** 2
+    psi = np.maximum(psi, 0.0)
+
+    lcfs = efit.find_lcfs(psi)
+
+    assert lcfs.shape[1] == 2
+    assert lcfs.shape[0] > 20
+    np.testing.assert_allclose(np.ptp(lcfs[:, 0]), 2.0 * a, rtol=0.2, atol=0.2)
+    np.testing.assert_allclose(np.ptp(lcfs[:, 1]), 2.0 * kappa * a, rtol=0.2, atol=0.2)
+    assert np.all(np.isfinite(lcfs))

@@ -185,7 +185,30 @@ class RealtimeEFIT:
         )
 
     def find_lcfs(self, psi: np.ndarray) -> np.ndarray:
-        return np.zeros((10, 2))  # Stub
+        psi_arr = np.asarray(psi, dtype=float)
+        if psi_arr.shape != (self.nR, self.nZ):
+            raise ValueError("psi shape must match the EFIT R/Z grid")
+        if not np.all(np.isfinite(psi_arr)):
+            raise ValueError("psi must be finite")
+
+        psi_max = float(np.max(psi_arr))
+        if psi_max <= 0.0:
+            return np.empty((0, 2), dtype=float)
+
+        plasma_mask = psi_arr > max(1e-12, psi_max * 1e-6)
+        padded = np.pad(plasma_mask, 1, mode="constant", constant_values=False)
+        inner = padded[1:-1, 1:-1]
+        interior = padded[:-2, 1:-1] & padded[2:, 1:-1] & padded[1:-1, :-2] & padded[1:-1, 2:]
+        boundary = inner & ~interior
+
+        r_idx, z_idx = np.nonzero(boundary)
+        if r_idx.size == 0:
+            return np.empty((0, 2), dtype=float)
+
+        points = np.column_stack((self.R[r_idx], self.Z[z_idx]))
+        centroid = np.mean(points, axis=0)
+        angles = np.arctan2(points[:, 1] - centroid[1], points[:, 0] - centroid[0])
+        return np.asarray(points[np.argsort(angles)])
 
     def find_xpoint(self, psi: np.ndarray) -> tuple[float, float] | None:
         """
