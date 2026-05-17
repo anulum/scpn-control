@@ -33,11 +33,10 @@ import json
 import time
 from pathlib import Path
 
+from dashboard.replay import build_replay_frame
 from dashboard.state import (
     MACHINE_PRESETS,
     derived_machine_metrics,
-    shot_phase_label,
-    synthetic_profiles,
 )
 
 
@@ -349,18 +348,22 @@ with tab_replay:
             st.error("Cannot import tests.mock_diiid — run from repo root.")
 
     if shot_data is not None:
-        time_s = np.asarray(shot_data["time_s"])
+        time_s = np.asarray(shot_data["time_s"], dtype=np.float64)
         n_steps = len(time_s)
-        is_disruption = bool(shot_data.get("is_disruption", False))
-        dt_idx = int(shot_data.get("disruption_time_idx", n_steps - 1))
-        dt_type = str(shot_data.get("disruption_type", "N/A"))
 
         # Header metrics
         hm1, hm2, hm3, hm4 = st.columns(4)
         hm1.metric("Shot", shot_label)
-        hm2.metric("Duration", f"{time_s[-1]:.2f} s")
-        hm3.metric("Disruption", "YES" if is_disruption else "NO")
-        hm4.metric("Type", dt_type if is_disruption else "\u2014")
+        replay_preview = build_replay_frame(
+            shot_data=shot_data,
+            machine=machine,
+            shot_label=shot_label,
+            step_idx=n_steps // 2,
+            profile_points=80,
+        )
+        hm2.metric("Duration", f"{replay_preview.duration_s:.2f} s")
+        hm3.metric("Disruption", "YES" if replay_preview.is_disruption else "NO")
+        hm4.metric("Type", replay_preview.disruption_type if replay_preview.is_disruption else "\u2014")
 
         # Timeline slider
         step_idx = st.slider(
@@ -371,16 +374,22 @@ with tab_replay:
             key="replay_timeline",
             help="Scrub through shot phases",
         )
-        time_frac = step_idx / max(n_steps - 1, 1)
-        phase_label = shot_phase_label(time_frac)
+        replay_frame = build_replay_frame(
+            shot_data=shot_data,
+            machine=machine,
+            shot_label=shot_label,
+            step_idx=step_idx,
+            profile_points=80,
+        )
+        time_s = replay_frame.time_s
         st.markdown(
-            f"**t = {time_s[step_idx]:.3f} s** &nbsp;&nbsp; "
-            f"Step {step_idx}/{n_steps - 1} &nbsp;&nbsp; "
-            f"Phase: **{phase_label}**"
+            f"**t = {replay_frame.current_time_s:.3f} s** &nbsp;&nbsp; "
+            f"Step {replay_frame.step_idx}/{n_steps - 1} &nbsp;&nbsp; "
+            f"Phase: **{replay_frame.phase_label}**"
         )
 
         # Signal traces with timeline cursor and disruption marker
-        signal_keys = [k for k in ["Ip_MA", "beta_N", "q95", "ne_1e19", "n1_amp", "locked_mode_amp"] if k in shot_data]
+        signal_keys = tuple(replay_frame.signals)
 
         if HAS_MPL and signal_keys:
             n_signals = len(signal_keys)
@@ -389,13 +398,19 @@ with tab_replay:
                 axes = [axes]
 
             for ax, key in zip(axes, signal_keys):
-                arr = np.asarray(shot_data[key])
+                arr = replay_frame.signals[key]
                 ax.plot(time_s, arr, linewidth=0.8, color="#4c78a8")
                 # Current time cursor
-                ax.axvline(time_s[step_idx], color="#54a24b", linewidth=1.2, alpha=0.8)
+                ax.axvline(replay_frame.current_time_s, color="#54a24b", linewidth=1.2, alpha=0.8)
                 # Disruption marker
-                if is_disruption and dt_idx < n_steps:
-                    ax.axvline(time_s[dt_idx], color="#e45756", linewidth=1.5, linestyle="--", alpha=0.8)
+                if replay_frame.is_disruption:
+                    ax.axvline(
+                        time_s[replay_frame.disruption_time_idx],
+                        color="#e45756",
+                        linewidth=1.5,
+                        linestyle="--",
+                        alpha=0.8,
+                    )
                 ax.set_ylabel(key)
 
             axes[-1].set_xlabel("Time [s]")
@@ -406,7 +421,7 @@ with tab_replay:
             legend_handles = [
                 Line2D([0], [0], color="#54a24b", linewidth=1.2, label="Current"),
             ]
-            if is_disruption:
+            if replay_frame.is_disruption:
                 legend_handles.append(
                     Line2D([0], [0], color="#e45756", linewidth=1.5, linestyle="--", label="Disruption")
                 )
@@ -417,11 +432,11 @@ with tab_replay:
             st.pyplot(fig)
         elif signal_keys:
             for key in signal_keys:
-                st.line_chart(np.asarray(shot_data[key]), height=150)
+                st.line_chart(replay_frame.signals[key], height=150)
 
         # Synthetic Te/Ti/ne profiles at current timeline position
         st.subheader("Kinetic Profiles at Current Time")
-        profiles = synthetic_profiles(machine, n_rho=80, time_frac=time_frac)
+        profiles = replay_frame.profiles
 
         if HAS_MPL:
             fig_p, (ax_te, ax_ne) = plt.subplots(1, 2, figsize=(10, 3.5))
@@ -431,7 +446,7 @@ with tab_replay:
             ax_te.plot(rho, profiles["Ti_keV"], linewidth=1.2, color="#e45756", linestyle="--", label="T\u1d62")
             ax_te.set_xlabel("\u03c1")
             ax_te.set_ylabel("Temperature [keV]")
-            ax_te.set_title(f"{machine_name} — {phase_label}")
+            ax_te.set_title(f"{machine_name} — {replay_frame.phase_label}")
             ax_te.legend(fontsize=8)
             ax_te.set_xlim(0, 1)
 
@@ -453,16 +468,26 @@ with tab_replay:
                 if HAS_MPL:
                     fig_ctrl, (ax_vp, ax_db) = plt.subplots(2, 1, figsize=(10, 4), sharex=True)
                     ax_vp.plot(time_s, vpos, linewidth=0.8, color="#b279a2")
-                    ax_vp.axvline(time_s[step_idx], color="#54a24b", linewidth=1.0, alpha=0.7)
-                    if is_disruption and dt_idx < n_steps:
-                        ax_vp.axvline(time_s[dt_idx], color="#e45756", linewidth=1.2, linestyle="--")
+                    ax_vp.axvline(replay_frame.current_time_s, color="#54a24b", linewidth=1.0, alpha=0.7)
+                    if replay_frame.is_disruption:
+                        ax_vp.axvline(
+                            time_s[replay_frame.disruption_time_idx],
+                            color="#e45756",
+                            linewidth=1.2,
+                            linestyle="--",
+                        )
                     ax_vp.set_ylabel("Z_pos [m]")
                     ax_vp.set_title("Vertical Position (control proxy)")
 
                     ax_db.plot(time_s, dbdt, linewidth=0.8, color="#ff9da6")
-                    ax_db.axvline(time_s[step_idx], color="#54a24b", linewidth=1.0, alpha=0.7)
-                    if is_disruption and dt_idx < n_steps:
-                        ax_db.axvline(time_s[dt_idx], color="#e45756", linewidth=1.2, linestyle="--")
+                    ax_db.axvline(replay_frame.current_time_s, color="#54a24b", linewidth=1.0, alpha=0.7)
+                    if replay_frame.is_disruption:
+                        ax_db.axvline(
+                            time_s[replay_frame.disruption_time_idx],
+                            color="#e45756",
+                            linewidth=1.2,
+                            linestyle="--",
+                        )
                     ax_db.set_ylabel("dB/dt [G/s]")
                     ax_db.set_xlabel("Time [s]")
                     fig_ctrl.tight_layout()
