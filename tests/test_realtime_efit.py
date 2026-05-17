@@ -44,6 +44,28 @@ def test_simulate_measurements():
     assert "Ip" in meas
 
 
+def test_simulate_measurements_derives_rogowski_current_from_flux_source():
+    R = np.linspace(2.0, 4.0, 81)
+    Z = np.linspace(-1.0, 1.0, 81)
+    diag = MagneticDiagnostics(
+        flux_loops=[(2.4, -0.5), (3.0, 0.0), (3.6, 0.5)],
+        b_probes=[(2.4, 0.0, "R"), (3.0, 0.0, "Z"), (3.6, 0.0, "Z")],
+        rogowski_radius=3.0,
+    )
+    efit = RealtimeEFIT(diag, R, Z)
+
+    mu0 = 4.0e-7 * np.pi
+    current_density = 2.5e6
+    rr, _ = np.meshgrid(R, Z, indexing="ij")
+    psi = -(mu0 * current_density / 3.0) * rr**3
+
+    meas = efit.response.simulate_measurements(psi, np.zeros(3))
+
+    expected_ip = current_density * (R[-1] - R[0]) * (Z[-1] - Z[0])
+    np.testing.assert_allclose(meas["Ip"], expected_ip, rtol=0.02)
+    assert not np.isclose(meas["Ip"], 15.0e6)
+
+
 def test_reconstruction_solovev():
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 33)

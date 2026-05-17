@@ -17,6 +17,8 @@ from typing import Any
 
 import numpy as np
 
+MU0 = 4.0e-7 * np.pi
+
 
 @dataclass
 class MagneticDiagnostics:
@@ -64,7 +66,13 @@ class DiagnosticResponse:
 
         from scipy.interpolate import RegularGridInterpolator
 
-        interp = RegularGridInterpolator((self.R, self.Z), psi)
+        psi_arr = np.asarray(psi, dtype=float)
+        if psi_arr.shape != (len(self.R), len(self.Z)):
+            raise ValueError("psi shape must match the diagnostic R/Z grid")
+        if not np.all(np.isfinite(psi_arr)):
+            raise ValueError("psi must be finite")
+
+        interp = RegularGridInterpolator((self.R, self.Z), psi_arr)
 
         flux_vals = []
         for r, z in self.diagnostics.flux_loops:
@@ -73,10 +81,8 @@ class DiagnosticResponse:
         b_vals = []
         # B_R = -1/(2*pi*R) * dpsi/dZ
         # B_Z =  1/(2*pi*R) * dpsi/dR
-        dR = self.R[1] - self.R[0]
-        dZ = self.Z[1] - self.Z[0]
-        dpsi_dR = np.gradient(psi, dR, axis=0)
-        dpsi_dZ = np.gradient(psi, dZ, axis=1)
+        dpsi_dR = np.gradient(psi_arr, self.R, axis=0, edge_order=2)
+        dpsi_dZ = np.gradient(psi_arr, self.Z, axis=1, edge_order=2)
 
         interp_dR = RegularGridInterpolator((self.R, self.Z), dpsi_dR)
         interp_dZ = RegularGridInterpolator((self.R, self.Z), dpsi_dZ)
@@ -88,9 +94,11 @@ class DiagnosticResponse:
                 val = 1.0 / (2.0 * np.pi * r) * interp_dR([r, z])[0]
             b_vals.append(float(val))
 
-        # Mock Rogowski as the total Ip derived from some boundary integral
-        # Here we just use a placeholder
-        Ip = 15.0e6
+        d2psi_dR2 = np.gradient(dpsi_dR, self.R, axis=0, edge_order=2)
+        d2psi_dZ2 = np.gradient(dpsi_dZ, self.Z, axis=1, edge_order=2)
+        delta_star_psi = d2psi_dR2 - dpsi_dR / self.R[:, np.newaxis] + d2psi_dZ2
+        j_phi = -delta_star_psi / (MU0 * self.R[:, np.newaxis])
+        Ip = float(np.trapezoid(np.trapezoid(j_phi, self.Z, axis=1), self.R))
 
         return {
             "flux_loops": np.array(flux_vals),
