@@ -91,7 +91,7 @@ def _require_finite_number(name: str, value: Any) -> float:
         float(value)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{name} must be numeric, got {value!r}") from exc
-    return require_finite_float(name, value)
+    return require_finite_float(name, float(value))
 
 
 def _validate_ipb98y2_coefficients(raw: Any) -> dict[str, Any]:

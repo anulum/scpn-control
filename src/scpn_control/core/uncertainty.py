@@ -29,6 +29,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import cast
 
 import numpy as np
 
@@ -137,6 +138,26 @@ def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
     )
 
 
+def _bosch_hale_reactivity_array(T_i_kev: np.ndarray) -> np.ndarray:
+    """Vectorised Bosch-Hale D-T reactivity implementation."""
+    T = np.maximum(T_i_kev.astype(float, copy=False), 0.1)
+    # D-T coefficients from Table VII
+    B_G = 34.3827
+    m_rc2 = 1124656.0
+    C1 = 1.17302e-9
+    C2 = 1.51361e-2
+    C3 = 7.51886e-2
+    C4 = 4.60643e-3
+    C5 = 1.35302e-2
+    C6 = -1.06750e-4
+    C7 = 1.36600e-5
+
+    theta = T / (1.0 - T * (C2 + T * (C4 + T * C6)) / (1.0 + T * (C3 + T * (C5 + T * C7))))
+    xi = (B_G**2 / (4.0 * theta)) ** (1.0 / 3.0)
+    sig_v = C1 * theta * np.sqrt(xi / (m_rc2 * T**3)) * np.exp(-3.0 * xi)
+    return cast(np.ndarray, np.asarray(sig_v * 1.0e-6, dtype=float))
+
+
 def bosch_hale_reactivity(T_i_kev: float | np.ndarray) -> float | np.ndarray:
     """
     Compute D-T fusion reactivity <σv> using Bosch-Hale parameterization.
@@ -153,25 +174,10 @@ def bosch_hale_reactivity(T_i_kev: float | np.ndarray) -> float | np.ndarray:
     -------
     float | np.ndarray — Reactivity in m^3/s.
     """
-    T = np.maximum(T_i_kev, 0.1)
-    # D-T coefficients from Table VII
-    B_G = 34.3827
-    m_rc2 = 1124656.0
-    C1 = 1.17302e-9
-    C2 = 1.51361e-2
-    C3 = 7.51886e-2
-    C4 = 4.60643e-3
-    C5 = 1.35302e-2
-    C6 = -1.06750e-4
-    C7 = 1.36600e-5
-
-    theta = T / (1.0 - T * (C2 + T * (C4 + T * C6)) / (1.0 + T * (C3 + T * (C5 + T * C7))))
-    xi = (B_G**2 / (4.0 * theta)) ** (1.0 / 3.0)
-    sig_v = C1 * theta * np.sqrt(xi / (m_rc2 * T**3)) * np.exp(-3.0 * xi)
 
     if isinstance(T_i_kev, np.ndarray):
-        return np.asarray(sig_v * 1.0e-6)
-    return float(sig_v * 1.0e-6)
+        return _bosch_hale_reactivity_array(T_i_kev)
+    return float(_bosch_hale_reactivity_array(np.asarray([T_i_kev], dtype=float))[0])
 
 
 def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
@@ -323,7 +329,7 @@ def _build_ipb98_covariance() -> np.ndarray:
     cov[idx_i, idx_b] = corr_ib * sigmas[idx_i] * sigmas[idx_b]
     cov[idx_b, idx_i] = cov[idx_i, idx_b]
 
-    return cov
+    return cast(np.ndarray, cov)
 
 
 def quantify_full_chain(

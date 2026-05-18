@@ -48,6 +48,7 @@ jobs:
       - name: Mypy (ubuntu 3.12 only)
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         run: python -m mypy
+        timeout-minutes: 10
       - name: Coverage (ubuntu 3.12 only)
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         env:
