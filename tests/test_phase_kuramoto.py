@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Phase Kuramoto
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Phase Dynamics Tests
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Phase dynamics tests
 """
 Tests for the Paper 27 Knm/UPDE engine and Kuramoto-Sakaguchi
 + ζ sin(Ψ−θ) global field driver.
@@ -19,13 +15,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+import scpn_control.phase.kuramoto as kuramoto_module
 from scpn_control.phase.kuramoto import (
+    GlobalPsiDriver,
     kuramoto_sakaguchi_step,
+    lyapunov_exponent,
+    lyapunov_v,
     order_parameter,
     wrap_phase,
-    lyapunov_v,
-    lyapunov_exponent,
-    GlobalPsiDriver,
 )
 from scpn_control.phase.knm import KnmSpec, build_knm_paper27, OMEGA_N_16
 from scpn_control.phase.upde import UPDESystem
@@ -173,6 +170,75 @@ class TestKuramotoSakaguchiStep:
         )
         # With α=0.5, sin(ψ_r − θ − α) = sin(−0.5) ≠ 0
         assert np.any(out["dtheta"] != 0.0)
+
+    def test_alpha_path_dispatches_to_rust_when_available(self, monkeypatch):
+        theta = np.array([0.2, -0.4, 1.0], dtype=np.float64)
+        omega = np.array([0.01, -0.02, 0.03], dtype=np.float64)
+        calls = []
+
+        def fake_rust_step(th, om, dt, K, alpha, zeta, psi):
+            calls.append((th.copy(), om.copy(), dt, K, alpha, zeta, psi))
+            return {
+                "theta": wrap_phase(th + dt * om),
+                "r": 0.42,
+                "psi_r": -0.3,
+                "psi_global": psi,
+            }
+
+        monkeypatch.setattr(kuramoto_module, "RUST_KURAMOTO", True)
+        monkeypatch.setattr(kuramoto_module, "_rust_step", fake_rust_step, raising=False)
+
+        out = kuramoto_module.kuramoto_sakaguchi_step(
+            theta,
+            omega,
+            dt=0.02,
+            K=1.7,
+            alpha=0.37,
+            zeta=0.25,
+            psi_driver=0.8,
+            psi_mode="external",
+            wrap=True,
+        )
+
+        assert len(calls) == 1
+        _, _, dt, K, alpha, zeta, psi = calls[0]
+        assert dt == pytest.approx(0.02)
+        assert K == pytest.approx(1.7)
+        assert alpha == pytest.approx(0.37)
+        assert zeta == pytest.approx(0.25)
+        assert psi == pytest.approx(0.8)
+        assert out["R"] == pytest.approx(0.42)
+        assert out["Psi_r"] == pytest.approx(-0.3)
+        assert out["Psi"] == pytest.approx(0.8)
+        np.testing.assert_allclose(out["theta1"], wrap_phase(theta + 0.02 * omega))
+
+    def test_rust_tuple_result_is_still_supported(self, monkeypatch):
+        theta = np.array([0.1, -0.2], dtype=np.float64)
+        omega = np.array([0.4, -0.1], dtype=np.float64)
+        theta_next = wrap_phase(theta + 0.01 * omega)
+
+        monkeypatch.setattr(kuramoto_module, "RUST_KURAMOTO", True)
+        monkeypatch.setattr(
+            kuramoto_module,
+            "_rust_step",
+            lambda *_args: (theta_next, 0.51, 0.11, -0.22),
+            raising=False,
+        )
+
+        out = kuramoto_module.kuramoto_sakaguchi_step(
+            theta,
+            omega,
+            dt=0.01,
+            K=0.9,
+            alpha=0.2,
+            psi_mode="mean_field",
+            wrap=True,
+        )
+
+        np.testing.assert_allclose(out["theta1"], theta_next)
+        assert out["R"] == pytest.approx(0.51)
+        assert out["Psi_r"] == pytest.approx(0.11)
+        assert out["Psi"] == pytest.approx(-0.22)
 
 
 # ── KnmSpec ──────────────────────────────────────────────────────────

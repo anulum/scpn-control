@@ -1,16 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Cli Validate Paths
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — CLI Validate Command Edge Path Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+
 """Coverage for cli.py validate command: contamination check (lines 149-150,
 161-164), weight file iteration (278), and info --json-out path."""
 
@@ -46,17 +41,18 @@ class TestValidateCommand:
     def test_validate_contaminated_module(self):
         """validate detects contaminated sys.modules (lines 161-164).
 
-        matplotlib is already loaded by test infra, so the contamination
-        check fires for it. We just verify the detection logic works.
+        The test runner may have optional plotting or ML packages loaded from
+        earlier tests. Verify the ordered contamination contract rather than an
+        incidental dependency.
         """
         runner = CliRunner()
         result = runner.invoke(main, ["validate", "--json-out"])
         assert result.exit_code == 0
         data = json.loads(result.output)
-        # matplotlib is typically loaded → contamination detected
-        if "matplotlib" in sys.modules:
+        contaminated = next((mod for mod in ("matplotlib", "torch", "streamlit") if mod in sys.modules), None)
+        if contaminated is not None:
             assert data["import_clean"] is False
-            assert data["contaminated_module"] == "matplotlib"
+            assert data["contaminated_module"] == contaminated
         else:
             assert data["import_clean"] is True
 

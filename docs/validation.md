@@ -1,4 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- SCPN Control — Validation and QA -->
 
 # Validation and QA
 
@@ -42,18 +48,25 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/t
 Real-data manifest provenance gate:
 
 ```bash
+scpn-control validate --json-out
 scpn-control validate-manifest validation/reference_data/diiid/manifests/diiid_hmode_1p5MA.geqdsk.manifest.json --verify-artifact
 scpn-control validate-manifest validation/reference_data/diiid/manifests/shot_163303_hmode.npz.manifest.json --verify-artifact --json-out
 scpn-control validate-manifest validation/reference_data/diiid/manifests/mock_diiid_ci.manifest.json --json-out
 ```
 
-The gate separates experimental validation evidence from CI fixtures. A manifest
-claiming real-shot validation must include a non-synthetic source kind, machine,
-shot, signal paths, physical units, retrieval timestamp, checksum, and licence
-or facility data policy. Local real-data manifests can additionally verify the
-referenced artefact checksum with `--verify-artifact`. Synthetic manifests remain
-allowed for CI, but require generator and seed metadata and are reported as
-`kind: synthetic`.
+The top-level `validate` command now includes repository data-manifest
+validation by default, so routine validation cannot pass while ignoring data
+provenance. Use `--data-manifest-root` for staged facility drops,
+`--no-verify-artifacts` for metadata-only checks, and `--no-data-manifests` only
+for explicitly scoped import-hygiene checks. The gate separates experimental
+validation evidence from CI fixtures. A manifest claiming real-shot validation
+must include a non-synthetic source kind, machine, shot, signal paths, physical
+units, retrieval timestamp, checksum, and licence or facility data policy. Local
+real-data manifests can additionally verify the referenced artefact checksum
+with `--verify-artifact`. Synthetic manifests remain allowed for CI, but require
+generator and seed metadata and are reported as `kind: synthetic`. Manifest and
+acquisition-spec JSON is parsed with duplicate-key rejection so provenance fields
+cannot be overwritten silently by ambiguous objects.
 
 CI validates the full manifest set and writes a JSON evidence report:
 
@@ -64,12 +77,30 @@ python validation/validate_data_manifests.py --output-json artifacts/data_manife
 
 The report also enforces DIII-D artefact coverage: every tracked DIII-D GEQDSK
 and disruption-shot NPZ under `validation/reference_data/diiid/` must be covered
-by a manifest entry with a local SHA-256 checksum.
+by a manifest entry with a local SHA-256 checksum. It reports acquisition-spec
+readiness as `realised` or `pending`; by default pending facility pulls are
+visible but do not break normal metadata validation.
+
+Strict facility-campaign gate:
+
+```bash
+scpn-control validate-data-manifests --require-real-acquisition --json-out
+python validation/validate_data_manifests.py --require-real-acquisition --output-json artifacts/data_manifest_report.json
+```
+
+This strict mode fails if an acquisition specification, such as the DIII-D
+MDSplus shot spec, does not have a corresponding real `mdsplus` manifest with
+the expected dataset id and checksum-covered acquired artefact.
 
 Optional MDSplus acquisition writes both the acquired NPZ and a validated
 manifest at retrieval time. Use a checked acquisition specification for
-repeatable facility pulls; it requires the facility MDSplus Python client in the
-runtime environment:
+repeatable facility pulls. Install `scpn-control[facility]` for the pure-Python
+`mdsthin.MDSplus` compatibility client, or install the native MDSplus Python
+client from a facility MDSplus distribution when local tree access is required:
+
+```bash
+pip install "scpn-control[facility]"
+```
 
 ```bash
 scpn-control acquire-mdsplus-shot \
@@ -105,6 +136,88 @@ scpn-control validate-physics-traceability --json-out
 python validation/validate_physics_traceability.py --output-json artifacts/physics_traceability_report.json
 python validation/generate_physics_traceability_report.py --output-md docs/physics_traceability.md
 ```
+
+Nonlinear Cyclone Base Case saturation claims are gated separately from quick
+smoke runs. The validator requires a long enough campaign, finite gyro-Bohm
+ion heat flux, agreement with the documented CBC reference band, and a flat
+tail heat-flux trace before a run can support saturated-transport claims:
+
+```bash
+python validation/gk_nonlinear_cyclone.py
+```
+
+Short finite traces remain useful diagnostics, but they are reported as
+insufficient saturation evidence rather than quantitative nonlinear CBC
+validation.
+
+Linear GK cross-code agreement claims require immutable real external-code run
+evidence. Parser fixtures and published reference numbers are useful readiness
+checks, but they do not prove quantitative agreement against actual binaries:
+
+```bash
+scpn-control validate-gk-crosscode --require-external-runs --json-out
+python validation/validate_gk_crosscode.py --require-external-runs --output-json artifacts/gk_crosscode_report.json
+```
+
+Strict mode fails until `validation/reports/gk_crosscode/` contains real-binary
+evidence with code identity, version, run id, execution timestamp, units, native
+and external growth rates, real frequencies, and dominant wavenumber agreement
+inside the declared tolerances.
+
+Miller geometry validation compares repository flux-tube geometry output against
+immutable circular, shaped, and high-shear reference cases:
+
+```bash
+scpn-control validate-gk-geometry-reference --json-out
+python validation/validate_gk_geometry_reference.py --output-json artifacts/gk_geometry_reference_report.json
+```
+
+Gyrokinetic species validation compares mass, charge, thermal speed,
+Larmor-radius normalisation, and collision-frequency coefficients against
+immutable electron, main-ion, impurity, and extreme-temperature reference cases:
+
+```bash
+scpn-control validate-gk-species-reference --json-out
+python validation/validate_gk_species_reference.py --output-json artifacts/gk_species_reference_report.json
+```
+
+JAX GK parity claims require persisted native-vs-JAX parity artifacts with
+backend metadata, dtype, X64 setting, device kind, and pinned tolerances:
+
+```bash
+scpn-control validate-jax-gk-parity --require-parity-artifacts --json-out
+python validation/validate_jax_gk_parity.py --require-parity-artifacts --output-json artifacts/jax_gk_parity_report.json
+```
+
+Strict mode fails until `validation/reports/jax_gk_parity/` contains parity
+artifacts for the declared backend campaign. Live smoke tests remain useful
+diagnostics, but they do not replace persisted CPU/GPU/TPU parity evidence.
+
+GK OOD detector deployment claims require persisted calibration artifacts with a
+declared 10D feature schema, training-distribution metadata, threshold
+provenance, and false-positive / false-negative acceptance metrics:
+
+```bash
+scpn-control validate-gk-ood-calibration --require-campaign-artifacts --json-out
+python validation/validate_gk_ood_calibration.py --require-campaign-artifacts --output-json artifacts/gk_ood_calibration_report.json
+```
+
+Strict mode fails until `validation/reports/gk_ood_calibration/` contains real,
+external-code, facility, or published GK campaign calibration evidence.
+
+External GK interface parser claims require persisted artifacts from real
+solver executables or documented public reference outputs. Mock subprocess
+fixtures remain parser-readiness checks only:
+
+```bash
+scpn-control validate-gk-interface-artifacts --require-interface-artifacts --json-out
+python validation/validate_gk_interface_artifacts.py --require-interface-artifacts --output-json artifacts/gk_interface_artifacts_report.json
+```
+
+Strict mode fails until `validation/reports/gk_interfaces/` contains interface
+artifacts with code identity, source provenance, version, run id, execution
+timestamp, input and output SHA-256 hashes, parser version, units, finite
+transport coefficients, growth rate, real frequency, and dominant wavenumber.
 
 Free-boundary tracking acceptance on the real `FusionKernel` path:
 

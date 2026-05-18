@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// ──────────────────────────────────────────────────────────────────────
-// SCPN Control — Rust Crate
-// © 1998–2026 Miroslav Šotek. All rights reserved.
+// Commercial license available
+// © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+// © Code 2020–2026 Miroslav Šotek. All rights reserved.
+// ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// ORCID: https://orcid.org/0009-0009-3560-0851
-// ──────────────────────────────────────────────────────────────────────
+// SCPN Control — Kuramoto benchmark suite
 
 use control_math::kuramoto;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -87,7 +87,30 @@ fn bench_zeta_driver(c: &mut Criterion) {
     group.finish();
 }
 
-// ── 3. Knm inter-layer PAC bench (16 layers, multi-step) ────────────
+// ── 3. Sakaguchi phase-lag bench for alpha-bearing Rust dispatch ────
+
+fn bench_sakaguchi_alpha(c: &mut Criterion) {
+    let mut group = c.benchmark_group("sakaguchi_alpha");
+    for &n in &[1_000, 4_096, 16_384, 65_536] {
+        let (theta, omega) = make_population(n);
+        group.bench_with_input(BenchmarkId::new("alpha_0.37_zeta_0.5", n), &n, |b, _| {
+            b.iter(|| {
+                kuramoto::kuramoto_sakaguchi_step(
+                    black_box(&theta),
+                    black_box(&omega),
+                    black_box(0.01),
+                    black_box(2.0),
+                    black_box(0.37),
+                    black_box(0.5),
+                    black_box(Some(0.3)),
+                )
+            });
+        });
+    }
+    group.finish();
+}
+
+// ── 4. Knm inter-layer PAC bench (16 layers, multi-step) ────────────
 //
 // Simulates the 16-layer UPDE outer loop: for each target layer m,
 // compute order parameters for all source layers n, apply PAC gate
@@ -298,6 +321,7 @@ criterion_group!(
     benches,
     bench_kuramoto_step,
     bench_zeta_driver,
+    bench_sakaguchi_alpha,
     bench_knm_interlayer_pac,
     bench_kuramoto_order_param,
     bench_kuramoto_run_diiid,

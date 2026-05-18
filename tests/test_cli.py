@@ -1,20 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Cli
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — CLI Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# ──────────────────────────────────────────────────────────────────────
+
 """Tests for the scpn-control Click CLI entry point."""
 
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -69,6 +67,35 @@ def test_validate_json_out(runner):
     data = json.loads(result.output)
     assert "status" in data
     assert data["status"] in ("pass", "fail")
+    assert data["data_manifests"]["status"] == "pass"
+    assert data["data_manifests"]["total"] >= 3
+
+
+def test_validate_reports_manifest_gate_failures(runner, tmp_path):
+    result = runner.invoke(main, ["validate", "--data-manifest-root", str(tmp_path), "--json-out"])
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["data_manifests"]["status"] == "fail"
+    assert data["data_manifests"]["errors"][0]["error"] == "no data manifests found"
+
+
+def test_validate_command_is_import_clean_in_fresh_process():
+    repo_root = Path(__file__).resolve().parents[1]
+    completed = subprocess.run(
+        [sys.executable, "-m", "scpn_control.cli", "validate", "--json-out"],
+        check=True,
+        cwd=repo_root,
+        env={"PYTHONPATH": str(repo_root / "src")},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    data = json.loads(completed.stdout)
+    assert data["import_clean"] is True
+    assert "contaminated_module" not in data
 
 
 def test_validate_manifest_json_out(runner, tmp_path):
@@ -195,6 +222,27 @@ def test_validate_data_manifests_reports_failures(runner, tmp_path):
     assert data["errors"][0]["error"] == "no data manifests found"
 
 
+def test_validate_data_manifests_can_require_real_acquisition(runner):
+    root = Path(__file__).resolve().parents[1] / "validation" / "reference_data"
+
+    result = runner.invoke(
+        main,
+        [
+            "validate-data-manifests",
+            "--root",
+            str(root),
+            "--require-real-acquisition",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["acquisition_specs"]["pending"] >= 1
+    assert any(error["error"] == "missing acquired MDSplus manifest" for error in data["errors"])
+
+
 def test_validate_physics_traceability_json_out(runner):
     registry = Path(__file__).resolve().parents[1] / "validation" / "physics_traceability.json"
 
@@ -219,6 +267,116 @@ def test_validate_physics_traceability_reports_failures(runner, tmp_path):
     fields = {error["field"] for error in data["errors"]}
     assert "entries" in fields
     assert "spdx_license_id" in fields
+
+
+def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-gk-crosscode",
+            "--evidence-root",
+            str(tmp_path),
+            "--require-external-runs",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no real external GK evidence reports found"
+
+
+def test_validate_gk_geometry_reference_json_out(runner):
+    reference_path = (
+        Path(__file__).resolve().parents[1]
+        / "validation"
+        / "reference_data"
+        / "gk_geometry"
+        / "miller_reference_cases.json"
+    )
+
+    result = runner.invoke(
+        main, ["validate-gk-geometry-reference", "--reference-path", str(reference_path), "--json-out"]
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "pass"
+    assert data["cases"] == 3
+
+
+def test_validate_gk_species_reference_json_out(runner):
+    reference_path = (
+        Path(__file__).resolve().parents[1]
+        / "validation"
+        / "reference_data"
+        / "gk_species"
+        / "species_collision_reference_cases.json"
+    )
+
+    result = runner.invoke(
+        main, ["validate-gk-species-reference", "--reference-path", str(reference_path), "--json-out"]
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "pass"
+    assert data["cases"] == 4
+
+
+def test_validate_jax_gk_parity_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-jax-gk-parity",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-parity-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no JAX GK parity artifacts found"
+
+
+def test_validate_gk_ood_calibration_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-gk-ood-calibration",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-campaign-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no GK OOD calibration artifacts found"
+
+
+def test_validate_gk_interface_artifacts_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-gk-interface-artifacts",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-interface-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no external GK interface artifacts found"
 
 
 def test_hil_test_nonexistent_dir(runner):

@@ -1,0 +1,190 @@
+{
+  "spdx_license_id": "AGPL-3.0-or-later",
+  "commercial_license": "available",
+  "concepts_copyright": "Concepts 1996-2026 Miroslav Sotek. All rights reserved.",
+  "code_copyright": "Code 2020-2026 Miroslav Sotek. All rights reserved.",
+  "orcid": "0009-0009-3560-0851",
+  "contact": "www.anulum.li | protoscience@anulum.li",
+  "file": "SCPN Control - Miller Geometry Reference Cases",
+  "schema_version": "1.0",
+  "cases": [
+    {
+      "case": "circular_cyclone_limit",
+      "parameters": {
+        "R0": 2.78,
+        "a": 1.0,
+        "rho": 0.5,
+        "kappa": 1.0,
+        "delta": 0.0,
+        "dR_dr": 0.0,
+        "q": 1.4,
+        "B0": 2.0
+      },
+      "sample_points": [
+        {
+          "theta": -3.141592653589793,
+          "R": 2.28,
+          "Z": 0.0,
+          "jacobian": 0.5,
+          "g_rr": 1.0,
+          "g_rt": 0.0,
+          "g_tt": 4.0,
+          "B_toroidal": 2.43859649122807,
+          "b_dot_grad_theta": 0.31328320802005
+        },
+        {
+          "theta": -1.570796326794897,
+          "R": 2.78,
+          "Z": -0.5,
+          "jacobian": 0.5,
+          "g_rr": 1.0,
+          "g_rt": 0.0,
+          "g_tt": 4.0,
+          "B_toroidal": 2.0,
+          "b_dot_grad_theta": 0.25693730729702
+        },
+        {
+          "theta": 0.0,
+          "R": 3.28,
+          "Z": 0.0,
+          "jacobian": 0.5,
+          "g_rr": 1.0,
+          "g_rt": 0.0,
+          "g_tt": 4.0,
+          "B_toroidal": 1.695121951219512,
+          "b_dot_grad_theta": 0.217770034843206
+        },
+        {
+          "theta": 1.570796326794897,
+          "R": 2.78,
+          "Z": 0.5,
+          "jacobian": 0.5,
+          "g_rr": 1.0,
+          "g_rt": 0.0,
+          "g_tt": 4.0,
+          "B_toroidal": 2.0,
+          "b_dot_grad_theta": 0.25693730729702
+        }
+      ]
+    },
+    {
+      "case": "shaped_positive_triangularity",
+      "parameters": {
+        "R0": 2.78,
+        "a": 1.0,
+        "rho": 0.5,
+        "kappa": 1.7,
+        "delta": 0.3,
+        "dR_dr": -0.08,
+        "q": 1.9,
+        "B0": 2.1
+      },
+      "sample_points": [
+        {
+          "theta": -3.141592653589793,
+          "R": 2.24,
+          "Z": 0.0,
+          "jacobian": 0.918,
+          "g_rr": 0.857338820301783,
+          "g_rt": 0.0,
+          "g_tt": 1.384083044982699,
+          "B_toroidal": 2.60625,
+          "b_dot_grad_theta": 0.234962406015038
+        },
+        {
+          "theta": -1.570796326794897,
+          "R": 2.59,
+          "Z": -0.85,
+          "jacobian": 0.810848321204404,
+          "g_rr": 0.346020761245675,
+          "g_rt": 0.27567352107566,
+          "g_tt": 4.615232518346706,
+          "B_toroidal": 2.254054054054054,
+          "b_dot_grad_theta": 0.203210729526519
+        },
+        {
+          "theta": 0.0,
+          "R": 3.24,
+          "Z": 0.0,
+          "jacobian": 0.782,
+          "g_rr": 1.181474480151228,
+          "g_rt": 0.0,
+          "g_tt": 1.384083044982699,
+          "B_toroidal": 1.801851851851852,
+          "b_dot_grad_theta": 0.162443144899285
+        },
+        {
+          "theta": 1.570796326794897,
+          "R": 2.59,
+          "Z": 0.85,
+          "jacobian": 0.810848321204404,
+          "g_rr": 0.346020761245675,
+          "g_rt": -0.27567352107566,
+          "g_tt": 4.615232518346706,
+          "B_toroidal": 2.254054054054054,
+          "b_dot_grad_theta": 0.203210729526519
+        }
+      ]
+    },
+    {
+      "case": "high_shear_local_equilibrium",
+      "parameters": {
+        "R0": 6.2,
+        "a": 2.0,
+        "rho": 0.35,
+        "kappa": 1.85,
+        "delta": 0.25,
+        "dR_dr": -0.12,
+        "q": 3.2,
+        "s_hat": 2.4,
+        "B0": 5.3
+      },
+      "sample_points": [
+        {
+          "theta": -3.141592653589793,
+          "R": 5.416,
+          "Z": 0.0,
+          "jacobian": 1.4504,
+          "g_rr": 0.79719387755102,
+          "g_rt": 0.0,
+          "g_tt": 0.596294032587469,
+          "B_toroidal": 6.067208271787297,
+          "b_dot_grad_theta": 0.05769940915805
+        },
+        {
+          "theta": -1.570796326794897,
+          "R": 5.941000000000001,
+          "Z": -1.295,
+          "jacobian": 1.253878358334651,
+          "g_rr": 0.29218407596786,
+          "g_rt": 0.159505105635312,
+          "g_tt": 2.263945578231292,
+          "B_toroidal": 5.53105537788251,
+          "b_dot_grad_theta": 0.052600572294227
+        },
+        {
+          "theta": 0.0,
+          "R": 6.816000000000001,
+          "Z": 0.0,
+          "jacobian": 1.1396,
+          "g_rr": 1.291322314049587,
+          "g_rt": 0.0,
+          "g_tt": 0.596294032587469,
+          "B_toroidal": 4.821009389671361,
+          "b_dot_grad_theta": 0.045848004694836
+        },
+        {
+          "theta": 1.570796326794897,
+          "R": 5.941000000000001,
+          "Z": 1.295,
+          "jacobian": 1.253878358334651,
+          "g_rr": 0.29218407596786,
+          "g_rt": -0.159505105635312,
+          "g_tt": 2.263945578231292,
+          "B_toroidal": 5.53105537788251,
+          "b_dot_grad_theta": 0.052600572294227
+        }
+      ]
+    }
+  ]
+}

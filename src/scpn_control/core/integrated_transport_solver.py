@@ -1,31 +1,20 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Integrated Transport Solver
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Integrated Transport Solver
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Integrated Transport Solver
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import json
 import logging
+from importlib.util import find_spec
 
 import numpy as np
 
-try:
-    import matplotlib.pyplot as plt  # noqa: F401
-
-    HAS_MPL = True
-except ImportError:
-    HAS_MPL = False
+HAS_MPL = find_spec("matplotlib") is not None
 from pathlib import Path
 from typing import Any
 
@@ -571,7 +560,7 @@ class TransportSolver(FusionKernel):
         D_e_out = np.zeros_like(self.rho)
 
         for i in range(len(self.rho)):
-            if self.rho[i] <= 0.05:
+            if self.rho[i] <= 0.05 or not np.isfinite(self.ne[i]) or self.ne[i] <= 1e-6:
                 chi_i_out[i] = 0.01
                 chi_e_out[i] = 0.01
                 D_e_out[i] = 0.01
@@ -664,7 +653,7 @@ class TransportSolver(FusionKernel):
         D_e_out = np.zeros_like(self.rho)
 
         for i in range(len(self.rho)):
-            if self.rho[i] <= 0.05:
+            if self.rho[i] <= 0.05 or not np.isfinite(self.ne[i]) or self.ne[i] <= 1e-6:
                 chi_i_out[i] = 0.01
                 chi_e_out[i] = 0.01
                 D_e_out[i] = 0.01

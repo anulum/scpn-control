@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Gk Ood Detector
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — OOD Detector Tests
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — OOD detector tests
 from __future__ import annotations
 
 import numpy as np
@@ -203,3 +199,34 @@ def test_to_input_vector():
     assert v.shape == (10,)
     assert v[0] == 1.0
     assert v[9] == 10.0
+
+
+@pytest.mark.parametrize(
+    "kwargs,field",
+    [
+        ({"mahalanobis_threshold": 0.0}, "mahalanobis_threshold"),
+        ({"soft_sigma_threshold": -1.0}, "soft_sigma_threshold"),
+        ({"ensemble_disagreement_threshold": float("nan")}, "ensemble_disagreement_threshold"),
+    ],
+)
+def test_detector_rejects_nonphysical_thresholds(kwargs: dict[str, float], field: str) -> None:
+    with pytest.raises(ValueError, match=field):
+        OODDetector(**kwargs)
+
+
+def test_detector_rejects_wrong_length_training_mean() -> None:
+    with pytest.raises(ValueError, match="training_mean"):
+        OODDetector(training_mean=np.zeros(9))
+
+
+def test_detector_rejects_wrong_shape_covariance_inverse() -> None:
+    with pytest.raises(ValueError, match="training_cov_inv"):
+        OODDetector(training_cov_inv=np.eye(9))
+
+
+def test_ood_checks_reject_nonfinite_input(detector) -> None:
+    x = np.zeros(10)
+    x[3] = np.nan
+
+    with pytest.raises(ValueError, match="x"):
+        detector.check(x)

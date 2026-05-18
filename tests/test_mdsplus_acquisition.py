@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ----------------------------------------------------------------------
-# SCPN Control - MDSplus Acquisition Tests
-# Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ----------------------------------------------------------------------
+# SCPN Control — MDSplus Acquisition Tests
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 import pytest
@@ -21,6 +22,7 @@ from scpn_control.core.mdsplus_acquisition import (
     acquire_mdsplus_shot,
     load_mdsplus_acquisition_request,
 )
+import scpn_control.core.mdsplus_acquisition as mdsplus_acquisition
 from scpn_control.core.real_data_manifest import load_real_data_manifest
 
 
@@ -134,6 +136,17 @@ def test_load_mdsplus_acquisition_request_from_json(tmp_path: Path) -> None:
     )
 
 
+def test_load_mdsplus_acquisition_request_rejects_duplicate_keys(tmp_path: Path) -> None:
+    spec_path = tmp_path / "duplicate_mdsplus.json"
+    spec_path.write_text(
+        '{"schema_version":"1.0","tree":"DIII-D","tree":"NSTX-U"}',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="duplicate JSON key: tree"):
+        load_mdsplus_acquisition_request(spec_path)
+
+
 def test_repository_mdsplus_acquisition_spec_loads() -> None:
     request = load_mdsplus_acquisition_request(
         REPO_ROOT / "validation/reference_data/diiid/acquisition_specs/shot_163303_mdsplus.json"
@@ -170,6 +183,21 @@ def test_cli_acquire_mdsplus_reports_missing_optional_dependency(runner, tmp_pat
     payload = json.loads(result.output)
     assert payload["status"] == "fail"
     assert "MDSplus" in payload["error"]
+
+
+def test_import_mdsplus_falls_back_to_mdsthin_compat(monkeypatch) -> None:
+    compat = SimpleNamespace(Tree=object)
+
+    def fake_import_module(name: str) -> Any:
+        if name == "MDSplus":
+            raise ImportError("native client absent")
+        if name == "mdsthin.MDSplus":
+            return compat
+        raise AssertionError(name)
+
+    monkeypatch.setattr(mdsplus_acquisition.importlib, "import_module", fake_import_module)
+
+    assert mdsplus_acquisition._import_mdsplus() is compat
 
 
 def test_cli_acquire_mdsplus_accepts_spec_json(runner, tmp_path: Path) -> None:

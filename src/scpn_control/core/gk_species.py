@@ -1,4 +1,5 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
@@ -64,6 +65,14 @@ class GKSpecies:
     R_L_T: float
     R_L_n: float
     is_adiabatic: bool = False
+
+    def __post_init__(self) -> None:
+        _require_positive("mass_amu", self.mass_amu)
+        _require_nonzero("charge_e", self.charge_e)
+        _require_positive("temperature_keV", self.temperature_keV)
+        _require_positive("density_19", self.density_19)
+        _require_finite("R_L_T", self.R_L_T)
+        _require_finite("R_L_n", self.R_L_n)
 
     @property
     def mass_kg(self) -> float:
@@ -156,6 +165,11 @@ def collision_frequencies(
       nu_D = nu_ii for ions, nu_ei for electrons
       nu_E = nu_D * (m_target / m_field) correction
     """
+    _require_positive("n_e_19", n_e_19)
+    _require_positive("T_e_keV", T_e_keV)
+    _require_positive("Z_eff", Z_eff)
+    _require_positive("ln_lambda", ln_lambda)
+
     n_e = n_e_19 * 1e19  # m^-3
     T_e_J = T_e_keV * 1e3 * _E_CHARGE
     T_s_J = species.temperature_keV * 1e3 * _E_CHARGE
@@ -171,6 +185,23 @@ def collision_frequencies(
     nu_D = float(Z_eff * nu_ref)
     nu_E = nu_D  # simplified: energy diffusion ~ pitch-angle for like-species
     return nu_D, nu_E
+
+
+def _require_finite(field: str, value: float) -> None:
+    if not np.isfinite(value):
+        raise ValueError(f"{field} must be finite")
+
+
+def _require_positive(field: str, value: float) -> None:
+    _require_finite(field, value)
+    if value <= 0.0:
+        raise ValueError(f"{field} must be positive")
+
+
+def _require_nonzero(field: str, value: float) -> None:
+    _require_finite(field, value)
+    if value == 0.0:
+        raise ValueError(f"{field} must be non-zero")
 
 
 def pitch_angle_operator(

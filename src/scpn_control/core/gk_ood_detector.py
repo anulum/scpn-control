@@ -1,4 +1,5 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
@@ -75,10 +76,12 @@ def _to_input_vector(
     nu_star: float,
     beta_e: float,
 ) -> NDArray[np.float64]:
-    return np.array(
+    values = np.array(
         [R_L_Ti, R_L_Te, R_L_ne, q, s_hat, alpha_MHD, Te_Ti, Z_eff, nu_star, beta_e],
         dtype=np.float64,
     )
+    _validate_input_vector(values)
+    return values
 
 
 class OODDetector:
@@ -104,19 +107,27 @@ class OODDetector:
         training_mean: NDArray[np.float64] | None = None,
         training_cov_inv: NDArray[np.float64] | None = None,
     ) -> None:
+        _require_positive("mahalanobis_threshold", mahalanobis_threshold)
+        _require_positive("soft_sigma_threshold", soft_sigma_threshold)
+        _require_positive("ensemble_disagreement_threshold", ensemble_disagreement_threshold)
         self.mahalanobis_threshold = mahalanobis_threshold
         self.soft_sigma_threshold = soft_sigma_threshold
         self.ensemble_disagreement_threshold = ensemble_disagreement_threshold
 
-        self._mean = training_mean if training_mean is not None else _TRAINING_MEAN
+        self._mean = np.asarray(training_mean if training_mean is not None else _TRAINING_MEAN, dtype=np.float64)
+        if self._mean.shape != _TRAINING_MEAN.shape or not np.all(np.isfinite(self._mean)):
+            raise ValueError("training_mean must be a finite 10-element vector")
         if training_cov_inv is not None:
-            self._cov_inv = training_cov_inv
+            self._cov_inv = np.asarray(training_cov_inv, dtype=np.float64)
+            if self._cov_inv.shape != (10, 10) or not np.all(np.isfinite(self._cov_inv)):
+                raise ValueError("training_cov_inv must be a finite 10x10 matrix")
         else:
             # Diagonal approximation from training std
             self._cov_inv = np.diag(1.0 / np.maximum(_TRAINING_STD**2, 1e-12))
 
     def mahalanobis_distance(self, x: NDArray[np.float64]) -> float:
         """Compute Mahalanobis distance from training mean."""
+        _validate_input_vector(x)
         diff = x - self._mean
         return float(np.sqrt(diff @ self._cov_inv @ diff))
 
@@ -133,6 +144,7 @@ class OODDetector:
 
     def check_range(self, x: NDArray[np.float64]) -> OODResult:
         """Check hard bounds and soft sigma bounds."""
+        _validate_input_vector(x)
         hard_violations = []
         soft_violations = []
 
@@ -166,6 +178,8 @@ class OODDetector:
         predictions : array, shape (K, 3)
             Ensemble of [chi_i, chi_e, D_e] predictions from K models.
         """
+        if not np.all(np.isfinite(predictions)):
+            raise ValueError("predictions must be finite")
         if predictions.ndim != 2 or predictions.shape[0] < 2:
             return OODResult(
                 is_ood=False,
@@ -200,6 +214,7 @@ class OODDetector:
         ensemble_predictions: NDArray[np.float64] | None = None,
     ) -> OODResult:
         """Run all applicable checks and return combined result."""
+        _validate_input_vector(x)
         results = [
             self.check_mahalanobis(x),
             self.check_range(x),
@@ -218,3 +233,13 @@ class OODDetector:
                 "sub_results": {r.method: {"is_ood": r.is_ood, "confidence": r.confidence} for r in results},
             },
         )
+
+
+def _require_positive(field: str, value: float) -> None:
+    if not np.isfinite(value) or value <= 0.0:
+        raise ValueError(f"{field} must be finite and positive")
+
+
+def _validate_input_vector(x: NDArray[np.float64]) -> None:
+    if x.shape != _TRAINING_MEAN.shape or not np.all(np.isfinite(x)):
+        raise ValueError("x must be a finite 10-element vector")

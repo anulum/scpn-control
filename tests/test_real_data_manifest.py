@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ----------------------------------------------------------------------
-# SCPN Control - Real Data Manifest Tests
-# Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ----------------------------------------------------------------------
+# SCPN Control — Real Data Manifest Tests
 
 from __future__ import annotations
 
@@ -95,6 +95,17 @@ def test_load_real_data_manifest_from_json(tmp_path) -> None:
     manifest = load_real_data_manifest(path)
 
     assert manifest.dataset_id == "diii-d-163303-control-replay"
+
+
+def test_load_real_data_manifest_rejects_duplicate_keys(tmp_path) -> None:
+    path = tmp_path / "duplicate_manifest.json"
+    path.write_text(
+        '{"schema_version":"1.0","dataset_id":"first","dataset_id":"second"}',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RealDataManifestError, match="duplicate JSON key: dataset_id"):
+        load_real_data_manifest(path)
 
 
 def test_real_manifest_rejects_synthetic_source_kind() -> None:

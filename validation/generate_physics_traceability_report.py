@@ -52,9 +52,33 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
         f"- Resolved evidence paths: {report['resolved_evidence_paths']}",
         f"- Source marker coverage: {_source_marker_coverage(report)}",
         "",
-        "## Components",
+        "## Module Traceability Table",
         "",
+        "| Module | Equation or contract | References | Unit contract | Validation evidence | Status |",
+        "|--------|----------------------|------------|---------------|---------------------|--------|",
     ]
+    for entry in sorted(_entries(report), key=lambda item: str(item["component"])):
+        lines.append(
+            "| "
+            + " | ".join(
+                (
+                    _markdown_cell(f"`{entry['module_path']}`"),
+                    _markdown_cell(str(entry.get("equation_contract", ""))),
+                    _markdown_cell(_join_list(entry.get("model_references"))),
+                    _markdown_cell(str(entry.get("unit_contract", ""))),
+                    _markdown_cell(_join_list(entry.get("validation_evidence"))),
+                    _markdown_cell(str(entry.get("fidelity_status", ""))),
+                )
+            )
+            + " |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Components",
+            "",
+        ]
+    )
     for entry in sorted(_entries(report), key=lambda item: str(item["component"])):
         claim_status = "allowed" if entry["public_claim_allowed"] else "blocked"
         lines.extend(
@@ -95,6 +119,16 @@ def _source_marker_coverage(report: dict[str, Any]) -> str:
     if not isinstance(covered, int) or not isinstance(total, int):
         return "0/0"
     return f"{covered}/{total}"
+
+
+def _join_list(value: object) -> str:
+    if not isinstance(value, list):
+        return ""
+    return "; ".join(str(item) for item in value if isinstance(item, str) and item.strip())
+
+
+def _markdown_cell(value: str) -> str:
+    return " ".join(value.replace("|", "\\|").split())
 
 
 def main(argv: list[str] | None = None) -> int:

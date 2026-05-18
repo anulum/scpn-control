@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Kuramoto
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Kuramoto-Sakaguchi + Global Field Driver
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Kuramoto-Sakaguchi phase dynamics
 """
 Mean-field Kuramoto-Sakaguchi with exogenous global driver.
 
@@ -31,7 +23,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -46,6 +38,25 @@ try:
     RUST_KURAMOTO = True  # pragma: no cover
 except ImportError:
     RUST_KURAMOTO = False
+
+
+def _normalise_rust_step_result(rust_out: Any) -> tuple[FloatArray, float, float, float]:
+    """Convert supported Rust binding return shapes to Python step fields."""
+    if isinstance(rust_out, dict):
+        return (
+            np.asarray(rust_out["theta"], dtype=np.float64),
+            float(rust_out["r"]),
+            float(rust_out["psi_r"]),
+            float(rust_out["psi_global"]),
+        )
+
+    th1, r_value, psi_r, psi_global = rust_out
+    return (
+        np.asarray(th1, dtype=np.float64),
+        float(r_value),
+        float(psi_r),
+        float(psi_global),
+    )
 
 
 def wrap_phase(x: FloatArray) -> FloatArray:
@@ -140,15 +151,17 @@ def kuramoto_sakaguchi_step(
     # Resolve Ψ before dispatching (Rust kernel needs resolved value)
     Psi = GlobalPsiDriver(mode=psi_mode).resolve(th, psi_driver)
 
-    if RUST_KURAMOTO and wrap and alpha == 0.0:
-        th1, R, psi_r, psi_g = _rust_step(
-            th,
-            om,
-            dt,
-            K,
-            0.0,
-            zeta,
-            Psi,
+    if RUST_KURAMOTO and wrap:
+        th1, R, psi_r, psi_g = _normalise_rust_step_result(
+            _rust_step(
+                th,
+                om,
+                dt,
+                K,
+                alpha,
+                zeta,
+                Psi,
+            ),
         )
         return {
             "theta1": th1,

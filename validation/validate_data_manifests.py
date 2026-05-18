@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ----------------------------------------------------------------------
-# SCPN Control - Data Manifest Validation Runner
-# Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ----------------------------------------------------------------------
+# SCPN Control — Data Manifest Validation Runner
+
 """Validate repository data manifests and local artefact checksums."""
 
 from __future__ import annotations
@@ -50,6 +51,11 @@ class AcquisitionSpec:
     source_uri: str
     signals: int
 
+    @property
+    def expected_dataset_id(self) -> str:
+        """Dataset id emitted by the MDSplus acquisition command for this spec."""
+        return f"{self.tree.lower()}-{self.shot}-mdsplus"
+
 
 def iter_manifest_paths(root: str | Path) -> list[Path]:
     """Return repository manifest paths under ``root`` in stable order."""
@@ -73,7 +79,12 @@ def iter_diiid_artifact_paths(root: str | Path) -> list[Path]:
     return sorted(path for path in paths if path.is_file())
 
 
-def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = True) -> dict[str, Any]:
+def validate_manifest_directory(
+    root: str | Path,
+    *,
+    verify_artifacts: bool = True,
+    require_real_acquisition: bool = False,
+) -> dict[str, Any]:
     """Validate all manifests below ``root`` and return a CI-friendly report."""
     root_path = Path(root)
     manifest_paths = iter_manifest_paths(root)
@@ -94,6 +105,9 @@ def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = Tr
         "acquisition_specs": {
             "total": len(acquisition_spec_paths),
             "mdsplus": 0,
+            "realised": 0,
+            "pending": 0,
+            "require_real_acquisition": bool(require_real_acquisition),
             "specs": [],
         },
         "manifests": [],
@@ -110,6 +124,7 @@ def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = Tr
     spec_entries = cast(list[dict[str, object]], acquisition_specs["specs"])
     errors: list[dict[str, str]] = report["errors"]
     covered_artifacts: set[Path] = set()
+    spec_records: list[tuple[Path, AcquisitionSpec]] = []
     for spec_path in acquisition_spec_paths:
         try:
             spec = load_acquisition_spec(spec_path)
@@ -117,6 +132,7 @@ def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = Tr
             errors.append({"path": str(spec_path), "error": str(exc)})
             continue
         acquisition_specs["mdsplus"] = cast(int, acquisition_specs["mdsplus"]) + 1
+        spec_records.append((spec_path, spec))
         spec_entries.append(
             {
                 "path": str(spec_path),
@@ -125,9 +141,12 @@ def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = Tr
                 "shot": spec.shot,
                 "source_uri": spec.source_uri,
                 "signals": spec.signals,
+                "expected_dataset_id": spec.expected_dataset_id,
+                "manifest_path": None,
             }
         )
 
+    acquired_mdsplus_manifests: dict[str, str] = {}
     for manifest_path in manifest_paths:
         try:
             manifest = load_real_data_manifest(manifest_path, verify_artifact=verify_artifacts)
@@ -150,10 +169,32 @@ def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = Tr
                 "signals": len(manifest.signals),
             }
         )
+        if not manifest.synthetic and manifest.source.kind == "mdsplus":
+            acquired_mdsplus_manifests[manifest.dataset_id] = str(manifest_path)
         for uri in _covered_artifact_uris(manifest):
             resolved = _resolve_manifest_uri(uri, manifest_path, root_path)
             if resolved is not None:
                 covered_artifacts.add(resolved)
+
+    spec_by_dataset = {spec.expected_dataset_id: index for index, (_, spec) in enumerate(spec_records)}
+    for dataset_id, manifest_path in acquired_mdsplus_manifests.items():
+        spec_index = spec_by_dataset.get(dataset_id)
+        if spec_index is not None:
+            spec_entries[spec_index]["manifest_path"] = manifest_path
+
+    realised = sum(1 for entry in spec_entries if entry.get("manifest_path") is not None)
+    pending = len(spec_entries) - realised
+    acquisition_specs["realised"] = realised
+    acquisition_specs["pending"] = pending
+    if require_real_acquisition:
+        for spec_path, spec in spec_records:
+            if spec.expected_dataset_id not in acquired_mdsplus_manifests:
+                errors.append(
+                    {
+                        "path": str(spec_path),
+                        "error": "missing acquired MDSplus manifest",
+                    }
+                )
 
     expected_set = {path.resolve() for path in expected_artifacts}
     missing = sorted(expected_set - covered_artifacts)
@@ -174,7 +215,7 @@ def load_acquisition_spec(path: str | Path) -> AcquisitionSpec:
     """Load an MDSplus acquisition request without importing runtime dependencies."""
     spec_path = Path(path)
     with spec_path.open(encoding="utf-8") as handle:
-        payload = json.load(handle)
+        payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
     if not isinstance(payload, dict):
         raise ValueError("MDSplus acquisition request root must be a JSON object")
     if payload.get("schema_version") != "1.0":
@@ -195,6 +236,16 @@ def load_acquisition_spec(path: str | Path) -> AcquisitionSpec:
         raise ValueError("MDSplus acquisition requires at least one signal")
     _validate_signal_specs(signals_payload)
     return AcquisitionSpec(tree=tree, shot=shot, source_uri=source_uri, signals=len(signals_payload))
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object while rejecting duplicate acquisition-spec keys."""
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"duplicate JSON key: {key}")
+        out[key] = value
+    return out
 
 
 def _validate_signal_specs(signals: list[object]) -> None:
@@ -258,11 +309,20 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Validate manifest metadata without local checksum verification",
     )
+    parser.add_argument(
+        "--require-real-acquisition",
+        action="store_true",
+        help="Fail when an acquisition spec has no corresponding acquired MDSplus manifest",
+    )
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     parser.add_argument("--output-json", help="Write JSON report to this path")
     args = parser.parse_args(argv)
 
-    report = validate_manifest_directory(args.root, verify_artifacts=not args.no_verify_artifacts)
+    report = validate_manifest_directory(
+        args.root,
+        verify_artifacts=not args.no_verify_artifacts,
+        require_real_acquisition=args.require_real_acquisition,
+    )
     if args.output_json:
         output_path = Path(args.output_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)

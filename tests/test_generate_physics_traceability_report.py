@@ -24,6 +24,13 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "Open fidelity gaps: 43" in markdown
     assert "Full-fidelity public claims blocked: 43" in markdown
     assert "Source marker coverage: 41/41" in markdown
+    assert "## Module Traceability Table" in markdown
+    assert "| Module | Equation or contract | References | Unit contract | Validation evidence | Status |" in markdown
+    assert "`src/scpn_control/core/gk_nonlinear.py`" in markdown
+    assert "Five-dimensional delta-f flux-tube Vlasov evolution" in markdown
+    assert "Dimits et al. 2000 Cyclone Base Case" in markdown
+    assert "Gyro-Bohm-normalised heat flux" in markdown
+    assert "docs/joss_paper.md nonlinear GK validation limitation" in markdown
     assert "DIII-D experimental replay" in markdown
     assert "RZIP rigid vertical stability model" in markdown
     assert "real-time EFIT-lite equilibrium reconstruction" in markdown
@@ -42,6 +49,7 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "gyrokinetic species and collision approximation contract" in markdown
     assert "JAX gyrokinetic numerical parity guard" in markdown
     assert "gyrokinetic OOD detector distribution-bound contract" in markdown
+    assert "strict external interface artifact gate" in markdown
     assert "transport solver neoclassical and source-term approximation contract" in markdown
     assert "reduced gyrokinetic transport closure contract" in markdown
     assert "momentum transport and torque-balance approximation contract" in markdown

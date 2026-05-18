@@ -71,9 +71,13 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
     for field in _REQUIRED_HEADER_FIELDS:
         value = payload.get(field)
         if not isinstance(value, str) or not value.strip():
-            errors.append({"path": str(path), "field": field, "error": "JSON registry requires canonical header metadata"})
+            errors.append(
+                {"path": str(path), "field": field, "error": "JSON registry requires canonical header metadata"}
+            )
     if payload.get("spdx_license_id") not in {None, "AGPL-3.0-or-later"}:
-        errors.append({"path": str(path), "field": "spdx_license_id", "error": "spdx_license_id must be AGPL-3.0-or-later"})
+        errors.append(
+            {"path": str(path), "field": "spdx_license_id", "error": "spdx_license_id must be AGPL-3.0-or-later"}
+        )
     if payload.get("schema_version") != "1.0":
         errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
     entries = payload.get("entries")
@@ -104,8 +108,12 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
             {
                 "component": entry.get("component", ""),
                 "module_path": entry.get("module_path", ""),
+                "equation_contract": entry.get("equation_contract", ""),
                 "fidelity_status": status,
+                "model_references": entry.get("model_references", []),
                 "public_claim_allowed": entry.get("public_claim_allowed"),
+                "unit_contract": entry.get("unit_contract", ""),
+                "validation_evidence": entry.get("validation_evidence", []),
                 "required_actions": entry.get("required_actions", []),
                 "covered_source_paths": sorted(covered_paths),
                 "covered_source_count": len(covered_paths),
@@ -145,10 +153,16 @@ def _validate_entry(
     for field in _REQUIRED_STR_FIELDS:
         value = entry.get(field)
         if not isinstance(value, str) or not value.strip():
-            errors.append({"path": str(path), "index": index, "field": field, "error": "field must be a non-empty string"})
+            errors.append(
+                {"path": str(path), "index": index, "field": field, "error": "field must be a non-empty string"}
+            )
     for field in _REQUIRED_LIST_FIELDS:
         value = entry.get(field)
-        if not isinstance(value, list) or not value or not all(isinstance(item, str) and item.strip() for item in value):
+        if (
+            not isinstance(value, list)
+            or not value
+            or not all(isinstance(item, str) and item.strip() for item in value)
+        ):
             errors.append(
                 {"path": str(path), "index": index, "field": field, "error": "field must be a non-empty string array"}
             )
@@ -158,15 +172,38 @@ def _validate_entry(
         module_scope_path = _resolve_repo_path(registry_root, module_path)
         module_resolved = module_scope_path is not None
         if module_scope_path is None:
-            errors.append({"path": str(path), "index": index, "field": "module_path", "error": "module_path must resolve in repository"})
+            errors.append(
+                {
+                    "path": str(path),
+                    "index": index,
+                    "field": "module_path",
+                    "error": "module_path must resolve in repository",
+                }
+            )
     evidence_paths = entry.get("evidence_paths")
-    if not isinstance(evidence_paths, list) or not evidence_paths or not all(isinstance(item, str) and item.strip() for item in evidence_paths):
-        errors.append({"path": str(path), "index": index, "field": "evidence_paths", "error": "field must be a non-empty string array"})
+    if (
+        not isinstance(evidence_paths, list)
+        or not evidence_paths
+        or not all(isinstance(item, str) and item.strip() for item in evidence_paths)
+    ):
+        errors.append(
+            {
+                "path": str(path),
+                "index": index,
+                "field": "evidence_paths",
+                "error": "field must be a non-empty string array",
+            }
+        )
     else:
         for evidence_path in evidence_paths:
             if _resolve_repo_path(registry_root, evidence_path) is None:
                 errors.append(
-                    {"path": str(path), "index": index, "field": "evidence_paths", "error": f"evidence path does not resolve: {evidence_path}"}
+                    {
+                        "path": str(path),
+                        "index": index,
+                        "field": "evidence_paths",
+                        "error": f"evidence path does not resolve: {evidence_path}",
+                    }
                 )
             else:
                 evidence_resolved += 1
@@ -211,10 +248,14 @@ def _validate_entry(
     status = entry.get("fidelity_status")
     if status not in _ALLOWED_STATUSES:
         allowed = ", ".join(sorted(_ALLOWED_STATUSES))
-        errors.append({"path": str(path), "index": index, "field": "fidelity_status", "error": f"must be one of: {allowed}"})
+        errors.append(
+            {"path": str(path), "index": index, "field": "fidelity_status", "error": f"must be one of: {allowed}"}
+        )
     public_claim_allowed = entry.get("public_claim_allowed")
     if not isinstance(public_claim_allowed, bool):
-        errors.append({"path": str(path), "index": index, "field": "public_claim_allowed", "error": "field must be boolean"})
+        errors.append(
+            {"path": str(path), "index": index, "field": "public_claim_allowed", "error": "field must be boolean"}
+        )
     if status in _OPEN_GAP_STATUSES and public_claim_allowed:
         errors.append(
             {
@@ -302,7 +343,9 @@ def main(argv: list[str] | None = None) -> int:
             f"public_claim_blocked={report['public_claim_blocked']}"
         )
         for error in report["errors"]:
-            print(f"ERROR {error['path']}[{error.get('index', '-')}].{error['field']}: {error['error']}", file=sys.stderr)
+            print(
+                f"ERROR {error['path']}[{error.get('index', '-')}].{error['field']}: {error['error']}", file=sys.stderr
+            )
     return 0 if report["status"] == "pass" else 1
 
 

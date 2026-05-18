@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ----------------------------------------------------------------------
-# SCPN Control - Data Manifest Validation Runner Tests
-# Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ----------------------------------------------------------------------
+# SCPN Control — Data Manifest Validation Runner Tests
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from validation.validate_data_manifests import main, validate_manifest_directory
+from validation.validate_data_manifests import load_acquisition_spec, main, validate_manifest_directory
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,7 +34,23 @@ def test_validate_manifest_directory_reports_repository_manifests() -> None:
     assert report["artifact_coverage"]["missing"] == []
     assert report["acquisition_specs"]["total"] >= 1
     assert report["acquisition_specs"]["mdsplus"] >= 1
+    assert report["acquisition_specs"]["realised"] == 0
+    assert report["acquisition_specs"]["pending"] >= 1
+    spec = report["acquisition_specs"]["specs"][0]
+    assert spec["expected_dataset_id"] == "diii-d-163303-mdsplus"
+    assert spec["manifest_path"] is None
     assert not report["errors"]
+
+
+def test_validate_manifest_directory_can_require_real_acquisitions() -> None:
+    report = validate_manifest_directory(
+        ROOT / "validation" / "reference_data",
+        require_real_acquisition=True,
+    )
+
+    assert report["status"] == "fail"
+    assert report["acquisition_specs"]["pending"] >= 1
+    assert any(error["error"] == "missing acquired MDSplus manifest" for error in report["errors"])
 
 
 def test_validate_manifest_directory_does_not_import_numpy_for_spec_gate() -> None:
@@ -157,6 +173,21 @@ def test_validate_manifest_directory_rejects_bad_acquisition_spec(tmp_path) -> N
     assert "MDSplus acquisition requires at least one signal" in report["errors"][0]["error"]
 
 
+def test_load_acquisition_spec_rejects_duplicate_keys(tmp_path) -> None:
+    spec = tmp_path / "duplicate_spec.json"
+    spec.write_text(
+        '{"schema_version":"1.0","tree":"DIII-D","tree":"NSTX-U"}',
+        encoding="utf-8",
+    )
+
+    try:
+        load_acquisition_spec(spec)
+    except ValueError as exc:
+        assert str(exc) == "duplicate JSON key: tree"
+    else:
+        raise AssertionError("duplicate acquisition spec key was accepted")
+
+
 def test_main_writes_json_report(tmp_path, capsys) -> None:
     output = tmp_path / "data_manifest_report.json"
 
@@ -176,3 +207,22 @@ def test_main_writes_json_report(tmp_path, capsys) -> None:
     assert report["acquisition_specs"]["total"] >= 1
     stdout = capsys.readouterr().out
     assert "acquisition_specs=" in stdout
+
+
+def test_main_can_require_real_acquisition(tmp_path) -> None:
+    output = tmp_path / "strict_data_manifest_report.json"
+
+    exit_code = main(
+        [
+            "--root",
+            str(ROOT / "validation" / "reference_data"),
+            "--require-real-acquisition",
+            "--output-json",
+            str(output),
+            "--json-out",
+        ]
+    )
+
+    assert exit_code == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["acquisition_specs"]["pending"] >= 1

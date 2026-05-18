@@ -1,20 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Gk Species
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — GK Species Tests
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — GK species tests
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
 from scpn_control.core.gk_species import (
+    GKSpecies,
     VelocityGrid,
     bessel_j0,
     collision_frequencies,
@@ -145,3 +142,48 @@ def test_pitch_angle_operator_h_guard():
     lam = np.array([0.0, 0.0, 0.5, 1.0])
     L = pitch_angle_operator(4, lam)
     assert L.shape == (4, 4)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("mass_amu", 0.0),
+        ("charge_e", 0.0),
+        ("temperature_keV", 0.0),
+        ("density_19", -1.0),
+        ("R_L_T", float("nan")),
+        ("R_L_n", float("inf")),
+    ],
+)
+def test_gk_species_rejects_nonphysical_parameters(field: str, value: float) -> None:
+    kwargs = {
+        "mass_amu": 2.0,
+        "charge_e": 1.0,
+        "temperature_keV": 8.0,
+        "density_19": 10.0,
+        "R_L_T": 6.9,
+        "R_L_n": 2.2,
+    }
+    kwargs[field] = value
+
+    with pytest.raises(ValueError, match=field):
+        GKSpecies(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "n_e_19,T_e_keV,Z_eff,ln_lambda",
+    [
+        (0.0, 8.0, 1.0, 17.0),
+        (10.0, 0.0, 1.0, 17.0),
+        (10.0, 8.0, 0.0, 17.0),
+        (10.0, 8.0, 1.0, 0.0),
+    ],
+)
+def test_collision_frequencies_reject_nonphysical_inputs(
+    n_e_19: float,
+    T_e_keV: float,
+    Z_eff: float,
+    ln_lambda: float,
+) -> None:
+    with pytest.raises(ValueError):
+        collision_frequencies(deuterium_ion(), n_e_19=n_e_19, T_e_keV=T_e_keV, Z_eff=Z_eff, ln_lambda=ln_lambda)

@@ -1,4 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- SCPN Control — Benchmarks -->
 
 # Benchmarks
 
@@ -46,6 +52,11 @@ Rust: Rayon `par_chunks_mut(64)` + criterion harness.
 N=64: Rust wins on per-element throughput (no NumPy dispatch overhead).
 N=256: parity — NumPy SIMD matches rayon at this size.
 N≥1000: Rust rayon parallelism scales; **sub-ms for N=16k** (0.544 ms).
+
+The Rust Criterion harness also includes the phase-lagged Sakaguchi case
+`sakaguchi_alpha/alpha_0.37_zeta_0.5` for N=1000, 4096, 16 384, and 65 536.
+This keeps the `alpha != 0` production path under the same regression benchmark
+surface as the baseline and global-driver kernels.
 
 ### Knm 16-Layer UPDE PAC Benchmark
 

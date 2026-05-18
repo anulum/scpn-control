@@ -1,4 +1,5 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
@@ -28,10 +29,59 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
 from scpn_control.core.gk_nonlinear import NonlinearGKConfig, NonlinearGKSolver
+
+CBC_CHI_I_GB_REFERENCE_BAND = (1.0, 5.0)
+CBC_MIN_SATURATION_STEPS = 2_000
+CBC_MAX_TAIL_RELATIVE_DRIFT = 0.10
+
+
+def assess_cbc_saturation_evidence(
+    result: Any,
+    cfg: Any,
+    *,
+    reference_band: tuple[float, float] = CBC_CHI_I_GB_REFERENCE_BAND,
+    min_steps: int = CBC_MIN_SATURATION_STEPS,
+    max_tail_relative_drift: float = CBC_MAX_TAIL_RELATIVE_DRIFT,
+) -> dict[str, object]:
+    """Assess whether a CBC nonlinear run can support saturation claims."""
+    chi_i_gb = float(getattr(result, "chi_i_gB", np.nan))
+    q_i_t = np.asarray(getattr(result, "Q_i_t", []), dtype=np.float64)
+    n_steps = int(getattr(cfg, "n_steps", 0))
+    reasons: list[str] = []
+
+    if not bool(getattr(result, "converged", False)):
+        reasons.append("solver did not converge")
+    if n_steps < min_steps:
+        reasons.append("n_steps below saturation evidence minimum")
+    if not np.isfinite(chi_i_gb):
+        reasons.append("chi_i_gB is not finite")
+    elif not (reference_band[0] <= chi_i_gb <= reference_band[1]):
+        reasons.append("chi_i_gB outside CBC reference band")
+    if q_i_t.size < 4 or not np.all(np.isfinite(q_i_t)):
+        reasons.append("heat-flux time trace is missing or non-finite")
+        tail_relative_drift = float("inf")
+    else:
+        tail = q_i_t[q_i_t.size // 2 :]
+        tail_mean = float(np.mean(np.abs(tail)))
+        tail_relative_drift = float(abs(tail[-1] - tail[0]) / max(tail_mean, 1e-12))
+        if tail_relative_drift > max_tail_relative_drift:
+            reasons.append("tail heat-flux drift exceeds saturation threshold")
+
+    return {
+        "chi_i_gB": chi_i_gb,
+        "n_steps": n_steps,
+        "reference_band": list(reference_band),
+        "min_steps": min_steps,
+        "tail_relative_drift": tail_relative_drift,
+        "max_tail_relative_drift": max_tail_relative_drift,
+        "passed": not reasons,
+        "reasons": reasons,
+    }
 
 
 def run_linear_recovery() -> dict:
@@ -180,13 +230,15 @@ def run_cbc_saturated() -> dict:
     t0 = time.perf_counter()
     result = solver.run()
     elapsed = time.perf_counter() - t0
+    evidence = assess_cbc_saturation_evidence(result, cfg)
     return {
         "test": "V4_cbc_saturated",
-        "chi_i_gB": result.chi_i,
+        "chi_i_gB": result.chi_i_gB,
         "chi_e_gB": result.chi_e,
         "converged": result.converged,
         "elapsed_s": elapsed,
-        "passed": result.converged and np.isfinite(result.chi_i),
+        "saturation_evidence": evidence,
+        "passed": bool(evidence["passed"]),
     }
 
 

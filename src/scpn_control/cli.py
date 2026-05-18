@@ -1,18 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Cli
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — CLI Entry Point
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+
 """
 CLI for scpn-control.
 
@@ -24,6 +17,11 @@ Usage::
     scpn-control validate-manifest real_manifest.json --json-out
     scpn-control validate-data-manifests --json-out
     scpn-control validate-physics-traceability --json-out
+    scpn-control validate-gk-geometry-reference --json-out
+    scpn-control validate-gk-species-reference --json-out
+    scpn-control validate-jax-gk-parity --require-parity-artifacts --json-out
+    scpn-control validate-gk-ood-calibration --require-campaign-artifacts --json-out
+    scpn-control validate-gk-interface-artifacts --require-interface-artifacts --json-out
     scpn-control acquire-mdsplus-shot --spec-json validation/reference_data/diiid/acquisition_specs/shot_163303_mdsplus.json
     scpn-control live --port 8765 --zeta 0.5
     scpn-control hil-test --shots-dir validation/reference_data/diiid/disruption_shots
@@ -34,19 +32,23 @@ from __future__ import annotations
 import json
 import sys
 import time
+from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Mapping, cast
 
 import click
 import numpy as np
 
-import scpn_control
+try:
+    _VERSION = version("scpn-control")
+except PackageNotFoundError:
+    _VERSION = "0.0.0.dev"
 
 if TYPE_CHECKING:
     from scpn_control.core.mdsplus_acquisition import MDSplusSignalSpec
 
 
 @click.group()
-@click.version_option(version=scpn_control.__version__, prog_name="scpn-control")
+@click.version_option(version=_VERSION, prog_name="scpn-control")
 def main() -> None:
     """SCPN Control — Neuro-symbolic Stochastic Petri Net controller."""
 
@@ -214,8 +216,16 @@ def benchmark(n_bench: int, json_out: bool) -> None:
 
 @main.command()
 @click.option("--json-out", is_flag=True, help="Emit JSON")
-def validate(json_out: bool) -> None:
-    """Quick import and contamination check."""
+@click.option("--data-manifest-root", help="Root directory to scan for repository data manifests")
+@click.option("--no-data-manifests", is_flag=True, help="Skip repository data-manifest validation")
+@click.option("--no-verify-artifacts", is_flag=True, help="Validate manifest metadata without local checksums")
+def validate(
+    json_out: bool,
+    data_manifest_root: str | None,
+    no_data_manifests: bool,
+    no_verify_artifacts: bool,
+) -> None:
+    """Run import hygiene and repository data-provenance validation."""
     try:
         from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
 
@@ -228,6 +238,7 @@ def validate(json_out: bool) -> None:
         "import_clean": True,
         "status": "pass",
     }
+    manifest_gate_failed = False
 
     for mod in ["matplotlib", "torch", "streamlit"]:
         if mod in sys.modules:
@@ -236,12 +247,39 @@ def validate(json_out: bool) -> None:
             result["contaminated_module"] = mod
             break
 
+    if no_data_manifests:
+        result["data_manifests"] = {"status": "skipped"}
+    else:
+        from validation.validate_data_manifests import ROOT, validate_manifest_directory
+
+        validation_root = data_manifest_root or str(ROOT / "validation" / "reference_data")
+        manifest_report = validate_manifest_directory(validation_root, verify_artifacts=not no_verify_artifacts)
+        result["data_manifests"] = manifest_report
+        if manifest_report["status"] != "pass":
+            result["status"] = "fail"
+            manifest_gate_failed = True
+
     if json_out:
         click.echo(json.dumps(result, indent=2))
     else:
         click.echo(f"Transport solver: {'OK' if has_transport else 'MISSING'}")
         click.echo(f"Import clean: {'OK' if result['import_clean'] else 'FAIL'}")
+        data_manifests = result["data_manifests"]
+        if isinstance(data_manifests, dict) and data_manifests.get("status") == "skipped":
+            click.echo("Data manifests: SKIPPED")
+        elif isinstance(data_manifests, dict):
+            click.echo(
+                "Data manifests: "
+                f"{data_manifests['status']} "
+                f"total={data_manifests['total']} "
+                f"real={data_manifests['real']} "
+                f"synthetic={data_manifests['synthetic']}"
+            )
+            for error in data_manifests["errors"]:
+                click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
         click.echo(f"Status: {result['status']}")
+    if manifest_gate_failed:
+        raise click.exceptions.Exit(1)
 
 
 @main.command("validate-manifest")
@@ -293,18 +331,28 @@ def validate_manifest(manifest: str, json_out: bool, verify_artifact: bool) -> N
 @click.option("--root", help="Root directory to scan for repository data manifests")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--no-verify-artifacts", is_flag=True, help="Validate metadata without local checksum verification")
+@click.option(
+    "--require-real-acquisition",
+    is_flag=True,
+    help="Fail when an acquisition spec has no corresponding acquired MDSplus manifest",
+)
 @click.option("--json-out", is_flag=True, help="Emit JSON")
 def validate_data_manifests_command(
     root: str | None,
     output_json: str | None,
     no_verify_artifacts: bool,
+    require_real_acquisition: bool,
     json_out: bool,
 ) -> None:
     """Validate repository data manifests, local artefacts, and acquisition specs."""
     from validation.validate_data_manifests import ROOT, validate_manifest_directory
 
     validation_root = root or str(ROOT / "validation" / "reference_data")
-    report = validate_manifest_directory(validation_root, verify_artifacts=not no_verify_artifacts)
+    report = validate_manifest_directory(
+        validation_root,
+        verify_artifacts=not no_verify_artifacts,
+        require_real_acquisition=require_real_acquisition,
+    )
     if output_json is not None:
         from pathlib import Path as _P
 
@@ -361,6 +409,196 @@ def validate_physics_traceability_command(
         for error in report["errors"]:
             index = error.get("index", "-")
             click.echo(f"ERROR {error['path']}[{index}].{error['field']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-gk-crosscode")
+@click.option("--evidence-root", help="Directory or JSON report containing external GK evidence")
+@click.option("--require-external-runs", is_flag=True, help="Fail if no real external-code evidence is present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_gk_crosscode_command(
+    evidence_root: str | None,
+    require_external_runs: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate real external-code evidence for linear GK agreement."""
+    from validation.validate_gk_crosscode import ROOT, validate_gk_crosscode_evidence
+
+    evidence_path = evidence_root or str(ROOT / "validation" / "reports" / "gk_crosscode")
+    report = validate_gk_crosscode_evidence(evidence_path, require_external_runs=require_external_runs)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"GK cross-code evidence: {report['status']} external_runs={report['external_runs']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-gk-geometry-reference")
+@click.option("--reference-path", help="Immutable Miller geometry reference case JSON")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_gk_geometry_reference_command(
+    reference_path: str | None,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate Miller geometry output against immutable reference cases."""
+    from validation.validate_gk_geometry_reference import ROOT, validate_gk_geometry_reference
+
+    path = reference_path or str(ROOT / "validation" / "reference_data" / "gk_geometry" / "miller_reference_cases.json")
+    report = validate_gk_geometry_reference(path)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"GK geometry reference: {report['status']} cases={report['cases']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-gk-species-reference")
+@click.option("--reference-path", help="Immutable GK species and collision reference case JSON")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_gk_species_reference_command(
+    reference_path: str | None,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate GK species normalisation and collision reference cases."""
+    from validation.validate_gk_species_reference import ROOT, validate_gk_species_reference
+
+    path = reference_path or str(
+        ROOT / "validation" / "reference_data" / "gk_species" / "species_collision_reference_cases.json"
+    )
+    report = validate_gk_species_reference(path)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"GK species reference: {report['status']} cases={report['cases']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-jax-gk-parity")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted JAX/native GK parity evidence")
+@click.option("--require-parity-artifacts", is_flag=True, help="Fail if no persisted parity artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_jax_gk_parity_command(
+    artifact_root: str | None,
+    require_parity_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted JAX/native GK parity artifacts."""
+    from validation.validate_jax_gk_parity import ROOT, validate_jax_gk_parity
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "jax_gk_parity")
+    report = validate_jax_gk_parity(path, require_parity_artifacts=require_parity_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"JAX GK parity: {report['status']} parity_artifacts={report['parity_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-gk-ood-calibration")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted GK OOD calibration evidence")
+@click.option("--require-campaign-artifacts", is_flag=True, help="Fail if no calibration artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_gk_ood_calibration_command(
+    artifact_root: str | None,
+    require_campaign_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted GK OOD calibration campaign artifacts."""
+    from validation.validate_gk_ood_calibration import ROOT, validate_gk_ood_calibration
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "gk_ood_calibration")
+    report = validate_gk_ood_calibration(path, require_campaign_artifacts=require_campaign_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"GK OOD calibration: {report['status']} campaign_artifacts={report['campaign_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-gk-interface-artifacts")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted external GK interface evidence")
+@click.option("--require-interface-artifacts", is_flag=True, help="Fail if no external interface artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_gk_interface_artifacts_command(
+    artifact_root: str | None,
+    require_interface_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted external GK interface parser artifacts."""
+    from validation.validate_gk_interface_artifacts import ROOT, validate_gk_interface_artifacts
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "gk_interfaces")
+    report = validate_gk_interface_artifacts(path, require_interface_artifacts=require_interface_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"GK interface artifacts: {report['status']} interface_artifacts={report['interface_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":
         raise click.exceptions.Exit(1)
 

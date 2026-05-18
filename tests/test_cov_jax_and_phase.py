@@ -1,16 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Cov Jax And Phase
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Coverage gaps: JAX modules + phase modules
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Coverage gaps for JAX and phase modules
 from __future__ import annotations
 
 import asyncio
@@ -535,18 +529,19 @@ class TestKuramotoRustPath:
         assert "Psi_r" in out
 
 
-class TestKuramotoNonRustWithAlpha:
-    """Line 137: alpha != 0 forces Python path even when Rust available."""
+class TestKuramotoRustWithAlpha:
+    """Alpha-bearing Sakaguchi steps use the Rust fast path when available."""
 
-    def test_alpha_nonzero_skips_rust(self, monkeypatch):
+    def test_alpha_nonzero_uses_rust(self, monkeypatch):
         import scpn_control.phase.kuramoto as kmod
 
         monkeypatch.setattr(kmod, "RUST_KURAMOTO", True)
-        called = {"rust": False}
+        called = {"rust": False, "alpha": None}
 
-        def spy_rust_step(*args, **kwargs):
+        def spy_rust_step(th, _om, _dt, _K, alpha, _zeta, _psi):
             called["rust"] = True
-            return (args[0], 0.5, 0.0, 0.0)
+            called["alpha"] = alpha
+            return (th, 0.5, 0.0, 0.0)
 
         monkeypatch.setattr(kmod, "_rust_step", spy_rust_step, raising=False)
 
@@ -561,7 +556,8 @@ class TestKuramotoNonRustWithAlpha:
             psi_mode="mean_field",
             wrap=True,
         )
-        assert not called["rust"]
+        assert called["rust"]
+        assert called["alpha"] == pytest.approx(0.5)
         assert "dtheta" in out
 
 

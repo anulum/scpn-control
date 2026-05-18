@@ -1,0 +1,112 @@
+{
+  "spdx_license_id": "AGPL-3.0-or-later",
+  "commercial_license": "available",
+  "concepts_copyright": "Concepts 1996-2026 Miroslav Sotek. All rights reserved.",
+  "code_copyright": "Code 2020-2026 Miroslav Sotek. All rights reserved.",
+  "orcid": "0009-0009-3560-0851",
+  "contact": "www.anulum.li | protoscience@anulum.li",
+  "file": "SCPN Control - GK Species and Collision Reference Cases",
+  "schema_version": "1.0",
+  "cases": [
+    {
+      "case": "deuterium_cbc_main_ion",
+      "species": {
+        "mass_amu": 2.0,
+        "charge_e": 1.0,
+        "temperature_keV": 2.0,
+        "density_19": 5.0,
+        "R_L_T": 6.9,
+        "R_L_n": 2.2,
+        "is_adiabatic": false
+      },
+      "collision": {
+        "n_e_19": 5.0,
+        "T_e_keV": 2.0,
+        "Z_eff": 1.0,
+        "ln_lambda": 17.0
+      },
+      "expected": {
+        "mass_kg": 3.34524384738e-27,
+        "thermal_speed_m_per_s": 437694.71452014666,
+        "larmor_radius_per_tesla_m": 0.009138789816973865,
+        "nu_D_s^-1": 227.88593079004036,
+        "nu_E_s^-1": 227.88593079004036
+      }
+    },
+    {
+      "case": "kinetic_electron_cbc",
+      "species": {
+        "mass_amu": 0.000544617021484666,
+        "charge_e": -1.0,
+        "temperature_keV": 2.0,
+        "density_19": 5.0,
+        "R_L_T": 6.9,
+        "R_L_n": 2.2,
+        "is_adiabatic": false
+      },
+      "collision": {
+        "n_e_19": 5.0,
+        "T_e_keV": 2.0,
+        "Z_eff": 1.0,
+        "ln_lambda": 17.0
+      },
+      "expected": {
+        "mass_kg": 9.1093837015e-31,
+        "thermal_speed_m_per_s": 26524102.328049958,
+        "larmor_radius_per_tesla_m": 0.0001508062346664185,
+        "nu_D_s^-1": 13809.784644131727,
+        "nu_E_s^-1": 13809.784644131727
+      }
+    },
+    {
+      "case": "carbon_impurity_edge",
+      "species": {
+        "mass_amu": 12.0,
+        "charge_e": 6.0,
+        "temperature_keV": 0.25,
+        "density_19": 0.15,
+        "R_L_T": 4.0,
+        "R_L_n": 1.5,
+        "is_adiabatic": false
+      },
+      "collision": {
+        "n_e_19": 8.0,
+        "T_e_keV": 0.2,
+        "Z_eff": 2.5,
+        "ln_lambda": 15.0
+      },
+      "expected": {
+        "mass_kg": 2.0071463084280003e-26,
+        "thermal_speed_m_per_s": 63175.79031277077,
+        "larmor_radius_per_tesla_m": 0.0013190706902243181,
+        "nu_D_s^-1": 9629066.796314036,
+        "nu_E_s^-1": 9629066.796314036
+      }
+    },
+    {
+      "case": "hot_deuterium_extreme_temperature",
+      "species": {
+        "mass_amu": 2.0,
+        "charge_e": 1.0,
+        "temperature_keV": 80.0,
+        "density_19": 1.0,
+        "R_L_T": 3.0,
+        "R_L_n": 0.5,
+        "is_adiabatic": false
+      },
+      "collision": {
+        "n_e_19": 1.0,
+        "T_e_keV": 80.0,
+        "Z_eff": 1.0,
+        "ln_lambda": 18.0
+      },
+      "expected": {
+        "mass_kg": 3.34524384738e-27,
+        "thermal_speed_m_per_s": 2768224.4354016725,
+        "larmor_radius_per_tesla_m": 0.05779878175838146,
+        "nu_D_s^-1": 0.19075727329518236,
+        "nu_E_s^-1": 0.19075727329518236
+      }
+    }
+  ]
+}

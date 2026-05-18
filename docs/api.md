@@ -1,4 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- SCPN Control — API reference -->
 
 # API Reference
 
@@ -505,7 +511,7 @@ scpn-control hil-test --shots-dir path/to/shots
 |---------|------------|
 | `demo` | Closed-loop control demonstration (PID, SNN, combined) |
 | `benchmark` | PID vs SNN timing benchmark with JSON output option |
-| `validate` | RMSE validation against reference shots |
+| `validate` | Import hygiene plus repository data-manifest provenance gate |
 | `info` | Version, Rust backend status, weight provenance, Python/NumPy versions |
 | `live` | Real-time WebSocket phase sync server |
 | `hil-test` | Hardware-in-the-loop test campaign against shot data |

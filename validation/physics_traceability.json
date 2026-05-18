@@ -25,7 +25,8 @@
       "unit_contract": "Signal-specific SI or dimensionless units; arbitrary units are rejected for real-shot evidence.",
       "validation_evidence": [
         "validation/validate_data_manifests.py",
-        "src/scpn_control/core/real_data_manifest.py"
+        "src/scpn_control/core/real_data_manifest.py",
+        "strict acquisition-readiness gate via --require-real-acquisition"
       ],
       "evidence_paths": [
         "validation/validate_data_manifests.py",
@@ -51,12 +52,14 @@
       "unit_contract": "Gyro-Bohm-normalised heat flux and chi_i with explicit R/L_Ti, rho_s, c_s, and reference gradient normalisation.",
       "validation_evidence": [
         "ROADMAP.md v0.18.0 open revalidation item",
-        "docs/joss_paper.md nonlinear GK validation limitation"
+        "docs/joss_paper.md nonlinear GK validation limitation",
+        "validation/gk_nonlinear_cyclone.py saturation-evidence assessor"
       ],
       "evidence_paths": [
         "ROADMAP.md",
         "docs/joss_paper.md",
-        "src/scpn_control/core/gk_nonlinear.py"
+        "src/scpn_control/core/gk_nonlinear.py",
+        "validation/gk_nonlinear_cyclone.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/gk_nonlinear.py"
@@ -80,12 +83,15 @@
       "unit_contract": "Growth rate and frequency normalised consistently to c_s/a or declared external-code convention.",
       "validation_evidence": [
         "ROADMAP.md local-dispersion overprediction note",
-        "docs/competitive_analysis.md linear GK quantitative accuracy status"
+        "docs/competitive_analysis.md linear GK quantitative accuracy status",
+        "validation/validate_gk_crosscode.py strict real-binary evidence gate"
       ],
       "evidence_paths": [
         "ROADMAP.md",
         "docs/competitive_analysis.md",
-        "src/scpn_control/core/gk_eigenvalue.py"
+        "src/scpn_control/core/gk_eigenvalue.py",
+        "validation/validate_gk_crosscode.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/gk_eigenvalue.py"
@@ -109,10 +115,14 @@
       "unit_contract": "Major radius, minor radius, local radius, and gradient lengths in metres; angles in radians; magnetic-field strength in tesla; q, shear, elongation, triangularity, and shaping derivatives dimensionless.",
       "validation_evidence": [
         "tests/test_gk_geometry.py",
+        "validation/validate_gk_geometry_reference.py immutable Miller reference cases",
         "source-level local Miller geometry contract"
       ],
       "evidence_paths": [
         "tests/test_gk_geometry.py",
+        "tests/test_gk_geometry_reference_validation.py",
+        "validation/validate_gk_geometry_reference.py",
+        "validation/reference_data/gk_geometry/miller_reference_cases.json",
         "src/scpn_control/core/gk_geometry.py"
       ],
       "covered_source_paths": [
@@ -137,11 +147,15 @@
       "unit_contract": "Mass in kilograms, charge in coulombs, density in m^-3, temperature in electronvolts, velocity in m/s, gyrofrequency in rad/s, Larmor radius in metres, and collision rates in s^-1.",
       "validation_evidence": [
         "tests/test_gk_species.py",
-        "tests/test_gk_electromagnetic.py"
+        "tests/test_gk_electromagnetic.py",
+        "validation/validate_gk_species_reference.py immutable species and collision reference cases"
       ],
       "evidence_paths": [
         "tests/test_gk_species.py",
+        "tests/test_gk_species_reference_validation.py",
         "tests/test_gk_electromagnetic.py",
+        "validation/validate_gk_species_reference.py",
+        "validation/reference_data/gk_species/species_collision_reference_cases.json",
         "src/scpn_control/core/gk_species.py"
       ],
       "covered_source_paths": [
@@ -166,10 +180,13 @@
       "unit_contract": "Same growth-rate, frequency, geometry, and species units as native linear GK; backend dtype, tolerance, and normalisation must be explicit in validation artefacts.",
       "validation_evidence": [
         "tests/test_jax_gk_solver.py",
+        "validation/validate_jax_gk_parity.py strict persisted backend parity artifact gate",
         "source-level native response-matrix parity contract"
       ],
       "evidence_paths": [
         "tests/test_jax_gk_solver.py",
+        "tests/test_jax_gk_parity_validation.py",
+        "validation/validate_jax_gk_parity.py",
         "src/scpn_control/core/jax_gk_solver.py"
       ],
       "covered_source_paths": [
@@ -194,11 +211,14 @@
       "unit_contract": "Feature units inherit declared GK inputs and outputs; detector scores are dimensionless with explicit calibration metadata and threshold provenance.",
       "validation_evidence": [
         "tests/test_gk_ood_detector.py",
-        "tests/test_gk_hybrid_integration.py"
+        "tests/test_gk_hybrid_integration.py",
+        "validation/validate_gk_ood_calibration.py strict persisted campaign calibration gate"
       ],
       "evidence_paths": [
         "tests/test_gk_ood_detector.py",
+        "tests/test_gk_ood_calibration_validation.py",
         "tests/test_gk_hybrid_integration.py",
+        "validation/validate_gk_ood_calibration.py",
         "src/scpn_control/core/gk_ood_detector.py"
       ],
       "covered_source_paths": [
@@ -225,10 +245,16 @@
       ],
       "unit_contract": "Code-specific flux, growth-rate, frequency, and geometry units converted into repository normalisation with explicit metadata.",
       "validation_evidence": [
-        "docs/joss_paper.md external GK limitation"
+        "docs/joss_paper.md external GK limitation",
+        "validation/validate_gk_interface_artifacts.py strict external interface artifact gate"
       ],
       "evidence_paths": [
         "docs/joss_paper.md",
+        "tests/test_gk_interface_artifact_validation.py",
+        "validation/validate_gk_interface_artifacts.py",
+        "src/scpn_control/core/gk_interface.py"
+      ],
+      "covered_source_paths": [
         "src/scpn_control/core/gk_interface.py"
       ],
       "validity_domain": "Input/output wiring and mock-subprocess tests; real executable validation not yet present in CI."

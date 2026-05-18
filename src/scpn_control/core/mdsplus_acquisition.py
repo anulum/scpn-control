@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ----------------------------------------------------------------------
-# SCPN Control - MDSplus Acquisition
-# Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ----------------------------------------------------------------------
+# SCPN Control — MDSplus Acquisition
+
 """Optional MDSplus shot acquisition with manifest provenance output."""
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ def load_mdsplus_acquisition_request(path: str | Path) -> MDSplusAcquisitionRequ
     """Load a versioned MDSplus acquisition request JSON file."""
     spec_path = Path(path)
     with spec_path.open(encoding="utf-8") as handle:
-        payload = json.load(handle)
+        payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
     if not isinstance(payload, dict):
         raise ValueError("MDSplus acquisition request root must be a JSON object")
     if payload.get("schema_version") != "1.0":
@@ -173,8 +174,14 @@ def acquire_mdsplus_shot(
 def _import_mdsplus() -> Any:
     try:
         return importlib.import_module("MDSplus")
-    except ImportError as exc:
-        raise RuntimeError("MDSplus is not installed; install the optional facility data client") from exc
+    except ImportError:
+        try:
+            return importlib.import_module("mdsthin.MDSplus")
+        except ImportError as thin_exc:
+            raise RuntimeError(
+                "MDSplus is not installed; install the native MDSplus Python client or "
+                "install scpn-control[facility] for the mdsthin compatibility client"
+            ) from thin_exc
 
 
 def _validate_signal_specs(signals: list[MDSplusSignalSpec]) -> None:
@@ -202,6 +209,16 @@ def _signal_spec_from_mapping(payload: object) -> MDSplusSignalSpec:
         units=_required_str(payload, "units"),
         timebase=_required_str(payload, "timebase"),
     )
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object while rejecting duplicate acquisition request keys."""
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"duplicate JSON key: {key}")
+        out[key] = value
+    return out
 
 
 def _required_str(payload: dict[str, Any], key: str) -> str:

@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ----------------------------------------------------------------------
-# SCPN Control - Real Data Manifest Validation
-# Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ----------------------------------------------------------------------
+# SCPN Control — Real Data Manifest Validation
+
 """Validation contracts for real-shot and synthetic-shot data manifests.
 
 The manifest is intentionally strict: synthetic fixtures are useful for CI, but
@@ -87,13 +88,23 @@ def load_real_data_manifest(path: str | Path, *, verify_artifact: bool = False) 
     """Load and validate a JSON real-data manifest."""
     manifest_path = Path(path)
     with manifest_path.open(encoding="utf-8") as handle:
-        payload = json.load(handle)
+        payload = json.load(handle, object_pairs_hook=_reject_duplicate_manifest_keys)
     if not isinstance(payload, dict):
         raise RealDataManifestError("manifest root must be a JSON object")
     manifest = validate_real_data_manifest(payload)
     if verify_artifact:
         verify_manifest_artifact(manifest, manifest_path=manifest_path)
     return manifest
+
+
+def _reject_duplicate_manifest_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object while rejecting duplicate provenance keys."""
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise RealDataManifestError(f"duplicate JSON key: {key}")
+        out[key] = value
+    return out
 
 
 def verify_manifest_artifact(manifest: RealDataManifest, *, manifest_path: str | Path) -> Path | None:
