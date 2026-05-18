@@ -209,7 +209,7 @@ scpn-control/
 │   ├── control/          # Controllers (42 modules, optional deps guarded)
 │   └── phase/            # Kuramoto/UPDE engine (9 modules)
 ├── scpn-control-rs/      # Rust workspace (5 crates)
-├── tests/                # 3,700+ collected tests (264 files, 99% gate)
+├── tests/                # 4,000+ collected tests (264 files, 99% gate)
 
 
 ├── examples/             # 6 notebooks + 3 scripts

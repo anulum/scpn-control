@@ -501,15 +501,14 @@ class TestCliLiveCommand:
 
 class TestCliInfoWeightFiles:
     def test_info_text_lists_weight_files(self):
-        """Exercise line 337 by placing .npz at the path cli.py resolves."""
+        """Exercise weight discovery by placing .npz at the repository weights path."""
         from pathlib import Path
         from click.testing import CliRunner
         from scpn_control.cli import main
         import scpn_control.cli as cli_mod
 
-        # cli.py resolves: Path(__file__).resolve().parent.parent.parent.parent / "weights"
         cli_file = Path(cli_mod.__file__).resolve()
-        weights_dir = cli_file.parent.parent.parent.parent / "weights"
+        weights_dir = cli_file.parents[2] / "weights"
         created_dir = False
         created_file = None
         try:

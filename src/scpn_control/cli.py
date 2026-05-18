@@ -807,7 +807,7 @@ def info(json_out: bool) -> None:
 
     rust_status = "available" if scpn_control.RUST_BACKEND else "not installed"
 
-    weights_dir = Path(__file__).resolve().parent.parent.parent.parent / "weights"
+    weights_dir = Path(__file__).resolve().parents[2] / "weights"
     weight_files = sorted(weights_dir.glob("*.npz")) if weights_dir.exists() else []
 
     result = {

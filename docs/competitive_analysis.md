@@ -116,7 +116,7 @@
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
 | Test files | 264 |
-| Tests collected | 3,700+ |
+| Tests collected | 4,000+ |
 | Test coverage | 99% gate |
 | CI jobs | 20 |
 | Real DIII-D shots | 17 disruption + 1 safe baseline |

@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -79,6 +80,23 @@ def test_validate_reports_manifest_gate_failures(runner, tmp_path):
     assert data["status"] == "fail"
     assert data["data_manifests"]["status"] == "fail"
     assert data["data_manifests"]["errors"][0]["error"] == "no data manifests found"
+
+
+def test_validate_can_skip_data_manifest_gate(runner):
+    result = runner.invoke(main, ["validate", "--no-data-manifests"])
+
+    assert result.exit_code == 0
+    assert "Data manifests: SKIPPED" in result.output
+    assert "Status:" in result.output
+
+
+def test_validate_text_reports_manifest_gate_errors(runner, tmp_path):
+    result = runner.invoke(main, ["validate", "--data-manifest-root", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "Data manifests: fail" in result.output
+    assert "ERROR" in result.output
+    assert "no data manifests found" in result.output
 
 
 def test_validate_command_is_import_clean_in_fresh_process():
@@ -200,6 +218,57 @@ def test_validate_manifest_verifies_repository_artifact(runner):
     assert data["artifact_verified"] is True
 
 
+def test_validate_manifest_text_success(runner, tmp_path):
+    manifest_path = tmp_path / "real_manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "dataset_id": "diii-d-163303-text",
+                "machine": "DIII-D",
+                "shot": "163303",
+                "synthetic": False,
+                "source": {
+                    "kind": "mdsplus",
+                    "uri": "mdsplus://DIII-D/163303",
+                    "access": "facility-approved",
+                },
+                "retrieved_at": "2026-05-18T01:20:00Z",
+                "checksum_sha256": "d" * 64,
+                "licence": "facility data policy",
+                "signals": [
+                    {
+                        "name": "plasma_current",
+                        "path": "\\\\IP",
+                        "units": "A",
+                        "timebase": "s",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(main, ["validate-manifest", str(manifest_path)])
+
+    assert result.exit_code == 0
+    assert "Dataset: diii-d-163303-text" in result.output
+    assert "Kind: real" in result.output
+    assert "Source: mdsplus" in result.output
+    assert "Status: pass" in result.output
+
+
+def test_validate_manifest_text_failure(runner, tmp_path):
+    manifest_path = tmp_path / "invalid_manifest.json"
+    manifest_path.write_text(json.dumps({"schema_version": "1.0"}), encoding="utf-8")
+
+    result = runner.invoke(main, ["validate-manifest", str(manifest_path)])
+
+    assert result.exit_code == 1
+    assert "Status: fail" in result.output
+    assert "manifest missing required key" in result.output
+
+
 def test_validate_data_manifests_json_out(runner):
     root = Path(__file__).resolve().parents[1] / "validation" / "reference_data"
 
@@ -211,6 +280,36 @@ def test_validate_data_manifests_json_out(runner):
     assert data["total"] >= 3
     assert data["artifact_coverage"]["covered"] == 21
     assert data["acquisition_specs"]["total"] >= 1
+
+
+def test_validate_data_manifests_text_and_output_file(runner, tmp_path):
+    root = Path(__file__).resolve().parents[1] / "validation" / "reference_data"
+    output_json = tmp_path / "reports" / "data_manifests.json"
+
+    result = runner.invoke(
+        main,
+        [
+            "validate-data-manifests",
+            "--root",
+            str(root),
+            "--output-json",
+            str(output_json),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Data manifests: pass" in result.output
+    report = json.loads(output_json.read_text(encoding="utf-8"))
+    assert report["status"] == "pass"
+
+
+def test_validate_data_manifests_text_reports_errors(runner, tmp_path):
+    result = runner.invoke(main, ["validate-data-manifests", "--root", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "Data manifests: fail" in result.output
+    assert "ERROR" in result.output
+    assert "no data manifests found" in result.output
 
 
 def test_validate_data_manifests_reports_failures(runner, tmp_path):
@@ -269,6 +368,39 @@ def test_validate_physics_traceability_reports_failures(runner, tmp_path):
     assert "spdx_license_id" in fields
 
 
+def test_validate_physics_traceability_text_and_output_file(runner, tmp_path):
+    registry = Path(__file__).resolve().parents[1] / "validation" / "physics_traceability.json"
+    output_json = tmp_path / "reports" / "physics_traceability.json"
+
+    result = runner.invoke(
+        main,
+        [
+            "validate-physics-traceability",
+            "--registry",
+            str(registry),
+            "--output-json",
+            str(output_json),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Physics traceability: pass" in result.output
+    report = json.loads(output_json.read_text(encoding="utf-8"))
+    assert report["status"] == "pass"
+
+
+def test_validate_physics_traceability_text_reports_errors(runner, tmp_path):
+    registry = tmp_path / "physics_traceability.json"
+    registry.write_text(json.dumps({"schema_version": "1.0", "entries": []}), encoding="utf-8")
+
+    result = runner.invoke(main, ["validate-physics-traceability", "--registry", str(registry)])
+
+    assert result.exit_code == 1
+    assert "Physics traceability: fail" in result.output
+    assert "ERROR" in result.output
+    assert ".entries:" in result.output
+
+
 def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
     result = runner.invoke(
         main,
@@ -285,6 +417,91 @@ def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
     data = json.loads(result.output)
     assert data["status"] == "fail"
     assert data["errors"][0]["error"] == "no real external GK evidence reports found"
+
+
+@pytest.mark.parametrize(
+    ("command", "root_option", "require_flag", "summary", "count_key", "expected_error"),
+    [
+        (
+            "validate-gk-crosscode",
+            "--evidence-root",
+            "--require-external-runs",
+            "GK cross-code evidence: fail",
+            "external_runs",
+            "no real external GK evidence reports found",
+        ),
+        (
+            "validate-jax-gk-parity",
+            "--artifact-root",
+            "--require-parity-artifacts",
+            "JAX GK parity: fail",
+            "parity_artifacts",
+            "no JAX GK parity artifacts found",
+        ),
+        (
+            "validate-gk-ood-calibration",
+            "--artifact-root",
+            "--require-campaign-artifacts",
+            "GK OOD calibration: fail",
+            "campaign_artifacts",
+            "no GK OOD calibration artifacts found",
+        ),
+        (
+            "validate-gk-interface-artifacts",
+            "--artifact-root",
+            "--require-interface-artifacts",
+            "GK interface artifacts: fail",
+            "interface_artifacts",
+            "no external GK interface artifacts found",
+        ),
+    ],
+)
+def test_gk_validation_text_error_paths(
+    runner,
+    tmp_path,
+    command,
+    root_option,
+    require_flag,
+    summary,
+    count_key,
+    expected_error,
+):
+    result = runner.invoke(main, [command, root_option, str(tmp_path), require_flag])
+
+    assert result.exit_code == 1
+    assert summary in result.output
+    assert f"{count_key}=0" in result.output
+    assert expected_error in result.output
+
+
+@pytest.mark.parametrize(
+    ("command", "root_option", "require_flag", "output_name"),
+    [
+        ("validate-gk-crosscode", "--evidence-root", "--require-external-runs", "crosscode.json"),
+        ("validate-jax-gk-parity", "--artifact-root", "--require-parity-artifacts", "jax_parity.json"),
+        ("validate-gk-ood-calibration", "--artifact-root", "--require-campaign-artifacts", "ood.json"),
+        ("validate-gk-interface-artifacts", "--artifact-root", "--require-interface-artifacts", "interface.json"),
+    ],
+)
+def test_gk_validation_output_json_files_on_failures(runner, tmp_path, command, root_option, require_flag, output_name):
+    output_json = tmp_path / "reports" / output_name
+
+    result = runner.invoke(
+        main,
+        [
+            command,
+            root_option,
+            str(tmp_path / "missing-artifacts"),
+            require_flag,
+            "--output-json",
+            str(output_json),
+        ],
+    )
+
+    assert result.exit_code == 1
+    report = json.loads(output_json.read_text(encoding="utf-8"))
+    assert report["status"] == "fail"
+    assert report["errors"]
 
 
 def test_validate_gk_geometry_reference_json_out(runner):
@@ -323,6 +540,80 @@ def test_validate_gk_species_reference_json_out(runner):
     data = json.loads(result.output)
     assert data["status"] == "pass"
     assert data["cases"] == 4
+
+
+def test_validate_gk_geometry_reference_text_and_output_file(runner, tmp_path):
+    reference_path = (
+        Path(__file__).resolve().parents[1]
+        / "validation"
+        / "reference_data"
+        / "gk_geometry"
+        / "miller_reference_cases.json"
+    )
+    output_json = tmp_path / "reports" / "gk_geometry.json"
+
+    result = runner.invoke(
+        main,
+        [
+            "validate-gk-geometry-reference",
+            "--reference-path",
+            str(reference_path),
+            "--output-json",
+            str(output_json),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "GK geometry reference: pass cases=3" in result.output
+    assert json.loads(output_json.read_text(encoding="utf-8"))["status"] == "pass"
+
+
+def test_validate_gk_geometry_reference_text_failure(runner, tmp_path):
+    reference_path = tmp_path / "bad_geometry.json"
+    reference_path.write_text(json.dumps({"schema_version": "1.0", "cases": []}), encoding="utf-8")
+
+    result = runner.invoke(main, ["validate-gk-geometry-reference", "--reference-path", str(reference_path)])
+
+    assert result.exit_code == 1
+    assert "GK geometry reference: fail" in result.output
+    assert "ERROR" in result.output
+
+
+def test_validate_gk_species_reference_text_and_output_file(runner, tmp_path):
+    reference_path = (
+        Path(__file__).resolve().parents[1]
+        / "validation"
+        / "reference_data"
+        / "gk_species"
+        / "species_collision_reference_cases.json"
+    )
+    output_json = tmp_path / "reports" / "gk_species.json"
+
+    result = runner.invoke(
+        main,
+        [
+            "validate-gk-species-reference",
+            "--reference-path",
+            str(reference_path),
+            "--output-json",
+            str(output_json),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "GK species reference: pass cases=4" in result.output
+    assert json.loads(output_json.read_text(encoding="utf-8"))["status"] == "pass"
+
+
+def test_validate_gk_species_reference_text_failure(runner, tmp_path):
+    reference_path = tmp_path / "bad_species.json"
+    reference_path.write_text(json.dumps({"schema_version": "1.0", "cases": []}), encoding="utf-8")
+
+    result = runner.invoke(main, ["validate-gk-species-reference", "--reference-path", str(reference_path)])
+
+    assert result.exit_code == 1
+    assert "GK species reference: fail" in result.output
+    assert "ERROR" in result.output
 
 
 def test_validate_jax_gk_parity_requires_artifacts(runner, tmp_path):
@@ -379,6 +670,235 @@ def test_validate_gk_interface_artifacts_requires_artifacts(runner, tmp_path):
     assert data["errors"][0]["error"] == "no external GK interface artifacts found"
 
 
+@dataclass(frozen=True)
+class _AcquisitionResult:
+    dataset_id: str
+    output_npz: Path
+    manifest_json: Path
+    checksum_sha256: str
+
+
+def test_acquire_mdsplus_shot_manual_text_success(runner, tmp_path, monkeypatch):
+    import scpn_control.core.mdsplus_acquisition as acquisition
+
+    calls = {}
+
+    def fake_acquire_mdsplus_shot(**kwargs):
+        calls.update(kwargs)
+        return _AcquisitionResult(
+            dataset_id="diii-d-163303-manual",
+            output_npz=Path(kwargs["output_npz"]),
+            manifest_json=Path(kwargs["manifest_json"]),
+            checksum_sha256="e" * 64,
+        )
+
+    monkeypatch.setattr(acquisition, "acquire_mdsplus_shot", fake_acquire_mdsplus_shot)
+    output_npz = tmp_path / "shot.npz"
+    manifest_json = tmp_path / "manifest.json"
+    signal = json.dumps({"name": "ip", "node": "\\\\IP", "units": "A", "timebase": "s"})
+
+    result = runner.invoke(
+        main,
+        [
+            "acquire-mdsplus-shot",
+            "--tree",
+            "DIII-D",
+            "--shot",
+            "163303",
+            "--signal",
+            signal,
+            "--output-npz",
+            str(output_npz),
+            "--manifest-json",
+            str(manifest_json),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["tree"] == "DIII-D"
+    assert calls["shot"] == 163303
+    assert calls["source_uri"] == "mdsplus://DIII-D/163303"
+    assert calls["signals"][0].name == "ip"
+    assert "Dataset: diii-d-163303-manual" in result.output
+    assert "Status: pass" in result.output
+
+
+def test_acquire_mdsplus_shot_spec_json_success(runner, tmp_path, monkeypatch):
+    import scpn_control.core.mdsplus_acquisition as acquisition
+
+    signal = acquisition.MDSplusSignalSpec(name="ip", node="\\IP", units="A", timebase="s")
+    request = acquisition.MDSplusAcquisitionRequest(
+        tree="DIII-D",
+        shot=163303,
+        source_uri="mdsplus://DIII-D/163303",
+        access_policy="facility-approved",
+        licence="facility data policy",
+        signals=[signal],
+    )
+    calls = {}
+
+    def fake_load_mdsplus_acquisition_request(path):
+        calls["spec_path"] = path
+        return request
+
+    def fake_acquire_mdsplus_shot(**kwargs):
+        calls.update(kwargs)
+        return _AcquisitionResult(
+            dataset_id="diii-d-163303-spec",
+            output_npz=Path(kwargs["output_npz"]),
+            manifest_json=Path(kwargs["manifest_json"]),
+            checksum_sha256="f" * 64,
+        )
+
+    monkeypatch.setattr(acquisition, "load_mdsplus_acquisition_request", fake_load_mdsplus_acquisition_request)
+    monkeypatch.setattr(acquisition, "acquire_mdsplus_shot", fake_acquire_mdsplus_shot)
+    spec_path = tmp_path / "request.json"
+    spec_path.write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(
+        main,
+        [
+            "acquire-mdsplus-shot",
+            "--spec-json",
+            str(spec_path),
+            "--source-uri",
+            "mdsplus://override/163303",
+            "--output-npz",
+            str(tmp_path / "shot.npz"),
+            "--manifest-json",
+            str(tmp_path / "manifest.json"),
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["dataset_id"] == "diii-d-163303-spec"
+    assert calls["spec_path"] == str(spec_path)
+    assert calls["tree"] == "DIII-D"
+    assert calls["shot"] == 163303
+    assert calls["source_uri"] == "mdsplus://override/163303"
+    assert calls["signals"] == [signal]
+
+
+def test_acquire_mdsplus_shot_manual_missing_inputs_text_failure(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "acquire-mdsplus-shot",
+            "--output-npz",
+            str(tmp_path / "shot.npz"),
+            "--manifest-json",
+            str(tmp_path / "manifest.json"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Status: fail" in result.output
+    assert "--tree is required" in result.output
+
+
+def test_acquire_mdsplus_shot_missing_shot_and_signal_failures(runner, tmp_path):
+    base_args = [
+        "acquire-mdsplus-shot",
+        "--tree",
+        "DIII-D",
+        "--output-npz",
+        str(tmp_path / "shot.npz"),
+        "--manifest-json",
+        str(tmp_path / "manifest.json"),
+        "--json-out",
+    ]
+
+    missing_shot = runner.invoke(main, base_args)
+    assert missing_shot.exit_code == 1
+    assert "--shot is required" in json.loads(missing_shot.output)["error"]
+
+    missing_signal = runner.invoke(main, [*base_args, "--shot", "163303"])
+    assert missing_signal.exit_code == 1
+    assert "at least one --signal" in json.loads(missing_signal.output)["error"]
+
+
+def test_acquire_mdsplus_shot_rejects_non_object_signal_json(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "acquire-mdsplus-shot",
+            "--tree",
+            "DIII-D",
+            "--shot",
+            "163303",
+            "--signal",
+            "[1, 2, 3]",
+            "--output-npz",
+            str(tmp_path / "shot.npz"),
+            "--manifest-json",
+            str(tmp_path / "manifest.json"),
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["status"] == "fail"
+    assert "signal specification must be a JSON object" in payload["error"]
+
+
+def test_live_command_wires_monitor_and_server(runner, monkeypatch):
+    import scpn_control.phase.realtime_monitor as realtime_monitor
+    import scpn_control.phase.ws_phase_stream as ws_phase_stream
+
+    calls = {}
+
+    class FakeMonitor:
+        @classmethod
+        def from_paper27(cls, *, L, N_per, zeta_uniform, psi_driver):
+            calls["monitor"] = {
+                "L": L,
+                "N_per": N_per,
+                "zeta_uniform": zeta_uniform,
+                "psi_driver": psi_driver,
+            }
+            return "monitor"
+
+    class FakeServer:
+        def __init__(self, *, monitor, tick_interval_s):
+            calls["server_init"] = {"monitor": monitor, "tick_interval_s": tick_interval_s}
+
+        def serve_sync(self, *, host, port):
+            calls["serve"] = {"host": host, "port": port}
+
+    monkeypatch.setattr(realtime_monitor, "RealtimeMonitor", FakeMonitor)
+    monkeypatch.setattr(ws_phase_stream, "PhaseStreamServer", FakeServer)
+
+    result = runner.invoke(
+        main,
+        [
+            "live",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "9001",
+            "--layers",
+            "3",
+            "--n-per",
+            "4",
+            "--zeta",
+            "0.7",
+            "--psi",
+            "0.2",
+            "--tick-interval",
+            "0.005",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["monitor"] == {"L": 3, "N_per": 4, "zeta_uniform": 0.7, "psi_driver": 0.2}
+    assert calls["server_init"] == {"monitor": "monitor", "tick_interval_s": 0.005}
+    assert calls["serve"] == {"host": "127.0.0.1", "port": 9001}
+    assert "Starting phase sync server on ws://127.0.0.1:9001" in result.output
+
+
 def test_hil_test_nonexistent_dir(runner):
     result = runner.invoke(main, ["hil-test", "--shots-dir", "nonexistent_dir_12345", "--json-out"])
     assert result.exit_code != 0
@@ -424,6 +944,7 @@ def test_info_text_output(runner):
     assert "Rust backend:" in result.output
     assert "Python:" in result.output
     assert "NumPy:" in result.output
+    assert "neural_equilibrium_sparc.npz" in result.output
 
 
 def test_hil_test_with_mock_shots(runner, tmp_path):

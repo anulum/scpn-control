@@ -43,7 +43,7 @@ heat-flux normalisation is treated as an open validation target: the latest
 local-dispersion path overpredicts the published GENE growth rate.
 
 The codebase comprises 134 Python source modules and 5 Rust crates
-(ndarray 0.16, rand 0.9, PyO3 0.25) with 3,700+ collected Python tests, a
+(ndarray 0.16, rand 0.9, PyO3 0.25) with 4,000+ collected Python tests, a
 99% local package-coverage gate, and a 20-job CI matrix.
 
 ## Statement of Need
@@ -169,11 +169,11 @@ The solver is validated against:
   across modules (bootstrap→NTM, IPB98→power balance, EPED→Troyon limit,
   sawtooth→NTM seed, L-H→H-mode→EPED, runaway→SPI trigger).
 
-The test suite comprises 3,700+ collected Python tests and Rust workspace
+The test suite comprises 4,000+ collected Python tests and Rust workspace
 tests across 20 CI jobs (Python 3.10–3.13 on Linux/Windows/macOS, Rust
 stable, JAX parity, LIF+NEF SNN emulator, CodeQL security analysis, OpenSSF
 Scorecard). The local coverage configuration enforces a 99% package-coverage
-gate; the GitHub coverage upload lane currently uses an 85% fail-under while
+gate; the GitHub coverage upload lane enforces the same 99% fail-under while
 publishing XML coverage to Codecov. The project holds an OpenSSF CII Best
 Practices badge.
 All physics equations cite their source papers; ~80 citations spanning
