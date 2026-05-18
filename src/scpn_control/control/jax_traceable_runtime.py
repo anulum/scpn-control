@@ -259,7 +259,6 @@ def _compile_torchscript_rollouts() -> tuple[Any, Any]:
 def _simulate_torchscript(
     commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec
 ) -> FloatArray:  # pragma: no cover
-    assert torch is not None
     rollout, _ = _compile_torchscript_rollouts()
 
     cmd = torch.as_tensor(commands, dtype=torch.float64)
@@ -315,7 +314,6 @@ def _simulate_jax_batch(commands: FloatArray, initial_state: FloatArray, spec: T
 def _simulate_torchscript_batch(  # pragma: no cover
     commands: FloatArray, initial_state: FloatArray, spec: TraceableRuntimeSpec
 ) -> FloatArray:
-    assert torch is not None
     _, rollout_batch = _compile_torchscript_rollouts()
 
     cmd = torch.as_tensor(commands, dtype=torch.float64)

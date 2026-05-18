@@ -29,4 +29,3 @@
     "stability_issue": "JAX NaN at step 44 \u2014 CFL-adaptive dt or reduced dt needed"
   }
 }
-
