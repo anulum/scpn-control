@@ -1,0 +1,66 @@
+{
+  "spdx_license_id": "AGPL-3.0-or-later",
+  "copyright": "Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.",
+  "contact": "www.anulum.li | protoscience@anulum.li",
+  "orcid": "https://orcid.org/0009-0009-3560-0851",
+  "schema_version": "1.0",
+  "dataset_id": "diiid-geqdsk-reference-archive",
+  "machine": "DIII-D",
+  "shot": "geqdsk-reference-archive",
+  "synthetic": false,
+  "source": {
+    "kind": "geqdsk",
+    "uri": "validation/reference_data/diiid",
+    "access": "repository reference archive"
+  },
+  "retrieved_at": "2026-05-18T01:30:00Z",
+  "licence": "repository reference data terms",
+  "artifacts": [
+    {
+      "uri": "validation/reference_data/diiid/diiid_hmode_1p5MA.geqdsk",
+      "checksum_sha256": "4a3565f9e1bdc3d40663276d3b686d450863549496d65c0c55f3cad8339c7dc2"
+    },
+    {
+      "uri": "validation/reference_data/diiid/diiid_hmode_2MA.geqdsk",
+      "checksum_sha256": "079b4bca0b61e8d3b31b7ac893e259cfc8e21dc6bcbcb91b76f2ab2e3ae5ee33"
+    },
+    {
+      "uri": "validation/reference_data/diiid/diiid_lmode_1MA.geqdsk",
+      "checksum_sha256": "cdcdda9be80a4353931e09057f3d63402c3b1997d9e88467e414bac10122e289"
+    },
+    {
+      "uri": "validation/reference_data/diiid/diiid_negdelta.geqdsk",
+      "checksum_sha256": "5072464d12071ab63efc4e8ca3f627f149a7d20ad419b5d7a5ad6eb44d667332"
+    },
+    {
+      "uri": "validation/reference_data/diiid/diiid_snowflake.geqdsk",
+      "checksum_sha256": "b7f568d448d3e99fc87cdd7201f426e5409b1644c355eed5cb9afdd332bfe96b"
+    }
+  ],
+  "signals": [
+    {
+      "name": "poloidal_flux_grid",
+      "path": "psirz",
+      "units": "Wb/rad",
+      "timebase": "equilibrium_slice"
+    },
+    {
+      "name": "plasma_current",
+      "path": "current",
+      "units": "A",
+      "timebase": "equilibrium_slice"
+    },
+    {
+      "name": "toroidal_field",
+      "path": "bcentr",
+      "units": "T",
+      "timebase": "equilibrium_slice"
+    },
+    {
+      "name": "safety_factor_profile",
+      "path": "qpsi",
+      "units": "1",
+      "timebase": "equilibrium_slice"
+    }
+  ]
+}

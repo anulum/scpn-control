@@ -1,0 +1,57 @@
+{
+  "spdx_license_id": "AGPL-3.0-or-later",
+  "copyright": "Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.",
+  "contact": "www.anulum.li | protoscience@anulum.li",
+  "orcid": "https://orcid.org/0009-0009-3560-0851",
+  "schema_version": "1.0",
+  "dataset_id": "diii-d-163303-hmode-local-archive",
+  "machine": "DIII-D",
+  "shot": "163303",
+  "synthetic": false,
+  "source": {
+    "kind": "local_archive",
+    "uri": "validation/reference_data/diiid/disruption_shots/shot_163303_hmode.npz",
+    "access": "repository reference archive"
+  },
+  "retrieved_at": "2026-05-18T01:30:00Z",
+  "checksum_sha256": "b828cdcfa5c5785deddb06c42ba01378e18d438596d97d7fbdfb116160675d0b",
+  "licence": "DIII-D facility data policy or repository reference data terms",
+  "signals": [
+    {
+      "name": "time",
+      "path": "time_s",
+      "units": "s",
+      "timebase": "time_s"
+    },
+    {
+      "name": "plasma_current",
+      "path": "Ip_MA",
+      "units": "MA",
+      "timebase": "time_s"
+    },
+    {
+      "name": "toroidal_field",
+      "path": "BT_T",
+      "units": "T",
+      "timebase": "time_s"
+    },
+    {
+      "name": "normalised_beta",
+      "path": "beta_N",
+      "units": "1",
+      "timebase": "time_s"
+    },
+    {
+      "name": "edge_safety_factor",
+      "path": "q95",
+      "units": "1",
+      "timebase": "time_s"
+    },
+    {
+      "name": "electron_density",
+      "path": "ne_1e19",
+      "units": "1e19 m^-3",
+      "timebase": "time_s"
+    }
+  ]
+}

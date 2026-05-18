@@ -21,6 +21,10 @@ Usage::
     scpn-control demo --scenario combined --steps 1000
     scpn-control benchmark --n-bench 5000
     scpn-control validate
+    scpn-control validate-manifest real_manifest.json --json-out
+    scpn-control validate-data-manifests --json-out
+    scpn-control validate-physics-traceability --json-out
+    scpn-control acquire-mdsplus-shot --spec-json validation/reference_data/diiid/acquisition_specs/shot_163303_mdsplus.json
     scpn-control live --port 8765 --zeta 0.5
     scpn-control hil-test --shots-dir validation/reference_data/diiid/disruption_shots
 """
@@ -30,12 +34,15 @@ from __future__ import annotations
 import json
 import sys
 import time
-from typing import Mapping, cast
+from typing import TYPE_CHECKING, Mapping, cast
 
 import click
 import numpy as np
 
 import scpn_control
+
+if TYPE_CHECKING:
+    from scpn_control.core.mdsplus_acquisition import MDSplusSignalSpec
 
 
 @click.group()
@@ -235,6 +242,227 @@ def validate(json_out: bool) -> None:
         click.echo(f"Transport solver: {'OK' if has_transport else 'MISSING'}")
         click.echo(f"Import clean: {'OK' if result['import_clean'] else 'FAIL'}")
         click.echo(f"Status: {result['status']}")
+
+
+@main.command("validate-manifest")
+@click.argument("manifest", type=click.Path(exists=True, dir_okay=False, readable=True))
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+@click.option("--verify-artifact", is_flag=True, help="Verify local artefact checksum")
+def validate_manifest(manifest: str, json_out: bool, verify_artifact: bool) -> None:
+    """Validate real-shot or synthetic-shot data manifest provenance."""
+    from scpn_control.core.real_data_manifest import RealDataManifestError, load_real_data_manifest
+
+    try:
+        validated = load_real_data_manifest(manifest, verify_artifact=verify_artifact)
+    except RealDataManifestError as exc:
+        result: dict[str, object] = {
+            "status": "fail",
+            "error": str(exc),
+        }
+        if json_out:
+            click.echo(json.dumps(result, indent=2))
+        else:
+            click.echo(f"Status: {result['status']}")
+            click.echo(f"Error: {result['error']}")
+        raise click.exceptions.Exit(1) from exc
+
+    result = {
+        "dataset_id": validated.dataset_id,
+        "kind": validated.kind,
+        "machine": validated.machine,
+        "shot": validated.shot,
+        "signals": len(validated.signals),
+        "source_kind": validated.source.kind,
+        "status": "pass",
+    }
+    if verify_artifact:
+        result["artifact_verified"] = True
+    if json_out:
+        click.echo(json.dumps(result, indent=2))
+    else:
+        click.echo(f"Dataset: {result['dataset_id']}")
+        click.echo(f"Kind: {result['kind']}")
+        click.echo(f"Machine: {result['machine']}")
+        click.echo(f"Shot: {result['shot']}")
+        click.echo(f"Signals: {result['signals']}")
+        click.echo(f"Source: {result['source_kind']}")
+        click.echo(f"Status: {result['status']}")
+
+
+@main.command("validate-data-manifests")
+@click.option("--root", help="Root directory to scan for repository data manifests")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--no-verify-artifacts", is_flag=True, help="Validate metadata without local checksum verification")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_data_manifests_command(
+    root: str | None,
+    output_json: str | None,
+    no_verify_artifacts: bool,
+    json_out: bool,
+) -> None:
+    """Validate repository data manifests, local artefacts, and acquisition specs."""
+    from validation.validate_data_manifests import ROOT, validate_manifest_directory
+
+    validation_root = root or str(ROOT / "validation" / "reference_data")
+    report = validate_manifest_directory(validation_root, verify_artifacts=not no_verify_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(
+            "Data manifests: "
+            f"{report['status']} "
+            f"total={report['total']} "
+            f"real={report['real']} "
+            f"synthetic={report['synthetic']} "
+            f"acquisition_specs={report['acquisition_specs']['total']}"
+        )
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-physics-traceability")
+@click.option("--registry", help="Physics traceability registry JSON path")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_physics_traceability_command(
+    registry: str | None,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate physics fidelity traceability and bounded-claim contracts."""
+    from validation.validate_physics_traceability import ROOT, validate_physics_traceability
+
+    registry_path = registry or str(ROOT / "validation" / "physics_traceability.json")
+    report = validate_physics_traceability(registry_path)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(
+            "Physics traceability: "
+            f"{report['status']} "
+            f"total={report['total']} "
+            f"open_fidelity_gaps={report['open_fidelity_gaps']} "
+            f"public_claim_blocked={report['public_claim_blocked']}"
+        )
+        for error in report["errors"]:
+            index = error.get("index", "-")
+            click.echo(f"ERROR {error['path']}[{index}].{error['field']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("acquire-mdsplus-shot")
+@click.option(
+    "--spec-json",
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Versioned acquisition spec JSON; replaces --tree/--shot/--signal",
+)
+@click.option("--tree", help="MDSplus tree name")
+@click.option("--shot", type=int, help="Shot number")
+@click.option("--signal", "signals_json", multiple=True, help="Signal JSON with name/node/units/timebase")
+@click.option("--output-npz", required=True, type=click.Path(dir_okay=False), help="Output NPZ path")
+@click.option("--manifest-json", required=True, type=click.Path(dir_okay=False), help="Output manifest JSON path")
+@click.option("--source-uri", help="Source URI for provenance; defaults to mdsplus://TREE/SHOT")
+@click.option("--access-policy", default="facility-approved", show_default=True, help="Access policy label")
+@click.option("--licence", default="facility data policy", show_default=True, help="Licence or facility data policy")
+@click.option("--retrieved-at", help="UTC retrieval timestamp for reproducible tests")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def acquire_mdsplus_shot_command(
+    spec_json: str | None,
+    tree: str | None,
+    shot: int | None,
+    signals_json: tuple[str, ...],
+    output_npz: str,
+    manifest_json: str,
+    source_uri: str | None,
+    access_policy: str,
+    licence: str,
+    retrieved_at: str | None,
+    json_out: bool,
+) -> None:
+    """Acquire selected MDSplus shot signals and write a validated manifest."""
+    from scpn_control.core.mdsplus_acquisition import acquire_mdsplus_shot, load_mdsplus_acquisition_request
+
+    try:
+        if spec_json is not None:
+            request = load_mdsplus_acquisition_request(spec_json)
+            tree = request.tree
+            shot = request.shot
+            signal_specs = request.signals
+            source_uri = source_uri or request.source_uri
+            access_policy = request.access_policy
+            licence = request.licence
+        else:
+            if tree is None:
+                raise ValueError("--tree is required unless --spec-json is supplied")
+            if shot is None:
+                raise ValueError("--shot is required unless --spec-json is supplied")
+            if not signals_json:
+                raise ValueError("at least one --signal is required unless --spec-json is supplied")
+            signal_specs = [_parse_mdsplus_signal_spec(raw) for raw in signals_json]
+
+        result = acquire_mdsplus_shot(
+            tree=tree,
+            shot=shot,
+            signals=signal_specs,
+            output_npz=output_npz,
+            manifest_json=manifest_json,
+            source_uri=source_uri or f"mdsplus://{tree}/{shot}",
+            access_policy=access_policy,
+            licence=licence,
+            retrieved_at=retrieved_at,
+        )
+    except (RuntimeError, ValueError, json.JSONDecodeError, KeyError) as exc:
+        payload: dict[str, object] = {"status": "fail", "error": str(exc)}
+        if json_out:
+            click.echo(json.dumps(payload, indent=2))
+        else:
+            click.echo(f"Status: {payload['status']}")
+            click.echo(f"Error: {payload['error']}")
+        raise click.exceptions.Exit(1) from exc
+
+    payload = {
+        "status": "pass",
+        "dataset_id": result.dataset_id,
+        "output_npz": str(result.output_npz),
+        "manifest_json": str(result.manifest_json),
+        "checksum_sha256": result.checksum_sha256,
+    }
+    if json_out:
+        click.echo(json.dumps(payload, indent=2))
+    else:
+        click.echo(f"Dataset: {payload['dataset_id']}")
+        click.echo(f"Output NPZ: {payload['output_npz']}")
+        click.echo(f"Manifest: {payload['manifest_json']}")
+        click.echo(f"Status: {payload['status']}")
+
+
+def _parse_mdsplus_signal_spec(raw: str) -> MDSplusSignalSpec:
+    from scpn_control.core.mdsplus_acquisition import MDSplusSignalSpec
+
+    payload = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise ValueError("signal specification must be a JSON object")
+    return MDSplusSignalSpec(
+        name=str(payload["name"]),
+        node=str(payload["node"]),
+        units=str(payload["units"]),
+        timebase=str(payload["timebase"]),
+    )
 
 
 @main.command("validate-rmse")

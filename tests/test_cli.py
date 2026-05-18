@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -68,6 +69,156 @@ def test_validate_json_out(runner):
     data = json.loads(result.output)
     assert "status" in data
     assert data["status"] in ("pass", "fail")
+
+
+def test_validate_manifest_json_out(runner, tmp_path):
+    manifest_path = tmp_path / "real_manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "dataset_id": "diii-d-163303-control-replay",
+                "machine": "DIII-D",
+                "shot": "163303",
+                "synthetic": False,
+                "source": {
+                    "kind": "mdsplus",
+                    "uri": "mdsplus://DIII-D/163303",
+                    "access": "facility-approved",
+                },
+                "retrieved_at": "2026-05-18T01:20:00Z",
+                "checksum_sha256": "b" * 64,
+                "licence": "facility data policy",
+                "signals": [
+                    {
+                        "name": "plasma_current",
+                        "path": "\\\\IP",
+                        "units": "A",
+                        "timebase": "s",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(main, ["validate-manifest", str(manifest_path), "--json-out"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data == {
+        "dataset_id": "diii-d-163303-control-replay",
+        "kind": "real",
+        "machine": "DIII-D",
+        "shot": "163303",
+        "signals": 1,
+        "source_kind": "mdsplus",
+        "status": "pass",
+    }
+
+
+def test_validate_manifest_rejects_mock_as_real(runner, tmp_path):
+    manifest_path = tmp_path / "invalid_manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "dataset_id": "bad-real-claim",
+                "machine": "DIII-D",
+                "shot": "999999",
+                "synthetic": False,
+                "source": {
+                    "kind": "mock",
+                    "uri": "tests/mock_diiid.py",
+                    "access": "repository fixture",
+                },
+                "retrieved_at": "2026-05-18T01:20:00Z",
+                "checksum_sha256": "c" * 64,
+                "licence": "repository fixture",
+                "signals": [
+                    {
+                        "name": "normalised_beta",
+                        "path": "beta_N",
+                        "units": "1",
+                        "timebase": "s",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(main, ["validate-manifest", str(manifest_path), "--json-out"])
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert "synthetic or mock source" in data["error"]
+
+
+def test_validate_manifest_verifies_repository_artifact(runner):
+    manifest_path = (
+        Path(__file__).resolve().parents[1]
+        / "validation"
+        / "reference_data"
+        / "diiid"
+        / "manifests"
+        / "diiid_hmode_1p5MA.geqdsk.manifest.json"
+    )
+
+    result = runner.invoke(main, ["validate-manifest", str(manifest_path), "--verify-artifact", "--json-out"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["artifact_verified"] is True
+
+
+def test_validate_data_manifests_json_out(runner):
+    root = Path(__file__).resolve().parents[1] / "validation" / "reference_data"
+
+    result = runner.invoke(main, ["validate-data-manifests", "--root", str(root), "--json-out"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "pass"
+    assert data["total"] >= 3
+    assert data["artifact_coverage"]["covered"] == 21
+    assert data["acquisition_specs"]["total"] >= 1
+
+
+def test_validate_data_manifests_reports_failures(runner, tmp_path):
+    result = runner.invoke(main, ["validate-data-manifests", "--root", str(tmp_path), "--json-out"])
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no data manifests found"
+
+
+def test_validate_physics_traceability_json_out(runner):
+    registry = Path(__file__).resolve().parents[1] / "validation" / "physics_traceability.json"
+
+    result = runner.invoke(main, ["validate-physics-traceability", "--registry", str(registry), "--json-out"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "pass"
+    assert data["open_fidelity_gaps"] >= 5
+    assert data["public_claim_blocked"] >= 5
+
+
+def test_validate_physics_traceability_reports_failures(runner, tmp_path):
+    registry = tmp_path / "physics_traceability.json"
+    registry.write_text(json.dumps({"schema_version": "1.0", "entries": []}), encoding="utf-8")
+
+    result = runner.invoke(main, ["validate-physics-traceability", "--registry", str(registry), "--json-out"])
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    fields = {error["field"] for error in data["errors"]}
+    assert "entries" in fields
+    assert "spdx_license_id" in fields
 
 
 def test_hil_test_nonexistent_dir(runner):

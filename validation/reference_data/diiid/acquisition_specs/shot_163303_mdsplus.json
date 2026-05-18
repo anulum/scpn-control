@@ -1,0 +1,27 @@
+{
+  "spdx_license_id": "AGPL-3.0-or-later",
+  "copyright": "Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.",
+  "access_policy": "facility-approved",
+  "contact": "protoscience@anulum.li",
+  "licence": "facility data policy",
+  "orcid": "https://orcid.org/0009-0009-3560-0851",
+  "schema_version": "1.0",
+  "signals": [
+    {
+      "name": "plasma_current",
+      "node": "\\\\IP",
+      "timebase": "time_s",
+      "units": "A"
+    },
+    {
+      "name": "normalised_beta",
+      "node": "\\\\BETAN",
+      "timebase": "time_s",
+      "units": "1"
+    }
+  ],
+  "source_uri": "mdsplus://DIII-D/163303",
+  "spdx_license_id": "AGPL-3.0-or-later",
+  "shot": 163303,
+  "tree": "DIII-D"
+}

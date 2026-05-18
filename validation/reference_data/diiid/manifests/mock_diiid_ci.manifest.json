@@ -1,0 +1,38 @@
+{
+  "spdx_license_id": "AGPL-3.0-or-later",
+  "copyright": "Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.",
+  "contact": "www.anulum.li | protoscience@anulum.li",
+  "orcid": "https://orcid.org/0009-0009-3560-0851",
+  "schema_version": "1.0",
+  "dataset_id": "ci-mock-diiid-generator",
+  "machine": "DIII-D",
+  "shot": "999999",
+  "synthetic": true,
+  "source": {
+    "kind": "synthetic",
+    "uri": "tests/mock_diiid.py",
+    "access": "repository fixture"
+  },
+  "synthetic_generator": "tests.mock_diiid.generate_mock_shot",
+  "synthetic_seed": 42,
+  "signals": [
+    {
+      "name": "time",
+      "path": "time_s",
+      "units": "s",
+      "timebase": "time_s"
+    },
+    {
+      "name": "normalised_beta",
+      "path": "beta_N",
+      "units": "1",
+      "timebase": "time_s"
+    },
+    {
+      "name": "edge_safety_factor",
+      "path": "q95",
+      "units": "1",
+      "timebase": "time_s"
+    }
+  ]
+}
