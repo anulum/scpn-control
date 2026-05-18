@@ -197,6 +197,19 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     assert "src/scpn_control/scpn/fpga_export.py" not in phase_runtime_entry["covered_source_paths"]
     assert "src/scpn_control/scpn/geometry_neutral_replay.py" not in phase_runtime_entry["covered_source_paths"]
     assert phase_runtime_entry["covered_source_paths"] == []
+    aggregate_parent_components = {
+        "bounded analytical approximations in physics modules",
+        "bounded control plant approximations",
+        "bounded phase and spiking runtime approximations",
+    }
+    for entry in report["entries"]:
+        if entry["component"] not in aggregate_parent_components:
+            continue
+        assert entry["covered_source_paths"] == []
+        required_actions = " ".join(entry["required_actions"])
+        assert "Split " not in required_actions
+        assert "Replace aggregate" not in required_actions
+        assert "per-module traceability entries" not in required_actions
 
 
 def test_traceability_rejects_unbounded_gap_claim(tmp_path: Path) -> None:

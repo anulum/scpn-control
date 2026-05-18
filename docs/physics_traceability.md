@@ -232,8 +232,8 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - Covered source paths: 0
 - Required actions:
-  - Add per-module traceability entries for each source file that declares an approximation or bounded model
-  - Add validation tests for each declared validity domain before allowing broader claims
+  - Keep this parent entry as a non-source guardrail for future core approximation markers
+  - Require every new core approximation marker to land with a source-specific traceability entry and validation evidence
 
 ### bounded control plant approximations
 
@@ -242,8 +242,8 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - Covered source paths: 0
 - Required actions:
-  - Replace aggregate control coverage with per-controller traceability entries
-  - Attach replay or higher-fidelity plant evidence before facility-control claims
+  - Keep this parent entry as a non-source guardrail for future reduced-order control plant markers
+  - Require every new control plant marker to land with a controller-specific traceability entry and replay or higher-fidelity evidence
 
 ### bounded phase and spiking runtime approximations
 
@@ -252,8 +252,8 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - Covered source paths: 0
 - Required actions:
-  - Split phase, FPGA export, and geometry replay coverage into dedicated traceability entries
-  - Add hardware-target and replay-fixture evidence before deployment claims
+  - Keep this parent entry as a non-source guardrail for future phase, spiking, and replay runtime markers
+  - Require every new runtime marker to land with a source-specific traceability entry plus hardware-target or replay-fixture evidence
 
 ### checkpoint state serialisation boundary contract
 
