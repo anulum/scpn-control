@@ -1,15 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Analytic Solver
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Test Analytic Solver
 
 """Tests for scpn_control.control.analytic_solver."""
 
 import numpy as np
 import pytest
+from pathlib import Path
 
 from scpn_control.control.analytic_solver import AnalyticEquilibriumSolver
 
@@ -165,14 +166,45 @@ class TestApplyAndSave:
         assert data["coils"][0]["current"] == 0.5
         assert data["coils"][2]["current"] == 1.2
 
+    def test_preserves_existing_spdx_metadata_and_final_newline(self, solver, tmp_path):
+        import json
+
+        out_path = tmp_path / "out.json"
+        out_path.write_text(
+            json.dumps(
+                {
+                    "license": "SPDX-License-Identifier: AGPL-3.0-or-later",
+                    "reactor_name": "existing validated artefact",
+                    "coils": [],
+                },
+                indent=4,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        out = solver.apply_and_save(np.array([0.5, -0.3, 1.2]), output_path=str(out_path))
+        text = Path(out).read_text(encoding="utf-8")
+        data = json.loads(text)
+
+        assert data["license"] == "SPDX-License-Identifier: AGPL-3.0-or-later"
+        assert text.endswith("\n")
+
     def test_default_path_used_when_none(self, solver):
-        # Just verify it doesn't raise when output_path=None
-        # (writes to validation/ dir which may or may not exist)
         import os
 
-        out = solver.apply_and_save(np.array([0.1, 0.2, 0.3]))
-        assert os.path.isfile(out)
-        os.remove(out)
+        repo_default = Path(__file__).resolve().parents[1] / "validation" / "iter_analytic_config.json"
+        original = repo_default.read_bytes() if repo_default.exists() else None
+
+        out = str(repo_default)
+        try:
+            out = solver.apply_and_save(np.array([0.1, 0.2, 0.3]))
+            assert os.path.isfile(out)
+        finally:
+            if original is None:
+                Path(out).unlink(missing_ok=True)
+            else:
+                repo_default.write_bytes(original)
 
 
 # ── run_analytic_solver ──────────────────────────────────────────

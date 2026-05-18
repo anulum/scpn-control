@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Analytic Solver
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Analytic Solver
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """Analytic control-law helpers used by deterministic controller tests and examples."""
 
 from __future__ import annotations
@@ -25,6 +17,17 @@ from typing import Any, Callable, Dict
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+_PRESERVED_METADATA_KEYS = (
+    "license",
+    "spdx_license_id",
+    "commercial_license",
+    "concepts_copyright",
+    "code_copyright",
+    "orcid",
+    "contact",
+    "file",
+)
 
 try:
     from scpn_control.core._rust_compat import FusionKernel
@@ -188,8 +191,18 @@ class AnalyticEquilibriumSolver:
         else:
             out_path = Path(output_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
+        cfg = dict(self.kernel.cfg)
+        if out_path.exists():
+            with out_path.open(encoding="utf-8") as f:
+                existing = json.load(f)
+            if isinstance(existing, dict):
+                preserved = {
+                    key: existing[key] for key in _PRESERVED_METADATA_KEYS if key in existing and key not in cfg
+                }
+                cfg = {**preserved, **cfg}
         with out_path.open("w", encoding="utf-8") as f:
-            json.dump(self.kernel.cfg, f, indent=4)
+            json.dump(cfg, f, indent=4)
+            f.write("\n")
         self._log(f"Saved analytic configuration: {out_path}")
         return str(out_path)
 
