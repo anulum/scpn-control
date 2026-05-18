@@ -15,11 +15,11 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 ## Summary
 
 - Status: pass
-- Registry entries: 43
-- Open fidelity gaps: 43
-- Full-fidelity public claims blocked: 43
-- Resolved module paths: 43
-- Resolved evidence paths: 151
+- Registry entries: 46
+- Open fidelity gaps: 46
+- Full-fidelity public claims blocked: 46
+- Resolved module paths: 46
+- Resolved evidence paths: 162
 - Source marker coverage: 41/41
 
 ## Module Traceability Table
@@ -32,10 +32,12 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 | `src/scpn_control/core/eped_pedestal.py` | EPED claims must declare the pedestal-width scaling, peeling-ballooning pressure limit, bootstrap-current coupling, H-mode entry assumptions, global beta limits, and compatibility boundary to the transport solver. | Snyder et al. EPED pedestal model; Troyon beta-limit reference; Sauter bootstrap-current fit | Pedestal width in normalised flux or metres with convention metadata; pressure in pascals, temperature in eV or keV, density in m^-3, current in amperes, and beta dimensionless. | tests/test_eped_pedestal.py; tests/test_cross_module_physics.py; tests/test_transport_hmode_edge.py | validation_gap |
 | `src/scpn_control/core/fusion_kernel.py` | Fusion-kernel claims must declare the Grad-Shafranov residual, finite-difference grid, coil Green functions, source-profile parameterisation, boundary conditions, nonlinear iteration controls, convergence criteria, and Rust/Python parity boundary. | Grad-Shafranov equilibrium equation; Green-function tokamak coil-response references; repository Rust/Python fusion-kernel parity contract | SI metres, webers per radian, tesla, amperes, pascals, source derivatives, grid spacings, and dimensionless convergence tolerances. | tests/test_fusion_kernel.py; tests/test_geqdsk_regression.py; tests/test_rust_python_parity.py | validation_gap |
 | `src/scpn_control/core/jax_gk_solver.py` | JAX linear gyrokinetic claims must preserve the native response-matrix eigenvalue formulation, expose identical physical input contracts, and document any numerical-precision or backend divergence. | Repository native linear GK response-matrix contract; JAX numerical backend reproducibility guidance | Same growth-rate, frequency, geometry, and species units as native linear GK; backend dtype, tolerance, and normalisation must be explicit in validation artefacts. | tests/test_jax_gk_solver.py; validation/validate_jax_gk_parity.py strict persisted backend parity artifact gate; source-level native response-matrix parity contract | validation_gap |
+| `src/scpn_control/phase/kuramoto.py` | Phase-runtime claims must declare the Kuramoto-Sakaguchi mean-field coupling, order-parameter calculation, exogenous global-driver injection, phase wrapping convention, Euler step, and optional Rust fast-path parity boundary. | Kuramoto and Sakaguchi phase oscillator model; Repository phase synchronisation runtime contract | Phases in radians, angular frequencies in radians per second, timestep in seconds, coupling gains dimensionless or radians per second by declared convention, order parameter dimensionless. | tests/test_phase_kuramoto.py; tests/test_phase_properties.py; tests/test_phase_properties_extended.py | bounded_model |
 | `src/scpn_control/core/marfe.py` | MARFE claims must declare impurity radiation loss, temperature scan, condensation criterion, Greenwald comparison, power-balance inputs, impurity fraction, and detection thresholds for detached high-radiation states. | Stangeby 2000 scrape-off-layer and divertor references; Greenwald 2002 density-limit reference; radiation-condensation MARFE onset references | Temperature in eV, density in m^-3, power in MW or W with explicit conversion, plasma current in MA or A with convention metadata, impurity fraction dimensionless. | tests/test_marfe.py; tests/test_cross_module_physics.py | validation_gap |
 | `src/scpn_control/core/gk_geometry.py` | Geometry claims must declare Miller-shape coordinates, Jacobian, magnetic-field approximation, toroidal-field vacuum assumption, safety-factor relation, metric coefficients, and local-equilibrium validity bounds. | Miller et al. 1998 local equilibrium; Cyclone Base Case local Miller geometry benchmark | Major radius, minor radius, local radius, and gradient lengths in metres; angles in radians; magnetic-field strength in tesla; q, shear, elongation, triangularity, and shaping derivatives dimensionless. | tests/test_gk_geometry.py; validation/validate_gk_geometry_reference.py immutable Miller reference cases; source-level local Miller geometry contract | validation_gap |
 | `src/scpn_control/core/ntm_dynamics.py` | NTM dynamics claims must declare rational-surface search, modified Rutherford equation terms, bootstrap drive, polarisation and curvature terms, ECCD control coupling, seed-island assumptions, and controller-validity limits. | modified Rutherford equation NTM references; ECCD NTM control references; repository rational-surface and island-dynamics contract | Island width in metres, time in seconds, current in amperes, q dimensionless, rho dimensionless, ECCD power in MW or W with conversion metadata. | tests/test_ntm_dynamics.py; tests/test_cross_module_physics.py | validation_gap |
 | `src/scpn_control/control/rzip_model.py` | Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, effective-mass assumption, and wall or active-coil circuit model. | Lazarus et al. 1990 rigid plasma vertical stability model; Wesson 2011 tokamak vertical stability and field-index references; Repository vessel circuit model contract | SI metres, seconds, amperes, henries, ohms, tesla, and dimensionless vertical field index; growth time is reported in milliseconds. | tests/test_rzip_model.py vertical growth and field-index checks; tests/test_cov_100_pct.py RZIP fallback and singular-circuit checks | bounded_model |
+| `src/scpn_control/scpn/fpga_export.py` | FPGA-export claims must declare LIF fixed-point quantisation, leak right-shift approximation, threshold scaling, signed weight saturation, generated HDL boundary, target family assumptions, and synthesis-tool responsibility. | Repository SCPN compiler and fixed-point export contract; Leaky integrate-and-fire digital implementation contract | Fixed-point values use declared bit width and fractional-bit scale; clock in MHz, timestep in seconds, FIFO depth and neuron counts dimensionless, weights and thresholds quantised by explicit integer scale. | tests/test_fpga_export.py; tests/test_scpn_compiler.py | bounded_model |
 | `src/scpn_control/core/vmec_lite.py` | VMEC-lite claims must declare flux-surface parameterisation, rotational-transform profile, Fourier mode truncation, pressure/current assumptions, residual metric, and explicit exclusion from full 3D MHD equilibrium claims. | VMEC 3D equilibrium references; stellarator flux-surface Fourier parameterisation references | SI metres, tesla, pascals, amperes, webers, dimensionless rotational transform, and Fourier coefficients with declared length units. | tests/test_vmec_lite.py | validation_gap |
 | `src/scpn_control/control/advanced_soc_fusion_learning.py` | SOC turbulence-learning claims must declare the sandpile lattice, critical-gradient threshold, predator-prey zonal-flow coupling, shear-suppression term, bounded substep relaxation, Q-learning state discretisation, action set, and random policy assumptions. | Diamond and Hahm 1995 SOC turbulence reference; Kim and Diamond 2003 zonal-flow predator-prey coupling; Biglari, Diamond and Terry 1990 shear-suppression reference | Dimensionless lattice gradients, flow amplitudes, shear, toppling counts, Q-table values, reward, and RNG-seeded action choices. | tests/test_advanced_soc.py SOC physics and learning checks; tests/test_advanced_soc_verbose_plot.py verbose and plotting-path checks; tests/test_visualization_paths.py SOC visualisation checks | bounded_model |
 | `src/scpn_control/core/blob_transport.py` | Blob transport claims must declare interchange drive, sheath closure, radial velocity scaling, filament size, density and temperature perturbation assumptions, and scrape-off-layer validity bounds. | Stangeby 2000 scrape-off-layer transport references; blob-filament interchange transport scaling references | SI metres, seconds, m/s, density in m^-3, temperature in eV, magnetic field in tesla, and dimensionless normalised perturbations. | tests/test_blob_transport.py | validation_gap |
@@ -49,6 +51,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 | `src/scpn_control/core/disruption_sequence.py` | Disruption-sequence claims must declare phase ordering, thermal-quench and current-quench timing, mitigation action coupling, runaway-electron beam phase, stochastic event boundaries, and replay provenance. | ITER disruption mitigation sequence references; repository disruption phase-state contract | Time in seconds or milliseconds with explicit convention, current in amperes or mega-amperes, energy in joules or megajoules, and dimensionless phase labels. | tests/test_disruption_sequence.py; tests/test_disruption_safe_api.py | validation_gap |
 | `src/scpn_control/core/gk_interface.py` | Generated input decks and parsed outputs must round-trip through real TGLF, GENE, GS2, CGYRO, or QuaLiKiz executables. | TGLF Staebler et al. 2007; GENE Jenko et al. 2000; GS2 Kotschenreuther et al. 1995; CGYRO Candy et al. 2016; QuaLiKiz Bourdelle et al. 2007 | Code-specific flux, growth-rate, frequency, and geometry units converted into repository normalisation with explicit metadata. | docs/joss_paper.md external GK limitation; validation/validate_gk_interface_artifacts.py strict external interface artifact gate | external_dependency_blocked |
 | `src/scpn_control/core/uncertainty.py` | Uncertainty claims must declare sampled variables, distributions, correlations, random seed, propagation chain, convergence criteria, sensitivity outputs, and finite-value rejection policy. | Monte Carlo uncertainty propagation references; repository fusion-performance uncertainty contract | Units inherit each propagated physical quantity; distribution parameters must preserve SI or declared normalised units and dimensionless uncertainty fractions. | tests/test_uncertainty.py; tests/test_full_chain_uq.py; tests/test_uncertainty_sigma_guard.py | validation_gap |
+| `src/scpn_control/scpn/geometry_neutral_replay.py` | Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, and replay acceptance thresholds. | Repository geometry-neutral control contract; W7-X-like reduced-order stellarator replay fixture | Field-line spread in radians, currents in amperes, timestep in seconds, latency in microseconds, effective ripple dimensionless, controller objectives and thresholds declared per replay manifest. | tests/test_geometry_neutral_replay.py; tests/test_geometry_neutral_contracts.py | bounded_model |
 | `src/scpn_control/core/gk_ood_detector.py` | OOD detector claims must declare the feature vector, training distribution, distance metric, threshold calibration, uncertainty handling, and behavior outside the calibrated gyrokinetic operating envelope. | Repository gyrokinetic scheduler OOD contract; statistical process monitoring distribution-shift controls | Feature units inherit declared GK inputs and outputs; detector scores are dimensionless with explicit calibration metadata and threshold provenance. | tests/test_gk_ood_detector.py; tests/test_gk_hybrid_integration.py; validation/validate_gk_ood_calibration.py strict persisted campaign calibration gate | validation_gap |
 | `src/scpn_control/core/gk_online_learner.py` | Online learner claims must declare training-window selection, validation loss, rollback policy, uncertainty or OOD gating, optimiser settings, and compatibility boundary with gyrokinetic scheduler inputs. | online learning stability and rollback control references; repository gyrokinetic hybrid learner contract | Inputs inherit GK feature units; losses and OOD scores dimensionless with explicit scaling and threshold metadata. | tests/test_gk_online_learner.py; tests/test_gk_hybrid_integration.py | validation_gap |
 | `src/scpn_control/core/gk_species.py` | Species and collision claims must declare charge, mass, density, temperature, thermal speed, Larmor radius, gyroaverage Bessel approximation, diamagnetic frequency, pitch-angle scattering model, energy-diffusion simplification, and valid species parameter bounds. | Sugama et al. 2006 collision operator; gyrokinetic normalisation and species parameter contracts | Mass in kilograms, charge in coulombs, density in m^-3, temperature in electronvolts, velocity in m/s, gyrofrequency in rad/s, Larmor radius in metres, and collision rates in s^-1. | tests/test_gk_species.py; tests/test_gk_electromagnetic.py; validation/validate_gk_species_reference.py immutable species and collision reference cases | validation_gap |
@@ -132,6 +135,16 @@ It blocks full-fidelity public claims for entries whose evidence status is still
   - Run backend parity over CBC, TEM, electromagnetic, and stable-mode cases with pinned tolerances
   - Persist CPU/GPU backend metadata with each parity artefact before claiming accelerator-equivalent physics
 
+### Kuramoto-Sakaguchi phase synchronisation runtime
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/phase/kuramoto.py`
+- Full-fidelity public claim: blocked
+- Covered source paths: 1
+- Required actions:
+  - Validate synchronisation and stability metrics against published Kuramoto-Sakaguchi benchmark cases before broader phase-control claims
+  - Persist Rust/Python parity evidence and timestep convergence checks for deployment-target oscillator counts
+
 ### MARFE radiation-condensation density-limit contract
 
 - Fidelity status: `validation_gap`
@@ -171,6 +184,16 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Replace the effective-mass heuristic with a documented plasma inertia or facility-calibrated parameter source before facility claims
   - Validate vertical growth rates against a reference RZIP, CREATE-L/NL, TSC, or measured vertical-displacement benchmark
+
+### SCPN FPGA fixed-point export boundary
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/scpn/fpga_export.py`
+- Full-fidelity public claim: blocked
+- Covered source paths: 1
+- Required actions:
+  - Run generated HDL through real Vivado, Quartus, or Yosys synthesis before hardware readiness claims
+  - Persist resource utilisation, timing closure, and bit-accurate simulator evidence for every supported target family
 
 ### VMEC-lite stellarator equilibrium approximation contract
 
@@ -227,7 +250,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Fidelity status: `bounded_model`
 - Module path: `src/scpn_control`
 - Full-fidelity public claim: blocked
-- Covered source paths: 3
+- Covered source paths: 0
 - Required actions:
   - Split phase, FPGA export, and geometry replay coverage into dedicated traceability entries
   - Add hardware-target and replay-fixture evidence before deployment claims
@@ -301,6 +324,16 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Calibrate uncertainty priors against measured or published scenario ensembles
   - Persist random seeds, distribution parameters, sample counts, convergence diagnostics, and sensitivity metrics with every UQ artefact
+
+### geometry-neutral stellarator replay fixture
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/scpn/geometry_neutral_replay.py`
+- Full-fidelity public claim: blocked
+- Covered source paths: 1
+- Required actions:
+  - Replace synthetic W7-X-like replay inputs with measured or benchmark stellarator field-line artefacts before device-control claims
+  - Persist replay manifests with magnetic-configuration provenance, actuator calibration, latency evidence, and acceptance thresholds
 
 ### gyrokinetic OOD detector distribution-bound contract
 

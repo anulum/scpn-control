@@ -163,6 +163,18 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
         entry for entry in report["entries"] if entry["component"] == "volt-second budget and flux-consumption manager"
     )
     assert volt_second_entry["covered_source_paths"] == ["src/scpn_control/control/volt_second_manager.py"]
+    kuramoto_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "Kuramoto-Sakaguchi phase synchronisation runtime"
+    )
+    assert kuramoto_entry["covered_source_paths"] == ["src/scpn_control/phase/kuramoto.py"]
+    fpga_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "SCPN FPGA fixed-point export boundary"
+    )
+    assert fpga_entry["covered_source_paths"] == ["src/scpn_control/scpn/fpga_export.py"]
+    replay_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "geometry-neutral stellarator replay fixture"
+    )
+    assert replay_entry["covered_source_paths"] == ["src/scpn_control/scpn/geometry_neutral_replay.py"]
     control_entry = next(
         entry for entry in report["entries"] if entry["component"] == "bounded control plant approximations"
     )
@@ -178,6 +190,13 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     assert "src/scpn_control/control/burn_controller.py" not in control_entry["covered_source_paths"]
     assert "src/scpn_control/control/volt_second_manager.py" not in control_entry["covered_source_paths"]
     assert control_entry["covered_source_paths"] == []
+    phase_runtime_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "bounded phase and spiking runtime approximations"
+    )
+    assert "src/scpn_control/phase/kuramoto.py" not in phase_runtime_entry["covered_source_paths"]
+    assert "src/scpn_control/scpn/fpga_export.py" not in phase_runtime_entry["covered_source_paths"]
+    assert "src/scpn_control/scpn/geometry_neutral_replay.py" not in phase_runtime_entry["covered_source_paths"]
+    assert phase_runtime_entry["covered_source_paths"] == []
 
 
 def test_traceability_rejects_unbounded_gap_claim(tmp_path: Path) -> None:

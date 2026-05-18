@@ -21,8 +21,8 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
 
     assert markdown.startswith("<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->")
     assert "# Physics Traceability and Bounded Claims" in markdown
-    assert "Open fidelity gaps: 43" in markdown
-    assert "Full-fidelity public claims blocked: 43" in markdown
+    assert "Open fidelity gaps: 46" in markdown
+    assert "Full-fidelity public claims blocked: 46" in markdown
     assert "Source marker coverage: 41/41" in markdown
     assert "## Module Traceability Table" in markdown
     assert "| Module | Equation or contract | References | Unit contract | Validation evidence | Status |" in markdown
@@ -42,6 +42,9 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "advanced SOC turbulence learning controller" in markdown
     assert "DT burn control and alpha-heating model" in markdown
     assert "volt-second budget and flux-consumption manager" in markdown
+    assert "Kuramoto-Sakaguchi phase synchronisation runtime" in markdown
+    assert "SCPN FPGA fixed-point export boundary" in markdown
+    assert "geometry-neutral stellarator replay fixture" in markdown
     assert "bounded control plant approximations" in markdown
     assert "bounded phase and spiking runtime approximations" in markdown
     assert "nonlinear gyrokinetic heat-flux saturation" in markdown

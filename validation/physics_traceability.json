@@ -1274,6 +1274,96 @@
       "validity_domain": "Reduced-order control, estimator, replay, and safety-contract modules; not facility hardware validation."
     },
     {
+      "component": "Kuramoto-Sakaguchi phase synchronisation runtime",
+      "equation_contract": "Phase-runtime claims must declare the Kuramoto-Sakaguchi mean-field coupling, order-parameter calculation, exogenous global-driver injection, phase wrapping convention, Euler step, and optional Rust fast-path parity boundary.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Kuramoto and Sakaguchi phase oscillator model",
+        "Repository phase synchronisation runtime contract"
+      ],
+      "module_path": "src/scpn_control/phase/kuramoto.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Validate synchronisation and stability metrics against published Kuramoto-Sakaguchi benchmark cases before broader phase-control claims",
+        "Persist Rust/Python parity evidence and timestep convergence checks for deployment-target oscillator counts"
+      ],
+      "unit_contract": "Phases in radians, angular frequencies in radians per second, timestep in seconds, coupling gains dimensionless or radians per second by declared convention, order parameter dimensionless.",
+      "validation_evidence": [
+        "tests/test_phase_kuramoto.py",
+        "tests/test_phase_properties.py",
+        "tests/test_phase_properties_extended.py"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/phase/kuramoto.py",
+        "tests/test_phase_kuramoto.py",
+        "tests/test_phase_properties.py",
+        "tests/test_phase_properties_extended.py"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/phase/kuramoto.py"
+      ],
+      "validity_domain": "Local Kuramoto-Sakaguchi oscillator regression and runtime parity checks; not a validated plasma-phase control law."
+    },
+    {
+      "component": "SCPN FPGA fixed-point export boundary",
+      "equation_contract": "FPGA-export claims must declare LIF fixed-point quantisation, leak right-shift approximation, threshold scaling, signed weight saturation, generated HDL boundary, target family assumptions, and synthesis-tool responsibility.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Repository SCPN compiler and fixed-point export contract",
+        "Leaky integrate-and-fire digital implementation contract"
+      ],
+      "module_path": "src/scpn_control/scpn/fpga_export.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Run generated HDL through real Vivado, Quartus, or Yosys synthesis before hardware readiness claims",
+        "Persist resource utilisation, timing closure, and bit-accurate simulator evidence for every supported target family"
+      ],
+      "unit_contract": "Fixed-point values use declared bit width and fractional-bit scale; clock in MHz, timestep in seconds, FIFO depth and neuron counts dimensionless, weights and thresholds quantised by explicit integer scale.",
+      "validation_evidence": [
+        "tests/test_fpga_export.py",
+        "tests/test_scpn_compiler.py"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/scpn/fpga_export.py",
+        "tests/test_fpga_export.py",
+        "tests/test_scpn_compiler.py"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/scpn/fpga_export.py"
+      ],
+      "validity_domain": "Generated HDL and fixed-point export regression only; no target-specific timing closure or bitstream validation is claimed."
+    },
+    {
+      "component": "geometry-neutral stellarator replay fixture",
+      "equation_contract": "Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, and replay acceptance thresholds.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Repository geometry-neutral control contract",
+        "W7-X-like reduced-order stellarator replay fixture"
+      ],
+      "module_path": "src/scpn_control/scpn/geometry_neutral_replay.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Replace synthetic W7-X-like replay inputs with measured or benchmark stellarator field-line artefacts before device-control claims",
+        "Persist replay manifests with magnetic-configuration provenance, actuator calibration, latency evidence, and acceptance thresholds"
+      ],
+      "unit_contract": "Field-line spread in radians, currents in amperes, timestep in seconds, latency in microseconds, effective ripple dimensionless, controller objectives and thresholds declared per replay manifest.",
+      "validation_evidence": [
+        "tests/test_geometry_neutral_replay.py",
+        "tests/test_geometry_neutral_contracts.py"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/scpn/geometry_neutral_replay.py",
+        "src/scpn_control/scpn/geometry_neutral_contracts.py",
+        "tests/test_geometry_neutral_replay.py",
+        "tests/test_geometry_neutral_contracts.py"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/scpn/geometry_neutral_replay.py"
+      ],
+      "validity_domain": "Synthetic reduced-order stellarator replay for controller regression; not a measured W7-X or device-qualified control validation."
+    },
+    {
       "component": "bounded phase and spiking runtime approximations",
       "equation_contract": "Runtime approximations must state phase wrapping, fixed-point shift approximations, replay fixture provenance, and hardware export limits.",
       "fidelity_status": "bounded_model",
@@ -1294,11 +1384,6 @@
         "src/scpn_control/scpn/geometry_neutral_replay.py"
       ],
       "evidence_paths": [
-        "src/scpn_control/phase/kuramoto.py",
-        "src/scpn_control/scpn/fpga_export.py",
-        "src/scpn_control/scpn/geometry_neutral_replay.py"
-      ],
-      "covered_source_paths": [
         "src/scpn_control/phase/kuramoto.py",
         "src/scpn_control/scpn/fpga_export.py",
         "src/scpn_control/scpn/geometry_neutral_replay.py"
