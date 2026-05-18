@@ -19,6 +19,7 @@
 *.gif binary
 *.h5 binary
 *.hdf5 binary
+*.geqdsk binary
 
 # Lock files -- generated, do not diff
 Cargo.lock linguist-generated

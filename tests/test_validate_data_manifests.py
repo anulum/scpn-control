@@ -9,6 +9,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 from validation.validate_data_manifests import main, validate_manifest_directory
@@ -33,6 +35,36 @@ def test_validate_manifest_directory_reports_repository_manifests() -> None:
     assert report["acquisition_specs"]["total"] >= 1
     assert report["acquisition_specs"]["mdsplus"] >= 1
     assert not report["errors"]
+
+
+def test_validate_manifest_directory_does_not_import_numpy_for_spec_gate() -> None:
+    code = f"""
+import builtins
+import json
+
+original_import = builtins.__import__
+
+def guarded_import(name, *args, **kwargs):
+    if name == "numpy" or name.startswith("numpy."):
+        raise ModuleNotFoundError("numpy intentionally blocked for manifest gate")
+    return original_import(name, *args, **kwargs)
+
+builtins.__import__ = guarded_import
+from validation.validate_data_manifests import validate_manifest_directory
+
+report = validate_manifest_directory({str(ROOT / "validation" / "reference_data")!r}, verify_artifacts=False)
+print(json.dumps({{"status": report["status"], "mdsplus": report["acquisition_specs"]["mdsplus"]}}))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"status": "pass", "mdsplus": 1}
 
 
 def test_validate_manifest_directory_rejects_bad_checksum(tmp_path) -> None:

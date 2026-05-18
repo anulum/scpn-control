@@ -110,8 +110,7 @@ def verify_manifest_artifact(manifest: RealDataManifest, *, manifest_path: str |
             digest = _sha256_file(artifact_path)
             if digest != artifact.checksum_sha256:
                 raise RealDataManifestError(
-                    f"artifact checksum mismatch for {artifact_path}: "
-                    f"expected {artifact.checksum_sha256}, got {digest}"
+                    f"artifact checksum mismatch for {artifact_path}: expected {artifact.checksum_sha256}, got {digest}"
                 )
         return None
     if manifest.checksum_sha256 is None:
@@ -228,7 +227,9 @@ def _validate_real_manifest(manifest: RealDataManifest) -> None:
         raise RealDataManifestError("real manifest requires retrieved_at")
     if not manifest.licence:
         raise RealDataManifestError("real manifest requires licence")
-    if not manifest.artifacts and (manifest.checksum_sha256 is None or not _SHA256_RE.fullmatch(manifest.checksum_sha256)):
+    if not manifest.artifacts and (
+        manifest.checksum_sha256 is None or not _SHA256_RE.fullmatch(manifest.checksum_sha256)
+    ):
         raise RealDataManifestError("real manifest requires a lowercase 64-hex checksum_sha256")
     for signal in manifest.signals:
         if signal.units.strip().lower() in _BAD_REAL_UNITS:

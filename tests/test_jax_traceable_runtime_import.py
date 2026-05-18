@@ -9,8 +9,13 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_traceable_runtime_imports_with_deprecation_warnings_as_errors() -> None:
@@ -18,6 +23,8 @@ def test_traceable_runtime_imports_with_deprecation_warnings_as_errors() -> None
 
     result = subprocess.run(
         [sys.executable, "-W", "error::DeprecationWarning", "-c", code],
+        cwd=ROOT,
+        env={**os.environ, "PYTHONPATH": str(ROOT / "src")},
         check=False,
         capture_output=True,
         text=True,

@@ -11,21 +11,44 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
 
-from scpn_control.core.mdsplus_acquisition import load_mdsplus_acquisition_request
-from scpn_control.core.real_data_manifest import RealDataManifestError, load_real_data_manifest
+_REAL_DATA_MODULE_PATH = SRC / "scpn_control" / "core" / "real_data_manifest.py"
+_REAL_DATA_MODULE_NAME = "_scpn_control_real_data_manifest_contract"
+
+
+def _load_real_data_manifest_api() -> tuple[type[Exception], Any]:
+    spec = importlib.util.spec_from_file_location(_REAL_DATA_MODULE_NAME, _REAL_DATA_MODULE_PATH)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load real-data manifest contract from {_REAL_DATA_MODULE_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return cast(type[Exception], module.RealDataManifestError), module.load_real_data_manifest
+
+
+RealDataManifestError, load_real_data_manifest = _load_real_data_manifest_api()
 
 
 _DIIID_ARTIFACT_PATTERNS = ("*.geqdsk", "disruption_shots/*.npz")
+
+
+@dataclass(frozen=True)
+class AcquisitionSpec:
+    """Stdlib-only acquisition request summary used by the CI manifest gate."""
+
+    tree: str
+    shot: int
+    source_uri: str
+    signals: int
 
 
 def iter_manifest_paths(root: str | Path) -> list[Path]:
@@ -89,7 +112,7 @@ def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = Tr
     covered_artifacts: set[Path] = set()
     for spec_path in acquisition_spec_paths:
         try:
-            spec = load_mdsplus_acquisition_request(spec_path)
+            spec = load_acquisition_spec(spec_path)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             errors.append({"path": str(spec_path), "error": str(exc)})
             continue
@@ -101,7 +124,7 @@ def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = Tr
                 "tree": spec.tree,
                 "shot": spec.shot,
                 "source_uri": spec.source_uri,
-                "signals": len(spec.signals),
+                "signals": spec.signals,
             }
         )
 
@@ -145,6 +168,60 @@ def validate_manifest_directory(root: str | Path, *, verify_artifacts: bool = Tr
     if errors:
         report["status"] = "fail"
     return report
+
+
+def load_acquisition_spec(path: str | Path) -> AcquisitionSpec:
+    """Load an MDSplus acquisition request without importing runtime dependencies."""
+    spec_path = Path(path)
+    with spec_path.open(encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError("MDSplus acquisition request root must be a JSON object")
+    if payload.get("schema_version") != "1.0":
+        raise ValueError("MDSplus acquisition request schema_version must be '1.0'")
+
+    tree = _required_str(payload, "tree")
+    source_uri = _required_str(payload, "source_uri")
+    _required_str(payload, "access_policy")
+    _required_str(payload, "licence")
+    shot = payload.get("shot")
+    if isinstance(shot, bool) or not isinstance(shot, int):
+        raise ValueError("MDSplus acquisition request shot must be an integer")
+
+    signals_payload = payload.get("signals")
+    if not isinstance(signals_payload, list):
+        raise ValueError("MDSplus acquisition request requires a signals array")
+    if not signals_payload:
+        raise ValueError("MDSplus acquisition requires at least one signal")
+    _validate_signal_specs(signals_payload)
+    return AcquisitionSpec(tree=tree, shot=shot, source_uri=source_uri, signals=len(signals_payload))
+
+
+def _validate_signal_specs(signals: list[object]) -> None:
+    seen: set[str] = set()
+    for signal_payload in signals:
+        if not isinstance(signal_payload, dict):
+            raise ValueError("MDSplus signal specification must be a JSON object")
+        name = _required_str(signal_payload, "name")
+        node = _required_str(signal_payload, "node")
+        units = _required_str(signal_payload, "units")
+        timebase = _required_str(signal_payload, "timebase")
+        if name in seen:
+            raise ValueError(f"duplicate MDSplus signal name: {name}")
+        seen.add(name)
+        if not node.strip():
+            raise ValueError(f"MDSplus signal {name!r} requires a node path")
+        if not units.strip():
+            raise ValueError(f"MDSplus signal {name!r} requires units")
+        if not timebase.strip():
+            raise ValueError(f"MDSplus signal {name!r} requires a timebase")
+
+
+def _required_str(payload: dict[str, Any], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"MDSplus acquisition request requires non-empty {key}")
+    return value.strip()
 
 
 def _covered_artifact_uris(manifest: Any) -> list[str]:

@@ -51,20 +51,28 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
         entry for entry in report["entries"] if entry["component"] == "nonlinear gyrokinetic heat-flux saturation"
     )
     assert nonlinear_gk_entry["covered_source_paths"] == ["src/scpn_control/core/gk_nonlinear.py"]
-    linear_gk_entry = next(entry for entry in report["entries"] if entry["component"] == "linear gyrokinetic cross-code agreement")
+    linear_gk_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "linear gyrokinetic cross-code agreement"
+    )
     assert linear_gk_entry["covered_source_paths"] == ["src/scpn_control/core/gk_eigenvalue.py"]
     geometry_entry = next(
         entry for entry in report["entries"] if entry["component"] == "Miller geometry and field approximation contract"
     )
     assert geometry_entry["covered_source_paths"] == ["src/scpn_control/core/gk_geometry.py"]
     species_entry = next(
-        entry for entry in report["entries"] if entry["component"] == "gyrokinetic species and collision approximation contract"
+        entry
+        for entry in report["entries"]
+        if entry["component"] == "gyrokinetic species and collision approximation contract"
     )
     assert species_entry["covered_source_paths"] == ["src/scpn_control/core/gk_species.py"]
-    jax_gk_entry = next(entry for entry in report["entries"] if entry["component"] == "JAX gyrokinetic numerical parity guard")
+    jax_gk_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "JAX gyrokinetic numerical parity guard"
+    )
     assert jax_gk_entry["covered_source_paths"] == ["src/scpn_control/core/jax_gk_solver.py"]
     ood_entry = next(
-        entry for entry in report["entries"] if entry["component"] == "gyrokinetic OOD detector distribution-bound contract"
+        entry
+        for entry in report["entries"]
+        if entry["component"] == "gyrokinetic OOD detector distribution-bound contract"
     )
     assert ood_entry["covered_source_paths"] == ["src/scpn_control/core/gk_ood_detector.py"]
     dedicated_core_paths = {
@@ -93,7 +101,11 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     for component, source_path in dedicated_core_paths.items():
         entry = next(item for item in report["entries"] if item["component"] == component)
         assert entry["covered_source_paths"] == [source_path]
-    core_entry = next(entry for entry in report["entries"] if entry["component"] == "bounded analytical approximations in physics modules")
+    core_entry = next(
+        entry
+        for entry in report["entries"]
+        if entry["component"] == "bounded analytical approximations in physics modules"
+    )
     assert "src/scpn_control/core/gk_eigenvalue.py" not in core_entry["covered_source_paths"]
     assert "src/scpn_control/core/gk_geometry.py" not in core_entry["covered_source_paths"]
     assert "src/scpn_control/core/gk_nonlinear.py" not in core_entry["covered_source_paths"]
@@ -103,29 +115,57 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     for source_path in dedicated_core_paths.values():
         assert source_path not in core_entry["covered_source_paths"]
     assert core_entry["covered_source_paths"] == []
-    gym_entry = next(entry for entry in report["entries"] if entry["component"] == "reduced-order plant and control environments")
+    gym_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "reduced-order plant and control environments"
+    )
     assert gym_entry["covered_source_paths"] == ["src/scpn_control/control/gym_tokamak_env.py"]
-    rzip_entry = next(entry for entry in report["entries"] if entry["component"] == "RZIP rigid vertical stability model")
+    rzip_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "RZIP rigid vertical stability model"
+    )
     assert rzip_entry["covered_source_paths"] == ["src/scpn_control/control/rzip_model.py"]
-    realtime_efit_entry = next(entry for entry in report["entries"] if entry["component"] == "real-time EFIT-lite equilibrium reconstruction")
+    realtime_efit_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "real-time EFIT-lite equilibrium reconstruction"
+    )
     assert realtime_efit_entry["covered_source_paths"] == ["src/scpn_control/control/realtime_efit.py"]
-    halo_entry = next(entry for entry in report["entries"] if entry["component"] == "halo current and runaway electron disruption model")
+    halo_entry = next(
+        entry
+        for entry in report["entries"]
+        if entry["component"] == "halo current and runaway electron disruption model"
+    )
     assert halo_entry["covered_source_paths"] == ["src/scpn_control/control/halo_re_physics.py"]
-    free_boundary_entry = next(entry for entry in report["entries"] if entry["component"] == "direct free-boundary tracking controller")
+    free_boundary_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "direct free-boundary tracking controller"
+    )
     assert free_boundary_entry["covered_source_paths"] == ["src/scpn_control/control/free_boundary_tracking.py"]
-    density_entry = next(entry for entry in report["entries"] if entry["component"] == "density control and particle-source model")
+    density_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "density control and particle-source model"
+    )
     assert density_entry["covered_source_paths"] == ["src/scpn_control/control/density_controller.py"]
-    disruption_contract_entry = next(entry for entry in report["entries"] if entry["component"] == "disruption mitigation contract layer")
+    disruption_contract_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "disruption mitigation contract layer"
+    )
     assert disruption_contract_entry["covered_source_paths"] == ["src/scpn_control/control/disruption_contracts.py"]
-    digital_twin_entry = next(entry for entry in report["entries"] if entry["component"] == "tokamak digital twin topology and diffusion model")
+    digital_twin_entry = next(
+        entry
+        for entry in report["entries"]
+        if entry["component"] == "tokamak digital twin topology and diffusion model"
+    )
     assert digital_twin_entry["covered_source_paths"] == ["src/scpn_control/control/tokamak_digital_twin.py"]
-    soc_entry = next(entry for entry in report["entries"] if entry["component"] == "advanced SOC turbulence learning controller")
+    soc_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "advanced SOC turbulence learning controller"
+    )
     assert soc_entry["covered_source_paths"] == ["src/scpn_control/control/advanced_soc_fusion_learning.py"]
-    burn_entry = next(entry for entry in report["entries"] if entry["component"] == "DT burn control and alpha-heating model")
+    burn_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "DT burn control and alpha-heating model"
+    )
     assert burn_entry["covered_source_paths"] == ["src/scpn_control/control/burn_controller.py"]
-    volt_second_entry = next(entry for entry in report["entries"] if entry["component"] == "volt-second budget and flux-consumption manager")
+    volt_second_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "volt-second budget and flux-consumption manager"
+    )
     assert volt_second_entry["covered_source_paths"] == ["src/scpn_control/control/volt_second_manager.py"]
-    control_entry = next(entry for entry in report["entries"] if entry["component"] == "bounded control plant approximations")
+    control_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "bounded control plant approximations"
+    )
     assert "src/scpn_control/control/gym_tokamak_env.py" not in control_entry["covered_source_paths"]
     assert "src/scpn_control/control/rzip_model.py" not in control_entry["covered_source_paths"]
     assert "src/scpn_control/control/realtime_efit.py" not in control_entry["covered_source_paths"]
