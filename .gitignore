@@ -95,6 +95,7 @@ validation/reports/code_to_code_benchmark.json
 docs/internal/
 .agent_metadata.json
 docs/assets/orcid_qr.png
+.coordination/
 
 # Local agent config — never commit
 CLAUDE.md
