@@ -380,6 +380,8 @@ jobs:
         run: ruff check src/scpn_control/
       - name: Ruff format check
         run: ruff format --check src/scpn_control/ tests/
+      - name: Documentation coverage
+        run: python tools/check_docs_coverage.py
 
   # ─── Job 12: Python security scan (Bandit) ───
   python-security:

@@ -47,3 +47,10 @@ repos:
         language: system
         pass_filenames: false
         files: (pyproject\.toml|CITATION\.cff|\.zenodo\.json|docs/api\.md)
+
+      - id: check-docs-coverage
+        name: documentation coverage
+        entry: python tools/check_docs_coverage.py
+        language: system
+        pass_filenames: false
+        files: ^(src/scpn_control/|docs/api\.md|tools/check_docs_coverage\.py)

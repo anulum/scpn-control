@@ -8,8 +8,10 @@ on:
     branches: [main]
     paths:
       - "docs/**"
+      - "src/scpn_control/**"
       - "mkdocs.yml"
       - "README.md"
+      - "tools/check_docs_coverage.py"
       - ".github/workflows/docs-pages.yml"
       - "examples/*.ipynb"
   workflow_dispatch:
@@ -36,6 +38,11 @@ jobs:
 
       - name: Install docs dependencies
         run: pip install --require-hashes -r requirements/ci-docs.txt
+
+      - name: Check documentation coverage
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        run: python tools/check_docs_coverage.py
 
       - name: Build docs
         env:
