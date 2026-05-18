@@ -36,6 +36,26 @@ def test_init_version_fallback():
     assert isinstance(scpn_control.__version__, str)
 
 
+def test_root_lazy_export_and_attribute_guards():
+    import scpn_control
+
+    assert "FusionKernel" in dir(scpn_control)
+    assert scpn_control.FusionKernel.__name__ == "FusionKernel"
+    with pytest.raises(AttributeError, match="does_not_exist"):
+        scpn_control.__getattr__("does_not_exist")
+
+
+def test_scpn_geometry_neutral_public_wrappers():
+    from scpn_control import scpn
+
+    report = scpn.generate_geometry_neutral_report(steps=4, seed=7)
+    scpn.validate_geometry_neutral_report(report)
+    markdown = scpn.render_geometry_neutral_markdown(report)
+    replay = report["geometry_neutral_replay"]
+    assert replay["schema_version"] == scpn.GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION
+    assert "Geometry-Neutral" in markdown
+
+
 # ── 2. analytic_solver.py lines 207-209: config_path=None fallback ───
 
 

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import sys
+import types
 
 import pytest
 
@@ -99,3 +100,82 @@ def test_controller_raises_when_sc_neurocore_unavailable():
             BioHolonomicController()
     finally:
         mod.SC_NEUROCORE_HOLONOMIC_AVAILABLE = original
+
+
+def test_controller_step_with_holonomic_adapter_contract(monkeypatch):
+    import importlib
+
+    module_name = "scpn_control.control.bio_holonomic_controller"
+    mod = sys.modules[module_name]
+
+    class FakeL4Params:
+        def __init__(self):
+            self.k_coupling = 0.0
+
+    class FakeL5Params:
+        pass
+
+    class FakeL4Adapter:
+        def __init__(self, params, seed):
+            self.params = params
+            self.seed = seed
+
+        def step_jax(self, dt_s):
+            assert dt_s == pytest.approx(0.02)
+            return {"l4": "bitstream"}
+
+        def get_metrics(self):
+            return {"order_parameter": 0.8, "avalanche_density": 0.12}
+
+    class FakeL5Adapter:
+        def __init__(self, params, seed):
+            self.params = params
+            self.seed = seed
+            self.inputs = None
+
+        def step_jax(self, dt_s, inputs):
+            assert dt_s == pytest.approx(0.02)
+            self.inputs = inputs
+
+        def get_metrics(self):
+            return {"hrv_coherence_r5": 0.25, "emotional_valence": -0.2}
+
+    l4_mod = types.ModuleType("sc_neurocore.adapters.holonomic.l4_cell")
+    l4_mod.L4_CellularAdapter = FakeL4Adapter
+    l4_mod.L4_HolonomicParameters = FakeL4Params
+    l5_mod = types.ModuleType("sc_neurocore.adapters.holonomic.l5_org")
+    l5_mod.L5_OrganismalAdapter = FakeL5Adapter
+    l5_mod.L5_HolonomicParameters = FakeL5Params
+
+    for name in (
+        "sc_neurocore",
+        "sc_neurocore.adapters",
+        "sc_neurocore.adapters.holonomic",
+    ):
+        monkeypatch.setitem(sys.modules, name, types.ModuleType(name))
+    monkeypatch.setitem(sys.modules, "sc_neurocore.adapters.holonomic.l4_cell", l4_mod)
+    monkeypatch.setitem(sys.modules, "sc_neurocore.adapters.holonomic.l5_org", l5_mod)
+
+    try:
+        reloaded = importlib.reload(mod)
+        ctrl = reloaded.BioHolonomicController(dt_s=0.02, seed=11)
+        result = ctrl.step(reloaded.BioTelemetrySnapshot(72.0, 0.6, 2.5))
+        assert ctrl.l4_adapter.params.k_coupling == pytest.approx(0.48)
+        assert ctrl.l5_adapter.inputs == {"l4": "bitstream"}
+        assert result == {
+            "l4_order_parameter": 0.8,
+            "l4_avalanche_density": 0.12,
+            "l5_hrv_coherence": 0.25,
+            "l5_emotional_valence": -0.2,
+            "actuator_vibrana_intensity": pytest.approx(0.375),
+        }
+    finally:
+        for name in (
+            "sc_neurocore.adapters.holonomic.l4_cell",
+            "sc_neurocore.adapters.holonomic.l5_org",
+            "sc_neurocore.adapters.holonomic",
+            "sc_neurocore.adapters",
+            "sc_neurocore",
+        ):
+            sys.modules.pop(name, None)
+        importlib.reload(mod)
