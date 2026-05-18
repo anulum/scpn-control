@@ -254,6 +254,35 @@
 - [ ] JOSS submission (review + editorial)
 - [ ] Streamlit dashboard v2
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
+- [ ] Resolve the public bounded-claim queue in `docs/physics_traceability.md`.
+  Current generated status is 46 registry entries, 46 open fidelity gaps, and
+  46 blocked full-fidelity public claims; production work must close these with
+  real evidence or keep the claims explicitly bounded.
+
+### Remaining production work before broader production focus
+- [ ] Acquire facility-approved DIII-D MDSplus or equivalent shot artefacts and
+  validate them through immutable real-data manifests with source URI, policy,
+  signal units, checksums, shot identifiers, and retrieval timestamps.
+- [ ] Produce long nonlinear gyrokinetic CBC saturation campaigns with solver
+  convergence, flat late-time heat-flux traces, and gyro-Bohm ion heat-flux
+  agreement before publishing saturated chi_i claims.
+- [ ] Run real external-code linear gyrokinetic comparisons against TGLF, GENE,
+  GS2, CGYRO, or QuaLiKiz artefacts and validate them with the strict
+  cross-code evidence gate.
+- [ ] Persist CPU/GPU JAX gyrokinetic parity artefacts with backend, platform,
+  dtype, X64, tolerance, growth-rate, and real-frequency metadata.
+- [ ] Cross-validate neural equilibrium weights against identical EFIT or
+  P-EFIT equilibria before treating SPARC or ITER weights as production
+  pre-trained assets.
+- [ ] Replace or externally validate bounded physics models flagged in the
+  traceability registry, including RZIP, ELM, EPED, MARFE, VMEC-lite, digital
+  twin, Gymnasium plant, density control, and integrated transport surfaces.
+- [ ] Promote deterministic real-time loops, parsers, high-volume ingestion,
+  vector kernels, and safety-critical guards to Rust only with Python/Rust
+  parity tests and latency benchmarks.
+- [ ] Add production hardware evidence for generated HDL, CODAC/EPICS timing,
+  interlock behaviour, backpressure, and HIL replay before making deployment
+  readiness claims.
 
 ## Future (requires external resources)
 - [ ] Cross-code benchmark: native GK vs real TGLF/CGYRO (requires Linux + GACODE)
