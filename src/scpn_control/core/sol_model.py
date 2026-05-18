@@ -3,6 +3,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: protoscience@anulum.li
+"""Two-point scrape-off-layer model and divertor heat-flux utilities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

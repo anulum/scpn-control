@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Feedforward Scenario Scheduler
 # ──────────────────────────────────────────────────────────────────────
+"""Feedforward scenario waveforms and schedule generation for tokamak scenario control."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

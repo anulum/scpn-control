@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Quasilinear Gyrokinetic Transport Model
 # ──────────────────────────────────────────────────────────────────────
+"""Quasilinear gyrokinetic transport model with reduced instability-branch screening."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -3,6 +3,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+"""Fault-detection, isolation, and reconfiguration utilities for controller failover tests."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

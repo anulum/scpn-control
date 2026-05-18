@@ -3,6 +3,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+"""Volt-second flux budgeting, consumption monitoring, and scenario feasibility utilities."""
+
 from __future__ import annotations
 
 # Volt-second balance: ∫ V_loop dt = L_p dI_p + R_p I_p dt

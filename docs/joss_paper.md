@@ -42,7 +42,7 @@ heat-flux normalisation is treated as an open validation target: the latest
 2000-step adiabatic run had not reached saturated $\chi_i$, and the linear
 local-dispersion path overpredicts the published GENE growth rate.
 
-The codebase comprises 130 Python source modules and 5 Rust crates
+The codebase comprises 134 Python source modules and 5 Rust crates
 (ndarray 0.16, rand 0.9, PyO3 0.25) with 3,700+ collected Python tests, a
 99% local package-coverage gate, and a 20-job CI matrix.
 
@@ -83,7 +83,7 @@ surrogate validation), and multi-layer phase dynamics in one coherent stack.
 
 ## Implementation
 
-The Python package (125 modules) is organised into four layers:
+The Python package (129 non-init modules) is organised into four layers:
 
 - **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration
   with multigrid or SOR), 1.5D Crank-Nicolson transport, GEQDSK/IMAS I/O,
@@ -170,7 +170,7 @@ The solver is validated against:
   sawtooth→NTM seed, L-H→H-mode→EPED, runaway→SPI trigger).
 
 The test suite comprises 3,700+ collected Python tests and Rust workspace
-tests across 19 CI jobs (Python 3.10–3.13 on Linux/Windows/macOS, Rust
+tests across 20 CI jobs (Python 3.10–3.13 on Linux/Windows/macOS, Rust
 stable, JAX parity, LIF+NEF SNN emulator, CodeQL security analysis, OpenSSF
 Scorecard). The local coverage configuration enforces a 99% package-coverage
 gate; the GitHub coverage upload lane currently uses an 85% fail-under while

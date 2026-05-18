@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Real-Time Equilibrium Reconstruction (EFIT-lite)
 # ──────────────────────────────────────────────────────────────────────
+"""Real-time fixed-boundary EFIT-style reconstruction utilities and diagnostics."""
+
 from __future__ import annotations
 
 import time

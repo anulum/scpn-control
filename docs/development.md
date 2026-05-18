@@ -60,7 +60,9 @@ pytest -m "not slow"                     # skip slow markers
 pytest --cov=scpn_control --cov-report=term  # coverage
 ```
 
-Coverage gate: 99% (configured in `pyproject.toml`). Current: 100% coverage.
+Coverage gate: 99% (configured in `pyproject.toml`). Coverage claims should
+come from the latest local coverage run or the GitHub coverage lane, not from
+static documentation text.
 
 ---
 
@@ -101,7 +103,8 @@ CI deploys to GitHub Pages on push to `main` via `.github/workflows/docs-pages.y
 
 The docs site includes:
 
-- Full API reference via mkdocstrings (auto-generated from docstrings)
+- Full API reference via mkdocstrings, including a complete module index for
+  every tracked Python module under `src/scpn_control/`
 - Theory page with rendered MathJax equations
 - Architecture diagrams via Mermaid
 - Notebook gallery with execution instructions

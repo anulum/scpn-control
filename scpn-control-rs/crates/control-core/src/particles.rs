@@ -105,13 +105,13 @@ impl ChargedParticle {
         (-self.y_m * self.vx_m_s + self.x_m * self.vy_m_s) / r
     }
 
-    /// Non-relativistic kinetic energy [J].
+    /// Non-relativistic kinetic energy in joules.
     pub fn kinetic_energy_j(&self) -> f64 {
         let v2 = self.vx_m_s * self.vx_m_s + self.vy_m_s * self.vy_m_s + self.vz_m_s * self.vz_m_s;
         0.5 * self.mass_kg * v2
     }
 
-    /// Non-relativistic kinetic energy [MeV].
+    /// Non-relativistic kinetic energy in MeV.
     pub fn kinetic_energy_mev(&self) -> f64 {
         self.kinetic_energy_j() / (1.0e6 * ELEMENTARY_CHARGE_C)
     }
@@ -671,9 +671,9 @@ pub fn blend_particle_current(
 pub struct CoulombCollisionParams {
     /// Electron density [m^-3].
     pub n_e: f64,
-    /// Electron temperature [keV].
+    /// Electron temperature in keV.
     pub t_e_kev: f64,
-    /// Ion temperature [keV].
+    /// Ion temperature in keV.
     pub t_i_kev: f64,
     /// Ion mass number (e.g. 2 for deuterium).
     pub a_i: f64,
@@ -735,7 +735,7 @@ pub fn coulomb_logarithm(n_e_m3: f64, t_e_kev: f64) -> FusionResult<f64> {
     Ok(ln_lambda.clamp(5.0, 30.0))
 }
 
-/// Spitzer slowing-down time [s] for a test particle on field electrons.
+/// Spitzer slowing-down time in seconds for a test particle on field electrons.
 ///
 /// τ_s = 3(2π)^{3/2} ε₀² m_a T_e^{3/2} / (n_e Z_a² e⁴ m_e^{1/2} ln Λ)
 pub fn spitzer_slowing_down_time(

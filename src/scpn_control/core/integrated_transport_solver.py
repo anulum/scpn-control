@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Integrated Transport Solver
 
+"""Integrated radial heat, particle, neoclassical, bootstrap, and source transport solver."""
+
 from __future__ import annotations
 
 import json

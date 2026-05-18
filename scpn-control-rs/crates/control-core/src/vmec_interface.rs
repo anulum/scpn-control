@@ -351,13 +351,13 @@ pub struct VmecEquilibrium {
     pub rmnc: Array2<f64>,
     /// Z sine Fourier coefficients per surface [ns × n_modes].
     pub zmns: Array2<f64>,
-    /// Rotational transform profile iota(s) [ns].
+    /// Rotational transform profile iota(s), length ns.
     pub iota: Array1<f64>,
-    /// Pressure profile [Pa] [ns].
+    /// Pressure profile in pascals, length ns.
     pub pressure: Array1<f64>,
-    /// Total toroidal flux [Wb].
+    /// Total toroidal flux in webers.
     pub phi_edge: f64,
-    /// Plasma volume [m³].
+    /// Plasma volume in cubic metres.
     pub volume: f64,
     /// Volume-averaged beta.
     pub beta_avg: f64,

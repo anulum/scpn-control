@@ -5,6 +5,8 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # ──────────────────────────────────────────────────────────────────────
+"""Sawtooth crash, monitoring, Kadomtsev redistribution, and cycle utilities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

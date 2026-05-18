@@ -2,6 +2,8 @@
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851 | Contact: protoscience@anulum.li
+"""Alfven-eigenmode gap, drive, damping, and stability-screening utilities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

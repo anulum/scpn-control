@@ -3,6 +3,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+"""Disruption-prediction training, loading, and inference helpers with guarded optional dependencies."""
+
 from __future__ import annotations
 
 # ML disruption prediction: Kates-Harbeck et al. 2019, Nature 568, 526 —

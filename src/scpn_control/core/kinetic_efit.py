@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Kinetic Equilibrium Reconstruction (Kinetic EFIT)
 # ──────────────────────────────────────────────────────────────────────
+"""Kinetic-EFIT constraints and reconstruction wrapper for pressure and q-profile coupling."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

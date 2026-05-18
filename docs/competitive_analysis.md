@@ -111,13 +111,13 @@
 
 | Metric | Value |
 |--------|-------|
-| Python source modules | 125 |
+| Python source modules | 134 total / 129 non-init |
 | Python source LOC | ~30,700 |
 | Rust crates | 5 |
 | Rust LOC (all .rs) | ~61,900 |
-| Test files | 235 |
-| Tests collected | 3,300+ |
-| Test coverage | 100.0% (gate=99%) |
+| Test files | 264 |
+| Tests collected | 3,700+ |
+| Test coverage | 99% gate |
 | CI jobs | 20 |
 | Real DIII-D shots | 17 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |

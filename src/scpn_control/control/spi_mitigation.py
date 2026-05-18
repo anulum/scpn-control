@@ -3,6 +3,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+"""Shattered-pellet-injection mitigation model and mitigation-test utilities."""
+
 from __future__ import annotations
 
 import logging

@@ -33,7 +33,7 @@ const MAX_TEMPERATURE: f64 = 100.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct MemoryKernelConfig {
-    /// Memory decay time [s].
+    /// Memory decay time in seconds.
     pub tau_d: f64,
 }
 

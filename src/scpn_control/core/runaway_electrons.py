@@ -2,6 +2,8 @@
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # Contact: protoscience@anulum.li  ORCID: 0009-0009-3560-0851
+"""Runaway-electron generation, avalanche, evolution, and mitigation-assessment utilities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -90,7 +90,7 @@ pub struct BoutGrid {
     pub z_grid: Array2<f64>,
     /// Normalised poloidal flux ψ_N on the grid [nx × ny].
     pub psi_n: Array2<f64>,
-    /// Magnetic field magnitude |B| [T] on the grid [nx × ny].
+    /// Magnetic field magnitude |B| in tesla on the grid with shape (nx, ny).
     pub b_mag: Array2<f64>,
     /// Contravariant metric g^{xx} (radial-radial) [nx × ny].
     pub g_xx: Array2<f64>,
@@ -102,9 +102,9 @@ pub struct BoutGrid {
     pub g_xy: Array2<f64>,
     /// Jacobian J [nx × ny].
     pub jacobian: Array2<f64>,
-    /// Safety factor q(ψ) [nx].
+    /// Safety factor q(psi) with length nx.
     pub q_profile: Vec<f64>,
-    /// Toroidal field B_toroidal [T].
+    /// Toroidal field B_toroidal in tesla.
     pub b_toroidal: f64,
 }
 
@@ -115,11 +115,11 @@ pub struct BoutGrid {
 ///
 /// # Arguments
 /// * `psi` — Poloidal flux on (nz_eq, nr_eq) rectangular grid
-/// * `r_axis` — R coordinates of the equilibrium grid [nr_eq]
-/// * `z_axis` — Z coordinates of the equilibrium grid [nz_eq]
+/// * `r_axis` — R coordinates of the equilibrium grid, length nr_eq
+/// * `z_axis` — Z coordinates of the equilibrium grid, length nz_eq
 /// * `psi_axis` — Flux at the magnetic axis
 /// * `psi_boundary` — Flux at the separatrix/boundary
-/// * `b_toroidal` — Toroidal magnetic field at geometric center [T]
+/// * `b_toroidal` — Toroidal magnetic field at geometric centre in tesla
 /// * `config` — BOUT++ grid configuration
 pub fn generate_bout_grid(
     psi: &Array2<f64>,
@@ -375,7 +375,7 @@ pub struct BoutStabilityResult {
     pub growth_rate: f64,
     /// Real frequency ω [rad/s].
     pub real_frequency: f64,
-    /// Radial mode structure amplitude [nx].
+    /// Radial mode structure amplitude with length nx.
     pub mode_amplitude: Vec<f64>,
 }
 

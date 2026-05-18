@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Full Ballooning Equation Solver
 # ──────────────────────────────────────────────────────────────────────
+"""Ballooning-equation eigenvalue solver and marginal-stability search routines."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

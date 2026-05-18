@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Disruption Sequence Model
 # ──────────────────────────────────────────────────────────────────────
+"""Thermal-quench, current-quench, runaway-electron, and halo-current disruption sequence model."""
+
 from __future__ import annotations
 
 import math

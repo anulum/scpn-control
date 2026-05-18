@@ -26,7 +26,7 @@ const LI: f64 = 0.8;
 /// Result of Shafranov equilibrium calculation.
 #[derive(Debug, Clone)]
 pub struct ShafranovResult {
-    /// Required vertical field [T].
+    /// Required vertical field in tesla.
     pub bv_required: f64,
     /// log term.
     pub term_log: f64,
@@ -36,7 +36,7 @@ pub struct ShafranovResult {
 
 /// Compute required vertical field from Shafranov formula.
 ///
-/// `r_geo`: major radius [m], `a_min`: minor radius [m], `ip_ma`: plasma current [MA].
+/// `r_geo`: major radius in metres, `a_min`: minor radius in metres, `ip_ma`: plasma current in MA.
 pub fn shafranov_bv(r_geo: f64, a_min: f64, ip_ma: f64) -> FusionResult<ShafranovResult> {
     if !r_geo.is_finite() || r_geo <= 0.0 {
         return Err(FusionError::ConfigError(
@@ -73,10 +73,10 @@ pub fn shafranov_bv(r_geo: f64, a_min: f64, ip_ma: f64) -> FusionResult<Shafrano
 
 /// Solve for coil currents given Green's function efficiencies.
 ///
-/// `green_func`: Bz contribution per coil per MA [T/MA].
-/// `target_bv`: required vertical field [T].
+/// `green_func`: Bz contribution per coil per MA, in T/MA.
+/// `target_bv`: required vertical field in tesla.
 ///
-/// Returns minimum-norm coil currents [MA].
+/// Returns minimum-norm coil currents in MA.
 pub fn solve_coil_currents(green_func: &[f64], target_bv: f64) -> FusionResult<Vec<f64>> {
     if green_func.is_empty() {
         return Err(FusionError::ConfigError(

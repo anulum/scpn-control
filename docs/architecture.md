@@ -18,7 +18,7 @@ graph TD
         CON[contracts.py] --> NSC
     end
 
-    subgraph "core/ — Physics Solvers (67 modules)"
+    subgraph "core/ — Physics Solvers (69 non-init modules)"
         FK[fusion_kernel.py] --> TC[tokamak_config.py]
         ITS[integrated_transport_solver.py]
         NEQ[neural_equilibrium.py]
@@ -31,7 +31,7 @@ graph TD
         ISS2[integrated_scenario.py]
     end
 
-    subgraph "control/ — Controllers (42 modules)"
+    subgraph "control/ — Controllers (42 non-init modules)"
         HINF2[h_infinity_controller.py]
         MU2[mu_synthesis.py]
         NMPC2[nmpc_controller.py]
@@ -203,13 +203,13 @@ sequenceDiagram
 
 ```
 scpn-control/
-├── src/scpn_control/     # 130 Python modules (125 non-init)
-│   ├── scpn/             # SPN → SNN compiler (6 modules)
-│   ├── core/             # Equilibrium, transport, scaling (67 modules)
+├── src/scpn_control/     # 134 Python modules (129 non-init)
+│   ├── scpn/             # SPN → SNN compiler (8 non-init modules)
+│   ├── core/             # Equilibrium, transport, scaling (69 non-init modules)
 │   ├── control/          # Controllers (42 modules, optional deps guarded)
 │   └── phase/            # Kuramoto/UPDE engine (9 modules)
 ├── scpn-control-rs/      # Rust workspace (5 crates)
-├── tests/                # 3,300+ tests (235 files, 100% coverage)
+├── tests/                # 3,700+ collected tests (264 files, 99% gate)
 
 
 ├── examples/             # 6 notebooks + 3 scripts

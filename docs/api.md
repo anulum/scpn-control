@@ -496,6 +496,242 @@ Requires `pip install "scpn-control[jax]"`.
 
 ---
 
+## Complete Module Index
+
+This index keeps the published API reference aligned with every tracked Python module under `src/scpn_control/`. Domain pages above highlight primary entry points; this section exposes the remaining module surfaces through mkdocstrings so public signatures and docstrings stay visible as the codebase grows.
+
+### Top-Level CLI
+
+#### Cli
+
+::: scpn_control.cli
+
+### Control Modules
+
+#### Burn Controller
+
+::: scpn_control.control.burn_controller
+
+#### Codac Interface
+
+::: scpn_control.control.codac_interface
+
+#### Controller Tuning
+
+::: scpn_control.control.controller_tuning
+
+#### Density Controller
+
+::: scpn_control.control.density_controller
+
+#### Detachment Controller
+
+::: scpn_control.control.detachment_controller
+
+#### Federated Disruption
+
+::: scpn_control.control.federated_disruption
+
+#### State Estimator
+
+::: scpn_control.control.state_estimator
+
+#### Volt Second Manager
+
+::: scpn_control.control.volt_second_manager
+
+### Core Support and Physics Modules
+
+#### Rust Compatibility
+
+::: scpn_control.core._rust_compat
+
+#### Validators
+
+::: scpn_control.core._validators
+
+#### Alfven Eigenmodes
+
+::: scpn_control.core.alfven_eigenmodes
+
+#### Blob Transport
+
+::: scpn_control.core.blob_transport
+
+#### Checkpoint
+
+::: scpn_control.core.checkpoint
+
+#### Disruption Sequence
+
+::: scpn_control.core.disruption_sequence
+
+#### Elm Model
+
+::: scpn_control.core.elm_model
+
+#### Eped Pedestal
+
+::: scpn_control.core.eped_pedestal
+
+#### GK CGYRO
+
+::: scpn_control.core.gk_cgyro
+
+#### GK GENE
+
+::: scpn_control.core.gk_gene
+
+#### GK Geometry
+
+::: scpn_control.core.gk_geometry
+
+#### GK GS2
+
+::: scpn_control.core.gk_gs2
+
+#### GK Nonlinear
+
+::: scpn_control.core.gk_nonlinear
+
+#### GK Online Learner
+
+::: scpn_control.core.gk_online_learner
+
+#### GK QuaLiKiz
+
+::: scpn_control.core.gk_qualikiz
+
+#### GK Species
+
+::: scpn_control.core.gk_species
+
+#### GK TGLF
+
+::: scpn_control.core.gk_tglf
+
+#### GK TGLF Native
+
+::: scpn_control.core.gk_tglf_native
+
+#### GK Verification Report
+
+::: scpn_control.core.gk_verification_report
+
+#### Impurity Transport
+
+::: scpn_control.core.impurity_transport
+
+#### JAX GK Nonlinear
+
+::: scpn_control.core.jax_gk_nonlinear
+
+#### JAX GK Solver
+
+::: scpn_control.core.jax_gk_solver
+
+#### JAX GS Solver
+
+::: scpn_control.core.jax_gs_solver
+
+#### Kinetic EFIT
+
+::: scpn_control.core.kinetic_efit
+
+#### L-H Transition
+
+::: scpn_control.core.lh_transition
+
+#### Locked Mode
+
+::: scpn_control.core.locked_mode
+
+#### MARFE
+
+::: scpn_control.core.marfe
+
+#### MDSplus Acquisition
+
+::: scpn_control.core.mdsplus_acquisition
+
+#### Momentum Transport
+
+::: scpn_control.core.momentum_transport
+
+#### Neoclassical
+
+::: scpn_control.core.neoclassical
+
+#### Neural Turbulence
+
+::: scpn_control.core.neural_turbulence
+
+#### Orbit Following
+
+::: scpn_control.core.orbit_following
+
+#### Pedestal
+
+::: scpn_control.core.pedestal
+
+#### Pellet Injection
+
+::: scpn_control.core.pellet_injection
+
+#### Plasma Startup
+
+::: scpn_control.core.plasma_startup
+
+#### Plasma Wall Interaction
+
+::: scpn_control.core.plasma_wall_interaction
+
+#### Real Data Manifest
+
+::: scpn_control.core.real_data_manifest
+
+#### Runaway Electrons
+
+::: scpn_control.core.runaway_electrons
+
+#### Stellarator Geometry
+
+::: scpn_control.core.stellarator_geometry
+
+#### Tearing Mode Coupling
+
+::: scpn_control.core.tearing_mode_coupling
+
+#### Vessel Model
+
+::: scpn_control.core.vessel_model
+
+#### VMEC Lite
+
+::: scpn_control.core.vmec_lite
+
+### Phase Modules
+
+#### GK UPDE Bridge
+
+::: scpn_control.phase.gk_upde_bridge
+
+### SCPN Compiler and Replay Modules
+
+#### FPGA Export
+
+::: scpn_control.scpn.fpga_export
+
+#### Geometry Neutral Contracts
+
+::: scpn_control.scpn.geometry_neutral_contracts
+
+#### Geometry Neutral Replay
+
+::: scpn_control.scpn.geometry_neutral_replay
+
+---
+
 ## CLI
 
 ```bash

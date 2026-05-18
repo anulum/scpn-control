@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Pellet Injection Physics
 # ──────────────────────────────────────────────────────────────────────
+"""Pellet ablation, trajectory, deposition, and fuelling-control utilities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

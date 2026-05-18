@@ -3,6 +3,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: protoscience@anulum.li
+"""Current-diffusion solver and bootstrap/current-profile evolution utilities."""
+
 from __future__ import annotations
 
 import numpy as np

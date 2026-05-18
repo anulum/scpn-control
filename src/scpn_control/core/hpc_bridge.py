@@ -13,6 +13,8 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
+"""HPC job bridge for submitting and tracking external validation workloads."""
+
 from __future__ import annotations
 
 import ctypes

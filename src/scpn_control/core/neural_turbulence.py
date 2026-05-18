@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Neural Turbulence Surrogate (QLKNN-class)
 # ──────────────────────────────────────────────────────────────────────
+"""QLKNN-class neural turbulence surrogate, training, and flux prediction utilities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

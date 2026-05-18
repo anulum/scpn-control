@@ -57,9 +57,9 @@ impl Grid2D {
 pub struct RadialProfiles {
     /// Normalised radius [0, 1].
     pub rho: Array1<f64>,
-    /// Electron temperature [keV].
+    /// Electron temperature in keV.
     pub te: Array1<f64>,
-    /// Ion temperature [keV].
+    /// Ion temperature in keV.
     pub ti: Array1<f64>,
     /// Electron density [10^19 m^-3].
     pub ne: Array1<f64>,

@@ -9,6 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — RZIP Rigid Plasma Response Model
 # ──────────────────────────────────────────────────────────────────────
+"""Rigid-plasma vertical response model, stability analysis, and controller utilities."""
+
 from __future__ import annotations
 
 

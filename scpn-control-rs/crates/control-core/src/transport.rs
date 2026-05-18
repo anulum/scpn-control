@@ -65,11 +65,11 @@ const TOROIDAL_COUPLING_MAX_FACTOR: f64 = 3.0;
 /// Parameters for the Chang-Hinton (1982) neoclassical transport model.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NeoclassicalParams {
-    /// Tokamak major radius R₀ [m].
+    /// Tokamak major radius R0 in metres.
     pub r_major: f64,
-    /// Minor radius a [m].
+    /// Minor radius a in metres.
     pub a_minor: f64,
-    /// Toroidal magnetic field B₀ [T].
+    /// Toroidal magnetic field B0 in tesla.
     pub b_toroidal: f64,
     /// Ion mass number (e.g. 2 for deuterium).
     pub a_ion: f64,
