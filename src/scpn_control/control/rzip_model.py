@@ -203,7 +203,8 @@ class VerticalStabilityAnalysis:
         if not np.isfinite(r0) or r0 <= 0.0:
             raise ValueError("R0 must be finite and positive")
 
-        r_axis, z_axis = VerticalStabilityAnalysis._grid_axes(r_arr, z_arr, psi_arr.shape)
+        psi_shape = (psi_arr.shape[0], psi_arr.shape[1])
+        r_axis, z_axis = VerticalStabilityAnalysis._grid_axes(r_arr, z_arr, psi_shape)
         if r0 < r_axis[0] or r0 > r_axis[-1]:
             raise ValueError("R0 must lie inside the R grid")
 
