@@ -170,7 +170,7 @@ The solver is validated against:
   sawtooth→NTM seed, L-H→H-mode→EPED, runaway→SPI trigger).
 
 The test suite comprises 3,700+ collected Python tests and Rust workspace
-tests across 20 CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust
+tests across 19 CI jobs (Python 3.10–3.13 on Linux/Windows/macOS, Rust
 stable, JAX parity, LIF+NEF SNN emulator, CodeQL security analysis, OpenSSF
 Scorecard). The local coverage configuration enforces a 99% package-coverage
 gate; the GitHub coverage upload lane currently uses an 85% fail-under while
