@@ -22,6 +22,15 @@ Usage::
     scpn-control validate-jax-gk-parity --require-parity-artifacts --json-out
     scpn-control validate-gk-ood-calibration --require-campaign-artifacts --json-out
     scpn-control validate-gk-interface-artifacts --require-interface-artifacts --json-out
+    scpn-control validate-neural-equilibrium-reference --require-reference-artifacts --json-out
+    scpn-control validate-neural-transport-reference --require-reference-artifacts --json-out
+    scpn-control validate-neural-turbulence-reference --require-reference-artifacts --json-out
+    scpn-control validate-orbit-reference --require-reference-artifacts --json-out
+    scpn-control validate-uncertainty-reference --require-reference-artifacts --json-out
+    scpn-control validate-vmec-reference --require-reference-artifacts --json-out
+    scpn-control validate-rzip-reference --require-reference-artifacts --json-out
+    scpn-control validate-density-reference --require-reference-artifacts --json-out
+    scpn-control validate-disruption-reference --require-reference-artifacts --json-out
     scpn-control acquire-mdsplus-shot --spec-json validation/reference_data/diiid/acquisition_specs/shot_163303_mdsplus.json
     scpn-control live --port 8765 --zeta 0.5
     scpn-control hil-test --shots-dir validation/reference_data/diiid/disruption_shots
@@ -597,6 +606,294 @@ def validate_gk_interface_artifacts_command(
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
         click.echo(f"GK interface artifacts: {report['status']} interface_artifacts={report['interface_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-neural-equilibrium-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted neural equilibrium reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_neural_equilibrium_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted neural-equilibrium reference artifacts."""
+    from validation.validate_neural_equilibrium_reference import ROOT, validate_neural_equilibrium_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "neural_equilibrium_reference")
+    report = validate_neural_equilibrium_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Neural equilibrium reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-neural-transport-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted neural transport reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_neural_transport_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted neural-transport reference artifacts."""
+    from validation.validate_neural_transport_reference import ROOT, validate_neural_transport_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "neural_transport_reference")
+    report = validate_neural_transport_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Neural transport reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-neural-turbulence-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted neural turbulence reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_neural_turbulence_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted neural-turbulence reference artifacts."""
+    from validation.validate_neural_turbulence_reference import ROOT, validate_neural_turbulence_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "neural_turbulence_reference")
+    report = validate_neural_turbulence_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Neural turbulence reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-orbit-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted orbit-following reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_orbit_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted orbit-following reference artifacts."""
+    from validation.validate_orbit_reference import ROOT, validate_orbit_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "orbit_reference")
+    report = validate_orbit_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Orbit reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-uncertainty-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted uncertainty reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_uncertainty_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted uncertainty-quantification reference artifacts."""
+    from validation.validate_uncertainty_reference import ROOT, validate_uncertainty_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "uncertainty_reference")
+    report = validate_uncertainty_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Uncertainty reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-vmec-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted VMEC reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_vmec_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted VMEC-lite reference artifacts."""
+    from validation.validate_vmec_reference import ROOT, validate_vmec_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "vmec_reference")
+    report = validate_vmec_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"VMEC reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-rzip-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted RZIP reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_rzip_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted RZIP vertical-stability reference artifacts."""
+    from validation.validate_rzip_reference import ROOT, validate_rzip_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "rzip_reference")
+    report = validate_rzip_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"RZIP reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-density-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted density reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_density_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted density-control reference artifacts."""
+    from validation.validate_density_reference import ROOT, validate_density_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "density_reference")
+    report = validate_density_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Density reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-disruption-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted disruption reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_disruption_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted disruption-mitigation reference artifacts."""
+    from validation.validate_disruption_reference import ROOT, validate_disruption_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "disruption_reference")
+    report = validate_disruption_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Disruption reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":

@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Capability manifest configuration
+
+schema_version = "capability-manifest.v1"
+project_label = "SCPN-CONTROL"
+package_name = "scpn_control"
+distribution_name = "scpn-control"
+
+exclude_doc_parts = ["internal", "_generated", "site"]
+
+[paths]
+json_output = "docs/_generated/capability_manifest.json"
+markdown_output = "docs/_generated/capability_snapshot.md"
+readme = "README.md"
+pyproject = "pyproject.toml"
+package_root = "src/scpn_control"
+source_roots = [
+  "src/scpn_control/core",
+  "src/scpn_control/control",
+  "src/scpn_control/phase",
+  "src/scpn_control/scpn",
+]
+docs_root = "docs"
+tests_root = "tests"
+workflows_root = ".github/workflows"
+rust_root = "scpn-control-rs/crates"
+rust_wrappers = "scpn-control-rs/crates/control-python/src/lib.rs"
+validation_root = "validation"

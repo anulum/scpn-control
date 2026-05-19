@@ -185,6 +185,17 @@ jobs:
           name: data-manifest-report
           path: artifacts/data_manifest_report.json
 
+  # ─── Job 4c: Capability manifest gate ───
+  capability-manifest-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.12"
+      - name: Validate capability manifest
+        run: python tools/capability_manifest.py --check
+
   # ─── Job 5: RMSE gate ───
   rmse-gate:
     needs: python-tests

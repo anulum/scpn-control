@@ -77,6 +77,7 @@ nav:
   - Project:
     - JOSS Paper: joss_paper.md
     - Development: development.md
+    - Capability Manifest: capability_manifest.md
     - Changelog: changelog.md
     - Pricing: pricing.md
 

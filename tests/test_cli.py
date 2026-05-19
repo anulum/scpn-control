@@ -454,6 +454,78 @@ def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
             "interface_artifacts",
             "no external GK interface artifacts found",
         ),
+        (
+            "validate-neural-equilibrium-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "Neural equilibrium reference: fail",
+            "reference_artifacts",
+            "no neural equilibrium reference artifacts found",
+        ),
+        (
+            "validate-neural-transport-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "Neural transport reference: fail",
+            "reference_artifacts",
+            "no neural transport reference artifacts found",
+        ),
+        (
+            "validate-neural-turbulence-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "Neural turbulence reference: fail",
+            "reference_artifacts",
+            "no neural turbulence reference artifacts found",
+        ),
+        (
+            "validate-orbit-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "Orbit reference: fail",
+            "reference_artifacts",
+            "no orbit reference artifacts found",
+        ),
+        (
+            "validate-uncertainty-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "Uncertainty reference: fail",
+            "reference_artifacts",
+            "no uncertainty reference artifacts found",
+        ),
+        (
+            "validate-vmec-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "VMEC reference: fail",
+            "reference_artifacts",
+            "no VMEC reference artifacts found",
+        ),
+        (
+            "validate-rzip-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "RZIP reference: fail",
+            "reference_artifacts",
+            "no RZIP reference artifacts found",
+        ),
+        (
+            "validate-density-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "Density reference: fail",
+            "reference_artifacts",
+            "no density reference artifacts found",
+        ),
+        (
+            "validate-disruption-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "Disruption reference: fail",
+            "reference_artifacts",
+            "no disruption reference artifacts found",
+        ),
     ],
 )
 def test_gk_validation_text_error_paths(
@@ -481,6 +553,30 @@ def test_gk_validation_text_error_paths(
         ("validate-jax-gk-parity", "--artifact-root", "--require-parity-artifacts", "jax_parity.json"),
         ("validate-gk-ood-calibration", "--artifact-root", "--require-campaign-artifacts", "ood.json"),
         ("validate-gk-interface-artifacts", "--artifact-root", "--require-interface-artifacts", "interface.json"),
+        (
+            "validate-neural-equilibrium-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "neural_equilibrium.json",
+        ),
+        (
+            "validate-neural-transport-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "neural_transport.json",
+        ),
+        (
+            "validate-neural-turbulence-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "neural_turbulence.json",
+        ),
+        ("validate-orbit-reference", "--artifact-root", "--require-reference-artifacts", "orbit.json"),
+        ("validate-uncertainty-reference", "--artifact-root", "--require-reference-artifacts", "uncertainty.json"),
+        ("validate-vmec-reference", "--artifact-root", "--require-reference-artifacts", "vmec.json"),
+        ("validate-rzip-reference", "--artifact-root", "--require-reference-artifacts", "rzip.json"),
+        ("validate-density-reference", "--artifact-root", "--require-reference-artifacts", "density.json"),
+        ("validate-disruption-reference", "--artifact-root", "--require-reference-artifacts", "disruption.json"),
     ],
 )
 def test_gk_validation_output_json_files_on_failures(runner, tmp_path, command, root_option, require_flag, output_name):
@@ -668,6 +764,168 @@ def test_validate_gk_interface_artifacts_requires_artifacts(runner, tmp_path):
     data = json.loads(result.output)
     assert data["status"] == "fail"
     assert data["errors"][0]["error"] == "no external GK interface artifacts found"
+
+
+def test_validate_neural_equilibrium_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-neural-equilibrium-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no neural equilibrium reference artifacts found"
+
+
+def test_validate_neural_transport_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-neural-transport-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no neural transport reference artifacts found"
+
+
+def test_validate_neural_turbulence_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-neural-turbulence-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no neural turbulence reference artifacts found"
+
+
+def test_validate_orbit_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-orbit-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no orbit reference artifacts found"
+
+
+def test_validate_uncertainty_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-uncertainty-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no uncertainty reference artifacts found"
+
+
+def test_validate_vmec_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-vmec-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no VMEC reference artifacts found"
+
+
+def test_validate_rzip_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-rzip-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no RZIP reference artifacts found"
+
+
+def test_validate_density_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-density-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no density reference artifacts found"
+
+
+def test_validate_disruption_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-disruption-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no disruption reference artifacts found"
 
 
 @dataclass(frozen=True)

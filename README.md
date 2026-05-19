@@ -9,6 +9,7 @@
   <a href="https://github.com/anulum/scpn-control/actions/workflows/docs-pages.yml"><img src="https://github.com/anulum/scpn-control/actions/workflows/docs-pages.yml/badge.svg" alt="Docs Pages"></a>
   <a href="https://pypi.org/project/scpn-control/"><img src="https://img.shields.io/pypi/v/scpn-control" alt="PyPI version"></a>
   <a href="https://pypi.org/project/scpn-control/"><img src="https://img.shields.io/pypi/pyversions/scpn-control" alt="Python versions"></a>
+  <a href="https://pepy.tech/project/scpn-control"><img src="https://static.pepy.tech/badge/scpn-control" alt="All-time downloads"></a>
   <a href="https://scpn-control.streamlit.app"><img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Open in Streamlit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0-or-later"></a>
   <a href="https://www.bestpractices.dev/projects/12176"><img src="https://www.bestpractices.dev/projects/12176/badge" alt="OpenSSF Best Practices"></a>
@@ -36,6 +37,40 @@ Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native line
 >
 > **Status: Alpha / Research.** Not a production PCS. No real tokamak
 > deployment. Validated against synthetic data and published GEQDSK files only.
+
+## Capability Inventory
+
+<!-- capability-snapshot:start -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- SCPN Control — Generated Capability Snapshot -->
+<!-- Embedded in README.md between capability-snapshot markers. -->
+
+**Capability Inventory**
+
+| Surface | Count |
+| --- | ---: |
+| Package version | 0.19.0 |
+| Python requirement | >=3.10 |
+| Public API exports | 15 |
+| Python control/physics modules | 128 |
+| Python public classes | 393 |
+| Rust source files | 50 |
+| Rust PyO3 exports | 27 |
+| Validation scripts | 36 |
+| Optional extras | 16 |
+| Python test files | 277 |
+| Public documentation pages | 30 |
+| GitHub Actions workflows | 8 |
+
+**Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
+
+Refresh with `python tools/capability_manifest.py`; enforce with `python tools/capability_manifest.py --check`.
+<!-- capability-snapshot:end -->
 
 ## Quick Start
 

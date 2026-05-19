@@ -219,6 +219,136 @@ artifacts with code identity, source provenance, version, run id, execution
 timestamp, input and output SHA-256 hashes, parser version, units, finite
 transport coefficients, growth rate, real frequency, and dominant wavenumber.
 
+Neural equilibrium cross-validation claims require persisted P-EFIT or
+documented public reference artifacts for the same surrogate weights and
+equilibrium cases. Synthetic training runs and local smoke tests do not count as
+matched equilibrium-reference evidence:
+
+```bash
+scpn-control validate-neural-equilibrium-reference --require-reference-artifacts --json-out
+python validation/validate_neural_equilibrium_reference.py --require-reference-artifacts --output-json artifacts/neural_equilibrium_reference_report.json
+```
+
+Strict mode fails until `validation/reports/neural_equilibrium_reference/`
+contains artifacts with source provenance, surrogate identity, weight and
+reference SHA-256 hashes, grid shape, psi/pressure/q/boundary unit contracts,
+reference-equilibrium count, and error metrics inside declared tolerances.
+
+Neural transport surrogate validation claims require persisted QuaLiKiz or
+documented public reference artifacts for the same QLKNN-style feature schema
+and trained weights:
+
+```bash
+scpn-control validate-neural-transport-reference --require-reference-artifacts --json-out
+python validation/validate_neural_transport_reference.py --require-reference-artifacts --output-json artifacts/neural_transport_reference_report.json
+```
+
+Strict mode fails until `validation/reports/neural_transport_reference/`
+contains artifacts with source provenance, surrogate identity, weight and
+reference SHA-256 hashes, QLKNN-10D feature ordering, target-unit contracts,
+reference-sample count, and chi_i/chi_e/D_e plus branch-accuracy metrics inside
+declared tolerances.
+
+Neural turbulence surrogate validation claims require persisted gyrokinetic
+campaign or documented public reference artifacts for the same QLKNN-class
+feature schema and trained weights:
+
+```bash
+scpn-control validate-neural-turbulence-reference --require-reference-artifacts --json-out
+python validation/validate_neural_turbulence_reference.py --require-reference-artifacts --output-json artifacts/neural_turbulence_reference_report.json
+```
+
+Strict mode fails until `validation/reports/neural_turbulence_reference/`
+contains artifacts with source provenance, surrogate identity, weight and
+reference SHA-256 hashes, feature ordering, gyro-Bohm flux target units,
+reference-sample count, and Q_i/Q_e/Gamma_e plus critical-gradient metrics
+inside declared tolerances.
+
+Orbit-following validation claims require persisted published-reference or
+real-campaign artifacts for banana-width, first-orbit-loss, and
+passing/trapped/lost classification checks:
+
+```bash
+scpn-control validate-orbit-reference --require-reference-artifacts --json-out
+python validation/validate_orbit_reference.py --require-reference-artifacts --output-json artifacts/orbit_reference_report.json
+```
+
+Strict mode fails until `validation/reports/orbit_reference/` contains artifacts
+with source provenance, model identity, SHA-256 reference hash, case count,
+orbit/loss/energy/field units, and declared error or classification metrics
+inside tolerance.
+
+Uncertainty quantification claims require persisted published-reference or
+campaign artifacts for the full propagation chain:
+
+```bash
+scpn-control validate-uncertainty-reference --require-reference-artifacts --json-out
+python validation/validate_uncertainty_reference.py --require-reference-artifacts --output-json artifacts/uncertainty_reference_report.json
+```
+
+Strict mode fails until `validation/reports/uncertainty_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, case
+count, tau_E/P_fusion/Q/sigma unit contracts, and relative-error plus percentile
+monotonicity metrics inside declared tolerances.
+
+VMEC-lite stellarator-equilibrium validation claims require persisted
+published-reference or real-VMEC-run artifacts for surface geometry,
+rotational-transform, Fourier truncation, and force-residual checks:
+
+```bash
+scpn-control validate-vmec-reference --require-reference-artifacts --json-out
+python validation/validate_vmec_reference.py --require-reference-artifacts --output-json artifacts/vmec_reference_report.json
+```
+
+Strict mode fails until `validation/reports/vmec_reference/` contains artifacts
+with source provenance, model identity, SHA-256 reference hash, Fourier
+truncation, unit contracts, case count, and surface/iota/residual metrics inside
+declared tolerances.
+
+RZIP vertical-stability validation claims require persisted public-reference,
+external-code, or measured-discharge artifacts for vertical growth rates,
+vertical displacement, and closed-loop pole checks:
+
+```bash
+scpn-control validate-rzip-reference --require-reference-artifacts --json-out
+python validation/validate_rzip_reference.py --require-reference-artifacts --output-json artifacts/rzip_reference_report.json
+```
+
+Strict mode fails until `validation/reports/rzip_reference/` contains artifacts
+with source provenance, model identity, SHA-256 reference hash, RZIP physical
+parameters, unit contracts, case count, and vertical-stability metrics inside
+declared tolerances.
+
+Density-control and particle-source validation claims require persisted
+public-reference, measured-fuelling, or external integrated-modelling artifacts
+for Greenwald fraction, pellet deposition, recycling, and density-profile
+checks:
+
+```bash
+scpn-control validate-density-reference --require-reference-artifacts --json-out
+python validation/validate_density_reference.py --require-reference-artifacts --output-json artifacts/density_reference_report.json
+```
+
+Strict mode fails until `validation/reports/density_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, radial
+grid metadata, actuator settings, unit contracts, case count, and
+fuelling-profile metrics inside declared tolerances.
+
+Disruption-mitigation contract validation claims require persisted
+public-reference, measured-disruption, or external benchmark artifacts for
+warning lead time, mitigation outcome, halo current, runaway beam, and TBR
+equivalence checks:
+
+```bash
+scpn-control validate-disruption-reference --require-reference-artifacts --json-out
+python validation/validate_disruption_reference.py --require-reference-artifacts --output-json artifacts/disruption_reference_report.json
+```
+
+Strict mode fails until `validation/reports/disruption_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash,
+disruption-window timing, mitigation-cocktail metadata, unit contracts, case
+count, and disruption-mitigation metrics inside declared tolerances.
+
 Free-boundary tracking acceptance on the real `FusionKernel` path:
 
 ```bash

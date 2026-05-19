@@ -276,12 +276,15 @@
       "unit_contract": "SI magnetic flux, pressure, metre-scale geometry, and dimensionless q-profile arrays on declared grids.",
       "validation_evidence": [
         "ROADMAP.md neural eq cross-validation future item",
-        "docs/joss_paper.md neural equilibrium limitation"
+        "docs/joss_paper.md neural equilibrium limitation",
+        "validation/validate_neural_equilibrium_reference.py strict P-EFIT/reference artifact gate"
       ],
       "evidence_paths": [
         "ROADMAP.md",
         "docs/joss_paper.md",
-        "src/scpn_control/core/neural_equilibrium.py"
+        "src/scpn_control/core/neural_equilibrium.py",
+        "validation/validate_neural_equilibrium_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_equilibrium.py"
@@ -336,12 +339,15 @@
       "unit_contract": "SI metres, seconds, amperes, henries, ohms, tesla, and dimensionless vertical field index; growth time is reported in milliseconds.",
       "validation_evidence": [
         "tests/test_rzip_model.py vertical growth, field-index, physical-parameter, and controller-measurement checks",
-        "tests/test_cov_100_pct.py RZIP fallback and singular-circuit checks"
+        "tests/test_cov_100_pct.py RZIP fallback and singular-circuit checks",
+        "validation/validate_rzip_reference.py strict RZIP reference artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rzip_model.py",
         "tests/test_rzip_model.py",
-        "tests/test_cov_100_pct.py"
+        "tests/test_cov_100_pct.py",
+        "validation/validate_rzip_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/rzip_model.py"
@@ -462,11 +468,14 @@
       ],
       "unit_contract": "SI particles per second, metres, seconds, m^-3, m^2/s, m/s, pellet millimetres, beam keV, megawatts, and dimensionless Greenwald fraction.",
       "validation_evidence": [
-        "tests/test_density_controller.py Greenwald, pellet, sink, controller, geometry, transport-profile, source-input, and timestep guard checks"
+        "tests/test_density_controller.py Greenwald, pellet, sink, controller, geometry, transport-profile, source-input, and timestep guard checks",
+        "validation/validate_density_reference.py strict density reference artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/density_controller.py",
-        "tests/test_density_controller.py"
+        "tests/test_density_controller.py",
+        "validation/validate_density_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/density_controller.py"
@@ -492,13 +501,16 @@
       "validation_evidence": [
         "tests/test_disruption_contracts.py contract smoke checks",
         "tests/test_disruption_contracts_pure.py pure physics-path checks",
-        "tests/test_disruption_edge_cases.py edge-case disruption checks"
+        "tests/test_disruption_edge_cases.py edge-case disruption checks",
+        "validation/validate_disruption_reference.py strict disruption reference artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/disruption_contracts.py",
         "tests/test_disruption_contracts.py",
         "tests/test_disruption_contracts_pure.py",
-        "tests/test_disruption_edge_cases.py"
+        "tests/test_disruption_edge_cases.py",
+        "validation/validate_disruption_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/disruption_contracts.py"
@@ -1091,13 +1103,16 @@
       "validation_evidence": [
         "tests/test_neural_transport.py",
         "tests/test_neural_transport_core.py",
-        "tests/test_qlknn_transport.py"
+        "tests/test_qlknn_transport.py",
+        "validation/validate_neural_transport_reference.py strict QuaLiKiz/reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_neural_transport.py",
         "tests/test_neural_transport_core.py",
         "tests/test_qlknn_transport.py",
-        "src/scpn_control/core/neural_transport.py"
+        "src/scpn_control/core/neural_transport.py",
+        "validation/validate_neural_transport_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_transport.py"
@@ -1121,12 +1136,15 @@
       "unit_contract": "Feature and target units follow the declared turbulence surrogate schema; diffusivities, growth rates, and fluxes require explicit SI or normalised-unit metadata.",
       "validation_evidence": [
         "tests/test_neural_turbulence.py",
-        "tests/test_cov_100_pct.py"
+        "tests/test_cov_100_pct.py",
+        "validation/validate_neural_turbulence_reference.py strict GK-campaign/reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_neural_turbulence.py",
         "tests/test_cov_100_pct.py",
-        "src/scpn_control/core/neural_turbulence.py"
+        "src/scpn_control/core/neural_turbulence.py",
+        "validation/validate_neural_turbulence_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_turbulence.py"
@@ -1150,12 +1168,15 @@
       "unit_contract": "SI metres, seconds, tesla, electronvolts, kg, coulombs, pitch dimensionless, and ensemble probabilities dimensionless.",
       "validation_evidence": [
         "tests/test_orbit_following.py",
-        "tests/test_cov_100_pct.py"
+        "tests/test_cov_100_pct.py",
+        "validation/validate_orbit_reference.py strict orbit reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_orbit_following.py",
         "tests/test_cov_100_pct.py",
-        "src/scpn_control/core/orbit_following.py"
+        "src/scpn_control/core/orbit_following.py",
+        "validation/validate_orbit_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/orbit_following.py"
@@ -1180,13 +1201,16 @@
       "validation_evidence": [
         "tests/test_uncertainty.py",
         "tests/test_full_chain_uq.py",
-        "tests/test_uncertainty_sigma_guard.py"
+        "tests/test_uncertainty_sigma_guard.py",
+        "validation/validate_uncertainty_reference.py strict UQ reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_uncertainty.py",
         "tests/test_full_chain_uq.py",
         "tests/test_uncertainty_sigma_guard.py",
-        "src/scpn_control/core/uncertainty.py"
+        "src/scpn_control/core/uncertainty.py",
+        "validation/validate_uncertainty_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/uncertainty.py"
@@ -1209,11 +1233,14 @@
       ],
       "unit_contract": "SI metres, tesla, pascals, amperes, webers, dimensionless rotational transform, and Fourier coefficients with declared length units.",
       "validation_evidence": [
-        "tests/test_vmec_lite.py"
+        "tests/test_vmec_lite.py",
+        "validation/validate_vmec_reference.py strict VMEC reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_vmec_lite.py",
-        "src/scpn_control/core/vmec_lite.py"
+        "src/scpn_control/core/vmec_lite.py",
+        "validation/validate_vmec_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/vmec_lite.py"
