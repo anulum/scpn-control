@@ -1,22 +1,46 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Gym Tokamak Env
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# Tests for gymnasium-compatible TokamakEnv
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Gymnasium-compatible tokamak environment tests
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.gym_tokamak_env import TokamakEnv
 
 
 class TestTokamakEnv:
+    def test_constructor_rejects_nonphysical_parameters(self):
+        invalid_kwargs = (
+            {"dt": 0.0},
+            {"max_steps": 0},
+            {"T_target": -1.0},
+            {"noise_std": -0.1},
+            {"n_e_20": 0.0},
+            {"V_plasma": -1.0},
+        )
+
+        for kwargs in invalid_kwargs:
+            with pytest.raises(ValueError, match="physical|positive|non-negative"):
+                TokamakEnv(**kwargs)
+
+    def test_step_rejects_invalid_action_shape_and_values(self):
+        env = TokamakEnv()
+        env.reset()
+
+        for action in (
+            np.array([0.0]),
+            np.array([0.0, 0.0, 0.0]),
+            np.array([np.nan, 0.0]),
+            np.array([0.0, np.inf]),
+        ):
+            with pytest.raises(ValueError, match="action"):
+                env.step(action)
+
     def test_reset_returns_obs_and_info(self):
         env = TokamakEnv()
         obs, info = env.reset()

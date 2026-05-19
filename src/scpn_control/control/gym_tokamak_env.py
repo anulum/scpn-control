@@ -1,22 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Gym Tokamak Env
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Gymnasium Tokamak Environment
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Gymnasium-compatible reduced-order tokamak environment
 """
 Gymnasium-compatible environment for tokamak plasma control.
 
-Implements simplified 0D physics-based dynamics for temperature and
+Implements bounded reduced-order 0D physics dynamics for temperature and
 plasma current using energy balance ($dW/dt = P_{heat} - P_{loss}$)
 with IPB98(y,2) confinement scaling and Bremsstrahlung radiation.
 
@@ -38,7 +30,7 @@ logger = logging.getLogger(__name__)
 class TokamakEnv:
     """Minimal Gymnasium-compatible tokamak control environment.
 
-    Implements a simplified plasma response model for energy and current
+    Implements a bounded reduced-order plasma response model for energy and current
     evolution based on 0D lumped-parameter equations.
     Ref: Wesson, J. (2011). Tokamaks. 4th Edition, Chapter 1.
 
@@ -74,6 +66,18 @@ class TokamakEnv:
         n_e_20: float = 1.0,
         V_plasma: float = 830.0,
     ):
+        if not np.isfinite(dt) or dt <= 0.0:
+            raise ValueError("dt must be finite and positive for a physical timestep.")
+        if max_steps < 1:
+            raise ValueError("max_steps must be positive.")
+        if not np.isfinite(T_target) or T_target <= 0.0:
+            raise ValueError("T_target must be finite and positive.")
+        if not np.isfinite(noise_std) or noise_std < 0.0:
+            raise ValueError("noise_std must be finite and non-negative.")
+        if not np.isfinite(n_e_20) or n_e_20 <= 0.0:
+            raise ValueError("n_e_20 must be finite and positive.")
+        if not np.isfinite(V_plasma) or V_plasma <= 0.0:
+            raise ValueError("V_plasma must be finite and positive.")
         self.dt = dt
         self.max_steps = max_steps
         self.T_target = T_target
@@ -126,6 +130,7 @@ class TokamakEnv:
 
         Returns (obs, reward, terminated, truncated, info).
         """
+        action = self._validate_action(action)
         action = np.clip(action, self.action_low, self.action_high)
         P_aux_delta, Ip_delta = float(action[0]), float(action[1])
 
@@ -218,6 +223,14 @@ class TokamakEnv:
             self.observation_high,
         )
         return obs.astype(np.float64)
+
+    def _validate_action(self, action: np.ndarray) -> np.ndarray:
+        arr = np.asarray(action, dtype=np.float64)
+        if arr.shape != (2,):
+            raise ValueError("action must have shape (2,) for [P_aux_delta, Ip_delta].")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError("action must contain only finite values.")
+        return arr
 
     def render(self) -> None:
         """Print current state."""

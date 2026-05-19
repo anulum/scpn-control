@@ -305,7 +305,8 @@
       "unit_contract": "Declared plasma current, temperature, density, confinement, and actuator units per state vector field.",
       "validation_evidence": [
         "README.md validation limitation",
-        "docs/use_cases.md synthetic disruption prediction status"
+        "docs/use_cases.md synthetic disruption prediction status",
+        "tests/test_gym_tokamak_env.py reduced-order plant bounds and action-contract checks"
       ],
       "evidence_paths": [
         "README.md",
@@ -334,7 +335,7 @@
       ],
       "unit_contract": "SI metres, seconds, amperes, henries, ohms, tesla, and dimensionless vertical field index; growth time is reported in milliseconds.",
       "validation_evidence": [
-        "tests/test_rzip_model.py vertical growth and field-index checks",
+        "tests/test_rzip_model.py vertical growth, field-index, physical-parameter, and controller-measurement checks",
         "tests/test_cov_100_pct.py RZIP fallback and singular-circuit checks"
       ],
       "evidence_paths": [

@@ -43,6 +43,23 @@ def test_stable_n_index(simple_vessel):
     assert gamma <= 0.0
 
 
+def test_rzip_model_rejects_nonphysical_parameters(simple_vessel):
+    invalid_kwargs = (
+        {"R0": 0.0},
+        {"a": -0.5},
+        {"kappa": 0.0},
+        {"Ip_MA": -1.0},
+        {"B0": 0.0},
+        {"n_index": np.nan},
+    )
+
+    for kwargs in invalid_kwargs:
+        params = dict(R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-0.5, vessel=simple_vessel)
+        params.update(kwargs)
+        with pytest.raises(ValueError, match="physical|finite|positive"):
+            RZIPModel(**params)
+
+
 def test_unstable_n_index(simple_vessel):
     # n_index < 0 means vertically unstable
     rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-1.0, vessel=simple_vessel)
@@ -192,3 +209,21 @@ def test_controller_step_zero_dt(active_coils):
     V = ctrl.step(0.1, dt=0.0)
     assert V.shape == (len(active_coils),)
     assert np.all(np.isfinite(V))
+
+
+def test_controller_step_rejects_nonfinite_measurement_and_timestep(active_coils):
+    elements = [
+        VesselElement(R=2.0, Z=0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
+        VesselElement(R=2.0, Z=-0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
+    ]
+    vessel = VesselModel(elements)
+    rzip = RZIPModel(
+        R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-0.5, vessel=vessel, active_coils=active_coils
+    )
+    ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
+
+    with pytest.raises(ValueError, match="finite"):
+        ctrl.step(float("nan"), dt=1e-3)
+
+    with pytest.raises(ValueError, match="finite"):
+        ctrl.step(0.1, dt=float("inf"))

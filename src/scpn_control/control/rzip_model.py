@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Rzip Model
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — RZIP Rigid Plasma Response Model
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — RZIP rigid plasma response model
 """Rigid-plasma vertical response model, stability analysis, and controller utilities."""
 
 from __future__ import annotations
@@ -33,6 +29,18 @@ class RZIPModel:
         vessel: VesselModel,
         active_coils: list[VesselElement] | None = None,
     ):
+        if not np.isfinite(R0) or R0 <= 0.0:
+            raise ValueError("R0 must be finite and positive for a physical major radius.")
+        if not np.isfinite(a) or a <= 0.0:
+            raise ValueError("a must be finite and positive for a physical minor radius.")
+        if not np.isfinite(kappa) or kappa <= 0.0:
+            raise ValueError("kappa must be finite and positive.")
+        if not np.isfinite(Ip_MA) or Ip_MA <= 0.0:
+            raise ValueError("Ip_MA must be finite and positive.")
+        if not np.isfinite(B0) or B0 <= 0.0:
+            raise ValueError("B0 must be finite and positive.")
+        if not np.isfinite(n_index):
+            raise ValueError("n_index must be finite.")
         self.R0 = R0
         self.a = a
         self.kappa = kappa
@@ -261,6 +269,10 @@ class RZIPController:
             self.K_gain = np.zeros((B.shape[1], A.shape[1]))
 
     def step(self, dZ_measured: float, dt: float) -> np.ndarray:
+        if not np.isfinite(dZ_measured):
+            raise ValueError("dZ_measured must be finite.")
+        if not np.isfinite(dt):
+            raise ValueError("dt must be finite.")
         if dt > 0:
             dZ_dt = (dZ_measured - self.prev_Z) / dt
         else:
