@@ -1,12 +1,16 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Density-controller tests
 from __future__ import annotations
 
 import math
 
 import numpy as np
+import pytest
 
 from scpn_control.control.density_controller import (
     DensityController,
@@ -34,6 +38,69 @@ def test_particle_transport_model_sources():
     pump = model.cryopump_sink(pump_speed=10.0, ne_edge=1e19)
     assert pump[-1] > 0.0
     assert pump[0] == 0.0
+
+
+def test_particle_transport_model_rejects_nonphysical_geometry():
+    for kwargs in (
+        {"n_rho": 1},
+        {"R0": 0.0},
+        {"a": -1.0},
+    ):
+        with pytest.raises(ValueError, match="physical"):
+            ParticleTransportModel(**kwargs)
+
+
+def test_particle_transport_model_rejects_invalid_transport_profiles():
+    model = ParticleTransportModel(n_rho=10)
+
+    with pytest.raises(ValueError, match="shape"):
+        model.set_transport(np.ones(9), np.ones(10))
+
+    with pytest.raises(ValueError, match="finite"):
+        model.set_transport(np.full(10, np.nan), np.ones(10))
+
+    with pytest.raises(ValueError, match="non-negative"):
+        model.set_transport(-np.ones(10), np.ones(10))
+
+
+def test_particle_transport_model_rejects_nonphysical_source_inputs():
+    model = ParticleTransportModel(n_rho=10)
+
+    with pytest.raises(ValueError, match="non-negative"):
+        model.gas_puff_source(rate=-1.0)
+
+    with pytest.raises(ValueError, match="positive"):
+        model.gas_puff_source(rate=1.0, penetration_depth=0.0)
+
+    with pytest.raises(ValueError, match="non-negative"):
+        model.pellet_source(speed_ms=-1.0, radius_mm=1.0)
+
+    with pytest.raises(ValueError, match="positive"):
+        model.nbi_source(beam_energy_keV=0.0, power_MW=1.0)
+
+    with pytest.raises(ValueError, match="non-negative"):
+        model.cryopump_sink(pump_speed=-1.0, ne_edge=1e19)
+
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        model.recycling_source(outflux=1.0, recycling_coeff=1.1)
+
+
+def test_particle_transport_step_rejects_invalid_state_and_timestep():
+    model = ParticleTransportModel(n_rho=10)
+    ne = np.ones(10) * 1e19
+    sources = np.zeros(10)
+
+    with pytest.raises(ValueError, match="shape"):
+        model.step(np.ones(9), sources, dt=1e-6)
+
+    with pytest.raises(ValueError, match="finite"):
+        model.step(np.full(10, np.nan), sources, dt=1e-6)
+
+    with pytest.raises(ValueError, match="non-negative"):
+        model.step(ne, -np.ones(10), dt=1e-6)
+
+    with pytest.raises(ValueError, match="positive"):
+        model.step(ne, sources, dt=0.0)
 
 
 def test_particle_transport_model_step():

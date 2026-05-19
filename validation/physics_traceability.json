@@ -461,7 +461,7 @@
       ],
       "unit_contract": "SI particles per second, metres, seconds, m^-3, m^2/s, m/s, pellet millimetres, beam keV, megawatts, and dimensionless Greenwald fraction.",
       "validation_evidence": [
-        "tests/test_density_controller.py Greenwald, pellet, sink, and controller checks"
+        "tests/test_density_controller.py Greenwald, pellet, sink, controller, geometry, transport-profile, source-input, and timestep guard checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/density_controller.py",

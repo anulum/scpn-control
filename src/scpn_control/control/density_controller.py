@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Density-control plant and particle-source model
 """Density-control plant, estimator, fuelling actuators, and optimisation utilities."""
 
 from __future__ import annotations
@@ -25,6 +28,12 @@ _N_D2_SOLID_M3 = 6e28
 
 class ParticleTransportModel:
     def __init__(self, n_rho: int = 50, R0: float = 6.2, a: float = 2.0):
+        if n_rho < 2:
+            raise ValueError("n_rho must be at least 2 for a physical radial grid.")
+        if not math.isfinite(R0) or R0 <= 0.0:
+            raise ValueError("R0 must be a finite positive physical major radius.")
+        if not math.isfinite(a) or a <= 0.0:
+            raise ValueError("a must be a finite positive physical minor radius.")
         self.n_rho = n_rho
         self.R0 = R0
         self.a = a
@@ -41,8 +50,19 @@ class ParticleTransportModel:
         self.V_prime = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.rho
 
     def set_transport(self, D: np.ndarray, V_pinch: np.ndarray) -> None:
-        self.D = D
-        self.V_pinch = V_pinch
+        D_arr = self._validate_profile(D, "D")
+        if np.any(D_arr < 0.0):
+            raise ValueError("D must be non-negative.")
+        self.D = D_arr
+        self.V_pinch = self._validate_profile(V_pinch, "V_pinch")
+
+    def _validate_profile(self, values: np.ndarray, name: str) -> np.ndarray:
+        arr = np.asarray(values, dtype=float)
+        if arr.shape != (self.n_rho,):
+            raise ValueError(f"{name} must have shape ({self.n_rho},).")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"{name} must contain only finite values.")
+        return arr
 
     def gas_puff_source(self, rate: float, penetration_depth: float = 0.03) -> np.ndarray:
         """Particles/s. Edge-localised source from gas injection.
@@ -50,6 +70,10 @@ class ParticleTransportModel:
         Pacher et al. 2007, Nucl. Fusion 47, 469: ITER gas-injection modelling
         places the effective source within ~3% of the minor radius from the wall.
         """
+        if not math.isfinite(rate) or rate < 0.0:
+            raise ValueError("Gas puff rate must be finite and non-negative.")
+        if not math.isfinite(penetration_depth) or penetration_depth <= 0.0:
+            raise ValueError("Gas puff penetration_depth must be finite and positive.")
         decay = np.exp(-(1.0 - self.rho) / penetration_depth)
         decay /= np.sum(decay * self.V_prime * self.drho) + 1e-10
         return np.asarray(rate * decay)
@@ -62,6 +86,12 @@ class ParticleTransportModel:
         pellet radius and velocity. Rozhansky et al. 1994, Nucl. Fusion 34, 383:
         deep fueling requires high speed and large pellet radius.
         """
+        if not math.isfinite(speed_ms) or speed_ms < 0.0:
+            raise ValueError("Pellet speed_ms must be finite and non-negative.")
+        if not math.isfinite(radius_mm):
+            raise ValueError("Pellet radius_mm must be finite.")
+        if not math.isfinite(launch_angle_deg):
+            raise ValueError("Pellet launch_angle_deg must be finite.")
         if radius_mm <= 0.0:
             return np.zeros(self.n_rho)
 
@@ -76,6 +106,10 @@ class ParticleTransportModel:
 
     def nbi_source(self, beam_energy_keV: float, power_MW: float) -> np.ndarray:
         """Core-peaked particle source from neutral beam injection."""
+        if not math.isfinite(beam_energy_keV) or beam_energy_keV <= 0.0:
+            raise ValueError("NBI beam_energy_keV must be finite and positive.")
+        if not math.isfinite(power_MW) or power_MW < 0.0:
+            raise ValueError("NBI power_MW must be finite and non-negative.")
         if power_MW <= 0.0:
             return np.zeros(self.n_rho)
 
@@ -88,6 +122,10 @@ class ParticleTransportModel:
 
     def cryopump_sink(self, pump_speed: float, ne_edge: float) -> np.ndarray:
         """Edge particle removal from cryopump."""
+        if not math.isfinite(pump_speed) or pump_speed < 0.0:
+            raise ValueError("Cryopump pump_speed must be finite and non-negative.")
+        if not math.isfinite(ne_edge) or ne_edge < 0.0:
+            raise ValueError("Cryopump ne_edge must be finite and non-negative.")
         sink = np.zeros(self.n_rho)
         sink[-1] = pump_speed * ne_edge / (self.V_prime[-1] * self.drho + 1e-10)
         return sink
@@ -97,9 +135,22 @@ class ParticleTransportModel:
         Recycling_coeff = 0.97 is the standard ITER assumption for a metal wall.
         ITER Physics Basis 1999, Nucl. Fusion 39, 2175, §4.2.
         """
+        if not math.isfinite(outflux) or outflux < 0.0:
+            raise ValueError("Recycling outflux must be finite and non-negative.")
+        if not math.isfinite(recycling_coeff) or not 0.0 <= recycling_coeff <= 1.0:
+            raise ValueError("Recycling coefficient must be finite and between 0 and 1.")
         return self.gas_puff_source(outflux * recycling_coeff, penetration_depth=0.02)
 
     def step(self, ne: np.ndarray, sources: np.ndarray, dt: float) -> np.ndarray:
+        ne_arr = self._validate_profile(ne, "ne")
+        sources_arr = self._validate_profile(sources, "sources")
+        if np.any(ne_arr < 0.0):
+            raise ValueError("ne must be non-negative.")
+        if np.any(sources_arr < 0.0):
+            raise ValueError("sources must be non-negative.")
+        if not math.isfinite(dt) or dt <= 0.0:
+            raise ValueError("dt must be finite and positive.")
+
         # Explicit forward-Euler diffusion — CFL stability: dt < drho² / (2 D_max).
         D_max = np.max(self.D)
         if D_max > 0.0:
@@ -109,14 +160,14 @@ class ParticleTransportModel:
 
         flux = np.zeros(self.n_rho + 1)
         for i in range(1, self.n_rho):
-            grad_n = (ne[i] - ne[i - 1]) / self.drho
-            n_face = 0.5 * (ne[i] + ne[i - 1])
+            grad_n = (ne_arr[i] - ne_arr[i - 1]) / self.drho
+            n_face = 0.5 * (ne_arr[i] + ne_arr[i - 1])
             D_face = 0.5 * (self.D[i] + self.D[i - 1])
             V_face = 0.5 * (self.V_pinch[i] + self.V_pinch[i - 1])
             flux[i] = -D_face * grad_n / self.a + V_face * n_face
 
         flux[0] = 0.0
-        flux[-1] = -self.D[-1] * (0.0 - ne[-1]) / self.drho / self.a + self.V_pinch[-1] * ne[-1]
+        flux[-1] = -self.D[-1] * (0.0 - ne_arr[-1]) / self.drho / self.a + self.V_pinch[-1] * ne_arr[-1]
 
         dne_dt = np.zeros(self.n_rho)
         for i in range(self.n_rho):
@@ -124,9 +175,9 @@ class ParticleTransportModel:
             Vp_plus = self.V_prime[i] if i == self.n_rho - 1 else 0.5 * (self.V_prime[i] + self.V_prime[i + 1])
             Vp_minus = 0.0 if i == 0 else 0.5 * (self.V_prime[i] + self.V_prime[i - 1])
             div_flux = (Vp_plus * flux[i + 1] - Vp_minus * flux[i]) / (Vp * self.drho * self.a)
-            dne_dt[i] = -div_flux + sources[i]
+            dne_dt[i] = -div_flux + sources_arr[i]
 
-        ne_new = ne + dne_dt * dt
+        ne_new = ne_arr + dne_dt * dt
         return np.asarray(np.maximum(ne_new, 1e16))
 
 
