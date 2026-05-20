@@ -90,6 +90,7 @@ dev = [
     "streamlit>=1.20",
     "torch>=2.0",
     "pre-commit>=4.0",
+    "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.scripts]

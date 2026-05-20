@@ -615,7 +615,9 @@ def validate_gk_interface_artifacts_command(
 
 
 @main.command("validate-neural-equilibrium-reference")
-@click.option("--artifact-root", help="Directory or JSON artifact containing persisted neural equilibrium reference evidence")
+@click.option(
+    "--artifact-root", help="Directory or JSON artifact containing persisted neural equilibrium reference evidence"
+)
 @click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--json-out", is_flag=True, help="Emit JSON")
@@ -639,7 +641,9 @@ def validate_neural_equilibrium_reference_command(
     if json_out:
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
-        click.echo(f"Neural equilibrium reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        click.echo(
+            f"Neural equilibrium reference: {report['status']} reference_artifacts={report['reference_artifacts']}"
+        )
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":
@@ -647,7 +651,9 @@ def validate_neural_equilibrium_reference_command(
 
 
 @main.command("validate-neural-transport-reference")
-@click.option("--artifact-root", help="Directory or JSON artifact containing persisted neural transport reference evidence")
+@click.option(
+    "--artifact-root", help="Directory or JSON artifact containing persisted neural transport reference evidence"
+)
 @click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--json-out", is_flag=True, help="Emit JSON")
@@ -671,7 +677,9 @@ def validate_neural_transport_reference_command(
     if json_out:
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
-        click.echo(f"Neural transport reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        click.echo(
+            f"Neural transport reference: {report['status']} reference_artifacts={report['reference_artifacts']}"
+        )
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":
@@ -679,7 +687,9 @@ def validate_neural_transport_reference_command(
 
 
 @main.command("validate-neural-turbulence-reference")
-@click.option("--artifact-root", help="Directory or JSON artifact containing persisted neural turbulence reference evidence")
+@click.option(
+    "--artifact-root", help="Directory or JSON artifact containing persisted neural turbulence reference evidence"
+)
 @click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--json-out", is_flag=True, help="Emit JSON")
@@ -703,7 +713,9 @@ def validate_neural_turbulence_reference_command(
     if json_out:
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
-        click.echo(f"Neural turbulence reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        click.echo(
+            f"Neural turbulence reference: {report['status']} reference_artifacts={report['reference_artifacts']}"
+        )
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":
@@ -711,7 +723,9 @@ def validate_neural_turbulence_reference_command(
 
 
 @main.command("validate-orbit-reference")
-@click.option("--artifact-root", help="Directory or JSON artifact containing persisted orbit-following reference evidence")
+@click.option(
+    "--artifact-root", help="Directory or JSON artifact containing persisted orbit-following reference evidence"
+)
 @click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--json-out", is_flag=True, help="Emit JSON")

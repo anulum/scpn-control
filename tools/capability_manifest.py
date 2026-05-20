@@ -13,9 +13,13 @@ import ast
 import json
 import re
 import sys
-import tomllib
 from pathlib import Path
 from typing import Any
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI.
+    import tomli as tomllib
 
 
 README_START = "<!-- capability-snapshot:start -->"
@@ -59,7 +63,9 @@ def _python_classes(path: Path) -> list[str]:
         tree = ast.parse(path.read_text(encoding="utf-8"))
     except SyntaxError:
         return []
-    return sorted(node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and not node.name.startswith("_"))
+    return sorted(
+        node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and not node.name.startswith("_")
+    )
 
 
 def _public_exports(package_init: Path) -> list[str]:
@@ -136,7 +142,9 @@ def build_manifest(repo_root: Path | str | None = None) -> dict[str, Any]:
         for path in _iter_existing_files(repo_root, [paths["tests_root"]], ".py")
         if "__pycache__" not in path.parts
     ]
-    workflows = [_relative(repo_root, path) for path in _iter_existing_files(repo_root, [paths["workflows_root"]], ".yml")]
+    workflows = [
+        _relative(repo_root, path) for path in _iter_existing_files(repo_root, [paths["workflows_root"]], ".yml")
+    ]
     docs = _docs_markdown(repo_root, config)
 
     manifest = {
