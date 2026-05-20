@@ -1,17 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Conftest
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Test configuration
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Configuration
-# ──────────────────────────────────────────────────────────────────────
 """Shared fixtures for scpn-control test suite."""
 
 from __future__ import annotations
+
+import os
+
+os.environ.setdefault("JAX_ENABLE_X64", "1")
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 
 import numpy as np
 import pytest

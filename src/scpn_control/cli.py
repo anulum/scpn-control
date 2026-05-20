@@ -31,6 +31,8 @@ Usage::
     scpn-control validate-rzip-reference --require-reference-artifacts --json-out
     scpn-control validate-density-reference --require-reference-artifacts --json-out
     scpn-control validate-disruption-reference --require-reference-artifacts --json-out
+    scpn-control validate-digital-twin-reference --require-reference-artifacts --json-out
+    scpn-control validate-soc-reference --require-reference-artifacts --json-out
     scpn-control acquire-mdsplus-shot --spec-json validation/reference_data/diiid/acquisition_specs/shot_163303_mdsplus.json
     scpn-control live --port 8765 --zeta 0.5
     scpn-control hil-test --shots-dir validation/reference_data/diiid/disruption_shots
@@ -894,6 +896,70 @@ def validate_disruption_reference_command(
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
         click.echo(f"Disruption reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-digital-twin-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted digital twin reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_digital_twin_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted tokamak digital-twin reference artifacts."""
+    from validation.validate_digital_twin_reference import ROOT, validate_digital_twin_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "digital_twin_reference")
+    report = validate_digital_twin_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Digital twin reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-soc-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted SOC reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_soc_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted SOC turbulence-learning reference artifacts."""
+    from validation.validate_soc_reference import ROOT, validate_soc_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "soc_reference")
+    report = validate_soc_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"SOC reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":

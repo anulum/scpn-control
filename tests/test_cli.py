@@ -526,6 +526,22 @@ def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
             "reference_artifacts",
             "no disruption reference artifacts found",
         ),
+        (
+            "validate-digital-twin-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "Digital twin reference: fail",
+            "reference_artifacts",
+            "no digital twin reference artifacts found",
+        ),
+        (
+            "validate-soc-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "SOC reference: fail",
+            "reference_artifacts",
+            "no SOC reference artifacts found",
+        ),
     ],
 )
 def test_gk_validation_text_error_paths(
@@ -577,6 +593,8 @@ def test_gk_validation_text_error_paths(
         ("validate-rzip-reference", "--artifact-root", "--require-reference-artifacts", "rzip.json"),
         ("validate-density-reference", "--artifact-root", "--require-reference-artifacts", "density.json"),
         ("validate-disruption-reference", "--artifact-root", "--require-reference-artifacts", "disruption.json"),
+        ("validate-digital-twin-reference", "--artifact-root", "--require-reference-artifacts", "digital_twin.json"),
+        ("validate-soc-reference", "--artifact-root", "--require-reference-artifacts", "soc.json"),
     ],
 )
 def test_gk_validation_output_json_files_on_failures(runner, tmp_path, command, root_option, require_flag, output_name):
@@ -926,6 +944,42 @@ def test_validate_disruption_reference_requires_artifacts(runner, tmp_path):
     data = json.loads(result.output)
     assert data["status"] == "fail"
     assert data["errors"][0]["error"] == "no disruption reference artifacts found"
+
+
+def test_validate_digital_twin_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-digital-twin-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no digital twin reference artifacts found"
+
+
+def test_validate_soc_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-soc-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no SOC reference artifacts found"
 
 
 @dataclass(frozen=True)

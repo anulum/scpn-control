@@ -349,6 +349,36 @@ artifacts with source provenance, model identity, SHA-256 reference hash,
 disruption-window timing, mitigation-cocktail metadata, unit contracts, case
 count, and disruption-mitigation metrics inside declared tolerances.
 
+Tokamak digital-twin validation claims require persisted public-reference,
+measured-discharge replay, or external integrated-modelling artifacts for grid
+topology, q-profile evolution, actuator latency, IDS export, and island-mask
+checks:
+
+```bash
+scpn-control validate-digital-twin-reference --require-reference-artifacts --json-out
+python validation/validate_digital_twin_reference.py --require-reference-artifacts --output-json artifacts/digital_twin_reference_report.json
+```
+
+Strict mode fails until `validation/reports/digital_twin_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, grid
+metadata, actuator and sensor metadata, unit contracts, case count, and
+digital-twin replay metrics inside declared tolerances.
+
+SOC turbulence-learning validation claims require persisted public-reference,
+measured-turbulence replay, or external gyrokinetic-reference artifacts for the
+sandpile lattice, flow coupling, shear suppression, Q-learning policy, and
+reward-behaviour checks:
+
+```bash
+scpn-control validate-soc-reference --require-reference-artifacts --json-out
+python validation/validate_soc_reference.py --require-reference-artifacts --output-json artifacts/soc_reference_report.json
+```
+
+Strict mode fails until `validation/reports/soc_reference/` contains artifacts
+with source provenance, model identity, SHA-256 reference hash, lattice
+metadata, Q-learning metadata, unit contracts, case count, and SOC replay
+metrics inside declared tolerances.
+
 Free-boundary tracking acceptance on the real `FusionKernel` path:
 
 ```bash

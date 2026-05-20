@@ -536,13 +536,17 @@
       "validation_evidence": [
         "tests/test_tokamak_digital_twin.py deterministic twin checks",
         "tests/test_digital_twin_physics.py physics-path checks",
-        "tests/test_digital_twin_ingest_runtime.py ingest runtime checks"
+        "tests/test_digital_twin_ingest_runtime.py ingest runtime checks",
+        "validation/validate_digital_twin_reference.py strict reference-artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/tokamak_digital_twin.py",
         "tests/test_tokamak_digital_twin.py",
         "tests/test_digital_twin_physics.py",
-        "tests/test_digital_twin_ingest_runtime.py"
+        "tests/test_digital_twin_ingest_runtime.py",
+        "tests/test_digital_twin_reference_validation.py",
+        "validation/validate_digital_twin_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/tokamak_digital_twin.py"
@@ -568,13 +572,17 @@
       "validation_evidence": [
         "tests/test_advanced_soc.py SOC physics and learning checks",
         "tests/test_advanced_soc_verbose_plot.py verbose and plotting-path checks",
-        "tests/test_visualization_paths.py SOC visualisation checks"
+        "tests/test_visualization_paths.py SOC visualisation checks",
+        "validation/validate_soc_reference.py strict reference-artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/advanced_soc_fusion_learning.py",
         "tests/test_advanced_soc.py",
         "tests/test_advanced_soc_verbose_plot.py",
-        "tests/test_visualization_paths.py"
+        "tests/test_visualization_paths.py",
+        "tests/test_soc_reference_validation.py",
+        "validation/validate_soc_reference.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/advanced_soc_fusion_learning.py"

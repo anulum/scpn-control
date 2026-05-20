@@ -1,18 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Rl Tokamak
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — RL tokamak tests
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Tests for RL agent and benchmark
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """Tests: PPO agent loading, inference, Gymnasium wrapper, PID baseline."""
 
 from __future__ import annotations
@@ -102,7 +95,7 @@ class TestPPOAgent:
     @pytest.fixture()
     def agent(self) -> sb3.PPO:
         assert AGENT_PATH.exists(), f"Missing {AGENT_PATH} — run tools/train_rl_tokamak.py first"
-        return sb3.PPO.load(str(AGENT_PATH.with_suffix("")))
+        return sb3.PPO.load(str(AGENT_PATH.with_suffix("")), device="cpu")
 
     def test_agent_loads(self, agent: sb3.PPO) -> None:
         assert agent is not None

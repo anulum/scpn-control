@@ -23,10 +23,10 @@
     "public_class_count": 393,
     "public_markdown_count": 30,
     "pyo3_export_count": 27,
-    "python_test_file_count": 277,
+    "python_test_file_count": 279,
     "rust_source_file_count": 50,
     "source_module_count": 128,
-    "validation_script_count": 36,
+    "validation_script_count": 38,
     "workflow_count": 8
   },
   "docs": {
@@ -791,6 +791,7 @@
       "tests/test_digital_twin_ingest_runtime.py",
       "tests/test_digital_twin_ingest_validation.py",
       "tests/test_digital_twin_physics.py",
+      "tests/test_digital_twin_reference_validation.py",
       "tests/test_diiid_jet_validation.py",
       "tests/test_director_interface.py",
       "tests/test_disruption_contracts.py",
@@ -968,6 +969,7 @@
       "tests/test_shape_controller.py",
       "tests/test_sliding_mode_vertical.py",
       "tests/test_snn_pyo3_bridge.py",
+      "tests/test_soc_reference_validation.py",
       "tests/test_sol_model.py",
       "tests/test_spi_mitigation.py",
       "tests/test_stability_mhd.py",
@@ -1027,6 +1029,7 @@
       "validation/stress_test_campaign.py",
       "validation/validate_data_manifests.py",
       "validation/validate_density_reference.py",
+      "validation/validate_digital_twin_reference.py",
       "validation/validate_disruption_reference.py",
       "validation/validate_gk_crosscode.py",
       "validation/validate_gk_geometry_reference.py",
@@ -1041,6 +1044,7 @@
       "validation/validate_physics_traceability.py",
       "validation/validate_real_shots.py",
       "validation/validate_rzip_reference.py",
+      "validation/validate_soc_reference.py",
       "validation/validate_uncertainty_reference.py",
       "validation/validate_vmec_reference.py"
     ]
