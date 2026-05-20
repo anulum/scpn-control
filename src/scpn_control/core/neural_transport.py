@@ -54,7 +54,7 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -175,7 +175,7 @@ def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:
 
     chi_i = _CHI_GB * excess_itg**_STIFFNESS
     chi_e = _CHI_GB * excess_tem**_STIFFNESS
-    d_e = _fallback_particle_diffusivity(chi_e, inp.grad_ne, inp.s_hat)
+    d_e = cast(float, _fallback_particle_diffusivity(chi_e, inp.grad_ne, inp.s_hat))
 
     if chi_i > chi_e and chi_i > 0:
         channel = "ITG"
@@ -477,7 +477,7 @@ class NeuralTransportModel:
 
         chi_i_out = _CHI_GB * excess_itg**_STIFFNESS
         chi_e_out = _CHI_GB * excess_tem**_STIFFNESS
-        d_e_out = _fallback_particle_diffusivity(chi_e_out, grad_ne, s_hat_profile)
+        d_e_out = np.asarray(_fallback_particle_diffusivity(chi_e_out, grad_ne, s_hat_profile), dtype=float)
 
         return chi_e_out, chi_i_out, d_e_out
 

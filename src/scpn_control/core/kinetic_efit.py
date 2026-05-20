@@ -130,7 +130,10 @@ class KineticEFIT(RealtimeEFIT):
         if unique_rho.size == 1:
             return np.full_like(rho_grid, unique_values[0], dtype=float)
 
-        return np.interp(rho_grid, unique_rho, unique_values, left=unique_values[0], right=unique_values[-1])
+        return np.asarray(
+            np.interp(rho_grid, unique_rho, unique_values, left=unique_values[0], right=unique_values[-1]),
+            dtype=float,
+        )
 
     def reconstruct(self, measurements: dict[str, Any]) -> KineticReconstructionResult:
         res_mag = super().reconstruct(measurements)

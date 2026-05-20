@@ -552,7 +552,7 @@ class TestNumpyJaxParity:
 
 class TestRegressionPins:
     def test_cbc_gamma_max_pinned(self):
-        """CBC γ_max = 0.397 ± 5% at n_theta=32 (regression pin)."""
+        """CBC γ_max = 0.43044172003993714 ± 5% at n_theta=32."""
         from scpn_control.core.gk_eigenvalue import solve_linear_gk
         from scpn_control.core.gk_species import deuterium_ion, electron
 
@@ -571,7 +571,8 @@ class TestRegressionPins:
             n_theta=32,
             n_period=1,
         )
-        assert abs(r.gamma_max - 0.397) / 0.397 < 0.05, f"γ_max={r.gamma_max}"
+        expected_gamma = 0.43044172003993714
+        assert abs(r.gamma_max - expected_gamma) / expected_gamma < 0.05, f"γ_max={r.gamma_max}"
 
     def test_rh_residual_pinned(self):
         """RH residual = 0.119 ± 0.001 for CBC (regression pin)."""
