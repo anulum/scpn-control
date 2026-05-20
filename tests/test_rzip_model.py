@@ -60,6 +60,46 @@ def test_rzip_model_rejects_nonphysical_parameters(simple_vessel):
             RZIPModel(**params)
 
 
+def test_rzip_model_uses_declared_vertical_inertia(simple_vessel):
+    light = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-1.0,
+        vessel=simple_vessel,
+        vertical_inertia_kg=1.0,
+    )
+    heavy = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-1.0,
+        vessel=simple_vessel,
+        vertical_inertia_kg=4.0,
+    )
+
+    assert heavy.M_eff == 4.0
+    assert heavy.vertical_growth_rate() < light.vertical_growth_rate()
+
+
+def test_rzip_model_rejects_nonphysical_vertical_inertia(simple_vessel):
+    with pytest.raises(ValueError, match="vertical_inertia_kg"):
+        RZIPModel(
+            R0=2.0,
+            a=0.5,
+            kappa=1.7,
+            Ip_MA=1.0,
+            B0=1.0,
+            n_index=-1.0,
+            vessel=simple_vessel,
+            vertical_inertia_kg=0.0,
+        )
+
+
 def test_unstable_n_index(simple_vessel):
     # n_index < 0 means vertically unstable
     rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-1.0, vessel=simple_vessel)
@@ -189,10 +229,24 @@ def test_passive_stability_margin():
 
 
 def test_required_feedback_gain():
-    """Line 150: VerticalStabilityAnalysis.required_feedback_gain returns 1.0."""
+    """Feedback gain follows the wall-normalised RZIP latency threshold."""
     from scpn_control.control.rzip_model import VerticalStabilityAnalysis
 
-    assert VerticalStabilityAnalysis.required_feedback_gain(10.0, 0.01, 1e-4) == 1.0
+    gain = VerticalStabilityAnalysis.required_feedback_gain(gamma=10.0, tau_wall=0.01, tau_controller=1e-4)
+
+    assert gain == pytest.approx(0.1001)
+
+
+def test_required_feedback_gain_rejects_nonphysical_inputs() -> None:
+    from scpn_control.control.rzip_model import VerticalStabilityAnalysis
+
+    for kwargs in (
+        {"gamma": -1.0, "tau_wall": 0.01, "tau_controller": 1e-4},
+        {"gamma": 10.0, "tau_wall": 0.0, "tau_controller": 1e-4},
+        {"gamma": 10.0, "tau_wall": 0.01, "tau_controller": -1e-4},
+    ):
+        with pytest.raises(ValueError, match="finite|non-negative|positive"):
+            VerticalStabilityAnalysis.required_feedback_gain(**kwargs)
 
 
 def test_controller_step_zero_dt(active_coils):

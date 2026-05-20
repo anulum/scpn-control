@@ -153,7 +153,8 @@ def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:
 
         chi_i = chi_GB * max(0, R/L_Ti - crit_ITG)^stiffness
         chi_e = chi_GB * max(0, R/L_Te - crit_TEM)^stiffness
-        D_e   = chi_e / 3  (simplified Ware pinch)
+        D_e   = chi_e · f(R/L_ne, magnetic shear) using a bounded density-channel
+                response calibrated to stay inside the analytic fallback domain.
 
     This is the same physics as the Rust ``TransportSolver`` but
     parameterised in terms of normalised gradients rather than raw
@@ -174,7 +175,7 @@ def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:
 
     chi_i = _CHI_GB * excess_itg**_STIFFNESS
     chi_e = _CHI_GB * excess_tem**_STIFFNESS
-    d_e = chi_e / 3.0  # Ware pinch approximation; QLKNN includes full pinch
+    d_e = _fallback_particle_diffusivity(chi_e, inp.grad_ne, inp.s_hat)
 
     if chi_i > chi_e and chi_i > 0:
         channel = "ITG"
@@ -184,6 +185,18 @@ def critical_gradient_model(inp: TransportInputs) -> TransportFluxes:
         channel = "stable"
 
     return TransportFluxes(chi_e=chi_e, chi_i=chi_i, d_e=d_e, channel=channel)
+
+
+def _fallback_particle_diffusivity(
+    chi_e: float | FloatArray,
+    grad_ne: float | FloatArray,
+    s_hat: float | FloatArray,
+) -> float | FloatArray:
+    """Bounded analytic particle-channel response for fallback transport."""
+    ratio = 0.18 + 0.045 * np.maximum(np.asarray(grad_ne), 0.0) + 0.03 * np.abs(np.asarray(s_hat))
+    ratio = np.clip(ratio, 0.05, 0.65)
+    result = np.asarray(chi_e) * ratio
+    return float(result) if np.ndim(result) == 0 else np.asarray(result)
 
 
 # ── MLP inference engine ─────────────────────────────────────────────
@@ -464,7 +477,7 @@ class NeuralTransportModel:
 
         chi_i_out = _CHI_GB * excess_itg**_STIFFNESS
         chi_e_out = _CHI_GB * excess_tem**_STIFFNESS
-        d_e_out = chi_e_out / 3.0
+        d_e_out = _fallback_particle_diffusivity(chi_e_out, grad_ne, s_hat_profile)
 
         return chi_e_out, chi_i_out, d_e_out
 

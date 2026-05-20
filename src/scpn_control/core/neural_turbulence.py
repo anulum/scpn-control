@@ -170,13 +170,18 @@ class TransportInputNormalizer:
         alpha_MHD = -(q**2) * R0 * grad_p * 2.0 * mu_0 / (B0**2)
         # 7. Ti/Te
         Ti_Te = Ti / np.maximum(Te, 1e-3)
-        # 8. nu_star (collisionality)
+        # 8. nu_star (banana-regime electron collisionality)
         epsilon = r / R0
-        # highly simplified nu_star
         Te_safe_nu = np.maximum(Te, 1e-3)
-        nu_star = 0.1 * ne / (Te_safe_nu**2 * np.maximum(epsilon, 1e-3) ** 1.5)
+        Z_eff_value = 1.5
+        ln_lambda = 17.0
+        ne_m3 = ne * 1.0e19
+        Te_eV = Te_safe_nu * 1.0e3
+        nu_star = (
+            6.921e-18 * q_norm * R0 * ne_m3 * Z_eff_value * ln_lambda / (np.maximum(epsilon, 1e-3) ** 1.5 * Te_eV**2)
+        )
         # 9. Z_eff (assumed flat 1.5)
-        Z_eff = np.ones_like(r) * 1.5
+        Z_eff = np.ones_like(r) * Z_eff_value
         # 10. epsilon
         eps = epsilon
 
@@ -215,7 +220,7 @@ class TrainingDataGenerator:
     @staticmethod
     def generate_analytic_targets(inputs: np.ndarray) -> np.ndarray:
         """
-        Compute flux targets from simplified analytical quasilinear model.
+        Compute bounded analytic quasilinear flux targets.
         Returns [Q_i, Q_e, Gamma_e] in gyro-Bohm units.
         """
         n_samples = inputs.shape[0]

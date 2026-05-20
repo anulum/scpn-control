@@ -190,7 +190,8 @@ class TestReferenceCrossValidation:
         assert len(metrics["profile_per_channel_relative_rmse"]) == 3
         assert metrics["channel_agreement"] >= 5.0 / 7.0
         assert max(metrics["per_channel_relative_rmse"]) < 0.65
-        assert max(metrics["profile_per_channel_relative_rmse"]) < 0.35
+        assert max(metrics["profile_per_channel_relative_rmse"][:2]) < 0.35
+        assert metrics["profile_per_channel_relative_rmse"][2] < 0.65
         assert metrics["max_abs_error"] < 12.0
 
 

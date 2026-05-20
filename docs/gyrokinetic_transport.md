@@ -102,9 +102,11 @@ print(f"chi_i = {fluxes.chi_i:.4f} m²/s, dominant: {fluxes.dominant_mode}")
 ### Known Limitations
 
 - **Electrostatic only** — no A∥ or B∥ (no KBM, no microtearing)
-- **Collision operator**: pitch-angle scattering only (no energy diffusion,
-  no inter-species drag). Adequate for growth rate ordering, not for
-  quantitative collisional damping
+- **Collision operator**: bounded test-particle pitch-angle deflection plus
+  thermal energy-relaxation coefficients; field-particle response,
+  momentum-conserving multispecies coupling, and external Fokker-Planck
+  benchmarks are not yet included. Adequate for local regression ordering,
+  not for quantitative collisional damping
 - **Adiabatic electrons**: kinetic electron path exists but not fully wired
 - **Resolution**: default (n_E=12, n_lambda=16) gives qualitative instability
   detection. Quantitative γ within 20% of GENE/GS2 requires higher resolution

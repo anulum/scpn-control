@@ -35,7 +35,7 @@ def test_rwm_unstable_between_limits():
 
 def test_rwm_ideal_kink():
     rwm = RWMPhysics(beta_n=3.6, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
-    assert rwm.growth_rate() >= 1e6
+    assert math.isinf(rwm.growth_rate())
 
 
 def test_rwm_feedback_stabilization():

@@ -156,9 +156,9 @@ The solver is validated against:
   nonlinear heat-flux agreement remains a revalidation target.
 - **SPARC/ITER equilibria**: RMSE-gated against CFS SPARCPublic GEQDSK files
   and ITER design parameters.
-- **DIII-D disruption shots**: 17 synthetic shots covering H-mode, VDE,
-  beta-limit, locked-mode, density-limit, tearing, and snowflake
-  configurations.
+- **DIII-D disruption shots**: repository reference disruption-shot artefacts
+  and GEQDSK files covered by manifest checksums; synthetic shots remain CI
+  plumbing fixtures only.
 - **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS,
   with bitwise fidelity on psi, pressure, and profile arrays.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
@@ -186,9 +186,10 @@ Stangeby (2000), Hirshman (1983), Boozer (1981), and others.
 approximation (no global effects or profile shearing); the Sugama collision
 operator includes pitch-angle scattering and energy diffusion but omits
 field-particle terms; external GK interfaces are mock-tested (no real
-Fortran binaries in CI); DIII-D shots use synthetic data, not real MDSplus
-archives. The neural equilibrium has not been cross-validated against P-EFIT
-on identical equilibria.
+Fortran binaries in CI); DIII-D replay evidence is repository-artefact
+validation, not live MDSplus or facility-control validation. The neural
+equilibrium has not been cross-validated against P-EFIT on identical
+equilibria.
 
 ## Acknowledgements
 

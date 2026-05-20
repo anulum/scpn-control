@@ -58,8 +58,22 @@ def test_dk_iteration_convergence():
 
     K, mu, D_s = dk_iteration(plant, unc, n_iter=5)
 
-    assert mu < 1.0  # Simulated convergence
+    assert mu < 1.0
     assert K is not None
+
+
+def test_dk_iteration_mu_depends_on_closed_loop_plant_dynamics() -> None:
+    """D-K evidence must come from the closed-loop plant, not iteration count."""
+    B = np.eye(2)
+    C = np.eye(2)
+    D = np.zeros((2, 2))
+    unc = StructuredUncertainty([UncertaintyBlock("plasma_position", 2, 0.1, "full")])
+
+    _, mu_marginal, _ = dk_iteration((np.zeros((2, 2)), B, C, D), unc, n_iter=4)
+    _, mu_unstable, _ = dk_iteration((np.eye(2) * 2.0, B, C, D), unc, n_iter=4)
+
+    assert not np.isclose(mu_marginal, mu_unstable)
+    assert mu_marginal > mu_unstable
 
 
 def test_mu_controller_robustness():
@@ -103,11 +117,7 @@ def test_mu_upper_bound() -> None:
 
 
 def test_dk_iteration_converges() -> None:
-    """μ_peak must decrease monotonically with D-K iterations.
-
-    Skogestad & Postlethwaite 2005, §8.5: each outer D-K iterate either
-    reduces or maintains the peak μ upper bound.
-    """
+    """Repeated bounded static passes must not fabricate worse mu evidence."""
     A = np.eye(2)
     B = np.eye(2)
     C = np.eye(2)

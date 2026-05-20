@@ -117,17 +117,17 @@ def miller_geometry(
     # |grad theta|^2 = (dR/dr^2 + dZ/dr^2) / J^2
     g_tt = (dR_dr_tot**2 + dZ_dr_r**2) / jac**2
 
-    # Toroidal field: B_phi = B0 * R0 / R (vacuum approximation)
+    # Toroidal field on a local flux surface: B_phi = B0 * R0 / R.
     B_phi = B0 * R0 / R_s
 
-    # Poloidal field: B_p = r / (q * R_s * |J/r|) — simplified
+    # Local poloidal field from the safety-factor pitch relation.
     abs_jac_over_r = np.abs(jac) / max(r, 1e-6)
-    B_p = 1.0 / (q * abs_jac_over_r + 1e-30)
+    B_p = (r * B_phi) / (q * R_s * abs_jac_over_r + 1e-30)
 
     B_mag = np.sqrt(B_phi**2 + B_p**2)
 
-    # b . grad(theta) = B_p / (R_s * |grad theta|) ≈ 1 / (q * R_s) simplified
-    b_dot_grad_theta = 1.0 / (q * R_s)
+    # Parallel derivative metric b·∇theta = B_p |∇theta| / |B|.
+    b_dot_grad_theta = B_p * np.sqrt(g_tt) / np.maximum(B_mag, 1e-30)
 
     # Curvature from Miller flux-surface geometry (Miller 1998, Eqs. 18-19;
     # Beer, Cowley & Hammett 1995, Eq. 2.8).

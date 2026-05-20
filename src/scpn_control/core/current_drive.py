@@ -34,6 +34,32 @@ _E_CRIT_PREFACTOR = 14.8  # keV · (A_b/A_i)^(2/3) per keV of T_e
 _TAU_S_PREFACTOR = 3.0 * np.sqrt(2.0 * np.pi)  # = 3√(2π)
 
 
+def _normalised_radial_deposition(
+    rho: np.ndarray,
+    total_power_w: float,
+    rho_centre: float,
+    width_rho: float,
+) -> np.ndarray:
+    """Return a finite-width radial deposition kernel conserving total power on the supplied grid."""
+    rho_arr = np.asarray(rho, dtype=float)
+    if rho_arr.ndim != 1:
+        raise ValueError("rho grid must be one-dimensional")
+    if rho_arr.size == 0:
+        return np.asarray([], dtype=float)
+    if not np.all(np.isfinite(rho_arr)):
+        raise ValueError("rho grid must be finite")
+    if rho_arr.size > 1 and not np.all(np.diff(rho_arr) > 0.0):
+        raise ValueError("rho grid must be strictly increasing")
+    if width_rho <= 0.0 or total_power_w <= 0.0:
+        return np.zeros_like(rho_arr, dtype=float)
+
+    kernel = np.exp(-((rho_arr - rho_centre) ** 2) / (2.0 * width_rho**2))
+    norm = float(np.trapezoid(kernel, rho_arr)) if rho_arr.size > 1 else float(kernel[0])
+    if norm <= 0.0 or not np.isfinite(norm):
+        raise ValueError("deposition kernel cannot be normalised on the supplied rho grid")
+    return np.asarray(total_power_w * kernel / norm)
+
+
 def eccd_efficiency(
     Te_keV: float | np.ndarray,
     Z_eff: float,
@@ -143,15 +169,8 @@ class ECCDSource:
         self.eta_cd = eta_cd
 
     def P_absorbed(self, rho: np.ndarray) -> np.ndarray:
-        """Absorbed power density [W/m^3] — Gaussian deposition profile."""
-        if self.sigma_rho <= 0.0:
-            return np.zeros_like(rho)
-        P_W = self.P_ec_MW * 1e6
-        return np.asarray(
-            P_W
-            / (np.sqrt(2.0 * np.pi) * self.sigma_rho)
-            * np.exp(-((rho - self.rho_dep) ** 2) / (2.0 * self.sigma_rho**2))
-        )
+        """Absorbed power per unit rho [W] using a grid-normalised finite-width deposition kernel."""
+        return _normalised_radial_deposition(rho, self.P_ec_MW * 1e6, self.rho_dep, self.sigma_rho)
 
     def j_cd(self, rho: np.ndarray, ne_19: np.ndarray, Te_keV: np.ndarray) -> np.ndarray:
         """
@@ -190,15 +209,8 @@ class NBISource:
         self.Z_beam = Z_beam
 
     def P_heating(self, rho: np.ndarray) -> np.ndarray:
-        """Beam power deposition profile [W/m^3]."""
-        if self.sigma_rho <= 0.0:
-            return np.zeros_like(rho)
-        P_W = self.P_nbi_MW * 1e6
-        return np.asarray(
-            P_W
-            / (np.sqrt(2.0 * np.pi) * self.sigma_rho)
-            * np.exp(-((rho - self.rho_tangency) ** 2) / (2.0 * self.sigma_rho**2))
-        )
+        """Beam heating power per unit rho [W] using a grid-normalised finite-width deposition kernel."""
+        return _normalised_radial_deposition(rho, self.P_nbi_MW * 1e6, self.rho_tangency, self.sigma_rho)
 
     def j_cd(
         self,
@@ -260,14 +272,7 @@ class LHCDSource:
         self.eta_cd = eta_cd
 
     def P_absorbed(self, rho: np.ndarray) -> np.ndarray:
-        if self.sigma_rho <= 0.0:
-            return np.zeros_like(rho)
-        P_W = self.P_lh_MW * 1e6
-        return np.asarray(
-            P_W
-            / (np.sqrt(2.0 * np.pi) * self.sigma_rho)
-            * np.exp(-((rho - self.rho_dep) ** 2) / (2.0 * self.sigma_rho**2))
-        )
+        return _normalised_radial_deposition(rho, self.P_lh_MW * 1e6, self.rho_dep, self.sigma_rho)
 
     def j_cd(self, rho: np.ndarray, ne_19: np.ndarray, Te_keV: np.ndarray) -> np.ndarray:
         """

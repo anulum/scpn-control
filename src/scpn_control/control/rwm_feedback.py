@@ -12,9 +12,9 @@ import numpy as np
 
 
 # ── named constants ─────────────────────────────────────────────────────────
-# Sentinel for the ideal-kink (β > β_wall) regime; returned wherever a finite
-# growth rate is physically undefined.
-_IDEAL_KINK_RATE: float = 1e6  # s⁻¹ (representative large value, not physical)
+# Sentinel for the ideal-kink (β > β_wall) regime; a finite resistive-wall-mode
+# growth rate is physically undefined beyond the ideal-wall limit.
+_IDEAL_KINK_RATE: float = math.inf
 
 
 class RWMPhysics:

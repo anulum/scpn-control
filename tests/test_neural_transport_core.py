@@ -248,11 +248,12 @@ class TestPredictProfile:
         assert chi_e.shape == rho.shape
         assert chi_i.shape == rho.shape
 
-    def test_d_e_proportional_to_chi_e(self):
+    def test_d_e_uses_profile_density_gradient_and_shear(self):
         model = NeuralTransportModel(auto_discover=False)
         rho, te, ti, ne, q, s_hat = self._make_profiles()
         chi_e, _, d_e = model.predict_profile(rho, te, ti, ne, q, s_hat)
         mask = chi_e > 0
         if mask.any():
             ratio = d_e[mask] / chi_e[mask]
-            assert np.allclose(ratio, 1.0 / 3.0, atol=1e-10)
+            assert not np.allclose(ratio, 1.0 / 3.0, atol=1e-10)
+            assert np.all((0.05 <= ratio) & (ratio <= 0.65))

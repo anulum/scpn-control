@@ -33,18 +33,15 @@ from scpn_control.core.gk_quasilinear import quasilinear_fluxes_from_spectrum
 from scpn_control.core.gk_scheduler import GKScheduler, SchedulerConfig
 from scpn_control.core.gk_species import deuterium_ion, electron
 from scpn_control.core.gk_verification_report import VerificationReport
+from scpn_control.core.neural_transport import TransportInputs, critical_gradient_model
 
 _REPORT_DIR = Path(__file__).parent / "reports"
 
 
 def _surrogate_chi(R_L_Ti: float) -> tuple[float, float, float]:
-    """Simplified surrogate: stiff critical-gradient model."""
-    crit = 4.0
-    excess = max(R_L_Ti - crit, 0.0)
-    chi_i = 0.5 * excess**2
-    chi_e = 0.3 * excess**2
-    D_e = chi_e / 3.0
-    return chi_i, chi_e, D_e
+    """Bounded analytic fallback surrogate used when no neural weights are loaded."""
+    fluxes = critical_gradient_model(TransportInputs(grad_ti=R_L_Ti, grad_te=R_L_Ti, grad_ne=2.2, s_hat=0.78))
+    return fluxes.chi_i, fluxes.chi_e, fluxes.d_e
 
 
 def _gk_chi(R_L_Ti: float) -> tuple[float, float, float]:

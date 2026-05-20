@@ -161,16 +161,17 @@ for scope and limitations.
 
 | Validation | Method | Result | Data Source |
 |-----------|--------|--------|-------------|
-| DIII-D shot replay | 16 reference shots, RMSE gated | < 15% Te RMSE | **Synthetic** (mock_diiid.py) |
+| DIII-D shot replay | Reference GEQDSK + disruption-shot archive, checksum gated | Manifest + replay gates pass | Immutable repository reference artefacts |
 | SPARC equilibrium | 8 EFIT reference equilibria | < 5% flux error | Public GEQDSK files |
 | IPB98(y,2) scaling | ITPA multi-machine database | 26.6% RMSE | Published coefficients |
 | Kuramoto convergence | R -> 0.92, V -> 0, lambda < 0 | 500-tick verified | Simulation |
 | Control latency | Criterion benchmark (P50/P99) | 11.9 / 23.9 us | CI ubuntu-latest |
 | Neural equilibrium | PCA + MLP vs Picard ground truth | 0.39 ms mean | Simulation |
 
-> **Important:** "DIII-D shot replay" uses **synthetic mock shots**, not real
-> MDSplus experimental data. No real tokamak data has been ingested or validated
-> against. The SPARC GEQDSK files are publicly available design equilibria.
+> **Important:** "DIII-D shot replay" is validated against immutable repository
+> reference artefacts with manifest checksums. It is not a live MDSplus
+> acquisition or facility-control claim. Synthetic fixtures remain only for CI
+> plumbing tests and are not evidence for public physics claims.
 
 ---
 

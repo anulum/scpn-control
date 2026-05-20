@@ -4,7 +4,7 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 """
-Mu-synthesis (D-K iteration) for structured-uncertainty robust control.
+Mu-analysis utilities for structured-uncertainty robust control.
 
 Structured singular value definition (Doyle 1982, IEE Proc. D 129, 242):
 
@@ -14,15 +14,17 @@ where Δ_struct is the block-diagonal uncertainty set with blocks matching
 the declared UncertaintyBlock list.  μ ≤ σ̄(M) always holds (upper bound),
 with equality only when Δ is unstructured.
 
-D-K iteration (Balas et al. 1993, "μ-Analysis and Synthesis Toolbox",
+Full D-K iteration (Balas et al. 1993, "μ-Analysis and Synthesis Toolbox",
 Ch. 8; Skogestad & Postlethwaite 2005, "Multivariable Feedback Control",
 §8.5) alternates:
 
     K-step: synthesise H-infinity controller K with D-scaled plant D·P·D^{-1}
     D-step: fit stable, minimum-phase D(s) to the frequency-wise μ upper bound
 
-Convergence is not guaranteed in general (non-convex problem), but typically
-reaches a local minimum within 3–5 outer iterations in practice.
+Convergence is not guaranteed in general (non-convex problem). The executable
+path below is deliberately bounded to a Riccati state-feedback K-step and
+static D-scaled closed-loop upper-bound evaluation unless a validated
+frequency-dependent backend is wired.
 
 Physical uncertainty blocks for tokamak control (Ariola & Pironti 2008,
 "Magnetic Control of Tokamak Plasmas", Ch. 7):
@@ -38,6 +40,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+from scipy.linalg import LinAlgError, solve_continuous_are
 
 
 @dataclass
@@ -77,29 +80,26 @@ class StructuredUncertainty:
         return sum(b.size for b in self.blocks)
 
 
-def compute_mu_upper_bound(M: np.ndarray, delta_structure: list[tuple[int, str]]) -> float:
+def _compute_mu_upper_bound_and_scalings(
+    M: np.ndarray,
+    delta_structure: list[tuple[int, str]],
+) -> tuple[float, np.ndarray]:
     """D-scaling upper bound on μ(M).
 
     Computes  min_D  σ̄(D M D^{-1})  where D is block-diagonal with positive
     real scalars matching delta_structure.  This is always ≥ μ(M) and equals
     μ(M) for complex full blocks (Doyle 1982, IEE Proc. D 129, 242).
-
-    A subgradient descent on log(D) is used; for production use replace with
-    an LMI solver or the MATLAB μ-toolbox (Balas et al. 1993, Ch. 8).
-
-    Parameters
-    ----------
-    M : np.ndarray, shape (n, n)
-        Closed-loop transfer matrix evaluated at a single frequency.
-    delta_structure : list of (size, block_type)
-        Block sizes and types from StructuredUncertainty.build_Delta_structure().
-
-    Returns
-    -------
-    float
-        Upper bound μ̄ ≥ μ(M).
     """
+    M = np.atleast_2d(np.asarray(M, dtype=complex))
+    if M.ndim != 2 or M.shape[0] != M.shape[1]:
+        raise ValueError("M must be a square closed-loop transfer matrix.")
+    if not np.all(np.isfinite(M)):
+        raise ValueError("M must contain only finite values.")
     n = M.shape[0]
+    if sum(size for size, _ in delta_structure) != n:
+        raise ValueError("Delta block sizes must sum to M dimension.")
+    if not delta_structure:
+        raise ValueError("Delta structure must contain at least one uncertainty block.")
 
     def apply_D(d_vec: np.ndarray) -> np.ndarray:
         D = np.zeros((n, n), dtype=complex)
@@ -145,8 +145,95 @@ def compute_mu_upper_bound(M: np.ndarray, delta_structure: list[tuple[int, str]]
         # D M D^{-1} is invariant to uniform scaling of D — normalise to d_0=1
         d_vec /= d_vec[0]
 
-    _ = best_d  # retained for caller inspection if needed
+    return float(best_mu), best_d
+
+
+def compute_mu_upper_bound(M: np.ndarray, delta_structure: list[tuple[int, str]]) -> float:
+    """D-scaling upper bound on μ(M).
+
+    Computes  min_D  σ̄(D M D^{-1})  where D is block-diagonal with positive
+    real scalars matching delta_structure.  This is always ≥ μ(M) and equals
+    μ(M) for complex full blocks (Doyle 1982, IEE Proc. D 129, 242).
+
+    A finite-difference descent on log(D) is used to fit the static D-scaling.
+
+    Parameters
+    ----------
+    M : np.ndarray, shape (n, n)
+        Closed-loop transfer matrix evaluated at a single frequency.
+    delta_structure : list of (size, block_type)
+        Block sizes and types from StructuredUncertainty.build_Delta_structure().
+
+    Returns
+    -------
+    float
+        Upper bound μ̄ ≥ μ(M).
+    """
+    best_mu, _best_d = _compute_mu_upper_bound_and_scalings(M, delta_structure)
     return float(best_mu)
+
+
+def _validate_state_space(
+    plant_ss: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    uncertainty: StructuredUncertainty,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    A, B, C, D_mat = (np.atleast_2d(np.asarray(mat, dtype=float)) for mat in plant_ss)
+
+    if A.shape[0] != A.shape[1]:
+        raise ValueError("A must be square.")
+    n = A.shape[0]
+    if B.shape[0] != n:
+        raise ValueError("B row count must match A.")
+    if C.shape[1] != n:
+        raise ValueError("C column count must match A.")
+    if D_mat.shape != (C.shape[0], B.shape[1]):
+        raise ValueError("D must have shape (C rows, B columns).")
+    for name, mat in [("A", A), ("B", B), ("C", C), ("D", D_mat)]:
+        if not np.all(np.isfinite(mat)):
+            raise ValueError(f"{name} must contain only finite values.")
+
+    uncertainty_size = uncertainty.total_size()
+    if uncertainty_size <= 0:
+        raise ValueError("uncertainty must contain at least one positive-size block.")
+    if any(block.size <= 0 for block in uncertainty.blocks):
+        raise ValueError("uncertainty block sizes must be positive.")
+    if uncertainty_size != B.shape[1] or uncertainty_size != C.shape[0]:
+        raise ValueError("D-K static mu analysis requires uncertainty size to match B columns and C rows.")
+
+    return A, B, C, D_mat
+
+
+def _riccati_state_feedback(A: np.ndarray, B: np.ndarray, C: np.ndarray) -> np.ndarray:
+    """Continuous-time Riccati state-feedback K for the D-K K-step."""
+    q_weight = C.T @ C + np.eye(A.shape[0]) * 1e-9
+    r_weight = np.eye(B.shape[1])
+    try:
+        P = solve_continuous_are(A, B, q_weight, r_weight)
+    except LinAlgError as exc:
+        raise RuntimeError("Riccati K-step failed; plant is not stabilisable in this bounded domain.") from exc
+    K = B.T @ P
+    if not np.all(np.isfinite(K)):
+        raise RuntimeError("Riccati K-step produced a non-finite controller gain.")
+    return np.asarray(K, dtype=float)
+
+
+def _closed_loop_dc_uncertainty_map(
+    A: np.ndarray,
+    B: np.ndarray,
+    C: np.ndarray,
+    D_mat: np.ndarray,
+    K: np.ndarray,
+) -> np.ndarray:
+    """Return C (0I - A_cl)^-1 B + D for the static robust-performance channel."""
+    A_cl = A - B @ K
+    try:
+        state_response = np.linalg.solve(-A_cl, B)
+    except np.linalg.LinAlgError as exc:
+        raise RuntimeError("Closed-loop DC map is singular; robust mu evidence is unavailable.") from exc
+    M = C @ state_response + D_mat
+    if not np.all(np.isfinite(M)):
+        raise RuntimeError("Closed-loop DC map produced non-finite values.")
+    return np.asarray(M, dtype=complex)
 
 
 def dk_iteration(
@@ -155,15 +242,12 @@ def dk_iteration(
     n_iter: int = 5,
     gamma_bisect_tol: float = 0.01,
 ) -> tuple[Any, float, np.ndarray]:
-    """D-K iteration for μ-synthesis.
+    """Bounded static D-scaled mu-analysis pass for μ-synthesis workflows.
 
-    Alternates H-infinity K-synthesis with D-scale fitting until the peak μ
-    upper bound stops decreasing (Balas et al. 1993, Ch. 8;
-    Skogestad & Postlethwaite 2005, §8.5).
-
-    This implementation mocks the convergence behaviour: each outer iteration
-    reduces the mock μ_peak by 20%, representative of typical first-few-iterate
-    improvement seen in Skogestad & Postlethwaite 2005, Fig. 8.21.
+    This bounded-domain implementation performs a Riccati state-feedback K-step
+    and evaluates the static closed-loop robust-performance map with fitted
+    D-scalings.  It does not fabricate monotonic convergence when a full
+    frequency-dependent H-infinity backend is unavailable.
 
     Parameters
     ----------
@@ -185,20 +269,26 @@ def dk_iteration(
     D_scalings : np.ndarray
         Final D-scale vector (one entry per uncertainty block).
     """
-    A, B, C, D_mat = plant_ss
+    if n_iter <= 0:
+        raise ValueError("n_iter must be positive.")
+    if gamma_bisect_tol <= 0.0:
+        raise ValueError("gamma_bisect_tol must be positive.")
+    A, B, C, D_mat = _validate_state_space(plant_ss, uncertainty)
 
-    mu_peak = 1.5
-    for _ in range(n_iter):
-        mu_peak *= 0.8  # representative 20% per-iterate reduction
+    K_controller = _riccati_state_feedback(A, B, C)
+    closed_loop_map = _closed_loop_dc_uncertainty_map(A, B, C, D_mat, K_controller)
+    mu_peak, D_scalings = _compute_mu_upper_bound_and_scalings(
+        closed_loop_map,
+        uncertainty.build_Delta_structure(),
+    )
 
-    K_controller = np.zeros((B.shape[1], C.shape[0]))
-    D_scalings = np.ones(len(uncertainty.blocks))
+    _ = n_iter
 
-    return K_controller, max(mu_peak, 0.9), D_scalings
+    return K_controller, float(mu_peak), D_scalings
 
 
 class MuSynthesisController:
-    """Structured robust controller synthesised by D-K iteration.
+    """Structured robust controller with bounded static mu-analysis evidence.
 
     Theory: Doyle 1982 (μ definition); Balas et al. 1993 (DK algorithm);
     Skogestad & Postlethwaite 2005, §8.5 (convergence and practical use).
@@ -224,14 +314,11 @@ class MuSynthesisController:
         self.integral_error = 0.0
 
     def synthesize(self, n_dk_iter: int = 5) -> None:
-        """Run D-K iteration and store the resulting controller."""
+        """Run the bounded mu-analysis synthesis pass and store the controller."""
         K, mu, D_s = dk_iteration(self.plant_ss, self.uncertainty, n_iter=n_dk_iter)
         self.K = K
         self.mu_peak = mu
         self.D_scalings = D_s
-
-        # Override K with a stabilising gain for unit-test validation
-        self.K = np.ones_like(K) * 0.1
 
     def step(self, x: np.ndarray, dt: float) -> np.ndarray:
         """Apply synthesised controller: u = -K x."""

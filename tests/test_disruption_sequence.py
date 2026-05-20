@@ -38,6 +38,18 @@ def test_thermal_quench():
     assert load > 1.0
 
 
+def test_post_tq_temperature_depends_on_quench_and_radiation_times():
+    tq = ThermalQuench(W_th_MJ=350.0, a=2.0, R0=6.2, q=3.0, B0=5.3)
+
+    fast_quench = tq.post_tq_temperature(Te_pre_keV=20.0, tau_tq_ms=0.1, tau_radiation_ms=0.5)
+    slow_quench = tq.post_tq_temperature(Te_pre_keV=20.0, tau_tq_ms=5.0, tau_radiation_ms=0.5)
+    weak_radiation = tq.post_tq_temperature(Te_pre_keV=20.0, tau_tq_ms=0.1, tau_radiation_ms=5.0)
+
+    assert fast_quench < slow_quench
+    assert fast_quench < weak_radiation
+    assert 5.0 <= fast_quench < 50.0
+
+
 def test_current_quench():
     cq = CurrentQuench(Ip_MA=15.0, L_plasma_uH=10.0, R0=6.2, a=2.0)
 

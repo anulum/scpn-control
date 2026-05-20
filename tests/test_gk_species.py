@@ -113,6 +113,19 @@ def test_collision_frequencies_scale_with_density():
     assert nu_hi > nu_lo
 
 
+def test_collision_energy_relaxation_is_not_pitch_angle_alias_for_ions():
+    ion = deuterium_ion(T_keV=8.0)
+    nu_D, nu_E = collision_frequencies(ion, n_e_19=10.0, T_e_keV=8.0)
+    assert 0.0 < nu_E < nu_D
+
+
+def test_collision_energy_relaxation_varies_with_field_temperature():
+    ion = deuterium_ion(T_keV=8.0)
+    _, nu_cold_electrons = collision_frequencies(ion, n_e_19=10.0, T_e_keV=2.0)
+    _, nu_hot_electrons = collision_frequencies(ion, n_e_19=10.0, T_e_keV=16.0)
+    assert nu_cold_electrons != pytest.approx(nu_hot_electrons)
+
+
 def test_pitch_angle_operator_shape():
     vg = VelocityGrid(n_lambda=24)
     L = pitch_angle_operator(vg.n_lambda, vg.lam)

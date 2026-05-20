@@ -36,7 +36,9 @@ Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native line
 > and [Limitations](#limitations) for honest scope.
 >
 > **Status: Alpha / Research.** Not a production PCS. No real tokamak
-> deployment. Validated against synthetic data and published GEQDSK files only.
+> deployment. Public physics claims are limited to checksum-gated repository
+> reference artefacts, published GEQDSK files, and explicitly bounded synthetic
+> or non-facility domains.
 
 ## Capability Inventory
 
@@ -156,9 +158,9 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 - **Neural transport** -- QLKNN-10D trained MLP with auto-discovered weights
 - **Scenario management** -- Integrated scenario simulator (transport + current diffusion + sawteeth + NTM + SOL), scenario scheduler, ITER/NSTX-U presets
 - **Digital twin integration** -- Real-time telemetry ingest, closed-loop simulation, real-time EFIT, and flight simulator
-- **RMSE validation** -- CI-gated regression testing against synthetic DIII-D shots and published SPARC GEQDSK files
+- **RMSE validation** -- CI-gated regression testing against DIII-D reference artefacts and published SPARC GEQDSK files
 - **Disruption prediction** -- ML-based predictor with SPI mitigation and halo/RE physics
-- **Robust control** -- H-infinity DARE synthesis, mu-synthesis D-K iteration, fault-tolerant degraded-mode operation, shape controller with boundary Jacobian
+- **Robust control** -- H-infinity DARE synthesis, bounded static mu-analysis, fault-tolerant degraded-mode operation, shape controller with boundary Jacobian
 
 ## Architecture
 
@@ -188,7 +190,7 @@ src/scpn_control/
 |   +-- ...                        # 14 more (eqdsk, uncertainty, pedestal, ...)
 +-- control/           # Controllers (42 modules, optional deps guarded)
 |   +-- h_infinity_controller.py   # H-inf robust control (DARE)
-|   +-- mu_synthesis.py            # D-K iteration (structured singular value)
+|   +-- mu_synthesis.py            # Static D-scaled structured singular value bound
 |   +-- nmpc_controller.py         # Nonlinear MPC (SQP, 20-step horizon)
 |   +-- gain_scheduled_controller.py  # PID scheduled on operating regime
 |   +-- sliding_mode_vertical.py   # Sliding-mode vertical stabilizer
@@ -400,8 +402,10 @@ git push --tags
 > These are not future roadmap items — they are current architectural
 > constraints that users must understand.
 
-- **No real tokamak data**: All "DIII-D shots" are synthetic (mock_diiid.py).
-  No MDSplus, no experimental replay, no real-world validation.
+- **No facility deployment**: DIII-D replay evidence is limited to immutable
+  repository reference artefacts with manifest checksums. Synthetic fixtures
+  remain for CI plumbing only, not public physics evidence. No live MDSplus,
+  no experimental control-room replay, and no real-world validation.
 - **No peer-reviewed fusion publication**: Paper 27 (arXiv:2004.06344) is
   unpublished in a fusion journal. No external citations.
 - **Not a production PCS**: Alpha-stage research software. No ITER CODAC,

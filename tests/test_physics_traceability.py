@@ -44,6 +44,7 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     assert report["source_marker_coverage"]["total"] >= 30
     assert report["source_marker_coverage"]["covered"] == report["source_marker_coverage"]["total"]
     assert report["source_marker_coverage"]["missing"] == []
+    assert all(entry["fidelity_status"] != "synthetic_only" for entry in report["entries"])
     components = {entry["component"] for entry in report["entries"]}
     assert "nonlinear gyrokinetic heat-flux saturation" in components
     assert "DIII-D experimental replay" in components
@@ -56,13 +57,15 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     )
     assert linear_gk_entry["covered_source_paths"] == ["src/scpn_control/core/gk_eigenvalue.py"]
     geometry_entry = next(
-        entry for entry in report["entries"] if entry["component"] == "Miller geometry and field approximation contract"
+        entry
+        for entry in report["entries"]
+        if entry["component"] == "Miller local-equilibrium geometry and field-pitch contract"
     )
     assert geometry_entry["covered_source_paths"] == ["src/scpn_control/core/gk_geometry.py"]
     species_entry = next(
         entry
         for entry in report["entries"]
-        if entry["component"] == "gyrokinetic species and collision approximation contract"
+        if entry["component"] == "gyrokinetic species and collision bounded-operator contract"
     )
     assert species_entry["covered_source_paths"] == ["src/scpn_control/core/gk_species.py"]
     jax_gk_entry = next(
@@ -83,6 +86,7 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
         "ELM crash and RMP suppression approximation contract": "src/scpn_control/core/elm_model.py",
         "MARFE radiation-condensation density-limit contract": "src/scpn_control/core/marfe.py",
         "NTM island evolution and control approximation contract": "src/scpn_control/core/ntm_dynamics.py",
+        "auxiliary current-drive deposition and efficiency model": "src/scpn_control/core/current_drive.py",
         "ideal-MHD stability metric approximation contract": "src/scpn_control/core/stability_mhd.py",
         "sawtooth-to-NTM seeding approximation contract": "src/scpn_control/core/tearing_mode_coupling.py",
         "blob transport and scrape-off-layer approximation contract": "src/scpn_control/core/blob_transport.py",
@@ -127,6 +131,10 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
         entry for entry in report["entries"] if entry["component"] == "real-time EFIT-lite equilibrium reconstruction"
     )
     assert realtime_efit_entry["covered_source_paths"] == ["src/scpn_control/control/realtime_efit.py"]
+    kinetic_efit_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "kinetic EFIT pressure and q-profile coupling"
+    )
+    assert kinetic_efit_entry["covered_source_paths"] == ["src/scpn_control/core/kinetic_efit.py"]
     halo_entry = next(
         entry
         for entry in report["entries"]
@@ -238,6 +246,34 @@ def test_traceability_rejects_unbounded_gap_claim(tmp_path: Path) -> None:
     assert report["status"] == "fail"
     fields = {error["field"] for error in report["errors"]}
     assert "public_claim_allowed" in fields
+
+
+def test_traceability_rejects_synthetic_only_fidelity_status(tmp_path: Path) -> None:
+    registry = _registry_with_header(
+        [
+            {
+                "component": "synthetic-only replay",
+                "module_path": "validation/reference_data/diiid",
+                "fidelity_status": "synthetic_only",
+                "public_claim_allowed": False,
+                "model_references": ["Repository real-data manifest schema 1.0"],
+                "equation_contract": "Replay evidence must use real or immutable reference artefacts.",
+                "unit_contract": "SI or explicitly dimensionless units",
+                "validity_domain": "synthetic fixture only",
+                "validation_evidence": ["unit test evidence"],
+                "evidence_paths": ["tests/test_physics_traceability.py"],
+                "required_actions": ["replace synthetic evidence with reference artefacts"],
+            }
+        ]
+    )
+    path = tmp_path / "physics_traceability.json"
+    path.write_text(json.dumps(registry), encoding="utf-8")
+
+    report = validate_physics_traceability(path)
+
+    assert report["status"] == "fail"
+    errors = [error for error in report["errors"] if error["field"] == "fidelity_status"]
+    assert any("synthetic_only" in str(error["error"]) for error in errors)
 
 
 def test_traceability_rejects_missing_contract_fields(tmp_path: Path) -> None:
@@ -355,7 +391,7 @@ def test_traceability_rejects_missing_source_marker_coverage(tmp_path: Path) -> 
 
     assert report["status"] == "fail"
     assert report["source_marker_coverage"]["total"] >= 30
-    assert "src/scpn_control/core/gk_geometry.py" in report["source_marker_coverage"]["missing"]
+    assert "src/scpn_control/core/integrated_transport_solver.py" in report["source_marker_coverage"]["missing"]
 
 
 def test_traceability_rejects_source_coverage_outside_module_scope(tmp_path: Path) -> None:

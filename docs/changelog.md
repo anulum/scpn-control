@@ -30,8 +30,9 @@
 - **Phase 4 — Absolute control** (10 modules in `control/`):
   - `nmpc_controller.py` — nonlinear MPC with SQP over 20-step horizon; state/input
     box constraints and slew-rate limits on Ip, beta_N, q95, li, Te, nbar
-  - `mu_synthesis.py` — D-K iteration for structured robust control; D-scaling
-    optimization minimising structured singular value mu; MuSynthesisController
+  - `mu_synthesis.py` — bounded static mu-analysis for structured robust
+    control; D-scaling optimisation for structured singular value bounds;
+    MuSynthesisController
   - `realtime_efit.py` — streaming equilibrium reconstruction from partial
     measurements; coil-current-to-psi mapping; sub-10ms latency target
   - `gain_scheduled_controller.py` — PID gains scheduled on operating regime

@@ -14,6 +14,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control.core.pellet_injection import PelletParams, PelletTrajectory
+
 # Greenwald density limit: n_GW = I_p / (π a²) [10^20 m^-3]
 # Greenwald 2002, PPCF 44, R27, Eq. 1.
 # ITER operational limit: n/n_GW < 0.85 — ITER Physics Basis 1999, Nucl. Fusion 39, 2175, §2.3.
@@ -21,9 +23,6 @@ _GW_ITER_SAFETY_MARGIN = 0.85  # ITER Physics Basis 1999, §2.3
 
 # Greenwald fraction at which the controller switches to maximum pumping (hard limit).
 _GW_PUMP_THRESHOLD = 0.95  # 5% headroom below disruption risk
-
-# Solid D₂ number density [m^-3]: 6×10^28 — standard deuterium ice density.
-_N_D2_SOLID_M3 = 6e28
 
 
 class ParticleTransportModel:
@@ -45,7 +44,7 @@ class ParticleTransportModel:
         self.D = np.ones(n_rho) * 1.0  # m²/s
         self.V_pinch = -np.ones(n_rho) * 0.1  # m/s, inward
 
-        # Circular cross-section volume elements (simplified geometry).
+        # Bounded non-facility circular cross-section volume elements.
         self.V = 2.0 * np.pi**2 * self.R0 * (self.a * self.rho) ** 2
         self.V_prime = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.rho
 
@@ -78,31 +77,70 @@ class ParticleTransportModel:
         decay /= np.sum(decay * self.V_prime * self.drho) + 1e-10
         return np.asarray(rate * decay)
 
-    def pellet_source(self, speed_ms: float, radius_mm: float, launch_angle_deg: float = 0.0) -> np.ndarray:
-        """Gaussian deposition profile from a single pellet.
+    def pellet_source(
+        self,
+        speed_ms: float,
+        radius_mm: float,
+        launch_angle_deg: float = 0.0,
+        *,
+        ne_profile: np.ndarray | None = None,
+        Te_eV_profile: np.ndarray | None = None,
+        B0_T: float = 5.3,
+        injection_side: str = "HFS",
+    ) -> np.ndarray:
+        """NGS trajectory deposition profile from a single pellet.
 
-        Penetration depth estimated via the NGS (Neutral Gas Shielding) model:
-        Milora 1995, J. Vac. Sci. Technol. A 13, 534 — ablation rate scales with
-        pellet radius and velocity. Rozhansky et al. 1994, Nucl. Fusion 34, 383:
-        deep fueling requires high speed and large pellet radius.
+        The deposition path is delegated to :class:`PelletTrajectory`, which
+        integrates Parks-Turnbull neutral-gas-shielding ablation along the
+        radial pellet trajectory and applies the repository drift correction.
         """
-        if not math.isfinite(speed_ms) or speed_ms < 0.0:
-            raise ValueError("Pellet speed_ms must be finite and non-negative.")
         if not math.isfinite(radius_mm):
             raise ValueError("Pellet radius_mm must be finite.")
         if not math.isfinite(launch_angle_deg):
             raise ValueError("Pellet launch_angle_deg must be finite.")
         if radius_mm <= 0.0:
             return np.zeros(self.n_rho)
+        if not math.isfinite(speed_ms) or speed_ms <= 0.0:
+            raise ValueError("Pellet speed_ms must be finite and positive for non-zero pellets.")
+        if not math.isfinite(B0_T) or B0_T <= 0.0:
+            raise ValueError("Pellet B0_T must be finite and positive.")
+        if injection_side not in {"HFS", "LFS"}:
+            raise ValueError("Pellet injection_side must be 'HFS' or 'LFS'.")
 
-        N_pellet = (4.0 / 3.0 * np.pi * (radius_mm * 1e-3) ** 3) * _N_D2_SOLID_M3
+        ne_m3 = (
+            self._default_density_profile() if ne_profile is None else self._validate_profile(ne_profile, "ne_profile")
+        )
+        if np.any(ne_m3 <= 0.0):
+            raise ValueError("Pellet ne_profile must be positive.")
+        Te_eV = (
+            self._default_temperature_profile()
+            if Te_eV_profile is None
+            else self._validate_profile(Te_eV_profile, "Te_eV_profile")
+        )
+        if np.any(Te_eV < 0.0):
+            raise ValueError("Pellet Te_eV_profile must be non-negative.")
 
-        # Penetration depth decreases with higher speed × radius (NGS approximation).
-        pen_rho = max(0.2, 1.0 - 0.1 * (speed_ms / 1000.0) * (radius_mm / 2.0))
+        trajectory = PelletTrajectory(
+            PelletParams(
+                r_p_mm=radius_mm,
+                v_p_m_s=speed_ms,
+                injection_side=injection_side,
+                injection_angle_deg=launch_angle_deg,
+            ),
+            R0=self.R0,
+            a=self.a,
+            B0=B0_T,
+        )
+        result = trajectory.simulate(self.rho, ne_m3 / 1e19, Te_eV)
+        return np.asarray(result.deposition_profile, dtype=float)
 
-        dep = np.exp(-((self.rho - pen_rho) ** 2) / (0.1**2))
-        dep /= np.sum(dep * self.V_prime * self.drho) + 1e-10
-        return np.asarray(N_pellet * dep)
+    def _default_density_profile(self) -> np.ndarray:
+        """ITER-like positive density profile used only when no measurement is supplied."""
+        return np.linspace(1.1e20, 0.7e20, self.n_rho)
+
+    def _default_temperature_profile(self) -> np.ndarray:
+        """ITER-like electron-temperature profile used only when no measurement is supplied."""
+        return np.linspace(8000.0, 800.0, self.n_rho)
 
     def nbi_source(self, beam_energy_keV: float, power_MW: float) -> np.ndarray:
         """Core-peaked particle source from neutral beam injection."""

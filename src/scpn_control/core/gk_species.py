@@ -10,13 +10,14 @@ Species definitions and collision operator for the linear GK solver.
 
 Velocity-space discretisation uses (energy, lambda) coordinates with
 Gauss-Legendre quadrature.  The collision operator implements a
-simplified Sugama model (pitch-angle scattering only).
+bounded Sugama-style test-particle operator with separate pitch-angle
+deflection and thermal energy-relaxation coefficients.
 
 Limitations:
-  - Pitch-angle scattering only (no energy diffusion, no field-particle)
+  - Test-particle collision coefficients only (no field-particle response)
   - No inter-species collisions (no electron-ion drag)
   - Not the full linearised Fokker-Planck operator
-  These simplifications are adequate for ITG/TEM growth rate ordering
+  This bounded operator is adequate for local ITG/TEM regression ordering
   but not for quantitative collisional damping rates.
 
 References:
@@ -161,9 +162,13 @@ def collision_frequencies(
 
     Returns (nu_D, nu_E) normalised to v_th / R.
 
-    Simplified Sugama model:
-      nu_D = nu_ii for ions, nu_ei for electrons
-      nu_E = nu_D * (m_target / m_field) correction
+    Bounded Sugama-style test-particle coefficients:
+      nu_D is the pitch-angle deflection rate.
+      nu_E is a thermal energy-relaxation rate with the expected
+      electron-ion mass-ratio suppression for heavy species and field
+      temperature dependence.  Field-particle and inter-species momentum
+      conservation terms are intentionally excluded by the traceability
+      contract.
     """
     _require_positive("n_e_19", n_e_19)
     _require_positive("T_e_keV", T_e_keV)
@@ -171,8 +176,8 @@ def collision_frequencies(
     _require_positive("ln_lambda", ln_lambda)
 
     n_e = n_e_19 * 1e19  # m^-3
-    T_e_J = T_e_keV * 1e3 * _E_CHARGE
     T_s_J = species.temperature_keV * 1e3 * _E_CHARGE
+    T_e_J = T_e_keV * 1e3 * _E_CHARGE
 
     # Braginskii ion-ion: nu_ii = 4 sqrt(pi) n Z^4 e^4 ln(Lambda) / (3 m^0.5 (2T)^1.5)
     # Simplified to order-of-magnitude for the linearised operator
@@ -183,7 +188,10 @@ def collision_frequencies(
     nu_ref = n_e * q_s**4 * ln_lambda / (6.0 * np.pi**1.5 * eps_0**2 * species.mass_kg**0.5 * (2.0 * T_s_J) ** 1.5)
 
     nu_D = float(Z_eff * nu_ref)
-    nu_E = nu_D  # simplified: energy diffusion ~ pitch-angle for like-species
+    field_mass = _M_ELECTRON
+    reduced_mass_factor = 2.0 * field_mass * species.mass_kg / (field_mass + species.mass_kg) ** 2
+    thermal_factor = float(np.sqrt(T_s_J / T_e_J))
+    nu_E = float(nu_D * reduced_mass_factor * thermal_factor)
     return nu_D, nu_E
 
 

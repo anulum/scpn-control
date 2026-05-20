@@ -21,9 +21,9 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
 
     assert markdown.startswith("<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->")
     assert "# Physics Traceability and Bounded Claims" in markdown
-    assert "Open fidelity gaps: 46" in markdown
-    assert "Full-fidelity public claims blocked: 46" in markdown
-    assert "Source marker coverage: 41/41" in markdown
+    assert "Open fidelity gaps: 49" in markdown
+    assert "Full-fidelity public claims blocked: 49" in markdown
+    assert "Source marker coverage: 36/36" in markdown
     assert "## Module Traceability Table" in markdown
     assert "| Module | Equation or contract | References | Unit contract | Validation evidence | Status |" in markdown
     assert "`src/scpn_control/core/gk_nonlinear.py`" in markdown
@@ -33,7 +33,9 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "docs/joss_paper.md nonlinear GK validation limitation" in markdown
     assert "DIII-D experimental replay" in markdown
     assert "RZIP rigid vertical stability model" in markdown
+    assert "resistive-wall-mode feedback model" in markdown
     assert "real-time EFIT-lite equilibrium reconstruction" in markdown
+    assert "kinetic EFIT pressure and q-profile coupling" in markdown
     assert "halo current and runaway electron disruption model" in markdown
     assert "direct free-boundary tracking controller" in markdown
     assert "density control and particle-source model" in markdown
@@ -48,8 +50,8 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "bounded control plant approximations" in markdown
     assert "bounded phase and spiking runtime approximations" in markdown
     assert "nonlinear gyrokinetic heat-flux saturation" in markdown
-    assert "Miller geometry and field approximation contract" in markdown
-    assert "gyrokinetic species and collision approximation contract" in markdown
+    assert "Miller local-equilibrium geometry and field-pitch contract" in markdown
+    assert "gyrokinetic species and collision bounded-operator contract" in markdown
     assert "JAX gyrokinetic numerical parity guard" in markdown
     assert "gyrokinetic OOD detector distribution-bound contract" in markdown
     assert "strict external interface artifact gate" in markdown
@@ -60,6 +62,7 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "ELM crash and RMP suppression approximation contract" in markdown
     assert "MARFE radiation-condensation density-limit contract" in markdown
     assert "NTM island evolution and control approximation contract" in markdown
+    assert "auxiliary current-drive deposition and efficiency model" in markdown
     assert "ideal-MHD stability metric approximation contract" in markdown
     assert "sawtooth-to-NTM seeding approximation contract" in markdown
     assert "blob transport and scrape-off-layer approximation contract" in markdown

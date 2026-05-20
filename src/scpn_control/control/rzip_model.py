@@ -28,6 +28,7 @@ class RZIPModel:
         n_index: float,
         vessel: VesselModel,
         active_coils: list[VesselElement] | None = None,
+        vertical_inertia_kg: float = 1.0,
     ):
         if not np.isfinite(R0) or R0 <= 0.0:
             raise ValueError("R0 must be finite and positive for a physical major radius.")
@@ -41,6 +42,8 @@ class RZIPModel:
             raise ValueError("B0 must be finite and positive.")
         if not np.isfinite(n_index):
             raise ValueError("n_index must be finite.")
+        if not np.isfinite(vertical_inertia_kg) or vertical_inertia_kg <= 0.0:
+            raise ValueError("vertical_inertia_kg must be finite and positive.")
         self.R0 = R0
         self.a = a
         self.kappa = kappa
@@ -56,11 +59,9 @@ class RZIPModel:
         self.n_coils = len(self.active_coils)
         self.n_circuits = len(self.all_elements)
 
-        # Plasma mass estimate (heuristic, but keeps it finite)
-        # Using a very small mass causes extremely high frequency undamped oscillations
-        # in the voltage-controlled state space. We use an effective mass of 1.0 kg
-        # which is common in rigid models to represent inductive inertia.
-        self.M_eff = 1.0
+        # User-declared vertical inertia for the bounded RZIP plant. Facility
+        # claims require calibration through the RZIP reference-artifact gate.
+        self.M_eff = float(vertical_inertia_kg)
 
     def _calc_dM_dz(self, R1: float, Z1: float, R2: float, Z2: float) -> float:
         # Finite difference for mutual inductance derivative w.r.t Z1
@@ -241,7 +242,29 @@ class VerticalStabilityAnalysis:
 
     @staticmethod
     def required_feedback_gain(gamma: float, tau_wall: float, tau_controller: float) -> float:
-        return 1.0
+        """Minimum wall-normalised feedback gain for delayed RZIP stabilisation.
+
+        For the bounded linear RZIP channel, a proportional vertical controller
+        with first-order latency reduces the open-loop growth rate as
+
+            gamma_cl = gamma - K / (tau_wall * (1 + gamma * tau_controller)).
+
+        Requiring ``gamma_cl < 0`` gives the dimensionless threshold
+
+            K > gamma * tau_wall * (1 + gamma * tau_controller).
+
+        The expression is a controller-design bound for the local RZIP plant,
+        not a facility gain-calibration claim.
+        """
+        if not np.isfinite(gamma) or gamma < 0.0:
+            raise ValueError("gamma must be finite and non-negative.")
+        if not np.isfinite(tau_wall) or tau_wall <= 0.0:
+            raise ValueError("tau_wall must be finite and positive.")
+        if not np.isfinite(tau_controller) or tau_controller < 0.0:
+            raise ValueError("tau_controller must be finite and non-negative.")
+        if gamma == 0.0:
+            return 0.0
+        return float(gamma * tau_wall * (1.0 + gamma * tau_controller))
 
 
 class RZIPController:

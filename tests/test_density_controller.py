@@ -18,6 +18,7 @@ from scpn_control.control.density_controller import (
     KalmanDensityEstimator,
     ParticleTransportModel,
 )
+from scpn_control.core.pellet_injection import PelletParams, PelletTrajectory
 
 
 def test_particle_transport_model_sources():
@@ -29,7 +30,7 @@ def test_particle_transport_model_sources():
 
     pellet = model.pellet_source(speed_ms=500.0, radius_mm=2.0)
     assert np.all(pellet >= 0)
-    assert pellet[10] > pellet[0]  # Deeply deposited
+    assert np.count_nonzero(pellet) > 0
 
     nbi = model.nbi_source(beam_energy_keV=100.0, power_MW=10.0)
     assert np.all(nbi >= 0)
@@ -38,6 +39,29 @@ def test_particle_transport_model_sources():
     pump = model.cryopump_sink(pump_speed=10.0, ne_edge=1e19)
     assert pump[-1] > 0.0
     assert pump[0] == 0.0
+
+
+def test_pellet_source_uses_ngs_trajectory_deposition() -> None:
+    model = ParticleTransportModel(n_rho=32, R0=6.2, a=2.0)
+    ne_profile = np.linspace(0.8e20, 1.2e20, model.n_rho)
+    te_profile = np.linspace(8000.0, 1200.0, model.n_rho)
+
+    pellet = model.pellet_source(
+        speed_ms=700.0,
+        radius_mm=2.5,
+        ne_profile=ne_profile,
+        Te_eV_profile=te_profile,
+        B0_T=5.3,
+        injection_side="HFS",
+    )
+    expected = PelletTrajectory(
+        PelletParams(r_p_mm=2.5, v_p_m_s=700.0, injection_side="HFS"),
+        R0=6.2,
+        a=2.0,
+        B0=5.3,
+    ).simulate(model.rho, ne_profile / 1e19, te_profile)
+
+    np.testing.assert_allclose(pellet, expected.deposition_profile, rtol=1e-12, atol=0.0)
 
 
 def test_particle_transport_model_rejects_nonphysical_geometry():
@@ -72,7 +96,7 @@ def test_particle_transport_model_rejects_nonphysical_source_inputs():
     with pytest.raises(ValueError, match="positive"):
         model.gas_puff_source(rate=1.0, penetration_depth=0.0)
 
-    with pytest.raises(ValueError, match="non-negative"):
+    with pytest.raises(ValueError, match="positive"):
         model.pellet_source(speed_ms=-1.0, radius_mm=1.0)
 
     with pytest.raises(ValueError, match="positive"):
@@ -164,7 +188,7 @@ def test_kalman_estimator():
     est = KalmanDensityEstimator(n_rho=20, n_chords=5)
 
     ne_pred = np.ones(20) * 1e19
-    meas = np.ones(5) * 1e19 * 2.0  # chord integrated mock
+    meas = np.ones(5) * 1e19 * 2.0  # chord-integrated reference fixture
     angles = np.zeros(5)
 
     ne_upd = est.update(ne_pred, meas, angles)

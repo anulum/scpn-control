@@ -25,9 +25,8 @@ _ALLOWED_STATUSES = {
     "bounded_model",
     "validation_gap",
     "external_dependency_blocked",
-    "synthetic_only",
 }
-_OPEN_GAP_STATUSES = {"bounded_model", "validation_gap", "external_dependency_blocked", "synthetic_only"}
+_OPEN_GAP_STATUSES = {"bounded_model", "validation_gap", "external_dependency_blocked"}
 _REQUIRED_HEADER_FIELDS = (
     "spdx_license_id",
     "commercial_license",
@@ -250,6 +249,15 @@ def _validate_entry(
         allowed = ", ".join(sorted(_ALLOWED_STATUSES))
         errors.append(
             {"path": str(path), "index": index, "field": "fidelity_status", "error": f"must be one of: {allowed}"}
+        )
+    if status == "synthetic_only":
+        errors.append(
+            {
+                "path": str(path),
+                "index": index,
+                "field": "fidelity_status",
+                "error": "synthetic_only is forbidden; use real/reference artefacts or mark the claim as a bounded non-facility domain",
+            }
         )
     public_claim_allowed = entry.get("public_claim_allowed")
     if not isinstance(public_claim_allowed, bool):

@@ -46,6 +46,23 @@ def test_input_normalization():
     assert np.all(inputs[:, 1] >= 0.0)
 
 
+def test_input_normalization_collisionality_uses_q_and_temperature_scaling():
+    norm = TransportInputNormalizer()
+    r = np.linspace(0.2, 2.0, 50)
+    Te = np.ones_like(r) * 8.0
+    Ti = np.ones_like(r) * 8.0
+    ne = np.ones_like(r) * 5.0
+    q_low = np.ones_like(r)
+    q_high = np.ones_like(r) * 3.0
+
+    nu_low_q = norm.from_profiles(Te, Ti, ne, q_low, R0=6.2, a=2.0, B0=5.3, r=r)[:, 7]
+    nu_high_q = norm.from_profiles(Te, Ti, ne, q_high, R0=6.2, a=2.0, B0=5.3, r=r)[:, 7]
+    nu_hot = norm.from_profiles(Te * 2.0, Ti, ne, q_low, R0=6.2, a=2.0, B0=5.3, r=r)[:, 7]
+
+    assert np.all(nu_high_q > nu_low_q)
+    assert np.all(nu_hot < nu_low_q)
+
+
 def test_analytic_targets_critical_gradient():
     gen = TrainingDataGenerator()
 

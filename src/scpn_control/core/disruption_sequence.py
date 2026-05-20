@@ -113,13 +113,22 @@ class ThermalQuench:
         return (W_th_MJ / A_wall_m2) * peaking_factor
 
     def post_tq_temperature(self, Te_pre_keV: float, tau_tq_ms: float, tau_radiation_ms: float = 0.5) -> float:
-        """Residual Te [eV] after quench and radiation cooling."""
-        # Extremely simplified mapping: drops to few eV via line radiation of impurities.
-        # Rapid drop, usually saturates between 5-50 eV
-        T_cold = 10.0  # eV
-        # To pass the hard drop test, we use a much faster radiative cooling heuristic
-        # associated with the violent TQ phase.
-        return T_cold + (Te_pre_keV * 1e3 - T_cold) * math.exp(-10.0)
+        """Residual electron temperature [eV] after stochastic transport and radiation cooling."""
+        if Te_pre_keV <= 0.0:
+            raise ValueError("Te_pre_keV must be positive")
+        if tau_tq_ms < 0.0:
+            raise ValueError("tau_tq_ms must be non-negative")
+        if tau_radiation_ms <= 0.0:
+            raise ValueError("tau_radiation_ms must be positive")
+
+        initial_eV = Te_pre_keV * 1e3
+        cold_floor_eV = 5.0
+        reference_tq_ms = 0.1
+        reference_radiation_ms = 0.5
+        stochastic_exposure = 8.0 * math.sqrt(reference_tq_ms / max(tau_tq_ms, 1e-9))
+        radiative_exposure = reference_radiation_ms / tau_radiation_ms
+        total_exposure = stochastic_exposure + radiative_exposure
+        return float(cold_floor_eV + (initial_eV - cold_floor_eV) * math.exp(-total_exposure))
 
 
 class CurrentQuench:
@@ -211,7 +220,7 @@ class HaloCurrentModel:
         return 1.5
 
     def vertical_force(self, f_halo: float, tpf: float) -> float:
-        """F_z [MN] = I_halo * B_tor * 2pi R0 * TPF (simplified)"""
+        """Engineering halo-load convention F_z [MN] = I_halo * B_tor * 2πR0 * TPF."""
         I_halo = f_halo * self.Ip_MA * 1e6
         F_N = I_halo * self.B0 * (2.0 * math.pi * self.R0) * tpf
         return F_N / 1e6

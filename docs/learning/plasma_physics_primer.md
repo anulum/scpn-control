@@ -614,8 +614,8 @@ model provides the standard neoclassical calculation.
 
 ### How scpn-control Models It
 
-- `scpn_control.core.current_drive.ECCDSource`: Gaussian power deposition and
-  driven current density profiles.
+- `scpn_control.core.current_drive.ECCDSource`: grid-normalised finite-width
+  absorbed-power and driven-current profiles.
 - `scpn_control.core.current_drive.NBISource`: beam heating and current drive
   with tangency radius and beam energy.
 - `scpn_control.core.current_drive.CurrentDriveMix`: combines multiple sources

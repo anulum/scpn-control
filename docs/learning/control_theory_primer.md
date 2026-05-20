@@ -471,8 +471,10 @@ where $D$ commutes with the uncertainty structure. The D-K iteration alternates:
 Robust stability holds if and only if $\mu(M(j\omega)) < 1$ for all $\omega$.
 
 **scpn-control**: `MuSynthesisController`, `StructuredUncertainty`, `UncertaintyBlock`
-in `scpn_control.control.mu_synthesis`. Uses numerical gradient descent on $D$ as a
-lightweight alternative to LMI-based solvers.
+in `scpn_control.control.mu_synthesis`. The current implementation is explicitly
+bounded to a continuous-time Riccati K-step plus static closed-loop D-scaling
+upper-bound evaluation. It does not claim full frequency-dependent H-infinity
+D-K synthesis without an external validated backend.
 
 ### Fault-Tolerant Control
 

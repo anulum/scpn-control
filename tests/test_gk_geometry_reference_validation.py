@@ -63,7 +63,7 @@ def test_geometry_reference_gate_rejects_missing_required_case(tmp_path: Path) -
                         "g_rt": 0.0,
                         "g_tt": 4.0,
                         "B_toroidal": 1.6951219512195121,
-                        "b_dot_grad_theta": 0.21777003484320556,
+                        "b_dot_grad_theta": 0.21649046654086498,
                     }
                 ],
             }

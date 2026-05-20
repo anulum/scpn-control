@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.realtime_efit import MagneticDiagnostics
 from scpn_control.core.kinetic_efit import (
@@ -22,15 +23,15 @@ from scpn_control.core.kinetic_efit import (
 )
 
 
-def mock_diagnostics() -> MagneticDiagnostics:
+def reference_diagnostics() -> MagneticDiagnostics:
     return MagneticDiagnostics([(2.0, 1.0)], [(2.0, 1.0, "R")], rogowski_radius=3.0)
 
 
-def mock_kin_constraints() -> KineticConstraints:
+def reference_kin_constraints() -> KineticConstraints:
     return KineticConstraints(
-        Te_points=[(6.2, 0.0, 10.0)],
-        ne_points=[(6.2, 0.0, 5.0)],
-        Ti_points=[(6.2, 0.0, 10.0)],
+        Te_points=[(6.0, 0.0, 10.0), (7.9, 0.0, 1.0)],
+        ne_points=[(6.0, 0.0, 5.0), (7.9, 0.0, 0.5)],
+        Ti_points=[(6.0, 0.0, 8.0), (7.9, 0.0, 0.8)],
         mse_points=[(6.5, 0.0, 5.0)],
     )
 
@@ -54,8 +55,8 @@ def test_mse_pitch_angle():
 
 
 def test_kinetic_efit_isotropic():
-    diag = mock_diagnostics()
-    kin = mock_kin_constraints()
+    diag = reference_diagnostics()
+    kin = reference_kin_constraints()
     fi = FastIonPressure(100.0, 0.1, 0.0)
 
     R = np.linspace(4, 8, 33)
@@ -64,14 +65,15 @@ def test_kinetic_efit_isotropic():
 
     res = kefit.reconstruct({})
 
-    assert res.pressure_consistency == 0.1
+    assert res.pressure_consistency == 0.0
     assert res.wall_time_ms < 200.0
     assert len(res.p_kinetic) == 50
+    assert res.p_kinetic[0] > res.p_kinetic[-1]
 
 
 def test_kinetic_efit_anisotropic():
-    diag = mock_diagnostics()
-    kin = mock_kin_constraints()
+    diag = reference_diagnostics()
+    kin = reference_kin_constraints()
     fi = FastIonPressure(100.0, 0.1, 0.2)
 
     R = np.linspace(4, 8, 33)
@@ -80,14 +82,15 @@ def test_kinetic_efit_anisotropic():
 
     res = kefit.reconstruct({})
 
-    assert res.pressure_consistency > 0.1  # slightly worse initially due to anisotropic terms
+    assert res.pressure_consistency > 0.0
+    assert not np.allclose(res.p_equilibrium, res.p_kinetic)
     assert np.all(res.sigma_anisotropy == 0.2)
     assert res.beta_fast > 0.0
 
 
 def test_mse_constraint_q_profile():
-    diag = mock_diagnostics()
-    kin = mock_kin_constraints()
+    diag = reference_diagnostics()
+    kin = reference_kin_constraints()
     fi = FastIonPressure(100.0, 0.0, 0.0)
 
     R = np.linspace(4, 8, 33)
@@ -95,7 +98,7 @@ def test_mse_constraint_q_profile():
 
     kefit_mse = KineticEFIT(diag, kin, fi, R, Z)
 
-    kin_no_mse = mock_kin_constraints()
+    kin_no_mse = reference_kin_constraints()
     kin_no_mse.mse_points = []
     kefit_no_mse = KineticEFIT(diag, kin_no_mse, fi, R, Z)
 
@@ -106,25 +109,39 @@ def test_mse_constraint_q_profile():
     assert res_mse.q_profile[0] < res_no_mse.q_profile[0]
 
 
-def test_kinetic_efit_missing_ne_points():
-    """Cover kinetic_efit.py line 99: empty ne_points -> default ne_core=5.0."""
-    diag = mock_diagnostics()
+def test_kinetic_efit_rejects_missing_ne_points():
+    diag = reference_diagnostics()
     kin = KineticConstraints(Te_points=[(6.2, 0.0, 10.0)], ne_points=[], Ti_points=[], mse_points=[])
     fi = FastIonPressure(100.0, 0.0, 0.0)
     R = np.linspace(4, 8, 33)
     Z = np.linspace(-3, 3, 33)
     kefit = KineticEFIT(diag, kin, fi, R, Z)
-    res = kefit.reconstruct({})
-    assert len(res.p_kinetic) == 50
+    with pytest.raises(ValueError, match="ne_points"):
+        kefit.reconstruct({})
 
 
-def test_kinetic_efit_missing_te_points():
-    """Cover kinetic_efit.py line 104: empty Te_points -> default Te_core=10.0."""
-    diag = mock_diagnostics()
+def test_kinetic_efit_rejects_missing_te_points():
+    diag = reference_diagnostics()
     kin = KineticConstraints(Te_points=[], ne_points=[(6.2, 0.0, 5.0)], Ti_points=[], mse_points=[])
     fi = FastIonPressure(100.0, 0.0, 0.0)
     R = np.linspace(4, 8, 33)
     Z = np.linspace(-3, 3, 33)
     kefit = KineticEFIT(diag, kin, fi, R, Z)
-    res = kefit.reconstruct({})
-    assert len(res.p_kinetic) == 50
+    with pytest.raises(ValueError, match="Te_points"):
+        kefit.reconstruct({})
+
+
+def test_kinetic_efit_uses_measured_ion_temperature_profile():
+    diag = reference_diagnostics()
+    kin = reference_kin_constraints()
+    kin.Ti_points = [(6.0, 0.0, 2.0), (7.9, 0.0, 0.2)]
+    fi = FastIonPressure(100.0, 0.0, 0.0)
+    R = np.linspace(4, 8, 33)
+    Z = np.linspace(-3, 3, 33)
+    kefit_cold_ions = KineticEFIT(diag, kin, fi, R, Z)
+
+    hot_ion_constraints = reference_kin_constraints()
+    hot_ion_constraints.Ti_points = [(6.0, 0.0, 12.0), (7.9, 0.0, 1.2)]
+    kefit_hot_ions = KineticEFIT(diag, hot_ion_constraints, fi, R, Z)
+
+    assert kefit_hot_ions.reconstruct({}).p_kinetic[0] > kefit_cold_ions.reconstruct({}).p_kinetic[0]

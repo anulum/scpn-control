@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.current_drive import (
     CurrentDriveMix,
@@ -41,6 +42,12 @@ def test_eccd_peaked_deposition():
     # Peak should be near rho=0.4
     peak_idx = np.argmax(j_cd)
     assert 0.35 < rho[peak_idx] < 0.45
+
+
+def test_eccd_edge_deposition_conserves_requested_absorbed_power():
+    rho = np.linspace(0, 1, 400)
+    eccd = ECCDSource(P_ec_MW=3.0, rho_dep=0.02, sigma_rho=0.05)
+    assert np.trapezoid(eccd.P_absorbed(rho), rho) == pytest.approx(3.0e6, rel=1e-5)
 
 
 def test_eccd_total_driven_current():
@@ -85,6 +92,18 @@ def test_lhcd_off_axis():
 
     # Off-axis peak
     assert rho[np.argmax(j_cd)] > 0.5
+
+
+def test_lhcd_edge_deposition_conserves_requested_absorbed_power():
+    rho = np.linspace(0, 1, 400)
+    lhcd = LHCDSource(P_lh_MW=2.0, rho_dep=0.98, sigma_rho=0.05)
+    assert np.trapezoid(lhcd.P_absorbed(rho), rho) == pytest.approx(2.0e6, rel=1e-5)
+
+
+def test_nbi_edge_deposition_conserves_requested_heating_power():
+    rho = np.linspace(0, 1, 400)
+    nbi = NBISource(P_nbi_MW=4.0, E_beam_keV=100.0, rho_tangency=0.98, sigma_rho=0.05)
+    assert np.trapezoid(nbi.P_heating(rho), rho) == pytest.approx(4.0e6, rel=1e-5)
 
 
 def test_current_drive_mix():

@@ -108,6 +108,16 @@ def test_b_dot_grad_theta_positive():
     assert np.all(geom.b_dot_grad_theta > 0)
 
 
+def test_b_dot_grad_theta_uses_magnetic_pitch_and_total_field():
+    weak_field = circular_geometry(R0=2.78, a=1.0, rho=0.5, q=1.4, B0=2.0, n_theta=64, n_period=1)
+    strong_field = circular_geometry(R0=2.78, a=1.0, rho=0.5, q=1.4, B0=5.0, n_theta=64, n_period=1)
+    higher_q = circular_geometry(R0=2.78, a=1.0, rho=0.5, q=3.0, B0=2.0, n_theta=64, n_period=1)
+
+    assert not np.allclose(weak_field.b_dot_grad_theta, 1.0 / (1.4 * weak_field.R))
+    assert np.mean(strong_field.b_dot_grad_theta) == pytest.approx(np.mean(weak_field.b_dot_grad_theta), rel=0.05)
+    assert np.mean(higher_q.b_dot_grad_theta) < np.mean(weak_field.b_dot_grad_theta)
+
+
 def test_miller_params_match_interface():
     """Verify miller_geometry accepts all GKLocalParams geometry fields."""
     geom = miller_geometry(
