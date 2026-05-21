@@ -101,6 +101,58 @@ class TestGsSolvePublicAPI:
         assert np.allclose(psi[0, :], 0.0)
         assert np.allclose(psi[-1, :], 0.0)
 
+    def test_legacy_numpy_fallback_requires_explicit_opt_in(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.core.jax_gs_solver._HAS_JAX", False)
+        with pytest.raises(ValueError, match="allow_legacy_numpy_fallback=True"):
+            jax_gs_solve(
+                R_MIN,
+                R_MAX,
+                Z_MIN,
+                Z_MAX,
+                NR,
+                NZ,
+                IP_TARGET,
+                n_picard=N_PICARD,
+                n_jacobi=N_JACOBI,
+                use_jax=True,
+                allow_numpy_fallback=True,
+            )
+
+    def test_use_jax_fails_closed_without_jax(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.core.jax_gs_solver._HAS_JAX", False)
+        with pytest.raises(RuntimeError, match="jax_gs_solve requested use_jax=True"):
+            jax_gs_solve(
+                R_MIN,
+                R_MAX,
+                Z_MIN,
+                Z_MAX,
+                NR,
+                NZ,
+                IP_TARGET,
+                n_picard=N_PICARD,
+                n_jacobi=N_JACOBI,
+                use_jax=True,
+            )
+
+    def test_use_jax_legacy_fallback_opt_in(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.core.jax_gs_solver._HAS_JAX", False)
+        psi = jax_gs_solve(
+            R_MIN,
+            R_MAX,
+            Z_MIN,
+            Z_MAX,
+            NR,
+            NZ,
+            IP_TARGET,
+            n_picard=N_PICARD,
+            n_jacobi=N_JACOBI,
+            use_jax=True,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
+        assert psi.shape == (NZ, NR)
+        assert np.all(np.isfinite(psi))
+
 
 @pytest.mark.skipif(not jax_available, reason="JAX not installed")
 class TestGsSolveJAX:

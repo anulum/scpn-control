@@ -56,6 +56,31 @@ def has_jax() -> bool:
     return _HAS_JAX
 
 
+def _resolve_use_jax(
+    use_jax: bool,
+    *,
+    allow_numpy_fallback: bool,
+    allow_legacy_numpy_fallback: bool,
+) -> bool:
+    if allow_numpy_fallback and not allow_legacy_numpy_fallback:
+        raise ValueError(
+            "allow_numpy_fallback=True requires allow_legacy_numpy_fallback=True; "
+            "legacy NumPy fallback is disabled by default."
+        )
+    if not use_jax:
+        return False
+    if _HAS_JAX:
+        return True
+    if allow_numpy_fallback:
+        return False
+    raise RuntimeError(
+        "jax_gs_solve requested use_jax=True but JAX is unavailable. "
+        "Install JAX, set use_jax=False, or set "
+        "allow_numpy_fallback=True and allow_legacy_numpy_fallback=True "
+        "for explicit degraded-mode operation."
+    )
+
+
 # ── NumPy fallback ────────────────────────────────────────────────
 
 
@@ -291,6 +316,8 @@ def jax_gs_solve(
     beta_mix: float = 0.5,
     *,
     use_jax: bool = True,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
 ) -> NDArray:
     """Fixed-boundary Grad-Shafranov equilibrium solve.
 
@@ -316,7 +343,12 @@ def jax_gs_solve(
     -------
     psi : (NZ, NR) poloidal flux, zero on boundary
     """
-    if use_jax and _HAS_JAX:
+    use_jax_runtime = _resolve_use_jax(
+        use_jax,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+    )
+    if use_jax_runtime:
         R = jnp.linspace(R_min, R_max, NR)
         Z = jnp.linspace(Z_min, Z_max, NZ)
         RR, _ = jnp.meshgrid(R, Z)
