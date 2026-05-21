@@ -311,7 +311,7 @@ class TestThomasNearZeroPivot:
 
 
 class TestBatchedCNNoJax:
-    """Line 371: batched_crank_nicolson NumPy fallback."""
+    """Line 371: batched_crank_nicolson explicit NumPy fallback opt-in."""
 
     def test_batched_cn_numpy_fallback(self, monkeypatch):
         import scpn_control.core.jax_solvers as mod
@@ -323,7 +323,16 @@ class TestBatchedCNNoJax:
         T_batch = 5.0 + np.random.default_rng(42).standard_normal((3, n))
         chi = 0.5 * np.ones(n)
         source = np.zeros(n)
-        result = mod.batched_crank_nicolson(T_batch, chi, source, rho, drho, 0.01)
+        result = mod.batched_crank_nicolson(
+            T_batch,
+            chi,
+            source,
+            rho,
+            drho,
+            0.01,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
         assert result.shape == (3, n)
         for i in range(3):
             assert result[i, -1] == pytest.approx(0.1)
