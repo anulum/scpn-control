@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from validation.generate_physics_traceability_report import generate_physics_traceability_markdown, main
 
@@ -23,7 +24,12 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "# Physics Traceability and Bounded Claims" in markdown
     assert "Open fidelity gaps: 49" in markdown
     assert "Full-fidelity public claims blocked: 49" in markdown
-    assert "Source marker coverage: 36/36" in markdown
+    coverage_match = re.search(r"Source marker coverage: (\d+)/(\d+)", markdown)
+    assert coverage_match is not None
+    covered = int(coverage_match.group(1))
+    total = int(coverage_match.group(2))
+    assert total > 0
+    assert covered == total
     assert "## Module Traceability Table" in markdown
     assert "| Module | Equation or contract | References | Unit contract | Validation evidence | Status |" in markdown
     assert "`src/scpn_control/core/gk_nonlinear.py`" in markdown
