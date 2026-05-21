@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.gk_ood_detector import OODResult
 from scpn_control.core.gk_scheduler import GKScheduler, SchedulerConfig
@@ -161,3 +162,49 @@ def test_critical_region_anchor_added():
     assert req is not None
     rho_vals = [rho[i] for i in req.rho_indices]
     assert any(abs(r - 0.5) < 0.05 for r in rho_vals)
+
+
+def test_scheduler_rejects_invalid_strategy():
+    with pytest.raises(ValueError, match="strategy must be one of"):
+        GKScheduler(SchedulerConfig(strategy="unknown"))
+
+
+def test_scheduler_rejects_invalid_period():
+    with pytest.raises(ValueError, match="period must be >= 1"):
+        GKScheduler(SchedulerConfig(strategy="periodic", period=0))
+
+
+def test_scheduler_rejects_invalid_anchor_rho():
+    with pytest.raises(ValueError, match="anchor_rho entries must be finite and within \\[0, 1\\]"):
+        GKScheduler(SchedulerConfig(anchor_rho=(0.5, 1.2)))
+
+
+def test_scheduler_step_rejects_length_mismatch():
+    sched = GKScheduler()
+    with pytest.raises(ValueError, match="rho/chi_i length mismatch"):
+        sched.step(np.linspace(0, 1, 10), np.ones(9))
+
+
+def test_scheduler_step_rejects_nonfinite_chi():
+    sched = GKScheduler()
+    rho = np.linspace(0, 1, 10)
+    chi = np.ones(10)
+    chi[4] = np.nan
+    with pytest.raises(ValueError, match="chi_i must contain only finite values"):
+        sched.step(rho, chi)
+
+
+def test_scheduler_step_rejects_ood_length_mismatch():
+    sched = GKScheduler(SchedulerConfig(strategy="adaptive"))
+    rho = np.linspace(0, 1, 10)
+    chi = np.ones(10)
+    ood = [OODResult(is_ood=False, confidence=0.0, method="combined", details={}) for _ in range(9)]
+    with pytest.raises(ValueError, match="ood_results length mismatch"):
+        sched.step(rho, chi, ood)
+
+
+def test_scheduler_step_rejects_grid_change_without_reset():
+    sched = GKScheduler(SchedulerConfig(strategy="adaptive"))
+    sched.step(np.linspace(0, 1, 10), np.ones(10))
+    with pytest.raises(ValueError, match="chi_i grid length changed between scheduler steps"):
+        sched.step(np.linspace(0, 1, 12), np.ones(12))
