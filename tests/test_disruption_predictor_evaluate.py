@@ -139,6 +139,34 @@ class TestLoadOrTrainNoFallback:
 
 
 class TestPredictSafeInferenceFailure:
+    def test_legacy_inference_fallback_requires_explicit_opt_in(self):
+        signal = np.random.default_rng(42).normal(0.0, 0.1, size=100)
+        with pytest.raises(ValueError, match="allow_legacy_inference_fallback=True"):
+            predict_disruption_risk_safe(
+                signal,
+                allow_legacy_fallback=True,
+                allow_inference_fallback=True,
+            )
+
+    @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
+    def test_model_inference_failure_is_fail_closed_by_default(self):
+        class _BrokenModel:
+            def eval(self):
+                pass
+
+            def __call__(self, x):
+                raise RuntimeError("inference exploded")
+
+        signal = np.random.default_rng(42).normal(0.0, 0.1, size=100)
+        with (
+            patch(
+                "scpn_control.control.disruption_predictor.load_or_train_predictor",
+                return_value=(_BrokenModel(), {"seq_len": 50, "trained": True}),
+            ),
+            pytest.raises(RuntimeError, match="legacy inference fallback is disabled"),
+        ):
+            predict_disruption_risk_safe(signal, allow_legacy_fallback=True)
+
     @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
     def test_model_inference_failure_falls_back(self):
         class _BrokenModel:
@@ -153,7 +181,12 @@ class TestPredictSafeInferenceFailure:
             "scpn_control.control.disruption_predictor.load_or_train_predictor",
             return_value=(_BrokenModel(), {"seq_len": 50, "trained": True}),
         ):
-            risk, meta = predict_disruption_risk_safe(signal, allow_legacy_fallback=True)
+            risk, meta = predict_disruption_risk_safe(
+                signal,
+                allow_legacy_fallback=True,
+                allow_inference_fallback=True,
+                allow_legacy_inference_fallback=True,
+            )
 
         assert 0.0 <= risk <= 1.0
         assert meta["mode"] == "fallback"

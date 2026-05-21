@@ -189,6 +189,10 @@ class DirectorInterface:
         save_plot: bool = True,
         output_path: str = "Director_Interface_Result.png",
         verbose: bool = True,
+        allow_plot_fallback: bool = False,
+        allow_legacy_plot_fallback: bool = False,
+        allow_runtime_contract_fallback: bool = False,
+        allow_legacy_runtime_contract_fallback: bool = False,
     ) -> dict[str, Any]:
         duration = int(duration)
         if duration < 1:
@@ -199,6 +203,17 @@ class DirectorInterface:
         glitch_std = float(glitch_std)
         if not np.isfinite(glitch_std) or glitch_std < 0.0:
             raise ValueError("glitch_std must be finite and >= 0.")
+        if allow_plot_fallback and not allow_legacy_plot_fallback:
+            raise ValueError(
+                "allow_plot_fallback=True requires allow_legacy_plot_fallback=True; "
+                "legacy plot fallback is disabled by default."
+            )
+        if allow_runtime_contract_fallback and not allow_legacy_runtime_contract_fallback:
+            raise ValueError(
+                "allow_runtime_contract_fallback=True requires "
+                "allow_legacy_runtime_contract_fallback=True; "
+                "legacy runtime contract fallback is disabled by default."
+            )
         rng = np.random.default_rng(int(rng_seed))
 
         if verbose:
@@ -213,6 +228,41 @@ class DirectorInterface:
         self.log = []
 
         for t in range(duration):
+            if not hasattr(self.nc.kernel, "cfg"):
+                if not allow_runtime_contract_fallback:
+                    raise RuntimeError(
+                        "Kernel does not expose required cfg contract and "
+                        "legacy runtime contract fallback is disabled."
+                    )
+                break
+            if not isinstance(self.nc.kernel.cfg, dict):
+                if not allow_runtime_contract_fallback:
+                    raise RuntimeError(
+                        "Kernel cfg must be a mapping and legacy runtime contract fallback is disabled."
+                    )
+                break
+            if "physics" not in self.nc.kernel.cfg or "coils" not in self.nc.kernel.cfg:
+                if not allow_runtime_contract_fallback:
+                    raise RuntimeError(
+                        "Kernel cfg must contain physics and coils and "
+                        "legacy runtime contract fallback is disabled."
+                    )
+                break
+            if not isinstance(self.nc.kernel.cfg["coils"], list):
+                if not allow_runtime_contract_fallback:
+                    raise RuntimeError(
+                        "Kernel cfg['coils'] must be a list and "
+                        "legacy runtime contract fallback is disabled."
+                    )
+                break
+            if len(self.nc.kernel.cfg["coils"]) < 5:
+                if not allow_runtime_contract_fallback:
+                    raise RuntimeError(
+                        "Kernel cfg['coils'] requires at least 5 channels and "
+                        "legacy runtime contract fallback is disabled."
+                    )
+                break
+
             self.nc.kernel.cfg["physics"]["plasma_current_target"] = current_target_ip
 
             if t >= glitch_start_step and glitch_std > 0.0:
@@ -276,6 +326,12 @@ class DirectorInterface:
                 self.visualize(output_path=output_path)
                 plot_saved = True
             except (OSError, ValueError) as exc:  # pragma: no cover - backend-dependent
+                if not allow_plot_fallback:
+                    raise RuntimeError(
+                        "Director plot export failed and legacy plot fallback is disabled. "
+                        "Set allow_plot_fallback=True and allow_legacy_plot_fallback=True "
+                        "for explicit degraded-mode operation."
+                    ) from exc
                 plot_error = f"{exc.__class__.__name__}: {exc}"
 
         err = np.array([x["Err_R"] for x in self.log], dtype=np.float64)

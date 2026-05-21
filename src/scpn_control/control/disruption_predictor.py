@@ -925,6 +925,8 @@ def predict_disruption_risk_safe(
     train_if_missing: bool = False,
     mc_samples: int = 10,
     allow_legacy_fallback: bool = False,
+    allow_inference_fallback: bool = False,
+    allow_legacy_inference_fallback: bool = False,
 ) -> tuple[float, dict[str, Any]]:
     """Predict disruption risk with MC dropout uncertainty if model is available.
 
@@ -935,6 +937,11 @@ def predict_disruption_risk_safe(
         ``metadata`` includes ``risk_std`` (epistemic uncertainty).
     """
     base_risk = float(np.clip(predict_disruption_risk(signal, toroidal_observables), 0.0, 1.0))
+    if allow_inference_fallback and not allow_legacy_inference_fallback:
+        raise ValueError(
+            "allow_inference_fallback=True requires allow_legacy_inference_fallback=True; "
+            "legacy inference fallback is disabled by default."
+        )
 
     model, meta = load_or_train_predictor(
         model_path=model_path,
@@ -990,6 +997,12 @@ def predict_disruption_risk_safe(
         )
         return mean_risk, out_meta
     except (RuntimeError, ValueError, OSError) as exc:  # pragma: no cover - requires torch model
+        if not allow_inference_fallback:
+            raise RuntimeError(
+                "Transformer inference failed and legacy inference fallback is disabled. "
+                "Set allow_inference_fallback=True and allow_legacy_inference_fallback=True "
+                "for explicit degraded-mode operation."
+            ) from exc
         out_meta = dict(meta)
         out_meta["mode"] = "fallback"
         out_meta["risk_source"] = "predict_disruption_risk"

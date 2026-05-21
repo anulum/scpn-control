@@ -313,6 +313,8 @@ def run_control_room(
     allow_legacy_kernel_psi_fallback: bool = False,
     allow_coil_update_fallback: bool = False,
     allow_legacy_coil_update_fallback: bool = False,
+    allow_output_render_fallback: bool = False,
+    allow_legacy_output_render_fallback: bool = False,
 ) -> dict[str, Any]:
     """
     Run the control-room loop and return deterministic summary metrics.
@@ -339,6 +341,11 @@ def run_control_room(
         raise ValueError(
             "allow_coil_update_fallback=True requires allow_legacy_coil_update_fallback=True; "
             "legacy coil-update fallback is disabled by default."
+        )
+    if allow_output_render_fallback and not allow_legacy_output_render_fallback:
+        raise ValueError(
+            "allow_output_render_fallback=True requires allow_legacy_output_render_fallback=True; "
+            "legacy output-render fallback is disabled by default."
         )
     rng = np.random.default_rng(int(seed))
 
@@ -493,6 +500,19 @@ def run_control_room(
             output_gif=output_gif,
             output_report=output_report,
         )
+        if not allow_output_render_fallback:
+            if save_animation and (not animation_saved) and animation_error is not None:
+                raise RuntimeError(
+                    "Animation export failed and legacy output-render fallback is disabled. "
+                    "Set allow_output_render_fallback=True and allow_legacy_output_render_fallback=True "
+                    "for explicit degraded-mode operation."
+                )
+            if save_report and (not report_saved) and report_error is not None:
+                raise RuntimeError(
+                    "Report export failed and legacy output-render fallback is disabled. "
+                    "Set allow_output_render_fallback=True and allow_legacy_output_render_fallback=True "
+                    "for explicit degraded-mode operation."
+                )
 
     z_arr = np.asarray(history_z, dtype=np.float64)
     top_arr = np.asarray(history_top, dtype=np.float64)

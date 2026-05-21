@@ -148,6 +148,75 @@ class _MockNeuroCyberneticController:
         pass
 
 
+class _BadKernelNoCfg:
+    def __init__(self):
+        self.R = np.linspace(1.0, 5.0, 20)
+        self.Z = np.linspace(-3.0, 3.0, 20)
+        RR, ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = -((RR - 3.0) ** 2 + ZZ**2)
+
+    def solve_equilibrium(self):
+        pass
+
+
+class _BadKernelCfgType(_MockKernel):
+    def __init__(self):
+        super().__init__()
+        self.cfg = "bad"
+
+
+class _BadKernelFewCoils(_MockKernel):
+    def __init__(self):
+        super().__init__()
+        self.cfg["coils"] = [{"current": 0.0} for _ in range(3)]
+
+
+class _BadKernelNoPhysics(_MockKernel):
+    def __init__(self):
+        super().__init__()
+        del self.cfg["physics"]
+
+
+class _MockControllerNoCfg:
+    def __init__(self, _config_path):
+        self.kernel = _BadKernelNoCfg()
+        self.brain_R = _MockBrain()
+        self.brain_Z = _MockBrain()
+
+    def initialize_brains(self, use_quantum=True):
+        pass
+
+
+class _MockControllerBadCfgType:
+    def __init__(self, _config_path):
+        self.kernel = _BadKernelCfgType()
+        self.brain_R = _MockBrain()
+        self.brain_Z = _MockBrain()
+
+    def initialize_brains(self, use_quantum=True):
+        pass
+
+
+class _MockControllerFewCoils:
+    def __init__(self, _config_path):
+        self.kernel = _BadKernelFewCoils()
+        self.brain_R = _MockBrain()
+        self.brain_Z = _MockBrain()
+
+    def initialize_brains(self, use_quantum=True):
+        pass
+
+
+class _MockControllerNoPhysics:
+    def __init__(self, _config_path):
+        self.kernel = _BadKernelNoPhysics()
+        self.brain_R = _MockBrain()
+        self.brain_Z = _MockBrain()
+
+    def initialize_brains(self, use_quantum=True):
+        pass
+
+
 class TestDirectorInterfaceRunMission:
     def test_run_directed_mission_returns_keys(self):
         di = DirectorInterface(
@@ -325,3 +394,126 @@ class TestDirectorInterfaceRunMission:
         assert "DENIED" in caplog.text
         assert "INTERVENTION" in caplog.text
         assert result["intervention_count"] > 0
+
+    def test_plot_export_failure_is_fail_closed_by_default(self, monkeypatch):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+
+        def _raise_plot(*args, **kwargs):
+            raise ValueError("plot failed")
+
+        monkeypatch.setattr(di, "visualize", _raise_plot)
+        with pytest.raises(RuntimeError, match="legacy plot fallback is disabled"):
+            di.run_directed_mission(duration=5, save_plot=True, verbose=False)
+
+    def test_plot_export_failure_legacy_fallback_opt_in(self, monkeypatch):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+
+        def _raise_plot(*args, **kwargs):
+            raise ValueError("plot failed")
+
+        monkeypatch.setattr(di, "visualize", _raise_plot)
+        summary = di.run_directed_mission(
+            duration=5,
+            save_plot=True,
+            verbose=False,
+            allow_plot_fallback=True,
+            allow_legacy_plot_fallback=True,
+        )
+        assert summary["plot_saved"] is False
+        assert "ValueError" in str(summary["plot_error"])
+
+    def test_legacy_plot_fallback_requires_explicit_opt_in(self):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+        with pytest.raises(ValueError, match="allow_legacy_plot_fallback=True"):
+            di.run_directed_mission(
+                duration=5,
+                save_plot=False,
+                verbose=False,
+                allow_plot_fallback=True,
+            )
+
+    def test_runtime_contract_no_cfg_is_fail_closed_by_default(self):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockControllerNoCfg,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+        with pytest.raises(RuntimeError, match="required cfg contract"):
+            di.run_directed_mission(duration=5, save_plot=False, verbose=False)
+
+    def test_runtime_contract_cfg_type_is_fail_closed_by_default(self):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockControllerBadCfgType,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+        with pytest.raises(RuntimeError, match="cfg must be a mapping"):
+            di.run_directed_mission(duration=5, save_plot=False, verbose=False)
+
+    def test_runtime_contract_missing_physics_is_fail_closed_by_default(self):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockControllerNoPhysics,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+        with pytest.raises(RuntimeError, match="must contain physics and coils"):
+            di.run_directed_mission(duration=5, save_plot=False, verbose=False)
+
+    def test_runtime_contract_few_coils_is_fail_closed_by_default(self):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockControllerFewCoils,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+        with pytest.raises(RuntimeError, match="at least 5 channels"):
+            di.run_directed_mission(duration=5, save_plot=False, verbose=False)
+
+    def test_legacy_runtime_contract_fallback_requires_explicit_opt_in(self):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+        with pytest.raises(ValueError, match="allow_legacy_runtime_contract_fallback=True"):
+            di.run_directed_mission(
+                duration=5,
+                save_plot=False,
+                verbose=False,
+                allow_runtime_contract_fallback=True,
+            )
+
+    def test_runtime_contract_legacy_fallback_opt_in(self):
+        di = DirectorInterface(
+            "mock.json",
+            controller_factory=_MockControllerFewCoils,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+        summary = di.run_directed_mission(
+            duration=5,
+            save_plot=False,
+            verbose=False,
+            allow_runtime_contract_fallback=True,
+            allow_legacy_runtime_contract_fallback=True,
+        )
+        assert summary["steps"] == 5

@@ -582,6 +582,44 @@ class TestKernelEdgeCases:
                 allow_coil_update_fallback=True,
             )
 
+    def test_output_render_failure_is_fail_closed_by_default(self, tmp_path):
+        bad_report = str(tmp_path / "missing_dir" / "report.png")
+        with pytest.raises(RuntimeError, match="Report export failed"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=True,
+                output_report=bad_report,
+                verbose=False,
+            )
+
+    def test_output_render_failure_legacy_fallback_opt_in(self, tmp_path):
+        bad_report = str(tmp_path / "missing_dir" / "report.png")
+        summary = run_control_room(
+            sim_duration=3,
+            seed=0,
+            save_animation=False,
+            save_report=True,
+            output_report=bad_report,
+            verbose=False,
+            allow_output_render_fallback=True,
+            allow_legacy_output_render_fallback=True,
+        )
+        assert summary["report_saved"] is False
+        assert summary["report_error"] is not None
+
+    def test_legacy_output_render_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_output_render_fallback=True"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                allow_output_render_fallback=True,
+            )
+
     def test_auto_kernel_factory_from_config_file(self):
         """When kernel_factory=None but config_file set, FusionKernel is used automatically."""
         import scpn_control.control.fusion_control_room as fcr_mod
