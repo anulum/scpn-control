@@ -447,12 +447,29 @@ class TestFusionCompiler:
         assert cfg["runtime_backend"] == "auto"
         assert cfg["enable_oracle_diagnostics"] is False
         assert cfg["sc_binary_margin"] == 0.0
+        assert cfg["allow_runtime_backend_fallback"] is False
+        assert cfg["allow_legacy_runtime_backend_fallback"] is False
 
         cfg_numpy = FusionCompiler.traceable_runtime_kwargs(runtime_backend="numpy")
         assert cfg_numpy["runtime_backend"] == "numpy"
 
+        cfg_legacy = FusionCompiler.traceable_runtime_kwargs(
+            runtime_backend="rust",
+            allow_runtime_backend_fallback=True,
+            allow_legacy_runtime_backend_fallback=True,
+        )
+        assert cfg_legacy["allow_runtime_backend_fallback"] is True
+        assert cfg_legacy["allow_legacy_runtime_backend_fallback"] is True
+
         with pytest.raises(ValueError, match="runtime_backend"):
             FusionCompiler.traceable_runtime_kwargs(runtime_backend="cuda")
+
+        with pytest.raises(ValueError, match="allow_legacy_runtime_backend_fallback=True"):
+            FusionCompiler.traceable_runtime_kwargs(
+                runtime_backend="auto",
+                allow_runtime_backend_fallback=True,
+                allow_legacy_runtime_backend_fallback=False,
+            )
 
     @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_packed_weight_shapes(self, compiled: CompiledNet) -> None:

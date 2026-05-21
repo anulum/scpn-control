@@ -447,16 +447,26 @@ class FusionCompiler:
     def traceable_runtime_kwargs(
         *,
         runtime_backend: str = "auto",
+        allow_runtime_backend_fallback: bool = False,
+        allow_legacy_runtime_backend_fallback: bool = False,
     ) -> dict[str, Any]:
         """Recommended controller kwargs for traceable runtime loops."""
         backend = runtime_backend.strip().lower()
         if backend not in {"auto", "numpy", "rust"}:
             raise ValueError("runtime_backend must be 'auto', 'numpy', or 'rust'")
+        if allow_runtime_backend_fallback and not allow_legacy_runtime_backend_fallback:
+            raise ValueError(
+                "allow_runtime_backend_fallback=True requires "
+                "allow_legacy_runtime_backend_fallback=True; "
+                "legacy runtime-backend fallback is disabled by default."
+            )
         return {
             "runtime_profile": "traceable",
             "runtime_backend": backend,
             "enable_oracle_diagnostics": False,
             "sc_binary_margin": 0.0,
+            "allow_runtime_backend_fallback": bool(allow_runtime_backend_fallback),
+            "allow_legacy_runtime_backend_fallback": bool(allow_legacy_runtime_backend_fallback),
         }
 
     def compile(
