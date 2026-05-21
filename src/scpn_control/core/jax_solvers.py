@@ -62,6 +62,33 @@ def has_jax_gpu() -> bool:
         return False
 
 
+def _resolve_use_jax(
+    use_jax: bool,
+    *,
+    allow_numpy_fallback: bool,
+    allow_legacy_numpy_fallback: bool,
+    context: str,
+) -> bool:
+    """Resolve runtime backend intent with explicit legacy fallback gates."""
+    if allow_numpy_fallback and not allow_legacy_numpy_fallback:
+        raise ValueError(
+            "allow_numpy_fallback=True requires allow_legacy_numpy_fallback=True; "
+            "legacy NumPy fallback is disabled by default."
+        )
+    if not use_jax:
+        return False
+    if _HAS_JAX:
+        return True
+    if allow_numpy_fallback:
+        return False
+    raise RuntimeError(
+        f"{context} requested use_jax=True but JAX is unavailable. "
+        "Install JAX, set use_jax=False, or set "
+        "allow_numpy_fallback=True and allow_legacy_numpy_fallback=True "
+        "for explicit degraded-mode operation."
+    )
+
+
 # ── NumPy fallbacks ───────────────────────────────────────────────
 
 
@@ -256,6 +283,8 @@ def thomas_solve(
     d: np.ndarray,
     *,
     use_jax: bool = True,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
 ) -> np.ndarray:
     """Tridiagonal solve with automatic JAX/GPU dispatch.
 
@@ -267,7 +296,13 @@ def thomas_solve(
     d : right-hand side, length n
     use_jax : attempt JAX backend (falls back to NumPy if unavailable)
     """
-    if use_jax and _HAS_JAX:
+    use_jax_runtime = _resolve_use_jax(
+        use_jax,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+        context="thomas_solve",
+    )
+    if use_jax_runtime:
         return np.asarray(
             _thomas_solve_jax_impl(
                 jnp.asarray(a, dtype=jnp.float64),
@@ -286,9 +321,17 @@ def diffusion_rhs(
     drho: float,
     *,
     use_jax: bool = True,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
 ) -> np.ndarray:
     """Cylindrical diffusion operator L_h(T) with JAX/GPU dispatch."""
-    if use_jax and _HAS_JAX:
+    use_jax_runtime = _resolve_use_jax(
+        use_jax,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+        context="diffusion_rhs",
+    )
+    if use_jax_runtime:
         return np.asarray(
             _diffusion_rhs_jax_impl(
                 jnp.asarray(T, dtype=jnp.float64),
@@ -310,6 +353,8 @@ def crank_nicolson_step(
     T_edge: float = 0.1,
     *,
     use_jax: bool = True,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
 ) -> np.ndarray:
     """Single Crank-Nicolson transport step with JAX/GPU dispatch.
 
@@ -323,7 +368,13 @@ def crank_nicolson_step(
     dt      : timestep
     T_edge  : edge boundary condition (Dirichlet), keV
     """
-    if use_jax and _HAS_JAX:
+    use_jax_runtime = _resolve_use_jax(
+        use_jax,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+        context="crank_nicolson_step",
+    )
+    if use_jax_runtime:
         return np.asarray(
             _cn_step_jax(
                 jnp.asarray(T, dtype=jnp.float64),
@@ -370,6 +421,9 @@ def batched_crank_nicolson(
     drho: float,
     dt: float,
     T_edge: float = 0.1,
+    *,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
 ) -> np.ndarray:
     """Batched transport step via jax.vmap for ensemble/sensitivity runs.
 
@@ -382,7 +436,13 @@ def batched_crank_nicolson(
     -------
     T_new : (batch, n) updated profiles
     """
-    if not _HAS_JAX:
+    use_jax_runtime = _resolve_use_jax(
+        True,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+        context="batched_crank_nicolson",
+    )
+    if not use_jax_runtime:
         return np.stack(
             [
                 crank_nicolson_step(T_batch[i], chi, source, rho, drho, dt, T_edge, use_jax=False)

@@ -263,3 +263,68 @@ class TestBatchedTransportFallback:
         # Either way, results should match
         for i in range(batch):
             assert results_single[i, -1] == pytest.approx(0.1)
+
+
+class TestStrictJaxFallbackContracts:
+    """Fail-closed contracts for explicit JAX requests."""
+
+    def test_use_jax_requires_explicit_legacy_fallback_opt_in(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.core.jax_solvers._HAS_JAX", False)
+        a = np.array([-1.0, -1.0, -1.0])
+        b = np.array([2.0, 2.0, 2.0, 2.0])
+        c = np.array([-1.0, -1.0, -1.0])
+        d = np.array([1.0, 0.0, 0.0, 1.0])
+        with pytest.raises(ValueError, match="allow_legacy_numpy_fallback=True"):
+            thomas_solve(a, b, c, d, use_jax=True, allow_numpy_fallback=True)
+
+    def test_use_jax_fails_closed_without_jax(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.core.jax_solvers._HAS_JAX", False)
+        a = np.array([-1.0, -1.0, -1.0])
+        b = np.array([2.0, 2.0, 2.0, 2.0])
+        c = np.array([-1.0, -1.0, -1.0])
+        d = np.array([1.0, 0.0, 0.0, 1.0])
+        with pytest.raises(RuntimeError, match="thomas_solve requested use_jax=True"):
+            thomas_solve(a, b, c, d, use_jax=True)
+
+    def test_use_jax_legacy_fallback_opt_in(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.core.jax_solvers._HAS_JAX", False)
+        a = np.array([-1.0, -1.0, -1.0])
+        b = np.array([2.0, 2.0, 2.0, 2.0])
+        c = np.array([-1.0, -1.0, -1.0])
+        d = np.array([1.0, 0.0, 0.0, 1.0])
+        out = thomas_solve(
+            a,
+            b,
+            c,
+            d,
+            use_jax=True,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
+        np.testing.assert_allclose(out, _thomas_solve_np(a, b, c, d))
+
+    def test_batched_contracts_without_jax(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.core.jax_solvers._HAS_JAX", False)
+        n = 16
+        batch = 3
+        rho = np.linspace(0.05, 1.0, n)
+        drho = rho[1] - rho[0]
+        rng = np.random.default_rng(12)
+        T_batch = 5.0 + rng.standard_normal((batch, n))
+        chi = 0.5 * np.ones(n)
+        source = np.zeros(n)
+
+        with pytest.raises(RuntimeError, match="batched_crank_nicolson requested use_jax=True"):
+            batched_crank_nicolson(T_batch, chi, source, rho, drho, 0.01)
+
+        out = batched_crank_nicolson(
+            T_batch,
+            chi,
+            source,
+            rho,
+            drho,
+            0.01,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
+        assert out.shape == T_batch.shape
