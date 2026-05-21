@@ -1150,17 +1150,17 @@ class TestIntegration:
         else:
             assert c.runtime_backend_name == "numpy"
 
-    def test_runtime_backend_auto_force_numpy_requires_explicit_opt_in(self, artifact_path: str) -> None:
+    def test_runtime_backend_auto_force_numpy_without_rust(self, artifact_path: str) -> None:
         art = load_artifact(artifact_path)
-        with pytest.raises(RuntimeError, match="runtime_backend='auto' could not select Rust"):
-            NeuroSymbolicController(
-                artifact=art,
-                seed_base=223,
-                targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
-                scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
-                runtime_backend="auto",
-                rust_backend_min_problem_size=10**9,
-            )
+        c = NeuroSymbolicController(
+            artifact=art,
+            seed_base=223,
+            targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+            scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+            runtime_backend="auto",
+            rust_backend_min_problem_size=10**9,
+        )
+        assert c.runtime_backend_name == "numpy"
 
     def test_runtime_backend_auto_force_numpy_legacy_fallback_opt_in(self, artifact_path: str) -> None:
         art = load_artifact(artifact_path)

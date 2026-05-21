@@ -281,9 +281,7 @@ class TransportSolver(FusionKernel):
             or allow_constant_transport_fallback
             or allow_simplified_bootstrap_fallback
         ) and not allow_legacy_approximations:
-            raise ValueError(
-                "legacy approximation flags require allow_legacy_approximations=True"
-            )
+            raise ValueError("legacy approximation flags require allow_legacy_approximations=True")
         self.transport_model = transport_model
         self.allow_legacy_approximations = allow_legacy_approximations
         self.external_gk_allow_gyrobohm_fallback = external_gk_allow_gyrobohm_fallback

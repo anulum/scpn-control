@@ -94,8 +94,7 @@ class CGYROSolver(GKSolverBase):
     ) -> None:
         if allow_fallback and not allow_legacy_fallback:
             raise ValueError(
-                "allow_fallback=True requires allow_legacy_fallback=True; "
-                "legacy CGYRO fallback is disabled by default."
+                "allow_fallback=True requires allow_legacy_fallback=True; legacy CGYRO fallback is disabled by default."
             )
         self.binary = binary
         self.work_dir = work_dir

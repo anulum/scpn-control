@@ -128,6 +128,8 @@ def demo(scenario: str, steps: int, json_out: bool) -> None:
         targets=ControlTargets(R_target_m=1.0, Z_target_m=0.0),
         scales=ControlScales(R_scale_m=1.0, Z_scale_m=1.0),
         feature_axes=feat_axes,
+        allow_runtime_backend_fallback=True,
+        allow_legacy_runtime_backend_fallback=True,
         sc_binary_margin=0.0,
     )
 

@@ -746,7 +746,12 @@ class TestExternalGKSolverFallback:
 
     def test_gk_solver_lazy_init(self, config_file: Path) -> None:
         """Cover ITS lines 540-543: lazy init of _gk_solver."""
-        ts = TransportSolver(str(config_file), transport_model="gyrokinetic")
+        ts = TransportSolver(
+            str(config_file),
+            transport_model="gyrokinetic",
+            external_gk_allow_gyrobohm_fallback=True,
+            allow_legacy_approximations=True,
+        )
         ts.Ti = 5.0 * (1 - ts.rho**2)
         ts.Te = 5.0 * (1 - ts.rho**2)
         ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
