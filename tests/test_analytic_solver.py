@@ -213,6 +213,17 @@ from scpn_control.control.analytic_solver import run_analytic_solver
 
 
 class TestRunAnalyticSolver:
+    def test_legacy_config_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_config_fallback=True"):
+            run_analytic_solver(
+                config_path="dummy.json",
+                allow_config_fallback=True,
+                allow_legacy_config_fallback=False,
+                save_config=False,
+                verbose=False,
+                kernel_factory=FakeKernel,
+            )
+
     def test_smoke(self, tmp_path):
         summary = run_analytic_solver(
             config_path="dummy.json",

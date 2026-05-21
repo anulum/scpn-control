@@ -56,14 +56,14 @@ def test_scpn_geometry_neutral_public_wrappers():
     assert "Geometry-Neutral" in markdown
 
 
-# ── 2. analytic_solver.py lines 207-209: config_path=None fallback ───
+# ── 2. analytic_solver.py: config_path=None fail-closed by default ───
 
 
-def test_analytic_solver_config_none_fallback():
+def test_analytic_solver_config_none_fails_closed():
     from scpn_control.control.analytic_solver import run_analytic_solver
 
-    result = run_analytic_solver(config_path=None, verbose=False)
-    assert "config_path" in result
+    with pytest.raises(FileNotFoundError, match="Provide config_path explicitly"):
+        run_analytic_solver(config_path=None, verbose=False)
 
 
 # ── 3. director_interface.py line 28, 111-115: DirectorModule branch ─

@@ -220,16 +220,38 @@ def run_analytic_solver(
     save_config: bool = True,
     output_config_path: str | None = None,
     verbose: bool = True,
+    allow_config_fallback: bool = False,
+    allow_legacy_config_fallback: bool = False,
     kernel_factory: Callable[[str], Any] = FusionKernel,
 ) -> Dict[str, Any]:
     """
     Run analytic equilibrium solve and return deterministic summary.
     """
+    if allow_config_fallback and not allow_legacy_config_fallback:
+        raise ValueError(
+            "allow_config_fallback=True requires allow_legacy_config_fallback=True; "
+            "legacy analytic config fallback is disabled by default."
+        )
+
     repo_root = Path(__file__).resolve().parents[3]
     if config_path is None:
         preferred = repo_root / "calibration" / "iter_genetic_temp.json"
         fallback = repo_root / "validation" / "iter_validated_config.json"
-        config_path = str(preferred if preferred.exists() else fallback)
+        if preferred.exists():
+            config_path = str(preferred)
+        elif allow_config_fallback:
+            if not fallback.exists():
+                raise FileNotFoundError(
+                    "Legacy analytic config fallback was enabled but no validated "
+                    f"config exists at {fallback}."
+                )
+            config_path = str(fallback)
+        else:
+            raise FileNotFoundError(
+                "Default analytic configuration is missing at "
+                f"{preferred}. Provide config_path explicitly or set both "
+                "allow_config_fallback=True and allow_legacy_config_fallback=True."
+            )
 
     solver = AnalyticEquilibriumSolver(
         str(config_path),
