@@ -417,14 +417,10 @@ def run_control_room(
                     )
             elif not isinstance(kernel.cfg, dict):
                 if not allow_coil_update_fallback:
-                    raise RuntimeError(
-                        "Kernel cfg must be a mapping and legacy coil-update fallback is disabled."
-                    )
+                    raise RuntimeError("Kernel cfg must be a mapping and legacy coil-update fallback is disabled.")
             elif "coils" not in kernel.cfg:
                 if not allow_coil_update_fallback:
-                    raise RuntimeError(
-                        "Kernel cfg is missing 'coils' and legacy coil-update fallback is disabled."
-                    )
+                    raise RuntimeError("Kernel cfg is missing 'coils' and legacy coil-update fallback is disabled.")
 
         if kernel is not None and hasattr(kernel, "cfg") and isinstance(kernel.cfg, dict):
             try:

@@ -231,28 +231,23 @@ class DirectorInterface:
             if not hasattr(self.nc.kernel, "cfg"):
                 if not allow_runtime_contract_fallback:
                     raise RuntimeError(
-                        "Kernel does not expose required cfg contract and "
-                        "legacy runtime contract fallback is disabled."
+                        "Kernel does not expose required cfg contract and legacy runtime contract fallback is disabled."
                     )
                 break
             if not isinstance(self.nc.kernel.cfg, dict):
                 if not allow_runtime_contract_fallback:
-                    raise RuntimeError(
-                        "Kernel cfg must be a mapping and legacy runtime contract fallback is disabled."
-                    )
+                    raise RuntimeError("Kernel cfg must be a mapping and legacy runtime contract fallback is disabled.")
                 break
             if "physics" not in self.nc.kernel.cfg or "coils" not in self.nc.kernel.cfg:
                 if not allow_runtime_contract_fallback:
                     raise RuntimeError(
-                        "Kernel cfg must contain physics and coils and "
-                        "legacy runtime contract fallback is disabled."
+                        "Kernel cfg must contain physics and coils and legacy runtime contract fallback is disabled."
                     )
                 break
             if not isinstance(self.nc.kernel.cfg["coils"], list):
                 if not allow_runtime_contract_fallback:
                     raise RuntimeError(
-                        "Kernel cfg['coils'] must be a list and "
-                        "legacy runtime contract fallback is disabled."
+                        "Kernel cfg['coils'] must be a list and legacy runtime contract fallback is disabled."
                     )
                 break
             if len(self.nc.kernel.cfg["coils"]) < 5:

@@ -242,8 +242,7 @@ def run_analytic_solver(
         elif allow_config_fallback:
             if not fallback.exists():
                 raise FileNotFoundError(
-                    "Legacy analytic config fallback was enabled but no validated "
-                    f"config exists at {fallback}."
+                    f"Legacy analytic config fallback was enabled but no validated config exists at {fallback}."
                 )
             config_path = str(fallback)
         else:

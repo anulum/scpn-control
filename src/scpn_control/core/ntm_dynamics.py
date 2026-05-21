@@ -209,9 +209,7 @@ def bootstrap_from_local(
 
     # Wesson 2011, Eq. 14.2.3 (same as neoclassical.py)
     v_the = np.sqrt(2.0 * T_e_J / m_e)
-    nu_ee = (n_e_si * e_charge**4 * ln_lambda) / (
-        12.0 * np.pi**1.5 * eps0**2 * m_e**0.5 * T_e_J**1.5
-    )
+    nu_ee = (n_e_si * e_charge**4 * ln_lambda) / (12.0 * np.pi**1.5 * eps0**2 * m_e**0.5 * T_e_J**1.5)
     nu_star_e = nu_ee * q * R0 / (epsilon**1.5 * v_the)
 
     L31 = _sauter_L31(f_t, nu_star_e, z_eff)
