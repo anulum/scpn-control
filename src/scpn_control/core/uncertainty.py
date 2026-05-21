@@ -84,6 +84,9 @@ class PlasmaScenario:
     A: float  # Aspect ratio R/a
     kappa: float  # Elongation
     M: float = 2.5  # Effective ion mass (AMU, 2.5 for D-T)
+    f_D: float = 0.5  # Deuterium ion fraction of fuel ions
+    f_T: float = 0.5  # Tritium ion fraction of fuel ions
+    fuel_ion_fraction: float = 1.0  # Fuel-ion dilution factor in electron density
 
 
 @dataclass
@@ -184,8 +187,11 @@ def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
     """
     Estimate fusion power using energy balance and Bosch-Hale reactivity.
 
-    Based on the simplified fusion power model:
-    P_fus = 1/4 * n_e^2 * <σv>(T_i) * V * E_fus
+    P_fus = n_D * n_T * <σv>(T_i) * V * E_fus,
+    with explicit fuel composition and dilution:
+      n_D = f_D * f_fuel * n_e
+      n_T = f_T * f_fuel * n_e
+
     Ref: Wesson, J. (2011). Tokamaks. 4th Edition, Chapter 1.
 
     Where T_i is estimated from P_heat, tau_E and V.
@@ -203,10 +209,22 @@ def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
     # 2. Compute reactivity
     sig_v = bosch_hale_reactivity(T_avg)
 
-    # 3. Fusion power: P_fus = 1/4 * n_e^2 * <σv> * V * E_fus
+    # 3. Fusion power with explicit D-T composition and dilution.
     # E_fus = 17.6 MeV = 2.82e-12 J
+    f_D = float(np.clip(scenario.f_D, 0.0, 1.0))
+    f_T = float(np.clip(scenario.f_T, 0.0, 1.0))
+    fuel_ion_fraction = float(np.clip(scenario.fuel_ion_fraction, 0.0, 1.0))
+    norm = f_D + f_T
+    if norm <= 0.0:
+        return 0.0
+    f_D /= norm
+    f_T /= norm
+    n_fuel = fuel_ion_fraction * n_m3
+    n_D = f_D * n_fuel
+    n_T = f_T * n_fuel
+
     E_fus_J = 2.82e-12
-    P_fus_W = 0.25 * (n_m3**2) * sig_v * V * E_fus_J
+    P_fus_W = n_D * n_T * sig_v * V * E_fus_J
     return float(P_fus_W * 1e-6)  # MW
 
 

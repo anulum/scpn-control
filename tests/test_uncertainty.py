@@ -77,6 +77,26 @@ class TestFusionPower:
         p2 = fusion_power_from_tau(ITER_SCENARIO, 4.0)
         assert p2 > p1
 
+    def test_fuel_composition_controls_power(self):
+        """Explicit D-T composition should control fusion power level."""
+        # Balanced D-T mix (maximum n_D*n_T at fixed total fuel ions)
+        p_balanced = fusion_power_from_tau(ITER_SCENARIO, 3.0)
+
+        # Deuterium-heavy and tritium-heavy mixes should reduce rate
+        d_rich = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "f_D": 0.9, "f_T": 0.1})
+        t_rich = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "f_D": 0.1, "f_T": 0.9})
+        p_d_rich = fusion_power_from_tau(d_rich, 3.0)
+        p_t_rich = fusion_power_from_tau(t_rich, 3.0)
+        assert p_balanced > p_d_rich
+        assert p_balanced > p_t_rich
+
+    def test_fuel_dilution_reduces_power(self):
+        """Fuel-ion dilution should reduce fusion power quadratically."""
+        undiluted = fusion_power_from_tau(ITER_SCENARIO, 3.0)
+        diluted = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "fuel_ion_fraction": 0.5})
+        p_diluted = fusion_power_from_tau(diluted, 3.0)
+        assert p_diluted < undiluted
+
 
 class TestUQ:
     def test_deterministic_with_seed(self):

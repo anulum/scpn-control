@@ -831,8 +831,15 @@ def load_or_train_predictor(
     force_retrain: bool = False,
     train_kwargs: dict[str, Any] | None = None,
     train_if_missing: bool = True,
-    allow_fallback: bool = True,
+    allow_fallback: bool = False,
+    allow_legacy_fallback: bool = False,
 ) -> tuple[Any, dict[str, Any]]:
+    if allow_fallback and not allow_legacy_fallback:
+        raise ValueError(
+            "allow_fallback=True requires allow_legacy_fallback=True; "
+            "legacy deterministic fallback is disabled by default."
+        )
+
     if torch is None:
         if not allow_fallback:
             raise RuntimeError("Torch is required for load_or_train_predictor().")
@@ -917,6 +924,7 @@ def predict_disruption_risk_safe(
     seq_len: int = DEFAULT_SEQ_LEN,
     train_if_missing: bool = False,
     mc_samples: int = 10,
+    allow_legacy_fallback: bool = False,
 ) -> tuple[float, dict[str, Any]]:
     """Predict disruption risk with MC dropout uncertainty if model is available.
 
@@ -934,7 +942,8 @@ def predict_disruption_risk_safe(
         force_retrain=False,
         train_kwargs={"seq_len": _normalize_seq_len(seq_len), "save_plot": False},
         train_if_missing=bool(train_if_missing),
-        allow_fallback=True,
+        allow_fallback=bool(allow_legacy_fallback),
+        allow_legacy_fallback=bool(allow_legacy_fallback),
     )
 
     if model is None or torch is None:

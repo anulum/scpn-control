@@ -49,7 +49,7 @@ def test_disruption_mode_unknown():
 def test_predict_disruption_risk_safe_probabilistic():
     """Verify probabilistic metadata is returned even in fallback mode."""
     signal = np.linspace(0.1, 0.5, 50)
-    risk, meta = predict_disruption_risk_safe(signal)
+    risk, meta = predict_disruption_risk_safe(signal, allow_legacy_fallback=True)
 
     assert 0.0 <= risk <= 1.0
     assert "probabilistic_output" in meta
@@ -96,7 +96,7 @@ def test_mc_dropout_uncertainty(tmp_path):
 def test_deterministic_fallback_sigma_points():
     """Verify sigma points method is used when no model exists."""
     signal = np.array([0.1, 0.2, 0.3])
-    risk, meta = predict_disruption_risk_safe(signal, model_path="nonexistent.pth")
+    risk, meta = predict_disruption_risk_safe(signal, model_path="nonexistent.pth", allow_legacy_fallback=True)
 
     assert meta["mode"] == "fallback"
     assert meta["probabilistic_method"] == "deterministic_sigma_points"

@@ -369,6 +369,7 @@ class TestTrainPredictor:
             train_if_missing=True,
             train_kwargs={"n_shots": 8, "epochs": 2, "save_plot": False},
             allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         assert model is not None
         assert meta.get("trained") is True
@@ -407,6 +408,7 @@ class TestTrainPredictor:
             model_path=str(bad_path),
             seq_len=32,
             allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         assert model is None
         assert meta["fallback"] is True

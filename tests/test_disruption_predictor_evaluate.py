@@ -153,7 +153,7 @@ class TestPredictSafeInferenceFailure:
             "scpn_control.control.disruption_predictor.load_or_train_predictor",
             return_value=(_BrokenModel(), {"seq_len": 50, "trained": True}),
         ):
-            risk, meta = predict_disruption_risk_safe(signal)
+            risk, meta = predict_disruption_risk_safe(signal, allow_legacy_fallback=True)
 
         assert 0.0 <= risk <= 1.0
         assert meta["mode"] == "fallback"
@@ -261,6 +261,7 @@ class TestLoadOrTrainNoTorchPaths:
             train_if_missing=False,
             force_retrain=False,
             allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         assert model is None
         if _HAS_TORCH:

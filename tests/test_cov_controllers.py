@@ -193,7 +193,11 @@ class TestTransportSolverSauterDispatch:
         from scpn_control.core.integrated_transport_solver import TransportSolver
 
         cfg_path = _write_iter_config()
-        solver = TransportSolver(cfg_path, allow_simplified_bootstrap_fallback=True)
+        solver = TransportSolver(
+            cfg_path,
+            allow_simplified_bootstrap_fallback=True,
+            allow_legacy_approximations=True,
+        )
         B_pol = np.full_like(solver.rho, 0.5)
         j_bs = solver.calculate_bootstrap_current(6.2, B_pol)
         assert j_bs.shape == solver.rho.shape

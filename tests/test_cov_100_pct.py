@@ -838,6 +838,7 @@ def test_disruption_checkpoint_missing_fallback(tmp_path):
         result, info = load_or_train_predictor(
             model_path=str(tmp_path / "nonexistent.pt"),
             allow_fallback=True,
+            allow_legacy_fallback=True,
             train_if_missing=False,
             force_retrain=False,
         )

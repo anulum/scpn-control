@@ -60,6 +60,7 @@ class TestLoadOrTrainFallback:
                 model_path=fake_path,
                 force_retrain=True,
                 allow_fallback=True,
+                allow_legacy_fallback=True,
                 train_if_missing=True,
             )
         assert model is None
@@ -75,6 +76,7 @@ class TestPredictDisruptionRiskSafeFallback:
             signal,
             model_path=tmp_path / "nonexistent.pt",
             train_if_missing=False,
+            allow_legacy_fallback=True,
         )
         assert 0.0 <= risk <= 1.0
         assert meta["mode"] == "fallback"

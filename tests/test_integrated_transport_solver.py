@@ -516,6 +516,13 @@ class TestGyroBohm:
 
     def test_gyro_bohm_chi_no_neoclassical(self, solver: TransportSolver) -> None:
         solver.neoclassical_params = None
+        with pytest.raises(RuntimeError, match="neoclassical transport configuration is required for gyro-Bohm"):
+            solver._gyro_bohm_chi()
+
+    def test_gyro_bohm_chi_legacy_constant_opt_in(self, solver: TransportSolver) -> None:
+        solver.neoclassical_params = None
+        solver.allow_legacy_approximations = True
+        solver.allow_constant_transport_fallback = True
         chi = solver._gyro_bohm_chi()
         assert np.all(chi == pytest.approx(0.5))
 
@@ -551,6 +558,13 @@ class TestZeroAuxHeatingGuard:
 
 
 class TestTransportModelBranches:
+    def test_legacy_flags_require_global_gate(self, config_file: Path) -> None:
+        with pytest.raises(ValueError, match="allow_legacy_approximations=True"):
+            TransportSolver(
+                str(config_file),
+                allow_constant_transport_fallback=True,
+            )
+
     def test_update_transport_without_neoclassical_fails_closed(self, config_file: Path) -> None:
         ts = TransportSolver(str(config_file))
         ts.Ti = 5.0 * (1 - ts.rho**2)
@@ -652,6 +666,7 @@ class TestExternalGKSolverFallback:
             str(config_file),
             transport_model="tglf_native",
             tglf_native_allow_gyrobohm_fallback=True,
+            allow_legacy_approximations=True,
         )
         ts.Ti = 5.0 * (1 - ts.rho**2)
         ts.Te = 5.0 * (1 - ts.rho**2)

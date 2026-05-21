@@ -272,9 +272,20 @@ class TransportSolver(FusionKernel):
         tglf_native_allow_gyrobohm_fallback: bool = False,
         allow_constant_transport_fallback: bool = False,
         allow_simplified_bootstrap_fallback: bool = False,
+        allow_legacy_approximations: bool = False,
     ) -> None:
         super().__init__(config_path)
+        if (
+            external_gk_allow_gyrobohm_fallback
+            or tglf_native_allow_gyrobohm_fallback
+            or allow_constant_transport_fallback
+            or allow_simplified_bootstrap_fallback
+        ) and not allow_legacy_approximations:
+            raise ValueError(
+                "legacy approximation flags require allow_legacy_approximations=True"
+            )
         self.transport_model = transport_model
+        self.allow_legacy_approximations = allow_legacy_approximations
         self.external_gk_allow_gyrobohm_fallback = external_gk_allow_gyrobohm_fallback
         self.tglf_native_allow_gyrobohm_fallback = tglf_native_allow_gyrobohm_fallback
         self.allow_constant_transport_fallback = allow_constant_transport_fallback
@@ -440,13 +451,9 @@ class TransportSolver(FusionKernel):
 
         np.maximum(0, new_imp, out=self.n_impurity)
 
-    def calculate_bootstrap_current_simple(self, R0: float, B_pol: np.ndarray) -> np.ndarray:
-        """
-        Calculates the neoclassical bootstrap current density [A/m2]
-        using a simplified Sauter model.
-        J_bs = - (R/B_pol) * [ L31 * (dP/dpsi) + ... ]
-        """
-        # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eq. 13 (simplified)
+    def _legacy_bootstrap_current_approx(self, R0: float, B_pol: np.ndarray) -> np.ndarray:
+        """Legacy approximate bootstrap-current closure (compatibility mode only)."""
+        # Legacy reduced-order closure retained only for compatibility mode.
         dims = self.cfg["dimensions"]
         R0 = 0.5 * (dims["R_max"] + dims["R_min"]) if R0 == 0.0 else R0
         neo = self.neoclassical_params or {}
@@ -485,13 +492,13 @@ class TransportSolver(FusionKernel):
                 self.neoclassical_params.get("B0", 5.3),
                 self.neoclassical_params.get("Z_eff", 1.5),
             )
-        if not self.allow_simplified_bootstrap_fallback:
+        if not (self.allow_simplified_bootstrap_fallback and self.allow_legacy_approximations):
             raise RuntimeError(
                 "neoclassical transport configuration is required for bootstrap current; "
                 "set neoclassical parameters or explicitly enable "
-                "allow_simplified_bootstrap_fallback for legacy behaviour"
+                "allow_simplified_bootstrap_fallback + allow_legacy_approximations for legacy behaviour"
             )
-        return self.calculate_bootstrap_current_simple(R0, B_pol)
+        return self._legacy_bootstrap_current_approx(R0, B_pol)
 
     def _gyro_bohm_chi(self) -> np.ndarray:
         """Gyro-Bohm anomalous transport diffusivity [m^2/s].
@@ -508,7 +515,13 @@ class TransportSolver(FusionKernel):
         or to the module-level default (0.1) otherwise.
         """
         if self.neoclassical_params is None:
-            return np.full_like(self.rho, 0.5)
+            if self.allow_constant_transport_fallback and self.allow_legacy_approximations:
+                return np.full_like(self.rho, 0.5)
+            raise RuntimeError(
+                "neoclassical transport configuration is required for gyro-Bohm transport; "
+                "set neoclassical parameters or explicitly enable "
+                "allow_constant_transport_fallback + allow_legacy_approximations for legacy behaviour"
+            )
 
         p = self.neoclassical_params
         R0 = p["R0"]
@@ -622,7 +635,7 @@ class TransportSolver(FusionKernel):
             try:
                 result = solver.run_from_params(params)
             except Exception as exc:
-                if not self.external_gk_allow_gyrobohm_fallback:
+                if not (self.external_gk_allow_gyrobohm_fallback and self.allow_legacy_approximations):
                     raise RuntimeError(
                         f"external_gk solver execution failed at rho={self.rho[i]:.4f}; "
                         "configure/repair external solver or select tglf_native"
@@ -635,7 +648,7 @@ class TransportSolver(FusionKernel):
                 D_e_out[i] = max(result.D_e, 0.001)
                 continue
 
-            if not self.external_gk_allow_gyrobohm_fallback:
+            if not (self.external_gk_allow_gyrobohm_fallback and self.allow_legacy_approximations):
                 raise RuntimeError(
                     f"external_gk returned unconverged transport at rho={self.rho[i]:.4f}; "
                     "do not continue with degraded fallback transport"
@@ -732,7 +745,7 @@ class TransportSolver(FusionKernel):
                 D_e_out[i] = max(result.D_e, 0.001)
                 continue
 
-            if not self.tglf_native_allow_gyrobohm_fallback:
+            if not (self.tglf_native_allow_gyrobohm_fallback and self.allow_legacy_approximations):
                 raise RuntimeError(
                     f"tglf_native returned unconverged transport at rho={self.rho[i]:.4f}; "
                     "do not continue with degraded fallback transport"
@@ -802,11 +815,11 @@ class TransportSolver(FusionKernel):
                 chi_gB = self._gyro_bohm_chi()
             chi_base = chi_nc + chi_gB
         else:
-            if not self.allow_constant_transport_fallback:
+            if not (self.allow_constant_transport_fallback and self.allow_legacy_approximations):
                 raise RuntimeError(
                     "neoclassical transport configuration is required; "
                     "set neoclassical parameters or explicitly enable "
-                    "allow_constant_transport_fallback for legacy behaviour"
+                    "allow_constant_transport_fallback + allow_legacy_approximations for legacy behaviour"
                 )
             chi_base = np.full_like(self.rho, 0.5)
 

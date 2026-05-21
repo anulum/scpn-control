@@ -56,6 +56,7 @@ class TestLoadOrTrainPredictor:
             seq_len=32,
             train_if_missing=False,
             allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         assert model is None
         assert meta["fallback"] is True
@@ -78,6 +79,7 @@ class TestLoadOrTrainPredictor:
             model_path=str(model_path),
             seq_len=32,
             allow_fallback=True,
+            allow_legacy_fallback=True,
             train_if_missing=False,
         )
         assert model is None
@@ -127,6 +129,7 @@ class TestPredictDisruptionRiskSafeInferenceFail:
             signal,
             model_path=str(model_path),
             seq_len=32,
+            allow_legacy_fallback=True,
         )
         assert 0.0 <= risk <= 1.0
         assert meta["mode"] in ("checkpoint", "fallback")

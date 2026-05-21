@@ -140,6 +140,7 @@ def test_external_gk_legacy_fallback_opt_in(solver_config, neo_params):
         solver_config,
         transport_model="external_gk",
         external_gk_allow_gyrobohm_fallback=True,
+        allow_legacy_approximations=True,
     )
     ts.neoclassical_params = neo_params
     ts.Te = 10.0 * (1 - ts.rho**2)
