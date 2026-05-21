@@ -409,8 +409,8 @@ def test_neural_transport_corrupt_weights(tmp_path):
 
     bad = tmp_path / "bad.npz"
     np.savez(bad, garbage=np.array([1]))
-    s = NeuralTransportSurrogate(weights_path=bad, auto_discover=False)
-    assert s.is_neural is False
+    with pytest.raises(RuntimeError, match="Failed to load explicit neural transport weights"):
+        NeuralTransportSurrogate(weights_path=bad, auto_discover=False)
 
 
 # ── 13b. line 376: stable channel when all fluxes <= 0 ───────────────
