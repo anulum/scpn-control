@@ -1101,14 +1101,49 @@ class TestIntegration:
         assert c.last_oracle_firing == []
         assert c.last_oracle_marking == []
 
-    def test_runtime_backend_rust_request_falls_back_when_unavailable(self, artifact_path: str) -> None:
+    def test_runtime_backend_rust_request_fails_closed_when_unavailable(self, artifact_path: str) -> None:
+        art = load_artifact(artifact_path)
+        if controller_mod._HAS_RUST_SCPN_RUNTIME:
+            c = NeuroSymbolicController(
+                artifact=art,
+                seed_base=222,
+                targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+                scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+                runtime_backend="rust",
+            )
+            assert c.runtime_backend_name == "rust"
+        else:
+            with pytest.raises(RuntimeError, match="runtime_backend='rust' requested"):
+                NeuroSymbolicController(
+                    artifact=art,
+                    seed_base=222,
+                    targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+                    scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+                    runtime_backend="rust",
+                )
+
+    def test_runtime_backend_legacy_fallback_requires_explicit_opt_in(self, artifact_path: str) -> None:
+        art = load_artifact(artifact_path)
+        with pytest.raises(ValueError, match="allow_legacy_runtime_backend_fallback=True"):
+            NeuroSymbolicController(
+                artifact=art,
+                seed_base=226,
+                targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+                scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+                runtime_backend="rust",
+                allow_runtime_backend_fallback=True,
+            )
+
+    def test_runtime_backend_legacy_fallback_opt_in(self, artifact_path: str) -> None:
         art = load_artifact(artifact_path)
         c = NeuroSymbolicController(
             artifact=art,
-            seed_base=222,
+            seed_base=227,
             targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
             scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
             runtime_backend="rust",
+            allow_runtime_backend_fallback=True,
+            allow_legacy_runtime_backend_fallback=True,
         )
         if controller_mod._HAS_RUST_SCPN_RUNTIME:
             assert c.runtime_backend_name == "rust"

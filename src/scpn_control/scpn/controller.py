@@ -91,6 +91,8 @@ class NeuroSymbolicController:
         feature_axes: Sequence[FeatureAxisSpec] | None = None,
         runtime_profile: str = "adaptive",
         runtime_backend: str = "auto",
+        allow_runtime_backend_fallback: bool = False,
+        allow_legacy_runtime_backend_fallback: bool = False,
         rust_backend_min_problem_size: int = 1,
         sc_antithetic_chunk_size: int = 2048,
     ) -> None:
@@ -111,6 +113,14 @@ class NeuroSymbolicController:
         self._runtime_backend_request = runtime_backend.strip().lower()
         if self._runtime_backend_request not in {"auto", "numpy", "rust"}:
             raise ValueError("runtime_backend must be 'auto', 'numpy', or 'rust'")
+        if allow_runtime_backend_fallback and not allow_legacy_runtime_backend_fallback:
+            raise ValueError(
+                "allow_runtime_backend_fallback=True requires "
+                "allow_legacy_runtime_backend_fallback=True; "
+                "legacy runtime-backend fallback is disabled by default."
+            )
+        self._allow_runtime_backend_fallback = bool(allow_runtime_backend_fallback)
+        self._allow_legacy_runtime_backend_fallback = bool(allow_legacy_runtime_backend_fallback)
         self._rust_backend_min_problem_size = require_int(
             "rust_backend_min_problem_size", rust_backend_min_problem_size, 1
         )
@@ -209,7 +219,18 @@ class NeuroSymbolicController:
         if self._runtime_backend_request == "numpy":
             self._runtime_backend = "numpy"
         elif self._runtime_backend_request == "rust":
-            self._runtime_backend = "rust" if _HAS_RUST_SCPN_RUNTIME else "numpy"
+            if _HAS_RUST_SCPN_RUNTIME:
+                self._runtime_backend = "rust"
+            elif self._allow_runtime_backend_fallback:
+                self._runtime_backend = "numpy"
+            else:
+                raise RuntimeError(
+                    "runtime_backend='rust' requested but Rust SCPN runtime is unavailable. "
+                    "Install scpn_control_rs, use runtime_backend='numpy', or set "
+                    "allow_runtime_backend_fallback=True and "
+                    "allow_legacy_runtime_backend_fallback=True for explicit "
+                    "degraded-mode operation."
+                )
         else:
             self._runtime_backend = "rust" if rust_eligible else "numpy"
         produced_feature_keys = set(self._axis_pos_keys)
