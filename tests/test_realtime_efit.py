@@ -82,7 +82,9 @@ def test_reconstruction_solovev():
     assert np.isclose(res.shape.R0, 6.2)
     assert np.isclose(res.shape.a, 2.0)
     assert res.shape.Ip_reconstructed == 15.0e6
-    assert res.wall_time_ms < 100.0  # Should be fast
+    # CI variance across OS/VM classes can exceed 100 ms while preserving the
+    # same reconstructed physics result.
+    assert res.wall_time_ms < 150.0
     assert res.n_iterations > 0
 
 
