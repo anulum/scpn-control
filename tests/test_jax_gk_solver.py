@@ -26,8 +26,6 @@ from scpn_control.core.jax_gk_solver import (
     transport_stiffness_jax,
 )
 
-pytestmark = pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
-
 
 @pytest.fixture
 def cbc_params():
@@ -43,6 +41,7 @@ def test_has_jax():
     assert has_jax() is True
 
 
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
 def test_jax_solver_finite_gamma(cbc_params, small_grid_params):
     result = solve_linear_gk_jax(**cbc_params, **small_grid_params)
     assert isinstance(result, LinearGKResult)
@@ -51,6 +50,7 @@ def test_jax_solver_finite_gamma(cbc_params, small_grid_params):
     assert result.gamma_max > 0
 
 
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
 def test_jax_matches_numpy_qualitatively(cbc_params):
     """Both solvers find instability at CBC parameters with comparable growth rates."""
     np_result = solve_linear_gk(**cbc_params, n_ky_ion=4, n_theta=32, n_period=2)
@@ -65,6 +65,7 @@ def test_jax_matches_numpy_qualitatively(cbc_params):
     assert np_result.gamma_max > 0
 
 
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
 def test_vmap_matches_sequential(cbc_params):
     """vmap-batched result matches sequential single-k_y calls."""
     result_batched = solve_linear_gk_jax(**cbc_params, n_ky_ion=4, n_theta=16)
@@ -79,6 +80,7 @@ def test_vmap_matches_sequential(cbc_params):
     assert len(result_batched.k_y) == 4
 
 
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
 def test_transport_stiffness_above_critical(cbc_params):
     """Above critical gradient (~R/L_Ti > 4), stiffness should be finite and non-zero."""
     stiffness = transport_stiffness_jax(R_L_Ti=6.9, **cbc_params, n_ky_ion=4, n_theta=16)
@@ -86,6 +88,7 @@ def test_transport_stiffness_above_critical(cbc_params):
     assert abs(stiffness) > 1e-6
 
 
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
 def test_transport_stiffness_below_critical(cbc_params):
     """Below critical gradient, stiffness should be smaller than above."""
     stiff_low = transport_stiffness_jax(R_L_Ti=0.5, **cbc_params, n_ky_ion=4, n_theta=16)
@@ -96,6 +99,7 @@ def test_transport_stiffness_below_critical(cbc_params):
     assert stiff_high > stiff_low
 
 
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
 def test_jit_does_not_change_results(cbc_params, small_grid_params):
     """Running twice gives identical results (JIT cache hit on second call)."""
     r1 = solve_linear_gk_jax(**cbc_params, **small_grid_params)
@@ -120,6 +124,7 @@ def test_fallback_raises_import_error():
             mod._HAS_JAX = orig_has
 
 
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
 def test_gkoutput_shapes(cbc_params, small_grid_params):
     result = solve_linear_gk_jax(**cbc_params, **small_grid_params)
     n = small_grid_params["n_ky_ion"]
@@ -134,6 +139,7 @@ def test_gkoutput_shapes(cbc_params, small_grid_params):
             assert mode.phi_theta.ndim == 1
 
 
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
 def test_custom_species_and_geometry(cbc_params):
     ion = deuterium_ion(T_keV=4.0, R_L_T=8.0, R_L_n=3.0)
     e = electron(T_keV=4.0, R_L_T=8.0, R_L_n=3.0)

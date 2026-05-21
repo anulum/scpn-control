@@ -8,7 +8,8 @@
 
 Re-implements the response-matrix formulation from gk_eigenvalue.py using
 jax.numpy, jax.vmap (batch over k_y), and jax.grad (transport stiffness
-d(chi_i)/d(R_L_Ti)).  Falls back to NumPy solver when JAX is unavailable.
+d(chi_i)/d(R_L_Ti)). JAX execution is explicit and fails closed when JAX
+is unavailable.
 
 References:
   - Dimits et al., Phys. Plasmas 7 (2000) 969 — Cyclone Base Case
