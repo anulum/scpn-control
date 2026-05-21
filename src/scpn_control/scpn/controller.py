@@ -232,7 +232,20 @@ class NeuroSymbolicController:
                     "degraded-mode operation."
                 )
         else:
-            self._runtime_backend = "rust" if rust_eligible else "numpy"
+            if rust_eligible:
+                self._runtime_backend = "rust"
+            elif self._allow_runtime_backend_fallback:
+                self._runtime_backend = "numpy"
+            else:
+                raise RuntimeError(
+                    "runtime_backend='auto' could not select Rust SCPN runtime "
+                    "(unavailable or below rust_backend_min_problem_size). "
+                    "Install scpn_control_rs, lower rust_backend_min_problem_size, "
+                    "use runtime_backend='numpy', or set "
+                    "allow_runtime_backend_fallback=True and "
+                    "allow_legacy_runtime_backend_fallback=True for explicit "
+                    "degraded-mode operation."
+                )
         produced_feature_keys = set(self._axis_pos_keys)
         produced_feature_keys.update(self._axis_neg_keys)
         passthrough_sources: list[str] = []
