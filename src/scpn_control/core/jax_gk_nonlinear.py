@@ -49,11 +49,30 @@ class JaxNonlinearGKSolver:
     for RK4 memory efficiency.  Falls back to NumPy when JAX is absent.
     """
 
-    def __init__(self, config: NonlinearGKConfig | None = None):
+    def __init__(
+        self,
+        config: NonlinearGKConfig | None = None,
+        *,
+        allow_numpy_fallback: bool = False,
+        allow_legacy_numpy_fallback: bool = False,
+    ):
+        if allow_numpy_fallback and not allow_legacy_numpy_fallback:
+            raise ValueError(
+                "allow_numpy_fallback=True requires allow_legacy_numpy_fallback=True; "
+                "legacy NumPy fallback is disabled by default."
+            )
         self.cfg = config or NonlinearGKConfig()
+        self._allow_numpy_fallback = bool(allow_numpy_fallback)
+        self._allow_legacy_numpy_fallback = bool(allow_legacy_numpy_fallback)
         self._np_solver = NonlinearGKSolver(self.cfg)
         if _HAS_JAX:
             self._compile_kernels()
+        elif not self._allow_numpy_fallback:
+            raise RuntimeError(
+                "JAX nonlinear GK solver requested but JAX is unavailable. "
+                "Install JAX or set allow_numpy_fallback=True and "
+                "allow_legacy_numpy_fallback=True for explicit degraded-mode operation."
+            )
 
     def _compile_kernels(self) -> None:
         self._kx_j = jnp.array(self._np_solver.kx)
@@ -354,6 +373,11 @@ class JaxNonlinearGKSolver:
 
     def run(self, state: NonlinearGKState | None = None) -> NonlinearGKResult:
         if not _HAS_JAX:
+            if not self._allow_numpy_fallback:
+                raise RuntimeError(
+                    "JAX nonlinear GK solver run requested but JAX is unavailable and "
+                    "legacy NumPy fallback is disabled."
+                )
             _logger.info("JAX unavailable, falling back to NumPy solver")
             return self._np_solver.run(state)
 

@@ -157,7 +157,19 @@ def test_nonlinear_jax_gk_numpy_fallback():
     cfg = NonlinearGKConfig(n_steps=2, save_interval=1)
 
     with mock.patch.object(nl_mod, "_HAS_JAX", False):
-        solver = nl_mod.JaxNonlinearGKSolver(cfg)
+        with pytest.raises(ValueError, match="allow_legacy_numpy_fallback=True"):
+            nl_mod.JaxNonlinearGKSolver(
+                cfg,
+                allow_numpy_fallback=True,
+                allow_legacy_numpy_fallback=False,
+            )
+        with pytest.raises(RuntimeError, match="JAX nonlinear GK solver requested"):
+            nl_mod.JaxNonlinearGKSolver(cfg)
+        solver = nl_mod.JaxNonlinearGKSolver(
+            cfg,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
         result = solver.run()
 
     assert result.chi_i_gB >= 0.0
@@ -169,6 +181,10 @@ def test_nonlinear_jax_kinetic_electrons():
     """JAX solver with kinetic_electrons=True exercises the electron field solve."""
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
+    import scpn_control.core.jax_gk_nonlinear as nl_mod
+
+    if not nl_mod.jax_available():
+        pytest.skip("JAX not installed; strict JAX solver path required.")
 
     cfg = NonlinearGKConfig(
         n_kx=8,
@@ -194,6 +210,10 @@ def test_nonlinear_jax_electromagnetic():
     """JAX solver with electromagnetic=True exercises Ampere solve and EM gradient drive."""
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
+    import scpn_control.core.jax_gk_nonlinear as nl_mod
+
+    if not nl_mod.jax_available():
+        pytest.skip("JAX not installed; strict JAX solver path required.")
 
     cfg = NonlinearGKConfig(
         n_kx=8,
