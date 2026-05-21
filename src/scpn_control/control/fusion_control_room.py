@@ -187,8 +187,12 @@ def _render_outputs(
     output_report: str,
 ) -> tuple[bool, str | None, bool, str | None]:
     if not HAS_MPL or "plt" not in globals():
-        raise RuntimeError(
-            "Report export failed: output rendering requires matplotlib; install optional plotting dependencies."
+        missing_backend = "output rendering requires matplotlib; install optional plotting dependencies."
+        return (
+            False,
+            missing_backend if save_animation else None,
+            False,
+            missing_backend if save_report else None,
         )
 
     fig = plt.figure(figsize=(12, 8), facecolor="#1e1e1e")
