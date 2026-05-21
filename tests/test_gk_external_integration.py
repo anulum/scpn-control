@@ -132,6 +132,29 @@ def test_external_gk_fallback_on_exception(solver_config, neo_params):
         ts.update_transport_model(P_aux=0.0)
 
 
+def test_external_gk_invalid_converged_flux_fails_closed(solver_config, neo_params):
+    """Converged external GK result with invalid flux values fails closed by default."""
+    from scpn_control.core.integrated_transport_solver import TransportSolver
+
+    ts = TransportSolver(solver_config, transport_model="external_gk")
+    ts.neoclassical_params = neo_params
+    ts.Te = 10.0 * (1 - ts.rho**2)
+    ts.Ti = 9.0 * (1 - ts.rho**2)
+    ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+
+    mock_solver = MagicMock()
+    mock_solver.run_from_params.return_value = GKOutput(
+        chi_i=np.nan,
+        chi_e=1.0,
+        D_e=0.1,
+        converged=True,
+    )
+    ts._gk_solver = mock_solver
+
+    with pytest.raises(RuntimeError, match="unconverged transport"):
+        ts.update_transport_model(P_aux=0.0)
+
+
 def test_external_gk_legacy_fallback_opt_in(solver_config, neo_params):
     """Legacy gyro-Bohm fallback remains available only by explicit opt-in."""
     from scpn_control.core.integrated_transport_solver import TransportSolver
@@ -153,6 +176,35 @@ def test_external_gk_legacy_fallback_opt_in(solver_config, neo_params):
         chi_e=0.0,
         D_e=0.0,
         converged=False,
+    )
+    ts._gk_solver = mock_solver
+
+    ts.update_transport_model(P_aux=0.0)
+    assert np.all(np.isfinite(ts.chi_i))
+    assert np.all(ts.chi_i > 0)
+
+
+def test_external_gk_invalid_converged_flux_legacy_fallback_opt_in(solver_config, neo_params):
+    """Legacy fallback can absorb invalid converged external GK values only with explicit opt-in."""
+    from scpn_control.core.integrated_transport_solver import TransportSolver
+
+    ts = TransportSolver(
+        solver_config,
+        transport_model="external_gk",
+        external_gk_allow_gyrobohm_fallback=True,
+        allow_legacy_approximations=True,
+    )
+    ts.neoclassical_params = neo_params
+    ts.Te = 10.0 * (1 - ts.rho**2)
+    ts.Ti = 9.0 * (1 - ts.rho**2)
+    ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+
+    mock_solver = MagicMock()
+    mock_solver.run_from_params.return_value = GKOutput(
+        chi_i=np.inf,
+        chi_e=-1.0,
+        D_e=np.nan,
+        converged=True,
     )
     ts._gk_solver = mock_solver
 

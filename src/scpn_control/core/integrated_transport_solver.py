@@ -643,10 +643,19 @@ class TransportSolver(FusionKernel):
                 result = None
 
             if result is not None and result.converged:
-                chi_i_out[i] = max(result.chi_i, 0.01)
-                chi_e_out[i] = max(result.chi_e, 0.01)
-                D_e_out[i] = max(result.D_e, 0.001)
-                continue
+                fluxes_are_valid = (
+                    np.isfinite(result.chi_i)
+                    and np.isfinite(result.chi_e)
+                    and np.isfinite(result.D_e)
+                    and result.chi_i >= 0.0
+                    and result.chi_e >= 0.0
+                    and result.D_e >= 0.0
+                )
+                if fluxes_are_valid:
+                    chi_i_out[i] = max(result.chi_i, 0.01)
+                    chi_e_out[i] = max(result.chi_e, 0.01)
+                    D_e_out[i] = max(result.D_e, 0.001)
+                    continue
 
             if not (self.external_gk_allow_gyrobohm_fallback and self.allow_legacy_approximations):
                 raise RuntimeError(
@@ -740,10 +749,19 @@ class TransportSolver(FusionKernel):
 
             result = solver.run_from_params(params)
             if result.converged:
-                chi_i_out[i] = max(result.chi_i, 0.01)
-                chi_e_out[i] = max(result.chi_e, 0.01)
-                D_e_out[i] = max(result.D_e, 0.001)
-                continue
+                fluxes_are_valid = (
+                    np.isfinite(result.chi_i)
+                    and np.isfinite(result.chi_e)
+                    and np.isfinite(result.D_e)
+                    and result.chi_i >= 0.0
+                    and result.chi_e >= 0.0
+                    and result.D_e >= 0.0
+                )
+                if fluxes_are_valid:
+                    chi_i_out[i] = max(result.chi_i, 0.01)
+                    chi_e_out[i] = max(result.chi_e, 0.01)
+                    D_e_out[i] = max(result.D_e, 0.001)
+                    continue
 
             if not (self.tglf_native_allow_gyrobohm_fallback and self.allow_legacy_approximations):
                 raise RuntimeError(
