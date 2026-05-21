@@ -13,7 +13,7 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Optional JAX-traceable control-loop utilities with NumPy fallback."""
+"""Optional JAX-traceable control-loop utilities."""
 
 from __future__ import annotations
 
@@ -110,15 +110,32 @@ def _validate_batch_commands(commands: FloatArray) -> None:
         raise ValueError("commands must contain only finite values.")
 
 
-def _resolve_backend(backend: str) -> str:
+def _resolve_backend(
+    backend: str,
+    *,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
+) -> str:
     b = str(backend).strip().lower()
     if b not in {"auto", "numpy", "jax", "torchscript"}:
         raise ValueError("backend must be one of: auto, numpy, jax, torchscript.")
+    if allow_numpy_fallback and not allow_legacy_numpy_fallback:
+        raise ValueError(
+            "allow_numpy_fallback=True requires allow_legacy_numpy_fallback=True; "
+            "legacy NumPy auto-backend fallback is disabled by default."
+        )
     if b == "auto":
         if _HAS_JAX:
             return "jax"
         if _HAS_TORCH:
             return "torchscript"
+        if not allow_numpy_fallback:
+            raise RuntimeError(
+                "No compiled backend is available for backend='auto'. "
+                "Set backend='numpy' explicitly or set "
+                "allow_numpy_fallback=True and allow_legacy_numpy_fallback=True "
+                "for explicit degraded-mode operation."
+            )
         return "numpy"
     return b
 
@@ -335,6 +352,8 @@ def run_traceable_control_loop(
     initial_state: float = 0.0,
     spec: TraceableRuntimeSpec | None = None,
     backend: str = "auto",
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
 ) -> TraceableRuntimeResult:
     """
     Run a reduced control loop suitable for optional JAX tracing/JIT.
@@ -349,7 +368,11 @@ def run_traceable_control_loop(
     runtime_spec = spec if spec is not None else TraceableRuntimeSpec()
     _validate_spec(runtime_spec)
 
-    b = _resolve_backend(backend)
+    b = _resolve_backend(
+        backend,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+    )
 
     if b == "jax":
         return TraceableRuntimeResult(
@@ -378,6 +401,8 @@ def run_traceable_control_batch(
     initial_state: FloatArray | float | None = None,
     spec: TraceableRuntimeSpec | None = None,
     backend: str = "auto",
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
 ) -> TraceableRuntimeBatchResult:
     """
     Run batched reduced control loops with optional JAX/TorchScript backends.
@@ -403,7 +428,11 @@ def run_traceable_control_batch(
 
     runtime_spec = spec if spec is not None else TraceableRuntimeSpec()
     _validate_spec(runtime_spec)
-    b = _resolve_backend(backend)
+    b = _resolve_backend(
+        backend,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+    )
 
     if b == "jax":
         return TraceableRuntimeBatchResult(

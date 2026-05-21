@@ -111,9 +111,27 @@ class TestResolveBackend:
     def test_numpy(self):
         assert _resolve_backend("numpy") == "numpy"
 
-    def test_auto_picks_something(self):
-        b = _resolve_backend("auto")
-        assert b in {"numpy", "jax", "torchscript"}
+    def test_auto_without_compiled_backends_requires_explicit_opt_in(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_JAX", False)
+        monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_TORCH", False)
+        with pytest.raises(RuntimeError, match="Set backend='numpy' explicitly"):
+            _resolve_backend("auto")
+
+    def test_auto_numpy_legacy_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_numpy_fallback=True"):
+            _resolve_backend("auto", allow_numpy_fallback=True)
+
+    def test_auto_numpy_legacy_fallback_opt_in(self, monkeypatch):
+        monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_JAX", False)
+        monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_TORCH", False)
+        assert (
+            _resolve_backend(
+                "auto",
+                allow_numpy_fallback=True,
+                allow_legacy_numpy_fallback=True,
+            )
+            == "numpy"
+        )
 
     def test_invalid_raises(self):
         with pytest.raises(ValueError, match="backend must be"):
@@ -194,8 +212,20 @@ class TestRunTraceableControlLoop:
 
     def test_auto_backend(self):
         cmd = np.ones(32)
-        result = run_traceable_control_loop(cmd, backend="auto")
+        result = run_traceable_control_loop(
+            cmd,
+            backend="auto",
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
         assert result.backend_used in {"numpy", "jax", "torchscript"}
+
+    def test_auto_backend_fails_closed_without_compiled_backends(self, monkeypatch):
+        cmd = np.ones(32)
+        monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_JAX", False)
+        monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_TORCH", False)
+        with pytest.raises(RuntimeError, match="No compiled backend is available"):
+            run_traceable_control_loop(cmd, backend="auto")
 
     def test_nonfinite_initial_state_raises(self):
         with pytest.raises(ValueError, match="initial_state"):
@@ -278,6 +308,13 @@ class TestRunTraceableControlBatch:
                 initial_state=np.array([0.0, float("nan")]),
                 backend="numpy",
             )
+
+    def test_auto_backend_batch_fails_closed_without_compiled_backends(self, monkeypatch):
+        cmd = np.ones((2, 16))
+        monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_JAX", False)
+        monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_TORCH", False)
+        with pytest.raises(RuntimeError, match="No compiled backend is available"):
+            run_traceable_control_batch(cmd, backend="auto")
 
 
 # ── Backend parity ───────────────────────────────────────────────────
