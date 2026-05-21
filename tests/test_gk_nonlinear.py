@@ -604,14 +604,22 @@ class TestJaxFallback:
     def test_jax_solver_import(self):
         from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
 
-        solver = JaxNonlinearGKSolver(_FAST_CFG)
-        # Should work regardless of JAX availability
+        solver = JaxNonlinearGKSolver(
+            _FAST_CFG,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
+        # Should work regardless of JAX availability when explicit fallback is enabled.
         assert solver._np_solver is not None
 
     def test_jax_solver_runs(self):
         from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
 
-        solver = JaxNonlinearGKSolver(_FAST_CFG)
+        solver = JaxNonlinearGKSolver(
+            _FAST_CFG,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
         result = solver.run()
         assert result.converged or len(result.Q_i_t) > 0
         assert np.all(np.isfinite(result.Q_i_t))
