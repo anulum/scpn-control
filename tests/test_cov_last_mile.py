@@ -28,7 +28,7 @@ class TestNeuralTransportWeightLoadException:
 
         model = NeuralTransportModel(auto_discover=False)
         model.weights_path = corrupt
-        model._try_load_weights()
+        model._try_load_weights(strict=False)
         assert model._weights is None
 
 
