@@ -18,14 +18,29 @@ import pytest
 
 
 class TestTraceableAutoFallbackChain:
-    """Lines 111-113: auto resolves through jax → torch → numpy."""
+    """Lines 111-113: auto resolves through jax → torch → explicit fallback."""
 
     def test_auto_falls_to_numpy_when_no_jax_no_torch(self, monkeypatch):
         import scpn_control.control.jax_traceable_runtime as mod
 
         monkeypatch.setattr(mod, "_HAS_JAX", False)
         monkeypatch.setattr(mod, "_HAS_TORCH", False)
-        assert mod._resolve_backend("auto") == "numpy"
+        with pytest.raises(RuntimeError, match="No compiled backend is available"):
+            mod._resolve_backend("auto")
+
+    def test_auto_falls_to_numpy_when_no_jax_no_torch_with_explicit_legacy_opt_in(self, monkeypatch):
+        import scpn_control.control.jax_traceable_runtime as mod
+
+        monkeypatch.setattr(mod, "_HAS_JAX", False)
+        monkeypatch.setattr(mod, "_HAS_TORCH", False)
+        assert (
+            mod._resolve_backend(
+                "auto",
+                allow_numpy_fallback=True,
+                allow_legacy_numpy_fallback=True,
+            )
+            == "numpy"
+        )
 
     def test_auto_falls_to_torch_when_no_jax(self, monkeypatch):
         import scpn_control.control.jax_traceable_runtime as mod
