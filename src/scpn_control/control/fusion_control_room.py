@@ -396,6 +396,7 @@ def run_control_room(
             kernel_error = str(exc)
             psi_source = "analytic"
             reactor.kernel = None
+            kernel = None
     sensors = DiagnosticSystem(rng=rng)
     ai = NeuralController()
 
@@ -448,7 +449,7 @@ def run_control_room(
         if kernel is not None:
             try:
                 solve_kernel(kernel)
-            except (RuntimeError, np.linalg.LinAlgError) as exc:
+            except (RuntimeError, np.linalg.LinAlgError, AttributeError) as exc:
                 if not allow_runtime_solve_fallback:
                     raise RuntimeError(
                         "Runtime equilibrium solve failed and legacy runtime fallback is disabled. "
