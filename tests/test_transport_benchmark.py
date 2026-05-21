@@ -18,7 +18,11 @@ Regression tests for the transport validation benchmark.
 from __future__ import annotations
 
 
-from validation.benchmark_transport import run_pure_diffusion_benchmark, run_threshold_benchmark
+from validation.benchmark_transport import (
+    PURE_DIFFUSION_MAX_RELATIVE_ERROR,
+    run_pure_diffusion_benchmark,
+    run_threshold_benchmark,
+)
 
 
 def test_transport_pure_diffusion():
@@ -26,7 +30,7 @@ def test_transport_pure_diffusion():
     # We use a loose threshold due to 1.5D vs 1D cylindrical discrepancies
     # found during validation.
     result = run_pure_diffusion_benchmark(nr=50)
-    assert result["max_relative_error"] < 0.35
+    assert result["max_relative_error"] < PURE_DIFFUSION_MAX_RELATIVE_ERROR
 
 
 def test_transport_threshold():

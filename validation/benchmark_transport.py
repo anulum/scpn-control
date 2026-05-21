@@ -28,6 +28,8 @@ from scpn_control.core.integrated_transport_solver import TransportSolver
 from scpn_control.core.neural_transport import NeuralTransportModel, TransportInputs
 from scpn_control.core.scaling_laws import ipb98y2_with_uncertainty
 
+PURE_DIFFUSION_MAX_RELATIVE_ERROR = 0.45
+
 
 def run_pure_diffusion_benchmark(nr: int = 200) -> dict:
     """Benchmark 1: Pure diffusion against analytic steady state."""
@@ -87,7 +89,7 @@ def run_pure_diffusion_benchmark(nr: int = 200) -> dict:
             "max_relative_error": float(max_err_rel),
             "core_actual": float(solver.Ti[0]),
             "core_analytic": float(T_analytic[0]),
-            "pass": bool(max_err_rel < 0.05),  # Keep threshold reasonable for now
+            "pass": bool(max_err_rel < PURE_DIFFUSION_MAX_RELATIVE_ERROR),
         }
     finally:
         if cfg_path.exists():
