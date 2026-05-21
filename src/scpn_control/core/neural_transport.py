@@ -384,7 +384,7 @@ class NeuralTransportModel:
                 version,
                 self.weights_checksum,
             )
-        except (OSError, KeyError, TypeError):
+        except (OSError, KeyError, TypeError, ValueError):
             if strict and not self._allow_weight_load_fallback:
                 raise RuntimeError(
                     "Failed to load explicit neural transport weights. "
