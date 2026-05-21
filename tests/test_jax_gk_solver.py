@@ -206,7 +206,12 @@ def test_nonlinear_jax_kinetic_electrons():
         cfl_adapt=False,
         dt=0.01,
     )
-    solver = JaxNonlinearGKSolver(cfg)
+    try:
+        solver = JaxNonlinearGKSolver(cfg)
+    except RuntimeError as exc:
+        if "JAX nonlinear GK solver requested but JAX is unavailable" in str(exc):
+            pytest.skip("JAX runtime unavailable; strict JAX solver path required.")
+        raise
     result = solver.run()
 
     assert np.all(np.isfinite(result.Q_i_t))
@@ -236,7 +241,12 @@ def test_nonlinear_jax_electromagnetic():
         cfl_adapt=False,
         dt=0.01,
     )
-    solver = JaxNonlinearGKSolver(cfg)
+    try:
+        solver = JaxNonlinearGKSolver(cfg)
+    except RuntimeError as exc:
+        if "JAX nonlinear GK solver requested but JAX is unavailable" in str(exc):
+            pytest.skip("JAX runtime unavailable; strict JAX solver path required.")
+        raise
     result = solver.run()
 
     assert result.final_state is not None
@@ -304,7 +314,12 @@ def test_nonlinear_jax_kinetic_electrons_em():
         cfl_adapt=False,
         dt=0.01,
     )
-    solver = JaxNonlinearGKSolver(cfg)
+    try:
+        solver = JaxNonlinearGKSolver(cfg)
+    except RuntimeError as exc:
+        if "JAX nonlinear GK solver requested but JAX is unavailable" in str(exc):
+            pytest.skip("JAX runtime unavailable; strict JAX solver path required.")
+        raise
     result = solver.run()
 
     assert result.final_state is not None
