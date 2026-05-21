@@ -14,7 +14,7 @@ import json
 import sys
 import types
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -118,7 +118,11 @@ def test_eped_pedestal_hmode_path(cfg: Path):
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
 
         chi_e_before = ts.chi_e.copy()
-        ts.update_transport_model(50.0)  # high-power case for Martin-threshold H-mode
+        with patch(
+            "scpn_control.core.lh_transition.MartinThreshold.power_threshold_with_low_density_branch_MW",
+            return_value=0.0,
+        ):
+            ts.update_transport_model(50.0)
         mock_eped_cls.assert_called_once()
         # Pedestal suppression applied: edge chi should differ
         assert not np.allclose(ts.chi_e, chi_e_before)
