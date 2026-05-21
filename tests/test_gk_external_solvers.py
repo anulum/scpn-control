@@ -151,7 +151,14 @@ def test_qualikiz_unavailable(cbc_params, tmp_path):
 
     solver = QuaLiKizSolver(work_dir=tmp_path)
     # qualikiz_tools not installed → not available
-    result = solver.run_from_params(cbc_params)
+    with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
+        solver.run_from_params(cbc_params)
+
+    with pytest.raises(ValueError, match="allow_legacy_fallback=True"):
+        QuaLiKizSolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=False)
+
+    solver_legacy = QuaLiKizSolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
+    result = solver_legacy.run_from_params(cbc_params)
     assert not result.converged
 
 
