@@ -279,6 +279,24 @@ def test_gene_run_subprocess_failure(cbc_params, tmp_path):
     assert not result.converged
 
 
+def test_gene_run_without_converged_output_requires_explicit_fallback(cbc_params, tmp_path):
+    from unittest.mock import patch
+
+    from scpn_control.core.gk_gene import GENESolver
+
+    solver = GENESolver(work_dir=tmp_path)
+    solver.prepare_input(cbc_params)
+    with patch("shutil.which", return_value="/usr/bin/gene"), patch("subprocess.run", return_value=None):
+        with pytest.raises(RuntimeError, match="without converged output"):
+            solver.run(tmp_path)
+
+    solver_legacy = GENESolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
+    solver_legacy.prepare_input(cbc_params)
+    with patch("shutil.which", return_value="/usr/bin/gene"), patch("subprocess.run", return_value=None):
+        result = solver_legacy.run(tmp_path)
+    assert not result.converged
+
+
 def test_gs2_parse_error(tmp_path):
     """Cover gk_gs2.py lines 100-101: corrupt omega file."""
     from scpn_control.core.gk_gs2 import parse_gs2_output
@@ -304,6 +322,24 @@ def test_gs2_run_subprocess_failure(cbc_params, tmp_path):
     solver_legacy = GS2Solver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
     solver_legacy.prepare_input(cbc_params)
     with patch("shutil.which", return_value="/usr/bin/gs2"), patch("subprocess.run", side_effect=FileNotFoundError):
+        result = solver_legacy.run(tmp_path)
+    assert not result.converged
+
+
+def test_gs2_run_without_converged_output_requires_explicit_fallback(cbc_params, tmp_path):
+    from unittest.mock import patch
+
+    from scpn_control.core.gk_gs2 import GS2Solver
+
+    solver = GS2Solver(work_dir=tmp_path)
+    solver.prepare_input(cbc_params)
+    with patch("shutil.which", return_value="/usr/bin/gs2"), patch("subprocess.run", return_value=None):
+        with pytest.raises(RuntimeError, match="without converged output"):
+            solver.run(tmp_path)
+
+    solver_legacy = GS2Solver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
+    solver_legacy.prepare_input(cbc_params)
+    with patch("shutil.which", return_value="/usr/bin/gs2"), patch("subprocess.run", return_value=None):
         result = solver_legacy.run(tmp_path)
     assert not result.converged
 
@@ -335,3 +371,21 @@ def test_qualikiz_python_api_path(cbc_params, tmp_path):
         solver.prepare_input(cbc_params)
         out = solver.run(tmp_path)
         assert out.converged
+
+
+def test_cgyro_run_without_converged_output_requires_explicit_fallback(cbc_params, tmp_path):
+    from unittest.mock import patch
+
+    from scpn_control.core.gk_cgyro import CGYROSolver
+
+    solver = CGYROSolver(work_dir=tmp_path)
+    solver.prepare_input(cbc_params)
+    with patch("shutil.which", return_value="/usr/bin/cgyro"), patch("subprocess.run", return_value=None):
+        with pytest.raises(RuntimeError, match="without converged output"):
+            solver.run(tmp_path)
+
+    solver_legacy = CGYROSolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
+    solver_legacy.prepare_input(cbc_params)
+    with patch("shutil.which", return_value="/usr/bin/cgyro"), patch("subprocess.run", return_value=None):
+        result = solver_legacy.run(tmp_path)
+    assert not result.converged
