@@ -38,7 +38,8 @@ def small_grid_params():
 
 
 def test_has_jax():
-    assert has_jax() is True
+    assert isinstance(has_jax(), bool)
+    assert has_jax() is _HAS_JAX
 
 
 @pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
