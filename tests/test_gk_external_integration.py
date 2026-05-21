@@ -92,7 +92,7 @@ def test_external_gk_mode_with_mock_solver(solver_config, neo_params):
 
 
 def test_external_gk_fallback_on_unconverged(solver_config, neo_params):
-    """Unconverged GK results fall back to gyro-Bohm."""
+    """Unconverged GK results fail closed by default."""
     from scpn_control.core.integrated_transport_solver import TransportSolver
 
     ts = TransportSolver(solver_config, transport_model="external_gk")
@@ -110,15 +110,12 @@ def test_external_gk_fallback_on_unconverged(solver_config, neo_params):
     )
     ts._gk_solver = mock_solver
 
-    ts.update_transport_model(P_aux=0.0)
-
-    # Should still produce finite positive chi from fallback
-    assert np.all(np.isfinite(ts.chi_i))
-    assert np.all(ts.chi_i > 0)
+    with pytest.raises(RuntimeError, match="unconverged transport"):
+        ts.update_transport_model(P_aux=0.0)
 
 
 def test_external_gk_fallback_on_exception(solver_config, neo_params):
-    """Exception in GK solver falls back to gyro-Bohm."""
+    """Exception in GK solver fails closed by default."""
     from scpn_control.core.integrated_transport_solver import TransportSolver
 
     ts = TransportSolver(solver_config, transport_model="external_gk")
@@ -131,8 +128,34 @@ def test_external_gk_fallback_on_exception(solver_config, neo_params):
     mock_solver.run_from_params.side_effect = RuntimeError("solver crashed")
     ts._gk_solver = mock_solver
 
-    ts.update_transport_model(P_aux=0.0)
+    with pytest.raises(RuntimeError, match="solver execution failed"):
+        ts.update_transport_model(P_aux=0.0)
 
+
+def test_external_gk_legacy_fallback_opt_in(solver_config, neo_params):
+    """Legacy gyro-Bohm fallback remains available only by explicit opt-in."""
+    from scpn_control.core.integrated_transport_solver import TransportSolver
+
+    ts = TransportSolver(
+        solver_config,
+        transport_model="external_gk",
+        external_gk_allow_gyrobohm_fallback=True,
+    )
+    ts.neoclassical_params = neo_params
+    ts.Te = 10.0 * (1 - ts.rho**2)
+    ts.Ti = 9.0 * (1 - ts.rho**2)
+    ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+
+    mock_solver = MagicMock()
+    mock_solver.run_from_params.return_value = GKOutput(
+        chi_i=0.0,
+        chi_e=0.0,
+        D_e=0.0,
+        converged=False,
+    )
+    ts._gk_solver = mock_solver
+
+    ts.update_transport_model(P_aux=0.0)
     assert np.all(np.isfinite(ts.chi_i))
     assert np.all(ts.chi_i > 0)
 

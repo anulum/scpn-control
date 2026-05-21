@@ -55,6 +55,7 @@ def solver(tmp_path: Path) -> TransportSolver:
     ts.Ti = 5.0 * (1 - ts.rho**2)
     ts.Te = ts.Ti.copy()
     ts.ne = 5.0 * (1 - ts.rho**2) ** 0.5
+    ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
     ts.update_transport_model(50.0)
     return ts
 

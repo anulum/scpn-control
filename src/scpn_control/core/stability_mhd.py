@@ -407,18 +407,25 @@ def ntm_stability(
     a: float,
     r_s_delta_prime: float = -2.0,
 ) -> NTMResult:
-    r"""Simplified neoclassical tearing mode (NTM) seeding analysis.
+    r"""Neoclassical tearing mode (NTM) seeding analysis from profile drives.
 
-    The modified Rutherford equation for island width *w* is (simplified):
+    The modified Rutherford equation for island width *w* is:
 
     .. math::
         \tau_R\,\frac{dw}{dt}
             = r_s\,\Delta'(w)
             + \frac{j_\text{bs}}{j_\phi}\,\frac{a}{w}
 
-    The first term is classically stabilising when
-    :math:`r_s \Delta' < 0`.  The second term is the bootstrap-current
-    drive that destabilises the island once seeded.
+    The first term is classically stabilising when :math:`r_s \Delta' < 0`.
+    The second term is the bootstrap-current drive that destabilises the
+    island once seeded. In this reduced stability scan, the bootstrap drive is
+    weighted by local magnetic shear and pressure-gradient proxies from
+    ``QProfile``:
+
+    .. math::
+        D_\mathrm{eff} = \frac{j_\mathrm{bs}}{j_\phi}
+            \left(1 + C_\alpha \frac{\alpha}{1+\alpha}\right)
+            \frac{1}{1 + C_s |s|}
 
     An NTM is potentially unstable at a given radius when the
     bootstrap drive exceeds the classical stabilisation.  The marginal
@@ -451,22 +458,26 @@ def ntm_stability(
     j_total_safe = np.where(np.abs(j_total) > 1e-6, j_total, 1e-6)
     j_bs_frac = j_bs / j_total_safe  # bootstrap fraction
 
-    # delta_prime array: here we use a uniform classical index along the
-    # profile as a simplification.  A full tearing-mode code would solve
-    # the outer-region equation at each rational surface.
+    # Classical Δ' baseline across profile (negative = classically stable).
     delta_prime = np.full_like(qp.rho, r_s_delta_prime)
 
-    # Bootstrap drive strength
-    j_bs_drive = j_bs_frac.copy()
+    # Profile-weighted bootstrap drive:
+    # - Lower magnetic shear reduces field-line bending stabilisation.
+    # - Higher alpha_MHD increases pressure-driven tearing tendency.
+    c_alpha = 0.75
+    c_shear = 1.0
+    alpha_weight = 1.0 + c_alpha * (qp.alpha_mhd / (1.0 + qp.alpha_mhd))
+    shear_weight = 1.0 / (1.0 + c_shear * np.abs(qp.shear))
+    j_bs_drive = j_bs_frac * alpha_weight * shear_weight
 
     # Marginal island width: w_marg = -(j_bs/j_phi) * a / (r_s * Delta')
     # Only meaningful where delta_prime < 0 (classically stable baseline).
     denom = np.where(np.abs(delta_prime) > 1e-10, delta_prime, -1e-10)
-    w_marginal = -j_bs_frac * a / denom
+    w_marginal = -j_bs_drive * a / denom
     w_marginal = np.maximum(w_marginal, 0.0)  # physical: width >= 0
 
     # NTM unstable where bootstrap drives a positive marginal width
-    ntm_unstable = (w_marginal > 0.0) & (j_bs_frac > 0.0) & (delta_prime < 0.0)
+    ntm_unstable = (w_marginal > 0.0) & (j_bs_drive > 0.0) & (delta_prime < 0.0)
 
     most_unstable_rho: float | None = None
     if np.any(ntm_unstable):

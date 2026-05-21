@@ -465,9 +465,10 @@ def test_scenario_sawtooth_crash():
     assert sim.n_crashes >= 1
 
 
-# ── integrated_transport_solver.py:703-705 ───────────────────────────────────
+# ── integrated_transport_solver.py unconverged GK branches ───────────────────
 
-# integrated_transport_solver.py:703-705 — covered by pragma (requires unconverged GK solver)
+# Unconverged external/native GK branches are covered in
+# tests/test_integrated_transport_solver.py fail-closed tests.
 
 
 # ── jax_gk_nonlinear.py — JAX-dependent, skip if unavailable ────────────────

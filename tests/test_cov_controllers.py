@@ -180,6 +180,25 @@ class TestTransportSolverSauterDispatch:
         j_bs = solver.calculate_bootstrap_current(6.2, B_pol)
         assert j_bs.shape == solver.rho.shape
 
+    def test_fail_closed_without_neoclassical_params(self):
+        from scpn_control.core.integrated_transport_solver import TransportSolver
+
+        cfg_path = _write_iter_config()
+        solver = TransportSolver(cfg_path)
+        B_pol = np.full_like(solver.rho, 0.5)
+        with pytest.raises(RuntimeError, match="neoclassical transport configuration is required"):
+            solver.calculate_bootstrap_current(6.2, B_pol)
+
+    def test_legacy_simplified_bootstrap_opt_in(self):
+        from scpn_control.core.integrated_transport_solver import TransportSolver
+
+        cfg_path = _write_iter_config()
+        solver = TransportSolver(cfg_path, allow_simplified_bootstrap_fallback=True)
+        B_pol = np.full_like(solver.rho, 0.5)
+        j_bs = solver.calculate_bootstrap_current(6.2, B_pol)
+        assert j_bs.shape == solver.rho.shape
+        assert np.all(np.isfinite(j_bs))
+
 
 class TestTransportSolverGyroBohm:
     def test_explicit_c_gB(self):

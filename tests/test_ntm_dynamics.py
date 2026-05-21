@@ -181,23 +181,37 @@ def test_ggj_delta_prime():
 
 
 def test_sauter_bootstrap_vs_direct():
-    """bootstrap_from_local and direct j_bs agree within 20%.
+    """Local full-Sauter bootstrap agrees with profile Sauter evaluation."""
+    from scpn_control.core.neoclassical import sauter_bootstrap
 
-    For a typical ITER-like surface: ε=0.3, p'=-5e4 Pa/m, B_pol=0.3 T, L31≈0.3.
-    Both paths use Sauter 1999, Eq. 14.
-    """
-    pressure_gradient = -5e4  # Pa/m
-    epsilon = 0.3
-    B_pol = 0.3  # T
-    L31 = 0.3  # Sauter 1999, Eq. 14 coefficient (typical banana regime)
+    rho = np.linspace(0.2, 0.8, 7)
+    q = 1.0 + 2.0 * rho**2
+    Te = 8.0 * (1.0 - 0.6 * rho**2)
+    Ti = 7.0 * (1.0 - 0.5 * rho**2)
+    ne = 9.0 * (1.0 - 0.4 * rho**2)
 
-    j_bs_computed = bootstrap_from_local(pressure_gradient, epsilon, B_pol, L31)
+    i = 3
+    dr = rho[1] - rho[0]
+    j_local = bootstrap_from_local(
+        ne_19=float(ne[i]),
+        Te_keV=float(Te[i]),
+        Ti_keV=float(Ti[i]),
+        q=float(q[i]),
+        rho=float(rho[i]),
+        R0=6.2,
+        a=2.0,
+        B0=5.3,
+        z_eff=1.5,
+        dne_dr=float(np.gradient(ne, dr)[i] / 2.0),
+        dTe_dr=float(np.gradient(Te, dr)[i] / 2.0),
+        dTi_dr=float(np.gradient(Ti, dr)[i] / 2.0),
+    )
 
-    # Direct formula: j_bs = -ε^0.5 * p' * L31 / B_pol
-    j_bs_direct = -np.sqrt(epsilon) * pressure_gradient * L31 / B_pol
-
-    assert abs(j_bs_computed) > 0.0
-    assert abs(j_bs_computed - j_bs_direct) / max(abs(j_bs_direct), 1.0) < 0.20
+    j_profile = sauter_bootstrap(rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3, z_eff=1.5)[i]
+    assert np.isfinite(j_local)
+    assert np.isfinite(j_profile)
+    assert abs(j_profile) > 0.0
+    assert abs(j_local - j_profile) / max(abs(j_profile), 1.0) < 0.25
 
 
 def test_seed_island_threshold():
@@ -249,9 +263,41 @@ def test_ggj_delta_prime_zero_shear():
 
 
 def test_bootstrap_from_local_edge():
-    """Line 188: bootstrap_from_local returns 0 for tiny B_pol or negative epsilon."""
-    assert bootstrap_from_local(-5e4, 0.3, 1e-11, 0.3) == 0.0
-    assert bootstrap_from_local(-5e4, -0.1, 0.3, 0.3) == 0.0
+    """bootstrap_from_local returns 0 for invalid geometry/state."""
+    assert (
+        bootstrap_from_local(
+            ne_19=8.0,
+            Te_keV=5.0,
+            Ti_keV=5.0,
+            q=2.0,
+            rho=0.5,
+            R0=6.2,
+            a=2.0,
+            B0=1e-12,
+            z_eff=1.5,
+            dne_dr=-1.0,
+            dTe_dr=-1.0,
+            dTi_dr=-1.0,
+        )
+        == 0.0
+    )
+    assert (
+        bootstrap_from_local(
+            ne_19=8.0,
+            Te_keV=5.0,
+            Ti_keV=5.0,
+            q=2.0,
+            rho=-0.1,
+            R0=6.2,
+            a=2.0,
+            B0=5.3,
+            z_eff=1.5,
+            dne_dr=-1.0,
+            dTe_dr=-1.0,
+            dTi_dr=-1.0,
+        )
+        == 0.0
+    )
 
 
 def test_dw_dt_with_rho_theta_i_override():

@@ -40,10 +40,22 @@ class PeelingBallooningBoundary:
         """
         Critical edge current density j_peel.
 
-        Scales as 1/q95 in the simplified single-fluid limit.
-        Snyder et al. 2002, Phys. Plasmas 9, 2037, Eq. 8.
+        Geometry- and mode-aware peeling threshold proxy:
+
+            j_peel,crit ∝ (R0/a) * F(κ, δ) / (q95 * sqrt(n_mode))
+
+        where F(κ, δ) captures edge-shaping stabilisation and ``n_mode``
+        captures reduced stability margin for higher-n peeling harmonics.
+        This keeps the Snyder-type coupled PB scaling structure while
+        avoiding a single-parameter ``1/q95`` closure.
         """
-        j_crit = 1.0e6 / max(self.q95, 2.0)
+        q95 = max(self.q95, 1e-3)
+        n_eff = max(float(n_mode), 1.0)
+        aspect = max(self.R0 / max(self.a, 1e-6), 1.0)
+        shape_factor = (1.0 + self.kappa**2) / (2.0 * max(self.kappa, 1e-6))
+        triangularity_factor = 1.0 + self.delta**2
+        j_ref = 1.0e6
+        j_crit = j_ref * aspect * shape_factor * triangularity_factor / (q95 * np.sqrt(n_eff))
         return float(j_crit)
 
     def ballooning_limit(self, s_edge: float) -> float:

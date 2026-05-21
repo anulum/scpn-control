@@ -144,11 +144,12 @@ class TAEMode:
         Returns |γ_e| (positive damping magnitude).
 
         Rosenbluth & Rutherford 1975, Phys. Rev. Lett. 34, 1428, Eq. 9.
-        Fallback: γ_damp = 0.01 ω when T_e_keV is None (no physics input).
         """
         omega = self.frequency()
         if self.T_e_keV is None:
-            return 0.01 * omega  # Rosenbluth & Rutherford 1975 order-of-magnitude
+            raise ValueError("electron Landau damping requires T_e_keV")
+        if self.T_e_keV <= 0.0:
+            raise ValueError("T_e_keV must be positive for Landau damping")
 
         T_e_J = self.T_e_keV * 1e3 * _E_C  # keV → J
         v_the = np.sqrt(2.0 * T_e_J / _M_E)  # thermal electron speed, m/s
@@ -158,7 +159,7 @@ class TAEMode:
         k_par_abs = abs(k_par)
 
         if k_par_abs < 1e-12 or v_the < 1.0:
-            return 0.01 * omega
+            raise ValueError("invalid k_parallel or thermal speed for Landau damping")
 
         xi = omega / (k_par_abs * v_the)
         # Rosenbluth & Rutherford 1975, Eq. 9
@@ -245,8 +246,10 @@ class AlfvenStabilityAnalysis:
         self,
         continuum: AlfvenContinuum,
         fast_params: FastParticleDrive,
-        T_e_keV: float | None = None,
+        T_e_keV: float = 10.0,
     ):
+        if T_e_keV <= 0.0:
+            raise ValueError("T_e_keV must be positive")
         self.continuum = continuum
         self.fast_params = fast_params
         self.T_e_keV = T_e_keV
@@ -276,7 +279,7 @@ class AlfvenStabilityAnalysis:
                 b_fast = self.fast_params.beta_fast(max(ne_20, 0.1), self.continuum.B0)
                 gamma_drive = self.fast_params.growth_rate(tae, b_fast)
 
-                # Rosenbluth & Rutherford 1975, Eq. 9 (or 0.01ω fallback)
+                # Rosenbluth & Rutherford 1975, Eq. 9
                 gamma_damp = tae.electron_landau_damping()
 
                 gamma_net = gamma_drive - gamma_damp

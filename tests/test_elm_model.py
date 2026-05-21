@@ -154,3 +154,20 @@ def test_elm_power_balance_zero_inputs():
     """Lines 194-195, 209: zero W_ped or f_elm returns 0."""
     assert elm_power_balance_frequency(P_SOL_MW=100.0, W_ped_MJ=0.0, f_elm_fraction=0.1) == 0.0
     assert elm_power_balance_frequency(P_SOL_MW=100.0, W_ped_MJ=100.0, f_elm_fraction=0.0) == 0.0
+
+
+def test_peeling_limit_q95_scaling():
+    """Higher q95 should reduce peeling current threshold."""
+    pb_low_q = PeelingBallooningBoundary(q95=2.5, kappa=1.7, delta=0.3, a=2.0, R0=6.2)
+    pb_high_q = PeelingBallooningBoundary(q95=5.0, kappa=1.7, delta=0.3, a=2.0, R0=6.2)
+    j_low_q = pb_low_q.peeling_limit(j_edge=5e5, n_mode=10)
+    j_high_q = pb_high_q.peeling_limit(j_edge=5e5, n_mode=10)
+    assert j_low_q > j_high_q
+
+
+def test_peeling_limit_mode_scaling():
+    """Higher toroidal mode number lowers peeling stability threshold."""
+    pb = PeelingBallooningBoundary(q95=3.0, kappa=1.7, delta=0.3, a=2.0, R0=6.2)
+    j_n5 = pb.peeling_limit(j_edge=5e5, n_mode=5)
+    j_n20 = pb.peeling_limit(j_edge=5e5, n_mode=20)
+    assert j_n5 > j_n20

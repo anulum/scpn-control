@@ -151,6 +151,62 @@ class TestNTM:
         )
         assert not np.any(result.ntm_unstable)
 
+    def test_higher_shear_reduces_marginal_width(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.ones(n) * 0.5
+        j_total = np.ones(n)
+
+        qp_low_shear = QProfile(
+            rho=iter_like_qprofile.rho,
+            q=iter_like_qprofile.q,
+            shear=np.full(n, 0.2),
+            alpha_mhd=iter_like_qprofile.alpha_mhd,
+            q_min=iter_like_qprofile.q_min,
+            q_min_rho=iter_like_qprofile.q_min_rho,
+            q_edge=iter_like_qprofile.q_edge,
+        )
+        qp_high_shear = QProfile(
+            rho=iter_like_qprofile.rho,
+            q=iter_like_qprofile.q,
+            shear=np.full(n, 2.0),
+            alpha_mhd=iter_like_qprofile.alpha_mhd,
+            q_min=iter_like_qprofile.q_min,
+            q_min_rho=iter_like_qprofile.q_min_rho,
+            q_edge=iter_like_qprofile.q_edge,
+        )
+
+        w_low = ntm_stability(qp_low_shear, j_bs, j_total, a=2.0).w_marginal
+        w_high = ntm_stability(qp_high_shear, j_bs, j_total, a=2.0).w_marginal
+        assert float(np.mean(w_low)) > float(np.mean(w_high))
+
+    def test_higher_alpha_increases_drive(self, iter_like_qprofile):
+        n = len(iter_like_qprofile.rho)
+        j_bs = np.ones(n) * 0.5
+        j_total = np.ones(n)
+
+        qp_low_alpha = QProfile(
+            rho=iter_like_qprofile.rho,
+            q=iter_like_qprofile.q,
+            shear=iter_like_qprofile.shear,
+            alpha_mhd=np.full(n, 0.2),
+            q_min=iter_like_qprofile.q_min,
+            q_min_rho=iter_like_qprofile.q_min_rho,
+            q_edge=iter_like_qprofile.q_edge,
+        )
+        qp_high_alpha = QProfile(
+            rho=iter_like_qprofile.rho,
+            q=iter_like_qprofile.q,
+            shear=iter_like_qprofile.shear,
+            alpha_mhd=np.full(n, 5.0),
+            q_min=iter_like_qprofile.q_min,
+            q_min_rho=iter_like_qprofile.q_min_rho,
+            q_edge=iter_like_qprofile.q_edge,
+        )
+
+        r_low = ntm_stability(qp_low_alpha, j_bs, j_total, a=2.0)
+        r_high = ntm_stability(qp_high_alpha, j_bs, j_total, a=2.0)
+        assert float(np.mean(r_high.j_bs_drive)) > float(np.mean(r_low.j_bs_drive))
+
 
 class TestRunFullStabilityCheck:
     def test_three_criteria_only(self, iter_like_qprofile):

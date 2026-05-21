@@ -64,6 +64,7 @@ def solver(config_file: Path) -> TransportSolver:
     ts.Ti = 5.0 * (1 - ts.rho**2)
     ts.Te = 5.0 * (1 - ts.rho**2)
     ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+    ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
     ts.update_transport_model(50.0)
     return ts
 
@@ -78,6 +79,7 @@ def solver_multi(config_file: Path) -> TransportSolver:
     ts.n_D = 0.5 * ts.ne.copy()
     ts.n_T = 0.5 * ts.ne.copy()
     ts.n_He = np.zeros(ts.nr)
+    ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
     ts.update_transport_model(50.0)
     return ts
 
@@ -235,14 +237,16 @@ class TestEvolveProfiles:
 
     def test_aux_heating_source_power_balance_single_ion(self, solver: TransportSolver) -> None:
         """Integrated heating source must reconstruct the requested total MW."""
+        solver.aux_heating_electron_fraction = 0.5
         s_i, s_e = solver._compute_aux_heating_sources(50.0)
-        assert np.all(s_e == 0.0)  # single-ion lane has no separate electron channel
+        assert np.all(np.isfinite(s_e))
+        assert np.any(s_e > 0.0)
         assert np.all(np.isfinite(s_i))
 
         dV = solver._rho_volume_element()
         e_keV_J = 1.602176634e-16
         ne_m3 = np.maximum(solver.ne, 0.1) * 1e19
-        rec_w = 1.5 * np.sum(ne_m3 * s_i * e_keV_J * dV)
+        rec_w = 1.5 * np.sum(ne_m3 * (s_i + s_e) * e_keV_J * dV)
         rec_mw = rec_w / 1e6
         assert rec_mw == pytest.approx(50.0, rel=1e-6, abs=1e-6)
         assert solver._last_aux_heating_balance["reconstructed_total_MW"] == pytest.approx(
@@ -250,6 +254,19 @@ class TestEvolveProfiles:
             rel=1e-6,
             abs=1e-6,
         )
+
+    def test_single_ion_evolves_explicit_electron_channel(self, config_file: Path) -> None:
+        """Single-ion mode evolves Te explicitly instead of copying Ti."""
+        ts = TransportSolver(str(config_file), multi_ion=False)
+        ts.aux_heating_electron_fraction = 1.0
+        ts.Ti = np.full(ts.nr, 1.0)
+        ts.Te = np.full(ts.nr, 1.0)
+        ts.ne = np.full(ts.nr, 8.0)
+        ts.chi_i = np.zeros(ts.nr)
+        ts.chi_e = np.zeros(ts.nr)
+
+        ts.evolve_profiles(dt=0.01, P_aux=20.0)
+        assert not np.allclose(ts.Te, ts.Ti, atol=1e-10)
 
     def test_aux_heating_source_zero_power(self, solver: TransportSolver) -> None:
         """Zero auxiliary power must return zero source terms."""
@@ -534,6 +551,14 @@ class TestZeroAuxHeatingGuard:
 
 
 class TestTransportModelBranches:
+    def test_update_transport_without_neoclassical_fails_closed(self, config_file: Path) -> None:
+        ts = TransportSolver(str(config_file))
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        with pytest.raises(RuntimeError, match="neoclassical transport configuration is required"):
+            ts.update_transport_model(50.0)
+
     def test_gyrokinetic_transport_model(self, config_file: Path) -> None:
         """transport_model='gyrokinetic' exercises GyrokineticTransportModel path."""
         ts = TransportSolver(str(config_file), transport_model="gyrokinetic")
@@ -585,9 +610,9 @@ class TestAuxHeatingZeroVolume:
 
 
 class TestExternalGKSolverFallback:
-    def test_gk_solver_unconverged_fallback(self, config_file: Path) -> None:
-        """Cover ITS lines 703-705: GK solver returns unconverged -> gyro-Bohm fallback."""
-        ts = TransportSolver(str(config_file), transport_model="gyrokinetic")
+    def test_gk_solver_unconverged_fails_closed_by_default(self, config_file: Path) -> None:
+        """External GK unconverged results must fail closed by default."""
+        ts = TransportSolver(str(config_file), transport_model="external_gk")
         ts.Ti = 5.0 * (1 - ts.rho**2)
         ts.Te = 5.0 * (1 - ts.rho**2)
         ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
@@ -600,7 +625,47 @@ class TestExternalGKSolverFallback:
         mock_solver.run_from_params.return_value = GKOutput(chi_i=0.0, chi_e=0.0, D_e=0.0, converged=False)
         ts._gk_solver = mock_solver
 
-        chi_i = ts._external_gk_transport(ts.neoclassical_params)
+        with pytest.raises(RuntimeError, match="unconverged transport"):
+            ts._external_gk_transport(ts.neoclassical_params)
+
+    def test_tglf_native_unconverged_fails_closed_by_default(self, config_file: Path) -> None:
+        """Native TGLF unconverged results must fail closed by default."""
+        ts = TransportSolver(str(config_file), transport_model="tglf_native")
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+
+        from unittest.mock import MagicMock
+        from scpn_control.core.gk_interface import GKOutput
+
+        mock_solver = MagicMock()
+        mock_solver.run_from_params.return_value = GKOutput(chi_i=0.0, chi_e=0.0, D_e=0.0, converged=False)
+        ts._tglf_native_solver = mock_solver
+
+        with pytest.raises(RuntimeError, match="unconverged transport"):
+            ts._tglf_native_transport(ts.neoclassical_params)
+
+    def test_tglf_native_legacy_fallback_opt_in(self, config_file: Path) -> None:
+        """Legacy fallback for native TGLF is available only with explicit opt-in."""
+        ts = TransportSolver(
+            str(config_file),
+            transport_model="tglf_native",
+            tglf_native_allow_gyrobohm_fallback=True,
+        )
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+
+        from unittest.mock import MagicMock
+        from scpn_control.core.gk_interface import GKOutput
+
+        mock_solver = MagicMock()
+        mock_solver.run_from_params.return_value = GKOutput(chi_i=0.0, chi_e=0.0, D_e=0.0, converged=False)
+        ts._tglf_native_solver = mock_solver
+
+        chi_i = ts._tglf_native_transport(ts.neoclassical_params)
         assert np.all(np.isfinite(chi_i))
         assert np.all(chi_i >= 0.01)
 
@@ -630,7 +695,7 @@ class TestPedestalBoundary:
         ts.Te = 5.0 * (1 - ts.rho**2)
         ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
-        # P_aux > 30 triggers is_H_mode, neoclassical set -> EPED path
+        # High P_aux should exceed the Martin-threshold H-mode trigger here.
         # Patch EPED import to fail -> lines 811-813 fallback
         with patch.dict("sys.modules", {"scpn_control.core.eped_pedestal": None}):
             ts.update_transport_model(50.0)
@@ -647,6 +712,7 @@ class TestPedestalBoundary:
         ts.Ti = 5.0 * (1 - ts.rho**2)
         ts.Te = 5.0 * (1 - ts.rho**2)
         ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
         ts.update_transport_model(50.0)
 
         ped_params = PedestalParams(f_ped=3.0, f_sep=0.1, x_ped=0.95, delta=0.04)

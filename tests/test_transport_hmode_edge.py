@@ -67,16 +67,30 @@ class TestHModeFallback:
         assert ts.chi_i.shape == (ts.nr,)
 
     def test_hmode_without_neoclassical_params(self, cfg):
-        """H-mode without neoclassical_params hits simple edge suppression."""
+        """H-mode update without neoclassical parameters fails closed."""
         ts = _make_solver(cfg)
-        ts.update_transport_model(P_aux=50.0)
-        assert np.all(np.isfinite(ts.chi_i))
+        with pytest.raises(RuntimeError, match="neoclassical transport configuration is required"):
+            ts.update_transport_model(P_aux=50.0)
 
     def test_lmode_no_pedestal(self, cfg):
-        """Low auxiliary power stays in L-mode (no edge suppression)."""
+        """Low-power update without neoclassical parameters fails closed."""
         ts = _make_solver(cfg)
-        ts.update_transport_model(P_aux=0.5)
-        assert np.all(np.isfinite(ts.chi_i))
+        with pytest.raises(RuntimeError, match="neoclassical transport configuration is required"):
+            ts.update_transport_model(P_aux=0.5)
+
+    def test_hmode_trigger_uses_martin_threshold(self, cfg):
+        """High-vs-low auxiliary power splits on Martin L-H threshold logic."""
+        ts_low = _make_solver(cfg)
+        ts_low.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        ts_low.update_transport_model(P_aux=0.5)
+        edge_low = float(np.mean(ts_low.chi_i[-5:]))
+
+        ts_high = _make_solver(cfg)
+        ts_high.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        ts_high.update_transport_model(P_aux=200.0)
+        edge_high = float(np.mean(ts_high.chi_i[-5:]))
+
+        assert edge_high < edge_low
 
 
 class TestNeoclassicalQMismatch:
@@ -136,6 +150,7 @@ class TestAuxHeatingZeroPower:
     def test_zero_aux_numerical_recovery(self, cfg):
         """P_aux=0 triggers numerical recovery path (lines 1071-1082)."""
         ts = _make_solver(cfg)
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
         ts.update_transport_model(P_aux=0.0)
         for _ in range(10):
             ts.evolve_profiles(dt=0.01, P_aux=0.0)
@@ -145,6 +160,7 @@ class TestAuxHeatingZeroPower:
     def test_zero_norm_fallback(self, cfg):
         """Zero norm in aux heating shape triggers fallback (line 771-784)."""
         ts = _make_solver(cfg)
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
         ts.rho[:] = 0.0
         ts.ne[:] = 0.0
         ts.update_transport_model(P_aux=10.0)
@@ -157,6 +173,7 @@ class TestMultiIonSolver:
         ts = _make_solver(cfg, multi_ion=True)
         ts.n_D = 0.5 * ts.ne.copy()
         ts.n_T = 0.5 * ts.ne.copy()
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
         ts.update_transport_model(P_aux=20.0)
         for _ in range(5):
             ts.evolve_profiles(dt=0.001, P_aux=20.0)

@@ -268,9 +268,17 @@ class TransportSolver(FusionKernel):
         nr: int = 50,
         multi_ion: bool = False,
         transport_model: str = "gyro_bohm",
+        external_gk_allow_gyrobohm_fallback: bool = False,
+        tglf_native_allow_gyrobohm_fallback: bool = False,
+        allow_constant_transport_fallback: bool = False,
+        allow_simplified_bootstrap_fallback: bool = False,
     ) -> None:
         super().__init__(config_path)
         self.transport_model = transport_model
+        self.external_gk_allow_gyrobohm_fallback = external_gk_allow_gyrobohm_fallback
+        self.tglf_native_allow_gyrobohm_fallback = tglf_native_allow_gyrobohm_fallback
+        self.allow_constant_transport_fallback = allow_constant_transport_fallback
+        self.allow_simplified_bootstrap_fallback = allow_simplified_bootstrap_fallback
         self.external_profile_mode = True  # Tell Kernel to respect our calculated profiles
         self.nr = nr  # Radial grid points (normalized radius rho)
         self.rho = np.linspace(0, 1, self.nr)
@@ -460,7 +468,11 @@ class TransportSolver(FusionKernel):
         return np.asarray(J_bs)
 
     def calculate_bootstrap_current(self, R0: float, B_pol: np.ndarray) -> np.ndarray:
-        """Calculate bootstrap current. Uses full Sauter if neoclassical params set."""
+        """Calculate bootstrap current using full Sauter closure by default.
+
+        If neoclassical configuration is missing, this method fails closed unless
+        ``allow_simplified_bootstrap_fallback=True`` was explicitly enabled.
+        """
         if hasattr(self, "neoclassical_params") and self.neoclassical_params is not None:
             return calculate_sauter_bootstrap_current_full(
                 self.rho,
@@ -472,6 +484,12 @@ class TransportSolver(FusionKernel):
                 self.neoclassical_params.get("a", 2.0),
                 self.neoclassical_params.get("B0", 5.3),
                 self.neoclassical_params.get("Z_eff", 1.5),
+            )
+        if not self.allow_simplified_bootstrap_fallback:
+            raise RuntimeError(
+                "neoclassical transport configuration is required for bootstrap current; "
+                "set neoclassical parameters or explicitly enable "
+                "allow_simplified_bootstrap_fallback for legacy behaviour"
             )
         return self.calculate_bootstrap_current_simple(R0, B_pol)
 
@@ -528,9 +546,10 @@ class TransportSolver(FusionKernel):
     def _external_gk_transport(self, p: dict) -> np.ndarray:
         """Run an external GK solver at each flux surface, return chi_i profile.
 
-        Also updates self.chi_e and self.D_n directly.  Falls back to
-        the built-in quasilinear model if the solver is unavailable or
-        returns unconverged results.
+        Also updates self.chi_e and self.D_n directly. By default, fails closed
+        if the external solver is unavailable, throws, or returns unconverged
+        output. Legacy gyro-Bohm fallback can be explicitly enabled by setting
+        ``external_gk_allow_gyrobohm_fallback=True`` on construction.
         """
         from scpn_control.core.gk_interface import GKLocalParams, GKSolverBase
 
@@ -602,15 +621,27 @@ class TransportSolver(FusionKernel):
 
             try:
                 result = solver.run_from_params(params)
-                if result.converged:
-                    chi_i_out[i] = max(result.chi_i, 0.01)
-                    chi_e_out[i] = max(result.chi_e, 0.01)
-                    D_e_out[i] = max(result.D_e, 0.001)
-                    continue
-            except Exception:
-                pass
+            except Exception as exc:
+                if not self.external_gk_allow_gyrobohm_fallback:
+                    raise RuntimeError(
+                        f"external_gk solver execution failed at rho={self.rho[i]:.4f}; "
+                        "configure/repair external solver or select tglf_native"
+                    ) from exc
+                result = None
 
-            # Fallback: gyro-Bohm estimate
+            if result is not None and result.converged:
+                chi_i_out[i] = max(result.chi_i, 0.01)
+                chi_e_out[i] = max(result.chi_e, 0.01)
+                D_e_out[i] = max(result.D_e, 0.001)
+                continue
+
+            if not self.external_gk_allow_gyrobohm_fallback:
+                raise RuntimeError(
+                    f"external_gk returned unconverged transport at rho={self.rho[i]:.4f}; "
+                    "do not continue with degraded fallback transport"
+                )
+
+            # Explicit legacy mode only
             chi_i_out[i] = max(self._gyro_bohm_chi()[i], 0.01)
             chi_e_out[i] = chi_i_out[i]
             D_e_out[i] = 0.1 * chi_e_out[i]
@@ -623,8 +654,9 @@ class TransportSolver(FusionKernel):
         """Run the native TGLF-equivalent solver at each flux surface.
 
         Uses SAT1 spectral saturation with E×B shear quench.  Also
-        updates self.chi_e and self.D_n.  Falls back to gyro-Bohm on
-        unconverged surfaces.
+        updates self.chi_e and self.D_n. By default, fails closed when
+        native-GK transport is unconverged. Legacy gyro-Bohm fallback can
+        be explicitly enabled with ``tglf_native_allow_gyrobohm_fallback=True``.
         """
         from scpn_control.core.gk_interface import GKLocalParams
         from scpn_control.core.gk_tglf_native import TGLFNativeConfig, TGLFNativeSolver
@@ -698,10 +730,18 @@ class TransportSolver(FusionKernel):
                 chi_i_out[i] = max(result.chi_i, 0.01)
                 chi_e_out[i] = max(result.chi_e, 0.01)
                 D_e_out[i] = max(result.D_e, 0.001)
-            else:  # pragma: no cover
-                chi_i_out[i] = max(self._gyro_bohm_chi()[i], 0.01)
-                chi_e_out[i] = chi_i_out[i]
-                D_e_out[i] = 0.1 * chi_e_out[i]
+                continue
+
+            if not self.tglf_native_allow_gyrobohm_fallback:
+                raise RuntimeError(
+                    f"tglf_native returned unconverged transport at rho={self.rho[i]:.4f}; "
+                    "do not continue with degraded fallback transport"
+                )
+
+            # Explicit legacy mode only
+            chi_i_out[i] = max(self._gyro_bohm_chi()[i], 0.01)
+            chi_e_out[i] = chi_i_out[i]
+            D_e_out[i] = 0.1 * chi_e_out[i]
 
         self.chi_e = chi_e_out
         self.D_n = D_e_out
@@ -716,13 +756,14 @@ class TransportSolver(FusionKernel):
         - Gyro-Bohm anomalous transport (calibrated c_gB)
         - EPED-like pedestal model for H-mode boundary condition
 
-        Falls back to constant chi_base=0.5 when neoclassical is not configured.
+        Fails closed when neoclassical parameters are not configured, unless
+        ``allow_constant_transport_fallback=True`` is explicitly enabled.
         """
         # 1. Critical Gradient Model
         grad_T = np.gradient(self.Ti, self.drho)
         threshold = 2.0
 
-        # Base Level: neoclassical + gyro-Bohm, or constant fallback
+        # Base level transport from configured neoclassical + selected anomalous model.
         if self.neoclassical_params is not None:
             p = self.neoclassical_params
             chi_nc = chang_hinton_chi_profile(
@@ -761,6 +802,12 @@ class TransportSolver(FusionKernel):
                 chi_gB = self._gyro_bohm_chi()
             chi_base = chi_nc + chi_gB
         else:
+            if not self.allow_constant_transport_fallback:
+                raise RuntimeError(
+                    "neoclassical transport configuration is required; "
+                    "set neoclassical parameters or explicitly enable "
+                    "allow_constant_transport_fallback for legacy behaviour"
+                )
             chi_base = np.full_like(self.rho, 0.5)
 
         # Critical-gradient turbulent transport: chi_turb ~ c * max(0, |∇T| - ∇T_crit)
@@ -769,11 +816,39 @@ class TransportSolver(FusionKernel):
         C_TURB = 5.0  # m²/s per keV/m
         chi_turb = C_TURB * np.maximum(0, -grad_T - threshold)
 
-        # H-Mode detection and EPED-like pedestal model
-        # Simplified L-H threshold proxy. Real codes use Martin et al.,
-        # J. Phys.: Conf. Ser. 123, 012033 (2008) P_LH scaling with n_e, B_t, S.
-        # 30 MW is approximate for ITER-class devices at n_e ~ 1e20 m^-3.
-        is_H_mode = P_aux > 30.0  # MW
+        # H-mode detection from Martin et al. (2008) with low-density branch
+        # correction (Ryter et al. 2014), evaluated from the active discharge
+        # state and machine geometry.
+        is_H_mode = False
+        if self.neoclassical_params is not None:
+            from scpn_control.core.lh_transition import MartinThreshold
+
+            p = self.neoclassical_params
+            ne_19 = float(np.clip(np.nanmean(self.ne), 0.0, 1e4))
+            b_t = float(p.get("B0", 0.0))
+            a_m = float(p.get("a", 0.0))
+            r0_m = float(p.get("R0", 0.0))
+            kappa = float(p.get("kappa", 1.7))
+            s_m2 = float(
+                p.get(
+                    "surface_area_m2",
+                    self._estimate_plasma_surface_area_m2(r0_m, a_m, kappa),
+                )
+            )
+            i_p_ma = float(
+                p.get(
+                    "Ip_MA",
+                    self.cfg.get("physics", {}).get("plasma_current_target", 0.0),
+                )
+            )
+            p_lh_mw = MartinThreshold.power_threshold_with_low_density_branch_MW(
+                ne_19=ne_19,
+                B_T=b_t,
+                S_m2=s_m2,
+                I_p_MA=i_p_ma,
+                a_m=a_m,
+            )
+            is_H_mode = bool(P_aux > p_lh_mw)
 
         if is_H_mode and self.neoclassical_params is not None:
             try:
@@ -810,10 +885,6 @@ class TransportSolver(FusionKernel):
             except (ImportError, ValueError, IndexError, AttributeError):
                 edge_mask = self.rho > 0.9
                 chi_turb[edge_mask] *= 0.1
-        elif is_H_mode:
-            # No neoclassical params — simple suppression
-            edge_mask = self.rho > 0.9
-            chi_turb[edge_mask] *= 0.1
 
         self.chi_e = chi_base + chi_turb
         self.chi_i = chi_base + chi_turb
@@ -1014,6 +1085,16 @@ class TransportSolver(FusionKernel):
         a_minor = (dims["R_max"] - dims["R_min"]) / 2.0
         return np.asarray(2.0 * np.pi * r0 * 2.0 * np.pi * self.rho * a_minor**2 * self.drho)
 
+    @staticmethod
+    def _estimate_plasma_surface_area_m2(R0: float, a: float, kappa: float) -> float:
+        """Estimate plasma surface area for Martin L-H threshold scaling."""
+        a_safe = max(float(a), 1e-6)
+        r0_safe = max(float(R0), 1e-6)
+        kappa_safe = max(float(kappa), 1e-6)
+        b = a_safe * kappa_safe
+        perimeter = 2.0 * np.pi * np.sqrt((a_safe * a_safe + b * b) / 2.0)
+        return float(2.0 * np.pi * r0_safe * perimeter)
+
     def _compute_aux_heating_sources(self, P_aux_MW: float) -> tuple[np.ndarray, np.ndarray]:
         """Return ion/electron auxiliary-heating sources in keV/s.
 
@@ -1054,7 +1135,7 @@ class TransportSolver(FusionKernel):
         e_keV_J = 1.602176634e-16
         ne_safe = np.maximum(self.ne, 0.1) * 1e19  # m^-3
 
-        electron_frac = float(np.clip(self.aux_heating_electron_fraction, 0.0, 1.0)) if self.multi_ion else 0.0
+        electron_frac = float(np.clip(self.aux_heating_electron_fraction, 0.0, 1.0))
         ion_frac = 1.0 - electron_frac
         p_aux_w = float(P_aux_MW) * 1e6
 
@@ -1295,10 +1376,13 @@ class TransportSolver(FusionKernel):
         # ── Sinks (ion channel radiation) ──
         if self.multi_ion:
             ne_safe = np.maximum(self.ne, 0.1) * 1e19
-            S_rad_i = P_rad_line_Wm3 / (ne_safe * e_keV_J) * 0.5  # half to ions
+            S_rad_i = P_rad_line_Wm3 / (ne_safe * e_keV_J) * 0.5
+            S_rad_e = P_rad_line_Wm3 / (ne_safe * e_keV_J) * 0.5
         else:
             cooling_factor = 5.0
-            S_rad_i = cooling_factor * self.ne * self.n_impurity * np.sqrt(self.Te + 0.1)
+            S_rad_total = cooling_factor * self.ne * self.n_impurity * np.sqrt(self.Te + 0.1)
+            S_rad_i = 0.5 * S_rad_total
+            S_rad_e = 0.5 * S_rad_total
 
         net_source_i = S_heat_i - S_rad_i
         net_source_i, n_src_i = self._sanitize_with_fallback(
@@ -1325,52 +1409,46 @@ class TransportSolver(FusionKernel):
         self.Ti, n_ti_new = self._sanitize_with_fallback(new_Ti, Ti_old, floor=0.01, ceil=1e3)
         self._last_numerical_recovery_count += n_ti_new
 
-        # ── Electron temperature ──
-        if self.multi_ion:
-            # Independent electron temperature evolution
-            S_heat_e = S_heat_e_aux
-            P_brem = self._bremsstrahlung_power_density(self.ne, Te_old, self._Z_eff)
-            ne_safe_e = np.maximum(self.ne, 0.1) * 1e19
-            S_brem_e = P_brem / (ne_safe_e * e_keV_J)
-            S_rad_e = P_rad_line_Wm3 / (ne_safe_e * e_keV_J) * 0.5
+        # ── Electron temperature (explicit channel, no Ti copy shortcut) ──
+        S_heat_e = S_heat_e_aux
+        P_brem = self._bremsstrahlung_power_density(self.ne, Te_old, self._Z_eff)
+        ne_safe_e = np.maximum(self.ne, 0.1) * 1e19
+        S_brem_e = P_brem / (ne_safe_e * e_keV_J)
 
-            # Braginskii 1965, §2.5 — electron-ion energy equilibration time
-            # tau_eq = 0.252 * Te_keV^1.5 / (ne_19 * Z_eff * ln_Lambda) [s]
-            ln_Lambda = 17.0  # Wesson, "Tokamaks" 4th ed., Ch. 14.5
-            Te_safe = np.maximum(Te_old, 0.01)
-            ne_safe_eq = np.maximum(self.ne, 0.1)
-            tau_eq = np.maximum(
-                0.252 * Te_safe**1.5 / (ne_safe_eq * self._Z_eff * ln_Lambda),
-                1e-4,
-            )
-            S_equil = (self.Ti - Te_old) / tau_eq
+        # Braginskii 1965, §2.5 — electron-ion energy equilibration time
+        # tau_eq = 0.252 * Te_keV^1.5 / (ne_19 * Z_eff * ln_Lambda) [s]
+        ln_Lambda = 17.0  # Wesson, "Tokamaks" 4th ed., Ch. 14.5
+        Te_safe = np.maximum(Te_old, 0.01)
+        ne_safe_eq = np.maximum(self.ne, 0.1)
+        tau_eq = np.maximum(
+            0.252 * Te_safe**1.5 / (ne_safe_eq * self._Z_eff * ln_Lambda),
+            1e-4,
+        )
+        S_equil = (self.Ti - Te_old) / tau_eq
 
-            net_source_e = S_heat_e - S_rad_e - S_brem_e + S_equil
-            net_source_e, n_src_e = self._sanitize_with_fallback(
-                net_source_e,
-                np.zeros_like(net_source_e),
-            )
-            self._last_numerical_recovery_count += n_src_e
+        net_source_e = S_heat_e - S_rad_e - S_brem_e + S_equil
+        net_source_e, n_src_e = self._sanitize_with_fallback(
+            net_source_e,
+            np.zeros_like(net_source_e),
+        )
+        self._last_numerical_recovery_count += n_src_e
 
-            Lh_explicit_e = self._explicit_diffusion_rhs(Te_old, self.chi_e)
-            Lh_explicit_e, n_lh_e = self._sanitize_with_fallback(
-                Lh_explicit_e,
-                np.zeros_like(Lh_explicit_e),
-            )
-            self._last_numerical_recovery_count += n_lh_e
-            rhs_e = Te_old + 0.5 * dt * Lh_explicit_e + dt * net_source_e
-            rhs_e, n_rhs_e = self._sanitize_with_fallback(rhs_e, Te_old, floor=0.01, ceil=1e3)
-            self._last_numerical_recovery_count += n_rhs_e
-            a_e, b_e, c_e = self._build_cn_tridiag(self.chi_e, dt)
-            new_Te = self._thomas_solve(a_e, b_e, c_e, rhs_e)
+        Lh_explicit_e = self._explicit_diffusion_rhs(Te_old, self.chi_e)
+        Lh_explicit_e, n_lh_e = self._sanitize_with_fallback(
+            Lh_explicit_e,
+            np.zeros_like(Lh_explicit_e),
+        )
+        self._last_numerical_recovery_count += n_lh_e
+        rhs_e = Te_old + 0.5 * dt * Lh_explicit_e + dt * net_source_e
+        rhs_e, n_rhs_e = self._sanitize_with_fallback(rhs_e, Te_old, floor=0.01, ceil=1e3)
+        self._last_numerical_recovery_count += n_rhs_e
+        a_e, b_e, c_e = self._build_cn_tridiag(self.chi_e, dt)
+        new_Te = self._thomas_solve(a_e, b_e, c_e, rhs_e)
 
-            new_Te[0] = new_Te[1]
-            new_Te[-1] = 0.08
-            self.Te, n_te_new = self._sanitize_with_fallback(new_Te, Te_old, floor=0.01, ceil=1e3)
-            self._last_numerical_recovery_count += n_te_new
-        else:
-            self.Te = self.Ti.copy()
-            net_source_e = net_source_i  # simplified legacy balance
+        new_Te[0] = new_Te[1]
+        new_Te[-1] = 0.08
+        self.Te, n_te_new = self._sanitize_with_fallback(new_Te, Te_old, floor=0.01, ceil=1e3)
+        self._last_numerical_recovery_count += n_te_new
 
         # ── Pedestal Boundary Conditions ──
         if ped_ti is not None:
@@ -1413,14 +1491,21 @@ class TransportSolver(FusionKernel):
         if P_aux <= 0.0:
             mean_ti_old = float(np.mean(Ti_old))
             mean_ti_new = float(np.mean(self.Ti))
+            mean_te_old = float(np.mean(Te_old))
+            mean_te_new = float(np.mean(self.Te))
             if np.isfinite(mean_ti_old) and np.isfinite(mean_ti_new) and mean_ti_new > mean_ti_old:
                 scale = mean_ti_old / max(mean_ti_new, 1e-12)
                 self.Ti *= scale
                 self.Ti[0] = self.Ti[1]
                 self.Ti[-1] = 0.1
                 self.Ti = np.maximum(0.01, self.Ti)
-                if not self.multi_ion:
-                    self.Te = self.Ti.copy()
+                self._last_numerical_recovery_count += 1
+            if np.isfinite(mean_te_old) and np.isfinite(mean_te_new) and mean_te_new > mean_te_old:
+                scale_e = mean_te_old / max(mean_te_new, 1e-12)
+                self.Te *= scale_e
+                self.Te[0] = self.Te[1]
+                self.Te[-1] = 0.08
+                self.Te = np.maximum(0.01, self.Te)
                 self._last_numerical_recovery_count += 1
 
         self._last_numerical_recovery_count += self._sanitize_runtime_state()

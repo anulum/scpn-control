@@ -69,7 +69,7 @@ def test_gs_solver_min_grid(minimal_config):
 
 def test_transport_solver_zero_chi(minimal_config):
     """2. Transport solver with chi = 0.0 (no diffusion) — profile unchanged."""
-    # Use multi_ion=False (default) to keep Te = Ti and avoid equilibration drives.
+    # Use multi_ion=False to exercise the single-ion transport lane.
     solver = IntegratedTransportSolver(minimal_config, multi_ion=False)
     nr = solver.nr
     solver.chi_i = np.zeros(nr)

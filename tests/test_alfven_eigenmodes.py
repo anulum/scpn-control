@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.alfven_eigenmodes import (
     AlfvenContinuum,
@@ -236,10 +237,20 @@ def test_find_gaps_equal_q():
 
 
 def test_electron_landau_damping_no_te():
-    """Line 159: electron_landau_damping fallback when T_e_keV is None."""
+    """electron_landau_damping requires explicit electron temperature."""
     tae = TAEMode(n=1, q_rational=1.5, v_A=1e7, R0=6.0, T_e_keV=None)
-    gamma = tae.electron_landau_damping()
-    assert gamma == 0.01 * tae.frequency()
+    with pytest.raises(ValueError, match="requires T_e_keV"):
+        tae.electron_landau_damping()
+
+
+def test_stability_analysis_rejects_nonpositive_te():
+    rho = np.linspace(0, 1, 100)
+    q = np.linspace(1.0, 3.0, 100)
+    ne = np.ones(100) * 5.0
+    cont = AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
+    drive = FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=0.01)
+    with pytest.raises(ValueError, match="must be positive"):
+        AlfvenStabilityAnalysis(cont, drive, T_e_keV=0.0)
 
 
 def test_critical_beta_fast_no_gaps():

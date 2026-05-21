@@ -157,36 +157,76 @@ def _ggj_delta_prime(
 
 
 def bootstrap_from_local(
-    pressure_gradient: float,
-    epsilon: float,
-    B_pol: float,
-    L31: float,
+    ne_19: float,
+    Te_keV: float,
+    Ti_keV: float,
+    q: float,
+    rho: float,
+    R0: float,
+    a: float,
+    B0: float,
+    z_eff: float,
+    dne_dr: float,
+    dTe_dr: float,
+    dTi_dr: float,
 ) -> float:
-    """Simplified local bootstrap current density.
+    """Local Sauter bootstrap current density from full L31+L32+L34 closure.
 
-    j_bs = -ε^0.5 * p' * L31 / B_pol
+    Sauter et al. 1999, Phys. Plasmas 6, 2834, Eqs. 14-16:
 
-    Sauter et al. 1999, Phys. Plasmas 6, 2834, Eq. 14 (leading-order form).
+        j_bs = -(p_e/B_pol) * [L31*d(ln p_e)/dr + L32*d(ln T_e)/dr
+                               + L34*(T_i/T_e)*d(ln T_i)/dr]
 
-    Parameters
-    ----------
-    pressure_gradient : float
-        dp/dr [Pa/m] (negative for peaked profile → positive j_bs).
-    epsilon : float
-        Inverse aspect ratio r/R.
-    B_pol : float
-        Poloidal field [T].
-    L31 : float
-        Sauter L31 coefficient (see neoclassical._sauter_L31).
-
-    Returns
-    -------
-    float
-        Bootstrap current density [A/m^2].
+    The local collisionality and trapped-particle fractions are evaluated from
+    the same fits used in :mod:`scpn_control.core.neoclassical`.
     """
-    if abs(B_pol) < 1e-10 or epsilon < 0.0:
+    if Te_keV <= 0.0 or Ti_keV <= 0.0 or ne_19 <= 0.0 or q <= 0.0:
         return 0.0
-    return float(-np.sqrt(epsilon) * pressure_gradient * L31 / B_pol)
+    if a <= 0.0 or R0 <= 0.0 or B0 == 0.0:
+        return 0.0
+
+    epsilon = rho * a / R0
+    if epsilon < 1e-6:
+        return 0.0
+
+    # Keep local imports to avoid module-level dependency cycle risk.
+    from scpn_control.core.neoclassical import _sauter_L31, _sauter_L32, _sauter_L34
+
+    e_charge = 1.602176634e-19
+    eps0 = 8.8541878128e-12
+    m_e = 9.1093837015e-31
+    ln_lambda = 17.0
+
+    # Sauter 1999 trapped-fraction fit (same expression as neoclassical.py)
+    f_t = 1.0 - (1.0 - epsilon) ** 2 / (np.sqrt(1.0 - epsilon**2) * (1.0 + 1.46 * np.sqrt(epsilon)))
+
+    n_e_si = ne_19 * 1e19
+    T_e_J = Te_keV * 1.602176634e-16
+    T_i_J = Ti_keV * 1.602176634e-16
+    p_e = n_e_si * T_e_J
+    if p_e <= 0.0:
+        return 0.0
+
+    # Wesson 2011, Eq. 14.2.3 (same as neoclassical.py)
+    v_the = np.sqrt(2.0 * T_e_J / m_e)
+    nu_ee = (n_e_si * e_charge**4 * ln_lambda) / (
+        12.0 * np.pi**1.5 * eps0**2 * m_e**0.5 * T_e_J**1.5
+    )
+    nu_star_e = nu_ee * q * R0 / (epsilon**1.5 * v_the)
+
+    L31 = _sauter_L31(f_t, nu_star_e, z_eff)
+    L32 = _sauter_L32(f_t, nu_star_e, z_eff)
+    L34 = _sauter_L34(f_t, nu_star_e, z_eff)
+
+    dln_pe_dr = (T_e_J * (dne_dr * 1e19) + n_e_si * 1.602176634e-16 * dTe_dr) / p_e
+    dln_Te_dr = dTe_dr / max(Te_keV, 1e-12)
+    dln_Ti_dr = dTi_dr / max(Ti_keV, 1e-12)
+
+    B_pol = B0 * epsilon / max(q, 1e-3)
+    if abs(B_pol) < 1e-10:
+        return 0.0
+
+    return float(-(p_e / B_pol) * (L31 * dln_pe_dr + L32 * dln_Te_dr + L34 * (T_i_J / T_e_J) * dln_Ti_dr))
 
 
 class NTMIslandDynamics:
