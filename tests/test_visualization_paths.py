@@ -535,8 +535,18 @@ class _DirNCC:
         from scpn_control.control.neuro_cybernetic_controller import SpikingControllerPool
 
         self.kernel = _DirKernel(_cfg)
-        self.brain_R = SpikingControllerPool(n_neurons=5, seed=0)
-        self.brain_Z = SpikingControllerPool(n_neurons=5, seed=1)
+        self.brain_R = SpikingControllerPool(
+            n_neurons=5,
+            seed=0,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
+        self.brain_Z = SpikingControllerPool(
+            n_neurons=5,
+            seed=1,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
 
     def initialize_brains(self, use_quantum: bool = False) -> None:
         pass
@@ -552,6 +562,8 @@ class TestDirectorInterfaceVisualization:
         di = DirectorInterface(
             "dummy.json",
             controller_factory=_DirNCC,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         s = di.run_directed_mission(
             duration=10,
@@ -567,6 +579,8 @@ class TestDirectorInterfaceVisualization:
         di = DirectorInterface(
             "dummy.json",
             controller_factory=_DirNCC,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         s = di.run_directed_mission(
             duration=10,
@@ -582,6 +596,8 @@ class TestDirectorInterfaceVisualization:
         di = DirectorInterface(
             "dummy.json",
             controller_factory=_DirNCC,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         di.run_directed_mission(duration=5, save_plot=False, verbose=False)
         result = di.visualize(output_path=out)

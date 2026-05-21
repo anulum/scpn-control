@@ -84,11 +84,17 @@ class TokamakPhysicsEngine:
         self.z_pos = 0.0
         self.v_drift = 0.0
 
-    def _kernel_psi(self) -> np.ndarray | None:
+    def _kernel_psi(self, *, strict: bool = False) -> np.ndarray | None:
         if self.kernel is None or not hasattr(self.kernel, "Psi"):
             return None
         psi = np.asarray(self.kernel.Psi, dtype=np.float64)
-        if psi.ndim != 2 or psi.shape[0] < 8 or psi.shape[1] < 8:
+        if psi.ndim != 2:
+            if strict:
+                raise ValueError("kernel Psi must be 2D.")
+            return None
+        if psi.shape[0] < 8 or psi.shape[1] < 8:
+            if strict:
+                raise ValueError("kernel Psi resolution must be at least 8x8.")
             return None
         return psi
 
@@ -299,6 +305,14 @@ def run_control_room(
     verbose: bool = True,
     kernel_factory: Callable[[str], Any] | None = None,
     config_file: str | None = None,
+    allow_analytic_fallback: bool = False,
+    allow_legacy_analytic_fallback: bool = False,
+    allow_runtime_solve_fallback: bool = False,
+    allow_legacy_runtime_solve_fallback: bool = False,
+    allow_kernel_psi_fallback: bool = False,
+    allow_legacy_kernel_psi_fallback: bool = False,
+    allow_coil_update_fallback: bool = False,
+    allow_legacy_coil_update_fallback: bool = False,
 ) -> dict[str, Any]:
     """
     Run the control-room loop and return deterministic summary metrics.
@@ -306,6 +320,26 @@ def run_control_room(
     steps = int(sim_duration)
     if steps < 1:
         raise ValueError("sim_duration must be >= 1.")
+    if allow_analytic_fallback and not allow_legacy_analytic_fallback:
+        raise ValueError(
+            "allow_analytic_fallback=True requires allow_legacy_analytic_fallback=True; "
+            "legacy analytic fallback is disabled by default."
+        )
+    if allow_runtime_solve_fallback and not allow_legacy_runtime_solve_fallback:
+        raise ValueError(
+            "allow_runtime_solve_fallback=True requires allow_legacy_runtime_solve_fallback=True; "
+            "legacy runtime solve fallback is disabled by default."
+        )
+    if allow_kernel_psi_fallback and not allow_legacy_kernel_psi_fallback:
+        raise ValueError(
+            "allow_kernel_psi_fallback=True requires allow_legacy_kernel_psi_fallback=True; "
+            "legacy kernel-Psi fallback is disabled by default."
+        )
+    if allow_coil_update_fallback and not allow_legacy_coil_update_fallback:
+        raise ValueError(
+            "allow_coil_update_fallback=True requires allow_legacy_coil_update_fallback=True; "
+            "legacy coil-update fallback is disabled by default."
+        )
     rng = np.random.default_rng(int(seed))
 
     kernel = None
@@ -324,6 +358,12 @@ def run_control_room(
             if kernel is not None:
                 psi_source = "kernel"
         except (OSError, ValueError, KeyError, RuntimeError) as exc:
+            if not allow_analytic_fallback:
+                raise RuntimeError(
+                    "Kernel initialisation failed and legacy analytic fallback is disabled. "
+                    "Set allow_analytic_fallback=True and allow_legacy_analytic_fallback=True "
+                    "for explicit degraded-mode operation."
+                ) from exc
             kernel = None
             kernel_error = str(exc)
             psi_source = "analytic"
@@ -336,6 +376,19 @@ def run_control_room(
             logger.info("Kernel init failed, fallback to analytic Psi: %s", kernel_error)
 
     reactor = TokamakPhysicsEngine(seed=seed, kernel=kernel)
+    if kernel is not None:
+        try:
+            reactor._kernel_psi(strict=True)
+        except ValueError as exc:
+            if not allow_kernel_psi_fallback:
+                raise RuntimeError(
+                    "Kernel Psi is invalid and legacy kernel-Psi fallback is disabled. "
+                    "Set allow_kernel_psi_fallback=True and allow_legacy_kernel_psi_fallback=True "
+                    "for explicit degraded-mode operation."
+                ) from exc
+            kernel_error = str(exc)
+            psi_source = "analytic"
+            reactor.kernel = None
     sensors = DiagnosticSystem(rng=rng)
     ai = NeuralController()
 
@@ -348,19 +401,57 @@ def run_control_room(
     bot_action = 0.0
 
     for _frame in range(steps):
-        if kernel is not None and hasattr(kernel, "cfg"):
+        if kernel is not None:
+            if not hasattr(kernel, "cfg"):
+                if not allow_coil_update_fallback:
+                    raise RuntimeError(
+                        "Kernel does not expose required cfg for coil updates and "
+                        "legacy coil-update fallback is disabled."
+                    )
+            elif not isinstance(kernel.cfg, dict):
+                if not allow_coil_update_fallback:
+                    raise RuntimeError(
+                        "Kernel cfg must be a mapping and legacy coil-update fallback is disabled."
+                    )
+            elif "coils" not in kernel.cfg:
+                if not allow_coil_update_fallback:
+                    raise RuntimeError(
+                        "Kernel cfg is missing 'coils' and legacy coil-update fallback is disabled."
+                    )
+
+        if kernel is not None and hasattr(kernel, "cfg") and isinstance(kernel.cfg, dict):
             try:
                 coils = kernel.cfg.get("coils", [])
-                if len(coils) >= 5:
+                if not isinstance(coils, list):
+                    raise TypeError("Kernel cfg['coils'] must be a list.")
+                if len(coils) < 5:
+                    if not allow_coil_update_fallback:
+                        raise RuntimeError(
+                            "Kernel coil configuration has fewer than 5 channels and "
+                            "legacy coil-update fallback is disabled."
+                        )
+                else:
                     coils[0]["current"] = float(coils[0].get("current", 0.0)) + top_action
                     coils[4]["current"] = float(coils[4].get("current", 0.0)) + bot_action
             except (KeyError, TypeError, IndexError) as exc:
+                if not allow_coil_update_fallback:
+                    raise RuntimeError(
+                        "Kernel coil-current update failed and legacy coil-update fallback is disabled. "
+                        "Set allow_coil_update_fallback=True and "
+                        "allow_legacy_coil_update_fallback=True for explicit degraded-mode operation."
+                    ) from exc
                 logger.warning("Coil current update failed at frame %d: %s", _frame, exc)
 
         if kernel is not None:
             try:
                 solve_kernel(kernel)
             except (RuntimeError, np.linalg.LinAlgError) as exc:
+                if not allow_runtime_solve_fallback:
+                    raise RuntimeError(
+                        "Runtime equilibrium solve failed and legacy runtime fallback is disabled. "
+                        "Set allow_runtime_solve_fallback=True and "
+                        "allow_legacy_runtime_solve_fallback=True for explicit degraded-mode operation."
+                    ) from exc
                 logger.warning("Equilibrium solve failed at frame %d: %s", _frame, exc)
 
         true_z = reactor.step_dynamics(top_action, bot_action)

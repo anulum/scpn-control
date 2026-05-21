@@ -127,6 +127,8 @@ def test_neuro_cybernetic_controller_prefers_variant_dispatch() -> None:
         "dummy.json",
         seed=42,
         shot_duration=4,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
         kernel_factory=_VariantAwareKernel,
     )
 
@@ -141,6 +143,8 @@ def test_director_interface_prefers_variant_dispatch() -> None:
     di = DirectorInterface(
         "dummy.json",
         controller_factory=_VariantAwareController,
+        allow_fallback=True,
+        allow_legacy_fallback=True,
     )
 
     result = di.run_directed_mission(duration=6, save_plot=False, verbose=False)

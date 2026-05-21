@@ -62,6 +62,8 @@ def test_spiking_pool_is_deterministic_for_same_seed() -> None:
         tau_window=8,
         seed=19,
         use_quantum=False,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
     )
     p1 = SpikingControllerPool(**kwargs)
     p2 = SpikingControllerPool(**kwargs)
@@ -77,6 +79,8 @@ def test_spiking_pool_push_pull_sign_response() -> None:
         tau_window=6,
         seed=31,
         use_quantum=False,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
     )
     neg_pool = SpikingControllerPool(
         n_neurons=20,
@@ -84,6 +88,8 @@ def test_spiking_pool_push_pull_sign_response() -> None:
         tau_window=6,
         seed=31,
         use_quantum=False,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
     )
 
     pos = [pos_pool.step(0.2) for _ in range(32)]
@@ -93,7 +99,14 @@ def test_spiking_pool_push_pull_sign_response() -> None:
 
 
 def test_spiking_pool_exposes_backend_name() -> None:
-    pool = SpikingControllerPool(n_neurons=8, gain=1.0, tau_window=4, seed=11)
+    pool = SpikingControllerPool(
+        n_neurons=8,
+        gain=1.0,
+        tau_window=4,
+        seed=11,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+    )
     assert pool.backend == "numpy_lif"
 
 
@@ -115,6 +128,8 @@ def test_spiking_pool_rejects_invalid_constructor_inputs(kwargs: dict[str, float
         "tau_window": 4,
         "seed": 11,
         "use_quantum": False,
+        "allow_numpy_fallback": True,
+        "allow_legacy_numpy_fallback": True,
     }
     params.update(kwargs)
     with pytest.raises(ValueError, match=match):
@@ -129,6 +144,8 @@ def test_run_neuro_cybernetic_control_returns_finite_summary_without_plot() -> N
         quantum=False,
         save_plot=False,
         verbose=False,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
         kernel_factory=_DummyKernel,
     )
     for key in (
@@ -165,6 +182,8 @@ def test_run_neuro_cybernetic_control_is_deterministic_for_seed() -> None:
         quantum=False,
         save_plot=False,
         verbose=False,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
         kernel_factory=_DummyKernel,
     )
     a = run_neuro_cybernetic_control(**kwargs)
@@ -188,6 +207,8 @@ def test_run_neuro_cybernetic_control_rejects_nonpositive_duration() -> None:
             shot_duration=0,
             save_plot=False,
             verbose=False,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_DummyKernel,
         )
 
@@ -200,6 +221,8 @@ def test_run_neuro_cybernetic_control_quantum_mode() -> None:
         quantum=True,
         save_plot=False,
         verbose=False,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
         kernel_factory=_DummyKernel,
     )
     assert summary["mode"] == "quantum"
@@ -207,7 +230,12 @@ def test_run_neuro_cybernetic_control_quantum_mode() -> None:
 
 
 def test_spiking_pool_numpy_population_fires_above_threshold() -> None:
-    pool = SpikingControllerPool(n_neurons=20, seed=42)
+    pool = SpikingControllerPool(
+        n_neurons=20,
+        seed=42,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+    )
     spikes = 0
     for _ in range(100):
         out = pool.step(2.0)
@@ -224,8 +252,21 @@ def test_spiking_pool_no_numpy_fallback_raises() -> None:
         )
 
 
+def test_spiking_pool_legacy_fallback_requires_explicit_opt_in() -> None:
+    with pytest.raises(ValueError, match="allow_legacy_numpy_fallback=True"):
+        SpikingControllerPool(
+            n_neurons=8,
+            allow_numpy_fallback=True,
+        )
+
+
 def test_spiking_pool_last_rates_nonnegative() -> None:
-    pool = SpikingControllerPool(n_neurons=10, seed=42)
+    pool = SpikingControllerPool(
+        n_neurons=10,
+        seed=42,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+    )
     pool.step(0.5)
     assert pool.last_rate_pos >= 0.0
     assert pool.last_rate_neg >= 0.0
@@ -238,6 +279,8 @@ def test_controller_history_populated() -> None:
         "dummy.json",
         seed=42,
         shot_duration=20,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
         kernel_factory=_DummyKernel,
     )
     nc.run_shot(save_plot=False, verbose=False)
@@ -270,6 +313,8 @@ def test_controller_coils_updated() -> None:
         "dummy.json",
         seed=42,
         shot_duration=30,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
         kernel_factory=_OffsetKernel,
     )
     nc.run_shot(save_plot=False, verbose=False)
@@ -279,12 +324,20 @@ def test_controller_coils_updated() -> None:
 
 def test_spiking_pool_rejects_inf_dt() -> None:
     with pytest.raises(ValueError, match="dt_s must be finite"):
-        SpikingControllerPool(dt_s=float("inf"))
+        SpikingControllerPool(
+            dt_s=float("inf"),
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
 
 
 def test_spiking_pool_rejects_nan_noise() -> None:
     with pytest.raises(ValueError, match="noise_std must be finite"):
-        SpikingControllerPool(noise_std=float("nan"))
+        SpikingControllerPool(
+            noise_std=float("nan"),
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
 
 
 # ── Verbose & coil-padding paths ─────────────────────────────────
@@ -299,6 +352,8 @@ def test_run_neuro_cybernetic_control_verbose_output(caplog) -> None:
             quantum=False,
             save_plot=False,
             verbose=True,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_DummyKernel,
         )
     assert "SNN" in caplog.text or "PLASMA" in caplog.text
@@ -329,6 +384,8 @@ def test_controller_pads_coils_when_fewer_than_five() -> None:
         "dummy.json",
         seed=42,
         shot_duration=5,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
         kernel_factory=_KernelFewCoils,
     )
     nc.run_shot(save_plot=False, verbose=False)

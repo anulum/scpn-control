@@ -72,7 +72,7 @@ def _resolve_fusion_kernel() -> Any:
 
 class SpikingControllerPool:
     """
-    Push-pull spiking control population with deterministic fallback.
+    Push-pull spiking control population.
 
     Preferred backend is ``sc-neurocore``. If unavailable, a reduced NumPy LIF
     population is used so controller workflows remain executable in CI.
@@ -86,7 +86,8 @@ class SpikingControllerPool:
         use_quantum: bool = False,
         *,
         seed: int = 42,
-        allow_numpy_fallback: bool = True,
+        allow_numpy_fallback: bool = False,
+        allow_legacy_numpy_fallback: bool = False,
         dt_s: float = 1.0e-3,
         tau_mem_s: float = 15.0e-3,
         noise_std: float = 0.02,
@@ -143,6 +144,12 @@ class SpikingControllerPool:
             self._v_threshold = 1.0
             self._v_reset = 0.0
             return
+
+        if allow_numpy_fallback and not allow_legacy_numpy_fallback:
+            raise ValueError(
+                "allow_numpy_fallback=True requires allow_legacy_numpy_fallback=True; "
+                "legacy NumPy fallback is disabled by default."
+            )
 
         if not allow_numpy_fallback:
             raise RuntimeError("sc-neurocore is unavailable and allow_numpy_fallback=False.")
@@ -215,6 +222,8 @@ class NeuroCyberneticController:
         seed: int = 42,
         *,
         shot_duration: int = SHOT_DURATION,
+        allow_numpy_fallback: bool = False,
+        allow_legacy_numpy_fallback: bool = False,
         kernel_factory: Callable[[str], Any] | None = None,
     ) -> None:
         if int(shot_duration) <= 0:
@@ -223,6 +232,8 @@ class NeuroCyberneticController:
         self.kernel = fusion_kernel_cls(config_file)
         self.seed = int(seed)
         self.shot_duration = int(shot_duration)
+        self.allow_numpy_fallback = bool(allow_numpy_fallback)
+        self.allow_legacy_numpy_fallback = bool(allow_legacy_numpy_fallback)
         self.history: Dict[str, list[float]] = {}
         self.brain_R: SpikingControllerPool | None = None
         self.brain_Z: SpikingControllerPool | None = None
@@ -248,6 +259,8 @@ class NeuroCyberneticController:
             tau_window=20,
             use_quantum=use_quantum,
             seed=self.seed + 1,
+            allow_numpy_fallback=self.allow_numpy_fallback,
+            allow_legacy_numpy_fallback=self.allow_legacy_numpy_fallback,
         )
         self.brain_Z = SpikingControllerPool(
             n_neurons=50,
@@ -255,6 +268,8 @@ class NeuroCyberneticController:
             tau_window=20,
             use_quantum=use_quantum,
             seed=self.seed + 2,
+            allow_numpy_fallback=self.allow_numpy_fallback,
+            allow_legacy_numpy_fallback=self.allow_legacy_numpy_fallback,
         )
 
     def run_shot(
@@ -428,6 +443,8 @@ def run_neuro_cybernetic_control(
     save_plot: bool = False,
     verbose: bool = False,
     output_path: str | None = None,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
     kernel_factory: Callable[[str], Any] | None = None,
 ) -> Dict[str, Any]:
     """Run neuro-cybernetic control in deterministic non-interactive mode."""
@@ -435,6 +452,8 @@ def run_neuro_cybernetic_control(
         config_file,
         seed=seed,
         shot_duration=shot_duration,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
         kernel_factory=kernel_factory,
     )
     if quantum:

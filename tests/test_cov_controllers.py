@@ -99,7 +99,14 @@ class TestNeuroCyberneticVisualize:
 
         monkeypatch.setattr(mod, "SC_NEUROCORE_AVAILABLE", False)
 
-        nc = mod.NeuroCyberneticController("dummy.json", seed=42, shot_duration=3, kernel_factory=_DummyKernel)
+        nc = mod.NeuroCyberneticController(
+            "dummy.json",
+            seed=42,
+            shot_duration=3,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+            kernel_factory=_DummyKernel,
+        )
         nc.run_shot(save_plot=False, verbose=False)
         out = tmp_path / "test_plot.png"
         with caplog.at_level(logging.INFO, logger="scpn_control.control.neuro_cybernetic_controller"):

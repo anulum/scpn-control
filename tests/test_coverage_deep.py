@@ -269,6 +269,8 @@ class TestNeuroCyberneticVisualize:
             "dummy.json",
             seed=42,
             shot_duration=5,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_NCKernel,
         )
         nc.run_shot(save_plot=False, verbose=False)
@@ -285,6 +287,8 @@ class TestNeuroCyberneticVisualize:
             save_plot=True,
             verbose=False,
             output_path=out,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_NCKernel,
         )
         assert s["plot_saved"] is True

@@ -108,12 +108,18 @@ class DirectorInterface:
         self,
         config_path: str,
         *,
-        allow_fallback: bool = True,
+        allow_fallback: bool = False,
+        allow_legacy_fallback: bool = False,
         director: Any | None = None,
         controller_factory: Callable[[str], Any] = NeuroCyberneticController,
         entropy_threshold: float = 0.3,
         history_window: int = 10,
     ) -> None:
+        if allow_fallback and not allow_legacy_fallback:
+            raise ValueError(
+                "allow_fallback=True requires allow_legacy_fallback=True; "
+                "rule-based legacy fallback is disabled by default."
+            )
         self.nc = controller_factory(config_path)
         if director is not None:
             self.director = director

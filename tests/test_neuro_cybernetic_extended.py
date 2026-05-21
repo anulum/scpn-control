@@ -61,23 +61,46 @@ class TestResolveFusionKernel:
 
 class TestSpikingPoolEdgeCases:
     def test_single_neuron_pool(self):
-        pool = SpikingControllerPool(n_neurons=1, seed=42)
+        pool = SpikingControllerPool(
+            n_neurons=1,
+            seed=42,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
         output = pool.step(1.0)
         assert isinstance(output, float)
 
     def test_zero_error_no_drift(self):
-        pool = SpikingControllerPool(n_neurons=20, seed=42, noise_std=0.0)
+        pool = SpikingControllerPool(
+            n_neurons=20,
+            seed=42,
+            noise_std=0.0,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
         outputs = [pool.step(0.0) for _ in range(50)]
         assert all(isinstance(o, float) for o in outputs)
 
     def test_large_error_produces_nonzero(self):
-        pool = SpikingControllerPool(n_neurons=20, seed=42, tau_window=5)
+        pool = SpikingControllerPool(
+            n_neurons=20,
+            seed=42,
+            tau_window=5,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
         for _ in range(20):
             pool.step(10.0)
         assert pool.last_rate_pos > 0.0
 
     def test_negative_error_drives_neg_population(self):
-        pool = SpikingControllerPool(n_neurons=20, seed=42, tau_window=5)
+        pool = SpikingControllerPool(
+            n_neurons=20,
+            seed=42,
+            tau_window=5,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
+        )
         for _ in range(20):
             pool.step(-10.0)
         assert pool.last_rate_neg > 0.0
@@ -89,6 +112,8 @@ class TestNeuroCyberneticControllerSavePlotError:
             "dummy.json",
             seed=42,
             shot_duration=5,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_DummyKernel,
         )
         nc.initialize_brains(use_quantum=False)
@@ -112,6 +137,8 @@ class TestNeuroCyberneticControllerSavePlotError:
             "dummy.json",
             seed=42,
             shot_duration=3,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_DummyKernel,
         )
         nc.initialize_brains(use_quantum=False)
@@ -140,6 +167,8 @@ class TestRunFunctionOutputPath:
             save_plot=False,
             verbose=False,
             output_path="/tmp/test.png",
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_DummyKernel,
         )
         assert summary["plot_saved"] is False
@@ -152,6 +181,8 @@ class TestRunFunctionOutputPath:
             quantum=True,
             save_plot=False,
             verbose=False,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_DummyKernel,
         )
         assert summary["backend_r"] == "numpy_lif"
@@ -165,6 +196,8 @@ class TestControllerResetHistory:
             "dummy.json",
             seed=42,
             shot_duration=10,
+            allow_numpy_fallback=True,
+            allow_legacy_numpy_fallback=True,
             kernel_factory=_DummyKernel,
         )
         nc.run_shot(save_plot=False, verbose=False)

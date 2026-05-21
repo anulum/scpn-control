@@ -153,6 +153,8 @@ class TestDirectorInterfaceRunMission:
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         result = di.run_directed_mission(
             duration=20,
@@ -177,10 +179,14 @@ class TestDirectorInterfaceRunMission:
         a = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         ).run_directed_mission(duration=15, rng_seed=42, save_plot=False, verbose=False)
         b = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         ).run_directed_mission(duration=15, rng_seed=42, save_plot=False, verbose=False)
         assert a["final_target_ip"] == b["final_target_ip"]
         assert a["intervention_count"] == b["intervention_count"]
@@ -189,6 +195,8 @@ class TestDirectorInterfaceRunMission:
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         with pytest.raises(ValueError, match="duration must be >= 1"):
             di.run_directed_mission(duration=0, save_plot=False, verbose=False)
@@ -197,6 +205,8 @@ class TestDirectorInterfaceRunMission:
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         with pytest.raises(ValueError, match="glitch_start_step must be >= 0"):
             di.run_directed_mission(
@@ -210,6 +220,8 @@ class TestDirectorInterfaceRunMission:
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         with pytest.raises(ValueError, match="glitch_std"):
             di.run_directed_mission(
@@ -236,10 +248,20 @@ class TestDirectorInterfaceRunMission:
                 controller_factory=_MockNeuroCyberneticController,
             )
 
+    def test_legacy_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_fallback=True"):
+            DirectorInterface(
+                "mock.json",
+                allow_fallback=True,
+                controller_factory=_MockNeuroCyberneticController,
+            )
+
     def test_glitch_triggers_intervention(self):
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         result = di.run_directed_mission(
             duration=100,
@@ -254,6 +276,8 @@ class TestDirectorInterfaceRunMission:
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         with caplog.at_level(logging.INFO, logger="scpn_control.control.director_interface"):
             di.run_directed_mission(
@@ -268,6 +292,8 @@ class TestDirectorInterfaceRunMission:
         di = DirectorInterface(
             "mock.json",
             controller_factory=_MockNeuroCyberneticController,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
         )
         with caplog.at_level(logging.INFO, logger="scpn_control.control.director_interface"):
             di.run_directed_mission(

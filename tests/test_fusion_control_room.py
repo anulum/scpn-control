@@ -46,6 +46,14 @@ class _DummyKernel:
         self.Psi = (self.RR - center_r) ** 2 + ((self.ZZ - center_z) / 1.7) ** 2
 
 
+class _InvalidPsiKernel:
+    """Kernel stand-in exposing invalid Psi shape for fail-closed validation tests."""
+
+    def __init__(self, _config_path: str) -> None:
+        self.cfg = {"coils": [{"current": 0.0} for _ in range(5)]}
+        self.Psi = np.zeros(32, dtype=np.float64)
+
+
 def test_run_control_room_returns_finite_summary_without_outputs() -> None:
     summary = run_control_room(
         sim_duration=18,
@@ -260,9 +268,38 @@ class TestRunControlRoomExtended:
             verbose=False,
             kernel_factory=_bad_factory,
             config_file="x.json",
+            allow_analytic_fallback=True,
+            allow_legacy_analytic_fallback=True,
         )
         assert summary["psi_source"] == "analytic"
         assert summary["kernel_error"] == "boom"
+
+    def test_invalid_kernel_psi_is_fail_closed_by_default(self):
+        with pytest.raises(RuntimeError, match="legacy kernel-Psi fallback is disabled"):
+            run_control_room(
+                sim_duration=5,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                kernel_factory=_InvalidPsiKernel,
+                config_file="x.json",
+            )
+
+    def test_invalid_kernel_psi_legacy_fallback_opt_in(self):
+        summary = run_control_room(
+            sim_duration=5,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=_InvalidPsiKernel,
+            config_file="x.json",
+            allow_kernel_psi_fallback=True,
+            allow_legacy_kernel_psi_fallback=True,
+        )
+        assert summary["psi_source"] == "analytic"
+        assert summary["kernel_error"] is not None
 
     def test_mean_abs_z_nonnegative(self):
         summary = run_control_room(
@@ -334,8 +371,47 @@ class _KernelBadEquilibrium:
             raise RuntimeError("singular matrix")
 
 
+class _KernelNoCfg:
+    """Kernel stand-in lacking cfg attribute (contract violation)."""
+
+    def __init__(self, _cfg: str) -> None:
+        self.R = np.linspace(1.0, 5.0, 20)
+        self.Z = np.linspace(-3.0, 3.0, 20)
+        RR, ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = 1.0 - ((RR - 3.0) ** 2 + (ZZ / 1.7) ** 2)
+
+    def solve_equilibrium(self) -> None:
+        pass
+
+
+class _KernelBadCfgType:
+    """Kernel stand-in with invalid cfg type (contract violation)."""
+
+    def __init__(self, _cfg: str) -> None:
+        self.cfg = "invalid"
+        self.R = np.linspace(1.0, 5.0, 20)
+        self.Z = np.linspace(-3.0, 3.0, 20)
+        RR, ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = 1.0 - ((RR - 3.0) ** 2 + (ZZ / 1.7) ** 2)
+
+    def solve_equilibrium(self) -> None:
+        pass
+
+
 class TestKernelEdgeCases:
-    def test_few_coils_skips_update(self):
+    def test_few_coils_is_fail_closed_by_default(self):
+        with pytest.raises(RuntimeError, match="fewer than 5 channels"):
+            run_control_room(
+                sim_duration=5,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                kernel_factory=_KernelFewCoils,
+                config_file="x.json",
+            )
+
+    def test_few_coils_legacy_fallback_opt_in(self):
         summary = run_control_room(
             sim_duration=5,
             seed=0,
@@ -344,9 +420,50 @@ class TestKernelEdgeCases:
             verbose=False,
             kernel_factory=_KernelFewCoils,
             config_file="x.json",
+            allow_coil_update_fallback=True,
+            allow_legacy_coil_update_fallback=True,
         )
         assert summary["psi_source"] == "kernel"
         assert np.isfinite(summary["final_z"])
+
+    def test_missing_kernel_cfg_is_fail_closed_by_default(self):
+        with pytest.raises(RuntimeError, match="does not expose required cfg"):
+            run_control_room(
+                sim_duration=5,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                kernel_factory=_KernelNoCfg,
+                config_file="x.json",
+            )
+
+    def test_missing_kernel_cfg_legacy_fallback_opt_in(self):
+        summary = run_control_room(
+            sim_duration=5,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=_KernelNoCfg,
+            config_file="x.json",
+            allow_coil_update_fallback=True,
+            allow_legacy_coil_update_fallback=True,
+        )
+        assert summary["psi_source"] == "kernel"
+        assert np.isfinite(summary["final_z"])
+
+    def test_bad_kernel_cfg_type_is_fail_closed_by_default(self):
+        with pytest.raises(RuntimeError, match="cfg must be a mapping"):
+            run_control_room(
+                sim_duration=5,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                kernel_factory=_KernelBadCfgType,
+                config_file="x.json",
+            )
 
     def test_bad_equilibrium_logs_warning(self):
         summary = run_control_room(
@@ -357,9 +474,23 @@ class TestKernelEdgeCases:
             verbose=False,
             kernel_factory=_KernelBadEquilibrium,
             config_file="x.json",
+            allow_runtime_solve_fallback=True,
+            allow_legacy_runtime_solve_fallback=True,
         )
         assert summary["psi_source"] == "kernel"
         assert np.isfinite(summary["final_z"])
+
+    def test_runtime_equilibrium_failure_is_fail_closed_by_default(self):
+        with pytest.raises(RuntimeError, match="legacy runtime fallback is disabled"):
+            run_control_room(
+                sim_duration=5,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                kernel_factory=_KernelBadEquilibrium,
+                config_file="x.json",
+            )
 
     def test_verbose_kernel_path(self, caplog):
         with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_control_room"):
@@ -387,8 +518,69 @@ class TestKernelEdgeCases:
                 verbose=True,
                 kernel_factory=_bad_factory,
                 config_file="x.json",
+                allow_analytic_fallback=True,
+                allow_legacy_analytic_fallback=True,
             )
         assert "nope" in caplog.text
+
+    def test_kernel_init_failure_is_fail_closed_by_default(self):
+        def _bad_factory(_cfg):
+            raise RuntimeError("nope")
+
+        with pytest.raises(RuntimeError, match="legacy analytic fallback is disabled"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                kernel_factory=_bad_factory,
+                config_file="x.json",
+            )
+
+    def test_legacy_analytic_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_analytic_fallback=True"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                allow_analytic_fallback=True,
+            )
+
+    def test_legacy_runtime_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_runtime_solve_fallback=True"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                allow_runtime_solve_fallback=True,
+            )
+
+    def test_legacy_kernel_psi_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_kernel_psi_fallback=True"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                allow_kernel_psi_fallback=True,
+            )
+
+    def test_legacy_coil_update_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_coil_update_fallback=True"):
+            run_control_room(
+                sim_duration=3,
+                seed=0,
+                save_animation=False,
+                save_report=False,
+                verbose=False,
+                allow_coil_update_fallback=True,
+            )
 
     def test_auto_kernel_factory_from_config_file(self):
         """When kernel_factory=None but config_file set, FusionKernel is used automatically."""
