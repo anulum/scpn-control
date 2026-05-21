@@ -196,7 +196,10 @@ class TestNeuralTransportModel:
                 output_scale=w.output_scale,
                 version=np.array(99),
             )
-            with pytest.raises(ValueError, match="version 99 != expected"):
+            with pytest.raises(
+                RuntimeError,
+                match="Failed to load explicit neural transport weights.*allow_weight_load_fallback=True",
+            ):
                 NeuralTransportModel(f.name)
 
     def test_wrong_version_legacy_fallback_opt_in(self):
@@ -225,7 +228,10 @@ class TestNeuralTransportModel:
     def test_missing_key_falls_back(self):
         with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
             np.savez(f.name, w1=np.zeros((10, 16)))
-            with pytest.raises(ValueError, match="missing required key"):
+            with pytest.raises(
+                RuntimeError,
+                match="Failed to load explicit neural transport weights.*allow_weight_load_fallback=True",
+            ):
                 NeuralTransportModel(f.name)
 
     def test_missing_key_legacy_fallback_opt_in(self):
