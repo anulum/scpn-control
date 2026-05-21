@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from scpn_control.core.gk_corrector import CorrectionRecord
 from scpn_control.core.gk_verification_report import VerificationReport
 
@@ -99,3 +101,30 @@ def test_correction_factor_tracking():
     r.add_correction_factor(0.2)
     d = r.to_dict()
     assert d["mean_correction_factor"] == round(0.2, 4)
+
+
+def test_add_step_rejects_negative_counts() -> None:
+    r = VerificationReport()
+    with pytest.raises(ValueError, match="n_spot_checks"):
+        r.add_step(verified=True, n_spot_checks=-1)
+    with pytest.raises(ValueError, match="n_ood"):
+        r.add_step(verified=True, n_ood=-1)
+
+
+def test_add_correction_factor_rejects_nonfinite() -> None:
+    r = VerificationReport()
+    with pytest.raises(ValueError, match="finite"):
+        r.add_correction_factor(float("nan"))
+
+
+def test_add_records_rejects_non_record() -> None:
+    r = VerificationReport()
+    with pytest.raises(ValueError, match="CorrectionRecord"):
+        r.add_records([object()])  # type: ignore[list-item]
+
+
+def test_report_post_init_rejects_invalid_counters() -> None:
+    with pytest.raises(ValueError, match="counters must be >= 0"):
+        VerificationReport(total_steps=-1)
+    with pytest.raises(ValueError, match="steps_verified cannot exceed total_steps"):
+        VerificationReport(total_steps=1, steps_verified=2)

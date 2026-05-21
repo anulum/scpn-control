@@ -33,6 +33,12 @@ class VerificationReport:
     records: list[CorrectionRecord] = field(default_factory=list)
     correction_factors: list[float] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        if self.total_steps < 0 or self.steps_verified < 0 or self.total_spot_checks < 0 or self.ood_triggers < 0:
+            raise ValueError("report counters must be >= 0")
+        if self.steps_verified > self.total_steps:
+            raise ValueError("steps_verified cannot exceed total_steps")
+
     @property
     def verification_fraction(self) -> float:
         if self.total_steps == 0:
@@ -52,17 +58,29 @@ class VerificationReport:
         return float(np.mean([abs(r.rel_error_chi_i) for r in self.records]))
 
     def add_step(self, verified: bool, n_spot_checks: int = 0, n_ood: int = 0) -> None:
+        n_spot_checks_i = int(n_spot_checks)
+        n_ood_i = int(n_ood)
+        if n_spot_checks_i < 0:
+            raise ValueError("n_spot_checks must be >= 0")
+        if n_ood_i < 0:
+            raise ValueError("n_ood must be >= 0")
         self.total_steps += 1
         if verified:
             self.steps_verified += 1
-        self.total_spot_checks += n_spot_checks
-        self.ood_triggers += n_ood
+        self.total_spot_checks += n_spot_checks_i
+        self.ood_triggers += n_ood_i
 
     def add_records(self, records: list[CorrectionRecord]) -> None:
+        for rec in records:
+            if not isinstance(rec, CorrectionRecord):
+                raise ValueError("records must contain only CorrectionRecord instances")
         self.records.extend(records)
 
     def add_correction_factor(self, factor: float) -> None:
-        self.correction_factors.append(factor)
+        factor_f = float(factor)
+        if not np.isfinite(factor_f):
+            raise ValueError("correction factor must be finite")
+        self.correction_factors.append(factor_f)
 
     def to_dict(self) -> dict:
         return {
