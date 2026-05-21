@@ -134,6 +134,18 @@ def test_ensemble_insufficient_models():
     assert result.details["reason"] == "insufficient_models"
 
 
+def test_ensemble_rejects_invalid_shape():
+    detector = OODDetector()
+    with pytest.raises(ValueError, match="shape \\(K, 3\\)"):
+        detector.check_ensemble(np.ones((5, 2)))
+
+
+def test_ensemble_rejects_non_2d_input():
+    detector = OODDetector()
+    with pytest.raises(ValueError, match="2D array"):
+        detector.check_ensemble(np.ones(3))
+
+
 def test_combined_check_in_distribution(detector, in_distribution_input):
     result = detector.check(in_distribution_input)
     assert result.is_ood is False
@@ -192,6 +204,21 @@ def test_ood_result_dataclass():
     assert r.is_ood is True
     assert r.confidence == 0.8
     assert r.details["key"] == "val"
+
+
+def test_ood_result_rejects_invalid_confidence() -> None:
+    with pytest.raises(ValueError, match="confidence"):
+        OODResult(is_ood=True, confidence=float("nan"), method="test", details={})
+
+
+def test_ood_result_rejects_empty_method() -> None:
+    with pytest.raises(ValueError, match="method"):
+        OODResult(is_ood=True, confidence=0.2, method="", details={})
+
+
+def test_ood_result_rejects_non_dict_details() -> None:
+    with pytest.raises(ValueError, match="details"):
+        OODResult(is_ood=True, confidence=0.2, method="test", details=[])  # type: ignore[arg-type]
 
 
 def test_to_input_vector():

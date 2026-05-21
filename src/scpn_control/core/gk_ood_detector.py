@@ -63,6 +63,16 @@ class OODResult:
     method: str  # "mahalanobis" / "ensemble" / "range" / "combined"
     details: dict
 
+    def __post_init__(self) -> None:
+        confidence_value = float(self.confidence)
+        if not np.isfinite(confidence_value) or confidence_value < 0.0 or confidence_value > 1.0:
+            raise ValueError("confidence must be finite and within [0, 1]")
+        if not isinstance(self.method, str) or not self.method.strip():
+            raise ValueError("method must be a non-empty string")
+        if not isinstance(self.details, dict):
+            raise ValueError("details must be a dict")
+        self.confidence = confidence_value
+
 
 def _to_input_vector(
     R_L_Ti: float,
@@ -178,9 +188,14 @@ class OODDetector:
         predictions : array, shape (K, 3)
             Ensemble of [chi_i, chi_e, D_e] predictions from K models.
         """
+        predictions = np.asarray(predictions, dtype=np.float64)
+        if predictions.ndim != 2:
+            raise ValueError(f"predictions must be a 2D array, received ndim={predictions.ndim}")
+        if predictions.shape[1] != 3:
+            raise ValueError(f"predictions must have shape (K, 3), received {predictions.shape}")
         if not np.all(np.isfinite(predictions)):
             raise ValueError("predictions must be finite")
-        if predictions.ndim != 2 or predictions.shape[0] < 2:
+        if predictions.shape[0] < 2:
             return OODResult(
                 is_ood=False,
                 confidence=0.0,
