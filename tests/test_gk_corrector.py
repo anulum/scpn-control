@@ -168,11 +168,42 @@ def test_correct_update_empty_records(rho50):
 
 
 def test_correct_unknown_mode(rho50):
-    """Cover gk_corrector.py line 138: unknown mode returns unchanged."""
-    corr = GKCorrector(nr=50, config=CorrectorConfig(mode="unknown_mode"))
+    """Unknown mode must fail closed at construction."""
+    with pytest.raises(ValueError, match="mode must be one of"):
+        GKCorrector(nr=50, config=CorrectorConfig(mode="unknown_mode"))
+
+
+def test_corrector_rejects_invalid_alpha_and_nr():
+    with pytest.raises(ValueError, match="nr must be >= 1"):
+        GKCorrector(nr=0)
+    with pytest.raises(ValueError, match="smoothing_alpha"):
+        GKCorrector(nr=10, config=CorrectorConfig(smoothing_alpha=1.5))
+
+
+def test_update_rejects_record_rho_outside_domain(rho50):
+    corr = GKCorrector(nr=50)
+    bad = _make_record(25, 1.5, surr_i=1.0, gk_i=1.5)
+    with pytest.raises(ValueError, match="record rho must lie within the provided rho grid domain"):
+        corr.update([bad], rho50)
+
+
+def test_correct_rejects_bad_shape_or_nonfinite(rho50):
+    corr = GKCorrector(nr=50)
+    with pytest.raises(ValueError, match="must each have shape"):
+        corr.correct(np.ones(49), np.ones(50), np.ones(50) * 0.1)
+    bad = np.ones(50)
+    bad[5] = np.nan
+    with pytest.raises(ValueError, match="must contain only finite values"):
+        corr.correct(bad, np.ones(50), np.ones(50) * 0.1)
+
+
+def test_update_sorts_unsorted_records(rho50):
+    corr = GKCorrector(nr=50, config=CorrectorConfig(smoothing_alpha=1.0))
+    records = [
+        _make_record(40, float(rho50[40]), surr_i=1.0, gk_i=2.0),
+        _make_record(15, float(rho50[15]), surr_i=1.0, gk_i=1.5),
+    ]
+    corr.update(records, rho50)
     chi_i = np.ones(50)
-    chi_e = np.ones(50)
-    D_e = np.ones(50) * 0.1
-    out_i, out_e, out_d = corr.correct(chi_i, chi_e, D_e)
-    np.testing.assert_array_equal(out_i, chi_i)
-    np.testing.assert_array_equal(out_e, chi_e)
+    out_i, _, _ = corr.correct(chi_i, np.ones(50), np.ones(50) * 0.1)
+    assert 1.4 < out_i[25] < 2.1
