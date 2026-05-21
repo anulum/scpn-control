@@ -283,22 +283,43 @@ class NeuralTransportModel:
     False
     """
 
-    def __init__(self, weights_path: str | Path | None = None, *, auto_discover: bool = True) -> None:
+    def __init__(
+        self,
+        weights_path: str | Path | None = None,
+        *,
+        auto_discover: bool = True,
+        allow_weight_load_fallback: bool = False,
+        allow_legacy_weight_load_fallback: bool = False,
+    ) -> None:
+        if allow_weight_load_fallback and not allow_legacy_weight_load_fallback:
+            raise ValueError(
+                "allow_weight_load_fallback=True requires allow_legacy_weight_load_fallback=True; "
+                "legacy neural-transport weight-load fallback is disabled by default."
+            )
         self._weights: MLPWeights | None = None
         self.is_neural: bool = False
         self.weights_path: Path | None = None
         self.weights_checksum: str | None = None
+        self._allow_weight_load_fallback = bool(allow_weight_load_fallback)
+        self._allow_legacy_weight_load_fallback = bool(allow_legacy_weight_load_fallback)
 
         if weights_path is not None:
             self.weights_path = Path(weights_path)
-            self._try_load_weights()
+            self._try_load_weights(strict=True)
         elif auto_discover and _DEFAULT_WEIGHTS_PATH.exists():
             self.weights_path = _DEFAULT_WEIGHTS_PATH
-            self._try_load_weights()
+            self._try_load_weights(strict=False)
 
-    def _try_load_weights(self) -> None:
+    def _try_load_weights(self, *, strict: bool) -> None:
         """Attempt to load MLP weights from disk."""
         if self.weights_path is None or not self.weights_path.exists():
+            if strict and not self._allow_weight_load_fallback:
+                raise FileNotFoundError(
+                    f"Neural transport weights not found at {self.weights_path}. "
+                    "Provide a valid weights_path or set both "
+                    "allow_weight_load_fallback=True and "
+                    "allow_legacy_weight_load_fallback=True for explicit degraded-mode operation."
+                )
             logger.info(
                 "Neural transport weights not found at %s — using critical-gradient fallback",
                 self.weights_path,
@@ -310,12 +331,26 @@ class NeuralTransportModel:
             required = ["w1", "b1", "w2", "b2", "w3", "b3", "input_mean", "input_std", "output_scale"]
             for key in required:
                 if key not in data:
+                    if strict and not self._allow_weight_load_fallback:
+                        raise ValueError(
+                            f"Neural transport weight file is missing required key '{key}'. "
+                            "Provide a valid weights artifact or set both "
+                            "allow_weight_load_fallback=True and "
+                            "allow_legacy_weight_load_fallback=True for explicit degraded-mode operation."
+                        )
                     logger.warning("Weight file missing key '%s' — falling back", key)
                     return
 
             # Version check (optional key, defaults to 1)
             version = int(data["version"].item()) if "version" in data else 1
             if version != _WEIGHTS_FORMAT_VERSION:
+                if strict and not self._allow_weight_load_fallback:
+                    raise ValueError(
+                        f"Neural transport weight file version {version} != expected {_WEIGHTS_FORMAT_VERSION}. "
+                        "Provide a compatible weights artifact or set both "
+                        "allow_weight_load_fallback=True and "
+                        "allow_legacy_weight_load_fallback=True for explicit degraded-mode operation."
+                    )
                 logger.warning(
                     "Weight file version %d != expected %d — falling back",
                     version,
@@ -349,7 +384,14 @@ class NeuralTransportModel:
                 version,
                 self.weights_checksum,
             )
-        except (OSError, KeyError, ValueError, TypeError):
+        except (OSError, KeyError, TypeError):
+            if strict and not self._allow_weight_load_fallback:
+                raise RuntimeError(
+                    "Failed to load explicit neural transport weights. "
+                    "Provide a valid weights artifact or set both "
+                    "allow_weight_load_fallback=True and "
+                    "allow_legacy_weight_load_fallback=True for explicit degraded-mode operation."
+                )
             logger.exception("Failed to load neural transport weights")
 
     def predict(self, inp: TransportInputs) -> TransportFluxes:

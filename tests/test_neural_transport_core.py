@@ -18,6 +18,7 @@
 import tempfile
 
 import numpy as np
+import pytest
 
 from scpn_control.core.neural_transport import (
     MLPWeights,
@@ -120,7 +121,15 @@ class TestNeuralTransportModel:
         assert not model.is_neural
 
     def test_missing_path_falls_back(self):
-        model = NeuralTransportModel("/nonexistent/path.npz")
+        with pytest.raises(FileNotFoundError, match="allow_weight_load_fallback=True"):
+            NeuralTransportModel("/nonexistent/path.npz")
+
+    def test_missing_path_legacy_fallback_opt_in(self):
+        model = NeuralTransportModel(
+            "/nonexistent/path.npz",
+            allow_weight_load_fallback=True,
+            allow_legacy_weight_load_fallback=True,
+        )
         assert not model.is_neural
 
     def test_load_valid_weights(self):
@@ -187,14 +196,55 @@ class TestNeuralTransportModel:
                 output_scale=w.output_scale,
                 version=np.array(99),
             )
-            model = NeuralTransportModel(f.name)
+            with pytest.raises(ValueError, match="version 99 != expected"):
+                NeuralTransportModel(f.name)
+
+    def test_wrong_version_legacy_fallback_opt_in(self):
+        w = _make_weights()
+        with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
+            np.savez(
+                f.name,
+                w1=w.w1,
+                b1=w.b1,
+                w2=w.w2,
+                b2=w.b2,
+                w3=w.w3,
+                b3=w.b3,
+                input_mean=w.input_mean,
+                input_std=w.input_std,
+                output_scale=w.output_scale,
+                version=np.array(99),
+            )
+            model = NeuralTransportModel(
+                f.name,
+                allow_weight_load_fallback=True,
+                allow_legacy_weight_load_fallback=True,
+            )
         assert not model.is_neural
 
     def test_missing_key_falls_back(self):
         with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
             np.savez(f.name, w1=np.zeros((10, 16)))
-            model = NeuralTransportModel(f.name)
+            with pytest.raises(ValueError, match="missing required key"):
+                NeuralTransportModel(f.name)
+
+    def test_missing_key_legacy_fallback_opt_in(self):
+        with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
+            np.savez(f.name, w1=np.zeros((10, 16)))
+            model = NeuralTransportModel(
+                f.name,
+                allow_weight_load_fallback=True,
+                allow_legacy_weight_load_fallback=True,
+            )
         assert not model.is_neural
+
+    def test_weight_load_legacy_fallback_requires_explicit_opt_in(self):
+        with pytest.raises(ValueError, match="allow_legacy_weight_load_fallback=True"):
+            NeuralTransportModel(
+                "/nonexistent/path.npz",
+                allow_weight_load_fallback=True,
+                allow_legacy_weight_load_fallback=False,
+            )
 
 
 # ── Profile prediction ─────────────────────────────────────────────
