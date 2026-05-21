@@ -524,7 +524,12 @@ class TestNeuralTransportWeightLoadException:
 
         bad = tmp_path / "missing_keys.npz"
         np.savez(bad, wrong_key=np.array([1, 2, 3]))
-        s = NeuralTransportSurrogate(weights_path=bad, auto_discover=False)
+        s = NeuralTransportSurrogate(
+            weights_path=bad,
+            auto_discover=False,
+            allow_weight_load_fallback=True,
+            allow_legacy_weight_load_fallback=True,
+        )
         assert s.is_neural is False
 
     def test_type_error_in_weights(self, tmp_path):
@@ -542,7 +547,12 @@ class TestNeuralTransportWeightLoadException:
             w3=np.array([1.0]),
             b3=np.array([1.0]),
         )
-        s = NeuralTransportSurrogate(weights_path=bad, auto_discover=False)
+        s = NeuralTransportSurrogate(
+            weights_path=bad,
+            auto_discover=False,
+            allow_weight_load_fallback=True,
+            allow_legacy_weight_load_fallback=True,
+        )
         assert s.is_neural is False
 
 
