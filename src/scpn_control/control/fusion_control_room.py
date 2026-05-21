@@ -186,6 +186,11 @@ def _render_outputs(
     output_gif: str,
     output_report: str,
 ) -> tuple[bool, str | None, bool, str | None]:
+    if not HAS_MPL or "plt" not in globals():
+        raise RuntimeError(
+            "Output rendering requires matplotlib; install optional plotting dependencies."
+        )
+
     fig = plt.figure(figsize=(12, 8), facecolor="#1e1e1e")
     gs = fig.add_gridspec(2, 2)
 
