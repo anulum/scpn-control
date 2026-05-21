@@ -684,6 +684,66 @@ class TestExternalGKSolverFallback:
         assert np.all(np.isfinite(chi_i))
         assert np.all(chi_i >= 0.01)
 
+    def test_gk_solver_invalid_converged_flux_fails_closed(self, config_file: Path) -> None:
+        """External GK converged flag with invalid flux values must fail closed."""
+        ts = TransportSolver(str(config_file), transport_model="external_gk")
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+
+        from unittest.mock import MagicMock
+        from scpn_control.core.gk_interface import GKOutput
+
+        mock_solver = MagicMock()
+        mock_solver.run_from_params.return_value = GKOutput(chi_i=np.nan, chi_e=1.0, D_e=0.1, converged=True)
+        ts._gk_solver = mock_solver
+
+        with pytest.raises(RuntimeError, match="unconverged transport"):
+            ts._external_gk_transport(ts.neoclassical_params)
+
+    def test_tglf_native_invalid_converged_flux_fails_closed(self, config_file: Path) -> None:
+        """Native TGLF converged flag with invalid flux values must fail closed."""
+        ts = TransportSolver(str(config_file), transport_model="tglf_native")
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+
+        from unittest.mock import MagicMock
+        from scpn_control.core.gk_interface import GKOutput
+
+        mock_solver = MagicMock()
+        mock_solver.run_from_params.return_value = GKOutput(chi_i=np.inf, chi_e=-1.0, D_e=np.nan, converged=True)
+        ts._tglf_native_solver = mock_solver
+
+        with pytest.raises(RuntimeError, match="unconverged transport"):
+            ts._tglf_native_transport(ts.neoclassical_params)
+
+    def test_tglf_native_invalid_converged_flux_legacy_fallback_opt_in(self, config_file: Path) -> None:
+        """Native TGLF legacy fallback can absorb invalid converged flux only by explicit opt-in."""
+        ts = TransportSolver(
+            str(config_file),
+            transport_model="tglf_native",
+            tglf_native_allow_gyrobohm_fallback=True,
+            allow_legacy_approximations=True,
+        )
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+
+        from unittest.mock import MagicMock
+        from scpn_control.core.gk_interface import GKOutput
+
+        mock_solver = MagicMock()
+        mock_solver.run_from_params.return_value = GKOutput(chi_i=np.nan, chi_e=np.nan, D_e=np.nan, converged=True)
+        ts._tglf_native_solver = mock_solver
+
+        chi_i = ts._tglf_native_transport(ts.neoclassical_params)
+        assert np.all(np.isfinite(chi_i))
+        assert np.all(chi_i >= 0.01)
+
     def test_gk_solver_lazy_init(self, config_file: Path) -> None:
         """Cover ITS lines 540-543: lazy init of _gk_solver."""
         ts = TransportSolver(str(config_file), transport_model="gyrokinetic")
