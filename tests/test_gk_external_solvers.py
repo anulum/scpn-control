@@ -65,7 +65,18 @@ def test_gene_solver_unavailable(cbc_params, tmp_path):
 
     solver = GENESolver(binary="nonexistent_gene_xyz", work_dir=tmp_path)
     assert not solver.is_available()
-    result = solver.run_from_params(cbc_params)
+    with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
+        solver.run_from_params(cbc_params)
+
+    with pytest.raises(ValueError, match="allow_legacy_fallback=True"):
+        GENESolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=False)
+
+    result = GENESolver(
+        binary="nonexistent_gene_xyz",
+        work_dir=tmp_path,
+        allow_fallback=True,
+        allow_legacy_fallback=True,
+    ).run_from_params(cbc_params)
     assert not result.converged
 
 
@@ -224,7 +235,16 @@ def test_gene_run_subprocess_failure(cbc_params, tmp_path):
         patch("shutil.which", return_value="/usr/bin/gene"),
         patch("subprocess.run", side_effect=FileNotFoundError),
     ):
-        result = solver.run(tmp_path)
+        with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
+            solver.run(tmp_path)
+
+    solver_legacy = GENESolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
+    solver_legacy.prepare_input(cbc_params)
+    with (
+        patch("shutil.which", return_value="/usr/bin/gene"),
+        patch("subprocess.run", side_effect=FileNotFoundError),
+    ):
+        result = solver_legacy.run(tmp_path)
     assert not result.converged
 
 
