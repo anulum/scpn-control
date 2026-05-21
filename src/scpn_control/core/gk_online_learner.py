@@ -54,7 +54,17 @@ class OnlineLearner:
         self.retrain_history: list[dict] = []
 
     def add_sample(self, input_10d: NDArray[np.float64], target_3d: NDArray[np.float64]) -> None:
-        self.buffer.append(TrainingSample(input_10d=input_10d.copy(), target_3d=target_3d.copy()))
+        input_arr = np.asarray(input_10d, dtype=np.float64)
+        target_arr = np.asarray(target_3d, dtype=np.float64)
+        if input_arr.shape != (10,):
+            raise ValueError(f"input_10d must have shape (10,), received {input_arr.shape}")
+        if target_arr.shape != (3,):
+            raise ValueError(f"target_3d must have shape (3,), received {target_arr.shape}")
+        if not np.all(np.isfinite(input_arr)):
+            raise ValueError("input_10d must contain only finite values")
+        if not np.all(np.isfinite(target_arr)):
+            raise ValueError("target_3d must contain only finite values")
+        self.buffer.append(TrainingSample(input_10d=input_arr.copy(), target_3d=target_arr.copy()))
 
     @property
     def buffer_full(self) -> bool:
@@ -110,9 +120,37 @@ class OnlineLearner:
             w3 = rng.normal(0, 0.1, (32, 3))
             b3 = np.zeros(3)
         else:
-            w1, b1 = current_weights["w1"].copy(), current_weights["b1"].copy()
-            w2, b2 = current_weights["w2"].copy(), current_weights["b2"].copy()
-            w3, b3 = current_weights["w3"].copy(), current_weights["b3"].copy()
+            required = ("w1", "b1", "w2", "b2", "w3", "b3")
+            missing = [name for name in required if name not in current_weights]
+            if missing:
+                raise ValueError(f"current_weights missing required keys: {missing}")
+            w1 = np.asarray(current_weights["w1"], dtype=np.float64).copy()
+            b1 = np.asarray(current_weights["b1"], dtype=np.float64).copy()
+            w2 = np.asarray(current_weights["w2"], dtype=np.float64).copy()
+            b2 = np.asarray(current_weights["b2"], dtype=np.float64).copy()
+            w3 = np.asarray(current_weights["w3"], dtype=np.float64).copy()
+            b3 = np.asarray(current_weights["b3"], dtype=np.float64).copy()
+            if w1.shape != (10, 64):
+                raise ValueError(f"current_weights['w1'] must have shape (10, 64), received {w1.shape}")
+            if b1.shape != (64,):
+                raise ValueError(f"current_weights['b1'] must have shape (64,), received {b1.shape}")
+            if w2.shape != (64, 32):
+                raise ValueError(f"current_weights['w2'] must have shape (64, 32), received {w2.shape}")
+            if b2.shape != (32,):
+                raise ValueError(f"current_weights['b2'] must have shape (32,), received {b2.shape}")
+            if w3.shape != (32, 3):
+                raise ValueError(f"current_weights['w3'] must have shape (32, 3), received {w3.shape}")
+            if b3.shape != (3,):
+                raise ValueError(f"current_weights['b3'] must have shape (3,), received {b3.shape}")
+            if not (
+                np.all(np.isfinite(w1))
+                and np.all(np.isfinite(b1))
+                and np.all(np.isfinite(w2))
+                and np.all(np.isfinite(b2))
+                and np.all(np.isfinite(w3))
+                and np.all(np.isfinite(b3))
+            ):
+                raise ValueError("current_weights must contain only finite values")
 
         self._weights_backup = {
             "w1": w1.copy(),

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner
 
@@ -156,3 +157,66 @@ def test_retrain_rollback_on_worse_loss():
     w2 = learner.try_retrain()
     assert w2 is None
     assert learner.retrain_history[-1]["accepted"] is False
+
+
+def test_add_sample_rejects_invalid_shapes():
+    learner = OnlineLearner()
+    with pytest.raises(ValueError, match="input_10d must have shape"):
+        learner.add_sample(np.zeros(9), np.zeros(3))
+    with pytest.raises(ValueError, match="target_3d must have shape"):
+        learner.add_sample(np.zeros(10), np.zeros(2))
+
+
+def test_add_sample_rejects_nonfinite_values():
+    learner = OnlineLearner()
+    bad_inp = np.zeros(10)
+    bad_inp[0] = np.nan
+    with pytest.raises(ValueError, match="input_10d must contain only finite values"):
+        learner.add_sample(bad_inp, np.zeros(3))
+    bad_tgt = np.zeros(3)
+    bad_tgt[1] = np.inf
+    with pytest.raises(ValueError, match="target_3d must contain only finite values"):
+        learner.add_sample(np.zeros(10), bad_tgt)
+
+
+def test_try_retrain_rejects_invalid_current_weights_schema():
+    learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=1))
+    rng = np.random.default_rng(42)
+    for inp, tgt in _random_samples(5, rng):
+        learner.add_sample(inp, tgt)
+    with pytest.raises(ValueError, match="missing required keys"):
+        learner.try_retrain(current_weights={"w1": np.zeros((10, 64))})
+
+
+def test_try_retrain_rejects_invalid_current_weights_shape():
+    learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=1))
+    rng = np.random.default_rng(42)
+    for inp, tgt in _random_samples(5, rng):
+        learner.add_sample(inp, tgt)
+    bad_weights = {
+        "w1": np.zeros((9, 64)),
+        "b1": np.zeros(64),
+        "w2": np.zeros((64, 32)),
+        "b2": np.zeros(32),
+        "w3": np.zeros((32, 3)),
+        "b3": np.zeros(3),
+    }
+    with pytest.raises(ValueError, match="current_weights\\['w1'\\] must have shape"):
+        learner.try_retrain(current_weights=bad_weights)
+
+
+def test_try_retrain_rejects_nonfinite_current_weights():
+    learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=1))
+    rng = np.random.default_rng(42)
+    for inp, tgt in _random_samples(5, rng):
+        learner.add_sample(inp, tgt)
+    bad_weights = {
+        "w1": np.full((10, 64), np.nan),
+        "b1": np.zeros(64),
+        "w2": np.zeros((64, 32)),
+        "b2": np.zeros(32),
+        "w3": np.zeros((32, 3)),
+        "b3": np.zeros(3),
+    }
+    with pytest.raises(ValueError, match="must contain only finite values"):
+        learner.try_retrain(current_weights=bad_weights)
