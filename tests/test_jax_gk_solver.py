@@ -284,6 +284,10 @@ def test_nonlinear_jax_kinetic_electrons_em():
     """JAX solver with both kinetic_electrons and electromagnetic."""
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
+    import scpn_control.core.jax_gk_nonlinear as nl_mod
+
+    if not nl_mod.jax_available():
+        pytest.skip("JAX not installed; strict JAX solver path required.")
 
     cfg = NonlinearGKConfig(
         n_kx=8,
