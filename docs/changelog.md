@@ -2,6 +2,138 @@
 
 # Changelog
 
+## [0.19.1] — 2026-05-21
+
+### Fixed
+- Hardened fail-closed contracts across external GK solver surfaces:
+  QuaLiKiz, GENE, GS2, and CGYRO now require explicit dual-gate opt-in
+  for degraded fallback behaviour.
+- Hardened integrated transport GK acceptance criteria:
+  converged results must also be finite and non-negative for
+  `chi_i`, `chi_e`, and `D_e`, otherwise fail closed by default.
+- Hardened hybrid-GK control-plane contracts:
+  scheduler config/runtime input validation, OOD detector result/ensemble
+  schema checks, online learner sample/weight validation, corrector
+  config/profile validation, and verification-report telemetry guards.
+
+### Changed
+- Package version bumped to `0.19.1`.
+- Regenerated capability manifest and README capability snapshot to match
+  current repository state.
+
+## [0.19.0] — 2026-03-18
+
+### Fixed — Physics Audit (33 equation corrections)
+- **Integration wiring**: sawtooth crash→psi writeback, NTM seeding from crash
+  energy, ELM/stability/L-H modules connected to scenario loop, beta_N and li
+  computed from profiles (were hardcoded placeholders)
+- **GK**: Te/Ti ratio in quasilinear (was trivially 1.0), omega_r←gamma_net in
+  TGLF native output, electron drive phi→phi_eff for EM flutter, Ampere skin-depth
+  term, CFL k→k² for Poisson bracket, Sugama conservation via 3×3 Gram matrix
+- **MHD**: NTM MRE prefactor (extra r_s removed), polarization (w_pol/w)³,
+  Porcelli Condition 2 units, EPED q95 sqrt→linear, TAE k_∥=1/(2qR₀),
+  locked-mode I_eff from geometry (was 5 orders too small)
+- **Transport**: Sauter L31 collisionality denominator, banana boundary ε^(3/2),
+  GS residual → GS* operator, tau_eq from Braginskii, halo f_halo=0.3,
+  orbit drift ÷B³, ISS04 s_ref=(2/3)²
+- **Edge**: Connor-Hastie h(Z) E_ratio removed, hot-tail→erfc, SOL sheath BC
+  two-point model, GS source full weight (was 50/50 blend), BH Table VII citation,
+  noqa dead code removed
+- 3,300+ tests (235 files), 100% coverage, 20 CI jobs
+
+## [0.18.0] — 2026-03-17
+
+### Added
+- **Nonlinear δf gyrokinetic solver** (`gk_nonlinear.py`):
+  5D Vlasov in flux-tube geometry with dealiased E×B bracket (Orszag 2/3 rule),
+  4th-order parallel streaming, curvature/grad-B drift, Krook collision operator,
+  RK4 with CFL-adaptive dt, zonal flow diagnostics.
+  JAX-accelerated variant (`jax_gk_nonlinear.py`) with `jax.checkpoint`.
+  CBC validation: linear recovery, energy conservation, zonal flows, saturated state.
+- **Native TGLF-equivalent model** (`gk_tglf_native.py`):
+  SAT0/SAT1/SAT2 spectral saturation (Staebler 2007/2017),
+  E×B shear quench (Waltz 1997), trapped-particle damping (Connor 1974),
+  multi-scale ITG-ETG cross-scale coupling (Maeyama 2015, α_cs=3.0),
+  quasilinear weights with Γ₀ FLR + particle pinch.
+  Implements `GKSolverBase` — usable as drop-in for external TGLF.
+- `"tglf_native"` transport mode in `integrated_transport_solver.py`
+- `validation/gk_nonlinear_cyclone.py` — CBC benchmark (4 tests, all passing)
+- **Dimits shift proven** at n_kx=256: zero transport below critical gradient
+- **Electromagnetic A_∥** via Ampere's law (KBM/MTM capable)
+- **Sugama collision operator**: pitch-angle scattering with ν(v) ∝ v⁻³,
+  particle/momentum/energy conservation (<3e-8/<1e-23/<2e-8)
+- **Kinetic electron species**: semi-implicit backward-Euler, removes adiabatic
+  approximation. chi_i = 1.3 χ_gB (kinetic) vs 2.0 χ_gB (adiabatic)
+- **Ballooning connection BC**: kx shift at θ boundaries via FFT phase multiply
+- **Rosenbluth-Hinton zonal Krook damping**: dynamic relaxation on bounce time
+- 53 new tests (27 TGLF native + 26 nonlinear)
+- **Physics deepening sprint** — 18 modules, ~50 paper citations, 118 new tests:
+  - Neoclassical: Pfirsch-Schlüter regime, regime auto-detection, full Sauter L31/L32/L34 bootstrap
+  - EPED pedestal: collisionality-dependent width (Snyder 2011), shaping factor (Connor 1998)
+  - Sawtooth: Porcelli 1996 three-condition trigger, Bussac δW_MHD
+  - RWM feedback: rotation stabilization (Fitzpatrick 2001), wall geometry, critical rotation
+  - NTM dynamics: diamagnetic shear (Sauter 1997), GGJ Δ' (Glasser 1975), bootstrap from local params
+  - Alfvén eigenmodes: electron Landau damping (Rosenbluth 1975), Fu-Van Dam resonance, RSAE+BAE
+  - Integrated scenario: transport solver wired, Strang splitting, bootstrap+ohmic, NTM coupling
+  - Current drive: Fisch-Boozer ECCD, Stix slowing-down, Prater geometric efficiency
+  - L-H transition: Martin 2008 scaling, low-density branch (Ryter 2014), Kim-Diamond predator-prey
+  - Momentum transport: Prandtl number (Peeters 2011), Rice rotation, Burrell ExB shear
+  - Orbit following: Boozer 2004 equations, Stix slowing-down, Goldston first-orbit loss
+  - Locked mode: Fitzpatrick 1993 EM torque, La Haye locking condition
+  - Tearing coupling: Chirikov 1979 overlap, La Haye-Buttery 2009 coupling
+  - MARFE: Drake 1987 instability, Greenwald 2002, Lipschultz 1987 onset
+  - Impurity transport: Hirshman-Sigmar 1981 pinch, Post 1977 radiation
+  - Runaway electrons: Wesson Coulomb log, R&P full avalanche, Martin-Solis synchrotron limit
+  - Plasma startup: Lieberman-Lichtenberg Townsend, Janev ionization rate
+  - Current diffusion: temperature-dependent ln_Λ, Jardin 2010 citations
+- Python 3.14 added to CI matrix and classifiers
+
+### Changed
+- **Nengo replaced** with pure LIF+NEF engine (numpy 2.x compatible, no external dependency)
+- All mypy errors fixed across 10 source files
+- 3,300+ tests (235 files), 100% coverage, 20 CI jobs
+
+### Fixed
+- CFL fix for hyperdiffusion stability in nonlinear GK solver
+- Subprocess PYTHONPATH in test_controller_oracle_serve for Python 3.14
+- Martin L-H scaling 10x density unit bug (n_e19 → n_e20 conversion)
+
+## [0.17.0] — 2026-03-14
+
+### Added
+- **Gyrokinetic Three-Path Transport System** (16 new modules):
+  - **Path A — External GK coupling** (5 codes):
+    `gk_interface.py` (universal ABC + GKLocalParams/GKOutput),
+    `gk_tglf.py` (TGLF namelist generation + subprocess),
+    `gk_gene.py` (GENE parameters + nrg parsing),
+    `gk_gs2.py` (GS2 namelist + NetCDF/omega parsing),
+    `gk_cgyro.py` (CGYRO input + freq parsing),
+    `gk_qualikiz.py` (Python API + subprocess fallback)
+  - **Path B — Native linear GK eigenvalue solver**:
+    `gk_geometry.py` (Miller flux-tube parameterisation, metric coefficients, curvature),
+    `gk_species.py` (species, Gauss-Legendre velocity grid, Sugama collision operator),
+    `gk_eigenvalue.py` (response-matrix eigenvalue solver in ballooning space),
+    `gk_quasilinear.py` (mixing-length saturation, quasilinear chi_i/chi_e/D_e)
+  - **Path C — Hybrid surrogate+GK validation layer**:
+    `gk_ood_detector.py` (Mahalanobis + range + ensemble OOD detection),
+    `gk_scheduler.py` (periodic/adaptive/critical-region spot-check scheduling),
+    `gk_corrector.py` (multiplicative/additive/replace correction with EMA smoothing),
+    `gk_online_learner.py` (buffer-based retraining with validation holdout + rollback),
+    `gk_verification_report.py` (per-session verification stats, JSON export)
+  - **SCPN phase bridge**: `phase/gk_upde_bridge.py` (GK fluxes → adaptive K_nm for
+    P0↔P1 microturbulence↔zonal, P1↔P4 zonal↔barrier, P3↔P4 sawtooth↔barrier)
+  - `"external_gk"` transport mode wired into `integrated_transport_solver.py`
+  - Cyclone Base Case validation (Dimits et al. 2000) with reference data
+  - `validation/benchmark_gk_linear.py` — CBC, gradient scan, multi-code, SPARC/ITER
+  - `validation/benchmark_hybrid_accuracy.py` — end-to-end hybrid accuracy
+  - `examples/tutorial_08_gyrokinetic_solver.py` — 5-section GK demo
+  - 163 new tests across 15 test files
+
+### Changed
+- License: MIT OR Apache-2.0 → **GNU AGPL v3 | Commercial licensing available**
+- Removed Michal Reiprich from all authorship records
+- 3,015 tests (220+ files), 100% coverage, 20 CI jobs
+
 ## [0.16.0] — 2026-03-13
 
 ### Added
@@ -30,9 +162,8 @@
 - **Phase 4 — Absolute control** (10 modules in `control/`):
   - `nmpc_controller.py` — nonlinear MPC with SQP over 20-step horizon; state/input
     box constraints and slew-rate limits on Ip, beta_N, q95, li, Te, nbar
-  - `mu_synthesis.py` — bounded static mu-analysis for structured robust
-    control; D-scaling optimisation for structured singular value bounds;
-    MuSynthesisController
+  - `mu_synthesis.py` — D-K iteration for structured robust control; D-scaling
+    optimization minimising structured singular value mu; MuSynthesisController
   - `realtime_efit.py` — streaming equilibrium reconstruction from partial
     measurements; coil-current-to-psi mapping; sub-10ms latency target
   - `gain_scheduled_controller.py` — PID gains scheduled on operating regime

@@ -2,6 +2,25 @@
 
 # Changelog
 
+## [0.19.1] — 2026-05-21
+
+### Fixed
+- Hardened fail-closed contracts across external GK solver surfaces:
+  QuaLiKiz, GENE, GS2, and CGYRO now require explicit dual-gate opt-in
+  for degraded fallback behaviour.
+- Hardened integrated transport GK acceptance criteria:
+  converged results must also be finite and non-negative for
+  `chi_i`, `chi_e`, and `D_e`, otherwise fail closed by default.
+- Hardened hybrid-GK control-plane contracts:
+  scheduler config/runtime input validation, OOD detector result/ensemble
+  schema checks, online learner sample/weight validation, corrector
+  config/profile validation, and verification-report telemetry guards.
+
+### Changed
+- Package version bumped to `0.19.1`.
+- Regenerated capability manifest and README capability snapshot to match
+  current repository state.
+
 ## [0.19.0] — 2026-03-18
 
 ### Fixed — Physics Audit (33 equation corrections)

@@ -20,7 +20,7 @@
   },
   "counts": {
     "public_api_export_count": 15,
-    "public_class_count": 393,
+    "public_class_count": 394,
     "public_markdown_count": 30,
     "pyo3_export_count": 27,
     "python_test_file_count": 279,
@@ -86,7 +86,7 @@
     ],
     "package": "scpn_control",
     "python_requires": ">=3.10",
-    "version": "0.19.0"
+    "version": "0.19.1"
   },
   "python": {
     "public_api_exports": [
@@ -450,6 +450,7 @@
       "SuperTwistingSMC",
       "TAEMode",
       "TAEStabilityResult",
+      "TGLFExecutionError",
       "TGLFNativeConfig",
       "TGLFNativeResult",
       "TGLFNativeSolver",

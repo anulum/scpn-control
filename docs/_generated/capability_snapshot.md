@@ -11,11 +11,11 @@
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.19.0 |
+| Package version | 0.19.1 |
 | Python requirement | >=3.10 |
 | Public API exports | 15 |
 | Python control/physics modules | 128 |
-| Python public classes | 393 |
+| Python public classes | 394 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
 | Validation scripts | 38 |
