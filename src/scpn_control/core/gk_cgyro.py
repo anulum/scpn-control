@@ -84,9 +84,23 @@ def parse_cgyro_output(run_dir: Path) -> GKOutput:
 class CGYROSolver(GKSolverBase):
     """CGYRO external solver."""
 
-    def __init__(self, binary: str = "cgyro", work_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        binary: str = "cgyro",
+        work_dir: Path | None = None,
+        *,
+        allow_fallback: bool = False,
+        allow_legacy_fallback: bool = False,
+    ) -> None:
+        if allow_fallback and not allow_legacy_fallback:
+            raise ValueError(
+                "allow_fallback=True requires allow_legacy_fallback=True; "
+                "legacy CGYRO fallback is disabled by default."
+            )
         self.binary = binary
         self.work_dir = work_dir
+        self.allow_fallback = bool(allow_fallback)
+        self.allow_legacy_fallback = bool(allow_legacy_fallback)
 
     def is_available(self) -> bool:
         return shutil.which(self.binary) is not None
@@ -99,6 +113,12 @@ class CGYROSolver(GKSolverBase):
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:
         if not self.is_available():
+            if not self.allow_fallback:
+                raise RuntimeError(
+                    "CGYRO binary is unavailable; legacy fallback is disabled. "
+                    "Set allow_fallback=True and allow_legacy_fallback=True for explicit "
+                    "degraded-mode operation."
+                )
             return GKOutput(chi_i=0.0, chi_e=0.0, D_e=0.0, converged=False)
         try:
             subprocess.run(
@@ -108,6 +128,19 @@ class CGYROSolver(GKSolverBase):
                 timeout=timeout_s,
                 check=True,
             )
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as exc:
+            if not self.allow_fallback:
+                raise RuntimeError(
+                    "CGYRO execution failed; legacy fallback is disabled. "
+                    "Set allow_fallback=True and allow_legacy_fallback=True for explicit "
+                    "degraded-mode operation."
+                ) from exc
             return GKOutput(chi_i=0.0, chi_e=0.0, D_e=0.0, converged=False)
-        return parse_cgyro_output(input_path)  # pragma: no cover
+        result = parse_cgyro_output(input_path)
+        if not result.converged and not self.allow_fallback:
+            raise RuntimeError(
+                "CGYRO completed without converged output; legacy fallback is disabled. "
+                "Set allow_fallback=True and allow_legacy_fallback=True for explicit "
+                "degraded-mode operation."
+            )
+        return result

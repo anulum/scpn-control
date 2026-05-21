@@ -161,7 +161,18 @@ def test_cgyro_solver_unavailable(cbc_params, tmp_path):
 
     solver = CGYROSolver(binary="nonexistent_cgyro_xyz", work_dir=tmp_path)
     assert not solver.is_available()
-    result = solver.run_from_params(cbc_params)
+    with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
+        solver.run_from_params(cbc_params)
+
+    with pytest.raises(ValueError, match="allow_legacy_fallback=True"):
+        CGYROSolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=False)
+
+    result = CGYROSolver(
+        binary="nonexistent_cgyro_xyz",
+        work_dir=tmp_path,
+        allow_fallback=True,
+        allow_legacy_fallback=True,
+    ).run_from_params(cbc_params)
     assert not result.converged
 
 
@@ -209,7 +220,16 @@ def test_cgyro_run_subprocess_failure(cbc_params, tmp_path):
         patch("shutil.which", return_value="/usr/bin/cgyro"),
         patch("subprocess.run", side_effect=FileNotFoundError),
     ):
-        result = solver.run(tmp_path)
+        with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
+            solver.run(tmp_path)
+
+    solver_legacy = CGYROSolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
+    solver_legacy.prepare_input(cbc_params)
+    with (
+        patch("shutil.which", return_value="/usr/bin/cgyro"),
+        patch("subprocess.run", side_effect=FileNotFoundError),
+    ):
+        result = solver_legacy.run(tmp_path)
     assert not result.converged
 
 
