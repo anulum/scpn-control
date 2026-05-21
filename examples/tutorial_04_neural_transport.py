@@ -213,7 +213,17 @@ for i, r in enumerate(rho_grid):
 dt = 1e-4
 T_history = [T.copy()]
 for step in range(100):
-    T = crank_nicolson_step(T, chi_profile, source, rho_grid, drho, dt=dt, T_edge=0.5)
+    T = crank_nicolson_step(
+        T,
+        chi_profile,
+        source,
+        rho_grid,
+        drho,
+        dt=dt,
+        T_edge=0.5,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+    )
     if step % 20 == 19:
         T_history.append(T.copy())
 

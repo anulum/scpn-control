@@ -198,8 +198,8 @@ def test_tae_electron_damping_low_te():
     from scpn_control.core.alfven_eigenmodes import TAEMode
 
     tae = TAEMode(n=1, q_rational=1.5, v_A=1e6, R0=3.0, T_e_keV=1e-30)
-    omega = tae.frequency()
-    assert tae.electron_landau_damping() == pytest.approx(0.01 * omega, rel=0.01)
+    with pytest.raises(ValueError, match="invalid k_parallel or thermal speed"):
+        tae.electron_landau_damping()
 
 
 def test_alfven_critical_beta_zero():
