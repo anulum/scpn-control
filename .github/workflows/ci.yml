@@ -414,6 +414,8 @@ jobs:
         run: bandit -r src/scpn_control/ -c pyproject.toml -ll -f json -o bandit-report.json
       - name: Summary
         run: bandit -r src/scpn_control/ -c pyproject.toml -ll -f screen
+      - name: GitHub installation token format readiness
+        run: python tools/check_github_token_format_readiness.py
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: bandit-report
