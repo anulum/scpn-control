@@ -587,6 +587,8 @@ class TestDirectorInterfaceVisualization:
             save_plot=True,
             output_path=bad,
             verbose=False,
+            allow_plot_fallback=True,
+            allow_legacy_plot_fallback=True,
         )
         assert s["plot_saved"] is False
         assert s["plot_error"] is not None

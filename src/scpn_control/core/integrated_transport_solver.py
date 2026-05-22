@@ -357,6 +357,38 @@ class TransportSolver(FusionKernel):
         self.omega_phi = np.zeros(self.nr)
         self._momentum_solver: MomentumTransportSolver | None = None
 
+    def _ensure_valid_radial_grid(self) -> int:
+        """Restore the normalized radial grid if external mutation broke it."""
+        rho = np.asarray(self.rho, dtype=np.float64)
+        valid = (
+            rho.shape == (self.nr,)
+            and self.nr >= 2
+            and np.all(np.isfinite(rho))
+            and np.isclose(rho[0], 0.0)
+            and np.isclose(rho[-1], 1.0)
+            and np.all(np.diff(rho) > 0.0)
+            and np.isfinite(self.drho)
+            and self.drho > 0.0
+        )
+        if valid:
+            return 0
+
+        if self.nr < 2:
+            raise ValueError(f"nr must be at least 2, got {self.nr!r}")
+
+        canonical_rho = np.linspace(0.0, 1.0, self.nr, dtype=np.float64)
+        if getattr(self, "rho", None) is not None and np.shape(self.rho) == canonical_rho.shape:
+            self.rho[...] = canonical_rho
+        else:
+            self.rho = canonical_rho
+        self.drho = 1.0 / (self.nr - 1)
+
+        if self._momentum_solver is not None:
+            self._momentum_solver.rho = self.rho
+            self._momentum_solver.drho = self.drho
+
+        return 1
+
     def set_neoclassical(
         self,
         R0: float,
@@ -788,6 +820,8 @@ class TransportSolver(FusionKernel):
         Fails closed when neoclassical parameters are not configured, unless
         ``allow_constant_transport_fallback=True`` is explicitly enabled.
         """
+        self._ensure_valid_radial_grid()
+
         # 1. Critical Gradient Model
         grad_T = np.gradient(self.Ti, self.drho)
         threshold = 2.0
@@ -1388,7 +1422,8 @@ class TransportSolver(FusionKernel):
         if not np.isfinite(P_aux):
             raise ValueError(f"P_aux must be finite, got {P_aux!r}")
 
-        self._last_numerical_recovery_count = self._sanitize_runtime_state()
+        self._last_numerical_recovery_count = self._ensure_valid_radial_grid()
+        self._last_numerical_recovery_count += self._sanitize_runtime_state()
         Ti_old = self.Ti.copy()
         Te_old = self.Te.copy()
         e_keV_J = 1.602176634e-16

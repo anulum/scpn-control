@@ -144,6 +144,14 @@ def test_low_density_branch_zero_geometry():
     assert p_zero_ip == p_plain
 
 
+def test_low_density_branch_zero_density_is_non_triggerable():
+    """Zero density with valid machine parameters cannot enter H-mode."""
+    p_lh = MartinThreshold.power_threshold_with_low_density_branch_MW(
+        ne_19=0.0, B_T=5.3, S_m2=680.0, I_p_MA=15.0, a_m=2.0
+    )
+    assert np.isinf(p_lh)
+
+
 def test_i_phase_detector_short_trace():
     """Line 220: trace shorter than window returns False."""
     det = IPhaseDetector(window_size=100)

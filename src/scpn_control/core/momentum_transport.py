@@ -188,6 +188,17 @@ class MomentumTransportSolver:
 
         T_tot = T_nbi + T_intrinsic
         dr = self.drho * self.a
+        if (
+            self.nr < 2
+            or not np.isfinite(dr)
+            or dr <= 0.0
+            or not np.all(np.isfinite(self.rho))
+            or not np.all(np.diff(self.rho) > 0.0)
+        ):
+            self.rho = np.linspace(0.0, 1.0, self.nr, dtype=np.float64)
+            self.drho = 1.0 / (self.nr - 1)
+            dr = self.drho * self.a
+        dr = max(float(dr), 1e-12)
 
         diag = np.zeros(self.nr)
         upper = np.zeros(self.nr)
@@ -204,7 +215,7 @@ class MomentumTransportSolver:
         rhs[-1] = 0.0
 
         for i in range(1, self.nr - 1):
-            r_val = self.rho[i] * self.a
+            r_val = max(float(self.rho[i] * self.a), 0.5 * dr)
             c_plus = chi_phi[i] / dr**2 + chi_phi[i] / (2.0 * r_val * dr)
             c_minus = chi_phi[i] / dr**2 - chi_phi[i] / (2.0 * r_val * dr)
             c_0 = -2.0 * chi_phi[i] / dr**2

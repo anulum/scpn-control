@@ -226,6 +226,8 @@ class TestCoilWarningPath:
             save_animation=False,
             save_report=False,
             kernel_factory=_KernelBadCoils,
+            allow_coil_update_fallback=True,
+            allow_legacy_coil_update_fallback=True,
         )
         assert s["steps"] == 3
 

@@ -197,6 +197,11 @@ class MartinThreshold:
         Converted to 10¹⁹ m⁻³: n_GW_19 = 10 * I_p / (π a²).
         """
         p_martin = MartinThreshold.power_threshold_MW(ne_19, B_T, S_m2)
+        if ne_19 <= 0.0:
+            if I_p_MA > 0.0 and a_m > 0.0 and B_T > 0.0 and S_m2 > 0.0:
+                return float("inf")
+            return p_martin
+
         if I_p_MA <= 0 or a_m <= 0:
             return p_martin
 
