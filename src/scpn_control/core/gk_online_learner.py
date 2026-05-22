@@ -111,6 +111,12 @@ class OnlineLearner:
         Y_val = np.array([self.buffer[i].target_3d for i in val_idx])
 
         # Simple gradient descent on MSE (no external ML framework needed)
+        w1: NDArray[np.float64]
+        b1: NDArray[np.float64]
+        w2: NDArray[np.float64]
+        b2: NDArray[np.float64]
+        w3: NDArray[np.float64]
+        b3: NDArray[np.float64]
         if current_weights is None:
             # Initialise small random weights
             w1 = rng.normal(0, 0.1, (10, 64))
