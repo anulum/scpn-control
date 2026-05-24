@@ -30,6 +30,12 @@ class PeelingBallooningBoundary:
     """
 
     def __init__(self, q95: float, kappa: float, delta: float, a: float, R0: float):
+        if q95 <= 0.0:
+            raise ValueError("q95 must be positive")
+        if kappa <= 0.0:
+            raise ValueError("kappa must be positive")
+        if a <= 0.0 or R0 <= 0.0:
+            raise ValueError("a and R0 must be positive")
         self.q95 = q95
         self.kappa = kappa
         self.delta = delta
@@ -49,6 +55,8 @@ class PeelingBallooningBoundary:
         This keeps the Snyder-type coupled PB scaling structure while
         avoiding a single-parameter ``1/q95`` closure.
         """
+        if n_mode <= 0:
+            raise ValueError("n_mode must be positive")
         q95 = max(self.q95, 1e-3)
         n_eff = max(float(n_mode), 1.0)
         aspect = max(self.R0 / max(self.a, 1e-6), 1.0)
@@ -64,6 +72,8 @@ class PeelingBallooningBoundary:
 
         Shaping factor (1 + κ²(1 + 2δ²)) from Sauter et al. 1999, Phys. Plasmas 6, 2834.
         """
+        if s_edge < 0.0:
+            raise ValueError("s_edge must be non-negative")
         alpha_crit = 0.5 * max(s_edge, 0.1) * (1.0 + self.kappa**2 * (1.0 + 2.0 * self.delta**2))
         return float(alpha_crit)
 
@@ -122,6 +132,14 @@ class ELMCrashModel:
         ΔW_ELM = f × W_ped; T and n drop by √(1 − f) (W ∝ n T).
         Loarte et al. 2003, PPCF 45, 1549, Fig. 12.
         """
+        if T_ped <= 0.0:
+            raise ValueError("T_ped must be positive")
+        if n_ped <= 0.0:
+            raise ValueError("n_ped must be positive")
+        if W_ped <= 0.0:
+            raise ValueError("W_ped must be positive")
+        if A_wet <= 0.0:
+            raise ValueError("A_wet must be positive")
         delta_W_MJ = self.f_elm_fraction * W_ped
 
         drop_factor = np.sqrt(1.0 - self.f_elm_fraction)
@@ -138,6 +156,18 @@ class ELMCrashModel:
     def apply_to_profiles(
         self, rho: np.ndarray, Te: np.ndarray, ne: np.ndarray, rho_ped: float
     ) -> tuple[np.ndarray, np.ndarray]:
+        if rho.ndim != 1 or Te.ndim != 1 or ne.ndim != 1:
+            raise ValueError("rho, Te, and ne must be one-dimensional")
+        if not (len(rho) == len(Te) == len(ne)):
+            raise ValueError("rho, Te, and ne must have equal length")
+        if len(rho) == 0:
+            raise ValueError("profiles must not be empty")
+        if np.any(np.diff(rho) < 0.0):
+            raise ValueError("rho must be sorted")
+        if np.any(Te <= 0.0) or np.any(ne <= 0.0):
+            raise ValueError("Te and ne profiles must be positive")
+        if rho_ped < rho[0] or rho_ped > rho[-1]:
+            raise ValueError("rho_ped must lie within the rho grid")
         Te_new = Te.copy()
         ne_new = ne.copy()
 
@@ -158,6 +188,8 @@ class Type3ELMCrashModel(ELMCrashModel):
     """
 
     def __init__(self, f_elm_fraction: float = ELM_TYPE3_FRACTION):
+        if not (0.0 < f_elm_fraction < ELM_ENERGY_FRACTION_MIN):
+            raise ValueError("Type III f_elm_fraction must be positive and below the Type I lower bound")
         # Bypass Type I bound check — Type III fraction is below Type I minimum.
         self.f_elm_fraction = f_elm_fraction
 
@@ -174,6 +206,12 @@ class RMPSuppression:
     """Resonant Magnetic Perturbation effects on ELMs."""
 
     def __init__(self, n_coils: int = 3, I_rmp_kA: float = 90.0, n_toroidal: int = 3):
+        if n_coils <= 0:
+            raise ValueError("n_coils must be positive")
+        if I_rmp_kA < 0.0:
+            raise ValueError("I_rmp_kA must be non-negative")
+        if n_toroidal <= 0:
+            raise ValueError("n_toroidal must be positive")
         self.n_coils = n_coils
         self.I_rmp_kA = I_rmp_kA
         self.n_toroidal = n_toroidal
@@ -184,6 +222,16 @@ class RMPSuppression:
         """
         σ_Chir = Σ w_mn / dr_mn; w_mn = 4√(R0 q' δB_r / (n B0)).
         """
+        if q_profile.ndim != 1 or rho.ndim != 1:
+            raise ValueError("q_profile and rho must be one-dimensional")
+        if len(q_profile) != len(rho) or len(q_profile) == 0:
+            raise ValueError("q_profile and rho must have equal non-zero length")
+        if np.any(q_profile <= 0.0):
+            raise ValueError("q_profile values must be positive")
+        if np.any(np.diff(rho) < 0.0):
+            raise ValueError("rho must be sorted")
+        if B0 <= 0.0 or R0 <= 0.0:
+            raise ValueError("B0 and R0 must be positive")
         q_edge = q_profile[-1]
 
         if len(rho) > 1:
@@ -219,6 +267,8 @@ def elm_power_balance_frequency(P_SOL_MW: float, W_ped_MJ: float, f_elm_fraction
     f_ELM ∝ (P_loss − P_LH) / ΔW_ELM ≈ P_SOL / (f × W_ped).
     Leonard et al. 1999, J. Nucl. Mater. 266-269, 109.
     """
+    if P_SOL_MW < 0.0:
+        raise ValueError("P_SOL_MW must be non-negative")
     if W_ped_MJ <= 0.0 or f_elm_fraction <= 0.0:
         return 0.0
     return P_SOL_MW / (f_elm_fraction * W_ped_MJ)
@@ -236,6 +286,10 @@ class ELMCycler:
     def step(
         self, dt: float, alpha_edge: float, j_edge: float, s_edge: float, T_ped: float, n_ped: float, W_ped: float
     ) -> ELMEvent | None:
+        if dt <= 0.0:
+            raise ValueError("dt must be positive")
+        if alpha_edge < 0.0 or j_edge < 0.0 or s_edge < 0.0:
+            raise ValueError("alpha_edge, j_edge, and s_edge must be non-negative")
         self.time += dt
 
         if self.pb.is_unstable(alpha_edge, j_edge, s_edge):
