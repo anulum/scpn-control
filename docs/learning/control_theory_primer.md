@@ -256,9 +256,11 @@ MPC handles constraints natively, unlike PID or LQR. In fusion applications:
 ### Nonlinear MPC
 
 For nonlinear plants, the prediction model $f(x, u)$ is not a matrix multiplication.
-The `NonlinearMPC` in scpn-control linearises $f$ at each step via finite differences to
-obtain local Jacobians $(A_k, B_k)$, then solves the resulting QP via sequential
-quadratic programming (SQP). Up to `max_sqp_iter` iterations refine the trajectory.
+The `NonlinearMPC` in scpn-control accepts an analytic `linearization_model(x, u)`
+provider for production plants that can expose exact local Jacobians
+$(A_k, B_k)$. When no provider is configured, it falls back to bounded finite
+differences, then solves the resulting QP via sequential quadratic programming
+(SQP). Up to `max_sqp_iter` iterations refine the trajectory.
 
 When a neural surrogate replaces $f$, the Jacobians come from backpropagation through
 the network, enabling gradient-based trajectory optimisation without an explicit physics

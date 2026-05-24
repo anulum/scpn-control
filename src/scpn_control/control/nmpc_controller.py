@@ -87,19 +87,25 @@ class NMPCConfig:
 
 
 class NonlinearMPC:
-    """SQP-based NMPC with curvature-scaled projected gradient QP solves.
+    """SQP-based NMPC with validated plant linearization contracts.
 
-    Each SQP outer iteration linearizes f around the nominal trajectory,
-    then solves the resulting condensed QP with a projected gradient step
-    derived from the local condensed Hessian curvature.
+    Each SQP outer iteration linearizes f around the nominal trajectory with an
+    optional analytic Jacobian provider. When no provider is configured, the
+    controller falls back to bounded finite differences. The condensed QP is
+    solved by either SciPy SLSQP or curvature-scaled projected gradient.
     """
 
     def __init__(
         self,
         plant_model: Callable[[np.ndarray, np.ndarray], np.ndarray],
         config: NMPCConfig,
+        linearization_model: Callable[
+            [np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]
+        ]
+        | None = None,
     ):
         self.plant_model = plant_model
+        self.linearization_model = linearization_model
         self.config = config
 
         self._validate_config(config)
@@ -116,6 +122,7 @@ class NonlinearMPC:
         self.last_qp_converged = False
         self.last_qp_step_size = 0.0
         self.last_qp_backend = "uninitialized"
+        self.last_linearization_source = "uninitialized"
 
     def _estimate_qp_step_size(
         self,
@@ -211,39 +218,59 @@ class NonlinearMPC:
         return u
 
     def _linearize(self, x0: np.ndarray, u0: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Jacobians A = ∂f/∂x, B = ∂f/∂u via central finite differences."""
+        """Jacobians A = ∂f/∂x, B = ∂f/∂u for the local plant model."""
+        x0_safe = _as_finite_vector("x0", x0, self.nx)
+        u0_safe = _as_finite_vector("u0", u0, self.nu)
+        if self.linearization_model is not None:
+            A_raw, B_raw = self.linearization_model(x0_safe.copy(), u0_safe.copy())
+            A = np.asarray(A_raw, dtype=np.float64)
+            B = np.asarray(B_raw, dtype=np.float64)
+            if A.shape != (self.nx, self.nx) or not np.all(np.isfinite(A)):
+                raise ValueError(
+                    "linearization_model must return finite A with shape "
+                    f"({self.nx}, {self.nx})."
+                )
+            if B.shape != (self.nx, self.nu) or not np.all(np.isfinite(B)):
+                raise ValueError(
+                    "linearization_model must return finite B with shape "
+                    f"({self.nx}, {self.nu})."
+                )
+            self.last_linearization_source = "analytic"
+            return A, B
+
         A = np.zeros((self.nx, self.nx))
         B = np.zeros((self.nx, self.nu))
         eps_x = 1e-4
         eps_u = 1e-4
-        f0 = self._plant_step(x0, u0)
+        f0 = self._plant_step(x0_safe, u0_safe)
 
         for i in range(self.nx):
             f_plus = None
             f_minus = None
-            if x0[i] + eps_x <= self.config.x_max[i]:
-                x_plus = x0.copy()
+            if x0_safe[i] + eps_x <= self.config.x_max[i]:
+                x_plus = x0_safe.copy()
                 x_plus[i] += eps_x
-                f_plus = self._plant_step(x_plus, u0)
-            if x0[i] - eps_x >= self.config.x_min[i]:
-                x_minus = x0.copy()
+                f_plus = self._plant_step(x_plus, u0_safe)
+            if x0_safe[i] - eps_x >= self.config.x_min[i]:
+                x_minus = x0_safe.copy()
                 x_minus[i] -= eps_x
-                f_minus = self._plant_step(x_minus, u0)
+                f_minus = self._plant_step(x_minus, u0_safe)
             A[:, i] = self._finite_difference_column(f_plus, f0, f_minus, eps_x)
 
         for i in range(self.nu):
             f_plus = None
             f_minus = None
-            if u0[i] + eps_u <= self.config.u_max[i]:
-                u_plus = u0.copy()
+            if u0_safe[i] + eps_u <= self.config.u_max[i]:
+                u_plus = u0_safe.copy()
                 u_plus[i] += eps_u
-                f_plus = self._plant_step(x0, u_plus)
-            if u0[i] - eps_u >= self.config.u_min[i]:
-                u_minus = u0.copy()
+                f_plus = self._plant_step(x0_safe, u_plus)
+            if u0_safe[i] - eps_u >= self.config.u_min[i]:
+                u_minus = u0_safe.copy()
                 u_minus[i] -= eps_u
-                f_minus = self._plant_step(x0, u_minus)
+                f_minus = self._plant_step(x0_safe, u_minus)
             B[:, i] = self._finite_difference_column(f_plus, f0, f_minus, eps_u)
 
+        self.last_linearization_source = "finite_difference"
         return A, B
 
     def _compute_terminal_cost(self, A: np.ndarray, B: np.ndarray) -> np.ndarray:

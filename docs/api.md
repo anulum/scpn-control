@@ -479,8 +479,12 @@ propagating undefined SQP or PGD iterates.
 The public `compute_cost()` evaluator includes the finite-horizon terminal
 penalty, using configured `P` when supplied and the controller's conservative
 fallback terminal weight otherwise.
-Nonlinear plant linearization uses central finite differences for second-order
-local Jacobian accuracy in the SQP approximation.
+Production plant models may provide an analytic `linearization_model(x, u)`
+contract returning finite `(6, 6)` state and `(6, 3)` input Jacobians. The
+controller validates those matrices before use and records
+`last_linearization_source == "analytic"`. If no analytic provider is supplied,
+the controller falls back to bounded central finite differences and records
+`last_linearization_source == "finite_difference"`.
 DARE-derived terminal matrices are accepted only when finite, symmetric, and
 positive definite; invalid solver output falls back to the conservative terminal
 weight.

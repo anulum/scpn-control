@@ -399,3 +399,65 @@ def test_nmpc_step_rejects_nonfinite_plant_output() -> None:
 
     with pytest.raises(ValueError, match="plant_model"):
         nmpc.step(x0, x_ref, u_prev)
+
+
+def test_nmpc_uses_analytic_linearization_provider_without_plant_calls() -> None:
+    """Analytic plant Jacobians avoid finite-difference plant evaluations."""
+
+    plant_calls = {"count": 0}
+
+    def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        plant_calls["count"] += 1
+        return x
+
+    A_expected = np.eye(6)
+    B_expected = np.array(
+        [
+            [0.1, 0.0, 0.0],
+            [0.0, 0.2, 0.0],
+            [0.0, 0.0, 0.3],
+            [0.4, 0.0, 0.0],
+            [0.0, 0.5, 0.0],
+            [0.0, 0.0, 0.6],
+        ],
+        dtype=float,
+    )
+
+    def linearization(x: np.ndarray, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        assert x.shape == (6,)
+        assert u.shape == (3,)
+        return A_expected, B_expected
+
+    nmpc = NonlinearMPC(
+        plant,
+        NMPCConfig(horizon=2),
+        linearization_model=linearization,
+    )
+
+    A, B = nmpc.linearize(np.zeros(6), np.zeros(3))
+
+    assert plant_calls["count"] == 0
+    np.testing.assert_allclose(A, A_expected)
+    np.testing.assert_allclose(B, B_expected)
+    assert nmpc.last_linearization_source == "analytic"
+
+
+def test_nmpc_rejects_invalid_analytic_linearization_provider_output() -> None:
+    """Analytic plant Jacobians must match the NMPC state-input dimensions."""
+
+    def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        return x
+
+    def bad_linearization(
+        x: np.ndarray, u: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        return np.eye(5), np.full((6, 3), np.nan)
+
+    nmpc = NonlinearMPC(
+        plant,
+        NMPCConfig(horizon=2),
+        linearization_model=bad_linearization,
+    )
+
+    with pytest.raises(ValueError, match="linearization_model"):
+        nmpc.linearize(np.zeros(6), np.zeros(3))
