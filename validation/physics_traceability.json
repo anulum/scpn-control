@@ -1109,7 +1109,7 @@
     },
     {
       "component": "disruption sequence phase-ordering contract",
-      "equation_contract": "Disruption-sequence claims must declare phase ordering, Rechester-Rosenbluth thermal-quench transport, post-quench radiative-cooling exposure, current-quench timing, mitigation action coupling, runaway-electron beam phase, stochastic event boundaries, halo-force convention, and replay provenance.",
+      "equation_contract": "Disruption-sequence claims must declare phase ordering, finite positive configuration domains, Rechester-Rosenbluth thermal-quench transport, post-quench radiative-cooling exposure, current-quench timing, mitigation action coupling, runaway-electron beam phase, stochastic event boundaries, halo-force convention, and replay provenance.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "ITER disruption mitigation sequence references",
@@ -1121,7 +1121,7 @@
         "Validate phase timing, post-quench temperature, and mitigation branches against labelled measured disruption windows",
         "Persist shot identifiers, phase labels, thermal-quench duration, radiation-time assumption, timing tolerances, and mitigation metadata for sequence validation"
       ],
-      "unit_contract": "Time in seconds or milliseconds with explicit convention, current in amperes or mega-amperes, energy in joules or megajoules, and dimensionless phase labels.",
+      "unit_contract": "Time in seconds or milliseconds with explicit convention, current in amperes or mega-amperes, energy in joules or megajoules, magnetic field in tesla, geometry in metres, density in 10^20 m^-3, and dimensionless phase labels.",
       "validation_evidence": [
         "tests/test_disruption_sequence.py post-quench cooling, phase ordering, current quench, runaway, and halo-force checks",
         "tests/test_disruption_safe_api.py"

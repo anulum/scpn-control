@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Disruption Sequence
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Disruption Sequence Model
-# ──────────────────────────────────────────────────────────────────────
 """Thermal-quench, current-quench, runaway-electron, and halo-current disruption sequence model."""
 
 from __future__ import annotations
@@ -32,6 +28,19 @@ class DisruptionConfig:
     Te_pre_keV: float
     ne_pre_20: float
     dBr_over_B_trigger: float
+
+    def __post_init__(self) -> None:
+        self.R0 = _finite_scalar("R0", self.R0, positive=True)
+        self.a = _finite_scalar("a", self.a, positive=True)
+        self.B0 = _finite_scalar("B0", self.B0, positive=True)
+        self.kappa = _finite_scalar("kappa", self.kappa, positive=True)
+        self.Ip_MA = _finite_scalar("Ip_MA", self.Ip_MA, positive=True)
+        self.W_th_MJ = _finite_scalar("W_th_MJ", self.W_th_MJ, positive=True)
+        self.Te_pre_keV = _finite_scalar("Te_pre_keV", self.Te_pre_keV, positive=True)
+        self.ne_pre_20 = _finite_scalar("ne_pre_20", self.ne_pre_20, positive=True)
+        self.dBr_over_B_trigger = _finite_scalar("dBr_over_B_trigger", self.dBr_over_B_trigger, nonnegative=True)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
 
 
 @dataclass
@@ -73,6 +82,17 @@ class DisruptionResult:
     total_duration_ms: float
     wall_heat_load_MJ_m2: float
     vessel_force_MN: float
+
+
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
 
 
 class ThermalQuench:

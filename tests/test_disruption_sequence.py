@@ -1,17 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Disruption Sequence
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Disruption Sequence Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.disruption_sequence import (
     CurrentQuench,
@@ -20,6 +17,31 @@ from scpn_control.core.disruption_sequence import (
     HaloCurrentModel,
     ThermalQuench,
 )
+
+
+def test_disruption_config_rejects_nonphysical_domains():
+    """Disruption phase ordering requires finite positive configuration domains."""
+    valid = {
+        "R0": 6.2,
+        "a": 2.0,
+        "B0": 5.3,
+        "kappa": 1.7,
+        "Ip_MA": 15.0,
+        "W_th_MJ": 350.0,
+        "Te_pre_keV": 20.0,
+        "ne_pre_20": 1.0,
+        "dBr_over_B_trigger": 3e-3,
+    }
+
+    for field in ("R0", "a", "B0", "kappa", "Ip_MA", "W_th_MJ", "Te_pre_keV", "ne_pre_20"):
+        with pytest.raises(ValueError, match=field):
+            DisruptionConfig(**{**valid, field: 0.0})
+
+    with pytest.raises(ValueError, match="a must be smaller"):
+        DisruptionConfig(**{**valid, "a": valid["R0"]})
+
+    with pytest.raises(ValueError, match="dBr_over_B_trigger"):
+        DisruptionConfig(**{**valid, "dBr_over_B_trigger": -1.0e-3})
 
 
 def test_thermal_quench():
