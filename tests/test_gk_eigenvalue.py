@@ -11,6 +11,8 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -270,6 +272,80 @@ class TestSingleKyInputValidation:
         )
         assert np.isfinite(mode.gamma)
         assert np.isfinite(mode.omega_r)
+
+
+class TestSingleKyGeometryValidation:
+    """Reject malformed flux-tube geometry before operator assembly."""
+
+    def test_rejects_nonfinite_theta_grid(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+    ):
+        bad_theta = cyclone_geometry.theta.copy()
+        bad_theta[0] = np.nan
+        bad_geom = replace(cyclone_geometry, theta=bad_theta)
+
+        with pytest.raises(ValueError, match="geom.theta must be finite"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=cyclone_species,
+                geom=bad_geom,
+                vgrid=small_vgrid,
+            )
+
+    def test_rejects_nonpositive_magnetic_field(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+    ):
+        bad_B = cyclone_geometry.B_mag.copy()
+        bad_B[0] = 0.0
+        bad_geom = replace(cyclone_geometry, B_mag=bad_B)
+
+        with pytest.raises(ValueError, match="geom.B_mag must be positive"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=cyclone_species,
+                geom=bad_geom,
+                vgrid=small_vgrid,
+            )
+
+    def test_rejects_curvature_shape_mismatch(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+    ):
+        bad_geom = replace(cyclone_geometry, kappa_n=cyclone_geometry.kappa_n[:-1])
+
+        with pytest.raises(ValueError, match="geom.kappa_n must match geom.theta"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=cyclone_species,
+                geom=bad_geom,
+                vgrid=small_vgrid,
+            )
+
+    def test_rejects_nonfinite_parallel_metric(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+    ):
+        bad_metric = cyclone_geometry.b_dot_grad_theta.copy()
+        bad_metric[0] = np.inf
+        bad_geom = replace(cyclone_geometry, b_dot_grad_theta=bad_metric)
+
+        with pytest.raises(ValueError, match="geom.b_dot_grad_theta must be finite"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=cyclone_species,
+                geom=bad_geom,
+                vgrid=small_vgrid,
+            )
 
 
 class TestElectromagneticKBMMTM:

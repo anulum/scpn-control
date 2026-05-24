@@ -105,6 +105,32 @@ def _require_finite_scalar(
     return out
 
 
+def _require_geometry_grid(geom: MillerGeometry) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Validate flux-tube geometry arrays consumed by the eigenvalue operator."""
+    theta = np.asarray(geom.theta, dtype=np.float64)
+    if theta.ndim != 1 or theta.size < 3:
+        raise ValueError("geom.theta must be a one-dimensional grid with at least 3 points.")
+    if not np.all(np.isfinite(theta)):
+        raise ValueError("geom.theta must be finite.")
+
+    arrays = {
+        "B_mag": np.asarray(geom.B_mag, dtype=np.float64),
+        "kappa_n": np.asarray(geom.kappa_n, dtype=np.float64),
+        "kappa_g": np.asarray(geom.kappa_g, dtype=np.float64),
+        "b_dot_grad_theta": np.asarray(geom.b_dot_grad_theta, dtype=np.float64),
+    }
+    for name, arr in arrays.items():
+        if arr.shape != theta.shape:
+            raise ValueError(f"geom.{name} must match geom.theta.")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"geom.{name} must be finite.")
+
+    if not np.all(arrays["B_mag"] > 0.0):
+        raise ValueError("geom.B_mag must be positive.")
+
+    return theta, arrays["B_mag"]
+
+
 def _diamagnetic_frequency(k_y: float, species: GKSpecies, R0: float, a: float) -> tuple[float, float]:
     """Compute omega_* and omega_*T for a species.
 
@@ -324,8 +350,9 @@ def solve_eigenvalue_single_ky(
     s_hat = _require_finite_scalar("s_hat", s_hat)
     nu_star = _require_finite_scalar("nu_star", nu_star, nonnegative=True)
 
-    n_theta = len(geom.theta)
-    B_ratio = geom.B_mag / np.mean(geom.B_mag)
+    theta, B_mag = _require_geometry_grid(geom)
+    n_theta = len(theta)
+    B_ratio = B_mag / np.mean(B_mag)
     ion = species_list[0]
     has_kinetic_e = any(not s.is_adiabatic and s.charge_e < 0 for s in species_list)
 
