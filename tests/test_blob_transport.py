@@ -49,6 +49,7 @@ def test_blob_ensemble_generation():
     assert len(pop.birth_times) == 100
     assert np.all(pop.sizes > 0)
     assert np.all(pop.amplitudes > 0)
+    assert np.all(np.diff(pop.birth_times) > 0.0)
 
     # Verify fluxes
     gamma = ens.radial_flux(pop)
@@ -276,6 +277,15 @@ def test_blob_population_rejects_malformed_or_nonfinite_arrays() -> None:
     negative = BlobPopulation(np.array([-0.01]), np.array([1.0]), np.array([100.0]), np.array([1.0]))
     with pytest.raises(ValueError, match="sizes"):
         ens.radial_flux(negative)
+
+    nonmonotonic_births = BlobPopulation(
+        np.array([0.01, 0.02]),
+        np.array([1.0, 1.0]),
+        np.array([100.0, 120.0]),
+        np.array([1.0, 0.5]),
+    )
+    with pytest.raises(ValueError, match="birth times must be strictly increasing"):
+        ens.radial_flux(nonmonotonic_births)
 
 
 @pytest.mark.parametrize(

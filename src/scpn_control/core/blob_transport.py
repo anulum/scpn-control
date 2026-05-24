@@ -71,6 +71,8 @@ def _validate_population(population: BlobPopulation) -> tuple[np.ndarray, np.nda
     lengths = {sizes.size, amplitudes.size, velocities.size, birth_times.size}
     if len(lengths) != 1:
         raise ValueError("population arrays must have the same length")
+    if birth_times.size > 1 and np.any(np.diff(birth_times) <= 0.0):
+        raise ValueError("population birth times must be strictly increasing")
     return sizes, amplitudes, velocities, birth_times
 
 
