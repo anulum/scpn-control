@@ -15,6 +15,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from scpn_control.scpn.artifact import (
@@ -22,7 +25,65 @@ from scpn_control.scpn.artifact import (
     _decode_u64_compact,
     decode_u64_compact,
     encode_u64_compact,
+    load_artifact,
+    save_artifact,
 )
+from scpn_control.scpn.compiler import FusionCompiler
+from scpn_control.scpn.structure import StochasticPetriNet
+
+
+def _build_artifact_file(tmp_path: Path) -> Path:
+    net = StochasticPetriNet()
+    for name in ("P0", "P1", "P2", "P3"):
+        net.add_place(name)
+    net.add_transition("T0", threshold=0.5)
+    net.add_transition("T1", threshold=0.5)
+    net.add_arc("P0", "T0", 0.8)
+    net.add_arc("P1", "T0", 0.6)
+    net.add_arc("T0", "P2", 0.7)
+    net.add_arc("P2", "T1", 0.5)
+    net.add_arc("T1", "P3", 0.9)
+
+    compiled = FusionCompiler(bitstream_length=64, seed=0).compile(net)
+    artifact = compiled.export_artifact(
+        name="artifact-validation-contract",
+        readout_config={
+            "actions": [{"name": "act0", "pos_place": 2, "neg_place": 3}],
+            "gains": [1.0],
+            "abs_max": [10.0],
+            "slew_per_s": [100.0],
+        },
+        injection_config=[
+            {"place_id": 0, "source": "x_R_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+            {"place_id": 1, "source": "x_R_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+        ],
+    )
+    path = tmp_path / "valid.scpnctl.json"
+    save_artifact(artifact, str(path))
+    return path
+
+
+def _write_mutated_artifact(source: Path, output: Path, mutations: dict[str, object]) -> Path:
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    for dotted_path, value in mutations.items():
+        target = payload
+        keys = dotted_path.split(".")
+        for key in keys[:-1]:
+            target = target[int(key)] if key.isdigit() else target[key]
+        last = keys[-1]
+        if last.isdigit():
+            target[int(last)] = value
+        else:
+            target[last] = value
+    output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return output
+
+
+def _write_mutated_artifact_raw(source: Path, output: Path, mutator) -> Path:
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    mutator(payload)
+    output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return output
 
 
 class TestCompactCodecRoundTrip:
@@ -134,3 +195,108 @@ class TestDecodeErrors:
         del encoded["count"]  # force None path
         decoded = _decode_u64_compact(encoded)
         assert decoded == [10, 20, 30]
+
+
+class TestArtifactValidationContract:
+    @pytest.fixture()
+    def artifact_path(self, tmp_path: Path) -> Path:
+        return _build_artifact_file(tmp_path)
+
+    @pytest.mark.parametrize(
+        ("mutation", "match"),
+        [
+            ({"meta.firing_mode": "invalid"}, "firing_mode"),
+            ({"meta.fixed_point.data_width": 0}, "data_width"),
+            ({"meta.fixed_point.fraction_bits": -1}, "fraction_bits"),
+            ({"meta.stream_length": 0}, "stream_length"),
+            ({"meta.dt_control_s": 0.0}, "dt_control_s"),
+            ({"weights.w_in.data.0": 1.5}, "w_in"),
+            ({"weights.w_out.data.0": -0.1}, "w_out"),
+            ({"topology.transitions.0.threshold": 1.5}, "threshold"),
+            ({"topology.transitions.0.delay_ticks": -1}, "delay_ticks"),
+            ({"weights.w_in.data": [0.5]}, "w_in data length"),
+            ({"weights.w_out.data": [0.5]}, "w_out data length"),
+            ({"initial_state.marking": [0.5]}, "marking"),
+            ({"readout.gains.per_action": [1.0, 2.0, 3.0]}, "gains"),
+            ({"readout.limits.per_action_abs_max": []}, "abs_max"),
+            ({"readout.limits.slew_per_s": [1.0, 2.0]}, "slew_per_s"),
+        ],
+    )
+    def test_artifact_schema_rejects_invalid_physics_and_control_fields(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+        mutation: dict[str, object],
+        match: str,
+    ) -> None:
+        bad_path = _write_mutated_artifact(artifact_path, tmp_path / "invalid.scpnctl.json", mutation)
+
+        with pytest.raises(ArtifactValidationError, match=match):
+            load_artifact(str(bad_path))
+
+    def test_artifact_rejects_out_of_range_initial_marking(self, artifact_path: Path, tmp_path: Path) -> None:
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "invalid-marking.scpnctl.json",
+            lambda payload: payload["initial_state"]["marking"].__setitem__(0, 1.5),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="marking"):
+            load_artifact(str(bad_path))
+
+    def test_artifact_rejects_bool_place_injection_id(self, artifact_path: Path, tmp_path: Path) -> None:
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "invalid-injection-place.scpnctl.json",
+            lambda payload: payload["initial_state"]["place_injections"][0].__setitem__("place_id", True),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="place_id"):
+            load_artifact(str(bad_path))
+
+    def test_artifact_rejects_empty_injection_source(self, artifact_path: Path, tmp_path: Path) -> None:
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "invalid-injection-source.scpnctl.json",
+            lambda payload: payload["initial_state"]["place_injections"][0].__setitem__("source", ""),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="source"):
+            load_artifact(str(bad_path))
+
+    def test_artifact_rejects_bool_readout_place(self, artifact_path: Path, tmp_path: Path) -> None:
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "invalid-readout-place.scpnctl.json",
+            lambda payload: payload["readout"]["actions"][0].__setitem__("pos_place", True),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="pos_place"):
+            load_artifact(str(bad_path))
+
+    def test_artifact_rejects_readout_place_outside_topology(self, artifact_path: Path, tmp_path: Path) -> None:
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "invalid-readout-index.scpnctl.json",
+            lambda payload: payload["readout"]["actions"][0].__setitem__("neg_place", 999),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="neg_place"):
+            load_artifact(str(bad_path))
+
+    def test_artifact_serialises_notes_and_noncompact_packed_weights(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        artifact = load_artifact(str(artifact_path))
+        if artifact.weights.packed is None:
+            pytest.skip("No packed weights in test artifact")
+        artifact.meta.notes = "validation memo"
+        out = tmp_path / "noted.scpnctl.json"
+
+        save_artifact(artifact, str(out), compact_packed=False)
+        payload = json.loads(out.read_text(encoding="utf-8"))
+
+        assert payload["meta"]["notes"] == "validation memo"
+        assert "data_u64" in payload["weights"]["packed"]["w_in_packed"]

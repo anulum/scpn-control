@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Full coverage for jax_traceable_runtime: validation, backends, parity."""
+"""Contract tests for jax_traceable_runtime: validation, backends, parity."""
 
 from __future__ import annotations
 

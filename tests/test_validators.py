@@ -20,6 +20,8 @@ import pytest
 
 from scpn_control.core._validators import (
     require_1d_array,
+    require_bounded_float,
+    require_finite_array,
     require_finite_float,
     require_fraction,
     require_int,
@@ -205,3 +207,29 @@ def test_1d_array_rejects_nan():
 def test_1d_array_rejects_inf():
     with pytest.raises(ValueError, match="finite"):
         require_1d_array("x", [1.0, float("inf")])
+
+
+# ── require_bounded_float ────────────────────────────────────────────
+
+
+def test_bounded_float_rejects_below_low():
+    with pytest.raises(ValueError, match="must be >="):
+        require_bounded_float("x", -1.0, low=0.0)
+
+
+def test_bounded_float_rejects_above_high():
+    with pytest.raises(ValueError, match="must be <="):
+        require_bounded_float("x", 2.0, high=1.0)
+
+
+# ── require_finite_array ─────────────────────────────────────────────
+
+
+def test_finite_array_rejects_wrong_ndim():
+    with pytest.raises(ValueError, match="must be 2D"):
+        require_finite_array("x", [1.0, 2.0], ndim=2)
+
+
+def test_finite_array_rejects_wrong_shape():
+    with pytest.raises(ValueError, match="must have shape"):
+        require_finite_array("x", np.zeros((2, 3)), shape=(3, 2))

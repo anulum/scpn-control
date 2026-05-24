@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for controller validation errors, passthrough sources, bitflip,
+"""Regression tests for controller validation errors, passthrough sources, bitflip,
 antithetic sampling with odd passes, delayed transitions, and marking setter."""
 
 from __future__ import annotations

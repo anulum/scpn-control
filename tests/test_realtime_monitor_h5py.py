@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for save_hdf5 h5py ImportError guard (lines 177-178)."""
+"""Regression tests for save_hdf5 h5py ImportError guard (lines 177-178)."""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for evaluate_predictor: times_test branch and zero-recall case."""
+"""Regression tests for evaluate_predictor: times_test branch and zero-recall case."""
 
 from __future__ import annotations
 
@@ -119,6 +119,27 @@ class TestAnomalyCampaignPositiveLabel:
             )
         assert result["true_positive_rate"] > 0.0
 
+    def test_campaign_pads_short_synthetic_signals(self, monkeypatch):
+        """Anomaly campaign should pad a short synthetic signal to the requested window."""
+        import scpn_control.control.disruption_predictor as dp_mod
+
+        original_simulate = dp_mod.simulate_tearing_mode
+
+        def _short_signal(steps=1000, *, rng=None):
+            signal, label, time_to_disruption = original_simulate(steps=steps, rng=rng)
+            return signal[: max(steps // 2, 1)], label, time_to_disruption
+
+        monkeypatch.setattr(dp_mod, "simulate_tearing_mode", _short_signal)
+
+        result = dp_mod.run_anomaly_alarm_campaign(
+            seed=0,
+            episodes=2,
+            window=16,
+            threshold=0.5,
+        )
+
+        assert result["episodes"] == 2
+
 
 class TestLoadOrTrainNoFallback:
     @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
@@ -194,7 +215,7 @@ class TestPredictSafeInferenceFailure:
 
 
 class TestSimulateTearingModeBranches:
-    """Cover density_limit and vde disruption paths in simulate_tearing_mode."""
+    """Exercise density_limit and vde disruption paths in simulate_tearing_mode."""
 
     def test_density_limit_disruption(self):
         """density_limit mode with a seed that triggers disruption."""
@@ -234,7 +255,7 @@ class TestSimulateTearingModeBranches:
 
 
 class TestDisruptionWarningTimeNoAlarm:
-    """Cover the return-0.0 path when alarm never fires."""
+    """Exercise the return-0.0 path when alarm never fires."""
 
     def test_low_signal_never_alarms(self):
         signal = np.ones(50) * 0.001
@@ -243,7 +264,7 @@ class TestDisruptionWarningTimeNoAlarm:
 
 
 class TestSignalNoiseScaleSingleSample:
-    """Cover _estimate_signal_noise_scale with a single-element signal."""
+    """Exercise _estimate_signal_noise_scale with a single-element signal."""
 
     def test_single_sample_returns_min(self):
         from scpn_control.control.disruption_predictor import MIN_PROBABILISTIC_NOISE_SCALE
@@ -253,7 +274,7 @@ class TestSignalNoiseScaleSingleSample:
 
 
 class TestSigmaPointPatternLengthOne:
-    """Cover _sigma_point_pattern with length=1."""
+    """Exercise _sigma_point_pattern with length=1."""
 
     def test_length_one(self):
         pattern = _sigma_point_pattern(1)
@@ -262,7 +283,7 @@ class TestSigmaPointPatternLengthOne:
 
 
 class TestSummarizeRiskSamplesEmpty:
-    """Cover _summarize_risk_samples fallback when samples array is empty."""
+    """Exercise _summarize_risk_samples fallback when samples array is empty."""
 
     def test_empty_samples_uses_center(self):
         result = _summarize_risk_samples(np.array([]), center_risk=0.42, method="test")
@@ -272,7 +293,7 @@ class TestSummarizeRiskSamplesEmpty:
 
 
 class TestLoadOrTrainNoTorchPaths:
-    """Cover load_or_train_predictor paths that work without torch."""
+    """Exercise load_or_train_predictor paths that work without torch."""
 
     def test_no_fallback_raises_without_torch(self, tmp_path):
         """Without torch, allow_fallback=False raises RuntimeError."""

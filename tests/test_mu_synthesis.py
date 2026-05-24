@@ -132,7 +132,7 @@ def test_dk_iteration_converges() -> None:
 
 
 def test_unsynthesized_step_raises():
-    """Cover mu_synthesis.py line 239: step without synthesize raises."""
+    """Exercise mu_synthesis.py line 239: step without synthesize raises."""
     import pytest
 
     unc = StructuredUncertainty([UncertaintyBlock("t", 2, 0.1, "full")])
@@ -142,7 +142,7 @@ def test_unsynthesized_step_raises():
 
 
 def test_robustness_margin_zero_mu():
-    """Cover mu_synthesis.py line 249: mu_peak <= 0 returns inf."""
+    """Exercise mu_synthesis.py line 249: mu_peak <= 0 returns inf."""
     unc = StructuredUncertainty([UncertaintyBlock("t", 2, 0.1, "full")])
     ctrl = MuSynthesisController((np.eye(2), np.eye(2), np.eye(2), np.zeros((2, 2))), unc)
     ctrl.K = np.ones((2, 2)) * 0.1

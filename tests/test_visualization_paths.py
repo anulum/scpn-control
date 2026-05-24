@@ -262,7 +262,7 @@ class TestFlightSimVisualization:
         assert s["plot_error"] is not None
 
     def test_visualize_flight_mpl_unavailable(self, monkeypatch, tmp_path):
-        """Cover the early-return path when matplotlib import fails."""
+        """Exercise the early-return path when matplotlib import fails."""
         from scpn_control.control.tokamak_flight_sim import IsoFluxController
 
         ctrl = IsoFluxController.__new__(IsoFluxController)

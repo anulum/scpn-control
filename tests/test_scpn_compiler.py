@@ -763,3 +763,22 @@ class TestVerifyLiveness:
         result = net.verify_liveness(n_steps=100, n_trials=100)
         assert result["live"] is False
         assert result["transition_fire_pct"]["T_dead"] < 0.01
+
+
+def test_lif_fire_binary_threshold_without_neuron_backend() -> None:
+    """Binary firing without neuron objects uses deterministic threshold comparison."""
+    net = CompiledNet(
+        n_places=2,
+        n_transitions=2,
+        place_names=["p0", "p1"],
+        transition_names=["t0", "t1"],
+        W_in=np.array([[0.5, 0.0], [0.0, 0.5]]),
+        W_out=np.array([[0.0, 0.5], [0.5, 0.0]]),
+        neurons=[],
+        thresholds=np.array([0.3, 0.7]),
+        firing_mode="binary",
+    )
+
+    fired = net.lif_fire(np.array([0.5, 0.5]))
+
+    np.testing.assert_array_equal(fired, np.array([1.0, 0.0]))

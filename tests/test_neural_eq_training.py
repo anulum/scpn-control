@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for train_from_geqdsk, train_on_sparc, and the __main__ CLI block."""
+"""Regression tests for train_from_geqdsk, train_on_sparc, and the __main__ CLI block."""
 
 from __future__ import annotations
 

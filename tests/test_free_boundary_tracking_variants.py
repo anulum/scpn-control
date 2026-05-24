@@ -1,18 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Free Boundary Tracking Coverage
+# SCPN Control — Test Free Boundary Tracking Variants
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # ──────────────────────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Free-Boundary Tracking Coverage Gap Tests
+# SCPN Control — Free-Boundary Tracking Variant Tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for EKF integration, disturbance observer, latency compensation,
-supervisor ramp toward fallback, and sensor bias+drift paths."""
+"""Free-boundary tracking variant contracts for observer and sensor paths."""
 
 from __future__ import annotations
 
@@ -137,7 +136,7 @@ class _DummyFreeBoundaryKernel:
         return float(np.mean(self._state[:3]))
 
 
-# ── Kernel variants for specific coverage paths ─────────────────────
+# ── Kernel variants for specific observer and sensor paths ───────────
 
 
 class _EKFKernel(_DummyFreeBoundaryKernel):

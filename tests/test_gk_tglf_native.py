@@ -381,13 +381,13 @@ class TestPhysicsValidation:
 
 
 def test_exb_shear_zero_q():
-    """Cover gk_tglf_native.py line 94: q near zero returns 0."""
+    """Exercise gk_tglf_native.py line 94: q near zero returns 0."""
     p = GKLocalParams(R_L_Ti=6.9, R_L_Te=6.9, R_L_ne=2.2, q=0.0, s_hat=0.78, epsilon=0.18)
     assert exb_shear_rate(p) == 0.0
 
 
 def test_quasilinear_weights_etg_modes():
-    """Cover gk_tglf_native.py lines 261-266: ETG branch in quasilinear_weights."""
+    """Exercise gk_tglf_native.py lines 261-266: ETG branch in quasilinear_weights."""
     linear = _make_linear(
         k_y=[0.3, 5.0, 10.0],
         gamma=[0.2, 0.15, 0.1],
@@ -402,7 +402,7 @@ def test_quasilinear_weights_etg_modes():
 
 
 def test_quasilinear_weights_zero_omega_skipped():
-    """Cover gk_tglf_native.py line 247: omega_r near zero skipped."""
+    """Exercise gk_tglf_native.py line 247: omega_r near zero skipped."""
     linear = _make_linear(
         k_y=[0.3],
         gamma=[0.2],
@@ -416,7 +416,7 @@ def test_quasilinear_weights_zero_omega_skipped():
 
 
 def test_solver_subcritical_returns_zero():
-    """Cover gk_tglf_native.py line 351: all stable -> zero transport."""
+    """Exercise gk_tglf_native.py line 351: all stable -> zero transport."""
     p = GKLocalParams(
         R_L_Ti=0.001,
         R_L_Te=0.001,
@@ -438,7 +438,7 @@ def test_solver_subcritical_returns_zero():
 
 
 def test_solver_unknown_sat_model_raises():
-    """Cover gk_tglf_native.py line 358: unknown SAT model raises ValueError."""
+    """Exercise gk_tglf_native.py line 358: unknown SAT model raises ValueError."""
     solver = TGLFNativeSolver(TGLFNativeConfig(sat_model="SAT99"))
     with pytest.raises(ValueError, match="Unknown SAT model"):
         solver.solve(_CBC)

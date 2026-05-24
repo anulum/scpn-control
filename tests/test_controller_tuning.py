@@ -59,7 +59,7 @@ def test_tune_hinf_no_optuna_fallback():
 
 
 def test_has_optuna_import_branch():
-    """Cover controller_tuning.py line 22: HAS_OPTUNA set on import."""
+    """Exercise controller_tuning.py line 22: HAS_OPTUNA set on import."""
     import scpn_control.control.controller_tuning as ct
 
     assert isinstance(ct.HAS_OPTUNA, bool)

@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for streak_high_risk >= 3 disruption break (213, 217-218)."""
+"""Regression tests for streak_high_risk >= 3 disruption break (213, 217-218)."""
 
 from __future__ import annotations
 

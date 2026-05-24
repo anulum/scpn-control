@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for H-mode pedestal paths, neoclassical q-mismatch fallback,
+"""Regression tests for H-mode pedestal paths, neoclassical q-mismatch fallback,
 bootstrap current edge cases, and P_aux=0 numerical recovery."""
 
 from __future__ import annotations

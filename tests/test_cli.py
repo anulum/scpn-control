@@ -1260,7 +1260,7 @@ def test_info_text_output(runner):
 
 
 def test_hil_test_with_mock_shots(runner, tmp_path):
-    """Cover hil-test loading NPZ files (lines 222-243)."""
+    """Exercise hil-test loading NPZ files (lines 222-243)."""
     rng = np.random.default_rng(0)
     for name in ("shot_001", "shot_002"):
         np.savez(
@@ -1313,7 +1313,7 @@ def test_demo_snn_text(runner):
 
 
 def test_validate_rmse_command(runner, tmp_path, monkeypatch):
-    """Cover cli.py lines 238-248: validate-rmse imports rmse_dashboard."""
+    """Exercise cli.py lines 238-248: validate-rmse imports rmse_dashboard."""
     called = {}
 
     def fake_rmse_main():

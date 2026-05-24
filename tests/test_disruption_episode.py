@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for run_disruption_episode and its full mitigation pipeline."""
+"""Regression tests for run_disruption_episode and its full mitigation pipeline."""
 
 from __future__ import annotations
 

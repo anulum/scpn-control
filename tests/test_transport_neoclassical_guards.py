@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for _evolve_species no multi-ion (877),
+"""Regression tests for _evolve_species no multi-ion (877),
 confinement_time P_loss<=0 (1179)."""
 
 from __future__ import annotations

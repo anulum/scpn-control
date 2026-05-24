@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for structure.py: unknown node arc (130), inhibitor weight (150),
+"""Regression tests for structure.py: unknown node arc (130), inhibitor weight (150),
 strict validation (208), inhibitor compile guard (244), and verify methods
 when called on nets with specific patterns (492, 517, 546)."""
 

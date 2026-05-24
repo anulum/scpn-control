@@ -185,7 +185,7 @@ def test_tglf_solver_run_from_params(tmp_path, cyclone_params):
 
 
 def test_parse_tglf_transport_short_line(tmp_path):
-    """Cover gk_tglf.py line 121: line with < 2 tokens skipped."""
+    """Exercise gk_tglf.py line 121: line with < 2 tokens skipped."""
     transport = tmp_path / "out.tglf.transport"
     transport.write_text("chi_i 2.0\n\nsingleton\nchi_e 1.5\n")
     result = parse_tglf_output(tmp_path)
@@ -195,7 +195,7 @@ def test_parse_tglf_transport_short_line(tmp_path):
 
 
 def test_parse_tglf_transport_bad_value(tmp_path):
-    """Cover gk_tglf.py lines 131-132: ValueError on corrupt transport file."""
+    """Exercise gk_tglf.py lines 131-132: ValueError on corrupt transport file."""
     transport = tmp_path / "out.tglf.transport"
     transport.write_text("chi_i NOT_A_NUMBER\n")
     result = parse_tglf_output(tmp_path)
@@ -203,7 +203,7 @@ def test_parse_tglf_transport_bad_value(tmp_path):
 
 
 def test_parse_tglf_eigenvalue_bad_file(tmp_path):
-    """Cover gk_tglf.py lines 145-146: corrupt eigenvalue file."""
+    """Exercise gk_tglf.py lines 145-146: corrupt eigenvalue file."""
     transport = tmp_path / "out.tglf.transport"
     transport.write_text("chi_i 1.0\n")
     eigen = tmp_path / "out.tglf.eigenvalue_spectrum"

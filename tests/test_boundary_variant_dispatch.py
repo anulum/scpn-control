@@ -113,7 +113,7 @@ def test_solve_kernel_prefers_solve_method() -> None:
 
 
 def test_solve_kernel_raises_for_no_method() -> None:
-    """Cover control/__init__.py line 45: kernel with neither method."""
+    """Exercise control/__init__.py line 45: kernel with neither method."""
     import pytest
 
     obj = object()

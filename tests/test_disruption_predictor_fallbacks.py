@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for train_predictor torch guard (549), load_or_train fallback
+"""Regression tests for train_predictor torch guard (549), load_or_train fallback
 (704-707), predict_disruption_risk_safe inference fallback (764-769)."""
 
 from __future__ import annotations

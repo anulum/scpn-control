@@ -255,7 +255,7 @@ def test_nonlinear_jax_electromagnetic():
 
 
 def test_solve_eigenvalue_all_stable():
-    """Cover jax_gk_solver.py lines 178-179, 185: all gammas <= 0 -> stable."""
+    """Exercise jax_gk_solver.py lines 178-179, 185: all gammas <= 0 -> stable."""
     from scpn_control.core.jax_gk_solver import _solve_eigenvalue_from_matrix
 
     M_real = np.array([[1.0, 0.0], [0.0, 2.0]])
@@ -267,7 +267,7 @@ def test_solve_eigenvalue_all_stable():
 
 
 def test_solve_eigenvalue_itg_vs_tem():
-    """Cover jax_gk_solver.py lines 193, 197: ITG (omega<0) vs TEM (omega>0) vs stable."""
+    """Exercise jax_gk_solver.py lines 193, 197: ITG (omega<0) vs TEM (omega>0) vs stable."""
     from scpn_control.core.jax_gk_solver import _solve_eigenvalue_from_matrix
 
     # omega_r < 0 -> ITG

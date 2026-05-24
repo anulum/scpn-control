@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for extract_features missing key (136), non-finite target (144),
+"""Regression tests for extract_features missing key (136), non-finite target (144),
 and passthrough non-finite value (157)."""
 
 from __future__ import annotations

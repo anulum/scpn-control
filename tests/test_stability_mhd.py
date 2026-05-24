@@ -60,6 +60,26 @@ class TestMercier:
         result = mercier_stability(iter_like_qprofile)
         assert result.stable.dtype == np.bool_
 
+    def test_reports_first_unstable_radius_for_unstable_shear_band(self):
+        rho = np.linspace(0.0, 1.0, 50)
+        q = 1.0 + 2.0 * rho
+        shear = 2.0 * rho / (1.0 + 2.0 * rho)
+        alpha = np.zeros_like(rho)
+        qp = QProfile(
+            rho=rho,
+            q=q,
+            shear=shear,
+            alpha_mhd=alpha,
+            q_min=float(q.min()),
+            q_min_rho=float(rho[np.argmin(q)]),
+            q_edge=float(q[-1]),
+        )
+
+        result = mercier_stability(qp)
+
+        assert result.first_unstable_rho is not None
+        assert 0.0 < result.first_unstable_rho <= 1.0
+
 
 class TestBallooning:
     def test_returns_margin(self, iter_like_qprofile):

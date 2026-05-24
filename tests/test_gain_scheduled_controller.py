@@ -163,7 +163,7 @@ def test_gain_schedule_interpolates():
 
 
 def test_ramp_down_detection():
-    """Cover gain_scheduled_controller.py line 102: dIp_dt < -ramp_rate -> RAMP_DOWN."""
+    """Exercise gain_scheduled_controller.py line 102: dIp_dt < -ramp_rate -> RAMP_DOWN."""
     detector = RegimeDetector()
     state = np.zeros(2)
     dstate = np.array([-0.2, 0.0])  # dIp/dt = -0.2 < -0.1
@@ -173,7 +173,7 @@ def test_ramp_down_detection():
 
 
 def test_disruption_resets_integral():
-    """Cover gain_scheduled_controller.py line 165: disruption zeros integral_error."""
+    """Exercise gain_scheduled_controller.py line 165: disruption zeros integral_error."""
     controllers = {
         OperatingRegime.RAMP_UP: RegimeController(
             OperatingRegime.RAMP_UP,
@@ -207,7 +207,7 @@ def test_disruption_resets_integral():
 
 
 def test_empty_scenario_duration():
-    """Cover gain_scheduled_controller.py line 217: empty waveforms -> duration 0."""
+    """Exercise gain_scheduled_controller.py line 217: empty waveforms -> duration 0."""
     from scpn_control.control.gain_scheduled_controller import ScenarioSchedule
 
     sched = ScenarioSchedule({})
@@ -215,7 +215,7 @@ def test_empty_scenario_duration():
 
 
 def test_scenario_validate_non_monotonic():
-    """Cover gain_scheduled_controller.py line 224: non-monotonic times error."""
+    """Exercise gain_scheduled_controller.py line 224: non-monotonic times error."""
     from scpn_control.control.gain_scheduled_controller import ScenarioSchedule
 
     wf = ScenarioWaveform("bad", np.array([0.0, 5.0, 3.0]), np.array([1.0, 2.0, 3.0]))

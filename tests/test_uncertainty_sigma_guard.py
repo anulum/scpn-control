@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for full_chain_uq _validate_sigma non-parseable (lines 248-249)."""
+"""Regression tests for full_chain_uq _validate_sigma non-parseable (lines 248-249)."""
 
 from __future__ import annotations
 

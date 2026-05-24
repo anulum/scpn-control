@@ -2,7 +2,7 @@
 .PHONY: test test-rust test-all lint fmt bandit sast preflight preflight-fast docs docs-build bench bench-rust bridge build install-hooks docker-build docker-run clean
 
 test:
-	pytest tests/ -v --cov=scpn_control --cov-report=term --cov-fail-under=85
+	pytest tests/ -v --cov=scpn_control --cov-report=term --cov-fail-under=95
 
 test-rust:
 	cd scpn-control-rs && cargo test --workspace

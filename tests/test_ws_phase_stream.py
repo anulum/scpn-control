@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for ws_phase_stream: handler, tick loop, serve."""
+"""Regression tests for ws_phase_stream: handler, tick loop, serve."""
 
 from __future__ import annotations
 

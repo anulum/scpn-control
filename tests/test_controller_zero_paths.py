@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for axis_count==0 (lines 504,519), action_count==0 (778,785),
+"""Regression tests for axis_count==0 (lines 504,519), action_count==0 (778,785),
 inj_count==0 (557), bitflip on empty array (804), and chunked antithetic
 odd-pass path (688)."""
 

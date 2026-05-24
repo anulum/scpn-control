@@ -31,6 +31,9 @@ try:
     _HAS_RUST_PID = True
 except ImportError:
     pass
+
+
+_needs_no_rust = pytest.mark.skipif(_HAS_RUST, reason="Rust backend is available")
 try:
     from scpn_control_rs import PyIsoFluxController  # noqa: F401
 
@@ -109,6 +112,24 @@ class _DummyRustKernel:
 
     def calculate_vacuum_field(self) -> np.ndarray:
         return np.zeros((5, 5))
+
+
+class _NoJPhiRustKernel(_DummyRustKernel):
+    def get_j_phi(self) -> np.ndarray:
+        raise AttributeError("j_phi unavailable")
+
+
+class _FallbackProbeRustKernel(_NoJPhiRustKernel):
+    def __getattribute__(self, name: str):
+        if name == "sample_psi_at_probes":
+            raise AttributeError(name)
+        return super().__getattribute__(name)
+
+    def sample_psi_at(self, r: float, z: float) -> float:
+        return r + z
+
+    def compute_b_field(self) -> tuple[np.ndarray, np.ndarray]:
+        raise AttributeError("native magnetic field unavailable")
 
 
 def _write_config(path: Path) -> None:
@@ -204,6 +225,51 @@ def test_wrapper_compute_b_field(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     assert w.B_Z.shape == (5, 5)
 
 
+def test_wrapper_initialises_zero_current_when_native_j_phi_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cfg = tmp_path / "cfg.json"
+    _write_config(cfg)
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _NoJPhiRustKernel, raising=False)
+
+    wrapper = _rust_compat.RustAcceleratedKernel(str(cfg))
+
+    np.testing.assert_array_equal(wrapper.J_phi, np.zeros((5, 5)))
+
+
+def test_wrapper_compute_b_field_falls_back_to_flux_gradient(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cfg = tmp_path / "cfg.json"
+    _write_config(cfg)
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _FallbackProbeRustKernel, raising=False)
+
+    wrapper = _rust_compat.RustAcceleratedKernel(str(cfg))
+    wrapper.Psi = wrapper.RR**2 + 2.0 * wrapper.ZZ**2
+    wrapper.compute_b_field()
+
+    r_safe = np.maximum(wrapper.RR, 1e-6)
+    expected_b_r = -(4.0 * wrapper.ZZ) / r_safe
+    expected_b_z = np.full_like(wrapper.RR, 2.0)
+    np.testing.assert_allclose(wrapper.B_R[1:-1, 1:-1], expected_b_r[1:-1, 1:-1], atol=1e-10)
+    np.testing.assert_allclose(wrapper.B_Z[1:-1, 1:-1], expected_b_z[1:-1, 1:-1], atol=1e-10)
+
+
+def test_wrapper_samples_probes_individually_when_batch_api_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cfg = tmp_path / "cfg.json"
+    _write_config(cfg)
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _FallbackProbeRustKernel, raising=False)
+
+    wrapper = _rust_compat.RustAcceleratedKernel(str(cfg))
+
+    np.testing.assert_allclose(wrapper.sample_psi_at_probes([(1.5, 0.0), (2.0, 0.5)]), [1.5, 2.5])
+
+
 def test_wrapper_find_x_point(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     cfg = tmp_path / "cfg.json"
     _write_config(cfg)
@@ -226,6 +292,23 @@ def test_wrapper_save_results(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     assert out.exists()
 
 
+def test_wrapper_find_x_point_returns_global_minimum_when_divertor_region_is_absent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text(json.dumps({"dimensions": {"Z_min": -100.0}}), encoding="utf-8")
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _FallbackProbeRustKernel, raising=False)
+
+    wrapper = _rust_compat.RustAcceleratedKernel(str(cfg))
+    psi = np.random.default_rng(7).standard_normal((5, 5))
+    (r_x, z_x), psi_x = wrapper.find_x_point(psi)
+
+    assert r_x == 0
+    assert z_x == 0
+    assert psi_x == np.min(psi)
+
+
 # ── rust_simulate_tearing_mode (Python fallback) ───────────────────
 
 
@@ -242,6 +325,42 @@ def test_tearing_mode_seeded_deterministic() -> None:
     sig_b, lab_b, ttd_b = _rust_compat.rust_simulate_tearing_mode(steps=20, seed=42)
     np.testing.assert_array_equal(sig_a, sig_b)
     assert lab_a == lab_b
+
+
+@_needs_no_rust
+def test_no_rust_shafranov_helper_fails_closed() -> None:
+    with pytest.raises(ImportError, match="scpn_control_rs not installed"):
+        _rust_compat.rust_shafranov_bv(6.2, 2.0, 15.0)
+
+
+@_needs_no_rust
+def test_no_rust_coil_current_helper_fails_closed() -> None:
+    with pytest.raises(ImportError, match="scpn_control_rs not installed"):
+        _rust_compat.rust_solve_coil_currents()
+
+
+@_needs_no_rust
+def test_no_rust_bosch_hale_helper_fails_closed() -> None:
+    with pytest.raises(ImportError, match="scpn_control_rs not installed"):
+        _rust_compat.rust_bosch_hale_dt(10.0)
+
+
+@_needs_no_rust
+def test_no_rust_controller_wrappers_fail_closed() -> None:
+    with pytest.raises(ImportError):
+        _rust_compat.RustSnnPool()
+    with pytest.raises(ImportError):
+        _rust_compat.RustSnnController()
+    with pytest.raises(ImportError):
+        _rust_compat.RustPIDController(1.0, 0.1, 0.01)
+    with pytest.raises(ImportError):
+        _rust_compat.RustPIDController.radial()
+    with pytest.raises(ImportError):
+        _rust_compat.RustPIDController.vertical()
+    with pytest.raises(ImportError):
+        _rust_compat.RustIsoFluxController(6.2, 0.0)
+    with pytest.raises(ImportError):
+        _rust_compat.RustHInfController()
 
 
 # ── Rust-gated controller wrappers ─────────────────────────────────

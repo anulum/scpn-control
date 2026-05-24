@@ -137,7 +137,7 @@ def test_smc_reaching_condition():
 
 
 def test_vertical_stabilizer_K_vs():
-    """Cover sliding_mode_vertical.py line 121: K_vs property."""
+    """Exercise sliding_mode_vertical.py line 121: K_vs property."""
     smc = SuperTwistingSMC(alpha=10.0, beta=20.0, c=1.0, u_max=100.0)
     vs = VerticalStabilizer(n_index=-1.0, Ip_MA=15.0, R0=6.2, m_eff=1.0, tau_wall=0.01, smc=smc)
     K = vs.K_vs
@@ -145,6 +145,6 @@ def test_vertical_stabilizer_K_vs():
 
 
 def test_convergence_time_marginal_alpha():
-    """Cover sliding_mode_vertical.py lines 151, 155: alpha <= sqrt(2*L) returns inf."""
+    """Exercise sliding_mode_vertical.py lines 151, 155: alpha <= sqrt(2*L) returns inf."""
     assert estimate_convergence_time(alpha=2.0, beta=5.0, L_max=2.0, s0=1.0) == float("inf")
     assert estimate_convergence_time(alpha=0.5, beta=5.0, L_max=-1.0, s0=1.0) == float("inf")

@@ -151,7 +151,7 @@ def test_burn_fraction_positive() -> None:
 
 
 def test_reactivity_exponent_edge_cases():
-    """Cover burn_controller.py lines 122, 131: Ti_keV <= 0.1 and sv_minus <= 0."""
+    """Exercise burn_controller.py lines 122, 131: Ti_keV <= 0.1 and sv_minus <= 0."""
     alpha = AlphaHeating(R0=6.2, a=2.0)
     analysis = BurnStabilityAnalysis(alpha)
 

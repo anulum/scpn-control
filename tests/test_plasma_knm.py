@@ -63,6 +63,14 @@ class TestPlasmaKnmInvariants:
         spec = build_knm_plasma(L=4)
         assert len(spec.layer_names) == 4
 
+    def test_layer_names_expand_to_sixteen_layers(self):
+        spec = build_knm_plasma(L=16, layer_names=None)
+        assert len(spec.layer_names) == 16
+
+    def test_layer_names_match_nondefault_layer_count(self):
+        spec = build_knm_plasma(L=5, layer_names=None)
+        assert len(spec.layer_names) == 5
+
     def test_layer_names_custom(self):
         names = ["a", "b", "c"]
         spec = build_knm_plasma(L=3, layer_names=names)

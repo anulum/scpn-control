@@ -188,6 +188,46 @@ class TestBoundaryVariants:
         assert coils.target_flux_values is not None
         np.testing.assert_allclose(coils.target_flux_values, [0.125, 0.125])
 
+    def test_build_coilset_rejects_ambiguous_target_flux_contract(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "ambiguous_target_flux.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "target_flux_points": [[3.5, 0.0], [4.0, 0.5]],
+                "target_flux_values": [0.1, 0.2],
+                "target_flux_value": 0.125,
+            },
+        )
+        kernel = FusionKernel(cfg)
+
+        with pytest.raises(ValueError, match="target_flux_values.*target_flux_value"):
+            kernel.build_coilset_from_config()
+
+    def test_build_coilset_rejects_scalar_target_flux_without_points(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "target_flux_without_points.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={"target_flux_value": 0.125},
+        )
+        kernel = FusionKernel(cfg)
+
+        with pytest.raises(ValueError, match="target_flux_value requires"):
+            kernel.build_coilset_from_config()
+
+    def test_build_coilset_rejects_nonfinite_scalar_target_flux(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "nonfinite_target_flux.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "target_flux_points": [[3.5, 0.0], [4.0, 0.5]],
+                "target_flux_value": float("nan"),
+            },
+        )
+        kernel = FusionKernel(cfg)
+
+        with pytest.raises(ValueError, match="target_flux_value must be finite"):
+            kernel.build_coilset_from_config()
+
     def test_build_coilset_from_config_scalar_divertor_flux(self, tmp_path):
         cfg = _write_config(
             tmp_path / "free_divertor_scalar.json",
@@ -202,6 +242,46 @@ class TestBoundaryVariants:
 
         assert coils.divertor_flux_values is not None
         np.testing.assert_allclose(coils.divertor_flux_values, [0.2, 0.2])
+
+    def test_build_coilset_rejects_ambiguous_divertor_flux_contract(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "ambiguous_divertor_flux.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "divertor_strike_points": [[3.25, -2.5], [4.75, -2.5]],
+                "divertor_flux_values": [0.1, 0.2],
+                "divertor_flux_value": 0.2,
+            },
+        )
+        kernel = FusionKernel(cfg)
+
+        with pytest.raises(ValueError, match="divertor_flux_values.*divertor_flux_value"):
+            kernel.build_coilset_from_config()
+
+    def test_build_coilset_rejects_scalar_divertor_flux_without_strike_points(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "divertor_flux_without_points.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={"divertor_flux_value": 0.2},
+        )
+        kernel = FusionKernel(cfg)
+
+        with pytest.raises(ValueError, match="divertor_flux_value requires"):
+            kernel.build_coilset_from_config()
+
+    def test_build_coilset_rejects_nonfinite_scalar_divertor_flux(self, tmp_path):
+        cfg = _write_config(
+            tmp_path / "nonfinite_divertor_flux.json",
+            extra_solver={"boundary_variant": "free_boundary"},
+            free_boundary={
+                "divertor_strike_points": [[3.25, -2.5], [4.75, -2.5]],
+                "divertor_flux_value": float("inf"),
+            },
+        )
+        kernel = FusionKernel(cfg)
+
+        with pytest.raises(ValueError, match="divertor_flux_value must be finite"):
+            kernel.build_coilset_from_config()
 
     def test_free_boundary_objective_tolerances_from_config(self, tmp_path):
         cfg = _write_config(

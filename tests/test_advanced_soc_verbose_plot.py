@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for verbose + plot_saved log (line 357)."""
+"""Regression tests for verbose + plot_saved log (line 357)."""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for generate_emulated_stream validation (100, 103),
+"""Regression tests for generate_emulated_stream validation (100, 103),
 RealtimeTwinHook buffer overflow (148), empty buffer (162),
 short horizon (165), run_realtime_twin_session empty plans (322)."""
 

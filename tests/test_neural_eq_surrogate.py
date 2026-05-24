@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for neural_equilibrium: MLP, PCA, Accelerator, save/load."""
+"""Regression tests for neural_equilibrium: MLP, PCA, Accelerator, save/load."""
 
 from __future__ import annotations
 

@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for history/pulse validation (428, 430) and
+"""Regression tests for history/pulse validation (428, 430) and
 run_digital_twin with time_steps > 50 (337-338, 365)."""
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ import pytest
 from scpn_control.control.tokamak_digital_twin import (
     run_digital_twin,
     run_digital_twin_ids_history,
+    run_digital_twin_ids_pulse,
 )
 
 
@@ -34,6 +35,18 @@ class TestIdsHistoryValidation:
         """Empty history_steps raises ValueError (line 432)."""
         with pytest.raises(ValueError, match="at least one"):
             run_digital_twin_ids_history([], seed=42)
+
+    def test_history_mode_rejects_direct_time_steps_override(self):
+        """History-mode IDS export derives time_steps from history_steps."""
+        with pytest.raises(ValueError, match="time_steps is controlled"):
+            run_digital_twin_ids_history([10], time_steps=5)
+
+
+class TestIdsPulseValidation:
+    def test_pulse_mode_rejects_direct_time_steps_override(self):
+        """Pulse-mode IDS export derives time_steps from history_steps."""
+        with pytest.raises(ValueError, match="time_steps is controlled"):
+            run_digital_twin_ids_pulse([10], time_steps=5)
 
 
 class TestRunDigitalTwinMovingAvg:

@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for fusion_kernel.py profile_mode setup, Anderson mixing
+"""Regression tests for fusion_kernel.py profile_mode setup, Anderson mixing
 LinAlgError branch, and alpha normalisation guard."""
 
 from __future__ import annotations

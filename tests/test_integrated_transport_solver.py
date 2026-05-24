@@ -415,6 +415,97 @@ class TestNeoclassical:
         assert j_bs[0] == 0.0
         assert j_bs[-1] == 0.0
 
+    def test_chang_hinton_near_axis_floor_for_tiny_inverse_aspect_ratio(self) -> None:
+        """Near-axis Chang-Hinton points should use the finite diffusivity floor."""
+        rho = np.linspace(0.0, 1.0, 50)
+        Ti = np.full_like(rho, 5.0)
+        ne = np.full_like(rho, 8.0)
+        q = np.full_like(rho, 2.0)
+
+        chi = chang_hinton_chi_profile(rho, Ti, ne, q, R0=1.0e12, a=1.0, B0=5.0)
+
+        assert chi[0] == pytest.approx(0.01)
+        assert chi[1] == pytest.approx(0.01)
+        assert np.all(chi >= 0.01)
+
+    def test_bootstrap_current_skips_cells_with_near_zero_poloidal_field(self) -> None:
+        """Sauter bootstrap current should stay finite and zero when B_pol is negligible."""
+        rho = np.linspace(0.0, 1.0, 50)
+        Te = 5.0 * (1.0 - rho**2)
+        Ti = 5.0 * (1.0 - rho**2)
+        ne = 8.0 * (1.0 - rho**2) ** 0.5
+        q = 1.0 + 3.0 * rho**2
+
+        j_bs = calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=1.0e-15)
+
+        assert j_bs.shape == rho.shape
+        assert np.all(np.isfinite(j_bs))
+        assert np.all(j_bs[1:-1] == 0.0)
+
+
+class TestTransportNumericalGuards:
+    def test_thomas_solver_handles_near_zero_initial_diagonal(self) -> None:
+        """The tridiagonal solve should floor a zero first diagonal without NaNs."""
+        n = 10
+        a = np.zeros(n - 1)
+        b = np.ones(n)
+        b[0] = 0.0
+        c = np.zeros(n - 1)
+        d = np.ones(n)
+
+        x = TransportSolver._thomas_solve(a, b, c, d)
+
+        assert x.shape == (n,)
+        assert np.all(np.isfinite(x))
+
+    def test_thomas_solver_handles_nonfinite_initial_diagonal(self) -> None:
+        """The tridiagonal solve should repair a non-finite first diagonal."""
+        n = 10
+        a = np.zeros(n - 1)
+        b = np.ones(n)
+        b[0] = float("nan")
+        c = np.zeros(n - 1)
+        d = np.ones(n)
+
+        x = TransportSolver._thomas_solve(a, b, c, d)
+
+        assert x.shape == (n,)
+        assert np.all(np.isfinite(x))
+
+    def test_zero_auxiliary_power_overshoot_increments_recovery_counter(self, config_file: Path) -> None:
+        """Large zero-power diffusion overshoot should trigger finite-state recovery."""
+        ts = TransportSolver(str(config_file), multi_ion=False)
+        ts.Ti = 0.5 + 4.5 * ts.rho**2
+        ts.Te = ts.Ti.copy()
+        ts.ne = np.full(ts.nr, 8.0)
+        ts.n_impurity = np.zeros(ts.nr)
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        ts.update_transport_model(0.0)
+        ts.chi_i = np.full(ts.nr, 100.0)
+        ts.chi_e = np.full(ts.nr, 100.0)
+
+        ts.evolve_profiles(dt=1.0, P_aux=0.0)
+
+        assert np.all(np.isfinite(ts.Ti))
+        assert np.all(np.isfinite(ts.Te))
+        assert np.all(ts.Ti >= 0.01)
+        assert ts._last_numerical_recovery_count >= 1
+
+    def test_nonfinite_energy_volume_marks_conservation_error_infinite(self, solver: TransportSolver) -> None:
+        """Non-finite energy integrals should be reported as infinite conservation error."""
+        original_volume_element = solver._rho_volume_element
+
+        def _nonfinite_volume_element() -> np.ndarray:
+            dV = original_volume_element()
+            dV[5] = float("inf")
+            return dV
+
+        solver._rho_volume_element = _nonfinite_volume_element  # type: ignore[method-assign]
+
+        solver.evolve_profiles(dt=0.01, P_aux=50.0)
+
+        assert solver._last_conservation_error == float("inf")
+
 
 # ── 6. Thomas Solver ─────────────────────────────────────────────────
 
@@ -554,7 +645,7 @@ class TestZeroAuxHeatingGuard:
         assert float(np.mean(solver.Ti)) <= float(np.mean(ti_before)) + 1e-8
 
 
-# ── 11. Coverage gap closers ─────────────────────────────────────────
+# ── 11. Transport model branch regressions ───────────────────────────
 
 
 class TestTransportModelBranches:
@@ -745,7 +836,7 @@ class TestExternalGKSolverFallback:
         assert np.all(chi_i >= 0.01)
 
     def test_gk_solver_lazy_init(self, config_file: Path) -> None:
-        """Cover ITS lines 540-543: lazy init of _gk_solver."""
+        """Exercise ITS lines 540-543: lazy init of _gk_solver."""
         ts = TransportSolver(
             str(config_file),
             transport_model="gyrokinetic",
@@ -767,7 +858,7 @@ class TestExternalGKSolverFallback:
 
 class TestPedestalBoundary:
     def test_eped_import_error_fallback(self, config_file: Path) -> None:
-        """Cover ITS lines 811-813: ImportError in EPED -> fallback chi suppression."""
+        """Exercise ITS lines 811-813: ImportError in EPED -> fallback chi suppression."""
         from unittest.mock import patch
 
         ts = TransportSolver(str(config_file))
@@ -785,7 +876,7 @@ class TestPedestalBoundary:
         assert np.all(ts.chi_e[edge_mask] > 0)
 
     def test_pedestal_boundary_conditions(self, config_file: Path) -> None:
-        """Cover ITS lines 1379-1386: pedestal boundary conditions in evolve."""
+        """Exercise ITS lines 1379-1386: pedestal boundary conditions in evolve."""
         from scpn_control.core.pedestal import PedestalParams, PedestalProfile
 
         ts = TransportSolver(str(config_file))

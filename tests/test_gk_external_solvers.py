@@ -199,7 +199,7 @@ def test_qualikiz_unavailable(cbc_params, tmp_path):
 
 
 def test_cgyro_parse_error(tmp_path):
-    """Cover gk_cgyro.py lines 78-79: corrupt freq file triggers warning."""
+    """Exercise gk_cgyro.py lines 78-79: corrupt freq file triggers warning."""
     from scpn_control.core.gk_cgyro import parse_cgyro_output
 
     freq = tmp_path / "out.cgyro.freq"
@@ -209,7 +209,7 @@ def test_cgyro_parse_error(tmp_path):
 
 
 def test_cgyro_run_subprocess_failure(cbc_params, tmp_path):
-    """Cover gk_cgyro.py lines 103-113: subprocess exception path."""
+    """Exercise gk_cgyro.py lines 103-113: subprocess exception path."""
     from unittest.mock import patch
 
     from scpn_control.core.gk_cgyro import CGYROSolver
@@ -234,7 +234,7 @@ def test_cgyro_run_subprocess_failure(cbc_params, tmp_path):
 
 
 def test_gene_parse_single_row(tmp_path):
-    """Cover gk_gene.py lines 114, 128-130: single-row nrg and reshape."""
+    """Exercise gk_gene.py lines 114, 128-130: single-row nrg and reshape."""
     from scpn_control.core.gk_gene import parse_gene_output
 
     nrg = tmp_path / "nrg_0001"
@@ -245,7 +245,7 @@ def test_gene_parse_single_row(tmp_path):
 
 
 def test_gene_parse_corrupt(tmp_path):
-    """Cover gk_gene.py lines 128-130: ValueError on corrupt file."""
+    """Exercise gk_gene.py lines 128-130: ValueError on corrupt file."""
     from scpn_control.core.gk_gene import parse_gene_output
 
     nrg = tmp_path / "nrg_0001"
@@ -255,7 +255,7 @@ def test_gene_parse_corrupt(tmp_path):
 
 
 def test_gene_run_subprocess_failure(cbc_params, tmp_path):
-    """Cover gk_gene.py lines 152-162: subprocess failure path."""
+    """Exercise gk_gene.py lines 152-162: subprocess failure path."""
     from unittest.mock import patch
 
     from scpn_control.core.gk_gene import GENESolver
@@ -298,7 +298,7 @@ def test_gene_run_without_converged_output_requires_explicit_fallback(cbc_params
 
 
 def test_gs2_parse_error(tmp_path):
-    """Cover gk_gs2.py lines 100-101: corrupt omega file."""
+    """Exercise gk_gs2.py lines 100-101: corrupt omega file."""
     from scpn_control.core.gk_gs2 import parse_gs2_output
 
     omega = tmp_path / "gs2.omega"
@@ -308,7 +308,7 @@ def test_gs2_parse_error(tmp_path):
 
 
 def test_gs2_run_subprocess_failure(cbc_params, tmp_path):
-    """Cover gk_gs2.py lines 125-135: subprocess failure path."""
+    """Exercise gk_gs2.py lines 125-135: subprocess failure path."""
     from unittest.mock import patch
 
     from scpn_control.core.gk_gs2 import GS2Solver
@@ -345,7 +345,7 @@ def test_gs2_run_without_converged_output_requires_explicit_fallback(cbc_params,
 
 
 def test_qualikiz_python_api_path(cbc_params, tmp_path):
-    """Cover gk_qualikiz.py lines 33-45, 64-67, 83: Python API and is_available."""
+    """Exercise gk_qualikiz.py lines 33-45, 64-67, 83: Python API and is_available."""
     import sys
     from types import ModuleType
     from unittest.mock import patch

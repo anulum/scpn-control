@@ -345,13 +345,12 @@
       "unit_contract": "SI metres, seconds, amperes, henries, ohms, tesla, and dimensionless vertical field index; growth time is reported in milliseconds.",
       "validation_evidence": [
         "tests/test_rzip_model.py vertical growth, field-index, declared-inertia, feedback-gain, physical-parameter, and controller-measurement checks",
-        "tests/test_cov_100_pct.py RZIP fallback and singular-circuit checks",
+        "tests/test_rzip_model.py RZIP fallback and singular-circuit checks",
         "validation/validate_rzip_reference.py strict RZIP reference artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rzip_model.py",
         "tests/test_rzip_model.py",
-        "tests/test_cov_100_pct.py",
         "validation/validate_rzip_reference.py",
         "docs/validation.md"
       ],
@@ -503,13 +502,13 @@
       "unit_contract": "SI coil currents, metres, webers per radian, seconds, amperes per second, objective-space residuals, and dimensionless supervisor gains.",
       "validation_evidence": [
         "tests/test_free_boundary_tracking.py controller and disturbance-observer checks",
-        "tests/test_free_boundary_tracking_coverage.py coverage and edge-path checks",
+        "tests/test_free_boundary_tracking_variants.py actuator, observer, latency, and supervisor edge-path checks",
         "tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign"
       ],
       "evidence_paths": [
         "src/scpn_control/control/free_boundary_tracking.py",
         "tests/test_free_boundary_tracking.py",
-        "tests/test_free_boundary_tracking_coverage.py",
+        "tests/test_free_boundary_tracking_variants.py",
         "tests/test_free_boundary_tracking_acceptance.py",
         "validation/free_boundary_tracking_acceptance.py"
       ],
@@ -678,12 +677,11 @@
       "unit_contract": "SI joules, m^-3, seconds, keV, MW, m^3/s, metres, dimensionless Q, and Lawson triple product units m^-3 s keV.",
       "validation_evidence": [
         "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, and control checks",
-        "tests/test_cov_100_pct.py burn-controller edge-path checks"
+        "tests/test_burn_controller.py burn-controller edge-path checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/burn_controller.py",
-        "tests/test_burn_controller.py",
-        "tests/test_cov_100_pct.py"
+        "tests/test_burn_controller.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/burn_controller.py"
@@ -1065,12 +1063,10 @@
       ],
       "unit_contract": "Units are inherited from stored state and metrics; checkpoint metadata must preserve schema version, episode index, and provenance boundaries.",
       "validation_evidence": [
-        "tests/test_checkpoint.py",
-        "tests/test_coverage_deep.py"
+        "tests/test_checkpoint.py"
       ],
       "evidence_paths": [
         "tests/test_checkpoint.py",
-        "tests/test_coverage_deep.py",
         "src/scpn_control/core/checkpoint.py"
       ],
       "covered_source_paths": [
@@ -1248,12 +1244,10 @@
       "unit_contract": "Feature and target units follow the declared turbulence surrogate schema; diffusivities, growth rates, and fluxes require explicit SI or normalised-unit metadata.",
       "validation_evidence": [
         "tests/test_neural_turbulence.py collisionality scaling, analytic target, training, save-load, and denormalisation checks",
-        "tests/test_cov_100_pct.py",
         "validation/validate_neural_turbulence_reference.py strict GK-campaign/reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_neural_turbulence.py",
-        "tests/test_cov_100_pct.py",
         "src/scpn_control/core/neural_turbulence.py",
         "validation/validate_neural_turbulence_reference.py",
         "docs/validation.md"
@@ -1280,12 +1274,10 @@
       "unit_contract": "SI metres, seconds, tesla, electronvolts, kg, coulombs, pitch dimensionless, and ensemble probabilities dimensionless.",
       "validation_evidence": [
         "tests/test_orbit_following.py",
-        "tests/test_cov_100_pct.py",
         "validation/validate_orbit_reference.py strict orbit reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_orbit_following.py",
-        "tests/test_cov_100_pct.py",
         "src/scpn_control/core/orbit_following.py",
         "validation/validate_orbit_reference.py",
         "docs/validation.md"

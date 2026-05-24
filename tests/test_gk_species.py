@@ -144,14 +144,14 @@ def test_pitch_angle_operator_tridiagonal():
 
 
 def test_larmor_radius_positive():
-    """Cover gk_species.py line 84: larmor_radius returns positive for ion."""
+    """Exercise gk_species.py line 84: larmor_radius returns positive for ion."""
     ion = deuterium_ion(T_keV=8.0)
     rho_over_B = ion.larmor_radius
     assert rho_over_B > 0.0
 
 
 def test_pitch_angle_operator_h_guard():
-    """Cover gk_species.py line 197: small h guard in pitch_angle_operator."""
+    """Exercise gk_species.py line 197: small h guard in pitch_angle_operator."""
     lam = np.array([0.0, 0.0, 0.5, 1.0])
     L = pitch_angle_operator(4, lam)
     assert L.shape == (4, 4)

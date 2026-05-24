@@ -74,6 +74,14 @@ class TestSimulation:
         with pytest.raises(ValueError, match="initial_density must be finite"):
             simulate_iter_density_control(initial_density=-1.0)
 
+    def test_rejects_nonfinite_target_density(self):
+        with pytest.raises(ValueError, match="target_density"):
+            simulate_iter_density_control(target_density=float("nan"))
+
+    def test_rejects_nonpositive_target_density(self):
+        with pytest.raises(ValueError, match="target_density"):
+            simulate_iter_density_control(target_density=0.0)
+
 
 class TestRunFuelingMode:
     def test_returns_dict(self):

@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — CLI Validate Command Edge Path Tests
 
-"""Coverage for cli.py validate command: contamination check (lines 149-150,
+"""Regression tests for cli.py validate command: contamination check (lines 149-150,
 161-164), weight file iteration (278), and info --json-out path."""
 
 from __future__ import annotations

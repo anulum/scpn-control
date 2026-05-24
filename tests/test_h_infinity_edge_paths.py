@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for C1/C2 auto-transpose (111,113), dimension mismatch (131),
+"""Regression tests for C1/C2 auto-transpose (111,113), dimension mismatch (131),
 make_feedthrough shape (186), non-finite gamma (198), non-finite gains (228),
 gamma search LinAlgError (259-260), and gain_margin_db unstable (384)."""
 

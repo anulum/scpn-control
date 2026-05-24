@@ -60,6 +60,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("ruff format", [_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/"], None),
     ("version-sync", [_PY, "tools/check_version_sync.py"], None),
     ("mypy", [_PY, "-m", "mypy"], None),
+    ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
     ("module-linkage", [_PY, "tools/check_test_module_linkage.py"], None),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
@@ -68,7 +69,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("cargo test", ["cargo", "test", "--workspace"], RUST_DIR),
 ]
 
-LOCAL_COV_THRESHOLD = "80"
+LOCAL_COV_THRESHOLD = "95"
 
 COVERAGE_PYTEST: tuple[str, list[str], Path | None] = (
     "pytest (coverage)",

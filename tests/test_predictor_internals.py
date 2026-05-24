@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for DisruptionTransformer forward validation, train_predictor
+"""Regression tests for DisruptionTransformer forward validation, train_predictor
 save_plot path, and predict_disruption_risk_safe inference failure path."""
 
 from __future__ import annotations

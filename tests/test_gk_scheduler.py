@@ -141,7 +141,7 @@ def test_reset():
 
 
 def test_adaptive_no_indices_returns_none():
-    """Cover gk_scheduler.py lines 112-113: adaptive, no OOD, no change, no anchors -> None."""
+    """Exercise gk_scheduler.py lines 112-113: adaptive, no OOD, no change, no anchors -> None."""
     cfg = SchedulerConfig(strategy="adaptive", anchor_rho=(), budget=0)
     sched = GKScheduler(cfg)
     rho = _rho_grid()
@@ -153,7 +153,7 @@ def test_adaptive_no_indices_returns_none():
 
 
 def test_critical_region_anchor_added():
-    """Cover gk_scheduler.py lines 122, 127: anchor added in critical_region."""
+    """Exercise gk_scheduler.py lines 122, 127: anchor added in critical_region."""
     cfg = SchedulerConfig(strategy="critical_region", pedestal_rho=0.99, axis_rho=0.01, budget=3, anchor_rho=(0.5,))
     sched = GKScheduler(cfg)
     rho = _rho_grid()

@@ -141,28 +141,28 @@ def test_two_point_model_parallel():
 
 
 def test_radiation_front_zero_power():
-    """Cover line 72: P_SOL_MW <= 0.0 returns front position 1.0."""
+    """Exercise line 72: P_SOL_MW <= 0.0 returns front position 1.0."""
     model = RadiationFrontModel("N2", 6.2, 2.0, 3.0)
     pos = model.front_position(P_SOL_MW=0.0, n_u_19=4.0, seeding_rate=1.0)
     assert pos == 1.0
 
 
 def test_dod_tiny_temperature():
-    """Cover line 88: T_target_eV <= 0.1 returns DOD = 10.0."""
+    """Exercise line 88: T_target_eV <= 0.1 returns DOD = 10.0."""
     model = RadiationFrontModel("N2", 6.2, 2.0, 3.0)
     dod = model.degree_of_detachment(0.05, 1.0, 1.0)
     assert dod == 10.0
 
 
 def test_determine_state_attached():
-    """Cover line 140: T_t > 30 eV and rho_front < 0.8 -> ATTACHED."""
+    """Exercise line 140: T_t > 30 eV and rho_front < 0.8 -> ATTACHED."""
     ctrl = DetachmentController()
     state = ctrl._determine_state(T_t=50.0, rho_front=0.1)
     assert state == DetachmentState.ATTACHED
 
 
 def test_bifurcation_fully_detached():
-    """Cover line 210: DetachmentBifurcation._steady_state_target deep seeding."""
+    """Exercise line 210: DetachmentBifurcation._steady_state_target deep seeding."""
     sol = TwoPointSOL(R0=6.2, a=2.0, q95=3.0, B_pol=0.56)
     bif = DetachmentBifurcation(sol, "N2")
     # Very high seeding -> f_rad close to 0.95, should produce fully detached
@@ -171,7 +171,7 @@ def test_bifurcation_fully_detached():
 
 
 def test_multi_impurity_missing_controller():
-    """Cover line 248: impurity not in controllers dict -> rate = 0.0."""
+    """Exercise line 248: impurity not in controllers dict -> rate = 0.0."""
     c_N2 = DetachmentController("N2")
     multi = MultiImpuritySeeding(["N2", "Ar"], {"N2": c_N2})
     diag = {"T_target_eV": 20.0, "rho_front": 0.1}

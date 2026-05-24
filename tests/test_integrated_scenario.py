@@ -268,7 +268,7 @@ def test_ntm_flattens_island():
     )
 
 
-# ── Coverage gap closers ───────────────────────────────────────────────────
+# ── Scenario factory and coupled-physics regressions ───────────────────────
 
 
 def test_iter_hybrid_scenario_call():

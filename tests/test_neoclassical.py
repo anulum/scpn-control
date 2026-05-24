@@ -242,7 +242,7 @@ def test_sauter_coefficients_physical_range():
             assert abs(L34) < 5.0
 
 
-# ── Coverage gap closers ──────────────────────────────────────────────────
+# ── Collisionality and coefficient guard regressions ───────────────────────
 
 
 def test_collisionality_near_zero_Te():

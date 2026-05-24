@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for load_or_train_predictor fallback paths, evaluate_predictor,
+"""Regression tests for load_or_train_predictor fallback paths, evaluate_predictor,
 and predict_disruption_risk_safe inference failure path."""
 
 from __future__ import annotations

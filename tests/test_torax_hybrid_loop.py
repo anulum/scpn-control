@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for torax_hybrid_loop: campaign runner, helpers, edge cases."""
+"""Regression tests for torax_hybrid_loop: campaign runner, helpers, edge cases."""
 
 from __future__ import annotations
 

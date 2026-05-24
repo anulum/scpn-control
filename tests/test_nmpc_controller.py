@@ -144,7 +144,7 @@ def test_nmpc_cost_decreases():
 
 
 def test_terminal_cost_scipy_fallback():
-    """Cover nmpc_controller.py lines 119-120: DARE fallback to 10*Q."""
+    """Exercise nmpc_controller.py lines 119-120: DARE fallback to 10*Q."""
     cfg = NMPCConfig(horizon=3, max_sqp_iter=1)
     nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
     # Force DARE failure by patching scipy.linalg.solve_discrete_are
@@ -158,7 +158,7 @@ def test_terminal_cost_scipy_fallback():
 
 
 def test_nmpc_step_converges_early():
-    """Cover nmpc_controller.py line 209: SQP early convergence when dU < tol."""
+    """Exercise nmpc_controller.py line 209: SQP early convergence when dU < tol."""
     cfg = NMPCConfig(horizon=3, max_sqp_iter=10, tol=1e10)
     nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
     x0 = np.array([5.0, 5.0, 3.0, 1.0, 5.0, 2.0])

@@ -105,13 +105,13 @@ def test_ballooning_stability_analysis():
 
 
 def test_marginal_stability_unstable_at_min():
-    """Cover ballooning_solver.py line 97: unstable even at alpha_min -> returns 0."""
+    """Exercise ballooning_solver.py line 97: unstable even at alpha_min -> returns 0."""
     alpha_crit = find_marginal_stability(s=0.0, alpha_min=0.0)
     assert alpha_crit == 0.0
 
 
 def test_marginal_stability_all_stable():
-    """Cover ballooning_solver.py lines 108, 112: stable up to alpha=3 -> returns alpha_max."""
+    """Exercise ballooning_solver.py lines 108, 112: stable up to alpha=3 -> returns alpha_max."""
     # Very low shear produces very high alpha_crit or full stability
     alpha_crit = find_marginal_stability(s=0.01, alpha_min=0.001, alpha_max=0.05)
     # Should return alpha_max if nothing is unstable in range

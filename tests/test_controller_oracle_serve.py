@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for:
+"""Regression tests for:
 - controller.py step_traceable with oracle diagnostics + log_path
 - controller.py oracle-disabled empty-array path
 - ws_phase_stream.py main entry

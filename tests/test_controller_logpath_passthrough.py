@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for _build_feature_dict passthrough loop (lines 542-545),
+"""Regression tests for _build_feature_dict passthrough loop (lines 542-545),
 triggered only when log_path is not None."""
 
 from __future__ import annotations

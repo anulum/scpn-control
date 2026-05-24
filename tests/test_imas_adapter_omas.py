@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for to_omas (lines 87-99) via a mocked omas.ODS."""
+"""Regression tests for to_omas (lines 87-99) via a mocked omas.ODS."""
 
 from __future__ import annotations
 

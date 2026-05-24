@@ -125,7 +125,7 @@ def test_weights_have_correct_shapes():
 
 
 def test_retrain_with_existing_weights():
-    """Cover gk_online_learner.py lines 113-115: retrain from existing weights."""
+    """Exercise gk_online_learner.py lines 113-115: retrain from existing weights."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=3))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(10, rng):
@@ -142,7 +142,7 @@ def test_retrain_with_existing_weights():
 
 
 def test_retrain_rollback_on_worse_loss():
-    """Cover gk_online_learner.py lines 164-166: rollback when val_loss worsens."""
+    """Exercise gk_online_learner.py lines 164-166: rollback when val_loss worsens."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=1))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(10, rng):

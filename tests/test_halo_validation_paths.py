@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for halo_re_physics.py validation guards: _as_non_negative_float
+"""Regression tests for halo_re_physics.py validation guards: _as_non_negative_float
 negative value, _as_range low < min_allowed, _as_range high <= low,
 simulate dt > duration, simulate seed_re_fraction out of range,
 and dreicer edge cases for ratio > 200 and non-finite loss guards."""

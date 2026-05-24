@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for ipb98y2_tau_e overflow tau (line 240)."""
+"""Regression tests for ipb98y2_tau_e overflow tau (line 240)."""
 
 from __future__ import annotations
 

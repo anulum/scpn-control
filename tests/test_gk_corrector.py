@@ -145,7 +145,7 @@ def test_history_tracking(rho50):
 
 
 def test_rel_error_chi_i_near_zero_gk():
-    """Cover gk_corrector.py line 40: chi_i_gk near zero returns 0."""
+    """Exercise gk_corrector.py line 40: chi_i_gk near zero returns 0."""
     r = CorrectionRecord(
         rho_idx=0,
         rho=0.0,
@@ -161,7 +161,7 @@ def test_rel_error_chi_i_near_zero_gk():
 
 
 def test_correct_update_empty_records(rho50):
-    """Cover gk_corrector.py line 81: empty records returns early."""
+    """Exercise gk_corrector.py line 81: empty records returns early."""
     corr = GKCorrector(nr=50)
     corr.update([], rho50)
     assert len(corr.history) == 0

@@ -11,7 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Coverage for _log verbose path (46) and dR <= 0 guard (107)."""
+"""Regression tests for _log verbose path (46) and dR <= 0 guard (107)."""
 
 from __future__ import annotations
 
