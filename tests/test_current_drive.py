@@ -71,8 +71,7 @@ def test_nbi_tangential_vs_radial():
     Te = np.ones(100)
     Ti = np.ones(100)
 
-    # Simplified mock for tangency vs radial: tangential deposits closer to core?
-    # In our simple model, tangency radius is just the Gaussian center.
+    # In this radial source model, the tangency radius sets the deposition centre.
     nbi_tangential = NBISource(P_nbi_MW=10.0, E_beam_keV=100.0, rho_tangency=0.2)
     nbi_radial = NBISource(P_nbi_MW=10.0, E_beam_keV=100.0, rho_tangency=0.8)
 
@@ -184,28 +183,28 @@ def test_lhcd_efficiency_range():
 
 
 def test_eccd_zero_sigma():
-    """Line 146: sigma_rho <= 0 returns zeros from P_absorbed."""
+    """Zero-width ECCD deposition returns no absorbed-power profile."""
     eccd = ECCDSource(P_ec_MW=10.0, rho_dep=0.5, sigma_rho=0.0)
     rho = np.linspace(0, 1, 50)
     assert np.allclose(eccd.P_absorbed(rho), 0.0)
 
 
 def test_nbi_zero_sigma():
-    """Line 193: sigma_rho <= 0 returns zeros from P_heating."""
+    """Zero-width NBI deposition returns no heating-power profile."""
     nbi = NBISource(P_nbi_MW=10.0, E_beam_keV=100.0, rho_tangency=0.3, sigma_rho=0.0)
     rho = np.linspace(0, 1, 50)
     assert np.allclose(nbi.P_heating(rho), 0.0)
 
 
 def test_lhcd_zero_sigma():
-    """Line 262: sigma_rho <= 0 returns zeros from P_absorbed."""
+    """Zero-width LHCD deposition returns no absorbed-power profile."""
     lhcd = LHCDSource(P_lh_MW=5.0, rho_dep=0.7, sigma_rho=0.0)
     rho = np.linspace(0, 1, 50)
     assert np.allclose(lhcd.P_absorbed(rho), 0.0)
 
 
 def test_mix_with_nbi():
-    """Lines 300, 309: CurrentDriveMix dispatches NBI sources correctly."""
+    """CurrentDriveMix dispatches NBI sources through the NBI heating/current path."""
     rho = np.linspace(0, 1, 50)
     ne = np.ones(50) * 5.0
     Te = np.ones(50) * 10.0
@@ -217,3 +216,44 @@ def test_mix_with_nbi():
     p_tot = mix.total_heating_power(rho)
     assert np.max(j_tot) > 0.0
     assert np.max(p_tot) > 0.0
+
+
+def test_current_drive_sources_reject_nonphysical_domains():
+    with pytest.raises(ValueError, match="P_ec_MW must be finite and >= 0"):
+        ECCDSource(P_ec_MW=-1.0, rho_dep=0.5, sigma_rho=0.05)
+    with pytest.raises(ValueError, match="rho_dep must be finite and within"):
+        ECCDSource(P_ec_MW=1.0, rho_dep=1.5, sigma_rho=0.05)
+    with pytest.raises(ValueError, match="E_beam_keV must be finite and > 0"):
+        NBISource(P_nbi_MW=1.0, E_beam_keV=0.0, rho_tangency=0.5)
+    with pytest.raises(ValueError, match="eta_cd must be finite and >= 0"):
+        LHCDSource(P_lh_MW=1.0, rho_dep=0.5, sigma_rho=0.05, eta_cd=-0.1)
+
+
+def test_current_drive_efficiency_kernels_reject_invalid_scalars():
+    with pytest.raises(ValueError, match="Te_keV must contain finite positive values"):
+        eccd_efficiency(Te_keV=-1.0, Z_eff=1.5, N_parallel=0.3)
+    with pytest.raises(ValueError, match="ne_19 must contain finite positive values"):
+        nbi_slowing_down_time(Te_keV=10.0, ne_19=0.0)
+    with pytest.raises(ValueError, match="A_ion must be finite and > 0"):
+        nbi_critical_energy(Te_keV=10.0, A_ion=0.0)
+
+
+def test_current_drive_rejects_nonphysical_profile_inputs():
+    rho = np.linspace(0, 1, 8)
+    eccd = ECCDSource(P_ec_MW=1.0, rho_dep=0.5, sigma_rho=0.1)
+    ne = np.ones(8)
+    te = np.ones(8)
+    bad_ne = ne.copy()
+    bad_ne[2] = 0.0
+
+    with pytest.raises(ValueError, match="ne_19 must contain finite positive values"):
+        eccd.j_cd(rho, bad_ne, te)
+
+    nbi = NBISource(P_nbi_MW=1.0, E_beam_keV=100.0, rho_tangency=0.5)
+    with pytest.raises(ValueError, match="Ti_keV must contain finite positive values"):
+        nbi.j_cd(rho, ne, te, np.zeros(8))
+
+    mix = CurrentDriveMix(a=1.0)
+    mix.add_source(eccd)
+    with pytest.raises(ValueError, match="rho grid must be strictly increasing"):
+        mix.total_driven_current(rho[::-1], ne, te, te)

@@ -34,6 +34,60 @@ _E_CRIT_PREFACTOR = 14.8  # keV · (A_b/A_i)^(2/3) per keV of T_e
 _TAU_S_PREFACTOR = 3.0 * np.sqrt(2.0 * np.pi)  # = 3√(2π)
 
 
+def _require_nonnegative_scalar(name: str, value: float) -> float:
+    """Return a finite non-negative scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar < 0.0:
+        raise ValueError(f"{name} must be finite and >= 0")
+    return scalar
+
+
+def _require_positive_scalar(name: str, value: float) -> float:
+    """Return a finite positive scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0")
+    return scalar
+
+
+def _require_unit_interval(name: str, value: float) -> float:
+    """Return a finite scalar in [0, 1] or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or not (0.0 <= scalar <= 1.0):
+        raise ValueError(f"{name} must be finite and within [0, 1]")
+    return scalar
+
+
+def _require_positive_profile(name: str, values: float | np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
+    """Return finite positive profile values with optional exact shape."""
+    arr = np.asarray(values, dtype=float)
+    if shape is not None and arr.shape != shape:
+        raise ValueError(f"{name} must have shape {shape}")
+    if not np.all(np.isfinite(arr)) or np.any(arr <= 0.0):
+        raise ValueError(f"{name} must contain finite positive values")
+    return arr
+
+
+def _require_current_drive_profiles(
+    rho: np.ndarray,
+    ne_19: np.ndarray,
+    Te_keV: np.ndarray,
+    Ti_keV: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray | None]:
+    """Validate grid and kinetic profiles used by current-drive sources."""
+    rho_arr = np.asarray(rho, dtype=float)
+    if rho_arr.ndim != 1:
+        raise ValueError("rho grid must be one-dimensional")
+    if not np.all(np.isfinite(rho_arr)):
+        raise ValueError("rho grid must be finite")
+    if rho_arr.size > 1 and not np.all(np.diff(rho_arr) > 0.0):
+        raise ValueError("rho grid must be strictly increasing")
+    ne_arr = _require_positive_profile("ne_19", ne_19, rho_arr.shape)
+    te_arr = _require_positive_profile("Te_keV", Te_keV, rho_arr.shape)
+    ti_arr = None if Ti_keV is None else _require_positive_profile("Ti_keV", Ti_keV, rho_arr.shape)
+    return rho_arr, ne_arr, te_arr, ti_arr
+
+
 def _normalised_radial_deposition(
     rho: np.ndarray,
     total_power_w: float,
@@ -50,8 +104,11 @@ def _normalised_radial_deposition(
         raise ValueError("rho grid must be finite")
     if rho_arr.size > 1 and not np.all(np.diff(rho_arr) > 0.0):
         raise ValueError("rho grid must be strictly increasing")
+    _require_unit_interval("rho_centre", rho_centre)
     if width_rho <= 0.0 or total_power_w <= 0.0:
         return np.zeros_like(rho_arr, dtype=float)
+    _require_positive_scalar("width_rho", width_rho)
+    _require_positive_scalar("total_power_w", total_power_w)
 
     kernel = np.exp(-((rho_arr - rho_centre) ** 2) / (2.0 * width_rho**2))
     norm = float(np.trapezoid(kernel, rho_arr)) if rho_arr.size > 1 else float(kernel[0])
@@ -84,9 +141,15 @@ def eccd_efficiency(
     -------
     η_ECCD in same units as eta_0
     """
+    Te_arr = _require_positive_profile("Te_keV", Te_keV)
+    Z_eff = _require_positive_scalar("Z_eff", Z_eff)
+    eta_0 = _require_nonnegative_scalar("eta_0", eta_0)
+    if not np.isfinite(N_parallel):
+        raise ValueError("N_parallel must be finite")
     xi = N_parallel
     angle_factor = xi / (1.0 + xi**2)
-    return eta_0 * Te_keV / (5.0 + Z_eff) * angle_factor
+    result = eta_0 * Te_arr / (5.0 + Z_eff) * angle_factor
+    return float(result) if np.ndim(result) == 0 else np.asarray(result)
 
 
 def nbi_slowing_down_time(
@@ -112,9 +175,13 @@ def nbi_slowing_down_time(
     -------
     τ_s [s]
     """
+    Te_arr = _require_positive_profile("Te_keV", Te_keV)
+    ne_arr = _require_positive_profile("ne_19", ne_19, Te_arr.shape)
+    A_beam = _require_positive_scalar("A_beam", A_beam)
+    Z_eff = _require_positive_scalar("Z_eff", Z_eff)
     m_beam = A_beam * M_P
-    Te_J = np.asarray(Te_keV) * 1e3 * E_CHARGE
-    ne = np.asarray(ne_19) * 1e19
+    Te_J = Te_arr * 1e3 * E_CHARGE
+    ne = ne_arr * 1e19
 
     numerator = _TAU_S_PREFACTOR * m_beam * Te_J**1.5
     denominator = 4.0 * np.sqrt(M_E) * ne * E_CHARGE**4 * _LN_LAMBDA * Z_eff
@@ -143,7 +210,10 @@ def nbi_critical_energy(
     -------
     E_crit [keV]
     """
-    result = _E_CRIT_PREFACTOR * np.asarray(Te_keV) * (A_beam / A_ion) ** (2.0 / 3.0)
+    Te_arr = _require_positive_profile("Te_keV", Te_keV)
+    A_beam = _require_positive_scalar("A_beam", A_beam)
+    A_ion = _require_positive_scalar("A_ion", A_ion)
+    result = _E_CRIT_PREFACTOR * Te_arr * (A_beam / A_ion) ** (2.0 / 3.0)
     return float(result) if np.ndim(result) == 0 else np.asarray(result)
 
 
@@ -163,10 +233,10 @@ class ECCDSource:
         sigma_rho: float,
         eta_cd: float = _ETA_ECCD_DEFAULT,
     ):
-        self.P_ec_MW = P_ec_MW
-        self.rho_dep = rho_dep
-        self.sigma_rho = sigma_rho
-        self.eta_cd = eta_cd
+        self.P_ec_MW = _require_nonnegative_scalar("P_ec_MW", P_ec_MW)
+        self.rho_dep = _require_unit_interval("rho_dep", rho_dep)
+        self.sigma_rho = _require_nonnegative_scalar("sigma_rho", sigma_rho)
+        self.eta_cd = _require_nonnegative_scalar("eta_cd", eta_cd)
 
     def P_absorbed(self, rho: np.ndarray) -> np.ndarray:
         """Absorbed power per unit rho [W] using a grid-normalised finite-width deposition kernel."""
@@ -179,8 +249,9 @@ class ECCDSource:
         j_cd = η_cd · P_abs / (n_e · T_e)
         Fisch & Boozer 1980, PRL 45, 720, normalised form.
         """
-        p_abs = self.P_absorbed(rho)
-        denom = np.maximum(ne_19 * Te_keV, 1e-3)
+        rho_arr, ne_arr, te_arr, _ = _require_current_drive_profiles(rho, ne_19, Te_keV)
+        p_abs = self.P_absorbed(rho_arr)
+        denom = ne_arr * te_arr
         return np.asarray(self.eta_cd * p_abs / denom)
 
 
@@ -201,12 +272,12 @@ class NBISource:
         A_beam: float = _A_BEAM_D,
         Z_beam: float = _Z_BEAM_D,
     ):
-        self.P_nbi_MW = P_nbi_MW
-        self.E_beam_keV = E_beam_keV
-        self.rho_tangency = rho_tangency
-        self.sigma_rho = sigma_rho
-        self.A_beam = A_beam
-        self.Z_beam = Z_beam
+        self.P_nbi_MW = _require_nonnegative_scalar("P_nbi_MW", P_nbi_MW)
+        self.E_beam_keV = _require_positive_scalar("E_beam_keV", E_beam_keV)
+        self.rho_tangency = _require_unit_interval("rho_tangency", rho_tangency)
+        self.sigma_rho = _require_nonnegative_scalar("sigma_rho", sigma_rho)
+        self.A_beam = _require_positive_scalar("A_beam", A_beam)
+        self.Z_beam = _require_positive_scalar("Z_beam", Z_beam)
 
     def P_heating(self, rho: np.ndarray) -> np.ndarray:
         """Beam heating power per unit rho [W] using a grid-normalised finite-width deposition kernel."""
@@ -230,18 +301,20 @@ class NBISource:
 
         Note: Ti_keV enters via Z_eff-dependent collisionality; here held constant.
         """
-        p_heat = self.P_heating(rho)
+        rho_arr, ne_arr, te_arr, _ = _require_current_drive_profiles(rho, ne_19, Te_keV, Ti_keV)
+        Z_eff = _require_positive_scalar("Z_eff", Z_eff)
+        p_heat = self.P_heating(rho_arr)
         m_beam = self.A_beam * M_P
         E_beam_J = self.E_beam_keV * 1e3 * E_CHARGE
         v_parallel = np.sqrt(2.0 * E_beam_J / m_beam)
 
-        j_prof = np.zeros_like(rho, dtype=float)
-        for i in range(len(rho)):
+        j_prof = np.zeros_like(rho_arr, dtype=float)
+        for i in range(len(rho_arr)):
             if p_heat[i] <= 0.0:
                 continue
             tau_s = nbi_slowing_down_time(
-                Te_keV=max(float(Te_keV[i]), 1e-3),
-                ne_19=max(float(ne_19[i]), 1e-3),
+                Te_keV=float(te_arr[i]),
+                ne_19=float(ne_arr[i]),
                 A_beam=self.A_beam,
                 Z_eff=Z_eff,
             )
@@ -266,10 +339,10 @@ class LHCDSource:
         sigma_rho: float,
         eta_cd: float = _ETA_LHCD_DEFAULT,
     ):
-        self.P_lh_MW = P_lh_MW
-        self.rho_dep = rho_dep
-        self.sigma_rho = sigma_rho
-        self.eta_cd = eta_cd
+        self.P_lh_MW = _require_nonnegative_scalar("P_lh_MW", P_lh_MW)
+        self.rho_dep = _require_unit_interval("rho_dep", rho_dep)
+        self.sigma_rho = _require_nonnegative_scalar("sigma_rho", sigma_rho)
+        self.eta_cd = _require_nonnegative_scalar("eta_cd", eta_cd)
 
     def P_absorbed(self, rho: np.ndarray) -> np.ndarray:
         return _normalised_radial_deposition(rho, self.P_lh_MW * 1e6, self.rho_dep, self.sigma_rho)
@@ -279,8 +352,9 @@ class LHCDSource:
         j_cd = η_cd · P_abs / (n_e · T_e)
         Fisch 1978, PRL 41, 873, normalised form.
         """
-        p_abs = self.P_absorbed(rho)
-        denom = np.maximum(ne_19 * Te_keV, 1e-3)
+        rho_arr, ne_arr, te_arr, _ = _require_current_drive_profiles(rho, ne_19, Te_keV)
+        p_abs = self.P_absorbed(rho_arr)
+        denom = ne_arr * te_arr
         return np.asarray(self.eta_cd * p_abs / denom)
 
 
@@ -289,7 +363,7 @@ class CurrentDriveMix:
 
     def __init__(self, a: float = 1.0):
         self.sources: list[ECCDSource | NBISource | LHCDSource] = []
-        self.a = a  # minor radius [m]
+        self.a = _require_positive_scalar("a", a)  # minor radius [m]
 
     def add_source(self, source: ECCDSource | NBISource | LHCDSource) -> None:
         self.sources.append(source)
@@ -301,21 +375,24 @@ class CurrentDriveMix:
         Te: np.ndarray,
         Ti: np.ndarray,
     ) -> np.ndarray:
-        j_tot = np.zeros_like(rho, dtype=float)
+        rho_arr, ne_arr, te_arr, ti_arr = _require_current_drive_profiles(rho, ne, Te, Ti)
+        assert ti_arr is not None
+        j_tot = np.zeros_like(rho_arr, dtype=float)
         for src in self.sources:
             if isinstance(src, NBISource):
-                j_tot += src.j_cd(rho, ne, Te, Ti)
+                j_tot += src.j_cd(rho_arr, ne_arr, te_arr, ti_arr)
             else:
-                j_tot += src.j_cd(rho, ne, Te)
+                j_tot += src.j_cd(rho_arr, ne_arr, te_arr)
         return j_tot
 
     def total_heating_power(self, rho: np.ndarray) -> np.ndarray:
-        p_tot = np.zeros_like(rho, dtype=float)
+        rho_arr = np.asarray(rho, dtype=float)
+        p_tot = np.zeros_like(rho_arr, dtype=float)
         for src in self.sources:
             if isinstance(src, NBISource):
-                p_tot += src.P_heating(rho)
+                p_tot += src.P_heating(rho_arr)
             else:
-                p_tot += src.P_absorbed(rho)
+                p_tot += src.P_absorbed(rho_arr)
         return p_tot
 
     def total_driven_current(
@@ -330,7 +407,9 @@ class CurrentDriveMix:
 
         r = ρ · a,  dr = dρ · a  →  dA = 2π ρ a² dρ
         """
-        j_tot = self.total_j_cd(rho, ne, Te, Ti)
-        drho = rho[1] - rho[0] if len(rho) > 1 else 0.0
-        dA = 2.0 * np.pi * rho * self.a**2 * drho
+        rho_arr, ne_arr, te_arr, ti_arr = _require_current_drive_profiles(rho, ne, Te, Ti)
+        assert ti_arr is not None
+        j_tot = self.total_j_cd(rho_arr, ne_arr, te_arr, ti_arr)
+        drho = rho_arr[1] - rho_arr[0] if len(rho_arr) > 1 else 0.0
+        dA = 2.0 * np.pi * rho_arr * self.a**2 * drho
         return float(np.sum(j_tot * dA))
