@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Tearing-Mode Coupling Physics
 """
 Coupled tearing mode dynamics including Chirikov overlap and inter-mode coupling.
 
@@ -146,7 +149,7 @@ class CoupledTearingModes:
 
         self.delta_r = abs(self.r_s1 - self.r_s2)
 
-    def coupling_coefficient(self, m1: int, n1: int, m2: int, n2: int) -> float:  # noqa: ARG002
+    def coupling_coefficient(self, m1: int, n1: int, m2: int, n2: int) -> float:
         """Cross-mode coupling coefficient C₁₂.
 
         La Haye & Buttery 2009, Phys. Plasmas 16, 022107, Eq. 8:
@@ -155,6 +158,8 @@ class CoupledTearingModes:
         between the 3/2 and 2/1 modes via the n=1 sideband.  Modes with
         different n do not couple directly at this order.
         """
+        _mode_tuple("mode1", (m1, n1))
+        _mode_tuple("mode2", (m2, n2))
         return 0.5 * (self.a / self.R0)
 
     def delta_prime_1(self, w1: float, w2: float) -> float:

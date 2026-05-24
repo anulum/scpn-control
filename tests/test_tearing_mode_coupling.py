@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Tearing-Mode Coupling Tests
 from __future__ import annotations
 
 import numpy as np
@@ -114,6 +117,16 @@ def test_coupling_coefficient_bounded():
         coeff = c.coupling_coefficient(3, 2, 2, 1)
         assert coeff < 1.0, f"Coupling must be < 1, got {coeff} for a={a}, R0={R0}"
         assert coeff > 0.0, "Coupling must be positive"
+
+
+def test_coupling_coefficient_rejects_invalid_public_mode_numbers():
+    c = CoupledTearingModes((3, 2), (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)
+
+    with pytest.raises(ValueError, match="mode1"):
+        c.coupling_coefficient(0, 2, 2, 1)
+
+    with pytest.raises(ValueError, match="mode2"):
+        c.coupling_coefficient(3, 2, 2, 0)
 
 
 @pytest.mark.parametrize(
