@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Gyrokinetic Transport
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Quasilinear Gyrokinetic Transport Model
-# ──────────────────────────────────────────────────────────────────────
 """Quasilinear gyrokinetic transport model with reduced instability-branch screening."""
 
 from __future__ import annotations
@@ -22,9 +18,85 @@ import numpy as np
 # m_p = 1.67262192369e-27  kg
 
 
+def _finite_float(name: str, value: Any) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    return scalar
+
+
+def _positive_float(name: str, value: Any) -> float:
+    scalar = _finite_float(name, value)
+    if scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    return scalar
+
+
+def _nonnegative_float(name: str, value: Any) -> float:
+    scalar = _finite_float(name, value)
+    if scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _unit_interval(name: str, value: Any) -> float:
+    scalar = _finite_float(name, value)
+    if scalar < 0.0 or scalar > 1.0:
+        raise ValueError(f"{name} must stay within [0, 1]")
+    return scalar
+
+
+def _positive_int(name: str, value: int) -> int:
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
+
+def _validate_params(params: GyrokineticsParams) -> GyrokineticsParams:
+    params.R_L_Ti = _nonnegative_float("R_L_Ti", params.R_L_Ti)
+    params.R_L_Te = _nonnegative_float("R_L_Te", params.R_L_Te)
+    params.R_L_ne = _nonnegative_float("R_L_ne", params.R_L_ne)
+    params.q = _positive_float("q", params.q)
+    params.s_hat = _finite_float("s_hat", params.s_hat)
+    params.alpha_MHD = _nonnegative_float("alpha_MHD", params.alpha_MHD)
+    params.Te_Ti = _positive_float("Te_Ti", params.Te_Ti)
+    params.Z_eff = _positive_float("Z_eff", params.Z_eff)
+    params.nu_star = _nonnegative_float("nu_star", params.nu_star)
+    params.beta_e = _nonnegative_float("beta_e", params.beta_e)
+    params.epsilon = _positive_float("epsilon", params.epsilon)
+    if params.epsilon > 1.0:
+        raise ValueError("epsilon must be <= 1")
+    return params
+
+
+def _validate_spectrum(spectrum: SpectrumResult) -> SpectrumResult:
+    lengths = {
+        len(spectrum.k_y),
+        len(spectrum.gamma_linear),
+        len(spectrum.omega_r),
+        len(spectrum.mode_type),
+    }
+    if len(lengths) != 1:
+        raise ValueError("spectrum arrays must have matching lengths")
+    if not np.all(np.isfinite(spectrum.k_y)) or np.any(spectrum.k_y <= 0.0):
+        raise ValueError("spectrum k_y values must be finite and positive")
+    if not np.all(np.isfinite(spectrum.gamma_linear)):
+        raise ValueError("spectrum gamma_linear values must be finite")
+    if not np.all(np.isfinite(spectrum.omega_r)):
+        raise ValueError("spectrum omega_r values must be finite")
+    if not np.all(np.isin(spectrum.mode_type, [0, 1, 2, 3])):
+        raise ValueError("spectrum mode_type values must be 0, 1, 2, or 3")
+    return spectrum
+
+
 @dataclass
 class GyrokineticsParams:
-    """TGLF-10 style input vector for the quasilinear model."""
+    """TGLF-10 style input vector for the quasilinear model.
+
+    Gradient drives are non-negative normalised ``R/L`` values. ``q``,
+    ``Te_Ti``, ``Z_eff``, and ``epsilon`` are positive; ``nu_star``,
+    ``beta_e``, and ``alpha_MHD`` are non-negative.
+    """
 
     R_L_Ti: float
     R_L_Te: float
@@ -69,7 +141,7 @@ def solve_dispersion(
     params : GyrokineticsParams
         Local plasma parameters.
     k_theta_rho_s : float
-        Normalized perpendicular wavenumber.
+        Positive normalised perpendicular wavenumber.
     etg_scale : bool
         If True, evaluate the ETG mode dispersion.
 
@@ -81,8 +153,15 @@ def solve_dispersion(
         Real frequency [c_s / R]
     mode_type : int
         1 for ITG, 2 for TEM, 3 for ETG, 0 for stable
+
+    Raises
+    ------
+    ValueError
+        If the local gyrokinetic parameters or wavenumber leave their finite
+        physical domains.
     """
-    k_y = k_theta_rho_s
+    params = _validate_params(params)
+    k_y = _positive_float("k_theta_rho_s", k_theta_rho_s)
 
     if etg_scale:
         # ETG mode (Jenko et al. 2000)
@@ -135,8 +214,10 @@ def solve_dispersion(
 
 def compute_spectrum(params: GyrokineticsParams, n_modes: int = 16, include_etg: bool = False) -> SpectrumResult:
     """
-    Scan k_theta rho_s and compute growth rate spectrum.
+    Scan k_theta rho_s and compute growth rate spectrum over a positive mode count.
     """
+    params = _validate_params(params)
+    n_modes = _positive_int("n_modes", n_modes)
     k_y_list = []
     gamma_list = []
     omega_list = []
@@ -176,8 +257,10 @@ def compute_spectrum(params: GyrokineticsParams, n_modes: int = 16, include_etg:
 
 def quasilinear_fluxes(params: GyrokineticsParams, spectrum: SpectrumResult) -> TransportFluxes:
     """
-    Apply saturation rule and return effective diffusivities.
+    Apply saturation rule and return effective diffusivities for a valid spectrum.
     """
+    params = _validate_params(params)
+    spectrum = _validate_spectrum(spectrum)
     # gamma_max = c_s / (q R) => normalized gamma_max = 1 / q
     gamma_max = 1.0 / max(params.q, 0.1)
 
@@ -246,10 +329,13 @@ def quasilinear_fluxes(params: GyrokineticsParams, spectrum: SpectrumResult) -> 
 class GyrokineticTransportModel:
     """
     Drop-in replacement for Gyro-Bohm transport scaling.
+
+    Public evaluation points use ``rho`` in ``[0, 1]`` and positive finite local
+    geometry, temperature, density, safety-factor, and charge inputs.
     """
 
     def __init__(self, n_modes: int = 16, include_etg: bool = False):
-        self.n_modes = n_modes
+        self.n_modes = _positive_int("n_modes", n_modes)
         self.include_etg = include_etg
         # Typical tuning constant for macroscopic match
         self.c_tune = 0.5
@@ -258,23 +344,24 @@ class GyrokineticTransportModel:
         """
         Evaluate transport coefficients at a single radial point.
         """
+        rho = _unit_interval("rho", rho)
         if rho <= 0.05:
             # Axis boundary
             return 0.01, 0.01, 0.01
 
         # Extract local gradients and parameters
-        R0 = profiles.get("R0", 2.0)
-        a = profiles.get("a", 0.5)
-        B0 = profiles.get("B0", 1.0)
-        q = profiles.get("q", 1.0)
-        s_hat = profiles.get("s_hat", 1.0)
-        Te = profiles.get("Te", 1.0)
-        Ti = profiles.get("Ti", 1.0)
-        ne = profiles.get("ne", 1.0)
-        Z_eff = profiles.get("Z_eff", 1.5)
-        dTe_dr = profiles.get("dTe_dr", 0.0)
-        dTi_dr = profiles.get("dTi_dr", 0.0)
-        dne_dr = profiles.get("dne_dr", 0.0)
+        R0 = _positive_float("R0", profiles.get("R0", 2.0))
+        a = _positive_float("a", profiles.get("a", 0.5))
+        B0 = _positive_float("B0", profiles.get("B0", 1.0))
+        q = _positive_float("q", profiles.get("q", 1.0))
+        s_hat = _finite_float("s_hat", profiles.get("s_hat", 1.0))
+        Te = _positive_float("Te", profiles.get("Te", 1.0))
+        Ti = _positive_float("Ti", profiles.get("Ti", 1.0))
+        ne = _positive_float("ne", profiles.get("ne", 1.0))
+        Z_eff = _positive_float("Z_eff", profiles.get("Z_eff", 1.5))
+        dTe_dr = _finite_float("dTe_dr", profiles.get("dTe_dr", 0.0))
+        dTi_dr = _finite_float("dTi_dr", profiles.get("dTi_dr", 0.0))
+        dne_dr = _finite_float("dne_dr", profiles.get("dne_dr", 0.0))
 
         # Gradients R/L
         # L_x = - x / (dx/dr) => R/L_x = - R/x * dx/dr
@@ -294,9 +381,9 @@ class GyrokineticTransportModel:
         # Collisionality estimate
         # nu_star ~ R * q / (v_te * tau_e * eps^1.5)
         # We can just use a proxy or 0.1 if not fully provided
-        nu_star = profiles.get("nu_star", 0.1)
-        beta_e = profiles.get("beta_e", 0.01)
-        alpha_MHD = profiles.get("alpha_MHD", 0.0)
+        nu_star = _nonnegative_float("nu_star", profiles.get("nu_star", 0.1))
+        beta_e = _nonnegative_float("beta_e", profiles.get("beta_e", 0.01))
+        alpha_MHD = _nonnegative_float("alpha_MHD", profiles.get("alpha_MHD", 0.0))
 
         params = GyrokineticsParams(
             R_L_Ti=R_L_Ti,
@@ -335,8 +422,11 @@ class GyrokineticTransportModel:
         self, rho: np.ndarray, profiles: dict[str, np.ndarray]
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Evaluate full radial profile.
+        Evaluate full radial profile over a finite one-dimensional rho grid in [0, 1].
         """
+        rho = np.asarray(rho, dtype=float)
+        if rho.ndim != 1 or not np.all(np.isfinite(rho)) or np.any(rho < 0.0) or np.any(rho > 1.0):
+            raise ValueError("rho must be a finite one-dimensional profile within [0, 1]")
         nr = len(rho)
         chi_i = np.zeros(nr)
         chi_e = np.zeros(nr)

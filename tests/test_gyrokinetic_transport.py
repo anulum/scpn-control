@@ -1,21 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Gyrokinetic Transport
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Gyrokinetic Transport Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.gyrokinetic_transport import (
     GyrokineticsParams,
     GyrokineticTransportModel,
+    SpectrumResult,
     compute_spectrum,
     quasilinear_fluxes,
     solve_dispersion,
@@ -224,3 +222,87 @@ def test_transport_model_eval_profile():
     assert len(D_e) == 10
     assert np.all(chi_i >= 0.0)
     assert chi_i[0] == 0.01  # boundary handling
+
+
+def test_dispersion_rejects_invalid_physical_domains():
+    params = GyrokineticsParams(
+        R_L_Ti=1.0,
+        R_L_Te=1.0,
+        R_L_ne=1.0,
+        q=0.0,
+        s_hat=1.0,
+        alpha_MHD=0.0,
+        Te_Ti=1.0,
+        Z_eff=1.5,
+        nu_star=0.1,
+        beta_e=0.01,
+        epsilon=0.1,
+    )
+    with pytest.raises(ValueError, match="q"):
+        solve_dispersion(params, 0.5)
+
+    good = GyrokineticsParams(
+        R_L_Ti=1.0,
+        R_L_Te=1.0,
+        R_L_ne=1.0,
+        q=1.5,
+        s_hat=1.0,
+        alpha_MHD=0.0,
+        Te_Ti=1.0,
+        Z_eff=1.5,
+        nu_star=0.1,
+        beta_e=0.01,
+        epsilon=0.1,
+    )
+    with pytest.raises(ValueError, match="k_theta_rho_s"):
+        solve_dispersion(good, 0.0)
+
+
+def test_spectrum_and_fluxes_reject_invalid_domains():
+    params = GyrokineticsParams(
+        R_L_Ti=1.0,
+        R_L_Te=1.0,
+        R_L_ne=1.0,
+        q=1.5,
+        s_hat=1.0,
+        alpha_MHD=0.0,
+        Te_Ti=1.0,
+        Z_eff=1.5,
+        nu_star=0.1,
+        beta_e=0.01,
+        epsilon=0.1,
+    )
+    with pytest.raises(ValueError, match="n_modes"):
+        compute_spectrum(params, n_modes=0)
+
+    bad_spectrum = SpectrumResult(
+        k_y=np.array([0.3]),
+        gamma_linear=np.array([0.1, 0.2]),
+        omega_r=np.array([0.1]),
+        mode_type=np.array([1]),
+    )
+    with pytest.raises(ValueError, match="spectrum"):
+        quasilinear_fluxes(params, bad_spectrum)
+
+
+def test_transport_model_rejects_invalid_radius_and_profiles():
+    model = GyrokineticTransportModel()
+    valid_profiles = {
+        "R0": 2.0,
+        "a": 0.5,
+        "B0": 5.0,
+        "q": 1.5,
+        "s_hat": 1.0,
+        "Te": 5.0,
+        "Ti": 5.0,
+        "ne": 5.0,
+        "dTe_dr": -50.0,
+        "dTi_dr": -50.0,
+        "dne_dr": -50.0,
+    }
+    with pytest.raises(ValueError, match="rho"):
+        model.evaluate(1.1, valid_profiles)
+    bad_profiles = dict(valid_profiles)
+    bad_profiles["Te"] = 0.0
+    with pytest.raises(ValueError, match="Te"):
+        model.evaluate(0.5, bad_profiles)
