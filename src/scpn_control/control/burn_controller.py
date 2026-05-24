@@ -66,11 +66,12 @@ class AlphaHeating:
 
         # <σv>_DT: Bosch & Hale 1992, Nucl. Fusion 32, 611, Table IV
         positive_ti = ti_arr > 0.0
-        sigv_eval_ti = np.where(positive_ti, ti_arr, 1.0)
-        sigv = np.where(positive_ti, bosch_hale_reactivity(sigv_eval_ti), 0.0)
+        sigv = np.zeros_like(ti_arr, dtype=float)
+        if np.any(positive_ti):
+            sigv[positive_ti] = np.asarray(bosch_hale_reactivity(ti_arr[positive_ti]), dtype=float)
 
         p_alpha_W = nD * nT * sigv * self.E_alpha_J
-        return p_alpha_W / 1e6
+        return np.asarray(p_alpha_W / 1e6, dtype=float)
 
     def power(self, ne_20: np.ndarray, Te_keV: np.ndarray, Ti_keV: np.ndarray, rho: np.ndarray) -> float:
         """P_alpha [MW] integrated over plasma volume.
