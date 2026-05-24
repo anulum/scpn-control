@@ -34,6 +34,8 @@ class RZIPModel:
             raise ValueError("R0 must be finite and positive for a physical major radius.")
         if not np.isfinite(a) or a <= 0.0:
             raise ValueError("a must be finite and positive for a physical minor radius.")
+        if a >= R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering.")
         if not np.isfinite(kappa) or kappa <= 0.0:
             raise ValueError("kappa must be finite and positive.")
         if not np.isfinite(Ip_MA) or Ip_MA <= 0.0:

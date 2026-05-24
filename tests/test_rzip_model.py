@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Rzip Model
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — RZIP Model Tests
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — RZIP model tests
 from __future__ import annotations
 
 import numpy as np
@@ -58,6 +54,11 @@ def test_rzip_model_rejects_nonphysical_parameters(simple_vessel):
         params.update(kwargs)
         with pytest.raises(ValueError, match="physical|finite|positive"):
             RZIPModel(**params)
+
+
+def test_rzip_model_rejects_minor_radius_at_or_beyond_major_radius(simple_vessel):
+    with pytest.raises(ValueError, match="a must be smaller than R0"):
+        RZIPModel(R0=2.0, a=2.0, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-0.5, vessel=simple_vessel)
 
 
 def test_rzip_model_uses_declared_vertical_inertia(simple_vessel):
@@ -179,14 +180,14 @@ def test_build_state_space_rejects_singular_circuit_inductance_matrix(simple_ves
 
 
 def test_vertical_growth_time_stable(simple_vessel):
-    """Line 127: vertical_growth_time returns inf for stable plasma (gamma <= 0)."""
+    """Stable vertical response reports infinite open-loop growth time."""
     rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.0, Ip_MA=1.0, B0=1.0, n_index=0.5, vessel=simple_vessel)
     tau = rzip.vertical_growth_time()
     assert tau == float("inf")
 
 
 def test_stability_margin(simple_vessel):
-    """Line 132: stability_margin returns n_index."""
+    """Stability margin exposes the configured vertical field index."""
     rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.0, Ip_MA=1.0, B0=1.0, n_index=-0.5, vessel=simple_vessel)
     assert rzip.stability_margin() == -0.5
 

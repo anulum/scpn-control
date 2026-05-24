@@ -338,7 +338,7 @@
     },
     {
       "component": "RZIP rigid vertical stability model",
-      "equation_contract": "Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, declared vertical inertia, wall-normalised feedback-gain threshold, and wall or active-coil circuit model.",
+      "equation_contract": "Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, tokamak major/minor-radius ordering, declared vertical inertia, wall-normalised feedback-gain threshold, and wall or active-coil circuit model.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lazarus et al. 1990 rigid plasma vertical stability model",
