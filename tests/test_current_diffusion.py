@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Current Diffusion
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Current Diffusion Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
@@ -19,6 +15,7 @@ from scpn_control.core.current_diffusion import (
     CurrentDiffusionSolver,
     coulomb_log,
     neoclassical_resistivity,
+    psi_from_q,
     q_from_psi,
     resistive_diffusion_time,
 )
@@ -177,14 +174,38 @@ def test_q_from_psi_singular_denom():
 
 def test_psi_from_q_roundtrip():
     """psi_from_q inverts q_from_psi for a monotone positive q profile."""
-    from scpn_control.core.current_diffusion import psi_from_q
-
     rho = np.linspace(0, 1, 50)
     q_input = 1.0 + 2.0 * rho**2
     psi_recon = psi_from_q(rho, q_input, R0=2.0, a=0.5, B0=1.0)
     assert psi_recon[-1] == 0.0
     q_back = q_from_psi(rho, psi_recon, R0=2.0, a=0.5, B0=1.0)
     assert np.allclose(q_back[5:], q_input[5:], rtol=0.1)
+
+
+def test_q_from_psi_rejects_invalid_flux_grid_domains():
+    rho = np.linspace(0, 1, 5)
+    psi = -(0.5**2) * rho**2 / (2.0 * 2.0)
+
+    with pytest.raises(ValueError, match="rho"):
+        q_from_psi(np.array([0.0, 0.5]), psi[:2], R0=2.0, a=0.5, B0=1.0)
+    with pytest.raises(ValueError, match="strictly increasing"):
+        q_from_psi(rho[::-1], psi, R0=2.0, a=0.5, B0=1.0)
+    with pytest.raises(ValueError, match="psi"):
+        q_from_psi(rho, np.array([0.0, np.nan, 0.0, 0.0, 0.0]), R0=2.0, a=0.5, B0=1.0)
+    with pytest.raises(ValueError, match="B0"):
+        q_from_psi(rho, psi, R0=2.0, a=0.5, B0=0.0)
+
+
+def test_psi_from_q_rejects_invalid_safety_factor_domains():
+    rho = np.linspace(0, 1, 5)
+    q = 1.0 + rho**2
+
+    with pytest.raises(ValueError, match="q"):
+        psi_from_q(rho, np.array([1.0, 1.2, 0.0, 1.6, 2.0]), R0=2.0, a=0.5, B0=1.0)
+    with pytest.raises(ValueError, match="matching shape"):
+        psi_from_q(rho, q[:-1], R0=2.0, a=0.5, B0=1.0)
+    with pytest.raises(ValueError, match="rho"):
+        psi_from_q(np.array([0.0, np.nan, 1.0, 1.5, 2.0]), q, R0=2.0, a=0.5, B0=1.0)
 
 
 def test_neoclassical_resistivity_rejects_nonphysical_domain_values():

@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
-# Contact: protoscience@anulum.li
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Current Diffusion Physics
 """Current-diffusion solver and bootstrap/current-profile evolution utilities."""
 
 from __future__ import annotations
@@ -20,6 +22,22 @@ def _require_positive_scalar(name: str, value: float) -> float:
     if not np.isfinite(scalar) or scalar <= 0.0:
         raise ValueError(f"{name} must be finite and > 0")
     return scalar
+
+
+def _require_flux_grid(name: str, values: np.ndarray, *, minimum_size: int = 3) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size < minimum_size:
+        raise ValueError(f"{name} must be a one-dimensional grid with at least {minimum_size} points")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    return arr
+
+
+def _require_strictly_increasing_rho(rho: np.ndarray, *, minimum_size: int = 3) -> np.ndarray:
+    rho_arr = _require_flux_grid("rho", rho, minimum_size=minimum_size)
+    if not np.all(np.diff(rho_arr) > 0.0):
+        raise ValueError("rho must be strictly increasing")
+    return rho_arr
 
 
 def coulomb_log(Te_keV: float, ne_19: float) -> float:
@@ -101,6 +119,13 @@ def q_from_psi(rho: np.ndarray, psi: np.ndarray, R0: float, a: float, B0: float)
     Reference: Jardin (2010), "Computational Methods in Plasma Physics",
     CRC Press, Ch. 8, Eq. 8.2.
     """
+    rho = _require_strictly_increasing_rho(rho, minimum_size=3)
+    psi = _require_flux_grid("psi", psi, minimum_size=3)
+    if psi.shape != rho.shape:
+        raise ValueError("rho and psi must have matching shape")
+    R0 = _require_positive_scalar("R0", R0)
+    a = _require_positive_scalar("minor radius a", a)
+    B0 = _require_positive_scalar("B0", B0)
     nr = len(rho)
     q = np.zeros(nr)
     drho = rho[1] - rho[0]
@@ -129,8 +154,17 @@ def psi_from_q(rho: np.ndarray, q: np.ndarray, R0: float, a: float, B0: float) -
 
     Reference: Jardin (2010), Ch. 8, Eq. 8.2 (inverted).
     """
+    rho = _require_strictly_increasing_rho(rho, minimum_size=2)
+    q = np.asarray(q, dtype=float)
+    if q.shape != rho.shape:
+        raise ValueError("rho and q must have matching shape")
+    if not np.all(np.isfinite(q)) or np.any(q <= 0.0):
+        raise ValueError("q must contain finite positive values")
+    R0 = _require_positive_scalar("R0", R0)
+    a = _require_positive_scalar("minor radius a", a)
+    B0 = _require_positive_scalar("B0", B0)
     drho = rho[1] - rho[0]
-    integrand = -rho * a**2 * B0 / (R0 * np.maximum(q, 0.5))
+    integrand = -rho * a**2 * B0 / (R0 * q)
     psi = np.zeros_like(rho)
     for i in range(1, len(rho)):
         psi[i] = psi[i - 1] + 0.5 * (integrand[i - 1] + integrand[i]) * drho
