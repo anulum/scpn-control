@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Scaling Laws
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Scaling Laws Tests
 
 """Tests for scpn_control.core.scaling_laws (IPB98(y,2))."""
 
@@ -15,6 +15,7 @@ from scpn_control.core._validators import require_positive_float
 from scpn_control.core.scaling_laws import (
     _require_finite_number,
     _validate_ipb98y2_coefficients,
+    compute_h_factor,
     ipb98y2_tau_e,
     ipb98y2_with_uncertainty,
     load_ipb98y2_coefficients,
@@ -285,3 +286,10 @@ class TestIPB98y2WithUncertainty:
             coefficients=coeff,
         )
         assert tau_unc == pytest.approx(tau_point)
+
+
+class TestHFactor:
+    @pytest.mark.parametrize("tau_predicted", [0.0, -1.0])
+    def test_rejects_nonpositive_predicted_confinement_time(self, tau_predicted):
+        with pytest.raises(ValueError, match="tau_predicted"):
+            compute_h_factor(tau_actual=3.0, tau_predicted=tau_predicted)

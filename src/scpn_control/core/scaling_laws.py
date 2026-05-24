@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Scaling Laws
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Confinement Scaling Laws
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Energy confinement time scaling laws for tokamak H-mode plasmas.
 
@@ -392,18 +384,20 @@ def compute_h_factor(tau_actual: float, tau_predicted: float) -> float:
     Parameters
     ----------
     tau_actual : float
-        Measured or simulated confinement time [s].
+        Positive measured or simulated confinement time [s].
     tau_predicted : float
-        IPB98(y,2) predicted confinement time [s].
+        Positive IPB98(y,2) predicted confinement time [s].
 
     Returns
     -------
     float
         H98(y,2) = tau_actual / tau_predicted.
-    """
-    tau_actual_f = _require_finite_number("tau_actual", tau_actual)
-    tau_predicted_f = _require_finite_number("tau_predicted", tau_predicted)
 
-    if tau_predicted_f <= 0:
-        return float("inf")
+    Raises
+    ------
+    ValueError
+        If either confinement time is non-finite or non-positive.
+    """
+    tau_actual_f = require_positive_float("tau_actual", tau_actual)
+    tau_predicted_f = require_positive_float("tau_predicted", tau_predicted)
     return tau_actual_f / tau_predicted_f

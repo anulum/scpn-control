@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Ipb98Y2 Benchmark
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — IPB98(y,2) Scaling Law Benchmark Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Benchmark tests for the IPB98(y,2) confinement scaling law.
 
@@ -218,10 +210,11 @@ class TestIPB98y2Formula:
         with pytest.raises(ValueError, match=match):
             compute_h_factor(tau_actual, tau_predicted)
 
-    def test_h_factor_preserves_non_positive_denominator_behavior(self):
-        """Historical behavior: non-positive τ_predicted returns +∞ sentinel."""
-        assert compute_h_factor(3.0, 0.0) == float("inf")
-        assert compute_h_factor(3.0, -1.0) == float("inf")
+    @pytest.mark.parametrize("tau_predicted", [0.0, -1.0])
+    def test_h_factor_rejects_non_positive_predicted_confinement_time(self, tau_predicted: float):
+        """Non-positive τ_predicted is outside the H98(y,2) ratio domain."""
+        with pytest.raises(ValueError, match="tau_predicted"):
+            compute_h_factor(3.0, tau_predicted)
 
     @pytest.mark.parametrize(
         ("field", "bad_value"),
