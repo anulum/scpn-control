@@ -680,7 +680,7 @@
     },
     {
       "component": "DT burn control and alpha-heating model",
-      "equation_contract": "Burn-control claims must declare Bosch-Hale DT reactivity, alpha-energy partition, Lawson triple product, burn-fraction approximation, alpha-heating integration volume, reactivity-exponent stability boundary, and PI auxiliary-heating limits.",
+      "equation_contract": "Burn-control claims must declare Bosch-Hale DT reactivity, alpha-energy partition, Lawson triple product, burn-fraction approximation, alpha-heating integration volume, tokamak major/minor-radius ordering, strictly ordered normalised alpha-heating profile grids, reactivity-exponent stability boundary, and PI auxiliary-heating limits.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Bosch and Hale 1992 DT reactivity",
@@ -693,9 +693,9 @@
         "Validate burn operating points against an integrated transport solver or published burn-control benchmark before reactor-control claims",
         "Replace the burn-fraction approximation with a calibrated slowing-down and ash-removal model before facility extrapolation"
       ],
-      "unit_contract": "SI joules, m^-3, seconds, keV, MW, m^3/s, metres, dimensionless Q, and Lawson triple product units m^-3 s keV.",
+      "unit_contract": "SI joules, m^-3, seconds, keV, MW, m^3/s, metres, normalised profile radius, dimensionless Q, and Lawson triple product units m^-3 s keV.",
       "validation_evidence": [
-        "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, and control checks",
+        "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, profile-domain, and control checks",
         "tests/test_burn_controller.py burn-controller edge-path checks"
       ],
       "evidence_paths": [

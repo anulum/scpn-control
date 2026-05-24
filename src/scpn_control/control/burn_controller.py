@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: https://orcid.org/0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Burn controller
 """D-T burn-control, alpha-heating, Lawson, and auxiliary-heating utilities."""
 
 from __future__ import annotations
@@ -50,6 +52,10 @@ def _require_nonnegative_scalar(name: str, value: float) -> float:
 def _require_nonnegative_profile(name: str, values: np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
     """Return a finite non-negative profile with an optional exact shape."""
     arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1:
+        raise ValueError(f"{name} must be one-dimensional")
+    if arr.size == 0:
+        raise ValueError(f"{name} must be non-empty")
     if shape is not None and arr.shape != shape:
         raise ValueError(f"{name} must have shape {shape}")
     if not np.all(np.isfinite(arr)):
@@ -57,6 +63,15 @@ def _require_nonnegative_profile(name: str, values: np.ndarray, shape: tuple[int
     if np.any(arr < 0.0):
         raise ValueError(f"{name} must contain non-negative values")
     return arr
+
+
+def _require_normalised_rho(rho: np.ndarray) -> np.ndarray:
+    rho_arr = _require_nonnegative_profile("rho", rho)
+    if np.any(rho_arr > 1.0):
+        raise ValueError("rho must stay within the normalised interval [0, 1]")
+    if rho_arr.size > 1 and np.any(np.diff(rho_arr) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
+    return rho_arr
 
 
 class AlphaHeating:
@@ -70,6 +85,8 @@ class AlphaHeating:
     def __init__(self, R0: float, a: float, kappa: float = 1.0):
         self.R0 = _require_positive_scalar("R0", R0)
         self.a = _require_positive_scalar("a", a)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
         self.kappa = _require_positive_scalar("kappa", kappa)
         self.E_alpha_J = E_ALPHA_J
 
@@ -101,9 +118,7 @@ class AlphaHeating:
 
         dV = 4π² R₀ a² κ ρ dρ (torus shell element in normalised radius).
         """
-        rho_arr = _require_nonnegative_profile("rho", rho)
-        if np.any(np.diff(rho_arr) < 0.0):
-            raise ValueError("rho must be monotonically non-decreasing")
+        rho_arr = _require_normalised_rho(rho)
         ne_arr = _require_nonnegative_profile("ne_20", ne_20, rho_arr.shape)
         te_arr = _require_nonnegative_profile("Te_keV", Te_keV, rho_arr.shape)
         ti_arr = _require_nonnegative_profile("Ti_keV", Ti_keV, rho_arr.shape)

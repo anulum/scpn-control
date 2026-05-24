@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Burn Controller
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Burn Control Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
@@ -179,16 +175,27 @@ def test_reactivity_exponent_edge_cases():
 def test_alpha_heating_rejects_nonphysical_geometry_and_grids() -> None:
     with pytest.raises(ValueError, match="R0 must be finite and > 0"):
         AlphaHeating(R0=0.0, a=2.0)
+    with pytest.raises(ValueError, match="a must be smaller than R0"):
+        AlphaHeating(R0=2.0, a=2.0)
     with pytest.raises(ValueError, match="kappa must be finite and > 0"):
         AlphaHeating(R0=6.2, a=2.0, kappa=float("nan"))
 
     alpha = AlphaHeating(R0=6.2, a=2.0)
+    with pytest.raises(ValueError, match="ne_20 must be one-dimensional"):
+        alpha.power_density(np.ones((2, 2)), np.ones((2, 2)), np.ones((2, 2)))
+
     with pytest.raises(ValueError, match="ne_20 must have shape"):
-        alpha.power(np.ones(3), np.ones(3), np.ones(3), np.ones(2))
+        alpha.power(np.ones(3), np.ones(3), np.ones(3), np.array([0.0, 1.0]))
 
     bad_rho = np.array([0.0, 0.5, 0.4])
-    with pytest.raises(ValueError, match="rho must be monotonically non-decreasing"):
+    with pytest.raises(ValueError, match="rho must be strictly increasing"):
         alpha.power(np.ones(3), np.ones(3), np.ones(3), bad_rho)
+
+    with pytest.raises(ValueError, match="normalised interval"):
+        alpha.power(np.ones(3), np.ones(3), np.ones(3), np.array([0.0, 0.5, 1.1]))
+
+    with pytest.raises(ValueError, match="rho must be strictly increasing"):
+        alpha.power(np.ones(3), np.ones(3), np.ones(3), np.array([0.0, 0.5, 0.5]))
 
 
 def test_burn_scalar_contracts_reject_nonphysical_inputs() -> None:
