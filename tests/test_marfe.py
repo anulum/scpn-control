@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851 — Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — MARFE model tests
 from __future__ import annotations
 
 import math
@@ -60,6 +63,16 @@ def test_density_limit_predictor():
     # High impurity
     n_marfe_dirty = DensityLimitPredictor.marfe_limit(15.0, 2.0, P_SOL_MW=100.0, impurity="W", f_imp=1e-2)
     assert n_marfe_dirty < n_marfe
+
+
+def test_marfe_limit_preserves_low_power_and_impurity_monotonicity():
+    n_low_power = DensityLimitPredictor.marfe_limit(15.0, 2.0, P_SOL_MW=0.25, impurity="W", f_imp=1e-4)
+    n_high_power = DensityLimitPredictor.marfe_limit(15.0, 2.0, P_SOL_MW=1.0, impurity="W", f_imp=1e-4)
+    n_clean = DensityLimitPredictor.marfe_limit(15.0, 2.0, P_SOL_MW=1.0, impurity="W", f_imp=1e-5)
+
+    assert n_low_power < n_high_power
+    assert n_clean > n_high_power
+    assert n_low_power == pytest.approx(0.5 * n_high_power)
 
 
 def test_marfe_stability_diagram():
@@ -135,6 +148,8 @@ def test_marfe_front_detects_marfe():
 
 def test_greenwald_limit_zero_radius():
     """Zero or negative minor radius is outside the Greenwald model domain."""
+    with pytest.raises(ValueError, match="Ip_MA"):
+        DensityLimitPredictor.greenwald_limit(Ip_MA=0.0, a=2.0)
     with pytest.raises(ValueError, match="a"):
         DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=0.0)
     with pytest.raises(ValueError, match="a"):

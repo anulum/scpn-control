@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851 — Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — MARFE radiation-condensation model
 """MARFE radiation-condensation and density-limit stability utilities."""
 
 from __future__ import annotations
@@ -215,7 +218,7 @@ class DensityLimitPredictor:
         Greenwald 2002, Plasma Phys. Control. Fusion 44, R27, Eq. 1.
         I_p in MA, a in m.
         """
-        Ip_MA = _finite_scalar("Ip_MA", Ip_MA, nonnegative=True)
+        Ip_MA = _finite_scalar("Ip_MA", Ip_MA, positive=True)
         a = _finite_scalar("a", a, positive=True)
         return float(Ip_MA / (math.pi * a**2))
 
@@ -231,7 +234,7 @@ class DensityLimitPredictor:
         P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
         f_imp = _finite_scalar("f_imp", f_imp, positive=True)
         n_gw = DensityLimitPredictor.greenwald_limit(Ip_MA, a)
-        factor = math.sqrt(max(P_SOL_MW, 1.0)) / (10.0 * math.sqrt(max(f_imp, 1e-5)))
+        factor = math.sqrt(P_SOL_MW) / (10.0 * math.sqrt(f_imp))
         return float(n_gw * factor)
 
 
