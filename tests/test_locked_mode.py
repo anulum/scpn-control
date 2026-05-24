@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Locked-Mode Chain Tests
 from __future__ import annotations
 
 import numpy as np
@@ -27,6 +30,22 @@ def test_error_field_spectrum():
     assert np.isclose(B21_shift, 5e-4)
 
 
+def test_error_field_spectrum_rejects_nonphysical_inputs():
+    with pytest.raises(ValueError, match="B0"):
+        ErrorFieldSpectrum(B0=0.0)
+
+    spec = ErrorFieldSpectrum(B0=5.0)
+
+    with pytest.raises(ValueError, match="misalignment"):
+        spec.set_coil_misalignment(-1.0, 0.0)
+
+    with pytest.raises(ValueError, match="mode numbers"):
+        spec.B_mn(0, 1)
+
+    with pytest.raises(ValueError, match="I_correction"):
+        spec.corrected_B_mn(2, 1, I_correction=-1.0)
+
+
 def test_resonant_field_amplification():
     # La Haye 2006, Eq. 6: factor = 1/(1 - 2.5/2.8) = 2.8/0.3 ≈ 9.33
     rfa = ResonantFieldAmplification(beta_N=2.5, beta_N_nowall=2.8)
@@ -38,6 +57,18 @@ def test_resonant_field_amplification():
     B_err = 1e-4
     B_res = rfa.resonant_field(B_err)
     assert B_res > B_err
+
+
+def test_rfa_rejects_nonphysical_inputs():
+    with pytest.raises(ValueError, match="beta_N"):
+        ResonantFieldAmplification(beta_N=-0.1, beta_N_nowall=2.8)
+
+    with pytest.raises(ValueError, match="beta_N_nowall"):
+        ResonantFieldAmplification(beta_N=1.0, beta_N_nowall=0.0)
+
+    rfa = ResonantFieldAmplification(beta_N=1.0, beta_N_nowall=2.8)
+    with pytest.raises(ValueError, match="B_err"):
+        rfa.resonant_field(-1.0e-4)
 
 
 def test_mode_locking():
@@ -53,6 +84,25 @@ def test_mode_locking():
     assert ev2.omega_trace[-1] == 0.0
 
 
+def test_mode_locking_rejects_nonphysical_domains():
+    with pytest.raises(ValueError, match="R0"):
+        ModeLocking(R0=0.0, a=2.0, B0=5.3, Ip_MA=15.0, omega_phi_0=1e4)
+
+    with pytest.raises(ValueError, match="omega_phi_0"):
+        ModeLocking(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0, omega_phi_0=-1.0)
+
+    ml = ModeLocking(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0, omega_phi_0=1e4)
+
+    with pytest.raises(ValueError, match="B_res"):
+        ml.em_torque(B_res=-1.0, r_s=1.0, m=2, n=1)
+
+    with pytest.raises(ValueError, match="mode numbers"):
+        ml.em_torque(B_res=1e-4, r_s=1.0, m=0, n=1)
+
+    with pytest.raises(ValueError, match="tau_visc"):
+        ml.evolve_rotation(B_res=1e-4, r_s=1.0, tau_visc=0.0, dt=0.001, n_steps=10)
+
+
 def test_post_locking_island_growth():
     lm = LockedModeIsland(r_s=1.0, m=2, n=1, a=2.0, R0=6.2, delta_prime=-1.0)
 
@@ -60,6 +110,22 @@ def test_post_locking_island_growth():
 
     assert res.w_trace[-1] > 1e-3
     assert res.stochastic
+
+
+def test_locked_mode_island_rejects_nonphysical_domains():
+    with pytest.raises(ValueError, match="r_s"):
+        LockedModeIsland(r_s=0.0, m=2, n=1, a=2.0, R0=6.2, delta_prime=-1.0)
+
+    with pytest.raises(ValueError, match="mode numbers"):
+        LockedModeIsland(r_s=1.0, m=0, n=1, a=2.0, R0=6.2, delta_prime=-1.0)
+
+    lm = LockedModeIsland(r_s=1.0, m=2, n=1, a=2.0, R0=6.2, delta_prime=-1.0)
+
+    with pytest.raises(ValueError, match="eta"):
+        lm.grow(w0=1e-3, eta=-1e-6, dt=0.01, n_steps=100)
+
+    with pytest.raises(ValueError, match="delta_r_mn"):
+        lm.grow(w0=1e-3, eta=1e-6, dt=0.01, n_steps=100, delta_r_mn=0.0)
 
 
 def test_disruption_chain():
@@ -126,7 +192,7 @@ def test_em_torque_quadratic_scaling(B_res: float):
 
 
 def test_rfa_at_nowall_limit():
-    """Lines 55-58, 77: amplification factor -> inf at beta_N >= beta_N_nowall."""
+    """Amplification factor tends to infinity at the no-wall beta limit."""
     rfa_at = ResonantFieldAmplification(beta_N=2.8, beta_N_nowall=2.8)
     assert rfa_at.amplification_factor() == float("inf")
     rfa_above = ResonantFieldAmplification(beta_N=3.0, beta_N_nowall=2.8)
@@ -134,7 +200,7 @@ def test_rfa_at_nowall_limit():
 
 
 def test_error_field_correction():
-    """Line 55-58: corrected_B_mn reduces the raw field by linear correction."""
+    """Correction coils reduce the raw resonant field in the linear actuator model."""
     spec = ErrorFieldSpectrum(B0=5.0)
     B_raw = spec.B_mn(2, 1)
     B_corr = spec.corrected_B_mn(2, 1, I_correction=10.0)
@@ -144,14 +210,14 @@ def test_error_field_correction():
 
 
 def test_mode_locking_with_ne19():
-    """Line 124-125: ModeLocking computes I_eff from ne_19 when provided."""
+    """Finite density sets the effective toroidal inertia used by the rotation model."""
     ml = ModeLocking(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0, omega_phi_0=1e4, ne_19=5.0)
     ev = ml.evolve_rotation(B_res=0.2, r_s=1.0, tau_visc=0.1, dt=0.001, n_steps=1000)
     assert ev.locked or ev.omega_trace[-1] < 1e4
 
 
 def test_viscous_torque():
-    """Lines 152-153: viscous_torque = rho_chi * omega * V_island."""
+    """Viscous restoring torque follows the thin-shell island-volume model."""
     ml = ModeLocking(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0, omega_phi_0=1e4)
     T_v = ml.viscous_torque(omega=1000.0, r_s=1.0, rho_chi=1.0)
     assert T_v > 0.0
@@ -159,8 +225,7 @@ def test_viscous_torque():
 
 
 def test_chain_no_locking():
-    """Lines 280, 285: chain returns non-disruption when locking does not occur
-    or island does not reach stochastic overlap."""
+    """The disruption chain remains safe when locking does not occur."""
     config = {"R0": 6.2, "a": 2.0, "B0": 5.3, "Ip_MA": 15.0, "beta_N": 1.0, "beta_N_nowall": 2.8}
     chain = ErrorFieldToDisruptionChain(config)
     res = chain.run(B_err_n1=1e-7, omega_phi_0=1e4)

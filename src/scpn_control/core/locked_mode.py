@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Locked-Mode Disruption Chain Physics
 """
 Error-field amplification, mode locking, and post-lock island growth chain.
 
@@ -31,9 +34,31 @@ _MU_0: float = 4.0 * math.pi * 1e-7  # H m⁻¹
 _C_LOCK: float = 1.0  # La Haye 2006, Eq. 8 — normalised locked-mode current drive
 
 
+def _require_positive(name: str, value: float) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    return scalar
+
+
+def _require_nonnegative(name: str, value: float) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar) or scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _require_mode_numbers(m: int, n: int) -> tuple[int, int]:
+    if m <= 0 or n <= 0:
+        raise ValueError("mode numbers m and n must be positive")
+    return m, n
+
+
 class ErrorFieldSpectrum:
     def __init__(self, B0: float, n_corrections: int = 0):
-        self.B0 = B0
+        self.B0 = _require_positive("B0", B0)
+        if n_corrections < 0:
+            raise ValueError("n_corrections must be non-negative")
         self.n_corrections = n_corrections
         self.B_mn_components: dict[tuple[int, int], float] = {}
         # Intrinsic error-field estimates for a large superconducting tokamak.
@@ -42,6 +67,8 @@ class ErrorFieldSpectrum:
         self.B_mn_components[(3, 2)] = 5e-5 * B0
 
     def set_coil_misalignment(self, delta_R_mm: float, delta_Z_mm: float) -> None:
+        if delta_R_mm < 0.0 or delta_Z_mm < 0.0:
+            raise ValueError("misalignment magnitudes must be non-negative")
         shift_mag = math.sqrt(delta_R_mm**2 + delta_Z_mm**2) / 1000.0
         # Linear scaling of b_mn with coil displacement.
         # La Haye 2006, §II: b_21/B0 ~ 0.01 × (δR/a) for centroid shift δR.
@@ -49,9 +76,11 @@ class ErrorFieldSpectrum:
         self.B_mn_components[(3, 2)] = 0.005 * self.B0 * shift_mag
 
     def B_mn(self, m: int, n: int) -> float:
+        _require_mode_numbers(m, n)
         return self.B_mn_components.get((m, n), 0.0)
 
     def corrected_B_mn(self, m: int, n: int, I_correction: float) -> float:
+        I_correction = _require_nonnegative("I_correction", I_correction)
         B_raw = self.B_mn(m, n)
         # First-order linear correction from an active coil of effective area ~1 m².
         B_corr = max(0.0, B_raw - 1e-5 * I_correction)
@@ -68,8 +97,8 @@ class ResonantFieldAmplification:
     """
 
     def __init__(self, beta_N: float, beta_N_nowall: float):
-        self.beta_N = beta_N
-        self.beta_N_nowall = beta_N_nowall
+        self.beta_N = _require_nonnegative("beta_N", beta_N)
+        self.beta_N_nowall = _require_positive("beta_N_nowall", beta_N_nowall)
 
     def amplification_factor(self) -> float:
         """RFA factor; La Haye 2006, Eq. 6."""
@@ -78,6 +107,7 @@ class ResonantFieldAmplification:
         return 1.0 / (1.0 - self.beta_N / self.beta_N_nowall)
 
     def resonant_field(self, B_err: float) -> float:
+        B_err = _require_nonnegative("B_err", B_err)
         return B_err * self.amplification_factor()
 
 
@@ -114,11 +144,17 @@ class ModeLocking:
         kappa: float = 1.7,
         m_i_kg: float = 3.3e-27,
     ):
-        self.R0 = R0
-        self.a = a
-        self.B0 = B0
-        self.Ip = Ip_MA * 1e6
-        self.omega_phi_0 = omega_phi_0
+        self.R0 = _require_positive("R0", R0)
+        self.a = _require_positive("a", a)
+        self.B0 = _require_positive("B0", B0)
+        self.Ip = _require_positive("Ip_MA", Ip_MA) * 1e6
+        self.omega_phi_0 = _require_nonnegative("omega_phi_0", omega_phi_0)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        if ne_19 is not None:
+            _require_positive("ne_19", ne_19)
+        _require_positive("kappa", kappa)
+        _require_positive("m_i_kg", m_i_kg)
         # I_eff = n_e * m_i * Volume * R0^2,  Volume = 2 pi^2 R0 a^2 kappa
         if ne_19 is not None:
             volume = 2.0 * math.pi**2 * R0 * a**2 * kappa
@@ -135,6 +171,9 @@ class ModeLocking:
         at the locking threshold.  The sign convention here gives a positive
         magnitude; the caller interprets the torque as opposing rotation.
         """
+        B_res = _require_nonnegative("B_res", B_res)
+        r_s = _require_positive("r_s", r_s)
+        m, n = _require_mode_numbers(m, n)
         # ψ_ext estimate: B_res r_s² / n  (Fitzpatrick 1993, §2)
         psi_ext = B_res * r_s**2 / max(n, 1)
         torque = (n**2 * m * psi_ext**2) / (_MU_0 * self.R0 * max(r_s, 1e-3) ** 2)
@@ -149,6 +188,9 @@ class ModeLocking:
         rho_chi = ρ × χ_φ [kg m⁻¹ s⁻¹], V_island ~ 4 π² R₀ r_s (shell volume
         at the rational surface, thin-shell limit).
         """
+        omega = _require_nonnegative("omega", omega)
+        r_s = _require_positive("r_s", r_s)
+        rho_chi = _require_nonnegative("rho_chi", rho_chi)
         V_island = 4.0 * math.pi**2 * self.R0 * r_s
         return rho_chi * omega * V_island
 
@@ -158,6 +200,12 @@ class ModeLocking:
         Mode locks when ω ≤ ω_eq (equilibrium with sustained braking).
         Locking condition: T_em > T_viscous (La Haye 2006, Eq. 12).
         """
+        B_res = _require_nonnegative("B_res", B_res)
+        r_s = _require_positive("r_s", r_s)
+        tau_visc = _require_positive("tau_visc", tau_visc)
+        dt = _require_positive("dt", dt)
+        if n_steps <= 0:
+            raise ValueError("n_steps must be positive")
         omega = self.omega_phi_0
         omega_trace = np.zeros(n_steps)
         locked = False
@@ -202,11 +250,14 @@ class LockedModeIsland:
     """
 
     def __init__(self, r_s: float, m: int, n: int, a: float, R0: float, delta_prime: float):
-        self.r_s = r_s
-        self.m = m
-        self.n = n
-        self.a = a
-        self.R0 = R0
+        self.r_s = _require_positive("r_s", r_s)
+        self.m, self.n = _require_mode_numbers(m, n)
+        self.a = _require_positive("a", a)
+        self.R0 = _require_positive("R0", R0)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        if not math.isfinite(float(delta_prime)):
+            raise ValueError("delta_prime must be finite")
         self.delta_prime = delta_prime
 
     def grow(self, w0: float, eta: float, dt: float, n_steps: int, delta_r_mn: float = 0.3) -> IslandGrowth:
@@ -215,6 +266,12 @@ class LockedModeIsland:
         dw/dt = (η / μ₀ r_s) [r_s Δ' + C_lock r_s / w]
         La Haye 2006, Phys. Plasmas 13, 055501, Eq. 8.
         """
+        w0 = _require_positive("w0", w0)
+        eta = _require_positive("eta", eta)
+        dt = _require_positive("dt", dt)
+        delta_r_mn = _require_positive("delta_r_mn", delta_r_mn)
+        if n_steps <= 0:
+            raise ValueError("n_steps must be positive")
         w = max(w0, 1e-4)
         w_trace = np.zeros(n_steps)
 
