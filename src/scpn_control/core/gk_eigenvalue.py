@@ -1,4 +1,5 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
@@ -84,6 +85,24 @@ class LinearGKResult:
         if len(self.gamma) == 0:
             return 0.0
         return float(self.k_y[np.argmax(self.gamma)])
+
+
+def _require_finite_scalar(
+    name: str,
+    value: float,
+    *,
+    positive: bool = False,
+    nonnegative: bool = False,
+) -> float:
+    """Validate scalar physics inputs before assembling the GK operator."""
+    out = float(value)
+    if not np.isfinite(out):
+        raise ValueError(f"{name} must be finite.")
+    if positive and out <= 0.0:
+        raise ValueError(f"{name} must be positive.")
+    if nonnegative and out < 0.0:
+        raise ValueError(f"{name} must be nonnegative.")
+    return out
 
 
 def _diamagnetic_frequency(k_y: float, species: GKSpecies, R0: float, a: float) -> tuple[float, float]:
@@ -296,6 +315,15 @@ def solve_eigenvalue_single_ky(
 
     EM correction: KBM/MTM drives applied multiplicatively.
     """
+    k_y_rho_s = _require_finite_scalar("k_y_rho_s", k_y_rho_s, nonnegative=True)
+    R0 = _require_finite_scalar("R0", R0, positive=True)
+    a = _require_finite_scalar("a", a, positive=True)
+    B0 = _require_finite_scalar("B0", B0, positive=True)
+    beta_e = _require_finite_scalar("beta_e", beta_e, nonnegative=True)
+    alpha_MHD = _require_finite_scalar("alpha_MHD", alpha_MHD)
+    s_hat = _require_finite_scalar("s_hat", s_hat)
+    nu_star = _require_finite_scalar("nu_star", nu_star, nonnegative=True)
+
     n_theta = len(geom.theta)
     B_ratio = geom.B_mag / np.mean(geom.B_mag)
     ion = species_list[0]

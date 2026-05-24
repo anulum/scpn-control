@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Gk Eigenvalue
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Linear Gyrokinetic Eigenvalue Solver Tests
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Linear GK Eigenvalue Solver Tests
@@ -186,7 +186,90 @@ def test_custom_species_list():
     assert len(result.modes) == 2
 
 
-# ── Coverage-gap tests: EM branches and empty-array result ────────────
+class TestSingleKyInputValidation:
+    """Reject unphysical scalar inputs before forming the GK operator."""
+
+    @pytest.mark.parametrize(
+        ("field", "value", "expected"),
+        [
+            ("k_y_rho_s", -0.1, "k_y_rho_s must be nonnegative"),
+            ("k_y_rho_s", np.inf, "k_y_rho_s must be finite"),
+            ("R0", 0.0, "R0 must be positive"),
+            ("a", -1.0, "a must be positive"),
+            ("B0", np.nan, "B0 must be finite"),
+            ("beta_e", -0.01, "beta_e must be nonnegative"),
+            ("nu_star", -0.5, "nu_star must be nonnegative"),
+        ],
+    )
+    def test_rejects_unphysical_scalar_inputs(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+        field,
+        value,
+        expected,
+    ):
+        kwargs = {
+            "k_y_rho_s": 0.3,
+            "species_list": cyclone_species,
+            "geom": cyclone_geometry,
+            "vgrid": small_vgrid,
+            "R0": 2.78,
+            "a": 1.0,
+            "B0": 2.0,
+            "beta_e": 0.0,
+            "nu_star": 0.0,
+        }
+        kwargs[field] = value
+
+        with pytest.raises(ValueError, match=expected):
+            solve_eigenvalue_single_ky(**kwargs)
+
+    @pytest.mark.parametrize("field", ["alpha_MHD", "s_hat"])
+    def test_rejects_nonfinite_signed_physics_parameters(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+        field,
+    ):
+        kwargs = {
+            "k_y_rho_s": 0.3,
+            "species_list": cyclone_species,
+            "geom": cyclone_geometry,
+            "vgrid": small_vgrid,
+            "R0": 2.78,
+            "a": 1.0,
+            "B0": 2.0,
+            "beta_e": 0.0,
+            "nu_star": 0.0,
+            "alpha_MHD": 0.0,
+            "s_hat": 0.78,
+        }
+        kwargs[field] = np.nan
+
+        with pytest.raises(ValueError, match=f"{field} must be finite"):
+            solve_eigenvalue_single_ky(**kwargs)
+
+    def test_allows_reversed_magnetic_shear(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+    ):
+        mode = solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3,
+            species_list=cyclone_species,
+            geom=cyclone_geometry,
+            vgrid=small_vgrid,
+            R0=2.78,
+            a=1.0,
+            B0=2.0,
+            s_hat=-0.5,
+        )
+        assert np.isfinite(mode.gamma)
+        assert np.isfinite(mode.omega_r)
 
 
 class TestElectromagneticKBMMTM:
@@ -275,7 +358,7 @@ class TestLinearGKResultEmpty:
 
 
 class TestDriftFrequency:
-    """Lines 113-114: _drift_frequency computes omega_D(theta, E, lambda)."""
+    """Magnetic drift frequency follows the geometry theta grid."""
 
     def test_drift_frequency_shape(self, cyclone_geometry):
         B_ratio = cyclone_geometry.B_mag / np.mean(cyclone_geometry.B_mag)
@@ -285,7 +368,7 @@ class TestDriftFrequency:
 
 
 class TestParallelStreamingMatrix:
-    """Lines 131-147: _parallel_streaming_matrix builds central FD operator."""
+    """Parallel streaming matrix uses periodic central differences."""
 
     def test_streaming_matrix_shape(self, cyclone_geometry):
         B_ratio = cyclone_geometry.B_mag / np.mean(cyclone_geometry.B_mag)
@@ -299,14 +382,14 @@ class TestParallelStreamingMatrix:
 
 
 class TestMTMGrowthRate:
-    """Line 187: _mtm_growth_rate returns 0 for zero denominator."""
+    """MTM growth helper is bounded when the drive denominator vanishes."""
 
     def test_zero_denom(self):
         assert _mtm_growth_rate(0.05, 0.3, 0.0, 0.0) == 0.0
 
 
 class TestKBMDriveHelpers:
-    """Lines 208, 231: _kbm_drive and _mtm_drive edge cases."""
+    """Electromagnetic drive helpers preserve shape and zero-drive limits."""
 
     def test_kbm_drive_shape(self):
         drive = _kbm_drive(0.05, 2.0, 0.78, 0.3, 16)
@@ -328,7 +411,7 @@ class TestKBMDriveHelpers:
 
 
 class TestMTMBranchSelection:
-    """Line 433: MTM branch selected when electron-direction + collisional drive."""
+    """MTM branch is selected by electron-direction collisional drive."""
 
     def test_mtm_branch_selected(self, cyclone_geometry, small_vgrid):
         ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
