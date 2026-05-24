@@ -162,6 +162,14 @@ class TestComputeCoilEfficienciesEdgeCases:
         with pytest.raises(ValueError, match="target_Z must be finite"):
             solver.compute_coil_efficiencies(target_R=6.2, target_Z=float("nan"))
 
+    def test_rejects_target_r_outside_finite_difference_domain(self, solver):
+        with pytest.raises(ValueError, match="target_R must lie inside the kernel R grid interior"):
+            solver.compute_coil_efficiencies(target_R=100.0)
+
+    def test_rejects_target_z_outside_kernel_grid(self, solver):
+        with pytest.raises(ValueError, match="target_Z must lie inside the kernel Z grid"):
+            solver.compute_coil_efficiencies(target_R=6.2, target_Z=100.0)
+
     def test_restores_currents_after_efficiency_calc(self, solver):
         solver.kernel.cfg["coils"][0]["current"] = 7.5
         solver.compute_coil_efficiencies(target_R=6.2)

@@ -133,12 +133,26 @@ class AnalyticEquilibriumSolver:
 
         target_R = _require_positive_scalar("target_R", target_R)
         target_Z = _require_finite_scalar("target_Z", target_Z)
+        r_grid = np.asarray(self.kernel.R, dtype=np.float64)
+        z_grid = np.asarray(self.kernel.Z, dtype=np.float64)
+        if r_grid.ndim != 1 or r_grid.size < 3 or not np.all(np.isfinite(r_grid)):
+            raise ValueError("kernel R grid must be finite with at least 3 points.")
+        if z_grid.ndim != 1 or z_grid.size < 1 or not np.all(np.isfinite(z_grid)):
+            raise ValueError("kernel Z grid must be finite with at least 1 point.")
+        r_min = float(min(r_grid[1], r_grid[-2]))
+        r_max = float(max(r_grid[1], r_grid[-2]))
+        if not (r_min <= target_R <= r_max):
+            raise ValueError("target_R must lie inside the kernel R grid interior.")
+        z_min = float(np.min(z_grid))
+        z_max = float(np.max(z_grid))
+        if not (z_min <= target_Z <= z_max):
+            raise ValueError("target_Z must lie inside the kernel Z grid.")
 
         original_currents = [float(c.get("current", 0.0)) for c in coils]
         eff = np.zeros(n_coils, dtype=np.float64)
 
-        idx_r = int(np.argmin(np.abs(np.asarray(self.kernel.R, dtype=np.float64) - target_R)))
-        idx_z = int(np.argmin(np.abs(np.asarray(self.kernel.Z, dtype=np.float64) - target_Z)))
+        idx_r = int(np.argmin(np.abs(r_grid - target_R)))
+        idx_z = int(np.argmin(np.abs(z_grid - target_Z)))
         idx_r = int(np.clip(idx_r, 1, len(self.kernel.R) - 2))
         dR = float(getattr(self.kernel, "dR", float(self.kernel.R[1] - self.kernel.R[0])))
         if dR <= 0.0:
