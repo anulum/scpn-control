@@ -10,7 +10,7 @@
 
 The SCPN-CONTROL capability manifest is the repository-local inventory for
 public control, physics, phase, SCPN, Rust, validation, documentation, test, and
-CI surfaces.
+CI surfaces, including packaged project script entry points.
 
 The source of truth is:
 
@@ -22,7 +22,8 @@ The source of truth is:
 The generator is customised to this repository. It scans
 `src/scpn_control/core`, `src/scpn_control/control`,
 `src/scpn_control/phase`, `src/scpn_control/scpn`, `scpn-control-rs/crates`,
-`validation`, `tests`, public `docs`, and `.github/workflows`.
+`validation`, `tests`, public `docs`, `.github/workflows`, and
+`[project.scripts]` from `pyproject.toml`.
 
 Refresh the generated files after capability changes:
 

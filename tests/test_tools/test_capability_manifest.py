@@ -114,3 +114,10 @@ def test_markdown_snapshot_is_readme_safe(capability_tool) -> None:
     assert "| Project scripts | 2 |" in markdown
     assert "".join(("Co", "dex")) not in markdown
     assert "".join(("Open", "AI")) not in markdown
+
+
+def test_capability_manifest_docs_cover_project_scripts() -> None:
+    docs = (REPO_ROOT / "docs" / "capability_manifest.md").read_text(encoding="utf-8")
+
+    assert "packaged project script entry points" in docs
+    assert "`[project.scripts]` from `pyproject.toml`" in docs
