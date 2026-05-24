@@ -178,8 +178,10 @@ class BlobEnsemble:
 
     def __init__(self, dynamics: BlobDynamics, n_blobs: int = 1000):
         self.dynamics = dynamics
-        if not isinstance(n_blobs, int):
+        if not isinstance(n_blobs, int) or isinstance(n_blobs, bool):
             raise ValueError("n_blobs must be an integer")
+        if n_blobs < 0:
+            raise ValueError("n_blobs must be non-negative")
         self.n_blobs = n_blobs
 
     def generate(
@@ -190,8 +192,6 @@ class BlobEnsemble:
         waiting_time_mean: float,
         rng: np.random.Generator,
     ) -> BlobPopulation:
-        if self.n_blobs < 0:
-            raise ValueError("n_blobs must be non-negative")
         delta_b_mean = _finite_scalar("delta_b_mean", delta_b_mean, positive=True)
         delta_b_sigma = _finite_scalar("delta_b_sigma", delta_b_sigma, nonnegative=True)
         amplitude_mean = _finite_scalar("amplitude_mean", amplitude_mean, positive=True)
@@ -246,6 +246,8 @@ class SOLBlobProfile:
         D'Ippolito et al. 2011, Phys. Plasmas 18, 060501, Sec. IV.
         """
         r = _finite_1d_array("r", r, nonnegative=True)
+        if r.size > 1 and np.any(np.diff(r) < 0.0):
+            raise ValueError("r must be ordered from separatrix to wall")
         lambda_n = _finite_scalar("lambda_n", lambda_n, positive=True)
         Gamma_blob = _finite_scalar("Gamma_blob", Gamma_blob, nonnegative=True)
         D_perp = _finite_scalar("D_perp", D_perp, nonnegative=True)

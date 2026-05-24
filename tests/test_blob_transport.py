@@ -61,14 +61,17 @@ def test_blob_ensemble_generation():
 
 def test_sol_blob_profile() -> None:
     # Without blobs
-    r_arr = np.array([0.05])
+    r_arr = np.linspace(0.0, 0.05, 8)
     prof_clean = SOLBlobProfile.radial_density(r=r_arr, Gamma_blob=0.0, D_perp=1.0, lambda_n=0.02)
 
     # With blobs
     prof_blobs = SOLBlobProfile.radial_density(r=r_arr, Gamma_blob=1e20, D_perp=1.0, lambda_n=0.02)
 
-    # Profile should be broader (higher density far out)
-    assert prof_blobs[0] > prof_clean[0]
+    assert np.all((0.0 < prof_clean) & (prof_clean <= 1.0))
+    assert np.all((0.0 < prof_blobs) & (prof_blobs <= 1.0))
+    assert np.all(np.diff(prof_clean) <= 0.0)
+    assert np.all(np.diff(prof_blobs) <= 0.0)
+    assert prof_blobs[-1] > prof_clean[-1]
     # Wall flux
     wall_clean = SOLBlobProfile.wall_flux(r_wall=0.1, Gamma_blob=1e18, lambda_n=0.02)
     wall_dirty = SOLBlobProfile.wall_flux(r_wall=0.1, Gamma_blob=1e20, lambda_n=0.02)
@@ -312,6 +315,16 @@ def test_sol_blob_profile_rejects_nonphysical_density_inputs() -> None:
         SOLBlobProfile.radial_density(np.array([0.0, np.nan]), Gamma_blob=1e20, D_perp=1.0, lambda_n=0.02)
     with pytest.raises(ValueError, match="D_perp"):
         SOLBlobProfile.radial_density(r, Gamma_blob=1e20, D_perp=-1.0, lambda_n=0.02)
+    with pytest.raises(ValueError, match="ordered"):
+        SOLBlobProfile.radial_density(np.array([0.02, 0.01]), Gamma_blob=1e20, D_perp=1.0, lambda_n=0.02)
+
+
+def test_blob_ensemble_rejects_invalid_population_count_at_construction() -> None:
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+
+    for n_blobs in (-1, True):
+        with pytest.raises(ValueError, match="n_blobs"):
+            BlobEnsemble(dyn, n_blobs=n_blobs)
 
 
 def test_blob_detector_closes_event_at_signal_boundary() -> None:
