@@ -481,6 +481,9 @@ penalty, using configured `P` when supplied and the controller's conservative
 fallback terminal weight otherwise.
 Nonlinear plant linearization uses central finite differences for second-order
 local Jacobian accuracy in the SQP approximation.
+DARE-derived terminal matrices are accepted only when finite, symmetric, and
+positive definite; invalid solver output falls back to the conservative terminal
+weight.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 

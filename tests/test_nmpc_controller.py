@@ -175,6 +175,23 @@ def test_terminal_cost_scipy_fallback():
     np.testing.assert_array_equal(P, cfg.Q * 10.0)
 
 
+def test_terminal_cost_rejects_invalid_dare_matrix() -> None:
+    """DARE output must be finite symmetric positive-definite before use."""
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=1)
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+    A = np.eye(6)
+    B = np.eye(6, 3)
+    bad_terminal_cost = np.eye(6)
+    bad_terminal_cost[0, 0] = -1.0
+
+    from unittest.mock import patch
+
+    with patch("scipy.linalg.solve_discrete_are", return_value=bad_terminal_cost):
+        P = nmpc._compute_terminal_cost(A, B)
+
+    np.testing.assert_array_equal(P, cfg.Q * 10.0)
+
+
 def test_nmpc_linearize_matches_analytic_nonlinear_jacobian() -> None:
     """Central differencing should recover smooth nonlinear plant Jacobians."""
 

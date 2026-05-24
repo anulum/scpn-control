@@ -180,7 +180,7 @@ class NonlinearMPC:
             import scipy.linalg
 
             P = scipy.linalg.solve_discrete_are(A, B, self.config.Q, self.config.R)
-            return np.asarray(P)
+            return _as_spd_matrix("terminal cost P", np.asarray(P), self.nx)
         except Exception:
             return np.asarray(self.config.Q * 10.0)
 
