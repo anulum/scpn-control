@@ -163,6 +163,10 @@ def _require_normalised_radius(rho: NDArray[np.float64]) -> NDArray[np.float64]:
         raise ValueError("rho must stay within the normalised interval [0, 1]")
     if np.any(np.diff(arr) <= 0.0):
         raise ValueError("rho must be strictly increasing")
+    if not np.isclose(float(arr[0]), 0.0, rtol=0.0, atol=1e-12):
+        raise ValueError("rho must start at 0 for axis-to-edge MHD stability profiles")
+    if not np.isclose(float(arr[-1]), 1.0, rtol=0.0, atol=1e-12):
+        raise ValueError("rho must end at 1 for axis-to-edge MHD stability profiles")
     return arr
 
 

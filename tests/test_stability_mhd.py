@@ -307,6 +307,18 @@ class TestStabilityInputBoundaries:
         with pytest.raises(ValueError, match="strictly increasing"):
             compute_q_profile(rho, ne, Ti, Te, R0=3.0, a=1.0, B0=5.0, Ip_MA=10.0)
 
+    def test_compute_q_profile_requires_full_normalised_radius_domain(self):
+        rho_missing_axis = np.array([0.1, 0.4, 0.7, 1.0])
+        rho_missing_edge = np.array([0.0, 0.3, 0.6, 0.9])
+        ne = np.ones(4) * 1e20
+        Ti = np.ones(4) * 2e3
+        Te = np.ones(4) * 1e3
+
+        with pytest.raises(ValueError, match="rho must start at 0"):
+            compute_q_profile(rho_missing_axis, ne, Ti, Te, R0=3.0, a=1.0, B0=5.0, Ip_MA=10.0)
+        with pytest.raises(ValueError, match="rho must end at 1"):
+            compute_q_profile(rho_missing_edge, ne, Ti, Te, R0=3.0, a=1.0, B0=5.0, Ip_MA=10.0)
+
     def test_compute_q_profile_rejects_nonphysical_profiles(self):
         rho = np.linspace(0.0, 1.0, 5)
         ne = np.ones_like(rho) * 1e20
@@ -353,6 +365,22 @@ class TestStabilityInputBoundaries:
             ballooning_stability(broken)
         with pytest.raises(ValueError, match="strictly increasing"):
             kruskal_shafranov_stability(broken)
+
+    def test_stability_criteria_reject_partial_radius_domain(self):
+        rho = np.array([0.1, 0.4, 0.7, 1.0])
+        q = np.array([1.2, 1.4, 1.8, 2.2])
+        qp = QProfile(
+            rho=rho,
+            q=q,
+            shear=np.array([0.0, 0.3, 0.5, 0.7]),
+            alpha_mhd=np.zeros_like(rho),
+            q_min=float(q.min()),
+            q_min_rho=float(rho[np.argmin(q)]),
+            q_edge=float(q[-1]),
+        )
+
+        with pytest.raises(ValueError, match="rho must start at 0"):
+            run_full_stability_check(qp)
 
     def test_stability_criteria_reject_wrong_q_min_radius_metadata(self, iter_like_qprofile):
         qp = iter_like_qprofile
