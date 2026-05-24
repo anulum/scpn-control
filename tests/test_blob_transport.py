@@ -12,8 +12,10 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.blob_transport import (
+    BlobPopulation,
     BlobDetector,
     BlobDynamics,
     BlobEnsemble,
@@ -136,21 +138,21 @@ def test_blob_size_scaling():
 
 
 def test_critical_size_zero_l_par():
-    """Line 69: L_parallel <= 0 returns inf."""
+    """Non-positive connection length reports no finite sheath transition."""
     dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
     assert dyn.critical_size(L_parallel=0.0) == float("inf")
     assert dyn.critical_size(L_parallel=-1.0) == float("inf")
 
 
 def test_sheath_velocity_zero_delta():
-    """Line 85: delta_b <= 0 returns 0."""
+    """Non-positive filament radius has no outward sheath velocity."""
     dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
     assert dyn.sheath_velocity(0.0) == 0.0
     assert dyn.sheath_velocity(-0.01) == 0.0
 
 
 def test_sol_blob_profile_zero_d_perp():
-    """Line 185: D_perp <= 0 returns simple exponential."""
+    """Zero cross-field diffusivity falls back to the base exponential profile."""
     r = np.array([0.05])
     prof = SOLBlobProfile.radial_density(r, Gamma_blob=1e20, D_perp=0.0, lambda_n=0.02)
     expected = np.exp(-r / 0.02)
@@ -158,7 +160,7 @@ def test_sol_blob_profile_zero_d_perp():
 
 
 def test_blob_detector_flat_signal():
-    """Line 219: std == 0 returns empty events list."""
+    """A flat signal has no intermittent blob events."""
     det = BlobDetector()
     flat = np.ones(200)
     events = det.detect_blobs(flat)
@@ -166,9 +168,106 @@ def test_blob_detector_flat_signal():
 
 
 def test_conditional_average_empty():
-    """Line 245: empty events returns zero array."""
+    """Empty event lists produce a zero conditional-average waveform."""
     det = BlobDetector()
     sig = np.random.randn(200)
     avg = det.conditional_average(sig, [], window=10)
     assert len(avg) == 21
     assert np.allclose(avg, 0.0)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    (
+        ({"R0": 0.0, "B0": 5.3, "Te_eV": 20.0, "Ti_eV": 20.0}, "R0 and B0"),
+        ({"R0": 6.2, "B0": -1.0, "Te_eV": 20.0, "Ti_eV": 20.0}, "R0 and B0"),
+        ({"R0": 6.2, "B0": 5.3, "Te_eV": -1.0, "Ti_eV": 20.0}, "non-negative"),
+        ({"R0": 6.2, "B0": 5.3, "Te_eV": 0.0, "Ti_eV": 0.0}, "must be positive"),
+        ({"R0": 6.2, "B0": 5.3, "Te_eV": 20.0, "Ti_eV": 20.0, "mi_amu": 0.0}, "mi_amu"),
+    ),
+)
+def test_blob_dynamics_rejects_nonphysical_constructor_inputs(kwargs, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        BlobDynamics(**kwargs)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    (
+        ({"delta_b_mean": 0.0, "delta_b_sigma": 0.002, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4}, "delta_b_mean"),
+        ({"delta_b_mean": 0.01, "delta_b_sigma": -0.1, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4}, "delta_b_mean"),
+        ({"delta_b_mean": 0.01, "delta_b_sigma": 0.002, "amplitude_mean": 0.0, "waiting_time_mean": 1e-4}, "amplitude_mean"),
+        ({"delta_b_mean": 0.01, "delta_b_sigma": 0.002, "amplitude_mean": 1.0, "waiting_time_mean": 0.0}, "waiting_time_mean"),
+    ),
+)
+def test_blob_ensemble_rejects_nonphysical_distribution_inputs(kwargs, message) -> None:
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    ens = BlobEnsemble(dyn, n_blobs=10)
+
+    with pytest.raises(ValueError, match=message):
+        ens.generate(rng=np.random.default_rng(7), **kwargs)
+
+
+def test_blob_flux_empty_population_is_zero() -> None:
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    ens = BlobEnsemble(dyn, n_blobs=0)
+    pop = BlobPopulation(np.array([]), np.array([]), np.array([]), np.array([]))
+
+    assert ens.radial_flux(pop) == 0.0
+    assert ens.heat_flux(pop, Te_eV=20.0) == 0.0
+
+
+def test_blob_flux_rejects_nonpositive_elapsed_time() -> None:
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    ens = BlobEnsemble(dyn, n_blobs=1)
+    pop = BlobPopulation(np.array([0.01]), np.array([1.0]), np.array([100.0]), np.array([0.0]))
+
+    with pytest.raises(ValueError, match="positive elapsed time"):
+        ens.radial_flux(pop)
+
+
+@pytest.mark.parametrize(
+    ("r_wall", "gamma", "lambda_n", "message"),
+    (
+        (-0.1, 1e18, 0.02, "r_wall"),
+        (0.1, -1.0, 0.02, "Gamma_blob"),
+        (0.1, 1e18, 0.0, "lambda_n"),
+    ),
+)
+def test_sol_blob_profile_rejects_nonphysical_wall_flux_inputs(r_wall, gamma, lambda_n, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        SOLBlobProfile.wall_flux(r_wall=r_wall, Gamma_blob=gamma, lambda_n=lambda_n)
+
+
+def test_sol_blob_profile_rejects_nonphysical_density_inputs() -> None:
+    r = np.array([0.05])
+
+    with pytest.raises(ValueError, match="lambda_n"):
+        SOLBlobProfile.radial_density(r, Gamma_blob=1e20, D_perp=1.0, lambda_n=0.0)
+    with pytest.raises(ValueError, match="Gamma_blob"):
+        SOLBlobProfile.radial_density(r, Gamma_blob=-1.0, D_perp=1.0, lambda_n=0.02)
+
+
+def test_blob_detector_closes_event_at_signal_boundary() -> None:
+    det = BlobDetector()
+    signal = np.zeros(40)
+    signal[30:] = 5.0
+
+    events = det.detect_blobs(signal, dt=2e-6, threshold=1.0)
+
+    assert len(events) == 1
+    assert events[0].start_idx == 30
+    assert events[0].end_idx == len(signal)
+    assert events[0].duration == pytest.approx(20e-6)
+
+
+def test_blob_detector_rejects_nonphysical_event_parameters() -> None:
+    det = BlobDetector()
+    signal = np.zeros(10)
+
+    with pytest.raises(ValueError, match="dt"):
+        det.detect_blobs(signal, dt=0.0)
+    with pytest.raises(ValueError, match="threshold"):
+        det.detect_blobs(signal, threshold=0.0)
+    with pytest.raises(ValueError, match="window"):
+        det.conditional_average(signal, [], window=-1)

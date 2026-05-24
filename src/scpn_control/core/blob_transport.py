@@ -46,6 +46,14 @@ class BlobDynamics:
     """
 
     def __init__(self, R0: float, B0: float, Te_eV: float, Ti_eV: float, mi_amu: float = 2.0):
+        if R0 <= 0.0 or B0 <= 0.0:
+            raise ValueError("R0 and B0 must be positive")
+        if Te_eV < 0.0 or Ti_eV < 0.0:
+            raise ValueError("Te_eV and Ti_eV must be non-negative")
+        if Te_eV + Ti_eV <= 0.0:
+            raise ValueError("Te_eV + Ti_eV must be positive")
+        if mi_amu <= 0.0:
+            raise ValueError("mi_amu must be positive")
         self.R0 = R0
         self.B0 = B0
         self.Te = Te_eV
@@ -138,6 +146,14 @@ class BlobEnsemble:
         waiting_time_mean: float,
         rng: np.random.Generator,
     ) -> BlobPopulation:
+        if self.n_blobs < 0:
+            raise ValueError("n_blobs must be non-negative")
+        if delta_b_mean <= 0.0 or delta_b_sigma < 0.0:
+            raise ValueError("delta_b_mean must be positive and delta_b_sigma must be non-negative")
+        if amplitude_mean <= 0.0:
+            raise ValueError("amplitude_mean must be positive")
+        if waiting_time_mean <= 0.0:
+            raise ValueError("waiting_time_mean must be positive")
         # Log-normal amplitudes — Garcia et al. 2012, Eq. 7; σ_log ≈ 0.5
         _sigma_log: float = 0.5
         mu_amp = math.log(amplitude_mean) - 0.5 * _sigma_log**2
@@ -162,12 +178,18 @@ class BlobEnsemble:
 
         D'Ippolito et al. 2011, Phys. Plasmas 18, 060501, Eq. 12.
         """
+        if population.birth_times.size == 0:
+            return 0.0
         tot_time = population.birth_times[-1] if self.n_blobs > 0 else 1.0
+        if tot_time <= 0.0:
+            raise ValueError("population birth times must span positive elapsed time")
         flux_sum = np.sum(population.amplitudes * population.velocities * population.sizes)
         return float(flux_sum / tot_time)
 
     def heat_flux(self, population: BlobPopulation, Te_eV: float) -> float:
         """Blob-driven heat flux q ~ (3/2) n T v [W m^-2]."""
+        if Te_eV < 0.0:
+            raise ValueError("Te_eV must be non-negative")
         gamma = self.radial_flux(population)
         return gamma * Te_eV * 1.602e-19 * _GAMMA_HEAT
 
@@ -181,6 +203,10 @@ class SOLBlobProfile:
         Blob transport broadens the profile via an effective λ.
         D'Ippolito et al. 2011, Phys. Plasmas 18, 060501, Sec. IV.
         """
+        if lambda_n <= 0.0:
+            raise ValueError("lambda_n must be positive")
+        if Gamma_blob < 0.0:
+            raise ValueError("Gamma_blob must be non-negative")
         if D_perp <= 0:
             return np.asarray(np.exp(-r / lambda_n))
 
@@ -191,6 +217,12 @@ class SOLBlobProfile:
 
     @staticmethod
     def wall_flux(r_wall: float, Gamma_blob: float, lambda_n: float) -> float:
+        if r_wall < 0.0:
+            raise ValueError("r_wall must be non-negative")
+        if Gamma_blob < 0.0:
+            raise ValueError("Gamma_blob must be non-negative")
+        if lambda_n <= 0.0:
+            raise ValueError("lambda_n must be positive")
         eff_lambda = lambda_n * math.sqrt(1.0 + Gamma_blob * 1e-19)
         return float(Gamma_blob * math.exp(-r_wall / eff_lambda))
 
@@ -212,6 +244,10 @@ class BlobDetector:
     """
 
     def detect_blobs(self, signal: np.ndarray, dt: float = 1e-6, threshold: float = 2.5) -> list[BlobEvent]:
+        if dt <= 0.0:
+            raise ValueError("dt must be positive")
+        if threshold <= 0.0:
+            raise ValueError("threshold must be positive")
         mean_sig = np.mean(signal)
         std_sig = np.std(signal)
 
@@ -238,9 +274,17 @@ class BlobDetector:
                 size = dur * 1000.0
                 events.append(BlobEvent(start, i, peak * std_sig, dur, size))
 
+        if in_blob:
+            end = len(norm_sig)
+            dur = (end - start) * dt
+            size = dur * 1000.0
+            events.append(BlobEvent(start, end, peak * std_sig, dur, size))
+
         return events
 
     def conditional_average(self, signal: np.ndarray, events: list[BlobEvent], window: int = 50) -> np.ndarray:
+        if window < 0:
+            raise ValueError("window must be non-negative")
         if not events:
             return np.zeros(2 * window + 1)
 
