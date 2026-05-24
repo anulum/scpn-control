@@ -117,6 +117,8 @@ def exb_shearing_rate(
         raise ValueError("rho must not be empty")
     if np.any(np.diff(rho) < 0.0):
         raise ValueError("rho must be sorted")
+    if np.any(np.diff(rho) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
     B0 = _finite_scalar("B0", B0)
     R0 = _finite_scalar("R0", R0)
     a = _finite_scalar("a", a)
@@ -172,6 +174,8 @@ def radial_electric_field(
         raise ValueError("rho must not be empty")
     if np.any(np.diff(rho) < 0.0):
         raise ValueError("rho must be sorted")
+    if np.any(np.diff(rho) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
     if np.any(ne <= 0.0) or np.any(Ti_keV < 0.0):
         raise ValueError("ne must be positive and Ti_keV must be non-negative")
     B0 = _finite_scalar("B0", B0)

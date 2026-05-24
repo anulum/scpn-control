@@ -191,6 +191,8 @@ def test_exb_shearing_rate_rejects_nonphysical_inputs() -> None:
         exb_shearing_rate(omega[:-1], btheta, B0=5.3, R0=6.2, rho=rho, a=2.0)
     with pytest.raises(ValueError, match="sorted"):
         exb_shearing_rate(omega, btheta, B0=5.3, R0=6.2, rho=rho[::-1], a=2.0)
+    with pytest.raises(ValueError, match="strictly increasing"):
+        exb_shearing_rate(omega, btheta, B0=5.3, R0=6.2, rho=np.array([0.0, 0.25, 0.25, 0.75, 1.0]), a=2.0)
     with pytest.raises(ValueError, match="B0, R0, and a"):
         exb_shearing_rate(omega, btheta, B0=0.0, R0=6.2, rho=rho, a=2.0)
     with pytest.raises(ValueError, match="omega_phi"):
@@ -217,6 +219,17 @@ def test_radial_electric_field_rejects_nonphysical_profiles() -> None:
         radial_electric_field(ne[:-1], Ti, omega, btheta, B0=5.3, R0=6.2, rho=rho, a=2.0)
     with pytest.raises(ValueError, match="sorted"):
         radial_electric_field(ne, Ti, omega, btheta, B0=5.3, R0=6.2, rho=rho[::-1], a=2.0)
+    with pytest.raises(ValueError, match="strictly increasing"):
+        radial_electric_field(
+            ne,
+            Ti,
+            omega,
+            btheta,
+            B0=5.3,
+            R0=6.2,
+            rho=np.array([0.0, 0.25, 0.25, 0.75, 1.0]),
+            a=2.0,
+        )
     with pytest.raises(ValueError, match="ne must be positive"):
         radial_electric_field(np.zeros(5), Ti, omega, btheta, B0=5.3, R0=6.2, rho=rho, a=2.0)
     with pytest.raises(ValueError, match="B0, R0, and a"):
