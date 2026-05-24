@@ -209,6 +209,10 @@ fails closed before calling the dynamic loader.
 
 ### NeuroSymbolicController
 
+`NeuroSymbolicController` rejects nonzero `sc_bitflip_rate` unless
+`allow_fault_injection=True` is supplied explicitly. Bit-flip mutation is a
+fault-injection test mode, not a production control default.
+
 ::: scpn_control.scpn.controller.NeuroSymbolicController
 
 ### Contracts

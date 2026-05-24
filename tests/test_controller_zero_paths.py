@@ -181,7 +181,7 @@ class TestBitflipEmpty:
             "slew_per_s": [],
         }
         art_path = _artifact(tmp_path, readout_config=readout_config)
-        ctrl = _ctrl(art_path, sc_bitflip_rate=0.5)
+        ctrl = _ctrl(art_path, sc_bitflip_rate=0.5, allow_fault_injection=True)
         rng = np.random.default_rng(0)
         result = ctrl._apply_bit_flip_faults(np.array([], dtype=np.float64), rng)
         assert result.shape == (0,)

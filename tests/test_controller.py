@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Controller
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Neuro-Symbolic Logic Compiler
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Tests for Packet C — contracts, artifact, controller, fractional firing.
 
@@ -895,6 +887,7 @@ class TestLevel3PetriSemantics:
             scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
             sc_n_passes=8,
             sc_bitflip_rate=0.05,
+            allow_fault_injection=True,
         )
         for k in range(100):
             obs: ControlObservation = {

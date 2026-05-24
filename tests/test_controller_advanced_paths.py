@@ -85,11 +85,15 @@ class TestControllerValidation:
         with pytest.raises(ValueError, match="sc_bitflip_rate"):
             _ctrl(_artifact_custom(tmp_path, petri_net_std), sc_bitflip_rate=1.5)
 
+    def test_bitflip_rate_requires_fault_injection_opt_in(self, tmp_path, petri_net_std):
+        with pytest.raises(ValueError, match="allow_fault_injection"):
+            _ctrl(_artifact_custom(tmp_path, petri_net_std), sc_bitflip_rate=0.3)
+
 
 class TestBitflipFaults:
     def test_step_with_bitflip(self, tmp_path, petri_net_std):
         art_path = _artifact_custom(tmp_path, petri_net_std)
-        ctrl = _ctrl(art_path, sc_bitflip_rate=0.3)
+        ctrl = _ctrl(art_path, sc_bitflip_rate=0.3, allow_fault_injection=True)
         obs = {"R_axis_m": 6.29, "Z_axis_m": -0.02}
         actions = ctrl.step(obs, k=0)
         assert "dI_PF3_A" in actions

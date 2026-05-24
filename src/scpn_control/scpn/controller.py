@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Controller
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neuro-Symbolic Logic Compiler
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Neuro-Symbolic Controller
 """
 Neuro-Symbolic Controller — oracle + SC dual paths.
 
@@ -75,6 +67,8 @@ class NeuroSymbolicController:
     seed_base : 64-bit base seed for deterministic stochastic execution.
     targets : control setpoint targets.
     scales : normalisation scales.
+    allow_fault_injection : explicit opt-in for stochastic bit-flip fault
+        injection. Nonzero ``sc_bitflip_rate`` is rejected unless this is true.
     """
 
     def __init__(
@@ -85,6 +79,7 @@ class NeuroSymbolicController:
         scales: ControlScales,
         sc_n_passes: int = 8,
         sc_bitflip_rate: float = 0.0,
+        allow_fault_injection: bool = False,
         sc_binary_margin: float | None = None,
         sc_antithetic: bool = True,
         enable_oracle_diagnostics: bool = True,
@@ -104,6 +99,9 @@ class NeuroSymbolicController:
         self._sc_bitflip_rate = float(sc_bitflip_rate)
         if not np.isfinite(self._sc_bitflip_rate) or self._sc_bitflip_rate < 0.0 or self._sc_bitflip_rate > 1.0:
             raise ValueError("sc_bitflip_rate must be finite and in [0, 1].")
+        self._allow_fault_injection = bool(allow_fault_injection)
+        if self._sc_bitflip_rate > 0.0 and not self._allow_fault_injection:
+            raise ValueError("sc_bitflip_rate > 0 requires allow_fault_injection=True.")
         self._runtime_profile = runtime_profile.strip().lower()
         if self._runtime_profile not in {"adaptive", "deterministic", "traceable"}:
             raise ValueError("runtime_profile must be 'adaptive', 'deterministic', or 'traceable'")
