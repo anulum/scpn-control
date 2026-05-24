@@ -14,13 +14,17 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 import pytest
+import numpy as np
 
 from scpn_control.core.uncertainty import (
-    PlasmaScenario,
-    ipb98_tau_e,
-    fusion_power_from_tau,
-    quantify_uncertainty,
     IPB98_CENTRAL,
+    bosch_hale_reactivity,
+    compute_fusion_sensitivities,
+    fusion_power_from_tau,
+    ipb98_tau_e,
+    PlasmaScenario,
+    quantify_full_chain,
+    quantify_uncertainty,
 )
 
 
@@ -138,3 +142,64 @@ class TestUQ:
     def test_invalid_n_samples_rejected(self, n_samples):
         with pytest.raises(ValueError, match="n_samples"):
             quantify_uncertainty(ITER_SCENARIO, n_samples=n_samples, seed=1)
+
+
+class TestInputBoundaries:
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("I_p", 0.0),
+            ("B_t", 0.0),
+            ("P_heat", 0.0),
+            ("n_e", 0.0),
+            ("R", 0.0),
+            ("A", 0.0),
+            ("kappa", 0.0),
+            ("M", 0.0),
+        ],
+    )
+    def test_plasma_scenario_rejects_nonphysical_scalars(self, field, value):
+        scenario = PlasmaScenario(**{**ITER_SCENARIO.__dict__, field: value})
+        with pytest.raises(ValueError, match=field):
+            ipb98_tau_e(scenario)
+
+    @pytest.mark.parametrize(
+        "field,value,match",
+        [
+            ("f_D", -0.1, "f_D"),
+            ("f_T", -0.1, "f_T"),
+            ("f_D", 1.1, "fuel fractions"),
+            ("fuel_ion_fraction", -0.1, "fuel_ion_fraction"),
+            ("fuel_ion_fraction", 1.1, "fuel_ion_fraction"),
+        ],
+    )
+    def test_fusion_power_rejects_invalid_fuel_fractions(self, field, value, match):
+        scenario = PlasmaScenario(**{**ITER_SCENARIO.__dict__, field: value})
+        with pytest.raises(ValueError, match=match):
+            fusion_power_from_tau(scenario, 3.0)
+
+    def test_fusion_power_rejects_zero_fuel_mix_and_tau(self):
+        no_fuel = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "f_D": 0.0, "f_T": 0.0})
+        with pytest.raises(ValueError, match="D-T fuel"):
+            fusion_power_from_tau(no_fuel, 3.0)
+
+        with pytest.raises(ValueError, match="tau_E"):
+            fusion_power_from_tau(ITER_SCENARIO, 0.0)
+
+    def test_bosch_hale_reactivity_rejects_nonpositive_temperatures(self):
+        with pytest.raises(ValueError, match="T_i_kev"):
+            bosch_hale_reactivity(0.0)
+
+        with pytest.raises(ValueError, match="T_i_kev"):
+            bosch_hale_reactivity(np.array([10.0, np.nan]))
+
+    def test_sensitivity_and_full_chain_reject_invalid_inputs(self):
+        with pytest.raises(ValueError, match="tau_E"):
+            compute_fusion_sensitivities(ITER_SCENARIO, 0.0)
+
+        with pytest.raises(ValueError, match="chi_gB_sigma"):
+            quantify_full_chain(ITER_SCENARIO, n_samples=10, seed=1, chi_gB_sigma=-0.1)
+
+        bad = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "P_heat": 0.0})
+        with pytest.raises(ValueError, match="P_heat"):
+            quantify_full_chain(bad, n_samples=10, seed=1)

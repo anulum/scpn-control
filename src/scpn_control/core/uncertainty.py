@@ -72,6 +72,17 @@ def _validate_n_samples(n_samples: int) -> int:
     return parsed
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    parsed = float(value)
+    if not np.isfinite(parsed):
+        raise ValueError(f"{name} must be finite")
+    if positive and parsed <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and parsed < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return parsed
+
+
 @dataclass
 class PlasmaScenario:
     """Input plasma parameters for a confinement prediction."""
@@ -87,6 +98,27 @@ class PlasmaScenario:
     f_D: float = 0.5  # Deuterium ion fraction of fuel ions
     f_T: float = 0.5  # Tritium ion fraction of fuel ions
     fuel_ion_fraction: float = 1.0  # Fuel-ion dilution factor in electron density
+
+
+def _validate_scenario(scenario: PlasmaScenario) -> PlasmaScenario:
+    _finite_scalar("I_p", scenario.I_p, positive=True)
+    _finite_scalar("B_t", scenario.B_t, positive=True)
+    _finite_scalar("P_heat", scenario.P_heat, positive=True)
+    _finite_scalar("n_e", scenario.n_e, positive=True)
+    _finite_scalar("R", scenario.R, positive=True)
+    _finite_scalar("A", scenario.A, positive=True)
+    _finite_scalar("kappa", scenario.kappa, positive=True)
+    _finite_scalar("M", scenario.M, positive=True)
+    f_D = _finite_scalar("f_D", scenario.f_D, nonnegative=True)
+    f_T = _finite_scalar("f_T", scenario.f_T, nonnegative=True)
+    fuel_ion_fraction = _finite_scalar("fuel_ion_fraction", scenario.fuel_ion_fraction, nonnegative=True)
+    if f_D > 1.0 or f_T > 1.0:
+        raise ValueError("fuel fractions must not exceed 1")
+    if f_D + f_T <= 0.0:
+        raise ValueError("at least one D-T fuel fraction must be positive")
+    if fuel_ion_fraction > 1.0:
+        raise ValueError("fuel_ion_fraction must not exceed 1")
+    return scenario
 
 
 @dataclass
@@ -127,6 +159,7 @@ def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
     -------
     float — confinement time in seconds.
     """
+    scenario = _validate_scenario(scenario)
     p = params or IPB98_CENTRAL
     return float(
         p["C"]
@@ -143,7 +176,11 @@ def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
 
 def _bosch_hale_reactivity_array(T_i_kev: np.ndarray) -> np.ndarray:
     """Vectorised Bosch-Hale D-T reactivity implementation."""
-    T = np.maximum(T_i_kev.astype(float, copy=False), 0.1)
+    T = np.asarray(T_i_kev, dtype=float)
+    if T.ndim == 0:
+        T = T.reshape(1)
+    if not np.all(np.isfinite(T)) or np.any(T <= 0.0):
+        raise ValueError("T_i_kev must contain only positive finite temperatures")
     # D-T coefficients from Table VII
     B_G = 34.3827
     m_rc2 = 1124656.0
@@ -196,6 +233,8 @@ def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
 
     Where T_i is estimated from P_heat, tau_E and V.
     """
+    scenario = _validate_scenario(scenario)
+    tau_E = _finite_scalar("tau_E", tau_E, positive=True)
     # 1. Estimate average temperature from energy balance
     # W = 3 * n_e * T_avg * V = P_heat * tau_E
     # T_avg [keV] = (P_heat [MW] * tau_E [s]) / (3 * n_e [10^19] * V [m^3] * e_J_per_kev * 1e19 * 1e-6)
@@ -211,9 +250,9 @@ def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
 
     # 3. Fusion power with explicit D-T composition and dilution.
     # E_fus = 17.6 MeV = 2.82e-12 J
-    f_D = float(np.clip(scenario.f_D, 0.0, 1.0))
-    f_T = float(np.clip(scenario.f_T, 0.0, 1.0))
-    fuel_ion_fraction = float(np.clip(scenario.fuel_ion_fraction, 0.0, 1.0))
+    f_D = scenario.f_D
+    f_T = scenario.f_T
+    fuel_ion_fraction = scenario.fuel_ion_fraction
     norm = f_D + f_T
     if norm <= 0.0:
         return 0.0
@@ -236,6 +275,8 @@ def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict
     -------
     dict: {'dP_dT': ..., 'dP_dn': ...} in MW/keV and MW/(10^19 m^-3).
     """
+    scenario = _validate_scenario(scenario)
+    tau_E = _finite_scalar("tau_E", tau_E, positive=True)
     # Numerical derivatives
     eps = 1e-3
 
@@ -364,6 +405,7 @@ def quantify_full_chain(
 
     Now uses correlated sampling for IPB98 coefficients.
     """
+    scenario = _validate_scenario(scenario)
     n_samples = _validate_n_samples(n_samples)
 
     def _validate_sigma(name: str, value: float) -> float:
@@ -428,7 +470,7 @@ def quantify_full_chain(
             M=scenario.M,
         )
         tau = ipb98_tau_e(pert_scenario, params)
-        # chi_factor > 1 means stronger transport → shorter confinement;
+        # chi_factor > 1 means larger transport → shorter confinement;
         # pedestal height factor > 1 means better pedestal → longer confinement
         tau = tau * ped_factor / chi_factor
         tau = max(tau, 1e-6)
@@ -558,6 +600,7 @@ def quantify_uncertainty(scenario: PlasmaScenario, n_samples: int = 10000, seed:
     -------
     UQResult — central estimates + error bars + percentiles.
     """
+    scenario = _validate_scenario(scenario)
     n_samples = _validate_n_samples(n_samples)
     rng = np.random.default_rng(seed)
 
