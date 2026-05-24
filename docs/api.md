@@ -479,6 +479,8 @@ propagating undefined SQP or PGD iterates.
 The public `compute_cost()` evaluator includes the finite-horizon terminal
 penalty, using configured `P` when supplied and the controller's conservative
 fallback terminal weight otherwise.
+Nonlinear plant linearization uses central finite differences for second-order
+local Jacobian accuracy in the SQP approximation.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 

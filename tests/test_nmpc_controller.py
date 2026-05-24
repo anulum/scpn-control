@@ -175,6 +175,41 @@ def test_terminal_cost_scipy_fallback():
     np.testing.assert_array_equal(P, cfg.Q * 10.0)
 
 
+def test_nmpc_linearize_matches_analytic_nonlinear_jacobian() -> None:
+    """Central differencing should recover smooth nonlinear plant Jacobians."""
+
+    def nonlinear_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        out = np.zeros(6)
+        out[0] = x[0] ** 2 + 3.0 * u[0] ** 2
+        out[1] = np.sin(x[1]) + np.exp(u[1])
+        out[2] = x[2] * u[2]
+        out[3] = x[3]
+        out[4] = x[4]
+        out[5] = x[5]
+        return out
+
+    nmpc = NonlinearMPC(nonlinear_plant, NMPCConfig(horizon=2, max_sqp_iter=1))
+    x0 = np.array([2.0, 0.4, 1.5, 0.8, 3.0, 4.0])
+    u0 = np.array([1.2, -0.3, 0.7])
+
+    A, B = nmpc.linearize(x0, u0)
+
+    expected_A = np.zeros((6, 6))
+    expected_B = np.zeros((6, 3))
+    expected_A[0, 0] = 2.0 * x0[0]
+    expected_B[0, 0] = 6.0 * u0[0]
+    expected_A[1, 1] = np.cos(x0[1])
+    expected_B[1, 1] = np.exp(u0[1])
+    expected_A[2, 2] = u0[2]
+    expected_B[2, 2] = x0[2]
+    expected_A[3, 3] = 1.0
+    expected_A[4, 4] = 1.0
+    expected_A[5, 5] = 1.0
+
+    np.testing.assert_allclose(A, expected_A, rtol=1e-7, atol=1e-9)
+    np.testing.assert_allclose(B, expected_B, rtol=1e-7, atol=1e-9)
+
+
 def test_nmpc_step_converges_early():
     """Exercise nmpc_controller.py line 209: SQP early convergence when dU < tol."""
     cfg = NMPCConfig(horizon=3, max_sqp_iter=10, tol=1e10)

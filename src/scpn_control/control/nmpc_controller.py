@@ -148,23 +148,25 @@ class NonlinearMPC:
         return out
 
     def _linearize(self, x0: np.ndarray, u0: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Jacobians A = ∂f/∂x, B = ∂f/∂u via forward finite differences."""
+        """Jacobians A = ∂f/∂x, B = ∂f/∂u via central finite differences."""
         A = np.zeros((self.nx, self.nx))
         B = np.zeros((self.nx, self.nu))
         eps_x = 1e-4
         eps_u = 1e-4
 
-        f0 = self._plant_step(x0, u0)
-
         for i in range(self.nx):
-            x_pert = x0.copy()
-            x_pert[i] += eps_x
-            A[:, i] = (self._plant_step(x_pert, u0) - f0) / eps_x
+            x_plus = x0.copy()
+            x_minus = x0.copy()
+            x_plus[i] += eps_x
+            x_minus[i] -= eps_x
+            A[:, i] = (self._plant_step(x_plus, u0) - self._plant_step(x_minus, u0)) / (2.0 * eps_x)
 
         for i in range(self.nu):
-            u_pert = u0.copy()
-            u_pert[i] += eps_u
-            B[:, i] = (self._plant_step(x0, u_pert) - f0) / eps_u
+            u_plus = u0.copy()
+            u_minus = u0.copy()
+            u_plus[i] += eps_u
+            u_minus[i] -= eps_u
+            B[:, i] = (self._plant_step(x0, u_plus) - self._plant_step(x0, u_minus)) / (2.0 * eps_u)
 
         return A, B
 
