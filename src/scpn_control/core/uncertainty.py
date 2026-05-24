@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Uncertainty
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Bayesian Uncertainty Quantification
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Bayesian uncertainty quantification for fusion performance predictions.
 
@@ -281,7 +273,19 @@ def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict
     eps = 1e-3
 
     def get_p(n_e: float, p_heat: float) -> float:
-        sc = PlasmaScenario(scenario.I_p, scenario.B_t, p_heat, n_e, scenario.R, scenario.A, scenario.kappa, scenario.M)
+        sc = PlasmaScenario(
+            scenario.I_p,
+            scenario.B_t,
+            p_heat,
+            n_e,
+            scenario.R,
+            scenario.A,
+            scenario.kappa,
+            scenario.M,
+            scenario.f_D,
+            scenario.f_T,
+            scenario.fuel_ion_fraction,
+        )
         return fusion_power_from_tau(sc, tau_E)
 
     # dP/dn (fixed tau_E and P_heat)

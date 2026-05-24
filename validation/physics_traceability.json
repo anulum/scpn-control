@@ -1329,7 +1329,7 @@
     },
     {
       "component": "full-chain uncertainty quantification contract",
-      "equation_contract": "Uncertainty claims must declare sampled variables, distributions, correlations, random seed, propagation chain, convergence criteria, sensitivity outputs, and finite-value rejection policy.",
+      "equation_contract": "Uncertainty claims must declare sampled variables, distributions, correlations, random seed, propagation chain, convergence criteria, sensitivity outputs that preserve D-T composition and fuel dilution, and finite-value rejection policy.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Monte Carlo uncertainty propagation references",

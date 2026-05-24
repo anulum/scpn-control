@@ -1,20 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Uncertainty
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Uncertainty Quantification
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
-import pytest
+# SCPN Control — Uncertainty Quantification Tests
 import numpy as np
+import pytest
 
 from scpn_control.core.uncertainty import (
     IPB98_CENTRAL,
@@ -100,6 +92,14 @@ class TestFusionPower:
         diluted = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "fuel_ion_fraction": 0.5})
         p_diluted = fusion_power_from_tau(diluted, 3.0)
         assert p_diluted < undiluted
+
+    def test_sensitivities_preserve_fuel_dilution(self):
+        """Fusion-power density sensitivity must preserve fuel-ion dilution."""
+        undiluted = compute_fusion_sensitivities(ITER_SCENARIO, 3.0)
+        diluted = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "fuel_ion_fraction": 0.5})
+        diluted_sens = compute_fusion_sensitivities(diluted, 3.0)
+
+        assert diluted_sens["dP_dn"] == pytest.approx(0.25 * undiluted["dP_dn"], rel=1e-6)
 
 
 class TestUQ:
