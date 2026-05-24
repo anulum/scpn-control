@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Stability Mhd
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — MHD Stability: Five-Criterion Suite
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 MHD stability analysis suite — five criteria:
 
@@ -542,7 +534,8 @@ def ntm_stability(
     j_total : array — total current density [A/m^2]
     a : float — minor radius [m]
     r_s_delta_prime : float — classical tearing stability index
-        (negative = classically stable, default -2.0)
+        (negative = classically stable, positive = classically unstable,
+        zero is a singular marginal boundary and is rejected)
 
     Returns
     -------
@@ -559,6 +552,8 @@ def ntm_stability(
     j_total = _require_profile_array("j_total", j_total, shape, positive=True)
     a = _require_finite_scalar("a", a, positive=True)
     r_s_delta_prime = _require_finite_scalar("r_s_delta_prime", r_s_delta_prime)
+    if abs(r_s_delta_prime) <= 1e-10:
+        raise ValueError("r_s_delta_prime must be non-zero for marginal island-width evaluation")
 
     j_bs_frac = j_bs / j_total  # bootstrap fraction
 
@@ -576,8 +571,7 @@ def ntm_stability(
 
     # Marginal island width: w_marg = -(j_bs/j_phi) * a / (r_s * Delta')
     # Only meaningful where delta_prime < 0 (classically stable baseline).
-    denom = np.where(np.abs(delta_prime) > 1e-10, delta_prime, -1e-10)
-    w_marginal = -j_bs_drive * a / denom
+    w_marginal = -j_bs_drive * a / delta_prime
     w_marginal = np.maximum(w_marginal, 0.0)  # physical: width >= 0
 
     # NTM unstable where bootstrap drives a positive marginal width

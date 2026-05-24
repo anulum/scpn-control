@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Stability Mhd
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — MHD Stability Tests
 
 """Tests for scpn_control.core.stability_mhd."""
 
@@ -375,6 +375,14 @@ class TestStabilityInputBoundaries:
             ntm_stability(qp, j_bs[:-1], j_total, a=1.0)
         with pytest.raises(ValueError, match="a"):
             ntm_stability(qp, j_bs, j_total, a=0.0)
+
+    def test_ntm_stability_rejects_singular_tearing_boundary(self, iter_like_qprofile):
+        qp = iter_like_qprofile
+        j_bs = np.full_like(qp.rho, 1.0e5)
+        j_total = np.full_like(qp.rho, 1.0e6)
+
+        with pytest.raises(ValueError, match="r_s_delta_prime"):
+            ntm_stability(qp, j_bs, j_total, a=1.0, r_s_delta_prime=0.0)
 
     def test_full_stability_check_rejects_partial_optional_contracts(self, iter_like_qprofile):
         with pytest.raises(ValueError, match="Troyon"):
