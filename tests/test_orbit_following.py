@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+import pytest
 
 from scpn_control.core.orbit_following import (
     GuidingCenterOrbit,
@@ -181,3 +182,104 @@ def test_first_orbit_loss_current_dependence():
     assert abs(actual_ratio - expected_ratio) < 0.05, (
         f"f_lost ratio {actual_ratio:.3f} deviates from 1/I_p = {expected_ratio:.3f}"
     )
+
+
+def test_guiding_center_orbit_rejects_nonphysical_particle_and_step_inputs():
+    with pytest.raises(ValueError, match="m_amu"):
+        GuidingCenterOrbit(0.0, 2, 3500.0, 0.0, 6.2, 0.0)
+
+    with pytest.raises(ValueError, match="Z"):
+        GuidingCenterOrbit(4.0, 0, 3500.0, 0.0, 6.2, 0.0)
+
+    with pytest.raises(ValueError, match="E_keV"):
+        GuidingCenterOrbit(4.0, 2, 0.0, 0.0, 6.2, 0.0)
+
+    orbit = GuidingCenterOrbit(4.0, 2, 3500.0, 0.0, 6.2, 0.0)
+
+    with pytest.raises(ValueError, match="dt"):
+        orbit.step(mock_b_field, 0.0)
+
+
+def test_guiding_center_orbit_rejects_invalid_field():
+    orbit = GuidingCenterOrbit(4.0, 2, 3500.0, 0.0, 6.2, 0.0)
+
+    def zero_b_field(R, Z):
+        return 0.0, 0.0, 0.0
+
+    with pytest.raises(ValueError, match="B_field magnitude"):
+        orbit.step(zero_b_field, 1e-7)
+
+    def nan_b_field(R, Z):
+        return np.nan, 0.0, 5.0
+
+    with pytest.raises(ValueError, match="B_field"):
+        orbit.step(nan_b_field, 1e-7)
+
+
+def test_orbit_classifier_rejects_malformed_traces():
+    R = np.ones(4)
+    Z = np.zeros(4)
+    v = np.ones(4)
+
+    with pytest.raises(ValueError, match="orbit_Z"):
+        OrbitClassifier.classify(R, Z[:-1], v, R_wall=10.0, Z_wall_upper=5.0)
+
+    with pytest.raises(ValueError, match="R_wall"):
+        OrbitClassifier.classify(R, Z, v, R_wall=0.0, Z_wall_upper=5.0)
+
+    with pytest.raises(ValueError, match="v_par"):
+        OrbitClassifier.classify(R, Z, np.array([1.0, np.nan, 1.0, 1.0]), R_wall=10.0, Z_wall_upper=5.0)
+
+
+def test_monte_carlo_ensemble_rejects_invalid_inputs():
+    with pytest.raises(ValueError, match="n_particles"):
+        MonteCarloEnsemble(0, 3500.0, 6.2, 2.0, 5.3)
+
+    with pytest.raises(ValueError, match="a must be smaller"):
+        MonteCarloEnsemble(10, 3500.0, 2.0, 2.0, 5.3)
+
+    ens = MonteCarloEnsemble(2, 3500.0, 6.2, 2.0, 5.3)
+
+    with pytest.raises(ValueError, match="rho"):
+        ens.initialize(np.ones(3), np.ones(3), np.array([0.0, 0.8, 0.7]))
+
+    with pytest.raises(ValueError, match="ne_profile"):
+        ens.initialize(np.array([1.0, 0.0, 1.0]), np.ones(3), np.array([0.0, 0.5, 1.0]))
+
+    with pytest.raises(ValueError, match="particles"):
+        ens.follow(mock_b_field)
+
+    ens.initialize(np.ones(3), np.ones(3), np.array([0.0, 0.5, 1.0]))
+    with pytest.raises(ValueError, match="n_bounces"):
+        ens.follow(mock_b_field, n_bounces=0)
+
+
+def test_first_orbit_loss_and_banana_width_reject_invalid_physics():
+    with pytest.raises(ValueError, match="Ip_MA"):
+        first_orbit_loss(R0=6.2, a=2.0, B0=5.3, Ip_MA=0.0)
+
+    with pytest.raises(ValueError, match="a must be smaller"):
+        first_orbit_loss(R0=2.0, a=2.0, B0=5.3, Ip_MA=10.0)
+
+    with pytest.raises(ValueError, match="q"):
+        banana_orbit_width(q=0.0, rho_L=0.05, epsilon=0.3)
+
+    with pytest.raises(ValueError, match="rho_L"):
+        banana_orbit_width(q=2.0, rho_L=0.0, epsilon=0.3)
+
+
+def test_slowing_down_rejects_invalid_domains():
+    with pytest.raises(ValueError, match="Te_keV"):
+        SlowingDown.critical_velocity(0.0, 1.0)
+
+    with pytest.raises(ValueError, match="Z_bg"):
+        SlowingDown.critical_energy(20.0, A_fast=4.0, A_bg=2.5, Z_bg=0, ne_20=1.0)
+
+    with pytest.raises(ValueError, match="ne_20"):
+        SlowingDown.tau_sd(20.0, ne_20=0.0, Z_eff=1.5)
+
+    with pytest.raises(ValueError, match="E_keV"):
+        SlowingDown.dE_dt(0.0, E_crit_keV=100.0, tau_s=0.1)
+
+    with pytest.raises(ValueError, match="v_c"):
+        SlowingDown.heating_partition(1.0, v_c=0.0)

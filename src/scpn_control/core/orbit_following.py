@@ -19,6 +19,28 @@ _E_C = 1.60217663e-19  # C
 _LN_LAMBDA = 17.0  # Coulomb logarithm; Wesson 2011, Tokamaks 4th ed., §2.12
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _profile_array(name: str, values: np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size == 0:
+        raise ValueError(f"{name} must be a one-dimensional non-empty profile")
+    if shape is not None and arr.shape != shape:
+        raise ValueError(f"{name} must match the profile grid shape")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    return arr
+
+
 @dataclass
 class EnsembleResult:
     loss_fraction: float
@@ -57,8 +79,16 @@ class GuidingCenterOrbit:
         R0_init: float,
         Z0_init: float,
     ) -> None:
+        m_amu = _finite_scalar("m_amu", m_amu, positive=True)
+        if int(Z) != Z or Z == 0:
+            raise ValueError("Z must be a non-zero integer charge state")
+        E_keV = _finite_scalar("E_keV", E_keV, positive=True)
+        pitch_angle = _finite_scalar("pitch_angle", pitch_angle)
+        R0_init = _finite_scalar("R0_init", R0_init, positive=True)
+        Z0_init = _finite_scalar("Z0_init", Z0_init)
+
         self.m = m_amu * _M_P
-        self.Z_charge = Z * _E_C
+        self.Z_charge = int(Z) * _E_C
         self.E_J = E_keV * 1e3 * _E_C
 
         self.v_tot = math.sqrt(2.0 * self.E_J / self.m)
@@ -75,9 +105,15 @@ class GuidingCenterOrbit:
 
     def _eom(self, state: np.ndarray, B_field: Callable) -> np.ndarray:
         R, Z, phi, v_par = state
+        if not np.all(np.isfinite(state)) or R <= 0.0:
+            raise ValueError("orbit state must be finite with positive major radius")
 
         B_R, B_Z, B_phi = B_field(R, Z)
+        if not all(math.isfinite(float(x)) for x in (B_R, B_Z, B_phi)):
+            raise ValueError("B_field must return finite components")
         B_mag = math.sqrt(B_R**2 + B_Z**2 + B_phi**2)
+        if B_mag <= 0.0:
+            raise ValueError("B_field magnitude must be positive")
 
         if self.mu < 0:
             # mu = m v_perp² / (2B) — magnetic moment (adiabatic invariant)
@@ -115,6 +151,7 @@ class GuidingCenterOrbit:
         return np.array([dR_dt, dZ_dt, dphi_dt, dv_par_dt])
 
     def step(self, B_field: Callable, dt: float) -> tuple[float, float, float, float]:
+        dt = _finite_scalar("dt", dt, positive=True)
         state = np.array([self.R, self.Z, self.phi, self.v_par])
 
         k1 = self._eom(state, B_field)
@@ -137,6 +174,11 @@ class OrbitClassifier:
         R_wall: float,
         Z_wall_upper: float,
     ) -> str:
+        orbit_R = _profile_array("orbit_R", orbit_R)
+        orbit_Z = _profile_array("orbit_Z", orbit_Z, orbit_R.shape)
+        v_par = _profile_array("v_par", v_par, orbit_R.shape)
+        R_wall = _finite_scalar("R_wall", R_wall, positive=True)
+        Z_wall_upper = _finite_scalar("Z_wall_upper", Z_wall_upper, positive=True)
         if np.any(orbit_R > R_wall) or np.any(np.abs(orbit_Z) > Z_wall_upper) or np.any(orbit_R < 0.1):
             return "lost"
 
@@ -149,14 +191,27 @@ class OrbitClassifier:
 
 class MonteCarloEnsemble:
     def __init__(self, n_particles: int, E_birth_keV: float, R0: float, a: float, B0: float) -> None:
-        self.n_particles = n_particles
-        self.E_birth_keV = E_birth_keV
-        self.R0 = R0
-        self.a = a
-        self.B0 = B0
+        if int(n_particles) != n_particles or n_particles <= 0:
+            raise ValueError("n_particles must be a positive integer")
+        self.n_particles = int(n_particles)
+        self.E_birth_keV = _finite_scalar("E_birth_keV", E_birth_keV, positive=True)
+        self.R0 = _finite_scalar("R0", R0, positive=True)
+        self.a = _finite_scalar("a", a, positive=True)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        self.B0 = _finite_scalar("B0", B0, positive=True)
         self.particles: list[GuidingCenterOrbit] = []
 
     def initialize(self, ne_profile: np.ndarray, Te_profile: np.ndarray, rho: np.ndarray) -> None:
+        rho = _profile_array("rho", rho)
+        if np.any(rho < 0.0) or np.any(rho > 1.0) or np.any(np.diff(rho) < 0.0):
+            raise ValueError("rho must be monotonically increasing within [0, 1]")
+        ne_profile = _profile_array("ne_profile", ne_profile, rho.shape)
+        Te_profile = _profile_array("Te_profile", Te_profile, rho.shape)
+        if np.any(ne_profile <= 0.0):
+            raise ValueError("ne_profile must be positive everywhere")
+        if np.any(Te_profile <= 0.0):
+            raise ValueError("Te_profile must be positive everywhere")
         self.particles = []
         for _ in range(self.n_particles):
             r = np.random.beta(2, 5) * self.a
@@ -170,6 +225,11 @@ class MonteCarloEnsemble:
             self.particles.append(p)
 
     def follow(self, B_field: Callable, n_bounces: int = 10, dt: float = 1e-7) -> EnsembleResult:
+        if not self.particles:
+            raise ValueError("particles must be initialised before follow")
+        if int(n_bounces) != n_bounces or n_bounces <= 0:
+            raise ValueError("n_bounces must be a positive integer")
+        dt = _finite_scalar("dt", dt, positive=True)
         n_pass = 0
         n_trap = 0
         n_lost = 0
@@ -216,6 +276,13 @@ def first_orbit_loss(R0: float, a: float, B0: float, Ip_MA: float, E_alpha_keV: 
     Here we use the simpler large-aspect-ratio estimate ρ_orbit ≈ 2 ρ_L
     valid for passing particles at the loss boundary (Goldston 1981, §3).
     """
+    R0 = _finite_scalar("R0", R0, positive=True)
+    a = _finite_scalar("a", a, positive=True)
+    if a >= R0:
+        raise ValueError("a must be smaller than R0 for tokamak ordering")
+    B0 = _finite_scalar("B0", B0, positive=True)
+    Ip_MA = _finite_scalar("Ip_MA", Ip_MA, positive=True)
+    E_alpha_keV = _finite_scalar("E_alpha_keV", E_alpha_keV, positive=True)
     m_alpha = 4.0 * _M_P
     v_alpha = math.sqrt(2.0 * E_alpha_keV * 1e3 * _E_C / m_alpha)
     # Larmor radius: ρ_L = m v_perp / (q B), v_perp ≈ v for isotropic birth
@@ -224,7 +291,7 @@ def first_orbit_loss(R0: float, a: float, B0: float, Ip_MA: float, E_alpha_keV: 
     rho_orbit = 2.0 * rho_L
 
     # f_lost ∝ (ρ_orbit/a)² / I_p  — Goldston 1981, Eq. 15
-    loss = (rho_orbit / a) ** 2 / max(Ip_MA, 0.1)
+    loss = (rho_orbit / a) ** 2 / Ip_MA
     return float(min(1.0, max(0.0, loss)))
 
 
@@ -240,8 +307,9 @@ def banana_orbit_width(q: float, rho_L: float, epsilon: float) -> float:
     rho_L   : Larmor radius [m]
     epsilon : inverse aspect ratio r/R
     """
-    if epsilon <= 0.0:
-        raise ValueError("epsilon must be positive")
+    q = _finite_scalar("q", q, positive=True)
+    rho_L = _finite_scalar("rho_L", rho_L, positive=True)
+    epsilon = _finite_scalar("epsilon", epsilon, positive=True)
     return q * rho_L / math.sqrt(epsilon)
 
 
@@ -268,6 +336,12 @@ class SlowingDown:
 
         with v_te = √(2 T_e / m_e), giving E_crit = ½ m_fast v_c².
         """
+        Te_keV = _finite_scalar("Te_keV", Te_keV, positive=True)
+        A_fast = _finite_scalar("A_fast", A_fast, positive=True)
+        _finite_scalar("A_bg", A_bg, positive=True)
+        if int(Z_bg) != Z_bg or Z_bg <= 0:
+            raise ValueError("Z_bg must be a positive integer charge state")
+        _finite_scalar("ne_20", ne_20, positive=True)
         Te_J = Te_keV * 1e3 * _E_C
         m_fast = A_fast * _M_P
         v_te3 = (2.0 * Te_J / _M_E) ** 1.5
@@ -286,6 +360,8 @@ class SlowingDown:
         v_c for a DT-plasma background (Z_bg=1, A_bg=2.5).
         Stix 1972, Eq. 12.
         """
+        Te_keV = _finite_scalar("Te_keV", Te_keV, positive=True)
+        _finite_scalar("ne_20", ne_20, positive=True)
         Te_J = Te_keV * 1e3 * _E_C
         v_te3 = (2.0 * Te_J / _M_E) ** 1.5
         m_alpha = 4.0 * _M_P
@@ -308,12 +384,15 @@ class SlowingDown:
         with A_fast=4, Z_fast=2, ln Λ = 17.
         Reference: Stix 1972, Plasma Physics 14, 367, Eq. 7.
         """
+        Te_keV = _finite_scalar("Te_keV", Te_keV, positive=True)
+        ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
+        Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
         # Numerical prefactor from Stix 1972 Eq. 7 evaluated for alpha particles
         # τ_s = C * T_e^1.5 / (n_e * Z_eff)  where C carries all constants.
         # C = 6π^(3/2) ε₀² m_e^(1/2) m_alpha T_e^(3/2) / (n_e Z_alpha² e⁴ ln Λ √2)
         # In mixed SI, for n in 10²⁰ m⁻³, T in keV → τ in seconds, C ≈ 6.27e-2
         _C_TAU = 6.27e-2  # Stix 1972, Eq. 7, evaluated for alpha particles
-        tau = _C_TAU * (Te_keV**1.5) / (max(ne_20, 0.01) * max(Z_eff, 1.0) * _LN_LAMBDA)
+        tau = _C_TAU * (Te_keV**1.5) / (ne_20 * Z_eff * _LN_LAMBDA)
         return float(tau)
 
     @staticmethod
@@ -327,7 +406,10 @@ class SlowingDown:
         Below E_crit the (E_crit/E)^(3/2) term > 1, so ion drag dominates.
         Above E_crit the term < 1, so electron drag dominates.
         """
-        ratio = (E_crit_keV / max(E_keV, 1e-6)) ** 1.5
+        E_keV = _finite_scalar("E_keV", E_keV, positive=True)
+        E_crit_keV = _finite_scalar("E_crit_keV", E_crit_keV, positive=True)
+        tau_s = _finite_scalar("tau_s", tau_s, positive=True)
+        ratio = (E_crit_keV / E_keV) ** 1.5
         return float(-(E_keV / tau_s) * (1.0 + ratio))
 
     @staticmethod
@@ -343,7 +425,9 @@ class SlowingDown:
         At v >> v_c: all to electrons.
         At v << v_c: all to ions.
         """
+        v = _finite_scalar("v", v, nonnegative=True)
+        v_c = _finite_scalar("v_c", v_c, positive=True)
         vc3 = v_c**3
-        vv3 = max(v, 1e-6) ** 3
+        vv3 = v**3
         f_ion = vc3 / (vv3 + vc3)
         return float(f_ion), float(1.0 - f_ion)
