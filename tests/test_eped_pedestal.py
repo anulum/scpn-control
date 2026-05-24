@@ -12,6 +12,7 @@ import pytest
 
 from scpn_control.core.eped_pedestal import (
     EPEDConfig,
+    EPEDResult,
     EPEDValidationPoint,
     EpedPedestalModel,
     PedestalProfileGenerator,
@@ -232,6 +233,21 @@ def test_pedestal_profile_generator_rejects_invalid_boundaries():
 
     with pytest.raises(ValueError, match="strictly increasing"):
         gen.generate(np.array([0.0, 0.5, 0.5, 1.0]))
+
+
+def test_pedestal_profile_generator_rejects_collisionless_width_below_effective_width():
+    inconsistent = EPEDResult(
+        delta_ped=0.04,
+        delta_ped_collisionless=0.02,
+        p_ped_kPa=35.0,
+        T_ped_keV=1.4,
+        n_ped_19=5.0,
+        beta_p_ped=2.1,
+        alpha_crit=1.2,
+    )
+
+    with pytest.raises(ValueError, match="delta_ped_collisionless"):
+        PedestalProfileGenerator(inconsistent)
 
 
 def test_integrated_wrapper_rejects_invalid_inputs():

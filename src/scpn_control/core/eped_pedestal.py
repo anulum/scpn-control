@@ -86,9 +86,13 @@ def _validate_eped_result(result: EPEDResult) -> EPEDResult:
     delta_ped = _finite_scalar("delta_ped", result.delta_ped, positive=True)
     _finite_scalar("beta_p_ped", result.beta_p_ped, nonnegative=True)
     _finite_scalar("alpha_crit", result.alpha_crit, nonnegative=True)
-    _finite_scalar("delta_ped_collisionless", result.delta_ped_collisionless, nonnegative=True)
+    delta_ped_collisionless = _finite_scalar(
+        "delta_ped_collisionless", result.delta_ped_collisionless, nonnegative=True
+    )
     if delta_ped >= 1.0:
         raise ValueError("delta_ped must remain below the normalised minor-radius interval")
+    if delta_ped_collisionless < delta_ped:
+        raise ValueError("delta_ped_collisionless must be greater than or equal to delta_ped")
     return result
 
 

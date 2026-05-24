@@ -832,7 +832,7 @@
     },
     {
       "component": "EPED pedestal and peeling-ballooning approximation contract",
-      "equation_contract": "EPED claims must declare the pedestal-width scaling, peeling-ballooning pressure limit, bootstrap-current coupling, H-mode entry assumptions, global beta limits, and compatibility boundary to the transport solver.",
+      "equation_contract": "EPED claims must declare the pedestal-width scaling, collisionless width versus collisionality-narrowed effective-width ordering, peeling-ballooning pressure limit, bootstrap-current coupling, H-mode entry assumptions, global beta limits, and compatibility boundary to the transport solver.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Snyder et al. EPED pedestal model",
