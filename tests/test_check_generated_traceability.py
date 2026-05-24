@@ -78,3 +78,13 @@ def test_generated_traceability_check_detects_missing_tracker_line(tmp_path: Pat
     report_path.write_text(drifted_report, encoding="utf-8")
 
     assert not generated_traceability_is_current(registry, report_path)
+
+
+def test_validation_docs_include_generated_traceability_check_entrypoint() -> None:
+    validation_docs = (ROOT / "docs" / "validation.md").read_text(encoding="utf-8")
+
+    assert (
+        "python validation/generate_physics_traceability_report.py --output-md docs/physics_traceability.md"
+        in validation_docs
+    )
+    assert "scpn-check-generated-traceability" in validation_docs

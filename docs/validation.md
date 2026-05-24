@@ -135,6 +135,7 @@ are made:
 scpn-control validate-physics-traceability --json-out
 python validation/validate_physics_traceability.py --output-json artifacts/physics_traceability_report.json
 python validation/generate_physics_traceability_report.py --output-md docs/physics_traceability.md
+scpn-check-generated-traceability
 ```
 
 Nonlinear Cyclone Base Case saturation claims are gated separately from quick
