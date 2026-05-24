@@ -240,6 +240,19 @@ def test_marfe_front_model_rejects_nonphysical_step_inputs() -> None:
         model.step(dt=float("nan"), ne_20=1.0)
 
 
+def test_marfe_front_model_rejects_corrupted_temperature_state() -> None:
+    """Front evolution fails closed when mutable temperature state is nonphysical."""
+    model = MARFEFrontModel(L_par=100.0, kappa_par=20.0, q_perp=10.0, impurity="W", f_imp=1e-2)
+
+    model.T[5] = float("nan")
+    with pytest.raises(ValueError, match="T"):
+        model.step(dt=1e-4, ne_20=1.0)
+
+    model.T = np.ones(model.n_s - 1)
+    with pytest.raises(ValueError, match="shape"):
+        model.is_marfe()
+
+
 @pytest.mark.parametrize(
     ("args", "message"),
     (

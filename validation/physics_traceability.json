@@ -895,7 +895,7 @@
     },
     {
       "component": "MARFE radiation-condensation density-limit contract",
-      "equation_contract": "MARFE claims must declare impurity radiation loss, temperature scan, condensation criterion, Greenwald comparison, power-balance inputs, impurity fraction, and detection thresholds for detached high-radiation states.",
+      "equation_contract": "MARFE claims must declare impurity radiation loss, temperature scan, condensation criterion, Greenwald comparison, power-balance inputs, impurity fraction, validated front-temperature state, and detection thresholds for detached high-radiation states.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Stangeby 2000 scrape-off-layer and divertor references",
@@ -921,7 +921,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/marfe.py"
       ],
-      "validity_domain": "Radiation-condensation and density-limit regression; not a facility-validated MARFE prediction model.",
+      "validity_domain": "Radiation-condensation and density-limit regression with fail-closed front-temperature state checks; not a facility-validated MARFE prediction model.",
       "external_validation_tracker_issue": 49
     },
     {

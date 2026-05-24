@@ -57,6 +57,17 @@ def _ordered_positive_array(name: str, values: np.ndarray) -> np.ndarray:
     return arr
 
 
+def _front_temperature_state(values: np.ndarray, expected_size: int) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.shape != (expected_size,):
+        raise ValueError(f"T state must have shape ({expected_size},)")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("T state values must be finite")
+    if np.any(arr <= 0.0):
+        raise ValueError("T state values must be positive")
+    return arr
+
+
 class RadiationCondensation:
     def __init__(self, impurity: str, ne_20: float, f_imp: float):
         self.impurity = impurity
@@ -152,6 +163,7 @@ class MARFEFrontModel:
 
         dt = _finite_scalar("dt", dt, positive=True)
         ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
+        self.T = _front_temperature_state(self.T, self.n_s)
         ne = ne_20 * 1e20
         n_imp = ne * self.f_imp
 
@@ -204,8 +216,9 @@ class MARFEFrontModel:
         MARFE criterion: localised cold spot with T_min < 20 eV and T_max > 50 eV.
         Lipschultz 1987, J. Nucl. Mater. 145-147, 15.
         """
-        min_T = np.min(self.T)
-        max_T = np.max(self.T)
+        T = _front_temperature_state(self.T, self.n_s)
+        min_T = np.min(T)
+        max_T = np.max(T)
         return bool(min_T < 20.0 and max_T > 50.0)
 
 
