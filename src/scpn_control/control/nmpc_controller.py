@@ -81,6 +81,7 @@ class NMPCConfig:
     du_max: np.ndarray = dataclasses.field(default_factory=lambda: np.array([5.0, 0.5, 2.0]))
 
     max_sqp_iter: int = 10
+    qp_max_iter: int = 500
     tol: float = 1e-4
 
 
@@ -110,6 +111,8 @@ class NonlinearMPC:
         self.x_traj = np.zeros((self.N + 1, self.nx))
 
         self.infeasibility_count = 0
+        self.last_qp_iterations = 0
+        self.last_qp_converged = False
 
     @staticmethod
     def _validate_config(config: NMPCConfig) -> None:
@@ -119,6 +122,10 @@ class NonlinearMPC:
             raise ValueError("max_sqp_iter must be an integer >= 1.")
         if config.max_sqp_iter < 1:
             raise ValueError("max_sqp_iter must be an integer >= 1.")
+        if isinstance(config.qp_max_iter, bool) or int(config.qp_max_iter) != config.qp_max_iter:
+            raise ValueError("qp_max_iter must be an integer >= 1.")
+        if config.qp_max_iter < 1:
+            raise ValueError("qp_max_iter must be an integer >= 1.")
         if not np.isfinite(float(config.tol)) or float(config.tol) <= 0.0:
             raise ValueError("tol must be positive finite.")
 
@@ -205,12 +212,15 @@ class NonlinearMPC:
             B_k.append(Bk)
 
         # PGD step size: α = 0.05 (empirically stable for ITER-scale dynamics)
-        max_iter = 500
+        max_iter = int(self.config.qp_max_iter)
         alpha = 0.05
 
         dU = np.zeros((self.N, self.nu))
 
-        for _iter in range(max_iter):
+        self.last_qp_iterations = 0
+        self.last_qp_converged = False
+
+        for iter_idx in range(1, max_iter + 1):
             dx = np.zeros((self.N + 1, self.nx))
             for k in range(self.N):
                 dx[k + 1] = A_k[k] @ dx[k] + B_k[k] @ dU[k]
@@ -239,9 +249,12 @@ class NonlinearMPC:
 
             if np.max(np.abs(dU_new - dU)) < self.config.tol:
                 dU[:] = dU_new
+                self.last_qp_iterations = iter_idx
+                self.last_qp_converged = True
                 break
 
             dU[:] = dU_new
+            self.last_qp_iterations = iter_idx
 
         return dU
 

@@ -266,6 +266,22 @@ def test_nmpc_step_converges_early():
     u_prev = cfg.u_min.copy()
     u = nmpc.step(x0, x_ref, u_prev)
     assert u.shape == (3,)
+    assert nmpc.last_qp_converged is True
+    assert nmpc.last_qp_iterations == 1
+
+
+def test_nmpc_reports_qp_iteration_budget_exhaustion() -> None:
+    """The QP inner loop must expose whether projection convergence was reached."""
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=1, qp_max_iter=1, tol=0.0 + 1e-30)
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0])
+    u_prev = cfg.u_min.copy()
+
+    nmpc.step(x0, x_ref, u_prev)
+
+    assert nmpc.last_qp_converged is False
+    assert nmpc.last_qp_iterations == cfg.qp_max_iter
 
 
 def test_nmpc_rejects_non_spd_state_weight() -> None:

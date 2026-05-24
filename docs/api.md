@@ -488,6 +488,11 @@ The previous input supplied to `step()` must already satisfy actuator bounds so
 the slew-rate projection cannot propagate an unsafe actuator state.
 The accepted `horizon=1` case is handled as a valid one-step receding-horizon
 controller and warm-starts from the bounded previous input.
+Each QP solve records `last_qp_iterations` and `last_qp_converged`, making
+projection-tolerance convergence distinguishable from iteration-budget
+exhaustion.
+The projected-gradient QP iteration budget is configured by `qp_max_iter`
+instead of being an unobservable hard-coded loop bound.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 
