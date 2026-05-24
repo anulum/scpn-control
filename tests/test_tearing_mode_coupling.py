@@ -110,7 +110,7 @@ def test_coupling_coefficient_bounded():
     For all realistic tokamaks ε = a/R₀ < 1, so C₁₂ < 0.5 < 1.
     """
     for a, R0 in [(2.0, 6.2), (0.67, 1.85), (1.0, 3.0), (0.5, 1.7)]:
-        c = CoupledTearingModes((3, 2), (2, 1), 0.5, 0.8, a, R0, 5.3)
+        c = CoupledTearingModes((3, 2), (2, 1), 0.25 * a, 0.4 * a, a, R0, 5.3)
         coeff = c.coupling_coefficient(3, 2, 2, 1)
         assert coeff < 1.0, f"Coupling must be < 1, got {coeff} for a={a}, R0={R0}"
         assert coeff > 0.0, "Coupling must be positive"
@@ -136,12 +136,14 @@ def test_chirikov_parametric(w1: float, w2: float, delta_r: float, expected_stoc
         assert is_s == expected_stochastic
 
 
-def test_chirikov_parameter_delta_r_zero_returns_inf():
-    assert ChirikovOverlap.parameter(0.1, 0.1, 0.0) == float("inf")
+def test_chirikov_parameter_delta_r_zero_rejected():
+    with pytest.raises(ValueError, match="delta_r"):
+        ChirikovOverlap.parameter(0.1, 0.1, 0.0)
 
 
-def test_chirikov_parameter_delta_r_negative_returns_inf():
-    assert ChirikovOverlap.parameter(0.05, 0.05, -0.3) == float("inf")
+def test_chirikov_parameter_delta_r_negative_rejected():
+    with pytest.raises(ValueError, match="delta_r"):
+        ChirikovOverlap.parameter(0.05, 0.05, -0.3)
 
 
 def test_stochastic_region_width_overlapping():
@@ -161,3 +163,78 @@ def test_disruption_trigger_no_disruption_path():
     path = ass.run_scenario(j_bs=1e3, j_phi=1e6, omega_phi=1e4, seed_energy=0.01)
     assert path.warning_time_ms == -1.0
     assert path.avoidable is True
+
+
+def test_chirikov_rejects_negative_island_width_and_sigma():
+    with pytest.raises(ValueError, match="w1"):
+        ChirikovOverlap.parameter(-0.1, 0.1, 0.2)
+
+    with pytest.raises(ValueError, match="sigma"):
+        ChirikovOverlap.is_stochastic(-1.0)
+
+
+def test_coupled_tearing_modes_reject_invalid_geometry():
+    with pytest.raises(ValueError, match="mode1"):
+        CoupledTearingModes((0, 2), (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)
+
+    with pytest.raises(ValueError, match="a must be smaller"):
+        CoupledTearingModes((3, 2), (2, 1), 0.5, 0.8, 2.0, 2.0, 5.3)
+
+    with pytest.raises(ValueError, match="inside"):
+        CoupledTearingModes((3, 2), (2, 1), 2.1, 0.8, 2.0, 6.2, 5.3)
+
+    with pytest.raises(ValueError, match="separated"):
+        CoupledTearingModes((3, 2), (2, 1), 0.5, 0.5, 2.0, 6.2, 5.3)
+
+
+def test_coupled_evolve_rejects_nonphysical_inputs():
+    c = CoupledTearingModes((3, 2), (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)
+
+    with pytest.raises(ValueError, match="w1_0"):
+        c.evolve(-1e-3, 1e-6, j_bs=1e5, j_phi=1e6, eta=1e-7, dt=0.01, n_steps=10)
+
+    with pytest.raises(ValueError, match="j_phi"):
+        c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=0.0, eta=1e-7, dt=0.01, n_steps=10)
+
+    with pytest.raises(ValueError, match="eta"):
+        c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=1e6, eta=0.0, dt=0.01, n_steps=10)
+
+    with pytest.raises(ValueError, match="n_steps"):
+        c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=1e6, eta=1e-7, dt=0.01, n_steps=0)
+
+    with pytest.raises(ValueError, match="seed_time"):
+        c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=1e6, eta=1e-7, dt=0.01, n_steps=10, seed_time=-0.5)
+
+
+def test_sawtooth_seeding_rejects_nonphysical_inputs():
+    st = SawtoothNTMSeeding(None)
+
+    with pytest.raises(ValueError, match="crash_energy_MJ"):
+        st.seed_amplitude(-1.0, r_s=0.5)
+
+    with pytest.raises(ValueError, match="r_s"):
+        st.seed_amplitude(1.0, r_s=0.0)
+
+    with pytest.raises(ValueError, match="threshold"):
+        st.seed_probability(1.0, threshold=-0.1)
+
+
+def test_disruption_assessment_rejects_nonphysical_inputs():
+    c = CoupledTearingModes((3, 2), (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)
+    ass = DisruptionTriggerAssessment(c)
+
+    with pytest.raises(ValueError, match="j_bs"):
+        ass.run_scenario(j_bs=-1.0, j_phi=1e6, omega_phi=1e4, seed_energy=1.0)
+
+    with pytest.raises(ValueError, match="omega_phi"):
+        ass.run_scenario(j_bs=1.0, j_phi=1e6, omega_phi=0.0, seed_energy=1.0)
+
+
+def test_stability_map_rejects_invalid_scan_axes():
+    smap = TearingModeStabilityMap()
+
+    with pytest.raises(ValueError, match="beta_N_range"):
+        smap.scan_beta_li(np.array([[1.0, 2.0]]), np.array([0.5, 1.0]))
+
+    with pytest.raises(ValueError, match="li_range"):
+        smap.scan_beta_li(np.array([1.0, 2.0]), np.array([0.5, np.nan]))

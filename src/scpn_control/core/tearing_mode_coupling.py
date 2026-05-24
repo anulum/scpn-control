@@ -34,6 +34,37 @@ _A1: float = 6.35
 _MU_0: float = 4.0 * np.pi * 1e-7  # H m⁻¹ (CODATA 2018)
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _mode_tuple(name: str, mode: tuple[int, int]) -> tuple[int, int]:
+    if len(mode) != 2:
+        raise ValueError(f"{name} must be an (m, n) tuple")
+    m, n = mode
+    if int(m) != m or int(n) != n or m <= 0 or n <= 0:
+        raise ValueError(f"{name} mode numbers must be positive integers")
+    return int(m), int(n)
+
+
+def _profile_axis(name: str, values: np.ndarray) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size == 0:
+        raise ValueError(f"{name} must be a one-dimensional non-empty scan axis")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative")
+    return arr
+
+
 @dataclass
 class CoupledResult:
     w1_trace: np.ndarray
@@ -55,13 +86,15 @@ class ChirikovOverlap:
     @staticmethod
     def parameter(w1: float, w2: float, delta_r: float) -> float:
         """Chirikov overlap parameter σ; Chirikov 1979, Eq. 3.1."""
-        if delta_r <= 0.0:
-            return float("inf")
+        w1 = _finite_scalar("w1", w1, nonnegative=True)
+        w2 = _finite_scalar("w2", w2, nonnegative=True)
+        delta_r = _finite_scalar("delta_r", delta_r, positive=True)
         return (w1 + w2) / (2.0 * delta_r)
 
     @staticmethod
     def is_stochastic(sigma: float) -> bool:
         """True when σ > 1 (Chirikov 1979, Eq. 3.1)."""
+        sigma = _finite_scalar("sigma", sigma, nonnegative=True)
         return sigma > 1.0
 
     @staticmethod
@@ -97,15 +130,21 @@ class CoupledTearingModes:
         R0: float,
         B0: float,
     ):
-        self.m1, self.n1 = mode1
-        self.m2, self.n2 = mode2
-        self.r_s1 = r_s1
-        self.r_s2 = r_s2
-        self.a = a
-        self.R0 = R0
-        self.B0 = B0
+        self.m1, self.n1 = _mode_tuple("mode1", mode1)
+        self.m2, self.n2 = _mode_tuple("mode2", mode2)
+        self.r_s1 = _finite_scalar("r_s1", r_s1, positive=True)
+        self.r_s2 = _finite_scalar("r_s2", r_s2, positive=True)
+        self.a = _finite_scalar("a", a, positive=True)
+        self.R0 = _finite_scalar("R0", R0, positive=True)
+        self.B0 = _finite_scalar("B0", B0, positive=True)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        if self.r_s1 >= self.a or self.r_s2 >= self.a:
+            raise ValueError("rational surfaces must lie inside the minor radius")
+        if self.r_s1 == self.r_s2:
+            raise ValueError("rational surfaces must be radially separated")
 
-        self.delta_r = abs(r_s1 - r_s2)
+        self.delta_r = abs(self.r_s1 - self.r_s2)
 
     def coupling_coefficient(self, m1: int, n1: int, m2: int, n2: int) -> float:  # noqa: ARG002
         """Cross-mode coupling coefficient C₁₂.
@@ -125,12 +164,14 @@ class CoupledTearingModes:
         Rutherford 1973, Phys. Fluids 16, 1903, §III.
         Nonlinear cross-modification: La Haye & Buttery 2009, §II.
         """
-        dp0 = -2.0 * self.m1 / max(self.r_s1, 1e-3)
+        w2 = _finite_scalar("w2", w2, nonnegative=True)
+        dp0 = -2.0 * self.m1 / self.r_s1
         return dp0 + 0.5 * w2 / self.a
 
     def delta_prime_2(self, w1: float, w2: float) -> float:
         """Effective Δ' for mode 2; same references as delta_prime_1."""
-        dp0 = -2.0 * self.m2 / max(self.r_s2, 1e-3)
+        w1 = _finite_scalar("w1", w1, nonnegative=True)
+        dp0 = -2.0 * self.m2 / self.r_s2
         return dp0 + 0.5 * w1 / self.a
 
     def evolve(
@@ -154,6 +195,19 @@ class CoupledTearingModes:
         Stochastic criterion: σ = (w1+w2)/(2Δr) > 1
             — Chirikov 1979, Phys. Rep. 52, 263, Eq. 3.1.
         """
+        w1_0 = _finite_scalar("w1_0", w1_0, nonnegative=True)
+        w2_0 = _finite_scalar("w2_0", w2_0, nonnegative=True)
+        j_bs = _finite_scalar("j_bs", j_bs, nonnegative=True)
+        j_phi = _finite_scalar("j_phi", j_phi, positive=True)
+        eta = _finite_scalar("eta", eta, positive=True)
+        dt = _finite_scalar("dt", dt, positive=True)
+        if int(n_steps) != n_steps or n_steps <= 0:
+            raise ValueError("n_steps must be a positive integer")
+        seed_time = _finite_scalar("seed_time", seed_time)
+        if seed_time < 0.0 and seed_time != -1.0:
+            raise ValueError("seed_time must be -1 or non-negative")
+        seed_amplitude = _finite_scalar("seed_amplitude", seed_amplitude, nonnegative=True)
+
         w1 = max(w1_0, 1e-6)
         w2 = max(w2_0, 1e-6)
 
@@ -169,7 +223,7 @@ class CoupledTearingModes:
         C12 = self.coupling_coefficient(self.m1, self.n1, self.m2, self.n2)
         C21 = self.coupling_coefficient(self.m2, self.n2, self.m1, self.n1)
 
-        j_ratio = j_bs / max(j_phi, 1e-6)
+        j_ratio = j_bs / j_phi
 
         # Small seed width w_d to regularise bootstrap term near w → 0.
         # La Haye 2006, Eq. 5 uses w_d ~ ion banana width; set to 1 mm here.
@@ -226,9 +280,13 @@ class SawtoothNTMSeeding:
         Scaling from Porcelli et al. 1996, Plasma Phys. Control. Fusion 38,
         2163, §4: w_seed ∝ √(δW) where δW is the sawtooth crash free energy.
         """
-        return 0.05 * math.sqrt(max(0.0, crash_energy_MJ))
+        crash_energy_MJ = _finite_scalar("crash_energy_MJ", crash_energy_MJ, nonnegative=True)
+        _finite_scalar("r_s", r_s, positive=True)
+        return 0.05 * math.sqrt(crash_energy_MJ)
 
     def seed_probability(self, crash_energy: float, threshold: float) -> float:
+        crash_energy = _finite_scalar("crash_energy", crash_energy, nonnegative=True)
+        threshold = _finite_scalar("threshold", threshold, nonnegative=True)
         if crash_energy < threshold:
             return 0.0
         prob = 1.0 - math.exp(-(crash_energy - threshold))
@@ -252,6 +310,10 @@ class DisruptionTriggerAssessment:
         omega_phi: float,
         seed_energy: float,  # noqa: ARG002
     ) -> DisruptionPath:
+        j_bs = _finite_scalar("j_bs", j_bs, nonnegative=True)
+        j_phi = _finite_scalar("j_phi", j_phi, positive=True)
+        _finite_scalar("omega_phi", omega_phi, positive=True)
+        seed_energy = _finite_scalar("seed_energy", seed_energy, nonnegative=True)
         st_seed = SawtoothNTMSeeding(None)
         amp = st_seed.seed_amplitude(seed_energy, self.coupled.r_s1)
 
@@ -281,6 +343,9 @@ class TearingModeStabilityMap:
         1999): combined beta–internal inductance drives NTM onset at high
         beta_N l_i product.
         """
+        beta_N_range = _profile_axis("beta_N_range", beta_N_range)
+        li_range = _profile_axis("li_range", li_range)
+
         res = np.zeros((len(beta_N_range), len(li_range)))
 
         for i, b in enumerate(beta_N_range):
