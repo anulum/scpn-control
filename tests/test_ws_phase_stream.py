@@ -1,22 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Ws Phase Stream
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — WebSocket Phase Stream Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """Regression tests for ws_phase_stream: handler, tick loop, serve."""
 
 from __future__ import annotations
 
 import asyncio
 import json
+import math
 import sys
 
 import pytest
@@ -58,6 +53,12 @@ class TestPhaseStreamServer:
         server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01)
         assert server.tick_interval_s == 0.01
 
+    @pytest.mark.parametrize("tick_interval_s", [0.0, -1.0, math.nan, math.inf])
+    def test_init_rejects_nonpositive_or_nonfinite_tick_interval(self, tick_interval_s):
+        mon = _make_monitor()
+        with pytest.raises(ValueError, match="tick_interval_s"):
+            PhaseStreamServer(monitor=mon, tick_interval_s=tick_interval_s)
+
     def test_handler_set_psi(self):
         async def _run():
             mon = _make_monitor()
@@ -69,6 +70,23 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf, "not-a-number"])
+    def test_handler_rejects_invalid_psi_commands_without_state_mutation(self, value):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            ws = _FakeWS(
+                [
+                    json.dumps({"action": "set_psi", "value": value}),
+                    json.dumps({"action": "stop"}),
+                ]
+            )
+            await server._handler(ws)
+            assert mon.psi_driver == pytest.approx(0.0)
+            assert server._running is False
+
+        asyncio.run(_run())
+
     def test_handler_set_pac_gamma(self):
         async def _run():
             mon = _make_monitor()
@@ -76,6 +94,23 @@ class TestPhaseStreamServer:
             ws = _FakeWS([json.dumps({"action": "set_pac_gamma", "value": 0.3})])
             await server._handler(ws)
             assert mon.pac_gamma == pytest.approx(0.3)
+
+        asyncio.run(_run())
+
+    @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf, "not-a-number"])
+    def test_handler_rejects_invalid_pac_gamma_commands_without_state_mutation(self, value):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            ws = _FakeWS(
+                [
+                    json.dumps({"action": "set_pac_gamma", "value": value}),
+                    json.dumps({"action": "stop"}),
+                ]
+            )
+            await server._handler(ws)
+            assert mon.pac_gamma == pytest.approx(0.0)
+            assert server._running is False
 
         asyncio.run(_run())
 

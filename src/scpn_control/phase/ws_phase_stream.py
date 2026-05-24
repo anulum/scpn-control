@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Ws Phase Stream
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — WebSocket Phase Sync Stream
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Async WebSocket server streaming RealtimeMonitor tick snapshots.
 
@@ -35,12 +27,24 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
 
 logger = logging.getLogger(__name__)
+
+
+def _finite_command_value(cmd: dict[str, Any]) -> float | None:
+    """Return a finite scalar command value, or ``None`` for invalid input."""
+    try:
+        value = float(cmd["value"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not math.isfinite(value):
+        return None
+    return value
 
 
 @dataclass
@@ -52,6 +56,10 @@ class PhaseStreamServer:
     _clients: set = field(default_factory=set, init=False, repr=False)
     _running: bool = field(default=False, init=False, repr=False)
 
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.tick_interval_s) or self.tick_interval_s <= 0.0:
+            raise ValueError("tick_interval_s must be finite and positive")
+
     async def _handler(self, websocket: Any) -> None:
         self._clients.add(websocket)
         logger.info("Client connected (%d total)", len(self._clients))
@@ -62,9 +70,13 @@ class PhaseStreamServer:
                 except json.JSONDecodeError:
                     continue
                 if cmd.get("action") == "set_psi":
-                    self.monitor.psi_driver = float(cmd["value"])
+                    value = _finite_command_value(cmd)
+                    if value is not None:
+                        self.monitor.psi_driver = value
                 elif cmd.get("action") == "set_pac_gamma":
-                    self.monitor.pac_gamma = float(cmd["value"])
+                    value = _finite_command_value(cmd)
+                    if value is not None:
+                        self.monitor.pac_gamma = value
                 elif cmd.get("action") == "reset":
                     self.monitor.reset(seed=cmd.get("seed", 42))
                 elif cmd.get("action") == "stop":
