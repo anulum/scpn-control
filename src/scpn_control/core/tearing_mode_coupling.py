@@ -49,10 +49,12 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
 
 
 def _mode_tuple(name: str, mode: tuple[int, int]) -> tuple[int, int]:
+    if not isinstance(mode, tuple):
+        raise ValueError(f"{name} must be an (m, n) tuple")
     if len(mode) != 2:
         raise ValueError(f"{name} must be an (m, n) tuple")
     m, n = mode
-    if int(m) != m or int(n) != n or m <= 0 or n <= 0:
+    if isinstance(m, bool) or isinstance(n, bool) or int(m) != m or int(n) != n or m <= 0 or n <= 0:
         raise ValueError(f"{name} mode numbers must be positive integers")
     return int(m), int(n)
 
@@ -65,6 +67,8 @@ def _profile_axis(name: str, values: np.ndarray) -> np.ndarray:
         raise ValueError(f"{name} must contain only finite values")
     if np.any(arr < 0.0):
         raise ValueError(f"{name} must be non-negative")
+    if arr.size > 1 and np.any(np.diff(arr) <= 0.0):
+        raise ValueError(f"{name} must be strictly increasing")
     return arr
 
 
@@ -206,7 +210,7 @@ class CoupledTearingModes:
         j_phi = _finite_scalar("j_phi", j_phi, positive=True)
         eta = _finite_scalar("eta", eta, positive=True)
         dt = _finite_scalar("dt", dt, positive=True)
-        if int(n_steps) != n_steps or n_steps <= 0:
+        if isinstance(n_steps, bool) or int(n_steps) != n_steps or n_steps <= 0:
             raise ValueError("n_steps must be a positive integer")
         seed_time = _finite_scalar("seed_time", seed_time)
         if seed_time < 0.0 and seed_time != -1.0:

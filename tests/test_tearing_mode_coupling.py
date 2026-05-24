@@ -128,6 +128,9 @@ def test_coupling_coefficient_rejects_invalid_public_mode_numbers():
     with pytest.raises(ValueError, match="mode2"):
         c.coupling_coefficient(3, 2, 2, 0)
 
+    with pytest.raises(ValueError, match="mode1"):
+        c.coupling_coefficient(True, 2, 2, 1)
+
 
 @pytest.mark.parametrize(
     "w1,w2,delta_r,expected_stochastic",
@@ -215,6 +218,9 @@ def test_coupled_evolve_rejects_nonphysical_inputs():
     with pytest.raises(ValueError, match="n_steps"):
         c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=1e6, eta=1e-7, dt=0.01, n_steps=0)
 
+    with pytest.raises(ValueError, match="n_steps"):
+        c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=1e6, eta=1e-7, dt=0.01, n_steps=True)
+
     with pytest.raises(ValueError, match="seed_time"):
         c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=1e6, eta=1e-7, dt=0.01, n_steps=10, seed_time=-0.5)
 
@@ -251,3 +257,9 @@ def test_stability_map_rejects_invalid_scan_axes():
 
     with pytest.raises(ValueError, match="li_range"):
         smap.scan_beta_li(np.array([1.0, 2.0]), np.array([0.5, np.nan]))
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        smap.scan_beta_li(np.array([2.0, 1.0]), np.array([0.5, 1.0]))
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        smap.scan_beta_li(np.array([1.0, 2.0]), np.array([1.0, 1.0]))
