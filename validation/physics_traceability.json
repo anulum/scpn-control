@@ -108,7 +108,7 @@
     },
     {
       "component": "Miller local-equilibrium geometry and field-pitch contract",
-      "equation_contract": "Geometry claims must declare Miller-shape coordinates, Jacobian, toroidal-field convention, safety-factor field-pitch relation, poloidal-field construction, b-dot-grad-theta metric, metric coefficients, and local-equilibrium validity bounds.",
+      "equation_contract": "Geometry claims must declare Miller-shape coordinates, derivative-resolved ballooning-angle grids, Jacobian, toroidal-field convention, safety-factor field-pitch relation, poloidal-field construction, b-dot-grad-theta metric, metric coefficients, and local-equilibrium validity bounds.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Miller et al. 1998 local equilibrium",

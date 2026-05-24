@@ -121,6 +121,8 @@ def miller_geometry(
     B0 = _finite_scalar("B0", B0, positive=True)
     n_theta = _positive_int("n_theta", n_theta)
     n_period = _positive_int("n_period", n_period)
+    if n_theta * n_period < 4:
+        raise ValueError("theta grid must contain at least four samples for metric and curvature derivatives")
 
     r = rho * a
     theta: NDArray[np.float64] = np.linspace(

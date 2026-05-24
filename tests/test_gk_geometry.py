@@ -150,6 +150,8 @@ def test_miller_geometry_rejects_nonphysical_local_equilibrium_domains() -> None
         miller_geometry(R0=2.78, a=1.0, rho=0.5, q=0.0)
     with pytest.raises(ValueError, match="n_theta"):
         miller_geometry(R0=2.78, a=1.0, rho=0.5, n_theta=True)
+    with pytest.raises(ValueError, match="theta grid"):
+        miller_geometry(R0=2.78, a=1.0, rho=0.5, n_theta=1, n_period=2)
     with pytest.raises(ValueError, match="major radius"):
         miller_geometry(R0=0.8, a=1.0, rho=1.0, dR_dr=-1.0)
 
