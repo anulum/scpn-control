@@ -23,6 +23,23 @@ import numpy as np
 from numpy.typing import NDArray
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    return scalar
+
+
+def _positive_int(name: str, value: int) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{name} must be a positive integer")
+    if value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
+
 @dataclass
 class MillerGeometry:
     """Flux-tube geometry on a ballooning-angle grid.
@@ -86,6 +103,25 @@ def miller_geometry(
     n_period : int
         Number of poloidal periods (ballooning copies).
     """
+    R0 = _finite_scalar("R0", R0, positive=True)
+    a = _finite_scalar("a", a, positive=True)
+    rho = _finite_scalar("rho", rho)
+    if not 0.0 < rho <= 1.0:
+        raise ValueError("rho must lie in (0, 1]")
+    kappa = _finite_scalar("kappa", kappa, positive=True)
+    delta = _finite_scalar("delta", delta)
+    if not -1.0 < delta < 1.0:
+        raise ValueError("delta must lie in (-1, 1)")
+    _finite_scalar("s_kappa", s_kappa)
+    _finite_scalar("s_delta", s_delta)
+    q = _finite_scalar("q", q, positive=True)
+    _finite_scalar("s_hat", s_hat)
+    _finite_scalar("alpha_MHD", alpha_MHD)
+    dR_dr = _finite_scalar("dR_dr", dR_dr)
+    B0 = _finite_scalar("B0", B0, positive=True)
+    n_theta = _positive_int("n_theta", n_theta)
+    n_period = _positive_int("n_period", n_period)
+
     r = rho * a
     theta: NDArray[np.float64] = np.linspace(
         -n_period * np.pi, n_period * np.pi, n_theta * n_period, endpoint=False
@@ -95,6 +131,8 @@ def miller_geometry(
     delta_angle = np.arcsin(delta)
     R_s = R0 + r * np.cos(theta + delta_angle * np.sin(theta)) + dR_dr * r
     Z_s = kappa * r * np.sin(theta)
+    if np.any(R_s <= 0.0):
+        raise ValueError("Miller surface major radius must remain positive")
 
     # Derivatives w.r.t. theta
     dR_dt = -r * np.sin(theta + delta_angle * np.sin(theta)) * (1 + delta_angle * np.cos(theta))

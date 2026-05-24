@@ -137,3 +137,52 @@ def test_miller_params_match_interface():
         n_period=1,
     )
     assert len(geom.theta) == 32
+
+
+def test_miller_geometry_rejects_nonphysical_local_equilibrium_domains() -> None:
+    with pytest.raises(ValueError, match="R0"):
+        miller_geometry(R0=float("nan"), a=1.0, rho=0.5)
+    with pytest.raises(ValueError, match="rho"):
+        miller_geometry(R0=2.78, a=1.0, rho=0.0)
+    with pytest.raises(ValueError, match="delta"):
+        miller_geometry(R0=2.78, a=1.0, rho=0.5, delta=1.0)
+    with pytest.raises(ValueError, match="q"):
+        miller_geometry(R0=2.78, a=1.0, rho=0.5, q=0.0)
+    with pytest.raises(ValueError, match="n_theta"):
+        miller_geometry(R0=2.78, a=1.0, rho=0.5, n_theta=True)
+    with pytest.raises(ValueError, match="major radius"):
+        miller_geometry(R0=0.8, a=1.0, rho=1.0, dR_dr=-1.0)
+
+
+def test_miller_geometry_returns_finite_positive_metric_contract() -> None:
+    geom = miller_geometry(
+        R0=6.2,
+        a=2.0,
+        rho=0.6,
+        kappa=1.7,
+        delta=0.33,
+        q=2.0,
+        s_hat=1.2,
+        dR_dr=-0.1,
+        B0=5.3,
+        n_theta=64,
+        n_period=1,
+    )
+
+    for values in (
+        geom.R,
+        geom.Z,
+        geom.B_mag,
+        geom.jacobian,
+        geom.g_rr,
+        geom.g_rt,
+        geom.g_tt,
+        geom.kappa_n,
+        geom.kappa_g,
+        geom.b_dot_grad_theta,
+    ):
+        assert np.all(np.isfinite(values))
+    assert np.all(geom.R > 0.0)
+    assert np.all(geom.B_mag > 0.0)
+    assert np.all(geom.g_rr > 0.0)
+    assert np.all(geom.g_tt > 0.0)
