@@ -50,10 +50,19 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
-def _finite_1d_array(name: str, values: np.ndarray, *, nonnegative: bool = False, positive: bool = False) -> np.ndarray:
+def _finite_1d_array(
+    name: str,
+    values: np.ndarray,
+    *,
+    nonnegative: bool = False,
+    positive: bool = False,
+    non_empty: bool = False,
+) -> np.ndarray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1:
         raise ValueError(f"{name} must be one-dimensional")
+    if non_empty and arr.size == 0:
+        raise ValueError(f"{name} must be non-empty")
     if not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} values must be finite")
     if positive and np.any(arr <= 0.0):
@@ -245,9 +254,11 @@ class SOLBlobProfile:
         Blob transport broadens the profile via an effective λ.
         D'Ippolito et al. 2011, Phys. Plasmas 18, 060501, Sec. IV.
         """
-        r = _finite_1d_array("r", r, nonnegative=True)
+        r = _finite_1d_array("r", r, nonnegative=True, non_empty=True)
         if r.size > 1 and np.any(np.diff(r) < 0.0):
             raise ValueError("r must be ordered from separatrix to wall")
+        if r.size > 1 and np.any(np.diff(r) == 0.0):
+            raise ValueError("r must be strictly ordered from separatrix to wall")
         lambda_n = _finite_scalar("lambda_n", lambda_n, positive=True)
         Gamma_blob = _finite_scalar("Gamma_blob", Gamma_blob, nonnegative=True)
         D_perp = _finite_scalar("D_perp", D_perp, nonnegative=True)

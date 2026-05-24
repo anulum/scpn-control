@@ -307,6 +307,8 @@ def test_sol_blob_profile_rejects_nonphysical_wall_flux_inputs(r_wall, gamma, la
 def test_sol_blob_profile_rejects_nonphysical_density_inputs() -> None:
     r = np.array([0.05])
 
+    with pytest.raises(ValueError, match="non-empty"):
+        SOLBlobProfile.radial_density(np.array([]), Gamma_blob=1e20, D_perp=1.0, lambda_n=0.02)
     with pytest.raises(ValueError, match="lambda_n"):
         SOLBlobProfile.radial_density(r, Gamma_blob=1e20, D_perp=1.0, lambda_n=0.0)
     with pytest.raises(ValueError, match="Gamma_blob"):
@@ -317,6 +319,8 @@ def test_sol_blob_profile_rejects_nonphysical_density_inputs() -> None:
         SOLBlobProfile.radial_density(r, Gamma_blob=1e20, D_perp=-1.0, lambda_n=0.02)
     with pytest.raises(ValueError, match="ordered"):
         SOLBlobProfile.radial_density(np.array([0.02, 0.01]), Gamma_blob=1e20, D_perp=1.0, lambda_n=0.02)
+    with pytest.raises(ValueError, match="strictly ordered"):
+        SOLBlobProfile.radial_density(np.array([0.0, 0.01, 0.01]), Gamma_blob=1e20, D_perp=1.0, lambda_n=0.02)
 
 
 def test_blob_ensemble_rejects_invalid_population_count_at_construction() -> None:
