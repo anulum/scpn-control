@@ -417,7 +417,8 @@ def validate_physics_traceability_command(
             f"{report['status']} "
             f"total={report['total']} "
             f"open_fidelity_gaps={report['open_fidelity_gaps']} "
-            f"public_claim_blocked={report['public_claim_blocked']}"
+            f"public_claim_blocked={report['public_claim_blocked']} "
+            f"external_validation_trackers={report['external_validation_tracker_count']}"
         )
         for error in report["errors"]:
             index = error.get("index", "-")

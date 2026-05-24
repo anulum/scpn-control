@@ -385,6 +385,7 @@ def test_validate_physics_traceability_text_and_output_file(runner, tmp_path):
 
     assert result.exit_code == 0
     assert "Physics traceability: pass" in result.output
+    assert "external_validation_trackers=8" in result.output
     report = json.loads(output_json.read_text(encoding="utf-8"))
     assert report["status"] == "pass"
 
