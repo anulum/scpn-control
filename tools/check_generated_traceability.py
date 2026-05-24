@@ -45,6 +45,9 @@ def main(argv: list[str] | None = None) -> int:
 
     registry = Path(args.registry)
     report_path = Path(args.report)
+    if not registry.exists():
+        print(f"{registry} is missing", file=sys.stderr)
+        return 1
     if not report_path.exists():
         print(f"{report_path} is missing", file=sys.stderr)
         return 1

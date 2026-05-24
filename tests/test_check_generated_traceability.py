@@ -51,3 +51,11 @@ def test_generated_traceability_cli_reports_missing_explicit_path(tmp_path: Path
 
     assert main(["--registry", str(registry), "--report", str(missing_report)]) == 1
     assert f"{missing_report} is missing" in capsys.readouterr().err
+
+
+def test_generated_traceability_cli_reports_missing_registry_path(tmp_path: Path, capsys) -> None:
+    missing_registry = tmp_path / "missing_physics_traceability.json"
+    report = ROOT / "docs" / "physics_traceability.md"
+
+    assert main(["--registry", str(missing_registry), "--report", str(report)]) == 1
+    assert f"{missing_registry} is missing" in capsys.readouterr().err
