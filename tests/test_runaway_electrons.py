@@ -1,10 +1,14 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# Contact: protoscience@anulum.li  ORCID: 0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Runaway Electron Tests
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.runaway_electrons import (
     RunawayEvolution,
@@ -156,7 +160,7 @@ def test_dreicer_rate_physical():
 
 
 def test_dreicer_field_values():
-    """Lines 70-73: dreicer_field computes E_D from Coulomb log and plasma params."""
+    """Dreicer field increases with density for fixed electron temperature."""
     from scpn_control.core.runaway_electrons import dreicer_field
 
     E_D = dreicer_field(ne_20=1.0, Te_keV=1.0)
@@ -166,7 +170,8 @@ def test_dreicer_field_values():
 
 
 def test_avalanche_F_nonpositive_guard():
-    """Line 162: F <= 0 guard returns 0 in avalanche_growth_rate.
+    """Non-positive scattering correction leaves the avalanche source bounded.
+
     F = 1 - 1/x + 4pi(Z+1)^2/(3(Z+1)x^2). For very large Z at marginal E/Ec,
     F can become non-positive."""
     E_c = critical_field(ne_20=1.0, Te_keV=1.0)
@@ -176,19 +181,19 @@ def test_avalanche_F_nonpositive_guard():
 
 
 def test_hot_tail_no_quench():
-    """Line 176: Te_post >= Te_pre returns 0 (no quench)."""
+    """No thermal quench leaves the hot-tail source off."""
     assert hot_tail_seed(Te_pre_keV=5.0, Te_post_keV=5.0, ne_20=1.0, quench_time_ms=1.0) == 0.0
     assert hot_tail_seed(Te_pre_keV=5.0, Te_post_keV=10.0, ne_20=1.0, quench_time_ms=1.0) == 0.0
 
 
 def test_hot_tail_large_quench_time():
-    """Line 185: v_c_v_te > 30 returns 0 (seed negligible for slow quenches)."""
+    """Slow quenches have negligible hot-tail seed density."""
     n = hot_tail_seed(Te_pre_keV=10.0, Te_post_keV=0.01, ne_20=1.0, quench_time_ms=1e12)
     assert n == 0.0
 
 
 def test_current_fraction_zero_ip():
-    """Lines 252-256: current_fraction returns 0 for I_p <= 0, else computes ratio."""
+    """Zero total plasma current gives zero runaway-current fraction."""
     params = RunawayParams(ne_20=1.0, Te_keV=0.01, E_par=5.0, Z_eff=1.5, B0=5.3, R0=6.2)
     ev = RunawayEvolution(params)
     assert ev.current_fraction(n_RE=1e15, I_p_MA=0.0) == 0.0
@@ -197,12 +202,39 @@ def test_current_fraction_zero_ip():
 
 
 def test_suppression_zero_epar():
-    """Line 273: required_density returns 0 for E_par <= 0."""
+    """No suppressing density is required for non-positive electric field."""
     assert RunawayMitigationAssessment.required_density_for_suppression(E_par=0.0, Z_eff=1.0) == 0.0
     assert RunawayMitigationAssessment.required_density_for_suppression(E_par=-1.0, Z_eff=1.0) == 0.0
 
 
-def test_wall_heat_load_zero_area():
-    """Line 307: A_wet <= 0 returns inf."""
-    load = RunawayMitigationAssessment.wall_heat_load(n_RE=1e16, E_max_MeV=25.0, A_wet=0.0)
-    assert load == float("inf")
+def test_runaway_electron_domains_reject_nonphysical_plasma_inputs():
+    with pytest.raises(ValueError, match="ne_20"):
+        coulomb_log(0.0, Te_keV=1.0)
+    with pytest.raises(ValueError, match="Te_keV"):
+        coulomb_log(1.0, Te_keV=0.0)
+    with pytest.raises(ValueError, match="Z_eff"):
+        dreicer_generation_rate(RunawayParams(ne_20=1.0, Te_keV=1.0, E_par=1.0, Z_eff=0.0, B0=5.3, R0=6.2))
+
+
+def test_hot_tail_rejects_invalid_quench_domains():
+    with pytest.raises(ValueError, match="quench_time_ms"):
+        hot_tail_seed(Te_pre_keV=10.0, Te_post_keV=0.01, ne_20=1.0, quench_time_ms=0.0)
+    with pytest.raises(ValueError, match="ne_20"):
+        hot_tail_seed(Te_pre_keV=10.0, Te_post_keV=0.01, ne_20=0.0, quench_time_ms=1.0)
+
+
+def test_runaway_evolution_rejects_invalid_time_domains():
+    params = RunawayParams(ne_20=1.0, Te_keV=0.01, E_par=0.0, Z_eff=1.5, B0=5.3, R0=6.2)
+    ev = RunawayEvolution(params)
+    with pytest.raises(ValueError, match="dt"):
+        ev.evolve(n_RE_0=1e10, E_par_profile=lambda _t: 5.0, t_span=(0.0, 0.1), dt=0.0)
+    with pytest.raises(ValueError, match="t_span"):
+        ev.evolve(n_RE_0=1e10, E_par_profile=lambda _t: 5.0, t_span=(0.1, 0.0), dt=0.01)
+
+
+def test_mitigation_rejects_invalid_geometry_and_heat_load_domains():
+    mit = RunawayMitigationAssessment()
+    with pytest.raises(ValueError, match="B0"):
+        mit.maximum_re_energy(B0=0.0, R0=6.2)
+    with pytest.raises(ValueError, match="A_wet"):
+        mit.wall_heat_load(n_RE=1e16, E_max_MeV=25.0, A_wet=0.0)

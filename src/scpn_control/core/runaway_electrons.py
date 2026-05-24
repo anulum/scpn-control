@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# Contact: protoscience@anulum.li  ORCID: 0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Runaway Electron Physics
 """Runaway-electron generation, avalanche, evolution, and mitigation-assessment utilities."""
 
 from __future__ import annotations
@@ -24,6 +27,41 @@ ALPHA_FINE = 7.2973525693e-3  # fine-structure constant — CODATA 2018
 M_E_C2_J = M_E * C_LIGHT**2
 # [MeV]
 M_E_C2_MeV = M_E_C2_J / (E_CHARGE * 1e6)  # 0.51100 MeV
+
+
+def _finite_float(name: str, value: float) -> float:
+    try:
+        scalar = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be finite") from exc
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    return scalar
+
+
+def _positive_float(name: str, value: float) -> float:
+    scalar = _finite_float(name, value)
+    if scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    return scalar
+
+
+def _nonnegative_float(name: str, value: float) -> float:
+    scalar = _finite_float(name, value)
+    if scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _validate_params(params: "RunawayParams") -> "RunawayParams":
+    params.ne_20 = _positive_float("ne_20", params.ne_20)
+    params.Te_keV = _positive_float("Te_keV", params.Te_keV)
+    params.E_par = _finite_float("E_par", params.E_par)
+    params.Z_eff = _positive_float("Z_eff", params.Z_eff)
+    params.B0 = _positive_float("B0", params.B0)
+    params.R0 = _positive_float("R0", params.R0)
+    params.a = _positive_float("a", params.a)
+    return params
 
 
 @dataclass
@@ -51,6 +89,8 @@ def coulomb_log(ne_20: float, Te_keV: float) -> float:
 
     Wesson 2011, Tokamaks 4th ed., Eq. 2.12.4.
     """
+    ne_20 = _positive_float("ne_20", ne_20)
+    Te_keV = _positive_float("Te_keV", Te_keV)
     Te_eV = Te_keV * 1e3
     # Clamp to the regime where the formula is valid (T_e > 10 eV)
     Te_eV = max(Te_eV, 10.0)
@@ -69,6 +109,8 @@ def dreicer_field(ne_20: float, Te_keV: float) -> float:
 
     Connor & Hastie, Nucl. Fusion 15, 415 (1975).
     """
+    ne_20 = _positive_float("ne_20", ne_20)
+    Te_keV = _positive_float("Te_keV", Te_keV)
     ln_lambda = coulomb_log(ne_20, Te_keV)
     n_e = ne_20 * 1e20
     Te_J = Te_keV * 1e3 * E_CHARGE
@@ -81,6 +123,8 @@ def critical_field(ne_20: float, Te_keV: float = 1.0) -> float:
     Rosenbluth & Putvinski, Nucl. Fusion 37, 1355 (1997).
     Note: E_D / E_c = m_e c² / T_e ≈ 51 at T_e = 10 keV.
     """
+    ne_20 = _positive_float("ne_20", ne_20)
+    Te_keV = _positive_float("Te_keV", Te_keV)
     ln_lambda = coulomb_log(ne_20, Te_keV)
     n_e = ne_20 * 1e20
     return float(n_e * E_CHARGE**3 * ln_lambda / (4.0 * np.pi * EPS_0**2 * M_E * C_LIGHT**2))
@@ -98,7 +142,8 @@ def dreicer_generation_rate(params: RunawayParams) -> float:
     Smith et al., Phys. Plasmas 15, 072502 (2008) — hot-tail context uses
     same Dreicer base rate.
     """
-    if params.E_par <= 0.0 or params.Te_keV <= 0.0 or params.ne_20 <= 0.0:
+    params = _validate_params(params)
+    if params.E_par <= 0.0:
         return 0.0
 
     ln_lambda = coulomb_log(params.ne_20, params.Te_keV)
@@ -141,6 +186,8 @@ def avalanche_growth_rate(params: RunawayParams, n_RE: float) -> float:
 
     Rosenbluth & Putvinski, Nucl. Fusion 37, 1355 (1997), Eq. 15.
     """
+    params = _validate_params(params)
+    n_RE = _nonnegative_float("n_RE", n_RE)
     if n_RE <= 0.0 or params.E_par <= 0.0:
         return 0.0
 
@@ -174,7 +221,11 @@ def hot_tail_seed(Te_pre_keV: float, Te_post_keV: float, ne_20: float, quench_ti
     Parametric fit to Smith (2008) Fig. 3: v_c/v_te scales as τ_q^0.2
     at the V_C_V_TE_REF = 4.0 reference (τ_q = 1 ms).
     """
-    if Te_post_keV >= Te_pre_keV or Te_post_keV <= 0:
+    Te_pre_keV = _positive_float("Te_pre_keV", Te_pre_keV)
+    Te_post_keV = _positive_float("Te_post_keV", Te_post_keV)
+    ne_20 = _positive_float("ne_20", ne_20)
+    quench_time_ms = _positive_float("quench_time_ms", quench_time_ms)
+    if Te_post_keV >= Te_pre_keV:
         return 0.0
 
     ratio = Te_pre_keV / Te_post_keV
@@ -203,7 +254,9 @@ def synchrotron_energy_limit(E_par: float, E_c: float) -> float:
     Martin-Solis et al., Phys. Plasmas 13, 062509 (2006), Eq. 12.
     α_f = 7.297e-3 is the fine-structure constant (CODATA 2018).
     """
-    if E_c <= 0.0 or E_par <= E_c:
+    E_par = _finite_float("E_par", E_par)
+    E_c = _positive_float("E_c", E_c)
+    if E_par <= E_c:
         return 0.0
 
     E_ratio = E_par / E_c
@@ -220,10 +273,12 @@ def synchrotron_energy_limit(E_par: float, E_c: float) -> float:
 
 class RunawayEvolution:
     def __init__(self, params: RunawayParams) -> None:
-        self.params = params
+        self.params = _validate_params(params)
 
     def step(self, dt: float, n_RE: float, E_par: float) -> float:
-        self.params.E_par = E_par
+        dt = _positive_float("dt", dt)
+        n_RE = _nonnegative_float("n_RE", n_RE)
+        self.params.E_par = _finite_float("E_par", E_par)
 
         rate_D = dreicer_generation_rate(self.params)
         rate_A = avalanche_growth_rate(self.params, n_RE)
@@ -237,7 +292,13 @@ class RunawayEvolution:
         t_span: tuple[float, float],
         dt: float,
     ) -> tuple[np.ndarray, np.ndarray]:
+        dt = _positive_float("dt", dt)
+        n_RE_0 = _nonnegative_float("n_RE_0", n_RE_0)
         t_start, t_end = t_span
+        t_start = _finite_float("t_span start", t_start)
+        t_end = _finite_float("t_span end", t_end)
+        if t_end <= t_start:
+            raise ValueError("t_span end must be greater than start")
         n_steps = int(np.ceil((t_end - t_start) / dt))
 
         t_arr = np.linspace(t_start, t_end, n_steps + 1)
@@ -251,6 +312,8 @@ class RunawayEvolution:
 
     def current_fraction(self, n_RE: float, I_p_MA: float) -> float:
         """Fraction of total plasma current carried by REs (v ≈ c)."""
+        n_RE = _nonnegative_float("n_RE", n_RE)
+        I_p_MA = _finite_float("I_p_MA", I_p_MA)
         if I_p_MA <= 0.0:
             return 0.0
         j_RE = E_CHARGE * n_RE * C_LIGHT
@@ -271,6 +334,9 @@ class RunawayMitigationAssessment:
         Derived by inverting critical_field: n_e = E_par (4π ε₀² m_e c²) / (e³ ln Λ).
         Uses the temperature-dependent Coulomb log (Wesson 2011, Eq. 2.12.4).
         """
+        E_par = _finite_float("E_par", E_par)
+        Z_eff = _positive_float("Z_eff", Z_eff)
+        Te_keV = _positive_float("Te_keV", Te_keV)
         if E_par <= 0.0:
             return 0.0
 
@@ -290,6 +356,11 @@ class RunawayMitigationAssessment:
         Defaults represent a disruption scenario: E_par=10 V/m, post-TQ
         ne_20=10, Te_keV=1.
         """
+        B0 = _positive_float("B0", B0)
+        R0 = _positive_float("R0", R0)
+        E_par = _finite_float("E_par", E_par)
+        ne_20 = _positive_float("ne_20", ne_20)
+        Te_keV = _positive_float("Te_keV", Te_keV)
         E_c = critical_field(ne_20, Te_keV)
         E_max = synchrotron_energy_limit(E_par, E_c)
         # Orbit-loss upper bound: e B0 R0 c (Wesson 2011, Ch. 14)
@@ -302,10 +373,11 @@ class RunawayMitigationAssessment:
 
         Assumes mean RE energy ≈ E_max / 2 (flat distribution upper bound).
         """
+        n_RE = _nonnegative_float("n_RE", n_RE)
+        E_max_MeV = _nonnegative_float("E_max_MeV", E_max_MeV)
+        A_wet = _positive_float("A_wet", A_wet)
+        volume = _positive_float("volume", volume)
         E_avg_J = (E_max_MeV / 2.0) * 1e6 * E_CHARGE
         W_total_J = n_RE * volume * E_avg_J
-
-        if A_wet <= 0.0:
-            return float("inf")
 
         return float((W_total_J / 1e6) / A_wet)
