@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Ntm Dynamics
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — NTM Dynamics Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
@@ -247,6 +243,8 @@ def test_eccd_stabilization_factor_edge():
     assert eccd_stabilization_factor(0.0, 0.05) == 0.0
     assert eccd_stabilization_factor(-0.1, 0.05) == 0.0
     assert eccd_stabilization_factor(0.05, -0.1) == 0.0
+    with pytest.raises(ValueError, match="finite"):
+        eccd_stabilization_factor(float("nan"), 0.05)
 
 
 def test_find_rational_surfaces_equal_q():
@@ -360,6 +358,8 @@ def test_find_rational_surfaces_rejects_nonphysical_inputs() -> None:
         find_rational_surfaces(q[:-1], rho, a=1.0)
     with pytest.raises(ValueError, match="q values"):
         find_rational_surfaces(np.zeros(5), rho, a=1.0)
+    with pytest.raises(ValueError, match="finite"):
+        find_rational_surfaces(np.array([1.0, np.nan, 2.0, 2.5, 3.0]), rho, a=1.0)
     with pytest.raises(ValueError, match="strictly increasing"):
         find_rational_surfaces(q, rho[::-1], a=1.0)
     with pytest.raises(ValueError, match="a must be positive"):
@@ -371,8 +371,10 @@ def test_find_rational_surfaces_rejects_nonphysical_inputs() -> None:
 def test_ggj_delta_prime_rejects_nonphysical_geometry() -> None:
     with pytest.raises(ValueError, match="m"):
         _ggj_delta_prime(0, 0.5, 1.0, -5e4, 0.3, 2.0, 3.0)
-    with pytest.raises(ValueError, match="r_s, q, and R0"):
+    with pytest.raises(ValueError, match="r_s"):
         _ggj_delta_prime(2, 0.0, 1.0, -5e4, 0.3, 2.0, 3.0)
+    with pytest.raises(ValueError, match="finite"):
+        _ggj_delta_prime(2, 0.5, float("nan"), -5e4, 0.3, 2.0, 3.0)
 
 
 def test_bootstrap_from_local_rejects_nonphysical_state() -> None:
@@ -391,15 +393,32 @@ def test_bootstrap_from_local_rejects_nonphysical_state() -> None:
             dTe_dr=-1.0,
             dTi_dr=-1.0,
         )
+    with pytest.raises(ValueError, match="z_eff"):
+        bootstrap_from_local(
+            ne_19=8.0,
+            Te_keV=5.0,
+            Ti_keV=5.0,
+            q=2.0,
+            rho=0.5,
+            R0=6.2,
+            a=2.0,
+            B0=5.3,
+            z_eff=float("nan"),
+            dne_dr=-1.0,
+            dTe_dr=-1.0,
+            dTi_dr=-1.0,
+        )
 
 
 def test_ntm_island_dynamics_rejects_nonphysical_constructor_inputs() -> None:
-    with pytest.raises(ValueError, match="r_s, a, R0, and B0"):
+    with pytest.raises(ValueError, match="r_s"):
         NTMIslandDynamics(r_s=0.0, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
     with pytest.raises(ValueError, match="m and n"):
         NTMIslandDynamics(r_s=0.5, m=0, n=1, a=1.0, R0=3.0, B0=2.0)
     with pytest.raises(ValueError, match="q_s"):
         NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0, q_s=0.0)
+    with pytest.raises(ValueError, match="Delta_prime_0"):
+        NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0, Delta_prime_0=float("nan"))
 
 
 def test_ntm_dw_dt_rejects_nonphysical_inputs() -> None:
@@ -413,6 +432,10 @@ def test_ntm_dw_dt_rejects_nonphysical_inputs() -> None:
         ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7, w_d=-1.0)
     with pytest.raises(ValueError, match="rho_theta_i"):
         ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7, rho_theta_i=-1.0)
+    with pytest.raises(ValueError, match="supplied together"):
+        ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7, rho_theta_i=1e-3)
+    with pytest.raises(ValueError, match="finite"):
+        ntm.dw_dt(float("nan"), j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7)
 
 
 def test_ntm_evolve_rejects_nonphysical_time_inputs() -> None:
@@ -424,6 +447,8 @@ def test_ntm_evolve_rejects_nonphysical_time_inputs() -> None:
         ntm.evolve(0.01, (0.0, 1.0), 0.0, j_bs=0.0, j_phi=1e6, j_cd=0.0, eta=1e-7)
     with pytest.raises(ValueError, match="w0"):
         ntm.evolve(0.0, (0.0, 1.0), 0.01, j_bs=0.0, j_phi=1e6, j_cd=0.0, eta=1e-7)
+    with pytest.raises(ValueError, match="t_end"):
+        ntm.evolve(0.01, (0.0, float("nan")), 0.01, j_bs=0.0, j_phi=1e6, j_cd=0.0, eta=1e-7)
 
 
 def test_ntm_controller_rejects_nonphysical_inputs() -> None:
@@ -437,3 +462,5 @@ def test_ntm_controller_rejects_nonphysical_inputs() -> None:
         ctrl.step(w=0.01, rho_rs=1.5)
     with pytest.raises(ValueError, match="max_power"):
         ctrl.step(w=0.01, rho_rs=0.5, max_power=-1.0)
+    with pytest.raises(ValueError, match="finite"):
+        ctrl.step(w=float("nan"), rho_rs=0.5)
