@@ -1,22 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Controller Logpath Passthrough
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Controller log_path + passthrough feature dict tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """Regression tests for _build_feature_dict passthrough loop (lines 542-545),
 triggered only when log_path is not None."""
 
 from __future__ import annotations
 
 import json
+
+import pytest
 
 from scpn_control.scpn.artifact import load_artifact, save_artifact
 from scpn_control.scpn.compiler import FusionCompiler
@@ -72,7 +68,7 @@ class TestLogPathPassthrough:
         )
         log_file = tmp_path / "log.jsonl"
         obs = {"R_axis_m": 6.2, "Z_axis_m": 0.0, "extra_sensor": 0.5}
-        actions = ctrl.step(obs, k=0, log_path=str(log_file))
+        actions = ctrl.step(obs, k=0, log_path=str(log_file), log_root=tmp_path)
         assert isinstance(actions, dict)
         assert "dI_PF3_A" in actions
         assert log_file.exists()
@@ -115,10 +111,31 @@ class TestLogPathPassthrough:
         log_file = tmp_path / "log_multi.jsonl"
         obs = {"R_axis_m": 6.25, "Z_axis_m": 0.01, "extra_sensor": 0.3}
         for k in range(3):
-            ctrl.step(obs, k=k, log_path=str(log_file))
+            ctrl.step(obs, k=k, log_path=str(log_file), log_root=tmp_path)
         with open(log_file) as f:
             lines = f.readlines()
         assert len(lines) == 3
         for line in lines:
             entry = json.loads(line)
             assert "features" in entry
+
+    def test_log_path_rejects_parent_traversal(self, tmp_path, petri_net_std):
+        art_path = _artifact_with_passthrough(tmp_path, petri_net_std)
+        art = load_artifact(art_path)
+        ctrl = NeuroSymbolicController(
+            artifact=art,
+            seed_base=42,
+            targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+            scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+            sc_n_passes=1,
+            runtime_backend="numpy",
+        )
+        obs = {"R_axis_m": 6.2, "Z_axis_m": 0.0, "extra_sensor": 0.5}
+        escape = tmp_path / ".." / "escape.jsonl"
+
+        try:
+            with pytest.raises(ValueError, match="log_path"):
+                ctrl.step(obs, k=0, log_path=str(escape), log_root=tmp_path)
+            assert not escape.resolve().exists()
+        finally:
+            escape.resolve().unlink(missing_ok=True)

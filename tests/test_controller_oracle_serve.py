@@ -117,7 +117,7 @@ class TestStepTraceableOracle:
         )
         log = tmp_path / "trace.jsonl"
         for k in range(5):
-            ctrl.step_traceable((6.2 + k * 0.01, 0.0), k=k, log_path=str(log))
+            ctrl.step_traceable((6.2 + k * 0.01, 0.0), k=k, log_path=str(log), log_root=tmp_path)
         assert log.exists()
         lines = log.read_text(encoding="utf-8").strip().splitlines()
         assert len(lines) == 5

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
 from typing import Callable, Mapping, Sequence, cast
 
 import numpy as np
@@ -56,6 +57,29 @@ try:
     _HAS_RUST_SCPN_RUNTIME = True  # pragma: no cover
 except ImportError:
     _HAS_RUST_SCPN_RUNTIME = False
+
+
+def _resolve_jsonl_log_path(log_path: str, log_root: str | Path | None) -> Path:
+    """Resolve a controller JSONL log path under an explicit writable root."""
+    if log_root is None:
+        raise ValueError("log_root is required when log_path is provided.")
+    root = Path(log_root).expanduser().resolve(strict=False)
+    if not root.exists() or not root.is_dir():
+        raise ValueError("log_root must reference an existing directory.")
+
+    candidate = Path(log_path).expanduser()
+    if not candidate.is_absolute():
+        candidate = root / candidate
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("log_path must resolve under log_root.") from exc
+    if resolved.suffix != ".jsonl":
+        raise ValueError("log_path must use a .jsonl suffix.")
+    if resolved.exists() and not resolved.is_file():
+        raise ValueError("log_path must reference a regular file.")
+    return resolved
 
 
 class NeuroSymbolicController:
@@ -334,6 +358,7 @@ class NeuroSymbolicController:
         obs: Mapping[str, float],
         k: int,
         log_path: str | None = None,
+        log_root: str | Path | None = None,
     ) -> ControlAction:
         """Execute one control tick.
 
@@ -382,6 +407,7 @@ class NeuroSymbolicController:
 
         # 6. Optional JSONL logging
         if log_path is not None:
+            safe_log_path = _resolve_jsonl_log_path(log_path, log_root)
             rec = {
                 "k": int(k),
                 "obs": dict(obs),
@@ -392,7 +418,7 @@ class NeuroSymbolicController:
                 "actions": actions_dict,
                 "timing_ms": (t1 - t0) * 1000.0,
             }
-            with open(log_path, "a", encoding="utf-8") as fh:
+            with safe_log_path.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(rec) + "\n")
 
         # Build result from all decoded actions
@@ -403,6 +429,7 @@ class NeuroSymbolicController:
         obs_vector: Sequence[float],
         k: int,
         log_path: str | None = None,
+        log_root: str | Path | None = None,
     ) -> FloatArray:
         """Execute one control tick from a fixed-order observation vector.
 
@@ -437,6 +464,7 @@ class NeuroSymbolicController:
 
         t1 = time.perf_counter()
         if log_path is not None:
+            safe_log_path = _resolve_jsonl_log_path(log_path, log_root)
             obs_payload = {key: float(value) for key, value in zip(self._axis_obs_keys, obs_vector)}
             rec = {
                 "k": int(k),
@@ -448,7 +476,7 @@ class NeuroSymbolicController:
                 "actions": {name: float(actions_vec[i]) for i, name in enumerate(self._action_names)},
                 "timing_ms": (t1 - t0) * 1000.0,
             }
-            with open(log_path, "a", encoding="utf-8") as fh:
+            with safe_log_path.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(rec) + "\n")
 
         return actions_vec

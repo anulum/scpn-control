@@ -213,6 +213,10 @@ fails closed before calling the dynamic loader.
 `allow_fault_injection=True` is supplied explicitly. Bit-flip mutation is a
 fault-injection test mode, not a production control default.
 
+Controller JSONL logging requires an explicit `log_root` whenever `log_path` is
+provided. Relative and absolute log paths must resolve under that root and use a
+`.jsonl` suffix before any file is opened.
+
 ::: scpn_control.scpn.controller.NeuroSymbolicController
 
 ### Contracts

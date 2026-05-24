@@ -956,8 +956,9 @@ class TestIntegration:
         os.close(fd)
         try:
             obs: ControlObservation = {"R_axis_m": 6.3, "Z_axis_m": 0.05}
-            controller.step(obs, 0, log_path=log_path)
-            controller.step(obs, 1, log_path=log_path)
+            log_root = Path(log_path).parent
+            controller.step(obs, 0, log_path=log_path, log_root=log_root)
+            controller.step(obs, 1, log_path=log_path, log_root=log_root)
 
             with open(log_path, "r") as f:
                 lines = f.readlines()
