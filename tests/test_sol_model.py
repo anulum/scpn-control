@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
-# Contact: protoscience@anulum.li
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — SOL Model Tests
 from __future__ import annotations
 
 import numpy as np
@@ -123,6 +125,11 @@ def test_peak_heat_flux_zero_lambda():
         peak_target_heat_flux(P_SOL_MW=100.0, R0=6.2, lambda_q_m=0.0)
 
 
+def test_peak_heat_flux_rejects_nonphysical_incidence_angle():
+    with pytest.raises(ValueError, match="alpha_deg"):
+        peak_target_heat_flux(P_SOL_MW=100.0, R0=6.2, lambda_q_m=0.001, alpha_deg=120.0)
+
+
 def test_detachment_threshold_density_rollover():
     """Higher upstream density drives the sheath target below 5 eV."""
     assert detachment_threshold(n_u_19=20.0, P_SOL_MW=100.0, L_par=50.0) is True
@@ -152,6 +159,8 @@ def test_eich_width_invalid_inputs():
         eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.0, epsilon=0.32)
     with pytest.raises(ValueError, match="epsilon"):
         eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.56, epsilon=float("inf"))
+    with pytest.raises(ValueError, match="epsilon"):
+        eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.56, epsilon=1.0)
 
 
 def test_two_point_sol_rejects_nonphysical_geometry_and_solve_inputs():

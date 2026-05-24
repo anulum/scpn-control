@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
-# Contact: protoscience@anulum.li
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — SOL Two-Point Physics
 """Two-point scrape-off-layer model and divertor heat-flux utilities."""
 
 from __future__ import annotations
@@ -56,6 +58,8 @@ def eich_heat_flux_width(P_SOL_MW: float, R0: float, B_pol: float, epsilon: floa
     R0 = _finite_scalar("R0", R0, positive=True)
     B_pol = _finite_scalar("B_pol", B_pol, positive=True)
     epsilon = _finite_scalar("epsilon", epsilon, positive=True)
+    if epsilon >= 1.0:
+        raise ValueError("epsilon must be less than 1 for tokamak ordering")
     return float(1.35 * (P_SOL_MW**-0.02) * (R0**0.04) * (B_pol**-0.92) * (epsilon**0.42))
 
 
@@ -74,6 +78,8 @@ def peak_target_heat_flux(
     lambda_q_m = _finite_scalar("lambda_q_m", lambda_q_m, positive=True)
     f_expansion = _finite_scalar("f_expansion", f_expansion, positive=True)
     alpha_deg = _finite_scalar("alpha_deg", alpha_deg, nonnegative=True)
+    if alpha_deg > 90.0:
+        raise ValueError("alpha_deg must be within [0, 90]")
     alpha_rad = np.radians(alpha_deg)
     q_peak = P_SOL_MW / (4.0 * np.pi * R0 * lambda_q_m * f_expansion) * np.sin(alpha_rad)
     return float(q_peak)
