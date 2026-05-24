@@ -41,6 +41,7 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     assert report["public_claim_blocked"] >= 5
     assert report["resolved_module_paths"] == report["total"]
     assert report["resolved_evidence_paths"] >= report["total"]
+    assert report["external_validation_tracker_count"] == 8
     assert report["source_marker_coverage"]["total"] >= 30
     assert report["source_marker_coverage"]["covered"] == report["source_marker_coverage"]["total"]
     assert report["source_marker_coverage"]["missing"] == []

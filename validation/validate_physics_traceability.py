@@ -59,6 +59,7 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
         "resolved_module_paths": 0,
         "resolved_evidence_paths": 0,
         "external_validation_trackers": [],
+        "external_validation_tracker_count": 0,
         "entries": [],
         "errors": [],
     }
@@ -82,6 +83,7 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
     if payload.get("schema_version") != "1.0":
         errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
     report["external_validation_trackers"] = _validate_external_validation_trackers(path, payload, errors)
+    report["external_validation_tracker_count"] = len(report["external_validation_trackers"])
     entries = payload.get("entries")
     if not isinstance(entries, list) or not entries:
         errors.append({"path": str(path), "field": "entries", "error": "entries must be a non-empty array"})

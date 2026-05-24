@@ -50,6 +50,7 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
         f"- Full-fidelity public claims blocked: {report['public_claim_blocked']}",
         f"- Resolved module paths: {report['resolved_module_paths']}",
         f"- Resolved evidence paths: {report['resolved_evidence_paths']}",
+        f"- External validation trackers: {report['external_validation_tracker_count']}",
         f"- Source marker coverage: {_source_marker_coverage(report)}",
         "",
     ]

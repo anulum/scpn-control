@@ -24,6 +24,7 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "# Physics Traceability and Bounded Claims" in markdown
     assert "Open fidelity gaps: 49" in markdown
     assert "Full-fidelity public claims blocked: 49" in markdown
+    assert "External validation trackers: 8" in markdown
     coverage_match = re.search(r"Source marker coverage: (\d+)/(\d+)", markdown)
     assert coverage_match is not None
     covered = int(coverage_match.group(1))
