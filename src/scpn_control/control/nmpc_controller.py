@@ -131,8 +131,8 @@ class NonlinearMPC:
     ) -> float:
         """Return a safe projected-gradient step from condensed QP curvature."""
         n_dec = self.N * self.nu
-        state_sensitivity = np.zeros((self.nx, n_dec))
-        H = np.zeros((n_dec, n_dec), dtype=np.float64)
+        state_sensitivity: np.ndarray = np.zeros((self.nx, n_dec))
+        H: np.ndarray = np.zeros((n_dec, n_dec), dtype=np.float64)
 
         for k in range(self.N):
             H += 2.0 * state_sensitivity.T @ self.config.Q @ state_sensitivity
@@ -302,7 +302,7 @@ class NonlinearMPC:
         x_ref: np.ndarray,
     ) -> tuple[float, np.ndarray]:
         dU = np.asarray(dU_flat, dtype=np.float64).reshape(self.N, self.nu)
-        dx = np.zeros((self.N + 1, self.nx))
+        dx: np.ndarray = np.zeros((self.N + 1, self.nx))
         for k in range(self.N):
             dx[k + 1] = A_k[k] @ dx[k] + B_k[k] @ dU[k]
 
@@ -314,9 +314,9 @@ class NonlinearMPC:
         x_err_N = (self.x_traj[self.N] + dx[self.N]) - x_ref
         value += float(x_err_N @ P_term @ x_err_N)
 
-        adj = np.zeros((self.N + 1, self.nx))
+        adj: np.ndarray = np.zeros((self.N + 1, self.nx))
         adj[self.N] = 2.0 * P_term @ x_err_N
-        grad_dU = np.zeros((self.N, self.nu))
+        grad_dU: np.ndarray = np.zeros((self.N, self.nu))
         for k in range(self.N - 1, -1, -1):
             x_err_k = (self.x_traj[k] + dx[k]) - x_ref
             adj[k] = A_k[k].T @ adj[k + 1] + 2.0 * self.config.Q @ x_err_k
@@ -325,7 +325,7 @@ class NonlinearMPC:
 
     def _terminal_state_sensitivity(self, A_k: list[np.ndarray], B_k: list[np.ndarray]) -> np.ndarray:
         """Linear map from condensed control increments to terminal state."""
-        sensitivity = np.zeros((self.nx, self.N * self.nu), dtype=np.float64)
+        sensitivity: np.ndarray = np.zeros((self.nx, self.N * self.nu), dtype=np.float64)
         for k in range(self.N):
             sensitivity = A_k[k] @ sensitivity
             block = slice(k * self.nu, (k + 1) * self.nu)
@@ -341,9 +341,9 @@ class NonlinearMPC:
     ) -> tuple[np.ndarray, np.ndarray]:
         """Return Hessian and linear term for the condensed QP objective."""
         n_dec = self.N * self.nu
-        H = np.zeros((n_dec, n_dec), dtype=np.float64)
-        q = np.zeros(n_dec, dtype=np.float64)
-        sensitivity = np.zeros((self.nx, n_dec), dtype=np.float64)
+        H: np.ndarray = np.zeros((n_dec, n_dec), dtype=np.float64)
+        q: np.ndarray = np.zeros(n_dec, dtype=np.float64)
+        sensitivity: np.ndarray = np.zeros((self.nx, n_dec), dtype=np.float64)
 
         for k in range(self.N):
             x_err = self.x_traj[k] - x_ref
