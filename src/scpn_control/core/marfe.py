@@ -44,6 +44,13 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
+def _impurity_fraction(value: float) -> float:
+    fraction = _finite_scalar("f_imp", value, positive=True)
+    if fraction > 1.0:
+        raise ValueError("f_imp must be no greater than 1")
+    return fraction
+
+
 def _ordered_positive_array(name: str, values: np.ndarray) -> np.ndarray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size == 0:
@@ -72,7 +79,7 @@ class RadiationCondensation:
     def __init__(self, impurity: str, ne_20: float, f_imp: float):
         self.impurity = impurity
         self.ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
-        self.f_imp = _finite_scalar("f_imp", f_imp, positive=True)
+        self.f_imp = _impurity_fraction(f_imp)
         self.curve = CoolingCurve(impurity)
 
     def _dL_dT(self, Te_eV: float) -> float:
@@ -149,7 +156,7 @@ class MARFEFrontModel:
         self.L_par = _finite_scalar("L_par", L_par, positive=True)
         self.kappa_par = _finite_scalar("kappa_par", kappa_par, positive=True)
         self.q_perp = _finite_scalar("q_perp", q_perp, nonnegative=True)
-        self.f_imp = _finite_scalar("f_imp", f_imp, positive=True)
+        self.f_imp = _impurity_fraction(f_imp)
 
         self.n_s = 50
         self.s = np.linspace(0, self.L_par, self.n_s)
@@ -245,7 +252,7 @@ class DensityLimitPredictor:
         parallel conduction set by P_SOL and impurity fraction f_imp.
         """
         P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
-        f_imp = _finite_scalar("f_imp", f_imp, positive=True)
+        f_imp = _impurity_fraction(f_imp)
         n_gw = DensityLimitPredictor.greenwald_limit(Ip_MA, a)
         factor = math.sqrt(P_SOL_MW) / (10.0 * math.sqrt(f_imp))
         return float(n_gw * factor)

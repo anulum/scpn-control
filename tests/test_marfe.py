@@ -161,6 +161,7 @@ def test_greenwald_limit_zero_radius():
     (
         (0.0, 1e-4, "ne_20"),
         (1.0, 0.0, "f_imp"),
+        (1.0, 1.1, "f_imp"),
     ),
 )
 def test_radiation_condensation_rejects_nonphysical_state(ne_20, f_imp, message) -> None:
@@ -219,6 +220,7 @@ def test_critical_density_rejects_nonphysical_transport_inputs() -> None:
         ({"L_par": 100.0, "kappa_par": 0.0, "q_perp": 10.0, "impurity": "W", "f_imp": 1e-2}, "kappa_par"),
         ({"L_par": 100.0, "kappa_par": 20.0, "q_perp": -1.0, "impurity": "W", "f_imp": 1e-2}, "q_perp"),
         ({"L_par": 100.0, "kappa_par": 20.0, "q_perp": 10.0, "impurity": "W", "f_imp": 0.0}, "f_imp"),
+        ({"L_par": 100.0, "kappa_par": 20.0, "q_perp": 10.0, "impurity": "W", "f_imp": 1.1}, "f_imp"),
         ({"L_par": float("nan"), "kappa_par": 20.0, "q_perp": 10.0, "impurity": "W", "f_imp": 1e-2}, "L_par"),
     ),
 )
@@ -260,6 +262,7 @@ def test_marfe_front_model_rejects_corrupted_temperature_state() -> None:
         ((15.0, float("nan")), "a"),
         ((15.0, 2.0, 0.0, "W", 1e-4), "P_SOL_MW"),
         ((15.0, 2.0, 100.0, "W", 0.0), "f_imp"),
+        ((15.0, 2.0, 100.0, "W", 1.1), "f_imp"),
         ((15.0, 2.0, float("inf"), "W", 1e-4), "P_SOL_MW"),
     ),
 )
