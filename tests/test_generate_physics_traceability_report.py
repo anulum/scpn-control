@@ -31,6 +31,9 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert total > 0
     assert covered == total
     assert "## Module Traceability Table" in markdown
+    assert "## External Validation Collaboration Trackers" in markdown
+    assert "https://github.com/anulum/scpn-control/issues/46" in markdown
+    assert "https://github.com/anulum/scpn-control/issues/53" in markdown
     assert "| Module | Equation or contract | References | Unit contract | Validation evidence | Status |" in markdown
     assert "`src/scpn_control/core/gk_nonlinear.py`" in markdown
     assert "Five-dimensional delta-f flux-tube Vlasov evolution" in markdown
