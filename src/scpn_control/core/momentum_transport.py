@@ -24,6 +24,10 @@ def nbi_torque(
     T_NBI = P_NBI · R_tang / v_beam  where R_tang = R₀ sin(θ).
     Stacey & Sigmar 1985, Phys. Fluids 28, 2800.
     """
+    if np.any(P_nbi_profile < 0.0):
+        raise ValueError("P_nbi_profile must be non-negative")
+    if R0 <= 0.0:
+        raise ValueError("R0 must be positive")
     if v_beam <= 0.0:
         return np.zeros_like(P_nbi_profile)
 
@@ -44,6 +48,10 @@ def intrinsic_rotation_torque(
     Empirical Rice scaling: v_φ,intr ∝ W_p / I_p.
     Rice et al. 2007, Nucl. Fusion 47, 1618, Eq. 3.
     """
+    if grad_Ti.shape != grad_ne.shape:
+        raise ValueError("grad_Ti and grad_ne must have matching shape")
+    if R0 <= 0.0 or a <= 0.0:
+        raise ValueError("R0 and a must be positive")
     return np.asarray(-1e-3 * grad_Ti)
 
 
@@ -63,6 +71,13 @@ def exb_shearing_rate(
     In the rotation-dominated limit E_r ≈ v_φ B_θ = R₀ ω_φ B_θ, so
     E_r / (R₀ B_θ) ≈ ω_φ and ω_E×B ≈ (R₀ B_θ / B) · dω_φ/dr.
     """
+    _require_equal_shape("omega_phi, B_theta, and rho", omega_phi, B_theta, rho)
+    if len(rho) == 0:
+        raise ValueError("rho must not be empty")
+    if np.any(np.diff(rho) < 0.0):
+        raise ValueError("rho must be sorted")
+    if B0 <= 0.0 or R0 <= 0.0 or a <= 0.0:
+        raise ValueError("B0, R0, and a must be positive")
     dr = (rho[1] - rho[0] if len(rho) > 1 else 0.1) * a
     domega_dr = np.gradient(omega_phi, dr)
     B_tot = np.sqrt(B0**2 + B_theta**2)
@@ -79,6 +94,9 @@ def turbulence_suppression_factor(
     F = 1 / (1 + (ω_E×B / γ_max)²)
     Biglari, Diamond & Terry 1990, Phys. Fluids B 2, 1.
     """
+    _require_equal_shape("omega_ExB and gamma_max", omega_ExB, gamma_max)
+    if np.any(gamma_max < 0.0):
+        raise ValueError("gamma_max must be non-negative")
     gamma_safe = np.maximum(gamma_max, 1e-6)
     return np.asarray(1.0 / (1.0 + (omega_ExB / gamma_safe) ** 2))
 
@@ -98,6 +116,15 @@ def radial_electric_field(
     E_r = (1 / Z_i e n_i) dp_i/dr + v_φ B_θ   (v_θ ≈ 0)
     Hinton & Hazeltine 1976, Rev. Mod. Phys. 48, 239, Eq. 2.3.
     """
+    _require_equal_shape("ne, Ti_keV, omega_phi, B_theta, and rho", ne, Ti_keV, omega_phi, B_theta, rho)
+    if len(rho) == 0:
+        raise ValueError("rho must not be empty")
+    if np.any(np.diff(rho) < 0.0):
+        raise ValueError("rho must be sorted")
+    if np.any(ne <= 0.0) or np.any(Ti_keV < 0.0):
+        raise ValueError("ne must be positive and Ti_keV must be non-negative")
+    if B0 <= 0.0 or R0 <= 0.0 or a <= 0.0:
+        raise ValueError("B0, R0, and a must be positive")
     e_charge = 1.602e-19  # C
     p_i = ne * 1e19 * Ti_keV * 1e3 * e_charge
 
@@ -117,8 +144,18 @@ def rice_intrinsic_velocity(W_p_MJ: float, I_p_MA: float) -> float:
 
     c_Rice = 3.5 km s⁻¹ MA MJ⁻¹ (empirical, Ohmic + NBI plasmas, Fig. 4).
     """
+    if W_p_MJ < 0.0:
+        raise ValueError("W_p_MJ must be non-negative")
+    if I_p_MA <= 0.0:
+        raise ValueError("I_p_MA must be positive")
     C_RICE: float = 3.5  # km/s per (MJ/MA), Rice et al. 2007 Fig. 4
-    return C_RICE * W_p_MJ / max(I_p_MA, 1e-9)
+    return C_RICE * W_p_MJ / I_p_MA
+
+
+def _require_equal_shape(label: str, *arrays: np.ndarray) -> None:
+    shapes = {array.shape for array in arrays}
+    if len(shapes) != 1:
+        raise ValueError(f"{label} must have matching shape")
 
 
 class RotationDiagnostics:
@@ -128,6 +165,11 @@ class RotationDiagnostics:
         Ti_keV: np.ndarray,
         R0: float,
     ) -> np.ndarray:
+        _require_equal_shape("omega_phi and Ti_keV", omega_phi, Ti_keV)
+        if R0 <= 0.0:
+            raise ValueError("R0 must be positive")
+        if np.any(Ti_keV <= 0.0):
+            raise ValueError("Ti_keV must be positive")
         e_charge = 1.602e-19  # C
         m_i = 2.0 * 1.67e-27  # kg, deuterium
         v_phi = omega_phi * R0
@@ -139,6 +181,10 @@ class RotationDiagnostics:
         omega_phi: np.ndarray,
         tau_wall: float,
     ) -> bool:
+        if omega_phi.size == 0:
+            raise ValueError("omega_phi must not be empty")
+        if tau_wall <= 0.0:
+            raise ValueError("tau_wall must be positive")
         # ω τ_wall > O(1) criterion; Bondeson & Ward 1994, Phys. Rev. Lett. 72, 2709.
         return bool(np.abs(omega_phi[0]) * tau_wall > 0.01)
 
@@ -153,6 +199,14 @@ class MomentumTransportSolver:
         prandtl: float = PRANDTL_MOMENTUM,
     ) -> None:
         # prandtl = χ_φ / χ_i; Peeters et al. 2011, Nucl. Fusion 51, 083015, Fig. 5.
+        if rho.ndim != 1 or rho.size < 2:
+            raise ValueError("rho must be a one-dimensional grid with at least two points")
+        if np.any(np.diff(rho) <= 0.0):
+            raise ValueError("rho must be strictly increasing")
+        if R0 <= 0.0 or a <= 0.0 or B0 <= 0.0:
+            raise ValueError("R0, a, and B0 must be positive")
+        if prandtl <= 0.0:
+            raise ValueError("prandtl must be positive")
         self.rho = rho
         self.R0 = R0
         self.a = a
@@ -180,6 +234,15 @@ class MomentumTransportSolver:
         """
         import scipy.linalg
 
+        if dt <= 0.0:
+            raise ValueError("dt must be positive")
+        _require_equal_shape("chi_i, ne, Ti_keV, T_nbi, and T_intrinsic", chi_i, ne, Ti_keV, T_nbi, T_intrinsic)
+        if len(chi_i) != self.nr:
+            raise ValueError("transport profiles must match the solver rho grid")
+        if np.any(chi_i < 0.0):
+            raise ValueError("chi_i must be non-negative")
+        if np.any(ne <= 0.0) or np.any(Ti_keV < 0.0):
+            raise ValueError("ne must be positive and Ti_keV must be non-negative")
         chi_phi = self.prandtl * chi_i  # Peeters et al. 2011
 
         m_i = 2.0 * 1.67e-27  # kg, deuterium
@@ -188,16 +251,8 @@ class MomentumTransportSolver:
 
         T_tot = T_nbi + T_intrinsic
         dr = self.drho * self.a
-        if (
-            self.nr < 2
-            or not np.isfinite(dr)
-            or dr <= 0.0
-            or not np.all(np.isfinite(self.rho))
-            or not np.all(np.diff(self.rho) > 0.0)
-        ):
-            self.rho = np.linspace(0.0, 1.0, self.nr, dtype=np.float64)
-            self.drho = 1.0 / (self.nr - 1)
-            dr = self.drho * self.a
+        if not np.isfinite(dr) or dr <= 0.0 or not np.all(np.isfinite(self.rho)) or not np.all(np.diff(self.rho) > 0.0):
+            raise ValueError("rho grid must remain finite and strictly increasing")
         dr = max(float(dr), 1e-12)
 
         diag = np.zeros(self.nr)
