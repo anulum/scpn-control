@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: https://orcid.org/0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — VMEC-Lite Reduced Equilibrium Solver
 """
 Simplified spectral 3D MHD equilibrium solver (VMEC-lite, fixed-boundary).
 
@@ -24,6 +26,32 @@ from dataclasses import dataclass
 import numpy as np
 
 
+def _positive_int(name: str, value: int, *, minimum: int = 1) -> int:
+    if not isinstance(value, int) or value < minimum:
+        raise ValueError(f"{name} must be an integer >= {minimum}")
+    return value
+
+
+def _finite_float(name: str, value: float) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    return scalar
+
+
+def _profile_array(name: str, values: np.ndarray, *, nonnegative: bool = False, positive: bool = False) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size < 2:
+        raise ValueError(f"{name} must be a one-dimensional profile with at least two points")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if nonnegative and np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative everywhere")
+    if positive and np.any(arr <= 0.0):
+        raise ValueError(f"{name} must be positive everywhere")
+    return arr
+
+
 @dataclass
 class VMECResult:
     R_mn: np.ndarray
@@ -40,17 +68,20 @@ class SpectralBasis:
     Hirshman & Whitson 1983, Phys. Fluids 26, 3553, Eqs. 1–2:
         R(s,θ,ζ) = Σ_{m,n} R_mn(s) cos(mθ − n N_fp ζ)
         Z(s,θ,ζ) = Σ_{m,n} Z_mn(s) sin(mθ − n N_fp ζ)
+
+    The basis requires non-negative poloidal and toroidal truncation orders and
+    a positive integer number of field periods.
     """
 
     def __init__(self, m_pol: int, n_tor: int, n_fp: int):
-        self.m_pol = m_pol
-        self.n_tor = n_tor
-        self.n_fp = n_fp
+        self.m_pol = _positive_int("m_pol", m_pol, minimum=0)
+        self.n_tor = _positive_int("n_tor", n_tor, minimum=0)
+        self.n_fp = _positive_int("n_fp", n_fp)
 
         self.mn_modes: list[tuple[int, int]] = []
-        for m in range(m_pol + 1):
-            n_min = -n_tor if m > 0 else 0
-            for n in range(n_min, n_tor + 1):
+        for m in range(self.m_pol + 1):
+            n_min = -self.n_tor if m > 0 else 0
+            for n in range(n_min, self.n_tor + 1):
                 self.mn_modes.append((m, n))
 
         self.n_modes = len(self.mn_modes)
@@ -76,10 +107,14 @@ class VMECLiteSolver:
     Force balance ∇p = J × B (Freidberg 2014, Ch. 3) drives the Shafranov shift
     on the R₀₀ mode; radial tension (finite-difference Laplacian) regularises
     the spectral coefficients.
+
+    ``n_s`` must provide at least axis, interior, and boundary surfaces. Profile
+    inputs are finite one-dimensional arrays; pressure is non-negative and
+    rotational transform is positive for the reduced q-profile calculation.
     """
 
     def __init__(self, n_s: int = 21, m_pol: int = 3, n_tor: int = 2, n_fp: int = 1):
-        self.n_s = n_s
+        self.n_s = _positive_int("n_s", n_s, minimum=3)
         self.basis = SpectralBasis(m_pol, n_tor, n_fp)
 
         self.R_mn = np.zeros((n_s, self.basis.n_modes))
@@ -91,14 +126,17 @@ class VMECLiteSolver:
         self.s_grid = np.linspace(0.0, 1.0, n_s)
 
     def set_boundary(self, R_bound: dict[tuple[int, int], float], Z_bound: dict[tuple[int, int], float]) -> None:
-        """Fix boundary Fourier coefficients at s = 1."""
+        """Fix finite boundary Fourier coefficients at s = 1."""
         for i, (m, n) in enumerate(self.basis.mn_modes):
             if (m, n) in R_bound:
-                self.R_mn[-1, i] = R_bound[(m, n)]
+                self.R_mn[-1, i] = _finite_float(f"R_bound[{(m, n)}]", R_bound[(m, n)])
             if (m, n) in Z_bound:
-                self.Z_mn[-1, i] = Z_bound[(m, n)]
+                self.Z_mn[-1, i] = _finite_float(f"Z_bound[{(m, n)}]", Z_bound[(m, n)])
 
     def set_profiles(self, pressure: np.ndarray, iota: np.ndarray) -> None:
+        """Interpolate finite pressure and rotational-transform profiles onto the solver grid."""
+        pressure = _profile_array("pressure", pressure, nonnegative=True)
+        iota = _profile_array("iota", iota, positive=True)
         self.pressure = np.interp(self.s_grid, np.linspace(0, 1, len(pressure)), pressure)
         self.iota = np.interp(self.s_grid, np.linspace(0, 1, len(iota)), iota)
 
@@ -124,7 +162,15 @@ class VMECLiteSolver:
         Force balance ∇p = J × B (Freidberg 2014, Ch. 3) drives the
         pressure-gradient Shafranov shift on R₀₀ via q²(dp/ds)/R₀.
         Radial tension (d²/ds² finite difference) regularises spectral modes.
+
+        ``max_iter`` must be a positive integer and ``tol`` must be positive and
+        finite; invalid controls are rejected before iteration.
         """
+        max_iter = _positive_int("max_iter", max_iter)
+        tol = _finite_float("tol", tol)
+        if tol <= 0.0:
+            raise ValueError("tol must be positive")
+
         self._initial_guess()
 
         converged = False

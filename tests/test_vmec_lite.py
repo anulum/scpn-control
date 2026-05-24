@@ -1,17 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Vmec Lite
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — VMEC-lite Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.vmec_lite import (
     AxisymmetricTokamakBoundary,
@@ -68,6 +65,47 @@ def test_basis_evaluation():
     assert np.isclose(R_val[0], 8.2)  # 6.2 + 2.0 * cos(0)
     assert np.isclose(R_val[1], 6.2)  # 6.2 + 2.0 * cos(pi/2)
     assert np.isclose(R_val[2], 4.2)  # 6.2 + 2.0 * cos(pi)
+
+
+def test_vmec_rejects_invalid_spectral_domains():
+    with pytest.raises(ValueError, match="n_s"):
+        VMECLiteSolver(n_s=1)
+    with pytest.raises(ValueError, match="m_pol"):
+        VMECLiteSolver(m_pol=-1)
+    with pytest.raises(ValueError, match="n_tor"):
+        VMECLiteSolver(n_tor=-1)
+    with pytest.raises(ValueError, match="n_fp"):
+        VMECLiteSolver(n_fp=0)
+
+
+def test_vmec_rejects_nonfinite_boundary_coefficients():
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    with pytest.raises(ValueError, match="R_bound"):
+        solver.set_boundary({(0, 0): np.nan}, {})
+    with pytest.raises(ValueError, match="Z_bound"):
+        solver.set_boundary({}, {(1, 0): np.inf})
+
+
+def test_vmec_rejects_nonphysical_profile_domains():
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    with pytest.raises(ValueError, match="pressure"):
+        solver.set_profiles(np.array([1.0e5, np.nan]), np.array([0.8, 0.9]))
+    with pytest.raises(ValueError, match="pressure"):
+        solver.set_profiles(np.array([1.0e5, -1.0]), np.array([0.8, 0.9]))
+    with pytest.raises(ValueError, match="iota"):
+        solver.set_profiles(np.array([1.0e5, 0.0]), np.array([0.8, 0.0]))
+
+
+def test_vmec_rejects_invalid_solve_controls():
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    b_R, b_Z = AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=1.7, delta=0.33)
+    solver.set_boundary(b_R, b_Z)
+    solver.set_profiles(np.zeros(11), np.linspace(1.0, 0.3, 11))
+
+    with pytest.raises(ValueError, match="max_iter"):
+        solver.solve(max_iter=0, tol=1e-4)
+    with pytest.raises(ValueError, match="tol"):
+        solver.solve(max_iter=10, tol=0.0)
 
 
 # ── New citation-driven tests ─────────────────────────────────────────
