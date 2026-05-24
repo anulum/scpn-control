@@ -170,7 +170,7 @@ def chang_hinton_chi_profile(
     rho = _normalised_radius(rho)
     shape = rho.shape
     T_i = _profile_array("T_i", T_i, shape, positive=True, allow_last_zero=True)
-    n_e_19 = _profile_array("n_e_19", n_e_19, shape, positive=True, allow_last_zero=True)
+    n_e_19 = _profile_array("n_e_19", n_e_19, shape, nonnegative=True)
     q = _profile_array("q", q, shape, positive=True)
     R0, a, B0 = _validate_tokamak_geometry(R0, a, B0)
     A_ion = _finite_scalar("A_ion", A_ion, positive=True)
