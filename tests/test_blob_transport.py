@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from scpn_control.core.blob_transport import (
+    BlobEvent,
     BlobPopulation,
     BlobDetector,
     BlobDynamics,
@@ -347,6 +348,7 @@ def test_blob_detector_closes_event_at_signal_boundary() -> None:
 def test_blob_detector_rejects_nonphysical_event_parameters() -> None:
     det = BlobDetector()
     signal = np.zeros(10)
+    malformed_event = BlobEvent(start_idx=8, end_idx=4, peak_amplitude=1.0, duration=-4e-6, size_estimate=-0.004)
 
     with pytest.raises(ValueError, match="dt"):
         det.detect_blobs(signal, dt=0.0)
@@ -358,3 +360,5 @@ def test_blob_detector_rejects_nonphysical_event_parameters() -> None:
         det.detect_blobs(np.array([0.0, np.nan]))
     with pytest.raises(ValueError, match="signal"):
         det.conditional_average(np.ones((2, 2)), [], window=1)
+    with pytest.raises(ValueError, match="event"):
+        det.conditional_average(signal, [malformed_event], window=1)

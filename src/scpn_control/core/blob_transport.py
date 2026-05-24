@@ -288,6 +288,21 @@ class BlobEvent:
     size_estimate: float
 
 
+def _validate_blob_event(event: BlobEvent, signal_size: int) -> None:
+    if (
+        not isinstance(event.start_idx, int)
+        or isinstance(event.start_idx, bool)
+        or not isinstance(event.end_idx, int)
+        or isinstance(event.end_idx, bool)
+    ):
+        raise ValueError("event indices must be integers")
+    if event.start_idx < 0 or event.end_idx > signal_size or event.end_idx <= event.start_idx:
+        raise ValueError("event indices must satisfy 0 <= start_idx < end_idx <= len(signal)")
+    _finite_scalar("event peak_amplitude", event.peak_amplitude, nonnegative=True)
+    _finite_scalar("event duration", event.duration, positive=True)
+    _finite_scalar("event size_estimate", event.size_estimate, positive=True)
+
+
 class BlobDetector:
     """Threshold-crossing blob detector with conditional averaging.
 
@@ -344,6 +359,7 @@ class BlobDetector:
         count = 0
 
         for ev in events:
+            _validate_blob_event(ev, len(signal))
             center = ev.start_idx + (ev.end_idx - ev.start_idx) // 2
             if center - window >= 0 and center + window < len(signal):
                 cond_avg += signal[center - window : center + window + 1]

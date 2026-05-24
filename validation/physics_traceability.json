@@ -1054,7 +1054,7 @@
     },
     {
       "component": "blob transport and scrape-off-layer approximation contract",
-      "equation_contract": "Blob transport claims must declare interchange drive, sheath closure, radial velocity scaling, filament size, density and temperature perturbation assumptions, non-empty strictly ordered separatrix-to-wall scrape-off-layer profile coordinates, and scrape-off-layer validity bounds.",
+      "equation_contract": "Blob transport claims must declare interchange drive, sheath closure, radial velocity scaling, filament size, density and temperature perturbation assumptions, non-empty strictly ordered separatrix-to-wall scrape-off-layer profile coordinates, positive ordered detector-event domains, and scrape-off-layer validity bounds.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Stangeby 2000 scrape-off-layer transport references",
