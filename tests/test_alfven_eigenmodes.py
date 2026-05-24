@@ -215,7 +215,7 @@ def test_resonance_function_peaks():
 
 
 def test_continuum_spectrum():
-    """Lines 62-63: AlfvenContinuum.continuum returns omega_A(rho) for (m,n)."""
+    """AlfvenContinuum.continuum returns finite non-negative omega_A(rho)."""
     rho = np.linspace(0, 1, 50)
     q = np.linspace(1.0, 3.0, 50)
     ne = np.ones(50) * 5.0
@@ -227,7 +227,7 @@ def test_continuum_spectrum():
 
 
 def test_find_gaps_equal_q():
-    """Line 80: find_gaps skips crossing when q1 == q2 (constant q segment)."""
+    """find_gaps skips crossings when adjacent q samples are identical."""
     rho = np.linspace(0, 1, 10)
     q = np.ones(10) * 1.5  # flat q profile
     ne = np.ones(10) * 5.0
@@ -249,12 +249,12 @@ def test_stability_analysis_rejects_nonpositive_te():
     ne = np.ones(100) * 5.0
     cont = AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
     drive = FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=0.01)
-    with pytest.raises(ValueError, match="must be positive"):
+    with pytest.raises(ValueError, match="T_e_keV must be finite and > 0"):
         AlfvenStabilityAnalysis(cont, drive, T_e_keV=0.0)
 
 
 def test_critical_beta_fast_no_gaps():
-    """Lines 302, 306: critical_beta_fast returns inf when no gaps found."""
+    """critical_beta_fast returns infinity when no gap is found."""
     rho = np.linspace(0, 1, 10)
     q = np.ones(10) * 0.5  # q < 1 → no gaps for typical m, n
     ne = np.ones(10) * 5.0
@@ -266,7 +266,7 @@ def test_critical_beta_fast_no_gaps():
 
 
 def test_critical_beta_fast_zero_drive():
-    """Line 310: critical_beta_fast returns inf when beta_fast is zero."""
+    """critical_beta_fast returns infinity when fast-particle drive is zero."""
     rho = np.linspace(0, 1, 100)
     q = np.linspace(1.0, 3.0, 100)
     ne = np.ones(100) * 5.0
@@ -279,7 +279,7 @@ def test_critical_beta_fast_zero_drive():
 
 
 def test_alpha_particle_loss_estimate():
-    """Lines 316-318: alpha_particle_loss_estimate computes loss fraction."""
+    """alpha_particle_loss_estimate is bounded to the unit interval."""
     rho = np.linspace(0, 1, 100)
     q = np.linspace(1.0, 3.0, 100)
     ne = np.ones(100) * 5.0
@@ -291,3 +291,53 @@ def test_alpha_particle_loss_estimate():
     assert analysis.alpha_particle_loss_estimate(0.0) == 0.0
     loss = analysis.alpha_particle_loss_estimate(1e4, tau_sd=0.5)
     assert 0.0 < loss <= 1.0
+
+
+def test_alfven_continuum_rejects_nonphysical_profiles():
+    rho = np.linspace(0, 1, 8)
+    q = np.linspace(1.0, 2.0, 8)
+    ne = np.ones(8)
+
+    with pytest.raises(ValueError, match="rho must be strictly increasing"):
+        AlfvenContinuum(rho[::-1], q, ne, B0=5.3, R0=6.2)
+
+    bad_ne = ne.copy()
+    bad_ne[3] = 0.0
+    with pytest.raises(ValueError, match="ne must contain finite positive values"):
+        AlfvenContinuum(rho, q, bad_ne, B0=5.3, R0=6.2)
+
+    bad_q = q.copy()
+    bad_q[2] = -1.0
+    with pytest.raises(ValueError, match="q must contain finite positive values"):
+        AlfvenContinuum(rho, bad_q, ne, B0=5.3, R0=6.2)
+
+
+def test_tae_mode_rejects_nonphysical_frequency_domain():
+    with pytest.raises(ValueError, match="n must be a positive integer"):
+        TAEMode(n=0, q_rational=1.5, v_A=1e7, R0=6.0)
+    with pytest.raises(ValueError, match="q_rational must be finite and > 0"):
+        TAEMode(n=1, q_rational=0.0, v_A=1e7, R0=6.0)
+    with pytest.raises(ValueError, match="v_A must be finite and > 0"):
+        TAEMode(n=1, q_rational=1.5, v_A=-1e7, R0=6.0)
+
+
+def test_fast_particle_drive_rejects_nonphysical_inputs():
+    with pytest.raises(ValueError, match="E_fast_keV must be finite and > 0"):
+        FastParticleDrive(E_fast_keV=0.0, n_fast_frac=0.01)
+    with pytest.raises(ValueError, match="n_fast_frac must be finite and >= 0"):
+        FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=-0.01)
+
+    drive = FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=0.01)
+    with pytest.raises(ValueError, match="v_A must be finite and > 0"):
+        drive.resonance_function(v_f=1e7, v_A=0.0)
+    with pytest.raises(ValueError, match="B0 must be finite and > 0"):
+        drive.beta_fast(ne_20=1.0, B0=0.0)
+
+
+def test_rsae_frequency_rejects_nonphysical_domain():
+    with pytest.raises(ValueError, match="q_min must be finite and > 0"):
+        rsae_frequency(q_min=0.0, n=1, m=1, v_A=1e7, R0=6.0)
+    with pytest.raises(ValueError, match="n must be a positive integer"):
+        rsae_frequency(q_min=1.1, n=0, m=1, v_A=1e7, R0=6.0)
+    with pytest.raises(ValueError, match="T_i_keV must be finite and > 0"):
+        rsae_frequency(q_min=1.1, n=1, m=1, v_A=1e7, R0=6.0, T_i_keV=0.0)

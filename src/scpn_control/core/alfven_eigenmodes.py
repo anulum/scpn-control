@@ -17,6 +17,39 @@ _E_C = 1.60218e-19  # C, elementary charge
 _MU_0 = 4.0 * np.pi * 1e-7  # H/m
 
 
+def _require_positive_scalar(name: str, value: float) -> float:
+    """Return a finite positive scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0")
+    return scalar
+
+
+def _require_nonnegative_scalar(name: str, value: float) -> float:
+    """Return a finite non-negative scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar < 0.0:
+        raise ValueError(f"{name} must be finite and >= 0")
+    return scalar
+
+
+def _require_positive_int(name: str, value: int) -> int:
+    """Return a positive integer mode number or fail closed."""
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
+
+def _require_positive_profile(name: str, values: np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
+    """Return a finite positive profile with an optional exact shape."""
+    arr = np.asarray(values, dtype=float)
+    if shape is not None and arr.shape != shape:
+        raise ValueError(f"{name} must have shape {shape}")
+    if not np.all(np.isfinite(arr)) or np.any(arr <= 0.0):
+        raise ValueError(f"{name} must contain finite positive values")
+    return arr
+
+
 @dataclass
 class AlfvenGap:
     rho_location: float
@@ -42,18 +75,28 @@ class AlfvenContinuum:
         m_i_amu: float = 2.5,
         a: float = 2.0,
     ):
-        self.rho = rho
-        self.q = q
-        self.ne = ne
-        self.B0 = B0
-        self.R0 = R0
-        self.a = a
+        rho_arr = np.asarray(rho, dtype=float)
+        if rho_arr.ndim != 1 or rho_arr.size < 2:
+            raise ValueError("rho must be a one-dimensional grid with at least two points")
+        if not np.all(np.isfinite(rho_arr)):
+            raise ValueError("rho must contain only finite values")
+        if not np.all(np.diff(rho_arr) > 0.0):
+            raise ValueError("rho must be strictly increasing")
+        self.rho = rho_arr
+        self.q = _require_positive_profile("q", q, rho_arr.shape)
+        self.ne = _require_positive_profile("ne", ne, rho_arr.shape)
+        self.B0 = _require_positive_scalar("B0", B0)
+        self.R0 = _require_positive_scalar("R0", R0)
+        self.a = _require_positive_scalar("a", a)
+        m_i_amu = _require_positive_scalar("m_i_amu", m_i_amu)
 
         m_i = m_i_amu * _M_P
-        self.rho_mass = ne * 1e19 * (m_i + _M_E)
-        self.v_A = B0 / np.sqrt(_MU_0 * np.maximum(self.rho_mass, 1e-12))
+        self.rho_mass = self.ne * 1e19 * (m_i + _M_E)
+        self.v_A = self.B0 / np.sqrt(_MU_0 * self.rho_mass)
 
     def alfven_speed(self, rho_eval: float) -> float:
+        if not np.isfinite(rho_eval) or rho_eval < self.rho[0] or rho_eval > self.rho[-1]:
+            raise ValueError("rho_eval must be finite and within the continuum grid")
         return float(np.interp(rho_eval, self.rho, self.v_A))
 
     def continuum(self, m: int, n: int) -> np.ndarray:
@@ -61,7 +104,9 @@ class AlfvenContinuum:
         ω_A(ρ) = |n q − m| / (q R₀) · v_A
         Cheng & Chance 1986, Eq. 2.
         """
-        k_par = np.abs(n * self.q - m) / np.maximum(self.q * self.R0, 1e-6)
+        m = _require_positive_int("m", m)
+        n = _require_positive_int("n", n)
+        k_par = np.abs(n * self.q - m) / (self.q * self.R0)
         return np.asarray(k_par * self.v_A)
 
     def find_gaps(self, n: int) -> list[AlfvenGap]:
@@ -69,6 +114,7 @@ class AlfvenContinuum:
         TAE gap midpoint at q = (2m+1)/(2n); width ≃ ε·ω₀.
         Cheng & Chance 1986, Eq. 3.6.
         """
+        n = _require_positive_int("n", n)
         gaps: list[AlfvenGap] = []
         for m in range(1, 10):
             q_gap = (2.0 * m + 1.0) / (2.0 * n)
@@ -117,12 +163,14 @@ class TAEMode:
         T_e_keV: float | None = None,
         m_coupling: int = 1,
     ):
-        self.n = n
-        self.q = q_rational
-        self.v_A = v_A
-        self.R0 = R0
+        self.n = _require_positive_int("n", n)
+        self.q = _require_positive_scalar("q_rational", q_rational)
+        self.v_A = _require_positive_scalar("v_A", v_A)
+        self.R0 = _require_positive_scalar("R0", R0)
         self.T_e_keV = T_e_keV
-        self.m = m_coupling
+        if T_e_keV is not None:
+            self.T_e_keV = _require_positive_scalar("T_e_keV", T_e_keV)
+        self.m = _require_positive_int("m_coupling", m_coupling)
 
     def frequency(self) -> float:
         """ω_TAE = v_A / (2 q R₀) — Cheng & Chance 1986, Eq. 3.5."""
@@ -176,14 +224,16 @@ class FastParticleDrive:
     """
 
     def __init__(self, E_fast_keV: float, n_fast_frac: float, m_fast_amu: float = 4.0):
-        self.E_fast_keV = E_fast_keV
-        self.n_fast_frac = n_fast_frac
-        self.m_fast = m_fast_amu * _M_P
+        self.E_fast_keV = _require_positive_scalar("E_fast_keV", E_fast_keV)
+        self.n_fast_frac = _require_nonnegative_scalar("n_fast_frac", n_fast_frac)
+        self.m_fast = _require_positive_scalar("m_fast_amu", m_fast_amu) * _M_P
 
-        E_J = E_fast_keV * 1e3 * _E_C
+        E_J = self.E_fast_keV * 1e3 * _E_C
         self.v_fast = np.sqrt(2.0 * E_J / self.m_fast)
 
     def beta_fast(self, ne_20: float, B0: float) -> float:
+        ne_20 = _require_positive_scalar("ne_20", ne_20)
+        B0 = _require_positive_scalar("B0", B0)
         n_e = ne_20 * 1e20
         n_fast = n_e * self.n_fast_frac
         E_J = self.E_fast_keV * 1e3 * _E_C
@@ -204,6 +254,8 @@ class FastParticleDrive:
         Fu & Van Dam 1989, Phys. Fluids B 1, 1949, Eq. 28.
         σ_main = 0.2, σ_side = 0.1, A_side = 0.15 — ibid., Table 1.
         """
+        v_f = _require_nonnegative_scalar("v_f", v_f)
+        v_A = _require_positive_scalar("v_A", v_A)
         x = v_f / v_A
         # σ_main = 0.2 — Fu & Van Dam 1989, Table 1
         f_main = x**3 * np.exp(-((x - 1.0) ** 2) / (2.0 * 0.2**2))
@@ -217,6 +269,7 @@ class FastParticleDrive:
         Fu & Van Dam 1989, Phys. Fluids B 1, 1949, Eq. 15.
         Heidbrink 2008, Phys. Plasmas 15, 055501, Eq. 10.
         """
+        beta_fast = _require_nonnegative_scalar("beta_fast", beta_fast)
         omega = tae.frequency()
         F = self.resonance_function(self.v_fast, tae.v_A)
         return float(omega * beta_fast * tae.q**2 * F)
@@ -248,11 +301,9 @@ class AlfvenStabilityAnalysis:
         fast_params: FastParticleDrive,
         T_e_keV: float = 10.0,
     ):
-        if T_e_keV <= 0.0:
-            raise ValueError("T_e_keV must be positive")
         self.continuum = continuum
         self.fast_params = fast_params
-        self.T_e_keV = T_e_keV
+        self.T_e_keV = _require_positive_scalar("T_e_keV", T_e_keV)
 
     def tae_stability(self, n_range: range = range(1, 6)) -> list[TAEStabilityResult]:
         results: list[TAEStabilityResult] = []
@@ -302,6 +353,7 @@ class AlfvenStabilityAnalysis:
         β_f,crit where γ_net = 0 for the most resonant mode.
         γ_drive = C·β_f  →  β_crit = γ_damp / C = γ_damp / (γ_drive / β_current)
         """
+        n = _require_positive_int("n", n)
         res = self.tae_stability(range(n, n + 1))
         if not res:
             return float("inf")
@@ -318,6 +370,10 @@ class AlfvenStabilityAnalysis:
 
     def alpha_particle_loss_estimate(self, gamma_net: float, tau_sd: float = 0.5) -> float:
         """Fraction of alpha power lost; loss ∝ γ·τ_sd (Heidbrink 2008, §V)."""
+        gamma_net = float(gamma_net)
+        if not np.isfinite(gamma_net):
+            raise ValueError("gamma_net must be finite")
+        tau_sd = _require_positive_scalar("tau_sd", tau_sd)
         if gamma_net <= 0:
             return 0.0
         return float(min(1.0, 1e-4 * gamma_net * tau_sd))
@@ -345,6 +401,14 @@ def rsae_frequency(
     Sharapov et al. 2001, Phys. Lett. A 289, 127, Eq. 5.
     Geodesic acoustic coupling: Zonca & Chen 1996, Plasma Phys. 38, 2011.
     """
+    q_min = _require_positive_scalar("q_min", q_min)
+    n = _require_positive_int("n", n)
+    m = _require_positive_int("m", m)
+    v_A = _require_positive_scalar("v_A", v_A)
+    R0 = _require_positive_scalar("R0", R0)
+    T_e_keV = _require_positive_scalar("T_e_keV", T_e_keV)
+    T_i_keV = _require_positive_scalar("T_i_keV", T_i_keV)
+    m_i_amu = _require_positive_scalar("m_i_amu", m_i_amu)
     T_i_J = T_i_keV * 1e3 * _E_C
     m_i = m_i_amu * _M_P
     v_thi = np.sqrt(T_i_J / m_i)
