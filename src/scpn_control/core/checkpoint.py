@@ -1,16 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Checkpoint
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Checkpoint and Resume API
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Checkpoint and resume API
 """
 Utilities for saving and restoring simulation and campaign states.
 
@@ -25,6 +19,52 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+CHECKPOINT_SCHEMA_VERSION = 1
+
+
+def _validate_episode(episode: int) -> int:
+    if isinstance(episode, bool) or not isinstance(episode, int) or episode < 0:
+        raise ValueError("episode must be a non-negative integer")
+    return episode
+
+
+def _validate_finite_tree(name: str, obj: Any) -> None:
+    if isinstance(obj, np.ndarray):
+        if not np.all(np.isfinite(obj)):
+            raise ValueError(f"{name} must contain only finite values")
+        return
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if not isinstance(key, str):
+                raise ValueError(f"{name} keys must be strings")
+            _validate_finite_tree(f"{name}.{key}", value)
+        return
+    if isinstance(obj, (list, tuple)):
+        for idx, value in enumerate(obj):
+            _validate_finite_tree(f"{name}[{idx}]", value)
+        return
+    if isinstance(obj, (float, int)) and not isinstance(obj, bool):
+        if not np.isfinite(float(obj)):
+            raise ValueError(f"{name} must contain only finite values")
+
+
+def _validate_payload(data: Any) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        raise ValueError("checkpoint payload must be an object")
+    for key in ("schema_version", "episode", "solver_state", "metrics"):
+        if key not in data:
+            raise ValueError(f"checkpoint payload missing {key}")
+    if data["schema_version"] != CHECKPOINT_SCHEMA_VERSION:
+        raise ValueError(f"schema_version must be {CHECKPOINT_SCHEMA_VERSION}")
+    if not isinstance(data["solver_state"], dict):
+        raise ValueError("solver_state must be an object")
+    if not isinstance(data["metrics"], dict):
+        raise ValueError("metrics must be an object")
+    _validate_episode(data["episode"])
+    _validate_finite_tree("solver_state", data["solver_state"])
+    _validate_finite_tree("metrics", data["metrics"])
+    return data
 
 
 def save_checkpoint(
@@ -46,6 +86,14 @@ def save_checkpoint(
     metrics : dict
         Accumulated performance metrics.
     """
+    episode = _validate_episode(episode)
+    if not isinstance(solver_state, dict):
+        raise ValueError("solver_state must be an object")
+    if not isinstance(metrics, dict):
+        raise ValueError("metrics must be an object")
+    _validate_finite_tree("solver_state", solver_state)
+    _validate_finite_tree("metrics", metrics)
+
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -60,6 +108,7 @@ def save_checkpoint(
         return obj
 
     data = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "episode": episode,
         "solver_state": _serializable(solver_state),
         "metrics": _serializable(metrics),
@@ -84,8 +133,12 @@ def load_checkpoint(path: Path | str) -> tuple[dict[str, Any], int, dict[str, An
         (solver_state, episode, metrics)
     """
     path = Path(path)
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as exc:
+        raise ValueError("checkpoint must contain valid JSON") from exc
+    data = _validate_payload(data)
 
     # Convert lists back to numpy arrays where appropriate
     def _restore(obj: Any) -> Any:

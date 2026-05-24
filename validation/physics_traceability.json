@@ -1082,7 +1082,7 @@
     },
     {
       "component": "checkpoint state serialisation boundary contract",
-      "equation_contract": "Checkpoint claims must declare serialised solver state, episode counter, metrics schema, finite-value policy, version boundary, and failure handling for corrupt or missing checkpoint artefacts.",
+      "equation_contract": "Checkpoint claims must declare serialised solver state, non-negative episode counter, object-valued metrics schema, finite-value policy, schema-version boundary, and fail-closed handling for corrupt or missing checkpoint artefacts.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "repository restart and replay provenance contract"
@@ -1095,7 +1095,7 @@
       ],
       "unit_contract": "Units are inherited from stored state and metrics; checkpoint metadata must preserve schema version, episode index, and provenance boundaries.",
       "validation_evidence": [
-        "tests/test_checkpoint.py"
+        "tests/test_checkpoint.py round-trip, resume, finite-payload, schema-version, and corrupt-payload checks"
       ],
       "evidence_paths": [
         "tests/test_checkpoint.py",
