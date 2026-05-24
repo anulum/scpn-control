@@ -139,6 +139,14 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
                 "error": "source files with approximation markers must be covered by traceability entries",
             }
         )
+    if report["open_fidelity_gaps"] > 0 and report["external_validation_tracker_count"] == 0:
+        errors.append(
+            {
+                "path": str(path),
+                "field": "external_validation_trackers",
+                "error": "registries with open fidelity gaps must link external validation collaboration trackers",
+            }
+        )
     if errors:
         report["status"] = "fail"
     return report

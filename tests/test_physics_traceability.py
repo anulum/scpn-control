@@ -525,3 +525,30 @@ def test_external_validation_trackers_are_linked_from_roadmap_and_report() -> No
         assert tracker["url"] in roadmap
         assert tracker["url"] in generated_report
         assert f"#{tracker['issue']}" in generated_report
+
+
+def test_traceability_requires_trackers_when_fidelity_gaps_remain(tmp_path: Path) -> None:
+    registry = _registry_with_header(
+        [
+            {
+                "component": "open bounded model",
+                "module_path": "ROADMAP.md",
+                "fidelity_status": "bounded_model",
+                "public_claim_allowed": False,
+                "model_references": ["Example 2026"],
+                "equation_contract": "bounded model contract",
+                "unit_contract": "dimensionless test units",
+                "validity_domain": "test-only bounded validation fixture",
+                "validation_evidence": ["ROADMAP.md"],
+                "evidence_paths": ["ROADMAP.md"],
+                "required_actions": ["link collaboration tracker before promotion"],
+            }
+        ]
+    )
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(registry), encoding="utf-8")
+
+    report = validate_physics_traceability(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "external_validation_trackers" for error in report["errors"])
