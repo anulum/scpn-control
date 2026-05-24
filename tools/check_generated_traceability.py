@@ -21,9 +21,14 @@ if str(ROOT) not in sys.path:
 from validation.generate_physics_traceability_report import generate_physics_traceability_markdown
 
 
+def expected_traceability_markdown(registry: Path) -> str:
+    """Generate the canonical Markdown expected for a traceability registry."""
+    return generate_physics_traceability_markdown(registry)
+
+
 def generated_traceability_is_current(registry: Path, report_path: Path) -> bool:
     """Return True when the checked-in Markdown matches generated output."""
-    expected = generate_physics_traceability_markdown(registry)
+    expected = expected_traceability_markdown(registry)
     actual = report_path.read_text(encoding="utf-8")
     return actual == expected
 

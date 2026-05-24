@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.check_generated_traceability import ROOT, generated_traceability_is_current, main
+from tools.check_generated_traceability import ROOT, expected_traceability_markdown, generated_traceability_is_current, main
 
 
 def test_generated_traceability_check_passes_for_repository_state(capsys) -> None:
@@ -69,7 +69,7 @@ def test_generated_traceability_cli_reports_missing_registry_path(tmp_path: Path
 
 def test_generated_traceability_check_detects_missing_tracker_line(tmp_path: Path) -> None:
     registry = ROOT / "validation" / "physics_traceability.json"
-    current_report = (ROOT / "docs" / "physics_traceability.md").read_text(encoding="utf-8")
+    current_report = expected_traceability_markdown(registry)
     drifted_report = current_report.replace(
         "- External gyrokinetic validation artefacts: [#47](https://github.com/anulum/scpn-control/issues/47) — 9 open claim(s) — TGLF, GENE, GS2, CGYRO, QuaLiKiz, nonlinear CBC, Miller geometry, species, JAX parity, OOD, and online-learning artefacts.\n",
         "",
