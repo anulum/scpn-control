@@ -1364,7 +1364,7 @@
     },
     {
       "component": "VMEC-lite stellarator equilibrium approximation contract",
-      "equation_contract": "VMEC-lite claims must declare flux-surface parameterisation, rotational-transform profile, Fourier mode truncation, pressure/current assumptions, residual metric, and explicit exclusion from full 3D MHD equilibrium claims.",
+      "equation_contract": "VMEC-lite claims must declare flux-surface parameterisation, rotational-transform profile, Fourier mode truncation, positive R00 major-radius boundary state, pressure/current assumptions, residual metric, and explicit exclusion from full 3D MHD equilibrium claims.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "VMEC 3D equilibrium references",

@@ -126,6 +126,15 @@ def test_vmec_rejects_invalid_solve_controls():
         solver.solve(max_iter=10, tol=0.0)
 
 
+def test_vmec_solve_requires_positive_major_radius_boundary() -> None:
+    """Reduced equilibrium solve requires a positive R00 boundary mode."""
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    solver.set_profiles(np.linspace(1.0e5, 0.0, 11), np.linspace(1.0, 0.3, 11))
+
+    with pytest.raises(ValueError, match="R00"):
+        solver.solve(max_iter=10, tol=1e-4)
+
+
 def test_axisymmetric_boundary_rejects_nonphysical_geometry_inputs() -> None:
     with pytest.raises(ValueError, match="R0"):
         AxisymmetricTokamakBoundary.from_parameters(R0=float("nan"), a=2.0, kappa=1.7, delta=0.33)

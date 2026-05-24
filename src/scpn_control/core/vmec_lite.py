@@ -189,6 +189,8 @@ class VMECLiteSolver:
         lr = 0.1
 
         idx_00 = next((i for i, mn in enumerate(self.basis.mn_modes) if mn == (0, 0)), -1)
+        if idx_00 < 0 or self.R_mn[-1, idx_00] <= 0.0:
+            raise ValueError("R00 boundary mode must be positive before VMEC-lite solve")
         dp_ds = np.gradient(self.pressure, self.s_grid)
         q_profile = 1.0 / np.maximum(np.abs(self.iota), 0.01)
         R_00_bound = max(abs(self.R_mn[-1, idx_00]), 1e-3) if idx_00 >= 0 else 1.0
