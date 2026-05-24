@@ -95,6 +95,7 @@ dev = [
 
 [project.scripts]
 scpn-control = "scpn_control.cli:main"
+scpn-check-generated-traceability = "tools.check_generated_traceability:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
