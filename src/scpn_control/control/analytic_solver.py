@@ -152,6 +152,11 @@ class AnalyticEquilibriumSolver:
                 coils[i]["current"] = 1.0
 
                 psi_vac = np.asarray(self.kernel.calculate_vacuum_field(), dtype=np.float64)
+                expected_shape = (len(self.kernel.Z), len(self.kernel.R))
+                if psi_vac.shape != expected_shape:
+                    raise ValueError("vacuum field shape must match kernel grid.")
+                if not np.all(np.isfinite(psi_vac)):
+                    raise ValueError("vacuum field must contain only finite values.")
                 dpsi = (psi_vac[idx_z, idx_r + 1] - psi_vac[idx_z, idx_r - 1]) / (2.0 * dR)
                 bz_unit = float((1.0 / target_R) * dpsi)
                 eff[i] = bz_unit

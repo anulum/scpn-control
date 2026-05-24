@@ -134,6 +134,18 @@ class FakeKernelZeroInfluence(FakeKernel):
         return np.zeros((len(self.Z), len(self.R)))
 
 
+class FakeKernelBadFieldShape(FakeKernel):
+    def calculate_vacuum_field(self):
+        return np.zeros((len(self.Z), len(self.R) - 1))
+
+
+class FakeKernelNonfiniteField(FakeKernel):
+    def calculate_vacuum_field(self):
+        psi = np.zeros((len(self.Z), len(self.R)))
+        psi[0, 0] = np.nan
+        return psi
+
+
 class TestComputeCoilEfficienciesEdgeCases:
     def test_rejects_zero_coils(self, tmp_path):
         cfg = tmp_path / "test.json"
@@ -154,6 +166,22 @@ class TestComputeCoilEfficienciesEdgeCases:
         solver.kernel.cfg["coils"][0]["current"] = 7.5
         solver.compute_coil_efficiencies(target_R=6.2)
         assert solver.kernel.cfg["coils"][0]["current"] == 7.5
+
+    def test_rejects_vacuum_field_shape_mismatch(self, tmp_path):
+        cfg = tmp_path / "test.json"
+        cfg.write_text("{}")
+        solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernelBadFieldShape, verbose=False)
+
+        with pytest.raises(ValueError, match="vacuum field shape must match kernel grid"):
+            solver.compute_coil_efficiencies(target_R=6.2)
+
+    def test_rejects_nonfinite_vacuum_field(self, tmp_path):
+        cfg = tmp_path / "test.json"
+        cfg.write_text("{}")
+        solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernelNonfiniteField, verbose=False)
+
+        with pytest.raises(ValueError, match="vacuum field must contain only finite values"):
+            solver.compute_coil_efficiencies(target_R=6.2)
 
 
 # ── Ridge-regularized solve ──────────────────────────────────────
