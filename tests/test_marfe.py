@@ -91,6 +91,17 @@ def test_marfe_stability_diagram():
     assert res[-1, 0] == -1
 
 
+def test_marfe_stability_diagram_uses_connection_length_geometry():
+    """Higher q95 lengthens parallel connection and lowers the MARFE density boundary."""
+    ne_range = np.linspace(20.0, 120.0, 12)
+    P_SOL_range = np.linspace(10.0, 100.0, 12)
+
+    low_q = MARFEStabilityDiagram(R0=6.2, a=2.0, q95=2.0, impurity="W").scan_density_power(ne_range, P_SOL_range)
+    high_q = MARFEStabilityDiagram(R0=6.2, a=2.0, q95=6.0, impurity="W").scan_density_power(ne_range, P_SOL_range)
+
+    assert np.count_nonzero(high_q == -1) > np.count_nonzero(low_q == -1)
+
+
 def test_marfe_onset_temperature():
     """
     MARFE onset is in a region where dL_Z/dT < 0.

@@ -259,6 +259,8 @@ class DensityLimitPredictor:
 
 
 class MARFEStabilityDiagram:
+    _REFERENCE_CONNECTION_LENGTH_M = math.pi * 3.0 * 6.2
+
     def __init__(self, R0: float, a: float, q95: float, impurity: str):
         self.R0 = _finite_scalar("R0", R0, positive=True)
         self.a = _finite_scalar("a", a, positive=True)
@@ -267,15 +269,21 @@ class MARFEStabilityDiagram:
         self.q95 = _finite_scalar("q95", q95, positive=True)
         self.impurity = impurity
 
+    @property
+    def connection_length_m(self) -> float:
+        """Approximate edge parallel connection length L_parallel = pi q95 R0."""
+        return float(math.pi * self.q95 * self.R0)
+
     def scan_density_power(self, ne_range: np.ndarray, P_SOL_range: np.ndarray) -> np.ndarray:
         ne_range = _ordered_positive_array("ne_range", ne_range)
         P_SOL_range = _ordered_positive_array("P_SOL_range", P_SOL_range)
         result = np.zeros((len(ne_range), len(P_SOL_range)))
+        connection_factor = self._REFERENCE_CONNECTION_LENGTH_M / self.connection_length_m
 
         for i, ne in enumerate(ne_range):
             for j, P in enumerate(P_SOL_range):
                 # I_p = 15 MA representative of ITER baseline scenario
-                n_crit = DensityLimitPredictor.marfe_limit(15.0, self.a, P, self.impurity, 1e-4)
+                n_crit = DensityLimitPredictor.marfe_limit(15.0, self.a, P, self.impurity, 1e-4) * connection_factor
                 result[i, j] = -1 if ne > n_crit else 1
 
         return result

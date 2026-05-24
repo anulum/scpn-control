@@ -895,7 +895,7 @@
     },
     {
       "component": "MARFE radiation-condensation density-limit contract",
-      "equation_contract": "MARFE claims must declare impurity radiation loss, temperature scan, condensation criterion, Greenwald comparison, power-balance inputs, bounded impurity fraction, validated front-temperature state, and detection thresholds for detached high-radiation states.",
+      "equation_contract": "MARFE claims must declare impurity radiation loss, temperature scan, condensation criterion, Greenwald comparison, power-balance inputs, bounded impurity fraction, edge parallel connection-length scaling through q95 and R0, validated front-temperature state, and detection thresholds for detached high-radiation states.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Stangeby 2000 scrape-off-layer and divertor references",
@@ -908,7 +908,7 @@
         "Validate onset temperatures and density limits against measured or published MARFE cases",
         "Add impurity-specific radiation tables or documented provenance for each supported impurity species"
       ],
-      "unit_contract": "Temperature in eV, density in m^-3, power in MW or W with explicit conversion, plasma current in MA or A with convention metadata, impurity fraction dimensionless on (0, 1].",
+      "unit_contract": "Temperature in eV, density in m^-3, power in MW or W with explicit conversion, plasma current in MA or A with convention metadata, impurity fraction dimensionless on (0, 1], connection length in metres.",
       "validation_evidence": [
         "tests/test_marfe.py",
         "tests/test_cross_module_physics.py"
