@@ -15,7 +15,10 @@ from tools.check_generated_traceability import ROOT, generated_traceability_is_c
 
 def test_generated_traceability_check_passes_for_repository_state(capsys) -> None:
     assert main([]) == 0
-    assert "Generated traceability documentation is current." in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Generated traceability documentation is current:" in output
+    assert "validation/physics_traceability.json" in output
+    assert "docs/physics_traceability.md" in output
 
 
 def test_generated_traceability_check_detects_stale_report(tmp_path: Path) -> None:
@@ -33,7 +36,10 @@ def test_generated_traceability_cli_accepts_explicit_paths(tmp_path: Path, capsy
     report = ROOT / "docs" / "physics_traceability.md"
 
     assert main(["--registry", str(registry), "--report", str(report)]) == 0
-    assert "Generated traceability documentation is current." in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Generated traceability documentation is current:" in output
+    assert str(registry) in output
+    assert str(report) in output
 
 
 def test_generated_traceability_cli_reports_stale_explicit_path(tmp_path: Path, capsys) -> None:

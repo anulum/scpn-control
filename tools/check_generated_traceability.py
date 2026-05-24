@@ -58,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print("Generated traceability documentation is current.")
+    print(f"Generated traceability documentation is current: {registry} -> {report_path}")
     return 0
 
 
