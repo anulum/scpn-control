@@ -179,11 +179,17 @@ class AnalyticEquilibriumSolver:
         target_Bv = _require_finite_scalar("target_Bv", target_Bv)
         ridge_lambda = _require_finite_scalar("ridge_lambda", ridge_lambda)
         ridge_lambda = max(ridge_lambda, 0.0)
+        if not np.all(np.isfinite(eff)):
+            raise ValueError("coil influence matrix must contain only finite values.")
+        influence_norm_sq = float(np.dot(eff, eff))
+        if influence_norm_sq <= 1e-24:
+            if abs(target_Bv) > 1e-12:
+                raise ValueError("nonzero target_Bv requires nonzero coil influence.")
+            return np.zeros_like(eff, dtype=np.float64)
 
         g = eff.reshape(1, -1)
         if ridge_lambda > 0.0:
-            gg = float(np.dot(eff, eff))
-            denom = max(gg + ridge_lambda, 1e-12)
+            denom = max(influence_norm_sq + ridge_lambda, 1e-12)
             currents = (eff * target_Bv) / denom
         else:
             currents = np.linalg.pinv(g).dot(np.array([target_Bv], dtype=np.float64)).reshape(-1)

@@ -129,6 +129,11 @@ class FakeKernelNoCoils:
         return np.zeros((10, 10))
 
 
+class FakeKernelZeroInfluence(FakeKernel):
+    def calculate_vacuum_field(self):
+        return np.zeros((len(self.Z), len(self.R)))
+
+
 class TestComputeCoilEfficienciesEdgeCases:
     def test_rejects_zero_coils(self, tmp_path):
         cfg = tmp_path / "test.json"
@@ -170,6 +175,25 @@ class TestSolveCoilCurrentsRidge:
             solver.solve_coil_currents(target_Bv=float("inf"), target_R=6.2)
         with pytest.raises(ValueError, match="ridge_lambda must be finite"):
             solver.solve_coil_currents(target_Bv=-0.1, target_R=6.2, ridge_lambda=float("nan"))
+
+
+class TestSolveCoilCurrentsInfeasibleInfluence:
+    def test_rejects_nonzero_target_with_zero_influence(self, tmp_path):
+        cfg = tmp_path / "test.json"
+        cfg.write_text("{}")
+        solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernelZeroInfluence, verbose=False)
+
+        with pytest.raises(ValueError, match="nonzero target_Bv requires nonzero coil influence"):
+            solver.solve_coil_currents(target_Bv=-0.1, target_R=6.2)
+
+    def test_zero_target_with_zero_influence_returns_zero_currents(self, tmp_path):
+        cfg = tmp_path / "test.json"
+        cfg.write_text("{}")
+        solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernelZeroInfluence, verbose=False)
+
+        currents = solver.solve_coil_currents(target_Bv=0.0, target_R=6.2)
+
+        np.testing.assert_allclose(currents, np.zeros(3))
 
 
 # ── apply_and_save ───────────────────────────────────────────────
