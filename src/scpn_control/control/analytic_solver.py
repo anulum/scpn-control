@@ -29,6 +29,30 @@ _PRESERVED_METADATA_KEYS = (
     "file",
 )
 
+
+def _require_positive_scalar(name: str, value: float) -> float:
+    """Return a finite positive scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0.")
+    return scalar
+
+
+def _require_nonnegative_scalar(name: str, value: float) -> float:
+    """Return a finite non-negative scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar < 0.0:
+        raise ValueError(f"{name} must be finite and >= 0.")
+    return scalar
+
+
+def _require_finite_scalar(name: str, value: float) -> float:
+    """Return a finite scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite.")
+    return scalar
+
 try:
     from scpn_control.core._rust_compat import FusionKernel
 except ImportError:
@@ -73,13 +97,13 @@ class AnalyticEquilibriumSolver:
         """
         Shafranov radial-force balance vertical field estimate.
         """
-        R_geo = float(R_geo)
-        a_min = float(a_min)
-        Ip_MA = float(Ip_MA)
-        beta_p = float(beta_p)
-        li = float(li)
-        if R_geo <= 0.0 or a_min <= 0.0 or Ip_MA <= 0.0:
-            raise ValueError("R_geo, a_min and Ip_MA must be > 0.")
+        R_geo = _require_positive_scalar("R_geo", R_geo)
+        a_min = _require_positive_scalar("a_min", a_min)
+        Ip_MA = _require_positive_scalar("Ip_MA", Ip_MA)
+        beta_p = _require_nonnegative_scalar("beta_p", beta_p)
+        li = _require_nonnegative_scalar("li", li)
+        if R_geo <= a_min:
+            raise ValueError("R_geo must exceed a_min for tokamak aspect geometry.")
 
         mu0 = 4.0 * np.pi * 1e-7
         Ip = Ip_MA * 1e6
@@ -107,10 +131,8 @@ class AnalyticEquilibriumSolver:
         if n_coils == 0:
             raise ValueError("Kernel config has no coils.")
 
-        target_R = float(target_R)
-        target_Z = float(target_Z)
-        if target_R <= 0.0:
-            raise ValueError("target_R must be > 0.")
+        target_R = _require_positive_scalar("target_R", target_R)
+        target_Z = _require_finite_scalar("target_Z", target_Z)
 
         original_currents = [float(c.get("current", 0.0)) for c in coils]
         eff = np.zeros(n_coils, dtype=np.float64)
@@ -154,8 +176,9 @@ class AnalyticEquilibriumSolver:
         Solve least-norm coil currents for desired vertical field target.
         """
         eff = self.compute_coil_efficiencies(target_R, target_Z=target_Z)
-        target_Bv = float(target_Bv)
-        ridge_lambda = max(float(ridge_lambda), 0.0)
+        target_Bv = _require_finite_scalar("target_Bv", target_Bv)
+        ridge_lambda = _require_finite_scalar("ridge_lambda", ridge_lambda)
+        ridge_lambda = max(ridge_lambda, 0.0)
 
         g = eff.reshape(1, -1)
         if ridge_lambda > 0.0:
@@ -176,6 +199,8 @@ class AnalyticEquilibriumSolver:
         coils = self.kernel.cfg.get("coils", [])
         if arr.size != len(coils):
             raise ValueError("Current vector length mismatch with kernel coils.")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError("currents must contain only finite values.")
         for i, val in enumerate(arr):
             coils[i]["current"] = float(val)
 

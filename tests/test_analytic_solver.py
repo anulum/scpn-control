@@ -68,6 +68,14 @@ class TestAnalyticEquilibriumSolver:
         with pytest.raises(ValueError):
             solver.calculate_required_Bv(R_geo=6.2, a_min=-1.0, Ip_MA=15.0)
 
+    def test_rejects_nonfinite_or_invalid_shafranov_domain(self, solver):
+        with pytest.raises(ValueError, match="R_geo must exceed a_min"):
+            solver.calculate_required_Bv(R_geo=1.0, a_min=1.0, Ip_MA=15.0)
+        with pytest.raises(ValueError, match="beta_p must be finite and >= 0"):
+            solver.calculate_required_Bv(R_geo=6.2, a_min=2.0, Ip_MA=15.0, beta_p=float("nan"))
+        with pytest.raises(ValueError, match="li must be finite and >= 0"):
+            solver.calculate_required_Bv(R_geo=6.2, a_min=2.0, Ip_MA=15.0, li=-0.1)
+
     def test_coil_efficiencies_shape(self, solver):
         eff = solver.compute_coil_efficiencies(target_R=6.2)
         assert eff.shape == (3,)
@@ -79,6 +87,10 @@ class TestAnalyticEquilibriumSolver:
     def test_apply_currents_length_mismatch(self, solver):
         with pytest.raises(ValueError, match="mismatch"):
             solver.apply_currents(np.array([1.0, 2.0]))  # 2 instead of 3
+
+    def test_apply_currents_rejects_nonfinite_values(self, solver):
+        with pytest.raises(ValueError, match="currents must contain only finite values"):
+            solver.apply_currents(np.array([1.0, np.nan, 3.0]))
 
     def test_apply_currents_updates_config(self, solver):
         currents = np.array([1.0, 2.0, 3.0])
@@ -126,8 +138,12 @@ class TestComputeCoilEfficienciesEdgeCases:
             solver.compute_coil_efficiencies(target_R=6.2)
 
     def test_rejects_nonpositive_target_r(self, solver):
-        with pytest.raises(ValueError, match="target_R must be > 0"):
+        with pytest.raises(ValueError, match="target_R must be finite and > 0"):
             solver.compute_coil_efficiencies(target_R=0.0)
+
+    def test_rejects_nonfinite_target_z(self, solver):
+        with pytest.raises(ValueError, match="target_Z must be finite"):
+            solver.compute_coil_efficiencies(target_R=6.2, target_Z=float("nan"))
 
     def test_restores_currents_after_efficiency_calc(self, solver):
         solver.kernel.cfg["coils"][0]["current"] = 7.5
@@ -148,6 +164,12 @@ class TestSolveCoilCurrentsRidge:
         c1 = solver.solve_coil_currents(target_Bv=-0.1, target_R=6.2, ridge_lambda=0.0)
         c2 = solver.solve_coil_currents(target_Bv=-0.1, target_R=6.2, ridge_lambda=-5.0)
         np.testing.assert_allclose(c1, c2)
+
+    def test_rejects_nonfinite_target_and_ridge(self, solver):
+        with pytest.raises(ValueError, match="target_Bv must be finite"):
+            solver.solve_coil_currents(target_Bv=float("inf"), target_R=6.2)
+        with pytest.raises(ValueError, match="ridge_lambda must be finite"):
+            solver.solve_coil_currents(target_Bv=-0.1, target_R=6.2, ridge_lambda=float("nan"))
 
 
 # ── apply_and_save ───────────────────────────────────────────────
