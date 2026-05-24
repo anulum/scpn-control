@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.ntm_dynamics import (
     NTMController,
@@ -96,7 +97,7 @@ def test_eccd_stabilization():
     dw_dt_no_cd = ntm.dw_dt(w0, j_bs, j_phi, 0.0, eta)
     assert dw_dt_no_cd > 0
 
-    # With strong ECCD, it should shrink
+    # With sufficient ECCD, it should shrink
     dw_dt_with_cd = ntm.dw_dt(w0, j_bs, j_phi, 2e5, eta, d_cd=0.05)
     assert dw_dt_with_cd < 0
 
@@ -110,7 +111,7 @@ def test_eccd_misalignment():
     eta = 1e-7
     j_cd = 2e5
 
-    # Perfect alignment (d_cd ~ w) -> strong stabilization
+    # Perfect alignment (d_cd ~ w) -> larger stabilization
     dw_dt_aligned = ntm.dw_dt(w0, j_bs, j_phi, j_cd, eta, d_cd=0.05)
 
     # Misaligned / broad deposition (d_cd >> w) -> weaker stabilization
@@ -139,7 +140,7 @@ def test_diamagnetic_stabilizes_small_islands():
 
     Sauter et al. 1997, Phys. Plasmas 4, 1654, Eq. 20:
       term_dia = -a4 * (w_d/w)² * (s_hat/s_hat_ref)
-    For w < w_d this term drives dw/dt strongly negative.
+    For w < w_d this term drives dw/dt negative.
     """
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0, s_hat=1.0)
 
@@ -241,7 +242,7 @@ def test_seed_island_threshold():
 
 
 def test_eccd_stabilization_factor_edge():
-    """Line 67: eccd_stabilization_factor returns 0 for w <= 0 or d_cd <= 0."""
+    """Non-positive island width or deposition width gives zero ECCD coupling."""
     assert eccd_stabilization_factor(0.05, 0.0) == 0.0
     assert eccd_stabilization_factor(0.0, 0.05) == 0.0
     assert eccd_stabilization_factor(-0.1, 0.05) == 0.0
@@ -249,7 +250,7 @@ def test_eccd_stabilization_factor_edge():
 
 
 def test_find_rational_surfaces_equal_q():
-    """Line 88: find_rational_surfaces skips crossings where q1 == q2."""
+    """Flat q profiles do not create interpolated rational-surface crossings."""
     rho = np.linspace(0, 1, 10)
     q = np.ones(10) * 2.0  # flat q = 2/1
     surfaces = find_rational_surfaces(q, rho, a=1.0)
@@ -257,14 +258,14 @@ def test_find_rational_surfaces_equal_q():
 
 
 def test_ggj_delta_prime_zero_shear():
-    """Line 154: _ggj_delta_prime returns 0 for tiny s_hat or B_pol."""
+    """Degenerate shear or poloidal field gives no finite GGJ correction."""
     assert _ggj_delta_prime(2, 0.5, 1e-7, -5e4, 0.3, 2.0, 3.0) == 0.0
     assert _ggj_delta_prime(2, 0.5, 1.0, -5e4, 1e-11, 2.0, 3.0) == 0.0
 
 
 def test_bootstrap_from_local_edge():
-    """bootstrap_from_local returns 0 for invalid geometry/state."""
-    assert (
+    """bootstrap_from_local fails closed for invalid state and returns zero on-axis."""
+    with pytest.raises(ValueError, match="B0"):
         bootstrap_from_local(
             ne_19=8.0,
             Te_keV=5.0,
@@ -273,7 +274,22 @@ def test_bootstrap_from_local_edge():
             rho=0.5,
             R0=6.2,
             a=2.0,
-            B0=1e-12,
+            B0=0.0,
+            z_eff=1.5,
+            dne_dr=-1.0,
+            dTe_dr=-1.0,
+            dTi_dr=-1.0,
+        )
+    assert (
+        bootstrap_from_local(
+            ne_19=8.0,
+            Te_keV=5.0,
+            Ti_keV=5.0,
+            q=2.0,
+            rho=0.0,
+            R0=6.2,
+            a=2.0,
+            B0=5.3,
             z_eff=1.5,
             dne_dr=-1.0,
             dTe_dr=-1.0,
@@ -301,7 +317,7 @@ def test_bootstrap_from_local_edge():
 
 
 def test_dw_dt_with_rho_theta_i_override():
-    """Line 309: dw_dt uses rho_theta_i * sqrt(2*beta_pol) as w_d override."""
+    """dw_dt uses rho_theta_i * sqrt(2*beta_pol) as the banana-width override."""
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
     dw1 = ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7, w_d=1e-3)
     dw2 = ntm.dw_dt(
@@ -318,7 +334,7 @@ def test_dw_dt_with_rho_theta_i_override():
 
 
 def test_ntm_controller_deactivation():
-    """Lines 419-420: NTMController deactivates when w drops below w_target."""
+    """NTMController deactivates when the island width drops below target."""
     ctrl = NTMController(w_onset=0.02, w_target=0.005)
 
     # Activate
@@ -334,3 +350,90 @@ def test_ntm_controller_deactivation():
     power = ctrl.step(w=0.004, rho_rs=0.5, max_power=20.0)
     assert ctrl.active is False
     assert power == 0.0
+
+
+def test_find_rational_surfaces_rejects_nonphysical_inputs() -> None:
+    rho = np.linspace(0.0, 1.0, 5)
+    q = np.linspace(1.0, 2.0, 5)
+
+    with pytest.raises(ValueError, match="equal length"):
+        find_rational_surfaces(q[:-1], rho, a=1.0)
+    with pytest.raises(ValueError, match="q values"):
+        find_rational_surfaces(np.zeros(5), rho, a=1.0)
+    with pytest.raises(ValueError, match="strictly increasing"):
+        find_rational_surfaces(q, rho[::-1], a=1.0)
+    with pytest.raises(ValueError, match="a must be positive"):
+        find_rational_surfaces(q, rho, a=0.0)
+    with pytest.raises(ValueError, match="m_max and n_max"):
+        find_rational_surfaces(q, rho, a=1.0, m_max=0)
+
+
+def test_ggj_delta_prime_rejects_nonphysical_geometry() -> None:
+    with pytest.raises(ValueError, match="m"):
+        _ggj_delta_prime(0, 0.5, 1.0, -5e4, 0.3, 2.0, 3.0)
+    with pytest.raises(ValueError, match="r_s, q, and R0"):
+        _ggj_delta_prime(2, 0.0, 1.0, -5e4, 0.3, 2.0, 3.0)
+
+
+def test_bootstrap_from_local_rejects_nonphysical_state() -> None:
+    with pytest.raises(ValueError, match="ne_19"):
+        bootstrap_from_local(
+            ne_19=0.0,
+            Te_keV=5.0,
+            Ti_keV=5.0,
+            q=2.0,
+            rho=0.5,
+            R0=6.2,
+            a=2.0,
+            B0=5.3,
+            z_eff=1.5,
+            dne_dr=-1.0,
+            dTe_dr=-1.0,
+            dTi_dr=-1.0,
+        )
+
+
+def test_ntm_island_dynamics_rejects_nonphysical_constructor_inputs() -> None:
+    with pytest.raises(ValueError, match="r_s, a, R0, and B0"):
+        NTMIslandDynamics(r_s=0.0, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
+    with pytest.raises(ValueError, match="m and n"):
+        NTMIslandDynamics(r_s=0.5, m=0, n=1, a=1.0, R0=3.0, B0=2.0)
+    with pytest.raises(ValueError, match="q_s"):
+        NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0, q_s=0.0)
+
+
+def test_ntm_dw_dt_rejects_nonphysical_inputs() -> None:
+    ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
+
+    with pytest.raises(ValueError, match="j_phi"):
+        ntm.dw_dt(0.02, j_bs=1e5, j_phi=0.0, j_cd=0.0, eta=1e-7)
+    with pytest.raises(ValueError, match="eta"):
+        ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=0.0)
+    with pytest.raises(ValueError, match="w_d"):
+        ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7, w_d=-1.0)
+    with pytest.raises(ValueError, match="rho_theta_i"):
+        ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7, rho_theta_i=-1.0)
+
+
+def test_ntm_evolve_rejects_nonphysical_time_inputs() -> None:
+    ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
+
+    with pytest.raises(ValueError, match="t_span"):
+        ntm.evolve(0.01, (1.0, 0.0), 0.01, j_bs=0.0, j_phi=1e6, j_cd=0.0, eta=1e-7)
+    with pytest.raises(ValueError, match="dt"):
+        ntm.evolve(0.01, (0.0, 1.0), 0.0, j_bs=0.0, j_phi=1e6, j_cd=0.0, eta=1e-7)
+    with pytest.raises(ValueError, match="w0"):
+        ntm.evolve(0.0, (0.0, 1.0), 0.01, j_bs=0.0, j_phi=1e6, j_cd=0.0, eta=1e-7)
+
+
+def test_ntm_controller_rejects_nonphysical_inputs() -> None:
+    with pytest.raises(ValueError, match="w_target"):
+        NTMController(w_onset=0.01, w_target=0.02)
+
+    ctrl = NTMController(w_onset=0.02, w_target=0.005)
+    with pytest.raises(ValueError, match="w must be non-negative"):
+        ctrl.step(w=-1.0, rho_rs=0.5)
+    with pytest.raises(ValueError, match="rho_rs"):
+        ctrl.step(w=0.01, rho_rs=1.5)
+    with pytest.raises(ValueError, match="max_power"):
+        ctrl.step(w=0.01, rho_rs=0.5, max_power=-1.0)

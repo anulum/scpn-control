@@ -72,6 +72,18 @@ def find_rational_surfaces(
     q: np.ndarray, rho: np.ndarray, a: float, m_max: int = 5, n_max: int = 3
 ) -> list[RationalSurface]:
     """Locate radii where q(rho) = m/n by zero-crossing interpolation."""
+    if q.ndim != 1 or rho.ndim != 1:
+        raise ValueError("q and rho must be one-dimensional")
+    if len(q) != len(rho) or len(q) < 2:
+        raise ValueError("q and rho must have equal length with at least two samples")
+    if np.any(q <= 0.0):
+        raise ValueError("q values must be positive")
+    if np.any(np.diff(rho) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
+    if a <= 0.0:
+        raise ValueError("a must be positive")
+    if m_max <= 0 or n_max <= 0:
+        raise ValueError("m_max and n_max must be positive")
     surfaces: list[RationalSurface] = []
     dq_drho = np.gradient(q, rho)
 
@@ -150,6 +162,10 @@ def _ggj_delta_prime(
     float
         Δ'_GGJ [m^-1].
     """
+    if m <= 0:
+        raise ValueError("m must be positive")
+    if r_s <= 0.0 or q <= 0.0 or R0 <= 0.0:
+        raise ValueError("r_s, q, and R0 must be positive")
     if abs(s_hat) < 1e-6 or abs(B_pol) < 1e-10:
         return 0.0
     D_R = -2.0 * MU_0 * q**2 * R0**2 * pressure_gradient / (s_hat**2 * B_pol**2)
@@ -181,9 +197,9 @@ def bootstrap_from_local(
     the same fits used in :mod:`scpn_control.core.neoclassical`.
     """
     if Te_keV <= 0.0 or Ti_keV <= 0.0 or ne_19 <= 0.0 or q <= 0.0:
-        return 0.0
+        raise ValueError("ne_19, Te_keV, Ti_keV, and q must be positive")
     if a <= 0.0 or R0 <= 0.0 or B0 == 0.0:
-        return 0.0
+        raise ValueError("a, R0, and B0 must be physical")
 
     epsilon = rho * a / R0
     if epsilon < 1e-6:
@@ -246,6 +262,12 @@ class NTMIslandDynamics:
         s_hat: float = 1.0,
         q_s: float = 2.0,
     ):
+        if r_s <= 0.0 or a <= 0.0 or R0 <= 0.0 or B0 <= 0.0:
+            raise ValueError("r_s, a, R0, and B0 must be positive")
+        if m <= 0 or n <= 0:
+            raise ValueError("m and n must be positive")
+        if q_s <= 0.0:
+            raise ValueError("q_s must be positive")
         self.r_s = r_s
         self.m = m
         self.n = n
@@ -336,6 +358,16 @@ class NTMIslandDynamics:
         """
         if w <= 1e-6:
             return 0.0
+        if j_phi <= 0.0:
+            raise ValueError("j_phi must be positive")
+        if eta <= 0.0:
+            raise ValueError("eta must be positive")
+        if w_d < 0.0 or w_pol < 0.0 or d_cd < 0.0:
+            raise ValueError("w_d, w_pol, and d_cd must be non-negative")
+        if rho_theta_i is not None and rho_theta_i < 0.0:
+            raise ValueError("rho_theta_i must be non-negative")
+        if beta_pol is not None and beta_pol < 0.0:
+            raise ValueError("beta_pol must be non-negative")
 
         # Resistive diffusion time — Rutherford 1973, Phys. Fluids 16, 1903, Eq. 2
         tau_R = MU_0 * self.r_s**2 / max(eta, 1e-12)
@@ -400,6 +432,12 @@ class NTMIslandDynamics:
         All physics keyword arguments are forwarded to dw_dt unchanged.
         """
         t_start, t_end = t_span
+        if t_end <= t_start:
+            raise ValueError("t_span end must be greater than start")
+        if dt <= 0.0:
+            raise ValueError("dt must be positive")
+        if w0 <= 0.0:
+            raise ValueError("w0 must be positive")
         n_steps = int(np.ceil((t_end - t_start) / dt))
         t_arr = np.linspace(t_start, t_end, n_steps + 1)
         w_arr = np.zeros(n_steps + 1)
@@ -439,6 +477,10 @@ class NTMController:
     """ECCD-based NTM controller: triggers at onset, deactivates at target."""
 
     def __init__(self, w_onset: float = 0.02, w_target: float = 0.005):
+        if w_onset <= 0.0 or w_target <= 0.0:
+            raise ValueError("w_onset and w_target must be positive")
+        if w_target >= w_onset:
+            raise ValueError("w_target must be smaller than w_onset")
         self.w_onset = w_onset
         self.w_target = w_target
         self.active = False
@@ -447,6 +489,12 @@ class NTMController:
 
     def step(self, w: float, rho_rs: float, max_power: float = 20.0) -> float:
         """Return requested ECCD power [MW]; update controller state."""
+        if w < 0.0:
+            raise ValueError("w must be non-negative")
+        if not (0.0 <= rho_rs <= 1.0):
+            raise ValueError("rho_rs must lie in [0, 1]")
+        if max_power < 0.0:
+            raise ValueError("max_power must be non-negative")
         if not self.active and w > self.w_onset:
             self.active = True
             self.target_rho = rho_rs
