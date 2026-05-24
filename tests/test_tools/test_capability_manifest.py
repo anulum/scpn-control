@@ -41,6 +41,11 @@ def test_manifest_scans_control_specific_surfaces(capability_tool) -> None:
     assert manifest["project"]["package"] == "scpn_control"
     assert "dashboard" in manifest["project"]["optional_extras"]
     assert "facility" in manifest["project"]["optional_extras"]
+    assert manifest["project"]["scripts"]["scpn-control"] == "scpn_control.cli:main"
+    assert (
+        manifest["project"]["scripts"]["scpn-check-generated-traceability"]
+        == "tools.check_generated_traceability:main"
+    )
 
     assert "FusionKernel" in manifest["python"]["public_api_exports"]
     assert "NeuroSymbolicController" in manifest["python"]["public_api_exports"]
@@ -59,6 +64,7 @@ def test_manifest_scans_control_specific_surfaces(capability_tool) -> None:
     assert all("/internal/" not in f"/{path}/" for path in manifest["docs"]["public_markdown"])
 
     for section, count_name, values_name in (
+        ("project", "project_script_count", "scripts"),
         ("python", "source_module_count", "source_modules"),
         ("python", "public_class_count", "public_classes"),
         ("python", "public_api_export_count", "public_api_exports"),
@@ -105,5 +111,6 @@ def test_markdown_snapshot_is_readme_safe(capability_tool) -> None:
     assert markdown.startswith("<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->\n")
     assert "<h1" not in markdown.lower()
     assert "\n# " not in markdown
+    assert "| Project scripts | 2 |" in markdown
     assert "".join(("Co", "dex")) not in markdown
     assert "".join(("Open", "AI")) not in markdown

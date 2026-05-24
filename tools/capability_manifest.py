@@ -107,6 +107,7 @@ def _docs_markdown(repo_root: Path, config: dict[str, Any]) -> list[str]:
 def _project_metadata(pyproject: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     project = pyproject["project"]
     optional_deps = project.get("optional-dependencies", {})
+    scripts = project.get("scripts", {})
     return {
         "label": config["project_label"],
         "name": project["name"],
@@ -114,6 +115,7 @@ def _project_metadata(pyproject: dict[str, Any], config: dict[str, Any]) -> dict
         "version": project["version"],
         "python_requires": project["requires-python"],
         "optional_extras": sorted(optional_deps),
+        "scripts": dict(sorted((str(name), str(target)) for name, target in scripts.items())),
     }
 
 
@@ -146,6 +148,7 @@ def build_manifest(repo_root: Path | str | None = None) -> dict[str, Any]:
         _relative(repo_root, path) for path in _iter_existing_files(repo_root, [paths["workflows_root"]], ".yml")
     ]
     docs = _docs_markdown(repo_root, config)
+    project_metadata = _project_metadata(pyproject, config)
 
     manifest = {
         "$schema": config["schema_version"],
@@ -156,7 +159,7 @@ def build_manifest(repo_root: Path | str | None = None) -> dict[str, Any]:
             "orcid": "0009-0009-3560-0851",
             "contact": "www.anulum.li | protoscience@anulum.li",
         },
-        "project": _project_metadata(pyproject, config),
+        "project": project_metadata,
         "python": {
             "source_roots": list(paths["source_roots"]),
             "source_modules": source_modules,
@@ -175,6 +178,7 @@ def build_manifest(repo_root: Path | str | None = None) -> dict[str, Any]:
         "ci": {"workflows": workflows},
         "counts": {
             "source_module_count": len(source_modules),
+            "project_script_count": len(project_metadata["scripts"]),
             "public_class_count": len(public_classes),
             "public_api_export_count": len(public_exports),
             "rust_source_file_count": len(rust_files),
@@ -192,6 +196,7 @@ def build_manifest(repo_root: Path | str | None = None) -> dict[str, Any]:
 def validate_manifest(manifest: dict[str, Any]) -> None:
     checks = {
         "source_module_count": len(manifest["python"]["source_modules"]),
+        "project_script_count": len(manifest["project"]["scripts"]),
         "public_class_count": len(manifest["python"]["public_classes"]),
         "public_api_export_count": len(manifest["python"]["public_api_exports"]),
         "rust_source_file_count": len(manifest["rust"]["source_files"]),
@@ -223,6 +228,7 @@ def render_markdown(manifest: dict[str, Any]) -> str:
     rows = [
         ("Package version", project["version"]),
         ("Python requirement", project["python_requires"]),
+        ("Project scripts", counts["project_script_count"]),
         ("Public API exports", counts["public_api_export_count"]),
         ("Python control/physics modules", counts["source_module_count"]),
         ("Python public classes", counts["public_class_count"]),

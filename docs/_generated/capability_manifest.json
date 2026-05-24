@@ -19,6 +19,7 @@
     "orcid": "0009-0009-3560-0851"
   },
   "counts": {
+    "project_script_count": 2,
     "public_api_export_count": 15,
     "public_class_count": 394,
     "public_markdown_count": 30,
@@ -86,6 +87,10 @@
     ],
     "package": "scpn_control",
     "python_requires": ">=3.10",
+    "scripts": {
+      "scpn-check-generated-traceability": "tools.check_generated_traceability:main",
+      "scpn-control": "scpn_control.cli:main"
+    },
     "version": "0.19.1"
   },
   "python": {

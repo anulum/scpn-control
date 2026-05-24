@@ -58,6 +58,7 @@ Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native line
 | --- | ---: |
 | Package version | 0.19.1 |
 | Python requirement | >=3.10 |
+| Project scripts | 2 |
 | Public API exports | 15 |
 | Python control/physics modules | 128 |
 | Python public classes | 394 |
