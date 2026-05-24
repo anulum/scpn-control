@@ -413,6 +413,10 @@ def test_bootstrap_from_local_rejects_nonphysical_state() -> None:
 def test_ntm_island_dynamics_rejects_nonphysical_constructor_inputs() -> None:
     with pytest.raises(ValueError, match="r_s"):
         NTMIslandDynamics(r_s=0.0, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
+    with pytest.raises(ValueError, match="r_s"):
+        NTMIslandDynamics(r_s=1.1, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
+    with pytest.raises(ValueError, match="a must be smaller"):
+        NTMIslandDynamics(r_s=0.5, m=2, n=1, a=3.0, R0=3.0, B0=2.0)
     with pytest.raises(ValueError, match="m and n"):
         NTMIslandDynamics(r_s=0.5, m=0, n=1, a=1.0, R0=3.0, B0=2.0)
     with pytest.raises(ValueError, match="q_s"):

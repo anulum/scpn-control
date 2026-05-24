@@ -297,6 +297,10 @@ class NTMIslandDynamics:
         a = _finite_scalar("a", a, positive=True)
         R0 = _finite_scalar("R0", R0, positive=True)
         B0 = _finite_scalar("B0", B0, positive=True)
+        if r_s > a:
+            raise ValueError("r_s must not exceed the plasma minor radius a")
+        if a >= R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
         if m <= 0 or n <= 0:
             raise ValueError("m and n must be positive")
         q_s = _finite_scalar("q_s", q_s, positive=True)

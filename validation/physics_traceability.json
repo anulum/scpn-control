@@ -926,7 +926,7 @@
     },
     {
       "component": "NTM island evolution and control approximation contract",
-      "equation_contract": "NTM dynamics claims must declare rational-surface search, modified Rutherford equation terms, bootstrap drive, polarisation and curvature terms, ECCD control coupling, seed-island assumptions, and controller-validity limits.",
+      "equation_contract": "NTM dynamics claims must declare rational-surface search, rational-surface containment inside the minor radius, tokamak major/minor-radius ordering, modified Rutherford equation terms, bootstrap drive, polarisation and curvature terms, ECCD control coupling, seed-island assumptions, and controller-validity limits.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "modified Rutherford equation NTM references",
