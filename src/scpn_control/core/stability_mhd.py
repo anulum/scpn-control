@@ -178,8 +178,12 @@ def _validate_q_profile(qp: QProfile) -> QProfile:
     q_edge = _require_finite_scalar("q_edge", qp.q_edge, positive=True)
     if q_min_rho > 1.0:
         raise ValueError("q_min_rho must stay within the normalised interval [0, 1]")
+    q_min_idx = int(np.argmin(q))
+    q_min_rho_expected = float(rho[q_min_idx])
     if not np.isclose(q_min, float(np.min(q)), rtol=1e-7, atol=1e-10):
         raise ValueError("q_min must match the q-profile minimum")
+    if not np.isclose(q_min_rho, q_min_rho_expected, rtol=1e-7, atol=1e-10):
+        raise ValueError("q_min_rho must match the q-profile minimum radius")
     if not np.isclose(q_edge, float(q[-1]), rtol=1e-7, atol=1e-10):
         raise ValueError("q_edge must match the last q-profile point")
     return qp

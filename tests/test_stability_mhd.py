@@ -354,6 +354,23 @@ class TestStabilityInputBoundaries:
         with pytest.raises(ValueError, match="strictly increasing"):
             kruskal_shafranov_stability(broken)
 
+    def test_stability_criteria_reject_wrong_q_min_radius_metadata(self, iter_like_qprofile):
+        qp = iter_like_qprofile
+        true_min_idx = int(np.argmin(qp.q))
+        wrong_min_idx = 0 if true_min_idx != 0 else len(qp.rho) - 1
+        broken = QProfile(
+            rho=qp.rho,
+            q=qp.q,
+            shear=qp.shear,
+            alpha_mhd=qp.alpha_mhd,
+            q_min=float(np.min(qp.q)),
+            q_min_rho=float(qp.rho[wrong_min_idx]),
+            q_edge=float(qp.q[-1]),
+        )
+
+        with pytest.raises(ValueError, match="q_min_rho"):
+            run_full_stability_check(broken)
+
     def test_troyon_beta_limit_rejects_nonphysical_inputs(self):
         with pytest.raises(ValueError, match="beta_t"):
             troyon_beta_limit(-0.01, Ip_MA=10.0, a=1.0, B0=5.0)
