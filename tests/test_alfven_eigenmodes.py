@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Alfven Eigenmodes
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Alfven Eigenmodes Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
@@ -310,6 +306,18 @@ def test_alfven_continuum_rejects_nonphysical_profiles():
     bad_q[2] = -1.0
     with pytest.raises(ValueError, match="q must contain finite positive values"):
         AlfvenContinuum(rho, bad_q, ne, B0=5.3, R0=6.2)
+
+
+def test_alfven_continuum_rejects_radius_outside_normalised_plasma():
+    rho = np.array([-0.1, 0.0, 0.5, 1.0])
+    q = np.linspace(1.0, 2.0, 4)
+    ne = np.ones(4)
+
+    with pytest.raises(ValueError, match="rho"):
+        AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
+
+    with pytest.raises(ValueError, match="rho"):
+        AlfvenContinuum(rho + 0.2, q, ne, B0=5.3, R0=6.2)
 
 
 def test_tae_mode_rejects_nonphysical_frequency_domain():

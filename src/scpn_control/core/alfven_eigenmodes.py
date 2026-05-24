@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851 | Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Alfven Eigenmode Physics
 """Alfven-eigenmode gap, drive, damping, and stability-screening utilities."""
 
 from __future__ import annotations
@@ -80,6 +83,8 @@ class AlfvenContinuum:
             raise ValueError("rho must be a one-dimensional grid with at least two points")
         if not np.all(np.isfinite(rho_arr)):
             raise ValueError("rho must contain only finite values")
+        if np.any(rho_arr < 0.0) or np.any(rho_arr > 1.0):
+            raise ValueError("rho must stay within the normalised plasma interval [0, 1]")
         if not np.all(np.diff(rho_arr) > 0.0):
             raise ValueError("rho must be strictly increasing")
         self.rho = rho_arr
