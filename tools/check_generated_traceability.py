@@ -20,13 +20,18 @@ if str(ROOT) not in sys.path:
 from validation.generate_physics_traceability_report import generate_physics_traceability_markdown
 
 
+def generated_traceability_is_current(registry: Path, report_path: Path) -> bool:
+    """Return True when the checked-in Markdown matches generated output."""
+    expected = generate_physics_traceability_markdown(registry)
+    actual = report_path.read_text(encoding="utf-8")
+    return actual == expected
+
+
 def main() -> int:
     """Check generated physics traceability Markdown against the registry."""
     registry = ROOT / "validation" / "physics_traceability.json"
     report_path = ROOT / "docs" / "physics_traceability.md"
-    expected = generate_physics_traceability_markdown(registry)
-    actual = report_path.read_text(encoding="utf-8")
-    if actual != expected:
+    if not generated_traceability_is_current(registry, report_path):
         print(
             "docs/physics_traceability.md is stale; run "
             "python validation/generate_physics_traceability_report.py",
