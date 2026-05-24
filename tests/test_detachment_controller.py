@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.detachment_controller import (
     DetachmentBifurcation,
@@ -141,28 +142,28 @@ def test_two_point_model_parallel():
 
 
 def test_radiation_front_zero_power():
-    """Exercise line 72: P_SOL_MW <= 0.0 returns front position 1.0."""
+    """Radiation-front position rejects nonphysical power inputs."""
     model = RadiationFrontModel("N2", 6.2, 2.0, 3.0)
-    pos = model.front_position(P_SOL_MW=0.0, n_u_19=4.0, seeding_rate=1.0)
-    assert pos == 1.0
+    with pytest.raises(ValueError, match="P_SOL_MW"):
+        model.front_position(P_SOL_MW=0.0, n_u_19=4.0, seeding_rate=1.0)
 
 
 def test_dod_tiny_temperature():
-    """Exercise line 88: T_target_eV <= 0.1 returns DOD = 10.0."""
+    """Very low positive target temperature saturates DOD."""
     model = RadiationFrontModel("N2", 6.2, 2.0, 3.0)
     dod = model.degree_of_detachment(0.05, 1.0, 1.0)
     assert dod == 10.0
 
 
 def test_determine_state_attached():
-    """Exercise line 140: T_t > 30 eV and rho_front < 0.8 -> ATTACHED."""
+    """High target temperature and target-localized front remains attached."""
     ctrl = DetachmentController()
     state = ctrl._determine_state(T_t=50.0, rho_front=0.1)
     assert state == DetachmentState.ATTACHED
 
 
 def test_bifurcation_fully_detached():
-    """Exercise line 210: DetachmentBifurcation._steady_state_target deep seeding."""
+    """Deep seeding reaches the detached branch."""
     sol = TwoPointSOL(R0=6.2, a=2.0, q95=3.0, B_pol=0.56)
     bif = DetachmentBifurcation(sol, "N2")
     # Very high seeding -> f_rad close to 0.95, should produce fully detached
@@ -171,9 +172,68 @@ def test_bifurcation_fully_detached():
 
 
 def test_multi_impurity_missing_controller():
-    """Exercise line 248: impurity not in controllers dict -> rate = 0.0."""
+    """Impurity without a configured controller receives a zero command."""
     c_N2 = DetachmentController("N2")
     multi = MultiImpuritySeeding(["N2", "Ar"], {"N2": c_N2})
     diag = {"T_target_eV": 20.0, "rho_front": 0.1}
     rates = multi.step(diag, dt=0.1)
     assert rates["Ar"] == 0.0
+
+
+def test_radiation_front_rejects_nonphysical_domains():
+    with pytest.raises(ValueError, match="R0"):
+        RadiationFrontModel("N2", R0=0.0, a=2.0, q95=3.0)
+    with pytest.raises(ValueError, match="a must be smaller"):
+        RadiationFrontModel("N2", R0=2.0, a=2.0, q95=3.0)
+
+    model = RadiationFrontModel("N2", 6.2, 2.0, 3.0)
+    with pytest.raises(ValueError, match="n_u_19"):
+        model.front_position(P_SOL_MW=100.0, n_u_19=float("nan"), seeding_rate=1.0)
+    with pytest.raises(ValueError, match="seeding_rate"):
+        model.front_position(P_SOL_MW=100.0, n_u_19=4.0, seeding_rate=-1.0)
+    with pytest.raises(ValueError, match="T_target_eV"):
+        model.degree_of_detachment(-1.0, 1.0, 1.0)
+
+
+def test_two_point_q_parallel_rejects_nonphysical_domains():
+    with pytest.raises(ValueError, match="T_upstream_eV"):
+        two_point_q_parallel(T_upstream_eV=-1.0, L_parallel_m=200.0)
+    with pytest.raises(ValueError, match="L_parallel_m"):
+        two_point_q_parallel(T_upstream_eV=100.0, L_parallel_m=0.0)
+
+
+def test_detachment_controller_rejects_nonphysical_inputs():
+    with pytest.raises(ValueError, match="target_DOD"):
+        DetachmentController(target_DOD=0.0)
+    with pytest.raises(ValueError, match="target_T_t_eV"):
+        DetachmentController(target_T_t_eV=float("nan"))
+
+    ctrl = DetachmentController()
+    with pytest.raises(ValueError, match="rho_front"):
+        ctrl._determine_state(T_t=10.0, rho_front=1.2)
+    with pytest.raises(ValueError, match="dt"):
+        ctrl.step(T_t_measured=10.0, n_t_measured=1.0, P_rad_measured=1.0, rho_front=0.1, dt=0.0)
+    with pytest.raises(ValueError, match="P_rad_measured"):
+        ctrl.step(T_t_measured=10.0, n_t_measured=1.0, P_rad_measured=-1.0, rho_front=0.1, dt=0.1)
+
+
+def test_detachment_bifurcation_rejects_malformed_seeding_scan():
+    sol = TwoPointSOL(R0=6.2, a=2.0, q95=3.0, B_pol=0.56)
+    bif = DetachmentBifurcation(sol, "N2")
+
+    with pytest.raises(ValueError, match="seeding_range"):
+        bif.scan_seeding(np.array([]), P_SOL_MW=100.0, n_u_19=4.0)
+    with pytest.raises(ValueError, match="strictly increasing"):
+        bif.scan_seeding(np.array([1.0, 1.0]), P_SOL_MW=100.0, n_u_19=4.0)
+    with pytest.raises(ValueError, match="seeding_rate"):
+        bif._steady_state_target(seeding_rate=-1.0, P_SOL_MW=100.0, n_u_19=4.0)
+
+
+def test_multi_impurity_rejects_nonphysical_diagnostics():
+    c_N2 = DetachmentController("N2")
+    multi = MultiImpuritySeeding(["N2"], {"N2": c_N2})
+
+    with pytest.raises(ValueError, match="dt"):
+        multi.step({"T_target_eV": 20.0}, dt=0.0)
+    with pytest.raises(ValueError, match="T_target_eV"):
+        multi.step({"T_target_eV": float("nan")}, dt=0.1)

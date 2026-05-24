@@ -40,6 +40,37 @@ _T_BIFURCATION_EV = 30.0  # [eV] — Lipschultz et al. 1999
 _XPOINT_MARFE_THRESHOLD = 0.8  # dimensionless front position
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _unit_interval(name: str, value: float) -> float:
+    scalar = _finite_scalar(name, value, nonnegative=True)
+    if scalar > 1.0:
+        raise ValueError(f"{name} must be within [0, 1]")
+    return scalar
+
+
+def _ordered_nonnegative_array(name: str, values: np.ndarray) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size == 0:
+        raise ValueError(f"{name} must be a non-empty one-dimensional array")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} values must be finite")
+    if np.any(arr < 0.0):
+        raise ValueError(f"{name} values must be non-negative")
+    if np.any(np.diff(arr) <= 0.0):
+        raise ValueError(f"{name} values must be strictly increasing")
+    return arr
+
+
 class DetachmentState(Enum):
     ATTACHED = auto()
     PARTIALLY_DETACHED = auto()
@@ -50,9 +81,11 @@ class DetachmentState(Enum):
 class RadiationFrontModel:
     def __init__(self, impurity: str, R0: float, a: float, q95: float):
         self.impurity = impurity
-        self.R0 = R0
-        self.a = a
-        self.q95 = q95
+        self.R0 = _finite_scalar("R0", R0, positive=True)
+        self.a = _finite_scalar("a", a, positive=True)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        self.q95 = _finite_scalar("q95", q95, positive=True)
 
     def radiation_temperature(self, impurity: str) -> float:
         """Peak radiation temperature [eV] for each impurity species.
@@ -70,8 +103,9 @@ class RadiationFrontModel:
         Higher P_SOL pushes it back toward the target.
         Lipschultz et al. 1999, PPCF 41, A585: empirical front-position scaling.
         """
-        if P_SOL_MW <= 0.0:
-            return 1.0
+        P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
+        n_u_19 = _finite_scalar("n_u_19", n_u_19, positive=True)
+        seeding_rate = _finite_scalar("seeding_rate", seeding_rate, nonnegative=True)
 
         drive = seeding_rate * n_u_19 / P_SOL_MW
         rho_front = 1.0 - np.exp(-drive * 2.0)
@@ -84,6 +118,9 @@ class RadiationFrontModel:
         Below the onset (Stangeby 2000, Ch. 16) DOD rises as T_t falls,
         reflecting reduced ion flux from volumetric recombination.
         """
+        T_target_eV = _finite_scalar("T_target_eV", T_target_eV, positive=True)
+        _finite_scalar("n_target", n_target, positive=True)
+        _finite_scalar("n_u", n_u, positive=True)
         if T_target_eV > _T_DETACHMENT_ONSET_EV:
             return 1.0
         if T_target_eV <= 0.1:
@@ -99,7 +136,9 @@ def two_point_q_parallel(T_upstream_eV: float, L_parallel_m: float) -> float:
     Stangeby 2000, "The Plasma Boundary of Magnetic Fusion Devices", Eq. 5.69.
     κ₀ = 2390 W m^-1 eV^(-7/2) (electron Spitzer conductivity, Stangeby Eq. 5.67).
     """
-    if T_upstream_eV <= 0.0 or L_parallel_m <= 0.0:
+    T_upstream_eV = _finite_scalar("T_upstream_eV", T_upstream_eV, nonnegative=True)
+    L_parallel_m = _finite_scalar("L_parallel_m", L_parallel_m, positive=True)
+    if T_upstream_eV == 0.0:
         return 0.0
     return float(_KAPPA_0_SPITZER * T_upstream_eV**3.5 / (7.0 * L_parallel_m))
 
@@ -117,8 +156,8 @@ class DetachmentController:
 
     def __init__(self, impurity: str = "N2", target_DOD: float = 3.0, target_T_t_eV: float = 3.0):
         self.impurity = impurity
-        self.target_DOD = target_DOD
-        self.target_T_t = target_T_t_eV
+        self.target_DOD = _finite_scalar("target_DOD", target_DOD, positive=True)
+        self.target_T_t = _finite_scalar("target_T_t_eV", target_T_t_eV, positive=True)
 
         # PI gains [Pa m³/s per eV] — tuned for ITER divertor time scales (~0.1 s).
         self.Kp = 50.0
@@ -136,6 +175,8 @@ class DetachmentController:
         T_t ≤ 5 eV: fully detached (Stangeby 2000, Ch. 16).
         rho_front > 0.8: X-point MARFE risk (Lipschultz et al. 1999, PPCF 41, A585).
         """
+        T_t = _finite_scalar("T_t", T_t, positive=True)
+        rho_front = _unit_interval("rho_front", rho_front)
         if rho_front > _XPOINT_MARFE_THRESHOLD:
             return DetachmentState.XPOINT_MARFE
         if T_t > _T_BIFURCATION_EV:
@@ -147,6 +188,11 @@ class DetachmentController:
     def step(
         self, T_t_measured: float, n_t_measured: float, P_rad_measured: float, rho_front: float, dt: float
     ) -> float:
+        T_t_measured = _finite_scalar("T_t_measured", T_t_measured, positive=True)
+        _finite_scalar("n_t_measured", n_t_measured, positive=True)
+        _finite_scalar("P_rad_measured", P_rad_measured, nonnegative=True)
+        rho_front = _unit_interval("rho_front", rho_front)
+        dt = _finite_scalar("dt", dt, positive=True)
         self.state = self._determine_state(T_t_measured, rho_front)
 
         if self.state == DetachmentState.XPOINT_MARFE:
@@ -188,6 +234,9 @@ class DetachmentBifurcation:
         self.front_model = RadiationFrontModel(impurity, sol.R0, sol.a, sol.q95)
 
     def _steady_state_target(self, seeding_rate: float, P_SOL_MW: float, n_u_19: float) -> DetachmentPoint:
+        seeding_rate = _finite_scalar("seeding_rate", seeding_rate, nonnegative=True)
+        P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
+        n_u_19 = _finite_scalar("n_u_19", n_u_19, positive=True)
         # f_rad scales with seeding rate; cap at 0.95 to avoid unphysical values.
         f_rad = min(0.95, seeding_rate * 0.1)
 
@@ -214,6 +263,7 @@ class DetachmentBifurcation:
         return DetachmentPoint(seeding_rate, T_t, res.n_target_19, dod, f_rad, state)
 
     def scan_seeding(self, seeding_range: np.ndarray, P_SOL_MW: float, n_u_19: float) -> list[DetachmentPoint]:
+        seeding_range = _ordered_nonnegative_array("seeding_range", seeding_range)
         return [self._steady_state_target(sr, P_SOL_MW, n_u_19) for sr in seeding_range]
 
     def find_rollover_point(self, P_SOL_MW: float, n_u_19: float) -> float:
@@ -222,6 +272,8 @@ class DetachmentBifurcation:
         Rollover marks the detachment onset on the bifurcation S-curve.
         Stangeby 2000, Ch. 16; Lipschultz et al. 1999, PPCF 41, A585.
         """
+        P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
+        n_u_19 = _finite_scalar("n_u_19", n_u_19, positive=True)
         sr_scan = np.linspace(0.0, 10.0, 100)
         fluxes = [
             self._steady_state_target(sr, P_SOL_MW, n_u_19).n_target
@@ -237,10 +289,11 @@ class MultiImpuritySeeding:
         self.controllers = controllers
 
     def step(self, diagnostics: dict[str, float], dt: float) -> dict[str, float]:
-        T_t = diagnostics.get("T_target_eV", 20.0)
-        n_t = diagnostics.get("n_target_19", 10.0)
-        P_rad = diagnostics.get("P_rad_MW", 10.0)
-        rho_front = diagnostics.get("rho_front", 0.1)
+        dt = _finite_scalar("dt", dt, positive=True)
+        T_t = _finite_scalar("T_target_eV", diagnostics.get("T_target_eV", 20.0), positive=True)
+        n_t = _finite_scalar("n_target_19", diagnostics.get("n_target_19", 10.0), positive=True)
+        P_rad = _finite_scalar("P_rad_MW", diagnostics.get("P_rad_MW", 10.0), nonnegative=True)
+        rho_front = _unit_interval("rho_front", diagnostics.get("rho_front", 0.1))
 
         rates: dict[str, float] = {}
         for imp in self.impurities:
