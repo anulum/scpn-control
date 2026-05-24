@@ -134,9 +134,11 @@ def test_marfe_front_detects_marfe():
 
 
 def test_greenwald_limit_zero_radius():
-    """Zero or negative minor radius has no finite Greenwald density."""
-    assert DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=0.0) == float("inf")
-    assert DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=-1.0) == float("inf")
+    """Zero or negative minor radius is outside the Greenwald model domain."""
+    with pytest.raises(ValueError, match="a"):
+        DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=0.0)
+    with pytest.raises(ValueError, match="a"):
+        DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=-1.0)
 
 
 @pytest.mark.parametrize(
@@ -149,6 +151,13 @@ def test_greenwald_limit_zero_radius():
 def test_radiation_condensation_rejects_nonphysical_state(ne_20, f_imp, message) -> None:
     with pytest.raises(ValueError, match=message):
         RadiationCondensation("W", ne_20=ne_20, f_imp=f_imp)
+
+
+def test_radiation_condensation_rejects_nonfinite_state() -> None:
+    with pytest.raises(ValueError, match="ne_20"):
+        RadiationCondensation("W", ne_20=float("nan"), f_imp=1e-4)
+    with pytest.raises(ValueError, match="f_imp"):
+        RadiationCondensation("W", ne_20=1.0, f_imp=float("inf"))
 
 
 @pytest.mark.parametrize(
@@ -169,10 +178,23 @@ def test_radiation_condensation_rejects_nonphysical_growth_inputs(te, k_par, kap
 def test_onset_temperature_rejects_empty_or_nonpositive_scan() -> None:
     rc = RadiationCondensation("W", ne_20=1.0, f_imp=1e-4)
 
-    with pytest.raises(ValueError, match="must not be empty"):
+    with pytest.raises(ValueError, match="non-empty"):
         rc.onset_temperature(np.array([]))
-    with pytest.raises(ValueError, match="temperatures must be positive"):
+    with pytest.raises(ValueError, match="positive"):
         rc.onset_temperature(np.array([0.0, 10.0]))
+    with pytest.raises(ValueError, match="finite"):
+        rc.onset_temperature(np.array([10.0, np.nan]))
+    with pytest.raises(ValueError, match="strictly increasing"):
+        rc.onset_temperature(np.array([100.0, 50.0]))
+
+
+def test_critical_density_rejects_nonphysical_transport_inputs() -> None:
+    rc = RadiationCondensation("W", ne_20=1.0, f_imp=1e-4)
+
+    with pytest.raises(ValueError, match="k_par"):
+        rc.critical_density(Te_eV=500.0, k_par=float("nan"), kappa_par=2000.0)
+    with pytest.raises(ValueError, match="kappa_par"):
+        rc.critical_density(Te_eV=500.0, k_par=0.1, kappa_par=float("inf"))
 
 
 @pytest.mark.parametrize(
@@ -182,6 +204,7 @@ def test_onset_temperature_rejects_empty_or_nonpositive_scan() -> None:
         ({"L_par": 100.0, "kappa_par": 0.0, "q_perp": 10.0, "impurity": "W", "f_imp": 1e-2}, "kappa_par"),
         ({"L_par": 100.0, "kappa_par": 20.0, "q_perp": -1.0, "impurity": "W", "f_imp": 1e-2}, "q_perp"),
         ({"L_par": 100.0, "kappa_par": 20.0, "q_perp": 10.0, "impurity": "W", "f_imp": 0.0}, "f_imp"),
+        ({"L_par": float("nan"), "kappa_par": 20.0, "q_perp": 10.0, "impurity": "W", "f_imp": 1e-2}, "L_par"),
     ),
 )
 def test_marfe_front_model_rejects_nonphysical_constructor_inputs(kwargs, message) -> None:
@@ -198,14 +221,18 @@ def test_marfe_front_model_rejects_nonphysical_step_inputs() -> None:
         model.step(dt=1e-4, ne_20=0.0)
     with pytest.raises(ValueError, match="ne_20"):
         model.equilibrium(ne_20=-1.0)
+    with pytest.raises(ValueError, match="dt"):
+        model.step(dt=float("nan"), ne_20=1.0)
 
 
 @pytest.mark.parametrize(
     ("args", "message"),
     (
         ((-1.0, 2.0), "Ip_MA"),
+        ((15.0, float("nan")), "a"),
         ((15.0, 2.0, 0.0, "W", 1e-4), "P_SOL_MW"),
         ((15.0, 2.0, 100.0, "W", 0.0), "f_imp"),
+        ((15.0, 2.0, float("inf"), "W", 1e-4), "P_SOL_MW"),
     ),
 )
 def test_density_limit_predictor_rejects_nonphysical_inputs(args, message) -> None:
@@ -219,9 +246,11 @@ def test_density_limit_predictor_rejects_nonphysical_inputs(args, message) -> No
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     (
-        ({"R0": 0.0, "a": 2.0, "q95": 3.0, "impurity": "W"}, "R0 and a"),
-        ({"R0": 6.2, "a": 0.0, "q95": 3.0, "impurity": "W"}, "R0 and a"),
+        ({"R0": 0.0, "a": 2.0, "q95": 3.0, "impurity": "W"}, "R0"),
+        ({"R0": 6.2, "a": 0.0, "q95": 3.0, "impurity": "W"}, "a"),
+        ({"R0": 2.0, "a": 2.0, "q95": 3.0, "impurity": "W"}, "a must be smaller"),
         ({"R0": 6.2, "a": 2.0, "q95": 0.0, "impurity": "W"}, "q95"),
+        ({"R0": 6.2, "a": 2.0, "q95": float("nan"), "impurity": "W"}, "q95"),
     ),
 )
 def test_marfe_stability_diagram_rejects_nonphysical_constructor_inputs(kwargs, message) -> None:
@@ -232,9 +261,11 @@ def test_marfe_stability_diagram_rejects_nonphysical_constructor_inputs(kwargs, 
 def test_marfe_stability_diagram_rejects_nonphysical_scan_inputs() -> None:
     diag = MARFEStabilityDiagram(R0=6.2, a=2.0, q95=3.0, impurity="W")
 
-    with pytest.raises(ValueError, match="must not be empty"):
+    with pytest.raises(ValueError, match="non-empty"):
         diag.scan_density_power(np.array([]), np.array([10.0]))
     with pytest.raises(ValueError, match="ne_range"):
         diag.scan_density_power(np.array([0.0]), np.array([10.0]))
     with pytest.raises(ValueError, match="P_SOL_range"):
         diag.scan_density_power(np.array([1.0]), np.array([0.0]))
+    with pytest.raises(ValueError, match="strictly increasing"):
+        diag.scan_density_power(np.array([2.0, 1.0]), np.array([10.0, 20.0]))

@@ -30,20 +30,39 @@ from scpn_control.core.impurity_transport import CoolingCurve
 # Lipschultz 1987, J. Nucl. Mater. 145-147, 15.
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _ordered_positive_array(name: str, values: np.ndarray) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size == 0:
+        raise ValueError(f"{name} must be a non-empty one-dimensional array")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} values must be finite")
+    if np.any(arr <= 0.0):
+        raise ValueError(f"{name} values must be positive")
+    if np.any(np.diff(arr) <= 0.0):
+        raise ValueError(f"{name} values must be strictly increasing")
+    return arr
+
+
 class RadiationCondensation:
     def __init__(self, impurity: str, ne_20: float, f_imp: float):
-        if ne_20 <= 0.0:
-            raise ValueError("ne_20 must be positive")
-        if f_imp <= 0.0:
-            raise ValueError("f_imp must be positive")
         self.impurity = impurity
-        self.ne_20 = ne_20
-        self.f_imp = f_imp
+        self.ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
+        self.f_imp = _finite_scalar("f_imp", f_imp, positive=True)
         self.curve = CoolingCurve(impurity)
 
     def _dL_dT(self, Te_eV: float) -> float:
-        if Te_eV <= 0.0:
-            raise ValueError("Te_eV must be positive")
+        Te_eV = _finite_scalar("Te_eV", Te_eV, positive=True)
         dT = 0.01 * Te_eV
         L_plus = self.curve.L_z(np.array([Te_eV + dT]))[0]
         L_minus = self.curve.L_z(np.array([Te_eV - dT]))[0]
@@ -59,10 +78,8 @@ class RadiationCondensation:
         n_e n_Z |dL/dT| > κ_∥ k_∥².
         Drake 1987, Phys. Fluids 30, 2429, Eq. 5.
         """
-        if k_par <= 0.0:
-            raise ValueError("k_par must be positive")
-        if kappa_par <= 0.0:
-            raise ValueError("kappa_par must be positive")
+        k_par = _finite_scalar("k_par", k_par, positive=True)
+        kappa_par = _finite_scalar("kappa_par", kappa_par, positive=True)
         ne = self.ne_20 * 1e20
         n_imp = ne * self.f_imp
 
@@ -89,10 +106,7 @@ class RadiationCondensation:
         temperature where the radiative cooling function has a negative slope.
         Returns the onset T in eV, or nan if dL/dT is positive everywhere.
         """
-        if Te_scan.size == 0:
-            raise ValueError("Te_scan must not be empty")
-        if np.any(Te_scan <= 0.0):
-            raise ValueError("Te_scan temperatures must be positive")
+        Te_scan = _ordered_positive_array("Te_scan", Te_scan)
         dLdT = np.array([self._dL_dT(T) for T in Te_scan])
         unstable = Te_scan[dLdT < 0.0]
         if len(unstable) == 0:
@@ -106,6 +120,8 @@ class RadiationCondensation:
         From Drake 1987, Eq. 5 with γ = 0:
           n_e² f_imp |dL/dT| = κ_∥ k_∥²
         """
+        k_par = _finite_scalar("k_par", k_par, positive=True)
+        kappa_par = _finite_scalar("kappa_par", kappa_par, positive=True)
         dL_dT = self._dL_dT(Te_eV)
         if dL_dT >= 0.0:
             return float("inf")
@@ -116,21 +132,13 @@ class RadiationCondensation:
 
 class MARFEFrontModel:
     def __init__(self, L_par: float, kappa_par: float, q_perp: float, impurity: str, f_imp: float):
-        if L_par <= 0.0:
-            raise ValueError("L_par must be positive")
-        if kappa_par <= 0.0:
-            raise ValueError("kappa_par must be positive")
-        if q_perp < 0.0:
-            raise ValueError("q_perp must be non-negative")
-        if f_imp <= 0.0:
-            raise ValueError("f_imp must be positive")
-        self.L_par = L_par
-        self.kappa_par = kappa_par
-        self.q_perp = q_perp
-        self.f_imp = f_imp
+        self.L_par = _finite_scalar("L_par", L_par, positive=True)
+        self.kappa_par = _finite_scalar("kappa_par", kappa_par, positive=True)
+        self.q_perp = _finite_scalar("q_perp", q_perp, nonnegative=True)
+        self.f_imp = _finite_scalar("f_imp", f_imp, positive=True)
 
         self.n_s = 50
-        self.s = np.linspace(0, L_par, self.n_s)
+        self.s = np.linspace(0, self.L_par, self.n_s)
         self.ds = self.s[1] - self.s[0]
 
         self.T = np.ones(self.n_s) * 100.0
@@ -139,10 +147,8 @@ class MARFEFrontModel:
     def step(self, dt: float, ne_20: float) -> np.ndarray:
         import scipy.linalg
 
-        if dt <= 0.0:
-            raise ValueError("dt must be positive")
-        if ne_20 <= 0.0:
-            raise ValueError("ne_20 must be positive")
+        dt = _finite_scalar("dt", dt, positive=True)
+        ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
         ne = ne_20 * 1e20
         n_imp = ne * self.f_imp
 
@@ -185,8 +191,7 @@ class MARFEFrontModel:
         return self.T
 
     def equilibrium(self, ne_20: float) -> np.ndarray:
-        if ne_20 <= 0.0:
-            raise ValueError("ne_20 must be positive")
+        ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
         for _ in range(1000):
             self.step(1e-4, ne_20)
         return self.T
@@ -210,10 +215,8 @@ class DensityLimitPredictor:
         Greenwald 2002, Plasma Phys. Control. Fusion 44, R27, Eq. 1.
         I_p in MA, a in m.
         """
-        if Ip_MA < 0.0:
-            raise ValueError("Ip_MA must be non-negative")
-        if a <= 0.0:
-            return float("inf")
+        Ip_MA = _finite_scalar("Ip_MA", Ip_MA, nonnegative=True)
+        a = _finite_scalar("a", a, positive=True)
         return float(Ip_MA / (math.pi * a**2))
 
     @staticmethod
@@ -225,10 +228,8 @@ class DensityLimitPredictor:
         Scaling motivated by Drake 1987 radiation condensation criterion with
         parallel conduction set by P_SOL and impurity fraction f_imp.
         """
-        if P_SOL_MW <= 0.0:
-            raise ValueError("P_SOL_MW must be positive")
-        if f_imp <= 0.0:
-            raise ValueError("f_imp must be positive")
+        P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
+        f_imp = _finite_scalar("f_imp", f_imp, positive=True)
         n_gw = DensityLimitPredictor.greenwald_limit(Ip_MA, a)
         factor = math.sqrt(max(P_SOL_MW, 1.0)) / (10.0 * math.sqrt(max(f_imp, 1e-5)))
         return float(n_gw * factor)
@@ -236,22 +237,16 @@ class DensityLimitPredictor:
 
 class MARFEStabilityDiagram:
     def __init__(self, R0: float, a: float, q95: float, impurity: str):
-        if R0 <= 0.0 or a <= 0.0:
-            raise ValueError("R0 and a must be positive")
-        if q95 <= 0.0:
-            raise ValueError("q95 must be positive")
-        self.R0 = R0
-        self.a = a
-        self.q95 = q95
+        self.R0 = _finite_scalar("R0", R0, positive=True)
+        self.a = _finite_scalar("a", a, positive=True)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        self.q95 = _finite_scalar("q95", q95, positive=True)
         self.impurity = impurity
 
     def scan_density_power(self, ne_range: np.ndarray, P_SOL_range: np.ndarray) -> np.ndarray:
-        if ne_range.size == 0 or P_SOL_range.size == 0:
-            raise ValueError("ne_range and P_SOL_range must not be empty")
-        if np.any(ne_range <= 0.0):
-            raise ValueError("ne_range values must be positive")
-        if np.any(P_SOL_range <= 0.0):
-            raise ValueError("P_SOL_range values must be positive")
+        ne_range = _ordered_positive_array("ne_range", ne_range)
+        P_SOL_range = _ordered_positive_array("P_SOL_range", P_SOL_range)
         result = np.zeros((len(ne_range), len(P_SOL_range)))
 
         for i, ne in enumerate(ne_range):
