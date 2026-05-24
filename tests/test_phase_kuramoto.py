@@ -608,6 +608,19 @@ class TestUPDELyapunov:
 
 
 class TestLyapunovGuard:
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"window": 1}, "window"),
+            ({"dt": 0.0}, "dt"),
+            ({"lambda_threshold": np.nan}, "lambda_threshold"),
+            ({"max_violations": 0}, "max_violations"),
+        ],
+    )
+    def test_rejects_invalid_guard_configuration(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            LyapunovGuard(**kwargs)
+
     def test_stable_trajectory_approved(self):
         guard = LyapunovGuard(window=20, dt=0.01)
         rng = np.random.default_rng(42)
@@ -659,6 +672,33 @@ class TestLyapunovGuard:
         guard.reset()
         verdict = guard.check(np.zeros(5), 0.0)
         assert verdict.consecutive_violations == 0
+
+    @pytest.mark.parametrize(
+        ("theta", "psi", "match"),
+        [
+            (np.array([0.0, np.nan]), 0.0, "theta"),
+            (np.zeros(3), np.inf, "psi"),
+        ],
+    )
+    def test_check_rejects_invalid_state(self, theta, psi, match):
+        guard = LyapunovGuard(window=5, dt=0.01)
+
+        with pytest.raises(ValueError, match=match):
+            guard.check(theta, psi)
+
+    @pytest.mark.parametrize(
+        "v_hist",
+        [
+            [0.1, np.nan],
+            [-1e-9, 0.1],
+            [0.1, 2.1],
+        ],
+    )
+    def test_check_trajectory_rejects_invalid_v_history(self, v_hist):
+        guard = LyapunovGuard(dt=0.01)
+
+        with pytest.raises(ValueError, match="v_hist"):
+            guard.check_trajectory(v_hist)
 
 
 # ── RealtimeMonitor ──────────────────────────────────────────────────

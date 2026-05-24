@@ -82,6 +82,14 @@ class LyapunovGuard:
         lambda_threshold: float = 0.0,
         max_violations: int = 3,
     ):
+        if not isinstance(window, int) or window < 2:
+            raise ValueError("window must be an integer >= 2")
+        if not np.isfinite(dt) or dt <= 0.0:
+            raise ValueError("dt must be positive and finite")
+        if not np.isfinite(lambda_threshold):
+            raise ValueError("lambda_threshold must be finite")
+        if not isinstance(max_violations, int) or max_violations < 1:
+            raise ValueError("max_violations must be an integer >= 1")
         self._window = window
         self._dt = dt
         self._lambda_threshold = lambda_threshold
@@ -95,6 +103,14 @@ class LyapunovGuard:
 
     def check(self, theta: FloatArray, psi: float) -> LyapunovVerdict:
         """Feed one sample and return stability verdict."""
+        theta_arr = np.asarray(theta, dtype=np.float64)
+        if theta_arr.ndim != 1 or theta_arr.size == 0:
+            raise ValueError("theta must be a non-empty 1D phase vector")
+        if not np.isfinite(theta_arr).all():
+            raise ValueError("theta must contain only finite values")
+        if not np.isfinite(psi):
+            raise ValueError("psi must be finite")
+
         v = lyapunov_v(theta, psi)
         self._v_buffer.append(v)
 
@@ -126,6 +142,11 @@ class LyapunovGuard:
 
     def check_trajectory(self, v_hist: list[float]) -> LyapunovVerdict:
         """Batch check: compute λ from a full V(t) trajectory."""
+        v_arr = np.asarray(v_hist, dtype=np.float64)
+        if not np.isfinite(v_arr).all():
+            raise ValueError("v_hist must contain only finite values")
+        if np.any((v_arr < 0.0) | (v_arr > 2.0)):
+            raise ValueError("v_hist values must stay in [0, 2]")
         if len(v_hist) < 2:
             return LyapunovVerdict(
                 v=v_hist[-1] if v_hist else 0.0, lambda_exp=0.0, approved=True, consecutive_violations=0
