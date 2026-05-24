@@ -237,7 +237,7 @@ def test_nmpc_linearize_matches_analytic_nonlinear_jacobian() -> None:
 
     nmpc = NonlinearMPC(nonlinear_plant, NMPCConfig(horizon=2, max_sqp_iter=1))
     x0 = np.array([2.0, 0.4, 1.5, 0.8, 3.0, 4.0])
-    u0 = np.array([1.2, -0.3, 0.7])
+    u0 = np.array([1.2, 0.3, 0.7])
 
     A, B = nmpc.linearize(x0, u0)
 
@@ -255,6 +255,31 @@ def test_nmpc_linearize_matches_analytic_nonlinear_jacobian() -> None:
 
     np.testing.assert_allclose(A, expected_A, rtol=1e-7, atol=1e-9)
     np.testing.assert_allclose(B, expected_B, rtol=1e-7, atol=1e-9)
+
+
+def test_nmpc_linearize_respects_state_and_input_bounds() -> None:
+    """Boundary linearization must not evaluate the plant outside physics bounds."""
+    cfg = NMPCConfig(horizon=2, max_sqp_iter=1)
+
+    def bounded_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        if np.any(x < cfg.x_min) or np.any(x > cfg.x_max):
+            raise ValueError("state outside configured physics domain")
+        if np.any(u < cfg.u_min) or np.any(u > cfg.u_max):
+            raise ValueError("input outside configured actuator domain")
+        out = x.copy()
+        out[0] = x[0] ** 2 + u[0] ** 2
+        return out
+
+    nmpc = NonlinearMPC(bounded_plant, cfg)
+    x0 = np.array([cfg.x_min[0], 1.0, 5.0, 1.0, 5.0, 2.0])
+    u0 = np.array([cfg.u_min[0], 1.0, 1.0])
+
+    A, B = nmpc.linearize(x0, u0)
+
+    assert np.isfinite(A).all()
+    assert np.isfinite(B).all()
+    assert A[0, 0] == pytest.approx(2.0 * x0[0], rel=1e-3, abs=1e-6)
+    assert B[0, 0] == pytest.approx(2.0 * u0[0], rel=1e-3, abs=2e-4)
 
 
 def test_nmpc_step_converges_early():

@@ -493,6 +493,9 @@ projection-tolerance convergence distinguishable from iteration-budget
 exhaustion.
 The projected-gradient QP iteration budget is configured by `qp_max_iter`
 instead of being an unobservable hard-coded loop bound.
+Linearization perturbations are clipped to the configured state/input domain:
+interior points use central differences, while boundary points use one-sided
+finite differences.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 

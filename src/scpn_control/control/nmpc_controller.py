@@ -154,6 +154,21 @@ class NonlinearMPC:
             raise ValueError(f"plant_model must return a finite vector with shape ({self.nx},).")
         return out
 
+    @staticmethod
+    def _finite_difference_column(
+        f_plus: np.ndarray | None,
+        f0: np.ndarray,
+        f_minus: np.ndarray | None,
+        step: float,
+    ) -> np.ndarray:
+        if f_plus is not None and f_minus is not None:
+            return (f_plus - f_minus) / (2.0 * step)
+        if f_plus is not None:
+            return (f_plus - f0) / step
+        if f_minus is not None:
+            return (f0 - f_minus) / step
+        raise ValueError("finite-difference perturbation interval collapsed.")
+
     def _bounded_input_vector(self, name: str, value: np.ndarray) -> np.ndarray:
         u = _as_finite_vector(name, value, self.nu)
         if np.any(u < self.config.u_min) or np.any(u > self.config.u_max):
@@ -166,20 +181,33 @@ class NonlinearMPC:
         B = np.zeros((self.nx, self.nu))
         eps_x = 1e-4
         eps_u = 1e-4
+        f0 = self._plant_step(x0, u0)
 
         for i in range(self.nx):
-            x_plus = x0.copy()
-            x_minus = x0.copy()
-            x_plus[i] += eps_x
-            x_minus[i] -= eps_x
-            A[:, i] = (self._plant_step(x_plus, u0) - self._plant_step(x_minus, u0)) / (2.0 * eps_x)
+            f_plus = None
+            f_minus = None
+            if x0[i] + eps_x <= self.config.x_max[i]:
+                x_plus = x0.copy()
+                x_plus[i] += eps_x
+                f_plus = self._plant_step(x_plus, u0)
+            if x0[i] - eps_x >= self.config.x_min[i]:
+                x_minus = x0.copy()
+                x_minus[i] -= eps_x
+                f_minus = self._plant_step(x_minus, u0)
+            A[:, i] = self._finite_difference_column(f_plus, f0, f_minus, eps_x)
 
         for i in range(self.nu):
-            u_plus = u0.copy()
-            u_minus = u0.copy()
-            u_plus[i] += eps_u
-            u_minus[i] -= eps_u
-            B[:, i] = (self._plant_step(x0, u_plus) - self._plant_step(x0, u_minus)) / (2.0 * eps_u)
+            f_plus = None
+            f_minus = None
+            if u0[i] + eps_u <= self.config.u_max[i]:
+                u_plus = u0.copy()
+                u_plus[i] += eps_u
+                f_plus = self._plant_step(x0, u_plus)
+            if u0[i] - eps_u >= self.config.u_min[i]:
+                u_minus = u0.copy()
+                u_minus[i] -= eps_u
+                f_minus = self._plant_step(x0, u_minus)
+            B[:, i] = self._finite_difference_column(f_plus, f0, f_minus, eps_u)
 
         return A, B
 
