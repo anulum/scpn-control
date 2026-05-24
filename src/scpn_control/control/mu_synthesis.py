@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: https://orcid.org/0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Mu-analysis utilities
 """
 Mu-analysis utilities for structured-uncertainty robust control.
 
@@ -42,6 +44,23 @@ from typing import Any
 import numpy as np
 from scipy.linalg import LinAlgError, solve_continuous_are
 
+_VALID_BLOCK_TYPES = frozenset({"real_scalar", "complex_scalar", "full"})
+
+
+def _finite_scalar(name: str, value: float, *, positive: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    return scalar
+
+
+def _positive_int(name: str, value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
 
 @dataclass
 class UncertaintyBlock:
@@ -66,11 +85,21 @@ class UncertaintyBlock:
     bound: float
     block_type: str
 
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise ValueError("name must be non-empty")
+        self.size = _positive_int("size", self.size)
+        self.bound = _finite_scalar("bound", self.bound, positive=True)
+        if self.block_type not in _VALID_BLOCK_TYPES:
+            raise ValueError(f"block_type must be one of {sorted(_VALID_BLOCK_TYPES)}")
+
 
 class StructuredUncertainty:
     """Ordered collection of UncertaintyBlock objects defining Δ_struct."""
 
     def __init__(self, blocks: list[UncertaintyBlock]):
+        if not blocks:
+            raise ValueError("blocks must contain at least one uncertainty block")
         self.blocks = blocks
 
     def build_Delta_structure(self) -> list[tuple[int, str]]:
@@ -78,6 +107,11 @@ class StructuredUncertainty:
 
     def total_size(self) -> int:
         return sum(b.size for b in self.blocks)
+
+    def bound_matrix(self) -> np.ndarray:
+        """Block-diagonal bound matrix mapping normalised Δ blocks to physical Δ."""
+        bounds = np.concatenate([np.full(block.size, block.bound, dtype=float) for block in self.blocks])
+        return np.diag(bounds)
 
 
 def _compute_mu_upper_bound_and_scalings(
@@ -100,6 +134,10 @@ def _compute_mu_upper_bound_and_scalings(
         raise ValueError("Delta block sizes must sum to M dimension.")
     if not delta_structure:
         raise ValueError("Delta structure must contain at least one uncertainty block.")
+    for size, block_type in delta_structure:
+        _positive_int("Delta block size", size)
+        if block_type not in _VALID_BLOCK_TYPES:
+            raise ValueError(f"Delta block_type must be one of {sorted(_VALID_BLOCK_TYPES)}")
 
     def apply_D(d_vec: np.ndarray) -> np.ndarray:
         D = np.zeros((n, n), dtype=complex)
@@ -276,7 +314,7 @@ def dk_iteration(
     A, B, C, D_mat = _validate_state_space(plant_ss, uncertainty)
 
     K_controller = _riccati_state_feedback(A, B, C)
-    closed_loop_map = _closed_loop_dc_uncertainty_map(A, B, C, D_mat, K_controller)
+    closed_loop_map = _closed_loop_dc_uncertainty_map(A, B, C, D_mat, K_controller) @ uncertainty.bound_matrix()
     mu_peak, D_scalings = _compute_mu_upper_bound_and_scalings(
         closed_loop_map,
         uncertainty.build_Delta_structure(),
@@ -324,7 +362,14 @@ class MuSynthesisController:
         """Apply synthesised controller: u = -K x."""
         if self.K is None:
             raise RuntimeError("Controller not synthesized yet")
-        return np.asarray(-self.K @ x)
+        dt = _finite_scalar("dt", dt, positive=True)
+        x_arr = np.asarray(x, dtype=float)
+        if x_arr.shape != (self.K.shape[1],):
+            raise ValueError(f"x must have shape ({self.K.shape[1]},)")
+        if not np.all(np.isfinite(x_arr)):
+            raise ValueError("x must contain only finite values")
+        _ = dt
+        return np.asarray(-self.K @ x_arr)
 
     def robustness_margin(self) -> float:
         """Return 1/μ_peak — the structured stability margin.

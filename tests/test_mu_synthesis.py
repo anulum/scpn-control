@@ -1,17 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Mu Synthesis
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Mu-Synthesis Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.mu_synthesis import (
     MuSynthesisController,
@@ -148,3 +145,48 @@ def test_robustness_margin_zero_mu():
     ctrl.K = np.ones((2, 2)) * 0.1
     ctrl.mu_peak = 0.0
     assert ctrl.robustness_margin() == float("inf")
+
+
+def test_uncertainty_blocks_reject_nonphysical_contracts() -> None:
+    """Structured uncertainty blocks reject invalid labels, sizes, bounds, and block types."""
+    with pytest.raises(ValueError, match="name"):
+        UncertaintyBlock("", 1, 0.1, "full")
+    with pytest.raises(ValueError, match="size"):
+        UncertaintyBlock("plasma_position", 0, 0.1, "full")
+    with pytest.raises(ValueError, match="bound"):
+        UncertaintyBlock("plasma_position", 1, 0.0, "full")
+    with pytest.raises(ValueError, match="block_type"):
+        UncertaintyBlock("plasma_position", 1, 0.1, "diagonal")
+    with pytest.raises(ValueError, match="blocks"):
+        StructuredUncertainty([])
+
+
+def test_dk_iteration_uses_uncertainty_bounds_in_mu_evidence() -> None:
+    """Declared uncertainty bounds must scale the robust-performance channel."""
+    A = np.eye(2)
+    B = np.eye(2)
+    C = np.eye(2)
+    D = np.zeros((2, 2))
+    plant = (A, B, C, D)
+
+    small = StructuredUncertainty([UncertaintyBlock("plasma_position", 2, 0.05, "full")])
+    large = StructuredUncertainty([UncertaintyBlock("plasma_position", 2, 0.5, "full")])
+
+    _, mu_small, _ = dk_iteration(plant, small, n_iter=3)
+    _, mu_large, _ = dk_iteration(plant, large, n_iter=3)
+
+    assert mu_large > mu_small
+
+
+def test_mu_controller_step_rejects_invalid_state_and_timestep() -> None:
+    """Synthesised controller rejects non-finite, wrong-shaped state vectors and invalid timesteps."""
+    unc = StructuredUncertainty([UncertaintyBlock("t", 2, 0.1, "full")])
+    ctrl = MuSynthesisController((np.eye(2), np.eye(2), np.eye(2), np.zeros((2, 2))), unc)
+    ctrl.synthesize()
+
+    with pytest.raises(ValueError, match="x"):
+        ctrl.step(np.array([1.0, np.nan]), 0.1)
+    with pytest.raises(ValueError, match="x"):
+        ctrl.step(np.array([1.0, -1.0, 0.0]), 0.1)
+    with pytest.raises(ValueError, match="dt"):
+        ctrl.step(np.array([1.0, -1.0]), 0.0)
