@@ -439,3 +439,75 @@ def test_traceability_main_writes_json_report(tmp_path: Path) -> None:
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["status"] == "pass"
     assert report["open_fidelity_gaps"] >= 5
+
+
+def _minimal_tracker_registry() -> dict[str, object]:
+    return {
+        "schema_version": "1.0",
+        "spdx_license_id": "AGPL-3.0-or-later",
+        "commercial_license": "available",
+        "concepts_copyright": "Concepts 1996-2026 Miroslav Sotek. All rights reserved.",
+        "code_copyright": "Code 2020-2026 Miroslav Sotek. All rights reserved.",
+        "orcid": "0009-0009-3560-0851",
+        "contact": "www.anulum.li | protoscience@anulum.li",
+        "file": "test registry",
+        "entries": [
+            {
+                "component": "test component",
+                "module_path": "ROADMAP.md",
+                "equation_contract": "test contract",
+                "fidelity_status": "reference_validated",
+                "model_references": ["test reference"],
+                "public_claim_allowed": True,
+                "required_actions": ["keep the reference current"],
+                "unit_contract": "dimensionless test units",
+                "validation_evidence": ["ROADMAP.md"],
+                "evidence_paths": ["ROADMAP.md"],
+                "validity_domain": "test-only validation fixture",
+            }
+        ],
+    }
+
+
+def test_traceability_rejects_duplicate_external_validation_tracker_issue(tmp_path: Path) -> None:
+    registry = _minimal_tracker_registry()
+    registry["external_validation_trackers"] = [
+        {
+            "title": "first tracker",
+            "issue": 46,
+            "url": "https://github.com/anulum/scpn-control/issues/46",
+            "scope": "first scope",
+        },
+        {
+            "title": "duplicate tracker",
+            "issue": 46,
+            "url": "https://github.com/anulum/scpn-control/issues/46",
+            "scope": "duplicate scope",
+        },
+    ]
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(registry), encoding="utf-8")
+
+    report = validate_physics_traceability(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "issue" and "unique" in error["error"] for error in report["errors"])
+
+
+def test_traceability_rejects_external_validation_tracker_url_issue_mismatch(tmp_path: Path) -> None:
+    registry = _minimal_tracker_registry()
+    registry["external_validation_trackers"] = [
+        {
+            "title": "mismatched tracker",
+            "issue": 46,
+            "url": "https://github.com/anulum/scpn-control/issues/47",
+            "scope": "mismatch scope",
+        }
+    ]
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(registry), encoding="utf-8")
+
+    report = validate_physics_traceability(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "url" and "match issue number" in error["error"] for error in report["errors"])
