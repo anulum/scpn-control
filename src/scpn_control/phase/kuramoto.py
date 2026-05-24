@@ -72,14 +72,26 @@ def order_parameter(
 
     Returns (R, ψ_r).
     """
-    th = np.asarray(theta, dtype=np.float64).ravel()
+    th = np.asarray(theta, dtype=np.float64)
+    if th.ndim != 1:
+        raise ValueError("theta must be a 1D phase vector")
+    if not np.isfinite(th).all():
+        raise ValueError("theta must contain only finite values")
 
     if weights is None:
         z = np.mean(np.exp(1j * th))
     else:
-        w = np.asarray(weights, dtype=np.float64).ravel()
+        w = np.asarray(weights, dtype=np.float64)
+        if w.shape != th.shape:
+            raise ValueError(f"weights shape {w.shape} != theta shape {th.shape}")
+        if not np.isfinite(w).all():
+            raise ValueError("weights must contain only finite values")
+        if np.any(w < 0.0):
+            raise ValueError("weights must be non-negative")
         W = float(np.sum(w))
-        z = np.sum(w * np.exp(1j * th)) / max(W, 1e-15)
+        if W <= 0.0:
+            raise ValueError("weights must have positive total mass")
+        z = np.sum(w * np.exp(1j * th)) / W
 
     return float(np.abs(z)), float(np.angle(z))
 
@@ -98,6 +110,8 @@ class GlobalPsiDriver:
         if self.mode == "external":
             if psi_external is None:
                 raise ValueError("psi_external required when mode='external'")
+            if not np.isfinite(psi_external):
+                raise ValueError("psi_external must be finite")
             return float(psi_external)
         if self.mode == "mean_field":
             _, psi = order_parameter(theta)
@@ -145,8 +159,26 @@ def kuramoto_sakaguchi_step(
 
     Uses Rust backend when available (rayon-parallelised, sub-ms for N>1000).
     """
-    th = np.asarray(theta, dtype=np.float64).ravel()
-    om = np.asarray(omega, dtype=np.float64).ravel()
+    th = np.asarray(theta, dtype=np.float64)
+    om = np.asarray(omega, dtype=np.float64)
+    if th.ndim != 1:
+        raise ValueError("theta must be a 1D phase vector")
+    if om.ndim != 1:
+        raise ValueError("omega must be a 1D frequency vector")
+    if om.shape != th.shape:
+        raise ValueError(f"omega shape {om.shape} != theta shape {th.shape}")
+    if not np.isfinite(th).all():
+        raise ValueError("theta must contain only finite values")
+    if not np.isfinite(om).all():
+        raise ValueError("omega must contain only finite values")
+    if not np.isfinite(dt) or dt <= 0.0:
+        raise ValueError("dt must be positive and finite")
+    if not np.isfinite(K) or K < 0.0:
+        raise ValueError("K must be finite and non-negative")
+    if not np.isfinite(alpha):
+        raise ValueError("alpha must be finite")
+    if not np.isfinite(zeta):
+        raise ValueError("zeta must be finite")
 
     # Resolve Ψ before dispatching (Rust kernel needs resolved value)
     Psi = GlobalPsiDriver(mode=psi_mode).resolve(th, psi_driver)

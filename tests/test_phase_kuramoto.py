@@ -58,6 +58,23 @@ class TestOrderParameter:
         assert R > 0.5
         assert abs(psi) < 0.5
 
+    def test_rejects_nonfinite_phases(self):
+        with pytest.raises(ValueError, match="theta"):
+            order_parameter(np.array([0.0, np.nan]))
+
+    @pytest.mark.parametrize(
+        "weights",
+        [
+            np.array([1.0]),
+            np.array([1.0, -0.1]),
+            np.array([0.0, 0.0]),
+            np.array([1.0, np.inf]),
+        ],
+    )
+    def test_rejects_invalid_weights(self, weights):
+        with pytest.raises(ValueError, match="weights"):
+            order_parameter(np.array([0.0, np.pi]), weights=weights)
+
 
 # ── wrap_phase ───────────────────────────────────────────────────────
 
@@ -239,6 +256,43 @@ class TestKuramotoSakaguchiStep:
         assert out["R"] == pytest.approx(0.51)
         assert out["Psi_r"] == pytest.approx(0.11)
         assert out["Psi"] == pytest.approx(-0.22)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"dt": 0.0, "K": 1.0}, "dt"),
+            ({"dt": 0.01, "K": -1e-6}, "K"),
+            ({"dt": 0.01, "K": 1.0, "alpha": np.nan}, "alpha"),
+            ({"dt": 0.01, "K": 1.0, "zeta": np.inf}, "zeta"),
+        ],
+    )
+    def test_rejects_unphysical_scalar_inputs(self, kwargs, match):
+        theta = np.zeros(3)
+        omega = np.zeros(3)
+
+        with pytest.raises(ValueError, match=match):
+            kuramoto_sakaguchi_step(theta, omega, psi_mode="mean_field", **kwargs)
+
+    def test_rejects_mismatched_phase_frequency_shapes(self):
+        with pytest.raises(ValueError, match="omega"):
+            kuramoto_sakaguchi_step(
+                np.zeros(3),
+                np.zeros(2),
+                dt=0.01,
+                K=1.0,
+                psi_mode="mean_field",
+            )
+
+    def test_rejects_nonfinite_external_driver(self):
+        with pytest.raises(ValueError, match="psi_external"):
+            kuramoto_sakaguchi_step(
+                np.zeros(3),
+                np.zeros(3),
+                dt=0.01,
+                K=1.0,
+                psi_driver=np.nan,
+                psi_mode="external",
+            )
 
 
 # ── KnmSpec ──────────────────────────────────────────────────────────
