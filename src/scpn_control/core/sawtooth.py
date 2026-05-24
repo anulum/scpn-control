@@ -1,10 +1,10 @@
-# ──────────────────────────────────────────────────────────────────────
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: https://orcid.org/0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Sawtooth Crash Physics
 """Sawtooth crash, monitoring, Kadomtsev redistribution, and cycle utilities."""
 
 from __future__ import annotations
@@ -196,11 +196,23 @@ def porcelli_trigger(
 
 class SawtoothMonitor:
     def __init__(self, rho: np.ndarray, s_crit: float = 0.1):
+        if rho.ndim != 1:
+            raise ValueError("rho must be one-dimensional")
+        if len(rho) == 0:
+            raise ValueError("rho must not be empty")
+        if np.any(np.diff(rho) <= 0.0):
+            raise ValueError("rho must be strictly increasing")
         self.rho = rho
         self.s_crit = s_crit
 
     def find_q1_radius(self, q: np.ndarray) -> float | None:
         """Return normalised radius where q=1 by linear interpolation."""
+        if q.ndim != 1:
+            raise ValueError("q must be one-dimensional")
+        if len(q) != len(self.rho):
+            raise ValueError("q and rho must have the same length")
+        if np.any(q <= 0.0):
+            raise ValueError("q values must be positive")
         if q[0] >= 1.0 or np.min(q) >= 1.0:
             return None
         q_diff = q - 1.0

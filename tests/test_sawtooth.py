@@ -1,10 +1,10 @@
-# ──────────────────────────────────────────────────────────────────────
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: https://orcid.org/0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Sawtooth Model Tests
 from __future__ import annotations
 
 import numpy as np
@@ -34,6 +34,24 @@ def test_no_crash_q_above_1():
     monitor = SawtoothMonitor(rho)
     assert monitor.find_q1_radius(q) is None
     assert not monitor.check_trigger(q, shear)
+
+
+def test_monitor_rejects_nonphysical_radial_or_q_domains():
+    rho = np.linspace(0, 1, 50)
+
+    with pytest.raises(ValueError, match="rho must be one-dimensional"):
+        SawtoothMonitor(np.ones((2, 2)))
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        SawtoothMonitor(np.array([0.0, 0.5, 0.5, 1.0]))
+
+    monitor = SawtoothMonitor(rho)
+
+    with pytest.raises(ValueError, match="same length"):
+        monitor.find_q1_radius(np.linspace(0.8, 3.0, 49))
+
+    with pytest.raises(ValueError, match="positive"):
+        monitor.find_q1_radius(np.zeros_like(rho))
 
 
 def test_trigger_q_below_1():
