@@ -45,6 +45,9 @@ def main(argv: list[str] | None = None) -> int:
 
     registry = Path(args.registry)
     report_path = Path(args.report)
+    if not report_path.exists():
+        print(f"{report_path} is missing", file=sys.stderr)
+        return 1
     if not generated_traceability_is_current(registry, report_path):
         print(
             f"{report_path} is stale; run "

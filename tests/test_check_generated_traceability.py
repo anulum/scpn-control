@@ -43,3 +43,11 @@ def test_generated_traceability_cli_reports_stale_explicit_path(tmp_path: Path, 
 
     assert main(["--registry", str(registry), "--report", str(stale_report)]) == 1
     assert f"{stale_report} is stale" in capsys.readouterr().err
+
+
+def test_generated_traceability_cli_reports_missing_explicit_path(tmp_path: Path, capsys) -> None:
+    registry = ROOT / "validation" / "physics_traceability.json"
+    missing_report = tmp_path / "missing_physics_traceability.md"
+
+    assert main(["--registry", str(registry), "--report", str(missing_report)]) == 1
+    assert f"{missing_report} is missing" in capsys.readouterr().err
