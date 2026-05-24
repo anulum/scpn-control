@@ -124,6 +124,8 @@ class VelocityGrid:
     n_lambda: int = 24
 
     def __post_init__(self) -> None:
+        self.n_energy = _require_positive_int("n_energy", self.n_energy, minimum=2)
+        self.n_lambda = _require_positive_int("n_lambda", self.n_lambda, minimum=2)
         # Gauss-Legendre on [0, E_max] for energy (E_max ~ 6 T)
         e_nodes, e_weights = np.polynomial.legendre.leggauss(self.n_energy)
         self.E_max = 6.0
@@ -200,6 +202,12 @@ def _require_finite(field: str, value: float) -> None:
         raise ValueError(f"{field} must be finite")
 
 
+def _require_positive_int(field: str, value: int, *, minimum: int = 1) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"{field} must be an integer >= {minimum}")
+    return value
+
+
 def _require_positive(field: str, value: float) -> None:
     _require_finite(field, value)
     if value <= 0.0:
@@ -210,6 +218,26 @@ def _require_nonzero(field: str, value: float) -> None:
     _require_finite(field, value)
     if value == 0.0:
         raise ValueError(f"{field} must be non-zero")
+
+
+def _require_lambda_grid(
+    n_lambda: int,
+    lam: NDArray[np.float64],
+    B_ratio: float,
+) -> tuple[int, NDArray[np.float64], float]:
+    n_lambda = _require_positive_int("n_lambda", n_lambda, minimum=2)
+    _require_positive("B_ratio", B_ratio)
+    lam_arr = np.asarray(lam, dtype=np.float64)
+
+    if lam_arr.shape != (n_lambda,):
+        raise ValueError(f"lam must have shape ({n_lambda},)")
+    if not np.all(np.isfinite(lam_arr)):
+        raise ValueError("lam values must be finite")
+    if np.any(lam_arr < 0.0) or np.any(lam_arr > 1.0):
+        raise ValueError("lam values must stay within [0, 1]")
+    if np.any(np.diff(lam_arr) <= 0.0):
+        raise ValueError("lam must be strictly increasing")
+    return n_lambda, lam_arr, float(B_ratio)
 
 
 def pitch_angle_operator(
@@ -224,6 +252,7 @@ def pitch_angle_operator(
 
     Returns shape (n_lambda, n_lambda).
     """
+    n_lambda, lam, B_ratio = _require_lambda_grid(n_lambda, lam, B_ratio)
     xi = np.sqrt(np.maximum(1.0 - lam * B_ratio, 0.0))
     d_lam = np.diff(lam, prepend=0.0, append=1.0)
     d_lam_mid = 0.5 * (d_lam[:-1] + d_lam[1:])

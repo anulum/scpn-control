@@ -150,11 +150,11 @@ def test_larmor_radius_positive():
     assert rho_over_B > 0.0
 
 
-def test_pitch_angle_operator_h_guard():
-    """Exercise gk_species.py line 197: small h guard in pitch_angle_operator."""
+def test_pitch_angle_operator_rejects_duplicate_lambda_grid() -> None:
+    """Pitch-angle diffusion requires a strictly ordered lambda grid."""
     lam = np.array([0.0, 0.0, 0.5, 1.0])
-    L = pitch_angle_operator(4, lam)
-    assert L.shape == (4, 4)
+    with pytest.raises(ValueError, match="strictly increasing"):
+        pitch_angle_operator(4, lam)
 
 
 @pytest.mark.parametrize(
@@ -200,3 +200,25 @@ def test_collision_frequencies_reject_nonphysical_inputs(
 ) -> None:
     with pytest.raises(ValueError):
         collision_frequencies(deuterium_ion(), n_e_19=n_e_19, T_e_keV=T_e_keV, Z_eff=Z_eff, ln_lambda=ln_lambda)
+
+
+def test_velocity_grid_rejects_invalid_quadrature_sizes() -> None:
+    """Velocity grid requires enough quadrature points for energy-lambda integration."""
+    with pytest.raises(ValueError, match="n_energy"):
+        VelocityGrid(n_energy=1, n_lambda=24)
+    with pytest.raises(ValueError, match="n_lambda"):
+        VelocityGrid(n_energy=16, n_lambda=True)
+
+
+def test_pitch_angle_operator_rejects_malformed_lambda_grid() -> None:
+    """Pitch-angle operator rejects mismatched, non-finite, and unordered lambda grids."""
+    with pytest.raises(ValueError, match="n_lambda"):
+        pitch_angle_operator(0, np.array([0.0, 0.5]))
+    with pytest.raises(ValueError, match="lam"):
+        pitch_angle_operator(3, np.array([0.0, np.nan, 1.0]))
+    with pytest.raises(ValueError, match="strictly increasing"):
+        pitch_angle_operator(3, np.array([0.0, 0.5, 0.5]))
+    with pytest.raises(ValueError, match="shape"):
+        pitch_angle_operator(4, np.array([0.0, 0.5, 1.0]))
+    with pytest.raises(ValueError, match="B_ratio"):
+        pitch_angle_operator(3, np.array([0.0, 0.5, 1.0]), B_ratio=0.0)

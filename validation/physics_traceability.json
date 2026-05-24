@@ -153,7 +153,7 @@
         "Validate bounded test-particle collision coefficients against a published gyrokinetic or Fokker-Planck reference case before facility claims",
         "Add field-particle momentum-conservation and full multispecies collision-operator evidence before claiming quantitative collisional damping"
       ],
-      "unit_contract": "Mass in kilograms, charge in coulombs, density in m^-3, temperature in electronvolts, velocity in m/s, gyrofrequency in rad/s, Larmor radius in metres, and collision rates in s^-1.",
+      "unit_contract": "Mass in kilograms, charge in coulombs, density in m^-3, temperature in electronvolts, velocity in m/s, gyrofrequency in rad/s, Larmor radius in metres, collision rates in s^-1, lambda on [0, 1], and positive magnetic-field ratio.",
       "validation_evidence": [
         "tests/test_gk_species.py",
         "tests/test_gk_electromagnetic.py",
@@ -170,7 +170,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_species.py"
       ],
-      "validity_domain": "Bounded test-particle species and collision-coefficient regression coverage; no field-particle, momentum-conserving multispecies, or external Fokker-Planck collision-operator benchmark evidence.",
+      "validity_domain": "Bounded test-particle species and collision-coefficient regression coverage with finite species parameters, integer velocity quadrature sizes of at least two points, and strictly ordered finite lambda grids; no field-particle, momentum-conserving multispecies, or external Fokker-Planck collision-operator benchmark evidence.",
       "external_validation_tracker_issue": 47
     },
     {
