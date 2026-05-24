@@ -57,6 +57,25 @@ N_STATES_FLOW = 5
 N_ACTIONS = 3
 
 
+def _require_finite_scalar(name: str, value: float) -> float:
+    """Return a finite scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite.")
+    return scalar
+
+
+def _validate_state_index(name: str, state: tuple[int, int], shape: tuple[int, int]) -> tuple[int, int]:
+    """Validate a discretised turbulence/flow state index."""
+    if len(state) != 2:
+        raise ValueError(f"{name} must contain two state indices.")
+    s_turb = int(state[0])
+    s_flow = int(state[1])
+    if not (0 <= s_turb < shape[0]) or not (0 <= s_flow < shape[1]):
+        raise ValueError(f"{name} indices must lie within q_table bounds.")
+    return s_turb, s_flow
+
+
 class CoupledSandpileReactor:
     """
     Predator-prey sandpile approximation for turbulence/flow coupling.
@@ -77,7 +96,7 @@ class CoupledSandpileReactor:
         if size < 8:
             raise ValueError("size must be >= 8.")
         self.size = size
-        self.z_crit_base = float(z_crit_base)
+        self.z_crit_base = require_bounded_float("z_crit_base", z_crit_base, low=0.0, low_exclusive=True)
         flow_generation = require_non_negative_float("flow_generation", flow_generation)
         flow_damping = require_bounded_float("flow_damping", flow_damping, low=0.0, high=1.0, high_exclusive=True)
         shear_efficiency = require_non_negative_float("shear_efficiency", shear_efficiency)
@@ -95,10 +114,12 @@ class CoupledSandpileReactor:
         self.flow = 0.0
 
     def drive(self, amount: float = 1.0) -> None:
-        self.Z[0] += max(float(amount), 0.0)
+        amount = _require_finite_scalar("drive amount", amount)
+        self.Z[0] += max(amount, 0.0)
 
     def step_physics(self, external_shear: float) -> tuple[int, float, float]:
-        eff_shear = float(self.flow + float(external_shear))
+        external_shear = _require_finite_scalar("external_shear", external_shear)
+        eff_shear = float(self.flow + external_shear)
         current_z_crit = float(self.z_crit_base + self.shear_efficiency * eff_shear)
         total_topple = 0
 
@@ -165,8 +186,10 @@ class FusionAIAgent:
         self.total_reward = 0.0
 
     def discretize_state(self, turb: float, flow: float) -> tuple[int, int]:
-        s_turb = min(int(np.log1p(max(float(turb), 0.0))), self.n_states_turb - 1)
-        s_flow = min(int(max(float(flow), 0.0)), self.n_states_flow - 1)
+        turb = _require_finite_scalar("turb", turb)
+        flow = _require_finite_scalar("flow", flow)
+        s_turb = min(int(np.log1p(max(turb, 0.0))), self.n_states_turb - 1)
+        s_flow = min(int(max(flow, 0.0)), self.n_states_flow - 1)
         return s_turb, s_flow
 
     def choose_action(
@@ -185,11 +208,17 @@ class FusionAIAgent:
         new_state: tuple[int, int],
         reward: float,
     ) -> float:
-        old_q = float(self.q_table[state][int(action)])
+        state = _validate_state_index("state", state, (self.n_states_turb, self.n_states_flow))
+        new_state = _validate_state_index("new_state", new_state, (self.n_states_turb, self.n_states_flow))
+        action = int(action)
+        if not (0 <= action < self.n_actions):
+            raise ValueError("action must lie within q_table action bounds.")
+        reward = _require_finite_scalar("reward", reward)
+        old_q = float(self.q_table[state][action])
         max_future_q = float(np.max(self.q_table[new_state]))
-        new_q = old_q + self.alpha * (float(reward) + self.gamma * max_future_q - old_q)
-        self.q_table[state][int(action)] = new_q
-        self.total_reward += float(reward)
+        new_q = old_q + self.alpha * (reward + self.gamma * max_future_q - old_q)
+        self.q_table[state][action] = new_q
+        self.total_reward += reward
         return new_q
 
 

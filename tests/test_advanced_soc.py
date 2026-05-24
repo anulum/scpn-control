@@ -43,6 +43,13 @@ class TestCoupledSandpileReactor:
         r.drive(-10.0)
         assert r.Z[0] == 0.0
 
+    def test_rejects_nonfinite_drive_and_shear(self):
+        r = CoupledSandpileReactor()
+        with pytest.raises(ValueError, match="drive amount"):
+            r.drive(float("nan"))
+        with pytest.raises(ValueError, match="external_shear"):
+            r.step_physics(float("inf"))
+
     def test_step_physics_returns_triple(self):
         r = CoupledSandpileReactor()
         r.drive(10.0)
@@ -84,6 +91,12 @@ class TestCoupledSandpileReactor:
     def test_rejects_negative_flow_generation(self):
         with pytest.raises(ValueError, match="flow_generation"):
             CoupledSandpileReactor(flow_generation=-1.0)
+
+    def test_rejects_nonpositive_or_nonfinite_critical_gradient(self):
+        with pytest.raises(ValueError, match="z_crit_base"):
+            CoupledSandpileReactor(z_crit_base=0.0)
+        with pytest.raises(ValueError, match="z_crit_base"):
+            CoupledSandpileReactor(z_crit_base=float("nan"))
 
     def test_rejects_bad_flow_damping(self):
         with pytest.raises(ValueError, match="flow_damping"):
@@ -131,6 +144,13 @@ class TestFusionAIAgent:
         assert s_t == 2
         assert s_f == 2
 
+    def test_rejects_nonfinite_state_inputs(self):
+        agent = FusionAIAgent()
+        with pytest.raises(ValueError, match="turb"):
+            agent.discretize_state(float("nan"), 0.0)
+        with pytest.raises(ValueError, match="flow"):
+            agent.discretize_state(0.0, float("inf"))
+
     def test_choose_action_range(self):
         agent = FusionAIAgent(n_actions=3)
         rng = np.random.default_rng(0)
@@ -149,6 +169,13 @@ class TestFusionAIAgent:
         agent.learn((0, 0), 0, (0, 0), 5.0)
         agent.learn((0, 0), 1, (1, 1), 3.0)
         assert agent.total_reward == pytest.approx(8.0)
+
+    def test_rejects_invalid_learning_transition(self):
+        agent = FusionAIAgent()
+        with pytest.raises(ValueError, match="action"):
+            agent.learn((0, 0), 99, (0, 0), 1.0)
+        with pytest.raises(ValueError, match="reward"):
+            agent.learn((0, 0), 0, (0, 0), float("nan"))
 
     def test_rejects_invalid_alpha(self):
         with pytest.raises(ValueError, match="alpha"):
