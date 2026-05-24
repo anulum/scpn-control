@@ -146,6 +146,20 @@ class FakeKernelNonfiniteField(FakeKernel):
         return psi
 
 
+class FakeKernelNonmonotonicR(FakeKernel):
+    def __init__(self, config_path: str):
+        super().__init__(config_path)
+        self.R = self.R.copy()
+        self.R[10] = self.R[9]
+
+
+class FakeKernelNonuniformR(FakeKernel):
+    def __init__(self, config_path: str):
+        super().__init__(config_path)
+        self.R = self.R.copy()
+        self.R[10] += 0.25 * self.dR
+
+
 class TestComputeCoilEfficienciesEdgeCases:
     def test_rejects_zero_coils(self, tmp_path):
         cfg = tmp_path / "test.json"
@@ -189,6 +203,22 @@ class TestComputeCoilEfficienciesEdgeCases:
         solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernelNonfiniteField, verbose=False)
 
         with pytest.raises(ValueError, match="vacuum field must contain only finite values"):
+            solver.compute_coil_efficiencies(target_R=6.2)
+
+    def test_rejects_nonmonotonic_r_grid(self, tmp_path):
+        cfg = tmp_path / "test.json"
+        cfg.write_text("{}")
+        solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernelNonmonotonicR, verbose=False)
+
+        with pytest.raises(ValueError, match="kernel R grid must be strictly monotonic"):
+            solver.compute_coil_efficiencies(target_R=6.2)
+
+    def test_rejects_nonuniform_r_grid(self, tmp_path):
+        cfg = tmp_path / "test.json"
+        cfg.write_text("{}")
+        solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=FakeKernelNonuniformR, verbose=False)
+
+        with pytest.raises(ValueError, match="kernel R grid must be uniformly spaced"):
             solver.compute_coil_efficiencies(target_R=6.2)
 
 

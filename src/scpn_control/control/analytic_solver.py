@@ -139,6 +139,11 @@ class AnalyticEquilibriumSolver:
             raise ValueError("kernel R grid must be finite with at least 3 points.")
         if z_grid.ndim != 1 or z_grid.size < 1 or not np.all(np.isfinite(z_grid)):
             raise ValueError("kernel Z grid must be finite with at least 1 point.")
+        r_steps = np.diff(r_grid)
+        if not (np.all(r_steps > 0.0) or np.all(r_steps < 0.0)):
+            raise ValueError("kernel R grid must be strictly monotonic.")
+        if not np.allclose(r_steps, r_steps[0], rtol=1e-9, atol=1e-12):
+            raise ValueError("kernel R grid must be uniformly spaced.")
         r_min = float(min(r_grid[1], r_grid[-2]))
         r_max = float(max(r_grid[1], r_grid[-2]))
         if not (r_min <= target_R <= r_max):
