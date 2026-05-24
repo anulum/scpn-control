@@ -296,17 +296,17 @@ def test_close_supports_delete_solver_alias() -> None:
     assert bridge.lib.deleted == 999
 
 
-def test_init_prefers_env_override_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    expected = "/tmp/scpn_solver_override.so"
+def test_init_prefers_env_override_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    expected = tmp_path / "scpn_solver_override.so"
 
     def _raise_cdll(_path: str):
         raise OSError("no library")
 
-    monkeypatch.setenv("SCPN_SOLVER_LIB", expected)
+    monkeypatch.setenv("SCPN_SOLVER_LIB", str(expected))
     monkeypatch.setenv("SCPN_ALLOW_EXTERNAL_SOLVER_LIB", "1")
     monkeypatch.setattr(hpc_mod.ctypes, "CDLL", _raise_cdll)
     bridge = HPCBridge()
-    assert bridge.lib_path == expected
+    assert bridge.lib_path == str(expected.resolve(strict=False))
     assert not bridge.loaded
 
 
