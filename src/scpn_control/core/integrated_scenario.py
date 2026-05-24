@@ -503,6 +503,18 @@ class IntegratedScenarioSimulator:
                 q0=float(q_prof[0]),
                 q_edge=float(q_prof[-1]),
             )
+            if self.ts_solver.neoclassical_params is not None:
+                self.ts_solver.neoclassical_params.update(
+                    {
+                        "Ip_MA": self.config.Ip_MA,
+                        "kappa": self.config.kappa,
+                        "surface_area_m2": 4.0
+                        * np.pi**2
+                        * self.config.R0
+                        * self.config.a
+                        * np.sqrt((1.0 + self.config.kappa**2) / 2.0),
+                    }
+                )
 
         return self._build_state()
 
