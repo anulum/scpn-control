@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -27,13 +28,26 @@ def generated_traceability_is_current(registry: Path, report_path: Path) -> bool
     return actual == expected
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Check generated physics traceability Markdown against the registry."""
-    registry = ROOT / "validation" / "physics_traceability.json"
-    report_path = ROOT / "docs" / "physics_traceability.md"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--registry",
+        default=str(ROOT / "validation" / "physics_traceability.json"),
+        help="Physics traceability registry JSON path",
+    )
+    parser.add_argument(
+        "--report",
+        default=str(ROOT / "docs" / "physics_traceability.md"),
+        help="Generated physics traceability Markdown path",
+    )
+    args = parser.parse_args(argv)
+
+    registry = Path(args.registry)
+    report_path = Path(args.report)
     if not generated_traceability_is_current(registry, report_path):
         print(
-            "docs/physics_traceability.md is stale; run "
+            f"{report_path} is stale; run "
             "python validation/generate_physics_traceability_report.py",
             file=sys.stderr,
         )
