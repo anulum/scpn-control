@@ -95,7 +95,7 @@ class TestHModeFallback:
 
 class TestNeoclassicalQMismatch:
     def test_q_profile_wrong_shape(self, cfg):
-        """q_profile shape mismatch triggers linspace fallback (line 350)."""
+        """q_profile shape mismatch triggers the neoclassical fallback profile."""
         ts = _make_solver(cfg)
         ts.q_profile = np.array([1.0, 2.0, 3.0])
         chi = ts.chang_hinton_chi_profile()
@@ -105,7 +105,7 @@ class TestNeoclassicalQMismatch:
 
 class TestBootstrapEdgeCases:
     def test_zero_bpol_skip(self):
-        """B_pol < 1e-10 causes bootstrap skip (line 210)."""
+        """Vanishing poloidal field produces a finite skipped bootstrap profile."""
         nr = 20
         rho = np.linspace(0, 1, nr)
         Te = 5.0 * (1 - rho**2)
@@ -126,7 +126,7 @@ class TestBootstrapEdgeCases:
         assert np.all(np.isfinite(j_bs))
 
     def test_zero_density_skip(self):
-        """ne=0 at grid point causes skip (line 166)."""
+        """Zero-density profiles produce zero bootstrap current without singularities."""
         nr = 20
         rho = np.linspace(0, 1, nr)
         Te = 5.0 * (1 - rho**2)
@@ -148,7 +148,7 @@ class TestBootstrapEdgeCases:
 
 class TestAuxHeatingZeroPower:
     def test_zero_aux_numerical_recovery(self, cfg):
-        """P_aux=0 triggers numerical recovery path (lines 1071-1082)."""
+        """Zero auxiliary heating preserves finite transport evolution."""
         ts = _make_solver(cfg)
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
         ts.update_transport_model(P_aux=0.0)
@@ -158,7 +158,7 @@ class TestAuxHeatingZeroPower:
         assert np.all(ts.Ti >= 0.01)
 
     def test_zero_norm_fallback(self, cfg):
-        """Zero norm in aux heating shape triggers fallback (line 771-784)."""
+        """Degenerate auxiliary-heating shape keeps transport evolution finite."""
         ts = _make_solver(cfg)
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
         ts.rho[:] = 0.0

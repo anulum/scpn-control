@@ -255,7 +255,7 @@ def calculate_sauter_bootstrap_current_full(
     shape = rho.shape
     Te = _profile_array("Te", Te, shape, positive=True, allow_last_zero=True)
     Ti = _profile_array("Ti", Ti, shape, positive=True, allow_last_zero=True)
-    ne = _profile_array("ne", ne, shape, positive=True, allow_last_zero=True)
+    ne = _profile_array("ne", ne, shape, nonnegative=True)
     q = _profile_array("q", q, shape, positive=True)
     R0, a, B0 = _validate_tokamak_geometry(R0, a, B0)
     Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
@@ -269,6 +269,8 @@ def calculate_sauter_bootstrap_current_full(
     for i in range(1, n - 1):
         eps = rho[i] * a / R0
         if eps < 1e-6:
+            continue
+        if Te[i] <= 0.0 or Ti[i] <= 0.0 or ne[i] <= 0.0:
             continue
 
         # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eq. 13
