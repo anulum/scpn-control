@@ -238,6 +238,8 @@ class DensityController:
     """
 
     def __init__(self, model: ParticleTransportModel, dt_control: float = 0.001):
+        if not math.isfinite(dt_control) or dt_control <= 0.0:
+            raise ValueError("dt_control must be finite and positive.")
         self.model = model
         self.dt = dt_control
         self.ne_target = np.zeros(model.n_rho)
@@ -255,13 +257,13 @@ class DensityController:
         self.integral_error = 0.0
 
     def set_target(self, ne_target: np.ndarray) -> None:
-        self.ne_target = ne_target
+        self.ne_target = self._validate_density_profile(ne_target, "ne_target")
 
     def set_constraints(self, n_GW: float, gas_max: float, pellet_freq_max: float, pump_max: float) -> None:
-        self.n_GW = n_GW
-        self.gas_max = gas_max
-        self.pellet_freq_max = pellet_freq_max
-        self.pump_max = pump_max
+        self.n_GW = self._validate_positive_scalar(n_GW, "n_GW")
+        self.gas_max = self._validate_non_negative_scalar(gas_max, "gas_max")
+        self.pellet_freq_max = self._validate_non_negative_scalar(pellet_freq_max, "pellet_freq_max")
+        self.pump_max = self._validate_non_negative_scalar(pump_max, "pump_max")
 
     @staticmethod
     def compute_greenwald_limit(I_p_MA: float, a_m: float) -> float:
@@ -269,6 +271,10 @@ class DensityController:
 
         Greenwald 2002, PPCF 44, R27, Eq. 1.
         """
+        if not math.isfinite(I_p_MA) or I_p_MA <= 0.0:
+            raise ValueError("I_p_MA must be finite and positive.")
+        if not math.isfinite(a_m) or a_m <= 0.0:
+            raise ValueError("a_m must be finite and positive.")
         return I_p_MA / (math.pi * a_m**2) * 1e20
 
     def greenwald_fraction(self, ne: np.ndarray, I_p_MA: float, a: float) -> float:
@@ -278,8 +284,9 @@ class DensityController:
         ITER safe operating limit: fraction < 0.85.
         ITER Physics Basis 1999, Nucl. Fusion 39, 2175, §2.3.
         """
+        ne_arr = self._validate_density_profile(ne, "ne")
         vol = np.sum(self.model.V_prime * self.model.drho)
-        N_tot = np.sum(ne * self.model.V_prime * self.model.drho)
+        N_tot = np.sum(ne_arr * self.model.V_prime * self.model.drho)
         n_avg = N_tot / vol
 
         n_GW = self.compute_greenwald_limit(I_p_MA, a)
@@ -290,13 +297,15 @@ class DensityController:
 
         ITER Physics Basis 1999, Nucl. Fusion 39, 2175, §2.3: n/n_GW < 0.85.
         """
+        ne_arr = self._validate_density_profile(ne, "ne")
         vol = np.sum(self.model.V_prime * self.model.drho)
-        n_avg = np.sum(ne * self.model.V_prime * self.model.drho) / vol
+        n_avg = np.sum(ne_arr * self.model.V_prime * self.model.drho) / vol
         return bool(n_avg < _GW_ITER_SAFETY_MARGIN * self.n_GW)
 
     def step(self, ne_measured: np.ndarray) -> ActuatorCommand:
+        ne_arr = self._validate_density_profile(ne_measured, "ne_measured")
         vol = np.sum(self.model.V_prime * self.model.drho)
-        N_meas = np.sum(ne_measured * self.model.V_prime * self.model.drho)
+        N_meas = np.sum(ne_arr * self.model.V_prime * self.model.drho)
         N_targ = np.sum(self.ne_target * self.model.V_prime * self.model.drho)
 
         error = N_targ - N_meas
@@ -320,6 +329,24 @@ class DensityController:
             pump = min(self.pump_max, -cmd / 1e20)
 
         return ActuatorCommand(gas, pellet, 500.0, pump)
+
+    def _validate_density_profile(self, values: np.ndarray, name: str) -> np.ndarray:
+        arr = self.model._validate_profile(values, name)
+        if np.any(arr < 0.0):
+            raise ValueError(f"{name} must be non-negative.")
+        return arr
+
+    @staticmethod
+    def _validate_positive_scalar(value: float, name: str) -> float:
+        if not math.isfinite(value) or value <= 0.0:
+            raise ValueError(f"{name} must be finite and positive.")
+        return float(value)
+
+    @staticmethod
+    def _validate_non_negative_scalar(value: float, name: str) -> float:
+        if not math.isfinite(value) or value < 0.0:
+            raise ValueError(f"{name} must be finite and non-negative.")
+        return float(value)
 
 
 class KalmanDensityEstimator:

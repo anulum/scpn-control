@@ -166,6 +166,30 @@ def test_density_controller():
     assert cmd_high.cryo_pump_speed > 0.0
 
 
+def test_density_controller_rejects_nonphysical_domains():
+    model = ParticleTransportModel(n_rho=10)
+
+    with pytest.raises(ValueError, match="dt_control"):
+        DensityController(model, dt_control=0.0)
+
+    ctrl = DensityController(model, dt_control=0.01)
+
+    with pytest.raises(ValueError, match="ne_target"):
+        ctrl.set_target(np.full(10, np.nan))
+
+    with pytest.raises(ValueError, match="ne_target"):
+        ctrl.set_target(-np.ones(10))
+
+    with pytest.raises(ValueError, match="n_GW"):
+        ctrl.set_constraints(n_GW=0.0, gas_max=1e22, pellet_freq_max=10.0, pump_max=10.0)
+
+    with pytest.raises(ValueError, match="gas_max"):
+        ctrl.set_constraints(n_GW=1e20, gas_max=-1.0, pellet_freq_max=10.0, pump_max=10.0)
+
+    with pytest.raises(ValueError, match="ne_measured"):
+        ctrl.step(np.full(10, np.inf))
+
+
 def test_greenwald_limit_override():
     model = ParticleTransportModel(n_rho=10)
     ctrl = DensityController(model, dt_control=0.01)
@@ -221,6 +245,10 @@ def test_greenwald_limit_iter():
     # Must be between 1.0 and 1.3 × 10^20 m^-3 for ITER parameters.
     assert 1.0e20 < n_GW < 1.3e20
 
+    for current, minor_radius in ((0.0, a_m), (I_p_MA, 0.0)):
+        with pytest.raises(ValueError, match="positive"):
+            DensityController.compute_greenwald_limit(current, minor_radius)
+
 
 def test_density_below_greenwald():
     """Controller keeps n < n_GW after triggering the pump-out threshold.
@@ -244,7 +272,7 @@ def test_density_below_greenwald():
 
 
 def test_set_transport():
-    """Lines 42-43: ParticleTransportModel.set_transport sets D and V_pinch."""
+    """Transport setter preserves validated diffusivity and pinch profiles."""
     model = ParticleTransportModel(n_rho=10)
     D_new = np.ones(10) * 2.0
     V_new = -np.ones(10) * 0.5
@@ -254,7 +282,7 @@ def test_set_transport():
 
 
 def test_pellet_source_zero_radius():
-    """Line 64: pellet_source returns zeros when radius_mm <= 0."""
+    """Zero-radius pellets deposit no particles and avoid trajectory integration."""
     model = ParticleTransportModel(n_rho=10)
     result = model.pellet_source(speed_ms=500.0, radius_mm=0.0)
     np.testing.assert_array_equal(result, np.zeros(10))
@@ -263,14 +291,14 @@ def test_pellet_source_zero_radius():
 
 
 def test_nbi_source_zero_power():
-    """Line 78: nbi_source returns zeros when power_MW <= 0."""
+    """Zero beam power contributes no neutral-beam particle source."""
     model = ParticleTransportModel(n_rho=10)
     result = model.nbi_source(beam_energy_keV=100.0, power_MW=0.0)
     np.testing.assert_array_equal(result, np.zeros(10))
 
 
 def test_recycling_source():
-    """Line 98: recycling_source delegates to gas_puff_source with 0.97 coeff."""
+    """Recycling returns a finite non-negative edge-localised source."""
     model = ParticleTransportModel(n_rho=10)
     outflux = 1e20
     recycled = model.recycling_source(outflux, recycling_coeff=0.97)
@@ -280,7 +308,7 @@ def test_recycling_source():
 
 
 def test_step_cfl_dt_clamp():
-    """Lines 105-106: step clamps dt to CFL limit when dt exceeds it."""
+    """Transport integration remains finite when requested dt exceeds the CFL limit."""
     model = ParticleTransportModel(n_rho=10)
     ne = np.ones(10) * 1e19
     sources = np.zeros(10)
@@ -291,7 +319,7 @@ def test_step_cfl_dt_clamp():
 
 
 def test_greenwald_fraction():
-    """Lines 190-195: greenwald_fraction computes volume-averaged n / n_GW."""
+    """Greenwald fraction is finite for a physical density profile."""
     model = ParticleTransportModel(n_rho=10, R0=6.2, a=2.0)
     ctrl = DensityController(model)
     ne = np.ones(10) * 1e19
@@ -299,9 +327,12 @@ def test_greenwald_fraction():
     assert 0.0 < frac < 1.0
     assert np.isfinite(frac)
 
+    with pytest.raises(ValueError, match="ne"):
+        ctrl.greenwald_fraction(-ne, I_p_MA=15.0, a=2.0)
+
 
 def test_below_greenwald_safety_margin():
-    """Lines 202-204: below_greenwald_safety_margin returns True/False."""
+    """Safety-margin predicate switches at the ITER Greenwald fraction boundary."""
     model = ParticleTransportModel(n_rho=10)
     ctrl = DensityController(model)
     ctrl.n_GW = 1e20
@@ -312,9 +343,12 @@ def test_below_greenwald_safety_margin():
     ne_high = np.ones(10) * 1e20
     assert ctrl.below_greenwald_safety_margin(ne_high) is False
 
+    with pytest.raises(ValueError, match="ne"):
+        ctrl.below_greenwald_safety_margin(-ne_low) is False
+
 
 def test_kalman_predict():
-    """Lines 255-257: KalmanDensityEstimator.predict."""
+    """Kalman prediction carries density state forward and inflates covariance."""
     est = KalmanDensityEstimator(n_rho=10, n_chords=4)
     ne = np.ones(10) * 1e19
     ne_pred = est.predict(ne, dt=0.01)
@@ -323,7 +357,7 @@ def test_kalman_predict():
 
 
 def test_fueling_optimizer_zero_pellets():
-    """Line 282: optimize_pellet_sequence with n_pellets=0 returns empty."""
+    """Zero-pellet optimisation produces an empty schedule."""
     opt = FuelingOptimizer()
     sched = opt.optimize_pellet_sequence(np.zeros(10), np.ones(10), n_pellets=0, time_horizon=1.0)
     assert sched.times == []
