@@ -564,6 +564,8 @@ def ntm_stability(
     r_s_delta_prime = _require_finite_scalar("r_s_delta_prime", r_s_delta_prime)
     if abs(r_s_delta_prime) <= 1e-10:
         raise ValueError("r_s_delta_prime must be non-zero for marginal island-width evaluation")
+    if np.any(j_bs > j_total):
+        raise ValueError("bootstrap current density must not exceed total current density")
 
     j_bs_frac = j_bs / j_total  # bootstrap fraction
 

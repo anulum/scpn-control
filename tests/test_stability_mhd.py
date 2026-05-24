@@ -431,6 +431,14 @@ class TestStabilityInputBoundaries:
         with pytest.raises(ValueError, match="r_s_delta_prime"):
             ntm_stability(qp, j_bs, j_total, a=1.0, r_s_delta_prime=0.0)
 
+    def test_ntm_stability_rejects_bootstrap_current_above_total_current(self, iter_like_qprofile):
+        qp = iter_like_qprofile
+        j_total = np.full_like(qp.rho, 1.0e6)
+        j_bs = 1.01 * j_total
+
+        with pytest.raises(ValueError, match="bootstrap"):
+            ntm_stability(qp, j_bs, j_total, a=1.0)
+
     def test_full_stability_check_rejects_partial_optional_contracts(self, iter_like_qprofile):
         with pytest.raises(ValueError, match="Troyon"):
             run_full_stability_check(iter_like_qprofile, beta_t=0.02, Ip_MA=10.0, a=1.0)

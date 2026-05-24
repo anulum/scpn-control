@@ -991,7 +991,7 @@
     },
     {
       "component": "ideal-MHD stability metric approximation contract",
-      "equation_contract": "MHD stability claims must declare q-profile interpolation, magnetic shear, Mercier and Troyon criteria, beta-limit inputs, first-unstable-radius search, and the exclusion boundary for full ideal-MHD or resistive-MHD eigenmode claims.",
+      "equation_contract": "MHD stability claims must declare q-profile interpolation, magnetic shear, Mercier and Troyon criteria, beta-limit inputs, first-unstable-radius search, bounded bootstrap-current fraction, and the exclusion boundary for full ideal-MHD or resistive-MHD eigenmode claims.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Troyon beta-limit reference",
@@ -1004,7 +1004,7 @@
         "Compare stability metrics against an independent MHD stability code or published benchmark profiles",
         "Store profile grids, interpolation choices, and unstable-region metadata with each stability validation artefact"
       ],
-      "unit_contract": "q and beta dimensionless, plasma current in MA or A with explicit convention, minor radius and major radius in metres, magnetic field in tesla, rho dimensionless.",
+      "unit_contract": "q and beta dimensionless, plasma current in MA or A with explicit convention, minor radius and major radius in metres, magnetic field in tesla, rho dimensionless, and local bootstrap-current fraction within [0, 1].",
       "validation_evidence": [
         "tests/test_stability_mhd.py",
         "tests/test_ballooning_solver.py",
