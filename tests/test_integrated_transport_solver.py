@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Integrated Transport Solver
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Integrated Transport Solver Tests
-# ──────────────────────────────────────────────────────────────────────
 """
 Tests for the TransportSolver class covering initialization, profile
 evolution, multi-ion species, energy conservation, and steady-state runs.
@@ -438,6 +434,21 @@ class TestNeoclassical:
 
         with pytest.raises(ValueError, match="a must be smaller"):
             chang_hinton_chi_profile(rho, Ti, ne, q, R0=2.0, a=2.0, B0=5.3)
+
+    def test_neoclassical_profiles_require_full_radial_domain(self) -> None:
+        """Neoclassical closures require an axis-to-edge normalized radial grid."""
+        rho_missing_axis = np.linspace(0.1, 1.0, 50)
+        rho_missing_edge = np.linspace(0.0, 0.9, 50)
+        Ti = np.full(50, 5.0)
+        Te = np.full(50, 5.0)
+        ne = np.full(50, 8.0)
+        q = np.full(50, 2.0)
+
+        with pytest.raises(ValueError, match="rho must start at 0"):
+            chang_hinton_chi_profile(rho_missing_axis, Ti, ne, q, R0=6.2, a=2.0, B0=5.3)
+
+        with pytest.raises(ValueError, match="rho must end at 1"):
+            calculate_sauter_bootstrap_current_full(rho_missing_edge, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3)
 
     def test_bootstrap_current_shape(self) -> None:
         """Sauter bootstrap current profile should match rho shape."""

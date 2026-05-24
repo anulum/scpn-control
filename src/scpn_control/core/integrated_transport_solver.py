@@ -67,6 +67,10 @@ def _normalised_radius(rho: np.ndarray) -> np.ndarray:
         raise ValueError("rho must contain only finite values")
     if np.any(arr < 0.0) or np.any(arr > 1.0):
         raise ValueError("rho must stay within the normalised interval [0, 1]")
+    if not np.isclose(arr[0], 0.0, rtol=0.0, atol=1.0e-12):
+        raise ValueError("rho must start at 0 for axis-to-edge transport profiles")
+    if not np.isclose(arr[-1], 1.0, rtol=0.0, atol=1.0e-12):
+        raise ValueError("rho must end at 1 for axis-to-edge transport profiles")
     if np.any(np.diff(arr) <= 0.0):
         raise ValueError("rho must be strictly increasing")
     return arr

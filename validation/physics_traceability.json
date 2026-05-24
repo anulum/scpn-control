@@ -739,7 +739,7 @@
     },
     {
       "component": "transport solver neoclassical and source-term approximation contract",
-      "equation_contract": "Integrated transport claims must declare the radial grid, heat and particle diffusion equations, neoclassical closure, bootstrap-current fit, source deposition terms, boundary conditions, timestep limits, and coupling contracts to pedestal and gyrokinetic closures.",
+      "equation_contract": "Integrated transport claims must declare the axis-to-edge radial grid, heat and particle diffusion equations, neoclassical closure, bootstrap-current fit, source deposition terms, boundary conditions, timestep limits, and coupling contracts to pedestal and gyrokinetic closures.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Chang-Hinton neoclassical transport model",
@@ -752,7 +752,7 @@
         "Validate radial transport profiles against a measured discharge or published integrated-modelling benchmark",
         "Persist source deposition, boundary condition, and convergence metadata with every transport validation artefact"
       ],
-      "unit_contract": "SI metres, seconds, m^-3, eV, W/m^3, m^2/s, amperes per square metre, and dimensionless profile coordinates with explicit normalisation metadata.",
+      "unit_contract": "SI metres, seconds, m^-3, eV, W/m^3, m^2/s, amperes per square metre, and dimensionless profile coordinates with explicit axis-to-edge normalisation metadata.",
       "validation_evidence": [
         "tests/test_integrated_transport_solver.py",
         "tests/test_transport_energy_conservation.py",
