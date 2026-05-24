@@ -1,19 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Volt Second Manager
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Volt-Second Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-import numpy as np
-
 import math
+
+import numpy as np
+import pytest
 
 from scpn_control.control.volt_second_manager import (
     BootstrapCurrentEstimate,
@@ -124,3 +121,69 @@ def test_ejima_coefficient():
     assert math.isclose(psi_startup, expected, rel_tol=1e-9)
     # C_EJIMA = 0.4 (Ejima et al. 1982)
     assert math.isclose(C_EJIMA, 0.4, rel_tol=1e-9)
+
+
+def test_flux_budget_rejects_nonphysical_domains():
+    """Flux budget rejects non-finite or negative physical constants and currents."""
+    with pytest.raises(ValueError, match="Phi_CS_Vs"):
+        FluxBudget(Phi_CS_Vs=math.inf, L_plasma_uH=10.0, R_plasma_uOhm=0.01)
+    with pytest.raises(ValueError, match="L_plasma_uH"):
+        FluxBudget(Phi_CS_Vs=280.0, L_plasma_uH=-10.0, R_plasma_uOhm=0.01)
+    with pytest.raises(ValueError, match="R_plasma_uOhm"):
+        FluxBudget(Phi_CS_Vs=280.0, L_plasma_uH=10.0, R_plasma_uOhm=-0.01)
+
+    fb = FluxBudget(Phi_CS_Vs=280.0, L_plasma_uH=10.0, R_plasma_uOhm=0.01)
+    with pytest.raises(ValueError, match="Ip_MA"):
+        fb.inductive_flux(-1.0)
+    with pytest.raises(ValueError, match="Ip_trace"):
+        fb.resistive_flux_ramp(np.array([0.0, np.nan, 1.0]), dt=1.0)
+    with pytest.raises(ValueError, match="dt"):
+        fb.resistive_flux_ramp(np.array([0.0, 1.0]), dt=0.0)
+    with pytest.raises(ValueError, match="R0_m"):
+        fb.ejima_startup_flux(R0_m=0.0, Ip_MA=15.0)
+
+
+def test_volt_second_optimizer_and_monitor_reject_invalid_inputs():
+    """Ramp optimiser and flux monitor reject invalid time, segment, and loop-voltage domains."""
+    fb = FluxBudget(Phi_CS_Vs=280.0, L_plasma_uH=10.0, R_plasma_uOhm=0.01)
+    opt = VoltSecondOptimizer(fb)
+
+    with pytest.raises(ValueError, match="Ip_target_MA"):
+        opt.optimize_ramp(-15.0, 100.0, 20)
+    with pytest.raises(ValueError, match="t_ramp_max"):
+        opt.optimize_ramp(15.0, 0.0, 20)
+    with pytest.raises(ValueError, match="n_segments"):
+        opt.optimize_ramp(15.0, 100.0, 1)
+
+    mon = FluxConsumptionMonitor(fb)
+    with pytest.raises(ValueError, match="V_loop"):
+        mon.step(Ip=15.0, V_loop=-1.0, dt=1.0)
+    with pytest.raises(ValueError, match="dt"):
+        mon.step(Ip=15.0, V_loop=1.0, dt=0.0)
+
+
+def test_bootstrap_current_rejects_degenerate_profiles():
+    """Bootstrap-current estimate requires finite equal-length profiles on a strictly ordered radial grid."""
+    rho = np.linspace(0.0, 1.0, 5)
+    ne = np.ones(5)
+    Te = np.linspace(5.0, 0.5, 5)
+
+    with pytest.raises(ValueError, match="same length"):
+        BootstrapCurrentEstimate.from_profiles(ne[:-1], Te, Te, Te, rho, 6.2, 2.0)
+    with pytest.raises(ValueError, match="rho"):
+        BootstrapCurrentEstimate.from_profiles(ne, Te, Te, Te, np.array([0.0, 0.5, 0.5, 1.0, 1.1]), 6.2, 2.0)
+    with pytest.raises(ValueError, match="R0"):
+        BootstrapCurrentEstimate.from_profiles(ne, Te, Te, Te, rho, 0.0, 2.0)
+
+
+def test_scenario_flux_analysis_rejects_invalid_domains():
+    """Scenario analysis rejects negative durations and nonphysical plasma-current domains."""
+    fb = FluxBudget(Phi_CS_Vs=280.0, L_plasma_uH=10.0, R_plasma_uOhm=0.01)
+    an = ScenarioFluxAnalysis(fb)
+
+    with pytest.raises(ValueError, match="ramp_dur"):
+        an.analyze(ramp_dur=-1.0, flat_dur=400.0, down_dur=100.0, Ip_MA=15.0, I_bs_MA=5.0)
+    with pytest.raises(ValueError, match="Ip_MA"):
+        an.analyze(ramp_dur=100.0, flat_dur=400.0, down_dur=100.0, Ip_MA=0.0, I_bs_MA=5.0)
+    with pytest.raises(ValueError, match="I_bs_MA"):
+        an.analyze(ramp_dur=100.0, flat_dur=400.0, down_dur=100.0, Ip_MA=15.0, I_bs_MA=-0.1)
