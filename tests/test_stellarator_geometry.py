@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Stellarator Geometry
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Stellarator Geometry Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
@@ -91,6 +87,14 @@ def test_iota_profile_monotonic():
     assert np.all(np.diff(iota) >= 0)
 
 
+def test_iota_profile_rejects_flux_outside_normalised_domain():
+    cfg = w7x_config()
+    with pytest.raises(ValueError, match="s"):
+        iota_profile(cfg, np.array([0.0, 1.1]))
+    with pytest.raises(ValueError, match="s"):
+        iota_profile(cfg, np.array([0.0, np.nan]))
+
+
 # ── Effective ripple ─────────────────────────────────────────────────
 
 
@@ -113,6 +117,34 @@ def test_axisymmetric_limit_ripple_vanishes():
     cfg = StellaratorConfig(N_fp=100, mirror_ratio=0.0, R0=6.0, a=2.0, B0=5.0)
     eps = effective_ripple(cfg, 0.5)
     assert eps == pytest.approx(0.0, abs=1e-15)
+
+
+def test_geometry_functions_reject_invalid_normalised_flux_and_grid_domains():
+    cfg = w7x_config()
+    with pytest.raises(ValueError, match="s"):
+        effective_ripple(cfg, 1.1)
+    with pytest.raises(ValueError, match="s"):
+        stellarator_flux_surface(cfg, s=1.1)
+    with pytest.raises(ValueError, match="n_theta"):
+        stellarator_flux_surface(cfg, s=0.5, n_theta=0, n_phi=16)
+    with pytest.raises(ValueError, match="n_phi"):
+        stellarator_flux_surface(cfg, s=0.5, n_theta=16, n_phi=1)
+    with pytest.raises(ValueError, match="s"):
+        stellarator_neoclassical_chi(cfg, s=1.1, T_keV=2.0, n_e19=5.0)
+
+
+def test_geometry_functions_reject_nonphysical_configuration():
+    bad_periods = StellaratorConfig(N_fp=0)
+    with pytest.raises(ValueError, match="N_fp"):
+        effective_ripple(bad_periods, 0.5)
+
+    bad_geometry = StellaratorConfig(R0=0.5, a=0.53, helical_excursion=0.05)
+    with pytest.raises(ValueError, match="R0"):
+        stellarator_flux_surface(bad_geometry, s=0.5)
+
+    bad_iota = StellaratorConfig(iota_0=-0.1)
+    with pytest.raises(ValueError, match="iota"):
+        iss04_scaling(bad_iota, n_e=5.0, P_heat=5.0)
 
 
 # ── ISS04 scaling ────────────────────────────────────────────────────

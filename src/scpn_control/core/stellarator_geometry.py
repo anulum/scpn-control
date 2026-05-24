@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: https://orcid.org/0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Stellarator Geometry and ISS04 Scaling
 """
 Stellarator flux-surface geometry in Boozer coordinates, neoclassical
 transport, and ISS04 confinement scaling.
@@ -45,6 +47,51 @@ _EPS0: float = 8.854e-12  # vacuum permittivity [F/m]
 COULOMB_LOG: float = 17.0  # Wesson, Tokamaks 4th ed., Ch. 14; dimensionless
 
 
+def _require_nonnegative_float(name: str, value: float) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _validate_config(config: StellaratorConfig) -> None:
+    if not isinstance(config.N_fp, int) or config.N_fp <= 0:
+        raise ValueError("N_fp must be a positive integer")
+    R0 = require_positive_float("R0", config.R0)
+    a = require_positive_float("a", config.a)
+    require_positive_float("B0", config.B0)
+    require_positive_float("iota_0", config.iota_0)
+    require_positive_float("iota_a", config.iota_a)
+    _require_nonnegative_float("mirror_ratio", config.mirror_ratio)
+    helical_excursion = _require_nonnegative_float("helical_excursion", config.helical_excursion)
+    if a + helical_excursion >= R0:
+        raise ValueError("R0 must exceed a + helical_excursion to keep flux surfaces at positive major radius")
+
+
+def _normalised_flux(
+    name: str,
+    value: float | NDArray[np.float64],
+    *,
+    include_axis: bool,
+) -> NDArray[np.float64]:
+    arr = np.asarray(value, dtype=float)
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    lower_bad = arr < 0.0 if include_axis else arr <= 0.0
+    if np.any(lower_bad) or np.any(arr > 1.0):
+        interval = "[0, 1]" if include_axis else "(0, 1]"
+        raise ValueError(f"{name} must stay within the normalised flux interval {interval}")
+    return arr
+
+
+def _positive_grid_size(name: str, value: int) -> int:
+    if not isinstance(value, int) or value < 2:
+        raise ValueError(f"{name} must be an integer >= 2")
+    return value
+
+
 @dataclass
 class StellaratorConfig:
     """Stellarator device and magnetic configuration parameters.
@@ -52,23 +99,23 @@ class StellaratorConfig:
     Parameters
     ----------
     N_fp : int
-        Number of toroidal field periods.
+        Positive number of toroidal field periods.
         W7-X: 5 — Grieger et al. 1992, Phys. Fluids B 4, 2081.
     R0 : float
-        Major radius [m]. W7-X: 5.5 m.
+        Positive major radius [m]. W7-X: 5.5 m.
     a : float
-        Average minor radius [m]. W7-X: 0.53 m.
+        Positive average minor radius [m]. W7-X: 0.53 m.
     B0 : float
-        On-axis magnetic field [T]. W7-X standard: 2.5 T.
+        Positive on-axis magnetic field [T]. W7-X standard: 2.5 T.
     iota_0 : float
-        Rotational transform at magnetic axis (s=0).
+        Positive rotational transform at magnetic axis (s=0).
         Boozer 1981, Phys. Fluids 24, 1999 — straight field-line coordinate.
     iota_a : float
-        Rotational transform at plasma edge (s=1).
+        Positive rotational transform at plasma edge (s=1).
     mirror_ratio : float
-        Helical mirror ratio ε_h = δB / B₀. W7-X: ~0.07.
+        Non-negative helical mirror ratio ε_h = δB / B₀. W7-X: ~0.07.
     helical_excursion : float
-        Helical axis excursion amplitude [m].
+        Non-negative helical axis excursion amplitude [m]; R0 must exceed a plus this excursion.
     """
 
     N_fp: int = 5
@@ -111,8 +158,18 @@ def iota_profile(config: StellaratorConfig, s: float | NDArray[np.float64]) -> f
     config : StellaratorConfig
     s : float or array
         Normalised toroidal flux label, s ∈ [0, 1].
+
+    Raises
+    ------
+    ValueError
+        If the configuration is non-physical or s leaves [0, 1].
     """
-    return config.iota_0 + (config.iota_a - config.iota_0) * np.asarray(s)
+    _validate_config(config)
+    s_arr = _normalised_flux("s", s, include_axis=True)
+    iota = config.iota_0 + (config.iota_a - config.iota_0) * s_arr
+    if np.ndim(s) == 0:
+        return float(iota)
+    return iota
 
 
 def stellarator_flux_surface(
@@ -146,8 +203,17 @@ def stellarator_flux_surface(
         Vertical position [m].
     B : ndarray, shape (n_theta, n_phi)
         Magnetic field magnitude [T].
+
+    Raises
+    ------
+    ValueError
+        If the configuration is non-physical, s leaves (0, 1], or either grid
+        resolution is below two points.
     """
-    s = require_positive_float("s", s)
+    _validate_config(config)
+    s = float(_normalised_flux("s", s, include_axis=False))
+    n_theta = _positive_grid_size("n_theta", n_theta)
+    n_phi = _positive_grid_size("n_phi", n_phi)
     r = config.a * np.sqrt(s)
     iota = float(iota_profile(config, s))
 
@@ -188,8 +254,14 @@ def effective_ripple(config: StellaratorConfig, s: float) -> float:
     -------
     float
         Effective ripple ε_eff ∈ (0, 1).
+
+    Raises
+    ------
+    ValueError
+        If the configuration is non-physical or s leaves (0, 1].
     """
-    s = require_positive_float("s", s)
+    _validate_config(config)
+    s = float(_normalised_flux("s", s, include_axis=False))
     epsilon_h = config.mirror_ratio * np.sqrt(s)
     eps_eff = epsilon_h**1.5 / np.sqrt(config.N_fp)
     return float(np.clip(eps_eff, 0.0, 1.0))
@@ -217,9 +289,16 @@ def iss04_scaling(
     -------
     float
         Predicted energy confinement time [s].
+
+    Raises
+    ------
+    ValueError
+        If the configuration, density, or heating power is outside the positive
+        finite ISS04 domain.
     """
     n_e = require_positive_float("n_e", n_e)
     P_heat = require_positive_float("P_heat", P_heat)
+    _validate_config(config)
 
     iota_ref = float(iota_profile(config, ISS04_S_REF))
 
@@ -263,8 +342,15 @@ def stellarator_neoclassical_chi(
     -------
     float
         Neoclassical χ [m²/s].
+
+    Raises
+    ------
+    ValueError
+        If the configuration is non-physical, s leaves (0, 1], or plasma inputs
+        are not positive finite values.
     """
-    s = require_positive_float("s", s)
+    _validate_config(config)
+    s = float(_normalised_flux("s", s, include_axis=False))
     T_keV = require_positive_float("T_keV", T_keV)
     n_e19 = require_positive_float("n_e19", n_e19)
 
