@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851 — Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Resistive-wall-mode feedback
 """Resistive-wall-mode feedback controller and state update utilities."""
 
 from __future__ import annotations
@@ -9,12 +12,38 @@ from __future__ import annotations
 import math
 
 import numpy as np
+from numpy.typing import NDArray
 
 
 # ── named constants ─────────────────────────────────────────────────────────
 # Sentinel for the ideal-kink (β > β_wall) regime; a finite resistive-wall-mode
 # growth rate is physically undefined beyond the ideal-wall limit.
 _IDEAL_KINK_RATE: float = math.inf
+
+
+def _finite_scalar(name: str, value: float, *, nonnegative: bool = False, positive: bool = False) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be nonnegative")
+    return scalar
+
+
+def _optional_positive_scalar(name: str, value: float | None) -> float | None:
+    if value is None:
+        return None
+    return _finite_scalar(name, value, positive=True)
+
+
+def _positive_int(name: str, value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be a positive integer")
+    if value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
 
 
 class RWMPhysics:
@@ -50,13 +79,17 @@ class RWMPhysics:
         wall_radius    : conducting-wall minor radius b, m (optional)
         plasma_radius  : plasma-edge minor radius d, m (optional)
         """
-        self.beta_n = beta_n
-        self.beta_n_nowall = beta_n_nowall
-        self.beta_n_wall = beta_n_wall
-        self.tau_wall = tau_wall
-        self.omega_phi = omega_phi
-        self.wall_radius = wall_radius
-        self.plasma_radius = plasma_radius
+        self.beta_n = _finite_scalar("beta_n", beta_n)
+        self.beta_n_nowall = _finite_scalar("beta_n_nowall", beta_n_nowall)
+        self.beta_n_wall = _finite_scalar("beta_n_wall", beta_n_wall)
+        if self.beta_n_nowall >= self.beta_n_wall:
+            raise ValueError("beta_n_nowall must be less than beta_n_wall")
+        self.tau_wall = _finite_scalar("tau_wall", tau_wall, nonnegative=True)
+        self.omega_phi = _finite_scalar("omega_phi", omega_phi)
+        self.wall_radius = _optional_positive_scalar("wall_radius", wall_radius)
+        self.plasma_radius = _optional_positive_scalar("plasma_radius", plasma_radius)
+        if (self.wall_radius is None) != (self.plasma_radius is None):
+            raise ValueError("wall_radius and plasma_radius must be provided together")
 
     # ── effective wall time ──────────────────────────────────────────────────
 
@@ -70,8 +103,6 @@ class RWMPhysics:
         When b == d the expression recovers τ_wall.
         """
         if self.wall_radius is None or self.plasma_radius is None:
-            return self.tau_wall
-        if self.plasma_radius <= 0.0:
             return self.tau_wall
         return self.tau_wall * (self.wall_radius / self.plasma_radius) ** 2
 
@@ -184,27 +215,34 @@ class RWMFeedbackController:
         tau_controller: float = 1e-4,
         M_coil: float = 1.0,
     ) -> None:
-        self.n_sensors = n_sensors
-        self.n_coils = n_coils
-        self.G_p = G_p
-        self.G_d = G_d
-        self.tau_controller = tau_controller
-        self.M_coil = M_coil
-        self.prev_B_r = np.zeros(n_sensors)
+        self.n_sensors = _positive_int("n_sensors", n_sensors)
+        self.n_coils = _positive_int("n_coils", n_coils)
+        self.G_p = _finite_scalar("G_p", G_p)
+        self.G_d = _finite_scalar("G_d", G_d)
+        self.tau_controller = _finite_scalar("tau_controller", tau_controller, nonnegative=True)
+        self.M_coil = _finite_scalar("M_coil", M_coil, positive=True)
+        self.prev_B_r: NDArray[np.float64] = np.zeros(self.n_sensors, dtype=np.float64)
 
-    def step(self, B_r_sensors: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, B_r_sensors: NDArray[np.float64], dt: float) -> NDArray[np.float64]:
         """
         Compute feedback coil currents from sensor measurements.
 
         I = G_p B_r + G_d dB_r/dt
         """
-        dB_dt = np.zeros_like(B_r_sensors) if dt <= 0.0 else (B_r_sensors - self.prev_B_r) / dt
-        self.prev_B_r = B_r_sensors.copy()
+        B_r: NDArray[np.float64] = np.asarray(B_r_sensors, dtype=np.float64)
+        if B_r.shape != (self.n_sensors,):
+            raise ValueError("B_r_sensors must be a one-dimensional sensor vector")
+        if not np.all(np.isfinite(B_r)):
+            raise ValueError("B_r_sensors must be finite")
+        dt_value = _finite_scalar("dt", dt, positive=True)
 
-        signal = self.G_p * B_r_sensors + self.G_d * dB_dt
+        dB_dt = (B_r - self.prev_B_r) / dt_value
+        self.prev_B_r = B_r.copy()
+
+        signal = self.G_p * B_r + self.G_d * dB_dt
         if self.n_sensors == self.n_coils:
             return signal
-        return np.full(self.n_coils, float(np.mean(signal)))
+        return np.full(self.n_coils, float(np.mean(signal)), dtype=np.float64)
 
     def effective_growth_rate(self, rwm: RWMPhysics) -> float:
         """
@@ -252,6 +290,8 @@ class RWMStabilityAnalysis:
         Garofalo et al. 2002, Phys. Plasmas 9, 1997, Sec. III.
         Returns 0 when already stable; ∞ for ideal kink.
         """
+        tau_controller = _finite_scalar("tau_controller", tau_controller, nonnegative=True)
+        M_coil = _finite_scalar("M_coil", M_coil, positive=True)
         rwm = RWMPhysics(
             beta_n,
             beta_n_nowall,
