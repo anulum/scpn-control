@@ -21,6 +21,30 @@ from scipy.integrate import solve_ivp
 from scpn_control.core.stability_mhd import QProfile
 
 
+def _require_finite_scalar(name: str, value: float) -> float:
+    """Return a finite scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    return scalar
+
+
+def _require_nonnegative_scalar(name: str, value: float) -> float:
+    """Return a finite non-negative scalar or fail closed."""
+    scalar = _require_finite_scalar(name, value)
+    if scalar < 0.0:
+        raise ValueError(f"{name} must be finite and >= 0")
+    return scalar
+
+
+def _require_positive_scalar(name: str, value: float) -> float:
+    """Return a finite positive scalar or fail closed."""
+    scalar = _require_finite_scalar(name, value)
+    if scalar <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0")
+    return scalar
+
+
 @dataclass
 class BallooningEigenResult:
     """Result of solving the ballooning equation for a single (s, alpha) pair."""
@@ -36,9 +60,11 @@ class BallooningEquation:
     """
 
     def __init__(self, s: float, alpha: float, theta_max: float = 20 * np.pi, n_theta: int = 2001):
-        self.s = s
-        self.alpha = alpha
-        self.theta_max = theta_max
+        self.s = _require_finite_scalar("s", s)
+        self.alpha = _require_finite_scalar("alpha", alpha)
+        self.theta_max = _require_positive_scalar("theta_max", theta_max)
+        if not isinstance(n_theta, int) or n_theta < 3:
+            raise ValueError("n_theta must be an integer >= 3")
         self.n_theta = n_theta
 
     def f(self, theta: float) -> float:
@@ -96,6 +122,12 @@ def find_marginal_stability(s: float, alpha_min: float = 0.0, alpha_max: float =
     Binary search for alpha_crit at fixed shear s.
     Returns the critical alpha (first stability boundary).
     """
+    s = _require_finite_scalar("s", s)
+    alpha_min = _require_nonnegative_scalar("alpha_min", alpha_min)
+    alpha_max = _require_nonnegative_scalar("alpha_max", alpha_max)
+    tol = _require_positive_scalar("tol", tol)
+    if alpha_max <= alpha_min:
+        raise ValueError("alpha_max must be greater than alpha_min")
     amin = alpha_min
 
     # Check lower bound
@@ -136,8 +168,13 @@ def compute_stability_diagram(s_range: np.ndarray, alpha_min: float = 0.0, alpha
     """
     Compute alpha_crit(s) for an array of shear values.
     """
-    alpha_crit = np.zeros_like(s_range)
-    for i, s in enumerate(s_range):
+    s_values = np.asarray(s_range, dtype=float)
+    if s_values.ndim != 1:
+        raise ValueError("s_range must be a one-dimensional array")
+    if not np.all(np.isfinite(s_values)):
+        raise ValueError("s_range must contain only finite values")
+    alpha_crit = np.zeros_like(s_values)
+    for i, s in enumerate(s_values):
         alpha_crit[i] = find_marginal_stability(s, alpha_min, alpha_max)
     return alpha_crit
 

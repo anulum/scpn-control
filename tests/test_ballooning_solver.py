@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.ballooning_solver import (
     BallooningEquation,
@@ -105,14 +106,42 @@ def test_ballooning_stability_analysis():
 
 
 def test_marginal_stability_unstable_at_min():
-    """Exercise ballooning_solver.py line 97: unstable even at alpha_min -> returns 0."""
+    """Unstable lower search boundaries return the lower critical value."""
     alpha_crit = find_marginal_stability(s=0.0, alpha_min=0.0)
     assert alpha_crit == 0.0
 
 
 def test_marginal_stability_all_stable():
-    """Exercise ballooning_solver.py lines 108, 112: stable up to alpha=3 -> returns alpha_max."""
+    """Fully stable search intervals return the requested upper boundary."""
     # Very low shear produces very high alpha_crit or full stability
     alpha_crit = find_marginal_stability(s=0.01, alpha_min=0.001, alpha_max=0.05)
     # Should return alpha_max if nothing is unstable in range
     assert alpha_crit >= 0.0
+
+
+def test_ballooning_equation_rejects_nonphysical_domain_inputs():
+    with pytest.raises(ValueError, match="s must be finite"):
+        BallooningEquation(s=float("nan"), alpha=0.5)
+    with pytest.raises(ValueError, match="alpha must be finite"):
+        BallooningEquation(s=1.0, alpha=float("inf"))
+    with pytest.raises(ValueError, match="theta_max must be finite and > 0"):
+        BallooningEquation(s=1.0, alpha=0.5, theta_max=0.0)
+    with pytest.raises(ValueError, match="n_theta must be an integer >= 3"):
+        BallooningEquation(s=1.0, alpha=0.5, n_theta=2)
+
+
+def test_marginal_stability_rejects_invalid_search_interval():
+    with pytest.raises(ValueError, match="alpha_min must be finite and >= 0"):
+        find_marginal_stability(s=1.0, alpha_min=-0.1)
+    with pytest.raises(ValueError, match="alpha_max must be greater than alpha_min"):
+        find_marginal_stability(s=1.0, alpha_min=1.0, alpha_max=1.0)
+    with pytest.raises(ValueError, match="tol must be finite and > 0"):
+        find_marginal_stability(s=1.0, tol=0.0)
+
+
+def test_stability_diagram_rejects_malformed_shear_grid():
+    with pytest.raises(ValueError, match="s_range must be a one-dimensional array"):
+        compute_stability_diagram(np.ones((2, 2)))
+    bad = np.array([0.5, np.nan, 1.0])
+    with pytest.raises(ValueError, match="s_range must contain only finite values"):
+        compute_stability_diagram(bad)
