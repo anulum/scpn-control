@@ -196,6 +196,8 @@ class OODDetector:
             raise ValueError(f"predictions must have shape (K, 3), received {predictions.shape}")
         if not np.all(np.isfinite(predictions)):
             raise ValueError("predictions must be finite")
+        if np.any(predictions < 0.0):
+            raise ValueError("predictions must be non-negative transport coefficients")
         if predictions.shape[0] < 2:
             return OODResult(
                 is_ood=False,

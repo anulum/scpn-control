@@ -146,6 +146,14 @@ def test_ensemble_rejects_non_2d_input():
         detector.check_ensemble(np.ones(3))
 
 
+def test_ensemble_rejects_negative_transport_predictions():
+    detector = OODDetector()
+    preds = np.array([[1.0, 0.8, 0.3], [1.1, -0.1, 0.35]])
+
+    with pytest.raises(ValueError, match="non-negative"):
+        detector.check_ensemble(preds)
+
+
 def test_combined_check_in_distribution(detector, in_distribution_input):
     result = detector.check(in_distribution_input)
     assert result.is_ood is False
