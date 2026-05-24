@@ -511,3 +511,16 @@ def test_traceability_rejects_external_validation_tracker_url_issue_mismatch(tmp
 
     assert report["status"] == "fail"
     assert any(error["field"] == "url" and "match issue number" in error["error"] for error in report["errors"])
+
+
+def test_external_validation_trackers_are_linked_from_roadmap_and_report() -> None:
+    report = validate_physics_traceability(ROOT / "validation" / "physics_traceability.json")
+    roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    generated_report = (ROOT / "docs" / "physics_traceability.md").read_text(encoding="utf-8")
+
+    trackers = report["external_validation_trackers"]
+    assert len(trackers) == 8
+    for tracker in trackers:
+        assert tracker["url"] in roadmap
+        assert tracker["url"] in generated_report
+        assert f"#{tracker['issue']}" in generated_report
