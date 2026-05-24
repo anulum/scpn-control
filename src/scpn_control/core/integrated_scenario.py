@@ -89,6 +89,62 @@ _W_SEED: float = 5e-3
 _W_FLAT: float = 1e-2
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _profile_array(
+    name: str,
+    values: np.ndarray,
+    shape: tuple[int, ...],
+    *,
+    nonnegative: bool = False,
+) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.shape != shape:
+        raise ValueError(f"{name} must match the simulator rho-grid shape")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if nonnegative and np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative everywhere")
+    return arr
+
+
+def _validate_config(config: ScenarioConfig) -> ScenarioConfig:
+    R0 = _finite_scalar("R0", config.R0, positive=True)
+    a = _finite_scalar("a", config.a, positive=True)
+    if a >= R0:
+        raise ValueError("a must be smaller than R0 for tokamak ordering")
+    _finite_scalar("B0", config.B0, positive=True)
+    _finite_scalar("kappa", config.kappa, positive=True)
+    delta = _finite_scalar("delta", config.delta)
+    if abs(delta) >= 1.0:
+        raise ValueError("delta must remain inside the physical triangularity interval (-1, 1)")
+    _finite_scalar("Ip_MA", config.Ip_MA, positive=True)
+    _finite_scalar("P_aux_MW", config.P_aux_MW, nonnegative=True)
+    _finite_scalar("P_eccd_MW", config.P_eccd_MW, nonnegative=True)
+    rho_eccd = _finite_scalar("rho_eccd", config.rho_eccd, nonnegative=True)
+    if rho_eccd > 1.0:
+        raise ValueError("rho_eccd must stay within [0, 1]")
+    _finite_scalar("P_nbi_MW", config.P_nbi_MW, nonnegative=True)
+    _finite_scalar("E_nbi_keV", config.E_nbi_keV, positive=True)
+    _finite_scalar("t_start", config.t_start)
+    t_end = _finite_scalar("t_end", config.t_end)
+    dt = _finite_scalar("dt", config.dt, positive=True)
+    if t_end <= config.t_start:
+        raise ValueError("t_end must be greater than t_start")
+    if dt > (t_end - config.t_start):
+        raise ValueError("dt must not exceed the scenario duration")
+    return config
+
+
 @dataclass
 class ScenarioConfig:
     # Geometry
@@ -211,6 +267,10 @@ def _spitzer_resistivity(Te_keV: np.ndarray, Z_eff: float) -> np.ndarray:
     Spitzer 1962, "Physics of Fully Ionized Gases", Interscience, Ch. 5.
     Returns Ω·m; T_e in keV.
     """
+    Te_keV = np.asarray(Te_keV, dtype=float)
+    if not np.all(np.isfinite(Te_keV)) or np.any(Te_keV < 0.0):
+        raise ValueError("Te_keV must contain only finite non-negative values")
+    Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
     return np.asarray(_SPITZER_COEFF * Z_eff * _LN_LAMBDA / np.maximum(Te_keV, 0.01) ** 1.5)
 
 
@@ -230,6 +290,15 @@ def _gyro_bohm_chi(
     ITPA Transport DB, Nucl. Fusion 39, 2175 (1999), Eq. 1.
     c_gB = 0.1 calibrated to L-mode database.
     """
+    rho = _profile_array("rho", rho, np.shape(rho))
+    Te = _profile_array("Te", Te, rho.shape, nonnegative=True)
+    Ti = _profile_array("Ti", Ti, rho.shape, nonnegative=True)
+    ne = _profile_array("ne", ne, rho.shape, nonnegative=True)
+    q = _profile_array("q", q, rho.shape)
+    if np.any(q <= 0.0):
+        raise ValueError("q must be positive everywhere")
+    a = _finite_scalar("a", a, positive=True)
+    B0 = _finite_scalar("B0", B0, positive=True)
     m_p: float = 1.67262192369e-27  # kg, CODATA 2018
     m_i = 2.0 * m_p  # deuterium
     T_i_J = np.maximum(Ti, 0.01) * 1.602176634e-16  # keV → J
@@ -263,6 +332,15 @@ def _diffusion_step(
         dt <= drho^2 / (2 * chi_max)
     The caller (step()) enforces sub-stepping when needed.
     """
+    rho = _profile_array("rho", rho, np.shape(rho))
+    if rho.ndim != 1 or rho.size < 2 or np.any(np.diff(rho) <= 0.0):
+        raise ValueError("rho must be a strictly increasing one-dimensional grid")
+    T = _profile_array("T", T, rho.shape, nonnegative=True)
+    chi = _profile_array("chi", chi, rho.shape, nonnegative=True)
+    ne = _profile_array("ne", ne, rho.shape, nonnegative=True)
+    S = _profile_array("S", S, rho.shape)
+    dt = _finite_scalar("dt", dt, nonnegative=True)
+    a = _finite_scalar("a", a, positive=True)
     nr = len(rho)
     drho = rho[1] - rho[0]
     dr = drho * a
@@ -309,7 +387,7 @@ class IntegratedScenarioSimulator:
     """
 
     def __init__(self, config: ScenarioConfig):
-        self.config = config
+        self.config = _validate_config(config)
         self.time = config.t_start
 
         self.nr = 50
@@ -402,13 +480,13 @@ class IntegratedScenarioSimulator:
         self.ts_solver = self._setup_transport_solver()
         if profiles:
             if "Te" in profiles:
-                self.ts_solver.Te = profiles["Te"]
+                self.ts_solver.Te = _profile_array("Te", profiles["Te"], self.rho.shape, nonnegative=True)
             if "Ti" in profiles:
-                self.ts_solver.Ti = profiles["Ti"]
+                self.ts_solver.Ti = _profile_array("Ti", profiles["Ti"], self.rho.shape, nonnegative=True)
             if "ne" in profiles:
-                self.ts_solver.ne = profiles["ne"]
+                self.ts_solver.ne = _profile_array("ne", profiles["ne"], self.rho.shape, nonnegative=True)
             if "psi" in profiles:
-                self.cd_solver.psi = profiles["psi"]
+                self.cd_solver.psi = _profile_array("psi", profiles["psi"], self.rho.shape)
 
         if self.config.use_transport_solver:
             q_prof = q_from_psi(
@@ -742,6 +820,7 @@ class IntegratedScenarioSimulator:
             p_prof_Pa = n_si_avg * (self.ts_solver.Te + self.ts_solver.Ti) * _E_CHARGE * 1e3
             dp_drho = np.gradient(p_prof_Pa, self.rho)
             alpha_mhd = -(q_prof**2) * self.config.R0 * dp_drho / (self.config.B0**2 / (2.0 * _MU_0))
+            alpha_mhd = np.maximum(alpha_mhd, 0.0)
 
             qp = QProfile(
                 rho=self.rho.astype(np.float64),
@@ -804,7 +883,7 @@ class IntegratedScenarioSimulator:
             c) full-step MHD events
             d) half-step transport
         """
-        dt = self.config.dt
+        dt = _finite_scalar("dt", self.config.dt, positive=True)
         dt_half = 0.5 * dt
 
         q_prof = q_from_psi(self.rho, self.cd_solver.psi, self.config.R0, self.config.a, self.config.B0)

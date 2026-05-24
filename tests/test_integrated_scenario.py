@@ -5,10 +5,14 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.integrated_scenario import (
     IntegratedScenarioSimulator,
     ScenarioConfig,
+    _diffusion_step,
+    _gyro_bohm_chi,
+    _spitzer_resistivity,
     iter_baseline_scenario,
     nstx_u_scenario,
 )
@@ -181,7 +185,7 @@ def test_ohmic_heating_increases_energy():
     sim = IntegratedScenarioSimulator(config)
 
     rho = np.linspace(0, 1, 50)
-    # Cold plasma → high Spitzer resistivity → strong ohmic heating
+    # Cold plasma → high Spitzer resistivity → material ohmic heating
     Te_cold = 0.5 * (1.0 - rho**2) + 0.05
     Ti_cold = 0.4 * (1.0 - rho**2) + 0.05
     ne_flat = np.full(50, 3.0)
@@ -393,3 +397,60 @@ def test_to_json(tmp_path):
     assert "beta_N" in data
     assert isinstance(data["rho"], list)
     assert len(data["rho"]) == 50
+
+
+def test_scenario_config_rejects_nonphysical_domains():
+    cfg = _minimal_config()
+
+    with pytest.raises(ValueError, match="a must be smaller"):
+        IntegratedScenarioSimulator(ScenarioConfig(**{**cfg.__dict__, "a": cfg.R0}))
+
+    with pytest.raises(ValueError, match="delta"):
+        IntegratedScenarioSimulator(ScenarioConfig(**{**cfg.__dict__, "delta": 1.0}))
+
+    with pytest.raises(ValueError, match="P_aux_MW"):
+        IntegratedScenarioSimulator(ScenarioConfig(**{**cfg.__dict__, "P_aux_MW": -1.0}))
+
+    with pytest.raises(ValueError, match="rho_eccd"):
+        IntegratedScenarioSimulator(ScenarioConfig(**{**cfg.__dict__, "rho_eccd": 1.2}))
+
+    with pytest.raises(ValueError, match="t_end"):
+        IntegratedScenarioSimulator(ScenarioConfig(**{**cfg.__dict__, "t_end": cfg.t_start}))
+
+    with pytest.raises(ValueError, match="dt"):
+        IntegratedScenarioSimulator(ScenarioConfig(**{**cfg.__dict__, "dt": cfg.t_end - cfg.t_start + 1.0}))
+
+
+def test_initialize_rejects_malformed_profile_overrides():
+    cfg = _minimal_config()
+    sim = IntegratedScenarioSimulator(cfg)
+
+    with pytest.raises(ValueError, match="Te"):
+        sim.initialize({"Te": np.ones(49)})
+
+    with pytest.raises(ValueError, match="ne"):
+        sim.initialize({"ne": -np.ones(50)})
+
+    with pytest.raises(ValueError, match="psi"):
+        sim.initialize({"psi": np.array([0.0] * 49 + [np.nan])})
+
+
+def test_physics_helpers_reject_invalid_math_domains():
+    rho = np.linspace(0.0, 1.0, 50)
+    profile = np.ones_like(rho)
+    q = np.ones_like(rho) * 2.0
+
+    with pytest.raises(ValueError, match="Te_keV"):
+        _spitzer_resistivity(np.array([1.0, -0.1]), Z_eff=1.5)
+
+    with pytest.raises(ValueError, match="Z_eff"):
+        _spitzer_resistivity(np.array([1.0]), Z_eff=0.0)
+
+    with pytest.raises(ValueError, match="q"):
+        _gyro_bohm_chi(rho, profile, profile, profile, np.zeros_like(q), a=0.58, B0=1.0)
+
+    with pytest.raises(ValueError, match="rho"):
+        _diffusion_step(profile, rho[::-1], profile, profile, profile, dt=0.01, a=0.58)
+
+    with pytest.raises(ValueError, match="dt"):
+        _diffusion_step(profile, rho, profile, profile, profile, dt=-0.01, a=0.58)
