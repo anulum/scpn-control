@@ -277,11 +277,12 @@ class TestRunFullStabilityCheck:
         assert summary.n_criteria_stable >= 3  # KS, Troyon, NTM stable
 
     def test_overall_unstable_when_kink(self):
+        rho = np.linspace(0.0, 1.0, 4)
         qp = QProfile(
-            rho=np.array([0.0, 1.0]),
-            q=np.array([0.5, 0.8]),
-            shear=np.array([0.0, 0.5]),
-            alpha_mhd=np.array([0.0, 0.0]),
+            rho=rho,
+            q=np.array([0.5, 0.6, 0.7, 0.8]),
+            shear=np.array([0.0, 0.2, 0.4, 0.5]),
+            alpha_mhd=np.zeros_like(rho),
             q_min=0.5,
             q_min_rho=0.0,
             q_edge=0.8,
@@ -380,6 +381,24 @@ class TestStabilityInputBoundaries:
         )
 
         with pytest.raises(ValueError, match="rho must start at 0"):
+            run_full_stability_check(qp)
+
+    def test_profile_resolved_stability_requires_interior_radius_point(self):
+        qp = QProfile(
+            rho=np.array([0.0, 1.0]),
+            q=np.array([1.2, 2.2]),
+            shear=np.array([0.0, 0.7]),
+            alpha_mhd=np.zeros(2),
+            q_min=1.2,
+            q_min_rho=0.0,
+            q_edge=2.2,
+        )
+
+        with pytest.raises(ValueError, match="interior"):
+            mercier_stability(qp)
+        with pytest.raises(ValueError, match="interior"):
+            ballooning_stability(qp)
+        with pytest.raises(ValueError, match="interior"):
             run_full_stability_check(qp)
 
     def test_stability_criteria_reject_wrong_q_min_radius_metadata(self, iter_like_qprofile):

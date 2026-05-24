@@ -193,6 +193,13 @@ def _validate_q_profile(qp: QProfile) -> QProfile:
     return qp
 
 
+def _require_profile_resolved_q_profile(qp: QProfile) -> QProfile:
+    qp = _validate_q_profile(qp)
+    if qp.rho.size < 3:
+        raise ValueError("profile-resolved MHD criteria require at least one interior rho point")
+    return qp
+
+
 # ── Q-profile computation ───────────────────────────────────────────
 
 
@@ -325,7 +332,7 @@ def mercier_stability(qp: QProfile) -> MercierResult:
     -------
     MercierResult
     """
-    qp = _validate_q_profile(qp)
+    qp = _require_profile_resolved_q_profile(qp)
     s = qp.shear
     alpha = qp.alpha_mhd
 
@@ -368,7 +375,7 @@ def ballooning_stability(qp: QProfile) -> BallooningResult:
     -------
     BallooningResult
     """
-    qp = _validate_q_profile(qp)
+    qp = _require_profile_resolved_q_profile(qp)
     s = qp.shear
     alpha = qp.alpha_mhd
 
@@ -637,7 +644,7 @@ def run_full_stability_check(
     -------
     StabilitySummary
     """
-    qp = _validate_q_profile(qp)
+    qp = _require_profile_resolved_q_profile(qp)
     troyon_requested = beta_t is not None or Ip_MA is not None or B0 is not None
     if troyon_requested and not all(arg is not None for arg in (beta_t, Ip_MA, a, B0)):
         raise ValueError("Troyon evaluation requires beta_t, Ip_MA, a, and B0 together")
