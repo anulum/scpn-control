@@ -109,3 +109,10 @@ def test_generate_physics_traceability_report_writes_file(tmp_path: Path) -> Non
     content = output.read_text(encoding="utf-8")
     assert "Resolved evidence paths:" in content
     assert "validation/physics_traceability.json" in content
+
+
+def test_repository_physics_traceability_report_is_current() -> None:
+    expected = generate_physics_traceability_markdown(ROOT / "validation" / "physics_traceability.json")
+    actual = (ROOT / "docs" / "physics_traceability.md").read_text(encoding="utf-8")
+
+    assert actual == expected
