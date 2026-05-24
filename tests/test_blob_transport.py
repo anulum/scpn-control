@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Blob Transport
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Blob Transport Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
@@ -253,6 +249,15 @@ def test_blob_flux_rejects_nonpositive_elapsed_time() -> None:
     pop = BlobPopulation(np.array([0.01]), np.array([1.0]), np.array([100.0]), np.array([0.0]))
 
     with pytest.raises(ValueError, match="positive elapsed time"):
+        ens.radial_flux(pop)
+
+
+def test_blob_flux_rejects_malformed_population_before_empty_time_shortcut() -> None:
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    ens = BlobEnsemble(dyn, n_blobs=1)
+    pop = BlobPopulation(np.array([0.01]), np.array([1.0]), np.array([100.0]), np.array([]))
+
+    with pytest.raises(ValueError, match="same length"):
         ens.radial_flux(pop)
 
 

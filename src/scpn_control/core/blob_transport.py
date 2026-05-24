@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: https://orcid.org/0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — SOL Filament Blob Transport
 """
 SOL filament / blob transport.
 
@@ -216,8 +218,6 @@ class BlobEnsemble:
 
         D'Ippolito et al. 2011, Phys. Plasmas 18, 060501, Eq. 12.
         """
-        if population.birth_times.size == 0:
-            return 0.0
         sizes, amplitudes, velocities, birth_times = _validate_population(population)
         if birth_times.size == 0:
             return 0.0
