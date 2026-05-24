@@ -25,14 +25,14 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 
 ## External Validation Collaboration Trackers
 
-- External validation artefacts needed for full-fidelity SCPN-CONTROL claims: [#46](https://github.com/anulum/scpn-control/issues/46) — Parent tracker for external code, reference data, facility replay, benchmark, and hardware evidence requests.
-- External gyrokinetic validation artefacts: [#47](https://github.com/anulum/scpn-control/issues/47) — TGLF, GENE, GS2, CGYRO, QuaLiKiz, nonlinear CBC, Miller geometry, species, JAX parity, OOD, and online-learning artefacts.
-- Equilibrium and reconstruction reference artefacts: [#48](https://github.com/anulum/scpn-control/issues/48) — DIII-D or equivalent shots, EFIT, P-EFIT, GEQDSK, VMEC, and stellarator replay artefacts.
-- Transport, edge, MHD, and scenario benchmark artefacts: [#49](https://github.com/anulum/scpn-control/issues/49) — Integrated transport, momentum, pedestal, ELM, MARFE, NTM, current drive, stability, tearing, SOL, orbit, UQ, and scenario benchmarks.
-- Neural surrogate validation artefacts: [#50](https://github.com/anulum/scpn-control/issues/50) — QLKNN, QuaLiKiz, gyrokinetic, transport, turbulence, and equilibrium surrogate reference datasets and weight provenance.
-- Plasma-control and facility replay artefacts: [#51](https://github.com/anulum/scpn-control/issues/51) — RZIP, RWM, free-boundary, density, digital twin, SOC learning, burn, volt-second, mu-synthesis, and reduced-plant replay evidence.
-- Disruption, halo-current, and mitigation benchmark artefacts: [#52](https://github.com/anulum/scpn-control/issues/52) — Measured disruption databases, labelled disruption windows, halo/runaway envelopes, wall contact, impurity radiation, and mitigation metadata.
-- Hardware, HDL, CODAC/EPICS, and runtime deployment evidence: [#53](https://github.com/anulum/scpn-control/issues/53) — Vivado, Quartus, Yosys, timing closure, simulator evidence, CODAC/EPICS timing, interlocks, backpressure, HIL replay, and runtime parity.
+- External validation artefacts needed for full-fidelity SCPN-CONTROL claims: [#46](https://github.com/anulum/scpn-control/issues/46) — 0 open claim(s) — Parent tracker for external code, reference data, facility replay, benchmark, and hardware evidence requests.
+- External gyrokinetic validation artefacts: [#47](https://github.com/anulum/scpn-control/issues/47) — 9 open claim(s) — TGLF, GENE, GS2, CGYRO, QuaLiKiz, nonlinear CBC, Miller geometry, species, JAX parity, OOD, and online-learning artefacts.
+- Equilibrium and reconstruction reference artefacts: [#48](https://github.com/anulum/scpn-control/issues/48) — 5 open claim(s) — DIII-D or equivalent shots, EFIT, P-EFIT, GEQDSK, VMEC, and stellarator replay artefacts.
+- Transport, edge, MHD, and scenario benchmark artefacts: [#49](https://github.com/anulum/scpn-control/issues/49) — 14 open claim(s) — Integrated transport, momentum, pedestal, ELM, MARFE, NTM, current drive, stability, tearing, SOL, orbit, UQ, and scenario benchmarks.
+- Neural surrogate validation artefacts: [#50](https://github.com/anulum/scpn-control/issues/50) — 3 open claim(s) — QLKNN, QuaLiKiz, gyrokinetic, transport, turbulence, and equilibrium surrogate reference datasets and weight provenance.
+- Plasma-control and facility replay artefacts: [#51](https://github.com/anulum/scpn-control/issues/51) — 11 open claim(s) — RZIP, RWM, free-boundary, density, digital twin, SOC learning, burn, volt-second, mu-synthesis, and reduced-plant replay evidence.
+- Disruption, halo-current, and mitigation benchmark artefacts: [#52](https://github.com/anulum/scpn-control/issues/52) — 3 open claim(s) — Measured disruption databases, labelled disruption windows, halo/runaway envelopes, wall contact, impurity radiation, and mitigation metadata.
+- Hardware, HDL, CODAC/EPICS, and runtime deployment evidence: [#53](https://github.com/anulum/scpn-control/issues/53) — 4 open claim(s) — Vivado, Quartus, Yosys, timing closure, simulator evidence, CODAC/EPICS timing, interlocks, backpressure, HIL replay, and runtime parity.
 
 ## Module Traceability Table
 

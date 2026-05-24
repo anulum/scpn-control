@@ -37,6 +37,9 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "Parent tracker for external code, reference data, facility replay" in markdown
     assert "https://github.com/anulum/scpn-control/issues/46" in markdown
     assert "https://github.com/anulum/scpn-control/issues/53" in markdown
+    assert "#47](https://github.com/anulum/scpn-control/issues/47) — 9 open claim(s)" in markdown
+    assert "#49](https://github.com/anulum/scpn-control/issues/49) — 14 open claim(s)" in markdown
+    assert "#53](https://github.com/anulum/scpn-control/issues/53) — 4 open claim(s)" in markdown
     assert "| Module | Equation or contract | References | Unit contract | Validation evidence | Status | Tracker |" in markdown
     assert "External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47)" in markdown
     assert "External validation tracker: none" in markdown

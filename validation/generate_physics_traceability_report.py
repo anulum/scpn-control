@@ -57,9 +57,13 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
     trackers = _external_validation_trackers(report)
     if trackers:
         lines.extend(["## External Validation Collaboration Trackers", ""])
+        ownership = _tracker_ownership_counts(report)
         for tracker in trackers:
+            issue = tracker["issue"]
+            owned_count = ownership.get(issue, 0)
             lines.append(
-                f"- {tracker['title']}: [#{tracker['issue']}]({tracker['url']}) — {tracker['scope']}"
+                f"- {tracker['title']}: [#{issue}]({tracker['url']}) — "
+                f"{owned_count} open claim(s) — {tracker['scope']}"
             )
         lines.append("")
     lines.extend(
@@ -139,6 +143,15 @@ def _tracker_by_issue(report: dict[str, Any]) -> dict[int, dict[str, Any]]:
         if isinstance(issue, int):
             trackers[issue] = tracker
     return trackers
+
+
+def _tracker_ownership_counts(report: dict[str, Any]) -> dict[int, int]:
+    counts: dict[int, int] = {issue: 0 for issue in _tracker_by_issue(report)}
+    for entry in _entries(report):
+        issue = entry.get("external_validation_tracker_issue")
+        if isinstance(issue, int):
+            counts[issue] = counts.get(issue, 0) + 1
+    return counts
 
 
 def _tracker_link(entry: dict[str, Any], report: dict[str, Any]) -> str:
