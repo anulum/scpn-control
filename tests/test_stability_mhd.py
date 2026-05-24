@@ -402,6 +402,8 @@ class TestStabilityInputBoundaries:
     def test_troyon_beta_limit_rejects_nonphysical_inputs(self):
         with pytest.raises(ValueError, match="beta_t"):
             troyon_beta_limit(-0.01, Ip_MA=10.0, a=1.0, B0=5.0)
+        with pytest.raises(ValueError, match="beta_t must not exceed 1"):
+            troyon_beta_limit(1.1, Ip_MA=10.0, a=1.0, B0=5.0)
         with pytest.raises(ValueError, match="Ip_MA"):
             troyon_beta_limit(0.01, Ip_MA=0.0, a=1.0, B0=5.0)
         with pytest.raises(ValueError, match="g_wall"):

@@ -472,6 +472,8 @@ def troyon_beta_limit(
     B0 = _require_finite_scalar("B0", B0, positive=True)
     g_nowall = _require_finite_scalar("g_nowall", g_nowall, positive=True)
     g_wall = _require_finite_scalar("g_wall", g_wall, positive=True)
+    if beta_t > 1.0:
+        raise ValueError("beta_t must not exceed 1 for fractional toroidal beta")
     if g_wall < g_nowall:
         raise ValueError("g_wall must not be below g_nowall")
 
