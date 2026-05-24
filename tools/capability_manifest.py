@@ -212,6 +212,16 @@ def validate_manifest(manifest: dict[str, Any]) -> None:
             raise ManifestError(f"{count_name} drift: expected {expected}, found {actual}")
     if not manifest["python"]["public_api_exports"]:
         raise ManifestError("public_api_exports must not be empty")
+    scripts = manifest["project"]["scripts"]
+    if not scripts:
+        raise ManifestError("project scripts must not be empty")
+    invalid_scripts = [
+        name
+        for name, target in scripts.items()
+        if not isinstance(name, str) or not name.strip() or not isinstance(target, str) or ":" not in target
+    ]
+    if invalid_scripts:
+        raise ManifestError(f"project scripts must map to import targets: {', '.join(sorted(invalid_scripts))}")
     if not manifest["rust"]["pyo3_exports"]:
         raise ManifestError("pyo3_exports must not be empty")
     if any("/internal/" in f"/{path}/" for path in manifest["docs"]["public_markdown"]):

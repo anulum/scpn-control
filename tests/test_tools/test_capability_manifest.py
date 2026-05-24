@@ -87,6 +87,25 @@ def test_manifest_validation_rejects_count_drift(capability_tool) -> None:
         capability_tool.validate_manifest(broken)
 
 
+def test_manifest_validation_rejects_missing_project_scripts(capability_tool) -> None:
+    manifest = capability_tool.build_manifest(REPO_ROOT)
+    broken = copy.deepcopy(manifest)
+    broken["project"]["scripts"] = {}
+    broken["counts"]["project_script_count"] = 0
+
+    with pytest.raises(capability_tool.ManifestError, match="project scripts must not be empty"):
+        capability_tool.validate_manifest(broken)
+
+
+def test_manifest_validation_rejects_invalid_project_script_targets(capability_tool) -> None:
+    manifest = capability_tool.build_manifest(REPO_ROOT)
+    broken = copy.deepcopy(manifest)
+    broken["project"]["scripts"]["scpn-control"] = "scpn_control.cli"
+
+    with pytest.raises(capability_tool.ManifestError, match="project scripts must map to import targets"):
+        capability_tool.validate_manifest(broken)
+
+
 def test_generated_outputs_are_current(capability_tool) -> None:
     expected_manifest = capability_tool.build_manifest(REPO_ROOT)
     expected_markdown = capability_tool.render_markdown(expected_manifest)
