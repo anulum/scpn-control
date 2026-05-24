@@ -309,6 +309,39 @@ def test_nmpc_reports_qp_iteration_budget_exhaustion() -> None:
     assert nmpc.last_qp_iterations == cfg.qp_max_iter
 
 
+def test_nmpc_uses_adaptive_qp_step_size() -> None:
+    """QP step size should be derived from local condensed curvature, not fixed."""
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=1, qp_max_iter=1)
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0])
+    u_prev = cfg.u_min.copy()
+
+    nmpc.step(x0, x_ref, u_prev)
+
+    assert np.isfinite(nmpc.last_qp_step_size)
+    assert nmpc.last_qp_step_size > 0.0
+    assert nmpc.last_qp_step_size != pytest.approx(0.05)
+
+
+def test_nmpc_qp_step_size_shrinks_with_control_curvature() -> None:
+    """Larger R increases QP curvature and should reduce the safe gradient step."""
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0])
+
+    cfg_low = NMPCConfig(horizon=3, max_sqp_iter=1, qp_max_iter=1)
+    cfg_high = NMPCConfig(horizon=3, max_sqp_iter=1, qp_max_iter=1)
+    cfg_high.R = 100.0 * np.eye(3)
+
+    nmpc_low = NonlinearMPC(mock_tokamak_plant, cfg_low)
+    nmpc_high = NonlinearMPC(mock_tokamak_plant, cfg_high)
+
+    nmpc_low.step(x0, x_ref, cfg_low.u_min.copy())
+    nmpc_high.step(x0, x_ref, cfg_high.u_min.copy())
+
+    assert nmpc_high.last_qp_step_size < nmpc_low.last_qp_step_size
+
+
 def test_nmpc_rejects_non_spd_state_weight() -> None:
     cfg = NMPCConfig(horizon=3)
     cfg.Q = np.diag([1.0, 1.0, 0.0, 1.0, 1.0, 1.0])

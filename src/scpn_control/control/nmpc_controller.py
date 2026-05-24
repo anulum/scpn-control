@@ -86,11 +86,11 @@ class NMPCConfig:
 
 
 class NonlinearMPC:
-    """SQP-based NMPC with projected gradient descent inner solver.
+    """SQP-based NMPC with curvature-scaled projected gradient QP solves.
 
     Each SQP outer iteration linearizes f around the nominal trajectory,
-    then solves the resulting QP via projected gradient descent (PGD) on
-    the condensed formulation (states eliminated).
+    then solves the resulting condensed QP with a projected gradient step
+    derived from the local condensed Hessian curvature.
     """
 
     def __init__(
@@ -113,6 +113,37 @@ class NonlinearMPC:
         self.infeasibility_count = 0
         self.last_qp_iterations = 0
         self.last_qp_converged = False
+        self.last_qp_step_size = 0.0
+
+    def _estimate_qp_step_size(
+        self,
+        A_k: list[np.ndarray],
+        B_k: list[np.ndarray],
+        P_term: np.ndarray,
+    ) -> float:
+        """Return a safe projected-gradient step from condensed QP curvature."""
+        n_dec = self.N * self.nu
+        state_sensitivity = np.zeros((self.nx, n_dec))
+        H = np.zeros((n_dec, n_dec), dtype=np.float64)
+
+        for k in range(self.N):
+            H += 2.0 * state_sensitivity.T @ self.config.Q @ state_sensitivity
+            block = slice(k * self.nu, (k + 1) * self.nu)
+            H[block, block] += 2.0 * self.config.R
+
+            next_sensitivity = A_k[k] @ state_sensitivity
+            next_sensitivity[:, block] += B_k[k]
+            state_sensitivity = next_sensitivity
+
+        H += 2.0 * state_sensitivity.T @ P_term @ state_sensitivity
+        H = 0.5 * (H + H.T)
+        try:
+            lipschitz = float(np.max(np.linalg.eigvalsh(H)))
+        except np.linalg.LinAlgError:
+            lipschitz = float(np.linalg.norm(H, ord=2))
+        if not np.isfinite(lipschitz) or lipschitz <= 0.0:
+            raise ValueError("condensed QP Hessian curvature must be positive finite.")
+        return 1.0 / lipschitz
 
     @staticmethod
     def _validate_config(config: NMPCConfig) -> None:
@@ -239,14 +270,15 @@ class NonlinearMPC:
             A_k.append(Ak)
             B_k.append(Bk)
 
-        # PGD step size: α = 0.05 (empirically stable for ITER-scale dynamics)
         max_iter = int(self.config.qp_max_iter)
-        alpha = 0.05
 
         dU = np.zeros((self.N, self.nu))
 
         self.last_qp_iterations = 0
         self.last_qp_converged = False
+        P_term = self.config.P if self.config.P is not None else self._compute_terminal_cost(A_k[-1], B_k[-1])
+        alpha = self._estimate_qp_step_size(A_k, B_k, P_term)
+        self.last_qp_step_size = alpha
 
         for iter_idx in range(1, max_iter + 1):
             dx = np.zeros((self.N + 1, self.nx))
@@ -254,7 +286,6 @@ class NonlinearMPC:
                 dx[k + 1] = A_k[k] @ dx[k] + B_k[k] @ dU[k]
 
             adj = np.zeros((self.N + 1, self.nx))
-            P_term = self.config.P if self.config.P is not None else self._compute_terminal_cost(A_k[-1], B_k[-1])
 
             x_err_N = (self.x_traj[self.N] + dx[self.N]) - x_ref
             adj[self.N] = 2.0 * P_term @ x_err_N
