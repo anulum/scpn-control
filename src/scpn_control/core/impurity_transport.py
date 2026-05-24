@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851 — Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Impurity Transport and Radiative Losses
 """Impurity transport, tungsten accumulation, and radiative-loss diagnostic utilities."""
 
 from __future__ import annotations
@@ -32,6 +35,17 @@ import numpy as np
 #   Ne:             T_peak ≈ 50 eV,    σ = 1.0                      — Post et al. 1977
 
 
+def _positive_finite_profile(name: str, values: np.ndarray) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim == 0:
+        arr = arr.reshape(1)
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if np.any(arr <= 0.0):
+        raise ValueError(f"{name} must be positive everywhere")
+    return arr
+
+
 @dataclass
 class ImpuritySpecies:
     element: str
@@ -53,6 +67,8 @@ class CoolingCurve:
         self.element = element
 
     def L_z(self, Te_eV: np.ndarray) -> np.ndarray:
+        """Return cooling coefficients for positive finite electron temperatures [W m³]."""
+        Te_eV = _positive_finite_profile("Te_eV", Te_eV)
         log_Te = np.log(Te_eV)
         if self.element == "W":
             # High-T peak: L_max ≈ 1e-31 W m³ at T ≈ 1500 eV, width σ = 1.5

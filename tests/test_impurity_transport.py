@@ -1,10 +1,14 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851 — Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Impurity Transport Tests
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.impurity_transport import (
     CoolingCurve,
@@ -144,14 +148,24 @@ def test_radiation_power_positive():
 
 
 def test_cooling_curve_unknown_element():
-    """Lines 70-74: unknown element returns zeros."""
+    """Unknown elements return zero cooling coefficients."""
     c_unknown = CoolingCurve("Xe")
     L = c_unknown.L_z(np.array([100.0, 500.0, 1500.0]))
     assert np.allclose(L, 0.0)
 
 
+def test_cooling_curve_rejects_nonpositive_or_nonfinite_temperature():
+    c_W = CoolingCurve("W")
+    with pytest.raises(ValueError, match="Te_eV"):
+        c_W.L_z(np.array([100.0, 0.0]))
+    with pytest.raises(ValueError, match="Te_eV"):
+        c_W.L_z(np.array([100.0, -1.0]))
+    with pytest.raises(ValueError, match="Te_eV"):
+        c_W.L_z(np.array([100.0, np.nan]))
+
+
 def test_accumulation_diagnostic_safe():
-    """Lines 160, 162: safe and warning danger levels."""
+    """Tungsten diagnostic reports safe and warning danger levels."""
     ne = np.ones(50) * 1e20
     n_safe = np.ones(50) * 1e14
     diag_safe = tungsten_accumulation_diagnostic(n_safe, ne)
