@@ -65,6 +65,52 @@ class TestDiagnosticSnapshot:
         assert snap.R_layer.shape == (8,)
 
 
+class TestDiagnosticValidation:
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("beta_n", -0.1),
+            ("beta_n", np.nan),
+            ("disruption_risk", -0.01),
+            ("disruption_risk", 1.01),
+            ("lambda_exp", np.inf),
+            ("q95", 0.0),
+            ("mirnov_rms", -1e-9),
+        ],
+    )
+    def test_update_rejects_unphysical_scalar_diagnostics(self, field, value):
+        spec = _make_spec()
+        engine = AdaptiveKnmEngine(spec)
+        snap = _make_snap()
+        snap = DiagnosticSnapshot(**{**snap.__dict__, field: value})
+
+        with pytest.raises(ValueError, match=field):
+            engine.update(snap)
+
+    @pytest.mark.parametrize("field", ["R_layer", "V_layer"])
+    def test_update_rejects_malformed_layer_diagnostics(self, field):
+        spec = _make_spec()
+        engine = AdaptiveKnmEngine(spec)
+        snap = _make_snap()
+        malformed = np.full(spec.L - 1, 0.5)
+        snap = DiagnosticSnapshot(**{**snap.__dict__, field: malformed})
+
+        with pytest.raises(ValueError, match=field):
+            engine.update(snap)
+
+    @pytest.mark.parametrize("field", ["R_layer", "V_layer"])
+    def test_update_rejects_nonfinite_layer_diagnostics(self, field):
+        spec = _make_spec()
+        engine = AdaptiveKnmEngine(spec)
+        snap = _make_snap()
+        nonfinite = np.full(spec.L, 0.5)
+        nonfinite[0] = np.nan
+        snap = DiagnosticSnapshot(**{**snap.__dict__, field: nonfinite})
+
+        with pytest.raises(ValueError, match=field):
+            engine.update(snap)
+
+
 # ── AdaptiveKnmConfig ───────────────────────────────────────────────
 
 

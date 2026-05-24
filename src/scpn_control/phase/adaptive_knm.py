@@ -93,6 +93,7 @@ class AdaptiveKnmEngine:
     def update(self, snap: DiagnosticSnapshot) -> NDArray[np.float64]:
         """Apply all adaptation channels and return K_adapted."""
         cfg = self._cfg
+        self._validate_snapshot(snap)
 
         # Guard veto: revert before computing if previous tick was refused
         if not snap.guard_approved and cfg.revert_on_guard_refusal:
@@ -139,6 +140,40 @@ class AdaptiveKnmEngine:
         self._K_current[:] = K_new
         self._K_last_good[:] = K_new
         return self._K_current.copy()
+
+    def _validate_snapshot(self, snap: DiagnosticSnapshot) -> None:
+        """Reject malformed diagnostic input before it can mutate K state."""
+        r_layer = np.asarray(snap.R_layer, dtype=np.float64)
+        if r_layer.shape != (self._L,):
+            raise ValueError(f"R_layer must have shape ({self._L},), got {r_layer.shape}")
+        if not np.isfinite(r_layer).all():
+            raise ValueError("R_layer must contain only finite values")
+
+        v_layer = np.asarray(snap.V_layer, dtype=np.float64)
+        if v_layer.shape != (self._L,):
+            raise ValueError(f"V_layer must have shape ({self._L},), got {v_layer.shape}")
+        if not np.isfinite(v_layer).all():
+            raise ValueError("V_layer must contain only finite values")
+
+        scalar_fields = {
+            "lambda_exp": snap.lambda_exp,
+            "beta_n": snap.beta_n,
+            "q95": snap.q95,
+            "disruption_risk": snap.disruption_risk,
+            "mirnov_rms": snap.mirnov_rms,
+        }
+        for name, value in scalar_fields.items():
+            if not np.isfinite(value):
+                raise ValueError(f"{name} must be finite")
+
+        if snap.beta_n < 0.0:
+            raise ValueError("beta_n must be non-negative")
+        if snap.q95 <= 0.0:
+            raise ValueError("q95 must be positive")
+        if not 0.0 <= snap.disruption_risk <= 1.0:
+            raise ValueError("disruption_risk must be in [0, 1]")
+        if snap.mirnov_rms < 0.0:
+            raise ValueError("mirnov_rms must be non-negative")
 
     def reset(self) -> None:
         """Revert to baseline and clear integral state."""
