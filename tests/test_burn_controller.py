@@ -27,6 +27,19 @@ def test_zero_temperature():
     assert P == 0.0
 
 
+def test_alpha_power_density_rejects_nonphysical_inputs():
+    alpha = AlphaHeating(R0=6.2, a=2.0)
+
+    with np.testing.assert_raises(ValueError):
+        alpha.power_density(np.array([-1.0]), np.array([10.0]), np.array([10.0]))
+
+    with np.testing.assert_raises(ValueError):
+        alpha.power_density(np.array([1.0]), np.array([np.inf]), np.array([10.0]))
+
+    with np.testing.assert_raises(ValueError):
+        alpha.power_density(np.array([1.0]), np.array([10.0]), np.array([-0.1]))
+
+
 def test_iter_alpha_power():
     alpha = AlphaHeating(R0=6.2, a=2.0, kappa=1.7)
 

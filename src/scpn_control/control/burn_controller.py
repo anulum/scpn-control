@@ -51,12 +51,23 @@ class AlphaHeating:
         p_α = n_D n_T <σv>(T_i) E_α.
         ITER Physics Basis 1999, Nucl. Fusion 39, 2137, Eq. (2.2.1).
         """
-        ne_m3 = ne_20 * 1e20
+        ne_arr = np.asarray(ne_20, dtype=float)
+        te_arr = np.asarray(Te_keV, dtype=float)
+        ti_arr = np.asarray(Ti_keV, dtype=float)
+        for name, values in (("ne_20", ne_arr), ("Te_keV", te_arr), ("Ti_keV", ti_arr)):
+            if not np.all(np.isfinite(values)):
+                raise ValueError(f"{name} must contain only finite values")
+        if np.any(ne_arr < 0.0) or np.any(te_arr < 0.0) or np.any(ti_arr < 0.0):
+            raise ValueError("plasma density and temperatures must be non-negative")
+
+        ne_m3 = ne_arr * 1e20
         nD = ne_m3 / 2.0
         nT = ne_m3 / 2.0
 
         # <σv>_DT: Bosch & Hale 1992, Nucl. Fusion 32, 611, Table IV
-        sigv = bosch_hale_reactivity(Ti_keV)
+        positive_ti = ti_arr > 0.0
+        sigv_eval_ti = np.where(positive_ti, ti_arr, 1.0)
+        sigv = np.where(positive_ti, bosch_hale_reactivity(sigv_eval_ti), 0.0)
 
         p_alpha_W = nD * nT * sigv * self.E_alpha_J
         return p_alpha_W / 1e6
