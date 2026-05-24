@@ -47,6 +47,30 @@ _MARTIN_ALPHA_S: float = 0.941  # surface area exponent
 _RYTER_LOW_DENS_FRAC: float = 0.4  # n_min / n_GW
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _ordered_heating_scan(name: str, values: np.ndarray) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size == 0:
+        raise ValueError(f"{name} must be a non-empty one-dimensional array")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} values must be finite")
+    if np.any(arr < 0.0):
+        raise ValueError(f"{name} values must be non-negative")
+    if np.any(np.diff(arr) <= 0.0):
+        raise ValueError(f"{name} values must be strictly increasing")
+    return arr
+
+
 @dataclass
 class PredatorPreyResult:
     epsilon_trace: np.ndarray
@@ -67,17 +91,18 @@ class PredatorPreyModel:
         alpha3: float = _KD_ALPHA3,
         gamma_damp: float = _KD_GAMMA_DAMP,
     ):
-        self.gamma_L = gamma_L
-        self.alpha1 = alpha1
-        self.alpha2 = alpha2
-        self.alpha3 = alpha3
-        self.gamma_damp = gamma_damp
+        self.gamma_L = _finite_scalar("gamma_L", gamma_L, positive=True)
+        self.alpha1 = _finite_scalar("alpha1", alpha1, positive=True)
+        self.alpha2 = _finite_scalar("alpha2", alpha2, positive=True)
+        self.alpha3 = _finite_scalar("alpha3", alpha3, positive=True)
+        self.gamma_damp = _finite_scalar("gamma_damp", gamma_damp, positive=True)
 
     def confinement_time(self, epsilon: float) -> float:
         # τ_E = τ_E0 / (1 + C·ε); degradation with turbulence level.
+        epsilon = _finite_scalar("epsilon", epsilon, nonnegative=True)
         tau_E0 = 1.0  # s, normalisation
         C = 1e-4
-        return tau_E0 / (1.0 + C * max(0.0, epsilon))
+        return tau_E0 / (1.0 + C * epsilon)
 
     def zonal_flow_growth_rate(self) -> float:
         """Characteristic ZF growth rate γ_ZF ≡ α₃ / (α₁ γ_damp) * γ_L² — Kim & Diamond (2003), Eq. 6.
@@ -90,10 +115,16 @@ class PredatorPreyModel:
         return float(self.alpha3 * eps_star)
 
     def step(self, state: np.ndarray, dt: float, Q_heating: float) -> np.ndarray:
+        state = np.asarray(state, dtype=float)
+        if state.shape != (3,):
+            raise ValueError("state must contain epsilon, V_ZF, and pressure")
+        if not np.all(np.isfinite(state)):
+            raise ValueError("state values must be finite")
+        if np.any(state < 0.0):
+            raise ValueError("state values must be non-negative")
+        dt = _finite_scalar("dt", dt, positive=True)
+        Q_heating = _finite_scalar("Q_heating", Q_heating, nonnegative=True)
         eps, V, p = state
-        eps = max(0.0, eps)
-        V = max(0.0, V)
-        p = max(0.0, p)
 
         d_eps = self.gamma_L * (p / _P0) * eps - self.alpha1 * eps**2 - self.alpha2 * eps * V**2 + _S_BG
         d_V = self.alpha3 * eps * V - self.gamma_damp * V
@@ -103,7 +134,19 @@ class PredatorPreyModel:
         return np.maximum(state + np.array([d_eps, d_V, d_p]) * dt, 0.0)
 
     def evolve(self, Q_heating: float, t_span: tuple[float, float], dt: float) -> PredatorPreyResult:
+        Q_heating = _finite_scalar("Q_heating", Q_heating, nonnegative=True)
+        dt = _finite_scalar("dt", dt, positive=True)
+        if len(t_span) != 2:
+            raise ValueError("t_span must contain start and end times")
+        t_start = _finite_scalar("t_span[0]", t_span[0])
+        t_end = _finite_scalar("t_span[1]", t_span[1])
+        if t_end <= t_start:
+            raise ValueError("t_span end must be greater than start")
+        if dt > (t_end - t_start):
+            raise ValueError("dt must not exceed the evolution duration")
         n_steps = int((t_span[1] - t_span[0]) / dt)
+        if n_steps < 2:
+            raise ValueError("evolution must contain at least two steps")
         t_arr = np.linspace(t_span[0], t_span[1], n_steps)
 
         state = np.array([1e4, 1.0, 1.0])
@@ -130,6 +173,7 @@ class LHTrigger:
 
     def find_threshold(self, Q_range: np.ndarray) -> float:
         """Bisect Q_range to find onset of L→H bifurcation."""
+        Q_range = _ordered_heating_scan("Q_range", Q_range)
         for Q in Q_range:
             res = self.model.evolve(Q, (0.0, 1.0), 0.001)
             if res.regime == "H_MODE":
@@ -160,8 +204,9 @@ class MartinThreshold:
         The published fit uses n₂₀ = n_e / 10²⁰ m⁻³.  Since ne_19 is in
         10¹⁹ m⁻³, n₂₀ = ne_19 / 10.
         """
-        if ne_19 <= 0 or B_T <= 0 or S_m2 <= 0:
-            return 0.0
+        ne_19 = _finite_scalar("ne_19", ne_19, positive=True)
+        B_T = _finite_scalar("B_T", B_T, positive=True)
+        S_m2 = _finite_scalar("S_m2", S_m2, positive=True)
         n20 = ne_19 / 10.0
         return float(_MARTIN_C * (n20**_MARTIN_ALPHA_N) * (B_T**_MARTIN_ALPHA_B) * (S_m2**_MARTIN_ALPHA_S))
 
@@ -196,14 +241,15 @@ class MartinThreshold:
         Greenwald density: n_GW [10²⁰ m⁻³] = I_p [MA] / (π a²) [MA m⁻²].
         Converted to 10¹⁹ m⁻³: n_GW_19 = 10 * I_p / (π a²).
         """
-        p_martin = MartinThreshold.power_threshold_MW(ne_19, B_T, S_m2)
+        B_T = _finite_scalar("B_T", B_T, positive=True)
+        S_m2 = _finite_scalar("S_m2", S_m2, positive=True)
+        I_p_MA = _finite_scalar("I_p_MA", I_p_MA, positive=True)
+        a_m = _finite_scalar("a_m", a_m, positive=True)
+        if not np.isfinite(ne_19):
+            raise ValueError("ne_19 must be finite")
         if ne_19 <= 0.0:
-            if I_p_MA > 0.0 and a_m > 0.0 and B_T > 0.0 and S_m2 > 0.0:
-                return float("inf")
-            return p_martin
-
-        if I_p_MA <= 0 or a_m <= 0:
-            return p_martin
+            return float("inf")
+        p_martin = MartinThreshold.power_threshold_MW(ne_19, B_T, S_m2)
 
         n_gw_19 = 10.0 * I_p_MA / (np.pi * a_m**2)
         n_min_19 = _RYTER_LOW_DENS_FRAC * n_gw_19
@@ -219,10 +265,19 @@ class IPhaseDetector:
     """Detects I-phase limit-cycle oscillations in turbulence traces."""
 
     def __init__(self, window_size: int = 100):
+        if not isinstance(window_size, int) or window_size <= 1:
+            raise ValueError("window_size must be an integer greater than one")
         self.window_size = window_size
 
     def detect(self, epsilon_trace: np.ndarray) -> bool:
         """True if recent trace shows relative std > 10 %."""
+        epsilon_trace = np.asarray(epsilon_trace, dtype=float)
+        if epsilon_trace.ndim != 1:
+            raise ValueError("epsilon_trace must be one-dimensional")
+        if not np.all(np.isfinite(epsilon_trace)):
+            raise ValueError("epsilon_trace values must be finite")
+        if np.any(epsilon_trace < 0.0):
+            raise ValueError("epsilon_trace values must be non-negative")
         if len(epsilon_trace) < self.window_size:
             return False
         recent = epsilon_trace[-self.window_size :]
@@ -249,11 +304,14 @@ class IPhaseFrequency:
 class LHTransitionController:
     def __init__(self, model: PredatorPreyModel, Q_target: float):
         self.model = model
-        self.Q_target = Q_target
+        self.Q_target = _finite_scalar("Q_target", Q_target, nonnegative=True)
         self.detector = IPhaseDetector()
 
     def step(self, epsilon_measured: float, Q_current: float, dt: float) -> float:
         """Ramp Q toward Q_target; hold when H-mode is confirmed."""
+        epsilon_measured = _finite_scalar("epsilon_measured", epsilon_measured, nonnegative=True)
+        Q_current = _finite_scalar("Q_current", Q_current, nonnegative=True)
+        dt = _finite_scalar("dt", dt, positive=True)
         if epsilon_measured < 5e4:
             return self.Q_target
         return Q_current + 10.0 * dt

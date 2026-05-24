@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.lh_transition import (
     IPhaseDetector,
@@ -121,27 +122,35 @@ def test_i_phase_frequency():
 
 
 def test_lh_trigger_all_l_mode():
-    """Line 134: find_threshold returns last Q when no H-mode is found."""
+    """Threshold search returns last Q when no H-mode is found."""
     model = PredatorPreyModel()
     Q_range = np.array([0.1, 0.5, 1.0])
     Q_th = LHTrigger(model).find_threshold(Q_range)
     assert Q_th == 1.0
 
 
-def test_martin_threshold_zero_inputs():
-    """Line 162: zero or negative inputs return 0."""
-    assert MartinThreshold.power_threshold_MW(ne_19=0.0, B_T=5.3, S_m2=680.0) == 0.0
-    assert MartinThreshold.power_threshold_MW(ne_19=5.0, B_T=0.0, S_m2=680.0) == 0.0
-    assert MartinThreshold.power_threshold_MW(ne_19=5.0, B_T=5.3, S_m2=0.0) == 0.0
+def test_martin_threshold_rejects_nonphysical_inputs():
+    """Martin scaling rejects inputs outside its published positive domain."""
+    with pytest.raises(ValueError, match="ne_19"):
+        MartinThreshold.power_threshold_MW(ne_19=0.0, B_T=5.3, S_m2=680.0)
+    with pytest.raises(ValueError, match="B_T"):
+        MartinThreshold.power_threshold_MW(ne_19=5.0, B_T=0.0, S_m2=680.0)
+    with pytest.raises(ValueError, match="S_m2"):
+        MartinThreshold.power_threshold_MW(ne_19=5.0, B_T=5.3, S_m2=0.0)
+    with pytest.raises(ValueError, match="ne_19"):
+        MartinThreshold.power_threshold_MW(ne_19=float("nan"), B_T=5.3, S_m2=680.0)
 
 
-def test_low_density_branch_zero_geometry():
-    """Lines 199: I_p_MA <= 0 or a_m <= 0 falls back to plain Martin."""
-    p_plain = MartinThreshold.power_threshold_MW(ne_19=5.0, B_T=5.3, S_m2=680.0)
-    p_zero_ip = MartinThreshold.power_threshold_with_low_density_branch_MW(
-        ne_19=5.0, B_T=5.3, S_m2=680.0, I_p_MA=0.0, a_m=2.0
-    )
-    assert p_zero_ip == p_plain
+def test_low_density_branch_rejects_nonphysical_geometry():
+    """Low-density branch requires valid Greenwald geometry."""
+    with pytest.raises(ValueError, match="I_p_MA"):
+        MartinThreshold.power_threshold_with_low_density_branch_MW(
+            ne_19=5.0, B_T=5.3, S_m2=680.0, I_p_MA=0.0, a_m=2.0
+        )
+    with pytest.raises(ValueError, match="a_m"):
+        MartinThreshold.power_threshold_with_low_density_branch_MW(
+            ne_19=5.0, B_T=5.3, S_m2=680.0, I_p_MA=15.0, a_m=0.0
+        )
 
 
 def test_low_density_branch_zero_density_is_non_triggerable():
@@ -153,6 +162,61 @@ def test_low_density_branch_zero_density_is_non_triggerable():
 
 
 def test_i_phase_detector_short_trace():
-    """Line 220: trace shorter than window returns False."""
+    """Trace shorter than window returns False."""
     det = IPhaseDetector(window_size=100)
     assert not det.detect(np.ones(50))
+
+
+def test_predator_prey_rejects_nonphysical_domains():
+    with pytest.raises(ValueError, match="gamma_L"):
+        PredatorPreyModel(gamma_L=float("nan"))
+
+    model = PredatorPreyModel()
+    with pytest.raises(ValueError, match="epsilon"):
+        model.confinement_time(-1.0)
+    with pytest.raises(ValueError, match="state"):
+        model.step(np.array([1.0, -1.0, 1.0]), dt=1e-3, Q_heating=1.0)
+    with pytest.raises(ValueError, match="dt"):
+        model.step(np.array([1.0, 1.0, 1.0]), dt=0.0, Q_heating=1.0)
+    with pytest.raises(ValueError, match="Q_heating"):
+        model.evolve(Q_heating=-1.0, t_span=(0.0, 1.0), dt=1e-3)
+    with pytest.raises(ValueError, match="t_span"):
+        model.evolve(Q_heating=1.0, t_span=(1.0, 0.0), dt=1e-3)
+
+
+def test_lh_trigger_rejects_malformed_heating_scan():
+    trigger = LHTrigger(PredatorPreyModel())
+
+    with pytest.raises(ValueError, match="non-empty"):
+        trigger.find_threshold(np.array([]))
+    with pytest.raises(ValueError, match="strictly increasing"):
+        trigger.find_threshold(np.array([1.0, 1.0]))
+    with pytest.raises(ValueError, match="finite"):
+        trigger.find_threshold(np.array([1.0, np.nan]))
+
+
+def test_i_phase_detector_rejects_malformed_trace():
+    with pytest.raises(ValueError, match="window_size"):
+        IPhaseDetector(window_size=1)
+
+    det = IPhaseDetector(window_size=10)
+    with pytest.raises(ValueError, match="one-dimensional"):
+        det.detect(np.ones((2, 10)))
+    with pytest.raises(ValueError, match="finite"):
+        det.detect(np.array([1.0, np.nan] * 10))
+    with pytest.raises(ValueError, match="non-negative"):
+        det.detect(np.array([1.0, -1.0] * 10))
+
+
+def test_transition_controller_rejects_nonphysical_inputs():
+    model = PredatorPreyModel()
+    with pytest.raises(ValueError, match="Q_target"):
+        LHTransitionController(model, Q_target=-1.0)
+
+    ctrl = LHTransitionController(model, Q_target=50.0)
+    with pytest.raises(ValueError, match="epsilon_measured"):
+        ctrl.step(epsilon_measured=float("nan"), Q_current=10.0, dt=0.1)
+    with pytest.raises(ValueError, match="Q_current"):
+        ctrl.step(epsilon_measured=1e5, Q_current=-1.0, dt=0.1)
+    with pytest.raises(ValueError, match="dt"):
+        ctrl.step(epsilon_measured=1e5, Q_current=10.0, dt=0.0)
