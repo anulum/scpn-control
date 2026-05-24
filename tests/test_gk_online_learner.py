@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Gk Online Learner
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Online Learner Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
@@ -38,6 +34,23 @@ def test_try_retrain_skips_empty():
     learner = OnlineLearner()
     result = learner.try_retrain()
     assert result is None
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    (
+        ({"buffer_size": 1}, "buffer_size"),
+        ({"validation_fraction": 0.0}, "validation_fraction"),
+        ({"validation_fraction": 1.0}, "validation_fraction"),
+        ({"n_epochs": 0}, "n_epochs"),
+        ({"learning_rate": 0.0}, "learning_rate"),
+        ({"max_generations": -1}, "max_generations"),
+    ),
+)
+def test_learner_config_rejects_invalid_training_domains(kwargs: dict[str, float], message: str) -> None:
+    """Online retraining requires non-empty train and validation domains."""
+    with pytest.raises(ValueError, match=message):
+        LearnerConfig(**kwargs)
 
 
 def test_try_retrain_skips_below_threshold():

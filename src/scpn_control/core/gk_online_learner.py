@@ -1,4 +1,5 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
@@ -40,6 +41,16 @@ class LearnerConfig:
     n_epochs: int = 10
     learning_rate: float = 1e-4
     max_generations: int = 50  # max retraining cycles before stopping
+
+    def __post_init__(self) -> None:
+        _require_int_at_least("buffer_size", self.buffer_size, minimum=2)
+        validation_fraction = float(self.validation_fraction)
+        if not np.isfinite(validation_fraction) or not 0.0 < validation_fraction < 1.0:
+            raise ValueError("validation_fraction must be finite and within (0, 1)")
+        self.validation_fraction = validation_fraction
+        _require_int_at_least("n_epochs", self.n_epochs, minimum=1)
+        self.learning_rate = _require_positive_float("learning_rate", self.learning_rate)
+        _require_int_at_least("max_generations", self.max_generations, minimum=0)
 
 
 class OnlineLearner:
@@ -222,3 +233,16 @@ class OnlineLearner:
         self._best_val_loss = float("inf")
         self._weights_backup = None
         self.retrain_history.clear()
+
+
+def _require_int_at_least(field: str, value: int, *, minimum: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"{field} must be an integer >= {minimum}")
+    return value
+
+
+def _require_positive_float(field: str, value: float) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{field} must be finite and positive")
+    return scalar
