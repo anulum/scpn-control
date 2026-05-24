@@ -93,9 +93,15 @@ class UPDESystem:
             Per-tick replacement for spec.K (adaptive coupling).
         """
         K = np.asarray(K_override if K_override is not None else self.spec.K, dtype=np.float64)
-        L = K.shape[0]
-        if len(theta_layers) != L or len(omega_layers) != L:
-            raise ValueError(f"Expected {L} layers, got {len(theta_layers)}")
+        L = int(np.asarray(self.spec.K).shape[0])
+        theta_arr, omega_arr = self._validate_step_inputs(
+            K=K,
+            theta_layers=theta_layers,
+            omega_layers=omega_layers,
+            actuation_gain=actuation_gain,
+            pac_gamma=pac_gamma,
+            K_override_provided=K_override is not None,
+        )
 
         g = float(actuation_gain)
 
@@ -103,7 +109,7 @@ class UPDESystem:
         Rm = np.empty(L)
         Psim = np.empty(L)
         for m in range(L):
-            Rm[m], Psim[m] = order_parameter(theta_layers[m])
+            Rm[m], Psim[m] = order_parameter(theta_arr[m])
 
         # Resolve global Ψ
         if self.psi_mode == "external":
@@ -120,10 +126,10 @@ class UPDESystem:
 
         # Attempt Rust fast-path if L > 1 and all layers have same N
         if HAS_RUST_UPDE and L > 0:
-            n_per = len(theta_layers[0])
-            if all(len(t) == n_per for t in theta_layers):
-                theta_flat = np.concatenate(theta_layers).astype(np.float64)
-                omega_flat = np.concatenate(omega_layers).astype(np.float64)
+            n_per = len(theta_arr[0])
+            if all(len(t) == n_per for t in theta_arr):
+                theta_flat = np.concatenate(theta_arr).astype(np.float64)
+                omega_flat = np.concatenate(omega_arr).astype(np.float64)
 
                 res = _rust_upde_tick(
                     theta_flat,
@@ -157,8 +163,8 @@ class UPDESystem:
         dtheta_all: list[FloatArray] = []
 
         for m in range(L):
-            th = np.asarray(theta_layers[m], dtype=np.float64).ravel()
-            om = np.asarray(omega_layers[m], dtype=np.float64).ravel()
+            th = theta_arr[m]
+            om = omega_arr[m]
 
             # Intra-layer: K_{mm} R_m sin(ψ_m − θ − α_{mm})
             dth = om + g * K[m, m] * Rm[m] * np.sin(Psim[m] - th - alpha[m, m])
@@ -200,6 +206,59 @@ class UPDESystem:
             "V_layer": V_layer,
             "V_global": V_global,
         }
+
+    def _validate_step_inputs(
+        self,
+        *,
+        K: FloatArray,
+        theta_layers: Sequence[FloatArray],
+        omega_layers: Sequence[FloatArray],
+        actuation_gain: float,
+        pac_gamma: float,
+        K_override_provided: bool,
+    ) -> tuple[list[FloatArray], list[FloatArray]]:
+        """Validate one UPDE tick before computing order parameters."""
+        if not np.isfinite(self.dt) or self.dt <= 0.0:
+            raise ValueError("dt must be positive and finite")
+        if not np.isfinite(actuation_gain):
+            raise ValueError("actuation_gain must be finite")
+        if not np.isfinite(pac_gamma):
+            raise ValueError("pac_gamma must be finite")
+
+        expected_shape = np.asarray(self.spec.K).shape
+        if K.shape != expected_shape:
+            name = "K_override" if K_override_provided else "K"
+            raise ValueError(f"{name} shape {K.shape} != {expected_shape}")
+        if not np.isfinite(K).all():
+            name = "K_override" if K_override_provided else "K"
+            raise ValueError(f"{name} must contain only finite values")
+        if np.any(K < 0.0):
+            name = "K_override" if K_override_provided else "K"
+            raise ValueError(f"{name} must be non-negative")
+
+        L = expected_shape[0]
+        if len(theta_layers) != L or len(omega_layers) != L:
+            raise ValueError(f"Expected {L} layers, got theta_layers={len(theta_layers)}, omega_layers={len(omega_layers)}")
+
+        theta_arr: list[FloatArray] = []
+        omega_arr: list[FloatArray] = []
+        for m, (theta, omega) in enumerate(zip(theta_layers, omega_layers, strict=True)):
+            th = np.asarray(theta, dtype=np.float64)
+            om = np.asarray(omega, dtype=np.float64)
+            if th.ndim != 1:
+                raise ValueError(f"theta_layers[{m}] must be a 1D phase vector")
+            if om.ndim != 1:
+                raise ValueError(f"omega_layers[{m}] must be a 1D frequency vector")
+            if th.shape != om.shape:
+                raise ValueError(f"omega_layers[{m}] shape {om.shape} != theta_layers[{m}] shape {th.shape}")
+            if not np.isfinite(th).all():
+                raise ValueError(f"theta_layers[{m}] must contain only finite values")
+            if not np.isfinite(om).all():
+                raise ValueError(f"omega_layers[{m}] must contain only finite values")
+            theta_arr.append(th)
+            omega_arr.append(om)
+
+        return theta_arr, omega_arr
 
     def run(
         self,

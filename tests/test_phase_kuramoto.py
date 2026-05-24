@@ -362,6 +362,48 @@ class TestUPDESystem:
         with pytest.raises(ValueError, match="Expected 4"):
             sys.step(theta, omega, psi_driver=0.0)
 
+    @pytest.mark.parametrize(
+        ("override", "match"),
+        [
+            (np.eye(3), "K_override"),
+            (np.full((4, 4), np.nan), "K_override"),
+            (-np.eye(4), "K_override"),
+        ],
+    )
+    def test_step_rejects_invalid_k_override(self, override, match):
+        spec = build_knm_paper27(L=4)
+        sys = UPDESystem(spec=spec, dt=1e-3, psi_mode="external")
+        theta, omega = self._make_random_layers(4, 10)
+
+        with pytest.raises(ValueError, match=match):
+            sys.step(theta, omega, psi_driver=0.0, K_override=override)
+
+    def test_step_rejects_mismatched_theta_omega_shapes(self):
+        spec = build_knm_paper27(L=2)
+        sys = UPDESystem(spec=spec, dt=1e-3, psi_mode="external")
+        theta = [np.zeros(4), np.zeros(4)]
+        omega = [np.zeros(4), np.zeros(3)]
+
+        with pytest.raises(ValueError, match="omega_layers"):
+            sys.step(theta, omega, psi_driver=0.0)
+
+    def test_step_rejects_nonfinite_phase_state(self):
+        spec = build_knm_paper27(L=2)
+        sys = UPDESystem(spec=spec, dt=1e-3, psi_mode="external")
+        theta = [np.array([0.0, np.nan]), np.zeros(2)]
+        omega = [np.zeros(2), np.zeros(2)]
+
+        with pytest.raises(ValueError, match="theta_layers"):
+            sys.step(theta, omega, psi_driver=0.0)
+
+    def test_step_rejects_nonpositive_dt(self):
+        spec = build_knm_paper27(L=2)
+        sys = UPDESystem(spec=spec, dt=0.0, psi_mode="external")
+        theta, omega = self._make_random_layers(2, 4)
+
+        with pytest.raises(ValueError, match="dt"):
+            sys.step(theta, omega, psi_driver=0.0)
+
 
 # ── FusionKernel.phase_sync_step (integration smoke test) ────────────
 
