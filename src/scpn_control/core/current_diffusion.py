@@ -14,6 +14,14 @@ from scipy.linalg import solve_banded
 MU_0 = 4.0 * np.pi * 1e-7  # H m⁻¹
 
 
+def _require_positive_scalar(name: str, value: float) -> float:
+    """Return a finite positive scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0")
+    return scalar
+
+
 def coulomb_log(Te_keV: float, ne_19: float) -> float:
     """Temperature-dependent Coulomb logarithm ln_Λ.
 
@@ -22,6 +30,8 @@ def coulomb_log(Te_keV: float, ne_19: float) -> float:
     Reference: Wesson (2011), "Tokamaks" 4th ed., Eq. 2.12.4.
     n_e in m⁻³; T_e in eV.  n_e/10²⁰ and T_e/10³ are dimensionless ratios.
     """
+    Te_keV = _require_positive_scalar("Te_keV", Te_keV)
+    ne_19 = _require_positive_scalar("ne_19", ne_19)
     Te_eV = Te_keV * 1e3
     ne_m3 = ne_19 * 1e19
     # Wesson 2011 Eq. 2.12.4 — valid for T_e > 10 eV
@@ -55,16 +65,24 @@ def neoclassical_resistivity(
         Pfirsch-Schlüter: ν*_e > ε⁻³/²  → C_R → 1 (Spitzer limit)
     The correction saturates to η_S in the PS limit via the max() guard below.
     """
-    Te_keV = max(Te_keV, 1e-3)
-    ne_19 = max(ne_19, 1e-3)
-    epsilon = max(epsilon, 1e-6)
+    Te_keV = _require_positive_scalar("Te_keV", Te_keV)
+    ne_19 = _require_positive_scalar("ne_19", ne_19)
+    Z_eff = _require_positive_scalar("Z_eff", Z_eff)
+    _require_positive_scalar("q", q)
+    _require_positive_scalar("R0", R0)
+    epsilon = float(epsilon)
+    if not np.isfinite(epsilon) or not (0.0 <= epsilon < 1.0):
+        raise ValueError("epsilon must be finite and within [0, 1)")
+    epsilon_eff = max(epsilon, 1e-6)
 
     ln_lam = coulomb_log(Te_keV, ne_19)
     # Wesson 2011 Eq. 2.5.4
     eta_Spitzer = 1.65e-9 * Z_eff * ln_lam / (Te_keV**1.5)
 
     # Sauter 1999 Eq. A.1 trapped fraction
-    f_t = 1.0 - (1.0 - epsilon) ** 2 / (np.sqrt(1.0 - epsilon**2) * (1.0 + 1.46 * np.sqrt(epsilon)))
+    f_t = 1.0 - (1.0 - epsilon_eff) ** 2 / (
+        np.sqrt(1.0 - epsilon_eff**2) * (1.0 + 1.46 * np.sqrt(epsilon_eff))
+    )
     f_t = float(np.clip(f_t, 0.0, 1.0))
 
     # Sauter 2002 Eq. 8 — banana regime analytical limit
@@ -125,7 +143,9 @@ def resistive_diffusion_time(a: float, eta: float) -> float:
 
     Reference: Jardin (2010), Ch. 8, Eq. 8.5.
     """
-    return MU_0 * a**2 / max(eta, 1e-12)
+    a = _require_positive_scalar("minor radius a", a)
+    eta = _require_positive_scalar("resistivity eta", eta)
+    return MU_0 * a**2 / eta
 
 
 class CurrentDiffusionSolver:
@@ -141,12 +161,19 @@ class CurrentDiffusionSolver:
     """
 
     def __init__(self, rho: np.ndarray, R0: float, a: float, B0: float):
-        self.rho = rho
-        self.R0 = R0
-        self.a = a
-        self.B0 = B0
-        self.nr = len(rho)
-        self.drho = rho[1] - rho[0]
+        rho_arr = np.asarray(rho, dtype=float)
+        if rho_arr.ndim != 1 or rho_arr.size < 3:
+            raise ValueError("rho must be a one-dimensional grid with at least three points")
+        if not np.all(np.isfinite(rho_arr)):
+            raise ValueError("rho must contain only finite values")
+        if not np.all(np.diff(rho_arr) > 0.0):
+            raise ValueError("rho must be strictly increasing")
+        self.rho = rho_arr
+        self.R0 = _require_positive_scalar("R0", R0)
+        self.a = _require_positive_scalar("minor radius a", a)
+        self.B0 = _require_positive_scalar("B0", B0)
+        self.nr = len(rho_arr)
+        self.drho = rho_arr[1] - rho_arr[0]
 
         # Initialise ψ for q(0)=1, q(1)=3 (parabolic current profile)
         # ψ(ρ) = −∫₀^ρ ρ′ a² B₀ / (R₀ q(ρ′)) dρ′,  q(ρ) = 1 + 2ρ²
@@ -174,8 +201,16 @@ class CurrentDiffusionSolver:
         Boundary conditions: axis (ρ=0) — regularity (L'Hôpital);
                              edge (ρ=1) — Dirichlet ψ=const.
         """
+        dt = _require_positive_scalar("dt", dt)
+        Te = self._validate_positive_profile("Te", Te)
+        ne = self._validate_positive_profile("ne", ne)
+        j_bs = self._validate_current_profile("j_bs", j_bs)
+        j_cd = self._validate_current_profile("j_cd", j_cd)
+        Z_eff = _require_positive_scalar("Z_eff", Z_eff)
         if j_ext is None:
             j_ext = np.zeros(self.nr)
+        else:
+            j_ext = self._validate_current_profile("j_ext", j_ext)
 
         j_tot_source = j_bs + j_cd + j_ext
 
@@ -239,3 +274,21 @@ class CurrentDiffusionSolver:
 
         self.psi = solve_banded((1, 1), ab, rhs)
         return self.psi
+
+    def _validate_positive_profile(self, name: str, values: np.ndarray) -> np.ndarray:
+        """Validate positive finite kinetic profiles on the solver grid."""
+        arr = np.asarray(values, dtype=float)
+        if arr.shape != (self.nr,):
+            raise ValueError(f"{name} must have shape ({self.nr},)")
+        if not np.all(np.isfinite(arr)) or np.any(arr <= 0.0):
+            raise ValueError(f"{name} must contain finite positive values")
+        return arr
+
+    def _validate_current_profile(self, name: str, values: np.ndarray) -> np.ndarray:
+        """Validate finite current-source profiles on the solver grid."""
+        arr = np.asarray(values, dtype=float)
+        if arr.shape != (self.nr,):
+            raise ValueError(f"{name} must have shape ({self.nr},)")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"{name} must contain only finite values")
+        return arr

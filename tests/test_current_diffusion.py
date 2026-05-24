@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.current_diffusion import (
     MU_0,
@@ -159,7 +160,7 @@ def test_current_diffusion_conserves_ip():
 
 
 def test_q_from_psi_singular_denom():
-    """Line 92: abs(denom) < 1e-12 falls back to previous q value."""
+    """Singular flux gradients fall back to the neighbouring finite q value."""
 
     rho = np.linspace(0, 1, 50)
     # Flat psi near center means dpsi/drho ~ 0 at ρ=0
@@ -175,7 +176,7 @@ def test_q_from_psi_singular_denom():
 
 
 def test_psi_from_q_roundtrip():
-    """Lines 112-118: psi_from_q inverts q_from_psi."""
+    """psi_from_q inverts q_from_psi for a monotone positive q profile."""
     from scpn_control.core.current_diffusion import psi_from_q
 
     rho = np.linspace(0, 1, 50)
@@ -184,3 +185,38 @@ def test_psi_from_q_roundtrip():
     assert psi_recon[-1] == 0.0
     q_back = q_from_psi(rho, psi_recon, R0=2.0, a=0.5, B0=1.0)
     assert np.allclose(q_back[5:], q_input[5:], rtol=0.1)
+
+
+def test_neoclassical_resistivity_rejects_nonphysical_domain_values():
+    with pytest.raises(ValueError, match="Te_keV must be finite and > 0"):
+        neoclassical_resistivity(Te_keV=0.0, ne_19=1.0, Z_eff=1.5, epsilon=0.1)
+    with pytest.raises(ValueError, match="ne_19 must be finite and > 0"):
+        neoclassical_resistivity(Te_keV=1.0, ne_19=-1.0, Z_eff=1.5, epsilon=0.1)
+    with pytest.raises(ValueError, match="epsilon must be finite and within"):
+        neoclassical_resistivity(Te_keV=1.0, ne_19=1.0, Z_eff=1.5, epsilon=1.0)
+
+
+def test_resistive_diffusion_time_rejects_nonphysical_inputs():
+    with pytest.raises(ValueError, match="minor radius"):
+        resistive_diffusion_time(a=0.0, eta=1e-8)
+    with pytest.raises(ValueError, match="resistivity"):
+        resistive_diffusion_time(a=2.0, eta=-1e-8)
+
+
+def test_current_diffusion_step_rejects_invalid_time_and_profiles():
+    rho = np.linspace(0, 1, 16)
+    solver = CurrentDiffusionSolver(rho, R0=2.0, a=0.5, B0=1.0)
+    Te = np.ones(16)
+    ne = np.ones(16)
+    j = np.zeros(16)
+
+    with pytest.raises(ValueError, match="dt must be finite and > 0"):
+        solver.step(0.0, Te, ne, 1.5, j, j)
+
+    bad_te = Te.copy()
+    bad_te[3] = -0.1
+    with pytest.raises(ValueError, match="Te must contain finite positive values"):
+        solver.step(1.0, bad_te, ne, 1.5, j, j)
+
+    with pytest.raises(ValueError, match="j_cd must have shape"):
+        solver.step(1.0, Te, ne, 1.5, j, np.zeros(15))
