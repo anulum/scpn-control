@@ -306,3 +306,45 @@ def test_transport_model_rejects_invalid_radius_and_profiles():
     bad_profiles["Te"] = 0.0
     with pytest.raises(ValueError, match="Te"):
         model.evaluate(0.5, bad_profiles)
+
+
+def test_transport_model_eval_profile_rejects_profile_shape_mismatch():
+    model = GyrokineticTransportModel()
+    rho = np.linspace(0, 1, 5)
+    profiles = {
+        "R0": 2.0,
+        "a": 0.5,
+        "B0": 5.0,
+        "q": np.full(4, 1.5),
+        "s_hat": np.full(5, 1.0),
+        "Te": np.linspace(5.0, 0.1, 5),
+        "Ti": np.linspace(5.0, 0.1, 5),
+        "ne": np.linspace(5.0, 0.1, 5),
+        "dTe_dr": np.full(5, -10.0),
+        "dTi_dr": np.full(5, -10.0),
+        "dne_dr": np.full(5, -10.0),
+    }
+
+    with pytest.raises(ValueError, match="profile q must match rho shape"):
+        model.evaluate_profile(rho, profiles)
+
+
+def test_transport_model_eval_profile_rejects_nonfinite_profile_array():
+    model = GyrokineticTransportModel()
+    rho = np.linspace(0, 1, 5)
+    profiles = {
+        "R0": 2.0,
+        "a": 0.5,
+        "B0": 5.0,
+        "q": np.full(5, 1.5),
+        "s_hat": np.full(5, 1.0),
+        "Te": np.array([5.0, 4.0, np.nan, 1.0, 0.1]),
+        "Ti": np.linspace(5.0, 0.1, 5),
+        "ne": np.linspace(5.0, 0.1, 5),
+        "dTe_dr": np.full(5, -10.0),
+        "dTi_dr": np.full(5, -10.0),
+        "dne_dr": np.full(5, -10.0),
+    }
+
+    with pytest.raises(ValueError, match="profile Te must contain only finite values"):
+        model.evaluate_profile(rho, profiles)

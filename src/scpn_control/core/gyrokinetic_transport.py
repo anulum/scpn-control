@@ -428,6 +428,30 @@ class GyrokineticTransportModel:
         if rho.ndim != 1 or not np.all(np.isfinite(rho)) or np.any(rho < 0.0) or np.any(rho > 1.0):
             raise ValueError("rho must be a finite one-dimensional profile within [0, 1]")
         nr = len(rho)
+        profile_keys = (
+            "q",
+            "s_hat",
+            "Te",
+            "Ti",
+            "ne",
+            "dTe_dr",
+            "dTi_dr",
+            "dne_dr",
+            "nu_star",
+            "beta_e",
+            "alpha_MHD",
+            "Z_eff",
+        )
+        for key in profile_keys:
+            value = profiles.get(key)
+            if value is None or isinstance(value, (int, float)):
+                continue
+            arr = np.asarray(value, dtype=float)
+            if arr.shape != rho.shape:
+                raise ValueError(f"profile {key} must match rho shape")
+            if not np.all(np.isfinite(arr)):
+                raise ValueError(f"profile {key} must contain only finite values")
+
         chi_i = np.zeros(nr)
         chi_e = np.zeros(nr)
         D_e = np.zeros(nr)
