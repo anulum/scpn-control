@@ -147,6 +147,37 @@ def test_radiation_power_positive():
     assert P_rad > 0.0, "P_rad must be positive for non-zero impurity density"
 
 
+def test_total_radiated_power_rejects_invalid_radial_grid():
+    rho = np.array([0.0, 0.5, 0.4, 1.0])
+    ne = np.ones(4) * 1e20
+    Te = np.ones(4) * 1500.0
+    nW = ne * 1e-4
+
+    with pytest.raises(ValueError, match="rho must be strictly increasing"):
+        total_radiated_power(ne, {"W": nW}, Te, rho, 6.2, 2.0)
+
+
+def test_total_radiated_power_rejects_negative_impurity_density():
+    rho = np.linspace(0, 1, 5)
+    ne = np.ones(5) * 1e20
+    Te = np.ones(5) * 1500.0
+    nW = ne * 1e-4
+    nW[2] = -1.0
+
+    with pytest.raises(ValueError, match="n_impurity\\[W\\] must be non-negative"):
+        total_radiated_power(ne, {"W": nW}, Te, rho, 6.2, 2.0)
+
+
+def test_total_radiated_power_rejects_impurity_shape_mismatch():
+    rho = np.linspace(0, 1, 5)
+    ne = np.ones(5) * 1e20
+    Te = np.ones(5) * 1500.0
+    nW = np.ones(4) * 1e16
+
+    with pytest.raises(ValueError, match="n_impurity\\[W\\] must match rho shape"):
+        total_radiated_power(ne, {"W": nW}, Te, rho, 6.2, 2.0)
+
+
 def test_cooling_curve_unknown_element():
     """Unknown elements return zero cooling coefficients."""
     c_unknown = CoolingCurve("Xe")

@@ -46,6 +46,35 @@ def _positive_finite_profile(name: str, values: np.ndarray) -> np.ndarray:
     return arr
 
 
+def _finite_profile_like(name: str, values: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.shape != shape:
+        raise ValueError(f"{name} must match rho shape")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    return arr
+
+
+def _nonnegative_profile_like(name: str, values: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
+    arr = _finite_profile_like(name, values, shape)
+    if np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative")
+    return arr
+
+
+def _radiation_rho_grid(rho: np.ndarray) -> np.ndarray:
+    arr = np.asarray(rho, dtype=float)
+    if arr.ndim != 1 or arr.size < 2:
+        raise ValueError("rho must be a one-dimensional profile with at least two points")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("rho must contain only finite values")
+    if np.any(arr < 0.0) or np.any(arr > 1.0):
+        raise ValueError("rho must stay within [0, 1]")
+    if np.any(np.diff(arr) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
+    return arr
+
+
 @dataclass
 class ImpuritySpecies:
     element: str
@@ -154,9 +183,24 @@ def total_radiated_power(
     Volume element for circular cross-section torus:
       dV = 4π² R0 a² ρ dρ
     """
+    rho = _radiation_rho_grid(rho)
+    ne = _positive_finite_profile("ne", ne)
+    Te_eV = _positive_finite_profile("Te_eV", Te_eV)
+    if ne.shape != rho.shape:
+        raise ValueError("ne must match rho shape")
+    if Te_eV.shape != rho.shape:
+        raise ValueError("Te_eV must match rho shape")
+    R0 = float(R0)
+    a = float(a)
+    if not np.isfinite(R0) or R0 <= 0.0:
+        raise ValueError("R0 must be finite and positive")
+    if not np.isfinite(a) or a <= 0.0:
+        raise ValueError("a must be finite and positive")
+
     p_rad_density = np.zeros_like(rho)
 
     for element, n_Z in n_impurity.items():
+        n_Z = _nonnegative_profile_like(f"n_impurity[{element}]", n_Z, rho.shape)
         curve = CoolingCurve(element)
         L = curve.L_z(Te_eV)
         p_rad_density += ne * n_Z * L
