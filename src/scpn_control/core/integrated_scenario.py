@@ -840,7 +840,8 @@ class IntegratedScenarioSimulator:
         T_t, q_peak, detached = 0.0, 0.0, False
         if self.config.include_sol:
             n_u = self.ts_solver.ne[-1]
-            sol_res = self.sol.solve(self.config.P_aux_MW, n_u, f_rad=0.3)
+            sol_power_mw = max(P_loss / 1e6, 1.0e-6)
+            sol_res = self.sol.solve(sol_power_mw, n_u, f_rad=0.3)
             T_t = sol_res.T_target_eV
             q_peak = sol_res.q_parallel_MW_m2
             detached = T_t < 5.0

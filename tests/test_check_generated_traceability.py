@@ -21,9 +21,10 @@ from tools.check_generated_traceability import (
 def test_generated_traceability_check_passes_for_repository_state(capsys) -> None:
     assert main([]) == 0
     output = capsys.readouterr().out
+    normalized_output = output.replace("\\", "/")
     assert "Generated traceability documentation is current:" in output
-    assert "validation/physics_traceability.json" in output
-    assert "docs/physics_traceability.md" in output
+    assert "validation/physics_traceability.json" in normalized_output
+    assert "docs/physics_traceability.md" in normalized_output
 
 
 def test_generated_traceability_check_detects_stale_report(tmp_path: Path) -> None:
