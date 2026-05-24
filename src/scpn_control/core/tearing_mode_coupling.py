@@ -210,6 +210,8 @@ class CoupledTearingModes:
         j_phi = _finite_scalar("j_phi", j_phi, positive=True)
         eta = _finite_scalar("eta", eta, positive=True)
         dt = _finite_scalar("dt", dt, positive=True)
+        if j_bs > j_phi:
+            raise ValueError("bootstrap current density must not exceed total current density")
         if isinstance(n_steps, bool) or int(n_steps) != n_steps or n_steps <= 0:
             raise ValueError("n_steps must be a positive integer")
         seed_time = _finite_scalar("seed_time", seed_time)

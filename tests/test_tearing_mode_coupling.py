@@ -212,6 +212,9 @@ def test_coupled_evolve_rejects_nonphysical_inputs():
     with pytest.raises(ValueError, match="j_phi"):
         c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=0.0, eta=1e-7, dt=0.01, n_steps=10)
 
+    with pytest.raises(ValueError, match="bootstrap"):
+        c.evolve(1e-6, 1e-6, j_bs=1.1e6, j_phi=1e6, eta=1e-7, dt=0.01, n_steps=10)
+
     with pytest.raises(ValueError, match="eta"):
         c.evolve(1e-6, 1e-6, j_bs=1e5, j_phi=1e6, eta=0.0, dt=0.01, n_steps=10)
 

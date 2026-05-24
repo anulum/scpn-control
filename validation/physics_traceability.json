@@ -1024,7 +1024,7 @@
     },
     {
       "component": "sawtooth-to-NTM seeding approximation contract",
-      "equation_contract": "Sawtooth-to-NTM seeding claims must declare sawtooth crash trigger, seed-island generation, rational-surface coupling, phase and amplitude assumptions, NTM coupling path, and exclusion of full nonlinear MHD crash dynamics.",
+      "equation_contract": "Sawtooth-to-NTM seeding claims must declare sawtooth crash trigger, seed-island generation, rational-surface coupling, phase and amplitude assumptions, bounded bootstrap-current fraction, NTM coupling path, and exclusion of full nonlinear MHD crash dynamics.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "sawtooth crash and NTM seeding references",
@@ -1036,7 +1036,7 @@
         "Validate seed-island amplitudes and NTM triggering windows against measured or published sawtooth-triggered NTM cases",
         "Persist pre-crash q-profile, crash amplitude, rational-surface, and coupling metadata with each validation case"
       ],
-      "unit_contract": "Time in seconds, island width in metres, q dimensionless, rho dimensionless, phase in radians, and amplitude units declared per coupling signal.",
+      "unit_contract": "Time in seconds, island width in metres, q dimensionless, rho dimensionless, phase in radians, local bootstrap-current fraction within [0, 1], and amplitude units declared per coupling signal.",
       "validation_evidence": [
         "tests/test_tearing_mode_coupling.py",
         "tests/test_integrated_scenario.py"
