@@ -67,6 +67,8 @@ class NMPCConfig:
     R: np.ndarray = dataclasses.field(default_factory=lambda: np.eye(3))
     # Terminal cost P: solved from DARE; None triggers auto-solve.
     P: np.ndarray | None = None
+    terminal_x_min: np.ndarray | None = None
+    terminal_x_max: np.ndarray | None = None
 
     # State bounds: [I_p, β_N, q_95, l_i, T_axis, n̄]
     x_min: np.ndarray = dataclasses.field(default_factory=lambda: np.array([0.1, 0.0, 2.0, 0.5, 0.5, 0.1]))
@@ -181,12 +183,25 @@ class NonlinearMPC:
         config.u_min = _as_finite_vector("u_min", config.u_min, _NU)
         config.u_max = _as_finite_vector("u_max", config.u_max, _NU)
         config.du_max = _as_finite_vector("du_max", config.du_max, _NU)
+        terminal_min_configured = config.terminal_x_min is not None
+        terminal_max_configured = config.terminal_x_max is not None
+        if terminal_min_configured != terminal_max_configured:
+            raise ValueError("terminal_x_min and terminal_x_max must be configured together.")
         if np.any(config.x_min >= config.x_max):
             raise ValueError("x_min entries must be strictly less than x_max entries.")
         if np.any(config.u_min >= config.u_max):
             raise ValueError("u_min entries must be strictly less than u_max entries.")
         if np.any(config.du_max <= 0.0):
             raise ValueError("du_max entries must be positive finite.")
+        if terminal_min_configured and terminal_max_configured:
+            if config.qp_backend != "scipy":
+                raise ValueError("terminal_x constraints require qp_backend='scipy'.")
+            config.terminal_x_min = _as_finite_vector("terminal_x_min", config.terminal_x_min, _NX)
+            config.terminal_x_max = _as_finite_vector("terminal_x_max", config.terminal_x_max, _NX)
+            if np.any(config.terminal_x_min >= config.terminal_x_max):
+                raise ValueError("terminal_x_min entries must be strictly less than terminal_x_max entries.")
+            if np.any(config.terminal_x_min < config.x_min) or np.any(config.terminal_x_max > config.x_max):
+                raise ValueError("terminal_x bounds must lie inside configured state bounds.")
 
     def _plant_step(self, x: np.ndarray, u: np.ndarray) -> np.ndarray:
         x_safe = _as_finite_vector("x", x, self.nx)
@@ -317,6 +332,17 @@ class NonlinearMPC:
             grad_dU[k] = B_k[k].T @ adj[k + 1] + 2.0 * self.config.R @ (self.u_traj[k] + dU[k])
         return value, grad_dU.reshape(-1)
 
+    def _terminal_state_sensitivity(
+        self, A_k: list[np.ndarray], B_k: list[np.ndarray]
+    ) -> np.ndarray:
+        """Linear map from condensed control increments to terminal state."""
+        sensitivity = np.zeros((self.nx, self.N * self.nu), dtype=np.float64)
+        for k in range(self.N):
+            sensitivity = A_k[k] @ sensitivity
+            block = slice(k * self.nu, (k + 1) * self.nu)
+            sensitivity[:, block] += B_k[k]
+        return sensitivity
+
     def _solve_qp_scipy(
         self,
         A_k: list[np.ndarray],
@@ -351,6 +377,20 @@ class NonlinearMPC:
                 rows.append(row)
                 lb.append(-self.config.du_max[j] - offset)
                 ub.append(self.config.du_max[j] - offset)
+
+        if self.config.terminal_x_min is not None and self.config.terminal_x_max is not None:
+            terminal_sensitivity = self._terminal_state_sensitivity(A_k, B_k)
+            terminal_offset = self.x_traj[self.N]
+            for row, lower, upper, offset in zip(
+                terminal_sensitivity,
+                self.config.terminal_x_min,
+                self.config.terminal_x_max,
+                terminal_offset,
+                strict=True,
+            ):
+                rows.append(row)
+                lb.append(float(lower - offset))
+                ub.append(float(upper - offset))
 
         bounds = scipy.optimize.Bounds(lower, upper)
         constraints = [scipy.optimize.LinearConstraint(np.vstack(rows), np.asarray(lb), np.asarray(ub))]

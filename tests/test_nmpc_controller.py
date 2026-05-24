@@ -461,3 +461,45 @@ def test_nmpc_rejects_invalid_analytic_linearization_provider_output() -> None:
 
     with pytest.raises(ValueError, match="linearization_model"):
         nmpc.linearize(np.zeros(6), np.zeros(3))
+
+
+def test_nmpc_scipy_backend_enforces_terminal_state_set() -> None:
+    """Terminal set constraints must enter the condensed QP, not only the cost."""
+
+    A = np.eye(6)
+    B = np.zeros((6, 3))
+    B[0, 0] = 1.0
+
+    def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        return A @ x + B @ u
+
+    def linearization(x: np.ndarray, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        return A, B
+
+    cfg = NMPCConfig(horizon=1, max_sqp_iter=2, qp_max_iter=100)
+    cfg.qp_backend = "scipy"
+    cfg.R = 1.0e-3 * np.eye(3)
+    cfg.terminal_x_min = cfg.x_min.copy()
+    cfg.terminal_x_min[0] = 2.0
+    cfg.terminal_x_max = cfg.x_max.copy()
+
+    nmpc = NonlinearMPC(plant, cfg, linearization_model=linearization)
+    x0 = np.array([1.0, 1.0, 3.0, 1.0, 5.0, 1.0])
+    x_ref = x0.copy()
+    u_prev = np.array([0.0, 1.0, 0.0])
+
+    u_opt = nmpc.step(x0, x_ref, u_prev)
+
+    assert u_opt[0] >= 1.0 - 1.0e-7
+    assert nmpc.x_traj[-1, 0] >= cfg.terminal_x_min[0] - 1.0e-7
+
+
+def test_nmpc_terminal_set_requires_established_constrained_backend() -> None:
+    """Coupled terminal constraints must fail closed without a capable solver."""
+
+    cfg = NMPCConfig(horizon=1)
+    cfg.terminal_x_min = cfg.x_min.copy()
+    cfg.terminal_x_max = cfg.x_max.copy()
+
+    with pytest.raises(ValueError, match="terminal_x"):
+        NonlinearMPC(mock_tokamak_plant, cfg)

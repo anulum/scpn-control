@@ -261,6 +261,9 @@ provider for production plants that can expose exact local Jacobians
 $(A_k, B_k)$. When no provider is configured, it falls back to bounded finite
 differences, then solves the resulting QP via sequential quadratic programming
 (SQP). Up to `max_sqp_iter` iterations refine the trajectory.
+For recursive-feasibility studies, paired `terminal_x_min` and `terminal_x_max`
+bounds define an explicit terminal admissible set. The SciPy constrained backend
+enforces that terminal set directly in the condensed QP.
 
 When a neural surrogate replaces $f$, the Jacobians come from backpropagation through
 the network, enabling gradient-based trajectory optimisation without an explicit physics

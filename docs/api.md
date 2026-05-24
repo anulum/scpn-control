@@ -488,6 +488,11 @@ the controller falls back to bounded central finite differences and records
 DARE-derived terminal matrices are accepted only when finite, symmetric, and
 positive definite; invalid solver output falls back to the conservative terminal
 weight.
+Explicit terminal state sets are configured with paired `terminal_x_min` and
+`terminal_x_max` vectors. These bounds must lie inside the configured physics
+state envelope and currently require `qp_backend="scipy"` so the coupled
+terminal-state inequality is enforced inside the constrained QP solve rather
+than checked after the fact.
 The previous input supplied to `step()` must already satisfy actuator bounds so
 the slew-rate projection cannot propagate an unsafe actuator state.
 The accepted `horizon=1` case is handled as a valid one-step receding-horizon
