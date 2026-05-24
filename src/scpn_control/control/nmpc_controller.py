@@ -147,6 +147,12 @@ class NonlinearMPC:
             raise ValueError(f"plant_model must return a finite vector with shape ({self.nx},).")
         return out
 
+    def _bounded_input_vector(self, name: str, value: np.ndarray) -> np.ndarray:
+        u = _as_finite_vector(name, value, self.nu)
+        if np.any(u < self.config.u_min) or np.any(u > self.config.u_max):
+            raise ValueError(f"{name} must satisfy configured input bounds.")
+        return u
+
     def _linearize(self, x0: np.ndarray, u0: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Jacobians A = ∂f/∂x, B = ∂f/∂u via central finite differences."""
         A = np.zeros((self.nx, self.nx))
@@ -274,7 +280,7 @@ class NonlinearMPC:
         """
         x_safe = _as_finite_vector("x", x, self.nx)
         x_ref_safe = _as_finite_vector("x_ref", x_ref, self.nx)
-        u_prev_safe = _as_finite_vector("u_prev", u_prev, self.nu)
+        u_prev_safe = self._bounded_input_vector("u_prev", u_prev)
 
         self.u_traj[:-1] = self.u_traj[1:]
         self.u_traj[-1] = self.u_traj[-2]

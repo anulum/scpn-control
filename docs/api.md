@@ -484,6 +484,8 @@ local Jacobian accuracy in the SQP approximation.
 DARE-derived terminal matrices are accepted only when finite, symmetric, and
 positive definite; invalid solver output falls back to the conservative terminal
 weight.
+The previous input supplied to `step()` must already satisfy actuator bounds so
+the slew-rate projection cannot propagate an unsafe actuator state.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 

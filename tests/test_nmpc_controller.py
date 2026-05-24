@@ -99,6 +99,19 @@ def test_slew_rate():
     assert np.all(np.abs(u_opt - u_prev) <= 1.0 + 1e-6)
 
 
+def test_nmpc_rejects_previous_input_outside_bounds() -> None:
+    """The slew-rate projection must not admit an already unsafe actuator state."""
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=1)
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 5.0, 3.0, 1.0, 10.0, 2.0])
+    u_prev = np.array([cfg.u_max[0] + 20.0, 1.0, 1.0])
+
+    with pytest.raises(ValueError, match="u_prev"):
+        nmpc.step(x0, x_ref, u_prev)
+
+
 def test_infeasibility_recovery():
     cfg = NMPCConfig(horizon=5, max_sqp_iter=3)
     # Contradictory state constraints: beta_N < 1, but we command it to go high
@@ -131,7 +144,7 @@ def test_nmpc_cost_decreases():
 
     x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
     x_ref = np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0])
-    u_prev = np.zeros(3)
+    u_prev = cfg.u_min.copy()
 
     # Cost before optimization: zero-input trajectory
     x_traj_zero = np.zeros((cfg.horizon + 1, 6))
@@ -233,7 +246,7 @@ def test_nmpc_step_converges_early():
     nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
     x0 = np.array([5.0, 5.0, 3.0, 1.0, 5.0, 2.0])
     x_ref = x0.copy()
-    u_prev = np.zeros(3)
+    u_prev = cfg.u_min.copy()
     u = nmpc.step(x0, x_ref, u_prev)
     assert u.shape == (3,)
 
@@ -266,7 +279,7 @@ def test_nmpc_step_rejects_nonfinite_plant_output() -> None:
     nmpc = NonlinearMPC(bad_plant, cfg)
     x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
     x_ref = np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0])
-    u_prev = np.zeros(3)
+    u_prev = cfg.u_min.copy()
 
     with pytest.raises(ValueError, match="plant_model"):
         nmpc.step(x0, x_ref, u_prev)
