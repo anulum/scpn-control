@@ -1298,7 +1298,7 @@
     },
     {
       "component": "orbit-following guiding-centre approximation contract",
-      "equation_contract": "Orbit-following claims must declare guiding-centre equations, magnetic moment handling, banana-orbit width scaling, collision or loss assumptions, ensemble sampling, and valid magnetic-geometry bounds.",
+      "equation_contract": "Orbit-following claims must declare guiding-centre equations, magnetic moment handling, finite pitch-angle bounds, banana-orbit width scaling, collision or loss assumptions, ensemble sampling, and valid magnetic-geometry bounds.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Cordey 1981 orbit-width estimate",
@@ -1310,7 +1310,7 @@
         "Validate orbit widths and loss fractions against an independent orbit-following code or published benchmark cases",
         "Persist particle species, pitch, energy, geometry, and ensemble seed metadata with each validation artefact"
       ],
-      "unit_contract": "SI metres, seconds, tesla, electronvolts, kg, coulombs, pitch dimensionless, and ensemble probabilities dimensionless.",
+      "unit_contract": "SI metres, seconds, tesla, electronvolts, kg, coulombs, pitch angle in radians on [0, pi], and ensemble probabilities dimensionless.",
       "validation_evidence": [
         "tests/test_orbit_following.py",
         "validation/validate_orbit_reference.py strict orbit reference artifact gate"

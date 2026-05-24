@@ -200,6 +200,12 @@ def test_guiding_center_orbit_rejects_nonphysical_particle_and_step_inputs():
     with pytest.raises(ValueError, match="E_keV"):
         GuidingCenterOrbit(4.0, 2, 0.0, 0.0, 6.2, 0.0)
 
+    with pytest.raises(ValueError, match="pitch_angle"):
+        GuidingCenterOrbit(4.0, 2, 3500.0, -0.1, 6.2, 0.0)
+
+    with pytest.raises(ValueError, match="pitch_angle"):
+        GuidingCenterOrbit(4.0, 2, 3500.0, math.pi + 0.1, 6.2, 0.0)
+
     orbit = GuidingCenterOrbit(4.0, 2, 3500.0, 0.0, 6.2, 0.0)
 
     with pytest.raises(ValueError, match="dt"):

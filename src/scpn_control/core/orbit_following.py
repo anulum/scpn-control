@@ -87,6 +87,8 @@ class GuidingCenterOrbit:
             raise ValueError("Z must be a non-zero integer charge state")
         E_keV = _finite_scalar("E_keV", E_keV, positive=True)
         pitch_angle = _finite_scalar("pitch_angle", pitch_angle)
+        if pitch_angle < 0.0 or pitch_angle > math.pi:
+            raise ValueError("pitch_angle must stay within [0, pi]")
         R0_init = _finite_scalar("R0_init", R0_init, positive=True)
         Z0_init = _finite_scalar("Z0_init", Z0_init)
 
