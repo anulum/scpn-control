@@ -454,7 +454,7 @@ class IntegratedScenarioSimulator:
                 "B0": self.config.B0,
             },
             "dimensions": {
-                "R_min": self.config.R0 - self.config.a - 0.5,
+                "R_min": max(self.config.R0 - self.config.a - 0.5, 1e-6),
                 "R_max": self.config.R0 + self.config.a + 0.5,
                 "Z_min": -self.config.a * self.config.kappa - 0.5,
                 "Z_max": self.config.a * self.config.kappa + 0.5,
@@ -463,7 +463,10 @@ class IntegratedScenarioSimulator:
             },
             "coils": [],
             "grid": {"nr": self.nr},
-            "physics": {"transport_model": "gyro_bohm"},
+            "physics": {
+                "plasma_current_target": self.config.Ip_MA,
+                "transport_model": "gyro_bohm",
+            },
             "control": {"P_aux": self.config.P_aux_MW},
         }
         with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json") as f:

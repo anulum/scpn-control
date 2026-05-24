@@ -180,6 +180,10 @@ def _validate_fusion_kernel_config(raw: Any) -> dict[str, Any]:
 
     physics = _require_mapping(raw, "physics")
     _require_finite_float(physics, "plasma_current_target", positive=True)
+    if "plasma_current_sign" in physics:
+        current_sign = _require_finite_float(physics, "plasma_current_sign", positive=False)
+        if current_sign not in {-1.0, 1.0}:
+            raise ValueError("plasma_current_sign must be -1.0 or 1.0 when configured.")
     if "vacuum_permeability" in physics:
         _require_finite_float(physics, "vacuum_permeability", positive=True)
 
@@ -736,7 +740,9 @@ class FusionKernel:
         J_raw = J_p + J_f
 
         I_current = float(np.sum(J_raw)) * self.dR * self.dZ
-        I_target: float = self.cfg["physics"]["plasma_current_target"]
+        I_target: float = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get(
+            "plasma_current_sign", 1.0
+        )
 
         if abs(I_current) > 1e-9:
             self.J_phi = J_raw * (I_target / I_current)
@@ -1221,7 +1227,9 @@ class FusionKernel:
         self.J_phi = np.exp(-dist_sq / 2.0)
 
         I_seed = float(np.sum(self.J_phi)) * self.dR * self.dZ
-        I_target: float = self.cfg["physics"]["plasma_current_target"]
+        I_target: float = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get(
+            "plasma_current_sign", 1.0
+        )
         if I_seed > 0:
             self.J_phi *= I_target / I_seed
 
@@ -1341,7 +1349,7 @@ class FusionKernel:
         # J_phi = c * (1 - psi_norm) * R  =>  dJ_phi/dpsi_norm = -c * R
         # dJ_phi/dpsi = dJ_phi/dpsi_norm * dpsi_norm/dpsi = -c * R / denom
         # c from Ip normalisation: I_p = ∫ J_phi dA
-        I_target = self.cfg["physics"]["plasma_current_target"]
+        I_target = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get("plasma_current_sign", 1.0)
         # I = ∫ J_phi dA ≈ c · Σ_plasma((1-ψ_norm)·R)·ΔR·ΔZ  (midpoint quadrature)
         s = float(np.sum(np.where(mask_plasma, (1 - Psi_norm) * self.RR, 0.0))) * self.dR * self.dZ
         c = I_target / max(abs(s), 1e-9)

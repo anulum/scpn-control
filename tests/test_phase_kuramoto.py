@@ -459,11 +459,11 @@ class TestUPDESystem:
             sys.step(theta, omega, psi_driver=0.0)
 
 
-# ── FusionKernel.phase_sync_step (integration smoke test) ────────────
+# ── FusionKernel.phase_sync_step public integration contract ─────────
 
 
 class TestFusionKernelPhaseSync:
-    """Smoke test that phase_sync_step can be called on a FusionKernel."""
+    """FusionKernel phase synchronisation contract with validated config."""
 
     @pytest.fixture
     def kernel(self, tmp_path):
@@ -472,8 +472,8 @@ class TestFusionKernelPhaseSync:
             "reactor_name": "test_micro",
             "dimensions": {"R_min": 0.5, "R_max": 2.5, "Z_min": -1.5, "Z_max": 1.5},
             "grid_resolution": [9, 9],
-            "coils": {"positions": [], "currents": [], "turns": []},
-            "physics": {},
+            "coils": [],
+            "physics": {"plasma_current_target": 1.0},
             "solver": {"method": "sor", "max_iterations": 10, "tol": 1e-4},
             "phase_sync": {"K": 2.0, "zeta": 0.5, "psi_mode": "external"},
         }

@@ -917,17 +917,20 @@ class TransportSolver(FusionKernel):
                 from scpn_control.core.gyrokinetic_transport import GyrokineticTransportModel
 
                 gk_model = GyrokineticTransportModel()
-                dTe_dr = np.gradient(self.Te, self.rho * p["a"])
-                dTi_dr = np.gradient(self.Ti, self.rho * p["a"])
-                dne_dr = np.gradient(self.ne, self.rho * p["a"])
+                Te_gk = np.maximum(self.Te, 1e-6)
+                Ti_gk = np.maximum(self.Ti, 1e-6)
+                ne_gk = np.maximum(self.ne, 1e-6)
+                dTe_dr = np.gradient(Te_gk, self.rho * p["a"])
+                dTi_dr = np.gradient(Ti_gk, self.rho * p["a"])
+                dne_dr = np.gradient(ne_gk, self.rho * p["a"])
                 profiles_dict = {
                     "R0": p["R0"],
                     "a": p["a"],
                     "B0": p["B0"],
                     "q": p["q_profile"],
-                    "Te": self.Te,
-                    "Ti": self.Ti,
-                    "ne": self.ne,
+                    "Te": Te_gk,
+                    "Ti": Ti_gk,
+                    "ne": ne_gk,
                     "dTe_dr": dTe_dr,
                     "dTi_dr": dTi_dr,
                     "dne_dr": dne_dr,

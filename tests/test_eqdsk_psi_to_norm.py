@@ -72,3 +72,12 @@ class TestToConfig:
         assert "physics" in cfg
         assert "solver" in cfg
         assert cfg["grid_resolution"] == [5, 5]
+
+    def test_to_config_exports_plasma_current_magnitude(self):
+        eq = _make_eqdsk()
+        eq.current = -8.5e6
+
+        cfg = eq.to_config("reversed_current")
+
+        assert cfg["physics"]["plasma_current_target"] == 8.5
+        assert cfg["physics"]["plasma_current_sign"] == -1.0

@@ -130,7 +130,8 @@ class GEqdsk:
                 "Z_max": float(z[-1]),
             },
             "physics": {
-                "plasma_current_target": float(self.current / 1e6),
+                "plasma_current_target": float(abs(self.current) / 1e6),
+                "plasma_current_sign": 1.0 if self.current >= 0.0 else -1.0,
                 "vacuum_permeability": 1.0,
             },
             "coils": [],
