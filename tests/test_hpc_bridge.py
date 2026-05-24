@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Hpc Bridge
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — HPC Bridge Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """Unit tests for HPC bridge safety and low-copy behavior."""
 
 from __future__ import annotations
@@ -311,10 +303,39 @@ def test_init_prefers_env_override_path(monkeypatch: pytest.MonkeyPatch) -> None
         raise OSError("no library")
 
     monkeypatch.setenv("SCPN_SOLVER_LIB", expected)
+    monkeypatch.setenv("SCPN_ALLOW_EXTERNAL_SOLVER_LIB", "1")
     monkeypatch.setattr(hpc_mod.ctypes, "CDLL", _raise_cdll)
     bridge = HPCBridge()
     assert bridge.lib_path == expected
     assert not bridge.loaded
+
+
+def test_init_rejects_relative_env_solver_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _unexpected_cdll(_path: str):
+        raise AssertionError("ctypes.CDLL must not receive an untrusted solver path")
+
+    monkeypatch.setenv("SCPN_SOLVER_LIB", "relative/libscpn_solver.so")
+    monkeypatch.setattr(hpc_mod.ctypes, "CDLL", _unexpected_cdll)
+
+    with pytest.raises(ValueError, match="absolute"):
+        HPCBridge()
+
+
+def test_init_rejects_external_env_solver_path_without_trust_gate(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    external = tmp_path / "libscpn_solver.so"
+    external.write_bytes(b"not a real shared object")
+
+    def _unexpected_cdll(_path: str):
+        raise AssertionError("ctypes.CDLL must not receive an untrusted solver path")
+
+    monkeypatch.setenv("SCPN_SOLVER_LIB", str(external))
+    monkeypatch.delenv("SCPN_ALLOW_EXTERNAL_SOLVER_LIB", raising=False)
+    monkeypatch.setattr(hpc_mod.ctypes, "CDLL", _unexpected_cdll)
+
+    with pytest.raises(ValueError, match="trusted package-local"):
+        HPCBridge()
 
 
 def test_init_uses_package_local_default_without_cwd(monkeypatch: pytest.MonkeyPatch) -> None:

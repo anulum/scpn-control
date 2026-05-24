@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Hpc Bridge
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — HPC Bridge
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """HPC job bridge for submitting and tracking external validation workloads."""
 
 from __future__ import annotations
@@ -29,6 +21,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
+
+_SOLVER_LIBRARY_SUFFIXES = {".so", ".dylib", ".dll"}
+_ALLOW_EXTERNAL_SOLVER_LIB = "SCPN_ALLOW_EXTERNAL_SOLVER_LIB"
 
 
 def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
@@ -76,6 +71,45 @@ def _sanitize_convergence_params(
     return max_iters, tol_safe, omega_safe
 
 
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _trusted_solver_roots() -> tuple[Path, Path]:
+    here = Path(__file__).resolve().parent
+    return here, here / "bin"
+
+
+def _validate_solver_library_path(raw_path: str, *, source: str) -> str:
+    """Return a canonical dynamic-library path after applying loader policy."""
+    path = Path(raw_path).expanduser()
+    if not path.is_absolute():
+        raise ValueError(f"{source} solver library path must be absolute")
+
+    resolved = path.resolve(strict=False)
+    if resolved.suffix.lower() not in _SOLVER_LIBRARY_SUFFIXES:
+        raise ValueError(
+            f"{source} solver library path must end with one of "
+            f"{sorted(_SOLVER_LIBRARY_SUFFIXES)}"
+        )
+    if resolved.exists() and not resolved.is_file():
+        raise ValueError(f"{source} solver library path must reference a regular file")
+
+    roots = tuple(root.resolve(strict=False) for root in _trusted_solver_roots())
+    if source == "SCPN_SOLVER_LIB" and not any(_is_relative_to(resolved, root) for root in roots):
+        if os.environ.get(_ALLOW_EXTERNAL_SOLVER_LIB) != "1":
+            raise ValueError(
+                "SCPN_SOLVER_LIB must point to a trusted package-local solver library "
+                f"or set {_ALLOW_EXTERNAL_SOLVER_LIB}=1 for a vetted external path"
+            )
+
+    return str(resolved)
+
+
 class HPCBridge:
     """Interface between Python and the compiled C++ Grad-Shafranov solver.
 
@@ -88,8 +122,11 @@ class HPCBridge:
     ----------
     lib_path : str, optional
         Explicit path to the shared library.  When *None* (default) the
-        bridge searches trusted package-local locations only, unless
-        ``SCPN_SOLVER_LIB`` is set explicitly.
+        bridge searches trusted package-local locations only. ``SCPN_SOLVER_LIB``
+        must be an absolute dynamic-library path and is accepted only when it
+        resolves under the package-local solver directories, unless the operator
+        also sets ``SCPN_ALLOW_EXTERNAL_SOLVER_LIB=1`` for a vetted external
+        library.
     """
 
     def __init__(self, lib_path: str | None = None) -> None:
@@ -102,8 +139,10 @@ class HPCBridge:
 
         lib_name = "scpn_solver.dll" if platform.system() == "Windows" else "libscpn_solver.so"
         env_path = os.environ.get("SCPN_SOLVER_LIB")
+        lib_source = "explicit lib_path"
         if lib_path is None and env_path:
             lib_path = env_path
+            lib_source = "SCPN_SOLVER_LIB"
 
         if lib_path is None:
             here = Path(__file__).resolve().parent
@@ -117,8 +156,9 @@ class HPCBridge:
                     break
             if lib_path is None:
                 lib_path = str(here / lib_name)
+            lib_source = "package-local default"
 
-        self.lib_path = str(lib_path)
+        self.lib_path = _validate_solver_library_path(str(lib_path), source=lib_source)
 
         try:
             self.lib = ctypes.CDLL(self.lib_path)

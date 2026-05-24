@@ -117,6 +117,12 @@ baseline instead of only reporting synthetic training RMSE.
 
 ### HPC Bridge
 
+`HPCBridge` loads compiled Grad-Shafranov solver libraries only from absolute
+dynamic-library paths. Package-local solver libraries are trusted by default.
+External paths provided through `SCPN_SOLVER_LIB` require the additional
+operator gate `SCPN_ALLOW_EXTERNAL_SOLVER_LIB=1`; without that gate the bridge
+fails closed before calling the dynamic loader.
+
 ::: scpn_control.core.hpc_bridge.HPCBridge
 
 ### Gyrokinetic Transport (v0.16.0)
