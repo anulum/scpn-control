@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
-# Contact: protoscience@anulum.li
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Plasma Startup Physics
 """Plasma-startup sequence, avalanche, burn-through, and command-planning utilities."""
 
 from __future__ import annotations
@@ -45,6 +47,44 @@ _ME = 9.109e-31  # kg
 _ECHARGE = 1.6e-19  # C
 
 
+def _finite_float(name: str, value: float) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    return scalar
+
+
+def _positive_float(name: str, value: float) -> float:
+    scalar = _finite_float(name, value)
+    if scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    return scalar
+
+
+def _nonnegative_float(name: str, value: float) -> float:
+    scalar = _finite_float(name, value)
+    if scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _positive_int(name: str, value: int) -> int:
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
+
+
+def _finite_1d(name: str, values: np.ndarray, *, nonnegative: bool = False) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1:
+        raise ValueError(f"{name} must be one-dimensional")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if nonnegative and np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative")
+    return arr
+
+
 class PaschenBreakdown:
     """Paschen curve breakdown model for D₂ gas.
 
@@ -57,8 +97,8 @@ class PaschenBreakdown:
 
     def __init__(self, gas: str = "D2", R0: float = 6.2, a: float = 2.0):
         self.gas = gas
-        self.R0 = R0
-        self.a = a
+        self.R0 = _positive_float("R0", R0)
+        self.a = _positive_float("minor radius a", a)
         # Townsend coefficients — Lieberman 2005 Table 14.1, SI units
         self.A = _A_TOWNSEND
         self.B_V = _B_TOWNSEND
@@ -82,6 +122,8 @@ class PaschenBreakdown:
             V_bd = B·(pd) / (ln(A·pd) - C₂)
         where C₂ = ln(ln(1/γ+1)).
         """
+        p_Pa = _finite_float("p_Pa", p_Pa)
+        connection_length_m = _finite_float("connection_length_m", connection_length_m)
         pd = p_Pa * connection_length_m
         if pd <= 0.0:
             return float("inf")
@@ -94,12 +136,17 @@ class PaschenBreakdown:
         return float(self.B_V * pd / denom)
 
     def is_breakdown(self, V_loop: float, p_Pa: float, connection_length_m: float = 100.0) -> bool:
+        V_loop = _finite_float("V_loop", V_loop)
         return V_loop > self.breakdown_voltage(p_Pa, connection_length_m)
 
     def paschen_curve(self, p_range: np.ndarray, connection_length_m: float = 100.0) -> np.ndarray:
+        p_range = _finite_1d("p_range", p_range)
+        _finite_float("connection_length_m", connection_length_m)
         return np.array([self.breakdown_voltage(p, connection_length_m) for p in p_range])
 
     def optimal_prefill_pressure(self, V_loop_max: float, connection_length_m: float = 100.0) -> float:
+        _positive_float("V_loop_max", V_loop_max)
+        connection_length_m = _positive_float("connection_length_m", connection_length_m)
         # (pd)_min from Paschen minimum — Lieberman 2005 Eq. 14.3.2
         pd_opt = self.pd_at_minimum
         return float(pd_opt / connection_length_m)
@@ -123,10 +170,10 @@ class TownsendAvalanche:
     """
 
     def __init__(self, V_loop: float, p_Pa: float, R0: float, a: float):
-        self.V_loop = V_loop
-        self.p_Pa = p_Pa
-        self.R0 = R0
-        self.a = a
+        self.V_loop = _finite_float("V_loop", V_loop)
+        self.p_Pa = _positive_float("p_Pa", p_Pa)
+        self.R0 = _positive_float("R0", R0)
+        self.a = _positive_float("minor radius a", a)
         self.E_par = V_loop / (2.0 * math.pi * R0)
         # Ideal-gas neutral density at 300 K — n₀ = p/(k_B T)
         self.n_neutral = p_Pa / (_KB * 300.0)
@@ -137,6 +184,7 @@ class TownsendAvalanche:
         k_iz = σ_0 · √(8kT_e/(πm_e)) · exp(−E_iz/T_e)
         Janev et al. (1987) Ch. 2; σ_0 = 1e-20 m², E_iz = 15.4 eV for D₂.
         """
+        Te_eV = _finite_float("Te_eV", Te_eV)
         if Te_eV < 0.1:
             return 0.0
         Te_J = Te_eV * _ECHARGE
@@ -145,6 +193,8 @@ class TownsendAvalanche:
         return float(self.n_neutral * k_iz)
 
     def evolve(self, dt: float, n_steps: int) -> AvalancheResult:
+        dt = _positive_float("dt", dt)
+        n_steps = _positive_int("n_steps", n_steps)
         ne = 1e13  # seed density [m⁻³]
         Te = 1.0  # electron temperature [eV]
 
@@ -201,20 +251,26 @@ class BurnThrough:
     _LN_LAMBDA_DEFAULT = 17.0  # Wesson 2011 §2.12, mid-range tokamak value
 
     def __init__(self, R0: float, a: float, B0: float, V_loop: float):
-        self.R0 = R0
-        self.a = a
-        self.B0 = B0
-        self.V_loop = V_loop
+        self.R0 = _positive_float("R0", R0)
+        self.a = _positive_float("minor radius a", a)
+        self.B0 = _positive_float("B0", B0)
+        self.V_loop = _finite_float("V_loop", V_loop)
         self.E_par = V_loop / (2.0 * math.pi * R0)
 
     def ohmic_power(self, Te_eV: float, ne_19: float, Ip_kA: float) -> float:
+        Te_eV = _positive_float("Te_eV", Te_eV)
+        _positive_float("ne_19", ne_19)
+        Ip_kA = _nonnegative_float("Ip_kA", Ip_kA)
         # Spitzer resistivity — Wesson 2011 Eq. 2.5.4
-        T_keV = max(Te_eV / 1000.0, 1e-6)
+        T_keV = Te_eV / 1000.0
         eta = self._ETA_SPITZER_PREFACTOR * self._Z_EFF_DEFAULT * self._LN_LAMBDA_DEFAULT / T_keV**1.5
         R_p = eta * 2.0 * math.pi * self.R0 / (math.pi * self.a**2)
         return float((Ip_kA * 1e3) ** 2 * R_p)
 
     def radiation_barrier(self, Te_eV: float, ne_19: float, f_imp: float, impurity: str = "C") -> float:
+        Te_eV = _positive_float("Te_eV", Te_eV)
+        ne_19 = _positive_float("ne_19", ne_19)
+        f_imp = _nonnegative_float("f_imp", f_imp)
         curve = CoolingCurve(impurity)
         L_z = curve.L_z(np.array([Te_eV]))[0]
         ne = ne_19 * 1e19
@@ -227,6 +283,9 @@ class BurnThrough:
         return self.ohmic_power(Te_eV, ne_19, Ip_kA) > self.radiation_barrier(Te_eV, ne_19, f_imp, impurity)
 
     def critical_impurity_fraction(self, Te_eV: float, ne_19: float, Ip_kA: float, impurity: str) -> float:
+        Te_eV = _positive_float("Te_eV", Te_eV)
+        ne_19 = _positive_float("ne_19", ne_19)
+        Ip_kA = _nonnegative_float("Ip_kA", Ip_kA)
         curve = CoolingCurve(impurity)
         L_z = curve.L_z(np.array([Te_eV]))[0]
         if L_z <= 0.0:
@@ -238,6 +297,10 @@ class BurnThrough:
         return float(n_imp_crit / ne)
 
     def evolve(self, ne_19: float, f_imp: float, dt: float, n_steps: int, impurity: str = "C") -> BurnThroughResult:
+        ne_19 = _positive_float("ne_19", ne_19)
+        f_imp = _nonnegative_float("f_imp", f_imp)
+        dt = _positive_float("dt", dt)
+        n_steps = _positive_int("n_steps", n_steps)
         # Energy equation: 3/2 n_e V dT_e = (P_ohmic − P_rad) dt
         # Wesson 2011 §6.4, Eq. 6.4.3
         Te = 5.0  # eV, pre-ionised seed value
@@ -254,7 +317,11 @@ class BurnThrough:
             P_oh = self.ohmic_power(Te, ne_19, Ip)
             P_rad = self.radiation_barrier(Te, ne_19, f_imp, impurity)
             dTe_J = (P_oh - P_rad) * dt / (1.5 * ne * V)
-            Te += dTe_J / _ECHARGE
+            Te_next = Te + dTe_J / _ECHARGE
+            if Te_next <= 0.5:
+                Te_trace[i:] = 0.5
+                break
+            Te = Te_next
 
             if Te > 20.0:
                 Ip += 1000.0 * dt  # 1 MA s⁻¹ ramp
@@ -279,12 +346,12 @@ class StartupResult:
 
 class StartupSequence:
     def __init__(self, R0: float, a: float, B0: float, V_loop: float, p_prefill_Pa: float, f_imp: float = 0.01):
-        self.R0 = R0
-        self.a = a
-        self.B0 = B0
-        self.V_loop = V_loop
-        self.p_prefill_Pa = p_prefill_Pa
-        self.f_imp = f_imp
+        self.R0 = _positive_float("R0", R0)
+        self.a = _positive_float("minor radius a", a)
+        self.B0 = _positive_float("B0", B0)
+        self.V_loop = _finite_float("V_loop", V_loop)
+        self.p_prefill_Pa = _positive_float("p_prefill_Pa", p_prefill_Pa)
+        self.f_imp = _nonnegative_float("f_imp", f_imp)
 
     def run(self) -> StartupResult:
         conn = 100.0
@@ -325,11 +392,16 @@ class StartupCommand:
 
 class StartupController:
     def __init__(self, V_loop_max: float, gas_puff_max: float):
-        self.V_loop_max = V_loop_max
-        self.gas_puff_max = gas_puff_max
+        self.V_loop_max = _nonnegative_float("V_loop_max", V_loop_max)
+        self.gas_puff_max = _nonnegative_float("gas_puff_max", gas_puff_max)
         self.phase = StartupPhase.GAS_PUFF
 
     def step(self, ne: float, Te: float, Ip: float, t: float, dt: float) -> StartupCommand:
+        ne = _nonnegative_float("ne", ne)
+        Te = _nonnegative_float("Te", Te)
+        _nonnegative_float("Ip", Ip)
+        t = _nonnegative_float("t", t)
+        _positive_float("dt", dt)
         if self.phase == StartupPhase.GAS_PUFF:
             if t > 0.1:
                 self.phase = StartupPhase.BREAKDOWN

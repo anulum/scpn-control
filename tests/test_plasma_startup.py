@@ -1,17 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Plasma Startup
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Plasma Startup Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.plasma_startup import (
     BurnThrough,
@@ -139,14 +136,14 @@ def test_ionization_rate_positive():
 
 
 def test_paschen_breakdown_edge_cases():
-    """Lines 85, 88: pd <= 0 and log_arg <= 1 return inf."""
+    """Below the Paschen validity domain, breakdown voltage is unreachable."""
     pb = PaschenBreakdown("D2")
     assert pb.breakdown_voltage(0.0, 100.0) == float("inf")
     assert pb.breakdown_voltage(1e-10, 100.0) == float("inf")
 
 
 def test_paschen_curve_array():
-    """Line 98: paschen_curve returns an array of voltages."""
+    """Paschen curves preserve one voltage sample per pressure sample."""
     pb = PaschenBreakdown("D2")
     p_range = np.array([0.01, 0.1, 1.0])
     curve = pb.paschen_curve(p_range, connection_length_m=100.0)
@@ -155,8 +152,60 @@ def test_paschen_curve_array():
 
 
 def test_startup_sequence_no_breakdown():
-    """Lines 225, 231, 292: sequence with impossible breakdown returns failure."""
+    """A sequence with unreachable breakdown fails without burn-through."""
     seq = StartupSequence(R0=6.2, a=2.0, B0=5.3, V_loop=0.001, p_prefill_Pa=1e-10, f_imp=0.5)
     res = seq.run()
     assert not res.success
     assert res.breakdown_time_ms == -1.0
+
+
+def test_paschen_rejects_nonfinite_geometry_and_pressure_domains():
+    with pytest.raises(ValueError, match="R0"):
+        PaschenBreakdown("D2", R0=0.0, a=2.0)
+
+    pb = PaschenBreakdown("D2")
+    with pytest.raises(ValueError, match="p_Pa"):
+        pb.breakdown_voltage(float("nan"), 100.0)
+    with pytest.raises(ValueError, match="connection_length_m"):
+        pb.breakdown_voltage(0.1, float("inf"))
+    with pytest.raises(ValueError, match="p_range"):
+        pb.paschen_curve(np.array([0.1, np.nan]), connection_length_m=100.0)
+
+
+def test_townsend_avalanche_rejects_invalid_domains():
+    with pytest.raises(ValueError, match="V_loop"):
+        TownsendAvalanche(V_loop=float("nan"), p_Pa=0.1, R0=6.2, a=2.0)
+
+    ava = TownsendAvalanche(V_loop=400.0, p_Pa=0.1, R0=6.2, a=2.0)
+    with pytest.raises(ValueError, match="Te_eV"):
+        ava.ionization_rate(float("nan"))
+    with pytest.raises(ValueError, match="dt"):
+        ava.evolve(dt=0.0, n_steps=10)
+    with pytest.raises(ValueError, match="n_steps"):
+        ava.evolve(dt=1e-4, n_steps=0)
+
+
+def test_burn_through_rejects_invalid_physical_domains():
+    with pytest.raises(ValueError, match="B0"):
+        BurnThrough(R0=6.2, a=2.0, B0=0.0, V_loop=15.0)
+
+    bt = BurnThrough(R0=6.2, a=2.0, B0=5.3, V_loop=15.0)
+    with pytest.raises(ValueError, match="Te_eV"):
+        bt.ohmic_power(Te_eV=0.0, ne_19=0.1, Ip_kA=100.0)
+    with pytest.raises(ValueError, match="f_imp"):
+        bt.radiation_barrier(Te_eV=10.0, ne_19=0.1, f_imp=-1e-4)
+    with pytest.raises(ValueError, match="dt"):
+        bt.evolve(ne_19=0.1, f_imp=1e-4, dt=0.0, n_steps=10)
+
+
+def test_startup_sequence_and_controller_reject_invalid_domains():
+    with pytest.raises(ValueError, match="p_prefill_Pa"):
+        StartupSequence(R0=6.2, a=2.0, B0=5.3, V_loop=400.0, p_prefill_Pa=0.0)
+    with pytest.raises(ValueError, match="gas_puff_max"):
+        StartupController(V_loop_max=15.0, gas_puff_max=-1.0)
+
+    ctrl = StartupController(V_loop_max=15.0, gas_puff_max=10.0)
+    with pytest.raises(ValueError, match="dt"):
+        ctrl.step(ne=0.0, Te=0.0, Ip=0.0, t=0.0, dt=0.0)
+    with pytest.raises(ValueError, match="ne"):
+        ctrl.step(ne=float("nan"), Te=0.0, Ip=0.0, t=0.0, dt=0.01)
