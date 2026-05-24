@@ -476,6 +476,9 @@ positive-definite matrices with tokamak state/input dimensions; state, input,
 and slew bounds must be finite and ordered; and plant-model evaluations must
 return finite state vectors. Invalid math contracts fail closed instead of
 propagating undefined SQP or PGD iterates.
+The public `compute_cost()` evaluator includes the finite-horizon terminal
+penalty, using configured `P` when supplied and the controller's conservative
+fallback terminal weight otherwise.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 

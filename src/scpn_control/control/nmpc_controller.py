@@ -260,6 +260,9 @@ class NonlinearMPC:
         for k in range(len(u_traj)):
             e = x_arr[k] - x_ref_safe
             J += float(e @ self.config.Q @ e + u_arr[k] @ self.config.R @ u_arr[k])
+        e_terminal = x_arr[u_arr.shape[0]] - x_ref_safe
+        P_term = self.config.P if self.config.P is not None else self.config.Q * 10.0
+        J += float(e_terminal @ P_term @ e_terminal)
         return J
 
     def step(self, x: np.ndarray, x_ref: np.ndarray, u_prev: np.ndarray) -> np.ndarray:

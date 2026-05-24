@@ -147,6 +147,20 @@ def test_nmpc_cost_decreases():
     assert J_opt <= J_zero
 
 
+def test_nmpc_cost_includes_terminal_penalty() -> None:
+    """The evaluated objective must match the documented finite-horizon NMPC cost."""
+    cfg = NMPCConfig(horizon=2, max_sqp_iter=1)
+    cfg.P = 7.0 * np.eye(6)
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+
+    x_ref = np.zeros(6)
+    x_traj = np.zeros((3, 6))
+    u_traj = np.zeros((2, 3))
+    x_traj[-1, 0] = 2.0
+
+    assert nmpc.compute_cost(x_traj, u_traj, x_ref) == 28.0
+
+
 def test_terminal_cost_scipy_fallback():
     """Exercise nmpc_controller.py lines 119-120: DARE fallback to 10*Q."""
     cfg = NMPCConfig(horizon=3, max_sqp_iter=1)
