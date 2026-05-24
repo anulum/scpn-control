@@ -47,7 +47,7 @@ def _unit_interval(name: str, value: Any) -> float:
 
 
 def _positive_int(name: str, value: int) -> int:
-    if not isinstance(value, int) or value <= 0:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return value
 
@@ -353,6 +353,8 @@ class GyrokineticTransportModel:
         R0 = _positive_float("R0", profiles.get("R0", 2.0))
         a = _positive_float("a", profiles.get("a", 0.5))
         B0 = _positive_float("B0", profiles.get("B0", 1.0))
+        if a >= R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
         q = _positive_float("q", profiles.get("q", 1.0))
         s_hat = _finite_float("s_hat", profiles.get("s_hat", 1.0))
         Te = _positive_float("Te", profiles.get("Te", 1.0))

@@ -307,6 +307,16 @@ def test_transport_model_rejects_invalid_radius_and_profiles():
     with pytest.raises(ValueError, match="Te"):
         model.evaluate(0.5, bad_profiles)
 
+    bad_geometry = dict(valid_profiles)
+    bad_geometry["a"] = bad_geometry["R0"]
+    with pytest.raises(ValueError, match="a must be smaller"):
+        model.evaluate(0.5, bad_geometry)
+
+
+def test_transport_model_rejects_boolean_mode_count():
+    with pytest.raises(ValueError, match="n_modes"):
+        GyrokineticTransportModel(n_modes=True)
+
 
 def test_transport_model_eval_profile_rejects_profile_shape_mismatch():
     model = GyrokineticTransportModel()

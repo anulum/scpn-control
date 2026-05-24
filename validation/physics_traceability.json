@@ -772,7 +772,7 @@
     },
     {
       "component": "reduced gyrokinetic transport closure contract",
-      "equation_contract": "Reduced gyrokinetic transport claims must declare the dispersion relation, instability branch classification, quasilinear heat-flux closure, critical-gradient threshold, saturation rule, and mapping from local GK outputs to transport coefficients.",
+      "equation_contract": "Reduced gyrokinetic transport claims must declare the dispersion relation, instability branch classification, quasilinear heat-flux closure, critical-gradient threshold, saturation rule, positive integer mode-count domain, tokamak geometry ordering, and mapping from local GK outputs to transport coefficients.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Cyclone Base Case gyrokinetic benchmark",
@@ -784,7 +784,7 @@
         "Compare predicted growth rates and transport coefficients with external GK or published quasilinear benchmark cases",
         "Store branch classification and saturation metadata for every transport-closure validation case"
       ],
-      "unit_contract": "Growth rates and frequencies in declared normalised units, gradients dimensionless or m^-1 with explicit convention, heat flux in gyro-Bohm or SI units with conversion metadata.",
+      "unit_contract": "Growth rates and frequencies in declared normalised units, gradients dimensionless or m^-1 with explicit convention, rho and epsilon dimensionless, geometry in metres, heat flux in gyro-Bohm or SI units with conversion metadata.",
       "validation_evidence": [
         "tests/test_gyrokinetic_transport.py",
         "tests/test_gk_benchmark_linear.py"
