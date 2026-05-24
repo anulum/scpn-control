@@ -427,6 +427,8 @@ class GyrokineticTransportModel:
         rho = np.asarray(rho, dtype=float)
         if rho.ndim != 1 or not np.all(np.isfinite(rho)) or np.any(rho < 0.0) or np.any(rho > 1.0):
             raise ValueError("rho must be a finite one-dimensional profile within [0, 1]")
+        if np.any(np.diff(rho) <= 0.0):
+            raise ValueError("rho must be strictly increasing")
         nr = len(rho)
         profile_keys = (
             "q",

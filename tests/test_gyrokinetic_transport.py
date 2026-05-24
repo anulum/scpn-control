@@ -348,3 +348,24 @@ def test_transport_model_eval_profile_rejects_nonfinite_profile_array():
 
     with pytest.raises(ValueError, match="profile Te must contain only finite values"):
         model.evaluate_profile(rho, profiles)
+
+
+def test_transport_model_eval_profile_rejects_unsorted_radius_grid():
+    model = GyrokineticTransportModel()
+    rho = np.array([0.0, 0.5, 0.4, 1.0])
+    profiles = {
+        "R0": 2.0,
+        "a": 0.5,
+        "B0": 5.0,
+        "q": np.full(4, 1.5),
+        "s_hat": np.full(4, 1.0),
+        "Te": np.linspace(5.0, 0.1, 4),
+        "Ti": np.linspace(5.0, 0.1, 4),
+        "ne": np.linspace(5.0, 0.1, 4),
+        "dTe_dr": np.full(4, -10.0),
+        "dTi_dr": np.full(4, -10.0),
+        "dne_dr": np.full(4, -10.0),
+    }
+
+    with pytest.raises(ValueError, match="rho must be strictly increasing"):
+        model.evaluate_profile(rho, profiles)
