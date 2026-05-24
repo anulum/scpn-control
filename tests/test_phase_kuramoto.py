@@ -710,6 +710,37 @@ class TestRealtimeMonitor:
         assert len(mon.theta_layers) == 4
         assert mon.theta_layers[0].shape == (10,)
 
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"N_per": 0}, "N_per"),
+            ({"psi_driver": np.nan}, "psi_driver"),
+            ({"pac_gamma": np.inf}, "pac_gamma"),
+        ],
+    )
+    def test_from_paper27_rejects_invalid_monitor_domains(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            RealtimeMonitor.from_paper27(L=4, **kwargs)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"N_per": 0}, "N_per"),
+            ({"psi_driver": np.nan}, "psi_driver"),
+            ({"pac_gamma": np.inf}, "pac_gamma"),
+        ],
+    )
+    def test_from_plasma_rejects_invalid_monitor_domains(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            RealtimeMonitor.from_plasma(L=4, **kwargs)
+
+    def test_tick_rejects_nonfinite_runtime_driver(self):
+        mon = RealtimeMonitor.from_paper27(L=4, N_per=10)
+        mon.psi_driver = np.inf
+
+        with pytest.raises(ValueError, match="psi_driver"):
+            mon.tick()
+
     def test_tick_returns_snapshot(self):
         mon = RealtimeMonitor.from_paper27(L=4, N_per=10, dt=0.005)
         snap = mon.tick()

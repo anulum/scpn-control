@@ -49,6 +49,21 @@ from scpn_control.phase.upde import UPDESystem
 FloatArray = NDArray[np.float64]
 
 
+def _validate_monitor_domains(
+    *,
+    N_per: int,
+    psi_driver: float,
+    pac_gamma: float,
+) -> None:
+    """Validate monitor population and driver domains."""
+    if not isinstance(N_per, int) or N_per <= 0:
+        raise ValueError("N_per must be a positive integer")
+    if not np.isfinite(psi_driver):
+        raise ValueError("psi_driver must be finite")
+    if not np.isfinite(pac_gamma):
+        raise ValueError("pac_gamma must be finite")
+
+
 @dataclass
 class TrajectoryRecorder:
     """Accumulates tick snapshots for batch export."""
@@ -123,6 +138,7 @@ class RealtimeMonitor:
         seed: int = 42,
     ) -> RealtimeMonitor:
         """Build from Paper 27 defaults."""
+        _validate_monitor_domains(N_per=N_per, psi_driver=psi_driver, pac_gamma=pac_gamma)
         spec = build_knm_paper27(L=L, zeta_uniform=zeta_uniform)
         upde = UPDESystem(spec=spec, dt=dt, psi_mode="external")
         guard = LyapunovGuard(window=guard_window, dt=dt, max_violations=guard_max_violations)
@@ -157,6 +173,7 @@ class RealtimeMonitor:
         seed: int = 42,
     ) -> RealtimeMonitor:
         """Build from plasma-native Knm defaults with optional adaptive engine."""
+        _validate_monitor_domains(N_per=N_per, psi_driver=psi_driver, pac_gamma=pac_gamma)
         spec = build_knm_plasma(mode=mode, L=L, zeta_uniform=zeta_uniform)
         upde = UPDESystem(spec=spec, dt=dt, psi_mode="external")
         guard = LyapunovGuard(window=guard_window, dt=dt, max_violations=guard_max_violations)
@@ -186,6 +203,10 @@ class RealtimeMonitor:
         mirnov_rms: float = 0.0,
     ) -> dict:
         """Advance one UPDE step and return dashboard snapshot."""
+        if not np.isfinite(self.psi_driver):
+            raise ValueError("psi_driver must be finite")
+        if not np.isfinite(self.pac_gamma):
+            raise ValueError("pac_gamma must be finite")
         t0 = time.perf_counter_ns()
 
         # Build adaptive K_override if engine is present
