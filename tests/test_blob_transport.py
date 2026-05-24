@@ -138,17 +138,20 @@ def test_blob_size_scaling():
 
 
 def test_critical_size_zero_l_par():
-    """Non-positive connection length reports no finite sheath transition."""
+    """Non-positive connection length is outside the sheath-transition domain."""
     dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
-    assert dyn.critical_size(L_parallel=0.0) == float("inf")
-    assert dyn.critical_size(L_parallel=-1.0) == float("inf")
+    with pytest.raises(ValueError, match="L_parallel"):
+        dyn.critical_size(L_parallel=0.0)
+    with pytest.raises(ValueError, match="L_parallel"):
+        dyn.critical_size(L_parallel=-1.0)
 
 
 def test_sheath_velocity_zero_delta():
-    """Non-positive filament radius has no outward sheath velocity."""
+    """Zero-radius filaments have no outward sheath velocity; negative radius is invalid."""
     dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
     assert dyn.sheath_velocity(0.0) == 0.0
-    assert dyn.sheath_velocity(-0.01) == 0.0
+    with pytest.raises(ValueError, match="delta_b"):
+        dyn.sheath_velocity(-0.01)
 
 
 def test_sol_blob_profile_zero_d_perp():
@@ -179,8 +182,8 @@ def test_conditional_average_empty():
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     (
-        ({"R0": 0.0, "B0": 5.3, "Te_eV": 20.0, "Ti_eV": 20.0}, "R0 and B0"),
-        ({"R0": 6.2, "B0": -1.0, "Te_eV": 20.0, "Ti_eV": 20.0}, "R0 and B0"),
+        ({"R0": 0.0, "B0": 5.3, "Te_eV": 20.0, "Ti_eV": 20.0}, "R0"),
+        ({"R0": 6.2, "B0": -1.0, "Te_eV": 20.0, "Ti_eV": 20.0}, "B0"),
         ({"R0": 6.2, "B0": 5.3, "Te_eV": -1.0, "Ti_eV": 20.0}, "non-negative"),
         ({"R0": 6.2, "B0": 5.3, "Te_eV": 0.0, "Ti_eV": 0.0}, "must be positive"),
         ({"R0": 6.2, "B0": 5.3, "Te_eV": 20.0, "Ti_eV": 20.0, "mi_amu": 0.0}, "mi_amu"),
@@ -191,11 +194,26 @@ def test_blob_dynamics_rejects_nonphysical_constructor_inputs(kwargs, message) -
         BlobDynamics(**kwargs)
 
 
+def test_blob_dynamics_rejects_nonfinite_and_invalid_velocity_domains() -> None:
+    with pytest.raises(ValueError, match="R0"):
+        BlobDynamics(R0=float("nan"), B0=5.3, Te_eV=20.0, Ti_eV=20.0)
+
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    with pytest.raises(ValueError, match="L_parallel"):
+        dyn.critical_size(float("nan"))
+    with pytest.raises(ValueError, match="delta_b"):
+        dyn.sheath_velocity(float("nan"))
+    with pytest.raises(ValueError, match="delta_b"):
+        dyn.inertial_velocity(-0.01)
+    with pytest.raises(ValueError, match="n_e"):
+        dyn.blob_velocity(delta_b=0.01, n_e=0.0, L_parallel=10.0)
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     (
         ({"delta_b_mean": 0.0, "delta_b_sigma": 0.002, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4}, "delta_b_mean"),
-        ({"delta_b_mean": 0.01, "delta_b_sigma": -0.1, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4}, "delta_b_mean"),
+        ({"delta_b_mean": 0.01, "delta_b_sigma": -0.1, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4}, "delta_b_sigma"),
         ({"delta_b_mean": 0.01, "delta_b_sigma": 0.002, "amplitude_mean": 0.0, "waiting_time_mean": 1e-4}, "amplitude_mean"),
         ({"delta_b_mean": 0.01, "delta_b_sigma": 0.002, "amplitude_mean": 1.0, "waiting_time_mean": 0.0}, "waiting_time_mean"),
     ),
@@ -226,6 +244,23 @@ def test_blob_flux_rejects_nonpositive_elapsed_time() -> None:
         ens.radial_flux(pop)
 
 
+def test_blob_population_rejects_malformed_or_nonfinite_arrays() -> None:
+    dyn = BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0)
+    ens = BlobEnsemble(dyn, n_blobs=1)
+
+    mismatched = BlobPopulation(np.array([0.01]), np.array([1.0, 2.0]), np.array([100.0]), np.array([1.0]))
+    with pytest.raises(ValueError, match="same length"):
+        ens.radial_flux(mismatched)
+
+    nonfinite = BlobPopulation(np.array([0.01]), np.array([np.nan]), np.array([100.0]), np.array([1.0]))
+    with pytest.raises(ValueError, match="finite"):
+        ens.radial_flux(nonfinite)
+
+    negative = BlobPopulation(np.array([-0.01]), np.array([1.0]), np.array([100.0]), np.array([1.0]))
+    with pytest.raises(ValueError, match="sizes"):
+        ens.radial_flux(negative)
+
+
 @pytest.mark.parametrize(
     ("r_wall", "gamma", "lambda_n", "message"),
     (
@@ -246,6 +281,10 @@ def test_sol_blob_profile_rejects_nonphysical_density_inputs() -> None:
         SOLBlobProfile.radial_density(r, Gamma_blob=1e20, D_perp=1.0, lambda_n=0.0)
     with pytest.raises(ValueError, match="Gamma_blob"):
         SOLBlobProfile.radial_density(r, Gamma_blob=-1.0, D_perp=1.0, lambda_n=0.02)
+    with pytest.raises(ValueError, match="r"):
+        SOLBlobProfile.radial_density(np.array([0.0, np.nan]), Gamma_blob=1e20, D_perp=1.0, lambda_n=0.02)
+    with pytest.raises(ValueError, match="D_perp"):
+        SOLBlobProfile.radial_density(r, Gamma_blob=1e20, D_perp=-1.0, lambda_n=0.02)
 
 
 def test_blob_detector_closes_event_at_signal_boundary() -> None:
@@ -271,3 +310,7 @@ def test_blob_detector_rejects_nonphysical_event_parameters() -> None:
         det.detect_blobs(signal, threshold=0.0)
     with pytest.raises(ValueError, match="window"):
         det.conditional_average(signal, [], window=-1)
+    with pytest.raises(ValueError, match="signal"):
+        det.detect_blobs(np.array([0.0, np.nan]))
+    with pytest.raises(ValueError, match="signal"):
+        det.conditional_average(np.ones((2, 2)), [], window=1)
