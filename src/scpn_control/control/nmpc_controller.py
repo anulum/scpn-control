@@ -82,6 +82,7 @@ class NMPCConfig:
 
     max_sqp_iter: int = 10
     qp_max_iter: int = 500
+    qp_backend: str = "internal"  # "internal" or "scipy"
     tol: float = 1e-4
 
 
@@ -114,6 +115,7 @@ class NonlinearMPC:
         self.last_qp_iterations = 0
         self.last_qp_converged = False
         self.last_qp_step_size = 0.0
+        self.last_qp_backend = "uninitialized"
 
     def _estimate_qp_step_size(
         self,
@@ -157,6 +159,8 @@ class NonlinearMPC:
             raise ValueError("qp_max_iter must be an integer >= 1.")
         if config.qp_max_iter < 1:
             raise ValueError("qp_max_iter must be an integer >= 1.")
+        if config.qp_backend not in {"internal", "scipy"}:
+            raise ValueError("qp_backend must be 'internal' or 'scipy'.")
         if not np.isfinite(float(config.tol)) or float(config.tol) <= 0.0:
             raise ValueError("tol must be positive finite.")
 
@@ -256,6 +260,96 @@ class NonlinearMPC:
         except Exception:
             return np.asarray(self.config.Q * 10.0)
 
+    def _qp_value_and_gradient(
+        self,
+        dU_flat: np.ndarray,
+        A_k: list[np.ndarray],
+        B_k: list[np.ndarray],
+        P_term: np.ndarray,
+        x_ref: np.ndarray,
+    ) -> tuple[float, np.ndarray]:
+        dU = np.asarray(dU_flat, dtype=np.float64).reshape(self.N, self.nu)
+        dx = np.zeros((self.N + 1, self.nx))
+        for k in range(self.N):
+            dx[k + 1] = A_k[k] @ dx[k] + B_k[k] @ dU[k]
+
+        value = 0.0
+        for k in range(self.N):
+            x_err_k = (self.x_traj[k] + dx[k]) - x_ref
+            u_k = self.u_traj[k] + dU[k]
+            value += float(x_err_k @ self.config.Q @ x_err_k + u_k @ self.config.R @ u_k)
+        x_err_N = (self.x_traj[self.N] + dx[self.N]) - x_ref
+        value += float(x_err_N @ P_term @ x_err_N)
+
+        adj = np.zeros((self.N + 1, self.nx))
+        adj[self.N] = 2.0 * P_term @ x_err_N
+        grad_dU = np.zeros((self.N, self.nu))
+        for k in range(self.N - 1, -1, -1):
+            x_err_k = (self.x_traj[k] + dx[k]) - x_ref
+            adj[k] = A_k[k].T @ adj[k + 1] + 2.0 * self.config.Q @ x_err_k
+            grad_dU[k] = B_k[k].T @ adj[k + 1] + 2.0 * self.config.R @ (self.u_traj[k] + dU[k])
+        return value, grad_dU.reshape(-1)
+
+    def _solve_qp_scipy(
+        self,
+        A_k: list[np.ndarray],
+        B_k: list[np.ndarray],
+        P_term: np.ndarray,
+        u_prev: np.ndarray,
+        x_ref: np.ndarray,
+    ) -> np.ndarray:
+        """Solve the condensed QP with SciPy SLSQP and explicit linear constraints."""
+        import scipy.optimize
+
+        n_dec = self.N * self.nu
+        lower = np.zeros(n_dec)
+        upper = np.zeros(n_dec)
+        for k in range(self.N):
+            block = slice(k * self.nu, (k + 1) * self.nu)
+            lower[block] = self.config.u_min - self.u_traj[k]
+            upper[block] = self.config.u_max - self.u_traj[k]
+
+        rows = []
+        lb = []
+        ub = []
+        for k in range(self.N):
+            for j in range(self.nu):
+                row = np.zeros(n_dec)
+                row[k * self.nu + j] = 1.0
+                if k == 0:
+                    offset = self.u_traj[k, j] - u_prev[j]
+                else:
+                    row[(k - 1) * self.nu + j] = -1.0
+                    offset = self.u_traj[k, j] - self.u_traj[k - 1, j]
+                rows.append(row)
+                lb.append(-self.config.du_max[j] - offset)
+                ub.append(self.config.du_max[j] - offset)
+
+        bounds = scipy.optimize.Bounds(lower, upper)
+        constraints = [scipy.optimize.LinearConstraint(np.vstack(rows), np.asarray(lb), np.asarray(ub))]
+
+        def objective(z: np.ndarray) -> float:
+            return self._qp_value_and_gradient(z, A_k, B_k, P_term, x_ref)[0]
+
+        def gradient(z: np.ndarray) -> np.ndarray:
+            return self._qp_value_and_gradient(z, A_k, B_k, P_term, x_ref)[1]
+
+        result = scipy.optimize.minimize(
+            objective,
+            np.zeros(n_dec),
+            jac=gradient,
+            method="SLSQP",
+            bounds=bounds,
+            constraints=constraints,
+            options={"maxiter": int(self.config.qp_max_iter), "ftol": float(self.config.tol), "disp": False},
+        )
+        self.last_qp_backend = "scipy"
+        self.last_qp_iterations = int(getattr(result, "nit", 0))
+        self.last_qp_converged = bool(result.success)
+        if not result.success:
+            raise RuntimeError(f"SciPy QP backend failed: {result.message}")
+        return np.asarray(result.x, dtype=np.float64).reshape(self.N, self.nu)
+
     def _solve_qp(self, x0: np.ndarray, u_prev: np.ndarray, x_ref: np.ndarray) -> np.ndarray:
         """Projected gradient descent on condensed QP.
 
@@ -279,6 +373,9 @@ class NonlinearMPC:
         P_term = self.config.P if self.config.P is not None else self._compute_terminal_cost(A_k[-1], B_k[-1])
         alpha = self._estimate_qp_step_size(A_k, B_k, P_term)
         self.last_qp_step_size = alpha
+        if self.config.qp_backend == "scipy":
+            return self._solve_qp_scipy(A_k, B_k, P_term, u_prev, x_ref)
+        self.last_qp_backend = "internal"
 
         for iter_idx in range(1, max_iter + 1):
             dx = np.zeros((self.N + 1, self.nx))

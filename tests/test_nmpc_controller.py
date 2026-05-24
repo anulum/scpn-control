@@ -342,6 +342,31 @@ def test_nmpc_qp_step_size_shrinks_with_control_curvature() -> None:
     assert nmpc_high.last_qp_step_size < nmpc_low.last_qp_step_size
 
 
+def test_nmpc_supports_scipy_qp_backend() -> None:
+    """Configured SciPy backend should use an established constrained optimizer."""
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=1, qp_max_iter=50)
+    cfg.qp_backend = "scipy"
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0])
+    u_prev = cfg.u_min.copy()
+
+    u_opt = nmpc.step(x0, x_ref, u_prev)
+
+    assert u_opt.shape == (3,)
+    assert nmpc.last_qp_backend == "scipy"
+    assert nmpc.last_qp_converged is True
+    assert nmpc.last_qp_iterations >= 1
+
+
+def test_nmpc_rejects_unknown_qp_backend() -> None:
+    cfg = NMPCConfig(horizon=3)
+    cfg.qp_backend = "unknown"
+
+    with pytest.raises(ValueError, match="qp_backend"):
+        NonlinearMPC(mock_tokamak_plant, cfg)
+
+
 def test_nmpc_rejects_non_spd_state_weight() -> None:
     cfg = NMPCConfig(horizon=3)
     cfg.Q = np.diag([1.0, 1.0, 0.0, 1.0, 1.0, 1.0])
