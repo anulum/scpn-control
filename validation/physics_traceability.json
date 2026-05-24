@@ -1554,5 +1554,55 @@
       "validity_domain": "Phase, replay, and fixed-point export approximations inside local runtime validation only."
     }
   ],
-  "schema_version": "1.0"
+  "schema_version": "1.0",
+  "external_validation_trackers": [
+    {
+      "title": "External validation artefacts needed for full-fidelity SCPN-CONTROL claims",
+      "issue": 46,
+      "url": "https://github.com/anulum/scpn-control/issues/46",
+      "scope": "Parent tracker for external code, reference data, facility replay, benchmark, and hardware evidence requests."
+    },
+    {
+      "title": "External gyrokinetic validation artefacts",
+      "issue": 47,
+      "url": "https://github.com/anulum/scpn-control/issues/47",
+      "scope": "TGLF, GENE, GS2, CGYRO, QuaLiKiz, nonlinear CBC, Miller geometry, species, JAX parity, OOD, and online-learning artefacts."
+    },
+    {
+      "title": "Equilibrium and reconstruction reference artefacts",
+      "issue": 48,
+      "url": "https://github.com/anulum/scpn-control/issues/48",
+      "scope": "DIII-D or equivalent shots, EFIT, P-EFIT, GEQDSK, VMEC, and stellarator replay artefacts."
+    },
+    {
+      "title": "Transport, edge, MHD, and scenario benchmark artefacts",
+      "issue": 49,
+      "url": "https://github.com/anulum/scpn-control/issues/49",
+      "scope": "Integrated transport, momentum, pedestal, ELM, MARFE, NTM, current drive, stability, tearing, SOL, orbit, UQ, and scenario benchmarks."
+    },
+    {
+      "title": "Neural surrogate validation artefacts",
+      "issue": 50,
+      "url": "https://github.com/anulum/scpn-control/issues/50",
+      "scope": "QLKNN, QuaLiKiz, gyrokinetic, transport, turbulence, and equilibrium surrogate reference datasets and weight provenance."
+    },
+    {
+      "title": "Plasma-control and facility replay artefacts",
+      "issue": 51,
+      "url": "https://github.com/anulum/scpn-control/issues/51",
+      "scope": "RZIP, RWM, free-boundary, density, digital twin, SOC learning, burn, volt-second, mu-synthesis, and reduced-plant replay evidence."
+    },
+    {
+      "title": "Disruption, halo-current, and mitigation benchmark artefacts",
+      "issue": 52,
+      "url": "https://github.com/anulum/scpn-control/issues/52",
+      "scope": "Measured disruption databases, labelled disruption windows, halo/runaway envelopes, wall contact, impurity radiation, and mitigation metadata."
+    },
+    {
+      "title": "Hardware, HDL, CODAC/EPICS, and runtime deployment evidence",
+      "issue": 53,
+      "url": "https://github.com/anulum/scpn-control/issues/53",
+      "scope": "Vivado, Quartus, Yosys, timing closure, simulator evidence, CODAC/EPICS timing, interlocks, backpressure, HIL replay, and runtime parity."
+    }
+  ]
 }

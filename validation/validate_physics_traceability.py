@@ -42,6 +42,7 @@ _SOURCE_MARKER_RE = re.compile(
     r"\b(simplification|simplified|approximation|approximate|heuristic|bounded model|reduced-order)\b",
     re.IGNORECASE,
 )
+_GITHUB_ISSUE_URL_RE = re.compile(r"^https://github\.com/anulum/scpn-control/issues/[1-9][0-9]*$")
 
 
 def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
@@ -57,6 +58,7 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
         "public_claim_blocked": 0,
         "resolved_module_paths": 0,
         "resolved_evidence_paths": 0,
+        "external_validation_trackers": [],
         "entries": [],
         "errors": [],
     }
@@ -79,6 +81,7 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
         )
     if payload.get("schema_version") != "1.0":
         errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
+    report["external_validation_trackers"] = _validate_external_validation_trackers(path, payload, errors)
     entries = payload.get("entries")
     if not isinstance(entries, list) or not entries:
         errors.append({"path": str(path), "field": "entries", "error": "entries must be a non-empty array"})
@@ -137,6 +140,87 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
     if errors:
         report["status"] = "fail"
     return report
+
+
+def _validate_external_validation_trackers(
+    path: Path,
+    payload: dict[str, Any],
+    errors: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    trackers = payload.get("external_validation_trackers", [])
+    if trackers == []:
+        return []
+    if not isinstance(trackers, list):
+        errors.append(
+            {
+                "path": str(path),
+                "field": "external_validation_trackers",
+                "error": "field must be an array when present",
+            }
+        )
+        return []
+
+    validated: list[dict[str, object]] = []
+    seen_issues: set[int] = set()
+    for index, tracker in enumerate(trackers):
+        if not isinstance(tracker, dict):
+            errors.append(
+                {
+                    "path": str(path),
+                    "index": index,
+                    "field": "external_validation_trackers",
+                    "error": "tracker must be an object",
+                }
+            )
+            continue
+        title = tracker.get("title")
+        issue = tracker.get("issue")
+        url = tracker.get("url")
+        scope = tracker.get("scope")
+        if not isinstance(title, str) or not title.strip():
+            errors.append(
+                {"path": str(path), "index": index, "field": "title", "error": "field must be a non-empty string"}
+            )
+        if not isinstance(scope, str) or not scope.strip():
+            errors.append(
+                {"path": str(path), "index": index, "field": "scope", "error": "field must be a non-empty string"}
+            )
+        if not isinstance(issue, int) or issue <= 0:
+            errors.append(
+                {"path": str(path), "index": index, "field": "issue", "error": "field must be a positive integer"}
+            )
+        elif issue in seen_issues:
+            errors.append(
+                {"path": str(path), "index": index, "field": "issue", "error": "issue numbers must be unique"}
+            )
+        else:
+            seen_issues.add(issue)
+        expected_url = f"https://github.com/anulum/scpn-control/issues/{issue}" if isinstance(issue, int) else None
+        if not isinstance(url, str) or not _GITHUB_ISSUE_URL_RE.fullmatch(url):
+            errors.append(
+                {
+                    "path": str(path),
+                    "index": index,
+                    "field": "url",
+                    "error": "field must be an anulum/scpn-control GitHub issue URL",
+                }
+            )
+        elif expected_url is not None and url != expected_url:
+            errors.append(
+                {"path": str(path), "index": index, "field": "url", "error": "URL must match issue number"}
+            )
+        if (
+            isinstance(title, str)
+            and title.strip()
+            and isinstance(issue, int)
+            and issue > 0
+            and isinstance(url, str)
+            and _GITHUB_ISSUE_URL_RE.fullmatch(url)
+            and isinstance(scope, str)
+            and scope.strip()
+        ):
+            validated.append({"title": title, "issue": issue, "url": url, "scope": scope})
+    return validated
 
 
 def _validate_entry(

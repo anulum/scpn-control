@@ -32,6 +32,8 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert covered == total
     assert "## Module Traceability Table" in markdown
     assert "## External Validation Collaboration Trackers" in markdown
+    assert "External validation artefacts needed for full-fidelity SCPN-CONTROL claims" in markdown
+    assert "Parent tracker for external code, reference data, facility replay" in markdown
     assert "https://github.com/anulum/scpn-control/issues/46" in markdown
     assert "https://github.com/anulum/scpn-control/issues/53" in markdown
     assert "| Module | Equation or contract | References | Unit contract | Validation evidence | Status |" in markdown
