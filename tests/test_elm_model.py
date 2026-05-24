@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
-# Contact: protoscience@anulum.li
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — ELM Model Tests
 from __future__ import annotations
 
 import numpy as np
@@ -259,6 +261,28 @@ def test_rmp_chirikov_rejects_nonphysical_profiles() -> None:
         rmp.chirikov_parameter(q, rho[::-1], delta_B_r=0.01, B0=5.3, R0=6.2)
     with pytest.raises(ValueError, match="B0 and R0"):
         rmp.chirikov_parameter(q, rho, delta_B_r=0.01, B0=0.0, R0=6.2)
+
+
+def test_rmp_chirikov_rejects_singular_or_negative_edge_shear() -> None:
+    rmp = RMPSuppression()
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        rmp.chirikov_parameter(
+            np.array([1.0, 2.0, 3.0]),
+            np.array([0.0, 1.0, 1.0]),
+            delta_B_r=0.01,
+            B0=5.3,
+            R0=6.2,
+        )
+
+    with pytest.raises(ValueError, match="edge magnetic shear"):
+        rmp.chirikov_parameter(
+            np.array([1.0, 3.0, 2.0]),
+            np.array([0.0, 0.5, 1.0]),
+            delta_B_r=0.01,
+            B0=5.3,
+            R0=6.2,
+        )
 
 
 def test_elm_power_balance_rejects_negative_sol_power() -> None:

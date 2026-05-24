@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
-# Contact: protoscience@anulum.li
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — ELM Pedestal and RMP Physics
 """ELM crash, recovery, suppression, and pedestal-coupling model utilities."""
 
 from __future__ import annotations
@@ -228,8 +230,8 @@ class RMPSuppression:
             raise ValueError("q_profile and rho must have equal non-zero length")
         if np.any(q_profile <= 0.0):
             raise ValueError("q_profile values must be positive")
-        if np.any(np.diff(rho) < 0.0):
-            raise ValueError("rho must be sorted")
+        if np.any(np.diff(rho) <= 0.0):
+            raise ValueError("rho must be strictly increasing")
         if B0 <= 0.0 or R0 <= 0.0:
             raise ValueError("B0 and R0 must be positive")
         q_edge = q_profile[-1]
@@ -238,6 +240,9 @@ class RMPSuppression:
             dq_drho = (q_profile[-1] - q_profile[-2]) / (rho[-1] - rho[-2])
         else:
             dq_drho = 10.0
+
+        if dq_drho <= 0.0:
+            raise ValueError("edge magnetic shear must be positive for the Chirikov overlap model")
 
         shear = dq_drho * rho[-1] / q_edge
 
