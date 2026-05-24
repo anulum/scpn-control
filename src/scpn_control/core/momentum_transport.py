@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Toroidal Momentum Transport
 """Toroidal momentum-transport and rotation-profile evolution utilities."""
 
 from __future__ import annotations
@@ -11,6 +14,37 @@ import numpy as np
 # Momentum Prandtl number: χ_φ / χ_i ≈ 0.7 (deuterium, ρ* ~ 0.004–0.007)
 # Peeters et al. 2011, Nucl. Fusion 51, 083015, Fig. 5.
 PRANDTL_MOMENTUM: float = 0.7
+
+
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _finite_array(name: str, values: np.ndarray, *, positive: bool = False, nonnegative: bool = False) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if positive and np.any(arr <= 0.0):
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative")
+    return arr
+
+
+def _finite_1d_grid(name: str, values: np.ndarray, *, minimum_size: int = 1) -> np.ndarray:
+    arr = _finite_array(name, values)
+    if arr.ndim != 1 or arr.size < minimum_size:
+        if minimum_size == 2:
+            raise ValueError(f"{name} must be a one-dimensional grid with at least two points")
+        raise ValueError(f"{name} must be a one-dimensional grid with at least {minimum_size} points")
+    return arr
 
 
 def nbi_torque(
@@ -24,10 +58,10 @@ def nbi_torque(
     T_NBI = P_NBI · R_tang / v_beam  where R_tang = R₀ sin(θ).
     Stacey & Sigmar 1985, Phys. Fluids 28, 2800.
     """
-    if np.any(P_nbi_profile < 0.0):
-        raise ValueError("P_nbi_profile must be non-negative")
-    if R0 <= 0.0:
-        raise ValueError("R0 must be positive")
+    P_nbi_profile = _finite_array("P_nbi_profile", P_nbi_profile, nonnegative=True)
+    R0 = _finite_scalar("R0", R0, positive=True)
+    v_beam = _finite_scalar("v_beam", v_beam)
+    theta_inj_deg = _finite_scalar("theta_inj_deg", theta_inj_deg)
     if v_beam <= 0.0:
         return np.zeros_like(P_nbi_profile)
 
@@ -48,8 +82,12 @@ def intrinsic_rotation_torque(
     Empirical Rice scaling: v_φ,intr ∝ W_p / I_p.
     Rice et al. 2007, Nucl. Fusion 47, 1618, Eq. 3.
     """
+    grad_Ti = _finite_array("grad_Ti", grad_Ti)
+    grad_ne = _finite_array("grad_ne", grad_ne)
     if grad_Ti.shape != grad_ne.shape:
         raise ValueError("grad_Ti and grad_ne must have matching shape")
+    R0 = _finite_scalar("R0", R0)
+    a = _finite_scalar("a", a)
     if R0 <= 0.0 or a <= 0.0:
         raise ValueError("R0 and a must be positive")
     return np.asarray(-1e-3 * grad_Ti)
@@ -71,11 +109,17 @@ def exb_shearing_rate(
     In the rotation-dominated limit E_r ≈ v_φ B_θ = R₀ ω_φ B_θ, so
     E_r / (R₀ B_θ) ≈ ω_φ and ω_E×B ≈ (R₀ B_θ / B) · dω_φ/dr.
     """
+    omega_phi = _finite_array("omega_phi", omega_phi)
+    B_theta = _finite_array("B_theta", B_theta)
+    rho = _finite_array("rho", rho)
     _require_equal_shape("omega_phi, B_theta, and rho", omega_phi, B_theta, rho)
     if len(rho) == 0:
         raise ValueError("rho must not be empty")
     if np.any(np.diff(rho) < 0.0):
         raise ValueError("rho must be sorted")
+    B0 = _finite_scalar("B0", B0)
+    R0 = _finite_scalar("R0", R0)
+    a = _finite_scalar("a", a)
     if B0 <= 0.0 or R0 <= 0.0 or a <= 0.0:
         raise ValueError("B0, R0, and a must be positive")
     dr = (rho[1] - rho[0] if len(rho) > 1 else 0.1) * a
@@ -94,6 +138,8 @@ def turbulence_suppression_factor(
     F = 1 / (1 + (ω_E×B / γ_max)²)
     Biglari, Diamond & Terry 1990, Phys. Fluids B 2, 1.
     """
+    omega_ExB = _finite_array("omega_ExB", omega_ExB)
+    gamma_max = _finite_array("gamma_max", gamma_max)
     _require_equal_shape("omega_ExB and gamma_max", omega_ExB, gamma_max)
     if np.any(gamma_max < 0.0):
         raise ValueError("gamma_max must be non-negative")
@@ -116,6 +162,11 @@ def radial_electric_field(
     E_r = (1 / Z_i e n_i) dp_i/dr + v_φ B_θ   (v_θ ≈ 0)
     Hinton & Hazeltine 1976, Rev. Mod. Phys. 48, 239, Eq. 2.3.
     """
+    ne = _finite_array("ne", ne)
+    Ti_keV = _finite_array("Ti_keV", Ti_keV)
+    omega_phi = _finite_array("omega_phi", omega_phi)
+    B_theta = _finite_array("B_theta", B_theta)
+    rho = _finite_array("rho", rho)
     _require_equal_shape("ne, Ti_keV, omega_phi, B_theta, and rho", ne, Ti_keV, omega_phi, B_theta, rho)
     if len(rho) == 0:
         raise ValueError("rho must not be empty")
@@ -123,6 +174,9 @@ def radial_electric_field(
         raise ValueError("rho must be sorted")
     if np.any(ne <= 0.0) or np.any(Ti_keV < 0.0):
         raise ValueError("ne must be positive and Ti_keV must be non-negative")
+    B0 = _finite_scalar("B0", B0)
+    R0 = _finite_scalar("R0", R0)
+    a = _finite_scalar("a", a)
     if B0 <= 0.0 or R0 <= 0.0 or a <= 0.0:
         raise ValueError("B0, R0, and a must be positive")
     e_charge = 1.602e-19  # C
@@ -144,6 +198,8 @@ def rice_intrinsic_velocity(W_p_MJ: float, I_p_MA: float) -> float:
 
     c_Rice = 3.5 km s⁻¹ MA MJ⁻¹ (empirical, Ohmic + NBI plasmas, Fig. 4).
     """
+    W_p_MJ = _finite_scalar("W_p_MJ", W_p_MJ)
+    I_p_MA = _finite_scalar("I_p_MA", I_p_MA)
     if W_p_MJ < 0.0:
         raise ValueError("W_p_MJ must be non-negative")
     if I_p_MA <= 0.0:
@@ -165,7 +221,10 @@ class RotationDiagnostics:
         Ti_keV: np.ndarray,
         R0: float,
     ) -> np.ndarray:
+        omega_phi = _finite_array("omega_phi", omega_phi)
+        Ti_keV = _finite_array("Ti_keV", Ti_keV)
         _require_equal_shape("omega_phi and Ti_keV", omega_phi, Ti_keV)
+        R0 = _finite_scalar("R0", R0)
         if R0 <= 0.0:
             raise ValueError("R0 must be positive")
         if np.any(Ti_keV <= 0.0):
@@ -181,8 +240,10 @@ class RotationDiagnostics:
         omega_phi: np.ndarray,
         tau_wall: float,
     ) -> bool:
+        omega_phi = _finite_array("omega_phi", omega_phi)
         if omega_phi.size == 0:
             raise ValueError("omega_phi must not be empty")
+        tau_wall = _finite_scalar("tau_wall", tau_wall)
         if tau_wall <= 0.0:
             raise ValueError("tau_wall must be positive")
         # ω τ_wall > O(1) criterion; Bondeson & Ward 1994, Phys. Rev. Lett. 72, 2709.
@@ -199,10 +260,13 @@ class MomentumTransportSolver:
         prandtl: float = PRANDTL_MOMENTUM,
     ) -> None:
         # prandtl = χ_φ / χ_i; Peeters et al. 2011, Nucl. Fusion 51, 083015, Fig. 5.
-        if rho.ndim != 1 or rho.size < 2:
-            raise ValueError("rho must be a one-dimensional grid with at least two points")
+        rho = _finite_1d_grid("rho", rho, minimum_size=2)
         if np.any(np.diff(rho) <= 0.0):
             raise ValueError("rho must be strictly increasing")
+        R0 = _finite_scalar("R0", R0)
+        a = _finite_scalar("a", a)
+        B0 = _finite_scalar("B0", B0)
+        prandtl = _finite_scalar("prandtl", prandtl)
         if R0 <= 0.0 or a <= 0.0 or B0 <= 0.0:
             raise ValueError("R0, a, and B0 must be positive")
         if prandtl <= 0.0:
@@ -234,8 +298,15 @@ class MomentumTransportSolver:
         """
         import scipy.linalg
 
+        dt = _finite_scalar("dt", dt)
         if dt <= 0.0:
             raise ValueError("dt must be positive")
+        chi_i = _finite_array("chi_i", chi_i)
+        ne = _finite_array("ne", ne)
+        Ti_keV = _finite_array("Ti_keV", Ti_keV)
+        T_nbi = _finite_array("T_nbi", T_nbi)
+        T_intrinsic = _finite_array("T_intrinsic", T_intrinsic)
+        self.omega_phi = _finite_array("omega_phi", self.omega_phi)
         _require_equal_shape("chi_i, ne, Ti_keV, T_nbi, and T_intrinsic", chi_i, ne, Ti_keV, T_nbi, T_intrinsic)
         if len(chi_i) != self.nr:
             raise ValueError("transport profiles must match the solver rho grid")

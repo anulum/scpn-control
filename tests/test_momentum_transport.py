@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Momentum Transport Tests
 from __future__ import annotations
 
 import numpy as np
@@ -161,11 +164,22 @@ def test_nbi_torque_rejects_nonphysical_inputs() -> None:
     assert np.all(nbi_torque(np.ones(3), R0=6.2, v_beam=0.0, theta_inj_deg=30.0) == 0.0)
 
 
+def test_nbi_torque_rejects_nonfinite_power_and_geometry() -> None:
+    with pytest.raises(ValueError, match="P_nbi_profile"):
+        nbi_torque(np.array([np.nan]), R0=6.2, v_beam=1e6, theta_inj_deg=30.0)
+    with pytest.raises(ValueError, match="theta_inj_deg"):
+        nbi_torque(np.ones(3), R0=6.2, v_beam=1e6, theta_inj_deg=float("nan"))
+    with pytest.raises(ValueError, match="v_beam"):
+        nbi_torque(np.ones(3), R0=6.2, v_beam=float("inf"), theta_inj_deg=30.0)
+
+
 def test_intrinsic_rotation_torque_rejects_inconsistent_profiles() -> None:
     with pytest.raises(ValueError, match="matching shape"):
         intrinsic_rotation_torque(np.ones(3), np.ones(4), R0=6.2, a=2.0)
     with pytest.raises(ValueError, match="R0 and a"):
         intrinsic_rotation_torque(np.ones(3), np.ones(3), R0=-1.0, a=2.0)
+    with pytest.raises(ValueError, match="grad_Ti"):
+        intrinsic_rotation_torque(np.array([1.0, np.nan]), np.ones(2), R0=6.2, a=2.0)
 
 
 def test_exb_shearing_rate_rejects_nonphysical_inputs() -> None:
@@ -179,6 +193,8 @@ def test_exb_shearing_rate_rejects_nonphysical_inputs() -> None:
         exb_shearing_rate(omega, btheta, B0=5.3, R0=6.2, rho=rho[::-1], a=2.0)
     with pytest.raises(ValueError, match="B0, R0, and a"):
         exb_shearing_rate(omega, btheta, B0=0.0, R0=6.2, rho=rho, a=2.0)
+    with pytest.raises(ValueError, match="omega_phi"):
+        exb_shearing_rate(np.array([1.0, np.nan, 1.0, 1.0, 1.0]), btheta, B0=5.3, R0=6.2, rho=rho, a=2.0)
 
 
 def test_turbulence_suppression_rejects_nonphysical_growth_rates() -> None:
@@ -186,6 +202,8 @@ def test_turbulence_suppression_rejects_nonphysical_growth_rates() -> None:
         turbulence_suppression_factor(np.ones(3), np.ones(4))
     with pytest.raises(ValueError, match="gamma_max"):
         turbulence_suppression_factor(np.ones(3), -np.ones(3))
+    with pytest.raises(ValueError, match="omega_ExB"):
+        turbulence_suppression_factor(np.array([1.0, np.nan]), np.ones(2))
 
 
 def test_radial_electric_field_rejects_nonphysical_profiles() -> None:
@@ -203,6 +221,8 @@ def test_radial_electric_field_rejects_nonphysical_profiles() -> None:
         radial_electric_field(np.zeros(5), Ti, omega, btheta, B0=5.3, R0=6.2, rho=rho, a=2.0)
     with pytest.raises(ValueError, match="B0, R0, and a"):
         radial_electric_field(ne, Ti, omega, btheta, B0=5.3, R0=0.0, rho=rho, a=2.0)
+    with pytest.raises(ValueError, match="B_theta"):
+        radial_electric_field(ne, Ti, omega, np.array([1.0, np.nan, 1.0, 1.0, 1.0]), B0=5.3, R0=6.2, rho=rho, a=2.0)
 
 
 def test_rice_intrinsic_velocity_rejects_nonphysical_scaling_inputs() -> None:
@@ -210,6 +230,8 @@ def test_rice_intrinsic_velocity_rejects_nonphysical_scaling_inputs() -> None:
         rice_intrinsic_velocity(W_p_MJ=-1.0, I_p_MA=2.0)
     with pytest.raises(ValueError, match="I_p_MA"):
         rice_intrinsic_velocity(W_p_MJ=1.0, I_p_MA=0.0)
+    with pytest.raises(ValueError, match="W_p_MJ"):
+        rice_intrinsic_velocity(W_p_MJ=float("nan"), I_p_MA=2.0)
 
 
 def test_rotation_diagnostics_rejects_nonphysical_inputs() -> None:
@@ -223,6 +245,10 @@ def test_rotation_diagnostics_rejects_nonphysical_inputs() -> None:
         diag.rwm_stabilization_criterion(np.array([]), tau_wall=0.01)
     with pytest.raises(ValueError, match="tau_wall"):
         diag.rwm_stabilization_criterion(np.ones(3), tau_wall=0.0)
+    with pytest.raises(ValueError, match="omega_phi"):
+        diag.mach_number(np.array([np.nan]), np.ones(1), R0=6.2)
+    with pytest.raises(ValueError, match="tau_wall"):
+        diag.rwm_stabilization_criterion(np.ones(3), tau_wall=float("inf"))
 
 
 def test_momentum_solver_rejects_nonphysical_constructor_inputs() -> None:
@@ -234,6 +260,10 @@ def test_momentum_solver_rejects_nonphysical_constructor_inputs() -> None:
         MomentumTransportSolver(np.linspace(0, 1, 5), R0=0.0, a=2.0, B0=5.3)
     with pytest.raises(ValueError, match="prandtl"):
         MomentumTransportSolver(np.linspace(0, 1, 5), R0=6.2, a=2.0, B0=5.3, prandtl=0.0)
+    with pytest.raises(ValueError, match="rho"):
+        MomentumTransportSolver(np.array([0.0, np.nan, 1.0]), R0=6.2, a=2.0, B0=5.3)
+    with pytest.raises(ValueError, match="prandtl"):
+        MomentumTransportSolver(np.linspace(0, 1, 5), R0=6.2, a=2.0, B0=5.3, prandtl=float("nan"))
 
 
 def test_momentum_solver_rejects_nonphysical_step_inputs() -> None:
@@ -252,3 +282,8 @@ def test_momentum_solver_rejects_nonphysical_step_inputs() -> None:
         solver.step(0.1, -chi_i, ne, Ti, torque, torque)
     with pytest.raises(ValueError, match="ne must be positive"):
         solver.step(0.1, chi_i, np.zeros(5), Ti, torque, torque)
+    with pytest.raises(ValueError, match="T_nbi"):
+        solver.step(0.1, chi_i, ne, Ti, np.full(5, np.nan), torque)
+    solver.omega_phi[2] = np.nan
+    with pytest.raises(ValueError, match="omega_phi"):
+        solver.step(0.1, chi_i, ne, Ti, torque, torque)
