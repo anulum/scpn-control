@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tools.check_test_quality_policy import collect_violations
 
 
@@ -17,6 +19,32 @@ def test_test_quality_policy_rejects_bucket_filename(tmp_path: Path) -> None:
     tests = tmp_path / "tests"
     tests.mkdir()
     (tests / "test_cov_final_gaps.py").write_text(
+        "def test_placeholder():\n    assert True\n",
+        encoding="utf-8",
+    )
+
+    violations = collect_violations(tests)
+
+    assert len(violations) == 1
+    assert "forbidden generic bucket test filename" in violations[0].reason
+
+
+@pytest.mark.parametrize(
+    "filename",
+    (
+        "test_batch.py",
+        "test_controller_round.py",
+        "test_transport_final.py",
+        "test_physics_remaining.py",
+        "test_adapter_push.py",
+        "test_module_misc.py",
+        "test_new_modules.py",
+    ),
+)
+def test_test_quality_policy_rejects_forbidden_bucket_name_families(tmp_path: Path, filename: str) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / filename).write_text(
         "def test_placeholder():\n    assert True\n",
         encoding="utf-8",
     )

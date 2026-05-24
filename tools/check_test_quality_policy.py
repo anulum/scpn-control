@@ -24,6 +24,7 @@ FORBIDDEN_NAME_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"(^|/)test_coverage[^/]*\.py$", re.IGNORECASE),
     re.compile(r"(coverage_closure|final_gaps?|remaining_gaps?)\.py$", re.IGNORECASE),
     re.compile(r"(last_mile|small_gaps|transport_gaps|scpn_gaps)\.py$", re.IGNORECASE),
+    re.compile(r"(^|/)test_(?:.*_)?(batch|round|final|remaining)\.py$", re.IGNORECASE),
     re.compile(r"(^|/).*_(push|bucket|misc|new_modules?)\.py$", re.IGNORECASE),
 )
 
