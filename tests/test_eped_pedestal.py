@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# Contact: protoscience@anulum.li  ORCID: 0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — EPED pedestal model tests
 from __future__ import annotations
 
 import numpy as np
@@ -9,6 +12,7 @@ import pytest
 
 from scpn_control.core.eped_pedestal import (
     EPEDConfig,
+    EPEDValidationPoint,
     EpedPedestalModel,
     PedestalProfileGenerator,
     _shaping_factor,
@@ -187,6 +191,9 @@ def test_eped_config_rejects_nonphysical_geometry_and_inputs():
     with pytest.raises(ValueError, match="mode bounds"):
         eped1_predict(EPEDConfig(**{**vars(base), "n_mode_min": 31, "n_mode_max": 30}))
 
+    with pytest.raises(ValueError, match="mode bounds"):
+        eped1_predict(EPEDConfig(**{**vars(base), "n_mode_min": True}))
+
     with pytest.raises(ValueError, match="nu_star_e"):
         eped1_predict(EPEDConfig(**{**vars(base), "nu_star_e": -0.1}))
 
@@ -223,6 +230,9 @@ def test_pedestal_profile_generator_rejects_invalid_boundaries():
     with pytest.raises(ValueError, match="rho"):
         gen.generate(np.array([0.0, 0.8, 0.7]))
 
+    with pytest.raises(ValueError, match="strictly increasing"):
+        gen.generate(np.array([0.0, 0.5, 0.5, 1.0]))
+
 
 def test_integrated_wrapper_rejects_invalid_inputs():
     with pytest.raises(ValueError, match="a must be smaller"):
@@ -238,3 +248,18 @@ def test_integrated_wrapper_rejects_invalid_inputs():
 
     with pytest.raises(ValueError, match="nu_star_e"):
         model.predict(6.0, nu_star_e=-1.0)
+
+
+def test_eped_validation_point_rejects_nonphysical_records():
+    """Validation records reject impossible provenance and pedestal quantities."""
+    with pytest.raises(ValueError, match="machine"):
+        EPEDValidationPoint("", 1, 10.0, 10.5, 0.04, 0.042)
+
+    with pytest.raises(ValueError, match="shot"):
+        EPEDValidationPoint("DIII-D", False, 10.0, 10.5, 0.04, 0.042)
+
+    with pytest.raises(ValueError, match="p_ped_measured"):
+        EPEDValidationPoint("DIII-D", 1, 0.0, 10.5, 0.04, 0.042)
+
+    with pytest.raises(ValueError, match="normalised minor-radius"):
+        EPEDValidationPoint("DIII-D", 1, 10.0, 10.5, 1.0, 0.042)

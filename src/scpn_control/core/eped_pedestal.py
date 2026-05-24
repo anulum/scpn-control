@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# Contact: protoscience@anulum.li  ORCID: 0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — EPED pedestal model
 """EPED-style pedestal prediction and validation-point utilities."""
 
 from __future__ import annotations
@@ -63,7 +66,12 @@ def _validate_config(config: EPEDConfig) -> EPEDConfig:
     _finite_scalar("ne_ped_19", config.ne_ped_19, positive=True)
     _finite_scalar("B_pol_ped", config.B_pol_ped, positive=True)
     _finite_scalar("C_KBM", config.C_KBM, positive=True)
-    if int(config.n_mode_min) != config.n_mode_min or int(config.n_mode_max) != config.n_mode_max:
+    if (
+        isinstance(config.n_mode_min, bool)
+        or isinstance(config.n_mode_max, bool)
+        or int(config.n_mode_min) != config.n_mode_min
+        or int(config.n_mode_max) != config.n_mode_max
+    ):
         raise ValueError("mode bounds must be integers")
     if config.n_mode_min <= 0 or config.n_mode_max < config.n_mode_min:
         raise ValueError("mode bounds must be positive and ordered")
@@ -119,6 +127,18 @@ class EPEDValidationPoint:
     p_ped_eped_kPa: float
     delta_ped_measured: float
     delta_ped_eped: float
+
+    def __post_init__(self) -> None:
+        if not self.machine.strip():
+            raise ValueError("machine must be non-empty")
+        if isinstance(self.shot, bool) or not isinstance(self.shot, int) or self.shot <= 0:
+            raise ValueError("shot must be a positive integer")
+        _finite_scalar("p_ped_measured_kPa", self.p_ped_measured_kPa, positive=True)
+        _finite_scalar("p_ped_eped_kPa", self.p_ped_eped_kPa, positive=True)
+        measured_width = _finite_scalar("delta_ped_measured", self.delta_ped_measured, positive=True)
+        eped_width = _finite_scalar("delta_ped_eped", self.delta_ped_eped, positive=True)
+        if measured_width >= 1.0 or eped_width >= 1.0:
+            raise ValueError("validation pedestal widths must remain below the normalised minor-radius interval")
 
 
 def eped_validation_database() -> list[EPEDValidationPoint]:
@@ -291,8 +311,8 @@ class PedestalProfileGenerator:
             raise ValueError("rho must be a one-dimensional non-empty profile grid")
         if not np.all(np.isfinite(rho)) or np.any(rho < 0.0) or np.any(rho > 1.0):
             raise ValueError("rho must contain finite normalised radii in [0, 1]")
-        if np.any(np.diff(rho) < 0.0):
-            raise ValueError("rho must be monotonically increasing")
+        if np.any(np.diff(rho) <= 0.0):
+            raise ValueError("rho must be strictly increasing")
 
         def _mtanh(r: np.ndarray, height: float, sep: float) -> np.ndarray:
             z = 2.0 * (rho_sym - r) / max(width / 2.0, 1e-3)
