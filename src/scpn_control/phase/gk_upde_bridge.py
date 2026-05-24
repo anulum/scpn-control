@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Gk Upde Bridge
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — GK → UPDE Phase Dynamics Bridge
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Bridge between gyrokinetic transport fluxes and the 8-layer UPDE
 Kuramoto phase dynamics system.
@@ -34,6 +26,31 @@ import numpy as np
 from numpy.typing import NDArray
 
 from scpn_control.core.gk_interface import GKOutput
+
+
+def _validate_coupling_matrix(K_base: NDArray[np.float64]) -> None:
+    if K_base.ndim != 2 or K_base.shape[0] != K_base.shape[1]:
+        raise ValueError("K_base must be a square matrix")
+    if not np.all(np.isfinite(K_base)):
+        raise ValueError("K_base must contain only finite values")
+
+
+def _positive_growth_drive(gamma: NDArray[np.float64]) -> float:
+    if gamma.size == 0:
+        return 0.0
+    if not np.all(np.isfinite(gamma)):
+        raise ValueError("gamma must contain only finite values")
+    return max(float(np.max(gamma)), 0.0)
+
+
+def _validate_nonnegative_finite(value: float, name: str) -> None:
+    if not np.isfinite(value) or value < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+
+
+def _validate_positive_finite(value: float, name: str) -> None:
+    if not np.isfinite(value) or value <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
 
 
 def adaptive_knm(
@@ -58,14 +75,22 @@ def adaptive_knm(
     chi_ref : float
         Reference chi_e for transport modulation [m^2/s].
     """
+    _validate_coupling_matrix(K_base)
+    _validate_nonnegative_finite(gk_output.chi_e, "chi_e")
+    _validate_positive_finite(gamma_ref, "gamma_ref")
+    _validate_positive_finite(chi_ref, "chi_ref")
+    max_gamma = _positive_growth_drive(gk_output.gamma)
+    if chi_i_profile is not None and (
+        not np.all(np.isfinite(chi_i_profile)) or np.any(chi_i_profile < 0.0)
+    ):
+        raise ValueError("chi_i_profile must contain finite non-negative values")
     K = K_base.copy()
     L = K.shape[0]
     if L < 6:
         return K
 
     # P0↔P1: microturbulence ↔ zonal flows
-    max_gamma = float(np.max(gk_output.gamma)) if len(gk_output.gamma) > 0 else 0.0
-    K[0, 1] = K_base[0, 1] * (1.0 + 0.5 * np.tanh(max_gamma / max(gamma_ref, 1e-10)))
+    K[0, 1] = K_base[0, 1] * (1.0 + 0.5 * np.tanh(max_gamma / gamma_ref))
     K[1, 0] = K[0, 1]
 
     # P1↔P4: zonal flow ↔ transport barrier
@@ -93,7 +118,11 @@ def gk_natural_frequencies(
     The turbulence layer's effective frequency increases with the
     dominant instability growth rate.
     """
+    if not np.all(np.isfinite(omega_base)):
+        raise ValueError("omega_base must contain only finite values")
+    if not np.isfinite(gamma_scale) or gamma_scale < 0.0:
+        raise ValueError("gamma_scale must be finite and non-negative")
     omega = omega_base.copy()
-    max_gamma = float(np.max(gk_output.gamma)) if len(gk_output.gamma) > 0 else 0.0
+    max_gamma = _positive_growth_drive(gk_output.gamma)
     omega[0] += gamma_scale * max_gamma
     return omega
