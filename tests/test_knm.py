@@ -1,16 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Knm
+# SCPN Control — Test Knm Coupling Matrix
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # ──────────────────────────────────────────────────────────────────────
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Knm Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
