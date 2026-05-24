@@ -58,7 +58,9 @@ def _require_unit_interval(name: str, value: float) -> float:
     return scalar
 
 
-def _require_positive_profile(name: str, values: float | np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
+def _require_positive_profile(
+    name: str, values: float | np.ndarray, shape: tuple[int, ...] | None = None
+) -> np.ndarray:
     """Return finite positive profile values with optional exact shape."""
     arr = np.asarray(values, dtype=float)
     if shape is not None and arr.shape != shape:

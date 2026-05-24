@@ -238,7 +238,9 @@ class UPDESystem:
 
         L = expected_shape[0]
         if len(theta_layers) != L or len(omega_layers) != L:
-            raise ValueError(f"Expected {L} layers, got theta_layers={len(theta_layers)}, omega_layers={len(omega_layers)}")
+            raise ValueError(
+                f"Expected {L} layers, got theta_layers={len(theta_layers)}, omega_layers={len(omega_layers)}"
+            )
 
         theta_arr: list[FloatArray] = []
         omega_arr: list[FloatArray] = []

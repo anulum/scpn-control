@@ -101,10 +101,7 @@ class NonlinearMPC:
         self,
         plant_model: Callable[[np.ndarray, np.ndarray], np.ndarray],
         config: NMPCConfig,
-        linearization_model: Callable[
-            [np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]
-        ]
-        | None = None,
+        linearization_model: Callable[[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]] | None = None,
     ):
         self.plant_model = plant_model
         self.linearization_model = linearization_model
@@ -183,9 +180,7 @@ class NonlinearMPC:
         config.u_min = _as_finite_vector("u_min", config.u_min, _NU)
         config.u_max = _as_finite_vector("u_max", config.u_max, _NU)
         config.du_max = _as_finite_vector("du_max", config.du_max, _NU)
-        terminal_min_configured = config.terminal_x_min is not None
-        terminal_max_configured = config.terminal_x_max is not None
-        if terminal_min_configured != terminal_max_configured:
+        if (config.terminal_x_min is None) != (config.terminal_x_max is None):
             raise ValueError("terminal_x_min and terminal_x_max must be configured together.")
         if np.any(config.x_min >= config.x_max):
             raise ValueError("x_min entries must be strictly less than x_max entries.")
@@ -193,14 +188,16 @@ class NonlinearMPC:
             raise ValueError("u_min entries must be strictly less than u_max entries.")
         if np.any(config.du_max <= 0.0):
             raise ValueError("du_max entries must be positive finite.")
-        if terminal_min_configured and terminal_max_configured:
+        if config.terminal_x_min is not None and config.terminal_x_max is not None:
             if config.qp_backend not in {"scipy", "osqp"}:
                 raise ValueError("terminal_x constraints require qp_backend='scipy' or 'osqp'.")
-            config.terminal_x_min = _as_finite_vector("terminal_x_min", config.terminal_x_min, _NX)
-            config.terminal_x_max = _as_finite_vector("terminal_x_max", config.terminal_x_max, _NX)
-            if np.any(config.terminal_x_min >= config.terminal_x_max):
+            terminal_x_min = _as_finite_vector("terminal_x_min", config.terminal_x_min, _NX)
+            terminal_x_max = _as_finite_vector("terminal_x_max", config.terminal_x_max, _NX)
+            config.terminal_x_min = terminal_x_min
+            config.terminal_x_max = terminal_x_max
+            if np.any(terminal_x_min >= terminal_x_max):
                 raise ValueError("terminal_x_min entries must be strictly less than terminal_x_max entries.")
-            if np.any(config.terminal_x_min < config.x_min) or np.any(config.terminal_x_max > config.x_max):
+            if np.any(terminal_x_min < config.x_min) or np.any(terminal_x_max > config.x_max):
                 raise ValueError("terminal_x bounds must lie inside configured state bounds.")
 
     def _plant_step(self, x: np.ndarray, u: np.ndarray) -> np.ndarray:
@@ -219,11 +216,11 @@ class NonlinearMPC:
         step: float,
     ) -> np.ndarray:
         if f_plus is not None and f_minus is not None:
-            return (f_plus - f_minus) / (2.0 * step)
+            return np.asarray((f_plus - f_minus) / (2.0 * step), dtype=np.float64)
         if f_plus is not None:
-            return (f_plus - f0) / step
+            return np.asarray((f_plus - f0) / step, dtype=np.float64)
         if f_minus is not None:
-            return (f0 - f_minus) / step
+            return np.asarray((f0 - f_minus) / step, dtype=np.float64)
         raise ValueError("finite-difference perturbation interval collapsed.")
 
     def _bounded_input_vector(self, name: str, value: np.ndarray) -> np.ndarray:
@@ -241,15 +238,9 @@ class NonlinearMPC:
             A = np.asarray(A_raw, dtype=np.float64)
             B = np.asarray(B_raw, dtype=np.float64)
             if A.shape != (self.nx, self.nx) or not np.all(np.isfinite(A)):
-                raise ValueError(
-                    "linearization_model must return finite A with shape "
-                    f"({self.nx}, {self.nx})."
-                )
+                raise ValueError(f"linearization_model must return finite A with shape ({self.nx}, {self.nx}).")
             if B.shape != (self.nx, self.nu) or not np.all(np.isfinite(B)):
-                raise ValueError(
-                    "linearization_model must return finite B with shape "
-                    f"({self.nx}, {self.nu})."
-                )
+                raise ValueError(f"linearization_model must return finite B with shape ({self.nx}, {self.nu}).")
             self.last_linearization_source = "analytic"
             return A, B
 
@@ -332,9 +323,7 @@ class NonlinearMPC:
             grad_dU[k] = B_k[k].T @ adj[k + 1] + 2.0 * self.config.R @ (self.u_traj[k] + dU[k])
         return value, grad_dU.reshape(-1)
 
-    def _terminal_state_sensitivity(
-        self, A_k: list[np.ndarray], B_k: list[np.ndarray]
-    ) -> np.ndarray:
+    def _terminal_state_sensitivity(self, A_k: list[np.ndarray], B_k: list[np.ndarray]) -> np.ndarray:
         """Linear map from condensed control increments to terminal state."""
         sensitivity = np.zeros((self.nx, self.N * self.nu), dtype=np.float64)
         for k in range(self.N):

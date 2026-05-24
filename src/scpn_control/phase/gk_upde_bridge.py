@@ -80,9 +80,7 @@ def adaptive_knm(
     _validate_positive_finite(gamma_ref, "gamma_ref")
     _validate_positive_finite(chi_ref, "chi_ref")
     max_gamma = _positive_growth_drive(gk_output.gamma)
-    if chi_i_profile is not None and (
-        not np.all(np.isfinite(chi_i_profile)) or np.any(chi_i_profile < 0.0)
-    ):
+    if chi_i_profile is not None and (not np.all(np.isfinite(chi_i_profile)) or np.any(chi_i_profile < 0.0)):
         raise ValueError("chi_i_profile must contain finite non-negative values")
     K = K_base.copy()
     L = K.shape[0]

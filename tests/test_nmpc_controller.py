@@ -465,9 +465,7 @@ def test_nmpc_rejects_invalid_analytic_linearization_provider_output() -> None:
     def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
         return x
 
-    def bad_linearization(
-        x: np.ndarray, u: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def bad_linearization(x: np.ndarray, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         return np.eye(5), np.full((6, 3), np.nan)
 
     nmpc = NonlinearMPC(

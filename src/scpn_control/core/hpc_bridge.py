@@ -92,10 +92,7 @@ def _validate_solver_library_path(raw_path: str, *, source: str) -> str:
 
     resolved = path.resolve(strict=False)
     if resolved.suffix.lower() not in _SOLVER_LIBRARY_SUFFIXES:
-        raise ValueError(
-            f"{source} solver library path must end with one of "
-            f"{sorted(_SOLVER_LIBRARY_SUFFIXES)}"
-        )
+        raise ValueError(f"{source} solver library path must end with one of {sorted(_SOLVER_LIBRARY_SUFFIXES)}")
     if resolved.exists() and not resolved.is_file():
         raise ValueError(f"{source} solver library path must reference a regular file")
 

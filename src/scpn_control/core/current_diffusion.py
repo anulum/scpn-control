@@ -98,9 +98,7 @@ def neoclassical_resistivity(
     eta_Spitzer = 1.65e-9 * Z_eff * ln_lam / (Te_keV**1.5)
 
     # Sauter 1999 Eq. A.1 trapped fraction
-    f_t = 1.0 - (1.0 - epsilon_eff) ** 2 / (
-        np.sqrt(1.0 - epsilon_eff**2) * (1.0 + 1.46 * np.sqrt(epsilon_eff))
-    )
+    f_t = 1.0 - (1.0 - epsilon_eff) ** 2 / (np.sqrt(1.0 - epsilon_eff**2) * (1.0 + 1.46 * np.sqrt(epsilon_eff)))
     f_t = float(np.clip(f_t, 0.0, 1.0))
 
     # Sauter 2002 Eq. 8 — banana regime analytical limit

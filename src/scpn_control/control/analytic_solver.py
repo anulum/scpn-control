@@ -53,6 +53,7 @@ def _require_finite_scalar(name: str, value: float) -> float:
         raise ValueError(f"{name} must be finite.")
     return scalar
 
+
 try:
     from scpn_control.core._rust_compat import FusionKernel
 except ImportError:
