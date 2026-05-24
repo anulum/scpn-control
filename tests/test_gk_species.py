@@ -222,3 +222,9 @@ def test_pitch_angle_operator_rejects_malformed_lambda_grid() -> None:
         pitch_angle_operator(4, np.array([0.0, 0.5, 1.0]))
     with pytest.raises(ValueError, match="B_ratio"):
         pitch_angle_operator(3, np.array([0.0, 0.5, 1.0]), B_ratio=0.0)
+
+
+def test_pitch_angle_operator_rejects_lambda_outside_local_trapped_passing_domain() -> None:
+    """Lambda grid must stay below the local trapped-passing boundary."""
+    with pytest.raises(ValueError, match="trapped-passing"):
+        pitch_angle_operator(3, np.array([0.0, 0.4, 0.75]), B_ratio=2.0)

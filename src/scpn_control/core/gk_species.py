@@ -235,6 +235,8 @@ def _require_lambda_grid(
         raise ValueError("lam values must be finite")
     if np.any(lam_arr < 0.0) or np.any(lam_arr > 1.0):
         raise ValueError("lam values must stay within [0, 1]")
+    if np.any(lam_arr * B_ratio > 1.0 + 1e-12):
+        raise ValueError("lam values must not exceed the local trapped-passing boundary 1/B_ratio")
     if np.any(np.diff(lam_arr) <= 0.0):
         raise ValueError("lam must be strictly increasing")
     return n_lambda, lam_arr, float(B_ratio)

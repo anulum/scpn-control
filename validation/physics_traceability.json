@@ -141,7 +141,7 @@
     },
     {
       "component": "gyrokinetic species and collision bounded-operator contract",
-      "equation_contract": "Species and collision claims must declare charge, mass, density, temperature, thermal speed, Larmor radius, gyroaverage Bessel evaluation, diamagnetic frequency, pitch-angle deflection coefficient, thermal energy-relaxation coefficient, electron-ion mass-ratio scaling, field-temperature dependence, and valid species parameter bounds.",
+      "equation_contract": "Species and collision claims must declare charge, mass, density, temperature, thermal speed, Larmor radius, gyroaverage Bessel evaluation, diamagnetic frequency, pitch-angle deflection coefficient, thermal energy-relaxation coefficient, electron-ion mass-ratio scaling, field-temperature dependence, valid species parameter bounds, valid velocity quadrature sizes, and strictly ordered finite lambda grids bounded by the local trapped-passing boundary.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Sugama et al. 2006 collision operator",
@@ -153,7 +153,7 @@
         "Validate bounded test-particle collision coefficients against a published gyrokinetic or Fokker-Planck reference case before facility claims",
         "Add field-particle momentum-conservation and full multispecies collision-operator evidence before claiming quantitative collisional damping"
       ],
-      "unit_contract": "Mass in kilograms, charge in coulombs, density in m^-3, temperature in electronvolts, velocity in m/s, gyrofrequency in rad/s, Larmor radius in metres, collision rates in s^-1, lambda on [0, 1], and positive magnetic-field ratio.",
+      "unit_contract": "Mass in kilograms, charge in coulombs, density in m^-3, temperature in electronvolts, velocity in m/s, gyrofrequency in rad/s, Larmor radius in metres, collision rates in s^-1, lambda on [0, 1] with lambda times B/B0 no greater than one, and positive magnetic-field ratio.",
       "validation_evidence": [
         "tests/test_gk_species.py",
         "tests/test_gk_electromagnetic.py",
@@ -170,7 +170,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_species.py"
       ],
-      "validity_domain": "Bounded test-particle species and collision-coefficient regression coverage with finite species parameters, integer velocity quadrature sizes of at least two points, and strictly ordered finite lambda grids; no field-particle, momentum-conserving multispecies, or external Fokker-Planck collision-operator benchmark evidence.",
+      "validity_domain": "Bounded test-particle species and collision-coefficient regression coverage with finite species parameters, integer velocity quadrature sizes of at least two points, and strictly ordered finite lambda grids bounded by the local trapped-passing boundary; no field-particle, momentum-conserving multispecies, or external Fokker-Planck collision-operator benchmark evidence.",
       "external_validation_tracker_issue": 47
     },
     {
