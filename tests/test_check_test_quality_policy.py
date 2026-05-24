@@ -58,7 +58,7 @@ def test_test_quality_policy_rejects_forbidden_bucket_name_families(tmp_path: Pa
 def test_test_quality_policy_rejects_slop_intent_markers(tmp_path: Path) -> None:
     tests = tmp_path / "tests"
     tests.mkdir()
-    forbidden_text = '"""coverage ' + 'gaps for uncovered ' + 'lines."""\n'
+    forbidden_text = '"""coverage ' + "gaps for uncovered " + 'lines."""\n'
     (tests / "test_named_module.py").write_text(forbidden_text, encoding="utf-8")
 
     violations = collect_violations(tests)

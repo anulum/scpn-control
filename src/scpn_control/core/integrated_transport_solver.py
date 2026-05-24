@@ -313,11 +313,7 @@ def calculate_sauter_bootstrap_current_full(
 
         # Bootstrap current
         p_e = n_e * T_e_J
-        j_bs[i] = -(p_e / B_pol) * (
-            L31 * dn_dr / n_e
-            + L32 * dTe_dr / T_e_J
-            + L34 * dTi_dr / (Ti[i] * 1e3 * e_charge)
-        )
+        j_bs[i] = -(p_e / B_pol) * (L31 * dn_dr / n_e + L32 * dTe_dr / T_e_J + L34 * dTi_dr / (Ti[i] * 1e3 * e_charge))
 
     return j_bs
 

@@ -10,7 +10,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.check_generated_traceability import ROOT, expected_traceability_markdown, generated_traceability_is_current, main
+from tools.check_generated_traceability import (
+    ROOT,
+    expected_traceability_markdown,
+    generated_traceability_is_current,
+    main,
+)
 
 
 def test_generated_traceability_check_passes_for_repository_state(capsys) -> None:

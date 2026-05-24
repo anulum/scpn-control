@@ -212,10 +212,22 @@ def test_blob_dynamics_rejects_nonfinite_and_invalid_velocity_domains() -> None:
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     (
-        ({"delta_b_mean": 0.0, "delta_b_sigma": 0.002, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4}, "delta_b_mean"),
-        ({"delta_b_mean": 0.01, "delta_b_sigma": -0.1, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4}, "delta_b_sigma"),
-        ({"delta_b_mean": 0.01, "delta_b_sigma": 0.002, "amplitude_mean": 0.0, "waiting_time_mean": 1e-4}, "amplitude_mean"),
-        ({"delta_b_mean": 0.01, "delta_b_sigma": 0.002, "amplitude_mean": 1.0, "waiting_time_mean": 0.0}, "waiting_time_mean"),
+        (
+            {"delta_b_mean": 0.0, "delta_b_sigma": 0.002, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4},
+            "delta_b_mean",
+        ),
+        (
+            {"delta_b_mean": 0.01, "delta_b_sigma": -0.1, "amplitude_mean": 1.0, "waiting_time_mean": 1e-4},
+            "delta_b_sigma",
+        ),
+        (
+            {"delta_b_mean": 0.01, "delta_b_sigma": 0.002, "amplitude_mean": 0.0, "waiting_time_mean": 1e-4},
+            "amplitude_mean",
+        ),
+        (
+            {"delta_b_mean": 0.01, "delta_b_sigma": 0.002, "amplitude_mean": 1.0, "waiting_time_mean": 0.0},
+            "waiting_time_mean",
+        ),
     ),
 )
 def test_blob_ensemble_rejects_nonphysical_distribution_inputs(kwargs, message) -> None:

@@ -144,13 +144,9 @@ def test_martin_threshold_rejects_nonphysical_inputs():
 def test_low_density_branch_rejects_nonphysical_geometry():
     """Low-density branch requires valid Greenwald geometry."""
     with pytest.raises(ValueError, match="I_p_MA"):
-        MartinThreshold.power_threshold_with_low_density_branch_MW(
-            ne_19=5.0, B_T=5.3, S_m2=680.0, I_p_MA=0.0, a_m=2.0
-        )
+        MartinThreshold.power_threshold_with_low_density_branch_MW(ne_19=5.0, B_T=5.3, S_m2=680.0, I_p_MA=0.0, a_m=2.0)
     with pytest.raises(ValueError, match="a_m"):
-        MartinThreshold.power_threshold_with_low_density_branch_MW(
-            ne_19=5.0, B_T=5.3, S_m2=680.0, I_p_MA=15.0, a_m=0.0
-        )
+        MartinThreshold.power_threshold_with_low_density_branch_MW(ne_19=5.0, B_T=5.3, S_m2=680.0, I_p_MA=15.0, a_m=0.0)
 
 
 def test_low_density_branch_zero_density_is_non_triggerable():

@@ -43,8 +43,7 @@ def test_manifest_scans_control_specific_surfaces(capability_tool) -> None:
     assert "facility" in manifest["project"]["optional_extras"]
     assert manifest["project"]["scripts"]["scpn-control"] == "scpn_control.cli:main"
     assert (
-        manifest["project"]["scripts"]["scpn-check-generated-traceability"]
-        == "tools.check_generated_traceability:main"
+        manifest["project"]["scripts"]["scpn-check-generated-traceability"] == "tools.check_generated_traceability:main"
     )
 
     assert "FusionKernel" in manifest["python"]["public_api_exports"]

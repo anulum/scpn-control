@@ -42,7 +42,8 @@ def test_rejects_installation_token_endpoint_without_override_header() -> None:
 
 def test_accepts_github_recommended_opaque_pattern_and_override_header() -> None:
     text = (
-        r'pattern = r"ghs_[A-Za-z0-9\._]{36,}"' "\n"
+        r'pattern = r"ghs_[A-Za-z0-9\._]{36,}"'
+        "\n"
         'requests.post("https://api.github.com/app/installations/1/access_tokens", '
         'headers={"X-GitHub-Stateless-S2S-Token": "enabled"})\n'
         "if installation_token.startswith('ghs_'):\n"

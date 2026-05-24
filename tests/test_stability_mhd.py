@@ -294,6 +294,7 @@ class TestRunFullStabilityCheck:
         summary = run_full_stability_check(iter_like_qprofile)
         assert summary.n_criteria_stable <= summary.n_criteria_checked
 
+
 class TestStabilityInputBoundaries:
     """Non-physical MHD stability inputs fail closed instead of being regularised."""
 
