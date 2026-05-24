@@ -534,6 +534,18 @@ def test_external_validation_trackers_are_linked_from_roadmap_and_report() -> No
         assert f"#{tracker['issue']}" in generated_report
 
 
+def test_roadmap_generated_traceability_counts_match_registry() -> None:
+    report = validate_physics_traceability(ROOT / "validation" / "physics_traceability.json")
+    roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    expected = (
+        f"Current generated status is {report['total']} registry entries, "
+        f"{report['open_fidelity_gaps']} open fidelity gaps, and\n"
+        f"  {report['public_claim_blocked']} blocked full-fidelity public claims"
+    )
+
+    assert expected in roadmap
+
+
 def test_traceability_requires_trackers_when_fidelity_gaps_remain(tmp_path: Path) -> None:
     registry = _registry_with_header(
         [
