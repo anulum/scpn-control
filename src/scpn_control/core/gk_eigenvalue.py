@@ -131,6 +131,54 @@ def _require_geometry_grid(geom: MillerGeometry) -> tuple[NDArray[np.float64], N
     return theta, arrays["B_mag"]
 
 
+def _require_species_and_velocity_grid(species_list: list[GKSpecies], vgrid: VelocityGrid) -> GKSpecies:
+    """Validate kinetic species ordering and velocity-space quadrature arrays."""
+    if not species_list:
+        raise ValueError("species_list must include at least one ion species.")
+    ion = species_list[0]
+    if ion.charge_e <= 0.0:
+        raise ValueError("species_list[0] must be an ion species.")
+
+    if int(vgrid.n_energy) <= 0:
+        raise ValueError("vgrid.n_energy must be positive.")
+    if int(vgrid.n_lambda) <= 0:
+        raise ValueError("vgrid.n_lambda must be positive.")
+
+    energy = np.asarray(vgrid.energy, dtype=np.float64)
+    energy_weights = np.asarray(vgrid.energy_weights, dtype=np.float64)
+    lam = np.asarray(vgrid.lam, dtype=np.float64)
+    lambda_weights = np.asarray(vgrid.lambda_weights, dtype=np.float64)
+
+    if energy.shape != (int(vgrid.n_energy),):
+        raise ValueError("vgrid.energy must match vgrid.n_energy.")
+    if energy_weights.shape != energy.shape:
+        raise ValueError("vgrid.energy_weights must match vgrid.energy.")
+    if lam.shape != (int(vgrid.n_lambda),):
+        raise ValueError("vgrid.lam must match vgrid.n_lambda.")
+    if lambda_weights.shape != lam.shape:
+        raise ValueError("vgrid.lambda_weights must match vgrid.lam.")
+
+    for name, arr in (
+        ("energy", energy),
+        ("energy_weights", energy_weights),
+        ("lam", lam),
+        ("lambda_weights", lambda_weights),
+    ):
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"vgrid.{name} must be finite.")
+
+    if not np.all(energy >= 0.0):
+        raise ValueError("vgrid.energy must be nonnegative.")
+    if not np.all(energy_weights > 0.0):
+        raise ValueError("vgrid.energy_weights must be positive.")
+    if not np.all((lam >= 0.0) & (lam <= 1.0)):
+        raise ValueError("vgrid.lam must be within [0, 1].")
+    if not np.all(lambda_weights > 0.0):
+        raise ValueError("vgrid.lambda_weights must be positive.")
+
+    return ion
+
+
 def _diamagnetic_frequency(k_y: float, species: GKSpecies, R0: float, a: float) -> tuple[float, float]:
     """Compute omega_* and omega_*T for a species.
 
@@ -350,10 +398,10 @@ def solve_eigenvalue_single_ky(
     s_hat = _require_finite_scalar("s_hat", s_hat)
     nu_star = _require_finite_scalar("nu_star", nu_star, nonnegative=True)
 
+    ion = _require_species_and_velocity_grid(species_list, vgrid)
     theta, B_mag = _require_geometry_grid(geom)
     n_theta = len(theta)
     B_ratio = B_mag / np.mean(B_mag)
-    ion = species_list[0]
     has_kinetic_e = any(not s.is_adiabatic and s.charge_e < 0 for s in species_list)
 
     omega_star_n, omega_star_T = _diamagnetic_frequency(k_y_rho_s, ion, R0, a)

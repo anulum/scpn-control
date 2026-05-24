@@ -348,6 +348,78 @@ class TestSingleKyGeometryValidation:
             )
 
 
+class TestSingleKySpeciesAndVelocityGridValidation:
+    """Reject invalid species ordering and velocity-space quadrature."""
+
+    def test_rejects_empty_species_list(self, cyclone_geometry, small_vgrid):
+        with pytest.raises(ValueError, match="species_list must include at least one ion species"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=[],
+                geom=cyclone_geometry,
+                vgrid=small_vgrid,
+            )
+
+    def test_rejects_non_ion_leading_species(self, cyclone_geometry, small_vgrid):
+        with pytest.raises(ValueError, match="species_list\\[0\\] must be an ion species"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=[electron()],
+                geom=cyclone_geometry,
+                vgrid=small_vgrid,
+            )
+
+    def test_rejects_nonfinite_energy_grid(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+    ):
+        small_vgrid.energy = small_vgrid.energy.copy()
+        small_vgrid.energy[0] = np.nan
+
+        with pytest.raises(ValueError, match="vgrid.energy must be finite"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=cyclone_species,
+                geom=cyclone_geometry,
+                vgrid=small_vgrid,
+            )
+
+    def test_rejects_energy_weight_shape_mismatch(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+    ):
+        small_vgrid.energy_weights = small_vgrid.energy_weights[:-1]
+
+        with pytest.raises(ValueError, match="vgrid.energy_weights must match vgrid.energy"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=cyclone_species,
+                geom=cyclone_geometry,
+                vgrid=small_vgrid,
+            )
+
+    def test_rejects_lambda_outside_trapped_passing_interval(
+        self,
+        cyclone_geometry,
+        cyclone_species,
+        small_vgrid,
+    ):
+        small_vgrid.lam = small_vgrid.lam.copy()
+        small_vgrid.lam[0] = -0.1
+
+        with pytest.raises(ValueError, match="vgrid.lam must be within \\[0, 1\\]"):
+            solve_eigenvalue_single_ky(
+                k_y_rho_s=0.3,
+                species_list=cyclone_species,
+                geom=cyclone_geometry,
+                vgrid=small_vgrid,
+            )
+
+
 class TestElectromagneticKBMMTM:
     """electromagnetic=True with beta_e=0.05 exercises KBM/MTM branches."""
 
