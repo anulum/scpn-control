@@ -293,3 +293,91 @@ class TestRunFullStabilityCheck:
     def test_n_stable_leq_n_checked(self, iter_like_qprofile):
         summary = run_full_stability_check(iter_like_qprofile)
         assert summary.n_criteria_stable <= summary.n_criteria_checked
+
+class TestStabilityInputBoundaries:
+    """Non-physical MHD stability inputs fail closed instead of being regularised."""
+
+    def test_compute_q_profile_rejects_unsorted_radius(self):
+        rho = np.array([0.0, 0.4, 0.3, 1.0])
+        ne = np.ones_like(rho) * 1e20
+        Ti = np.ones_like(rho) * 2e3
+        Te = np.ones_like(rho) * 1e3
+
+        with pytest.raises(ValueError, match="strictly increasing"):
+            compute_q_profile(rho, ne, Ti, Te, R0=3.0, a=1.0, B0=5.0, Ip_MA=10.0)
+
+    def test_compute_q_profile_rejects_nonphysical_profiles(self):
+        rho = np.linspace(0.0, 1.0, 5)
+        ne = np.ones_like(rho) * 1e20
+        Ti = np.ones_like(rho) * 2e3
+        Te = np.ones_like(rho) * 1e3
+        ne[2] = 0.0
+
+        with pytest.raises(ValueError, match="ne"):
+            compute_q_profile(rho, ne, Ti, Te, R0=3.0, a=1.0, B0=5.0, Ip_MA=10.0)
+
+        with pytest.raises(ValueError, match="Ti"):
+            compute_q_profile(rho, np.ones_like(rho) * 1e20, -Ti, Te, R0=3.0, a=1.0, B0=5.0, Ip_MA=10.0)
+
+    def test_compute_q_profile_rejects_invalid_geometry_and_shape(self):
+        rho = np.linspace(0.0, 1.0, 5)
+        ne = np.ones_like(rho) * 1e20
+        Ti = np.ones_like(rho) * 2e3
+        Te = np.ones_like(rho) * 1e3
+
+        with pytest.raises(ValueError, match="same|match"):
+            compute_q_profile(rho, ne[:-1], Ti, Te, R0=3.0, a=1.0, B0=5.0, Ip_MA=10.0)
+
+        with pytest.raises(ValueError, match="a must be smaller"):
+            compute_q_profile(rho, ne, Ti, Te, R0=1.0, a=1.0, B0=5.0, Ip_MA=10.0)
+
+        with pytest.raises(ValueError, match="delta"):
+            compute_q_profile(rho, ne, Ti, Te, R0=3.0, a=1.0, B0=5.0, Ip_MA=10.0, delta=1.0)
+
+    def test_stability_criteria_reject_inconsistent_q_profile(self, iter_like_qprofile):
+        qp = iter_like_qprofile
+        broken = QProfile(
+            rho=np.array([0.0, 0.6, 0.4, 1.0]),
+            q=qp.q[:4],
+            shear=qp.shear[:4],
+            alpha_mhd=qp.alpha_mhd[:4],
+            q_min=float(np.min(qp.q[:4])),
+            q_min_rho=float(qp.rho[:4][np.argmin(qp.q[:4])]),
+            q_edge=float(qp.q[3]),
+        )
+
+        with pytest.raises(ValueError, match="strictly increasing"):
+            mercier_stability(broken)
+        with pytest.raises(ValueError, match="strictly increasing"):
+            ballooning_stability(broken)
+        with pytest.raises(ValueError, match="strictly increasing"):
+            kruskal_shafranov_stability(broken)
+
+    def test_troyon_beta_limit_rejects_nonphysical_inputs(self):
+        with pytest.raises(ValueError, match="beta_t"):
+            troyon_beta_limit(-0.01, Ip_MA=10.0, a=1.0, B0=5.0)
+        with pytest.raises(ValueError, match="Ip_MA"):
+            troyon_beta_limit(0.01, Ip_MA=0.0, a=1.0, B0=5.0)
+        with pytest.raises(ValueError, match="g_wall"):
+            troyon_beta_limit(0.01, Ip_MA=10.0, a=1.0, B0=5.0, g_nowall=3.5, g_wall=2.8)
+
+    def test_ntm_stability_rejects_current_and_shape_errors(self, iter_like_qprofile):
+        qp = iter_like_qprofile
+        j_bs = np.full_like(qp.rho, 1.0e5)
+        j_total = np.full_like(qp.rho, 1.0e6)
+
+        with pytest.raises(ValueError, match="j_bs"):
+            ntm_stability(qp, -j_bs, j_total, a=1.0)
+        with pytest.raises(ValueError, match="j_total"):
+            ntm_stability(qp, j_bs, np.zeros_like(j_total), a=1.0)
+        with pytest.raises(ValueError, match="shape|match"):
+            ntm_stability(qp, j_bs[:-1], j_total, a=1.0)
+        with pytest.raises(ValueError, match="a"):
+            ntm_stability(qp, j_bs, j_total, a=0.0)
+
+    def test_full_stability_check_rejects_partial_optional_contracts(self, iter_like_qprofile):
+        with pytest.raises(ValueError, match="Troyon"):
+            run_full_stability_check(iter_like_qprofile, beta_t=0.02, Ip_MA=10.0, a=1.0)
+
+        with pytest.raises(ValueError, match="NTM"):
+            run_full_stability_check(iter_like_qprofile, j_bs=np.ones_like(iter_like_qprofile.rho), a=1.0)

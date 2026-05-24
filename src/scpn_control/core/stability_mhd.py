@@ -123,6 +123,76 @@ class StabilitySummary:
     overall_stable: bool
 
 
+def _require_finite_scalar(
+    name: str,
+    value: float,
+    *,
+    positive: bool = False,
+    nonnegative: bool = False,
+) -> float:
+    """Return a finite scalar after enforcing its physical domain."""
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _require_profile_array(
+    name: str,
+    values: NDArray[np.float64],
+    reference_shape: tuple[int, ...] | None = None,
+    *,
+    positive: bool = False,
+    nonnegative: bool = False,
+) -> NDArray[np.float64]:
+    """Return a finite one-dimensional profile array in the requested domain."""
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size < 2:
+        raise ValueError(f"{name} must be a one-dimensional profile with at least two points")
+    if reference_shape is not None and arr.shape != reference_shape:
+        raise ValueError(f"{name} must match the q-profile grid shape")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if positive and np.any(arr <= 0.0):
+        raise ValueError(f"{name} must be positive everywhere")
+    if nonnegative and np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative everywhere")
+    return arr
+
+
+def _require_normalised_radius(rho: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Return a strictly increasing normalised minor-radius grid."""
+    arr = _require_profile_array("rho", rho)
+    if np.any(arr < 0.0) or np.any(arr > 1.0):
+        raise ValueError("rho must stay within the normalised interval [0, 1]")
+    if np.any(np.diff(arr) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
+    return arr
+
+
+def _validate_q_profile(qp: QProfile) -> QProfile:
+    """Validate safety-factor profile arrays before stability calculations."""
+    rho = _require_normalised_radius(qp.rho)
+    shape = rho.shape
+    q = _require_profile_array("q", qp.q, shape, positive=True)
+    _require_profile_array("shear", qp.shear, shape)
+    _require_profile_array("alpha_mhd", qp.alpha_mhd, shape, nonnegative=True)
+    q_min = _require_finite_scalar("q_min", qp.q_min, positive=True)
+    q_min_rho = _require_finite_scalar("q_min_rho", qp.q_min_rho, nonnegative=True)
+    q_edge = _require_finite_scalar("q_edge", qp.q_edge, positive=True)
+    if q_min_rho > 1.0:
+        raise ValueError("q_min_rho must stay within the normalised interval [0, 1]")
+    if not np.isclose(q_min, float(np.min(q)), rtol=1e-7, atol=1e-10):
+        raise ValueError("q_min must match the q-profile minimum")
+    if not np.isclose(q_edge, float(q[-1]), rtol=1e-7, atol=1e-10):
+        raise ValueError("q_edge must match the last q-profile point")
+    return qp
+
+
 # ── Q-profile computation ───────────────────────────────────────────
 
 
@@ -159,6 +229,22 @@ def compute_q_profile(
     -------
     QProfile
     """
+    rho = _require_normalised_radius(rho)
+    shape = rho.shape
+    ne = _require_profile_array("ne", ne, shape, positive=True)
+    Ti = _require_profile_array("Ti", Ti, shape, nonnegative=True)
+    Te = _require_profile_array("Te", Te, shape, nonnegative=True)
+    R0 = _require_finite_scalar("R0", R0, positive=True)
+    a = _require_finite_scalar("a", a, positive=True)
+    B0 = _require_finite_scalar("B0", B0, positive=True)
+    Ip_MA = _require_finite_scalar("Ip_MA", Ip_MA, positive=True)
+    kappa = _require_finite_scalar("kappa", kappa, positive=True)
+    delta = _require_finite_scalar("delta", delta)
+    if abs(delta) >= 1.0:
+        raise ValueError("delta must remain inside the physical triangularity interval (-1, 1)")
+    if a >= R0:
+        raise ValueError("a must be smaller than R0 for tokamak ordering")
+
     mu0 = 4.0 * np.pi * 1e-7
     Ip = Ip_MA * 1e6  # MA -> A
     epsilon = a / R0
@@ -239,6 +325,7 @@ def mercier_stability(qp: QProfile) -> MercierResult:
     -------
     MercierResult
     """
+    qp = _validate_q_profile(qp)
     s = qp.shear
     alpha = qp.alpha_mhd
 
@@ -281,6 +368,7 @@ def ballooning_stability(qp: QProfile) -> BallooningResult:
     -------
     BallooningResult
     """
+    qp = _validate_q_profile(qp)
     s = qp.shear
     alpha = qp.alpha_mhd
 
@@ -326,6 +414,7 @@ def kruskal_shafranov_stability(qp: QProfile) -> KruskalShafranovResult:
     Kruskal & Schwarzschild, Proc. R. Soc. Lond. A 223:348 (1954)
     Shafranov, Sov. Phys. Tech. Phys. 15:175 (1970)
     """
+    qp = _validate_q_profile(qp)
     stable = qp.q_edge > 1.0
     margin = qp.q_edge - 1.0
     return KruskalShafranovResult(
@@ -377,8 +466,17 @@ def troyon_beta_limit(
     ----------
     Troyon et al., Plasma Phys. Control. Fusion 26:209 (1984)
     """
-    I_N = Ip_MA / max(a * B0, 1e-10)  # normalised current [MA / (m T)]
-    beta_N = 100.0 * beta_t / max(I_N, 1e-10)  # [% m T / MA]
+    beta_t = _require_finite_scalar("beta_t", beta_t, nonnegative=True)
+    Ip_MA = _require_finite_scalar("Ip_MA", Ip_MA, positive=True)
+    a = _require_finite_scalar("a", a, positive=True)
+    B0 = _require_finite_scalar("B0", B0, positive=True)
+    g_nowall = _require_finite_scalar("g_nowall", g_nowall, positive=True)
+    g_wall = _require_finite_scalar("g_wall", g_wall, positive=True)
+    if g_wall < g_nowall:
+        raise ValueError("g_wall must not be below g_nowall")
+
+    I_N = Ip_MA / (a * B0)  # normalised current [MA / (m T)]
+    beta_N = 100.0 * beta_t / I_N  # [% m T / MA]
 
     beta_N_crit_nw = g_nowall
     beta_N_crit_w = g_wall
@@ -455,8 +553,14 @@ def ntm_stability(
     La Haye, Phys. Plasmas 13:055501 (2006)
     Sauter et al., Phys. Plasmas 4:1654 (1997)
     """
-    j_total_safe = np.where(np.abs(j_total) > 1e-6, j_total, 1e-6)
-    j_bs_frac = j_bs / j_total_safe  # bootstrap fraction
+    qp = _validate_q_profile(qp)
+    shape = qp.rho.shape
+    j_bs = _require_profile_array("j_bs", j_bs, shape, nonnegative=True)
+    j_total = _require_profile_array("j_total", j_total, shape, positive=True)
+    a = _require_finite_scalar("a", a, positive=True)
+    r_s_delta_prime = _require_finite_scalar("r_s_delta_prime", r_s_delta_prime)
+
+    j_bs_frac = j_bs / j_total  # bootstrap fraction
 
     # Classical Δ' baseline across profile (negative = classically stable).
     delta_prime = np.full_like(qp.rho, r_s_delta_prime)
@@ -527,6 +631,14 @@ def run_full_stability_check(
     -------
     StabilitySummary
     """
+    qp = _validate_q_profile(qp)
+    troyon_requested = beta_t is not None or Ip_MA is not None or B0 is not None
+    if troyon_requested and not all(arg is not None for arg in (beta_t, Ip_MA, a, B0)):
+        raise ValueError("Troyon evaluation requires beta_t, Ip_MA, a, and B0 together")
+    ntm_requested = j_bs is not None or j_total is not None
+    if ntm_requested and not all(arg is not None for arg in (j_bs, j_total, a)):
+        raise ValueError("NTM evaluation requires j_bs, j_total, and a together")
+
     # --- Always-on criteria ---
     mr = mercier_stability(qp)
     br = ballooning_stability(qp)
