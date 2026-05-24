@@ -22,7 +22,7 @@
     "project_script_count": 2,
     "public_api_export_count": 15,
     "public_class_count": 394,
-    "public_markdown_count": 30,
+    "public_markdown_count": 31,
     "pyo3_export_count": 27,
     "python_test_file_count": 269,
     "rust_source_file_count": 50,
@@ -55,6 +55,7 @@
       "docs/physics_traceability.md",
       "docs/pitch.md",
       "docs/pricing.md",
+      "docs/release_notes_v0.19.2.md",
       "docs/theory.md",
       "docs/tutorials.md",
       "docs/tutorials/first_steps.md",
@@ -91,7 +92,7 @@
       "scpn-check-generated-traceability": "tools.check_generated_traceability:main",
       "scpn-control": "scpn_control.cli:main"
     },
-    "version": "0.19.1"
+    "version": "0.19.2"
   },
   "python": {
     "public_api_exports": [

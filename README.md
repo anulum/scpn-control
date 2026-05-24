@@ -56,7 +56,7 @@ Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native line
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.19.1 |
+| Package version | 0.19.2 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 15 |
@@ -67,7 +67,7 @@ Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native line
 | Validation scripts | 38 |
 | Optional extras | 16 |
 | Python test files | 269 |
-| Public documentation pages | 30 |
+| Public documentation pages | 31 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

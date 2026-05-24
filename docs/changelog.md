@@ -2,6 +2,30 @@
 
 # Changelog
 
+## [0.19.2] - 2026-05-24
+
+### Fixed
+- Hardened fail-closed physics and mathematics boundaries across MHD,
+  pedestal, edge, transport, orbit-following, scenario, and uncertainty
+  surfaces without promoting unsupported facility or full-fidelity claims.
+- Added release-blocking boundary coverage for edge cases, invalid inputs,
+  monotonicity contracts, conservation boundaries, and finite-output contracts
+  in module-specific test files.
+- Applied the formatter changes required by the pushed pre-commit workflow so
+  release-candidate CI starts from the same formatting state as local checks.
+
+### Changed
+- Package version bumped to `0.19.2`.
+- Documented the hardening release-candidate scope, residual validation gaps,
+  and tag gate before creating a release tag.
+- Retained the physics traceability boundary: public full-fidelity claims remain
+  blocked until the required external artefacts are supplied and validated.
+
+### Validation
+- `pre-commit run --all-files`
+- `python tools/check_test_quality_policy.py`
+- `python validation/validate_physics_traceability.py --registry validation/physics_traceability.json --json-out`
+
 ## [0.19.1] — 2026-05-21
 
 ### Fixed

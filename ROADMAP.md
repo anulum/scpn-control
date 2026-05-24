@@ -4,6 +4,19 @@
 
 ## Shipped
 
+### v0.19.2 hardening release candidate - 2026-05-24
+- [x] Fail-closed physics and mathematics boundary hardening across MHD,
+  pedestal, edge, transport, scenario, orbit-following, and uncertainty
+  surfaces.
+- [x] Module-specific regression and contract coverage only; no coverage-bucket,
+  batch, round, remaining, final, push, miscellaneous, or new-module test files.
+- [x] Release documentation, changelog, API version note, and generated
+  capability snapshot prepared for `0.19.2`.
+- [ ] Create the `v0.19.2` tag only after current `main` CI is green for the
+  release-preparation commit.
+- [ ] Keep the full-fidelity public-claim block in force until traceability
+  strict validation has external artefacts for the open gaps.
+
 ### v0.1.0 — 2026-02-19
 - [x] Extract 41 modules + 5 Rust crates from scpn-fusion-core
 - [x] Click CLI (demo, benchmark, validate, hil-test)
