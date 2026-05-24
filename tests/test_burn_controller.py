@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.burn_controller import (
     AlphaHeating,
@@ -164,7 +165,7 @@ def test_burn_fraction_positive() -> None:
 
 
 def test_reactivity_exponent_edge_cases():
-    """Exercise burn_controller.py lines 122, 131: Ti_keV <= 0.1 and sv_minus <= 0."""
+    """Near-cold ions return the conservative unstable reactivity exponent."""
     alpha = AlphaHeating(R0=6.2, a=2.0)
     analysis = BurnStabilityAnalysis(alpha)
 
@@ -173,3 +174,51 @@ def test_reactivity_exponent_edge_cases():
 
     # Ti_keV exactly at threshold
     assert analysis.reactivity_exponent(0.1) == 10.0
+
+
+def test_alpha_heating_rejects_nonphysical_geometry_and_grids() -> None:
+    with pytest.raises(ValueError, match="R0 must be finite and > 0"):
+        AlphaHeating(R0=0.0, a=2.0)
+    with pytest.raises(ValueError, match="kappa must be finite and > 0"):
+        AlphaHeating(R0=6.2, a=2.0, kappa=float("nan"))
+
+    alpha = AlphaHeating(R0=6.2, a=2.0)
+    with pytest.raises(ValueError, match="ne_20 must have shape"):
+        alpha.power(np.ones(3), np.ones(3), np.ones(3), np.ones(2))
+
+    bad_rho = np.array([0.0, 0.5, 0.4])
+    with pytest.raises(ValueError, match="rho must be monotonically non-decreasing"):
+        alpha.power(np.ones(3), np.ones(3), np.ones(3), bad_rho)
+
+
+def test_burn_scalar_contracts_reject_nonphysical_inputs() -> None:
+    with pytest.raises(ValueError, match="ne_m3 must be finite and >= 0"):
+        lawson_triple_product(ne_m3=-1.0, tau_E_s=3.0, T_keV=20.0)
+    with pytest.raises(ValueError, match="tau_E_s must be finite and > 0"):
+        lawson_triple_product(ne_m3=1e20, tau_E_s=0.0, T_keV=20.0)
+
+    with pytest.raises(ValueError, match="v_th_ms must be finite and > 0"):
+        burn_fraction(n_dt_m3=1e20, sigv=1e-22, v_th_ms=0.0, a_m=2.0)
+
+
+def test_burn_controller_rejects_invalid_control_domains() -> None:
+    with pytest.raises(ValueError, match="Q_target must be finite and > 0"):
+        BurnController(Q_target=0.0)
+
+    ctrl = BurnController(Q_target=10.0, T_target_keV=20.0, P_aux_max_MW=50.0)
+    with pytest.raises(ValueError, match="dt must be finite and > 0"):
+        ctrl.step(Q_meas=10.0, T_meas_keV=20.0, P_alpha_MW=10.0, dt=0.0)
+    with pytest.raises(ValueError, match="T_meas_keV must be finite and >= 0"):
+        ctrl.step(Q_meas=10.0, T_meas_keV=-1.0, P_alpha_MW=10.0, dt=0.1)
+    with pytest.raises(ValueError, match="P_alpha_MW must be finite and >= 0"):
+        ctrl.step(Q_meas=10.0, T_meas_keV=20.0, P_alpha_MW=-1.0, dt=0.1)
+
+
+def test_subignited_burn_point_rejects_nonphysical_scan_inputs() -> None:
+    sbp = SubignitedBurnPoint(AlphaHeating(R0=6.2, a=2.0))
+    with pytest.raises(ValueError, match="ne_20 must be finite and > 0"):
+        sbp.find_operating_point(ne_20=0.0, P_aux_MW=10.0, tau_E_s=3.0)
+    with pytest.raises(ValueError, match="P_aux_MW must be finite and >= 0"):
+        sbp.find_operating_point(ne_20=1.0, P_aux_MW=-1.0, tau_E_s=3.0)
+    with pytest.raises(ValueError, match="tau_E_s must be finite and > 0"):
+        sbp.find_operating_point(ne_20=1.0, P_aux_MW=10.0, tau_E_s=0.0)

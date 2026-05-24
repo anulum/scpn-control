@@ -31,6 +31,34 @@ LAWSON_TRIPLE_PRODUCT = 3.0e21  # m^-3 s keV
 # Wesson 2011, Eq. 1.7.3.
 
 
+def _require_positive_scalar(name: str, value: float) -> float:
+    """Return a finite positive scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0")
+    return scalar
+
+
+def _require_nonnegative_scalar(name: str, value: float) -> float:
+    """Return a finite non-negative scalar or fail closed."""
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar < 0.0:
+        raise ValueError(f"{name} must be finite and >= 0")
+    return scalar
+
+
+def _require_nonnegative_profile(name: str, values: np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
+    """Return a finite non-negative profile with an optional exact shape."""
+    arr = np.asarray(values, dtype=float)
+    if shape is not None and arr.shape != shape:
+        raise ValueError(f"{name} must have shape {shape}")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if np.any(arr < 0.0):
+        raise ValueError(f"{name} must contain non-negative values")
+    return arr
+
+
 class AlphaHeating:
     """Alpha heating power from D-T fusion.
 
@@ -40,9 +68,9 @@ class AlphaHeating:
     """
 
     def __init__(self, R0: float, a: float, kappa: float = 1.0):
-        self.R0 = R0
-        self.a = a
-        self.kappa = kappa
+        self.R0 = _require_positive_scalar("R0", R0)
+        self.a = _require_positive_scalar("a", a)
+        self.kappa = _require_positive_scalar("kappa", kappa)
         self.E_alpha_J = E_ALPHA_J
 
     def power_density(self, ne_20: np.ndarray, Te_keV: np.ndarray, Ti_keV: np.ndarray) -> np.ndarray:
@@ -51,14 +79,9 @@ class AlphaHeating:
         p_α = n_D n_T <σv>(T_i) E_α.
         ITER Physics Basis 1999, Nucl. Fusion 39, 2137, Eq. (2.2.1).
         """
-        ne_arr = np.asarray(ne_20, dtype=float)
-        te_arr = np.asarray(Te_keV, dtype=float)
-        ti_arr = np.asarray(Ti_keV, dtype=float)
-        for name, values in (("ne_20", ne_arr), ("Te_keV", te_arr), ("Ti_keV", ti_arr)):
-            if not np.all(np.isfinite(values)):
-                raise ValueError(f"{name} must contain only finite values")
-        if np.any(ne_arr < 0.0) or np.any(te_arr < 0.0) or np.any(ti_arr < 0.0):
-            raise ValueError("plasma density and temperatures must be non-negative")
+        ne_arr = _require_nonnegative_profile("ne_20", ne_20)
+        te_arr = _require_nonnegative_profile("Te_keV", Te_keV, ne_arr.shape)
+        ti_arr = _require_nonnegative_profile("Ti_keV", Ti_keV, ne_arr.shape)
 
         ne_m3 = ne_arr * 1e20
         nD = ne_m3 / 2.0
@@ -78,12 +101,18 @@ class AlphaHeating:
 
         dV = 4π² R₀ a² κ ρ dρ (torus shell element in normalised radius).
         """
-        p_dens = self.power_density(ne_20, Te_keV, Ti_keV)
+        rho_arr = _require_nonnegative_profile("rho", rho)
+        if np.any(np.diff(rho_arr) < 0.0):
+            raise ValueError("rho must be monotonically non-decreasing")
+        ne_arr = _require_nonnegative_profile("ne_20", ne_20, rho_arr.shape)
+        te_arr = _require_nonnegative_profile("Te_keV", Te_keV, rho_arr.shape)
+        ti_arr = _require_nonnegative_profile("Ti_keV", Ti_keV, rho_arr.shape)
+        p_dens = self.power_density(ne_arr, te_arr, ti_arr)
 
-        dV = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.kappa * rho
+        dV = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.kappa * rho_arr
 
         _trapz: Any = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
-        P_tot = _trapz(p_dens * dV, rho)
+        P_tot = _trapz(p_dens * dV, rho_arr)
         return float(P_tot)
 
     def Q(self, P_alpha_MW: float, P_aux_MW: float) -> float:
@@ -93,6 +122,8 @@ class AlphaHeating:
         Delayed feedback for alpha-heating runaway:
         Mitarai & Muraoka 1999, Nucl. Fusion 39, 725.
         """
+        P_alpha_MW = _require_nonnegative_scalar("P_alpha_MW", P_alpha_MW)
+        P_aux_MW = _require_nonnegative_scalar("P_aux_MW", P_aux_MW)
         if P_aux_MW <= 0.0:
             return float("inf") if P_alpha_MW > 0 else 0.0
         return 5.0 * P_alpha_MW / P_aux_MW
@@ -104,6 +135,9 @@ def lawson_triple_product(ne_m3: float, tau_E_s: float, T_keV: float) -> float:
     Ignition requires n τ_E T > 3×10^21 m^-3 s keV.
     Lawson 1957, Proc. Phys. Soc. B 70, 6.
     """
+    ne_m3 = _require_nonnegative_scalar("ne_m3", ne_m3)
+    tau_E_s = _require_positive_scalar("tau_E_s", tau_E_s)
+    T_keV = _require_nonnegative_scalar("T_keV", T_keV)
     return ne_m3 * tau_E_s * T_keV
 
 
@@ -113,7 +147,11 @@ def burn_fraction(n_dt_m3: float, sigv: float, v_th_ms: float, a_m: float) -> fl
     f_b ≈ a² n_DT <σv> / (4 v_th).
     Wesson 2011, "Tokamaks" 4th ed., Eq. 1.7.3.
     """
-    return (a_m**2 * n_dt_m3 * sigv) / (4.0 * max(v_th_ms, 1.0))
+    n_dt_m3 = _require_nonnegative_scalar("n_dt_m3", n_dt_m3)
+    sigv = _require_nonnegative_scalar("sigv", sigv)
+    v_th_ms = _require_positive_scalar("v_th_ms", v_th_ms)
+    a_m = _require_positive_scalar("a_m", a_m)
+    return (a_m**2 * n_dt_m3 * sigv) / (4.0 * v_th_ms)
 
 
 class BurnStabilityAnalysis:
@@ -132,6 +170,7 @@ class BurnStabilityAnalysis:
         Stability requires this exponent < 2.
         Mitarai & Muraoka 1999, Nucl. Fusion 39, 725, Eq. (5).
         """
+        Ti_keV = _require_nonnegative_scalar("Ti_keV", Ti_keV)
         if Ti_keV <= 0.1:
             return 10.0
 
@@ -178,9 +217,9 @@ class BurnController:
     """
 
     def __init__(self, Q_target: float = 10.0, T_target_keV: float = 20.0, P_aux_max_MW: float = 73.0):
-        self.Q_target = Q_target
-        self.T_target = T_target_keV
-        self.P_aux_max = P_aux_max_MW
+        self.Q_target = _require_positive_scalar("Q_target", Q_target)
+        self.T_target = _require_positive_scalar("T_target_keV", T_target_keV)
+        self.P_aux_max = _require_positive_scalar("P_aux_max_MW", P_aux_max_MW)
 
         self.integral_T = 0.0
 
@@ -190,6 +229,10 @@ class BurnController:
         self.last_P_aux = P_aux_max_MW / 2.0
 
     def step(self, Q_meas: float, T_meas_keV: float, P_alpha_MW: float, dt: float) -> float:
+        _require_nonnegative_scalar("Q_meas", Q_meas)
+        T_meas_keV = _require_nonnegative_scalar("T_meas_keV", T_meas_keV)
+        _require_nonnegative_scalar("P_alpha_MW", P_alpha_MW)
+        dt = _require_positive_scalar("dt", dt)
         # > 30 keV: suppress heating to prevent alpha runaway (Mitarai & Muraoka 1999)
         if T_meas_keV > 30.0:
             self.last_P_aux = 0.0
@@ -233,6 +276,9 @@ class SubignitedBurnPoint:
         Lawson criterion: n τ_E T > 3×10^21 m^-3 s keV for ignition.
         Lawson 1957, Proc. Phys. Soc. B 70, 6.
         """
+        ne_20 = _require_positive_scalar("ne_20", ne_20)
+        P_aux_MW = _require_nonnegative_scalar("P_aux_MW", P_aux_MW)
+        tau_E_s = _require_positive_scalar("tau_E_s", tau_E_s)
         T_scan = np.linspace(1.0, 40.0, 400)
         points = []
 
