@@ -284,6 +284,24 @@
   interlock behaviour, backpressure, and HIL replay before making deployment
   readiness claims.
 
+### External validation collaboration trackers
+- [ ] Parent tracker: [external validation artefacts needed for full-fidelity
+  SCPN-CONTROL claims](https://github.com/anulum/scpn-control/issues/46).
+- [ ] External gyrokinetic validation artefacts:
+  [#47](https://github.com/anulum/scpn-control/issues/47).
+- [ ] Equilibrium and reconstruction reference artefacts:
+  [#48](https://github.com/anulum/scpn-control/issues/48).
+- [ ] Transport, edge, MHD, and scenario benchmark artefacts:
+  [#49](https://github.com/anulum/scpn-control/issues/49).
+- [ ] Neural surrogate validation artefacts:
+  [#50](https://github.com/anulum/scpn-control/issues/50).
+- [ ] Plasma-control and facility replay artefacts:
+  [#51](https://github.com/anulum/scpn-control/issues/51).
+- [ ] Disruption, halo-current, and mitigation benchmark artefacts:
+  [#52](https://github.com/anulum/scpn-control/issues/52).
+- [ ] Hardware, HDL, CODAC/EPICS, and runtime deployment evidence:
+  [#53](https://github.com/anulum/scpn-control/issues/53).
+
 ## Future (requires external resources)
 - [ ] Cross-code benchmark: native GK vs real TGLF/CGYRO (requires Linux + GACODE)
 - [x] TORAX coupling via code-to-code transport benchmark
