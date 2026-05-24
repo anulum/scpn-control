@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.pellet_injection import (
     PelletFuelingController,
@@ -23,9 +24,6 @@ from scpn_control.core.pellet_injection import (
 
 
 def test_ablation_rate():
-    # Zero T
-    assert ngs_ablation_rate(0.002, 1e20, 0.0, 2.0) == 0.0
-
     # Scaling tests
     rate1 = ngs_ablation_rate(0.002, 1e20, 1000.0, 2.0)
     rate2 = ngs_ablation_rate(0.002, 1e20, 2000.0, 2.0)
@@ -99,7 +97,7 @@ def test_fueling_controller():
 
 
 def test_pellet_trajectory_edge_clamp():
-    """Lines 78-79, 81-82: idx boundary clamps in simulate (idx==0 and idx>=len)."""
+    """Trajectory interpolation remains finite at radial-grid boundaries."""
     params = PelletParams(r_p_mm=2.0, v_p_m_s=500.0)
     rho = np.linspace(0, 1, 10)
     ne = np.ones(10) * 1.0
@@ -110,13 +108,13 @@ def test_pellet_trajectory_edge_clamp():
 
 
 def test_ablation_clamp():
-    """Lines 92, 109: dN clamped to N_p; r_p set to 0 when N_p exhausted."""
+    """A high-temperature plasma produces finite positive ablation."""
     rate = ngs_ablation_rate(0.001, 1e21, 50000.0, 2.0)
     assert rate > 0.0
 
 
 def test_pellet_shift_positive():
-    """Lines 130, 132: shift_idx > 0 and shift_idx < 0 profile shifting."""
+    """LFS injection shifts deposition outward under the drift model."""
     params_lfs = PelletParams(r_p_mm=4.0, v_p_m_s=300.0, injection_side="LFS")
     rho = np.linspace(0, 1, 50)
     ne = np.ones(50) * 5.0
@@ -128,7 +126,61 @@ def test_pellet_shift_positive():
 
 
 def test_pellet_pacing_no_trigger():
-    """Line 192: pellet frequency below 1.5x natural returns natural values."""
+    """Pellet frequency below the pacing threshold returns natural ELM values."""
     f, w = pellet_pacing_elm_control(5.0, 5.0, 20.0)
     assert f == 5.0
     assert w == 20.0
+
+
+def test_ablation_rejects_nonphysical_domains():
+    with pytest.raises(ValueError, match="r_p"):
+        ngs_ablation_rate(0.0, 1e20, 1000.0, 2.0)
+    with pytest.raises(ValueError, match="ne"):
+        ngs_ablation_rate(0.002, float("nan"), 1000.0, 2.0)
+    with pytest.raises(ValueError, match="Te_eV"):
+        ngs_ablation_rate(0.002, 1e20, 0.0, 2.0)
+    with pytest.raises(ValueError, match="M_p"):
+        ngs_ablation_rate(0.002, 1e20, 1000.0, 0.0)
+
+
+def test_pellet_params_and_trajectory_reject_nonphysical_domains():
+    with pytest.raises(ValueError, match="r_p_mm"):
+        PelletParams(r_p_mm=0.0, v_p_m_s=300.0)
+    with pytest.raises(ValueError, match="injection_side"):
+        PelletParams(r_p_mm=4.0, v_p_m_s=300.0, injection_side="BAD")
+
+    params = PelletParams(r_p_mm=4.0, v_p_m_s=300.0)
+    with pytest.raises(ValueError, match="R0"):
+        PelletTrajectory(params, R0=0.0, a=2.0, B0=5.3)
+
+
+def test_pellet_trajectory_rejects_malformed_profiles():
+    params = PelletParams(r_p_mm=4.0, v_p_m_s=300.0)
+    traj = PelletTrajectory(params, R0=6.2, a=2.0, B0=5.3)
+    rho = np.linspace(0.0, 1.0, 50)
+    ne = np.ones(50) * 5.0
+    Te = np.ones(50) * 1000.0
+
+    with pytest.raises(ValueError, match="rho"):
+        traj.simulate(rho[::-1], ne, Te)
+    with pytest.raises(ValueError, match="ne"):
+        traj.simulate(rho, np.array([1.0, np.nan] + [1.0] * 48), Te)
+    with pytest.raises(ValueError, match="Te_eV"):
+        traj.simulate(rho, ne, -Te)
+
+
+def test_fueling_controller_and_pacing_reject_nonphysical_domains():
+    params = PelletParams(4.0, 300.0)
+    with pytest.raises(ValueError, match="target_density"):
+        PelletFuelingController(target_density=0.0, pellet_params=params)
+
+    ctrl = PelletFuelingController(target_density=10.0, pellet_params=params)
+    with pytest.raises(ValueError, match="tau_p"):
+        ctrl.required_frequency(ne_current=5.0, tau_p=0.0, V_plasma=800.0)
+    with pytest.raises(ValueError, match="dt"):
+        ctrl.step(np.ones(50), np.ones(50), dt=0.0, V_plasma=800.0)
+
+    with pytest.raises(ValueError, match="f_pellet_Hz"):
+        pellet_pacing_elm_control(-1.0, 5.0, 20.0)
+    with pytest.raises(ValueError, match="f_elm_natural_Hz"):
+        pellet_pacing_elm_control(20.0, 0.0, 20.0)

@@ -18,6 +18,28 @@ from dataclasses import dataclass
 import numpy as np
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _profile_array(name: str, values: np.ndarray, shape: tuple[int, ...], *, nonnegative: bool = False) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.shape != shape:
+        raise ValueError(f"{name} must match rho shape")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if nonnegative and np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative")
+    return arr
+
+
 @dataclass
 class PelletParams:
     r_p_mm: float  # [mm]
@@ -25,6 +47,14 @@ class PelletParams:
     M_p: float = 2.0
     injection_side: str = "HFS"
     injection_angle_deg: float = 0.0
+
+    def __post_init__(self) -> None:
+        self.r_p_mm = _finite_scalar("r_p_mm", self.r_p_mm, positive=True)
+        self.v_p_m_s = _finite_scalar("v_p_m_s", self.v_p_m_s, positive=True)
+        self.M_p = _finite_scalar("M_p", self.M_p, positive=True)
+        self.injection_angle_deg = _finite_scalar("injection_angle_deg", self.injection_angle_deg)
+        if self.injection_side not in {"HFS", "LFS"}:
+            raise ValueError("injection_side must be 'HFS' or 'LFS'")
 
 
 @dataclass
@@ -45,8 +75,10 @@ def ngs_ablation_rate(r_p: float, ne: float, Te_eV: float, M_p: float) -> float:
     """
     Parks & Turnbull (1978) NGS ablation rate [atoms/s].
     """
-    if r_p <= 0.0 or Te_eV <= 0.0:
-        return 0.0
+    r_p = _finite_scalar("r_p", r_p, positive=True)
+    ne = _finite_scalar("ne", ne, positive=True)
+    Te_eV = _finite_scalar("Te_eV", Te_eV, positive=True)
+    M_p = _finite_scalar("M_p", M_p, positive=True)
 
     C_abl = 1.12e6
     rate = C_abl * (ne ** (1.0 / 3.0)) * (Te_eV ** (5.0 / 3.0)) * (r_p ** (4.0 / 3.0)) * (M_p ** (-1.0 / 3.0))
@@ -56,9 +88,11 @@ def ngs_ablation_rate(r_p: float, ne: float, Te_eV: float, M_p: float) -> float:
 class PelletTrajectory:
     def __init__(self, params: PelletParams, R0: float, a: float, B0: float):
         self.params = params
-        self.R0 = R0
-        self.a = a
-        self.B0 = B0
+        self.R0 = _finite_scalar("R0", R0, positive=True)
+        self.a = _finite_scalar("a", a, positive=True)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        self.B0 = _finite_scalar("B0", B0, positive=True)
 
         # Solid density of deuterium ~ 5e28 atoms/m^3
         self.n_solid = 5.0e28
@@ -66,6 +100,15 @@ class PelletTrajectory:
         self.N_initial = volume_m3 * self.n_solid
 
     def simulate(self, rho: np.ndarray, ne: np.ndarray, Te_eV: np.ndarray) -> PelletResult:
+        rho = np.asarray(rho, dtype=float)
+        if rho.ndim != 1 or rho.size < 2:
+            raise ValueError("rho must be a one-dimensional grid with at least two points")
+        if not np.all(np.isfinite(rho)):
+            raise ValueError("rho must contain only finite values")
+        if rho[0] < 0.0 or rho[-1] > 1.0 or np.any(np.diff(rho) <= 0.0):
+            raise ValueError("rho must be strictly increasing within [0, 1]")
+        ne = _profile_array("ne", ne, rho.shape, nonnegative=True)
+        Te_eV = _profile_array("Te_eV", Te_eV, rho.shape, nonnegative=True)
         N_p = self.N_initial
         r_p_m = self.params.r_p_mm * 1e-3
 
@@ -153,7 +196,7 @@ class PelletTrajectory:
 
 class PelletFuelingController:
     def __init__(self, target_density: float, pellet_params: PelletParams):
-        self.target_density = target_density
+        self.target_density = _finite_scalar("target_density", target_density, positive=True)
         self.pellet_params = pellet_params
 
         volume_m3 = (4.0 / 3.0) * np.pi * (pellet_params.r_p_mm * 1e-3) ** 3
@@ -162,17 +205,28 @@ class PelletFuelingController:
         self.last_injection = -100.0
 
     def required_frequency(self, ne_current: float, tau_p: float, V_plasma: float) -> float:
+        _finite_scalar("ne_current", ne_current, nonnegative=True)
+        tau_p = _finite_scalar("tau_p", tau_p, positive=True)
+        V_plasma = _finite_scalar("V_plasma", V_plasma, positive=True)
         # N_target = target * V, N_current = current * V
         # dN/dt = -N/tau_p + S_pellet
         # S_pellet = f * N_pellet
         # To maintain target: f = N_target / (tau_p * N_pellet)
         N_targ = self.target_density * 1e19 * V_plasma
-        f = N_targ / (max(tau_p, 0.1) * self.N_pellet)
+        f = N_targ / (tau_p * self.N_pellet)
         return float(f)
 
     def step(
         self, ne_profile: np.ndarray, Te_profile: np.ndarray, dt: float, V_plasma: float
     ) -> PelletInjectionCommand | None:
+        ne_profile = np.asarray(ne_profile, dtype=float)
+        if ne_profile.ndim != 1 or ne_profile.size == 0:
+            raise ValueError("ne_profile must be a non-empty one-dimensional array")
+        if not np.all(np.isfinite(ne_profile)) or np.any(ne_profile < 0.0):
+            raise ValueError("ne_profile must contain only finite non-negative values")
+        _profile_array("Te_profile", Te_profile, ne_profile.shape, nonnegative=True)
+        dt = _finite_scalar("dt", dt, positive=True)
+        V_plasma = _finite_scalar("V_plasma", V_plasma, positive=True)
         self.time += dt
 
         current_density = np.mean(ne_profile)
@@ -195,6 +249,9 @@ def pellet_pacing_elm_control(
     """
     Returns (f_ELM, delta_W_ELM).
     """
+    f_pellet_Hz = _finite_scalar("f_pellet_Hz", f_pellet_Hz, nonnegative=True)
+    f_elm_natural_Hz = _finite_scalar("f_elm_natural_Hz", f_elm_natural_Hz, positive=True)
+    w_elm_natural_MJ = _finite_scalar("w_elm_natural_MJ", w_elm_natural_MJ, nonnegative=True)
     if f_pellet_Hz > 1.5 * f_elm_natural_Hz:
         f_elm = f_pellet_Hz
         w_elm = w_elm_natural_MJ * (f_elm_natural_Hz / f_pellet_Hz)
