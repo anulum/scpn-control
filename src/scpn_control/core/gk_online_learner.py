@@ -75,6 +75,8 @@ class OnlineLearner:
             raise ValueError("input_10d must contain only finite values")
         if not np.all(np.isfinite(target_arr)):
             raise ValueError("target_3d must contain only finite values")
+        if np.any(target_arr < 0.0):
+            raise ValueError("target_3d transport coefficients must be nonnegative")
         self.buffer.append(TrainingSample(input_10d=input_arr.copy(), target_3d=target_arr.copy()))
 
     @property

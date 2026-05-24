@@ -138,7 +138,7 @@ def test_weights_have_correct_shapes():
 
 
 def test_retrain_with_existing_weights():
-    """Exercise gk_online_learner.py lines 113-115: retrain from existing weights."""
+    """Retraining accepts a complete prior-weight snapshot from the learner surface."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=3))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(10, rng):
@@ -155,7 +155,7 @@ def test_retrain_with_existing_weights():
 
 
 def test_retrain_rollback_on_worse_loss():
-    """Exercise gk_online_learner.py lines 164-166: rollback when val_loss worsens."""
+    """Validation loss regression triggers rollback instead of publishing new weights."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=1))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(10, rng):
@@ -189,6 +189,14 @@ def test_add_sample_rejects_nonfinite_values():
     bad_tgt = np.zeros(3)
     bad_tgt[1] = np.inf
     with pytest.raises(ValueError, match="target_3d must contain only finite values"):
+        learner.add_sample(np.zeros(10), bad_tgt)
+
+
+def test_add_sample_rejects_negative_transport_targets():
+    learner = OnlineLearner()
+    bad_tgt = np.array([0.1, -0.2, 0.3])
+
+    with pytest.raises(ValueError, match="target_3d transport coefficients"):
         learner.add_sample(np.zeros(10), bad_tgt)
 
 
