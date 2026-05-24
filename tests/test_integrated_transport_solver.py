@@ -98,6 +98,14 @@ class TestInitialization:
         assert ts.rho[0] == 0.0
         assert ts.rho[-1] == 1.0
 
+    def test_init_rejects_invalid_grid_count(self, config_file: Path) -> None:
+        """Radial grid must have at least two points for finite differencing."""
+        with pytest.raises(ValueError, match="nr"):
+            TransportSolver(str(config_file), nr=1)
+
+        with pytest.raises(ValueError, match="nr"):
+            TransportSolver(str(config_file), nr=2.5)
+
     def test_init_multi_ion(self, config_file: Path) -> None:
         """multi_ion=True creates D, T, He-ash arrays on the rho grid."""
         ts = TransportSolver(str(config_file), multi_ion=True)
@@ -390,6 +398,17 @@ class TestNeoclassical:
         assert solver.neoclassical_params["a"] == 2.0
         assert solver.neoclassical_params["B0"] == 5.3
 
+    def test_set_neoclassical_rejects_nonphysical_geometry(self, solver: TransportSolver) -> None:
+        """Neoclassical transport geometry must stay in the tokamak domain."""
+        with pytest.raises(ValueError, match="a must be smaller"):
+            solver.set_neoclassical(R0=2.0, a=2.0, B0=5.3)
+
+        with pytest.raises(ValueError, match="A_ion"):
+            solver.set_neoclassical(R0=6.2, a=2.0, B0=5.3, A_ion=0.0)
+
+        with pytest.raises(ValueError, match="q_edge"):
+            solver.set_neoclassical(R0=6.2, a=2.0, B0=5.3, q0=3.0, q_edge=2.0)
+
     def test_chang_hinton_profile_shape(self) -> None:
         """Chang-Hinton neoclassical chi should match input rho shape."""
         rho = np.linspace(0, 1, 50)
@@ -400,6 +419,25 @@ class TestNeoclassical:
         assert chi.shape == (50,)
         assert np.all(np.isfinite(chi))
         assert np.all(chi >= 0.01)  # floor applied
+
+    def test_chang_hinton_rejects_invalid_profiles(self) -> None:
+        """Non-physical Chang-Hinton profiles fail closed instead of being floored."""
+        rho = np.linspace(0, 1, 50)
+        Ti = np.full_like(rho, 5.0)
+        ne = np.full_like(rho, 8.0)
+        q = np.full_like(rho, 2.0)
+
+        with pytest.raises(ValueError, match="rho"):
+            chang_hinton_chi_profile(rho[::-1], Ti, ne, q, R0=6.2, a=2.0, B0=5.3)
+
+        with pytest.raises(ValueError, match="T_i"):
+            chang_hinton_chi_profile(rho, np.zeros_like(Ti), ne, q, R0=6.2, a=2.0, B0=5.3)
+
+        with pytest.raises(ValueError, match="q"):
+            chang_hinton_chi_profile(rho, Ti, ne, np.zeros_like(q), R0=6.2, a=2.0, B0=5.3)
+
+        with pytest.raises(ValueError, match="a must be smaller"):
+            chang_hinton_chi_profile(rho, Ti, ne, q, R0=2.0, a=2.0, B0=5.3)
 
     def test_bootstrap_current_shape(self) -> None:
         """Sauter bootstrap current profile should match rho shape."""
@@ -414,6 +452,23 @@ class TestNeoclassical:
         # Should be zero at the boundary (j_bs[0] and j_bs[-1])
         assert j_bs[0] == 0.0
         assert j_bs[-1] == 0.0
+
+    def test_sauter_bootstrap_rejects_invalid_profiles(self) -> None:
+        """Sauter bootstrap current requires positive finite kinetic profiles."""
+        rho = np.linspace(0, 1, 50)
+        Te = np.full_like(rho, 5.0)
+        Ti = np.full_like(rho, 5.0)
+        ne = np.full_like(rho, 8.0)
+        q = np.full_like(rho, 2.0)
+
+        with pytest.raises(ValueError, match="Te"):
+            calculate_sauter_bootstrap_current_full(rho, np.zeros_like(Te), Ti, ne, q, R0=6.2, a=2.0, B0=5.3)
+
+        with pytest.raises(ValueError, match="ne"):
+            calculate_sauter_bootstrap_current_full(rho, Te, Ti, -ne, q, R0=6.2, a=2.0, B0=5.3)
+
+        with pytest.raises(ValueError, match="Z_eff"):
+            calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3, Z_eff=0.0)
 
     def test_chang_hinton_near_axis_floor_for_tiny_inverse_aspect_ratio(self) -> None:
         """Near-axis Chang-Hinton points should use the finite diffusivity floor."""

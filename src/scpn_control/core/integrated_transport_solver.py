@@ -48,6 +48,62 @@ _GYRO_BOHM_COEFF_PATH = (
 _GYRO_BOHM_DEFAULT = 0.1  # ITPA Transport DB, Nucl. Fusion 39, 2175 (1999)
 
 
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _normalised_radius(rho: np.ndarray) -> np.ndarray:
+    arr = np.asarray(rho, dtype=float)
+    if arr.ndim != 1 or arr.size < 2:
+        raise ValueError("rho must be a one-dimensional profile with at least two points")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("rho must contain only finite values")
+    if np.any(arr < 0.0) or np.any(arr > 1.0):
+        raise ValueError("rho must stay within the normalised interval [0, 1]")
+    if np.any(np.diff(arr) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
+    return arr
+
+
+def _profile_array(
+    name: str,
+    values: np.ndarray,
+    shape: tuple[int, ...],
+    *,
+    positive: bool = False,
+    nonnegative: bool = False,
+    allow_last_zero: bool = False,
+) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.shape != shape:
+        raise ValueError(f"{name} must match the rho grid shape")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if positive and allow_last_zero and (np.any(arr[:-1] <= 0.0) or arr[-1] < 0.0):
+        raise ValueError(f"{name} must be positive in the interior and non-negative at the boundary")
+    if positive and not allow_last_zero and np.any(arr <= 0.0):
+        raise ValueError(f"{name} must be positive everywhere")
+    if nonnegative and np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative everywhere")
+    return arr
+
+
+def _validate_tokamak_geometry(R0: float, a: float, B0: float) -> tuple[float, float, float]:
+    R0 = _finite_scalar("R0", R0, positive=True)
+    a = _finite_scalar("a", a, positive=True)
+    if a >= R0:
+        raise ValueError("a must be smaller than R0 for tokamak ordering")
+    B0 = _finite_scalar("B0", B0, positive=True)
+    return R0, a, B0
+
+
 def _load_gyro_bohm_coefficient(
     path: Path | str | None = None,
 ) -> float:
@@ -68,7 +124,7 @@ def _load_gyro_bohm_coefficient(
     try:
         with open(p, encoding="utf-8") as f:
             data = json.load(f)
-        c_gB = float(data["c_gB"])
+        c_gB = _finite_scalar("c_gB", data["c_gB"], positive=True)
         _logger.debug("Loaded c_gB = %.6f from %s", c_gB, p)
         return c_gB
     except (FileNotFoundError, KeyError, json.JSONDecodeError, TypeError) as exc:
@@ -111,6 +167,15 @@ def chang_hinton_chi_profile(
     -------
     chi_nc : array  — neoclassical chi_i [m²/s]
     """
+    rho = _normalised_radius(rho)
+    shape = rho.shape
+    T_i = _profile_array("T_i", T_i, shape, positive=True, allow_last_zero=True)
+    n_e_19 = _profile_array("n_e_19", n_e_19, shape, positive=True, allow_last_zero=True)
+    q = _profile_array("q", q, shape, positive=True)
+    R0, a, B0 = _validate_tokamak_geometry(R0, a, B0)
+    A_ion = _finite_scalar("A_ion", A_ion, positive=True)
+    Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
+
     # Fundamental constants (CODATA 2018)
     e_charge = 1.602176634e-19  # C
     eps0 = 8.8541878128e-12  # F/m
@@ -120,7 +185,7 @@ def chang_hinton_chi_profile(
     chi_nc = np.zeros_like(rho)
     for i in range(len(rho)):
         r = rho[i]
-        if r <= 0.0 or T_i[i] <= 0.0 or n_e_19[i] <= 0.0 or q[i] <= 0.0:
+        if r <= 0.0 or T_i[i] <= 0.0 or n_e_19[i] <= 0.0:
             chi_nc[i] = 0.01
             continue
 
@@ -186,6 +251,14 @@ def calculate_sauter_bootstrap_current_full(
     -------
     j_bs : array — bootstrap current density [A/m^2]
     """
+    rho = _normalised_radius(rho)
+    shape = rho.shape
+    Te = _profile_array("Te", Te, shape, positive=True, allow_last_zero=True)
+    Ti = _profile_array("Ti", Ti, shape, positive=True, allow_last_zero=True)
+    ne = _profile_array("ne", ne, shape, positive=True, allow_last_zero=True)
+    q = _profile_array("q", q, shape, positive=True)
+    R0, a, B0 = _validate_tokamak_geometry(R0, a, B0)
+    Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
     n = len(rho)
     j_bs = np.zeros(n)
     # Fundamental constants (CODATA 2018)
@@ -195,7 +268,7 @@ def calculate_sauter_bootstrap_current_full(
 
     for i in range(1, n - 1):
         eps = rho[i] * a / R0
-        if eps < 1e-6 or Te[i] <= 0 or ne[i] <= 0 or q[i] <= 0:
+        if eps < 1e-6:
             continue
 
         # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eq. 13
@@ -223,7 +296,7 @@ def calculate_sauter_bootstrap_current_full(
         L32 /= 1.0 + 0.22 * np.sqrt(nu_star_e) + 0.19 * nu_star_e * (1.0 - f_t)
 
         # Sauter L34 coefficient (ion contribution)
-        L34 = L31 * Ti[i] / max(Te[i], 0.01)
+        L34 = L31 * Ti[i] / Te[i]
 
         # Gradients (central differences)
         dr = (rho[i + 1] - rho[i - 1]) * a
@@ -234,16 +307,16 @@ def calculate_sauter_bootstrap_current_full(
         dTi_dr = (Ti[i + 1] - Ti[i - 1]) * 1e3 * e_charge / dr
 
         # Poloidal field
-        B_pol = B0 * eps / max(q[i], 0.1)
+        B_pol = B0 * eps / q[i]
         if B_pol < 1e-10:
             continue
 
         # Bootstrap current
         p_e = n_e * T_e_J
         j_bs[i] = -(p_e / B_pol) * (
-            L31 * dn_dr / max(n_e, 1e10)
-            + L32 * dTe_dr / max(T_e_J, 1e-30)
-            + L34 * dTi_dr / max(Ti[i] * 1e3 * e_charge, 1e-30)
+            L31 * dn_dr / n_e
+            + L32 * dTe_dr / T_e_J
+            + L34 * dTi_dr / (Ti[i] * 1e3 * e_charge)
         )
 
     return j_bs
@@ -275,6 +348,8 @@ class TransportSolver(FusionKernel):
         allow_legacy_approximations: bool = False,
     ) -> None:
         super().__init__(config_path)
+        if int(nr) != nr or nr < 2:
+            raise ValueError("nr must be an integer >= 2")
         if (
             external_gk_allow_gyrobohm_fallback
             or tglf_native_allow_gyrobohm_fallback
@@ -289,7 +364,7 @@ class TransportSolver(FusionKernel):
         self.allow_constant_transport_fallback = allow_constant_transport_fallback
         self.allow_simplified_bootstrap_fallback = allow_simplified_bootstrap_fallback
         self.external_profile_mode = True  # Tell Kernel to respect our calculated profiles
-        self.nr = nr  # Radial grid points (normalized radius rho)
+        self.nr = int(nr)  # Radial grid points (normalized radius rho)
         self.rho = np.linspace(0, 1, self.nr)
         self.drho = 1.0 / (self.nr - 1)
 
@@ -404,6 +479,13 @@ class TransportSolver(FusionKernel):
         When set, update_transport_model uses the Chang-Hinton formula instead
         of the constant chi_base = 0.5.
         """
+        R0, a, B0 = _validate_tokamak_geometry(R0, a, B0)
+        A_ion = _finite_scalar("A_ion", A_ion, positive=True)
+        Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
+        q0 = _finite_scalar("q0", q0, positive=True)
+        q_edge = _finite_scalar("q_edge", q_edge, positive=True)
+        if q_edge < q0:
+            raise ValueError("q_edge must be greater than or equal to q0")
         q_profile = q0 + (q_edge - q0) * self.rho**2
         self.neoclassical_params = {
             "R0": R0,
