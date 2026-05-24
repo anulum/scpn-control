@@ -5,9 +5,11 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.eped_pedestal import (
     EPEDConfig,
+    EpedPedestalModel,
     PedestalProfileGenerator,
     _shaping_factor,
     eped1_predict,
@@ -50,7 +52,7 @@ def test_eped_density_scan():
     assert len(results) == 5
 
     # Higher density should lead to lower T_ped to maintain roughly constant p_ped
-    # Actually p_ped might shift slightly with collisionality, but T drops strongly
+    # p_ped may shift slightly with collisionality, but T drops materially
     assert results[-1].T_ped_keV < results[0].T_ped_keV
 
 
@@ -162,3 +164,77 @@ def test_eped_shaping_scan():
 
     diffs = np.diff(alpha_crits)
     assert np.all(diffs > 0), f"α_crit not monotonically increasing: {alpha_crits}"
+
+
+def test_eped_config_rejects_nonphysical_geometry_and_inputs():
+    base = _iter_base()
+
+    with pytest.raises(ValueError, match="a must be smaller"):
+        eped1_predict(EPEDConfig(**{**vars(base), "a": base.R0}))
+
+    with pytest.raises(ValueError, match="delta"):
+        eped1_predict(EPEDConfig(**{**vars(base), "delta": 1.0}))
+
+    with pytest.raises(ValueError, match="ne_ped_19"):
+        eped1_predict(EPEDConfig(**{**vars(base), "ne_ped_19": 0.0}))
+
+    with pytest.raises(ValueError, match="B_pol_ped"):
+        eped1_predict(EPEDConfig(**{**vars(base), "B_pol_ped": 0.0}))
+
+    with pytest.raises(ValueError, match="C_KBM"):
+        eped1_predict(EPEDConfig(**{**vars(base), "C_KBM": 0.0}))
+
+    with pytest.raises(ValueError, match="mode bounds"):
+        eped1_predict(EPEDConfig(**{**vars(base), "n_mode_min": 31, "n_mode_max": 30}))
+
+    with pytest.raises(ValueError, match="nu_star_e"):
+        eped1_predict(EPEDConfig(**{**vars(base), "nu_star_e": -0.1}))
+
+
+def test_eped_scan_rejects_invalid_density_axis():
+    base = _iter_base()
+
+    with pytest.raises(ValueError, match="ne_ped_range"):
+        eped1_scan(base, np.array([[3.0, 4.0]]))
+
+    with pytest.raises(ValueError, match="ne_ped_range"):
+        eped1_scan(base, np.array([3.0, np.nan]))
+
+    with pytest.raises(ValueError, match="ne_ped_range"):
+        eped1_scan(base, np.array([3.0, 0.0]))
+
+
+def test_pedestal_profile_generator_rejects_invalid_boundaries():
+    res = eped1_predict(_iter_base())
+
+    with pytest.raises(ValueError, match="Te_sep_eV"):
+        PedestalProfileGenerator(res, Te_sep_eV=res.T_ped_keV * 1000.0)
+
+    with pytest.raises(ValueError, match="ne_sep_19"):
+        PedestalProfileGenerator(res, ne_sep_19=res.n_ped_19)
+
+    gen = PedestalProfileGenerator(res)
+    with pytest.raises(ValueError, match="rho"):
+        gen.generate(np.array([[0.0, 1.0]]))
+
+    with pytest.raises(ValueError, match="rho"):
+        gen.generate(np.array([0.0, 0.5, np.nan]))
+
+    with pytest.raises(ValueError, match="rho"):
+        gen.generate(np.array([0.0, 0.8, 0.7]))
+
+
+def test_integrated_wrapper_rejects_invalid_inputs():
+    with pytest.raises(ValueError, match="a must be smaller"):
+        EpedPedestalModel(R0=2.0, a=2.0, B0=5.0, Ip_MA=10.0)
+
+    with pytest.raises(ValueError, match="Z_eff"):
+        EpedPedestalModel(R0=6.2, a=2.0, B0=5.0, Ip_MA=10.0, Z_eff=0.0)
+
+    model = EpedPedestalModel(R0=6.2, a=2.0, B0=5.0, Ip_MA=10.0)
+
+    with pytest.raises(ValueError, match="ne_ped_19"):
+        model.predict(0.0)
+
+    with pytest.raises(ValueError, match="nu_star_e"):
+        model.predict(6.0, nu_star_e=-1.0)

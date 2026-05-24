@@ -27,7 +27,7 @@ C_KBM_DEFAULT: float = 0.076
 # Collisionality narrowing coefficient — [S11] Fig. 7 logarithmic fit
 _COLL_NARROW_COEFF: float = 0.4
 
-# Ballooning stability first-access coefficient — [C98] calibrated to ELITE
+# Ballooning stability first-access coefficient — [C98] calibrated to published PB limits
 _ALPHA_BALL_COEFF: float = 3.0
 
 # Peeling onset β_p threshold — [Sau99] bootstrap proximity limit
@@ -36,6 +36,52 @@ _BETA_P_PEEL_MAX: float = 3.0
 # Reference shape parameters for F_shape normalisation (ITER-like)
 _KAPPA_REF: float = 1.7  # ITER design elongation
 _DELTA_REF: float = 0.33  # ITER design triangularity
+
+
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
+
+
+def _validate_config(config: EPEDConfig) -> EPEDConfig:
+    R0 = _finite_scalar("R0", config.R0, positive=True)
+    a = _finite_scalar("a", config.a, positive=True)
+    if a >= R0:
+        raise ValueError("a must be smaller than R0 for tokamak ordering")
+    _finite_scalar("B0", config.B0, positive=True)
+    _finite_scalar("kappa", config.kappa, positive=True)
+    delta = _finite_scalar("delta", config.delta)
+    if abs(delta) >= 1.0:
+        raise ValueError("delta must remain inside the physical triangularity interval (-1, 1)")
+    _finite_scalar("Ip_MA", config.Ip_MA, positive=True)
+    _finite_scalar("ne_ped_19", config.ne_ped_19, positive=True)
+    _finite_scalar("B_pol_ped", config.B_pol_ped, positive=True)
+    _finite_scalar("C_KBM", config.C_KBM, positive=True)
+    if int(config.n_mode_min) != config.n_mode_min or int(config.n_mode_max) != config.n_mode_max:
+        raise ValueError("mode bounds must be integers")
+    if config.n_mode_min <= 0 or config.n_mode_max < config.n_mode_min:
+        raise ValueError("mode bounds must be positive and ordered")
+    _finite_scalar("nu_star_e", config.nu_star_e, nonnegative=True)
+    return config
+
+
+def _validate_eped_result(result: EPEDResult) -> EPEDResult:
+    _finite_scalar("p_ped_kPa", result.p_ped_kPa, positive=True)
+    _finite_scalar("T_ped_keV", result.T_ped_keV, positive=True)
+    _finite_scalar("n_ped_19", result.n_ped_19, positive=True)
+    delta_ped = _finite_scalar("delta_ped", result.delta_ped, positive=True)
+    _finite_scalar("beta_p_ped", result.beta_p_ped, nonnegative=True)
+    _finite_scalar("alpha_crit", result.alpha_crit, nonnegative=True)
+    _finite_scalar("delta_ped_collisionless", result.delta_ped_collisionless, nonnegative=True)
+    if delta_ped >= 1.0:
+        raise ValueError("delta_ped must remain below the normalised minor-radius interval")
+    return result
 
 
 @dataclass
@@ -91,6 +137,7 @@ def eped_validation_database() -> list[EPEDValidationPoint]:
 
 def _compute_q95(config: EPEDConfig) -> float:
     """Safety factor at 95% flux surface. [W04] Eq. 3.6.8."""
+    config = _validate_config(config)
     return (config.a * config.B0) / (config.R0 * config.B_pol_ped) * (1.0 + config.kappa**2) / 2.0
 
 
@@ -106,6 +153,10 @@ def _shaping_factor(kappa: float, delta: float) -> float:
 
         F_shape = [(1 + 0.5κ)(1 + δ)] / [(1 + 0.5 κ_ref)(1 + δ_ref)]
     """
+    kappa = _finite_scalar("kappa", kappa, positive=True)
+    delta = _finite_scalar("delta", delta)
+    if abs(delta) >= 1.0:
+        raise ValueError("delta must remain inside the physical triangularity interval (-1, 1)")
     numerator = (1.0 + 0.5 * kappa) * (1.0 + delta)
     denominator = (1.0 + 0.5 * _KAPPA_REF) * (1.0 + _DELTA_REF)
     return numerator / denominator
@@ -119,6 +170,8 @@ def _approx_alpha_crit(delta_ped: float, config: EPEDConfig) -> float:
     Shaping factor: [C98] / [S09] triangularity + elongation correction.
     Peeling reduction: bootstrap current proximity — [Sau99] Sec. III.
     """
+    delta_ped = _finite_scalar("delta_ped", delta_ped, positive=True)
+    config = _validate_config(config)
     F_shape = _shaping_factor(config.kappa, config.delta)
     alpha_ball = _ALPHA_BALL_COEFF * F_shape
 
@@ -138,7 +191,9 @@ def _collisionality_width_correction(delta_kbm: float, nu_star_e: float) -> floa
     Logarithmic fit to [S11] Fig. 7 over the range ν*_e ∈ [0.1, 10].
     At ν*_e = 0 the correction vanishes (Δ_eff = Δ_KBM).
     """
-    if nu_star_e <= 0.0:
+    delta_kbm = _finite_scalar("delta_kbm", delta_kbm, positive=True)
+    nu_star_e = _finite_scalar("nu_star_e", nu_star_e, nonnegative=True)
+    if nu_star_e == 0.0:
         return delta_kbm
     return delta_kbm / (1.0 + _COLL_NARROW_COEFF * math.log(1.0 + nu_star_e))
 
@@ -150,6 +205,7 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
     Iteration: guess Δ → α_crit(Δ) → p_ped → β_p,ped → Δ_KBM.
     Collisionality correction applied after convergence. [S11]
     """
+    config = _validate_config(config)
     delta_ped = 0.04  # initial guess
 
     mu_0 = 4.0 * math.pi * 1e-7
@@ -201,16 +257,26 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
 
 def eped1_scan(config: EPEDConfig, ne_ped_range: np.ndarray) -> list[EPEDResult]:
     """Scan pedestal density across operating space."""
-    return [eped1_predict(dataclasses.replace(config, ne_ped_19=float(ne))) for ne in ne_ped_range]
+    config = _validate_config(config)
+    ne_values = np.asarray(ne_ped_range, dtype=float)
+    if ne_values.ndim != 1 or ne_values.size == 0:
+        raise ValueError("ne_ped_range must be a one-dimensional non-empty scan axis")
+    if not np.all(np.isfinite(ne_values)) or np.any(ne_values <= 0.0):
+        raise ValueError("ne_ped_range must contain only positive finite densities")
+    return [eped1_predict(dataclasses.replace(config, ne_ped_19=float(ne))) for ne in ne_values]
 
 
 class PedestalProfileGenerator:
     """Generates mtanh profiles from EPED predictions."""
 
     def __init__(self, eped_result: EPEDResult, Te_sep_eV: float = 100.0, ne_sep_19: float = 0.3):
-        self.res = eped_result
-        self.Te_sep_keV = Te_sep_eV / 1000.0
-        self.ne_sep = ne_sep_19
+        self.res = _validate_eped_result(eped_result)
+        self.Te_sep_keV = _finite_scalar("Te_sep_eV", Te_sep_eV, positive=True) / 1000.0
+        self.ne_sep = _finite_scalar("ne_sep_19", ne_sep_19, positive=True)
+        if self.Te_sep_keV >= self.res.T_ped_keV:
+            raise ValueError("Te_sep_eV must be below the pedestal-top temperature")
+        if self.ne_sep >= self.res.n_ped_19:
+            raise ValueError("ne_sep_19 must be below the pedestal-top density")
 
     def generate(self, rho: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -220,6 +286,13 @@ class PedestalProfileGenerator:
         """
         rho_sym = 1.0 - self.res.delta_ped / 2.0
         width = self.res.delta_ped
+        rho = np.asarray(rho, dtype=float)
+        if rho.ndim != 1 or rho.size == 0:
+            raise ValueError("rho must be a one-dimensional non-empty profile grid")
+        if not np.all(np.isfinite(rho)) or np.any(rho < 0.0) or np.any(rho > 1.0):
+            raise ValueError("rho must contain finite normalised radii in [0, 1]")
+        if np.any(np.diff(rho) < 0.0):
+            raise ValueError("rho must be monotonically increasing")
 
         def _mtanh(r: np.ndarray, height: float, sep: float) -> np.ndarray:
             z = 2.0 * (rho_sym - r) / max(width / 2.0, 1e-3)
@@ -250,6 +323,15 @@ class EpedPedestalModel:
         A_ion: float = 2.0,
         Z_eff: float = 1.5,
     ) -> None:
+        R0 = _finite_scalar("R0", R0, positive=True)
+        a = _finite_scalar("a", a, positive=True)
+        if a >= R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        B0 = _finite_scalar("B0", B0, positive=True)
+        Ip_MA = _finite_scalar("Ip_MA", Ip_MA, positive=True)
+        kappa = _finite_scalar("kappa", kappa, positive=True)
+        _finite_scalar("A_ion", A_ion, positive=True)
+        _finite_scalar("Z_eff", Z_eff, positive=True)
         mu_0 = 4.0 * math.pi * 1e-7
         B_pol = mu_0 * Ip_MA * 1e6 / (2.0 * math.pi * a * math.sqrt(kappa))
         self._R0 = R0
@@ -260,6 +342,8 @@ class EpedPedestalModel:
         self._B_pol_ped = B_pol
 
     def predict(self, ne_ped_19: float, nu_star_e: float = 0.0) -> EpedPedestalPrediction:
+        ne_ped_19 = _finite_scalar("ne_ped_19", ne_ped_19, positive=True)
+        nu_star_e = _finite_scalar("nu_star_e", nu_star_e, nonnegative=True)
         cfg = EPEDConfig(
             R0=self._R0,
             a=self._a,
