@@ -84,7 +84,7 @@ class NMPCConfig:
 
     max_sqp_iter: int = 10
     qp_max_iter: int = 500
-    qp_backend: str = "internal"  # "internal" or "scipy"
+    qp_backend: str = "internal"  # "internal", "scipy", or "osqp"
     tol: float = 1e-4
 
 
@@ -168,8 +168,8 @@ class NonlinearMPC:
             raise ValueError("qp_max_iter must be an integer >= 1.")
         if config.qp_max_iter < 1:
             raise ValueError("qp_max_iter must be an integer >= 1.")
-        if config.qp_backend not in {"internal", "scipy"}:
-            raise ValueError("qp_backend must be 'internal' or 'scipy'.")
+        if config.qp_backend not in {"internal", "scipy", "osqp"}:
+            raise ValueError("qp_backend must be 'internal', 'scipy', or 'osqp'.")
         if not np.isfinite(float(config.tol)) or float(config.tol) <= 0.0:
             raise ValueError("tol must be positive finite.")
 
@@ -194,8 +194,8 @@ class NonlinearMPC:
         if np.any(config.du_max <= 0.0):
             raise ValueError("du_max entries must be positive finite.")
         if terminal_min_configured and terminal_max_configured:
-            if config.qp_backend != "scipy":
-                raise ValueError("terminal_x constraints require qp_backend='scipy'.")
+            if config.qp_backend not in {"scipy", "osqp"}:
+                raise ValueError("terminal_x constraints require qp_backend='scipy' or 'osqp'.")
             config.terminal_x_min = _as_finite_vector("terminal_x_min", config.terminal_x_min, _NX)
             config.terminal_x_max = _as_finite_vector("terminal_x_max", config.terminal_x_max, _NX)
             if np.any(config.terminal_x_min >= config.terminal_x_max):
@@ -343,6 +343,36 @@ class NonlinearMPC:
             sensitivity[:, block] += B_k[k]
         return sensitivity
 
+    def _condensed_qp_terms(
+        self,
+        A_k: list[np.ndarray],
+        B_k: list[np.ndarray],
+        P_term: np.ndarray,
+        x_ref: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Return Hessian and linear term for the condensed QP objective."""
+        n_dec = self.N * self.nu
+        H = np.zeros((n_dec, n_dec), dtype=np.float64)
+        q = np.zeros(n_dec, dtype=np.float64)
+        sensitivity = np.zeros((self.nx, n_dec), dtype=np.float64)
+
+        for k in range(self.N):
+            x_err = self.x_traj[k] - x_ref
+            H += 2.0 * sensitivity.T @ self.config.Q @ sensitivity
+            q += 2.0 * sensitivity.T @ self.config.Q @ x_err
+            block = slice(k * self.nu, (k + 1) * self.nu)
+            H[block, block] += 2.0 * self.config.R
+            q[block] += 2.0 * self.config.R @ self.u_traj[k]
+
+            next_sensitivity = A_k[k] @ sensitivity
+            next_sensitivity[:, block] += B_k[k]
+            sensitivity = next_sensitivity
+
+        x_err_terminal = self.x_traj[self.N] - x_ref
+        H += 2.0 * sensitivity.T @ P_term @ sensitivity
+        q += 2.0 * sensitivity.T @ P_term @ x_err_terminal
+        return 0.5 * (H + H.T), q
+
     def _solve_qp_scipy(
         self,
         A_k: list[np.ndarray],
@@ -417,6 +447,88 @@ class NonlinearMPC:
             raise RuntimeError(f"SciPy QP backend failed: {result.message}")
         return np.asarray(result.x, dtype=np.float64).reshape(self.N, self.nu)
 
+    def _solve_qp_osqp(
+        self,
+        A_k: list[np.ndarray],
+        B_k: list[np.ndarray],
+        P_term: np.ndarray,
+        u_prev: np.ndarray,
+        x_ref: np.ndarray,
+    ) -> np.ndarray:
+        """Solve the condensed sparse QP with OSQP and explicit constraints."""
+        import warnings
+
+        import osqp
+        import scipy.sparse
+
+        n_dec = self.N * self.nu
+        H, q = self._condensed_qp_terms(A_k, B_k, P_term, x_ref)
+        rows = []
+        lb = []
+        ub = []
+
+        for idx in range(n_dec):
+            row = np.zeros(n_dec)
+            row[idx] = 1.0
+            k = idx // self.nu
+            j = idx % self.nu
+            rows.append(row)
+            lb.append(float(self.config.u_min[j] - self.u_traj[k, j]))
+            ub.append(float(self.config.u_max[j] - self.u_traj[k, j]))
+
+        for k in range(self.N):
+            for j in range(self.nu):
+                row = np.zeros(n_dec)
+                row[k * self.nu + j] = 1.0
+                if k == 0:
+                    offset = self.u_traj[k, j] - u_prev[j]
+                else:
+                    row[(k - 1) * self.nu + j] = -1.0
+                    offset = self.u_traj[k, j] - self.u_traj[k - 1, j]
+                rows.append(row)
+                lb.append(float(-self.config.du_max[j] - offset))
+                ub.append(float(self.config.du_max[j] - offset))
+
+        if self.config.terminal_x_min is not None and self.config.terminal_x_max is not None:
+            terminal_sensitivity = self._terminal_state_sensitivity(A_k, B_k)
+            terminal_offset = self.x_traj[self.N]
+            for row, lower, upper, offset in zip(
+                terminal_sensitivity,
+                self.config.terminal_x_min,
+                self.config.terminal_x_max,
+                terminal_offset,
+                strict=True,
+            ):
+                rows.append(row)
+                lb.append(float(lower - offset))
+                ub.append(float(upper - offset))
+
+        solver = osqp.OSQP()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=PendingDeprecationWarning,
+            )
+            solver.setup(
+                P=scipy.sparse.csc_matrix(H),
+                q=q,
+                A=scipy.sparse.csc_matrix(np.vstack(rows)),
+                l=np.asarray(lb, dtype=np.float64),
+                u=np.asarray(ub, dtype=np.float64),
+                verbose=False,
+                max_iter=int(self.config.qp_max_iter),
+                eps_abs=float(self.config.tol),
+                eps_rel=float(self.config.tol),
+                polishing=True,
+            )
+            result = solver.solve()
+        self.last_qp_backend = "osqp"
+        self.last_qp_iterations = int(result.info.iter)
+        self.last_qp_converged = int(result.info.status_val) in {1, 2}
+        if not self.last_qp_converged:
+            raise RuntimeError(f"OSQP backend failed: {result.info.status}")
+        return np.asarray(result.x, dtype=np.float64).reshape(self.N, self.nu)
+
     def _solve_qp(self, x0: np.ndarray, u_prev: np.ndarray, x_ref: np.ndarray) -> np.ndarray:
         """Projected gradient descent on condensed QP.
 
@@ -442,6 +554,8 @@ class NonlinearMPC:
         self.last_qp_step_size = alpha
         if self.config.qp_backend == "scipy":
             return self._solve_qp_scipy(A_k, B_k, P_term, u_prev, x_ref)
+        if self.config.qp_backend == "osqp":
+            return self._solve_qp_osqp(A_k, B_k, P_term, u_prev, x_ref)
         self.last_qp_backend = "internal"
 
         for iter_idx in range(1, max_iter + 1):
