@@ -67,6 +67,22 @@ def test_basis_evaluation():
     assert np.isclose(R_val[2], 4.2)  # 6.2 + 2.0 * cos(pi)
 
 
+def test_basis_evaluation_rejects_malformed_spectral_inputs() -> None:
+    solver = VMECLiteSolver(m_pol=1, n_tor=0, n_fp=1)
+    coeffs = np.array([6.2, 2.0])
+    theta = np.array([0.0, np.pi])
+    zeta = np.zeros(2)
+
+    with pytest.raises(ValueError, match="coeffs_mn"):
+        solver.basis.evaluate(np.array([6.2]), theta, zeta)
+    with pytest.raises(ValueError, match="same shape"):
+        solver.basis.evaluate(coeffs, theta, np.zeros((1, 2)))
+    with pytest.raises(ValueError, match="finite"):
+        solver.basis.evaluate(np.array([6.2, np.nan]), theta, zeta)
+    with pytest.raises(ValueError, match="finite"):
+        solver.basis.evaluate(coeffs, np.array([0.0, np.nan]), zeta)
+
+
 def test_vmec_rejects_invalid_spectral_domains():
     with pytest.raises(ValueError, match="n_s"):
         VMECLiteSolver(n_s=1)
@@ -76,6 +92,8 @@ def test_vmec_rejects_invalid_spectral_domains():
         VMECLiteSolver(n_tor=-1)
     with pytest.raises(ValueError, match="n_fp"):
         VMECLiteSolver(n_fp=0)
+    with pytest.raises(ValueError, match="m_pol"):
+        VMECLiteSolver(m_pol=True)
 
 
 def test_vmec_rejects_nonfinite_boundary_coefficients():
@@ -106,6 +124,19 @@ def test_vmec_rejects_invalid_solve_controls():
         solver.solve(max_iter=0, tol=1e-4)
     with pytest.raises(ValueError, match="tol"):
         solver.solve(max_iter=10, tol=0.0)
+
+
+def test_axisymmetric_boundary_rejects_nonphysical_geometry_inputs() -> None:
+    with pytest.raises(ValueError, match="R0"):
+        AxisymmetricTokamakBoundary.from_parameters(R0=float("nan"), a=2.0, kappa=1.7, delta=0.33)
+    with pytest.raises(ValueError, match="a"):
+        AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=0.0, kappa=1.7, delta=0.33)
+    with pytest.raises(ValueError, match="kappa"):
+        AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=0.0, delta=0.33)
+    with pytest.raises(ValueError, match="delta"):
+        AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=1.7, delta=1.0)
+    with pytest.raises(ValueError, match="major radius"):
+        AxisymmetricTokamakBoundary.from_parameters(R0=1.0, a=2.0, kappa=1.7, delta=0.33)
 
 
 # ── New citation-driven tests ─────────────────────────────────────────

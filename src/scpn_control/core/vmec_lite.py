@@ -27,7 +27,7 @@ import numpy as np
 
 
 def _positive_int(name: str, value: int, *, minimum: int = 1) -> int:
-    if not isinstance(value, int) or value < minimum:
+    if not isinstance(value, int) or isinstance(value, bool) or value < minimum:
         raise ValueError(f"{name} must be an integer >= {minimum}")
     return value
 
@@ -92,6 +92,17 @@ class SpectralBasis:
         Hirshman & Whitson 1983, Eq. 1–2:
             Σ C_mn cos(mθ − n N_fp ζ)  or  Σ C_mn sin(mθ − n N_fp ζ)
         """
+        coeffs_mn = np.asarray(coeffs_mn, dtype=float)
+        theta = np.asarray(theta, dtype=float)
+        zeta = np.asarray(zeta, dtype=float)
+        if coeffs_mn.shape != (self.n_modes,):
+            raise ValueError(f"coeffs_mn must have shape ({self.n_modes},)")
+        if theta.shape != zeta.shape:
+            raise ValueError("theta and zeta must have the same shape")
+        if not np.all(np.isfinite(coeffs_mn)):
+            raise ValueError("coeffs_mn must contain only finite values")
+        if not np.all(np.isfinite(theta)) or not np.all(np.isfinite(zeta)):
+            raise ValueError("theta and zeta must contain only finite values")
         val = np.zeros_like(theta)
         for i, (m, n) in enumerate(self.mn_modes):
             arg = m * theta - n * self.n_fp * zeta
@@ -233,6 +244,20 @@ class AxisymmetricTokamakBoundary:
         R = R₀ + a cos(θ + δ sin θ),  Z = a κ sin θ
         Hirshman & Whitson 1983, Phys. Fluids 26, 3553, Eqs. 1–2.
         """
+        R0 = _finite_float("R0", R0)
+        a = _finite_float("a", a)
+        kappa = _finite_float("kappa", kappa)
+        delta = _finite_float("delta", delta)
+        if R0 <= 0.0:
+            raise ValueError("R0 must be positive")
+        if a <= 0.0:
+            raise ValueError("a must be positive")
+        if kappa <= 0.0:
+            raise ValueError("kappa must be positive")
+        if not -1.0 < delta < 1.0:
+            raise ValueError("delta must lie in (-1, 1)")
+        if R0 <= a * (1.0 + abs(delta)):
+            raise ValueError("R0 must keep the axisymmetric boundary major radius positive")
         b_R: dict[tuple[int, int], float] = {
             (0, 0): R0,
             (1, 0): a,
