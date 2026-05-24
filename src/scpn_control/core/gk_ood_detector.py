@@ -131,6 +131,7 @@ class OODDetector:
             self._cov_inv = np.asarray(training_cov_inv, dtype=np.float64)
             if self._cov_inv.shape != (10, 10) or not np.all(np.isfinite(self._cov_inv)):
                 raise ValueError("training_cov_inv must be a finite 10x10 matrix")
+            _validate_covariance_inverse(self._cov_inv)
         else:
             # Diagonal approximation from training std
             self._cov_inv = np.diag(1.0 / np.maximum(_TRAINING_STD**2, 1e-12))
@@ -253,6 +254,15 @@ class OODDetector:
 def _require_positive(field: str, value: float) -> None:
     if not np.isfinite(value) or value <= 0.0:
         raise ValueError(f"{field} must be finite and positive")
+
+
+def _validate_covariance_inverse(cov_inv: NDArray[np.float64]) -> None:
+    if not np.allclose(cov_inv, cov_inv.T, rtol=1e-12, atol=1e-12):
+        raise ValueError("training_cov_inv must be symmetric")
+    try:
+        np.linalg.cholesky(cov_inv)
+    except np.linalg.LinAlgError as exc:
+        raise ValueError("training_cov_inv must be positive definite") from exc
 
 
 def _validate_input_vector(x: NDArray[np.float64]) -> None:

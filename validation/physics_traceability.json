@@ -207,7 +207,7 @@
     },
     {
       "component": "gyrokinetic OOD detector distribution-bound contract",
-      "equation_contract": "OOD detector claims must declare the feature vector, training distribution, distance metric, threshold calibration, uncertainty handling, and behavior outside the calibrated gyrokinetic operating envelope.",
+      "equation_contract": "OOD detector claims must declare the feature vector, training distribution, distance metric, symmetric positive-definite inverse-covariance calibration, threshold calibration, uncertainty handling, and behavior outside the calibrated gyrokinetic operating envelope.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Repository gyrokinetic scheduler OOD contract",
@@ -219,7 +219,7 @@
         "Calibrate thresholds against real or published GK campaign ensembles",
         "Add false-positive and false-negative acceptance criteria for deployment gating"
       ],
-      "unit_contract": "Feature units inherit declared GK inputs and outputs; detector scores are dimensionless with explicit calibration metadata and threshold provenance.",
+      "unit_contract": "Feature units inherit declared GK inputs and outputs; detector scores are dimensionless with explicit calibration metadata, Mahalanobis metric provenance, and threshold provenance.",
       "validation_evidence": [
         "tests/test_gk_ood_detector.py",
         "tests/test_gk_hybrid_integration.py",
@@ -235,7 +235,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_ood_detector.py"
       ],
-      "validity_domain": "Synthetic and local distribution-shift regression only; no calibrated facility or cross-code campaign acceptance envelope.",
+      "validity_domain": "Synthetic and local distribution-shift regression with fail-closed Mahalanobis calibration-matrix validation; no calibrated facility or cross-code campaign acceptance envelope.",
       "external_validation_tracker_issue": 47
     },
     {

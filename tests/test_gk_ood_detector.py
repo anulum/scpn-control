@@ -251,6 +251,24 @@ def test_detector_rejects_wrong_shape_covariance_inverse() -> None:
         OODDetector(training_cov_inv=np.eye(9))
 
 
+def test_detector_rejects_non_symmetric_covariance_inverse() -> None:
+    """Mahalanobis calibration requires a symmetric inverse covariance matrix."""
+    cov_inv = np.eye(10)
+    cov_inv[0, 1] = 0.2
+
+    with pytest.raises(ValueError, match="symmetric"):
+        OODDetector(training_cov_inv=cov_inv)
+
+
+def test_detector_rejects_non_positive_covariance_inverse() -> None:
+    """Mahalanobis calibration rejects matrices that can yield negative distance squares."""
+    cov_inv = np.eye(10)
+    cov_inv[0, 0] = -1.0
+
+    with pytest.raises(ValueError, match="positive"):
+        OODDetector(training_cov_inv=cov_inv)
+
+
 def test_ood_checks_reject_nonfinite_input(detector) -> None:
     x = np.zeros(10)
     x[3] = np.nan
