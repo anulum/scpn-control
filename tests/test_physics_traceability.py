@@ -42,6 +42,11 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     assert report["resolved_module_paths"] == report["total"]
     assert report["resolved_evidence_paths"] >= report["total"]
     assert report["external_validation_tracker_count"] == 8
+    assert all(
+        isinstance(entry["external_validation_tracker_issue"], int)
+        for entry in report["entries"]
+        if entry["fidelity_status"] in {"bounded_model", "validation_gap", "external_dependency_blocked"}
+    )
     assert report["source_marker_coverage"]["total"] >= 30
     assert report["source_marker_coverage"]["covered"] == report["source_marker_coverage"]["total"]
     assert report["source_marker_coverage"]["missing"] == []
@@ -53,10 +58,12 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
         entry for entry in report["entries"] if entry["component"] == "nonlinear gyrokinetic heat-flux saturation"
     )
     assert nonlinear_gk_entry["covered_source_paths"] == ["src/scpn_control/core/gk_nonlinear.py"]
+    assert nonlinear_gk_entry["external_validation_tracker_issue"] == 47
     linear_gk_entry = next(
         entry for entry in report["entries"] if entry["component"] == "linear gyrokinetic cross-code agreement"
     )
     assert linear_gk_entry["covered_source_paths"] == ["src/scpn_control/core/gk_eigenvalue.py"]
+    assert linear_gk_entry["external_validation_tracker_issue"] == 47
     geometry_entry = next(
         entry
         for entry in report["entries"]
@@ -552,3 +559,49 @@ def test_traceability_requires_trackers_when_fidelity_gaps_remain(tmp_path: Path
 
     assert report["status"] == "fail"
     assert any(error["field"] == "external_validation_trackers" for error in report["errors"])
+
+
+def test_traceability_rejects_open_entry_without_tracker_issue(tmp_path: Path) -> None:
+    registry = _minimal_tracker_registry()
+    registry["entries"][0]["fidelity_status"] = "validation_gap"
+    registry["entries"][0]["public_claim_allowed"] = False
+    registry["external_validation_trackers"] = [
+        {
+            "title": "tracker",
+            "issue": 47,
+            "url": "https://github.com/anulum/scpn-control/issues/47",
+            "scope": "test scope",
+        }
+    ]
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(registry), encoding="utf-8")
+
+    report = validate_physics_traceability(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "external_validation_tracker_issue" for error in report["errors"])
+
+
+def test_traceability_rejects_unknown_entry_tracker_issue(tmp_path: Path) -> None:
+    registry = _minimal_tracker_registry()
+    registry["entries"][0]["fidelity_status"] = "validation_gap"
+    registry["entries"][0]["public_claim_allowed"] = False
+    registry["entries"][0]["external_validation_tracker_issue"] = 99
+    registry["external_validation_trackers"] = [
+        {
+            "title": "tracker",
+            "issue": 47,
+            "url": "https://github.com/anulum/scpn-control/issues/47",
+            "scope": "test scope",
+        }
+    ]
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(registry), encoding="utf-8")
+
+    report = validate_physics_traceability(path)
+
+    assert report["status"] == "fail"
+    assert any(
+        error["field"] == "external_validation_tracker_issue" and "must exist" in error["error"]
+        for error in report["errors"]
+    )

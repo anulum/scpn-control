@@ -70,7 +70,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_nonlinear.py"
       ],
-      "validity_domain": "Implemented CBC machinery and short audited traces; no published quantitative saturated chi_i claim."
+      "validity_domain": "Implemented CBC machinery and short audited traces; no published quantitative saturated chi_i claim.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "linear gyrokinetic cross-code agreement",
@@ -102,7 +103,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_eigenvalue.py"
       ],
-      "validity_domain": "Native solver and input construction are implemented; quantitative cross-code agreement remains unproven."
+      "validity_domain": "Native solver and input construction are implemented; quantitative cross-code agreement remains unproven.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "Miller local-equilibrium geometry and field-pitch contract",
@@ -134,7 +136,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_geometry.py"
       ],
-      "validity_domain": "Local flux-tube geometry regression and analytic shape checks only; not a full free-boundary equilibrium reconstruction."
+      "validity_domain": "Local flux-tube geometry regression and analytic shape checks only; not a full free-boundary equilibrium reconstruction.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "gyrokinetic species and collision bounded-operator contract",
@@ -167,7 +170,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_species.py"
       ],
-      "validity_domain": "Bounded test-particle species and collision-coefficient regression coverage; no field-particle, momentum-conserving multispecies, or external Fokker-Planck collision-operator benchmark evidence."
+      "validity_domain": "Bounded test-particle species and collision-coefficient regression coverage; no field-particle, momentum-conserving multispecies, or external Fokker-Planck collision-operator benchmark evidence.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "JAX gyrokinetic numerical parity guard",
@@ -198,7 +202,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/jax_gk_solver.py"
       ],
-      "validity_domain": "Unit and backend-available parity tests only; no broad accelerator qualification or cross-code physics validation."
+      "validity_domain": "Unit and backend-available parity tests only; no broad accelerator qualification or cross-code physics validation.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "gyrokinetic OOD detector distribution-bound contract",
@@ -230,7 +235,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_ood_detector.py"
       ],
-      "validity_domain": "Synthetic and local distribution-shift regression only; no calibrated facility or cross-code campaign acceptance envelope."
+      "validity_domain": "Synthetic and local distribution-shift regression only; no calibrated facility or cross-code campaign acceptance envelope.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "external gyrokinetic interfaces",
@@ -263,7 +269,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_interface.py"
       ],
-      "validity_domain": "Input/output wiring and mock-subprocess tests; real executable validation not yet present in CI."
+      "validity_domain": "Input/output wiring and mock-subprocess tests; real executable validation not yet present in CI.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "neural equilibrium cross-validation",
@@ -295,7 +302,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/neural_equilibrium.py"
       ],
-      "validity_domain": "Model code and synthetic/local tests only; no matched P-EFIT validation set in repository."
+      "validity_domain": "Model code and synthetic/local tests only; no matched P-EFIT validation set in repository.",
+      "external_validation_tracker_issue": 50
     },
     {
       "component": "reduced-order plant and control environments",
@@ -325,7 +333,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/gym_tokamak_env.py"
       ],
-      "validity_domain": "Controller prototyping and synthetic training; not a facility hardware validation model."
+      "validity_domain": "Controller prototyping and synthetic training; not a facility hardware validation model.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "RZIP rigid vertical stability model",
@@ -357,7 +366,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/rzip_model.py"
       ],
-      "validity_domain": "Linearised rigid-plasma vertical stability analysis for controller prototyping and local regression tests; not a facility-validated vertical-control plant."
+      "validity_domain": "Linearised rigid-plasma vertical stability analysis for controller prototyping and local regression tests; not a facility-validated vertical-control plant.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "resistive-wall-mode feedback model",
@@ -388,7 +398,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/rwm_feedback.py"
       ],
-      "validity_domain": "Bounded analytic RWM stability-window and active-feedback calculations for local controller studies; not facility-validated MHD stability or hardware-control evidence."
+      "validity_domain": "Bounded analytic RWM stability-window and active-feedback calculations for local controller studies; not facility-validated MHD stability or hardware-control evidence.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "real-time EFIT-lite equilibrium reconstruction",
@@ -420,7 +431,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/realtime_efit.py"
       ],
-      "validity_domain": "Fixed-boundary EFIT-lite regression and real-time control prototyping; not a substitute for facility-grade EFIT or P-EFIT validation."
+      "validity_domain": "Fixed-boundary EFIT-lite regression and real-time control prototyping; not a substitute for facility-grade EFIT or P-EFIT validation.",
+      "external_validation_tracker_issue": 48
     },
     {
       "component": "kinetic EFIT pressure and q-profile coupling",
@@ -450,7 +462,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/kinetic_efit.py"
       ],
-      "validity_domain": "Bounded fixed-boundary kinetic-profile coupling for local regression and controller studies; not facility-grade EFIT, P-EFIT, or hardware-control evidence."
+      "validity_domain": "Bounded fixed-boundary kinetic-profile coupling for local regression and controller studies; not facility-grade EFIT, P-EFIT, or hardware-control evidence.",
+      "external_validation_tracker_issue": 48
     },
     {
       "component": "halo current and runaway electron disruption model",
@@ -482,7 +495,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/halo_re_physics.py"
       ],
-      "validity_domain": "Disruption mitigation scenario analysis and bounded ensemble regression; not a facility-qualified halo-load or runaway-current predictor."
+      "validity_domain": "Disruption mitigation scenario analysis and bounded ensemble regression; not a facility-qualified halo-load or runaway-current predictor.",
+      "external_validation_tracker_issue": 52
     },
     {
       "component": "direct free-boundary tracking controller",
@@ -515,7 +529,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/free_boundary_tracking.py"
       ],
-      "validity_domain": "Kernel-in-the-loop deterministic free-boundary tracking regression and controller prototyping; not a commissioned facility-control validation."
+      "validity_domain": "Kernel-in-the-loop deterministic free-boundary tracking regression and controller prototyping; not a commissioned facility-control validation.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "density control and particle-source model",
@@ -550,7 +565,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/density_controller.py"
       ],
-      "validity_domain": "Bounded density-control and particle-source regression on declared radial geometry; not facility-calibrated fuelling or exhaust validation."
+      "validity_domain": "Bounded density-control and particle-source regression on declared radial geometry; not facility-calibrated fuelling or exhaust validation.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "disruption mitigation contract layer",
@@ -585,7 +601,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/disruption_contracts.py"
       ],
-      "validity_domain": "Contract-level disruption-mitigation scenario regression; not measured-shot disruption prediction or mitigation qualification."
+      "validity_domain": "Contract-level disruption-mitigation scenario regression; not measured-shot disruption prediction or mitigation qualification.",
+      "external_validation_tracker_issue": 52
     },
     {
       "component": "tokamak digital twin topology and diffusion model",
@@ -621,7 +638,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/tokamak_digital_twin.py"
       ],
-      "validity_domain": "Deterministic topology and diffusion digital-twin regression; not a facility-calibrated discharge twin."
+      "validity_domain": "Deterministic topology and diffusion digital-twin regression; not a facility-calibrated discharge twin.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "advanced SOC turbulence learning controller",
@@ -657,7 +675,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/advanced_soc_fusion_learning.py"
       ],
-      "validity_domain": "SOC-inspired turbulence and reinforcement-learning regression; not quantitative gyrokinetic turbulence or facility-control validation."
+      "validity_domain": "SOC-inspired turbulence and reinforcement-learning regression; not quantitative gyrokinetic turbulence or facility-control validation.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "DT burn control and alpha-heating model",
@@ -686,7 +705,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/burn_controller.py"
       ],
-      "validity_domain": "Bounded DT burn-control and alpha-heating regression; not a validated reactor burn-control design."
+      "validity_domain": "Bounded DT burn-control and alpha-heating regression; not a validated reactor burn-control design.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "volt-second budget and flux-consumption manager",
@@ -714,7 +734,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/volt_second_manager.py"
       ],
-      "validity_domain": "Scenario-level volt-second accounting regression; not a validated pulse-design or central-solenoid commissioning model."
+      "validity_domain": "Scenario-level volt-second accounting regression; not a validated pulse-design or central-solenoid commissioning model.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "transport solver neoclassical and source-term approximation contract",
@@ -746,7 +767,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/integrated_transport_solver.py"
       ],
-      "validity_domain": "Solver-level transport regression and conservation checks; not a facility-calibrated integrated-modelling result."
+      "validity_domain": "Solver-level transport regression and conservation checks; not a facility-calibrated integrated-modelling result.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "reduced gyrokinetic transport closure contract",
@@ -775,7 +797,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/gyrokinetic_transport.py"
       ],
-      "validity_domain": "Local reduced-closure regression and benchmark-shaped tests; not quantitative cross-code transport validation."
+      "validity_domain": "Local reduced-closure regression and benchmark-shaped tests; not quantitative cross-code transport validation.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "momentum transport and torque-balance approximation contract",
@@ -804,7 +827,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/momentum_transport.py"
       ],
-      "validity_domain": "Local torque and integration regression; not validated facility momentum-transport prediction."
+      "validity_domain": "Local torque and integration regression; not validated facility momentum-transport prediction.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "EPED pedestal and peeling-ballooning approximation contract",
@@ -836,7 +860,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/eped_pedestal.py"
       ],
-      "validity_domain": "Pedestal-model regression and cross-module consistency checks; not an externally validated EPED database fit."
+      "validity_domain": "Pedestal-model regression and cross-module consistency checks; not an externally validated EPED database fit.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "ELM crash and RMP suppression approximation contract",
@@ -865,7 +890,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/elm_model.py"
       ],
-      "validity_domain": "ELM cycle and suppression regression; not a validated pedestal-crash predictor for a facility."
+      "validity_domain": "ELM cycle and suppression regression; not a validated pedestal-crash predictor for a facility.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "MARFE radiation-condensation density-limit contract",
@@ -895,7 +921,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/marfe.py"
       ],
-      "validity_domain": "Radiation-condensation and density-limit regression; not a facility-validated MARFE prediction model."
+      "validity_domain": "Radiation-condensation and density-limit regression; not a facility-validated MARFE prediction model.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "NTM island evolution and control approximation contract",
@@ -925,7 +952,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/ntm_dynamics.py"
       ],
-      "validity_domain": "Rational-surface, island-growth, and local control regression; not facility-qualified NTM forecasting or suppression validation."
+      "validity_domain": "Rational-surface, island-growth, and local control regression; not facility-qualified NTM forecasting or suppression validation.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "auxiliary current-drive deposition and efficiency model",
@@ -958,7 +986,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/current_drive.py"
       ],
-      "validity_domain": "Bounded auxiliary current-drive source coupling for transport and NTM controller studies; not ray-traced, Fokker-Planck, or facility-validated deposition evidence."
+      "validity_domain": "Bounded auxiliary current-drive source coupling for transport and NTM controller studies; not ray-traced, Fokker-Planck, or facility-validated deposition evidence.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "ideal-MHD stability metric approximation contract",
@@ -990,7 +1019,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/stability_mhd.py"
       ],
-      "validity_domain": "Analytic stability metric regression; not full ideal-MHD, resistive-MHD, or facility stability validation."
+      "validity_domain": "Analytic stability metric regression; not full ideal-MHD, resistive-MHD, or facility stability validation.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "sawtooth-to-NTM seeding approximation contract",
@@ -1019,7 +1049,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/tearing_mode_coupling.py"
       ],
-      "validity_domain": "Local sawtooth-seeding and coupling regression; not full nonlinear MHD sawtooth or NTM onset validation."
+      "validity_domain": "Local sawtooth-seeding and coupling regression; not full nonlinear MHD sawtooth or NTM onset validation.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "blob transport and scrape-off-layer approximation contract",
@@ -1046,7 +1077,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/blob_transport.py"
       ],
-      "validity_domain": "Analytic SOL filament regression; not a validated edge-plasma transport model."
+      "validity_domain": "Analytic SOL filament regression; not a validated edge-plasma transport model.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "checkpoint state serialisation boundary contract",
@@ -1072,7 +1104,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/checkpoint.py"
       ],
-      "validity_domain": "Local JSON checkpoint round-trip and recovery regression; not a distributed campaign persistence guarantee."
+      "validity_domain": "Local JSON checkpoint round-trip and recovery regression; not a distributed campaign persistence guarantee.",
+      "external_validation_tracker_issue": 53
     },
     {
       "component": "disruption sequence phase-ordering contract",
@@ -1101,7 +1134,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/disruption_sequence.py"
       ],
-      "validity_domain": "Sequence-state and mitigation-branch regression; not measured-shot disruption forecasting."
+      "validity_domain": "Sequence-state and mitigation-branch regression; not measured-shot disruption forecasting.",
+      "external_validation_tracker_issue": 52
     },
     {
       "component": "Grad-Shafranov fusion-kernel numerical contract",
@@ -1133,7 +1167,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/fusion_kernel.py"
       ],
-      "validity_domain": "Local equilibrium-kernel regression and parity checks; not a facility-grade equilibrium reconstruction claim."
+      "validity_domain": "Local equilibrium-kernel regression and parity checks; not a facility-grade equilibrium reconstruction claim.",
+      "external_validation_tracker_issue": 48
     },
     {
       "component": "gyrokinetic online learner stability contract",
@@ -1162,7 +1197,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_online_learner.py"
       ],
-      "validity_domain": "Local update, rollback, and scheduler-integration regression; not validated adaptive physics deployment."
+      "validity_domain": "Local update, rollback, and scheduler-integration regression; not validated adaptive physics deployment.",
+      "external_validation_tracker_issue": 47
     },
     {
       "component": "integrated scenario coupling contract",
@@ -1191,7 +1227,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/integrated_scenario.py"
       ],
-      "validity_domain": "Coupled scenario regression and module-integration checks; not validated full-discharge predictive modelling."
+      "validity_domain": "Coupled scenario regression and module-integration checks; not validated full-discharge predictive modelling.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "neural transport surrogate validation contract",
@@ -1225,7 +1262,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/neural_transport.py"
       ],
-      "validity_domain": "Local surrogate and weight-handling regression; quantitative transport-surrogate validation remains blocked on immutable reference data."
+      "validity_domain": "Local surrogate and weight-handling regression; quantitative transport-surrogate validation remains blocked on immutable reference data.",
+      "external_validation_tracker_issue": 50
     },
     {
       "component": "neural turbulence surrogate validation contract",
@@ -1255,7 +1293,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/neural_turbulence.py"
       ],
-      "validity_domain": "Surrogate API and fallback regression; not quantitative turbulence prediction validation."
+      "validity_domain": "Surrogate API and fallback regression; not quantitative turbulence prediction validation.",
+      "external_validation_tracker_issue": 50
     },
     {
       "component": "orbit-following guiding-centre approximation contract",
@@ -1285,7 +1324,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/orbit_following.py"
       ],
-      "validity_domain": "Guiding-centre and orbit-width regression; not validated fast-ion confinement or loss prediction."
+      "validity_domain": "Guiding-centre and orbit-width regression; not validated fast-ion confinement or loss prediction.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "full-chain uncertainty quantification contract",
@@ -1319,7 +1359,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/uncertainty.py"
       ],
-      "validity_domain": "Monte Carlo and finite-value regression; not calibrated predictive uncertainty for a specific facility."
+      "validity_domain": "Monte Carlo and finite-value regression; not calibrated predictive uncertainty for a specific facility.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "VMEC-lite stellarator equilibrium approximation contract",
@@ -1349,7 +1390,8 @@
       "covered_source_paths": [
         "src/scpn_control/core/vmec_lite.py"
       ],
-      "validity_domain": "Reduced stellarator surface regression; not full VMEC-grade 3D equilibrium validation."
+      "validity_domain": "Reduced stellarator surface regression; not full VMEC-grade 3D equilibrium validation.",
+      "external_validation_tracker_issue": 48
     },
     {
       "component": "bounded analytical approximations in physics modules",
@@ -1377,7 +1419,8 @@
         "src/scpn_control/core/integrated_transport_solver.py",
         "src/scpn_control/core/stability_mhd.py"
       ],
-      "validity_domain": "Physics modules with declared bounded approximations; not repository-wide full-fidelity evidence."
+      "validity_domain": "Physics modules with declared bounded approximations; not repository-wide full-fidelity evidence.",
+      "external_validation_tracker_issue": 49
     },
     {
       "component": "bounded static structured-singular-value control analysis",
@@ -1408,7 +1451,8 @@
       "covered_source_paths": [
         "src/scpn_control/control/mu_synthesis.py"
       ],
-      "validity_domain": "Static continuous-time state-feedback analysis for repository benchmark plants; not full frequency-dependent D-K synthesis and not facility hardware validation."
+      "validity_domain": "Static continuous-time state-feedback analysis for repository benchmark plants; not full frequency-dependent D-K synthesis and not facility hardware validation.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "bounded control plant approximations",
@@ -1434,7 +1478,8 @@
         "src/scpn_control/control/free_boundary_tracking.py",
         "src/scpn_control/control/disruption_contracts.py"
       ],
-      "validity_domain": "Reduced-order control, estimator, replay, and safety-contract modules; not facility hardware validation."
+      "validity_domain": "Reduced-order control, estimator, replay, and safety-contract modules; not facility hardware validation.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "Kuramoto-Sakaguchi phase synchronisation runtime",
@@ -1465,7 +1510,8 @@
       "covered_source_paths": [
         "src/scpn_control/phase/kuramoto.py"
       ],
-      "validity_domain": "Local Kuramoto-Sakaguchi oscillator regression and runtime parity checks; not a validated plasma-phase control law."
+      "validity_domain": "Local Kuramoto-Sakaguchi oscillator regression and runtime parity checks; not a validated plasma-phase control law.",
+      "external_validation_tracker_issue": 53
     },
     {
       "component": "SCPN FPGA fixed-point export boundary",
@@ -1494,7 +1540,8 @@
       "covered_source_paths": [
         "src/scpn_control/scpn/fpga_export.py"
       ],
-      "validity_domain": "Generated HDL and fixed-point export regression only; no target-specific timing closure or bitstream validation is claimed."
+      "validity_domain": "Generated HDL and fixed-point export regression only; no target-specific timing closure or bitstream validation is claimed.",
+      "external_validation_tracker_issue": 53
     },
     {
       "component": "geometry-neutral stellarator replay fixture",
@@ -1524,7 +1571,8 @@
       "covered_source_paths": [
         "src/scpn_control/scpn/geometry_neutral_replay.py"
       ],
-      "validity_domain": "Synthetic reduced-order stellarator replay for controller regression; not a measured W7-X or device-qualified control validation."
+      "validity_domain": "Synthetic reduced-order stellarator replay for controller regression; not a measured W7-X or device-qualified control validation.",
+      "external_validation_tracker_issue": 48
     },
     {
       "component": "bounded phase and spiking runtime approximations",
@@ -1551,7 +1599,8 @@
         "src/scpn_control/scpn/fpga_export.py",
         "src/scpn_control/scpn/geometry_neutral_replay.py"
       ],
-      "validity_domain": "Phase, replay, and fixed-point export approximations inside local runtime validation only."
+      "validity_domain": "Phase, replay, and fixed-point export approximations inside local runtime validation only.",
+      "external_validation_tracker_issue": 53
     }
   ],
   "schema_version": "1.0",

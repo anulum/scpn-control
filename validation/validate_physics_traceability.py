@@ -98,7 +98,14 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
         if not isinstance(entry, dict):
             errors.append({"path": str(path), "index": index, "field": "entry", "error": "entry must be an object"})
             continue
-        module_resolved, evidence_resolved, covered_paths = _validate_entry(registry_root, path, index, entry, errors)
+        module_resolved, evidence_resolved, covered_paths = _validate_entry(
+            registry_root,
+            path,
+            index,
+            entry,
+            errors,
+            {int(tracker["issue"]) for tracker in report["external_validation_trackers"]},
+        )
         covered_source_paths.update(covered_paths)
         if module_resolved:
             report["resolved_module_paths"] += 1
@@ -119,6 +126,7 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
                 "unit_contract": entry.get("unit_contract", ""),
                 "validation_evidence": entry.get("validation_evidence", []),
                 "required_actions": entry.get("required_actions", []),
+                "external_validation_tracker_issue": entry.get("external_validation_tracker_issue"),
                 "covered_source_paths": sorted(covered_paths),
                 "covered_source_count": len(covered_paths),
             }
@@ -239,6 +247,7 @@ def _validate_entry(
     index: int,
     entry: dict[str, Any],
     errors: list[dict[str, object]],
+    tracker_issues: set[int],
 ) -> tuple[bool, int, set[str]]:
     module_resolved = False
     evidence_resolved = 0
@@ -365,6 +374,35 @@ def _validate_entry(
                 "index": index,
                 "field": "public_claim_allowed",
                 "error": "open or bounded fidelity entries cannot allow public full-fidelity claims",
+            }
+        )
+    tracker_issue = entry.get("external_validation_tracker_issue")
+    if status in _OPEN_GAP_STATUSES:
+        if not isinstance(tracker_issue, int) or tracker_issue <= 0:
+            errors.append(
+                {
+                    "path": str(path),
+                    "index": index,
+                    "field": "external_validation_tracker_issue",
+                    "error": "open fidelity entries must reference an external-validation tracker issue",
+                }
+            )
+        elif tracker_issue not in tracker_issues:
+            errors.append(
+                {
+                    "path": str(path),
+                    "index": index,
+                    "field": "external_validation_tracker_issue",
+                    "error": "tracker issue must exist in external_validation_trackers",
+                }
+            )
+    elif tracker_issue is not None:
+        errors.append(
+            {
+                "path": str(path),
+                "index": index,
+                "field": "external_validation_tracker_issue",
+                "error": "reference-validated entries must not reference unresolved external-validation trackers",
             }
         )
     return module_resolved, evidence_resolved, covered_source_paths

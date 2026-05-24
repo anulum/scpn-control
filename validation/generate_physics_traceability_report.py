@@ -66,8 +66,8 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
         [
             "## Module Traceability Table",
             "",
-            "| Module | Equation or contract | References | Unit contract | Validation evidence | Status |",
-            "|--------|----------------------|------------|---------------|---------------------|--------|",
+        "| Module | Equation or contract | References | Unit contract | Validation evidence | Status | Tracker |",
+        "|--------|----------------------|------------|---------------|---------------------|--------|---------|",
         ]
     )
     for entry in sorted(_entries(report), key=lambda item: str(item["component"])):
@@ -81,6 +81,7 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
                     _markdown_cell(str(entry.get("unit_contract", ""))),
                     _markdown_cell(_join_list(entry.get("validation_evidence"))),
                     _markdown_cell(str(entry.get("fidelity_status", ""))),
+                    _markdown_cell(_tracker_link(entry, report)),
                 )
             )
             + " |"
@@ -101,6 +102,7 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
                 f"- Fidelity status: `{entry['fidelity_status']}`",
                 f"- Module path: `{entry['module_path']}`",
                 f"- Full-fidelity public claim: {claim_status}",
+                f"- External validation tracker: {_tracker_line(entry, report)}",
                 f"- Covered source paths: {entry.get('covered_source_count', 0)}",
                 "- Required actions:",
             ]
@@ -128,6 +130,31 @@ def _external_validation_trackers(report: dict[str, Any]) -> list[dict[str, Any]
     if not isinstance(trackers, list):
         return []
     return [tracker for tracker in trackers if isinstance(tracker, dict)]
+
+
+def _tracker_by_issue(report: dict[str, Any]) -> dict[int, dict[str, Any]]:
+    trackers: dict[int, dict[str, Any]] = {}
+    for tracker in _external_validation_trackers(report):
+        issue = tracker.get("issue")
+        if isinstance(issue, int):
+            trackers[issue] = tracker
+    return trackers
+
+
+def _tracker_link(entry: dict[str, Any], report: dict[str, Any]) -> str:
+    issue = entry.get("external_validation_tracker_issue")
+    tracker = _tracker_by_issue(report).get(issue) if isinstance(issue, int) else None
+    if tracker is None:
+        return ""
+    return f"[#{issue}]({tracker['url']})"
+
+
+def _tracker_line(entry: dict[str, Any], report: dict[str, Any]) -> str:
+    issue = entry.get("external_validation_tracker_issue")
+    tracker = _tracker_by_issue(report).get(issue) if isinstance(issue, int) else None
+    if tracker is None:
+        return "none"
+    return f"[#{issue}]({tracker['url']}) — {tracker['title']}"
 
 
 def _source_marker_coverage(report: dict[str, Any]) -> str:
