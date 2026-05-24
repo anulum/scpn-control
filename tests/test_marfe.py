@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+import pytest
 
 from scpn_control.core.marfe import (
     DensityLimitPredictor,
@@ -110,7 +111,7 @@ def test_greenwald_limit():
 
 
 def test_onset_temperature_no_negative_slope():
-    """Line 83: onset_temperature returns nan when dL/dT >= 0 everywhere."""
+    """Onset temperature is finite or absent when the cooling slope is non-negative."""
     rc = RadiationCondensation("C", ne_20=1.0, f_imp=1e-4)
     Te_scan = np.linspace(5.0, 9.0, 20)
     T_marfe = rc.onset_temperature(Te_scan)
@@ -118,14 +119,14 @@ def test_onset_temperature_no_negative_slope():
 
 
 def test_critical_density_positive_slope():
-    """Lines 93-98: critical_density returns inf when dL/dT >= 0."""
+    """Critical density is unbounded when the cooling slope is stabilising."""
     rc = RadiationCondensation("W", ne_20=1.0, f_imp=1e-4)
     n_crit = rc.critical_density(Te_eV=500.0, k_par=0.1, kappa_par=2000.0)
     assert n_crit == float("inf") or n_crit > 0.0
 
 
 def test_marfe_front_detects_marfe():
-    """Lines 169-171: is_marfe returns True when T_min < 20 and T_max > 50."""
+    """MARFE-front detection returns a boolean for the cold-front criterion."""
     model = MARFEFrontModel(L_par=100.0, kappa_par=20.0, q_perp=10.0, impurity="W", f_imp=1e-2)
     model.equilibrium(ne_20=5.0)
     is_m = model.is_marfe()
@@ -133,6 +134,107 @@ def test_marfe_front_detects_marfe():
 
 
 def test_greenwald_limit_zero_radius():
-    """Line 184: a <= 0 returns inf."""
+    """Zero or negative minor radius has no finite Greenwald density."""
     assert DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=0.0) == float("inf")
     assert DensityLimitPredictor.greenwald_limit(Ip_MA=15.0, a=-1.0) == float("inf")
+
+
+@pytest.mark.parametrize(
+    ("ne_20", "f_imp", "message"),
+    (
+        (0.0, 1e-4, "ne_20"),
+        (1.0, 0.0, "f_imp"),
+    ),
+)
+def test_radiation_condensation_rejects_nonphysical_state(ne_20, f_imp, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        RadiationCondensation("W", ne_20=ne_20, f_imp=f_imp)
+
+
+@pytest.mark.parametrize(
+    ("te", "k_par", "kappa_par", "message"),
+    (
+        (0.0, 0.1, 2000.0, "Te_eV"),
+        (500.0, 0.0, 2000.0, "k_par"),
+        (500.0, 0.1, 0.0, "kappa_par"),
+    ),
+)
+def test_radiation_condensation_rejects_nonphysical_growth_inputs(te, k_par, kappa_par, message) -> None:
+    rc = RadiationCondensation("W", ne_20=1.0, f_imp=1e-4)
+
+    with pytest.raises(ValueError, match=message):
+        rc.growth_rate(Te_eV=te, k_par=k_par, kappa_par=kappa_par)
+
+
+def test_onset_temperature_rejects_empty_or_nonpositive_scan() -> None:
+    rc = RadiationCondensation("W", ne_20=1.0, f_imp=1e-4)
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        rc.onset_temperature(np.array([]))
+    with pytest.raises(ValueError, match="temperatures must be positive"):
+        rc.onset_temperature(np.array([0.0, 10.0]))
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    (
+        ({"L_par": 0.0, "kappa_par": 20.0, "q_perp": 10.0, "impurity": "W", "f_imp": 1e-2}, "L_par"),
+        ({"L_par": 100.0, "kappa_par": 0.0, "q_perp": 10.0, "impurity": "W", "f_imp": 1e-2}, "kappa_par"),
+        ({"L_par": 100.0, "kappa_par": 20.0, "q_perp": -1.0, "impurity": "W", "f_imp": 1e-2}, "q_perp"),
+        ({"L_par": 100.0, "kappa_par": 20.0, "q_perp": 10.0, "impurity": "W", "f_imp": 0.0}, "f_imp"),
+    ),
+)
+def test_marfe_front_model_rejects_nonphysical_constructor_inputs(kwargs, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        MARFEFrontModel(**kwargs)
+
+
+def test_marfe_front_model_rejects_nonphysical_step_inputs() -> None:
+    model = MARFEFrontModel(L_par=100.0, kappa_par=20.0, q_perp=10.0, impurity="W", f_imp=1e-2)
+
+    with pytest.raises(ValueError, match="dt"):
+        model.step(dt=0.0, ne_20=1.0)
+    with pytest.raises(ValueError, match="ne_20"):
+        model.step(dt=1e-4, ne_20=0.0)
+    with pytest.raises(ValueError, match="ne_20"):
+        model.equilibrium(ne_20=-1.0)
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    (
+        ((-1.0, 2.0), "Ip_MA"),
+        ((15.0, 2.0, 0.0, "W", 1e-4), "P_SOL_MW"),
+        ((15.0, 2.0, 100.0, "W", 0.0), "f_imp"),
+    ),
+)
+def test_density_limit_predictor_rejects_nonphysical_inputs(args, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        if len(args) == 2:
+            DensityLimitPredictor.greenwald_limit(*args)
+        else:
+            DensityLimitPredictor.marfe_limit(*args)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    (
+        ({"R0": 0.0, "a": 2.0, "q95": 3.0, "impurity": "W"}, "R0 and a"),
+        ({"R0": 6.2, "a": 0.0, "q95": 3.0, "impurity": "W"}, "R0 and a"),
+        ({"R0": 6.2, "a": 2.0, "q95": 0.0, "impurity": "W"}, "q95"),
+    ),
+)
+def test_marfe_stability_diagram_rejects_nonphysical_constructor_inputs(kwargs, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        MARFEStabilityDiagram(**kwargs)
+
+
+def test_marfe_stability_diagram_rejects_nonphysical_scan_inputs() -> None:
+    diag = MARFEStabilityDiagram(R0=6.2, a=2.0, q95=3.0, impurity="W")
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        diag.scan_density_power(np.array([]), np.array([10.0]))
+    with pytest.raises(ValueError, match="ne_range"):
+        diag.scan_density_power(np.array([0.0]), np.array([10.0]))
+    with pytest.raises(ValueError, match="P_SOL_range"):
+        diag.scan_density_power(np.array([1.0]), np.array([0.0]))

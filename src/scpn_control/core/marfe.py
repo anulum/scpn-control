@@ -32,12 +32,18 @@ from scpn_control.core.impurity_transport import CoolingCurve
 
 class RadiationCondensation:
     def __init__(self, impurity: str, ne_20: float, f_imp: float):
+        if ne_20 <= 0.0:
+            raise ValueError("ne_20 must be positive")
+        if f_imp <= 0.0:
+            raise ValueError("f_imp must be positive")
         self.impurity = impurity
         self.ne_20 = ne_20
         self.f_imp = f_imp
         self.curve = CoolingCurve(impurity)
 
     def _dL_dT(self, Te_eV: float) -> float:
+        if Te_eV <= 0.0:
+            raise ValueError("Te_eV must be positive")
         dT = 0.01 * Te_eV
         L_plus = self.curve.L_z(np.array([Te_eV + dT]))[0]
         L_minus = self.curve.L_z(np.array([Te_eV - dT]))[0]
@@ -53,6 +59,10 @@ class RadiationCondensation:
         n_e n_Z |dL/dT| > κ_∥ k_∥².
         Drake 1987, Phys. Fluids 30, 2429, Eq. 5.
         """
+        if k_par <= 0.0:
+            raise ValueError("k_par must be positive")
+        if kappa_par <= 0.0:
+            raise ValueError("kappa_par must be positive")
         ne = self.ne_20 * 1e20
         n_imp = ne * self.f_imp
 
@@ -79,6 +89,10 @@ class RadiationCondensation:
         temperature where the radiative cooling function has a negative slope.
         Returns the onset T in eV, or nan if dL/dT is positive everywhere.
         """
+        if Te_scan.size == 0:
+            raise ValueError("Te_scan must not be empty")
+        if np.any(Te_scan <= 0.0):
+            raise ValueError("Te_scan temperatures must be positive")
         dLdT = np.array([self._dL_dT(T) for T in Te_scan])
         unstable = Te_scan[dLdT < 0.0]
         if len(unstable) == 0:
@@ -102,6 +116,14 @@ class RadiationCondensation:
 
 class MARFEFrontModel:
     def __init__(self, L_par: float, kappa_par: float, q_perp: float, impurity: str, f_imp: float):
+        if L_par <= 0.0:
+            raise ValueError("L_par must be positive")
+        if kappa_par <= 0.0:
+            raise ValueError("kappa_par must be positive")
+        if q_perp < 0.0:
+            raise ValueError("q_perp must be non-negative")
+        if f_imp <= 0.0:
+            raise ValueError("f_imp must be positive")
         self.L_par = L_par
         self.kappa_par = kappa_par
         self.q_perp = q_perp
@@ -117,6 +139,10 @@ class MARFEFrontModel:
     def step(self, dt: float, ne_20: float) -> np.ndarray:
         import scipy.linalg
 
+        if dt <= 0.0:
+            raise ValueError("dt must be positive")
+        if ne_20 <= 0.0:
+            raise ValueError("ne_20 must be positive")
         ne = ne_20 * 1e20
         n_imp = ne * self.f_imp
 
@@ -159,6 +185,8 @@ class MARFEFrontModel:
         return self.T
 
     def equilibrium(self, ne_20: float) -> np.ndarray:
+        if ne_20 <= 0.0:
+            raise ValueError("ne_20 must be positive")
         for _ in range(1000):
             self.step(1e-4, ne_20)
         return self.T
@@ -182,6 +210,8 @@ class DensityLimitPredictor:
         Greenwald 2002, Plasma Phys. Control. Fusion 44, R27, Eq. 1.
         I_p in MA, a in m.
         """
+        if Ip_MA < 0.0:
+            raise ValueError("Ip_MA must be non-negative")
         if a <= 0.0:
             return float("inf")
         return float(Ip_MA / (math.pi * a**2))
@@ -195,6 +225,10 @@ class DensityLimitPredictor:
         Scaling motivated by Drake 1987 radiation condensation criterion with
         parallel conduction set by P_SOL and impurity fraction f_imp.
         """
+        if P_SOL_MW <= 0.0:
+            raise ValueError("P_SOL_MW must be positive")
+        if f_imp <= 0.0:
+            raise ValueError("f_imp must be positive")
         n_gw = DensityLimitPredictor.greenwald_limit(Ip_MA, a)
         factor = math.sqrt(max(P_SOL_MW, 1.0)) / (10.0 * math.sqrt(max(f_imp, 1e-5)))
         return float(n_gw * factor)
@@ -202,12 +236,22 @@ class DensityLimitPredictor:
 
 class MARFEStabilityDiagram:
     def __init__(self, R0: float, a: float, q95: float, impurity: str):
+        if R0 <= 0.0 or a <= 0.0:
+            raise ValueError("R0 and a must be positive")
+        if q95 <= 0.0:
+            raise ValueError("q95 must be positive")
         self.R0 = R0
         self.a = a
         self.q95 = q95
         self.impurity = impurity
 
     def scan_density_power(self, ne_range: np.ndarray, P_SOL_range: np.ndarray) -> np.ndarray:
+        if ne_range.size == 0 or P_SOL_range.size == 0:
+            raise ValueError("ne_range and P_SOL_range must not be empty")
+        if np.any(ne_range <= 0.0):
+            raise ValueError("ne_range values must be positive")
+        if np.any(P_SOL_range <= 0.0):
+            raise ValueError("P_SOL_range values must be positive")
         result = np.zeros((len(ne_range), len(P_SOL_range)))
 
         for i, ne in enumerate(ne_range):
