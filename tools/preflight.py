@@ -61,6 +61,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("version-sync", [_PY, "tools/check_version_sync.py"], None),
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
+    ("generated-traceability", [_PY, "tools/check_generated_traceability.py"], None),
     ("module-linkage", [_PY, "tools/check_test_module_linkage.py"], None),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
