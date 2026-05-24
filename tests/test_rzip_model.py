@@ -160,7 +160,7 @@ def test_feedback_stabilization(active_coils):
 
     assert rzip.vertical_growth_rate() > 0.0
 
-    ctrl = RZIPController(rzip, Kp=0.0, Kd=-1e4)
+    ctrl = RZIPController(rzip, Kp=1.0, Kd=1e4)
     eigvals = ctrl.closed_loop_eigenvalues()
 
     max_real = np.max(np.real(eigvals))
@@ -228,6 +228,17 @@ def test_passive_stability_margin():
     assert VerticalStabilityAnalysis.passive_stability_margin(-0.3, 0.01) == -0.3
 
 
+def test_passive_stability_margin_rejects_nonphysical_wall_time() -> None:
+    from scpn_control.control.rzip_model import VerticalStabilityAnalysis
+
+    with pytest.raises(ValueError, match="n_index"):
+        VerticalStabilityAnalysis.passive_stability_margin(float("nan"), 0.01)
+    with pytest.raises(ValueError, match="tau_wall"):
+        VerticalStabilityAnalysis.passive_stability_margin(0.3, 0.0)
+    with pytest.raises(ValueError, match="tau_wall"):
+        VerticalStabilityAnalysis.passive_stability_margin(0.3, float("inf"))
+
+
 def test_required_feedback_gain():
     """Feedback gain follows the wall-normalised RZIP latency threshold."""
     from scpn_control.control.rzip_model import VerticalStabilityAnalysis
@@ -249,8 +260,23 @@ def test_required_feedback_gain_rejects_nonphysical_inputs() -> None:
             VerticalStabilityAnalysis.required_feedback_gain(**kwargs)
 
 
-def test_controller_step_zero_dt(active_coils):
-    """Lines 178-181: RZIPController.step with dt=0 sets dZ_dt=0."""
+def test_controller_rejects_nonphysical_gains(active_coils):
+    elements = [
+        VesselElement(R=2.0, Z=0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
+        VesselElement(R=2.0, Z=-0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
+    ]
+    vessel = VesselModel(elements)
+    rzip = RZIPModel(
+        R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-0.5, vessel=vessel, active_coils=active_coils
+    )
+
+    with pytest.raises(ValueError, match="Kp"):
+        RZIPController(rzip, Kp=float("nan"), Kd=1.0)
+    with pytest.raises(ValueError, match="Kd"):
+        RZIPController(rzip, Kp=1.0, Kd=-1.0)
+
+
+def test_controller_step_rejects_nonpositive_timestep(active_coils):
     elements = [
         VesselElement(R=2.0, Z=0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
         VesselElement(R=2.0, Z=-0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
@@ -260,9 +286,10 @@ def test_controller_step_zero_dt(active_coils):
         R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-0.5, vessel=vessel, active_coils=active_coils
     )
     ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
-    V = ctrl.step(0.1, dt=0.0)
-    assert V.shape == (len(active_coils),)
-    assert np.all(np.isfinite(V))
+    with pytest.raises(ValueError, match="dt"):
+        ctrl.step(0.1, dt=0.0)
+    with pytest.raises(ValueError, match="dt"):
+        ctrl.step(0.1, dt=-1e-3)
 
 
 def test_controller_step_rejects_nonfinite_measurement_and_timestep(active_coils):

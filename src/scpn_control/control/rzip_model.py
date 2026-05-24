@@ -238,7 +238,11 @@ class VerticalStabilityAnalysis:
 
     @staticmethod
     def passive_stability_margin(n_index: float, tau_wall: float) -> float:
-        return n_index
+        if not np.isfinite(n_index):
+            raise ValueError("n_index must be finite.")
+        if not np.isfinite(tau_wall) or tau_wall <= 0.0:
+            raise ValueError("tau_wall must be finite and positive.")
+        return float(n_index)
 
     @staticmethod
     def required_feedback_gain(gamma: float, tau_wall: float, tau_controller: float) -> float:
@@ -270,8 +274,12 @@ class VerticalStabilityAnalysis:
 class RZIPController:
     def __init__(self, rzip: RZIPModel, Kp: float, Kd: float):
         self.rzip = rzip
-        self.Kp = max(Kp, 1.0)
-        self.Kd = max(Kd, 1.0)
+        if not np.isfinite(Kp) or Kp < 0.0:
+            raise ValueError("Kp must be finite and non-negative.")
+        if not np.isfinite(Kd) or Kd < 0.0:
+            raise ValueError("Kd must be finite and non-negative.")
+        self.Kp = max(float(Kp), 1.0)
+        self.Kd = max(float(Kd), 1.0)
         self.prev_Z = 0.0
 
         # Precompute LQR optimal gain matrix
@@ -294,12 +302,9 @@ class RZIPController:
     def step(self, dZ_measured: float, dt: float) -> np.ndarray:
         if not np.isfinite(dZ_measured):
             raise ValueError("dZ_measured must be finite.")
-        if not np.isfinite(dt):
-            raise ValueError("dt must be finite.")
-        if dt > 0:
-            dZ_dt = (dZ_measured - self.prev_Z) / dt
-        else:
-            dZ_dt = 0.0
+        if not np.isfinite(dt) or dt <= 0.0:
+            raise ValueError("dt must be finite and positive.")
+        dZ_dt = (dZ_measured - self.prev_Z) / dt
 
         self.prev_Z = dZ_measured
 
