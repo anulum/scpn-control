@@ -1,10 +1,14 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Nonlinear MPC Tests
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.nmpc_controller import NMPCConfig, NonlinearMPC
 
@@ -166,3 +170,37 @@ def test_nmpc_step_converges_early():
     u_prev = np.zeros(3)
     u = nmpc.step(x0, x_ref, u_prev)
     assert u.shape == (3,)
+
+
+def test_nmpc_rejects_non_spd_state_weight() -> None:
+    cfg = NMPCConfig(horizon=3)
+    cfg.Q = np.diag([1.0, 1.0, 0.0, 1.0, 1.0, 1.0])
+
+    with pytest.raises(ValueError, match="Q"):
+        NonlinearMPC(mock_tokamak_plant, cfg)
+
+
+def test_nmpc_rejects_inconsistent_input_bounds() -> None:
+    cfg = NMPCConfig(horizon=3)
+    cfg.u_min = np.array([0.0, 5.0, 0.0])
+    cfg.u_max = np.array([73.0, 4.0, 10.0])
+
+    with pytest.raises(ValueError, match="u_min"):
+        NonlinearMPC(mock_tokamak_plant, cfg)
+
+
+def test_nmpc_step_rejects_nonfinite_plant_output() -> None:
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=1)
+
+    def bad_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        out = mock_tokamak_plant(x, u)
+        out[0] = np.nan
+        return out
+
+    nmpc = NonlinearMPC(bad_plant, cfg)
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0])
+    u_prev = np.zeros(3)
+
+    with pytest.raises(ValueError, match="plant_model"):
+        nmpc.step(x0, x_ref, u_prev)

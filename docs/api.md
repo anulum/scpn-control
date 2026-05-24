@@ -470,6 +470,13 @@ Requires `pip install "scpn-control[jax]"`.
 
 ### NMPC Controller (v0.16.0)
 
+`NonlinearMPC` validates the NMPC quadratic program contract before
+optimization: `Q`, `R`, and optional terminal `P` must be finite symmetric
+positive-definite matrices with tokamak state/input dimensions; state, input,
+and slew bounds must be finite and ordered; and plant-model evaluations must
+return finite state vectors. Invalid math contracts fail closed instead of
+propagating undefined SQP or PGD iterates.
+
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 
 ### Mu-Synthesis (v0.16.0)
