@@ -1,17 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Neural Turbulence
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Neural Turbulence Tests
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.neural_turbulence import (
     NeuralTransportTrainer,
@@ -61,6 +58,22 @@ def test_input_normalization_collisionality_uses_q_and_temperature_scaling():
 
     assert np.all(nu_high_q > nu_low_q)
     assert np.all(nu_hot < nu_low_q)
+
+
+def test_input_normalization_rejects_nonphysical_profile_domains():
+    norm = TransportInputNormalizer()
+    r = np.linspace(0.1, 2.0, 5)
+    Te = np.ones_like(r) * 10.0
+    Ti = np.ones_like(r) * 10.0
+    ne = np.ones_like(r) * 5.0
+    q = np.ones_like(r) * 2.0
+
+    with pytest.raises(ValueError, match="r"):
+        norm.from_profiles(Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3, r=r[::-1])
+    with pytest.raises(ValueError, match="Te"):
+        norm.from_profiles(Te[:-1], Ti, ne, q, R0=6.2, a=2.0, B0=5.3, r=r)
+    with pytest.raises(ValueError, match="B0"):
+        norm.from_profiles(Te, Ti, ne, q, R0=6.2, a=2.0, B0=0.0, r=r)
 
 
 def test_analytic_targets_critical_gradient():

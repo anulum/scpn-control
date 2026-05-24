@@ -1267,7 +1267,7 @@
     },
     {
       "component": "neural turbulence surrogate validation contract",
-      "equation_contract": "Neural turbulence claims must declare QLKNNSurrogate inputs, feature scaling, banana-regime electron collisionality, bounded analytic quasilinear target variables, fallback behaviour, uncertainty handling, and cross-validation boundary against gyrokinetic or quasilinear turbulence references.",
+      "equation_contract": "Neural turbulence claims must declare QLKNNSurrogate inputs, finite strictly ordered physical profile grids, feature scaling, banana-regime electron collisionality, bounded analytic quasilinear target variables, fallback behaviour, uncertainty handling, and cross-validation boundary against gyrokinetic or quasilinear turbulence references.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "QLKNN turbulence surrogate references",

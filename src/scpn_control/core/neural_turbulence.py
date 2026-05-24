@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neural Turbulence
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neural Turbulence Surrogate (QLKNN-class)
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Neural Turbulence Surrogate
 """QLKNN-class neural turbulence surrogate, training, and flux prediction utilities."""
 
 from __future__ import annotations
@@ -17,6 +13,37 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+
+
+def _finite_scalar(name: str, value: float, *, positive: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    return scalar
+
+
+def _profile_array(
+    name: str,
+    values: np.ndarray,
+    shape: tuple[int, ...] | None = None,
+    *,
+    positive: bool = False,
+    allow_last_zero: bool = False,
+) -> np.ndarray:
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim != 1 or arr.size < 2:
+        raise ValueError(f"{name} must be a one-dimensional profile with at least two points")
+    if shape is not None and arr.shape != shape:
+        raise ValueError(f"{name} must match the radius grid shape")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    if positive and allow_last_zero and (np.any(arr[:-1] <= 0.0) or arr[-1] < 0.0):
+        raise ValueError(f"{name} must be positive in the interior and non-negative at the boundary")
+    if positive and not allow_last_zero and np.any(arr <= 0.0):
+        raise ValueError(f"{name} must be positive everywhere")
+    return arr
 
 
 class QLKNNSurrogate:
@@ -144,6 +171,19 @@ class TransportInputNormalizer:
         """
         Convert physical profiles into the 10 dimensionless QLKNN inputs.
         """
+        r = _profile_array("r", r, positive=True)
+        if np.any(np.diff(r) <= 0.0):
+            raise ValueError("r must be strictly increasing")
+        shape = r.shape
+        Te = _profile_array("Te", Te, shape, positive=True, allow_last_zero=True)
+        Ti = _profile_array("Ti", Ti, shape, positive=True, allow_last_zero=True)
+        ne = _profile_array("ne", ne, shape, positive=True, allow_last_zero=True)
+        q = _profile_array("q", q, shape, positive=True)
+        R0 = _finite_scalar("R0", R0, positive=True)
+        a = _finite_scalar("a", a, positive=True)
+        B0 = _finite_scalar("B0", B0, positive=True)
+        if a >= R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
         dr = r[1] - r[0] if len(r) > 1 else 0.1
 
         # Gradients (simple central difference)
