@@ -74,15 +74,25 @@ class KnmSpec:
         K = np.asarray(self.K, dtype=np.float64)
         if K.ndim != 2 or K.shape[0] != K.shape[1]:
             raise ValueError("K must be square (L, L)")
+        if not np.isfinite(K).all():
+            raise ValueError("K must contain only finite values")
+        if np.any(K < 0.0):
+            raise ValueError("K must be non-negative")
         L = K.shape[0]
         if self.alpha is not None:
             a = np.asarray(self.alpha, dtype=np.float64)
             if a.shape != (L, L):
                 raise ValueError(f"alpha shape {a.shape} != ({L}, {L})")
+            if not np.isfinite(a).all():
+                raise ValueError("alpha must contain only finite values")
         if self.zeta is not None:
             z = np.asarray(self.zeta, dtype=np.float64)
             if z.shape != (L,):
                 raise ValueError(f"zeta shape {z.shape} != ({L},)")
+            if not np.isfinite(z).all():
+                raise ValueError("zeta must contain only finite values")
+            if np.any(z < 0.0):
+                raise ValueError("zeta must be non-negative")
         if self.layer_names is not None and len(self.layer_names) != L:
             raise ValueError("layer_names length must equal L")
 
@@ -106,6 +116,15 @@ def build_knm_paper27(
     Calibration anchors from Paper 27, Table 2.
     Cross-hierarchy boosts from Paper 27 §4.3.
     """
+    if not isinstance(L, int) or L <= 0:
+        raise ValueError("L must be a positive integer")
+    if not np.isfinite(K_base) or K_base < 0.0:
+        raise ValueError("K_base must be finite and non-negative")
+    if not np.isfinite(K_alpha) or K_alpha < 0.0:
+        raise ValueError("K_alpha must be finite and non-negative")
+    if not np.isfinite(zeta_uniform) or zeta_uniform < 0.0:
+        raise ValueError("zeta_uniform must be finite and non-negative")
+
     idx = np.arange(L)
     dist = np.abs(idx[:, None] - idx[None, :])
     K = K_base * np.exp(-K_alpha * dist)
