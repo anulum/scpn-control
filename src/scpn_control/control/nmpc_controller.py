@@ -282,8 +282,11 @@ class NonlinearMPC:
         x_ref_safe = _as_finite_vector("x_ref", x_ref, self.nx)
         u_prev_safe = self._bounded_input_vector("u_prev", u_prev)
 
-        self.u_traj[:-1] = self.u_traj[1:]
-        self.u_traj[-1] = self.u_traj[-2]
+        if self.N > 1:
+            self.u_traj[:-1] = self.u_traj[1:]
+            self.u_traj[-1] = self.u_traj[-2]
+        else:
+            self.u_traj[0] = u_prev_safe
 
         for _sqp_iter in range(self.config.max_sqp_iter):
             self.x_traj[0] = x_safe

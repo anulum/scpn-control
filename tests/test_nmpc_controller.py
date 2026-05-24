@@ -112,6 +112,23 @@ def test_nmpc_rejects_previous_input_outside_bounds() -> None:
         nmpc.step(x0, x_ref, u_prev)
 
 
+def test_nmpc_horizon_one_is_valid_receding_horizon() -> None:
+    """A one-step horizon is mathematically valid and must not crash warm start."""
+    cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([2.0, 1.2, 8.0, 1.0, 3.0, 1.2])
+    u_prev = np.array([1.0, 1.0, 1.0])
+
+    u_opt = nmpc.step(x0, x_ref, u_prev)
+
+    assert u_opt.shape == (3,)
+    assert np.all(u_opt >= cfg.u_min)
+    assert np.all(u_opt <= cfg.u_max)
+    assert np.all(np.abs(u_opt - u_prev) <= cfg.du_max + 1e-9)
+
+
 def test_infeasibility_recovery():
     cfg = NMPCConfig(horizon=5, max_sqp_iter=3)
     # Contradictory state constraints: beta_N < 1, but we command it to go high

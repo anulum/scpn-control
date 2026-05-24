@@ -486,6 +486,8 @@ positive definite; invalid solver output falls back to the conservative terminal
 weight.
 The previous input supplied to `step()` must already satisfy actuator bounds so
 the slew-rate projection cannot propagate an unsafe actuator state.
+The accepted `horizon=1` case is handled as a valid one-step receding-horizon
+controller and warm-starts from the bounded previous input.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 
