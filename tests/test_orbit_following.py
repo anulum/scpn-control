@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Orbit-following tests
 from __future__ import annotations
 
 import math
@@ -191,6 +194,9 @@ def test_guiding_center_orbit_rejects_nonphysical_particle_and_step_inputs():
     with pytest.raises(ValueError, match="Z"):
         GuidingCenterOrbit(4.0, 0, 3500.0, 0.0, 6.2, 0.0)
 
+    with pytest.raises(ValueError, match="Z"):
+        GuidingCenterOrbit(4.0, True, 3500.0, 0.0, 6.2, 0.0)
+
     with pytest.raises(ValueError, match="E_keV"):
         GuidingCenterOrbit(4.0, 2, 0.0, 0.0, 6.2, 0.0)
 
@@ -235,6 +241,9 @@ def test_monte_carlo_ensemble_rejects_invalid_inputs():
     with pytest.raises(ValueError, match="n_particles"):
         MonteCarloEnsemble(0, 3500.0, 6.2, 2.0, 5.3)
 
+    with pytest.raises(ValueError, match="n_particles"):
+        MonteCarloEnsemble(True, 3500.0, 6.2, 2.0, 5.3)
+
     with pytest.raises(ValueError, match="a must be smaller"):
         MonteCarloEnsemble(10, 3500.0, 2.0, 2.0, 5.3)
 
@@ -242,6 +251,9 @@ def test_monte_carlo_ensemble_rejects_invalid_inputs():
 
     with pytest.raises(ValueError, match="rho"):
         ens.initialize(np.ones(3), np.ones(3), np.array([0.0, 0.8, 0.7]))
+
+    with pytest.raises(ValueError, match="rho"):
+        ens.initialize(np.ones(3), np.ones(3), np.array([0.0, 0.5, 0.5]))
 
     with pytest.raises(ValueError, match="ne_profile"):
         ens.initialize(np.array([1.0, 0.0, 1.0]), np.ones(3), np.array([0.0, 0.5, 1.0]))
@@ -252,6 +264,9 @@ def test_monte_carlo_ensemble_rejects_invalid_inputs():
     ens.initialize(np.ones(3), np.ones(3), np.array([0.0, 0.5, 1.0]))
     with pytest.raises(ValueError, match="n_bounces"):
         ens.follow(mock_b_field, n_bounces=0)
+
+    with pytest.raises(ValueError, match="n_bounces"):
+        ens.follow(mock_b_field, n_bounces=True)
 
 
 def test_first_orbit_loss_and_banana_width_reject_invalid_physics():
@@ -274,6 +289,9 @@ def test_slowing_down_rejects_invalid_domains():
 
     with pytest.raises(ValueError, match="Z_bg"):
         SlowingDown.critical_energy(20.0, A_fast=4.0, A_bg=2.5, Z_bg=0, ne_20=1.0)
+
+    with pytest.raises(ValueError, match="Z_bg"):
+        SlowingDown.critical_energy(20.0, A_fast=4.0, A_bg=2.5, Z_bg=True, ne_20=1.0)
 
     with pytest.raises(ValueError, match="ne_20"):
         SlowingDown.tau_sd(20.0, ne_20=0.0, Z_eff=1.5)

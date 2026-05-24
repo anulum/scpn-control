@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Guiding-centre orbit following
 """Guiding-centre orbit-following, classification, and Monte Carlo ensemble utilities."""
 
 from __future__ import annotations
@@ -80,7 +83,7 @@ class GuidingCenterOrbit:
         Z0_init: float,
     ) -> None:
         m_amu = _finite_scalar("m_amu", m_amu, positive=True)
-        if int(Z) != Z or Z == 0:
+        if isinstance(Z, bool) or int(Z) != Z or Z == 0:
             raise ValueError("Z must be a non-zero integer charge state")
         E_keV = _finite_scalar("E_keV", E_keV, positive=True)
         pitch_angle = _finite_scalar("pitch_angle", pitch_angle)
@@ -191,7 +194,7 @@ class OrbitClassifier:
 
 class MonteCarloEnsemble:
     def __init__(self, n_particles: int, E_birth_keV: float, R0: float, a: float, B0: float) -> None:
-        if int(n_particles) != n_particles or n_particles <= 0:
+        if isinstance(n_particles, bool) or int(n_particles) != n_particles or n_particles <= 0:
             raise ValueError("n_particles must be a positive integer")
         self.n_particles = int(n_particles)
         self.E_birth_keV = _finite_scalar("E_birth_keV", E_birth_keV, positive=True)
@@ -204,8 +207,8 @@ class MonteCarloEnsemble:
 
     def initialize(self, ne_profile: np.ndarray, Te_profile: np.ndarray, rho: np.ndarray) -> None:
         rho = _profile_array("rho", rho)
-        if np.any(rho < 0.0) or np.any(rho > 1.0) or np.any(np.diff(rho) < 0.0):
-            raise ValueError("rho must be monotonically increasing within [0, 1]")
+        if np.any(rho < 0.0) or np.any(rho > 1.0) or np.any(np.diff(rho) <= 0.0):
+            raise ValueError("rho must be strictly increasing within [0, 1]")
         ne_profile = _profile_array("ne_profile", ne_profile, rho.shape)
         Te_profile = _profile_array("Te_profile", Te_profile, rho.shape)
         if np.any(ne_profile <= 0.0):
@@ -227,7 +230,7 @@ class MonteCarloEnsemble:
     def follow(self, B_field: Callable, n_bounces: int = 10, dt: float = 1e-7) -> EnsembleResult:
         if not self.particles:
             raise ValueError("particles must be initialised before follow")
-        if int(n_bounces) != n_bounces or n_bounces <= 0:
+        if isinstance(n_bounces, bool) or int(n_bounces) != n_bounces or n_bounces <= 0:
             raise ValueError("n_bounces must be a positive integer")
         dt = _finite_scalar("dt", dt, positive=True)
         n_pass = 0
@@ -339,7 +342,7 @@ class SlowingDown:
         Te_keV = _finite_scalar("Te_keV", Te_keV, positive=True)
         A_fast = _finite_scalar("A_fast", A_fast, positive=True)
         _finite_scalar("A_bg", A_bg, positive=True)
-        if int(Z_bg) != Z_bg or Z_bg <= 0:
+        if isinstance(Z_bg, bool) or int(Z_bg) != Z_bg or Z_bg <= 0:
             raise ValueError("Z_bg must be a positive integer charge state")
         _finite_scalar("ne_20", ne_20, positive=True)
         Te_J = Te_keV * 1e3 * _E_C
