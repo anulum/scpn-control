@@ -15,13 +15,24 @@ import numpy as np
 # Stangeby 2000, "The Plasma Boundary of Magnetic Fusion Devices", Eq. 5.69.
 KAPPA_0_ELECTRON = 2000.0
 
-# Sheath heat transmission coefficient γ_sh (deuterium, strong sheath).
+# Sheath heat transmission coefficient γ_sh (deuterium, classical sheath).
 # Stangeby 2000, Ch. 2.
 GAMMA_SHEATH = 7.0
 
 # Divertor detachment onset criterion T_t <= 5 eV.
 # Stangeby 2000, Ch. 16; Lipschultz et al. 1999, PPCF 41, A585.
 DETACHMENT_ONSET_EV = 5.0
+
+
+def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and scalar < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return scalar
 
 
 @dataclass
@@ -41,8 +52,10 @@ def eich_heat_flux_width(P_SOL_MW: float, R0: float, B_pol: float, epsilon: floa
 
     Eich et al. 2013, Nucl. Fusion 53, 093031, Eq. 6.
     """
-    if P_SOL_MW <= 0.0 or B_pol <= 0.0 or R0 <= 0.0 or epsilon <= 0.0:
-        return 1.0
+    P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
+    R0 = _finite_scalar("R0", R0, positive=True)
+    B_pol = _finite_scalar("B_pol", B_pol, positive=True)
+    epsilon = _finite_scalar("epsilon", epsilon, positive=True)
     return float(1.35 * (P_SOL_MW**-0.02) * (R0**0.04) * (B_pol**-0.92) * (epsilon**0.42))
 
 
@@ -56,8 +69,11 @@ def peak_target_heat_flux(
 
     Stangeby 2000, Ch. 5.
     """
-    if lambda_q_m <= 0.0:
-        return 0.0
+    P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, nonnegative=True)
+    R0 = _finite_scalar("R0", R0, positive=True)
+    lambda_q_m = _finite_scalar("lambda_q_m", lambda_q_m, positive=True)
+    f_expansion = _finite_scalar("f_expansion", f_expansion, positive=True)
+    alpha_deg = _finite_scalar("alpha_deg", alpha_deg, nonnegative=True)
     alpha_rad = np.radians(alpha_deg)
     q_peak = P_SOL_MW / (4.0 * np.pi * R0 * lambda_q_m * f_expansion) * np.sin(alpha_rad)
     return float(q_peak)
@@ -71,8 +87,9 @@ def detachment_threshold(n_u_19: float, P_SOL_MW: float, L_par: float) -> bool:
     conduction integral, then the sheath heat-transmission relation gives the
     target temperature.  Detachment onset is taken as T_target <= 5 eV.
     """
-    if n_u_19 <= 0.0 or P_SOL_MW <= 0.0 or L_par <= 0.0:
-        raise ValueError("n_u_19, P_SOL_MW, and L_par must be positive")
+    n_u_19 = _finite_scalar("n_u_19", n_u_19, positive=True)
+    P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
+    L_par = _finite_scalar("L_par", L_par, positive=True)
 
     q_parallel_W_m2 = P_SOL_MW * 1.0e6
     T_upstream_eV = ((3.5 * L_par * q_parallel_W_m2) / KAPPA_0_ELECTRON) ** (2.0 / 7.0)
@@ -94,11 +111,13 @@ class TwoPointSOL:
     """
 
     def __init__(self, R0: float, a: float, q95: float, B_pol: float, kappa: float = 1.0):
-        self.R0 = R0
-        self.a = a
-        self.q95 = q95
-        self.B_pol = B_pol
-        self.kappa = kappa
+        self.R0 = _finite_scalar("R0", R0, positive=True)
+        self.a = _finite_scalar("a", a, positive=True)
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        self.q95 = _finite_scalar("q95", q95, positive=True)
+        self.B_pol = _finite_scalar("B_pol", B_pol, positive=True)
+        self.kappa = _finite_scalar("kappa", kappa, positive=True)
         self.epsilon = a / R0
         self.L_par = np.pi * q95 * R0
 
@@ -112,6 +131,11 @@ class TwoPointSOL:
         Target heat flux: q_target = P_SOL / (4π R λ_q f_exp).
         Stangeby 2000, Ch. 5.
         """
+        P_SOL_MW = _finite_scalar("P_SOL_MW", P_SOL_MW, positive=True)
+        n_u_19 = _finite_scalar("n_u_19", n_u_19, positive=True)
+        f_rad = _finite_scalar("f_rad", f_rad, nonnegative=True)
+        if f_rad >= 1.0:
+            raise ValueError("f_rad must be less than 1")
         lambda_q_mm = eich_heat_flux_width(P_SOL_MW, self.R0, self.B_pol, self.epsilon)
         lambda_q_m = lambda_q_mm * 1e-3
 

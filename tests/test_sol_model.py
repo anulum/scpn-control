@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.sol_model import (
     TwoPointSOL,
@@ -117,8 +118,9 @@ def test_two_point_model_temperature():
 
 
 def test_peak_heat_flux_zero_lambda():
-    """Line 54: lambda_q_m <= 0 returns 0."""
-    assert peak_target_heat_flux(P_SOL_MW=100.0, R0=6.2, lambda_q_m=0.0) == 0.0
+    """Nonphysical heat-flux geometry is outside the target-load model domain."""
+    with pytest.raises(ValueError, match="lambda_q_m"):
+        peak_target_heat_flux(P_SOL_MW=100.0, R0=6.2, lambda_q_m=0.0)
 
 
 def test_detachment_threshold_density_rollover():
@@ -135,15 +137,31 @@ def test_detachment_threshold_power_and_connection_length():
 
 
 def test_detachment_threshold_rejects_invalid_inputs():
-    try:
+    with pytest.raises(ValueError, match="positive"):
         detachment_threshold(n_u_19=0.0, P_SOL_MW=100.0, L_par=50.0)
-    except ValueError as exc:
-        assert "positive" in str(exc)
-    else:
-        raise AssertionError("invalid detachment inputs must fail fast")
+
+    with pytest.raises(ValueError, match="finite"):
+        detachment_threshold(n_u_19=10.0, P_SOL_MW=float("nan"), L_par=50.0)
 
 
 def test_eich_width_invalid_inputs():
-    """Line 121 (via eich_heat_flux_width): returns 1.0 for invalid inputs."""
-    assert eich_heat_flux_width(P_SOL_MW=0.0, R0=6.2, B_pol=0.56, epsilon=0.32) == 1.0
-    assert eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.0, epsilon=0.32) == 1.0
+    """Eich scaling rejects inputs outside its regression domain."""
+    with pytest.raises(ValueError, match="P_SOL_MW"):
+        eich_heat_flux_width(P_SOL_MW=0.0, R0=6.2, B_pol=0.56, epsilon=0.32)
+    with pytest.raises(ValueError, match="B_pol"):
+        eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.0, epsilon=0.32)
+    with pytest.raises(ValueError, match="epsilon"):
+        eich_heat_flux_width(P_SOL_MW=100.0, R0=6.2, B_pol=0.56, epsilon=float("inf"))
+
+
+def test_two_point_sol_rejects_nonphysical_geometry_and_solve_inputs():
+    with pytest.raises(ValueError, match="R0"):
+        TwoPointSOL(R0=0.0, a=2.0, q95=3.0, B_pol=0.56)
+    with pytest.raises(ValueError, match="a must be smaller"):
+        TwoPointSOL(R0=2.0, a=2.0, q95=3.0, B_pol=0.56)
+
+    sol = TwoPointSOL(R0=6.2, a=2.0, q95=3.0, B_pol=0.56)
+    with pytest.raises(ValueError, match="P_SOL_MW"):
+        sol.solve(P_SOL_MW=-1.0, n_u_19=4.0)
+    with pytest.raises(ValueError, match="f_rad"):
+        sol.solve(P_SOL_MW=100.0, n_u_19=4.0, f_rad=1.0)
