@@ -208,7 +208,7 @@ def test_accumulation_diagnostic_safe():
 
 
 def test_transport_solver_negative_pinch():
-    """Lines 226-228: solver handles negative V (outward convection) branch."""
+    """Solver handles the negative-V convection branch without negative density."""
     rho = np.linspace(0, 1, 30)
     species = [ImpuritySpecies("Ar", 18, 40.0, source_rate=1e14)]
     solver = ImpurityTransportSolver(rho, 6.2, 2.0, species)
@@ -216,3 +216,34 @@ def test_transport_solver_negative_pinch():
     solver.n_z["Ar"] = np.ones(30) * 1e14
     res = solver.step(0.01, np.ones(30) * 1e20, np.ones(30) * 500.0, np.ones(30) * 500.0, 1.0, V_outward)
     assert np.all(res["Ar"] >= 0.0)
+
+
+def test_transport_solver_rejects_invalid_radial_grid():
+    species = [ImpuritySpecies("W", 74, 183.8)]
+
+    with pytest.raises(ValueError, match="rho must be strictly increasing"):
+        ImpurityTransportSolver(np.array([0.0, 0.5, 0.4, 1.0]), 6.2, 2.0, species)
+
+
+def test_transport_solver_rejects_negative_time_step_and_diffusion():
+    species = [ImpuritySpecies("W", 74, 183.8)]
+    solver = ImpurityTransportSolver(np.linspace(0, 1, 10), 6.2, 2.0, species)
+    ne = np.ones(10) * 1e20
+    Te = np.ones(10) * 1000.0
+    Ti = np.ones(10) * 1000.0
+
+    with pytest.raises(ValueError, match="dt must be positive"):
+        solver.step(0.0, ne, Te, Ti, 1.0, {})
+    with pytest.raises(ValueError, match="D_anom must be non-negative"):
+        solver.step(0.1, ne, Te, Ti, -1.0, {})
+
+
+def test_transport_solver_rejects_pinch_shape_mismatch():
+    species = [ImpuritySpecies("W", 74, 183.8)]
+    solver = ImpurityTransportSolver(np.linspace(0, 1, 10), 6.2, 2.0, species)
+    ne = np.ones(10) * 1e20
+    Te = np.ones(10) * 1000.0
+    Ti = np.ones(10) * 1000.0
+
+    with pytest.raises(ValueError, match="V_pinch\\[W\\] must match rho shape"):
+        solver.step(0.1, ne, Te, Ti, 1.0, {"W": np.zeros(9)})

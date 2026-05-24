@@ -230,13 +230,17 @@ def tungsten_accumulation_diagnostic(n_W: np.ndarray, ne: np.ndarray) -> dict[st
 
 class ImpurityTransportSolver:
     def __init__(self, rho: np.ndarray, R0: float, a: float, species: list[ImpuritySpecies]):
-        self.rho = rho
-        self.R0 = R0
-        self.a = a
+        self.rho = _radiation_rho_grid(rho)
+        self.R0 = float(R0)
+        self.a = float(a)
+        if not np.isfinite(self.R0) or self.R0 <= 0.0:
+            raise ValueError("R0 must be finite and positive")
+        if not np.isfinite(self.a) or self.a <= 0.0:
+            raise ValueError("a must be finite and positive")
         self.species = species
 
-        self.nr = len(rho)
-        self.drho = rho[1] - rho[0]
+        self.nr = len(self.rho)
+        self.drho = self.rho[1] - self.rho[0]
 
         self.n_z = {s.element: np.zeros(self.nr) for s in species}
 
@@ -257,11 +261,28 @@ class ImpurityTransportSolver:
         """
         import scipy.linalg
 
+        dt = float(dt)
+        D_anom = float(D_anom)
+        if not np.isfinite(dt) or dt <= 0.0:
+            raise ValueError("dt must be positive")
+        if not np.isfinite(D_anom) or D_anom < 0.0:
+            raise ValueError("D_anom must be non-negative")
+        shape = self.rho.shape
+        _positive_finite_profile("ne", ne)
+        _positive_finite_profile("Te_eV", Te_eV)
+        _positive_finite_profile("Ti_eV", Ti_eV)
+        if np.asarray(ne, dtype=float).shape != shape:
+            raise ValueError("ne must match rho shape")
+        if np.asarray(Te_eV, dtype=float).shape != shape:
+            raise ValueError("Te_eV must match rho shape")
+        if np.asarray(Ti_eV, dtype=float).shape != shape:
+            raise ValueError("Ti_eV must match rho shape")
+
         dr = self.drho * self.a
 
         for s in self.species:
             n = self.n_z[s.element]
-            V = V_pinch.get(s.element, np.zeros(self.nr))
+            V = _finite_profile_like(f"V_pinch[{s.element}]", V_pinch.get(s.element, np.zeros(self.nr)), shape)
 
             D = D_anom * np.ones(self.nr)
 
