@@ -1,16 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Fusion Kernel
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Fusion Kernel Test Suite
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import json
@@ -118,7 +112,40 @@ class TestConstruction:
     def test_invalid_config_raises(self, tmp_path):
         path = tmp_path / "bad.json"
         path.write_text("{}", encoding="utf-8")
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="reactor_name"):
+            FusionKernel(path)
+
+    def test_config_root_must_be_object(self, tmp_path):
+        path = tmp_path / "bad_root.json"
+        path.write_text("[]", encoding="utf-8")
+        with pytest.raises(ValueError, match="root"):
+            FusionKernel(path)
+
+    def test_config_rejects_nonphysical_plasma_current_target(self, tmp_path):
+        path = _write_config(tmp_path / "bad_current.json")
+        cfg = json.loads(path.read_text(encoding="utf-8"))
+        cfg["physics"]["plasma_current_target"] = -1.0e9
+        path.write_text(json.dumps(cfg), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="plasma_current_target"):
+            FusionKernel(path)
+
+    def test_config_rejects_duplicate_json_keys(self, tmp_path):
+        path = tmp_path / "duplicate.json"
+        path.write_text(
+            """
+            {
+              "reactor_name": "first",
+              "reactor_name": "second",
+              "grid_resolution": [8, 8],
+              "dimensions": {"R_min": 2.0, "R_max": 6.0, "Z_min": -3.0, "Z_max": 3.0},
+              "physics": {"plasma_current_target": 1.0, "vacuum_permeability": 1.0}
+            }
+            """,
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="Duplicate JSON key"):
             FusionKernel(path)
 
     def test_missing_config_raises(self, tmp_path):

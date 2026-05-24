@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: https://orcid.org/0009-0009-3560-0851
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Fusion Kernel
 """
 Non-linear Grad-Shafranov equilibrium solver with two boundary variants:
 
@@ -123,6 +125,76 @@ def _normalize_boundary_variant(variant: str | None) -> str:
         return "free_boundary"
 
     raise ValueError("solver.boundary_variant must be one of: 'fixed_boundary', 'free_boundary', 'fixed', 'free'.")
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"Duplicate JSON key in fusion kernel config: {key}")
+        out[key] = value
+    return out
+
+
+def _require_mapping(config: Any, key: str) -> dict[str, Any]:
+    value = config.get(key) if isinstance(config, dict) else None
+    if not isinstance(value, dict):
+        raise ValueError(f"fusion kernel config requires object '{key}'.")
+    return value
+
+
+def _require_finite_float(section: dict[str, Any], key: str, *, positive: bool) -> float:
+    if key not in section:
+        raise ValueError(f"fusion kernel config requires '{key}'.")
+    value = float(section[key])
+    if not np.isfinite(value) or (positive and value <= 0.0):
+        qualifier = "positive finite" if positive else "finite"
+        raise ValueError(f"{key} must be {qualifier}.")
+    return value
+
+
+def _validate_fusion_kernel_config(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise ValueError("fusion kernel config root must be a JSON object.")
+
+    reactor_name = raw.get("reactor_name")
+    if not isinstance(reactor_name, str) or not reactor_name.strip():
+        raise ValueError("fusion kernel config requires non-empty 'reactor_name'.")
+
+    dims = _require_mapping(raw, "dimensions")
+    r_min = _require_finite_float(dims, "R_min", positive=False)
+    r_max = _require_finite_float(dims, "R_max", positive=False)
+    z_min = _require_finite_float(dims, "Z_min", positive=False)
+    z_max = _require_finite_float(dims, "Z_max", positive=False)
+    if r_min <= 0.0 or r_max <= r_min:
+        raise ValueError("dimensions must satisfy 0 < R_min < R_max.")
+    if z_max <= z_min:
+        raise ValueError("dimensions must satisfy Z_min < Z_max.")
+
+    grid = raw.get("grid_resolution")
+    if not isinstance(grid, list) or len(grid) != 2:
+        raise ValueError("grid_resolution must be a two-element array.")
+    for value in grid:
+        if isinstance(value, bool) or not isinstance(value, int) or value < 3:
+            raise ValueError("grid_resolution entries must be integers >= 3.")
+
+    physics = _require_mapping(raw, "physics")
+    _require_finite_float(physics, "plasma_current_target", positive=True)
+    if "vacuum_permeability" in physics:
+        _require_finite_float(physics, "vacuum_permeability", positive=True)
+
+    solver = raw.setdefault("solver", {})
+    if not isinstance(solver, dict):
+        raise ValueError("fusion kernel config field 'solver' must be an object.")
+
+    coils = raw.get("coils", [])
+    if not isinstance(coils, list):
+        raise ValueError("fusion kernel config field 'coils' must be an array.")
+    for idx, coil in enumerate(coils):
+        if not isinstance(coil, dict):
+            raise ValueError(f"coils[{idx}] must be an object.")
+
+    return raw
 
 
 def _psi_gradient_fields(Psi: FloatArray, dR: float, dZ: float) -> tuple[FloatArray, FloatArray]:
@@ -264,7 +336,7 @@ class FusionKernel:
             Filesystem path to the configuration JSON.
         """
         with open(path, "r") as f:
-            self.cfg: dict[str, Any] = json.load(f)
+            self.cfg = _validate_fusion_kernel_config(json.load(f, object_pairs_hook=_reject_duplicate_json_keys))
         solver_cfg = self.cfg.setdefault("solver", {})
         self.boundary_variant: str = _normalize_boundary_variant(solver_cfg.get("boundary_variant", "fixed_boundary"))
         solver_cfg["boundary_variant"] = self.boundary_variant

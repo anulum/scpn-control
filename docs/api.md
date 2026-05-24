@@ -36,6 +36,12 @@ scpn_control.RealtimeMonitor
 
 ### FusionKernel
 
+`FusionKernel` validates its JSON configuration before grid construction:
+the root must be an object, duplicate JSON keys are rejected, dimensions and
+grid resolution must be physical, `physics.plasma_current_target` must be
+positive finite, and `physics.vacuum_permeability` must be positive finite
+when supplied.
+
 ::: scpn_control.core.fusion_kernel.FusionKernel
 
 ### TokamakConfig
