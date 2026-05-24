@@ -107,7 +107,7 @@ class RZIPModel:
         try:
             M_inv = np.linalg.inv(M_mat)
         except np.linalg.LinAlgError:
-            M_inv = np.zeros_like(M_mat)
+            raise ValueError("RZIP circuit inductance matrix must be non-singular.") from None
 
         # Z dot
         A[0, 1] = 1.0

@@ -167,17 +167,15 @@ def test_feedback_stabilization(active_coils):
     assert max_real < rzip.vertical_growth_rate()  # Growth rate should at least decrease
 
 
-def test_singular_m_mat(simple_vessel):
-    """Lines 90-91: build_state_space handles singular M_mat with zero fallback."""
-    # Create vessel with zero inductance to force singular M_mat
+def test_build_state_space_rejects_singular_circuit_inductance_matrix(simple_vessel):
+    # Create a one-circuit vessel with zero self-inductance to force singular M_mat.
     elements = [
         VesselElement(R=2.0, Z=0.5, resistance=1e-3, cross_section=0.1, inductance=0.0),
-        VesselElement(R=2.0, Z=-0.5, resistance=1e-3, cross_section=0.1, inductance=0.0),
     ]
     vessel = VesselModel(elements)
     rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.0, Ip_MA=1.0, B0=1.0, n_index=0.5, vessel=vessel)
-    A, B, C, D = rzip.build_state_space()
-    assert np.all(np.isfinite(A))
+    with pytest.raises(ValueError, match="inductance matrix"):
+        rzip.build_state_space()
 
 
 def test_vertical_growth_time_stable(simple_vessel):
