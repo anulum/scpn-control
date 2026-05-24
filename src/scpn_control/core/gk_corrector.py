@@ -71,6 +71,22 @@ class GKCorrector:
         self.history: list[list[CorrectionRecord]] = []
 
     @staticmethod
+    def _validate_transport_coefficients(values: tuple[float, ...]) -> None:
+        """Validate scalar transport coefficients before ratio construction."""
+        if not np.all(np.isfinite(values)):
+            raise ValueError("record transport values must be finite")
+        if np.any(np.asarray(values, dtype=np.float64) < 0.0):
+            raise ValueError("record transport values must be non-negative")
+
+    @staticmethod
+    def _validate_transport_profiles(*profiles: NDArray[np.float64]) -> None:
+        """Validate transport profiles before applying corrections."""
+        if not all(np.all(np.isfinite(profile)) for profile in profiles):
+            raise ValueError("chi_i, chi_e, D_e must contain only finite values")
+        if any(np.any(profile < 0.0) for profile in profiles):
+            raise ValueError("transport profiles must be non-negative")
+
+    @staticmethod
     def _validate_config(config: CorrectorConfig) -> None:
         valid_modes = {"multiplicative", "additive", "replace"}
         if config.mode not in valid_modes:
@@ -113,8 +129,7 @@ class GKCorrector:
                 rec.D_e_surrogate,
                 rec.D_e_gk,
             )
-            if not np.all(np.isfinite(values)):
-                raise ValueError("record transport values must be finite")
+            self._validate_transport_coefficients(values)
 
         self.history.append(records)
         alpha = self.config.smoothing_alpha
@@ -151,8 +166,7 @@ class GKCorrector:
         d_e_arr = np.asarray(D_e, dtype=np.float64)
         if chi_i_arr.shape != (self.nr,) or chi_e_arr.shape != (self.nr,) or d_e_arr.shape != (self.nr,):
             raise ValueError(f"chi_i, chi_e, D_e must each have shape ({self.nr},)")
-        if not (np.all(np.isfinite(chi_i_arr)) and np.all(np.isfinite(chi_e_arr)) and np.all(np.isfinite(d_e_arr))):
-            raise ValueError("chi_i, chi_e, D_e must contain only finite values")
+        self._validate_transport_profiles(chi_i_arr, chi_e_arr, d_e_arr)
 
         mode = self.config.mode
 

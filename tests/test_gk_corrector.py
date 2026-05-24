@@ -145,7 +145,7 @@ def test_history_tracking(rho50):
 
 
 def test_rel_error_chi_i_near_zero_gk():
-    """Exercise gk_corrector.py line 40: chi_i_gk near zero returns 0."""
+    """Near-zero GK references do not emit unstable relative errors."""
     r = CorrectionRecord(
         rho_idx=0,
         rho=0.0,
@@ -161,7 +161,7 @@ def test_rel_error_chi_i_near_zero_gk():
 
 
 def test_correct_update_empty_records(rho50):
-    """Exercise gk_corrector.py line 81: empty records returns early."""
+    """Empty spot-check batches do not mutate correction history."""
     corr = GKCorrector(nr=50)
     corr.update([], rho50)
     assert len(corr.history) == 0
@@ -207,3 +207,17 @@ def test_update_sorts_unsorted_records(rho50):
     chi_i = np.ones(50)
     out_i, _, _ = corr.correct(chi_i, np.ones(50), np.ones(50) * 0.1)
     assert 1.4 < out_i[25] < 2.1
+
+
+def test_update_rejects_negative_transport_coefficients(rho50):
+    corr = GKCorrector(nr=50)
+    bad = _make_record(25, float(rho50[25]), surr_i=-1.0, gk_i=1.5)
+    with pytest.raises(ValueError, match="transport values must be non-negative"):
+        corr.update([bad], rho50)
+
+
+def test_correct_rejects_negative_transport_profiles():
+    corr = GKCorrector(nr=4)
+    chi_i = np.array([0.2, 0.1, -0.01, 0.3])
+    with pytest.raises(ValueError, match="transport profiles must be non-negative"):
+        corr.correct(chi_i, np.ones(4), np.ones(4) * 0.1)
