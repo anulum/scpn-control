@@ -6,6 +6,11 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # ──────────────────────────────────────────────────────────────────────
 
+# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Knm Tests
+# © 1998–2026 Miroslav Šotek. All rights reserved.
+# License: GNU AGPL v3 | Commercial licensing available
+# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import numpy as np
