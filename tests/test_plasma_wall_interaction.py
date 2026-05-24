@@ -1,11 +1,14 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
-# Contact: protoscience@anulum.li
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Plasma-Wall Interaction Tests
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.plasma_wall_interaction import (
     E_TH_D_W_EV,
@@ -40,6 +43,24 @@ def test_sputtering_angular_dependence():
     assert Y_60 > Y_0
 
 
+def test_sputtering_rejects_non_d_to_w_configuration():
+    with pytest.raises(ValueError, match="D-to-W"):
+        SputteringYield(target="C")
+
+    with pytest.raises(ValueError, match="D-to-W"):
+        SputteringYield(projectile="He")
+
+
+def test_sputtering_rejects_nonphysical_incidence_angles():
+    sputt = SputteringYield()
+
+    with pytest.raises(ValueError, match="theta_deg"):
+        sputt.yield_at_energy(1000.0, theta_deg=-1.0)
+
+    with pytest.raises(ValueError, match="theta_deg"):
+        sputt.yield_at_energy(1000.0, theta_deg=90.0)
+
+
 def test_erosion_model():
     erosion = ErosionModel()
 
@@ -52,6 +73,22 @@ def test_erosion_model():
     assert np.isclose(net, gross * 0.01)
 
 
+def test_erosion_model_rejects_nonphysical_domains():
+    with pytest.raises(ValueError, match="n_atom"):
+        ErosionModel(n_atom=0.0)
+
+    erosion = ErosionModel()
+
+    with pytest.raises(ValueError, match="ion_flux"):
+        erosion.gross_erosion_rate(-1.0, 1000.0)
+
+    with pytest.raises(ValueError, match="f_redeposition"):
+        erosion.net_erosion_rate(1.0e20, f_redeposition=1.01)
+
+    with pytest.raises(ValueError, match="wall_thickness_mm"):
+        erosion.lifetime_estimate(wall_thickness_mm=0.0, net_rate_m_s=1.0e-9)
+
+
 def test_wall_thermal_steady_state():
     wall = WallThermalModel()
 
@@ -60,6 +97,22 @@ def test_wall_thermal_steady_state():
     assert T_steady > 400.0
     assert T_steady < wall.T_melt
     assert not wall.is_melted()
+
+
+def test_wall_thermal_model_rejects_invalid_geometry_and_step_domains():
+    with pytest.raises(ValueError, match="thickness_mm"):
+        WallThermalModel(thickness_mm=0.0)
+
+    with pytest.raises(ValueError, match="n_nodes"):
+        WallThermalModel(n_nodes=1)
+
+    wall = WallThermalModel()
+
+    with pytest.raises(ValueError, match="dt"):
+        wall.step(dt=0.0, q_surface_MW_m2=10.0)
+
+    with pytest.raises(ValueError, match="q_surface_MW_m2"):
+        wall.step(dt=1.0, q_surface_MW_m2=-1.0)
 
 
 def test_wall_thermal_melting():
@@ -79,6 +132,14 @@ def test_transient_thermal_load():
 
     # 20 MJ over 2 m2 in 0.25 ms is a massive load
     assert delta_T > 1000.0
+
+
+def test_transient_thermal_load_rejects_negative_energy():
+    wall = WallThermalModel()
+    trans = TransientThermalLoad(wall)
+
+    with pytest.raises(ValueError, match="delta_W_MJ"):
+        trans.elm_load(delta_W_MJ=-1.0, A_wet_m2=2.0)
 
 
 def test_divertor_lifetime_assessment():
@@ -128,13 +189,13 @@ def test_sputtering_yield_monotone_above_threshold():
 
 
 def test_erosion_lifetime_zero_rate():
-    """Lines 117-120: net_rate <= 0 returns inf lifetime."""
+    """Zero net erosion gives an infinite erosion-limited lifetime."""
     erosion = ErosionModel()
     assert erosion.lifetime_estimate(wall_thickness_mm=10.0, net_rate_m_s=0.0) == float("inf")
 
 
 def test_tritium_retention():
-    """Line 129: retention scales linearly with fluence."""
+    """Tritium retention scales linearly with fluence in the fitted regime."""
     erosion = ErosionModel()
     ret_low = erosion.tritium_retention(ion_fluence_D_m2=1e23)
     ret_high = erosion.tritium_retention(ion_fluence_D_m2=1e24)
@@ -143,7 +204,7 @@ def test_tritium_retention():
 
 
 def test_transient_elm_zero_area():
-    """Lines 194, 205: elm_load returns 0 for A_wet <= 0 or tau <= 0."""
+    """Unavailable wetted area or pulse duration gives no resolvable transient load."""
     wall = WallThermalModel()
     trans = TransientThermalLoad(wall)
     assert trans.elm_load(delta_W_MJ=10.0, A_wet_m2=0.0) == 0.0
@@ -151,7 +212,7 @@ def test_transient_elm_zero_area():
 
 
 def test_fatigue_small_delta_t():
-    """Line 210: delta_T < 100 K returns 10^7 cycles."""
+    """Small temperature excursions remain in the long-cycle fatigue regime."""
     wall = WallThermalModel()
     trans = TransientThermalLoad(wall)
     cycles = trans.n_elm_cycles_to_fatigue(delta_T_K=50.0)

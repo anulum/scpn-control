@@ -1,8 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
-# Contact: protoscience@anulum.li
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Plasma-Wall Interaction Physics
 """Plasma-wall thermal loading and divertor lifetime-assessment utilities."""
 
 from __future__ import annotations
@@ -40,6 +42,9 @@ class SputteringYield:
     """
 
     def __init__(self, target: str = "W", projectile: str = "D"):
+        if target != "W" or projectile != "D":
+            raise ValueError("SputteringYield currently implements the D-to-W tungsten fit only")
+
         self.target = target
         self.projectile = projectile
 
@@ -66,6 +71,9 @@ class SputteringYield:
         Y = Q · S_n(ε) / (1 + Γ · ε^{0.3}) · (1 − (E_th/E)^{2/3}) · (1 − E_th/E)²
         Eckstein & Preuss 2003, J. Nucl. Mater. 320, 209.
         """
+        if theta_deg < 0.0 or theta_deg >= 90.0:
+            raise ValueError("theta_deg must satisfy 0 <= theta_deg < 90 for the angular sputtering fit")
+
         if E_ion_eV <= self.threshold_energy():
             return 0.0
 
@@ -97,17 +105,26 @@ class ErosionModel:
     """
 
     def __init__(self, material: str = "W", n_atom: float = 6.31e28):
+        if n_atom <= 0.0:
+            raise ValueError("n_atom must be positive")
+
         self.material = material
         self.n_atom = n_atom  # W atomic density [m^{-3}]
 
     def gross_erosion_rate(self, ion_flux: float, E_ion_eV: float, theta_deg: float = 0.0) -> float:
         """Γ_erode = Γ_ion · Y(E, θ) [atoms m^{-2} s^{-1}]."""
+        if ion_flux < 0.0:
+            raise ValueError("ion_flux must be non-negative")
+
         sputt = SputteringYield(target=self.material)
         Y = sputt.yield_at_energy(E_ion_eV, theta_deg)
         return float(Y * ion_flux)
 
     def net_erosion_rate(self, gross_rate: float, f_redeposition: float = 0.97) -> float:
         """Net rate accounting for redeposition [atoms m^{-2} s^{-1}]."""
+        if f_redeposition < 0.0 or f_redeposition > 1.0:
+            raise ValueError("f_redeposition must satisfy 0 <= f_redeposition <= 1")
+
         return float(gross_rate * (1.0 - f_redeposition))
 
     def depth_rate(self, net_rate: float) -> float:
@@ -116,6 +133,9 @@ class ErosionModel:
 
     def lifetime_estimate(self, wall_thickness_mm: float, net_rate_m_s: float) -> float:
         """Erosion lifetime [years]."""
+        if wall_thickness_mm <= 0.0:
+            raise ValueError("wall_thickness_mm must be positive")
+
         if net_rate_m_s <= 0.0:
             return float("inf")
         seconds_per_year = 365.25 * 24 * 3600
@@ -135,6 +155,11 @@ class WallThermalModel:
     """1D explicit heat diffusion into the wall."""
 
     def __init__(self, material: str = "W", thickness_mm: float = 10.0, n_nodes: int = 50):
+        if thickness_mm <= 0.0:
+            raise ValueError("thickness_mm must be positive")
+        if n_nodes < 2:
+            raise ValueError("n_nodes must be at least 2")
+
         self.material = material
         self.thickness = thickness_mm * 1e-3
         self.n_nodes = n_nodes
@@ -151,6 +176,11 @@ class WallThermalModel:
         self.alpha = self.kappa / (self.rho * self.cp)
 
     def step(self, dt: float, q_surface_MW_m2: float) -> float:
+        if dt <= 0.0:
+            raise ValueError("dt must be positive")
+        if q_surface_MW_m2 < 0.0:
+            raise ValueError("q_surface_MW_m2 must be non-negative")
+
         q_W = q_surface_MW_m2 * 1e6
 
         dt_max = self.dx**2 / (2.0 * self.alpha)
@@ -192,6 +222,9 @@ class TransientThermalLoad:
 
     def elm_load(self, delta_W_MJ: float, A_wet_m2: float, tau_IR_ms: float = 0.25) -> float:
         """Peak surface ΔT [K] from an ELM; ΔT = 2q√(τ / (π κ ρ c_p))."""
+        if delta_W_MJ < 0.0:
+            raise ValueError("delta_W_MJ must be non-negative")
+
         if A_wet_m2 <= 0.0 or tau_IR_ms <= 0.0:
             return 0.0
 
