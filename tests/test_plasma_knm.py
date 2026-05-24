@@ -170,6 +170,43 @@ class TestCustomOverrides:
             build_knm_plasma(custom_overrides={(0, 99): 0.5})
 
 
+class TestBuilderInputValidation:
+    @pytest.mark.parametrize(
+        ("kwargs", "field"),
+        [
+            ({"L": 0}, "L"),
+            ({"K_base": -0.1}, "K_base"),
+            ({"zeta_uniform": -1e-6}, "zeta_uniform"),
+            ({"layer_names": ["core", "edge"]}, "layer_names"),
+            ({"custom_overrides": {(0, 1): -0.1}}, "custom_overrides"),
+        ],
+    )
+    def test_build_knm_plasma_rejects_unphysical_inputs(self, kwargs, field):
+        with pytest.raises(ValueError, match=field):
+            build_knm_plasma(**kwargs)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "field"),
+        [
+            ({"R0": 0.0}, "R0"),
+            ({"a": -0.1}, "a"),
+            ({"B0": 0.0}, "B0"),
+            ({"Ip": 0.0}, "Ip"),
+            ({"n_e": -1.0}, "n_e"),
+        ],
+    )
+    def test_build_knm_plasma_from_config_rejects_nonphysical_machine_inputs(
+        self,
+        kwargs,
+        field,
+    ):
+        params = {"R0": 6.2, "a": 2.0, "B0": 5.3, "Ip": 15.0, "n_e": 10.1}
+        params.update(kwargs)
+
+        with pytest.raises(ValueError, match=field):
+            build_knm_plasma_from_config(**params)
+
+
 # ── Zeta / global driver ───────────────────────────────────────────
 
 

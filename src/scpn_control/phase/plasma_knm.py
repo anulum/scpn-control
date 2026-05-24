@@ -251,6 +251,39 @@ def _apply_mode_bias(K: NDArray[np.float64], mode: str) -> None:
 _VALID_MODES = frozenset({"baseline", "elm", "ntm", "sawtooth", "hybrid"})
 
 
+def _require_positive_finite(name: str, value: float) -> None:
+    """Validate positive finite plasma parameters."""
+    if not np.isfinite(value) or value <= 0.0:
+        raise ValueError(f"{name} must be positive and finite")
+
+
+def _validate_build_inputs(
+    *,
+    L: int,
+    K_base: float,
+    zeta_uniform: float,
+    custom_overrides: dict[tuple[int, int], float] | None,
+    layer_names: Sequence[str] | None,
+) -> None:
+    """Validate plasma K_nm builder inputs before matrix construction."""
+    if not isinstance(L, int) or L <= 0:
+        raise ValueError("L must be a positive integer")
+    if not np.isfinite(K_base) or K_base < 0.0:
+        raise ValueError("K_base must be finite and non-negative")
+    if not np.isfinite(zeta_uniform) or zeta_uniform < 0.0:
+        raise ValueError("zeta_uniform must be finite and non-negative")
+    if layer_names is not None and len(layer_names) != L:
+        raise ValueError("layer_names length must match L")
+
+    if custom_overrides is None:
+        return
+    for (i, j), val in custom_overrides.items():
+        if not (0 <= i < L and 0 <= j < L):
+            raise IndexError(f"Override index ({i}, {j}) out of range for L={L}")
+        if not np.isfinite(val) or val < 0.0:
+            raise ValueError("custom_overrides values must be finite and non-negative")
+
+
 def build_knm_plasma(
     mode: str = "baseline",
     L: int = 8,
@@ -286,6 +319,13 @@ def build_knm_plasma(
     """
     if mode not in _VALID_MODES:
         raise ValueError(f"Unknown plasma mode {mode!r}; choose from {sorted(_VALID_MODES)}")
+    _validate_build_inputs(
+        L=L,
+        K_base=K_base,
+        zeta_uniform=zeta_uniform,
+        custom_overrides=custom_overrides,
+        layer_names=layer_names,
+    )
 
     K = _base_plasma_knm(L, K_base)
     _apply_physics_couplings(K)
@@ -295,8 +335,6 @@ def build_knm_plasma(
 
     if custom_overrides:
         for (i, j), val in custom_overrides.items():
-            if not (0 <= i < L and 0 <= j < L):
-                raise IndexError(f"Override index ({i}, {j}) out of range for L={L}")
             K[i, j] = val
             K[j, i] = val
 
@@ -368,12 +406,18 @@ def build_knm_plasma_from_config(
     n_e : float  Line-averaged density [1e19 m^-3]
     mode, L, zeta_uniform : same as build_knm_plasma
     """
+    _require_positive_finite("R0", R0)
+    _require_positive_finite("a", a)
+    _require_positive_finite("B0", B0)
+    _require_positive_finite("Ip", Ip)
+    _require_positive_finite("n_e", n_e)
+
     # β_proxy ~ p / (B^2/2μ0) ∝ n·T / B^2; T ∝ a·B via confinement
-    beta_proxy = n_e * a / max(B0**2, 1e-6)
+    beta_proxy = n_e * a / B0**2
     K_base = 0.30 * (1.0 + 0.5 * np.clip(beta_proxy, 0.0, 2.0))
 
     # q_cyl ≈ 5 a² B0 / (R0 Ip) — used to detect low-q (sawtooth-prone)
-    q_cyl = 5.0 * a**2 * B0 / max(R0 * Ip, 1e-6)
+    q_cyl = 5.0 * a**2 * B0 / (R0 * Ip)
 
     auto_mode = mode
     if mode == "baseline" and q_cyl < 1.0:
