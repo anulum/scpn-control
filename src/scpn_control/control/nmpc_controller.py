@@ -28,6 +28,12 @@ from dataclasses import dataclass
 from typing import Callable
 
 import numpy as np
+from scpn_control.core.differentiable_transport import (
+    has_jax as has_differentiable_transport_jax,
+)
+from scpn_control.core.differentiable_transport import (
+    transport_loss_gradient,
+)
 
 _NX = 6
 _NU = 3
@@ -86,6 +92,85 @@ class NMPCConfig:
     qp_max_iter: int = 500
     qp_backend: str = "internal"  # "internal", "scipy", or "osqp"
     tol: float = 1e-4
+
+
+@dataclass(frozen=True)
+class TransportCoefficientTuningResult:
+    """Result of a gradient-based transport-coefficient tuning step."""
+
+    loss: float
+    gradient: np.ndarray
+    updated_chi: np.ndarray
+    step_norm: float
+
+
+def tune_transport_coefficients_for_tracking(
+    profiles: np.ndarray,
+    chi: np.ndarray,
+    sources: np.ndarray,
+    target_profiles: np.ndarray,
+    rho: np.ndarray,
+    dt: float,
+    edge_values: np.ndarray,
+    *,
+    weights: np.ndarray | None = None,
+    learning_rate: float,
+    chi_min: float = 0.0,
+    max_fractional_update: float | None = 0.1,
+) -> TransportCoefficientTuningResult:
+    """Tune transport coefficients for NMPC tracking through JAX autodiff.
+
+    The gradient is taken with respect to the four-channel transport
+    coefficient profile used by
+    `scpn_control.core.differentiable_transport.transport_loss_gradient`.
+    This function intentionally has no finite-difference fallback: coefficient
+    tuning is exposed to NMPC only when the differentiable JAX path is present.
+    """
+    if not has_differentiable_transport_jax():
+        raise RuntimeError("tune_transport_coefficients_for_tracking requires JAX")
+    learning_rate_float = float(learning_rate)
+    chi_min_float = float(chi_min)
+    if not np.isfinite(learning_rate_float) or learning_rate_float <= 0.0:
+        raise ValueError("learning_rate must be positive and finite.")
+    if not np.isfinite(chi_min_float) or chi_min_float < 0.0:
+        raise ValueError("chi_min must be non-negative and finite.")
+    if max_fractional_update is not None:
+        max_fractional_update_float = float(max_fractional_update)
+        if not np.isfinite(max_fractional_update_float) or max_fractional_update_float <= 0.0:
+            raise ValueError("max_fractional_update must be positive and finite.")
+    else:
+        max_fractional_update_float = None
+
+    chi_array = np.asarray(chi, dtype=np.float64)
+    if chi_array.ndim != 2 or not np.all(np.isfinite(chi_array)) or np.any(chi_array < 0.0):
+        raise ValueError("chi must be a finite non-negative two-dimensional array.")
+
+    loss, gradient = transport_loss_gradient(
+        profiles,
+        chi_array,
+        sources,
+        target_profiles,
+        rho,
+        dt,
+        edge_values,
+        weights=weights,
+    )
+    gradient_array = np.asarray(gradient, dtype=np.float64)
+    if gradient_array.shape != chi_array.shape or not np.all(np.isfinite(gradient_array)):
+        raise ValueError("transport gradient must be finite and match chi shape.")
+
+    delta = -learning_rate_float * gradient_array
+    if max_fractional_update_float is not None:
+        cap = max_fractional_update_float * np.maximum(np.abs(chi_array), 1.0e-12)
+        delta = np.clip(delta, -cap, cap)
+    updated_chi = np.maximum(chi_min_float, chi_array + delta)
+    step_norm = float(np.linalg.norm(updated_chi - chi_array))
+    return TransportCoefficientTuningResult(
+        loss=float(loss),
+        gradient=gradient_array,
+        updated_chi=updated_chi,
+        step_norm=step_norm,
+    )
 
 
 class NonlinearMPC:

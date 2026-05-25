@@ -530,8 +530,17 @@ instead of being an unobservable hard-coded loop bound.
 Linearization perturbations are clipped to the configured state/input domain:
 interior points use central differences, while boundary points use one-sided
 finite differences.
+`tune_transport_coefficients_for_tracking()` connects NMPC controller tuning to
+the differentiable transport facade. It updates four-channel transport
+coefficients from the JAX gradient of the transport tracking loss, applies
+non-negative coefficient bounds and fractional update caps, and fails closed
+when JAX gradients are unavailable.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
+
+::: scpn_control.control.nmpc_controller.TransportCoefficientTuningResult
+
+::: scpn_control.control.nmpc_controller.tune_transport_coefficients_for_tracking
 
 ### Mu-Synthesis (v0.16.0)
 

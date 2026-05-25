@@ -10,7 +10,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from scpn_control.control import nmpc_controller as nmpc_mod
 from scpn_control.control.nmpc_controller import NMPCConfig, NonlinearMPC
+from scpn_control.core import differentiable_transport as transport_mod
 
 
 def mock_tokamak_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
@@ -518,3 +520,97 @@ def test_nmpc_terminal_set_requires_established_constrained_backend() -> None:
 
     with pytest.raises(ValueError, match="terminal_x"):
         NonlinearMPC(mock_tokamak_plant, cfg)
+
+
+def _transport_tuning_case() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    rho = np.linspace(0.05, 1.0, 24)
+    profiles = np.stack(
+        [
+            8.0 * np.exp(-((rho - 0.35) ** 2) / 0.03) + 0.2,
+            6.0 * np.exp(-((rho - 0.42) ** 2) / 0.04) + 0.2,
+            4.0 + 0.8 * (1.0 - rho**2),
+            0.03 + 0.02 * np.exp(-((rho - 0.65) ** 2) / 0.02),
+        ]
+    )
+    chi = np.stack(
+        [
+            0.20 + 0.02 * rho,
+            0.16 + 0.02 * rho,
+            0.04 + 0.005 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    target[0, 8:16] *= 0.97
+    target[1, 8:16] *= 0.98
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    return profiles, chi, sources, target, rho, edge_values
+
+
+def test_nmpc_transport_tuning_fails_closed_without_jax(monkeypatch) -> None:
+    """NMPC transport-coefficient tuning must not silently use finite differences."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: False)
+
+    with pytest.raises(RuntimeError, match="requires JAX"):
+        nmpc_mod.tune_transport_coefficients_for_tracking(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            learning_rate=0.05,
+        )
+
+
+@pytest.mark.skipif(not transport_mod.has_jax(), reason="JAX optional dependency is not installed")
+def test_nmpc_transport_tuning_reduces_tracking_loss() -> None:
+    """A JAX gradient step should reduce the same transport loss seen by NMPC tuning."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    weights = np.array([1.0, 1.0, 0.25, 0.1])
+    initial_loss = float(
+        transport_mod.transport_tracking_loss(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            weights=weights,
+        )
+    )
+
+    result = nmpc_mod.tune_transport_coefficients_for_tracking(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        weights=weights,
+        learning_rate=0.05,
+        max_fractional_update=0.25,
+    )
+
+    updated_loss = float(
+        transport_mod.transport_tracking_loss(
+            profiles,
+            result.updated_chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            weights=weights,
+        )
+    )
+    assert result.loss == pytest.approx(initial_loss)
+    assert result.gradient.shape == chi.shape
+    assert result.step_norm > 0.0
+    assert np.all(result.updated_chi >= 0.0)
+    assert updated_loss < initial_loss
