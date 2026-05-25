@@ -489,6 +489,9 @@ def gk_stiffness_chi_i_profile_jax(
         n_ky_ion=n_ky_ion,
         n_theta=n_theta,
     )
-    amplitude = max(float(stiffness), 0.0) * scale
+    critical_gradient = 4.0
+    supercritical_excess = max(float(R_L_Ti) - critical_gradient, 0.0)
+    stiffness_magnitude = max(abs(float(stiffness)), 1.0)
+    amplitude = supercritical_excess * stiffness_magnitude * scale
     radial_shape = 1.0 + rho_array * rho_array
     return np.asarray(base * (1.0 + amplitude * radial_shape), dtype=np.float64)
