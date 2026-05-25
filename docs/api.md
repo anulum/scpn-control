@@ -565,7 +565,9 @@ finite differences.
 the differentiable transport facade. It updates four-channel transport
 coefficients from the JAX gradient of the transport tracking loss, applies
 non-negative coefficient bounds and fractional update caps, and fails closed
-when JAX gradients are unavailable.
+when JAX gradients are unavailable. Each tuning result carries validated
+transport campaign metadata for backend, dtype, radial grid, boundary
+conditions, closure provenance, and gradient tolerance.
 `tune_neural_transport_closure_for_tracking()` initialises the same tuning path
 from a bounded neural transport closure, preserving the differentiable facade's
 four-channel coefficient contract and the explicit JAX-gradient requirement.

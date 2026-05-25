@@ -32,8 +32,10 @@ from scpn_control.core.differentiable_transport import (
     has_jax as has_differentiable_transport_jax,
 )
 from scpn_control.core.differentiable_transport import (
+    TransportCampaignMetadata,
     transport_loss_gradient,
     transport_coefficients_from_neural_closure,
+    transport_campaign_metadata,
 )
 
 _NX = 6
@@ -103,6 +105,7 @@ class TransportCoefficientTuningResult:
     gradient: np.ndarray
     updated_chi: np.ndarray
     step_norm: float
+    metadata: TransportCampaignMetadata
 
 
 def tune_transport_coefficients_for_tracking(
@@ -118,6 +121,9 @@ def tune_transport_coefficients_for_tracking(
     learning_rate: float,
     chi_min: float = 0.0,
     max_fractional_update: float | None = 0.1,
+    gradient_tolerance: float | None = None,
+    equilibrium_psi: np.ndarray | None = None,
+    _closure_for_metadata: object | None = None,
 ) -> TransportCoefficientTuningResult:
     """Tune transport coefficients for NMPC tracking through JAX autodiff.
 
@@ -166,11 +172,24 @@ def tune_transport_coefficients_for_tracking(
         delta = np.clip(delta, -cap, cap)
     updated_chi = np.maximum(chi_min_float, chi_array + delta)
     step_norm = float(np.linalg.norm(updated_chi - chi_array))
+    metadata = transport_campaign_metadata(
+        profiles,
+        chi_array,
+        sources,
+        rho,
+        dt,
+        edge_values,
+        backend="jax",
+        closure=_closure_for_metadata,
+        gradient_tolerance=gradient_tolerance,
+        equilibrium_psi=equilibrium_psi,
+    )
     return TransportCoefficientTuningResult(
         loss=float(loss),
         gradient=gradient_array,
         updated_chi=updated_chi,
         step_norm=step_norm,
+        metadata=metadata,
     )
 
 
@@ -188,6 +207,8 @@ def tune_neural_transport_closure_for_tracking(
     impurity_diffusivity_fraction: float = 1.0,
     chi_min: float = 0.0,
     max_fractional_update: float | None = 0.1,
+    gradient_tolerance: float | None = None,
+    equilibrium_psi: np.ndarray | None = None,
 ) -> TransportCoefficientTuningResult:
     """Tune NMPC transport coefficients initialised from a neural closure."""
     chi = transport_coefficients_from_neural_closure(
@@ -207,6 +228,9 @@ def tune_neural_transport_closure_for_tracking(
         learning_rate=learning_rate,
         chi_min=chi_min,
         max_fractional_update=max_fractional_update,
+        gradient_tolerance=gradient_tolerance,
+        equilibrium_psi=equilibrium_psi,
+        _closure_for_metadata=closure,
     )
 
 

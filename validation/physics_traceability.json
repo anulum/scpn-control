@@ -789,7 +789,8 @@
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced.",
       "validation_evidence": [
         "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX-gradient, neural-closure coefficient mapping, campaign metadata provenance, and equilibrium-weighted GS-flux checks",
-        "tests/test_nmpc_controller.py NMPC neural-closure tuning fails closed without JAX"
+        "tests/test_nmpc_controller.py NMPC neural-closure tuning fails closed without JAX",
+        "tests/test_nmpc_controller.py NMPC transport tuning result carries campaign and closure provenance metadata"
       ],
       "evidence_paths": [
         "src/scpn_control/core/differentiable_transport.py",

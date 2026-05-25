@@ -7,6 +7,8 @@
 # SCPN Control — Nonlinear MPC Tests
 from __future__ import annotations
 
+from dataclasses import asdict
+
 import numpy as np
 import pytest
 
@@ -567,6 +569,35 @@ def test_nmpc_transport_tuning_fails_closed_without_jax(monkeypatch) -> None:
         )
 
 
+def test_nmpc_transport_tuning_result_carries_campaign_metadata(monkeypatch) -> None:
+    """Every transport tuning update should carry its validated campaign contract."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    gradient = 0.01 * np.ones_like(chi)
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(nmpc_mod, "transport_loss_gradient", lambda *args, **kwargs: (0.125, gradient))
+
+    result = nmpc_mod.tune_transport_coefficients_for_tracking(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        learning_rate=0.05,
+        gradient_tolerance=1.0e-7,
+    )
+
+    assert isinstance(result.metadata, transport_mod.TransportCampaignMetadata)
+    assert result.metadata.backend == "jax"
+    assert result.metadata.dtype == "float64"
+    assert result.metadata.channel_order == transport_mod.CHANNELS
+    assert result.metadata.n_rho == rho.size
+    assert result.metadata.gradient_tolerance == pytest.approx(1.0e-7)
+    assert result.metadata.closure_source is None
+    assert asdict(result.metadata)["backend"] == "jax"
+
+
 def test_nmpc_neural_closure_tuning_fails_closed_without_jax(monkeypatch) -> None:
     """NMPC neural-closure tuning must use the differentiable coefficient path."""
     profiles, _, sources, target, rho, edge_values = _transport_tuning_case()
@@ -592,6 +623,41 @@ def test_nmpc_neural_closure_tuning_fails_closed_without_jax(monkeypatch) -> Non
             edge_values,
             learning_rate=0.05,
         )
+
+
+def test_nmpc_neural_closure_tuning_result_carries_closure_metadata(monkeypatch) -> None:
+    """Neural-closure tuning should preserve closure provenance in the NMPC result."""
+    profiles, _, sources, target, rho, edge_values = _transport_tuning_case()
+    closure = neural_transport_closure_profiles(
+        rho,
+        profiles[0],
+        profiles[1],
+        profiles[2],
+        1.0 + 2.0 * rho**2,
+        0.5 + 1.5 * rho,
+        model=NeuralTransportModel(auto_discover=False),
+    )
+    gradient = 0.01 * np.ones_like(profiles)
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(nmpc_mod, "transport_loss_gradient", lambda *args, **kwargs: (0.25, gradient))
+
+    result = nmpc_mod.tune_neural_transport_closure_for_tracking(
+        profiles,
+        closure,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        learning_rate=0.05,
+        impurity_diffusivity_fraction=0.5,
+        gradient_tolerance=5.0e-8,
+    )
+
+    assert result.metadata.closure_source == "analytic_fallback"
+    assert result.metadata.closure_weights_checksum is None
+    assert result.metadata.gradient_tolerance == pytest.approx(5.0e-8)
+    assert result.metadata.edge_boundary == "dirichlet"
 
 
 @pytest.mark.skipif(not transport_mod.has_jax(), reason="JAX optional dependency is not installed")
