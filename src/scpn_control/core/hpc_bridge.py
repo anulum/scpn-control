@@ -10,6 +10,9 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
+import hmac
+import json
 import logging
 import math
 import os
@@ -24,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 _SOLVER_LIBRARY_SUFFIXES = {".so", ".dylib", ".dll"}
 _ALLOW_EXTERNAL_SOLVER_LIB = "SCPN_ALLOW_EXTERNAL_SOLVER_LIB"
+_SOLVER_SOURCE = "solver.cpp"
+_SOLVER_MANIFEST = "solver_manifest.json"
 
 
 def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
@@ -105,6 +110,39 @@ def _validate_solver_library_path(raw_path: str, *, source: str) -> str:
             )
 
     return str(resolved)
+
+
+def _verify_solver_source(src: Path, manifest_path: Path) -> bool:
+    """Return ``True`` only when ``solver.cpp`` matches its SHA-256 manifest."""
+    if not src.is_file():
+        logger.error("Native solver source missing: %s", src)
+        return False
+    if not manifest_path.is_file():
+        logger.error("Native solver checksum manifest missing: %s", manifest_path)
+        return False
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.error("Native solver checksum manifest is unreadable: %s", exc)
+        return False
+
+    entry = manifest.get(_SOLVER_SOURCE)
+    expected = entry.get("sha256") if isinstance(entry, dict) else entry
+    if not isinstance(expected, str) or len(expected) != 64:
+        logger.error("Native solver checksum manifest lacks a valid SHA-256 for %s", _SOLVER_SOURCE)
+        return False
+
+    try:
+        digest = hashlib.sha256(src.read_bytes()).hexdigest()
+    except OSError as exc:
+        logger.error("Native solver source could not be hashed: %s", exc)
+        return False
+
+    if not hmac.compare_digest(digest, expected.lower()):
+        logger.error("Native solver source checksum mismatch: %s", src)
+        return False
+    return True
 
 
 class HPCBridge:
@@ -423,13 +461,17 @@ def compile_cpp() -> str | None:
 
     logger.info("Compiling C++ solver kernel…")
     script_dir = Path(__file__).resolve().parent
-    src = script_dir / "solver.cpp"
+    src = script_dir / _SOLVER_SOURCE
+    manifest = script_dir / _SOLVER_MANIFEST
+    if not _verify_solver_source(src, manifest):
+        return None
+
     out_dir = script_dir / "bin"
     out_dir.mkdir(exist_ok=True)
 
     if platform.system() == "Windows":
         out = out_dir / "scpn_solver.dll"
-        cmd = ["g++", "-shared", "-o", str(out), str(src), "-O3", "-mavx2"]
+        cmd = ["g++", "-shared", "-o", str(out), str(src), "-O3"]
     else:
         out = out_dir / "libscpn_solver.so"
         cmd = [
@@ -440,7 +482,7 @@ def compile_cpp() -> str | None:
             str(out),
             str(src),
             "-O3",
-            "-march=native",
+            "-mtune=generic",
         ]
 
     logger.info("Executing: %s", " ".join(cmd))

@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 
 import numpy as np
@@ -85,6 +87,24 @@ def _make_bridge(nr: int = 2, nz: int = 3) -> HPCBridge:
     bridge.nr = nr
     bridge.nz = nz
     return bridge
+
+
+def _write_solver_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source: bytes = b'extern "C" void create_solver() {}\n',
+) -> Path:
+    module_file = tmp_path / "hpc_bridge.py"
+    module_file.write_text("# test module path\n", encoding="utf-8")
+    source_path = tmp_path / "solver.cpp"
+    source_path.write_bytes(source)
+    digest = hashlib.sha256(source).hexdigest()
+    (tmp_path / "solver_manifest.json").write_text(
+        json.dumps({"solver.cpp": {"sha256": digest}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
+    return source_path
 
 
 def test_as_contiguous_f64_reuses_float64_c_contiguous() -> None:
@@ -357,7 +377,7 @@ def test_compile_cpp_requires_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
     assert hpc_mod.compile_cpp() is None
 
 
-def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: dict[str, object] = {}
 
     def _fake_run(cmd, check):  # type: ignore[no-untyped-def]
@@ -367,6 +387,7 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
     monkeypatch.setattr(hpc_mod.platform, "system", lambda: "Linux")
     monkeypatch.setattr(hpc_mod.subprocess, "run", _fake_run)
+    _write_solver_source(tmp_path, monkeypatch)
 
     out = hpc_mod.compile_cpp()
     assert out is not None
@@ -375,10 +396,12 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch) -> N
     assert calls["check"] is True
     assert isinstance(calls["cmd"], list)
     assert calls["cmd"][0] == "g++"
+    assert "-march=native" not in calls["cmd"]
+    assert "-mtune=generic" in calls["cmd"]
 
 
-def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: dict[str, object] = {}
+def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: dict[str, list[str]] = {}
 
     def _fake_run(cmd, check):  # type: ignore[no-untyped-def]
         calls["cmd"] = list(cmd)
@@ -386,13 +409,55 @@ def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
     monkeypatch.setattr(hpc_mod.platform, "system", lambda: "Windows")
     monkeypatch.setattr(hpc_mod.subprocess, "run", _fake_run)
+    _write_solver_source(tmp_path, monkeypatch)
 
     out = hpc_mod.compile_cpp()
     assert out is not None
     assert Path(out).name == "scpn_solver.dll"
+    assert "-mavx2" not in calls["cmd"]
 
 
-def test_compile_cpp_handles_build_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_compile_cpp_refuses_missing_checksum_manifest(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    module_file = tmp_path / "hpc_bridge.py"
+    module_file.write_text("# test module path\n", encoding="utf-8")
+    (tmp_path / "solver.cpp").write_text("int main() { return 0; }\n", encoding="utf-8")
+
+    def _unexpected_run(cmd, check):  # type: ignore[no-untyped-def]
+        raise AssertionError("unchecked solver.cpp must not be compiled")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_refuses_checksum_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    module_file = tmp_path / "hpc_bridge.py"
+    module_file.write_text("# test module path\n", encoding="utf-8")
+    (tmp_path / "solver.cpp").write_text("int main() { return 0; }\n", encoding="utf-8")
+    (tmp_path / "solver_manifest.json").write_text(
+        json.dumps({"solver.cpp": {"sha256": "0" * 64}}),
+        encoding="utf-8",
+    )
+
+    def _unexpected_run(cmd, check):  # type: ignore[no-untyped-def]
+        raise AssertionError("tampered solver.cpp must not be compiled")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_handles_build_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import subprocess
 
     def _fail_run(cmd, check):  # type: ignore[no-untyped-def]
@@ -400,6 +465,7 @@ def test_compile_cpp_handles_build_failure(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
     monkeypatch.setattr(hpc_mod.subprocess, "run", _fail_run)
+    _write_solver_source(tmp_path, monkeypatch)
 
     assert hpc_mod.compile_cpp() is None
 
