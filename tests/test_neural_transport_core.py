@@ -22,6 +22,7 @@ import pytest
 
 from scpn_control.core.neural_transport import (
     MLPWeights,
+    NeuralTransportClosureResult,
     NeuralTransportModel,
     TransportFluxes,
     TransportInputs,
@@ -29,6 +30,7 @@ from scpn_control.core.neural_transport import (
     _relu,
     _softplus,
     critical_gradient_model,
+    neural_transport_closure_profiles,
 )
 
 
@@ -313,3 +315,101 @@ class TestPredictProfile:
             ratio = d_e[mask] / chi_e[mask]
             assert not np.allclose(ratio, 1.0 / 3.0, atol=1e-10)
             assert np.all((0.05 <= ratio) & (ratio <= 0.65))
+
+
+class TestNeuralTransportClosureProfiles:
+    def _make_profiles(self, n=32):
+        rho = np.linspace(0.01, 0.99, n)
+        te = 10.0 * (1 - rho**2)
+        ti = 9.0 * (1 - rho**2)
+        ne = 8.0 * (1 - 0.5 * rho**2)
+        q = 1.0 + 2.0 * rho**2
+        s_hat = 0.5 + 1.5 * rho
+        return rho, te, ti, ne, q, s_hat
+
+    def test_fallback_closure_matches_profile_prediction_with_provenance(self):
+        model = NeuralTransportModel(auto_discover=False)
+        rho, te, ti, ne, q, s_hat = self._make_profiles()
+
+        closure = neural_transport_closure_profiles(rho, te, ti, ne, q, s_hat, model=model)
+        expected_chi_e, expected_chi_i, expected_d_e = model.predict_profile(rho, te, ti, ne, q, s_hat)
+
+        assert isinstance(closure, NeuralTransportClosureResult)
+        assert closure.source == "analytic_fallback"
+        assert closure.weights_checksum is None
+        assert np.allclose(closure.chi_e, expected_chi_e)
+        assert np.allclose(closure.chi_i, expected_chi_i)
+        assert np.allclose(closure.d_e, expected_d_e)
+        assert closure.channel_weights.shape == (3, rho.size)
+        assert np.all(np.isfinite(closure.channel_weights))
+        assert np.allclose(closure.channel_weights.sum(axis=0), np.ones_like(rho))
+
+    def test_closure_requires_neural_weights_unless_degraded_mode_is_explicit(self):
+        model = NeuralTransportModel(auto_discover=False)
+        rho, te, ti, ne, q, s_hat = self._make_profiles()
+
+        with pytest.raises(RuntimeError, match="requires loaded neural transport weights"):
+            neural_transport_closure_profiles(rho, te, ti, ne, q, s_hat, model=model, require_neural=True)
+
+    def test_closure_allows_explicit_degraded_mode_for_missing_neural_weights(self):
+        model = NeuralTransportModel(auto_discover=False)
+        rho, te, ti, ne, q, s_hat = self._make_profiles()
+
+        closure = neural_transport_closure_profiles(
+            rho,
+            te,
+            ti,
+            ne,
+            q,
+            s_hat,
+            model=model,
+            require_neural=True,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+
+        assert closure.source == "analytic_fallback"
+        assert np.all(closure.chi_e >= 0.0)
+        assert np.all(closure.chi_i >= 0.0)
+        assert np.all(closure.d_e >= 0.0)
+
+    def test_neural_closure_reports_weight_checksum(self):
+        w = _make_weights()
+        with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
+            np.savez(
+                f.name,
+                w1=w.w1,
+                b1=w.b1,
+                w2=w.w2,
+                b2=w.b2,
+                w3=w.w3,
+                b3=w.b3,
+                input_mean=w.input_mean,
+                input_std=w.input_std,
+                output_scale=w.output_scale,
+                version=np.array(1),
+            )
+            model = NeuralTransportModel(f.name)
+        rho, te, ti, ne, q, s_hat = self._make_profiles()
+
+        closure = neural_transport_closure_profiles(rho, te, ti, ne, q, s_hat, model=model, require_neural=True)
+
+        assert closure.source == "neural"
+        assert closure.weights_checksum == model.weights_checksum
+        assert np.all(closure.chi_e >= 0.0)
+        assert np.all(closure.chi_i >= 0.0)
+        assert np.all(closure.d_e >= 0.0)
+
+    @pytest.mark.parametrize(
+        "mutate,match",
+        [
+            (lambda rho, te, ti, ne, q, s_hat: (rho[::-1], te, ti, ne, q, s_hat), "rho must be strictly increasing"),
+            (lambda rho, te, ti, ne, q, s_hat: (rho, -te, ti, ne, q, s_hat), "te must be strictly positive"),
+            (lambda rho, te, ti, ne, q, s_hat: (rho, te, ti[:-1], ne, q, s_hat), "same shape"),
+        ],
+    )
+    def test_closure_rejects_invalid_profiles(self, mutate, match):
+        profiles = mutate(*self._make_profiles())
+
+        with pytest.raises(ValueError, match=match):
+            neural_transport_closure_profiles(*profiles, model=NeuralTransportModel(auto_discover=False))

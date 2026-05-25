@@ -125,7 +125,17 @@ analytic critical-gradient reference across fixed regime cases and a canonical
 profile, so shipped weights can be checked against a deterministic local
 baseline instead of only reporting synthetic training RMSE.
 
+`neural_transport_closure_profiles()` packages profile transport coefficients
+for controller and differentiable-transport coupling.  It validates finite
+strictly ordered profile inputs, fails closed when neural weights are required
+but unavailable, and records whether coefficients came from loaded weights or
+the analytic fallback.
+
 ::: scpn_control.core.neural_transport.NeuralTransportModel
+
+::: scpn_control.core.neural_transport.NeuralTransportClosureResult
+
+::: scpn_control.core.neural_transport.neural_transport_closure_profiles
 
 ::: scpn_control.core.neural_transport.cross_validate_neural_transport
 

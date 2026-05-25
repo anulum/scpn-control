@@ -135,6 +135,32 @@ class TransportFluxes:
     channel: str = "stable"
 
 
+@dataclass(frozen=True)
+class NeuralTransportClosureResult:
+    """Profile transport closure with provenance for controller coupling.
+
+    Parameters
+    ----------
+    chi_e, chi_i, d_e : FloatArray
+        Electron heat, ion heat, and particle diffusivity profiles.
+    channel_weights : FloatArray
+        Per-radius normalised contribution weights for ``chi_e``, ``chi_i``,
+        and ``d_e`` with shape ``(3, N)``.
+    source : str
+        ``"neural"`` when loaded weights are active, otherwise
+        ``"analytic_fallback"``.
+    weights_checksum : str or None
+        Loaded neural-weight checksum, or ``None`` for analytic fallback.
+    """
+
+    chi_e: FloatArray
+    chi_i: FloatArray
+    d_e: FloatArray
+    channel_weights: FloatArray
+    source: str
+    weights_checksum: str | None
+
+
 # ── Analytic fallback (critical-gradient model) ──────────────────────
 
 # Dimits et al., Phys. Plasmas 7, 969 (2000), Fig. 3
@@ -522,6 +548,125 @@ class NeuralTransportModel:
         d_e_out = np.asarray(_fallback_particle_diffusivity(chi_e_out, grad_ne, s_hat_profile), dtype=float)
 
         return chi_e_out, chi_i_out, d_e_out
+
+
+def _profile_array(name: str, values: FloatArray) -> FloatArray:
+    arr = np.asarray(values, dtype=np.float64)
+    if arr.ndim != 1:
+        raise ValueError(f"{name} must be a one-dimensional profile")
+    if arr.size < 3:
+        raise ValueError(f"{name} must contain at least three radial points")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must contain only finite values")
+    return arr
+
+
+def _normalised_channel_weights(chi_e: FloatArray, chi_i: FloatArray, d_e: FloatArray) -> FloatArray:
+    raw = np.vstack([chi_e, chi_i, d_e])
+    totals = raw.sum(axis=0)
+    weights = np.empty_like(raw)
+    active = totals > 1e-14
+    weights[:, active] = raw[:, active] / totals[active]
+    weights[:, ~active] = 1.0 / 3.0
+    return weights
+
+
+def neural_transport_closure_profiles(
+    rho: FloatArray,
+    te: FloatArray,
+    ti: FloatArray,
+    ne: FloatArray,
+    q_profile: FloatArray,
+    s_hat_profile: FloatArray,
+    *,
+    model: NeuralTransportModel | None = None,
+    r_major: float = 6.2,
+    require_neural: bool = False,
+    allow_fallback: bool = False,
+    allow_legacy_fallback: bool = False,
+) -> NeuralTransportClosureResult:
+    """Return bounded neural-transport closure profiles with provenance.
+
+    The function packages :meth:`NeuralTransportModel.predict_profile` for
+    controller and differentiable-transport coupling.  It validates the radial
+    grid and plasma profiles before evaluation, fails closed when neural weights
+    are required but unavailable, and records whether the result came from the
+    neural surrogate or the analytic critical-gradient fallback.
+    """
+    rho_arr = _profile_array("rho", rho)
+    te_arr = _profile_array("te", te)
+    ti_arr = _profile_array("ti", ti)
+    ne_arr = _profile_array("ne", ne)
+    q_arr = _profile_array("q_profile", q_profile)
+    s_hat_arr = _profile_array("s_hat_profile", s_hat_profile)
+
+    shape = rho_arr.shape
+    for name, arr in (
+        ("te", te_arr),
+        ("ti", ti_arr),
+        ("ne", ne_arr),
+        ("q_profile", q_arr),
+        ("s_hat_profile", s_hat_arr),
+    ):
+        if arr.shape != shape:
+            raise ValueError(f"rho, te, ti, ne, q_profile, and s_hat_profile must have the same shape; {name} differs")
+    if not np.all(np.diff(rho_arr) > 0.0):
+        raise ValueError("rho must be strictly increasing")
+    for name, arr in (("te", te_arr), ("ti", ti_arr), ("ne", ne_arr), ("q_profile", q_arr)):
+        if not np.all(arr > 0.0):
+            raise ValueError(f"{name} must be strictly positive")
+    if not np.isfinite(r_major) or r_major <= 0.0:
+        raise ValueError("r_major must be a positive finite major radius")
+
+    active_model = model
+    if active_model is None:
+        active_model = NeuralTransportModel(
+            auto_discover=True,
+            allow_weight_load_fallback=allow_fallback,
+            allow_legacy_weight_load_fallback=allow_legacy_fallback,
+        )
+
+    degraded_mode_allowed = allow_fallback and allow_legacy_fallback
+    if require_neural and not active_model.is_neural and not degraded_mode_allowed:
+        raise RuntimeError(
+            "neural transport closure requires loaded neural transport weights; "
+            "set both allow_fallback=True and allow_legacy_fallback=True to run the analytic fallback explicitly."
+        )
+
+    chi_e, chi_i, d_e = active_model.predict_profile(
+        rho_arr,
+        te_arr,
+        ti_arr,
+        ne_arr,
+        q_arr,
+        s_hat_arr,
+        r_major=r_major,
+    )
+    chi_e_arr = np.asarray(chi_e, dtype=np.float64)
+    chi_i_arr = np.asarray(chi_i, dtype=np.float64)
+    d_e_arr = np.asarray(d_e, dtype=np.float64)
+
+    for name, arr in (("chi_e", chi_e_arr), ("chi_i", chi_i_arr), ("d_e", d_e_arr)):
+        if arr.shape != shape:
+            raise RuntimeError(f"transport closure produced invalid {name} shape")
+        if not np.all(np.isfinite(arr)):
+            raise RuntimeError(f"transport closure produced non-finite {name}")
+        if np.any(arr < -1e-12):
+            raise RuntimeError(f"transport closure produced negative {name}")
+
+    chi_e_arr = np.maximum(chi_e_arr, 0.0)
+    chi_i_arr = np.maximum(chi_i_arr, 0.0)
+    d_e_arr = np.maximum(d_e_arr, 0.0)
+    source = "neural" if active_model.is_neural else "analytic_fallback"
+
+    return NeuralTransportClosureResult(
+        chi_e=chi_e_arr,
+        chi_i=chi_i_arr,
+        d_e=d_e_arr,
+        channel_weights=_normalised_channel_weights(chi_e_arr, chi_i_arr, d_e_arr),
+        source=source,
+        weights_checksum=active_model.weights_checksum if active_model.is_neural else None,
+    )
 
 
 def reference_transport_benchmark_cases() -> tuple[tuple[str, TransportInputs], ...]:

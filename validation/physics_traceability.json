@@ -1264,7 +1264,7 @@
     },
     {
       "component": "neural transport surrogate validation contract",
-      "equation_contract": "Neural transport claims must declare input feature normalisation, QLKNN weight provenance, prediction targets, fallback critical-gradient thresholds, bounded density-channel particle diffusivity, uncertainty output, out-of-domain handling, and cross-validation against reference transport cases.",
+      "equation_contract": "Neural transport claims must declare input feature normalisation, QLKNN weight provenance, prediction targets, fallback critical-gradient thresholds, bounded density-channel particle diffusivity, bounded profile closure provenance, uncertainty output, out-of-domain handling, and cross-validation against reference transport cases.",
       "fidelity_status": "external_dependency_blocked",
       "model_references": [
         "QuaLiKiz neural network transport surrogate references",
@@ -1274,12 +1274,13 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Acquire or generate immutable reference QLKNN or transport benchmark cases for cross-validation",
-        "Record weight checksums, feature scaling, fallback density-channel coefficients, uncertainty metadata, and OOD decisions with every surrogate evaluation"
+        "Record weight checksums, feature scaling, fallback density-channel coefficients, closure source metadata, uncertainty metadata, and OOD decisions with every surrogate evaluation"
       ],
       "unit_contract": "Inputs and outputs use declared transport feature units, diffusivity in m^2/s or declared normalisation, fluxes in SI or gyro-Bohm units with conversion metadata.",
       "validation_evidence": [
         "tests/test_neural_transport.py density-gradient and shear-dependent fallback particle diffusivity",
         "tests/test_neural_transport_core.py profile fallback particle-channel checks",
+        "tests/test_neural_transport_core.py bounded closure provenance and fallback gating checks",
         "tests/test_qlknn_transport.py",
         "validation/validate_neural_transport_reference.py strict QuaLiKiz/reference artifact gate"
       ],
