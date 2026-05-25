@@ -21,6 +21,7 @@ from scpn_control.core.gk_geometry import circular_geometry
 from scpn_control.core.gk_species import VelocityGrid, deuterium_ion, electron
 from scpn_control.core.jax_gk_solver import (
     _HAS_JAX,
+    gk_stiffness_chi_i_profile_jax,
     has_jax,
     solve_linear_gk_jax,
     transport_stiffness_jax,
@@ -121,8 +122,40 @@ def test_fallback_raises_import_error():
                 mod.solve_linear_gk_jax()
             with pytest.raises(ImportError, match="JAX is required"):
                 mod.transport_stiffness_jax(R_L_Ti=6.9)
+            with pytest.raises(ImportError, match="JAX is required"):
+                mod.gk_stiffness_chi_i_profile_jax(R_L_Ti=6.9, rho=np.linspace(0.05, 1.0, 8))
         finally:
             mod._HAS_JAX = orig_has
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_gk_stiffness_chi_profile_is_positive_and_monotone(cbc_params):
+    """JAX GK stiffness closure should produce bounded ion heat coefficients."""
+    rho = np.linspace(0.05, 1.0, 16)
+    low = gk_stiffness_chi_i_profile_jax(
+        R_L_Ti=0.5,
+        rho=rho,
+        base_chi_i=0.1,
+        stiffness_scale=1.0e-6,
+        **cbc_params,
+        n_ky_ion=4,
+        n_theta=16,
+    )
+    high = gk_stiffness_chi_i_profile_jax(
+        R_L_Ti=8.0,
+        rho=rho,
+        base_chi_i=0.1,
+        stiffness_scale=1.0e-6,
+        **cbc_params,
+        n_ky_ion=4,
+        n_theta=16,
+    )
+
+    assert low.shape == rho.shape
+    assert high.shape == rho.shape
+    assert np.all(np.isfinite(high))
+    assert np.all(high >= 0.1)
+    assert np.mean(high) > np.mean(low)
 
 
 @pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")

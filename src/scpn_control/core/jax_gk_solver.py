@@ -440,3 +440,55 @@ def transport_stiffness_jax(
     )
 
     return float(stiffness)
+
+
+def gk_stiffness_chi_i_profile_jax(
+    R_L_Ti: float,
+    rho: Any,
+    base_chi_i: float = 0.1,
+    stiffness_scale: float = 1.0e-6,
+    R0: float = 2.78,
+    a: float = 1.0,
+    B0: float = 2.0,
+    q: float = 1.4,
+    s_hat: float = 0.78,
+    Z_eff: float = 1.0,
+    nu_star: float = 0.01,
+    n_ky_ion: int = 8,
+    n_theta: int = 32,
+) -> np.ndarray:
+    """Map JAX GK stiffness into a bounded ion heat diffusivity profile.
+
+    The closure is intentionally conservative: it uses the existing
+    differentiable `transport_stiffness_jax` scalar as a local stiffness
+    amplitude and applies a smooth edge-weighted radial shape. It is a
+    controller-tuning closure, not a replacement for external GK validation.
+    """
+    _require_jax()
+    rho_array = np.asarray(rho, dtype=np.float64)
+    if rho_array.ndim != 1 or rho_array.size < 3 or not np.all(np.isfinite(rho_array)):
+        raise ValueError("rho must be a finite one-dimensional array with length >= 3")
+    if np.any(np.diff(rho_array) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
+    base = float(base_chi_i)
+    scale = float(stiffness_scale)
+    if not np.isfinite(base) or base < 0.0:
+        raise ValueError("base_chi_i must be non-negative and finite")
+    if not np.isfinite(scale) or scale < 0.0:
+        raise ValueError("stiffness_scale must be non-negative and finite")
+
+    stiffness = transport_stiffness_jax(
+        R_L_Ti=R_L_Ti,
+        R0=R0,
+        a=a,
+        B0=B0,
+        q=q,
+        s_hat=s_hat,
+        Z_eff=Z_eff,
+        nu_star=nu_star,
+        n_ky_ion=n_ky_ion,
+        n_theta=n_theta,
+    )
+    amplitude = max(float(stiffness), 0.0) * scale
+    radial_shape = 1.0 + rho_array * rho_array
+    return np.asarray(base * (1.0 + amplitude * radial_shape), dtype=np.float64)

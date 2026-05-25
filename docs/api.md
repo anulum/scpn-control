@@ -728,6 +728,8 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control.core.jax_gk_solver
 
+::: scpn_control.core.jax_gk_solver.gk_stiffness_chi_i_profile_jax
+
 #### JAX GS Solver
 
 ::: scpn_control.core.jax_gs_solver

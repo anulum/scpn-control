@@ -175,7 +175,7 @@
     },
     {
       "component": "JAX gyrokinetic numerical parity guard",
-      "equation_contract": "JAX linear gyrokinetic claims must preserve the native response-matrix eigenvalue formulation, expose identical physical input contracts, and document any numerical-precision or backend divergence.",
+      "equation_contract": "JAX linear gyrokinetic claims must preserve the native response-matrix eigenvalue formulation, expose identical physical input contracts, document numerical-precision or backend divergence, and keep the stiffness-to-transport closure bounded as a controller-tuning surrogate.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Repository native linear GK response-matrix contract",
@@ -189,7 +189,7 @@
       ],
       "unit_contract": "Same growth-rate, frequency, geometry, and species units as native linear GK; backend dtype, tolerance, and normalisation must be explicit in validation artefacts.",
       "validation_evidence": [
-        "tests/test_jax_gk_solver.py",
+        "tests/test_jax_gk_solver.py response-matrix parity, stiffness, fail-closed, and bounded chi_i-profile closure checks",
         "validation/validate_jax_gk_parity.py strict persisted backend parity artifact gate",
         "source-level native response-matrix parity contract"
       ],
@@ -202,7 +202,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/jax_gk_solver.py"
       ],
-      "validity_domain": "Unit and backend-available parity tests only; no broad accelerator qualification or cross-code physics validation.",
+      "validity_domain": "JAX response-matrix and stiffness-closure regression with optional backend parity evidence; not quantitative cross-code GK agreement or validated anomalous transport prediction.",
       "external_validation_tracker_issue": 47
     },
     {
@@ -783,7 +783,8 @@
       "required_actions": [
         "Wire each legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff",
         "Validate differentiable transport profiles and equilibrium-weighted gradients against measured discharges or published integrated-modelling benchmarks",
-        "Persist backend, dtype, radial-grid, boundary-condition, equilibrium-grid, flux-weighting, and gradient-tolerance metadata for controller-tuning campaigns"
+        "Persist backend, dtype, radial-grid, boundary-condition, equilibrium-grid, flux-weighting, and gradient-tolerance metadata for controller-tuning campaigns",
+        "Replace the bounded JAX GK stiffness closure with externally validated GK transport coefficients before quantitative transport-control claims"
       ],
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced.",
       "validation_evidence": [
