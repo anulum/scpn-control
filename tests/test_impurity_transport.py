@@ -247,3 +247,27 @@ def test_transport_solver_rejects_pinch_shape_mismatch():
 
     with pytest.raises(ValueError, match="V_pinch\\[W\\] must match rho shape"):
         solver.step(0.1, ne, Te, Ti, 1.0, {"W": np.zeros(9)})
+
+
+def test_neoclassical_impurity_pinch_uses_nonuniform_rho_coordinates():
+    uniform = np.linspace(0.0, 1.0, 96)
+    rho = uniform**1.7
+    a = 2.0
+    Z = 74
+    ne = np.ones_like(rho) * 1e20
+    Te = np.ones_like(rho) * 5000.0
+    Ti = 1000.0 * np.exp(0.2 * rho * a)
+    q = np.ones_like(rho)
+    eps = 0.2 + 0.1 * rho
+
+    V = neoclassical_impurity_pinch(Z, ne, Te, Ti, q, rho, 6.2, a, eps)
+
+    expected = -0.1 * (Z / 2.0 - 0.5) * 0.2
+    np.testing.assert_allclose(V[5:-5], expected, rtol=2.0e-2, atol=1.0e-10)
+
+
+def test_transport_solver_rejects_nonuniform_radial_grid():
+    species = [ImpuritySpecies("W", 74, 183.8)]
+
+    with pytest.raises(ValueError, match="uniform"):
+        ImpurityTransportSolver(np.array([0.0, 0.1, 0.4, 1.0]), 6.2, 2.0, species)

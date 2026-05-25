@@ -75,6 +75,18 @@ def _radiation_rho_grid(rho: np.ndarray) -> np.ndarray:
     return arr
 
 
+def _uniform_axis_to_edge_rho_grid(rho: np.ndarray) -> np.ndarray:
+    arr = _radiation_rho_grid(rho)
+    if not np.isclose(arr[0], 0.0, rtol=0.0, atol=1e-12):
+        raise ValueError("rho must start at the magnetic axis")
+    if not np.isclose(arr[-1], 1.0, rtol=0.0, atol=1e-12):
+        raise ValueError("rho must end at the plasma edge")
+    spacing = np.diff(arr)
+    if not np.allclose(spacing, spacing[0], rtol=1e-10, atol=1e-12):
+        raise ValueError("rho must be uniformly spaced for the impurity finite-difference stencil")
+    return arr
+
+
 @dataclass
 class ImpuritySpecies:
     element: str
@@ -148,10 +160,31 @@ def neoclassical_impurity_pinch(
     Hinton & Hazeltine 1976, Rev. Mod. Phys. 48, 239, Eq. 4.62.
     Nominal scale D_neo ≈ 0.1 m²/s for ITER-relevant parameters.
     """
-    drho = rho[1] - rho[0] if len(rho) > 1 else 0.1
+    rho = _radiation_rho_grid(rho)
+    shape = rho.shape
+    ne = _finite_profile_like("ne", ne, shape)
+    Te_eV = _positive_finite_profile("Te_eV", Te_eV)
+    Ti_eV = _positive_finite_profile("Ti_eV", Ti_eV)
+    q = _finite_profile_like("q", q, shape)
+    epsilon = _finite_profile_like("epsilon", epsilon, shape)
+    if np.any(ne < 0.0):
+        raise ValueError("ne must be non-negative")
+    if Te_eV.shape != shape:
+        raise ValueError("Te_eV must match rho shape")
+    if Ti_eV.shape != shape:
+        raise ValueError("Ti_eV must match rho shape")
+    R0 = float(R0)
+    a = float(a)
+    if Z <= 0:
+        raise ValueError("Z must be positive")
+    if not np.isfinite(R0) or R0 <= 0.0:
+        raise ValueError("R0 must be finite and positive")
+    if not np.isfinite(a) or a <= 0.0:
+        raise ValueError("a must be finite and positive")
 
-    grad_ne_over_n = np.gradient(ne, drho * a) / np.maximum(ne, 1e-6)
-    grad_Ti_over_T = np.gradient(Ti_eV, drho * a) / np.maximum(Ti_eV, 1e-6)
+    radius = rho * a
+    grad_ne_over_n = np.gradient(ne, radius, edge_order=2) / np.maximum(ne, 1e-6)
+    grad_Ti_over_T = np.gradient(Ti_eV, radius, edge_order=2) / np.maximum(Ti_eV, 1e-6)
 
     # D_neo = 0.1 m²/s nominal; banana regime, Hinton & Hazeltine 1976 Eq. 4.62
     D_neo = 0.1 * np.ones_like(rho)
@@ -230,7 +263,7 @@ def tungsten_accumulation_diagnostic(n_W: np.ndarray, ne: np.ndarray) -> dict[st
 
 class ImpurityTransportSolver:
     def __init__(self, rho: np.ndarray, R0: float, a: float, species: list[ImpuritySpecies]):
-        self.rho = _radiation_rho_grid(rho)
+        self.rho = _uniform_axis_to_edge_rho_grid(rho)
         self.R0 = float(R0)
         self.a = float(a)
         if not np.isfinite(self.R0) or self.R0 <= 0.0:
