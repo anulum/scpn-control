@@ -84,6 +84,18 @@ Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib 
 
 ::: scpn_control.core.jax_solvers.batched_crank_nicolson
 
+### Differentiable Transport Facade
+
+Requires `pip install "scpn-control[jax]"` for gradient evaluation. The NumPy
+path is deterministic for parity checks and non-JAX deployments, but
+`transport_loss_gradient()` fails closed without JAX.
+
+::: scpn_control.core.differentiable_transport.differentiable_transport_step
+
+::: scpn_control.core.differentiable_transport.transport_tracking_loss
+
+::: scpn_control.core.differentiable_transport.transport_loss_gradient
+
 ### Neural Equilibrium
 
 ::: scpn_control.core.neural_equilibrium.NeuralEquilibriumAccelerator
