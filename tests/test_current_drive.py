@@ -142,6 +142,35 @@ def test_current_drive_efficiency():
     assert I_cd > 1000.0
 
 
+def test_total_driven_current_uses_actual_rho_spacing():
+    uniform = np.linspace(0.0, 1.0, 200)
+    rho = uniform**1.7
+    ne = np.ones_like(rho)
+    Te = np.ones_like(rho)
+    Ti = np.ones_like(rho)
+
+    eccd = ECCDSource(P_ec_MW=8.0, rho_dep=0.55, sigma_rho=0.08, eta_cd=0.03)
+    mix = CurrentDriveMix(a=1.7)
+    mix.add_source(eccd)
+
+    j_cd = mix.total_j_cd(rho, ne, Te, Ti)
+    expected = np.trapezoid(j_cd * 2.0 * np.pi * rho * mix.a**2, rho)
+
+    assert mix.total_driven_current(rho, ne, Te, Ti) == pytest.approx(expected, rel=1e-12)
+
+
+def test_total_heating_power_rejects_nonfinite_or_nonmonotonic_grid():
+    eccd = ECCDSource(P_ec_MW=1.0, rho_dep=0.5, sigma_rho=0.1)
+    mix = CurrentDriveMix(a=1.0)
+    mix.add_source(eccd)
+
+    with pytest.raises(ValueError, match="rho grid must be finite"):
+        mix.total_heating_power(np.array([0.0, np.nan, 1.0]))
+
+    with pytest.raises(ValueError, match="rho grid must be strictly increasing"):
+        mix.total_heating_power(np.array([0.0, 0.8, 0.7, 1.0]))
+
+
 def test_eccd_efficiency_scaling():
     # Higher T_e → higher η_ECCD — Prater 2004, Phys. Plasmas 11, 2349, Eq. 5
     Z_eff = 1.5

@@ -90,6 +90,18 @@ def _require_current_drive_profiles(
     return rho_arr, ne_arr, te_arr, ti_arr
 
 
+def _require_current_drive_grid(rho: np.ndarray) -> np.ndarray:
+    """Validate a one-dimensional finite strictly increasing rho grid."""
+    rho_arr = np.asarray(rho, dtype=float)
+    if rho_arr.ndim != 1:
+        raise ValueError("rho grid must be one-dimensional")
+    if not np.all(np.isfinite(rho_arr)):
+        raise ValueError("rho grid must be finite")
+    if rho_arr.size > 1 and not np.all(np.diff(rho_arr) > 0.0):
+        raise ValueError("rho grid must be strictly increasing")
+    return rho_arr
+
+
 def _normalised_radial_deposition(
     rho: np.ndarray,
     total_power_w: float,
@@ -97,15 +109,9 @@ def _normalised_radial_deposition(
     width_rho: float,
 ) -> np.ndarray:
     """Return a finite-width radial deposition kernel conserving total power on the supplied grid."""
-    rho_arr = np.asarray(rho, dtype=float)
-    if rho_arr.ndim != 1:
-        raise ValueError("rho grid must be one-dimensional")
+    rho_arr = _require_current_drive_grid(rho)
     if rho_arr.size == 0:
         return np.asarray([], dtype=float)
-    if not np.all(np.isfinite(rho_arr)):
-        raise ValueError("rho grid must be finite")
-    if rho_arr.size > 1 and not np.all(np.diff(rho_arr) > 0.0):
-        raise ValueError("rho grid must be strictly increasing")
     _require_unit_interval("rho_centre", rho_centre)
     if width_rho <= 0.0 or total_power_w <= 0.0:
         return np.zeros_like(rho_arr, dtype=float)
@@ -388,7 +394,7 @@ class CurrentDriveMix:
         return j_tot
 
     def total_heating_power(self, rho: np.ndarray) -> np.ndarray:
-        rho_arr = np.asarray(rho, dtype=float)
+        rho_arr = _require_current_drive_grid(rho)
         p_tot = np.zeros_like(rho_arr, dtype=float)
         for src in self.sources:
             if isinstance(src, NBISource):
@@ -412,6 +418,5 @@ class CurrentDriveMix:
         rho_arr, ne_arr, te_arr, ti_arr = _require_current_drive_profiles(rho, ne, Te, Ti)
         assert ti_arr is not None
         j_tot = self.total_j_cd(rho_arr, ne_arr, te_arr, ti_arr)
-        drho = rho_arr[1] - rho_arr[0] if len(rho_arr) > 1 else 0.0
-        dA = 2.0 * np.pi * rho_arr * self.a**2 * drho
-        return float(np.sum(j_tot * dA))
+        current_density_integrand = j_tot * 2.0 * np.pi * rho_arr * self.a**2
+        return float(np.trapezoid(current_density_integrand, rho_arr)) if rho_arr.size > 1 else 0.0
