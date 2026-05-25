@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -101,11 +102,14 @@ def test_validate_text_reports_manifest_gate_errors(runner, tmp_path):
 
 def test_validate_command_is_import_clean_in_fresh_process():
     repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(repo_root / "src")
+
     completed = subprocess.run(
         [sys.executable, "-m", "scpn_control.cli", "validate", "--json-out"],
         check=True,
         cwd=repo_root,
-        env={"PYTHONPATH": str(repo_root / "src")},
+        env=env,
         capture_output=True,
         text=True,
         timeout=30,
