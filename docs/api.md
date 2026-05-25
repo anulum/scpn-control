@@ -99,6 +99,9 @@ equilibrium-grid shape for reproducible controller-tuning campaigns.
 `save_transport_campaign_metadata()` and `load_transport_campaign_metadata()`
 persist the same contract as schema-versioned JSON and fail closed on malformed
 or physically inconsistent replay metadata.
+`assert_transport_campaign_metadata_replay()` compares archived campaign
+metadata with a candidate setup and raises on backend, grid, boundary, closure,
+gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 
 ::: scpn_control.core.differentiable_transport.differentiable_transport_step
 
@@ -115,6 +118,8 @@ or physically inconsistent replay metadata.
 ::: scpn_control.core.differentiable_transport.save_transport_campaign_metadata
 
 ::: scpn_control.core.differentiable_transport.load_transport_campaign_metadata
+
+::: scpn_control.core.differentiable_transport.assert_transport_campaign_metadata_replay
 
 ::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
 

@@ -311,6 +311,108 @@ def test_transport_campaign_metadata_round_trips_through_json(tmp_path):
     assert raw["metadata"]["gradient_tolerance"] == pytest.approx(1.0e-8)
 
 
+def test_transport_campaign_metadata_replay_accepts_matching_candidate():
+    rho = np.linspace(0.05, 1.0, 18)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    archived = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        2.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=1.0e-8,
+    )
+
+    replay = dt.assert_transport_campaign_metadata_replay(
+        archived,
+        profiles,
+        chi,
+        sources,
+        rho,
+        2.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=1.0e-8,
+    )
+
+    assert replay == archived
+
+
+def test_transport_campaign_metadata_replay_rejects_grid_boundary_and_closure_drift():
+    rho = np.linspace(0.05, 1.0, 18)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    closure = neural_transport_closure_profiles(
+        rho,
+        profiles[0],
+        profiles[1],
+        profiles[2],
+        1.0 + 2.0 * rho**2,
+        0.5 + 1.5 * rho,
+        model=NeuralTransportModel(auto_discover=False),
+    )
+    archived = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        2.0e-3,
+        edge_values,
+        backend="jax",
+        closure=closure,
+        gradient_tolerance=1.0e-8,
+    )
+
+    shifted_grid = np.linspace(0.05, 0.95, 18)
+    with pytest.raises(ValueError, match="rho_max"):
+        dt.assert_transport_campaign_metadata_replay(
+            archived,
+            profiles,
+            chi,
+            sources,
+            shifted_grid,
+            2.0e-3,
+            edge_values,
+            backend="jax",
+            closure=closure,
+            gradient_tolerance=1.0e-8,
+        )
+
+    with pytest.raises(ValueError, match="edge_values"):
+        dt.assert_transport_campaign_metadata_replay(
+            archived,
+            profiles,
+            chi,
+            sources,
+            rho,
+            2.0e-3,
+            np.array([0.3, 0.2, 4.0, 0.03]),
+            backend="jax",
+            closure=closure,
+            gradient_tolerance=1.0e-8,
+        )
+
+    with pytest.raises(ValueError, match="closure_source"):
+        dt.assert_transport_campaign_metadata_replay(
+            archived,
+            profiles,
+            chi,
+            sources,
+            rho,
+            2.0e-3,
+            edge_values,
+            backend="jax",
+            gradient_tolerance=1.0e-8,
+        )
+
+
 def test_transport_campaign_metadata_import_rejects_malformed_payload(tmp_path):
     path = tmp_path / "bad_transport_campaign_metadata.json"
     path.write_text(

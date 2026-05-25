@@ -364,6 +364,65 @@ def load_transport_campaign_metadata(path: str | Path) -> TransportCampaignMetad
     return _transport_campaign_metadata_from_mapping(metadata_payload)
 
 
+def _metadata_field_matches(archived: Any, current: Any) -> bool:
+    if archived is None or current is None:
+        return archived is current
+    if isinstance(archived, float | int) and isinstance(current, float | int):
+        return bool(np.isclose(float(archived), float(current), rtol=1.0e-12, atol=1.0e-15))
+    if isinstance(archived, tuple) and isinstance(current, tuple):
+        if len(archived) != len(current):
+            return False
+        return all(_metadata_field_matches(left, right) for left, right in zip(archived, current, strict=True))
+    return bool(archived == current)
+
+
+def assert_transport_campaign_metadata_replay(
+    archived: TransportCampaignMetadata,
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    backend: str,
+    closure: Any | None = None,
+    gradient_tolerance: float | None = None,
+    equilibrium_psi: Any | None = None,
+) -> TransportCampaignMetadata:
+    """Validate that a candidate transport setup matches archived metadata.
+
+    This guard is intended for replaying differentiable transport tuning
+    campaigns. It fails closed on backend, dtype, grid, timestep, boundary,
+    closure-provenance, gradient-tolerance, or equilibrium-shape drift before a
+    controller rerun can silently compare against a different physics setup.
+    """
+    if not isinstance(archived, TransportCampaignMetadata):
+        raise ValueError("archived transport campaign metadata must be TransportCampaignMetadata")
+    current = transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        dt,
+        edge_values,
+        backend=backend,
+        closure=closure,
+        gradient_tolerance=gradient_tolerance,
+        equilibrium_psi=equilibrium_psi,
+    )
+    archived_fields = asdict(archived)
+    current_fields = asdict(current)
+    mismatches = [
+        field_name
+        for field_name, archived_value in archived_fields.items()
+        if not _metadata_field_matches(archived_value, current_fields[field_name])
+    ]
+    if mismatches:
+        raise ValueError("transport campaign metadata replay mismatch: " + ", ".join(mismatches))
+    return current
+
+
 def _resolve_use_jax(
     use_jax: bool,
     *,
