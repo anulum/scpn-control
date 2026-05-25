@@ -33,6 +33,7 @@ from scpn_control.core.differentiable_transport import (
 )
 from scpn_control.core.differentiable_transport import (
     transport_loss_gradient,
+    transport_coefficients_from_neural_closure,
 )
 
 _NX = 6
@@ -170,6 +171,42 @@ def tune_transport_coefficients_for_tracking(
         gradient=gradient_array,
         updated_chi=updated_chi,
         step_norm=step_norm,
+    )
+
+
+def tune_neural_transport_closure_for_tracking(
+    profiles: np.ndarray,
+    closure: object,
+    sources: np.ndarray,
+    target_profiles: np.ndarray,
+    rho: np.ndarray,
+    dt: float,
+    edge_values: np.ndarray,
+    *,
+    weights: np.ndarray | None = None,
+    learning_rate: float,
+    impurity_diffusivity_fraction: float = 1.0,
+    chi_min: float = 0.0,
+    max_fractional_update: float | None = 0.1,
+) -> TransportCoefficientTuningResult:
+    """Tune NMPC transport coefficients initialised from a neural closure."""
+    chi = transport_coefficients_from_neural_closure(
+        closure,
+        impurity_diffusivity_fraction=impurity_diffusivity_fraction,
+        chi_floor=chi_min,
+    )
+    return tune_transport_coefficients_for_tracking(
+        profiles,
+        chi,
+        sources,
+        target_profiles,
+        rho,
+        dt,
+        edge_values,
+        weights=weights,
+        learning_rate=learning_rate,
+        chi_min=chi_min,
+        max_fractional_update=max_fractional_update,
     )
 
 

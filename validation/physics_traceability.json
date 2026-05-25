@@ -772,7 +772,7 @@
     },
     {
       "component": "differentiable transport facade contract",
-      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradient target, and optional Grad-Shafranov flux-map radial weighting contract.",
+      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradient target, neural-closure coefficient mapping, and optional Grad-Shafranov flux-map radial weighting contract.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "repository JAX transport primitive contract",
@@ -781,18 +781,20 @@
       "module_path": "src/scpn_control/core/differentiable_transport.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Wire each legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff",
+        "Wire each remaining legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff",
         "Validate differentiable transport profiles and equilibrium-weighted gradients against measured discharges or published integrated-modelling benchmarks",
         "Persist backend, dtype, radial-grid, boundary-condition, equilibrium-grid, flux-weighting, and gradient-tolerance metadata for controller-tuning campaigns",
         "Replace the bounded JAX GK stiffness closure with externally validated GK transport coefficients before quantitative transport-control claims"
       ],
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced.",
       "validation_evidence": [
-        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX-gradient, and equilibrium-weighted GS-flux checks"
+        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX-gradient, neural-closure coefficient mapping, and equilibrium-weighted GS-flux checks",
+        "tests/test_nmpc_controller.py NMPC neural-closure tuning fails closed without JAX"
       ],
       "evidence_paths": [
         "src/scpn_control/core/differentiable_transport.py",
         "tests/test_differentiable_transport.py",
+        "tests/test_nmpc_controller.py",
         "docs/api.md",
         "docs/physics_traceability.md"
       ],

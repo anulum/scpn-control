@@ -13,6 +13,7 @@ import pytest
 from scpn_control.control import nmpc_controller as nmpc_mod
 from scpn_control.control.nmpc_controller import NMPCConfig, NonlinearMPC
 from scpn_control.core import differentiable_transport as transport_mod
+from scpn_control.core.neural_transport import NeuralTransportModel, neural_transport_closure_profiles
 
 
 def mock_tokamak_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
@@ -557,6 +558,33 @@ def test_nmpc_transport_tuning_fails_closed_without_jax(monkeypatch) -> None:
         nmpc_mod.tune_transport_coefficients_for_tracking(
             profiles,
             chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            learning_rate=0.05,
+        )
+
+
+def test_nmpc_neural_closure_tuning_fails_closed_without_jax(monkeypatch) -> None:
+    """NMPC neural-closure tuning must use the differentiable coefficient path."""
+    profiles, _, sources, target, rho, edge_values = _transport_tuning_case()
+    closure = neural_transport_closure_profiles(
+        rho,
+        profiles[0],
+        profiles[1],
+        profiles[2],
+        1.0 + 2.0 * rho**2,
+        0.5 + 1.5 * rho,
+        model=NeuralTransportModel(auto_discover=False),
+    )
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: False)
+
+    with pytest.raises(RuntimeError, match="requires JAX"):
+        nmpc_mod.tune_neural_transport_closure_for_tracking(
+            profiles,
+            closure,
             sources,
             target,
             rho,

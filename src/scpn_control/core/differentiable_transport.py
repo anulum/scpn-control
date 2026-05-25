@@ -115,6 +115,61 @@ def _validate_transport_inputs(
     return profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array
 
 
+def _closure_profile(name: str, value: Any) -> np.ndarray:
+    arr = _as_float_array(name, value)
+    if arr.ndim != 1 or arr.size < 3:
+        raise ValueError(f"{name} must be a one-dimensional profile with at least three points")
+    if np.any(arr < 0.0):
+        raise ValueError(f"{name} must be non-negative")
+    return arr
+
+
+def transport_coefficients_from_neural_closure(
+    closure: Any,
+    *,
+    impurity_diffusivity_fraction: float = 1.0,
+    chi_floor: float = 0.0,
+) -> np.ndarray:
+    """Map a neural transport closure into four facade coefficient channels.
+
+    The facade channel order is electron temperature, ion temperature, electron
+    density, and impurity density.  Neural transport closures provide electron
+    heat, ion heat, and particle diffusivity profiles; the electron-density
+    channel uses the particle diffusivity, while the impurity-density channel
+    uses a declared bounded fraction of the same particle diffusivity until
+    species-resolved impurity transport is externally validated.
+    """
+    fraction = float(impurity_diffusivity_fraction)
+    floor = float(chi_floor)
+    if not np.isfinite(fraction) or fraction < 0.0 or fraction > 1.0:
+        raise ValueError("impurity_diffusivity_fraction must be finite and in [0, 1]")
+    if not np.isfinite(floor) or floor < 0.0:
+        raise ValueError("chi_floor must be non-negative and finite")
+
+    chi_e = _closure_profile("closure.chi_e", closure.chi_e)
+    chi_i = _closure_profile("closure.chi_i", closure.chi_i)
+    d_e = _closure_profile("closure.d_e", closure.d_e)
+    if chi_i.shape != chi_e.shape or d_e.shape != chi_e.shape:
+        raise ValueError("closure chi_e, chi_i, and d_e profiles must have the same shape")
+    channel_weights = _as_float_array("closure.channel_weights", closure.channel_weights)
+    if channel_weights.shape != (3, chi_e.size):
+        raise ValueError("closure.channel_weights must have shape (3, n_rho)")
+    if np.any(channel_weights < 0.0):
+        raise ValueError("closure.channel_weights must be non-negative")
+    if not np.allclose(channel_weights.sum(axis=0), 1.0, rtol=1.0e-9, atol=1.0e-12):
+        raise ValueError("closure.channel_weights must sum to one at each radius")
+
+    coefficients = np.stack(
+        [
+            chi_e,
+            chi_i,
+            d_e,
+            fraction * d_e,
+        ]
+    )
+    return np.asarray(np.maximum(floor, coefficients), dtype=float)
+
+
 def _resolve_use_jax(
     use_jax: bool,
     *,

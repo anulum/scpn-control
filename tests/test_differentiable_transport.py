@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from scpn_control.core import differentiable_transport as dt
+from scpn_control.core.neural_transport import NeuralTransportModel, neural_transport_closure_profiles
 
 
 def _profiles(rho: np.ndarray) -> np.ndarray:
@@ -170,6 +171,42 @@ def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():
     assert radial_weights.shape == (rho.size,)
     assert np.all(radial_weights > 0.0)
     assert np.mean(radial_weights) == pytest.approx(1.0)
+
+
+def test_neural_transport_closure_maps_to_four_channel_coefficients():
+    rho = np.linspace(0.05, 1.0, 24)
+    profiles = _profiles(rho)
+    closure = neural_transport_closure_profiles(
+        rho,
+        profiles[0],
+        profiles[1],
+        profiles[2],
+        1.0 + 2.0 * rho**2,
+        0.5 + 1.5 * rho,
+        model=NeuralTransportModel(auto_discover=False),
+    )
+
+    chi = dt.transport_coefficients_from_neural_closure(
+        closure,
+        impurity_diffusivity_fraction=0.4,
+        chi_floor=1.0e-6,
+    )
+    stepped = dt.differentiable_transport_step(
+        profiles,
+        chi,
+        np.zeros_like(profiles),
+        rho,
+        1.0e-3,
+        np.array([0.2, 0.2, 4.0, 0.03]),
+        use_jax=False,
+    )
+
+    assert chi.shape == profiles.shape
+    np.testing.assert_allclose(chi[0], np.maximum(closure.chi_e, 1.0e-6))
+    np.testing.assert_allclose(chi[1], np.maximum(closure.chi_i, 1.0e-6))
+    np.testing.assert_allclose(chi[2], np.maximum(closure.d_e, 1.0e-6))
+    np.testing.assert_allclose(chi[3], np.maximum(0.4 * closure.d_e, 1.0e-6))
+    assert np.all(np.isfinite(stepped))
 
 
 def test_equilibrium_weighted_gradient_fails_closed_without_jax(monkeypatch):

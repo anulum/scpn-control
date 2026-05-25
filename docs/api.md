@@ -89,12 +89,18 @@ Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib 
 Requires `pip install "scpn-control[jax]"` for gradient evaluation. The NumPy
 path is deterministic for parity checks and non-JAX deployments, but
 `transport_loss_gradient()` fails closed without JAX.
+`transport_coefficients_from_neural_closure()` maps bounded neural transport
+closure outputs into the four-channel coefficient order used by the facade:
+electron heat, ion heat, electron particle diffusivity, and a declared impurity
+diffusivity fraction.
 
 ::: scpn_control.core.differentiable_transport.differentiable_transport_step
 
 ::: scpn_control.core.differentiable_transport.transport_tracking_loss
 
 ::: scpn_control.core.differentiable_transport.transport_loss_gradient
+
+::: scpn_control.core.differentiable_transport.transport_coefficients_from_neural_closure
 
 ::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
 
@@ -553,12 +559,17 @@ the differentiable transport facade. It updates four-channel transport
 coefficients from the JAX gradient of the transport tracking loss, applies
 non-negative coefficient bounds and fractional update caps, and fails closed
 when JAX gradients are unavailable.
+`tune_neural_transport_closure_for_tracking()` initialises the same tuning path
+from a bounded neural transport closure, preserving the differentiable facade's
+four-channel coefficient contract and the explicit JAX-gradient requirement.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 
 ::: scpn_control.control.nmpc_controller.TransportCoefficientTuningResult
 
 ::: scpn_control.control.nmpc_controller.tune_transport_coefficients_for_tracking
+
+::: scpn_control.control.nmpc_controller.tune_neural_transport_closure_for_tracking
 
 ### Mu-Synthesis (v0.16.0)
 
