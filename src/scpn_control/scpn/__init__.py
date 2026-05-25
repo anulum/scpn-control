@@ -42,6 +42,18 @@ from scpn_control.scpn.geometry_neutral_contracts import (
     ReplayScenario,
 )
 from scpn_control.scpn.controller import NeuroSymbolicController
+from scpn_control.scpn.formal_verification import (
+    AlwaysBounded,
+    EventuallyFires,
+    FormalPetriNetVerifier,
+    FormalPropertyReport,
+    FormalVerificationReport,
+    FormalViolation,
+    NeverCoMarked,
+    ReachabilityReport,
+    ReachableMarking,
+    verify_formal_contracts,
+)
 from scpn_control.scpn.fpga_export import (
     FPGAConfig,
     compile_to_verilog,
@@ -98,6 +110,16 @@ __all__ = [
     "save_artifact",
     "get_artifact_json_schema",
     "NeuroSymbolicController",
+    "FormalPetriNetVerifier",
+    "ReachableMarking",
+    "FormalViolation",
+    "ReachabilityReport",
+    "FormalPropertyReport",
+    "FormalVerificationReport",
+    "AlwaysBounded",
+    "EventuallyFires",
+    "NeverCoMarked",
+    "verify_formal_contracts",
     "FPGAConfig",
     "compile_to_verilog",
     "compile_to_vhdl",

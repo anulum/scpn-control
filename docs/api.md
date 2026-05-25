@@ -205,6 +205,18 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.structure.StochasticPetriNet
 
+### Formal Verification
+
+::: scpn_control.scpn.formal_verification.FormalPetriNetVerifier
+
+::: scpn_control.scpn.formal_verification.verify_formal_contracts
+
+::: scpn_control.scpn.formal_verification.AlwaysBounded
+
+::: scpn_control.scpn.formal_verification.EventuallyFires
+
+::: scpn_control.scpn.formal_verification.NeverCoMarked
+
 ### FusionCompiler
 
 ::: scpn_control.scpn.compiler.FusionCompiler

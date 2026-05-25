@@ -14,14 +14,14 @@
 | Package version | 0.19.2 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
-| Public API exports | 15 |
-| Python control/physics modules | 128 |
-| Python public classes | 399 |
+| Public API exports | 17 |
+| Python control/physics modules | 129 |
+| Python public classes | 408 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
 | Validation scripts | 38 |
-| Optional extras | 16 |
-| Python test files | 270 |
+| Optional extras | 17 |
+| Python test files | 271 |
 | Public documentation pages | 31 |
 | GitHub Actions workflows | 8 |
 

@@ -4,7 +4,7 @@
 
 SCPN Control is a standalone neuro-symbolic control engine that compiles
 stochastic Petri nets into spiking neural network controllers with formal
-contract checks.
+contract checks and bounded Petri-net reachability proofs.
 
 ![SCPN Control Header](scpn_control_header.png)
 

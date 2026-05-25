@@ -23,10 +23,12 @@ graduate students.
 
 ### ITER / DEMO (Future, Speculative)
 
-The contract-based pre/post-condition checking layer provides runtime
-assertion checking — not formal theorem-proved verification. The SNN
-controller includes a Lyapunov stability guard, but this has not been
-validated against real disruption scenarios or certified for nuclear safety.
+The contract layer now includes bounded formal verification for compiled
+Petri-net control logic: exact reachability analysis, marking-bound safety
+proofs, transition liveness checks, and temporal specs such as always-bounded,
+eventually-fires, and never-co-marked. These artefacts are certification
+evidence for controller logic, but they do not by themselves certify a full
+plant PCS or replace external safety-case review.
 
 ---
 
