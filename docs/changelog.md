@@ -11,7 +11,13 @@
 - Added release-blocking boundary coverage for edge cases, invalid inputs,
   monotonicity contracts, conservation boundaries, and finite-output contracts
   in module-specific test files.
-- Applied the formatter changes required by the pushed pre-commit workflow so
+- Persisted differentiable transport campaign metadata and added a replay guard
+  that rejects backend, grid, boundary, closure, tolerance, and equilibrium
+  drift before controller-tuning reruns.
+- Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
+  backend while keeping the closure explicitly bounded as a controller-tuning
+  surrogate.
+- Applied the formatter changes required by the remote pre-commit workflow so
   release-candidate CI starts from the same formatting state as local checks.
 
 ### Changed
@@ -20,11 +26,18 @@
   and tag gate before creating a release tag.
 - Retained the physics traceability boundary: public full-fidelity claims remain
   blocked until the required external artefacts are supplied and validated.
+- Hardened traceability summary checks so generated report, roadmap, and
+  release documentation derive open-gap counts from the live registry instead of
+  stale fixed numbers.
+- GitHub Actions for the current `main` head are green after the documentation,
+  traceability, formatter, and JAX stiffness fixes.
 
 ### Validation
 - `pre-commit run --all-files`
 - `python tools/check_test_quality_policy.py`
 - `python validation/validate_physics_traceability.py --registry validation/physics_traceability.json --json-out`
+- `python tools/capability_manifest.py --check`
+- `python -m tools.check_generated_traceability`
 
 ## [0.19.1] — 2026-05-21
 
