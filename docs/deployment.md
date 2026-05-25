@@ -81,10 +81,16 @@ Deploy the real-time monitoring dashboard for live telemetry.
 
 1.  **Start Stream Server**:
     ```bash
-    python src/scpn_control/phase/ws_phase_stream.py --port 8765
+    python -m scpn_control.phase.ws_phase_stream --host 127.0.0.1 --port 8765
     ```
 2.  **Connect Dashboard**:
     Open `docs/dashboard.html` in a browser and point to `ws://localhost:8765`.
+3.  **Remote Exposure Requirements**:
+    Do not bind the stream to a non-loopback interface unless an operator
+    supplies `SCPN_PHASE_WS_API_KEY` or `--api-key`.  Remote clients must send
+    that key with `Authorization: Bearer <key>`, `X-SCPN-API-Key`, or a `token`
+    query parameter.  Use `--tls-cert` and `--tls-key` for `wss://` transport
+    when the stream crosses a host boundary.
 
 ## 6. Integration with IMAS
 

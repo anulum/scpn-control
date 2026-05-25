@@ -1104,19 +1104,42 @@ def validate_rmse(json_out: bool, output_json: str, output_md: str) -> None:
 
 @main.command()
 @click.option("--port", default=8765, type=int, help="WebSocket port")
-@click.option("--host", default="0.0.0.0", help="Bind address")  # nosec B104
+@click.option("--host", default="127.0.0.1", help="Bind address")
 @click.option("--layers", default=16, type=int, help="Kuramoto layers (L)")
 @click.option("--n-per", default=50, type=int, help="Oscillators per layer")
 @click.option("--zeta", default=0.5, type=float, help="Global field coupling zeta")
 @click.option("--psi", default=0.0, type=float, help="Initial Psi driver")
 @click.option("--tick-interval", default=0.001, type=float, help="Seconds between ticks")
-def live(port: int, host: str, layers: int, n_per: int, zeta: float, psi: float, tick_interval: float) -> None:
+@click.option("--api-key", envvar="SCPN_PHASE_WS_API_KEY", default=None, help="API key required for remote binds")
+@click.option("--command-rate-limit", default=20, type=int, help="Maximum commands per connection window")
+@click.option("--command-rate-window-s", default=1.0, type=float, help="Command rate-limit window in seconds")
+@click.option(
+    "--tls-cert", default=None, type=click.Path(exists=True, dir_okay=False), help="TLS certificate for wss://"
+)
+@click.option(
+    "--tls-key", default=None, type=click.Path(exists=True, dir_okay=False), help="TLS private key for wss://"
+)
+def live(
+    port: int,
+    host: str,
+    layers: int,
+    n_per: int,
+    zeta: float,
+    psi: float,
+    tick_interval: float,
+    api_key: str | None,
+    command_rate_limit: int,
+    command_rate_window_s: float,
+    tls_cert: str | None,
+    tls_key: str | None,
+) -> None:
     """Start real-time WebSocket phase sync server.
 
     Streams Kuramoto R/V/lambda tick snapshots over ws://<host>:<port>.
     Connect with: examples/streamlit_ws_client.py or any WS client.
     """
     import logging
+    import ssl
 
     from scpn_control.phase.realtime_monitor import RealtimeMonitor
     from scpn_control.phase.ws_phase_stream import PhaseStreamServer
@@ -1125,7 +1148,15 @@ def live(port: int, host: str, layers: int, n_per: int, zeta: float, psi: float,
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
-    click.echo(f"Starting phase sync server on ws://{host}:{port}")
+    tls_context = None
+    if tls_cert or tls_key:
+        if not tls_cert or not tls_key:
+            raise click.ClickException("--tls-cert and --tls-key must be provided together")
+        tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls_context.load_cert_chain(tls_cert, tls_key)
+
+    scheme = "wss" if tls_context is not None else "ws"
+    click.echo(f"Starting phase sync server on {scheme}://{host}:{port}")
     click.echo(f"  L={layers}, N_per={n_per}, zeta={zeta}, psi={psi}")
     click.echo("  Ctrl-C to stop")
 
@@ -1135,8 +1166,14 @@ def live(port: int, host: str, layers: int, n_per: int, zeta: float, psi: float,
         zeta_uniform=zeta,
         psi_driver=psi,
     )
-    server = PhaseStreamServer(monitor=mon, tick_interval_s=tick_interval)
-    server.serve_sync(host=host, port=port)
+    server = PhaseStreamServer(
+        monitor=mon,
+        tick_interval_s=tick_interval,
+        api_key=api_key,
+        command_rate_limit=command_rate_limit,
+        command_rate_window_s=command_rate_window_s,
+    )
+    server.serve_sync(host=host, port=port, ssl_context=tls_context)
 
 
 @main.command(name="hil-test")

@@ -568,6 +568,13 @@ Clients receive `{"tick": N, "R_global": ..., "V_global": ..., "lambda_exp": ...
 every tick.  Control commands: `{"action": "set_psi", "value": 1.0}`,
 `{"action": "reset"}`, `{"action": "stop"}`.
 
+The server binds to `127.0.0.1` by default.  Binding to a non-loopback address
+requires an API key via `--api-key` or `SCPN_PHASE_WS_API_KEY`; clients must
+provide that key as `Authorization: Bearer <key>`, `X-SCPN-API-Key`, or a
+`token` query parameter.  Use `--tls-cert` and `--tls-key` when exposing the
+stream as `wss://` behind an operator-approved network boundary.  Command
+messages are rate-limited per connection.
+
 ### 11.7 HDF5 / NPZ Trajectory Export
 
 ```python
@@ -598,7 +605,7 @@ CI job `e2e-diiid` runs end-to-end tests:
 
 ```bash
 # Two-terminal mode
-python -m scpn_control.phase.ws_phase_stream --port 8765 --zeta 0.5  # terminal 1
+python -m scpn_control.phase.ws_phase_stream --host 127.0.0.1 --port 8765 --zeta 0.5  # terminal 1
 streamlit run examples/streamlit_ws_client.py                          # terminal 2
 
 # Embedded mode (server + client in one process)

@@ -1175,11 +1175,17 @@ def test_live_command_wires_monitor_and_server(runner, monkeypatch):
             return "monitor"
 
     class FakeServer:
-        def __init__(self, *, monitor, tick_interval_s):
-            calls["server_init"] = {"monitor": monitor, "tick_interval_s": tick_interval_s}
+        def __init__(self, *, monitor, tick_interval_s, api_key, command_rate_limit, command_rate_window_s):
+            calls["server_init"] = {
+                "monitor": monitor,
+                "tick_interval_s": tick_interval_s,
+                "api_key": api_key,
+                "command_rate_limit": command_rate_limit,
+                "command_rate_window_s": command_rate_window_s,
+            }
 
-        def serve_sync(self, *, host, port):
-            calls["serve"] = {"host": host, "port": port}
+        def serve_sync(self, *, host, port, ssl_context):
+            calls["serve"] = {"host": host, "port": port, "ssl_context": ssl_context}
 
     monkeypatch.setattr(realtime_monitor, "RealtimeMonitor", FakeMonitor)
     monkeypatch.setattr(ws_phase_stream, "PhaseStreamServer", FakeServer)
@@ -1207,8 +1213,14 @@ def test_live_command_wires_monitor_and_server(runner, monkeypatch):
 
     assert result.exit_code == 0
     assert calls["monitor"] == {"L": 3, "N_per": 4, "zeta_uniform": 0.7, "psi_driver": 0.2}
-    assert calls["server_init"] == {"monitor": "monitor", "tick_interval_s": 0.005}
-    assert calls["serve"] == {"host": "127.0.0.1", "port": 9001}
+    assert calls["server_init"] == {
+        "monitor": "monitor",
+        "tick_interval_s": 0.005,
+        "api_key": None,
+        "command_rate_limit": 20,
+        "command_rate_window_s": 1.0,
+    }
+    assert calls["serve"] == {"host": "127.0.0.1", "port": 9001, "ssl_context": None}
     assert "Starting phase sync server on ws://127.0.0.1:9001" in result.output
 
 

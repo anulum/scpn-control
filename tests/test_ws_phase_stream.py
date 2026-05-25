@@ -12,7 +12,9 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import ssl
 import sys
+import time
 
 import pytest
 
@@ -27,11 +29,15 @@ def _make_monitor():
 class _FakeWS:
     """Mock WebSocket for testing handler and tick loop."""
 
-    def __init__(self, messages=None):
+    def __init__(self, messages=None, headers=None, path="/"):
         self._messages = list(messages or [])
         self._sent: list[str] = []
+        self.request_headers = headers or {}
+        self.path = path
         self._idx = 0
         self.closed = False
+        self.close_code = None
+        self.close_reason = None
 
     def __aiter__(self):
         return self
@@ -46,18 +52,101 @@ class _FakeWS:
     async def send(self, data):
         self._sent.append(data)
 
+    async def close(self, code=1000, reason=""):
+        self.closed = True
+        self.close_code = code
+        self.close_reason = reason
+
 
 class TestPhaseStreamServer:
     def test_init(self):
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01)
         assert server.tick_interval_s == 0.01
+        assert server.api_key is None
+        assert server.command_rate_limit == 20
 
     @pytest.mark.parametrize("tick_interval_s", [0.0, -1.0, math.nan, math.inf])
     def test_init_rejects_nonpositive_or_nonfinite_tick_interval(self, tick_interval_s):
         mon = _make_monitor()
         with pytest.raises(ValueError, match="tick_interval_s"):
             PhaseStreamServer(monitor=mon, tick_interval_s=tick_interval_s)
+
+    def test_init_rejects_invalid_security_domains(self):
+        mon = _make_monitor()
+        with pytest.raises(ValueError, match="command_rate_limit"):
+            PhaseStreamServer(monitor=mon, command_rate_limit=0)
+        with pytest.raises(ValueError, match="command_rate_window_s"):
+            PhaseStreamServer(monitor=mon, command_rate_window_s=0.0)
+
+    def test_handler_rejects_unauthenticated_control_connection_when_api_key_configured(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret")
+            ws = _FakeWS([json.dumps({"action": "set_psi", "value": 0.5})])
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.0)
+            assert ws.closed
+            assert ws.close_code == 1008
+            assert "authentication" in (ws.close_reason or "")
+            assert ws not in server._clients
+
+        asyncio.run(_run())
+
+    @pytest.mark.parametrize(
+        "headers",
+        [
+            {"Authorization": "Bearer secret"},
+            {"X-SCPN-API-Key": "secret"},
+        ],
+    )
+    def test_handler_accepts_authenticated_control_connection(self, headers):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret")
+            ws = _FakeWS([json.dumps({"action": "set_psi", "value": 0.5})], headers=headers)
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.5)
+            assert not ws.closed
+
+        asyncio.run(_run())
+
+    def test_handler_accepts_query_token_for_authentication(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret")
+            ws = _FakeWS([json.dumps({"action": "set_pac_gamma", "value": 0.2})], path="/phase?token=secret")
+
+            await server._handler(ws)
+
+            assert mon.pac_gamma == pytest.approx(0.2)
+
+        asyncio.run(_run())
+
+    def test_handler_rate_limits_control_commands_without_state_mutation(self, monkeypatch):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, command_rate_limit=1, command_rate_window_s=60.0)
+            ws = _FakeWS(
+                [
+                    json.dumps({"action": "set_psi", "value": 0.1}),
+                    json.dumps({"action": "set_psi", "value": 0.9}),
+                ]
+            )
+            monkeypatch.setattr(time, "monotonic", lambda: 100.0)
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.1)
+            assert json.loads(ws._sent[-1])["error"] == "rate_limited"
+            assert ws.closed
+            assert ws.close_code == 1008
+
+        asyncio.run(_run())
 
     def test_handler_set_psi(self):
         async def _run():
@@ -215,10 +304,11 @@ class TestPhaseStreamServer:
             serve_called = {}
 
             class _FakeServeCtx:
-                def __init__(self, handler, host, port):
+                def __init__(self, handler, host, port, **kwargs):
                     serve_called["handler"] = handler
                     serve_called["host"] = host
                     serve_called["port"] = port
+                    serve_called["ssl"] = kwargs.get("ssl")
 
                 async def __aenter__(self):
                     return self
@@ -241,5 +331,88 @@ class TestPhaseStreamServer:
             await stop_task
             assert serve_called["host"] == "127.0.0.1"
             assert serve_called["port"] == 9999
+            assert serve_called["ssl"] is None
+
+        asyncio.run(_run())
+
+    def test_serve_defaults_to_loopback(self, monkeypatch):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01)
+            serve_called = {}
+
+            class _FakeServeCtx:
+                def __init__(self, handler, host, port, **kwargs):
+                    serve_called["host"] = host
+                    serve_called["port"] = port
+                    serve_called["ssl"] = kwargs.get("ssl")
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    pass
+
+            import types
+
+            fake_ws = types.ModuleType("websockets")
+            fake_ws.serve = _FakeServeCtx
+            monkeypatch.setitem(sys.modules, "websockets", fake_ws)
+
+            async def _stop_tick():
+                await asyncio.sleep(0.02)
+                server._running = False
+
+            stop_task = asyncio.create_task(_stop_tick())
+            await server.serve(port=9999)
+            await stop_task
+
+            assert serve_called == {"host": "127.0.0.1", "port": 9999, "ssl": None}
+
+        asyncio.run(_run())
+
+    def test_serve_rejects_non_loopback_bind_without_api_key_or_tls(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon)
+            with pytest.raises(ValueError, match="api_key"):
+                await server.serve(host="0.0.0.0", port=9999)
+
+        asyncio.run(_run())
+
+    def test_serve_passes_tls_context_to_websocket_server(self, monkeypatch):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret", tick_interval_s=0.01)
+            tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            serve_called = {}
+
+            class _FakeServeCtx:
+                def __init__(self, handler, host, port, **kwargs):
+                    serve_called["host"] = host
+                    serve_called["ssl"] = kwargs.get("ssl")
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    pass
+
+            import types
+
+            fake_ws = types.ModuleType("websockets")
+            fake_ws.serve = _FakeServeCtx
+            monkeypatch.setitem(sys.modules, "websockets", fake_ws)
+
+            async def _stop_tick():
+                await asyncio.sleep(0.02)
+                server._running = False
+
+            stop_task = asyncio.create_task(_stop_tick())
+            await server.serve(host="0.0.0.0", port=9999, ssl_context=tls_context)
+            await stop_task
+
+            assert serve_called["host"] == "0.0.0.0"
+            assert serve_called["ssl"] is tls_context
 
         asyncio.run(_run())
