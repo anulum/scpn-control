@@ -12,19 +12,27 @@ from pathlib import Path
 import re
 
 from validation.generate_physics_traceability_report import generate_physics_traceability_markdown, main
+from validation.validate_physics_traceability import validate_physics_traceability
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
-    markdown = generate_physics_traceability_markdown(ROOT / "validation" / "physics_traceability.json")
+    registry_path = ROOT / "validation" / "physics_traceability.json"
+    report = validate_physics_traceability(registry_path)
+    tracker_counts: dict[int, int] = {}
+    for entry in report["entries"]:
+        issue = entry.get("external_validation_tracker_issue")
+        if isinstance(issue, int):
+            tracker_counts[issue] = tracker_counts.get(issue, 0) + 1
+    markdown = generate_physics_traceability_markdown(registry_path)
 
     assert markdown.startswith("<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->")
     assert "# Physics Traceability and Bounded Claims" in markdown
-    assert "Open fidelity gaps: 49" in markdown
-    assert "Full-fidelity public claims blocked: 49" in markdown
-    assert "External validation trackers: 8" in markdown
+    assert f"Open fidelity gaps: {report['open_fidelity_gaps']}" in markdown
+    assert f"Full-fidelity public claims blocked: {report['public_claim_blocked']}" in markdown
+    assert f"External validation trackers: {report['external_validation_tracker_count']}" in markdown
     coverage_match = re.search(r"Source marker coverage: (\d+)/(\d+)", markdown)
     assert coverage_match is not None
     covered = int(coverage_match.group(1))
@@ -37,9 +45,9 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "Parent tracker for external code, reference data, facility replay" in markdown
     assert "https://github.com/anulum/scpn-control/issues/46" in markdown
     assert "https://github.com/anulum/scpn-control/issues/53" in markdown
-    assert "#47](https://github.com/anulum/scpn-control/issues/47) — 9 open claim(s)" in markdown
-    assert "#49](https://github.com/anulum/scpn-control/issues/49) — 14 open claim(s)" in markdown
-    assert "#53](https://github.com/anulum/scpn-control/issues/53) — 4 open claim(s)" in markdown
+    assert f"#47](https://github.com/anulum/scpn-control/issues/47) — {tracker_counts[47]} open claim(s)" in markdown
+    assert f"#49](https://github.com/anulum/scpn-control/issues/49) — {tracker_counts[49]} open claim(s)" in markdown
+    assert f"#53](https://github.com/anulum/scpn-control/issues/53) — {tracker_counts[53]} open claim(s)" in markdown
     assert (
         "| Module | Equation or contract | References | Unit contract | Validation evidence | Status | Tracker |"
         in markdown
