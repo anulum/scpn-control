@@ -18,7 +18,9 @@ import math
 import os
 import platform
 import subprocess
+import weakref
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -145,6 +147,23 @@ def _verify_solver_source(src: Path, manifest_path: Path) -> bool:
     return True
 
 
+def _release_native_solver(state: dict[str, Any]) -> None:
+    """Release the native solver referenced by ``state`` exactly once."""
+    solver_ptr = state.get("solver_ptr")
+    if solver_ptr is None or not state.get("loaded"):
+        state["solver_ptr"] = None
+        return
+
+    try:
+        lib = state.get("lib")
+        destroy_symbol = state.get("destroy_symbol")
+        if lib is not None and destroy_symbol is not None:
+            getattr(lib, str(destroy_symbol))(solver_ptr)
+    except (OSError, AttributeError) as exc:
+        logger.debug("C++ solver cleanup failed: %s", exc)
+    state["solver_ptr"] = None
+
+
 class HPCBridge:
     """Interface between Python and the compiled C++ Grad-Shafranov solver.
 
@@ -171,6 +190,13 @@ class HPCBridge:
         self._destroy_symbol: str | None = None
         self._has_converged_api: bool = False
         self._has_boundary_api: bool = False
+        self._cleanup_state: dict[str, Any] = {
+            "lib": self.lib,
+            "solver_ptr": self.solver_ptr,
+            "loaded": self.loaded,
+            "destroy_symbol": self._destroy_symbol,
+        }
+        self._finalizer = weakref.finalize(self, _release_native_solver, self._cleanup_state)
 
         lib_name = "scpn_solver.dll" if platform.system() == "Windows" else "libscpn_solver.so"
         env_path = os.environ.get("SCPN_SOLVER_LIB")
@@ -200,8 +226,21 @@ class HPCBridge:
             self._setup_signatures()
             logger.info("Loaded C++ accelerator: %s", self.lib_path)
             self.loaded = True
+            self._sync_cleanup_state()
         except OSError as exc:
             logger.debug("C++ accelerator unavailable: %s", exc)
+
+    def _sync_cleanup_state(self) -> None:
+        if not hasattr(self, "_cleanup_state"):
+            return
+        self._cleanup_state.update(
+            {
+                "lib": self.lib,
+                "solver_ptr": self.solver_ptr,
+                "loaded": self.loaded,
+                "destroy_symbol": self._destroy_symbol,
+            }
+        )
 
     def is_available(self) -> bool:
         """Return *True* if the compiled solver library was loaded."""
@@ -209,6 +248,14 @@ class HPCBridge:
 
     def close(self) -> None:
         """Release the C++ solver instance, if one was created."""
+        if hasattr(self, "_cleanup_state"):
+            self._sync_cleanup_state()
+            _release_native_solver(self._cleanup_state)
+            self.solver_ptr = self._cleanup_state["solver_ptr"]
+            if getattr(self, "_finalizer", None) is not None and self._finalizer.alive:
+                self._finalizer.detach()
+            return
+
         if self.solver_ptr is not None and self.loaded:
             try:
                 if self.lib is not None and self._destroy_symbol is not None:
@@ -216,9 +263,6 @@ class HPCBridge:
             except (OSError, AttributeError) as exc:
                 logger.debug("C++ solver cleanup failed: %s", exc)
             self.solver_ptr = None
-
-    def __del__(self) -> None:
-        self.close()
 
     def __enter__(self) -> "HPCBridge":
         return self
@@ -300,6 +344,7 @@ class HPCBridge:
         self.nr = nr
         self.nz = nz
         self.solver_ptr = self.lib.create_solver(nr, nz, r_range[0], r_range[1], z_range[0], z_range[1])
+        self._sync_cleanup_state()
         self.set_boundary_dirichlet(boundary_value)
 
     def set_boundary_dirichlet(self, boundary_value: float = 0.0) -> None:

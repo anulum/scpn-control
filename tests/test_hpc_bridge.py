@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 from pathlib import Path
 
@@ -516,3 +517,47 @@ def test_close_noop_when_not_loaded() -> None:
     bridge.loaded = False
     bridge.close()
     assert bridge.lib.destroyed is None
+
+
+def test_bridge_uses_finalizer_instead_of_destructor(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    class _CFunc:
+        def __init__(self, func):  # type: ignore[no-untyped-def]
+            self._func = func
+            self.argtypes = None
+            self.restype = None
+
+        def __call__(self, *args):  # type: ignore[no-untyped-def]
+            return self._func(*args)
+
+    class _LoadableLib:
+        def __init__(self) -> None:
+            self.destroyed = None
+            self.create_solver = _CFunc(lambda nr, nz, r0, r1, z0, z1: 4242)
+            self.run_step = _CFunc(lambda solver_ptr, j_array, psi_array, size, iterations: None)
+            self.destroy_solver = _CFunc(self._destroy)
+            self.set_boundary_dirichlet = _CFunc(lambda solver_ptr, value: None)
+
+        def _destroy(self, solver_ptr):  # type: ignore[no-untyped-def]
+            self.destroyed = solver_ptr
+
+    loaded = _LoadableLib()
+
+    monkeypatch.setenv("SCPN_SOLVER_LIB", str(tmp_path / "libscpn_solver.so"))
+    monkeypatch.setenv("SCPN_ALLOW_EXTERNAL_SOLVER_LIB", "1")
+    monkeypatch.setattr(hpc_mod.ctypes, "CDLL", lambda _path: loaded)
+
+    bridge = HPCBridge()
+    bridge.initialize(2, 3, (0.0, 1.0), (-1.0, 1.0))
+
+    assert "__del__" not in HPCBridge.__dict__
+    assert "weakref.finalize" in inspect.getsource(hpc_mod)
+    assert bridge._finalizer.alive
+
+    bridge.close()
+    assert loaded.destroyed == 4242
+    assert bridge.solver_ptr is None
+    assert not bridge._finalizer.alive
+
+    loaded.destroyed = None
+    bridge.close()
+    assert loaded.destroyed is None
