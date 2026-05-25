@@ -16,6 +16,7 @@ import pytest
 from scpn_control.core.fusion_kernel import (
     ALPHA_FRACTION,
     CoilSet,
+    FusionKernelConfig,
     FusionKernel,
     _select_x_point_index,
     dt_alpha_power_mw,
@@ -129,6 +130,23 @@ class TestConstruction:
 
         with pytest.raises(ValueError, match="plasma_current_target"):
             FusionKernel(path)
+
+    def test_config_rejects_string_grid_resolution(self, tmp_path):
+        path = _write_config(tmp_path / "bad_grid_type.json")
+        cfg = json.loads(path.read_text(encoding="utf-8"))
+        cfg["grid_resolution"] = ["16", 16]
+        path.write_text(json.dumps(cfg), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="grid_resolution"):
+            FusionKernel(path)
+
+    def test_config_schema_is_exportable(self):
+        schema = FusionKernelConfig.model_json_schema()
+
+        assert schema["type"] == "object"
+        assert {"reactor_name", "grid_resolution", "dimensions", "physics"} <= set(schema["required"])
+        assert "solver" in schema["properties"]
+        assert "coils" in schema["properties"]
 
     def test_config_rejects_duplicate_json_keys(self, tmp_path):
         path = tmp_path / "duplicate.json"
