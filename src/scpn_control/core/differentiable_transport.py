@@ -17,6 +17,7 @@ The NumPy path is deterministic and intentionally does not claim gradients.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -35,6 +36,16 @@ except ImportError:
 
 CHANNEL_COUNT = 4
 CHANNELS = ("electron_temperature", "ion_temperature", "electron_density", "impurity_density")
+
+
+@dataclass(frozen=True)
+class EquilibriumWeightedTransportGradient:
+    """JAX gradient of equilibrium-weighted transport tracking loss."""
+
+    loss: float
+    chi_gradient: np.ndarray
+    equilibrium_gradient: np.ndarray
+    radial_weights: np.ndarray
 
 
 def has_jax() -> bool:
@@ -173,6 +184,45 @@ def _transport_step_jax(
     )
 
 
+def _validate_equilibrium_psi(equilibrium_psi: Any) -> np.ndarray:
+    psi = _as_float_array("equilibrium_psi", equilibrium_psi)
+    if psi.ndim != 2 or min(psi.shape) < 3:
+        raise ValueError("equilibrium_psi must be a finite two-dimensional flux map with both dimensions >= 3")
+    return psi
+
+
+def equilibrium_radial_weights(equilibrium_psi: Any, n_rho: int) -> np.ndarray:
+    """Return positive mean-one radial weights from a Grad-Shafranov flux map."""
+    psi = _validate_equilibrium_psi(equilibrium_psi)
+    if isinstance(n_rho, bool) or int(n_rho) != n_rho or int(n_rho) < 3:
+        raise ValueError("n_rho must be an integer >= 3")
+    radial_profile = np.mean(np.abs(psi), axis=0)
+    if radial_profile.size != int(n_rho):
+        src = np.linspace(0.0, 1.0, radial_profile.size)
+        dst = np.linspace(0.0, 1.0, int(n_rho))
+        radial_profile = np.interp(dst, src, radial_profile)
+    radial_profile = np.maximum(radial_profile, 0.0)
+    mean_profile = float(np.mean(radial_profile))
+    if mean_profile <= 1.0e-30:
+        return np.ones(int(n_rho))
+    weights = np.asarray(radial_profile / mean_profile, dtype=float)
+    return weights
+
+
+def _equilibrium_radial_weights_jax(equilibrium_psi: Any, n_rho: int) -> Any:
+    if jnp is None:
+        raise RuntimeError("JAX equilibrium weighting requested but JAX is unavailable")
+    psi = jnp.asarray(equilibrium_psi, dtype=jnp.float64)
+    radial_profile = jnp.mean(jnp.abs(psi), axis=0)
+    if int(radial_profile.shape[0]) != int(n_rho):
+        src = jnp.linspace(0.0, 1.0, int(radial_profile.shape[0]))
+        dst = jnp.linspace(0.0, 1.0, int(n_rho))
+        radial_profile = jnp.interp(dst, src, radial_profile)
+    radial_profile = jnp.maximum(radial_profile, 0.0)
+    mean_profile = jnp.mean(radial_profile)
+    return jnp.where(mean_profile <= 1.0e-30, jnp.ones(int(n_rho)), radial_profile / mean_profile)
+
+
 def differentiable_transport_step(
     profiles: Any,
     chi: Any,
@@ -280,6 +330,81 @@ def transport_tracking_loss(
     return float(np.mean(weight_array[:, None] * residual * residual))
 
 
+def _equilibrium_weighted_tracking_loss_jax(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    equilibrium_psi: Any,
+    weights: Any,
+) -> Any:
+    if jnp is None:
+        raise RuntimeError("JAX equilibrium-weighted tracking loss requested but JAX is unavailable")
+    predicted = _transport_step_jax(profiles, chi, sources, rho, dt, edge_values)
+    radial_weights = _equilibrium_radial_weights_jax(equilibrium_psi, int(predicted.shape[1]))
+    residual = predicted - jnp.asarray(target_profiles, dtype=jnp.float64)
+    channel_weights = jnp.asarray(weights, dtype=jnp.float64)[:, None]
+    return jnp.mean(channel_weights * radial_weights[None, :] * residual * residual)
+
+
+def equilibrium_weighted_transport_tracking_loss(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    equilibrium_psi: Any,
+    *,
+    weights: Any | None = None,
+    use_jax: bool = True,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
+) -> Any:
+    """Return transport tracking loss weighted by GS-equilibrium flux geometry."""
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = _validate_transport_inputs(
+        profiles,
+        chi,
+        sources,
+        rho,
+        dt,
+        edge_values,
+        target_profiles=target_profiles,
+        weights=weights,
+    )
+    if target_array is None:
+        raise ValueError("target_profiles is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+    psi_array = _validate_equilibrium_psi(equilibrium_psi)
+    use_jax_runtime = _resolve_use_jax(
+        use_jax,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+        context="equilibrium_weighted_transport_tracking_loss",
+    )
+    if use_jax_runtime:
+        return _equilibrium_weighted_tracking_loss_jax(
+            profile_array,
+            chi_array,
+            source_array,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            psi_array,
+            weight_array,
+        )
+    predicted = _transport_step_numpy(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
+    radial_weights = equilibrium_radial_weights(psi_array, profile_array.shape[1])
+    residual = predicted - target_array
+    return float(np.mean(weight_array[:, None] * radial_weights[None, :] * residual * residual))
+
+
 def transport_loss_gradient(
     profiles: Any,
     chi: Any,
@@ -323,3 +448,66 @@ def transport_loss_gradient(
 
     loss, gradient = jax.value_and_grad(loss_for_chi)(jnp.asarray(chi_array, dtype=jnp.float64))
     return float(np.asarray(loss)), np.asarray(gradient)
+
+
+def equilibrium_weighted_transport_loss_gradient(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    equilibrium_psi: Any,
+    *,
+    weights: Any | None = None,
+) -> EquilibriumWeightedTransportGradient:
+    """Return JAX gradients of equilibrium-weighted transport loss.
+
+    The returned gradients are with respect to the transport coefficients and
+    the supplied equilibrium flux map. If the flux map was produced inside an
+    outer JAX graph by the Grad-Shafranov solver, this loss is compatible with
+    further chain-rule propagation through that equilibrium solve.
+    """
+    if not _HAS_JAX or jax is None or jnp is None:
+        raise RuntimeError("equilibrium_weighted_transport_loss_gradient requires JAX")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = _validate_transport_inputs(
+        profiles,
+        chi,
+        sources,
+        rho,
+        dt,
+        edge_values,
+        target_profiles=target_profiles,
+        weights=weights,
+    )
+    if target_array is None:
+        raise ValueError("target_profiles is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+    psi_array = _validate_equilibrium_psi(equilibrium_psi)
+
+    def loss_for_chi_and_equilibrium(chi_candidate: Any, psi_candidate: Any) -> Any:
+        return _equilibrium_weighted_tracking_loss_jax(
+            profile_array,
+            chi_candidate,
+            source_array,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            psi_candidate,
+            weight_array,
+        )
+
+    loss, gradients = jax.value_and_grad(loss_for_chi_and_equilibrium, argnums=(0, 1))(
+        jnp.asarray(chi_array, dtype=jnp.float64),
+        jnp.asarray(psi_array, dtype=jnp.float64),
+    )
+    chi_gradient, equilibrium_gradient = gradients
+    return EquilibriumWeightedTransportGradient(
+        loss=float(np.asarray(loss)),
+        chi_gradient=np.asarray(chi_gradient),
+        equilibrium_gradient=np.asarray(equilibrium_gradient),
+        radial_weights=equilibrium_radial_weights(psi_array, profile_array.shape[1]),
+    )

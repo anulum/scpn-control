@@ -772,7 +772,7 @@
     },
     {
       "component": "differentiable transport facade contract",
-      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, and gradient target with respect to transport coefficients.",
+      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradient target, and optional Grad-Shafranov flux-map radial weighting contract.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "repository JAX transport primitive contract",
@@ -782,12 +782,12 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Wire each legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff",
-        "Validate differentiable transport profiles against measured discharges or published integrated-modelling benchmarks",
-        "Persist backend, dtype, radial-grid, boundary-condition, and gradient-tolerance metadata for controller-tuning campaigns"
+        "Validate differentiable transport profiles and equilibrium-weighted gradients against measured discharges or published integrated-modelling benchmarks",
+        "Persist backend, dtype, radial-grid, boundary-condition, equilibrium-grid, flux-weighting, and gradient-tolerance metadata for controller-tuning campaigns"
       ],
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced.",
       "validation_evidence": [
-        "tests/test_differentiable_transport.py diffusion, boundary, fallback, and optional JAX-gradient checks"
+        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX-gradient, and equilibrium-weighted GS-flux checks"
       ],
       "evidence_paths": [
         "src/scpn_control/core/differentiable_transport.py",
@@ -798,7 +798,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/differentiable_transport.py"
       ],
-      "validity_domain": "Local one-step four-channel differentiable transport facade for controller-tuning studies; not an externally validated integrated-transport or facility-control claim.",
+      "validity_domain": "Local one-step four-channel differentiable transport facade with optional GS-flux radial weighting for controller-tuning studies; not an externally validated integrated-transport, equilibrium-reconstruction, or facility-control claim.",
       "external_validation_tracker_issue": 49
     },
     {

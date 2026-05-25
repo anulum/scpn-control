@@ -131,3 +131,115 @@ def test_transport_loss_gradient_is_finite_with_jax():
     assert gradient.shape == chi.shape
     assert np.all(np.isfinite(gradient))
     assert np.any(np.abs(gradient) > 0.0)
+
+
+def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():
+    rho = np.linspace(0.05, 1.0, 24)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    target[:, 8:16] *= 0.98
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    psi = np.tile(np.linspace(0.2, 1.0, rho.size), (9, 1))
+
+    uniform_loss = dt.transport_tracking_loss(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        use_jax=False,
+    )
+    weighted_loss = dt.equilibrium_weighted_transport_tracking_loss(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        psi,
+        use_jax=False,
+    )
+    radial_weights = dt.equilibrium_radial_weights(psi, rho.size)
+
+    assert weighted_loss != pytest.approx(uniform_loss)
+    assert radial_weights.shape == (rho.size,)
+    assert np.all(radial_weights > 0.0)
+    assert np.mean(radial_weights) == pytest.approx(1.0)
+
+
+def test_equilibrium_weighted_gradient_fails_closed_without_jax(monkeypatch):
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    psi = np.tile(np.linspace(0.2, 1.0, rho.size), (7, 1))
+    monkeypatch.setattr(dt, "_HAS_JAX", False)
+
+    with pytest.raises(RuntimeError, match="equilibrium_weighted_transport_loss_gradient requires JAX"):
+        dt.equilibrium_weighted_transport_loss_gradient(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            psi,
+        )
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_equilibrium_weighted_transport_gradient_is_finite_with_jax_gs_flux():
+    from scpn_control.core.jax_gs_solver import jax_gs_solve
+
+    rho = np.linspace(0.05, 1.0, 17)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.20 + 0.02 * rho,
+            0.16 + 0.02 * rho,
+            0.04 + 0.005 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    target[0, 5:12] *= 0.96
+    target[1, 5:12] *= 0.98
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    psi = jax_gs_solve(
+        NR=17,
+        NZ=17,
+        Ip_target=1.0e6,
+        n_picard=6,
+        n_jacobi=12,
+        use_jax=True,
+    )
+
+    result = dt.equilibrium_weighted_transport_loss_gradient(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        psi,
+        weights=np.array([1.0, 1.0, 0.25, 0.1]),
+    )
+
+    assert np.isfinite(result.loss)
+    assert result.chi_gradient.shape == chi.shape
+    assert result.equilibrium_gradient.shape == psi.shape
+    assert np.all(np.isfinite(result.chi_gradient))
+    assert np.all(np.isfinite(result.equilibrium_gradient))
+    assert np.any(np.abs(result.chi_gradient) > 0.0)
+    assert np.any(np.abs(result.equilibrium_gradient) > 0.0)
+    assert np.mean(result.radial_weights) == pytest.approx(1.0)

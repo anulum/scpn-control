@@ -96,6 +96,14 @@ path is deterministic for parity checks and non-JAX deployments, but
 
 ::: scpn_control.core.differentiable_transport.transport_loss_gradient
 
+::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
+
+::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_tracking_loss
+
+::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_loss_gradient
+
+::: scpn_control.core.differentiable_transport.EquilibriumWeightedTransportGradient
+
 ### Neural Equilibrium
 
 ::: scpn_control.core.neural_equilibrium.NeuralEquilibriumAccelerator

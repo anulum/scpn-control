@@ -21,7 +21,7 @@
   "counts": {
     "project_script_count": 2,
     "public_api_export_count": 17,
-    "public_class_count": 409,
+    "public_class_count": 410,
     "public_markdown_count": 31,
     "pyo3_export_count": 27,
     "python_test_file_count": 272,
@@ -220,6 +220,7 @@
       "EpedPedestalPrediction",
       "EquilibriumIDS",
       "EquilibriumUncertainty",
+      "EquilibriumWeightedTransportGradient",
       "ErosionModel",
       "ErrorFieldSpectrum",
       "ErrorFieldToDisruptionChain",

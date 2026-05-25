@@ -61,7 +61,7 @@ Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native line
 | Project scripts | 2 |
 | Public API exports | 17 |
 | Python control/physics modules | 130 |
-| Python public classes | 409 |
+| Python public classes | 410 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
 | Validation scripts | 38 |
