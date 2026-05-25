@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import json
 
 import numpy as np
 import pytest
@@ -279,6 +280,67 @@ def test_transport_campaign_metadata_rejects_invalid_backend_and_tolerance():
             backend="jax",
             gradient_tolerance=0.0,
         )
+
+
+def test_transport_campaign_metadata_round_trips_through_json(tmp_path):
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    metadata = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        1.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=1.0e-8,
+    )
+    path = tmp_path / "transport_campaign_metadata.json"
+
+    dt.save_transport_campaign_metadata(metadata, path)
+    loaded = dt.load_transport_campaign_metadata(path)
+    raw = json.loads(path.read_text(encoding="utf-8"))
+
+    assert loaded == metadata
+    assert raw["schema_version"] == 1
+    assert raw["metadata"]["backend"] == "jax"
+    assert raw["metadata"]["channel_order"] == list(dt.CHANNELS)
+    assert raw["metadata"]["gradient_tolerance"] == pytest.approx(1.0e-8)
+
+
+def test_transport_campaign_metadata_import_rejects_malformed_payload(tmp_path):
+    path = tmp_path / "bad_transport_campaign_metadata.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "metadata": {
+                    "backend": "jax",
+                    "dtype": "float64",
+                    "channel_order": list(dt.CHANNELS),
+                    "n_rho": 2,
+                    "rho_min": 1.0,
+                    "rho_max": 0.0,
+                    "rho_spacing": -0.1,
+                    "dt": 0.0,
+                    "core_boundary": "zero_gradient",
+                    "edge_boundary": "dirichlet",
+                    "edge_values": [0.2, 0.2, 4.0, 0.03],
+                    "closure_source": None,
+                    "closure_weights_checksum": None,
+                    "gradient_tolerance": 1.0e-8,
+                    "equilibrium_grid_shape": None,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="metadata"):
+        dt.load_transport_campaign_metadata(path)
 
 
 def test_equilibrium_weighted_gradient_fails_closed_without_jax(monkeypatch):

@@ -17,7 +17,9 @@ The NumPy path is deterministic and intentionally does not claim gradients.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -36,6 +38,7 @@ except ImportError:
 
 CHANNEL_COUNT = 4
 CHANNELS = ("electron_temperature", "ion_temperature", "electron_density", "impurity_density")
+_TRANSPORT_METADATA_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -257,6 +260,108 @@ def transport_campaign_metadata(
         gradient_tolerance=tolerance_value,
         equilibrium_grid_shape=equilibrium_grid_shape,
     )
+
+
+def _finite_float_field(name: str, value: Any, *, positive: bool = False) -> float:
+    field = float(value)
+    if not np.isfinite(field):
+        raise ValueError(f"metadata field {name} must be finite")
+    if positive and field <= 0.0:
+        raise ValueError(f"metadata field {name} must be positive")
+    return field
+
+
+def _optional_positive_float_field(name: str, value: Any) -> float | None:
+    if value is None:
+        return None
+    return _finite_float_field(name, value, positive=True)
+
+
+def _transport_campaign_metadata_from_mapping(payload: dict[str, Any]) -> TransportCampaignMetadata:
+    try:
+        backend = str(payload["backend"]).strip().lower()
+        dtype = str(payload["dtype"])
+        channel_order = tuple(str(channel) for channel in payload["channel_order"])
+        n_rho = int(payload["n_rho"])
+        rho_min = _finite_float_field("rho_min", payload["rho_min"])
+        rho_max = _finite_float_field("rho_max", payload["rho_max"])
+        rho_spacing = _finite_float_field("rho_spacing", payload["rho_spacing"], positive=True)
+        dt_value = _finite_float_field("dt", payload["dt"], positive=True)
+        core_boundary = str(payload["core_boundary"])
+        edge_boundary = str(payload["edge_boundary"])
+        edge_values = tuple(_finite_float_field("edge_values", value) for value in payload["edge_values"])
+        closure_source_value = payload["closure_source"]
+        closure_checksum_value = payload["closure_weights_checksum"]
+        tolerance = _optional_positive_float_field("gradient_tolerance", payload["gradient_tolerance"])
+        equilibrium_shape_value = payload["equilibrium_grid_shape"]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("transport campaign metadata payload is malformed") from exc
+
+    if backend not in {"numpy", "jax"}:
+        raise ValueError("transport campaign metadata backend is invalid")
+    if channel_order != CHANNELS:
+        raise ValueError("transport campaign metadata channel_order is invalid")
+    if n_rho < 3:
+        raise ValueError("transport campaign metadata n_rho must be >= 3")
+    if rho_max <= rho_min:
+        raise ValueError("transport campaign metadata rho bounds are invalid")
+    if len(edge_values) != CHANNEL_COUNT:
+        raise ValueError("transport campaign metadata edge_values length is invalid")
+    if core_boundary != "zero_gradient" or edge_boundary != "dirichlet":
+        raise ValueError("transport campaign metadata boundary contract is invalid")
+    closure_source = None if closure_source_value is None else str(closure_source_value)
+    closure_weights_checksum = None if closure_checksum_value is None else str(closure_checksum_value)
+    equilibrium_grid_shape: tuple[int, int] | None = None
+    if equilibrium_shape_value is not None:
+        if not isinstance(equilibrium_shape_value, list | tuple) or len(equilibrium_shape_value) != 2:
+            raise ValueError("transport campaign metadata equilibrium_grid_shape is invalid")
+        equilibrium_grid_shape = (int(equilibrium_shape_value[0]), int(equilibrium_shape_value[1]))
+        if min(equilibrium_grid_shape) < 3:
+            raise ValueError("transport campaign metadata equilibrium_grid_shape must be >= 3 in both dimensions")
+
+    return TransportCampaignMetadata(
+        backend=backend,
+        dtype=dtype,
+        channel_order=channel_order,
+        n_rho=n_rho,
+        rho_min=rho_min,
+        rho_max=rho_max,
+        rho_spacing=rho_spacing,
+        dt=dt_value,
+        core_boundary=core_boundary,
+        edge_boundary=edge_boundary,
+        edge_values=edge_values,
+        closure_source=closure_source,
+        closure_weights_checksum=closure_weights_checksum,
+        gradient_tolerance=tolerance,
+        equilibrium_grid_shape=equilibrium_grid_shape,
+    )
+
+
+def save_transport_campaign_metadata(metadata: TransportCampaignMetadata, path: str | Path) -> None:
+    """Persist transport campaign metadata as schema-versioned JSON."""
+    destination = Path(path)
+    payload = {
+        "schema_version": _TRANSPORT_METADATA_SCHEMA_VERSION,
+        "metadata": asdict(metadata),
+    }
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def load_transport_campaign_metadata(path: str | Path) -> TransportCampaignMetadata:
+    """Load and validate schema-versioned transport campaign metadata JSON."""
+    source = Path(path)
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("transport campaign metadata file is not readable JSON") from exc
+    if not isinstance(payload, dict) or payload.get("schema_version") != _TRANSPORT_METADATA_SCHEMA_VERSION:
+        raise ValueError("transport campaign metadata schema_version is unsupported")
+    metadata_payload = payload.get("metadata")
+    if not isinstance(metadata_payload, dict):
+        raise ValueError("transport campaign metadata payload is malformed")
+    return _transport_campaign_metadata_from_mapping(metadata_payload)
 
 
 def _resolve_use_jax(

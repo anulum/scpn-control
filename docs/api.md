@@ -96,6 +96,9 @@ diffusivity fraction.
 `transport_campaign_metadata()` records backend, dtype, radial grid, timestep,
 boundary conditions, closure provenance, gradient tolerance, and optional
 equilibrium-grid shape for reproducible controller-tuning campaigns.
+`save_transport_campaign_metadata()` and `load_transport_campaign_metadata()`
+persist the same contract as schema-versioned JSON and fail closed on malformed
+or physically inconsistent replay metadata.
 
 ::: scpn_control.core.differentiable_transport.differentiable_transport_step
 
@@ -108,6 +111,10 @@ equilibrium-grid shape for reproducible controller-tuning campaigns.
 ::: scpn_control.core.differentiable_transport.TransportCampaignMetadata
 
 ::: scpn_control.core.differentiable_transport.transport_campaign_metadata
+
+::: scpn_control.core.differentiable_transport.save_transport_campaign_metadata
+
+::: scpn_control.core.differentiable_transport.load_transport_campaign_metadata
 
 ::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
 
