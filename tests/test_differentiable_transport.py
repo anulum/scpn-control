@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 import numpy as np
 import pytest
 
@@ -207,6 +209,76 @@ def test_neural_transport_closure_maps_to_four_channel_coefficients():
     np.testing.assert_allclose(chi[2], np.maximum(closure.d_e, 1.0e-6))
     np.testing.assert_allclose(chi[3], np.maximum(0.4 * closure.d_e, 1.0e-6))
     assert np.all(np.isfinite(stepped))
+
+
+def test_transport_campaign_metadata_records_numerical_contract_and_closure_provenance():
+    rho = np.linspace(0.05, 1.0, 24)
+    profiles = _profiles(rho)
+    closure = neural_transport_closure_profiles(
+        rho,
+        profiles[0],
+        profiles[1],
+        profiles[2],
+        1.0 + 2.0 * rho**2,
+        0.5 + 1.5 * rho,
+        model=NeuralTransportModel(auto_discover=False),
+    )
+    chi = dt.transport_coefficients_from_neural_closure(closure, impurity_diffusivity_fraction=0.25)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    equilibrium_psi = np.tile(np.linspace(0.2, 1.0, rho.size), (7, 1))
+
+    metadata = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        np.zeros_like(profiles),
+        rho,
+        1.0e-3,
+        edge_values,
+        backend="numpy",
+        closure=closure,
+        gradient_tolerance=1.0e-7,
+        equilibrium_psi=equilibrium_psi,
+    )
+
+    assert isinstance(metadata, dt.TransportCampaignMetadata)
+    assert metadata.backend == "numpy"
+    assert metadata.dtype == "float64"
+    assert metadata.channel_order == dt.CHANNELS
+    assert metadata.n_rho == rho.size
+    assert metadata.rho_min == pytest.approx(float(rho[0]))
+    assert metadata.rho_max == pytest.approx(float(rho[-1]))
+    assert metadata.rho_spacing == pytest.approx(float(rho[1] - rho[0]))
+    assert metadata.dt == pytest.approx(1.0e-3)
+    assert metadata.core_boundary == "zero_gradient"
+    assert metadata.edge_boundary == "dirichlet"
+    assert metadata.edge_values == tuple(float(x) for x in edge_values)
+    assert metadata.closure_source == "analytic_fallback"
+    assert metadata.closure_weights_checksum is None
+    assert metadata.gradient_tolerance == pytest.approx(1.0e-7)
+    assert metadata.equilibrium_grid_shape == (7, rho.size)
+    assert asdict(metadata)["backend"] == "numpy"
+
+
+def test_transport_campaign_metadata_rejects_invalid_backend_and_tolerance():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    with pytest.raises(ValueError, match="backend"):
+        dt.transport_campaign_metadata(profiles, chi, sources, rho, 1.0e-3, edge_values, backend="")
+    with pytest.raises(ValueError, match="gradient_tolerance"):
+        dt.transport_campaign_metadata(
+            profiles,
+            chi,
+            sources,
+            rho,
+            1.0e-3,
+            edge_values,
+            backend="jax",
+            gradient_tolerance=0.0,
+        )
 
 
 def test_equilibrium_weighted_gradient_fails_closed_without_jax(monkeypatch):

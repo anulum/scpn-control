@@ -93,6 +93,9 @@ path is deterministic for parity checks and non-JAX deployments, but
 closure outputs into the four-channel coefficient order used by the facade:
 electron heat, ion heat, electron particle diffusivity, and a declared impurity
 diffusivity fraction.
+`transport_campaign_metadata()` records backend, dtype, radial grid, timestep,
+boundary conditions, closure provenance, gradient tolerance, and optional
+equilibrium-grid shape for reproducible controller-tuning campaigns.
 
 ::: scpn_control.core.differentiable_transport.differentiable_transport_step
 
@@ -101,6 +104,10 @@ diffusivity fraction.
 ::: scpn_control.core.differentiable_transport.transport_loss_gradient
 
 ::: scpn_control.core.differentiable_transport.transport_coefficients_from_neural_closure
+
+::: scpn_control.core.differentiable_transport.TransportCampaignMetadata
+
+::: scpn_control.core.differentiable_transport.transport_campaign_metadata
 
 ::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
 

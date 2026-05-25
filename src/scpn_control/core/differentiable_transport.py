@@ -48,6 +48,27 @@ class EquilibriumWeightedTransportGradient:
     radial_weights: np.ndarray
 
 
+@dataclass(frozen=True)
+class TransportCampaignMetadata:
+    """Validated provenance for a differentiable transport tuning campaign."""
+
+    backend: str
+    dtype: str
+    channel_order: tuple[str, ...]
+    n_rho: int
+    rho_min: float
+    rho_max: float
+    rho_spacing: float
+    dt: float
+    core_boundary: str
+    edge_boundary: str
+    edge_values: tuple[float, ...]
+    closure_source: str | None
+    closure_weights_checksum: str | None
+    gradient_tolerance: float | None
+    equilibrium_grid_shape: tuple[int, int] | None
+
+
 def has_jax() -> bool:
     """Return whether the differentiable JAX transport path is available."""
     return _HAS_JAX
@@ -168,6 +189,74 @@ def transport_coefficients_from_neural_closure(
         ]
     )
     return np.asarray(np.maximum(floor, coefficients), dtype=float)
+
+
+def transport_campaign_metadata(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    backend: str,
+    closure: Any | None = None,
+    gradient_tolerance: float | None = None,
+    equilibrium_psi: Any | None = None,
+) -> TransportCampaignMetadata:
+    """Return serialisable provenance for differentiable transport campaigns."""
+    backend_value = str(backend).strip().lower()
+    if backend_value not in {"numpy", "jax"}:
+        raise ValueError("backend must be either 'numpy' or 'jax'")
+    tolerance_value: float | None = None
+    if gradient_tolerance is not None:
+        tolerance_value = float(gradient_tolerance)
+        if not np.isfinite(tolerance_value) or tolerance_value <= 0.0:
+            raise ValueError("gradient_tolerance must be positive and finite")
+
+    profile_array, chi_array, source_array, rho_array, edge_array, _, _ = _validate_transport_inputs(
+        profiles,
+        chi,
+        sources,
+        rho,
+        dt,
+        edge_values,
+    )
+    dtype_name = np.result_type(
+        profile_array.dtype,
+        chi_array.dtype,
+        source_array.dtype,
+        rho_array.dtype,
+        edge_array.dtype,
+    ).name
+    closure_source: str | None = None
+    closure_weights_checksum: str | None = None
+    if closure is not None:
+        closure_source = str(closure.source)
+        checksum = closure.weights_checksum
+        closure_weights_checksum = None if checksum is None else str(checksum)
+    equilibrium_grid_shape: tuple[int, int] | None = None
+    if equilibrium_psi is not None:
+        psi_array = _validate_equilibrium_psi(equilibrium_psi)
+        equilibrium_grid_shape = (int(psi_array.shape[0]), int(psi_array.shape[1]))
+
+    return TransportCampaignMetadata(
+        backend=backend_value,
+        dtype=dtype_name,
+        channel_order=CHANNELS,
+        n_rho=int(rho_array.size),
+        rho_min=float(rho_array[0]),
+        rho_max=float(rho_array[-1]),
+        rho_spacing=float(rho_array[1] - rho_array[0]),
+        dt=float(dt),
+        core_boundary="zero_gradient",
+        edge_boundary="dirichlet",
+        edge_values=tuple(float(x) for x in edge_array),
+        closure_source=closure_source,
+        closure_weights_checksum=closure_weights_checksum,
+        gradient_tolerance=tolerance_value,
+        equilibrium_grid_shape=equilibrium_grid_shape,
+    )
 
 
 def _resolve_use_jax(
