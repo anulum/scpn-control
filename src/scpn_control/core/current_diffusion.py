@@ -40,6 +40,19 @@ def _require_strictly_increasing_rho(rho: np.ndarray, *, minimum_size: int = 3) 
     return rho_arr
 
 
+def _require_axis_to_edge_uniform_rho(rho: np.ndarray) -> np.ndarray:
+    """Return a uniform [0, 1] rho grid for finite-difference diffusion."""
+    rho_arr = _require_strictly_increasing_rho(rho, minimum_size=3)
+    if not np.isclose(rho_arr[0], 0.0, rtol=0.0, atol=1.0e-12):
+        raise ValueError("rho must start at 0 for current diffusion")
+    if not np.isclose(rho_arr[-1], 1.0, rtol=0.0, atol=1.0e-12):
+        raise ValueError("rho must end at 1 for current diffusion")
+    spacing = np.diff(rho_arr)
+    if not np.allclose(spacing, spacing[0], rtol=1.0e-10, atol=1.0e-12):
+        raise ValueError("rho must be uniformly spaced for the current-diffusion finite-difference stencil")
+    return rho_arr
+
+
 def coulomb_log(Te_keV: float, ne_19: float) -> float:
     """Temperature-dependent Coulomb logarithm ln_Λ.
 
@@ -126,8 +139,7 @@ def q_from_psi(rho: np.ndarray, psi: np.ndarray, R0: float, a: float, B0: float)
     B0 = _require_positive_scalar("B0", B0)
     nr = len(rho)
     q = np.zeros(nr)
-    drho = rho[1] - rho[0]
-    dpsi_drho = np.gradient(psi, drho)
+    dpsi_drho = np.gradient(psi, rho, edge_order=2)
 
     for i in range(1, nr):
         denom = R0 * dpsi_drho[i]
@@ -136,7 +148,7 @@ def q_from_psi(rho: np.ndarray, psi: np.ndarray, R0: float, a: float, B0: float)
         else:
             q[i] = -rho[i] * a**2 * B0 / denom
 
-    d2psi = (psi[2] - 2 * psi[1] + psi[0]) / (drho**2)
+    d2psi = np.gradient(dpsi_drho, rho, edge_order=2)[0]
     q[0] = -(a**2) * B0 / (R0 * d2psi) if abs(d2psi) > 1e-12 else q[1]
 
     np.abs(q, out=q)
@@ -161,10 +173,10 @@ def psi_from_q(rho: np.ndarray, q: np.ndarray, R0: float, a: float, B0: float) -
     R0 = _require_positive_scalar("R0", R0)
     a = _require_positive_scalar("minor radius a", a)
     B0 = _require_positive_scalar("B0", B0)
-    drho = rho[1] - rho[0]
     integrand = -rho * a**2 * B0 / (R0 * q)
     psi = np.zeros_like(rho)
     for i in range(1, len(rho)):
+        drho = rho[i] - rho[i - 1]
         psi[i] = psi[i - 1] + 0.5 * (integrand[i - 1] + integrand[i]) * drho
     psi -= psi[-1]  # ψ(edge) = 0
     return psi
@@ -193,19 +205,12 @@ class CurrentDiffusionSolver:
     """
 
     def __init__(self, rho: np.ndarray, R0: float, a: float, B0: float):
-        rho_arr = np.asarray(rho, dtype=float)
-        if rho_arr.ndim != 1 or rho_arr.size < 3:
-            raise ValueError("rho must be a one-dimensional grid with at least three points")
-        if not np.all(np.isfinite(rho_arr)):
-            raise ValueError("rho must contain only finite values")
-        if not np.all(np.diff(rho_arr) > 0.0):
-            raise ValueError("rho must be strictly increasing")
-        self.rho = rho_arr
+        self.rho = _require_axis_to_edge_uniform_rho(rho)
         self.R0 = _require_positive_scalar("R0", R0)
         self.a = _require_positive_scalar("minor radius a", a)
         self.B0 = _require_positive_scalar("B0", B0)
-        self.nr = len(rho_arr)
-        self.drho = rho_arr[1] - rho_arr[0]
+        self.nr = len(self.rho)
+        self.drho = self.rho[1] - self.rho[0]
 
         # Initialise ψ for q(0)=1, q(1)=3 (parabolic current profile)
         # ψ(ρ) = −∫₀^ρ ρ′ a² B₀ / (R₀ q(ρ′)) dρ′,  q(ρ) = 1 + 2ρ²

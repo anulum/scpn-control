@@ -182,6 +182,43 @@ def test_psi_from_q_roundtrip():
     assert np.allclose(q_back[5:], q_input[5:], rtol=0.1)
 
 
+def test_psi_q_roundtrip_on_nonuniform_flux_grid():
+    """q↔psi transforms must honour actual rho spacing, not assume uniform grids."""
+    uniform = np.linspace(0.0, 1.0, 96)
+    rho = uniform**1.6
+    q_input = 1.0 + 1.5 * rho + 0.4 * rho**2
+
+    psi_recon = psi_from_q(rho, q_input, R0=2.0, a=0.5, B0=1.0)
+    q_back = q_from_psi(rho, psi_recon, R0=2.0, a=0.5, B0=1.0)
+
+    assert psi_recon[-1] == pytest.approx(0.0, abs=1e-14)
+    assert np.all(np.isfinite(q_back))
+    assert np.all(q_back > 0.0)
+    np.testing.assert_allclose(q_back[4:-4], q_input[4:-4], rtol=2.5e-2, atol=2.5e-2)
+
+
+def test_nonuniform_q_from_psi_matches_analytic_constant_q():
+    uniform = np.linspace(0.0, 1.0, 96)
+    rho = uniform**1.7
+    R0, a, B0 = 2.0, 0.5, 1.0
+    psi = -(a**2) * B0 * rho**2 / (2.0 * R0)
+
+    q = q_from_psi(rho, psi, R0, a, B0)
+
+    np.testing.assert_allclose(q[4:-4], np.ones_like(q[4:-4]), rtol=2.5e-2, atol=2.5e-2)
+
+
+def test_nonuniform_psi_from_q_matches_analytic_constant_q():
+    uniform = np.linspace(0.0, 1.0, 96)
+    rho = uniform**1.7
+    R0, a, B0 = 2.0, 0.5, 1.0
+
+    psi = psi_from_q(rho, np.ones_like(rho), R0, a, B0)
+    expected = -(a**2) * B0 * (rho**2 - 1.0) / (2.0 * R0)
+
+    np.testing.assert_allclose(psi, expected, rtol=2.5e-3, atol=2.5e-3)
+
+
 def test_q_from_psi_rejects_invalid_flux_grid_domains():
     rho = np.linspace(0, 1, 5)
     psi = -(0.5**2) * rho**2 / (2.0 * 2.0)
@@ -241,3 +278,14 @@ def test_current_diffusion_step_rejects_invalid_time_and_profiles():
 
     with pytest.raises(ValueError, match="j_cd must have shape"):
         solver.step(1.0, Te, ne, 1.5, j, np.zeros(15))
+
+
+def test_current_diffusion_solver_rejects_nonuniform_or_non_normalised_rho():
+    with pytest.raises(ValueError, match="uniform"):
+        CurrentDiffusionSolver(np.array([0.0, 0.1, 0.4, 1.0]), R0=2.0, a=0.5, B0=1.0)
+
+    with pytest.raises(ValueError, match="start at 0"):
+        CurrentDiffusionSolver(np.linspace(0.1, 1.0, 8), R0=2.0, a=0.5, B0=1.0)
+
+    with pytest.raises(ValueError, match="end at 1"):
+        CurrentDiffusionSolver(np.linspace(0.0, 0.9, 8), R0=2.0, a=0.5, B0=1.0)
