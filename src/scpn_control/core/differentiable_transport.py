@@ -602,15 +602,17 @@ def transport_tracking_loss(
     allow_legacy_numpy_fallback: bool = False,
 ) -> Any:
     """Return weighted one-step transport tracking loss for controller tuning."""
-    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = _validate_transport_inputs(
-        profiles,
-        chi,
-        sources,
-        rho,
-        dt,
-        edge_values,
-        target_profiles=target_profiles,
-        weights=weights,
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
     )
     if target_array is None:
         raise ValueError("target_profiles is required")
@@ -674,15 +676,17 @@ def equilibrium_weighted_transport_tracking_loss(
     allow_legacy_numpy_fallback: bool = False,
 ) -> Any:
     """Return transport tracking loss weighted by GS-equilibrium flux geometry."""
-    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = _validate_transport_inputs(
-        profiles,
-        chi,
-        sources,
-        rho,
-        dt,
-        edge_values,
-        target_profiles=target_profiles,
-        weights=weights,
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
     )
     if target_array is None:
         raise ValueError("target_profiles is required")
@@ -727,15 +731,17 @@ def transport_loss_gradient(
     """Return the tracking loss and JAX gradient with respect to ``chi``."""
     if not _HAS_JAX or jax is None or jnp is None:
         raise RuntimeError("transport_loss_gradient requires JAX")
-    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = _validate_transport_inputs(
-        profiles,
-        chi,
-        sources,
-        rho,
-        dt,
-        edge_values,
-        target_profiles=target_profiles,
-        weights=weights,
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
     )
     if target_array is None:
         raise ValueError("target_profiles is required")
@@ -779,15 +785,17 @@ def equilibrium_weighted_transport_loss_gradient(
     """
     if not _HAS_JAX or jax is None or jnp is None:
         raise RuntimeError("equilibrium_weighted_transport_loss_gradient requires JAX")
-    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = _validate_transport_inputs(
-        profiles,
-        chi,
-        sources,
-        rho,
-        dt,
-        edge_values,
-        target_profiles=target_profiles,
-        weights=weights,
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
     )
     if target_array is None:
         raise ValueError("target_profiles is required")
