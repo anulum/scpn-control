@@ -47,6 +47,27 @@ def _finite_1d_grid(name: str, values: np.ndarray, *, minimum_size: int = 1) -> 
     return arr
 
 
+def _strictly_increasing_rho_grid(rho: np.ndarray) -> np.ndarray:
+    rho = _finite_1d_grid("rho", rho, minimum_size=2)
+    if np.any(np.diff(rho) < 0.0):
+        raise ValueError("rho must be sorted")
+    if np.any(np.diff(rho) <= 0.0):
+        raise ValueError("rho must be strictly increasing")
+    return rho
+
+
+def _uniform_axis_to_edge_rho_grid(rho: np.ndarray) -> np.ndarray:
+    rho = _strictly_increasing_rho_grid(rho)
+    if not np.isclose(rho[0], 0.0, rtol=0.0, atol=1e-12):
+        raise ValueError("rho must start at the magnetic axis")
+    if not np.isclose(rho[-1], 1.0, rtol=0.0, atol=1e-12):
+        raise ValueError("rho must end at the plasma edge")
+    spacing = np.diff(rho)
+    if not np.allclose(spacing, spacing[0], rtol=1e-10, atol=1e-12):
+        raise ValueError("rho must be uniformly spaced for the momentum finite-difference stencil")
+    return rho
+
+
 def nbi_torque(
     P_nbi_profile: np.ndarray,
     R0: float,
@@ -111,21 +132,15 @@ def exb_shearing_rate(
     """
     omega_phi = _finite_array("omega_phi", omega_phi)
     B_theta = _finite_array("B_theta", B_theta)
-    rho = _finite_array("rho", rho)
+    rho = _strictly_increasing_rho_grid(rho)
     _require_equal_shape("omega_phi, B_theta, and rho", omega_phi, B_theta, rho)
-    if len(rho) == 0:
-        raise ValueError("rho must not be empty")
-    if np.any(np.diff(rho) < 0.0):
-        raise ValueError("rho must be sorted")
-    if np.any(np.diff(rho) <= 0.0):
-        raise ValueError("rho must be strictly increasing")
     B0 = _finite_scalar("B0", B0)
     R0 = _finite_scalar("R0", R0)
     a = _finite_scalar("a", a)
     if B0 <= 0.0 or R0 <= 0.0 or a <= 0.0:
         raise ValueError("B0, R0, and a must be positive")
-    dr = (rho[1] - rho[0] if len(rho) > 1 else 0.1) * a
-    domega_dr = np.gradient(omega_phi, dr)
+    radius = rho * a
+    domega_dr = np.gradient(omega_phi, radius, edge_order=2)
     B_tot = np.sqrt(B0**2 + B_theta**2)
     rate = (R0 * B_theta / np.maximum(B_tot, 1e-6)) * domega_dr
     return np.asarray(np.abs(rate))
@@ -168,14 +183,8 @@ def radial_electric_field(
     Ti_keV = _finite_array("Ti_keV", Ti_keV)
     omega_phi = _finite_array("omega_phi", omega_phi)
     B_theta = _finite_array("B_theta", B_theta)
-    rho = _finite_array("rho", rho)
+    rho = _strictly_increasing_rho_grid(rho)
     _require_equal_shape("ne, Ti_keV, omega_phi, B_theta, and rho", ne, Ti_keV, omega_phi, B_theta, rho)
-    if len(rho) == 0:
-        raise ValueError("rho must not be empty")
-    if np.any(np.diff(rho) < 0.0):
-        raise ValueError("rho must be sorted")
-    if np.any(np.diff(rho) <= 0.0):
-        raise ValueError("rho must be strictly increasing")
     if np.any(ne <= 0.0) or np.any(Ti_keV < 0.0):
         raise ValueError("ne must be positive and Ti_keV must be non-negative")
     B0 = _finite_scalar("B0", B0)
@@ -186,8 +195,8 @@ def radial_electric_field(
     e_charge = 1.602e-19  # C
     p_i = ne * 1e19 * Ti_keV * 1e3 * e_charge
 
-    drho = rho[1] - rho[0] if len(rho) > 1 else 0.1
-    dp_dr = np.gradient(p_i, drho * a)
+    radius = rho * a
+    dp_dr = np.gradient(p_i, radius, edge_order=2)
 
     term1 = dp_dr / np.maximum(e_charge * ne * 1e19, 1e-6)
     term2 = R0 * omega_phi * B_theta  # v_φ B_θ
@@ -264,9 +273,7 @@ class MomentumTransportSolver:
         prandtl: float = PRANDTL_MOMENTUM,
     ) -> None:
         # prandtl = χ_φ / χ_i; Peeters et al. 2011, Nucl. Fusion 51, 083015, Fig. 5.
-        rho = _finite_1d_grid("rho", rho, minimum_size=2)
-        if np.any(np.diff(rho) <= 0.0):
-            raise ValueError("rho must be strictly increasing")
+        rho = _uniform_axis_to_edge_rho_grid(rho)
         R0 = _finite_scalar("R0", R0)
         a = _finite_scalar("a", a)
         B0 = _finite_scalar("B0", B0)

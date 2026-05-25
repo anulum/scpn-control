@@ -146,6 +146,37 @@ def test_exb_shear_positive() -> None:
     assert rate[25] > 0.0
 
 
+def test_exb_shearing_rate_uses_nonuniform_rho_coordinates() -> None:
+    uniform = np.linspace(0.0, 1.0, 96)
+    rho = uniform**1.6
+    a = 2.0
+    R0 = 6.2
+    B0 = 5.3
+    omega = 2.5e4 * (rho * a) ** 2
+    B_theta = np.ones_like(rho) * 0.45
+
+    rate = exb_shearing_rate(omega, B_theta, B0=B0, R0=R0, rho=rho, a=a)
+    B_tot = np.sqrt(B0**2 + B_theta**2)
+    expected = np.abs((R0 * B_theta / B_tot) * (5.0e4 * rho * a))
+
+    np.testing.assert_allclose(rate[4:-4], expected[4:-4], rtol=3.0e-2, atol=1.0e-8)
+
+
+def test_radial_electric_field_uses_nonuniform_rho_coordinates() -> None:
+    uniform = np.linspace(0.0, 1.0, 96)
+    rho = uniform**1.6
+    a = 2.0
+    ne = np.ones_like(rho) * 5.0
+    Ti = 8.0 - 0.5 * (rho * a) ** 2
+    omega = np.zeros_like(rho)
+    btheta = np.zeros_like(rho)
+
+    Er = radial_electric_field(ne, Ti, omega, btheta, B0=5.3, R0=6.2, rho=rho, a=a)
+    expected = -1.0 * rho * a * 1.0e3
+
+    np.testing.assert_allclose(Er[4:-4], expected[4:-4], rtol=3.0e-2, atol=1.0e-8)
+
+
 def test_nbi_torque_direction() -> None:
     # Co-injection (θ > 0) → positive torque; Stacey & Sigmar 1985, Phys. Fluids 28, 2800.
     P_nbi = np.ones(50) * 1e6
@@ -277,6 +308,8 @@ def test_momentum_solver_rejects_nonphysical_constructor_inputs() -> None:
         MomentumTransportSolver(np.array([0.0, np.nan, 1.0]), R0=6.2, a=2.0, B0=5.3)
     with pytest.raises(ValueError, match="prandtl"):
         MomentumTransportSolver(np.linspace(0, 1, 5), R0=6.2, a=2.0, B0=5.3, prandtl=float("nan"))
+    with pytest.raises(ValueError, match="uniform"):
+        MomentumTransportSolver(np.array([0.0, 0.1, 0.4, 1.0]), R0=6.2, a=2.0, B0=5.3)
 
 
 def test_momentum_solver_rejects_nonphysical_step_inputs() -> None:
