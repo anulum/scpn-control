@@ -24,6 +24,9 @@
   default and to persist the audit result with each coefficient update.
 - Added audited NMPC source-schedule tuning for additive heating, fuelling, and
   impurity-source controls with explicit finite source bounds.
+- Hardened SCPN formal verification with algebraic place-invariant proofs and
+  bounded temporal response and recurrence specifications over all bounded
+  firing paths.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.

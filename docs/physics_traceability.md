@@ -15,11 +15,11 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 ## Summary
 
 - Status: pass
-- Registry entries: 51
-- Open fidelity gaps: 50
-- Full-fidelity public claims blocked: 50
-- Resolved module paths: 51
-- Resolved evidence paths: 208
+- Registry entries: 52
+- Open fidelity gaps: 51
+- Full-fidelity public claims blocked: 51
+- Resolved module paths: 52
+- Resolved evidence paths: 212
 - External validation trackers: 8
 - Source marker coverage: 33/33
 
@@ -32,7 +32,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Neural surrogate validation artefacts: [#50](https://github.com/anulum/scpn-control/issues/50) — 3 open claim(s) — QLKNN, QuaLiKiz, gyrokinetic, transport, turbulence, and equilibrium surrogate reference datasets and weight provenance.
 - Plasma-control and facility replay artefacts: [#51](https://github.com/anulum/scpn-control/issues/51) — 11 open claim(s) — RZIP, RWM, free-boundary, density, digital twin, SOC learning, burn, volt-second, mu-synthesis, and reduced-plant replay evidence.
 - Disruption, halo-current, and mitigation benchmark artefacts: [#52](https://github.com/anulum/scpn-control/issues/52) — 3 open claim(s) — Measured disruption databases, labelled disruption windows, halo/runaway envelopes, wall contact, impurity radiation, and mitigation metadata.
-- Hardware, HDL, CODAC/EPICS, and runtime deployment evidence: [#53](https://github.com/anulum/scpn-control/issues/53) — 4 open claim(s) — Vivado, Quartus, Yosys, timing closure, simulator evidence, CODAC/EPICS timing, interlocks, backpressure, HIL replay, and runtime parity.
+- Hardware, HDL, CODAC/EPICS, and runtime deployment evidence: [#53](https://github.com/anulum/scpn-control/issues/53) — 5 open claim(s) — Vivado, Quartus, Yosys, timing closure, simulator evidence, CODAC/EPICS timing, interlocks, backpressure, HIL replay, and runtime parity.
 
 ## Module Traceability Table
 
@@ -50,6 +50,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 | `src/scpn_control/core/ntm_dynamics.py` | NTM dynamics claims must declare rational-surface search, rational-surface containment inside the minor radius, tokamak major/minor-radius ordering, modified Rutherford equation terms, bootstrap drive, polarisation and curvature terms, ECCD control coupling, seed-island assumptions, and controller-validity limits. | modified Rutherford equation NTM references; ECCD NTM control references; repository rational-surface and island-dynamics contract | Island width in metres, time in seconds, current in amperes, q dimensionless, rho dimensionless, ECCD power in MW or W with conversion metadata. | tests/test_ntm_dynamics.py; tests/test_cross_module_physics.py | validation_gap | [#49](https://github.com/anulum/scpn-control/issues/49) |
 | `src/scpn_control/control/rzip_model.py` | Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, tokamak major/minor-radius ordering, declared vertical inertia, wall-normalised feedback-gain threshold, and wall or active-coil circuit model. | Lazarus et al. 1990 rigid plasma vertical stability model; Wesson 2011 tokamak vertical stability and field-index references; Repository vessel circuit model contract | SI metres, seconds, amperes, henries, ohms, tesla, and dimensionless vertical field index; growth time is reported in milliseconds. | tests/test_rzip_model.py vertical growth, field-index, declared-inertia, feedback-gain, physical-parameter, and controller-measurement checks; tests/test_rzip_model.py RZIP fallback and singular-circuit checks; validation/validate_rzip_reference.py strict RZIP reference artifact gate | bounded_model | [#51](https://github.com/anulum/scpn-control/issues/51) |
 | `src/scpn_control/scpn/fpga_export.py` | FPGA-export claims must declare LIF fixed-point quantisation, leak right-shift approximation, threshold scaling, signed weight saturation, generated HDL boundary, target family assumptions, and synthesis-tool responsibility. | Repository SCPN compiler and fixed-point export contract; Leaky integrate-and-fire digital implementation contract | Fixed-point values use declared bit width and fractional-bit scale; clock in MHz, timestep in seconds, FIFO depth and neuron counts dimensionless, weights and thresholds quantised by explicit integer scale. | tests/test_fpga_export.py; tests/test_scpn_compiler.py | bounded_model | [#53](https://github.com/anulum/scpn-control/issues/53) |
+| `src/scpn_control/scpn/formal_verification.py` | Formal verification claims must declare the compiled Petri-net transition relation, exact bounded reachability depth, rational marking arithmetic, marking-bound safety obligations, algebraic place-invariant weights, transition liveness obligations, bounded temporal response and recurrence specifications, inhibitor-arc semantics, and counterexample path reporting. | Petri-net reachability and P-invariant analysis; bounded temporal logic over finite transition systems; repository SCPN compiler transition-relation contract | Markings are dimensionless token densities; arc weights and invariant weights are rationalised from finite decimal inputs; max_depth is a non-negative integer firing bound; temporal response windows count transition firings. | tests/test_scpn_formal_verification.py exact reachability, marking bounds, transition liveness, algebraic place invariants, all-path bounded response, recurrence, counterexample, and invalid-domain checks; src/scpn_control/scpn/formal_verification.py exact explicit-state finite transition relation over rational markings | bounded_model | [#53](https://github.com/anulum/scpn-control/issues/53) |
 | `src/scpn_control/core/vmec_lite.py` | VMEC-lite claims must declare flux-surface parameterisation, rotational-transform profile, Fourier mode truncation, positive R00 major-radius boundary state, pressure/current assumptions, residual metric, and explicit exclusion from full 3D MHD equilibrium claims. | VMEC 3D equilibrium references; stellarator flux-surface Fourier parameterisation references | SI metres, tesla, pascals, amperes, webers, dimensionless rotational transform, and Fourier coefficients with declared length units. | tests/test_vmec_lite.py; validation/validate_vmec_reference.py strict VMEC reference artifact gate | validation_gap | [#48](https://github.com/anulum/scpn-control/issues/48) |
 | `src/scpn_control/control/advanced_soc_fusion_learning.py` | SOC turbulence-learning claims must declare the sandpile lattice, critical-gradient threshold, predator-prey zonal-flow coupling, shear-suppression term, bounded substep relaxation, Q-learning state discretisation, action set, and random policy assumptions. | Diamond and Hahm 1995 SOC turbulence reference; Kim and Diamond 2003 zonal-flow predator-prey coupling; Biglari, Diamond and Terry 1990 shear-suppression reference | Dimensionless lattice gradients, flow amplitudes, shear, toppling counts, Q-table values, reward, and RNG-seeded action choices. | tests/test_advanced_soc.py SOC physics and learning checks; tests/test_advanced_soc_verbose_plot.py verbose and plotting-path checks; tests/test_visualization_paths.py SOC visualisation checks; validation/validate_soc_reference.py strict reference-artifact gate | bounded_model | [#51](https://github.com/anulum/scpn-control/issues/51) |
 | `src/scpn_control/core/current_drive.py` | Current-drive claims must declare ECCD, LHCD, and NBI source powers, radial deposition centres and widths, grid-normalised deposition conservation, density and temperature normalisation, Fisch-Boozer or Fisch efficiency coefficients, Prater launch-angle factor, Stix slowing-down time and critical energy for NBI, and the absence of ray-tracing or Fokker-Planck facility validation. | Fisch and Boozer 1980 electron-cyclotron current-drive efficiency; Prater 2004 ECCD launch-angle efficiency scaling; Fisch 1978 lower-hybrid current-drive efficiency; Stix 1972 neutral-beam slowing-down and critical-energy formulae; Ehst and Karney 1991 neutral-beam current-drive model | Power in MW or W with explicit conversion, rho dimensionless, density in 10^19 m^-3, temperatures and beam energy in keV, current density in A/m^2, total current in amperes, efficiency coefficients in declared normalised A/W form. | tests/test_current_drive.py verifies ECCD, LHCD, and NBI finite-width deposition power conservation, efficiency scaling, slowing-down time, critical energy, source superposition, and total-current integration | bounded_model | [#49](https://github.com/anulum/scpn-control/issues/49) |
@@ -223,6 +224,18 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Run generated HDL through real Vivado, Quartus, or Yosys synthesis before hardware readiness claims
   - Persist resource utilisation, timing closure, and bit-accurate simulator evidence for every supported target family
+
+### SCPN formal Petri-net verification contract
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/scpn/formal_verification.py`
+- Full-fidelity public claim: blocked
+- External validation tracker: [#53](https://github.com/anulum/scpn-control/issues/53) — Hardware, HDL, CODAC/EPICS, and runtime deployment evidence
+- Covered source paths: 1
+- Required actions:
+  - Persist formal verification reports with every safety-critical compiled controller artifact
+  - Validate certification packages with an external safety-case review before hardware-control claims
+  - Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted
 
 ### VMEC-lite stellarator equilibrium approximation contract
 

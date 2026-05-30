@@ -283,9 +283,15 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.verify_formal_contracts
 
+::: scpn_control.scpn.formal_verification.PlaceInvariant
+
 ::: scpn_control.scpn.formal_verification.AlwaysBounded
 
+::: scpn_control.scpn.formal_verification.AlwaysEventuallyMarked
+
 ::: scpn_control.scpn.formal_verification.EventuallyFires
+
+::: scpn_control.scpn.formal_verification.FireLeadsToMarking
 
 ::: scpn_control.scpn.formal_verification.NeverCoMarked
 

@@ -86,6 +86,20 @@ class FormalVerificationReport:
 
 
 @dataclass(frozen=True)
+class PlaceInvariant:
+    """Algebraic P-invariant over named places.
+
+    The verifier proves that ``sum(weights[p] * marking[p])`` is unchanged by
+    every transition and then checks the bounded reachable graph against the
+    same invariant value. This is a structural proof obligation, not a sampled
+    simulation assertion.
+    """
+
+    name: str
+    weights: dict[str, float]
+
+
+@dataclass(frozen=True)
 class AlwaysBounded:
     """Temporal safety spec: all reachable markings keep named places in bounds."""
 
@@ -111,8 +125,31 @@ class NeverCoMarked:
     threshold: float = 0.0
 
 
+@dataclass(frozen=True)
+class AlwaysEventuallyMarked:
+    """Bounded recurrence spec: every reachable path can reach a marked place."""
+
+    name: str
+    place: str
+    threshold: float = 0.0
+
+
+@dataclass(frozen=True)
+class FireLeadsToMarking:
+    """Bounded response spec: a transition firing is followed by a marked place."""
+
+    name: str
+    trigger_transition: str
+    target_place: str
+    threshold: float = 0.0
+    within: int = 1
+
+
 def _as_fraction(value: float) -> Fraction:
-    return Fraction(str(float(value)))
+    value_float = float(value)
+    if not value_float == value_float or value_float in {float("inf"), float("-inf")}:
+        raise ValueError("formal verification numeric values must be finite")
+    return Fraction(str(value_float))
 
 
 def _as_float_marking(place_names: list[str], values: tuple[Fraction, ...]) -> dict[str, float]:
@@ -162,6 +199,7 @@ class FormalPetriNetVerifier:
 
     def analyze_reachability(self, *, max_depth: int) -> ReachabilityReport:
         """Enumerate all markings reachable within ``max_depth`` firings."""
+        self._validate_max_depth(max_depth)
         states = self._reachable_state_map(max_depth=max_depth)
         reachable = [ReachableMarking(_as_float_marking(self.place_names, marking), path) for marking, path in states]
         fired = {transition for _marking, path in states for transition in path}
@@ -180,6 +218,7 @@ class FormalPetriNetVerifier:
         max_depth: int,
     ) -> FormalPropertyReport:
         """Prove that all reachable markings satisfy per-place bounds."""
+        self._validate_max_depth(max_depth)
         self._validate_bounds(bounds)
         violations: list[FormalViolation] = []
         fractional_bounds = {
@@ -206,8 +245,70 @@ class FormalPetriNetVerifier:
                     )
         return FormalPropertyReport(holds=True, backend=self.backend, max_depth=max_depth)
 
+    def prove_place_invariants(
+        self,
+        invariants: list[PlaceInvariant],
+        *,
+        max_depth: int,
+    ) -> FormalPropertyReport:
+        """Prove algebraic place invariants and bounded reachable consistency."""
+        self._validate_max_depth(max_depth)
+        if not invariants:
+            raise ValueError("place invariants must not be empty")
+        states = self._reachable_state_map(max_depth=max_depth)
+        checked: list[str] = []
+        violations: list[FormalViolation] = []
+        for invariant in invariants:
+            checked.append(invariant.name)
+            weights = self._validate_invariant_weights(invariant)
+            initial_value = self._invariant_value(self._initial, weights)
+            for transition in self.transition_names:
+                delta = self._transition_invariant_delta(transition, weights)
+                if delta != 0:
+                    violations.append(
+                        FormalViolation(
+                            property_name=invariant.name,
+                            message=(
+                                f"transition {transition!r} changes invariant {invariant.name!r} by {float(delta):.12g}"
+                            ),
+                            marking=_as_float_marking(self.place_names, self._initial),
+                            path=[],
+                            transition=transition,
+                        )
+                    )
+                    return FormalPropertyReport(
+                        holds=False,
+                        backend=self.backend,
+                        max_depth=max_depth,
+                        violations=violations,
+                        checked_specs=checked,
+                    )
+            for marking, path in states:
+                value = self._invariant_value(marking, weights)
+                if value != initial_value:
+                    violations.append(
+                        FormalViolation(
+                            property_name=invariant.name,
+                            message=(
+                                f"reachable marking changes invariant {invariant.name!r}: "
+                                f"{float(value):.12g} != {float(initial_value):.12g}"
+                            ),
+                            marking=_as_float_marking(self.place_names, marking),
+                            path=path,
+                        )
+                    )
+                    return FormalPropertyReport(
+                        holds=False,
+                        backend=self.backend,
+                        max_depth=max_depth,
+                        violations=violations,
+                        checked_specs=checked,
+                    )
+        return FormalPropertyReport(holds=True, backend=self.backend, max_depth=max_depth, checked_specs=checked)
+
     def prove_transition_liveness(self, *, max_depth: int) -> FormalPropertyReport:
         """Prove bounded transition liveness by checking every transition fires on some path."""
+        self._validate_max_depth(max_depth)
         reachability = self.analyze_reachability(max_depth=max_depth)
         dead = set(self.transition_names) - reachability.fired_transitions
         if not dead:
@@ -232,12 +333,14 @@ class FormalPetriNetVerifier:
 
     def verify_temporal_specs(
         self,
-        specs: list[AlwaysBounded | EventuallyFires | NeverCoMarked],
+        specs: list[AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking],
         *,
         max_depth: int,
     ) -> FormalPropertyReport:
         """Verify bounded temporal safety/liveness specifications."""
+        self._validate_max_depth(max_depth)
         states = self._reachable_state_map(max_depth=max_depth)
+        paths = self._reachable_path_tree(max_depth=max_depth)
         checked: list[str] = []
         violations: list[FormalViolation] = []
 
@@ -292,6 +395,60 @@ class FormalPetriNetVerifier:
                         break
                 if violations:
                     break
+            elif isinstance(spec, AlwaysEventuallyMarked):
+                self._require_place(spec.place)
+                threshold = _as_fraction(spec.threshold)
+                p_idx = self._place_index[spec.place]
+                for marking, path in paths:
+                    if marking[p_idx] > threshold:
+                        continue
+                    remaining_depth = max_depth - len(path)
+                    descendants = self._reachable_path_tree_from(marking, path, max_depth=remaining_depth)
+                    if not any(desc_marking[p_idx] > threshold for desc_marking, _desc_path in descendants):
+                        violations.append(
+                            FormalViolation(
+                                property_name=spec.name,
+                                message=(
+                                    f"place {spec.place!r} is not inevitably recoverable above "
+                                    f"{float(threshold):.12g} within remaining depth {remaining_depth}"
+                                ),
+                                marking=_as_float_marking(self.place_names, marking),
+                                path=path,
+                                place=spec.place,
+                            )
+                        )
+                        break
+                if violations:
+                    break
+            elif isinstance(spec, FireLeadsToMarking):
+                self._require_transition(spec.trigger_transition)
+                self._require_place(spec.target_place)
+                if isinstance(spec.within, bool) or int(spec.within) != spec.within or spec.within < 0:
+                    raise ValueError("FireLeadsToMarking.within must be an integer >= 0")
+                threshold = _as_fraction(spec.threshold)
+                p_idx = self._place_index[spec.target_place]
+                for marking, path in paths:
+                    if not path or path[-1] != spec.trigger_transition:
+                        continue
+                    descendants = self._reachable_path_tree_from(marking, path, max_depth=int(spec.within))
+                    if not any(desc_marking[p_idx] > threshold for desc_marking, _desc_path in descendants):
+                        violations.append(
+                            FormalViolation(
+                                property_name=spec.name,
+                                message=(
+                                    f"transition {spec.trigger_transition!r} is not followed by "
+                                    f"place {spec.target_place!r} above {float(threshold):.12g} "
+                                    f"within {int(spec.within)} firings"
+                                ),
+                                marking=_as_float_marking(self.place_names, marking),
+                                path=path,
+                                transition=spec.trigger_transition,
+                                place=spec.target_place,
+                            )
+                        )
+                        break
+                if violations:
+                    break
             else:
                 raise TypeError(f"unsupported temporal specification: {type(spec).__name__}")
 
@@ -304,8 +461,7 @@ class FormalPetriNetVerifier:
         )
 
     def _reachable_state_map(self, *, max_depth: int) -> list[tuple[tuple[Fraction, ...], list[str]]]:
-        if max_depth < 0:
-            raise ValueError("max_depth must be non-negative")
+        self._validate_max_depth(max_depth)
         visited: dict[tuple[Fraction, ...], list[str]] = {self._initial: []}
         queue: deque[tuple[tuple[Fraction, ...], list[str]]] = deque([(self._initial, [])])
         while queue:
@@ -320,6 +476,32 @@ class FormalPetriNetVerifier:
                 visited[next_marking] = next_path
                 queue.append((next_marking, next_path))
         return list(visited.items())
+
+    def _reachable_path_tree(self, *, max_depth: int) -> list[tuple[tuple[Fraction, ...], list[str]]]:
+        return self._reachable_path_tree_from(self._initial, [], max_depth=max_depth)
+
+    def _reachable_path_tree_from(
+        self,
+        marking: tuple[Fraction, ...],
+        path: list[str],
+        *,
+        max_depth: int,
+    ) -> list[tuple[tuple[Fraction, ...], list[str]]]:
+        self._validate_max_depth(max_depth)
+        states: list[tuple[tuple[Fraction, ...], list[str]]] = [(marking, path)]
+        queue: deque[tuple[tuple[Fraction, ...], list[str], int]] = deque([(marking, path, 0)])
+        while queue:
+            current, current_path, depth = queue.popleft()
+            if depth >= max_depth:
+                continue
+            for transition in self.transition_names:
+                next_marking = self._fire_if_enabled(current, transition)
+                if next_marking is None:
+                    continue
+                next_path = [*current_path, transition]
+                states.append((next_marking, next_path))
+                queue.append((next_marking, next_path, depth + 1))
+        return states
 
     def _fire_if_enabled(self, marking: tuple[Fraction, ...], transition: str) -> tuple[Fraction, ...] | None:
         t_idx = self._transition_index[transition]
@@ -367,6 +549,38 @@ class FormalPetriNetVerifier:
             self._require_place(place)
             if lower > upper:
                 raise ValueError(f"lower bound exceeds upper bound for place {place!r}")
+            _as_fraction(lower)
+            _as_fraction(upper)
+
+    def _validate_invariant_weights(self, invariant: PlaceInvariant) -> dict[int, Fraction]:
+        if not invariant.name:
+            raise ValueError("place invariant name must not be empty")
+        if not invariant.weights:
+            raise ValueError(f"place invariant {invariant.name!r} must include at least one place weight")
+        weights: dict[int, Fraction] = {}
+        for place, weight in invariant.weights.items():
+            self._require_place(place)
+            weights[self._place_index[place]] = _as_fraction(weight)
+        if all(weight == 0 for weight in weights.values()):
+            raise ValueError(f"place invariant {invariant.name!r} must not be identically zero")
+        return weights
+
+    def _invariant_value(self, marking: tuple[Fraction, ...], weights: dict[int, Fraction]) -> Fraction:
+        return sum((weight * marking[p_idx] for p_idx, weight in weights.items()), Fraction(0))
+
+    def _transition_invariant_delta(self, transition: str, weights: dict[int, Fraction]) -> Fraction:
+        t_idx = self._transition_index[transition]
+        delta = Fraction(0)
+        for p_idx, weight in self._inputs[t_idx].items():
+            delta -= weights.get(p_idx, Fraction(0)) * weight
+        for p_idx, weight in self._outputs[t_idx].items():
+            delta += weights.get(p_idx, Fraction(0)) * weight
+        return delta
+
+    @staticmethod
+    def _validate_max_depth(max_depth: int) -> None:
+        if isinstance(max_depth, bool) or int(max_depth) != max_depth or max_depth < 0:
+            raise ValueError("max_depth must be an integer >= 0")
 
     def _require_place(self, place: str) -> None:
         if place not in self._place_index:
@@ -382,7 +596,8 @@ def verify_formal_contracts(
     *,
     max_depth: int,
     marking_bounds: dict[str, tuple[float, float]],
-    temporal_specs: list[AlwaysBounded | EventuallyFires | NeverCoMarked] | None = None,
+    temporal_specs: list[AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking]
+    | None = None,
     backend: FormalBackend = "auto",
 ) -> FormalVerificationReport:
     """Run reachability, marking-bound, liveness, and temporal proof obligations."""

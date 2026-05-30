@@ -1550,6 +1550,39 @@
       "external_validation_tracker_issue": 53
     },
     {
+      "component": "SCPN formal Petri-net verification contract",
+      "equation_contract": "Formal verification claims must declare the compiled Petri-net transition relation, exact bounded reachability depth, rational marking arithmetic, marking-bound safety obligations, algebraic place-invariant weights, transition liveness obligations, bounded temporal response and recurrence specifications, inhibitor-arc semantics, and counterexample path reporting.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Petri-net reachability and P-invariant analysis",
+        "bounded temporal logic over finite transition systems",
+        "repository SCPN compiler transition-relation contract"
+      ],
+      "module_path": "src/scpn_control/scpn/formal_verification.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Persist formal verification reports with every safety-critical compiled controller artifact",
+        "Validate certification packages with an external safety-case review before hardware-control claims",
+        "Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted"
+      ],
+      "unit_contract": "Markings are dimensionless token densities; arc weights and invariant weights are rationalised from finite decimal inputs; max_depth is a non-negative integer firing bound; temporal response windows count transition firings.",
+      "validation_evidence": [
+        "tests/test_scpn_formal_verification.py exact reachability, marking bounds, transition liveness, algebraic place invariants, all-path bounded response, recurrence, counterexample, and invalid-domain checks",
+        "src/scpn_control/scpn/formal_verification.py exact explicit-state finite transition relation over rational markings"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/scpn/formal_verification.py",
+        "tests/test_scpn_formal_verification.py",
+        "docs/api.md",
+        "docs/use_cases.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/scpn/formal_verification.py"
+      ],
+      "validity_domain": "Exact bounded Petri-net control-logic verification for compiled finite SCPN graphs; not a full plant PCS certification, stochastic runtime proof, FPGA timing proof, or unbounded model-checking claim.",
+      "external_validation_tracker_issue": 53
+    },
+    {
       "component": "SCPN FPGA fixed-point export boundary",
       "equation_contract": "FPGA-export claims must declare LIF fixed-point quantisation, leak right-shift approximation, threshold scaling, signed weight saturation, generated HDL boundary, target family assumptions, and synthesis-tool responsibility.",
       "fidelity_status": "bounded_model",
