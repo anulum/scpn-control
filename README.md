@@ -30,6 +30,24 @@ contract-based pre/post-condition checking. Extracted from
 source modules, 264 test files, **3,700+ collected Python tests**, 5 Rust crates, and a 20-job CI matrix.
 Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native linear eigenvalue, native TGLF-equivalent (SAT0/SAT1/SAT2), nonlinear δf GK (5D Vlasov, JAX-accelerable).
 
+## Relationship to SCPN Fusion Core
+
+`scpn-control` is the compact control package in the SCPN ecosystem. It keeps
+the controller-facing surfaces small enough for installation, CI, replay, and
+hardware-in-the-loop work: Petri-net compilation, SNN controllers, NMPC,
+runtime contracts, differentiable tuning facades, fail-closed adapters, and
+bounded validation reports.
+
+[`scpn-fusion-core`](https://github.com/anulum/scpn-fusion-core) is the broader
+physics and research suite. It carries the wider solver laboratory: extended
+equilibrium and transport models, gyrokinetic workflows, 3D and stellarator
+surfaces, Rust/polyglot kernels, neural surrogates, and high-volume validation
+or benchmark campaigns.
+
+The two projects are developed together. Physics kernels and broad solver
+experiments mature in `scpn-fusion-core`; `scpn-control` exposes control-grade
+facades and replay-safe contracts for the subset needed in controller loops.
+
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
 > See [competitive analysis](docs/competitive_analysis.md) for full benchmarks
