@@ -89,6 +89,9 @@ Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib 
 Requires `pip install "scpn-control[jax]"` for gradient evaluation. The NumPy
 path is deterministic for parity checks and non-JAX deployments, but
 `transport_loss_gradient()` fails closed without JAX.
+`transport_parameter_gradients()` extends the same traced Crank-Nicolson
+contract to source schedules, returning JAX gradients for both transport
+coefficients and additive heating, fuelling, or impurity-source inputs.
 `transport_coefficients_from_neural_closure()` maps bounded neural transport
 closure outputs into the four-channel coefficient order used by the facade:
 electron heat, ion heat, electron particle diffusivity, and a declared impurity
@@ -108,6 +111,10 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 ::: scpn_control.core.differentiable_transport.transport_tracking_loss
 
 ::: scpn_control.core.differentiable_transport.transport_loss_gradient
+
+::: scpn_control.core.differentiable_transport.transport_parameter_gradients
+
+::: scpn_control.core.differentiable_transport.TransportParameterGradients
 
 ::: scpn_control.core.differentiable_transport.transport_coefficients_from_neural_closure
 

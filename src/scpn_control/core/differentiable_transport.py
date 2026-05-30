@@ -52,6 +52,15 @@ class EquilibriumWeightedTransportGradient:
 
 
 @dataclass(frozen=True)
+class TransportParameterGradients:
+    """JAX gradients of transport tracking loss for tunable transport inputs."""
+
+    loss: float
+    chi_gradient: np.ndarray
+    source_gradient: np.ndarray
+
+
+@dataclass(frozen=True)
 class TransportCampaignMetadata:
     """Validated provenance for a differentiable transport tuning campaign."""
 
@@ -762,6 +771,69 @@ def transport_loss_gradient(
 
     loss, gradient = jax.value_and_grad(loss_for_chi)(jnp.asarray(chi_array, dtype=jnp.float64))
     return float(np.asarray(loss)), np.asarray(gradient)
+
+
+def transport_parameter_gradients(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+) -> TransportParameterGradients:
+    """Return JAX gradients with respect to ``chi`` and source schedules.
+
+    This is the controller-tuning primitive for differentiable auxiliary
+    heating, fuelling, and impurity-source schedules.  It keeps the same
+    four-channel Crank-Nicolson, source-term, core zero-gradient, and edge
+    Dirichlet contracts as :func:`differentiable_transport_step`; unlike
+    :func:`transport_loss_gradient`, it exposes gradients for both turbulent
+    transport coefficients and additive source terms.
+    """
+    if not _HAS_JAX or jax is None or jnp is None:
+        raise RuntimeError("transport_parameter_gradients requires JAX")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_profiles is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+
+    def loss_for_chi_and_sources(chi_candidate: Any, source_candidate: Any) -> Any:
+        return _tracking_loss_jax(
+            profile_array,
+            chi_candidate,
+            source_candidate,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            weight_array,
+        )
+
+    loss, gradients = jax.value_and_grad(loss_for_chi_and_sources, argnums=(0, 1))(
+        jnp.asarray(chi_array, dtype=jnp.float64),
+        jnp.asarray(source_array, dtype=jnp.float64),
+    )
+    chi_gradient, source_gradient = gradients
+    return TransportParameterGradients(
+        loss=float(np.asarray(loss)),
+        chi_gradient=np.asarray(chi_gradient),
+        source_gradient=np.asarray(source_gradient),
+    )
 
 
 def equilibrium_weighted_transport_loss_gradient(

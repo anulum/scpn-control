@@ -772,7 +772,7 @@
     },
     {
       "component": "differentiable transport facade contract",
-      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradient target, neural-closure coefficient mapping, campaign provenance metadata, schema-versioned replay metadata, and optional Grad-Shafranov flux-map radial weighting contract.",
+      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient and source-schedule gradient targets, neural-closure coefficient mapping, campaign provenance metadata, schema-versioned replay metadata, and optional Grad-Shafranov flux-map radial weighting contract.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "repository JAX transport primitive contract",
@@ -788,7 +788,7 @@
       ],
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced.",
       "validation_evidence": [
-        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX-gradient, neural-closure coefficient mapping, campaign metadata provenance, schema-versioned replay metadata, replay-drift guard, and equilibrium-weighted GS-flux checks",
+        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX coefficient-gradient, source-schedule-gradient, neural-closure coefficient mapping, campaign metadata provenance, schema-versioned replay metadata, replay-drift guard, and equilibrium-weighted GS-flux checks",
         "tests/test_nmpc_controller.py NMPC neural-closure tuning fails closed without JAX",
         "tests/test_nmpc_controller.py NMPC transport tuning result carries campaign and closure provenance metadata"
       ],

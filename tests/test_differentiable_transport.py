@@ -101,6 +101,19 @@ def test_gradient_api_fails_closed_without_jax(monkeypatch):
         dt.transport_loss_gradient(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
 
 
+def test_transport_parameter_gradients_fail_closed_without_jax(monkeypatch):
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    monkeypatch.setattr(dt, "_HAS_JAX", False)
+
+    with pytest.raises(RuntimeError, match="transport_parameter_gradients requires JAX"):
+        dt.transport_parameter_gradients(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
+
+
 @pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
 def test_transport_loss_gradient_is_finite_with_jax():
     rho = np.linspace(0.05, 1.0, 24)
@@ -135,6 +148,45 @@ def test_transport_loss_gradient_is_finite_with_jax():
     assert gradient.shape == chi.shape
     assert np.all(np.isfinite(gradient))
     assert np.any(np.abs(gradient) > 0.0)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_transport_parameter_gradients_include_source_schedule_sensitivity():
+    rho = np.linspace(0.05, 1.0, 24)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.20 + 0.02 * rho,
+            0.16 + 0.02 * rho,
+            0.04 + 0.005 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    target[0, 7:15] += 0.03
+    target[2, 5:12] += 0.02
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    result = dt.transport_parameter_gradients(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        weights=np.array([1.0, 0.5, 0.25, 0.1]),
+    )
+
+    assert isinstance(result, dt.TransportParameterGradients)
+    assert np.isfinite(result.loss)
+    assert result.chi_gradient.shape == chi.shape
+    assert result.source_gradient.shape == sources.shape
+    assert np.all(np.isfinite(result.chi_gradient))
+    assert np.all(np.isfinite(result.source_gradient))
+    assert np.any(np.abs(result.chi_gradient) > 0.0)
+    assert np.any(np.abs(result.source_gradient) > 0.0)
 
 
 def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():
