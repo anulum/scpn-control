@@ -17,6 +17,9 @@
 - Added differentiable transport source-schedule gradients so controller
   tuning can optimise additive heating, fuelling, and impurity-source inputs
   through the same JAX Crank-Nicolson facade as transport coefficients.
+- Added a differentiable transport gradient audit that compares JAX transport
+  coefficient and source-schedule gradients against sampled finite-difference
+  perturbations before controller-tuning admission.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.

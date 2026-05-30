@@ -189,6 +189,64 @@ def test_transport_parameter_gradients_include_source_schedule_sensitivity():
     assert np.any(np.abs(result.source_gradient) > 0.0)
 
 
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_transport_parameter_gradient_audit_matches_finite_difference_contract():
+    rho = np.linspace(0.05, 1.0, 21)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.18 + 0.02 * rho,
+            0.15 + 0.02 * rho,
+            0.04 + 0.004 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    sources = np.zeros_like(profiles)
+    sources[0, 4:8] = 0.03
+    sources[2, 7:11] = -0.01
+    target = profiles.copy()
+    target[0, 6:13] += 0.02
+    target[1, 5:12] -= 0.015
+    target[2, 4:10] += 0.01
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    audit = dt.assert_transport_parameter_gradients_consistent(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        8.0e-4,
+        edge_values,
+        weights=np.array([1.0, 0.75, 0.25, 0.1]),
+        epsilon=5.0e-5,
+        tolerance=2.0e-3,
+        sample_indices=((0, 5), (1, 10), (2, 7), (3, 12)),
+    )
+
+    assert isinstance(audit, dt.TransportGradientAudit)
+    assert audit.passed
+    assert audit.loss >= 0.0
+    assert audit.checked_indices == ((0, 5), (1, 10), (2, 7), (3, 12))
+    assert audit.chi_max_abs_error <= audit.tolerance
+    assert audit.source_max_abs_error <= audit.tolerance
+
+
+def test_transport_parameter_gradient_audit_rejects_invalid_admission_contract(monkeypatch):
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    monkeypatch.setattr(dt, "_HAS_JAX", False)
+
+    with pytest.raises(ValueError, match="epsilon"):
+        dt.audit_transport_parameter_gradients(profiles, chi, sources, target, rho, 1.0e-3, edge_values, epsilon=0.0)
+    with pytest.raises(RuntimeError, match="transport_parameter_gradients requires JAX"):
+        dt.audit_transport_parameter_gradients(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
+
+
 def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():
     rho = np.linspace(0.05, 1.0, 24)
     profiles = _profiles(rho)
