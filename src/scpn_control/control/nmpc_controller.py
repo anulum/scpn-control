@@ -34,8 +34,10 @@ from scpn_control.core.differentiable_transport import (
 from scpn_control.core.differentiable_transport import (
     TransportCampaignMetadata,
     TransportGradientAudit,
+    TransportParameterGradients,
     assert_transport_parameter_gradients_consistent,
     transport_loss_gradient,
+    transport_parameter_gradients,
     transport_coefficients_from_neural_closure,
     transport_campaign_metadata,
 )
@@ -109,6 +111,29 @@ class TransportCoefficientTuningResult:
     step_norm: float
     metadata: TransportCampaignMetadata
     gradient_audit: TransportGradientAudit | None
+
+
+@dataclass(frozen=True)
+class TransportSourceScheduleTuningResult:
+    """Result of a gradient-based transport source-schedule tuning step."""
+
+    loss: float
+    gradient: np.ndarray
+    updated_sources: np.ndarray
+    step_norm: float
+    metadata: TransportCampaignMetadata
+    gradient_audit: TransportGradientAudit | None
+
+
+def _optional_finite_array_bound(name: str, value: object, shape: tuple[int, ...]) -> np.ndarray | None:
+    if value is None:
+        return None
+    arr = np.asarray(value, dtype=np.float64)
+    if arr.shape == ():
+        arr = np.full(shape, float(arr), dtype=np.float64)
+    if arr.shape != shape or not np.all(np.isfinite(arr)):
+        raise ValueError(f"{name} must be finite and broadcastable to source shape.")
+    return arr
 
 
 def tune_transport_coefficients_for_tracking(
@@ -210,6 +235,118 @@ def tune_transport_coefficients_for_tracking(
         loss=float(loss),
         gradient=gradient_array,
         updated_chi=updated_chi,
+        step_norm=step_norm,
+        metadata=metadata,
+        gradient_audit=gradient_audit,
+    )
+
+
+def tune_transport_sources_for_tracking(
+    profiles: np.ndarray,
+    chi: np.ndarray,
+    sources: np.ndarray,
+    target_profiles: np.ndarray,
+    rho: np.ndarray,
+    dt: float,
+    edge_values: np.ndarray,
+    *,
+    weights: np.ndarray | None = None,
+    learning_rate: float,
+    source_min: np.ndarray | float | None = None,
+    source_max: np.ndarray | float | None = None,
+    max_absolute_update: float | None = None,
+    gradient_tolerance: float | None = None,
+    require_gradient_audit: bool = True,
+    gradient_audit_epsilon: float = 1.0e-5,
+    gradient_audit_tolerance: float = 5.0e-4,
+    gradient_audit_sample_indices: object | None = None,
+    equilibrium_psi: np.ndarray | None = None,
+    _closure_for_metadata: object | None = None,
+) -> TransportSourceScheduleTuningResult:
+    """Tune additive transport source schedules through JAX autodiff.
+
+    This is the NMPC admission path for heating, fuelling, and impurity-source
+    schedules. It uses the same differentiable transport loss as coefficient
+    tuning, but applies the update to the source array and keeps source bounds
+    explicit because sinks or negative feedback terms may be physically valid in
+    reduced replay studies.
+    """
+    if not has_differentiable_transport_jax():
+        raise RuntimeError("tune_transport_sources_for_tracking requires JAX")
+    learning_rate_float = float(learning_rate)
+    if not np.isfinite(learning_rate_float) or learning_rate_float <= 0.0:
+        raise ValueError("learning_rate must be positive and finite.")
+    if max_absolute_update is not None:
+        max_absolute_update_float = float(max_absolute_update)
+        if not np.isfinite(max_absolute_update_float) or max_absolute_update_float <= 0.0:
+            raise ValueError("max_absolute_update must be positive and finite.")
+    else:
+        max_absolute_update_float = None
+
+    source_array = np.asarray(sources, dtype=np.float64)
+    if source_array.ndim != 2 or not np.all(np.isfinite(source_array)):
+        raise ValueError("sources must be a finite two-dimensional array.")
+    source_min_array = _optional_finite_array_bound("source_min", source_min, source_array.shape)
+    source_max_array = _optional_finite_array_bound("source_max", source_max, source_array.shape)
+    if source_min_array is not None and source_max_array is not None and np.any(source_min_array > source_max_array):
+        raise ValueError("source_min entries must be less than or equal to source_max entries.")
+
+    gradient_result = transport_parameter_gradients(
+        profiles,
+        chi,
+        source_array,
+        target_profiles,
+        rho,
+        dt,
+        edge_values,
+        weights=weights,
+    )
+    if not isinstance(gradient_result, TransportParameterGradients):
+        raise ValueError("transport_parameter_gradients must return TransportParameterGradients.")
+    source_gradient = np.asarray(gradient_result.source_gradient, dtype=np.float64)
+    if source_gradient.shape != source_array.shape or not np.all(np.isfinite(source_gradient)):
+        raise ValueError("source gradient must be finite and match source shape.")
+    gradient_audit = None
+    if require_gradient_audit:
+        gradient_audit = assert_transport_parameter_gradients_consistent(
+            profiles,
+            chi,
+            source_array,
+            target_profiles,
+            rho,
+            dt,
+            edge_values,
+            weights=weights,
+            epsilon=gradient_audit_epsilon,
+            tolerance=gradient_audit_tolerance,
+            sample_indices=gradient_audit_sample_indices,
+        )
+
+    delta = -learning_rate_float * source_gradient
+    if max_absolute_update_float is not None:
+        delta = np.clip(delta, -max_absolute_update_float, max_absolute_update_float)
+    updated_sources = source_array + delta
+    if source_min_array is not None:
+        updated_sources = np.maximum(source_min_array, updated_sources)
+    if source_max_array is not None:
+        updated_sources = np.minimum(source_max_array, updated_sources)
+    step_norm = float(np.linalg.norm(updated_sources - source_array))
+    metadata = transport_campaign_metadata(
+        profiles,
+        chi,
+        source_array,
+        rho,
+        dt,
+        edge_values,
+        backend="jax",
+        closure=_closure_for_metadata,
+        gradient_tolerance=gradient_tolerance,
+        equilibrium_psi=equilibrium_psi,
+    )
+    return TransportSourceScheduleTuningResult(
+        loss=float(gradient_result.loss),
+        gradient=source_gradient,
+        updated_sources=updated_sources,
         step_norm=step_norm,
         metadata=metadata,
         gradient_audit=gradient_audit,

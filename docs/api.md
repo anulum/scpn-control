@@ -603,12 +603,21 @@ gradient tolerance.
 from a bounded neural transport closure, preserving the differentiable facade's
 four-channel coefficient contract, the explicit JAX-gradient requirement, and
 the default gradient-audit admission gate.
+`tune_transport_sources_for_tracking()` applies the audited JAX gradient path to
+additive heating, fuelling, and impurity-source schedules. Source lower and
+upper bounds are explicit because replay studies may include physically valid
+sink terms, and every accepted update carries campaign metadata plus the
+gradient-audit result.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 
 ::: scpn_control.control.nmpc_controller.TransportCoefficientTuningResult
 
+::: scpn_control.control.nmpc_controller.TransportSourceScheduleTuningResult
+
 ::: scpn_control.control.nmpc_controller.tune_transport_coefficients_for_tracking
+
+::: scpn_control.control.nmpc_controller.tune_transport_sources_for_tracking
 
 ::: scpn_control.control.nmpc_controller.tune_neural_transport_closure_for_tracking
 

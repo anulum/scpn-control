@@ -662,6 +662,134 @@ def test_nmpc_transport_tuning_explicitly_allows_audit_bypass_for_admission_test
     assert result.step_norm > 0.0
 
 
+def test_nmpc_source_schedule_tuning_records_audited_update(monkeypatch) -> None:
+    """NMPC source schedules should use audited source gradients, not coefficient gradients."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    source_gradient = np.zeros_like(sources)
+    source_gradient[0, 6:10] = -0.25
+    source_gradient[2, 4:8] = 0.10
+    gradients = transport_mod.TransportParameterGradients(
+        loss=0.5,
+        chi_gradient=np.zeros_like(chi),
+        source_gradient=source_gradient,
+    )
+    audit = transport_mod.TransportGradientAudit(
+        loss=0.5,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 6), (2, 4)),
+        chi_max_abs_error=1.0e-8,
+        source_max_abs_error=1.0e-8,
+        passed=True,
+    )
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(nmpc_mod, "transport_parameter_gradients", lambda *args, **kwargs: gradients)
+    monkeypatch.setattr(nmpc_mod, "assert_transport_parameter_gradients_consistent", lambda *args, **kwargs: audit)
+
+    result = nmpc_mod.tune_transport_sources_for_tracking(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        learning_rate=0.2,
+        source_min=-0.02,
+        source_max=0.03,
+        max_absolute_update=0.015,
+        gradient_tolerance=1.0e-7,
+    )
+
+    assert isinstance(result, nmpc_mod.TransportSourceScheduleTuningResult)
+    assert result.loss == pytest.approx(0.5)
+    assert result.gradient_audit == audit
+    assert result.metadata.gradient_tolerance == pytest.approx(1.0e-7)
+    assert result.step_norm > 0.0
+    assert np.all(result.updated_sources >= -0.02)
+    assert np.all(result.updated_sources <= 0.03)
+    assert np.max(np.abs(result.updated_sources - sources)) <= 0.015 + 1.0e-12
+
+
+def test_nmpc_source_schedule_tuning_fails_closed_without_jax(monkeypatch) -> None:
+    """Source tuning must not silently use finite differences when JAX is absent."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: False)
+
+    with pytest.raises(RuntimeError, match="requires JAX"):
+        nmpc_mod.tune_transport_sources_for_tracking(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            learning_rate=0.05,
+        )
+
+
+def test_nmpc_source_schedule_tuning_fails_closed_on_gradient_audit(monkeypatch) -> None:
+    """Source schedule updates must be blocked when the transport gradient audit fails."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    gradients = transport_mod.TransportParameterGradients(
+        loss=0.5,
+        chi_gradient=np.zeros_like(chi),
+        source_gradient=np.ones_like(sources),
+    )
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(nmpc_mod, "transport_parameter_gradients", lambda *args, **kwargs: gradients)
+
+    def reject_audit(*args: object, **kwargs: object) -> transport_mod.TransportGradientAudit:
+        raise ValueError("transport parameter gradient audit failed")
+
+    monkeypatch.setattr(nmpc_mod, "assert_transport_parameter_gradients_consistent", reject_audit)
+
+    with pytest.raises(ValueError, match="gradient audit failed"):
+        nmpc_mod.tune_transport_sources_for_tracking(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            learning_rate=0.05,
+        )
+
+
+def test_nmpc_source_schedule_tuning_rejects_invalid_bounds(monkeypatch) -> None:
+    """Source bounds are explicit because physically valid schedules may include sinks."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+
+    with pytest.raises(ValueError, match="source_min"):
+        nmpc_mod.tune_transport_sources_for_tracking(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            learning_rate=0.05,
+            source_min=np.zeros((2, 2)),
+        )
+    with pytest.raises(ValueError, match="source_min entries"):
+        nmpc_mod.tune_transport_sources_for_tracking(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            learning_rate=0.05,
+            source_min=1.0,
+            source_max=0.0,
+        )
+
+
 def test_nmpc_neural_closure_tuning_fails_closed_without_jax(monkeypatch) -> None:
     """NMPC neural-closure tuning must use the differentiable coefficient path."""
     profiles, _, sources, target, rho, edge_values = _transport_tuning_case()
@@ -785,4 +913,59 @@ def test_nmpc_transport_tuning_reduces_tracking_loss() -> None:
     assert result.gradient_audit is not None
     assert result.gradient_audit.passed
     assert np.all(result.updated_chi >= 0.0)
+    assert updated_loss < initial_loss
+
+
+@pytest.mark.skipif(not transport_mod.has_jax(), reason="JAX optional dependency is not installed")
+def test_nmpc_source_schedule_tuning_reduces_tracking_loss() -> None:
+    """A JAX source-gradient step should reduce the transport loss used by NMPC."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    target = profiles.copy()
+    target[0, 8:16] += 0.02
+    target[2, 5:12] += 0.01
+    weights = np.array([1.0, 0.5, 0.25, 0.1])
+    initial_loss = float(
+        transport_mod.transport_tracking_loss(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            weights=weights,
+        )
+    )
+
+    result = nmpc_mod.tune_transport_sources_for_tracking(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        weights=weights,
+        learning_rate=0.1,
+        max_absolute_update=0.02,
+        gradient_audit_tolerance=2.0e-3,
+    )
+
+    updated_loss = float(
+        transport_mod.transport_tracking_loss(
+            profiles,
+            chi,
+            result.updated_sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            weights=weights,
+        )
+    )
+    assert result.loss == pytest.approx(initial_loss)
+    assert result.gradient.shape == sources.shape
+    assert result.step_norm > 0.0
+    assert result.gradient_audit is not None
+    assert result.gradient_audit.passed
     assert updated_loss < initial_loss
