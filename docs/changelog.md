@@ -20,6 +20,8 @@
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.
+- Wired the NMPC transport-tuning path to require that gradient audit by
+  default and to persist the audit result with each coefficient update.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.

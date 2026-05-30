@@ -573,8 +573,18 @@ def test_nmpc_transport_tuning_result_carries_campaign_metadata(monkeypatch) -> 
     """Every transport tuning update should carry its validated campaign contract."""
     profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
     gradient = 0.01 * np.ones_like(chi)
+    audit = transport_mod.TransportGradientAudit(
+        loss=0.125,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 1),),
+        chi_max_abs_error=1.0e-8,
+        source_max_abs_error=1.0e-8,
+        passed=True,
+    )
     monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
     monkeypatch.setattr(nmpc_mod, "transport_loss_gradient", lambda *args, **kwargs: (0.125, gradient))
+    monkeypatch.setattr(nmpc_mod, "assert_transport_parameter_gradients_consistent", lambda *args, **kwargs: audit)
 
     result = nmpc_mod.tune_transport_coefficients_for_tracking(
         profiles,
@@ -595,7 +605,61 @@ def test_nmpc_transport_tuning_result_carries_campaign_metadata(monkeypatch) -> 
     assert result.metadata.n_rho == rho.size
     assert result.metadata.gradient_tolerance == pytest.approx(1.0e-7)
     assert result.metadata.closure_source is None
+    assert result.gradient_audit == audit
     assert asdict(result.metadata)["backend"] == "jax"
+
+
+def test_nmpc_transport_tuning_fails_closed_on_gradient_audit(monkeypatch) -> None:
+    """NMPC must not admit transport tuning when the gradient audit fails."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    gradient = 0.01 * np.ones_like(chi)
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(nmpc_mod, "transport_loss_gradient", lambda *args, **kwargs: (0.125, gradient))
+
+    def reject_audit(*args: object, **kwargs: object) -> transport_mod.TransportGradientAudit:
+        raise ValueError("transport parameter gradient audit failed")
+
+    monkeypatch.setattr(nmpc_mod, "assert_transport_parameter_gradients_consistent", reject_audit)
+
+    with pytest.raises(ValueError, match="gradient audit failed"):
+        nmpc_mod.tune_transport_coefficients_for_tracking(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            learning_rate=0.05,
+        )
+
+
+def test_nmpc_transport_tuning_explicitly_allows_audit_bypass_for_admission_tests(monkeypatch) -> None:
+    """Bypass is explicit so tests can isolate update clipping without hiding production default."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    gradient = 0.01 * np.ones_like(chi)
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(nmpc_mod, "transport_loss_gradient", lambda *args, **kwargs: (0.125, gradient))
+
+    def reject_audit(*args: object, **kwargs: object) -> transport_mod.TransportGradientAudit:
+        raise AssertionError("audit should not be called")
+
+    monkeypatch.setattr(nmpc_mod, "assert_transport_parameter_gradients_consistent", reject_audit)
+
+    result = nmpc_mod.tune_transport_coefficients_for_tracking(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        learning_rate=0.05,
+        require_gradient_audit=False,
+    )
+
+    assert result.gradient_audit is None
+    assert result.step_norm > 0.0
 
 
 def test_nmpc_neural_closure_tuning_fails_closed_without_jax(monkeypatch) -> None:
@@ -638,8 +702,18 @@ def test_nmpc_neural_closure_tuning_result_carries_closure_metadata(monkeypatch)
         model=NeuralTransportModel(auto_discover=False),
     )
     gradient = 0.01 * np.ones_like(profiles)
+    audit = transport_mod.TransportGradientAudit(
+        loss=0.25,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 1),),
+        chi_max_abs_error=1.0e-8,
+        source_max_abs_error=1.0e-8,
+        passed=True,
+    )
     monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
     monkeypatch.setattr(nmpc_mod, "transport_loss_gradient", lambda *args, **kwargs: (0.25, gradient))
+    monkeypatch.setattr(nmpc_mod, "assert_transport_parameter_gradients_consistent", lambda *args, **kwargs: audit)
 
     result = nmpc_mod.tune_neural_transport_closure_for_tracking(
         profiles,
@@ -658,6 +732,7 @@ def test_nmpc_neural_closure_tuning_result_carries_closure_metadata(monkeypatch)
     assert result.metadata.closure_weights_checksum is None
     assert result.metadata.gradient_tolerance == pytest.approx(5.0e-8)
     assert result.metadata.edge_boundary == "dirichlet"
+    assert result.gradient_audit == audit
 
 
 @pytest.mark.skipif(not transport_mod.has_jax(), reason="JAX optional dependency is not installed")
@@ -689,6 +764,7 @@ def test_nmpc_transport_tuning_reduces_tracking_loss() -> None:
         weights=weights,
         learning_rate=0.05,
         max_fractional_update=0.25,
+        gradient_audit_tolerance=2.0e-3,
     )
 
     updated_loss = float(
@@ -706,5 +782,7 @@ def test_nmpc_transport_tuning_reduces_tracking_loss() -> None:
     assert result.loss == pytest.approx(initial_loss)
     assert result.gradient.shape == chi.shape
     assert result.step_norm > 0.0
+    assert result.gradient_audit is not None
+    assert result.gradient_audit.passed
     assert np.all(result.updated_chi >= 0.0)
     assert updated_loss < initial_loss

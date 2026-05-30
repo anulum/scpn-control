@@ -33,6 +33,8 @@ from scpn_control.core.differentiable_transport import (
 )
 from scpn_control.core.differentiable_transport import (
     TransportCampaignMetadata,
+    TransportGradientAudit,
+    assert_transport_parameter_gradients_consistent,
     transport_loss_gradient,
     transport_coefficients_from_neural_closure,
     transport_campaign_metadata,
@@ -106,6 +108,7 @@ class TransportCoefficientTuningResult:
     updated_chi: np.ndarray
     step_norm: float
     metadata: TransportCampaignMetadata
+    gradient_audit: TransportGradientAudit | None
 
 
 def tune_transport_coefficients_for_tracking(
@@ -122,6 +125,10 @@ def tune_transport_coefficients_for_tracking(
     chi_min: float = 0.0,
     max_fractional_update: float | None = 0.1,
     gradient_tolerance: float | None = None,
+    require_gradient_audit: bool = True,
+    gradient_audit_epsilon: float = 1.0e-5,
+    gradient_audit_tolerance: float = 5.0e-4,
+    gradient_audit_sample_indices: object | None = None,
     equilibrium_psi: np.ndarray | None = None,
     _closure_for_metadata: object | None = None,
 ) -> TransportCoefficientTuningResult:
@@ -165,6 +172,21 @@ def tune_transport_coefficients_for_tracking(
     gradient_array = np.asarray(gradient, dtype=np.float64)
     if gradient_array.shape != chi_array.shape or not np.all(np.isfinite(gradient_array)):
         raise ValueError("transport gradient must be finite and match chi shape.")
+    gradient_audit = None
+    if require_gradient_audit:
+        gradient_audit = assert_transport_parameter_gradients_consistent(
+            profiles,
+            chi_array,
+            sources,
+            target_profiles,
+            rho,
+            dt,
+            edge_values,
+            weights=weights,
+            epsilon=gradient_audit_epsilon,
+            tolerance=gradient_audit_tolerance,
+            sample_indices=gradient_audit_sample_indices,
+        )
 
     delta = -learning_rate_float * gradient_array
     if max_fractional_update_float is not None:
@@ -190,6 +212,7 @@ def tune_transport_coefficients_for_tracking(
         updated_chi=updated_chi,
         step_norm=step_norm,
         metadata=metadata,
+        gradient_audit=gradient_audit,
     )
 
 
@@ -208,6 +231,10 @@ def tune_neural_transport_closure_for_tracking(
     chi_min: float = 0.0,
     max_fractional_update: float | None = 0.1,
     gradient_tolerance: float | None = None,
+    require_gradient_audit: bool = True,
+    gradient_audit_epsilon: float = 1.0e-5,
+    gradient_audit_tolerance: float = 5.0e-4,
+    gradient_audit_sample_indices: object | None = None,
     equilibrium_psi: np.ndarray | None = None,
 ) -> TransportCoefficientTuningResult:
     """Tune NMPC transport coefficients initialised from a neural closure."""
@@ -229,6 +256,10 @@ def tune_neural_transport_closure_for_tracking(
         chi_min=chi_min,
         max_fractional_update=max_fractional_update,
         gradient_tolerance=gradient_tolerance,
+        require_gradient_audit=require_gradient_audit,
+        gradient_audit_epsilon=gradient_audit_epsilon,
+        gradient_audit_tolerance=gradient_audit_tolerance,
+        gradient_audit_sample_indices=gradient_audit_sample_indices,
         equilibrium_psi=equilibrium_psi,
         _closure_for_metadata=closure,
     )
