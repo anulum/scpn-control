@@ -183,25 +183,27 @@ class PhaseStreamServer:
 
     async def _handler(self, websocket: Any) -> None:
         if not self._origin_allowed(websocket):
-            await websocket.close(code=1008, reason="origin not allowed")
+            await self._close_client(websocket, code=1008, reason="origin not allowed")
             return
         if not self._authorised(websocket):
-            await websocket.close(code=1008, reason="authentication required")
+            await self._close_client(websocket, code=1008, reason="authentication required")
             return
         if len(self._clients) >= self.max_clients:
-            await websocket.close(code=1013, reason="client capacity exceeded")
+            await self._close_client(websocket, code=1013, reason="client capacity exceeded")
             return
         self._clients.add(websocket)
         logger.info("Client connected (%d total)", len(self._clients))
         try:
             async for msg in websocket:
                 if _payload_size_bytes(msg) > self.max_payload_bytes:
-                    await websocket.send(json.dumps({"error": "payload_too_large"}))
-                    await websocket.close(code=1009, reason="payload too large")
+                    if not await self._send_response(websocket, {"error": "payload_too_large"}):
+                        break
+                    await self._close_client(websocket, code=1009, reason="payload too large")
                     break
                 if self._rate_limited(websocket):
-                    await websocket.send(json.dumps({"error": "rate_limited"}))
-                    await websocket.close(code=1008, reason="command rate limit exceeded")
+                    if not await self._send_response(websocket, {"error": "rate_limited"}):
+                        break
+                    await self._close_client(websocket, code=1008, reason="command rate limit exceeded")
                     break
                 try:
                     cmd = json.loads(msg)
@@ -211,7 +213,8 @@ class PhaseStreamServer:
                     continue
                 action = cmd.get("action")
                 if action not in self.allowed_actions:
-                    await websocket.send(json.dumps({"error": "action_not_allowed"}))
+                    if not await self._send_response(websocket, {"error": "action_not_allowed"}):
+                        break
                     continue
                 if action == "set_psi":
                     value = _finite_command_value(cmd)
@@ -230,15 +233,15 @@ class PhaseStreamServer:
             self._client_windows.pop(websocket, None)
             logger.info("Client disconnected (%d remain)", len(self._clients))
 
-    async def _close_backpressured_client(self, websocket: Any) -> None:
+    async def _close_client(self, websocket: Any, *, code: int, reason: str) -> None:
         close = getattr(websocket, "close", None)
         if close is None:
             return
         with contextlib.suppress(Exception):
-            await asyncio.wait_for(
-                close(code=1011, reason="broadcast backpressure timeout"),
-                timeout=self.client_send_timeout_s,
-            )
+            await asyncio.wait_for(close(code=code, reason=reason), timeout=self.client_send_timeout_s)
+
+    async def _close_backpressured_client(self, websocket: Any) -> None:
+        await self._close_client(websocket, code=1011, reason="broadcast backpressure timeout")
 
     async def _send_frame_or_dead(self, websocket: Any, frame: str) -> Any | None:
         try:
@@ -249,6 +252,9 @@ class PhaseStreamServer:
         except (ConnectionError, OSError):
             return websocket
         return None
+
+    async def _send_response(self, websocket: Any, payload: dict[str, str]) -> bool:
+        return await self._send_frame_or_dead(websocket, json.dumps(payload)) is None
 
     async def _tick_loop(self) -> None:
         self._running = True

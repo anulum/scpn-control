@@ -351,6 +351,32 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    def test_handler_drops_client_when_control_response_backpressures(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(
+                monitor=mon,
+                api_key="secret-token-123456",
+                client_send_timeout_s=0.001,
+                allowed_actions=("stop",),
+            )
+
+            class _SlowResponseWS(_FakeWS):
+                async def send(self, data):
+                    await asyncio.sleep(10.0)
+
+            ws = _SlowResponseWS([json.dumps({"action": "set_psi", "value": 0.9})])
+
+            await asyncio.wait_for(server._handler(ws), timeout=0.05)
+
+            assert mon.psi_driver == pytest.approx(0.0)
+            assert ws.closed
+            assert ws.close_code == 1011
+            assert "backpressure" in (ws.close_reason or "")
+            assert ws not in server._clients
+
+        asyncio.run(_run())
+
     def test_handler_rate_limits_invalid_json_before_parsing(self, monkeypatch):
         async def _run():
             mon = _make_monitor()
