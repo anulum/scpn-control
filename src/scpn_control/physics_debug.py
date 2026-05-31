@@ -111,6 +111,8 @@ class PhysicsDebugGuardrailPolicy:
     required: bool = False
     block_actions: tuple[str, ...] = ("block",)
     allowed_decisions: tuple[str, ...] = ("allow", "block")
+    blocking_severities: tuple[str, ...] = ("high", "critical")
+    minimum_risk_controls: int = 1
 
     def __post_init__(self) -> None:
         if not isinstance(self.required, bool):
@@ -125,6 +127,11 @@ class PhysicsDebugGuardrailPolicy:
             raise ValueError("physics debug guardrail policy allowed_decisions must contain non-empty strings")
         if not set(self.block_actions).issubset(set(self.allowed_decisions)):
             raise ValueError("physics debug guardrail policy block_actions must be allowed decisions")
+        severities = {"info", "low", "medium", "high", "critical"}
+        if any(not isinstance(item, str) or item not in severities for item in self.blocking_severities):
+            raise ValueError("physics debug guardrail policy blocking_severities are unsupported")
+        if not isinstance(self.minimum_risk_controls, int) or self.minimum_risk_controls < 0:
+            raise ValueError("physics debug guardrail policy minimum_risk_controls must be non-negative")
 
     def payload(self) -> dict[str, Any]:
         """Return a JSON-safe guardrail policy payload."""
@@ -133,6 +140,8 @@ class PhysicsDebugGuardrailPolicy:
             "required": self.required,
             "block_actions": list(self.block_actions),
             "allowed_decisions": list(self.allowed_decisions),
+            "blocking_severities": list(self.blocking_severities),
+            "minimum_risk_controls": self.minimum_risk_controls,
         }
 
 
@@ -358,6 +367,7 @@ class PhysicsDebugGuardrailProvider:
             evidence=evidence,
             provider=self,
             guardrail_policy=guardrail_policy,
+            request=payload["request"],
         )
 
     def _post_json(self, payload: dict[str, Any], policy: ProviderPolicy) -> bytes:
@@ -898,12 +908,20 @@ def _guardrail_request_payload(
     provider_output: Mapping[str, Any],
     guardrail_policy: PhysicsDebugGuardrailPolicy,
 ) -> dict[str, Any]:
+    request = {
+        "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+        "evidence_sha256": _payload_digest({"evidence": evidence}),
+        "gaps_sha256": _payload_digest({"gaps": gaps}),
+        "provider_output_sha256": _payload_digest({"provider_output": dict(provider_output)}),
+    }
     return {
         "task": "physics_debug_guardrail_review",
         "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
         "guardrail_policy": guardrail_policy.payload(),
+        "request": request,
         "required_output_schema": {
             "decision": "allow or block",
+            "reviewed_output_sha256": request["provider_output_sha256"],
             "findings": [
                 {
                     "finding_id": "non-empty string",
@@ -928,10 +946,17 @@ def _validate_guardrail_review(
     evidence: list[dict[str, Any]],
     provider: PhysicsDebugGuardrailProvider,
     guardrail_policy: PhysicsDebugGuardrailPolicy,
+    request: Mapping[str, Any],
 ) -> dict[str, Any]:
+    request_payload = _validate_guardrail_request_metadata(request)
     decision = _require_non_empty("guardrail decision", raw_review.get("decision"))
     if decision not in guardrail_policy.allowed_decisions:
         raise ValueError("physics debug guardrail decision is unsupported")
+    reviewed_output_sha256 = raw_review.get("reviewed_output_sha256", request_payload["provider_output_sha256"])
+    if not isinstance(reviewed_output_sha256, str) or not _is_sha256(reviewed_output_sha256):
+        raise ValueError("physics debug guardrail reviewed_output_sha256 must be a SHA-256 hex digest")
+    if reviewed_output_sha256.lower() != request_payload["provider_output_sha256"]:
+        raise ValueError("physics debug guardrail reviewed_output_sha256 must match provider_output_sha256")
     findings = _validate_guardrail_findings(
         raw_review.get("findings"),
         evidence=evidence,
@@ -939,6 +964,8 @@ def _validate_guardrail_review(
         require_findings=True,
     )
     risk_controls = _require_non_empty_string_list("guardrail risk_controls", raw_review.get("risk_controls"))
+    if len(risk_controls) < guardrail_policy.minimum_risk_controls:
+        raise ValueError("physics debug guardrail risk_controls do not meet policy minimum")
     blocked = decision in guardrail_policy.block_actions or any(
         finding["action"] in guardrail_policy.block_actions for finding in findings
     )
@@ -946,6 +973,8 @@ def _validate_guardrail_review(
         "enabled": True,
         "required": guardrail_policy.required,
         "provider": provider.metadata(),
+        "request": request_payload,
+        "reviewed_output_sha256": reviewed_output_sha256.lower(),
         "decision": decision,
         "blocked": blocked,
         "findings": findings,
@@ -961,6 +990,8 @@ def _disabled_guardrail_review(guardrail_policy: PhysicsDebugGuardrailPolicy) ->
         "enabled": False,
         "required": guardrail_policy.required,
         "provider": None,
+        "request": None,
+        "reviewed_output_sha256": None,
         "decision": "not-configured",
         "blocked": False,
         "findings": [],
@@ -990,11 +1021,21 @@ def _validate_report_guardrail(
         if decision not in guardrail_policy.allowed_decisions:
             raise ValueError("physics debug report guardrail decision is unsupported")
         _validate_guardrail_provider_metadata(value.get("provider"))
+        request = _validate_guardrail_request_metadata(value.get("request"))
+        reviewed_output_sha256 = value.get("reviewed_output_sha256")
+        if not isinstance(reviewed_output_sha256, str) or not _is_sha256(reviewed_output_sha256):
+            raise ValueError("physics debug report guardrail reviewed_output_sha256 must be a SHA-256 hex digest")
+        if reviewed_output_sha256.lower() != request["provider_output_sha256"]:
+            raise ValueError("physics debug report guardrail reviewed_output_sha256 must match request")
     else:
         if guardrail_policy.required:
             raise ValueError("physics debug report guardrail is required")
         if value.get("provider") is not None:
             raise ValueError("physics debug report disabled guardrail provider must be null")
+        if value.get("request") is not None:
+            raise ValueError("physics debug report disabled guardrail request must be null")
+        if value.get("reviewed_output_sha256") is not None:
+            raise ValueError("physics debug report disabled guardrail reviewed_output_sha256 must be null")
         if decision != "not-configured":
             raise ValueError("physics debug report disabled guardrail decision must be not-configured")
     findings = _validate_guardrail_findings(
@@ -1008,8 +1049,20 @@ def _validate_report_guardrail(
     risk_controls = value.get("risk_controls")
     if not isinstance(risk_controls, list) or any(not isinstance(item, str) for item in risk_controls):
         raise ValueError("physics debug report guardrail risk_controls must be a list of strings")
-    if enabled and not risk_controls:
-        raise ValueError("physics debug report enabled guardrail risk_controls must be non-empty")
+    if enabled and len(risk_controls) < guardrail_policy.minimum_risk_controls:
+        raise ValueError("physics debug report guardrail risk_controls do not meet policy minimum")
+
+
+def _validate_guardrail_request_metadata(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        raise ValueError("physics debug guardrail request must be an object")
+    result: dict[str, str] = {}
+    for key in ("prompt_sha256", "evidence_sha256", "gaps_sha256", "provider_output_sha256"):
+        digest = value.get(key)
+        if not isinstance(digest, str) or not _is_sha256(digest):
+            raise ValueError(f"physics debug guardrail request {key} must be a SHA-256 hex digest")
+        result[key] = digest.lower()
+    return result
 
 
 def _validate_guardrail_provider_metadata(value: object) -> None:
@@ -1059,6 +1112,8 @@ def _validate_guardrail_findings(
         action = _require_non_empty("guardrail action", raw.get("action"))
         if action not in guardrail_policy.allowed_decisions:
             raise ValueError("physics debug guardrail action is unsupported")
+        if severity in guardrail_policy.blocking_severities and action not in guardrail_policy.block_actions:
+            raise ValueError("physics debug guardrail severity requires a block action")
         findings.append(
             {
                 "finding_id": finding_id,
@@ -1249,14 +1304,19 @@ def _guardrail_policy_from_payload(value: object) -> PhysicsDebugGuardrailPolicy
         raise ValueError("physics debug guardrail_policy must be an object")
     block_actions = value.get("block_actions")
     allowed_decisions = value.get("allowed_decisions")
+    blocking_severities = value.get("blocking_severities", ("high", "critical"))
     if not isinstance(block_actions, list | tuple):
         raise ValueError("physics debug guardrail_policy block_actions must be a list")
     if not isinstance(allowed_decisions, list | tuple):
         raise ValueError("physics debug guardrail_policy allowed_decisions must be a list")
+    if not isinstance(blocking_severities, list | tuple):
+        raise ValueError("physics debug guardrail_policy blocking_severities must be a list")
     return PhysicsDebugGuardrailPolicy(
         required=value.get("required", False),
         block_actions=tuple(block_actions),
         allowed_decisions=tuple(allowed_decisions),
+        blocking_severities=tuple(blocking_severities),
+        minimum_risk_controls=value.get("minimum_risk_controls", 1),
     )
 
 

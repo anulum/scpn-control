@@ -23,7 +23,9 @@ Optional hallucination guardrail review uses `build_guardrail_provider()` with
 a `director-ai` default profile and explicit alternate profiles for lab-owned
 guardrail solutions. Guardrail block decisions fail closed before report
 persistence, while allow findings are recorded in the same tamper-evident
-report digest.
+report digest with the reviewed provider-draft SHA-256. High-severity
+guardrail findings require block actions, and admitted guardrail reviews must
+meet the configured risk-control minimum.
 `PhysicsDebugSafetyPolicy` binds mandatory human review, caps advisory
 confidence, and rejects provider text that attempts controller promotion,
 actuation, review bypass, or approval claims before evidence can be persisted.

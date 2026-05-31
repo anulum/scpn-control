@@ -120,7 +120,77 @@ def test_physics_debug_records_director_guardrail_allow_findings_in_report_diges
     assert report["guardrail"]["provider"]["profile"] == "director-ai"
     assert report["guardrail"]["decision"] == "allow"
     assert report["guardrail"]["findings"][0]["finding_id"] == "evidence-bound-hypothesis"
+    assert report["guardrail"]["reviewed_output_sha256"] == report["guardrail"]["request"]["provider_output_sha256"]
     assert validate_physics_debug_report(report) == report
+
+
+def test_physics_debug_guardrail_rejects_mismatched_reviewed_output_digest() -> None:
+    physics_provider = build_local_provider(
+        family="direct-json",
+        model="onsite-model",
+        provider_name="onsite-physics-debugger",
+        transport=lambda payload: _safe_provider_response(),
+    )
+    guardrail_provider = build_guardrail_provider(
+        model="director-physics-guard",
+        provider_name="director-guardrail",
+        transport=lambda payload: {
+            "decision": "allow",
+            "reviewed_output_sha256": "c" * 64,
+            "findings": [
+                {
+                    "finding_id": "digest-mismatch",
+                    "severity": "low",
+                    "message": "The draft is claimed safe but the reviewed digest differs.",
+                    "evidence_ids": ["cbc-linear-dispersion"],
+                    "action": "allow",
+                }
+            ],
+            "risk_controls": ["human review required", "offline advisory only"],
+        },
+    )
+
+    with pytest.raises(ValueError, match="reviewed_output_sha256"):
+        PhysicsDebugAssistant().analyze(
+            evidence=[_cbc_evidence()],
+            gaps=[_cbc_gap()],
+            provider=physics_provider,
+            guardrail_provider=guardrail_provider,
+        )
+
+
+def test_physics_debug_guardrail_rejects_high_severity_allow_findings() -> None:
+    physics_provider = build_local_provider(
+        family="direct-json",
+        model="onsite-model",
+        provider_name="onsite-physics-debugger",
+        transport=lambda payload: _safe_provider_response(),
+    )
+    guardrail_provider = build_guardrail_provider(
+        model="director-physics-guard",
+        provider_name="director-guardrail",
+        transport=lambda payload: {
+            "decision": "allow",
+            "findings": [
+                {
+                    "finding_id": "unresolved-high-risk",
+                    "severity": "high",
+                    "message": "The draft contains a high-risk unsupported extrapolation.",
+                    "evidence_ids": ["cbc-linear-dispersion"],
+                    "action": "allow",
+                }
+            ],
+            "risk_controls": ["human review required", "offline advisory only"],
+        },
+    )
+
+    with pytest.raises(ValueError, match="severity"):
+        PhysicsDebugAssistant().analyze(
+            evidence=[_cbc_evidence()],
+            gaps=[_cbc_gap()],
+            provider=physics_provider,
+            guardrail_provider=guardrail_provider,
+        )
 
 
 def test_physics_debug_guardrail_blocks_hallucination_before_report_persistence() -> None:
