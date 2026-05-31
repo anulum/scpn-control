@@ -13,10 +13,15 @@ import numpy as np
 import pytest
 
 from scpn_control.control.density_controller import (
+    ActuatorCommand,
+    DensityControlClaimEvidence,
     DensityController,
     FuelingOptimizer,
     KalmanDensityEstimator,
     ParticleTransportModel,
+    assert_density_control_facility_claim_admissible,
+    density_control_claim_evidence,
+    save_density_control_claim_evidence,
 )
 from scpn_control.core.pellet_injection import PelletParams, PelletTrajectory
 
@@ -344,7 +349,7 @@ def test_below_greenwald_safety_margin():
     assert ctrl.below_greenwald_safety_margin(ne_high) is False
 
     with pytest.raises(ValueError, match="ne"):
-        ctrl.below_greenwald_safety_margin(-ne_low) is False
+        ctrl.below_greenwald_safety_margin(-ne_low)
 
 
 def test_kalman_predict():
@@ -363,3 +368,172 @@ def test_fueling_optimizer_zero_pellets():
     assert sched.times == []
     assert sched.speeds == []
     assert sched.sizes == []
+
+
+def test_density_control_claim_evidence_records_bounded_provenance(tmp_path):
+    model = ParticleTransportModel(n_rho=12, R0=6.2, a=2.0)
+    controller = DensityController(model, dt_control=0.01)
+    controller.set_constraints(n_GW=1.0e20, gas_max=1.0e22, pellet_freq_max=10.0, pump_max=10.0)
+    controller.set_target(np.ones(model.n_rho) * 5.0e19)
+    ne_before = np.ones(model.n_rho) * 2.0e19
+    sources = model.gas_puff_source(rate=1.0e20, penetration_depth=0.08)
+    ne_after = model.step(ne_before, sources, dt=1.0)
+    command = controller.step(ne_before)
+
+    evidence = density_control_claim_evidence(
+        model,
+        controller,
+        source="synthetic_regression_reference",
+        source_id="density-control-bounded-regression-v1",
+        geometry_source="repository circular ITER-like geometry fixture",
+        transport_source="repository finite-volume diffusion-pinch fixture",
+        actuator_source="repository gas-puff and cryopump actuator limits",
+        diagnostic_source="repository density profile fixture",
+        ne_before=ne_before,
+        ne_after=ne_after,
+        sources=sources,
+        command=command,
+        dt_requested_s=1.0,
+    )
+    report_path = tmp_path / "density_control_claim.json"
+    save_density_control_claim_evidence(evidence, report_path)
+
+    assert isinstance(evidence, DensityControlClaimEvidence)
+    assert evidence.facility_density_claim_allowed is False
+    assert evidence.claim_status == "bounded_density_control_evidence"
+    assert evidence.n_rho == model.n_rho
+    assert evidence.cfl_limited is True
+    assert evidence.greenwald_fraction >= 0.0
+    assert evidence.below_iter_greenwald_margin is True
+    assert evidence.total_source_particles_per_s > 0.0
+    assert np.isfinite(evidence.particle_inventory_delta)
+    assert '"facility_density_claim_allowed": false' in report_path.read_text(encoding="utf-8")
+
+
+def test_density_control_facility_admission_requires_matched_greenwald_and_inventory_references():
+    model = ParticleTransportModel(n_rho=12, R0=6.2, a=2.0)
+    controller = DensityController(model, dt_control=0.01)
+    controller.set_constraints(n_GW=1.0e20, gas_max=1.0e22, pellet_freq_max=10.0, pump_max=10.0)
+    controller.set_target(np.ones(model.n_rho) * 5.0e19)
+    ne_before = np.ones(model.n_rho) * 2.0e19
+    sources = model.gas_puff_source(rate=1.0e20, penetration_depth=0.08)
+    ne_after = model.step(ne_before, sources, dt=1.0e-4)
+    command = controller.step(ne_before)
+    base = density_control_claim_evidence(
+        model,
+        controller,
+        source="synthetic_regression_reference",
+        source_id="density-reference-base",
+        geometry_source="repository circular ITER-like geometry fixture",
+        transport_source="repository finite-volume diffusion-pinch fixture",
+        actuator_source="repository gas-puff and cryopump actuator limits",
+        diagnostic_source="repository density profile fixture",
+        ne_before=ne_before,
+        ne_after=ne_after,
+        sources=sources,
+        command=command,
+        dt_requested_s=1.0e-4,
+    )
+
+    matched = density_control_claim_evidence(
+        model,
+        controller,
+        source="facility_replay",
+        source_id="matched-density-reference",
+        geometry_source="documented geometry",
+        transport_source="documented density transport replay",
+        actuator_source="documented actuator calibration",
+        diagnostic_source="documented interferometer profile",
+        ne_before=ne_before,
+        ne_after=ne_after,
+        sources=sources,
+        command=command,
+        dt_requested_s=1.0e-4,
+        reference_greenwald_fraction=base.greenwald_fraction,
+        reference_inventory_delta=base.particle_inventory_delta,
+    )
+    assert_density_control_facility_claim_admissible(matched)
+    assert matched.facility_density_claim_allowed is True
+
+    mismatched = density_control_claim_evidence(
+        model,
+        controller,
+        source="facility_replay",
+        source_id="mismatched-density-reference",
+        geometry_source="documented geometry",
+        transport_source="documented density transport replay",
+        actuator_source="documented actuator calibration",
+        diagnostic_source="documented interferometer profile",
+        ne_before=ne_before,
+        ne_after=ne_after,
+        sources=sources,
+        command=command,
+        dt_requested_s=1.0e-4,
+        reference_greenwald_fraction=base.greenwald_fraction + 0.1,
+        reference_inventory_delta=base.particle_inventory_delta,
+        greenwald_fraction_abs_tolerance=0.01,
+    )
+    with pytest.raises(ValueError, match="facility density-control claim requires matched"):
+        assert_density_control_facility_claim_admissible(mismatched)
+    assert mismatched.facility_density_claim_allowed is False
+
+
+def test_density_control_claim_evidence_rejects_invalid_inputs():
+    model = ParticleTransportModel(n_rho=8, R0=6.2, a=2.0)
+    controller = DensityController(model, dt_control=0.01)
+    controller.set_target(np.ones(model.n_rho) * 5.0e19)
+    ne_before = np.ones(model.n_rho) * 2.0e19
+    sources = np.zeros(model.n_rho)
+    ne_after = model.step(ne_before, sources, dt=1.0e-4)
+    command = ActuatorCommand(0.0, 0.0, 500.0, 0.0)
+
+    with pytest.raises(ValueError, match="source must be one of"):
+        density_control_claim_evidence(
+            model,
+            controller,
+            source="untracked_reference",
+            source_id="bad-source",
+            geometry_source="documented geometry",
+            transport_source="documented transport",
+            actuator_source="documented actuators",
+            diagnostic_source="documented diagnostics",
+            ne_before=ne_before,
+            ne_after=ne_after,
+            sources=sources,
+            command=command,
+            dt_requested_s=1.0e-4,
+        )
+
+    with pytest.raises(ValueError, match="sources"):
+        density_control_claim_evidence(
+            model,
+            controller,
+            source="facility_replay",
+            source_id="bad-sources",
+            geometry_source="documented geometry",
+            transport_source="documented transport",
+            actuator_source="documented actuators",
+            diagnostic_source="documented diagnostics",
+            ne_before=ne_before,
+            ne_after=ne_after,
+            sources=-np.ones(model.n_rho),
+            command=command,
+            dt_requested_s=1.0e-4,
+        )
+
+    with pytest.raises(ValueError, match="dt_requested_s"):
+        density_control_claim_evidence(
+            model,
+            controller,
+            source="facility_replay",
+            source_id="bad-dt",
+            geometry_source="documented geometry",
+            transport_source="documented transport",
+            actuator_source="documented actuators",
+            diagnostic_source="documented diagnostics",
+            ne_before=ne_before,
+            ne_after=ne_after,
+            sources=sources,
+            command=command,
+            dt_requested_s=0.0,
+        )

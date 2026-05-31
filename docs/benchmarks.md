@@ -254,6 +254,23 @@ Calibrated predictive-UQ claims still require matched measured scenario,
 documented-public, external-UQ, or facility validation references for central
 values and sigma statistics.
 
+## Density-control Claim-Admission Benchmark
+
+`validation/benchmark_density_control_claims.py` publishes bounded synthetic
+regression evidence for density-control claim admission. The generated report
+records geometry provenance, transport provenance, actuator provenance,
+diagnostic provenance, CFL limiting, Greenwald fraction, source integral,
+particle inventory change, and actuator command bounds.
+
+Report artefacts:
+
+- `validation/reports/density_control_claims.json`
+- `validation/reports/density_control_claims.md`
+
+Facility-calibrated density-control claims still require matched measured
+discharge, documented-public, external particle-balance, or facility replay
+references for Greenwald fraction and particle inventory change.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:

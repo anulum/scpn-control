@@ -606,7 +606,7 @@
     },
     {
       "component": "density control and particle-source model",
-      "equation_contract": "Density-control claims must declare the Greenwald limit, ITER operating margin, radial particle transport grid, gas-puff source, pellet source, NBI source, cryopump sink, recycling source, controller gains, and CFL-limited explicit transport step.",
+      "equation_contract": "Density-control claims must declare the Greenwald limit, ITER operating margin, radial particle transport grid, gas-puff source, pellet source, NBI source, cryopump sink, recycling source, controller gains, CFL-limited explicit transport step, geometry/transport/actuator/diagnostic provenance, source integral, particle-inventory change, and matched Greenwald-fraction and inventory reference tolerances before facility-calibrated density-control claims.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Greenwald 2002 density limit",
@@ -617,27 +617,33 @@
       "module_path": "src/scpn_control/control/density_controller.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Replace circular-geometry volume elements with equilibrium-derived flux-surface volumes before facility-density claims",
-        "Validate recycling source and full density-profile evolution against measured or published fuelling cases"
+        "Validate Greenwald fraction and particle inventory changes against measured discharge, external particle-balance, or facility replay references before facility-calibrated claims",
+        "Persist geometry, transport profiles, actuator limits, diagnostic source, timestep/CFL state, source integrals, particle inventory deltas, reference tolerances, and claim-admission status with every promoted density-control claim"
       ],
       "unit_contract": "SI particles per second, metres, seconds, m^-3, m^2/s, m/s, pellet millimetres, beam keV, megawatts, and dimensionless Greenwald fraction.",
       "validation_evidence": [
-        "tests/test_density_controller.py Greenwald, NGS pellet trajectory deposition, sink, controller, geometry, transport-profile, source-input, and timestep guard checks",
+        "tests/test_density_controller.py Greenwald, NGS pellet trajectory deposition, sink, controller, geometry, transport-profile, source-input, timestep guard, and fail-closed density-control claim evidence checks",
         "tests/test_pellet_injection.py Parks-Turnbull NGS ablation and pellet trajectory checks",
-        "validation/validate_density_reference.py strict density reference artifact gate"
+        "validation/benchmark_density_control_claims.py publishes deterministic bounded synthetic claim evidence with explicit facility-calibrated claim exclusion",
+        "validation/reports/density_control_claims.json records bounded geometry, transport, actuator, diagnostic, CFL, Greenwald, source-integral, and inventory evidence",
+        "validation/validate_density_reference.py strict density reference artefact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/density_controller.py",
         "tests/test_density_controller.py",
         "src/scpn_control/core/pellet_injection.py",
         "tests/test_pellet_injection.py",
+        "validation/benchmark_density_control_claims.py",
+        "validation/reports/density_control_claims.json",
+        "validation/reports/density_control_claims.md",
         "validation/validate_density_reference.py",
-        "docs/validation.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/density_controller.py"
       ],
-      "validity_domain": "Bounded density-control and particle-source regression on declared radial geometry; not facility-calibrated fuelling or exhaust validation.",
+      "validity_domain": "Bounded density-control, particle-source, Greenwald-limit, finite-volume transport, and claim-admission regression evidence on declared radial geometry; not facility-calibrated fuelling, exhaust, or particle-balance validation unless matched Greenwald and particle-inventory references pass the admission gate.",
       "external_validation_tracker_issue": 51
     },
     {

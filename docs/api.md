@@ -804,6 +804,14 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control.control.density_controller
 
+::: scpn_control.control.density_controller.DensityControlClaimEvidence
+
+::: scpn_control.control.density_controller.density_control_claim_evidence
+
+::: scpn_control.control.density_controller.assert_density_control_facility_claim_admissible
+
+::: scpn_control.control.density_controller.save_density_control_claim_evidence
+
 #### Detachment Controller
 
 ::: scpn_control.control.detachment_controller

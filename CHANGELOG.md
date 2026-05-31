@@ -45,6 +45,9 @@
 - Added uncertainty-quantification claim evidence with fail-closed calibrated
   predictive-UQ admission for matched central values, sigma statistics, seed,
   prior, scenario, propagation-chain, and sensitivity provenance.
+- Added density-control claim evidence with fail-closed facility-calibrated
+  admission for matched Greenwald fraction, particle inventory, geometry,
+  transport, actuator, diagnostic, and CFL provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
@@ -98,6 +101,7 @@
 - `python validation/benchmark_vmec_lite_claims.py`
 - `python validation/benchmark_orbit_following_claims.py`
 - `python validation/benchmark_uq_claims.py`
+- `python validation/benchmark_density_control_claims.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`
