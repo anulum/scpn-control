@@ -39,6 +39,9 @@
 - Added VMEC-lite spectral facade claim evidence with fail-closed full-VMEC
   admission for matched Fourier geometry, rotational transform, residual, and
   convergence provenance.
+- Added orbit-following claim evidence with fail-closed external-code
+  admission for matched banana-width, first-orbit-loss, particle, geometry,
+  collision-model, and loss-boundary provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
@@ -90,6 +93,7 @@
 - `python validation/benchmark_efit_lite_claims.py`
 - `python validation/benchmark_kinetic_efit_claims.py`
 - `python validation/benchmark_vmec_lite_claims.py`
+- `python validation/benchmark_orbit_following_claims.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`

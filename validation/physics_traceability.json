@@ -1475,7 +1475,7 @@
     },
     {
       "component": "orbit-following guiding-centre approximation contract",
-      "equation_contract": "Orbit-following claims must declare guiding-centre equations, magnetic moment handling, finite pitch-angle bounds, banana-orbit width scaling, collision or loss assumptions, ensemble sampling, and valid magnetic-geometry bounds.",
+      "equation_contract": "Orbit-following claims must declare guiding-centre equations, magnetic moment handling, finite pitch-angle bounds, banana-orbit width scaling, collision or loss assumptions, ensemble sampling, valid magnetic-geometry bounds, geometry/particle/collision/loss-boundary provenance, and matched banana-width and loss-fraction reference tolerances before external orbit-code or measured fast-ion claims.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Cordey 1981 orbit-width estimate",
@@ -1484,24 +1484,30 @@
       "module_path": "src/scpn_control/core/orbit_following.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate orbit widths and loss fractions against an independent orbit-following code or published benchmark cases",
-        "Persist particle species, pitch, energy, geometry, and ensemble seed metadata with each validation artefact"
+        "Validate orbit widths and loss fractions against an independent orbit-following code or published benchmark cases before external orbit-code claims",
+        "Persist particle species, pitch, energy, geometry, ensemble seed or counts, collision model, wall/loss boundary, reference tolerances, and claim-admission status with each validation artefact"
       ],
       "unit_contract": "SI metres, seconds, tesla, electronvolts, kg, coulombs, pitch angle in radians on [0, pi], and ensemble probabilities dimensionless.",
       "validation_evidence": [
-        "tests/test_orbit_following.py",
-        "validation/validate_orbit_reference.py strict orbit reference artifact gate"
+        "tests/test_orbit_following.py verifies guiding-centre domain checks, classifier boundaries, Stix slowing-down, banana-width scaling, first-orbit-loss scaling, ensemble counts, and fail-closed orbit-following claim evidence admission",
+        "validation/benchmark_orbit_following_claims.py publishes deterministic bounded synthetic claim evidence with explicit external-code claim exclusion",
+        "validation/reports/orbit_following_claims.json records bounded geometry, particle, collision, loss-boundary, banana-width, first-orbit-loss, and ensemble-count evidence",
+        "validation/validate_orbit_reference.py strict orbit reference artefact gate"
       ],
       "evidence_paths": [
         "tests/test_orbit_following.py",
         "src/scpn_control/core/orbit_following.py",
+        "validation/benchmark_orbit_following_claims.py",
+        "validation/reports/orbit_following_claims.json",
+        "validation/reports/orbit_following_claims.md",
         "validation/validate_orbit_reference.py",
-        "docs/validation.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/orbit_following.py"
       ],
-      "validity_domain": "Guiding-centre and orbit-width regression; not validated fast-ion confinement or loss prediction.",
+      "validity_domain": "Bounded guiding-centre, banana-width, slowing-down, and first-orbit-loss regression evidence for local controller studies; not external orbit-code, measured fast-ion diagnostic, or device-qualified loss validation unless matched banana-width and loss-fraction references pass the admission gate.",
       "external_validation_tracker_issue": 49
     },
     {

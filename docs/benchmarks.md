@@ -220,6 +220,23 @@ Full VMEC or 3D MHD equilibrium claims still require matched VMEC, documented
 public, external-MHD, or measured-stellarator references for `R_mn`, `Z_mn`,
 rotational transform, convergence, and residual tolerance.
 
+## Orbit-following Claim-Admission Benchmark
+
+`validation/benchmark_orbit_following_claims.py` publishes bounded synthetic
+regression evidence for guiding-centre orbit-following claim admission. The
+generated report records geometry provenance, particle provenance,
+collision-model provenance, loss-boundary provenance, banana width,
+first-orbit loss, and ensemble classification counts.
+
+Report artefacts:
+
+- `validation/reports/orbit_following_claims.json`
+- `validation/reports/orbit_following_claims.md`
+
+External orbit-following claims still require matched external-code,
+documented-public, published-benchmark, or measured fast-ion diagnostic
+references for banana width and loss fraction.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:

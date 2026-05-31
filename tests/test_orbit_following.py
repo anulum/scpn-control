@@ -13,12 +13,16 @@ import numpy as np
 import pytest
 
 from scpn_control.core.orbit_following import (
+    EnsembleResult,
     GuidingCenterOrbit,
     MonteCarloEnsemble,
     OrbitClassifier,
+    assert_orbit_following_external_claim_admissible,
     SlowingDown,
     banana_orbit_width,
     first_orbit_loss,
+    orbit_following_claim_evidence,
+    save_orbit_following_claim_evidence,
 )
 
 
@@ -307,3 +311,127 @@ def test_slowing_down_rejects_invalid_domains():
 
     with pytest.raises(ValueError, match="v_c"):
         SlowingDown.heating_partition(1.0, v_c=0.0)
+
+
+def test_orbit_following_claim_evidence_records_bounded_provenance(tmp_path):
+    loss = first_orbit_loss(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0)
+    ensemble = EnsembleResult(
+        loss_fraction=0.2,
+        heating_profile=np.zeros(50),
+        current_drive=0.0,
+        n_passing=6,
+        n_trapped=2,
+        n_lost=2,
+    )
+
+    evidence = orbit_following_claim_evidence(
+        source="synthetic_regression_reference",
+        source_id="orbit-following-bounded-regression-v1",
+        geometry_source="repository large-aspect-ratio tokamak fixture",
+        particle_source="repository alpha-particle birth fixture",
+        collision_model="Stix slowing-down fixture",
+        loss_boundary_source="repository first-orbit wall boundary fixture",
+        q=2.0,
+        rho_L_m=0.05,
+        epsilon=0.25,
+        first_orbit_loss_fraction=loss,
+        ensemble_result=ensemble,
+    )
+    report_path = tmp_path / "orbit_following_claim.json"
+    save_orbit_following_claim_evidence(evidence, report_path)
+
+    assert evidence.external_orbit_claim_allowed is False
+    assert evidence.claim_status == "bounded_orbit_following_evidence"
+    assert evidence.banana_width_m == pytest.approx(0.2)
+    assert evidence.first_orbit_loss_fraction == pytest.approx(loss)
+    assert evidence.ensemble_particles == 10
+    assert evidence.ensemble_lost == 2
+    assert '"external_orbit_claim_allowed": false' in report_path.read_text(encoding="utf-8")
+
+
+def test_orbit_following_external_admission_requires_matched_references():
+    loss = first_orbit_loss(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0)
+    width = banana_orbit_width(q=2.0, rho_L=0.05, epsilon=0.25)
+
+    matched = orbit_following_claim_evidence(
+        source="external_orbit_code",
+        source_id="matched-orbit-reference",
+        geometry_source="documented equilibrium geometry",
+        particle_source="documented alpha-particle birth distribution",
+        collision_model="documented slowing-down model",
+        loss_boundary_source="documented first-wall boundary",
+        q=2.0,
+        rho_L_m=0.05,
+        epsilon=0.25,
+        first_orbit_loss_fraction=loss,
+        reference_banana_width_m=width,
+        reference_loss_fraction=loss,
+    )
+    assert_orbit_following_external_claim_admissible(matched)
+    assert matched.external_orbit_claim_allowed is True
+
+    mismatched_loss = orbit_following_claim_evidence(
+        source="external_orbit_code",
+        source_id="mismatched-loss-reference",
+        geometry_source="documented equilibrium geometry",
+        particle_source="documented alpha-particle birth distribution",
+        collision_model="documented slowing-down model",
+        loss_boundary_source="documented first-wall boundary",
+        q=2.0,
+        rho_L_m=0.05,
+        epsilon=0.25,
+        first_orbit_loss_fraction=loss,
+        reference_banana_width_m=width,
+        reference_loss_fraction=min(loss + 0.2, 1.0),
+        loss_fraction_abs_tolerance=0.01,
+    )
+    with pytest.raises(ValueError, match="external orbit claim requires matched"):
+        assert_orbit_following_external_claim_admissible(mismatched_loss)
+    assert mismatched_loss.external_orbit_claim_allowed is False
+
+
+def test_orbit_following_claim_evidence_rejects_invalid_claim_inputs():
+    loss = first_orbit_loss(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0)
+
+    with pytest.raises(ValueError, match="source must be one of"):
+        orbit_following_claim_evidence(
+            source="untracked_reference",
+            source_id="bad-source",
+            geometry_source="documented geometry",
+            particle_source="documented particles",
+            collision_model="documented collisions",
+            loss_boundary_source="documented wall",
+            q=2.0,
+            rho_L_m=0.05,
+            epsilon=0.25,
+            first_orbit_loss_fraction=loss,
+        )
+
+    with pytest.raises(ValueError, match="loss_fraction"):
+        orbit_following_claim_evidence(
+            source="external_orbit_code",
+            source_id="bad-loss",
+            geometry_source="documented geometry",
+            particle_source="documented particles",
+            collision_model="documented collisions",
+            loss_boundary_source="documented wall",
+            q=2.0,
+            rho_L_m=0.05,
+            epsilon=0.25,
+            first_orbit_loss_fraction=1.2,
+        )
+
+    with pytest.raises(ValueError, match="loss fraction must match"):
+        orbit_following_claim_evidence(
+            source="external_orbit_code",
+            source_id="bad-ensemble",
+            geometry_source="documented geometry",
+            particle_source="documented particles",
+            collision_model="documented collisions",
+            loss_boundary_source="documented wall",
+            q=2.0,
+            rho_L_m=0.05,
+            epsilon=0.25,
+            first_orbit_loss_fraction=loss,
+            ensemble_result=EnsembleResult(0.1, np.zeros(50), 0.0, 1, 1, 1),
+        )

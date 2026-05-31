@@ -957,6 +957,14 @@ JSON report containing every accepted or rejected update decision.
 
 ::: scpn_control.core.orbit_following
 
+::: scpn_control.core.orbit_following.OrbitFollowingClaimEvidence
+
+::: scpn_control.core.orbit_following.orbit_following_claim_evidence
+
+::: scpn_control.core.orbit_following.assert_orbit_following_external_claim_admissible
+
+::: scpn_control.core.orbit_following.save_orbit_following_claim_evidence
+
 #### Pedestal
 
 ::: scpn_control.core.pedestal

@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
@@ -20,6 +22,11 @@ _M_P = 1.67262192e-27  # kg
 _M_E = 9.10938e-31  # kg
 _E_C = 1.60217663e-19  # C
 _LN_LAMBDA = 17.0  # Coulomb logarithm; Wesson 2011, Tokamaks 4th ed., §2.12
+_ORBIT_CLAIM_SCHEMA_VERSION = 1
+_ORBIT_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "external_orbit_code", "published_benchmark", "measured_fast_ion_diagnostic"}
+)
+_BOUNDED_ORBIT_SOURCES = frozenset({"synthetic_regression_reference", *_ORBIT_REFERENCE_SOURCES})
 
 
 def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
@@ -52,6 +59,159 @@ class EnsembleResult:
     n_passing: int
     n_trapped: int
     n_lost: int
+
+
+@dataclass(frozen=True)
+class OrbitFollowingClaimEvidence:
+    """Serialisable provenance and reference-comparison evidence for orbit-following claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    geometry_source: str
+    particle_source: str
+    collision_model: str
+    loss_boundary_source: str
+    model_id: str
+    q: float
+    rho_L_m: float
+    epsilon: float
+    banana_width_m: float
+    first_orbit_loss_fraction: float
+    ensemble_particles: int | None
+    ensemble_loss_fraction: float | None
+    ensemble_passing: int | None
+    ensemble_trapped: int | None
+    ensemble_lost: int | None
+    banana_width_relative_error: float | None
+    loss_fraction_abs_error: float | None
+    banana_width_relative_tolerance: float
+    loss_fraction_abs_tolerance: float
+    external_orbit_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def orbit_following_claim_evidence(
+    *,
+    source: str,
+    source_id: str,
+    geometry_source: str,
+    particle_source: str,
+    collision_model: str,
+    loss_boundary_source: str,
+    q: float,
+    rho_L_m: float,
+    epsilon: float,
+    first_orbit_loss_fraction: float,
+    ensemble_result: EnsembleResult | None = None,
+    model_id: str = "bounded_guiding_centre_orbit_following",
+    reference_banana_width_m: float | None = None,
+    reference_loss_fraction: float | None = None,
+    banana_width_relative_tolerance: float = 0.05,
+    loss_fraction_abs_tolerance: float = 0.02,
+) -> OrbitFollowingClaimEvidence:
+    """Build fail-closed evidence for bounded or externally referenced orbit claims."""
+
+    source_clean = _non_empty_text("source", source)
+    if source_clean not in _BOUNDED_ORBIT_SOURCES:
+        allowed = ", ".join(sorted(_BOUNDED_ORBIT_SOURCES))
+        raise ValueError(f"source must be one of: {allowed}")
+
+    q_value = _finite_scalar("q", q, positive=True)
+    rho_l = _finite_scalar("rho_L_m", rho_L_m, positive=True)
+    eps = _finite_scalar("epsilon", epsilon, positive=True)
+    loss_fraction = _finite_scalar("first_orbit_loss_fraction", first_orbit_loss_fraction, nonnegative=True)
+    if loss_fraction > 1.0:
+        raise ValueError("first_orbit_loss_fraction must stay within [0, 1]")
+    width_tolerance = _finite_scalar("banana_width_relative_tolerance", banana_width_relative_tolerance, positive=True)
+    loss_tolerance = _finite_scalar("loss_fraction_abs_tolerance", loss_fraction_abs_tolerance, positive=True)
+
+    banana_width = banana_orbit_width(q_value, rho_l, eps)
+    width_error = None
+    if reference_banana_width_m is not None:
+        reference_width = _finite_scalar("reference_banana_width_m", reference_banana_width_m, positive=True)
+        width_error = abs(banana_width - reference_width) / max(abs(reference_width), 1e-30)
+
+    loss_error = None
+    if reference_loss_fraction is not None:
+        reference_loss = _finite_scalar("reference_loss_fraction", reference_loss_fraction, nonnegative=True)
+        if reference_loss > 1.0:
+            raise ValueError("reference_loss_fraction must stay within [0, 1]")
+        loss_error = abs(loss_fraction - reference_loss)
+
+    ensemble_particles = None
+    ensemble_loss = None
+    ensemble_passing = None
+    ensemble_trapped = None
+    ensemble_lost = None
+    if ensemble_result is not None:
+        total = ensemble_result.n_passing + ensemble_result.n_trapped + ensemble_result.n_lost
+        if total <= 0:
+            raise ValueError("ensemble_result must contain at least one classified particle")
+        if not math.isclose(ensemble_result.loss_fraction, ensemble_result.n_lost / total, rel_tol=0.0, abs_tol=1e-12):
+            raise ValueError("ensemble_result loss fraction must match classified counts")
+        ensemble_particles = int(total)
+        ensemble_loss = float(ensemble_result.loss_fraction)
+        ensemble_passing = int(ensemble_result.n_passing)
+        ensemble_trapped = int(ensemble_result.n_trapped)
+        ensemble_lost = int(ensemble_result.n_lost)
+
+    references_pass = (
+        width_error is not None
+        and loss_error is not None
+        and width_error <= width_tolerance
+        and loss_error <= loss_tolerance
+    )
+    external_claim_allowed = source_clean in _ORBIT_REFERENCE_SOURCES and references_pass
+    claim_status = "external_orbit_reference_matched" if external_claim_allowed else "bounded_orbit_following_evidence"
+
+    return OrbitFollowingClaimEvidence(
+        schema_version=_ORBIT_CLAIM_SCHEMA_VERSION,
+        source=source_clean,
+        source_id=_non_empty_text("source_id", source_id),
+        geometry_source=_non_empty_text("geometry_source", geometry_source),
+        particle_source=_non_empty_text("particle_source", particle_source),
+        collision_model=_non_empty_text("collision_model", collision_model),
+        loss_boundary_source=_non_empty_text("loss_boundary_source", loss_boundary_source),
+        model_id=_non_empty_text("model_id", model_id),
+        q=q_value,
+        rho_L_m=rho_l,
+        epsilon=eps,
+        banana_width_m=float(banana_width),
+        first_orbit_loss_fraction=loss_fraction,
+        ensemble_particles=ensemble_particles,
+        ensemble_loss_fraction=ensemble_loss,
+        ensemble_passing=ensemble_passing,
+        ensemble_trapped=ensemble_trapped,
+        ensemble_lost=ensemble_lost,
+        banana_width_relative_error=width_error,
+        loss_fraction_abs_error=loss_error,
+        banana_width_relative_tolerance=width_tolerance,
+        loss_fraction_abs_tolerance=loss_tolerance,
+        external_orbit_claim_allowed=bool(external_claim_allowed),
+        claim_status=claim_status,
+    )
+
+
+def assert_orbit_following_external_claim_admissible(evidence: OrbitFollowingClaimEvidence) -> None:
+    """Raise when orbit-following evidence is insufficient for an external-code claim."""
+
+    if not evidence.external_orbit_claim_allowed:
+        raise ValueError("external orbit claim requires matched banana-width and loss-fraction references")
+
+
+def save_orbit_following_claim_evidence(evidence: OrbitFollowingClaimEvidence, path: str | Path) -> None:
+    """Persist orbit-following claim evidence as deterministic JSON."""
+
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class GuidingCenterOrbit:
