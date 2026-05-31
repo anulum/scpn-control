@@ -210,6 +210,9 @@ transport gradients via `validation/benchmark_differentiable_transport_latency.p
 The timed path includes gradients for transport coefficients and source
 schedules plus the sampled independent finite-difference audit used before
 controller-tuning admission.
+The facade also exposes multi-step source-schedule gradients for bounded
+controller-tuning studies; those gradients inherit this same local claim
+boundary until a separate rollout-latency report is admitted.
 
 Report artefacts:
 

@@ -136,6 +136,11 @@ path is deterministic for parity checks and non-JAX deployments, but
 `transport_parameter_gradients()` extends the same traced Crank-Nicolson
 contract to source schedules, returning JAX gradients for both transport
 coefficients and additive heating, fuelling, or impurity-source inputs.
+`differentiable_transport_rollout()` advances a bounded multi-step source
+schedule with the same four-channel boundary contract.
+`transport_rollout_source_gradients()` returns fail-closed JAX gradients for
+that full source schedule so controller tuning can optimise time-distributed
+heating, fuelling, and impurity-source inputs without finite differences.
 `audit_transport_parameter_gradients()` and
 `assert_transport_parameter_gradients_consistent()` compare those JAX gradients
 against sampled independent finite-difference perturbations before
@@ -163,6 +168,14 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 ::: scpn_control.core.differentiable_transport.transport_parameter_gradients
 
 ::: scpn_control.core.differentiable_transport.TransportParameterGradients
+
+::: scpn_control.core.differentiable_transport.differentiable_transport_rollout
+
+::: scpn_control.core.differentiable_transport.transport_rollout_tracking_loss
+
+::: scpn_control.core.differentiable_transport.transport_rollout_source_gradients
+
+::: scpn_control.core.differentiable_transport.TransportRolloutSourceGradients
 
 ::: scpn_control.core.differentiable_transport.audit_transport_parameter_gradients
 

@@ -62,6 +62,15 @@ class TransportParameterGradients:
 
 
 @dataclass(frozen=True)
+class TransportRolloutSourceGradients:
+    """JAX gradients of multi-step transport loss for source schedules."""
+
+    loss: float
+    source_gradient: np.ndarray
+    final_profiles: np.ndarray
+
+
+@dataclass(frozen=True)
 class TransportGradientAudit:
     """Finite-difference audit of differentiable transport tuning gradients."""
 
@@ -530,6 +539,240 @@ def _transport_step_jax(
         drho,
         float(dt),
         jnp.asarray(edge_values, dtype=jnp.float64),
+    )
+
+
+def _validate_transport_rollout_inputs(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    target_history: Any | None = None,
+    weights: Any | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray | None, np.ndarray | None]:
+    profile_array = _as_float_array("initial_profiles", initial_profiles)
+    chi_array = _as_float_array("chi", chi)
+    source_array = _as_float_array("source_sequence", source_sequence)
+    rho_array = _as_float_array("rho", rho)
+    edge_array = _as_float_array("edge_values", edge_values)
+
+    if profile_array.ndim != 2 or profile_array.shape[0] != CHANNEL_COUNT:
+        raise ValueError(f"initial_profiles must have shape ({CHANNEL_COUNT}, n_rho)")
+    if chi_array.shape != profile_array.shape:
+        raise ValueError("chi must match initial_profiles shape")
+    if source_array.ndim != 3 or source_array.shape[1:] != profile_array.shape or source_array.shape[0] < 1:
+        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho) with n_steps >= 1")
+    if rho_array.ndim != 1 or rho_array.shape[0] != profile_array.shape[1] or rho_array.shape[0] < 3:
+        raise ValueError("rho must be one-dimensional with the same radial length as initial_profiles")
+    if edge_array.shape != (CHANNEL_COUNT,):
+        raise ValueError(f"edge_values must have shape ({CHANNEL_COUNT},)")
+    if float(dt) <= 0.0 or not np.isfinite(float(dt)):
+        raise ValueError("dt must be positive and finite")
+    if np.any(chi_array < 0.0):
+        raise ValueError("chi must be non-negative")
+    rho_steps = np.diff(rho_array)
+    if np.any(rho_steps <= 0.0):
+        raise ValueError("rho must be strictly increasing")
+    if not np.allclose(rho_steps, rho_steps[0], rtol=1.0e-9, atol=1.0e-12):
+        raise ValueError("rho must use a uniform normalised radial spacing")
+
+    target_array = None
+    if target_history is not None:
+        target_array = _as_float_array("target_history", target_history)
+        if target_array.shape != source_array.shape:
+            raise ValueError("target_history must match source_sequence shape")
+
+    weight_array = None
+    if weights is not None:
+        weight_array = _as_float_array("weights", weights)
+        if weight_array.shape != (CHANNEL_COUNT,):
+            raise ValueError(f"weights must have shape ({CHANNEL_COUNT},)")
+        if np.any(weight_array < 0.0):
+            raise ValueError("weights must be non-negative")
+
+    return profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array
+
+
+def _transport_rollout_numpy(
+    initial_profiles: np.ndarray,
+    chi: np.ndarray,
+    source_sequence: np.ndarray,
+    rho: np.ndarray,
+    dt: float,
+    edge_values: np.ndarray,
+) -> np.ndarray:
+    current = initial_profiles
+    history: list[np.ndarray] = []
+    for source_step in source_sequence:
+        current = _transport_step_numpy(current, chi, source_step, rho, dt, edge_values)
+        history.append(current)
+    return np.stack(history)
+
+
+def _transport_rollout_jax(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+) -> Any:
+    if jnp is None or jax is None:
+        raise RuntimeError("JAX transport rollout requested but JAX is unavailable")
+    chi_jax = jnp.asarray(chi, dtype=jnp.float64)
+    rho_jax = jnp.asarray(rho, dtype=jnp.float64)
+    edge_jax = jnp.asarray(edge_values, dtype=jnp.float64)
+
+    def body(carry: Any, source_step: Any) -> tuple[Any, Any]:
+        next_profiles = _transport_step_jax(carry, chi_jax, source_step, rho_jax, dt, edge_jax)
+        return next_profiles, next_profiles
+
+    _, history = jax.lax.scan(
+        body,
+        jnp.asarray(initial_profiles, dtype=jnp.float64),
+        jnp.asarray(source_sequence, dtype=jnp.float64),
+    )
+    return history
+
+
+def differentiable_transport_rollout(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    use_jax: bool = True,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
+) -> Any:
+    """Advance a time-series of four-channel transport source schedules.
+
+    The returned array has shape ``(n_steps, 4, n_rho)``. Transport
+    coefficients are held fixed over the rollout, while ``source_sequence``
+    supplies differentiable additive heating, fuelling, and impurity-source
+    schedules at each step. This is a bounded controller-tuning primitive, not
+    an externally validated integrated-transport campaign.
+    """
+    profile_array, chi_array, source_array, rho_array, edge_array, _, _ = _validate_transport_rollout_inputs(
+        initial_profiles,
+        chi,
+        source_sequence,
+        rho,
+        dt,
+        edge_values,
+    )
+    use_jax_runtime = _resolve_use_jax(
+        use_jax,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+        context="differentiable_transport_rollout",
+    )
+    if use_jax_runtime:
+        return _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
+    return _transport_rollout_numpy(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
+
+
+def transport_rollout_tracking_loss(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    target_history: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+    use_jax: bool = True,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
+) -> Any:
+    """Return weighted multi-step transport tracking loss."""
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_rollout_inputs(
+            initial_profiles,
+            chi,
+            source_sequence,
+            rho,
+            dt,
+            edge_values,
+            target_history=target_history,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_history is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+    use_jax_runtime = _resolve_use_jax(
+        use_jax,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+        context="transport_rollout_tracking_loss",
+    )
+    if use_jax_runtime:
+        history = _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
+        residual = history - jnp.asarray(target_array, dtype=jnp.float64)
+        return jnp.mean(jnp.asarray(weight_array, dtype=jnp.float64)[None, :, None] * residual * residual)
+    history = _transport_rollout_numpy(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
+    residual = history - target_array
+    return float(np.mean(weight_array[None, :, None] * residual * residual))
+
+
+def transport_rollout_source_gradients(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    target_history: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+) -> TransportRolloutSourceGradients:
+    """Return JAX gradients for a multi-step transport source schedule."""
+    if not _HAS_JAX or jax is None or jnp is None:
+        raise RuntimeError("transport_rollout_source_gradients requires JAX")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_rollout_inputs(
+            initial_profiles,
+            chi,
+            source_sequence,
+            rho,
+            dt,
+            edge_values,
+            target_history=target_history,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_history is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+
+    def loss_for_sources(source_candidate: Any) -> Any:
+        return transport_rollout_tracking_loss(
+            profile_array,
+            chi_array,
+            source_candidate,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            weights=weight_array,
+            use_jax=True,
+        )
+
+    loss, gradient = jax.value_and_grad(loss_for_sources)(jnp.asarray(source_array, dtype=jnp.float64))
+    history = _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
+    return TransportRolloutSourceGradients(
+        loss=float(np.asarray(loss)),
+        source_gradient=np.asarray(gradient),
+        final_profiles=np.asarray(history[-1]),
     )
 
 

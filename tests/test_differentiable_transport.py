@@ -88,6 +88,93 @@ def test_transport_tracking_loss_is_zero_for_exact_next_step_target():
     assert loss == pytest.approx(0.0, abs=1e-24)
 
 
+def test_numpy_transport_rollout_advances_source_schedule_with_boundaries():
+    rho = np.linspace(0.05, 1.0, 24)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.16 + 0.01 * rho,
+            0.14 + 0.01 * rho,
+            0.035 + 0.003 * rho,
+            0.010 + 0.001 * rho,
+        ]
+    )
+    source_sequence = np.zeros((4, dt.CHANNEL_COUNT, rho.size))
+    source_sequence[:, 0, 6:11] = np.linspace(0.01, 0.04, 4)[:, None]
+    source_sequence[:, 2, 4:9] = np.linspace(0.005, 0.02, 4)[:, None]
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    history = dt.differentiable_transport_rollout(
+        profiles,
+        chi,
+        source_sequence,
+        rho,
+        7.5e-4,
+        edge_values,
+        use_jax=False,
+    )
+    no_source_history = dt.differentiable_transport_rollout(
+        profiles,
+        chi,
+        np.zeros_like(source_sequence),
+        rho,
+        7.5e-4,
+        edge_values,
+        use_jax=False,
+    )
+    exact_loss = dt.transport_rollout_tracking_loss(
+        profiles,
+        chi,
+        source_sequence,
+        history,
+        rho,
+        7.5e-4,
+        edge_values,
+        weights=np.array([1.0, 0.75, 0.25, 0.1]),
+        use_jax=False,
+    )
+
+    assert history.shape == source_sequence.shape
+    assert np.all(np.isfinite(history))
+    np.testing.assert_allclose(history[:, :, -1], np.tile(edge_values, (history.shape[0], 1)), atol=1e-12)
+    np.testing.assert_allclose(history[:, :, 0], history[:, :, 1], atol=1e-12)
+    assert exact_loss == pytest.approx(0.0, abs=1e-24)
+    assert np.mean(history[-1, 0, 6:11] - no_source_history[-1, 0, 6:11]) > 0.0
+    assert np.mean(history[-1, 2, 4:9] - no_source_history[-1, 2, 4:9]) > 0.0
+
+
+def test_transport_rollout_rejects_malformed_source_history_and_grid():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    source_sequence = np.zeros((3, dt.CHANNEL_COUNT, rho.size))
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    with pytest.raises(ValueError, match="source_sequence"):
+        dt.differentiable_transport_rollout(profiles, chi, np.zeros_like(profiles), rho, 1.0e-3, edge_values)
+    with pytest.raises(ValueError, match="target_history"):
+        dt.transport_rollout_tracking_loss(
+            profiles,
+            chi,
+            source_sequence,
+            np.zeros((2, dt.CHANNEL_COUNT, rho.size)),
+            rho,
+            1.0e-3,
+            edge_values,
+            use_jax=False,
+        )
+    with pytest.raises(ValueError, match="uniform"):
+        dt.differentiable_transport_rollout(
+            profiles,
+            chi,
+            source_sequence,
+            rho**1.2,
+            1.0e-3,
+            edge_values,
+            use_jax=False,
+        )
+
+
 def test_gradient_api_fails_closed_without_jax(monkeypatch):
     rho = np.linspace(0.05, 1.0, 16)
     profiles = _profiles(rho)
@@ -99,6 +186,27 @@ def test_gradient_api_fails_closed_without_jax(monkeypatch):
 
     with pytest.raises(RuntimeError, match="transport_loss_gradient requires JAX"):
         dt.transport_loss_gradient(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
+
+
+def test_transport_rollout_source_gradients_fail_closed_without_jax(monkeypatch):
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    source_sequence = np.zeros((3, dt.CHANNEL_COUNT, rho.size))
+    target_history = source_sequence.copy()
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    monkeypatch.setattr(dt, "_HAS_JAX", False)
+
+    with pytest.raises(RuntimeError, match="transport_rollout_source_gradients requires JAX"):
+        dt.transport_rollout_source_gradients(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            1.0e-3,
+            edge_values,
+        )
 
 
 def test_transport_parameter_gradients_fail_closed_without_jax(monkeypatch):
@@ -186,6 +294,55 @@ def test_transport_parameter_gradients_include_source_schedule_sensitivity():
     assert np.all(np.isfinite(result.chi_gradient))
     assert np.all(np.isfinite(result.source_gradient))
     assert np.any(np.abs(result.chi_gradient) > 0.0)
+    assert np.any(np.abs(result.source_gradient) > 0.0)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_transport_rollout_source_gradients_are_finite_with_jax():
+    rho = np.linspace(0.05, 1.0, 18)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.18 + 0.02 * rho,
+            0.15 + 0.02 * rho,
+            0.04 + 0.004 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    source_sequence = np.zeros((4, dt.CHANNEL_COUNT, rho.size))
+    source_sequence[:, 0, 5:10] = 0.01
+    source_sequence[:, 2, 4:9] = 0.005
+    target_history = np.asarray(
+        dt.differentiable_transport_rollout(
+            profiles,
+            chi,
+            source_sequence,
+            rho,
+            8.0e-4,
+            np.array([0.2, 0.2, 4.0, 0.03]),
+            use_jax=False,
+        )
+    )
+    target_history[:, 0, 6:11] += 0.015
+    target_history[:, 2, 5:10] += 0.006
+
+    result = dt.transport_rollout_source_gradients(
+        profiles,
+        chi,
+        source_sequence,
+        target_history,
+        rho,
+        8.0e-4,
+        np.array([0.2, 0.2, 4.0, 0.03]),
+        weights=np.array([1.0, 0.75, 0.25, 0.1]),
+    )
+
+    assert isinstance(result, dt.TransportRolloutSourceGradients)
+    assert np.isfinite(result.loss)
+    assert result.source_gradient.shape == source_sequence.shape
+    assert result.final_profiles.shape == profiles.shape
+    assert np.all(np.isfinite(result.source_gradient))
+    assert np.all(np.isfinite(result.final_profiles))
     assert np.any(np.abs(result.source_gradient) > 0.0)
 
 
