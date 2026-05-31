@@ -246,7 +246,7 @@ class PhaseStreamServer:
     async def _send_frame_or_dead(self, websocket: Any, frame: str) -> Any | None:
         try:
             await asyncio.wait_for(websocket.send(frame), timeout=self.client_send_timeout_s)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             await self._close_backpressured_client(websocket)
             return websocket
         except (ConnectionError, OSError):

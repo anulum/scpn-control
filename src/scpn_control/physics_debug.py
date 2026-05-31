@@ -277,7 +277,7 @@ class HTTPChatProvider:
         headers = {"Content-Type": "application/json", **dict(self.headers)}
         request = urllib.request.Request(self.endpoint, data=encoded, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:  # nosec B310
                 body = cast(bytes, response.read(policy.max_response_chars + 1))
         except urllib.error.URLError as exc:
             raise RuntimeError(f"physics debug provider request failed: {exc}") from exc
@@ -379,7 +379,7 @@ class PhysicsDebugGuardrailProvider:
         headers = {"Content-Type": "application/json", **dict(self.headers)}
         request = urllib.request.Request(self.endpoint, data=encoded, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:  # nosec B310
                 body = cast(bytes, response.read(policy.max_response_chars + 1))
         except urllib.error.URLError as exc:
             raise RuntimeError(f"physics debug guardrail request failed: {exc}") from exc
