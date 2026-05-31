@@ -452,6 +452,12 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.z3_model_checking.verify_z3_formal_contracts
 
+::: scpn_control.scpn.z3_model_checking.build_z3_formal_report_payload
+
+::: scpn_control.scpn.z3_model_checking.build_blocked_z3_formal_report_payload
+
+::: scpn_control.scpn.z3_model_checking.validate_z3_formal_report_payload
+
 ::: scpn_control.scpn.z3_model_checking.write_z3_formal_report
 
 ### FusionCompiler
@@ -499,7 +505,11 @@ compiled controller artifact. The proof manifest must include the canonical
 artifact payload SHA-256, report SHA-256, bounded proof depth, checked
 specification names, backend/solver metadata, and a safe relative report URI.
 When callers provide `formal_report_root`, the loader resolves the report URI
-under that root and verifies the report bytes against the declared SHA-256.
+under that root and verifies the report bytes against the declared SHA-256. Z3
+reports are additionally schema-versioned as
+`scpn-control.z3-formal-report.v1`, carry a canonical payload SHA-256 over the
+proof payload, and must match the manifest status, solver, proof depth, and
+checked specification list before a safety-critical artifact is admitted.
 
 ::: scpn_control.scpn.artifact.Artifact
 

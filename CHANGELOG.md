@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened Z3-backed SCPN formal-verification evidence so pass, fail, and
+  blocked reports use a schema-versioned payload, canonical SHA-256 integrity
+  digest, explicit solver metadata, and manifest-matching status, depth, solver,
+  and checked-specification admission before safety-critical controller
+  artifacts can reference SMT proof reports.
 - Hardened differentiable-transport evidence admission so gradient-audit
   evidence revalidates finite non-negative losses, tolerance agreement with
   campaign metadata, unique in-domain sampled audit indices, pass/fail

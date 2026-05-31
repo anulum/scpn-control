@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,8 @@ from scpn_control.scpn.structure import StochasticPetriNet
 
 from scpn_control.scpn.z3_model_checking import (  # noqa: E402
     Z3BoundedModelChecker,
+    build_blocked_z3_formal_report_payload,
+    validate_z3_formal_report_payload,
     verify_z3_formal_contracts,
     write_z3_formal_report,
 )
@@ -284,7 +287,41 @@ def test_z3_formal_report_writer_publishes_json_and_markdown(tmp_path: Path) -> 
     write_z3_formal_report(report, json_path=json_path, markdown_path=markdown_path)
 
     assert report.holds is True
-    assert json_path.read_text(encoding="utf-8").startswith("{")
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "scpn-control.z3-formal-report.v1"
+    assert payload["status"] == "pass"
+    assert payload["checked_specs"] == ["marking_bounds", "move_eventually_fires"]
+    assert validate_z3_formal_report_payload(payload) == payload
     markdown = markdown_path.read_text(encoding="utf-8")
     assert "# SCPN Z3 Formal Verification Report" in markdown
     assert "bounded SMT evidence" in markdown
+    assert payload["payload_sha256"] in markdown
+
+
+@requires_z3
+def test_z3_formal_report_validator_rejects_tampered_checked_specs(tmp_path: Path) -> None:
+    report = verify_z3_formal_contracts(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+    )
+    json_path = tmp_path / "formal_z3.json"
+    markdown_path = tmp_path / "formal_z3.md"
+    write_z3_formal_report(report, json_path=json_path, markdown_path=markdown_path)
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    payload["checked_specs"] = ["marking_bounds"]
+
+    with pytest.raises(ValueError, match="payload_sha256"):
+        validate_z3_formal_report_payload(payload)
+
+
+def test_blocked_z3_formal_report_is_schema_versioned_and_fail_closed() -> None:
+    payload = build_blocked_z3_formal_report_payload("z3-solver unavailable")
+
+    assert payload["schema_version"] == "scpn-control.z3-formal-report.v1"
+    assert payload["status"] == "blocked"
+    assert payload["holds"] is False
+    assert payload["safety"] is None
+    assert payload["temporal"] is None
+    assert validate_z3_formal_report_payload(payload) == payload

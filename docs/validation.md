@@ -159,6 +159,23 @@ python validation/generate_physics_traceability_report.py --output-md docs/physi
 scpn-check-generated-traceability
 ```
 
+Z3-backed SCPN formal evidence is published as schema-versioned JSON and
+Markdown. The JSON uses `scpn-control.z3-formal-report.v1`, binds the proof
+payload with `payload_sha256`, and records pass, fail, or blocked status. A
+missing optional `z3-solver` dependency produces a blocked report in normal
+publication mode; strict mode fails so release campaigns cannot mistake missing
+SMT evidence for a successful proof:
+
+```bash
+python validation/validate_scpn_z3_formal.py
+python validation/validate_scpn_z3_formal.py --require-z3
+```
+
+Outputs:
+
+- `validation/reports/scpn_z3_formal.json`
+- `validation/reports/scpn_z3_formal.md`
+
 Nonlinear Cyclone Base Case saturation claims are gated separately from quick
 smoke runs. The validator requires a long enough campaign, finite gyro-Bohm
 ion heat flux, agreement with the documented CBC reference band, and a flat

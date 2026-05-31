@@ -17,11 +17,19 @@ import sys
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 from scpn_control.scpn.formal_verification import EventuallyFires, FireLeadsToMarking, NeverCoMarked
 from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.z3_model_checking import verify_z3_formal_contracts, write_z3_formal_report
+from scpn_control.scpn.z3_model_checking import (
+    build_blocked_z3_formal_report_payload,
+    verify_z3_formal_contracts,
+    write_z3_formal_report,
+)
 
-ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_JSON = ROOT / "validation" / "reports" / "scpn_z3_formal.json"
 DEFAULT_MARKDOWN = ROOT / "validation" / "reports" / "scpn_z3_formal.md"
 
@@ -38,14 +46,7 @@ def _reference_net() -> StochasticPetriNet:
 
 
 def _blocked_report(error: str) -> dict[str, Any]:
-    return {
-        "status": "blocked",
-        "backend": "z3",
-        "holds": False,
-        "reason": error,
-        "scope": "bounded SMT evidence for compiled Petri-net control logic",
-        "claim_boundary": "not hardware timing evidence, PCS certification, or unbounded liveness proof",
-    }
+    return build_blocked_z3_formal_report_payload(error)
 
 
 def _write_blocked(report: dict[str, Any], *, json_path: Path, markdown_path: Path) -> None:
@@ -57,11 +58,14 @@ def _write_blocked(report: dict[str, Any], *, json_path: Path, markdown_path: Pa
             [
                 "# SCPN Z3 Formal Verification Report",
                 "",
+                f"- Schema: `{report['schema_version']}`",
                 "- Status: `blocked`",
                 "- Backend: `z3`",
+                f"- Solver: `{report['solver']}`",
+                f"- Payload SHA-256: `{report['payload_sha256']}`",
                 f"- Reason: {report['reason']}",
-                "- Scope: bounded SMT evidence for compiled Petri-net control logic.",
-                "- Claim boundary: not hardware timing evidence, PCS certification, or unbounded liveness proof.",
+                f"- Scope: {report['scope']}.",
+                f"- Claim boundary: {report['claim_boundary']}.",
                 "",
             ]
         ),
@@ -89,7 +93,12 @@ def publish_report(*, json_path: Path, markdown_path: Path, require_z3: bool) ->
             raise
         return blocked
     write_z3_formal_report(report, json_path=json_path, markdown_path=markdown_path)
-    return {"status": "pass" if report.holds else "fail", "backend": report.backend, "holds": report.holds}
+    return {
+        "status": "pass" if report.holds else "fail",
+        "backend": report.backend,
+        "holds": report.holds,
+        "max_depth": report.max_depth,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

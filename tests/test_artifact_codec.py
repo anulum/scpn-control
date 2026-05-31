@@ -25,6 +25,11 @@ from scpn_control.scpn.artifact import (
 )
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.structure import StochasticPetriNet
+from scpn_control.scpn.z3_model_checking import (
+    Z3FormalVerificationReport,
+    Z3ModelCheckingReport,
+    build_z3_formal_report_payload,
+)
 
 
 def _build_artifact_file(tmp_path: Path) -> Path:
@@ -84,23 +89,49 @@ def _write_mutated_artifact_raw(source: Path, output: Path, mutator) -> Path:
 def _passing_formal_evidence(artifact_path: Path, report_path: Path | None = None) -> dict[str, object]:
     artifact = load_artifact(str(artifact_path))
     report_sha256 = "a" * 64
+    solver = "z3-solver 4.16.0"
+    max_depth = 8
+    checked_specs = ["marking_bounds", "move_eventually_fires"]
     if report_path is not None:
         import hashlib
 
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
         report_sha256 = hashlib.sha256(report_path.read_bytes()).hexdigest()
+        solver = payload["solver"]
+        max_depth = payload["max_depth"]
+        checked_specs = payload["checked_specs"]
     return {
         "required": True,
         "status": "pass",
         "backend": "z3",
-        "solver": "z3-solver 4.16.0",
-        "max_depth": 8,
-        "checked_specs": ["always_bounded_marking", "never_comarked"],
+        "solver": solver,
+        "max_depth": max_depth,
+        "checked_specs": checked_specs,
         "artifact_sha256": compute_artifact_payload_sha256(artifact),
         "report_sha256": report_sha256,
-        "claim_boundary": "bounded SMT proof through depth 8 over compiled transition relation",
+        "claim_boundary": f"bounded SMT proof through depth {max_depth} over compiled transition relation",
         "report_uri": "validation/reports/scpn_z3_formal.json",
         "generated_utc": "2026-05-31T00:00:00Z",
     }
+
+
+def _write_valid_z3_report(path: Path) -> None:
+    payload = build_z3_formal_report_payload(
+        Z3FormalVerificationReport(
+            holds=True,
+            backend="z3",
+            max_depth=8,
+            safety=Z3ModelCheckingReport(True, "z3", 8, "unsat"),
+            temporal=Z3ModelCheckingReport(
+                True,
+                "z3",
+                8,
+                "unsat",
+                checked_specs=["move_eventually_fires"],
+            ),
+        )
+    )
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class TestCompactCodecRoundTrip:
@@ -346,7 +377,7 @@ class TestArtifactValidationContract:
         report_root = tmp_path / "reports"
         report_path = report_root / "validation" / "reports" / "scpn_z3_formal.json"
         report_path.parent.mkdir(parents=True)
-        report_path.write_text('{"backend":"z3","holds":true}\n', encoding="utf-8")
+        _write_valid_z3_report(report_path)
         proven_path = _write_mutated_artifact_raw(
             artifact_path,
             tmp_path / "proven-report.scpnctl.json",
@@ -373,7 +404,7 @@ class TestArtifactValidationContract:
         report_root = tmp_path / "reports"
         report_path = report_root / "validation" / "reports" / "scpn_z3_formal.json"
         report_path.parent.mkdir(parents=True)
-        report_path.write_text('{"backend":"z3","holds":false}\n', encoding="utf-8")
+        _write_valid_z3_report(report_path)
         bad_path = _write_mutated_artifact_raw(
             artifact_path,
             tmp_path / "bad-report.scpnctl.json",
@@ -381,6 +412,30 @@ class TestArtifactValidationContract:
         )
 
         with pytest.raises(ArtifactValidationError, match="report_sha256"):
+            load_artifact(str(bad_path), require_formal_verification=True, formal_report_root=report_root)
+
+    def test_safety_critical_artifact_rejects_z3_report_schema_mismatch(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        report_root = tmp_path / "reports"
+        report_path = report_root / "validation" / "reports" / "scpn_z3_formal.json"
+        report_path.parent.mkdir(parents=True)
+        _write_valid_z3_report(report_path)
+
+        def mutate(payload: dict[str, object]) -> None:
+            evidence = _passing_formal_evidence(artifact_path, report_path)
+            evidence["checked_specs"] = ["marking_bounds"]
+            payload["formal_verification"] = evidence
+
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "bad-z3-report-metadata.scpnctl.json",
+            mutate,
+        )
+
+        with pytest.raises(ArtifactValidationError, match="checked_specs"):
             load_artifact(str(bad_path), require_formal_verification=True, formal_report_root=report_root)
 
     def test_formal_proof_manifest_rejects_unsafe_report_uri(

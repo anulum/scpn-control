@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened Z3-backed SCPN formal-verification evidence so pass, fail, and
+  blocked reports use a schema-versioned payload, canonical SHA-256 integrity
+  digest, explicit solver metadata, and manifest-matching status, depth, solver,
+  and checked-specification admission before safety-critical controller
+  artifacts can reference SMT proof reports.
 - Hardened fail-closed physics and mathematics boundaries across MHD,
   pedestal, edge, transport, orbit-following, scenario, and uncertainty
   surfaces without promoting unsupported facility or full-fidelity claims.

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from dataclasses import asdict, dataclass, field
 from fractions import Fraction
 from pathlib import Path
@@ -27,6 +28,10 @@ from scpn_control.scpn.formal_verification import (
     _as_fraction,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
+
+Z3_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.z3-formal-report.v1"
+Z3_FORMAL_REPORT_SCOPE = "bounded SMT evidence for compiled Petri-net control logic"
+Z3_FORMAL_REPORT_CLAIM_BOUNDARY = "not hardware timing evidence, PCS certification, or unbounded liveness proof"
 
 
 @dataclass(frozen=True)
@@ -436,37 +441,181 @@ def write_z3_formal_report(
     markdown_target = Path(markdown_path)
     json_target.parent.mkdir(parents=True, exist_ok=True)
     markdown_target.parent.mkdir(parents=True, exist_ok=True)
-    json_target.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    markdown_target.write_text(_render_markdown(report), encoding="utf-8")
+    payload = build_z3_formal_report_payload(report)
+    json_target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    markdown_target.write_text(_render_markdown(payload), encoding="utf-8")
 
 
-def _render_markdown(report: Z3FormalVerificationReport) -> str:
-    status = "pass" if report.holds else "fail"
+def build_z3_formal_report_payload(report: Z3FormalVerificationReport) -> dict[str, Any]:
+    """Return the schema-versioned JSON payload for a bounded Z3 report."""
+    safety = asdict(report.safety)
+    temporal = asdict(report.temporal)
+    checked_specs = _checked_specs(safety, temporal)
+    payload: dict[str, Any] = {
+        "schema_version": Z3_FORMAL_REPORT_SCHEMA_VERSION,
+        "status": "pass" if report.holds else "fail",
+        "backend": report.backend,
+        "solver": _z3_solver_label(),
+        "holds": report.holds,
+        "max_depth": report.max_depth,
+        "checked_specs": checked_specs,
+        "scope": Z3_FORMAL_REPORT_SCOPE,
+        "claim_boundary": Z3_FORMAL_REPORT_CLAIM_BOUNDARY,
+        "safety": safety,
+        "temporal": temporal,
+    }
+    payload["payload_sha256"] = _payload_digest(payload)
+    return validate_z3_formal_report_payload(payload)
+
+
+def build_blocked_z3_formal_report_payload(reason: str) -> dict[str, Any]:
+    """Return a schema-versioned blocked report for unavailable SMT evidence."""
+    payload: dict[str, Any] = {
+        "schema_version": Z3_FORMAL_REPORT_SCHEMA_VERSION,
+        "status": "blocked",
+        "backend": "z3",
+        "solver": "z3-solver unavailable",
+        "holds": False,
+        "max_depth": 0,
+        "checked_specs": ["z3_solver_available"],
+        "scope": Z3_FORMAL_REPORT_SCOPE,
+        "claim_boundary": Z3_FORMAL_REPORT_CLAIM_BOUNDARY,
+        "reason": reason,
+        "safety": None,
+        "temporal": None,
+    }
+    payload["payload_sha256"] = _payload_digest(payload)
+    return validate_z3_formal_report_payload(payload)
+
+
+def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a schema-versioned Z3 formal evidence report."""
+    if payload.get("schema_version") != Z3_FORMAL_REPORT_SCHEMA_VERSION:
+        raise ValueError("Z3 formal report schema_version is unsupported")
+    if payload.get("backend") != "z3":
+        raise ValueError("Z3 formal report backend must be 'z3'")
+    status = payload.get("status")
+    if status not in {"pass", "fail", "blocked"}:
+        raise ValueError("Z3 formal report status must be pass, fail, or blocked")
+    if not isinstance(payload.get("solver"), str) or not payload["solver"]:
+        raise ValueError("Z3 formal report solver must be a non-empty string")
+    if not isinstance(payload.get("holds"), bool):
+        raise ValueError("Z3 formal report holds must be a boolean")
+    if isinstance(payload.get("max_depth"), bool) or not isinstance(payload.get("max_depth"), int):
+        raise ValueError("Z3 formal report max_depth must be an integer")
+    if payload["max_depth"] < 0:
+        raise ValueError("Z3 formal report max_depth must be non-negative")
+    if not isinstance(payload.get("checked_specs"), list) or not payload["checked_specs"]:
+        raise ValueError("Z3 formal report checked_specs must be a non-empty list")
+    if any(not isinstance(spec, str) or not spec for spec in payload["checked_specs"]):
+        raise ValueError("Z3 formal report checked_specs must contain non-empty strings")
+    if len(payload["checked_specs"]) != len(set(payload["checked_specs"])):
+        raise ValueError("Z3 formal report checked_specs must be unique")
+    if payload.get("scope") != Z3_FORMAL_REPORT_SCOPE:
+        raise ValueError("Z3 formal report scope is unsupported")
+    if payload.get("claim_boundary") != Z3_FORMAL_REPORT_CLAIM_BOUNDARY:
+        raise ValueError("Z3 formal report claim_boundary is unsupported")
+    declared_digest = payload.get("payload_sha256")
+    if not isinstance(declared_digest, str) or len(declared_digest) != 64:
+        raise ValueError("Z3 formal report payload_sha256 must be a SHA-256 hex digest")
+    if _payload_digest(payload) != declared_digest.lower():
+        raise ValueError("Z3 formal report payload_sha256 does not match payload")
+    if status == "blocked":
+        if payload["holds"]:
+            raise ValueError("blocked Z3 formal report must not hold")
+        if not isinstance(payload.get("reason"), str) or not payload["reason"]:
+            raise ValueError("blocked Z3 formal report must include a reason")
+        if payload.get("safety") is not None or payload.get("temporal") is not None:
+            raise ValueError("blocked Z3 formal report must not carry proof sections")
+        return payload
+    if status == "pass" and not payload["holds"]:
+        raise ValueError("passing Z3 formal report must hold")
+    if status == "fail" and payload["holds"]:
+        raise ValueError("failed Z3 formal report must not hold")
+    for section_name in ("safety", "temporal"):
+        section = payload.get(section_name)
+        if not isinstance(section, dict):
+            raise ValueError(f"Z3 formal report {section_name} section must be an object")
+        if section.get("backend") != "z3":
+            raise ValueError(f"Z3 formal report {section_name} backend must be 'z3'")
+        if section.get("max_depth") != payload["max_depth"]:
+            raise ValueError(f"Z3 formal report {section_name} depth must match report depth")
+        if section.get("solver_status") not in {"sat", "unsat", "unknown"}:
+            raise ValueError(f"Z3 formal report {section_name} solver_status is unsupported")
+        if not isinstance(section.get("holds"), bool):
+            raise ValueError(f"Z3 formal report {section_name} holds must be a boolean")
+        if not isinstance(section.get("violations"), list):
+            raise ValueError(f"Z3 formal report {section_name} violations must be a list")
+        if not isinstance(section.get("checked_specs"), list):
+            raise ValueError(f"Z3 formal report {section_name} checked_specs must be a list")
+    if payload["holds"] != (payload["safety"]["holds"] and payload["temporal"]["holds"]):
+        raise ValueError("Z3 formal report holds must match safety and temporal sections")
+    if payload["checked_specs"] != _checked_specs(payload["safety"], payload["temporal"]):
+        raise ValueError("Z3 formal report checked_specs must match proof sections")
+    return payload
+
+
+def _checked_specs(safety: dict[str, Any], temporal: dict[str, Any]) -> list[str]:
+    specs = ["marking_bounds"]
+    for section in (safety, temporal):
+        for spec in section.get("checked_specs", []):
+            if spec not in specs:
+                specs.append(spec)
+    return specs
+
+
+def _payload_digest(payload: dict[str, Any]) -> str:
+    canonical = dict(payload)
+    canonical.pop("payload_sha256", None)
+    blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
+
+def _z3_solver_label() -> str:
+    try:
+        import z3
+    except ModuleNotFoundError:
+        return "z3-solver unavailable"
+    version = getattr(z3, "get_version_string", lambda: "unknown")()
+    return f"z3-solver {version}"
+
+
+def _render_markdown(payload: dict[str, Any]) -> str:
     lines = [
         "# SCPN Z3 Formal Verification Report",
         "",
-        f"- Status: `{status}`",
-        f"- Backend: `{report.backend}`",
-        f"- Max depth: `{report.max_depth}`",
-        "- Scope: bounded SMT evidence for compiled Petri-net control logic.",
-        "- Claim boundary: not hardware timing evidence, PCS certification, or unbounded liveness proof.",
-        "",
-        "## Safety",
-        "",
-        f"- Holds: `{report.safety.holds}`",
-        f"- Solver status: `{report.safety.solver_status}`",
-        "",
-        "## Temporal",
-        "",
-        f"- Holds: `{report.temporal.holds}`",
-        f"- Solver status: `{report.temporal.solver_status}`",
-        f"- Checked specs: `{', '.join(report.temporal.checked_specs)}`",
+        f"- Schema: `{payload['schema_version']}`",
+        f"- Status: `{payload['status']}`",
+        f"- Backend: `{payload['backend']}`",
+        f"- Solver: `{payload['solver']}`",
+        f"- Max depth: `{payload['max_depth']}`",
+        f"- Payload SHA-256: `{payload['payload_sha256']}`",
+        f"- Scope: {payload['scope']}.",
+        f"- Claim boundary: {payload['claim_boundary']}.",
         "",
     ]
-    violations = [*report.safety.violations, *report.temporal.violations]
+    if payload["status"] == "blocked":
+        lines.extend([f"- Reason: {payload['reason']}", ""])
+        return "\n".join(lines)
+    lines.extend(
+        [
+            "## Safety",
+            "",
+            f"- Holds: `{payload['safety']['holds']}`",
+            f"- Solver status: `{payload['safety']['solver_status']}`",
+            "",
+            "## Temporal",
+            "",
+            f"- Holds: `{payload['temporal']['holds']}`",
+            f"- Solver status: `{payload['temporal']['solver_status']}`",
+            f"- Checked specs: `{', '.join(payload['checked_specs'])}`",
+            "",
+        ]
+    )
+    violations = [*payload["safety"]["violations"], *payload["temporal"]["violations"]]
     if violations:
         lines.extend(["## Counterexamples", ""])
         for violation in violations:
-            lines.append(f"- `{violation.property_name}` path={violation.path} message={violation.message}")
+            lines.append(f"- `{violation['property_name']}` path={violation['path']} message={violation['message']}")
         lines.append("")
     return "\n".join(lines)

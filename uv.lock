@@ -3408,6 +3408,7 @@ all = [
     { name = "streamlit" },
     { name = "torch" },
     { name = "websockets" },
+    { name = "z3-solver" },
 ]
 benchmark = [
     { name = "freegs" },
@@ -3428,6 +3429,7 @@ dev = [
     { name = "streamlit" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "torch" },
+    { name = "z3-solver" },
 ]
 docs = [
     { name = "mkdocs-material" },
@@ -3515,6 +3517,8 @@ requires-dist = [
     { name = "torch", marker = "extra == 'ml'", specifier = ">=2.0" },
     { name = "websockets", marker = "extra == 'all'", specifier = ">=12.0" },
     { name = "websockets", marker = "extra == 'ws'", specifier = ">=12.0" },
+    { name = "z3-solver", marker = "extra == 'all'", specifier = ">=4.12" },
+    { name = "z3-solver", marker = "extra == 'dev'", specifier = ">=4.12" },
     { name = "z3-solver", marker = "extra == 'formal'", specifier = ">=4.12" },
 ]
 provides-extras = ["viz", "dashboard", "hdf5", "ws", "formal", "ml", "facility", "jax", "neuro", "nengo", "loihi", "rl", "benchmark", "docs", "precommit", "all", "dev"]

@@ -464,9 +464,26 @@ def _verify_formal_report_digest(
         raise ArtifactValidationError("formal_verification.report_uri escapes formal_report_root") from exc
     if not report_path.is_file():
         raise ArtifactValidationError("formal_verification.report_uri does not resolve to a report file")
-    actual = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    report_bytes = report_path.read_bytes()
+    actual = hashlib.sha256(report_bytes).hexdigest()
     if actual != evidence.report_sha256.lower():
         raise ArtifactValidationError("formal_verification.report_sha256 does not match report file")
+    if evidence.backend == "z3":
+        from scpn_control.scpn.z3_model_checking import validate_z3_formal_report_payload
+
+        try:
+            report_payload = json.loads(report_bytes.decode("utf-8"))
+            validate_z3_formal_report_payload(report_payload)
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+            raise ArtifactValidationError("formal_verification.report_uri must reference a valid Z3 report") from exc
+        if report_payload["status"] != evidence.status:
+            raise ArtifactValidationError("formal_verification.status does not match Z3 report")
+        if report_payload["max_depth"] != evidence.max_depth:
+            raise ArtifactValidationError("formal_verification.max_depth does not match Z3 report")
+        if report_payload["checked_specs"] != evidence.checked_specs:
+            raise ArtifactValidationError("formal_verification.checked_specs does not match Z3 report")
+        if report_payload["solver"] != evidence.solver:
+            raise ArtifactValidationError("formal_verification.solver does not match Z3 report")
 
 
 def validate_safety_critical_artifact(

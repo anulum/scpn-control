@@ -1787,16 +1787,20 @@
       "required_actions": [
         "Persist formal verification reports with every safety-critical compiled controller artifact",
         "Validate certification packages with an external safety-case review before hardware-control claims",
-        "Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted"
+        "Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted",
+        "Require schema-versioned Z3 report payload digests to match safety-critical proof manifests before artifact admission"
       ],
       "unit_contract": "Markings are dimensionless token densities; arc weights and invariant weights are rationalised from finite decimal inputs; max_depth is a non-negative integer firing bound; temporal response windows count transition firings.",
       "validation_evidence": [
         "tests/test_scpn_formal_verification.py exact reachability, marking bounds, transition liveness, algebraic place invariants, all-path bounded response, recurrence, counterexample, and invalid-domain checks",
-        "src/scpn_control/scpn/formal_verification.py exact explicit-state finite transition relation over rational markings"
+        "src/scpn_control/scpn/formal_verification.py exact explicit-state finite transition relation over rational markings",
+        "validation/reports/scpn_z3_formal.json schema-versioned bounded SMT evidence with canonical payload SHA-256"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/formal_verification.py",
+        "src/scpn_control/scpn/z3_model_checking.py",
         "tests/test_scpn_formal_verification.py",
+        "validation/reports/scpn_z3_formal.json",
         "docs/api.md",
         "docs/use_cases.md"
       ],

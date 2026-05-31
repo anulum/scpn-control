@@ -245,6 +245,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
   - Persist controller safety-case readiness decisions with schema-versioned integrity manifests before promotion replay
   - Validate certification packages with an external safety-case review before hardware-control claims
   - Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation
+  - Require schema-versioned Z3 report payload digests to match safety-critical proof manifests before artifact admission
   - Treat missing `z3-solver` as blocked SMT evidence, not as a successful proof
 
 ### VMEC-lite stellarator equilibrium approximation contract
