@@ -61,6 +61,9 @@ accepted. The matching dependency contract names the expected
 `scpn-quantum-control` module, classifier API, feature ordering, Qiskit core
 dependencies, optional provider families, and downstream non-admission policy
 so backend work can evolve without silently drifting from the CONTROL facade.
+Each report embeds the dependency contract used for that evaluation and binds
+the contract digest into the advisory certificate before payload validation
+continues.
 
 ## Federated disruption synthetic multi-facility benchmark
 

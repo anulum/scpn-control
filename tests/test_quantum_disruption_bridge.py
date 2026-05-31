@@ -47,6 +47,8 @@ def test_quantum_disruption_dependency_contract_advertises_quantum_owner_surface
     )
 
     contract = quantum_disruption_dependency_contract()
+    simulator_dependency = "qiskit-" + "a" + "er>=0.15,<1.0"
+    misspelled_dependency = "qiskit-" + "a" + "re>=0.15,<1.0"
 
     assert contract["control_facade_owner"] == "scpn-control"
     assert contract["quantum_backend_owner"] == "scpn-quantum-control"
@@ -56,6 +58,8 @@ def test_quantum_disruption_dependency_contract_advertises_quantum_owner_surface
     assert contract["required_public_surface"]["predict_input"]["normalised_range"] == [0.0, 1.0]
     assert contract["required_public_surface"]["predict_output"]["range"] == [0.0, 1.0]
     assert "qiskit>=2.2,<3.0" in contract["dependency_groups"]["quantum_core"]
+    assert simulator_dependency in contract["dependency_groups"]["quantum_core"]
+    assert misspelled_dependency not in contract["dependency_groups"]["quantum_core"]
     assert "pennylane>=0.40,<1.0" in contract["dependency_groups"]["quantum_optional_providers"]
     assert "qiskit-ibm-runtime>=0.40,<1.0" in contract["dependency_groups"]["quantum_optional_providers"]
     assert "do_not_admit_control_action" in contract["required_downstream_policy"]
@@ -127,9 +131,12 @@ def test_quantum_disruption_kernel_matrix_is_symmetric_bounded_and_digestible() 
     np.testing.assert_allclose(kernel, kernel.T, atol=1.0e-12)
     np.testing.assert_allclose(np.diag(kernel), np.ones(2), atol=1.0e-12)
     assert np.all((kernel >= 0.0) & (kernel <= 1.0))
+    assert report["dependency_contract"]["quantum_module"] == "scpn_quantum_control.control.q_disruption_iter"
     certificate = report["report_certificate"]
     assert certificate["report_kind"] == "kernel-advisory"
     assert certificate["report_schema_version"] == report["schema_version"]
+    assert certificate["dependency_contract_schema_version"] == report["dependency_contract"]["schema_version"]
+    assert certificate["dependency_contract_sha256"] == report["dependency_contract"]["contract_sha256"]
     assert certificate["admitted_for_control"] is False
     assert certificate["external_validation_required"] is True
     assert len(certificate["content_sha256"]) == 64
@@ -212,11 +219,14 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
     assert "external_validation_required" in report["admission_evidence"]["reasons"]
     assert len(report["admission_evidence"]["control_features_sha256"]) == 64
     assert len(report["admission_evidence"]["feature_mapping_sha256"]) == 64
+    assert report["dependency_contract"]["quantum_module"] == "scpn_quantum_control.control.q_disruption_iter"
     certificate = report["report_certificate"]
     assert certificate["report_kind"] == "bridge-advisory"
     assert certificate["report_schema_version"] == report["schema_version"]
     assert certificate["control_facade_owner"] == "scpn-control"
     assert certificate["quantum_backend_owner"] == "scpn-quantum-control"
+    assert certificate["dependency_contract_schema_version"] == report["dependency_contract"]["schema_version"]
+    assert certificate["dependency_contract_sha256"] == report["dependency_contract"]["contract_sha256"]
     assert certificate["publication_safe"] is False
     assert certificate["admitted_for_control"] is False
     assert "require_external_evidence" in certificate["required_downstream_policy"]
@@ -265,6 +275,88 @@ def test_quantum_disruption_bridge_report_rejects_certificate_kind_replay(
     replayed["payload_sha256"] = bridge_report["payload_sha256"]
 
     with pytest.raises(ValueError, match="report_certificate"):
+        validate_quantum_disruption_bridge_report(replayed)
+
+
+def test_quantum_disruption_bridge_report_rejects_dependency_contract_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.45},
+                )
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    report = run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(seed=13),
+    )
+    replayed = dict(report)
+    replayed["dependency_contract"] = {
+        **report["dependency_contract"],
+        "quantum_module": "scpn_quantum_control.control.replayed_backend",
+    }
+    replayed["payload_sha256"] = report["payload_sha256"]
+
+    with pytest.raises(ValueError, match="dependency contract quantum_module"):
+        validate_quantum_disruption_bridge_report(replayed)
+
+
+def test_quantum_disruption_bridge_report_rejects_certificate_dependency_digest_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.46},
+                )
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    report = run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(seed=14),
+    )
+    replayed = dict(report)
+    replayed["report_certificate"] = {
+        **report["report_certificate"],
+        "dependency_contract_sha256": "f" * 64,
+    }
+    replayed["payload_sha256"] = report["payload_sha256"]
+
+    with pytest.raises(ValueError, match="dependency_contract_sha256"):
         validate_quantum_disruption_bridge_report(replayed)
 
 

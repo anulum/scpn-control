@@ -158,7 +158,10 @@ digest before the outer payload digest is accepted. The facade also publishes a
 machine-readable dependency contract that names the `scpn-quantum-control`
 backend module, required classifier surface, Qiskit core dependencies, optional
 provider dependency families, report schemas, feature contract, and
-non-admission policy for future backend hardening.
+non-admission policy for future backend hardening. Generated bridge and kernel
+reports embed that dependency contract and bind its digest into the advisory
+certificate so archived reports cannot be replayed against a different quantum
+backend contract.
 
 ::: scpn_control.control.quantum_disruption_bridge.QuantumDisruptionBridgeConfig
 

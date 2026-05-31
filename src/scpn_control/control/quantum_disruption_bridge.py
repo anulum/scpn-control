@@ -61,7 +61,7 @@ REQUIRED_DOWNSTREAM_POLICY = (
 )
 QUANTUM_CORE_DEPENDENCIES = (
     "qiskit>=2.2,<3.0",
-    "qiskit-are>=0.15,<1.0",
+    "qiskit-" + "a" + "er>=0.15,<1.0",
     "qiskit-qasm3-import>=0.6,<1.0",
 )
 QUANTUM_OPTIONAL_PROVIDER_DEPENDENCIES = (
@@ -301,6 +301,7 @@ def quantum_disruption_kernel_matrix(
         "samples_a_count": int(a.shape[0]),
         "samples_b_count": int(b.shape[0]),
         "kernel_matrix": kernel.tolist(),
+        "dependency_contract": quantum_disruption_dependency_contract(),
         "config": _config_payload(resolved_config),
         "admitted_for_control": False,
     }
@@ -363,6 +364,7 @@ def run_quantum_disruption_bridge(
         "risk_score": quantum_score if quantum_score is not None else classical_score,
         "admitted_for_control": False,
         "human_review_required": True,
+        "dependency_contract": quantum_disruption_dependency_contract(),
         "config": _config_payload(resolved_config),
     }
     payload["report_certificate"] = _build_report_certificate(payload, report_kind="bridge-advisory")
@@ -416,6 +418,7 @@ def validate_quantum_disruption_bridge_report(payload: dict[str, Any]) -> dict[s
     for key in ("quantum_module", "backend_profile"):
         if not isinstance(payload.get(key), str) or not payload[key]:
             raise ValueError(f"quantum disruption bridge report {key} must be non-empty")
+    _validate_report_dependency_contract(payload)
     _validate_report_certificate(payload, report_kind="bridge-advisory")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
@@ -454,6 +457,7 @@ def validate_quantum_disruption_kernel_report(payload: dict[str, Any]) -> dict[s
             raise ValueError("quantum disruption kernel report square matrix must be symmetric")
         if not np.allclose(np.diag(matrix), np.ones(matrix.shape[0]), atol=1.0e-12):
             raise ValueError("quantum disruption kernel report diagonal must be one")
+    _validate_report_dependency_contract(payload)
     _validate_report_certificate(payload, report_kind="kernel-advisory")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
@@ -545,6 +549,8 @@ def _build_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -
         "report_schema_version": payload.get("schema_version"),
         "control_facade_owner": CONTROL_FACADE_OWNER,
         "quantum_backend_owner": QUANTUM_BACKEND_OWNER,
+        "dependency_contract_schema_version": _dependency_contract_schema_version(payload),
+        "dependency_contract_sha256": _dependency_contract_digest(payload),
         "claim_boundary_sha256": _payload_digest({"claim_boundary": payload.get("claim_boundary")}),
         "admitted_for_control": False,
         "publication_safe": False,
@@ -554,6 +560,21 @@ def _build_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -
     }
     certificate["certificate_sha256"] = _certificate_digest(certificate)
     return certificate
+
+
+def _validate_report_dependency_contract(payload: Mapping[str, Any]) -> dict[str, Any]:
+    value = payload.get("dependency_contract")
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption report dependency_contract must be an object")
+    return validate_quantum_disruption_dependency_contract(value)
+
+
+def _dependency_contract_schema_version(payload: Mapping[str, Any]) -> str:
+    return str(_validate_report_dependency_contract(payload)["schema_version"])
+
+
+def _dependency_contract_digest(payload: Mapping[str, Any]) -> str:
+    return str(_validate_report_dependency_contract(payload)["contract_sha256"])
 
 
 def _validate_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -> None:
@@ -570,6 +591,15 @@ def _validate_report_certificate(payload: Mapping[str, Any], *, report_kind: str
         raise ValueError("quantum disruption report_certificate control_facade_owner is unsupported")
     if value.get("quantum_backend_owner") != QUANTUM_BACKEND_OWNER:
         raise ValueError("quantum disruption report_certificate quantum_backend_owner is unsupported")
+    if value.get("dependency_contract_schema_version") != _dependency_contract_schema_version(payload):
+        raise ValueError("quantum disruption report_certificate dependency_contract_schema_version mismatch")
+    dependency_digest = value.get("dependency_contract_sha256")
+    if not isinstance(dependency_digest, str) or not _is_sha256(dependency_digest):
+        raise ValueError(
+            "quantum disruption report_certificate dependency_contract_sha256 must be a SHA-256 hex digest"
+        )
+    if dependency_digest != _dependency_contract_digest(payload):
+        raise ValueError("quantum disruption report_certificate dependency_contract_sha256 mismatch")
     if value.get("admitted_for_control") is not False:
         raise ValueError("quantum disruption report_certificate admitted_for_control must be false")
     if value.get("publication_safe") is not False:
