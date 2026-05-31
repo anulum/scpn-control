@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Commercial license available
-# © Concepts 1996-2026 Miroslav Sotek. All rights reserved.
-# © Code 2020-2026 Miroslav Sotek. All rights reserved.
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — SCPN Formal Verification Tests
@@ -9,6 +9,11 @@
 """Behavioural tests for SCPN formal reachability and safety proofs."""
 
 from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+import pytest
 
 from scpn_control.scpn.formal_verification import (
     AlwaysBounded,
@@ -21,6 +26,14 @@ from scpn_control.scpn.formal_verification import (
     verify_formal_contracts,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
+
+from scpn_control.scpn.z3_model_checking import (  # noqa: E402
+    Z3BoundedModelChecker,
+    verify_z3_formal_contracts,
+    write_z3_formal_report,
+)
+
+requires_z3 = pytest.mark.skipif(importlib.util.find_spec("z3") is None, reason="z3-solver optional dependency absent")
 
 
 def _transfer_net() -> StochasticPetriNet:
@@ -197,3 +210,81 @@ def test_formal_verifier_rejects_non_integer_depth_and_nonfinite_bounds() -> Non
         assert "numeric values" in str(exc)
     else:
         raise AssertionError("non-finite marking bounds must be rejected")
+
+
+@requires_z3
+def test_z3_model_checker_proves_safe_marking_bounds() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).prove_marking_bounds(
+        {"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.backend == "z3"
+    assert report.solver_status == "unsat"
+    assert report.violations == []
+
+
+@requires_z3
+def test_z3_model_checker_returns_marking_bound_counterexample() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).prove_marking_bounds({"sink": (0.0, 0.5)}, max_depth=2)
+
+    assert report.holds is False
+    assert report.solver_status == "sat"
+    assert report.violations[0].property_name == "marking_bounds"
+    assert report.violations[0].place == "sink"
+    assert report.violations[0].path == ["move"]
+    assert report.violations[0].marking["sink"] == pytest.approx(1.0)
+
+
+@requires_z3
+def test_z3_temporal_specs_find_exclusivity_counterexample() -> None:
+    net = StochasticPetriNet()
+    net.add_place("armed", initial_tokens=1.0)
+    net.add_place("a", initial_tokens=0.0)
+    net.add_place("b", initial_tokens=0.0)
+    net.add_transition("split", threshold=1.0)
+    net.add_arc("armed", "split", weight=1.0)
+    net.add_arc("split", "a", weight=1.0)
+    net.add_arc("split", "b", weight=1.0)
+    net.compile()
+
+    report = Z3BoundedModelChecker(net).verify_temporal_specs(
+        [NeverCoMarked("a_b_exclusive", "a", "b", threshold=0.5)],
+        max_depth=1,
+    )
+
+    assert report.holds is False
+    assert report.violations[0].property_name == "a_b_exclusive"
+    assert report.violations[0].path == ["split"]
+
+
+@requires_z3
+def test_z3_temporal_specs_prove_response_contract() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [FireLeadsToMarking("move_marks_sink", "move", "sink", threshold=0.5, within=0)],
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.checked_specs == ["move_marks_sink"]
+
+
+@requires_z3
+def test_z3_formal_report_writer_publishes_json_and_markdown(tmp_path: Path) -> None:
+    report = verify_z3_formal_contracts(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+    )
+    json_path = tmp_path / "formal_z3.json"
+    markdown_path = tmp_path / "formal_z3.md"
+
+    write_z3_formal_report(report, json_path=json_path, markdown_path=markdown_path)
+
+    assert report.holds is True
+    assert json_path.read_text(encoding="utf-8").startswith("{")
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert "# SCPN Z3 Formal Verification Report" in markdown
+    assert "bounded SMT evidence" in markdown

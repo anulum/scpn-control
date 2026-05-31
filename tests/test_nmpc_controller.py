@@ -7,7 +7,10 @@
 # SCPN Control — Nonlinear MPC Tests
 from __future__ import annotations
 
+import sys
+import types
 from dataclasses import asdict
+from typing import Any
 
 import numpy as np
 import pytest
@@ -402,6 +405,281 @@ def test_nmpc_acados_backend_fails_closed_without_runtime() -> None:
 
     with pytest.raises((ImportError, RuntimeError), match="acados"):
         nmpc.step(x0, x_ref, u_prev)
+
+
+def test_nmpc_acados_backend_solves_through_runtime_boundary() -> None:
+    """acados backend should delegate the full OCP to an injected runtime."""
+    cfg = NMPCConfig(horizon=2, max_sqp_iter=1)
+    cfg.qp_backend = "acados"
+    cfg.P = 2.0 * np.eye(6)
+    cfg.acados_json_file = "build/acados/scpn_control_nmpc.json"
+    cfg.acados_generate = False
+    cfg.acados_build = False
+    ocp_calls: list[dict[str, object]] = []
+    solver_calls: list[dict[str, object]] = []
+
+    def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        out = x.copy()
+        out[0] += 0.1 * u[0]
+        out[1] += 0.05 * u[1]
+        return out
+
+    def forbidden_linearization(x: np.ndarray, u: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        raise AssertionError("acados backend must not use condensed finite-difference QP linearization")
+
+    def ocp_factory(config: NMPCConfig, terminal_cost: np.ndarray) -> dict[str, object]:
+        ocp_calls.append({"horizon": config.horizon, "terminal_cost": terminal_cost.copy()})
+        return {"kind": "fake_ocp", "horizon": config.horizon}
+
+    class FakeAcadosSolver:
+        def __init__(self, ocp: object, **kwargs: object) -> None:
+            solver_calls.append({"ocp": ocp, "kwargs": kwargs})
+            self.set_calls: list[tuple[int, str, np.ndarray]] = []
+
+        def set(self, stage: int, field: str, value: object) -> None:
+            self.set_calls.append((stage, field, np.asarray(value, dtype=float).copy()))
+
+        def solve(self) -> int:
+            return 0
+
+        def get(self, stage: int, field: str) -> np.ndarray:
+            if field == "u":
+                return np.array([2.0 + 0.1 * stage, 1.5, 0.5])
+            if field == "x":
+                if stage == 0:
+                    physical_state = np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0])
+                    previous_input = np.array([1.5, 1.0, 0.25])
+                elif stage == 1:
+                    physical_state = plant(np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]), np.array([2.0, 1.5, 0.5]))
+                    previous_input = np.array([2.0, 1.5, 0.5])
+                else:
+                    physical_state = plant(
+                        plant(np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]), np.array([2.0, 1.5, 0.5])),
+                        np.array([2.1, 1.5, 0.5]),
+                    )
+                    previous_input = np.array([2.1, 1.5, 0.5])
+                return np.r_[physical_state, previous_input]
+            raise KeyError(field)
+
+        def get_stats(self, field: str) -> int:
+            assert field == "sqp_iter"
+            return 3
+
+    def solver_factory(ocp: object, **kwargs: object) -> FakeAcadosSolver:
+        return FakeAcadosSolver(ocp, **kwargs)
+
+    nmpc = NonlinearMPC(
+        plant,
+        cfg,
+        linearization_model=forbidden_linearization,
+        acados_ocp_factory=ocp_factory,
+        acados_solver_factory=solver_factory,
+    )
+    x0 = np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 2.0, 5.0, 1.0, 5.0, 2.0])
+    u_prev = np.array([1.5, 1.0, 0.25])
+
+    u_opt = nmpc.step(x0, x_ref, u_prev)
+
+    np.testing.assert_allclose(u_opt, np.array([2.0, 1.5, 0.5]))
+    assert nmpc.last_qp_backend == "acados"
+    assert nmpc.last_qp_converged is True
+    assert nmpc.last_qp_iterations == 3
+    assert nmpc.last_acados_dynamics_residual <= cfg.acados_dynamics_residual_tol
+    assert len(ocp_calls) == 1
+    assert ocp_calls[0]["horizon"] == 2
+    np.testing.assert_allclose(ocp_calls[0]["terminal_cost"], 2.0 * np.eye(6))
+    assert solver_calls[0]["kwargs"] == {
+        "json_file": "build/acados/scpn_control_nmpc.json",
+        "build": False,
+        "generate": False,
+        "verbose": False,
+    }
+
+
+def test_nmpc_acados_backend_rejects_failed_solver_status() -> None:
+    """Nonzero acados status must fail closed rather than returning stale input."""
+    cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
+    cfg.qp_backend = "acados"
+
+    class FailingAcadosSolver:
+        def set(self, stage: int, field: str, value: Any) -> None:
+            return None
+
+        def solve(self) -> int:
+            return 4
+
+        def get_stats(self, field: str) -> int:
+            return 1
+
+    nmpc = NonlinearMPC(
+        mock_tokamak_plant,
+        cfg,
+        acados_ocp_factory=lambda config, terminal_cost: object(),
+        acados_solver_factory=lambda ocp, **kwargs: FailingAcadosSolver(),
+    )
+
+    with pytest.raises(RuntimeError, match="acados backend failed"):
+        nmpc.step(
+            np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0]),
+            np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0]),
+            cfg.u_min.copy(),
+        )
+
+
+def test_nmpc_acados_backend_rejects_symbolic_runtime_dynamics_drift() -> None:
+    """acados state predictions must match the runtime plant before admission."""
+    cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
+    cfg.qp_backend = "acados"
+    cfg.acados_dynamics_residual_tol = 1.0e-9
+
+    def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        out = x.copy()
+        out[0] += 0.1 * u[0]
+        return out
+
+    class DriftedAcadosSolver:
+        def set(self, stage: int, field: str, value: Any) -> None:
+            return None
+
+        def solve(self) -> int:
+            return 0
+
+        def get(self, stage: int, field: str) -> np.ndarray:
+            if field == "u":
+                return np.array([0.0, 1.0, 0.0])
+            if field == "x":
+                if stage == 0:
+                    return np.r_[np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]), np.array([0.0, 1.0, 0.0])]
+                return np.r_[np.array([1.5, 1.0, 5.0, 1.0, 2.0, 1.0]), np.array([0.0, 1.0, 0.0])]
+            raise KeyError(field)
+
+        def get_stats(self, field: str) -> int:
+            return 1
+
+    nmpc = NonlinearMPC(
+        plant,
+        cfg,
+        acados_ocp_factory=lambda config, terminal_cost: object(),
+        acados_solver_factory=lambda ocp, **kwargs: DriftedAcadosSolver(),
+    )
+
+    with pytest.raises(RuntimeError, match="dynamics residual"):
+        nmpc.step(
+            np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]),
+            np.array([5.0, 2.0, 5.0, 1.0, 5.0, 2.0]),
+            np.array([0.0, 1.0, 0.0]),
+        )
+
+
+def test_nmpc_acados_backend_rejects_terminal_state_violation() -> None:
+    """acados terminal state must satisfy the declared terminal admissible set."""
+    cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
+    cfg.qp_backend = "acados"
+    cfg.terminal_x_min = cfg.x_min.copy()
+    cfg.terminal_x_max = cfg.x_max.copy()
+    cfg.terminal_x_max[0] = 1.2
+
+    def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        out = x.copy()
+        out[0] = 1.5
+        return out
+
+    class TerminalViolatingAcadosSolver:
+        def set(self, stage: int, field: str, value: Any) -> None:
+            return None
+
+        def solve(self) -> int:
+            return 0
+
+        def get(self, stage: int, field: str) -> np.ndarray:
+            if field == "u":
+                return np.array([0.0, 1.0, 0.0])
+            if field == "x":
+                state = (
+                    np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]) if stage == 0 else np.array([1.5, 1.0, 5.0, 1.0, 2.0, 1.0])
+                )
+                return np.r_[state, np.array([0.0, 1.0, 0.0])]
+            raise KeyError(field)
+
+        def get_stats(self, field: str) -> int:
+            return 1
+
+    nmpc = NonlinearMPC(
+        plant,
+        cfg,
+        acados_ocp_factory=lambda config, terminal_cost: object(),
+        acados_solver_factory=lambda ocp, **kwargs: TerminalViolatingAcadosSolver(),
+    )
+
+    with pytest.raises(RuntimeError, match="terminal state"):
+        nmpc.step(
+            np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]),
+            np.array([5.0, 2.0, 5.0, 1.0, 5.0, 2.0]),
+            np.array([0.0, 1.0, 0.0]),
+        )
+
+
+def test_nmpc_acados_symbolic_builder_creates_augmented_slew_constrained_ocp(monkeypatch) -> None:
+    """Default acados builder should encode symbolic dynamics and slew constraints."""
+
+    class FakeSymbol:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def __getitem__(self, item: object) -> "FakeSymbol":
+            return FakeSymbol(f"{self.name}[{item!r}]")
+
+        def __sub__(self, other: object) -> tuple[str, object, object]:
+            return ("sub", self, other)
+
+    fake_casadi = types.SimpleNamespace(
+        MX=types.SimpleNamespace(sym=lambda name, size: FakeSymbol(f"{name}:{size}")),
+        vertcat=lambda *args: ("vertcat", args),
+    )
+
+    class FakeAcadosModel:
+        pass
+
+    class FakeAcadosOcp:
+        def __init__(self) -> None:
+            self.dims = types.SimpleNamespace()
+            self.solver_options = types.SimpleNamespace()
+            self.cost = types.SimpleNamespace()
+            self.constraints = types.SimpleNamespace()
+
+    fake_acados_template = types.SimpleNamespace(AcadosModel=FakeAcadosModel, AcadosOcp=FakeAcadosOcp)
+    monkeypatch.setitem(sys.modules, "casadi", fake_casadi)
+    monkeypatch.setitem(sys.modules, "acados_template", fake_acados_template)
+
+    cfg = NMPCConfig(horizon=4, max_sqp_iter=2, qp_max_iter=30)
+    cfg.qp_backend = "acados"
+    cfg.acados_nlp_solver_type = "SQP"
+    cfg.acados_qp_solver = "PARTIAL_CONDENSING_HPIPM"
+
+    def symbolic_dynamics(ca_module: object, x: object, u: object) -> object:
+        assert ca_module is fake_casadi
+        assert isinstance(x, FakeSymbol)
+        assert isinstance(u, FakeSymbol)
+        return x
+
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg, symbolic_dynamics_model=symbolic_dynamics)
+
+    ocp = nmpc._build_acados_ocp(3.0 * np.eye(6))
+
+    assert ocp.dims.N == 4
+    assert ocp.solver_options.N_horizon == 4
+    assert ocp.solver_options.nlp_solver_type == "SQP"
+    assert ocp.solver_options.qp_solver == "PARTIAL_CONDENSING_HPIPM"
+    assert ocp.solver_options.hessian_approx == "EXACT"
+    assert ocp.solver_options.integrator_type == "DISCRETE"
+    assert ocp.cost.W.shape == (9, 9)
+    assert ocp.cost.W_e.shape == (6, 6)
+    assert ocp.constraints.idxbx.shape == (9,)
+    assert ocp.constraints.idxbx_e.shape == (9,)
+    np.testing.assert_allclose(ocp.constraints.lh, -cfg.du_max)
+    np.testing.assert_allclose(ocp.constraints.uh, cfg.du_max)
+    assert ocp.model.disc_dyn_expr[0] == "vertcat"
 
 
 def test_nmpc_rejects_unknown_qp_backend() -> None:

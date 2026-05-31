@@ -1,0 +1,25 @@
+{
+  "backend": "z3",
+  "holds": true,
+  "max_depth": 2,
+  "safety": {
+    "backend": "z3",
+    "checked_specs": [],
+    "holds": true,
+    "max_depth": 2,
+    "solver_status": "unsat",
+    "violations": []
+  },
+  "temporal": {
+    "backend": "z3",
+    "checked_specs": [
+      "move_eventually_fires",
+      "move_marks_sink",
+      "exclusive_source_sink"
+    ],
+    "holds": true,
+    "max_depth": 2,
+    "solver_status": "unsat",
+    "violations": []
+  }
+}

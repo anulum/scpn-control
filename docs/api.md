@@ -429,6 +429,12 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.NeverCoMarked
 
+::: scpn_control.scpn.z3_model_checking.Z3BoundedModelChecker
+
+::: scpn_control.scpn.z3_model_checking.verify_z3_formal_contracts
+
+::: scpn_control.scpn.z3_model_checking.write_z3_formal_report
+
 ### FusionCompiler
 
 ::: scpn_control.scpn.compiler.FusionCompiler
@@ -753,9 +759,19 @@ Explicit terminal state sets are configured with paired `terminal_x_min` and
 state envelope and currently require `qp_backend="scipy"`, `qp_backend="osqp"`,
 `qp_backend="casadi"`, or `qp_backend="acados"` so the coupled terminal-state
 inequality is enforced inside the constrained QP solve rather than checked
-after the fact.  `casadi` is a repository-local optional dependency path; the
-`acados` backend fails closed unless the target deployment supplies the acados
-Python interface and generated OCP capsule.
+after the fact.  `casadi` is a repository-local optional dependency path.
+The `acados` backend is a full optional OCP interface: deployments may inject a
+pre-built acados OCP/solver factory, or provide `symbolic_dynamics_model(ca, x,
+u)` so the controller builds a discrete augmented-state acados model. The
+augmented state stores the previous actuator vector, making `|Δu| <= du_max`
+a native acados path constraint instead of a post-solve clamp. The default
+builder configures SQP, partial-condensing HPIPM, exact Hessian mode, linear
+least-squares stage/terminal costs, state/input bounds, terminal state bounds,
+warm starts, fail-closed solver-status handling, and a runtime plant-consistency
+gate. The returned acados state trajectory must start from the commanded state,
+remain inside configured state bounds, satisfy any terminal admissible set, and
+match `plant_model` transitions within `acados_dynamics_residual_tol` before the
+first actuator command is admitted.
 The previous input supplied to `step()` must already satisfy actuator bounds so
 the slew-rate projection cannot propagate an unsafe actuator state.
 The accepted `horizon=1` case is handled as a valid one-step receding-horizon

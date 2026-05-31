@@ -13,6 +13,13 @@
 - Added a Pydantic v2 schema/export path to `TokamakConfig`, extended E2E
   latency evidence with target-hardware metadata, and exposed NMPC optional
   `casadi`/fail-closed `acados` solver backend contracts.
+- Implemented the optional NMPC `acados` OCP interface with injected runtime
+  factories, symbolic discrete dynamics support, augmented-state slew-rate path
+  constraints, SQP/partial-condensing HPIPM defaults, exact-Hessian mode,
+  warm-start staging, and fail-closed solver-status handling.
+- Hardened NMPC `acados` result admission with finite state/control trajectory
+  checks, state and terminal-set enforcement, slew-rate revalidation, and a
+  runtime plant-consistency residual gate for symbolic-dynamics drift.
 - Added a strict E2E latency-evidence validator so unqualified local benchmark
   runs cannot be admitted as target-hardware or real-time performance evidence.
 - Double-gated controller bit-flip fault injection behind both constructor and
@@ -132,6 +139,10 @@
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
+- Added optional Z3 bounded model checking for compiled SCPN control logic,
+  including SMT-backed marking-bound counterexamples, temporal exclusivity and
+  response specs, and JSON/Markdown evidence publication with explicit blocked
+  status when `z3-solver` is unavailable.
 - Hardened federated disruption prediction with per-facility array ingestion,
   facility-update differential privacy accounting, serialisable privacy
   ledgers, and a deterministic synthetic multi-facility benchmark report. This

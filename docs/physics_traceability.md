@@ -237,7 +237,8 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Persist formal verification reports with every safety-critical compiled controller artifact
   - Validate certification packages with an external safety-case review before hardware-control claims
-  - Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted
+  - Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation
+  - Treat missing `z3-solver` as blocked SMT evidence, not as a successful proof
 
 ### VMEC-lite stellarator equilibrium approximation contract
 

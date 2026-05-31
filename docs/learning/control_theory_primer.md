@@ -262,8 +262,13 @@ $(A_k, B_k)$. When no provider is configured, it falls back to bounded finite
 differences, then solves the resulting QP via sequential quadratic programming
 (SQP). Up to `max_sqp_iter` iterations refine the trajectory.
 For recursive-feasibility studies, paired `terminal_x_min` and `terminal_x_max`
-bounds define an explicit terminal admissible set. The SciPy and OSQP
-constrained backends enforce that terminal set directly in the condensed QP.
+bounds define an explicit terminal admissible set. The SciPy, OSQP, CasADi, and
+optional acados constrained backends enforce that terminal set inside the
+optimization problem. The acados path uses a symbolic discrete dynamics model
+when supplied and augments the state with the previous actuator vector so slew
+limits are enforced as native path constraints during SQP. After solving, the
+controller checks the returned acados state trajectory against the runtime plant
+model and terminal admissible set before admitting the actuator command.
 
 When a neural surrogate replaces $f$, the Jacobians come from backpropagation through
 the network, enabling gradient-based trajectory optimisation without an explicit physics
