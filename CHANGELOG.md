@@ -13,6 +13,14 @@
   canonical controller-artifact payload SHA-256, rejecting unsafe report URIs,
   constraining formal backends, and optionally verifying report bytes under a
   caller-supplied report root.
+- Added tamper-evident differentiable transport admission evidence that binds
+  JAX campaign metadata, sampled gradient-audit results, equilibrium coupling,
+  and optional safety-critical controller proof artifact digests before
+  controller-tuning claims can be promoted.
+- Added tamper-evident digital-twin online-update evidence that binds TRANSP
+  and TSC simulator metadata, observation and prior digests, Bayesian-update
+  result digests, baseline-improvement status, and optional safety-critical
+  controller proof artifact digests.
 - Hardened the phase WebSocket stream with explicit payload-size limits,
   server-side frame caps, default client authentication, TLS-required startup
   mode, disabled-by-default query-token authentication, fail-closed plaintext

@@ -166,6 +166,12 @@ or physically inconsistent replay metadata.
 `assert_transport_campaign_metadata_replay()` compares archived campaign
 metadata with a candidate setup and raises on backend, grid, boundary, closure,
 gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
+`transport_differentiability_evidence()` and
+`assert_transport_differentiability_claim_admissible()` add a tamper-evident
+admission envelope over campaign metadata and gradient-audit results. That
+envelope requires JAX backend evidence, passed sampled finite-difference
+gradient audit, stable SHA-256 digests for the campaign and audit payloads, and
+an optional link to the safety-critical controller proof artifact digest.
 `equilibrium_weighted_transport_rollout_tracking_loss()` extends the optional
 Grad-Shafranov flux-map weighting from one transport step to a full source
 rollout. `equilibrium_weighted_transport_rollout_source_gradient()` returns
@@ -231,6 +237,12 @@ equilibrium flux map for controller-tuning studies.
 ::: scpn_control.core.differentiable_transport.load_transport_campaign_metadata
 
 ::: scpn_control.core.differentiable_transport.assert_transport_campaign_metadata_replay
+
+::: scpn_control.core.differentiable_transport.TransportDifferentiabilityEvidence
+
+::: scpn_control.core.differentiable_transport.transport_differentiability_evidence
+
+::: scpn_control.core.differentiable_transport.assert_transport_differentiability_claim_admissible
 
 ::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
 
@@ -595,12 +607,23 @@ metadata validation and deterministic Bayesian optimisation over bounded twin
 parameters. The shipped benchmark is synthetic online-update evidence only;
 external simulator replay claims require validated artifact metadata and the
 strict digital-twin reference gate.
+`digital_twin_update_evidence()` and
+`assert_digital_twin_update_claim_admissible()` bind a bounded Bayesian update
+to TRANSP and TSC simulator metadata digests, observation and prior digests,
+result digest, baseline-improvement evidence, and an optional
+safety-critical controller proof artifact digest.
 
 ::: scpn_control.control.tokamak_digital_twin.run_digital_twin
 
 ::: scpn_control.control.digital_twin_online_update.validate_external_simulator_artifact
 
 ::: scpn_control.control.digital_twin_online_update.bayesian_update_digital_twin
+
+::: scpn_control.control.digital_twin_online_update.DigitalTwinUpdateEvidence
+
+::: scpn_control.control.digital_twin_online_update.digital_twin_update_evidence
+
+::: scpn_control.control.digital_twin_online_update.assert_digital_twin_update_claim_admissible
 
 ::: scpn_control.control.digital_twin_online_update.synthetic_online_update_benchmark
 

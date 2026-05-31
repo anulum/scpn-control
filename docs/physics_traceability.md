@@ -363,7 +363,8 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Wire each remaining legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff
   - Validate differentiable transport profiles and equilibrium-weighted gradients against measured discharges or published integrated-modelling benchmarks
-  - Persist backend, dtype, radial-grid, boundary-condition, rollout-length, equilibrium-grid, flux-weighting, gradient-tolerance, and replay-drift metadata for controller-tuning campaigns
+  - Persist backend, dtype, radial-grid, boundary-condition, rollout-length, equilibrium-grid, flux-weighting, gradient-tolerance, gradient-audit digest, and replay-drift metadata for controller-tuning campaigns
+  - Bind promoted differentiable-transport evidence to the safety-critical controller proof artifact digest when used in a controller safety case
   - Replace bounded reduced-gyrokinetic and JAX GK stiffness closures with externally validated GK transport coefficients before quantitative transport-control claims
 
 ### digital twin online model updating
@@ -376,7 +377,8 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Provide validated TRANSP, TSC, measured-discharge, or documented public-reference artifacts before measured replay claims
   - Validate online update trajectories against replayed or measured discharge histories before deployment use
-  - Persist simulator artifact hashes, units, case ids, and strictly increasing time bases for every promoted update campaign
+  - Persist simulator artifact hashes, units, case ids, strictly increasing time bases, observation digests, prior digests, result digests, and baseline-improvement evidence for every promoted update campaign
+  - Bind promoted online-update evidence to the safety-critical controller proof artifact digest when used in a controller safety case
 
 ### direct free-boundary tracking controller
 

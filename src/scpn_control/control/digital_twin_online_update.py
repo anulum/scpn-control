@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
@@ -113,6 +113,24 @@ class BayesianUpdateResult:
     loss_history: tuple[float, ...]
     source: str
     evidence_kind: str
+
+
+@dataclass(frozen=True)
+class DigitalTwinUpdateEvidence:
+    """Tamper-evident admission evidence for bounded online twin updates."""
+
+    schema_version: int
+    simulator_codes: tuple[str, ...]
+    external_artifacts_sha256: str
+    observation_sha256: str
+    priors_sha256: str
+    result_sha256: str
+    best_loss: float
+    baseline_loss: float
+    improved_over_baseline: bool
+    evaluated_points: int
+    controller_formal_artifact_sha256: str | None
+    claim_status: str
 
 
 def validate_external_simulator_artifact(payload: dict[str, Any]) -> ExternalSimulatorArtifact:
@@ -266,6 +284,120 @@ def artifact_payload_sha256(payload: dict[str, Any]) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
+def _canonical_sha256(value: Any) -> str:
+    payload = asdict(value) if hasattr(value, "__dataclass_fields__") else value
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
+
+def _is_sha256_hex(value: str) -> bool:
+    if len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_optional_sha256(name: str, value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not _is_sha256_hex(value):
+        raise ValueError(f"{name} must be a SHA-256 hex digest")
+    return value.lower()
+
+
+def digital_twin_update_evidence(
+    observation: TwinObservation,
+    priors: tuple[TwinParameterPrior, ...],
+    result: BayesianUpdateResult,
+    external_artifacts: tuple[ExternalSimulatorArtifact, ...],
+    *,
+    controller_formal_artifact_sha256: str | None = None,
+) -> DigitalTwinUpdateEvidence:
+    """Build tamper-evident evidence for bounded online digital-twin updates."""
+    if not isinstance(observation, TwinObservation):
+        raise ValueError("observation must be TwinObservation")
+    if not priors or any(not isinstance(prior, TwinParameterPrior) for prior in priors):
+        raise ValueError("priors must contain TwinParameterPrior entries")
+    if not isinstance(result, BayesianUpdateResult):
+        raise ValueError("result must be BayesianUpdateResult")
+    if not external_artifacts or any(not isinstance(item, ExternalSimulatorArtifact) for item in external_artifacts):
+        raise ValueError("external_artifacts must contain ExternalSimulatorArtifact entries")
+    proof_digest = _validate_optional_sha256(
+        "controller_formal_artifact_sha256",
+        controller_formal_artifact_sha256,
+    )
+    simulator_codes = tuple(sorted({artifact.simulator_code for artifact in external_artifacts}))
+    artifact_payload = sorted(
+        (asdict(artifact) for artifact in external_artifacts), key=lambda item: item["simulator_code"]
+    )
+    return DigitalTwinUpdateEvidence(
+        schema_version=1,
+        simulator_codes=simulator_codes,
+        external_artifacts_sha256=_canonical_sha256(artifact_payload),
+        observation_sha256=_canonical_sha256(observation),
+        priors_sha256=_canonical_sha256(tuple(priors)),
+        result_sha256=_canonical_sha256(result),
+        best_loss=float(result.best_loss),
+        baseline_loss=float(result.baseline_loss),
+        improved_over_baseline=bool(result.best_loss < result.baseline_loss),
+        evaluated_points=int(result.evaluated_points),
+        controller_formal_artifact_sha256=proof_digest,
+        claim_status=(
+            "bounded online Bayesian digital-twin update evidence only; "
+            "external simulator artifacts are provenance inputs, not facility validation"
+        ),
+    )
+
+
+def assert_digital_twin_update_claim_admissible(
+    evidence: DigitalTwinUpdateEvidence,
+    observation: TwinObservation,
+    priors: tuple[TwinParameterPrior, ...],
+    result: BayesianUpdateResult,
+    external_artifacts: tuple[ExternalSimulatorArtifact, ...],
+    *,
+    require_simulators: tuple[str, ...] = SUPPORTED_EXTERNAL_SIMULATORS,
+) -> DigitalTwinUpdateEvidence:
+    """Fail closed unless online twin-update evidence matches replay inputs."""
+    if not isinstance(evidence, DigitalTwinUpdateEvidence):
+        raise ValueError("evidence must be DigitalTwinUpdateEvidence")
+    if evidence.schema_version != 1:
+        raise ValueError("digital twin update evidence schema_version is unsupported")
+    required = tuple(sorted(code.upper() for code in require_simulators))
+    if tuple(sorted(evidence.simulator_codes)) != required:
+        raise ValueError("digital twin update evidence requires TRANSP and TSC simulator artifacts")
+    recomputed = digital_twin_update_evidence(
+        observation,
+        priors,
+        result,
+        external_artifacts,
+        controller_formal_artifact_sha256=evidence.controller_formal_artifact_sha256,
+    )
+    if evidence.external_artifacts_sha256 != recomputed.external_artifacts_sha256:
+        raise ValueError("digital twin update evidence external_artifacts_sha256 mismatch")
+    if evidence.observation_sha256 != recomputed.observation_sha256:
+        raise ValueError("digital twin update evidence observation_sha256 mismatch")
+    if evidence.priors_sha256 != recomputed.priors_sha256:
+        raise ValueError("digital twin update evidence priors_sha256 mismatch")
+    if evidence.result_sha256 != recomputed.result_sha256:
+        raise ValueError("digital twin update evidence result_sha256 mismatch")
+    if result.evidence_kind != "bounded_online_update":
+        raise ValueError("digital twin update evidence requires bounded_online_update result")
+    if not evidence.improved_over_baseline or result.best_loss >= result.baseline_loss:
+        raise ValueError("digital twin update evidence must improve over baseline")
+    if evidence.evaluated_points != result.evaluated_points or evidence.evaluated_points < len(priors) + 1:
+        raise ValueError("digital twin update evidence evaluated_points is inconsistent")
+    if not math.isclose(evidence.best_loss, result.best_loss, rel_tol=1.0e-12, abs_tol=1.0e-15):
+        raise ValueError("digital twin update evidence best_loss mismatch")
+    if not math.isclose(evidence.baseline_loss, result.baseline_loss, rel_tol=1.0e-12, abs_tol=1.0e-15):
+        raise ValueError("digital twin update evidence baseline_loss mismatch")
+    _validate_optional_sha256("controller_formal_artifact_sha256", evidence.controller_formal_artifact_sha256)
+    return evidence
+
+
 def _evaluate_parameters(
     params: dict[str, float],
     observation: TwinObservation,
@@ -346,13 +478,16 @@ def _require_positive_int(name: str, value: int) -> int:
 __all__ = [
     "BayesianUpdateConfig",
     "BayesianUpdateResult",
+    "DigitalTwinUpdateEvidence",
     "ExternalSimulatorArtifact",
     "SUPPORTED_EXTERNAL_SIMULATORS",
     "TUNABLE_PARAMETER_NAMES",
     "TwinObservation",
     "TwinParameterPrior",
+    "assert_digital_twin_update_claim_admissible",
     "artifact_payload_sha256",
     "bayesian_update_digital_twin",
+    "digital_twin_update_evidence",
     "digital_twin_loss",
     "load_external_simulator_artifact",
     "synthetic_online_update_benchmark",

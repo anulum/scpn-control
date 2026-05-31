@@ -16,11 +16,14 @@ import pytest
 
 from scpn_control.control.digital_twin_online_update import (
     BayesianUpdateConfig,
+    BayesianUpdateResult,
     TwinObservation,
     TwinParameterPrior,
     artifact_payload_sha256,
     bayesian_update_digital_twin,
+    digital_twin_update_evidence,
     digital_twin_loss,
+    assert_digital_twin_update_claim_admissible,
     load_external_simulator_artifact,
     synthetic_online_update_benchmark,
     validate_external_simulator_artifact,
@@ -128,3 +131,67 @@ def test_synthetic_online_update_benchmark_is_bounded_and_deterministic():
     assert a.best_loss == pytest.approx(b.best_loss)
     assert a.best_parameters == pytest.approx(b.best_parameters)
     assert a.best_loss <= a.baseline_loss
+
+
+def test_digital_twin_update_evidence_requires_transp_tsc_and_improvement():
+    artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
+    observation = TwinObservation(
+        targets={"final_avg_temp": 2.0},
+        tolerances={"final_avg_temp": 0.05},
+        source="paired_transp_tsc_reference",
+    )
+    priors = (
+        TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),
+        TwinParameterPrior("Z_eff", 1.0, 3.0, 1.5),
+    )
+    result = BayesianUpdateResult(
+        best_parameters={"n_e": 1.1e20, "Z_eff": 2.0},
+        best_loss=0.2,
+        baseline_loss=0.8,
+        evaluated_points=8,
+        loss_history=(0.8, 0.5, 0.2),
+        source=observation.source,
+        evidence_kind="bounded_online_update",
+    )
+
+    evidence = digital_twin_update_evidence(
+        observation,
+        priors,
+        result,
+        artifacts,
+        controller_formal_artifact_sha256="c" * 64,
+    )
+
+    assert evidence.simulator_codes == ("TRANSP", "TSC")
+    assert evidence.improved_over_baseline
+    assert len(evidence.observation_sha256) == 64
+    assert_digital_twin_update_claim_admissible(evidence, observation, priors, result, artifacts)
+
+
+def test_digital_twin_update_evidence_rejects_missing_simulator_and_non_improvement():
+    artifacts = (validate_external_simulator_artifact(_artifact_payload("TRANSP")),)
+    observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
+    priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
+    result = BayesianUpdateResult(
+        best_parameters={"n_e": 1.0e20},
+        best_loss=0.8,
+        baseline_loss=0.8,
+        evaluated_points=2,
+        loss_history=(0.8, 0.8),
+        source=observation.source,
+        evidence_kind="bounded_online_update",
+    )
+    evidence = digital_twin_update_evidence(observation, priors, result, artifacts)
+
+    with pytest.raises(ValueError, match="TRANSP and TSC"):
+        assert_digital_twin_update_claim_admissible(evidence, observation, priors, result, artifacts)
+
+    tsc_artifact = validate_external_simulator_artifact(_artifact_payload("TSC"))
+    with pytest.raises(ValueError, match="improve"):
+        assert_digital_twin_update_claim_admissible(
+            digital_twin_update_evidence(observation, priors, result, artifacts + (tsc_artifact,)),
+            observation,
+            priors,
+            result,
+            artifacts + (tsc_artifact,),
+        )

@@ -17,6 +17,7 @@ The NumPy path is deterministic and intentionally does not claim gradients.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from dataclasses import asdict, dataclass
@@ -176,9 +177,51 @@ class TransportCampaignMetadata:
     equilibrium_grid_shape: tuple[int, int] | None
 
 
+@dataclass(frozen=True)
+class TransportDifferentiabilityEvidence:
+    """Tamper-evident admission evidence for differentiable transport gradients."""
+
+    schema_version: int
+    backend: str
+    campaign_sha256: str
+    gradient_audit_sha256: str
+    gradient_tolerance: float
+    audit_kind: str
+    audit_passed: bool
+    n_rho: int
+    channel_order: tuple[str, ...]
+    equilibrium_coupled: bool
+    controller_formal_artifact_sha256: str | None
+    claim_status: str
+
+
 def has_jax() -> bool:
     """Return whether the differentiable JAX transport path is available."""
     return _HAS_JAX
+
+
+def _canonical_sha256(value: Any) -> str:
+    payload = asdict(value) if hasattr(value, "__dataclass_fields__") else value
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
+
+def _is_sha256_hex(value: str) -> bool:
+    if len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_optional_sha256(name: str, value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not _is_sha256_hex(value):
+        raise ValueError(f"{name} must be a SHA-256 hex digest")
+    return value.lower()
 
 
 def _as_float_array(name: str, value: Any) -> np.ndarray:
@@ -601,6 +644,81 @@ def assert_transport_campaign_metadata_replay(
     if mismatches:
         raise ValueError("transport campaign metadata replay mismatch: " + ", ".join(mismatches))
     return current
+
+
+def transport_differentiability_evidence(
+    metadata: TransportCampaignMetadata,
+    audit: TransportGradientAudit | TransportRolloutGradientAudit,
+    *,
+    controller_formal_artifact_sha256: str | None = None,
+) -> TransportDifferentiabilityEvidence:
+    """Build tamper-evident evidence for audited differentiable transport."""
+    if not isinstance(metadata, TransportCampaignMetadata):
+        raise ValueError("metadata must be TransportCampaignMetadata")
+    if not isinstance(audit, TransportGradientAudit | TransportRolloutGradientAudit):
+        raise ValueError("audit must be a transport gradient audit result")
+    if metadata.gradient_tolerance is None:
+        raise ValueError("metadata.gradient_tolerance is required for differentiability evidence")
+    proof_digest = _validate_optional_sha256(
+        "controller_formal_artifact_sha256",
+        controller_formal_artifact_sha256,
+    )
+    audit_kind = "rollout_source_gradient" if isinstance(audit, TransportRolloutGradientAudit) else "parameter_gradient"
+    return TransportDifferentiabilityEvidence(
+        schema_version=1,
+        backend=metadata.backend,
+        campaign_sha256=_canonical_sha256(metadata),
+        gradient_audit_sha256=_canonical_sha256(audit),
+        gradient_tolerance=float(metadata.gradient_tolerance),
+        audit_kind=audit_kind,
+        audit_passed=bool(audit.passed),
+        n_rho=int(metadata.n_rho),
+        channel_order=metadata.channel_order,
+        equilibrium_coupled=metadata.equilibrium_grid_shape is not None,
+        controller_formal_artifact_sha256=proof_digest,
+        claim_status=(
+            "bounded audited differentiable transport evidence only; "
+            "not external transport validation or hardware timing evidence"
+        ),
+    )
+
+
+def assert_transport_differentiability_claim_admissible(
+    evidence: TransportDifferentiabilityEvidence,
+    metadata: TransportCampaignMetadata,
+    audit: TransportGradientAudit | TransportRolloutGradientAudit,
+) -> TransportDifferentiabilityEvidence:
+    """Fail closed unless differentiable transport evidence matches inputs."""
+    if not isinstance(evidence, TransportDifferentiabilityEvidence):
+        raise ValueError("evidence must be TransportDifferentiabilityEvidence")
+    if evidence.schema_version != 1:
+        raise ValueError("transport differentiability evidence schema_version is unsupported")
+    if metadata.backend != "jax" or evidence.backend != "jax":
+        raise ValueError("transport differentiability evidence requires JAX backend")
+    if not audit.passed or not evidence.audit_passed:
+        raise ValueError("transport differentiability evidence requires a passed audit")
+    if metadata.gradient_tolerance is None:
+        raise ValueError("transport differentiability evidence requires metadata.gradient_tolerance")
+    if evidence.campaign_sha256 != _canonical_sha256(metadata):
+        raise ValueError("transport differentiability evidence campaign_sha256 mismatch")
+    if evidence.gradient_audit_sha256 != _canonical_sha256(audit):
+        raise ValueError("transport differentiability evidence gradient_audit_sha256 mismatch")
+    if evidence.channel_order != metadata.channel_order or evidence.channel_order != CHANNELS:
+        raise ValueError("transport differentiability evidence channel_order mismatch")
+    if evidence.n_rho != metadata.n_rho:
+        raise ValueError("transport differentiability evidence n_rho mismatch")
+    if evidence.equilibrium_coupled != (metadata.equilibrium_grid_shape is not None):
+        raise ValueError("transport differentiability evidence equilibrium_coupled mismatch")
+    if not np.isclose(evidence.gradient_tolerance, metadata.gradient_tolerance, rtol=1.0e-12, atol=1.0e-15):
+        raise ValueError("transport differentiability evidence gradient_tolerance mismatch")
+    _validate_optional_sha256("controller_formal_artifact_sha256", evidence.controller_formal_artifact_sha256)
+    if isinstance(audit, TransportRolloutGradientAudit):
+        if audit.source_max_abs_error > audit.tolerance:
+            raise ValueError("transport differentiability rollout source-gradient error exceeds tolerance")
+    else:
+        if audit.chi_max_abs_error > audit.tolerance or audit.source_max_abs_error > audit.tolerance:
+            raise ValueError("transport differentiability parameter-gradient error exceeds tolerance")
+    return evidence
 
 
 def _resolve_use_jax(

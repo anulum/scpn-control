@@ -1074,6 +1074,95 @@ def test_transport_campaign_metadata_import_rejects_malformed_payload(tmp_path):
         dt.load_transport_campaign_metadata(path)
 
 
+def test_transport_differentiability_evidence_binds_campaign_audit_and_controller_proof():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    metadata = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        1.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=1.0e-6,
+        equilibrium_psi=np.tile(np.linspace(0.2, 1.0, rho.size), (5, 1)),
+    )
+    audit = dt.TransportRolloutGradientAudit(
+        loss=0.125,
+        epsilon=1.0e-5,
+        tolerance=1.0e-6,
+        checked_indices=((0, 0, 1),),
+        source_max_abs_error=2.0e-7,
+        passed=True,
+    )
+
+    evidence = dt.transport_differentiability_evidence(
+        metadata,
+        audit,
+        controller_formal_artifact_sha256="b" * 64,
+    )
+
+    assert evidence.backend == "jax"
+    assert evidence.equilibrium_coupled
+    assert len(evidence.campaign_sha256) == 64
+    assert len(evidence.gradient_audit_sha256) == 64
+    dt.assert_transport_differentiability_claim_admissible(evidence, metadata, audit)
+
+
+def test_transport_differentiability_evidence_rejects_tampering_and_failed_audit():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    metadata = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        1.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=1.0e-6,
+    )
+    audit = dt.TransportRolloutGradientAudit(
+        loss=0.125,
+        epsilon=1.0e-5,
+        tolerance=1.0e-6,
+        checked_indices=((0, 0, 1),),
+        source_max_abs_error=2.0e-7,
+        passed=True,
+    )
+    evidence = dt.transport_differentiability_evidence(metadata, audit)
+    tampered = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        2.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=1.0e-6,
+    )
+    failed_audit = dt.TransportRolloutGradientAudit(
+        loss=audit.loss,
+        epsilon=audit.epsilon,
+        tolerance=audit.tolerance,
+        checked_indices=audit.checked_indices,
+        source_max_abs_error=2.0e-6,
+        passed=False,
+    )
+
+    with pytest.raises(ValueError, match="campaign_sha256"):
+        dt.assert_transport_differentiability_claim_admissible(evidence, tampered, audit)
+    with pytest.raises(ValueError, match="passed audit"):
+        dt.assert_transport_differentiability_claim_admissible(evidence, metadata, failed_audit)
+
+
 def test_equilibrium_weighted_gradient_fails_closed_without_jax(monkeypatch):
     rho = np.linspace(0.05, 1.0, 16)
     profiles = _profiles(rho)
