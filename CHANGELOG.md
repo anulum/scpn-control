@@ -26,6 +26,8 @@
   default and to persist the audit result with each coefficient update.
 - Added audited NMPC source-schedule tuning for additive heating, fuelling, and
   impurity-source controls with explicit finite source bounds.
+- Added RZIP vertical-stability calibration evidence and fail-closed
+  facility-claim admission with bounded local benchmark artefacts.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
@@ -72,6 +74,7 @@
 - `python validation/benchmark_federated_disruption.py`
 - `python validation/benchmark_neural_equilibrium_pretraining.py`
 - `python validation/benchmark_differentiable_transport_latency.py`
+- `python validation/benchmark_rzip_calibration.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`

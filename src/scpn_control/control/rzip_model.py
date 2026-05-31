@@ -9,12 +9,131 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import numpy as np
 
 from scpn_control.core.vessel_model import VesselElement, VesselModel
 
 MU_0 = 4.0 * np.pi * 1e-7
+_RZIP_CALIBRATION_SCHEMA_VERSION = 1
+_FACILITY_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "external_code_benchmark", "measured_discharge"}
+)
+_BOUNDED_REFERENCE_SOURCES = frozenset({"local_regression_reference", *_FACILITY_REFERENCE_SOURCES})
+
+
+@dataclass(frozen=True)
+class RZIPCalibrationEvidence:
+    """Serialisable calibration/admission evidence for a bounded RZIP plant."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    model_id: str
+    vertical_inertia_kg: float
+    wall_time_constant_s: float
+    growth_rate_s_inv: float
+    growth_time_ms: float
+    reference_growth_rate_s_inv: float | None
+    growth_rate_relative_error: float | None
+    growth_rate_relative_tolerance: float
+    facility_claim_allowed: bool
+    claim_status: str
+
+
+def _finite_positive(name: str, value: float) -> float:
+    out = float(value)
+    if not np.isfinite(out) or out <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
+    return out
+
+
+def rzip_calibration_evidence(
+    rzip: "RZIPModel",
+    *,
+    source: str,
+    source_id: str,
+    wall_time_constant_s: float,
+    model_id: str = "bounded_rzip",
+    reference_growth_rate_s_inv: float | None = None,
+    growth_rate_relative_tolerance: float = 0.2,
+) -> RZIPCalibrationEvidence:
+    """Build fail-closed calibration evidence for RZIP claim admission.
+
+    ``local_regression_reference`` evidence is useful for deterministic
+    regression reports but never permits facility claims. Facility claims require
+    documented public, external-code, or measured-discharge reference sources
+    and must satisfy the declared growth-rate tolerance.
+    """
+
+    if source not in _BOUNDED_REFERENCE_SOURCES:
+        raise ValueError("source must be a declared RZIP reference source")
+    if not isinstance(source_id, str) or not source_id.strip():
+        raise ValueError("source_id must be a non-empty string")
+    if not isinstance(model_id, str) or not model_id.strip():
+        raise ValueError("model_id must be a non-empty string")
+    tau_wall = _finite_positive("wall_time_constant_s", wall_time_constant_s)
+    tolerance = _finite_positive("growth_rate_relative_tolerance", growth_rate_relative_tolerance)
+    gamma = float(rzip.vertical_growth_rate())
+    tau_ms = float(rzip.vertical_growth_time())
+    if not np.isfinite(gamma):
+        raise ValueError("RZIP growth rate must be finite")
+
+    reference_gamma: float | None = None
+    relative_error: float | None = None
+    if reference_growth_rate_s_inv is not None:
+        reference_gamma = _finite_positive("reference_growth_rate_s_inv", reference_growth_rate_s_inv)
+        relative_error = abs(gamma - reference_gamma) / max(abs(reference_gamma), 1.0e-30)
+
+    source_can_support_facility = source in _FACILITY_REFERENCE_SOURCES
+    facility_allowed = bool(source_can_support_facility and relative_error is not None and relative_error <= tolerance)
+    if source == "local_regression_reference":
+        claim_status = "bounded local RZIP regression evidence only; external reference required for facility claims"
+    elif relative_error is None:
+        claim_status = "external RZIP reference source declared but quantitative growth-rate comparison is missing"
+    elif facility_allowed:
+        claim_status = "external RZIP reference admission passed for declared tolerance"
+    else:
+        claim_status = "external RZIP reference admission failed declared growth-rate tolerance"
+
+    return RZIPCalibrationEvidence(
+        schema_version=_RZIP_CALIBRATION_SCHEMA_VERSION,
+        source=source,
+        source_id=source_id.strip(),
+        model_id=model_id.strip(),
+        vertical_inertia_kg=float(rzip.M_eff),
+        wall_time_constant_s=tau_wall,
+        growth_rate_s_inv=gamma,
+        growth_time_ms=tau_ms,
+        reference_growth_rate_s_inv=reference_gamma,
+        growth_rate_relative_error=None if relative_error is None else float(relative_error),
+        growth_rate_relative_tolerance=tolerance,
+        facility_claim_allowed=facility_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_rzip_facility_claim_admissible(evidence: RZIPCalibrationEvidence) -> RZIPCalibrationEvidence:
+    """Return evidence or fail closed before a RZIP facility-control claim."""
+
+    if not isinstance(evidence, RZIPCalibrationEvidence):
+        raise ValueError("evidence must be RZIPCalibrationEvidence")
+    if evidence.schema_version != _RZIP_CALIBRATION_SCHEMA_VERSION:
+        raise ValueError("RZIP calibration evidence schema_version is unsupported")
+    if not evidence.facility_claim_allowed:
+        raise ValueError(f"RZIP facility claim is not admissible: {evidence.claim_status}")
+    return evidence
+
+
+def save_rzip_calibration_evidence(evidence: RZIPCalibrationEvidence, path: str | Path) -> None:
+    """Persist RZIP calibration evidence as deterministic JSON."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class RZIPModel:

@@ -738,6 +738,14 @@ gradient-audit result.
 
 ::: scpn_control.control.rzip_model.RZIPModel
 
+::: scpn_control.control.rzip_model.RZIPCalibrationEvidence
+
+::: scpn_control.control.rzip_model.rzip_calibration_evidence
+
+::: scpn_control.control.rzip_model.assert_rzip_facility_claim_admissible
+
+::: scpn_control.control.rzip_model.save_rzip_calibration_evidence
+
 ### RWM Feedback (v0.16.0)
 
 ::: scpn_control.control.rwm_feedback.RWMFeedbackController

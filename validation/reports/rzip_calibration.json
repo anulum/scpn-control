@@ -1,0 +1,15 @@
+{
+  "claim_status": "bounded local RZIP regression evidence only; external reference required for facility claims",
+  "facility_claim_allowed": false,
+  "growth_rate_relative_error": null,
+  "growth_rate_relative_tolerance": 0.2,
+  "growth_rate_s_inv": 1.1325411557175613,
+  "growth_time_ms": 882.9701198508894,
+  "model_id": "bounded_rzip",
+  "reference_growth_rate_s_inv": null,
+  "schema_version": 1,
+  "source": "local_regression_reference",
+  "source_id": "validation/benchmark_rzip_calibration.py::symmetric_wall_case",
+  "vertical_inertia_kg": 1.0,
+  "wall_time_constant_s": 0.01
+}

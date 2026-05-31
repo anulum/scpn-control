@@ -383,7 +383,7 @@
     },
     {
       "component": "RZIP rigid vertical stability model",
-      "equation_contract": "Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, tokamak major/minor-radius ordering, declared vertical inertia, wall-normalised feedback-gain threshold, and wall or active-coil circuit model.",
+      "equation_contract": "Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, tokamak major/minor-radius ordering, declared vertical inertia, wall-normalised feedback-gain threshold, wall or active-coil circuit model, calibration source, growth-rate comparison tolerance, and facility-claim admission status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lazarus et al. 1990 rigid plasma vertical stability model",
@@ -400,18 +400,25 @@
       "validation_evidence": [
         "tests/test_rzip_model.py vertical growth, field-index, declared-inertia, feedback-gain, physical-parameter, and controller-measurement checks",
         "tests/test_rzip_model.py RZIP fallback and singular-circuit checks",
-        "validation/validate_rzip_reference.py strict RZIP reference artifact gate"
+        "validation/validate_rzip_reference.py strict RZIP reference artifact gate",
+        "tests/test_rzip_model.py calibration evidence, facility-claim admission, and persisted evidence checks",
+        "validation/benchmark_rzip_calibration.py bounded local RZIP calibration benchmark",
+        "validation/reports/rzip_calibration.json bounded local calibration report"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rzip_model.py",
         "tests/test_rzip_model.py",
         "validation/validate_rzip_reference.py",
-        "docs/validation.md"
+        "docs/validation.md",
+        "validation/benchmark_rzip_calibration.py",
+        "validation/reports/rzip_calibration.json",
+        "validation/reports/rzip_calibration.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/rzip_model.py"
       ],
-      "validity_domain": "Linearised rigid-plasma vertical stability analysis for controller prototyping and local regression tests; not a facility-validated vertical-control plant.",
+      "validity_domain": "Linearised rigid-plasma vertical stability analysis for controller prototyping, local regression tests, and bounded calibration-admission evidence; not a facility-validated vertical-control plant unless external or measured reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 51
     },
     {

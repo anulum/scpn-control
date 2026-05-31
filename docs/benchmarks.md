@@ -121,6 +121,22 @@ Hybrid accuracy (`validation/benchmark_hybrid_accuracy.py`) measures the
 correction layer convergence over 20 transport steps with periodic GK
 spot-checks.
 
+## RZIP Calibration Benchmark
+
+`validation/benchmark_rzip_calibration.py` publishes bounded local regression
+evidence for the RZIP rigid-plasma vertical-stability plant. The generated
+report records the declared vertical inertia, wall time constant, growth rate,
+growth time, and explicit facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/rzip_calibration.json`
+- `validation/reports/rzip_calibration.md`
+
+Facility vertical-control claims still require documented public, external-code,
+or measured-discharge RZIP reference evidence that passes the strict admission
+gate.
+
 ## Differentiable Transport Gradient-Latency Benchmark
 
 The controller-tuning facade measures the audited admission path for JAX

@@ -7,10 +7,19 @@
 # SCPN Control — RZIP model tests
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 
-from scpn_control.control.rzip_model import RZIPController, RZIPModel
+from scpn_control.control.rzip_model import (
+    RZIPCalibrationEvidence,
+    RZIPController,
+    RZIPModel,
+    assert_rzip_facility_claim_admissible,
+    rzip_calibration_evidence,
+    save_rzip_calibration_evidence,
+)
 from scpn_control.core.vessel_model import VesselElement, VesselModel
 
 
@@ -85,6 +94,95 @@ def test_rzip_model_uses_declared_vertical_inertia(simple_vessel):
 
     assert heavy.M_eff == 4.0
     assert heavy.vertical_growth_rate() < light.vertical_growth_rate()
+
+
+def test_rzip_calibration_evidence_records_bounded_local_claim(simple_vessel, tmp_path):
+    rzip = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-1.0,
+        vessel=simple_vessel,
+        vertical_inertia_kg=2.5,
+    )
+
+    evidence = rzip_calibration_evidence(
+        rzip,
+        source="local_regression_reference",
+        source_id="tests/test_rzip_model.py::simple_vessel",
+        wall_time_constant_s=0.01,
+    )
+    out = tmp_path / "rzip_calibration.json"
+    save_rzip_calibration_evidence(evidence, out)
+    payload = json.loads(out.read_text(encoding="utf-8"))
+
+    assert isinstance(evidence, RZIPCalibrationEvidence)
+    assert evidence.vertical_inertia_kg == pytest.approx(2.5)
+    assert evidence.growth_rate_s_inv == pytest.approx(rzip.vertical_growth_rate())
+    assert evidence.reference_growth_rate_s_inv is None
+    assert evidence.facility_claim_allowed is False
+    assert evidence.claim_status.startswith("bounded local RZIP regression evidence")
+    assert payload["schema_version"] == 1
+    assert payload["facility_claim_allowed"] is False
+
+
+def test_rzip_facility_claim_admission_requires_external_tolerance(simple_vessel):
+    rzip = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-1.0,
+        vessel=simple_vessel,
+        vertical_inertia_kg=1.0,
+    )
+    gamma = rzip.vertical_growth_rate()
+
+    admitted = rzip_calibration_evidence(
+        rzip,
+        source="external_code_benchmark",
+        source_id="reference_rzip_symmetric_wall_case",
+        wall_time_constant_s=0.01,
+        reference_growth_rate_s_inv=gamma * 1.01,
+        growth_rate_relative_tolerance=0.02,
+    )
+    rejected = rzip_calibration_evidence(
+        rzip,
+        source="external_code_benchmark",
+        source_id="reference_rzip_mismatched_case",
+        wall_time_constant_s=0.01,
+        reference_growth_rate_s_inv=gamma * 1.5,
+        growth_rate_relative_tolerance=0.02,
+    )
+
+    assert assert_rzip_facility_claim_admissible(admitted) == admitted
+    assert admitted.facility_claim_allowed is True
+    assert admitted.growth_rate_relative_error == pytest.approx(abs(gamma - gamma * 1.01) / abs(gamma * 1.01))
+    assert rejected.facility_claim_allowed is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_rzip_facility_claim_admissible(rejected)
+
+
+def test_rzip_calibration_evidence_rejects_invalid_reference_inputs(simple_vessel):
+    rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-1.0, vessel=simple_vessel)
+
+    with pytest.raises(ValueError, match="source"):
+        rzip_calibration_evidence(rzip, source="mock", source_id="case", wall_time_constant_s=0.01)
+    with pytest.raises(ValueError, match="source_id"):
+        rzip_calibration_evidence(rzip, source="local_regression_reference", source_id="", wall_time_constant_s=0.01)
+    with pytest.raises(ValueError, match="wall_time_constant_s"):
+        rzip_calibration_evidence(rzip, source="local_regression_reference", source_id="case", wall_time_constant_s=0.0)
+    with pytest.raises(ValueError, match="reference_growth_rate_s_inv"):
+        rzip_calibration_evidence(
+            rzip,
+            source="external_code_benchmark",
+            source_id="case",
+            wall_time_constant_s=0.01,
+            reference_growth_rate_s_inv=-1.0,
+        )
 
 
 def test_rzip_model_rejects_nonphysical_vertical_inertia(simple_vessel):
