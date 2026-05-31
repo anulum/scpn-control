@@ -36,6 +36,8 @@
 - Added explicit gyrokinetic species diamagnetic-frequency bookkeeping with
   charge-direction, density-gradient, temperature-gradient, and zero-drive
   regression coverage.
+- Added the Miller geometry contravariant metric-determinant identity to the
+  public geometry result and regression coverage.
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.

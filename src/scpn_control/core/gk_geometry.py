@@ -55,6 +55,7 @@ class MillerGeometry:
     g_rr: NDArray[np.float64]  # |grad r|^2
     g_rt: NDArray[np.float64]  # grad r . grad theta
     g_tt: NDArray[np.float64]  # |grad theta|^2
+    metric_determinant: NDArray[np.float64]  # g^rr g^tt - (g^rtheta)^2
     kappa_n: NDArray[np.float64]  # normal curvature
     kappa_g: NDArray[np.float64]  # geodesic curvature
     b_dot_grad_theta: NDArray[np.float64]  # B . grad(theta) / B
@@ -156,6 +157,7 @@ def miller_geometry(
 
     # |grad theta|^2 = (dR/dr^2 + dZ/dr^2) / J^2
     g_tt = (dR_dr_tot**2 + dZ_dr_r**2) / jac**2
+    metric_determinant = g_rr * g_tt - g_rt**2
 
     # Toroidal field on a local flux surface: B_phi = B0 * R0 / R.
     B_phi = B0 * R0 / R_s
@@ -199,6 +201,7 @@ def miller_geometry(
         g_rr=g_rr,
         g_rt=g_rt,
         g_tt=g_tt,
+        metric_determinant=metric_determinant,
         kappa_n=kappa_n,
         kappa_g=kappa_g,
         b_dot_grad_theta=b_dot_grad_theta,

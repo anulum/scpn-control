@@ -86,6 +86,28 @@ def test_metric_coefficients_positive():
     geom = circular_geometry(n_theta=64, n_period=2)
     assert np.all(geom.g_rr > 0)
     assert np.all(geom.g_tt > 0)
+    assert np.all(geom.metric_determinant > 0)
+
+
+def test_metric_determinant_matches_inverse_jacobian_identity():
+    """Contravariant metric determinant must equal 1/J^2 for (R,Z)(r,theta)."""
+    geom = miller_geometry(
+        R0=6.2,
+        a=2.0,
+        rho=0.6,
+        kappa=1.7,
+        delta=0.33,
+        q=2.0,
+        s_hat=1.2,
+        dR_dr=-0.1,
+        B0=5.3,
+        n_theta=128,
+        n_period=1,
+    )
+
+    expected = 1.0 / geom.jacobian**2
+    np.testing.assert_allclose(geom.metric_determinant, expected, rtol=1.0e-9, atol=1.0e-10)
+    np.testing.assert_allclose(geom.metric_determinant, geom.g_rr * geom.g_tt - geom.g_rt**2)
 
 
 def test_jacobian_finite():
@@ -179,6 +201,7 @@ def test_miller_geometry_returns_finite_positive_metric_contract() -> None:
         geom.g_rr,
         geom.g_rt,
         geom.g_tt,
+        geom.metric_determinant,
         geom.kappa_n,
         geom.kappa_g,
         geom.b_dot_grad_theta,
