@@ -969,3 +969,112 @@ def test_nmpc_source_schedule_tuning_reduces_tracking_loss() -> None:
     assert result.gradient_audit is not None
     assert result.gradient_audit.passed
     assert updated_loss < initial_loss
+
+
+def _rollout_transport_fixture() -> tuple[
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, np.ndarray
+]:
+    rho = np.linspace(0.0, 1.0, 7)
+    profiles = np.vstack(
+        [
+            6.0 - 4.0 * rho**2,
+            5.0 - 3.0 * rho**2,
+            8.0 - 2.0 * rho**2,
+            0.04 * (1.0 - rho**2),
+        ]
+    )
+    chi = np.full_like(profiles, 0.03)
+    source_sequence = np.zeros((4, 4, rho.size), dtype=np.float64)
+    source_sequence[:, 0, 2:5] = 0.6
+    source_sequence[:, 1, 2:5] = 0.4
+    source_sequence[:, 2, 1:4] = 0.2
+    edge_values = profiles[:, -1].copy()
+    return profiles, chi, source_sequence, rho, edge_values, 0.01, edge_values
+
+
+def test_nmpc_transport_rollout_tuning_fails_closed_without_jax(monkeypatch: pytest.MonkeyPatch) -> None:
+    """NMPC must not admit rollout source-gradient tuning without JAX autodiff."""
+    profiles, chi, source_sequence, rho, edge_values, dt, _ = _rollout_transport_fixture()
+    target_history = np.repeat(profiles[None, :, :], source_sequence.shape[0], axis=0)
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: False)
+
+    with pytest.raises(RuntimeError, match="requires JAX"):
+        nmpc_mod.tune_transport_source_rollout_for_tracking(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            dt,
+            edge_values,
+            learning_rate=0.05,
+        )
+
+
+def test_nmpc_transport_rollout_tuning_rejects_malformed_schedule(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The NMPC admission boundary must reject non-four-channel source schedules."""
+    profiles, chi, source_sequence, rho, edge_values, dt, _ = _rollout_transport_fixture()
+    target_history = np.repeat(profiles[None, :, :], source_sequence.shape[0], axis=0)
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+
+    with pytest.raises(ValueError, match="source_sequence"):
+        nmpc_mod.tune_transport_source_rollout_for_tracking(
+            profiles,
+            chi,
+            source_sequence[:, :3, :],
+            target_history,
+            rho,
+            dt,
+            edge_values,
+            learning_rate=0.05,
+        )
+
+
+@pytest.mark.skipif(not transport_mod.has_jax(), reason="JAX optional dependency not installed")
+def test_nmpc_transport_rollout_tuning_updates_bounded_source_schedule() -> None:
+    """Rollout tuning should produce finite audited source updates within actuator bounds."""
+    profiles, chi, source_sequence, rho, edge_values, dt, _ = _rollout_transport_fixture()
+    desired_sources = source_sequence.copy()
+    desired_sources[:, 0, 2:5] += 0.2
+    desired_sources[:, 2, 1:4] += 0.1
+    target_history = np.asarray(
+        transport_mod.differentiable_transport_rollout(
+            profiles,
+            chi,
+            desired_sources,
+            rho,
+            dt,
+            edge_values,
+            use_jax=False,
+        ),
+        dtype=np.float64,
+    )
+
+    result = nmpc_mod.tune_transport_source_rollout_for_tracking(
+        profiles,
+        chi,
+        source_sequence,
+        target_history,
+        rho,
+        dt,
+        edge_values,
+        learning_rate=0.2,
+        source_min=0.0,
+        source_max=1.0,
+        max_absolute_update=0.05,
+        gradient_audit_tolerance=2.0e-3,
+        gradient_audit_sample_indices=((0, 0, 2), (2, 2, 3), (3, 1, 4)),
+    )
+
+    assert np.isfinite(result.loss)
+    assert result.gradient.shape == source_sequence.shape
+    assert result.updated_sources.shape == source_sequence.shape
+    assert result.final_profiles.shape == profiles.shape
+    assert np.all(np.isfinite(result.gradient))
+    assert np.all(result.updated_sources >= 0.0)
+    assert np.all(result.updated_sources <= 1.0)
+    assert 0.0 < result.step_norm <= np.sqrt(source_sequence.size) * 0.05
+    assert result.metadata.backend == "jax"
+    assert result.gradient_audit is not None
+    assert result.gradient_audit.passed is True
+    assert result.gradient_audit.checked_indices == ((0, 0, 2), (2, 2, 3), (3, 1, 4))

@@ -23,6 +23,9 @@
 - Added bounded multi-step differentiable transport rollout gradients so
   controller tuning can optimise time-distributed source schedules without
   finite-difference plant evaluations.
+- Wired NMPC source-rollout tuning to the multi-step differentiable transport
+  gradient path with explicit source bounds and sampled finite-difference
+  audit admission.
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.

@@ -24,6 +24,7 @@ profile and kinetic variable control on TCV.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Callable
 
@@ -35,9 +36,12 @@ from scpn_control.core.differentiable_transport import (
     TransportCampaignMetadata,
     TransportGradientAudit,
     TransportParameterGradients,
+    TransportRolloutSourceGradients,
     assert_transport_parameter_gradients_consistent,
     transport_loss_gradient,
     transport_parameter_gradients,
+    transport_rollout_source_gradients,
+    transport_rollout_tracking_loss,
     transport_coefficients_from_neural_closure,
     transport_campaign_metadata,
 )
@@ -125,6 +129,31 @@ class TransportSourceScheduleTuningResult:
     gradient_audit: TransportGradientAudit | None
 
 
+@dataclass(frozen=True)
+class TransportSourceRolloutGradientAudit:
+    """Finite-difference audit for multi-step source-schedule gradients."""
+
+    loss: float
+    epsilon: float
+    tolerance: float
+    checked_indices: tuple[tuple[int, int, int], ...]
+    source_max_abs_error: float
+    passed: bool
+
+
+@dataclass(frozen=True)
+class TransportSourceRolloutTuningResult:
+    """Result of a gradient-based multi-step transport source rollout update."""
+
+    loss: float
+    gradient: np.ndarray
+    updated_sources: np.ndarray
+    final_profiles: np.ndarray
+    step_norm: float
+    metadata: TransportCampaignMetadata
+    gradient_audit: TransportSourceRolloutGradientAudit | None
+
+
 def _optional_finite_array_bound(name: str, value: object, shape: tuple[int, ...]) -> np.ndarray | None:
     if value is None:
         return None
@@ -134,6 +163,125 @@ def _optional_finite_array_bound(name: str, value: object, shape: tuple[int, ...
     if arr.shape != shape or not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} must be finite and broadcastable to source shape.")
     return arr
+
+
+def _rollout_audit_indices(
+    source_shape: tuple[int, int, int],
+    sample_indices: object | None,
+) -> tuple[tuple[int, int, int], ...]:
+    if len(source_shape) != 3:
+        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho).")
+    n_steps, n_channels, n_rho = source_shape
+    if n_steps < 1 or n_channels != 4 or n_rho < 3:
+        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho) with n_rho >= 3.")
+    if sample_indices is None:
+        candidates: tuple[tuple[int, int, int], ...] = (
+            (0, 0, 1),
+            (n_steps - 1, 1, n_rho // 2),
+            (n_steps // 2, 2, n_rho - 2),
+            (n_steps - 1, 3, max(1, n_rho // 3)),
+        )
+    else:
+        if not isinstance(sample_indices, Iterable):
+            raise ValueError("gradient_audit_sample_indices must be an iterable of three-part indices.")
+        parsed_candidates: list[tuple[int, int, int]] = []
+        for raw_index in sample_indices:
+            if not isinstance(raw_index, Iterable):
+                raise ValueError("gradient_audit_sample_indices must contain iterable three-part indices.")
+            index_tuple = tuple(int(part) for part in raw_index)
+            if len(index_tuple) != 3:
+                raise ValueError("gradient_audit_sample_indices must contain three-part indices.")
+            parsed_candidates.append((index_tuple[0], index_tuple[1], index_tuple[2]))
+        candidates = tuple(parsed_candidates)
+    unique: list[tuple[int, int, int]] = []
+    for step, channel, radius in candidates:
+        if not (0 <= step < n_steps and 0 <= channel < n_channels and 0 <= radius < n_rho):
+            raise ValueError("gradient_audit_sample_indices contain an out-of-range rollout source index.")
+        index = (int(step), int(channel), int(radius))
+        if index not in unique:
+            unique.append(index)
+    if not unique:
+        raise ValueError("gradient_audit_sample_indices must contain at least one index.")
+    return tuple(unique)
+
+
+def _audit_transport_rollout_source_gradients(
+    initial_profiles: np.ndarray,
+    chi: np.ndarray,
+    source_sequence: np.ndarray,
+    target_history: np.ndarray,
+    rho: np.ndarray,
+    dt: float,
+    edge_values: np.ndarray,
+    source_gradient: np.ndarray,
+    *,
+    weights: np.ndarray | None,
+    epsilon: float,
+    tolerance: float,
+    sample_indices: object | None,
+) -> TransportSourceRolloutGradientAudit:
+    epsilon_float = float(epsilon)
+    tolerance_float = float(tolerance)
+    if not np.isfinite(epsilon_float) or epsilon_float <= 0.0:
+        raise ValueError("gradient_audit_epsilon must be positive and finite.")
+    if not np.isfinite(tolerance_float) or tolerance_float <= 0.0:
+        raise ValueError("gradient_audit_tolerance must be positive and finite.")
+    indices = _rollout_audit_indices(source_sequence.shape, sample_indices)
+    base_loss = float(
+        transport_rollout_tracking_loss(
+            initial_profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            dt,
+            edge_values,
+            weights=weights,
+            use_jax=False,
+        )
+    )
+    max_abs_error = 0.0
+    for index in indices:
+        plus_sources = source_sequence.copy()
+        minus_sources = source_sequence.copy()
+        plus_sources[index] += epsilon_float
+        minus_sources[index] -= epsilon_float
+        plus_loss = float(
+            transport_rollout_tracking_loss(
+                initial_profiles,
+                chi,
+                plus_sources,
+                target_history,
+                rho,
+                dt,
+                edge_values,
+                weights=weights,
+                use_jax=False,
+            )
+        )
+        minus_loss = float(
+            transport_rollout_tracking_loss(
+                initial_profiles,
+                chi,
+                minus_sources,
+                target_history,
+                rho,
+                dt,
+                edge_values,
+                weights=weights,
+                use_jax=False,
+            )
+        )
+        finite_difference = (plus_loss - minus_loss) / (2.0 * epsilon_float)
+        max_abs_error = max(max_abs_error, abs(float(source_gradient[index]) - finite_difference))
+    return TransportSourceRolloutGradientAudit(
+        loss=base_loss,
+        epsilon=epsilon_float,
+        tolerance=tolerance_float,
+        checked_indices=indices,
+        source_max_abs_error=float(max_abs_error),
+        passed=bool(max_abs_error <= tolerance_float),
+    )
 
 
 def tune_transport_coefficients_for_tracking(
@@ -347,6 +495,124 @@ def tune_transport_sources_for_tracking(
         loss=float(gradient_result.loss),
         gradient=source_gradient,
         updated_sources=updated_sources,
+        step_norm=step_norm,
+        metadata=metadata,
+        gradient_audit=gradient_audit,
+    )
+
+
+def tune_transport_source_rollout_for_tracking(
+    initial_profiles: np.ndarray,
+    chi: np.ndarray,
+    source_sequence: np.ndarray,
+    target_history: np.ndarray,
+    rho: np.ndarray,
+    dt: float,
+    edge_values: np.ndarray,
+    *,
+    weights: np.ndarray | None = None,
+    learning_rate: float,
+    source_min: np.ndarray | float | None = None,
+    source_max: np.ndarray | float | None = None,
+    max_absolute_update: float | None = None,
+    gradient_tolerance: float | None = None,
+    require_gradient_audit: bool = True,
+    gradient_audit_epsilon: float = 1.0e-5,
+    gradient_audit_tolerance: float = 5.0e-4,
+    gradient_audit_sample_indices: object | None = None,
+    equilibrium_psi: np.ndarray | None = None,
+    _closure_for_metadata: object | None = None,
+) -> TransportSourceRolloutTuningResult:
+    """Tune a full NMPC transport source rollout through JAX autodiff.
+
+    The update acts on the complete `(n_steps, 4, n_rho)` heating, fuelling,
+    and impurity-source schedule. A sampled NumPy finite-difference audit is
+    required by default so the controller does not admit unaudited JAX
+    gradients for multi-step source optimisation.
+    """
+    if not has_differentiable_transport_jax():
+        raise RuntimeError("tune_transport_source_rollout_for_tracking requires JAX")
+    learning_rate_float = float(learning_rate)
+    if not np.isfinite(learning_rate_float) or learning_rate_float <= 0.0:
+        raise ValueError("learning_rate must be positive and finite.")
+    if max_absolute_update is not None:
+        max_absolute_update_float = float(max_absolute_update)
+        if not np.isfinite(max_absolute_update_float) or max_absolute_update_float <= 0.0:
+            raise ValueError("max_absolute_update must be positive and finite.")
+    else:
+        max_absolute_update_float = None
+
+    source_array = np.asarray(source_sequence, dtype=np.float64)
+    if source_array.ndim != 3 or source_array.shape[1] != 4 or not np.all(np.isfinite(source_array)):
+        raise ValueError("source_sequence must be a finite array with shape (n_steps, 4, n_rho).")
+    source_min_array = _optional_finite_array_bound("source_min", source_min, source_array.shape)
+    source_max_array = _optional_finite_array_bound("source_max", source_max, source_array.shape)
+    if source_min_array is not None and source_max_array is not None and np.any(source_min_array > source_max_array):
+        raise ValueError("source_min entries must be less than or equal to source_max entries.")
+
+    gradient_result = transport_rollout_source_gradients(
+        initial_profiles,
+        chi,
+        source_array,
+        target_history,
+        rho,
+        dt,
+        edge_values,
+        weights=weights,
+    )
+    if not isinstance(gradient_result, TransportRolloutSourceGradients):
+        raise ValueError("transport_rollout_source_gradients must return TransportRolloutSourceGradients.")
+    source_gradient = np.asarray(gradient_result.source_gradient, dtype=np.float64)
+    if source_gradient.shape != source_array.shape or not np.all(np.isfinite(source_gradient)):
+        raise ValueError("rollout source gradient must be finite and match source_sequence shape.")
+    final_profiles = np.asarray(gradient_result.final_profiles, dtype=np.float64)
+    if final_profiles.shape != source_array.shape[1:] or not np.all(np.isfinite(final_profiles)):
+        raise ValueError("rollout final profiles must be finite and match one transport profile shape.")
+    gradient_audit = None
+    if require_gradient_audit:
+        gradient_audit = _audit_transport_rollout_source_gradients(
+            np.asarray(initial_profiles, dtype=np.float64),
+            np.asarray(chi, dtype=np.float64),
+            source_array,
+            np.asarray(target_history, dtype=np.float64),
+            np.asarray(rho, dtype=np.float64),
+            dt,
+            np.asarray(edge_values, dtype=np.float64),
+            source_gradient,
+            weights=None if weights is None else np.asarray(weights, dtype=np.float64),
+            epsilon=gradient_audit_epsilon,
+            tolerance=gradient_audit_tolerance,
+            sample_indices=gradient_audit_sample_indices,
+        )
+        if not gradient_audit.passed:
+            raise ValueError("rollout source gradient audit failed.")
+
+    delta = -learning_rate_float * source_gradient
+    if max_absolute_update_float is not None:
+        delta = np.clip(delta, -max_absolute_update_float, max_absolute_update_float)
+    updated_sources = source_array + delta
+    if source_min_array is not None:
+        updated_sources = np.maximum(source_min_array, updated_sources)
+    if source_max_array is not None:
+        updated_sources = np.minimum(source_max_array, updated_sources)
+    step_norm = float(np.linalg.norm(updated_sources - source_array))
+    metadata = transport_campaign_metadata(
+        initial_profiles,
+        chi,
+        source_array[0],
+        rho,
+        dt,
+        edge_values,
+        backend="jax",
+        closure=_closure_for_metadata,
+        gradient_tolerance=gradient_tolerance,
+        equilibrium_psi=equilibrium_psi,
+    )
+    return TransportSourceRolloutTuningResult(
+        loss=float(gradient_result.loss),
+        gradient=source_gradient,
+        updated_sources=updated_sources,
+        final_profiles=final_profiles,
         step_norm=step_norm,
         metadata=metadata,
         gradient_audit=gradient_audit,

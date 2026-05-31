@@ -21,7 +21,7 @@
   "counts": {
     "project_script_count": 2,
     "public_api_export_count": 17,
-    "public_class_count": 451,
+    "public_class_count": 453,
     "public_markdown_count": 32,
     "pyo3_export_count": 27,
     "python_test_file_count": 273,
@@ -543,6 +543,8 @@
       "TransportParameterGradients",
       "TransportRolloutSourceGradients",
       "TransportSolver",
+      "TransportSourceRolloutGradientAudit",
+      "TransportSourceRolloutTuningResult",
       "TransportSourceScheduleTuningResult",
       "TransportUncertainty",
       "TroyonResult",

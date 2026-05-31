@@ -732,6 +732,12 @@ additive heating, fuelling, and impurity-source schedules. Source lower and
 upper bounds are explicit because replay studies may include physically valid
 sink terms, and every accepted update carries campaign metadata plus the
 gradient-audit result.
+`tune_transport_source_rollout_for_tracking()` extends that admission boundary
+from a single transport step to a complete `(n_steps, 4, n_rho)` source
+schedule. It uses JAX for the multi-step rollout gradient, requires a sampled
+NumPy finite-difference audit by default, clips per-entry source updates when
+configured, and records bounded campaign metadata before the schedule can enter
+NMPC tuning.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 
@@ -739,9 +745,15 @@ gradient-audit result.
 
 ::: scpn_control.control.nmpc_controller.TransportSourceScheduleTuningResult
 
+::: scpn_control.control.nmpc_controller.TransportSourceRolloutGradientAudit
+
+::: scpn_control.control.nmpc_controller.TransportSourceRolloutTuningResult
+
 ::: scpn_control.control.nmpc_controller.tune_transport_coefficients_for_tracking
 
 ::: scpn_control.control.nmpc_controller.tune_transport_sources_for_tracking
+
+::: scpn_control.control.nmpc_controller.tune_transport_source_rollout_for_tracking
 
 ::: scpn_control.control.nmpc_controller.tune_neural_transport_closure_for_tracking
 
