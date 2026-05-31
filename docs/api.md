@@ -643,6 +643,9 @@ or edited evidence payloads before replay admission.
 from promotion readiness: external physics validation, target-hardware timing
 evidence, and independent safety-review digests are all required before
 `assert_controller_safety_case_readiness_admissible()` accepts the package.
+`save_controller_safety_case_readiness()` and
+`load_controller_safety_case_readiness()` persist that readiness decision with
+the same schema-versioned integrity-digest semantics as the safety-case bundle.
 
 ::: scpn_control.control.safety_case.ControllerSafetyCaseEvidence
 
@@ -659,6 +662,10 @@ evidence, and independent safety-review digests are all required before
 ::: scpn_control.control.safety_case.evaluate_controller_safety_case_readiness
 
 ::: scpn_control.control.safety_case.assert_controller_safety_case_readiness_admissible
+
+::: scpn_control.control.safety_case.save_controller_safety_case_readiness
+
+::: scpn_control.control.safety_case.load_controller_safety_case_readiness
 
 ### Flight Simulator
 

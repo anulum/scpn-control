@@ -27,7 +27,9 @@ from scpn_control.control.safety_case import (
     controller_safety_case_evidence,
     evaluate_controller_safety_case_readiness,
     load_controller_safety_case_evidence,
+    load_controller_safety_case_readiness,
     save_controller_safety_case_evidence,
+    save_controller_safety_case_readiness,
 )
 from scpn_control.core.differentiable_transport import (
     TransportRolloutGradientAudit,
@@ -272,6 +274,61 @@ def test_controller_safety_case_readiness_accepts_complete_promotion_evidence():
     assert readiness.blocking_reasons == ()
     assert readiness.external_physics_validation_sha256 == "1" * 64
     assert_controller_safety_case_readiness_admissible(readiness, evidence)
+
+
+def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    readiness = evaluate_controller_safety_case_readiness(
+        evidence,
+        external_physics_validation_sha256="1" * 64,
+        target_hardware_timing_sha256="2" * 64,
+        independent_safety_review_sha256="3" * 64,
+    )
+    path = tmp_path / "controller_safety_case_readiness.json"
+
+    save_controller_safety_case_readiness(readiness, path)
+    loaded = load_controller_safety_case_readiness(path)
+
+    assert loaded == readiness
+    assert_controller_safety_case_readiness_admissible(loaded, evidence)
+
+
+def test_controller_safety_case_readiness_manifest_rejects_tampering(tmp_path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    readiness = evaluate_controller_safety_case_readiness(
+        evidence,
+        external_physics_validation_sha256="1" * 64,
+        target_hardware_timing_sha256="2" * 64,
+        independent_safety_review_sha256="3" * 64,
+    )
+    path = tmp_path / "controller_safety_case_readiness.json"
+    save_controller_safety_case_readiness(readiness, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["readiness"]["status"] = "blocked"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="integrity"):
+        load_controller_safety_case_readiness(path)
+
+
+def test_controller_safety_case_readiness_manifest_rejects_malformed_schema(tmp_path):
+    path = tmp_path / "bad_controller_safety_case_readiness.json"
+    path.write_text(json.dumps({"schema_version": 99, "readiness": {}}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="schema_version"):
+        load_controller_safety_case_readiness(path)
 
 
 def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():

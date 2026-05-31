@@ -32,6 +32,9 @@
   until external physics validation, target-hardware timing evidence, and
   independent safety-review digests are all present and bound to the current
   safety-case bundle.
+- Added schema-versioned controller safety-case readiness manifest persistence
+  with an integrity digest so promotion decisions fail closed on malformed
+  schema or payload tampering before replay.
 - Hardened the phase WebSocket stream with explicit payload-size limits,
   server-side frame caps, default client authentication, TLS-required startup
   mode, disabled-by-default query-token authentication, fail-closed plaintext

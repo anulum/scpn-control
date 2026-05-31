@@ -124,6 +124,48 @@ def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> Co
     return evidence
 
 
+def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseReadinessEvidence:
+    try:
+        readiness = SafetyCaseReadinessEvidence(
+            schema_version=int(payload["schema_version"]),
+            safety_case_sha256=str(payload["safety_case_sha256"]),
+            status=str(payload["status"]),
+            external_physics_validation_sha256=(
+                None
+                if payload["external_physics_validation_sha256"] is None
+                else str(payload["external_physics_validation_sha256"])
+            ),
+            target_hardware_timing_sha256=(
+                None
+                if payload["target_hardware_timing_sha256"] is None
+                else str(payload["target_hardware_timing_sha256"])
+            ),
+            independent_safety_review_sha256=(
+                None
+                if payload["independent_safety_review_sha256"] is None
+                else str(payload["independent_safety_review_sha256"])
+            ),
+            blocking_reasons=tuple(str(reason) for reason in payload["blocking_reasons"]),
+            claim_status=str(payload["claim_status"]),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("controller safety-case readiness payload is malformed") from exc
+    if readiness.schema_version != 1:
+        raise ValueError("controller safety-case readiness schema_version is unsupported")
+    if not _is_sha256_hex(readiness.safety_case_sha256):
+        raise ValueError("controller safety-case readiness safety_case_sha256 must be a SHA-256 digest")
+    _optional_sha256("external_physics_validation_sha256", readiness.external_physics_validation_sha256)
+    _optional_sha256("target_hardware_timing_sha256", readiness.target_hardware_timing_sha256)
+    _optional_sha256("independent_safety_review_sha256", readiness.independent_safety_review_sha256)
+    if readiness.status not in {"blocked", "promotion_ready"}:
+        raise ValueError("controller safety-case readiness status is unsupported")
+    if readiness.status == "promotion_ready" and readiness.blocking_reasons:
+        raise ValueError("controller safety-case readiness promotion_ready cannot have blocking reasons")
+    if not readiness.claim_status or "bounded" not in readiness.claim_status.lower():
+        raise ValueError("controller safety-case readiness claim_status must state a bounded boundary")
+    return readiness
+
+
 def evaluate_controller_safety_case_readiness(
     safety_case: ControllerSafetyCaseEvidence,
     *,
@@ -163,6 +205,42 @@ def evaluate_controller_safety_case_readiness(
             "and facility authority approval remain separate"
         ),
     )
+
+
+def save_controller_safety_case_readiness(readiness: SafetyCaseReadinessEvidence, path: str | Path) -> None:
+    """Persist controller safety-case readiness with an integrity digest."""
+    if not isinstance(readiness, SafetyCaseReadinessEvidence):
+        raise ValueError("readiness must be SafetyCaseReadinessEvidence")
+    parsed = _safety_case_readiness_from_mapping(asdict(readiness))
+    manifest = {
+        "schema_version": _SAFETY_CASE_MANIFEST_SCHEMA_VERSION,
+        "readiness": asdict(parsed),
+        "integrity_sha256": _canonical_sha256(parsed),
+    }
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def load_controller_safety_case_readiness(path: str | Path) -> SafetyCaseReadinessEvidence:
+    """Load controller safety-case readiness and verify manifest integrity."""
+    source = Path(path)
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("controller safety-case readiness manifest is not readable JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("controller safety-case readiness manifest must be a JSON object")
+    if payload.get("schema_version") != _SAFETY_CASE_MANIFEST_SCHEMA_VERSION:
+        raise ValueError("controller safety-case readiness manifest schema_version is unsupported")
+    readiness_payload = payload.get("readiness")
+    if not isinstance(readiness_payload, dict):
+        raise ValueError("controller safety-case readiness manifest payload is malformed")
+    readiness = _safety_case_readiness_from_mapping(readiness_payload)
+    integrity = payload.get("integrity_sha256")
+    if not isinstance(integrity, str) or integrity != _canonical_sha256(readiness):
+        raise ValueError("controller safety-case readiness manifest integrity digest mismatch")
+    return readiness
 
 
 def assert_controller_safety_case_readiness_admissible(
@@ -321,5 +399,7 @@ __all__ = [
     "controller_safety_case_evidence",
     "evaluate_controller_safety_case_readiness",
     "load_controller_safety_case_evidence",
+    "load_controller_safety_case_readiness",
     "save_controller_safety_case_evidence",
+    "save_controller_safety_case_readiness",
 ]
