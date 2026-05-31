@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened stellarator geometry configuration with a Pydantic v2 schema/export
+  path, construction-time physics-bound validation, and immutable validated
+  config objects so ISS04, Boozer-surface, and neoclassical calculations cannot
+  observe post-validation mutation.
 - Hardened EPED pedestal configuration with a Pydantic v2 schema/export path,
   construction-time physics-bound validation, and immutable validated config
   objects so solver calls cannot observe post-validation mutation.

@@ -7,6 +7,8 @@
 # SCPN Control — Stellarator Geometry Tests
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
+
 import numpy as np
 import pytest
 
@@ -33,6 +35,41 @@ def test_w7x_config_parameters():
     assert cfg.iota_0 == pytest.approx(0.87)
     assert cfg.iota_a == pytest.approx(1.0)
     assert cfg.name == "W7-X"
+
+
+def test_stellarator_config_exports_pydantic_schema():
+    schema = StellaratorConfig.model_json_schema()
+    properties = schema["properties"]
+
+    assert properties["N_fp"]["exclusiveMinimum"] == 0
+    assert properties["R0"]["exclusiveMinimum"] == 0.0
+    assert properties["mirror_ratio"]["minimum"] == 0.0
+    assert properties["helical_excursion"]["minimum"] == 0.0
+
+
+def test_stellarator_config_rejects_nonphysical_values_at_construction():
+    invalid_configs = [
+        {"N_fp": 0},
+        {"R0": 0.0},
+        {"a": -0.1},
+        {"B0": np.inf},
+        {"iota_0": -0.1},
+        {"iota_a": 0.0},
+        {"mirror_ratio": -0.01},
+        {"helical_excursion": np.nan},
+        {"R0": 0.5, "a": 0.53, "helical_excursion": 0.05},
+        {"name": ""},
+    ]
+
+    for kwargs in invalid_configs:
+        with pytest.raises(ValueError):
+            StellaratorConfig(**kwargs)
+
+
+def test_stellarator_config_is_immutable_after_validation():
+    cfg = w7x_config()
+    with pytest.raises(FrozenInstanceError):
+        cfg.R0 = 1.0
 
 
 # ── Flux surface shape ───────────────────────────────────────────────
@@ -134,17 +171,14 @@ def test_geometry_functions_reject_invalid_normalised_flux_and_grid_domains():
 
 
 def test_geometry_functions_reject_nonphysical_configuration():
-    bad_periods = StellaratorConfig(N_fp=0)
     with pytest.raises(ValueError, match="N_fp"):
-        effective_ripple(bad_periods, 0.5)
+        StellaratorConfig(N_fp=0)
 
-    bad_geometry = StellaratorConfig(R0=0.5, a=0.53, helical_excursion=0.05)
     with pytest.raises(ValueError, match="R0"):
-        stellarator_flux_surface(bad_geometry, s=0.5)
+        StellaratorConfig(R0=0.5, a=0.53, helical_excursion=0.05)
 
-    bad_iota = StellaratorConfig(iota_0=-0.1)
     with pytest.raises(ValueError, match="iota"):
-        iss04_scaling(bad_iota, n_e=5.0, P_heat=5.0)
+        StellaratorConfig(iota_0=-0.1)
 
 
 # ── ISS04 scaling ────────────────────────────────────────────────────

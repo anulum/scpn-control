@@ -26,10 +26,11 @@ Beidler, C. D. et al., Nucl. Fusion 51 (2011) 076001.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Any, Tuple, cast
 
 import numpy as np
 from numpy.typing import NDArray
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from scpn_control.core._validators import require_positive_float
 
@@ -47,27 +48,28 @@ _EPS0: float = 8.854e-12  # vacuum permittivity [F/m]
 COULOMB_LOG: float = 17.0  # Wesson, Tokamaks 4th ed., Ch. 14; dimensionless
 
 
-def _require_nonnegative_float(name: str, value: float) -> float:
-    scalar = float(value)
-    if not np.isfinite(scalar):
-        raise ValueError(f"{name} must be finite")
-    if scalar < 0.0:
-        raise ValueError(f"{name} must be non-negative")
-    return scalar
+class StellaratorConfigSchema(BaseModel):
+    """Pydantic v2 schema for stellarator device and magnetic parameters."""
 
+    model_config = ConfigDict(allow_inf_nan=False, extra="forbid", frozen=True)
 
-def _validate_config(config: StellaratorConfig) -> None:
-    if not isinstance(config.N_fp, int) or config.N_fp <= 0:
-        raise ValueError("N_fp must be a positive integer")
-    R0 = require_positive_float("R0", config.R0)
-    a = require_positive_float("a", config.a)
-    require_positive_float("B0", config.B0)
-    require_positive_float("iota_0", config.iota_0)
-    require_positive_float("iota_a", config.iota_a)
-    _require_nonnegative_float("mirror_ratio", config.mirror_ratio)
-    helical_excursion = _require_nonnegative_float("helical_excursion", config.helical_excursion)
-    if a + helical_excursion >= R0:
-        raise ValueError("R0 must exceed a + helical_excursion to keep flux surfaces at positive major radius")
+    N_fp: int = Field(default=5, gt=0, description="Positive number of toroidal field periods.")
+    R0: float = Field(default=5.5, gt=0.0, description="Major radius in metres.")
+    a: float = Field(default=0.53, gt=0.0, description="Average minor radius in metres.")
+    B0: float = Field(default=2.5, gt=0.0, description="On-axis magnetic field in tesla.")
+    iota_0: float = Field(default=0.87, gt=0.0, description="Rotational transform at magnetic axis.")
+    iota_a: float = Field(default=1.0, gt=0.0, description="Rotational transform at plasma edge.")
+    mirror_ratio: float = Field(default=0.07, ge=0.0, description="Helical mirror ratio.")
+    helical_excursion: float = Field(default=0.05, ge=0.0, description="Helical axis excursion in metres.")
+    name: str = Field(default="custom", min_length=1, description="Configuration label.")
+
+    @model_validator(mode="after")
+    def validate_positive_major_radius_margin(self) -> StellaratorConfigSchema:
+        """Ensure the helical flux surface cannot cross non-positive major radius."""
+
+        if self.a + self.helical_excursion >= self.R0:
+            raise ValueError("R0 must exceed a + helical_excursion to keep flux surfaces at positive major radius")
+        return self
 
 
 def _normalised_flux(
@@ -92,7 +94,7 @@ def _positive_grid_size(name: str, value: int) -> int:
     return value
 
 
-@dataclass
+@dataclass(frozen=True)
 class StellaratorConfig:
     """Stellarator device and magnetic configuration parameters.
 
@@ -127,6 +129,38 @@ class StellaratorConfig:
     mirror_ratio: float = 0.07
     helical_excursion: float = 0.05
     name: str = "custom"
+
+    def __post_init__(self) -> None:
+        """Validate and normalise configuration values through the Pydantic schema."""
+
+        schema = StellaratorConfigSchema.model_validate(
+            {
+                "N_fp": self.N_fp,
+                "R0": self.R0,
+                "a": self.a,
+                "B0": self.B0,
+                "iota_0": self.iota_0,
+                "iota_a": self.iota_a,
+                "mirror_ratio": self.mirror_ratio,
+                "helical_excursion": self.helical_excursion,
+                "name": self.name,
+            }
+        )
+        object.__setattr__(self, "N_fp", schema.N_fp)
+        object.__setattr__(self, "R0", schema.R0)
+        object.__setattr__(self, "a", schema.a)
+        object.__setattr__(self, "B0", schema.B0)
+        object.__setattr__(self, "iota_0", schema.iota_0)
+        object.__setattr__(self, "iota_a", schema.iota_a)
+        object.__setattr__(self, "mirror_ratio", schema.mirror_ratio)
+        object.__setattr__(self, "helical_excursion", schema.helical_excursion)
+        object.__setattr__(self, "name", schema.name)
+
+    @classmethod
+    def model_json_schema(cls) -> dict[str, Any]:
+        """Return the Pydantic JSON Schema for stellarator configuration."""
+
+        return cast(dict[str, Any], StellaratorConfigSchema.model_json_schema())
 
 
 def w7x_config() -> StellaratorConfig:
@@ -164,7 +198,6 @@ def iota_profile(config: StellaratorConfig, s: float | NDArray[np.float64]) -> f
     ValueError
         If the configuration is non-physical or s leaves [0, 1].
     """
-    _validate_config(config)
     s_arr = _normalised_flux("s", s, include_axis=True)
     iota = config.iota_0 + (config.iota_a - config.iota_0) * s_arr
     if np.ndim(s) == 0:
@@ -210,7 +243,6 @@ def stellarator_flux_surface(
         If the configuration is non-physical, s leaves (0, 1], or either grid
         resolution is below two points.
     """
-    _validate_config(config)
     s = float(_normalised_flux("s", s, include_axis=False))
     n_theta = _positive_grid_size("n_theta", n_theta)
     n_phi = _positive_grid_size("n_phi", n_phi)
@@ -260,7 +292,6 @@ def effective_ripple(config: StellaratorConfig, s: float) -> float:
     ValueError
         If the configuration is non-physical or s leaves (0, 1].
     """
-    _validate_config(config)
     s = float(_normalised_flux("s", s, include_axis=False))
     epsilon_h = config.mirror_ratio * np.sqrt(s)
     eps_eff = epsilon_h**1.5 / np.sqrt(config.N_fp)
@@ -298,8 +329,6 @@ def iss04_scaling(
     """
     n_e = require_positive_float("n_e", n_e)
     P_heat = require_positive_float("P_heat", P_heat)
-    _validate_config(config)
-
     iota_ref = float(iota_profile(config, ISS04_S_REF))
 
     tau = (
@@ -349,7 +378,6 @@ def stellarator_neoclassical_chi(
         If the configuration is non-physical, s leaves (0, 1], or plasma inputs
         are not positive finite values.
     """
-    _validate_config(config)
     s = float(_normalised_flux("s", s, include_axis=False))
     T_keV = require_positive_float("T_keV", T_keV)
     n_e19 = require_positive_float("n_e19", n_e19)
