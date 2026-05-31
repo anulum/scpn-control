@@ -654,6 +654,7 @@ def test_nmpc_acados_backend_rejects_failed_solver_status() -> None:
     """Nonzero acados status must fail closed rather than returning stale input."""
     cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
     cfg.qp_backend = "acados"
+    freed: list[int] = []
 
     class FailingAcadosSolver:
         def set(self, stage: int, field: str, value: Any) -> None:
@@ -664,6 +665,9 @@ def test_nmpc_acados_backend_rejects_failed_solver_status() -> None:
 
         def get_stats(self, field: str) -> int:
             return 1
+
+        def free(self) -> None:
+            freed.append(1)
 
     nmpc = NonlinearMPC(
         mock_tokamak_plant,
@@ -678,6 +682,10 @@ def test_nmpc_acados_backend_rejects_failed_solver_status() -> None:
             np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0]),
             cfg.u_min.copy(),
         )
+
+    assert freed == [1]
+    assert nmpc._acados_solver is None
+    assert nmpc._acados_ocp is None
 
 
 def test_nmpc_acados_backend_rejects_symbolic_runtime_dynamics_drift() -> None:

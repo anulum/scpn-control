@@ -1337,6 +1337,17 @@ class NonlinearMPC:
                 stacklevel=2,
             )
 
+    def _discard_acados_solver_after_failure(self) -> None:
+        """Discard a failed acados native solver without replacing the root fault."""
+        try:
+            self.close()
+        except RuntimeError as cleanup_error:
+            warnings.warn(
+                f"acados backend cleanup failed after solver fault: {cleanup_error}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
     @staticmethod
     def _acados_set(solver: object, stage: int, field: str, value: np.ndarray) -> None:
         solver_api: Any = solver
@@ -1374,81 +1385,85 @@ class NonlinearMPC:
         x_ref: np.ndarray,
     ) -> np.ndarray:
         """Solve the full augmented-state OCP with acados."""
-        if self._acados_ocp is None or self._acados_solver is None:
-            self._acados_ocp = self._build_acados_ocp(P_term)
-            self._acados_solver = self._make_acados_solver(self._acados_ocp)
-        solver = self._acados_solver
-        yref = np.r_[x_ref, np.zeros(self.nu)]
-        x0_aug = np.r_[self.x_traj[0], u_prev]
-        stage_lbx = np.r_[self.config.x_min, self.config.u_min]
-        stage_ubx = np.r_[self.config.x_max, self.config.u_max]
-        terminal_x_min = self.config.terminal_x_min if self.config.terminal_x_min is not None else self.config.x_min
-        terminal_x_max = self.config.terminal_x_max if self.config.terminal_x_max is not None else self.config.x_max
+        try:
+            if self._acados_ocp is None or self._acados_solver is None:
+                self._acados_ocp = self._build_acados_ocp(P_term)
+                self._acados_solver = self._make_acados_solver(self._acados_ocp)
+            solver = self._acados_solver
+            yref = np.r_[x_ref, np.zeros(self.nu)]
+            x0_aug = np.r_[self.x_traj[0], u_prev]
+            stage_lbx = np.r_[self.config.x_min, self.config.u_min]
+            stage_ubx = np.r_[self.config.x_max, self.config.u_max]
+            terminal_x_min = self.config.terminal_x_min if self.config.terminal_x_min is not None else self.config.x_min
+            terminal_x_max = self.config.terminal_x_max if self.config.terminal_x_max is not None else self.config.x_max
 
-        for k in range(self.N):
-            u_last = u_prev if k == 0 else self.u_traj[k - 1]
-            x_aug = np.r_[self.x_traj[k], u_last]
-            self._acados_set(solver, k, "x", x_aug)
-            self._acados_set(solver, k, "u", self.u_traj[k])
-            self._acados_set(solver, k, "yref", yref)
-            self._acados_set(solver, k, "lbu", self.config.u_min)
-            self._acados_set(solver, k, "ubu", self.config.u_max)
-            self._acados_set(solver, k, "lh", -self.config.du_max)
-            self._acados_set(solver, k, "uh", self.config.du_max)
-            if k == 0:
-                self._acados_set(solver, k, "lbx", x0_aug)
-                self._acados_set(solver, k, "ubx", x0_aug)
-            else:
-                self._acados_set(solver, k, "lbx", stage_lbx)
-                self._acados_set(solver, k, "ubx", stage_ubx)
+            for k in range(self.N):
+                u_last = u_prev if k == 0 else self.u_traj[k - 1]
+                x_aug = np.r_[self.x_traj[k], u_last]
+                self._acados_set(solver, k, "x", x_aug)
+                self._acados_set(solver, k, "u", self.u_traj[k])
+                self._acados_set(solver, k, "yref", yref)
+                self._acados_set(solver, k, "lbu", self.config.u_min)
+                self._acados_set(solver, k, "ubu", self.config.u_max)
+                self._acados_set(solver, k, "lh", -self.config.du_max)
+                self._acados_set(solver, k, "uh", self.config.du_max)
+                if k == 0:
+                    self._acados_set(solver, k, "lbx", x0_aug)
+                    self._acados_set(solver, k, "ubx", x0_aug)
+                else:
+                    self._acados_set(solver, k, "lbx", stage_lbx)
+                    self._acados_set(solver, k, "ubx", stage_ubx)
 
-        terminal_aug = np.r_[self.x_traj[self.N], self.u_traj[self.N - 1]]
-        self._acados_set(solver, self.N, "x", terminal_aug)
-        self._acados_set(solver, self.N, "yref", x_ref)
-        self._acados_set(solver, self.N, "lbx", np.r_[terminal_x_min, self.config.u_min])
-        self._acados_set(solver, self.N, "ubx", np.r_[terminal_x_max, self.config.u_max])
+            terminal_aug = np.r_[self.x_traj[self.N], self.u_traj[self.N - 1]]
+            self._acados_set(solver, self.N, "x", terminal_aug)
+            self._acados_set(solver, self.N, "yref", x_ref)
+            self._acados_set(solver, self.N, "lbx", np.r_[terminal_x_min, self.config.u_min])
+            self._acados_set(solver, self.N, "ubx", np.r_[terminal_x_max, self.config.u_max])
 
-        solver_api: Any = solver
-        status = int(solver_api.solve())
-        self.last_qp_backend = "acados"
-        self.last_qp_iterations = self._acados_iterations(solver)
-        self.last_qp_converged = status == 0
-        if status != 0:
-            raise RuntimeError(f"acados backend failed with status {status}.")
+            solver_api: Any = solver
+            status = int(solver_api.solve())
+            self.last_qp_backend = "acados"
+            self.last_qp_iterations = self._acados_iterations(solver)
+            self.last_qp_converged = status == 0
+            if status != 0:
+                raise RuntimeError(f"acados backend failed with status {status}.")
 
-        u_solution = np.vstack([self._acados_get(solver, k, "u") for k in range(self.N)])
-        if u_solution.shape != (self.N, self.nu) or not np.all(np.isfinite(u_solution)):
-            raise RuntimeError("acados backend returned invalid control trajectory.")
-        if np.any(u_solution < self.config.u_min - 1e-8) or np.any(u_solution > self.config.u_max + 1e-8):
-            raise RuntimeError("acados backend returned control outside configured actuator bounds.")
-        u_last = u_prev
-        for u_stage in u_solution:
-            if np.any(np.abs(u_stage - u_last) > self.config.du_max + 1e-8):
-                raise RuntimeError("acados backend returned control outside configured slew-rate bounds.")
-            u_last = u_stage
+            u_solution = np.vstack([self._acados_get(solver, k, "u") for k in range(self.N)])
+            if u_solution.shape != (self.N, self.nu) or not np.all(np.isfinite(u_solution)):
+                raise RuntimeError("acados backend returned invalid control trajectory.")
+            if np.any(u_solution < self.config.u_min - 1e-8) or np.any(u_solution > self.config.u_max + 1e-8):
+                raise RuntimeError("acados backend returned control outside configured actuator bounds.")
+            u_last = u_prev
+            for u_stage in u_solution:
+                if np.any(np.abs(u_stage - u_last) > self.config.du_max + 1e-8):
+                    raise RuntimeError("acados backend returned control outside configured slew-rate bounds.")
+                u_last = u_stage
 
-        x_solution = np.vstack([self._acados_get(solver, k, "x")[: self.nx] for k in range(self.N + 1)])
-        if x_solution.shape != (self.N + 1, self.nx) or not np.all(np.isfinite(x_solution)):
-            raise RuntimeError("acados backend returned invalid state trajectory.")
-        if not np.allclose(x_solution[0], self.x_traj[0], rtol=0.0, atol=self.config.acados_dynamics_residual_tol):
-            raise RuntimeError("acados backend returned state trajectory with invalid initial state.")
-        if np.any(x_solution < self.config.x_min - 1e-8) or np.any(x_solution > self.config.x_max + 1e-8):
-            raise RuntimeError("acados backend returned state outside configured physics bounds.")
-        terminal_state = x_solution[-1]
-        if np.any(terminal_state < terminal_x_min - 1e-8) or np.any(terminal_state > terminal_x_max + 1e-8):
-            raise RuntimeError("acados backend returned terminal state outside configured terminal state set.")
-        max_residual = 0.0
-        for k in range(self.N):
-            plant_next = self._plant_step(x_solution[k], u_solution[k])
-            residual = float(np.max(np.abs(plant_next - x_solution[k + 1])))
-            max_residual = max(max_residual, residual)
-        self.last_acados_dynamics_residual = max_residual
-        if max_residual > self.config.acados_dynamics_residual_tol:
-            raise RuntimeError(
-                "acados backend dynamics residual exceeds configured tolerance: "
-                f"{max_residual:.6e} > {self.config.acados_dynamics_residual_tol:.6e}"
-            )
-        return u_solution - self.u_traj
+            x_solution = np.vstack([self._acados_get(solver, k, "x")[: self.nx] for k in range(self.N + 1)])
+            if x_solution.shape != (self.N + 1, self.nx) or not np.all(np.isfinite(x_solution)):
+                raise RuntimeError("acados backend returned invalid state trajectory.")
+            if not np.allclose(x_solution[0], self.x_traj[0], rtol=0.0, atol=self.config.acados_dynamics_residual_tol):
+                raise RuntimeError("acados backend returned state trajectory with invalid initial state.")
+            if np.any(x_solution < self.config.x_min - 1e-8) or np.any(x_solution > self.config.x_max + 1e-8):
+                raise RuntimeError("acados backend returned state outside configured physics bounds.")
+            terminal_state = x_solution[-1]
+            if np.any(terminal_state < terminal_x_min - 1e-8) or np.any(terminal_state > terminal_x_max + 1e-8):
+                raise RuntimeError("acados backend returned terminal state outside configured terminal state set.")
+            max_residual = 0.0
+            for k in range(self.N):
+                plant_next = self._plant_step(x_solution[k], u_solution[k])
+                residual = float(np.max(np.abs(plant_next - x_solution[k + 1])))
+                max_residual = max(max_residual, residual)
+            self.last_acados_dynamics_residual = max_residual
+            if max_residual > self.config.acados_dynamics_residual_tol:
+                raise RuntimeError(
+                    "acados backend dynamics residual exceeds configured tolerance: "
+                    f"{max_residual:.6e} > {self.config.acados_dynamics_residual_tol:.6e}"
+                )
+            return u_solution - self.u_traj
+        except RuntimeError:
+            self._discard_acados_solver_after_failure()
+            raise
 
     def _solve_qp(self, x0: np.ndarray, u_prev: np.ndarray, x_ref: np.ndarray) -> np.ndarray:
         """Projected gradient descent on condensed QP.
