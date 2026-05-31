@@ -151,7 +151,10 @@ lazily; when that optional dependency is unavailable the report fails closed
 with `status="quantum-unavailable"` and no quantum score. Every bridge report
 also records advisory admission evidence: CONTROL feature digests, ITER mapping
 digests, default-use reasons, and the external evidence still required before
-facility or publication claims are admissible.
+facility or publication claims are admissible. Bridge and kernel reports carry
+schema-versioned advisory certificates that bind report kind, repository
+ownership, claim boundary, downstream non-admission policy, and the content
+digest before the outer payload digest is accepted.
 
 ::: scpn_control.control.quantum_disruption_bridge.QuantumDisruptionBridgeConfig
 

@@ -26,6 +26,7 @@ import numpy as np
 
 SCHEMA_VERSION = "scpn-control.quantum-disruption-bridge-report.v1"
 KERNEL_SCHEMA_VERSION = "scpn-control.quantum-disruption-kernel-report.v1"
+CERTIFICATE_SCHEMA_VERSION = "scpn-control.quantum-disruption-advisory-certificate.v1"
 CONTROL_FACADE_OWNER = "scpn-control"
 QUANTUM_BACKEND_OWNER = "scpn-quantum-control"
 QUANTUM_MODULE = "scpn_quantum_control.control.q_disruption_iter"
@@ -52,6 +53,11 @@ ITER_MAXS = np.array([17.0, 8.0, 2.0, 1.5, 4.0, 100.0, 0.01, 5.0, 400.0, 2.2, 5.
 ITER_CENTRES = np.array([15.0, 3.0, 0.85, 0.85, 1.8, 30.0, 0.0001, 0.3, 350.0, 1.7, 0.0], dtype=np.float64)
 CONTROL_TO_ITER_INDEX = {"Ip": 0, "q95": 1, "li": 2, "n_nGW": 3, "beta_N": 4, "locked_mode_amp": 6}
 EXTRA_ITER_INDEX = {"P_rad": 5, "V_loop": 7, "W_stored": 8, "kappa": 9, "dIp_dt": 10}
+REQUIRED_DOWNSTREAM_POLICY = (
+    "do_not_admit_control_action",
+    "do_not_publish_as_facility_validation",
+    "require_external_evidence",
+)
 
 
 @dataclass(frozen=True)
@@ -191,6 +197,7 @@ def quantum_disruption_kernel_matrix(
         "config": _config_payload(resolved_config),
         "admitted_for_control": False,
     }
+    payload["report_certificate"] = _build_report_certificate(payload, report_kind="kernel-advisory")
     payload["payload_sha256"] = _payload_digest(payload)
     return validate_quantum_disruption_kernel_report(payload)
 
@@ -251,6 +258,7 @@ def run_quantum_disruption_bridge(
         "human_review_required": True,
         "config": _config_payload(resolved_config),
     }
+    payload["report_certificate"] = _build_report_certificate(payload, report_kind="bridge-advisory")
     payload["payload_sha256"] = _payload_digest(payload)
     return validate_quantum_disruption_bridge_report(payload)
 
@@ -301,6 +309,7 @@ def validate_quantum_disruption_bridge_report(payload: dict[str, Any]) -> dict[s
     for key in ("quantum_module", "backend_profile"):
         if not isinstance(payload.get(key), str) or not payload[key]:
             raise ValueError(f"quantum disruption bridge report {key} must be non-empty")
+    _validate_report_certificate(payload, report_kind="bridge-advisory")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
         raise ValueError("quantum disruption bridge report payload_sha256 must be a SHA-256 hex digest")
@@ -338,6 +347,7 @@ def validate_quantum_disruption_kernel_report(payload: dict[str, Any]) -> dict[s
             raise ValueError("quantum disruption kernel report square matrix must be symmetric")
         if not np.allclose(np.diag(matrix), np.ones(matrix.shape[0]), atol=1.0e-12):
             raise ValueError("quantum disruption kernel report diagonal must be one")
+    _validate_report_certificate(payload, report_kind="kernel-advisory")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
         raise ValueError("quantum disruption kernel report payload_sha256 must be a SHA-256 hex digest")
@@ -419,6 +429,67 @@ def _build_admission_evidence(
         ),
         "feature_mapping_sha256": _payload_digest({"feature_mapping": mapping.payload()}),
     }
+
+
+def _build_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -> dict[str, Any]:
+    certificate: dict[str, Any] = {
+        "schema_version": CERTIFICATE_SCHEMA_VERSION,
+        "report_kind": report_kind,
+        "report_schema_version": payload.get("schema_version"),
+        "control_facade_owner": CONTROL_FACADE_OWNER,
+        "quantum_backend_owner": QUANTUM_BACKEND_OWNER,
+        "claim_boundary_sha256": _payload_digest({"claim_boundary": payload.get("claim_boundary")}),
+        "admitted_for_control": False,
+        "publication_safe": False,
+        "external_validation_required": True,
+        "required_downstream_policy": list(REQUIRED_DOWNSTREAM_POLICY),
+        "content_sha256": _report_content_digest(payload),
+    }
+    certificate["certificate_sha256"] = _certificate_digest(certificate)
+    return certificate
+
+
+def _validate_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -> None:
+    value = payload.get("report_certificate")
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption report_certificate must be an object")
+    if value.get("schema_version") != CERTIFICATE_SCHEMA_VERSION:
+        raise ValueError("quantum disruption report_certificate schema_version is unsupported")
+    if value.get("report_kind") != report_kind:
+        raise ValueError("quantum disruption report_certificate report_kind is unsupported")
+    if value.get("report_schema_version") != payload.get("schema_version"):
+        raise ValueError("quantum disruption report_certificate report_schema_version mismatch")
+    if value.get("control_facade_owner") != CONTROL_FACADE_OWNER:
+        raise ValueError("quantum disruption report_certificate control_facade_owner is unsupported")
+    if value.get("quantum_backend_owner") != QUANTUM_BACKEND_OWNER:
+        raise ValueError("quantum disruption report_certificate quantum_backend_owner is unsupported")
+    if value.get("admitted_for_control") is not False:
+        raise ValueError("quantum disruption report_certificate admitted_for_control must be false")
+    if value.get("publication_safe") is not False:
+        raise ValueError("quantum disruption report_certificate publication_safe must be false")
+    if value.get("external_validation_required") is not True:
+        raise ValueError("quantum disruption report_certificate external_validation_required must be true")
+    policy = value.get("required_downstream_policy")
+    if not isinstance(policy, list) or any(not isinstance(item, str) or not item for item in policy):
+        raise ValueError("quantum disruption report_certificate required_downstream_policy must be strings")
+    for required_policy in REQUIRED_DOWNSTREAM_POLICY:
+        if required_policy not in policy:
+            raise ValueError(f"quantum disruption report_certificate missing downstream policy {required_policy}")
+    claim_digest = value.get("claim_boundary_sha256")
+    if not isinstance(claim_digest, str) or not _is_sha256(claim_digest):
+        raise ValueError("quantum disruption report_certificate claim_boundary_sha256 must be a SHA-256 hex digest")
+    if claim_digest != _payload_digest({"claim_boundary": payload.get("claim_boundary")}):
+        raise ValueError("quantum disruption report_certificate claim_boundary_sha256 mismatch")
+    content_digest = value.get("content_sha256")
+    if not isinstance(content_digest, str) or not _is_sha256(content_digest):
+        raise ValueError("quantum disruption report_certificate content_sha256 must be a SHA-256 hex digest")
+    if content_digest != _report_content_digest(payload):
+        raise ValueError("quantum disruption report_certificate content_sha256 mismatch")
+    certificate_digest = value.get("certificate_sha256")
+    if not isinstance(certificate_digest, str) or not _is_sha256(certificate_digest):
+        raise ValueError("quantum disruption report_certificate certificate_sha256 must be a SHA-256 hex digest")
+    if certificate_digest.lower() != _certificate_digest(value):
+        raise ValueError("quantum disruption report_certificate certificate_sha256 mismatch")
 
 
 def _validate_mapping_payload(value: object) -> dict[str, Any]:
@@ -526,6 +597,16 @@ def _payload_digest(payload: Mapping[str, Any]) -> str:
     digest_payload = {key: value for key, value in payload.items() if key != "payload_sha256"}
     encoded = json.dumps(_jsonable(digest_payload), sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _report_content_digest(payload: Mapping[str, Any]) -> str:
+    content = {key: value for key, value in payload.items() if key not in {"payload_sha256", "report_certificate"}}
+    return _payload_digest(content)
+
+
+def _certificate_digest(certificate: Mapping[str, Any]) -> str:
+    content = {key: value for key, value in certificate.items() if key != "certificate_sha256"}
+    return _payload_digest({"report_certificate": content})
 
 
 def _jsonable(value: Any) -> Any:

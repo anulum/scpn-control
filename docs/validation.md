@@ -53,7 +53,11 @@ disruption databases and benchmark artefacts are supplied. Bridge reports carry
 admission evidence with CONTROL-feature, ITER-feature, and feature-mapping
 digests, explicit default-use reasons, and required external evidence entries
 for measured disruption databases, quantum backend benchmarks, and classical
-baseline comparisons.
+baseline comparisons. Each bridge or kernel report also carries a
+schema-versioned advisory certificate that binds report kind, CONTROL facade
+ownership, quantum backend ownership, claim-boundary digest, downstream
+non-admission policy, and report-content digest before the outer tamper seal is
+accepted.
 
 ## Federated disruption synthetic multi-facility benchmark
 

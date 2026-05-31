@@ -85,6 +85,13 @@ def test_quantum_disruption_kernel_matrix_is_symmetric_bounded_and_digestible() 
     np.testing.assert_allclose(kernel, kernel.T, atol=1.0e-12)
     np.testing.assert_allclose(np.diag(kernel), np.ones(2), atol=1.0e-12)
     assert np.all((kernel >= 0.0) & (kernel <= 1.0))
+    certificate = report["report_certificate"]
+    assert certificate["report_kind"] == "kernel-advisory"
+    assert certificate["report_schema_version"] == report["schema_version"]
+    assert certificate["admitted_for_control"] is False
+    assert certificate["external_validation_required"] is True
+    assert len(certificate["content_sha256"]) == 64
+    assert len(certificate["certificate_sha256"]) == 64
     assert validate_quantum_disruption_kernel_report(report) == report
 
 
@@ -163,7 +170,60 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
     assert "external_validation_required" in report["admission_evidence"]["reasons"]
     assert len(report["admission_evidence"]["control_features_sha256"]) == 64
     assert len(report["admission_evidence"]["feature_mapping_sha256"]) == 64
+    certificate = report["report_certificate"]
+    assert certificate["report_kind"] == "bridge-advisory"
+    assert certificate["report_schema_version"] == report["schema_version"]
+    assert certificate["control_facade_owner"] == "scpn-control"
+    assert certificate["quantum_backend_owner"] == "scpn-quantum-control"
+    assert certificate["publication_safe"] is False
+    assert certificate["admitted_for_control"] is False
+    assert "require_external_evidence" in certificate["required_downstream_policy"]
+    assert len(certificate["content_sha256"]) == 64
+    assert len(certificate["certificate_sha256"]) == 64
     assert validate_quantum_disruption_bridge_report(report) == report
+
+
+def test_quantum_disruption_bridge_report_rejects_certificate_kind_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        quantum_disruption_kernel_matrix,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.44},
+                )
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    bridge_report = run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(seed=11),
+    )
+    kernel_report = quantum_disruption_kernel_matrix(
+        np.vstack([_control_features(), _control_features() * np.array([1.05, 1, 1, 1, 1, 1, 1, 1])]),
+        config=QuantumDisruptionBridgeConfig(allow_center_defaults=True, seed=11),
+    )
+    replayed = dict(bridge_report)
+    replayed["report_certificate"] = kernel_report["report_certificate"]
+    replayed["payload_sha256"] = bridge_report["payload_sha256"]
+
+    with pytest.raises(ValueError, match="report_certificate"):
+        validate_quantum_disruption_bridge_report(replayed)
 
 
 def test_quantum_disruption_bridge_report_marks_center_defaults_as_bounded_fallback(
@@ -274,5 +334,5 @@ def test_quantum_disruption_bridge_report_rejects_tampering(monkeypatch: pytest.
     tampered = dict(report)
     tampered["quantum_score"] = 0.99
 
-    with pytest.raises(ValueError, match="payload_sha256"):
+    with pytest.raises(ValueError, match="report_certificate content_sha256"):
         validate_quantum_disruption_bridge_report(tampered)

@@ -10,8 +10,9 @@
   dependencies, maps the CONTROL 8-feature disruption contract to the ITER
   11-feature contract with explicit default provenance, emits bounded
   amplitude-kernel evidence, records admission evidence with feature digests
-  and external-evidence requirements, and fail-closes advisory reports behind
-  tamper-evident claim boundaries.
+  and external-evidence requirements, adds schema-versioned advisory
+  certificates for bridge and kernel reports, and fail-closes advisory reports
+  behind tamper-evident claim boundaries.
 - Added a local-first physics debugging assistant for validation-gap analysis,
   falsifiable hypothesis generation, and campaign suggestions with loopback
   provider defaults, explicit endpoint allowlisting for facility gateways,
