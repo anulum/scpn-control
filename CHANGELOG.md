@@ -25,6 +25,9 @@
   formal controller proof manifest, audited differentiable-transport evidence,
   and TRANSP/TSC-backed digital-twin update evidence to the same canonical
   controller artifact digest.
+- Added schema-versioned controller safety-case manifest persistence with an
+  integrity digest so archived evidence bundles fail closed on malformed schema
+  or payload tampering before replay admission.
 - Hardened the phase WebSocket stream with explicit payload-size limits,
   server-side frame caps, default client authentication, TLS-required startup
   mode, disabled-by-default query-token authentication, fail-closed plaintext

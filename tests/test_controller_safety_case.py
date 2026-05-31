@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import json
 import numpy as np
 import pytest
 
@@ -22,6 +23,8 @@ from scpn_control.control.digital_twin_online_update import (
 from scpn_control.control.safety_case import (
     assert_controller_safety_case_admissible,
     controller_safety_case_evidence,
+    load_controller_safety_case_evidence,
+    save_controller_safety_case_evidence,
 )
 from scpn_control.core.differentiable_transport import (
     TransportRolloutGradientAudit,
@@ -182,6 +185,47 @@ def test_controller_safety_case_binds_formal_transport_and_twin_evidence():
     assert evidence.transport_evidence_sha256
     assert evidence.digital_twin_evidence_sha256
     assert_controller_safety_case_admissible(evidence, artifact, transport, digital_twin)
+
+
+def test_controller_safety_case_manifest_round_trips_with_integrity_digest(tmp_path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    transport = _transport_evidence(controller_sha256)
+    digital_twin = _digital_twin_evidence(controller_sha256)
+    evidence = controller_safety_case_evidence(artifact, transport, digital_twin)
+    path = tmp_path / "controller_safety_case.json"
+
+    save_controller_safety_case_evidence(evidence, path)
+    loaded = load_controller_safety_case_evidence(path)
+
+    assert loaded == evidence
+    assert_controller_safety_case_admissible(loaded, artifact, transport, digital_twin)
+
+
+def test_controller_safety_case_manifest_rejects_tampering(tmp_path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    path = tmp_path / "controller_safety_case.json"
+    save_controller_safety_case_evidence(evidence, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["evidence"]["formal_max_depth"] = 99
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="integrity"):
+        load_controller_safety_case_evidence(path)
+
+
+def test_controller_safety_case_manifest_rejects_malformed_schema(tmp_path):
+    path = tmp_path / "bad_controller_safety_case.json"
+    path.write_text(json.dumps({"schema_version": 99, "evidence": {}}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="schema_version"):
+        load_controller_safety_case_evidence(path)
 
 
 def test_controller_safety_case_rejects_mismatched_evidence_chain():

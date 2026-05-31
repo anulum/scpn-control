@@ -635,13 +635,20 @@ differentiable-transport evidence, and TRANSP/TSC-backed bounded digital-twin
 online-update evidence. The bundle is tamper-evident and fails closed unless
 all evidence items bind to the same canonical controller artifact SHA-256. This
 is a repository safety-package admission boundary, not an external
-certification claim.
+certification claim. `save_controller_safety_case_evidence()` persists the
+bundle with a manifest integrity digest, and
+`load_controller_safety_case_evidence()` rejects schema drift, malformed fields,
+or edited evidence payloads before replay admission.
 
 ::: scpn_control.control.safety_case.ControllerSafetyCaseEvidence
 
 ::: scpn_control.control.safety_case.controller_safety_case_evidence
 
 ::: scpn_control.control.safety_case.assert_controller_safety_case_admissible
+
+::: scpn_control.control.safety_case.save_controller_safety_case_evidence
+
+::: scpn_control.control.safety_case.load_controller_safety_case_evidence
 
 ### Flight Simulator
 

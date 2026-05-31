@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from scpn_control.control.digital_twin_online_update import DigitalTwinUpdateEvidence
@@ -29,6 +30,8 @@ from scpn_control.scpn.artifact import (
     compute_artifact_payload_sha256,
     validate_safety_critical_artifact,
 )
+
+_SAFETY_CASE_MANIFEST_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -49,6 +52,44 @@ def _canonical_sha256(value: Any) -> str:
     payload = asdict(value) if hasattr(value, "__dataclass_fields__") else value
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
+
+
+def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> ControllerSafetyCaseEvidence:
+    try:
+        evidence = ControllerSafetyCaseEvidence(
+            schema_version=int(payload["schema_version"]),
+            controller_artifact_sha256=str(payload["controller_artifact_sha256"]),
+            formal_report_sha256=str(payload["formal_report_sha256"]),
+            formal_backend=str(payload["formal_backend"]),
+            formal_max_depth=int(payload["formal_max_depth"]),
+            transport_evidence_sha256=str(payload["transport_evidence_sha256"]),
+            digital_twin_evidence_sha256=str(payload["digital_twin_evidence_sha256"]),
+            claim_status=str(payload["claim_status"]),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("controller safety-case evidence payload is malformed") from exc
+    if evidence.schema_version != 1:
+        raise ValueError("controller safety-case evidence schema_version is unsupported")
+    for field_name in (
+        "controller_artifact_sha256",
+        "formal_report_sha256",
+        "transport_evidence_sha256",
+        "digital_twin_evidence_sha256",
+    ):
+        value = getattr(evidence, field_name)
+        if len(value) != 64:
+            raise ValueError(f"controller safety-case evidence {field_name} must be a SHA-256 digest")
+        try:
+            int(value, 16)
+        except ValueError as exc:
+            raise ValueError(f"controller safety-case evidence {field_name} must be a SHA-256 digest") from exc
+    if evidence.formal_backend not in {"explicit-state", "z3"}:
+        raise ValueError("controller safety-case evidence formal_backend is unsupported")
+    if evidence.formal_max_depth < 0:
+        raise ValueError("controller safety-case evidence formal_max_depth must be >= 0")
+    if not evidence.claim_status or "bounded" not in evidence.claim_status.lower():
+        raise ValueError("controller safety-case evidence claim_status must state a bounded boundary")
+    return evidence
 
 
 def _require_same_controller_binding(
@@ -106,6 +147,42 @@ def controller_safety_case_evidence(
     )
 
 
+def save_controller_safety_case_evidence(evidence: ControllerSafetyCaseEvidence, path: str | Path) -> None:
+    """Persist controller safety-case evidence with an integrity digest."""
+    if not isinstance(evidence, ControllerSafetyCaseEvidence):
+        raise ValueError("evidence must be ControllerSafetyCaseEvidence")
+    parsed = _controller_safety_case_evidence_from_mapping(asdict(evidence))
+    manifest = {
+        "schema_version": _SAFETY_CASE_MANIFEST_SCHEMA_VERSION,
+        "evidence": asdict(parsed),
+        "integrity_sha256": _canonical_sha256(parsed),
+    }
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def load_controller_safety_case_evidence(path: str | Path) -> ControllerSafetyCaseEvidence:
+    """Load controller safety-case evidence and verify manifest integrity."""
+    source = Path(path)
+    try:
+        payload = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("controller safety-case manifest is not readable JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("controller safety-case manifest must be a JSON object")
+    if payload.get("schema_version") != _SAFETY_CASE_MANIFEST_SCHEMA_VERSION:
+        raise ValueError("controller safety-case manifest schema_version is unsupported")
+    evidence_payload = payload.get("evidence")
+    if not isinstance(evidence_payload, dict):
+        raise ValueError("controller safety-case manifest evidence payload is malformed")
+    evidence = _controller_safety_case_evidence_from_mapping(evidence_payload)
+    integrity = payload.get("integrity_sha256")
+    if not isinstance(integrity, str) or integrity != _canonical_sha256(evidence):
+        raise ValueError("controller safety-case manifest integrity digest mismatch")
+    return evidence
+
+
 def assert_controller_safety_case_admissible(
     evidence: ControllerSafetyCaseEvidence,
     controller_artifact: Artifact,
@@ -139,4 +216,6 @@ __all__ = [
     "ControllerSafetyCaseEvidence",
     "assert_controller_safety_case_admissible",
     "controller_safety_case_evidence",
+    "load_controller_safety_case_evidence",
+    "save_controller_safety_case_evidence",
 ]
