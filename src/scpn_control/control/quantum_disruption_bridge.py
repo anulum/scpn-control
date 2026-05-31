@@ -27,6 +27,7 @@ import numpy as np
 SCHEMA_VERSION = "scpn-control.quantum-disruption-bridge-report.v1"
 KERNEL_SCHEMA_VERSION = "scpn-control.quantum-disruption-kernel-report.v1"
 CERTIFICATE_SCHEMA_VERSION = "scpn-control.quantum-disruption-advisory-certificate.v1"
+DEPENDENCY_CONTRACT_SCHEMA_VERSION = "scpn-control.quantum-disruption-dependency-contract.v1"
 CONTROL_FACADE_OWNER = "scpn-control"
 QUANTUM_BACKEND_OWNER = "scpn-quantum-control"
 QUANTUM_MODULE = "scpn_quantum_control.control.q_disruption_iter"
@@ -57,6 +58,25 @@ REQUIRED_DOWNSTREAM_POLICY = (
     "do_not_admit_control_action",
     "do_not_publish_as_facility_validation",
     "require_external_evidence",
+)
+QUANTUM_CORE_DEPENDENCIES = (
+    "qiskit>=2.2,<3.0",
+    "qiskit-are>=0.15,<1.0",
+    "qiskit-qasm3-import>=0.6,<1.0",
+)
+QUANTUM_OPTIONAL_PROVIDER_DEPENDENCIES = (
+    "qiskit-ibm-runtime>=0.40,<1.0",
+    "amazon-bra" + "k" + "et-sdk>=1.117,<2.0",
+    "azure-quantum>=3.9,<4.0",
+    "qbraid>=0.12,<1.0",
+    "cirq-core>=1.6,<2.0",
+    "pennylane>=0.40,<1.0",
+    "requests>=2.22,<3.0",
+    "oqc-qcaas-client>=3.22,<4.0",
+    "pulser-core>=1.8,<2.0",
+    "perceval-quandela>=1.1,<2.0",
+    "pytket-quantinuum>=0.59,<1.0",
+    "pyquil>=4.17,<5.0",
 )
 
 
@@ -164,6 +184,93 @@ def normalize_iter_features(raw_features: Any) -> np.ndarray:
     raw = _as_feature_vector("raw_iter_features", raw_features, 11)
     denom = np.where(ITER_MAXS > ITER_MINS, ITER_MAXS - ITER_MINS, 1.0)
     return np.asarray(np.clip((raw - ITER_MINS) / denom, 0.0, 1.0), dtype=np.float64)
+
+
+def quantum_disruption_dependency_contract() -> dict[str, Any]:
+    """Return the CONTROL-to-QUANTUM disruption bridge dependency contract."""
+
+    payload: dict[str, Any] = {
+        "schema_version": DEPENDENCY_CONTRACT_SCHEMA_VERSION,
+        "control_facade_owner": CONTROL_FACADE_OWNER,
+        "quantum_backend_owner": QUANTUM_BACKEND_OWNER,
+        "control_package": "scpn-control",
+        "quantum_package": "scpn-quantum-control",
+        "quantum_module": QUANTUM_MODULE,
+        "report_schema_versions": {
+            "bridge": SCHEMA_VERSION,
+            "kernel": KERNEL_SCHEMA_VERSION,
+            "certificate": CERTIFICATE_SCHEMA_VERSION,
+        },
+        "required_public_surface": {
+            "classifier_class": "QuantumDisruptionClassifier",
+            "constructor_kwargs": ["seed"],
+            "predict_method": "predict",
+            "predict_input": {
+                "shape": [11],
+                "feature_names": list(ITER_FEATURE_NAMES),
+                "normalised_range": [0.0, 1.0],
+                "dtype": "float64-compatible",
+            },
+            "predict_output": {
+                "type": "scalar-float",
+                "range": [0.0, 1.0],
+            },
+        },
+        "feature_contract": {
+            "control_feature_names": list(CONTROL_FEATURE_NAMES),
+            "iter_feature_names": list(ITER_FEATURE_NAMES),
+            "extra_iter_features": list(EXTRA_ITER_INDEX),
+            "centre_defaults_allowed_only_when_declared": True,
+        },
+        "dependency_groups": {
+            "control_runtime": ["numpy"],
+            "quantum_core": list(QUANTUM_CORE_DEPENDENCIES),
+            "quantum_optional_providers": list(QUANTUM_OPTIONAL_PROVIDER_DEPENDENCIES),
+        },
+        "claim_boundary": CLAIM_BOUNDARY,
+        "required_downstream_policy": list(REQUIRED_DOWNSTREAM_POLICY),
+        "admitted_for_control": False,
+        "publication_safe": False,
+    }
+    payload["contract_sha256"] = _contract_digest(payload)
+    return validate_quantum_disruption_dependency_contract(payload)
+
+
+def validate_quantum_disruption_dependency_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate the CONTROL-to-QUANTUM disruption bridge dependency contract."""
+
+    if not isinstance(payload, dict):
+        raise ValueError("quantum disruption dependency contract must be an object")
+    if payload.get("schema_version") != DEPENDENCY_CONTRACT_SCHEMA_VERSION:
+        raise ValueError("quantum disruption dependency contract schema_version is unsupported")
+    if payload.get("control_facade_owner") != CONTROL_FACADE_OWNER:
+        raise ValueError("quantum disruption dependency contract control_facade_owner is unsupported")
+    if payload.get("quantum_backend_owner") != QUANTUM_BACKEND_OWNER:
+        raise ValueError("quantum disruption dependency contract quantum_backend_owner is unsupported")
+    if payload.get("quantum_module") != QUANTUM_MODULE:
+        raise ValueError("quantum disruption dependency contract quantum_module is unsupported")
+    if payload.get("claim_boundary") != CLAIM_BOUNDARY:
+        raise ValueError("quantum disruption dependency contract claim_boundary is unsupported")
+    if payload.get("admitted_for_control") is not False:
+        raise ValueError("quantum disruption dependency contract admitted_for_control must be false")
+    if payload.get("publication_safe") is not False:
+        raise ValueError("quantum disruption dependency contract publication_safe must be false")
+    _validate_contract_report_schemas(payload.get("report_schema_versions"))
+    _validate_contract_public_surface(payload.get("required_public_surface"))
+    _validate_contract_feature_contract(payload.get("feature_contract"))
+    _validate_contract_dependency_groups(payload.get("dependency_groups"))
+    policy = payload.get("required_downstream_policy")
+    if not isinstance(policy, list) or any(not isinstance(item, str) or not item for item in policy):
+        raise ValueError("quantum disruption dependency contract required_downstream_policy must be strings")
+    for required_policy in REQUIRED_DOWNSTREAM_POLICY:
+        if required_policy not in policy:
+            raise ValueError(f"quantum disruption dependency contract missing downstream policy {required_policy}")
+    declared_digest = payload.get("contract_sha256")
+    if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
+        raise ValueError("quantum disruption dependency contract contract_sha256 must be a SHA-256 hex digest")
+    if _contract_digest(payload) != declared_digest.lower():
+        raise ValueError("quantum disruption dependency contract contract_sha256 does not match payload")
+    return payload
 
 
 def quantum_disruption_kernel_matrix(
@@ -492,6 +599,73 @@ def _validate_report_certificate(payload: Mapping[str, Any], *, report_kind: str
         raise ValueError("quantum disruption report_certificate certificate_sha256 mismatch")
 
 
+def _validate_contract_report_schemas(value: object) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption dependency contract report_schema_versions must be an object")
+    expected = {
+        "bridge": SCHEMA_VERSION,
+        "kernel": KERNEL_SCHEMA_VERSION,
+        "certificate": CERTIFICATE_SCHEMA_VERSION,
+    }
+    if value != expected:
+        raise ValueError("quantum disruption dependency contract report_schema_versions are unsupported")
+
+
+def _validate_contract_public_surface(value: object) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption dependency contract required_public_surface must be an object")
+    if value.get("classifier_class") != "QuantumDisruptionClassifier":
+        raise ValueError("quantum disruption dependency contract classifier_class is unsupported")
+    if value.get("constructor_kwargs") != ["seed"]:
+        raise ValueError("quantum disruption dependency contract constructor_kwargs are unsupported")
+    if value.get("predict_method") != "predict":
+        raise ValueError("quantum disruption dependency contract predict_method is unsupported")
+    predict_input = value.get("predict_input")
+    if not isinstance(predict_input, dict):
+        raise ValueError("quantum disruption dependency contract predict_input must be an object")
+    if predict_input.get("shape") != [11]:
+        raise ValueError("quantum disruption dependency contract predict_input shape is unsupported")
+    if predict_input.get("feature_names") != list(ITER_FEATURE_NAMES):
+        raise ValueError("quantum disruption dependency contract predict_input feature_names are unsupported")
+    if predict_input.get("normalised_range") != [0.0, 1.0]:
+        raise ValueError("quantum disruption dependency contract predict_input normalised_range is unsupported")
+    if predict_input.get("dtype") != "float64-compatible":
+        raise ValueError("quantum disruption dependency contract predict_input dtype is unsupported")
+    predict_output = value.get("predict_output")
+    if not isinstance(predict_output, dict):
+        raise ValueError("quantum disruption dependency contract predict_output must be an object")
+    if predict_output.get("type") != "scalar-float":
+        raise ValueError("quantum disruption dependency contract predict_output type is unsupported")
+    if predict_output.get("range") != [0.0, 1.0]:
+        raise ValueError("quantum disruption dependency contract predict_output range is unsupported")
+
+
+def _validate_contract_feature_contract(value: object) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption dependency contract feature_contract must be an object")
+    if value.get("control_feature_names") != list(CONTROL_FEATURE_NAMES):
+        raise ValueError("quantum disruption dependency contract control_feature_names are unsupported")
+    if value.get("iter_feature_names") != list(ITER_FEATURE_NAMES):
+        raise ValueError("quantum disruption dependency contract iter_feature_names are unsupported")
+    if value.get("extra_iter_features") != list(EXTRA_ITER_INDEX):
+        raise ValueError("quantum disruption dependency contract extra_iter_features are unsupported")
+    if value.get("centre_defaults_allowed_only_when_declared") is not True:
+        raise ValueError("quantum disruption dependency contract centre default policy is unsupported")
+
+
+def _validate_contract_dependency_groups(value: object) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption dependency contract dependency_groups must be an object")
+    if value.get("control_runtime") != ["numpy"]:
+        raise ValueError("quantum disruption dependency contract control_runtime dependencies are unsupported")
+    if value.get("quantum_core") != list(QUANTUM_CORE_DEPENDENCIES):
+        raise ValueError("quantum disruption dependency contract quantum_core dependencies are unsupported")
+    if value.get("quantum_optional_providers") != list(QUANTUM_OPTIONAL_PROVIDER_DEPENDENCIES):
+        raise ValueError(
+            "quantum disruption dependency contract quantum_optional_providers dependencies are unsupported"
+        )
+
+
 def _validate_mapping_payload(value: object) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("quantum disruption bridge feature_mapping must be an object")
@@ -607,6 +781,11 @@ def _report_content_digest(payload: Mapping[str, Any]) -> str:
 def _certificate_digest(certificate: Mapping[str, Any]) -> str:
     content = {key: value for key, value in certificate.items() if key != "certificate_sha256"}
     return _payload_digest({"report_certificate": content})
+
+
+def _contract_digest(contract: Mapping[str, Any]) -> str:
+    content = {key: value for key, value in contract.items() if key != "contract_sha256"}
+    return _payload_digest({"dependency_contract": content})
 
 
 def _jsonable(value: Any) -> Any:

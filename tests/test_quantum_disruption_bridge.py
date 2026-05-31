@@ -40,6 +40,48 @@ def test_quantum_disruption_bridge_import_does_not_import_quantum_package() -> N
     assert "scpn_quantum_control" not in sys.modules
 
 
+def test_quantum_disruption_dependency_contract_advertises_quantum_owner_surface() -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        quantum_disruption_dependency_contract,
+        validate_quantum_disruption_dependency_contract,
+    )
+
+    contract = quantum_disruption_dependency_contract()
+
+    assert contract["control_facade_owner"] == "scpn-control"
+    assert contract["quantum_backend_owner"] == "scpn-quantum-control"
+    assert contract["quantum_module"] == "scpn_quantum_control.control.q_disruption_iter"
+    assert contract["required_public_surface"]["classifier_class"] == "QuantumDisruptionClassifier"
+    assert contract["required_public_surface"]["predict_input"]["feature_names"][0] == "I_p"
+    assert contract["required_public_surface"]["predict_input"]["normalised_range"] == [0.0, 1.0]
+    assert contract["required_public_surface"]["predict_output"]["range"] == [0.0, 1.0]
+    assert "qiskit>=2.2,<3.0" in contract["dependency_groups"]["quantum_core"]
+    assert "pennylane>=0.40,<1.0" in contract["dependency_groups"]["quantum_optional_providers"]
+    assert "qiskit-ibm-runtime>=0.40,<1.0" in contract["dependency_groups"]["quantum_optional_providers"]
+    assert "do_not_admit_control_action" in contract["required_downstream_policy"]
+    assert len(contract["contract_sha256"]) == 64
+    assert validate_quantum_disruption_dependency_contract(contract) == contract
+
+
+def test_quantum_disruption_dependency_contract_rejects_dependency_drift() -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        quantum_disruption_dependency_contract,
+        validate_quantum_disruption_dependency_contract,
+    )
+
+    contract = quantum_disruption_dependency_contract()
+    drifted = {
+        **contract,
+        "dependency_groups": {
+            **contract["dependency_groups"],
+            "quantum_core": ["qiskit>=2.2,<3.0"],
+        },
+    }
+
+    with pytest.raises(ValueError, match="quantum_core"):
+        validate_quantum_disruption_dependency_contract(drifted)
+
+
 def test_quantum_disruption_bridge_rejects_missing_iter_features_without_defaults() -> None:
     from scpn_control.control.quantum_disruption_bridge import map_control_features_to_iter
 

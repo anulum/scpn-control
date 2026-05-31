@@ -57,7 +57,10 @@ baseline comparisons. Each bridge or kernel report also carries a
 schema-versioned advisory certificate that binds report kind, CONTROL facade
 ownership, quantum backend ownership, claim-boundary digest, downstream
 non-admission policy, and report-content digest before the outer tamper seal is
-accepted.
+accepted. The matching dependency contract names the expected
+`scpn-quantum-control` module, classifier API, feature ordering, Qiskit core
+dependencies, optional provider families, and downstream non-admission policy
+so backend work can evolve without silently drifting from the CONTROL facade.
 
 ## Federated disruption synthetic multi-facility benchmark
 

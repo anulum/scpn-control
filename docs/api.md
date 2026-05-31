@@ -154,7 +154,11 @@ digests, default-use reasons, and the external evidence still required before
 facility or publication claims are admissible. Bridge and kernel reports carry
 schema-versioned advisory certificates that bind report kind, repository
 ownership, claim boundary, downstream non-admission policy, and the content
-digest before the outer payload digest is accepted.
+digest before the outer payload digest is accepted. The facade also publishes a
+machine-readable dependency contract that names the `scpn-quantum-control`
+backend module, required classifier surface, Qiskit core dependencies, optional
+provider dependency families, report schemas, feature contract, and
+non-admission policy for future backend hardening.
 
 ::: scpn_control.control.quantum_disruption_bridge.QuantumDisruptionBridgeConfig
 
@@ -164,7 +168,11 @@ digest before the outer payload digest is accepted.
 
 ::: scpn_control.control.quantum_disruption_bridge.quantum_disruption_kernel_matrix
 
+::: scpn_control.control.quantum_disruption_bridge.quantum_disruption_dependency_contract
+
 ::: scpn_control.control.quantum_disruption_bridge.run_quantum_disruption_bridge
+
+::: scpn_control.control.quantum_disruption_bridge.validate_quantum_disruption_dependency_contract
 
 ::: scpn_control.control.quantum_disruption_bridge.validate_quantum_disruption_bridge_report
 
