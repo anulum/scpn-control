@@ -137,23 +137,6 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return out
 
 
-def _require_mapping(config: Any, key: str) -> dict[str, Any]:
-    value = config.get(key) if isinstance(config, dict) else None
-    if not isinstance(value, dict):
-        raise ValueError(f"fusion kernel config requires object '{key}'.")
-    return value
-
-
-def _require_finite_float(section: dict[str, Any], key: str, *, positive: bool) -> float:
-    if key not in section:
-        raise ValueError(f"fusion kernel config requires '{key}'.")
-    value = float(section[key])
-    if not np.isfinite(value) or (positive and value <= 0.0):
-        qualifier = "positive finite" if positive else "finite"
-        raise ValueError(f"{key} must be {qualifier}.")
-    return value
-
-
 class DimensionsConfig(BaseModel):
     """Pydantic v2 schema for Grad-Shafranov domain bounds."""
 
@@ -226,6 +209,11 @@ class SolverConfig(BaseModel):
 
     boundary_variant: str = "fixed_boundary"
 
+    @field_validator("boundary_variant", mode="before")
+    @classmethod
+    def _normalised_boundary_variant(cls, value: str | None) -> str:
+        return _normalize_boundary_variant(value)
+
 
 class CoilConfig(BaseModel):
     """Pydantic v2 schema for coil entries, preserving extension keys."""
@@ -260,11 +248,13 @@ class FusionKernelConfig(BaseModel):
         return value
 
 
-def _validate_fusion_kernel_config(raw: Any) -> dict[str, Any]:
+def _parse_fusion_kernel_config(raw: Any) -> FusionKernelConfig:
     if not isinstance(raw, dict):
         raise ValueError("fusion kernel config root must be a JSON object.")
+    return cast(FusionKernelConfig, FusionKernelConfig.model_validate(raw))
 
-    config = FusionKernelConfig.model_validate(raw)
+
+def _fusion_kernel_config_dump(config: FusionKernelConfig) -> dict[str, Any]:
     validated = cast(dict[str, Any], config.model_dump(mode="python", exclude_none=True))
     validated["grid_resolution"] = list(validated["grid_resolution"])
     return validated
@@ -409,10 +399,10 @@ class FusionKernel:
             Filesystem path to the configuration JSON.
         """
         with open(path, "r") as f:
-            self.cfg = _validate_fusion_kernel_config(json.load(f, object_pairs_hook=_reject_duplicate_json_keys))
+            self.config_model = _parse_fusion_kernel_config(json.load(f, object_pairs_hook=_reject_duplicate_json_keys))
+        self.cfg = _fusion_kernel_config_dump(self.config_model)
         solver_cfg = self.cfg.setdefault("solver", {})
-        self.boundary_variant: str = _normalize_boundary_variant(solver_cfg.get("boundary_variant", "fixed_boundary"))
-        solver_cfg["boundary_variant"] = self.boundary_variant
+        self.boundary_variant = str(solver_cfg.get("boundary_variant", "fixed_boundary"))
         logger.info("Loaded configuration for: %s", self.cfg["reactor_name"])
 
     def initialize_grid(self) -> None:

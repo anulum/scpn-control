@@ -110,6 +110,16 @@ class TestConstruction:
     def test_config_loaded(self, kernel):
         assert kernel.cfg["reactor_name"] == "Test-Reactor"
 
+    def test_config_load_retains_typed_pydantic_model(self, tmp_path):
+        path = _write_config(tmp_path / "typed_config.json")
+
+        kernel = FusionKernel(path)
+
+        assert isinstance(kernel.config_model, FusionKernelConfig)
+        assert kernel.config_model.reactor_name == "Test-Reactor"
+        assert kernel.config_model.dimensions.R_min == pytest.approx(kernel.cfg["dimensions"]["R_min"])
+        assert kernel.config_model.grid_resolution == (16, 16)
+
     def test_invalid_config_raises(self, tmp_path):
         path = tmp_path / "bad.json"
         path.write_text("{}", encoding="utf-8")
@@ -172,6 +182,15 @@ class TestConstruction:
 
     def test_default_boundary_variant_is_fixed(self, kernel):
         assert kernel.boundary_variant == "fixed_boundary"
+
+    def test_config_model_normalises_boundary_variant_alias(self, tmp_path):
+        cfg = _write_config(tmp_path / "free_alias.json", extra_solver={"boundary_variant": "free"})
+
+        kernel = FusionKernel(cfg)
+
+        assert kernel.config_model.solver.boundary_variant == "free_boundary"
+        assert kernel.cfg["solver"]["boundary_variant"] == "free_boundary"
+        assert kernel.boundary_variant == "free_boundary"
 
     def test_invalid_boundary_variant_raises(self, tmp_path):
         cfg = _write_config(tmp_path / "bad_variant.json", extra_solver={"boundary_variant": "chaos"})
