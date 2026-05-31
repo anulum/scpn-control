@@ -165,7 +165,7 @@ def _digital_twin_evidence(controller_sha256: str):
         best_parameters={"n_e": 1.1e20},
         best_loss=0.2,
         baseline_loss=0.8,
-        evaluated_points=4,
+        evaluated_points=3,
         loss_history=(0.8, 0.5, 0.2),
         source=observation.source,
         evidence_kind="bounded_online_update",

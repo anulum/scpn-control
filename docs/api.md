@@ -611,7 +611,10 @@ strict digital-twin reference gate.
 `assert_digital_twin_update_claim_admissible()` bind a bounded Bayesian update
 to TRANSP and TSC simulator metadata digests, observation and prior digests,
 result digest, baseline-improvement evidence, and an optional
-safety-critical controller proof artifact digest.
+safety-critical controller proof artifact digest. Admission also revalidates
+source binding, finite non-negative loss history, minimum-loss consistency,
+best-parameter bounds, strict integer campaign settings, and simulator unit
+coverage for every observation target.
 
 ::: scpn_control.control.tokamak_digital_twin.run_digital_twin
 

@@ -148,7 +148,7 @@ def test_digital_twin_update_evidence_requires_transp_tsc_and_improvement():
         best_parameters={"n_e": 1.1e20, "Z_eff": 2.0},
         best_loss=0.2,
         baseline_loss=0.8,
-        evaluated_points=8,
+        evaluated_points=3,
         loss_history=(0.8, 0.5, 0.2),
         source=observation.source,
         evidence_kind="bounded_online_update",
@@ -195,3 +195,94 @@ def test_digital_twin_update_evidence_rejects_missing_simulator_and_non_improvem
             result,
             artifacts + (tsc_artifact,),
         )
+
+
+def test_digital_twin_update_evidence_rejects_malformed_bayesian_results():
+    artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
+    observation = TwinObservation(
+        targets={"final_avg_temp": 2.0},
+        tolerances={"final_avg_temp": 0.05},
+        source="paired_transp_tsc_reference",
+    )
+    priors = (
+        TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),
+        TwinParameterPrior("Z_eff", 1.0, 3.0, 1.5),
+    )
+    valid_result = BayesianUpdateResult(
+        best_parameters={"n_e": 1.1e20, "Z_eff": 2.0},
+        best_loss=0.2,
+        baseline_loss=0.8,
+        evaluated_points=3,
+        loss_history=(0.8, 0.5, 0.2),
+        source=observation.source,
+        evidence_kind="bounded_online_update",
+    )
+
+    with pytest.raises(ValueError, match="source"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            BayesianUpdateResult(
+                best_parameters=valid_result.best_parameters,
+                best_loss=valid_result.best_loss,
+                baseline_loss=valid_result.baseline_loss,
+                evaluated_points=valid_result.evaluated_points,
+                loss_history=valid_result.loss_history,
+                source="unbound_reference",
+                evidence_kind=valid_result.evidence_kind,
+            ),
+            artifacts,
+        )
+
+    with pytest.raises(ValueError, match="prior bounds"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            BayesianUpdateResult(
+                best_parameters={"n_e": 2.0e20, "Z_eff": 2.0},
+                best_loss=valid_result.best_loss,
+                baseline_loss=valid_result.baseline_loss,
+                evaluated_points=valid_result.evaluated_points,
+                loss_history=valid_result.loss_history,
+                source=valid_result.source,
+                evidence_kind=valid_result.evidence_kind,
+            ),
+            artifacts,
+        )
+
+    with pytest.raises(ValueError, match="minimum loss_history"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            BayesianUpdateResult(
+                best_parameters=valid_result.best_parameters,
+                best_loss=0.1,
+                baseline_loss=valid_result.baseline_loss,
+                evaluated_points=valid_result.evaluated_points,
+                loss_history=valid_result.loss_history,
+                source=valid_result.source,
+                evidence_kind=valid_result.evidence_kind,
+            ),
+            artifacts,
+        )
+
+    missing_units_payload = _artifact_payload("TRANSP")
+    missing_units_payload["signal_units"] = {"final_reward": "1"}
+    with pytest.raises(ValueError, match="signal_units"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            valid_result,
+            (
+                validate_external_simulator_artifact(missing_units_payload),
+                validate_external_simulator_artifact(_artifact_payload("TSC")),
+            ),
+        )
+
+
+def test_bayesian_update_config_rejects_bool_and_float_integer_fields():
+    with pytest.raises(ValueError, match="n_initial"):
+        BayesianUpdateConfig(n_initial=6.0)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="seed"):
+        BayesianUpdateConfig(seed=True)  # type: ignore[arg-type]

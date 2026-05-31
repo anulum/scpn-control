@@ -749,7 +749,7 @@
     },
     {
       "component": "digital twin online model updating",
-      "equation_contract": "Online model-update claims must declare tunable bounded parameters, external TRANSP/TSC simulator artifact provenance, target summary metrics, tolerances, deterministic random seed, Gaussian-process acquisition settings, and fail-closed behavior when external artifacts are absent or malformed.",
+      "equation_contract": "Online model-update claims must declare tunable bounded parameters, external TRANSP/TSC simulator artifact provenance, target summary metrics, tolerances, deterministic random seed, Gaussian-process acquisition settings, finite non-negative loss history, source-bound Bayesian results, parameter-domain admission, observation-unit coverage, and fail-closed behavior when external artifacts are absent or malformed.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "TRANSP integrated modelling evidence contract",
@@ -762,9 +762,9 @@
       "required_actions": [
         "Provide validated TRANSP, TSC, measured-discharge, or documented public-reference artifacts before measured replay claims",
         "Validate online update trajectories against replayed or measured discharge histories before deployment use",
-        "Persist simulator artifact hashes, units, case ids, and strictly increasing time bases for every promoted update campaign"
+        "Persist simulator artifact hashes, units, case ids, strictly increasing time bases, observation digests, prior digests, result digests, finite loss-history minima, parameter-domain admission, and baseline-improvement evidence for every promoted update campaign"
       ],
-      "unit_contract": "Tunable density in m^-3, effective charge dimensionless, actuator lag in steps, actuator rate limit dimensionless per step, target metrics in declared digital-twin summary units, and simulator time base in seconds.",
+      "unit_contract": "Tunable density in m^-3, effective charge dimensionless, actuator lag in steps, actuator rate limit dimensionless per step, target metrics in declared digital-twin summary units, non-negative loss values, and simulator time base in seconds.",
       "validation_evidence": [
         "tests/test_digital_twin_online_update.py external artifact, loss, Bayesian-update, and deterministic benchmark checks",
         "tests/test_digital_twin_reference_validation.py strict digital-twin artifact gate including TRANSP and TSC",

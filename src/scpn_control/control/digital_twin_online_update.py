@@ -98,8 +98,7 @@ class BayesianUpdateConfig:
         _require_positive_int("time_steps", self.time_steps)
         if not math.isfinite(float(self.exploration_weight)) or self.exploration_weight < 0.0:
             raise ValueError("exploration_weight must be finite and >= 0")
-        if isinstance(self.seed, bool) or int(self.seed) != self.seed:
-            raise ValueError("seed must be an integer")
+        _require_int("seed", self.seed)
 
 
 @dataclass(frozen=True)
@@ -325,6 +324,7 @@ def digital_twin_update_evidence(
         raise ValueError("result must be BayesianUpdateResult")
     if not external_artifacts or any(not isinstance(item, ExternalSimulatorArtifact) for item in external_artifacts):
         raise ValueError("external_artifacts must contain ExternalSimulatorArtifact entries")
+    _validate_update_inputs(observation, priors, result, external_artifacts)
     proof_digest = _validate_optional_sha256(
         "controller_formal_artifact_sha256",
         controller_formal_artifact_sha256,
@@ -386,6 +386,7 @@ def assert_digital_twin_update_claim_admissible(
         raise ValueError("digital twin update evidence result_sha256 mismatch")
     if result.evidence_kind != "bounded_online_update":
         raise ValueError("digital twin update evidence requires bounded_online_update result")
+    _validate_update_inputs(observation, priors, result, external_artifacts)
     if not evidence.improved_over_baseline or result.best_loss >= result.baseline_loss:
         raise ValueError("digital twin update evidence must improve over baseline")
     if evidence.evaluated_points != result.evaluated_points or evidence.evaluated_points < len(priors) + 1:
@@ -414,6 +415,47 @@ def _evaluate_parameters(
         actuator_rate_limit=float(params.get("actuator_rate_limit", 2.0)),
     )
     return digital_twin_loss(summary, observation)
+
+
+def _validate_update_inputs(
+    observation: TwinObservation,
+    priors: tuple[TwinParameterPrior, ...],
+    result: BayesianUpdateResult,
+    external_artifacts: tuple[ExternalSimulatorArtifact, ...],
+) -> None:
+    prior_names = tuple(prior.name for prior in priors)
+    if len(set(prior_names)) != len(prior_names):
+        raise ValueError("priors must use unique parameter names")
+    result_names = set(result.best_parameters)
+    if result_names != set(prior_names):
+        raise ValueError("result best_parameters must match prior names")
+    for prior in priors:
+        value = _require_finite(f"best_parameters[{prior.name}]", result.best_parameters[prior.name])
+        if value < prior.lower or value > prior.upper:
+            raise ValueError("result best_parameters must lie inside prior bounds")
+    best_loss = _require_nonnegative("best_loss", result.best_loss)
+    baseline_loss = _require_nonnegative("baseline_loss", result.baseline_loss)
+    _ = baseline_loss
+    if result.source != observation.source:
+        raise ValueError("result source must match observation source")
+    if result.evidence_kind != "bounded_online_update":
+        raise ValueError("result evidence_kind must be bounded_online_update")
+    evaluated_points = _require_positive_int("evaluated_points", result.evaluated_points)
+    if not result.loss_history:
+        raise ValueError("result loss_history must not be empty")
+    if evaluated_points != len(result.loss_history):
+        raise ValueError("result evaluated_points must equal loss_history length")
+    losses = tuple(_require_nonnegative("loss_history", item) for item in result.loss_history)
+    if not math.isclose(best_loss, min(losses), rel_tol=1.0e-12, abs_tol=1.0e-15):
+        raise ValueError("result best_loss must match the minimum loss_history value")
+    target_names = set(observation.targets)
+    for artifact in external_artifacts:
+        missing_units = sorted(target_names - set(artifact.signal_units))
+        if missing_units:
+            raise ValueError(
+                "external simulator artifact signal_units missing observation targets: "
+                + ", ".join(missing_units)
+            )
 
 
 def _denormalise(x: np.ndarray, priors: tuple[TwinParameterPrior, ...]) -> dict[str, float]:
@@ -469,10 +511,23 @@ def _require_positive(name: str, value: float) -> float:
     return result
 
 
+def _require_nonnegative(name: str, value: float) -> float:
+    result = _require_finite(name, value)
+    if result < 0.0:
+        raise ValueError(f"{name} must be >= 0")
+    return result
+
+
+def _require_int(name: str, value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be an integer")
+    return value
+
+
 def _require_positive_int(name: str, value: int) -> int:
-    if isinstance(value, bool) or int(value) != value or int(value) < 1:
+    if _require_int(name, value) < 1:
         raise ValueError(f"{name} must be an integer >= 1")
-    return int(value)
+    return value
 
 
 __all__ = [

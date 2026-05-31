@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened digital-twin online-update evidence admission so bounded Bayesian
+  update claims revalidate finite non-negative losses, loss-history minima,
+  source binding, unique bounded parameter priors, best-parameter domains,
+  strict integer campaign settings, and simulator units for every observation
+  target before evidence digests are admitted.
 - Hardened geometry-neutral stellarator replay admission so scenarios fail
   closed on nonzero initial frames, missing objective metrics, impossible
   current constraints, unsupported stuck-fault modes, and non-integer runtime

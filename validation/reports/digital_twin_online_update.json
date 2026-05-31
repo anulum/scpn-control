@@ -9,6 +9,23 @@
   },
   "claim_boundary": "Bounded synthetic online-update benchmark only. TRANSP/TSC coupling requires validated external simulator artifacts before measured replay claims.",
   "evaluated_points": 18,
+  "evidence": {
+    "baseline_loss": 25.48563487560276,
+    "best_loss": 0.0051346622584041695,
+    "claim_status": "bounded online Bayesian digital-twin update evidence only; external simulator artifacts are provenance inputs, not facility validation",
+    "controller_formal_artifact_sha256": null,
+    "evaluated_points": 18,
+    "external_artifacts_sha256": "93a330469667c310962054339af9150742d7be007804ff60eeb37098d604e7f2",
+    "improved_over_baseline": true,
+    "observation_sha256": "0e3e34618c86c155b214bf0b21ec87d57ccb494566af9bd960a28a9de8149bc6",
+    "priors_sha256": "614cdfe3b5a2f01bdcf8f0595c60ca843017f5cf1ac99808609a9784a9c35e90",
+    "result_sha256": "4f2489fe1becc9ee88678b7a248349a3957a0a3c11780c4b430375440f124794",
+    "schema_version": 1,
+    "simulator_codes": [
+      "TRANSP",
+      "TSC"
+    ]
+  },
   "evidence_kind": "bounded_online_update",
   "loss_history": [
     0.6256747434549662,
