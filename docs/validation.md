@@ -189,7 +189,8 @@ before checking bundle-level policy and digest integrity. Bundle artifact
 admission uses `build_safety_certificate_bundle_artifact`,
 `validate_safety_certificate_bundle_artifact`, and
 `admit_safety_certificate_bundle_artifact` to require safe relative bundle URIs
-and SHA-256 byte matches under a caller-supplied artifact root before replay
+and SHA-256 byte matches under a caller-supplied artifact root, plus a canonical
+artifact metadata digest and non-future UTC creation timestamp, before replay
 validation. The
 certificate is evidence for bounded model checking only; it is not a facility
 safety approval or an unbounded proof.

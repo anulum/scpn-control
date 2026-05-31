@@ -624,6 +624,30 @@ def test_safety_certificate_bundle_artifact_rejects_traversal_and_digest_mismatc
         admit_safety_certificate_bundle_artifact(artifact, artifact_root=tmp_path)
 
 
+def test_safety_certificate_bundle_artifact_rejects_manifest_tampering_and_future_time() -> None:
+    artifact = build_safety_certificate_bundle_artifact(
+        bundle_uri="bundle.json",
+        bundle_sha256="1" * 64,
+        producer="release-safety-gate",
+        created_at="2026-05-31T00:00:00Z",
+    )
+
+    assert "artifact_sha256" in artifact
+
+    tampered = dict(artifact)
+    tampered["producer"] = "untrusted-gate"
+    with pytest.raises(ValueError, match="artifact_sha256"):
+        validate_safety_certificate_bundle_artifact(tampered)
+
+    with pytest.raises(ValueError, match="created_at"):
+        build_safety_certificate_bundle_artifact(
+            bundle_uri="bundle.json",
+            bundle_sha256="1" * 64,
+            producer="release-safety-gate",
+            created_at="2999-01-01T00:00:00Z",
+        )
+
+
 def test_safety_certificate_validator_rejects_semantic_section_tampering() -> None:
     verifier = FormalPetriNetVerifier(_transfer_net(), backend="explicit-state")
     report = verify_formal_contracts(

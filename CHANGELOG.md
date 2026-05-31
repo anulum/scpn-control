@@ -6,7 +6,8 @@
 
 ### Fixed
 - Added hash-addressed formal safety certificate bundle artifact admission so
-  release gates verify safe relative bundle URIs, SHA-256 bytes, embedded
+  release gates verify safe relative bundle URIs, bundle SHA-256 bytes,
+  tamper-evident artifact metadata digests, UTC creation timestamps, embedded
   certificate digests, artifact binding, backend, and required certificate
   policy before replaying certificate evidence.
 - Added formal safety certificate admission policies so certification campaigns

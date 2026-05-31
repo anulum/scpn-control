@@ -21,6 +21,7 @@ import hashlib
 import json
 from collections import deque
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Literal
@@ -39,6 +40,7 @@ SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCOPE = "hash-addressed formal safety certifi
 SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_CLAIM_BOUNDARY = (
     "not a facility safety approval or independent regulatory certification"
 )
+SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_FUTURE_SKEW_SECONDS = 300.0
 
 
 @dataclass(frozen=True)
@@ -1216,8 +1218,7 @@ def build_safety_certificate_bundle_artifact(
         raise ValueError("safety certificate bundle artifact bundle_sha256 must be a SHA-256 hex digest")
     if not isinstance(producer, str) or not producer:
         raise ValueError("safety certificate bundle artifact producer must be a non-empty string")
-    if not isinstance(created_at, str) or not created_at:
-        raise ValueError("safety certificate bundle artifact created_at must be a non-empty string")
+    created_at = _require_utc_timestamp("created_at", created_at)
     artifact = {
         "schema_version": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCHEMA_VERSION,
         "kind": "safety_certificate_bundle",
@@ -1228,6 +1229,7 @@ def build_safety_certificate_bundle_artifact(
         "scope": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCOPE,
         "claim_boundary": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_CLAIM_BOUNDARY,
     }
+    artifact["artifact_sha256"] = _bundle_artifact_digest(artifact)
     return validate_safety_certificate_bundle_artifact(artifact)
 
 
@@ -1250,22 +1252,28 @@ def validate_safety_certificate_bundle_artifact(
         raise ValueError("safety certificate bundle artifact bundle_sha256 must be a SHA-256 hex digest")
     if not isinstance(artifact.get("producer"), str) or not artifact["producer"]:
         raise ValueError("safety certificate bundle artifact producer must be a non-empty string")
-    if not isinstance(artifact.get("created_at"), str) or not artifact["created_at"]:
-        raise ValueError("safety certificate bundle artifact created_at must be a non-empty string")
+    created_at = _require_utc_timestamp("created_at", artifact.get("created_at"))
     if artifact.get("scope") != SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCOPE:
         raise ValueError("safety certificate bundle artifact scope is unsupported")
     if artifact.get("claim_boundary") != SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_CLAIM_BOUNDARY:
         raise ValueError("safety certificate bundle artifact claim_boundary is unsupported")
-    validated = {
+    expected_digest_payload = {
         "schema_version": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCHEMA_VERSION,
         "kind": "safety_certificate_bundle",
         "bundle_uri": uri,
         "bundle_sha256": bundle_sha256.lower(),
         "producer": artifact["producer"],
-        "created_at": artifact["created_at"],
+        "created_at": created_at,
         "scope": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCOPE,
         "claim_boundary": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_CLAIM_BOUNDARY,
     }
+    artifact_sha256 = artifact.get("artifact_sha256")
+    if not isinstance(artifact_sha256, str) or not _is_sha256(artifact_sha256):
+        raise ValueError("safety certificate bundle artifact artifact_sha256 must be a SHA-256 hex digest")
+    expected_digest = _bundle_artifact_digest(expected_digest_payload)
+    if artifact_sha256.lower() != expected_digest:
+        raise ValueError("safety certificate bundle artifact artifact_sha256 does not match artifact metadata")
+    validated = {**expected_digest_payload, "artifact_sha256": expected_digest}
     if artifact_root is not None:
         target = _resolve_under_root(artifact_root, uri)
         if not target.is_file():
@@ -1485,6 +1493,31 @@ def _resolve_under_root(root: str | Path, relative_uri: str) -> Path:
     except ValueError as exc:
         raise ValueError("safety certificate bundle artifact path escapes artifact_root") from exc
     return target
+
+
+def _require_utc_timestamp(name: str, value: object) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"safety certificate bundle artifact {name} must be a non-empty UTC timestamp")
+    candidate = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except ValueError as exc:
+        raise ValueError(f"safety certificate bundle artifact {name} must be an ISO-8601 UTC timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError(f"safety certificate bundle artifact {name} must include a UTC offset")
+    parsed = parsed.astimezone(timezone.utc)
+    max_created_at = datetime.now(timezone.utc) + timedelta(
+        seconds=SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_FUTURE_SKEW_SECONDS
+    )
+    if parsed > max_created_at:
+        raise ValueError(f"safety certificate bundle artifact {name} must not be future-dated")
+    return value
+
+
+def _bundle_artifact_digest(artifact: dict[str, Any]) -> str:
+    payload = {key: value for key, value in artifact.items() if key != "artifact_sha256"}
+    encoded = json.dumps(_jsonable(payload), sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _jsonable(value: Any) -> Any:
