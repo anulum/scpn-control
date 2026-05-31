@@ -690,6 +690,28 @@ def test_nmpc_rejects_unknown_qp_backend() -> None:
         NonlinearMPC(mock_tokamak_plant, cfg)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("horizon", 0, "horizon"),
+        ("max_sqp_iter", 0, "max_sqp_iter"),
+        ("qp_max_iter", 0, "qp_max_iter"),
+        ("tol", 0.0, "tol"),
+        ("acados_model_name", "", "acados_model_name"),
+        ("acados_json_file", "", "acados_json_file"),
+        ("acados_generate", 1, "acados_generate"),
+        ("acados_build", 0, "acados_build"),
+        ("acados_dynamics_residual_tol", np.nan, "acados_dynamics_residual_tol"),
+    ],
+)
+def test_nmpc_config_rejects_invalid_solver_domain_fields(field: str, value: object, message: str) -> None:
+    cfg = NMPCConfig(horizon=3)
+    setattr(cfg, field, value)
+
+    with pytest.raises(ValueError, match=message):
+        NonlinearMPC(mock_tokamak_plant, cfg)
+
+
 def test_nmpc_rejects_non_spd_state_weight() -> None:
     cfg = NMPCConfig(horizon=3)
     cfg.Q = np.diag([1.0, 1.0, 0.0, 1.0, 1.0, 1.0])
@@ -705,6 +727,48 @@ def test_nmpc_rejects_inconsistent_input_bounds() -> None:
 
     with pytest.raises(ValueError, match="u_min"):
         NonlinearMPC(mock_tokamak_plant, cfg)
+
+
+def test_nmpc_rejects_partial_or_out_of_domain_terminal_set() -> None:
+    cfg_partial = NMPCConfig(horizon=3)
+    cfg_partial.qp_backend = "scipy"
+    cfg_partial.terminal_x_min = cfg_partial.x_min.copy()
+    with pytest.raises(ValueError, match="terminal_x_min and terminal_x_max"):
+        NonlinearMPC(mock_tokamak_plant, cfg_partial)
+
+    cfg_internal = NMPCConfig(horizon=3)
+    cfg_internal.terminal_x_min = cfg_internal.x_min.copy()
+    cfg_internal.terminal_x_max = cfg_internal.x_max.copy()
+    with pytest.raises(ValueError, match="terminal_x constraints"):
+        NonlinearMPC(mock_tokamak_plant, cfg_internal)
+
+    cfg_bad_order = NMPCConfig(horizon=3)
+    cfg_bad_order.qp_backend = "scipy"
+    cfg_bad_order.terminal_x_min = cfg_bad_order.x_min.copy()
+    cfg_bad_order.terminal_x_max = cfg_bad_order.x_max.copy()
+    cfg_bad_order.terminal_x_min[0] = cfg_bad_order.terminal_x_max[0]
+    with pytest.raises(ValueError, match="terminal_x_min"):
+        NonlinearMPC(mock_tokamak_plant, cfg_bad_order)
+
+    cfg_outside = NMPCConfig(horizon=3)
+    cfg_outside.qp_backend = "scipy"
+    cfg_outside.terminal_x_min = cfg_outside.x_min.copy()
+    cfg_outside.terminal_x_max = cfg_outside.x_max.copy()
+    cfg_outside.terminal_x_max[0] = cfg_outside.x_max[0] + 1.0
+    with pytest.raises(ValueError, match="terminal_x bounds"):
+        NonlinearMPC(mock_tokamak_plant, cfg_outside)
+
+
+def test_nmpc_compute_cost_rejects_malformed_trajectories() -> None:
+    nmpc = NonlinearMPC(mock_tokamak_plant, NMPCConfig(horizon=2, max_sqp_iter=1))
+    x_ref = np.zeros(6)
+
+    with pytest.raises(ValueError, match="x_traj"):
+        nmpc.compute_cost(np.zeros((2, 5)), np.zeros((1, 3)), x_ref)
+    with pytest.raises(ValueError, match="u_traj"):
+        nmpc.compute_cost(np.zeros((2, 6)), np.zeros((1, 2)), x_ref)
+    with pytest.raises(ValueError, match="at least one more row"):
+        nmpc.compute_cost(np.zeros((1, 6)), np.zeros((1, 3)), x_ref)
 
 
 def test_nmpc_step_rejects_nonfinite_plant_output() -> None:

@@ -944,7 +944,7 @@ def get_artifact_json_schema() -> Dict[str, Any]:
                 "properties": {
                     "required": {"type": "boolean"},
                     "status": {"type": "string", "enum": ["pass", "fail", "blocked"]},
-                    "backend": {"type": "string"},
+                    "backend": {"type": "string", "enum": sorted(FORMAL_VERIFICATION_BACKENDS)},
                     "solver": {"type": "string"},
                     "max_depth": {"type": "integer", "minimum": 0},
                     "checked_specs": {"type": "array", "items": {"type": "string"}, "minItems": 1},

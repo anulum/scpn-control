@@ -20,6 +20,7 @@ from scpn_control.scpn.artifact import (
     compute_artifact_payload_sha256,
     decode_u64_compact,
     encode_u64_compact,
+    get_artifact_json_schema,
     load_artifact,
     save_artifact,
 )
@@ -281,6 +282,36 @@ class TestArtifactValidationContract:
 
         with pytest.raises(ArtifactValidationError, match=match):
             load_artifact(str(bad_path))
+
+    def test_artifact_rejects_malformed_formal_verification_section(self, artifact_path: Path, tmp_path: Path) -> None:
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "malformed-formal-section.scpnctl.json",
+            lambda payload: payload.__setitem__("formal_verification", []),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="formal_verification"):
+            load_artifact(str(bad_path))
+
+    def test_artifact_json_schema_declares_safety_critical_formal_evidence_contract(self) -> None:
+        schema = get_artifact_json_schema()
+        formal = schema["properties"]["formal_verification"]
+
+        assert "formal_verification" in schema["properties"]
+        assert formal["required"] == [
+            "required",
+            "status",
+            "backend",
+            "solver",
+            "max_depth",
+            "checked_specs",
+            "artifact_sha256",
+            "report_sha256",
+            "claim_boundary",
+        ]
+        assert formal["properties"]["backend"]["enum"] == ["explicit-state", "z3"]
+        assert formal["properties"]["status"]["enum"] == ["pass", "fail", "blocked"]
+        assert formal["properties"]["artifact_sha256"]["pattern"] == "^[0-9a-fA-F]{64}$"
 
     def test_artifact_rejects_out_of_range_initial_marking(self, artifact_path: Path, tmp_path: Path) -> None:
         bad_path = _write_mutated_artifact_raw(

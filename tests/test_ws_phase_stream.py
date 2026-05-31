@@ -168,6 +168,7 @@ class TestPhaseStreamServer:
         [
             {"Authorization": "Bearer secret-token-123456"},
             {"X-SCPN-API-Key": "secret-token-123456"},
+            {"authorization": "Bearer secret-token-123456"},
         ],
     )
     def test_handler_accepts_authenticated_control_connection(self, headers):
@@ -175,6 +176,19 @@ class TestPhaseStreamServer:
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
             ws = _FakeWS([json.dumps({"action": "set_psi", "value": 0.5})], headers=headers)
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.5)
+            assert not ws.closed
+
+        asyncio.run(_run())
+
+    def test_handler_allows_observer_connection_when_auth_explicitly_disabled(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, require_client_auth=False)
+            ws = _FakeWS([json.dumps({"action": "set_psi", "value": 0.5})], headers={})
 
             await server._handler(ws)
 
@@ -200,6 +214,26 @@ class TestPhaseStreamServer:
             await server._handler(ws)
 
             assert mon.pac_gamma == pytest.approx(0.2)
+
+        asyncio.run(_run())
+
+    def test_handler_accepts_access_token_query_parameter_when_enabled(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(
+                monitor=mon,
+                api_key="secret-token-123456",
+                allow_query_token_auth=True,
+            )
+            ws = _FakeWS(
+                [json.dumps({"action": "set_psi", "value": 0.4})],
+                headers={},
+                path="/phase?access_token=secret-token-123456",
+            )
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.4)
 
         asyncio.run(_run())
 

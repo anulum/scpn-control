@@ -1074,6 +1074,128 @@ def test_transport_campaign_metadata_import_rejects_malformed_payload(tmp_path):
         dt.load_transport_campaign_metadata(path)
 
 
+def test_transport_campaign_metadata_import_rejects_unreadable_and_invalid_schema(tmp_path):
+    not_json = tmp_path / "not_transport_metadata.json"
+    not_json.write_text("{", encoding="utf-8")
+    with pytest.raises(ValueError, match="readable JSON"):
+        dt.load_transport_campaign_metadata(not_json)
+
+    bad_schema = tmp_path / "bad_schema_transport_metadata.json"
+    bad_schema.write_text(json.dumps({"schema_version": 99, "metadata": {}}), encoding="utf-8")
+    with pytest.raises(ValueError, match="schema_version"):
+        dt.load_transport_campaign_metadata(bad_schema)
+
+    bad_payload = tmp_path / "bad_payload_transport_metadata.json"
+    bad_payload.write_text(json.dumps({"schema_version": 1, "metadata": []}), encoding="utf-8")
+    with pytest.raises(ValueError, match="payload"):
+        dt.load_transport_campaign_metadata(bad_payload)
+
+
+def test_transport_differentiability_evidence_rejects_missing_tolerance_and_bad_controller_digest():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    metadata = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        1.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=None,
+    )
+    audit = dt.TransportGradientAudit(
+        loss=0.0,
+        epsilon=1.0e-5,
+        tolerance=1.0e-6,
+        checked_indices=((0, 1),),
+        chi_max_abs_error=0.0,
+        source_max_abs_error=0.0,
+        passed=True,
+    )
+
+    with pytest.raises(ValueError, match="gradient_tolerance"):
+        dt.transport_differentiability_evidence(metadata, audit)
+
+    metadata_with_tolerance = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        1.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=1.0e-6,
+    )
+    with pytest.raises(ValueError, match="controller_formal_artifact_sha256"):
+        dt.transport_differentiability_evidence(
+            metadata_with_tolerance,
+            audit,
+            controller_formal_artifact_sha256="not-a-digest",
+        )
+
+
+def test_transport_latency_report_persistence_rejects_invalid_percentile_contract(tmp_path):
+    audit = dt.TransportGradientAudit(
+        loss=0.0,
+        epsilon=1.0e-5,
+        tolerance=1.0e-6,
+        checked_indices=((0, 1),),
+        chi_max_abs_error=0.0,
+        source_max_abs_error=0.0,
+        passed=True,
+    )
+    report = dt.TransportGradientLatencyReport(
+        schema_version=1,
+        backend="jax",
+        dtype="float64",
+        n_rho=16,
+        channel_count=dt.CHANNEL_COUNT,
+        warmup_runs=0,
+        timed_runs=2,
+        p50_ms=3.0,
+        p95_ms=2.0,
+        max_ms=4.0,
+        audit=audit,
+        claim_status="local audited gradient-admission latency only; not a real-time control-loop guarantee",
+    )
+
+    with pytest.raises(ValueError, match="percentiles"):
+        dt.save_transport_gradient_latency_report(report, tmp_path / "bad_latency.json")
+
+
+def test_transport_rollout_latency_report_persistence_rejects_invalid_audit_indices(tmp_path):
+    audit = dt.TransportRolloutGradientAudit(
+        loss=0.0,
+        epsilon=1.0e-5,
+        tolerance=1.0e-6,
+        checked_indices=((0, 0, 99),),
+        source_max_abs_error=0.0,
+        passed=True,
+    )
+    report = dt.TransportRolloutGradientLatencyReport(
+        schema_version=1,
+        backend="jax",
+        dtype="float64",
+        n_rho=16,
+        n_steps=2,
+        channel_count=dt.CHANNEL_COUNT,
+        warmup_runs=0,
+        timed_runs=2,
+        p50_ms=1.0,
+        p95_ms=2.0,
+        max_ms=3.0,
+        audit=audit,
+        claim_status="local audited rollout source-gradient latency only; not a real-time control-loop guarantee",
+    )
+
+    with pytest.raises(ValueError, match="checked_indices"):
+        dt.save_transport_rollout_gradient_latency_report(report, tmp_path / "bad_rollout_latency.json")
+
+
 def test_transport_differentiability_evidence_binds_campaign_audit_and_controller_proof():
     rho = np.linspace(0.05, 1.0, 16)
     profiles = _profiles(rho)
