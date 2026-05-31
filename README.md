@@ -81,7 +81,7 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Project scripts | 2 |
 | Public API exports | 17 |
 | Python control/physics modules | 132 |
-| Python public classes | 462 |
+| Python public classes | 463 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
 | Validation scripts | 68 |
@@ -167,7 +167,7 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 ## Features
 
 - **Petri Net to SNN compilation** -- Translates Stochastic Petri Nets into spiking neural network controllers with LIF neurons and bitstream encoding
-- **Bounded formal verification** -- Exact Petri-net reachability, marking-bound proofs, algebraic place invariants, transition liveness, bounded temporal response specifications, and optional Z3 bounded model checking for compiled control logic
+- **Bounded formal verification** -- Exact Petri-net reachability, marking-bound proofs, algebraic place invariants, transition liveness, bounded temporal response specifications, optional Z3 bounded model checking for compiled control logic, and fail-closed proof-manifest admission for safety-critical controller artifacts
 - **Sub-millisecond latency** -- <1ms control loop with optional Rust-accelerated kernels
 - **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update, Boris integration, SNN pools, and MPC
 - **10 controller types** -- PID, MPC, NMPC, H-infinity, mu-synthesis, gain-scheduled, sliding-mode, fault-tolerant, SNN, PPO reinforcement learning

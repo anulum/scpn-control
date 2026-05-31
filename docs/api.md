@@ -472,11 +472,21 @@ semantics.
 
 ### Artifacts
 
+Safety-critical controller admission must call `load_artifact(...,
+require_formal_verification=True)` or `validate_safety_critical_artifact()`.
+That gate rejects missing, blocked, failed, malformed, or unbounded proof
+evidence and accepts only hash-addressed bounded proof manifests tied to the
+compiled controller artifact.
+
 ::: scpn_control.scpn.artifact.Artifact
+
+::: scpn_control.scpn.artifact.FormalVerificationEvidence
 
 ::: scpn_control.scpn.artifact.save_artifact
 
 ::: scpn_control.scpn.artifact.load_artifact
+
+::: scpn_control.scpn.artifact.validate_safety_critical_artifact
 
 ---
 

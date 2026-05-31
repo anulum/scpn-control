@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added a fail-closed formal proof-manifest gate for safety-critical SCPN
+  controller artifacts, including bounded-claim enforcement, hash-addressed
+  report metadata, and mandatory counterexample paths for failed proof
+  evidence.
 - Hardened the phase WebSocket stream with explicit payload-size limits,
   server-side frame caps, default client authentication, TLS-required startup
   mode, disabled-by-default query-token authentication, fail-closed plaintext

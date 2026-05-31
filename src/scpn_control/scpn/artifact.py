@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Artifact
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neuro-Symbolic Logic Compiler
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 SCPN Controller Artifact (``.scpnctl.json``) loader / saver.
 
@@ -154,6 +146,24 @@ class InitialState:
     place_injections: List[PlaceInjection]
 
 
+@dataclass
+class FormalVerificationEvidence:
+    """Hashable bounded-proof admission evidence for controller artifacts."""
+
+    required: bool
+    status: str
+    backend: str
+    solver: str
+    max_depth: int
+    checked_specs: List[str]
+    report_sha256: str
+    claim_boundary: str
+    report_uri: str | None = None
+    generated_utc: str | None = None
+    counterexample_path: List[str] | None = None
+    counterexample_property: str | None = None
+
+
 # ── Artifact ────────────────────────────────────────────────────────────────
 
 
@@ -166,6 +176,7 @@ class Artifact:
     weights: Weights
     readout: Readout
     initial_state: InitialState
+    formal_verification: FormalVerificationEvidence | None = None
 
     @property
     def nP(self) -> int:
@@ -181,6 +192,115 @@ class Artifact:
 
 class ArtifactValidationError(ValueError):
     """Raised when an artifact fails lightweight validation."""
+
+
+def _parse_formal_verification(raw: Any) -> FormalVerificationEvidence | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ArtifactValidationError("formal_verification must be an object")
+    return FormalVerificationEvidence(
+        required=raw["required"],
+        status=raw["status"],
+        backend=raw["backend"],
+        solver=raw["solver"],
+        max_depth=raw["max_depth"],
+        checked_specs=raw["checked_specs"],
+        report_sha256=raw["report_sha256"],
+        claim_boundary=raw["claim_boundary"],
+        report_uri=raw.get("report_uri"),
+        generated_utc=raw.get("generated_utc"),
+        counterexample_path=raw.get("counterexample_path"),
+        counterexample_property=raw.get("counterexample_property"),
+    )
+
+
+def _formal_verification_dict(evidence: FormalVerificationEvidence) -> Dict[str, Any]:
+    obj: Dict[str, Any] = {
+        "required": evidence.required,
+        "status": evidence.status,
+        "backend": evidence.backend,
+        "solver": evidence.solver,
+        "max_depth": evidence.max_depth,
+        "checked_specs": evidence.checked_specs,
+        "report_sha256": evidence.report_sha256,
+        "claim_boundary": evidence.claim_boundary,
+    }
+    if evidence.report_uri is not None:
+        obj["report_uri"] = evidence.report_uri
+    if evidence.generated_utc is not None:
+        obj["generated_utc"] = evidence.generated_utc
+    if evidence.counterexample_path is not None:
+        obj["counterexample_path"] = evidence.counterexample_path
+    if evidence.counterexample_property is not None:
+        obj["counterexample_property"] = evidence.counterexample_property
+    return obj
+
+
+def _is_sha256_hex(value: str) -> bool:
+    if len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_formal_verification(evidence: FormalVerificationEvidence) -> None:
+    if not isinstance(evidence.required, bool):
+        raise ArtifactValidationError("formal_verification.required must be a boolean")
+    if evidence.status not in {"pass", "fail", "blocked"}:
+        raise ArtifactValidationError("formal_verification.status must be 'pass', 'fail', or 'blocked'")
+    if not isinstance(evidence.backend, str) or not evidence.backend:
+        raise ArtifactValidationError("formal_verification.backend must be a non-empty string")
+    if not isinstance(evidence.solver, str) or not evidence.solver:
+        raise ArtifactValidationError("formal_verification.solver must be a non-empty string")
+    if isinstance(evidence.max_depth, bool) or not isinstance(evidence.max_depth, int) or evidence.max_depth < 0:
+        raise ArtifactValidationError("formal_verification.max_depth must be an integer >= 0")
+    if not isinstance(evidence.checked_specs, list) or not evidence.checked_specs:
+        raise ArtifactValidationError("formal_verification.checked_specs must be a non-empty list")
+    for spec in evidence.checked_specs:
+        if not isinstance(spec, str) or not spec:
+            raise ArtifactValidationError("formal_verification.checked_specs must contain non-empty strings")
+    if not isinstance(evidence.report_sha256, str) or not _is_sha256_hex(evidence.report_sha256):
+        raise ArtifactValidationError("formal_verification.report_sha256 must be a SHA-256 hex digest")
+    if not isinstance(evidence.claim_boundary, str) or not evidence.claim_boundary:
+        raise ArtifactValidationError("formal_verification.claim_boundary must be a non-empty string")
+    boundary = evidence.claim_boundary.lower()
+    if "bounded" not in boundary or "unbounded" in boundary:
+        raise ArtifactValidationError("formal_verification.claim_boundary must state a bounded proof boundary")
+    if evidence.report_uri is not None and (not isinstance(evidence.report_uri, str) or not evidence.report_uri):
+        raise ArtifactValidationError("formal_verification.report_uri must be a non-empty string when supplied")
+    if evidence.generated_utc is not None and (
+        not isinstance(evidence.generated_utc, str) or not evidence.generated_utc
+    ):
+        raise ArtifactValidationError("formal_verification.generated_utc must be a non-empty string when supplied")
+    if evidence.counterexample_path is not None:
+        if not isinstance(evidence.counterexample_path, list) or not evidence.counterexample_path:
+            raise ArtifactValidationError("formal_verification.counterexample_path must be a non-empty list")
+        for transition in evidence.counterexample_path:
+            if not isinstance(transition, str) or not transition:
+                raise ArtifactValidationError("formal_verification.counterexample_path must contain transition names")
+    if evidence.counterexample_property is not None and (
+        not isinstance(evidence.counterexample_property, str) or not evidence.counterexample_property
+    ):
+        raise ArtifactValidationError("formal_verification.counterexample_property must be non-empty when supplied")
+    if evidence.status == "fail" and (evidence.counterexample_path is None or evidence.counterexample_property is None):
+        raise ArtifactValidationError(
+            "formal_verification failed proof evidence must include counterexample path and property"
+        )
+
+
+def validate_safety_critical_artifact(artifact: Artifact) -> None:
+    """Fail closed unless a controller artifact carries passing bounded-proof evidence."""
+    if artifact.formal_verification is None:
+        raise ArtifactValidationError("safety-critical artifact requires formal_verification evidence")
+    _validate_formal_verification(artifact.formal_verification)
+    if not artifact.formal_verification.required:
+        raise ArtifactValidationError("safety-critical artifact formal_verification.required must be true")
+    if artifact.formal_verification.status != "pass":
+        raise ArtifactValidationError("safety-critical artifact requires passing formal_verification evidence")
 
 
 def _encode_u64_compact(data_u64: List[int]) -> Dict[str, Any]:
@@ -261,6 +381,8 @@ def decode_u64_compact(encoded: Dict[str, Any]) -> List[int]:
 def _validate(artifact: Artifact) -> None:
     """Lightweight checks: required fields, ranges, shape consistency."""
     meta = artifact.meta
+    if artifact.formal_verification is not None:
+        _validate_formal_verification(artifact.formal_verification)
 
     if meta.firing_mode not in ("binary", "fractional"):
         raise ArtifactValidationError(f"firing_mode must be 'binary' or 'fractional', got '{meta.firing_mode}'")
@@ -382,7 +504,7 @@ def _validate(artifact: Artifact) -> None:
 # ── Load / Save ─────────────────────────────────────────────────────────────
 
 
-def load_artifact(path: str | Path) -> Artifact:
+def load_artifact(path: str | Path, require_formal_verification: bool = False) -> Artifact:
     """Parse a ``.scpnctl.json`` file into an ``Artifact`` dataclass."""
     with open(path, "r", encoding="utf-8") as f:
         obj = json.load(f)
@@ -506,8 +628,11 @@ def load_artifact(path: str | Path) -> Artifact:
         weights=weights,
         readout=readout,
         initial_state=initial_state,
+        formal_verification=_parse_formal_verification(obj.get("formal_verification")),
     )
     _validate(artifact)
+    if require_formal_verification:
+        validate_safety_critical_artifact(artifact)
     return artifact
 
 
@@ -594,6 +719,33 @@ def get_artifact_json_schema() -> Dict[str, Any]:
                 "properties": {
                     "marking": {"type": "array", "items": {"type": "number"}},
                     "place_injections": {"type": "array"},
+                },
+            },
+            "formal_verification": {
+                "type": "object",
+                "required": [
+                    "required",
+                    "status",
+                    "backend",
+                    "solver",
+                    "max_depth",
+                    "checked_specs",
+                    "report_sha256",
+                    "claim_boundary",
+                ],
+                "properties": {
+                    "required": {"type": "boolean"},
+                    "status": {"type": "string", "enum": ["pass", "fail", "blocked"]},
+                    "backend": {"type": "string"},
+                    "solver": {"type": "string"},
+                    "max_depth": {"type": "integer", "minimum": 0},
+                    "checked_specs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "report_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+                    "claim_boundary": {"type": "string"},
+                    "report_uri": {"type": "string"},
+                    "generated_utc": {"type": "string"},
+                    "counterexample_path": {"type": "array", "items": {"type": "string"}},
+                    "counterexample_property": {"type": "string"},
                 },
             },
         },
@@ -721,6 +873,10 @@ def save_artifact(
 
     if packed_dict is not None:
         obj["weights"]["packed"] = packed_dict
+
+    if artifact.formal_verification is not None:
+        _validate_formal_verification(artifact.formal_verification)
+        obj["formal_verification"] = _formal_verification_dict(artifact.formal_verification)
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)

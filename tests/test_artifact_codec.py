@@ -1,16 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Artifact Codec
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Artifact Compact Codec Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Artifact Codec Tests
 """Edge case tests for the u64 compact codec and artifact validation."""
 
 from __future__ import annotations
@@ -84,6 +78,21 @@ def _write_mutated_artifact_raw(source: Path, output: Path, mutator) -> Path:
     mutator(payload)
     output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return output
+
+
+def _passing_formal_evidence() -> dict[str, object]:
+    return {
+        "required": True,
+        "status": "pass",
+        "backend": "z3",
+        "solver": "z3-solver 4.16.0",
+        "max_depth": 8,
+        "checked_specs": ["always_bounded_marking", "never_comarked"],
+        "report_sha256": "a" * 64,
+        "claim_boundary": "bounded SMT proof through depth 8 over compiled transition relation",
+        "report_uri": "validation/reports/scpn_z3_formal.json",
+        "generated_utc": "2026-05-31T00:00:00Z",
+    }
 
 
 class TestCompactCodecRoundTrip:
@@ -283,6 +292,94 @@ class TestArtifactValidationContract:
 
         with pytest.raises(ArtifactValidationError, match="neg_place"):
             load_artifact(str(bad_path))
+
+    def test_safety_critical_artifact_requires_formal_proof_manifest(self, artifact_path: Path) -> None:
+        with pytest.raises(ArtifactValidationError, match="formal_verification"):
+            load_artifact(str(artifact_path), require_formal_verification=True)
+
+    def test_safety_critical_artifact_accepts_passing_z3_formal_proof(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        proven_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "proven.scpnctl.json",
+            lambda payload: payload.__setitem__("formal_verification", _passing_formal_evidence()),
+        )
+
+        artifact = load_artifact(str(proven_path), require_formal_verification=True)
+
+        assert artifact.formal_verification is not None
+        assert artifact.formal_verification.status == "pass"
+        assert artifact.formal_verification.backend == "z3"
+        assert artifact.formal_verification.max_depth == 8
+        assert artifact.formal_verification.report_sha256 == "a" * 64
+
+    def test_safety_critical_artifact_rejects_blocked_formal_proof(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        def mutate(payload: dict[str, object]) -> None:
+            evidence = _passing_formal_evidence()
+            evidence["status"] = "blocked"
+            payload["formal_verification"] = evidence
+
+        blocked_path = _write_mutated_artifact_raw(artifact_path, tmp_path / "blocked.scpnctl.json", mutate)
+
+        with pytest.raises(ArtifactValidationError, match="requires passing"):
+            load_artifact(str(blocked_path), require_formal_verification=True)
+
+    def test_failed_formal_proof_manifest_must_store_counterexample_path(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        def mutate(payload: dict[str, object]) -> None:
+            evidence = _passing_formal_evidence()
+            evidence["status"] = "fail"
+            payload["formal_verification"] = evidence
+
+        failed_path = _write_mutated_artifact_raw(artifact_path, tmp_path / "failed-missing-path.scpnctl.json", mutate)
+
+        with pytest.raises(ArtifactValidationError, match="counterexample path"):
+            load_artifact(str(failed_path))
+
+    def test_failed_formal_proof_manifest_preserves_counterexample_path(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        def mutate(payload: dict[str, object]) -> None:
+            evidence = _passing_formal_evidence()
+            evidence["status"] = "fail"
+            evidence["counterexample_path"] = ["T0", "T1"]
+            evidence["counterexample_property"] = "always_bounded_marking"
+            payload["formal_verification"] = evidence
+
+        failed_path = _write_mutated_artifact_raw(artifact_path, tmp_path / "failed-with-path.scpnctl.json", mutate)
+        artifact = load_artifact(str(failed_path))
+
+        assert artifact.formal_verification is not None
+        assert artifact.formal_verification.status == "fail"
+        assert artifact.formal_verification.counterexample_path == ["T0", "T1"]
+        assert artifact.formal_verification.counterexample_property == "always_bounded_marking"
+
+    def test_formal_proof_manifest_rejects_unbounded_claim_boundary(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        def mutate(payload: dict[str, object]) -> None:
+            evidence = _passing_formal_evidence()
+            evidence["claim_boundary"] = "unbounded controller safety proof"
+            payload["formal_verification"] = evidence
+
+        bad_path = _write_mutated_artifact_raw(artifact_path, tmp_path / "unbounded-claim.scpnctl.json", mutate)
+
+        with pytest.raises(ArtifactValidationError, match="bounded proof boundary"):
+            load_artifact(str(bad_path), require_formal_verification=True)
 
     def test_artifact_serialises_notes_and_noncompact_packed_weights(
         self,
