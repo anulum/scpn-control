@@ -96,7 +96,7 @@ def test_validate_manifest_directory_rejects_bad_checksum(tmp_path) -> None:
         "synthetic": False,
         "source": {
             "kind": "local_archive",
-            "uri": str(artefact),
+            "uri": artefact.name,
             "access": "temporary test archive",
         },
         "retrieved_at": "2026-05-18T01:30:00Z",

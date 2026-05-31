@@ -82,10 +82,12 @@ validation evidence from CI fixtures. A manifest claiming real-shot validation
 must include a non-synthetic source kind, machine, shot, signal paths, physical
 units, retrieval timestamp, checksum, and licence or facility data policy. Local
 real-data manifests can additionally verify the referenced artefact checksum
-with `--verify-artifact`. Synthetic manifests remain allowed for CI, but require
-generator and seed metadata and are reported as `kind: synthetic`. Manifest and
-acquisition-spec JSON is parsed with duplicate-key rejection so provenance fields
-cannot be overwritten silently by ambiguous objects.
+with `--verify-artifact`; local artefact URIs must be relative and resolve under
+the manifest evidence tree or repository root, not arbitrary absolute paths.
+Synthetic manifests remain allowed for CI, but require generator and seed
+metadata and are reported as `kind: synthetic`. Manifest and acquisition-spec
+JSON is parsed with duplicate-key rejection so provenance fields cannot be
+overwritten silently by ambiguous objects.
 
 CI validates the full manifest set and writes a JSON evidence report:
 

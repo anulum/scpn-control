@@ -293,14 +293,33 @@ def _resolve_local_artifact(uri: str, manifest_path: Path) -> Path:
         raise RealDataManifestError(f"artifact verification requires a local URI, got {uri!r}")
     candidate = Path(uri)
     if candidate.is_absolute():
-        if not candidate.is_file():
-            raise RealDataManifestError(f"artifact file not found: {candidate}")
-        return candidate
-    for parent in (Path.cwd(), *manifest_path.resolve().parents):
-        resolved = parent / candidate
+        raise RealDataManifestError("artifact URI must be relative to the manifest evidence tree")
+    if any(part == ".." for part in candidate.parts):
+        raise RealDataManifestError("artifact URI must not contain parent traversal")
+
+    roots = _artifact_resolution_roots(manifest_path)
+    for root in roots:
+        root_resolved = root.resolve(strict=False)
+        resolved = (root_resolved / candidate).resolve(strict=False)
+        try:
+            resolved.relative_to(root_resolved)
+        except ValueError:
+            continue
         if resolved.is_file():
             return resolved
     raise RealDataManifestError(f"artifact file not found: {uri}")
+
+
+def _artifact_resolution_roots(manifest_path: Path) -> tuple[Path, ...]:
+    manifest_parent = manifest_path.resolve(strict=False).parent
+    roots: list[Path] = [manifest_parent]
+    if manifest_parent.name == "manifests":
+        roots.append(manifest_parent.parent)
+    for parent in manifest_parent.parents:
+        if (parent / "pyproject.toml").is_file() or (parent / ".git").exists():
+            roots.append(parent)
+            break
+    return tuple(dict.fromkeys(roots))
 
 
 def _sha256_file(path: Path) -> str:

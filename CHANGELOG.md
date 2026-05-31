@@ -18,6 +18,9 @@
 - Double-gated controller bit-flip fault injection behind both constructor and
   environment opt-ins, and hardened controller JSONL append handling against
   symlink-target writes where platform support is available.
+- Hardened real-data manifest artefact verification so checksum-covered local
+  evidence must use relative, non-traversing paths resolved under the manifest
+  evidence tree or repository root.
 - Added a public production-readiness boundary that separates
   production-oriented library engineering from facility deployment, external
   validation, measured-shot validation, and certification claims.

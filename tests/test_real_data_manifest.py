@@ -306,7 +306,7 @@ def test_manifest_artifact_verification_rejects_checksum_mismatch(tmp_path) -> N
     payload = _real_payload()
     payload["source"] = {
         "kind": "local_archive",
-        "uri": str(artefact),
+        "uri": artefact.name,
         "access": "temporary test archive",
     }
     payload["checksum_sha256"] = "0" * 64
@@ -340,7 +340,8 @@ def test_manifest_artifact_list_verifies_each_local_checksum(tmp_path) -> None:
     ("uri", "message"),
     [
         ("mdsplus://DIII-D/163303", "artifact verification requires a local URI"),
-        ("/definitely/missing/scpn-control-artifact.npz", "artifact file not found"),
+        ("/definitely/missing/scpn-control-artifact.npz", "artifact URI must be relative"),
+        ("../escape.npz", "artifact URI must not contain parent traversal"),
         ("missing-shot.npz", "artifact file not found"),
     ],
 )
@@ -372,7 +373,7 @@ def test_manifest_artifact_list_rejects_checksum_mismatch(tmp_path) -> None:
         "access": "temporary test archive",
     }
     payload.pop("checksum_sha256")
-    payload["artifacts"] = [{"uri": str(artefact), "checksum_sha256": "0" * 64}]
+    payload["artifacts"] = [{"uri": artefact.name, "checksum_sha256": "0" * 64}]
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(payload), encoding="utf-8")
 
