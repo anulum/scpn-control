@@ -762,7 +762,8 @@
       "required_actions": [
         "Provide validated TRANSP, TSC, measured-discharge, or documented public-reference artifacts before measured replay claims",
         "Validate online update trajectories against replayed or measured discharge histories before deployment use",
-        "Persist simulator artifact hashes, units, case ids, strictly increasing time bases, observation digests, prior digests, result digests, finite loss-history minima, parameter-domain admission, and baseline-improvement evidence for every promoted update campaign"
+        "Persist simulator artifact hashes, units, case ids, strictly increasing time bases, observation digests, prior digests, result digests, finite loss-history minima, parameter-domain admission, and baseline-improvement evidence for every promoted update campaign",
+        "Bind promoted online-update evidence to the safety-critical controller proof artifact digest when used in a controller safety case"
       ],
       "unit_contract": "Tunable density in m^-3, effective charge dimensionless, actuator lag in steps, actuator rate limit dimensionless per step, target metrics in declared digital-twin summary units, non-negative loss values, and simulator time base in seconds.",
       "validation_evidence": [
@@ -942,8 +943,9 @@
       "required_actions": [
         "Wire each remaining legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff",
         "Validate differentiable transport profiles and equilibrium-weighted gradients against measured discharges or published integrated-modelling benchmarks",
-        "Persist backend, dtype, radial-grid, boundary-condition, rollout-length, equilibrium-grid, flux-weighting, gradient-tolerance, and replay-drift metadata for controller-tuning campaigns",
-        "Replace bounded reduced-gyrokinetic and JAX GK stiffness closures with externally validated GK transport coefficients before quantitative transport-control claims"
+        "Persist backend, dtype, radial-grid, boundary-condition, rollout-length, equilibrium-grid, flux-weighting, gradient-tolerance, gradient-audit digest, and replay-drift metadata for controller-tuning campaigns",
+        "Replace bounded reduced-gyrokinetic and JAX GK stiffness closures with externally validated GK transport coefficients before quantitative transport-control claims",
+        "Bind promoted differentiable-transport evidence to the safety-critical controller proof artifact digest when used in a controller safety case"
       ],
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced; audit loss, audit errors, and latency percentiles are finite non-negative scalar evidence.",
       "validation_evidence": [
@@ -1789,7 +1791,16 @@
         "Validate certification packages with an external safety-case review before hardware-control claims",
         "Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted",
         "Require schema-versioned Z3 report payload digests to match safety-critical proof manifests before artifact admission",
-        "Resolve typed readiness artifact URIs under an explicit artifact root and validate target-hardware timing reports through the E2E latency evidence gate before promotion readiness."
+        "Resolve typed readiness artifact URIs under an explicit artifact root and validate target-hardware timing reports through the E2E latency evidence gate before promotion readiness.",
+        "Admit safety-critical `.scpnctl` artifacts only through the bounded formal-verification manifest gate",
+        "Bind admitted proof manifests to the exact canonical artifact payload digest and declared report digest",
+        "Bind promoted controller safety-case bundles to the same controller artifact digest across formal proof, differentiable-transport, and digital-twin update evidence",
+        "Persist controller safety-case bundles with schema-versioned integrity manifests before replay admission",
+        "Keep controller safety-case readiness blocked until external physics validation, target-hardware timing, and independent safety-review digests are all present",
+        "Prefer typed readiness artifacts with safe relative URIs, producers, timestamps, and kind-specific SHA-256 digests over anonymous promotion digests",
+        "Persist controller safety-case readiness decisions with schema-versioned integrity manifests before promotion replay",
+        "Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation",
+        "Treat missing `z3-solver` as blocked SMT evidence, not as a successful proof"
       ],
       "unit_contract": "Markings are dimensionless token densities; arc weights and invariant weights are rationalised from finite decimal inputs; max_depth is a non-negative integer firing bound; temporal response windows count transition firings.",
       "validation_evidence": [
