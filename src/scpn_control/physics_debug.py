@@ -341,8 +341,10 @@ class PhysicsDebugGuardrailProvider:
         prompt: str,
         evidence: list[dict[str, Any]],
         gaps: list[dict[str, Any]],
+        provider_metadata: Mapping[str, Any],
         provider_output: Mapping[str, Any],
         policy: ProviderPolicy,
+        safety_policy: PhysicsDebugSafetyPolicy,
         guardrail_policy: PhysicsDebugGuardrailPolicy,
     ) -> dict[str, Any]:
         """Return a validated guardrail review for a provider draft."""
@@ -352,7 +354,9 @@ class PhysicsDebugGuardrailProvider:
             prompt=prompt,
             evidence=evidence,
             gaps=gaps,
+            provider_metadata=provider_metadata,
             provider_output=provider_output,
+            safety_policy=safety_policy,
             guardrail_policy=guardrail_policy,
         )
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -419,8 +423,10 @@ class PhysicsDebugAssistant:
                 prompt=prompt,
                 evidence=evidence_payload,
                 gaps=gap_payload,
+                provider_metadata=provider.metadata(),
                 provider_output=provider_output,
                 policy=self.policy,
+                safety_policy=self.safety_policy,
                 guardrail_policy=self.guardrail_policy,
             )
         return build_physics_debug_report(
@@ -590,7 +596,7 @@ def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(gaps, list) or not gaps:
         raise ValueError("physics debug report gaps must be a non-empty list")
     _validate_evidence_gap_linkage(evidence, gaps)
-    _validate_report_guardrail(payload.get("guardrail"), evidence, guardrail_policy)
+    _validate_report_guardrail(payload.get("guardrail"), evidence, provider, safety_policy, guardrail_policy)
     _validate_hypotheses(payload.get("hypotheses"), evidence, gaps, safety_policy)
     _validate_campaigns(payload.get("campaign_suggestions"), payload["hypotheses"], safety_policy)
     redactions = payload.get("redactions")
@@ -905,13 +911,18 @@ def _guardrail_request_payload(
     prompt: str,
     evidence: list[dict[str, Any]],
     gaps: list[dict[str, Any]],
+    provider_metadata: Mapping[str, Any],
     provider_output: Mapping[str, Any],
+    safety_policy: PhysicsDebugSafetyPolicy,
     guardrail_policy: PhysicsDebugGuardrailPolicy,
 ) -> dict[str, Any]:
     request = {
         "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
         "evidence_sha256": _payload_digest({"evidence": evidence}),
         "gaps_sha256": _payload_digest({"gaps": gaps}),
+        "provider_sha256": _payload_digest({"provider": dict(provider_metadata)}),
+        "safety_policy_sha256": _payload_digest({"safety_policy": safety_policy.payload()}),
+        "guardrail_policy_sha256": _payload_digest({"guardrail_policy": guardrail_policy.payload()}),
         "provider_output_sha256": _payload_digest({"provider_output": dict(provider_output)}),
     }
     return {
@@ -1002,6 +1013,8 @@ def _disabled_guardrail_review(guardrail_policy: PhysicsDebugGuardrailPolicy) ->
 def _validate_report_guardrail(
     value: object,
     evidence: list[dict[str, Any]],
+    provider: Mapping[str, Any],
+    safety_policy: PhysicsDebugSafetyPolicy,
     guardrail_policy: PhysicsDebugGuardrailPolicy,
 ) -> None:
     if not isinstance(value, dict):
@@ -1022,6 +1035,15 @@ def _validate_report_guardrail(
             raise ValueError("physics debug report guardrail decision is unsupported")
         _validate_guardrail_provider_metadata(value.get("provider"))
         request = _validate_guardrail_request_metadata(value.get("request"))
+        expected_provider_sha256 = _payload_digest({"provider": dict(provider)})
+        if request["provider_sha256"] != expected_provider_sha256:
+            raise ValueError("physics debug report guardrail provider_sha256 does not match provider")
+        expected_safety_policy_sha256 = _payload_digest({"safety_policy": safety_policy.payload()})
+        if request["safety_policy_sha256"] != expected_safety_policy_sha256:
+            raise ValueError("physics debug report guardrail safety_policy_sha256 does not match safety_policy")
+        expected_guardrail_policy_sha256 = _payload_digest({"guardrail_policy": guardrail_policy.payload()})
+        if request["guardrail_policy_sha256"] != expected_guardrail_policy_sha256:
+            raise ValueError("physics debug report guardrail guardrail_policy_sha256 does not match guardrail_policy")
         reviewed_output_sha256 = value.get("reviewed_output_sha256")
         if not isinstance(reviewed_output_sha256, str) or not _is_sha256(reviewed_output_sha256):
             raise ValueError("physics debug report guardrail reviewed_output_sha256 must be a SHA-256 hex digest")
@@ -1057,7 +1079,15 @@ def _validate_guardrail_request_metadata(value: object) -> dict[str, str]:
     if not isinstance(value, dict):
         raise ValueError("physics debug guardrail request must be an object")
     result: dict[str, str] = {}
-    for key in ("prompt_sha256", "evidence_sha256", "gaps_sha256", "provider_output_sha256"):
+    for key in (
+        "prompt_sha256",
+        "evidence_sha256",
+        "gaps_sha256",
+        "provider_sha256",
+        "safety_policy_sha256",
+        "guardrail_policy_sha256",
+        "provider_output_sha256",
+    ):
         digest = value.get(key)
         if not isinstance(digest, str) or not _is_sha256(digest):
             raise ValueError(f"physics debug guardrail request {key} must be a SHA-256 hex digest")

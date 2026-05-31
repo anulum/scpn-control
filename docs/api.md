@@ -49,9 +49,12 @@ guardrail gateway with a `director-ai` default profile and explicit alternate
 profiles for lab-owned guardrail solutions. Guardrail block decisions fail
 closed before report persistence; allow findings are bound into the report
 digest together with the SHA-256 digest of the reviewed provider draft.
-High-severity guardrail findings must use block actions, and risk controls must
-meet the configured guardrail policy before persistence. They are not validated
-physics truth, controller-parameter promotion, or facility safety approval.
+The guardrail request also binds the provider metadata, safety policy, and
+guardrail policy digests so reviews cannot be replayed across another provider
+or relaxed policy. High-severity guardrail findings must use block actions, and
+risk controls must meet the configured guardrail policy before persistence.
+They are not validated physics truth, controller-parameter promotion, or
+facility safety approval.
 `run_provider_quorum()` runs multiple providers in local-first order and admits
 only hypotheses corroborated by the required provider count over the same gap
 and evidence set.

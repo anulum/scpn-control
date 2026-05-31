@@ -25,7 +25,9 @@ guardrail solutions. Guardrail block decisions fail closed before report
 persistence, while allow findings are recorded in the same tamper-evident
 report digest with the reviewed provider-draft SHA-256. High-severity
 guardrail findings require block actions, and admitted guardrail reviews must
-meet the configured risk-control minimum.
+meet the configured risk-control minimum. Guardrail request metadata binds the
+provider, safety policy, and guardrail policy digests so admitted reviews cannot
+be replayed across a different provider or a relaxed policy.
 `PhysicsDebugSafetyPolicy` binds mandatory human review, caps advisory
 confidence, and rejects provider text that attempts controller promotion,
 actuation, review bypass, or approval claims before evidence can be persisted.

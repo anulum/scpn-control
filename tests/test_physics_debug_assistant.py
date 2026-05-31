@@ -86,9 +86,20 @@ def test_physics_debug_records_director_guardrail_allow_findings_in_report_diges
 
     def guardrail_transport(payload: dict[str, object]) -> dict[str, object]:
         encoded = json.dumps(payload)
+        request = payload["request"]  # type: ignore[index]
+        assert isinstance(request, dict)
         assert "physics_debug_guardrail_review" in encoded
         assert "gk-cbc-linear-dispersion" in encoded
         assert "campaign-reference-normalization" in encoded
+        assert all(
+            isinstance(request[key], str) and len(request[key]) == 64
+            for key in (
+                "provider_sha256",
+                "safety_policy_sha256",
+                "guardrail_policy_sha256",
+                "provider_output_sha256",
+            )
+        )
         return {
             "decision": "allow",
             "findings": [
@@ -119,9 +130,100 @@ def test_physics_debug_records_director_guardrail_allow_findings_in_report_diges
     assert report["guardrail"]["enabled"] is True
     assert report["guardrail"]["provider"]["profile"] == "director-ai"
     assert report["guardrail"]["decision"] == "allow"
+    assert len(report["guardrail"]["request"]["provider_sha256"]) == 64
+    assert len(report["guardrail"]["request"]["safety_policy_sha256"]) == 64
+    assert len(report["guardrail"]["request"]["guardrail_policy_sha256"]) == 64
     assert report["guardrail"]["findings"][0]["finding_id"] == "evidence-bound-hypothesis"
     assert report["guardrail"]["reviewed_output_sha256"] == report["guardrail"]["request"]["provider_output_sha256"]
     assert validate_physics_debug_report(report) == report
+
+
+def test_physics_debug_report_rejects_guardrail_provider_replay() -> None:
+    physics_provider = build_local_provider(
+        family="direct-json",
+        model="onsite-model",
+        provider_name="onsite-physics-debugger",
+        transport=lambda payload: _safe_provider_response(),
+    )
+    guardrail_provider = build_guardrail_provider(
+        model="director-physics-guard",
+        provider_name="director-guardrail",
+        transport=lambda payload: {
+            "decision": "allow",
+            "findings": [
+                {
+                    "finding_id": "evidence-bound-hypothesis",
+                    "severity": "low",
+                    "message": "Hypotheses cite supplied evidence and remain advisory.",
+                    "evidence_ids": ["cbc-linear-dispersion"],
+                    "action": "allow",
+                }
+            ],
+            "risk_controls": ["human review required", "offline advisory only"],
+        },
+    )
+    report = PhysicsDebugAssistant().analyze(
+        evidence=[_cbc_evidence()],
+        gaps=[_cbc_gap()],
+        provider=physics_provider,
+        guardrail_provider=guardrail_provider,
+    )
+    replayed = dict(report)
+    replayed["guardrail"] = {
+        **report["guardrail"],
+        "request": {
+            **report["guardrail"]["request"],
+            "provider_sha256": "d" * 64,
+        },
+    }
+    replayed["payload_sha256"] = report["payload_sha256"]
+
+    with pytest.raises(ValueError, match="provider_sha256"):
+        validate_physics_debug_report(replayed)
+
+
+def test_physics_debug_report_rejects_guardrail_policy_replay() -> None:
+    physics_provider = build_local_provider(
+        family="direct-json",
+        model="onsite-model",
+        provider_name="onsite-physics-debugger",
+        transport=lambda payload: _safe_provider_response(),
+    )
+    guardrail_provider = build_guardrail_provider(
+        model="director-physics-guard",
+        provider_name="director-guardrail",
+        transport=lambda payload: {
+            "decision": "allow",
+            "findings": [
+                {
+                    "finding_id": "evidence-bound-hypothesis",
+                    "severity": "low",
+                    "message": "Hypotheses cite supplied evidence and remain advisory.",
+                    "evidence_ids": ["cbc-linear-dispersion"],
+                    "action": "allow",
+                }
+            ],
+            "risk_controls": ["human review required", "offline advisory only"],
+        },
+    )
+    report = PhysicsDebugAssistant().analyze(
+        evidence=[_cbc_evidence()],
+        gaps=[_cbc_gap()],
+        provider=physics_provider,
+        guardrail_provider=guardrail_provider,
+    )
+    replayed = dict(report)
+    replayed["guardrail"] = {
+        **report["guardrail"],
+        "request": {
+            **report["guardrail"]["request"],
+            "guardrail_policy_sha256": "e" * 64,
+        },
+    }
+    replayed["payload_sha256"] = report["payload_sha256"]
+
+    with pytest.raises(ValueError, match="guardrail_policy_sha256"):
+        validate_physics_debug_report(replayed)
 
 
 def test_physics_debug_guardrail_rejects_mismatched_reviewed_output_digest() -> None:
