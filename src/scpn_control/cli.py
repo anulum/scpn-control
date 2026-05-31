@@ -33,6 +33,7 @@ Usage::
     scpn-control validate-burn-reference --require-reference-artifacts --json-out
     scpn-control validate-volt-second-reference --require-reference-artifacts --json-out
     scpn-control validate-current-drive-reference --require-reference-artifacts --json-out
+    scpn-control validate-mu-synthesis-reference --require-reference-artifacts --json-out
     scpn-control validate-free-boundary-reference --require-reference-artifacts --json-out
     scpn-control validate-disruption-reference --require-reference-artifacts --json-out
     scpn-control validate-digital-twin-reference --require-reference-artifacts --json-out
@@ -892,6 +893,38 @@ def validate_current_drive_reference_command(
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
         click.echo(f"Current-drive reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-mu-synthesis-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted mu-synthesis reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_mu_synthesis_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted mu-synthesis reference artifacts."""
+    from validation.validate_mu_synthesis_reference import ROOT, validate_mu_synthesis_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "mu_synthesis_reference")
+    report = validate_mu_synthesis_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Mu-synthesis reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":

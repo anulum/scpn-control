@@ -469,6 +469,33 @@ artifacts with source provenance, model identity, SHA-256 reference hash, source
 metadata, unit contracts, case count, and current-drive metrics inside declared
 tolerances.
 
+Static mu-analysis validation claims require persisted documented public,
+external mu-toolbox, or measured control replay artifacts for mu upper bound,
+robustness margin, controller gain, D-scaling, and closed-loop spectral
+abscissa checks:
+
+Bounded local mu-synthesis claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_mu_synthesis_claims.py
+```
+
+This writes `validation/reports/mu_synthesis_claims.json` and
+`validation/reports/mu_synthesis_claims.md`. These artefacts demonstrate
+deterministic static mu-analysis claim-admission plumbing only; full
+frequency-dependent D-K synthesis claims remain gated by the strict
+reference-artifact validator below.
+
+```bash
+scpn-control validate-mu-synthesis-reference --require-reference-artifacts --json-out
+python validation/validate_mu_synthesis_reference.py --require-reference-artifacts --output-json artifacts/mu_synthesis_reference_report.json
+```
+
+Strict mode fails until `validation/reports/mu_synthesis_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, plant
+metadata, unit contracts, case count, and mu-analysis metrics inside declared
+tolerances.
+
 Disruption-mitigation contract validation claims require persisted
 public-reference, measured-disruption, or external benchmark artifacts for
 warning lead time, mitigation outcome, halo current, runaway beam, and TBR

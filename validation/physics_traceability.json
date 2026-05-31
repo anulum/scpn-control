@@ -1679,29 +1679,37 @@
       "model_references": [
         "Doyle 1982 structured singular value definition",
         "Balas et al. 1993 mu-analysis and synthesis toolbox",
-        "Skogestad and Postlethwaite 2005 multivariable feedback control"
+        "Skogestad and Postlethwaite 2005 multivariable feedback control",
+        "Repository fail-closed static mu-analysis claim-admission contract"
       ],
       "module_path": "src/scpn_control/control/mu_synthesis.py",
       "public_claim_allowed": false,
       "required_actions": [
+        "Attach strict documented public, external mu-toolbox, or measured control replay artifacts before validated robust-control claims",
         "Wire a validated frequency-dependent H-infinity synthesis backend before making full D-K synthesis claims",
         "Persist benchmark plants, frequency grids, D-scale fits, and mu upper/lower bounds for every promoted controller claim"
       ],
       "unit_contract": "State, control, output, and uncertainty units inherit the supplied state-space plant contract; mu, uncertainty bounds, and D-scalings are dimensionless.",
       "validation_evidence": [
-        "tests/test_mu_synthesis.py verifies D-scaled upper-bound behaviour, uncertainty-bound scaling, finite-domain rejection, and closed-loop plant dependence",
+        "tests/test_mu_synthesis.py D-scaled upper-bound behaviour, uncertainty-bound scaling, finite-domain rejection, closed-loop plant dependence, and claim-admission checks",
+        "validation/validate_mu_synthesis_reference.py strict mu-analysis reference artifact gate",
+        "validation/benchmark_mu_synthesis_claims.py bounded claim-admission benchmark",
         "docs/learning/control_theory_primer.md states the bounded static analysis domain"
       ],
       "evidence_paths": [
         "src/scpn_control/control/mu_synthesis.py",
         "tests/test_mu_synthesis.py",
+        "validation/validate_mu_synthesis_reference.py",
+        "validation/benchmark_mu_synthesis_claims.py",
+        "validation/reports/mu_synthesis_claims.json",
+        "validation/reports/mu_synthesis_claims.md",
         "docs/learning/control_theory_primer.md",
         "README.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/mu_synthesis.py"
       ],
-      "validity_domain": "Static continuous-time state-feedback analysis for repository benchmark plants; not full frequency-dependent D-K synthesis and not facility hardware validation.",
+      "validity_domain": "Static continuous-time state-feedback analysis plus fail-closed claim-admission evidence for repository benchmark plants; not full frequency-dependent D-K synthesis and not facility hardware validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {

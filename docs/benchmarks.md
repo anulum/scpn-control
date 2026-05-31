@@ -396,6 +396,24 @@ Ray-traced, Fokker-Planck, or measured-deposition current-drive claims still
 require strict reference artifacts for total power, driven current, deposition
 centroid, peak current density, and NBI slowing-down agreement.
 
+## Mu-synthesis Claim-Admission Benchmark
+
+`validation/benchmark_mu_synthesis_claims.py` publishes bounded repository
+regression evidence for the static D-scaled structured-singular-value analysis
+claim boundary. The generated report records plant dimensions, uncertainty
+blocks, mu upper bound, robustness margin, controller gain norm, D-scalings,
+closed-loop spectral abscissa, and the explicit validated-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/mu_synthesis_claims.json`
+- `validation/reports/mu_synthesis_claims.md`
+
+Full frequency-dependent D-K synthesis claims still require documented public,
+external mu-toolbox, or measured control replay references for mu upper bound,
+robustness margin, controller gain, D-scaling, and closed-loop spectral-abscissa
+agreement.
+
 ## Disruption-mitigation Claim-Admission Benchmark
 
 `validation/benchmark_disruption_mitigation_claims.py` publishes deterministic

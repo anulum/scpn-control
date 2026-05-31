@@ -82,6 +82,10 @@
   admission for matched public, ray-tracing, Fokker-Planck, or measured
   deposition artefacts covering absorbed power, driven current, deposition
   centroid, peak current density, and NBI slowing-down provenance.
+- Added mu-synthesis claim evidence with fail-closed validated robust-control
+  admission for matched public, external mu-toolbox, or measured replay
+  artefacts covering mu upper bounds, robustness margin, controller gain,
+  D-scaling, and closed-loop spectral-abscissa provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.

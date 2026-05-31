@@ -1,0 +1,47 @@
+{
+  "block_structure": [
+    [
+      1,
+      "real_scalar"
+    ],
+    [
+      1,
+      "real_scalar"
+    ]
+  ],
+  "claim_status": "bounded_static_mu_evidence",
+  "closed_loop_spectral_abscissa": -1.4134407528325377,
+  "closed_loop_spectral_abscissa_abs_error": null,
+  "closed_loop_spectral_abscissa_abs_tolerance": 0.05,
+  "control_dimension": 2,
+  "controller_gain_frobenius_norm": 0.5492787852795644,
+  "controller_gain_relative_error": null,
+  "controller_gain_relative_tolerance": 0.1,
+  "d_scaling_relative_error": null,
+  "d_scaling_relative_tolerance": 0.1,
+  "d_scalings": [
+    1.0,
+    1.0032108774858006
+  ],
+  "max_uncertainty_bound": 0.03,
+  "model_id": "bounded_static_mu_synthesis",
+  "mu_peak_upper_bound": 0.022230186986222526,
+  "mu_upper_bound_relative_error": null,
+  "mu_upper_bound_relative_tolerance": 0.05,
+  "output_dimension": 2,
+  "reference_artifact_sha256": null,
+  "reference_case_count": null,
+  "reference_dataset_id": null,
+  "reference_source": null,
+  "robustness_margin": 44.983877131567276,
+  "robustness_margin_abs_error": null,
+  "robustness_margin_abs_tolerance": 0.05,
+  "schema_version": 1,
+  "source": "repository_static_mu_regression",
+  "source_id": "mu-synthesis-claim-benchmark-v1",
+  "state_dimension": 2,
+  "static_dc_analysis_only": true,
+  "uncertainty_block_count": 2,
+  "uncertainty_total_size": 2,
+  "validated_claim_allowed": false
+}
