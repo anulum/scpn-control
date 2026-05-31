@@ -184,7 +184,9 @@ python validation/validate_gk_crosscode.py --require-external-runs --output-json
 Strict mode fails until `validation/reports/gk_crosscode/` contains real-binary
 evidence with code identity, version, run id, execution timestamp, units, native
 and external growth rates, real frequencies, and dominant wavenumber agreement
-inside the declared tolerances.
+inside the declared tolerances. External-code `binary_path` provenance must be
+an absolute filesystem path under an admitted deployment or facility executable
+root; URI, relative, traversal, temporary, or system-control paths are rejected.
 
 Miller geometry validation compares repository flux-tube geometry output against
 immutable circular, shaped, and high-shear reference cases:
@@ -240,6 +242,9 @@ Strict mode fails until `validation/reports/gk_interfaces/` contains interface
 artifacts with code identity, source provenance, version, run id, execution
 timestamp, input and output SHA-256 hashes, parser version, units, finite
 transport coefficients, growth rate, real frequency, and dominant wavenumber.
+Real-executable artifacts must also declare an admitted absolute `binary_path`;
+URI, relative, traversal, temporary, or system-control paths are not accepted as
+executable provenance.
 
 Neural equilibrium cross-validation claims require persisted P-EFIT or
 documented public reference artifacts for the same surrogate weights and
@@ -293,7 +298,9 @@ Strict mode fails until `validation/reports/neural_transport_reference/`
 contains artifacts with source provenance, surrogate identity, weight and
 reference SHA-256 hashes, QLKNN-10D feature ordering, target-unit contracts,
 reference-sample count, and chi_i/chi_e/D_e plus branch-accuracy metrics inside
-declared tolerances.
+declared tolerances. Real QuaLiKiz artifacts must declare an admitted absolute
+`binary_path`; URI, relative, traversal, temporary, or system-control paths are
+rejected before the artifact can support quantitative transport claims.
 
 Neural turbulence surrogate validation claims require persisted gyrokinetic
 campaign or documented public reference artifacts for the same QLKNN-class

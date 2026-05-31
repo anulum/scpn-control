@@ -24,6 +24,10 @@
 - Added shared external-reference URI admission for density, RZIP, orbit, and
   VMEC validation gates so external artifact claims reject ambiguous relative
   paths, arbitrary local file URIs, hosted file URIs, and traversal paths.
+- Hardened external executable provenance admission for GK cross-code, GK
+  interface, and neural transport reference validators so real external-code
+  claims reject URI, relative, traversal, temporary, and system-control
+  `binary_path` values.
 - Added a public production-readiness boundary that separates
   production-oriented library engineering from facility deployment, external
   validation, measured-shot validation, and certification claims.

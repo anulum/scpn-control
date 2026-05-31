@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from validation.reference_uri import external_executable_path_error
+
 ROOT = Path(__file__).resolve().parents[1]
 
 _ALLOWED_EXTERNAL_CODES = {"TGLF", "GENE", "GS2", "CGYRO", "GYRO", "QuaLiKiz"}
@@ -107,6 +109,9 @@ def _validate_evidence_payload(
         errors.append({"path": str(path), "field": "source", "error": "source must be real_binary"})
     if payload.get("external_code") not in _ALLOWED_EXTERNAL_CODES:
         errors.append({"path": str(path), "field": "external_code", "error": "unsupported external GK code"})
+    binary_path_error = external_executable_path_error(payload.get("binary_path"))
+    if binary_path_error is not None:
+        errors.append({"path": str(path), "field": "binary_path", "error": binary_path_error})
     if any(error["path"] == str(path) for error in errors):
         return None
 

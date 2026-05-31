@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from validation.reference_uri import external_executable_path_error
+
 ROOT = Path(__file__).resolve().parents[1]
 
 _ALLOWED_CODES = {"TGLF", "GENE", "GS2", "CGYRO", "QuaLiKiz"}
@@ -118,12 +120,10 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         )
 
     source = payload.get("source")
-    if source == "real_executable" and (
-        not isinstance(payload.get("binary_path"), str) or not str(payload.get("binary_path")).strip()
-    ):
-        errors.append(
-            {"path": str(path), "field": "binary_path", "error": "real executable artifacts require binary_path"}
-        )
+    if source == "real_executable":
+        binary_path_error = external_executable_path_error(payload.get("binary_path"))
+        if binary_path_error is not None:
+            errors.append({"path": str(path), "field": "binary_path", "error": binary_path_error})
     if source == "documented_public_reference" and not _has_public_reference(payload):
         errors.append(
             {

@@ -108,6 +108,34 @@ def test_neural_transport_gate_rejects_synthetic_source(tmp_path: Path) -> None:
     assert report["errors"][0]["field"] == "source"
 
 
+def test_neural_transport_gate_rejects_uri_binary_path(tmp_path: Path) -> None:
+    payload = _valid_qualikiz_reference_artifact()
+    payload["source"] = "real_qualikiz"
+    payload.pop("reference_doi")
+    payload["binary_path"] = "file:///opt/qualikiz/QuaLiKiz"
+    artifact = tmp_path / "uri_binary_reference.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_neural_transport_reference(tmp_path, require_reference_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "binary_path"
+
+
+def test_neural_transport_gate_rejects_traversing_binary_path(tmp_path: Path) -> None:
+    payload = _valid_qualikiz_reference_artifact()
+    payload["source"] = "real_qualikiz"
+    payload.pop("reference_doi")
+    payload["binary_path"] = "/opt/qualikiz/../QuaLiKiz"
+    artifact = tmp_path / "traversing_binary_reference.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_neural_transport_reference(tmp_path, require_reference_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "binary_path"
+
+
 def test_neural_transport_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
     payload = _valid_qualikiz_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])

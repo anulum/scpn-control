@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from validation.reference_uri import external_executable_path_error
+
 ROOT = Path(__file__).resolve().parents[1]
 
 _ALLOWED_SOURCES = {"real_qualikiz", "documented_public_reference"}
@@ -126,8 +128,10 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
                 "error": "source must be real_qualikiz or documented_public_reference",
             }
         )
-    if source == "real_qualikiz" and not isinstance(payload.get("binary_path"), str):
-        errors.append({"path": str(path), "field": "binary_path", "error": "real QuaLiKiz artifacts require binary_path"})
+    if source == "real_qualikiz":
+        binary_path_error = external_executable_path_error(payload.get("binary_path"))
+        if binary_path_error is not None:
+            errors.append({"path": str(path), "field": "binary_path", "error": binary_path_error})
     if source == "documented_public_reference" and not _has_public_reference(payload):
         errors.append(
             {
@@ -137,12 +141,16 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
             }
         )
     if payload.get("feature_schema") != list(_REQUIRED_FEATURE_SCHEMA):
-        errors.append({"path": str(path), "field": "feature_schema", "error": "feature_schema must match QLKNN-10D order"})
+        errors.append(
+            {"path": str(path), "field": "feature_schema", "error": "feature_schema must match QLKNN-10D order"}
+        )
     if not _valid_units(payload.get("units")):
         errors.append({"path": str(path), "field": "units", "error": "units must declare transport target units"})
     count = payload.get("reference_sample_count")
     if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
-        errors.append({"path": str(path), "field": "reference_sample_count", "error": "field must be a positive integer"})
+        errors.append(
+            {"path": str(path), "field": "reference_sample_count", "error": "field must be a positive integer"}
+        )
     _validate_metric_block(path, payload.get("metrics"), payload.get("tolerances"), errors)
     if any(error["path"] == str(path) for error in errors):
         return None
@@ -186,7 +194,9 @@ def _validate_metric_block(
             errors.append({"path": str(path), "field": field, "error": "score must be finite in [0, 1]"})
             continue
         if not _is_unit_interval(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "minimum score tolerance must be finite in [0, 1]"})
+            errors.append(
+                {"path": str(path), "field": field, "error": "minimum score tolerance must be finite in [0, 1]"}
+            )
             continue
         if float(metric) < float(tolerance):
             errors.append({"path": str(path), "field": field, "error": "score is below declared minimum"})
@@ -207,15 +217,24 @@ def _has_public_reference(payload: dict[str, object]) -> bool:
 
 
 def _is_nonnegative_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+    )
 
 
 def _is_positive_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+    )
 
 
 def _is_unit_interval(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and 0.0 <= value <= 1.0
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, int | float)
+        and math.isfinite(float(value))
+        and 0.0 <= value <= 1.0
+    )
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:

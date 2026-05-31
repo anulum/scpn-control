@@ -93,3 +93,27 @@ def test_gk_interface_gate_rejects_missing_hash_provenance(tmp_path: Path) -> No
 
     assert report["status"] == "fail"
     assert report["errors"][0]["field"] == "output_artifact_sha256"
+
+
+def test_gk_interface_gate_rejects_relative_binary_path(tmp_path: Path) -> None:
+    payload = _valid_real_executable_artifact()
+    payload["binary_path"] = "gene"
+    artifact = tmp_path / "relative_binary.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_interface_artifacts(tmp_path, require_interface_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "binary_path"
+
+
+def test_gk_interface_gate_rejects_mutable_binary_root(tmp_path: Path) -> None:
+    payload = _valid_real_executable_artifact()
+    payload["binary_path"] = "/tmp/gene"
+    artifact = tmp_path / "mutable_binary.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_interface_artifacts(tmp_path, require_interface_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "binary_path"

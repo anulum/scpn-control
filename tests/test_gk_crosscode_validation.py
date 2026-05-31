@@ -66,6 +66,30 @@ def test_crosscode_gate_rejects_missing_binary_provenance(tmp_path: Path) -> Non
     assert report["errors"][0]["field"] == "binary_path"
 
 
+def test_crosscode_gate_rejects_uri_binary_provenance(tmp_path: Path) -> None:
+    payload = _valid_gene_report()
+    payload["binary_path"] = "file:///opt/gene/bin/gene"
+    evidence = tmp_path / "gene_cbc.json"
+    evidence.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_crosscode_evidence(tmp_path, require_external_runs=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "binary_path"
+
+
+def test_crosscode_gate_rejects_unadmitted_binary_root(tmp_path: Path) -> None:
+    payload = _valid_gene_report()
+    payload["binary_path"] = "/tmp/gene"
+    evidence = tmp_path / "gene_cbc.json"
+    evidence.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_crosscode_evidence(tmp_path, require_external_runs=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "binary_path"
+
+
 def test_crosscode_gate_rejects_out_of_tolerance_evidence(tmp_path: Path) -> None:
     payload = _valid_gene_report()
     payload["native_gamma_max_cs_over_a"] = 0.35
