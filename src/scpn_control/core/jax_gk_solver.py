@@ -52,6 +52,7 @@ _E_CHARGE = 1.602176634e-19  # C
 JAX_GK_PARITY_SCHEMA_VERSION = "scpn-control.jax-gk-parity.v1"
 JAX_GK_PARITY_EVIDENCE_BOUNDARY = "backend_parity_only"
 JAX_GK_PARITY_SOLVER_CONTRACT = "native_linear_gk_local_dispersion"
+JAX_GK_PARITY_CASES = ("cyclone_base_case", "tem_kinetic_electron", "stable_mode")
 
 _logger = logging.getLogger(__name__)
 
@@ -624,8 +625,9 @@ def build_jax_gk_parity_artifact(
     required before quantitative facility claims.
     """
     _require_jax()
-    if case != "cyclone_base_case":
-        raise ValueError("case must be cyclone_base_case for the built-in parity producer")
+    if case not in JAX_GK_PARITY_CASES:
+        allowed = ", ".join(JAX_GK_PARITY_CASES)
+        raise ValueError(f"case must be one of: {allowed}")
     gamma_tol = float(gamma_relative_tolerance)
     omega_tol = float(omega_absolute_tolerance)
     if not np.isfinite(gamma_tol) or gamma_tol <= 0.0:
@@ -645,11 +647,14 @@ def build_jax_gk_parity_artifact(
     if solver_kwargs:
         run_kwargs.update(solver_kwargs)
     _validate_parity_solver_kwargs(run_kwargs)
+    execution_kwargs, case_parameters, case_acceptance = _parity_case_inputs(case, run_kwargs)
 
-    native = native_result if native_result is not None else solve_linear_gk(**run_kwargs)
-    jax_gk = jax_result if jax_result is not None else solve_linear_gk_jax(**run_kwargs)
+    native = native_result if native_result is not None else solve_linear_gk(**execution_kwargs)
+    jax_gk = jax_result if jax_result is not None else solve_linear_gk_jax(**execution_kwargs)
     native_gamma, native_omega = _dominant_growth_and_frequency(native, "native_result")
     jax_gamma, jax_omega = _dominant_growth_and_frequency(jax_gk, "jax_result")
+    native_mode_types = _mode_type_spectrum(native, "native_result")
+    jax_mode_types = _mode_type_spectrum(jax_gk, "jax_result")
 
     backend_metadata = _jax_backend_metadata()
     payload: dict[str, Any] = {
@@ -676,6 +681,13 @@ def build_jax_gk_parity_artifact(
         "admitted_for_control": False,
         "solver_kwargs": _canonical_solver_kwargs(run_kwargs),
         "solver_kwargs_sha256": _sha256_json(_canonical_solver_kwargs(run_kwargs)),
+        "case_parameters": case_parameters,
+        "case_parameters_sha256": _sha256_json(case_parameters),
+        "case_acceptance": case_acceptance,
+        "native_mode_types": native_mode_types,
+        "jax_mode_types": jax_mode_types,
+        "native_dominant_mode_type": _dominant_mode_type(native, "native_result"),
+        "jax_dominant_mode_type": _dominant_mode_type(jax_gk, "jax_result"),
     }
     payload["payload_sha256"] = _sha256_json(payload)
     return payload
@@ -725,6 +737,87 @@ def _dominant_growth_and_frequency(result: LinearGKResult, label: str) -> tuple[
     dominant_gamma = float(max(gamma[idx], 0.0))
     dominant_omega = float(omega[idx])
     return dominant_gamma, dominant_omega
+
+
+def _mode_type_spectrum(result: LinearGKResult, label: str) -> list[str]:
+    """Return the per-k_y instability labels after validating result shape."""
+    gamma = np.asarray(result.gamma, dtype=np.float64)
+    mode_types = list(result.mode_type)
+    if gamma.ndim != 1 or gamma.size == 0:
+        raise ValueError(f"{label} must contain a non-empty one-dimensional gamma array")
+    if len(mode_types) != gamma.size:
+        raise ValueError(f"{label} must contain one mode type per gamma sample")
+    if any(not isinstance(mode_type, str) or not mode_type.strip() for mode_type in mode_types):
+        raise ValueError(f"{label} mode types must be non-empty strings")
+    return [mode_type.strip() for mode_type in mode_types]
+
+
+def _dominant_mode_type(result: LinearGKResult, label: str) -> str:
+    """Return the mode label at the dominant-growth index."""
+    gamma = np.asarray(result.gamma, dtype=np.float64)
+    mode_types = _mode_type_spectrum(result, label)
+    if not np.all(np.isfinite(gamma)):
+        raise ValueError(f"{label} must contain finite gamma values")
+    return mode_types[int(np.argmax(gamma))]
+
+
+def _parity_case_inputs(
+    case: str, solver_kwargs: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Resolve built-in parity cases into execution kwargs and hashable physics metadata."""
+    execution_kwargs = dict(solver_kwargs)
+    species = [deuterium_ion(), electron()]
+    case_acceptance: dict[str, Any]
+    if case == "cyclone_base_case":
+        case_acceptance = {
+            "required_mode_types": ["ITG"],
+            "max_gamma_max_cs_over_a": None,
+            "description": "Cyclone Base Case ion-temperature-gradient parity guard",
+        }
+    elif case == "tem_kinetic_electron":
+        species = [deuterium_ion(R_L_T=1.0, R_L_n=1.0), electron(R_L_T=8.0, R_L_n=3.0, adiabatic=False)]
+        case_acceptance = {
+            "required_mode_types": ["TEM", "ITG"],
+            "max_gamma_max_cs_over_a": None,
+            "description": "Kinetic-electron trapped-electron-mode branch parity guard",
+        }
+    elif case == "stable_mode":
+        species = [deuterium_ion(R_L_T=0.1, R_L_n=0.1), electron(R_L_T=0.1, R_L_n=0.1)]
+        case_acceptance = {
+            "required_mode_types": ["stable", "ITG"],
+            "max_gamma_max_cs_over_a": 0.01,
+            "description": "Low-drive bounded-growth branch parity guard",
+        }
+    else:
+        allowed = ", ".join(JAX_GK_PARITY_CASES)
+        raise ValueError(f"case must be one of: {allowed}")
+
+    execution_kwargs["species_list"] = species
+    case_parameters = {
+        "case": case,
+        "solver_kwargs": _canonical_solver_kwargs(solver_kwargs),
+        "species": [_canonical_species(species_item) for species_item in species],
+        "electron_model": "kinetic"
+        if any(not item.is_adiabatic and item.charge_e < 0 for item in species)
+        else "adiabatic",
+    }
+    return execution_kwargs, case_parameters, case_acceptance
+
+
+def _canonical_species(species: Any) -> dict[str, int | float | str | bool]:
+    """Serialise the GK species fields that define a parity case."""
+    role = "electron" if float(species.charge_e) < 0.0 else "ion"
+    return {
+        "species_role": role,
+        "mass_amu": float(species.mass_amu),
+        "mass_kg": float(species.mass_kg),
+        "charge_e": float(species.charge_e),
+        "density_19": float(species.density_19),
+        "temperature_keV": float(species.temperature_keV),
+        "R_L_n": float(species.R_L_n),
+        "R_L_T": float(species.R_L_T),
+        "adiabatic": bool(species.is_adiabatic),
+    }
 
 
 def _validate_parity_solver_kwargs(solver_kwargs: dict[str, Any]) -> None:

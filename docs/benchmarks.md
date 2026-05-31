@@ -19,7 +19,10 @@ This project has two benchmark tracks:
 artifacts for the JAX linear gyrokinetic backend against the repository native
 local-dispersion solver. Each artifact records backend, device kind, platform,
 JAX/JAXLIB versions, dtype, X64 state, solver kwargs, growth-rate and
-real-frequency tolerances, and a canonical SHA-256 payload digest.
+real-frequency tolerances, case-parameter metadata, mode-spectrum agreement,
+and canonical SHA-256 digests for solver kwargs, case parameters, and the
+complete payload. The default benchmark emits the built-in CBC, kinetic-electron
+TEM, and low-drive stable-mode parity cases.
 
 Run:
 
@@ -32,7 +35,9 @@ Strict admission:
 ```bash
 python validation/validate_jax_gk_parity.py \
   --artifact-root validation/reports/jax_gk_parity \
-  --require-parity-artifacts
+  --require-parity-artifacts \
+  --require-cases cyclone_base_case,tem_kinetic_electron,stable_mode \
+  --require-backends gpu
 ```
 
 The claim boundary is backend parity only. These artifacts do not replace

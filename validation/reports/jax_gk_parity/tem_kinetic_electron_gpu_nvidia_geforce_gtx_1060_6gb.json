@@ -1,17 +1,18 @@
 {
   "admitted_for_control": false,
   "backend": "gpu",
-  "case": "cyclone_base_case",
+  "case": "tem_kinetic_electron",
   "case_acceptance": {
-    "description": "Cyclone Base Case ion-temperature-gradient parity guard",
+    "description": "Kinetic-electron trapped-electron-mode branch parity guard",
     "max_gamma_max_cs_over_a": null,
     "required_mode_types": [
+      "TEM",
       "ITG"
     ]
   },
   "case_parameters": {
-    "case": "cyclone_base_case",
-    "electron_model": "adiabatic",
+    "case": "tem_kinetic_electron",
+    "electron_model": "kinetic",
     "solver_kwargs": {
       "B0": 2.0,
       "R0": 2.78,
@@ -23,8 +24,8 @@
     },
     "species": [
       {
-        "R_L_T": 6.9,
-        "R_L_n": 2.2,
+        "R_L_T": 1.0,
+        "R_L_n": 1.0,
         "adiabatic": false,
         "charge_e": 1.0,
         "density_19": 10.0,
@@ -34,9 +35,9 @@
         "temperature_keV": 8.0
       },
       {
-        "R_L_T": 6.9,
-        "R_L_n": 2.2,
-        "adiabatic": true,
+        "R_L_T": 8.0,
+        "R_L_n": 3.0,
+        "adiabatic": false,
         "charge_e": -1.0,
         "density_19": 10.0,
         "mass_amu": 0.000544617021484666,
@@ -46,7 +47,7 @@
       }
     ]
   },
-  "case_parameters_sha256": "b40e95c82549279e7ba781a608bba91b0c0adcd9ca2e286e6f02f5d2c55815a8",
+  "case_parameters_sha256": "041d113895d5b0db5672be73f6b3075572ca68ee62f668292e09d3481a7cc0df",
   "device_kind": "nvidia geforce gtx 1060 6gb",
   "dtype": "float32",
   "evidence_boundary": "backend_parity_only",
@@ -54,28 +55,28 @@
   "external_validation_required": true,
   "gamma_relative_tolerance": 0.25,
   "jax_dominant_mode_type": "ITG",
-  "jax_gamma_max_cs_over_a": 0.35053986665856324,
+  "jax_gamma_max_cs_over_a": 0.39235044635318644,
   "jax_mode_types": [
-    "ITG",
-    "ITG",
+    "TEM",
+    "TEM",
     "ITG",
     "stable"
   ],
-  "jax_omega_r_cs_over_a": -0.686624895085946,
+  "jax_omega_r_cs_over_a": -0.275628247076062,
   "jax_version": "0.6.2",
   "jaxlib_version": "0.6.2",
   "native_dominant_mode_type": "ITG",
-  "native_gamma_max_cs_over_a": 0.3505397892082216,
+  "native_gamma_max_cs_over_a": 0.392350362542419,
   "native_mode_types": [
-    "ITG",
-    "ITG",
+    "TEM",
+    "TEM",
     "ITG",
     "stable"
   ],
-  "native_omega_r_cs_over_a": -0.6866246452833477,
+  "native_omega_r_cs_over_a": -0.2756279504954613,
   "normalisation": "c_s_over_a",
   "omega_absolute_tolerance": 0.25,
-  "payload_sha256": "cd620ff2a6dee454ba354f59632ac5d32efca6849b961b9e0b54b47cc891c2d1",
+  "payload_sha256": "efc008651a0fba20dc0158c03a4d935eb409d46299bd63f34871d4ff3f5d6c48",
   "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
   "schema_version": "scpn-control.jax-gk-parity.v1",
   "solver_contract": "native_linear_gk_local_dispersion",

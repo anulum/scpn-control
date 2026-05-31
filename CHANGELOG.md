@@ -9,7 +9,10 @@
   stricter admission so native/JAX local-dispersion comparisons bind backend,
   device, platform, dtype, X64 state, solver kwargs, tolerances, and canonical
   SHA-256 payload digests while keeping the evidence boundary limited to
-  backend parity until external GK validation artifacts are supplied.
+  backend parity until external GK validation artifacts are supplied; admission
+  now requires named CBC, kinetic-electron TEM, and low-drive stable-mode case
+  coverage when requested, binds case-parameter digests, rejects mode-spectrum
+  replay, and supports backend coverage requirements.
 - Added a quantum-enhanced disruption bridge facade that keeps quantum backend
   ownership in `scpn-quantum-control`, lazily imports optional quantum
   dependencies, maps the CONTROL 8-feature disruption contract to the ITER

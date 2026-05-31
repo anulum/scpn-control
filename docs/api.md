@@ -1308,6 +1308,12 @@ for backend reproducibility. `build_jax_gk_parity_artifact()` and
 `write_jax_gk_parity_artifact()` bind the native local-dispersion comparison,
 backend metadata, dtype/X64 state, solver kwargs, tolerances, and canonical
 payload SHA-256 digest while preserving the backend-parity-only claim boundary.
+Artifacts also bind case-parameter digests, native/JAX mode spectra, dominant
+mode labels, and case acceptance limits for CBC, kinetic-electron TEM, and
+low-drive stable-mode parity evidence. `validation/validate_jax_gk_parity.py`
+can require named cases and named backends before admitting an evidence
+directory, so archived single-case artifacts cannot be replayed as full parity
+coverage.
 
 ::: scpn_control.core.jax_gk_solver
 
