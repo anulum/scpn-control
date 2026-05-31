@@ -153,6 +153,23 @@ Report artefacts:
 Facility RWM-control claims still require documented public, external MHD, or
 measured-shot evidence that passes the strict admission gate.
 
+## EFIT-lite Claim-Admission Benchmark
+
+`validation/benchmark_efit_lite_claims.py` publishes bounded synthetic
+regression evidence for the fixed-boundary EFIT-lite reconstruction path. The
+generated report records diagnostic provenance, grid shape, flux-loop and
+B-probe counts, Rogowski radius, reconstructed current, q95, beta_pol, li, and
+the explicit facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/efit_lite_claims.json`
+- `validation/reports/efit_lite_claims.md`
+
+Facility equilibrium claims still require matched EFIT/P-EFIT, documented
+public, or measured-discharge evidence for psi, Ip, q95, beta_pol, and li that
+passes the strict admission gate.
+
 ## Differentiable Transport Gradient-Latency Benchmark
 
 The controller-tuning facade measures the audited admission path for JAX

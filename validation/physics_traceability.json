@@ -462,7 +462,7 @@
     },
     {
       "component": "real-time EFIT-lite equilibrium reconstruction",
-      "equation_contract": "Real-time equilibrium reconstruction claims must declare the fixed-boundary Grad-Shafranov solve, polynomial p-prime and FF-prime source profiles, diagnostic response interpolation, Rogowski current reconstruction, and macroscopic-shape extraction assumptions.",
+      "equation_contract": "Real-time equilibrium reconstruction claims must declare the fixed-boundary Grad-Shafranov solve, polynomial p-prime and FF-prime source profiles, diagnostic response interpolation, Rogowski current reconstruction, macroscopic-shape extraction assumptions, diagnostic provenance, matched-reference source, psi/Ip/q95/beta_pol/li tolerances, and facility-claim admission status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lao et al. 1985 EFIT equilibrium reconstruction",
@@ -479,18 +479,25 @@
       "validation_evidence": [
         "tests/test_realtime_efit.py fixed-boundary solve and diagnostic reconstruction checks",
         "tests/test_kinetic_efit.py kinetic EFIT integration checks",
-        "tests/test_validate_real_shots_equilibrium.py GEQDSK source residual checks"
+        "tests/test_validate_real_shots_equilibrium.py GEQDSK source residual checks",
+        "tests/test_realtime_efit.py claim-evidence provenance, matched-reference admission, and invalid-reference checks",
+        "validation/benchmark_efit_lite_claims.py bounded synthetic EFIT-lite claim-admission benchmark",
+        "validation/reports/efit_lite_claims.json bounded synthetic EFIT-lite claim report"
       ],
       "evidence_paths": [
         "src/scpn_control/control/realtime_efit.py",
         "tests/test_realtime_efit.py",
         "tests/test_kinetic_efit.py",
-        "tests/test_validate_real_shots_equilibrium.py"
+        "tests/test_validate_real_shots_equilibrium.py",
+        "validation/benchmark_efit_lite_claims.py",
+        "validation/reports/efit_lite_claims.json",
+        "validation/reports/efit_lite_claims.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/realtime_efit.py"
       ],
-      "validity_domain": "Fixed-boundary EFIT-lite regression and real-time control prototyping; not a substitute for facility-grade EFIT or P-EFIT validation.",
+      "validity_domain": "Fixed-boundary EFIT-lite regression and real-time control prototyping plus bounded claim-admission evidence; not a substitute for facility-grade EFIT or P-EFIT validation unless matched reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 48
     },
     {

@@ -11,12 +11,20 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import json
+
 import numpy as np
+import pytest
 
 from scpn_control.control.realtime_efit import (
+    EFITLiteClaimEvidence,
     MU0,
     MagneticDiagnostics,
     RealtimeEFIT,
+    ShapeParams,
+    assert_efit_lite_facility_claim_admissible,
+    efit_lite_claim_evidence,
+    save_efit_lite_claim_evidence,
 )
 
 
@@ -86,6 +94,128 @@ def test_reconstruction_solovev():
     # same reconstructed physics result.
     assert res.wall_time_ms < 150.0
     assert res.n_iterations > 0
+
+
+def test_efit_lite_claim_evidence_records_synthetic_boundary(tmp_path):
+    diag = create_mock_diagnostics()
+    R = np.linspace(4.2, 8.2, 33)
+    Z = np.linspace(-3.0, 3.0, 33)
+    efit = RealtimeEFIT(diag, R, Z)
+    meas = {"flux_loops": np.zeros(3), "b_probes": np.zeros(3), "Ip": 15.0e6, "coil_currents": np.zeros(5)}
+    res = efit.reconstruct(meas)
+
+    evidence = efit_lite_claim_evidence(
+        res,
+        diag,
+        source="synthetic_regression_reference",
+        source_id="tests/test_realtime_efit.py::synthetic_solovev",
+        diagnostic_source="synthetic diagnostic response",
+    )
+    out = tmp_path / "efit_claim.json"
+    save_efit_lite_claim_evidence(evidence, out)
+    payload = json.loads(out.read_text(encoding="utf-8"))
+
+    assert isinstance(evidence, EFITLiteClaimEvidence)
+    assert evidence.grid_shape == res.psi.shape
+    assert evidence.n_flux_loops == len(diag.flux_loops)
+    assert evidence.n_b_probes == len(diag.b_probes)
+    assert evidence.ip_reconstructed_A == pytest.approx(15.0e6)
+    assert evidence.psi_relative_error is None
+    assert evidence.facility_claim_allowed is False
+    assert evidence.claim_status.startswith("bounded synthetic EFIT-lite regression evidence")
+    assert payload["schema_version"] == 1
+    assert payload["facility_claim_allowed"] is False
+
+
+def test_efit_lite_facility_admission_requires_matched_reference():
+    diag = create_mock_diagnostics()
+    R = np.linspace(4.2, 8.2, 33)
+    Z = np.linspace(-3.0, 3.0, 33)
+    efit = RealtimeEFIT(diag, R, Z)
+    meas = {"flux_loops": np.zeros(3), "b_probes": np.zeros(3), "Ip": 15.0e6, "coil_currents": np.zeros(5)}
+    res = efit.reconstruct(meas)
+    reference_shape = ShapeParams(
+        R0=res.shape.R0,
+        a=res.shape.a,
+        kappa=res.shape.kappa,
+        delta_upper=res.shape.delta_upper,
+        delta_lower=res.shape.delta_lower,
+        q95=res.shape.q95,
+        beta_pol=res.shape.beta_pol,
+        li=res.shape.li,
+        Ip_reconstructed=res.shape.Ip_reconstructed,
+    )
+    rejected_shape = ShapeParams(
+        R0=res.shape.R0,
+        a=res.shape.a,
+        kappa=res.shape.kappa,
+        delta_upper=res.shape.delta_upper,
+        delta_lower=res.shape.delta_lower,
+        q95=res.shape.q95 + 0.5,
+        beta_pol=res.shape.beta_pol,
+        li=res.shape.li,
+        Ip_reconstructed=res.shape.Ip_reconstructed * 1.2,
+    )
+
+    admitted = efit_lite_claim_evidence(
+        res,
+        diag,
+        source="efit_reference",
+        source_id="reference_efit_solovev_case",
+        diagnostic_source="reference flux loops, B probes, and Rogowski",
+        reference_psi=res.psi.copy(),
+        reference_shape=reference_shape,
+    )
+    rejected = efit_lite_claim_evidence(
+        res,
+        diag,
+        source="efit_reference",
+        source_id="reference_efit_mismatch_case",
+        diagnostic_source="reference flux loops, B probes, and Rogowski",
+        reference_psi=res.psi * 1.2,
+        reference_shape=rejected_shape,
+        psi_relative_tolerance=0.05,
+        ip_relative_tolerance=0.02,
+        q95_abs_tolerance=0.1,
+    )
+
+    assert assert_efit_lite_facility_claim_admissible(admitted) == admitted
+    assert admitted.facility_claim_allowed is True
+    assert admitted.psi_relative_error == pytest.approx(0.0)
+    assert admitted.ip_relative_error == pytest.approx(0.0)
+    assert rejected.facility_claim_allowed is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_efit_lite_facility_claim_admissible(rejected)
+
+
+def test_efit_lite_claim_evidence_rejects_invalid_reference_inputs():
+    diag = create_mock_diagnostics()
+    R = np.linspace(4.2, 8.2, 17)
+    Z = np.linspace(-3.0, 3.0, 17)
+    efit = RealtimeEFIT(diag, R, Z)
+    res = efit.reconstruct(
+        {"flux_loops": np.zeros(3), "b_probes": np.zeros(3), "Ip": 15.0e6, "coil_currents": np.zeros(5)}
+    )
+
+    with pytest.raises(ValueError, match="source"):
+        efit_lite_claim_evidence(res, diag, source="mock", source_id="case", diagnostic_source="synthetic")
+    with pytest.raises(ValueError, match="source_id"):
+        efit_lite_claim_evidence(
+            res, diag, source="synthetic_regression_reference", source_id="", diagnostic_source="synthetic"
+        )
+    with pytest.raises(ValueError, match="diagnostic_source"):
+        efit_lite_claim_evidence(
+            res, diag, source="synthetic_regression_reference", source_id="case", diagnostic_source=""
+        )
+    with pytest.raises(ValueError, match="psi reference"):
+        efit_lite_claim_evidence(
+            res,
+            diag,
+            source="efit_reference",
+            source_id="case",
+            diagnostic_source="reference",
+            reference_psi=np.zeros((3, 3)),
+        )
 
 
 def test_gs_solver_satisfies_constant_source_residual():

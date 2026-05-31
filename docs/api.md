@@ -710,6 +710,14 @@ gradient-audit result.
 
 ::: scpn_control.control.realtime_efit.RealtimeEFIT
 
+::: scpn_control.control.realtime_efit.EFITLiteClaimEvidence
+
+::: scpn_control.control.realtime_efit.efit_lite_claim_evidence
+
+::: scpn_control.control.realtime_efit.assert_efit_lite_facility_claim_admissible
+
+::: scpn_control.control.realtime_efit.save_efit_lite_claim_evidence
+
 ### Gain-Scheduled Controller (v0.16.0)
 
 ::: scpn_control.control.gain_scheduled_controller.GainScheduledController

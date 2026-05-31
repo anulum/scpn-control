@@ -31,6 +31,8 @@
 - Added resistive-wall-mode feedback claim evidence and fail-closed
   facility-claim admission with bounded wall, rotation, coil, and latency
   provenance reports.
+- Added EFIT-lite reconstruction claim evidence and fail-closed facility-claim
+  admission with bounded diagnostic and shape provenance reports.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
@@ -79,6 +81,7 @@
 - `python validation/benchmark_differentiable_transport_latency.py`
 - `python validation/benchmark_rzip_calibration.py`
 - `python validation/benchmark_rwm_claims.py`
+- `python validation/benchmark_efit_lite_claims.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`
