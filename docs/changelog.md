@@ -70,6 +70,9 @@
   evidence is required before deployment readiness can cite authenticated
   command-stream, TLS, payload-cap, token-bucket, broadcast, or backpressure
   claims.
+- Added Kuramoto phase-runtime evidence admission so optional Rust fast-path
+  claims bind Python reference digests, parity errors, deployment-target
+  oscillator coverage, and timestep-refinement convergence.
 - Hardened end-to-end control-latency evidence so benchmark reports now use a
   schema-versioned canonical payload digest and admission rejects tampering,
   non-positive run counts, unordered percentiles, mismatched overhead factors,

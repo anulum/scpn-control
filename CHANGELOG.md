@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added schema-versioned Kuramoto phase-runtime evidence admission so
+  deployment-target phase claims bind deterministic input digests, Python
+  reference output digests, optional Rust parity errors, deployment-target
+  oscillator coverage, and timestep-refinement convergence before runtime
+  claims can cite the optional Rust fast path.
 - Hardened controller safety-case readiness so promotion now also requires a
   typed `websocket_runtime_evidence` artifact that resolves under the declared
   evidence root, matches its SHA-256 bytes, and passes qualified WebSocket

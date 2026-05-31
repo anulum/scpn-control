@@ -692,6 +692,16 @@ checked specification list before a safety-critical artifact is admitted.
 
 ::: scpn_control.phase.kuramoto.GlobalPsiDriver
 
+::: scpn_control.phase.kuramoto.KuramotoRuntimeEvidence
+
+::: scpn_control.phase.kuramoto.kuramoto_runtime_evidence
+
+::: scpn_control.phase.kuramoto.assert_kuramoto_runtime_claim_admissible
+
+::: scpn_control.phase.kuramoto.save_kuramoto_runtime_evidence
+
+::: scpn_control.phase.kuramoto.load_kuramoto_runtime_evidence
+
 ### Knm Coupling Matrix
 
 ::: scpn_control.phase.knm.KnmSpec

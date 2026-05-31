@@ -12,16 +12,23 @@ Tests for the Paper 27 Knm/UPDE engine and Kuramoto-Sakaguchi
 
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
+
 import numpy as np
 import pytest
 
 import scpn_control.phase.kuramoto as kuramoto_module
 from scpn_control.phase.kuramoto import (
     GlobalPsiDriver,
+    assert_kuramoto_runtime_claim_admissible,
     kuramoto_sakaguchi_step,
+    kuramoto_runtime_evidence,
+    load_kuramoto_runtime_evidence,
     lyapunov_exponent,
     lyapunov_v,
     order_parameter,
+    save_kuramoto_runtime_evidence,
     wrap_phase,
 )
 from scpn_control.phase.knm import KnmSpec, build_knm_paper27, OMEGA_N_16
@@ -293,6 +300,165 @@ class TestKuramotoSakaguchiStep:
                 psi_driver=np.nan,
                 psi_mode="external",
             )
+
+
+class TestKuramotoRuntimeEvidence:
+    def test_python_only_evidence_round_trips_but_rejects_deployment_claim(self, monkeypatch, tmp_path):
+        theta = np.array([0.1, -0.2, 0.7, -1.1], dtype=np.float64)
+        omega = np.array([0.02, -0.01, 0.03, 0.0], dtype=np.float64)
+        monkeypatch.setattr(kuramoto_module, "RUST_KURAMOTO", False)
+
+        evidence = kuramoto_runtime_evidence(
+            theta,
+            omega,
+            dt=1.0e-3,
+            K=1.5,
+            zeta=0.2,
+            psi_driver=0.4,
+            target_id="local-phase-runtime",
+            generated_utc="2026-05-31T00:00:00Z",
+        )
+
+        assert evidence.rust_available is False
+        assert evidence.parity_passed is False
+        assert evidence.timestep_refinement_passed is True
+        with pytest.raises(ValueError, match="bounded-only|Rust parity"):
+            assert_kuramoto_runtime_claim_admissible(evidence)
+
+        path = tmp_path / "kuramoto_runtime.json"
+        save_kuramoto_runtime_evidence(evidence, path)
+        assert load_kuramoto_runtime_evidence(path) == evidence
+
+    def test_mocked_rust_parity_supports_deployment_claim(self, monkeypatch):
+        theta = np.array([0.1, -0.2, 0.7, -1.1], dtype=np.float64)
+        omega = np.array([0.02, -0.01, 0.03, 0.0], dtype=np.float64)
+
+        def fake_rust_step(th, om, dt, K, alpha, zeta, psi):
+            R, psi_r = order_parameter(th)
+            dtheta = om + (K * R) * np.sin(psi_r - th - alpha) + zeta * np.sin(psi - th)
+            theta_next = wrap_phase(th + dt * dtheta)
+            return {
+                "theta": theta_next,
+                "r": R,
+                "psi_r": psi_r,
+                "psi_global": psi,
+            }
+
+        monkeypatch.setattr(kuramoto_module, "RUST_KURAMOTO", True)
+        monkeypatch.setattr(kuramoto_module, "_rust_step", fake_rust_step, raising=False)
+
+        evidence = kuramoto_runtime_evidence(
+            theta,
+            omega,
+            dt=1.0e-3,
+            K=1.5,
+            zeta=0.2,
+            psi_driver=0.4,
+            target_id="lab-phase-runtime",
+            deployment_target_oscillators=4,
+            generated_utc="2026-05-31T00:00:00Z",
+            deployment_claim_allowed=True,
+        )
+
+        assert evidence.rust_available is True
+        assert evidence.rust_parity_checked is True
+        assert evidence.parity_passed is True
+        assert evidence.timestep_refinement_passed is True
+        assert_kuramoto_runtime_claim_admissible(evidence)
+
+    def test_deployment_claim_rejects_failed_timestep_refinement(self, monkeypatch):
+        theta = np.array([0.1, -0.2, 0.7, -1.1], dtype=np.float64)
+        omega = np.array([0.02, -0.01, 0.03, 0.0], dtype=np.float64)
+
+        def fake_rust_step(th, om, dt, K, alpha, zeta, psi):
+            R, psi_r = order_parameter(th)
+            dtheta = om + (K * R) * np.sin(psi_r - th - alpha) + zeta * np.sin(psi - th)
+            return wrap_phase(th + dt * dtheta), R, psi_r, psi
+
+        monkeypatch.setattr(kuramoto_module, "RUST_KURAMOTO", True)
+        monkeypatch.setattr(kuramoto_module, "_rust_step", fake_rust_step, raising=False)
+
+        bounded = kuramoto_runtime_evidence(
+            theta,
+            omega,
+            dt=1.0e-2,
+            K=2.0,
+            zeta=0.5,
+            psi_driver=0.4,
+            timestep_refinement_tolerance=1.0e-18,
+            generated_utc="2026-05-31T00:00:00Z",
+        )
+        assert bounded.timestep_refinement_passed is False
+
+        with pytest.raises(ValueError, match="timestep refinement"):
+            kuramoto_runtime_evidence(
+                theta,
+                omega,
+                dt=1.0e-2,
+                K=2.0,
+                zeta=0.5,
+                psi_driver=0.4,
+                deployment_target_oscillators=4,
+                timestep_refinement_tolerance=1.0e-18,
+                generated_utc="2026-05-31T00:00:00Z",
+                deployment_claim_allowed=True,
+            )
+
+    def test_evidence_rejects_tampering_and_duplicate_keys(self, monkeypatch, tmp_path):
+        theta = np.array([0.1, -0.2, 0.7, -1.1], dtype=np.float64)
+        omega = np.array([0.02, -0.01, 0.03, 0.0], dtype=np.float64)
+        monkeypatch.setattr(kuramoto_module, "RUST_KURAMOTO", False)
+        evidence = kuramoto_runtime_evidence(
+            theta,
+            omega,
+            dt=1.0e-3,
+            K=1.5,
+            zeta=0.2,
+            psi_driver=0.4,
+            generated_utc="2026-05-31T00:00:00Z",
+        )
+        path = tmp_path / "kuramoto_runtime.json"
+        save_kuramoto_runtime_evidence(evidence, path)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["oscillator_count"] = 99
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="payload_sha256"):
+            load_kuramoto_runtime_evidence(path)
+
+        duplicate_path = tmp_path / "duplicate_kuramoto_runtime.json"
+        duplicate_path.write_text(
+            (
+                '{"schema_version":"'
+                + kuramoto_module.KURAMOTO_RUNTIME_EVIDENCE_SCHEMA_VERSION
+                + '","schema_version":"'
+                + kuramoto_module.KURAMOTO_RUNTIME_EVIDENCE_SCHEMA_VERSION
+                + '"}'
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="duplicate JSON key"):
+            load_kuramoto_runtime_evidence(duplicate_path)
+
+    def test_evidence_does_not_store_phase_vectors_in_payload(self, monkeypatch):
+        theta = np.array([0.1, -0.2, 0.7, -1.1], dtype=np.float64)
+        omega = np.array([0.02, -0.01, 0.03, 0.0], dtype=np.float64)
+        monkeypatch.setattr(kuramoto_module, "RUST_KURAMOTO", False)
+
+        evidence = kuramoto_runtime_evidence(
+            theta,
+            omega,
+            dt=1.0e-3,
+            K=1.5,
+            zeta=0.2,
+            psi_driver=0.4,
+            generated_utc="2026-05-31T00:00:00Z",
+        )
+
+        encoded = json.dumps(asdict(evidence), sort_keys=True)
+        assert "0.7" not in encoded
+        assert evidence.input_sha256
+        assert evidence.python_reference_sha256
 
 
 # ── KnmSpec ──────────────────────────────────────────────────────────

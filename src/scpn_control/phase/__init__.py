@@ -29,10 +29,15 @@ from scpn_control.phase.adaptive_knm import (
 from scpn_control.phase.knm import KnmSpec, build_knm_paper27
 from scpn_control.phase.kuramoto import (
     GlobalPsiDriver,
+    KuramotoRuntimeEvidence,
+    assert_kuramoto_runtime_claim_admissible,
     kuramoto_sakaguchi_step,
+    kuramoto_runtime_evidence,
+    load_kuramoto_runtime_evidence,
     lyapunov_exponent,
     lyapunov_v,
     order_parameter,
+    save_kuramoto_runtime_evidence,
     wrap_phase,
 )
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
@@ -57,6 +62,11 @@ __all__ = [
     "lyapunov_v",
     "lyapunov_exponent",
     "GlobalPsiDriver",
+    "KuramotoRuntimeEvidence",
+    "kuramoto_runtime_evidence",
+    "assert_kuramoto_runtime_claim_admissible",
+    "save_kuramoto_runtime_evidence",
+    "load_kuramoto_runtime_evidence",
     "KnmSpec",
     "build_knm_paper27",
     "build_knm_plasma",

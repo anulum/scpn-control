@@ -218,6 +218,20 @@ The command fails before writing validation claims if the optional client is not
 installed, a signal is empty or non-finite, or the generated manifest cannot
 verify the local artefact checksum.
 
+Kuramoto phase-runtime evidence can be regenerated with:
+
+```bash
+python validation/benchmark_kuramoto_runtime_evidence.py \
+  --output-json artifacts/kuramoto_runtime_evidence.json
+```
+
+The produced JSON uses `scpn-control.kuramoto-runtime-evidence.v1` and binds
+the input phase/frequency arrays by SHA-256 instead of storing the arrays in
+the evidence payload. Deployment-claim admission requires optional Rust parity
+against the Python reference, deployment-target oscillator count coverage, and
+timestep-refinement convergence under the declared tolerance. Python-only
+reports remain bounded runtime evidence and do not satisfy deployment claims.
+
 Physics traceability validates that high-risk physics surfaces are bounded to
 their current evidence status before full-fidelity or facility-validation claims
 are made:

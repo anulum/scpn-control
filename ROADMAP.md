@@ -212,6 +212,10 @@
 - [x] CODAC/EPICS runtime evidence admission — digest-bound EPICS/OPC-UA
   exports, deadline-clean cycle evidence, interlock-block evidence, and
   local-only versus qualified facility claim separation
+- [x] Kuramoto phase-runtime evidence admission — deterministic input digests,
+  Python reference digests, optional Rust parity metrics, deployment-target
+  oscillator coverage, and timestep-refinement convergence now gate
+  deployment-target phase-runtime claims.
 
 ## Next
 
