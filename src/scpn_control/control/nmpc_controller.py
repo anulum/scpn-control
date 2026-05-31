@@ -1303,6 +1303,21 @@ class NonlinearMPC:
             raise ImportError("qp_backend='acados' requires the optional acados_template package.") from exc
         return AcadosOcpSolver(ocp, **kwargs)
 
+    def close(self) -> None:
+        """Release cached external solver resources held by this controller."""
+        solver = self._acados_solver
+        self._acados_solver = None
+        self._acados_ocp = None
+        if solver is None:
+            return
+        free_solver = getattr(solver, "free", None)
+        if free_solver is None:
+            return
+        try:
+            free_solver()
+        except Exception as exc:
+            raise RuntimeError("acados backend failed while releasing solver resources.") from exc
+
     @staticmethod
     def _acados_set(solver: object, stage: int, field: str, value: np.ndarray) -> None:
         solver_api: Any = solver
