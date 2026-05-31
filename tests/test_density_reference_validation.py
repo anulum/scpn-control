@@ -110,6 +110,22 @@ def test_density_gate_accepts_external_integrated_modelling(tmp_path: Path) -> N
     assert report["entries"][0]["source"] == "external_integrated_modelling"
 
 
+def test_density_gate_rejects_unscoped_external_artifact_uri(tmp_path: Path) -> None:
+    payload = _valid_density_reference_artifact()
+    payload["source"] = "external_integrated_modelling"
+    payload.pop("reference_doi")
+    payload["external_code"] = "ASTRA"
+    payload["reference_artifact_uri"] = "file:///etc/passwd"
+    artifact = tmp_path / "bad_external_density_reference.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_density_reference(tmp_path, require_reference_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "reference_artifact_uri"
+    assert "validation/reports" in report["errors"][0]["error"]
+
+
 def test_density_gate_rejects_synthetic_source(tmp_path: Path) -> None:
     payload = _valid_density_reference_artifact()
     payload["source"] = "synthetic"

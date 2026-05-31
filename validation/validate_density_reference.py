@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from validation.reference_uri import reference_artifact_uri_error
+
 ROOT = Path(__file__).resolve().parents[1]
 
 _ALLOWED_SOURCES = {"documented_public_reference", "measured_fuelling_campaign", "external_integrated_modelling"}
@@ -111,15 +113,35 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
     digest = payload.get("reference_artifact_sha256")
     if isinstance(digest, str) and not _SHA256_RE.match(digest):
-        errors.append({"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"})
+        errors.append(
+            {"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"}
+        )
     source = payload.get("source")
     if source not in _ALLOWED_SOURCES:
-        errors.append({"path": str(path), "field": "source", "error": "source must be documented_public_reference, measured_fuelling_campaign, or external_integrated_modelling"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "source",
+                "error": "source must be documented_public_reference, measured_fuelling_campaign, or external_integrated_modelling",
+            }
+        )
     _validate_source_provenance(path, payload, errors)
     if not _valid_radial_grid(payload.get("radial_grid")):
-        errors.append({"path": str(path), "field": "radial_grid", "error": "radial_grid must declare positive density-model geometry"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "radial_grid",
+                "error": "radial_grid must declare positive density-model geometry",
+            }
+        )
     if not _valid_actuator_metadata(payload.get("actuator_metadata")):
-        errors.append({"path": str(path), "field": "actuator_metadata", "error": "actuator_metadata must declare finite fuelling and exhaust settings"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "actuator_metadata",
+                "error": "actuator_metadata must declare finite fuelling and exhaust settings",
+            }
+        )
     if not _valid_units(payload.get("units")):
         errors.append({"path": str(path), "field": "units", "error": "units must declare density reference units"})
     count = payload.get("reference_case_count")
@@ -141,18 +163,39 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
 def _validate_source_provenance(path: Path, payload: dict[str, object], errors: list[dict[str, object]]) -> None:
     source = payload.get("source")
     if source == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append({"path": str(path), "field": "reference", "error": "documented public reference artifacts require reference_url or reference_doi"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "reference",
+                "error": "documented public reference artifacts require reference_url or reference_doi",
+            }
+        )
     if source == "measured_fuelling_campaign":
         if not _has_nonempty_str(payload, "shot_id"):
-            errors.append({"path": str(path), "field": "shot_id", "error": "measured fuelling campaigns require shot_id"})
+            errors.append(
+                {"path": str(path), "field": "shot_id", "error": "measured fuelling campaigns require shot_id"}
+            )
         if not _has_nonempty_str(payload, "diagnostic_uri"):
-            errors.append({"path": str(path), "field": "diagnostic_uri", "error": "measured fuelling campaigns require diagnostic_uri"})
+            errors.append(
+                {
+                    "path": str(path),
+                    "field": "diagnostic_uri",
+                    "error": "measured fuelling campaigns require diagnostic_uri",
+                }
+            )
     if source == "external_integrated_modelling":
         external_code = payload.get("external_code")
         if external_code not in _ALLOWED_EXTERNAL_CODES:
-            errors.append({"path": str(path), "field": "external_code", "error": "external_code must be ASTRA, TRANSP, JINTRAC, or TGLF"})
-        if not _has_nonempty_str(payload, "reference_artifact_uri"):
-            errors.append({"path": str(path), "field": "reference_artifact_uri", "error": "external modelling references require reference_artifact_uri"})
+            errors.append(
+                {
+                    "path": str(path),
+                    "field": "external_code",
+                    "error": "external_code must be ASTRA, TRANSP, JINTRAC, or TGLF",
+                }
+            )
+        uri_error = reference_artifact_uri_error(payload.get("reference_artifact_uri"), "reference_artifact_uri")
+        if uri_error is not None:
+            errors.append({"path": str(path), "field": "reference_artifact_uri", "error": uri_error})
 
 
 def _validate_metric_block(path: Path, metrics: object, tolerances: object, errors: list[dict[str, object]]) -> None:
@@ -234,12 +277,16 @@ def main(argv: list[str] | None = None) -> int:
         default=str(ROOT / "validation" / "reports" / "density_reference"),
         help="Directory or JSON artifact containing persisted density reference evidence",
     )
-    parser.add_argument("--require-reference-artifacts", action="store_true", help="Fail if no density reference artifacts are present")
+    parser.add_argument(
+        "--require-reference-artifacts", action="store_true", help="Fail if no density reference artifacts are present"
+    )
     parser.add_argument("--output-json", help="Write JSON report to this path")
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
 
-    report = validate_density_reference(args.artifact_root, require_reference_artifacts=args.require_reference_artifacts)
+    report = validate_density_reference(
+        args.artifact_root, require_reference_artifacts=args.require_reference_artifacts
+    )
     if args.output_json:
         output_path = Path(args.output_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)

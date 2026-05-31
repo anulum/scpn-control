@@ -79,6 +79,21 @@ def test_orbit_gate_accepts_real_campaign_artifact(tmp_path: Path) -> None:
     assert report["entries"][0]["source"] == "real_orbit_campaign"
 
 
+def test_orbit_gate_rejects_traversing_campaign_artifact_uri(tmp_path: Path) -> None:
+    payload = _valid_orbit_reference_artifact()
+    payload["source"] = "real_orbit_campaign"
+    payload.pop("reference_doi")
+    payload["campaign_artifact_uri"] = "https://example.invalid/validation/../alpha_orbits.h5"
+    artifact = tmp_path / "bad_real_orbit_campaign.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_orbit_reference(tmp_path, require_reference_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "campaign_artifact_uri"
+    assert "stable remote artifact path" in report["errors"][0]["error"]
+
+
 def test_orbit_gate_rejects_synthetic_source(tmp_path: Path) -> None:
     payload = _valid_orbit_reference_artifact()
     payload["source"] = "synthetic"

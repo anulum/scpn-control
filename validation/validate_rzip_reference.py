@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from validation.reference_uri import reference_artifact_uri_error
+
 ROOT = Path(__file__).resolve().parents[1]
 
 _ALLOWED_SOURCES = {"documented_public_reference", "external_code_benchmark", "measured_discharge"}
@@ -106,13 +108,27 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
     digest = payload.get("reference_artifact_sha256")
     if isinstance(digest, str) and not _SHA256_RE.match(digest):
-        errors.append({"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"})
+        errors.append(
+            {"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"}
+        )
     source = payload.get("source")
     if source not in _ALLOWED_SOURCES:
-        errors.append({"path": str(path), "field": "source", "error": "source must be documented_public_reference, external_code_benchmark, or measured_discharge"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "source",
+                "error": "source must be documented_public_reference, external_code_benchmark, or measured_discharge",
+            }
+        )
     _validate_source_provenance(path, payload, errors)
     if not _valid_physical_parameters(payload.get("physical_parameters")):
-        errors.append({"path": str(path), "field": "physical_parameters", "error": "physical_parameters must declare finite RZIP model inputs"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "physical_parameters",
+                "error": "physical_parameters must declare finite RZIP model inputs",
+            }
+        )
     if not _valid_units(payload.get("units")):
         errors.append({"path": str(path), "field": "units", "error": "units must declare RZIP reference units"})
     count = payload.get("reference_case_count")
@@ -134,18 +150,39 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
 def _validate_source_provenance(path: Path, payload: dict[str, object], errors: list[dict[str, object]]) -> None:
     source = payload.get("source")
     if source == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append({"path": str(path), "field": "reference", "error": "documented public reference artifacts require reference_url or reference_doi"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "reference",
+                "error": "documented public reference artifacts require reference_url or reference_doi",
+            }
+        )
     if source == "external_code_benchmark":
         external_code = payload.get("external_code")
         if external_code not in _ALLOWED_EXTERNAL_CODES:
-            errors.append({"path": str(path), "field": "external_code", "error": "external_code must be CREATE-L, CREATE-NL, TSC, or reference_rzip"})
-        if not _has_nonempty_str(payload, "reference_artifact_uri"):
-            errors.append({"path": str(path), "field": "reference_artifact_uri", "error": "external benchmarks require reference_artifact_uri"})
+            errors.append(
+                {
+                    "path": str(path),
+                    "field": "external_code",
+                    "error": "external_code must be CREATE-L, CREATE-NL, TSC, or reference_rzip",
+                }
+            )
+        uri_error = reference_artifact_uri_error(payload.get("reference_artifact_uri"), "reference_artifact_uri")
+        if uri_error is not None:
+            errors.append({"path": str(path), "field": "reference_artifact_uri", "error": uri_error})
     if source == "measured_discharge":
         if not _has_nonempty_str(payload, "shot_id"):
-            errors.append({"path": str(path), "field": "shot_id", "error": "measured discharge references require shot_id"})
+            errors.append(
+                {"path": str(path), "field": "shot_id", "error": "measured discharge references require shot_id"}
+            )
         if not _has_nonempty_str(payload, "diagnostic_uri"):
-            errors.append({"path": str(path), "field": "diagnostic_uri", "error": "measured discharge references require diagnostic_uri"})
+            errors.append(
+                {
+                    "path": str(path),
+                    "field": "diagnostic_uri",
+                    "error": "measured discharge references require diagnostic_uri",
+                }
+            )
 
 
 def _validate_metric_block(path: Path, metrics: object, tolerances: object, errors: list[dict[str, object]]) -> None:
@@ -217,7 +254,9 @@ def main(argv: list[str] | None = None) -> int:
         default=str(ROOT / "validation" / "reports" / "rzip_reference"),
         help="Directory or JSON artifact containing persisted RZIP reference evidence",
     )
-    parser.add_argument("--require-reference-artifacts", action="store_true", help="Fail if no RZIP reference artifacts are present")
+    parser.add_argument(
+        "--require-reference-artifacts", action="store_true", help="Fail if no RZIP reference artifacts are present"
+    )
     parser.add_argument("--output-json", help="Write JSON report to this path")
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)

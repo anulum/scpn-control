@@ -334,7 +334,9 @@ python validation/validate_orbit_reference.py --require-reference-artifacts --ou
 Strict mode fails until `validation/reports/orbit_reference/` contains artifacts
 with source provenance, model identity, SHA-256 reference hash, case count,
 orbit/loss/energy/field units, and declared error or classification metrics
-inside tolerance.
+inside tolerance. Real-campaign artifact URIs must use an admitted scheme
+(`file`, `https`, `s3`, or `gs`); local `file://` URIs must stay under
+`/validation/reports/` or `/validation/reference_data/`.
 
 Uncertainty quantification claims require persisted published-reference or
 campaign artifacts for the full propagation chain:
@@ -361,7 +363,9 @@ python validation/validate_vmec_reference.py --require-reference-artifacts --out
 Strict mode fails until `validation/reports/vmec_reference/` contains artifacts
 with source provenance, model identity, SHA-256 reference hash, Fourier
 truncation, unit contracts, case count, and surface/iota/residual metrics inside
-declared tolerances.
+declared tolerances. Real-VMEC artifact URIs must use an admitted scheme
+(`file`, `https`, `s3`, or `gs`); local `file://` URIs must stay under
+`/validation/reports/` or `/validation/reference_data/`.
 
 RZIP vertical-stability validation claims require persisted public-reference,
 external-code, or measured-discharge artifacts for vertical growth rates,
@@ -375,7 +379,9 @@ python validation/validate_rzip_reference.py --require-reference-artifacts --out
 Strict mode fails until `validation/reports/rzip_reference/` contains artifacts
 with source provenance, model identity, SHA-256 reference hash, RZIP physical
 parameters, unit contracts, case count, and vertical-stability metrics inside
-declared tolerances.
+declared tolerances. External-code artifact URIs must use an admitted scheme
+(`file`, `https`, `s3`, or `gs`); local `file://` URIs must stay under
+`/validation/reports/` or `/validation/reference_data/`.
 
 Density-control and particle-source validation claims require persisted
 public-reference, measured-fuelling, or external integrated-modelling artifacts
@@ -390,6 +396,8 @@ python validation/validate_density_reference.py --require-reference-artifacts --
 Strict mode fails until `validation/reports/density_reference/` contains
 artifacts with source provenance, model identity, SHA-256 reference hash, radial
 grid metadata, actuator settings, unit contracts, case count, and
+admitted external-artifact URI syntax when external integrated-modelling
+artifacts are cited.
 fuelling-profile metrics inside declared tolerances.
 
 DT burn-control validation claims require persisted documented public,

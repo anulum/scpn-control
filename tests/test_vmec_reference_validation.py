@@ -83,6 +83,21 @@ def test_vmec_gate_accepts_real_vmec_artifact(tmp_path: Path) -> None:
     assert report["entries"][0]["source"] == "real_vmec_run"
 
 
+def test_vmec_gate_rejects_file_uri_with_host(tmp_path: Path) -> None:
+    payload = _valid_vmec_reference_artifact()
+    payload["source"] = "real_vmec_run"
+    payload.pop("reference_doi")
+    payload["vmec_artifact_uri"] = "file://host/validation/reports/vmec/wout_w7x.nc"
+    artifact = tmp_path / "bad_real_vmec_run.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_vmec_reference(tmp_path, require_reference_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "vmec_artifact_uri"
+    assert "must not include a host" in report["errors"][0]["error"]
+
+
 def test_vmec_gate_rejects_synthetic_source(tmp_path: Path) -> None:
     payload = _valid_vmec_reference_artifact()
     payload["source"] = "synthetic"

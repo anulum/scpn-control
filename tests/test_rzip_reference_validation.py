@@ -90,6 +90,22 @@ def test_rzip_gate_accepts_external_code_benchmark(tmp_path: Path) -> None:
     assert report["entries"][0]["source"] == "external_code_benchmark"
 
 
+def test_rzip_gate_rejects_relative_external_artifact_uri(tmp_path: Path) -> None:
+    payload = _valid_rzip_reference_artifact()
+    payload["source"] = "external_code_benchmark"
+    payload.pop("reference_doi")
+    payload["external_code"] = "CREATE-L"
+    payload["reference_artifact_uri"] = "validation/reports/rzip/create_l_growth_cases.nc"
+    artifact = tmp_path / "bad_create_l_rzip_reference.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_rzip_reference(tmp_path, require_reference_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "reference_artifact_uri"
+    assert "explicit URI scheme" in report["errors"][0]["error"]
+
+
 def test_rzip_gate_accepts_measured_discharge_reference(tmp_path: Path) -> None:
     payload = _valid_rzip_reference_artifact()
     payload["source"] = "measured_discharge"

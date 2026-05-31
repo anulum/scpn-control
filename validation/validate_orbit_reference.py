@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from validation.reference_uri import reference_artifact_uri_error
+
 ROOT = Path(__file__).resolve().parents[1]
 
 _ALLOWED_SOURCES = {"real_orbit_campaign", "documented_public_reference"}
@@ -93,14 +95,30 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
     digest = payload.get("reference_artifact_sha256")
     if isinstance(digest, str) and not _SHA256_RE.match(digest):
-        errors.append({"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"})
+        errors.append(
+            {"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"}
+        )
     source = payload.get("source")
     if source not in _ALLOWED_SOURCES:
-        errors.append({"path": str(path), "field": "source", "error": "source must be real_orbit_campaign or documented_public_reference"})
-    if source == "real_orbit_campaign" and not _has_campaign_reference(payload):
-        errors.append({"path": str(path), "field": "campaign_artifact_uri", "error": "real orbit campaigns require campaign_artifact_uri"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "source",
+                "error": "source must be real_orbit_campaign or documented_public_reference",
+            }
+        )
+    if source == "real_orbit_campaign":
+        uri_error = reference_artifact_uri_error(payload.get("campaign_artifact_uri"), "campaign_artifact_uri")
+        if uri_error is not None:
+            errors.append({"path": str(path), "field": "campaign_artifact_uri", "error": uri_error})
     if source == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append({"path": str(path), "field": "reference", "error": "documented public reference artifacts require reference_url or reference_doi"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "reference",
+                "error": "documented public reference artifacts require reference_url or reference_doi",
+            }
+        )
     if not _valid_units(payload.get("units")):
         errors.append({"path": str(path), "field": "units", "error": "units must declare orbit reference units"})
     count = payload.get("reference_case_count")
@@ -144,7 +162,9 @@ def _validate_metric_block(path: Path, metrics: object, tolerances: object, erro
             errors.append({"path": str(path), "field": field, "error": "score must be finite in [0, 1]"})
             continue
         if not _is_unit_interval(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "minimum score tolerance must be finite in [0, 1]"})
+            errors.append(
+                {"path": str(path), "field": field, "error": "minimum score tolerance must be finite in [0, 1]"}
+            )
             continue
         if float(metric) < float(tolerance):
             errors.append({"path": str(path), "field": field, "error": "score is below declared minimum"})
@@ -155,24 +175,31 @@ def _valid_units(value: object) -> bool:
 
 
 def _has_public_reference(payload: dict[str, object]) -> bool:
-    return any(isinstance(payload.get(field), str) and str(payload[field]).strip() for field in ("reference_url", "reference_doi"))
-
-
-def _has_campaign_reference(payload: dict[str, object]) -> bool:
-    value = payload.get("campaign_artifact_uri")
-    return isinstance(value, str) and bool(value.strip())
+    return any(
+        isinstance(payload.get(field), str) and str(payload[field]).strip()
+        for field in ("reference_url", "reference_doi")
+    )
 
 
 def _is_nonnegative_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+    )
 
 
 def _is_positive_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+    )
 
 
 def _is_unit_interval(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and 0.0 <= value <= 1.0
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, int | float)
+        and math.isfinite(float(value))
+        and 0.0 <= value <= 1.0
+    )
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -191,7 +218,9 @@ def main(argv: list[str] | None = None) -> int:
         default=str(ROOT / "validation" / "reports" / "orbit_reference"),
         help="Directory or JSON artifact containing persisted orbit-following reference evidence",
     )
-    parser.add_argument("--require-reference-artifacts", action="store_true", help="Fail if no orbit reference artifacts are present")
+    parser.add_argument(
+        "--require-reference-artifacts", action="store_true", help="Fail if no orbit reference artifacts are present"
+    )
     parser.add_argument("--output-json", help="Write JSON report to this path")
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
