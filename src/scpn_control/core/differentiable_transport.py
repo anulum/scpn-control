@@ -71,6 +71,18 @@ class TransportRolloutSourceGradients:
 
 
 @dataclass(frozen=True)
+class TransportRolloutGradientAudit:
+    """Finite-difference audit of multi-step source-rollout gradients."""
+
+    loss: float
+    epsilon: float
+    tolerance: float
+    checked_indices: tuple[tuple[int, int, int], ...]
+    source_max_abs_error: float
+    passed: bool
+
+
+@dataclass(frozen=True)
 class TransportGradientAudit:
     """Finite-difference audit of differentiable transport tuning gradients."""
 
@@ -98,6 +110,25 @@ class TransportGradientLatencyReport:
     p95_ms: float
     max_ms: float
     audit: TransportGradientAudit
+    claim_status: str
+
+
+@dataclass(frozen=True)
+class TransportRolloutGradientLatencyReport:
+    """Latency evidence for audited multi-step source-rollout gradients."""
+
+    schema_version: int
+    backend: str
+    dtype: str
+    n_rho: int
+    n_steps: int
+    channel_count: int
+    warmup_runs: int
+    timed_runs: int
+    p50_ms: float
+    p95_ms: float
+    max_ms: float
+    audit: TransportRolloutGradientAudit
     claim_status: str
 
 
@@ -776,6 +807,170 @@ def transport_rollout_source_gradients(
     )
 
 
+def _rollout_gradient_audit_indices(
+    source_shape: tuple[int, ...],
+    sample_indices: Any | None,
+) -> tuple[tuple[int, int, int], ...]:
+    if len(source_shape) != 3:
+        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho)")
+    n_steps, n_channels, n_rho = source_shape
+    if n_steps < 1 or n_channels != CHANNEL_COUNT or n_rho < 3:
+        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho) with n_rho >= 3")
+    if sample_indices is None:
+        candidates: tuple[tuple[int, int, int], ...] = (
+            (0, 0, 1),
+            (n_steps - 1, 1, n_rho // 2),
+            (n_steps // 2, 2, n_rho - 2),
+            (n_steps - 1, 3, max(1, n_rho // 3)),
+        )
+    else:
+        try:
+            parsed = []
+            for raw_index in sample_indices:
+                index = tuple(int(part) for part in raw_index)
+                if len(index) != 3:
+                    raise ValueError
+                parsed.append((index[0], index[1], index[2]))
+            candidates = tuple(parsed)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("sample_indices must contain three-part rollout source indices") from exc
+    unique: list[tuple[int, int, int]] = []
+    for step, channel, radius in candidates:
+        if not (0 <= step < n_steps and 0 <= channel < n_channels and 0 <= radius < n_rho):
+            raise ValueError("sample_indices contain an out-of-range rollout source index")
+        index = (int(step), int(channel), int(radius))
+        if index not in unique:
+            unique.append(index)
+    if not unique:
+        raise ValueError("sample_indices must contain at least one rollout source index")
+    return tuple(unique)
+
+
+def audit_transport_rollout_source_gradients(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    target_history: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+    epsilon: float = 1.0e-5,
+    tolerance: float = 5.0e-4,
+    sample_indices: Any | None = None,
+) -> TransportRolloutGradientAudit:
+    """Compare JAX rollout source gradients with sampled finite differences."""
+    epsilon_float = float(epsilon)
+    tolerance_float = float(tolerance)
+    if not np.isfinite(epsilon_float) or epsilon_float <= 0.0:
+        raise ValueError("epsilon must be positive and finite")
+    if not np.isfinite(tolerance_float) or tolerance_float <= 0.0:
+        raise ValueError("tolerance must be positive and finite")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_rollout_inputs(
+            initial_profiles,
+            chi,
+            source_sequence,
+            rho,
+            dt,
+            edge_values,
+            target_history=target_history,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_history is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+    gradient_result = transport_rollout_source_gradients(
+        profile_array,
+        chi_array,
+        source_array,
+        target_array,
+        rho_array,
+        float(dt),
+        edge_array,
+        weights=weight_array,
+    )
+    indices = _rollout_gradient_audit_indices(source_array.shape, sample_indices)
+    max_abs_error = 0.0
+    for index in indices:
+        plus_sources = source_array.copy()
+        minus_sources = source_array.copy()
+        plus_sources[index] += epsilon_float
+        minus_sources[index] -= epsilon_float
+        plus_loss = float(
+            transport_rollout_tracking_loss(
+                profile_array,
+                chi_array,
+                plus_sources,
+                target_array,
+                rho_array,
+                float(dt),
+                edge_array,
+                weights=weight_array,
+                use_jax=False,
+            )
+        )
+        minus_loss = float(
+            transport_rollout_tracking_loss(
+                profile_array,
+                chi_array,
+                minus_sources,
+                target_array,
+                rho_array,
+                float(dt),
+                edge_array,
+                weights=weight_array,
+                use_jax=False,
+            )
+        )
+        finite_difference = (plus_loss - minus_loss) / (2.0 * epsilon_float)
+        max_abs_error = max(max_abs_error, abs(float(gradient_result.source_gradient[index]) - finite_difference))
+    return TransportRolloutGradientAudit(
+        loss=float(gradient_result.loss),
+        epsilon=epsilon_float,
+        tolerance=tolerance_float,
+        checked_indices=indices,
+        source_max_abs_error=float(max_abs_error),
+        passed=bool(max_abs_error <= tolerance_float),
+    )
+
+
+def assert_transport_rollout_source_gradients_consistent(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    target_history: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+    epsilon: float = 1.0e-5,
+    tolerance: float = 5.0e-4,
+    sample_indices: Any | None = None,
+) -> TransportRolloutGradientAudit:
+    """Return rollout source-gradient audit evidence or fail closed."""
+    audit = audit_transport_rollout_source_gradients(
+        initial_profiles,
+        chi,
+        source_sequence,
+        target_history,
+        rho,
+        dt,
+        edge_values,
+        weights=weights,
+        epsilon=epsilon,
+        tolerance=tolerance,
+        sample_indices=sample_indices,
+    )
+    if not audit.passed:
+        raise ValueError("transport rollout source-gradient audit failed")
+    return audit
+
+
 def _validate_equilibrium_psi(equilibrium_psi: Any) -> np.ndarray:
     psi = _as_float_array("equilibrium_psi", equilibrium_psi)
     if psi.ndim != 2 or min(psi.shape) < 3:
@@ -1409,8 +1604,119 @@ def benchmark_transport_parameter_gradient_latency(
     )
 
 
+def benchmark_transport_rollout_source_gradient_latency(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    target_history: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+    epsilon: float = 1.0e-5,
+    tolerance: float = 5.0e-4,
+    sample_indices: Any | None = None,
+    warmup_runs: int = 1,
+    timed_runs: int = 5,
+) -> TransportRolloutGradientLatencyReport:
+    """Measure audited multi-step source-rollout gradient latency.
+
+    The measured path is the controller-admission contract for source schedules:
+    JAX rollout gradients with a sampled independent NumPy finite-difference
+    audit. The report is local timing evidence, not a real-time control-loop or
+    externally validated transport claim.
+    """
+    warmups = int(warmup_runs)
+    repetitions = int(timed_runs)
+    if warmups < 0:
+        raise ValueError("warmup_runs must be non-negative")
+    if repetitions <= 0:
+        raise ValueError("timed_runs must be positive")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_rollout_inputs(
+            initial_profiles,
+            chi,
+            source_sequence,
+            rho,
+            dt,
+            edge_values,
+            target_history=target_history,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_history is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+    checked_sample_indices = _rollout_gradient_audit_indices(source_array.shape, sample_indices)
+
+    def run_audit() -> TransportRolloutGradientAudit:
+        return assert_transport_rollout_source_gradients_consistent(
+            profile_array,
+            chi_array,
+            source_array,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            weights=weight_array,
+            epsilon=epsilon,
+            tolerance=tolerance,
+            sample_indices=checked_sample_indices,
+        )
+
+    audit = run_audit()
+    for _ in range(warmups):
+        audit = run_audit()
+
+    latencies_ms: list[float] = []
+    for _ in range(repetitions):
+        start_ns = time.perf_counter_ns()
+        audit = run_audit()
+        latencies_ms.append((time.perf_counter_ns() - start_ns) / 1.0e6)
+
+    sorted_latencies = sorted(latencies_ms)
+    metadata = transport_campaign_metadata(
+        profile_array,
+        chi_array,
+        source_array[0],
+        rho_array,
+        float(dt),
+        edge_array,
+        backend="jax",
+        gradient_tolerance=tolerance,
+    )
+    return TransportRolloutGradientLatencyReport(
+        schema_version=1,
+        backend=metadata.backend,
+        dtype=metadata.dtype,
+        n_rho=metadata.n_rho,
+        n_steps=int(source_array.shape[0]),
+        channel_count=CHANNEL_COUNT,
+        warmup_runs=warmups,
+        timed_runs=repetitions,
+        p50_ms=_percentile(sorted_latencies, 0.50),
+        p95_ms=_percentile(sorted_latencies, 0.95),
+        max_ms=float(max(sorted_latencies)),
+        audit=audit,
+        claim_status="local audited rollout source-gradient latency only; not a real-time control-loop guarantee",
+    )
+
+
 def save_transport_gradient_latency_report(report: TransportGradientLatencyReport, path: str | Path) -> None:
     """Persist differentiable transport gradient-latency evidence as JSON."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def save_transport_rollout_gradient_latency_report(
+    report: TransportRolloutGradientLatencyReport,
+    path: str | Path,
+) -> None:
+    """Persist rollout source-gradient latency evidence as JSON."""
 
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)

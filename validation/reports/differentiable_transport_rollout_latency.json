@@ -1,0 +1,6 @@
+{
+  "claim_status": "no latency claim; JAX gradient backend unavailable in this environment",
+  "reason": "JAX is required for audited differentiable transport gradient-latency evidence",
+  "schema_version": 1,
+  "status": "blocked"
+}

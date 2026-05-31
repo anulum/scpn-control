@@ -931,7 +931,7 @@
     },
     {
       "component": "differentiable transport facade contract",
-      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradients, one-step and multi-step source-schedule gradient targets, sampled finite-difference gradient audit, audited gradient-admission latency metadata, neural-closure coefficient mapping, campaign provenance metadata, schema-versioned replay metadata, and optional Grad-Shafranov flux-map radial weighting contract.",
+      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradients, one-step and multi-step source-schedule gradient targets, sampled finite-difference gradient audit, audited one-step and rollout gradient-admission latency metadata, neural-closure coefficient mapping, campaign provenance metadata, schema-versioned replay metadata, and optional Grad-Shafranov flux-map radial weighting contract.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "repository JAX transport primitive contract",
@@ -942,7 +942,7 @@
       "required_actions": [
         "Wire each remaining legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff",
         "Validate differentiable transport profiles and equilibrium-weighted gradients against measured discharges or published integrated-modelling benchmarks",
-        "Persist backend, dtype, radial-grid, boundary-condition, equilibrium-grid, flux-weighting, gradient-tolerance, and replay-drift metadata for controller-tuning campaigns",
+        "Persist backend, dtype, radial-grid, boundary-condition, rollout-length, equilibrium-grid, flux-weighting, gradient-tolerance, and replay-drift metadata for controller-tuning campaigns",
         "Replace the bounded JAX GK stiffness closure with externally validated GK transport coefficients before quantitative transport-control claims"
       ],
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced.",
@@ -950,8 +950,8 @@
         "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX coefficient-gradient, one-step and multi-step source-schedule-gradient, sampled finite-difference gradient audit, neural-closure coefficient mapping, campaign metadata provenance, schema-versioned replay metadata, replay-drift guard, and equilibrium-weighted GS-flux checks",
         "tests/test_nmpc_controller.py NMPC neural-closure, one-step source-schedule, and multi-step source-rollout tuning fail closed without JAX and preserve gradient-audit admission results",
         "tests/test_nmpc_controller.py NMPC coefficient, one-step source-schedule, and multi-step source-rollout tuning results carry campaign metadata, closure provenance, finite source bounds, and fail-closed gradient-audit evidence",
-        "validation/benchmark_differentiable_transport_latency.py audited gradient-admission latency benchmark or fail-closed JAX-unavailable report",
-        "validation/reports/differentiable_transport_latency.json bounded latency report or blocked-backend status"
+        "validation/benchmark_differentiable_transport_latency.py audited one-step and rollout gradient-admission latency benchmarks or fail-closed JAX-unavailable reports",
+        "validation/reports/differentiable_transport_latency.json and validation/reports/differentiable_transport_rollout_latency.json bounded latency reports or blocked-backend status"
       ],
       "evidence_paths": [
         "src/scpn_control/core/differentiable_transport.py",
@@ -962,6 +962,8 @@
         "validation/benchmark_differentiable_transport_latency.py",
         "validation/reports/differentiable_transport_latency.json",
         "validation/reports/differentiable_transport_latency.md",
+        "validation/reports/differentiable_transport_rollout_latency.json",
+        "validation/reports/differentiable_transport_rollout_latency.md",
         "docs/benchmarks.md"
       ],
       "covered_source_paths": [

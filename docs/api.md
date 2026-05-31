@@ -141,6 +141,9 @@ schedule with the same four-channel boundary contract.
 `transport_rollout_source_gradients()` returns fail-closed JAX gradients for
 that full source schedule so controller tuning can optimise time-distributed
 heating, fuelling, and impurity-source inputs without finite differences.
+`audit_transport_rollout_source_gradients()` and
+`assert_transport_rollout_source_gradients_consistent()` compare those rollout
+gradients against sampled NumPy finite-difference perturbations.
 `audit_transport_parameter_gradients()` and
 `assert_transport_parameter_gradients_consistent()` compare those JAX gradients
 against sampled independent finite-difference perturbations before
@@ -177,6 +180,12 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 
 ::: scpn_control.core.differentiable_transport.TransportRolloutSourceGradients
 
+::: scpn_control.core.differentiable_transport.audit_transport_rollout_source_gradients
+
+::: scpn_control.core.differentiable_transport.assert_transport_rollout_source_gradients_consistent
+
+::: scpn_control.core.differentiable_transport.TransportRolloutGradientAudit
+
 ::: scpn_control.core.differentiable_transport.audit_transport_parameter_gradients
 
 ::: scpn_control.core.differentiable_transport.assert_transport_parameter_gradients_consistent
@@ -188,6 +197,12 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 ::: scpn_control.core.differentiable_transport.TransportGradientLatencyReport
 
 ::: scpn_control.core.differentiable_transport.save_transport_gradient_latency_report
+
+::: scpn_control.core.differentiable_transport.benchmark_transport_rollout_source_gradient_latency
+
+::: scpn_control.core.differentiable_transport.TransportRolloutGradientLatencyReport
+
+::: scpn_control.core.differentiable_transport.save_transport_rollout_gradient_latency_report
 
 ::: scpn_control.core.differentiable_transport.transport_coefficients_from_neural_closure
 

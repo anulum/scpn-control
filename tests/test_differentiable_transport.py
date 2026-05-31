@@ -478,6 +478,105 @@ def test_transport_gradient_latency_report_rejects_invalid_run_counts():
         )
 
 
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_transport_rollout_gradient_latency_report_times_audited_admission_path(tmp_path):
+    rho = np.linspace(0.05, 1.0, 13)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.16 + 0.01 * rho,
+            0.14 + 0.01 * rho,
+            0.035 + 0.003 * rho,
+            0.01 + 0.001 * rho,
+        ]
+    )
+    source_sequence = np.zeros((3, 4, rho.size), dtype=np.float64)
+    source_sequence[:, 0, 3:7] = 0.02
+    source_sequence[:, 2, 5:9] = -0.008
+    desired_sources = source_sequence.copy()
+    desired_sources[:, 0, 4:8] += 0.01
+    desired_sources[:, 1, 3:7] -= 0.006
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    target_history = np.asarray(
+        dt.differentiable_transport_rollout(
+            profiles,
+            chi,
+            desired_sources,
+            rho,
+            7.0e-4,
+            edge_values,
+            use_jax=False,
+        ),
+        dtype=np.float64,
+    )
+
+    report = dt.benchmark_transport_rollout_source_gradient_latency(
+        profiles,
+        chi,
+        source_sequence,
+        target_history,
+        rho,
+        7.0e-4,
+        edge_values,
+        weights=np.array([1.0, 0.75, 0.25, 0.1]),
+        epsilon=5.0e-5,
+        tolerance=2.0e-3,
+        sample_indices=((0, 0, 4), (1, 1, 5), (2, 2, 7)),
+        warmup_runs=0,
+        timed_runs=2,
+    )
+    path = tmp_path / "transport_rollout_gradient_latency.json"
+    dt.save_transport_rollout_gradient_latency_report(report, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+
+    assert isinstance(report, dt.TransportRolloutGradientLatencyReport)
+    assert report.audit.passed is True
+    assert report.backend == "jax"
+    assert report.n_rho == rho.size
+    assert report.n_steps == source_sequence.shape[0]
+    assert report.channel_count == dt.CHANNEL_COUNT
+    assert report.timed_runs == 2
+    assert report.p50_ms > 0.0
+    assert report.p95_ms >= report.p50_ms
+    assert report.max_ms >= report.p95_ms
+    assert report.audit.checked_indices == ((0, 0, 4), (1, 1, 5), (2, 2, 7))
+    assert payload["audit"]["passed"] is True
+    assert payload["claim_status"].startswith("local audited rollout source-gradient latency")
+
+
+def test_transport_rollout_gradient_latency_report_rejects_invalid_run_counts():
+    rho = np.linspace(0.05, 1.0, 8)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    source_sequence = np.zeros((2, 4, rho.size), dtype=np.float64)
+    target_history = np.repeat(profiles[None, :, :], 2, axis=0)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    with pytest.raises(ValueError, match="timed_runs"):
+        dt.benchmark_transport_rollout_source_gradient_latency(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            1.0e-3,
+            edge_values,
+            timed_runs=0,
+        )
+
+    with pytest.raises(ValueError, match="sample_indices"):
+        dt.benchmark_transport_rollout_source_gradient_latency(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            1.0e-3,
+            edge_values,
+            sample_indices=((0, 0),),
+        )
+
+
 def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():
     rho = np.linspace(0.05, 1.0, 24)
     profiles = _profiles(rho)

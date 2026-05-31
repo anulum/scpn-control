@@ -210,14 +210,16 @@ transport gradients via `validation/benchmark_differentiable_transport_latency.p
 The timed path includes gradients for transport coefficients and source
 schedules plus the sampled independent finite-difference audit used before
 controller-tuning admission.
-The facade also exposes multi-step source-schedule gradients for bounded
-controller-tuning studies; those gradients inherit this same local claim
-boundary until a separate rollout-latency report is admitted.
+The same benchmark script also writes a separate multi-step source-rollout
+latency report. That path measures the JAX rollout source-gradient plus sampled
+NumPy finite-difference audit used before NMPC source-rollout admission.
 
 Report artefacts:
 
 - `validation/reports/differentiable_transport_latency.json`
 - `validation/reports/differentiable_transport_latency.md`
+- `validation/reports/differentiable_transport_rollout_latency.json`
+- `validation/reports/differentiable_transport_rollout_latency.md`
 
 The report is local latency evidence for the audited gradient-admission path.
 It is not a real-time control-loop guarantee and does not replace external
