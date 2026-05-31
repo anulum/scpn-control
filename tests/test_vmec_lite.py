@@ -14,6 +14,9 @@ from scpn_control.core.vmec_lite import (
     AxisymmetricTokamakBoundary,
     StellaratorBoundary,
     VMECLiteSolver,
+    assert_vmec_lite_full_vmec_claim_admissible,
+    save_vmec_lite_claim_evidence,
+    vmec_lite_claim_evidence,
 )
 
 
@@ -198,3 +201,118 @@ def test_vmec_converges_with_loose_tolerance():
     res = solver.solve(max_iter=500, tol=1e10)
     assert res.converged is True
     assert res.force_residual < 1e10
+
+
+def test_vmec_lite_claim_evidence_records_bounded_spectral_provenance(tmp_path):
+    solver = VMECLiteSolver(n_s=11, m_pol=2, n_tor=1, n_fp=5)
+    b_R, b_Z = StellaratorBoundary.w7x_standard()
+    solver.set_boundary(b_R, b_Z)
+    solver.set_profiles(np.linspace(5.0e4, 0.0, 11), np.ones(11) * 0.9)
+    result = solver.solve(max_iter=100, tol=1e-3)
+
+    evidence = vmec_lite_claim_evidence(
+        solver,
+        result,
+        source="synthetic_regression_reference",
+        source_id="vmec-lite-bounded-regression-v1",
+        geometry_source="repository W7-X-like Fourier boundary fixture",
+        profile_source="repository pressure and rotational-transform fixture",
+        current_assumption="fixed-boundary reduced MHD with no external current-profile claim",
+    )
+    report_path = tmp_path / "vmec_lite_claim.json"
+    save_vmec_lite_claim_evidence(evidence, report_path)
+
+    assert evidence.full_vmec_claim_allowed is False
+    assert evidence.claim_status == "bounded_vmec_lite_evidence"
+    assert evidence.n_fp == 5
+    assert evidence.n_modes == solver.basis.n_modes
+    assert evidence.min_major_radius > 0.0
+    assert evidence.max_abs_z > 0.0
+    assert evidence.iota_min == pytest.approx(0.9)
+    assert evidence.q_max == pytest.approx(1.0 / 0.9)
+    assert '"full_vmec_claim_allowed": false' in report_path.read_text(encoding="utf-8")
+
+
+def test_vmec_lite_full_vmec_admission_requires_matched_references():
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    b_R, b_Z = AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=1.7, delta=0.33)
+    solver.set_boundary(b_R, b_Z)
+    solver.set_profiles(np.zeros(11), np.linspace(1.0, 0.3, 11))
+    result = solver.solve(max_iter=500, tol=1e10)
+
+    matched = vmec_lite_claim_evidence(
+        solver,
+        result,
+        source="vmec_reference",
+        source_id="matched-vmec-reference",
+        geometry_source="documented VMEC Fourier boundary",
+        profile_source="documented VMEC pressure and iota profiles",
+        current_assumption="documented fixed-boundary current assumption",
+        reference_R_mn=result.R_mn.copy(),
+        reference_Z_mn=result.Z_mn.copy(),
+        reference_iota=solver.iota.copy(),
+        residual_tolerance=1e10,
+    )
+    assert_vmec_lite_full_vmec_claim_admissible(matched)
+    assert matched.full_vmec_claim_allowed is True
+
+    mismatched_iota = vmec_lite_claim_evidence(
+        solver,
+        result,
+        source="vmec_reference",
+        source_id="mismatched-iota-reference",
+        geometry_source="documented VMEC Fourier boundary",
+        profile_source="documented VMEC pressure and iota profiles",
+        current_assumption="documented fixed-boundary current assumption",
+        reference_R_mn=result.R_mn.copy(),
+        reference_Z_mn=result.Z_mn.copy(),
+        reference_iota=solver.iota + 0.2,
+        residual_tolerance=1e10,
+        iota_relative_tolerance=0.01,
+    )
+    with pytest.raises(ValueError, match="full VMEC claim requires matched"):
+        assert_vmec_lite_full_vmec_claim_admissible(mismatched_iota)
+    assert mismatched_iota.full_vmec_claim_allowed is False
+
+
+def test_vmec_lite_claim_evidence_rejects_invalid_claim_inputs():
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    b_R, b_Z = AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=1.7, delta=0.33)
+    solver.set_boundary(b_R, b_Z)
+    solver.set_profiles(np.zeros(11), np.linspace(1.0, 0.3, 11))
+    result = solver.solve(max_iter=500, tol=1e10)
+
+    with pytest.raises(ValueError, match="source must be one of"):
+        vmec_lite_claim_evidence(
+            solver,
+            result,
+            source="untracked_reference",
+            source_id="bad-source",
+            geometry_source="documented boundary",
+            profile_source="documented profiles",
+            current_assumption="documented current assumption",
+        )
+
+    with pytest.raises(ValueError, match="reference must be finite and match"):
+        vmec_lite_claim_evidence(
+            solver,
+            result,
+            source="vmec_reference",
+            source_id="bad-r-reference",
+            geometry_source="documented boundary",
+            profile_source="documented profiles",
+            current_assumption="documented current assumption",
+            reference_R_mn=result.R_mn[:-1],
+        )
+
+    with pytest.raises(ValueError, match="tolerances must be positive"):
+        vmec_lite_claim_evidence(
+            solver,
+            result,
+            source="vmec_reference",
+            source_id="bad-tolerance",
+            geometry_source="documented boundary",
+            profile_source="documented profiles",
+            current_assumption="documented current assumption",
+            residual_tolerance=0.0,
+        )

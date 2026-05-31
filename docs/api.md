@@ -997,6 +997,14 @@ JSON report containing every accepted or rejected update decision.
 
 ::: scpn_control.core.vmec_lite
 
+::: scpn_control.core.vmec_lite.VMECLiteClaimEvidence
+
+::: scpn_control.core.vmec_lite.vmec_lite_claim_evidence
+
+::: scpn_control.core.vmec_lite.assert_vmec_lite_full_vmec_claim_admissible
+
+::: scpn_control.core.vmec_lite.save_vmec_lite_claim_evidence
+
 ### Phase Modules
 
 #### GK UPDE Bridge

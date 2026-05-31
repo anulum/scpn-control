@@ -21,9 +21,17 @@ Wesson, J., "Tokamaks" 4th ed. (Oxford, 2011), Ch. 3.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import numpy as np
+
+_VMEC_LITE_CLAIM_SCHEMA_VERSION = 1
+_FULL_VMEC_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "vmec_reference", "external_mhd_reference", "measured_stellarator"}
+)
+_BOUNDED_VMEC_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *_FULL_VMEC_REFERENCE_SOURCES})
 
 
 def _positive_int(name: str, value: int, *, minimum: int = 1) -> int:
@@ -60,6 +68,192 @@ class VMECResult:
     force_residual: float
     iterations: int
     converged: bool
+
+
+@dataclass(frozen=True)
+class VMECLiteClaimEvidence:
+    """Serialisable provenance and reference-comparison evidence for VMEC-lite claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    geometry_source: str
+    profile_source: str
+    current_assumption: str
+    model_id: str
+    n_s: int
+    m_pol: int
+    n_tor: int
+    n_fp: int
+    n_modes: int
+    force_residual: float
+    iterations: int
+    converged: bool
+    min_major_radius: float
+    max_abs_z: float
+    pressure_axis: float
+    pressure_edge: float
+    iota_min: float
+    iota_max: float
+    q_min: float
+    q_max: float
+    r_mn_relative_error: float | None
+    z_mn_relative_error: float | None
+    iota_relative_error: float | None
+    residual_tolerance: float
+    spectral_relative_tolerance: float
+    iota_relative_tolerance: float
+    full_vmec_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _relative_array_error(name: str, observed: np.ndarray, reference: np.ndarray | None) -> float | None:
+    if reference is None:
+        return None
+    obs = np.asarray(observed, dtype=float)
+    ref = np.asarray(reference, dtype=float)
+    if obs.shape != ref.shape or not np.all(np.isfinite(ref)):
+        raise ValueError(f"{name} reference must be finite and match the observed array shape")
+    denominator = max(float(np.linalg.norm(ref)), 1e-30)
+    return float(np.linalg.norm(obs - ref) / denominator)
+
+
+def _minimum_sampled_major_radius(result: VMECResult, basis: SpectralBasis) -> tuple[float, float]:
+    theta = np.linspace(0.0, 2.0 * np.pi, 48, endpoint=False)
+    zeta = np.linspace(0.0, 2.0 * np.pi, 48, endpoint=False)
+    theta_grid, zeta_grid = np.meshgrid(theta, zeta, indexing="ij")
+    min_r = float("inf")
+    max_abs_z = 0.0
+    for surface_idx in range(result.R_mn.shape[0]):
+        r_surface = basis.evaluate(result.R_mn[surface_idx], theta_grid.ravel(), zeta_grid.ravel(), is_sin=False)
+        z_surface = basis.evaluate(result.Z_mn[surface_idx], theta_grid.ravel(), zeta_grid.ravel(), is_sin=True)
+        min_r = min(min_r, float(np.min(r_surface)))
+        max_abs_z = max(max_abs_z, float(np.max(np.abs(z_surface))))
+    return min_r, max_abs_z
+
+
+def vmec_lite_claim_evidence(
+    solver: VMECLiteSolver,
+    result: VMECResult,
+    *,
+    source: str,
+    source_id: str,
+    geometry_source: str,
+    profile_source: str,
+    current_assumption: str,
+    model_id: str = "bounded_vmec_lite",
+    reference_R_mn: np.ndarray | None = None,
+    reference_Z_mn: np.ndarray | None = None,
+    reference_iota: np.ndarray | None = None,
+    residual_tolerance: float = 1e-3,
+    spectral_relative_tolerance: float = 0.05,
+    iota_relative_tolerance: float = 0.02,
+) -> VMECLiteClaimEvidence:
+    """Build fail-closed evidence for bounded VMEC-lite or full VMEC claims."""
+
+    source_clean = _non_empty_text("source", source)
+    if source_clean not in _BOUNDED_VMEC_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_BOUNDED_VMEC_REFERENCE_SOURCES))
+        raise ValueError(f"source must be one of: {allowed}")
+
+    residual_tol = _finite_float("residual_tolerance", residual_tolerance)
+    spectral_tol = _finite_float("spectral_relative_tolerance", spectral_relative_tolerance)
+    iota_tol = _finite_float("iota_relative_tolerance", iota_relative_tolerance)
+    if residual_tol <= 0.0 or spectral_tol <= 0.0 or iota_tol <= 0.0:
+        raise ValueError("VMEC-lite claim tolerances must be positive")
+
+    r_mn = np.asarray(result.R_mn, dtype=float)
+    z_mn = np.asarray(result.Z_mn, dtype=float)
+    b_mn = np.asarray(result.B_mn, dtype=float)
+    if (
+        r_mn.shape != (solver.n_s, solver.basis.n_modes)
+        or z_mn.shape != r_mn.shape
+        or b_mn.shape != r_mn.shape
+        or not np.all(np.isfinite(r_mn))
+        or not np.all(np.isfinite(z_mn))
+        or not np.all(np.isfinite(b_mn))
+    ):
+        raise ValueError("VMEC-lite result arrays must be finite and match the solver spectral grid")
+
+    force_residual = _finite_float("force_residual", result.force_residual)
+    if result.iterations < 1:
+        raise ValueError("VMEC-lite result iterations must be positive")
+    min_major_radius, max_abs_z = _minimum_sampled_major_radius(result, solver.basis)
+    if min_major_radius <= 0.0:
+        raise ValueError("VMEC-lite claim evidence requires positive sampled major radius")
+
+    pressure = _profile_array("solver.pressure", solver.pressure, nonnegative=True)
+    iota = _profile_array("solver.iota", solver.iota, positive=True)
+    r_error = _relative_array_error("R_mn", r_mn, reference_R_mn)
+    z_error = _relative_array_error("Z_mn", z_mn, reference_Z_mn)
+    iota_error = _relative_array_error("iota", iota, reference_iota)
+    references_pass = False
+    if r_error is not None and z_error is not None and iota_error is not None:
+        references_pass = (
+            r_error <= spectral_tol
+            and z_error <= spectral_tol
+            and iota_error <= iota_tol
+            and force_residual <= residual_tol
+            and result.converged
+        )
+    full_vmec_claim_allowed = source_clean in _FULL_VMEC_REFERENCE_SOURCES and references_pass
+    claim_status = "full_vmec_reference_matched" if full_vmec_claim_allowed else "bounded_vmec_lite_evidence"
+
+    q_profile = 1.0 / np.asarray(iota, dtype=float)
+    return VMECLiteClaimEvidence(
+        schema_version=_VMEC_LITE_CLAIM_SCHEMA_VERSION,
+        source=source_clean,
+        source_id=_non_empty_text("source_id", source_id),
+        geometry_source=_non_empty_text("geometry_source", geometry_source),
+        profile_source=_non_empty_text("profile_source", profile_source),
+        current_assumption=_non_empty_text("current_assumption", current_assumption),
+        model_id=_non_empty_text("model_id", model_id),
+        n_s=solver.n_s,
+        m_pol=solver.basis.m_pol,
+        n_tor=solver.basis.n_tor,
+        n_fp=solver.basis.n_fp,
+        n_modes=solver.basis.n_modes,
+        force_residual=force_residual,
+        iterations=int(result.iterations),
+        converged=bool(result.converged),
+        min_major_radius=float(min_major_radius),
+        max_abs_z=float(max_abs_z),
+        pressure_axis=float(pressure[0]),
+        pressure_edge=float(pressure[-1]),
+        iota_min=float(np.min(iota)),
+        iota_max=float(np.max(iota)),
+        q_min=float(np.min(q_profile)),
+        q_max=float(np.max(q_profile)),
+        r_mn_relative_error=r_error,
+        z_mn_relative_error=z_error,
+        iota_relative_error=iota_error,
+        residual_tolerance=residual_tol,
+        spectral_relative_tolerance=spectral_tol,
+        iota_relative_tolerance=iota_tol,
+        full_vmec_claim_allowed=bool(full_vmec_claim_allowed),
+        claim_status=claim_status,
+    )
+
+
+def assert_vmec_lite_full_vmec_claim_admissible(evidence: VMECLiteClaimEvidence) -> None:
+    """Raise when VMEC-lite evidence is insufficient for a full VMEC claim."""
+
+    if not evidence.full_vmec_claim_allowed:
+        raise ValueError("full VMEC claim requires matched R_mn, Z_mn, iota, convergence, and residual evidence")
+
+
+def save_vmec_lite_claim_evidence(evidence: VMECLiteClaimEvidence, path: str | Path) -> None:
+    """Persist VMEC-lite claim evidence as deterministic JSON."""
+
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class SpectralBasis:

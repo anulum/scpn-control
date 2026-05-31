@@ -203,6 +203,23 @@ The report is local latency evidence for the audited gradient-admission path.
 It is not a real-time control-loop guarantee and does not replace external
 transport validation.
 
+## VMEC-lite Claim-Admission Benchmark
+
+`validation/benchmark_vmec_lite_claims.py` publishes bounded synthetic
+regression evidence for the fixed-boundary VMEC-lite spectral facade. The
+generated report records Fourier truncation, field periods, pressure and
+rotational-transform profile provenance, current-assumption provenance,
+positive sampled major-radius bounds, force residual, and q-domain.
+
+Report artefacts:
+
+- `validation/reports/vmec_lite_claims.json`
+- `validation/reports/vmec_lite_claims.md`
+
+Full VMEC or 3D MHD equilibrium claims still require matched VMEC, documented
+public, external-MHD, or measured-stellarator references for `R_mn`, `Z_mn`,
+rotational transform, convergence, and residual tolerance.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:

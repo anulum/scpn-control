@@ -1541,7 +1541,7 @@
     },
     {
       "component": "VMEC-lite stellarator equilibrium approximation contract",
-      "equation_contract": "VMEC-lite claims must declare flux-surface parameterisation, rotational-transform profile, Fourier mode truncation, positive R00 major-radius boundary state, pressure/current assumptions, residual metric, and explicit exclusion from full 3D MHD equilibrium claims.",
+      "equation_contract": "VMEC-lite claims must declare flux-surface parameterisation, rotational-transform profile, Fourier mode truncation, field-period count, positive R00 and sampled major-radius boundary state, pressure/current assumptions, residual metric, geometry/profile/current provenance, reference-comparison tolerances for R_mn, Z_mn, and iota, convergence status, and explicit exclusion from full VMEC-grade 3D MHD equilibrium claims unless matched references pass the fail-closed admission gate.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "VMEC 3D equilibrium references",
@@ -1550,24 +1550,30 @@
       "module_path": "src/scpn_control/core/vmec_lite.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate surface geometry and rotational-transform outputs against VMEC or published stellarator benchmark equilibria",
-        "Persist Fourier truncation, pressure profile, current profile, and residual metadata for each validation case"
+        "Validate surface geometry and rotational-transform outputs against VMEC or published stellarator benchmark equilibria before full VMEC claims",
+        "Persist Fourier truncation, field periods, pressure profile, iota profile, current assumption, sampled major-radius bounds, residual tolerance, reference errors, and admission status for every promoted VMEC-lite claim"
       ],
       "unit_contract": "SI metres, tesla, pascals, amperes, webers, dimensionless rotational transform, and Fourier coefficients with declared length units.",
       "validation_evidence": [
-        "tests/test_vmec_lite.py",
-        "validation/validate_vmec_reference.py strict VMEC reference artifact gate"
+        "tests/test_vmec_lite.py verifies finite spectral reconstruction, bounded force residuals, physical domains, and fail-closed VMEC-lite claim evidence admission",
+        "validation/benchmark_vmec_lite_claims.py publishes deterministic bounded synthetic claim evidence with explicit full-VMEC exclusion",
+        "validation/reports/vmec_lite_claims.json records bounded Fourier, field-period, profile, residual, q-domain, and positive-major-radius evidence",
+        "validation/validate_vmec_reference.py strict VMEC reference artefact gate"
       ],
       "evidence_paths": [
         "tests/test_vmec_lite.py",
         "src/scpn_control/core/vmec_lite.py",
+        "validation/benchmark_vmec_lite_claims.py",
+        "validation/reports/vmec_lite_claims.json",
+        "validation/reports/vmec_lite_claims.md",
         "validation/validate_vmec_reference.py",
-        "docs/validation.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/vmec_lite.py"
       ],
-      "validity_domain": "Reduced stellarator surface regression; not full VMEC-grade 3D equilibrium validation.",
+      "validity_domain": "Bounded fixed-boundary VMEC-lite spectral facade evidence for local regression and controller studies; not full VMEC-grade 3D MHD equilibrium validation unless matched external R_mn, Z_mn, iota, convergence, and residual references pass the admission gate.",
       "external_validation_tracker_issue": 48
     },
     {
