@@ -18,6 +18,7 @@ The NumPy path is deterministic and intentionally does not claim gradients.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -71,6 +72,24 @@ class TransportGradientAudit:
     chi_max_abs_error: float
     source_max_abs_error: float
     passed: bool
+
+
+@dataclass(frozen=True)
+class TransportGradientLatencyReport:
+    """Latency evidence for audited differentiable transport tuning gradients."""
+
+    schema_version: int
+    backend: str
+    dtype: str
+    n_rho: int
+    channel_count: int
+    warmup_runs: int
+    timed_runs: int
+    p50_ms: float
+    p95_ms: float
+    max_ms: float
+    audit: TransportGradientAudit
+    claim_status: str
 
 
 @dataclass(frozen=True)
@@ -1033,6 +1052,126 @@ def assert_transport_parameter_gradients_consistent(
             f"tolerance={audit.tolerance:.6g}"
         )
     return audit
+
+
+def _percentile(sorted_values: list[float], percentile: float) -> float:
+    if not sorted_values:
+        raise ValueError("latency samples must not be empty")
+    if len(sorted_values) == 1:
+        return float(sorted_values[0])
+    rank = (len(sorted_values) - 1) * percentile
+    lower = int(np.floor(rank))
+    upper = int(np.ceil(rank))
+    if lower == upper:
+        return float(sorted_values[lower])
+    fraction = rank - lower
+    return float(sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction)
+
+
+def benchmark_transport_parameter_gradient_latency(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+    epsilon: float = 1.0e-5,
+    tolerance: float = 5.0e-4,
+    sample_indices: Any | None = None,
+    warmup_runs: int = 1,
+    timed_runs: int = 5,
+) -> TransportGradientLatencyReport:
+    """Measure audited JAX gradient-admission latency for controller tuning.
+
+    The measured path is intentionally the fail-closed admission contract:
+    JAX gradients for transport coefficients and source schedules plus sampled
+    independent finite-difference audit. The report is local timing evidence,
+    not a real-time control-loop guarantee.
+    """
+    warmups = int(warmup_runs)
+    repetitions = int(timed_runs)
+    if warmups < 0:
+        raise ValueError("warmup_runs must be non-negative")
+    if repetitions <= 0:
+        raise ValueError("timed_runs must be positive")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_profiles is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+
+    def run_audit() -> TransportGradientAudit:
+        return assert_transport_parameter_gradients_consistent(
+            profile_array,
+            chi_array,
+            source_array,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            weights=weight_array,
+            epsilon=epsilon,
+            tolerance=tolerance,
+            sample_indices=sample_indices,
+        )
+
+    audit = run_audit()
+    for _ in range(warmups):
+        audit = run_audit()
+
+    latencies_ms: list[float] = []
+    for _ in range(repetitions):
+        start_ns = time.perf_counter_ns()
+        audit = run_audit()
+        latencies_ms.append((time.perf_counter_ns() - start_ns) / 1.0e6)
+
+    sorted_latencies = sorted(latencies_ms)
+    metadata = transport_campaign_metadata(
+        profile_array,
+        chi_array,
+        source_array,
+        rho_array,
+        float(dt),
+        edge_array,
+        backend="jax",
+        gradient_tolerance=tolerance,
+    )
+    return TransportGradientLatencyReport(
+        schema_version=1,
+        backend=metadata.backend,
+        dtype=metadata.dtype,
+        n_rho=metadata.n_rho,
+        channel_count=CHANNEL_COUNT,
+        warmup_runs=warmups,
+        timed_runs=repetitions,
+        p50_ms=_percentile(sorted_latencies, 0.50),
+        p95_ms=_percentile(sorted_latencies, 0.95),
+        max_ms=float(max(sorted_latencies)),
+        audit=audit,
+        claim_status="local audited gradient-admission latency only; not a real-time control-loop guarantee",
+    )
+
+
+def save_transport_gradient_latency_report(report: TransportGradientLatencyReport, path: str | Path) -> None:
+    """Persist differentiable transport gradient-latency evidence as JSON."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def equilibrium_weighted_transport_loss_gradient(

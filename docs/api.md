@@ -162,6 +162,12 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 
 ::: scpn_control.core.differentiable_transport.TransportGradientAudit
 
+::: scpn_control.core.differentiable_transport.benchmark_transport_parameter_gradient_latency
+
+::: scpn_control.core.differentiable_transport.TransportGradientLatencyReport
+
+::: scpn_control.core.differentiable_transport.save_transport_gradient_latency_report
+
 ::: scpn_control.core.differentiable_transport.transport_coefficients_from_neural_closure
 
 ::: scpn_control.core.differentiable_transport.TransportCampaignMetadata

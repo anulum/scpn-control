@@ -247,6 +247,80 @@ def test_transport_parameter_gradient_audit_rejects_invalid_admission_contract(m
         dt.audit_transport_parameter_gradients(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
 
 
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_transport_gradient_latency_report_times_audited_admission_path(tmp_path):
+    rho = np.linspace(0.05, 1.0, 17)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.18 + 0.02 * rho,
+            0.15 + 0.02 * rho,
+            0.04 + 0.004 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    sources = np.zeros_like(profiles)
+    sources[0, 4:8] = 0.03
+    sources[2, 7:11] = -0.01
+    target = profiles.copy()
+    target[0, 6:12] += 0.02
+    target[1, 5:11] -= 0.015
+    target[2, 4:10] += 0.01
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    report = dt.benchmark_transport_parameter_gradient_latency(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        8.0e-4,
+        edge_values,
+        weights=np.array([1.0, 0.75, 0.25, 0.1]),
+        epsilon=5.0e-5,
+        tolerance=2.0e-3,
+        sample_indices=((0, 5), (1, 9), (2, 7), (3, 12)),
+        warmup_runs=0,
+        timed_runs=2,
+    )
+    path = tmp_path / "transport_gradient_latency.json"
+    dt.save_transport_gradient_latency_report(report, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+
+    assert isinstance(report, dt.TransportGradientLatencyReport)
+    assert report.audit.passed is True
+    assert report.backend == "jax"
+    assert report.n_rho == rho.size
+    assert report.channel_count == dt.CHANNEL_COUNT
+    assert report.timed_runs == 2
+    assert report.p50_ms > 0.0
+    assert report.p95_ms >= report.p50_ms
+    assert report.max_ms >= report.p95_ms
+    assert payload["audit"]["passed"] is True
+    assert payload["claim_status"].startswith("local audited gradient-admission latency")
+
+
+def test_transport_gradient_latency_report_rejects_invalid_run_counts():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    with pytest.raises(ValueError, match="timed_runs"):
+        dt.benchmark_transport_parameter_gradient_latency(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            timed_runs=0,
+        )
+
+
 def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():
     rho = np.linspace(0.05, 1.0, 24)
     profiles = _profiles(rho)

@@ -20,6 +20,8 @@
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.
+- Added differentiable transport gradient-latency reporting for the audited
+  controller-tuning admission path with persisted bounded benchmark artefacts.
 - Wired the NMPC transport-tuning path to require that gradient audit by
   default and to persist the audit result with each coefficient update.
 - Added audited NMPC source-schedule tuning for additive heating, fuelling, and
@@ -69,6 +71,7 @@
 - `python validation/validate_physics_traceability.py --registry validation/physics_traceability.json --json-out`
 - `python validation/benchmark_federated_disruption.py`
 - `python validation/benchmark_neural_equilibrium_pretraining.py`
+- `python validation/benchmark_differentiable_transport_latency.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`

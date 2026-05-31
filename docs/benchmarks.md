@@ -121,6 +121,23 @@ Hybrid accuracy (`validation/benchmark_hybrid_accuracy.py`) measures the
 correction layer convergence over 20 transport steps with periodic GK
 spot-checks.
 
+## Differentiable Transport Gradient-Latency Benchmark
+
+The controller-tuning facade measures the audited admission path for JAX
+transport gradients via `validation/benchmark_differentiable_transport_latency.py`.
+The timed path includes gradients for transport coefficients and source
+schedules plus the sampled independent finite-difference audit used before
+controller-tuning admission.
+
+Report artefacts:
+
+- `validation/reports/differentiable_transport_latency.json`
+- `validation/reports/differentiable_transport_latency.md`
+
+The report is local latency evidence for the audited gradient-admission path.
+It is not a real-time control-loop guarantee and does not replace external
+transport validation.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:
