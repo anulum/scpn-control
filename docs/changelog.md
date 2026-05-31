@@ -62,7 +62,14 @@
 - Hardened FusionKernel configuration loading so runtime JSON is retained as a
   typed Pydantic v2 model with schema-normalised boundary variants while the
   legacy dict view remains a compatibility export for solver internals.
-- Hardened controller safety-case readiness artifacts so target-hardware timing evidence must resolve under a supplied artifact root, match the declared SHA-256 bytes, and pass the schema-versioned E2E latency validator before promotion readiness can cite it.
+- Hardened controller safety-case readiness artifacts so target-hardware timing
+  evidence must resolve under a supplied artifact root, match the declared
+  SHA-256 bytes, and pass the schema-versioned E2E latency validator before
+  promotion readiness can cite it.
+- Hardened controller safety-case readiness so qualified WebSocket runtime
+  evidence is required before deployment readiness can cite authenticated
+  command-stream, TLS, payload-cap, token-bucket, broadcast, or backpressure
+  claims.
 - Hardened end-to-end control-latency evidence so benchmark reports now use a
   schema-versioned canonical payload digest and admission rejects tampering,
   non-positive run counts, unordered percentiles, mismatched overhead factors,

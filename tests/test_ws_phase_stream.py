@@ -16,12 +16,19 @@ import math
 import ssl
 import sys
 import time
+from dataclasses import asdict
 
 import pytest
 
 import scpn_control.phase.ws_phase_stream as ws_phase_stream
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
-from scpn_control.phase.ws_phase_stream import PhaseStreamServer
+from scpn_control.phase.ws_phase_stream import (
+    PhaseStreamServer,
+    assert_websocket_runtime_claim_admissible,
+    load_websocket_runtime_evidence,
+    save_websocket_runtime_evidence,
+    websocket_runtime_evidence,
+)
 
 
 def _make_monitor():
@@ -1014,3 +1021,165 @@ class TestPhaseStreamServer:
             assert serve_called["max_size"] == 1234
 
         asyncio.run(_run())
+
+    def test_runtime_counters_record_command_broadcast_and_backpressure(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(
+                monitor=mon,
+                api_key="secret-token-123456",
+                tick_interval_s=0.001,
+                client_send_timeout_s=0.001,
+            )
+            ws = _FakeWS([json.dumps({"action": "set_psi", "value": 0.2})])
+
+            await server._handler(ws)
+
+            counters = server.runtime_counters()
+            assert counters["auth_successes"] == 1
+            assert counters["command_frames"] == 1
+            assert counters["peak_connected_clients"] == 1
+
+            class _SlowWS(_FakeWS):
+                async def send(self, data):
+                    await asyncio.sleep(10.0)
+
+            slow = _SlowWS()
+            server._clients.add(slow)
+            server._running = True
+
+            async def _stop_when_dropped():
+                deadline = time.monotonic() + 0.1
+                while slow in server._clients and time.monotonic() < deadline:
+                    await asyncio.sleep(0.001)
+                server._running = False
+
+            await asyncio.gather(server._tick_loop(), _stop_when_dropped())
+
+            counters = server.runtime_counters()
+            assert counters["backpressure_disconnects"] == 1
+            assert counters["broadcast_frames"] == 0
+
+        asyncio.run(_run())
+
+    def test_websocket_runtime_evidence_round_trips_without_secret_and_supports_claim(self, tmp_path):
+        mon = _make_monitor()
+        server = PhaseStreamServer(
+            monitor=mon,
+            api_key="secret-token-123456",
+            require_tls=True,
+            allowed_origins=("https://ops.example",),
+        )
+        evidence = websocket_runtime_evidence(
+            server,
+            deployment_id="phase-stream-prod-a",
+            bind_host="ops.phase.internal",
+            uses_tls=True,
+            counters={
+                "auth_successes": 1,
+                "command_frames": 1,
+                "broadcast_frames": 2,
+                "peak_connected_clients": 1,
+            },
+            generated_utc="2026-05-31T00:00:00Z",
+            facility_claim_allowed=True,
+        )
+
+        encoded = json.dumps(asdict(evidence), sort_keys=True)
+        assert "secret-token-123456" not in encoded
+        assert evidence.require_tls is True
+        assert evidence.command_frames == 1
+        assert_websocket_runtime_claim_admissible(evidence)
+
+        path = tmp_path / "websocket_runtime.json"
+        save_websocket_runtime_evidence(evidence, path)
+        assert load_websocket_runtime_evidence(path, require_facility_claim=True) == evidence
+
+    def test_websocket_runtime_evidence_rejects_local_only_and_tls_gaps(self):
+        mon = _make_monitor()
+        server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", require_tls=True)
+        local_only = websocket_runtime_evidence(
+            server,
+            deployment_id="local-phase-stream",
+            counters={
+                "auth_successes": 1,
+                "command_frames": 1,
+                "broadcast_frames": 1,
+                "peak_connected_clients": 1,
+            },
+            generated_utc="2026-05-31T00:00:00Z",
+        )
+        with pytest.raises(ValueError, match="local-only"):
+            assert_websocket_runtime_claim_admissible(local_only)
+
+        lax_server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+        with pytest.raises(ValueError, match="TLS enforcement"):
+            websocket_runtime_evidence(
+                lax_server,
+                deployment_id="phase-stream-prod-a",
+                bind_host="ops.phase.internal",
+                uses_tls=True,
+                counters={
+                    "auth_successes": 1,
+                    "command_frames": 1,
+                    "broadcast_frames": 1,
+                    "peak_connected_clients": 1,
+                },
+                generated_utc="2026-05-31T00:00:00Z",
+                facility_claim_allowed=True,
+            )
+
+        with pytest.raises(ValueError, match="authenticated commands"):
+            websocket_runtime_evidence(
+                server,
+                deployment_id="phase-stream-prod-a",
+                bind_host="ops.phase.internal",
+                uses_tls=True,
+                counters={
+                    "auth_successes": 1,
+                    "broadcast_frames": 1,
+                    "peak_connected_clients": 1,
+                },
+                generated_utc="2026-05-31T00:00:00Z",
+                facility_claim_allowed=True,
+            )
+
+    def test_websocket_runtime_evidence_rejects_tampering_and_duplicate_keys(self, tmp_path):
+        mon = _make_monitor()
+        server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", require_tls=True)
+        evidence = websocket_runtime_evidence(
+            server,
+            deployment_id="phase-stream-prod-a",
+            bind_host="ops.phase.internal",
+            uses_tls=True,
+            counters={
+                "auth_successes": 1,
+                "command_frames": 1,
+                "broadcast_frames": 1,
+                "peak_connected_clients": 1,
+            },
+            generated_utc="2026-05-31T00:00:00Z",
+            facility_claim_allowed=True,
+        )
+        path = tmp_path / "websocket_runtime.json"
+        save_websocket_runtime_evidence(evidence, path)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["command_frames"] = 9
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="payload_sha256"):
+            load_websocket_runtime_evidence(path)
+
+        duplicate_path = tmp_path / "duplicate_websocket_runtime.json"
+        duplicate_path.write_text(
+            (
+                '{"schema_version":"'
+                + ws_phase_stream.WEBSOCKET_RUNTIME_EVIDENCE_SCHEMA_VERSION
+                + '","schema_version":"'
+                + ws_phase_stream.WEBSOCKET_RUNTIME_EVIDENCE_SCHEMA_VERSION
+                + '"}'
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="duplicate JSON key"):
+            load_websocket_runtime_evidence(duplicate_path)

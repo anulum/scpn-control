@@ -33,6 +33,7 @@ from scpn_control.scpn.artifact import (
     validate_safety_critical_artifact,
 )
 from scpn_control.scpn.fpga_export import load_hdl_export_evidence
+from scpn_control.phase.ws_phase_stream import load_websocket_runtime_evidence
 
 _SAFETY_CASE_MANIFEST_SCHEMA_VERSION = 1
 _READINESS_ARTIFACT_KINDS = (
@@ -41,9 +42,10 @@ _READINESS_ARTIFACT_KINDS = (
     "hil_replay_evidence",
     "hdl_export_evidence",
     "codac_runtime_evidence",
+    "websocket_runtime_evidence",
     "independent_safety_review",
 )
-_READINESS_SCHEMA_VERSION = 3
+_READINESS_SCHEMA_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -72,6 +74,7 @@ class SafetyCaseReadinessEvidence:
     hil_replay_evidence_sha256: str | None
     hdl_export_evidence_sha256: str | None
     codac_runtime_evidence_sha256: str | None
+    websocket_runtime_evidence_sha256: str | None
     independent_safety_review_sha256: str | None
     blocking_reasons: tuple[str, ...]
     claim_status: str
@@ -199,6 +202,17 @@ def _validate_codac_runtime_artifact(
         raise ValueError(f"CODAC runtime artifact is not admissible: {exc}") from exc
 
 
+def _validate_websocket_runtime_artifact(
+    artifact: ReadinessArtifactEvidence,
+    artifact_root: str | Path,
+) -> None:
+    report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
+    try:
+        load_websocket_runtime_evidence(report_path, require_facility_claim=True)
+    except ValueError as exc:
+        raise ValueError(f"WebSocket runtime artifact is not admissible: {exc}") from exc
+
+
 def _validate_hdl_export_artifact(
     artifact: ReadinessArtifactEvidence,
     artifact_root: str | Path,
@@ -283,6 +297,11 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
                 if payload["codac_runtime_evidence_sha256"] is None
                 else str(payload["codac_runtime_evidence_sha256"])
             ),
+            websocket_runtime_evidence_sha256=(
+                None
+                if payload["websocket_runtime_evidence_sha256"] is None
+                else str(payload["websocket_runtime_evidence_sha256"])
+            ),
             independent_safety_review_sha256=(
                 None
                 if payload["independent_safety_review_sha256"] is None
@@ -302,6 +321,7 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
     _optional_sha256("hil_replay_evidence_sha256", readiness.hil_replay_evidence_sha256)
     _optional_sha256("hdl_export_evidence_sha256", readiness.hdl_export_evidence_sha256)
     _optional_sha256("codac_runtime_evidence_sha256", readiness.codac_runtime_evidence_sha256)
+    _optional_sha256("websocket_runtime_evidence_sha256", readiness.websocket_runtime_evidence_sha256)
     _optional_sha256("independent_safety_review_sha256", readiness.independent_safety_review_sha256)
     if readiness.status not in {"blocked", "promotion_ready"}:
         raise ValueError("controller safety-case readiness status is unsupported")
@@ -311,6 +331,7 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
         "hil_replay_evidence_sha256": readiness.hil_replay_evidence_sha256,
         "hdl_export_evidence_sha256": readiness.hdl_export_evidence_sha256,
         "codac_runtime_evidence_sha256": readiness.codac_runtime_evidence_sha256,
+        "websocket_runtime_evidence_sha256": readiness.websocket_runtime_evidence_sha256,
         "independent_safety_review_sha256": readiness.independent_safety_review_sha256,
     }
     missing = tuple(name for name, value in required_digests.items() if value is None)
@@ -333,6 +354,7 @@ def evaluate_controller_safety_case_readiness(
     hil_replay_evidence_sha256: str | None = None,
     hdl_export_evidence_sha256: str | None = None,
     codac_runtime_evidence_sha256: str | None = None,
+    websocket_runtime_evidence_sha256: str | None = None,
     independent_safety_review_sha256: str | None = None,
 ) -> SafetyCaseReadinessEvidence:
     """Evaluate whether a bounded safety-case bundle is promotion-ready.
@@ -340,7 +362,8 @@ def evaluate_controller_safety_case_readiness(
     The linked internal evidence chain is necessary but not sufficient for
     promotion readiness. This gate requires external physics validation,
     target-hardware timing evidence, HIL replay evidence, HDL export evidence,
-    CODAC/EPICS runtime evidence, and an independent safety review digest.
+    CODAC/EPICS runtime evidence, WebSocket runtime evidence, and an
+    independent safety review digest.
     """
     if not isinstance(safety_case, ControllerSafetyCaseEvidence):
         raise ValueError("safety_case must be ControllerSafetyCaseEvidence")
@@ -349,6 +372,7 @@ def evaluate_controller_safety_case_readiness(
     hil_digest = _optional_sha256("hil_replay_evidence_sha256", hil_replay_evidence_sha256)
     hdl_digest = _optional_sha256("hdl_export_evidence_sha256", hdl_export_evidence_sha256)
     codac_digest = _optional_sha256("codac_runtime_evidence_sha256", codac_runtime_evidence_sha256)
+    websocket_digest = _optional_sha256("websocket_runtime_evidence_sha256", websocket_runtime_evidence_sha256)
     review_digest = _optional_sha256("independent_safety_review_sha256", independent_safety_review_sha256)
     blocking: list[str] = []
     if external_digest is None:
@@ -361,6 +385,8 @@ def evaluate_controller_safety_case_readiness(
         blocking.append("hdl_export_evidence_sha256")
     if codac_digest is None:
         blocking.append("codac_runtime_evidence_sha256")
+    if websocket_digest is None:
+        blocking.append("websocket_runtime_evidence_sha256")
     if review_digest is None:
         blocking.append("independent_safety_review_sha256")
     status = "promotion_ready" if not blocking else "blocked"
@@ -373,6 +399,7 @@ def evaluate_controller_safety_case_readiness(
         hil_replay_evidence_sha256=hil_digest,
         hdl_export_evidence_sha256=hdl_digest,
         codac_runtime_evidence_sha256=codac_digest,
+        websocket_runtime_evidence_sha256=websocket_digest,
         independent_safety_review_sha256=review_digest,
         blocking_reasons=tuple(blocking),
         claim_status=(
@@ -418,6 +445,8 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
             )
         elif kind == "codac_runtime_evidence":
             _validate_codac_runtime_artifact(artifact, artifact_root)
+        elif kind == "websocket_runtime_evidence":
+            _validate_websocket_runtime_artifact(artifact, artifact_root)
         else:
             _resolve_readiness_artifact_path(artifact, artifact_root)
     return evaluate_controller_safety_case_readiness(
@@ -427,6 +456,7 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
         hil_replay_evidence_sha256=by_kind["hil_replay_evidence"].artifact_sha256,
         hdl_export_evidence_sha256=by_kind["hdl_export_evidence"].artifact_sha256,
         codac_runtime_evidence_sha256=by_kind["codac_runtime_evidence"].artifact_sha256,
+        websocket_runtime_evidence_sha256=by_kind["websocket_runtime_evidence"].artifact_sha256,
         independent_safety_review_sha256=by_kind["independent_safety_review"].artifact_sha256,
     )
 
@@ -491,6 +521,7 @@ def assert_controller_safety_case_readiness_admissible(
         hil_replay_evidence_sha256=readiness.hil_replay_evidence_sha256,
         hdl_export_evidence_sha256=readiness.hdl_export_evidence_sha256,
         codac_runtime_evidence_sha256=readiness.codac_runtime_evidence_sha256,
+        websocket_runtime_evidence_sha256=readiness.websocket_runtime_evidence_sha256,
         independent_safety_review_sha256=readiness.independent_safety_review_sha256,
     )
     if readiness != recomputed:

@@ -240,11 +240,12 @@ It blocks full-fidelity public claims for entries whose evidence status is still
   - Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted
   - Require schema-versioned Z3 report payload digests to match safety-critical proof manifests before artifact admission
   - Resolve typed readiness artifact URIs under an explicit artifact root and validate target-hardware timing reports through the E2E latency evidence gate before promotion readiness.
+  - Require qualified HIL replay, HDL export, CODAC/EPICS runtime, and WebSocket runtime evidence artifacts before controller safety-case promotion readiness.
   - Admit safety-critical `.scpnctl` artifacts only through the bounded formal-verification manifest gate
   - Bind admitted proof manifests to the exact canonical artifact payload digest and declared report digest
   - Bind promoted controller safety-case bundles to the same controller artifact digest across formal proof, differentiable-transport, and digital-twin update evidence
   - Persist controller safety-case bundles with schema-versioned integrity manifests before replay admission
-  - Keep controller safety-case readiness blocked until external physics validation, target-hardware timing, and independent safety-review digests are all present
+  - Keep controller safety-case readiness blocked until external physics validation, target-hardware timing, qualified runtime/hardware evidence, and independent safety-review digests are all present
   - Prefer typed readiness artifacts with safe relative URIs, producers, timestamps, and kind-specific SHA-256 digests over anonymous promotion digests
   - Persist controller safety-case readiness decisions with schema-versioned integrity manifests before promotion replay
   - Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation

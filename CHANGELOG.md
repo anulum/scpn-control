@@ -5,6 +5,12 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened controller safety-case readiness so promotion now also requires a
+  typed `websocket_runtime_evidence` artifact that resolves under the declared
+  evidence root, matches its SHA-256 bytes, and passes qualified WebSocket
+  runtime admission before deployment readiness can cite authenticated command
+  streams, TLS enforcement, payload caps, token-bucket limiting, broadcast
+  delivery, or backpressure absence.
 - Added schema-versioned FPGA HDL export evidence admission so generated
   Verilog/VHDL project claims bind controller artifact SHA-256, generated HDL,
   weight memory, timing constraints, Makefile, resource estimates, synthesis

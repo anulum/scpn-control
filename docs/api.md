@@ -740,8 +740,25 @@ opt-ins for constrained development or isolated lab environments.  Browser
 clients that send an `Origin` header are rejected unless the origin is
 allowlisted, and deployments may restrict command authority with
 `allowed_actions`.
+`websocket_runtime_evidence()` emits a tamper-evident deployment artifact that
+binds WebSocket configuration, authenticated sessions, accepted commands,
+successful broadcasts, audit counters, TLS enforcement, payload caps, and
+backpressure state without storing API-key material. Qualified facility
+admission requires client authentication, configured TLS enforcement, observed
+commands, observed broadcasts, no query-token authentication, no insecure remote
+binding, and zero backpressure disconnects.
 
 ::: scpn_control.phase.ws_phase_stream.PhaseStreamServer
+
+::: scpn_control.phase.ws_phase_stream.WebSocketRuntimeEvidence
+
+::: scpn_control.phase.ws_phase_stream.websocket_runtime_evidence
+
+::: scpn_control.phase.ws_phase_stream.assert_websocket_runtime_claim_admissible
+
+::: scpn_control.phase.ws_phase_stream.save_websocket_runtime_evidence
+
+::: scpn_control.phase.ws_phase_stream.load_websocket_runtime_evidence
 
 ---
 
@@ -816,9 +833,9 @@ or edited evidence payloads before replay admission.
 `evaluate_controller_safety_case_readiness()` separates linked bounded evidence
 from promotion readiness: external physics validation, target-hardware timing
 evidence, qualified HIL replay evidence, qualified CODAC/EPICS runtime
-evidence, qualified HDL export evidence, and independent safety-review digests
-are all required before `assert_controller_safety_case_readiness_admissible()`
-accepts the package.
+evidence, qualified WebSocket runtime evidence, qualified HDL export evidence,
+and independent safety-review digests are all required before
+`assert_controller_safety_case_readiness_admissible()` accepts the package.
 `ReadinessArtifactEvidence` and
 `evaluate_controller_safety_case_readiness_from_artifacts()` provide the normal
 promotion path: each required readiness input must be a typed artifact with a
@@ -834,6 +851,10 @@ local workstation replay cannot satisfy deployment promotion readiness.
 admission loader with qualified facility-claim status, deadline-clean cycle
 evidence, exercised interlock blocking, zero backpressure events, and
 hash-bound EPICS/OPC-UA exports.
+`websocket_runtime_evidence` artifacts must pass the schema-versioned WebSocket
+runtime admission loader with authenticated command evidence, TLS enforcement,
+token-bucket and payload-cap configuration, successful broadcast counters, and
+zero backpressure disconnects.
 `hdl_export_evidence` artifacts must pass the schema-versioned FPGA export
 admission loader with controller-artifact binding, generated project file
 digests, synthesis-report digest binding, and non-negative timing slack.

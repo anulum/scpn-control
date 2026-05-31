@@ -81,7 +81,7 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Project scripts | 2 |
 | Public API exports | 44 |
 | Python control/physics modules | 134 |
-| Python public classes | 478 |
+| Python public classes | 479 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
 | Validation scripts | 69 |
@@ -434,8 +434,9 @@ git push --tags
 - **No peer-reviewed fusion publication**: Paper 27 (arXiv:2004.06344) is
   unpublished in a fusion journal. No external citations.
 - **Not a production PCS**: Alpha-stage research software. CODAC/EPICS support
-  is a research adapter and evidence-admission contract, not a certified ITER
-  plant deployment. No safety certification and no real hardware deployment.
+  and WebSocket control-stream support are research adapters and
+  evidence-admission contracts, not a certified ITER plant deployment. No
+  safety certification and no real hardware deployment.
 - **"Formal verification" is contract checking**: Runtime pre/post-condition
   assertions, not theorem-proved guarantees (no Coq/Lean/TLA+).
 - **Benchmark comparisons are not apples-to-apples**: The 11.9 µs number is a

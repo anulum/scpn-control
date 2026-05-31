@@ -24,7 +24,7 @@ requirements for tokamak plant operation.
 | Local software quality gates | Production-oriented | Module-specific tests, lint/type checks, pre-commit gates, generated traceability checks, and security scans are part of normal development. |
 | Bounded physics/control evidence | Bounded research evidence | Repository benchmarks, deterministic fixtures, formal checks, and checksum/provenance gates support limited claims only inside declared domains. |
 | Facility physics validation | Not complete | Many physics surfaces still require measured-shot, external-code, or documented public reference artifacts before quantitative or facility claims are admissible. |
-| Real plant deployment | Not ready | No commissioned PCS deployment, no CODAC/EPICS plant acceptance, no hardware interlock qualification, no operator procedure package, and no safety certification evidence pack. |
+| Real plant deployment | Not ready | No commissioned PCS deployment, no CODAC/EPICS plant acceptance, no qualified WebSocket control-stream runtime artifact, no hardware interlock qualification, no operator procedure package, and no safety certification evidence pack. |
 | Safety certification | Not ready | Certification would require hazard analysis, requirements traceability, independent V&V, configuration management, audit trails, and device-specific acceptance evidence. |
 
 ## Claim status levels
