@@ -192,7 +192,7 @@
       ],
       "unit_contract": "Mass in kilograms, charge in coulombs, density in m^-3, temperature in electronvolts, velocity in m/s, gyrofrequency in rad/s, Larmor radius in metres, collision rates in s^-1, lambda on [0, 1] with lambda times B/B0 no greater than one, and positive magnetic-field ratio.",
       "validation_evidence": [
-        "tests/test_gk_species.py",
+        "tests/test_gk_species.py thermal-speed, Larmor-radius, Bessel gyroaverage, diamagnetic-frequency sign, collision-frequency scaling, velocity-grid, and pitch-angle-domain checks",
         "tests/test_gk_electromagnetic.py",
         "validation/validate_gk_species_reference.py immutable species and collision reference cases with distinct deflection and energy-relaxation channels"
       ],

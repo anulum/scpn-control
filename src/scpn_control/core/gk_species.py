@@ -142,6 +142,48 @@ class VelocityGrid:
         return self.n_energy * self.n_lambda
 
 
+@dataclass(frozen=True)
+class DiamagneticFrequencies:
+    """Normalised species diamagnetic frequencies for GK drive terms.
+
+    Frequencies are normalised to ``v_th / R``. Positive ion temperature or
+    density gradients therefore propagate in the ion diamagnetic direction,
+    while electron frequencies carry the opposite sign through ``charge_e``.
+    """
+
+    density: float
+    temperature: float
+    pressure: float
+
+
+def diamagnetic_frequencies(species: GKSpecies, k_y_rho_s: float) -> DiamagneticFrequencies:
+    """Return density, temperature, and pressure diamagnetic frequencies.
+
+    The returned values are dimensionless frequencies normalised to ``v_th/R``:
+
+    ``omega_*n = -sign(q_s) k_y rho_s R/L_n``
+    ``omega_*T = -sign(q_s) k_y rho_s R/L_T``
+    ``omega_*p = omega_*n + omega_*T``
+
+    This is a local-drive bookkeeping utility for bounded GK regression and
+    controller-adapter contracts; it does not introduce an external-code
+    validation claim.
+    """
+    if not isinstance(species, GKSpecies):
+        raise ValueError("species must be a GKSpecies instance")
+    k_y = float(k_y_rho_s)
+    if not np.isfinite(k_y) or k_y < 0.0:
+        raise ValueError("k_y_rho_s must be finite and non-negative")
+    sign = float(np.sign(species.charge_e))
+    density = -sign * k_y * float(species.R_L_n)
+    temperature = -sign * k_y * float(species.R_L_T)
+    return DiamagneticFrequencies(
+        density=float(density),
+        temperature=float(temperature),
+        pressure=float(density + temperature),
+    )
+
+
 def bessel_j0(x: NDArray[np.float64]) -> NDArray[np.float64]:
     """J_0(x) via scipy or polynomial approximation.
 

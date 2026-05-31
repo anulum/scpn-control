@@ -11,11 +11,13 @@ import numpy as np
 import pytest
 
 from scpn_control.core.gk_species import (
+    DiamagneticFrequencies,
     GKSpecies,
     VelocityGrid,
     bessel_j0,
     collision_frequencies,
     deuterium_ion,
+    diamagnetic_frequencies,
     electron,
     pitch_angle_operator,
 )
@@ -97,6 +99,39 @@ def test_bessel_j0_first_zero():
     """J_0 first zero at x ≈ 2.4048."""
     x = np.array([2.4048])
     assert abs(bessel_j0(x)[0]) < 0.01
+
+
+def test_diamagnetic_frequencies_follow_species_charge_direction_and_gradients():
+    ion = deuterium_ion(R_L_T=6.0, R_L_n=2.0)
+    elec = electron(R_L_T=6.0, R_L_n=2.0, adiabatic=False)
+
+    ion_omega = diamagnetic_frequencies(ion, k_y_rho_s=0.3)
+    electron_omega = diamagnetic_frequencies(elec, k_y_rho_s=0.3)
+
+    assert isinstance(ion_omega, DiamagneticFrequencies)
+    assert ion_omega.density == pytest.approx(-0.6)
+    assert ion_omega.temperature == pytest.approx(-1.8)
+    assert ion_omega.pressure == pytest.approx(ion_omega.density + ion_omega.temperature)
+    assert electron_omega.density == pytest.approx(-ion_omega.density)
+    assert electron_omega.temperature == pytest.approx(-ion_omega.temperature)
+
+
+def test_diamagnetic_frequencies_vanish_for_zero_drive_and_wavenumber():
+    species = deuterium_ion(R_L_T=0.0, R_L_n=0.0)
+    no_drive = diamagnetic_frequencies(species, k_y_rho_s=0.7)
+    no_wavenumber = diamagnetic_frequencies(deuterium_ion(R_L_T=6.0, R_L_n=2.0), k_y_rho_s=0.0)
+
+    assert no_drive == DiamagneticFrequencies(density=0.0, temperature=0.0, pressure=0.0)
+    assert no_wavenumber == DiamagneticFrequencies(density=0.0, temperature=0.0, pressure=0.0)
+
+
+def test_diamagnetic_frequencies_reject_invalid_contracts():
+    with pytest.raises(ValueError, match="GKSpecies"):
+        diamagnetic_frequencies(object(), k_y_rho_s=0.3)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="k_y_rho_s"):
+        diamagnetic_frequencies(deuterium_ion(), k_y_rho_s=-0.1)
+    with pytest.raises(ValueError, match="k_y_rho_s"):
+        diamagnetic_frequencies(deuterium_ion(), k_y_rho_s=float("nan"))
 
 
 def test_collision_frequencies_positive():

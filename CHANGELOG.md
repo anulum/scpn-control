@@ -33,6 +33,9 @@
 - Added a bounded reduced-gyrokinetic transport closure adapter for mapping
   existing quasilinear GK profile outputs into differentiable transport
   coefficient channels with explicit provenance.
+- Added explicit gyrokinetic species diamagnetic-frequency bookkeeping with
+  charge-direction, density-gradient, temperature-gradient, and zero-drive
+  regression coverage.
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.
