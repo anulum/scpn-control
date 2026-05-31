@@ -476,11 +476,17 @@ Safety-critical controller admission must call `load_artifact(...,
 require_formal_verification=True)` or `validate_safety_critical_artifact()`.
 That gate rejects missing, blocked, failed, malformed, or unbounded proof
 evidence and accepts only hash-addressed bounded proof manifests tied to the
-compiled controller artifact.
+compiled controller artifact. The proof manifest must include the canonical
+artifact payload SHA-256, report SHA-256, bounded proof depth, checked
+specification names, backend/solver metadata, and a safe relative report URI.
+When callers provide `formal_report_root`, the loader resolves the report URI
+under that root and verifies the report bytes against the declared SHA-256.
 
 ::: scpn_control.scpn.artifact.Artifact
 
 ::: scpn_control.scpn.artifact.FormalVerificationEvidence
+
+::: scpn_control.scpn.artifact.compute_artifact_payload_sha256
 
 ::: scpn_control.scpn.artifact.save_artifact
 

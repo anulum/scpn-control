@@ -17,6 +17,7 @@ import pytest
 from scpn_control.scpn.artifact import (
     ArtifactValidationError,
     _decode_u64_compact,
+    compute_artifact_payload_sha256,
     decode_u64_compact,
     encode_u64_compact,
     load_artifact,
@@ -80,7 +81,13 @@ def _write_mutated_artifact_raw(source: Path, output: Path, mutator) -> Path:
     return output
 
 
-def _passing_formal_evidence() -> dict[str, object]:
+def _passing_formal_evidence(artifact_path: Path, report_path: Path | None = None) -> dict[str, object]:
+    artifact = load_artifact(str(artifact_path))
+    report_sha256 = "a" * 64
+    if report_path is not None:
+        import hashlib
+
+        report_sha256 = hashlib.sha256(report_path.read_bytes()).hexdigest()
     return {
         "required": True,
         "status": "pass",
@@ -88,7 +95,8 @@ def _passing_formal_evidence() -> dict[str, object]:
         "solver": "z3-solver 4.16.0",
         "max_depth": 8,
         "checked_specs": ["always_bounded_marking", "never_comarked"],
-        "report_sha256": "a" * 64,
+        "artifact_sha256": compute_artifact_payload_sha256(artifact),
+        "report_sha256": report_sha256,
         "claim_boundary": "bounded SMT proof through depth 8 over compiled transition relation",
         "report_uri": "validation/reports/scpn_z3_formal.json",
         "generated_utc": "2026-05-31T00:00:00Z",
@@ -305,7 +313,7 @@ class TestArtifactValidationContract:
         proven_path = _write_mutated_artifact_raw(
             artifact_path,
             tmp_path / "proven.scpnctl.json",
-            lambda payload: payload.__setitem__("formal_verification", _passing_formal_evidence()),
+            lambda payload: payload.__setitem__("formal_verification", _passing_formal_evidence(artifact_path)),
         )
 
         artifact = load_artifact(str(proven_path), require_formal_verification=True)
@@ -316,13 +324,87 @@ class TestArtifactValidationContract:
         assert artifact.formal_verification.max_depth == 8
         assert artifact.formal_verification.report_sha256 == "a" * 64
 
+    def test_safety_critical_artifact_rejects_tampered_artifact_payload(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        def mutate(payload: dict[str, object]) -> None:
+            payload["formal_verification"] = _passing_formal_evidence(artifact_path)
+            payload["meta"]["stream_length"] = 128
+
+        tampered_path = _write_mutated_artifact_raw(artifact_path, tmp_path / "tampered.scpnctl.json", mutate)
+
+        with pytest.raises(ArtifactValidationError, match="artifact_sha256"):
+            load_artifact(str(tampered_path), require_formal_verification=True)
+
+    def test_safety_critical_artifact_verifies_report_digest_under_root(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        report_root = tmp_path / "reports"
+        report_path = report_root / "validation" / "reports" / "scpn_z3_formal.json"
+        report_path.parent.mkdir(parents=True)
+        report_path.write_text('{"backend":"z3","holds":true}\n', encoding="utf-8")
+        proven_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "proven-report.scpnctl.json",
+            lambda payload: payload.__setitem__(
+                "formal_verification",
+                _passing_formal_evidence(artifact_path, report_path),
+            ),
+        )
+
+        artifact = load_artifact(
+            str(proven_path),
+            require_formal_verification=True,
+            formal_report_root=report_root,
+        )
+
+        assert artifact.formal_verification is not None
+        assert artifact.formal_verification.report_sha256 != "a" * 64
+
+    def test_safety_critical_artifact_rejects_report_digest_mismatch(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        report_root = tmp_path / "reports"
+        report_path = report_root / "validation" / "reports" / "scpn_z3_formal.json"
+        report_path.parent.mkdir(parents=True)
+        report_path.write_text('{"backend":"z3","holds":false}\n', encoding="utf-8")
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "bad-report.scpnctl.json",
+            lambda payload: payload.__setitem__("formal_verification", _passing_formal_evidence(artifact_path)),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="report_sha256"):
+            load_artifact(str(bad_path), require_formal_verification=True, formal_report_root=report_root)
+
+    def test_formal_proof_manifest_rejects_unsafe_report_uri(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        def mutate(payload: dict[str, object]) -> None:
+            evidence = _passing_formal_evidence(artifact_path)
+            evidence["report_uri"] = "../outside.json"
+            payload["formal_verification"] = evidence
+
+        bad_path = _write_mutated_artifact_raw(artifact_path, tmp_path / "traversal-report.scpnctl.json", mutate)
+
+        with pytest.raises(ArtifactValidationError, match="report_uri"):
+            load_artifact(str(bad_path), require_formal_verification=True)
+
     def test_safety_critical_artifact_rejects_blocked_formal_proof(
         self,
         artifact_path: Path,
         tmp_path: Path,
     ) -> None:
         def mutate(payload: dict[str, object]) -> None:
-            evidence = _passing_formal_evidence()
+            evidence = _passing_formal_evidence(artifact_path)
             evidence["status"] = "blocked"
             payload["formal_verification"] = evidence
 
@@ -337,7 +419,7 @@ class TestArtifactValidationContract:
         tmp_path: Path,
     ) -> None:
         def mutate(payload: dict[str, object]) -> None:
-            evidence = _passing_formal_evidence()
+            evidence = _passing_formal_evidence(artifact_path)
             evidence["status"] = "fail"
             payload["formal_verification"] = evidence
 
@@ -352,7 +434,7 @@ class TestArtifactValidationContract:
         tmp_path: Path,
     ) -> None:
         def mutate(payload: dict[str, object]) -> None:
-            evidence = _passing_formal_evidence()
+            evidence = _passing_formal_evidence(artifact_path)
             evidence["status"] = "fail"
             evidence["counterexample_path"] = ["T0", "T1"]
             evidence["counterexample_property"] = "always_bounded_marking"
@@ -372,7 +454,7 @@ class TestArtifactValidationContract:
         tmp_path: Path,
     ) -> None:
         def mutate(payload: dict[str, object]) -> None:
-            evidence = _passing_formal_evidence()
+            evidence = _passing_formal_evidence(artifact_path)
             evidence["claim_boundary"] = "unbounded controller safety proof"
             payload["formal_verification"] = evidence
 

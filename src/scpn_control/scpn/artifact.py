@@ -17,17 +17,19 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import json
 import math
 import zlib
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List
 
 ARTIFACT_SCHEMA_VERSION = "1.0.0"
 MAX_PACKED_WORDS = 10_000_000
 MAX_DECOMPRESSED_BYTES = MAX_PACKED_WORDS * 8
 MAX_COMPRESSED_BYTES = 50_000_000
+FORMAL_VERIFICATION_BACKENDS = {"explicit-state", "z3"}
 
 
 # ── Sub-structures ──────────────────────────────────────────────────────────
@@ -156,6 +158,7 @@ class FormalVerificationEvidence:
     solver: str
     max_depth: int
     checked_specs: List[str]
+    artifact_sha256: str
     report_sha256: str
     claim_boundary: str
     report_uri: str | None = None
@@ -206,6 +209,7 @@ def _parse_formal_verification(raw: Any) -> FormalVerificationEvidence | None:
         solver=raw["solver"],
         max_depth=raw["max_depth"],
         checked_specs=raw["checked_specs"],
+        artifact_sha256=raw["artifact_sha256"],
         report_sha256=raw["report_sha256"],
         claim_boundary=raw["claim_boundary"],
         report_uri=raw.get("report_uri"),
@@ -223,6 +227,7 @@ def _formal_verification_dict(evidence: FormalVerificationEvidence) -> Dict[str,
         "solver": evidence.solver,
         "max_depth": evidence.max_depth,
         "checked_specs": evidence.checked_specs,
+        "artifact_sha256": evidence.artifact_sha256,
         "report_sha256": evidence.report_sha256,
         "claim_boundary": evidence.claim_boundary,
     }
@@ -235,6 +240,132 @@ def _formal_verification_dict(evidence: FormalVerificationEvidence) -> Dict[str,
     if evidence.counterexample_property is not None:
         obj["counterexample_property"] = evidence.counterexample_property
     return obj
+
+
+def _artifact_payload_dict(
+    artifact: Artifact,
+    compact_packed: bool = False,
+) -> Dict[str, Any]:
+    """Return canonical artifact payload sections excluding proof evidence."""
+
+    def _weight_matrix_dict(wm: WeightMatrix) -> Dict[str, Any]:
+        return {"shape": wm.shape, "data": wm.data}
+
+    packed_dict: Dict[str, Any] | None = None
+    if artifact.weights.packed is not None:
+        pg = artifact.weights.packed
+        if compact_packed:
+            pw_in_d = {"shape": pg.w_in_packed.shape}
+            pw_in_d.update(_encode_u64_compact(pg.w_in_packed.data_u64))
+        else:
+            pw_in_d = {"shape": pg.w_in_packed.shape, "data_u64": pg.w_in_packed.data_u64}
+        pw_out_d = None
+        if pg.w_out_packed is not None:
+            if compact_packed:
+                pw_out_d = {"shape": pg.w_out_packed.shape}
+                pw_out_d.update(_encode_u64_compact(pg.w_out_packed.data_u64))
+            else:
+                pw_out_d = {
+                    "shape": pg.w_out_packed.shape,
+                    "data_u64": pg.w_out_packed.data_u64,
+                }
+        packed_dict = {
+            "words_per_stream": pg.words_per_stream,
+            "w_in_packed": pw_in_d,
+        }
+        if pw_out_d is not None:
+            packed_dict["w_out_packed"] = pw_out_d
+
+    obj: Dict[str, Any] = {
+        "meta": {
+            "artifact_version": artifact.meta.artifact_version,
+            "name": artifact.meta.name,
+            "dt_control_s": artifact.meta.dt_control_s,
+            "stream_length": artifact.meta.stream_length,
+            "fixed_point": {
+                "data_width": artifact.meta.fixed_point.data_width,
+                "fraction_bits": artifact.meta.fixed_point.fraction_bits,
+                "signed": artifact.meta.fixed_point.signed,
+            },
+            "firing_mode": artifact.meta.firing_mode,
+            "seed_policy": {
+                "id": artifact.meta.seed_policy.id,
+                "hash_fn": artifact.meta.seed_policy.hash_fn,
+                "rng_family": artifact.meta.seed_policy.rng_family,
+            },
+            "created_utc": artifact.meta.created_utc,
+            "compiler": {
+                "name": artifact.meta.compiler.name,
+                "version": artifact.meta.compiler.version,
+                "git_sha": artifact.meta.compiler.git_sha,
+            },
+        },
+        "topology": {
+            "places": [{"id": p.id, "name": p.name} for p in artifact.topology.places],
+            "transitions": [
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "threshold": t.threshold,
+                    **({"margin": t.margin} if t.margin is not None else {}),
+                    "delay_ticks": int(t.delay_ticks),
+                }
+                for t in artifact.topology.transitions
+            ],
+        },
+        "weights": {
+            "w_in": _weight_matrix_dict(artifact.weights.w_in),
+            "w_out": _weight_matrix_dict(artifact.weights.w_out),
+        },
+        "readout": {
+            "actions": [
+                {
+                    "id": a.id,
+                    "name": a.name,
+                    "pos_place": a.pos_place,
+                    "neg_place": a.neg_place,
+                }
+                for a in artifact.readout.actions
+            ],
+            "gains": {"per_action": artifact.readout.gains},
+            "limits": {
+                "per_action_abs_max": artifact.readout.abs_max,
+                "slew_per_s": artifact.readout.slew_per_s,
+            },
+        },
+        "initial_state": {
+            "marking": artifact.initial_state.marking,
+            "place_injections": [
+                {
+                    "place_id": inj.place_id,
+                    "source": inj.source,
+                    "scale": inj.scale,
+                    "offset": inj.offset,
+                    "clamp_0_1": inj.clamp_0_1,
+                }
+                for inj in artifact.initial_state.place_injections
+            ],
+        },
+    }
+
+    if artifact.meta.notes is not None:
+        obj["meta"]["notes"] = artifact.meta.notes
+
+    if packed_dict is not None:
+        obj["weights"]["packed"] = packed_dict
+
+    return obj
+
+
+def compute_artifact_payload_sha256(artifact: Artifact) -> str:
+    """Compute a canonical SHA-256 digest over artifact payload sections."""
+    payload = json.dumps(
+        _artifact_payload_dict(artifact),
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _is_sha256_hex(value: str) -> bool:
@@ -254,6 +385,10 @@ def _validate_formal_verification(evidence: FormalVerificationEvidence) -> None:
         raise ArtifactValidationError("formal_verification.status must be 'pass', 'fail', or 'blocked'")
     if not isinstance(evidence.backend, str) or not evidence.backend:
         raise ArtifactValidationError("formal_verification.backend must be a non-empty string")
+    if evidence.backend not in FORMAL_VERIFICATION_BACKENDS:
+        raise ArtifactValidationError(
+            f"formal_verification.backend must be one of {', '.join(sorted(FORMAL_VERIFICATION_BACKENDS))}"
+        )
     if not isinstance(evidence.solver, str) or not evidence.solver:
         raise ArtifactValidationError("formal_verification.solver must be a non-empty string")
     if isinstance(evidence.max_depth, bool) or not isinstance(evidence.max_depth, int) or evidence.max_depth < 0:
@@ -263,6 +398,8 @@ def _validate_formal_verification(evidence: FormalVerificationEvidence) -> None:
     for spec in evidence.checked_specs:
         if not isinstance(spec, str) or not spec:
             raise ArtifactValidationError("formal_verification.checked_specs must contain non-empty strings")
+    if not isinstance(evidence.artifact_sha256, str) or not _is_sha256_hex(evidence.artifact_sha256):
+        raise ArtifactValidationError("formal_verification.artifact_sha256 must be a SHA-256 hex digest")
     if not isinstance(evidence.report_sha256, str) or not _is_sha256_hex(evidence.report_sha256):
         raise ArtifactValidationError("formal_verification.report_sha256 must be a SHA-256 hex digest")
     if not isinstance(evidence.claim_boundary, str) or not evidence.claim_boundary:
@@ -272,6 +409,8 @@ def _validate_formal_verification(evidence: FormalVerificationEvidence) -> None:
         raise ArtifactValidationError("formal_verification.claim_boundary must state a bounded proof boundary")
     if evidence.report_uri is not None and (not isinstance(evidence.report_uri, str) or not evidence.report_uri):
         raise ArtifactValidationError("formal_verification.report_uri must be a non-empty string when supplied")
+    if evidence.report_uri is not None:
+        _formal_report_relative_path(evidence)
     if evidence.generated_utc is not None and (
         not isinstance(evidence.generated_utc, str) or not evidence.generated_utc
     ):
@@ -290,9 +429,50 @@ def _validate_formal_verification(evidence: FormalVerificationEvidence) -> None:
         raise ArtifactValidationError(
             "formal_verification failed proof evidence must include counterexample path and property"
         )
+    if evidence.status == "pass" and (
+        evidence.counterexample_path is not None or evidence.counterexample_property is not None
+    ):
+        raise ArtifactValidationError("formal_verification passing evidence must not include a counterexample")
 
 
-def validate_safety_critical_artifact(artifact: Artifact) -> None:
+def _formal_report_relative_path(evidence: FormalVerificationEvidence) -> Path | None:
+    uri = evidence.report_uri
+    if uri is None:
+        return None
+    if "\\" in uri or "://" in uri or uri.startswith(("file:", "/", "~")):
+        raise ArtifactValidationError("formal_verification.report_uri must be a safe relative repository path")
+    rel = PurePosixPath(uri)
+    if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
+        raise ArtifactValidationError("formal_verification.report_uri must be a safe relative repository path")
+    return Path(*rel.parts)
+
+
+def _verify_formal_report_digest(
+    evidence: FormalVerificationEvidence,
+    formal_report_root: str | Path | None,
+) -> None:
+    if formal_report_root is None:
+        return
+    rel = _formal_report_relative_path(evidence)
+    if rel is None:
+        raise ArtifactValidationError("safety-critical artifact requires formal_verification.report_uri")
+    root = Path(formal_report_root).resolve()
+    report_path = (root / rel).resolve()
+    try:
+        report_path.relative_to(root)
+    except ValueError as exc:
+        raise ArtifactValidationError("formal_verification.report_uri escapes formal_report_root") from exc
+    if not report_path.is_file():
+        raise ArtifactValidationError("formal_verification.report_uri does not resolve to a report file")
+    actual = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    if actual != evidence.report_sha256.lower():
+        raise ArtifactValidationError("formal_verification.report_sha256 does not match report file")
+
+
+def validate_safety_critical_artifact(
+    artifact: Artifact,
+    formal_report_root: str | Path | None = None,
+) -> None:
     """Fail closed unless a controller artifact carries passing bounded-proof evidence."""
     if artifact.formal_verification is None:
         raise ArtifactValidationError("safety-critical artifact requires formal_verification evidence")
@@ -301,6 +481,12 @@ def validate_safety_critical_artifact(artifact: Artifact) -> None:
         raise ArtifactValidationError("safety-critical artifact formal_verification.required must be true")
     if artifact.formal_verification.status != "pass":
         raise ArtifactValidationError("safety-critical artifact requires passing formal_verification evidence")
+    if artifact.formal_verification.report_uri is None:
+        raise ArtifactValidationError("safety-critical artifact requires formal_verification.report_uri")
+    actual_artifact_hash = compute_artifact_payload_sha256(artifact)
+    if actual_artifact_hash != artifact.formal_verification.artifact_sha256.lower():
+        raise ArtifactValidationError("formal_verification.artifact_sha256 does not match artifact payload")
+    _verify_formal_report_digest(artifact.formal_verification, formal_report_root)
 
 
 def _encode_u64_compact(data_u64: List[int]) -> Dict[str, Any]:
@@ -504,7 +690,11 @@ def _validate(artifact: Artifact) -> None:
 # ── Load / Save ─────────────────────────────────────────────────────────────
 
 
-def load_artifact(path: str | Path, require_formal_verification: bool = False) -> Artifact:
+def load_artifact(
+    path: str | Path,
+    require_formal_verification: bool = False,
+    formal_report_root: str | Path | None = None,
+) -> Artifact:
     """Parse a ``.scpnctl.json`` file into an ``Artifact`` dataclass."""
     with open(path, "r", encoding="utf-8") as f:
         obj = json.load(f)
@@ -632,7 +822,7 @@ def load_artifact(path: str | Path, require_formal_verification: bool = False) -
     )
     _validate(artifact)
     if require_formal_verification:
-        validate_safety_critical_artifact(artifact)
+        validate_safety_critical_artifact(artifact, formal_report_root=formal_report_root)
     return artifact
 
 
@@ -730,6 +920,7 @@ def get_artifact_json_schema() -> Dict[str, Any]:
                     "solver",
                     "max_depth",
                     "checked_specs",
+                    "artifact_sha256",
                     "report_sha256",
                     "claim_boundary",
                 ],
@@ -740,6 +931,7 @@ def get_artifact_json_schema() -> Dict[str, Any]:
                     "solver": {"type": "string"},
                     "max_depth": {"type": "integer", "minimum": 0},
                     "checked_specs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "artifact_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
                     "report_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
                     "claim_boundary": {"type": "string"},
                     "report_uri": {"type": "string"},
@@ -767,112 +959,7 @@ def save_artifact(
     compact_packed: bool = False,
 ) -> None:
     """Serialize an ``Artifact`` to indented JSON."""
-
-    def _weight_matrix_dict(wm: WeightMatrix) -> Dict[str, Any]:
-        return {"shape": wm.shape, "data": wm.data}
-
-    packed_dict: Dict[str, Any] | None = None
-    if artifact.weights.packed is not None:
-        pg = artifact.weights.packed
-        if compact_packed:
-            pw_in_d = {"shape": pg.w_in_packed.shape}
-            pw_in_d.update(_encode_u64_compact(pg.w_in_packed.data_u64))
-        else:
-            pw_in_d = {"shape": pg.w_in_packed.shape, "data_u64": pg.w_in_packed.data_u64}
-        pw_out_d = None
-        if pg.w_out_packed is not None:
-            if compact_packed:
-                pw_out_d = {"shape": pg.w_out_packed.shape}
-                pw_out_d.update(_encode_u64_compact(pg.w_out_packed.data_u64))
-            else:
-                pw_out_d = {
-                    "shape": pg.w_out_packed.shape,
-                    "data_u64": pg.w_out_packed.data_u64,
-                }
-        packed_dict = {
-            "words_per_stream": pg.words_per_stream,
-            "w_in_packed": pw_in_d,
-        }
-        if pw_out_d is not None:
-            packed_dict["w_out_packed"] = pw_out_d
-
-    obj: Dict[str, Any] = {
-        "meta": {
-            "artifact_version": artifact.meta.artifact_version,
-            "name": artifact.meta.name,
-            "dt_control_s": artifact.meta.dt_control_s,
-            "stream_length": artifact.meta.stream_length,
-            "fixed_point": {
-                "data_width": artifact.meta.fixed_point.data_width,
-                "fraction_bits": artifact.meta.fixed_point.fraction_bits,
-                "signed": artifact.meta.fixed_point.signed,
-            },
-            "firing_mode": artifact.meta.firing_mode,
-            "seed_policy": {
-                "id": artifact.meta.seed_policy.id,
-                "hash_fn": artifact.meta.seed_policy.hash_fn,
-                "rng_family": artifact.meta.seed_policy.rng_family,
-            },
-            "created_utc": artifact.meta.created_utc,
-            "compiler": {
-                "name": artifact.meta.compiler.name,
-                "version": artifact.meta.compiler.version,
-                "git_sha": artifact.meta.compiler.git_sha,
-            },
-        },
-        "topology": {
-            "places": [{"id": p.id, "name": p.name} for p in artifact.topology.places],
-            "transitions": [
-                {
-                    "id": t.id,
-                    "name": t.name,
-                    "threshold": t.threshold,
-                    **({"margin": t.margin} if t.margin is not None else {}),
-                    "delay_ticks": int(t.delay_ticks),
-                }
-                for t in artifact.topology.transitions
-            ],
-        },
-        "weights": {
-            "w_in": _weight_matrix_dict(artifact.weights.w_in),
-            "w_out": _weight_matrix_dict(artifact.weights.w_out),
-        },
-        "readout": {
-            "actions": [
-                {
-                    "id": a.id,
-                    "name": a.name,
-                    "pos_place": a.pos_place,
-                    "neg_place": a.neg_place,
-                }
-                for a in artifact.readout.actions
-            ],
-            "gains": {"per_action": artifact.readout.gains},
-            "limits": {
-                "per_action_abs_max": artifact.readout.abs_max,
-                "slew_per_s": artifact.readout.slew_per_s,
-            },
-        },
-        "initial_state": {
-            "marking": artifact.initial_state.marking,
-            "place_injections": [
-                {
-                    "place_id": inj.place_id,
-                    "source": inj.source,
-                    "scale": inj.scale,
-                    "offset": inj.offset,
-                    "clamp_0_1": inj.clamp_0_1,
-                }
-                for inj in artifact.initial_state.place_injections
-            ],
-        },
-    }
-
-    if artifact.meta.notes is not None:
-        obj["meta"]["notes"] = artifact.meta.notes
-
-    if packed_dict is not None:
-        obj["weights"]["packed"] = packed_dict
+    obj = _artifact_payload_dict(artifact, compact_packed=compact_packed)
 
     if artifact.formal_verification is not None:
         _validate_formal_verification(artifact.formal_verification)

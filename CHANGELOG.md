@@ -9,6 +9,10 @@
   controller artifacts, including bounded-claim enforcement, hash-addressed
   report metadata, and mandatory counterexample paths for failed proof
   evidence.
+- Hardened safety-critical proof-manifest admission by binding evidence to the
+  canonical controller-artifact payload SHA-256, rejecting unsafe report URIs,
+  constraining formal backends, and optionally verifying report bytes under a
+  caller-supplied report root.
 - Hardened the phase WebSocket stream with explicit payload-size limits,
   server-side frame caps, default client authentication, TLS-required startup
   mode, disabled-by-default query-token authentication, fail-closed plaintext
