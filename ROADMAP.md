@@ -268,8 +268,8 @@
 - [ ] Streamlit dashboard v2
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
 - [ ] Resolve the public bounded-claim queue in `docs/physics_traceability.md`.
-  Current generated status is 51 registry entries, 50 open fidelity gaps, and
-  50 blocked full-fidelity public claims; production work must close these with
+  Current generated status is 54 registry entries, 53 open fidelity gaps, and
+  53 blocked full-fidelity public claims; production work must close these with
   real evidence or keep the claims explicitly bounded.
 
 ### Remaining production work before broader production focus
