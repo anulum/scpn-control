@@ -201,13 +201,6 @@ class HPCBridge:
         self._destroy_symbol: str | None = None
         self._has_converged_api: bool = False
         self._has_boundary_api: bool = False
-        self._cleanup_state: dict[str, Any] = {
-            "lib": self.lib,
-            "solver_ptr": self.solver_ptr,
-            "loaded": self.loaded,
-            "destroy_symbol": self._destroy_symbol,
-        }
-        self._finalizer = weakref.finalize(self, _release_native_solver, self._cleanup_state)
 
         lib_name = "scpn_solver.dll" if platform.system() == "Windows" else "libscpn_solver.so"
         env_path = os.environ.get("SCPN_SOLVER_LIB")
@@ -237,9 +230,18 @@ class HPCBridge:
             self._setup_signatures()
             logger.info("Loaded C++ accelerator: %s", self.lib_path)
             self.loaded = True
-            self._sync_cleanup_state()
+            self._arm_cleanup_finalizer()
         except OSError as exc:
             logger.debug("C++ accelerator unavailable: %s", exc)
+
+    def _arm_cleanup_finalizer(self) -> None:
+        self._cleanup_state = {
+            "lib": self.lib,
+            "solver_ptr": self.solver_ptr,
+            "loaded": self.loaded,
+            "destroy_symbol": self._destroy_symbol,
+        }
+        self._finalizer = weakref.finalize(self, _release_native_solver, self._cleanup_state)
 
     def _sync_cleanup_state(self) -> None:
         if not hasattr(self, "_cleanup_state"):
@@ -262,7 +264,7 @@ class HPCBridge:
         if hasattr(self, "_cleanup_state"):
             self._sync_cleanup_state()
             _release_native_solver(self._cleanup_state)
-            self.solver_ptr = self._cleanup_state["solver_ptr"]
+            self.solver_ptr = None
             if getattr(self, "_finalizer", None) is not None and self._finalizer.alive:
                 self._finalizer.detach()
             return

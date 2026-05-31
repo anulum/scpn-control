@@ -62,8 +62,11 @@ def _as_spd_matrix(name: str, value: np.ndarray, size: int) -> np.ndarray:
     arr = np.asarray(value, dtype=np.float64)
     if arr.shape != (size, size) or not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} must be a finite matrix with shape ({size}, {size}).")
-    if not np.allclose(arr, arr.T, rtol=1e-10, atol=1e-12):
+    skew = arr - arr.T
+    symmetry_scale = max(float(np.linalg.norm(arr, ord=np.inf)), 1.0)
+    if float(np.max(np.abs(skew))) > 1.0e-14 * symmetry_scale:
         raise ValueError(f"{name} must be symmetric positive definite.")
+    arr = 0.5 * (arr + arr.T)
     eig_min = float(np.min(np.linalg.eigvalsh(arr)))
     if eig_min <= 0.0:
         raise ValueError(f"{name} must be symmetric positive definite.")
@@ -103,6 +106,7 @@ class NMPCConfig:
     max_sqp_iter: int = 10
     qp_max_iter: int = 500
     qp_backend: str = "internal"  # "internal", "scipy", "osqp", "casadi", or "acados"
+    linearization_backend: str = "finite_difference"  # "finite_difference" or "jax"; analytic provider still wins.
     tol: float = 1e-4
     acados_model_name: str = "scpn_control_nmpc"
     acados_qp_solver: str = "PARTIAL_CONDENSING_HPIPM"
@@ -771,6 +775,8 @@ class NonlinearMPC:
             raise ValueError("qp_max_iter must be an integer >= 1.")
         if config.qp_backend not in {"internal", "scipy", "osqp", "casadi", "acados"}:
             raise ValueError("qp_backend must be 'internal', 'scipy', 'osqp', 'casadi', or 'acados'.")
+        if config.linearization_backend not in {"finite_difference", "jax"}:
+            raise ValueError("linearization_backend must be 'finite_difference' or 'jax'.")
         if not np.isfinite(float(config.tol)) or float(config.tol) <= 0.0:
             raise ValueError("tol must be positive finite.")
         for field in (
@@ -875,6 +881,9 @@ class NonlinearMPC:
             self.last_linearization_source = "analytic"
             return A, B
 
+        if self.config.linearization_backend == "jax":
+            return self._linearize_jax(x0_safe, u0_safe)
+
         A = np.zeros((self.nx, self.nx))
         B = np.zeros((self.nx, self.nu))
         eps_x = 1e-4
@@ -908,6 +917,34 @@ class NonlinearMPC:
             B[:, i] = self._finite_difference_column(f_plus, f0, f_minus, eps_u)
 
         self.last_linearization_source = "finite_difference"
+        return A, B
+
+    def _linearize_jax(self, x0_safe: np.ndarray, u0_safe: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Return plant Jacobians through JAX autodiff for traceable plants."""
+        try:
+            import jax
+            import jax.numpy as jnp
+        except ImportError as exc:
+            raise RuntimeError("JAX linearization requires jax and jaxlib") from exc
+
+        def traced_plant(x_arg: Any, u_arg: Any) -> Any:
+            return jnp.asarray(self.plant_model(x_arg, u_arg), dtype=jnp.float64)
+
+        try:
+            A_raw, B_raw = jax.jacfwd(traced_plant, argnums=(0, 1))(
+                jnp.asarray(x0_safe, dtype=jnp.float64),
+                jnp.asarray(u0_safe, dtype=jnp.float64),
+            )
+        except Exception as exc:
+            raise RuntimeError("plant_model must be JAX-traceable when linearization_backend='jax'") from exc
+
+        A = np.asarray(A_raw, dtype=np.float64)
+        B = np.asarray(B_raw, dtype=np.float64)
+        if A.shape != (self.nx, self.nx) or not np.all(np.isfinite(A)):
+            raise ValueError(f"JAX linearization must produce finite A with shape ({self.nx}, {self.nx}).")
+        if B.shape != (self.nx, self.nu) or not np.all(np.isfinite(B)):
+            raise ValueError(f"JAX linearization must produce finite B with shape ({self.nx}, {self.nu}).")
+        self.last_linearization_source = "jax"
         return A, B
 
     def _compute_terminal_cost(self, A: np.ndarray, B: np.ndarray) -> np.ndarray:

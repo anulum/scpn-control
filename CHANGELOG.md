@@ -5,6 +5,14 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened reviewed control-runtime defects by replacing fixed-window
+  WebSocket command limiting with token buckets per connection and peer,
+  adding structured WebSocket security audit logs, arming native-solver cleanup
+  only after a C++ library loads successfully, rejecting degenerate
+  Grad-Shafranov flux normalisation, fixing multigrid restriction on
+  rectangular odd grids, vectorising free-boundary coil Green's flux over the
+  grid, tightening NMPC SPD symmetry admission, and adding optional JAX
+  autodiff plant linearisation.
 - Added schema-versioned JAX gyrokinetic parity artifact production and
   stricter admission so native/JAX local-dispersion comparisons bind backend,
   device, platform, dtype, X64 state, solver kwargs, tolerances, and canonical

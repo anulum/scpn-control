@@ -400,6 +400,8 @@ def test_init_uses_package_local_default_without_cwd(monkeypatch: pytest.MonkeyP
     expected = str(Path(hpc_mod.__file__).resolve().parent / "libscpn_solver.so")
     assert bridge.lib_path == expected
     assert not bridge.loaded
+    assert not hasattr(bridge, "_cleanup_state")
+    bridge.close()
 
 
 def test_compile_cpp_requires_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:

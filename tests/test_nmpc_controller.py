@@ -858,6 +858,7 @@ def test_nmpc_rejects_unknown_qp_backend() -> None:
         ("max_sqp_iter", 0, "max_sqp_iter"),
         ("qp_max_iter", 0, "qp_max_iter"),
         ("tol", 0.0, "tol"),
+        ("linearization_backend", "finite-different", "linearization_backend"),
         ("acados_model_name", "", "acados_model_name"),
         ("acados_json_file", "", "acados_json_file"),
         ("acados_generate", 1, "acados_generate"),
@@ -876,6 +877,15 @@ def test_nmpc_config_rejects_invalid_solver_domain_fields(field: str, value: obj
 def test_nmpc_rejects_non_spd_state_weight() -> None:
     cfg = NMPCConfig(horizon=3)
     cfg.Q = np.diag([1.0, 1.0, 0.0, 1.0, 1.0, 1.0])
+
+    with pytest.raises(ValueError, match="Q"):
+        NonlinearMPC(mock_tokamak_plant, cfg)
+
+
+def test_nmpc_rejects_nearly_symmetric_state_weight() -> None:
+    cfg = NMPCConfig(horizon=3)
+    cfg.Q = np.eye(6)
+    cfg.Q[0, 1] = 1.0e-12
 
     with pytest.raises(ValueError, match="Q"):
         NonlinearMPC(mock_tokamak_plant, cfg)
@@ -1007,6 +1017,48 @@ def test_nmpc_rejects_invalid_analytic_linearization_provider_output() -> None:
 
     with pytest.raises(ValueError, match="linearization_model"):
         nmpc.linearize(np.zeros(6), np.zeros(3))
+
+
+def test_nmpc_uses_jax_linearization_backend_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    A_expected = np.eye(6)
+    B_expected = np.zeros((6, 3))
+    B_expected[0, 0] = 0.25
+
+    fake_jnp = types.ModuleType("jax.numpy")
+    fake_jnp.float64 = np.float64
+    fake_jnp.asarray = np.asarray
+
+    fake_jax = types.ModuleType("jax")
+    fake_jax.__path__ = []  # allow `import jax.numpy` against the injected module
+    fake_jax.numpy = fake_jnp
+
+    def fake_jacfwd(fn, argnums):  # type: ignore[no-untyped-def]
+        def wrapped(x_arg, u_arg):  # type: ignore[no-untyped-def]
+            out = fn(x_arg, u_arg)
+            assert np.asarray(out).shape == (6,)
+            assert argnums == (0, 1)
+            return A_expected, B_expected
+
+        return wrapped
+
+    fake_jax.jacfwd = fake_jacfwd
+    monkeypatch.setitem(sys.modules, "jax", fake_jax)
+    monkeypatch.setitem(sys.modules, "jax.numpy", fake_jnp)
+
+    def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        out = np.asarray(x, dtype=np.float64).copy()
+        out[0] += 0.25 * float(np.asarray(u)[0])
+        return out
+
+    cfg = NMPCConfig(horizon=2)
+    cfg.linearization_backend = "jax"
+    nmpc = NonlinearMPC(plant, cfg)
+
+    A, B = nmpc.linearize(np.zeros(6), np.zeros(3))
+
+    np.testing.assert_allclose(A, A_expected)
+    np.testing.assert_allclose(B, B_expected)
+    assert nmpc.last_linearization_source == "jax"
 
 
 def test_nmpc_scipy_backend_enforces_terminal_state_set() -> None:

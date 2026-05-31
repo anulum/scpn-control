@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import math
 import ssl
 import sys
@@ -42,6 +43,7 @@ class _FakeWS:
         self.closed = False
         self.close_code = None
         self.close_reason = None
+        self.remote_address = ("127.0.0.1", 50123)
 
     def __aiter__(self):
         return self
@@ -120,19 +122,21 @@ class TestPhaseStreamServer:
         with pytest.raises(ValueError, match="allowed_actions"):
             PhaseStreamServer(monitor=mon, allowed_actions=("shell",))
 
-    def test_handler_rejects_unauthenticated_control_connection_when_api_key_configured(self):
+    def test_handler_rejects_unauthenticated_control_connection_when_api_key_configured(self, caplog):
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
             ws = _FakeWS([json.dumps({"action": "set_psi", "value": 0.5})], headers={})
 
-            await server._handler(ws)
+            with caplog.at_level(logging.WARNING, logger=ws_phase_stream.__name__):
+                await server._handler(ws)
 
             assert mon.psi_driver == pytest.approx(0.0)
             assert ws.closed
             assert ws.close_code == 1008
             assert "authentication" in (ws.close_reason or "")
             assert ws not in server._clients
+            assert "phase_stream_security_event event=authentication_failed" in caplog.text
 
         asyncio.run(_run())
 
@@ -160,6 +164,39 @@ class TestPhaseStreamServer:
         ws = _FakeWS(headers=object())
 
         assert server._origin_allowed(ws) is True
+
+    def test_rate_limiter_uses_token_bucket_without_fixed_window_burst(self, monkeypatch):
+        mon = _make_monitor()
+        server = PhaseStreamServer(
+            monitor=mon,
+            api_key="secret-token-123456",
+            command_rate_limit=20,
+            command_rate_window_s=1.0,
+        )
+        ws = _FakeWS()
+        times = iter([0.999] * 20 + [1.001])
+        monkeypatch.setattr(time, "monotonic", lambda: next(times))
+
+        for _ in range(20):
+            assert server._rate_limited(ws) is False
+        assert server._rate_limited(ws) is True
+
+    def test_rate_limiter_applies_peer_bucket_across_connections(self):
+        mon = _make_monitor()
+        server = PhaseStreamServer(
+            monitor=mon,
+            api_key="secret-token-123456",
+            command_rate_limit=2,
+            command_rate_window_s=10.0,
+        )
+        first = _FakeWS()
+        second = _FakeWS()
+        first.remote_address = ("10.1.2.3", 10000)
+        second.remote_address = ("10.1.2.3", 10001)
+
+        assert server._rate_limited(first) is False
+        assert server._rate_limited(first) is False
+        assert server._rate_limited(second) is True
 
     def test_handler_rejects_browser_origin_without_allowlist(self):
         async def _run():

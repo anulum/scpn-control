@@ -89,6 +89,15 @@ def _api_key_is_strong(api_key: str) -> bool:
     return len(api_key.encode("utf-8")) >= _MIN_API_KEY_BYTES
 
 
+def _websocket_peer(websocket: Any) -> str:
+    remote = getattr(websocket, "remote_address", None)
+    if isinstance(remote, tuple) and remote:
+        return str(remote[0])
+    if isinstance(remote, str) and remote.strip():
+        return remote.strip()
+    return "unknown"
+
+
 @dataclass
 class PhaseStreamServer:
     """Async WebSocket server wrapping a RealtimeMonitor."""
@@ -108,7 +117,8 @@ class PhaseStreamServer:
     allowed_origins: tuple[str, ...] = ()
     allowed_actions: tuple[str, ...] = _DEFAULT_ALLOWED_ACTIONS
     _clients: set = field(default_factory=set, init=False, repr=False)
-    _client_windows: dict[Any, tuple[float, int]] = field(default_factory=dict, init=False, repr=False)
+    _client_windows: dict[Any, tuple[float, float]] = field(default_factory=dict, init=False, repr=False)
+    _peer_windows: dict[str, tuple[float, float]] = field(default_factory=dict, init=False, repr=False)
     _running: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -172,23 +182,43 @@ class PhaseStreamServer:
             candidate = values[0] if values else None
         return candidate is not None and hmac.compare_digest(candidate, self.api_key)
 
+    def _audit_security_event(self, websocket: Any, event: str, reason: str) -> None:
+        logger.warning(
+            "phase_stream_security_event event=%s peer=%s reason=%s",
+            event,
+            _websocket_peer(websocket),
+            reason,
+        )
+
+    def _bucket_rate_limited(self, buckets: dict[Any, tuple[float, float]], key: Any, now: float) -> bool:
+        capacity = float(self.command_rate_limit)
+        refill_rate = capacity / self.command_rate_window_s
+        updated_at, tokens = buckets.get(key, (now, capacity))
+        elapsed = max(0.0, now - updated_at)
+        tokens = min(capacity, tokens + elapsed * refill_rate)
+        limited = tokens < 1.0
+        if not limited:
+            tokens -= 1.0
+        buckets[key] = (now, tokens)
+        return limited
+
     def _rate_limited(self, websocket: Any) -> bool:
         now = time.monotonic()
-        window_start, count = self._client_windows.get(websocket, (now, 0))
-        if now - window_start >= self.command_rate_window_s:
-            window_start, count = now, 0
-        count += 1
-        self._client_windows[websocket] = (window_start, count)
-        return count > self.command_rate_limit
+        client_limited = self._bucket_rate_limited(self._client_windows, websocket, now)
+        peer_limited = self._bucket_rate_limited(self._peer_windows, _websocket_peer(websocket), now)
+        return client_limited or peer_limited
 
     async def _handler(self, websocket: Any) -> None:
         if not self._origin_allowed(websocket):
+            self._audit_security_event(websocket, "origin_rejected", "origin not allowed")
             await self._close_client(websocket, code=1008, reason="origin not allowed")
             return
         if not self._authorised(websocket):
+            self._audit_security_event(websocket, "authentication_failed", "authentication required")
             await self._close_client(websocket, code=1008, reason="authentication required")
             return
         if len(self._clients) >= self.max_clients:
+            self._audit_security_event(websocket, "capacity_rejected", "client capacity exceeded")
             await self._close_client(websocket, code=1013, reason="client capacity exceeded")
             return
         self._clients.add(websocket)
@@ -196,11 +226,13 @@ class PhaseStreamServer:
         try:
             async for msg in websocket:
                 if _payload_size_bytes(msg) > self.max_payload_bytes:
+                    self._audit_security_event(websocket, "payload_rejected", "payload too large")
                     if not await self._send_response(websocket, {"error": "payload_too_large"}):
                         break
                     await self._close_client(websocket, code=1009, reason="payload too large")
                     break
                 if self._rate_limited(websocket):
+                    self._audit_security_event(websocket, "rate_limit_rejected", "command rate limit exceeded")
                     if not await self._send_response(websocket, {"error": "rate_limited"}):
                         break
                     await self._close_client(websocket, code=1008, reason="command rate limit exceeded")
@@ -213,6 +245,7 @@ class PhaseStreamServer:
                     continue
                 action = cmd.get("action")
                 if action not in self.allowed_actions:
+                    self._audit_security_event(websocket, "action_rejected", "action not allowed")
                     if not await self._send_response(websocket, {"error": "action_not_allowed"}):
                         break
                     continue

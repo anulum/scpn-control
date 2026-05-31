@@ -772,9 +772,7 @@ class FusionKernel:
         """
         mu0: float = self.cfg["physics"]["vacuum_permeability"]
 
-        denom = Psi_boundary - Psi_axis
-        if abs(denom) < 1e-9:
-            denom = 1e-9
+        denom = self._normalised_flux_denominator(Psi_axis, Psi_boundary)
 
         Psi_norm = (self.Psi - Psi_axis) / denom
         mask_plasma = (Psi_norm >= 0) & (Psi_norm < 1.0)
@@ -930,11 +928,12 @@ class FusionKernel:
                     + (fine[i - 1, j - 1] + fine[i - 1, j + 1] + fine[i + 1, j - 1] + fine[i + 1, j + 1])
                 ) / 16.0
 
-        # Boundary: inject directly
+        # Boundary: inject directly. Keep row/column extents separate so
+        # rectangular odd grids do not cross-use nr_c for a Z-edge slice.
         coarse[0, :] = fine[0, ::2][:nr_c]
         coarse[-1, :] = fine[-1, ::2][:nr_c]
         coarse[:, 0] = fine[::2, 0][:nz_c]
-        coarse[:, -1] = fine[::2, -1][:nr_c]
+        coarse[:, -1] = fine[::2, -1][:nz_c]
 
         return coarse
 
@@ -1388,6 +1387,13 @@ class FusionKernel:
         result[1:-1, 1:-1] = d2R - d1R / R_safe + d2Z
         return result
 
+    @staticmethod
+    def _normalised_flux_denominator(Psi_axis: float, Psi_boundary: float) -> float:
+        denom = float(Psi_boundary) - float(Psi_axis)
+        if not np.isfinite(denom) or abs(denom) < 1e-9:
+            raise ValueError("degenerate equilibrium: separatrix flux is indistinguishable from magnetic-axis flux")
+        return denom
+
     def _compute_profile_jacobian(self, Psi_axis: float, Psi_boundary: float, mu0: float) -> FloatArray:
         """Compute dJ_phi/dpsi as a 2D diagonal scaling field.
 
@@ -1397,9 +1403,7 @@ class FusionKernel:
 
         Returns a 2D array of the same shape as self.Psi.
         """
-        denom = Psi_boundary - Psi_axis
-        if abs(denom) < 1e-9:
-            denom = 1e-9
+        denom = self._normalised_flux_denominator(Psi_axis, Psi_boundary)
 
         Psi_norm = (self.Psi - Psi_axis) / denom
         mask_plasma = (Psi_norm >= 0) & (Psi_norm < 1.0)
@@ -1902,17 +1906,35 @@ class FusionKernel:
         psi = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / k2
         return float(psi)
 
+    @staticmethod
+    def _green_function_array(R_src: float, Z_src: float, R_obs: FloatArray, Z_obs: FloatArray) -> FloatArray:
+        """Vectorised toroidal Green's function over observation grids."""
+        from scipy.special import ellipe, ellipk
+
+        mu0 = 4e-7 * np.pi
+        R_arr = np.asarray(R_obs, dtype=np.float64)
+        Z_arr = np.asarray(Z_obs, dtype=np.float64)
+        denom = (R_arr + float(R_src)) ** 2 + (Z_arr - float(Z_src)) ** 2
+        active = denom >= 1e-30
+        denom_safe = np.where(active, denom, 1.0)
+        k2 = 4.0 * R_arr * float(R_src) / denom_safe
+        k2 = np.clip(k2, 1e-9, 0.999999)
+        K_val = ellipk(k2)
+        E_val = ellipe(k2)
+        prefactor = mu0 / (2.0 * np.pi) * np.sqrt(np.maximum(R_arr * float(R_src), 0.0))
+        psi = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / k2
+        return np.asarray(np.where(active, psi, 0.0), dtype=np.float64)
+
     def _compute_external_flux(self, coils: Any) -> np.ndarray:
         """Sum Green's function contributions on boundary from CoilSet."""
         NR, NZ = len(self.R), len(self.Z)
         psi_ext = np.zeros((NZ, NR))
+        R_obs, Z_obs = np.meshgrid(self.R, self.Z)
         for idx, (pos, current) in enumerate(zip(coils.positions, coils.currents)):
             R_c, Z_c = pos
             turns = coils.turns[idx] if idx < len(coils.turns) else 1
             I_eff = current * turns
-            for iz in range(NZ):
-                for ir in range(NR):
-                    psi_ext[iz, ir] += I_eff * self._green_function(R_c, Z_c, self.R[ir], self.Z[iz])
+            psi_ext += I_eff * self._green_function_array(R_c, Z_c, R_obs, Z_obs)
         return psi_ext
 
     def _build_mutual_inductance_matrix(

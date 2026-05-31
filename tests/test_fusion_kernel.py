@@ -601,6 +601,46 @@ class TestSubSolvers:
         assert reconstructed.shape == fine.shape
         assert np.all(np.isfinite(reconstructed))
 
+    def test_restrict_full_weight_rectangular_odd_grid_preserves_edges(self):
+        fine = np.arange(35, dtype=np.float64).reshape(7, 5)
+        coarse = FusionKernel._restrict_full_weight(fine)
+
+        assert coarse.shape == (4, 3)
+        np.testing.assert_allclose(coarse[0, :], fine[0, ::2])
+        np.testing.assert_allclose(coarse[-1, :], fine[-1, ::2])
+        np.testing.assert_allclose(coarse[:, 0], fine[::2, 0])
+        np.testing.assert_allclose(coarse[:, -1], fine[::2, -1])
+
+    def test_degenerate_flux_span_is_rejected_before_profile_normalisation(self, small_kernel):
+        with pytest.raises(ValueError, match="degenerate equilibrium"):
+            small_kernel.update_plasma_source_nonlinear(Psi_axis=1.0, Psi_boundary=1.0 + 1.0e-12)
+
+    def test_external_coil_flux_vectorisation_matches_scalar_green_function(self, small_kernel):
+        coils = CoilSet(
+            positions=[(3.0, 1.5), (4.5, -1.25)],
+            currents=np.array([2.0, -1.0]),
+            turns=[3, 5],
+        )
+
+        vectorised = small_kernel._compute_external_flux(coils)
+        scalar = np.zeros_like(vectorised)
+        for idx, (position, current) in enumerate(zip(coils.positions, coils.currents)):
+            turns = coils.turns[idx]
+            for iz, z_obs in enumerate(small_kernel.Z):
+                for ir, r_obs in enumerate(small_kernel.R):
+                    scalar[iz, ir] += (
+                        current
+                        * turns
+                        * FusionKernel._green_function(
+                            position[0],
+                            position[1],
+                            r_obs,
+                            z_obs,
+                        )
+                    )
+
+        np.testing.assert_allclose(vectorised, scalar, rtol=1.0e-12, atol=1.0e-18)
+
 
 # ── equilibrium solver ───────────────────────────────────────────────
 

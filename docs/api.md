@@ -730,8 +730,11 @@ checked specification list before a safety-critical artifact is admitted.
 clients by default.  Operators must supply an API key or explicitly disable
 client authentication for local development.  Non-loopback binds require an API
 key, command frames are capped by `max_payload_bytes`, accepted commands are
-rate-limited per connection, and production remote exposure should enable TLS
-with `require_tls=True`.  Query-string token authentication and plaintext
+rate-limited with token buckets per connection and per network peer, and
+production remote exposure should enable TLS with `require_tls=True`.
+Authentication, origin, payload, rate-limit, capacity, and command-authority
+rejections emit structured security audit log events without logging tokens.
+Query-string token authentication and plaintext
 non-loopback binds are disabled by default and require explicit operator
 opt-ins for constrained development or isolated lab environments.  Browser
 clients that send an `Origin` header are rejected unless the origin is
@@ -1012,8 +1015,12 @@ Production plant models may provide an analytic `linearization_model(x, u)`
 contract returning finite `(6, 6)` state and `(6, 3)` input Jacobians. The
 controller validates those matrices before use and records
 `last_linearization_source == "analytic"`. If no analytic provider is supplied,
-the controller falls back to bounded central finite differences and records
-`last_linearization_source == "finite_difference"`.
+the controller can use `linearization_backend="jax"` for JAX-traceable plant
+models and records `last_linearization_source == "jax"`; otherwise it falls
+back to bounded central finite differences and records
+`last_linearization_source == "finite_difference"`. Quadratic weights use a
+strict symmetry gate before positive-definite projection so near-zero
+off-diagonal asymmetry cannot pass as a valid cost matrix.
 DARE-derived terminal matrices are accepted only when finite, symmetric, and
 positive definite; invalid solver output falls back to the conservative terminal
 weight.
