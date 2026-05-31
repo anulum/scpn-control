@@ -31,6 +31,9 @@ FormalBackend = Literal["auto", "explicit-state", "z3"]
 SAFETY_CERTIFICATE_SCHEMA_VERSION = "scpn-control.safety-certificate.v1"
 SAFETY_CERTIFICATE_SCOPE = "bounded formal safety certificate for compiled SCPN Petri-net control logic"
 SAFETY_CERTIFICATE_CLAIM_BOUNDARY = "not a facility safety approval, hardware timing certificate, or unbounded proof"
+SAFETY_CERTIFICATE_BUNDLE_SCHEMA_VERSION = "scpn-control.safety-certificate-bundle.v1"
+SAFETY_CERTIFICATE_BUNDLE_SCOPE = "bounded formal safety certificate bundle for SCPN controller release gates"
+SAFETY_CERTIFICATE_BUNDLE_CLAIM_BOUNDARY = "not a facility safety approval or independent regulatory certification"
 
 
 @dataclass(frozen=True)
@@ -138,6 +141,35 @@ class SafetyCertificatePolicy:
             require_ltl=True,
             required_checked_specs=required_checked_specs,
         )
+
+
+@dataclass(frozen=True)
+class SafetyCertificateBundlePolicy:
+    """Admission policy for a bundle of independent safety certificates."""
+
+    name: str
+    min_certificates: int = 1
+    required_policy_name: str | None = None
+    require_same_artifact: bool = False
+    require_same_backend: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError("safety certificate bundle policy name must be a non-empty string")
+        if (
+            isinstance(self.min_certificates, bool)
+            or int(self.min_certificates) != self.min_certificates
+            or self.min_certificates < 1
+        ):
+            raise ValueError("safety certificate bundle policy min_certificates must be an integer >= 1")
+        if self.required_policy_name is not None and (
+            not isinstance(self.required_policy_name, str) or not self.required_policy_name
+        ):
+            raise ValueError("safety certificate bundle policy required_policy_name must be non-empty or None")
+        if not isinstance(self.require_same_artifact, bool):
+            raise ValueError("safety certificate bundle policy require_same_artifact must be boolean")
+        if not isinstance(self.require_same_backend, bool):
+            raise ValueError("safety certificate bundle policy require_same_backend must be boolean")
 
 
 @dataclass(frozen=True)
@@ -1069,6 +1101,102 @@ def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, An
     return payload
 
 
+def build_safety_certificate_bundle_payload(
+    certificates: list[dict[str, Any]],
+    *,
+    policy: SafetyCertificateBundlePolicy | None = None,
+) -> dict[str, Any]:
+    """Build a schema-versioned tamper-evident safety certificate bundle."""
+
+    validated = [validate_safety_certificate_payload(dict(certificate)) for certificate in certificates]
+    _enforce_unique_certificate_digests(validated)
+    holds = all(certificate["holds"] for certificate in validated)
+    payload: dict[str, Any] = {
+        "schema_version": SAFETY_CERTIFICATE_BUNDLE_SCHEMA_VERSION,
+        "status": "pass" if holds else "fail",
+        "holds": holds,
+        "certificate_count": len(validated),
+        "artifact_sha256": _common_certificate_value(validated, "artifact_sha256"),
+        "backend": _common_certificate_value(validated, "backend") or "mixed",
+        "scope": SAFETY_CERTIFICATE_BUNDLE_SCOPE,
+        "claim_boundary": SAFETY_CERTIFICATE_BUNDLE_CLAIM_BOUNDARY,
+        "policy": _bundle_policy_payload(policy) if policy is not None else None,
+        "certificates": validated,
+    }
+    if policy is not None:
+        _enforce_safety_certificate_bundle_policy(payload, policy)
+    payload["payload_sha256"] = _payload_digest(payload)
+    return validate_safety_certificate_bundle_payload(payload)
+
+
+def write_safety_certificate_bundle(
+    certificates: list[dict[str, Any]],
+    *,
+    json_path: str | Path,
+    markdown_path: str | Path,
+    policy: SafetyCertificateBundlePolicy | None = None,
+) -> dict[str, Any]:
+    """Persist a formal safety certificate bundle as JSON and Markdown artifacts."""
+
+    payload = build_safety_certificate_bundle_payload(certificates, policy=policy)
+    json_target = Path(json_path)
+    markdown_target = Path(markdown_path)
+    json_target.parent.mkdir(parents=True, exist_ok=True)
+    markdown_target.parent.mkdir(parents=True, exist_ok=True)
+    json_target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    markdown_target.write_text(_render_safety_certificate_bundle_markdown(payload), encoding="utf-8")
+    return payload
+
+
+def validate_safety_certificate_bundle_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a schema-versioned formal safety certificate bundle."""
+
+    if payload.get("schema_version") != SAFETY_CERTIFICATE_BUNDLE_SCHEMA_VERSION:
+        raise ValueError("safety certificate bundle schema_version is unsupported")
+    if payload.get("status") not in {"pass", "fail"}:
+        raise ValueError("safety certificate bundle status must be pass or fail")
+    if not isinstance(payload.get("holds"), bool):
+        raise ValueError("safety certificate bundle holds must be a boolean")
+    if isinstance(payload.get("certificate_count"), bool) or not isinstance(payload.get("certificate_count"), int):
+        raise ValueError("safety certificate bundle certificate_count must be an integer")
+    if payload["certificate_count"] < 1:
+        raise ValueError("safety certificate bundle certificate_count must be positive")
+    if payload.get("scope") != SAFETY_CERTIFICATE_BUNDLE_SCOPE:
+        raise ValueError("safety certificate bundle scope is unsupported")
+    if payload.get("claim_boundary") != SAFETY_CERTIFICATE_BUNDLE_CLAIM_BOUNDARY:
+        raise ValueError("safety certificate bundle claim_boundary is unsupported")
+    if payload.get("backend") not in {"explicit-state", "z3", "mixed"}:
+        raise ValueError("safety certificate bundle backend is unsupported")
+    artifact_sha256 = payload.get("artifact_sha256")
+    if artifact_sha256 is not None and (not isinstance(artifact_sha256, str) or not _is_sha256(artifact_sha256)):
+        raise ValueError("safety certificate bundle artifact_sha256 must be a SHA-256 hex digest or null")
+    certificates = payload.get("certificates")
+    if not isinstance(certificates, list) or len(certificates) != payload["certificate_count"]:
+        raise ValueError("safety certificate bundle certificates must match certificate_count")
+    validated = [validate_safety_certificate_payload(dict(certificate)) for certificate in certificates]
+    _enforce_unique_certificate_digests(validated)
+    if payload["holds"] != all(certificate["holds"] for certificate in validated):
+        raise ValueError("safety certificate bundle holds must match certificate holds")
+    if payload["status"] == "pass" and not payload["holds"]:
+        raise ValueError("passing safety certificate bundle must hold")
+    if payload["status"] == "fail" and payload["holds"]:
+        raise ValueError("failed safety certificate bundle must not hold")
+    if payload["artifact_sha256"] != _common_certificate_value(validated, "artifact_sha256"):
+        raise ValueError("safety certificate bundle artifact_sha256 must match certificate artifact bindings")
+    expected_backend = _common_certificate_value(validated, "backend") or "mixed"
+    if payload["backend"] != expected_backend:
+        raise ValueError("safety certificate bundle backend must match certificate backends")
+    policy = _bundle_policy_from_payload(payload.get("policy"))
+    if policy is not None:
+        _enforce_safety_certificate_bundle_policy(payload, policy)
+    declared_digest = payload.get("payload_sha256")
+    if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
+        raise ValueError("safety certificate bundle payload_sha256 must be a SHA-256 hex digest")
+    if _payload_digest(payload) != declared_digest.lower():
+        raise ValueError("safety certificate bundle payload_sha256 does not match payload")
+    return payload
+
+
 def _certificate_checked_specs(
     report: FormalVerificationReport,
     ctl_report: FormalPropertyReport | None,
@@ -1109,6 +1237,16 @@ def _policy_payload(policy: SafetyCertificatePolicy) -> dict[str, Any]:
     }
 
 
+def _bundle_policy_payload(policy: SafetyCertificateBundlePolicy) -> dict[str, Any]:
+    return {
+        "name": policy.name,
+        "min_certificates": policy.min_certificates,
+        "required_policy_name": policy.required_policy_name,
+        "require_same_artifact": policy.require_same_artifact,
+        "require_same_backend": policy.require_same_backend,
+    }
+
+
 def _policy_from_payload(value: Any) -> SafetyCertificatePolicy | None:
     if value is None:
         return None
@@ -1124,6 +1262,20 @@ def _policy_from_payload(value: Any) -> SafetyCertificatePolicy | None:
         require_ctl=value.get("require_ctl", False),
         require_ltl=value.get("require_ltl", False),
         required_checked_specs=tuple(required_specs),
+    )
+
+
+def _bundle_policy_from_payload(value: Any) -> SafetyCertificateBundlePolicy | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("safety certificate bundle policy must be an object or null")
+    return SafetyCertificateBundlePolicy(
+        name=value.get("name", ""),
+        min_certificates=value.get("min_certificates", 1),
+        required_policy_name=value.get("required_policy_name"),
+        require_same_artifact=value.get("require_same_artifact", False),
+        require_same_backend=value.get("require_same_backend", False),
     )
 
 
@@ -1145,6 +1297,45 @@ def _enforce_safety_certificate_policy(payload: dict[str, Any], policy: SafetyCe
     missing = [spec for spec in policy.required_checked_specs if spec not in checked_specs]
     if missing:
         raise ValueError(f"safety certificate policy missing required checked spec: {missing[0]}")
+
+
+def _enforce_safety_certificate_bundle_policy(payload: dict[str, Any], policy: SafetyCertificateBundlePolicy) -> None:
+    certificates = payload.get("certificates")
+    if not isinstance(certificates, list):
+        raise ValueError("safety certificate bundle policy requires certificates")
+    if len(certificates) < policy.min_certificates:
+        raise ValueError("safety certificate bundle policy requires more certificates")
+    if policy.require_same_artifact:
+        artifact = _common_certificate_value(certificates, "artifact_sha256")
+        if artifact is None:
+            raise ValueError("safety certificate bundle policy requires a shared artifact binding")
+    if policy.require_same_backend and _common_certificate_value(certificates, "backend") is None:
+        raise ValueError("safety certificate bundle policy requires a shared backend")
+    if policy.required_policy_name is not None:
+        for certificate in certificates:
+            cert_policy = certificate.get("policy")
+            if not isinstance(cert_policy, dict) or cert_policy.get("name") != policy.required_policy_name:
+                raise ValueError("safety certificate bundle policy requires matching certificate policy")
+
+
+def _enforce_unique_certificate_digests(certificates: list[dict[str, Any]]) -> None:
+    digests = [certificate.get("payload_sha256") for certificate in certificates]
+    if not digests:
+        raise ValueError("safety certificate bundle must include at least one certificate")
+    if any(not isinstance(digest, str) or not _is_sha256(digest) for digest in digests):
+        raise ValueError("safety certificate bundle certificates must carry payload digests")
+    if len(digests) != len(set(digests)):
+        raise ValueError("safety certificate bundle certificates must be unique")
+
+
+def _common_certificate_value(certificates: list[dict[str, Any]], key: str) -> Any:
+    values = [certificate.get(key) for certificate in certificates]
+    if not values:
+        return None
+    first = values[0]
+    if all(value == first for value in values):
+        return first
+    return None
 
 
 def _payload_digest(payload: dict[str, Any]) -> str:
@@ -1236,5 +1427,42 @@ def _render_safety_certificate_markdown(payload: dict[str, Any]) -> str:
         lines.extend(["", "## Counterexamples", ""])
         for violation in violations:
             lines.append(f"- `{violation['property_name']}` path={violation['path']} message={violation['message']}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _render_safety_certificate_bundle_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# SCPN Formal Safety Certificate Bundle",
+        "",
+        f"- Schema: `{payload['schema_version']}`",
+        f"- Status: `{payload['status']}`",
+        f"- Certificate count: `{payload['certificate_count']}`",
+        f"- Backend: `{payload['backend']}`",
+        f"- Artifact SHA-256: `{payload['artifact_sha256']}`",
+        f"- Payload SHA-256: `{payload['payload_sha256']}`",
+        f"- Scope: {payload['scope']}.",
+        f"- Claim boundary: {payload['claim_boundary']}.",
+        "",
+    ]
+    if payload.get("policy") is not None:
+        lines.extend(
+            [
+                "## Bundle policy",
+                "",
+                f"- Name: `{payload['policy']['name']}`",
+                f"- Min certificates: `{payload['policy']['min_certificates']}`",
+                f"- Required certificate policy: `{payload['policy']['required_policy_name']}`",
+                f"- Requires shared artifact: `{payload['policy']['require_same_artifact']}`",
+                f"- Requires shared backend: `{payload['policy']['require_same_backend']}`",
+                "",
+            ]
+        )
+    lines.extend(["## Certificates", ""])
+    for certificate in payload["certificates"]:
+        lines.append(
+            f"- `{certificate['payload_sha256']}` status=`{certificate['status']}` "
+            f"issuer=`{certificate['issuer']}` depth=`{certificate['max_depth']}`"
+        )
     lines.append("")
     return "\n".join(lines)

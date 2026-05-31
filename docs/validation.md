@@ -181,6 +181,11 @@ inconsistent certificate remains rejected even if its digest is recomputed. The
 optional `SafetyCertificatePolicy` gate can additionally require minimum proof
 depth, controller artifact binding, CTL evidence, LTL evidence, and named
 checked specifications before certificate artifacts are emitted or admitted. The
+`write_safety_certificate_bundle` path persists a schema-versioned
+`scpn-control.safety-certificate-bundle.v1` bundle for release gates that need
+multiple independent certificates tied to the same controller artifact, backend,
+and certificate policy. Bundle admission revalidates every embedded certificate
+before checking bundle-level policy and digest integrity. The
 certificate is evidence for bounded model checking only; it is not a facility
 safety approval or an unbounded proof.
 

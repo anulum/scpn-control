@@ -440,6 +440,8 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.SafetyCertificatePolicy
 
+::: scpn_control.scpn.formal_verification.SafetyCertificateBundlePolicy
+
 ::: scpn_control.scpn.formal_verification.CTLFormula
 
 ::: scpn_control.scpn.formal_verification.LTLFormula
@@ -456,11 +458,17 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.build_safety_certificate_payload
 
+::: scpn_control.scpn.formal_verification.build_safety_certificate_bundle_payload
+
 ::: scpn_control.scpn.formal_verification.generate_safety_certificate
 
 ::: scpn_control.scpn.formal_verification.validate_safety_certificate_payload
 
+::: scpn_control.scpn.formal_verification.validate_safety_certificate_bundle_payload
+
 ::: scpn_control.scpn.formal_verification.write_safety_certificate
+
+::: scpn_control.scpn.formal_verification.write_safety_certificate_bundle
 
 ::: scpn_control.scpn.z3_model_checking.Z3BoundedModelChecker
 

@@ -29,10 +29,14 @@ from scpn_control.scpn.formal_verification import (
     NeverCoMarked,
     PlaceInvariant,
     SafetyCertificatePolicy,
+    SafetyCertificateBundlePolicy,
+    build_safety_certificate_bundle_payload,
     build_safety_certificate_payload,
     generate_safety_certificate,
+    validate_safety_certificate_bundle_payload,
     validate_safety_certificate_payload,
     verify_formal_contracts,
+    write_safety_certificate_bundle,
     write_safety_certificate,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
@@ -468,6 +472,100 @@ def test_safety_certificate_policy_rejects_semantic_policy_tampering(tmp_path: P
 
     with pytest.raises(ValueError, match="required checked spec"):
         validate_safety_certificate_payload(tampered)
+
+
+def test_safety_certificate_bundle_admits_consistent_independent_certificates(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "controller.scpnctl"
+    artifact_path.write_bytes(b"compiled-controller-artifact")
+    policy = SafetyCertificatePolicy.certification_gate(
+        name="bounded-ctl-ltl-release-gate",
+        min_depth=2,
+        required_checked_specs=("CTL:EF_move_fires:EF", "LTL:F_move_fires:F"),
+    )
+    cert_a = generate_safety_certificate(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        ctl_specs=[CTLFormula.ef_fires("EF_move_fires", "move")],
+        ltl_specs=[LTLFormula.eventually_fires("F_move_fires", "move")],
+        artifact_path=artifact_path,
+        json_path=tmp_path / "certificate-a.json",
+        markdown_path=tmp_path / "certificate-a.md",
+        policy=policy,
+        issuer="release-safety-gate-a",
+        backend="explicit-state",
+    )
+    cert_b = generate_safety_certificate(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        ctl_specs=[CTLFormula.ef_fires("EF_move_fires", "move")],
+        ltl_specs=[LTLFormula.eventually_fires("F_move_fires", "move")],
+        artifact_path=artifact_path,
+        json_path=tmp_path / "certificate-b.json",
+        markdown_path=tmp_path / "certificate-b.md",
+        policy=policy,
+        issuer="release-safety-gate-b",
+        backend="explicit-state",
+    )
+    bundle_policy = SafetyCertificateBundlePolicy(
+        name="two-reviewer-certificate-bundle",
+        min_certificates=2,
+        required_policy_name="bounded-ctl-ltl-release-gate",
+        require_same_artifact=True,
+        require_same_backend=True,
+    )
+
+    bundle = write_safety_certificate_bundle(
+        [cert_a, cert_b],
+        json_path=tmp_path / "bundle.json",
+        markdown_path=tmp_path / "bundle.md",
+        policy=bundle_policy,
+    )
+
+    assert bundle["schema_version"] == "scpn-control.safety-certificate-bundle.v1"
+    assert bundle["status"] == "pass"
+    assert bundle["certificate_count"] == 2
+    assert bundle["artifact_sha256"] == hashlib.sha256(b"compiled-controller-artifact").hexdigest()
+    assert bundle["policy"]["name"] == "two-reviewer-certificate-bundle"
+    assert len({entry["payload_sha256"] for entry in bundle["certificates"]}) == 2
+    assert validate_safety_certificate_bundle_payload(bundle) == bundle
+    persisted = json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))
+    markdown = (tmp_path / "bundle.md").read_text(encoding="utf-8")
+    assert persisted == bundle
+    assert "# SCPN Formal Safety Certificate Bundle" in markdown
+    assert bundle["payload_sha256"] in markdown
+
+
+def test_safety_certificate_bundle_rejects_mismatched_artifact_binding(tmp_path: Path) -> None:
+    artifact_a = tmp_path / "controller-a.scpnctl"
+    artifact_b = tmp_path / "controller-b.scpnctl"
+    artifact_a.write_bytes(b"compiled-controller-artifact-a")
+    artifact_b.write_bytes(b"compiled-controller-artifact-b")
+    cert_a = generate_safety_certificate(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        artifact_path=artifact_a,
+        json_path=tmp_path / "certificate-a.json",
+        markdown_path=tmp_path / "certificate-a.md",
+        backend="explicit-state",
+    )
+    cert_b = generate_safety_certificate(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        artifact_path=artifact_b,
+        json_path=tmp_path / "certificate-b.json",
+        markdown_path=tmp_path / "certificate-b.md",
+        backend="explicit-state",
+    )
+
+    with pytest.raises(ValueError, match="artifact"):
+        build_safety_certificate_bundle_payload(
+            [cert_a, cert_b],
+            policy=SafetyCertificateBundlePolicy(name="same-artifact", min_certificates=2, require_same_artifact=True),
+        )
 
 
 def test_safety_certificate_validator_rejects_semantic_section_tampering() -> None:
