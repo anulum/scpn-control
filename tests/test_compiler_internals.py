@@ -95,6 +95,13 @@ class TestEncodeWeightMatrixPacked:
         n_words = int(np.ceil(100 / 64))
         assert packed.shape == (1, 1, n_words)
 
+    def test_non_multiple_of_64_padding_bits_are_zero(self):
+        W = np.ones((1, 1))
+        packed = _encode_weight_matrix_packed(W, bitstream_length=65, seed=0)
+
+        assert packed[0, 0, 0] == np.uint64(0xFFFFFFFFFFFFFFFF)
+        assert packed[0, 0, 1] == np.uint64(1)
+
     def test_statistical_fidelity(self):
         """Mean bit density ~ weight probability within tolerance."""
         rng = np.random.default_rng(42)

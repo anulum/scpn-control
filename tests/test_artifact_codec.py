@@ -15,7 +15,24 @@ from pathlib import Path
 import pytest
 
 from scpn_control.scpn.artifact import (
+    ActionReadout,
+    Artifact,
+    ArtifactMeta,
     ArtifactValidationError,
+    CompilerInfo,
+    FixedPoint,
+    FormalVerificationEvidence,
+    InitialState,
+    PackedWeights,
+    PackedWeightsGroup,
+    PlaceInjection,
+    PlaceSpec,
+    Readout,
+    SeedPolicy,
+    Topology,
+    TransitionSpec,
+    WeightMatrix,
+    Weights,
     _decode_u64_compact,
     compute_artifact_payload_sha256,
     decode_u64_compact,
@@ -23,6 +40,7 @@ from scpn_control.scpn.artifact import (
     get_artifact_json_schema,
     load_artifact,
     save_artifact,
+    validate_safety_critical_artifact,
 )
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.structure import StochasticPetriNet
@@ -135,6 +153,61 @@ def _write_valid_z3_report(path: Path) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _manual_artifact() -> Artifact:
+    return Artifact(
+        meta=ArtifactMeta(
+            artifact_version="1.0.0",
+            name="manual-safety-artifact",
+            dt_control_s=0.001,
+            stream_length=64,
+            fixed_point=FixedPoint(data_width=16, fraction_bits=10, signed=False),
+            firing_mode="binary",
+            seed_policy=SeedPolicy(id="default", hash_fn="splitmix64", rng_family="xoshiro256++"),
+            created_utc="2026-05-31T00:00:00Z",
+            compiler=CompilerInfo(name="FusionCompiler", version="1.0.0", git_sha="abc1234"),
+        ),
+        topology=Topology(
+            places=[PlaceSpec(id=0, name="P0"), PlaceSpec(id=1, name="P1")],
+            transitions=[TransitionSpec(id=0, name="T0", threshold=0.5, delay_ticks=1)],
+        ),
+        weights=Weights(
+            w_in=WeightMatrix(shape=[1, 2], data=[1.0, 0.0]),
+            w_out=WeightMatrix(shape=[2, 1], data=[0.0, 1.0]),
+            packed=PackedWeightsGroup(
+                words_per_stream=1,
+                w_in_packed=PackedWeights(shape=[1, 2, 1], data_u64=[2**64 - 1, 0]),
+                w_out_packed=PackedWeights(shape=[2, 1, 1], data_u64=[0, 2**64 - 1]),
+            ),
+        ),
+        readout=Readout(
+            actions=[ActionReadout(id=0, name="act0", pos_place=1, neg_place=0)],
+            gains=[1.0],
+            abs_max=[10.0],
+            slew_per_s=[100.0],
+        ),
+        initial_state=InitialState(
+            marking=[1.0, 0.0],
+            place_injections=[PlaceInjection(place_id=0, source="x_R_pos", scale=1.0, offset=0.0, clamp_0_1=True)],
+        ),
+    )
+
+
+def _passing_manual_evidence(artifact: Artifact) -> FormalVerificationEvidence:
+    return FormalVerificationEvidence(
+        required=True,
+        status="pass",
+        backend="explicit-state",
+        solver="repository-explicit-state",
+        max_depth=4,
+        checked_specs=["marking_bounds"],
+        artifact_sha256=compute_artifact_payload_sha256(artifact),
+        report_sha256="b" * 64,
+        claim_boundary="bounded explicit-state proof through depth 4",
+        report_uri="validation/reports/manual.json",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+
+
 class TestCompactCodecRoundTrip:
     def test_empty_list(self):
         encoded = encode_u64_compact([])
@@ -244,6 +317,56 @@ class TestDecodeErrors:
         del encoded["count"]  # force None path
         decoded = _decode_u64_compact(encoded)
         assert decoded == [10, 20, 30]
+
+
+class TestManualArtifactContracts:
+    def test_payload_hash_excludes_proof_envelope_but_tracks_payload(self) -> None:
+        artifact = _manual_artifact()
+        before = compute_artifact_payload_sha256(artifact)
+        artifact.formal_verification = _passing_manual_evidence(artifact)
+
+        assert compute_artifact_payload_sha256(artifact) == before
+
+        artifact.meta.stream_length = 128
+        assert compute_artifact_payload_sha256(artifact) != before
+
+    def test_safety_validation_accepts_explicit_state_without_report_root(self) -> None:
+        artifact = _manual_artifact()
+        artifact.formal_verification = _passing_manual_evidence(artifact)
+
+        validate_safety_critical_artifact(artifact)
+
+    @pytest.mark.parametrize(
+        "report_uri",
+        [
+            "",
+            "/absolute/report.json",
+            "file:report.json",
+            "https://example.invalid/report.json",
+            "~/.cache/report.json",
+            "validation\\report.json",
+        ],
+    )
+    def test_formal_report_uri_rejects_unsafe_paths(self, report_uri: str) -> None:
+        artifact = _manual_artifact()
+        evidence = _passing_manual_evidence(artifact)
+        evidence.report_uri = report_uri
+        artifact.formal_verification = evidence
+
+        with pytest.raises(ArtifactValidationError, match="report_uri"):
+            validate_safety_critical_artifact(artifact)
+
+    def test_save_and_load_roundtrip_preserves_compact_packed_output(self, tmp_path: Path) -> None:
+        artifact = _manual_artifact()
+        out = tmp_path / "manual.scpnctl.json"
+
+        save_artifact(artifact, out, compact_packed=True)
+        loaded = load_artifact(out)
+
+        assert loaded.weights.packed is not None
+        assert loaded.weights.packed.w_in_packed.data_u64 == [2**64 - 1, 0]
+        assert loaded.weights.packed.w_out_packed is not None
+        assert loaded.weights.packed.w_out_packed.data_u64 == [0, 2**64 - 1]
 
 
 class TestArtifactValidationContract:

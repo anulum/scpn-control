@@ -21,12 +21,67 @@ from scpn_control.scpn import (
     GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION as PUBLIC_MANIFEST_SCHEMA_VERSION,
 )
 from scpn_control.scpn.geometry_neutral_replay import (
+    DEFAULT_THRESHOLDS,
     GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION,
     SCHEMA_VERSION,
+    _build_manifest,
     generate_report,
+    render_geometry_neutral_markdown,
     render_markdown,
+    validate_geometry_neutral_report,
     validate_report,
 )
+
+
+def _manual_valid_report() -> dict[str, object]:
+    scenario = {
+        "name": "manual_geometry_neutral_replay",
+        "magnetic_configuration": {
+            "name": "manual_w7x_like",
+            "device_class": "stellarator",
+            "reference": "public synthetic W7-X-like reduced-order fixture",
+        },
+    }
+    trace = [
+        {"step": 0, "fieldline_spread": 0.025, "applied_current_A": 0.0, "latency_us": 120.0},
+        {"step": 1, "fieldline_spread": 0.018, "applied_current_A": 500.0, "latency_us": 130.0},
+    ]
+    metrics = {
+        "initial_fieldline_spread": 0.025,
+        "final_fieldline_spread": 0.018,
+        "improvement_fraction": 0.28,
+        "max_abs_current_A": 500.0,
+        "p95_latency_us": 130.0,
+    }
+    thresholds = dict(DEFAULT_THRESHOLDS)
+    manifest = _build_manifest(
+        scenario_payload=scenario,
+        trace=trace,
+        metrics=metrics,
+        thresholds=thresholds,
+        deterministic=True,
+        passes_thresholds=True,
+    )
+    return {
+        "geometry_neutral_replay": {
+            "schema_version": SCHEMA_VERSION,
+            "scenario": scenario,
+            "replay": {
+                "deterministic": True,
+                "signature": "manual-signature",
+                "trace": trace,
+            },
+            "magnetic_configuration": scenario["magnetic_configuration"],
+            "metrics": metrics,
+            "thresholds": thresholds,
+            "passes_thresholds": True,
+            "manifest": manifest,
+            "limitations": [
+                "This compact replay is not a production PCS.",
+                "No external company data is used.",
+            ],
+        }
+    }
 
 
 def test_geometry_neutral_replay_is_deterministic_and_schema_valid() -> None:
@@ -152,3 +207,58 @@ def test_geometry_neutral_replay_rejects_blank_manifest_provenance() -> None:
 
     with pytest.raises(ValueError, match="latency_model"):
         validate_report(tampered)
+
+
+def test_geometry_neutral_replay_public_aliases_validate_and_render_manual_contract() -> None:
+    report = _manual_valid_report()
+
+    validate_geometry_neutral_report(report)
+    markdown = render_geometry_neutral_markdown(report)
+
+    assert markdown.startswith("# Geometry-Neutral Stellarator Replay")
+    assert "Threshold pass: `YES`" in markdown
+
+
+@pytest.mark.parametrize(
+    ("mutator", "match"),
+    [
+        (lambda report: report.pop("geometry_neutral_replay"), "missing geometry_neutral_replay"),
+        (
+            lambda report: report["geometry_neutral_replay"].__setitem__("schema_version", "wrong"),
+            "schema_version",
+        ),
+        (
+            lambda report: report["geometry_neutral_replay"]["replay"].__setitem__("deterministic", False),
+            "deterministic",
+        ),
+        (
+            lambda report: report["geometry_neutral_replay"]["metrics"].__setitem__("p95_latency_us", float("nan")),
+            "finite",
+        ),
+        (
+            lambda report: report["geometry_neutral_replay"].__setitem__("passes_thresholds", False),
+            "passes_thresholds",
+        ),
+        (
+            lambda report: report["geometry_neutral_replay"]["manifest"].__setitem__("scenario_digest", "bad"),
+            "scenario digest",
+        ),
+        (
+            lambda report: report["geometry_neutral_replay"]["manifest"]["acceptance"].__setitem__(
+                "passes_thresholds",
+                False,
+            ),
+            "acceptance threshold",
+        ),
+        (
+            lambda report: report["geometry_neutral_replay"]["manifest"].__setitem__("provenance", []),
+            "provenance",
+        ),
+    ],
+)
+def test_geometry_neutral_replay_validator_rejects_manual_contract_drift(mutator, match: str) -> None:
+    report = _manual_valid_report()
+    mutator(report)
+
+    with pytest.raises(ValueError, match=match):
+        validate_report(report)

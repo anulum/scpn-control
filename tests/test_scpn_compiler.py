@@ -471,6 +471,57 @@ class TestFusionCompiler:
                 allow_legacy_runtime_backend_fallback=False,
             )
 
+    def test_traceable_runtime_kwargs_normalizes_backend_whitespace(self) -> None:
+        cfg = FusionCompiler.traceable_runtime_kwargs(runtime_backend=" RUST ")
+
+        assert cfg["runtime_backend"] == "rust"
+        assert cfg["runtime_profile"] == "traceable"
+        assert cfg["allow_runtime_backend_fallback"] is False
+
+    def test_export_artifact_from_direct_compiled_net_preserves_control_contract(self) -> None:
+        compiled = CompiledNet(
+            n_places=2,
+            n_transitions=1,
+            place_names=["source", "sink"],
+            transition_names=["move"],
+            W_in=np.array([[1.0, 0.0]], dtype=np.float64),
+            W_out=np.array([[0.0], [1.0]], dtype=np.float64),
+            thresholds=np.array([0.5], dtype=np.float64),
+            transition_delay_ticks=np.array([3], dtype=np.int64),
+            initial_marking=np.array([1.0, 0.0], dtype=np.float64),
+            bitstream_length=128,
+            seed=99,
+            firing_mode="fractional",
+            firing_margin=0.25,
+        )
+
+        artifact = compiled.export_artifact(
+            name="direct-compiled-contract",
+            dt_control_s=0.002,
+            readout_config={
+                "actions": [{"name": "move_cmd", "pos_place": 1, "neg_place": 0}],
+                "gains": [2.0],
+                "abs_max": [5.0],
+                "slew_per_s": [20.0],
+            },
+            injection_config=[
+                {
+                    "place_id": 0,
+                    "source": "x_R_pos",
+                    "scale": 1.0,
+                    "offset": 0.0,
+                    "clamp_0_1": True,
+                }
+            ],
+        )
+
+        assert artifact.meta.name == "direct-compiled-contract"
+        assert artifact.meta.dt_control_s == 0.002
+        assert artifact.topology.transitions[0].delay_ticks == 3
+        assert artifact.topology.transitions[0].margin == 0.25
+        assert artifact.readout.gains == [2.0]
+        assert artifact.initial_state.marking == [1.0, 0.0]
+
     @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_packed_weight_shapes(self, compiled: CompiledNet) -> None:
         n_words = int(np.ceil(1024 / 64))  # 16
@@ -675,6 +726,38 @@ class TestDenseForwardFloat:
                     np.zeros((3, 3, 1), dtype=np.uint64),
                     np.array([1.0, 0.0, 0.0]),
                 )
+
+    def test_direct_compiled_net_summary_distinguishes_float_only_runtime(self) -> None:
+        compiled = CompiledNet(
+            n_places=1,
+            n_transitions=1,
+            place_names=["p"],
+            transition_names=["t"],
+            W_in=np.array([[1.0]], dtype=np.float64),
+            W_out=np.array([[1.0]], dtype=np.float64),
+            thresholds=np.array([0.5], dtype=np.float64),
+            initial_marking=np.array([1.0], dtype=np.float64),
+            bitstream_length=64,
+        )
+
+        assert compiled.has_stochastic_path is False
+        assert "mode=float-only" in compiled.summary()
+
+    def test_fractional_fire_uses_positive_margin_floor(self) -> None:
+        compiled = CompiledNet(
+            n_places=1,
+            n_transitions=1,
+            place_names=["p"],
+            transition_names=["t"],
+            W_in=np.array([[1.0]], dtype=np.float64),
+            W_out=np.array([[1.0]], dtype=np.float64),
+            thresholds=np.array([0.5], dtype=np.float64),
+            firing_mode="fractional",
+            firing_margin=0.0,
+        )
+
+        np.testing.assert_array_equal(compiled.lif_fire(np.array([0.5])), [0.0])
+        np.testing.assert_array_equal(compiled.lif_fire(np.array([0.500000000002])), [1.0])
 
 
 class TestResolveGitSha:
