@@ -185,7 +185,12 @@ checked specifications before certificate artifacts are emitted or admitted. The
 `scpn-control.safety-certificate-bundle.v1` bundle for release gates that need
 multiple independent certificates tied to the same controller artifact, backend,
 and certificate policy. Bundle admission revalidates every embedded certificate
-before checking bundle-level policy and digest integrity. The
+before checking bundle-level policy and digest integrity. Bundle artifact
+admission uses `build_safety_certificate_bundle_artifact`,
+`validate_safety_certificate_bundle_artifact`, and
+`admit_safety_certificate_bundle_artifact` to require safe relative bundle URIs
+and SHA-256 byte matches under a caller-supplied artifact root before replay
+validation. The
 certificate is evidence for bounded model checking only; it is not a facility
 safety approval or an unbounded proof.
 

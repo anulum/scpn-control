@@ -460,11 +460,17 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.build_safety_certificate_bundle_payload
 
+::: scpn_control.scpn.formal_verification.build_safety_certificate_bundle_artifact
+
 ::: scpn_control.scpn.formal_verification.generate_safety_certificate
 
 ::: scpn_control.scpn.formal_verification.validate_safety_certificate_payload
 
 ::: scpn_control.scpn.formal_verification.validate_safety_certificate_bundle_payload
+
+::: scpn_control.scpn.formal_verification.validate_safety_certificate_bundle_artifact
+
+::: scpn_control.scpn.formal_verification.admit_safety_certificate_bundle_artifact
 
 ::: scpn_control.scpn.formal_verification.write_safety_certificate
 

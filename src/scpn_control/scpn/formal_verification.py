@@ -34,6 +34,11 @@ SAFETY_CERTIFICATE_CLAIM_BOUNDARY = "not a facility safety approval, hardware ti
 SAFETY_CERTIFICATE_BUNDLE_SCHEMA_VERSION = "scpn-control.safety-certificate-bundle.v1"
 SAFETY_CERTIFICATE_BUNDLE_SCOPE = "bounded formal safety certificate bundle for SCPN controller release gates"
 SAFETY_CERTIFICATE_BUNDLE_CLAIM_BOUNDARY = "not a facility safety approval or independent regulatory certification"
+SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCHEMA_VERSION = "scpn-control.safety-certificate-bundle-artifact.v1"
+SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCOPE = "hash-addressed formal safety certificate bundle artifact"
+SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_CLAIM_BOUNDARY = (
+    "not a facility safety approval or independent regulatory certification"
+)
 
 
 @dataclass(frozen=True)
@@ -1197,6 +1202,95 @@ def validate_safety_certificate_bundle_payload(payload: dict[str, Any]) -> dict[
     return payload
 
 
+def build_safety_certificate_bundle_artifact(
+    *,
+    bundle_uri: str,
+    bundle_sha256: str,
+    producer: str,
+    created_at: str,
+) -> dict[str, Any]:
+    """Build a schema-versioned reference to a persisted certificate bundle."""
+
+    uri = _safe_relative_uri("bundle_uri", bundle_uri)
+    if not isinstance(bundle_sha256, str) or not _is_sha256(bundle_sha256):
+        raise ValueError("safety certificate bundle artifact bundle_sha256 must be a SHA-256 hex digest")
+    if not isinstance(producer, str) or not producer:
+        raise ValueError("safety certificate bundle artifact producer must be a non-empty string")
+    if not isinstance(created_at, str) or not created_at:
+        raise ValueError("safety certificate bundle artifact created_at must be a non-empty string")
+    artifact = {
+        "schema_version": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCHEMA_VERSION,
+        "kind": "safety_certificate_bundle",
+        "bundle_uri": uri,
+        "bundle_sha256": bundle_sha256.lower(),
+        "producer": producer,
+        "created_at": created_at,
+        "scope": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCOPE,
+        "claim_boundary": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_CLAIM_BOUNDARY,
+    }
+    return validate_safety_certificate_bundle_artifact(artifact)
+
+
+def validate_safety_certificate_bundle_artifact(
+    artifact: dict[str, Any],
+    *,
+    artifact_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Validate a persisted certificate-bundle artifact reference."""
+
+    if not isinstance(artifact, dict):
+        raise ValueError("safety certificate bundle artifact must be an object")
+    if artifact.get("schema_version") != SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCHEMA_VERSION:
+        raise ValueError("safety certificate bundle artifact schema_version is unsupported")
+    if artifact.get("kind") != "safety_certificate_bundle":
+        raise ValueError("safety certificate bundle artifact kind is unsupported")
+    uri = _safe_relative_uri("bundle_uri", artifact.get("bundle_uri"))
+    bundle_sha256 = artifact.get("bundle_sha256")
+    if not isinstance(bundle_sha256, str) or not _is_sha256(bundle_sha256):
+        raise ValueError("safety certificate bundle artifact bundle_sha256 must be a SHA-256 hex digest")
+    if not isinstance(artifact.get("producer"), str) or not artifact["producer"]:
+        raise ValueError("safety certificate bundle artifact producer must be a non-empty string")
+    if not isinstance(artifact.get("created_at"), str) or not artifact["created_at"]:
+        raise ValueError("safety certificate bundle artifact created_at must be a non-empty string")
+    if artifact.get("scope") != SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCOPE:
+        raise ValueError("safety certificate bundle artifact scope is unsupported")
+    if artifact.get("claim_boundary") != SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_CLAIM_BOUNDARY:
+        raise ValueError("safety certificate bundle artifact claim_boundary is unsupported")
+    validated = {
+        "schema_version": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCHEMA_VERSION,
+        "kind": "safety_certificate_bundle",
+        "bundle_uri": uri,
+        "bundle_sha256": bundle_sha256.lower(),
+        "producer": artifact["producer"],
+        "created_at": artifact["created_at"],
+        "scope": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCOPE,
+        "claim_boundary": SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_CLAIM_BOUNDARY,
+    }
+    if artifact_root is not None:
+        target = _resolve_under_root(artifact_root, uri)
+        if not target.is_file():
+            raise ValueError("safety certificate bundle artifact target must be a file")
+        digest = _file_sha256(target)
+        if digest != validated["bundle_sha256"]:
+            raise ValueError("safety certificate bundle artifact bundle_sha256 does not match bundle bytes")
+        raw = json.loads(target.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError("safety certificate bundle artifact target must contain a bundle object")
+        validate_safety_certificate_bundle_payload(raw)
+    return validated
+
+
+def admit_safety_certificate_bundle_artifact(artifact: dict[str, Any], *, artifact_root: str | Path) -> dict[str, Any]:
+    """Load and validate the bundle referenced by a certificate-bundle artifact."""
+
+    validated = validate_safety_certificate_bundle_artifact(artifact, artifact_root=artifact_root)
+    target = _resolve_under_root(artifact_root, validated["bundle_uri"])
+    raw = json.loads(target.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("safety certificate bundle artifact target must contain a bundle object")
+    return validate_safety_certificate_bundle_payload(raw)
+
+
 def _certificate_checked_specs(
     report: FormalVerificationReport,
     ctl_report: FormalPropertyReport | None,
@@ -1369,6 +1463,28 @@ def _file_sha256(path: str | Path) -> str:
         for chunk in iter(lambda: fh.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _safe_relative_uri(name: str, value: object) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{name} must be a non-empty relative path")
+    if "\x00" in value or "\\" in value or "://" in value or value.startswith(("/", "~")):
+        raise ValueError(f"{name} must be a safe relative path")
+    path = Path(value)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        raise ValueError(f"{name} must be a safe relative path")
+    return value
+
+
+def _resolve_under_root(root: str | Path, relative_uri: str) -> Path:
+    relative_uri = _safe_relative_uri("bundle_uri", relative_uri)
+    base = Path(root).resolve()
+    target = (base / relative_uri).resolve()
+    try:
+        target.relative_to(base)
+    except ValueError as exc:
+        raise ValueError("safety certificate bundle artifact path escapes artifact_root") from exc
+    return target
 
 
 def _jsonable(value: Any) -> Any:

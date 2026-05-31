@@ -30,11 +30,14 @@ from scpn_control.scpn.formal_verification import (
     PlaceInvariant,
     SafetyCertificatePolicy,
     SafetyCertificateBundlePolicy,
+    admit_safety_certificate_bundle_artifact,
+    build_safety_certificate_bundle_artifact,
     build_safety_certificate_bundle_payload,
     build_safety_certificate_payload,
     generate_safety_certificate,
     validate_safety_certificate_bundle_payload,
     validate_safety_certificate_payload,
+    validate_safety_certificate_bundle_artifact,
     verify_formal_contracts,
     write_safety_certificate_bundle,
     write_safety_certificate,
@@ -566,6 +569,59 @@ def test_safety_certificate_bundle_rejects_mismatched_artifact_binding(tmp_path:
             [cert_a, cert_b],
             policy=SafetyCertificateBundlePolicy(name="same-artifact", min_certificates=2, require_same_artifact=True),
         )
+
+
+def test_safety_certificate_bundle_artifact_admits_hash_verified_relative_uri(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "controller.scpnctl"
+    artifact_path.write_bytes(b"compiled-controller-artifact")
+    certificate = generate_safety_certificate(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        artifact_path=artifact_path,
+        json_path=tmp_path / "certificate.json",
+        markdown_path=tmp_path / "certificate.md",
+        backend="explicit-state",
+    )
+    bundle_path = tmp_path / "evidence" / "bundle.json"
+    bundle = write_safety_certificate_bundle(
+        [certificate],
+        json_path=bundle_path,
+        markdown_path=tmp_path / "evidence" / "bundle.md",
+    )
+    artifact = build_safety_certificate_bundle_artifact(
+        bundle_uri="evidence/bundle.json",
+        bundle_sha256=hashlib.sha256(bundle_path.read_bytes()).hexdigest(),
+        producer="release-safety-gate",
+        created_at="2026-05-31T00:00:00Z",
+    )
+
+    admitted = admit_safety_certificate_bundle_artifact(artifact, artifact_root=tmp_path)
+
+    assert admitted == bundle
+    assert validate_safety_certificate_bundle_artifact(artifact, artifact_root=tmp_path) == artifact
+
+
+def test_safety_certificate_bundle_artifact_rejects_traversal_and_digest_mismatch(tmp_path: Path) -> None:
+    bundle_path = tmp_path / "bundle.json"
+    bundle_path.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="relative"):
+        build_safety_certificate_bundle_artifact(
+            bundle_uri="../bundle.json",
+            bundle_sha256=hashlib.sha256(bundle_path.read_bytes()).hexdigest(),
+            producer="release-safety-gate",
+            created_at="2026-05-31T00:00:00Z",
+        )
+
+    artifact = build_safety_certificate_bundle_artifact(
+        bundle_uri="bundle.json",
+        bundle_sha256="0" * 64,
+        producer="release-safety-gate",
+        created_at="2026-05-31T00:00:00Z",
+    )
+    with pytest.raises(ValueError, match="bundle_sha256"):
+        admit_safety_certificate_bundle_artifact(artifact, artifact_root=tmp_path)
 
 
 def test_safety_certificate_validator_rejects_semantic_section_tampering() -> None:

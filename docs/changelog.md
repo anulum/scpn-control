@@ -5,10 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
-- Added schema-versioned formal safety certificate bundle artifacts so release
-  gates can admit multiple independent certificate payloads only when their
-  embedded certificate digests, artifact binding, backend, and required
-  certificate policy are consistent.
+- Added hash-addressed formal safety certificate bundle artifact admission so
+  release gates verify safe relative bundle URIs, SHA-256 bytes, embedded
+  certificate digests, artifact binding, backend, and required certificate
+  policy before replaying certificate evidence.
 - Added formal safety certificate admission policies so certification campaigns
   can require minimum proof depth, controller artifact binding, CTL/LTL
   evidence, and named checked specifications before JSON/Markdown certificate
