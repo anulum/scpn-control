@@ -15,11 +15,11 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 ## Summary
 
 - Status: pass
-- Registry entries: 52
-- Open fidelity gaps: 51
-- Full-fidelity public claims blocked: 51
-- Resolved module paths: 52
-- Resolved evidence paths: 212
+- Registry entries: 53
+- Open fidelity gaps: 52
+- Full-fidelity public claims blocked: 52
+- Resolved module paths: 53
+- Resolved evidence paths: 219
 - External validation trackers: 8
 - Source marker coverage: 33/33
 
@@ -31,7 +31,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Transport, edge, MHD, and scenario benchmark artefacts: [#49](https://github.com/anulum/scpn-control/issues/49) — 15 open claim(s) — Integrated transport, momentum, pedestal, ELM, MARFE, NTM, current drive, stability, tearing, SOL, orbit, UQ, and scenario benchmarks.
 - Neural surrogate validation artefacts: [#50](https://github.com/anulum/scpn-control/issues/50) — 3 open claim(s) — QLKNN, QuaLiKiz, gyrokinetic, transport, turbulence, and equilibrium surrogate reference datasets and weight provenance.
 - Plasma-control and facility replay artefacts: [#51](https://github.com/anulum/scpn-control/issues/51) — 11 open claim(s) — RZIP, RWM, free-boundary, density, digital twin, SOC learning, burn, volt-second, mu-synthesis, and reduced-plant replay evidence.
-- Disruption, halo-current, and mitigation benchmark artefacts: [#52](https://github.com/anulum/scpn-control/issues/52) — 3 open claim(s) — Measured disruption databases, labelled disruption windows, halo/runaway envelopes, wall contact, impurity radiation, and mitigation metadata.
+- Disruption, halo-current, and mitigation benchmark artefacts: [#52](https://github.com/anulum/scpn-control/issues/52) — 4 open claim(s) — Measured disruption databases, labelled disruption windows, halo/runaway envelopes, wall contact, impurity radiation, and mitigation metadata.
 - Hardware, HDL, CODAC/EPICS, and runtime deployment evidence: [#53](https://github.com/anulum/scpn-control/issues/53) — 5 open claim(s) — Vivado, Quartus, Yosys, timing closure, simulator evidence, CODAC/EPICS timing, interlocks, backpressure, HIL replay, and runtime parity.
 
 ## Module Traceability Table
@@ -66,6 +66,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 | `src/scpn_control/control/disruption_contracts.py` | Disruption-contract claims must declare synthetic disruption signal generation, toroidal-mode amplitudes, mitigation-cocktail coupling, impurity transport response, halo/runaway post-disruption response, TBR equivalence scaling, and RL action bias assumptions. | Pautasso et al. 2017 disruption current-quench constraints; Riccardo et al. 2010 halo-current rise-time references; Abdou et al. 2015 blanket neutronics calibration references | SI seconds, milliseconds, mega-amperes, megajoules, moles, megawatts, dimensionless risk, toroidal mode amplitudes, and tritium breeding ratio. | tests/test_disruption_contracts.py contract smoke checks; tests/test_disruption_contracts_pure.py pure physics-path checks; tests/test_disruption_edge_cases.py edge-case disruption checks; validation/validate_disruption_reference.py strict disruption reference artifact gate | bounded_model | [#52](https://github.com/anulum/scpn-control/issues/52) |
 | `src/scpn_control/core/disruption_sequence.py` | Disruption-sequence claims must declare phase ordering, finite positive configuration domains, Rechester-Rosenbluth thermal-quench transport, post-quench radiative-cooling exposure, current-quench timing, mitigation action coupling, runaway-electron beam phase, stochastic event boundaries, halo-force convention, and replay provenance. | ITER disruption mitigation sequence references; repository disruption phase-state contract | Time in seconds or milliseconds with explicit convention, current in amperes or mega-amperes, energy in joules or megajoules, magnetic field in tesla, geometry in metres, density in 10^20 m^-3, and dimensionless phase labels. | tests/test_disruption_sequence.py post-quench cooling, phase ordering, current quench, runaway, and halo-force checks; tests/test_disruption_safe_api.py | validation_gap | [#52](https://github.com/anulum/scpn-control/issues/52) |
 | `src/scpn_control/core/gk_interface.py` | Generated input decks and parsed outputs must round-trip through real TGLF, GENE, GS2, CGYRO, or QuaLiKiz executables. | TGLF Staebler et al. 2007; GENE Jenko et al. 2000; GS2 Kotschenreuther et al. 1995; CGYRO Candy et al. 2016; QuaLiKiz Bourdelle et al. 2007 | Code-specific flux, growth-rate, frequency, and geometry units converted into repository normalisation with explicit metadata. | docs/joss_paper.md external GK limitation; validation/validate_gk_interface_artifacts.py strict external interface artifact gate | external_dependency_blocked | [#47](https://github.com/anulum/scpn-control/issues/47) |
+| `src/scpn_control/control/federated_disruption.py` | FedAvg/FedProx disruption classifiers must federate per-facility client updates without centralising raw arrays, validate the shared eight-feature disruption contract, clip and noise facility model deltas under a declared Gaussian differential-privacy budget, and preserve a serialisable privacy ledger. | McMahan et al. 2017 Communication-Efficient Learning of Deep Networks from Decentralized Data; Li et al. 2020 FedProx; Dwork and Roth 2014 Algorithmic Foundations of Differential Privacy; Abadi et al. 2016 Deep Learning with Differential Privacy | Eight disruption features use declared tokamak control variables: Ip, beta_N, q95, n/n_GW, li, dBp/dt, locked-mode amplitude, and n=1 RMS; labels are binary disruption indicators. | tests/test_federated_disruption.py module-specific federation, array-ingestion, DP-ledger, and benchmark contract tests; validation/benchmark_federated_disruption.py deterministic synthetic multi-facility benchmark; validation/reports/federated_disruption_benchmark.json synthetic report with explicit claim boundary | bounded_model | [#52](https://github.com/anulum/scpn-control/issues/52) |
 | `src/scpn_control/core/uncertainty.py` | Uncertainty claims must declare sampled variables, distributions, correlations, random seed, propagation chain, convergence criteria, sensitivity outputs that preserve D-T composition and fuel dilution, and finite-value rejection policy. | Monte Carlo uncertainty propagation references; repository fusion-performance uncertainty contract | Units inherit each propagated physical quantity; distribution parameters must preserve SI or declared normalised units and dimensionless uncertainty fractions. | tests/test_uncertainty.py; tests/test_full_chain_uq.py; tests/test_uncertainty_sigma_guard.py; validation/validate_uncertainty_reference.py strict UQ reference artifact gate | validation_gap | [#49](https://github.com/anulum/scpn-control/issues/49) |
 | `src/scpn_control/scpn/geometry_neutral_replay.py` | Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, and replay acceptance thresholds. | Repository geometry-neutral control contract; W7-X-like reduced-order stellarator replay fixture | Field-line spread in radians, currents in amperes, timestep in seconds, latency in microseconds, effective ripple dimensionless, controller objectives and thresholds declared per replay manifest. | tests/test_geometry_neutral_replay.py; tests/test_geometry_neutral_contracts.py | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
 | `src/scpn_control/core/gk_ood_detector.py` | OOD detector claims must declare the feature vector, training distribution, distance metric, symmetric positive-definite inverse-covariance calibration, threshold calibration, uncertainty handling, non-negative transport ensemble predictions, and behavior outside the calibrated gyrokinetic operating envelope. | Repository gyrokinetic scheduler OOD contract; statistical process monitoring distribution-shift controls | Feature units inherit declared GK inputs and outputs; detector scores are dimensionless with explicit calibration metadata, Mahalanobis metric provenance, threshold provenance, and transport prediction channels in non-negative diffusivity units. | tests/test_gk_ood_detector.py; tests/test_gk_hybrid_integration.py; validation/validate_gk_ood_calibration.py strict persisted campaign calibration gate | validation_gap | [#47](https://github.com/anulum/scpn-control/issues/47) |
@@ -404,6 +405,17 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Run each interface against a real executable or documented public reference output
   - Promote parser fixtures from mock subprocesses to immutable external-code artefacts
+
+### federated disruption prediction
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/control/federated_disruption.py`
+- Full-fidelity public claim: blocked
+- External validation tracker: [#52](https://github.com/anulum/scpn-control/issues/52) — Disruption, halo-current, and mitigation benchmark artefacts
+- Covered source paths: 1
+- Required actions:
+  - Supply measured multi-facility disruption shot databases with immutable provenance manifests before claiming cross-facility predictive validation
+  - Run the same federation and differential-privacy contracts against those measured facility datasets before deployment claims
 
 ### full-chain uncertainty quantification contract
 

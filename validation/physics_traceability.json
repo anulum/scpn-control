@@ -42,6 +42,43 @@
       "validity_domain": "Immutable repository DIII-D GEQDSK and disruption-shot reference artefacts with manifest checksums; not an online facility-control or live MDSplus availability claim."
     },
     {
+      "component": "federated disruption prediction",
+      "equation_contract": "FedAvg/FedProx disruption classifiers must federate per-facility client updates without centralising raw arrays, validate the shared eight-feature disruption contract, clip and noise facility model deltas under a declared Gaussian differential-privacy budget, and preserve a serialisable privacy ledger.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "McMahan et al. 2017 Communication-Efficient Learning of Deep Networks from Decentralized Data",
+        "Li et al. 2020 FedProx",
+        "Dwork and Roth 2014 Algorithmic Foundations of Differential Privacy",
+        "Abadi et al. 2016 Deep Learning with Differential Privacy"
+      ],
+      "module_path": "src/scpn_control/control/federated_disruption.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Supply measured multi-facility disruption shot databases with immutable provenance manifests before claiming cross-facility predictive validation",
+        "Run the same federation and differential-privacy contracts against those measured facility datasets before deployment claims"
+      ],
+      "unit_contract": "Eight disruption features use declared tokamak control variables: Ip, beta_N, q95, n/n_GW, li, dBp/dt, locked-mode amplitude, and n=1 RMS; labels are binary disruption indicators.",
+      "validation_evidence": [
+        "tests/test_federated_disruption.py module-specific federation, array-ingestion, DP-ledger, and benchmark contract tests",
+        "validation/benchmark_federated_disruption.py deterministic synthetic multi-facility benchmark",
+        "validation/reports/federated_disruption_benchmark.json synthetic report with explicit claim boundary"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/federated_disruption.py",
+        "tests/test_federated_disruption.py",
+        "validation/benchmark_federated_disruption.py",
+        "validation/reports/federated_disruption_benchmark.json",
+        "validation/reports/federated_disruption_benchmark.md",
+        "docs/api.md",
+        "docs/validation.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/federated_disruption.py"
+      ],
+      "validity_domain": "Synthetic multi-facility federation and facility-level DP accounting evidence only; no measured cross-facility disruption database validation claim.",
+      "external_validation_tracker_issue": 52
+    },
+    {
       "component": "nonlinear gyrokinetic heat-flux saturation",
       "equation_contract": "Five-dimensional delta-f flux-tube Vlasov evolution with E cross B bracket, ballooning connection, kinetic electrons, and Sugama collision terms.",
       "fidelity_status": "validation_gap",

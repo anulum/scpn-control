@@ -32,6 +32,42 @@ scpn_control.RealtimeMonitor
 
 ---
 
+## Control — Federated Disruption Prediction
+
+`scpn_control.control.federated_disruption` supports FedAvg and FedProx
+training across named tokamak clients without centralising facility arrays.
+`create_facility_clients_from_arrays()` is the production ingestion boundary
+for per-facility `X_train`, `y_train`, `X_test`, and `y_test` arrays. It
+enforces the shared 8-feature disruption contract and binary labels before a
+client joins the federation.
+
+`DifferentialPrivacyConfig` enables facility-update clipping, Gaussian noise,
+and a serialisable privacy ledger. The shipped benchmark
+`validation/benchmark_federated_disruption.py` publishes deterministic
+synthetic multi-facility evidence in
+`validation/reports/federated_disruption_benchmark.json` and
+`validation/reports/federated_disruption_benchmark.md`. Those artefacts test
+federation, heterogeneity, and differential privacy contracts; they do not
+claim measured cross-facility validation without external shot databases.
+
+::: scpn_control.control.federated_disruption.DifferentialPrivacyConfig
+
+::: scpn_control.control.federated_disruption.PrivacyLedgerEntry
+
+::: scpn_control.control.federated_disruption.FacilityBenchmarkSummary
+
+::: scpn_control.control.federated_disruption.FederatedConfig
+
+::: scpn_control.control.federated_disruption.MachineClient
+
+::: scpn_control.control.federated_disruption.FederatedServer
+
+::: scpn_control.control.federated_disruption.create_facility_clients_from_arrays
+
+::: scpn_control.control.federated_disruption.run_synthetic_multifacility_benchmark
+
+---
+
 ## Core — Physics Solvers
 
 ### FusionKernel

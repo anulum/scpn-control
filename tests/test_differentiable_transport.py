@@ -14,7 +14,7 @@ import json
 import numpy as np
 import pytest
 
-from scpn_control.core import differentiable_transport as dt
+import scpn_control.core.differentiable_transport as dt
 from scpn_control.core.neural_transport import NeuralTransportModel, neural_transport_closure_profiles
 
 

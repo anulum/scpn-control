@@ -1,0 +1,32 @@
+{
+  "aggregation": "fedprox",
+  "claim_boundary": "Synthetic multi-facility benchmark only; no measured cross-facility disruption-validation claim is made by this artefact.",
+  "evidence_kind": "synthetic_multi_facility",
+  "feature_contract": [
+    "Ip",
+    "beta_N",
+    "q95",
+    "n_nGW",
+    "li",
+    "dBp_dt",
+    "locked_mode_amp",
+    "n1_rms"
+  ],
+  "machines": [
+    "DIII-D",
+    "JET",
+    "KSTAR",
+    "EAST"
+  ],
+  "mean_accuracy": 0.6666666666666666,
+  "mean_loss": 0.7053685925847775,
+  "n_rounds": 4,
+  "per_machine_accuracy": {
+    "DIII-D": 0.7166666666666667,
+    "EAST": 0.6333333333333333,
+    "JET": 0.6,
+    "KSTAR": 0.7166666666666667
+  },
+  "privacy_delta": 1e-05,
+  "privacy_epsilon": 7.751688420168622
+}

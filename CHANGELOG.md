@@ -27,6 +27,10 @@
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
+- Hardened federated disruption prediction with per-facility array ingestion,
+  facility-update differential privacy accounting, serialisable privacy
+  ledgers, and a deterministic synthetic multi-facility benchmark report. This
+  remains bounded synthetic evidence, not measured cross-facility validation.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.
@@ -49,6 +53,7 @@
 - `pre-commit run --all-files`
 - `python tools/check_test_quality_policy.py`
 - `python validation/validate_physics_traceability.py --registry validation/physics_traceability.json --json-out`
+- `python validation/benchmark_federated_disruption.py`
 - `python tools/capability_manifest.py --check`
 - `python -m tools.check_generated_traceability`
 

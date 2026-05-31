@@ -6,6 +6,25 @@
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
 <!-- SCPN Control — Validation and QA -->
 
+
+## Federated disruption synthetic multi-facility benchmark
+
+Run:
+
+```bash
+python validation/benchmark_federated_disruption.py
+```
+
+Outputs:
+
+- `validation/reports/federated_disruption_benchmark.json`
+- `validation/reports/federated_disruption_benchmark.md`
+
+Scope: deterministic synthetic DIII-D/JET/KSTAR/EAST facility distributions,
+FedProx aggregation, and facility-update differential privacy accounting.
+This is not measured cross-facility validation; measured claims remain blocked
+until external facility shot databases and provenance manifests are supplied.
+
 # Validation and QA
 
 ## Python tests
@@ -428,3 +447,20 @@ This writes:
 - `rust-benchmarks` (Criterion, uploads `bench-results` artifact)
 - `rust-audit` (cargo-audit vulnerability scan)
 - `cargo-deny` (license + advisory supply-chain policy)
+## Federated disruption synthetic multi-facility benchmark
+
+Run:
+
+```bash
+python validation/benchmark_federated_disruption.py
+```
+
+Outputs:
+
+- `validation/reports/federated_disruption_benchmark.json`
+- `validation/reports/federated_disruption_benchmark.md`
+
+Scope: deterministic synthetic DIII-D/JET/KSTAR/EAST facility distributions,
+FedProx aggregation, and facility-update differential privacy accounting.
+This is not measured cross-facility validation; measured claims remain blocked
+until external facility shot databases and provenance manifests are supplied.
