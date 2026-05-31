@@ -41,6 +41,10 @@ LOCAL_PROVIDER_PROFILES: dict[str, tuple[int, str]] = {
     "text-generation": (8080, "/generate"),
     "direct-json": (8000, "/v1/chat/completions"),
 }
+GUARDRAIL_PROVIDER_PROFILES: dict[str, tuple[int, str]] = {
+    "director-ai": (8765, "/v1/physics-debug/guardrail"),
+    "direct-json": (8000, "/v1/guardrails/physics-debug"),
+}
 LOCAL_PROVIDER_HOSTS = {"127.0.0.1", "localhost", "::1"}
 DEFAULT_FORBIDDEN_ACTION_PHRASES = (
     "promote controller",
@@ -98,6 +102,38 @@ class ProviderPolicy:
             raise ValueError("provider policy max_prompt_chars must be positive")
         if self.max_response_chars <= 0:
             raise ValueError("provider policy max_response_chars must be positive")
+
+
+@dataclass(frozen=True)
+class PhysicsDebugGuardrailPolicy:
+    """Admission policy for optional physics-debug hallucination guardrails."""
+
+    required: bool = False
+    block_actions: tuple[str, ...] = ("block",)
+    allowed_decisions: tuple[str, ...] = ("allow", "block")
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.required, bool):
+            raise ValueError("physics debug guardrail policy required must be a bool")
+        if not self.block_actions:
+            raise ValueError("physics debug guardrail policy block_actions must be non-empty")
+        if not self.allowed_decisions:
+            raise ValueError("physics debug guardrail policy allowed_decisions must be non-empty")
+        if any(not isinstance(item, str) or not item for item in self.block_actions):
+            raise ValueError("physics debug guardrail policy block_actions must contain non-empty strings")
+        if any(not isinstance(item, str) or not item for item in self.allowed_decisions):
+            raise ValueError("physics debug guardrail policy allowed_decisions must contain non-empty strings")
+        if not set(self.block_actions).issubset(set(self.allowed_decisions)):
+            raise ValueError("physics debug guardrail policy block_actions must be allowed decisions")
+
+    def payload(self) -> dict[str, Any]:
+        """Return a JSON-safe guardrail policy payload."""
+
+        return {
+            "required": self.required,
+            "block_actions": list(self.block_actions),
+            "allowed_decisions": list(self.allowed_decisions),
+        }
 
 
 @dataclass(frozen=True)
@@ -242,11 +278,109 @@ class HTTPChatProvider:
 
 
 @dataclass(frozen=True)
+class PhysicsDebugGuardrailProvider:
+    """Allowlisted guardrail gateway for advisory physics-debug reports."""
+
+    provider_name: str
+    endpoint: str
+    model: str
+    profile: str = "director-ai"
+    protocol: str = "direct-json"
+    headers: Mapping[str, str] = field(default_factory=dict)
+    timeout_seconds: float = 30.0
+    transport: ProviderTransport | None = None
+
+    def __post_init__(self) -> None:
+        _require_non_empty("guardrail provider_name", self.provider_name)
+        _require_non_empty("guardrail endpoint", self.endpoint)
+        _require_non_empty("guardrail model", self.model)
+        if self.profile not in GUARDRAIL_PROVIDER_PROFILES:
+            raise ValueError("guardrail provider profile is unsupported")
+        if self.protocol != "direct-json":
+            raise ValueError("guardrail provider protocol is unsupported")
+        if self.timeout_seconds <= 0.0 or not math.isfinite(self.timeout_seconds):
+            raise ValueError("guardrail provider timeout_seconds must be positive and finite")
+        for key, value in self.headers.items():
+            if not isinstance(key, str) or not key or "\n" in key or "\r" in key:
+                raise ValueError("guardrail provider header names must be non-empty single-line strings")
+            if not isinstance(value, str) or "\n" in value or "\r" in value:
+                raise ValueError("guardrail provider header values must be single-line strings")
+
+    @property
+    def local_onsite(self) -> bool:
+        """Return whether the guardrail endpoint is local by construction."""
+
+        parsed = urllib.parse.urlparse(self.endpoint)
+        hostname = parsed.hostname or ""
+        return hostname in LOCAL_PROVIDER_HOSTS
+
+    def metadata(self) -> dict[str, Any]:
+        """Return non-secret guardrail metadata for report binding."""
+
+        return {
+            "provider_name": self.provider_name,
+            "endpoint": self.endpoint,
+            "model": self.model,
+            "profile": self.profile,
+            "protocol": self.protocol,
+            "local_onsite": self.local_onsite,
+        }
+
+    def review(
+        self,
+        *,
+        prompt: str,
+        evidence: list[dict[str, Any]],
+        gaps: list[dict[str, Any]],
+        provider_output: Mapping[str, Any],
+        policy: ProviderPolicy,
+        guardrail_policy: PhysicsDebugGuardrailPolicy,
+    ) -> dict[str, Any]:
+        """Return a validated guardrail review for a provider draft."""
+
+        _validate_guardrail_endpoint(self, policy)
+        payload = _guardrail_request_payload(
+            prompt=prompt,
+            evidence=evidence,
+            gaps=gaps,
+            provider_output=provider_output,
+            guardrail_policy=guardrail_policy,
+        )
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        if len(encoded) > policy.max_prompt_chars:
+            raise ValueError("physics debug guardrail prompt exceeds policy max_prompt_chars")
+        if self.transport is not None:
+            raw_review = self.transport(payload)
+        else:
+            raw_review = self._post_json(payload, policy)
+        return _validate_guardrail_review(
+            _coerce_provider_response(raw_review, policy),
+            evidence=evidence,
+            provider=self,
+            guardrail_policy=guardrail_policy,
+        )
+
+    def _post_json(self, payload: dict[str, Any], policy: ProviderPolicy) -> bytes:
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        headers = {"Content-Type": "application/json", **dict(self.headers)}
+        request = urllib.request.Request(self.endpoint, data=encoded, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+                body = cast(bytes, response.read(policy.max_response_chars + 1))
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"physics debug guardrail request failed: {exc}") from exc
+        if len(body) > policy.max_response_chars:
+            raise ValueError("physics debug guardrail response exceeds policy max_response_chars")
+        return body
+
+
+@dataclass(frozen=True)
 class PhysicsDebugAssistant:
     """Evidence-first assistant for physics gap analysis."""
 
     policy: ProviderPolicy = field(default_factory=ProviderPolicy)
     safety_policy: PhysicsDebugSafetyPolicy = field(default_factory=PhysicsDebugSafetyPolicy)
+    guardrail_policy: PhysicsDebugGuardrailPolicy = field(default_factory=PhysicsDebugGuardrailPolicy)
 
     def analyze(
         self,
@@ -254,6 +388,7 @@ class PhysicsDebugAssistant:
         evidence: list[PhysicsDebugEvidence],
         gaps: list[PhysicsDebugGap],
         provider: HTTPChatProvider,
+        guardrail_provider: PhysicsDebugGuardrailProvider | None = None,
     ) -> dict[str, Any]:
         """Ask an allowlisted provider for advisory hypotheses and campaigns."""
 
@@ -266,6 +401,18 @@ class PhysicsDebugAssistant:
         _validate_evidence_gap_linkage(evidence_payload, gap_payload)
         prompt = _build_physics_debug_prompt(evidence_payload, gap_payload)
         provider_output = provider.complete_json(prompt, self.policy)
+        guardrail = _disabled_guardrail_review(self.guardrail_policy)
+        if guardrail_provider is None and self.guardrail_policy.required:
+            raise ValueError("physics debug guardrail policy requires a guardrail provider")
+        if guardrail_provider is not None:
+            guardrail = guardrail_provider.review(
+                prompt=prompt,
+                evidence=evidence_payload,
+                gaps=gap_payload,
+                provider_output=provider_output,
+                policy=self.policy,
+                guardrail_policy=self.guardrail_policy,
+            )
         return build_physics_debug_report(
             provider=provider,
             evidence=evidence_payload,
@@ -274,6 +421,8 @@ class PhysicsDebugAssistant:
             redactions=redactions,
             safety_policy=self.safety_policy,
             prompt_guard_findings=prompt_guard_findings,
+            guardrail_policy=self.guardrail_policy,
+            guardrail=guardrail,
         )
 
 
@@ -286,10 +435,14 @@ def build_physics_debug_report(
     redactions: list[str] | None = None,
     safety_policy: PhysicsDebugSafetyPolicy | None = None,
     prompt_guard_findings: list[str] | None = None,
+    guardrail_policy: PhysicsDebugGuardrailPolicy | None = None,
+    guardrail: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a schema-versioned advisory physics debugging report."""
 
     resolved_safety_policy = PhysicsDebugSafetyPolicy() if safety_policy is None else safety_policy
+    resolved_guardrail_policy = PhysicsDebugGuardrailPolicy() if guardrail_policy is None else guardrail_policy
+    guardrail_payload = _disabled_guardrail_review(resolved_guardrail_policy) if guardrail is None else dict(guardrail)
     hypotheses, campaigns = _validate_provider_output(provider_output, evidence, gaps, resolved_safety_policy)
     payload: dict[str, Any] = {
         "schema_version": PHYSICS_DEBUG_REPORT_SCHEMA_VERSION,
@@ -299,7 +452,9 @@ def build_physics_debug_report(
         "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
         "human_review_required": resolved_safety_policy.human_review_required,
         "safety_policy": resolved_safety_policy.payload(),
+        "guardrail_policy": resolved_guardrail_policy.payload(),
         "provider": provider.metadata(),
+        "guardrail": guardrail_payload,
         "evidence": evidence,
         "gaps": gaps,
         "hypotheses": hypotheses,
@@ -349,6 +504,44 @@ def build_local_provider(
     )
 
 
+def build_guardrail_provider(
+    *,
+    model: str,
+    provider_name: str,
+    profile: str = "director-ai",
+    host: str = "127.0.0.1",
+    port: int | None = None,
+    path: str | None = None,
+    transport: ProviderTransport | None = None,
+    headers: Mapping[str, str] | None = None,
+    timeout_seconds: float = 30.0,
+) -> PhysicsDebugGuardrailProvider:
+    """Build a loopback-only guardrail profile for physics debug reviews."""
+
+    if profile not in GUARDRAIL_PROVIDER_PROFILES:
+        raise ValueError("guardrail provider profile is unsupported")
+    if host not in LOCAL_PROVIDER_HOSTS:
+        raise ValueError("guardrail provider host must be loopback")
+    default_port, default_path = GUARDRAIL_PROVIDER_PROFILES[profile]
+    resolved_port = default_port if port is None else port
+    if not isinstance(resolved_port, int) or resolved_port <= 0 or resolved_port > 65_535:
+        raise ValueError("guardrail provider port must be in 1..65535")
+    resolved_path = default_path if path is None else path
+    if not isinstance(resolved_path, str) or not resolved_path.startswith("/") or "\x00" in resolved_path:
+        raise ValueError("guardrail provider path must be an absolute URL path")
+    host_part = f"[{host}]" if host == "::1" else host
+    endpoint = f"http://{host_part}:{resolved_port}{resolved_path}"
+    return PhysicsDebugGuardrailProvider(
+        provider_name=provider_name,
+        endpoint=endpoint,
+        model=model,
+        profile=profile,
+        headers={} if headers is None else headers,
+        timeout_seconds=timeout_seconds,
+        transport=transport,
+    )
+
+
 def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a tamper-evident advisory physics debugging report."""
 
@@ -367,6 +560,7 @@ def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     safety_policy = _safety_policy_from_payload(payload.get("safety_policy"))
     if payload["human_review_required"] != safety_policy.human_review_required:
         raise ValueError("physics debug report human_review_required must match safety_policy")
+    guardrail_policy = _guardrail_policy_from_payload(payload.get("guardrail_policy"))
     if not isinstance(payload.get("created_at"), str) or not payload["created_at"]:
         raise ValueError("physics debug report created_at must be a non-empty string")
     provider = payload.get("provider")
@@ -386,6 +580,7 @@ def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(gaps, list) or not gaps:
         raise ValueError("physics debug report gaps must be a non-empty list")
     _validate_evidence_gap_linkage(evidence, gaps)
+    _validate_report_guardrail(payload.get("guardrail"), evidence, guardrail_policy)
     _validate_hypotheses(payload.get("hypotheses"), evidence, gaps, safety_policy)
     _validate_campaigns(payload.get("campaign_suggestions"), payload["hypotheses"], safety_policy)
     redactions = payload.get("redactions")
@@ -419,6 +614,8 @@ def run_provider_quorum(
     providers: list[HTTPChatProvider],
     policy: ProviderPolicy | None = None,
     safety_policy: PhysicsDebugSafetyPolicy | None = None,
+    guardrail_policy: PhysicsDebugGuardrailPolicy | None = None,
+    guardrail_provider: PhysicsDebugGuardrailProvider | None = None,
     min_providers: int = 2,
     min_local_providers: int = 1,
 ) -> dict[str, Any]:
@@ -432,9 +629,14 @@ def run_provider_quorum(
         raise ValueError("physics debug quorum min_local_providers must be non-negative")
     resolved_policy = ProviderPolicy() if policy is None else policy
     resolved_safety_policy = PhysicsDebugSafetyPolicy() if safety_policy is None else safety_policy
-    assistant = PhysicsDebugAssistant(policy=resolved_policy, safety_policy=resolved_safety_policy)
+    resolved_guardrail_policy = PhysicsDebugGuardrailPolicy() if guardrail_policy is None else guardrail_policy
+    assistant = PhysicsDebugAssistant(
+        policy=resolved_policy,
+        safety_policy=resolved_safety_policy,
+        guardrail_policy=resolved_guardrail_policy,
+    )
     provider_reports = [
-        assistant.analyze(evidence=evidence, gaps=gaps, provider=provider)
+        assistant.analyze(evidence=evidence, gaps=gaps, provider=provider, guardrail_provider=guardrail_provider)
         for provider in sorted(providers, key=lambda item: (not item.local_onsite, item.provider_name))
     ]
     local_count = sum(1 for report in provider_reports if report["provider"]["local_onsite"])
@@ -450,6 +652,7 @@ def run_provider_quorum(
         "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
         "human_review_required": resolved_safety_policy.human_review_required,
         "safety_policy": resolved_safety_policy.payload(),
+        "guardrail_policy": resolved_guardrail_policy.payload(),
         "provider_count": len(provider_reports),
         "local_provider_count": local_count,
         "remote_provider_count": remote_count,
@@ -480,6 +683,7 @@ def validate_physics_debug_quorum_report(payload: dict[str, Any]) -> dict[str, A
     safety_policy = _safety_policy_from_payload(payload.get("safety_policy"))
     if payload["human_review_required"] != safety_policy.human_review_required:
         raise ValueError("physics debug quorum report human_review_required must match safety_policy")
+    guardrail_policy = _guardrail_policy_from_payload(payload.get("guardrail_policy"))
     for key in (
         "provider_count",
         "local_provider_count",
@@ -502,6 +706,8 @@ def validate_physics_debug_quorum_report(payload: dict[str, Any]) -> dict[str, A
         validated_report = validate_physics_debug_report(report)
         if validated_report["safety_policy"] != safety_policy.payload():
             raise ValueError("physics debug quorum report provider safety_policy mismatch")
+        if validated_report["guardrail_policy"] != guardrail_policy.payload():
+            raise ValueError("physics debug quorum report provider guardrail_policy mismatch")
     consensus = payload.get("consensus_hypotheses")
     if not isinstance(consensus, list) or not consensus:
         raise ValueError("physics debug quorum report consensus_hypotheses must be non-empty")
@@ -677,6 +883,194 @@ def _validate_provider_endpoint(provider: HTTPChatProvider, policy: ProviderPoli
         raise ValueError("physics debug provider endpoint is not allowed unless remote providers are enabled")
 
 
+def _validate_guardrail_endpoint(provider: PhysicsDebugGuardrailProvider, policy: ProviderPolicy) -> None:
+    if not provider.endpoint.startswith(policy.allowed_endpoint_prefixes):
+        raise ValueError("physics debug guardrail endpoint is not allowed by policy")
+    if not provider.local_onsite and not policy.allow_remote_providers:
+        raise ValueError("physics debug guardrail endpoint is not allowed unless remote providers are enabled")
+
+
+def _guardrail_request_payload(
+    *,
+    prompt: str,
+    evidence: list[dict[str, Any]],
+    gaps: list[dict[str, Any]],
+    provider_output: Mapping[str, Any],
+    guardrail_policy: PhysicsDebugGuardrailPolicy,
+) -> dict[str, Any]:
+    return {
+        "task": "physics_debug_guardrail_review",
+        "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
+        "guardrail_policy": guardrail_policy.payload(),
+        "required_output_schema": {
+            "decision": "allow or block",
+            "findings": [
+                {
+                    "finding_id": "non-empty string",
+                    "severity": "info, low, medium, high, or critical",
+                    "message": "non-empty guardrail finding",
+                    "evidence_ids": ["existing evidence_id"],
+                    "action": "allow or block",
+                }
+            ],
+            "risk_controls": ["non-empty risk control"],
+        },
+        "prompt": prompt,
+        "evidence": evidence,
+        "gaps": gaps,
+        "provider_output": dict(provider_output),
+    }
+
+
+def _validate_guardrail_review(
+    raw_review: Mapping[str, Any],
+    *,
+    evidence: list[dict[str, Any]],
+    provider: PhysicsDebugGuardrailProvider,
+    guardrail_policy: PhysicsDebugGuardrailPolicy,
+) -> dict[str, Any]:
+    decision = _require_non_empty("guardrail decision", raw_review.get("decision"))
+    if decision not in guardrail_policy.allowed_decisions:
+        raise ValueError("physics debug guardrail decision is unsupported")
+    findings = _validate_guardrail_findings(
+        raw_review.get("findings"),
+        evidence=evidence,
+        guardrail_policy=guardrail_policy,
+        require_findings=True,
+    )
+    risk_controls = _require_non_empty_string_list("guardrail risk_controls", raw_review.get("risk_controls"))
+    blocked = decision in guardrail_policy.block_actions or any(
+        finding["action"] in guardrail_policy.block_actions for finding in findings
+    )
+    review = {
+        "enabled": True,
+        "required": guardrail_policy.required,
+        "provider": provider.metadata(),
+        "decision": decision,
+        "blocked": blocked,
+        "findings": findings,
+        "risk_controls": risk_controls,
+    }
+    if blocked:
+        raise ValueError("physics debug guardrail blocks advisory report")
+    return review
+
+
+def _disabled_guardrail_review(guardrail_policy: PhysicsDebugGuardrailPolicy) -> dict[str, Any]:
+    return {
+        "enabled": False,
+        "required": guardrail_policy.required,
+        "provider": None,
+        "decision": "not-configured",
+        "blocked": False,
+        "findings": [],
+        "risk_controls": [],
+    }
+
+
+def _validate_report_guardrail(
+    value: object,
+    evidence: list[dict[str, Any]],
+    guardrail_policy: PhysicsDebugGuardrailPolicy,
+) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("physics debug report guardrail must be an object")
+    enabled = value.get("enabled")
+    if not isinstance(enabled, bool):
+        raise ValueError("physics debug report guardrail enabled must be a bool")
+    if value.get("required") != guardrail_policy.required:
+        raise ValueError("physics debug report guardrail required must match guardrail_policy")
+    blocked = value.get("blocked")
+    if not isinstance(blocked, bool):
+        raise ValueError("physics debug report guardrail blocked must be a bool")
+    if blocked:
+        raise ValueError("physics debug report guardrail cannot persist blocked reviews")
+    decision = _require_non_empty("guardrail decision", value.get("decision"))
+    if enabled:
+        if decision not in guardrail_policy.allowed_decisions:
+            raise ValueError("physics debug report guardrail decision is unsupported")
+        _validate_guardrail_provider_metadata(value.get("provider"))
+    else:
+        if guardrail_policy.required:
+            raise ValueError("physics debug report guardrail is required")
+        if value.get("provider") is not None:
+            raise ValueError("physics debug report disabled guardrail provider must be null")
+        if decision != "not-configured":
+            raise ValueError("physics debug report disabled guardrail decision must be not-configured")
+    findings = _validate_guardrail_findings(
+        value.get("findings"),
+        evidence=evidence,
+        guardrail_policy=guardrail_policy,
+        require_findings=enabled,
+    )
+    if any(finding["action"] in guardrail_policy.block_actions for finding in findings):
+        raise ValueError("physics debug report guardrail cannot persist blocked findings")
+    risk_controls = value.get("risk_controls")
+    if not isinstance(risk_controls, list) or any(not isinstance(item, str) for item in risk_controls):
+        raise ValueError("physics debug report guardrail risk_controls must be a list of strings")
+    if enabled and not risk_controls:
+        raise ValueError("physics debug report enabled guardrail risk_controls must be non-empty")
+
+
+def _validate_guardrail_provider_metadata(value: object) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("physics debug report guardrail provider must be an object")
+    for key in ("provider_name", "endpoint", "model", "profile", "protocol"):
+        if not isinstance(value.get(key), str) or not value[key]:
+            raise ValueError(f"physics debug report guardrail provider {key} must be a non-empty string")
+    if value["profile"] not in GUARDRAIL_PROVIDER_PROFILES:
+        raise ValueError("physics debug report guardrail provider profile is unsupported")
+    if value["protocol"] != "direct-json":
+        raise ValueError("physics debug report guardrail provider protocol is unsupported")
+    if not isinstance(value.get("local_onsite"), bool):
+        raise ValueError("physics debug report guardrail provider local_onsite must be a bool")
+
+
+def _validate_guardrail_findings(
+    value: object,
+    *,
+    evidence: list[dict[str, Any]],
+    guardrail_policy: PhysicsDebugGuardrailPolicy,
+    require_findings: bool,
+) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        raise ValueError("physics debug guardrail findings must be a list")
+    if require_findings and not value:
+        raise ValueError("physics debug guardrail findings must be non-empty")
+    evidence_ids = {item["evidence_id"] for item in evidence}
+    severities = {"info", "low", "medium", "high", "critical"}
+    seen: set[str] = set()
+    findings: list[dict[str, Any]] = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            raise ValueError("physics debug guardrail finding must be an object")
+        finding_id = _require_non_empty("guardrail finding_id", raw.get("finding_id"))
+        if finding_id in seen:
+            raise ValueError("physics debug guardrail finding IDs must be unique")
+        seen.add(finding_id)
+        severity = _require_non_empty("guardrail severity", raw.get("severity"))
+        if severity not in severities:
+            raise ValueError("physics debug guardrail severity is unsupported")
+        message = _require_non_empty("guardrail message", raw.get("message"))
+        linked_evidence_ids = _require_non_empty_string_list("guardrail evidence_ids", raw.get("evidence_ids"))
+        missing = [evidence_id for evidence_id in linked_evidence_ids if evidence_id not in evidence_ids]
+        if missing:
+            raise ValueError("physics debug guardrail evidence_ids must cite existing evidence")
+        action = _require_non_empty("guardrail action", raw.get("action"))
+        if action not in guardrail_policy.allowed_decisions:
+            raise ValueError("physics debug guardrail action is unsupported")
+        findings.append(
+            {
+                "finding_id": finding_id,
+                "severity": severity,
+                "message": message,
+                "evidence_ids": linked_evidence_ids,
+                "action": action,
+            }
+        )
+    return findings
+
+
 def _coerce_provider_response(raw: Mapping[str, Any] | str | bytes, policy: ProviderPolicy) -> dict[str, Any]:
     if isinstance(raw, bytes):
         if len(raw) > policy.max_response_chars:
@@ -847,6 +1241,22 @@ def _safety_policy_from_payload(value: object) -> PhysicsDebugSafetyPolicy:
         human_review_required=value.get("human_review_required", True),
         max_advisory_confidence=value.get("max_advisory_confidence", 0.95),
         forbidden_action_phrases=tuple(forbidden),
+    )
+
+
+def _guardrail_policy_from_payload(value: object) -> PhysicsDebugGuardrailPolicy:
+    if not isinstance(value, dict):
+        raise ValueError("physics debug guardrail_policy must be an object")
+    block_actions = value.get("block_actions")
+    allowed_decisions = value.get("allowed_decisions")
+    if not isinstance(block_actions, list | tuple):
+        raise ValueError("physics debug guardrail_policy block_actions must be a list")
+    if not isinstance(allowed_decisions, list | tuple):
+        raise ValueError("physics debug guardrail_policy allowed_decisions must be a list")
+    return PhysicsDebugGuardrailPolicy(
+        required=value.get("required", False),
+        block_actions=tuple(block_actions),
+        allowed_decisions=tuple(allowed_decisions),
     )
 
 

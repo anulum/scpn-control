@@ -11,8 +11,9 @@
   onsite provider profiles, response normalization for common local gateway
   protocols, secret redaction, cited-evidence enforcement, risk-control checks,
   prompt-injection neutralization for evidence text, advisory safety-policy
-  admission, provider quorum admission, and tamper-evident advisory report
-  digests.
+  admission, optional hallucination guardrail review with a default
+  `director-ai` profile, provider quorum admission, and tamper-evident advisory
+  report digests.
 - Added hash-addressed formal safety certificate bundle artifact admission so
   release gates verify safe relative bundle URIs, bundle SHA-256 bytes,
   tamper-evident artifact metadata digests, UTC creation timestamps, embedded

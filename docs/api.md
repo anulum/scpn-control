@@ -44,15 +44,21 @@ text-generation endpoints. Reports are schema-versioned advisory evidence with
 secret redaction, falsifiable hypothesis checks, campaign risk controls, and
 risk-bound prompt-injection neutralization for untrusted evidence text before
 provider prompting. Prompt-guard findings are recorded in the tamper-evident
-payload digest. They are not validated physics truth, controller-parameter
-promotion, or facility safety approval. `run_provider_quorum()`
-runs multiple providers in local-first order and admits only hypotheses
-corroborated by the required provider count over the same gap and evidence set.
+payload digest. `build_guardrail_provider()` adds an optional hallucination
+guardrail gateway with a `director-ai` default profile and explicit alternate
+profiles for lab-owned guardrail solutions. Guardrail block decisions fail
+closed before report persistence; allow findings are bound into the report
+digest. They are not validated physics truth, controller-parameter promotion,
+or facility safety approval. `run_provider_quorum()` runs multiple providers
+in local-first order and admits only hypotheses corroborated by the required
+provider count over the same gap and evidence set.
 `PhysicsDebugSafetyPolicy` binds the human-review requirement, caps advisory
 confidence, and rejects provider text that attempts controller promotion,
 actuation, review bypass, or approval claims.
 
 ::: scpn_control.physics_debug.ProviderPolicy
+
+::: scpn_control.physics_debug.PhysicsDebugGuardrailPolicy
 
 ::: scpn_control.physics_debug.PhysicsDebugEvidence
 
@@ -62,9 +68,13 @@ actuation, review bypass, or approval claims.
 
 ::: scpn_control.physics_debug.HTTPChatProvider
 
+::: scpn_control.physics_debug.PhysicsDebugGuardrailProvider
+
 ::: scpn_control.physics_debug.PhysicsDebugAssistant
 
 ::: scpn_control.physics_debug.build_local_provider
+
+::: scpn_control.physics_debug.build_guardrail_provider
 
 ::: scpn_control.physics_debug.build_physics_debug_report
 

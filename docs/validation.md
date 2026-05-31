@@ -19,6 +19,11 @@ before provider prompting, every hypothesis must include a falsification test,
 and campaign suggestions must declare measurements, stop conditions, and risk
 controls. Persisted reports use
 `scpn-control.physics-debug-report.v1` with a canonical SHA-256 payload digest.
+Optional hallucination guardrail review uses `build_guardrail_provider()` with
+a `director-ai` default profile and explicit alternate profiles for lab-owned
+guardrail solutions. Guardrail block decisions fail closed before report
+persistence, while allow findings are recorded in the same tamper-evident
+report digest.
 `PhysicsDebugSafetyPolicy` binds mandatory human review, caps advisory
 confidence, and rejects provider text that attempts controller promotion,
 actuation, review bypass, or approval claims before evidence can be persisted.

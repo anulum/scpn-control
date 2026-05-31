@@ -21,6 +21,7 @@ from scpn_control.physics_debug import (
     PhysicsDebugGap,
     PhysicsDebugSafetyPolicy,
     ProviderPolicy,
+    build_guardrail_provider,
     build_local_provider,
     run_provider_quorum,
     validate_physics_debug_report,
@@ -48,6 +49,112 @@ def _cbc_gap() -> PhysicsDebugGap:
         description="Local gyrokinetic dispersion closure exceeds the CBC reference band.",
         evidence_ids=("cbc-linear-dispersion",),
     )
+
+
+def _safe_provider_response() -> dict[str, object]:
+    return {
+        "hypotheses": [
+            {
+                "hypothesis_id": "h1",
+                "gap_id": "gk-cbc-linear-dispersion",
+                "statement": "The local closure may be inconsistent with reference normalization.",
+                "falsification_test": "Replay the CBC case with fixed reference normalization metadata.",
+                "required_evidence_ids": ["cbc-linear-dispersion"],
+                "confidence": 0.61,
+            }
+        ],
+        "campaign_suggestions": [
+            {
+                "campaign_id": "campaign-reference-normalization",
+                "linked_hypothesis_ids": ["h1"],
+                "objective": "Replay the comparison with a sanitized evidence bundle.",
+                "measurements": ["growth-rate error", "mode frequency"],
+                "stop_conditions": ["sanitized replay does not change the error"],
+                "risk_controls": ["offline advisory only", "human review required"],
+            }
+        ],
+    }
+
+
+def test_physics_debug_records_director_guardrail_allow_findings_in_report_digest() -> None:
+    physics_provider = build_local_provider(
+        family="direct-json",
+        model="onsite-model",
+        provider_name="onsite-physics-debugger",
+        transport=lambda payload: _safe_provider_response(),
+    )
+
+    def guardrail_transport(payload: dict[str, object]) -> dict[str, object]:
+        encoded = json.dumps(payload)
+        assert "physics_debug_guardrail_review" in encoded
+        assert "gk-cbc-linear-dispersion" in encoded
+        assert "campaign-reference-normalization" in encoded
+        return {
+            "decision": "allow",
+            "findings": [
+                {
+                    "finding_id": "evidence-bound-hypothesis",
+                    "severity": "low",
+                    "message": "Hypotheses cite supplied evidence and remain advisory.",
+                    "evidence_ids": ["cbc-linear-dispersion"],
+                    "action": "allow",
+                }
+            ],
+            "risk_controls": ["human review required", "offline advisory only"],
+        }
+
+    guardrail_provider = build_guardrail_provider(
+        model="director-physics-guard",
+        provider_name="director-guardrail",
+        transport=guardrail_transport,
+    )
+
+    report = PhysicsDebugAssistant().analyze(
+        evidence=[_cbc_evidence()],
+        gaps=[_cbc_gap()],
+        provider=physics_provider,
+        guardrail_provider=guardrail_provider,
+    )
+
+    assert report["guardrail"]["enabled"] is True
+    assert report["guardrail"]["provider"]["profile"] == "director-ai"
+    assert report["guardrail"]["decision"] == "allow"
+    assert report["guardrail"]["findings"][0]["finding_id"] == "evidence-bound-hypothesis"
+    assert validate_physics_debug_report(report) == report
+
+
+def test_physics_debug_guardrail_blocks_hallucination_before_report_persistence() -> None:
+    physics_provider = build_local_provider(
+        family="direct-json",
+        model="onsite-model",
+        provider_name="onsite-physics-debugger",
+        transport=lambda payload: _safe_provider_response(),
+    )
+    guardrail_provider = build_guardrail_provider(
+        model="director-physics-guard",
+        provider_name="director-guardrail",
+        transport=lambda payload: {
+            "decision": "block",
+            "findings": [
+                {
+                    "finding_id": "unsupported-facility-claim",
+                    "severity": "high",
+                    "message": "The draft includes a claim that is not supported by supplied evidence.",
+                    "evidence_ids": ["cbc-linear-dispersion"],
+                    "action": "block",
+                }
+            ],
+            "risk_controls": ["reject advisory report", "request new evidence"],
+        },
+    )
+
+    with pytest.raises(ValueError, match="guardrail"):
+        PhysicsDebugAssistant().analyze(
+            evidence=[_cbc_evidence()],
+            gaps=[_cbc_gap()],
+            provider=physics_provider,
+            guardrail_provider=guardrail_provider,
+        )
 
 
 def test_physics_debug_neutralizes_prompt_injection_in_evidence_before_provider_call() -> None:
