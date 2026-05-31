@@ -931,7 +931,7 @@
     },
     {
       "component": "differentiable transport facade contract",
-      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradients, one-step and multi-step source-schedule gradient targets, sampled finite-difference gradient audit, audited one-step and rollout gradient-admission latency metadata, neural-closure coefficient mapping, campaign provenance metadata, schema-versioned replay metadata, and optional one-step and rollout Grad-Shafranov flux-map radial weighting contract.",
+      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradients, one-step and multi-step source-schedule gradient targets, sampled finite-difference gradient audit, audited one-step and rollout gradient-admission latency metadata, neural and reduced-gyrokinetic closure coefficient mapping, campaign provenance metadata, schema-versioned replay metadata, and optional one-step and rollout Grad-Shafranov flux-map radial weighting contract.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "repository JAX transport primitive contract",
@@ -943,11 +943,11 @@
         "Wire each remaining legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff",
         "Validate differentiable transport profiles and equilibrium-weighted gradients against measured discharges or published integrated-modelling benchmarks",
         "Persist backend, dtype, radial-grid, boundary-condition, rollout-length, equilibrium-grid, flux-weighting, gradient-tolerance, and replay-drift metadata for controller-tuning campaigns",
-        "Replace the bounded JAX GK stiffness closure with externally validated GK transport coefficients before quantitative transport-control claims"
+        "Replace bounded reduced-gyrokinetic and JAX GK stiffness closures with externally validated GK transport coefficients before quantitative transport-control claims"
       ],
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced.",
       "validation_evidence": [
-        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX coefficient-gradient, one-step and multi-step source-schedule-gradient, sampled finite-difference gradient audit, neural-closure coefficient mapping, campaign metadata provenance, schema-versioned replay metadata, replay-drift guard, and one-step plus rollout equilibrium-weighted GS-flux checks",
+        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX coefficient-gradient, one-step and multi-step source-schedule-gradient, sampled finite-difference gradient audit, neural and reduced-GK closure coefficient mapping, campaign metadata provenance, schema-versioned replay metadata, replay-drift guard, and one-step plus rollout equilibrium-weighted GS-flux checks",
         "tests/test_nmpc_controller.py NMPC neural-closure, one-step source-schedule, and multi-step source-rollout tuning fail closed without JAX and preserve gradient-audit admission results",
         "tests/test_nmpc_controller.py NMPC coefficient, one-step source-schedule, and multi-step source-rollout tuning results carry campaign metadata, closure provenance, finite source bounds, and fail-closed gradient-audit evidence",
         "validation/benchmark_differentiable_transport_latency.py audited one-step and rollout gradient-admission latency benchmarks or fail-closed JAX-unavailable reports",
@@ -969,7 +969,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/differentiable_transport.py"
       ],
-      "validity_domain": "Local one-step and multi-step four-channel differentiable transport facade with optional one-step and rollout GS-flux radial weighting and audited one-step gradient-admission latency plus sampled multi-step rollout source-gradient admission for controller-tuning studies; not an externally validated integrated-transport, equilibrium-reconstruction, real-time control-loop, or facility-control claim.",
+      "validity_domain": "Local one-step and multi-step four-channel differentiable transport facade with bounded neural and reduced-GK closure adapters, optional one-step and rollout GS-flux radial weighting, and audited one-step gradient-admission latency plus sampled multi-step rollout source-gradient admission for controller-tuning studies; not an externally validated integrated-transport, equilibrium-reconstruction, real-time control-loop, or facility-control claim.",
       "external_validation_tracker_issue": 49
     },
     {

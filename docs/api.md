@@ -152,6 +152,11 @@ controller-tuning admission.
 closure outputs into the four-channel coefficient order used by the facade:
 electron heat, ion heat, electron particle diffusivity, and a declared impurity
 diffusivity fraction.
+`gyrokinetic_transport_closure_profiles()` wraps the reduced gyrokinetic
+transport profile evaluator as bounded closure provenance, and
+`transport_coefficients_from_gyrokinetic_closure()` maps that closure into the
+same four-channel coefficient order without promoting the reduced GK model to
+an externally validated transport claim.
 `transport_campaign_metadata()` records backend, dtype, radial grid, timestep,
 boundary conditions, closure provenance, gradient tolerance, and optional
 equilibrium-grid shape for reproducible controller-tuning campaigns.
@@ -210,6 +215,12 @@ equilibrium flux map for controller-tuning studies.
 ::: scpn_control.core.differentiable_transport.save_transport_rollout_gradient_latency_report
 
 ::: scpn_control.core.differentiable_transport.transport_coefficients_from_neural_closure
+
+::: scpn_control.core.differentiable_transport.gyrokinetic_transport_closure_profiles
+
+::: scpn_control.core.differentiable_transport.transport_coefficients_from_gyrokinetic_closure
+
+::: scpn_control.core.differentiable_transport.GyrokineticTransportClosureResult
 
 ::: scpn_control.core.differentiable_transport.TransportCampaignMetadata
 

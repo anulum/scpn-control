@@ -30,6 +30,9 @@
   reporting for bounded NMPC source-rollout admission evidence.
 - Added Grad-Shafranov flux-weighted multi-step transport rollout loss and
   source/equilibrium gradients for bounded controller-tuning studies.
+- Added a bounded reduced-gyrokinetic transport closure adapter for mapping
+  existing quasilinear GK profile outputs into differentiable transport
+  coefficient channels with explicit provenance.
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.

@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 import scpn_control.core.differentiable_transport as dt
+from scpn_control.core.gyrokinetic_transport import GyrokineticTransportModel
 from scpn_control.core.neural_transport import NeuralTransportModel, neural_transport_closure_profiles
 
 
@@ -772,6 +773,72 @@ def test_neural_transport_closure_maps_to_four_channel_coefficients():
     np.testing.assert_allclose(chi[2], np.maximum(closure.d_e, 1.0e-6))
     np.testing.assert_allclose(chi[3], np.maximum(0.4 * closure.d_e, 1.0e-6))
     assert np.all(np.isfinite(stepped))
+
+
+def test_gyrokinetic_transport_closure_maps_to_four_channel_coefficients():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    gk_profiles = {
+        "R0": 2.0,
+        "a": 0.5,
+        "B0": 5.0,
+        "q": 1.2 + 1.5 * rho,
+        "s_hat": 0.4 + 1.2 * rho,
+        "Te": profiles[0],
+        "Ti": profiles[1],
+        "ne": profiles[2],
+        "dTe_dr": np.gradient(profiles[0], rho),
+        "dTi_dr": np.gradient(profiles[1], rho),
+        "dne_dr": np.gradient(profiles[2], rho),
+        "nu_star": np.full(rho.shape, 0.1),
+        "beta_e": np.full(rho.shape, 0.01),
+        "alpha_MHD": np.zeros_like(rho),
+        "Z_eff": np.full(rho.shape, 1.5),
+    }
+    closure = dt.gyrokinetic_transport_closure_profiles(
+        GyrokineticTransportModel(n_modes=4),
+        rho,
+        gk_profiles,
+    )
+
+    chi = dt.transport_coefficients_from_gyrokinetic_closure(
+        closure,
+        impurity_diffusivity_fraction=0.35,
+        chi_floor=1.0e-7,
+    )
+    stepped = dt.differentiable_transport_step(
+        profiles,
+        chi,
+        np.zeros_like(profiles),
+        rho,
+        1.0e-3,
+        np.array([0.2, 0.2, 4.0, 0.03]),
+        use_jax=False,
+    )
+
+    assert closure.source == "reduced_gyrokinetic"
+    assert closure.weights_checksum is None
+    assert closure.channel_weights.shape == (3, rho.size)
+    np.testing.assert_allclose(closure.channel_weights.sum(axis=0), 1.0)
+    assert chi.shape == profiles.shape
+    np.testing.assert_allclose(chi[0], np.maximum(closure.chi_e, 1.0e-7))
+    np.testing.assert_allclose(chi[1], np.maximum(closure.chi_i, 1.0e-7))
+    np.testing.assert_allclose(chi[2], np.maximum(closure.d_e, 1.0e-7))
+    np.testing.assert_allclose(chi[3], np.maximum(0.35 * closure.d_e, 1.0e-7))
+    assert np.all(np.isfinite(stepped))
+
+
+def test_gyrokinetic_transport_closure_rejects_bad_model_contract():
+    rho = np.linspace(0.05, 1.0, 8)
+    with pytest.raises(ValueError, match="evaluate_profile"):
+        dt.gyrokinetic_transport_closure_profiles(object(), rho, {})
+
+    class BadModel:
+        def evaluate_profile(self, rho, profiles):
+            return np.ones(rho.size), np.ones(rho.size - 1), np.ones(rho.size)
+
+    with pytest.raises(ValueError, match="match rho shape"):
+        dt.gyrokinetic_transport_closure_profiles(BadModel(), rho, {})
 
 
 def test_transport_campaign_metadata_records_numerical_contract_and_closure_provenance():
