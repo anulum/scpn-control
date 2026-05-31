@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Neural Transport
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Neural transport tests
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
@@ -90,3 +94,68 @@ class TestCriticalGradientModel:
 
         assert np.any(chi_e > 0.0)
         assert not np.allclose(d_e[chi_e > 0.0], chi_e[chi_e > 0.0] / 3.0)
+
+
+def test_neural_transport_explicit_weights_fail_closed_without_legacy_fallback(tmp_path):
+    from scpn_control.core.neural_transport import NeuralTransportModel
+
+    missing = tmp_path / "missing_weights.npz"
+
+    with pytest.raises(FileNotFoundError, match="weights not found"):
+        NeuralTransportModel(weights_path=missing)
+
+    model = NeuralTransportModel(
+        weights_path=missing,
+        allow_weight_load_fallback=True,
+        allow_legacy_weight_load_fallback=True,
+    )
+    fluxes = model.predict(TransportInputs(grad_ti=8.0, grad_te=2.0))
+    assert model.is_neural is False
+    assert fluxes.channel == "ITG"
+
+
+def test_neural_transport_closure_profiles_validate_radial_contracts():
+    from scpn_control.core.neural_transport import neural_transport_closure_profiles
+
+    rho = np.array([0.0, 0.5, 0.25])
+    profile = np.array([6.0, 5.0, 4.0])
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        neural_transport_closure_profiles(rho, profile, profile, profile, profile, profile)
+
+    with pytest.raises(ValueError, match="strictly positive"):
+        neural_transport_closure_profiles(
+            np.array([0.0, 0.5, 1.0]),
+            np.array([6.0, 0.0, 4.0]),
+            profile,
+            profile,
+            profile,
+            profile,
+        )
+
+
+def test_neural_transport_claim_evidence_blocks_quantitative_claim_without_reference():
+    from scpn_control.core.neural_transport import (
+        assert_neural_transport_quantitative_claim_admissible,
+        neural_transport_claim_evidence,
+    )
+
+    validation_result = {
+        "mode": "analytic_fallback",
+        "n_cases": 2,
+        "max_abs_error": 0.0,
+        "channel_agreement": 1.0,
+        "per_channel_relative_rmse": (0.0, 0.0, 0.0),
+        "profile_per_channel_relative_rmse": (0.0, 0.0, 0.0),
+    }
+
+    evidence = neural_transport_claim_evidence(
+        validation_result,
+        source="local_regression_reference",
+        source_id="tests/test_neural_transport.py::analytic_fallback",
+    )
+
+    assert evidence.quantitative_claim_allowed is False
+    assert evidence.feature_schema[0] == "R_LTi"
+    with pytest.raises(ValueError, match="blocked without matched reference"):
+        assert_neural_transport_quantitative_claim_admissible(evidence)

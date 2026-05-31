@@ -1404,3 +1404,35 @@ def test_validate_rmse_command(runner, tmp_path, monkeypatch):
     )
     assert called.get("invoked")
     assert "pass" in result.output
+
+
+def test_acquire_mdsplus_shot_fails_closed_before_external_access(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "acquire-mdsplus-shot",
+            "--shot",
+            "163303",
+            "--signal",
+            json.dumps({"name": "ip", "node": "\\IP", "units": "A", "timebase": "s"}),
+            "--output-npz",
+            str(tmp_path / "shot.npz"),
+            "--manifest-json",
+            str(tmp_path / "manifest.json"),
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["status"] == "fail"
+    assert "--tree is required" in payload["error"]
+    assert not (tmp_path / "shot.npz").exists()
+    assert not (tmp_path / "manifest.json").exists()
+
+
+def test_parse_mdsplus_signal_spec_rejects_non_object_payload() -> None:
+    from scpn_control.cli import _parse_mdsplus_signal_spec
+
+    with pytest.raises(ValueError, match="JSON object"):
+        _parse_mdsplus_signal_spec(json.dumps(["not", "a", "signal"]))

@@ -134,3 +134,21 @@ def test_module_cli_writes_report_files(tmp_path: Path) -> None:
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     validate_report(payload)
     assert output_md.read_text(encoding="utf-8").startswith("# Geometry-Neutral Stellarator Replay")
+
+
+def test_geometry_neutral_replay_rejects_threshold_tampering() -> None:
+    report = generate_report(steps=8, seed=13)
+    tampered = deepcopy(report)
+    tampered["geometry_neutral_replay"]["thresholds"]["max_abs_current_A"] = 1.0
+
+    with pytest.raises(ValueError, match="metrics do not satisfy"):
+        validate_report(tampered)
+
+
+def test_geometry_neutral_replay_rejects_blank_manifest_provenance() -> None:
+    report = generate_report(steps=8, seed=14)
+    tampered = deepcopy(report)
+    tampered["geometry_neutral_replay"]["manifest"]["provenance"]["latency_model"] = " "
+
+    with pytest.raises(ValueError, match="latency_model"):
+        validate_report(tampered)

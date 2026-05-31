@@ -438,3 +438,17 @@ def test_rust_svd_optimal_correction() -> None:
     delta = _rust_compat.rust_svd_optimal_correction(response, error, gain=0.8)
     assert delta.shape == (2,)
     assert np.all(np.isfinite(delta))
+
+
+def test_rust_spi_mitigation_rejects_nonphysical_initial_conditions() -> None:
+    with pytest.raises(ValueError, match="w_th_mj"):
+        _rust_compat.RustSPIMitigation(w_th_mj=0.0)
+    with pytest.raises(ValueError, match="ip_ma"):
+        _rust_compat.RustSPIMitigation(ip_ma=float("nan"))
+    with pytest.raises(ValueError, match="te_kev"):
+        _rust_compat.RustSPIMitigation(te_kev=-1.0)
+
+
+def test_python_svd_optimal_correction_rejects_incompatible_error_shape() -> None:
+    with pytest.raises(ValueError, match="error length"):
+        _rust_compat._python_svd_optimal_correction(np.eye(2), np.ones(3), gain=1.0)

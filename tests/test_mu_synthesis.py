@@ -151,3 +151,37 @@ def test_mu_validated_claim_requires_reference_artifact() -> None:
             source_id="mu-toolbox-static-fixture-v1",
             reference_artifact=bad_artifact,
         )
+
+
+def test_mu_reference_artifact_rejects_unit_mismatches() -> None:
+    controller = MuSynthesisController(_plant(), _uncertainty())
+    controller.synthesize(n_dk_iter=1)
+    artifact = {
+        "source": "external_mu_toolbox_benchmark",
+        "reference_dataset_id": "mu-toolbox-static-fixture-v1",
+        "reference_artifact_sha256": "b" * 64,
+        "reference_case_count": 3,
+        "units": {"mu": "wrong"},
+        "metrics": {
+            "mu_upper_bound_relative_error": 0.01,
+            "robustness_margin_abs_error": 0.01,
+            "controller_gain_relative_error": 0.02,
+            "d_scaling_relative_error": 0.02,
+            "closed_loop_spectral_abscissa_abs_error": 0.01,
+        },
+        "tolerances": {
+            "mu_upper_bound_relative_error": 0.05,
+            "robustness_margin_abs_error": 0.05,
+            "controller_gain_relative_error": 0.10,
+            "d_scaling_relative_error": 0.10,
+            "closed_loop_spectral_abscissa_abs_error": 0.05,
+        },
+    }
+
+    with pytest.raises(ValueError, match="unit contracts"):
+        mu_synthesis_claim_evidence(
+            controller,
+            source="external_mu_toolbox_benchmark",
+            source_id="static-two-state-reference",
+            reference_artifact=artifact,
+        )

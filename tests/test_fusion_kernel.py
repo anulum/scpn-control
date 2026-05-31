@@ -816,3 +816,33 @@ def test_neutron_wall_loading_positive() -> None:
     q_n = neutron_wall_loading_mw_m2(P_fus_MW=500.0, R0_m=6.2, a_m=2.0, kappa=1.7)
     assert q_n > 0.0
     assert q_n < 5.0  # physically reasonable upper bound for tokamaks
+
+
+@pytest.mark.parametrize(
+    ("section", "key", "value", "match"),
+    [
+        ("dimensions", "R_min", -1.0, "dimensions"),
+        ("dimensions", "R_max", 1.0, "dimensions"),
+        ("dimensions", "Z_max", -4.0, "dimensions"),
+        ("physics", "plasma_current_sign", 0.0, "plasma_current_sign"),
+        ("physics", "vacuum_permeability", 0.0, "vacuum_permeability"),
+    ],
+)
+def test_config_schema_rejects_nonphysical_domain_values(tmp_path, section, key, value, match):
+    path = _write_config(tmp_path / f"bad_{section}_{key}.json")
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+    cfg[section][key] = value
+    path.write_text(json.dumps(cfg), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=match):
+        FusionKernel(path)
+
+
+def test_config_rejects_boolean_grid_resolution_entries(tmp_path):
+    path = _write_config(tmp_path / "bad_grid_bool.json")
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+    cfg["grid_resolution"] = [True, 16]
+    path.write_text(json.dumps(cfg), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="grid_resolution"):
+        FusionKernel(path)

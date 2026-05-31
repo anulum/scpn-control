@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Neuro Cybernetic Controller
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neuro Cybernetic Controller Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Neuro-cybernetic controller tests
 """Deterministic tests for reduced spiking-controller pool behavior."""
 
 from __future__ import annotations
@@ -391,3 +383,24 @@ def test_controller_pads_coils_when_fewer_than_five() -> None:
     nc.run_shot(save_plot=False, verbose=False)
     assert len(nc.kernel.cfg["coils"]) >= 5
     assert len(nc.history["t"]) == 5
+
+
+def test_controller_visualize_writes_declared_plot_path(tmp_path) -> None:
+    from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+
+    nc = NeuroCyberneticController(
+        "dummy.json",
+        seed=42,
+        shot_duration=4,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+        kernel_factory=_DummyKernel,
+    )
+    nc.run_shot(save_plot=False, verbose=False)
+    plot_path = tmp_path / "neuro_control.png"
+
+    returned = nc.visualize("Neuro control regression", output_path=str(plot_path), verbose=False)
+
+    assert returned == str(plot_path)
+    assert plot_path.is_file()
+    assert plot_path.stat().st_size > 0

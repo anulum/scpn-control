@@ -484,3 +484,40 @@ def test_controller_step_rejects_nonfinite_measurement_and_timestep(active_coils
 
     with pytest.raises(ValueError, match="finite"):
         ctrl.step(0.1, dt=float("inf"))
+
+
+def test_vertical_stability_analysis_rejects_nonrectilinear_grids() -> None:
+    from scpn_control.control.rzip_model import VerticalStabilityAnalysis
+
+    psi = np.ones((3, 3), dtype=float)
+    r_axis = np.array([2.0, 2.5, 3.0])
+    z_axis = np.array([-0.5, 0.0, 0.5])
+    R, Z = np.meshgrid(r_axis, z_axis)
+    R[1, 1] += 0.1
+
+    with pytest.raises(ValueError, match="rectilinear"):
+        VerticalStabilityAnalysis.compute_n_index(psi, R, Z, R0=2.5)
+
+
+def test_rzip_controller_step_is_antisymmetric_for_vertical_error(active_coils):
+    elements = [
+        VesselElement(R=2.0, Z=0.5, resistance=1.0, cross_section=0.1, inductance=1e-5),
+        VesselElement(R=2.0, Z=-0.5, resistance=1.0, cross_section=0.1, inductance=1e-5),
+    ]
+    rzip = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-0.5,
+        vessel=VesselModel(elements),
+        active_coils=active_coils,
+    )
+    positive_controller = RZIPController(rzip, Kp=3.0, Kd=0.0)
+    negative_controller = RZIPController(rzip, Kp=3.0, Kd=0.0)
+
+    positive = positive_controller.step(0.1, 0.01)
+    negative = negative_controller.step(-0.1, 0.01)
+
+    np.testing.assert_allclose(positive, -negative)

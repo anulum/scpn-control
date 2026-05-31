@@ -555,3 +555,103 @@ def test_blocked_z3_formal_report_is_schema_versioned_and_fail_closed() -> None:
     assert payload["safety"] is None
     assert payload["temporal"] is None
     assert validate_z3_formal_report_payload(payload) == payload
+
+
+@requires_z3
+def test_z3_checker_rejects_unknown_domains_and_bad_bound_order() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    with pytest.raises(ValueError, match="unknown place"):
+        checker.prove_marking_bounds({"missing": (0.0, 1.0)}, max_depth=1)
+
+    with pytest.raises(ValueError, match="lower bound"):
+        checker.prove_marking_bounds({"source": (1.0, 0.0)}, max_depth=1)
+
+    with pytest.raises(ValueError, match="unknown transition"):
+        checker.verify_temporal_specs([EventuallyFires("missing_transition_fires", "missing_transition")], max_depth=1)
+
+    with pytest.raises(ValueError, match="unknown place"):
+        checker.verify_temporal_specs(
+            [AlwaysEventuallyMarked("missing_place_recurs", "missing_place", threshold=0.5)], max_depth=1
+        )
+
+
+@requires_z3
+def test_z3_fire_leads_to_marking_rejects_invalid_deadline_domain() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    with pytest.raises(ValueError, match="within"):
+        checker.verify_temporal_specs([FireLeadsToMarking("bad_bool_window", "move", "sink", within=True)], max_depth=2)
+
+    with pytest.raises(ValueError, match="within"):
+        checker.verify_temporal_specs(
+            [FireLeadsToMarking("bad_negative_window", "move", "sink", within=-1)], max_depth=2
+        )
+
+
+@requires_z3
+def test_z3_combined_report_records_failed_safety_before_temporal_success() -> None:
+    report = verify_z3_formal_contracts(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"sink": (0.0, 0.5)},
+        temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+    )
+    payload = build_z3_formal_report_payload(report)
+
+    assert report.holds is False
+    assert payload["status"] == "fail"
+    assert payload["safety"]["holds"] is False
+    assert payload["temporal"]["holds"] is True
+    assert "marking_bounds" in payload["checked_specs"]
+    assert "move_eventually_fires" in payload["checked_specs"]
+
+
+def test_z3_report_validator_rejects_blocked_payload_semantic_tampering() -> None:
+    payload = build_blocked_z3_formal_report_payload("z3 unavailable in deployment image")
+
+    blocked_with_sections = dict(payload)
+    blocked_with_sections["safety"] = {"holds": False}
+    _refresh_z3_payload_digest(blocked_with_sections)
+    with pytest.raises(ValueError, match="must not carry proof sections"):
+        validate_z3_formal_report_payload(blocked_with_sections)
+
+    blocked_without_reason = dict(payload)
+    blocked_without_reason["reason"] = ""
+    _refresh_z3_payload_digest(blocked_without_reason)
+    with pytest.raises(ValueError, match="include a reason"):
+        validate_z3_formal_report_payload(blocked_without_reason)
+
+    blocked_claiming_hold = dict(payload)
+    blocked_claiming_hold["holds"] = True
+    _refresh_z3_payload_digest(blocked_claiming_hold)
+    with pytest.raises(ValueError, match="must not hold"):
+        validate_z3_formal_report_payload(blocked_claiming_hold)
+
+
+def test_z3_report_validator_rejects_report_level_type_tampering() -> None:
+    valid = build_z3_formal_report_payload(
+        Z3FormalVerificationReport(
+            holds=True,
+            backend="z3",
+            max_depth=1,
+            safety=Z3ModelCheckingReport(True, "z3", 1, "unsat", [], ["safety_ok"]),
+            temporal=Z3ModelCheckingReport(True, "z3", 1, "unsat", [], ["temporal_ok"]),
+        )
+    )
+
+    for key, value, match in (
+        ("backend", "not-z3", "backend"),
+        ("status", "unchecked", "status"),
+        ("solver", "", "solver"),
+        ("holds", "true", "holds"),
+        ("max_depth", True, "max_depth"),
+        ("checked_specs", [], "checked_specs"),
+        ("scope", "unbounded claim", "scope"),
+        ("claim_boundary", "certified", "claim_boundary"),
+    ):
+        tampered = dict(valid)
+        tampered[key] = value
+        _refresh_z3_payload_digest(tampered)
+        with pytest.raises(ValueError, match=match):
+            validate_z3_formal_report_payload(tampered)

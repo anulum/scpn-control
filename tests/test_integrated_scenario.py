@@ -1,7 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Integrated scenario tests
 from __future__ import annotations
 
 import json
@@ -528,3 +531,20 @@ def test_scenario_coupling_report_persists_replay_contract(tmp_path):
     assert data["metadata"]["claim_status"].startswith("bounded replay audit only")
     assert len(data["module_exchanges"]) == data["metadata"]["exchange_count"]
     assert data["module_exchanges"][0]["inputs"]["dt_s"] == cfg.dt
+
+
+def test_scenario_coupling_audit_rejects_nonfinite_replay_profiles():
+    """Replay audit fails closed when physics profiles contain non-finite values."""
+    cfg = _minimal_config(P_aux_MW=0.5)
+    sim = IntegratedScenarioSimulator(cfg)
+    sim.initialize()
+    states = sim.run()
+    poisoned_te = states[-1].Te.copy()
+    poisoned_te[3] = np.nan
+    states[-1] = replace(states[-1], Te=poisoned_te)
+
+    audit = audit_scenario_coupling(states, cfg)
+
+    assert audit.passed is False
+    assert audit.metadata.all_profiles_finite is False
+    assert any("profiles" in violation for violation in audit.violations)

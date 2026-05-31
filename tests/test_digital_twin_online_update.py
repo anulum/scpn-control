@@ -286,3 +286,32 @@ def test_bayesian_update_config_rejects_bool_and_float_integer_fields():
 
     with pytest.raises(ValueError, match="seed"):
         BayesianUpdateConfig(seed=True)  # type: ignore[arg-type]
+
+
+def test_twin_observation_requires_matching_positive_tolerances() -> None:
+    with pytest.raises(ValueError, match="missing tolerance"):
+        TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={})
+
+    with pytest.raises(ValueError, match="tolerances"):
+        TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.0})
+
+
+def test_digital_twin_update_evidence_rejects_duplicate_priors() -> None:
+    artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
+    observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
+    priors = (
+        TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),
+        TwinParameterPrior("n_e", 0.7e20, 1.4e20, 1.0e20),
+    )
+    result = BayesianUpdateResult(
+        best_parameters={"n_e": 1.0e20},
+        best_loss=0.1,
+        baseline_loss=0.2,
+        evaluated_points=2,
+        loss_history=(0.2, 0.1),
+        source=observation.source,
+        evidence_kind="bounded_online_update",
+    )
+
+    with pytest.raises(ValueError, match="unique parameter names"):
+        digital_twin_update_evidence(observation, priors, result, artifacts)

@@ -569,3 +569,29 @@ def test_bridge_uses_finalizer_instead_of_destructor(monkeypatch: pytest.MonkeyP
     loaded.destroyed = None
     bridge.close()
     assert loaded.destroyed is None
+
+
+def test_native_build_environment_keeps_only_portable_build_variables(tmp_path, monkeypatch) -> None:
+    from scpn_control.core.hpc_bridge import _native_build_environment
+
+    monkeypatch.setenv("LD_PRELOAD", "/tmp/untrusted.so")
+    monkeypatch.setenv("SCPN_SOLVER_LIB", "/tmp/untrusted.so")
+
+    env = _native_build_environment(tmp_path)
+
+    assert env["TMPDIR"] == str(tmp_path)
+    assert "PATH" in env
+    assert "LD_PRELOAD" not in env
+    assert "SCPN_SOLVER_LIB" not in env
+
+
+def test_env_solver_path_external_opt_in_preserves_absolute_library_policy(monkeypatch, tmp_path) -> None:
+    from scpn_control.core.hpc_bridge import _validate_solver_library_path
+
+    candidate = tmp_path / "libscpn_solver.so"
+    candidate.write_bytes(b"not a real shared library")
+    monkeypatch.setenv("SCPN_ALLOW_EXTERNAL_SOLVER_LIB", "1")
+
+    resolved = _validate_solver_library_path(str(candidate), source="SCPN_SOLVER_LIB")
+
+    assert resolved == str(candidate.resolve())
