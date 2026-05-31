@@ -66,7 +66,11 @@ the contract digest into the advisory certificate before payload validation
 continues. If the optional quantum backend exposes a bridge-contract callable,
 CONTROL records whether the backend contract matched, was not exposed, or was
 unavailable; an exposed mismatching backend contract is treated as a fail-closed
-runtime error.
+runtime error. Bridge reports additionally carry advisory decision evidence
+with score-basis provenance, deterministic risk-band thresholds, backend
+contract-validation state, blocked control action, and a certificate-bound
+decision digest so downstream tooling cannot treat a risk score as admitted
+control evidence.
 
 ## Federated disruption synthetic multi-facility benchmark
 

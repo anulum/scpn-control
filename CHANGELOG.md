@@ -15,8 +15,10 @@
   dependency contract for the `scpn-quantum-control` backend, embeds that
   dependency contract in advisory reports, pins the Qiskit simulator dependency
   name, records backend-contract attestation when the optional backend exposes
-  its own contract, and fail-closes advisory reports behind tamper-evident claim
-  boundaries.
+  its own contract, adds certificate-bound advisory decision evidence with
+  score-basis provenance, deterministic risk-band thresholds, backend-contract
+  validation state, and blocked control action, and fail-closes advisory reports
+  behind tamper-evident claim boundaries.
 - Added a local-first physics debugging assistant for validation-gap analysis,
   falsifiable hypothesis generation, and campaign suggestions with loopback
   provider defaults, explicit endpoint allowlisting for facility gateways,

@@ -172,6 +172,14 @@ def test_quantum_disruption_bridge_fails_closed_when_quantum_dependency_unavaila
     assert report["quantum_available"] is False
     assert report["quantum_score"] is None
     assert report["admitted_for_control"] is False
+    decision = report["advisory_decision"]
+    assert decision["schema_version"] == "scpn-control.quantum-disruption-advisory-decision.v1"
+    assert decision["score_basis"] == "classical_baseline_score"
+    assert decision["control_action"] == "blocked"
+    assert decision["admitted_for_control"] is False
+    assert decision["backend_contract_validated"] is False
+    assert "quantum_backend_unavailable" in decision["reasons"]
+    assert report["report_certificate"]["advisory_decision_sha256"] == decision["decision_sha256"]
     assert report["backend_contract_attestation"]["status"] == "backend_unavailable"
     assert report["backend_contract_attestation"]["backend_contract_validated"] is False
     assert 0.0 <= report["classical_baseline_score"] <= 1.0
@@ -218,6 +226,14 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
     assert report["status"] == "advisory"
     assert report["quantum_available"] is True
     assert report["quantum_score"] == 0.73
+    decision = report["advisory_decision"]
+    assert decision["risk_score"] == 0.73
+    assert decision["score_basis"] == "quantum_score"
+    assert decision["risk_band"] == "high"
+    assert decision["thresholds"] == {"elevated": 0.4, "high": 0.7}
+    assert decision["backend_contract_validated"] is True
+    assert decision["control_action"] == "blocked"
+    assert decision["admitted_for_control"] is False
     assert report["quantum_backend_owner"] == "scpn-quantum-control"
     assert report["control_facade_owner"] == "scpn-control"
     assert report["admitted_for_control"] is False
@@ -244,6 +260,7 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
         certificate["backend_contract_attestation_sha256"]
         == report["backend_contract_attestation"]["attestation_sha256"]
     )
+    assert certificate["advisory_decision_sha256"] == decision["decision_sha256"]
     assert certificate["publication_safe"] is False
     assert certificate["admitted_for_control"] is False
     assert "require_external_evidence" in certificate["required_downstream_policy"]
@@ -571,6 +588,47 @@ def test_quantum_disruption_bridge_report_rejects_admission_digest_replay(
     replayed["payload_sha256"] = report["payload_sha256"]
 
     with pytest.raises(ValueError, match="feature_mapping_sha256"):
+        validate_quantum_disruption_bridge_report(replayed)
+
+
+def test_quantum_disruption_bridge_report_rejects_advisory_decision_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.82},
+                )
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    report = run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(seed=18),
+    )
+    replayed = dict(report)
+    replayed["advisory_decision"] = {
+        **report["advisory_decision"],
+        "risk_band": "low",
+    }
+    replayed["payload_sha256"] = report["payload_sha256"]
+
+    with pytest.raises(ValueError, match="advisory_decision"):
         validate_quantum_disruption_bridge_report(replayed)
 
 

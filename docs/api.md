@@ -165,7 +165,11 @@ backend contract. When the optional backend exposes its own
 `scpn_control_bridge_dependency_contract()` callable, CONTROL compares it
 against the expected contract, records backend-contract attestation evidence,
 and fails closed before report creation if the backend advertises a conflicting
-contract.
+contract. Bridge reports also include schema-versioned advisory decision
+evidence that records whether the score came from the quantum backend or the
+classical fallback, applies deterministic low/elevated/high risk-band
+thresholds, records backend-contract validation state, fixes the control action
+to `blocked`, and binds the decision digest into the advisory certificate.
 
 ::: scpn_control.control.quantum_disruption_bridge.QuantumDisruptionBridgeConfig
 

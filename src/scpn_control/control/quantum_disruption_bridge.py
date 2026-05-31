@@ -28,6 +28,7 @@ SCHEMA_VERSION = "scpn-control.quantum-disruption-bridge-report.v1"
 KERNEL_SCHEMA_VERSION = "scpn-control.quantum-disruption-kernel-report.v1"
 CERTIFICATE_SCHEMA_VERSION = "scpn-control.quantum-disruption-advisory-certificate.v1"
 DEPENDENCY_CONTRACT_SCHEMA_VERSION = "scpn-control.quantum-disruption-dependency-contract.v1"
+ADVISORY_DECISION_SCHEMA_VERSION = "scpn-control.quantum-disruption-advisory-decision.v1"
 CONTROL_FACADE_OWNER = "scpn-control"
 QUANTUM_BACKEND_OWNER = "scpn-quantum-control"
 QUANTUM_MODULE = "scpn_quantum_control.control.q_disruption_iter"
@@ -59,6 +60,7 @@ REQUIRED_DOWNSTREAM_POLICY = (
     "do_not_publish_as_facility_validation",
     "require_external_evidence",
 )
+RISK_BAND_THRESHOLDS = {"elevated": 0.4, "high": 0.7}
 QUANTUM_CORE_DEPENDENCIES = (
     "qiskit>=2.2,<3.0",
     "qiskit-" + "a" + "er>=0.15,<1.0",
@@ -361,6 +363,7 @@ def run_quantum_disruption_bridge(
     if backend_contract_attestation is None:
         raise RuntimeError("quantum disruption backend contract attestation was not produced")
 
+    risk_score = quantum_score if quantum_score is not None else classical_score
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "status": status,
@@ -381,11 +384,16 @@ def run_quantum_disruption_bridge(
         ),
         "classical_baseline_score": classical_score,
         "quantum_score": quantum_score,
-        "risk_score": quantum_score if quantum_score is not None else classical_score,
+        "risk_score": risk_score,
         "admitted_for_control": False,
         "human_review_required": True,
         "dependency_contract": dependency_contract,
         "backend_contract_attestation": backend_contract_attestation,
+        "advisory_decision": _build_advisory_decision(
+            classical_baseline_score=classical_score,
+            quantum_score=quantum_score,
+            backend_contract_attestation=backend_contract_attestation,
+        ),
         "config": _config_payload(resolved_config),
     }
     payload["report_certificate"] = _build_report_certificate(payload, report_kind="bridge-advisory")
@@ -441,6 +449,7 @@ def validate_quantum_disruption_bridge_report(payload: dict[str, Any]) -> dict[s
             raise ValueError(f"quantum disruption bridge report {key} must be non-empty")
     _validate_report_dependency_contract(payload)
     _validate_backend_contract_attestation(payload.get("backend_contract_attestation"), payload=payload)
+    _validate_advisory_decision(payload.get("advisory_decision"), payload=payload)
     _validate_report_certificate(payload, report_kind="bridge-advisory")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
@@ -565,6 +574,44 @@ def _build_admission_evidence(
     }
 
 
+def _build_advisory_decision(
+    *,
+    classical_baseline_score: float,
+    quantum_score: float | None,
+    backend_contract_attestation: Mapping[str, Any],
+) -> dict[str, Any]:
+    risk_score = _bounded_score(
+        "risk_score",
+        quantum_score if quantum_score is not None else classical_baseline_score,
+    )
+    score_basis = "quantum_score" if quantum_score is not None else "classical_baseline_score"
+    backend_status = backend_contract_attestation.get("status")
+    backend_contract_validated = backend_contract_attestation.get("backend_contract_validated") is True
+    reasons = ["advisory_only", "external_validation_required", "control_admission_blocked"]
+    if quantum_score is None:
+        reasons.append("quantum_score_unavailable")
+    if backend_status == "backend_unavailable":
+        reasons.append("quantum_backend_unavailable")
+    if not backend_contract_validated:
+        reasons.append("backend_contract_not_validated")
+    payload: dict[str, Any] = {
+        "schema_version": ADVISORY_DECISION_SCHEMA_VERSION,
+        "risk_score": risk_score,
+        "score_basis": score_basis,
+        "risk_band": _risk_band(risk_score),
+        "thresholds": dict(RISK_BAND_THRESHOLDS),
+        "control_action": "blocked",
+        "admitted_for_control": False,
+        "publication_safe": False,
+        "human_review_required": True,
+        "external_validation_required": True,
+        "backend_contract_validated": backend_contract_validated,
+        "reasons": reasons,
+    }
+    payload["decision_sha256"] = _advisory_decision_payload_digest(payload)
+    return payload
+
+
 def _build_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -> dict[str, Any]:
     certificate: dict[str, Any] = {
         "schema_version": CERTIFICATE_SCHEMA_VERSION,
@@ -582,6 +629,8 @@ def _build_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -
         "required_downstream_policy": list(REQUIRED_DOWNSTREAM_POLICY),
         "content_sha256": _report_content_digest(payload),
     }
+    if report_kind == "bridge-advisory":
+        certificate["advisory_decision_sha256"] = _advisory_decision_digest(payload)
     certificate["certificate_sha256"] = _certificate_digest(certificate)
     return certificate
 
@@ -720,6 +769,59 @@ def _backend_contract_attestation_digest(payload: Mapping[str, Any]) -> str:
     return str(attestation["attestation_sha256"])
 
 
+def _validate_advisory_decision(value: object, *, payload: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption advisory_decision must be an object")
+    if value.get("schema_version") != ADVISORY_DECISION_SCHEMA_VERSION:
+        raise ValueError("quantum disruption advisory_decision schema_version is unsupported")
+    risk_score = _bounded_score("advisory_decision.risk_score", value.get("risk_score"))
+    if risk_score != _bounded_score("risk_score", payload.get("risk_score")):
+        raise ValueError("quantum disruption advisory_decision risk_score mismatch")
+    expected_score_basis = "quantum_score" if payload.get("quantum_score") is not None else "classical_baseline_score"
+    if value.get("score_basis") != expected_score_basis:
+        raise ValueError("quantum disruption advisory_decision score_basis mismatch")
+    if value.get("risk_band") != _risk_band(risk_score):
+        raise ValueError("quantum disruption advisory_decision risk_band mismatch")
+    if value.get("thresholds") != RISK_BAND_THRESHOLDS:
+        raise ValueError("quantum disruption advisory_decision thresholds mismatch")
+    if value.get("control_action") != "blocked":
+        raise ValueError("quantum disruption advisory_decision control_action must be blocked")
+    if value.get("admitted_for_control") is not False:
+        raise ValueError("quantum disruption advisory_decision admitted_for_control must be false")
+    if value.get("publication_safe") is not False:
+        raise ValueError("quantum disruption advisory_decision publication_safe must be false")
+    if value.get("human_review_required") is not True:
+        raise ValueError("quantum disruption advisory_decision human_review_required must be true")
+    if value.get("external_validation_required") is not True:
+        raise ValueError("quantum disruption advisory_decision external_validation_required must be true")
+    attestation = _validate_backend_contract_attestation(payload.get("backend_contract_attestation"), payload=payload)
+    if value.get("backend_contract_validated") != attestation["backend_contract_validated"]:
+        raise ValueError("quantum disruption advisory_decision backend_contract_validated mismatch")
+    reasons = value.get("reasons")
+    if not isinstance(reasons, list) or any(not isinstance(item, str) or not item for item in reasons):
+        raise ValueError("quantum disruption advisory_decision reasons must be non-empty strings")
+    for required_reason in ("advisory_only", "external_validation_required", "control_admission_blocked"):
+        if required_reason not in reasons:
+            raise ValueError(f"quantum disruption advisory_decision missing reason {required_reason}")
+    if payload.get("quantum_score") is None and "quantum_score_unavailable" not in reasons:
+        raise ValueError("quantum disruption advisory_decision must record quantum_score_unavailable")
+    if attestation["status"] == "backend_unavailable" and "quantum_backend_unavailable" not in reasons:
+        raise ValueError("quantum disruption advisory_decision must record quantum_backend_unavailable")
+    if not attestation["backend_contract_validated"] and "backend_contract_not_validated" not in reasons:
+        raise ValueError("quantum disruption advisory_decision must record backend_contract_not_validated")
+    decision_digest = value.get("decision_sha256")
+    if not isinstance(decision_digest, str) or not _is_sha256(decision_digest):
+        raise ValueError("quantum disruption advisory_decision decision_sha256 must be a SHA-256")
+    if decision_digest.lower() != _advisory_decision_payload_digest(value):
+        raise ValueError("quantum disruption advisory_decision decision_sha256 mismatch")
+    return value
+
+
+def _advisory_decision_digest(payload: Mapping[str, Any]) -> str:
+    decision = _validate_advisory_decision(payload.get("advisory_decision"), payload=payload)
+    return str(decision["decision_sha256"])
+
+
 def _validate_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -> None:
     value = payload.get("report_certificate")
     if not isinstance(value, dict):
@@ -750,6 +852,16 @@ def _validate_report_certificate(payload: Mapping[str, Any], *, report_kind: str
         )
     if attestation_digest != _backend_contract_attestation_digest(payload):
         raise ValueError("quantum disruption report_certificate backend_contract_attestation_sha256 mismatch")
+    if report_kind == "bridge-advisory":
+        decision_digest = value.get("advisory_decision_sha256")
+        if not isinstance(decision_digest, str) or not _is_sha256(decision_digest):
+            raise ValueError(
+                "quantum disruption report_certificate advisory_decision_sha256 must be a SHA-256 hex digest"
+            )
+        if decision_digest != _advisory_decision_digest(payload):
+            raise ValueError("quantum disruption report_certificate advisory_decision_sha256 mismatch")
+    elif "advisory_decision_sha256" in value:
+        raise ValueError("quantum disruption report_certificate advisory_decision_sha256 is bridge-only")
     if value.get("admitted_for_control") is not False:
         raise ValueError("quantum disruption report_certificate admitted_for_control must be false")
     if value.get("publication_safe") is not False:
@@ -971,6 +1083,19 @@ def _contract_digest(contract: Mapping[str, Any]) -> str:
 def _backend_attestation_payload_digest(attestation: Mapping[str, Any]) -> str:
     content = {key: value for key, value in attestation.items() if key != "attestation_sha256"}
     return _payload_digest({"backend_contract_attestation": content})
+
+
+def _advisory_decision_payload_digest(decision: Mapping[str, Any]) -> str:
+    content = {key: value for key, value in decision.items() if key != "decision_sha256"}
+    return _payload_digest({"advisory_decision": content})
+
+
+def _risk_band(score: float) -> str:
+    if score >= RISK_BAND_THRESHOLDS["high"]:
+        return "high"
+    if score >= RISK_BAND_THRESHOLDS["elevated"]:
+        return "elevated"
+    return "low"
 
 
 def _jsonable(value: Any) -> Any:
