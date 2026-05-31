@@ -18,7 +18,7 @@ import json
 import re
 from dataclasses import dataclass
 from hashlib import sha256
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Literal, cast
 
 ManifestKind = Literal["real", "synthetic"]
@@ -292,9 +292,22 @@ def _resolve_local_artifact(uri: str, manifest_path: Path) -> Path:
     if "://" in uri:
         raise RealDataManifestError(f"artifact verification requires a local URI, got {uri!r}")
     candidate = Path(uri)
-    if candidate.is_absolute():
+    posix_candidate = PurePosixPath(uri)
+    windows_candidate = PureWindowsPath(uri)
+    if (
+        candidate.is_absolute()
+        or posix_candidate.is_absolute()
+        or windows_candidate.is_absolute()
+        or bool(posix_candidate.root)
+        or bool(windows_candidate.root)
+        or bool(windows_candidate.drive)
+    ):
         raise RealDataManifestError("artifact URI must be relative to the manifest evidence tree")
-    if any(part == ".." for part in candidate.parts):
+    if any(
+        part == ".."
+        for path_parts in (candidate.parts, posix_candidate.parts, windows_candidate.parts)
+        for part in path_parts
+    ):
         raise RealDataManifestError("artifact URI must not contain parent traversal")
 
     roots = _artifact_resolution_roots(manifest_path)
