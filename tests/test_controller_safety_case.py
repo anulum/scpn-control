@@ -62,6 +62,9 @@ from scpn_control.scpn.artifact import (
     Weights,
     compute_artifact_payload_sha256,
 )
+from scpn_control.scpn.compiler import FusionCompiler
+from scpn_control.scpn.fpga_export import FPGAConfig, export_bitstream_project, hdl_export_evidence
+from scpn_control.scpn.structure import StochasticPetriNet
 from validation.validate_e2e_latency_evidence import build_e2e_latency_evidence_payload
 
 
@@ -261,6 +264,43 @@ def _codac_runtime_payload(*, facility_claim_allowed: bool = True) -> dict[str, 
     return asdict(evidence)
 
 
+def _hdl_export_payload(
+    root: Path,
+    controller_sha256: str,
+    *,
+    facility_claim_allowed: bool = True,
+) -> dict[str, object]:
+    net = StochasticPetriNet()
+    net.add_place("P0", initial_tokens=0.8)
+    net.add_place("P1", initial_tokens=0.0)
+    net.add_transition("T0", threshold=0.5)
+    net.add_arc("P0", "T0", weight=0.6)
+    net.add_arc("T0", "P1", weight=0.9)
+    compiled = FusionCompiler(bitstream_length=128, seed=7).compile(net)
+    cfg = FPGAConfig(target="xilinx", clock_mhz=100.0)
+    project_dir = root / "validation" / "reports" / "hardware" / "fpga_project"
+    export_bitstream_project(compiled, cfg, project_dir)
+    report_uri = "validation/reports/hardware/fpga_synth.rpt"
+    report_path = root / report_uri
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text("timing met\nslack 1.250 ns\n", encoding="utf-8")
+    report_digest = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    evidence = hdl_export_evidence(
+        compiled,
+        cfg,
+        project_dir,
+        controller_artifact_sha256=controller_sha256,
+        target_part="xc7a35tcpg236-1",
+        synthesis_toolchain="vivado" if facility_claim_allowed else None,
+        synthesis_report_sha256=report_digest if facility_claim_allowed else None,
+        synthesis_report_uri=report_uri if facility_claim_allowed else None,
+        timing_slack_ns=1.25 if facility_claim_allowed else None,
+        generated_utc="2026-05-31T00:00:00Z",
+        facility_claim_allowed=facility_claim_allowed,
+    )
+    return asdict(evidence)
+
+
 def _local_hil_replay_payload() -> dict[str, object]:
     return hil_replay_evidence(
         _hil_replay_metrics(),
@@ -269,15 +309,17 @@ def _local_hil_replay_payload() -> dict[str, object]:
     )
 
 
-def _readiness_artifacts(root: Path) -> tuple[ReadinessArtifactEvidence, ...]:
+def _readiness_artifacts(root: Path, controller_sha256: str) -> tuple[ReadinessArtifactEvidence, ...]:
     external_uri = "validation/reports/external/physics_validation.json"
     timing_uri = "validation/reports/hardware/target_timing.json"
     hil_uri = "validation/reports/hardware/hil_replay.json"
+    hdl_uri = "validation/reports/hardware/hdl_export.json"
     codac_uri = "validation/reports/hardware/codac_runtime.json"
     review_uri = "validation/reports/review/safety_review.json"
     external_digest = _write_readiness_file(root, external_uri, {"status": "pass", "source": "external"})
     timing_digest = _write_readiness_file(root, timing_uri, _target_hardware_latency_payload())
     hil_digest = _write_readiness_file(root, hil_uri, _target_hardware_hil_replay_payload())
+    hdl_digest = _write_readiness_file(root, hdl_uri, _hdl_export_payload(root, controller_sha256))
     codac_digest = _write_readiness_file(root, codac_uri, _codac_runtime_payload())
     review_digest = _write_readiness_file(root, review_uri, {"status": "pass", "source": "independent-review"})
     return (
@@ -300,6 +342,13 @@ def _readiness_artifacts(root: Path) -> tuple[ReadinessArtifactEvidence, ...]:
             artifact_sha256=hil_digest,
             artifact_uri=hil_uri,
             producer="target-hardware-hil-replay",
+            generated_utc="2026-05-31T00:00:00Z",
+        ),
+        ReadinessArtifactEvidence(
+            kind="hdl_export_evidence",
+            artifact_sha256=hdl_digest,
+            artifact_uri=hdl_uri,
+            producer="target-hardware-hdl-export",
             generated_utc="2026-05-31T00:00:00Z",
         ),
         ReadinessArtifactEvidence(
@@ -431,6 +480,7 @@ def test_controller_safety_case_readiness_blocks_without_external_evidence():
     assert "external_physics_validation_sha256" in readiness.blocking_reasons
     assert "target_hardware_timing_sha256" in readiness.blocking_reasons
     assert "hil_replay_evidence_sha256" in readiness.blocking_reasons
+    assert "hdl_export_evidence_sha256" in readiness.blocking_reasons
     assert "codac_runtime_evidence_sha256" in readiness.blocking_reasons
     assert "independent_safety_review_sha256" in readiness.blocking_reasons
     with pytest.raises(ValueError, match="blocked"):
@@ -451,6 +501,7 @@ def test_controller_safety_case_readiness_accepts_complete_promotion_evidence():
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
         hil_replay_evidence_sha256="4" * 64,
+        hdl_export_evidence_sha256="6" * 64,
         codac_runtime_evidence_sha256="5" * 64,
         independent_safety_review_sha256="3" * 64,
     )
@@ -469,7 +520,7 @@ def test_controller_safety_case_readiness_accepts_typed_artifact_evidence(tmp_pa
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    artifacts = _readiness_artifacts(tmp_path)
+    artifacts = _readiness_artifacts(tmp_path, controller_sha256)
 
     readiness = evaluate_controller_safety_case_readiness_from_artifacts(
         evidence,
@@ -479,7 +530,8 @@ def test_controller_safety_case_readiness_accepts_typed_artifact_evidence(tmp_pa
 
     assert readiness.status == "promotion_ready"
     assert readiness.external_physics_validation_sha256 == artifacts[0].artifact_sha256
-    assert readiness.codac_runtime_evidence_sha256 == artifacts[3].artifact_sha256
+    assert readiness.hdl_export_evidence_sha256 == artifacts[3].artifact_sha256
+    assert readiness.codac_runtime_evidence_sha256 == artifacts[4].artifact_sha256
     assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
 
@@ -491,7 +543,7 @@ def test_controller_safety_case_readiness_rejects_unqualified_timing_artifact(tm
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    artifacts = list(_readiness_artifacts(tmp_path))
+    artifacts = list(_readiness_artifacts(tmp_path, controller_sha256))
     timing_uri = artifacts[1].artifact_uri
     local_payload = _target_hardware_latency_payload()
     local_payload["target_hardware"]["id"] = "local-host-unqualified"
@@ -522,7 +574,7 @@ def test_controller_safety_case_readiness_rejects_timing_artifact_digest_mismatc
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    artifacts = list(_readiness_artifacts(tmp_path))
+    artifacts = list(_readiness_artifacts(tmp_path, controller_sha256))
     artifacts[1] = ReadinessArtifactEvidence(
         kind="target_hardware_timing",
         artifact_sha256="f" * 64,
@@ -547,7 +599,7 @@ def test_controller_safety_case_readiness_rejects_local_hil_replay_artifact(tmp_
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    artifacts = list(_readiness_artifacts(tmp_path))
+    artifacts = list(_readiness_artifacts(tmp_path, controller_sha256))
     hil_uri = artifacts[2].artifact_uri
     hil_digest = _write_readiness_file(tmp_path, hil_uri, _local_hil_replay_payload())
     artifacts[2] = ReadinessArtifactEvidence(
@@ -566,6 +618,68 @@ def test_controller_safety_case_readiness_rejects_local_hil_replay_artifact(tmp_
         )
 
 
+def test_controller_safety_case_readiness_rejects_local_hdl_export_artifact(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = list(_readiness_artifacts(tmp_path, controller_sha256))
+    hdl_uri = artifacts[3].artifact_uri
+    hdl_digest = _write_readiness_file(
+        tmp_path,
+        hdl_uri,
+        _hdl_export_payload(tmp_path, controller_sha256, facility_claim_allowed=False),
+    )
+    artifacts[3] = ReadinessArtifactEvidence(
+        kind="hdl_export_evidence",
+        artifact_sha256=hdl_digest,
+        artifact_uri=hdl_uri,
+        producer="target-hardware-hdl-export",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+
+    with pytest.raises(ValueError, match="HDL export artifact is not admissible"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            tuple(artifacts),
+            artifact_root=tmp_path,
+        )
+
+
+def test_controller_safety_case_readiness_rejects_hdl_export_controller_mismatch(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = list(_readiness_artifacts(tmp_path, controller_sha256))
+    hdl_uri = artifacts[3].artifact_uri
+    hdl_digest = _write_readiness_file(
+        tmp_path,
+        hdl_uri,
+        _hdl_export_payload(tmp_path, "b" * 64),
+    )
+    artifacts[3] = ReadinessArtifactEvidence(
+        kind="hdl_export_evidence",
+        artifact_sha256=hdl_digest,
+        artifact_uri=hdl_uri,
+        producer="target-hardware-hdl-export",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+
+    with pytest.raises(ValueError, match="not bound"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            tuple(artifacts),
+            artifact_root=tmp_path,
+        )
+
+
 def test_controller_safety_case_readiness_rejects_local_codac_runtime_artifact(tmp_path: Path):
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -574,14 +688,14 @@ def test_controller_safety_case_readiness_rejects_local_codac_runtime_artifact(t
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    artifacts = list(_readiness_artifacts(tmp_path))
-    codac_uri = artifacts[3].artifact_uri
+    artifacts = list(_readiness_artifacts(tmp_path, controller_sha256))
+    codac_uri = artifacts[4].artifact_uri
     codac_digest = _write_readiness_file(
         tmp_path,
         codac_uri,
         _codac_runtime_payload(facility_claim_allowed=False),
     )
-    artifacts[3] = ReadinessArtifactEvidence(
+    artifacts[4] = ReadinessArtifactEvidence(
         kind="codac_runtime_evidence",
         artifact_sha256=codac_digest,
         artifact_uri=codac_uri,
@@ -605,7 +719,7 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    valid_artifacts = _readiness_artifacts(tmp_path)
+    valid_artifacts = _readiness_artifacts(tmp_path, controller_sha256)
 
     with pytest.raises(ValueError, match="kind"):
         evaluate_controller_safety_case_readiness_from_artifacts(
@@ -681,7 +795,7 @@ def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_cont
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    valid_artifacts = _readiness_artifacts(tmp_path)
+    valid_artifacts = _readiness_artifacts(tmp_path, controller_sha256)
 
     with pytest.raises(ValueError, match="non-empty tuple"):
         evaluate_controller_safety_case_readiness_from_artifacts(evidence, (), artifact_root=tmp_path)
@@ -702,7 +816,14 @@ def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_cont
     with pytest.raises(ValueError, match="SHA-256"):
         evaluate_controller_safety_case_readiness_from_artifacts(
             evidence,
-            (invalid_digest, valid_artifacts[1], valid_artifacts[2], valid_artifacts[3], valid_artifacts[4]),
+            (
+                invalid_digest,
+                valid_artifacts[1],
+                valid_artifacts[2],
+                valid_artifacts[3],
+                valid_artifacts[4],
+                valid_artifacts[5],
+            ),
             artifact_root=tmp_path,
         )
 
@@ -716,7 +837,14 @@ def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_cont
     with pytest.raises(ValueError, match="producer"):
         evaluate_controller_safety_case_readiness_from_artifacts(
             evidence,
-            (empty_producer, valid_artifacts[1], valid_artifacts[2], valid_artifacts[3], valid_artifacts[4]),
+            (
+                empty_producer,
+                valid_artifacts[1],
+                valid_artifacts[2],
+                valid_artifacts[3],
+                valid_artifacts[4],
+                valid_artifacts[5],
+            ),
             artifact_root=tmp_path,
         )
 
@@ -730,7 +858,14 @@ def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_cont
     with pytest.raises(ValueError, match="generated_utc"):
         evaluate_controller_safety_case_readiness_from_artifacts(
             evidence,
-            (empty_generated, valid_artifacts[1], valid_artifacts[2], valid_artifacts[3], valid_artifacts[4]),
+            (
+                empty_generated,
+                valid_artifacts[1],
+                valid_artifacts[2],
+                valid_artifacts[3],
+                valid_artifacts[4],
+                valid_artifacts[5],
+            ),
             artifact_root=tmp_path,
         )
 
@@ -743,7 +878,7 @@ def test_controller_safety_case_readiness_artifacts_reject_missing_files(tmp_pat
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    artifacts = list(_readiness_artifacts(tmp_path))
+    artifacts = list(_readiness_artifacts(tmp_path, controller_sha256))
     artifacts[0] = ReadinessArtifactEvidence(
         kind="external_physics_validation",
         artifact_sha256="1" * 64,
@@ -764,7 +899,7 @@ def test_controller_safety_case_readiness_artifacts_reject_duplicate_kind(tmp_pa
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    artifacts = _readiness_artifacts(tmp_path)
+    artifacts = _readiness_artifacts(tmp_path, controller_sha256)
 
     with pytest.raises(ValueError, match="duplicate"):
         evaluate_controller_safety_case_readiness_from_artifacts(
@@ -787,6 +922,7 @@ def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
         hil_replay_evidence_sha256="4" * 64,
+        hdl_export_evidence_sha256="6" * 64,
         codac_runtime_evidence_sha256="5" * 64,
         independent_safety_review_sha256="3" * 64,
     )
@@ -812,6 +948,7 @@ def test_controller_safety_case_readiness_manifest_rejects_tampering(tmp_path):
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
         hil_replay_evidence_sha256="4" * 64,
+        hdl_export_evidence_sha256="6" * 64,
         codac_runtime_evidence_sha256="5" * 64,
         independent_safety_review_sha256="3" * 64,
     )
@@ -863,6 +1000,7 @@ def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
         hil_replay_evidence_sha256="4" * 64,
+        hdl_export_evidence_sha256="6" * 64,
         codac_runtime_evidence_sha256="5" * 64,
         independent_safety_review_sha256="3" * 64,
     )
@@ -881,6 +1019,7 @@ def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
             external_physics_validation_sha256="not-a-digest",
             target_hardware_timing_sha256="2" * 64,
             hil_replay_evidence_sha256="4" * 64,
+            hdl_export_evidence_sha256="6" * 64,
             codac_runtime_evidence_sha256="5" * 64,
             independent_safety_review_sha256="3" * 64,
         )
@@ -899,6 +1038,7 @@ def test_controller_safety_case_readiness_admission_rejects_type_and_state_drift
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
         hil_replay_evidence_sha256="4" * 64,
+        hdl_export_evidence_sha256="6" * 64,
         codac_runtime_evidence_sha256="5" * 64,
         independent_safety_review_sha256="3" * 64,
     )

@@ -15,18 +15,27 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+from dataclasses import asdict
 
 import pytest
 
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.fpga_export import (
     FPGAConfig,
+    HDL_EXPORT_EVIDENCE_LOCAL_ONLY,
+    HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED,
     _leak_shift,
+    assert_hdl_export_claim_admissible,
     compile_to_verilog,
     compile_to_vhdl,
     estimate_resources,
     export_bitstream_project,
+    hdl_export_evidence,
+    load_hdl_export_evidence,
+    save_hdl_export_evidence,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
 
@@ -265,3 +274,145 @@ class TestWeightsMemZeroPad:
                 idx = i * n + j
                 if j >= cnet.n_places:
                     assert lines[idx].strip() == "0" * hw
+
+
+class TestHDLExportEvidence:
+    def test_local_evidence_binds_generated_project_files(self, tmp_path):
+        cnet = _compile_small_net()
+        cfg = FPGAConfig(target="xilinx", clock_mhz=125.0)
+        out = tmp_path / "fpga_project"
+        export_bitstream_project(cnet, cfg, out)
+
+        evidence = hdl_export_evidence(
+            cnet,
+            cfg,
+            out,
+            controller_artifact_sha256="a" * 64,
+            target_part="xc7a35tcpg236-1",
+            generated_utc="2026-05-31T00:00:00Z",
+        )
+
+        assert evidence.claim_status == HDL_EXPORT_EVIDENCE_LOCAL_ONLY
+        assert evidence.hdl_format == "verilog"
+        assert evidence.hdl_sha256 == hashlib.sha256((out / "top.v").read_bytes()).hexdigest()
+        assert evidence.weights_mem_sha256 == hashlib.sha256((out / "weights.mem").read_bytes()).hexdigest()
+        assert evidence.constraints_sha256 == hashlib.sha256((out / "constraints.xdc").read_bytes()).hexdigest()
+        assert evidence.makefile_sha256 == hashlib.sha256((out / "Makefile").read_bytes()).hexdigest()
+        assert evidence.estimated_lut_count > 0
+        assert len(evidence.payload_sha256) == 64
+        with pytest.raises(ValueError, match="local-only"):
+            assert_hdl_export_claim_admissible(evidence)
+
+    def test_qualified_evidence_round_trips_with_synthesis_report_binding(self, tmp_path):
+        cnet = _compile_small_net()
+        cfg = FPGAConfig(target="xilinx", clock_mhz=100.0)
+        out = tmp_path / "fpga_project"
+        export_bitstream_project(cnet, cfg, out)
+        report = tmp_path / "validation" / "reports" / "hardware" / "fpga_synth.rpt"
+        report.parent.mkdir(parents=True)
+        report.write_text("timing met\nslack 1.250 ns\n", encoding="utf-8")
+        report_digest = hashlib.sha256(report.read_bytes()).hexdigest()
+
+        evidence = hdl_export_evidence(
+            cnet,
+            cfg,
+            out,
+            controller_artifact_sha256="a" * 64,
+            target_part="xc7a35tcpg236-1",
+            synthesis_toolchain="vivado",
+            synthesis_report_sha256=report_digest,
+            synthesis_report_uri="validation/reports/hardware/fpga_synth.rpt",
+            timing_slack_ns=1.25,
+            generated_utc="2026-05-31T00:00:00Z",
+            facility_claim_allowed=True,
+        )
+        assert evidence.claim_status == HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED
+        assert_hdl_export_claim_admissible(evidence, artifact_root=tmp_path)
+
+        path = tmp_path / "validation" / "reports" / "hardware" / "hdl_export.json"
+        save_hdl_export_evidence(evidence, path)
+        loaded = load_hdl_export_evidence(path, require_facility_claim=True, artifact_root=tmp_path)
+        assert loaded == evidence
+
+    def test_qualified_evidence_rejects_unsafe_or_missing_synthesis_boundary(self, tmp_path):
+        cnet = _compile_small_net()
+        cfg = FPGAConfig(target="xilinx")
+        out = tmp_path / "fpga_project"
+        export_bitstream_project(cnet, cfg, out)
+
+        with pytest.raises(ValueError, match="requires synthesis"):
+            hdl_export_evidence(
+                cnet,
+                cfg,
+                out,
+                controller_artifact_sha256="a" * 64,
+                target_part="xc7a35tcpg236-1",
+                timing_slack_ns=1.0,
+                facility_claim_allowed=True,
+            )
+        with pytest.raises(ValueError, match="safe relative path"):
+            hdl_export_evidence(
+                cnet,
+                cfg,
+                out,
+                controller_artifact_sha256="a" * 64,
+                target_part="xc7a35tcpg236-1",
+                synthesis_toolchain="vivado",
+                synthesis_report_sha256="b" * 64,
+                synthesis_report_uri="../fpga_synth.rpt",
+                timing_slack_ns=1.0,
+                facility_claim_allowed=True,
+            )
+
+    def test_evidence_loader_rejects_tampering_and_duplicate_keys(self, tmp_path):
+        cnet = _compile_small_net()
+        cfg = FPGAConfig(target="intel")
+        out = tmp_path / "fpga_project"
+        export_bitstream_project(cnet, cfg, out)
+        evidence = hdl_export_evidence(
+            cnet,
+            cfg,
+            out,
+            controller_artifact_sha256="a" * 64,
+            target_part="10CL025YU256C8G",
+            generated_utc="2026-05-31T00:00:00Z",
+        )
+        path = tmp_path / "hdl_export.json"
+        save_hdl_export_evidence(evidence, path)
+        payload = asdict(evidence)
+        payload["target_part"] = "tampered"
+        path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        with pytest.raises(ValueError, match="payload_sha256"):
+            load_hdl_export_evidence(path)
+
+        inconsistent = asdict(evidence)
+        inconsistent["estimated_lut_count"] = int(inconsistent["estimated_lut_count"]) + 1
+        unsigned = dict(inconsistent)
+        unsigned["payload_sha256"] = ""
+        inconsistent["payload_sha256"] = hashlib.sha256(
+            json.dumps(unsigned, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        path.write_text(json.dumps(inconsistent, sort_keys=True), encoding="utf-8")
+        with pytest.raises(ValueError, match="resource_estimate_sha256"):
+            load_hdl_export_evidence(path)
+
+        dup = tmp_path / "dup_hdl_export.json"
+        dup.write_text('{"schema_version":"x","schema_version":"y"}', encoding="utf-8")
+        with pytest.raises(ValueError, match="duplicate JSON key"):
+            load_hdl_export_evidence(dup)
+
+    def test_missing_project_file_rejects_evidence_creation(self, tmp_path):
+        cnet = _compile_small_net()
+        cfg = FPGAConfig(target="xilinx")
+        out = tmp_path / "fpga_project"
+        export_bitstream_project(cnet, cfg, out)
+        (out / "weights.mem").unlink()
+
+        with pytest.raises(ValueError, match="project file is missing"):
+            hdl_export_evidence(
+                cnet,
+                cfg,
+                out,
+                controller_artifact_sha256="a" * 64,
+                target_part="xc7a35tcpg236-1",
+            )

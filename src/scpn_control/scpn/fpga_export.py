@@ -22,15 +22,24 @@ initialisation, timing constraints, and a Makefile for Vivado or Quartus.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import textwrap
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+from pathlib import PurePosixPath
+from typing import Any, Mapping
 
 from .compiler import CompiledNet
 
 VALID_TARGETS = ("xilinx", "intel", "lattice")
 VALID_BIT_WIDTHS = (8, 16, 32)
+HDL_EXPORT_EVIDENCE_SCHEMA_VERSION = "scpn-control.hdl-export-evidence.v1"
+HDL_EXPORT_EVIDENCE_LOCAL_ONLY = "generated_hdl_export_evidence_only"
+HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED = "qualified_hdl_synthesis_evidence"
+QUALIFIED_SYNTHESIS_TOOLCHAINS = ("vivado", "quartus", "radiant", "yosys-nextpnr")
 
 # Fixed-point fractional bits per data width.  Wesson Ch.14 style:
 # reserve 1 sign bit, rest is fraction.
@@ -58,6 +67,303 @@ class FPGAConfig:
             raise ValueError(f"n_neurons_max must be >= 1, got {self.n_neurons_max}")
         if self.fifo_depth < 1:
             raise ValueError(f"fifo_depth must be >= 1, got {self.fifo_depth}")
+
+
+@dataclass(frozen=True)
+class HDLExportEvidence:
+    """Tamper-evident FPGA HDL export and synthesis-admission evidence."""
+
+    schema_version: str
+    generated_utc: str
+    controller_artifact_sha256: str
+    target: str
+    target_part: str
+    clock_mhz: float
+    lif_bit_width: int
+    n_neurons: int
+    n_places: int
+    bitstream_length: int
+    hdl_format: str
+    hdl_sha256: str
+    weights_mem_sha256: str
+    constraints_sha256: str
+    makefile_sha256: str
+    project_sha256: str
+    resource_estimate_sha256: str
+    estimated_lut_count: int
+    estimated_ff_count: int
+    estimated_bram_blocks: int
+    weight_rom_depth: int
+    estimated_fmax_mhz: float
+    synthesis_toolchain: str | None
+    synthesis_report_sha256: str | None
+    synthesis_report_uri: str | None
+    timing_slack_ns: float | None
+    facility_claim_allowed: bool
+    claim_status: str
+    payload_sha256: str
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _canonical_json(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
+
+
+def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    unsigned = dict(payload)
+    unsigned["payload_sha256"] = ""
+    return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
+
+
+def _is_sha256(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    seen: set[str] = set()
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in seen:
+            raise ValueError(f"duplicate JSON key in HDL export evidence: {key}")
+        seen.add(key)
+        out[key] = value
+    return out
+
+
+def _safe_relative_uri(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{name} must be a non-empty safe relative path")
+    if "\\" in value or "://" in value or "//" in value or value.startswith(("file:", "/", "~")):
+        raise ValueError(f"{name} must be a safe relative path")
+    rel = PurePosixPath(value)
+    if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
+        raise ValueError(f"{name} must be a safe relative path")
+    return value
+
+
+def _require_finite_nonnegative(name: str, value: object) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a finite non-negative number")
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a finite non-negative number") from exc
+    if not math.isfinite(result) or result < 0.0:
+        raise ValueError(f"{name} must be a finite non-negative number")
+    return result
+
+
+def _project_file_paths(project_dir: Path, config: FPGAConfig) -> dict[str, Path]:
+    hdl_name = "top.vhd" if config.target == "lattice" else "top.v"
+    constraints_name = "constraints.xdc" if config.target == "xilinx" else "constraints.sdc"
+    return {
+        "hdl": project_dir / hdl_name,
+        "weights_mem": project_dir / "weights.mem",
+        "constraints": project_dir / constraints_name,
+        "makefile": project_dir / "Makefile",
+    }
+
+
+def _file_sha256(path: Path) -> str:
+    if not path.is_file():
+        raise ValueError(f"HDL export project file is missing: {path.name}")
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _resource_digest(resources: Mapping[str, Any]) -> str:
+    return hashlib.sha256(_canonical_json(dict(resources)).encode("utf-8")).hexdigest()
+
+
+def _resolve_synthesis_report(
+    synthesis_report_uri: str,
+    synthesis_report_sha256: str,
+    artifact_root: str | Path,
+) -> None:
+    rel = _safe_relative_uri("synthesis_report_uri", synthesis_report_uri)
+    root = Path(artifact_root).resolve()
+    candidate = (root / rel).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("synthesis_report_uri escapes artifact_root") from exc
+    if not candidate.is_file():
+        raise ValueError("synthesis_report_uri does not resolve to a file")
+    observed = hashlib.sha256(candidate.read_bytes()).hexdigest()
+    if observed != synthesis_report_sha256:
+        raise ValueError("synthesis_report_sha256 does not match synthesis report bytes")
+
+
+def _validate_hdl_export_payload(
+    payload: Mapping[str, Any],
+    *,
+    require_facility_claim: bool,
+    artifact_root: str | Path | None = None,
+) -> HDLExportEvidence:
+    if payload.get("schema_version") != HDL_EXPORT_EVIDENCE_SCHEMA_VERSION:
+        raise ValueError("HDL export evidence schema_version is unsupported")
+    declared_digest = payload.get("payload_sha256")
+    if not _is_sha256(declared_digest):
+        raise ValueError("HDL export evidence payload_sha256 must be a SHA-256 hex digest")
+    if declared_digest != _payload_sha256(payload):
+        raise ValueError("HDL export evidence payload_sha256 does not match payload")
+    generated_utc = payload.get("generated_utc")
+    if not isinstance(generated_utc, str) or not generated_utc.endswith("Z"):
+        raise ValueError("HDL export evidence generated_utc must be a UTC timestamp ending in Z")
+    controller_artifact_sha256 = payload.get("controller_artifact_sha256")
+    if not _is_sha256(controller_artifact_sha256):
+        raise ValueError("controller_artifact_sha256 must be a SHA-256 hex digest")
+    target = payload.get("target")
+    if target not in VALID_TARGETS:
+        raise ValueError("HDL export evidence target is unsupported")
+    target_part = payload.get("target_part")
+    if not isinstance(target_part, str) or not target_part.strip():
+        raise ValueError("target_part must be a non-empty string")
+    clock_mhz = _require_finite_nonnegative("clock_mhz", payload.get("clock_mhz"))
+    if clock_mhz <= 0.0:
+        raise ValueError("clock_mhz must be positive")
+    lif_bit_width = payload.get("lif_bit_width")
+    if isinstance(lif_bit_width, bool) or lif_bit_width not in VALID_BIT_WIDTHS:
+        raise ValueError("lif_bit_width must be a supported FPGA bit width")
+    n_neurons = payload.get("n_neurons")
+    n_places = payload.get("n_places")
+    bitstream_length = payload.get("bitstream_length")
+    for name, value in (
+        ("n_neurons", n_neurons),
+        ("n_places", n_places),
+        ("bitstream_length", bitstream_length),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f"{name} must be a positive integer")
+    hdl_format = payload.get("hdl_format")
+    if hdl_format not in {"verilog", "vhdl"}:
+        raise ValueError("hdl_format must be verilog or vhdl")
+    for name in (
+        "hdl_sha256",
+        "weights_mem_sha256",
+        "constraints_sha256",
+        "makefile_sha256",
+        "project_sha256",
+        "resource_estimate_sha256",
+    ):
+        if not _is_sha256(payload.get(name)):
+            raise ValueError(f"{name} must be a SHA-256 hex digest")
+    estimated_lut_count = payload.get("estimated_lut_count")
+    estimated_ff_count = payload.get("estimated_ff_count")
+    estimated_bram_blocks = payload.get("estimated_bram_blocks")
+    weight_rom_depth = payload.get("weight_rom_depth")
+    for name, value in (
+        ("estimated_lut_count", estimated_lut_count),
+        ("estimated_ff_count", estimated_ff_count),
+        ("estimated_bram_blocks", estimated_bram_blocks),
+        ("weight_rom_depth", weight_rom_depth),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f"{name} must be a positive integer")
+    estimated_fmax_mhz = _require_finite_nonnegative("estimated_fmax_mhz", payload.get("estimated_fmax_mhz"))
+    if estimated_fmax_mhz <= 0.0:
+        raise ValueError("estimated_fmax_mhz must be positive")
+    expected_project_digest = hashlib.sha256(
+        _canonical_json(
+            {
+                "target": target,
+                "clock_mhz": clock_mhz,
+                "lif_bit_width": int(lif_bit_width),
+                "files": {
+                    "constraints": payload["constraints_sha256"],
+                    "hdl": payload["hdl_sha256"],
+                    "makefile": payload["makefile_sha256"],
+                    "weights_mem": payload["weights_mem_sha256"],
+                },
+            }
+        ).encode("utf-8")
+    ).hexdigest()
+    if payload["project_sha256"] != expected_project_digest:
+        raise ValueError("project_sha256 does not match HDL export file digest bundle")
+    expected_resource_digest = _resource_digest(
+        {
+            "bit_width": int(lif_bit_width),
+            "bram_blocks": int(estimated_bram_blocks),
+            "estimated_fmax_mhz": estimated_fmax_mhz,
+            "ff_count": int(estimated_ff_count),
+            "lut_count": int(estimated_lut_count),
+            "n_neurons": int(n_neurons),
+            "weight_rom_depth": int(weight_rom_depth),
+        }
+    )
+    if payload["resource_estimate_sha256"] != expected_resource_digest:
+        raise ValueError("resource_estimate_sha256 does not match HDL resource evidence")
+
+    synthesis_toolchain = payload.get("synthesis_toolchain")
+    synthesis_report_sha256 = payload.get("synthesis_report_sha256")
+    synthesis_report_uri = payload.get("synthesis_report_uri")
+    timing_slack_ns_raw = payload.get("timing_slack_ns")
+    if synthesis_toolchain is not None and synthesis_toolchain not in QUALIFIED_SYNTHESIS_TOOLCHAINS:
+        raise ValueError("synthesis_toolchain is unsupported")
+    if synthesis_report_sha256 is not None and not _is_sha256(synthesis_report_sha256):
+        raise ValueError("synthesis_report_sha256 must be null or a SHA-256 hex digest")
+    if synthesis_report_uri is not None:
+        if not isinstance(synthesis_report_uri, str):
+            raise ValueError("synthesis_report_uri must be null or a safe relative path")
+        _safe_relative_uri("synthesis_report_uri", synthesis_report_uri)
+    timing_slack_ns = None
+    if timing_slack_ns_raw is not None:
+        timing_slack_ns = _require_finite_nonnegative("timing_slack_ns", timing_slack_ns_raw)
+
+    facility_claim_allowed = payload.get("facility_claim_allowed")
+    claim_status = payload.get("claim_status")
+    if not isinstance(facility_claim_allowed, bool):
+        raise ValueError("facility_claim_allowed must be boolean")
+    expected_status = (
+        HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED
+        if facility_claim_allowed
+        else HDL_EXPORT_EVIDENCE_LOCAL_ONLY
+    )
+    if claim_status != expected_status:
+        raise ValueError("HDL export evidence claim_status does not match facility_claim_allowed")
+    if require_facility_claim:
+        if not facility_claim_allowed:
+            raise ValueError("HDL export evidence is local-only and cannot support a facility claim")
+        if synthesis_toolchain is None or synthesis_report_sha256 is None or synthesis_report_uri is None:
+            raise ValueError("qualified HDL evidence requires synthesis toolchain, report URI, and report digest")
+        if timing_slack_ns is None:
+            raise ValueError("qualified HDL evidence requires non-negative timing slack")
+        if artifact_root is not None:
+            _resolve_synthesis_report(synthesis_report_uri, synthesis_report_sha256, artifact_root)
+
+    return HDLExportEvidence(
+        schema_version=str(payload["schema_version"]),
+        generated_utc=generated_utc,
+        controller_artifact_sha256=str(controller_artifact_sha256),
+        target=str(target),
+        target_part=str(target_part),
+        clock_mhz=clock_mhz,
+        lif_bit_width=int(lif_bit_width),
+        n_neurons=int(n_neurons),
+        n_places=int(n_places),
+        bitstream_length=int(bitstream_length),
+        hdl_format=str(hdl_format),
+        hdl_sha256=str(payload["hdl_sha256"]),
+        weights_mem_sha256=str(payload["weights_mem_sha256"]),
+        constraints_sha256=str(payload["constraints_sha256"]),
+        makefile_sha256=str(payload["makefile_sha256"]),
+        project_sha256=str(payload["project_sha256"]),
+        resource_estimate_sha256=str(payload["resource_estimate_sha256"]),
+        estimated_lut_count=int(estimated_lut_count),
+        estimated_ff_count=int(estimated_ff_count),
+        estimated_bram_blocks=int(estimated_bram_blocks),
+        weight_rom_depth=int(weight_rom_depth),
+        estimated_fmax_mhz=estimated_fmax_mhz,
+        synthesis_toolchain=None if synthesis_toolchain is None else str(synthesis_toolchain),
+        synthesis_report_sha256=None if synthesis_report_sha256 is None else str(synthesis_report_sha256),
+        synthesis_report_uri=None if synthesis_report_uri is None else str(synthesis_report_uri),
+        timing_slack_ns=timing_slack_ns,
+        facility_claim_allowed=facility_claim_allowed,
+        claim_status=str(claim_status),
+        payload_sha256=str(declared_digest),
+    )
 
 
 def _quantize_weight(value: float, bit_width: int) -> int:
@@ -605,3 +911,120 @@ def export_bitstream_project(
     else:
         _write_constraints_sdc(config, output_dir / "constraints.sdc")
         _write_makefile_quartus(output_dir / "Makefile")
+
+
+def hdl_export_evidence(
+    compiled_net: CompiledNet,
+    config: FPGAConfig,
+    project_dir: str | Path,
+    *,
+    controller_artifact_sha256: str,
+    target_part: str,
+    generated_utc: str | None = None,
+    synthesis_toolchain: str | None = None,
+    synthesis_report_sha256: str | None = None,
+    synthesis_report_uri: str | None = None,
+    timing_slack_ns: float | None = None,
+    facility_claim_allowed: bool = False,
+) -> HDLExportEvidence:
+    """Build tamper-evident FPGA HDL export evidence for a generated project."""
+
+    if not _is_sha256(controller_artifact_sha256):
+        raise ValueError("controller_artifact_sha256 must be a SHA-256 hex digest")
+    if not isinstance(target_part, str) or not target_part.strip():
+        raise ValueError("target_part must be a non-empty string")
+    project_path = Path(project_dir)
+    files = _project_file_paths(project_path, config)
+    digests = {name: _file_sha256(path) for name, path in files.items()}
+    resources = estimate_resources(compiled_net, config)
+    hdl_format = "vhdl" if config.target == "lattice" else "verilog"
+    project_digest_payload = {
+        "target": config.target,
+        "clock_mhz": float(config.clock_mhz),
+        "lif_bit_width": int(config.lif_bit_width),
+        "files": {
+            "constraints": digests["constraints"],
+            "hdl": digests["hdl"],
+            "makefile": digests["makefile"],
+            "weights_mem": digests["weights_mem"],
+        },
+    }
+    payload: dict[str, Any] = {
+        "schema_version": HDL_EXPORT_EVIDENCE_SCHEMA_VERSION,
+        "generated_utc": generated_utc or _utc_now(),
+        "controller_artifact_sha256": controller_artifact_sha256.lower(),
+        "target": config.target,
+        "target_part": target_part.strip(),
+        "clock_mhz": float(config.clock_mhz),
+        "lif_bit_width": int(config.lif_bit_width),
+        "n_neurons": int(compiled_net.n_transitions),
+        "n_places": int(compiled_net.n_places),
+        "bitstream_length": int(compiled_net.bitstream_length),
+        "hdl_format": hdl_format,
+        "hdl_sha256": digests["hdl"],
+        "weights_mem_sha256": digests["weights_mem"],
+        "constraints_sha256": digests["constraints"],
+        "makefile_sha256": digests["makefile"],
+        "project_sha256": hashlib.sha256(_canonical_json(project_digest_payload).encode("utf-8")).hexdigest(),
+        "resource_estimate_sha256": _resource_digest(resources),
+        "estimated_lut_count": int(resources["lut_count"]),
+        "estimated_ff_count": int(resources["ff_count"]),
+        "estimated_bram_blocks": int(resources["bram_blocks"]),
+        "weight_rom_depth": int(resources["weight_rom_depth"]),
+        "estimated_fmax_mhz": float(resources["estimated_fmax_mhz"]),
+        "synthesis_toolchain": synthesis_toolchain,
+        "synthesis_report_sha256": synthesis_report_sha256,
+        "synthesis_report_uri": synthesis_report_uri,
+        "timing_slack_ns": timing_slack_ns,
+        "facility_claim_allowed": bool(facility_claim_allowed),
+        "claim_status": (
+            HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED
+            if facility_claim_allowed
+            else HDL_EXPORT_EVIDENCE_LOCAL_ONLY
+        ),
+        "payload_sha256": "",
+    }
+    payload["payload_sha256"] = _payload_sha256(payload)
+    return _validate_hdl_export_payload(payload, require_facility_claim=bool(facility_claim_allowed))
+
+
+def assert_hdl_export_claim_admissible(
+    evidence: HDLExportEvidence,
+    *,
+    artifact_root: str | Path | None = None,
+) -> HDLExportEvidence:
+    """Fail closed unless HDL export evidence supports a facility hardware claim."""
+
+    return _validate_hdl_export_payload(
+        asdict(evidence),
+        require_facility_claim=True,
+        artifact_root=artifact_root,
+    )
+
+
+def save_hdl_export_evidence(evidence: HDLExportEvidence, output_path: str | Path) -> None:
+    """Persist HDL export evidence as sorted JSON."""
+
+    if not isinstance(evidence, HDLExportEvidence):
+        raise ValueError("evidence must be HDLExportEvidence")
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def load_hdl_export_evidence(
+    path: str | Path,
+    *,
+    require_facility_claim: bool = False,
+    artifact_root: str | Path | None = None,
+) -> HDLExportEvidence:
+    """Load HDL export evidence with duplicate-key and digest admission."""
+
+    payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
+    if not isinstance(payload, dict):
+        raise ValueError("HDL export evidence must be a JSON object")
+    return _validate_hdl_export_payload(
+        payload,
+        require_facility_claim=require_facility_claim,
+        artifact_root=artifact_root,
+    )

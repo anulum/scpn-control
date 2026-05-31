@@ -32,16 +32,18 @@ from scpn_control.scpn.artifact import (
     compute_artifact_payload_sha256,
     validate_safety_critical_artifact,
 )
+from scpn_control.scpn.fpga_export import load_hdl_export_evidence
 
 _SAFETY_CASE_MANIFEST_SCHEMA_VERSION = 1
 _READINESS_ARTIFACT_KINDS = (
     "external_physics_validation",
     "target_hardware_timing",
     "hil_replay_evidence",
+    "hdl_export_evidence",
     "codac_runtime_evidence",
     "independent_safety_review",
 )
-_READINESS_SCHEMA_VERSION = 2
+_READINESS_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,7 @@ class SafetyCaseReadinessEvidence:
     external_physics_validation_sha256: str | None
     target_hardware_timing_sha256: str | None
     hil_replay_evidence_sha256: str | None
+    hdl_export_evidence_sha256: str | None
     codac_runtime_evidence_sha256: str | None
     independent_safety_review_sha256: str | None
     blocking_reasons: tuple[str, ...]
@@ -196,6 +199,21 @@ def _validate_codac_runtime_artifact(
         raise ValueError(f"CODAC runtime artifact is not admissible: {exc}") from exc
 
 
+def _validate_hdl_export_artifact(
+    artifact: ReadinessArtifactEvidence,
+    artifact_root: str | Path,
+    *,
+    controller_artifact_sha256: str,
+) -> None:
+    report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
+    try:
+        evidence = load_hdl_export_evidence(report_path, require_facility_claim=True, artifact_root=artifact_root)
+    except ValueError as exc:
+        raise ValueError(f"HDL export artifact is not admissible: {exc}") from exc
+    if evidence.controller_artifact_sha256 != controller_artifact_sha256:
+        raise ValueError("HDL export artifact is not bound to the safety-case controller artifact")
+
+
 def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> ControllerSafetyCaseEvidence:
     try:
         evidence = ControllerSafetyCaseEvidence(
@@ -255,6 +273,11 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
                 if payload.get("hil_replay_evidence_sha256") is None
                 else str(payload["hil_replay_evidence_sha256"])
             ),
+            hdl_export_evidence_sha256=(
+                None
+                if payload["hdl_export_evidence_sha256"] is None
+                else str(payload["hdl_export_evidence_sha256"])
+            ),
             codac_runtime_evidence_sha256=(
                 None
                 if payload["codac_runtime_evidence_sha256"] is None
@@ -277,6 +300,7 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
     _optional_sha256("external_physics_validation_sha256", readiness.external_physics_validation_sha256)
     _optional_sha256("target_hardware_timing_sha256", readiness.target_hardware_timing_sha256)
     _optional_sha256("hil_replay_evidence_sha256", readiness.hil_replay_evidence_sha256)
+    _optional_sha256("hdl_export_evidence_sha256", readiness.hdl_export_evidence_sha256)
     _optional_sha256("codac_runtime_evidence_sha256", readiness.codac_runtime_evidence_sha256)
     _optional_sha256("independent_safety_review_sha256", readiness.independent_safety_review_sha256)
     if readiness.status not in {"blocked", "promotion_ready"}:
@@ -285,6 +309,7 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
         "external_physics_validation_sha256": readiness.external_physics_validation_sha256,
         "target_hardware_timing_sha256": readiness.target_hardware_timing_sha256,
         "hil_replay_evidence_sha256": readiness.hil_replay_evidence_sha256,
+        "hdl_export_evidence_sha256": readiness.hdl_export_evidence_sha256,
         "codac_runtime_evidence_sha256": readiness.codac_runtime_evidence_sha256,
         "independent_safety_review_sha256": readiness.independent_safety_review_sha256,
     }
@@ -306,6 +331,7 @@ def evaluate_controller_safety_case_readiness(
     external_physics_validation_sha256: str | None = None,
     target_hardware_timing_sha256: str | None = None,
     hil_replay_evidence_sha256: str | None = None,
+    hdl_export_evidence_sha256: str | None = None,
     codac_runtime_evidence_sha256: str | None = None,
     independent_safety_review_sha256: str | None = None,
 ) -> SafetyCaseReadinessEvidence:
@@ -313,14 +339,15 @@ def evaluate_controller_safety_case_readiness(
 
     The linked internal evidence chain is necessary but not sufficient for
     promotion readiness. This gate requires external physics validation,
-    target-hardware timing evidence, HIL replay evidence, CODAC/EPICS runtime
-    evidence, and an independent safety review digest.
+    target-hardware timing evidence, HIL replay evidence, HDL export evidence,
+    CODAC/EPICS runtime evidence, and an independent safety review digest.
     """
     if not isinstance(safety_case, ControllerSafetyCaseEvidence):
         raise ValueError("safety_case must be ControllerSafetyCaseEvidence")
     external_digest = _optional_sha256("external_physics_validation_sha256", external_physics_validation_sha256)
     hardware_digest = _optional_sha256("target_hardware_timing_sha256", target_hardware_timing_sha256)
     hil_digest = _optional_sha256("hil_replay_evidence_sha256", hil_replay_evidence_sha256)
+    hdl_digest = _optional_sha256("hdl_export_evidence_sha256", hdl_export_evidence_sha256)
     codac_digest = _optional_sha256("codac_runtime_evidence_sha256", codac_runtime_evidence_sha256)
     review_digest = _optional_sha256("independent_safety_review_sha256", independent_safety_review_sha256)
     blocking: list[str] = []
@@ -330,6 +357,8 @@ def evaluate_controller_safety_case_readiness(
         blocking.append("target_hardware_timing_sha256")
     if hil_digest is None:
         blocking.append("hil_replay_evidence_sha256")
+    if hdl_digest is None:
+        blocking.append("hdl_export_evidence_sha256")
     if codac_digest is None:
         blocking.append("codac_runtime_evidence_sha256")
     if review_digest is None:
@@ -342,6 +371,7 @@ def evaluate_controller_safety_case_readiness(
         external_physics_validation_sha256=external_digest,
         target_hardware_timing_sha256=hardware_digest,
         hil_replay_evidence_sha256=hil_digest,
+        hdl_export_evidence_sha256=hdl_digest,
         codac_runtime_evidence_sha256=codac_digest,
         independent_safety_review_sha256=review_digest,
         blocking_reasons=tuple(blocking),
@@ -380,6 +410,12 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
             )
         elif kind == "hil_replay_evidence":
             _validate_hil_replay_artifact(artifact, artifact_root)
+        elif kind == "hdl_export_evidence":
+            _validate_hdl_export_artifact(
+                artifact,
+                artifact_root,
+                controller_artifact_sha256=safety_case.controller_artifact_sha256,
+            )
         elif kind == "codac_runtime_evidence":
             _validate_codac_runtime_artifact(artifact, artifact_root)
         else:
@@ -389,6 +425,7 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
         external_physics_validation_sha256=by_kind["external_physics_validation"].artifact_sha256,
         target_hardware_timing_sha256=by_kind["target_hardware_timing"].artifact_sha256,
         hil_replay_evidence_sha256=by_kind["hil_replay_evidence"].artifact_sha256,
+        hdl_export_evidence_sha256=by_kind["hdl_export_evidence"].artifact_sha256,
         codac_runtime_evidence_sha256=by_kind["codac_runtime_evidence"].artifact_sha256,
         independent_safety_review_sha256=by_kind["independent_safety_review"].artifact_sha256,
     )
@@ -452,6 +489,7 @@ def assert_controller_safety_case_readiness_admissible(
         external_physics_validation_sha256=readiness.external_physics_validation_sha256,
         target_hardware_timing_sha256=readiness.target_hardware_timing_sha256,
         hil_replay_evidence_sha256=readiness.hil_replay_evidence_sha256,
+        hdl_export_evidence_sha256=readiness.hdl_export_evidence_sha256,
         codac_runtime_evidence_sha256=readiness.codac_runtime_evidence_sha256,
         independent_safety_review_sha256=readiness.independent_safety_review_sha256,
     )

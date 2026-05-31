@@ -5,6 +5,12 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added schema-versioned FPGA HDL export evidence admission so generated
+  Verilog/VHDL project claims bind controller artifact SHA-256, generated HDL,
+  weight memory, timing constraints, Makefile, resource estimates, synthesis
+  report digests, safe report URIs, non-negative timing slack, and local-only
+  versus qualified synthesis claim status before safety-case readiness can cite
+  hardware export evidence.
 - Hardened controller safety-case readiness so promotion now also requires a
   typed `codac_runtime_evidence` artifact that resolves under the declared
   evidence root, matches its SHA-256 bytes, and passes qualified CODAC/EPICS

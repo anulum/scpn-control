@@ -65,10 +65,15 @@ from scpn_control.scpn.formal_verification import (
 )
 from scpn_control.scpn.fpga_export import (
     FPGAConfig,
+    HDLExportEvidence,
+    assert_hdl_export_claim_admissible,
     compile_to_verilog,
     compile_to_vhdl,
     estimate_resources,
     export_bitstream_project,
+    hdl_export_evidence,
+    load_hdl_export_evidence,
+    save_hdl_export_evidence,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
 
@@ -149,8 +154,13 @@ __all__ = [
     "write_safety_certificate_bundle",
     "write_safety_certificate",
     "FPGAConfig",
+    "HDLExportEvidence",
     "compile_to_verilog",
     "compile_to_vhdl",
     "estimate_resources",
     "export_bitstream_project",
+    "hdl_export_evidence",
+    "assert_hdl_export_claim_admissible",
+    "save_hdl_export_evidence",
+    "load_hdl_export_evidence",
 ]

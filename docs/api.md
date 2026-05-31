@@ -816,8 +816,9 @@ or edited evidence payloads before replay admission.
 `evaluate_controller_safety_case_readiness()` separates linked bounded evidence
 from promotion readiness: external physics validation, target-hardware timing
 evidence, qualified HIL replay evidence, qualified CODAC/EPICS runtime
-evidence, and independent safety-review digests are all required before
-`assert_controller_safety_case_readiness_admissible()` accepts the package.
+evidence, qualified HDL export evidence, and independent safety-review digests
+are all required before `assert_controller_safety_case_readiness_admissible()`
+accepts the package.
 `ReadinessArtifactEvidence` and
 `evaluate_controller_safety_case_readiness_from_artifacts()` provide the normal
 promotion path: each required readiness input must be a typed artifact with a
@@ -833,6 +834,9 @@ local workstation replay cannot satisfy deployment promotion readiness.
 admission loader with qualified facility-claim status, deadline-clean cycle
 evidence, exercised interlock blocking, zero backpressure events, and
 hash-bound EPICS/OPC-UA exports.
+`hdl_export_evidence` artifacts must pass the schema-versioned FPGA export
+admission loader with controller-artifact binding, generated project file
+digests, synthesis-report digest binding, and non-negative timing slack.
 `save_controller_safety_case_readiness()` and
 `load_controller_safety_case_readiness()` persist that readiness decision with
 the same schema-versioned integrity-digest semantics as the safety-case bundle.
@@ -1482,6 +1486,16 @@ coverage.
 #### FPGA Export
 
 ::: scpn_control.scpn.fpga_export
+
+::: scpn_control.scpn.fpga_export.HDLExportEvidence
+
+::: scpn_control.scpn.fpga_export.hdl_export_evidence
+
+::: scpn_control.scpn.fpga_export.assert_hdl_export_claim_admissible
+
+::: scpn_control.scpn.fpga_export.save_hdl_export_evidence
+
+::: scpn_control.scpn.fpga_export.load_hdl_export_evidence
 
 #### Geometry Neutral Contracts
 
