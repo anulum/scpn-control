@@ -28,6 +28,8 @@
   audit admission.
 - Added audited multi-step differentiable transport rollout-gradient latency
   reporting for bounded NMPC source-rollout admission evidence.
+- Added Grad-Shafranov flux-weighted multi-step transport rollout loss and
+  source/equilibrium gradients for bounded controller-tuning studies.
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.

@@ -161,6 +161,11 @@ or physically inconsistent replay metadata.
 `assert_transport_campaign_metadata_replay()` compares archived campaign
 metadata with a candidate setup and raises on backend, grid, boundary, closure,
 gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
+`equilibrium_weighted_transport_rollout_tracking_loss()` extends the optional
+Grad-Shafranov flux-map weighting from one transport step to a full source
+rollout. `equilibrium_weighted_transport_rollout_source_gradient()` returns
+fail-closed JAX gradients with respect to both the source schedule and the
+equilibrium flux map for controller-tuning studies.
 
 ::: scpn_control.core.differentiable_transport.differentiable_transport_step
 
@@ -223,6 +228,12 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 ::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_loss_gradient
 
 ::: scpn_control.core.differentiable_transport.EquilibriumWeightedTransportGradient
+
+::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_rollout_tracking_loss
+
+::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_rollout_source_gradient
+
+::: scpn_control.core.differentiable_transport.EquilibriumWeightedTransportRolloutGradient
 
 ### Neural Equilibrium
 

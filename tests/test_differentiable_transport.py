@@ -577,6 +577,128 @@ def test_transport_rollout_gradient_latency_report_rejects_invalid_run_counts():
         )
 
 
+def test_equilibrium_weighted_transport_rollout_loss_uses_flux_radial_weight():
+    rho = np.linspace(0.05, 1.0, 9)
+    profiles = _profiles(rho)
+    chi = 0.03 * np.ones_like(profiles)
+    source_sequence = np.zeros((3, 4, rho.size), dtype=np.float64)
+    source_sequence[:, 0, 2:5] = 0.02
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    target_history = np.asarray(
+        dt.differentiable_transport_rollout(
+            profiles,
+            chi,
+            source_sequence,
+            rho,
+            8.0e-4,
+            edge_values,
+            use_jax=False,
+        ),
+        dtype=np.float64,
+    )
+    target_history[:, 0, -3:] += 0.04
+    psi = np.tile(np.linspace(0.2, 3.0, rho.size), (rho.size, 1))
+
+    weighted_loss = dt.equilibrium_weighted_transport_rollout_tracking_loss(
+        profiles,
+        chi,
+        source_sequence,
+        target_history,
+        rho,
+        8.0e-4,
+        edge_values,
+        psi,
+        weights=np.array([1.0, 0.5, 0.25, 0.1]),
+        use_jax=False,
+    )
+    history = dt.differentiable_transport_rollout(
+        profiles,
+        chi,
+        source_sequence,
+        rho,
+        8.0e-4,
+        edge_values,
+        use_jax=False,
+    )
+    residual = history - target_history
+    radial_weights = dt.equilibrium_radial_weights(psi, rho.size)
+    expected = np.mean(np.array([1.0, 0.5, 0.25, 0.1])[None, :, None] * radial_weights[None, None, :] * residual**2)
+
+    assert weighted_loss == pytest.approx(expected)
+    assert radial_weights[-1] > radial_weights[0]
+
+
+def test_equilibrium_weighted_rollout_gradient_fails_closed_without_jax(monkeypatch):
+    rho = np.linspace(0.05, 1.0, 8)
+    profiles = _profiles(rho)
+    chi = 0.03 * np.ones_like(profiles)
+    source_sequence = np.zeros((2, 4, rho.size), dtype=np.float64)
+    target_history = np.repeat(profiles[None, :, :], 2, axis=0)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    psi = np.tile(np.linspace(0.2, 2.0, rho.size), (rho.size, 1))
+    monkeypatch.setattr(dt, "_HAS_JAX", False)
+    monkeypatch.setattr(dt, "jax", None)
+    monkeypatch.setattr(dt, "jnp", None)
+
+    with pytest.raises(RuntimeError, match="equilibrium_weighted_transport_rollout_source_gradient requires JAX"):
+        dt.equilibrium_weighted_transport_rollout_source_gradient(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            8.0e-4,
+            edge_values,
+            psi,
+        )
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_equilibrium_weighted_transport_rollout_gradient_is_finite_with_jax_gs_flux():
+    rho = np.linspace(0.05, 1.0, 8)
+    profiles = _profiles(rho)
+    chi = 0.03 * np.ones_like(profiles)
+    source_sequence = np.zeros((3, 4, rho.size), dtype=np.float64)
+    source_sequence[:, 0, 2:5] = 0.02
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    desired_sources = source_sequence.copy()
+    desired_sources[:, 0, 2:5] += 0.01
+    target_history = np.asarray(
+        dt.differentiable_transport_rollout(
+            profiles,
+            chi,
+            desired_sources,
+            rho,
+            8.0e-4,
+            edge_values,
+            use_jax=False,
+        ),
+        dtype=np.float64,
+    )
+    psi = np.tile(np.linspace(0.2, 2.0, rho.size), (rho.size, 1))
+
+    result = dt.equilibrium_weighted_transport_rollout_source_gradient(
+        profiles,
+        chi,
+        source_sequence,
+        target_history,
+        rho,
+        8.0e-4,
+        edge_values,
+        psi,
+        weights=np.array([1.0, 0.75, 0.25, 0.1]),
+    )
+
+    assert isinstance(result, dt.EquilibriumWeightedTransportRolloutGradient)
+    assert np.isfinite(result.loss)
+    assert result.source_gradient.shape == source_sequence.shape
+    assert result.equilibrium_gradient.shape == psi.shape
+    assert result.radial_weights.shape == rho.shape
+    assert result.final_profiles.shape == profiles.shape
+    assert np.all(np.isfinite(result.source_gradient))
+    assert np.all(np.isfinite(result.equilibrium_gradient))
+
+
 def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():
     rho = np.linspace(0.05, 1.0, 24)
     profiles = _profiles(rho)

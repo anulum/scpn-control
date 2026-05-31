@@ -53,6 +53,17 @@ class EquilibriumWeightedTransportGradient:
 
 
 @dataclass(frozen=True)
+class EquilibriumWeightedTransportRolloutGradient:
+    """JAX gradient of equilibrium-weighted multi-step transport rollout loss."""
+
+    loss: float
+    source_gradient: np.ndarray
+    equilibrium_gradient: np.ndarray
+    radial_weights: np.ndarray
+    final_profiles: np.ndarray
+
+
+@dataclass(frozen=True)
 class TransportParameterGradients:
     """JAX gradients of transport tracking loss for tunable transport inputs."""
 
@@ -969,6 +980,150 @@ def assert_transport_rollout_source_gradients_consistent(
     if not audit.passed:
         raise ValueError("transport rollout source-gradient audit failed")
     return audit
+
+
+def _equilibrium_weighted_rollout_tracking_loss_jax(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    target_history: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    equilibrium_psi: Any,
+    weights: Any,
+) -> Any:
+    if jnp is None:
+        raise RuntimeError("JAX equilibrium-weighted rollout tracking loss requested but JAX is unavailable")
+    history = _transport_rollout_jax(initial_profiles, chi, source_sequence, rho, dt, edge_values)
+    radial_weights = _equilibrium_radial_weights_jax(equilibrium_psi, int(history.shape[2]))
+    residual = history - jnp.asarray(target_history, dtype=jnp.float64)
+    channel_weights = jnp.asarray(weights, dtype=jnp.float64)[None, :, None]
+    return jnp.mean(channel_weights * radial_weights[None, None, :] * residual * residual)
+
+
+def equilibrium_weighted_transport_rollout_tracking_loss(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    target_history: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    equilibrium_psi: Any,
+    *,
+    weights: Any | None = None,
+    use_jax: bool = True,
+    allow_numpy_fallback: bool = False,
+    allow_legacy_numpy_fallback: bool = False,
+) -> Any:
+    """Return multi-step transport rollout loss weighted by GS flux geometry."""
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_rollout_inputs(
+            initial_profiles,
+            chi,
+            source_sequence,
+            rho,
+            dt,
+            edge_values,
+            target_history=target_history,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_history is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+    psi_array = _validate_equilibrium_psi(equilibrium_psi)
+    use_jax_runtime = _resolve_use_jax(
+        use_jax,
+        allow_numpy_fallback=allow_numpy_fallback,
+        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
+        context="equilibrium_weighted_transport_rollout_tracking_loss",
+    )
+    if use_jax_runtime:
+        return _equilibrium_weighted_rollout_tracking_loss_jax(
+            profile_array,
+            chi_array,
+            source_array,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            psi_array,
+            weight_array,
+        )
+    history = _transport_rollout_numpy(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
+    radial_weights = equilibrium_radial_weights(psi_array, profile_array.shape[1])
+    residual = history - target_array
+    return float(np.mean(weight_array[None, :, None] * radial_weights[None, None, :] * residual * residual))
+
+
+def equilibrium_weighted_transport_rollout_source_gradient(
+    initial_profiles: Any,
+    chi: Any,
+    source_sequence: Any,
+    target_history: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    equilibrium_psi: Any,
+    *,
+    weights: Any | None = None,
+) -> EquilibriumWeightedTransportRolloutGradient:
+    """Return JAX gradients of GS-weighted rollout loss.
+
+    The returned gradients are with respect to the full source schedule and the
+    supplied equilibrium flux map. If the flux map was produced inside an outer
+    JAX graph by the Grad-Shafranov solver, this loss is compatible with
+    chain-rule propagation through that equilibrium solve.
+    """
+    if not _HAS_JAX or jax is None or jnp is None:
+        raise RuntimeError("equilibrium_weighted_transport_rollout_source_gradient requires JAX")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_rollout_inputs(
+            initial_profiles,
+            chi,
+            source_sequence,
+            rho,
+            dt,
+            edge_values,
+            target_history=target_history,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_history is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+    psi_array = _validate_equilibrium_psi(equilibrium_psi)
+
+    def loss_for_sources_and_equilibrium(source_candidate: Any, psi_candidate: Any) -> Any:
+        return _equilibrium_weighted_rollout_tracking_loss_jax(
+            profile_array,
+            chi_array,
+            source_candidate,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            psi_candidate,
+            weight_array,
+        )
+
+    loss, gradients = jax.value_and_grad(loss_for_sources_and_equilibrium, argnums=(0, 1))(
+        jnp.asarray(source_array, dtype=jnp.float64),
+        jnp.asarray(psi_array, dtype=jnp.float64),
+    )
+    source_gradient, equilibrium_gradient = gradients
+    history = _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
+    return EquilibriumWeightedTransportRolloutGradient(
+        loss=float(np.asarray(loss)),
+        source_gradient=np.asarray(source_gradient),
+        equilibrium_gradient=np.asarray(equilibrium_gradient),
+        radial_weights=equilibrium_radial_weights(psi_array, profile_array.shape[1]),
+        final_profiles=np.asarray(history[-1]),
+    )
 
 
 def _validate_equilibrium_psi(equilibrium_psi: Any) -> np.ndarray:
