@@ -978,6 +978,16 @@ fallback and checkpoint inference paths.
 
 ::: scpn_control.control.hil_harness.HILControlLoop
 
+::: scpn_control.control.hil_harness.HILBenchmarkResult
+
+::: scpn_control.control.hil_harness.hil_replay_evidence
+
+::: scpn_control.control.hil_harness.assert_hil_replay_evidence_admissible
+
+::: scpn_control.control.hil_harness.save_hil_replay_evidence
+
+::: scpn_control.control.hil_harness.load_hil_replay_evidence
+
 ### JAX Traceable Runtime
 
 Requires `pip install "scpn-control[jax]"`.

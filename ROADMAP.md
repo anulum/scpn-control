@@ -298,7 +298,9 @@
   parity tests and latency benchmarks.
 - [ ] Add production hardware evidence for generated HDL, CODAC/EPICS timing,
   interlock behaviour, backpressure, and HIL replay before making deployment
-  readiness claims.
+  readiness claims. CONTROL now emits tamper-evident HIL replay evidence and
+  fail-closed target-hardware admission checks; deployment readiness remains
+  blocked until facility target runs provide qualified hardware artefacts.
 
 ### External validation collaboration trackers
 - [ ] Parent tracker: [external validation artefacts needed for full-fidelity

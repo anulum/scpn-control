@@ -369,6 +369,8 @@ def test_nmpc_supports_scipy_qp_backend() -> None:
 
 def test_nmpc_supports_osqp_qp_backend() -> None:
     """Configured OSQP backend should solve the condensed sparse QP."""
+    pytest.importorskip("osqp")
+
     cfg = NMPCConfig(horizon=3, max_sqp_iter=1, qp_max_iter=500)
     cfg.qp_backend = "osqp"
     nmpc = NonlinearMPC(mock_tokamak_plant, cfg)

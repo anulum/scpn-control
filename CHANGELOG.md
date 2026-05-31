@@ -5,6 +5,13 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added schema-versioned HIL replay evidence admission for CONTROL-owned
+  runtime deployment claims, including canonical SHA-256 payload digests,
+  replay digests over controller, timing, target-hardware, interlock, and
+  backpressure fields, fail-closed target-hardware promotion checks, duplicate
+  JSON key rejection on load, and module-specific behavioural tests that keep
+  local workstation replay evidence separate from qualified deployment
+  evidence.
 - Hardened reviewed control-runtime defects by replacing fixed-window
   WebSocket command limiting with token buckets per connection and peer,
   adding structured WebSocket security audit logs, arming native-solver cleanup

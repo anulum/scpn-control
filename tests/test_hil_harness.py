@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Hil Harness
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — HIL Harness Tests
 
 """Tests for Hardware-in-the-Loop test harness."""
 
+import json
 import logging
 
 import numpy as np
@@ -23,7 +24,11 @@ from scpn_control.control.hil_harness import (
     FPGARegisterMap,
     SNNNeuronConfig,
     HILBenchmarkResult,
+    assert_hil_replay_evidence_admissible,
+    hil_replay_evidence,
+    load_hil_replay_evidence,
     run_hil_benchmark,
+    save_hil_replay_evidence,
 )
 
 
@@ -174,6 +179,89 @@ class TestHILBenchmark:
         """The key deliverable: demonstrate sub-ms control loop latency."""
         result = run_hil_benchmark(iterations=1000)
         assert result.passes_sub_ms
+
+
+class TestHILReplayEvidence:
+    @staticmethod
+    def _metrics(
+        *,
+        overrun_count: int = 0,
+        target_dt_us: float = 1000.0,
+        max_latency_us: float = 40.0,
+    ) -> ControlLoopMetrics:
+        return ControlLoopMetrics(
+            iterations=10,
+            target_dt_us=target_dt_us,
+            measured_dt_us=[10.0, 12.0, 15.0, 18.0, 20.0, 22.0, 25.0, 30.0, 35.0, 40.0],
+            p50_latency_us=21.0,
+            p95_latency_us=37.75,
+            p99_latency_us=39.55,
+            max_latency_us=max_latency_us,
+            min_latency_us=10.0,
+            mean_latency_us=22.7,
+            jitter_std_us=9.117,
+            overrun_count=overrun_count,
+            overrun_fraction=overrun_count / 10,
+            sub_ms_achieved=True,
+        )
+
+    def test_local_replay_evidence_round_trips_and_rejects_tampering(self, tmp_path):
+        evidence = hil_replay_evidence(
+            self._metrics(),
+            controller_id="tests.test_hil_harness.pid-vde",
+            generated_at="2026-05-24T00:00:00Z",
+        )
+        assert evidence["admission"]["deployment_claim_allowed"] is False
+        assert evidence["admission"]["claim_status"] == "bounded_local_hil_replay_only"
+        assert_hil_replay_evidence_admissible(evidence)
+
+        path = save_hil_replay_evidence(evidence, tmp_path / "hil_replay_evidence.json")
+        assert load_hil_replay_evidence(path) == evidence
+
+        tampered = json.loads(path.read_text(encoding="utf-8"))
+        tampered["timing"]["p95_latency_us"] = 1.0
+        path.write_text(json.dumps(tampered, sort_keys=True), encoding="utf-8")
+        with pytest.raises(ValueError, match="payload_sha256"):
+            load_hil_replay_evidence(path)
+
+    def test_deployment_claim_requires_qualified_target_hardware(self):
+        with pytest.raises(ValueError, match="target_hardware"):
+            hil_replay_evidence(
+                self._metrics(),
+                controller_id="pid-vde",
+                deployment_claim_allowed=True,
+                generated_at="2026-05-24T00:00:00Z",
+            )
+
+    def test_deployment_claim_rejects_runtime_safety_events(self):
+        with pytest.raises(ValueError, match="backpressure"):
+            hil_replay_evidence(
+                self._metrics(),
+                controller_id="pid-vde",
+                target_hardware_id="jetson-orin-lab-01",
+                target_hardware_class="jetson-orin-preempt-rt",
+                rt_kernel="linux-rt-6.8.0-lab",
+                backpressure_events=1,
+                deployment_claim_allowed=True,
+                generated_at="2026-05-24T00:00:00Z",
+            )
+
+    def test_deployment_claim_accepts_consistent_target_hardware_contract(self):
+        evidence = hil_replay_evidence(
+            self._metrics(),
+            controller_id="pid-vde",
+            target_hardware_id="jetson-orin-lab-01",
+            target_hardware_class="jetson-orin-preempt-rt",
+            rt_kernel="linux-rt-6.8.0-lab",
+            deployment_claim_allowed=True,
+            generated_at="2026-05-24T00:00:00Z",
+        )
+        admitted = assert_hil_replay_evidence_admissible(
+            evidence,
+            require_target_hardware=True,
+        )
+        assert admitted["admission"]["claim_status"] == "qualified_target_hardware_deployment_evidence"
+        assert admitted["timing"]["max_latency_us"] <= admitted["timing"]["target_dt_us"]
 
 
 # ── HILDemoRunner ──────────────────────────────────────────────────
