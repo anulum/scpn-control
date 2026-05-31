@@ -1,0 +1,29 @@
+{
+  "claim_status": "local latency evidence only; not a hardware-in-the-loop real-time guarantee unless target_hardware.id, class, and rt_kernel are operator-qualified",
+  "e2e_overhead_factor": 44.2,
+  "e2e_us": {
+    "p50": 3127.2,
+    "p95": 5486.3,
+    "p99": 7092.0
+  },
+  "grid": "16x16",
+  "iterations": 200,
+  "kernel_only_us": {
+    "p50": 70.8,
+    "p95": 135.9,
+    "p99": 163.3
+  },
+  "payload_sha256": "35e1f58847c01a9fd662335dec51fa245242c7966f0de8d4f0628e0e63b85e74",
+  "schema_version": "scpn-control.e2e-latency.v1",
+  "target_hardware": {
+    "class": "unspecified-local",
+    "id": "local-host-unqualified",
+    "machine": "x86_64",
+    "numpy": "2.2.6",
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3",
+    "rt_kernel": "unknown"
+  },
+  "warmup": 20
+}

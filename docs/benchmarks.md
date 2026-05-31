@@ -236,6 +236,12 @@ industrial PC, or other qualified target-hardware runs.  Reports without those
 operator-qualified fields remain local latency evidence only and do not support
 hardware-in-the-loop or sub-millisecond real-time claims.
 
+Persisted reports use the `scpn-control.e2e-latency.v1` schema and include a
+canonical `payload_sha256` over the latency payload. The admission validator
+rejects digest tampering, non-positive iteration counts, unordered percentiles,
+non-finite timing values, mismatched E2E/kernel overhead factors, unqualified
+hardware metadata, and reports that alter the local-evidence claim boundary.
+
 Before a report is cited as target-hardware evidence, run:
 
 ```bash

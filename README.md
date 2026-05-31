@@ -442,8 +442,9 @@ git push --tags
   actuator commands. A fair comparison requires equivalent end-to-end
   measurement on comparable hardware. Publish E2E control-latency evidence with
   `benchmarks/e2e_control_latency.py --output-json ... --target-hardware-id ...
-  --target-hardware-class ... --rt-kernel ...`; unqualified local runs do not
-  support hardware-in-the-loop real-time claims.
+  --target-hardware-class ... --rt-kernel ...`; admitted reports must be
+  schema-versioned and digest-bound, and unqualified local runs do not support
+  hardware-in-the-loop real-time claims.
 - **Equilibrium solver**: Two variants exist: stable fixed-boundary GS, plus an
   experimental free-boundary external-coil scaffold. The free-boundary path is
   not yet sufficient for full shape control, X-point geometry, or divertor

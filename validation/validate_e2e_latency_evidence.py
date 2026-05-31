@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from dataclasses import dataclass
@@ -17,6 +18,11 @@ from pathlib import Path
 from typing import Any
 
 
+E2E_LATENCY_SCHEMA_VERSION = "scpn-control.e2e-latency.v1"
+E2E_LATENCY_CLAIM_BOUNDARY = (
+    "local latency evidence only; not a hardware-in-the-loop real-time guarantee "
+    "unless target_hardware.id, class, and rt_kernel are operator-qualified"
+)
 _UNQUALIFIED_VALUES = {"", "unknown", "unspecified", "unspecified-local", "local-host-unqualified"}
 
 
@@ -59,6 +65,42 @@ def _finite_positive_number(value: object) -> float | None:
     return numeric
 
 
+def _payload_digest(payload: dict[str, Any]) -> str:
+    canonical = dict(payload)
+    canonical.pop("payload_sha256", None)
+    blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
+
+def build_e2e_latency_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a canonical schema-versioned latency evidence payload."""
+    canonical = dict(payload)
+    canonical["schema_version"] = E2E_LATENCY_SCHEMA_VERSION
+    canonical["claim_status"] = E2E_LATENCY_CLAIM_BOUNDARY
+    canonical["payload_sha256"] = _payload_digest(canonical)
+    return canonical
+
+
+def _validate_percentiles(
+    payload: dict[str, Any],
+    section_name: str,
+    errors: list[str],
+) -> dict[str, float | None]:
+    section = payload.get(section_name)
+    if not isinstance(section, dict):
+        errors.append(f"{section_name} must be an object")
+        section = {}
+    values = {key: _finite_positive_number(section.get(key)) for key in ("p50", "p95", "p99")}
+    for key, value in values.items():
+        if value is None:
+            errors.append(f"{section_name}.{key} must be a positive finite number")
+    if all(value is not None for value in values.values()) and not (
+        values["p50"] <= values["p95"] <= values["p99"]
+    ):
+        errors.append(f"{section_name} percentiles must satisfy p50 <= p95 <= p99")
+    return values
+
+
 def validate_e2e_latency_evidence(
     path: str | Path,
     *,
@@ -69,8 +111,20 @@ def validate_e2e_latency_evidence(
 
     payload = _load_json(path)
     errors: list[str] = []
-    if payload.get("schema_version") != 1:
-        errors.append("schema_version must be 1")
+    if payload.get("schema_version") != E2E_LATENCY_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {E2E_LATENCY_SCHEMA_VERSION!r}")
+    declared_digest = payload.get("payload_sha256")
+    if not isinstance(declared_digest, str) or len(declared_digest) != 64:
+        errors.append("payload_sha256 must be a SHA-256 hex digest")
+    elif _payload_digest(payload) != declared_digest.lower():
+        errors.append("payload_sha256 does not match latency evidence payload")
+
+    iterations = payload.get("iterations")
+    if isinstance(iterations, bool) or not isinstance(iterations, int) or iterations <= 0:
+        errors.append("iterations must be a positive integer")
+    warmup = payload.get("warmup")
+    if isinstance(warmup, bool) or not isinstance(warmup, int) or warmup < 0:
+        errors.append("warmup must be a non-negative integer")
 
     target = payload.get("target_hardware")
     if not isinstance(target, dict):
@@ -88,19 +142,25 @@ def validate_e2e_latency_evidence(
         if rt_kernel is None:
             errors.append("target_hardware.rt_kernel must identify scheduler or RT-kernel evidence")
 
-    e2e = payload.get("e2e_us")
-    if not isinstance(e2e, dict):
-        e2e = {}
-        errors.append("e2e_us must be an object")
-    p95_us = _finite_positive_number(e2e.get("p95"))
+    kernel_values = _validate_percentiles(payload, "kernel_only_us", errors)
+    e2e_values = _validate_percentiles(payload, "e2e_us", errors)
+    p95_us = e2e_values["p95"]
     if p95_us is None:
-        errors.append("e2e_us.p95 must be a positive finite number")
+        pass
     elif max_e2e_p95_us is not None and p95_us > max_e2e_p95_us:
         errors.append(f"e2e_us.p95 exceeds admission threshold {max_e2e_p95_us}")
 
+    overhead = _finite_positive_number(payload.get("e2e_overhead_factor"))
+    if overhead is None:
+        errors.append("e2e_overhead_factor must be a positive finite number")
+    elif kernel_values["p50"] is not None and e2e_values["p50"] is not None:
+        expected = e2e_values["p50"] / max(kernel_values["p50"], 0.1)
+        if not math.isclose(overhead, round(expected, 1), rel_tol=0.0, abs_tol=0.1):
+            errors.append("e2e_overhead_factor must match p50 e2e/kernel ratio")
+
     claim_status = payload.get("claim_status")
-    if not isinstance(claim_status, str) or "local latency evidence only" not in claim_status:
-        errors.append("claim_status must preserve the local-evidence boundary")
+    if claim_status != E2E_LATENCY_CLAIM_BOUNDARY:
+        errors.append("claim_status must preserve the canonical local-evidence boundary")
 
     return LatencyEvidenceReport(
         status="pass" if not errors else "fail",

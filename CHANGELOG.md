@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened end-to-end control-latency evidence so benchmark reports now use a
+  schema-versioned canonical payload digest and admission rejects tampering,
+  non-positive run counts, unordered percentiles, mismatched overhead factors,
+  unqualified target-hardware metadata, and altered local-evidence boundaries
+  before runtime-readiness claims can cite latency reports.
 - Hardened Z3-backed SCPN formal-verification evidence so pass, fail, and
   blocked reports use a schema-versioned payload, canonical SHA-256 integrity
   digest, explicit solver metadata, and manifest-matching status, depth, solver,

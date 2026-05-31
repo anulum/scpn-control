@@ -26,11 +26,22 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from validation.validate_e2e_latency_evidence import build_e2e_latency_evidence_payload
 
 
 def _write_minimal_config(path: Path) -> Path:
@@ -60,7 +71,7 @@ def _percentile(sorted_arr: np.ndarray, p: float) -> float:
     return float(sorted_arr[idx])
 
 
-def bench_kernel_only(kernel, n_warmup: int, n_iter: int) -> np.ndarray:
+def bench_kernel_only(kernel: Any, n_warmup: int, n_iter: int) -> np.ndarray:
     """Measure a single SOR step (kernel-only, no transport/control)."""
     source = -kernel.cfg["physics"]["vacuum_permeability"] * kernel.RR * kernel.J_phi
     for _ in range(n_warmup):
@@ -74,7 +85,7 @@ def bench_kernel_only(kernel, n_warmup: int, n_iter: int) -> np.ndarray:
     return times_ns
 
 
-def bench_e2e(transport, hinf, n_warmup: int, n_iter: int) -> np.ndarray:
+def bench_e2e(transport: Any, hinf: Any, n_warmup: int, n_iter: int) -> np.ndarray:
     """Measure the full control cycle: sensor→equilibrium→transport→control→actuator."""
     rng = np.random.default_rng(42)
     dt_transport = 0.001  # 1 ms transport step
@@ -97,7 +108,18 @@ def bench_e2e(transport, hinf, n_warmup: int, n_iter: int) -> np.ndarray:
     return times_ns
 
 
-def _e2e_iteration(transport, hinf, rng, source, dt_transport, dt_control, P_aux, u_max, slew_max, u_prev):
+def _e2e_iteration(
+    transport: Any,
+    hinf: Any,
+    rng: np.random.Generator,
+    source: np.ndarray,
+    dt_transport: float,
+    dt_control: float,
+    P_aux: float,
+    u_max: float,
+    slew_max: float,
+    u_prev: float,
+) -> float:
     """Single end-to-end control iteration."""
     # 1. Sensor read (simulated plasma state perturbation)
     z_displacement = 0.01 * rng.standard_normal()
@@ -119,7 +141,7 @@ def _e2e_iteration(transport, hinf, rng, source, dt_transport, dt_control, P_aux
     return float(u_clamped)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="E2E control latency benchmark")
     parser.add_argument("--iterations", type=int, default=1000, help="Measurement iterations (default: 1000)")
     parser.add_argument("--warmup", type=int, default=50, help="Warmup iterations (default: 50)")
@@ -145,6 +167,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmpdir:
         cfg_path = _write_minimal_config(Path(tmpdir) / "bench.json")
         transport = TransportSolver(cfg_path)
+        transport.set_neoclassical(R0=4.0, a=2.0, B0=5.3)
 
     hinf = get_radial_robust_controller(gamma_growth=100.0, damping=10.0)
 
@@ -159,37 +182,34 @@ def main():
     e2e_ns.sort()
     e2e_us = e2e_ns / 1000.0
 
-    results = {
-        "schema_version": 1,
-        "iterations": args.iterations,
-        "warmup": args.warmup,
-        "grid": "16x16",
-        "target_hardware": {
-            "id": args.target_hardware_id,
-            "class": args.target_hardware_class,
-            "machine": platform.machine(),
-            "processor": platform.processor(),
-            "platform": platform.platform(),
-            "python": platform.python_version(),
-            "numpy": np.__version__,
-            "rt_kernel": args.rt_kernel,
-        },
-        "kernel_only_us": {
-            "p50": round(_percentile(kernel_us, 50), 1),
-            "p95": round(_percentile(kernel_us, 95), 1),
-            "p99": round(_percentile(kernel_us, 99), 1),
-        },
-        "e2e_us": {
-            "p50": round(_percentile(e2e_us, 50), 1),
-            "p95": round(_percentile(e2e_us, 95), 1),
-            "p99": round(_percentile(e2e_us, 99), 1),
-        },
-        "e2e_overhead_factor": round(_percentile(e2e_us, 50) / max(_percentile(kernel_us, 50), 0.1), 1),
-        "claim_status": (
-            "local latency evidence only; not a hardware-in-the-loop real-time guarantee "
-            "unless target_hardware.id, class, and rt_kernel are operator-qualified"
-        ),
-    }
+    results = build_e2e_latency_evidence_payload(
+        {
+            "iterations": args.iterations,
+            "warmup": args.warmup,
+            "grid": "16x16",
+            "target_hardware": {
+                "id": args.target_hardware_id,
+                "class": args.target_hardware_class,
+                "machine": platform.machine(),
+                "processor": platform.processor(),
+                "platform": platform.platform(),
+                "python": platform.python_version(),
+                "numpy": np.__version__,
+                "rt_kernel": args.rt_kernel,
+            },
+            "kernel_only_us": {
+                "p50": round(_percentile(kernel_us, 50), 1),
+                "p95": round(_percentile(kernel_us, 95), 1),
+                "p99": round(_percentile(kernel_us, 99), 1),
+            },
+            "e2e_us": {
+                "p50": round(_percentile(e2e_us, 50), 1),
+                "p95": round(_percentile(e2e_us, 95), 1),
+                "p99": round(_percentile(e2e_us, 99), 1),
+            },
+            "e2e_overhead_factor": round(_percentile(e2e_us, 50) / max(_percentile(kernel_us, 50), 0.1), 1),
+        }
+    )
 
     if args.output_json is not None:
         args.output_json.parent.mkdir(parents=True, exist_ok=True)
