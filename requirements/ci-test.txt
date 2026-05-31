@@ -154,9 +154,9 @@ exceptiongroup==1.3.1 ; python_version < "3.11" \
     #   -r requirements/ci-test.in
     #   hypothesis
     #   pytest
-hypothesis==6.151.6 \
-    --hash=sha256:4e6e933a98c6f606b3e0ada97a750e7fff12277a40260b9300a05e7a5c3c5e2e \
-    --hash=sha256:755decfa326c8c97a4c8766fe40509985003396442138554b0ae824f9584318f
+hypothesis==6.155.0 \
+    --hash=sha256:cf09ac913b60b49750585a53152704468de666f35c9c29f8e61d82a01f64bbb5 \
+    --hash=sha256:d6ffa3062afabaf908491be707c60843f6671f7c3e9f2ed249d5827207ebbf33
     # via -r requirements/ci-test.in
 iniconfig==2.3.0 \
     --hash=sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730 \
