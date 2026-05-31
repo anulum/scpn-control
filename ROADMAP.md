@@ -209,6 +209,9 @@
 - [x] Federated disruption prediction — FedAvg/FedProx + differential privacy
 - [x] FPGA bitstream export from SNN compiler — Verilog/VHDL generation
 - [x] ITER CODAC/EPICS interface — PV channels, safety interlocks, cycle timer
+- [x] CODAC/EPICS runtime evidence admission — digest-bound EPICS/OPC-UA
+  exports, deadline-clean cycle evidence, interlock-block evidence, and
+  local-only versus qualified facility claim separation
 
 ## Next
 

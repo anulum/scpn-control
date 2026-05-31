@@ -11,12 +11,21 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import json
 import xml.etree.ElementTree as ET
+
+import pytest
 
 from scpn_control.control.codac_interface import (
     CODACConfig,
     CODACInterface,
+    CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY,
+    CODAC_RUNTIME_EVIDENCE_QUALIFIED,
     CycleTimer,
+    assert_codac_runtime_claim_admissible,
+    codac_runtime_evidence,
+    load_codac_runtime_evidence,
+    save_codac_runtime_evidence,
 )
 
 
@@ -133,6 +142,13 @@ def test_generate_epics_db(tmp_path):
     assert text.count("record(") == 23
 
 
+def test_render_epics_db_matches_written_export(tmp_path):
+    iface = _make_interface()
+    db_path = tmp_path / "scpn.db"
+    iface.generate_epics_db(db_path)
+    assert iface.render_epics_db() == db_path.read_text(encoding="utf-8")
+
+
 # ── OPC-UA nodeset generation ────────────────────────────────────────
 
 
@@ -148,6 +164,110 @@ def test_generate_opcua_nodeset(tmp_path):
     datatypes = {v.attrib["DataType"] for v in variables}
     assert "Double" in datatypes
     assert "Boolean" in datatypes
+
+
+def test_render_opcua_nodeset_matches_written_export(tmp_path):
+    iface = _make_interface()
+    xml_path = tmp_path / "nodeset.xml"
+    iface.generate_opcua_nodeset(xml_path)
+    assert iface.render_opcua_nodeset() == xml_path.read_text(encoding="utf-8")
+
+
+# ── Runtime evidence ─────────────────────────────────────────────────
+
+
+def test_codac_runtime_evidence_binds_exports_and_payload(tmp_path):
+    iface = _make_interface()
+    evidence = codac_runtime_evidence(
+        iface,
+        controller_id="nsc-v0.19.2",
+        observed_cycle_us=[410.0, 420.0, 430.0, 440.0],
+        interlock_checks=2,
+        interlock_blocks=1,
+        backpressure_events=0,
+        generated_utc="2026-05-24T00:00:00Z",
+        facility_claim_allowed=True,
+    )
+    assert evidence.claim_status == CODAC_RUNTIME_EVIDENCE_QUALIFIED
+    assert evidence.input_channel_count == 12
+    assert evidence.output_channel_count == 11
+    assert evidence.interlock_pv_count == len(iface.config.interlock_pvs)
+    assert len(evidence.epics_db_sha256) == 64
+    assert len(evidence.opcua_nodeset_sha256) == 64
+    assert len(evidence.payload_sha256) == 64
+    assert_codac_runtime_claim_admissible(evidence)
+
+    path = tmp_path / "codac-runtime-evidence.json"
+    save_codac_runtime_evidence(evidence, path)
+    loaded = load_codac_runtime_evidence(path, require_facility_claim=True)
+    assert loaded == evidence
+
+
+def test_codac_runtime_evidence_keeps_local_runs_out_of_facility_claims():
+    iface = _make_interface()
+    evidence = codac_runtime_evidence(
+        iface,
+        controller_id="local-loopback",
+        observed_cycle_us=[410.0, 420.0],
+        interlock_checks=1,
+        interlock_blocks=1,
+        facility_claim_allowed=False,
+    )
+    assert evidence.claim_status == CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY
+    with pytest.raises(ValueError, match="local-only"):
+        assert_codac_runtime_claim_admissible(evidence)
+
+
+def test_codac_runtime_evidence_requires_interlock_block_for_facility_claim():
+    iface = _make_interface()
+    with pytest.raises(ValueError, match="exercise and block"):
+        codac_runtime_evidence(
+            iface,
+            controller_id="nsc-v0.19.2",
+            observed_cycle_us=[410.0, 420.0],
+            interlock_checks=2,
+            interlock_blocks=0,
+            facility_claim_allowed=True,
+        )
+
+
+def test_codac_runtime_evidence_rejects_deadline_overrun_for_facility_claim():
+    iface = _make_interface()
+    with pytest.raises(ValueError, match="cycle deadline"):
+        codac_runtime_evidence(
+            iface,
+            controller_id="nsc-v0.19.2",
+            observed_cycle_us=[410.0, 1500.0],
+            interlock_checks=2,
+            interlock_blocks=1,
+            facility_claim_allowed=True,
+        )
+
+
+def test_codac_runtime_evidence_rejects_tampered_json(tmp_path):
+    iface = _make_interface()
+    evidence = codac_runtime_evidence(
+        iface,
+        controller_id="nsc-v0.19.2",
+        observed_cycle_us=[410.0, 420.0],
+        interlock_checks=2,
+        interlock_blocks=1,
+        facility_claim_allowed=True,
+    )
+    path = tmp_path / "codac-runtime-evidence.json"
+    save_codac_runtime_evidence(evidence, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["observed_cycle_max_us"] = 421.0
+    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    with pytest.raises(ValueError, match="payload_sha256"):
+        load_codac_runtime_evidence(path)
+
+
+def test_codac_runtime_evidence_rejects_duplicate_json_key(tmp_path):
+    path = tmp_path / "codac-runtime-evidence.json"
+    path.write_text('{"schema_version": "x", "schema_version": "y"}', encoding="utf-8")
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        load_codac_runtime_evidence(path)
 
 
 # ── CycleTimer ────────────────────────────────────────────────────────

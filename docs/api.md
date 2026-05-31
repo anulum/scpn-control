@@ -1198,6 +1198,16 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control.control.codac_interface
 
+::: scpn_control.control.codac_interface.CODACRuntimeEvidence
+
+::: scpn_control.control.codac_interface.codac_runtime_evidence
+
+::: scpn_control.control.codac_interface.assert_codac_runtime_claim_admissible
+
+::: scpn_control.control.codac_interface.save_codac_runtime_evidence
+
+::: scpn_control.control.codac_interface.load_codac_runtime_evidence
+
 #### Controller Tuning
 
 ::: scpn_control.control.controller_tuning

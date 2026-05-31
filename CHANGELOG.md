@@ -5,6 +5,12 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added schema-versioned CODAC/EPICS runtime evidence admission so control
+  boundary claims bind generated EPICS database and OPC-UA nodeset hashes,
+  cycle-deadline percentiles, exercised interlock blocking, backpressure
+  counts, local-only versus qualified claim status, duplicate-key-safe JSON
+  loading, and canonical SHA-256 payload digests before facility runtime
+  claims can cite CODAC evidence.
 - Hardened controller safety-case readiness so promotion now requires a typed
   `hil_replay_evidence` artifact in addition to external physics validation,
   target-hardware timing, and independent review; the artifact must resolve
