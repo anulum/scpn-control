@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -42,6 +43,24 @@ class RZIPCalibrationEvidence:
     growth_rate_relative_tolerance: float
     facility_claim_allowed: bool
     claim_status: str
+    evidence_payload_sha256: str
+
+
+def _canonical_json(payload: dict[str, object]) -> str:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _evidence_payload_digest(payload: dict[str, object]) -> str:
+    digest_payload = dict(payload)
+    digest_payload.pop("evidence_payload_sha256", None)
+    return hashlib.sha256(_canonical_json(digest_payload).encode("utf-8")).hexdigest()
+
+
+def _assert_evidence_digest_matches(evidence: RZIPCalibrationEvidence) -> None:
+    payload = asdict(evidence)
+    expected = _evidence_payload_digest(payload)
+    if evidence.evidence_payload_sha256 != expected:
+        raise ValueError("RZIP calibration evidence payload digest mismatch")
 
 
 def _finite_positive(name: str, value: float) -> float:
@@ -99,6 +118,22 @@ def rzip_calibration_evidence(
     else:
         claim_status = "external RZIP reference admission failed declared growth-rate tolerance"
 
+    payload: dict[str, object] = {
+        "schema_version": _RZIP_CALIBRATION_SCHEMA_VERSION,
+        "source": source,
+        "source_id": source_id.strip(),
+        "model_id": model_id.strip(),
+        "vertical_inertia_kg": float(rzip.M_eff),
+        "wall_time_constant_s": tau_wall,
+        "growth_rate_s_inv": gamma,
+        "growth_time_ms": tau_ms,
+        "reference_growth_rate_s_inv": reference_gamma,
+        "growth_rate_relative_error": None if relative_error is None else float(relative_error),
+        "growth_rate_relative_tolerance": tolerance,
+        "facility_claim_allowed": facility_allowed,
+        "claim_status": claim_status,
+    }
+    evidence_payload_sha256 = _evidence_payload_digest(payload)
     return RZIPCalibrationEvidence(
         schema_version=_RZIP_CALIBRATION_SCHEMA_VERSION,
         source=source,
@@ -113,6 +148,7 @@ def rzip_calibration_evidence(
         growth_rate_relative_tolerance=tolerance,
         facility_claim_allowed=facility_allowed,
         claim_status=claim_status,
+        evidence_payload_sha256=evidence_payload_sha256,
     )
 
 
@@ -142,6 +178,7 @@ def assert_rzip_facility_claim_admissible(evidence: RZIPCalibrationEvidence) -> 
         raise ValueError("RZIP facility claim failed declared growth-rate tolerance")
     if not np.isfinite(evidence.growth_rate_s_inv):
         raise ValueError("RZIP facility claim requires a finite model growth rate")
+    _assert_evidence_digest_matches(evidence)
     if not evidence.facility_claim_allowed:
         raise ValueError(f"RZIP facility claim is not admissible: {evidence.claim_status}")
     return evidence

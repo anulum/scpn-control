@@ -1,5 +1,6 @@
 {
   "claim_status": "bounded local RZIP regression evidence only; external reference required for facility claims",
+  "evidence_payload_sha256": "a996102a477656a8e386fc1332d00e6d838ddf52a6b83656678bb3d28cd95e2b",
   "facility_claim_allowed": false,
   "growth_rate_relative_error": null,
   "growth_rate_relative_tolerance": 0.2,

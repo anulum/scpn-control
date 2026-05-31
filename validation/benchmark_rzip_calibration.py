@@ -73,6 +73,7 @@ def main() -> None:
                 f"- Wall time constant [s]: `{payload['wall_time_constant_s']:.6e}`",
                 f"- Growth rate [s^-1]: `{payload['growth_rate_s_inv']:.6e}`",
                 f"- Growth time [ms]: `{payload['growth_time_ms']:.6e}`",
+                f"- Evidence payload SHA-256: `{payload['evidence_payload_sha256']}`",
                 f"- Facility claim allowed: `{payload['facility_claim_allowed']}`",
                 f"- Claim boundary: `{payload['claim_status']}`",
                 "",

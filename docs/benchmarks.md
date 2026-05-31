@@ -126,7 +126,8 @@ spot-checks.
 `validation/benchmark_rzip_calibration.py` publishes bounded local regression
 evidence for the RZIP rigid-plasma vertical-stability plant. The generated
 report records the declared vertical inertia, wall time constant, growth rate,
-growth time, and explicit facility-claim boundary.
+growth time, tamper-evident evidence payload SHA-256 digest, and explicit
+facility-claim boundary.
 
 Report artefacts:
 

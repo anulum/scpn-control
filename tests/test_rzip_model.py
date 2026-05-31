@@ -124,9 +124,11 @@ def test_rzip_calibration_evidence_records_bounded_local_claim(simple_vessel, tm
     assert evidence.growth_rate_s_inv == pytest.approx(rzip.vertical_growth_rate())
     assert evidence.reference_growth_rate_s_inv is None
     assert evidence.facility_claim_allowed is False
+    assert len(evidence.evidence_payload_sha256) == 64
     assert evidence.claim_status.startswith("bounded local RZIP regression evidence")
     assert payload["schema_version"] == 1
     assert payload["facility_claim_allowed"] is False
+    assert payload["evidence_payload_sha256"] == evidence.evidence_payload_sha256
 
 
 def test_rzip_facility_claim_admission_requires_external_tolerance(simple_vessel):
@@ -215,6 +217,31 @@ def test_rzip_facility_claim_admission_rejects_tampered_growth_error(simple_vess
     tampered = replace(admitted, growth_rate_relative_error=0.5)
 
     with pytest.raises(ValueError, match="growth-rate tolerance"):
+        assert_rzip_facility_claim_admissible(tampered)
+
+
+def test_rzip_facility_claim_admission_rejects_digest_tampering(simple_vessel):
+    rzip = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-1.0,
+        vessel=simple_vessel,
+    )
+    gamma = rzip.vertical_growth_rate()
+    admitted = rzip_calibration_evidence(
+        rzip,
+        source="external_code_benchmark",
+        source_id="reference_rzip_symmetric_wall_case",
+        wall_time_constant_s=0.01,
+        reference_growth_rate_s_inv=gamma,
+        growth_rate_relative_tolerance=0.02,
+    )
+    tampered = replace(admitted, source_id="changed-after-admission")
+
+    with pytest.raises(ValueError, match="payload digest"):
         assert_rzip_facility_claim_admissible(tampered)
 
 

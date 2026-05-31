@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added tamper-evident SHA-256 payload digests to persisted RZIP
+  calibration evidence and benchmark reports so admission rejects modified
+  evidence payloads before facility-claim promotion.
 - Hardened RZIP facility-claim admission so calibration evidence is
   revalidated against source class, reference growth-rate presence, finite
   physical fields, and declared growth-rate tolerance at admission time.

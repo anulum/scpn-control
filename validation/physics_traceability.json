@@ -384,7 +384,7 @@
     },
     {
       "component": "RZIP rigid vertical stability model",
-      "equation_contract": "Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, tokamak major/minor-radius ordering, declared vertical inertia, wall-normalised feedback-gain threshold, wall or active-coil circuit model, calibration source, growth-rate comparison tolerance, and facility-claim admission status.",
+      "equation_contract": "Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, tokamak major/minor-radius ordering, declared vertical inertia, wall-normalised feedback-gain threshold, wall or active-coil circuit model, calibration source, growth-rate comparison tolerance, tamper-evident calibration payload digest, and facility-claim admission status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lazarus et al. 1990 rigid plasma vertical stability model",
@@ -397,14 +397,14 @@
         "Calibrate vertical_inertia_kg against a documented plasma inertia or facility parameter source before facility claims",
         "Validate vertical growth rates against a reference RZIP, CREATE-L/NL, TSC, or measured vertical-displacement benchmark"
       ],
-      "unit_contract": "SI metres, seconds, amperes, henries, ohms, tesla, and dimensionless vertical field index; growth time is reported in milliseconds.",
+      "unit_contract": "SI metres, seconds, amperes, henries, ohms, tesla, and dimensionless vertical field index; growth time is reported in milliseconds; calibration evidence digests are SHA-256 hex strings.",
       "validation_evidence": [
         "tests/test_rzip_model.py vertical growth, field-index, declared-inertia, feedback-gain, physical-parameter, and controller-measurement checks",
         "tests/test_rzip_model.py RZIP fallback and singular-circuit checks",
         "validation/validate_rzip_reference.py strict RZIP reference artifact gate",
         "tests/test_rzip_model.py calibration evidence, facility-claim admission, and persisted evidence checks",
         "validation/benchmark_rzip_calibration.py bounded local RZIP calibration benchmark",
-        "validation/reports/rzip_calibration.json bounded local calibration report"
+        "validation/reports/rzip_calibration.json bounded local calibration report with evidence payload digest"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rzip_model.py",
