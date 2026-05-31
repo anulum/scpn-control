@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -385,9 +386,48 @@ def test_controller_pads_coils_when_fewer_than_five() -> None:
     assert len(nc.history["t"]) == 5
 
 
-def test_controller_visualize_writes_declared_plot_path(tmp_path) -> None:
+class _FakeAxis:
+    def set_title(self, *_args, **_kwargs) -> None:
+        pass
+
+    def plot(self, *_args, **_kwargs) -> None:
+        pass
+
+    def axhline(self, *_args, **_kwargs) -> None:
+        pass
+
+    def set_ylabel(self, *_args, **_kwargs) -> None:
+        pass
+
+    def set_xlabel(self, *_args, **_kwargs) -> None:
+        pass
+
+    def legend(self, *_args, **_kwargs) -> None:
+        pass
+
+    def grid(self, *_args, **_kwargs) -> None:
+        pass
+
+
+class _FakePyplot:
+    def subplots(self, *_args, **_kwargs) -> tuple[object, tuple[_FakeAxis, _FakeAxis]]:
+        return object(), (_FakeAxis(), _FakeAxis())
+
+    def tight_layout(self) -> None:
+        pass
+
+    def savefig(self, filename: str) -> None:
+        Path(filename).write_bytes(b"fake neuro-control plot")
+
+    def close(self, _fig: object) -> None:
+        pass
+
+
+def test_controller_visualize_writes_declared_plot_path(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
 
+    monkeypatch.setattr(controller_mod, "HAS_MPL", True)
+    monkeypatch.setattr(controller_mod, "plt", _FakePyplot())
     nc = NeuroCyberneticController(
         "dummy.json",
         seed=42,
@@ -404,3 +444,22 @@ def test_controller_visualize_writes_declared_plot_path(tmp_path) -> None:
     assert returned == str(plot_path)
     assert plot_path.is_file()
     assert plot_path.stat().st_size > 0
+
+
+def test_controller_visualize_fails_closed_without_matplotlib(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+
+    monkeypatch.setattr(controller_mod, "HAS_MPL", False)
+    monkeypatch.setattr(controller_mod, "plt", None)
+    nc = NeuroCyberneticController(
+        "dummy.json",
+        seed=42,
+        shot_duration=4,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+        kernel_factory=_DummyKernel,
+    )
+    nc.run_shot(save_plot=False, verbose=False)
+
+    with pytest.raises(RuntimeError, match="matplotlib is required"):
+        nc.visualize("Neuro control regression", verbose=False)
