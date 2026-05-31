@@ -1353,17 +1353,24 @@
       "unit_contract": "All coupled states must preserve declared SI or normalised units for current, density, temperature, pressure, q, beta, power, flux, and timing.",
       "validation_evidence": [
         "tests/test_integrated_scenario.py",
-        "tests/test_cross_module_physics.py"
+        "tests/test_cross_module_physics.py",
+        "validation/benchmark_integrated_scenario_coupling.py",
+        "validation/reports/integrated_scenario_coupling.json",
+        "validation/reports/integrated_scenario_coupling.md"
       ],
       "evidence_paths": [
         "tests/test_integrated_scenario.py",
         "tests/test_cross_module_physics.py",
-        "src/scpn_control/core/integrated_scenario.py"
+        "src/scpn_control/core/integrated_scenario.py",
+        "validation/benchmark_integrated_scenario_coupling.py",
+        "validation/reports/integrated_scenario_coupling.json",
+        "validation/reports/integrated_scenario_coupling.md",
+        "docs/api.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/integrated_scenario.py"
       ],
-      "validity_domain": "Coupled scenario regression and module-integration checks; not validated full-discharge predictive modelling.",
+      "validity_domain": "Coupled scenario regression plus deterministic replay audit for module exchange, timestep consistency, finite state transfer, current deviation, and thermal-energy step bounds; not validated full-discharge predictive modelling.",
       "external_validation_tracker_issue": 49
     },
     {

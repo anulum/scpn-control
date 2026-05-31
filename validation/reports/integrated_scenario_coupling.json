@@ -1,0 +1,437 @@
+{
+  "claim_boundary": "Bounded deterministic replay audit only. Measured-discharge and external integrated-modelling validation remain required before predictive scenario claims.",
+  "metadata": {
+    "all_profiles_finite": true,
+    "claim_status": "bounded replay audit only; external trajectory validation required",
+    "config_sha256": "3ae46cdbb648419791de885b6fea1230f02d34ce352052735030d328ca1a508d",
+    "dt_s": 0.01,
+    "enabled_modules": [
+      "transport",
+      "current_diffusion",
+      "bootstrap_current",
+      "auxiliary_heating",
+      "current_drive",
+      "ntm",
+      "sol",
+      "mhd_stability"
+    ],
+    "exchange_count": 24,
+    "max_abs_current_deviation_MA": 0.0,
+    "max_relative_thermal_energy_step": 0.0,
+    "n_steps": 3,
+    "scenario_name": "compact_control_coupling_benchmark",
+    "schema_version": "scenario-coupling-audit-v1",
+    "strictly_monotonic_time": true,
+    "t_end_s": 0.03,
+    "t_start_s": 0.01
+  },
+  "module_exchanges": [
+    {
+      "diagnostics": {
+        "Te_min_keV": 1.0,
+        "Ti_min_keV": 1.0,
+        "ne_min_1e19_m3": 5.0
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.01
+      },
+      "module": "transport",
+      "outputs": {
+        "Te_axis_keV": 1.0,
+        "Ti_axis_keV": 1.0,
+        "ne_axis_1e19_m3": 5.0
+      },
+      "time_s": 0.01
+    },
+    {
+      "diagnostics": {
+        "li": 11.152434781695714,
+        "q_max": 1.1942367667378855e-14,
+        "q_min": 3.247714705728539e-20
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.01
+      },
+      "module": "current_diffusion",
+      "outputs": {
+        "Ip_MA": 1.0,
+        "q_axis": 4.546574353014129e-20,
+        "q_edge": 1.1942367667378855e-14
+      },
+      "time_s": 0.01
+    },
+    {
+      "diagnostics": {
+        "j_bs_finite": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.01
+      },
+      "module": "bootstrap_current",
+      "outputs": {
+        "j_bs_axis_A_m2": 0.0,
+        "j_bs_volume_proxy_A_m2": 0.0
+      },
+      "time_s": 0.01
+    },
+    {
+      "diagnostics": {
+        "power_balance_loss_W": 5.773642394324937e+45
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.01
+      },
+      "module": "auxiliary_heating",
+      "outputs": {
+        "P_aux_MW": 1.5,
+        "W_thermal_J": 296824.89659983775
+      },
+      "time_s": 0.01
+    },
+    {
+      "diagnostics": {
+        "j_cd_finite": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.01
+      },
+      "module": "current_drive",
+      "outputs": {
+        "j_cd_axis_A_m2": 1.3248516374571795e+26,
+        "j_cd_volume_proxy_A_m2": 4.999908162206025e+25
+      },
+      "time_s": 0.01
+    },
+    {
+      "diagnostics": {
+        "max_ntm_width_m": 0.0
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.01
+      },
+      "module": "ntm",
+      "outputs": {
+        "ntm_island_count": 0
+      },
+      "time_s": 0.01
+    },
+    {
+      "diagnostics": {
+        "sol_enabled": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.01
+      },
+      "module": "sol",
+      "outputs": {
+        "T_target_eV": 27489009128612.57,
+        "detached": false,
+        "q_parallel_MW_m2": 7.100103418783725e+42
+      },
+      "time_s": 0.01
+    },
+    {
+      "diagnostics": {
+        "tau_E_s": 5.141033620156223e-41
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.01
+      },
+      "module": "mhd_stability",
+      "outputs": {
+        "ballooning_stable": false,
+        "beta_N": 4.670982526422432,
+        "troyon_stable": false
+      },
+      "time_s": 0.01
+    },
+    {
+      "diagnostics": {
+        "Te_min_keV": 1.0,
+        "Ti_min_keV": 1.0,
+        "ne_min_1e19_m3": 5.0
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.02
+      },
+      "module": "transport",
+      "outputs": {
+        "Te_axis_keV": 1.0,
+        "Ti_axis_keV": 1.0,
+        "ne_axis_1e19_m3": 5.0
+      },
+      "time_s": 0.02
+    },
+    {
+      "diagnostics": {
+        "li": 11.152434781695714,
+        "q_max": 3.087438627468004e-15,
+        "q_min": 2.4537007842174538e-20
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.02
+      },
+      "module": "current_diffusion",
+      "outputs": {
+        "Ip_MA": 1.0,
+        "q_axis": 2.5961815997579993e-20,
+        "q_edge": 3.087438627468004e-15
+      },
+      "time_s": 0.02
+    },
+    {
+      "diagnostics": {
+        "j_bs_finite": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.02
+      },
+      "module": "bootstrap_current",
+      "outputs": {
+        "j_bs_axis_A_m2": 0.0,
+        "j_bs_volume_proxy_A_m2": 0.0
+      },
+      "time_s": 0.02
+    },
+    {
+      "diagnostics": {
+        "power_balance_loss_W": 5.773642394324937e+45
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.02
+      },
+      "module": "auxiliary_heating",
+      "outputs": {
+        "P_aux_MW": 1.5,
+        "W_thermal_J": 296824.89659983775
+      },
+      "time_s": 0.02
+    },
+    {
+      "diagnostics": {
+        "j_cd_finite": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.02
+      },
+      "module": "current_drive",
+      "outputs": {
+        "j_cd_axis_A_m2": 1.3248516374571795e+26,
+        "j_cd_volume_proxy_A_m2": 4.999908162206025e+25
+      },
+      "time_s": 0.02
+    },
+    {
+      "diagnostics": {
+        "max_ntm_width_m": 0.0
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.02
+      },
+      "module": "ntm",
+      "outputs": {
+        "ntm_island_count": 0
+      },
+      "time_s": 0.02
+    },
+    {
+      "diagnostics": {
+        "sol_enabled": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.02
+      },
+      "module": "sol",
+      "outputs": {
+        "T_target_eV": 27489009128612.57,
+        "detached": false,
+        "q_parallel_MW_m2": 7.100103418783725e+42
+      },
+      "time_s": 0.02
+    },
+    {
+      "diagnostics": {
+        "tau_E_s": 5.141033620156223e-41
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.02
+      },
+      "module": "mhd_stability",
+      "outputs": {
+        "ballooning_stable": false,
+        "beta_N": 4.670982526422432,
+        "troyon_stable": false
+      },
+      "time_s": 0.02
+    },
+    {
+      "diagnostics": {
+        "Te_min_keV": 1.0,
+        "Ti_min_keV": 1.0,
+        "ne_min_1e19_m3": 5.0
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.03
+      },
+      "module": "transport",
+      "outputs": {
+        "Te_axis_keV": 1.0,
+        "Ti_axis_keV": 1.0,
+        "ne_axis_1e19_m3": 5.0
+      },
+      "time_s": 0.03
+    },
+    {
+      "diagnostics": {
+        "li": 11.152434781695714,
+        "q_max": 1.1443591286138869e-15,
+        "q_min": 1.9628270972261533e-20
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.03
+      },
+      "module": "current_diffusion",
+      "outputs": {
+        "Ip_MA": 1.0,
+        "q_axis": 2.2387328324713178e-20,
+        "q_edge": 1.1443591286138869e-15
+      },
+      "time_s": 0.03
+    },
+    {
+      "diagnostics": {
+        "j_bs_finite": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.03
+      },
+      "module": "bootstrap_current",
+      "outputs": {
+        "j_bs_axis_A_m2": 0.0,
+        "j_bs_volume_proxy_A_m2": 0.0
+      },
+      "time_s": 0.03
+    },
+    {
+      "diagnostics": {
+        "power_balance_loss_W": 5.773642394324937e+45
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.03
+      },
+      "module": "auxiliary_heating",
+      "outputs": {
+        "P_aux_MW": 1.5,
+        "W_thermal_J": 296824.89659983775
+      },
+      "time_s": 0.03
+    },
+    {
+      "diagnostics": {
+        "j_cd_finite": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.03
+      },
+      "module": "current_drive",
+      "outputs": {
+        "j_cd_axis_A_m2": 1.3248516374571795e+26,
+        "j_cd_volume_proxy_A_m2": 4.999908162206025e+25
+      },
+      "time_s": 0.03
+    },
+    {
+      "diagnostics": {
+        "max_ntm_width_m": 0.0
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.03
+      },
+      "module": "ntm",
+      "outputs": {
+        "ntm_island_count": 0
+      },
+      "time_s": 0.03
+    },
+    {
+      "diagnostics": {
+        "sol_enabled": true
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.03
+      },
+      "module": "sol",
+      "outputs": {
+        "T_target_eV": 27489009128612.57,
+        "detached": false,
+        "q_parallel_MW_m2": 7.100103418783725e+42
+      },
+      "time_s": 0.03
+    },
+    {
+      "diagnostics": {
+        "tau_E_s": 5.141033620156223e-41
+      },
+      "inputs": {
+        "dt_s": 0.01,
+        "rho_points": 50,
+        "time_s": 0.03
+      },
+      "module": "mhd_stability",
+      "outputs": {
+        "ballooning_stable": false,
+        "beta_N": 4.670982526422432,
+        "troyon_stable": false
+      },
+      "time_s": 0.03
+    }
+  ],
+  "passed": true,
+  "violations": []
+}

@@ -4,6 +4,9 @@
 # ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
 from __future__ import annotations
 
+import json
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -13,8 +16,11 @@ from scpn_control.core.integrated_scenario import (
     _diffusion_step,
     _gyro_bohm_chi,
     _spitzer_resistivity,
+    audit_scenario_coupling,
     iter_baseline_scenario,
     nstx_u_scenario,
+    save_scenario_coupling_report,
+    scenario_config_sha256,
 )
 
 
@@ -374,8 +380,6 @@ def test_include_phase_bridge():
 
 def test_to_json(tmp_path):
     """to_json() writes valid JSON containing all state fields."""
-    import json
-
     config = _minimal_config(P_aux_MW=0.0)
     config.t_end = 0.01
     config.dt = 0.01
@@ -395,6 +399,8 @@ def test_to_json(tmp_path):
     assert "ne" in data
     assert "q" in data
     assert "beta_N" in data
+    assert data["coupling_audit"]["passed"] is True
+    assert data["coupling_audit"]["metadata"]["scenario_name"] == "instantaneous_state_export"
     assert isinstance(data["rho"], list)
     assert len(data["rho"]) == 50
 
@@ -454,3 +460,71 @@ def test_physics_helpers_reject_invalid_math_domains():
 
     with pytest.raises(ValueError, match="dt"):
         _diffusion_step(profile, rho, profile, profile, profile, dt=-0.01, a=0.58)
+
+
+def test_scenario_coupling_audit_records_module_exchange_and_bounds():
+    """Replay audit preserves finite module exchange and conservation bounds.
+
+    This is the integrated-scenario workflow contract: each participating
+    physics module declares its timestep inputs, exchanged state outputs, and
+    bounded current/thermal-energy diagnostics for deterministic replay.
+    """
+    cfg = _minimal_config(P_aux_MW=2.0)
+    cfg.P_eccd_MW = 0.5
+    cfg.include_stability = True
+    sim = IntegratedScenarioSimulator(cfg)
+    sim.initialize()
+
+    states = sim.run()
+    audit = audit_scenario_coupling(states, cfg, scenario_name="minimal_control_replay")
+
+    assert audit.passed is True
+    assert audit.violations == ()
+    assert audit.metadata.config_sha256 == scenario_config_sha256(cfg)
+    assert audit.metadata.strictly_monotonic_time is True
+    assert audit.metadata.all_profiles_finite is True
+    assert audit.metadata.max_abs_current_deviation_MA <= cfg.Ip_MA * 1e-9
+    assert audit.metadata.max_relative_thermal_energy_step < 5.0
+    assert "transport" in audit.metadata.enabled_modules
+    assert "current_diffusion" in audit.metadata.enabled_modules
+    assert "current_drive" in audit.metadata.enabled_modules
+    modules = {exchange.module for exchange in audit.module_exchanges}
+    assert {"transport", "current_diffusion", "bootstrap_current", "mhd_stability"} <= modules
+    transport = next(exchange for exchange in audit.module_exchanges if exchange.module == "transport")
+    assert transport.outputs["Te_axis_keV"] > transport.diagnostics["Te_min_keV"]
+    current = next(exchange for exchange in audit.module_exchanges if exchange.module == "current_diffusion")
+    assert current.diagnostics["q_min"] > 0.0
+
+
+def test_scenario_coupling_audit_rejects_nonmonotonic_replay():
+    """Replay audit fails closed when state order violates timestep semantics."""
+    cfg = _minimal_config(P_aux_MW=0.5)
+    sim = IntegratedScenarioSimulator(cfg)
+    sim.initialize()
+    states = sim.run()
+    broken = states[:-1] + [replace(states[-1], time=states[0].time)]
+
+    audit = audit_scenario_coupling(broken, cfg)
+
+    assert audit.passed is False
+    assert "scenario replay time must be strictly monotonic" in audit.violations
+
+
+def test_scenario_coupling_report_persists_replay_contract(tmp_path):
+    """Persisted audit JSON keeps hash, module exchange, and claim boundary."""
+    cfg = _minimal_config(P_aux_MW=1.0)
+    sim = IntegratedScenarioSimulator(cfg)
+    sim.initialize()
+    states = sim.run()
+    audit = audit_scenario_coupling(states, cfg, scenario_name="persisted_contract")
+
+    out = tmp_path / "scenario_coupling.json"
+    save_scenario_coupling_report(audit, out)
+
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["passed"] is True
+    assert len(data["metadata"]["config_sha256"]) == 64
+    assert data["metadata"]["scenario_name"] == "persisted_contract"
+    assert data["metadata"]["claim_status"].startswith("bounded replay audit only")
+    assert len(data["module_exchanges"]) == data["metadata"]["exchange_count"]
+    assert data["module_exchanges"][0]["inputs"]["dt_s"] == cfg.dt

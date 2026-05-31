@@ -41,6 +41,10 @@
 - Hardened the gyrokinetic online learner with OOD-threshold sample admission,
   auditable retraining decisions, persisted update reports, and a deterministic
   synthetic online-retraining benchmark.
+- Added integrated-scenario coupling audits with deterministic replay metadata,
+  module-by-module exchange records, timestep consistency checks, and bounded
+  current and thermal-energy diagnostics while preserving the external
+  validation claim boundary.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.
@@ -67,6 +71,7 @@
 - `python validation/benchmark_neural_equilibrium_pretraining.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
+- `python validation/benchmark_integrated_scenario_coupling.py`
 - `python tools/capability_manifest.py --check`
 - `python -m tools.check_generated_traceability`
 

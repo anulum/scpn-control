@@ -317,6 +317,10 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.core.integrated_scenario.IntegratedScenarioSimulator
 
+::: scpn_control.core.integrated_scenario.audit_scenario_coupling
+
+::: scpn_control.core.integrated_scenario.save_scenario_coupling_report
+
 ::: scpn_control.core.integrated_scenario.iter_baseline_scenario
 
 ---
