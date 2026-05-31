@@ -575,6 +575,64 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    def test_tick_loop_slow_client_does_not_delay_healthy_client(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(
+                monitor=mon,
+                api_key="secret-token-123456",
+                tick_interval_s=0.001,
+                client_send_timeout_s=0.05,
+            )
+            fast_sent = asyncio.Event()
+            fast_send_elapsed: list[float] = []
+
+            class _SlowWS(_FakeWS):
+                async def send(self, data):
+                    await asyncio.sleep(10.0)
+
+            class _FastWS(_FakeWS):
+                async def send(self, data):
+                    await super().send(data)
+                    fast_send_elapsed.append(time.monotonic() - start)
+                    fast_sent.set()
+
+            class _OrderedClients:
+                def __init__(self, clients):
+                    self.clients = list(clients)
+
+                def __bool__(self):
+                    return bool(self.clients)
+
+                def __iter__(self):
+                    return iter(tuple(self.clients))
+
+                def __isub__(self, dead):
+                    self.clients = [client for client in self.clients if client not in dead]
+                    return self
+
+                def __contains__(self, client):
+                    return client in self.clients
+
+            slow = _SlowWS()
+            fast = _FastWS()
+            server._clients = _OrderedClients([slow, fast])
+            server._running = True
+
+            start = time.monotonic()
+
+            async def _stop_after_fast_send():
+                await asyncio.wait_for(fast_sent.wait(), timeout=0.02)
+                server._running = False
+
+            await asyncio.gather(server._tick_loop(), _stop_after_fast_send())
+
+            assert fast_send_elapsed[0] < 0.02
+            assert len(fast._sent) == 1
+            assert slow not in server._clients
+
+        asyncio.run(_run())
+
     def test_serve_requires_websockets(self, monkeypatch):
         async def _run():
             mon = _make_monitor()

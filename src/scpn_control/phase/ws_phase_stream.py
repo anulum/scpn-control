@@ -25,6 +25,7 @@ Clients receive JSON frames every tick::
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hmac
 import json
 import logging
@@ -223,6 +224,26 @@ class PhaseStreamServer:
             self._client_windows.pop(websocket, None)
             logger.info("Client disconnected (%d remain)", len(self._clients))
 
+    async def _close_backpressured_client(self, websocket: Any) -> None:
+        close = getattr(websocket, "close", None)
+        if close is None:
+            return
+        with contextlib.suppress(Exception):
+            await asyncio.wait_for(
+                close(code=1011, reason="broadcast backpressure timeout"),
+                timeout=self.client_send_timeout_s,
+            )
+
+    async def _send_frame_or_dead(self, websocket: Any, frame: str) -> Any | None:
+        try:
+            await asyncio.wait_for(websocket.send(frame), timeout=self.client_send_timeout_s)
+        except TimeoutError:
+            await self._close_backpressured_client(websocket)
+            return websocket
+        except (ConnectionError, OSError):
+            return websocket
+        return None
+
     async def _tick_loop(self) -> None:
         self._running = True
         while self._running:
@@ -231,17 +252,10 @@ class PhaseStreamServer:
                 continue
             snap = self.monitor.tick()
             frame = json.dumps(snap)
-            dead = set()
-            for ws in self._clients:
-                try:
-                    await asyncio.wait_for(ws.send(frame), timeout=self.client_send_timeout_s)
-                except TimeoutError:
-                    dead.add(ws)
-                    close = getattr(ws, "close", None)
-                    if close is not None:
-                        await close(code=1011, reason="broadcast backpressure timeout")
-                except (ConnectionError, OSError):
-                    dead.add(ws)
+            send_results = await asyncio.gather(
+                *(self._send_frame_or_dead(ws, frame) for ws in tuple(self._clients)),
+            )
+            dead = {ws for ws in send_results if ws is not None}
             self._clients -= dead
             await asyncio.sleep(self.tick_interval_s)
 
