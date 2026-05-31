@@ -161,7 +161,11 @@ provider dependency families, report schemas, feature contract, and
 non-admission policy for future backend hardening. Generated bridge and kernel
 reports embed that dependency contract and bind its digest into the advisory
 certificate so archived reports cannot be replayed against a different quantum
-backend contract.
+backend contract. When the optional backend exposes its own
+`scpn_control_bridge_dependency_contract()` callable, CONTROL compares it
+against the expected contract, records backend-contract attestation evidence,
+and fails closed before report creation if the backend advertises a conflicting
+contract.
 
 ::: scpn_control.control.quantum_disruption_bridge.QuantumDisruptionBridgeConfig
 

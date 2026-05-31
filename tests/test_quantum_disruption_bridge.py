@@ -172,6 +172,8 @@ def test_quantum_disruption_bridge_fails_closed_when_quantum_dependency_unavaila
     assert report["quantum_available"] is False
     assert report["quantum_score"] is None
     assert report["admitted_for_control"] is False
+    assert report["backend_contract_attestation"]["status"] == "backend_unavailable"
+    assert report["backend_contract_attestation"]["backend_contract_validated"] is False
     assert 0.0 <= report["classical_baseline_score"] <= 1.0
     assert validate_quantum_disruption_bridge_report(report) == report
 
@@ -192,7 +194,12 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
             assert np.all((features >= 0.0) & (features <= 1.0))
             return 0.73
 
-    fake_module = types.SimpleNamespace(QuantumDisruptionClassifier=FakeClassifier)
+    from scpn_control.control.quantum_disruption_bridge import quantum_disruption_dependency_contract
+
+    fake_module = types.SimpleNamespace(
+        QuantumDisruptionClassifier=FakeClassifier,
+        scpn_control_bridge_dependency_contract=quantum_disruption_dependency_contract,
+    )
     real_import = importlib.import_module
 
     def guarded_import(name: str, package: str | None = None) -> types.ModuleType:
@@ -220,6 +227,12 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
     assert len(report["admission_evidence"]["control_features_sha256"]) == 64
     assert len(report["admission_evidence"]["feature_mapping_sha256"]) == 64
     assert report["dependency_contract"]["quantum_module"] == "scpn_quantum_control.control.q_disruption_iter"
+    assert report["backend_contract_attestation"]["status"] == "matched"
+    assert report["backend_contract_attestation"]["backend_contract_validated"] is True
+    assert (
+        report["backend_contract_attestation"]["observed_contract_sha256"]
+        == report["dependency_contract"]["contract_sha256"]
+    )
     certificate = report["report_certificate"]
     assert certificate["report_kind"] == "bridge-advisory"
     assert certificate["report_schema_version"] == report["schema_version"]
@@ -227,12 +240,92 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
     assert certificate["quantum_backend_owner"] == "scpn-quantum-control"
     assert certificate["dependency_contract_schema_version"] == report["dependency_contract"]["schema_version"]
     assert certificate["dependency_contract_sha256"] == report["dependency_contract"]["contract_sha256"]
+    assert (
+        certificate["backend_contract_attestation_sha256"]
+        == report["backend_contract_attestation"]["attestation_sha256"]
+    )
     assert certificate["publication_safe"] is False
     assert certificate["admitted_for_control"] is False
     assert "require_external_evidence" in certificate["required_downstream_policy"]
     assert len(certificate["content_sha256"]) == 64
     assert len(certificate["certificate_sha256"]) == 64
     assert validate_quantum_disruption_bridge_report(report) == report
+
+
+def test_quantum_disruption_bridge_records_available_backend_without_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.41},
+                )
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    report = run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(seed=15),
+    )
+
+    assert report["status"] == "advisory"
+    assert report["backend_contract_attestation"]["status"] == "not_exposed"
+    assert report["backend_contract_attestation"]["backend_contract_validated"] is False
+    assert report["backend_contract_attestation"]["observed_contract_sha256"] is None
+    assert "backend_contract_not_exposed" in report["backend_contract_attestation"]["reasons"]
+    assert validate_quantum_disruption_bridge_report(report) == report
+
+
+def test_quantum_disruption_bridge_fails_closed_on_backend_contract_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        quantum_disruption_dependency_contract,
+        run_quantum_disruption_bridge,
+    )
+
+    expected = quantum_disruption_dependency_contract()
+    drifted = {**expected, "quantum_module": "scpn_quantum_control.control.drifted"}
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.43},
+                ),
+                scpn_control_bridge_dependency_contract=lambda: drifted,
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="backend contract"):
+        run_quantum_disruption_bridge(
+            _control_features(),
+            extra_iter_features=_extra_iter_features(),
+            config=QuantumDisruptionBridgeConfig(seed=16),
+        )
 
 
 def test_quantum_disruption_bridge_report_rejects_certificate_kind_replay(
@@ -357,6 +450,49 @@ def test_quantum_disruption_bridge_report_rejects_certificate_dependency_digest_
     replayed["payload_sha256"] = report["payload_sha256"]
 
     with pytest.raises(ValueError, match="dependency_contract_sha256"):
+        validate_quantum_disruption_bridge_report(replayed)
+
+
+def test_quantum_disruption_bridge_report_rejects_backend_attestation_digest_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        quantum_disruption_dependency_contract,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.47},
+                ),
+                scpn_control_bridge_dependency_contract=quantum_disruption_dependency_contract,
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    report = run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(seed=17),
+    )
+    replayed = dict(report)
+    replayed["report_certificate"] = {
+        **report["report_certificate"],
+        "backend_contract_attestation_sha256": "f" * 64,
+    }
+    replayed["payload_sha256"] = report["payload_sha256"]
+
+    with pytest.raises(ValueError, match="backend_contract_attestation_sha256"):
         validate_quantum_disruption_bridge_report(replayed)
 
 

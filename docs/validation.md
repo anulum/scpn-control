@@ -63,7 +63,10 @@ dependencies, optional provider families, and downstream non-admission policy
 so backend work can evolve without silently drifting from the CONTROL facade.
 Each report embeds the dependency contract used for that evaluation and binds
 the contract digest into the advisory certificate before payload validation
-continues.
+continues. If the optional quantum backend exposes a bridge-contract callable,
+CONTROL records whether the backend contract matched, was not exposed, or was
+unavailable; an exposed mismatching backend contract is treated as a fail-closed
+runtime error.
 
 ## Federated disruption synthetic multi-facility benchmark
 

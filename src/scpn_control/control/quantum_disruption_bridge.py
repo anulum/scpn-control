@@ -302,6 +302,11 @@ def quantum_disruption_kernel_matrix(
         "samples_b_count": int(b.shape[0]),
         "kernel_matrix": kernel.tolist(),
         "dependency_contract": quantum_disruption_dependency_contract(),
+        "backend_contract_attestation": _build_backend_contract_attestation(
+            module=None,
+            expected_contract=quantum_disruption_dependency_contract(),
+            status="not_evaluated",
+        ),
         "config": _config_payload(resolved_config),
         "admitted_for_control": False,
     }
@@ -328,8 +333,15 @@ def run_quantum_disruption_bridge(
     quantum_score: float | None = None
     quantum_available = False
     unavailable_reason: str | None = None
+    dependency_contract = quantum_disruption_dependency_contract()
+    backend_contract_attestation: dict[str, Any] | None = None
     try:
         module = importlib.import_module(resolved_config.quantum_module)
+        backend_contract_attestation = _build_backend_contract_attestation(
+            module=module,
+            expected_contract=dependency_contract,
+            status="available",
+        )
         classifier_type = module.QuantumDisruptionClassifier
         classifier = classifier_type(seed=resolved_config.seed)
         quantum_score = _bounded_score("quantum_score", classifier.predict(mapping.normalized_iter_features))
@@ -339,7 +351,15 @@ def run_quantum_disruption_bridge(
         if resolved_config.require_quantum_backend:
             raise RuntimeError("quantum disruption backend is required but unavailable") from exc
         unavailable_reason = f"{type(exc).__name__}: {exc}"
+        backend_contract_attestation = _build_backend_contract_attestation(
+            module=None,
+            expected_contract=dependency_contract,
+            status="backend_unavailable",
+        )
         status = "quantum-unavailable"
+
+    if backend_contract_attestation is None:
+        raise RuntimeError("quantum disruption backend contract attestation was not produced")
 
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -364,7 +384,8 @@ def run_quantum_disruption_bridge(
         "risk_score": quantum_score if quantum_score is not None else classical_score,
         "admitted_for_control": False,
         "human_review_required": True,
-        "dependency_contract": quantum_disruption_dependency_contract(),
+        "dependency_contract": dependency_contract,
+        "backend_contract_attestation": backend_contract_attestation,
         "config": _config_payload(resolved_config),
     }
     payload["report_certificate"] = _build_report_certificate(payload, report_kind="bridge-advisory")
@@ -419,6 +440,7 @@ def validate_quantum_disruption_bridge_report(payload: dict[str, Any]) -> dict[s
         if not isinstance(payload.get(key), str) or not payload[key]:
             raise ValueError(f"quantum disruption bridge report {key} must be non-empty")
     _validate_report_dependency_contract(payload)
+    _validate_backend_contract_attestation(payload.get("backend_contract_attestation"), payload=payload)
     _validate_report_certificate(payload, report_kind="bridge-advisory")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
@@ -458,6 +480,7 @@ def validate_quantum_disruption_kernel_report(payload: dict[str, Any]) -> dict[s
         if not np.allclose(np.diag(matrix), np.ones(matrix.shape[0]), atol=1.0e-12):
             raise ValueError("quantum disruption kernel report diagonal must be one")
     _validate_report_dependency_contract(payload)
+    _validate_backend_contract_attestation(payload.get("backend_contract_attestation"), payload=payload)
     _validate_report_certificate(payload, report_kind="kernel-advisory")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
@@ -551,6 +574,7 @@ def _build_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -
         "quantum_backend_owner": QUANTUM_BACKEND_OWNER,
         "dependency_contract_schema_version": _dependency_contract_schema_version(payload),
         "dependency_contract_sha256": _dependency_contract_digest(payload),
+        "backend_contract_attestation_sha256": _backend_contract_attestation_digest(payload),
         "claim_boundary_sha256": _payload_digest({"claim_boundary": payload.get("claim_boundary")}),
         "admitted_for_control": False,
         "publication_safe": False,
@@ -577,6 +601,125 @@ def _dependency_contract_digest(payload: Mapping[str, Any]) -> str:
     return str(_validate_report_dependency_contract(payload)["contract_sha256"])
 
 
+def _build_backend_contract_attestation(
+    *,
+    module: object | None,
+    expected_contract: Mapping[str, Any],
+    status: str,
+) -> dict[str, Any]:
+    expected_digest = str(expected_contract["contract_sha256"])
+    if status == "backend_unavailable":
+        return _seal_backend_contract_attestation(
+            {
+                "status": "backend_unavailable",
+                "backend_contract_validated": False,
+                "expected_contract_sha256": expected_digest,
+                "observed_contract_sha256": None,
+                "reasons": ["quantum_backend_unavailable"],
+            }
+        )
+    if status == "not_evaluated":
+        return _seal_backend_contract_attestation(
+            {
+                "status": "not_evaluated",
+                "backend_contract_validated": False,
+                "expected_contract_sha256": expected_digest,
+                "observed_contract_sha256": None,
+                "reasons": ["quantum_backend_not_imported_for_kernel_report"],
+            }
+        )
+    if module is None:
+        raise RuntimeError("quantum disruption backend contract attestation requires a module")
+    contract_factory = getattr(module, "scpn_control_bridge_dependency_contract", None)
+    if contract_factory is None:
+        return _seal_backend_contract_attestation(
+            {
+                "status": "not_exposed",
+                "backend_contract_validated": False,
+                "expected_contract_sha256": expected_digest,
+                "observed_contract_sha256": None,
+                "reasons": ["backend_contract_not_exposed"],
+            }
+        )
+    if not callable(contract_factory):
+        raise RuntimeError("quantum disruption backend contract factory is not callable")
+    try:
+        observed_contract = validate_quantum_disruption_dependency_contract(contract_factory())
+    except ValueError as exc:
+        raise RuntimeError("quantum disruption backend contract validation failed") from exc
+    observed_digest = str(observed_contract["contract_sha256"])
+    if observed_digest != expected_digest:
+        raise RuntimeError("quantum disruption backend contract mismatch")
+    return _seal_backend_contract_attestation(
+        {
+            "status": "matched",
+            "backend_contract_validated": True,
+            "expected_contract_sha256": expected_digest,
+            "observed_contract_sha256": observed_digest,
+            "reasons": ["backend_contract_matched"],
+        }
+    )
+
+
+def _seal_backend_contract_attestation(payload: dict[str, Any]) -> dict[str, Any]:
+    payload["attestation_sha256"] = _backend_attestation_payload_digest(payload)
+    return payload
+
+
+def _validate_backend_contract_attestation(value: object, *, payload: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption backend_contract_attestation must be an object")
+    status = value.get("status")
+    if status not in {"matched", "not_exposed", "backend_unavailable", "not_evaluated"}:
+        raise ValueError("quantum disruption backend_contract_attestation status is unsupported")
+    if not isinstance(value.get("backend_contract_validated"), bool):
+        raise ValueError("quantum disruption backend_contract_attestation backend_contract_validated must be a bool")
+    expected_digest = value.get("expected_contract_sha256")
+    if not isinstance(expected_digest, str) or not _is_sha256(expected_digest):
+        raise ValueError(
+            "quantum disruption backend_contract_attestation expected_contract_sha256 must be a SHA-256 hex digest"
+        )
+    if expected_digest != _dependency_contract_digest(payload):
+        raise ValueError("quantum disruption backend_contract_attestation expected_contract_sha256 mismatch")
+    observed_digest = value.get("observed_contract_sha256")
+    if observed_digest is not None and (not isinstance(observed_digest, str) or not _is_sha256(observed_digest)):
+        raise ValueError(
+            "quantum disruption backend_contract_attestation observed_contract_sha256 must be null or SHA-256"
+        )
+    if status == "matched":
+        if value["backend_contract_validated"] is not True:
+            raise ValueError("quantum disruption backend_contract_attestation matched status must be validated")
+        if observed_digest != expected_digest:
+            raise ValueError("quantum disruption backend_contract_attestation observed_contract_sha256 mismatch")
+    else:
+        if value["backend_contract_validated"] is not False:
+            raise ValueError("quantum disruption backend_contract_attestation non-matched status must not validate")
+        if observed_digest is not None:
+            raise ValueError("quantum disruption backend_contract_attestation non-matched status must not observe")
+    reasons = value.get("reasons")
+    if not isinstance(reasons, list) or any(not isinstance(item, str) or not item for item in reasons):
+        raise ValueError("quantum disruption backend_contract_attestation reasons must be non-empty strings")
+    required_reason = {
+        "matched": "backend_contract_matched",
+        "not_exposed": "backend_contract_not_exposed",
+        "backend_unavailable": "quantum_backend_unavailable",
+        "not_evaluated": "quantum_backend_not_imported_for_kernel_report",
+    }[status]
+    if required_reason not in reasons:
+        raise ValueError("quantum disruption backend_contract_attestation required reason missing")
+    attestation_digest = value.get("attestation_sha256")
+    if not isinstance(attestation_digest, str) or not _is_sha256(attestation_digest):
+        raise ValueError("quantum disruption backend_contract_attestation attestation_sha256 must be a SHA-256")
+    if attestation_digest.lower() != _backend_attestation_payload_digest(value):
+        raise ValueError("quantum disruption backend_contract_attestation attestation_sha256 mismatch")
+    return value
+
+
+def _backend_contract_attestation_digest(payload: Mapping[str, Any]) -> str:
+    attestation = _validate_backend_contract_attestation(payload.get("backend_contract_attestation"), payload=payload)
+    return str(attestation["attestation_sha256"])
+
+
 def _validate_report_certificate(payload: Mapping[str, Any], *, report_kind: str) -> None:
     value = payload.get("report_certificate")
     if not isinstance(value, dict):
@@ -600,6 +743,13 @@ def _validate_report_certificate(payload: Mapping[str, Any], *, report_kind: str
         )
     if dependency_digest != _dependency_contract_digest(payload):
         raise ValueError("quantum disruption report_certificate dependency_contract_sha256 mismatch")
+    attestation_digest = value.get("backend_contract_attestation_sha256")
+    if not isinstance(attestation_digest, str) or not _is_sha256(attestation_digest):
+        raise ValueError(
+            "quantum disruption report_certificate backend_contract_attestation_sha256 must be a SHA-256 hex digest"
+        )
+    if attestation_digest != _backend_contract_attestation_digest(payload):
+        raise ValueError("quantum disruption report_certificate backend_contract_attestation_sha256 mismatch")
     if value.get("admitted_for_control") is not False:
         raise ValueError("quantum disruption report_certificate admitted_for_control must be false")
     if value.get("publication_safe") is not False:
@@ -816,6 +966,11 @@ def _certificate_digest(certificate: Mapping[str, Any]) -> str:
 def _contract_digest(contract: Mapping[str, Any]) -> str:
     content = {key: value for key, value in contract.items() if key != "contract_sha256"}
     return _payload_digest({"dependency_contract": content})
+
+
+def _backend_attestation_payload_digest(attestation: Mapping[str, Any]) -> str:
+    content = {key: value for key, value in attestation.items() if key != "attestation_sha256"}
+    return _payload_digest({"backend_contract_attestation": content})
 
 
 def _jsonable(value: Any) -> Any:
