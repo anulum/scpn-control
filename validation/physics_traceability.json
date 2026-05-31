@@ -1838,7 +1838,7 @@
     },
     {
       "component": "geometry-neutral stellarator replay fixture",
-      "equation_contract": "Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, replay acceptance thresholds, and tamper-evident manifest digests.",
+      "equation_contract": "Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, replay acceptance thresholds, tamper-evident manifest digests, and fail-closed scenario admission for initial-frame alignment, objective metric availability, current-envelope constraints, and actuator-supported fault modes.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Repository geometry-neutral control contract",

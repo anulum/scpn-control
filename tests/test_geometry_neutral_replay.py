@@ -15,6 +15,8 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
+import pytest
+
 from scpn_control.scpn import (
     GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION as PUBLIC_MANIFEST_SCHEMA_VERSION,
 )
@@ -54,6 +56,17 @@ def test_geometry_neutral_replay_uses_non_tokamak_features() -> None:
     assert "effective_ripple" in channel_names
     assert "R_axis_m" not in channel_names
     assert "Z_axis_m" not in channel_names
+
+
+def test_geometry_neutral_replay_rejects_non_integer_runtime_inputs() -> None:
+    with pytest.raises(TypeError, match="steps"):
+        generate_report(steps=True)
+
+    with pytest.raises(TypeError, match="steps"):
+        generate_report(steps=8.0)  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="seed"):
+        generate_report(seed=False)
 
 
 def test_geometry_neutral_replay_manifest_rejects_trace_tampering() -> None:

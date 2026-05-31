@@ -74,6 +74,12 @@ def _require_manifest_text(name: str, value: Any) -> str:
     return text
 
 
+def _require_int(name: str, value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{name} must be an integer")
+    return value
+
+
 def _fieldline_spread(config: StellaratorConfig, current_A: float) -> float:
     _, _, field = stellarator_flux_surface(config, s=0.72, n_theta=32, n_phi=40)
     base = float(np.std(field / np.mean(field))) + 0.43 * effective_ripple(config, 0.72)
@@ -145,6 +151,8 @@ def _build_controller() -> NeuroSymbolicController:
 
 
 def _scenario(*, steps: int, seed: int) -> ReplayScenario:
+    steps_i = _require_int("steps", steps)
+    seed_i = _require_int("seed", seed)
     config = w7x_config()
     actuator = ActuatorChannel(
         name="helical_trim_A",
@@ -157,8 +165,8 @@ def _scenario(*, steps: int, seed: int) -> ReplayScenario:
     )
     return ReplayScenario(
         name="geometry_neutral_public_stellarator_replay",
-        seed=int(seed),
-        steps=int(steps),
+        seed=seed_i,
+        steps=steps_i,
         dt_s=0.001,
         magnetic_configuration=MagneticConfiguration(
             name="public_w7x_like_reduced_order",
@@ -193,7 +201,7 @@ def _scenario(*, steps: int, seed: int) -> ReplayScenario:
                 ),
             ),
         ),
-        fault_schedule={max(3, (2 * int(steps)) // 3): {"helical_trim_A": "stuck"}},
+        fault_schedule={max(3, (2 * steps_i) // 3): {"helical_trim_A": "stuck"}},
     )
 
 
@@ -307,9 +315,11 @@ def _build_manifest(
 
 def generate_report(*, steps: int = 12, seed: int = 314159) -> dict[str, Any]:
     """Generate a deterministic compact SCPN-control replay report."""
-    if int(steps) < 4:
+    steps_i = _require_int("steps", steps)
+    seed_i = _require_int("seed", seed)
+    if steps_i < 4:
         raise ValueError("steps must be >= 4.")
-    scenario = _scenario(steps=int(steps), seed=int(seed))
+    scenario = _scenario(steps=steps_i, seed=seed_i)
     run_a = _run_once(scenario)
     run_b = _run_once(scenario)
     deterministic = run_a["signature"] == run_b["signature"]

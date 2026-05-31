@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Geometry-Neutral Contract Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Geometry-neutral contract tests
 
 from __future__ import annotations
 
@@ -97,6 +97,7 @@ def test_replay_scenario_validates_fault_channels_and_serialises_contract() -> N
         max_value=1200.0,
         slew_rate_per_s=4.0e5,
         latency_steps=1,
+        failure_mode="stuck_supported",
     )
     scenario = ReplayScenario(
         name="stellarator_replay",
@@ -158,6 +159,7 @@ def test_replay_scenario_rejects_non_integer_and_empty_fault_entries() -> None:
         min_value=-1200.0,
         max_value=1200.0,
         slew_rate_per_s=4.0e5,
+        failure_mode="stuck_supported",
     )
     base_kwargs = {
         "name": "stellarator_replay",
@@ -206,6 +208,114 @@ def test_replay_scenario_rejects_non_integer_and_empty_fault_entries() -> None:
 
     with pytest.raises(ValueError, match="fault mode"):
         ReplayScenario(**(base_kwargs | {"fault_schedule": {1: {"helical_trim_A": "   "}}}))
+
+
+def test_replay_scenario_rejects_inconsistent_replay_admission_contracts() -> None:
+    unsupported_actuator = ActuatorChannel(
+        name="helical_trim_A",
+        unit="A",
+        min_value=-1200.0,
+        max_value=1200.0,
+        slew_rate_per_s=4.0e5,
+    )
+    supported_actuator = ActuatorChannel(
+        name="helical_trim_A",
+        unit="A",
+        min_value=-1200.0,
+        max_value=1200.0,
+        slew_rate_per_s=4.0e5,
+        failure_mode="stuck_supported",
+    )
+    magnetic_configuration = MagneticConfiguration(
+        name="public_w7x_like",
+        device_class="stellarator",
+        field_periods=5,
+        coordinate_system="boozer_vmec_like",
+        reference="public synthetic fixture",
+    )
+    initial_frame = DiagnosticFrame(
+        step=0,
+        time_s=0.0,
+        channels=(
+            DiagnosticChannel(
+                name="fieldline_spread",
+                value=0.04,
+                unit="rad",
+                sigma=0.002,
+                provenance="public_synthetic",
+            ),
+        ),
+    )
+    objective = ControlObjective(
+        target_metrics={"fieldline_spread": 0.015},
+        weights={"fieldline_spread": 1.0},
+        constraints={"max_abs_current_A": 1200.0},
+    )
+    base_kwargs = {
+        "name": "stellarator_replay",
+        "seed": 42,
+        "steps": 8,
+        "dt_s": 0.001,
+        "magnetic_configuration": magnetic_configuration,
+        "actuator_set": ActuatorSet(channels=(supported_actuator,)),
+        "objective": objective,
+        "initial_frame": initial_frame,
+        "fault_schedule": {3: {"helical_trim_A": "stuck"}},
+    }
+
+    with pytest.raises(ValueError, match="initial_frame step"):
+        ReplayScenario(
+            **(
+                base_kwargs
+                | {
+                    "initial_frame": DiagnosticFrame(
+                        step=1,
+                        time_s=0.0,
+                        channels=initial_frame.channels,
+                    )
+                }
+            )
+        )
+
+    with pytest.raises(ValueError, match="target_metrics missing"):
+        ReplayScenario(
+            **(
+                base_kwargs
+                | {
+                    "objective": ControlObjective(
+                        target_metrics={"missing_metric": 0.015},
+                        weights={"missing_metric": 1.0},
+                        constraints={"max_abs_current_A": 1200.0},
+                    )
+                }
+            )
+        )
+
+    with pytest.raises(ValueError, match="actuator envelope"):
+        ReplayScenario(
+            **(
+                base_kwargs
+                | {
+                    "objective": ControlObjective(
+                        target_metrics={"fieldline_spread": 0.015},
+                        weights={"fieldline_spread": 1.0},
+                        constraints={"max_abs_current_A": 1200.1},
+                    )
+                }
+            )
+        )
+
+    with pytest.raises(ValueError, match="failure_mode"):
+        ReplayScenario(
+            **(base_kwargs | {"actuator_set": ActuatorSet(channels=(unsupported_actuator,))})
+        )
+
+    with pytest.raises(ValueError, match="weights"):
+        ControlObjective(
+            target_metrics={"fieldline_spread": 0.015},
+            weights={"fieldline_spread": 0.0},
+            constraints={"max_abs_current_A": 1200.0},
+        )
 
 
 def test_contracts_reject_bool_integer_fields() -> None:

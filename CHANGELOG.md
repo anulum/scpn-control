@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened geometry-neutral stellarator replay admission so scenarios fail
+  closed on nonzero initial frames, missing objective metrics, impossible
+  current constraints, unsupported stuck-fault modes, and non-integer runtime
+  report inputs before replay evidence or manifest digests are produced.
 - Added tamper-evident SHA-256 payload digests to persisted RZIP
   calibration evidence and benchmark reports so admission rejects modified
   evidence payloads before facility-claim promotion.

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Geometry-Neutral Contracts
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Geometry-neutral contracts
 """Geometry-neutral control contracts for non-tokamak replay adapters."""
 
 from __future__ import annotations
@@ -12,6 +12,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 from typing import Mapping
+
+
+_FAULT_MODE_SUPPORT: dict[str, frozenset[str]] = {
+    "stuck": frozenset({"stuck", "stuck_supported", "stuck_at_last_value"}),
+}
 
 
 def _require_text(name: str, value: str) -> str:
@@ -208,6 +213,8 @@ class ControlObjective:
     def __post_init__(self) -> None:
         if not self.target_metrics:
             raise ValueError("target_metrics must not be empty.")
+        if not self.weights:
+            raise ValueError("weights must not be empty.")
         for group_name, group in (
             ("target_metrics", self.target_metrics),
             ("weights", self.weights),
@@ -215,7 +222,9 @@ class ControlObjective:
         ):
             for key, value in group.items():
                 _require_text(f"{group_name} key", key)
-                _require_finite(f"{group_name}.{key}", value)
+                value_f = _require_finite(f"{group_name}.{key}", value)
+                if group_name == "weights" and value_f <= 0.0:
+                    raise ValueError("weights must be positive.")
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -248,6 +257,25 @@ class ReplayScenario:
         dt = _require_finite("dt_s", self.dt_s)
         if dt <= 0.0:
             raise ValueError("dt_s must be > 0.")
+        if self.initial_frame.step != 0:
+            raise ValueError("initial_frame step must be 0.")
+        if self.initial_frame.time_s != 0.0:
+            raise ValueError("initial_frame time_s must be 0.0.")
+        initial_metrics = set(self.initial_frame.as_mapping())
+        missing_targets = sorted(set(self.objective.target_metrics) - initial_metrics)
+        if missing_targets:
+            raise ValueError(f"target_metrics missing from initial_frame: {', '.join(missing_targets)}")
+        max_abs_current = self.objective.constraints.get("max_abs_current_A")
+        if max_abs_current is not None:
+            limit = _require_finite("constraints.max_abs_current_A", max_abs_current)
+            if limit <= 0.0:
+                raise ValueError("max_abs_current_A must be > 0.")
+            actuator_limit = max(
+                max(abs(float(channel.min_value)), abs(float(channel.max_value)))
+                for channel in self.actuator_set.channels
+            )
+            if limit > actuator_limit:
+                raise ValueError("max_abs_current_A exceeds actuator envelope.")
         for step, faults in self.fault_schedule.items():
             step_i = _require_int("fault schedule step", step)
             if step_i < 0 or step_i >= steps:
@@ -256,8 +284,14 @@ class ReplayScenario:
                 raise ValueError("fault schedule entries must not be empty.")
             for channel_name, fault_mode in faults.items():
                 _require_text("fault channel", channel_name)
-                _require_text("fault mode", fault_mode)
-                self.actuator_set.by_name(channel_name)
+                fault_mode_text = _require_text("fault mode", fault_mode)
+                actuator = self.actuator_set.by_name(channel_name)
+                supported_modes = _FAULT_MODE_SUPPORT.get(
+                    fault_mode_text,
+                    frozenset({fault_mode_text}),
+                )
+                if actuator.failure_mode not in supported_modes:
+                    raise ValueError("fault mode must be supported by actuator failure_mode.")
 
     def to_dict(self) -> dict[str, object]:
         return {
