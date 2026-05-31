@@ -20,7 +20,7 @@
   },
   "counts": {
     "project_script_count": 2,
-    "public_api_export_count": 40,
+    "public_api_export_count": 43,
     "public_class_count": 474,
     "public_markdown_count": 32,
     "pyo3_export_count": 27,
@@ -130,11 +130,14 @@
       "generate_safety_certificate",
       "kuramoto_sakaguchi_step",
       "order_parameter",
+      "run_provider_quorum",
+      "validate_physics_debug_quorum_report",
       "validate_physics_debug_report",
       "validate_safety_certificate_bundle_artifact",
       "validate_safety_certificate_bundle_payload",
       "validate_safety_certificate_payload",
       "verify_formal_contracts",
+      "write_physics_debug_quorum_report",
       "write_physics_debug_report",
       "write_safety_certificate",
       "write_safety_certificate_bundle"

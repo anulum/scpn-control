@@ -21,7 +21,9 @@ from scpn_control.physics_debug import (
     PhysicsDebugGap,
     ProviderPolicy,
     build_local_provider,
+    run_provider_quorum,
     validate_physics_debug_report,
+    validate_physics_debug_quorum_report,
 )
 
 
@@ -367,3 +369,138 @@ def test_physics_debug_normalizes_common_onsite_provider_responses(
     assert report["provider"]["protocol"] == protocol
     assert report["hypotheses"][0]["required_evidence_ids"] == ["cbc-linear-dispersion"]
     assert report["campaign_suggestions"][0]["risk_controls"] == ["offline advisory only"]
+
+
+def _quorum_provider(provider_name: str, confidence: float = 0.6) -> HTTPChatProvider:
+    return build_local_provider(
+        family="direct-json",
+        model=f"{provider_name}-model",
+        provider_name=provider_name,
+        transport=lambda payload: {
+            "hypotheses": [
+                {
+                    "hypothesis_id": f"{provider_name}-h1",
+                    "gap_id": "gk-cbc-linear-dispersion",
+                    "statement": f"{provider_name} suspects normalization drift.",
+                    "falsification_test": "Replay the CBC case with normalization metadata fixed.",
+                    "required_evidence_ids": ["cbc-linear-dispersion"],
+                    "confidence": confidence,
+                }
+            ],
+            "campaign_suggestions": [
+                {
+                    "campaign_id": f"{provider_name}-campaign",
+                    "linked_hypothesis_ids": [f"{provider_name}-h1"],
+                    "objective": "Replay the comparison with declared normalization metadata.",
+                    "measurements": ["growth-rate error", "mode frequency"],
+                    "stop_conditions": ["normalization replay does not change the error"],
+                    "risk_controls": ["offline advisory only", "quorum review before promotion"],
+                }
+            ],
+        },
+    )
+
+
+def test_physics_debug_provider_quorum_prefers_local_reports_and_records_digests() -> None:
+    providers = [_quorum_provider("onsite-a", 0.6), _quorum_provider("onsite-b", 0.72)]
+
+    quorum = run_provider_quorum(
+        evidence=[_cbc_evidence()],
+        gaps=[_cbc_gap()],
+        providers=providers,
+        min_providers=2,
+    )
+
+    assert quorum["status"] == "advisory-quorum"
+    assert quorum["local_provider_count"] == 2
+    assert quorum["remote_provider_count"] == 0
+    assert quorum["consensus_hypotheses"][0]["gap_id"] == "gk-cbc-linear-dispersion"
+    assert quorum["consensus_hypotheses"][0]["provider_count"] == 2
+    assert quorum["consensus_hypotheses"][0]["required_evidence_ids"] == ["cbc-linear-dispersion"]
+    assert len(quorum["provider_reports"]) == 2
+    assert all("payload_sha256" in item for item in quorum["provider_reports"])
+    assert validate_physics_debug_quorum_report(quorum) == quorum
+
+
+def test_physics_debug_provider_quorum_rejects_insufficient_local_coverage() -> None:
+    remote_provider = HTTPChatProvider(
+        provider_name="facility-gateway",
+        endpoint="https://facility-gateway.example.invalid/v1/chat/completions",
+        model="facility-approved-model",
+        protocol="direct-json",
+        transport=lambda payload: {
+            "hypotheses": [
+                {
+                    "hypothesis_id": "remote-h1",
+                    "gap_id": "gk-cbc-linear-dispersion",
+                    "statement": "Remote advisory check.",
+                    "falsification_test": "Replay the CBC comparison with fixed metadata.",
+                    "required_evidence_ids": ["cbc-linear-dispersion"],
+                    "confidence": 0.5,
+                }
+            ],
+            "campaign_suggestions": [
+                {
+                    "campaign_id": "remote-campaign",
+                    "linked_hypothesis_ids": ["remote-h1"],
+                    "objective": "Replay the comparison.",
+                    "measurements": ["growth-rate error"],
+                    "stop_conditions": ["no error change"],
+                    "risk_controls": ["facility allowlisted gateway", "advisory output only"],
+                }
+            ],
+        },
+    )
+    policy = ProviderPolicy(
+        allow_remote_providers=True,
+        allowed_endpoint_prefixes=("https://facility-gateway.example.invalid/",),
+    )
+
+    with pytest.raises(ValueError, match="local provider"):
+        run_provider_quorum(
+            evidence=[_cbc_evidence()],
+            gaps=[_cbc_gap()],
+            providers=[remote_provider],
+            policy=policy,
+            min_providers=1,
+            min_local_providers=1,
+        )
+
+
+def test_physics_debug_provider_quorum_rejects_uncorroborated_evidence() -> None:
+    provider_a = _quorum_provider("onsite-a")
+    provider_b = build_local_provider(
+        family="direct-json",
+        model="onsite-b-model",
+        provider_name="onsite-b",
+        transport=lambda payload: {
+            "hypotheses": [
+                {
+                    "hypothesis_id": "onsite-b-h1",
+                    "gap_id": "gk-cbc-linear-dispersion",
+                    "statement": "Different uncited evidence drives the mismatch.",
+                    "falsification_test": "Replay the CBC case with alternate evidence.",
+                    "required_evidence_ids": ["cbc-linear-dispersion", "extra-evidence"],
+                    "confidence": 0.6,
+                }
+            ],
+            "campaign_suggestions": [
+                {
+                    "campaign_id": "onsite-b-campaign",
+                    "linked_hypothesis_ids": ["onsite-b-h1"],
+                    "objective": "Replay with alternate evidence.",
+                    "measurements": ["growth-rate error"],
+                    "stop_conditions": ["no error change"],
+                    "risk_controls": ["offline advisory only"],
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(ValueError, match="required_evidence_ids"):
+        run_provider_quorum(
+            evidence=[_cbc_evidence()],
+            gaps=[_cbc_gap()],
+            providers=[provider_a, provider_b],
+            min_providers=2,
+        )

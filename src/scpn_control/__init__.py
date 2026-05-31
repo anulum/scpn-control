@@ -58,7 +58,10 @@ __all__ = [
     "ProviderPolicy",
     "build_local_provider",
     "build_physics_debug_report",
+    "run_provider_quorum",
     "validate_physics_debug_report",
+    "validate_physics_debug_quorum_report",
+    "write_physics_debug_quorum_report",
     "write_physics_debug_report",
 ]
 
@@ -100,7 +103,10 @@ _EXPORT_MODULES = {
     "ProviderPolicy": "scpn_control.physics_debug",
     "build_local_provider": "scpn_control.physics_debug",
     "build_physics_debug_report": "scpn_control.physics_debug",
+    "run_provider_quorum": "scpn_control.physics_debug",
     "validate_physics_debug_report": "scpn_control.physics_debug",
+    "validate_physics_debug_quorum_report": "scpn_control.physics_debug",
+    "write_physics_debug_quorum_report": "scpn_control.physics_debug",
     "write_physics_debug_report": "scpn_control.physics_debug",
 }
 

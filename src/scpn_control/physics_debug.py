@@ -29,7 +29,9 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, cast
 
 PHYSICS_DEBUG_REPORT_SCHEMA_VERSION = "scpn-control.physics-debug-report.v1"
+PHYSICS_DEBUG_QUORUM_REPORT_SCHEMA_VERSION = "scpn-control.physics-debug-quorum-report.v1"
 PHYSICS_DEBUG_SCOPE = "advisory local-first physics gap analysis and campaign suggestion"
+PHYSICS_DEBUG_QUORUM_SCOPE = "advisory local-first physics debug provider quorum"
 PHYSICS_DEBUG_CLAIM_BOUNDARY = (
     "not validated physics truth, facility safety approval, controller-parameter promotion, or experimental evidence"
 )
@@ -332,6 +334,108 @@ def write_physics_debug_report(payload: dict[str, Any], json_path: str | Path) -
     return validated
 
 
+def run_provider_quorum(
+    *,
+    evidence: list[PhysicsDebugEvidence],
+    gaps: list[PhysicsDebugGap],
+    providers: list[HTTPChatProvider],
+    policy: ProviderPolicy | None = None,
+    min_providers: int = 2,
+    min_local_providers: int = 1,
+) -> dict[str, Any]:
+    """Run multiple providers and admit only corroborated advisory evidence."""
+
+    if len(providers) < min_providers:
+        raise ValueError("physics debug quorum requires at least min_providers providers")
+    if min_providers <= 0:
+        raise ValueError("physics debug quorum min_providers must be positive")
+    if min_local_providers < 0:
+        raise ValueError("physics debug quorum min_local_providers must be non-negative")
+    resolved_policy = ProviderPolicy() if policy is None else policy
+    assistant = PhysicsDebugAssistant(policy=resolved_policy)
+    provider_reports = [
+        assistant.analyze(evidence=evidence, gaps=gaps, provider=provider)
+        for provider in sorted(providers, key=lambda item: (not item.local_onsite, item.provider_name))
+    ]
+    local_count = sum(1 for report in provider_reports if report["provider"]["local_onsite"])
+    remote_count = len(provider_reports) - local_count
+    if local_count < min_local_providers:
+        raise ValueError("physics debug quorum requires more local provider coverage")
+    consensus = _build_consensus_hypotheses(provider_reports, min_providers)
+    payload: dict[str, Any] = {
+        "schema_version": PHYSICS_DEBUG_QUORUM_REPORT_SCHEMA_VERSION,
+        "status": "advisory-quorum",
+        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "scope": PHYSICS_DEBUG_QUORUM_SCOPE,
+        "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
+        "provider_count": len(provider_reports),
+        "local_provider_count": local_count,
+        "remote_provider_count": remote_count,
+        "min_providers": min_providers,
+        "min_local_providers": min_local_providers,
+        "provider_reports": provider_reports,
+        "consensus_hypotheses": consensus,
+    }
+    payload["payload_sha256"] = _payload_digest(payload)
+    return validate_physics_debug_quorum_report(payload)
+
+
+def validate_physics_debug_quorum_report(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a tamper-evident provider-quorum physics debug report."""
+
+    if not isinstance(payload, dict):
+        raise ValueError("physics debug quorum report must be an object")
+    if payload.get("schema_version") != PHYSICS_DEBUG_QUORUM_REPORT_SCHEMA_VERSION:
+        raise ValueError("physics debug quorum report schema_version is unsupported")
+    if payload.get("status") != "advisory-quorum":
+        raise ValueError("physics debug quorum report status must be advisory-quorum")
+    if payload.get("scope") != PHYSICS_DEBUG_QUORUM_SCOPE:
+        raise ValueError("physics debug quorum report scope is unsupported")
+    if payload.get("claim_boundary") != PHYSICS_DEBUG_CLAIM_BOUNDARY:
+        raise ValueError("physics debug quorum report claim_boundary is unsupported")
+    for key in (
+        "provider_count",
+        "local_provider_count",
+        "remote_provider_count",
+        "min_providers",
+        "min_local_providers",
+    ):
+        if not isinstance(payload.get(key), int) or payload[key] < 0:
+            raise ValueError(f"physics debug quorum report {key} must be a non-negative integer")
+    if payload["provider_count"] < payload["min_providers"]:
+        raise ValueError("physics debug quorum report provider_count must meet min_providers")
+    if payload["local_provider_count"] < payload["min_local_providers"]:
+        raise ValueError("physics debug quorum report local_provider_count must meet min_local_providers")
+    if payload["local_provider_count"] + payload["remote_provider_count"] != payload["provider_count"]:
+        raise ValueError("physics debug quorum report provider counts are inconsistent")
+    provider_reports = payload.get("provider_reports")
+    if not isinstance(provider_reports, list) or len(provider_reports) != payload["provider_count"]:
+        raise ValueError("physics debug quorum report provider_reports count is inconsistent")
+    for report in provider_reports:
+        validate_physics_debug_report(report)
+    consensus = payload.get("consensus_hypotheses")
+    if not isinstance(consensus, list) or not consensus:
+        raise ValueError("physics debug quorum report consensus_hypotheses must be non-empty")
+    for item in consensus:
+        _validate_consensus_hypothesis(item, payload["min_providers"])
+    declared_digest = payload.get("payload_sha256")
+    if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
+        raise ValueError("physics debug quorum report payload_sha256 must be a SHA-256 hex digest")
+    if _payload_digest(payload) != declared_digest.lower():
+        raise ValueError("physics debug quorum report payload_sha256 does not match payload")
+    return payload
+
+
+def write_physics_debug_quorum_report(payload: dict[str, Any], json_path: str | Path) -> dict[str, Any]:
+    """Persist a validated provider-quorum physics debug report as JSON."""
+
+    validated = validate_physics_debug_quorum_report(payload)
+    path = Path(json_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(validated, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return validated
+
+
 def _build_physics_debug_prompt(evidence: list[dict[str, Any]], gaps: list[dict[str, Any]]) -> str:
     prompt_payload = {
         "task": "physics_debug_gap_analysis",
@@ -396,6 +500,54 @@ def _provider_request_payload(protocol: str, model: str, prompt: str) -> dict[st
             "parameters": {"temperature": 0.1, "return_full_text": False},
         }
     raise ValueError("provider protocol is unsupported")
+
+
+def _build_consensus_hypotheses(provider_reports: list[dict[str, Any]], min_providers: int) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, tuple[str, ...]], list[dict[str, Any]]] = {}
+    for report in provider_reports:
+        provider_name = report["provider"]["provider_name"]
+        for hypothesis in report["hypotheses"]:
+            key = (hypothesis["gap_id"], tuple(hypothesis["required_evidence_ids"]))
+            grouped.setdefault(key, []).append({**hypothesis, "provider_name": provider_name})
+    consensus: list[dict[str, Any]] = []
+    for (gap_id, required_evidence_ids), hypotheses in sorted(grouped.items()):
+        if len(hypotheses) >= min_providers:
+            consensus.append(
+                {
+                    "gap_id": gap_id,
+                    "required_evidence_ids": list(required_evidence_ids),
+                    "provider_count": len(hypotheses),
+                    "provider_names": sorted(item["provider_name"] for item in hypotheses),
+                    "mean_confidence": sum(item["confidence"] for item in hypotheses) / len(hypotheses),
+                    "falsification_tests": sorted({item["falsification_test"] for item in hypotheses}),
+                }
+            )
+    if not consensus:
+        raise ValueError("physics debug quorum requires corroborated required_evidence_ids")
+    return consensus
+
+
+def _validate_consensus_hypothesis(item: object, min_providers: int) -> None:
+    if not isinstance(item, dict):
+        raise ValueError("physics debug quorum consensus hypothesis must be an object")
+    _require_non_empty("consensus gap_id", item.get("gap_id"))
+    required_evidence_ids = _require_non_empty_string_list(
+        "consensus required_evidence_ids", item.get("required_evidence_ids")
+    )
+    if len(set(required_evidence_ids)) != len(required_evidence_ids):
+        raise ValueError("physics debug quorum consensus required_evidence_ids must be unique")
+    provider_count = item.get("provider_count")
+    if not isinstance(provider_count, int) or provider_count < min_providers:
+        raise ValueError("physics debug quorum consensus provider_count must meet min_providers")
+    provider_names = _require_non_empty_string_list("consensus provider_names", item.get("provider_names"))
+    if len(set(provider_names)) != provider_count:
+        raise ValueError("physics debug quorum consensus provider_names must match provider_count")
+    mean_confidence = item.get("mean_confidence")
+    if not isinstance(mean_confidence, int | float) or not math.isfinite(float(mean_confidence)):
+        raise ValueError("physics debug quorum consensus mean_confidence must be finite")
+    if float(mean_confidence) < 0.0 or float(mean_confidence) > 1.0:
+        raise ValueError("physics debug quorum consensus mean_confidence must be in [0, 1]")
+    _require_non_empty_string_list("consensus falsification_tests", item.get("falsification_tests"))
 
 
 def _sanitized_evidence_payload(evidence: list[PhysicsDebugEvidence]) -> tuple[list[dict[str, Any]], list[str]]:

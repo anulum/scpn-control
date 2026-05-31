@@ -43,7 +43,9 @@ protocols: chat-completions-compatible, Ollama-style chat, direct JSON, and
 text-generation endpoints. Reports are schema-versioned advisory evidence with
 secret redaction, falsifiable hypothesis checks, campaign risk controls, and
 tamper-evident payload digests. They are not validated physics truth,
-controller-parameter promotion, or facility safety approval.
+controller-parameter promotion, or facility safety approval. `run_provider_quorum()`
+runs multiple providers in local-first order and admits only hypotheses
+corroborated by the required provider count over the same gap and evidence set.
 
 ::: scpn_control.physics_debug.ProviderPolicy
 
@@ -59,9 +61,15 @@ controller-parameter promotion, or facility safety approval.
 
 ::: scpn_control.physics_debug.build_physics_debug_report
 
+::: scpn_control.physics_debug.run_provider_quorum
+
 ::: scpn_control.physics_debug.validate_physics_debug_report
 
+::: scpn_control.physics_debug.validate_physics_debug_quorum_report
+
 ::: scpn_control.physics_debug.write_physics_debug_report
+
+::: scpn_control.physics_debug.write_physics_debug_quorum_report
 
 ---
 
