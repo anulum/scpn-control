@@ -153,6 +153,23 @@ Report artefacts:
 Facility RWM-control claims still require documented public, external MHD, or
 measured-shot evidence that passes the strict admission gate.
 
+## Free-boundary Tracking Claim-Admission Benchmark
+
+`validation/benchmark_free_boundary_tracking_claims.py` publishes bounded
+repository-regression evidence for the direct free-boundary tracking claim
+boundary. The generated report records true objective residuals, response-rank
+health, actuator bounds, latency-compensation status, supervisor actions, and
+the explicit facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/free_boundary_tracking_claims.json`
+- `validation/reports/free_boundary_tracking_claims.md`
+
+Facility free-boundary tracking claims still require documented public,
+measured-replay, or external equilibrium benchmark evidence that passes the
+strict admission gate.
+
 ## EFIT-lite Claim-Admission Benchmark
 
 `validation/benchmark_efit_lite_claims.py` publishes bounded synthetic

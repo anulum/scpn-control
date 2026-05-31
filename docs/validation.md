@@ -481,6 +481,31 @@ This writes:
 - `validation/reports/free_boundary_tracking_acceptance.json`
 - `validation/reports/free_boundary_tracking_acceptance.md`
 
+Bounded free-boundary claim-admission evidence can be regenerated with:
+
+```bash
+python validation/benchmark_free_boundary_tracking_claims.py
+```
+
+This writes `validation/reports/free_boundary_tracking_claims.json` and
+`validation/reports/free_boundary_tracking_claims.md`. These artefacts
+demonstrate deterministic claim-admission plumbing only; facility-control
+claims remain gated by strict reference artefacts.
+
+Free-boundary tracking validation claims require persisted public-reference,
+measured free-boundary replay, or external equilibrium benchmark artifacts for
+shape, X-point, divertor, and coil-current agreement:
+
+```bash
+scpn-control validate-free-boundary-reference --require-reference-artifacts --json-out
+python validation/validate_free_boundary_reference.py --require-reference-artifacts --output-json artifacts/free_boundary_reference_report.json
+```
+
+Strict mode fails until `validation/reports/free_boundary_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, unit
+contracts, equilibrium metadata, case count, and free-boundary metrics inside
+declared tolerances.
+
 ## CI workflows
 
 - Core CI: `.github/workflows/ci.yml`

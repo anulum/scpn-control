@@ -63,6 +63,10 @@
   admission for measured, external-benchmark, or documented public reference
   artefacts covering warning lead time, mitigation outcome, halo-current
   envelope, runaway-beam envelope, and tritium-breeding-ratio metrics.
+- Added free-boundary tracking claim evidence with fail-closed facility-control
+  admission for matched public, measured-replay, or external equilibrium
+  artefacts covering shape, X-point, divertor, coil-current, response-rank,
+  latency, and supervisor provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.

@@ -1,29 +1,25 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Free Boundary Tracking
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Free-Boundary Tracking Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Free-boundary tracking tests
 """Deterministic tests for free-boundary target tracking control."""
 
 from __future__ import annotations
 
+import json
 
 import numpy as np
 import pytest
 
 from scpn_control.control.free_boundary_tracking import (
     FreeBoundaryTrackingController,
+    assert_free_boundary_tracking_facility_claim_admissible,
+    free_boundary_tracking_claim_evidence,
     run_free_boundary_tracking,
+    save_free_boundary_tracking_claim_evidence,
 )
 from scpn_control.core.fusion_kernel import CoilSet
 
@@ -496,6 +492,90 @@ def test_controller_does_not_sacrifice_already_met_tolerance() -> None:
     )
     summary = controller.run_tracking_shot(shot_steps=5, gain=0.6, stop_on_convergence=True)
     assert summary["tolerance_regression_blocked_count"] >= 0
+
+
+def test_free_boundary_claim_evidence_records_bounded_boundary(tmp_path) -> None:
+    summary = run_free_boundary_tracking(
+        config_file="dummy.json",
+        kernel_factory=_DummyFreeBoundaryKernel,
+        shot_steps=3,
+        gain=0.5,
+        verbose=False,
+    )
+    evidence = free_boundary_tracking_claim_evidence(
+        summary,
+        source="repository_free_boundary_regression",
+        source_id="free-boundary-tracking-regression-v1",
+    )
+    assert evidence.claim_status == "bounded_free_boundary_tracking_evidence"
+    assert evidence.facility_claim_allowed is False
+    assert evidence.true_shape_rms >= 0.0
+    assert evidence.reference_artifact_sha256 is None
+    with pytest.raises(ValueError, match="facility free-boundary tracking claim requires matched reference"):
+        assert_free_boundary_tracking_facility_claim_admissible(evidence)
+
+    output = tmp_path / "free_boundary_claim.json"
+    save_free_boundary_tracking_claim_evidence(evidence, output)
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+    assert persisted["schema_version"] == 1
+    assert persisted["claim_status"] == "bounded_free_boundary_tracking_evidence"
+
+
+def test_free_boundary_facility_claim_requires_reference_artifact() -> None:
+    summary = run_free_boundary_tracking(
+        config_file="dummy.json",
+        kernel_factory=_DummyFreeBoundaryKernel,
+        shot_steps=3,
+        gain=0.5,
+        verbose=False,
+    )
+    artifact = {
+        "source": "external_equilibrium_benchmark",
+        "reference_dataset_id": "efit-free-boundary-fixture-v1",
+        "reference_artifact_sha256": "a" * 64,
+        "reference_case_count": 2,
+        "units": {
+            "position": "m",
+            "flux": "Wb/rad",
+            "current": "MA",
+            "time": "s",
+            "tracking_error": "1",
+        },
+        "metrics": {
+            "shape_rms_abs_error": 0.004,
+            "x_point_position_abs_error_m": 0.006,
+            "x_point_flux_abs_error": 0.003,
+            "divertor_rms_abs_error": 0.004,
+            "coil_current_relative_error": 0.01,
+        },
+        "tolerances": {
+            "shape_rms_abs_error": 0.01,
+            "x_point_position_abs_error_m": 0.02,
+            "x_point_flux_abs_error": 0.01,
+            "divertor_rms_abs_error": 0.01,
+            "coil_current_relative_error": 0.03,
+        },
+    }
+    evidence = free_boundary_tracking_claim_evidence(
+        summary,
+        source="external_equilibrium_benchmark",
+        source_id="free-boundary-external-benchmark-v1",
+        reference_artifact=artifact,
+    )
+    assert evidence.facility_claim_allowed is True
+    assert evidence.reference_dataset_id == "efit-free-boundary-fixture-v1"
+    assert_free_boundary_tracking_facility_claim_admissible(evidence)
+
+    bad_artifact = dict(artifact)
+    bad_artifact["metrics"] = dict(artifact["metrics"])
+    bad_artifact["metrics"]["shape_rms_abs_error"] = 0.5
+    with pytest.raises(ValueError, match="shape_rms_abs_error exceeds declared tolerance"):
+        free_boundary_tracking_claim_evidence(
+            summary,
+            source="external_equilibrium_benchmark",
+            source_id="free-boundary-external-benchmark-v1",
+            reference_artifact=bad_artifact,
+        )
 
 
 # ── Coverage-gap tests ──────────────────────────────────────────────

@@ -588,31 +588,38 @@
       "model_references": [
         "Grad-Shafranov free-boundary control references",
         "Repository FusionKernel free-boundary objective contract",
-        "Repository deterministic free-boundary acceptance campaign"
+        "Repository deterministic free-boundary acceptance campaign",
+        "Repository fail-closed free-boundary claim-admission contract"
       ],
       "module_path": "src/scpn_control/control/free_boundary_tracking.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Promote deterministic acceptance evidence to measured or validated free-boundary replay cases before facility-control claims",
+        "Attach strict documented public, measured-replay, or external equilibrium benchmark artifacts before facility-control claims",
         "Attach actuator, latency, and sensor-calibration evidence for the target device before deployment claims"
       ],
       "unit_contract": "SI coil currents, metres, webers per radian, seconds, amperes per second, objective-space residuals, and dimensionless supervisor gains.",
       "validation_evidence": [
-        "tests/test_free_boundary_tracking.py controller and disturbance-observer checks",
+        "tests/test_free_boundary_tracking.py controller, disturbance-observer, and claim-admission checks",
         "tests/test_free_boundary_tracking_variants.py actuator, observer, latency, and supervisor edge-path checks",
-        "tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign"
+        "tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign",
+        "validation/validate_free_boundary_reference.py strict free-boundary reference artifact gate",
+        "validation/benchmark_free_boundary_tracking_claims.py bounded claim-admission benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/control/free_boundary_tracking.py",
         "tests/test_free_boundary_tracking.py",
         "tests/test_free_boundary_tracking_variants.py",
         "tests/test_free_boundary_tracking_acceptance.py",
-        "validation/free_boundary_tracking_acceptance.py"
+        "validation/free_boundary_tracking_acceptance.py",
+        "validation/validate_free_boundary_reference.py",
+        "validation/benchmark_free_boundary_tracking_claims.py",
+        "validation/reports/free_boundary_tracking_claims.json",
+        "validation/reports/free_boundary_tracking_claims.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/free_boundary_tracking.py"
       ],
-      "validity_domain": "Kernel-in-the-loop deterministic free-boundary tracking regression and controller prototyping; not a commissioned facility-control validation.",
+      "validity_domain": "Kernel-in-the-loop deterministic free-boundary tracking regression plus fail-closed claim-admission evidence; not commissioned facility-control validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {
