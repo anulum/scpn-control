@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened controller safety-case readiness so promotion now requires a typed
+  `hil_replay_evidence` artifact in addition to external physics validation,
+  target-hardware timing, and independent review; the artifact must resolve
+  under the declared evidence root, match its SHA-256 bytes, and pass
+  qualified-target HIL replay admission before deployment readiness can cite it.
 - Added schema-versioned HIL replay evidence admission for CONTROL-owned
   runtime deployment claims, including canonical SHA-256 payload digests,
   replay digests over controller, timing, target-hardware, interlock, and

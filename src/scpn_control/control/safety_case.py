@@ -36,6 +36,7 @@ _SAFETY_CASE_MANIFEST_SCHEMA_VERSION = 1
 _READINESS_ARTIFACT_KINDS = (
     "external_physics_validation",
     "target_hardware_timing",
+    "hil_replay_evidence",
     "independent_safety_review",
 )
 
@@ -63,6 +64,7 @@ class SafetyCaseReadinessEvidence:
     status: str
     external_physics_validation_sha256: str | None
     target_hardware_timing_sha256: str | None
+    hil_replay_evidence_sha256: str | None
     independent_safety_review_sha256: str | None
     blocking_reasons: tuple[str, ...]
     claim_status: str
@@ -106,7 +108,7 @@ def _optional_sha256(name: str, value: str | None) -> str | None:
 def _safe_relative_artifact_uri(name: str, value: str) -> str:
     if not isinstance(value, str) or not value:
         raise ValueError(f"{name} must be a non-empty safe relative path")
-    if "\\" in value or "://" in value or value.startswith(("file:", "/", "~")):
+    if "\\" in value or "://" in value or "//" in value or value.startswith(("file:", "/", "~")):
         raise ValueError(f"{name} must be a safe relative path")
     rel = PurePosixPath(value)
     if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
@@ -166,6 +168,19 @@ def _validate_target_hardware_timing_artifact(
         raise ValueError("target hardware timing artifact is not admissible: " + "; ".join(result.errors))
 
 
+def _validate_hil_replay_artifact(
+    artifact: ReadinessArtifactEvidence,
+    artifact_root: str | Path,
+) -> None:
+    report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
+    from scpn_control.control.hil_harness import load_hil_replay_evidence
+
+    try:
+        load_hil_replay_evidence(report_path, require_target_hardware=True)
+    except ValueError as exc:
+        raise ValueError(f"HIL replay artifact is not admissible: {exc}") from exc
+
+
 def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> ControllerSafetyCaseEvidence:
     try:
         evidence = ControllerSafetyCaseEvidence(
@@ -220,6 +235,11 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
                 if payload["target_hardware_timing_sha256"] is None
                 else str(payload["target_hardware_timing_sha256"])
             ),
+            hil_replay_evidence_sha256=(
+                None
+                if payload.get("hil_replay_evidence_sha256") is None
+                else str(payload["hil_replay_evidence_sha256"])
+            ),
             independent_safety_review_sha256=(
                 None
                 if payload["independent_safety_review_sha256"] is None
@@ -236,11 +256,23 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
         raise ValueError("controller safety-case readiness safety_case_sha256 must be a SHA-256 digest")
     _optional_sha256("external_physics_validation_sha256", readiness.external_physics_validation_sha256)
     _optional_sha256("target_hardware_timing_sha256", readiness.target_hardware_timing_sha256)
+    _optional_sha256("hil_replay_evidence_sha256", readiness.hil_replay_evidence_sha256)
     _optional_sha256("independent_safety_review_sha256", readiness.independent_safety_review_sha256)
     if readiness.status not in {"blocked", "promotion_ready"}:
         raise ValueError("controller safety-case readiness status is unsupported")
+    required_digests = {
+        "external_physics_validation_sha256": readiness.external_physics_validation_sha256,
+        "target_hardware_timing_sha256": readiness.target_hardware_timing_sha256,
+        "hil_replay_evidence_sha256": readiness.hil_replay_evidence_sha256,
+        "independent_safety_review_sha256": readiness.independent_safety_review_sha256,
+    }
+    missing = tuple(name for name, value in required_digests.items() if value is None)
     if readiness.status == "promotion_ready" and readiness.blocking_reasons:
         raise ValueError("controller safety-case readiness promotion_ready cannot have blocking reasons")
+    if readiness.status == "promotion_ready" and missing:
+        raise ValueError("controller safety-case readiness promotion_ready is missing required evidence")
+    if readiness.status == "blocked" and tuple(readiness.blocking_reasons) != missing:
+        raise ValueError("controller safety-case readiness blocking_reasons must match missing evidence")
     if not readiness.claim_status or "bounded" not in readiness.claim_status.lower():
         raise ValueError("controller safety-case readiness claim_status must state a bounded boundary")
     return readiness
@@ -251,24 +283,29 @@ def evaluate_controller_safety_case_readiness(
     *,
     external_physics_validation_sha256: str | None = None,
     target_hardware_timing_sha256: str | None = None,
+    hil_replay_evidence_sha256: str | None = None,
     independent_safety_review_sha256: str | None = None,
 ) -> SafetyCaseReadinessEvidence:
     """Evaluate whether a bounded safety-case bundle is promotion-ready.
 
     The linked internal evidence chain is necessary but not sufficient for
     promotion readiness. This gate requires external physics validation,
-    target-hardware timing evidence, and an independent safety review digest.
+    target-hardware timing evidence, HIL replay evidence, and an independent
+    safety review digest.
     """
     if not isinstance(safety_case, ControllerSafetyCaseEvidence):
         raise ValueError("safety_case must be ControllerSafetyCaseEvidence")
     external_digest = _optional_sha256("external_physics_validation_sha256", external_physics_validation_sha256)
     hardware_digest = _optional_sha256("target_hardware_timing_sha256", target_hardware_timing_sha256)
+    hil_digest = _optional_sha256("hil_replay_evidence_sha256", hil_replay_evidence_sha256)
     review_digest = _optional_sha256("independent_safety_review_sha256", independent_safety_review_sha256)
     blocking: list[str] = []
     if external_digest is None:
         blocking.append("external_physics_validation_sha256")
     if hardware_digest is None:
         blocking.append("target_hardware_timing_sha256")
+    if hil_digest is None:
+        blocking.append("hil_replay_evidence_sha256")
     if review_digest is None:
         blocking.append("independent_safety_review_sha256")
     status = "promotion_ready" if not blocking else "blocked"
@@ -278,6 +315,7 @@ def evaluate_controller_safety_case_readiness(
         status=status,
         external_physics_validation_sha256=external_digest,
         target_hardware_timing_sha256=hardware_digest,
+        hil_replay_evidence_sha256=hil_digest,
         independent_safety_review_sha256=review_digest,
         blocking_reasons=tuple(blocking),
         claim_status=(
@@ -313,12 +351,15 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
                 artifact_root,
                 max_e2e_p95_us=max_target_hardware_e2e_p95_us,
             )
+        elif kind == "hil_replay_evidence":
+            _validate_hil_replay_artifact(artifact, artifact_root)
         else:
             _resolve_readiness_artifact_path(artifact, artifact_root)
     return evaluate_controller_safety_case_readiness(
         safety_case,
         external_physics_validation_sha256=by_kind["external_physics_validation"].artifact_sha256,
         target_hardware_timing_sha256=by_kind["target_hardware_timing"].artifact_sha256,
+        hil_replay_evidence_sha256=by_kind["hil_replay_evidence"].artifact_sha256,
         independent_safety_review_sha256=by_kind["independent_safety_review"].artifact_sha256,
     )
 
@@ -380,6 +421,7 @@ def assert_controller_safety_case_readiness_admissible(
         safety_case,
         external_physics_validation_sha256=readiness.external_physics_validation_sha256,
         target_hardware_timing_sha256=readiness.target_hardware_timing_sha256,
+        hil_replay_evidence_sha256=readiness.hil_replay_evidence_sha256,
         independent_safety_review_sha256=readiness.independent_safety_review_sha256,
     )
     if readiness != recomputed:

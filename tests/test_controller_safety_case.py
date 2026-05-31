@@ -23,6 +23,7 @@ from scpn_control.control.digital_twin_online_update import (
     digital_twin_update_evidence,
     validate_external_simulator_artifact,
 )
+from scpn_control.control.hil_harness import ControlLoopMetrics, hil_replay_evidence
 from scpn_control.control.safety_case import (
     ControllerSafetyCaseEvidence,
     ReadinessArtifactEvidence,
@@ -214,12 +215,52 @@ def _target_hardware_latency_payload() -> dict[str, object]:
     )
 
 
+def _hil_replay_metrics() -> ControlLoopMetrics:
+    return ControlLoopMetrics(
+        iterations=1000,
+        target_dt_us=1000.0,
+        measured_dt_us=[450.0, 500.0, 550.0],
+        p50_latency_us=500.0,
+        p95_latency_us=700.0,
+        p99_latency_us=850.0,
+        max_latency_us=900.0,
+        min_latency_us=450.0,
+        mean_latency_us=600.0,
+        jitter_std_us=25.0,
+        overrun_count=0,
+        overrun_fraction=0.0,
+        sub_ms_achieved=True,
+    )
+
+
+def _target_hardware_hil_replay_payload() -> dict[str, object]:
+    return hil_replay_evidence(
+        _hil_replay_metrics(),
+        controller_id="safety-case-controller",
+        target_hardware_id="jetson-orin-nx-lab-unit-03",
+        target_hardware_class="jetson-orin-preempt-rt",
+        rt_kernel="linux-rt-6.8.0-lab",
+        deployment_claim_allowed=True,
+        generated_at="2026-05-31T00:00:00Z",
+    )
+
+
+def _local_hil_replay_payload() -> dict[str, object]:
+    return hil_replay_evidence(
+        _hil_replay_metrics(),
+        controller_id="safety-case-controller",
+        generated_at="2026-05-31T00:00:00Z",
+    )
+
+
 def _readiness_artifacts(root: Path) -> tuple[ReadinessArtifactEvidence, ...]:
     external_uri = "validation/reports/external/physics_validation.json"
     timing_uri = "validation/reports/hardware/target_timing.json"
+    hil_uri = "validation/reports/hardware/hil_replay.json"
     review_uri = "validation/reports/review/safety_review.json"
     external_digest = _write_readiness_file(root, external_uri, {"status": "pass", "source": "external"})
     timing_digest = _write_readiness_file(root, timing_uri, _target_hardware_latency_payload())
+    hil_digest = _write_readiness_file(root, hil_uri, _target_hardware_hil_replay_payload())
     review_digest = _write_readiness_file(root, review_uri, {"status": "pass", "source": "independent-review"})
     return (
         ReadinessArtifactEvidence(
@@ -234,6 +275,13 @@ def _readiness_artifacts(root: Path) -> tuple[ReadinessArtifactEvidence, ...]:
             artifact_sha256=timing_digest,
             artifact_uri=timing_uri,
             producer="target-hardware-latency-bench",
+            generated_utc="2026-05-31T00:00:00Z",
+        ),
+        ReadinessArtifactEvidence(
+            kind="hil_replay_evidence",
+            artifact_sha256=hil_digest,
+            artifact_uri=hil_uri,
+            producer="target-hardware-hil-replay",
             generated_utc="2026-05-31T00:00:00Z",
         ),
         ReadinessArtifactEvidence(
@@ -357,6 +405,7 @@ def test_controller_safety_case_readiness_blocks_without_external_evidence():
     assert readiness.safety_case_sha256
     assert "external_physics_validation_sha256" in readiness.blocking_reasons
     assert "target_hardware_timing_sha256" in readiness.blocking_reasons
+    assert "hil_replay_evidence_sha256" in readiness.blocking_reasons
     assert "independent_safety_review_sha256" in readiness.blocking_reasons
     with pytest.raises(ValueError, match="blocked"):
         assert_controller_safety_case_readiness_admissible(readiness, evidence)
@@ -375,6 +424,7 @@ def test_controller_safety_case_readiness_accepts_complete_promotion_evidence():
         evidence,
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
+        hil_replay_evidence_sha256="4" * 64,
         independent_safety_review_sha256="3" * 64,
     )
 
@@ -461,6 +511,33 @@ def test_controller_safety_case_readiness_rejects_timing_artifact_digest_mismatc
         )
 
 
+def test_controller_safety_case_readiness_rejects_local_hil_replay_artifact(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = list(_readiness_artifacts(tmp_path))
+    hil_uri = artifacts[2].artifact_uri
+    hil_digest = _write_readiness_file(tmp_path, hil_uri, _local_hil_replay_payload())
+    artifacts[2] = ReadinessArtifactEvidence(
+        kind="hil_replay_evidence",
+        artifact_sha256=hil_digest,
+        artifact_uri=hil_uri,
+        producer="target-hardware-hil-replay",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+
+    with pytest.raises(ValueError, match="HIL replay artifact is not admissible"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            tuple(artifacts),
+            artifact_root=tmp_path,
+        )
+
+
 def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe_uri(tmp_path: Path):
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -469,6 +546,7 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
+    valid_artifacts = _readiness_artifacts(tmp_path)
 
     with pytest.raises(ValueError, match="kind"):
         evaluate_controller_safety_case_readiness_from_artifacts(
@@ -502,6 +580,7 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
                     producer="target-hardware-latency-bench",
                     generated_utc="2026-05-31T00:00:00Z",
                 ),
+                valid_artifacts[2],
                 ReadinessArtifactEvidence(
                     kind="independent_safety_review",
                     artifact_sha256="3" * 64,
@@ -532,6 +611,7 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
                         producer="target-hardware-latency-bench",
                         generated_utc="2026-05-31T00:00:00Z",
                     ),
+                    valid_artifacts[2],
                     ReadinessArtifactEvidence(
                         kind="independent_safety_review",
                         artifact_sha256="3" * 64,
@@ -573,7 +653,7 @@ def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_cont
     with pytest.raises(ValueError, match="SHA-256"):
         evaluate_controller_safety_case_readiness_from_artifacts(
             evidence,
-            (invalid_digest, valid_artifacts[1], valid_artifacts[2]),
+            (invalid_digest, valid_artifacts[1], valid_artifacts[2], valid_artifacts[3]),
             artifact_root=tmp_path,
         )
 
@@ -587,7 +667,7 @@ def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_cont
     with pytest.raises(ValueError, match="producer"):
         evaluate_controller_safety_case_readiness_from_artifacts(
             evidence,
-            (empty_producer, valid_artifacts[1], valid_artifacts[2]),
+            (empty_producer, valid_artifacts[1], valid_artifacts[2], valid_artifacts[3]),
             artifact_root=tmp_path,
         )
 
@@ -601,7 +681,7 @@ def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_cont
     with pytest.raises(ValueError, match="generated_utc"):
         evaluate_controller_safety_case_readiness_from_artifacts(
             evidence,
-            (empty_generated, valid_artifacts[1], valid_artifacts[2]),
+            (empty_generated, valid_artifacts[1], valid_artifacts[2], valid_artifacts[3]),
             artifact_root=tmp_path,
         )
 
@@ -640,7 +720,7 @@ def test_controller_safety_case_readiness_artifacts_reject_duplicate_kind(tmp_pa
     with pytest.raises(ValueError, match="duplicate"):
         evaluate_controller_safety_case_readiness_from_artifacts(
             evidence,
-            (artifacts[0], artifacts[0], artifacts[2]),
+            (artifacts[0], artifacts[0], artifacts[1], artifacts[3]),
             artifact_root=tmp_path,
         )
 
@@ -657,6 +737,7 @@ def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):
         evidence,
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
+        hil_replay_evidence_sha256="4" * 64,
         independent_safety_review_sha256="3" * 64,
     )
     path = tmp_path / "controller_safety_case_readiness.json"
@@ -680,6 +761,7 @@ def test_controller_safety_case_readiness_manifest_rejects_tampering(tmp_path):
         evidence,
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
+        hil_replay_evidence_sha256="4" * 64,
         independent_safety_review_sha256="3" * 64,
     )
     path = tmp_path / "controller_safety_case_readiness.json"
@@ -729,6 +811,7 @@ def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
         evidence,
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
+        hil_replay_evidence_sha256="4" * 64,
         independent_safety_review_sha256="3" * 64,
     )
     drifted = controller_safety_case_evidence(
@@ -745,6 +828,7 @@ def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
             evidence,
             external_physics_validation_sha256="not-a-digest",
             target_hardware_timing_sha256="2" * 64,
+            hil_replay_evidence_sha256="4" * 64,
             independent_safety_review_sha256="3" * 64,
         )
 
@@ -761,6 +845,7 @@ def test_controller_safety_case_readiness_admission_rejects_type_and_state_drift
         evidence,
         external_physics_validation_sha256="1" * 64,
         target_hardware_timing_sha256="2" * 64,
+        hil_replay_evidence_sha256="4" * 64,
         independent_safety_review_sha256="3" * 64,
     )
 
