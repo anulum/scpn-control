@@ -627,6 +627,22 @@ safety-critical controller proof artifact digest.
 
 ::: scpn_control.control.digital_twin_online_update.synthetic_online_update_benchmark
 
+### Controller Safety-Case Evidence
+
+`control.safety_case` defines the bounded safety-case workflow contract that
+links a passing safety-critical controller proof manifest, audited JAX
+differentiable-transport evidence, and TRANSP/TSC-backed bounded digital-twin
+online-update evidence. The bundle is tamper-evident and fails closed unless
+all evidence items bind to the same canonical controller artifact SHA-256. This
+is a repository safety-package admission boundary, not an external
+certification claim.
+
+::: scpn_control.control.safety_case.ControllerSafetyCaseEvidence
+
+::: scpn_control.control.safety_case.controller_safety_case_evidence
+
+::: scpn_control.control.safety_case.assert_controller_safety_case_admissible
+
 ### Flight Simulator
 
 ::: scpn_control.control.tokamak_flight_sim.IsoFluxController

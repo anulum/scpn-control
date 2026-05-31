@@ -238,6 +238,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
   - Persist formal verification reports with every safety-critical compiled controller artifact
   - Admit safety-critical `.scpnctl` artifacts only through the bounded formal-verification manifest gate
   - Bind admitted proof manifests to the exact canonical artifact payload digest and declared report digest
+  - Bind promoted controller safety-case bundles to the same controller artifact digest across formal proof, differentiable-transport, and digital-twin update evidence
   - Validate certification packages with an external safety-case review before hardware-control claims
   - Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation
   - Treat missing `z3-solver` as blocked SMT evidence, not as a successful proof

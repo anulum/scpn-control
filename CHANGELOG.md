@@ -21,6 +21,10 @@
   and TSC simulator metadata, observation and prior digests, Bayesian-update
   result digests, baseline-improvement status, and optional safety-critical
   controller proof artifact digests.
+- Added a bounded controller safety-case evidence workflow that links a passing
+  formal controller proof manifest, audited differentiable-transport evidence,
+  and TRANSP/TSC-backed digital-twin update evidence to the same canonical
+  controller artifact digest.
 - Hardened the phase WebSocket stream with explicit payload-size limits,
   server-side frame caps, default client authentication, TLS-required startup
   mode, disabled-by-default query-token authentication, fail-closed plaintext
