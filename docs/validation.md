@@ -14,9 +14,10 @@ remote or facility gateways require an explicit endpoint allowlist.
 `build_local_provider()` provides onsite profiles for chat-completions-compatible,
 Ollama-style chat, direct JSON, and text-generation gateways while keeping the
 host loopback-only by default. Evidence is redacted before prompting, provider
-output must cite supplied evidence, every hypothesis must include a
-falsification test, and campaign suggestions must declare measurements, stop
-conditions, and risk controls. Persisted reports use
+output must cite supplied evidence, prompt-injection findings are neutralized
+before provider prompting, every hypothesis must include a falsification test,
+and campaign suggestions must declare measurements, stop conditions, and risk
+controls. Persisted reports use
 `scpn-control.physics-debug-report.v1` with a canonical SHA-256 payload digest.
 `PhysicsDebugSafetyPolicy` binds mandatory human review, caps advisory
 confidence, and rejects provider text that attempts controller promotion,

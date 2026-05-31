@@ -42,8 +42,10 @@ only; facility or external gateways must be explicitly allowlisted.
 protocols: chat-completions-compatible, Ollama-style chat, direct JSON, and
 text-generation endpoints. Reports are schema-versioned advisory evidence with
 secret redaction, falsifiable hypothesis checks, campaign risk controls, and
-tamper-evident payload digests. They are not validated physics truth,
-controller-parameter promotion, or facility safety approval. `run_provider_quorum()`
+risk-bound prompt-injection neutralization for untrusted evidence text before
+provider prompting. Prompt-guard findings are recorded in the tamper-evident
+payload digest. They are not validated physics truth, controller-parameter
+promotion, or facility safety approval. `run_provider_quorum()`
 runs multiple providers in local-first order and admits only hypotheses
 corroborated by the required provider count over the same gap and evidence set.
 `PhysicsDebugSafetyPolicy` binds the human-review requirement, caps advisory

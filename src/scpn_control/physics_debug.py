@@ -52,6 +52,25 @@ DEFAULT_FORBIDDEN_ACTION_PHRASES = (
     "facility safety approval",
     "validated physics truth",
 )
+PROMPT_INJECTION_REDACTION = "<redacted-prompt-injection>"
+PROMPT_INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "ignore_previous_instructions",
+        re.compile(r"(?i)\bignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions\b"),
+    ),
+    (
+        "controller_promotion_instruction",
+        re.compile(r"(?i)\bpromote\s+controller\b[^\.;\n]*"),
+    ),
+    (
+        "review_bypass_instruction",
+        re.compile(r"(?i)\bbypass\s+(?:human\s+)?review\b[^\.;\n]*"),
+    ),
+    (
+        "approval_claim_instruction",
+        re.compile(r"(?i)\bfacility\s+safety\s+approval\b[^\.;\n]*"),
+    ),
+)
 
 ProviderTransport = Callable[[dict[str, Any]], Mapping[str, Any] | str | bytes]
 
@@ -242,7 +261,7 @@ class PhysicsDebugAssistant:
             raise ValueError("physics debug analysis requires evidence")
         if not gaps:
             raise ValueError("physics debug analysis requires gaps")
-        evidence_payload, redactions = _sanitized_evidence_payload(evidence)
+        evidence_payload, redactions, prompt_guard_findings = _sanitized_evidence_payload(evidence)
         gap_payload = [asdict(gap) for gap in gaps]
         _validate_evidence_gap_linkage(evidence_payload, gap_payload)
         prompt = _build_physics_debug_prompt(evidence_payload, gap_payload)
@@ -254,6 +273,7 @@ class PhysicsDebugAssistant:
             provider_output=provider_output,
             redactions=redactions,
             safety_policy=self.safety_policy,
+            prompt_guard_findings=prompt_guard_findings,
         )
 
 
@@ -265,6 +285,7 @@ def build_physics_debug_report(
     provider_output: Mapping[str, Any],
     redactions: list[str] | None = None,
     safety_policy: PhysicsDebugSafetyPolicy | None = None,
+    prompt_guard_findings: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a schema-versioned advisory physics debugging report."""
 
@@ -284,6 +305,7 @@ def build_physics_debug_report(
         "hypotheses": hypotheses,
         "campaign_suggestions": campaigns,
         "redactions": sorted(set(redactions or [])),
+        "prompt_guard_findings": sorted(set(prompt_guard_findings or [])),
     }
     payload["payload_sha256"] = _payload_digest(payload)
     return validate_physics_debug_report(payload)
@@ -369,6 +391,9 @@ def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     redactions = payload.get("redactions")
     if not isinstance(redactions, list) or any(not isinstance(item, str) for item in redactions):
         raise ValueError("physics debug report redactions must be a list of strings")
+    prompt_guard_findings = payload.get("prompt_guard_findings")
+    if not isinstance(prompt_guard_findings, list) or any(not isinstance(item, str) for item in prompt_guard_findings):
+        raise ValueError("physics debug report prompt_guard_findings must be a list of strings")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
         raise ValueError("physics debug report payload_sha256 must be a SHA-256 hex digest")
@@ -614,8 +639,11 @@ def _validate_consensus_hypothesis(item: object, min_providers: int) -> None:
     _require_non_empty_string_list("consensus falsification_tests", item.get("falsification_tests"))
 
 
-def _sanitized_evidence_payload(evidence: list[PhysicsDebugEvidence]) -> tuple[list[dict[str, Any]], list[str]]:
+def _sanitized_evidence_payload(
+    evidence: list[PhysicsDebugEvidence],
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
     redactions: list[str] = []
+    prompt_guard_findings: list[str] = []
     payload: list[dict[str, Any]] = []
     seen: set[str] = set()
     for item in evidence:
@@ -624,8 +652,12 @@ def _sanitized_evidence_payload(evidence: list[PhysicsDebugEvidence]) -> tuple[l
         seen.add(item.evidence_id)
         summary, summary_redactions = _redact_sensitive_text(item.summary)
         source, source_redactions = _redact_sensitive_text(item.source)
+        summary, summary_guard_findings = _neutralize_prompt_injection_text(summary)
+        source, source_guard_findings = _neutralize_prompt_injection_text(source)
         redactions.extend(summary_redactions)
         redactions.extend(source_redactions)
+        prompt_guard_findings.extend(summary_guard_findings)
+        prompt_guard_findings.extend(source_guard_findings)
         payload.append(
             {
                 "evidence_id": item.evidence_id,
@@ -635,7 +667,7 @@ def _sanitized_evidence_payload(evidence: list[PhysicsDebugEvidence]) -> tuple[l
                 "sha256": item.sha256.lower() if item.sha256 is not None else None,
             }
         )
-    return payload, redactions
+    return payload, redactions, sorted(set(prompt_guard_findings))
 
 
 def _validate_provider_endpoint(provider: HTTPChatProvider, policy: ProviderPolicy) -> None:
@@ -878,6 +910,16 @@ def _redact_sensitive_text(value: str) -> tuple[str, list[str]]:
             redactions.append(label)
         text = updated
     return text, redactions
+
+
+def _neutralize_prompt_injection_text(value: str) -> tuple[str, list[str]]:
+    findings: list[str] = []
+    text = value
+    for label, pattern in PROMPT_INJECTION_PATTERNS:
+        text, count = pattern.subn(PROMPT_INJECTION_REDACTION, text)
+        if count:
+            findings.append(label)
+    return text, findings
 
 
 def _require_non_empty(name: str, value: object) -> str:
