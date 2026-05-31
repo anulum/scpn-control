@@ -386,6 +386,18 @@ measured-discharge replay, or external integrated-modelling artifacts for grid
 topology, q-profile evolution, actuator latency, IDS export, and island-mask
 checks:
 
+Bounded synthetic online model-update evidence can be regenerated with:
+
+```bash
+python validation/benchmark_digital_twin_online_update.py
+```
+
+This writes `validation/reports/digital_twin_online_update.json` and
+`validation/reports/digital_twin_online_update.md`. The benchmark exercises
+Bayesian updating of density, effective charge, and actuator dynamics against a
+synthetic reference. TRANSP/TSC coupling requires validated external simulator
+metadata and the strict reference gate below before measured replay claims.
+
 ```bash
 scpn-control validate-digital-twin-reference --require-reference-artifacts --json-out
 python validation/validate_digital_twin_reference.py --require-reference-artifacts --output-json artifacts/digital_twin_reference_report.json

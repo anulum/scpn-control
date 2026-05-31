@@ -466,9 +466,22 @@ in addition to dropout and white-noise corruption, and it can now stress the
 command path with deterministic actuator bias, drift, first-order lag, and
 rate limiting. The returned summary exposes both commanded and applied actions
 plus actuator-lag telemetry so replay tests can see what the plant actually
-received.
+received. Density and effective-charge knobs are explicit model-update
+parameters.
+
+`digital_twin_online_update` adds fail-closed TRANSP/TSC simulator artifact
+metadata validation and deterministic Bayesian optimisation over bounded twin
+parameters. The shipped benchmark is synthetic online-update evidence only;
+external simulator replay claims require validated artifact metadata and the
+strict digital-twin reference gate.
 
 ::: scpn_control.control.tokamak_digital_twin.run_digital_twin
+
+::: scpn_control.control.digital_twin_online_update.validate_external_simulator_artifact
+
+::: scpn_control.control.digital_twin_online_update.bayesian_update_digital_twin
+
+::: scpn_control.control.digital_twin_online_update.synthetic_online_update_benchmark
 
 ### Flight Simulator
 

@@ -115,6 +115,21 @@ def test_digital_twin_gate_accepts_external_integrated_modelling(tmp_path: Path)
     assert report["entries"][0]["source"] == "external_integrated_modelling"
 
 
+def test_digital_twin_gate_accepts_tsc_external_integrated_modelling(tmp_path: Path) -> None:
+    payload = _valid_digital_twin_reference_artifact()
+    payload["source"] = "external_integrated_modelling"
+    payload.pop("reference_doi")
+    payload["external_code"] = "TSC"
+    payload["reference_artifact_uri"] = "file:///validation/reports/digital_twin/tsc_replay_cases.nc"
+    artifact = tmp_path / "tsc_digital_twin_reference.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_digital_twin_reference(tmp_path, require_reference_artifacts=True)
+
+    assert report["status"] == "pass"
+    assert report["entries"][0]["source"] == "external_integrated_modelling"
+
+
 def test_digital_twin_gate_rejects_synthetic_source(tmp_path: Path) -> None:
     payload = _valid_digital_twin_reference_artifact()
     payload["source"] = "synthetic"

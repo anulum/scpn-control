@@ -34,6 +34,10 @@
 - Added neural equilibrium synthetic pretraining with deterministic
   JAX-compatible weights, benchmark reports, and a fail-closed real EFIT/P-EFIT
   fine-tuning admission gate backed by persisted reference artefacts.
+- Added digital-twin online model updating with fail-closed TRANSP/TSC
+  simulator artifact metadata validation, deterministic Bayesian optimisation
+  over bounded density, effective-charge, and actuator parameters, and a
+  synthetic online-update benchmark report.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.
@@ -58,6 +62,7 @@
 - `python validation/validate_physics_traceability.py --registry validation/physics_traceability.json --json-out`
 - `python validation/benchmark_federated_disruption.py`
 - `python validation/benchmark_neural_equilibrium_pretraining.py`
+- `python validation/benchmark_digital_twin_online_update.py`
 - `python tools/capability_manifest.py --check`
 - `python -m tools.check_generated_traceability`
 
