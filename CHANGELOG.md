@@ -28,6 +28,10 @@
 - Added schema-versioned controller safety-case manifest persistence with an
   integrity digest so archived evidence bundles fail closed on malformed schema
   or payload tampering before replay admission.
+- Added an explicit controller safety-case readiness gate that remains blocked
+  until external physics validation, target-hardware timing evidence, and
+  independent safety-review digests are all present and bound to the current
+  safety-case bundle.
 - Hardened the phase WebSocket stream with explicit payload-size limits,
   server-side frame caps, default client authentication, TLS-required startup
   mode, disabled-by-default query-token authentication, fail-closed plaintext

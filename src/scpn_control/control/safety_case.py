@@ -48,10 +48,42 @@ class ControllerSafetyCaseEvidence:
     claim_status: str
 
 
+@dataclass(frozen=True)
+class SafetyCaseReadinessEvidence:
+    """Promotion-readiness gate for a bounded controller safety-case bundle."""
+
+    schema_version: int
+    safety_case_sha256: str
+    status: str
+    external_physics_validation_sha256: str | None
+    target_hardware_timing_sha256: str | None
+    independent_safety_review_sha256: str | None
+    blocking_reasons: tuple[str, ...]
+    claim_status: str
+
+
 def _canonical_sha256(value: Any) -> str:
     payload = asdict(value) if hasattr(value, "__dataclass_fields__") else value
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
+
+
+def _is_sha256_hex(value: str) -> bool:
+    if len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return True
+
+
+def _optional_sha256(name: str, value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not _is_sha256_hex(value):
+        raise ValueError(f"{name} must be a SHA-256 hex digest")
+    return value.lower()
 
 
 def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> ControllerSafetyCaseEvidence:
@@ -90,6 +122,75 @@ def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> Co
     if not evidence.claim_status or "bounded" not in evidence.claim_status.lower():
         raise ValueError("controller safety-case evidence claim_status must state a bounded boundary")
     return evidence
+
+
+def evaluate_controller_safety_case_readiness(
+    safety_case: ControllerSafetyCaseEvidence,
+    *,
+    external_physics_validation_sha256: str | None = None,
+    target_hardware_timing_sha256: str | None = None,
+    independent_safety_review_sha256: str | None = None,
+) -> SafetyCaseReadinessEvidence:
+    """Evaluate whether a bounded safety-case bundle is promotion-ready.
+
+    The linked internal evidence chain is necessary but not sufficient for
+    promotion readiness. This gate requires external physics validation,
+    target-hardware timing evidence, and an independent safety review digest.
+    """
+    if not isinstance(safety_case, ControllerSafetyCaseEvidence):
+        raise ValueError("safety_case must be ControllerSafetyCaseEvidence")
+    external_digest = _optional_sha256("external_physics_validation_sha256", external_physics_validation_sha256)
+    hardware_digest = _optional_sha256("target_hardware_timing_sha256", target_hardware_timing_sha256)
+    review_digest = _optional_sha256("independent_safety_review_sha256", independent_safety_review_sha256)
+    blocking: list[str] = []
+    if external_digest is None:
+        blocking.append("external_physics_validation_sha256")
+    if hardware_digest is None:
+        blocking.append("target_hardware_timing_sha256")
+    if review_digest is None:
+        blocking.append("independent_safety_review_sha256")
+    status = "promotion_ready" if not blocking else "blocked"
+    return SafetyCaseReadinessEvidence(
+        schema_version=1,
+        safety_case_sha256=_canonical_sha256(safety_case),
+        status=status,
+        external_physics_validation_sha256=external_digest,
+        target_hardware_timing_sha256=hardware_digest,
+        independent_safety_review_sha256=review_digest,
+        blocking_reasons=tuple(blocking),
+        claim_status=(
+            "bounded safety-case promotion gate; external regulator certification "
+            "and facility authority approval remain separate"
+        ),
+    )
+
+
+def assert_controller_safety_case_readiness_admissible(
+    readiness: SafetyCaseReadinessEvidence,
+    safety_case: ControllerSafetyCaseEvidence,
+) -> SafetyCaseReadinessEvidence:
+    """Fail closed unless readiness evidence matches the safety case and is complete."""
+    if not isinstance(readiness, SafetyCaseReadinessEvidence):
+        raise ValueError("readiness must be SafetyCaseReadinessEvidence")
+    if not isinstance(safety_case, ControllerSafetyCaseEvidence):
+        raise ValueError("safety_case must be ControllerSafetyCaseEvidence")
+    if readiness.schema_version != 1:
+        raise ValueError("controller safety-case readiness schema_version is unsupported")
+    if readiness.safety_case_sha256 != _canonical_sha256(safety_case):
+        raise ValueError("controller safety-case readiness safety_case_sha256 mismatch")
+    if readiness.status not in {"blocked", "promotion_ready"}:
+        raise ValueError("controller safety-case readiness status is unsupported")
+    if readiness.status == "blocked" or readiness.blocking_reasons:
+        raise ValueError("controller safety-case readiness is blocked: " + ", ".join(readiness.blocking_reasons))
+    recomputed = evaluate_controller_safety_case_readiness(
+        safety_case,
+        external_physics_validation_sha256=readiness.external_physics_validation_sha256,
+        target_hardware_timing_sha256=readiness.target_hardware_timing_sha256,
+        independent_safety_review_sha256=readiness.independent_safety_review_sha256,
+    )
+    if readiness != recomputed:
+        raise ValueError("controller safety-case readiness evidence mismatch")
+    return readiness
 
 
 def _require_same_controller_binding(
@@ -214,8 +315,11 @@ def assert_controller_safety_case_admissible(
 
 __all__ = [
     "ControllerSafetyCaseEvidence",
+    "SafetyCaseReadinessEvidence",
     "assert_controller_safety_case_admissible",
+    "assert_controller_safety_case_readiness_admissible",
     "controller_safety_case_evidence",
+    "evaluate_controller_safety_case_readiness",
     "load_controller_safety_case_evidence",
     "save_controller_safety_case_evidence",
 ]

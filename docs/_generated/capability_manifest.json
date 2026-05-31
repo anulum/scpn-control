@@ -21,7 +21,7 @@
   "counts": {
     "project_script_count": 2,
     "public_api_export_count": 17,
-    "public_class_count": 466,
+    "public_class_count": 467,
     "public_markdown_count": 32,
     "pyo3_export_count": 27,
     "python_test_file_count": 275,
@@ -464,6 +464,7 @@
       "SNNNeuronConfig",
       "SOLBlobProfile",
       "SOLSolution",
+      "SafetyCaseReadinessEvidence",
       "SafetyConstraint",
       "SawtoothCycler",
       "SawtoothEvent",

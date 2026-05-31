@@ -639,8 +639,14 @@ certification claim. `save_controller_safety_case_evidence()` persists the
 bundle with a manifest integrity digest, and
 `load_controller_safety_case_evidence()` rejects schema drift, malformed fields,
 or edited evidence payloads before replay admission.
+`evaluate_controller_safety_case_readiness()` separates linked bounded evidence
+from promotion readiness: external physics validation, target-hardware timing
+evidence, and independent safety-review digests are all required before
+`assert_controller_safety_case_readiness_admissible()` accepts the package.
 
 ::: scpn_control.control.safety_case.ControllerSafetyCaseEvidence
+
+::: scpn_control.control.safety_case.SafetyCaseReadinessEvidence
 
 ::: scpn_control.control.safety_case.controller_safety_case_evidence
 
@@ -649,6 +655,10 @@ or edited evidence payloads before replay admission.
 ::: scpn_control.control.safety_case.save_controller_safety_case_evidence
 
 ::: scpn_control.control.safety_case.load_controller_safety_case_evidence
+
+::: scpn_control.control.safety_case.evaluate_controller_safety_case_readiness
+
+::: scpn_control.control.safety_case.assert_controller_safety_case_readiness_admissible
 
 ### Flight Simulator
 

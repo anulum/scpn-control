@@ -21,8 +21,11 @@ from scpn_control.control.digital_twin_online_update import (
     validate_external_simulator_artifact,
 )
 from scpn_control.control.safety_case import (
+    SafetyCaseReadinessEvidence,
     assert_controller_safety_case_admissible,
+    assert_controller_safety_case_readiness_admissible,
     controller_safety_case_evidence,
+    evaluate_controller_safety_case_readiness,
     load_controller_safety_case_evidence,
     save_controller_safety_case_evidence,
 )
@@ -226,6 +229,81 @@ def test_controller_safety_case_manifest_rejects_malformed_schema(tmp_path):
 
     with pytest.raises(ValueError, match="schema_version"):
         load_controller_safety_case_evidence(path)
+
+
+def test_controller_safety_case_readiness_blocks_without_external_evidence():
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+
+    readiness = evaluate_controller_safety_case_readiness(evidence)
+
+    assert isinstance(readiness, SafetyCaseReadinessEvidence)
+    assert readiness.status == "blocked"
+    assert readiness.safety_case_sha256
+    assert "external_physics_validation_sha256" in readiness.blocking_reasons
+    assert "target_hardware_timing_sha256" in readiness.blocking_reasons
+    assert "independent_safety_review_sha256" in readiness.blocking_reasons
+    with pytest.raises(ValueError, match="blocked"):
+        assert_controller_safety_case_readiness_admissible(readiness, evidence)
+
+
+def test_controller_safety_case_readiness_accepts_complete_promotion_evidence():
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+
+    readiness = evaluate_controller_safety_case_readiness(
+        evidence,
+        external_physics_validation_sha256="1" * 64,
+        target_hardware_timing_sha256="2" * 64,
+        independent_safety_review_sha256="3" * 64,
+    )
+
+    assert readiness.status == "promotion_ready"
+    assert readiness.blocking_reasons == ()
+    assert readiness.external_physics_validation_sha256 == "1" * 64
+    assert_controller_safety_case_readiness_admissible(readiness, evidence)
+
+
+def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    readiness = evaluate_controller_safety_case_readiness(
+        evidence,
+        external_physics_validation_sha256="1" * 64,
+        target_hardware_timing_sha256="2" * 64,
+        independent_safety_review_sha256="3" * 64,
+    )
+    drifted = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    object.__setattr__(drifted, "formal_max_depth", drifted.formal_max_depth + 1)
+
+    with pytest.raises(ValueError, match="safety_case_sha256"):
+        assert_controller_safety_case_readiness_admissible(readiness, drifted)
+    with pytest.raises(ValueError, match="SHA-256"):
+        evaluate_controller_safety_case_readiness(
+            evidence,
+            external_physics_validation_sha256="not-a-digest",
+            target_hardware_timing_sha256="2" * 64,
+            independent_safety_review_sha256="3" * 64,
+        )
 
 
 def test_controller_safety_case_rejects_mismatched_evidence_chain():
