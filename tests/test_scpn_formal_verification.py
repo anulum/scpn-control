@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from scpn_control.scpn.formal_verification import (
     AlwaysEventuallyMarked,
     EventuallyFires,
     FireLeadsToMarking,
+    FormalViolation,
     FormalPetriNetVerifier,
     NeverCoMarked,
     PlaceInvariant,
@@ -30,7 +32,10 @@ from scpn_control.scpn.structure import StochasticPetriNet
 
 from scpn_control.scpn.z3_model_checking import (  # noqa: E402
     Z3BoundedModelChecker,
+    Z3FormalVerificationReport,
+    Z3ModelCheckingReport,
     build_blocked_z3_formal_report_payload,
+    build_z3_formal_report_payload,
     validate_z3_formal_report_payload,
     verify_z3_formal_contracts,
     write_z3_formal_report,
@@ -215,6 +220,40 @@ def test_formal_verifier_rejects_non_integer_depth_and_nonfinite_bounds() -> Non
         raise AssertionError("non-finite marking bounds must be rejected")
 
 
+def test_z3_checker_rejects_uncompiled_net_before_solver_use() -> None:
+    net = StochasticPetriNet()
+    net.add_place("source", initial_tokens=1.0)
+    net.add_transition("move", threshold=1.0)
+    net.add_arc("source", "move", weight=1.0)
+
+    with pytest.raises(RuntimeError, match="compiled"):
+        Z3BoundedModelChecker(net)
+
+
+def test_z3_checker_rejects_invalid_safety_domains_before_solver_use() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    with pytest.raises(ValueError, match="max_depth"):
+        checker.prove_marking_bounds({"source": (0.0, 1.0)}, max_depth=True)
+    with pytest.raises(ValueError, match="must not be empty"):
+        checker.prove_marking_bounds({}, max_depth=1)
+    with pytest.raises(ValueError, match="unknown place"):
+        checker.prove_marking_bounds({"missing": (0.0, 1.0)}, max_depth=1)
+    with pytest.raises(ValueError, match="lower bound exceeds upper bound"):
+        checker.prove_marking_bounds({"source": (1.0, 0.0)}, max_depth=1)
+
+
+def test_z3_checker_rejects_invalid_temporal_domains_before_solver_use() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    with pytest.raises(ValueError, match="unknown transition"):
+        checker.verify_temporal_specs([EventuallyFires("missing_fires", "missing")], max_depth=1)
+    with pytest.raises(ValueError, match="unknown place"):
+        checker.verify_temporal_specs([AlwaysEventuallyMarked("missing_marked", "missing")], max_depth=1)
+    with pytest.raises(ValueError, match="within"):
+        checker.verify_temporal_specs([FireLeadsToMarking("bad_window", "move", "sink", within=-1)], max_depth=1)
+
+
 @requires_z3
 def test_z3_model_checker_proves_safe_marking_bounds() -> None:
     report = Z3BoundedModelChecker(_transfer_net()).prove_marking_bounds(
@@ -241,6 +280,27 @@ def test_z3_model_checker_returns_marking_bound_counterexample() -> None:
 
 
 @requires_z3
+def test_z3_model_checker_distinguishes_dead_transition_liveness() -> None:
+    net = StochasticPetriNet()
+    net.add_place("empty", initial_tokens=0.0)
+    net.add_place("marked", initial_tokens=0.0)
+    net.add_transition("needs_token", threshold=1.0)
+    net.add_arc("empty", "needs_token", weight=1.0)
+    net.add_arc("needs_token", "marked", weight=1.0)
+    net.compile()
+
+    report = Z3BoundedModelChecker(net).verify_temporal_specs(
+        [EventuallyFires("dead_transition_detected", "needs_token")],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "unsat"
+    assert report.violations[0].transition == "needs_token"
+    assert "cannot fire" in report.violations[0].message
+
+
+@requires_z3
 def test_z3_temporal_specs_find_exclusivity_counterexample() -> None:
     net = StochasticPetriNet()
     net.add_place("armed", initial_tokens=1.0)
@@ -263,6 +323,18 @@ def test_z3_temporal_specs_find_exclusivity_counterexample() -> None:
 
 
 @requires_z3
+def test_z3_temporal_specs_prove_exclusivity_for_token_transfer() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [NeverCoMarked("source_sink_exclusive", "source", "sink", threshold=0.5)],
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.solver_status == "unsat"
+    assert report.checked_specs == ["source_sink_exclusive"]
+
+
+@requires_z3
 def test_z3_temporal_specs_prove_response_contract() -> None:
     report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
         [FireLeadsToMarking("move_marks_sink", "move", "sink", threshold=0.5, within=0)],
@@ -271,6 +343,56 @@ def test_z3_temporal_specs_prove_response_contract() -> None:
 
     assert report.holds is True
     assert report.checked_specs == ["move_marks_sink"]
+
+
+@requires_z3
+def test_z3_temporal_specs_report_response_deadline_counterexample() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [FireLeadsToMarking("move_must_restore_source", "move", "source", threshold=0.5, within=0)],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "sat"
+    assert report.violations[0].transition == "move"
+    assert report.violations[0].place == "source"
+    assert report.violations[0].path == ["move"]
+
+
+@requires_z3
+def test_z3_temporal_specs_report_nonrecoverable_marking_path() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [AlwaysEventuallyMarked("sink_is_universally_marked", "sink", threshold=0.5)],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "sat"
+    assert report.violations[0].place == "sink"
+    assert report.violations[0].path == []
+
+
+@requires_z3
+def test_z3_temporal_specs_prove_all_supported_contracts_together() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [
+            AlwaysBounded("bounded_transfer", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
+            EventuallyFires("move_fires", "move"),
+            NeverCoMarked("exclusive_transfer", "source", "sink", threshold=0.5),
+            AlwaysEventuallyMarked("source_initially_marked", "source", threshold=0.5),
+            FireLeadsToMarking("move_marks_sink", "move", "sink", threshold=0.5, within=0),
+        ],
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.checked_specs == [
+        "bounded_transfer",
+        "move_fires",
+        "exclusive_transfer",
+        "source_initially_marked",
+        "move_marks_sink",
+    ]
 
 
 @requires_z3
@@ -298,6 +420,31 @@ def test_z3_formal_report_writer_publishes_json_and_markdown(tmp_path: Path) -> 
     assert payload["payload_sha256"] in markdown
 
 
+def test_z3_formal_payload_records_fail_closed_counterexample_evidence() -> None:
+    violation = FormalViolation(
+        property_name="unsafe_bound",
+        message="sink exceeds admitted control envelope",
+        marking={"sink": 1.0},
+        path=["move"],
+        place="sink",
+    )
+    report = Z3FormalVerificationReport(
+        holds=False,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(False, "z3", 2, "sat", [violation], ["unsafe_bound"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["response_ok"]),
+    )
+
+    payload = build_z3_formal_report_payload(report)
+
+    assert payload["status"] == "fail"
+    assert payload["holds"] is False
+    assert payload["checked_specs"] == ["marking_bounds", "unsafe_bound", "response_ok"]
+    assert payload["safety"]["violations"][0]["path"] == ["move"]
+    assert validate_z3_formal_report_payload(payload) == payload
+
+
 @requires_z3
 def test_z3_formal_report_validator_rejects_tampered_checked_specs(tmp_path: Path) -> None:
     report = verify_z3_formal_contracts(
@@ -314,6 +461,89 @@ def test_z3_formal_report_validator_rejects_tampered_checked_specs(tmp_path: Pat
 
     with pytest.raises(ValueError, match="payload_sha256"):
         validate_z3_formal_report_payload(payload)
+
+
+def test_z3_formal_report_validator_rejects_inconsistent_safety_case_payloads() -> None:
+    valid = build_blocked_z3_formal_report_payload("z3-solver unavailable")
+
+    tampered = dict(valid)
+    tampered["status"] = "pass"
+    tampered["holds"] = False
+    tampered["safety"] = {}
+    tampered["temporal"] = {}
+    tampered["payload_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="payload_sha256"):
+        validate_z3_formal_report_payload(tampered)
+
+    blocked_with_sections = dict(valid)
+    blocked_with_sections["safety"] = {"holds": False}
+    blocked_with_sections["payload_sha256"] = build_blocked_z3_formal_report_payload("z3-solver unavailable")[
+        "payload_sha256"
+    ]
+    with pytest.raises(ValueError, match="payload_sha256"):
+        validate_z3_formal_report_payload(blocked_with_sections)
+
+
+def _refresh_z3_payload_digest(payload: dict[str, object]) -> dict[str, object]:
+    canonical = dict(payload)
+    canonical.pop("payload_sha256", None)
+    blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload["payload_sha256"] = hashlib.sha256(blob).hexdigest()
+    return payload
+
+
+def test_z3_formal_report_validator_rejects_semantically_invalid_blocked_reports() -> None:
+    payload = build_blocked_z3_formal_report_payload("z3-solver unavailable")
+
+    holds_payload = _refresh_z3_payload_digest({**payload, "holds": True})
+    with pytest.raises(ValueError, match="must not hold"):
+        validate_z3_formal_report_payload(holds_payload)
+
+    missing_reason = dict(payload)
+    missing_reason.pop("reason")
+    _refresh_z3_payload_digest(missing_reason)
+    with pytest.raises(ValueError, match="include a reason"):
+        validate_z3_formal_report_payload(missing_reason)
+
+    section_payload = _refresh_z3_payload_digest({**payload, "safety": {"holds": False}})
+    with pytest.raises(ValueError, match="must not carry proof sections"):
+        validate_z3_formal_report_payload(section_payload)
+
+
+def test_z3_formal_report_validator_rejects_semantically_invalid_pass_fail_reports() -> None:
+    valid = build_z3_formal_report_payload(
+        Z3FormalVerificationReport(
+            holds=True,
+            backend="z3",
+            max_depth=1,
+            safety=Z3ModelCheckingReport(True, "z3", 1, "unsat", [], ["safety_ok"]),
+            temporal=Z3ModelCheckingReport(True, "z3", 1, "unsat", [], ["temporal_ok"]),
+        )
+    )
+
+    pass_without_hold = _refresh_z3_payload_digest({**valid, "holds": False})
+    with pytest.raises(ValueError, match="passing"):
+        validate_z3_formal_report_payload(pass_without_hold)
+
+    fail_with_hold = _refresh_z3_payload_digest({**valid, "status": "fail", "holds": True})
+    with pytest.raises(ValueError, match="failed"):
+        validate_z3_formal_report_payload(fail_with_hold)
+
+    depth_mismatch = dict(valid)
+    depth_mismatch["safety"] = {**valid["safety"], "max_depth": 2}
+    _refresh_z3_payload_digest(depth_mismatch)
+    with pytest.raises(ValueError, match="depth"):
+        validate_z3_formal_report_payload(depth_mismatch)
+
+    bad_solver_status = dict(valid)
+    bad_solver_status["temporal"] = {**valid["temporal"], "solver_status": "unchecked"}
+    _refresh_z3_payload_digest(bad_solver_status)
+    with pytest.raises(ValueError, match="solver_status"):
+        validate_z3_formal_report_payload(bad_solver_status)
+
+    checked_spec_mismatch = _refresh_z3_payload_digest({**valid, "checked_specs": ["marking_bounds"]})
+    with pytest.raises(ValueError, match="checked_specs"):
+        validate_z3_formal_report_payload(checked_spec_mismatch)
 
 
 def test_blocked_z3_formal_report_is_schema_versioned_and_fail_closed() -> None:

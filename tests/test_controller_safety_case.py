@@ -24,6 +24,7 @@ from scpn_control.control.digital_twin_online_update import (
     validate_external_simulator_artifact,
 )
 from scpn_control.control.safety_case import (
+    ControllerSafetyCaseEvidence,
     ReadinessArtifactEvidence,
     SafetyCaseReadinessEvidence,
     assert_controller_safety_case_admissible,
@@ -301,6 +302,45 @@ def test_controller_safety_case_manifest_rejects_malformed_schema(tmp_path):
         load_controller_safety_case_evidence(path)
 
 
+def test_controller_safety_case_manifest_rejects_unreadable_and_malformed_payloads(tmp_path: Path):
+    unreadable_json = tmp_path / "not_json.json"
+    unreadable_json.write_text("{", encoding="utf-8")
+    with pytest.raises(ValueError, match="readable JSON"):
+        load_controller_safety_case_evidence(unreadable_json)
+
+    non_object = tmp_path / "non_object.json"
+    non_object.write_text(json.dumps([]), encoding="utf-8")
+    with pytest.raises(ValueError, match="JSON object"):
+        load_controller_safety_case_evidence(non_object)
+
+    missing_payload = tmp_path / "missing_payload.json"
+    missing_payload.write_text(json.dumps({"schema_version": 1, "evidence": []}), encoding="utf-8")
+    with pytest.raises(ValueError, match="evidence payload"):
+        load_controller_safety_case_evidence(missing_payload)
+
+
+def test_controller_safety_case_manifest_rejects_invalid_evidence_fields(tmp_path: Path):
+    evidence = ControllerSafetyCaseEvidence(
+        schema_version=1,
+        controller_artifact_sha256="1" * 64,
+        formal_report_sha256="2" * 64,
+        formal_backend="z3",
+        formal_max_depth=4,
+        transport_evidence_sha256="3" * 64,
+        digital_twin_evidence_sha256="4" * 64,
+        claim_status="bounded safety-case evidence only",
+    )
+    path = tmp_path / "controller_safety_case.json"
+    save_controller_safety_case_evidence(evidence, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["evidence"]["formal_backend"] = "unchecked"
+    payload["integrity_sha256"] = hashlib.sha256(b"wrong").hexdigest()
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="formal_backend|integrity"):
+        load_controller_safety_case_evidence(path)
+
+
 def test_controller_safety_case_readiness_blocks_without_external_evidence():
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -474,6 +514,24 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
         )
 
 
+def test_controller_safety_case_readiness_artifacts_reject_duplicate_kind(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = _readiness_artifacts(tmp_path)
+
+    with pytest.raises(ValueError, match="duplicate"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            (artifacts[0], artifacts[0], artifacts[2]),
+            artifact_root=tmp_path,
+        )
+
+
 def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -529,6 +587,23 @@ def test_controller_safety_case_readiness_manifest_rejects_malformed_schema(tmp_
         load_controller_safety_case_readiness(path)
 
 
+def test_controller_safety_case_readiness_manifest_rejects_unreadable_and_malformed_payloads(tmp_path: Path):
+    unreadable_json = tmp_path / "not_json_readiness.json"
+    unreadable_json.write_text("{", encoding="utf-8")
+    with pytest.raises(ValueError, match="readable JSON"):
+        load_controller_safety_case_readiness(unreadable_json)
+
+    non_object = tmp_path / "non_object_readiness.json"
+    non_object.write_text(json.dumps([]), encoding="utf-8")
+    with pytest.raises(ValueError, match="JSON object"):
+        load_controller_safety_case_readiness(non_object)
+
+    missing_payload = tmp_path / "missing_readiness.json"
+    missing_payload.write_text(json.dumps({"schema_version": 1, "readiness": []}), encoding="utf-8")
+    with pytest.raises(ValueError, match="payload"):
+        load_controller_safety_case_readiness(missing_payload)
+
+
 def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -569,6 +644,33 @@ def test_controller_safety_case_rejects_mismatched_evidence_chain():
 
     with pytest.raises(ValueError, match="digital twin"):
         controller_safety_case_evidence(artifact, transport, digital_twin)
+
+
+def test_controller_safety_case_rejects_bad_transport_and_twin_claims():
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    transport = _transport_evidence(controller_sha256)
+    digital_twin = _digital_twin_evidence(controller_sha256)
+
+    failed_transport = _transport_evidence(controller_sha256)
+    object.__setattr__(failed_transport, "audit_passed", False)
+    with pytest.raises(ValueError, match="passed gradient audit"):
+        controller_safety_case_evidence(artifact, failed_transport, digital_twin)
+
+    non_jax_transport = _transport_evidence(controller_sha256)
+    object.__setattr__(non_jax_transport, "backend", "numpy")
+    with pytest.raises(ValueError, match="JAX backend"):
+        controller_safety_case_evidence(artifact, non_jax_transport, digital_twin)
+
+    non_improving_twin = _digital_twin_evidence(controller_sha256)
+    object.__setattr__(non_improving_twin, "improved_over_baseline", False)
+    with pytest.raises(ValueError, match="improve over baseline"):
+        controller_safety_case_evidence(artifact, transport, non_improving_twin)
+
+    missing_tsc_twin = _digital_twin_evidence(controller_sha256)
+    object.__setattr__(missing_tsc_twin, "simulator_codes", ("TRANSP",))
+    with pytest.raises(ValueError, match="TRANSP and TSC"):
+        controller_safety_case_evidence(artifact, transport, missing_tsc_twin)
 
 
 def test_controller_safety_case_rejects_non_passing_formal_proof():
