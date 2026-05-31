@@ -7,15 +7,20 @@
 # SCPN Control — Resistive-wall-mode feedback tests
 from __future__ import annotations
 
+import json
 import math
 
 import numpy as np
 import pytest
 
 from scpn_control.control.rwm_feedback import (
+    RWMClaimEvidence,
     RWMFeedbackController,
     RWMPhysics,
     RWMStabilityAnalysis,
+    assert_rwm_facility_claim_admissible,
+    rwm_claim_evidence,
+    save_rwm_claim_evidence,
 )
 
 
@@ -49,9 +54,9 @@ def test_rwm_feedback_stabilization():
     assert ctrl_weak.effective_growth_rate(rwm) > 0.0
     assert not ctrl_weak.is_stabilized(rwm)
 
-    ctrl_strong = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=2.0, G_d=0.0, M_coil=1.0)
-    assert ctrl_strong.effective_growth_rate(rwm) < 0.0
-    assert ctrl_strong.is_stabilized(rwm)
+    ctrl_high_gain = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=2.0, G_d=0.0, M_coil=1.0)
+    assert ctrl_high_gain.effective_growth_rate(rwm) < 0.0
+    assert ctrl_high_gain.is_stabilized(rwm)
 
 
 def test_rwm_step():
@@ -184,6 +189,90 @@ def test_rotation_plus_feedback():
 
     assert gamma_combined < gamma_fb_only, "combined must beat feedback alone"
     assert gamma_combined < gamma_rot_only, "combined must beat rotation alone"
+
+
+def test_rwm_claim_evidence_records_wall_rotation_and_controller_provenance(tmp_path):
+    rwm = RWMPhysics(
+        beta_n=3.0,
+        beta_n_nowall=2.8,
+        beta_n_wall=3.5,
+        tau_wall=0.01,
+        omega_phi=50.0,
+        wall_radius=0.6,
+        plasma_radius=0.5,
+    )
+    ctrl = RWMFeedbackController(n_sensors=3, n_coils=2, G_p=1.1, G_d=0.02, tau_controller=2.0e-4, M_coil=0.8)
+
+    evidence = rwm_claim_evidence(
+        rwm,
+        ctrl,
+        source="local_regression_reference",
+        source_id="tests/test_rwm_feedback.py::wall_rotation_case",
+        closed_loop_growth_rate_abs_tolerance=0.5,
+    )
+    out = tmp_path / "rwm_claim.json"
+    save_rwm_claim_evidence(evidence, out)
+    payload = json.loads(out.read_text(encoding="utf-8"))
+
+    assert isinstance(evidence, RWMClaimEvidence)
+    assert evidence.beta_n == pytest.approx(3.0)
+    assert evidence.tau_eff_s == pytest.approx(0.01 * (0.6 / 0.5) ** 2)
+    assert evidence.omega_phi_rad_s == pytest.approx(50.0)
+    assert evidence.n_sensors == 3
+    assert evidence.n_coils == 2
+    assert evidence.controller_latency_s == pytest.approx(2.0e-4)
+    assert evidence.coil_coupling == pytest.approx(0.8)
+    assert evidence.facility_claim_allowed is False
+    assert evidence.claim_status.startswith("bounded local RWM regression evidence")
+    assert payload["schema_version"] == 1
+    assert payload["facility_claim_allowed"] is False
+
+
+def test_rwm_facility_claim_admission_requires_external_growth_match():
+    rwm = RWMPhysics(beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    ctrl = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=1.1, G_d=0.0, tau_controller=1.0e-4, M_coil=1.0)
+    reference = ctrl.effective_growth_rate(rwm)
+
+    admitted = rwm_claim_evidence(
+        rwm,
+        ctrl,
+        source="external_mhd_benchmark",
+        source_id="reference_rwm_beta_window_case",
+        reference_closed_loop_growth_rate_s_inv=reference + 0.01,
+        closed_loop_growth_rate_abs_tolerance=0.05,
+    )
+    rejected = rwm_claim_evidence(
+        rwm,
+        ctrl,
+        source="external_mhd_benchmark",
+        source_id="reference_rwm_mismatch_case",
+        reference_closed_loop_growth_rate_s_inv=reference + 1.0,
+        closed_loop_growth_rate_abs_tolerance=0.05,
+    )
+
+    assert assert_rwm_facility_claim_admissible(admitted) == admitted
+    assert admitted.facility_claim_allowed is True
+    assert admitted.closed_loop_growth_rate_abs_error == pytest.approx(0.01)
+    assert rejected.facility_claim_allowed is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_rwm_facility_claim_admissible(rejected)
+
+
+def test_rwm_claim_evidence_rejects_invalid_or_ideal_kink_inputs():
+    rwm = RWMPhysics(beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    kink = RWMPhysics(beta_n=3.6, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    ctrl = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=1.1, G_d=0.0)
+
+    with pytest.raises(ValueError, match="source"):
+        rwm_claim_evidence(rwm, ctrl, source="mock", source_id="case")
+    with pytest.raises(ValueError, match="source_id"):
+        rwm_claim_evidence(rwm, ctrl, source="local_regression_reference", source_id="")
+    with pytest.raises(ValueError, match="tolerance"):
+        rwm_claim_evidence(
+            rwm, ctrl, source="local_regression_reference", source_id="case", closed_loop_growth_rate_abs_tolerance=0.0
+        )
+    with pytest.raises(ValueError, match="ideal-kink"):
+        rwm_claim_evidence(kink, ctrl, source="local_regression_reference", source_id="case")
 
 
 def test_tau_eff_rejects_nonphysical_plasma_radius():

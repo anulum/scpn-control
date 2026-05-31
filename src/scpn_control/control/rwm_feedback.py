@@ -9,7 +9,10 @@
 
 from __future__ import annotations
 
+import json
 import math
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
@@ -19,6 +22,41 @@ from numpy.typing import NDArray
 # Sentinel for the ideal-kink (β > β_wall) regime; a finite resistive-wall-mode
 # growth rate is physically undefined beyond the ideal-wall limit.
 _IDEAL_KINK_RATE: float = math.inf
+_RWM_CLAIM_SCHEMA_VERSION = 1
+_FACILITY_REFERENCE_SOURCES = frozenset({"documented_public_reference", "external_mhd_benchmark", "measured_discharge"})
+_BOUNDED_REFERENCE_SOURCES = frozenset({"local_regression_reference", *_FACILITY_REFERENCE_SOURCES})
+
+
+@dataclass(frozen=True)
+class RWMClaimEvidence:
+    """Serialisable admission evidence for RWM feedback claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    model_id: str
+    beta_n: float
+    beta_n_nowall: float
+    beta_n_wall: float
+    tau_wall_s: float
+    tau_eff_s: float
+    omega_phi_rad_s: float
+    wall_radius_m: float | None
+    plasma_radius_m: float | None
+    n_sensors: int
+    n_coils: int
+    proportional_gain: float
+    derivative_gain: float
+    controller_latency_s: float
+    coil_coupling: float
+    open_loop_growth_rate_s_inv: float
+    closed_loop_growth_rate_s_inv: float
+    required_proportional_gain: float
+    reference_closed_loop_growth_rate_s_inv: float | None
+    closed_loop_growth_rate_abs_error: float | None
+    closed_loop_growth_rate_abs_tolerance: float
+    facility_claim_allowed: bool
+    claim_status: str
 
 
 def _finite_scalar(name: str, value: float, *, nonnegative: bool = False, positive: bool = False) -> float:
@@ -44,6 +82,116 @@ def _positive_int(name: str, value: int) -> int:
     if value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return value
+
+
+def rwm_claim_evidence(
+    rwm: "RWMPhysics",
+    controller: "RWMFeedbackController",
+    *,
+    source: str,
+    source_id: str,
+    model_id: str = "bounded_rwm_feedback",
+    reference_closed_loop_growth_rate_s_inv: float | None = None,
+    closed_loop_growth_rate_abs_tolerance: float = 5.0,
+) -> RWMClaimEvidence:
+    """Build fail-closed evidence for RWM feedback claim admission.
+
+    Local regression evidence is admissible only for bounded repository claims.
+    Facility claims require documented public, external MHD, or measured-shot
+    references plus a finite closed-loop growth-rate comparison within the
+    declared tolerance.
+    """
+
+    if source not in _BOUNDED_REFERENCE_SOURCES:
+        raise ValueError("source must be a declared RWM reference source")
+    if not isinstance(source_id, str) or not source_id.strip():
+        raise ValueError("source_id must be a non-empty string")
+    if not isinstance(model_id, str) or not model_id.strip():
+        raise ValueError("model_id must be a non-empty string")
+    tolerance = _finite_scalar(
+        "closed_loop_growth_rate_abs_tolerance", closed_loop_growth_rate_abs_tolerance, positive=True
+    )
+    open_loop = float(rwm.growth_rate())
+    closed_loop = float(controller.effective_growth_rate(rwm))
+    if not math.isfinite(open_loop) or not math.isfinite(closed_loop):
+        raise ValueError("RWM claim evidence excludes the ideal-kink regime")
+
+    reference: float | None = None
+    abs_error: float | None = None
+    if reference_closed_loop_growth_rate_s_inv is not None:
+        reference = _finite_scalar("reference_closed_loop_growth_rate_s_inv", reference_closed_loop_growth_rate_s_inv)
+        abs_error = abs(closed_loop - reference)
+
+    facility_source = source in _FACILITY_REFERENCE_SOURCES
+    facility_allowed = bool(facility_source and abs_error is not None and abs_error <= tolerance)
+    if source == "local_regression_reference":
+        claim_status = "bounded local RWM regression evidence only; external MHD or measured-shot reference required for facility claims"
+    elif abs_error is None:
+        claim_status = "external RWM reference source declared but quantitative closed-loop comparison is missing"
+    elif facility_allowed:
+        claim_status = "external RWM reference admission passed for declared tolerance"
+    else:
+        claim_status = "external RWM reference admission failed declared tolerance"
+
+    required_gain = RWMStabilityAnalysis.required_feedback_gain(
+        rwm.beta_n,
+        rwm.beta_n_nowall,
+        rwm.beta_n_wall,
+        rwm.tau_wall,
+        controller.tau_controller,
+        M_coil=controller.M_coil,
+        omega_phi=rwm.omega_phi,
+        wall_radius=rwm.wall_radius,
+        plasma_radius=rwm.plasma_radius,
+    )
+    return RWMClaimEvidence(
+        schema_version=_RWM_CLAIM_SCHEMA_VERSION,
+        source=source,
+        source_id=source_id.strip(),
+        model_id=model_id.strip(),
+        beta_n=float(rwm.beta_n),
+        beta_n_nowall=float(rwm.beta_n_nowall),
+        beta_n_wall=float(rwm.beta_n_wall),
+        tau_wall_s=float(rwm.tau_wall),
+        tau_eff_s=float(rwm.tau_eff()),
+        omega_phi_rad_s=float(rwm.omega_phi),
+        wall_radius_m=None if rwm.wall_radius is None else float(rwm.wall_radius),
+        plasma_radius_m=None if rwm.plasma_radius is None else float(rwm.plasma_radius),
+        n_sensors=int(controller.n_sensors),
+        n_coils=int(controller.n_coils),
+        proportional_gain=float(controller.G_p),
+        derivative_gain=float(controller.G_d),
+        controller_latency_s=float(controller.tau_controller),
+        coil_coupling=float(controller.M_coil),
+        open_loop_growth_rate_s_inv=open_loop,
+        closed_loop_growth_rate_s_inv=closed_loop,
+        required_proportional_gain=float(required_gain),
+        reference_closed_loop_growth_rate_s_inv=reference,
+        closed_loop_growth_rate_abs_error=None if abs_error is None else float(abs_error),
+        closed_loop_growth_rate_abs_tolerance=tolerance,
+        facility_claim_allowed=facility_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_rwm_facility_claim_admissible(evidence: RWMClaimEvidence) -> RWMClaimEvidence:
+    """Return evidence or fail closed before a RWM facility-control claim."""
+
+    if not isinstance(evidence, RWMClaimEvidence):
+        raise ValueError("evidence must be RWMClaimEvidence")
+    if evidence.schema_version != _RWM_CLAIM_SCHEMA_VERSION:
+        raise ValueError("RWM claim evidence schema_version is unsupported")
+    if not evidence.facility_claim_allowed:
+        raise ValueError(f"RWM facility claim is not admissible: {evidence.claim_status}")
+    return evidence
+
+
+def save_rwm_claim_evidence(evidence: RWMClaimEvidence, path: str | Path) -> None:
+    """Persist RWM claim evidence as deterministic JSON."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class RWMPhysics:

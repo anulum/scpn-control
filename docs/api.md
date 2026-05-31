@@ -750,6 +750,14 @@ gradient-audit result.
 
 ::: scpn_control.control.rwm_feedback.RWMFeedbackController
 
+::: scpn_control.control.rwm_feedback.RWMClaimEvidence
+
+::: scpn_control.control.rwm_feedback.rwm_claim_evidence
+
+::: scpn_control.control.rwm_feedback.assert_rwm_facility_claim_admissible
+
+::: scpn_control.control.rwm_feedback.save_rwm_claim_evidence
+
 ---
 
 ## Complete Module Index

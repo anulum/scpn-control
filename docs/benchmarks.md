@@ -137,6 +137,22 @@ Facility vertical-control claims still require documented public, external-code,
 or measured-discharge RZIP reference evidence that passes the strict admission
 gate.
 
+## RWM Claim-Admission Benchmark
+
+`validation/benchmark_rwm_claims.py` publishes bounded local regression evidence
+for the resistive-wall-mode feedback model. The generated report records beta
+limits, wall-gap correction, rotation, sensor/coil topology, controller latency,
+coil coupling, open-loop growth, closed-loop growth, and the explicit
+facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/rwm_claims.json`
+- `validation/reports/rwm_claims.md`
+
+Facility RWM-control claims still require documented public, external MHD, or
+measured-shot evidence that passes the strict admission gate.
+
 ## Differentiable Transport Gradient-Latency Benchmark
 
 The controller-tuning facade measures the audited admission path for JAX

@@ -423,7 +423,7 @@
     },
     {
       "component": "resistive-wall-mode feedback model",
-      "equation_contract": "RWM feedback claims must declare the no-wall and ideal-wall beta limits, resistive-wall L/R time, optional wall-plasma gap correction, rotation-stabilisation term, active proportional or derivative feedback coupling, controller latency, coil coupling, and ideal-kink exclusion boundary.",
+      "equation_contract": "RWM feedback claims must declare the no-wall and ideal-wall beta limits, resistive-wall L/R time, optional wall-plasma gap correction, rotation-stabilisation term, active proportional or derivative feedback coupling, controller latency, coil coupling, sensor/coil topology, ideal-kink exclusion boundary, reference source, closed-loop growth-rate tolerance, and facility-claim admission status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Bondeson and Ward 1994 resistive-wall-mode growth-rate model",
@@ -439,18 +439,25 @@
       ],
       "unit_contract": "Normalised beta dimensionless, wall time in seconds, toroidal rotation in rad/s, wall and plasma radii in metres, feedback gain dimensionless per declared coil coupling, growth rate in s^-1.",
       "validation_evidence": [
-        "tests/test_rwm_feedback.py growth-rate, rotation, wall-geometry, feedback, ideal-kink, and required-gain checks"
+        "tests/test_rwm_feedback.py growth-rate, rotation, wall-geometry, feedback, ideal-kink, and required-gain checks",
+        "tests/test_rwm_feedback.py claim-evidence provenance, external tolerance admission, and invalid-domain checks",
+        "validation/benchmark_rwm_claims.py bounded local RWM claim-admission benchmark",
+        "validation/reports/rwm_claims.json bounded local RWM claim report"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rwm_feedback.py",
         "tests/test_rwm_feedback.py",
         "docs/learning/plasma_physics_primer.md",
-        "docs/learning/glossary.md"
+        "docs/learning/glossary.md",
+        "validation/benchmark_rwm_claims.py",
+        "validation/reports/rwm_claims.json",
+        "validation/reports/rwm_claims.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/rwm_feedback.py"
       ],
-      "validity_domain": "Bounded analytic RWM stability-window and active-feedback calculations for local controller studies; not facility-validated MHD stability or hardware-control evidence.",
+      "validity_domain": "Bounded analytic RWM stability-window and active-feedback calculations for local controller studies plus bounded claim-admission evidence; not facility-validated MHD stability or hardware-control evidence unless external or measured reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 51
     },
     {
