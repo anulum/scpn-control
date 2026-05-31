@@ -98,6 +98,7 @@ class PhaseStreamServer:
     command_rate_limit: int = 20
     command_rate_window_s: float = 1.0
     max_payload_bytes: int = 65536
+    client_send_timeout_s: float = 0.25
     require_client_auth: bool = True
     allow_query_token_auth: bool = False
     require_tls: bool = False
@@ -129,6 +130,8 @@ class PhaseStreamServer:
             or self.max_payload_bytes <= 0
         ):
             raise ValueError("max_payload_bytes must be a positive integer")
+        if not math.isfinite(self.client_send_timeout_s) or self.client_send_timeout_s <= 0.0:
+            raise ValueError("client_send_timeout_s must be finite and positive")
         if not isinstance(self.require_client_auth, bool):
             raise ValueError("require_client_auth must be a boolean")
         if not isinstance(self.allow_query_token_auth, bool):
@@ -231,7 +234,12 @@ class PhaseStreamServer:
             dead = set()
             for ws in self._clients:
                 try:
-                    await ws.send(frame)
+                    await asyncio.wait_for(ws.send(frame), timeout=self.client_send_timeout_s)
+                except TimeoutError:
+                    dead.add(ws)
+                    close = getattr(ws, "close", None)
+                    if close is not None:
+                        await close(code=1011, reason="broadcast backpressure timeout")
                 except (ConnectionError, OSError):
                     dead.add(ws)
             self._clients -= dead
@@ -288,6 +296,7 @@ def main() -> None:
         type=int,
         default=65536,
     )
+    parser.add_argument("--client-send-timeout-s", type=float, default=0.25)
     parser.add_argument("--require-tls", action="store_true")
     parser.add_argument("--allow-unauthenticated-clients", action="store_true")
     parser.add_argument("--allow-query-token-auth", action="store_true")
@@ -318,6 +327,7 @@ def main() -> None:
         command_rate_limit=args.command_rate_limit,
         command_rate_window_s=args.command_rate_window_s,
         max_payload_bytes=args.max_payload_bytes,
+        client_send_timeout_s=args.client_send_timeout_s,
         require_client_auth=not args.allow_unauthenticated_clients,
         allow_query_token_auth=args.allow_query_token_auth,
         require_tls=args.require_tls,

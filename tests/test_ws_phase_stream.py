@@ -70,6 +70,7 @@ class TestPhaseStreamServer:
         assert server.api_key is None
         assert server.command_rate_limit == 20
         assert server.max_payload_bytes == 65536
+        assert server.client_send_timeout_s == 0.25
         assert server.require_client_auth is True
         assert server.allow_query_token_auth is False
         assert server.require_tls is False
@@ -93,6 +94,10 @@ class TestPhaseStreamServer:
             PhaseStreamServer(monitor=mon, max_payload_bytes=0)
         with pytest.raises(ValueError, match="max_payload_bytes"):
             PhaseStreamServer(monitor=mon, max_payload_bytes=True)
+        with pytest.raises(ValueError, match="client_send_timeout_s"):
+            PhaseStreamServer(monitor=mon, client_send_timeout_s=0.0)
+        with pytest.raises(ValueError, match="client_send_timeout_s"):
+            PhaseStreamServer(monitor=mon, client_send_timeout_s=math.inf)
         with pytest.raises(ValueError, match="require_client_auth"):
             PhaseStreamServer(monitor=mon, require_client_auth="yes")
         with pytest.raises(ValueError, match="allow_query_token_auth"):
@@ -538,6 +543,38 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    def test_tick_loop_drops_slow_broadcast_client(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(
+                monitor=mon,
+                api_key="secret-token-123456",
+                tick_interval_s=0.001,
+                client_send_timeout_s=0.001,
+            )
+
+            class _SlowWS(_FakeWS):
+                async def send(self, data):
+                    await asyncio.sleep(10.0)
+
+            slow = _SlowWS()
+            server._clients.add(slow)
+            server._running = True
+
+            async def _stop_when_dropped():
+                deadline = time.monotonic() + 0.1
+                while slow in server._clients and time.monotonic() < deadline:
+                    await asyncio.sleep(0.001)
+                server._running = False
+
+            await asyncio.gather(server._tick_loop(), _stop_when_dropped())
+            assert slow not in server._clients
+            assert slow.closed
+            assert slow.close_code == 1011
+            assert "backpressure" in (slow.close_reason or "")
+
+        asyncio.run(_run())
+
     def test_serve_requires_websockets(self, monkeypatch):
         async def _run():
             mon = _make_monitor()
@@ -720,6 +757,8 @@ class TestPhaseStreamServer:
                 "2.5",
                 "--max-payload-bytes",
                 "4096",
+                "--client-send-timeout-s",
+                "0.125",
                 "--allow-query-token-auth",
                 "--require-tls",
                 "--allowed-origin",
@@ -736,6 +775,7 @@ class TestPhaseStreamServer:
         assert captured["server"]["command_rate_limit"] == 7
         assert captured["server"]["command_rate_window_s"] == 2.5
         assert captured["server"]["max_payload_bytes"] == 4096
+        assert captured["server"]["client_send_timeout_s"] == 0.125
         assert captured["server"]["allow_query_token_auth"] is True
         assert captured["server"]["require_tls"] is True
         assert captured["server"]["allowed_origins"] == ("https://ops.example",)
