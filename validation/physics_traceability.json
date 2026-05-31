@@ -1838,7 +1838,7 @@
     },
     {
       "component": "geometry-neutral stellarator replay fixture",
-      "equation_contract": "Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, and replay acceptance thresholds.",
+      "equation_contract": "Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, replay acceptance thresholds, and tamper-evident manifest digests.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Repository geometry-neutral control contract",
@@ -1848,9 +1848,9 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Replace synthetic W7-X-like replay inputs with measured or benchmark stellarator field-line artefacts before device-control claims",
-        "Persist replay manifests with magnetic-configuration provenance, actuator calibration, latency evidence, and acceptance thresholds"
+        "Keep tamper-evident replay manifests attached with magnetic-configuration provenance, actuator calibration, latency evidence, acceptance thresholds, and digest validation"
       ],
-      "unit_contract": "Field-line spread in radians, currents in amperes, timestep in seconds, latency in microseconds, effective ripple dimensionless, controller objectives and thresholds declared per replay manifest.",
+      "unit_contract": "Field-line spread in radians, currents in amperes, timestep in seconds, latency in microseconds, effective ripple dimensionless, controller objectives and thresholds declared per replay manifest, manifest digests encoded as SHA-256 hex.",
       "validation_evidence": [
         "tests/test_geometry_neutral_replay.py",
         "tests/test_geometry_neutral_contracts.py"

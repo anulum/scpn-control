@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Scpn Package
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neuro-Symbolic Logic Compiler
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 """SCPN Petri net to SNN compilation pipeline."""
@@ -67,6 +59,7 @@ from scpn_control.scpn.fpga_export import (
 from scpn_control.scpn.structure import StochasticPetriNet
 
 GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay.v1"
+GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
 
 
 def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> dict[str, object]:
@@ -105,6 +98,7 @@ __all__ = [
     "ControlObjective",
     "ReplayScenario",
     "GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION",
+    "GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION",
     "generate_geometry_neutral_report",
     "validate_geometry_neutral_report",
     "render_geometry_neutral_markdown",

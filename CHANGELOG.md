@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added tamper-evident geometry-neutral stellarator replay manifests that bind
+  scenario, trace, metric, and threshold payloads with SHA-256 digests and
+  fail closed on manifest, trace, or acceptance tampering.
+- Renamed the IMAS ODS adapter contract test file to avoid the retired generic
+  test filename pattern while preserving the same module-specific behaviour.
 - Added a fail-closed formal proof-manifest gate for safety-critical SCPN
   controller artifacts, including bounded-claim enforcement, hash-addressed
   report metadata, and mandatory counterexample paths for failed proof

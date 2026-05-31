@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Geometry-Neutral Replay
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Geometry-Neutral Replay
 """Compact geometry-neutral stellarator replay through the SCPN controller."""
 
 from __future__ import annotations
@@ -39,7 +39,8 @@ from scpn_control.scpn.structure import StochasticPetriNet
 
 SCHEMA_VERSION = "scpn-control.geometry-neutral-replay.v1"
 GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION = SCHEMA_VERSION
-GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION = SCHEMA_VERSION
+MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
+GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = MANIFEST_SCHEMA_VERSION
 DEFAULT_THRESHOLDS: dict[str, float] = {
     "max_final_fieldline_spread": 0.026,
     "min_improvement_fraction": 0.20,
@@ -48,12 +49,29 @@ DEFAULT_THRESHOLDS: dict[str, float] = {
 }
 
 
-def _stable_json(payload: Mapping[str, Any]) -> str:
+def _stable_json(payload: Any) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
 def _signature(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(_stable_json(payload).encode("utf-8")).hexdigest()[:16]
+
+
+def _digest(payload: Any) -> str:
+    return hashlib.sha256(_stable_json(payload).encode("utf-8")).hexdigest()
+
+
+def _require_mapping(name: str, value: Any) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{name} must be an object")
+    return value
+
+
+def _require_manifest_text(name: str, value: Any) -> str:
+    text = str(value).strip()
+    if not text:
+        raise ValueError(f"{name} must be non-empty")
+    return text
 
 
 def _fieldline_spread(config: StellaratorConfig, current_A: float) -> float:
@@ -254,6 +272,39 @@ def _passes(metrics: Mapping[str, float], thresholds: Mapping[str, float]) -> bo
     )
 
 
+def _build_manifest(
+    *,
+    scenario_payload: Mapping[str, Any],
+    trace: list[dict[str, Any]],
+    metrics: Mapping[str, float],
+    thresholds: Mapping[str, float],
+    deterministic: bool,
+    passes_thresholds: bool,
+) -> dict[str, Any]:
+    magnetic_configuration = _require_mapping(
+        "scenario.magnetic_configuration",
+        scenario_payload["magnetic_configuration"],
+    )
+    return {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "scenario_digest": _digest(scenario_payload),
+        "trace_digest": _digest(trace),
+        "metrics_digest": _digest(metrics),
+        "thresholds_digest": _digest(thresholds),
+        "acceptance": {
+            "deterministic": bool(deterministic),
+            "passes_thresholds": bool(passes_thresholds),
+        },
+        "provenance": {
+            "magnetic_configuration_reference": magnetic_configuration["reference"],
+            "actuator_calibration": "declared bounded helical-trim current contract",
+            "latency_model": "deterministic affine replay latency model",
+            "fault_model": "declared stuck-actuator schedule",
+            "acceptance_threshold_source": "repository geometry-neutral replay thresholds",
+        },
+    }
+
+
 def generate_report(*, steps: int = 12, seed: int = 314159) -> dict[str, Any]:
     """Generate a deterministic compact SCPN-control replay report."""
     if int(steps) < 4:
@@ -263,10 +314,21 @@ def generate_report(*, steps: int = 12, seed: int = 314159) -> dict[str, Any]:
     run_b = _run_once(scenario)
     deterministic = run_a["signature"] == run_b["signature"]
     metrics = run_a["metrics"]
+    scenario_payload = scenario.to_dict()
+    thresholds = dict(DEFAULT_THRESHOLDS)
+    passes_thresholds = bool(deterministic and _passes(metrics, DEFAULT_THRESHOLDS))
+    manifest = _build_manifest(
+        scenario_payload=scenario_payload,
+        trace=run_a["trace"],
+        metrics=metrics,
+        thresholds=thresholds,
+        deterministic=bool(deterministic),
+        passes_thresholds=passes_thresholds,
+    )
     report = {
         "geometry_neutral_replay": {
             "schema_version": SCHEMA_VERSION,
-            "scenario": scenario.to_dict(),
+            "scenario": scenario_payload,
             "replay": {
                 "deterministic": bool(deterministic),
                 "signature": run_a["signature"],
@@ -274,8 +336,9 @@ def generate_report(*, steps: int = 12, seed: int = 314159) -> dict[str, Any]:
             },
             "magnetic_configuration": scenario.magnetic_configuration.to_dict(),
             "metrics": metrics,
-            "thresholds": dict(DEFAULT_THRESHOLDS),
-            "passes_thresholds": bool(deterministic and _passes(metrics, DEFAULT_THRESHOLDS)),
+            "thresholds": thresholds,
+            "passes_thresholds": passes_thresholds,
+            "manifest": manifest,
             "limitations": [
                 "This compact replay is not a production PCS.",
                 "No external company data is used.",
@@ -305,6 +368,7 @@ def validate_report(report: Mapping[str, Any]) -> None:
         "metrics",
         "thresholds",
         "passes_thresholds",
+        "manifest",
         "limitations",
     )
     for key in required:
@@ -312,7 +376,12 @@ def validate_report(report: Mapping[str, Any]) -> None:
             raise ValueError(f"missing geometry_neutral_replay.{key}")
     if bench["schema_version"] != SCHEMA_VERSION:
         raise ValueError("unexpected schema_version")
-    if not bench["replay"]["deterministic"]:
+    replay = _require_mapping("geometry_neutral_replay.replay", bench["replay"])
+    scenario = _require_mapping("geometry_neutral_replay.scenario", bench["scenario"])
+    metrics = _require_mapping("geometry_neutral_replay.metrics", bench["metrics"])
+    thresholds = _require_mapping("geometry_neutral_replay.thresholds", bench["thresholds"])
+    manifest = _require_mapping("geometry_neutral_replay.manifest", bench["manifest"])
+    if not replay["deterministic"]:
         raise ValueError("replay must be deterministic")
     for key in (
         "initial_fieldline_spread",
@@ -321,9 +390,39 @@ def validate_report(report: Mapping[str, Any]) -> None:
         "max_abs_current_A",
         "p95_latency_us",
     ):
-        value = float(bench["metrics"][key])
+        value = float(metrics[key])
         if not np.isfinite(value):
             raise ValueError(f"metric must be finite: {key}")
+    if not _passes(cast(Mapping[str, float], metrics), cast(Mapping[str, float], thresholds)):
+        raise ValueError("metrics do not satisfy declared thresholds")
+    if bool(bench["passes_thresholds"]) is not True:
+        raise ValueError("passes_thresholds must be true for an admissible replay report")
+    if manifest["schema_version"] != MANIFEST_SCHEMA_VERSION:
+        raise ValueError("unexpected manifest schema_version")
+    expected_digests = {
+        "scenario_digest": _digest(scenario),
+        "trace_digest": _digest(replay["trace"]),
+        "metrics_digest": _digest(metrics),
+        "thresholds_digest": _digest(thresholds),
+    }
+    for key, expected in expected_digests.items():
+        if manifest.get(key) != expected:
+            label = key.replace("_", " ")
+            raise ValueError(f"manifest {label} mismatch")
+    acceptance = _require_mapping("geometry_neutral_replay.manifest.acceptance", manifest["acceptance"])
+    if bool(acceptance.get("deterministic")) != bool(replay["deterministic"]):
+        raise ValueError("manifest acceptance deterministic mismatch")
+    if bool(acceptance.get("passes_thresholds")) != bool(bench["passes_thresholds"]):
+        raise ValueError("manifest acceptance threshold mismatch")
+    provenance = _require_mapping("geometry_neutral_replay.manifest.provenance", manifest["provenance"])
+    for key in (
+        "magnetic_configuration_reference",
+        "actuator_calibration",
+        "latency_model",
+        "fault_model",
+        "acceptance_threshold_source",
+    ):
+        _require_manifest_text(f"manifest provenance {key}", provenance[key])
 
 
 def validate_geometry_neutral_report(report: Mapping[str, Any]) -> None:

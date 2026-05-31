@@ -963,7 +963,7 @@
       "tests/test_hypothesis_properties.py",
       "tests/test_imas_adapter.py",
       "tests/test_imas_adapter_omas.py",
-      "tests/test_imas_round_trip.py",
+      "tests/test_imas_ods_contract.py",
       "tests/test_impurity_transport.py",
       "tests/test_integrated_scenario.py",
       "tests/test_integrated_transport_solver.py",

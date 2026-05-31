@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Geometry-Neutral Replay Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Geometry-Neutral Replay Tests
 
 from __future__ import annotations
 
@@ -12,9 +12,14 @@ import json
 import os
 import subprocess
 import sys
+from copy import deepcopy
 from pathlib import Path
 
+from scpn_control.scpn import (
+    GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION as PUBLIC_MANIFEST_SCHEMA_VERSION,
+)
 from scpn_control.scpn.geometry_neutral_replay import (
+    GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION,
     SCHEMA_VERSION,
     generate_report,
     render_markdown,
@@ -34,6 +39,10 @@ def test_geometry_neutral_replay_is_deterministic_and_schema_valid() -> None:
     assert bench["replay"]["deterministic"] is True
     assert bench["metrics"]["max_abs_current_A"] <= bench["thresholds"]["max_abs_current_A"]
     assert bench["passes_thresholds"] is True
+    assert bench["manifest"]["schema_version"] == GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION
+    assert PUBLIC_MANIFEST_SCHEMA_VERSION == GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION
+    assert bench["manifest"]["acceptance"]["passes_thresholds"] is True
+    assert bench["manifest"]["provenance"]["latency_model"]
 
 
 def test_geometry_neutral_replay_uses_non_tokamak_features() -> None:
@@ -45,6 +54,32 @@ def test_geometry_neutral_replay_uses_non_tokamak_features() -> None:
     assert "effective_ripple" in channel_names
     assert "R_axis_m" not in channel_names
     assert "Z_axis_m" not in channel_names
+
+
+def test_geometry_neutral_replay_manifest_rejects_trace_tampering() -> None:
+    report = generate_report(steps=8, seed=11)
+    tampered = deepcopy(report)
+    tampered["geometry_neutral_replay"]["replay"]["trace"][0]["fieldline_spread"] += 0.01
+
+    try:
+        validate_report(tampered)
+    except ValueError as exc:
+        assert "manifest trace digest" in str(exc)
+    else:
+        raise AssertionError("tampered replay trace was accepted")
+
+
+def test_geometry_neutral_replay_manifest_rejects_acceptance_tampering() -> None:
+    report = generate_report(steps=8, seed=12)
+    tampered = deepcopy(report)
+    tampered["geometry_neutral_replay"]["manifest"]["acceptance"]["deterministic"] = False
+
+    try:
+        validate_report(tampered)
+    except ValueError as exc:
+        assert "manifest acceptance" in str(exc)
+    else:
+        raise AssertionError("tampered manifest acceptance was accepted")
 
 
 def test_markdown_report_keeps_research_limitations_visible() -> None:
