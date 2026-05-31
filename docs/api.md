@@ -108,6 +108,14 @@ when supplied.
 
 ::: scpn_control.core.uncertainty.quantify_full_chain
 
+::: scpn_control.core.uncertainty.UQClaimEvidence
+
+::: scpn_control.core.uncertainty.uq_claim_evidence
+
+::: scpn_control.core.uncertainty.assert_uq_calibrated_claim_admissible
+
+::: scpn_control.core.uncertainty.save_uq_claim_evidence
+
 ### JAX-Accelerated Transport Primitives
 
 Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib has CUDA/ROCm.

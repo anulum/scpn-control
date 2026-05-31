@@ -42,6 +42,9 @@
 - Added orbit-following claim evidence with fail-closed external-code
   admission for matched banana-width, first-orbit-loss, particle, geometry,
   collision-model, and loss-boundary provenance.
+- Added uncertainty-quantification claim evidence with fail-closed calibrated
+  predictive-UQ admission for matched central values, sigma statistics, seed,
+  prior, scenario, propagation-chain, and sensitivity provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
@@ -94,6 +97,7 @@
 - `python validation/benchmark_kinetic_efit_claims.py`
 - `python validation/benchmark_vmec_lite_claims.py`
 - `python validation/benchmark_orbit_following_claims.py`
+- `python validation/benchmark_uq_claims.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`

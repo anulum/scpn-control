@@ -237,6 +237,23 @@ External orbit-following claims still require matched external-code,
 documented-public, published-benchmark, or measured fast-ion diagnostic
 references for banana width and loss fraction.
 
+## UQ Claim-Admission Benchmark
+
+`validation/benchmark_uq_claims.py` publishes bounded synthetic regression
+evidence for full-chain uncertainty quantification claim admission. The
+generated report records scenario provenance, prior provenance, propagation
+chain, seed, sample count, ordered percentile checks, finite outputs, D-T fuel
+dilution, and density/temperature sensitivity provenance.
+
+Report artefacts:
+
+- `validation/reports/uq_claims.json`
+- `validation/reports/uq_claims.md`
+
+Calibrated predictive-UQ claims still require matched measured scenario,
+documented-public, external-UQ, or facility validation references for central
+values and sigma statistics.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:

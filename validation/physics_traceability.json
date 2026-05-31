@@ -1512,7 +1512,7 @@
     },
     {
       "component": "full-chain uncertainty quantification contract",
-      "equation_contract": "Uncertainty claims must declare sampled variables, distributions, correlations, random seed, propagation chain, convergence criteria, sensitivity outputs that preserve D-T composition and fuel dilution, and finite-value rejection policy.",
+      "equation_contract": "Uncertainty claims must declare sampled variables, distributions, correlations, random seed, sample count, propagation chain, convergence and percentile-ordering criteria, finite-value rejection policy, D-T fuel dilution handling, sensitivity outputs, scenario/prior/sensitivity provenance, and matched central-value and sigma reference tolerances before calibrated predictive-UQ claims.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Monte Carlo uncertainty propagation references",
@@ -1521,28 +1521,34 @@
       "module_path": "src/scpn_control/core/uncertainty.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Calibrate uncertainty priors against measured or published scenario ensembles",
-        "Persist random seeds, distribution parameters, sample counts, convergence diagnostics, and sensitivity metrics with every UQ artefact"
+        "Calibrate uncertainty priors against measured or published scenario ensembles before predictive facility-UQ claims",
+        "Persist random seeds, distribution parameters, sample counts, percentile ordering, finite-output checks, convergence diagnostics, sensitivity metrics, reference tolerances, and claim-admission status with every UQ artefact"
       ],
       "unit_contract": "Units inherit each propagated physical quantity; distribution parameters must preserve SI or declared normalised units and dimensionless uncertainty fractions.",
       "validation_evidence": [
-        "tests/test_uncertainty.py",
-        "tests/test_full_chain_uq.py",
-        "tests/test_uncertainty_sigma_guard.py",
-        "validation/validate_uncertainty_reference.py strict UQ reference artifact gate"
+        "tests/test_uncertainty.py verifies IPB98 monotonicity, Bosch-Hale domains, D-T fuel dilution, full-chain sampling, percentile ordering, finite-output checks, and fail-closed UQ claim evidence admission",
+        "tests/test_full_chain_uq.py full-chain UQ behavioural coverage",
+        "tests/test_uncertainty_sigma_guard.py sigma guard coverage",
+        "validation/benchmark_uq_claims.py publishes deterministic bounded synthetic claim evidence with explicit calibrated-UQ exclusion",
+        "validation/reports/uq_claims.json records bounded scenario, prior, seed, sample-count, percentile, finite-output, sensitivity, and claim-admission evidence",
+        "validation/validate_uncertainty_reference.py strict UQ reference artefact gate"
       ],
       "evidence_paths": [
         "tests/test_uncertainty.py",
         "tests/test_full_chain_uq.py",
         "tests/test_uncertainty_sigma_guard.py",
         "src/scpn_control/core/uncertainty.py",
+        "validation/benchmark_uq_claims.py",
+        "validation/reports/uq_claims.json",
+        "validation/reports/uq_claims.md",
         "validation/validate_uncertainty_reference.py",
-        "docs/validation.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/uncertainty.py"
       ],
-      "validity_domain": "Monte Carlo and finite-value regression; not calibrated predictive uncertainty for a specific facility.",
+      "validity_domain": "Bounded Monte Carlo, full-chain propagation, finite-output, and sensitivity regression evidence for local controller studies; not calibrated predictive uncertainty for a specific facility unless matched measured scenario, external-UQ, central-value, and sigma references pass the admission gate.",
       "external_validation_tracker_issue": 49
     },
     {
