@@ -158,7 +158,90 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
     assert report["quantum_backend_owner"] == "scpn-quantum-control"
     assert report["control_facade_owner"] == "scpn-control"
     assert report["admitted_for_control"] is False
+    assert report["admission_evidence"]["decision"] == "advisory_only"
+    assert report["admission_evidence"]["defaults_used"] == []
+    assert "external_validation_required" in report["admission_evidence"]["reasons"]
+    assert len(report["admission_evidence"]["control_features_sha256"]) == 64
+    assert len(report["admission_evidence"]["feature_mapping_sha256"]) == 64
     assert validate_quantum_disruption_bridge_report(report) == report
+
+
+def test_quantum_disruption_bridge_report_marks_center_defaults_as_bounded_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.51},
+                )
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    report = run_quantum_disruption_bridge(
+        _control_features(),
+        config=QuantumDisruptionBridgeConfig(allow_center_defaults=True),
+    )
+
+    assert report["admission_evidence"]["decision"] == "advisory_only"
+    assert report["admission_evidence"]["defaults_used"] == ["P_rad", "V_loop", "W_stored", "kappa", "dIp_dt"]
+    assert "center_defaults_used" in report["admission_evidence"]["reasons"]
+    assert report["admission_evidence"]["publication_safe"] is False
+    assert validate_quantum_disruption_bridge_report(report) == report
+
+
+def test_quantum_disruption_bridge_report_rejects_admission_digest_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (
+            types.SimpleNamespace(
+                QuantumDisruptionClassifier=type(
+                    "FakeClassifier",
+                    (),
+                    {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.42},
+                )
+            )
+            if name == "scpn_quantum_control.control.q_disruption_iter"
+            else importlib.import_module(name, package)
+        ),
+    )
+
+    report = run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(seed=7),
+    )
+    replayed = dict(report)
+    replayed["admission_evidence"] = {
+        **report["admission_evidence"],
+        "feature_mapping_sha256": "f" * 64,
+    }
+    replayed["payload_sha256"] = report["payload_sha256"]
+
+    with pytest.raises(ValueError, match="feature_mapping_sha256"):
+        validate_quantum_disruption_bridge_report(replayed)
 
 
 def test_quantum_disruption_bridge_report_rejects_tampering(monkeypatch: pytest.MonkeyPatch) -> None:

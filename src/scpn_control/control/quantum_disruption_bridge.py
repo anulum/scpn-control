@@ -239,6 +239,11 @@ def run_quantum_disruption_bridge(
         "quantum_available": quantum_available,
         "unavailable_reason": unavailable_reason,
         "feature_mapping": mapping.payload(),
+        "admission_evidence": _build_admission_evidence(
+            control_features=control_features,
+            mapping=mapping,
+            quantum_available=quantum_available,
+        ),
         "classical_baseline_score": classical_score,
         "quantum_score": quantum_score,
         "risk_score": quantum_score if quantum_score is not None else classical_score,
@@ -279,7 +284,12 @@ def validate_quantum_disruption_bridge_report(payload: dict[str, Any]) -> dict[s
         raise ValueError("quantum disruption bridge report is not allowed to admit control action")
     if payload.get("human_review_required") is not True:
         raise ValueError("quantum disruption bridge report requires human review")
-    _validate_mapping_payload(payload.get("feature_mapping"))
+    feature_mapping = _validate_mapping_payload(payload.get("feature_mapping"))
+    _validate_admission_evidence(
+        payload.get("admission_evidence"),
+        feature_mapping=feature_mapping,
+        quantum_available=payload["quantum_available"],
+    )
     _bounded_score("classical_baseline_score", payload.get("classical_baseline_score"))
     quantum_score = payload.get("quantum_score")
     if quantum_score is not None:
@@ -380,7 +390,38 @@ def _classical_baseline_score(normalized_iter_features: np.ndarray) -> float:
     return _bounded_score("classical_baseline_score", raw)
 
 
-def _validate_mapping_payload(value: object) -> None:
+def _build_admission_evidence(
+    *,
+    control_features: Any,
+    mapping: QuantumFeatureMapping,
+    quantum_available: bool,
+) -> dict[str, Any]:
+    control = _as_feature_vector("control_features", control_features, 8)
+    reasons = ["external_validation_required", "control_admission_blocked"]
+    if mapping.defaults_used:
+        reasons.append("center_defaults_used")
+    if not quantum_available:
+        reasons.append("quantum_backend_unavailable")
+    return {
+        "decision": "advisory_only",
+        "publication_safe": False,
+        "admitted_for_control": False,
+        "defaults_used": list(mapping.defaults_used),
+        "reasons": reasons,
+        "required_external_evidence": [
+            "measured_disruption_database",
+            "quantum_backend_benchmark",
+            "classical_baseline_comparison",
+        ],
+        "control_features_sha256": _payload_digest({"control_features": control.tolist()}),
+        "normalized_iter_features_sha256": _payload_digest(
+            {"normalized_iter_features": mapping.normalized_iter_features.tolist()}
+        ),
+        "feature_mapping_sha256": _payload_digest({"feature_mapping": mapping.payload()}),
+    }
+
+
+def _validate_mapping_payload(value: object) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("quantum disruption bridge feature_mapping must be an object")
     raw = _as_feature_vector("feature_mapping.raw_iter_features", value.get("raw_iter_features"), 11)
@@ -402,6 +443,64 @@ def _validate_mapping_payload(value: object) -> None:
         raise ValueError("quantum disruption bridge feature_mapping claim_status is unsupported")
     if value.get("publication_safe") is not False:
         raise ValueError("quantum disruption bridge feature_mapping publication_safe must be false")
+    return value
+
+
+def _validate_admission_evidence(
+    value: object,
+    *,
+    feature_mapping: Mapping[str, Any],
+    quantum_available: bool,
+) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("quantum disruption bridge admission_evidence must be an object")
+    if value.get("decision") != "advisory_only":
+        raise ValueError("quantum disruption bridge admission_evidence decision must be advisory_only")
+    if value.get("publication_safe") is not False:
+        raise ValueError("quantum disruption bridge admission_evidence publication_safe must be false")
+    if value.get("admitted_for_control") is not False:
+        raise ValueError("quantum disruption bridge admission_evidence admitted_for_control must be false")
+    defaults_used = value.get("defaults_used")
+    if not isinstance(defaults_used, list) or any(not isinstance(item, str) for item in defaults_used):
+        raise ValueError("quantum disruption bridge admission_evidence defaults_used must be a list of strings")
+    if defaults_used != feature_mapping["defaults_used"]:
+        raise ValueError("quantum disruption bridge admission_evidence defaults_used must match feature_mapping")
+    reasons = value.get("reasons")
+    if not isinstance(reasons, list) or any(not isinstance(item, str) or not item for item in reasons):
+        raise ValueError("quantum disruption bridge admission_evidence reasons must be non-empty strings")
+    for required_reason in ("external_validation_required", "control_admission_blocked"):
+        if required_reason not in reasons:
+            raise ValueError(f"quantum disruption bridge admission_evidence missing reason {required_reason}")
+    if defaults_used and "center_defaults_used" not in reasons:
+        raise ValueError("quantum disruption bridge admission_evidence must record center_defaults_used")
+    if not quantum_available and "quantum_backend_unavailable" not in reasons:
+        raise ValueError("quantum disruption bridge admission_evidence must record quantum_backend_unavailable")
+    required_external = value.get("required_external_evidence")
+    if not isinstance(required_external, list) or any(
+        not isinstance(item, str) or not item for item in required_external
+    ):
+        raise ValueError("quantum disruption bridge admission_evidence required_external_evidence must be strings")
+    for required_evidence in (
+        "measured_disruption_database",
+        "quantum_backend_benchmark",
+        "classical_baseline_comparison",
+    ):
+        if required_evidence not in required_external:
+            raise ValueError(
+                f"quantum disruption bridge admission_evidence missing external evidence {required_evidence}"
+            )
+    for key in ("control_features_sha256", "normalized_iter_features_sha256", "feature_mapping_sha256"):
+        digest = value.get(key)
+        if not isinstance(digest, str) or not _is_sha256(digest):
+            raise ValueError(f"quantum disruption bridge admission_evidence {key} must be a SHA-256 hex digest")
+    expected_normalized_digest = _payload_digest(
+        {"normalized_iter_features": feature_mapping["normalized_iter_features"]}
+    )
+    if value["normalized_iter_features_sha256"] != expected_normalized_digest:
+        raise ValueError("quantum disruption bridge admission_evidence normalized_iter_features_sha256 mismatch")
+    expected_mapping_digest = _payload_digest({"feature_mapping": dict(feature_mapping)})
+    if value["feature_mapping_sha256"] != expected_mapping_digest:
+        raise ValueError("quantum disruption bridge admission_evidence feature_mapping_sha256 mismatch")
 
 
 def _config_payload(config: QuantumDisruptionBridgeConfig) -> dict[str, Any]:

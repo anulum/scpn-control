@@ -49,7 +49,11 @@ unavailable, records `status="quantum-unavailable"`, and never admits a
 control action. Missing ITER fields must be supplied explicitly unless
 `allow_center_defaults=True` is set for bounded fallback evidence. Public
 facility-validation or publication claims remain blocked until external
-disruption databases and benchmark artefacts are supplied.
+disruption databases and benchmark artefacts are supplied. Bridge reports carry
+admission evidence with CONTROL-feature, ITER-feature, and feature-mapping
+digests, explicit default-use reasons, and required external evidence entries
+for measured disruption databases, quantum backend benchmarks, and classical
+baseline comparisons.
 
 ## Federated disruption synthetic multi-facility benchmark
 

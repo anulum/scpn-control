@@ -9,7 +9,8 @@
   ownership in `scpn-quantum-control`, lazily imports optional quantum
   dependencies, maps the CONTROL 8-feature disruption contract to the ITER
   11-feature contract with explicit default provenance, emits bounded
-  amplitude-kernel evidence, and fail-closes advisory reports behind
+  amplitude-kernel evidence, records admission evidence with feature digests
+  and external-evidence requirements, and fail-closes advisory reports behind
   tamper-evident claim boundaries.
 - Added a local-first physics debugging assistant for validation-gap analysis,
   falsifiable hypothesis generation, and campaign suggestions with loopback

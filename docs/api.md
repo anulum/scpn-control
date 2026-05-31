@@ -148,7 +148,10 @@ without external disruption databases and benchmark artefacts.
 report with symmetry, diagonal, and `[0, 1]` admission checks. The callable
 quantum owner path uses `scpn_quantum_control.control.q_disruption_iter`
 lazily; when that optional dependency is unavailable the report fails closed
-with `status="quantum-unavailable"` and no quantum score.
+with `status="quantum-unavailable"` and no quantum score. Every bridge report
+also records advisory admission evidence: CONTROL feature digests, ITER mapping
+digests, default-use reasons, and the external evidence still required before
+facility or publication claims are admissible.
 
 ::: scpn_control.control.quantum_disruption_bridge.QuantumDisruptionBridgeConfig
 
