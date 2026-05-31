@@ -19,6 +19,7 @@ from scpn_control.physics_debug import (
     PhysicsDebugAssistant,
     PhysicsDebugEvidence,
     PhysicsDebugGap,
+    PhysicsDebugSafetyPolicy,
     ProviderPolicy,
     build_local_provider,
     run_provider_quorum,
@@ -91,12 +92,81 @@ def test_local_first_physics_debug_report_redacts_secrets_and_builds_falsifiable
     assert "secret-token" not in report_text
     assert "hidden-token" not in report_text
     assert report["provider"]["local_onsite"] is True
+    assert report["human_review_required"] is True
+    assert report["safety_policy"]["max_advisory_confidence"] == 0.95
     assert report["hypotheses"][0]["falsification_test"].startswith("Run the same CBC case")
     assert report["campaign_suggestions"][0]["risk_controls"] == [
         "synthetic-only advisory run",
         "no controller parameter promotion",
     ]
     assert validate_physics_debug_report(report) == report
+
+
+def test_physics_debug_rejects_provider_output_that_attempts_controller_promotion() -> None:
+    provider = build_local_provider(
+        family="direct-json",
+        model="onsite-model",
+        provider_name="unsafe-provider",
+        transport=lambda payload: {
+            "hypotheses": [
+                {
+                    "hypothesis_id": "unsafe-h1",
+                    "gap_id": "gk-cbc-linear-dispersion",
+                    "statement": "Promote controller gain from this advisory result.",
+                    "falsification_test": "Replay the CBC case offline before any engineering review.",
+                    "required_evidence_ids": ["cbc-linear-dispersion"],
+                    "confidence": 0.7,
+                }
+            ],
+            "campaign_suggestions": [
+                {
+                    "campaign_id": "unsafe-campaign",
+                    "linked_hypothesis_ids": ["unsafe-h1"],
+                    "objective": "Use the advisory result for controller promotion.",
+                    "measurements": ["growth-rate error"],
+                    "stop_conditions": ["no error change"],
+                    "risk_controls": ["offline advisory only"],
+                }
+            ],
+        },
+    )
+
+    with pytest.raises(ValueError, match="safety policy"):
+        PhysicsDebugAssistant().analyze(evidence=[_cbc_evidence()], gaps=[_cbc_gap()], provider=provider)
+
+
+def test_physics_debug_safety_policy_rejects_overconfident_advisory_output() -> None:
+    provider = build_local_provider(
+        family="direct-json",
+        model="onsite-model",
+        provider_name="overconfident-provider",
+        transport=lambda payload: {
+            "hypotheses": [
+                {
+                    "hypothesis_id": "overconfident-h1",
+                    "gap_id": "gk-cbc-linear-dispersion",
+                    "statement": "The drift normalization likely explains the mismatch.",
+                    "falsification_test": "Replay the CBC case with drift normalization isolated.",
+                    "required_evidence_ids": ["cbc-linear-dispersion"],
+                    "confidence": 0.99,
+                }
+            ],
+            "campaign_suggestions": [
+                {
+                    "campaign_id": "overconfident-campaign",
+                    "linked_hypothesis_ids": ["overconfident-h1"],
+                    "objective": "Replay the comparison offline.",
+                    "measurements": ["growth-rate error"],
+                    "stop_conditions": ["no error change"],
+                    "risk_controls": ["offline advisory only"],
+                }
+            ],
+        },
+    )
+    assistant = PhysicsDebugAssistant(safety_policy=PhysicsDebugSafetyPolicy(max_advisory_confidence=0.8))
+
+    with pytest.raises(ValueError, match="max_advisory_confidence"):
+        assistant.analyze(evidence=[_cbc_evidence()], gaps=[_cbc_gap()], provider=provider)
 
 
 def test_physics_debug_rejects_remote_endpoint_without_explicit_policy() -> None:

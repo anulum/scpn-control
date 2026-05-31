@@ -14,7 +14,7 @@
 | Package version | 0.19.2 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
-| Public API exports | 43 |
+| Public API exports | 44 |
 | Python control/physics modules | 133 |
 | Python public classes | 474 |
 | Rust source files | 50 |

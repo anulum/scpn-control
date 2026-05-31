@@ -46,12 +46,17 @@ tamper-evident payload digests. They are not validated physics truth,
 controller-parameter promotion, or facility safety approval. `run_provider_quorum()`
 runs multiple providers in local-first order and admits only hypotheses
 corroborated by the required provider count over the same gap and evidence set.
+`PhysicsDebugSafetyPolicy` binds the human-review requirement, caps advisory
+confidence, and rejects provider text that attempts controller promotion,
+actuation, review bypass, or approval claims.
 
 ::: scpn_control.physics_debug.ProviderPolicy
 
 ::: scpn_control.physics_debug.PhysicsDebugEvidence
 
 ::: scpn_control.physics_debug.PhysicsDebugGap
+
+::: scpn_control.physics_debug.PhysicsDebugSafetyPolicy
 
 ::: scpn_control.physics_debug.HTTPChatProvider
 

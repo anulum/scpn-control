@@ -42,6 +42,16 @@ LOCAL_PROVIDER_PROFILES: dict[str, tuple[int, str]] = {
     "direct-json": (8000, "/v1/chat/completions"),
 }
 LOCAL_PROVIDER_HOSTS = {"127.0.0.1", "localhost", "::1"}
+DEFAULT_FORBIDDEN_ACTION_PHRASES = (
+    "promote controller",
+    "controller promotion",
+    "actuate controller",
+    "change controller",
+    "deploy to control",
+    "bypass review",
+    "facility safety approval",
+    "validated physics truth",
+)
 
 ProviderTransport = Callable[[dict[str, Any]], Mapping[str, Any] | str | bytes]
 
@@ -69,6 +79,38 @@ class ProviderPolicy:
             raise ValueError("provider policy max_prompt_chars must be positive")
         if self.max_response_chars <= 0:
             raise ValueError("provider policy max_response_chars must be positive")
+
+
+@dataclass(frozen=True)
+class PhysicsDebugSafetyPolicy:
+    """Fail-closed admission policy for advisory physics-debug output."""
+
+    human_review_required: bool = True
+    max_advisory_confidence: float = 0.95
+    forbidden_action_phrases: tuple[str, ...] = DEFAULT_FORBIDDEN_ACTION_PHRASES
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.human_review_required, bool):
+            raise ValueError("physics debug safety policy human_review_required must be a bool")
+        if not isinstance(self.max_advisory_confidence, int | float) or not math.isfinite(
+            float(self.max_advisory_confidence)
+        ):
+            raise ValueError("physics debug safety policy max_advisory_confidence must be finite")
+        if self.max_advisory_confidence <= 0.0 or self.max_advisory_confidence > 1.0:
+            raise ValueError("physics debug safety policy max_advisory_confidence must be in (0, 1]")
+        if not self.forbidden_action_phrases:
+            raise ValueError("physics debug safety policy forbidden_action_phrases must be non-empty")
+        if any(not isinstance(item, str) or not item.strip() for item in self.forbidden_action_phrases):
+            raise ValueError("physics debug safety policy forbidden_action_phrases must be non-empty strings")
+
+    def payload(self) -> dict[str, Any]:
+        """Return a JSON-safe policy payload for report binding."""
+
+        return {
+            "human_review_required": self.human_review_required,
+            "max_advisory_confidence": float(self.max_advisory_confidence),
+            "forbidden_action_phrases": list(self.forbidden_action_phrases),
+        }
 
 
 @dataclass(frozen=True)
@@ -185,6 +227,7 @@ class PhysicsDebugAssistant:
     """Evidence-first assistant for physics gap analysis."""
 
     policy: ProviderPolicy = field(default_factory=ProviderPolicy)
+    safety_policy: PhysicsDebugSafetyPolicy = field(default_factory=PhysicsDebugSafetyPolicy)
 
     def analyze(
         self,
@@ -210,6 +253,7 @@ class PhysicsDebugAssistant:
             gaps=gap_payload,
             provider_output=provider_output,
             redactions=redactions,
+            safety_policy=self.safety_policy,
         )
 
 
@@ -220,16 +264,20 @@ def build_physics_debug_report(
     gaps: list[dict[str, Any]],
     provider_output: Mapping[str, Any],
     redactions: list[str] | None = None,
+    safety_policy: PhysicsDebugSafetyPolicy | None = None,
 ) -> dict[str, Any]:
     """Build a schema-versioned advisory physics debugging report."""
 
-    hypotheses, campaigns = _validate_provider_output(provider_output, evidence, gaps)
+    resolved_safety_policy = PhysicsDebugSafetyPolicy() if safety_policy is None else safety_policy
+    hypotheses, campaigns = _validate_provider_output(provider_output, evidence, gaps, resolved_safety_policy)
     payload: dict[str, Any] = {
         "schema_version": PHYSICS_DEBUG_REPORT_SCHEMA_VERSION,
         "status": "advisory",
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "scope": PHYSICS_DEBUG_SCOPE,
         "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
+        "human_review_required": resolved_safety_policy.human_review_required,
+        "safety_policy": resolved_safety_policy.payload(),
         "provider": provider.metadata(),
         "evidence": evidence,
         "gaps": gaps,
@@ -292,6 +340,11 @@ def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("physics debug report scope is unsupported")
     if payload.get("claim_boundary") != PHYSICS_DEBUG_CLAIM_BOUNDARY:
         raise ValueError("physics debug report claim_boundary is unsupported")
+    if not isinstance(payload.get("human_review_required"), bool):
+        raise ValueError("physics debug report human_review_required must be a bool")
+    safety_policy = _safety_policy_from_payload(payload.get("safety_policy"))
+    if payload["human_review_required"] != safety_policy.human_review_required:
+        raise ValueError("physics debug report human_review_required must match safety_policy")
     if not isinstance(payload.get("created_at"), str) or not payload["created_at"]:
         raise ValueError("physics debug report created_at must be a non-empty string")
     provider = payload.get("provider")
@@ -311,8 +364,8 @@ def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(gaps, list) or not gaps:
         raise ValueError("physics debug report gaps must be a non-empty list")
     _validate_evidence_gap_linkage(evidence, gaps)
-    _validate_hypotheses(payload.get("hypotheses"), evidence, gaps)
-    _validate_campaigns(payload.get("campaign_suggestions"), payload["hypotheses"])
+    _validate_hypotheses(payload.get("hypotheses"), evidence, gaps, safety_policy)
+    _validate_campaigns(payload.get("campaign_suggestions"), payload["hypotheses"], safety_policy)
     redactions = payload.get("redactions")
     if not isinstance(redactions, list) or any(not isinstance(item, str) for item in redactions):
         raise ValueError("physics debug report redactions must be a list of strings")
@@ -340,6 +393,7 @@ def run_provider_quorum(
     gaps: list[PhysicsDebugGap],
     providers: list[HTTPChatProvider],
     policy: ProviderPolicy | None = None,
+    safety_policy: PhysicsDebugSafetyPolicy | None = None,
     min_providers: int = 2,
     min_local_providers: int = 1,
 ) -> dict[str, Any]:
@@ -352,7 +406,8 @@ def run_provider_quorum(
     if min_local_providers < 0:
         raise ValueError("physics debug quorum min_local_providers must be non-negative")
     resolved_policy = ProviderPolicy() if policy is None else policy
-    assistant = PhysicsDebugAssistant(policy=resolved_policy)
+    resolved_safety_policy = PhysicsDebugSafetyPolicy() if safety_policy is None else safety_policy
+    assistant = PhysicsDebugAssistant(policy=resolved_policy, safety_policy=resolved_safety_policy)
     provider_reports = [
         assistant.analyze(evidence=evidence, gaps=gaps, provider=provider)
         for provider in sorted(providers, key=lambda item: (not item.local_onsite, item.provider_name))
@@ -368,6 +423,8 @@ def run_provider_quorum(
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "scope": PHYSICS_DEBUG_QUORUM_SCOPE,
         "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
+        "human_review_required": resolved_safety_policy.human_review_required,
+        "safety_policy": resolved_safety_policy.payload(),
         "provider_count": len(provider_reports),
         "local_provider_count": local_count,
         "remote_provider_count": remote_count,
@@ -393,6 +450,11 @@ def validate_physics_debug_quorum_report(payload: dict[str, Any]) -> dict[str, A
         raise ValueError("physics debug quorum report scope is unsupported")
     if payload.get("claim_boundary") != PHYSICS_DEBUG_CLAIM_BOUNDARY:
         raise ValueError("physics debug quorum report claim_boundary is unsupported")
+    if not isinstance(payload.get("human_review_required"), bool):
+        raise ValueError("physics debug quorum report human_review_required must be a bool")
+    safety_policy = _safety_policy_from_payload(payload.get("safety_policy"))
+    if payload["human_review_required"] != safety_policy.human_review_required:
+        raise ValueError("physics debug quorum report human_review_required must match safety_policy")
     for key in (
         "provider_count",
         "local_provider_count",
@@ -412,7 +474,9 @@ def validate_physics_debug_quorum_report(payload: dict[str, Any]) -> dict[str, A
     if not isinstance(provider_reports, list) or len(provider_reports) != payload["provider_count"]:
         raise ValueError("physics debug quorum report provider_reports count is inconsistent")
     for report in provider_reports:
-        validate_physics_debug_report(report)
+        validated_report = validate_physics_debug_report(report)
+        if validated_report["safety_policy"] != safety_policy.payload():
+            raise ValueError("physics debug quorum report provider safety_policy mismatch")
     consensus = payload.get("consensus_hypotheses")
     if not isinstance(consensus, list) or not consensus:
         raise ValueError("physics debug quorum report consensus_hypotheses must be non-empty")
@@ -638,9 +702,10 @@ def _validate_provider_output(
     provider_output: Mapping[str, Any],
     evidence: list[dict[str, Any]],
     gaps: list[dict[str, Any]],
+    safety_policy: PhysicsDebugSafetyPolicy,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    hypotheses = _validate_hypotheses(provider_output.get("hypotheses"), evidence, gaps)
-    campaigns = _validate_campaigns(provider_output.get("campaign_suggestions"), hypotheses)
+    hypotheses = _validate_hypotheses(provider_output.get("hypotheses"), evidence, gaps, safety_policy)
+    campaigns = _validate_campaigns(provider_output.get("campaign_suggestions"), hypotheses, safety_policy)
     return hypotheses, campaigns
 
 
@@ -648,6 +713,7 @@ def _validate_hypotheses(
     raw_hypotheses: object,
     evidence: list[dict[str, Any]],
     gaps: list[dict[str, Any]],
+    safety_policy: PhysicsDebugSafetyPolicy,
 ) -> list[dict[str, Any]]:
     if not isinstance(raw_hypotheses, list) or not raw_hypotheses:
         raise ValueError("physics debug hypotheses must be a non-empty list")
@@ -679,6 +745,10 @@ def _validate_hypotheses(
         confidence_value = float(confidence)
         if confidence_value < 0.0 or confidence_value > 1.0:
             raise ValueError("physics debug hypothesis confidence must be in [0, 1]")
+        if confidence_value > safety_policy.max_advisory_confidence:
+            raise ValueError("physics debug hypothesis confidence exceeds safety policy max_advisory_confidence")
+        _enforce_advisory_safety_policy(statement, safety_policy)
+        _enforce_advisory_safety_policy(falsification_test, safety_policy)
         validated.append(
             {
                 "hypothesis_id": hypothesis_id,
@@ -692,7 +762,11 @@ def _validate_hypotheses(
     return validated
 
 
-def _validate_campaigns(raw_campaigns: object, hypotheses: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _validate_campaigns(
+    raw_campaigns: object,
+    hypotheses: list[dict[str, Any]],
+    safety_policy: PhysicsDebugSafetyPolicy,
+) -> list[dict[str, Any]]:
     if not isinstance(raw_campaigns, list) or not raw_campaigns:
         raise ValueError("physics debug campaign_suggestions must be a non-empty list")
     hypothesis_ids = {item["hypothesis_id"] for item in hypotheses}
@@ -711,17 +785,44 @@ def _validate_campaigns(raw_campaigns: object, hypotheses: list[dict[str, Any]])
         missing = [hypothesis_id for hypothesis_id in linked_hypothesis_ids if hypothesis_id not in hypothesis_ids]
         if missing:
             raise ValueError("physics debug campaign linked_hypothesis_ids must cite existing hypotheses")
+        objective = _require_non_empty("objective", raw.get("objective"))
+        measurements = _require_non_empty_string_list("measurements", raw.get("measurements"))
+        stop_conditions = _require_non_empty_string_list("stop_conditions", raw.get("stop_conditions"))
+        risk_controls = _require_non_empty_string_list("risk_controls", raw.get("risk_controls"))
+        _enforce_advisory_safety_policy(objective, safety_policy)
+        for value in [*measurements, *stop_conditions, *risk_controls]:
+            _enforce_advisory_safety_policy(value, safety_policy)
         validated.append(
             {
                 "campaign_id": campaign_id,
                 "linked_hypothesis_ids": linked_hypothesis_ids,
-                "objective": _require_non_empty("objective", raw.get("objective")),
-                "measurements": _require_non_empty_string_list("measurements", raw.get("measurements")),
-                "stop_conditions": _require_non_empty_string_list("stop_conditions", raw.get("stop_conditions")),
-                "risk_controls": _require_non_empty_string_list("risk_controls", raw.get("risk_controls")),
+                "objective": objective,
+                "measurements": measurements,
+                "stop_conditions": stop_conditions,
+                "risk_controls": risk_controls,
             }
         )
     return validated
+
+
+def _safety_policy_from_payload(value: object) -> PhysicsDebugSafetyPolicy:
+    if not isinstance(value, dict):
+        raise ValueError("physics debug safety_policy must be an object")
+    forbidden = value.get("forbidden_action_phrases")
+    if not isinstance(forbidden, list | tuple):
+        raise ValueError("physics debug safety_policy forbidden_action_phrases must be a list")
+    return PhysicsDebugSafetyPolicy(
+        human_review_required=value.get("human_review_required", True),
+        max_advisory_confidence=value.get("max_advisory_confidence", 0.95),
+        forbidden_action_phrases=tuple(forbidden),
+    )
+
+
+def _enforce_advisory_safety_policy(value: str, safety_policy: PhysicsDebugSafetyPolicy) -> None:
+    lower_value = value.casefold()
+    for phrase in safety_policy.forbidden_action_phrases:
+        if phrase.casefold() in lower_value:
+            raise ValueError("physics debug safety policy rejects provider action language")
 
 
 def _validate_evidence_gap_linkage(evidence: list[dict[str, Any]], gaps: list[dict[str, Any]]) -> None:

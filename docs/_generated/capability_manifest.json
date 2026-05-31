@@ -20,7 +20,7 @@
   },
   "counts": {
     "project_script_count": 2,
-    "public_api_export_count": 43,
+    "public_api_export_count": 44,
     "public_class_count": 474,
     "public_markdown_count": 32,
     "pyo3_export_count": 27,
@@ -111,6 +111,7 @@
       "PhysicsDebugAssistant",
       "PhysicsDebugEvidence",
       "PhysicsDebugGap",
+      "PhysicsDebugSafetyPolicy",
       "ProviderPolicy",
       "RUST_BACKEND",
       "RealtimeMonitor",

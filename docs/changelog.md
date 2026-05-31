@@ -10,7 +10,8 @@
   provider defaults, explicit endpoint allowlisting for facility gateways,
   onsite provider profiles, response normalization for common local gateway
   protocols, secret redaction, cited-evidence enforcement, risk-control checks,
-  provider quorum admission, and tamper-evident advisory report digests.
+  advisory safety-policy admission, provider quorum admission, and
+  tamper-evident advisory report digests.
 - Added hash-addressed formal safety certificate bundle artifact admission so
   release gates verify safe relative bundle URIs, bundle SHA-256 bytes,
   tamper-evident artifact metadata digests, UTC creation timestamps, embedded
