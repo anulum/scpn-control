@@ -502,7 +502,7 @@
     },
     {
       "component": "kinetic EFIT pressure and q-profile coupling",
-      "equation_contract": "Kinetic-EFIT coupling claims must declare Thomson or profile-derived electron density and temperature points, ion-temperature points, fast-ion pressure fraction, anisotropy sigma, MSE pitch-angle constraints when used, radial interpolation geometry, pressure-consistency residual, and exclusion from facility-grade P-EFIT unless matched reference equilibria are supplied.",
+      "equation_contract": "Kinetic-EFIT coupling claims must declare Thomson or profile-derived electron density and temperature points, ion-temperature points, fast-ion pressure fraction, anisotropy sigma, MSE pitch-angle constraints when used, radial interpolation geometry, pressure-consistency residual, diagnostic/profile/fast-ion/MSE source provenance, matched pressure, q-profile, and anisotropy reference tolerances, and exclusion from facility-grade P-EFIT unless matched reference equilibria pass the fail-closed admission gate.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lao et al. 1985 EFIT equilibrium reconstruction",
@@ -513,22 +513,28 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate kinetic pressure, q-profile, and anisotropy residuals against matched EFIT or P-EFIT reference equilibria before facility claims",
-        "Persist diagnostic source, interpolation geometry, fast-ion model provenance, MSE calibration, and uncertainty for every promoted kinetic-equilibrium claim"
+        "Persist diagnostic source, interpolation geometry, fast-ion model provenance, MSE calibration, uncertainty, reference tolerances, and claim-admission status for every promoted kinetic-equilibrium claim"
       ],
       "unit_contract": "R and Z in metres, temperatures in keV, density in 10^19 m^-3, MSE pitch angle in degrees, pressure in pascals, beta dimensionless, and q-profile dimensionless.",
       "validation_evidence": [
-        "tests/test_kinetic_efit.py requires measured profile channels, radial interpolation, measured Ti use, anisotropy residuals, MSE q-profile response, and fast-ion pressure checks"
+        "tests/test_kinetic_efit.py requires measured profile channels, radial interpolation, measured Ti use, anisotropy residuals, MSE q-profile response, fast-ion pressure checks, and fail-closed kinetic-EFIT claim evidence admission",
+        "validation/benchmark_kinetic_efit_claims.py publishes deterministic bounded synthetic claim evidence with explicit facility-claim exclusion",
+        "validation/reports/kinetic_efit_claims.json records bounded provenance, interpolation geometry, pressure consistency, fast-ion beta, and q-profile endpoints"
       ],
       "evidence_paths": [
         "src/scpn_control/core/kinetic_efit.py",
         "tests/test_kinetic_efit.py",
+        "validation/benchmark_kinetic_efit_claims.py",
+        "validation/reports/kinetic_efit_claims.json",
+        "validation/reports/kinetic_efit_claims.md",
         "src/scpn_control/control/realtime_efit.py",
-        "docs/api.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/kinetic_efit.py"
       ],
-      "validity_domain": "Bounded fixed-boundary kinetic-profile coupling for local regression and controller studies; not facility-grade EFIT, P-EFIT, or hardware-control evidence.",
+      "validity_domain": "Bounded fixed-boundary kinetic-profile coupling and claim-admission evidence for local regression and controller studies; not facility-grade EFIT, P-EFIT, or hardware-control evidence unless matched external pressure, q-profile, and anisotropy references pass the admission gate.",
       "external_validation_tracker_issue": 48
     },
     {

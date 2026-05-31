@@ -170,6 +170,22 @@ Facility equilibrium claims still require matched EFIT/P-EFIT, documented
 public, or measured-discharge evidence for psi, Ip, q95, beta_pol, and li that
 passes the strict admission gate.
 
+## Kinetic EFIT Claim-Admission Benchmark
+
+`validation/benchmark_kinetic_efit_claims.py` publishes bounded synthetic
+regression evidence for kinetic pressure, q-profile, anisotropy, diagnostic
+provenance, profile provenance, fast-ion provenance, MSE calibration, and
+normalised elliptic-rho interpolation geometry.
+
+Report artefacts:
+
+- `validation/reports/kinetic_efit_claims.json`
+- `validation/reports/kinetic_efit_claims.md`
+
+Facility kinetic-EFIT claims still require matched EFIT/P-EFIT, documented
+public, or measured-discharge references for pressure, q-profile, and
+anisotropy that pass the strict admission gate.
+
 ## Differentiable Transport Gradient-Latency Benchmark
 
 The controller-tuning facade measures the audited admission path for JAX

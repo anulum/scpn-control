@@ -917,6 +917,14 @@ JSON report containing every accepted or rejected update decision.
 
 ::: scpn_control.core.kinetic_efit
 
+::: scpn_control.core.kinetic_efit.KineticEFITClaimEvidence
+
+::: scpn_control.core.kinetic_efit.kinetic_efit_claim_evidence
+
+::: scpn_control.core.kinetic_efit.assert_kinetic_efit_facility_claim_admissible
+
+::: scpn_control.core.kinetic_efit.save_kinetic_efit_claim_evidence
+
 #### L-H Transition
 
 ::: scpn_control.core.lh_transition

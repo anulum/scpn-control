@@ -19,7 +19,10 @@ from scpn_control.core.kinetic_efit import (
     FastIonPressure,
     KineticConstraints,
     KineticEFIT,
+    assert_kinetic_efit_facility_claim_admissible,
+    kinetic_efit_claim_evidence,
     mse_pitch_angle,
+    save_kinetic_efit_claim_evidence,
 )
 
 
@@ -145,3 +148,133 @@ def test_kinetic_efit_uses_measured_ion_temperature_profile():
     kefit_hot_ions = KineticEFIT(diag, hot_ion_constraints, fi, R, Z)
 
     assert kefit_hot_ions.reconstruct({}).p_kinetic[0] > kefit_cold_ions.reconstruct({}).p_kinetic[0]
+
+
+def test_kinetic_efit_claim_evidence_records_bounded_profile_provenance(tmp_path):
+    diag = reference_diagnostics()
+    kin = reference_kin_constraints()
+    fi = FastIonPressure(100.0, 0.1, 0.2)
+    r_grid = np.linspace(4, 8, 33)
+    z_grid = np.linspace(-3, 3, 33)
+    result = KineticEFIT(diag, kin, fi, r_grid, z_grid).reconstruct({})
+
+    evidence = kinetic_efit_claim_evidence(
+        result,
+        kin,
+        fi,
+        source="synthetic_regression_reference",
+        source_id="kinetic-regression-v1",
+        diagnostic_source="repository magnetic diagnostics fixture",
+        profile_source="repository Thomson and ion-temperature fixture",
+        fast_ion_source="repository anisotropic fast-ion fixture",
+        mse_calibration_source="repository MSE pitch-angle fixture",
+    )
+    report_path = tmp_path / "kinetic_efit_claim.json"
+    save_kinetic_efit_claim_evidence(evidence, report_path)
+
+    assert evidence.facility_claim_allowed is False
+    assert evidence.claim_status == "bounded_controller_evidence"
+    assert evidence.interpolation_geometry == "normalised_elliptic_rho"
+    assert evidence.n_te_points == len(kin.Te_points)
+    assert evidence.n_ne_points == len(kin.ne_points)
+    assert evidence.n_ti_points == len(kin.Ti_points)
+    assert evidence.n_mse_points == len(kin.mse_points)
+    assert evidence.pressure_consistency == pytest.approx(result.pressure_consistency)
+    assert evidence.q_axis == pytest.approx(result.q_profile[0])
+    assert evidence.q_edge == pytest.approx(result.q_profile[-1])
+    assert '"facility_claim_allowed": false' in report_path.read_text(encoding="utf-8")
+
+
+def test_kinetic_efit_facility_admission_requires_matched_pressure_q_and_anisotropy():
+    diag = reference_diagnostics()
+    kin = reference_kin_constraints()
+    fi = FastIonPressure(100.0, 0.1, 0.2)
+    r_grid = np.linspace(4, 8, 33)
+    z_grid = np.linspace(-3, 3, 33)
+    result = KineticEFIT(diag, kin, fi, r_grid, z_grid).reconstruct({})
+
+    matched = kinetic_efit_claim_evidence(
+        result,
+        kin,
+        fi,
+        source="p_efit_reference",
+        source_id="matched-public-pefit-reference",
+        diagnostic_source="documented magnetic diagnostics",
+        profile_source="documented Thomson, charge-exchange, and density profiles",
+        fast_ion_source="documented neutral-beam fast-ion model",
+        mse_calibration_source="documented MSE calibration",
+        reference_pressure=result.p_kinetic.copy(),
+        reference_q_profile=result.q_profile.copy(),
+        reference_anisotropy_sigma=0.2,
+    )
+    assert_kinetic_efit_facility_claim_admissible(matched)
+    assert matched.facility_claim_allowed is True
+
+    q_mismatch = kinetic_efit_claim_evidence(
+        result,
+        kin,
+        fi,
+        source="p_efit_reference",
+        source_id="mismatched-q-reference",
+        diagnostic_source="documented magnetic diagnostics",
+        profile_source="documented Thomson, charge-exchange, and density profiles",
+        fast_ion_source="documented neutral-beam fast-ion model",
+        mse_calibration_source="documented MSE calibration",
+        reference_pressure=result.p_kinetic.copy(),
+        reference_q_profile=result.q_profile + 0.5,
+        reference_anisotropy_sigma=0.2,
+        q_profile_relative_tolerance=0.01,
+    )
+    with pytest.raises(ValueError, match="facility claim requires matched"):
+        assert_kinetic_efit_facility_claim_admissible(q_mismatch)
+    assert q_mismatch.facility_claim_allowed is False
+
+
+def test_kinetic_efit_claim_evidence_rejects_invalid_reference_inputs():
+    diag = reference_diagnostics()
+    kin = reference_kin_constraints()
+    fi = FastIonPressure(100.0, 0.1, 0.2)
+    r_grid = np.linspace(4, 8, 33)
+    z_grid = np.linspace(-3, 3, 33)
+    result = KineticEFIT(diag, kin, fi, r_grid, z_grid).reconstruct({})
+
+    with pytest.raises(ValueError, match="source must be one of"):
+        kinetic_efit_claim_evidence(
+            result,
+            kin,
+            fi,
+            source="untracked_reference",
+            source_id="bad-source",
+            diagnostic_source="documented magnetic diagnostics",
+            profile_source="documented profiles",
+            fast_ion_source="documented fast-ion model",
+            mse_calibration_source="documented MSE calibration",
+        )
+
+    with pytest.raises(ValueError, match="reference must be finite and match"):
+        kinetic_efit_claim_evidence(
+            result,
+            kin,
+            fi,
+            source="p_efit_reference",
+            source_id="bad-pressure-reference",
+            diagnostic_source="documented magnetic diagnostics",
+            profile_source="documented profiles",
+            fast_ion_source="documented fast-ion model",
+            mse_calibration_source="documented MSE calibration",
+            reference_pressure=result.p_kinetic[:-1],
+        )
+
+    with pytest.raises(ValueError, match="reference tolerances must be positive"):
+        kinetic_efit_claim_evidence(
+            result,
+            kin,
+            fi,
+            source="p_efit_reference",
+            source_id="bad-tolerance",
+            diagnostic_source="documented magnetic diagnostics",
+            profile_source="documented profiles",
+            fast_ion_source="documented fast-ion model",
+            mse_calibration_source="documented MSE calibration",
+            pressure_relative_tolerance=0.0,
+        )
