@@ -73,6 +73,7 @@ nav:
     - Benchmarks: benchmarks.md
     - Validation and QA: validation.md
     - Physics Traceability: physics_traceability.md
+    - Production Readiness: production_readiness.md
     - Competitive Analysis: competitive_analysis.md
   - Project:
     - JOSS Paper: joss_paper.md

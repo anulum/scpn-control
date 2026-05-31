@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added a public production-readiness boundary that separates
+  production-oriented library engineering from facility deployment, external
+  validation, measured-shot validation, and certification claims.
 - Hardened fail-closed physics and mathematics boundaries across MHD,
   pedestal, edge, transport, orbit-following, scenario, and uncertainty
   surfaces without promoting unsupported facility or full-fidelity claims.

@@ -56,7 +56,9 @@ facades and replay-safe contracts for the subset needed in controller loops.
 > **Status: Alpha / Research.** Not a production PCS. No real tokamak
 > deployment. Public physics claims are limited to checksum-gated repository
 > reference artefacts, published GEQDSK files, and explicitly bounded synthetic
-> or non-facility domains.
+> or non-facility domains. See
+> [Production Readiness Boundary](docs/production_readiness.md) for the
+> library-readiness versus facility-deployment distinction.
 
 ## Capability Inventory
 
@@ -85,7 +87,7 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Validation scripts | 57 |
 | Optional extras | 17 |
 | Python test files | 273 |
-| Public documentation pages | 31 |
+| Public documentation pages | 32 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
