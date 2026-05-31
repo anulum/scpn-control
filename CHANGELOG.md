@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened controller safety-case readiness so promotion now also requires a
+  typed `codac_runtime_evidence` artifact that resolves under the declared
+  evidence root, matches its SHA-256 bytes, and passes qualified CODAC/EPICS
+  runtime admission before deployment readiness can cite CODAC timing,
+  interlock, export, or backpressure evidence.
 - Added schema-versioned CODAC/EPICS runtime evidence admission so control
   boundary claims bind generated EPICS database and OPC-UA nodeset hashes,
   cycle-deadline percentiles, exercised interlock blocking, backpressure

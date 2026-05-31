@@ -815,9 +815,9 @@ bundle with a manifest integrity digest, and
 or edited evidence payloads before replay admission.
 `evaluate_controller_safety_case_readiness()` separates linked bounded evidence
 from promotion readiness: external physics validation, target-hardware timing
-evidence, qualified HIL replay evidence, and independent safety-review digests
-are all required before `assert_controller_safety_case_readiness_admissible()`
-accepts the package.
+evidence, qualified HIL replay evidence, qualified CODAC/EPICS runtime
+evidence, and independent safety-review digests are all required before
+`assert_controller_safety_case_readiness_admissible()` accepts the package.
 `ReadinessArtifactEvidence` and
 `evaluate_controller_safety_case_readiness_from_artifacts()` provide the normal
 promotion path: each required readiness input must be a typed artifact with a
@@ -829,6 +829,10 @@ schema-versioned E2E latency evidence validator with qualified target hardware
 and the configured p95 limit. `hil_replay_evidence` artifacts must pass the
 schema-versioned HIL replay admission loader with qualified target hardware, so
 local workstation replay cannot satisfy deployment promotion readiness.
+`codac_runtime_evidence` artifacts must pass the schema-versioned CODAC runtime
+admission loader with qualified facility-claim status, deadline-clean cycle
+evidence, exercised interlock blocking, zero backpressure events, and
+hash-bound EPICS/OPC-UA exports.
 `save_controller_safety_case_readiness()` and
 `load_controller_safety_case_readiness()` persist that readiness decision with
 the same schema-versioned integrity-digest semantics as the safety-case bundle.

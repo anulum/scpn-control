@@ -23,6 +23,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any
 
+from scpn_control.control.codac_interface import load_codac_runtime_evidence
 from scpn_control.control.digital_twin_online_update import DigitalTwinUpdateEvidence
 from scpn_control.core.differentiable_transport import TransportDifferentiabilityEvidence
 from scpn_control.scpn.artifact import (
@@ -37,8 +38,10 @@ _READINESS_ARTIFACT_KINDS = (
     "external_physics_validation",
     "target_hardware_timing",
     "hil_replay_evidence",
+    "codac_runtime_evidence",
     "independent_safety_review",
 )
+_READINESS_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -65,6 +68,7 @@ class SafetyCaseReadinessEvidence:
     external_physics_validation_sha256: str | None
     target_hardware_timing_sha256: str | None
     hil_replay_evidence_sha256: str | None
+    codac_runtime_evidence_sha256: str | None
     independent_safety_review_sha256: str | None
     blocking_reasons: tuple[str, ...]
     claim_status: str
@@ -181,6 +185,17 @@ def _validate_hil_replay_artifact(
         raise ValueError(f"HIL replay artifact is not admissible: {exc}") from exc
 
 
+def _validate_codac_runtime_artifact(
+    artifact: ReadinessArtifactEvidence,
+    artifact_root: str | Path,
+) -> None:
+    report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
+    try:
+        load_codac_runtime_evidence(report_path, require_facility_claim=True)
+    except ValueError as exc:
+        raise ValueError(f"CODAC runtime artifact is not admissible: {exc}") from exc
+
+
 def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> ControllerSafetyCaseEvidence:
     try:
         evidence = ControllerSafetyCaseEvidence(
@@ -240,6 +255,11 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
                 if payload.get("hil_replay_evidence_sha256") is None
                 else str(payload["hil_replay_evidence_sha256"])
             ),
+            codac_runtime_evidence_sha256=(
+                None
+                if payload["codac_runtime_evidence_sha256"] is None
+                else str(payload["codac_runtime_evidence_sha256"])
+            ),
             independent_safety_review_sha256=(
                 None
                 if payload["independent_safety_review_sha256"] is None
@@ -250,13 +270,14 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("controller safety-case readiness payload is malformed") from exc
-    if readiness.schema_version != 1:
+    if readiness.schema_version != _READINESS_SCHEMA_VERSION:
         raise ValueError("controller safety-case readiness schema_version is unsupported")
     if not _is_sha256_hex(readiness.safety_case_sha256):
         raise ValueError("controller safety-case readiness safety_case_sha256 must be a SHA-256 digest")
     _optional_sha256("external_physics_validation_sha256", readiness.external_physics_validation_sha256)
     _optional_sha256("target_hardware_timing_sha256", readiness.target_hardware_timing_sha256)
     _optional_sha256("hil_replay_evidence_sha256", readiness.hil_replay_evidence_sha256)
+    _optional_sha256("codac_runtime_evidence_sha256", readiness.codac_runtime_evidence_sha256)
     _optional_sha256("independent_safety_review_sha256", readiness.independent_safety_review_sha256)
     if readiness.status not in {"blocked", "promotion_ready"}:
         raise ValueError("controller safety-case readiness status is unsupported")
@@ -264,6 +285,7 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
         "external_physics_validation_sha256": readiness.external_physics_validation_sha256,
         "target_hardware_timing_sha256": readiness.target_hardware_timing_sha256,
         "hil_replay_evidence_sha256": readiness.hil_replay_evidence_sha256,
+        "codac_runtime_evidence_sha256": readiness.codac_runtime_evidence_sha256,
         "independent_safety_review_sha256": readiness.independent_safety_review_sha256,
     }
     missing = tuple(name for name, value in required_digests.items() if value is None)
@@ -284,20 +306,22 @@ def evaluate_controller_safety_case_readiness(
     external_physics_validation_sha256: str | None = None,
     target_hardware_timing_sha256: str | None = None,
     hil_replay_evidence_sha256: str | None = None,
+    codac_runtime_evidence_sha256: str | None = None,
     independent_safety_review_sha256: str | None = None,
 ) -> SafetyCaseReadinessEvidence:
     """Evaluate whether a bounded safety-case bundle is promotion-ready.
 
     The linked internal evidence chain is necessary but not sufficient for
     promotion readiness. This gate requires external physics validation,
-    target-hardware timing evidence, HIL replay evidence, and an independent
-    safety review digest.
+    target-hardware timing evidence, HIL replay evidence, CODAC/EPICS runtime
+    evidence, and an independent safety review digest.
     """
     if not isinstance(safety_case, ControllerSafetyCaseEvidence):
         raise ValueError("safety_case must be ControllerSafetyCaseEvidence")
     external_digest = _optional_sha256("external_physics_validation_sha256", external_physics_validation_sha256)
     hardware_digest = _optional_sha256("target_hardware_timing_sha256", target_hardware_timing_sha256)
     hil_digest = _optional_sha256("hil_replay_evidence_sha256", hil_replay_evidence_sha256)
+    codac_digest = _optional_sha256("codac_runtime_evidence_sha256", codac_runtime_evidence_sha256)
     review_digest = _optional_sha256("independent_safety_review_sha256", independent_safety_review_sha256)
     blocking: list[str] = []
     if external_digest is None:
@@ -306,16 +330,19 @@ def evaluate_controller_safety_case_readiness(
         blocking.append("target_hardware_timing_sha256")
     if hil_digest is None:
         blocking.append("hil_replay_evidence_sha256")
+    if codac_digest is None:
+        blocking.append("codac_runtime_evidence_sha256")
     if review_digest is None:
         blocking.append("independent_safety_review_sha256")
     status = "promotion_ready" if not blocking else "blocked"
     return SafetyCaseReadinessEvidence(
-        schema_version=1,
+        schema_version=_READINESS_SCHEMA_VERSION,
         safety_case_sha256=_canonical_sha256(safety_case),
         status=status,
         external_physics_validation_sha256=external_digest,
         target_hardware_timing_sha256=hardware_digest,
         hil_replay_evidence_sha256=hil_digest,
+        codac_runtime_evidence_sha256=codac_digest,
         independent_safety_review_sha256=review_digest,
         blocking_reasons=tuple(blocking),
         claim_status=(
@@ -353,6 +380,8 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
             )
         elif kind == "hil_replay_evidence":
             _validate_hil_replay_artifact(artifact, artifact_root)
+        elif kind == "codac_runtime_evidence":
+            _validate_codac_runtime_artifact(artifact, artifact_root)
         else:
             _resolve_readiness_artifact_path(artifact, artifact_root)
     return evaluate_controller_safety_case_readiness(
@@ -360,6 +389,7 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
         external_physics_validation_sha256=by_kind["external_physics_validation"].artifact_sha256,
         target_hardware_timing_sha256=by_kind["target_hardware_timing"].artifact_sha256,
         hil_replay_evidence_sha256=by_kind["hil_replay_evidence"].artifact_sha256,
+        codac_runtime_evidence_sha256=by_kind["codac_runtime_evidence"].artifact_sha256,
         independent_safety_review_sha256=by_kind["independent_safety_review"].artifact_sha256,
     )
 
@@ -409,7 +439,7 @@ def assert_controller_safety_case_readiness_admissible(
         raise ValueError("readiness must be SafetyCaseReadinessEvidence")
     if not isinstance(safety_case, ControllerSafetyCaseEvidence):
         raise ValueError("safety_case must be ControllerSafetyCaseEvidence")
-    if readiness.schema_version != 1:
+    if readiness.schema_version != _READINESS_SCHEMA_VERSION:
         raise ValueError("controller safety-case readiness schema_version is unsupported")
     if readiness.safety_case_sha256 != _canonical_sha256(safety_case):
         raise ValueError("controller safety-case readiness safety_case_sha256 mismatch")
@@ -422,6 +452,7 @@ def assert_controller_safety_case_readiness_admissible(
         external_physics_validation_sha256=readiness.external_physics_validation_sha256,
         target_hardware_timing_sha256=readiness.target_hardware_timing_sha256,
         hil_replay_evidence_sha256=readiness.hil_replay_evidence_sha256,
+        codac_runtime_evidence_sha256=readiness.codac_runtime_evidence_sha256,
         independent_safety_review_sha256=readiness.independent_safety_review_sha256,
     )
     if readiness != recomputed:

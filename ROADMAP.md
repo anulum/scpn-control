@@ -301,10 +301,11 @@
   parity tests and latency benchmarks.
 - [ ] Add production hardware evidence for generated HDL, CODAC/EPICS timing,
   interlock behaviour, backpressure, and HIL replay before making deployment
-  readiness claims. CONTROL now emits tamper-evident HIL replay evidence and
-  fail-closed target-hardware admission checks, and controller safety-case
-  promotion now requires that HIL replay artifact. Deployment readiness remains
-  blocked until facility target runs provide qualified hardware artefacts.
+  readiness claims. CONTROL now emits tamper-evident HIL replay and
+  CODAC/EPICS runtime evidence, fail-closed target-hardware and CODAC
+  admission checks, and controller safety-case promotion now requires both
+  artifacts. Deployment readiness remains blocked until facility target runs
+  provide qualified hardware artefacts.
 
 ### External validation collaboration trackers
 - [ ] Parent tracker: [external validation artefacts needed for full-fidelity

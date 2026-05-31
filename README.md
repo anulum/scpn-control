@@ -433,8 +433,9 @@ git push --tags
   no experimental control-room replay, and no real-world validation.
 - **No peer-reviewed fusion publication**: Paper 27 (arXiv:2004.06344) is
   unpublished in a fusion journal. No external citations.
-- **Not a production PCS**: Alpha-stage research software. No ITER CODAC,
-  no EPICS interface, no safety certification, no real hardware deployment.
+- **Not a production PCS**: Alpha-stage research software. CODAC/EPICS support
+  is a research adapter and evidence-admission contract, not a certified ITER
+  plant deployment. No safety certification and no real hardware deployment.
 - **"Formal verification" is contract checking**: Runtime pre/post-condition
   assertions, not theorem-proved guarantees (no Coq/Lean/TLA+).
 - **Benchmark comparisons are not apples-to-apples**: The 11.9 µs number is a
