@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -162,8 +163,59 @@ def test_rzip_facility_claim_admission_requires_external_tolerance(simple_vessel
     assert admitted.facility_claim_allowed is True
     assert admitted.growth_rate_relative_error == pytest.approx(abs(gamma - gamma * 1.01) / abs(gamma * 1.01))
     assert rejected.facility_claim_allowed is False
-    with pytest.raises(ValueError, match="not admissible"):
+    with pytest.raises(ValueError, match="growth-rate tolerance"):
         assert_rzip_facility_claim_admissible(rejected)
+
+
+def test_rzip_facility_claim_admission_rejects_tampered_local_evidence(simple_vessel):
+    rzip = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-1.0,
+        vessel=simple_vessel,
+    )
+    local = rzip_calibration_evidence(
+        rzip,
+        source="local_regression_reference",
+        source_id="tests/test_rzip_model.py::simple_vessel",
+        wall_time_constant_s=0.01,
+    )
+    tampered = replace(
+        local,
+        facility_claim_allowed=True,
+        claim_status="external RZIP reference admission passed for declared tolerance",
+    )
+
+    with pytest.raises(ValueError, match="facility reference source"):
+        assert_rzip_facility_claim_admissible(tampered)
+
+
+def test_rzip_facility_claim_admission_rejects_tampered_growth_error(simple_vessel):
+    rzip = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-1.0,
+        vessel=simple_vessel,
+    )
+    gamma = rzip.vertical_growth_rate()
+    admitted = rzip_calibration_evidence(
+        rzip,
+        source="external_code_benchmark",
+        source_id="reference_rzip_symmetric_wall_case",
+        wall_time_constant_s=0.01,
+        reference_growth_rate_s_inv=gamma,
+        growth_rate_relative_tolerance=0.02,
+    )
+    tampered = replace(admitted, growth_rate_relative_error=0.5)
+
+    with pytest.raises(ValueError, match="growth-rate tolerance"):
+        assert_rzip_facility_claim_admissible(tampered)
 
 
 def test_rzip_calibration_evidence_rejects_invalid_reference_inputs(simple_vessel):

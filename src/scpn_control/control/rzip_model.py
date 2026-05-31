@@ -123,6 +123,25 @@ def assert_rzip_facility_claim_admissible(evidence: RZIPCalibrationEvidence) -> 
         raise ValueError("evidence must be RZIPCalibrationEvidence")
     if evidence.schema_version != _RZIP_CALIBRATION_SCHEMA_VERSION:
         raise ValueError("RZIP calibration evidence schema_version is unsupported")
+    if evidence.source not in _FACILITY_REFERENCE_SOURCES:
+        raise ValueError("RZIP facility claim requires a facility reference source")
+    if not isinstance(evidence.source_id, str) or not evidence.source_id.strip():
+        raise ValueError("RZIP facility claim requires a non-empty source_id")
+    if not isinstance(evidence.model_id, str) or not evidence.model_id.strip():
+        raise ValueError("RZIP facility claim requires a non-empty model_id")
+    _finite_positive("vertical_inertia_kg", evidence.vertical_inertia_kg)
+    _finite_positive("wall_time_constant_s", evidence.wall_time_constant_s)
+    _finite_positive("growth_time_ms", evidence.growth_time_ms)
+    _finite_positive("growth_rate_relative_tolerance", evidence.growth_rate_relative_tolerance)
+    if evidence.reference_growth_rate_s_inv is None:
+        raise ValueError("RZIP facility claim requires a reference growth rate")
+    _finite_positive("reference_growth_rate_s_inv", evidence.reference_growth_rate_s_inv)
+    if evidence.growth_rate_relative_error is None or not np.isfinite(evidence.growth_rate_relative_error):
+        raise ValueError("RZIP facility claim requires finite growth-rate comparison error")
+    if evidence.growth_rate_relative_error > evidence.growth_rate_relative_tolerance:
+        raise ValueError("RZIP facility claim failed declared growth-rate tolerance")
+    if not np.isfinite(evidence.growth_rate_s_inv):
+        raise ValueError("RZIP facility claim requires a finite model growth rate")
     if not evidence.facility_claim_allowed:
         raise ValueError(f"RZIP facility claim is not admissible: {evidence.claim_status}")
     return evidence

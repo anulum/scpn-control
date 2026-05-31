@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened RZIP facility-claim admission so calibration evidence is
+  revalidated against source class, reference growth-rate presence, finite
+  physical fields, and declared growth-rate tolerance at admission time.
 - Hardened the JAX traceable runtime public boundary so single-loop rollouts
   reject batched command arrays, reject vector initial states deterministically,
   and validate parity integer seeds before reproducibility campaigns are built.
