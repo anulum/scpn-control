@@ -28,7 +28,36 @@ scpn_control.build_knm_paper27
 scpn_control.UPDESystem
 scpn_control.LyapunovGuard
 scpn_control.RealtimeMonitor
+scpn_control.PhysicsDebugAssistant
 ```
+
+---
+
+## Physics Debug Assistance
+
+`scpn_control.physics_debug` provides a local-first advisory assistant for
+physics validation gaps. The default provider policy admits loopback endpoints
+only; facility or external gateways must be explicitly allowlisted. Reports are
+schema-versioned advisory evidence with secret redaction, falsifiable
+hypothesis checks, campaign risk controls, and tamper-evident payload digests.
+They are not validated physics truth, controller-parameter promotion, or
+facility safety approval.
+
+::: scpn_control.physics_debug.ProviderPolicy
+
+::: scpn_control.physics_debug.PhysicsDebugEvidence
+
+::: scpn_control.physics_debug.PhysicsDebugGap
+
+::: scpn_control.physics_debug.HTTPChatProvider
+
+::: scpn_control.physics_debug.PhysicsDebugAssistant
+
+::: scpn_control.physics_debug.build_physics_debug_report
+
+::: scpn_control.physics_debug.validate_physics_debug_report
+
+::: scpn_control.physics_debug.write_physics_debug_report
 
 ---
 

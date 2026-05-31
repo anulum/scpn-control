@@ -51,6 +51,14 @@ __all__ = [
     "UPDESystem",
     "LyapunovGuard",
     "RealtimeMonitor",
+    "HTTPChatProvider",
+    "PhysicsDebugAssistant",
+    "PhysicsDebugEvidence",
+    "PhysicsDebugGap",
+    "ProviderPolicy",
+    "build_physics_debug_report",
+    "validate_physics_debug_report",
+    "write_physics_debug_report",
 ]
 
 _EXPORT_MODULES = {
@@ -84,6 +92,14 @@ _EXPORT_MODULES = {
     "UPDESystem": "scpn_control.phase",
     "LyapunovGuard": "scpn_control.phase",
     "RealtimeMonitor": "scpn_control.phase",
+    "HTTPChatProvider": "scpn_control.physics_debug",
+    "PhysicsDebugAssistant": "scpn_control.physics_debug",
+    "PhysicsDebugEvidence": "scpn_control.physics_debug",
+    "PhysicsDebugGap": "scpn_control.physics_debug",
+    "ProviderPolicy": "scpn_control.physics_debug",
+    "build_physics_debug_report": "scpn_control.physics_debug",
+    "validate_physics_debug_report": "scpn_control.physics_debug",
+    "write_physics_debug_report": "scpn_control.physics_debug",
 }
 
 
