@@ -244,6 +244,18 @@ documented public reference artifacts for the same surrogate weights and
 equilibrium cases. Synthetic training runs and local smoke tests do not count as
 matched equilibrium-reference evidence:
 
+Synthetic neural-equilibrium pretraining evidence can be regenerated with:
+
+```bash
+python validation/benchmark_neural_equilibrium_pretraining.py
+```
+
+This writes `validation/reports/neural_equilibrium_pretraining.json`,
+`validation/reports/neural_equilibrium_pretraining.md`, and JAX-compatible
+synthetic pretraining weights. These artefacts demonstrate pretraining and
+inference plumbing only; real EFIT/P-EFIT fine-tuning remains gated by the
+strict reference-artifact validator below.
+
 ```bash
 scpn-control validate-neural-equilibrium-reference --require-reference-artifacts --json-out
 python validation/validate_neural_equilibrium_reference.py --require-reference-artifacts --output-json artifacts/neural_equilibrium_reference_report.json

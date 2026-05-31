@@ -12,10 +12,14 @@ import numpy as np
 import pytest
 
 from scpn_control.core.neural_equilibrium import (
+    NEURAL_EQ_FEATURE_NAMES,
     MinimalPCA,
     NeuralEqConfig,
     NeuralEquilibriumAccelerator,
+    PretrainingResult,
     SimpleMLP,
+    SyntheticEquilibriumCampaign,
+    generate_synthetic_equilibrium_dataset,
 )
 
 
@@ -87,3 +91,43 @@ class TestNeuralEquilibriumAccelerator:
         acc = NeuralEquilibriumAccelerator()
         with pytest.raises(RuntimeError, match="Not trained"):
             acc.evaluate_surrogate(np.zeros((1, 12)), np.zeros((1, 129 * 129)))
+
+
+class TestSyntheticPretraining:
+    def test_synthetic_dataset_contract_is_finite_and_reproducible(self):
+        x1, y1, campaign = generate_synthetic_equilibrium_dataset(32, grid_shape=(17, 19), seed=123)
+        x2, y2, _ = generate_synthetic_equilibrium_dataset(32, grid_shape=(17, 19), seed=123)
+        assert isinstance(campaign, SyntheticEquilibriumCampaign)
+        assert campaign.feature_names == NEURAL_EQ_FEATURE_NAMES
+        assert x1.shape == (32, 12)
+        assert y1.shape == (32, 17 * 19)
+        assert np.all(np.isfinite(x1))
+        assert np.all(np.isfinite(y1))
+        np.testing.assert_allclose(x1, x2)
+        np.testing.assert_allclose(y1, y2)
+
+    def test_pretraining_produces_jax_compatible_weights(self, tmp_path):
+        acc = NeuralEquilibriumAccelerator(
+            NeuralEqConfig(n_components=6, hidden_sizes=(), n_input_features=12, grid_shape=(17, 19))
+        )
+        path = tmp_path / "synthetic_pretrain.npz"
+        result = acc.pretrain_from_synthetic_equilibria(160, seed=7, save_path=path)
+        assert isinstance(result, PretrainingResult)
+        assert result.evidence_kind == "synthetic_pretraining"
+        assert result.n_samples == 160
+        assert 0.0 < result.explained_variance <= 1.0
+        assert result.test_mse >= 0.0
+        assert np.isfinite(result.gs_residual)
+        assert path.exists()
+
+        reloaded = NeuralEquilibriumAccelerator()
+        reloaded.load_weights(path)
+        x, _, _ = generate_synthetic_equilibrium_dataset(2, grid_shape=(17, 19), seed=9)
+        pred = reloaded.predict(x)
+        assert pred.shape == (2, 17, 19)
+        assert np.all(np.isfinite(pred))
+
+    def test_real_efit_fine_tune_requires_reference_artifacts(self):
+        acc = NeuralEquilibriumAccelerator()
+        with pytest.raises(RuntimeError, match="requires passing neural equilibrium reference artifacts"):
+            acc.fine_tune_from_efit_reconstructions([], reference_artifact_root="/does/not/exist")

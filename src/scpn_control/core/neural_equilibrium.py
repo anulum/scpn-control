@@ -79,6 +79,155 @@ class TrainingResult:
     test_max_error: float = float("nan")
 
 
+@dataclass(frozen=True)
+class SyntheticEquilibriumCampaign:
+    """Metadata for bounded synthetic equilibrium pretraining data."""
+
+    n_samples: int
+    grid_shape: tuple[int, int]
+    seed: int
+    feature_names: tuple[str, ...]
+    validity_domain: str
+
+
+@dataclass(frozen=True)
+class PretrainingResult:
+    """Synthetic neural-equilibrium pretraining summary."""
+
+    n_samples: int
+    n_components: int
+    explained_variance: float
+    train_mse: float
+    val_mse: float
+    test_mse: float
+    test_max_error: float
+    gs_residual: float
+    train_time_s: float
+    weights_path: str
+    evidence_kind: str
+    campaign: SyntheticEquilibriumCampaign
+
+
+NEURAL_EQ_FEATURE_NAMES = (
+    "Ip_MA",
+    "Bt_T",
+    "R_axis_m",
+    "Z_axis_m",
+    "pprime_scale",
+    "ffprime_scale",
+    "simag_Wb",
+    "sibry_Wb",
+    "kappa",
+    "delta_upper",
+    "delta_lower",
+    "q95",
+)
+
+
+def _require_positive_int(name: str, value: int) -> int:
+    if isinstance(value, bool) or int(value) != value or int(value) < 1:
+        raise ValueError(f"{name} must be an integer >= 1")
+    return int(value)
+
+
+def _require_positive_float(name: str, value: float) -> float:
+    result = float(value)
+    if not np.isfinite(result) or result <= 0.0:
+        raise ValueError(f"{name} must be positive and finite")
+    return result
+
+
+def _validate_feature_matrix(features: NDArray) -> NDArray:
+    x = np.asarray(features, dtype=np.float64)
+    if x.ndim != 2 or x.shape[1] != len(NEURAL_EQ_FEATURE_NAMES) or not np.all(np.isfinite(x)):
+        raise ValueError(f"features must be finite with shape (n, {len(NEURAL_EQ_FEATURE_NAMES)})")
+    return x
+
+
+def _validate_psi_matrix(psi: NDArray, grid_shape: tuple[int, int]) -> NDArray:
+    y = np.asarray(psi, dtype=np.float64)
+    n_grid = int(grid_shape[0] * grid_shape[1])
+    if y.ndim != 2 or y.shape[1] != n_grid or not np.all(np.isfinite(y)):
+        raise ValueError(f"psi targets must be finite with shape (n, {n_grid})")
+    return y
+
+
+def _synthetic_equilibrium_from_features(features: NDArray, grid_shape: tuple[int, int]) -> NDArray:
+    nh, nw = grid_shape
+    r = np.linspace(1.0, 2.5, nw)
+    z = np.linspace(-1.0, 1.0, nh)
+    rr, zz = np.meshgrid(r, z)
+
+    ip_ma, bt, r_axis, z_axis, p_scale, ff_scale, simag, sibry, kappa, delta_u, delta_l, q95 = features
+    minor = np.clip(0.42 + 0.025 * ip_ma + 0.015 * (q95 - 4.0), 0.35, 0.75)
+    z_norm = (zz - z_axis) / np.clip(kappa * minor, 0.2, 1.4)
+    upper = zz >= z_axis
+    delta = np.where(upper, delta_u, delta_l)
+    r_shift = r_axis + delta * minor * z_norm**2
+    r_norm = (rr - r_shift) / minor
+    rho2 = r_norm**2 + z_norm**2
+    rho = np.sqrt(np.maximum(rho2, 0.0))
+
+    denom = sibry - simag
+    if abs(float(denom)) < 1.0e-10:
+        denom = 1.0
+    pressure_shape = (1.0 - np.clip(rho, 0.0, 1.4) ** 2) ** 2
+    pressure_shape = np.where(rho <= 1.0, pressure_shape, 0.0)
+    shear_shape = np.sin(np.pi * np.clip(rho, 0.0, 1.0)) ** 2
+    axis_tilt = 0.025 * (bt - 5.0) * (rr - r_axis) + 0.02 * (ip_ma - 8.0) * (zz - z_axis)
+    profile_mix = 0.055 * denom * ((p_scale - 1.0) * pressure_shape + (ff_scale - 1.0) * shear_shape)
+    psi_n = np.clip(rho2 + axis_tilt, 0.0, 1.35)
+    return np.asarray(simag + denom * psi_n + profile_mix, dtype=np.float64)
+
+
+def generate_synthetic_equilibrium_dataset(
+    n_samples: int,
+    *,
+    grid_shape: tuple[int, int] = (65, 65),
+    seed: int = 20240531,
+) -> tuple[NDArray, NDArray, SyntheticEquilibriumCampaign]:
+    """Generate bounded Solovev-like equilibria for pretraining.
+
+    The generated targets are synthetic Grad-Shafranov-shaped flux maps for
+    pretraining only. They are not matched EFIT or P-EFIT validation evidence.
+    """
+    samples = _require_positive_int("n_samples", n_samples)
+    nh = _require_positive_int("grid_shape[0]", grid_shape[0])
+    nw = _require_positive_int("grid_shape[1]", grid_shape[1])
+    rng = np.random.default_rng(seed)
+
+    features = np.empty((samples, len(NEURAL_EQ_FEATURE_NAMES)), dtype=np.float64)
+    psi = np.empty((samples, nh * nw), dtype=np.float64)
+    for idx in range(samples):
+        ip_ma = rng.uniform(5.0, 15.0)
+        bt = rng.uniform(3.0, 8.0)
+        r_axis = rng.uniform(1.55, 1.95)
+        z_axis = rng.uniform(-0.12, 0.12)
+        p_scale = rng.uniform(0.65, 1.35)
+        ff_scale = rng.uniform(0.65, 1.35)
+        simag = rng.uniform(-0.12, 0.02)
+        sibry = simag + rng.uniform(0.7, 1.7)
+        kappa = rng.uniform(1.35, 2.15)
+        delta_u = rng.uniform(0.05, 0.55)
+        delta_l = rng.uniform(0.02, 0.50)
+        q95 = rng.uniform(2.6, 6.5)
+        row = np.array(
+            [ip_ma, bt, r_axis, z_axis, p_scale, ff_scale, simag, sibry, kappa, delta_u, delta_l, q95],
+            dtype=np.float64,
+        )
+        features[idx] = row
+        psi[idx] = _synthetic_equilibrium_from_features(row, (nh, nw)).ravel()
+
+    campaign = SyntheticEquilibriumCampaign(
+        n_samples=samples,
+        grid_shape=(nh, nw),
+        seed=int(seed),
+        feature_names=NEURAL_EQ_FEATURE_NAMES,
+        validity_domain="bounded synthetic Solovev-like equilibria for pretraining; not matched EFIT validation",
+    )
+    return features, psi, campaign
+
+
 # ── Simple MLP (pure NumPy) ──────────────────────────────────────────
 
 
@@ -201,6 +350,118 @@ class NeuralEquilibriumAccelerator:
         gs_res /= max(len(psi_pred), 1)
 
         return {"mse": mse, "max_error": max_err, "gs_residual": gs_res}
+
+    def pretrain_from_synthetic_equilibria(
+        self,
+        n_samples: int = 2048,
+        *,
+        seed: int = 20240531,
+        ridge_alpha: float = 1.0e-6,
+        save_path: str | Path | None = None,
+    ) -> PretrainingResult:
+        """Pretrain the surrogate on bounded synthetic equilibria.
+
+        Uses PCA compression followed by a deterministic ridge-regression
+        readout. The saved weights are compatible with the existing JAX
+        inference path because the readout is represented as a one-layer MLP.
+        """
+        alpha = _require_positive_float("ridge_alpha", ridge_alpha)
+        t0 = time.perf_counter()
+        features, psi, campaign = generate_synthetic_equilibrium_dataset(
+            n_samples,
+            grid_shape=self.cfg.grid_shape,
+            seed=seed,
+        )
+        x = _validate_feature_matrix(features)
+        y = _validate_psi_matrix(psi, self.cfg.grid_shape)
+        self.cfg.n_input_features = x.shape[1]
+
+        self._input_mean = x.mean(axis=0)
+        input_std = x.std(axis=0)
+        input_std[input_std < 1.0e-10] = 1.0
+        self._input_std = input_std
+        x_norm = (x - self._input_mean) / self._input_std
+
+        y_compressed = self.pca.fit_transform(y)
+        assert self.pca.explained_variance_ratio_ is not None
+        explained = float(np.sum(self.pca.explained_variance_ratio_))
+
+        rng = np.random.default_rng(seed)
+        order = rng.permutation(len(x_norm))
+        n_test = max(1, int(0.15 * len(order)))
+        n_val = max(1, int(0.15 * len(order)))
+        test_idx = order[:n_test]
+        val_idx = order[n_test : n_test + n_val]
+        train_idx = order[n_test + n_val :]
+
+        x_train = x_norm[train_idx]
+        z_train = y_compressed[train_idx]
+        x_aug = np.column_stack([x_train, np.ones(len(x_train))])
+        gram = x_aug.T @ x_aug + alpha * np.eye(x_aug.shape[1])
+        gram[-1, -1] -= alpha
+        coeff = np.linalg.solve(gram, x_aug.T @ z_train)
+
+        self.mlp = SimpleMLP([self.cfg.n_input_features, self.cfg.n_components], seed=seed)
+        self.mlp.weights[0] = coeff[:-1]
+        self.mlp.biases[0] = coeff[-1]
+        self.is_trained = True
+
+        train_pred = self.predict(x[train_idx]).reshape(len(train_idx), -1)
+        val_pred = self.predict(x[val_idx]).reshape(len(val_idx), -1)
+        test_pred = self.predict(x[test_idx]).reshape(len(test_idx), -1)
+        train_mse = float(np.mean((train_pred - y[train_idx]) ** 2))
+        val_mse = float(np.mean((val_pred - y[val_idx]) ** 2))
+        test_mse = float(np.mean((test_pred - y[test_idx]) ** 2))
+        test_max = float(np.max(np.abs(test_pred - y[test_idx])))
+        gs_residual = 0.0
+        for row in test_pred:
+            gs_residual += self._gs_residual_loss(row, self.cfg.grid_shape)
+        gs_residual /= max(len(test_pred), 1)
+
+        weights_path = ""
+        if save_path is not None:
+            self.save_weights(save_path)
+            weights_path = str(save_path)
+
+        return PretrainingResult(
+            n_samples=len(x),
+            n_components=self.cfg.n_components,
+            explained_variance=explained,
+            train_mse=train_mse,
+            val_mse=val_mse,
+            test_mse=test_mse,
+            test_max_error=test_max,
+            gs_residual=float(gs_residual),
+            train_time_s=time.perf_counter() - t0,
+            weights_path=weights_path,
+            evidence_kind="synthetic_pretraining",
+            campaign=campaign,
+        )
+
+    def fine_tune_from_efit_reconstructions(
+        self,
+        geqdsk_paths: list[Path],
+        *,
+        reference_artifact_root: str | Path | None = None,
+        require_reference_artifacts: bool = True,
+        n_perturbations: int = 5,
+        seed: int = 42,
+    ) -> TrainingResult:
+        """Fine-tune on real EFIT/P-EFIT artefacts only after evidence admission."""
+        if require_reference_artifacts:
+            from validation.validate_neural_equilibrium_reference import validate_neural_equilibrium_reference
+
+            root = (
+                Path(reference_artifact_root)
+                if reference_artifact_root is not None
+                else REPO_ROOT / "validation" / "reports" / "neural_equilibrium_reference"
+            )
+            report = validate_neural_equilibrium_reference(root, require_reference_artifacts=True)
+            if report["status"] != "pass":
+                raise RuntimeError("real EFIT fine-tuning requires passing neural equilibrium reference artifacts")
+        if not geqdsk_paths:
+            raise FileNotFoundError("No GEQDSK/EQDSK files supplied for EFIT fine-tuning")
+        return self.train_from_geqdsk(geqdsk_paths, n_perturbations=n_perturbations, seed=seed)
 
     # ── Training from SPARC GEQDSKs ─────────────────────────────────
 
@@ -642,6 +903,46 @@ def train_on_sparc(
     accel.save_weights(save_path)
     result.weights_path = str(save_path)
     return result
+
+
+def pretrain_neural_equilibrium_synthetic(
+    *,
+    n_samples: int = 2048,
+    save_path: str | Path = REPO_ROOT / "weights" / "neural_equilibrium_synthetic_pretrain.npz",
+    grid_shape: tuple[int, int] = (65, 65),
+    n_components: int = 20,
+    seed: int = 20240531,
+) -> PretrainingResult:
+    """Convenience entry point for bounded synthetic pretraining."""
+    accel = NeuralEquilibriumAccelerator(
+        NeuralEqConfig(
+            n_components=n_components,
+            hidden_sizes=(),
+            n_input_features=len(NEURAL_EQ_FEATURE_NAMES),
+            grid_shape=grid_shape,
+        )
+    )
+    return accel.pretrain_from_synthetic_equilibria(
+        n_samples=n_samples,
+        seed=seed,
+        save_path=save_path,
+    )
+
+
+__all__ = [
+    "DEFAULT_WEIGHTS_PATH",
+    "NEURAL_EQ_FEATURE_NAMES",
+    "MinimalPCA",
+    "NeuralEqConfig",
+    "NeuralEquilibriumAccelerator",
+    "PretrainingResult",
+    "SimpleMLP",
+    "SyntheticEquilibriumCampaign",
+    "TrainingResult",
+    "generate_synthetic_equilibrium_dataset",
+    "pretrain_neural_equilibrium_synthetic",
+    "train_on_sparc",
+]
 
 
 # ── CLI ──────────────────────────────────────────────────────────────

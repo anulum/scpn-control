@@ -184,7 +184,21 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 
 ### Neural Equilibrium
 
+`NeuralEquilibriumAccelerator.pretrain_from_synthetic_equilibria()` trains
+JAX-compatible PCA plus MLP weights on bounded synthetic Solovev-like
+equilibria for pretraining. The corresponding real EFIT fine-tuning entry point
+`fine_tune_from_efit_reconstructions()` fails closed unless the persisted
+P-EFIT or documented-public-reference artefact validator passes.
+
 ::: scpn_control.core.neural_equilibrium.NeuralEquilibriumAccelerator
+
+::: scpn_control.core.neural_equilibrium.generate_synthetic_equilibrium_dataset
+
+::: scpn_control.core.neural_equilibrium.pretrain_neural_equilibrium_synthetic
+
+::: scpn_control.core.neural_equilibrium.PretrainingResult
+
+::: scpn_control.core.neural_equilibrium.SyntheticEquilibriumCampaign
 
 ### JAX-Accelerated Neural Equilibrium
 

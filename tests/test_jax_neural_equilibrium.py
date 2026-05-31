@@ -13,6 +13,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -30,7 +32,9 @@ from scpn_control.core.jax_neural_equilibrium import (
     jax_neural_eq_predict_batched,
     jax_pca_inverse,
     numpy_weights_to_jax,
+    load_weights_as_jax,
 )
+from scpn_control.core.neural_equilibrium import NeuralEqConfig, NeuralEquilibriumAccelerator
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
@@ -245,3 +249,16 @@ class TestWeightConversion:
         for i in range(len(ws)):
             assert ws[i].shape == mlp.weights[i].shape
             assert bs[i].shape == mlp.biases[i].shape
+
+    def test_synthetic_pretrained_weights_load_into_jax(self, tmp_path: Path) -> None:
+        accel = NeuralEquilibriumAccelerator(
+            NeuralEqConfig(n_components=5, hidden_sizes=(), n_input_features=12, grid_shape=(13, 15))
+        )
+        path = tmp_path / "synthetic_pretrain.npz"
+        accel.pretrain_from_synthetic_equilibria(96, seed=11, save_path=path)
+
+        mlp_weights, pca_params, norm_params, grid_shape = load_weights_as_jax(path)
+        features = np.ones(12)
+        psi = jax_neural_eq_predict(features, mlp_weights, pca_params, norm_params, grid_shape=grid_shape)
+        assert psi.shape == (13, 15)
+        assert np.all(np.isfinite(psi))
