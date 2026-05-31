@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner
+from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner, RetrainDecision
 
 
 def _random_samples(n: int, rng: np.random.Generator) -> list[tuple[np.ndarray, np.ndarray]]:
@@ -45,6 +45,8 @@ def test_try_retrain_skips_empty():
         ({"n_epochs": 0}, "n_epochs"),
         ({"learning_rate": 0.0}, "learning_rate"),
         ({"max_generations": -1}, "max_generations"),
+        ({"max_ood_score": -0.1}, "max_ood_score"),
+        ({"min_validation_improvement": -1.0}, "min_validation_improvement"),
     ),
 )
 def test_learner_config_rejects_invalid_training_domains(kwargs: dict[str, float], message: str) -> None:
@@ -110,6 +112,8 @@ def test_retrain_history_tracked():
     learner.try_retrain()
     assert len(learner.retrain_history) == 1
     assert "val_loss" in learner.retrain_history[0]
+    assert isinstance(learner.latest_decision(), RetrainDecision)
+    assert learner.latest_decision().reason == "accepted"
 
 
 def test_reset():
@@ -200,6 +204,20 @@ def test_add_sample_rejects_negative_transport_targets():
         learner.add_sample(np.zeros(10), bad_tgt)
 
 
+def test_add_sample_rejects_ood_score_above_admission_threshold():
+    learner = OnlineLearner(config=LearnerConfig(max_ood_score=1.0))
+    with pytest.raises(ValueError, match="ood_score exceeds"):
+        learner.add_sample(np.zeros(10), np.ones(3), ood_score=1.1)
+
+
+def test_add_sample_records_source_and_ood_score():
+    learner = OnlineLearner(config=LearnerConfig(max_ood_score=1.0))
+    learner.add_sample(np.zeros(10), np.ones(3), ood_score=0.5, source="immutable_gk_campaign")
+    sample = learner.buffer[0]
+    assert sample.ood_score == pytest.approx(0.5)
+    assert sample.source == "immutable_gk_campaign"
+
+
 def test_try_retrain_rejects_invalid_current_weights_schema():
     learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=1))
     rng = np.random.default_rng(42)
@@ -241,3 +259,25 @@ def test_try_retrain_rejects_nonfinite_current_weights():
     }
     with pytest.raises(ValueError, match="must contain only finite values"):
         learner.try_retrain(current_weights=bad_weights)
+
+
+def test_save_retrain_report_persists_decisions(tmp_path):
+    learner = OnlineLearner(config=LearnerConfig(buffer_size=8, n_epochs=2, max_ood_score=2.0))
+    rng = np.random.default_rng(123)
+    for inp, tgt in _random_samples(8, rng):
+        learner.add_sample(inp, tgt, ood_score=0.2, source="unit_test_gk")
+    weights = learner.try_retrain()
+    assert weights is not None
+
+    report_path = tmp_path / "gk_online_report.json"
+    learner.save_retrain_report(report_path)
+
+    import json
+
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "1.0"
+    assert payload["generation"] == 1
+    assert payload["config"]["max_ood_score"] == pytest.approx(2.0)
+    assert payload["decisions"][0]["accepted"] is True
+    assert payload["decisions"][0]["train_samples"] > 0
+    assert payload["decisions"][0]["validation_samples"] > 0

@@ -1302,7 +1302,7 @@
     },
     {
       "component": "gyrokinetic online learner stability contract",
-      "equation_contract": "Online learner claims must declare training-window selection, non-empty train/validation split domains, nonnegative transport-coefficient targets, validation loss, rollback policy, uncertainty or OOD gating, optimiser settings, and compatibility boundary with gyrokinetic scheduler inputs.",
+      "equation_contract": "Online learner claims must declare training-window selection, non-empty train/validation split domains, nonnegative transport-coefficient targets, validation loss, rollback policy, OOD-score sample admission, optimiser settings, persisted retraining decisions, and compatibility boundary with gyrokinetic scheduler inputs.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "online learning stability and rollback control references",
@@ -1312,22 +1312,28 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate learner updates on immutable gyrokinetic campaign artefacts with held-out distribution-shift cases",
-        "Persist model weights, rollback decisions, and validation metrics for every online update"
+        "Persist model weights, rollback decisions, validation metrics, OOD thresholds, and source provenance for every online update"
       ],
       "unit_contract": "Inputs inherit GK feature units; transport targets are nonnegative chi_e, chi_i, and D_e; losses and OOD scores are dimensionless with explicit scaling, learning rate, epoch count, generation limit, and threshold metadata.",
       "validation_evidence": [
-        "tests/test_gk_online_learner.py",
-        "tests/test_gk_hybrid_integration.py"
+        "tests/test_gk_online_learner.py OOD admission, holdout retraining, rollback, decision persistence, and invalid-domain checks",
+        "tests/test_gk_hybrid_integration.py scheduler integration checks",
+        "validation/benchmark_gk_online_learner.py deterministic bounded online-retraining benchmark"
       ],
       "evidence_paths": [
+        "src/scpn_control/core/gk_online_learner.py",
         "tests/test_gk_online_learner.py",
         "tests/test_gk_hybrid_integration.py",
-        "src/scpn_control/core/gk_online_learner.py"
+        "validation/benchmark_gk_online_learner.py",
+        "validation/reports/gk_online_learner.json",
+        "validation/reports/gk_online_learner.md",
+        "validation/reports/gk_online_learner_decisions.json",
+        "docs/api.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/gk_online_learner.py"
       ],
-      "validity_domain": "Local update, rollback, non-empty train/validation split, and scheduler-integration regression; not validated adaptive physics deployment.",
+      "validity_domain": "Local bounded online-retraining, OOD admission, rollback, and persisted decision evidence; not validated adaptive physics deployment without immutable external GK campaign artefacts.",
       "external_validation_tracker_issue": 47
     },
     {

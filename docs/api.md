@@ -834,6 +834,11 @@ This index keeps the published API reference aligned with every tracked Python m
 
 #### GK Online Learner
 
+`OnlineLearner` admits finite nonnegative transport targets only when the
+caller-supplied OOD score is inside the configured threshold. Retraining uses a
+validation holdout, rolls back on non-improvement, and can persist an auditable
+JSON report containing every accepted or rejected update decision.
+
 ::: scpn_control.core.gk_online_learner
 
 #### GK QuaLiKiz
