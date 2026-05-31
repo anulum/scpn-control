@@ -52,6 +52,7 @@ from scpn_control.scpn.formal_verification import (
     build_safety_certificate_payload,
     validate_safety_certificate_payload,
     verify_formal_contracts,
+    write_safety_certificate,
 )
 from scpn_control.scpn.fpga_export import (
     FPGAConfig,
@@ -128,6 +129,7 @@ __all__ = [
     "verify_formal_contracts",
     "build_safety_certificate_payload",
     "validate_safety_certificate_payload",
+    "write_safety_certificate",
     "FPGAConfig",
     "compile_to_verilog",
     "compile_to_vhdl",

@@ -31,6 +31,7 @@ from scpn_control.scpn.formal_verification import (
     build_safety_certificate_payload,
     validate_safety_certificate_payload,
     verify_formal_contracts,
+    write_safety_certificate,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
 
@@ -264,7 +265,7 @@ def test_ltl_specs_reject_unsupported_operator_domains() -> None:
 
 
 def test_safety_certificate_payload_is_tamper_evident() -> None:
-    verifier = FormalPetriNetVerifier(_transfer_net())
+    verifier = FormalPetriNetVerifier(_transfer_net(), backend="explicit-state")
     report = verify_formal_contracts(
         _transfer_net(),
         max_depth=2,
@@ -299,6 +300,63 @@ def test_safety_certificate_payload_is_tamper_evident() -> None:
     tampered = dict(payload)
     tampered["issuer"] = "modified"
     with pytest.raises(ValueError, match="payload_sha256"):
+        validate_safety_certificate_payload(tampered)
+
+
+def test_safety_certificate_writer_publishes_json_and_markdown(tmp_path: Path) -> None:
+    verifier = FormalPetriNetVerifier(_transfer_net(), backend="explicit-state")
+    report = verify_formal_contracts(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+        backend="explicit-state",
+    )
+    ctl_report = verifier.verify_ctl_specs([CTLFormula.ef_fires("EF_move_fires", "move")], max_depth=2)
+    ltl_report = verifier.verify_ltl_specs([LTLFormula.eventually_fires("F_move_fires", "move")], max_depth=2)
+    json_path = tmp_path / "certificate.json"
+    markdown_path = tmp_path / "certificate.md"
+
+    payload = write_safety_certificate(
+        report,
+        json_path=json_path,
+        markdown_path=markdown_path,
+        ctl_report=ctl_report,
+        ltl_report=ltl_report,
+        artifact_sha256="b" * 64,
+        issuer="release-safety-gate",
+    )
+
+    persisted = json.loads(json_path.read_text(encoding="utf-8"))
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert persisted == payload
+    assert validate_safety_certificate_payload(persisted) == payload
+    assert "# SCPN Formal Safety Certificate" in markdown
+    assert "scpn-control.safety-certificate.v1" in markdown
+    assert payload["payload_sha256"] in markdown
+    assert "CTL:EF_move_fires:EF" in markdown
+    assert "bounded formal safety certificate" in markdown
+
+
+def test_safety_certificate_validator_rejects_semantic_section_tampering() -> None:
+    verifier = FormalPetriNetVerifier(_transfer_net(), backend="explicit-state")
+    report = verify_formal_contracts(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+        backend="explicit-state",
+    )
+    payload = build_safety_certificate_payload(
+        report,
+        ctl_report=verifier.verify_ctl_specs([CTLFormula.ef_fires("EF_move_fires", "move")], max_depth=2),
+        ltl_report=verifier.verify_ltl_specs([LTLFormula.eventually_fires("F_move_fires", "move")], max_depth=2),
+    )
+    tampered = dict(payload)
+    tampered["sections"] = {**payload["sections"], "ctl": {**payload["sections"]["ctl"], "holds": False}}
+    _refresh_certificate_payload_digest(tampered)
+
+    with pytest.raises(ValueError, match="section holds"):
         validate_safety_certificate_payload(tampered)
 
 
@@ -610,6 +668,14 @@ def test_z3_formal_report_validator_rejects_inconsistent_safety_case_payloads() 
 
 
 def _refresh_z3_payload_digest(payload: dict[str, object]) -> dict[str, object]:
+    canonical = dict(payload)
+    canonical.pop("payload_sha256", None)
+    blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload["payload_sha256"] = hashlib.sha256(blob).hexdigest()
+    return payload
+
+
+def _refresh_certificate_payload_digest(payload: dict[str, object]) -> dict[str, object]:
     canonical = dict(payload)
     canonical.pop("payload_sha256", None)
     blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")

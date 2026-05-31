@@ -456,6 +456,8 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.validate_safety_certificate_payload
 
+::: scpn_control.scpn.formal_verification.write_safety_certificate
+
 ::: scpn_control.scpn.z3_model_checking.Z3BoundedModelChecker
 
 ::: scpn_control.scpn.z3_model_checking.verify_z3_formal_contracts

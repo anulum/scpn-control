@@ -22,6 +22,7 @@ import json
 from collections import deque
 from dataclasses import asdict, dataclass, field
 from fractions import Fraction
+from pathlib import Path
 from typing import Any, Literal
 
 from scpn_control.scpn.structure import StochasticPetriNet
@@ -859,6 +860,34 @@ def build_safety_certificate_payload(
     return validate_safety_certificate_payload(payload)
 
 
+def write_safety_certificate(
+    report: FormalVerificationReport,
+    *,
+    json_path: str | Path,
+    markdown_path: str | Path,
+    ctl_report: FormalPropertyReport | None = None,
+    ltl_report: FormalPropertyReport | None = None,
+    artifact_sha256: str | None = None,
+    issuer: str = "scpn-control",
+) -> dict[str, Any]:
+    """Persist a formal safety certificate as JSON and Markdown artifacts."""
+
+    payload = build_safety_certificate_payload(
+        report,
+        ctl_report=ctl_report,
+        ltl_report=ltl_report,
+        artifact_sha256=artifact_sha256,
+        issuer=issuer,
+    )
+    json_target = Path(json_path)
+    markdown_target = Path(markdown_path)
+    json_target.parent.mkdir(parents=True, exist_ok=True)
+    markdown_target.parent.mkdir(parents=True, exist_ok=True)
+    json_target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    markdown_target.write_text(_render_safety_certificate_markdown(payload), encoding="utf-8")
+    return payload
+
+
 def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a schema-versioned formal safety certificate payload."""
 
@@ -895,6 +924,33 @@ def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, An
         raise ValueError("safety certificate claim_boundary is unsupported")
     if not isinstance(payload.get("sections"), dict):
         raise ValueError("safety certificate sections must be an object")
+    sections = payload["sections"]
+    required_sections = ("reachability", "safety", "liveness", "temporal")
+    section_holds = True
+    for section_name in (*required_sections, "ctl", "ltl"):
+        section = sections.get(section_name)
+        if section is None:
+            if section_name in required_sections:
+                raise ValueError(f"safety certificate {section_name} section must be an object")
+            continue
+        if not isinstance(section, dict):
+            raise ValueError(f"safety certificate {section_name} section must be an object")
+        if not isinstance(section.get("holds"), bool):
+            raise ValueError(f"safety certificate {section_name} section holds must be a boolean")
+        if section.get("backend") != payload["backend"]:
+            raise ValueError(f"safety certificate {section_name} section backend must match certificate backend")
+        if section.get("max_depth") != payload["max_depth"]:
+            raise ValueError(f"safety certificate {section_name} section depth must match certificate depth")
+        checked = section.get("checked_specs", [])
+        if not isinstance(checked, list):
+            raise ValueError(f"safety certificate {section_name} section checked_specs must be a list")
+        if any(not isinstance(spec, str) or not spec for spec in checked):
+            raise ValueError(f"safety certificate {section_name} section checked_specs must contain non-empty strings")
+        section_holds = section_holds and section["holds"]
+    if payload["holds"] != section_holds:
+        raise ValueError("safety certificate section holds must match certificate holds")
+    if payload["checked_specs"] != _certificate_checked_specs_from_sections(sections):
+        raise ValueError("safety certificate checked_specs must match certificate sections")
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
         raise ValueError("safety certificate payload_sha256 must be a SHA-256 hex digest")
@@ -913,6 +969,20 @@ def _certificate_checked_specs(
         if section is None:
             continue
         for spec in section.checked_specs:
+            if spec not in specs:
+                specs.append(spec)
+    return specs
+
+
+def _certificate_checked_specs_from_sections(sections: dict[str, Any]) -> list[str]:
+    specs = ["marking_bounds", "transition_liveness"]
+    for section_name in ("temporal", "ctl", "ltl"):
+        section = sections.get(section_name)
+        if section is None:
+            continue
+        if not isinstance(section, dict):
+            continue
+        for spec in section.get("checked_specs", []):
             if spec not in specs:
                 specs.append(spec)
     return specs
@@ -939,3 +1009,38 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, list):
         return [_jsonable(item) for item in value]
     return value
+
+
+def _render_safety_certificate_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# SCPN Formal Safety Certificate",
+        "",
+        f"- Schema: `{payload['schema_version']}`",
+        f"- Status: `{payload['status']}`",
+        f"- Backend: `{payload['backend']}`",
+        f"- Max depth: `{payload['max_depth']}`",
+        f"- Issuer: `{payload['issuer']}`",
+        f"- Payload SHA-256: `{payload['payload_sha256']}`",
+        f"- Scope: {payload['scope']}.",
+        f"- Claim boundary: {payload['claim_boundary']}.",
+        "",
+        "## Checked specifications",
+        "",
+    ]
+    lines.extend(f"- `{spec}`" for spec in payload["checked_specs"])
+    lines.extend(["", "## Section status", ""])
+    for section_name, section in payload["sections"].items():
+        if section is None:
+            lines.append(f"- `{section_name}`: not supplied")
+        else:
+            lines.append(f"- `{section_name}`: holds=`{section['holds']}`")
+    violations: list[dict[str, Any]] = []
+    for section in payload["sections"].values():
+        if isinstance(section, dict):
+            violations.extend(section.get("violations", []))
+    if violations:
+        lines.extend(["", "## Counterexamples", ""])
+        for violation in violations:
+            lines.append(f"- `{violation['property_name']}` path={violation['path']} message={violation['message']}")
+    lines.append("")
+    return "\n".join(lines)

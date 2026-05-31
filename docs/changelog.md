@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened formal safety certificate publication with JSON/Markdown writers and
+  semantic section-admission checks that reject internally inconsistent
+  certificate evidence even when the payload digest is recomputed.
 - Added bounded CTL/LTL formula facades and schema-versioned formal safety
   certificate payloads for SCPN Petri-net controllers, including
   tamper-evident payload digests and shared explicit-state/Z3 formula checking.

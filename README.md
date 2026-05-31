@@ -79,7 +79,7 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Package version | 0.19.2 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
-| Public API exports | 21 |
+| Public API exports | 22 |
 | Python control/physics modules | 133 |
 | Python public classes | 472 |
 | Rust source files | 50 |

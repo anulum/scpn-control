@@ -170,10 +170,14 @@ The same Petri-net transition relation now exposes bounded CTL/LTL formula
 facades for certification workflows. `CTLFormula` covers bounded `AG`, `EF`,
 and `AG EF` obligations; `LTLFormula` covers bounded `G`, `F`, and
 `G(trigger -> F<=n target)` obligations. `build_safety_certificate_payload`
-combines reachability, marking-bound, liveness, CTL, and LTL reports into a
-schema-versioned `scpn-control.safety-certificate.v1` payload with a canonical
-SHA-256 digest. The certificate is evidence for bounded model checking only;
-it is not a facility safety approval or an unbounded proof.
+and `write_safety_certificate` combine reachability, marking-bound, liveness,
+CTL, and LTL reports into schema-versioned
+`scpn-control.safety-certificate.v1` JSON and Markdown artifacts with a
+canonical SHA-256 digest. Certificate admission also revalidates section
+status, depth, backend, and checked-specification consistency, so an internally
+inconsistent certificate remains rejected even if its digest is recomputed. The
+certificate is evidence for bounded model checking only; it is not a facility
+safety approval or an unbounded proof.
 
 ```bash
 python validation/validate_scpn_z3_formal.py

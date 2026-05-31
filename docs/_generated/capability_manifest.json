@@ -20,7 +20,7 @@
   },
   "counts": {
     "project_script_count": 2,
-    "public_api_export_count": 21,
+    "public_api_export_count": 22,
     "public_class_count": 472,
     "public_markdown_count": 32,
     "pyo3_export_count": 27,
@@ -118,7 +118,8 @@
       "kuramoto_sakaguchi_step",
       "order_parameter",
       "validate_safety_certificate_payload",
-      "verify_formal_contracts"
+      "verify_formal_contracts",
+      "write_safety_certificate"
     ],
     "public_classes": [
       "ADCConfig",
