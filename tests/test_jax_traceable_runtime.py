@@ -1,16 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Jax Traceable Runtime
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — JAX Traceable Runtime Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """Contract tests for jax_traceable_runtime: validation, backends, parity."""
 
 from __future__ import annotations
@@ -18,6 +12,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 import warnings
+from typing import cast
 
 from scpn_control.control.jax_traceable_runtime import (
     TraceableRuntimeSpec,
@@ -180,6 +175,11 @@ class TestRunTraceableControlLoop:
         assert not result.compiled
         assert result.state_history.shape == (64,)
 
+    def test_public_single_loop_rejects_batched_command_arrays(self):
+        cmd = np.ones((2, 16))
+        with pytest.raises(ValueError, match="non-empty 1D"):
+            run_traceable_control_loop(cmd, backend="numpy")
+
     def test_jax_backend(self):
         pytest.importorskip("jax")
         cmd = np.sin(np.linspace(0, 2 * np.pi, 64))
@@ -230,6 +230,14 @@ class TestRunTraceableControlLoop:
     def test_nonfinite_initial_state_raises(self):
         with pytest.raises(ValueError, match="initial_state"):
             run_traceable_control_loop(np.ones(10), initial_state=float("nan"))
+
+    def test_vector_initial_state_for_single_loop_raises(self):
+        with pytest.raises(ValueError, match="initial_state must be scalar"):
+            run_traceable_control_loop(
+                np.ones(10),
+                initial_state=cast(float, np.array([0.0, 1.0])),
+                backend="numpy",
+            )
 
     def test_custom_spec(self):
         spec = TraceableRuntimeSpec(dt_s=2e-3, tau_s=10e-3, gain=0.5, command_limit=0.8)
@@ -359,9 +367,17 @@ class TestValidateTraceableBackendParity:
         with pytest.raises(ValueError, match="steps"):
             validate_traceable_backend_parity(steps=0)
 
+    def test_bool_steps_raises(self):
+        with pytest.raises(TypeError, match="steps"):
+            validate_traceable_backend_parity(steps=True)
+
     def test_invalid_batch_raises(self):
         with pytest.raises(ValueError, match="batch"):
             validate_traceable_backend_parity(batch=0)
+
+    def test_bool_seed_raises(self):
+        with pytest.raises(TypeError, match="seed"):
+            validate_traceable_backend_parity(seed=True)
 
     def test_negative_atol_raises(self):
         with pytest.raises(ValueError, match="atol"):

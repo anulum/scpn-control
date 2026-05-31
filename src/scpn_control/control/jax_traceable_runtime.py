@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Jax Traceable Runtime
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — JAX Traceable Runtime
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """Optional JAX-traceable control-loop utilities."""
 
 from __future__ import annotations
@@ -108,6 +100,30 @@ def _validate_batch_commands(commands: FloatArray) -> None:
         raise ValueError("commands must have shape (batch, steps) with non-zero sizes.")
     if not np.all(np.isfinite(commands)):
         raise ValueError("commands must contain only finite values.")
+
+
+def _require_positive_int(name: str, value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{name} must be an integer.")
+    if value <= 0:
+        raise ValueError(f"{name} must be > 0.")
+    return int(value)
+
+
+def _require_int(name: str, value: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{name} must be an integer.")
+    return int(value)
+
+
+def _coerce_scalar_initial_state(initial_state: float) -> float:
+    arr = np.asarray(initial_state, dtype=np.float64)
+    if arr.ndim != 0:
+        raise ValueError("initial_state must be scalar for single-loop rollout.")
+    value = float(arr)
+    if not np.isfinite(value):
+        raise ValueError("initial_state must be finite.")
+    return value
 
 
 def _resolve_backend(
@@ -360,10 +376,9 @@ def run_traceable_control_loop(
 
     `backend` can be `auto`, `numpy`, `jax`, or `torchscript`.
     """
-    cmd_arr = np.asarray(commands, dtype=np.float64).reshape(-1)
+    cmd_arr = np.asarray(commands, dtype=np.float64)
     _validate_commands(cmd_arr)
-    if not np.isfinite(initial_state):
-        raise ValueError("initial_state must be finite.")
+    x0 = _coerce_scalar_initial_state(initial_state)
 
     runtime_spec = spec if spec is not None else TraceableRuntimeSpec()
     _validate_spec(runtime_spec)
@@ -376,20 +391,20 @@ def run_traceable_control_loop(
 
     if b == "jax":
         return TraceableRuntimeResult(
-            state_history=_simulate_jax(cmd_arr, float(initial_state), runtime_spec),
+            state_history=_simulate_jax(cmd_arr, x0, runtime_spec),
             backend_used="jax",
             compiled=True,
         )
 
     if b == "torchscript":  # pragma: no cover
         return TraceableRuntimeResult(
-            state_history=_simulate_torchscript(cmd_arr, float(initial_state), runtime_spec),
+            state_history=_simulate_torchscript(cmd_arr, x0, runtime_spec),
             backend_used="torchscript",
             compiled=True,
         )
 
     return TraceableRuntimeResult(
-        state_history=_simulate_numpy(cmd_arr, float(initial_state), runtime_spec),
+        state_history=_simulate_numpy(cmd_arr, x0, runtime_spec),
         backend_used="numpy",
         compiled=False,
     )
@@ -465,20 +480,19 @@ def validate_traceable_backend_parity(
     """
     Compare available compiled backends to NumPy for single and batch rollouts.
     """
-    if steps <= 0:
-        raise ValueError("steps must be > 0.")
-    if batch <= 0:
-        raise ValueError("batch must be > 0.")
+    steps_i = _require_positive_int("steps", steps)
+    batch_i = _require_positive_int("batch", batch)
+    seed_i = _require_int("seed", seed)
     if not np.isfinite(atol) or atol < 0.0:
         raise ValueError("atol must be finite and >= 0.")
 
     runtime_spec = spec if spec is not None else TraceableRuntimeSpec()
     _validate_spec(runtime_spec)
 
-    rng = np.random.default_rng(int(seed))
-    single_cmd = np.asarray(rng.normal(0.0, 1.0, size=steps), dtype=np.float64)
-    batch_cmd = np.asarray(rng.normal(0.0, 1.0, size=(batch, steps)), dtype=np.float64)
-    batch_x0 = np.asarray(rng.normal(0.0, 0.2, size=batch), dtype=np.float64)
+    rng = np.random.default_rng(seed_i)
+    single_cmd = np.asarray(rng.normal(0.0, 1.0, size=steps_i), dtype=np.float64)
+    batch_cmd = np.asarray(rng.normal(0.0, 1.0, size=(batch_i, steps_i)), dtype=np.float64)
+    batch_x0 = np.asarray(rng.normal(0.0, 0.2, size=batch_i), dtype=np.float64)
     x0 = float(rng.normal(0.0, 0.2))
 
     ref_single = run_traceable_control_loop(

@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened the JAX traceable runtime public boundary so single-loop rollouts
+  reject batched command arrays, reject vector initial states deterministically,
+  and validate parity integer seeds before reproducibility campaigns are built.
 - Added tamper-evident geometry-neutral stellarator replay manifests that bind
   scenario, trace, metric, and threshold payloads with SHA-256 digests and
   fail closed on manifest, trace, or acceptance tampering.
