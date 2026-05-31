@@ -17,14 +17,19 @@ property.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from fractions import Fraction
-from typing import Literal
+from typing import Any, Literal
 
 from scpn_control.scpn.structure import StochasticPetriNet
 
 FormalBackend = Literal["auto", "explicit-state", "z3"]
+SAFETY_CERTIFICATE_SCHEMA_VERSION = "scpn-control.safety-certificate.v1"
+SAFETY_CERTIFICATE_SCOPE = "bounded formal safety certificate for compiled SCPN Petri-net control logic"
+SAFETY_CERTIFICATE_CLAIM_BOUNDARY = "not a facility safety approval, hardware timing certificate, or unbounded proof"
 
 
 @dataclass(frozen=True)
@@ -83,6 +88,128 @@ class FormalVerificationReport:
     safety: FormalPropertyReport
     liveness: FormalPropertyReport
     temporal: FormalPropertyReport
+
+
+@dataclass(frozen=True)
+class CTLFormula:
+    """Bounded CTL formula over a compiled SCPN transition system.
+
+    Supported operators are the certification-relevant bounded subset that can
+    produce exact counterexamples over the finite firing-depth transition
+    relation: ``AG`` safety, ``EF`` reachability, and ``AG_EF`` recurrence.
+    """
+
+    name: str
+    operator: Literal["AG", "EF", "AG_EF"]
+    target: Literal["marking_bounds", "transition_fires", "not_comarked", "marked"]
+    params: dict[str, Any]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError("CTL formula name must be a non-empty string")
+        if self.operator not in {"AG", "EF", "AG_EF"}:
+            raise ValueError(f"unsupported CTL operator: {self.operator}")
+        if self.target not in {"marking_bounds", "transition_fires", "not_comarked", "marked"}:
+            raise ValueError(f"unsupported CTL target: {self.target}")
+        if not isinstance(self.params, dict) or not self.params:
+            raise ValueError("CTL formula params must be a non-empty mapping")
+
+    @property
+    def certificate_name(self) -> str:
+        """Return the certificate-stable formula name."""
+
+        return f"CTL:{self.name}:{self.operator}"
+
+    @classmethod
+    def ag_bounded(cls, name: str, bounds: dict[str, tuple[float, float]]) -> CTLFormula:
+        """Create ``AG`` marking-bound safety: all paths always satisfy bounds."""
+
+        return cls(name=name, operator="AG", target="marking_bounds", params={"bounds": bounds})
+
+    @classmethod
+    def ef_fires(cls, name: str, transition: str) -> CTLFormula:
+        """Create ``EF`` transition reachability: some path eventually fires."""
+
+        return cls(name=name, operator="EF", target="transition_fires", params={"transition": transition})
+
+    @classmethod
+    def ag_not_comarked(cls, name: str, place_a: str, place_b: str, *, threshold: float = 0.0) -> CTLFormula:
+        """Create ``AG`` mutual-exclusion safety for two marked places."""
+
+        return cls(
+            name=name,
+            operator="AG",
+            target="not_comarked",
+            params={"place_a": place_a, "place_b": place_b, "threshold": threshold},
+        )
+
+    @classmethod
+    def ag_ef_marked(cls, name: str, place: str, *, threshold: float = 0.0) -> CTLFormula:
+        """Create ``AG EF`` recurrence: every reachable state can recover marking."""
+
+        return cls(name=name, operator="AG_EF", target="marked", params={"place": place, "threshold": threshold})
+
+
+@dataclass(frozen=True)
+class LTLFormula:
+    """Bounded LTL formula over all finite firing paths of a compiled SCPN."""
+
+    name: str
+    operator: Literal["G", "F", "G_implies_F"]
+    target: Literal["marking_bounds", "transition_fires", "fire_leads_to_marking"]
+    params: dict[str, Any]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError("LTL formula name must be a non-empty string")
+        if self.operator not in {"G", "F", "G_implies_F"}:
+            raise ValueError(f"unsupported LTL operator: {self.operator}")
+        if self.target not in {"marking_bounds", "transition_fires", "fire_leads_to_marking"}:
+            raise ValueError(f"unsupported LTL target: {self.target}")
+        if not isinstance(self.params, dict) or not self.params:
+            raise ValueError("LTL formula params must be a non-empty mapping")
+
+    @property
+    def certificate_name(self) -> str:
+        """Return the certificate-stable formula name."""
+
+        return f"LTL:{self.name}:{self.operator}"
+
+    @classmethod
+    def globally_bounded(cls, name: str, bounds: dict[str, tuple[float, float]]) -> LTLFormula:
+        """Create ``G`` marking-bound safety over every bounded path."""
+
+        return cls(name=name, operator="G", target="marking_bounds", params={"bounds": bounds})
+
+    @classmethod
+    def eventually_fires(cls, name: str, transition: str) -> LTLFormula:
+        """Create bounded ``F`` transition reachability."""
+
+        return cls(name=name, operator="F", target="transition_fires", params={"transition": transition})
+
+    @classmethod
+    def globally_fire_leads_to_marking(
+        cls,
+        name: str,
+        trigger_transition: str,
+        target_place: str,
+        *,
+        threshold: float = 0.0,
+        within: int = 1,
+    ) -> LTLFormula:
+        """Create ``G(trigger -> F<=within marked)`` response checking."""
+
+        return cls(
+            name=name,
+            operator="G_implies_F",
+            target="fire_leads_to_marking",
+            params={
+                "trigger_transition": trigger_transition,
+                "target_place": target_place,
+                "threshold": threshold,
+                "within": within,
+            },
+        )
 
 
 @dataclass(frozen=True)
@@ -460,6 +587,79 @@ class FormalPetriNetVerifier:
             checked_specs=checked,
         )
 
+    def verify_ctl_specs(self, specs: list[CTLFormula], *, max_depth: int) -> FormalPropertyReport:
+        """Verify bounded CTL formulas over the compiled Petri-net relation."""
+
+        temporal_specs: list[
+            AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking
+        ] = [self._compile_ctl_formula(spec) for spec in specs]
+        return self.verify_temporal_specs(temporal_specs, max_depth=max_depth)
+
+    def verify_ltl_specs(self, specs: list[LTLFormula], *, max_depth: int) -> FormalPropertyReport:
+        """Verify bounded LTL formulas over all finite firing paths."""
+
+        temporal_specs: list[
+            AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking
+        ] = [self._compile_ltl_formula(spec) for spec in specs]
+        return self.verify_temporal_specs(temporal_specs, max_depth=max_depth)
+
+    def _compile_ctl_formula(
+        self,
+        spec: CTLFormula,
+    ) -> AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked:
+        label = spec.certificate_name
+        if spec.operator == "AG" and spec.target == "marking_bounds":
+            bounds = spec.params.get("bounds")
+            if not isinstance(bounds, dict):
+                raise ValueError(f"CTL formula {spec.name!r} requires marking bounds")
+            return AlwaysBounded(label, bounds)
+        if spec.operator == "EF" and spec.target == "transition_fires":
+            transition = spec.params.get("transition")
+            if not isinstance(transition, str) or not transition:
+                raise ValueError(f"CTL formula {spec.name!r} requires a transition")
+            return EventuallyFires(label, transition)
+        if spec.operator == "AG" and spec.target == "not_comarked":
+            place_a = spec.params.get("place_a")
+            place_b = spec.params.get("place_b")
+            if not isinstance(place_a, str) or not isinstance(place_b, str) or not place_a or not place_b:
+                raise ValueError(f"CTL formula {spec.name!r} requires two places")
+            return NeverCoMarked(label, place_a, place_b, threshold=float(spec.params.get("threshold", 0.0)))
+        if spec.operator == "AG_EF" and spec.target == "marked":
+            place = spec.params.get("place")
+            if not isinstance(place, str) or not place:
+                raise ValueError(f"CTL formula {spec.name!r} requires a place")
+            return AlwaysEventuallyMarked(label, place, threshold=float(spec.params.get("threshold", 0.0)))
+        raise ValueError(f"unsupported CTL formula combination: {spec.operator}/{spec.target}")
+
+    def _compile_ltl_formula(
+        self,
+        spec: LTLFormula,
+    ) -> AlwaysBounded | EventuallyFires | FireLeadsToMarking:
+        label = spec.certificate_name
+        if spec.operator == "G" and spec.target == "marking_bounds":
+            bounds = spec.params.get("bounds")
+            if not isinstance(bounds, dict):
+                raise ValueError(f"LTL formula {spec.name!r} requires marking bounds")
+            return AlwaysBounded(label, bounds)
+        if spec.operator == "F" and spec.target == "transition_fires":
+            transition = spec.params.get("transition")
+            if not isinstance(transition, str) or not transition:
+                raise ValueError(f"LTL formula {spec.name!r} requires a transition")
+            return EventuallyFires(label, transition)
+        if spec.operator == "G_implies_F" and spec.target == "fire_leads_to_marking":
+            trigger = spec.params.get("trigger_transition")
+            target = spec.params.get("target_place")
+            if not isinstance(trigger, str) or not isinstance(target, str) or not trigger or not target:
+                raise ValueError(f"LTL formula {spec.name!r} requires trigger transition and target place")
+            return FireLeadsToMarking(
+                label,
+                trigger,
+                target,
+                threshold=float(spec.params.get("threshold", 0.0)),
+                within=int(spec.params.get("within", 1)),
+            )
+        raise ValueError(f"unsupported LTL formula combination: {spec.operator}/{spec.target}")
+
     def _reachable_state_map(self, *, max_depth: int) -> list[tuple[tuple[Fraction, ...], list[str]]]:
         self._validate_max_depth(max_depth)
         visited: dict[tuple[Fraction, ...], list[str]] = {self._initial: []}
@@ -613,3 +813,129 @@ def verify_formal_contracts(
         liveness=liveness,
         temporal=temporal,
     )
+
+
+def build_safety_certificate_payload(
+    report: FormalVerificationReport,
+    *,
+    ctl_report: FormalPropertyReport | None = None,
+    ltl_report: FormalPropertyReport | None = None,
+    artifact_sha256: str | None = None,
+    issuer: str = "scpn-control",
+) -> dict[str, Any]:
+    """Build a schema-versioned tamper-evident formal safety certificate."""
+
+    if artifact_sha256 is not None and not _is_sha256(artifact_sha256):
+        raise ValueError("artifact_sha256 must be a SHA-256 hex digest")
+    if not isinstance(issuer, str) or not issuer:
+        raise ValueError("safety certificate issuer must be a non-empty string")
+    sections = {
+        "reachability": _jsonable(asdict(report.reachability)),
+        "safety": _jsonable(asdict(report.safety)),
+        "liveness": _jsonable(asdict(report.liveness)),
+        "temporal": _jsonable(asdict(report.temporal)),
+        "ctl": _jsonable(asdict(ctl_report)) if ctl_report is not None else None,
+        "ltl": _jsonable(asdict(ltl_report)) if ltl_report is not None else None,
+    }
+    holds = report.holds
+    if ctl_report is not None:
+        holds = holds and ctl_report.holds
+    if ltl_report is not None:
+        holds = holds and ltl_report.holds
+    payload: dict[str, Any] = {
+        "schema_version": SAFETY_CERTIFICATE_SCHEMA_VERSION,
+        "status": "pass" if holds else "fail",
+        "holds": holds,
+        "backend": report.reachability.backend,
+        "max_depth": report.reachability.max_depth,
+        "issuer": issuer,
+        "artifact_sha256": artifact_sha256,
+        "checked_specs": _certificate_checked_specs(report, ctl_report, ltl_report),
+        "scope": SAFETY_CERTIFICATE_SCOPE,
+        "claim_boundary": SAFETY_CERTIFICATE_CLAIM_BOUNDARY,
+        "sections": sections,
+    }
+    payload["payload_sha256"] = _payload_digest(payload)
+    return validate_safety_certificate_payload(payload)
+
+
+def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate a schema-versioned formal safety certificate payload."""
+
+    if payload.get("schema_version") != SAFETY_CERTIFICATE_SCHEMA_VERSION:
+        raise ValueError("safety certificate schema_version is unsupported")
+    if payload.get("status") not in {"pass", "fail"}:
+        raise ValueError("safety certificate status must be pass or fail")
+    if not isinstance(payload.get("holds"), bool):
+        raise ValueError("safety certificate holds must be a boolean")
+    if payload["status"] == "pass" and not payload["holds"]:
+        raise ValueError("passing safety certificate must hold")
+    if payload["status"] == "fail" and payload["holds"]:
+        raise ValueError("failed safety certificate must not hold")
+    if payload.get("backend") not in {"explicit-state", "z3"}:
+        raise ValueError("safety certificate backend is unsupported")
+    if isinstance(payload.get("max_depth"), bool) or not isinstance(payload.get("max_depth"), int):
+        raise ValueError("safety certificate max_depth must be an integer")
+    if payload["max_depth"] < 0:
+        raise ValueError("safety certificate max_depth must be non-negative")
+    if not isinstance(payload.get("issuer"), str) or not payload["issuer"]:
+        raise ValueError("safety certificate issuer must be a non-empty string")
+    artifact_sha256 = payload.get("artifact_sha256")
+    if artifact_sha256 is not None and (not isinstance(artifact_sha256, str) or not _is_sha256(artifact_sha256)):
+        raise ValueError("safety certificate artifact_sha256 must be a SHA-256 hex digest or null")
+    if not isinstance(payload.get("checked_specs"), list) or not payload["checked_specs"]:
+        raise ValueError("safety certificate checked_specs must be a non-empty list")
+    if any(not isinstance(spec, str) or not spec for spec in payload["checked_specs"]):
+        raise ValueError("safety certificate checked_specs must contain non-empty strings")
+    if len(payload["checked_specs"]) != len(set(payload["checked_specs"])):
+        raise ValueError("safety certificate checked_specs must be unique")
+    if payload.get("scope") != SAFETY_CERTIFICATE_SCOPE:
+        raise ValueError("safety certificate scope is unsupported")
+    if payload.get("claim_boundary") != SAFETY_CERTIFICATE_CLAIM_BOUNDARY:
+        raise ValueError("safety certificate claim_boundary is unsupported")
+    if not isinstance(payload.get("sections"), dict):
+        raise ValueError("safety certificate sections must be an object")
+    declared_digest = payload.get("payload_sha256")
+    if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
+        raise ValueError("safety certificate payload_sha256 must be a SHA-256 hex digest")
+    if _payload_digest(payload) != declared_digest.lower():
+        raise ValueError("safety certificate payload_sha256 does not match payload")
+    return payload
+
+
+def _certificate_checked_specs(
+    report: FormalVerificationReport,
+    ctl_report: FormalPropertyReport | None,
+    ltl_report: FormalPropertyReport | None,
+) -> list[str]:
+    specs = ["marking_bounds", "transition_liveness"]
+    for section in (report.temporal, ctl_report, ltl_report):
+        if section is None:
+            continue
+        for spec in section.checked_specs:
+            if spec not in specs:
+                specs.append(spec)
+    return specs
+
+
+def _payload_digest(payload: dict[str, Any]) -> str:
+    canonical = dict(payload)
+    canonical.pop("payload_sha256", None)
+    blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
+
+def _is_sha256(value: str) -> bool:
+    return len(value) == 64 and all(ch in "0123456789abcdefABCDEF" for ch in value)
+
+
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, set):
+        return sorted(_jsonable(item) for item in value)
+    if isinstance(value, tuple):
+        return [_jsonable(item) for item in value]
+    if isinstance(value, list):
+        return [_jsonable(item) for item in value]
+    return value

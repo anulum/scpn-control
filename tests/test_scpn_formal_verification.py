@@ -20,12 +20,16 @@ import pytest
 from scpn_control.scpn.formal_verification import (
     AlwaysBounded,
     AlwaysEventuallyMarked,
+    CTLFormula,
     EventuallyFires,
     FireLeadsToMarking,
     FormalViolation,
     FormalPetriNetVerifier,
+    LTLFormula,
     NeverCoMarked,
     PlaceInvariant,
+    build_safety_certificate_payload,
+    validate_safety_certificate_payload,
     verify_formal_contracts,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
@@ -200,6 +204,102 @@ def test_verify_formal_contracts_combines_safety_liveness_and_temporal_specs() -
     assert report.safety.holds is True
     assert report.liveness.holds is True
     assert report.temporal.holds is True
+
+
+def test_ctl_specs_compile_to_bounded_petri_net_obligations() -> None:
+    verifier = FormalPetriNetVerifier(_transfer_net())
+    report = verifier.verify_ctl_specs(
+        [
+            CTLFormula.ag_bounded("AG_safe_markings", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
+            CTLFormula.ef_fires("EF_move_fires", "move"),
+            CTLFormula.ag_not_comarked("AG_exclusive_transfer", "source", "sink", threshold=0.5),
+            CTLFormula.ag_ef_marked("AG_EF_sink_marked", "sink", threshold=0.5),
+        ],
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.checked_specs == [
+        "CTL:AG_safe_markings:AG",
+        "CTL:EF_move_fires:EF",
+        "CTL:AG_exclusive_transfer:AG",
+        "CTL:AG_EF_sink_marked:AG_EF",
+    ]
+
+
+def test_ctl_specs_return_actionable_counterexample() -> None:
+    report = FormalPetriNetVerifier(_transfer_net()).verify_ctl_specs(
+        [CTLFormula.ag_bounded("AG_sink_upper_bound", {"sink": (0.0, 0.5)})],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.violations[0].property_name == "CTL:AG_sink_upper_bound:AG"
+    assert report.violations[0].path == ["move"]
+    assert report.violations[0].place == "sink"
+
+
+def test_ltl_specs_compile_to_bounded_path_obligations() -> None:
+    verifier = FormalPetriNetVerifier(_transfer_net())
+    report = verifier.verify_ltl_specs(
+        [
+            LTLFormula.globally_bounded("G_safe_markings", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
+            LTLFormula.eventually_fires("F_move_fires", "move"),
+            LTLFormula.globally_fire_leads_to_marking("G_move_implies_sink", "move", "sink", threshold=0.5, within=0),
+        ],
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.checked_specs == [
+        "LTL:G_safe_markings:G",
+        "LTL:F_move_fires:F",
+        "LTL:G_move_implies_sink:G_implies_F",
+    ]
+
+
+def test_ltl_specs_reject_unsupported_operator_domains() -> None:
+    with pytest.raises(ValueError, match="unsupported LTL operator"):
+        LTLFormula("bad_until", "U", "transition", {"transition": "move"})
+
+
+def test_safety_certificate_payload_is_tamper_evident() -> None:
+    verifier = FormalPetriNetVerifier(_transfer_net())
+    report = verify_formal_contracts(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+        backend="explicit-state",
+    )
+    ctl_report = verifier.verify_ctl_specs([CTLFormula.ef_fires("EF_move_fires", "move")], max_depth=2)
+    ltl_report = verifier.verify_ltl_specs([LTLFormula.eventually_fires("F_move_fires", "move")], max_depth=2)
+
+    payload = build_safety_certificate_payload(
+        report,
+        ctl_report=ctl_report,
+        ltl_report=ltl_report,
+        artifact_sha256="a" * 64,
+        issuer="release-safety-gate",
+    )
+
+    assert payload["schema_version"] == "scpn-control.safety-certificate.v1"
+    assert payload["status"] == "pass"
+    assert payload["holds"] is True
+    assert payload["artifact_sha256"] == "a" * 64
+    assert payload["checked_specs"] == [
+        "marking_bounds",
+        "transition_liveness",
+        "move_eventually_fires",
+        "CTL:EF_move_fires:EF",
+        "LTL:F_move_fires:F",
+    ]
+    assert validate_safety_certificate_payload(payload) == payload
+
+    tampered = dict(payload)
+    tampered["issuer"] = "modified"
+    with pytest.raises(ValueError, match="payload_sha256"):
+        validate_safety_certificate_payload(tampered)
 
 
 def test_formal_verifier_rejects_non_integer_depth_and_nonfinite_bounds() -> None:
@@ -393,6 +493,31 @@ def test_z3_temporal_specs_prove_all_supported_contracts_together() -> None:
         "source_initially_marked",
         "move_marks_sink",
     ]
+
+
+@requires_z3
+def test_z3_checker_accepts_ctl_and_ltl_formula_facades() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    ctl = checker.verify_ctl_specs(
+        [
+            CTLFormula.ag_bounded("AG_safe_markings", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
+            CTLFormula.ef_fires("EF_move_fires", "move"),
+        ],
+        max_depth=2,
+    )
+    ltl = checker.verify_ltl_specs(
+        [
+            LTLFormula.globally_bounded("G_safe_markings", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
+            LTLFormula.eventually_fires("F_move_fires", "move"),
+        ],
+        max_depth=2,
+    )
+
+    assert ctl.holds is True
+    assert ctl.checked_specs == ["CTL:AG_safe_markings:AG", "CTL:EF_move_fires:EF"]
+    assert ltl.holds is True
+    assert ltl.checked_specs == ["LTL:G_safe_markings:G", "LTL:F_move_fires:F"]
 
 
 @requires_z3

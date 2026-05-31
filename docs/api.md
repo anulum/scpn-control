@@ -438,6 +438,10 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.PlaceInvariant
 
+::: scpn_control.scpn.formal_verification.CTLFormula
+
+::: scpn_control.scpn.formal_verification.LTLFormula
+
 ::: scpn_control.scpn.formal_verification.AlwaysBounded
 
 ::: scpn_control.scpn.formal_verification.AlwaysEventuallyMarked
@@ -447,6 +451,10 @@ fails closed before calling the dynamic loader.
 ::: scpn_control.scpn.formal_verification.FireLeadsToMarking
 
 ::: scpn_control.scpn.formal_verification.NeverCoMarked
+
+::: scpn_control.scpn.formal_verification.build_safety_certificate_payload
+
+::: scpn_control.scpn.formal_verification.validate_safety_certificate_payload
 
 ::: scpn_control.scpn.z3_model_checking.Z3BoundedModelChecker
 

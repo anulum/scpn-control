@@ -20,9 +20,11 @@ from typing import Any
 from scpn_control.scpn.formal_verification import (
     AlwaysBounded,
     AlwaysEventuallyMarked,
+    CTLFormula,
     EventuallyFires,
     FireLeadsToMarking,
     FormalViolation,
+    LTLFormula,
     NeverCoMarked,
     _as_float_marking,
     _as_fraction,
@@ -181,6 +183,79 @@ class Z3BoundedModelChecker:
             else:
                 raise TypeError(f"unsupported temporal specification: {type(spec).__name__}")
         return Z3ModelCheckingReport(True, "z3", max_depth, "unsat", checked_specs=checked)
+
+    def verify_ctl_specs(self, specs: list[CTLFormula], *, max_depth: int) -> Z3ModelCheckingReport:
+        """Verify bounded CTL formulas with the Z3 transition relation."""
+
+        temporal_specs: list[
+            AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking
+        ] = [self._compile_ctl_formula(spec) for spec in specs]
+        return self.verify_temporal_specs(temporal_specs, max_depth=max_depth)
+
+    def verify_ltl_specs(self, specs: list[LTLFormula], *, max_depth: int) -> Z3ModelCheckingReport:
+        """Verify bounded LTL formulas with the Z3 transition relation."""
+
+        temporal_specs: list[
+            AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking
+        ] = [self._compile_ltl_formula(spec) for spec in specs]
+        return self.verify_temporal_specs(temporal_specs, max_depth=max_depth)
+
+    def _compile_ctl_formula(
+        self,
+        spec: CTLFormula,
+    ) -> AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked:
+        label = spec.certificate_name
+        if spec.operator == "AG" and spec.target == "marking_bounds":
+            bounds = spec.params.get("bounds")
+            if not isinstance(bounds, dict):
+                raise ValueError(f"CTL formula {spec.name!r} requires marking bounds")
+            return AlwaysBounded(label, bounds)
+        if spec.operator == "EF" and spec.target == "transition_fires":
+            transition = spec.params.get("transition")
+            if not isinstance(transition, str) or not transition:
+                raise ValueError(f"CTL formula {spec.name!r} requires a transition")
+            return EventuallyFires(label, transition)
+        if spec.operator == "AG" and spec.target == "not_comarked":
+            place_a = spec.params.get("place_a")
+            place_b = spec.params.get("place_b")
+            if not isinstance(place_a, str) or not isinstance(place_b, str) or not place_a or not place_b:
+                raise ValueError(f"CTL formula {spec.name!r} requires two places")
+            return NeverCoMarked(label, place_a, place_b, threshold=float(spec.params.get("threshold", 0.0)))
+        if spec.operator == "AG_EF" and spec.target == "marked":
+            place = spec.params.get("place")
+            if not isinstance(place, str) or not place:
+                raise ValueError(f"CTL formula {spec.name!r} requires a place")
+            return AlwaysEventuallyMarked(label, place, threshold=float(spec.params.get("threshold", 0.0)))
+        raise ValueError(f"unsupported CTL formula combination: {spec.operator}/{spec.target}")
+
+    def _compile_ltl_formula(
+        self,
+        spec: LTLFormula,
+    ) -> AlwaysBounded | EventuallyFires | FireLeadsToMarking:
+        label = spec.certificate_name
+        if spec.operator == "G" and spec.target == "marking_bounds":
+            bounds = spec.params.get("bounds")
+            if not isinstance(bounds, dict):
+                raise ValueError(f"LTL formula {spec.name!r} requires marking bounds")
+            return AlwaysBounded(label, bounds)
+        if spec.operator == "F" and spec.target == "transition_fires":
+            transition = spec.params.get("transition")
+            if not isinstance(transition, str) or not transition:
+                raise ValueError(f"LTL formula {spec.name!r} requires a transition")
+            return EventuallyFires(label, transition)
+        if spec.operator == "G_implies_F" and spec.target == "fire_leads_to_marking":
+            trigger = spec.params.get("trigger_transition")
+            target = spec.params.get("target_place")
+            if not isinstance(trigger, str) or not isinstance(target, str) or not trigger or not target:
+                raise ValueError(f"LTL formula {spec.name!r} requires trigger transition and target place")
+            return FireLeadsToMarking(
+                label,
+                trigger,
+                target,
+                threshold=float(spec.params.get("threshold", 0.0)),
+                within=int(spec.params.get("within", 1)),
+            )
+        raise ValueError(f"unsupported LTL formula combination: {spec.operator}/{spec.target}")
 
     def _prove_eventually_fires(self, spec: EventuallyFires, *, max_depth: int) -> Z3ModelCheckingReport:
         self._require_transition(spec.transition)

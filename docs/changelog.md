@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added bounded CTL/LTL formula facades and schema-versioned formal safety
+  certificate payloads for SCPN Petri-net controllers, including
+  tamper-evident payload digests and shared explicit-state/Z3 formula checking.
 - Hardened stellarator geometry configuration with a Pydantic v2 schema/export
   path, construction-time physics-bound validation, and immutable validated
   config objects so ISS04, Boozer-surface, and neoclassical calculations cannot

@@ -166,6 +166,15 @@ missing optional `z3-solver` dependency produces a blocked report in normal
 publication mode; strict mode fails so release campaigns cannot mistake missing
 SMT evidence for a successful proof:
 
+The same Petri-net transition relation now exposes bounded CTL/LTL formula
+facades for certification workflows. `CTLFormula` covers bounded `AG`, `EF`,
+and `AG EF` obligations; `LTLFormula` covers bounded `G`, `F`, and
+`G(trigger -> F<=n target)` obligations. `build_safety_certificate_payload`
+combines reachability, marking-bound, liveness, CTL, and LTL reports into a
+schema-versioned `scpn-control.safety-certificate.v1` payload with a canonical
+SHA-256 digest. The certificate is evidence for bounded model checking only;
+it is not a facility safety approval or an unbounded proof.
+
 ```bash
 python validation/validate_scpn_z3_formal.py
 python validation/validate_scpn_z3_formal.py --require-z3
