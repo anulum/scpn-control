@@ -297,6 +297,18 @@ Neural turbulence surrogate validation claims require persisted gyrokinetic
 campaign or documented public reference artifacts for the same QLKNN-class
 feature schema and trained weights:
 
+Bounded local neural-turbulence claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_neural_turbulence_claims.py
+```
+
+This writes `validation/reports/neural_turbulence_claims.json` and
+`validation/reports/neural_turbulence_claims.md`. These artefacts demonstrate
+local analytic-target regression and claim-admission plumbing only; quantitative
+gyrokinetic, QuaLiKiz, or measured turbulence validation remains gated by the
+strict reference-artifact validator below.
+
 ```bash
 scpn-control validate-neural-turbulence-reference --require-reference-artifacts --json-out
 python validation/validate_neural_turbulence_reference.py --require-reference-artifacts --output-json artifacts/neural_turbulence_reference_report.json

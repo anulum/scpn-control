@@ -1457,7 +1457,7 @@
     },
     {
       "component": "neural turbulence surrogate validation contract",
-      "equation_contract": "Neural turbulence claims must declare QLKNNSurrogate inputs, finite strictly ordered physical profile grids, feature scaling, banana-regime electron collisionality, bounded analytic quasilinear target variables, fallback behaviour, uncertainty handling, and cross-validation boundary against gyrokinetic or quasilinear turbulence references.",
+      "equation_contract": "Neural turbulence claims must declare QLKNNSurrogate inputs, finite strictly ordered physical profile grids, feature scaling, banana-regime electron collisionality, bounded analytic quasilinear target variables, fallback behaviour, uncertainty handling, local analytic-target benchmark errors, strict reference-artifact admission, exact weight checksum matching, and cross-validation boundary against gyrokinetic or quasilinear turbulence references.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "QLKNN turbulence surrogate references",
@@ -1467,23 +1467,30 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate surrogate outputs against immutable gyrokinetic or QuaLiKiz turbulence benchmark cases",
-        "Persist feature scaling, collisionality convention, model checksum, fallback mode, and error metrics for each validation case"
+        "Persist feature schema, weight checksum, local Q_i/Q_e/Gamma_e errors, critical-gradient accuracy, reference source, tolerances, and claim-admission status before quantitative turbulence claims",
+        "Gate quantitative gyrokinetic, QuaLiKiz, or documented-reference turbulence claims on strict reference artifacts that match the exact neural weight checksum"
       ],
       "unit_contract": "Feature and target units follow the declared turbulence surrogate schema; diffusivities, growth rates, and fluxes require explicit SI or normalised-unit metadata.",
       "validation_evidence": [
-        "tests/test_neural_turbulence.py collisionality scaling, analytic target, training, save-load, and denormalisation checks",
+        "tests/test_neural_turbulence.py collisionality scaling, analytic target, training, save-load, denormalisation, fail-closed claim evidence, and checksum-matched reference admission checks",
+        "validation/benchmark_neural_turbulence_claims.py deterministic local claim-admission benchmark",
         "validation/validate_neural_turbulence_reference.py strict GK-campaign/reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_neural_turbulence.py",
         "src/scpn_control/core/neural_turbulence.py",
+        "validation/benchmark_neural_turbulence_claims.py",
+        "validation/reports/neural_turbulence_claims.json",
+        "validation/reports/neural_turbulence_claims.md",
         "validation/validate_neural_turbulence_reference.py",
+        "docs/api.md",
+        "docs/benchmarks.md",
         "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_turbulence.py"
       ],
-      "validity_domain": "Surrogate API and fallback regression; not quantitative turbulence prediction validation.",
+      "validity_domain": "Local surrogate API, analytic-target regression, profile-domain checks, and fail-closed claim-admission evidence; not quantitative gyrokinetic, QuaLiKiz, or measured turbulence prediction validation until immutable reference artifacts match the exact neural weight checksum and pass declared tolerances.",
       "external_validation_tracker_issue": 50
     },
     {

@@ -985,6 +985,16 @@ JSON report containing every accepted or rejected update decision.
 
 ::: scpn_control.core.neural_turbulence
 
+::: scpn_control.core.neural_turbulence.NeuralTurbulenceClaimEvidence
+
+::: scpn_control.core.neural_turbulence.cross_validate_neural_turbulence
+
+::: scpn_control.core.neural_turbulence.neural_turbulence_claim_evidence
+
+::: scpn_control.core.neural_turbulence.assert_neural_turbulence_quantitative_claim_admissible
+
+::: scpn_control.core.neural_turbulence.save_neural_turbulence_claim_evidence
+
 #### Orbit Following
 
 ::: scpn_control.core.orbit_following

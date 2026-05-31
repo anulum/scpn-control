@@ -258,6 +258,24 @@ remain blocked until a strict reference artefact validates the same neural
 weight checksum and declares chi_i, chi_e, D_e, and unstable-branch metrics
 inside stated tolerances.
 
+## Neural-turbulence Claim-Admission Benchmark
+
+`validation/benchmark_neural_turbulence_claims.py` publishes bounded local
+regression evidence for the neural-turbulence claim boundary. The generated
+report records the deterministic analytic-target sample count, gyro-Bohm
+Q_i/Q_e/Gamma_e errors, critical-gradient activity agreement, feature-schema
+contract, and explicit quantitative-claim admission status.
+
+Generated artefacts:
+
+- `validation/reports/neural_turbulence_claims.json`
+- `validation/reports/neural_turbulence_claims.md`
+
+Quantitative gyrokinetic, QuaLiKiz, or documented-reference turbulence claims
+remain blocked until a strict reference artefact validates the same neural
+weight checksum and declares Q_i, Q_e, Gamma_e, flux-relative error, and
+critical-gradient metrics inside stated tolerances.
+
 ## Orbit-following Claim-Admission Benchmark
 
 `validation/benchmark_orbit_following_claims.py` publishes bounded synthetic

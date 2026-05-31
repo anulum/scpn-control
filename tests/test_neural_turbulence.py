@@ -7,15 +7,23 @@
 # SCPN Control — Neural Turbulence Tests
 from __future__ import annotations
 
+import hashlib
+import json
+
 import numpy as np
 import pytest
 
 from scpn_control.core.neural_turbulence import (
+    NeuralTurbulenceClaimEvidence,
     NeuralTransportTrainer,
     QLKNNSurrogate,
     QLKNNTransportModel,
     TrainingDataGenerator,
     TransportInputNormalizer,
+    assert_neural_turbulence_quantitative_claim_admissible,
+    cross_validate_neural_turbulence,
+    neural_turbulence_claim_evidence,
+    save_neural_turbulence_claim_evidence,
 )
 
 
@@ -184,3 +192,110 @@ def test_trainer_activate_deriv_relu_tanh():
 
     d_unknown = trainer._activate_deriv(x, "linear")
     assert np.allclose(d_unknown, 1.0)
+
+
+def _reference_artifact(weights_sha: str) -> dict[str, object]:
+    return {
+        "schema_version": "1.0",
+        "source": "documented_public_reference",
+        "model_id": "neural_turbulence_qlknn_facade",
+        "model_version": "test",
+        "trained_weights_sha256": weights_sha,
+        "reference_dataset_id": "bounded-gk-fixture",
+        "reference_artifact_sha256": "e" * 64,
+        "executed_at": "2026-05-31T00:00:00Z",
+        "reference_url": "https://example.invalid/gk-reference",
+        "feature_schema": [
+            "R_LTi",
+            "R_LTe",
+            "R_Ln",
+            "q",
+            "s_hat",
+            "alpha_MHD",
+            "Ti_Te",
+            "nu_star",
+            "Z_eff",
+            "epsilon",
+        ],
+        "units": {
+            "Q_i": "gyroBohm",
+            "Q_e": "gyroBohm",
+            "Gamma_e": "gyroBohm",
+            "input_gradients": "dimensionless",
+        },
+        "reference_sample_count": 96,
+        "metrics": {
+            "Q_i_rmse_gB": 0.04,
+            "Q_e_rmse_gB": 0.03,
+            "Gamma_e_rmse_gB": 0.02,
+            "flux_relative_mae": 0.05,
+            "critical_gradient_accuracy": 0.94,
+        },
+        "tolerances": {
+            "Q_i_rmse_gB": 0.08,
+            "Q_e_rmse_gB": 0.08,
+            "Gamma_e_rmse_gB": 0.06,
+            "flux_relative_mae": 0.10,
+            "critical_gradient_accuracy_min": 0.90,
+        },
+    }
+
+
+def test_neural_turbulence_claim_evidence_records_local_boundary(tmp_path):
+    validation = cross_validate_neural_turbulence(QLKNNSurrogate(hidden_layers=[16], pretrained=True), n_samples=32)
+
+    evidence = neural_turbulence_claim_evidence(
+        validation,
+        source="synthetic_regression_reference",
+        source_id="tests/test_neural_turbulence.py::local_claim_boundary",
+    )
+
+    assert isinstance(evidence, NeuralTurbulenceClaimEvidence)
+    assert evidence.quantitative_claim_allowed is False
+    assert evidence.reference_source == "none"
+    assert evidence.local_sample_count == 32
+    assert evidence.local_q_i_rmse_gB >= 0.0
+    assert 0.0 <= evidence.local_critical_gradient_accuracy <= 1.0
+    with pytest.raises(ValueError, match="blocked without matched reference"):
+        assert_neural_turbulence_quantitative_claim_admissible(evidence)
+
+    out = tmp_path / "neural_turbulence_claim.json"
+    save_neural_turbulence_claim_evidence(evidence, out)
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["claim_status"].startswith("local analytic-target regression evidence only")
+
+
+def test_neural_turbulence_reference_admission_requires_matching_weights(tmp_path):
+    model = QLKNNSurrogate(hidden_layers=[16, 8], pretrained=True)
+    weights = tmp_path / "weights.npz"
+    model.save_weights(str(weights))
+    validation = cross_validate_neural_turbulence(model, n_samples=32)
+    weights_sha = hashlib.sha256(weights.read_bytes()).hexdigest()
+    artifact = tmp_path / "reference.json"
+    artifact.write_text(json.dumps(_reference_artifact(weights_sha)), encoding="utf-8")
+
+    evidence = neural_turbulence_claim_evidence(
+        validation,
+        source="documented_public_reference",
+        source_id="tests/test_neural_turbulence.py::reference_claim_boundary",
+        weights_path=weights,
+        reference_artifact_path=artifact,
+    )
+
+    assert evidence.quantitative_claim_allowed is True
+    assert evidence.reference_source == "documented_public_reference"
+    assert evidence.reference_sample_count == 96
+    assert evidence.weights_sha256 == weights_sha
+    assert evidence.q_i_rmse_gB == pytest.approx(0.04)
+    assert evidence.critical_gradient_accuracy == pytest.approx(0.94)
+    assert assert_neural_turbulence_quantitative_claim_admissible(evidence) is evidence
+
+    artifact.write_text(json.dumps(_reference_artifact("f" * 64)), encoding="utf-8")
+    with pytest.raises(ValueError, match="does not match supplied weights"):
+        neural_turbulence_claim_evidence(
+            validation,
+            source="documented_public_reference",
+            source_id="tests/test_neural_turbulence.py::reference_claim_boundary",
+            weights_path=weights,
+            reference_artifact_path=artifact,
+        )

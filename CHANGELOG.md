@@ -55,6 +55,10 @@
   admission for matched QuaLiKiz or documented public reference artefacts,
   weight checksums, QLKNN-10D feature ordering, diffusivity errors, and branch
   accuracy.
+- Added neural-turbulence claim evidence with fail-closed quantitative
+  admission for matched gyrokinetic campaign or documented public reference
+  artefacts, weight checksums, QLKNN-class feature ordering, gyro-Bohm flux
+  errors, and critical-gradient accuracy.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
@@ -110,6 +114,7 @@
 - `python validation/benchmark_uq_claims.py`
 - `python validation/benchmark_density_control_claims.py`
 - `python validation/benchmark_neural_transport_claims.py`
+- `python validation/benchmark_neural_turbulence_claims.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`
