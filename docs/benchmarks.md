@@ -361,6 +361,24 @@ Reactor burn-control claims still require documented public, integrated
 transport benchmark, or measured burn replay references for alpha power, Q,
 Lawson margin, burn fraction, and reactivity-exponent agreement.
 
+## Volt-second Claim-Admission Benchmark
+
+`validation/benchmark_volt_second_claims.py` publishes bounded repository
+regression evidence for the scenario volt-second accounting claim boundary. The
+generated report records ramp, flat-top, and ramp-down flux consumption, Ejima
+startup flux, bootstrap-current correction, remaining flat-top time, budget
+margin, and the explicit facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/volt_second_claims.json`
+- `validation/reports/volt_second_claims.md`
+
+Pulse-duration or central-solenoid commissioning claims still require documented
+public, measured loop-voltage replay, or external scenario benchmark references
+for total flux, flat-top duration, Ejima flux, bootstrap current, and budget
+margin agreement.
+
 ## Disruption-mitigation Claim-Admission Benchmark
 
 `validation/benchmark_disruption_mitigation_claims.py` publishes deterministic

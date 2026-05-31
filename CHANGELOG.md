@@ -74,6 +74,10 @@
   admission for matched public, integrated-transport benchmark, or measured
   burn replay artefacts covering alpha power, Q, Lawson margin, burn fraction,
   reactivity exponent, and controller-limit provenance.
+- Added volt-second claim evidence with fail-closed pulse-duration admission
+  for matched public, measured loop-voltage replay, or external scenario
+  artefacts covering total flux, flat-top duration, Ejima flux, bootstrap
+  current, and budget-margin provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.

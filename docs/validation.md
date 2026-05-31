@@ -415,6 +415,33 @@ with source provenance, model identity, SHA-256 reference hash, plasma metadata,
 unit contracts, case count, and burn-control metrics inside declared
 tolerances.
 
+Volt-second scenario validation claims require persisted documented public,
+measured loop-voltage replay, or external scenario benchmark artifacts for total
+flux, flat-top duration, Ejima flux, bootstrap current, and budget-margin
+checks:
+
+Bounded local volt-second claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_volt_second_claims.py
+```
+
+This writes `validation/reports/volt_second_claims.json` and
+`validation/reports/volt_second_claims.md`. These artefacts demonstrate
+deterministic scenario-accounting claim-admission plumbing only; pulse-duration
+or solenoid-commissioning claims remain gated by the strict reference-artifact
+validator below.
+
+```bash
+scpn-control validate-volt-second-reference --require-reference-artifacts --json-out
+python validation/validate_volt_second_reference.py --require-reference-artifacts --output-json artifacts/volt_second_reference_report.json
+```
+
+Strict mode fails until `validation/reports/volt_second_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash,
+machine metadata, unit contracts, case count, and volt-second metrics inside
+declared tolerances.
+
 Disruption-mitigation contract validation claims require persisted
 public-reference, measured-disruption, or external benchmark artifacts for
 warning lead time, mitigation outcome, halo current, runaway beam, and TBR

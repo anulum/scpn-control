@@ -21,13 +21,13 @@
   "counts": {
     "project_script_count": 2,
     "public_api_export_count": 17,
-    "public_class_count": 447,
+    "public_class_count": 448,
     "public_markdown_count": 32,
     "pyo3_export_count": 27,
     "python_test_file_count": 273,
     "rust_source_file_count": 50,
     "source_module_count": 131,
-    "validation_script_count": 59,
+    "validation_script_count": 61,
     "workflow_count": 8
   },
   "docs": {
@@ -560,6 +560,7 @@
       "VerticalStabilizer",
       "VesselElement",
       "VesselModel",
+      "VoltSecondClaimEvidence",
       "VoltSecondOptimizer",
       "WallThermalModel",
       "WeightMatrix",
@@ -1094,6 +1095,7 @@
       "validation/benchmark_transport.py",
       "validation/benchmark_uq_claims.py",
       "validation/benchmark_vmec_lite_claims.py",
+      "validation/benchmark_volt_second_claims.py",
       "validation/code_to_code_benchmark.py",
       "validation/control_benchmark_suite.py",
       "validation/control_resilience_campaign.py",
@@ -1128,7 +1130,8 @@
       "validation/validate_rzip_reference.py",
       "validation/validate_soc_reference.py",
       "validation/validate_uncertainty_reference.py",
-      "validation/validate_vmec_reference.py"
+      "validation/validate_vmec_reference.py",
+      "validation/validate_volt_second_reference.py"
     ]
   }
 }

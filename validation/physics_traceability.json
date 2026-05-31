@@ -867,26 +867,33 @@
       "model_references": [
         "Wesson 2011 tokamak loop-voltage and flux-balance equations",
         "Ejima et al. 1982 startup flux coefficient",
-        "ITER Physics Basis 1999 flat-top flux-budget references"
+        "ITER Physics Basis 1999 flat-top flux-budget references",
+        "Repository fail-closed volt-second claim-admission contract"
       ],
       "module_path": "src/scpn_control/control/volt_second_manager.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate flux consumption against real loop-voltage and current traces before scenario-duration claims",
+        "Attach strict documented public, measured loop-voltage replay, or external scenario benchmark artifacts before scenario-duration claims",
         "Replace bootstrap-current proxy with neoclassical or transport-solver evidence before facility extrapolation"
       ],
       "unit_contract": "SI webers, volt-seconds, henries, ohms, amperes, mega-amperes, seconds, metres, normalised profile radius, and dimensionless Ejima coefficient.",
       "validation_evidence": [
-        "tests/test_volt_second_manager.py flux budget, scenario analysis, bootstrap-profile, and domain-boundary checks"
+        "tests/test_volt_second_manager.py flux budget, scenario analysis, bootstrap-profile, domain-boundary, and claim-admission checks",
+        "validation/validate_volt_second_reference.py strict volt-second reference artifact gate",
+        "validation/benchmark_volt_second_claims.py bounded claim-admission benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/control/volt_second_manager.py",
-        "tests/test_volt_second_manager.py"
+        "tests/test_volt_second_manager.py",
+        "validation/validate_volt_second_reference.py",
+        "validation/benchmark_volt_second_claims.py",
+        "validation/reports/volt_second_claims.json",
+        "validation/reports/volt_second_claims.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/volt_second_manager.py"
       ],
-      "validity_domain": "Scenario-level volt-second accounting regression; not a validated pulse-design or central-solenoid commissioning model.",
+      "validity_domain": "Scenario-level volt-second accounting regression plus fail-closed claim-admission evidence; not a validated pulse-design or central-solenoid commissioning model unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {
