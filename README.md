@@ -81,12 +81,12 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Project scripts | 2 |
 | Public API exports | 17 |
 | Python control/physics modules | 131 |
-| Python public classes | 458 |
+| Python public classes | 459 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
-| Validation scripts | 65 |
+| Validation scripts | 66 |
 | Optional extras | 17 |
-| Python test files | 273 |
+| Python test files | 274 |
 | Public documentation pages | 32 |
 | GitHub Actions workflows | 8 |
 
@@ -281,7 +281,11 @@ global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
 
 ```bash
 # Terminal 1: start server (CLI)
-scpn-control live --port 8765 --zeta 0.5
+scpn-control live --host 127.0.0.1 --port 8765 --zeta 0.5 --api-key "$SCPN_PHASE_WS_API_KEY"
+
+# Remote exposure requires an API key and should use TLS.
+scpn-control live --host 0.0.0.0 --port 8765 --api-key "$SCPN_PHASE_WS_API_KEY" \
+  --tls-cert phase.pem --tls-key phase-key.pem --require-tls
 
 # Terminal 2: Streamlit WS client (live R/V/λ plots, guard status, control)
 pip install "scpn-control[dashboard,ws]"
@@ -315,7 +319,7 @@ pytest tests/test_e2e_phase_diiid.py -v
 scpn-control demo --scenario combined --steps 1000   # Closed-loop control demo
 scpn-control benchmark --n-bench 5000                 # PID vs SNN timing benchmark
 scpn-control validate                                 # RMSE validation dashboard
-scpn-control live --port 8765 --zeta 0.5              # Real-time WS phase sync server
+scpn-control live --host 127.0.0.1 --port 8765 --zeta 0.5 --api-key "$SCPN_PHASE_WS_API_KEY"  # Real-time WS phase sync server
 scpn-control hil-test --shots-dir ...                 # HIL test campaign
 ```
 
@@ -436,7 +440,10 @@ git push --tags
 - **Benchmark comparisons are not apples-to-apples**: The 11.9 µs number is a
   bare Rust kernel step. DIII-D PCS timings include I/O, diagnostics, and
   actuator commands. A fair comparison requires equivalent end-to-end
-  measurement on comparable hardware.
+  measurement on comparable hardware. Publish E2E control-latency evidence with
+  `benchmarks/e2e_control_latency.py --output-json ... --target-hardware-id ...
+  --target-hardware-class ... --rt-kernel ...`; unqualified local runs do not
+  support hardware-in-the-loop real-time claims.
 - **Equilibrium solver**: Two variants exist: stable fixed-boundary GS, plus an
   experimental free-boundary external-coil scaffold. The free-boundary path is
   not yet sufficient for full shape control, X-point geometry, or divertor

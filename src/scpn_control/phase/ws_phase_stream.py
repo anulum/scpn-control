@@ -39,6 +39,9 @@ from urllib.parse import parse_qs, urlsplit
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
 
 logger = logging.getLogger(__name__)
+_MIN_API_KEY_BYTES = 16
+_KNOWN_ACTIONS = frozenset({"set_psi", "set_pac_gamma", "reset", "stop"})
+_DEFAULT_ALLOWED_ACTIONS = ("set_psi", "set_pac_gamma", "reset", "stop")
 
 
 def _finite_command_value(cmd: dict[str, Any]) -> float | None:
@@ -57,6 +60,14 @@ def _is_loopback_host(host: str) -> bool:
     return normalised in {"localhost", "127.0.0.1", "::1"}
 
 
+def _payload_size_bytes(message: object) -> int:
+    if isinstance(message, (bytes, bytearray)):
+        return len(message)
+    if isinstance(message, str):
+        return len(message.encode("utf-8"))
+    return len(str(message).encode("utf-8"))
+
+
 def _get_header(websocket: Any, name: str) -> str | None:
     headers = getattr(websocket, "request_headers", {}) or {}
     if hasattr(headers, "get"):
@@ -73,6 +84,10 @@ def _bearer_token(authorization: str | None) -> str | None:
     return token.strip()
 
 
+def _api_key_is_strong(api_key: str) -> bool:
+    return len(api_key.encode("utf-8")) >= _MIN_API_KEY_BYTES
+
+
 @dataclass
 class PhaseStreamServer:
     """Async WebSocket server wrapping a RealtimeMonitor."""
@@ -82,6 +97,13 @@ class PhaseStreamServer:
     api_key: str | None = None
     command_rate_limit: int = 20
     command_rate_window_s: float = 1.0
+    max_payload_bytes: int = 65536
+    require_client_auth: bool = True
+    allow_query_token_auth: bool = False
+    require_tls: bool = False
+    allow_insecure_remote: bool = False
+    allowed_origins: tuple[str, ...] = ()
+    allowed_actions: tuple[str, ...] = _DEFAULT_ALLOWED_ACTIONS
     _clients: set = field(default_factory=set, init=False, repr=False)
     _client_windows: dict[Any, tuple[float, int]] = field(default_factory=dict, init=False, repr=False)
     _running: bool = field(default=False, init=False, repr=False)
@@ -91,6 +113,8 @@ class PhaseStreamServer:
             raise ValueError("tick_interval_s must be finite and positive")
         if self.api_key is not None and not self.api_key:
             raise ValueError("api_key must be non-empty when configured")
+        if self.api_key is not None and not _api_key_is_strong(self.api_key):
+            raise ValueError(f"api_key must be at least {_MIN_API_KEY_BYTES} bytes")
         if (
             isinstance(self.command_rate_limit, bool)
             or not isinstance(self.command_rate_limit, int)
@@ -99,13 +123,42 @@ class PhaseStreamServer:
             raise ValueError("command_rate_limit must be a positive integer")
         if not math.isfinite(self.command_rate_window_s) or self.command_rate_window_s <= 0.0:
             raise ValueError("command_rate_window_s must be finite and positive")
+        if (
+            isinstance(self.max_payload_bytes, bool)
+            or not isinstance(self.max_payload_bytes, int)
+            or self.max_payload_bytes <= 0
+        ):
+            raise ValueError("max_payload_bytes must be a positive integer")
+        if not isinstance(self.require_client_auth, bool):
+            raise ValueError("require_client_auth must be a boolean")
+        if not isinstance(self.allow_query_token_auth, bool):
+            raise ValueError("allow_query_token_auth must be a boolean")
+        if not isinstance(self.require_tls, bool):
+            raise ValueError("require_tls must be a boolean")
+        if not isinstance(self.allow_insecure_remote, bool):
+            raise ValueError("allow_insecure_remote must be a boolean")
+        self.allowed_origins = tuple(str(origin).strip() for origin in self.allowed_origins)
+        if any(not origin for origin in self.allowed_origins):
+            raise ValueError("allowed_origins must contain only non-empty origins")
+        self.allowed_actions = tuple(str(action).strip() for action in self.allowed_actions)
+        if not self.allowed_actions:
+            raise ValueError("allowed_actions must not be empty")
+        unknown_actions = sorted(set(self.allowed_actions) - _KNOWN_ACTIONS)
+        if unknown_actions:
+            raise ValueError(f"allowed_actions contains unknown actions: {unknown_actions}")
+
+    def _origin_allowed(self, websocket: Any) -> bool:
+        origin = _get_header(websocket, "Origin")
+        if origin is None:
+            return True
+        return origin in self.allowed_origins
 
     def _authorised(self, websocket: Any) -> bool:
         if self.api_key is None:
-            return True
+            return not self.require_client_auth
         candidate = _bearer_token(_get_header(websocket, "Authorization"))
         candidate = candidate or _get_header(websocket, "X-SCPN-API-Key")
-        if candidate is None:
+        if candidate is None and self.allow_query_token_auth:
             path = getattr(websocket, "path", "") or ""
             query = parse_qs(urlsplit(path).query)
             values = query.get("token") or query.get("access_token") or []
@@ -122,6 +175,9 @@ class PhaseStreamServer:
         return count > self.command_rate_limit
 
     async def _handler(self, websocket: Any) -> None:
+        if not self._origin_allowed(websocket):
+            await websocket.close(code=1008, reason="origin not allowed")
+            return
         if not self._authorised(websocket):
             await websocket.close(code=1008, reason="authentication required")
             return
@@ -129,27 +185,35 @@ class PhaseStreamServer:
         logger.info("Client connected (%d total)", len(self._clients))
         try:
             async for msg in websocket:
+                if _payload_size_bytes(msg) > self.max_payload_bytes:
+                    await websocket.send(json.dumps({"error": "payload_too_large"}))
+                    await websocket.close(code=1009, reason="payload too large")
+                    break
+                if self._rate_limited(websocket):
+                    await websocket.send(json.dumps({"error": "rate_limited"}))
+                    await websocket.close(code=1008, reason="command rate limit exceeded")
+                    break
                 try:
                     cmd = json.loads(msg)
                 except json.JSONDecodeError:
                     continue
                 if not isinstance(cmd, dict):
                     continue
-                if self._rate_limited(websocket):
-                    await websocket.send(json.dumps({"error": "rate_limited"}))
-                    await websocket.close(code=1008, reason="command rate limit exceeded")
-                    break
-                if cmd.get("action") == "set_psi":
+                action = cmd.get("action")
+                if action not in self.allowed_actions:
+                    await websocket.send(json.dumps({"error": "action_not_allowed"}))
+                    continue
+                if action == "set_psi":
                     value = _finite_command_value(cmd)
                     if value is not None:
                         self.monitor.psi_driver = value
-                elif cmd.get("action") == "set_pac_gamma":
+                elif action == "set_pac_gamma":
                     value = _finite_command_value(cmd)
                     if value is not None:
                         self.monitor.pac_gamma = value
-                elif cmd.get("action") == "reset":
+                elif action == "reset":
                     self.monitor.reset(seed=cmd.get("seed", 42))
-                elif cmd.get("action") == "stop":
+                elif action == "stop":
                     self._running = False
         finally:
             self._clients.discard(websocket)
@@ -175,15 +239,27 @@ class PhaseStreamServer:
 
     async def serve(self, host: str = "127.0.0.1", port: int = 8765, ssl_context: ssl.SSLContext | None = None) -> None:
         """Start WebSocket server and tick loop."""
+        if self.require_client_auth and self.api_key is None:
+            raise ValueError("api_key is required unless require_client_auth is disabled")
+        if self.require_tls and ssl_context is None:
+            raise ValueError("ssl_context is required when require_tls is enabled")
         if not _is_loopback_host(host) and self.api_key is None:
             raise ValueError("api_key is required when binding the phase stream outside loopback")
+        if not _is_loopback_host(host) and ssl_context is None and not self.allow_insecure_remote:
+            raise ValueError("ssl_context is required for non-loopback binds unless allow_insecure_remote is enabled")
         try:
             import websockets  # noqa: F811
         except ImportError as exc:
             raise ImportError("pip install websockets") from exc
 
         tick_task = asyncio.create_task(self._tick_loop())
-        async with websockets.serve(self._handler, host, port, ssl=ssl_context):
+        async with websockets.serve(
+            self._handler,
+            host,
+            port,
+            ssl=ssl_context,
+            max_size=self.max_payload_bytes,
+        ):
             scheme = "wss" if ssl_context is not None else "ws"
             logger.info("Phase stream listening on %s://%s:%d", scheme, host, port)
             await tick_task
@@ -207,6 +283,17 @@ def main() -> None:
     parser.add_argument("--api-key", default=os.environ.get("SCPN_PHASE_WS_API_KEY"))
     parser.add_argument("--command-rate-limit", type=int, default=20)
     parser.add_argument("--command-rate-window-s", type=float, default=1.0)
+    parser.add_argument(
+        "--max-payload-bytes",
+        type=int,
+        default=65536,
+    )
+    parser.add_argument("--require-tls", action="store_true")
+    parser.add_argument("--allow-unauthenticated-clients", action="store_true")
+    parser.add_argument("--allow-query-token-auth", action="store_true")
+    parser.add_argument("--allow-insecure-remote", action="store_true")
+    parser.add_argument("--allowed-origin", action="append", default=[])
+    parser.add_argument("--allowed-action", action="append", choices=sorted(_KNOWN_ACTIONS), default=None)
     parser.add_argument("--tls-cert", default=None)
     parser.add_argument("--tls-key", default=None)
     args = parser.parse_args()
@@ -230,6 +317,13 @@ def main() -> None:
         api_key=args.api_key,
         command_rate_limit=args.command_rate_limit,
         command_rate_window_s=args.command_rate_window_s,
+        max_payload_bytes=args.max_payload_bytes,
+        require_client_auth=not args.allow_unauthenticated_clients,
+        allow_query_token_auth=args.allow_query_token_auth,
+        require_tls=args.require_tls,
+        allow_insecure_remote=args.allow_insecure_remote,
+        allowed_origins=tuple(args.allowed_origin),
+        allowed_actions=tuple(args.allowed_action) if args.allowed_action else _DEFAULT_ALLOWED_ACTIONS,
     )
     server.serve_sync(host=args.host, port=args.port, ssl_context=tls_context)
 

@@ -81,16 +81,25 @@ Deploy the real-time monitoring dashboard for live telemetry.
 
 1.  **Start Stream Server**:
     ```bash
-    python -m scpn_control.phase.ws_phase_stream --host 127.0.0.1 --port 8765
+    python -m scpn_control.phase.ws_phase_stream --host 127.0.0.1 --port 8765 --api-key "$SCPN_PHASE_WS_API_KEY"
     ```
 2.  **Connect Dashboard**:
     Open `docs/dashboard.html` in a browser and point to `ws://localhost:8765`.
 3.  **Remote Exposure Requirements**:
-    Do not bind the stream to a non-loopback interface unless an operator
-    supplies `SCPN_PHASE_WS_API_KEY` or `--api-key`.  Remote clients must send
-    that key with `Authorization: Bearer <key>`, `X-SCPN-API-Key`, or a `token`
-    query parameter.  Use `--tls-cert` and `--tls-key` for `wss://` transport
-    when the stream crosses a host boundary.
+    The stream requires `SCPN_PHASE_WS_API_KEY` or `--api-key` unless an
+    operator deliberately starts a local development server with
+    `--allow-unauthenticated-clients`.  Clients must send that key with
+    `Authorization: Bearer <key>` or `X-SCPN-API-Key`; query-string token
+    authentication is disabled unless `--allow-query-token-auth` is explicitly
+    supplied.  Use `--tls-cert`, `--tls-key`, and `--require-tls` for `wss://`
+    transport when the stream crosses a host boundary.  Plaintext non-loopback
+    binds are rejected unless an isolated lab deployment explicitly supplies
+    `--allow-insecure-remote`.  Command frames are capped by
+    `--max-payload-bytes` (`65536` bytes by default) and accepted commands are
+    rate-limited per connection.  Browser clients with an `Origin` header are
+    rejected unless that origin is explicitly listed with `--allowed-origin`.
+    Deployments can reduce command authority with repeated `--allowed-action`
+    options, for example allowing `set_psi` while denying `reset` and `stop`.
 
 ## 6. Integration with IMAS
 

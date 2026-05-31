@@ -381,6 +381,29 @@ def test_nmpc_supports_osqp_qp_backend() -> None:
     assert nmpc.last_qp_iterations >= 1
 
 
+def test_nmpc_accepts_casadi_qp_backend_configuration() -> None:
+    """CasADi backend is an explicit established-solver option when installed."""
+    cfg = NMPCConfig(horizon=3)
+    cfg.qp_backend = "casadi"
+
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+
+    assert nmpc.config.qp_backend == "casadi"
+
+
+def test_nmpc_acados_backend_fails_closed_without_runtime() -> None:
+    """acados deployment must not silently fall back to an internal solver."""
+    cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
+    cfg.qp_backend = "acados"
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0])
+    u_prev = cfg.u_min.copy()
+
+    with pytest.raises((ImportError, RuntimeError), match="acados"):
+        nmpc.step(x0, x_ref, u_prev)
+
+
 def test_nmpc_rejects_unknown_qp_backend() -> None:
     cfg = NMPCConfig(horizon=3)
     cfg.qp_backend = "unknown"

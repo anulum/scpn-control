@@ -1,16 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Tokamak Config
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Tokamak Configuration
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Tokamak Config
 """Tokamak machine parameter container with named presets.
 
 Provides a frozen dataclass holding the geometric, magnetic, and kinetic
@@ -20,7 +14,52 @@ presets for ITER, SPARC, DIII-D, and JET.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
+from typing import Any, cast
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+class TokamakConfigSchema(BaseModel):
+    """Pydantic v2 schema for validated tokamak operating-point configs."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: str = Field(..., min_length=1)
+    R0: float = Field(..., gt=0.0, description="Major radius [m]")
+    a: float = Field(..., gt=0.0, description="Minor radius [m]")
+    B0: float = Field(..., gt=0.0, description="Toroidal field on axis [T]")
+    Ip: float = Field(..., gt=0.0, description="Plasma current [MA]")
+    kappa: float = Field(..., gt=0.0, description="Elongation")
+    delta: float = Field(..., description="Triangularity")
+    n_e: float = Field(..., gt=0.0, description="Line-averaged electron density [1e19 m^-3]")
+    T_e: float = Field(..., gt=0.0, description="Central electron temperature [keV]")
+    P_aux: float = Field(..., ge=0.0, description="Auxiliary heating power [MW]")
+
+    @field_validator("R0", "a", "B0", "Ip", "kappa", "delta", "n_e", "T_e", "P_aux")
+    @classmethod
+    def _finite_scalar(cls, value: float) -> float:
+        value = float(value)
+        if not math.isfinite(value):
+            raise ValueError("tokamak scalar fields must be finite")
+        return value
+
+    @field_validator("name")
+    @classmethod
+    def _normalise_name(cls, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise ValueError("name must be non-empty")
+        return name
+
+    @model_validator(mode="after")
+    def _physics_bounds(self) -> "TokamakConfigSchema":
+        if self.a >= self.R0:
+            raise ValueError("minor radius must be smaller than major radius")
+        if abs(self.delta) >= 1.0:
+            raise ValueError("triangularity magnitude must be < 1")
+        return self
 
 
 @dataclass(frozen=True)
@@ -41,6 +80,16 @@ class TokamakConfig:
     n_e: float  # line-averaged electron density [1e19 m^-3]
     T_e: float  # central electron temperature [keV]
     P_aux: float  # auxiliary heating power [MW]
+
+    def __post_init__(self) -> None:
+        validated = TokamakConfigSchema.model_validate(self.__dict__)
+        for field_name, value in validated.model_dump().items():
+            object.__setattr__(self, field_name, value)
+
+    @classmethod
+    def model_json_schema(cls) -> dict[str, Any]:
+        """Return the JSON Schema for serialized tokamak configurations."""
+        return cast(dict[str, Any], TokamakConfigSchema.model_json_schema())
 
     @property
     def aspect_ratio(self) -> float:

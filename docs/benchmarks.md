@@ -225,6 +225,27 @@ The report is local latency evidence for the audited gradient-admission path.
 It is not a real-time control-loop guarantee and does not replace external
 transport validation.
 
+## End-to-End Control Latency Evidence
+
+`benchmarks/e2e_control_latency.py` records the full sensor, equilibrium,
+transport, controller, and actuator-clamp path.  Use `--output-json` when
+publishing evidence, and always supply `--target-hardware-id`,
+`--target-hardware-class`, and `--rt-kernel` for Raspberry Pi, Jetson,
+industrial PC, or other qualified target-hardware runs.  Reports without those
+operator-qualified fields remain local latency evidence only and do not support
+hardware-in-the-loop or sub-millisecond real-time claims.
+
+Before a report is cited as target-hardware evidence, run:
+
+```bash
+python validation/validate_e2e_latency_evidence.py validation/reports/e2e_control_latency.json \
+  --max-e2e-p95-us 1000 --json-out
+```
+
+The validator rejects unqualified local-host metadata, missing RT-kernel
+evidence, non-finite percentile data, missing claim-boundary text, and optional
+P95 latency threshold regressions.
+
 ## VMEC-lite Claim-Admission Benchmark
 
 `validation/benchmark_vmec_lite_claims.py` publishes bounded synthetic

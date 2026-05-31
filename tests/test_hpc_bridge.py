@@ -381,9 +381,12 @@ def test_compile_cpp_requires_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: dict[str, object] = {}
 
-    def _fake_run(cmd, check):  # type: ignore[no-untyped-def]
+    def _fake_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
         calls["cmd"] = list(cmd)
         calls["check"] = check
+        calls["cwd"] = cwd
+        calls["env"] = dict(env)
+        calls["timeout"] = timeout
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
     monkeypatch.setattr(hpc_mod.platform, "system", lambda: "Linux")
@@ -399,12 +402,17 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch, tmp_
     assert calls["cmd"][0] == "g++"
     assert "-march=native" not in calls["cmd"]
     assert "-mtune=generic" in calls["cmd"]
+    assert "-fstack-protector-strong" in calls["cmd"]
+    assert "-Wl,-z,relro" in calls["cmd"]
+    assert calls["timeout"] == hpc_mod._NATIVE_BUILD_TIMEOUT_S
+    assert "PYTHONPATH" not in calls["env"]
+    assert Path(str(calls["cwd"])).name == tmp_path.name
 
 
 def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: dict[str, list[str]] = {}
 
-    def _fake_run(cmd, check):  # type: ignore[no-untyped-def]
+    def _fake_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
         calls["cmd"] = list(cmd)
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
@@ -426,7 +434,7 @@ def test_compile_cpp_refuses_missing_checksum_manifest(
     module_file.write_text("# test module path\n", encoding="utf-8")
     (tmp_path / "solver.cpp").write_text("int main() { return 0; }\n", encoding="utf-8")
 
-    def _unexpected_run(cmd, check):  # type: ignore[no-untyped-def]
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
         raise AssertionError("unchecked solver.cpp must not be compiled")
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
@@ -448,7 +456,7 @@ def test_compile_cpp_refuses_checksum_mismatch(
         encoding="utf-8",
     )
 
-    def _unexpected_run(cmd, check):  # type: ignore[no-untyped-def]
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
         raise AssertionError("tampered solver.cpp must not be compiled")
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
@@ -461,7 +469,7 @@ def test_compile_cpp_refuses_checksum_mismatch(
 def test_compile_cpp_handles_build_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import subprocess
 
-    def _fail_run(cmd, check):  # type: ignore[no-untyped-def]
+    def _fail_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
         raise subprocess.CalledProcessError(1, cmd)
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")

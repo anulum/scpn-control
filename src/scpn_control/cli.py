@@ -1288,6 +1288,25 @@ def validate_rmse(json_out: bool, output_json: str, output_md: str) -> None:
 @click.option("--command-rate-limit", default=20, type=int, help="Maximum commands per connection window")
 @click.option("--command-rate-window-s", default=1.0, type=float, help="Command rate-limit window in seconds")
 @click.option(
+    "--max-payload-bytes",
+    default=65536,
+    type=int,
+    help="Maximum WebSocket command payload size in bytes",
+)
+@click.option("--allow-unauthenticated-clients", is_flag=True, help="Allow unauthenticated local development clients")
+@click.option("--allow-query-token-auth", is_flag=True, help="Allow token query-string authentication")
+@click.option("--require-tls", is_flag=True, help="Require TLS before starting the phase stream")
+@click.option(
+    "--allow-insecure-remote", is_flag=True, help="Allow plaintext non-loopback binds for isolated lab networks"
+)
+@click.option("--allowed-origin", multiple=True, help="Allowed browser Origin header; repeat for multiple origins")
+@click.option(
+    "--allowed-action",
+    multiple=True,
+    type=click.Choice(["reset", "set_pac_gamma", "set_psi", "stop"]),
+    help="Allowed command action; repeat to restrict the control surface",
+)
+@click.option(
     "--tls-cert", default=None, type=click.Path(exists=True, dir_okay=False), help="TLS certificate for wss://"
 )
 @click.option(
@@ -1304,6 +1323,13 @@ def live(
     api_key: str | None,
     command_rate_limit: int,
     command_rate_window_s: float,
+    max_payload_bytes: int,
+    allow_unauthenticated_clients: bool,
+    allow_query_token_auth: bool,
+    require_tls: bool,
+    allow_insecure_remote: bool,
+    allowed_origin: tuple[str, ...],
+    allowed_action: tuple[str, ...],
     tls_cert: str | None,
     tls_key: str | None,
 ) -> None:
@@ -1346,6 +1372,13 @@ def live(
         api_key=api_key,
         command_rate_limit=command_rate_limit,
         command_rate_window_s=command_rate_window_s,
+        max_payload_bytes=max_payload_bytes,
+        require_client_auth=not allow_unauthenticated_clients,
+        allow_query_token_auth=allow_query_token_auth,
+        require_tls=require_tls,
+        allow_insecure_remote=allow_insecure_remote,
+        allowed_origins=allowed_origin,
+        allowed_actions=allowed_action or ("set_psi", "set_pac_gamma", "reset", "stop"),
     )
     server.serve_sync(host=host, port=port, ssl_context=tls_context)
 

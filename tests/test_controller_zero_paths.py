@@ -172,8 +172,9 @@ class TestZeroInjections:
 
 
 class TestBitflipEmpty:
-    def test_bitflip_on_empty_array(self, tmp_path):
+    def test_bitflip_on_empty_array(self, tmp_path, monkeypatch):
         """Bitflip with out.size==0 returns early (line 804)."""
+        monkeypatch.setenv("SCPN_ALLOW_CONTROLLER_FAULT_INJECTION", "1")
         readout_config = {
             "actions": [],
             "gains": [],

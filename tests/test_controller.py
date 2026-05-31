@@ -878,7 +878,8 @@ class TestLevel3PetriSemantics:
         finally:
             os.unlink(delayed_path)
 
-    def test_sc_bitflip_path_stays_bounded(self, artifact_path_fractional: str) -> None:
+    def test_sc_bitflip_path_stays_bounded(self, artifact_path_fractional: str, monkeypatch) -> None:
+        monkeypatch.setenv("SCPN_ALLOW_CONTROLLER_FAULT_INJECTION", "1")
         art = load_artifact(artifact_path_fractional)
         c = NeuroSymbolicController(
             artifact=art,

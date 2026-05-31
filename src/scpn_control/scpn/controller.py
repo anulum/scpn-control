@@ -15,6 +15,7 @@ Loads a ``.scpnctl.json`` artifact and provides deterministic
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 from typing import Callable, Mapping, Sequence, cast
@@ -39,6 +40,7 @@ _HAS_RUST_SCPN_RUNTIME = False
 _rust_dense_activations: Callable[[FloatArray, FloatArray], object] | None = None
 _rust_marking_update: Callable[[FloatArray, FloatArray, FloatArray, FloatArray], object] | None = None
 _rust_sample_firing: Callable[[FloatArray, int, int, bool], object] | None = None
+_FAULT_INJECTION_ENV = "SCPN_ALLOW_CONTROLLER_FAULT_INJECTION"
 
 try:
     from scpn_control_rs import (  # type: ignore[import-not-found,unused-ignore]  # pragma: no cover
@@ -80,6 +82,19 @@ def _resolve_jsonl_log_path(log_path: str, log_root: str | Path | None) -> Path:
     if resolved.exists() and not resolved.is_file():
         raise ValueError("log_path must reference a regular file.")
     return resolved
+
+
+def _append_jsonl_record(path: Path, record: Mapping[str, object]) -> None:
+    """Append one JSON record without following symlinks where supported."""
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        fd = os.open(path, flags, 0o600)
+    except OSError as exc:
+        raise ValueError("log_path must reference a regular file.") from exc
+    with os.fdopen(fd, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, separators=(",", ":")) + "\n")
 
 
 class NeuroSymbolicController:
@@ -126,6 +141,8 @@ class NeuroSymbolicController:
         self._allow_fault_injection = bool(allow_fault_injection)
         if self._sc_bitflip_rate > 0.0 and not self._allow_fault_injection:
             raise ValueError("sc_bitflip_rate > 0 requires allow_fault_injection=True.")
+        if self._sc_bitflip_rate > 0.0 and os.environ.get(_FAULT_INJECTION_ENV) != "1":
+            raise ValueError(f"sc_bitflip_rate > 0 requires {_FAULT_INJECTION_ENV}=1.")
         self._runtime_profile = runtime_profile.strip().lower()
         if self._runtime_profile not in {"adaptive", "deterministic", "traceable"}:
             raise ValueError("runtime_profile must be 'adaptive', 'deterministic', or 'traceable'")
@@ -418,8 +435,7 @@ class NeuroSymbolicController:
                 "actions": actions_dict,
                 "timing_ms": (t1 - t0) * 1000.0,
             }
-            with safe_log_path.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(rec) + "\n")
+            _append_jsonl_record(safe_log_path, rec)
 
         # Build result from all decoded actions
         return cast(ControlAction, dict(actions_dict))
@@ -476,8 +492,7 @@ class NeuroSymbolicController:
                 "actions": {name: float(actions_vec[i]) for i, name in enumerate(self._action_names)},
                 "timing_ms": (t1 - t0) * 1000.0,
             }
-            with safe_log_path.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(rec) + "\n")
+            _append_jsonl_record(safe_log_path, rec)
 
         return actions_vec
 

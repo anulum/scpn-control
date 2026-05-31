@@ -440,12 +440,15 @@ fails closed before calling the dynamic loader.
 ### NeuroSymbolicController
 
 `NeuroSymbolicController` rejects nonzero `sc_bitflip_rate` unless
-`allow_fault_injection=True` is supplied explicitly. Bit-flip mutation is a
-fault-injection test mode, not a production control default.
+`allow_fault_injection=True` is supplied explicitly and the process environment
+sets `SCPN_ALLOW_CONTROLLER_FAULT_INJECTION=1`. Bit-flip mutation is a
+double-gated fault-injection test mode, not a production control default.
 
 Controller JSONL logging requires an explicit `log_root` whenever `log_path` is
 provided. Relative and absolute log paths must resolve under that root and use a
-`.jsonl` suffix before any file is opened.
+`.jsonl` suffix before any file is opened. Log appends use a constrained append
+helper that rejects symlink targets where the platform exposes no-follow open
+semantics.
 
 ::: scpn_control.scpn.controller.NeuroSymbolicController
 
@@ -520,6 +523,18 @@ provided. Relative and absolute log paths must resolve under that root and use a
 ::: scpn_control.phase.plasma_knm.build_knm_plasma
 
 ### WebSocket Stream
+
+`PhaseStreamServer` binds to loopback by default and requires authenticated
+clients by default.  Operators must supply an API key or explicitly disable
+client authentication for local development.  Non-loopback binds require an API
+key, command frames are capped by `max_payload_bytes`, accepted commands are
+rate-limited per connection, and production remote exposure should enable TLS
+with `require_tls=True`.  Query-string token authentication and plaintext
+non-loopback binds are disabled by default and require explicit operator
+opt-ins for constrained development or isolated lab environments.  Browser
+clients that send an `Origin` header are rejected unless the origin is
+allowlisted, and deployments may restrict command authority with
+`allowed_actions`.
 
 ::: scpn_control.phase.ws_phase_stream.PhaseStreamServer
 
@@ -735,10 +750,12 @@ positive definite; invalid solver output falls back to the conservative terminal
 weight.
 Explicit terminal state sets are configured with paired `terminal_x_min` and
 `terminal_x_max` vectors. These bounds must lie inside the configured physics
-state envelope and currently require `qp_backend="scipy"` or
-`qp_backend="osqp"` so the coupled
-terminal-state inequality is enforced inside the constrained QP solve rather
-than checked after the fact.
+state envelope and currently require `qp_backend="scipy"`, `qp_backend="osqp"`,
+`qp_backend="casadi"`, or `qp_backend="acados"` so the coupled terminal-state
+inequality is enforced inside the constrained QP solve rather than checked
+after the fact.  `casadi` is a repository-local optional dependency path; the
+`acados` backend fails closed unless the target deployment supplies the acados
+Python interface and generated OCP capsule.
 The previous input supplied to `step()` must already satisfy actuator bounds so
 the slew-rate projection cannot propagate an unsafe actuator state.
 The accepted `horizon=1` case is handled as a valid one-step receding-horizon

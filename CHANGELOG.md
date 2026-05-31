@@ -5,6 +5,19 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened the phase WebSocket stream with explicit payload-size limits,
+  server-side frame caps, default client authentication, TLS-required startup
+  mode, disabled-by-default query-token authentication, fail-closed plaintext
+  non-loopback binding, browser-origin allowlisting, command allowlisting, and
+  CLI/documentation coverage for authenticated remote exposure.
+- Added a Pydantic v2 schema/export path to `TokamakConfig`, extended E2E
+  latency evidence with target-hardware metadata, and exposed NMPC optional
+  `casadi`/fail-closed `acados` solver backend contracts.
+- Added a strict E2E latency-evidence validator so unqualified local benchmark
+  runs cannot be admitted as target-hardware or real-time performance evidence.
+- Double-gated controller bit-flip fault injection behind both constructor and
+  environment opt-ins, and hardened controller JSONL append handling against
+  symlink-target writes where platform support is available.
 - Added a public production-readiness boundary that separates
   production-oriented library engineering from facility deployment, external
   validation, measured-shot validation, and certification claims.

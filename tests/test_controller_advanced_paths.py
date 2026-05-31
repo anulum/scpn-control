@@ -89,9 +89,15 @@ class TestControllerValidation:
         with pytest.raises(ValueError, match="allow_fault_injection"):
             _ctrl(_artifact_custom(tmp_path, petri_net_std), sc_bitflip_rate=0.3)
 
+    def test_bitflip_rate_requires_environment_gate(self, tmp_path, petri_net_std, monkeypatch):
+        monkeypatch.delenv("SCPN_ALLOW_CONTROLLER_FAULT_INJECTION", raising=False)
+        with pytest.raises(ValueError, match="SCPN_ALLOW_CONTROLLER_FAULT_INJECTION"):
+            _ctrl(_artifact_custom(tmp_path, petri_net_std), sc_bitflip_rate=0.3, allow_fault_injection=True)
+
 
 class TestBitflipFaults:
-    def test_step_with_bitflip(self, tmp_path, petri_net_std):
+    def test_step_with_bitflip(self, tmp_path, petri_net_std, monkeypatch):
+        monkeypatch.setenv("SCPN_ALLOW_CONTROLLER_FAULT_INJECTION", "1")
         art_path = _artifact_custom(tmp_path, petri_net_std)
         ctrl = _ctrl(art_path, sc_bitflip_rate=0.3, allow_fault_injection=True)
         obs = {"R_axis_m": 6.29, "Z_axis_m": -0.02}

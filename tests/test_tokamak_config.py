@@ -1,15 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Tokamak Config
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Tokamak Configuration Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Test Tokamak Config
 """Tests for TokamakConfig dataclass and named presets."""
 
 from __future__ import annotations
@@ -48,6 +43,43 @@ def test_custom_construction():
     )
     assert cfg.name == "TEST"
     assert cfg.R0 == 3.0
+
+
+def test_custom_construction_is_pydantic_validated():
+    with pytest.raises(ValueError, match="minor radius"):
+        TokamakConfig(
+            name="bad",
+            R0=1.0,
+            a=1.0,
+            B0=5.0,
+            Ip=10.0,
+            kappa=1.5,
+            delta=0.25,
+            n_e=8.0,
+            T_e=12.0,
+            P_aux=20.0,
+        )
+
+    with pytest.raises(ValueError, match="triangularity"):
+        TokamakConfig(
+            name="bad",
+            R0=3.0,
+            a=1.0,
+            B0=5.0,
+            Ip=10.0,
+            kappa=1.5,
+            delta=1.0,
+            n_e=8.0,
+            T_e=12.0,
+            P_aux=20.0,
+        )
+
+
+def test_tokamak_config_schema_is_exportable():
+    schema = TokamakConfig.model_json_schema()
+
+    assert schema["type"] == "object"
+    assert {"name", "R0", "a", "B0", "Ip", "kappa", "delta", "n_e", "T_e", "P_aux"} <= set(schema["required"])
 
 
 def test_aspect_ratio():

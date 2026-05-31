@@ -1,17 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — E2E Control Latency
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — End-to-End Control Latency Benchmark
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Measures the full control cycle latency, not just a bare kernel step.
 
@@ -32,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
 import tempfile
 import time
 from pathlib import Path
@@ -130,6 +124,18 @@ def main():
     parser.add_argument("--iterations", type=int, default=1000, help="Measurement iterations (default: 1000)")
     parser.add_argument("--warmup", type=int, default=50, help="Warmup iterations (default: 50)")
     parser.add_argument("--json", action="store_true", help="Output JSON instead of table")
+    parser.add_argument("--output-json", type=Path, default=None, help="Persist benchmark JSON evidence")
+    parser.add_argument(
+        "--target-hardware-id",
+        default="local-host-unqualified",
+        help="Operator-supplied hardware identifier for published evidence",
+    )
+    parser.add_argument(
+        "--target-hardware-class",
+        default="unspecified-local",
+        help="Hardware class, for example raspberry-pi, jetson, or industrial-pc",
+    )
+    parser.add_argument("--rt-kernel", default="unknown", help="Real-time kernel or scheduler evidence label")
     args = parser.parse_args()
 
     # Lazy imports so --help is fast
@@ -154,9 +160,20 @@ def main():
     e2e_us = e2e_ns / 1000.0
 
     results = {
+        "schema_version": 1,
         "iterations": args.iterations,
         "warmup": args.warmup,
         "grid": "16x16",
+        "target_hardware": {
+            "id": args.target_hardware_id,
+            "class": args.target_hardware_class,
+            "machine": platform.machine(),
+            "processor": platform.processor(),
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "rt_kernel": args.rt_kernel,
+        },
         "kernel_only_us": {
             "p50": round(_percentile(kernel_us, 50), 1),
             "p95": round(_percentile(kernel_us, 95), 1),
@@ -168,7 +185,15 @@ def main():
             "p99": round(_percentile(e2e_us, 99), 1),
         },
         "e2e_overhead_factor": round(_percentile(e2e_us, 50) / max(_percentile(kernel_us, 50), 0.1), 1),
+        "claim_status": (
+            "local latency evidence only; not a hardware-in-the-loop real-time guarantee "
+            "unless target_hardware.id, class, and rt_kernel are operator-qualified"
+        ),
     }
+
+    if args.output_json is not None:
+        args.output_json.parent.mkdir(parents=True, exist_ok=True)
+        args.output_json.write_text(json.dumps(results, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     if args.json:
         print(json.dumps(results, indent=2))

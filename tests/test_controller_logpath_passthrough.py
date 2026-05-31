@@ -139,3 +139,30 @@ class TestLogPathPassthrough:
             assert not escape.resolve().exists()
         finally:
             escape.resolve().unlink(missing_ok=True)
+
+    def test_log_path_rejects_symlink_target(self, tmp_path, petri_net_std):
+        art_path = _artifact_with_passthrough(tmp_path, petri_net_std)
+        art = load_artifact(art_path)
+        ctrl = NeuroSymbolicController(
+            artifact=art,
+            seed_base=42,
+            targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+            scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+            sc_n_passes=1,
+            runtime_backend="numpy",
+        )
+        outside = tmp_path.parent / "outside_controller_log.jsonl"
+        symlink = tmp_path / "linked.jsonl"
+        outside.write_text("", encoding="utf-8")
+        try:
+            symlink.symlink_to(outside)
+        except OSError:
+            pytest.skip("symlinks are unavailable on this filesystem")
+        obs = {"R_axis_m": 6.2, "Z_axis_m": 0.0, "extra_sensor": 0.5}
+
+        try:
+            with pytest.raises(ValueError, match="log_path"):
+                ctrl.step(obs, k=0, log_path=str(symlink), log_root=tmp_path)
+        finally:
+            symlink.unlink(missing_ok=True)
+            outside.unlink(missing_ok=True)

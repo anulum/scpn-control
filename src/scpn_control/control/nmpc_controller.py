@@ -101,7 +101,7 @@ class NMPCConfig:
 
     max_sqp_iter: int = 10
     qp_max_iter: int = 500
-    qp_backend: str = "internal"  # "internal", "scipy", or "osqp"
+    qp_backend: str = "internal"  # "internal", "scipy", "osqp", "casadi", or "acados"
     tol: float = 1e-4
 
 
@@ -745,8 +745,8 @@ class NonlinearMPC:
             raise ValueError("qp_max_iter must be an integer >= 1.")
         if config.qp_max_iter < 1:
             raise ValueError("qp_max_iter must be an integer >= 1.")
-        if config.qp_backend not in {"internal", "scipy", "osqp"}:
-            raise ValueError("qp_backend must be 'internal', 'scipy', or 'osqp'.")
+        if config.qp_backend not in {"internal", "scipy", "osqp", "casadi", "acados"}:
+            raise ValueError("qp_backend must be 'internal', 'scipy', 'osqp', 'casadi', or 'acados'.")
         if not np.isfinite(float(config.tol)) or float(config.tol) <= 0.0:
             raise ValueError("tol must be positive finite.")
 
@@ -769,8 +769,8 @@ class NonlinearMPC:
         if np.any(config.du_max <= 0.0):
             raise ValueError("du_max entries must be positive finite.")
         if config.terminal_x_min is not None and config.terminal_x_max is not None:
-            if config.qp_backend not in {"scipy", "osqp"}:
-                raise ValueError("terminal_x constraints require qp_backend='scipy' or 'osqp'.")
+            if config.qp_backend not in {"scipy", "osqp", "casadi", "acados"}:
+                raise ValueError("terminal_x constraints require qp_backend='scipy', 'osqp', 'casadi', or 'acados'.")
             terminal_x_min = _as_finite_vector("terminal_x_min", config.terminal_x_min, _NX)
             terminal_x_max = _as_finite_vector("terminal_x_max", config.terminal_x_max, _NX)
             config.terminal_x_min = terminal_x_min
@@ -1098,6 +1098,84 @@ class NonlinearMPC:
             raise RuntimeError(f"OSQP backend failed: {result.info.status}")
         return np.asarray(result.x, dtype=np.float64).reshape(self.N, self.nu)
 
+    def _solve_qp_casadi(
+        self,
+        A_k: list[np.ndarray],
+        B_k: list[np.ndarray],
+        P_term: np.ndarray,
+        u_prev: np.ndarray,
+        x_ref: np.ndarray,
+    ) -> np.ndarray:
+        """Solve the condensed QP with CasADi Opti and explicit linear constraints."""
+        try:
+            import casadi as ca
+        except ImportError as exc:
+            raise ImportError("qp_backend='casadi' requires the optional casadi package.") from exc
+
+        n_dec = self.N * self.nu
+        H, q = self._condensed_qp_terms(A_k, B_k, P_term, x_ref)
+        opti = ca.Opti()
+        z = opti.variable(n_dec)
+        opti.minimize(0.5 * ca.mtimes([z.T, ca.DM(H), z]) + ca.dot(ca.DM(q), z))
+
+        for idx in range(n_dec):
+            k = idx // self.nu
+            j = idx % self.nu
+            opti.subject_to(z[idx] >= float(self.config.u_min[j] - self.u_traj[k, j]))
+            opti.subject_to(z[idx] <= float(self.config.u_max[j] - self.u_traj[k, j]))
+
+        for k in range(self.N):
+            for j in range(self.nu):
+                if k == 0:
+                    delta = z[k * self.nu + j] + float(self.u_traj[k, j] - u_prev[j])
+                else:
+                    delta = (
+                        z[k * self.nu + j] - z[(k - 1) * self.nu + j] + float(self.u_traj[k, j] - self.u_traj[k - 1, j])
+                    )
+                opti.subject_to(delta >= float(-self.config.du_max[j]))
+                opti.subject_to(delta <= float(self.config.du_max[j]))
+
+        if self.config.terminal_x_min is not None and self.config.terminal_x_max is not None:
+            terminal_sensitivity = self._terminal_state_sensitivity(A_k, B_k)
+            terminal_state = ca.DM(terminal_sensitivity) @ z + ca.DM(self.x_traj[self.N])
+            for idx in range(self.nx):
+                opti.subject_to(terminal_state[idx] >= float(self.config.terminal_x_min[idx]))
+                opti.subject_to(terminal_state[idx] <= float(self.config.terminal_x_max[idx]))
+
+        opti.solver(
+            "ipopt",
+            {"print_time": False},
+            {
+                "max_iter": int(self.config.qp_max_iter),
+                "tol": float(self.config.tol),
+                "print_level": 0,
+                "sb": "yes",
+            },
+        )
+        solution = opti.solve()
+        self.last_qp_backend = "casadi"
+        self.last_qp_iterations = int(solution.stats().get("iter_count", 0))
+        self.last_qp_converged = bool(solution.stats().get("success", True))
+        return np.asarray(solution.value(z), dtype=np.float64).reshape(self.N, self.nu)
+
+    def _solve_qp_acados(
+        self,
+        A_k: list[np.ndarray],
+        B_k: list[np.ndarray],
+        P_term: np.ndarray,
+        u_prev: np.ndarray,
+        x_ref: np.ndarray,
+    ) -> np.ndarray:
+        """Fail closed unless the optional acados Python interface is installed."""
+        try:
+            import acados_template  # noqa: F401
+        except ImportError as exc:
+            raise ImportError("qp_backend='acados' requires the optional acados_template package.") from exc
+        raise RuntimeError(
+            "qp_backend='acados' requires a generated OCP capsule for the deployment target; "
+            "use qp_backend='osqp' or 'casadi' for repository-local condensed-QP solves."
+        )
+
     def _solve_qp(self, x0: np.ndarray, u_prev: np.ndarray, x_ref: np.ndarray) -> np.ndarray:
         """Projected gradient descent on condensed QP.
 
@@ -1125,6 +1203,10 @@ class NonlinearMPC:
             return self._solve_qp_scipy(A_k, B_k, P_term, u_prev, x_ref)
         if self.config.qp_backend == "osqp":
             return self._solve_qp_osqp(A_k, B_k, P_term, u_prev, x_ref)
+        if self.config.qp_backend == "casadi":
+            return self._solve_qp_casadi(A_k, B_k, P_term, u_prev, x_ref)
+        if self.config.qp_backend == "acados":
+            return self._solve_qp_acados(A_k, B_k, P_term, u_prev, x_ref)
         self.last_qp_backend = "internal"
 
         for iter_idx in range(1, max_iter + 1):

@@ -626,6 +626,8 @@ declared tolerances.
 - `python-audit` (`pip_audit`)
 - `data-manifest-gate` (data manifest provenance and local artefact checksum report)
 - `python-benchmark` (E2E control latency)
+- `python validation/validate_e2e_latency_evidence.py <report> --max-e2e-p95-us 1000 --json-out`
+  admits only qualified target-hardware latency reports for real-time evidence.
 - `notebook-smoke` (executes CI notebook set; full neuro notebook only if `sc_neurocore` is available)
 - `package-quality` (`build` + `twine check`)
 - `rmse-gate` (SPARC and DIII-D GEQDSK regression bounds)

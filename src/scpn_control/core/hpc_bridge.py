@@ -31,6 +31,7 @@ _SOLVER_LIBRARY_SUFFIXES = {".so", ".dylib", ".dll"}
 _ALLOW_EXTERNAL_SOLVER_LIB = "SCPN_ALLOW_EXTERNAL_SOLVER_LIB"
 _SOLVER_SOURCE = "solver.cpp"
 _SOLVER_MANIFEST = "solver_manifest.json"
+_NATIVE_BUILD_TIMEOUT_S = 120
 
 
 def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
@@ -145,6 +146,16 @@ def _verify_solver_source(src: Path, manifest_path: Path) -> bool:
         logger.error("Native solver source checksum mismatch: %s", src)
         return False
     return True
+
+
+def _native_build_environment(out_dir: Path) -> dict[str, str]:
+    """Return a minimal environment for the opt-in native build process."""
+    env = {"PATH": os.environ.get("PATH", ""), "TMPDIR": str(out_dir)}
+    for key in ("SystemRoot", "WINDIR"):
+        value = os.environ.get(key)
+        if value:
+            env[key] = value
+    return env
 
 
 def _release_native_solver(state: dict[str, Any]) -> None:
@@ -516,7 +527,7 @@ def compile_cpp() -> str | None:
 
     if platform.system() == "Windows":
         out = out_dir / "scpn_solver.dll"
-        cmd = ["g++", "-shared", "-o", str(out), str(src), "-O3"]
+        cmd = ["g++", "-shared", "-o", str(out), str(src), "-O3", "-fstack-protector-strong"]
     else:
         out = out_dir / "libscpn_solver.so"
         cmd = [
@@ -527,13 +538,22 @@ def compile_cpp() -> str | None:
             str(out),
             str(src),
             "-O3",
+            "-fstack-protector-strong",
             "-mtune=generic",
         ]
+        if platform.system() == "Linux":
+            cmd.extend(["-Wl,-z,relro", "-Wl,-z,now"])
 
     logger.info("Executing: %s", " ".join(cmd))
     try:
-        subprocess.run(cmd, check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        subprocess.run(
+            cmd,
+            check=True,
+            cwd=str(script_dir),
+            env=_native_build_environment(out_dir),
+            timeout=_NATIVE_BUILD_TIMEOUT_S,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as exc:
         logger.error("Compilation failed: %s", exc)
         return None
 
