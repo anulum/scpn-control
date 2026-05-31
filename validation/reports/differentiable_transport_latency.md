@@ -8,8 +8,15 @@
 
 # Differentiable Transport Gradient-Latency Benchmark
 
-Status: `blocked`.
+This report measures the local audited gradient-admission path for
+controller-tuning studies. It is not a real-time control-loop guarantee.
 
-JAX is required for audited differentiable transport gradient-latency
-evidence. This environment does not provide the JAX gradient backend,
-so no latency claim is made.
+- Backend: `jax`
+- dtype: `float64`
+- Radial points: `21`
+- Timed runs: `5`
+- Audit passed: `True`
+- P50 latency [ms]: `25.856045`
+- P95 latency [ms]: `30.203767`
+- Max latency [ms]: `30.510256`
+- Claim boundary: `local audited gradient-admission latency only; not a real-time control-loop guarantee`

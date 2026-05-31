@@ -1163,6 +1163,147 @@ def test_transport_differentiability_evidence_rejects_tampering_and_failed_audit
         dt.assert_transport_differentiability_claim_admissible(evidence, metadata, failed_audit)
 
 
+def test_transport_differentiability_evidence_rejects_malformed_audit_semantics():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    metadata = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        1.0e-3,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=1.0e-6,
+    )
+
+    with pytest.raises(ValueError, match="tolerance"):
+        dt.transport_differentiability_evidence(
+            metadata,
+            dt.TransportRolloutGradientAudit(
+                loss=0.125,
+                epsilon=1.0e-5,
+                tolerance=2.0e-6,
+                checked_indices=((0, 0, 1),),
+                source_max_abs_error=2.0e-7,
+                passed=True,
+            ),
+        )
+
+    with pytest.raises(ValueError, match="unique"):
+        dt.transport_differentiability_evidence(
+            metadata,
+            dt.TransportRolloutGradientAudit(
+                loss=0.125,
+                epsilon=1.0e-5,
+                tolerance=1.0e-6,
+                checked_indices=((0, 0, 1), (0, 0, 1)),
+                source_max_abs_error=2.0e-7,
+                passed=True,
+            ),
+        )
+
+    with pytest.raises(ValueError, match="out of campaign bounds"):
+        dt.transport_differentiability_evidence(
+            metadata,
+            dt.TransportGradientAudit(
+                loss=0.125,
+                epsilon=1.0e-5,
+                tolerance=1.0e-6,
+                checked_indices=((0, rho.size),),
+                chi_max_abs_error=2.0e-7,
+                source_max_abs_error=2.0e-7,
+                passed=True,
+            ),
+        )
+
+    with pytest.raises(ValueError, match="passed flag"):
+        dt.transport_differentiability_evidence(
+            metadata,
+            dt.TransportRolloutGradientAudit(
+                loss=0.125,
+                epsilon=1.0e-5,
+                tolerance=1.0e-6,
+                checked_indices=((0, 0, 1),),
+                source_max_abs_error=2.0e-7,
+                passed=False,
+            ),
+        )
+
+
+def test_transport_latency_report_persistence_rejects_malformed_timing_and_audit(tmp_path):
+    audit = dt.TransportGradientAudit(
+        loss=0.125,
+        epsilon=1.0e-5,
+        tolerance=1.0e-6,
+        checked_indices=((0, 1),),
+        chi_max_abs_error=2.0e-7,
+        source_max_abs_error=2.0e-7,
+        passed=True,
+    )
+    good = dt.TransportGradientLatencyReport(
+        schema_version=1,
+        backend="jax",
+        dtype="float64",
+        n_rho=16,
+        channel_count=dt.CHANNEL_COUNT,
+        warmup_runs=0,
+        timed_runs=1,
+        p50_ms=1.0,
+        p95_ms=1.2,
+        max_ms=1.4,
+        audit=audit,
+        claim_status="local audited gradient-admission latency only",
+    )
+
+    dt.save_transport_gradient_latency_report(good, tmp_path / "good.json")
+
+    bad_timing = dt.TransportGradientLatencyReport(
+        schema_version=1,
+        backend="jax",
+        dtype="float64",
+        n_rho=16,
+        channel_count=dt.CHANNEL_COUNT,
+        warmup_runs=0,
+        timed_runs=1,
+        p50_ms=1.3,
+        p95_ms=1.2,
+        max_ms=1.4,
+        audit=audit,
+        claim_status="local audited gradient-admission latency only",
+    )
+    with pytest.raises(ValueError, match="p50 <= p95 <= max"):
+        dt.save_transport_gradient_latency_report(bad_timing, tmp_path / "bad_timing.json")
+
+    bad_audit = dt.TransportGradientLatencyReport(
+        schema_version=1,
+        backend="jax",
+        dtype="float64",
+        n_rho=16,
+        channel_count=dt.CHANNEL_COUNT,
+        warmup_runs=0,
+        timed_runs=1,
+        p50_ms=1.0,
+        p95_ms=1.2,
+        max_ms=1.4,
+        audit=dt.TransportGradientAudit(
+            loss=0.125,
+            epsilon=1.0e-5,
+            tolerance=1.0e-6,
+            checked_indices=((0, 20),),
+            chi_max_abs_error=2.0e-7,
+            source_max_abs_error=2.0e-7,
+            passed=True,
+        ),
+        claim_status="local audited gradient-admission latency only",
+    )
+    with pytest.raises(ValueError, match="out of campaign bounds"):
+        dt.save_transport_gradient_latency_report(bad_audit, tmp_path / "bad_audit.json")
+
+
 def test_equilibrium_weighted_gradient_fails_closed_without_jax(monkeypatch):
     rho = np.linspace(0.05, 1.0, 16)
     profiles = _profiles(rho)

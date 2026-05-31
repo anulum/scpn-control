@@ -540,6 +540,26 @@ artifacts with source provenance, model identity, SHA-256 reference hash,
 disruption-window timing, mitigation-cocktail metadata, unit contracts, case
 count, and disruption-mitigation metrics inside declared tolerances.
 
+Bounded local differentiable-transport gradient evidence can be regenerated
+with:
+
+```bash
+python validation/benchmark_differentiable_transport_latency.py
+```
+
+This writes `validation/reports/differentiable_transport_latency.json`,
+`validation/reports/differentiable_transport_latency.md`,
+`validation/reports/differentiable_transport_rollout_latency.json`, and
+`validation/reports/differentiable_transport_rollout_latency.md`. The reports
+exercise the audited JAX gradient-admission path when JAX is available and
+otherwise publish a blocked-backend status. Persisted evidence fails closed on
+non-finite or negative audit losses/errors, tolerance drift from campaign
+metadata, duplicate or out-of-domain sampled audit indices, inconsistent
+pass/fail flags, malformed latency run counts, and unordered latency
+percentiles. The rollout source-gradient loss remains inside the traced JAX
+graph, and the module enables JAX x64 before importing `jax.numpy` so benchmark
+dtype evidence matches the requested differentiable transport precision.
+
 Tokamak digital-twin validation claims require persisted public-reference,
 measured-discharge replay, or external integrated-modelling artifacts for grid
 topology, q-profile evolution, actuator latency, IDS export, and island-mask

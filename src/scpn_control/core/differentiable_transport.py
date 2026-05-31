@@ -30,6 +30,8 @@ from scpn_control.core import jax_solvers as _jax_solvers
 
 try:
     import jax
+
+    jax.config.update("jax_enable_x64", True)
     import jax.numpy as jnp
 
     _HAS_JAX = True
@@ -659,6 +661,7 @@ def transport_differentiability_evidence(
         raise ValueError("audit must be a transport gradient audit result")
     if metadata.gradient_tolerance is None:
         raise ValueError("metadata.gradient_tolerance is required for differentiability evidence")
+    _validate_transport_gradient_audit(metadata, audit)
     proof_digest = _validate_optional_sha256(
         "controller_formal_artifact_sha256",
         controller_formal_artifact_sha256,
@@ -699,6 +702,7 @@ def assert_transport_differentiability_claim_admissible(
         raise ValueError("transport differentiability evidence requires a passed audit")
     if metadata.gradient_tolerance is None:
         raise ValueError("transport differentiability evidence requires metadata.gradient_tolerance")
+    _validate_transport_gradient_audit(metadata, audit)
     if evidence.campaign_sha256 != _canonical_sha256(metadata):
         raise ValueError("transport differentiability evidence campaign_sha256 mismatch")
     if evidence.gradient_audit_sha256 != _canonical_sha256(audit):
@@ -719,6 +723,61 @@ def assert_transport_differentiability_claim_admissible(
         if audit.chi_max_abs_error > audit.tolerance or audit.source_max_abs_error > audit.tolerance:
             raise ValueError("transport differentiability parameter-gradient error exceeds tolerance")
     return evidence
+
+
+def _validate_transport_gradient_audit(
+    metadata: TransportCampaignMetadata,
+    audit: TransportGradientAudit | TransportRolloutGradientAudit,
+) -> None:
+    if metadata.gradient_tolerance is None:
+        raise ValueError("transport differentiability evidence requires metadata.gradient_tolerance")
+    loss = float(audit.loss)
+    epsilon = float(audit.epsilon)
+    tolerance = float(audit.tolerance)
+    if not np.isfinite(loss) or loss < 0.0:
+        raise ValueError("transport gradient audit loss must be finite and non-negative")
+    if not np.isfinite(epsilon) or epsilon <= 0.0:
+        raise ValueError("transport gradient audit epsilon must be positive and finite")
+    if not np.isfinite(tolerance) or tolerance <= 0.0:
+        raise ValueError("transport gradient audit tolerance must be positive and finite")
+    if not np.isclose(tolerance, metadata.gradient_tolerance, rtol=1.0e-12, atol=1.0e-15):
+        raise ValueError("transport gradient audit tolerance must match campaign metadata")
+    if not isinstance(audit.passed, bool):
+        raise ValueError("transport gradient audit passed flag must be boolean")
+    if isinstance(audit, TransportRolloutGradientAudit):
+        _validate_rollout_audit_indices(audit.checked_indices, metadata.n_rho)
+        max_error = float(audit.source_max_abs_error)
+    else:
+        _validate_parameter_audit_indices(audit.checked_indices, metadata.n_rho)
+        chi_error = float(audit.chi_max_abs_error)
+        source_error = float(audit.source_max_abs_error)
+        if not np.isfinite(chi_error) or chi_error < 0.0:
+            raise ValueError("transport gradient audit chi_max_abs_error must be finite and non-negative")
+        max_error = max(chi_error, source_error)
+    if not np.isfinite(max_error) or max_error < 0.0:
+        raise ValueError("transport gradient audit source_max_abs_error must be finite and non-negative")
+    if audit.passed != bool(max_error <= tolerance):
+        raise ValueError("transport gradient audit passed flag is inconsistent with tolerance")
+
+
+def _validate_parameter_audit_indices(indices: tuple[tuple[int, int], ...], n_rho: int) -> None:
+    if not indices:
+        raise ValueError("transport gradient audit checked_indices must not be empty")
+    if len(set(indices)) != len(indices):
+        raise ValueError("transport gradient audit checked_indices must be unique")
+    for channel, radius in indices:
+        if not (0 <= int(channel) < CHANNEL_COUNT and 0 <= int(radius) < int(n_rho)):
+            raise ValueError("transport gradient audit checked_indices out of campaign bounds")
+
+
+def _validate_rollout_audit_indices(indices: tuple[tuple[int, int, int], ...], n_rho: int) -> None:
+    if not indices:
+        raise ValueError("transport rollout gradient audit checked_indices must not be empty")
+    if len(set(indices)) != len(indices):
+        raise ValueError("transport rollout gradient audit checked_indices must be unique")
+    for step, channel, radius in indices:
+        if int(step) < 0 or not (0 <= int(channel) < CHANNEL_COUNT and 0 <= int(radius) < int(n_rho)):
+            raise ValueError("transport rollout gradient audit checked_indices out of campaign bounds")
 
 
 def _resolve_use_jax(
@@ -1003,17 +1062,16 @@ def transport_rollout_source_gradients(
         weight_array = np.ones(CHANNEL_COUNT)
 
     def loss_for_sources(source_candidate: Any) -> Any:
-        return transport_rollout_tracking_loss(
+        history = _transport_rollout_jax(
             profile_array,
             chi_array,
             source_candidate,
-            target_array,
             rho_array,
             float(dt),
             edge_array,
-            weights=weight_array,
-            use_jax=True,
         )
+        residual = history - jnp.asarray(target_array, dtype=jnp.float64)
+        return jnp.mean(jnp.asarray(weight_array, dtype=jnp.float64)[None, :, None] * residual * residual)
 
     loss, gradient = jax.value_and_grad(loss_for_sources)(jnp.asarray(source_array, dtype=jnp.float64))
     history = _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
@@ -1890,12 +1948,8 @@ def benchmark_transport_parameter_gradient_latency(
     independent finite-difference audit. The report is local timing evidence,
     not a real-time control-loop guarantee.
     """
-    warmups = int(warmup_runs)
-    repetitions = int(timed_runs)
-    if warmups < 0:
-        raise ValueError("warmup_runs must be non-negative")
-    if repetitions <= 0:
-        raise ValueError("timed_runs must be positive")
+    warmups = _require_int("warmup_runs", warmup_runs, minimum=0)
+    repetitions = _require_int("timed_runs", timed_runs, minimum=1)
     profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
         _validate_transport_inputs(
             profiles,
@@ -1988,12 +2042,8 @@ def benchmark_transport_rollout_source_gradient_latency(
     audit. The report is local timing evidence, not a real-time control-loop or
     externally validated transport claim.
     """
-    warmups = int(warmup_runs)
-    repetitions = int(timed_runs)
-    if warmups < 0:
-        raise ValueError("warmup_runs must be non-negative")
-    if repetitions <= 0:
-        raise ValueError("timed_runs must be positive")
+    warmups = _require_int("warmup_runs", warmup_runs, minimum=0)
+    repetitions = _require_int("timed_runs", timed_runs, minimum=1)
     profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
         _validate_transport_rollout_inputs(
             initial_profiles,
@@ -2068,6 +2118,7 @@ def benchmark_transport_rollout_source_gradient_latency(
 def save_transport_gradient_latency_report(report: TransportGradientLatencyReport, path: str | Path) -> None:
     """Persist differentiable transport gradient-latency evidence as JSON."""
 
+    _validate_transport_gradient_latency_report(report)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -2079,9 +2130,122 @@ def save_transport_rollout_gradient_latency_report(
 ) -> None:
     """Persist rollout source-gradient latency evidence as JSON."""
 
+    _validate_transport_rollout_gradient_latency_report(report)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _validate_transport_gradient_latency_report(report: TransportGradientLatencyReport) -> None:
+    if not isinstance(report, TransportGradientLatencyReport):
+        raise ValueError("transport gradient latency report must be TransportGradientLatencyReport")
+    _validate_latency_common(
+        schema_version=report.schema_version,
+        backend=report.backend,
+        n_rho=report.n_rho,
+        channel_count=report.channel_count,
+        warmup_runs=report.warmup_runs,
+        timed_runs=report.timed_runs,
+        p50_ms=report.p50_ms,
+        p95_ms=report.p95_ms,
+        max_ms=report.max_ms,
+    )
+    metadata = TransportCampaignMetadata(
+        backend=report.backend,
+        dtype=report.dtype,
+        channel_order=CHANNELS,
+        n_rho=report.n_rho,
+        rho_min=0.0,
+        rho_max=1.0,
+        rho_spacing=1.0 / float(report.n_rho - 1),
+        dt=1.0,
+        core_boundary="zero_gradient",
+        edge_boundary="dirichlet",
+        edge_values=(0.0, 0.0, 0.0, 0.0),
+        closure_source=None,
+        closure_weights_checksum=None,
+        gradient_tolerance=report.audit.tolerance,
+        equilibrium_grid_shape=None,
+    )
+    _validate_transport_gradient_audit(metadata, report.audit)
+
+
+def _validate_transport_rollout_gradient_latency_report(report: TransportRolloutGradientLatencyReport) -> None:
+    if not isinstance(report, TransportRolloutGradientLatencyReport):
+        raise ValueError("transport rollout gradient latency report must be TransportRolloutGradientLatencyReport")
+    _validate_latency_common(
+        schema_version=report.schema_version,
+        backend=report.backend,
+        n_rho=report.n_rho,
+        channel_count=report.channel_count,
+        warmup_runs=report.warmup_runs,
+        timed_runs=report.timed_runs,
+        p50_ms=report.p50_ms,
+        p95_ms=report.p95_ms,
+        max_ms=report.max_ms,
+    )
+    _require_int("n_steps", report.n_steps, minimum=1)
+    metadata = TransportCampaignMetadata(
+        backend=report.backend,
+        dtype=report.dtype,
+        channel_order=CHANNELS,
+        n_rho=report.n_rho,
+        rho_min=0.0,
+        rho_max=1.0,
+        rho_spacing=1.0 / float(report.n_rho - 1),
+        dt=1.0,
+        core_boundary="zero_gradient",
+        edge_boundary="dirichlet",
+        edge_values=(0.0, 0.0, 0.0, 0.0),
+        closure_source=None,
+        closure_weights_checksum=None,
+        gradient_tolerance=report.audit.tolerance,
+        equilibrium_grid_shape=None,
+    )
+    _validate_transport_gradient_audit(metadata, report.audit)
+
+
+def _validate_latency_common(
+    *,
+    schema_version: int,
+    backend: str,
+    n_rho: int,
+    channel_count: int,
+    warmup_runs: int,
+    timed_runs: int,
+    p50_ms: float,
+    p95_ms: float,
+    max_ms: float,
+) -> None:
+    if schema_version != 1:
+        raise ValueError("transport latency report schema_version is unsupported")
+    if backend != "jax":
+        raise ValueError("transport latency report requires JAX backend")
+    _require_int("n_rho", n_rho, minimum=3)
+    if _require_int("channel_count", channel_count, minimum=1) != CHANNEL_COUNT:
+        raise ValueError("transport latency report channel_count is invalid")
+    _require_int("warmup_runs", warmup_runs, minimum=0)
+    _require_int("timed_runs", timed_runs, minimum=1)
+    p50 = _require_nonnegative_finite("p50_ms", p50_ms)
+    p95 = _require_nonnegative_finite("p95_ms", p95_ms)
+    maximum = _require_nonnegative_finite("max_ms", max_ms)
+    if not (p50 <= p95 <= maximum):
+        raise ValueError("transport latency report percentiles must satisfy p50 <= p95 <= max")
+
+
+def _require_nonnegative_finite(name: str, value: float) -> float:
+    result = float(value)
+    if not np.isfinite(result) or result < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return result
+
+
+def _require_int(name: str, value: int, *, minimum: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be an integer")
+    if value < minimum:
+        raise ValueError(f"{name} must be >= {minimum}")
+    return value
 
 
 def equilibrium_weighted_transport_loss_gradient(

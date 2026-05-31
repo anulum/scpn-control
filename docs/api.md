@@ -140,7 +140,10 @@ coefficients and additive heating, fuelling, or impurity-source inputs.
 schedule with the same four-channel boundary contract.
 `transport_rollout_source_gradients()` returns fail-closed JAX gradients for
 that full source schedule so controller tuning can optimise time-distributed
-heating, fuelling, and impurity-source inputs without finite differences.
+heating, fuelling, and impurity-source inputs without finite differences. The
+rollout gradient path keeps the loss inside the traced JAX graph and enables
+JAX x64 before importing `jax.numpy`, so persisted dtype evidence is not
+silently downgraded.
 `audit_transport_rollout_source_gradients()` and
 `assert_transport_rollout_source_gradients_consistent()` compare those rollout
 gradients against sampled NumPy finite-difference perturbations.
@@ -172,6 +175,10 @@ admission envelope over campaign metadata and gradient-audit results. That
 envelope requires JAX backend evidence, passed sampled finite-difference
 gradient audit, stable SHA-256 digests for the campaign and audit payloads, and
 an optional link to the safety-critical controller proof artifact digest.
+Admission revalidates finite non-negative audit losses and errors, tolerance
+agreement with campaign metadata, unique in-domain sampled audit indices,
+pass/fail consistency with maximum audit error, and ordered latency percentiles
+before persisted controller-tuning evidence is accepted.
 `equilibrium_weighted_transport_rollout_tracking_loss()` extends the optional
 Grad-Shafranov flux-map weighting from one transport step to a full source
 rollout. `equilibrium_weighted_transport_rollout_source_gradient()` returns

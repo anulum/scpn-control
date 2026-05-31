@@ -5,6 +5,14 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened differentiable-transport evidence admission so gradient-audit
+  evidence revalidates finite non-negative losses, tolerance agreement with
+  campaign metadata, unique in-domain sampled audit indices, pass/fail
+  consistency with maximum audit error, strict integer latency run counts, and
+  ordered latency percentiles before controller-tuning evidence is persisted or
+  admitted; the rollout source-gradient loss now remains inside the traced JAX
+  graph and the module enables JAX x64 before importing `jax.numpy` so dtype
+  evidence is not silently downgraded.
 - Hardened digital-twin online-update evidence admission so bounded Bayesian
   update claims revalidate finite non-negative losses, loss-history minima,
   source binding, unique bounded parameter priors, best-parameter domains,

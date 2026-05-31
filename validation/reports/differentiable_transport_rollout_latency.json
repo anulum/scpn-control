@@ -1,6 +1,43 @@
 {
-  "claim_status": "no latency claim; JAX gradient backend unavailable in this environment",
-  "reason": "JAX is required for audited differentiable transport gradient-latency evidence",
+  "audit": {
+    "checked_indices": [
+      [
+        0,
+        0,
+        5
+      ],
+      [
+        1,
+        1,
+        8
+      ],
+      [
+        2,
+        2,
+        10
+      ],
+      [
+        3,
+        3,
+        12
+      ]
+    ],
+    "epsilon": 5e-05,
+    "loss": 3.476574894061414e-11,
+    "passed": true,
+    "source_max_abs_error": 1.0186128710465822e-17,
+    "tolerance": 0.002
+  },
+  "backend": "jax",
+  "channel_count": 4,
+  "claim_status": "local audited rollout source-gradient latency only; not a real-time control-loop guarantee",
+  "dtype": "float64",
+  "max_ms": 1965.289422,
+  "n_rho": 21,
+  "n_steps": 4,
+  "p50_ms": 1439.271255,
+  "p95_ms": 1922.0041292,
   "schema_version": 1,
-  "status": "blocked"
+  "timed_runs": 5,
+  "warmup_runs": 1
 }

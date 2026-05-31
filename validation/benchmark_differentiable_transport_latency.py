@@ -12,8 +12,12 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from pathlib import Path
+import sys
 
 import numpy as np
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from scpn_control.core.differentiable_transport import (
     benchmark_transport_parameter_gradient_latency,
