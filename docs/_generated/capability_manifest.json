@@ -21,13 +21,13 @@
   "counts": {
     "project_script_count": 2,
     "public_api_export_count": 17,
-    "public_class_count": 442,
+    "public_class_count": 443,
     "public_markdown_count": 31,
     "pyo3_export_count": 27,
     "python_test_file_count": 273,
     "rust_source_file_count": 50,
     "source_module_count": 131,
-    "validation_script_count": 52,
+    "validation_script_count": 53,
     "workflow_count": 8
   },
   "docs": {
@@ -352,6 +352,7 @@
       "NeuralEquilibriumAccelerator",
       "NeuralEquilibriumClaimEvidence",
       "NeuralSurrogate",
+      "NeuralTransportClaimEvidence",
       "NeuralTransportClosureResult",
       "NeuralTransportModel",
       "NeuralTransportTrainer",
@@ -1077,6 +1078,7 @@
       "validation/benchmark_integrated_scenario_coupling.py",
       "validation/benchmark_kinetic_efit_claims.py",
       "validation/benchmark_neural_equilibrium_pretraining.py",
+      "validation/benchmark_neural_transport_claims.py",
       "validation/benchmark_orbit_following_claims.py",
       "validation/benchmark_rwm_claims.py",
       "validation/benchmark_rzip_calibration.py",

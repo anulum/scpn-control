@@ -51,6 +51,10 @@
 - Added neural-equilibrium claim evidence with fail-closed predictive-claim
   admission for matched P-EFIT or documented public reference artefacts,
   weight checksums, flux, pressure, q-profile, boundary, and axis tolerances.
+- Added neural-transport claim evidence with fail-closed quantitative
+  admission for matched QuaLiKiz or documented public reference artefacts,
+  weight checksums, QLKNN-10D feature ordering, diffusivity errors, and branch
+  accuracy.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
@@ -105,6 +109,7 @@
 - `python validation/benchmark_orbit_following_claims.py`
 - `python validation/benchmark_uq_claims.py`
 - `python validation/benchmark_density_control_claims.py`
+- `python validation/benchmark_neural_transport_claims.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`

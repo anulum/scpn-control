@@ -240,6 +240,24 @@ public reference artefact validates the same weight checksum and declares
 psi, pressure, q-profile, boundary, and magnetic-axis errors inside stated
 tolerances.
 
+## Neural-transport Claim-Admission Benchmark
+
+`validation/benchmark_neural_transport_claims.py` publishes bounded local
+regression evidence for the neural-transport claim boundary. The generated
+report records the deterministic analytic-fallback benchmark cases, local
+channel agreement, local diffusivity errors, feature-schema contract, and the
+explicit quantitative-claim admission status.
+
+Generated artefacts:
+
+- `validation/reports/neural_transport_claims.json`
+- `validation/reports/neural_transport_claims.md`
+
+Quantitative QuaLiKiz, QLKNN, or documented-reference neural-transport claims
+remain blocked until a strict reference artefact validates the same neural
+weight checksum and declares chi_i, chi_e, D_e, and unstable-branch metrics
+inside stated tolerances.
+
 ## Orbit-following Claim-Admission Benchmark
 
 `validation/benchmark_orbit_following_claims.py` publishes bounded synthetic

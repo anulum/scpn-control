@@ -270,6 +270,18 @@ Neural transport surrogate validation claims require persisted QuaLiKiz or
 documented public reference artifacts for the same QLKNN-style feature schema
 and trained weights:
 
+Bounded local neural-transport claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_neural_transport_claims.py
+```
+
+This writes `validation/reports/neural_transport_claims.json` and
+`validation/reports/neural_transport_claims.md`. These artefacts demonstrate
+local fallback-regression and claim-admission plumbing only; quantitative
+QuaLiKiz, QLKNN, or measured transport validation remains gated by the strict
+reference-artifact validator below.
+
 ```bash
 scpn-control validate-neural-transport-reference --require-reference-artifacts --json-out
 python validation/validate_neural_transport_reference.py --require-reference-artifacts --output-json artifacts/neural_transport_reference_report.json

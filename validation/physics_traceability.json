@@ -1415,7 +1415,7 @@
     },
     {
       "component": "neural transport surrogate validation contract",
-      "equation_contract": "Neural transport claims must declare input feature normalisation, QLKNN weight provenance, prediction targets, fallback critical-gradient thresholds, bounded density-channel particle diffusivity, bounded profile closure provenance, uncertainty output, out-of-domain handling, and cross-validation against reference transport cases.",
+      "equation_contract": "Neural transport claims must declare input feature normalisation, QLKNN weight provenance, prediction targets, fallback critical-gradient thresholds, bounded density-channel particle diffusivity, bounded profile closure provenance, local benchmark errors, strict reference-artifact admission, weight checksum matching, uncertainty output, out-of-domain handling, and cross-validation against reference transport cases.",
       "fidelity_status": "external_dependency_blocked",
       "model_references": [
         "QuaLiKiz neural network transport surrogate references",
@@ -1425,14 +1425,15 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Acquire or generate immutable reference QLKNN or transport benchmark cases for cross-validation",
-        "Record weight checksums, feature scaling, fallback density-channel coefficients, closure source metadata, uncertainty metadata, and OOD decisions with every surrogate evaluation"
+        "Record weight checksums, QLKNN-10D feature schema, fallback density-channel coefficients, closure source metadata, uncertainty metadata, OOD decisions, reference metrics, tolerances, and admission status with every surrogate evaluation",
+        "Gate quantitative QuaLiKiz, QLKNN, or documented-reference transport claims on strict reference artifacts that match the exact neural weight checksum"
       ],
       "unit_contract": "Inputs and outputs use declared transport feature units, diffusivity in m^2/s or declared normalisation, fluxes in SI or gyro-Bohm units with conversion metadata.",
       "validation_evidence": [
         "tests/test_neural_transport.py density-gradient and shear-dependent fallback particle diffusivity",
-        "tests/test_neural_transport_core.py profile fallback particle-channel checks",
-        "tests/test_neural_transport_core.py bounded closure provenance and fallback gating checks",
+        "tests/test_neural_transport_core.py profile fallback particle-channel checks, bounded closure provenance, fallback gating, fail-closed claim evidence, and checksum-matched reference admission checks",
         "tests/test_qlknn_transport.py",
+        "validation/benchmark_neural_transport_claims.py deterministic local claim-admission benchmark",
         "validation/validate_neural_transport_reference.py strict QuaLiKiz/reference artifact gate"
       ],
       "evidence_paths": [
@@ -1440,13 +1441,18 @@
         "tests/test_neural_transport_core.py",
         "tests/test_qlknn_transport.py",
         "src/scpn_control/core/neural_transport.py",
+        "validation/benchmark_neural_transport_claims.py",
+        "validation/reports/neural_transport_claims.json",
+        "validation/reports/neural_transport_claims.md",
         "validation/validate_neural_transport_reference.py",
+        "docs/api.md",
+        "docs/benchmarks.md",
         "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_transport.py"
       ],
-      "validity_domain": "Local surrogate and weight-handling regression; quantitative transport-surrogate validation remains blocked on immutable reference data.",
+      "validity_domain": "Local surrogate, fallback-regression, closure-provenance, and fail-closed claim-admission evidence; quantitative QuaLiKiz, QLKNN, or measured transport-surrogate validation remains blocked until immutable reference artifacts match the exact neural weight checksum and pass declared tolerances.",
       "external_validation_tracker_issue": 50
     },
     {

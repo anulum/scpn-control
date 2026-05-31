@@ -249,9 +249,17 @@ the analytic fallback.
 
 ::: scpn_control.core.neural_transport.NeuralTransportClosureResult
 
+::: scpn_control.core.neural_transport.NeuralTransportClaimEvidence
+
 ::: scpn_control.core.neural_transport.neural_transport_closure_profiles
 
 ::: scpn_control.core.neural_transport.cross_validate_neural_transport
+
+::: scpn_control.core.neural_transport.neural_transport_claim_evidence
+
+::: scpn_control.core.neural_transport.assert_neural_transport_quantitative_claim_admissible
+
+::: scpn_control.core.neural_transport.save_neural_transport_claim_evidence
 
 ### MHD Stability
 

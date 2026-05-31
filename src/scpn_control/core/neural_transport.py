@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural Transport
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neural Transport Surrogate
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Neural-network surrogate for turbulent transport coefficients.
 
@@ -51,8 +43,9 @@ References
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
@@ -66,6 +59,20 @@ FloatArray = NDArray[np.float64]
 # Weight file format version expected by this loader.
 _WEIGHTS_FORMAT_VERSION = 1
 _DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parents[3] / "weights" / "neural_transport_qlknn.npz"
+_NEURAL_TRANSPORT_CLAIM_SCHEMA_VERSION = 1
+_NEURAL_TRANSPORT_REFERENCE_SOURCES = frozenset({"real_qualikiz", "documented_public_reference"})
+_NEURAL_TRANSPORT_FEATURE_SCHEMA = (
+    "R_LTi",
+    "R_LTe",
+    "R_Ln",
+    "q",
+    "s_hat",
+    "alpha",
+    "Ti_Te",
+    "Zeff",
+    "collisionality",
+    "beta_e",
+)
 
 
 # ── Data containers ───────────────────────────────────────────────────
@@ -159,6 +166,98 @@ class NeuralTransportClosureResult:
     channel_weights: FloatArray
     source: str
     weights_checksum: str | None
+
+
+@dataclass(frozen=True)
+class NeuralTransportClaimEvidence:
+    """Serialisable admission evidence for neural-transport surrogate claims."""
+
+    schema_version: int
+    model_id: str
+    source: str
+    source_id: str
+    surrogate_mode: str
+    weights_path: str
+    weights_sha256: str
+    internal_weights_checksum: str
+    feature_schema: tuple[str, ...]
+    reference_source: str
+    reference_dataset_id: str
+    reference_artifact_sha256: str
+    reference_sample_count: int
+    local_case_count: int
+    local_max_abs_error: float
+    local_channel_agreement: float
+    local_per_channel_relative_rmse: tuple[float, float, float]
+    local_profile_per_channel_relative_rmse: tuple[float, float, float]
+    chi_i_rmse_m2_s: float | None
+    chi_e_rmse_m2_s: float | None
+    d_e_rmse_m2_s: float | None
+    chi_i_relative_mae: float | None
+    unstable_branch_accuracy: float | None
+    chi_i_rmse_tolerance_m2_s: float | None
+    chi_e_rmse_tolerance_m2_s: float | None
+    d_e_rmse_tolerance_m2_s: float | None
+    chi_i_relative_mae_tolerance: float | None
+    unstable_branch_accuracy_min: float | None
+    quantitative_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _sha256_file(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite and non-negative")
+    result = float(value)
+    if not np.isfinite(result) or result < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return result
+
+
+def _finite_positive_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite and positive")
+    result = float(value)
+    if not np.isfinite(result) or result <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
+    return result
+
+
+def _unit_interval_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite in [0, 1]")
+    result = float(value)
+    if not np.isfinite(result) or not 0.0 <= result <= 1.0:
+        raise ValueError(f"{name} must be finite in [0, 1]")
+    return result
+
+
+def _three_float_tuple(name: str, values: object) -> tuple[float, float, float]:
+    if not isinstance(values, list | tuple) or len(values) != 3:
+        raise ValueError(f"{name} must contain three channel values")
+    out = tuple(float(v) for v in values)
+    if not all(np.isfinite(v) and v >= 0.0 for v in out):
+        raise ValueError(f"{name} must contain finite non-negative channel values")
+    return cast(tuple[float, float, float], out)
 
 
 # ── Analytic fallback (critical-gradient model) ──────────────────────
@@ -768,6 +867,142 @@ def cross_validate_neural_transport(
         "channel_agreement": float(channel_matches / len(cases)),
         "max_abs_error": float(max_abs_error),
     }
+
+
+def neural_transport_claim_evidence(
+    validation_result: dict[str, Any],
+    *,
+    source: str,
+    source_id: str,
+    model_id: str = "neural_transport_qlknn_facade",
+    weights_path: str | Path | None = None,
+    reference_artifact_path: str | Path | None = None,
+) -> NeuralTransportClaimEvidence:
+    """Build fail-closed evidence for neural-transport quantitative claims."""
+    mode = _non_empty_text("validation_result['mode']", str(validation_result.get("mode", "")))
+    local_cases = int(validation_result.get("n_cases", 0))
+    if local_cases < 1:
+        raise ValueError("validation_result must contain at least one local benchmark case")
+    max_abs_error = float(validation_result.get("max_abs_error", float("nan")))
+    channel_agreement = float(validation_result.get("channel_agreement", float("nan")))
+    if not np.isfinite(max_abs_error) or max_abs_error < 0.0:
+        raise ValueError("validation_result max_abs_error must be finite and non-negative")
+    if not np.isfinite(channel_agreement) or not 0.0 <= channel_agreement <= 1.0:
+        raise ValueError("validation_result channel_agreement must be finite in [0, 1]")
+
+    weights = Path(weights_path) if weights_path is not None else None
+    weights_sha256 = ""
+    if weights is not None:
+        if not weights.is_file():
+            raise FileNotFoundError(f"neural-transport weights not found: {weights}")
+        weights_sha256 = _sha256_file(weights)
+
+    metrics: dict[str, object] = {}
+    tolerances: dict[str, object] = {}
+    reference_source = "none"
+    reference_dataset_id = ""
+    reference_artifact_sha256 = ""
+    reference_sample_count = 0
+    claim_allowed = False
+    if reference_artifact_path is not None:
+        if weights is None:
+            raise ValueError("reference admission requires the exact neural-transport weights_path")
+        from validation.validate_neural_transport_reference import validate_neural_transport_reference
+
+        artifact_path = Path(reference_artifact_path)
+        report = validate_neural_transport_reference(artifact_path, require_reference_artifacts=True)
+        if report["status"] != "pass":
+            raise ValueError("neural-transport reference artifact failed strict validation")
+        payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+        reference_source = _non_empty_text("source", str(payload["source"]))
+        if reference_source not in _NEURAL_TRANSPORT_REFERENCE_SOURCES:
+            raise ValueError("neural-transport reference source is not admissible")
+        if payload["trained_weights_sha256"].lower() != weights_sha256.lower():
+            raise ValueError("neural-transport reference artifact does not match supplied weights")
+        reference_dataset_id = _non_empty_text("reference_dataset_id", str(payload["reference_dataset_id"]))
+        reference_artifact_sha256 = _non_empty_text(
+            "reference_artifact_sha256", str(payload["reference_artifact_sha256"])
+        )
+        reference_sample_count = int(payload["reference_sample_count"])
+        if reference_sample_count < 1:
+            raise ValueError("reference_sample_count must be positive")
+        metrics = dict(payload["metrics"])
+        tolerances = dict(payload["tolerances"])
+        claim_allowed = True
+
+    claim_status = (
+        "matched neural-transport reference admission passed"
+        if claim_allowed
+        else "local surrogate regression evidence only; quantitative QuaLiKiz claims blocked"
+    )
+    return NeuralTransportClaimEvidence(
+        schema_version=_NEURAL_TRANSPORT_CLAIM_SCHEMA_VERSION,
+        model_id=_non_empty_text("model_id", model_id),
+        source=_non_empty_text("source", source),
+        source_id=_non_empty_text("source_id", source_id),
+        surrogate_mode=mode,
+        weights_path=str(weights) if weights is not None else "",
+        weights_sha256=weights_sha256,
+        internal_weights_checksum=str(validation_result.get("weights_checksum") or ""),
+        feature_schema=_NEURAL_TRANSPORT_FEATURE_SCHEMA,
+        reference_source=reference_source,
+        reference_dataset_id=reference_dataset_id,
+        reference_artifact_sha256=reference_artifact_sha256,
+        reference_sample_count=reference_sample_count,
+        local_case_count=local_cases,
+        local_max_abs_error=max_abs_error,
+        local_channel_agreement=channel_agreement,
+        local_per_channel_relative_rmse=_three_float_tuple(
+            "per_channel_relative_rmse", validation_result.get("per_channel_relative_rmse")
+        ),
+        local_profile_per_channel_relative_rmse=_three_float_tuple(
+            "profile_per_channel_relative_rmse", validation_result.get("profile_per_channel_relative_rmse")
+        ),
+        chi_i_rmse_m2_s=_finite_nonnegative_or_none("chi_i_rmse_m2_s", metrics.get("chi_i_rmse_m2_s")),
+        chi_e_rmse_m2_s=_finite_nonnegative_or_none("chi_e_rmse_m2_s", metrics.get("chi_e_rmse_m2_s")),
+        d_e_rmse_m2_s=_finite_nonnegative_or_none("D_e_rmse_m2_s", metrics.get("D_e_rmse_m2_s")),
+        chi_i_relative_mae=_finite_nonnegative_or_none("chi_i_relative_mae", metrics.get("chi_i_relative_mae")),
+        unstable_branch_accuracy=_unit_interval_or_none(
+            "unstable_branch_accuracy", metrics.get("unstable_branch_accuracy")
+        ),
+        chi_i_rmse_tolerance_m2_s=_finite_positive_or_none(
+            "chi_i_rmse_tolerance_m2_s", tolerances.get("chi_i_rmse_m2_s")
+        ),
+        chi_e_rmse_tolerance_m2_s=_finite_positive_or_none(
+            "chi_e_rmse_tolerance_m2_s", tolerances.get("chi_e_rmse_m2_s")
+        ),
+        d_e_rmse_tolerance_m2_s=_finite_positive_or_none("D_e_rmse_tolerance_m2_s", tolerances.get("D_e_rmse_m2_s")),
+        chi_i_relative_mae_tolerance=_finite_positive_or_none(
+            "chi_i_relative_mae_tolerance", tolerances.get("chi_i_relative_mae")
+        ),
+        unstable_branch_accuracy_min=_unit_interval_or_none(
+            "unstable_branch_accuracy_min", tolerances.get("unstable_branch_accuracy_min")
+        ),
+        quantitative_claim_allowed=claim_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_neural_transport_quantitative_claim_admissible(
+    evidence: NeuralTransportClaimEvidence,
+) -> NeuralTransportClaimEvidence:
+    """Return evidence only when strict matched-reference admission passed."""
+    if not isinstance(evidence, NeuralTransportClaimEvidence):
+        raise ValueError("evidence must be NeuralTransportClaimEvidence")
+    if evidence.schema_version != _NEURAL_TRANSPORT_CLAIM_SCHEMA_VERSION:
+        raise ValueError("neural-transport claim evidence schema_version is unsupported")
+    if not evidence.quantitative_claim_allowed:
+        raise ValueError("neural-transport quantitative claim is blocked without matched reference evidence")
+    return evidence
+
+
+def save_neural_transport_claim_evidence(evidence: NeuralTransportClaimEvidence, path: str | Path) -> None:
+    """Persist neural-transport claim evidence as deterministic JSON."""
+    if not isinstance(evidence, NeuralTransportClaimEvidence):
+        raise ValueError("evidence must be NeuralTransportClaimEvidence")
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 # Backward-compatible class name used by older interop/parity tests.
