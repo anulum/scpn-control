@@ -9,10 +9,124 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+_NEURAL_TURBULENCE_CLAIM_SCHEMA_VERSION = 1
+_NEURAL_TURBULENCE_REFERENCE_SOURCES = frozenset({"real_gk_campaign", "documented_public_reference"})
+_NEURAL_TURBULENCE_FEATURE_SCHEMA = (
+    "R_LTi",
+    "R_LTe",
+    "R_Ln",
+    "q",
+    "s_hat",
+    "alpha_MHD",
+    "Ti_Te",
+    "nu_star",
+    "Z_eff",
+    "epsilon",
+)
+
+
+@dataclass(frozen=True)
+class NeuralTurbulenceClaimEvidence:
+    """Serialisable admission evidence for neural-turbulence surrogate claims."""
+
+    schema_version: int
+    model_id: str
+    source: str
+    source_id: str
+    weights_path: str
+    weights_sha256: str
+    feature_schema: tuple[str, ...]
+    local_sample_count: int
+    local_q_i_rmse_gB: float
+    local_q_e_rmse_gB: float
+    local_gamma_e_rmse_gB: float
+    local_flux_relative_mae: float
+    local_critical_gradient_accuracy: float
+    reference_source: str
+    reference_dataset_id: str
+    reference_artifact_sha256: str
+    reference_sample_count: int
+    q_i_rmse_gB: float | None
+    q_e_rmse_gB: float | None
+    gamma_e_rmse_gB: float | None
+    flux_relative_mae: float | None
+    critical_gradient_accuracy: float | None
+    q_i_rmse_tolerance_gB: float | None
+    q_e_rmse_tolerance_gB: float | None
+    gamma_e_rmse_tolerance_gB: float | None
+    flux_relative_mae_tolerance: float | None
+    critical_gradient_accuracy_min: float | None
+    quantitative_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _sha256_file(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite and non-negative")
+    result = float(value)
+    if not np.isfinite(result) or result < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return result
+
+
+def _finite_positive_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite and positive")
+    result = float(value)
+    if not np.isfinite(result) or result <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
+    return result
+
+
+def _unit_interval_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite in [0, 1]")
+    result = float(value)
+    if not np.isfinite(result) or not 0.0 <= result <= 1.0:
+        raise ValueError(f"{name} must be finite in [0, 1]")
+    return result
+
+
+def _finite_nonnegative(name: str, value: object) -> float:
+    result = _finite_nonnegative_or_none(name, value)
+    if result is None:
+        raise ValueError(f"{name} must be present")
+    return result
+
+
+def _unit_interval(name: str, value: object) -> float:
+    result = _unit_interval_or_none(name, value)
+    if result is None:
+        raise ValueError(f"{name} must be present")
+    return result
 
 
 def _finite_scalar(name: str, value: float, *, positive: bool = False) -> float:
@@ -82,7 +196,10 @@ class QLKNNSurrogate:
 
     def _activate(self, x: np.ndarray) -> np.ndarray:
         if self.activation == "elu":
-            return np.asarray(np.where(x > 0, x, np.exp(x) - 1.0))
+            out = np.asarray(x, dtype=float).copy()
+            negative = out <= 0.0
+            out[negative] = np.exp(out[negative]) - 1.0
+            return out
         if self.activation == "relu":
             return np.asarray(np.maximum(0, x))
         if self.activation == "tanh":
@@ -419,3 +536,163 @@ class QLKNNTransportModel:
         Gamma_e_phys = Gamma_e_gB * Gamma_gB_phys
 
         return TransportFluxes(Q_i_phys, Q_e_phys, Gamma_e_phys)
+
+
+def cross_validate_neural_turbulence(
+    surrogate: QLKNNSurrogate | None = None,
+    *,
+    n_samples: int = 256,
+    seed: int = 20240531,
+) -> dict[str, Any]:
+    """Compare the surrogate against bounded analytic quasilinear targets."""
+    samples = int(n_samples)
+    if samples < 8:
+        raise ValueError("n_samples must be at least 8")
+    rng = np.random.RandomState(seed)
+    active = surrogate if surrogate is not None else QLKNNSurrogate(pretrained=True)
+    inputs = TrainingDataGenerator.generate_parameter_scan(samples, rng=rng)
+    reference = TrainingDataGenerator.generate_analytic_targets(inputs)
+    predicted = active.forward(inputs)
+    if predicted.shape != reference.shape or not np.all(np.isfinite(predicted)):
+        raise RuntimeError("neural turbulence surrogate produced invalid local benchmark outputs")
+    error = predicted - reference
+    rmse = np.sqrt(np.mean(error**2, axis=0))
+    mae = np.mean(np.abs(error), axis=0)
+    ref_mae = np.maximum(np.mean(np.abs(reference), axis=0), 1.0e-8)
+    rel_mae = mae / ref_mae
+    reference_active = np.any(reference > 1.0e-12, axis=1)
+    predicted_active = np.any(predicted > 1.0e-12, axis=1)
+    critical_gradient_accuracy = float(np.mean(reference_active == predicted_active))
+    return {
+        "n_samples": samples,
+        "seed": int(seed),
+        "Q_i_rmse_gB": float(rmse[0]),
+        "Q_e_rmse_gB": float(rmse[1]),
+        "Gamma_e_rmse_gB": float(rmse[2]),
+        "per_channel_relative_mae": [float(v) for v in rel_mae],
+        "flux_relative_mae": float(np.mean(rel_mae)),
+        "critical_gradient_accuracy": critical_gradient_accuracy,
+    }
+
+
+def neural_turbulence_claim_evidence(
+    validation_result: dict[str, Any],
+    *,
+    source: str,
+    source_id: str,
+    model_id: str = "neural_turbulence_qlknn_facade",
+    weights_path: str | Path | None = None,
+    reference_artifact_path: str | Path | None = None,
+) -> NeuralTurbulenceClaimEvidence:
+    """Build fail-closed evidence for neural-turbulence quantitative claims."""
+    local_samples = int(validation_result.get("n_samples", 0))
+    if local_samples < 1:
+        raise ValueError("validation_result must contain a positive n_samples")
+    weights = Path(weights_path) if weights_path is not None else None
+    weights_sha256 = ""
+    if weights is not None:
+        if not weights.is_file():
+            raise FileNotFoundError(f"neural-turbulence weights not found: {weights}")
+        weights_sha256 = _sha256_file(weights)
+
+    metrics: dict[str, object] = {}
+    tolerances: dict[str, object] = {}
+    reference_source = "none"
+    reference_dataset_id = ""
+    reference_artifact_sha256 = ""
+    reference_sample_count = 0
+    claim_allowed = False
+    if reference_artifact_path is not None:
+        if weights is None:
+            raise ValueError("reference admission requires the exact neural-turbulence weights_path")
+        from validation.validate_neural_turbulence_reference import validate_neural_turbulence_reference
+
+        artifact_path = Path(reference_artifact_path)
+        report = validate_neural_turbulence_reference(artifact_path, require_reference_artifacts=True)
+        if report["status"] != "pass":
+            raise ValueError("neural-turbulence reference artifact failed strict validation")
+        payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+        reference_source = _non_empty_text("source", str(payload["source"]))
+        if reference_source not in _NEURAL_TURBULENCE_REFERENCE_SOURCES:
+            raise ValueError("neural-turbulence reference source is not admissible")
+        if payload["trained_weights_sha256"].lower() != weights_sha256.lower():
+            raise ValueError("neural-turbulence reference artifact does not match supplied weights")
+        reference_dataset_id = _non_empty_text("reference_dataset_id", str(payload["reference_dataset_id"]))
+        reference_artifact_sha256 = _non_empty_text(
+            "reference_artifact_sha256", str(payload["reference_artifact_sha256"])
+        )
+        reference_sample_count = int(payload["reference_sample_count"])
+        if reference_sample_count < 1:
+            raise ValueError("reference_sample_count must be positive")
+        metrics = dict(payload["metrics"])
+        tolerances = dict(payload["tolerances"])
+        claim_allowed = True
+
+    claim_status = (
+        "matched neural-turbulence reference admission passed"
+        if claim_allowed
+        else "local analytic-target regression evidence only; quantitative turbulence claims blocked"
+    )
+    return NeuralTurbulenceClaimEvidence(
+        schema_version=_NEURAL_TURBULENCE_CLAIM_SCHEMA_VERSION,
+        model_id=_non_empty_text("model_id", model_id),
+        source=_non_empty_text("source", source),
+        source_id=_non_empty_text("source_id", source_id),
+        weights_path=str(weights) if weights is not None else "",
+        weights_sha256=weights_sha256,
+        feature_schema=_NEURAL_TURBULENCE_FEATURE_SCHEMA,
+        local_sample_count=local_samples,
+        local_q_i_rmse_gB=_finite_nonnegative("Q_i_rmse_gB", validation_result.get("Q_i_rmse_gB")),
+        local_q_e_rmse_gB=_finite_nonnegative("Q_e_rmse_gB", validation_result.get("Q_e_rmse_gB")),
+        local_gamma_e_rmse_gB=_finite_nonnegative("Gamma_e_rmse_gB", validation_result.get("Gamma_e_rmse_gB")),
+        local_flux_relative_mae=_finite_nonnegative("flux_relative_mae", validation_result.get("flux_relative_mae")),
+        local_critical_gradient_accuracy=_unit_interval(
+            "critical_gradient_accuracy", validation_result.get("critical_gradient_accuracy")
+        ),
+        reference_source=reference_source,
+        reference_dataset_id=reference_dataset_id,
+        reference_artifact_sha256=reference_artifact_sha256,
+        reference_sample_count=reference_sample_count,
+        q_i_rmse_gB=_finite_nonnegative_or_none("Q_i_rmse_gB", metrics.get("Q_i_rmse_gB")),
+        q_e_rmse_gB=_finite_nonnegative_or_none("Q_e_rmse_gB", metrics.get("Q_e_rmse_gB")),
+        gamma_e_rmse_gB=_finite_nonnegative_or_none("Gamma_e_rmse_gB", metrics.get("Gamma_e_rmse_gB")),
+        flux_relative_mae=_finite_nonnegative_or_none("flux_relative_mae", metrics.get("flux_relative_mae")),
+        critical_gradient_accuracy=_unit_interval_or_none(
+            "critical_gradient_accuracy", metrics.get("critical_gradient_accuracy")
+        ),
+        q_i_rmse_tolerance_gB=_finite_positive_or_none("Q_i_rmse_tolerance_gB", tolerances.get("Q_i_rmse_gB")),
+        q_e_rmse_tolerance_gB=_finite_positive_or_none("Q_e_rmse_tolerance_gB", tolerances.get("Q_e_rmse_gB")),
+        gamma_e_rmse_tolerance_gB=_finite_positive_or_none(
+            "Gamma_e_rmse_tolerance_gB", tolerances.get("Gamma_e_rmse_gB")
+        ),
+        flux_relative_mae_tolerance=_finite_positive_or_none(
+            "flux_relative_mae_tolerance", tolerances.get("flux_relative_mae")
+        ),
+        critical_gradient_accuracy_min=_unit_interval_or_none(
+            "critical_gradient_accuracy_min", tolerances.get("critical_gradient_accuracy_min")
+        ),
+        quantitative_claim_allowed=claim_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_neural_turbulence_quantitative_claim_admissible(
+    evidence: NeuralTurbulenceClaimEvidence,
+) -> NeuralTurbulenceClaimEvidence:
+    """Return evidence only when strict matched-reference admission passed."""
+    if not isinstance(evidence, NeuralTurbulenceClaimEvidence):
+        raise ValueError("evidence must be NeuralTurbulenceClaimEvidence")
+    if evidence.schema_version != _NEURAL_TURBULENCE_CLAIM_SCHEMA_VERSION:
+        raise ValueError("neural-turbulence claim evidence schema_version is unsupported")
+    if not evidence.quantitative_claim_allowed:
+        raise ValueError("neural-turbulence quantitative claim is blocked without matched reference evidence")
+    return evidence
+
+
+def save_neural_turbulence_claim_evidence(evidence: NeuralTurbulenceClaimEvidence, path: str | Path) -> None:
+    """Persist neural-turbulence claim evidence as deterministic JSON."""
+    if not isinstance(evidence, NeuralTurbulenceClaimEvidence):
+        raise ValueError("evidence must be NeuralTurbulenceClaimEvidence")
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")

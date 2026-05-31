@@ -306,6 +306,8 @@ def run_digital_twin(
     actuator_drift_std: float = 0.0,
     actuator_tau_steps: float = 0.0,
     actuator_rate_limit: float = 2.0,
+    n_e: float = 1.0e20,
+    Z_eff: float = 1.5,
     rng: np.random.Generator | None = None,
 ) -> dict[str, Any]:
     """
@@ -328,6 +330,8 @@ def run_digital_twin(
     actuator_drift_std = _require_non_negative_finite("actuator_drift_std", actuator_drift_std)
     actuator_tau_steps = _require_non_negative_finite("actuator_tau_steps", actuator_tau_steps)
     actuator_rate_limit = _require_non_negative_finite("actuator_rate_limit", actuator_rate_limit)
+    n_e = _require_non_negative_finite("n_e", n_e)
+    Z_eff = _require_non_negative_finite("Z_eff", Z_eff)
     if not np.isfinite(sensor_dropout_prob) or sensor_dropout_prob < 0.0 or sensor_dropout_prob > 1.0:
         raise ValueError("sensor_dropout_prob must be finite and in [0, 1].")
     local_rng = _resolve_rng(seed=int(seed), rng=rng)
@@ -335,7 +339,7 @@ def run_digital_twin(
         logger.info("--- SCPN 2D TOKAMAK DIGITAL TWIN + NEURAL CONTROL ---")
 
     topo = TokamakTopology()
-    plasma = Plasma2D(topo, gyro_surrogate=gyro_surrogate)
+    plasma = Plasma2D(topo, gyro_surrogate=gyro_surrogate, n_e=n_e, Z_eff=Z_eff)
 
     state_dim = GRID_SIZE  # midplane radial samples
     brain = SimpleNeuralNet(state_dim, HIDDEN_SIZE, 1, rng=local_rng)
@@ -520,6 +524,8 @@ def run_digital_twin(
         "actuator_drift_std": actuator_drift_std,
         "actuator_tau_steps": actuator_tau_steps,
         "actuator_rate_limit": actuator_rate_limit,
+        "n_e": n_e,
+        "Z_eff": Z_eff,
         "sensor_dropouts_total": int(sensor_dropouts_total),
         "sensor_dropout_rate": float(sensor_dropouts_total / (steps * GRID_SIZE)),
         "sensor_bias_mean_abs": float(np.mean(sensor_bias_mean_abs_history)) if sensor_bias_mean_abs_history else 0.0,

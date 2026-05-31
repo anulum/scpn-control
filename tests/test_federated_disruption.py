@@ -19,13 +19,19 @@ import numpy as np
 import pytest
 
 from scpn_control.control.federated_disruption import (
+    DifferentialPrivacyConfig,
     MACHINE_PROFILES,
     N_FEATURES,
     FederatedConfig,
     FederatedServer,
+    PrivacyLedgerEntry,
     _init_mlp_weights,
+    compose_privacy_epsilon,
+    create_facility_clients_from_arrays,
     create_machine_clients,
     differential_privacy_clip,
+    gaussian_mechanism_epsilon,
+    run_synthetic_multifacility_benchmark,
 )
 
 
@@ -58,6 +64,49 @@ class TestMachineClients:
     def test_unknown_machine_rejected(self):
         with pytest.raises(ValueError, match="Unknown machine"):
             create_machine_clients([{"machine": "TOKAMAK-X"}])
+
+
+class TestFacilityArrayClients:
+    def test_create_facility_clients_from_arrays_preserves_boundaries(self):
+        clients = _make_clients(("DIII-D", "JET"), seed=11)
+        datasets = {
+            client.machine: {
+                "X_train": client.X_train,
+                "y_train": client.y_train,
+                "X_test": client.X_test,
+                "y_test": client.y_test,
+            }
+            for client in clients
+        }
+        restored = create_facility_clients_from_arrays(datasets, learning_rate=0.02)
+        assert [client.machine for client in restored] == ["DIII-D", "JET"]
+        assert restored[0].learning_rate == pytest.approx(0.02)
+
+    def test_create_facility_clients_rejects_bad_feature_shape(self):
+        with pytest.raises(ValueError, match="X_train"):
+            create_facility_clients_from_arrays(
+                {
+                    "DIII-D": {
+                        "X_train": np.zeros((4, N_FEATURES - 1)),
+                        "y_train": np.zeros(4),
+                        "X_test": np.zeros((2, N_FEATURES)),
+                        "y_test": np.zeros(2),
+                    }
+                }
+            )
+
+    def test_create_facility_clients_rejects_non_binary_labels(self):
+        with pytest.raises(ValueError, match="binary disruption labels"):
+            create_facility_clients_from_arrays(
+                {
+                    "DIII-D": {
+                        "X_train": np.zeros((4, N_FEATURES)),
+                        "y_train": np.array([0.0, 1.0, 0.5, 1.0]),
+                        "X_test": np.zeros((2, N_FEATURES)),
+                        "y_test": np.zeros(2),
+                    }
+                }
+            )
 
 
 # ── FedAvg aggregation ───────────────────────────────────────────────
@@ -93,6 +142,14 @@ class TestFedAvg:
         server = FederatedServer(cfg)
         with pytest.raises(ValueError, match="at least one"):
             server.aggregate([])
+
+    def test_zero_sample_weight_rejected(self):
+        rng = np.random.default_rng(1)
+        w = _init_mlp_weights(rng)
+        cfg = FederatedConfig(machines=["DIII-D", "JET"])
+        server = FederatedServer(cfg)
+        with pytest.raises(ValueError, match="positive client sample counts"):
+            server.aggregate([{"weights": w, "n_samples": 0}])
 
 
 # ── FedProx ──────────────────────────────────────────────────────────
@@ -217,6 +274,33 @@ class TestDifferentialPrivacy:
         noised = differential_privacy_clip(grads, max_norm=10.0, noise_sigma=1.0, rng=rng)
         assert float(np.std(noised["w"])) > 0.1
 
+    def test_gaussian_accountant_composes_linearly(self):
+        epsilon = gaussian_mechanism_epsilon(2.0, 1e-5)
+        assert epsilon > 0.0
+        assert compose_privacy_epsilon(2.0, 1e-5, 3) == pytest.approx(3.0 * epsilon)
+
+    def test_dp_round_records_privacy_ledger(self):
+        clients = _make_clients(("DIII-D", "JET"), seed=123)
+        dp_config = DifferentialPrivacyConfig(
+            max_update_norm=0.05,
+            noise_multiplier=1.5,
+            delta=1e-5,
+            seed=9,
+        )
+        cfg = FederatedConfig(
+            n_rounds=2,
+            local_epochs=1,
+            machines=["DIII-D", "JET"],
+            dp_config=dp_config,
+        )
+        server = FederatedServer(cfg, seed=3)
+        result = server.run_round(clients)
+        assert isinstance(result["privacy"], PrivacyLedgerEntry)
+        assert result["privacy"].participating_clients == 2
+        assert result["privacy"].delta == pytest.approx(1e-5)
+        assert server.privacy_summary()["rounds"] == 1
+        assert server.privacy_summary()["epsilon"] == pytest.approx(result["privacy"].epsilon_spent)
+
 
 # ── Data heterogeneity convergence ───────────────────────────────────
 
@@ -253,6 +337,34 @@ class TestSerialisation:
                 atol=1e-12,
             )
         assert restored.config.aggregation == "fedavg"
+
+    def test_dp_state_round_trip_preserves_privacy_ledger(self):
+        clients = _make_clients(("DIII-D", "JET"), seed=33)
+        cfg = FederatedConfig(
+            machines=["DIII-D", "JET"],
+            dp_config=DifferentialPrivacyConfig(max_update_norm=0.05, noise_multiplier=2.0, delta=1e-5, seed=4),
+        )
+        server = FederatedServer(cfg, seed=5)
+        server.run_round(clients)
+        restored = FederatedServer.from_state(json.loads(json.dumps(server.get_state())))
+        assert restored.config.dp_config is not None
+        assert restored.privacy_summary()["epsilon"] == pytest.approx(server.privacy_summary()["epsilon"])
+        assert restored.privacy_ledger[0].participating_clients == 2
+
+
+class TestSyntheticMultiFacilityBenchmark:
+    def test_benchmark_reports_bounded_synthetic_evidence(self):
+        summary = run_synthetic_multifacility_benchmark(
+            machines=("DIII-D", "JET", "KSTAR"),
+            n_rounds=2,
+            local_epochs=1,
+            dp_config=DifferentialPrivacyConfig(max_update_norm=0.1, noise_multiplier=2.0, delta=1e-5, seed=1),
+        )
+        assert summary.evidence_kind == "synthetic_multi_facility"
+        assert summary.machines == ("DIII-D", "JET", "KSTAR")
+        assert 0.0 <= summary.mean_accuracy <= 1.0
+        assert np.isfinite(summary.mean_loss)
+        assert summary.privacy_epsilon == pytest.approx(compose_privacy_epsilon(2.0, 1e-5, 2))
 
 
 class TestConfigValidation:

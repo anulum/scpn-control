@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added a public production-readiness boundary that separates
+  production-oriented library engineering from facility deployment, external
+  validation, measured-shot validation, and certification claims.
 - Hardened fail-closed physics and mathematics boundaries across MHD,
   pedestal, edge, transport, orbit-following, scenario, and uncertainty
   surfaces without promoting unsupported facility or full-fidelity claims.
@@ -14,6 +17,96 @@
 - Persisted differentiable transport campaign metadata and added a replay guard
   that rejects backend, grid, boundary, closure, tolerance, and equilibrium
   drift before controller-tuning reruns.
+- Added differentiable transport source-schedule gradients so controller
+  tuning can optimise additive heating, fuelling, and impurity-source inputs
+  through the same JAX Crank-Nicolson facade as transport coefficients.
+- Added a differentiable transport gradient audit that compares JAX transport
+  coefficient and source-schedule gradients against sampled finite-difference
+  perturbations before controller-tuning admission.
+- Added differentiable transport gradient-latency reporting for the audited
+  controller-tuning admission path with persisted bounded benchmark artefacts.
+- Wired the NMPC transport-tuning path to require that gradient audit by
+  default and to persist the audit result with each coefficient update.
+- Added audited NMPC source-schedule tuning for additive heating, fuelling, and
+  impurity-source controls with explicit finite source bounds.
+- Added RZIP vertical-stability calibration evidence and fail-closed
+  facility-claim admission with bounded local benchmark artefacts.
+- Added resistive-wall-mode feedback claim evidence and fail-closed
+  facility-claim admission with bounded wall, rotation, coil, and latency
+  provenance reports.
+- Added EFIT-lite reconstruction claim evidence and fail-closed facility-claim
+  admission with bounded diagnostic and shape provenance reports.
+- Added kinetic-EFIT pressure and q-profile claim evidence with fail-closed
+  facility-claim admission for matched pressure, q-profile, anisotropy,
+  diagnostic, profile, fast-ion, MSE-calibration, and interpolation provenance.
+- Added VMEC-lite spectral facade claim evidence with fail-closed full-VMEC
+  admission for matched Fourier geometry, rotational transform, residual, and
+  convergence provenance.
+- Added orbit-following claim evidence with fail-closed external-code
+  admission for matched banana-width, first-orbit-loss, particle, geometry,
+  collision-model, and loss-boundary provenance.
+- Added uncertainty-quantification claim evidence with fail-closed calibrated
+  predictive-UQ admission for matched central values, sigma statistics, seed,
+  prior, scenario, propagation-chain, and sensitivity provenance.
+- Added density-control claim evidence with fail-closed facility-calibrated
+  admission for matched Greenwald fraction, particle inventory, geometry,
+  transport, actuator, diagnostic, and CFL provenance.
+- Added neural-equilibrium claim evidence with fail-closed predictive-claim
+  admission for matched P-EFIT or documented public reference artefacts,
+  weight checksums, flux, pressure, q-profile, boundary, and axis tolerances.
+- Added neural-transport claim evidence with fail-closed quantitative
+  admission for matched QuaLiKiz or documented public reference artefacts,
+  weight checksums, QLKNN-10D feature ordering, diffusivity errors, and branch
+  accuracy.
+- Added neural-turbulence claim evidence with fail-closed quantitative
+  admission for matched gyrokinetic campaign or documented public reference
+  artefacts, weight checksums, QLKNN-class feature ordering, gyro-Bohm flux
+  errors, and critical-gradient accuracy.
+- Added disruption-mitigation claim evidence with fail-closed mitigation
+  admission for measured, external-benchmark, or documented public reference
+  artefacts covering warning lead time, mitigation outcome, halo-current
+  envelope, runaway-beam envelope, and tritium-breeding-ratio metrics.
+- Added free-boundary tracking claim evidence with fail-closed facility-control
+  admission for matched public, measured-replay, or external equilibrium
+  artefacts covering shape, X-point, divertor, coil-current, response-rank,
+  latency, and supervisor provenance.
+- Added DT burn-control claim evidence with fail-closed reactor-control
+  admission for matched public, integrated-transport benchmark, or measured
+  burn replay artefacts covering alpha power, Q, Lawson margin, burn fraction,
+  reactivity exponent, and controller-limit provenance.
+- Added volt-second claim evidence with fail-closed pulse-duration admission
+  for matched public, measured loop-voltage replay, or external scenario
+  artefacts covering total flux, flat-top duration, Ejima flux, bootstrap
+  current, and budget-margin provenance.
+- Added current-drive claim evidence with fail-closed external deposition
+  admission for matched public, ray-tracing, Fokker-Planck, or measured
+  deposition artefacts covering absorbed power, driven current, deposition
+  centroid, peak current density, and NBI slowing-down provenance.
+- Added mu-synthesis claim evidence with fail-closed validated robust-control
+  admission for matched public, external mu-toolbox, or measured replay
+  artefacts covering mu upper bounds, robustness margin, controller gain,
+  D-scaling, and closed-loop spectral-abscissa provenance.
+- Hardened SCPN formal verification with algebraic place-invariant proofs and
+  bounded temporal response and recurrence specifications over all bounded
+  firing paths.
+- Hardened federated disruption prediction with per-facility array ingestion,
+  facility-update differential privacy accounting, serialisable privacy
+  ledgers, and a deterministic synthetic multi-facility benchmark report. This
+  remains bounded synthetic evidence, not measured cross-facility validation.
+- Added neural equilibrium synthetic pretraining with deterministic
+  JAX-compatible weights, benchmark reports, and a fail-closed real EFIT/P-EFIT
+  fine-tuning admission gate backed by persisted reference artefacts.
+- Added digital-twin online model updating with fail-closed TRANSP/TSC
+  simulator artifact metadata validation, deterministic Bayesian optimisation
+  over bounded density, effective-charge, and actuator parameters, and a
+  synthetic online-update benchmark report.
+- Hardened the gyrokinetic online learner with OOD-threshold sample admission,
+  auditable retraining decisions, persisted update reports, and a deterministic
+  synthetic online-retraining benchmark.
+- Added integrated-scenario coupling audits with deterministic replay metadata,
+  module-by-module exchange records, timestep consistency checks, and bounded
+  current and thermal-energy diagnostics while preserving the external
+  validation claim boundary.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.
@@ -36,6 +129,23 @@
 - `pre-commit run --all-files`
 - `python tools/check_test_quality_policy.py`
 - `python validation/validate_physics_traceability.py --registry validation/physics_traceability.json --json-out`
+- `python validation/benchmark_federated_disruption.py`
+- `python validation/benchmark_neural_equilibrium_pretraining.py`
+- `python validation/benchmark_differentiable_transport_latency.py`
+- `python validation/benchmark_rzip_calibration.py`
+- `python validation/benchmark_rwm_claims.py`
+- `python validation/benchmark_efit_lite_claims.py`
+- `python validation/benchmark_kinetic_efit_claims.py`
+- `python validation/benchmark_vmec_lite_claims.py`
+- `python validation/benchmark_orbit_following_claims.py`
+- `python validation/benchmark_uq_claims.py`
+- `python validation/benchmark_density_control_claims.py`
+- `python validation/benchmark_neural_transport_claims.py`
+- `python validation/benchmark_neural_turbulence_claims.py`
+- `python validation/benchmark_disruption_mitigation_claims.py`
+- `python validation/benchmark_digital_twin_online_update.py`
+- `python validation/benchmark_gk_online_learner.py`
+- `python validation/benchmark_integrated_scenario_coupling.py`
 - `python tools/capability_manifest.py --check`
 - `python -m tools.check_generated_traceability`
 

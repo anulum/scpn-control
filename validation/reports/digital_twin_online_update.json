@@ -1,0 +1,34 @@
+{
+  "baseline_loss": 25.48563487560276,
+  "best_loss": 0.0051346622584041695,
+  "best_parameters": {
+    "Z_eff": 2.916291391172395,
+    "actuator_rate_limit": 0.24866154945778568,
+    "actuator_tau_steps": 2.938375170638419,
+    "n_e": 8.762008946738561e+19
+  },
+  "claim_boundary": "Bounded synthetic online-update benchmark only. TRANSP/TSC coupling requires validated external simulator artifacts before measured replay claims.",
+  "evaluated_points": 18,
+  "evidence_kind": "bounded_online_update",
+  "loss_history": [
+    0.6256747434549662,
+    1.3641949128057342,
+    0.7575251173914657,
+    0.0051346622584041695,
+    1.8792493908054564,
+    1.7909869198635444,
+    18.413045633133773,
+    1.1677881334877225,
+    0.7025489378132245,
+    0.23781182490230793,
+    2.0015853524895655,
+    0.45523443348359055,
+    0.007892569241769141,
+    0.01756951334011983,
+    0.3759477115377532,
+    0.042927856618307336,
+    0.20517773857155694,
+    0.06886752749070653
+  ],
+  "source": "synthetic_digital_twin_reference"
+}

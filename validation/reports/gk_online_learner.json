@@ -1,0 +1,11 @@
+{
+  "accepted": true,
+  "claim_boundary": "Synthetic online learner evidence only. Immutable external GK campaign artefacts are required before quantitative gyrokinetic retraining claims.",
+  "evidence_kind": "bounded_synthetic_online_retraining",
+  "generation": 2,
+  "schema_version": "1.0",
+  "train_samples": 36,
+  "val_loss": 0.023998366075908314,
+  "validation_samples": 12,
+  "weights_returned": true
+}

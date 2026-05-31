@@ -13,7 +13,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -23,6 +25,14 @@ from scpn_control.control.realtime_efit import (
     RealtimeEFIT,
     ReconstructionResult,
 )
+
+
+_KINETIC_EFIT_CLAIM_SCHEMA_VERSION = 1
+_FACILITY_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "efit_reference", "p_efit_reference", "measured_discharge"}
+)
+_BOUNDED_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *_FACILITY_REFERENCE_SOURCES})
+_KINETIC_INTERPOLATION_GEOMETRY = "normalised_elliptic_rho"
 
 
 class FastIonPressure:
@@ -68,6 +78,187 @@ class KineticReconstructionResult(ReconstructionResult):
     q_profile: np.ndarray
     beta_fast: float
     sigma_anisotropy: np.ndarray
+
+
+@dataclass(frozen=True)
+class KineticEFITClaimEvidence:
+    """Serialisable provenance and reference-comparison evidence for kinetic-EFIT claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    diagnostic_source: str
+    profile_source: str
+    fast_ion_source: str
+    mse_calibration_source: str
+    model_id: str
+    interpolation_geometry: str
+    n_te_points: int
+    n_ne_points: int
+    n_ti_points: int
+    n_mse_points: int
+    fast_ion_energy_keV: float
+    fast_ion_density_fraction: float
+    anisotropy_sigma: float
+    pressure_consistency: float
+    beta_fast: float
+    q_axis: float
+    q_edge: float
+    pressure_relative_error: float | None
+    q_profile_relative_error: float | None
+    anisotropy_abs_error: float | None
+    pressure_relative_tolerance: float
+    q_profile_relative_tolerance: float
+    anisotropy_abs_tolerance: float
+    facility_claim_allowed: bool
+    claim_status: str
+
+
+def _finite_float(name: str, value: float) -> float:
+    out = float(value)
+    if not np.isfinite(out):
+        raise ValueError(f"{name} must be finite")
+    return out
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _relative_profile_error(name: str, observed: np.ndarray, reference: np.ndarray | None) -> float | None:
+    if reference is None:
+        return None
+    ref = np.asarray(reference, dtype=float)
+    obs = np.asarray(observed, dtype=float)
+    if ref.shape != obs.shape or not np.all(np.isfinite(ref)):
+        raise ValueError(f"{name} reference must be finite and match the reconstructed profile shape")
+    denominator = max(float(np.linalg.norm(ref)), 1e-30)
+    return float(np.linalg.norm(obs - ref) / denominator)
+
+
+def kinetic_efit_claim_evidence(
+    result: KineticReconstructionResult,
+    kinetic: KineticConstraints,
+    fast_ions: FastIonPressure,
+    *,
+    source: str,
+    source_id: str,
+    diagnostic_source: str,
+    profile_source: str,
+    fast_ion_source: str,
+    mse_calibration_source: str,
+    model_id: str = "bounded_kinetic_efit",
+    reference_pressure: np.ndarray | None = None,
+    reference_q_profile: np.ndarray | None = None,
+    reference_anisotropy_sigma: float | None = None,
+    pressure_relative_tolerance: float = 0.05,
+    q_profile_relative_tolerance: float = 0.05,
+    anisotropy_abs_tolerance: float = 0.05,
+) -> KineticEFITClaimEvidence:
+    """Build fail-closed kinetic-EFIT evidence for bounded or facility claims.
+
+    Facility claims require a recognised facility reference source plus matched
+    pressure, q-profile, and anisotropy references inside declared tolerances.
+    Synthetic regression evidence is retained as bounded controller evidence
+    only and is never promoted to a facility-grade P-EFIT claim.
+    """
+
+    source_clean = _non_empty_text("source", source)
+    if source_clean not in _BOUNDED_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_BOUNDED_REFERENCE_SOURCES))
+        raise ValueError(f"source must be one of: {allowed}")
+
+    pressure_tolerance = _finite_float("pressure_relative_tolerance", pressure_relative_tolerance)
+    q_tolerance = _finite_float("q_profile_relative_tolerance", q_profile_relative_tolerance)
+    anisotropy_tolerance = _finite_float("anisotropy_abs_tolerance", anisotropy_abs_tolerance)
+    if pressure_tolerance <= 0.0 or q_tolerance <= 0.0 or anisotropy_tolerance <= 0.0:
+        raise ValueError("reference tolerances must be positive")
+
+    p_kinetic = np.asarray(result.p_kinetic, dtype=float)
+    q_profile = np.asarray(result.q_profile, dtype=float)
+    sigma_profile = np.asarray(result.sigma_anisotropy, dtype=float)
+    if (
+        p_kinetic.ndim != 1
+        or q_profile.ndim != 1
+        or sigma_profile.ndim != 1
+        or p_kinetic.size == 0
+        or q_profile.size == 0
+        or sigma_profile.size == 0
+        or not np.all(np.isfinite(p_kinetic))
+        or not np.all(np.isfinite(q_profile))
+        or not np.all(np.isfinite(sigma_profile))
+    ):
+        raise ValueError("kinetic-EFIT result profiles must be non-empty finite one-dimensional arrays")
+
+    fast_ion_energy = _finite_float("fast_ion_energy_keV", fast_ions.E_fast_keV)
+    fast_ion_fraction = _finite_float("fast_ion_density_fraction", fast_ions.n_fast_frac)
+    anisotropy_sigma = _finite_float("anisotropy_sigma", fast_ions.sigma)
+    if fast_ion_energy <= 0.0 or fast_ion_fraction < 0.0 or anisotropy_sigma >= 1.0:
+        raise ValueError("fast-ion evidence requires positive energy, non-negative density fraction, and sigma < 1")
+
+    pressure_error = _relative_profile_error("pressure", p_kinetic, reference_pressure)
+    q_error = _relative_profile_error("q_profile", q_profile, reference_q_profile)
+    anisotropy_error = None
+    if reference_anisotropy_sigma is not None:
+        anisotropy_error = abs(
+            float(np.mean(sigma_profile)) - _finite_float("reference_anisotropy_sigma", reference_anisotropy_sigma)
+        )
+
+    references_pass = False
+    if pressure_error is not None and q_error is not None and anisotropy_error is not None:
+        references_pass = (
+            pressure_error <= pressure_tolerance and q_error <= q_tolerance and anisotropy_error <= anisotropy_tolerance
+        )
+    facility_claim_allowed = source_clean in _FACILITY_REFERENCE_SOURCES and references_pass
+    claim_status = "facility_reference_matched" if facility_claim_allowed else "bounded_controller_evidence"
+
+    return KineticEFITClaimEvidence(
+        schema_version=_KINETIC_EFIT_CLAIM_SCHEMA_VERSION,
+        source=source_clean,
+        source_id=_non_empty_text("source_id", source_id),
+        diagnostic_source=_non_empty_text("diagnostic_source", diagnostic_source),
+        profile_source=_non_empty_text("profile_source", profile_source),
+        fast_ion_source=_non_empty_text("fast_ion_source", fast_ion_source),
+        mse_calibration_source=_non_empty_text("mse_calibration_source", mse_calibration_source),
+        model_id=_non_empty_text("model_id", model_id),
+        interpolation_geometry=_KINETIC_INTERPOLATION_GEOMETRY,
+        n_te_points=len(kinetic.Te_points),
+        n_ne_points=len(kinetic.ne_points),
+        n_ti_points=len(kinetic.Ti_points),
+        n_mse_points=len(kinetic.mse_points),
+        fast_ion_energy_keV=fast_ion_energy,
+        fast_ion_density_fraction=fast_ion_fraction,
+        anisotropy_sigma=anisotropy_sigma,
+        pressure_consistency=_finite_float("pressure_consistency", result.pressure_consistency),
+        beta_fast=_finite_float("beta_fast", result.beta_fast),
+        q_axis=float(q_profile[0]),
+        q_edge=float(q_profile[-1]),
+        pressure_relative_error=pressure_error,
+        q_profile_relative_error=q_error,
+        anisotropy_abs_error=anisotropy_error,
+        pressure_relative_tolerance=pressure_tolerance,
+        q_profile_relative_tolerance=q_tolerance,
+        anisotropy_abs_tolerance=anisotropy_tolerance,
+        facility_claim_allowed=bool(facility_claim_allowed),
+        claim_status=claim_status,
+    )
+
+
+def assert_kinetic_efit_facility_claim_admissible(evidence: KineticEFITClaimEvidence) -> None:
+    """Raise when kinetic-EFIT evidence is insufficient for a facility claim."""
+
+    if not evidence.facility_claim_allowed:
+        raise ValueError("kinetic-EFIT facility claim requires matched pressure, q-profile, and anisotropy references")
+
+
+def save_kinetic_efit_claim_evidence(evidence: KineticEFITClaimEvidence, path: str | Path) -> None:
+    """Persist kinetic-EFIT claim evidence as deterministic JSON."""
+
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def mse_pitch_angle(B_R: float, B_Z: float, B_phi: float, v_beam: float, R: float) -> float:

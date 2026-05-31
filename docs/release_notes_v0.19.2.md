@@ -32,6 +32,9 @@ external-evidence requirements remain blocked.
   pellet-injection error boundaries.
 - Differentiable transport campaign provenance, schema-versioned metadata
   persistence, and replay-drift rejection before controller-tuning reruns.
+- Differentiable source-schedule gradients for additive heating, fuelling, and
+  impurity-source inputs through the existing JAX Crank-Nicolson transport
+  facade.
 - JAX gyrokinetic stiffness-closure monotonicity under the CI JAX backend,
   retained as a bounded controller-tuning surrogate rather than a quantitative
   transport claim.

@@ -1,20 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Neural Transport Core
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Neural Transport (pure-function coverage)
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Neural Transport Core Tests
 """Tests for MLP internals, weight loading, and profile prediction."""
 
+import hashlib
+import json
 import tempfile
 
 import numpy as np
@@ -22,15 +16,20 @@ import pytest
 
 from scpn_control.core.neural_transport import (
     MLPWeights,
+    NeuralTransportClaimEvidence,
     NeuralTransportClosureResult,
     NeuralTransportModel,
     TransportFluxes,
     TransportInputs,
     _mlp_forward,
+    assert_neural_transport_quantitative_claim_admissible,
     _relu,
     _softplus,
     critical_gradient_model,
+    cross_validate_neural_transport,
+    neural_transport_claim_evidence,
     neural_transport_closure_profiles,
+    save_neural_transport_claim_evidence,
 )
 
 
@@ -413,3 +412,128 @@ class TestNeuralTransportClosureProfiles:
 
         with pytest.raises(ValueError, match=match):
             neural_transport_closure_profiles(*profiles, model=NeuralTransportModel(auto_discover=False))
+
+
+class TestNeuralTransportClaimEvidence:
+    def _write_weights(self, path):
+        w = _make_weights()
+        np.savez(
+            path,
+            w1=w.w1,
+            b1=w.b1,
+            w2=w.w2,
+            b2=w.b2,
+            w3=w.w3,
+            b3=w.b3,
+            input_mean=w.input_mean,
+            input_std=w.input_std,
+            output_scale=w.output_scale,
+            version=np.array(1),
+        )
+
+    def _reference_artifact(self, weights_sha: str) -> dict[str, object]:
+        return {
+            "schema_version": "1.0",
+            "source": "documented_public_reference",
+            "model_id": "neural_transport_qlknn_facade",
+            "model_version": "test",
+            "trained_weights_sha256": weights_sha,
+            "reference_dataset_id": "bounded-qlknn-fixture",
+            "reference_artifact_sha256": "c" * 64,
+            "executed_at": "2026-05-31T00:00:00Z",
+            "reference_url": "https://example.invalid/qlknn-reference",
+            "feature_schema": [
+                "R_LTi",
+                "R_LTe",
+                "R_Ln",
+                "q",
+                "s_hat",
+                "alpha",
+                "Ti_Te",
+                "Zeff",
+                "collisionality",
+                "beta_e",
+            ],
+            "units": {
+                "chi_i": "m^2/s",
+                "chi_e": "m^2/s",
+                "D_e": "m^2/s",
+                "input_gradients": "dimensionless",
+            },
+            "reference_sample_count": 64,
+            "metrics": {
+                "chi_i_rmse_m2_s": 0.02,
+                "chi_e_rmse_m2_s": 0.03,
+                "D_e_rmse_m2_s": 0.01,
+                "chi_i_relative_mae": 0.04,
+                "unstable_branch_accuracy": 0.96,
+            },
+            "tolerances": {
+                "chi_i_rmse_m2_s": 0.05,
+                "chi_e_rmse_m2_s": 0.05,
+                "D_e_rmse_m2_s": 0.03,
+                "chi_i_relative_mae": 0.08,
+                "unstable_branch_accuracy_min": 0.90,
+            },
+        }
+
+    def test_claim_evidence_records_local_fallback_boundary(self, tmp_path):
+        result = cross_validate_neural_transport(NeuralTransportModel(auto_discover=False))
+
+        evidence = neural_transport_claim_evidence(
+            result,
+            source="synthetic_regression_reference",
+            source_id="tests/test_neural_transport_core.py::fallback_claim_boundary",
+        )
+
+        assert isinstance(evidence, NeuralTransportClaimEvidence)
+        assert evidence.quantitative_claim_allowed is False
+        assert evidence.surrogate_mode == "analytic_fallback"
+        assert evidence.reference_source == "none"
+        assert evidence.local_case_count == result["n_cases"]
+        assert evidence.local_channel_agreement == pytest.approx(1.0)
+        assert evidence.local_max_abs_error == pytest.approx(0.0)
+        assert evidence.local_per_channel_relative_rmse == pytest.approx((0.0, 0.0, 0.0))
+        with pytest.raises(ValueError, match="blocked without matched reference"):
+            assert_neural_transport_quantitative_claim_admissible(evidence)
+
+        out = tmp_path / "neural_transport_claim.json"
+        save_neural_transport_claim_evidence(evidence, out)
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        assert payload["claim_status"].startswith("local surrogate regression evidence only")
+
+    def test_reference_admission_requires_matching_weight_checksum(self, tmp_path):
+        weights = tmp_path / "weights.npz"
+        self._write_weights(weights)
+        model = NeuralTransportModel(weights)
+        result = cross_validate_neural_transport(model)
+        weights_sha = hashlib.sha256(weights.read_bytes()).hexdigest()
+        artifact = tmp_path / "reference.json"
+        artifact.write_text(json.dumps(self._reference_artifact(weights_sha)), encoding="utf-8")
+
+        evidence = neural_transport_claim_evidence(
+            result,
+            source="documented_public_reference",
+            source_id="tests/test_neural_transport_core.py::reference_claim_boundary",
+            weights_path=weights,
+            reference_artifact_path=artifact,
+        )
+
+        assert evidence.quantitative_claim_allowed is True
+        assert evidence.reference_source == "documented_public_reference"
+        assert evidence.reference_sample_count == 64
+        assert evidence.weights_sha256 == weights_sha
+        assert evidence.chi_i_rmse_m2_s == pytest.approx(0.02)
+        assert evidence.unstable_branch_accuracy == pytest.approx(0.96)
+        assert assert_neural_transport_quantitative_claim_admissible(evidence) is evidence
+
+        bad_payload = self._reference_artifact("d" * 64)
+        artifact.write_text(json.dumps(bad_payload), encoding="utf-8")
+        with pytest.raises(ValueError, match="does not match supplied weights"):
+            neural_transport_claim_evidence(
+                result,
+                source="documented_public_reference",
+                source_id="tests/test_neural_transport_core.py::reference_claim_boundary",
+                weights_path=weights,
+                reference_artifact_path=artifact,
+            )

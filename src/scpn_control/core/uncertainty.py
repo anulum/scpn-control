@@ -20,7 +20,9 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import cast
 
 import numpy as np
@@ -29,6 +31,16 @@ from scpn_control.core.scaling_laws import load_ipb98y2_coefficients
 
 # Load central values and uncertainties from the global registry
 _COEFFS = load_ipb98y2_coefficients()
+_UQ_CLAIM_SCHEMA_VERSION = 1
+_CALIBRATED_UQ_REFERENCE_SOURCES = frozenset(
+    {
+        "documented_public_reference",
+        "measured_scenario_ensemble",
+        "external_uq_reference",
+        "facility_validation_campaign",
+    }
+)
+_BOUNDED_UQ_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *_CALIBRATED_UQ_REFERENCE_SOURCES})
 IPB98_CENTRAL = {
     "C": _COEFFS["C"],
     "alpha_I": _COEFFS["exponents"]["Ip_MA"],
@@ -134,6 +146,179 @@ class UQResult:
 
     # Raw samples (for custom analysis)
     n_samples: int = 0
+
+
+@dataclass(frozen=True)
+class UQClaimEvidence:
+    """Serialisable provenance and reference-comparison evidence for UQ claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    scenario_source: str
+    prior_source: str
+    propagation_chain: str
+    sensitivity_source: str
+    model_id: str
+    seed: int | None
+    n_samples: int
+    tau_E_s: float
+    P_fusion_MW: float
+    Q: float
+    tau_E_sigma: float
+    P_fusion_sigma: float
+    Q_sigma: float
+    tau_E_percentiles_ordered: bool
+    P_fusion_percentiles_ordered: bool
+    Q_percentiles_ordered: bool
+    finite_outputs: bool
+    fuel_ion_fraction: float
+    dP_dn_MW_per_1e19m3: float
+    dP_dT_MW_per_keV: float
+    tau_E_relative_error: float | None
+    P_fusion_relative_error: float | None
+    Q_relative_error: float | None
+    sigma_relative_error: float | None
+    relative_tolerance: float
+    sigma_relative_tolerance: float
+    calibrated_uq_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _ordered(values: np.ndarray) -> bool:
+    arr = np.asarray(values, dtype=float)
+    return bool(arr.ndim == 1 and arr.size >= 2 and np.all(np.isfinite(arr)) and np.all(np.diff(arr) >= -1e-12))
+
+
+def _relative_scalar_error(name: str, observed: float, reference: float | None) -> float | None:
+    if reference is None:
+        return None
+    ref = _finite_scalar(name, reference, nonnegative=True)
+    obs = _finite_scalar(f"observed_{name}", observed, nonnegative=True)
+    return abs(obs - ref) / max(abs(ref), 1e-30)
+
+
+def uq_claim_evidence(
+    scenario: PlasmaScenario,
+    result: UQResult | FullChainUQResult,
+    *,
+    source: str,
+    source_id: str,
+    scenario_source: str,
+    prior_source: str,
+    propagation_chain: str,
+    sensitivity_source: str,
+    seed: int | None,
+    model_id: str = "bounded_full_chain_uq",
+    reference_tau_E: float | None = None,
+    reference_P_fusion: float | None = None,
+    reference_Q: float | None = None,
+    reference_tau_E_sigma: float | None = None,
+    relative_tolerance: float = 0.05,
+    sigma_relative_tolerance: float = 0.1,
+) -> UQClaimEvidence:
+    """Build fail-closed evidence for bounded or calibrated UQ claims."""
+
+    scenario = _validate_scenario(scenario)
+    source_clean = _non_empty_text("source", source)
+    if source_clean not in _BOUNDED_UQ_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_BOUNDED_UQ_REFERENCE_SOURCES))
+        raise ValueError(f"source must be one of: {allowed}")
+    if seed is not None and (isinstance(seed, bool) or not isinstance(seed, (int, np.integer))):
+        raise ValueError("seed must be an integer or None")
+
+    rel_tol = _finite_scalar("relative_tolerance", relative_tolerance, positive=True)
+    sigma_tol = _finite_scalar("sigma_relative_tolerance", sigma_relative_tolerance, positive=True)
+    n_samples = _validate_n_samples(result.n_samples)
+    tau = _finite_scalar("tau_E", result.tau_E, positive=True)
+    pfus = _finite_scalar("P_fusion", result.P_fusion, nonnegative=True)
+    q_gain = _finite_scalar("Q", result.Q, nonnegative=True)
+    tau_sigma = _finite_scalar("tau_E_sigma", result.tau_E_sigma, nonnegative=True)
+    pfus_sigma = _finite_scalar("P_fusion_sigma", result.P_fusion_sigma, nonnegative=True)
+    q_sigma = _finite_scalar("Q_sigma", result.Q_sigma, nonnegative=True)
+
+    tau_ordered = _ordered(result.tau_E_percentiles)
+    pfus_ordered = _ordered(result.P_fusion_percentiles)
+    q_ordered = _ordered(result.Q_percentiles)
+    finite_outputs = all(np.isfinite(value) for value in (tau, pfus, q_gain, tau_sigma, pfus_sigma, q_sigma)) and (
+        tau_ordered and pfus_ordered and q_ordered
+    )
+    sensitivities = compute_fusion_sensitivities(scenario, tau)
+    dP_dn = _finite_scalar("dP_dn", sensitivities["dP_dn"])
+    dP_dT = _finite_scalar("dP_dT", sensitivities["dP_dT"])
+
+    tau_error = _relative_scalar_error("reference_tau_E", tau, reference_tau_E)
+    pfus_error = _relative_scalar_error("reference_P_fusion", pfus, reference_P_fusion)
+    q_error = _relative_scalar_error("reference_Q", q_gain, reference_Q)
+    sigma_error = _relative_scalar_error("reference_tau_E_sigma", tau_sigma, reference_tau_E_sigma)
+    references_pass = (
+        tau_error is not None
+        and pfus_error is not None
+        and q_error is not None
+        and sigma_error is not None
+        and tau_error <= rel_tol
+        and pfus_error <= rel_tol
+        and q_error <= rel_tol
+        and sigma_error <= sigma_tol
+        and finite_outputs
+    )
+    calibrated_claim_allowed = source_clean in _CALIBRATED_UQ_REFERENCE_SOURCES and references_pass
+    claim_status = "calibrated_uq_reference_matched" if calibrated_claim_allowed else "bounded_uq_evidence"
+
+    return UQClaimEvidence(
+        schema_version=_UQ_CLAIM_SCHEMA_VERSION,
+        source=source_clean,
+        source_id=_non_empty_text("source_id", source_id),
+        scenario_source=_non_empty_text("scenario_source", scenario_source),
+        prior_source=_non_empty_text("prior_source", prior_source),
+        propagation_chain=_non_empty_text("propagation_chain", propagation_chain),
+        sensitivity_source=_non_empty_text("sensitivity_source", sensitivity_source),
+        model_id=_non_empty_text("model_id", model_id),
+        seed=None if seed is None else int(seed),
+        n_samples=n_samples,
+        tau_E_s=tau,
+        P_fusion_MW=pfus,
+        Q=q_gain,
+        tau_E_sigma=tau_sigma,
+        P_fusion_sigma=pfus_sigma,
+        Q_sigma=q_sigma,
+        tau_E_percentiles_ordered=tau_ordered,
+        P_fusion_percentiles_ordered=pfus_ordered,
+        Q_percentiles_ordered=q_ordered,
+        finite_outputs=finite_outputs,
+        fuel_ion_fraction=float(scenario.fuel_ion_fraction),
+        dP_dn_MW_per_1e19m3=dP_dn,
+        dP_dT_MW_per_keV=dP_dT,
+        tau_E_relative_error=tau_error,
+        P_fusion_relative_error=pfus_error,
+        Q_relative_error=q_error,
+        sigma_relative_error=sigma_error,
+        relative_tolerance=rel_tol,
+        sigma_relative_tolerance=sigma_tol,
+        calibrated_uq_claim_allowed=bool(calibrated_claim_allowed),
+        claim_status=claim_status,
+    )
+
+
+def assert_uq_calibrated_claim_admissible(evidence: UQClaimEvidence) -> None:
+    """Raise when UQ evidence is insufficient for a calibrated predictive claim."""
+
+    if not evidence.calibrated_uq_claim_allowed:
+        raise ValueError("calibrated UQ claim requires matched central-value and sigma references")
+
+
+def save_uq_claim_evidence(evidence: UQClaimEvidence, path: str | Path) -> None:
+    """Persist UQ claim evidence as deterministic JSON."""
+
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:

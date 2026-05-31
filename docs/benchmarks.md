@@ -121,6 +121,317 @@ Hybrid accuracy (`validation/benchmark_hybrid_accuracy.py`) measures the
 correction layer convergence over 20 transport steps with periodic GK
 spot-checks.
 
+## RZIP Calibration Benchmark
+
+`validation/benchmark_rzip_calibration.py` publishes bounded local regression
+evidence for the RZIP rigid-plasma vertical-stability plant. The generated
+report records the declared vertical inertia, wall time constant, growth rate,
+growth time, and explicit facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/rzip_calibration.json`
+- `validation/reports/rzip_calibration.md`
+
+Facility vertical-control claims still require documented public, external-code,
+or measured-discharge RZIP reference evidence that passes the strict admission
+gate.
+
+## RWM Claim-Admission Benchmark
+
+`validation/benchmark_rwm_claims.py` publishes bounded local regression evidence
+for the resistive-wall-mode feedback model. The generated report records beta
+limits, wall-gap correction, rotation, sensor/coil topology, controller latency,
+coil coupling, open-loop growth, closed-loop growth, and the explicit
+facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/rwm_claims.json`
+- `validation/reports/rwm_claims.md`
+
+Facility RWM-control claims still require documented public, external MHD, or
+measured-shot evidence that passes the strict admission gate.
+
+## Free-boundary Tracking Claim-Admission Benchmark
+
+`validation/benchmark_free_boundary_tracking_claims.py` publishes bounded
+repository-regression evidence for the direct free-boundary tracking claim
+boundary. The generated report records true objective residuals, response-rank
+health, actuator bounds, latency-compensation status, supervisor actions, and
+the explicit facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/free_boundary_tracking_claims.json`
+- `validation/reports/free_boundary_tracking_claims.md`
+
+Facility free-boundary tracking claims still require documented public,
+measured-replay, or external equilibrium benchmark evidence that passes the
+strict admission gate.
+
+## EFIT-lite Claim-Admission Benchmark
+
+`validation/benchmark_efit_lite_claims.py` publishes bounded synthetic
+regression evidence for the fixed-boundary EFIT-lite reconstruction path. The
+generated report records diagnostic provenance, grid shape, flux-loop and
+B-probe counts, Rogowski radius, reconstructed current, q95, beta_pol, li, and
+the explicit facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/efit_lite_claims.json`
+- `validation/reports/efit_lite_claims.md`
+
+Facility equilibrium claims still require matched EFIT/P-EFIT, documented
+public, or measured-discharge evidence for psi, Ip, q95, beta_pol, and li that
+passes the strict admission gate.
+
+## Kinetic EFIT Claim-Admission Benchmark
+
+`validation/benchmark_kinetic_efit_claims.py` publishes bounded synthetic
+regression evidence for kinetic pressure, q-profile, anisotropy, diagnostic
+provenance, profile provenance, fast-ion provenance, MSE calibration, and
+normalised elliptic-rho interpolation geometry.
+
+Report artefacts:
+
+- `validation/reports/kinetic_efit_claims.json`
+- `validation/reports/kinetic_efit_claims.md`
+
+Facility kinetic-EFIT claims still require matched EFIT/P-EFIT, documented
+public, or measured-discharge references for pressure, q-profile, and
+anisotropy that pass the strict admission gate.
+
+## Differentiable Transport Gradient-Latency Benchmark
+
+The controller-tuning facade measures the audited admission path for JAX
+transport gradients via `validation/benchmark_differentiable_transport_latency.py`.
+The timed path includes gradients for transport coefficients and source
+schedules plus the sampled independent finite-difference audit used before
+controller-tuning admission.
+
+Report artefacts:
+
+- `validation/reports/differentiable_transport_latency.json`
+- `validation/reports/differentiable_transport_latency.md`
+
+The report is local latency evidence for the audited gradient-admission path.
+It is not a real-time control-loop guarantee and does not replace external
+transport validation.
+
+## VMEC-lite Claim-Admission Benchmark
+
+`validation/benchmark_vmec_lite_claims.py` publishes bounded synthetic
+regression evidence for the fixed-boundary VMEC-lite spectral facade. The
+generated report records Fourier truncation, field periods, pressure and
+rotational-transform profile provenance, current-assumption provenance,
+positive sampled major-radius bounds, force residual, and q-domain.
+
+Report artefacts:
+
+- `validation/reports/vmec_lite_claims.json`
+- `validation/reports/vmec_lite_claims.md`
+
+Full VMEC or 3D MHD equilibrium claims still require matched VMEC, documented
+public, external-MHD, or measured-stellarator references for `R_mn`, `Z_mn`,
+rotational transform, convergence, and residual tolerance.
+
+## Neural-equilibrium Claim-Admission Benchmark
+
+`validation/benchmark_neural_equilibrium_pretraining.py` publishes bounded
+synthetic pretraining evidence for the neural-equilibrium surrogate and records
+claim-admission evidence around the generated weights. The generated report
+captures sample count, grid shape, PCA component count, explained variance,
+synthetic MSE, Grad-Shafranov residual, weight checksum, and the explicit
+predictive-claim boundary.
+
+Generated artefacts:
+
+- `validation/reports/neural_equilibrium_pretraining.json`
+- `validation/reports/neural_equilibrium_pretraining.md`
+- `validation/reports/neural_equilibrium_synthetic_pretrain.npz`
+
+Facility predictive claims remain blocked until a strict P-EFIT or documented
+public reference artefact validates the same weight checksum and declares
+psi, pressure, q-profile, boundary, and magnetic-axis errors inside stated
+tolerances.
+
+## Neural-transport Claim-Admission Benchmark
+
+`validation/benchmark_neural_transport_claims.py` publishes bounded local
+regression evidence for the neural-transport claim boundary. The generated
+report records the deterministic analytic-fallback benchmark cases, local
+channel agreement, local diffusivity errors, feature-schema contract, and the
+explicit quantitative-claim admission status.
+
+Generated artefacts:
+
+- `validation/reports/neural_transport_claims.json`
+- `validation/reports/neural_transport_claims.md`
+
+Quantitative QuaLiKiz, QLKNN, or documented-reference neural-transport claims
+remain blocked until a strict reference artefact validates the same neural
+weight checksum and declares chi_i, chi_e, D_e, and unstable-branch metrics
+inside stated tolerances.
+
+## Neural-turbulence Claim-Admission Benchmark
+
+`validation/benchmark_neural_turbulence_claims.py` publishes bounded local
+regression evidence for the neural-turbulence claim boundary. The generated
+report records the deterministic analytic-target sample count, gyro-Bohm
+Q_i/Q_e/Gamma_e errors, critical-gradient activity agreement, feature-schema
+contract, and explicit quantitative-claim admission status.
+
+Generated artefacts:
+
+- `validation/reports/neural_turbulence_claims.json`
+- `validation/reports/neural_turbulence_claims.md`
+
+Quantitative gyrokinetic, QuaLiKiz, or documented-reference turbulence claims
+remain blocked until a strict reference artefact validates the same neural
+weight checksum and declares Q_i, Q_e, Gamma_e, flux-relative error, and
+critical-gradient metrics inside stated tolerances.
+
+## Orbit-following Claim-Admission Benchmark
+
+`validation/benchmark_orbit_following_claims.py` publishes bounded synthetic
+regression evidence for guiding-centre orbit-following claim admission. The
+generated report records geometry provenance, particle provenance,
+collision-model provenance, loss-boundary provenance, banana width,
+first-orbit loss, and ensemble classification counts.
+
+Report artefacts:
+
+- `validation/reports/orbit_following_claims.json`
+- `validation/reports/orbit_following_claims.md`
+
+External orbit-following claims still require matched external-code,
+documented-public, published-benchmark, or measured fast-ion diagnostic
+references for banana width and loss fraction.
+
+## UQ Claim-Admission Benchmark
+
+`validation/benchmark_uq_claims.py` publishes bounded synthetic regression
+evidence for full-chain uncertainty quantification claim admission. The
+generated report records scenario provenance, prior provenance, propagation
+chain, seed, sample count, ordered percentile checks, finite outputs, D-T fuel
+dilution, and density/temperature sensitivity provenance.
+
+Report artefacts:
+
+- `validation/reports/uq_claims.json`
+- `validation/reports/uq_claims.md`
+
+Calibrated predictive-UQ claims still require matched measured scenario,
+documented-public, external-UQ, or facility validation references for central
+values and sigma statistics.
+
+## Density-control Claim-Admission Benchmark
+
+`validation/benchmark_density_control_claims.py` publishes bounded synthetic
+regression evidence for density-control claim admission. The generated report
+records geometry provenance, transport provenance, actuator provenance,
+diagnostic provenance, CFL limiting, Greenwald fraction, source integral,
+particle inventory change, and actuator command bounds.
+
+Report artefacts:
+
+- `validation/reports/density_control_claims.json`
+- `validation/reports/density_control_claims.md`
+
+Facility-calibrated density-control claims still require matched measured
+discharge, documented-public, external particle-balance, or facility replay
+references for Greenwald fraction and particle inventory change.
+
+## Burn-control Claim-Admission Benchmark
+
+`validation/benchmark_burn_control_claims.py` publishes bounded repository
+regression evidence for the DT burn-control and alpha-heating claim boundary.
+The generated report records alpha power, auxiliary power, Q, Lawson margin,
+burn fraction, reactivity exponent, thermal stability, controller limits, and
+the explicit reactor-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/burn_control_claims.json`
+- `validation/reports/burn_control_claims.md`
+
+Reactor burn-control claims still require documented public, integrated
+transport benchmark, or measured burn replay references for alpha power, Q,
+Lawson margin, burn fraction, and reactivity-exponent agreement.
+
+## Volt-second Claim-Admission Benchmark
+
+`validation/benchmark_volt_second_claims.py` publishes bounded repository
+regression evidence for the scenario volt-second accounting claim boundary. The
+generated report records ramp, flat-top, and ramp-down flux consumption, Ejima
+startup flux, bootstrap-current correction, remaining flat-top time, budget
+margin, and the explicit facility-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/volt_second_claims.json`
+- `validation/reports/volt_second_claims.md`
+
+Pulse-duration or central-solenoid commissioning claims still require documented
+public, measured loop-voltage replay, or external scenario benchmark references
+for total flux, flat-top duration, Ejima flux, bootstrap current, and budget
+margin agreement.
+
+## Current-drive Claim-Admission Benchmark
+
+`validation/benchmark_current_drive_claims.py` publishes bounded repository
+regression evidence for the ECCD, LHCD, and NBI current-drive claim boundary.
+The generated report records grid-normalised absorbed power, total driven
+current, peak current density, source powers, efficiency coefficients, NBI
+slowing-down metadata, and the explicit external-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/current_drive_claims.json`
+- `validation/reports/current_drive_claims.md`
+
+Ray-traced, Fokker-Planck, or measured-deposition current-drive claims still
+require strict reference artifacts for total power, driven current, deposition
+centroid, peak current density, and NBI slowing-down agreement.
+
+## Mu-synthesis Claim-Admission Benchmark
+
+`validation/benchmark_mu_synthesis_claims.py` publishes bounded repository
+regression evidence for the static D-scaled structured-singular-value analysis
+claim boundary. The generated report records plant dimensions, uncertainty
+blocks, mu upper bound, robustness margin, controller gain norm, D-scalings,
+closed-loop spectral abscissa, and the explicit validated-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/mu_synthesis_claims.json`
+- `validation/reports/mu_synthesis_claims.md`
+
+Full frequency-dependent D-K synthesis claims still require documented public,
+external mu-toolbox, or measured control replay references for mu upper bound,
+robustness margin, controller gain, D-scaling, and closed-loop spectral-abscissa
+agreement.
+
+## Disruption-mitigation Claim-Admission Benchmark
+
+`validation/benchmark_disruption_mitigation_claims.py` publishes deterministic
+bounded ensemble evidence for the halo-current and runaway-electron mitigation
+model. The generated report records ensemble seed, run count, prevention rate,
+P95 halo current, P95 runaway current, mean toroidal-peaking-factor product,
+ITER-limit summary, and the explicit mitigation-claim admission status.
+
+Generated artefacts:
+
+- `validation/reports/disruption_mitigation_claims.json`
+- `validation/reports/disruption_mitigation_claims.md`
+
+Measured disruption-mitigation claims remain blocked until strict measured,
+external-benchmark, or documented public reference artefacts validate warning
+lead time, mitigation outcome, halo-current envelope, runaway-beam envelope,
+and tritium-breeding-ratio metrics inside stated tolerances.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:

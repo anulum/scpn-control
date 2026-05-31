@@ -12,9 +12,12 @@ from __future__ import annotations
 
 from scpn_control.scpn.formal_verification import (
     AlwaysBounded,
+    AlwaysEventuallyMarked,
     EventuallyFires,
+    FireLeadsToMarking,
     FormalPetriNetVerifier,
     NeverCoMarked,
+    PlaceInvariant,
     verify_formal_contracts,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
@@ -67,17 +70,90 @@ def test_transition_liveness_distinguishes_dead_transition() -> None:
     assert report.violations[0].property_name == "transition_liveness"
 
 
+def test_place_invariant_proves_token_conservation_structurally() -> None:
+    report = FormalPetriNetVerifier(_transfer_net()).prove_place_invariants(
+        [PlaceInvariant("total_token_conserved", {"source": 1.0, "sink": 1.0})],
+        max_depth=3,
+    )
+
+    assert report.holds is True
+    assert report.checked_specs == ["total_token_conserved"]
+
+
+def test_place_invariant_reports_transition_that_breaks_conservation() -> None:
+    net = StochasticPetriNet()
+    net.add_place("source", initial_tokens=1.0)
+    net.add_place("sink", initial_tokens=0.0)
+    net.add_transition("duplicate", threshold=1.0)
+    net.add_arc("source", "duplicate", weight=1.0)
+    net.add_arc("duplicate", "sink", weight=2.0)
+    net.compile()
+
+    report = FormalPetriNetVerifier(net).prove_place_invariants(
+        [PlaceInvariant("total_token_conserved", {"source": 1.0, "sink": 1.0})],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.violations[0].property_name == "total_token_conserved"
+    assert report.violations[0].transition == "duplicate"
+    assert "changes invariant" in report.violations[0].message
+
+
 def test_temporal_specs_cover_always_eventually_and_never() -> None:
     specs = [
         AlwaysBounded("all_markings_safe", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
         EventuallyFires("move_eventually_fires", "move"),
         NeverCoMarked("exclusive_source_sink", "source", "sink", threshold=0.5),
+        AlwaysEventuallyMarked("sink_recoverable", "sink", threshold=0.5),
+        FireLeadsToMarking("move_marks_sink", "move", "sink", threshold=0.5, within=0),
     ]
 
     report = FormalPetriNetVerifier(_transfer_net()).verify_temporal_specs(specs, max_depth=2)
 
     assert report.holds is True
-    assert report.checked_specs == ["all_markings_safe", "move_eventually_fires", "exclusive_source_sink"]
+    assert report.checked_specs == [
+        "all_markings_safe",
+        "move_eventually_fires",
+        "exclusive_source_sink",
+        "sink_recoverable",
+        "move_marks_sink",
+    ]
+
+
+def test_temporal_response_checks_all_bounded_firing_paths() -> None:
+    net = StochasticPetriNet()
+    net.add_place("armed", initial_tokens=1.0)
+    net.add_place("safe", initial_tokens=0.0)
+    net.add_place("unsafe", initial_tokens=0.0)
+    net.add_transition("actuate", threshold=1.0)
+    net.add_transition("drop", threshold=1.0)
+    net.add_arc("armed", "actuate", weight=1.0)
+    net.add_arc("actuate", "safe", weight=1.0)
+    net.add_arc("armed", "drop", weight=1.0)
+    net.add_arc("drop", "unsafe", weight=1.0)
+    net.compile()
+
+    report = FormalPetriNetVerifier(net).verify_temporal_specs(
+        [FireLeadsToMarking("drop_must_mark_safe", "drop", "safe", threshold=0.5, within=0)],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.violations[0].transition == "drop"
+    assert report.violations[0].place == "safe"
+    assert report.violations[0].path == ["drop"]
+
+
+def test_temporal_recurrence_reports_nonrecoverable_marking() -> None:
+    report = FormalPetriNetVerifier(_transfer_net()).verify_temporal_specs(
+        [AlwaysEventuallyMarked("source_recovers", "source", threshold=0.5)],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.violations[0].property_name == "source_recovers"
+    assert report.violations[0].path == ["move"]
 
 
 def test_temporal_specs_return_actionable_counterexample() -> None:
@@ -103,3 +179,21 @@ def test_verify_formal_contracts_combines_safety_liveness_and_temporal_specs() -
     assert report.safety.holds is True
     assert report.liveness.holds is True
     assert report.temporal.holds is True
+
+
+def test_formal_verifier_rejects_non_integer_depth_and_nonfinite_bounds() -> None:
+    verifier = FormalPetriNetVerifier(_transfer_net())
+
+    try:
+        verifier.analyze_reachability(max_depth=True)
+    except ValueError as exc:
+        assert "max_depth" in str(exc)
+    else:
+        raise AssertionError("boolean max_depth must be rejected")
+
+    try:
+        verifier.prove_marking_bounds({"sink": (0.0, float("inf"))}, max_depth=2)
+    except ValueError as exc:
+        assert "numeric values" in str(exc)
+    else:
+        raise AssertionError("non-finite marking bounds must be rejected")

@@ -15,8 +15,10 @@ automatic rollback if performance degrades.
 
 from __future__ import annotations
 
+import json
 import logging
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
@@ -30,6 +32,8 @@ class TrainingSample:
 
     input_10d: NDArray[np.float64]  # shape (10,)
     target_3d: NDArray[np.float64]  # shape (3,): chi_e, chi_i, D_e
+    ood_score: float = 0.0
+    source: str = "gk_spot_check"
 
 
 @dataclass
@@ -41,6 +45,8 @@ class LearnerConfig:
     n_epochs: int = 10
     learning_rate: float = 1e-4
     max_generations: int = 50  # max retraining cycles before stopping
+    max_ood_score: float = 3.0
+    min_validation_improvement: float = 0.0
 
     def __post_init__(self) -> None:
         _require_int_at_least("buffer_size", self.buffer_size, minimum=2)
@@ -51,6 +57,27 @@ class LearnerConfig:
         _require_int_at_least("n_epochs", self.n_epochs, minimum=1)
         self.learning_rate = _require_positive_float("learning_rate", self.learning_rate)
         _require_int_at_least("max_generations", self.max_generations, minimum=0)
+        self.max_ood_score = _require_nonnegative_float("max_ood_score", self.max_ood_score)
+        self.min_validation_improvement = _require_nonnegative_float(
+            "min_validation_improvement", self.min_validation_improvement
+        )
+
+
+@dataclass(frozen=True)
+class RetrainDecision:
+    """Auditable retraining admission decision."""
+
+    generation: int
+    accepted: bool
+    val_loss: float
+    previous_best_val_loss: float
+    train_samples: int
+    validation_samples: int
+    buffer_size: int
+    reason: str
+    max_ood_score: float
+    learning_rate: float
+    n_epochs: int
 
 
 class OnlineLearner:
@@ -64,9 +91,21 @@ class OnlineLearner:
         self._weights_backup: dict | None = None
         self.retrain_history: list[dict] = []
 
-    def add_sample(self, input_10d: NDArray[np.float64], target_3d: NDArray[np.float64]) -> None:
+    def add_sample(
+        self,
+        input_10d: NDArray[np.float64],
+        target_3d: NDArray[np.float64],
+        *,
+        ood_score: float = 0.0,
+        source: str = "gk_spot_check",
+    ) -> None:
         input_arr = np.asarray(input_10d, dtype=np.float64)
         target_arr = np.asarray(target_3d, dtype=np.float64)
+        ood_value = _require_nonnegative_float("ood_score", ood_score)
+        if ood_value > self.config.max_ood_score:
+            raise ValueError("ood_score exceeds configured admission threshold")
+        if not isinstance(source, str) or not source.strip():
+            raise ValueError("source must be a non-empty string")
         if input_arr.shape != (10,):
             raise ValueError(f"input_10d must have shape (10,), received {input_arr.shape}")
         if target_arr.shape != (3,):
@@ -77,7 +116,14 @@ class OnlineLearner:
             raise ValueError("target_3d must contain only finite values")
         if np.any(target_arr < 0.0):
             raise ValueError("target_3d transport coefficients must be nonnegative")
-        self.buffer.append(TrainingSample(input_10d=input_arr.copy(), target_3d=target_arr.copy()))
+        self.buffer.append(
+            TrainingSample(
+                input_10d=input_arr.copy(),
+                target_3d=target_arr.copy(),
+                ood_score=ood_value,
+                source=source.strip(),
+            )
+        )
 
     @property
     def buffer_full(self) -> bool:
@@ -106,6 +152,15 @@ class OnlineLearner:
 
         if self.generation >= self.config.max_generations:
             _logger.info("Max retraining generations (%d) reached", self.config.max_generations)
+            self._append_decision(
+                accepted=False,
+                val_loss=float("nan"),
+                previous_best_val_loss=self._best_val_loss,
+                train_samples=0,
+                validation_samples=0,
+                buffer_size=len(self.buffer),
+                reason="max_generations_reached",
+            )
             return None
 
         n = len(self.buffer)
@@ -217,17 +272,89 @@ class OnlineLearner:
                 }
 
         # Rollback check
-        if best_val >= self._best_val_loss:
+        required_best = self._best_val_loss - self.config.min_validation_improvement
+        if best_val >= required_best:
             _logger.info("Validation loss did not improve (%.4f >= %.4f), rolling back", best_val, self._best_val_loss)
-            self.retrain_history.append({"generation": self.generation, "accepted": False, "val_loss": best_val})
+            self._append_decision(
+                accepted=False,
+                val_loss=best_val,
+                previous_best_val_loss=self._best_val_loss,
+                train_samples=n_train,
+                validation_samples=n_val,
+                buffer_size=n,
+                reason="validation_loss_not_improved",
+            )
             return None
 
+        previous_best = self._best_val_loss
         self._best_val_loss = best_val
         self.generation += 1
         self.buffer.clear()
-        self.retrain_history.append({"generation": self.generation, "accepted": True, "val_loss": best_val})
+        self._append_decision(
+            accepted=True,
+            val_loss=best_val,
+            previous_best_val_loss=previous_best,
+            train_samples=n_train,
+            validation_samples=n_val,
+            buffer_size=n,
+            reason="accepted",
+        )
         _logger.info("Retraining gen %d accepted, val_loss=%.6f", self.generation, best_val)
         return best_weights
+
+    def latest_decision(self) -> RetrainDecision | None:
+        """Return the latest retraining decision, if any."""
+        if not self.retrain_history:
+            return None
+        return RetrainDecision(**self.retrain_history[-1])
+
+    def save_retrain_report(self, path: str | Path) -> None:
+        """Persist retraining decisions and current learner state as JSON."""
+        report = {
+            "schema_version": "1.0",
+            "generation": self.generation,
+            "best_val_loss": self._best_val_loss,
+            "buffer_samples": len(self.buffer),
+            "config": {
+                "buffer_size": self.config.buffer_size,
+                "validation_fraction": self.config.validation_fraction,
+                "n_epochs": self.config.n_epochs,
+                "learning_rate": self.config.learning_rate,
+                "max_generations": self.config.max_generations,
+                "max_ood_score": self.config.max_ood_score,
+                "min_validation_improvement": self.config.min_validation_improvement,
+            },
+            "decisions": self.retrain_history,
+        }
+        output = Path(path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def _append_decision(
+        self,
+        *,
+        accepted: bool,
+        val_loss: float,
+        previous_best_val_loss: float,
+        train_samples: int,
+        validation_samples: int,
+        buffer_size: int,
+        reason: str,
+    ) -> None:
+        decision = RetrainDecision(
+            generation=self.generation + 1 if accepted else self.generation,
+            accepted=accepted,
+            val_loss=float(val_loss),
+            previous_best_val_loss=float(previous_best_val_loss),
+            train_samples=int(train_samples),
+            validation_samples=int(validation_samples),
+            buffer_size=int(buffer_size),
+            reason=reason,
+            max_ood_score=float(self.config.max_ood_score),
+            learning_rate=float(self.config.learning_rate),
+            n_epochs=int(self.config.n_epochs),
+        )
+        self.retrain_history.append(asdict(decision))
 
     def reset(self) -> None:
         self.buffer.clear()
@@ -248,3 +375,18 @@ def _require_positive_float(field: str, value: float) -> float:
     if not np.isfinite(scalar) or scalar <= 0.0:
         raise ValueError(f"{field} must be finite and positive")
     return scalar
+
+
+def _require_nonnegative_float(field: str, value: float) -> float:
+    scalar = float(value)
+    if not np.isfinite(scalar) or scalar < 0.0:
+        raise ValueError(f"{field} must be finite and nonnegative")
+    return scalar
+
+
+__all__ = [
+    "LearnerConfig",
+    "OnlineLearner",
+    "RetrainDecision",
+    "TrainingSample",
+]

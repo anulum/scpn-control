@@ -18,6 +18,7 @@ The NumPy path is deterministic and intentionally does not claim gradients.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,46 @@ class EquilibriumWeightedTransportGradient:
     chi_gradient: np.ndarray
     equilibrium_gradient: np.ndarray
     radial_weights: np.ndarray
+
+
+@dataclass(frozen=True)
+class TransportParameterGradients:
+    """JAX gradients of transport tracking loss for tunable transport inputs."""
+
+    loss: float
+    chi_gradient: np.ndarray
+    source_gradient: np.ndarray
+
+
+@dataclass(frozen=True)
+class TransportGradientAudit:
+    """Finite-difference audit of differentiable transport tuning gradients."""
+
+    loss: float
+    epsilon: float
+    tolerance: float
+    checked_indices: tuple[tuple[int, int], ...]
+    chi_max_abs_error: float
+    source_max_abs_error: float
+    passed: bool
+
+
+@dataclass(frozen=True)
+class TransportGradientLatencyReport:
+    """Latency evidence for audited differentiable transport tuning gradients."""
+
+    schema_version: int
+    backend: str
+    dtype: str
+    n_rho: int
+    channel_count: int
+    warmup_runs: int
+    timed_runs: int
+    p50_ms: float
+    p95_ms: float
+    max_ms: float
+    audit: TransportGradientAudit
+    claim_status: str
 
 
 @dataclass(frozen=True)
@@ -762,6 +803,375 @@ def transport_loss_gradient(
 
     loss, gradient = jax.value_and_grad(loss_for_chi)(jnp.asarray(chi_array, dtype=jnp.float64))
     return float(np.asarray(loss)), np.asarray(gradient)
+
+
+def transport_parameter_gradients(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+) -> TransportParameterGradients:
+    """Return JAX gradients with respect to ``chi`` and source schedules.
+
+    This is the controller-tuning primitive for differentiable auxiliary
+    heating, fuelling, and impurity-source schedules.  It keeps the same
+    four-channel Crank-Nicolson, source-term, core zero-gradient, and edge
+    Dirichlet contracts as :func:`differentiable_transport_step`; unlike
+    :func:`transport_loss_gradient`, it exposes gradients for both turbulent
+    transport coefficients and additive source terms.
+    """
+    if not _HAS_JAX or jax is None or jnp is None:
+        raise RuntimeError("transport_parameter_gradients requires JAX")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_profiles is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+
+    def loss_for_chi_and_sources(chi_candidate: Any, source_candidate: Any) -> Any:
+        return _tracking_loss_jax(
+            profile_array,
+            chi_candidate,
+            source_candidate,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            weight_array,
+        )
+
+    loss, gradients = jax.value_and_grad(loss_for_chi_and_sources, argnums=(0, 1))(
+        jnp.asarray(chi_array, dtype=jnp.float64),
+        jnp.asarray(source_array, dtype=jnp.float64),
+    )
+    chi_gradient, source_gradient = gradients
+    return TransportParameterGradients(
+        loss=float(np.asarray(loss)),
+        chi_gradient=np.asarray(chi_gradient),
+        source_gradient=np.asarray(source_gradient),
+    )
+
+
+def _gradient_audit_indices(
+    shape: tuple[int, int],
+    sample_indices: Any | None,
+) -> tuple[tuple[int, int], ...]:
+    if sample_indices is None:
+        radial_indices = sorted({1, shape[1] // 2, shape[1] - 2})
+        return tuple((channel, radial) for channel in range(shape[0]) for radial in radial_indices)
+    indices: list[tuple[int, int]] = []
+    for raw_index in sample_indices:
+        try:
+            channel = int(raw_index[0])
+            radial = int(raw_index[1])
+        except (TypeError, ValueError, IndexError) as exc:
+            raise ValueError("sample_indices must contain (channel, radial) pairs") from exc
+        if channel < 0 or channel >= shape[0] or radial < 0 or radial >= shape[1]:
+            raise ValueError("sample_indices contains an out-of-bounds transport index")
+        indices.append((channel, radial))
+    if not indices:
+        raise ValueError("sample_indices must contain at least one transport index")
+    return tuple(indices)
+
+
+def _central_difference_parameter(
+    base_loss: float,
+    parameter_array: np.ndarray,
+    index: tuple[int, int],
+    epsilon: float,
+    loss_fn: Any,
+) -> float:
+    if parameter_array[index] - epsilon < 0.0:
+        plus = parameter_array.copy()
+        plus[index] += epsilon
+        return (float(loss_fn(plus)) - base_loss) / epsilon
+    plus = parameter_array.copy()
+    minus = parameter_array.copy()
+    plus[index] += epsilon
+    minus[index] -= epsilon
+    return (float(loss_fn(plus)) - float(loss_fn(minus))) / (2.0 * epsilon)
+
+
+def audit_transport_parameter_gradients(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+    epsilon: float = 1.0e-5,
+    tolerance: float = 5.0e-4,
+    sample_indices: Any | None = None,
+) -> TransportGradientAudit:
+    """Audit JAX transport gradients against independent finite differences.
+
+    The audit is intentionally sampled rather than exhaustive so it can run in
+    controller-tuning admission checks. It evaluates deterministic interior
+    radial points for every channel by default and compares JAX gradients for
+    both turbulent transport coefficients and additive source schedules against
+    independently perturbed NumPy losses.
+    """
+    epsilon_value = float(epsilon)
+    tolerance_value = float(tolerance)
+    if not np.isfinite(epsilon_value) or epsilon_value <= 0.0:
+        raise ValueError("epsilon must be positive and finite")
+    if not np.isfinite(tolerance_value) or tolerance_value <= 0.0:
+        raise ValueError("tolerance must be positive and finite")
+    gradient_result = transport_parameter_gradients(
+        profiles,
+        chi,
+        sources,
+        target_profiles,
+        rho,
+        dt,
+        edge_values,
+        weights=weights,
+    )
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_profiles is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+    indices = _gradient_audit_indices(chi_array.shape, sample_indices)
+
+    def loss_for_chi(candidate: np.ndarray) -> float:
+        return float(
+            transport_tracking_loss(
+                profile_array,
+                candidate,
+                source_array,
+                target_array,
+                rho_array,
+                float(dt),
+                edge_array,
+                weights=weight_array,
+                use_jax=False,
+            )
+        )
+
+    def loss_for_sources(candidate: np.ndarray) -> float:
+        return float(
+            transport_tracking_loss(
+                profile_array,
+                chi_array,
+                candidate,
+                target_array,
+                rho_array,
+                float(dt),
+                edge_array,
+                weights=weight_array,
+                use_jax=False,
+            )
+        )
+
+    base_loss = loss_for_chi(chi_array)
+    chi_errors: list[float] = []
+    source_errors: list[float] = []
+    for index in indices:
+        chi_fd = _central_difference_parameter(base_loss, chi_array, index, epsilon_value, loss_for_chi)
+        source_fd = _central_difference_parameter(base_loss, source_array, index, epsilon_value, loss_for_sources)
+        chi_errors.append(abs(float(gradient_result.chi_gradient[index]) - chi_fd))
+        source_errors.append(abs(float(gradient_result.source_gradient[index]) - source_fd))
+    chi_max_error = max(chi_errors)
+    source_max_error = max(source_errors)
+    passed = bool(chi_max_error <= tolerance_value and source_max_error <= tolerance_value)
+    return TransportGradientAudit(
+        loss=gradient_result.loss,
+        epsilon=epsilon_value,
+        tolerance=tolerance_value,
+        checked_indices=indices,
+        chi_max_abs_error=float(chi_max_error),
+        source_max_abs_error=float(source_max_error),
+        passed=passed,
+    )
+
+
+def assert_transport_parameter_gradients_consistent(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+    epsilon: float = 1.0e-5,
+    tolerance: float = 5.0e-4,
+    sample_indices: Any | None = None,
+) -> TransportGradientAudit:
+    """Return the gradient audit or fail closed when consistency is violated."""
+    audit = audit_transport_parameter_gradients(
+        profiles,
+        chi,
+        sources,
+        target_profiles,
+        rho,
+        dt,
+        edge_values,
+        weights=weights,
+        epsilon=epsilon,
+        tolerance=tolerance,
+        sample_indices=sample_indices,
+    )
+    if not audit.passed:
+        raise ValueError(
+            "transport parameter gradient audit failed: "
+            f"chi_max_abs_error={audit.chi_max_abs_error:.6g}, "
+            f"source_max_abs_error={audit.source_max_abs_error:.6g}, "
+            f"tolerance={audit.tolerance:.6g}"
+        )
+    return audit
+
+
+def _percentile(sorted_values: list[float], percentile: float) -> float:
+    if not sorted_values:
+        raise ValueError("latency samples must not be empty")
+    if len(sorted_values) == 1:
+        return float(sorted_values[0])
+    rank = (len(sorted_values) - 1) * percentile
+    lower = int(np.floor(rank))
+    upper = int(np.ceil(rank))
+    if lower == upper:
+        return float(sorted_values[lower])
+    fraction = rank - lower
+    return float(sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction)
+
+
+def benchmark_transport_parameter_gradient_latency(
+    profiles: Any,
+    chi: Any,
+    sources: Any,
+    target_profiles: Any,
+    rho: Any,
+    dt: float,
+    edge_values: Any,
+    *,
+    weights: Any | None = None,
+    epsilon: float = 1.0e-5,
+    tolerance: float = 5.0e-4,
+    sample_indices: Any | None = None,
+    warmup_runs: int = 1,
+    timed_runs: int = 5,
+) -> TransportGradientLatencyReport:
+    """Measure audited JAX gradient-admission latency for controller tuning.
+
+    The measured path is intentionally the fail-closed admission contract:
+    JAX gradients for transport coefficients and source schedules plus sampled
+    independent finite-difference audit. The report is local timing evidence,
+    not a real-time control-loop guarantee.
+    """
+    warmups = int(warmup_runs)
+    repetitions = int(timed_runs)
+    if warmups < 0:
+        raise ValueError("warmup_runs must be non-negative")
+    if repetitions <= 0:
+        raise ValueError("timed_runs must be positive")
+    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
+        _validate_transport_inputs(
+            profiles,
+            chi,
+            sources,
+            rho,
+            dt,
+            edge_values,
+            target_profiles=target_profiles,
+            weights=weights,
+        )
+    )
+    if target_array is None:
+        raise ValueError("target_profiles is required")
+    if weight_array is None:
+        weight_array = np.ones(CHANNEL_COUNT)
+
+    def run_audit() -> TransportGradientAudit:
+        return assert_transport_parameter_gradients_consistent(
+            profile_array,
+            chi_array,
+            source_array,
+            target_array,
+            rho_array,
+            float(dt),
+            edge_array,
+            weights=weight_array,
+            epsilon=epsilon,
+            tolerance=tolerance,
+            sample_indices=sample_indices,
+        )
+
+    audit = run_audit()
+    for _ in range(warmups):
+        audit = run_audit()
+
+    latencies_ms: list[float] = []
+    for _ in range(repetitions):
+        start_ns = time.perf_counter_ns()
+        audit = run_audit()
+        latencies_ms.append((time.perf_counter_ns() - start_ns) / 1.0e6)
+
+    sorted_latencies = sorted(latencies_ms)
+    metadata = transport_campaign_metadata(
+        profile_array,
+        chi_array,
+        source_array,
+        rho_array,
+        float(dt),
+        edge_array,
+        backend="jax",
+        gradient_tolerance=tolerance,
+    )
+    return TransportGradientLatencyReport(
+        schema_version=1,
+        backend=metadata.backend,
+        dtype=metadata.dtype,
+        n_rho=metadata.n_rho,
+        channel_count=CHANNEL_COUNT,
+        warmup_runs=warmups,
+        timed_runs=repetitions,
+        p50_ms=_percentile(sorted_latencies, 0.50),
+        p95_ms=_percentile(sorted_latencies, 0.95),
+        max_ms=float(max(sorted_latencies)),
+        audit=audit,
+        claim_status="local audited gradient-admission latency only; not a real-time control-loop guarantee",
+    )
+
+
+def save_transport_gradient_latency_report(report: TransportGradientLatencyReport, path: str | Path) -> None:
+    """Persist differentiable transport gradient-latency evidence as JSON."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def equilibrium_weighted_transport_loss_gradient(

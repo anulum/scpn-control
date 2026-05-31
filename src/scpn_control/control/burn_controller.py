@@ -9,7 +9,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -28,6 +30,11 @@ E_FUS_J = 17.6e6 * 1.602176634e-19  # J
 # Lawson criterion (ignition): n τ_E T > 3×10^21 m^-3 s keV.
 # Lawson 1957, Proc. Phys. Soc. B 70, 6.
 LAWSON_TRIPLE_PRODUCT = 3.0e21  # m^-3 s keV
+_BURN_CLAIM_SCHEMA_VERSION = 1
+_FACILITY_BURN_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "integrated_transport_benchmark", "measured_burn_replay"}
+)
+_BOUNDED_BURN_REFERENCE_SOURCES = frozenset({"repository_burn_regression", *_FACILITY_BURN_REFERENCE_SOURCES})
 
 # Burn fraction reference: f_b ≈ a² n_DT <σv> / (4 v_th).
 # Wesson 2011, Eq. 1.7.3.
@@ -72,6 +79,256 @@ def _require_normalised_rho(rho: np.ndarray) -> np.ndarray:
     if rho_arr.size > 1 and np.any(np.diff(rho_arr) <= 0.0):
         raise ValueError("rho must be strictly increasing")
     return rho_arr
+
+
+@dataclass(frozen=True)
+class BurnControlClaimEvidence:
+    """Serialisable evidence for bounded or validated burn-control claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    model_id: str
+    R0_m: float
+    a_m: float
+    kappa: float
+    profile_points: int
+    ne_volume_average_1e20_m3: float
+    Te_volume_average_keV: float
+    Ti_volume_average_keV: float
+    P_alpha_MW: float
+    P_aux_MW: float
+    Q: float
+    lawson_triple_product: float
+    lawson_margin: float
+    burn_fraction: float
+    reactivity_exponent: float
+    thermally_stable: bool
+    controller_Q_target: float
+    controller_T_target_keV: float
+    controller_P_aux_max_MW: float
+    controller_command_MW: float
+    reference_source: str | None
+    reference_dataset_id: str | None
+    reference_artifact_sha256: str | None
+    reference_case_count: int | None
+    P_alpha_relative_error: float | None
+    Q_abs_error: float | None
+    lawson_margin_abs_error: float | None
+    burn_fraction_relative_error: float | None
+    reactivity_exponent_abs_error: float | None
+    P_alpha_relative_tolerance: float
+    Q_abs_tolerance: float
+    lawson_margin_abs_tolerance: float
+    burn_fraction_relative_tolerance: float
+    reactivity_exponent_abs_tolerance: float
+    reactor_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _weighted_average(values: np.ndarray, rho: np.ndarray) -> float:
+    rho_arr = _require_normalised_rho(rho)
+    value_arr = _require_nonnegative_profile("values", values, rho_arr.shape)
+    weights = rho_arr.copy()
+    if np.all(weights == 0.0):
+        return float(value_arr[0])
+    _trapz: Any = getattr(np, "trapezoid", None) or getattr(np, "trapz", None)
+    numerator = _trapz(value_arr * weights, rho_arr)
+    denominator = _trapz(weights, rho_arr)
+    return float(numerator / denominator)
+
+
+def _sha256_text(name: str, value: object) -> str:
+    text = _non_empty_text(name, str(value))
+    if len(text) != 64 or any(char not in "0123456789abcdefABCDEF" for char in text):
+        raise ValueError(f"{name} must be a SHA-256 hex digest")
+    return text
+
+
+def _positive_reference_scalar(name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
+        raise ValueError(f"{name} must be finite and positive")
+    numeric = float(value)
+    if numeric <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
+    return numeric
+
+
+def _nonnegative_reference_scalar(name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
+        raise ValueError(f"{name} must be finite and non-negative")
+    numeric = float(value)
+    if numeric < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return numeric
+
+
+def _extract_burn_reference_artifact(reference_artifact: dict[str, Any] | None) -> tuple[dict[str, Any] | None, bool]:
+    if reference_artifact is None:
+        return None, False
+    if not isinstance(reference_artifact, dict):
+        raise ValueError("reference_artifact must be a dictionary")
+    source = _non_empty_text("reference_artifact.source", str(reference_artifact.get("source", "")))
+    if source not in _FACILITY_BURN_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_FACILITY_BURN_REFERENCE_SOURCES))
+        raise ValueError(f"reference_artifact.source must be one of: {allowed}")
+    units = reference_artifact.get("units")
+    expected_units = {
+        "density": "m^-3",
+        "temperature": "keV",
+        "power": "MW",
+        "time": "s",
+        "reactivity": "m^3/s",
+        "triple_product": "m^-3 s keV",
+        "dimensionless": "1",
+    }
+    if not isinstance(units, dict) or any(units.get(key) != unit for key, unit in expected_units.items()):
+        raise ValueError("reference_artifact.units must declare burn-control unit contracts")
+    _sha256_text("reference_artifact.reference_artifact_sha256", reference_artifact.get("reference_artifact_sha256"))
+    case_count = reference_artifact.get("reference_case_count")
+    if isinstance(case_count, bool) or not isinstance(case_count, int) or case_count <= 0:
+        raise ValueError("reference_artifact.reference_case_count must be a positive integer")
+    metrics = reference_artifact.get("metrics")
+    tolerances = reference_artifact.get("tolerances")
+    if not isinstance(metrics, dict) or not isinstance(tolerances, dict):
+        raise ValueError("reference_artifact metrics and tolerances must be dictionaries")
+    for metric in (
+        "P_alpha_relative_error",
+        "Q_abs_error",
+        "lawson_margin_abs_error",
+        "burn_fraction_relative_error",
+        "reactivity_exponent_abs_error",
+    ):
+        observed = _nonnegative_reference_scalar(f"reference_artifact.metrics.{metric}", metrics.get(metric))
+        tolerance = _positive_reference_scalar(f"reference_artifact.tolerances.{metric}", tolerances.get(metric))
+        if observed > tolerance:
+            raise ValueError(f"reference_artifact metric {metric} exceeds declared tolerance")
+    return reference_artifact, True
+
+
+def burn_control_claim_evidence(
+    alpha_heating: AlphaHeating,
+    controller: BurnController,
+    *,
+    rho: np.ndarray,
+    ne_20: np.ndarray,
+    Te_keV: np.ndarray,
+    Ti_keV: np.ndarray,
+    tau_E_s: float,
+    P_aux_MW: float,
+    source: str,
+    source_id: str,
+    model_id: str = "bounded_dt_burn_control",
+    reference_artifact: dict[str, Any] | None = None,
+    P_alpha_relative_tolerance: float = 0.05,
+    Q_abs_tolerance: float = 0.5,
+    lawson_margin_abs_tolerance: float = 0.2,
+    burn_fraction_relative_tolerance: float = 0.10,
+    reactivity_exponent_abs_tolerance: float = 0.25,
+) -> BurnControlClaimEvidence:
+    """Build fail-closed DT burn-control evidence from explicit profiles."""
+
+    source_clean = _non_empty_text("source", source)
+    if source_clean not in _BOUNDED_BURN_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_BOUNDED_BURN_REFERENCE_SOURCES))
+        raise ValueError(f"source must be one of: {allowed}")
+    rho_arr = _require_normalised_rho(rho)
+    ne_arr = _require_nonnegative_profile("ne_20", ne_20, rho_arr.shape)
+    te_arr = _require_nonnegative_profile("Te_keV", Te_keV, rho_arr.shape)
+    ti_arr = _require_nonnegative_profile("Ti_keV", Ti_keV, rho_arr.shape)
+    tau_E = _require_positive_scalar("tau_E_s", tau_E_s)
+    P_aux = _require_nonnegative_scalar("P_aux_MW", P_aux_MW)
+    P_alpha = alpha_heating.power(ne_arr, te_arr, ti_arr, rho_arr)
+    Q = alpha_heating.Q(P_alpha, P_aux)
+    ne_avg_20 = _weighted_average(ne_arr, rho_arr)
+    te_avg = _weighted_average(te_arr, rho_arr)
+    ti_avg = _weighted_average(ti_arr, rho_arr)
+    triple_product = lawson_triple_product(ne_avg_20 * 1.0e20, tau_E, ti_avg)
+    lawson_margin = triple_product / LAWSON_TRIPLE_PRODUCT
+    sigv = float(bosch_hale_reactivity(ti_avg)) if ti_avg > 0.0 else 0.0
+    thermal_speed = max(float(np.sqrt(max(ti_avg, 0.0) * 1.0e3 * 1.602176634e-19 / (2.5 * 1.67262192369e-27))), 1.0)
+    burn = burn_fraction(ne_avg_20 * 1.0e20, sigv, thermal_speed, alpha_heating.a)
+    stability = BurnStabilityAnalysis(alpha_heating)
+    reactivity_exp = stability.reactivity_exponent(ti_avg)
+    command = controller.step(Q_meas=0.0 if not np.isfinite(Q) else Q, T_meas_keV=ti_avg, P_alpha_MW=P_alpha, dt=0.1)
+    artifact, artifact_passed = _extract_burn_reference_artifact(reference_artifact)
+    reactor_claim_allowed = bool(source_clean in _FACILITY_BURN_REFERENCE_SOURCES and artifact_passed)
+    claim_status = "validated_burn_reference_matched" if reactor_claim_allowed else "bounded_burn_control_evidence"
+    metrics = artifact.get("metrics", {}) if artifact else {}
+
+    return BurnControlClaimEvidence(
+        schema_version=_BURN_CLAIM_SCHEMA_VERSION,
+        source=source_clean,
+        source_id=_non_empty_text("source_id", source_id),
+        model_id=_non_empty_text("model_id", model_id),
+        R0_m=float(alpha_heating.R0),
+        a_m=float(alpha_heating.a),
+        kappa=float(alpha_heating.kappa),
+        profile_points=int(rho_arr.size),
+        ne_volume_average_1e20_m3=ne_avg_20,
+        Te_volume_average_keV=te_avg,
+        Ti_volume_average_keV=ti_avg,
+        P_alpha_MW=float(P_alpha),
+        P_aux_MW=P_aux,
+        Q=float(Q),
+        lawson_triple_product=float(triple_product),
+        lawson_margin=float(lawson_margin),
+        burn_fraction=float(burn),
+        reactivity_exponent=float(reactivity_exp),
+        thermally_stable=bool(stability.is_thermally_stable(ti_avg)),
+        controller_Q_target=float(controller.Q_target),
+        controller_T_target_keV=float(controller.T_target),
+        controller_P_aux_max_MW=float(controller.P_aux_max),
+        controller_command_MW=float(command),
+        reference_source=None if artifact is None else str(artifact["source"]),
+        reference_dataset_id=None if artifact is None else str(artifact["reference_dataset_id"]),
+        reference_artifact_sha256=None if artifact is None else str(artifact["reference_artifact_sha256"]),
+        reference_case_count=None if artifact is None else int(artifact["reference_case_count"]),
+        P_alpha_relative_error=None if artifact is None else float(metrics["P_alpha_relative_error"]),
+        Q_abs_error=None if artifact is None else float(metrics["Q_abs_error"]),
+        lawson_margin_abs_error=None if artifact is None else float(metrics["lawson_margin_abs_error"]),
+        burn_fraction_relative_error=None if artifact is None else float(metrics["burn_fraction_relative_error"]),
+        reactivity_exponent_abs_error=None if artifact is None else float(metrics["reactivity_exponent_abs_error"]),
+        P_alpha_relative_tolerance=_positive_reference_scalar("P_alpha_relative_tolerance", P_alpha_relative_tolerance),
+        Q_abs_tolerance=_positive_reference_scalar("Q_abs_tolerance", Q_abs_tolerance),
+        lawson_margin_abs_tolerance=_positive_reference_scalar(
+            "lawson_margin_abs_tolerance", lawson_margin_abs_tolerance
+        ),
+        burn_fraction_relative_tolerance=_positive_reference_scalar(
+            "burn_fraction_relative_tolerance", burn_fraction_relative_tolerance
+        ),
+        reactivity_exponent_abs_tolerance=_positive_reference_scalar(
+            "reactivity_exponent_abs_tolerance", reactivity_exponent_abs_tolerance
+        ),
+        reactor_claim_allowed=reactor_claim_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_burn_control_reactor_claim_admissible(evidence: BurnControlClaimEvidence) -> BurnControlClaimEvidence:
+    """Raise when burn-control evidence is insufficient for reactor-control claims."""
+
+    if not isinstance(evidence, BurnControlClaimEvidence):
+        raise ValueError("evidence must be BurnControlClaimEvidence")
+    if not evidence.reactor_claim_allowed:
+        raise ValueError("reactor burn-control claim requires matched integrated or measured reference evidence")
+    return evidence
+
+
+def save_burn_control_claim_evidence(evidence: BurnControlClaimEvidence, path: str | Path) -> None:
+    """Persist burn-control claim evidence as deterministic JSON."""
+
+    if not isinstance(evidence, BurnControlClaimEvidence):
+        raise ValueError("evidence must be BurnControlClaimEvidence")
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class AlphaHeating:
@@ -335,3 +592,21 @@ class SubignitedBurnPoint:
             )
 
         return points
+
+
+__all__ = [
+    "AlphaHeating",
+    "BurnControlClaimEvidence",
+    "BurnController",
+    "BurnPoint",
+    "BurnStabilityAnalysis",
+    "E_ALPHA_J",
+    "E_FUS_J",
+    "LAWSON_TRIPLE_PRODUCT",
+    "SubignitedBurnPoint",
+    "assert_burn_control_reactor_claim_admissible",
+    "burn_control_claim_evidence",
+    "burn_fraction",
+    "lawson_triple_product",
+    "save_burn_control_claim_evidence",
+]

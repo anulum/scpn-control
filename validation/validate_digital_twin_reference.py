@@ -26,7 +26,7 @@ _ALLOWED_SOURCES = {
     "measured_discharge_replay",
     "external_integrated_modelling",
 }
-_ALLOWED_EXTERNAL_CODES = {"ASTRA", "IMAS", "JINTRAC", "TRANSP"}
+_ALLOWED_EXTERNAL_CODES = {"ASTRA", "IMAS", "JINTRAC", "TRANSP", "TSC"}
 _REQUIRED_STR_FIELDS = (
     "source",
     "model_id",
@@ -158,7 +158,7 @@ def _validate_source_provenance(path: Path, payload: dict[str, object], errors: 
     if source == "external_integrated_modelling":
         external_code = payload.get("external_code")
         if external_code not in _ALLOWED_EXTERNAL_CODES:
-            errors.append({"path": str(path), "field": "external_code", "error": "external_code must be ASTRA, IMAS, JINTRAC, or TRANSP"})
+            errors.append({"path": str(path), "field": "external_code", "error": "external_code must be ASTRA, IMAS, JINTRAC, TRANSP, or TSC"})
         if not _has_nonempty_str(payload, "reference_artifact_uri"):
             errors.append({"path": str(path), "field": "reference_artifact_uri", "error": "external integrated modelling artifacts require reference_artifact_uri"})
 

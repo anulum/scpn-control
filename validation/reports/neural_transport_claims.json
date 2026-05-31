@@ -1,0 +1,96 @@
+{
+  "claim_boundary": "Local analytic-fallback regression evidence only. Quantitative QuaLiKiz or documented-reference neural-transport claims require matched reference artifacts.",
+  "claim_evidence": {
+    "chi_e_rmse_m2_s": null,
+    "chi_e_rmse_tolerance_m2_s": null,
+    "chi_i_relative_mae": null,
+    "chi_i_relative_mae_tolerance": null,
+    "chi_i_rmse_m2_s": null,
+    "chi_i_rmse_tolerance_m2_s": null,
+    "claim_status": "local surrogate regression evidence only; quantitative QuaLiKiz claims blocked",
+    "d_e_rmse_m2_s": null,
+    "d_e_rmse_tolerance_m2_s": null,
+    "feature_schema": [
+      "R_LTi",
+      "R_LTe",
+      "R_Ln",
+      "q",
+      "s_hat",
+      "alpha",
+      "Ti_Te",
+      "Zeff",
+      "collisionality",
+      "beta_e"
+    ],
+    "internal_weights_checksum": "",
+    "local_case_count": 7,
+    "local_channel_agreement": 1.0,
+    "local_max_abs_error": 0.0,
+    "local_per_channel_relative_rmse": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "local_profile_per_channel_relative_rmse": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "model_id": "neural_transport_qlknn_facade",
+    "quantitative_claim_allowed": false,
+    "reference_artifact_sha256": "",
+    "reference_dataset_id": "",
+    "reference_sample_count": 0,
+    "reference_source": "none",
+    "schema_version": 1,
+    "source": "synthetic_regression_reference",
+    "source_id": "validation/benchmark_neural_transport_claims.py::analytic_fallback_reference",
+    "surrogate_mode": "analytic_fallback",
+    "unstable_branch_accuracy": null,
+    "unstable_branch_accuracy_min": null,
+    "weights_path": "",
+    "weights_sha256": ""
+  },
+  "validation_result": {
+    "benchmark_cases": [
+      "stable_core",
+      "marginal_itg",
+      "marginal_tem",
+      "itg_dominant",
+      "tem_dominant",
+      "mixed_gradient",
+      "edge_pedestal"
+    ],
+    "channel_agreement": 1.0,
+    "max_abs_error": 0.0,
+    "mode": "analytic_fallback",
+    "n_cases": 7,
+    "per_channel_mae": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_channel_relative_rmse": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_channel_rmse": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "profile_per_channel_relative_rmse": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "profile_per_channel_rmse": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "weights_checksum": null,
+    "weights_path": null
+  }
+}

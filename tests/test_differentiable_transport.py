@@ -14,7 +14,7 @@ import json
 import numpy as np
 import pytest
 
-from scpn_control.core import differentiable_transport as dt
+import scpn_control.core.differentiable_transport as dt
 from scpn_control.core.neural_transport import NeuralTransportModel, neural_transport_closure_profiles
 
 
@@ -101,6 +101,19 @@ def test_gradient_api_fails_closed_without_jax(monkeypatch):
         dt.transport_loss_gradient(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
 
 
+def test_transport_parameter_gradients_fail_closed_without_jax(monkeypatch):
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    monkeypatch.setattr(dt, "_HAS_JAX", False)
+
+    with pytest.raises(RuntimeError, match="transport_parameter_gradients requires JAX"):
+        dt.transport_parameter_gradients(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
+
+
 @pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
 def test_transport_loss_gradient_is_finite_with_jax():
     rho = np.linspace(0.05, 1.0, 24)
@@ -135,6 +148,177 @@ def test_transport_loss_gradient_is_finite_with_jax():
     assert gradient.shape == chi.shape
     assert np.all(np.isfinite(gradient))
     assert np.any(np.abs(gradient) > 0.0)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_transport_parameter_gradients_include_source_schedule_sensitivity():
+    rho = np.linspace(0.05, 1.0, 24)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.20 + 0.02 * rho,
+            0.16 + 0.02 * rho,
+            0.04 + 0.005 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    target[0, 7:15] += 0.03
+    target[2, 5:12] += 0.02
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    result = dt.transport_parameter_gradients(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        weights=np.array([1.0, 0.5, 0.25, 0.1]),
+    )
+
+    assert isinstance(result, dt.TransportParameterGradients)
+    assert np.isfinite(result.loss)
+    assert result.chi_gradient.shape == chi.shape
+    assert result.source_gradient.shape == sources.shape
+    assert np.all(np.isfinite(result.chi_gradient))
+    assert np.all(np.isfinite(result.source_gradient))
+    assert np.any(np.abs(result.chi_gradient) > 0.0)
+    assert np.any(np.abs(result.source_gradient) > 0.0)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_transport_parameter_gradient_audit_matches_finite_difference_contract():
+    rho = np.linspace(0.05, 1.0, 21)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.18 + 0.02 * rho,
+            0.15 + 0.02 * rho,
+            0.04 + 0.004 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    sources = np.zeros_like(profiles)
+    sources[0, 4:8] = 0.03
+    sources[2, 7:11] = -0.01
+    target = profiles.copy()
+    target[0, 6:13] += 0.02
+    target[1, 5:12] -= 0.015
+    target[2, 4:10] += 0.01
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    audit = dt.assert_transport_parameter_gradients_consistent(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        8.0e-4,
+        edge_values,
+        weights=np.array([1.0, 0.75, 0.25, 0.1]),
+        epsilon=5.0e-5,
+        tolerance=2.0e-3,
+        sample_indices=((0, 5), (1, 10), (2, 7), (3, 12)),
+    )
+
+    assert isinstance(audit, dt.TransportGradientAudit)
+    assert audit.passed
+    assert audit.loss >= 0.0
+    assert audit.checked_indices == ((0, 5), (1, 10), (2, 7), (3, 12))
+    assert audit.chi_max_abs_error <= audit.tolerance
+    assert audit.source_max_abs_error <= audit.tolerance
+
+
+def test_transport_parameter_gradient_audit_rejects_invalid_admission_contract(monkeypatch):
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    monkeypatch.setattr(dt, "_HAS_JAX", False)
+
+    with pytest.raises(ValueError, match="epsilon"):
+        dt.audit_transport_parameter_gradients(profiles, chi, sources, target, rho, 1.0e-3, edge_values, epsilon=0.0)
+    with pytest.raises(RuntimeError, match="transport_parameter_gradients requires JAX"):
+        dt.audit_transport_parameter_gradients(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_transport_gradient_latency_report_times_audited_admission_path(tmp_path):
+    rho = np.linspace(0.05, 1.0, 17)
+    profiles = _profiles(rho)
+    chi = np.stack(
+        [
+            0.18 + 0.02 * rho,
+            0.15 + 0.02 * rho,
+            0.04 + 0.004 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+    sources = np.zeros_like(profiles)
+    sources[0, 4:8] = 0.03
+    sources[2, 7:11] = -0.01
+    target = profiles.copy()
+    target[0, 6:12] += 0.02
+    target[1, 5:11] -= 0.015
+    target[2, 4:10] += 0.01
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    report = dt.benchmark_transport_parameter_gradient_latency(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        8.0e-4,
+        edge_values,
+        weights=np.array([1.0, 0.75, 0.25, 0.1]),
+        epsilon=5.0e-5,
+        tolerance=2.0e-3,
+        sample_indices=((0, 5), (1, 9), (2, 7), (3, 12)),
+        warmup_runs=0,
+        timed_runs=2,
+    )
+    path = tmp_path / "transport_gradient_latency.json"
+    dt.save_transport_gradient_latency_report(report, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+
+    assert isinstance(report, dt.TransportGradientLatencyReport)
+    assert report.audit.passed is True
+    assert report.backend == "jax"
+    assert report.n_rho == rho.size
+    assert report.channel_count == dt.CHANNEL_COUNT
+    assert report.timed_runs == 2
+    assert report.p50_ms > 0.0
+    assert report.p95_ms >= report.p50_ms
+    assert report.max_ms >= report.p95_ms
+    assert payload["audit"]["passed"] is True
+    assert payload["claim_status"].startswith("local audited gradient-admission latency")
+
+
+def test_transport_gradient_latency_report_rejects_invalid_run_counts():
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    with pytest.raises(ValueError, match="timed_runs"):
+        dt.benchmark_transport_parameter_gradient_latency(
+            profiles,
+            chi,
+            sources,
+            target,
+            rho,
+            1.0e-3,
+            edge_values,
+            timed_runs=0,
+        )
 
 
 def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():

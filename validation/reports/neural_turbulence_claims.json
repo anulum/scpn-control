@@ -1,0 +1,59 @@
+{
+  "claim_boundary": "Local analytic-target regression evidence only. Quantitative gyrokinetic, QuaLiKiz, or documented-reference neural-turbulence claims require matched reference artifacts.",
+  "claim_evidence": {
+    "claim_status": "local analytic-target regression evidence only; quantitative turbulence claims blocked",
+    "critical_gradient_accuracy": null,
+    "critical_gradient_accuracy_min": null,
+    "feature_schema": [
+      "R_LTi",
+      "R_LTe",
+      "R_Ln",
+      "q",
+      "s_hat",
+      "alpha_MHD",
+      "Ti_Te",
+      "nu_star",
+      "Z_eff",
+      "epsilon"
+    ],
+    "flux_relative_mae": null,
+    "flux_relative_mae_tolerance": null,
+    "gamma_e_rmse_gB": null,
+    "gamma_e_rmse_tolerance_gB": null,
+    "local_critical_gradient_accuracy": 0.89453125,
+    "local_flux_relative_mae": 1.4981597191532707,
+    "local_gamma_e_rmse_gB": 2.515350781754126,
+    "local_q_e_rmse_gB": 5.516805952569916,
+    "local_q_i_rmse_gB": 80.9926981888269,
+    "local_sample_count": 256,
+    "model_id": "neural_turbulence_qlknn_facade",
+    "q_e_rmse_gB": null,
+    "q_e_rmse_tolerance_gB": null,
+    "q_i_rmse_gB": null,
+    "q_i_rmse_tolerance_gB": null,
+    "quantitative_claim_allowed": false,
+    "reference_artifact_sha256": "",
+    "reference_dataset_id": "",
+    "reference_sample_count": 0,
+    "reference_source": "none",
+    "schema_version": 1,
+    "source": "synthetic_regression_reference",
+    "source_id": "validation/benchmark_neural_turbulence_claims.py::analytic_target_reference",
+    "weights_path": "",
+    "weights_sha256": ""
+  },
+  "validation_result": {
+    "Gamma_e_rmse_gB": 2.515350781754126,
+    "Q_e_rmse_gB": 5.516805952569916,
+    "Q_i_rmse_gB": 80.9926981888269,
+    "critical_gradient_accuracy": 0.89453125,
+    "flux_relative_mae": 1.4981597191532707,
+    "n_samples": 256,
+    "per_channel_relative_mae": [
+      0.8924451433379422,
+      1.9711452622224017,
+      1.6308887518994686
+    ],
+    "seed": 20240531
+  }
+}

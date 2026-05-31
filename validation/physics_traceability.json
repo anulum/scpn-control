@@ -42,6 +42,43 @@
       "validity_domain": "Immutable repository DIII-D GEQDSK and disruption-shot reference artefacts with manifest checksums; not an online facility-control or live MDSplus availability claim."
     },
     {
+      "component": "federated disruption prediction",
+      "equation_contract": "FedAvg/FedProx disruption classifiers must federate per-facility client updates without centralising raw arrays, validate the shared eight-feature disruption contract, clip and noise facility model deltas under a declared Gaussian differential-privacy budget, and preserve a serialisable privacy ledger.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "McMahan et al. 2017 Communication-Efficient Learning of Deep Networks from Decentralized Data",
+        "Li et al. 2020 FedProx",
+        "Dwork and Roth 2014 Algorithmic Foundations of Differential Privacy",
+        "Abadi et al. 2016 Deep Learning with Differential Privacy"
+      ],
+      "module_path": "src/scpn_control/control/federated_disruption.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Supply measured multi-facility disruption shot databases with immutable provenance manifests before claiming cross-facility predictive validation",
+        "Run the same federation and differential-privacy contracts against those measured facility datasets before deployment claims"
+      ],
+      "unit_contract": "Eight disruption features use declared tokamak control variables: Ip, beta_N, q95, n/n_GW, li, dBp/dt, locked-mode amplitude, and n=1 RMS; labels are binary disruption indicators.",
+      "validation_evidence": [
+        "tests/test_federated_disruption.py module-specific federation, array-ingestion, DP-ledger, and benchmark contract tests",
+        "validation/benchmark_federated_disruption.py deterministic synthetic multi-facility benchmark",
+        "validation/reports/federated_disruption_benchmark.json synthetic report with explicit claim boundary"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/federated_disruption.py",
+        "tests/test_federated_disruption.py",
+        "validation/benchmark_federated_disruption.py",
+        "validation/reports/federated_disruption_benchmark.json",
+        "validation/reports/federated_disruption_benchmark.md",
+        "docs/api.md",
+        "docs/validation.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/federated_disruption.py"
+      ],
+      "validity_domain": "Synthetic multi-facility federation and facility-level DP accounting evidence only; no measured cross-facility disruption database validation claim.",
+      "external_validation_tracker_issue": 52
+    },
+    {
       "component": "nonlinear gyrokinetic heat-flux saturation",
       "equation_contract": "Five-dimensional delta-f flux-tube Vlasov evolution with E cross B bracket, ballooning connection, kinetic electrons, and Sugama collision terms.",
       "fidelity_status": "validation_gap",
@@ -274,35 +311,44 @@
     },
     {
       "component": "neural equilibrium cross-validation",
-      "equation_contract": "Neural equilibrium predictions must be compared against identical P-EFIT or equivalent reference equilibria for psi, pressure, q, and boundary geometry.",
+      "equation_contract": "Neural equilibrium pretraining may use bounded synthetic Solovev-like equilibria, but fine-tuning and public predictive claims require fail-closed claim evidence tied to the same weight checksum and comparison against identical P-EFIT or documented public reference equilibria for psi, pressure, q-profile, LCFS boundary, and magnetic-axis position.",
       "fidelity_status": "external_dependency_blocked",
       "model_references": [
         "EFIT/P-EFIT equilibrium reconstruction workflow",
-        "Repository neural equilibrium model contract"
+        "Repository neural equilibrium model contract",
+        "Bounded Solovev-like synthetic equilibrium pretraining contract"
       ],
       "module_path": "src/scpn_control/core/neural_equilibrium.py",
       "public_claim_allowed": false,
       "required_actions": [
         "Acquire matched P-EFIT reference equilibria or an openly redistributable equivalent",
-        "Add error bounds for psi, pressure, q-profile, LCFS, and magnetic-axis predictions"
+        "Run fine-tuning only through the strict neural-equilibrium reference-artifact gate",
+        "Persist claim evidence with model identity, weight checksum, grid shape, feature contract, reference source, reference-equilibria count, tolerances, errors, and admission status before predictive claims",
+        "Add error bounds for psi, pressure, q-profile, LCFS, and magnetic-axis predictions before facility claims"
       ],
       "unit_contract": "SI magnetic flux, pressure, metre-scale geometry, and dimensionless q-profile arrays on declared grids.",
       "validation_evidence": [
-        "ROADMAP.md neural eq cross-validation future item",
-        "docs/joss_paper.md neural equilibrium limitation",
+        "tests/test_neural_equilibrium.py synthetic pretraining, reproducibility, JAX-compatible weight, fail-closed claim evidence, checksum matching, and real-EFIT admission tests",
+        "tests/test_jax_neural_equilibrium.py synthetic-pretrained weight loading through JAX inference",
+        "validation/benchmark_neural_equilibrium_pretraining.py deterministic synthetic pretraining and claim-admission benchmark",
         "validation/validate_neural_equilibrium_reference.py strict P-EFIT/reference artifact gate"
       ],
       "evidence_paths": [
-        "ROADMAP.md",
-        "docs/joss_paper.md",
         "src/scpn_control/core/neural_equilibrium.py",
+        "src/scpn_control/core/jax_neural_equilibrium.py",
+        "tests/test_neural_equilibrium.py",
+        "tests/test_jax_neural_equilibrium.py",
+        "validation/benchmark_neural_equilibrium_pretraining.py",
+        "validation/reports/neural_equilibrium_pretraining.json",
+        "validation/reports/neural_equilibrium_pretraining.md",
         "validation/validate_neural_equilibrium_reference.py",
+        "docs/api.md",
         "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_equilibrium.py"
       ],
-      "validity_domain": "Model code and synthetic/local tests only; no matched P-EFIT validation set in repository.",
+      "validity_domain": "Bounded synthetic Solovev-like pretraining, JAX-compatible inference plumbing, and fail-closed predictive-claim admission evidence only; not a facility EFIT/P-EFIT validation claim unless matched reference artefacts validate the same weight checksum and all declared tolerances.",
       "external_validation_tracker_issue": 50
     },
     {
@@ -338,7 +384,7 @@
     },
     {
       "component": "RZIP rigid vertical stability model",
-      "equation_contract": "Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, tokamak major/minor-radius ordering, declared vertical inertia, wall-normalised feedback-gain threshold, and wall or active-coil circuit model.",
+      "equation_contract": "Rigid-plasma vertical stability claims must declare the linearised state vector [Z, dZ/dt, circuit currents], mutual-inductance derivative, vertical field index, tokamak major/minor-radius ordering, declared vertical inertia, wall-normalised feedback-gain threshold, wall or active-coil circuit model, calibration source, growth-rate comparison tolerance, and facility-claim admission status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lazarus et al. 1990 rigid plasma vertical stability model",
@@ -355,23 +401,30 @@
       "validation_evidence": [
         "tests/test_rzip_model.py vertical growth, field-index, declared-inertia, feedback-gain, physical-parameter, and controller-measurement checks",
         "tests/test_rzip_model.py RZIP fallback and singular-circuit checks",
-        "validation/validate_rzip_reference.py strict RZIP reference artifact gate"
+        "validation/validate_rzip_reference.py strict RZIP reference artifact gate",
+        "tests/test_rzip_model.py calibration evidence, facility-claim admission, and persisted evidence checks",
+        "validation/benchmark_rzip_calibration.py bounded local RZIP calibration benchmark",
+        "validation/reports/rzip_calibration.json bounded local calibration report"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rzip_model.py",
         "tests/test_rzip_model.py",
         "validation/validate_rzip_reference.py",
-        "docs/validation.md"
+        "docs/validation.md",
+        "validation/benchmark_rzip_calibration.py",
+        "validation/reports/rzip_calibration.json",
+        "validation/reports/rzip_calibration.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/rzip_model.py"
       ],
-      "validity_domain": "Linearised rigid-plasma vertical stability analysis for controller prototyping and local regression tests; not a facility-validated vertical-control plant.",
+      "validity_domain": "Linearised rigid-plasma vertical stability analysis for controller prototyping, local regression tests, and bounded calibration-admission evidence; not a facility-validated vertical-control plant unless external or measured reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 51
     },
     {
       "component": "resistive-wall-mode feedback model",
-      "equation_contract": "RWM feedback claims must declare the no-wall and ideal-wall beta limits, resistive-wall L/R time, optional wall-plasma gap correction, rotation-stabilisation term, active proportional or derivative feedback coupling, controller latency, coil coupling, and ideal-kink exclusion boundary.",
+      "equation_contract": "RWM feedback claims must declare the no-wall and ideal-wall beta limits, resistive-wall L/R time, optional wall-plasma gap correction, rotation-stabilisation term, active proportional or derivative feedback coupling, controller latency, coil coupling, sensor/coil topology, ideal-kink exclusion boundary, reference source, closed-loop growth-rate tolerance, and facility-claim admission status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Bondeson and Ward 1994 resistive-wall-mode growth-rate model",
@@ -387,23 +440,30 @@
       ],
       "unit_contract": "Normalised beta dimensionless, wall time in seconds, toroidal rotation in rad/s, wall and plasma radii in metres, feedback gain dimensionless per declared coil coupling, growth rate in s^-1.",
       "validation_evidence": [
-        "tests/test_rwm_feedback.py growth-rate, rotation, wall-geometry, feedback, ideal-kink, and required-gain checks"
+        "tests/test_rwm_feedback.py growth-rate, rotation, wall-geometry, feedback, ideal-kink, and required-gain checks",
+        "tests/test_rwm_feedback.py claim-evidence provenance, external tolerance admission, and invalid-domain checks",
+        "validation/benchmark_rwm_claims.py bounded local RWM claim-admission benchmark",
+        "validation/reports/rwm_claims.json bounded local RWM claim report"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rwm_feedback.py",
         "tests/test_rwm_feedback.py",
         "docs/learning/plasma_physics_primer.md",
-        "docs/learning/glossary.md"
+        "docs/learning/glossary.md",
+        "validation/benchmark_rwm_claims.py",
+        "validation/reports/rwm_claims.json",
+        "validation/reports/rwm_claims.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/rwm_feedback.py"
       ],
-      "validity_domain": "Bounded analytic RWM stability-window and active-feedback calculations for local controller studies; not facility-validated MHD stability or hardware-control evidence.",
+      "validity_domain": "Bounded analytic RWM stability-window and active-feedback calculations for local controller studies plus bounded claim-admission evidence; not facility-validated MHD stability or hardware-control evidence unless external or measured reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 51
     },
     {
       "component": "real-time EFIT-lite equilibrium reconstruction",
-      "equation_contract": "Real-time equilibrium reconstruction claims must declare the fixed-boundary Grad-Shafranov solve, polynomial p-prime and FF-prime source profiles, diagnostic response interpolation, Rogowski current reconstruction, and macroscopic-shape extraction assumptions.",
+      "equation_contract": "Real-time equilibrium reconstruction claims must declare the fixed-boundary Grad-Shafranov solve, polynomial p-prime and FF-prime source profiles, diagnostic response interpolation, Rogowski current reconstruction, macroscopic-shape extraction assumptions, diagnostic provenance, matched-reference source, psi/Ip/q95/beta_pol/li tolerances, and facility-claim admission status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lao et al. 1985 EFIT equilibrium reconstruction",
@@ -420,23 +480,30 @@
       "validation_evidence": [
         "tests/test_realtime_efit.py fixed-boundary solve and diagnostic reconstruction checks",
         "tests/test_kinetic_efit.py kinetic EFIT integration checks",
-        "tests/test_validate_real_shots_equilibrium.py GEQDSK source residual checks"
+        "tests/test_validate_real_shots_equilibrium.py GEQDSK source residual checks",
+        "tests/test_realtime_efit.py claim-evidence provenance, matched-reference admission, and invalid-reference checks",
+        "validation/benchmark_efit_lite_claims.py bounded synthetic EFIT-lite claim-admission benchmark",
+        "validation/reports/efit_lite_claims.json bounded synthetic EFIT-lite claim report"
       ],
       "evidence_paths": [
         "src/scpn_control/control/realtime_efit.py",
         "tests/test_realtime_efit.py",
         "tests/test_kinetic_efit.py",
-        "tests/test_validate_real_shots_equilibrium.py"
+        "tests/test_validate_real_shots_equilibrium.py",
+        "validation/benchmark_efit_lite_claims.py",
+        "validation/reports/efit_lite_claims.json",
+        "validation/reports/efit_lite_claims.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/realtime_efit.py"
       ],
-      "validity_domain": "Fixed-boundary EFIT-lite regression and real-time control prototyping; not a substitute for facility-grade EFIT or P-EFIT validation.",
+      "validity_domain": "Fixed-boundary EFIT-lite regression and real-time control prototyping plus bounded claim-admission evidence; not a substitute for facility-grade EFIT or P-EFIT validation unless matched reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 48
     },
     {
       "component": "kinetic EFIT pressure and q-profile coupling",
-      "equation_contract": "Kinetic-EFIT coupling claims must declare Thomson or profile-derived electron density and temperature points, ion-temperature points, fast-ion pressure fraction, anisotropy sigma, MSE pitch-angle constraints when used, radial interpolation geometry, pressure-consistency residual, and exclusion from facility-grade P-EFIT unless matched reference equilibria are supplied.",
+      "equation_contract": "Kinetic-EFIT coupling claims must declare Thomson or profile-derived electron density and temperature points, ion-temperature points, fast-ion pressure fraction, anisotropy sigma, MSE pitch-angle constraints when used, radial interpolation geometry, pressure-consistency residual, diagnostic/profile/fast-ion/MSE source provenance, matched pressure, q-profile, and anisotropy reference tolerances, and exclusion from facility-grade P-EFIT unless matched reference equilibria pass the fail-closed admission gate.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lao et al. 1985 EFIT equilibrium reconstruction",
@@ -447,27 +514,33 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate kinetic pressure, q-profile, and anisotropy residuals against matched EFIT or P-EFIT reference equilibria before facility claims",
-        "Persist diagnostic source, interpolation geometry, fast-ion model provenance, MSE calibration, and uncertainty for every promoted kinetic-equilibrium claim"
+        "Persist diagnostic source, interpolation geometry, fast-ion model provenance, MSE calibration, uncertainty, reference tolerances, and claim-admission status for every promoted kinetic-equilibrium claim"
       ],
       "unit_contract": "R and Z in metres, temperatures in keV, density in 10^19 m^-3, MSE pitch angle in degrees, pressure in pascals, beta dimensionless, and q-profile dimensionless.",
       "validation_evidence": [
-        "tests/test_kinetic_efit.py requires measured profile channels, radial interpolation, measured Ti use, anisotropy residuals, MSE q-profile response, and fast-ion pressure checks"
+        "tests/test_kinetic_efit.py requires measured profile channels, radial interpolation, measured Ti use, anisotropy residuals, MSE q-profile response, fast-ion pressure checks, and fail-closed kinetic-EFIT claim evidence admission",
+        "validation/benchmark_kinetic_efit_claims.py publishes deterministic bounded synthetic claim evidence with explicit facility-claim exclusion",
+        "validation/reports/kinetic_efit_claims.json records bounded provenance, interpolation geometry, pressure consistency, fast-ion beta, and q-profile endpoints"
       ],
       "evidence_paths": [
         "src/scpn_control/core/kinetic_efit.py",
         "tests/test_kinetic_efit.py",
+        "validation/benchmark_kinetic_efit_claims.py",
+        "validation/reports/kinetic_efit_claims.json",
+        "validation/reports/kinetic_efit_claims.md",
         "src/scpn_control/control/realtime_efit.py",
-        "docs/api.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/kinetic_efit.py"
       ],
-      "validity_domain": "Bounded fixed-boundary kinetic-profile coupling for local regression and controller studies; not facility-grade EFIT, P-EFIT, or hardware-control evidence.",
+      "validity_domain": "Bounded fixed-boundary kinetic-profile coupling and claim-admission evidence for local regression and controller studies; not facility-grade EFIT, P-EFIT, or hardware-control evidence unless matched external pressure, q-profile, and anisotropy references pass the admission gate.",
       "external_validation_tracker_issue": 48
     },
     {
       "component": "halo current and runaway electron disruption model",
-      "equation_contract": "Post-disruption claims must declare the halo L/R circuit, contact fraction, toroidal peaking factor, current-quench waveform, Connor-Hastie primary generation, Rosenbluth-Putvinski avalanche generation, and ensemble uncertainty assumptions.",
+      "equation_contract": "Post-disruption claims must declare the halo L/R circuit, contact fraction, toroidal peaking factor, current-quench waveform, Connor-Hastie primary generation, Rosenbluth-Putvinski avalanche generation, ensemble uncertainty assumptions, ITER-limit summaries, strict disruption-reference admission, and claim status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Fitzpatrick 2002 halo current and error-field interaction",
@@ -478,24 +551,34 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate halo current and runaway-current envelopes against measured disruption databases before mitigation claims",
-        "Attach wall-contact geometry and impurity-radiation evidence before extrapolating beyond the declared ensemble domain"
+        "Attach wall-contact geometry and impurity-radiation evidence before extrapolating beyond the declared ensemble domain",
+        "Persist ensemble seed, run count, halo/runaway P95 metrics, toroidal-peaking-factor summary, reference source, tolerances, errors, and admission status before promoted mitigation claims"
       ],
       "unit_contract": "SI amperes, mega-amperes, seconds, milliseconds, ohms, henries, metres, volts per metre, rates per second, and meganewtons per metre.",
       "validation_evidence": [
-        "tests/test_halo_re_physics.py halo-current and runaway-electron regression checks",
+        "tests/test_halo_re_physics.py halo-current, runaway-electron, ensemble, fail-closed claim evidence, and strict reference-admission regression checks",
         "tests/test_halo_nonfinite_guards.py non-finite guard checks",
-        "tests/test_halo_validation_paths.py validation-path guard checks"
+        "tests/test_halo_validation_paths.py validation-path guard checks",
+        "validation/benchmark_disruption_mitigation_claims.py deterministic bounded halo/runaway claim-admission benchmark",
+        "validation/validate_disruption_reference.py strict disruption reference artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/halo_re_physics.py",
         "tests/test_halo_re_physics.py",
         "tests/test_halo_nonfinite_guards.py",
-        "tests/test_halo_validation_paths.py"
+        "tests/test_halo_validation_paths.py",
+        "validation/benchmark_disruption_mitigation_claims.py",
+        "validation/reports/disruption_mitigation_claims.json",
+        "validation/reports/disruption_mitigation_claims.md",
+        "validation/validate_disruption_reference.py",
+        "docs/api.md",
+        "docs/benchmarks.md",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/halo_re_physics.py"
       ],
-      "validity_domain": "Disruption mitigation scenario analysis and bounded ensemble regression; not a facility-qualified halo-load or runaway-current predictor.",
+      "validity_domain": "Bounded halo-current and runaway-electron ensemble regression plus fail-closed disruption-mitigation claim-admission evidence; not measured disruption-campaign, external-MHD, or facility mitigation validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 52
     },
     {
@@ -505,36 +588,43 @@
       "model_references": [
         "Grad-Shafranov free-boundary control references",
         "Repository FusionKernel free-boundary objective contract",
-        "Repository deterministic free-boundary acceptance campaign"
+        "Repository deterministic free-boundary acceptance campaign",
+        "Repository fail-closed free-boundary claim-admission contract"
       ],
       "module_path": "src/scpn_control/control/free_boundary_tracking.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Promote deterministic acceptance evidence to measured or validated free-boundary replay cases before facility-control claims",
+        "Attach strict documented public, measured-replay, or external equilibrium benchmark artifacts before facility-control claims",
         "Attach actuator, latency, and sensor-calibration evidence for the target device before deployment claims"
       ],
       "unit_contract": "SI coil currents, metres, webers per radian, seconds, amperes per second, objective-space residuals, and dimensionless supervisor gains.",
       "validation_evidence": [
-        "tests/test_free_boundary_tracking.py controller and disturbance-observer checks",
+        "tests/test_free_boundary_tracking.py controller, disturbance-observer, and claim-admission checks",
         "tests/test_free_boundary_tracking_variants.py actuator, observer, latency, and supervisor edge-path checks",
-        "tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign"
+        "tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign",
+        "validation/validate_free_boundary_reference.py strict free-boundary reference artifact gate",
+        "validation/benchmark_free_boundary_tracking_claims.py bounded claim-admission benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/control/free_boundary_tracking.py",
         "tests/test_free_boundary_tracking.py",
         "tests/test_free_boundary_tracking_variants.py",
         "tests/test_free_boundary_tracking_acceptance.py",
-        "validation/free_boundary_tracking_acceptance.py"
+        "validation/free_boundary_tracking_acceptance.py",
+        "validation/validate_free_boundary_reference.py",
+        "validation/benchmark_free_boundary_tracking_claims.py",
+        "validation/reports/free_boundary_tracking_claims.json",
+        "validation/reports/free_boundary_tracking_claims.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/free_boundary_tracking.py"
       ],
-      "validity_domain": "Kernel-in-the-loop deterministic free-boundary tracking regression and controller prototyping; not a commissioned facility-control validation.",
+      "validity_domain": "Kernel-in-the-loop deterministic free-boundary tracking regression plus fail-closed claim-admission evidence; not commissioned facility-control validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {
       "component": "density control and particle-source model",
-      "equation_contract": "Density-control claims must declare the Greenwald limit, ITER operating margin, radial particle transport grid, gas-puff source, pellet source, NBI source, cryopump sink, recycling source, controller gains, and CFL-limited explicit transport step.",
+      "equation_contract": "Density-control claims must declare the Greenwald limit, ITER operating margin, radial particle transport grid, gas-puff source, pellet source, NBI source, cryopump sink, recycling source, controller gains, CFL-limited explicit transport step, geometry/transport/actuator/diagnostic provenance, source integral, particle-inventory change, and matched Greenwald-fraction and inventory reference tolerances before facility-calibrated density-control claims.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Greenwald 2002 density limit",
@@ -545,27 +635,33 @@
       "module_path": "src/scpn_control/control/density_controller.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Replace circular-geometry volume elements with equilibrium-derived flux-surface volumes before facility-density claims",
-        "Validate recycling source and full density-profile evolution against measured or published fuelling cases"
+        "Validate Greenwald fraction and particle inventory changes against measured discharge, external particle-balance, or facility replay references before facility-calibrated claims",
+        "Persist geometry, transport profiles, actuator limits, diagnostic source, timestep/CFL state, source integrals, particle inventory deltas, reference tolerances, and claim-admission status with every promoted density-control claim"
       ],
       "unit_contract": "SI particles per second, metres, seconds, m^-3, m^2/s, m/s, pellet millimetres, beam keV, megawatts, and dimensionless Greenwald fraction.",
       "validation_evidence": [
-        "tests/test_density_controller.py Greenwald, NGS pellet trajectory deposition, sink, controller, geometry, transport-profile, source-input, and timestep guard checks",
+        "tests/test_density_controller.py Greenwald, NGS pellet trajectory deposition, sink, controller, geometry, transport-profile, source-input, timestep guard, and fail-closed density-control claim evidence checks",
         "tests/test_pellet_injection.py Parks-Turnbull NGS ablation and pellet trajectory checks",
-        "validation/validate_density_reference.py strict density reference artifact gate"
+        "validation/benchmark_density_control_claims.py publishes deterministic bounded synthetic claim evidence with explicit facility-calibrated claim exclusion",
+        "validation/reports/density_control_claims.json records bounded geometry, transport, actuator, diagnostic, CFL, Greenwald, source-integral, and inventory evidence",
+        "validation/validate_density_reference.py strict density reference artefact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/density_controller.py",
         "tests/test_density_controller.py",
         "src/scpn_control/core/pellet_injection.py",
         "tests/test_pellet_injection.py",
+        "validation/benchmark_density_control_claims.py",
+        "validation/reports/density_control_claims.json",
+        "validation/reports/density_control_claims.md",
         "validation/validate_density_reference.py",
-        "docs/validation.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/density_controller.py"
       ],
-      "validity_domain": "Bounded density-control and particle-source regression on declared radial geometry; not facility-calibrated fuelling or exhaust validation.",
+      "validity_domain": "Bounded density-control, particle-source, Greenwald-limit, finite-volume transport, and claim-admission regression evidence on declared radial geometry; not facility-calibrated fuelling, exhaust, or particle-balance validation unless matched Greenwald and particle-inventory references pass the admission gate.",
       "external_validation_tracker_issue": 51
     },
     {
@@ -606,39 +702,89 @@
     },
     {
       "component": "tokamak digital twin topology and diffusion model",
-      "equation_contract": "Digital-twin claims must declare the 2D poloidal grid, q-profile topology update, rational-surface island mask, finite-difference diffusion, optional gyrokinetic surrogate correction, radiation-loss scaling, actuator latency, RNG seed, and IDS export assumptions.",
+      "equation_contract": "Digital-twin claims must declare the 2D poloidal grid, q-profile topology update, rational-surface island mask, finite-difference diffusion, radiation-loss scaling with density and effective charge, actuator latency, RNG seed, IDS export assumptions, external simulator artifact provenance, and bounded online model-update parameters.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Repository digital-twin runtime contract",
         "Wesson 2011 radiation-loss reference",
-        "Repository IMAS IDS export helper contract"
+        "TRANSP integrated modelling evidence contract",
+        "TSC time-dependent simulation evidence contract",
+        "Bayesian optimisation for bounded model calibration"
       ],
       "module_path": "src/scpn_control/control/tokamak_digital_twin.py",
       "public_claim_allowed": false,
       "required_actions": [
+        "Provide validated TRANSP, TSC, measured-discharge, or documented public-reference artifacts before measured replay claims",
         "Replace normalised 2D diffusion dynamics with equilibrium and transport-calibrated state evolution before facility twin claims",
-        "Validate IDS export and actuator-lag summaries against replayed or measured discharge histories"
+        "Validate online update trajectories against replayed or measured discharge histories before deployment use"
       ],
       "unit_contract": "Declared normalised grid indices, keV, m^-3, dimensionless q-profile values, actuator-lag summary units, RNG seed metadata, and IDS-compatible pulse history fields.",
       "validation_evidence": [
         "tests/test_tokamak_digital_twin.py deterministic twin checks",
         "tests/test_digital_twin_physics.py physics-path checks",
-        "tests/test_digital_twin_ingest_runtime.py ingest runtime checks",
+        "tests/test_digital_twin_online_update.py external artifact, loss, Bayesian-update, and deterministic benchmark checks",
+        "tests/test_digital_twin_reference_validation.py strict digital-twin artifact gate including TRANSP and TSC",
+        "validation/benchmark_digital_twin_online_update.py deterministic bounded online-update benchmark",
         "validation/validate_digital_twin_reference.py strict reference-artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/tokamak_digital_twin.py",
+        "src/scpn_control/control/digital_twin_online_update.py",
         "tests/test_tokamak_digital_twin.py",
         "tests/test_digital_twin_physics.py",
-        "tests/test_digital_twin_ingest_runtime.py",
+        "tests/test_digital_twin_online_update.py",
         "tests/test_digital_twin_reference_validation.py",
+        "validation/benchmark_digital_twin_online_update.py",
+        "validation/reports/digital_twin_online_update.json",
+        "validation/reports/digital_twin_online_update.md",
         "validation/validate_digital_twin_reference.py",
+        "docs/api.md",
         "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/tokamak_digital_twin.py"
       ],
-      "validity_domain": "Deterministic topology and diffusion digital-twin regression; not a facility-calibrated discharge twin.",
+      "validity_domain": "Deterministic topology/diffusion digital-twin regression plus bounded synthetic Bayesian online-update evidence; external TRANSP/TSC or measured replay claims remain blocked until validated artifacts are supplied.",
+      "external_validation_tracker_issue": 51
+    },
+    {
+      "component": "digital twin online model updating",
+      "equation_contract": "Online model-update claims must declare tunable bounded parameters, external TRANSP/TSC simulator artifact provenance, target summary metrics, tolerances, deterministic random seed, Gaussian-process acquisition settings, and fail-closed behavior when external artifacts are absent or malformed.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "TRANSP integrated modelling evidence contract",
+        "TSC time-dependent simulation evidence contract",
+        "Bayesian optimisation for bounded model calibration",
+        "Repository digital-twin runtime contract"
+      ],
+      "module_path": "src/scpn_control/control/digital_twin_online_update.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Provide validated TRANSP, TSC, measured-discharge, or documented public-reference artifacts before measured replay claims",
+        "Validate online update trajectories against replayed or measured discharge histories before deployment use",
+        "Persist simulator artifact hashes, units, case ids, and strictly increasing time bases for every promoted update campaign"
+      ],
+      "unit_contract": "Tunable density in m^-3, effective charge dimensionless, actuator lag in steps, actuator rate limit dimensionless per step, target metrics in declared digital-twin summary units, and simulator time base in seconds.",
+      "validation_evidence": [
+        "tests/test_digital_twin_online_update.py external artifact, loss, Bayesian-update, and deterministic benchmark checks",
+        "tests/test_digital_twin_reference_validation.py strict digital-twin artifact gate including TRANSP and TSC",
+        "validation/benchmark_digital_twin_online_update.py deterministic bounded online-update benchmark"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/digital_twin_online_update.py",
+        "tests/test_digital_twin_online_update.py",
+        "tests/test_digital_twin_reference_validation.py",
+        "validation/benchmark_digital_twin_online_update.py",
+        "validation/reports/digital_twin_online_update.json",
+        "validation/reports/digital_twin_online_update.md",
+        "validation/validate_digital_twin_reference.py",
+        "docs/api.md",
+        "docs/validation.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/digital_twin_online_update.py"
+      ],
+      "validity_domain": "Bounded synthetic Bayesian online-update evidence over deterministic digital-twin summaries; external TRANSP/TSC or measured replay claims remain blocked until validated artifacts are supplied.",
       "external_validation_tracker_issue": 51
     },
     {
@@ -685,27 +831,33 @@
       "model_references": [
         "Bosch and Hale 1992 DT reactivity",
         "Lawson 1957 ignition criterion",
-        "Mitarai and Muraoka 1999 delayed alpha-heating feedback"
+        "Mitarai and Muraoka 1999 delayed alpha-heating feedback",
+        "Repository fail-closed burn-control claim-admission contract"
       ],
       "module_path": "src/scpn_control/control/burn_controller.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate burn operating points against an integrated transport solver or published burn-control benchmark before reactor-control claims",
+        "Attach strict documented public, integrated-transport benchmark, or measured burn replay artifacts before reactor-control claims",
         "Replace the burn-fraction approximation with a calibrated slowing-down and ash-removal model before facility extrapolation"
       ],
       "unit_contract": "SI joules, m^-3, seconds, keV, MW, m^3/s, metres, normalised profile radius, dimensionless Q, and Lawson triple product units m^-3 s keV.",
       "validation_evidence": [
-        "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, profile-domain, and control checks",
-        "tests/test_burn_controller.py burn-controller edge-path checks"
+        "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, profile-domain, control, and claim-admission checks",
+        "validation/validate_burn_reference.py strict burn-control reference artifact gate",
+        "validation/benchmark_burn_control_claims.py bounded claim-admission benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/control/burn_controller.py",
-        "tests/test_burn_controller.py"
+        "tests/test_burn_controller.py",
+        "validation/validate_burn_reference.py",
+        "validation/benchmark_burn_control_claims.py",
+        "validation/reports/burn_control_claims.json",
+        "validation/reports/burn_control_claims.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/burn_controller.py"
       ],
-      "validity_domain": "Bounded DT burn-control and alpha-heating regression; not a validated reactor burn-control design.",
+      "validity_domain": "Bounded DT burn-control and alpha-heating regression plus fail-closed claim-admission evidence; not a validated reactor burn-control design unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {
@@ -715,26 +867,33 @@
       "model_references": [
         "Wesson 2011 tokamak loop-voltage and flux-balance equations",
         "Ejima et al. 1982 startup flux coefficient",
-        "ITER Physics Basis 1999 flat-top flux-budget references"
+        "ITER Physics Basis 1999 flat-top flux-budget references",
+        "Repository fail-closed volt-second claim-admission contract"
       ],
       "module_path": "src/scpn_control/control/volt_second_manager.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate flux consumption against real loop-voltage and current traces before scenario-duration claims",
+        "Attach strict documented public, measured loop-voltage replay, or external scenario benchmark artifacts before scenario-duration claims",
         "Replace bootstrap-current proxy with neoclassical or transport-solver evidence before facility extrapolation"
       ],
       "unit_contract": "SI webers, volt-seconds, henries, ohms, amperes, mega-amperes, seconds, metres, normalised profile radius, and dimensionless Ejima coefficient.",
       "validation_evidence": [
-        "tests/test_volt_second_manager.py flux budget, scenario analysis, bootstrap-profile, and domain-boundary checks"
+        "tests/test_volt_second_manager.py flux budget, scenario analysis, bootstrap-profile, domain-boundary, and claim-admission checks",
+        "validation/validate_volt_second_reference.py strict volt-second reference artifact gate",
+        "validation/benchmark_volt_second_claims.py bounded claim-admission benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/control/volt_second_manager.py",
-        "tests/test_volt_second_manager.py"
+        "tests/test_volt_second_manager.py",
+        "validation/validate_volt_second_reference.py",
+        "validation/benchmark_volt_second_claims.py",
+        "validation/reports/volt_second_claims.json",
+        "validation/reports/volt_second_claims.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/volt_second_manager.py"
       ],
-      "validity_domain": "Scenario-level volt-second accounting regression; not a validated pulse-design or central-solenoid commissioning model.",
+      "validity_domain": "Scenario-level volt-second accounting regression plus fail-closed claim-admission evidence; not a validated pulse-design or central-solenoid commissioning model unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {
@@ -772,7 +931,7 @@
     },
     {
       "component": "differentiable transport facade contract",
-      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient gradient target, neural-closure coefficient mapping, campaign provenance metadata, schema-versioned replay metadata, and optional Grad-Shafranov flux-map radial weighting contract.",
+      "equation_contract": "Differentiable transport claims must declare the four-channel profile order, cylindrical Crank-Nicolson diffusion step, uniform normalised radial grid, source-term convention, core zero-gradient boundary, edge Dirichlet boundary, transport-coefficient and source-schedule gradient targets, sampled finite-difference gradient audit, audited gradient-admission latency metadata, neural-closure coefficient mapping, campaign provenance metadata, schema-versioned replay metadata, and optional Grad-Shafranov flux-map radial weighting contract.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "repository JAX transport primitive contract",
@@ -788,21 +947,27 @@
       ],
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced.",
       "validation_evidence": [
-        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX-gradient, neural-closure coefficient mapping, campaign metadata provenance, schema-versioned replay metadata, replay-drift guard, and equilibrium-weighted GS-flux checks",
-        "tests/test_nmpc_controller.py NMPC neural-closure tuning fails closed without JAX",
-        "tests/test_nmpc_controller.py NMPC transport tuning result carries campaign and closure provenance metadata"
+        "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX coefficient-gradient, source-schedule-gradient, sampled finite-difference gradient audit, neural-closure coefficient mapping, campaign metadata provenance, schema-versioned replay metadata, replay-drift guard, and equilibrium-weighted GS-flux checks",
+        "tests/test_nmpc_controller.py NMPC neural-closure and source-schedule tuning fail closed without JAX and preserve gradient-audit admission results",
+        "tests/test_nmpc_controller.py NMPC coefficient and source-schedule tuning results carry campaign metadata, closure provenance, finite source bounds, and fail-closed gradient-audit evidence",
+        "validation/benchmark_differentiable_transport_latency.py audited gradient-admission latency benchmark or fail-closed JAX-unavailable report",
+        "validation/reports/differentiable_transport_latency.json bounded latency report or blocked-backend status"
       ],
       "evidence_paths": [
         "src/scpn_control/core/differentiable_transport.py",
         "tests/test_differentiable_transport.py",
         "tests/test_nmpc_controller.py",
         "docs/api.md",
-        "docs/physics_traceability.md"
+        "docs/physics_traceability.md",
+        "validation/benchmark_differentiable_transport_latency.py",
+        "validation/reports/differentiable_transport_latency.json",
+        "validation/reports/differentiable_transport_latency.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/differentiable_transport.py"
       ],
-      "validity_domain": "Local one-step four-channel differentiable transport facade with optional GS-flux radial weighting for controller-tuning studies; not an externally validated integrated-transport, equilibrium-reconstruction, or facility-control claim.",
+      "validity_domain": "Local one-step four-channel differentiable transport facade with optional GS-flux radial weighting and audited gradient-admission latency for controller-tuning studies; not an externally validated integrated-transport, equilibrium-reconstruction, real-time control-loop, or facility-control claim.",
       "external_validation_tracker_issue": 49
     },
     {
@@ -999,29 +1164,34 @@
         "Prater 2004 ECCD launch-angle efficiency scaling",
         "Fisch 1978 lower-hybrid current-drive efficiency",
         "Stix 1972 neutral-beam slowing-down and critical-energy formulae",
-        "Ehst and Karney 1991 neutral-beam current-drive model"
+        "Ehst and Karney 1991 neutral-beam current-drive model",
+        "Repository fail-closed current-drive claim-admission contract"
       ],
       "module_path": "src/scpn_control/core/current_drive.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate ECCD and LHCD deposition against ray-tracing or measured deposition reconstructions before facility claims",
-        "Validate NBI deposition, fast-ion slowing down, and driven-current profiles against a beam-deposition or Fokker-Planck reference before facility claims",
+        "Attach strict ray-tracing, Fokker-Planck, measured deposition, or documented public artifacts before external current-drive claims",
         "Persist source power, deposition kernel, rho grid, density and temperature profiles, launch geometry, and efficiency coefficients for every promoted current-drive claim"
       ],
       "unit_contract": "Power in MW or W with explicit conversion, rho dimensionless, density in 10^19 m^-3, temperatures and beam energy in keV, current density in A/m^2, total current in amperes, efficiency coefficients in declared normalised A/W form.",
       "validation_evidence": [
-        "tests/test_current_drive.py verifies ECCD, LHCD, and NBI finite-width deposition power conservation, efficiency scaling, slowing-down time, critical energy, source superposition, and total-current integration"
+        "tests/test_current_drive.py ECCD, LHCD, and NBI deposition, scaling, source superposition, total-current integration, and claim-admission checks",
+        "validation/validate_current_drive_reference.py strict current-drive reference artifact gate",
+        "validation/benchmark_current_drive_claims.py bounded claim-admission benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/core/current_drive.py",
         "tests/test_current_drive.py",
-        "tests/test_cross_module_physics.py",
+        "validation/validate_current_drive_reference.py",
+        "validation/benchmark_current_drive_claims.py",
+        "validation/reports/current_drive_claims.json",
+        "validation/reports/current_drive_claims.md",
         "docs/learning/plasma_physics_primer.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/current_drive.py"
       ],
-      "validity_domain": "Bounded auxiliary current-drive source coupling for transport and NTM controller studies; not ray-traced, Fokker-Planck, or facility-validated deposition evidence.",
+      "validity_domain": "Bounded auxiliary current-drive source coupling plus fail-closed claim-admission evidence; not ray-traced, Fokker-Planck, or facility-validated deposition evidence unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {
@@ -1207,7 +1377,7 @@
     },
     {
       "component": "gyrokinetic online learner stability contract",
-      "equation_contract": "Online learner claims must declare training-window selection, non-empty train/validation split domains, nonnegative transport-coefficient targets, validation loss, rollback policy, uncertainty or OOD gating, optimiser settings, and compatibility boundary with gyrokinetic scheduler inputs.",
+      "equation_contract": "Online learner claims must declare training-window selection, non-empty train/validation split domains, nonnegative transport-coefficient targets, validation loss, rollback policy, OOD-score sample admission, optimiser settings, persisted retraining decisions, and compatibility boundary with gyrokinetic scheduler inputs.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "online learning stability and rollback control references",
@@ -1217,22 +1387,28 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate learner updates on immutable gyrokinetic campaign artefacts with held-out distribution-shift cases",
-        "Persist model weights, rollback decisions, and validation metrics for every online update"
+        "Persist model weights, rollback decisions, validation metrics, OOD thresholds, and source provenance for every online update"
       ],
       "unit_contract": "Inputs inherit GK feature units; transport targets are nonnegative chi_e, chi_i, and D_e; losses and OOD scores are dimensionless with explicit scaling, learning rate, epoch count, generation limit, and threshold metadata.",
       "validation_evidence": [
-        "tests/test_gk_online_learner.py",
-        "tests/test_gk_hybrid_integration.py"
+        "tests/test_gk_online_learner.py OOD admission, holdout retraining, rollback, decision persistence, and invalid-domain checks",
+        "tests/test_gk_hybrid_integration.py scheduler integration checks",
+        "validation/benchmark_gk_online_learner.py deterministic bounded online-retraining benchmark"
       ],
       "evidence_paths": [
+        "src/scpn_control/core/gk_online_learner.py",
         "tests/test_gk_online_learner.py",
         "tests/test_gk_hybrid_integration.py",
-        "src/scpn_control/core/gk_online_learner.py"
+        "validation/benchmark_gk_online_learner.py",
+        "validation/reports/gk_online_learner.json",
+        "validation/reports/gk_online_learner.md",
+        "validation/reports/gk_online_learner_decisions.json",
+        "docs/api.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/gk_online_learner.py"
       ],
-      "validity_domain": "Local update, rollback, non-empty train/validation split, and scheduler-integration regression; not validated adaptive physics deployment.",
+      "validity_domain": "Local bounded online-retraining, OOD admission, rollback, and persisted decision evidence; not validated adaptive physics deployment without immutable external GK campaign artefacts.",
       "external_validation_tracker_issue": 47
     },
     {
@@ -1252,22 +1428,29 @@
       "unit_contract": "All coupled states must preserve declared SI or normalised units for current, density, temperature, pressure, q, beta, power, flux, and timing.",
       "validation_evidence": [
         "tests/test_integrated_scenario.py",
-        "tests/test_cross_module_physics.py"
+        "tests/test_cross_module_physics.py",
+        "validation/benchmark_integrated_scenario_coupling.py",
+        "validation/reports/integrated_scenario_coupling.json",
+        "validation/reports/integrated_scenario_coupling.md"
       ],
       "evidence_paths": [
         "tests/test_integrated_scenario.py",
         "tests/test_cross_module_physics.py",
-        "src/scpn_control/core/integrated_scenario.py"
+        "src/scpn_control/core/integrated_scenario.py",
+        "validation/benchmark_integrated_scenario_coupling.py",
+        "validation/reports/integrated_scenario_coupling.json",
+        "validation/reports/integrated_scenario_coupling.md",
+        "docs/api.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/integrated_scenario.py"
       ],
-      "validity_domain": "Coupled scenario regression and module-integration checks; not validated full-discharge predictive modelling.",
+      "validity_domain": "Coupled scenario regression plus deterministic replay audit for module exchange, timestep consistency, finite state transfer, current deviation, and thermal-energy step bounds; not validated full-discharge predictive modelling.",
       "external_validation_tracker_issue": 49
     },
     {
       "component": "neural transport surrogate validation contract",
-      "equation_contract": "Neural transport claims must declare input feature normalisation, QLKNN weight provenance, prediction targets, fallback critical-gradient thresholds, bounded density-channel particle diffusivity, bounded profile closure provenance, uncertainty output, out-of-domain handling, and cross-validation against reference transport cases.",
+      "equation_contract": "Neural transport claims must declare input feature normalisation, QLKNN weight provenance, prediction targets, fallback critical-gradient thresholds, bounded density-channel particle diffusivity, bounded profile closure provenance, local benchmark errors, strict reference-artifact admission, weight checksum matching, uncertainty output, out-of-domain handling, and cross-validation against reference transport cases.",
       "fidelity_status": "external_dependency_blocked",
       "model_references": [
         "QuaLiKiz neural network transport surrogate references",
@@ -1277,14 +1460,15 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Acquire or generate immutable reference QLKNN or transport benchmark cases for cross-validation",
-        "Record weight checksums, feature scaling, fallback density-channel coefficients, closure source metadata, uncertainty metadata, and OOD decisions with every surrogate evaluation"
+        "Record weight checksums, QLKNN-10D feature schema, fallback density-channel coefficients, closure source metadata, uncertainty metadata, OOD decisions, reference metrics, tolerances, and admission status with every surrogate evaluation",
+        "Gate quantitative QuaLiKiz, QLKNN, or documented-reference transport claims on strict reference artifacts that match the exact neural weight checksum"
       ],
       "unit_contract": "Inputs and outputs use declared transport feature units, diffusivity in m^2/s or declared normalisation, fluxes in SI or gyro-Bohm units with conversion metadata.",
       "validation_evidence": [
         "tests/test_neural_transport.py density-gradient and shear-dependent fallback particle diffusivity",
-        "tests/test_neural_transport_core.py profile fallback particle-channel checks",
-        "tests/test_neural_transport_core.py bounded closure provenance and fallback gating checks",
+        "tests/test_neural_transport_core.py profile fallback particle-channel checks, bounded closure provenance, fallback gating, fail-closed claim evidence, and checksum-matched reference admission checks",
         "tests/test_qlknn_transport.py",
+        "validation/benchmark_neural_transport_claims.py deterministic local claim-admission benchmark",
         "validation/validate_neural_transport_reference.py strict QuaLiKiz/reference artifact gate"
       ],
       "evidence_paths": [
@@ -1292,18 +1476,23 @@
         "tests/test_neural_transport_core.py",
         "tests/test_qlknn_transport.py",
         "src/scpn_control/core/neural_transport.py",
+        "validation/benchmark_neural_transport_claims.py",
+        "validation/reports/neural_transport_claims.json",
+        "validation/reports/neural_transport_claims.md",
         "validation/validate_neural_transport_reference.py",
+        "docs/api.md",
+        "docs/benchmarks.md",
         "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_transport.py"
       ],
-      "validity_domain": "Local surrogate and weight-handling regression; quantitative transport-surrogate validation remains blocked on immutable reference data.",
+      "validity_domain": "Local surrogate, fallback-regression, closure-provenance, and fail-closed claim-admission evidence; quantitative QuaLiKiz, QLKNN, or measured transport-surrogate validation remains blocked until immutable reference artifacts match the exact neural weight checksum and pass declared tolerances.",
       "external_validation_tracker_issue": 50
     },
     {
       "component": "neural turbulence surrogate validation contract",
-      "equation_contract": "Neural turbulence claims must declare QLKNNSurrogate inputs, finite strictly ordered physical profile grids, feature scaling, banana-regime electron collisionality, bounded analytic quasilinear target variables, fallback behaviour, uncertainty handling, and cross-validation boundary against gyrokinetic or quasilinear turbulence references.",
+      "equation_contract": "Neural turbulence claims must declare QLKNNSurrogate inputs, finite strictly ordered physical profile grids, feature scaling, banana-regime electron collisionality, bounded analytic quasilinear target variables, fallback behaviour, uncertainty handling, local analytic-target benchmark errors, strict reference-artifact admission, exact weight checksum matching, and cross-validation boundary against gyrokinetic or quasilinear turbulence references.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "QLKNN turbulence surrogate references",
@@ -1313,28 +1502,35 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate surrogate outputs against immutable gyrokinetic or QuaLiKiz turbulence benchmark cases",
-        "Persist feature scaling, collisionality convention, model checksum, fallback mode, and error metrics for each validation case"
+        "Persist feature schema, weight checksum, local Q_i/Q_e/Gamma_e errors, critical-gradient accuracy, reference source, tolerances, and claim-admission status before quantitative turbulence claims",
+        "Gate quantitative gyrokinetic, QuaLiKiz, or documented-reference turbulence claims on strict reference artifacts that match the exact neural weight checksum"
       ],
       "unit_contract": "Feature and target units follow the declared turbulence surrogate schema; diffusivities, growth rates, and fluxes require explicit SI or normalised-unit metadata.",
       "validation_evidence": [
-        "tests/test_neural_turbulence.py collisionality scaling, analytic target, training, save-load, and denormalisation checks",
+        "tests/test_neural_turbulence.py collisionality scaling, analytic target, training, save-load, denormalisation, fail-closed claim evidence, and checksum-matched reference admission checks",
+        "validation/benchmark_neural_turbulence_claims.py deterministic local claim-admission benchmark",
         "validation/validate_neural_turbulence_reference.py strict GK-campaign/reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_neural_turbulence.py",
         "src/scpn_control/core/neural_turbulence.py",
+        "validation/benchmark_neural_turbulence_claims.py",
+        "validation/reports/neural_turbulence_claims.json",
+        "validation/reports/neural_turbulence_claims.md",
         "validation/validate_neural_turbulence_reference.py",
+        "docs/api.md",
+        "docs/benchmarks.md",
         "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_turbulence.py"
       ],
-      "validity_domain": "Surrogate API and fallback regression; not quantitative turbulence prediction validation.",
+      "validity_domain": "Local surrogate API, analytic-target regression, profile-domain checks, and fail-closed claim-admission evidence; not quantitative gyrokinetic, QuaLiKiz, or measured turbulence prediction validation until immutable reference artifacts match the exact neural weight checksum and pass declared tolerances.",
       "external_validation_tracker_issue": 50
     },
     {
       "component": "orbit-following guiding-centre approximation contract",
-      "equation_contract": "Orbit-following claims must declare guiding-centre equations, magnetic moment handling, finite pitch-angle bounds, banana-orbit width scaling, collision or loss assumptions, ensemble sampling, and valid magnetic-geometry bounds.",
+      "equation_contract": "Orbit-following claims must declare guiding-centre equations, magnetic moment handling, finite pitch-angle bounds, banana-orbit width scaling, collision or loss assumptions, ensemble sampling, valid magnetic-geometry bounds, geometry/particle/collision/loss-boundary provenance, and matched banana-width and loss-fraction reference tolerances before external orbit-code or measured fast-ion claims.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Cordey 1981 orbit-width estimate",
@@ -1343,29 +1539,35 @@
       "module_path": "src/scpn_control/core/orbit_following.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate orbit widths and loss fractions against an independent orbit-following code or published benchmark cases",
-        "Persist particle species, pitch, energy, geometry, and ensemble seed metadata with each validation artefact"
+        "Validate orbit widths and loss fractions against an independent orbit-following code or published benchmark cases before external orbit-code claims",
+        "Persist particle species, pitch, energy, geometry, ensemble seed or counts, collision model, wall/loss boundary, reference tolerances, and claim-admission status with each validation artefact"
       ],
       "unit_contract": "SI metres, seconds, tesla, electronvolts, kg, coulombs, pitch angle in radians on [0, pi], and ensemble probabilities dimensionless.",
       "validation_evidence": [
-        "tests/test_orbit_following.py",
-        "validation/validate_orbit_reference.py strict orbit reference artifact gate"
+        "tests/test_orbit_following.py verifies guiding-centre domain checks, classifier boundaries, Stix slowing-down, banana-width scaling, first-orbit-loss scaling, ensemble counts, and fail-closed orbit-following claim evidence admission",
+        "validation/benchmark_orbit_following_claims.py publishes deterministic bounded synthetic claim evidence with explicit external-code claim exclusion",
+        "validation/reports/orbit_following_claims.json records bounded geometry, particle, collision, loss-boundary, banana-width, first-orbit-loss, and ensemble-count evidence",
+        "validation/validate_orbit_reference.py strict orbit reference artefact gate"
       ],
       "evidence_paths": [
         "tests/test_orbit_following.py",
         "src/scpn_control/core/orbit_following.py",
+        "validation/benchmark_orbit_following_claims.py",
+        "validation/reports/orbit_following_claims.json",
+        "validation/reports/orbit_following_claims.md",
         "validation/validate_orbit_reference.py",
-        "docs/validation.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/orbit_following.py"
       ],
-      "validity_domain": "Guiding-centre and orbit-width regression; not validated fast-ion confinement or loss prediction.",
+      "validity_domain": "Bounded guiding-centre, banana-width, slowing-down, and first-orbit-loss regression evidence for local controller studies; not external orbit-code, measured fast-ion diagnostic, or device-qualified loss validation unless matched banana-width and loss-fraction references pass the admission gate.",
       "external_validation_tracker_issue": 49
     },
     {
       "component": "full-chain uncertainty quantification contract",
-      "equation_contract": "Uncertainty claims must declare sampled variables, distributions, correlations, random seed, propagation chain, convergence criteria, sensitivity outputs that preserve D-T composition and fuel dilution, and finite-value rejection policy.",
+      "equation_contract": "Uncertainty claims must declare sampled variables, distributions, correlations, random seed, sample count, propagation chain, convergence and percentile-ordering criteria, finite-value rejection policy, D-T fuel dilution handling, sensitivity outputs, scenario/prior/sensitivity provenance, and matched central-value and sigma reference tolerances before calibrated predictive-UQ claims.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "Monte Carlo uncertainty propagation references",
@@ -1374,33 +1576,39 @@
       "module_path": "src/scpn_control/core/uncertainty.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Calibrate uncertainty priors against measured or published scenario ensembles",
-        "Persist random seeds, distribution parameters, sample counts, convergence diagnostics, and sensitivity metrics with every UQ artefact"
+        "Calibrate uncertainty priors against measured or published scenario ensembles before predictive facility-UQ claims",
+        "Persist random seeds, distribution parameters, sample counts, percentile ordering, finite-output checks, convergence diagnostics, sensitivity metrics, reference tolerances, and claim-admission status with every UQ artefact"
       ],
       "unit_contract": "Units inherit each propagated physical quantity; distribution parameters must preserve SI or declared normalised units and dimensionless uncertainty fractions.",
       "validation_evidence": [
-        "tests/test_uncertainty.py",
-        "tests/test_full_chain_uq.py",
-        "tests/test_uncertainty_sigma_guard.py",
-        "validation/validate_uncertainty_reference.py strict UQ reference artifact gate"
+        "tests/test_uncertainty.py verifies IPB98 monotonicity, Bosch-Hale domains, D-T fuel dilution, full-chain sampling, percentile ordering, finite-output checks, and fail-closed UQ claim evidence admission",
+        "tests/test_full_chain_uq.py full-chain UQ behavioural coverage",
+        "tests/test_uncertainty_sigma_guard.py sigma guard coverage",
+        "validation/benchmark_uq_claims.py publishes deterministic bounded synthetic claim evidence with explicit calibrated-UQ exclusion",
+        "validation/reports/uq_claims.json records bounded scenario, prior, seed, sample-count, percentile, finite-output, sensitivity, and claim-admission evidence",
+        "validation/validate_uncertainty_reference.py strict UQ reference artefact gate"
       ],
       "evidence_paths": [
         "tests/test_uncertainty.py",
         "tests/test_full_chain_uq.py",
         "tests/test_uncertainty_sigma_guard.py",
         "src/scpn_control/core/uncertainty.py",
+        "validation/benchmark_uq_claims.py",
+        "validation/reports/uq_claims.json",
+        "validation/reports/uq_claims.md",
         "validation/validate_uncertainty_reference.py",
-        "docs/validation.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/uncertainty.py"
       ],
-      "validity_domain": "Monte Carlo and finite-value regression; not calibrated predictive uncertainty for a specific facility.",
+      "validity_domain": "Bounded Monte Carlo, full-chain propagation, finite-output, and sensitivity regression evidence for local controller studies; not calibrated predictive uncertainty for a specific facility unless matched measured scenario, external-UQ, central-value, and sigma references pass the admission gate.",
       "external_validation_tracker_issue": 49
     },
     {
       "component": "VMEC-lite stellarator equilibrium approximation contract",
-      "equation_contract": "VMEC-lite claims must declare flux-surface parameterisation, rotational-transform profile, Fourier mode truncation, positive R00 major-radius boundary state, pressure/current assumptions, residual metric, and explicit exclusion from full 3D MHD equilibrium claims.",
+      "equation_contract": "VMEC-lite claims must declare flux-surface parameterisation, rotational-transform profile, Fourier mode truncation, field-period count, positive R00 and sampled major-radius boundary state, pressure/current assumptions, residual metric, geometry/profile/current provenance, reference-comparison tolerances for R_mn, Z_mn, and iota, convergence status, and explicit exclusion from full VMEC-grade 3D MHD equilibrium claims unless matched references pass the fail-closed admission gate.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "VMEC 3D equilibrium references",
@@ -1409,24 +1617,30 @@
       "module_path": "src/scpn_control/core/vmec_lite.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate surface geometry and rotational-transform outputs against VMEC or published stellarator benchmark equilibria",
-        "Persist Fourier truncation, pressure profile, current profile, and residual metadata for each validation case"
+        "Validate surface geometry and rotational-transform outputs against VMEC or published stellarator benchmark equilibria before full VMEC claims",
+        "Persist Fourier truncation, field periods, pressure profile, iota profile, current assumption, sampled major-radius bounds, residual tolerance, reference errors, and admission status for every promoted VMEC-lite claim"
       ],
       "unit_contract": "SI metres, tesla, pascals, amperes, webers, dimensionless rotational transform, and Fourier coefficients with declared length units.",
       "validation_evidence": [
-        "tests/test_vmec_lite.py",
-        "validation/validate_vmec_reference.py strict VMEC reference artifact gate"
+        "tests/test_vmec_lite.py verifies finite spectral reconstruction, bounded force residuals, physical domains, and fail-closed VMEC-lite claim evidence admission",
+        "validation/benchmark_vmec_lite_claims.py publishes deterministic bounded synthetic claim evidence with explicit full-VMEC exclusion",
+        "validation/reports/vmec_lite_claims.json records bounded Fourier, field-period, profile, residual, q-domain, and positive-major-radius evidence",
+        "validation/validate_vmec_reference.py strict VMEC reference artefact gate"
       ],
       "evidence_paths": [
         "tests/test_vmec_lite.py",
         "src/scpn_control/core/vmec_lite.py",
+        "validation/benchmark_vmec_lite_claims.py",
+        "validation/reports/vmec_lite_claims.json",
+        "validation/reports/vmec_lite_claims.md",
         "validation/validate_vmec_reference.py",
-        "docs/validation.md"
+        "docs/api.md",
+        "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/vmec_lite.py"
       ],
-      "validity_domain": "Reduced stellarator surface regression; not full VMEC-grade 3D equilibrium validation.",
+      "validity_domain": "Bounded fixed-boundary VMEC-lite spectral facade evidence for local regression and controller studies; not full VMEC-grade 3D MHD equilibrium validation unless matched external R_mn, Z_mn, iota, convergence, and residual references pass the admission gate.",
       "external_validation_tracker_issue": 48
     },
     {
@@ -1465,29 +1679,37 @@
       "model_references": [
         "Doyle 1982 structured singular value definition",
         "Balas et al. 1993 mu-analysis and synthesis toolbox",
-        "Skogestad and Postlethwaite 2005 multivariable feedback control"
+        "Skogestad and Postlethwaite 2005 multivariable feedback control",
+        "Repository fail-closed static mu-analysis claim-admission contract"
       ],
       "module_path": "src/scpn_control/control/mu_synthesis.py",
       "public_claim_allowed": false,
       "required_actions": [
+        "Attach strict documented public, external mu-toolbox, or measured control replay artifacts before validated robust-control claims",
         "Wire a validated frequency-dependent H-infinity synthesis backend before making full D-K synthesis claims",
         "Persist benchmark plants, frequency grids, D-scale fits, and mu upper/lower bounds for every promoted controller claim"
       ],
       "unit_contract": "State, control, output, and uncertainty units inherit the supplied state-space plant contract; mu, uncertainty bounds, and D-scalings are dimensionless.",
       "validation_evidence": [
-        "tests/test_mu_synthesis.py verifies D-scaled upper-bound behaviour, uncertainty-bound scaling, finite-domain rejection, and closed-loop plant dependence",
+        "tests/test_mu_synthesis.py D-scaled upper-bound behaviour, uncertainty-bound scaling, finite-domain rejection, closed-loop plant dependence, and claim-admission checks",
+        "validation/validate_mu_synthesis_reference.py strict mu-analysis reference artifact gate",
+        "validation/benchmark_mu_synthesis_claims.py bounded claim-admission benchmark",
         "docs/learning/control_theory_primer.md states the bounded static analysis domain"
       ],
       "evidence_paths": [
         "src/scpn_control/control/mu_synthesis.py",
         "tests/test_mu_synthesis.py",
+        "validation/validate_mu_synthesis_reference.py",
+        "validation/benchmark_mu_synthesis_claims.py",
+        "validation/reports/mu_synthesis_claims.json",
+        "validation/reports/mu_synthesis_claims.md",
         "docs/learning/control_theory_primer.md",
         "README.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/mu_synthesis.py"
       ],
-      "validity_domain": "Static continuous-time state-feedback analysis for repository benchmark plants; not full frequency-dependent D-K synthesis and not facility hardware validation.",
+      "validity_domain": "Static continuous-time state-feedback analysis plus fail-closed claim-admission evidence for repository benchmark plants; not full frequency-dependent D-K synthesis and not facility hardware validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {
@@ -1547,6 +1769,39 @@
         "src/scpn_control/phase/kuramoto.py"
       ],
       "validity_domain": "Local Kuramoto-Sakaguchi oscillator regression and runtime parity checks; not a validated plasma-phase control law.",
+      "external_validation_tracker_issue": 53
+    },
+    {
+      "component": "SCPN formal Petri-net verification contract",
+      "equation_contract": "Formal verification claims must declare the compiled Petri-net transition relation, exact bounded reachability depth, rational marking arithmetic, marking-bound safety obligations, algebraic place-invariant weights, transition liveness obligations, bounded temporal response and recurrence specifications, inhibitor-arc semantics, and counterexample path reporting.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Petri-net reachability and P-invariant analysis",
+        "bounded temporal logic over finite transition systems",
+        "repository SCPN compiler transition-relation contract"
+      ],
+      "module_path": "src/scpn_control/scpn/formal_verification.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Persist formal verification reports with every safety-critical compiled controller artifact",
+        "Validate certification packages with an external safety-case review before hardware-control claims",
+        "Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted"
+      ],
+      "unit_contract": "Markings are dimensionless token densities; arc weights and invariant weights are rationalised from finite decimal inputs; max_depth is a non-negative integer firing bound; temporal response windows count transition firings.",
+      "validation_evidence": [
+        "tests/test_scpn_formal_verification.py exact reachability, marking bounds, transition liveness, algebraic place invariants, all-path bounded response, recurrence, counterexample, and invalid-domain checks",
+        "src/scpn_control/scpn/formal_verification.py exact explicit-state finite transition relation over rational markings"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/scpn/formal_verification.py",
+        "tests/test_scpn_formal_verification.py",
+        "docs/api.md",
+        "docs/use_cases.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/scpn/formal_verification.py"
+      ],
+      "validity_domain": "Exact bounded Petri-net control-logic verification for compiled finite SCPN graphs; not a full plant PCS certification, stochastic runtime proof, FPGA timing proof, or unbounded model-checking claim.",
       "external_validation_tracker_issue": 53
     },
     {

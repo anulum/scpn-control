@@ -6,6 +6,25 @@
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
 <!-- SCPN Control — Validation and QA -->
 
+
+## Federated disruption synthetic multi-facility benchmark
+
+Run:
+
+```bash
+python validation/benchmark_federated_disruption.py
+```
+
+Outputs:
+
+- `validation/reports/federated_disruption_benchmark.json`
+- `validation/reports/federated_disruption_benchmark.md`
+
+Scope: deterministic synthetic DIII-D/JET/KSTAR/EAST facility distributions,
+FedProx aggregation, and facility-update differential privacy accounting.
+This is not measured cross-facility validation; measured claims remain blocked
+until external facility shot databases and provenance manifests are supplied.
+
 # Validation and QA
 
 ## Python tests
@@ -225,6 +244,18 @@ documented public reference artifacts for the same surrogate weights and
 equilibrium cases. Synthetic training runs and local smoke tests do not count as
 matched equilibrium-reference evidence:
 
+Synthetic neural-equilibrium pretraining evidence can be regenerated with:
+
+```bash
+python validation/benchmark_neural_equilibrium_pretraining.py
+```
+
+This writes `validation/reports/neural_equilibrium_pretraining.json`,
+`validation/reports/neural_equilibrium_pretraining.md`, and JAX-compatible
+synthetic pretraining weights. These artefacts demonstrate pretraining and
+inference plumbing only; real EFIT/P-EFIT fine-tuning remains gated by the
+strict reference-artifact validator below.
+
 ```bash
 scpn-control validate-neural-equilibrium-reference --require-reference-artifacts --json-out
 python validation/validate_neural_equilibrium_reference.py --require-reference-artifacts --output-json artifacts/neural_equilibrium_reference_report.json
@@ -238,6 +269,18 @@ reference-equilibrium count, and error metrics inside declared tolerances.
 Neural transport surrogate validation claims require persisted QuaLiKiz or
 documented public reference artifacts for the same QLKNN-style feature schema
 and trained weights:
+
+Bounded local neural-transport claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_neural_transport_claims.py
+```
+
+This writes `validation/reports/neural_transport_claims.json` and
+`validation/reports/neural_transport_claims.md`. These artefacts demonstrate
+local fallback-regression and claim-admission plumbing only; quantitative
+QuaLiKiz, QLKNN, or measured transport validation remains gated by the strict
+reference-artifact validator below.
 
 ```bash
 scpn-control validate-neural-transport-reference --require-reference-artifacts --json-out
@@ -253,6 +296,18 @@ declared tolerances.
 Neural turbulence surrogate validation claims require persisted gyrokinetic
 campaign or documented public reference artifacts for the same QLKNN-class
 feature schema and trained weights:
+
+Bounded local neural-turbulence claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_neural_turbulence_claims.py
+```
+
+This writes `validation/reports/neural_turbulence_claims.json` and
+`validation/reports/neural_turbulence_claims.md`. These artefacts demonstrate
+local analytic-target regression and claim-admission plumbing only; quantitative
+gyrokinetic, QuaLiKiz, or measured turbulence validation remains gated by the
+strict reference-artifact validator below.
 
 ```bash
 scpn-control validate-neural-turbulence-reference --require-reference-artifacts --json-out
@@ -335,10 +390,128 @@ artifacts with source provenance, model identity, SHA-256 reference hash, radial
 grid metadata, actuator settings, unit contracts, case count, and
 fuelling-profile metrics inside declared tolerances.
 
+DT burn-control validation claims require persisted documented public,
+integrated transport benchmark, or measured burn replay artifacts for alpha
+power, Q, Lawson margin, burn fraction, and reactivity-exponent checks:
+
+Bounded local burn-control claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_burn_control_claims.py
+```
+
+This writes `validation/reports/burn_control_claims.json` and
+`validation/reports/burn_control_claims.md`. These artefacts demonstrate
+deterministic burn-control claim-admission plumbing only; reactor-control
+claims remain gated by the strict reference-artifact validator below.
+
+```bash
+scpn-control validate-burn-reference --require-reference-artifacts --json-out
+python validation/validate_burn_reference.py --require-reference-artifacts --output-json artifacts/burn_reference_report.json
+```
+
+Strict mode fails until `validation/reports/burn_reference/` contains artifacts
+with source provenance, model identity, SHA-256 reference hash, plasma metadata,
+unit contracts, case count, and burn-control metrics inside declared
+tolerances.
+
+Volt-second scenario validation claims require persisted documented public,
+measured loop-voltage replay, or external scenario benchmark artifacts for total
+flux, flat-top duration, Ejima flux, bootstrap current, and budget-margin
+checks:
+
+Bounded local volt-second claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_volt_second_claims.py
+```
+
+This writes `validation/reports/volt_second_claims.json` and
+`validation/reports/volt_second_claims.md`. These artefacts demonstrate
+deterministic scenario-accounting claim-admission plumbing only; pulse-duration
+or solenoid-commissioning claims remain gated by the strict reference-artifact
+validator below.
+
+```bash
+scpn-control validate-volt-second-reference --require-reference-artifacts --json-out
+python validation/validate_volt_second_reference.py --require-reference-artifacts --output-json artifacts/volt_second_reference_report.json
+```
+
+Strict mode fails until `validation/reports/volt_second_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash,
+machine metadata, unit contracts, case count, and volt-second metrics inside
+declared tolerances.
+
+Auxiliary current-drive validation claims require persisted documented public,
+ray-tracing, Fokker-Planck, or measured-deposition artifacts for absorbed power,
+driven current, deposition centroid, peak current density, and NBI slowing-down
+checks:
+
+Bounded local current-drive claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_current_drive_claims.py
+```
+
+This writes `validation/reports/current_drive_claims.json` and
+`validation/reports/current_drive_claims.md`. These artefacts demonstrate
+deterministic current-drive claim-admission plumbing only; ray-traced,
+Fokker-Planck, or measured-deposition claims remain gated by the strict
+reference-artifact validator below.
+
+```bash
+scpn-control validate-current-drive-reference --require-reference-artifacts --json-out
+python validation/validate_current_drive_reference.py --require-reference-artifacts --output-json artifacts/current_drive_reference_report.json
+```
+
+Strict mode fails until `validation/reports/current_drive_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, source
+metadata, unit contracts, case count, and current-drive metrics inside declared
+tolerances.
+
+Static mu-analysis validation claims require persisted documented public,
+external mu-toolbox, or measured control replay artifacts for mu upper bound,
+robustness margin, controller gain, D-scaling, and closed-loop spectral
+abscissa checks:
+
+Bounded local mu-synthesis claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_mu_synthesis_claims.py
+```
+
+This writes `validation/reports/mu_synthesis_claims.json` and
+`validation/reports/mu_synthesis_claims.md`. These artefacts demonstrate
+deterministic static mu-analysis claim-admission plumbing only; full
+frequency-dependent D-K synthesis claims remain gated by the strict
+reference-artifact validator below.
+
+```bash
+scpn-control validate-mu-synthesis-reference --require-reference-artifacts --json-out
+python validation/validate_mu_synthesis_reference.py --require-reference-artifacts --output-json artifacts/mu_synthesis_reference_report.json
+```
+
+Strict mode fails until `validation/reports/mu_synthesis_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, plant
+metadata, unit contracts, case count, and mu-analysis metrics inside declared
+tolerances.
+
 Disruption-mitigation contract validation claims require persisted
 public-reference, measured-disruption, or external benchmark artifacts for
 warning lead time, mitigation outcome, halo current, runaway beam, and TBR
 equivalence checks:
+
+Bounded local disruption-mitigation claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_disruption_mitigation_claims.py
+```
+
+This writes `validation/reports/disruption_mitigation_claims.json` and
+`validation/reports/disruption_mitigation_claims.md`. These artefacts
+demonstrate deterministic halo/runaway ensemble and claim-admission plumbing
+only; mitigation validation remains gated by the strict reference-artifact
+validator below.
 
 ```bash
 scpn-control validate-disruption-reference --require-reference-artifacts --json-out
@@ -354,6 +527,18 @@ Tokamak digital-twin validation claims require persisted public-reference,
 measured-discharge replay, or external integrated-modelling artifacts for grid
 topology, q-profile evolution, actuator latency, IDS export, and island-mask
 checks:
+
+Bounded synthetic online model-update evidence can be regenerated with:
+
+```bash
+python validation/benchmark_digital_twin_online_update.py
+```
+
+This writes `validation/reports/digital_twin_online_update.json` and
+`validation/reports/digital_twin_online_update.md`. The benchmark exercises
+Bayesian updating of density, effective charge, and actuator dynamics against a
+synthetic reference. TRANSP/TSC coupling requires validated external simulator
+metadata and the strict reference gate below before measured replay claims.
 
 ```bash
 scpn-control validate-digital-twin-reference --require-reference-artifacts --json-out
@@ -402,6 +587,31 @@ This writes:
 - `validation/reports/free_boundary_tracking_acceptance.json`
 - `validation/reports/free_boundary_tracking_acceptance.md`
 
+Bounded free-boundary claim-admission evidence can be regenerated with:
+
+```bash
+python validation/benchmark_free_boundary_tracking_claims.py
+```
+
+This writes `validation/reports/free_boundary_tracking_claims.json` and
+`validation/reports/free_boundary_tracking_claims.md`. These artefacts
+demonstrate deterministic claim-admission plumbing only; facility-control
+claims remain gated by strict reference artefacts.
+
+Free-boundary tracking validation claims require persisted public-reference,
+measured free-boundary replay, or external equilibrium benchmark artifacts for
+shape, X-point, divertor, and coil-current agreement:
+
+```bash
+scpn-control validate-free-boundary-reference --require-reference-artifacts --json-out
+python validation/validate_free_boundary_reference.py --require-reference-artifacts --output-json artifacts/free_boundary_reference_report.json
+```
+
+Strict mode fails until `validation/reports/free_boundary_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, unit
+contracts, equilibrium metadata, case count, and free-boundary metrics inside
+declared tolerances.
+
 ## CI workflows
 
 - Core CI: `.github/workflows/ci.yml`
@@ -428,3 +638,20 @@ This writes:
 - `rust-benchmarks` (Criterion, uploads `bench-results` artifact)
 - `rust-audit` (cargo-audit vulnerability scan)
 - `cargo-deny` (license + advisory supply-chain policy)
+## Federated disruption synthetic multi-facility benchmark
+
+Run:
+
+```bash
+python validation/benchmark_federated_disruption.py
+```
+
+Outputs:
+
+- `validation/reports/federated_disruption_benchmark.json`
+- `validation/reports/federated_disruption_benchmark.md`
+
+Scope: deterministic synthetic DIII-D/JET/KSTAR/EAST facility distributions,
+FedProx aggregation, and facility-update differential privacy accounting.
+This is not measured cross-facility validation; measured claims remain blocked
+until external facility shot databases and provenance manifests are supplied.

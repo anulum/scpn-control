@@ -30,6 +30,24 @@ contract-based pre/post-condition checking. Extracted from
 source modules, 264 test files, **3,700+ collected Python tests**, 5 Rust crates, and a 20-job CI matrix.
 Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native linear eigenvalue, native TGLF-equivalent (SAT0/SAT1/SAT2), nonlinear δf GK (5D Vlasov, JAX-accelerable).
 
+## Relationship to SCPN Fusion Core
+
+`scpn-control` is the compact control package in the SCPN ecosystem. It keeps
+the controller-facing surfaces small enough for installation, CI, replay, and
+hardware-in-the-loop work: Petri-net compilation, SNN controllers, NMPC,
+runtime contracts, differentiable tuning facades, fail-closed adapters, and
+bounded validation reports.
+
+[`scpn-fusion-core`](https://github.com/anulum/scpn-fusion-core) is the broader
+physics and research suite. It carries the wider solver laboratory: extended
+equilibrium and transport models, gyrokinetic workflows, 3D and stellarator
+surfaces, Rust/polyglot kernels, neural surrogates, and high-volume validation
+or benchmark campaigns.
+
+The two projects are developed together. Physics kernels and broad solver
+experiments mature in `scpn-fusion-core`; `scpn-control` exposes control-grade
+facades and replay-safe contracts for the subset needed in controller loops.
+
 > **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
 > See [competitive analysis](docs/competitive_analysis.md) for full benchmarks
@@ -38,7 +56,9 @@ Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native line
 > **Status: Alpha / Research.** Not a production PCS. No real tokamak
 > deployment. Public physics claims are limited to checksum-gated repository
 > reference artefacts, published GEQDSK files, and explicitly bounded synthetic
-> or non-facility domains.
+> or non-facility domains. See
+> [Production Readiness Boundary](docs/production_readiness.md) for the
+> library-readiness versus facility-deployment distinction.
 
 ## Capability Inventory
 
@@ -60,14 +80,14 @@ Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native line
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 17 |
-| Python control/physics modules | 130 |
-| Python public classes | 412 |
+| Python control/physics modules | 131 |
+| Python public classes | 450 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
-| Validation scripts | 38 |
+| Validation scripts | 65 |
 | Optional extras | 17 |
-| Python test files | 272 |
-| Public documentation pages | 31 |
+| Python test files | 273 |
+| Public documentation pages | 32 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -147,7 +167,7 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 ## Features
 
 - **Petri Net to SNN compilation** -- Translates Stochastic Petri Nets into spiking neural network controllers with LIF neurons and bitstream encoding
-- **Contract checking** -- Runtime pre/post-condition assertions on control observations and actions (not theorem-proved formal verification)
+- **Bounded formal verification** -- Exact Petri-net reachability, marking-bound proofs, algebraic place invariants, transition liveness, and bounded temporal response specifications for compiled control logic
 - **Sub-millisecond latency** -- <1ms control loop with optional Rust-accelerated kernels
 - **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update, Boris integration, SNN pools, and MPC
 - **10 controller types** -- PID, MPC, NMPC, H-infinity, mu-synthesis, gain-scheduled, sliding-mode, fault-tolerant, SNN, PPO reinforcement learning

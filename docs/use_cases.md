@@ -25,10 +25,11 @@ graduate students.
 
 The contract layer now includes bounded formal verification for compiled
 Petri-net control logic: exact reachability analysis, marking-bound safety
-proofs, transition liveness checks, and temporal specs such as always-bounded,
-eventually-fires, and never-co-marked. These artefacts are certification
-evidence for controller logic, but they do not by themselves certify a full
-plant PCS or replace external safety-case review.
+proofs, algebraic place-invariant proofs, transition liveness checks, and
+bounded temporal specs such as always-bounded, always-eventually-marked,
+eventually-fires, fire-leads-to-marking, and never-co-marked. These artefacts
+are certification evidence for controller logic, but they do not by themselves
+certify a full plant PCS or replace external safety-case review.
 
 ---
 

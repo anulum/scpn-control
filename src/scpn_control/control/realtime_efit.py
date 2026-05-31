@@ -13,13 +13,20 @@
 
 from __future__ import annotations
 
+import json
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 MU0 = 4.0e-7 * np.pi
+_EFIT_CLAIM_SCHEMA_VERSION = 1
+_FACILITY_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "efit_reference", "p_efit_reference", "measured_discharge"}
+)
+_BOUNDED_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *_FACILITY_REFERENCE_SOURCES})
 
 
 @dataclass
@@ -55,6 +62,189 @@ class ReconstructionResult:
     chi_squared: float
     n_iterations: int
     wall_time_ms: float
+
+
+@dataclass(frozen=True)
+class EFITLiteClaimEvidence:
+    """Serialisable admission evidence for EFIT-lite reconstruction claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    diagnostic_source: str
+    model_id: str
+    grid_shape: tuple[int, int]
+    n_flux_loops: int
+    n_b_probes: int
+    rogowski_radius_m: float
+    chi_squared: float
+    n_iterations: int
+    wall_time_ms: float
+    ip_reconstructed_A: float
+    q95: float
+    beta_pol: float
+    li: float
+    psi_relative_error: float | None
+    ip_relative_error: float | None
+    q95_abs_error: float | None
+    beta_pol_abs_error: float | None
+    li_abs_error: float | None
+    psi_relative_tolerance: float
+    ip_relative_tolerance: float
+    q95_abs_tolerance: float
+    beta_pol_abs_tolerance: float
+    li_abs_tolerance: float
+    facility_claim_allowed: bool
+    claim_status: str
+
+
+def _finite_float(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    out = float(value)
+    if not np.isfinite(out):
+        raise ValueError(f"{name} must be finite")
+    if positive and out <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    if nonnegative and out < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return out
+
+
+def _relative_array_error(name: str, candidate: np.ndarray, reference: Any) -> float:
+    ref = np.asarray(reference, dtype=float)
+    cand = np.asarray(candidate, dtype=float)
+    if ref.shape != cand.shape:
+        raise ValueError(f"{name} reference must match reconstructed shape")
+    if not np.all(np.isfinite(ref)):
+        raise ValueError(f"{name} reference must be finite")
+    reference_norm = max(float(np.linalg.norm(ref)), 1.0e-30)
+    return float(np.linalg.norm(cand - ref) / reference_norm)
+
+
+def efit_lite_claim_evidence(
+    result: ReconstructionResult,
+    diagnostics: MagneticDiagnostics,
+    *,
+    source: str,
+    source_id: str,
+    diagnostic_source: str,
+    model_id: str = "bounded_efit_lite",
+    reference_psi: Any | None = None,
+    reference_shape: ShapeParams | None = None,
+    psi_relative_tolerance: float = 0.05,
+    ip_relative_tolerance: float = 0.02,
+    q95_abs_tolerance: float = 0.1,
+    beta_pol_abs_tolerance: float = 0.1,
+    li_abs_tolerance: float = 0.1,
+) -> EFITLiteClaimEvidence:
+    """Build fail-closed evidence for EFIT-lite claim admission."""
+
+    if source not in _BOUNDED_REFERENCE_SOURCES:
+        raise ValueError("source must be a declared EFIT-lite reference source")
+    if not isinstance(source_id, str) or not source_id.strip():
+        raise ValueError("source_id must be a non-empty string")
+    if not isinstance(diagnostic_source, str) or not diagnostic_source.strip():
+        raise ValueError("diagnostic_source must be a non-empty string")
+    if not isinstance(model_id, str) or not model_id.strip():
+        raise ValueError("model_id must be a non-empty string")
+    tolerances = (
+        _finite_float("psi_relative_tolerance", psi_relative_tolerance, positive=True),
+        _finite_float("ip_relative_tolerance", ip_relative_tolerance, positive=True),
+        _finite_float("q95_abs_tolerance", q95_abs_tolerance, positive=True),
+        _finite_float("beta_pol_abs_tolerance", beta_pol_abs_tolerance, positive=True),
+        _finite_float("li_abs_tolerance", li_abs_tolerance, positive=True),
+    )
+    psi_arr = np.asarray(result.psi, dtype=float)
+    if psi_arr.ndim != 2 or min(psi_arr.shape) < 3:
+        raise ValueError("result.psi must be a two-dimensional grid with both dimensions >= 3")
+    if not np.all(np.isfinite(psi_arr)):
+        raise ValueError("result.psi must be finite")
+    _finite_float("rogowski_radius", diagnostics.rogowski_radius, positive=True)
+    _finite_float("chi_squared", result.chi_squared, nonnegative=True)
+    _finite_float("wall_time_ms", result.wall_time_ms, nonnegative=True)
+    if result.n_iterations <= 0:
+        raise ValueError("n_iterations must be positive")
+
+    psi_error = None if reference_psi is None else _relative_array_error("psi", psi_arr, reference_psi)
+    ip_error: float | None = None
+    q95_error: float | None = None
+    beta_pol_error: float | None = None
+    li_error: float | None = None
+    if reference_shape is not None:
+        reference_ip = _finite_float(
+            "reference_shape.Ip_reconstructed", reference_shape.Ip_reconstructed, positive=True
+        )
+        ip_error = abs(result.shape.Ip_reconstructed - reference_ip) / reference_ip
+        q95_error = abs(result.shape.q95 - _finite_float("reference_shape.q95", reference_shape.q95, positive=True))
+        beta_pol_error = abs(
+            result.shape.beta_pol - _finite_float("reference_shape.beta_pol", reference_shape.beta_pol, positive=True)
+        )
+        li_error = abs(result.shape.li - _finite_float("reference_shape.li", reference_shape.li, positive=True))
+
+    metric_values = (psi_error, ip_error, q95_error, beta_pol_error, li_error)
+    metric_pass = all(
+        value is not None and value <= tolerance for value, tolerance in zip(metric_values, tolerances, strict=True)
+    )
+    facility_source = source in _FACILITY_REFERENCE_SOURCES
+    facility_allowed = bool(facility_source and metric_pass)
+    if source == "synthetic_regression_reference":
+        claim_status = "bounded synthetic EFIT-lite regression evidence only; matched EFIT/P-EFIT or measured reference required for facility claims"
+    elif not all(value is not None for value in metric_values):
+        claim_status = "external EFIT-lite reference source declared but complete psi, Ip, q95, beta_pol, and li comparison is missing"
+    elif facility_allowed:
+        claim_status = "external EFIT-lite reference admission passed for declared tolerances"
+    else:
+        claim_status = "external EFIT-lite reference admission failed declared tolerances"
+
+    return EFITLiteClaimEvidence(
+        schema_version=_EFIT_CLAIM_SCHEMA_VERSION,
+        source=source,
+        source_id=source_id.strip(),
+        diagnostic_source=diagnostic_source.strip(),
+        model_id=model_id.strip(),
+        grid_shape=(int(psi_arr.shape[0]), int(psi_arr.shape[1])),
+        n_flux_loops=len(diagnostics.flux_loops),
+        n_b_probes=len(diagnostics.b_probes),
+        rogowski_radius_m=float(diagnostics.rogowski_radius),
+        chi_squared=float(result.chi_squared),
+        n_iterations=int(result.n_iterations),
+        wall_time_ms=float(result.wall_time_ms),
+        ip_reconstructed_A=float(result.shape.Ip_reconstructed),
+        q95=float(result.shape.q95),
+        beta_pol=float(result.shape.beta_pol),
+        li=float(result.shape.li),
+        psi_relative_error=psi_error,
+        ip_relative_error=ip_error,
+        q95_abs_error=q95_error,
+        beta_pol_abs_error=beta_pol_error,
+        li_abs_error=li_error,
+        psi_relative_tolerance=tolerances[0],
+        ip_relative_tolerance=tolerances[1],
+        q95_abs_tolerance=tolerances[2],
+        beta_pol_abs_tolerance=tolerances[3],
+        li_abs_tolerance=tolerances[4],
+        facility_claim_allowed=facility_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_efit_lite_facility_claim_admissible(evidence: EFITLiteClaimEvidence) -> EFITLiteClaimEvidence:
+    """Return evidence or fail closed before an EFIT-lite facility claim."""
+
+    if not isinstance(evidence, EFITLiteClaimEvidence):
+        raise ValueError("evidence must be EFITLiteClaimEvidence")
+    if evidence.schema_version != _EFIT_CLAIM_SCHEMA_VERSION:
+        raise ValueError("EFIT-lite claim evidence schema_version is unsupported")
+    if not evidence.facility_claim_allowed:
+        raise ValueError(f"EFIT-lite facility claim is not admissible: {evidence.claim_status}")
+    return evidence
+
+
+def save_efit_lite_claim_evidence(evidence: EFITLiteClaimEvidence, path: str | Path) -> None:
+    """Persist EFIT-lite claim evidence as deterministic JSON."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class DiagnosticResponse:

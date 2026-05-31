@@ -30,6 +30,11 @@ Usage::
     scpn-control validate-vmec-reference --require-reference-artifacts --json-out
     scpn-control validate-rzip-reference --require-reference-artifacts --json-out
     scpn-control validate-density-reference --require-reference-artifacts --json-out
+    scpn-control validate-burn-reference --require-reference-artifacts --json-out
+    scpn-control validate-volt-second-reference --require-reference-artifacts --json-out
+    scpn-control validate-current-drive-reference --require-reference-artifacts --json-out
+    scpn-control validate-mu-synthesis-reference --require-reference-artifacts --json-out
+    scpn-control validate-free-boundary-reference --require-reference-artifacts --json-out
     scpn-control validate-disruption-reference --require-reference-artifacts --json-out
     scpn-control validate-digital-twin-reference --require-reference-artifacts --json-out
     scpn-control validate-soc-reference --require-reference-artifacts --json-out
@@ -44,10 +49,15 @@ import json
 import sys
 import time
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import TYPE_CHECKING, Mapping, cast
 
 import click
 import numpy as np
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 try:
     _VERSION = version("scpn-control")
@@ -855,6 +865,136 @@ def validate_rzip_reference_command(
         raise click.exceptions.Exit(1)
 
 
+@main.command("validate-current-drive-reference")
+@click.option(
+    "--artifact-root", help="Directory or JSON artifact containing persisted current-drive reference evidence"
+)
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_current_drive_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted current-drive reference artifacts."""
+    from validation.validate_current_drive_reference import ROOT, validate_current_drive_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "current_drive_reference")
+    report = validate_current_drive_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Current-drive reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-mu-synthesis-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted mu-synthesis reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_mu_synthesis_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted mu-synthesis reference artifacts."""
+    from validation.validate_mu_synthesis_reference import ROOT, validate_mu_synthesis_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "mu_synthesis_reference")
+    report = validate_mu_synthesis_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Mu-synthesis reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-volt-second-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted volt-second reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_volt_second_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted volt-second reference artifacts."""
+    from validation.validate_volt_second_reference import ROOT, validate_volt_second_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "volt_second_reference")
+    report = validate_volt_second_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Volt-second reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-burn-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted burn-control reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_burn_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted DT burn-control reference artifacts."""
+    from validation.validate_burn_reference import ROOT, validate_burn_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "burn_reference")
+    report = validate_burn_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Burn reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
 @main.command("validate-density-reference")
 @click.option("--artifact-root", help="Directory or JSON artifact containing persisted density reference evidence")
 @click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
@@ -881,6 +1021,40 @@ def validate_density_reference_command(
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
         click.echo(f"Density reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-free-boundary-reference")
+@click.option(
+    "--artifact-root", help="Directory or JSON artifact containing persisted free-boundary reference evidence"
+)
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_free_boundary_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted free-boundary tracking reference artifacts."""
+    from validation.validate_free_boundary_reference import ROOT, validate_free_boundary_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "free_boundary_reference")
+    report = validate_free_boundary_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Free-boundary reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":

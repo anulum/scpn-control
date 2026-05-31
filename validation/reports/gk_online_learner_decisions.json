@@ -1,0 +1,30 @@
+{
+  "best_val_loss": 0.023998366075908314,
+  "buffer_samples": 0,
+  "config": {
+    "buffer_size": 48,
+    "learning_rate": 0.0005,
+    "max_generations": 50,
+    "max_ood_score": 1.5,
+    "min_validation_improvement": 0.0,
+    "n_epochs": 8,
+    "validation_fraction": 0.25
+  },
+  "decisions": [
+    {
+      "accepted": true,
+      "buffer_size": 48,
+      "generation": 2,
+      "learning_rate": 0.0005,
+      "max_ood_score": 1.5,
+      "n_epochs": 8,
+      "previous_best_val_loss": Infinity,
+      "reason": "accepted",
+      "train_samples": 36,
+      "val_loss": 0.023998366075908314,
+      "validation_samples": 12
+    }
+  ],
+  "generation": 1,
+  "schema_version": "1.0"
+}

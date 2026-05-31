@@ -38,13 +38,20 @@ Physical uncertainty blocks for tokamak control (Ariola & Pironti 2008,
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 from scipy.linalg import LinAlgError, solve_continuous_are
 
 _VALID_BLOCK_TYPES = frozenset({"real_scalar", "complex_scalar", "full"})
+_MU_CLAIM_SCHEMA_VERSION = 1
+_VALIDATED_MU_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "external_mu_toolbox_benchmark", "measured_control_replay"}
+)
+_BOUNDED_MU_REFERENCE_SOURCES = frozenset({"repository_static_mu_regression", *_VALIDATED_MU_REFERENCE_SOURCES})
 
 
 def _finite_scalar(name: str, value: float, *, positive: bool = False) -> float:
@@ -60,6 +67,117 @@ def _positive_int(name: str, value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return value
+
+
+@dataclass(frozen=True)
+class MuSynthesisClaimEvidence:
+    """Serialisable evidence for bounded or externally validated μ-analysis claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    model_id: str
+    state_dimension: int
+    control_dimension: int
+    output_dimension: int
+    uncertainty_block_count: int
+    uncertainty_total_size: int
+    max_uncertainty_bound: float
+    block_structure: list[tuple[int, str]]
+    mu_peak_upper_bound: float
+    robustness_margin: float
+    controller_gain_frobenius_norm: float
+    d_scalings: list[float]
+    closed_loop_spectral_abscissa: float
+    static_dc_analysis_only: bool
+    reference_source: str | None
+    reference_dataset_id: str | None
+    reference_artifact_sha256: str | None
+    reference_case_count: int | None
+    mu_upper_bound_relative_error: float | None
+    robustness_margin_abs_error: float | None
+    controller_gain_relative_error: float | None
+    d_scaling_relative_error: float | None
+    closed_loop_spectral_abscissa_abs_error: float | None
+    mu_upper_bound_relative_tolerance: float
+    robustness_margin_abs_tolerance: float
+    controller_gain_relative_tolerance: float
+    d_scaling_relative_tolerance: float
+    closed_loop_spectral_abscissa_abs_tolerance: float
+    validated_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _positive_reference_scalar(name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
+        raise ValueError(f"{name} must be finite and positive")
+    numeric = float(value)
+    if numeric <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
+    return numeric
+
+
+def _nonnegative_reference_scalar(name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
+        raise ValueError(f"{name} must be finite and non-negative")
+    numeric = float(value)
+    if numeric < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return numeric
+
+
+def _sha256_text(name: str, value: object) -> str:
+    text = _non_empty_text(name, str(value))
+    if len(text) != 64 or any(char not in "0123456789abcdefABCDEF" for char in text):
+        raise ValueError(f"{name} must be a SHA-256 hex digest")
+    return text
+
+
+def _extract_mu_reference_artifact(reference_artifact: dict[str, Any] | None) -> tuple[dict[str, Any] | None, bool]:
+    if reference_artifact is None:
+        return None, False
+    if not isinstance(reference_artifact, dict):
+        raise ValueError("reference_artifact must be a dictionary")
+    source = _non_empty_text("reference_artifact.source", str(reference_artifact.get("source", "")))
+    if source not in _VALIDATED_MU_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_VALIDATED_MU_REFERENCE_SOURCES))
+        raise ValueError(f"reference_artifact.source must be one of: {allowed}")
+    units = reference_artifact.get("units")
+    expected_units = {
+        "mu": "1",
+        "robustness_margin": "1",
+        "controller_gain": "1",
+        "d_scaling": "1",
+        "spectral_abscissa": "s^-1",
+    }
+    if not isinstance(units, dict) or any(units.get(key) != unit for key, unit in expected_units.items()):
+        raise ValueError("reference_artifact.units must declare mu-analysis unit contracts")
+    _sha256_text("reference_artifact.reference_artifact_sha256", reference_artifact.get("reference_artifact_sha256"))
+    case_count = reference_artifact.get("reference_case_count")
+    if isinstance(case_count, bool) or not isinstance(case_count, int) or case_count <= 0:
+        raise ValueError("reference_artifact.reference_case_count must be a positive integer")
+    metrics = reference_artifact.get("metrics")
+    tolerances = reference_artifact.get("tolerances")
+    if not isinstance(metrics, dict) or not isinstance(tolerances, dict):
+        raise ValueError("reference_artifact metrics and tolerances must be dictionaries")
+    for metric in (
+        "mu_upper_bound_relative_error",
+        "robustness_margin_abs_error",
+        "controller_gain_relative_error",
+        "d_scaling_relative_error",
+        "closed_loop_spectral_abscissa_abs_error",
+    ):
+        observed = _nonnegative_reference_scalar(f"reference_artifact.metrics.{metric}", metrics.get(metric))
+        tolerance = _positive_reference_scalar(f"reference_artifact.tolerances.{metric}", tolerances.get(metric))
+        if observed > tolerance:
+            raise ValueError(f"reference_artifact metric {metric} exceeds declared tolerance")
+    return reference_artifact, True
 
 
 @dataclass
@@ -380,3 +498,115 @@ class MuSynthesisController:
         if self.mu_peak <= 0.0:
             return float("inf")
         return 1.0 / self.mu_peak
+
+
+def mu_synthesis_claim_evidence(
+    controller: MuSynthesisController,
+    *,
+    source: str,
+    source_id: str,
+    model_id: str = "bounded_static_mu_synthesis",
+    reference_artifact: dict[str, Any] | None = None,
+    mu_upper_bound_relative_tolerance: float = 0.05,
+    robustness_margin_abs_tolerance: float = 0.05,
+    controller_gain_relative_tolerance: float = 0.10,
+    d_scaling_relative_tolerance: float = 0.10,
+    closed_loop_spectral_abscissa_abs_tolerance: float = 0.05,
+) -> MuSynthesisClaimEvidence:
+    """Build fail-closed evidence for bounded static μ-analysis claims."""
+
+    if controller.K is None or controller.D_scalings is None:
+        raise ValueError("controller must be synthesized before claim evidence is built")
+    source_clean = _non_empty_text("source", source)
+    if source_clean not in _BOUNDED_MU_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_BOUNDED_MU_REFERENCE_SOURCES))
+        raise ValueError(f"source must be one of: {allowed}")
+    A, B, C, _D = _validate_state_space(controller.plant_ss, controller.uncertainty)
+    K = np.asarray(controller.K, dtype=float)
+    A_cl = A - B @ K
+    spectral_abscissa = float(np.max(np.real(np.linalg.eigvals(A_cl))))
+    artifact, artifact_passed = _extract_mu_reference_artifact(reference_artifact)
+    validated_claim_allowed = bool(source_clean in _VALIDATED_MU_REFERENCE_SOURCES and artifact_passed)
+    claim_status = "validated_static_mu_reference_matched" if validated_claim_allowed else "bounded_static_mu_evidence"
+    metrics = artifact.get("metrics", {}) if artifact else {}
+
+    return MuSynthesisClaimEvidence(
+        schema_version=_MU_CLAIM_SCHEMA_VERSION,
+        source=source_clean,
+        source_id=_non_empty_text("source_id", source_id),
+        model_id=_non_empty_text("model_id", model_id),
+        state_dimension=int(A.shape[0]),
+        control_dimension=int(B.shape[1]),
+        output_dimension=int(C.shape[0]),
+        uncertainty_block_count=len(controller.uncertainty.blocks),
+        uncertainty_total_size=controller.uncertainty.total_size(),
+        max_uncertainty_bound=float(max(block.bound for block in controller.uncertainty.blocks)),
+        block_structure=controller.uncertainty.build_Delta_structure(),
+        mu_peak_upper_bound=float(controller.mu_peak),
+        robustness_margin=float(controller.robustness_margin()),
+        controller_gain_frobenius_norm=float(np.linalg.norm(K, ord="fro")),
+        d_scalings=[float(v) for v in np.asarray(controller.D_scalings, dtype=float)],
+        closed_loop_spectral_abscissa=spectral_abscissa,
+        static_dc_analysis_only=True,
+        reference_source=None if artifact is None else str(artifact["source"]),
+        reference_dataset_id=None if artifact is None else str(artifact["reference_dataset_id"]),
+        reference_artifact_sha256=None if artifact is None else str(artifact["reference_artifact_sha256"]),
+        reference_case_count=None if artifact is None else int(artifact["reference_case_count"]),
+        mu_upper_bound_relative_error=None if artifact is None else float(metrics["mu_upper_bound_relative_error"]),
+        robustness_margin_abs_error=None if artifact is None else float(metrics["robustness_margin_abs_error"]),
+        controller_gain_relative_error=None if artifact is None else float(metrics["controller_gain_relative_error"]),
+        d_scaling_relative_error=None if artifact is None else float(metrics["d_scaling_relative_error"]),
+        closed_loop_spectral_abscissa_abs_error=None
+        if artifact is None
+        else float(metrics["closed_loop_spectral_abscissa_abs_error"]),
+        mu_upper_bound_relative_tolerance=_positive_reference_scalar(
+            "mu_upper_bound_relative_tolerance", mu_upper_bound_relative_tolerance
+        ),
+        robustness_margin_abs_tolerance=_positive_reference_scalar(
+            "robustness_margin_abs_tolerance", robustness_margin_abs_tolerance
+        ),
+        controller_gain_relative_tolerance=_positive_reference_scalar(
+            "controller_gain_relative_tolerance", controller_gain_relative_tolerance
+        ),
+        d_scaling_relative_tolerance=_positive_reference_scalar(
+            "d_scaling_relative_tolerance", d_scaling_relative_tolerance
+        ),
+        closed_loop_spectral_abscissa_abs_tolerance=_positive_reference_scalar(
+            "closed_loop_spectral_abscissa_abs_tolerance", closed_loop_spectral_abscissa_abs_tolerance
+        ),
+        validated_claim_allowed=validated_claim_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_mu_synthesis_validated_claim_admissible(evidence: MuSynthesisClaimEvidence) -> MuSynthesisClaimEvidence:
+    """Raise when μ-analysis evidence is insufficient for validated claims."""
+
+    if not isinstance(evidence, MuSynthesisClaimEvidence):
+        raise ValueError("evidence must be MuSynthesisClaimEvidence")
+    if not evidence.validated_claim_allowed:
+        raise ValueError("validated mu-synthesis claim requires matched toolbox, public, or measured replay evidence")
+    return evidence
+
+
+def save_mu_synthesis_claim_evidence(evidence: MuSynthesisClaimEvidence, path: str | Path) -> None:
+    """Persist μ-analysis claim evidence as deterministic JSON."""
+
+    if not isinstance(evidence, MuSynthesisClaimEvidence):
+        raise ValueError("evidence must be MuSynthesisClaimEvidence")
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+__all__ = [
+    "MuSynthesisClaimEvidence",
+    "MuSynthesisController",
+    "StructuredUncertainty",
+    "UncertaintyBlock",
+    "assert_mu_synthesis_validated_claim_admissible",
+    "compute_mu_upper_bound",
+    "dk_iteration",
+    "mu_synthesis_claim_evidence",
+    "save_mu_synthesis_claim_evidence",
+]

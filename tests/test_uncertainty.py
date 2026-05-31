@@ -10,6 +10,8 @@ import pytest
 
 from scpn_control.core.uncertainty import (
     IPB98_CENTRAL,
+    UQResult,
+    assert_uq_calibrated_claim_admissible,
     bosch_hale_reactivity,
     compute_fusion_sensitivities,
     fusion_power_from_tau,
@@ -17,6 +19,8 @@ from scpn_control.core.uncertainty import (
     PlasmaScenario,
     quantify_full_chain,
     quantify_uncertainty,
+    save_uq_claim_evidence,
+    uq_claim_evidence,
 )
 
 
@@ -203,3 +207,134 @@ class TestInputBoundaries:
         bad = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "P_heat": 0.0})
         with pytest.raises(ValueError, match="P_heat"):
             quantify_full_chain(bad, n_samples=10, seed=1)
+
+
+class TestUQClaimEvidence:
+    def test_uq_claim_evidence_records_bounded_seed_and_provenance(self, tmp_path):
+        result = quantify_full_chain(ITER_SCENARIO, n_samples=128, seed=17)
+
+        evidence = uq_claim_evidence(
+            ITER_SCENARIO,
+            result,
+            source="synthetic_regression_reference",
+            source_id="uq-bounded-regression-v1",
+            scenario_source="repository ITER-like scenario fixture",
+            prior_source="repository IPB98 covariance registry",
+            propagation_chain="IPB98 -> Bosch-Hale fusion power -> Q",
+            sensitivity_source="finite-difference density and temperature sensitivities",
+            seed=17,
+        )
+        report_path = tmp_path / "uq_claim.json"
+        save_uq_claim_evidence(evidence, report_path)
+
+        assert evidence.calibrated_uq_claim_allowed is False
+        assert evidence.claim_status == "bounded_uq_evidence"
+        assert evidence.seed == 17
+        assert evidence.n_samples == 128
+        assert evidence.finite_outputs is True
+        assert evidence.tau_E_percentiles_ordered is True
+        assert evidence.P_fusion_percentiles_ordered is True
+        assert evidence.Q_percentiles_ordered is True
+        assert evidence.fuel_ion_fraction == pytest.approx(ITER_SCENARIO.fuel_ion_fraction)
+        assert np.isfinite(evidence.dP_dn_MW_per_1e19m3)
+        assert '"calibrated_uq_claim_allowed": false' in report_path.read_text(encoding="utf-8")
+
+    def test_uq_calibrated_admission_requires_matched_reference_statistics(self):
+        result = quantify_uncertainty(ITER_SCENARIO, n_samples=256, seed=23)
+
+        matched = uq_claim_evidence(
+            ITER_SCENARIO,
+            result,
+            source="external_uq_reference",
+            source_id="matched-uq-reference",
+            scenario_source="documented scenario ensemble",
+            prior_source="documented calibrated IPB98 posterior",
+            propagation_chain="documented confinement and fusion-power propagation",
+            sensitivity_source="documented sensitivity calculation",
+            seed=23,
+            reference_tau_E=result.tau_E,
+            reference_P_fusion=result.P_fusion,
+            reference_Q=result.Q,
+            reference_tau_E_sigma=result.tau_E_sigma,
+        )
+        assert_uq_calibrated_claim_admissible(matched)
+        assert matched.calibrated_uq_claim_allowed is True
+
+        mismatched = uq_claim_evidence(
+            ITER_SCENARIO,
+            result,
+            source="external_uq_reference",
+            source_id="mismatched-uq-reference",
+            scenario_source="documented scenario ensemble",
+            prior_source="documented calibrated IPB98 posterior",
+            propagation_chain="documented confinement and fusion-power propagation",
+            sensitivity_source="documented sensitivity calculation",
+            seed=23,
+            reference_tau_E=result.tau_E * 1.5,
+            reference_P_fusion=result.P_fusion,
+            reference_Q=result.Q,
+            reference_tau_E_sigma=result.tau_E_sigma,
+            relative_tolerance=0.01,
+        )
+        with pytest.raises(ValueError, match="calibrated UQ claim requires matched"):
+            assert_uq_calibrated_claim_admissible(mismatched)
+        assert mismatched.calibrated_uq_claim_allowed is False
+
+    def test_uq_claim_evidence_rejects_invalid_claim_inputs(self):
+        result = quantify_uncertainty(ITER_SCENARIO, n_samples=32, seed=5)
+
+        with pytest.raises(ValueError, match="source must be one of"):
+            uq_claim_evidence(
+                ITER_SCENARIO,
+                result,
+                source="untracked_reference",
+                source_id="bad-source",
+                scenario_source="documented scenario",
+                prior_source="documented priors",
+                propagation_chain="documented chain",
+                sensitivity_source="documented sensitivities",
+                seed=5,
+            )
+
+        bad_result = UQResult(
+            tau_E=result.tau_E,
+            P_fusion=result.P_fusion,
+            Q=result.Q,
+            tau_E_sigma=result.tau_E_sigma,
+            P_fusion_sigma=result.P_fusion_sigma,
+            Q_sigma=result.Q_sigma,
+            tau_E_percentiles=np.array([1.0, 0.5, 2.0]),
+            P_fusion_percentiles=result.P_fusion_percentiles,
+            Q_percentiles=result.Q_percentiles,
+            n_samples=result.n_samples,
+        )
+        evidence = uq_claim_evidence(
+            ITER_SCENARIO,
+            bad_result,
+            source="external_uq_reference",
+            source_id="bad-percentiles",
+            scenario_source="documented scenario",
+            prior_source="documented priors",
+            propagation_chain="documented chain",
+            sensitivity_source="documented sensitivities",
+            seed=5,
+            reference_tau_E=result.tau_E,
+            reference_P_fusion=result.P_fusion,
+            reference_Q=result.Q,
+            reference_tau_E_sigma=result.tau_E_sigma,
+        )
+        assert evidence.finite_outputs is False
+        assert evidence.calibrated_uq_claim_allowed is False
+
+        with pytest.raises(ValueError, match="seed"):
+            uq_claim_evidence(
+                ITER_SCENARIO,
+                result,
+                source="external_uq_reference",
+                source_id="bad-seed",
+                scenario_source="documented scenario",
+                prior_source="documented priors",
+                propagation_chain="documented chain",
+                sensitivity_source="documented sensitivities",
+                seed=True,
+            )

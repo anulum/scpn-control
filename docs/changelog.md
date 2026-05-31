@@ -14,6 +14,19 @@
 - Persisted differentiable transport campaign metadata and added a replay guard
   that rejects backend, grid, boundary, closure, tolerance, and equilibrium
   drift before controller-tuning reruns.
+- Added differentiable transport source-schedule gradients so controller
+  tuning can optimise additive heating, fuelling, and impurity-source inputs
+  through the same JAX Crank-Nicolson facade as transport coefficients.
+- Added a differentiable transport gradient audit that compares JAX transport
+  coefficient and source-schedule gradients against sampled finite-difference
+  perturbations before controller-tuning admission.
+- Wired the NMPC transport-tuning path to require that gradient audit by
+  default and to persist the audit result with each coefficient update.
+- Added audited NMPC source-schedule tuning for additive heating, fuelling, and
+  impurity-source controls with explicit finite source bounds.
+- Hardened SCPN formal verification with algebraic place-invariant proofs and
+  bounded temporal response and recurrence specifications over all bounded
+  firing paths.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.

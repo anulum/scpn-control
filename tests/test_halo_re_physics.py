@@ -1,25 +1,27 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Halo Re Physics
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# Tests for halo_re_physics — L/R halo current + runaway electron models
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Halo Runaway Physics Tests
 from __future__ import annotations
+
+import json
 
 import numpy as np
 import pytest
 
 from scpn_control.control.halo_re_physics import (
+    DisruptionMitigationClaimEvidence,
     HaloCurrentModel,
     HaloCurrentResult,
     RunawayElectronModel,
     RunawayElectronResult,
+    assert_disruption_mitigation_claim_admissible,
+    disruption_mitigation_claim_evidence,
     run_disruption_ensemble,
+    save_disruption_mitigation_claim_evidence,
 )
 
 
@@ -259,6 +261,112 @@ class TestDisruptionEnsemble:
         assert np.isfinite(report.p95_halo_peak_ma)
         assert np.isfinite(report.mean_re_peak_ma)
         assert np.isfinite(report.p95_re_peak_ma)
+
+    def test_claim_evidence_records_bounded_ensemble_boundary(self, tmp_path):
+        report = run_disruption_ensemble(ensemble_runs=4, seed=7)
+
+        evidence = disruption_mitigation_claim_evidence(
+            report,
+            source="synthetic_regression_reference",
+            source_id="tests/test_halo_re_physics.py::bounded_ensemble",
+            ensemble_seed=7,
+        )
+
+        assert isinstance(evidence, DisruptionMitigationClaimEvidence)
+        assert evidence.mitigation_claim_allowed is False
+        assert evidence.reference_source == "none"
+        assert evidence.ensemble_runs == 4
+        assert evidence.ensemble_seed == 7
+        assert evidence.prevention_rate == pytest.approx(report.prevention_rate)
+        assert evidence.mean_halo_peak_ma == pytest.approx(report.mean_halo_peak_ma)
+        assert evidence.p95_re_peak_ma == pytest.approx(report.p95_re_peak_ma)
+        with pytest.raises(ValueError, match="blocked without matched reference"):
+            assert_disruption_mitigation_claim_admissible(evidence)
+
+        out = tmp_path / "disruption_claim.json"
+        save_disruption_mitigation_claim_evidence(evidence, out)
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        assert payload["claim_status"].startswith("bounded halo/runaway ensemble evidence only")
+
+    def test_reference_admission_requires_strict_disruption_artifact(self, tmp_path):
+        report = run_disruption_ensemble(ensemble_runs=4, seed=8)
+        artifact = tmp_path / "reference.json"
+        payload = {
+            "schema_version": "1.0",
+            "source": "documented_public_reference",
+            "model_id": "halo_runaway_disruption_mitigation",
+            "model_version": "test",
+            "reference_dataset_id": "bounded-disruption-reference",
+            "reference_artifact_sha256": "a" * 64,
+            "executed_at": "2026-05-31T00:00:00Z",
+            "reference_url": "https://example.invalid/disruption-reference",
+            "reference_case_count": 5,
+            "signal_window": {
+                "sample_count": 32,
+                "sample_period_s": 0.001,
+                "pre_disruption_duration_s": 0.05,
+                "current_quench_duration_ms": 12.0,
+                "thermal_quench_duration_ms": 1.0,
+            },
+            "mitigation_metadata": {
+                "neon_quantity_mol": 0.1,
+                "argon_quantity_mol": 0.01,
+                "xenon_quantity_mol": 0.0,
+                "total_impurity_mol": 0.11,
+                "mitigation_strength": 0.8,
+                "tbr_reference": 1.0,
+            },
+            "units": {
+                "time": "s",
+                "quench_time": "ms",
+                "current": "MA",
+                "energy": "MJ",
+                "impurity_inventory": "mol",
+                "risk": "1",
+                "tbr": "1",
+            },
+            "metrics": {
+                "risk_after_abs_error": 0.01,
+                "detection_lead_time_abs_error_ms": 2.0,
+                "halo_current_relative_error": 0.05,
+                "runaway_beam_relative_error": 0.04,
+                "tbr_abs_error": 0.02,
+            },
+            "tolerances": {
+                "risk_after_abs_error": 0.05,
+                "detection_lead_time_abs_error_ms": 5.0,
+                "halo_current_relative_error": 0.10,
+                "runaway_beam_relative_error": 0.10,
+                "tbr_abs_error": 0.05,
+            },
+        }
+        artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+        evidence = disruption_mitigation_claim_evidence(
+            report,
+            source="documented_public_reference",
+            source_id="tests/test_halo_re_physics.py::reference_admission",
+            ensemble_seed=8,
+            reference_artifact_path=artifact,
+        )
+
+        assert evidence.mitigation_claim_allowed is True
+        assert evidence.reference_source == "documented_public_reference"
+        assert evidence.reference_case_count == 5
+        assert evidence.halo_current_relative_error == pytest.approx(0.05)
+        assert evidence.runaway_beam_relative_tolerance == pytest.approx(0.10)
+        assert assert_disruption_mitigation_claim_admissible(evidence) is evidence
+
+        payload["metrics"]["halo_current_relative_error"] = 0.50
+        artifact.write_text(json.dumps(payload), encoding="utf-8")
+        with pytest.raises(ValueError, match="failed strict validation"):
+            disruption_mitigation_claim_evidence(
+                report,
+                source="documented_public_reference",
+                source_id="tests/test_halo_re_physics.py::reference_admission",
+                ensemble_seed=8,
+                reference_artifact_path=artifact,
+            )
 
 
 # ─── Dreicer/avalanche NaN guard paths ───────────────────────────────

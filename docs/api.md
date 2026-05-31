@@ -32,6 +32,42 @@ scpn_control.RealtimeMonitor
 
 ---
 
+## Control — Federated Disruption Prediction
+
+`scpn_control.control.federated_disruption` supports FedAvg and FedProx
+training across named tokamak clients without centralising facility arrays.
+`create_facility_clients_from_arrays()` is the production ingestion boundary
+for per-facility `X_train`, `y_train`, `X_test`, and `y_test` arrays. It
+enforces the shared 8-feature disruption contract and binary labels before a
+client joins the federation.
+
+`DifferentialPrivacyConfig` enables facility-update clipping, Gaussian noise,
+and a serialisable privacy ledger. The shipped benchmark
+`validation/benchmark_federated_disruption.py` publishes deterministic
+synthetic multi-facility evidence in
+`validation/reports/federated_disruption_benchmark.json` and
+`validation/reports/federated_disruption_benchmark.md`. Those artefacts test
+federation, heterogeneity, and differential privacy contracts; they do not
+claim measured cross-facility validation without external shot databases.
+
+::: scpn_control.control.federated_disruption.DifferentialPrivacyConfig
+
+::: scpn_control.control.federated_disruption.PrivacyLedgerEntry
+
+::: scpn_control.control.federated_disruption.FacilityBenchmarkSummary
+
+::: scpn_control.control.federated_disruption.FederatedConfig
+
+::: scpn_control.control.federated_disruption.MachineClient
+
+::: scpn_control.control.federated_disruption.FederatedServer
+
+::: scpn_control.control.federated_disruption.create_facility_clients_from_arrays
+
+::: scpn_control.control.federated_disruption.run_synthetic_multifacility_benchmark
+
+---
+
 ## Core — Physics Solvers
 
 ### FusionKernel
@@ -72,6 +108,14 @@ when supplied.
 
 ::: scpn_control.core.uncertainty.quantify_full_chain
 
+::: scpn_control.core.uncertainty.UQClaimEvidence
+
+::: scpn_control.core.uncertainty.uq_claim_evidence
+
+::: scpn_control.core.uncertainty.assert_uq_calibrated_claim_admissible
+
+::: scpn_control.core.uncertainty.save_uq_claim_evidence
+
 ### JAX-Accelerated Transport Primitives
 
 Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib has CUDA/ROCm.
@@ -89,6 +133,13 @@ Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib 
 Requires `pip install "scpn-control[jax]"` for gradient evaluation. The NumPy
 path is deterministic for parity checks and non-JAX deployments, but
 `transport_loss_gradient()` fails closed without JAX.
+`transport_parameter_gradients()` extends the same traced Crank-Nicolson
+contract to source schedules, returning JAX gradients for both transport
+coefficients and additive heating, fuelling, or impurity-source inputs.
+`audit_transport_parameter_gradients()` and
+`assert_transport_parameter_gradients_consistent()` compare those JAX gradients
+against sampled independent finite-difference perturbations before
+controller-tuning admission.
 `transport_coefficients_from_neural_closure()` maps bounded neural transport
 closure outputs into the four-channel coefficient order used by the facade:
 electron heat, ion heat, electron particle diffusivity, and a declared impurity
@@ -108,6 +159,22 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 ::: scpn_control.core.differentiable_transport.transport_tracking_loss
 
 ::: scpn_control.core.differentiable_transport.transport_loss_gradient
+
+::: scpn_control.core.differentiable_transport.transport_parameter_gradients
+
+::: scpn_control.core.differentiable_transport.TransportParameterGradients
+
+::: scpn_control.core.differentiable_transport.audit_transport_parameter_gradients
+
+::: scpn_control.core.differentiable_transport.assert_transport_parameter_gradients_consistent
+
+::: scpn_control.core.differentiable_transport.TransportGradientAudit
+
+::: scpn_control.core.differentiable_transport.benchmark_transport_parameter_gradient_latency
+
+::: scpn_control.core.differentiable_transport.TransportGradientLatencyReport
+
+::: scpn_control.core.differentiable_transport.save_transport_gradient_latency_report
 
 ::: scpn_control.core.differentiable_transport.transport_coefficients_from_neural_closure
 
@@ -131,7 +198,29 @@ gradient-tolerance, or equilibrium-shape drift before controller tuning reruns.
 
 ### Neural Equilibrium
 
+`NeuralEquilibriumAccelerator.pretrain_from_synthetic_equilibria()` trains
+JAX-compatible PCA plus MLP weights on bounded synthetic Solovev-like
+equilibria for pretraining. The corresponding real EFIT fine-tuning entry point
+`fine_tune_from_efit_reconstructions()` fails closed unless the persisted
+P-EFIT or documented-public-reference artefact validator passes.
+
 ::: scpn_control.core.neural_equilibrium.NeuralEquilibriumAccelerator
+
+::: scpn_control.core.neural_equilibrium.NeuralEquilibriumClaimEvidence
+
+::: scpn_control.core.neural_equilibrium.generate_synthetic_equilibrium_dataset
+
+::: scpn_control.core.neural_equilibrium.neural_equilibrium_claim_evidence
+
+::: scpn_control.core.neural_equilibrium.assert_neural_equilibrium_facility_claim_admissible
+
+::: scpn_control.core.neural_equilibrium.save_neural_equilibrium_claim_evidence
+
+::: scpn_control.core.neural_equilibrium.pretrain_neural_equilibrium_synthetic
+
+::: scpn_control.core.neural_equilibrium.PretrainingResult
+
+::: scpn_control.core.neural_equilibrium.SyntheticEquilibriumCampaign
 
 ### JAX-Accelerated Neural Equilibrium
 
@@ -160,9 +249,17 @@ the analytic fallback.
 
 ::: scpn_control.core.neural_transport.NeuralTransportClosureResult
 
+::: scpn_control.core.neural_transport.NeuralTransportClaimEvidence
+
 ::: scpn_control.core.neural_transport.neural_transport_closure_profiles
 
 ::: scpn_control.core.neural_transport.cross_validate_neural_transport
+
+::: scpn_control.core.neural_transport.neural_transport_claim_evidence
+
+::: scpn_control.core.neural_transport.assert_neural_transport_quantitative_claim_admissible
+
+::: scpn_control.core.neural_transport.save_neural_transport_claim_evidence
 
 ### MHD Stability
 
@@ -250,6 +347,10 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.core.integrated_scenario.IntegratedScenarioSimulator
 
+::: scpn_control.core.integrated_scenario.audit_scenario_coupling
+
+::: scpn_control.core.integrated_scenario.save_scenario_coupling_report
+
 ::: scpn_control.core.integrated_scenario.iter_baseline_scenario
 
 ---
@@ -266,9 +367,15 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.verify_formal_contracts
 
+::: scpn_control.scpn.formal_verification.PlaceInvariant
+
 ::: scpn_control.scpn.formal_verification.AlwaysBounded
 
+::: scpn_control.scpn.formal_verification.AlwaysEventuallyMarked
+
 ::: scpn_control.scpn.formal_verification.EventuallyFires
+
+::: scpn_control.scpn.formal_verification.FireLeadsToMarking
 
 ::: scpn_control.scpn.formal_verification.NeverCoMarked
 
@@ -393,9 +500,22 @@ in addition to dropout and white-noise corruption, and it can now stress the
 command path with deterministic actuator bias, drift, first-order lag, and
 rate limiting. The returned summary exposes both commanded and applied actions
 plus actuator-lag telemetry so replay tests can see what the plant actually
-received.
+received. Density and effective-charge knobs are explicit model-update
+parameters.
+
+`digital_twin_online_update` adds fail-closed TRANSP/TSC simulator artifact
+metadata validation and deterministic Bayesian optimisation over bounded twin
+parameters. The shipped benchmark is synthetic online-update evidence only;
+external simulator replay claims require validated artifact metadata and the
+strict digital-twin reference gate.
 
 ::: scpn_control.control.tokamak_digital_twin.run_digital_twin
+
+::: scpn_control.control.digital_twin_online_update.validate_external_simulator_artifact
+
+::: scpn_control.control.digital_twin_online_update.bayesian_update_digital_twin
+
+::: scpn_control.control.digital_twin_online_update.synthetic_online_update_benchmark
 
 ### Flight Simulator
 
@@ -509,6 +629,14 @@ fallback and checkpoint inference paths.
 
 ::: scpn_control.control.halo_re_physics.HaloCurrentModel
 
+::: scpn_control.control.halo_re_physics.DisruptionMitigationClaimEvidence
+
+::: scpn_control.control.halo_re_physics.disruption_mitigation_claim_evidence
+
+::: scpn_control.control.halo_re_physics.assert_disruption_mitigation_claim_admissible
+
+::: scpn_control.control.halo_re_physics.save_disruption_mitigation_claim_evidence
+
 ### HIL Test Harness
 
 ::: scpn_control.control.hil_harness.HILControlLoop
@@ -577,18 +705,30 @@ finite differences.
 the differentiable transport facade. It updates four-channel transport
 coefficients from the JAX gradient of the transport tracking loss, applies
 non-negative coefficient bounds and fractional update caps, and fails closed
-when JAX gradients are unavailable. Each tuning result carries validated
-transport campaign metadata for backend, dtype, radial grid, boundary
-conditions, closure provenance, and gradient tolerance.
+when JAX gradients are unavailable. By default, coefficient tuning also runs the
+differentiable-transport finite-difference gradient audit before admission and
+stores the audit result beside the validated transport campaign metadata for
+backend, dtype, radial grid, boundary conditions, closure provenance, and
+gradient tolerance.
 `tune_neural_transport_closure_for_tracking()` initialises the same tuning path
 from a bounded neural transport closure, preserving the differentiable facade's
-four-channel coefficient contract and the explicit JAX-gradient requirement.
+four-channel coefficient contract, the explicit JAX-gradient requirement, and
+the default gradient-audit admission gate.
+`tune_transport_sources_for_tracking()` applies the audited JAX gradient path to
+additive heating, fuelling, and impurity-source schedules. Source lower and
+upper bounds are explicit because replay studies may include physically valid
+sink terms, and every accepted update carries campaign metadata plus the
+gradient-audit result.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 
 ::: scpn_control.control.nmpc_controller.TransportCoefficientTuningResult
 
+::: scpn_control.control.nmpc_controller.TransportSourceScheduleTuningResult
+
 ::: scpn_control.control.nmpc_controller.tune_transport_coefficients_for_tracking
+
+::: scpn_control.control.nmpc_controller.tune_transport_sources_for_tracking
 
 ::: scpn_control.control.nmpc_controller.tune_neural_transport_closure_for_tracking
 
@@ -601,6 +741,14 @@ four-channel coefficient contract and the explicit JAX-gradient requirement.
 ### Real-Time EFIT (v0.16.0)
 
 ::: scpn_control.control.realtime_efit.RealtimeEFIT
+
+::: scpn_control.control.realtime_efit.EFITLiteClaimEvidence
+
+::: scpn_control.control.realtime_efit.efit_lite_claim_evidence
+
+::: scpn_control.control.realtime_efit.assert_efit_lite_facility_claim_admissible
+
+::: scpn_control.control.realtime_efit.save_efit_lite_claim_evidence
 
 ### Gain-Scheduled Controller (v0.16.0)
 
@@ -630,9 +778,25 @@ four-channel coefficient contract and the explicit JAX-gradient requirement.
 
 ::: scpn_control.control.rzip_model.RZIPModel
 
+::: scpn_control.control.rzip_model.RZIPCalibrationEvidence
+
+::: scpn_control.control.rzip_model.rzip_calibration_evidence
+
+::: scpn_control.control.rzip_model.assert_rzip_facility_claim_admissible
+
+::: scpn_control.control.rzip_model.save_rzip_calibration_evidence
+
 ### RWM Feedback (v0.16.0)
 
 ::: scpn_control.control.rwm_feedback.RWMFeedbackController
+
+::: scpn_control.control.rwm_feedback.RWMClaimEvidence
+
+::: scpn_control.control.rwm_feedback.rwm_claim_evidence
+
+::: scpn_control.control.rwm_feedback.assert_rwm_facility_claim_admissible
+
+::: scpn_control.control.rwm_feedback.save_rwm_claim_evidence
 
 ---
 
@@ -663,6 +827,14 @@ This index keeps the published API reference aligned with every tracked Python m
 #### Density Controller
 
 ::: scpn_control.control.density_controller
+
+::: scpn_control.control.density_controller.DensityControlClaimEvidence
+
+::: scpn_control.control.density_controller.density_control_claim_evidence
+
+::: scpn_control.control.density_controller.assert_density_control_facility_claim_admissible
+
+::: scpn_control.control.density_controller.save_density_control_claim_evidence
 
 #### Detachment Controller
 
@@ -736,6 +908,11 @@ This index keeps the published API reference aligned with every tracked Python m
 
 #### GK Online Learner
 
+`OnlineLearner` admits finite nonnegative transport targets only when the
+caller-supplied OOD score is inside the configured threshold. Retraining uses a
+validation holdout, rolls back on non-improvement, and can persist an auditable
+JSON report containing every accepted or rejected update decision.
+
 ::: scpn_control.core.gk_online_learner
 
 #### GK QuaLiKiz
@@ -780,6 +957,14 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control.core.kinetic_efit
 
+::: scpn_control.core.kinetic_efit.KineticEFITClaimEvidence
+
+::: scpn_control.core.kinetic_efit.kinetic_efit_claim_evidence
+
+::: scpn_control.core.kinetic_efit.assert_kinetic_efit_facility_claim_admissible
+
+::: scpn_control.core.kinetic_efit.save_kinetic_efit_claim_evidence
+
 #### L-H Transition
 
 ::: scpn_control.core.lh_transition
@@ -808,9 +993,27 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control.core.neural_turbulence
 
+::: scpn_control.core.neural_turbulence.NeuralTurbulenceClaimEvidence
+
+::: scpn_control.core.neural_turbulence.cross_validate_neural_turbulence
+
+::: scpn_control.core.neural_turbulence.neural_turbulence_claim_evidence
+
+::: scpn_control.core.neural_turbulence.assert_neural_turbulence_quantitative_claim_admissible
+
+::: scpn_control.core.neural_turbulence.save_neural_turbulence_claim_evidence
+
 #### Orbit Following
 
 ::: scpn_control.core.orbit_following
+
+::: scpn_control.core.orbit_following.OrbitFollowingClaimEvidence
+
+::: scpn_control.core.orbit_following.orbit_following_claim_evidence
+
+::: scpn_control.core.orbit_following.assert_orbit_following_external_claim_admissible
+
+::: scpn_control.core.orbit_following.save_orbit_following_claim_evidence
 
 #### Pedestal
 
@@ -851,6 +1054,14 @@ This index keeps the published API reference aligned with every tracked Python m
 #### VMEC Lite
 
 ::: scpn_control.core.vmec_lite
+
+::: scpn_control.core.vmec_lite.VMECLiteClaimEvidence
+
+::: scpn_control.core.vmec_lite.vmec_lite_claim_evidence
+
+::: scpn_control.core.vmec_lite.assert_vmec_lite_full_vmec_claim_admissible
+
+::: scpn_control.core.vmec_lite.save_vmec_lite_claim_evidence
 
 ### Phase Modules
 
