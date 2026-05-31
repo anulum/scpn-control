@@ -667,7 +667,11 @@ evidence, and independent safety-review digests are all required before
 `evaluate_controller_safety_case_readiness_from_artifacts()` provide the normal
 promotion path: each required readiness input must be a typed artifact with a
 known kind, SHA-256 digest, safe relative artifact URI, producer, and generation
-timestamp.
+timestamp before it can satisfy the promotion gate. The evaluator also requires
+an explicit `artifact_root`: each URI must resolve below that root and match the
+declared bytes. `target_hardware_timing` artifacts must additionally pass the
+schema-versioned E2E latency evidence validator with qualified target hardware
+and the configured p95 limit.
 `save_controller_safety_case_readiness()` and
 `load_controller_safety_case_readiness()` persist that readiness decision with
 the same schema-versioned integrity-digest semantics as the safety-case bundle.

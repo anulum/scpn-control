@@ -129,6 +129,43 @@ def _validate_readiness_artifact(artifact: ReadinessArtifactEvidence) -> Readine
     return artifact
 
 
+def _resolve_readiness_artifact_path(
+    artifact: ReadinessArtifactEvidence,
+    artifact_root: str | Path,
+) -> Path:
+    root = Path(artifact_root).resolve()
+    rel = Path(artifact.artifact_uri)
+    candidate = (root / rel).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("readiness artifact artifact_uri escapes artifact_root") from exc
+    if not candidate.is_file():
+        raise ValueError("readiness artifact artifact_uri does not resolve to a file")
+    digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+    if digest != artifact.artifact_sha256.lower():
+        raise ValueError("readiness artifact artifact_sha256 does not match artifact file")
+    return candidate
+
+
+def _validate_target_hardware_timing_artifact(
+    artifact: ReadinessArtifactEvidence,
+    artifact_root: str | Path,
+    *,
+    max_e2e_p95_us: float,
+) -> None:
+    report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
+    from validation.validate_e2e_latency_evidence import validate_e2e_latency_evidence
+
+    result = validate_e2e_latency_evidence(
+        report_path,
+        require_target_hardware=True,
+        max_e2e_p95_us=max_e2e_p95_us,
+    )
+    if result.status != "pass":
+        raise ValueError("target hardware timing artifact is not admissible: " + "; ".join(result.errors))
+
+
 def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> ControllerSafetyCaseEvidence:
     try:
         evidence = ControllerSafetyCaseEvidence(
@@ -253,6 +290,9 @@ def evaluate_controller_safety_case_readiness(
 def evaluate_controller_safety_case_readiness_from_artifacts(
     safety_case: ControllerSafetyCaseEvidence,
     artifacts: tuple[ReadinessArtifactEvidence, ...],
+    *,
+    artifact_root: str | Path,
+    max_target_hardware_e2e_p95_us: float = 1000.0,
 ) -> SafetyCaseReadinessEvidence:
     """Evaluate promotion readiness from typed external evidence artifacts."""
     if not isinstance(artifacts, tuple) or not artifacts:
@@ -266,6 +306,15 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
     missing = tuple(kind for kind in _READINESS_ARTIFACT_KINDS if kind not in by_kind)
     if missing:
         raise ValueError("missing readiness artifact kind(s): " + ", ".join(missing))
+    for kind, artifact in by_kind.items():
+        if kind == "target_hardware_timing":
+            _validate_target_hardware_timing_artifact(
+                artifact,
+                artifact_root,
+                max_e2e_p95_us=max_target_hardware_e2e_p95_us,
+            )
+        else:
+            _resolve_readiness_artifact_path(artifact, artifact_root)
     return evaluate_controller_safety_case_readiness(
         safety_case,
         external_physics_validation_sha256=by_kind["external_physics_validation"].artifact_sha256,

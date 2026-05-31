@@ -9,7 +9,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -55,6 +58,7 @@ from scpn_control.scpn.artifact import (
     Weights,
     compute_artifact_payload_sha256,
 )
+from validation.validate_e2e_latency_evidence import build_e2e_latency_evidence_payload
 
 
 def _controller_artifact() -> Artifact:
@@ -179,6 +183,68 @@ def _digital_twin_evidence(controller_sha256: str):
     )
 
 
+def _write_readiness_file(root: Path, uri: str, payload: dict[str, object]) -> str:
+    path = root / uri
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _target_hardware_latency_payload() -> dict[str, object]:
+    return build_e2e_latency_evidence_payload(
+        {
+            "iterations": 1000,
+            "warmup": 100,
+            "grid": "16x16",
+            "target_hardware": {
+                "id": "jetson-orin-nx-lab-unit-03",
+                "class": "jetson",
+                "machine": "aarch64",
+                "processor": "arm",
+                "platform": "Linux-PREEMPT_RT",
+                "python": "3.12.0",
+                "numpy": "2.0.0",
+                "rt_kernel": "PREEMPT_RT-6.8-lab",
+            },
+            "kernel_only_us": {"p50": 45.0, "p95": 60.0, "p99": 80.0},
+            "e2e_us": {"p50": 450.0, "p95": 700.0, "p99": 850.0},
+            "e2e_overhead_factor": 10.0,
+        }
+    )
+
+
+def _readiness_artifacts(root: Path) -> tuple[ReadinessArtifactEvidence, ...]:
+    external_uri = "validation/reports/external/physics_validation.json"
+    timing_uri = "validation/reports/hardware/target_timing.json"
+    review_uri = "validation/reports/review/safety_review.json"
+    external_digest = _write_readiness_file(root, external_uri, {"status": "pass", "source": "external"})
+    timing_digest = _write_readiness_file(root, timing_uri, _target_hardware_latency_payload())
+    review_digest = _write_readiness_file(root, review_uri, {"status": "pass", "source": "independent-review"})
+    return (
+        ReadinessArtifactEvidence(
+            kind="external_physics_validation",
+            artifact_sha256=external_digest,
+            artifact_uri=external_uri,
+            producer="independent-validation-campaign",
+            generated_utc="2026-05-31T00:00:00Z",
+        ),
+        ReadinessArtifactEvidence(
+            kind="target_hardware_timing",
+            artifact_sha256=timing_digest,
+            artifact_uri=timing_uri,
+            producer="target-hardware-latency-bench",
+            generated_utc="2026-05-31T00:00:00Z",
+        ),
+        ReadinessArtifactEvidence(
+            kind="independent_safety_review",
+            artifact_sha256=review_digest,
+            artifact_uri=review_uri,
+            producer="independent-safety-review",
+            generated_utc="2026-05-31T00:00:00Z",
+        ),
+    )
+
+
 def test_controller_safety_case_binds_formal_transport_and_twin_evidence():
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -278,7 +344,7 @@ def test_controller_safety_case_readiness_accepts_complete_promotion_evidence():
     assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
 
-def test_controller_safety_case_readiness_accepts_typed_artifact_evidence():
+def test_controller_safety_case_readiness_accepts_typed_artifact_evidence(tmp_path: Path):
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -286,38 +352,76 @@ def test_controller_safety_case_readiness_accepts_typed_artifact_evidence():
         _transport_evidence(controller_sha256),
         _digital_twin_evidence(controller_sha256),
     )
-    artifacts = (
-        ReadinessArtifactEvidence(
-            kind="external_physics_validation",
-            artifact_sha256="1" * 64,
-            artifact_uri="validation/reports/external/physics_validation.json",
-            producer="independent-validation-campaign",
-            generated_utc="2026-05-31T00:00:00Z",
-        ),
-        ReadinessArtifactEvidence(
-            kind="target_hardware_timing",
-            artifact_sha256="2" * 64,
-            artifact_uri="validation/reports/hardware/target_timing.json",
-            producer="target-hardware-latency-bench",
-            generated_utc="2026-05-31T00:00:00Z",
-        ),
-        ReadinessArtifactEvidence(
-            kind="independent_safety_review",
-            artifact_sha256="3" * 64,
-            artifact_uri="validation/reports/review/safety_review.json",
-            producer="independent-safety-review",
-            generated_utc="2026-05-31T00:00:00Z",
-        ),
+    artifacts = _readiness_artifacts(tmp_path)
+
+    readiness = evaluate_controller_safety_case_readiness_from_artifacts(
+        evidence,
+        artifacts,
+        artifact_root=tmp_path,
     )
 
-    readiness = evaluate_controller_safety_case_readiness_from_artifacts(evidence, artifacts)
-
     assert readiness.status == "promotion_ready"
-    assert readiness.external_physics_validation_sha256 == "1" * 64
+    assert readiness.external_physics_validation_sha256 == artifacts[0].artifact_sha256
     assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
 
-def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe_uri():
+def test_controller_safety_case_readiness_rejects_unqualified_timing_artifact(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = list(_readiness_artifacts(tmp_path))
+    timing_uri = artifacts[1].artifact_uri
+    local_payload = _target_hardware_latency_payload()
+    local_payload["target_hardware"]["id"] = "local-host-unqualified"
+    local_payload["target_hardware"]["class"] = "unspecified-local"
+    local_payload["target_hardware"]["rt_kernel"] = "unknown"
+    timing_digest = _write_readiness_file(tmp_path, timing_uri, build_e2e_latency_evidence_payload(local_payload))
+    artifacts[1] = ReadinessArtifactEvidence(
+        kind="target_hardware_timing",
+        artifact_sha256=timing_digest,
+        artifact_uri=timing_uri,
+        producer="target-hardware-latency-bench",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+
+    with pytest.raises(ValueError, match="target hardware timing artifact is not admissible"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            tuple(artifacts),
+            artifact_root=tmp_path,
+        )
+
+
+def test_controller_safety_case_readiness_rejects_timing_artifact_digest_mismatch(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = list(_readiness_artifacts(tmp_path))
+    artifacts[1] = ReadinessArtifactEvidence(
+        kind="target_hardware_timing",
+        artifact_sha256="f" * 64,
+        artifact_uri=artifacts[1].artifact_uri,
+        producer="target-hardware-latency-bench",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+
+    with pytest.raises(ValueError, match="artifact_sha256"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            tuple(artifacts),
+            artifact_root=tmp_path,
+        )
+
+
+def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe_uri(tmp_path: Path):
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -338,6 +442,7 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
                     generated_utc="2026-05-31T00:00:00Z",
                 ),
             ),
+            artifact_root=tmp_path,
         )
     with pytest.raises(ValueError, match="artifact_uri"):
         evaluate_controller_safety_case_readiness_from_artifacts(
@@ -365,6 +470,7 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
                     generated_utc="2026-05-31T00:00:00Z",
                 ),
             ),
+            artifact_root=tmp_path,
         )
 
 

@@ -687,6 +687,7 @@ declared tolerances.
 - `python validation/validate_e2e_latency_evidence.py <report> --max-e2e-p95-us 1000 --json-out`
   admits only schema-versioned, digest-bound, qualified target-hardware latency
   reports for real-time evidence.
+- Controller safety-case readiness resolves typed readiness artifacts under an explicit artifact root, verifies their SHA-256 bytes, and admits `target_hardware_timing` only after the E2E latency evidence gate passes.
 - `notebook-smoke` (executes CI notebook set; full neuro notebook only if `sc_neurocore` is available)
 - `package-quality` (`build` + `twine check`)
 - `rmse-gate` (SPARC and DIII-D GEQDSK regression bounds)
