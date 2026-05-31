@@ -20,7 +20,7 @@
   },
   "counts": {
     "project_script_count": 2,
-    "public_api_export_count": 39,
+    "public_api_export_count": 40,
     "public_class_count": 474,
     "public_markdown_count": 32,
     "pyo3_export_count": 27,
@@ -122,6 +122,7 @@
       "__version__",
       "admit_safety_certificate_bundle_artifact",
       "build_knm_paper27",
+      "build_local_provider",
       "build_physics_debug_report",
       "build_safety_certificate_bundle_artifact",
       "build_safety_certificate_bundle_payload",

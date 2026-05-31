@@ -20,6 +20,7 @@ from scpn_control.physics_debug import (
     PhysicsDebugEvidence,
     PhysicsDebugGap,
     ProviderPolicy,
+    build_local_provider,
     validate_physics_debug_report,
 )
 
@@ -208,3 +209,161 @@ def test_physics_debug_remote_endpoint_requires_explicit_allowlist() -> None:
 
     assert report["provider"]["local_onsite"] is False
     assert report["provider"]["endpoint"] == "https://facility-gateway.example.invalid/v1/chat/completions"
+
+
+def test_physics_debug_builds_local_provider_profiles_for_common_onsite_gateways() -> None:
+    chat_provider = build_local_provider(
+        family="chat-completions",
+        model="onsite-chat-model",
+        provider_name="site-chat-gateway",
+    )
+    ollama_provider = build_local_provider(
+        family="ollama-chat",
+        model="onsite-ollama-model",
+        provider_name="site-ollama-gateway",
+    )
+    generation_provider = build_local_provider(
+        family="text-generation",
+        model="onsite-generation-model",
+        provider_name="site-generation-gateway",
+    )
+
+    assert chat_provider.endpoint == "http://127.0.0.1:8000/v1/chat/completions"
+    assert ollama_provider.endpoint == "http://127.0.0.1:11434/api/chat"
+    assert generation_provider.endpoint == "http://127.0.0.1:8080/generate"
+    assert {chat_provider.protocol, ollama_provider.protocol, generation_provider.protocol} == {
+        "chat-completions",
+        "ollama-chat",
+        "text-generation",
+    }
+    assert all(provider.local_onsite for provider in (chat_provider, ollama_provider, generation_provider))
+
+
+def test_physics_debug_local_provider_factory_rejects_non_loopback_host() -> None:
+    with pytest.raises(ValueError, match="local provider host"):
+        build_local_provider(
+            family="chat-completions",
+            model="onsite-chat-model",
+            provider_name="bad-local-gateway",
+            host="192.0.2.10",
+        )
+
+
+@pytest.mark.parametrize(
+    ("protocol", "raw_response"),
+    [
+        (
+            "chat-completions",
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "hypotheses": [
+                                        {
+                                            "hypothesis_id": "h1",
+                                            "gap_id": "gk-cbc-linear-dispersion",
+                                            "statement": "The local closure may use inconsistent species normalization.",
+                                            "falsification_test": "Replay the CBC case with fixed species normalization metadata.",
+                                            "required_evidence_ids": ["cbc-linear-dispersion"],
+                                            "confidence": 0.5,
+                                        }
+                                    ],
+                                    "campaign_suggestions": [
+                                        {
+                                            "campaign_id": "campaign-species-normalization",
+                                            "linked_hypothesis_ids": ["h1"],
+                                            "objective": "Replay with fixed species normalization metadata.",
+                                            "measurements": ["growth-rate error"],
+                                            "stop_conditions": ["normalization replay does not change the error"],
+                                            "risk_controls": ["offline advisory only"],
+                                        }
+                                    ],
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        ),
+        (
+            "ollama-chat",
+            {
+                "message": {
+                    "content": json.dumps(
+                        {
+                            "hypotheses": [
+                                {
+                                    "hypothesis_id": "h1",
+                                    "gap_id": "gk-cbc-linear-dispersion",
+                                    "statement": "The collisionless limit may be configured inconsistently.",
+                                    "falsification_test": "Replay the CBC case with the collisionless limit toggled.",
+                                    "required_evidence_ids": ["cbc-linear-dispersion"],
+                                    "confidence": 0.52,
+                                }
+                            ],
+                            "campaign_suggestions": [
+                                {
+                                    "campaign_id": "campaign-collisionless-limit",
+                                    "linked_hypothesis_ids": ["h1"],
+                                    "objective": "Replay with collisionless limit metadata fixed.",
+                                    "measurements": ["growth-rate error"],
+                                    "stop_conditions": ["limit toggle does not change the error"],
+                                    "risk_controls": ["offline advisory only"],
+                                }
+                            ],
+                        }
+                    )
+                }
+            },
+        ),
+        (
+            "text-generation",
+            [
+                {
+                    "generated_text": json.dumps(
+                        {
+                            "hypotheses": [
+                                {
+                                    "hypothesis_id": "h1",
+                                    "gap_id": "gk-cbc-linear-dispersion",
+                                    "statement": "The finite-Larmor-radius normalization may be inconsistent.",
+                                    "falsification_test": "Replay the CBC case with finite-Larmor-radius terms disabled.",
+                                    "required_evidence_ids": ["cbc-linear-dispersion"],
+                                    "confidence": 0.51,
+                                }
+                            ],
+                            "campaign_suggestions": [
+                                {
+                                    "campaign_id": "campaign-radius-normalization",
+                                    "linked_hypothesis_ids": ["h1"],
+                                    "objective": "Replay with finite-Larmor-radius terms isolated.",
+                                    "measurements": ["growth-rate error"],
+                                    "stop_conditions": ["isolated replay does not change the error"],
+                                    "risk_controls": ["offline advisory only"],
+                                }
+                            ],
+                        }
+                    )
+                }
+            ],
+        ),
+    ],
+)
+def test_physics_debug_normalizes_common_onsite_provider_responses(
+    protocol: str,
+    raw_response: object,
+) -> None:
+    provider = build_local_provider(
+        family=protocol,
+        model="onsite-model",
+        provider_name=f"site-{protocol}",
+        transport=lambda payload: raw_response,
+    )
+
+    report = PhysicsDebugAssistant().analyze(evidence=[_cbc_evidence()], gaps=[_cbc_gap()], provider=provider)
+
+    assert report["provider"]["protocol"] == protocol
+    assert report["hypotheses"][0]["required_evidence_ids"] == ["cbc-linear-dispersion"]
+    assert report["campaign_suggestions"][0]["risk_controls"] == ["offline advisory only"]

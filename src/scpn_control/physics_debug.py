@@ -33,6 +33,13 @@ PHYSICS_DEBUG_SCOPE = "advisory local-first physics gap analysis and campaign su
 PHYSICS_DEBUG_CLAIM_BOUNDARY = (
     "not validated physics truth, facility safety approval, controller-parameter promotion, or experimental evidence"
 )
+LOCAL_PROVIDER_PROFILES: dict[str, tuple[int, str]] = {
+    "chat-completions": (8000, "/v1/chat/completions"),
+    "ollama-chat": (11434, "/api/chat"),
+    "text-generation": (8080, "/generate"),
+    "direct-json": (8000, "/v1/chat/completions"),
+}
+LOCAL_PROVIDER_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 ProviderTransport = Callable[[dict[str, Any]], Mapping[str, Any] | str | bytes]
 
@@ -108,6 +115,7 @@ class HTTPChatProvider:
     provider_name: str
     endpoint: str
     model: str
+    protocol: str = "chat-completions"
     headers: Mapping[str, str] = field(default_factory=dict)
     timeout_seconds: float = 30.0
     transport: ProviderTransport | None = None
@@ -116,6 +124,8 @@ class HTTPChatProvider:
         _require_non_empty("provider_name", self.provider_name)
         _require_non_empty("endpoint", self.endpoint)
         _require_non_empty("model", self.model)
+        if self.protocol not in LOCAL_PROVIDER_PROFILES:
+            raise ValueError("provider protocol is unsupported")
         if self.timeout_seconds <= 0.0 or not math.isfinite(self.timeout_seconds):
             raise ValueError("provider timeout_seconds must be positive and finite")
         for key, value in self.headers.items():
@@ -139,6 +149,7 @@ class HTTPChatProvider:
             "provider_name": self.provider_name,
             "endpoint": self.endpoint,
             "model": self.model,
+            "protocol": self.protocol,
             "local_onsite": self.local_onsite,
         }
 
@@ -148,22 +159,7 @@ class HTTPChatProvider:
         _validate_provider_endpoint(self, policy)
         if len(prompt) > policy.max_prompt_chars:
             raise ValueError("physics debug prompt exceeds policy max_prompt_chars")
-        request_payload = {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "Return strict JSON only. Produce falsifiable physics hypotheses "
-                        "and advisory experimental campaign suggestions. Do not promote "
-                        "controller parameters or facility claims."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.1,
-            "response_format": {"type": "json_object"},
-        }
+        request_payload = _provider_request_payload(self.protocol, self.model, prompt)
         if self.transport is not None:
             return _coerce_provider_response(self.transport(request_payload), policy)
         return _coerce_provider_response(self._post_json(request_payload, policy), policy)
@@ -243,6 +239,44 @@ def build_physics_debug_report(
     return validate_physics_debug_report(payload)
 
 
+def build_local_provider(
+    *,
+    family: str,
+    model: str,
+    provider_name: str,
+    host: str = "127.0.0.1",
+    port: int | None = None,
+    path: str | None = None,
+    transport: ProviderTransport | None = None,
+    headers: Mapping[str, str] | None = None,
+    timeout_seconds: float = 30.0,
+) -> HTTPChatProvider:
+    """Build a loopback-only provider profile for onsite model gateways."""
+
+    if family not in LOCAL_PROVIDER_PROFILES:
+        raise ValueError("local provider family is unsupported")
+    if host not in LOCAL_PROVIDER_HOSTS:
+        raise ValueError("local provider host must be loopback")
+    default_port, default_path = LOCAL_PROVIDER_PROFILES[family]
+    resolved_port = default_port if port is None else port
+    if not isinstance(resolved_port, int) or resolved_port <= 0 or resolved_port > 65_535:
+        raise ValueError("local provider port must be in 1..65535")
+    resolved_path = default_path if path is None else path
+    if not isinstance(resolved_path, str) or not resolved_path.startswith("/") or "\x00" in resolved_path:
+        raise ValueError("local provider path must be an absolute URL path")
+    host_part = f"[{host}]" if host == "::1" else host
+    endpoint = f"http://{host_part}:{resolved_port}{resolved_path}"
+    return HTTPChatProvider(
+        provider_name=provider_name,
+        endpoint=endpoint,
+        model=model,
+        protocol=family,
+        headers={} if headers is None else headers,
+        timeout_seconds=timeout_seconds,
+        transport=transport,
+    )
+
+
 def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a tamper-evident advisory physics debugging report."""
 
@@ -261,9 +295,11 @@ def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     provider = payload.get("provider")
     if not isinstance(provider, dict):
         raise ValueError("physics debug report provider must be an object")
-    for key in ("provider_name", "endpoint", "model"):
+    for key in ("provider_name", "endpoint", "model", "protocol"):
         if not isinstance(provider.get(key), str) or not provider[key]:
             raise ValueError(f"physics debug report provider {key} must be a non-empty string")
+    if provider["protocol"] not in LOCAL_PROVIDER_PROFILES:
+        raise ValueError("physics debug report provider protocol is unsupported")
     if not isinstance(provider.get("local_onsite"), bool):
         raise ValueError("physics debug report provider local_onsite must be a bool")
     evidence = payload.get("evidence")
@@ -328,6 +364,40 @@ def _build_physics_debug_prompt(evidence: list[dict[str, Any]], gaps: list[dict[
     return json.dumps(prompt_payload, sort_keys=True, separators=(",", ":"))
 
 
+def _provider_request_payload(protocol: str, model: str, prompt: str) -> dict[str, Any]:
+    system_prompt = (
+        "Return strict JSON only. Produce falsifiable physics hypotheses and advisory "
+        "experimental campaign suggestions. Do not promote controller parameters or facility claims."
+    )
+    if protocol in {"chat-completions", "direct-json"}:
+        return {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        }
+    if protocol == "ollama-chat":
+        return {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": False,
+            "format": "json",
+            "options": {"temperature": 0.1},
+        }
+    if protocol == "text-generation":
+        return {
+            "inputs": f"{system_prompt}\n\n{prompt}",
+            "parameters": {"temperature": 0.1, "return_full_text": False},
+        }
+    raise ValueError("provider protocol is unsupported")
+
+
 def _sanitized_evidence_payload(evidence: list[PhysicsDebugEvidence]) -> tuple[list[dict[str, Any]], list[str]]:
     redactions: list[str] = []
     payload: list[dict[str, Any]] = []
@@ -370,9 +440,45 @@ def _coerce_provider_response(raw: Mapping[str, Any] | str | bytes, policy: Prov
             raise ValueError("physics debug provider response exceeds policy max_response_chars")
         parsed = json.loads(raw)
     else:
-        parsed = dict(raw)
+        parsed = raw if isinstance(raw, list) else dict(raw)
+    parsed = _extract_provider_json(parsed, policy)
     if not isinstance(parsed, dict):
         raise ValueError("physics debug provider response must be a JSON object")
+    return parsed
+
+
+def _extract_provider_json(parsed: Any, policy: ProviderPolicy) -> Any:
+    if isinstance(parsed, dict) and "hypotheses" in parsed:
+        return parsed
+    if isinstance(parsed, dict) and isinstance(parsed.get("choices"), list) and parsed["choices"]:
+        first = parsed["choices"][0]
+        if isinstance(first, dict):
+            message = first.get("message")
+            if isinstance(message, dict) and isinstance(message.get("content"), str):
+                return _load_provider_text(message["content"], policy)
+            if isinstance(first.get("text"), str):
+                return _load_provider_text(first["text"], policy)
+    if isinstance(parsed, dict):
+        message = parsed.get("message")
+        if isinstance(message, dict) and isinstance(message.get("content"), str):
+            return _load_provider_text(message["content"], policy)
+        for key in ("response", "generated_text", "content"):
+            if isinstance(parsed.get(key), str):
+                return _load_provider_text(parsed[key], policy)
+    if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+        first = parsed[0]
+        for key in ("generated_text", "text", "content"):
+            if isinstance(first.get(key), str):
+                return _load_provider_text(first[key], policy)
+    return parsed
+
+
+def _load_provider_text(text: str, policy: ProviderPolicy) -> dict[str, Any]:
+    if len(text) > policy.max_response_chars:
+        raise ValueError("physics debug provider response exceeds policy max_response_chars")
+    parsed = json.loads(text)
+    if not isinstance(parsed, dict):
+        raise ValueError("physics debug provider text response must decode to an object")
     return parsed
 
 

@@ -37,11 +37,13 @@ scpn_control.PhysicsDebugAssistant
 
 `scpn_control.physics_debug` provides a local-first advisory assistant for
 physics validation gaps. The default provider policy admits loopback endpoints
-only; facility or external gateways must be explicitly allowlisted. Reports are
-schema-versioned advisory evidence with secret redaction, falsifiable
-hypothesis checks, campaign risk controls, and tamper-evident payload digests.
-They are not validated physics truth, controller-parameter promotion, or
-facility safety approval.
+only; facility or external gateways must be explicitly allowlisted.
+`build_local_provider()` supplies loopback profiles for common onsite gateway
+protocols: chat-completions-compatible, Ollama-style chat, direct JSON, and
+text-generation endpoints. Reports are schema-versioned advisory evidence with
+secret redaction, falsifiable hypothesis checks, campaign risk controls, and
+tamper-evident payload digests. They are not validated physics truth,
+controller-parameter promotion, or facility safety approval.
 
 ::: scpn_control.physics_debug.ProviderPolicy
 
@@ -52,6 +54,8 @@ facility safety approval.
 ::: scpn_control.physics_debug.HTTPChatProvider
 
 ::: scpn_control.physics_debug.PhysicsDebugAssistant
+
+::: scpn_control.physics_debug.build_local_provider
 
 ::: scpn_control.physics_debug.build_physics_debug_report
 
