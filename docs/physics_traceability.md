@@ -241,6 +241,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
   - Bind promoted controller safety-case bundles to the same controller artifact digest across formal proof, differentiable-transport, and digital-twin update evidence
   - Persist controller safety-case bundles with schema-versioned integrity manifests before replay admission
   - Keep controller safety-case readiness blocked until external physics validation, target-hardware timing, and independent safety-review digests are all present
+  - Prefer typed readiness artifacts with safe relative URIs, producers, timestamps, and kind-specific SHA-256 digests over anonymous promotion digests
   - Persist controller safety-case readiness decisions with schema-versioned integrity manifests before promotion replay
   - Validate certification packages with an external safety-case review before hardware-control claims
   - Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation

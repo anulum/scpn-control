@@ -21,11 +21,13 @@ from scpn_control.control.digital_twin_online_update import (
     validate_external_simulator_artifact,
 )
 from scpn_control.control.safety_case import (
+    ReadinessArtifactEvidence,
     SafetyCaseReadinessEvidence,
     assert_controller_safety_case_admissible,
     assert_controller_safety_case_readiness_admissible,
     controller_safety_case_evidence,
     evaluate_controller_safety_case_readiness,
+    evaluate_controller_safety_case_readiness_from_artifacts,
     load_controller_safety_case_evidence,
     load_controller_safety_case_readiness,
     save_controller_safety_case_evidence,
@@ -274,6 +276,96 @@ def test_controller_safety_case_readiness_accepts_complete_promotion_evidence():
     assert readiness.blocking_reasons == ()
     assert readiness.external_physics_validation_sha256 == "1" * 64
     assert_controller_safety_case_readiness_admissible(readiness, evidence)
+
+
+def test_controller_safety_case_readiness_accepts_typed_artifact_evidence():
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = (
+        ReadinessArtifactEvidence(
+            kind="external_physics_validation",
+            artifact_sha256="1" * 64,
+            artifact_uri="validation/reports/external/physics_validation.json",
+            producer="independent-validation-campaign",
+            generated_utc="2026-05-31T00:00:00Z",
+        ),
+        ReadinessArtifactEvidence(
+            kind="target_hardware_timing",
+            artifact_sha256="2" * 64,
+            artifact_uri="validation/reports/hardware/target_timing.json",
+            producer="target-hardware-latency-bench",
+            generated_utc="2026-05-31T00:00:00Z",
+        ),
+        ReadinessArtifactEvidence(
+            kind="independent_safety_review",
+            artifact_sha256="3" * 64,
+            artifact_uri="validation/reports/review/safety_review.json",
+            producer="independent-safety-review",
+            generated_utc="2026-05-31T00:00:00Z",
+        ),
+    )
+
+    readiness = evaluate_controller_safety_case_readiness_from_artifacts(evidence, artifacts)
+
+    assert readiness.status == "promotion_ready"
+    assert readiness.external_physics_validation_sha256 == "1" * 64
+    assert_controller_safety_case_readiness_admissible(readiness, evidence)
+
+
+def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe_uri():
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+
+    with pytest.raises(ValueError, match="kind"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            (
+                ReadinessArtifactEvidence(
+                    kind="external_physics_validation",
+                    artifact_sha256="1" * 64,
+                    artifact_uri="validation/reports/external/physics_validation.json",
+                    producer="independent-validation-campaign",
+                    generated_utc="2026-05-31T00:00:00Z",
+                ),
+            ),
+        )
+    with pytest.raises(ValueError, match="artifact_uri"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            (
+                ReadinessArtifactEvidence(
+                    kind="external_physics_validation",
+                    artifact_sha256="1" * 64,
+                    artifact_uri="../outside.json",
+                    producer="independent-validation-campaign",
+                    generated_utc="2026-05-31T00:00:00Z",
+                ),
+                ReadinessArtifactEvidence(
+                    kind="target_hardware_timing",
+                    artifact_sha256="2" * 64,
+                    artifact_uri="validation/reports/hardware/target_timing.json",
+                    producer="target-hardware-latency-bench",
+                    generated_utc="2026-05-31T00:00:00Z",
+                ),
+                ReadinessArtifactEvidence(
+                    kind="independent_safety_review",
+                    artifact_sha256="3" * 64,
+                    artifact_uri="validation/reports/review/safety_review.json",
+                    producer="independent-safety-review",
+                    generated_utc="2026-05-31T00:00:00Z",
+                ),
+            ),
+        )
 
 
 def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):

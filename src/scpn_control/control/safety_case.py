@@ -20,6 +20,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Any
 
 from scpn_control.control.digital_twin_online_update import DigitalTwinUpdateEvidence
@@ -32,6 +33,11 @@ from scpn_control.scpn.artifact import (
 )
 
 _SAFETY_CASE_MANIFEST_SCHEMA_VERSION = 1
+_READINESS_ARTIFACT_KINDS = (
+    "external_physics_validation",
+    "target_hardware_timing",
+    "independent_safety_review",
+)
 
 
 @dataclass(frozen=True)
@@ -62,6 +68,17 @@ class SafetyCaseReadinessEvidence:
     claim_status: str
 
 
+@dataclass(frozen=True)
+class ReadinessArtifactEvidence:
+    """Typed artifact evidence required for safety-case promotion readiness."""
+
+    kind: str
+    artifact_sha256: str
+    artifact_uri: str
+    producer: str
+    generated_utc: str
+
+
 def _canonical_sha256(value: Any) -> str:
     payload = asdict(value) if hasattr(value, "__dataclass_fields__") else value
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
@@ -84,6 +101,32 @@ def _optional_sha256(name: str, value: str | None) -> str | None:
     if not isinstance(value, str) or not _is_sha256_hex(value):
         raise ValueError(f"{name} must be a SHA-256 hex digest")
     return value.lower()
+
+
+def _safe_relative_artifact_uri(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{name} must be a non-empty safe relative path")
+    if "\\" in value or "://" in value or value.startswith(("file:", "/", "~")):
+        raise ValueError(f"{name} must be a safe relative path")
+    rel = PurePosixPath(value)
+    if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
+        raise ValueError(f"{name} must be a safe relative path")
+    return value
+
+
+def _validate_readiness_artifact(artifact: ReadinessArtifactEvidence) -> ReadinessArtifactEvidence:
+    if not isinstance(artifact, ReadinessArtifactEvidence):
+        raise ValueError("readiness artifact must be ReadinessArtifactEvidence")
+    if artifact.kind not in _READINESS_ARTIFACT_KINDS:
+        raise ValueError("readiness artifact kind is unsupported")
+    if not _is_sha256_hex(artifact.artifact_sha256):
+        raise ValueError("readiness artifact artifact_sha256 must be a SHA-256 digest")
+    _safe_relative_artifact_uri("readiness artifact artifact_uri", artifact.artifact_uri)
+    if not isinstance(artifact.producer, str) or not artifact.producer:
+        raise ValueError("readiness artifact producer must be a non-empty string")
+    if not isinstance(artifact.generated_utc, str) or not artifact.generated_utc:
+        raise ValueError("readiness artifact generated_utc must be a non-empty string")
+    return artifact
 
 
 def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> ControllerSafetyCaseEvidence:
@@ -204,6 +247,30 @@ def evaluate_controller_safety_case_readiness(
             "bounded safety-case promotion gate; external regulator certification "
             "and facility authority approval remain separate"
         ),
+    )
+
+
+def evaluate_controller_safety_case_readiness_from_artifacts(
+    safety_case: ControllerSafetyCaseEvidence,
+    artifacts: tuple[ReadinessArtifactEvidence, ...],
+) -> SafetyCaseReadinessEvidence:
+    """Evaluate promotion readiness from typed external evidence artifacts."""
+    if not isinstance(artifacts, tuple) or not artifacts:
+        raise ValueError("readiness artifacts must be a non-empty tuple")
+    by_kind: dict[str, ReadinessArtifactEvidence] = {}
+    for artifact in artifacts:
+        parsed = _validate_readiness_artifact(artifact)
+        if parsed.kind in by_kind:
+            raise ValueError(f"duplicate readiness artifact kind: {parsed.kind}")
+        by_kind[parsed.kind] = parsed
+    missing = tuple(kind for kind in _READINESS_ARTIFACT_KINDS if kind not in by_kind)
+    if missing:
+        raise ValueError("missing readiness artifact kind(s): " + ", ".join(missing))
+    return evaluate_controller_safety_case_readiness(
+        safety_case,
+        external_physics_validation_sha256=by_kind["external_physics_validation"].artifact_sha256,
+        target_hardware_timing_sha256=by_kind["target_hardware_timing"].artifact_sha256,
+        independent_safety_review_sha256=by_kind["independent_safety_review"].artifact_sha256,
     )
 
 
@@ -393,11 +460,13 @@ def assert_controller_safety_case_admissible(
 
 __all__ = [
     "ControllerSafetyCaseEvidence",
+    "ReadinessArtifactEvidence",
     "SafetyCaseReadinessEvidence",
     "assert_controller_safety_case_admissible",
     "assert_controller_safety_case_readiness_admissible",
     "controller_safety_case_evidence",
     "evaluate_controller_safety_case_readiness",
+    "evaluate_controller_safety_case_readiness_from_artifacts",
     "load_controller_safety_case_evidence",
     "load_controller_safety_case_readiness",
     "save_controller_safety_case_evidence",

@@ -35,6 +35,10 @@
 - Added schema-versioned controller safety-case readiness manifest persistence
   with an integrity digest so promotion decisions fail closed on malformed
   schema or payload tampering before replay.
+- Added typed controller safety-case readiness artifacts so promotion evidence
+  requires kind-specific external validation, target-hardware timing, and
+  independent-review artifacts with safe relative URIs, producers, timestamps,
+  and SHA-256 digests.
 - Hardened the phase WebSocket stream with explicit payload-size limits,
   server-side frame caps, default client authentication, TLS-required startup
   mode, disabled-by-default query-token authentication, fail-closed plaintext

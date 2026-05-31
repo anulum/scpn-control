@@ -643,6 +643,11 @@ or edited evidence payloads before replay admission.
 from promotion readiness: external physics validation, target-hardware timing
 evidence, and independent safety-review digests are all required before
 `assert_controller_safety_case_readiness_admissible()` accepts the package.
+`ReadinessArtifactEvidence` and
+`evaluate_controller_safety_case_readiness_from_artifacts()` provide the normal
+promotion path: each required readiness input must be a typed artifact with a
+known kind, SHA-256 digest, safe relative artifact URI, producer, and generation
+timestamp.
 `save_controller_safety_case_readiness()` and
 `load_controller_safety_case_readiness()` persist that readiness decision with
 the same schema-versioned integrity-digest semantics as the safety-case bundle.
@@ -650,6 +655,8 @@ the same schema-versioned integrity-digest semantics as the safety-case bundle.
 ::: scpn_control.control.safety_case.ControllerSafetyCaseEvidence
 
 ::: scpn_control.control.safety_case.SafetyCaseReadinessEvidence
+
+::: scpn_control.control.safety_case.ReadinessArtifactEvidence
 
 ::: scpn_control.control.safety_case.controller_safety_case_evidence
 
@@ -660,6 +667,8 @@ the same schema-versioned integrity-digest semantics as the safety-case bundle.
 ::: scpn_control.control.safety_case.load_controller_safety_case_evidence
 
 ::: scpn_control.control.safety_case.evaluate_controller_safety_case_readiness
+
+::: scpn_control.control.safety_case.evaluate_controller_safety_case_readiness_from_artifacts
 
 ::: scpn_control.control.safety_case.assert_controller_safety_case_readiness_admissible
 
