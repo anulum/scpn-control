@@ -28,6 +28,7 @@ from scpn_control.scpn.formal_verification import (
     LTLFormula,
     NeverCoMarked,
     PlaceInvariant,
+    SafetyCertificatePolicy,
     build_safety_certificate_payload,
     generate_safety_certificate,
     validate_safety_certificate_payload,
@@ -388,6 +389,85 @@ def test_generate_safety_certificate_rejects_artifact_digest_mismatch(tmp_path: 
             markdown_path=tmp_path / "certificate.md",
             backend="explicit-state",
         )
+
+
+def test_generate_safety_certificate_enforces_certification_policy(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "controller.scpnctl"
+    artifact_path.write_bytes(b"compiled-controller-artifact")
+    policy = SafetyCertificatePolicy(
+        name="bounded-ctl-ltl-release-gate",
+        min_depth=2,
+        require_artifact_binding=True,
+        require_ctl=True,
+        require_ltl=True,
+        required_checked_specs=("move_eventually_fires", "CTL:EF_move_fires:EF", "LTL:F_move_fires:F"),
+    )
+
+    payload = generate_safety_certificate(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+        ctl_specs=[CTLFormula.ef_fires("EF_move_fires", "move")],
+        ltl_specs=[LTLFormula.eventually_fires("F_move_fires", "move")],
+        artifact_path=artifact_path,
+        json_path=tmp_path / "certificate.json",
+        markdown_path=tmp_path / "certificate.md",
+        policy=policy,
+        backend="explicit-state",
+    )
+
+    assert payload["policy"]["name"] == "bounded-ctl-ltl-release-gate"
+    assert payload["policy"]["require_ctl"] is True
+    assert payload["policy"]["required_checked_specs"] == [
+        "move_eventually_fires",
+        "CTL:EF_move_fires:EF",
+        "LTL:F_move_fires:F",
+    ]
+    assert validate_safety_certificate_payload(payload) == payload
+
+    with pytest.raises(ValueError, match="requires LTL"):
+        generate_safety_certificate(
+            _transfer_net(),
+            max_depth=2,
+            marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+            temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+            ctl_specs=[CTLFormula.ef_fires("EF_move_fires", "move")],
+            artifact_path=artifact_path,
+            json_path=tmp_path / "missing-ltl.json",
+            markdown_path=tmp_path / "missing-ltl.md",
+            policy=policy,
+            backend="explicit-state",
+        )
+
+
+def test_safety_certificate_policy_rejects_semantic_policy_tampering(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "controller.scpnctl"
+    artifact_path.write_bytes(b"compiled-controller-artifact")
+    payload = generate_safety_certificate(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        ctl_specs=[CTLFormula.ef_fires("EF_move_fires", "move")],
+        ltl_specs=[LTLFormula.eventually_fires("F_move_fires", "move")],
+        artifact_path=artifact_path,
+        json_path=tmp_path / "certificate.json",
+        markdown_path=tmp_path / "certificate.md",
+        backend="explicit-state",
+    )
+    tampered = dict(payload)
+    tampered["policy"] = {
+        "name": "requires-temporal",
+        "min_depth": 0,
+        "require_artifact_binding": False,
+        "require_ctl": False,
+        "require_ltl": False,
+        "required_checked_specs": ["move_eventually_fires"],
+    }
+    _refresh_certificate_payload_digest(tampered)
+
+    with pytest.raises(ValueError, match="required checked spec"):
+        validate_safety_certificate_payload(tampered)
 
 
 def test_safety_certificate_validator_rejects_semantic_section_tampering() -> None:

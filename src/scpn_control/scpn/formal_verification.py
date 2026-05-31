@@ -92,6 +92,55 @@ class FormalVerificationReport:
 
 
 @dataclass(frozen=True)
+class SafetyCertificatePolicy:
+    """Admission policy for generated formal safety certificates."""
+
+    name: str
+    min_depth: int = 0
+    require_artifact_binding: bool = False
+    require_ctl: bool = False
+    require_ltl: bool = False
+    required_checked_specs: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError("safety certificate policy name must be a non-empty string")
+        if isinstance(self.min_depth, bool) or int(self.min_depth) != self.min_depth or self.min_depth < 0:
+            raise ValueError("safety certificate policy min_depth must be an integer >= 0")
+        if not isinstance(self.require_artifact_binding, bool):
+            raise ValueError("safety certificate policy require_artifact_binding must be boolean")
+        if not isinstance(self.require_ctl, bool):
+            raise ValueError("safety certificate policy require_ctl must be boolean")
+        if not isinstance(self.require_ltl, bool):
+            raise ValueError("safety certificate policy require_ltl must be boolean")
+        if not isinstance(self.required_checked_specs, tuple):
+            raise ValueError("safety certificate policy required_checked_specs must be a tuple")
+        if any(not isinstance(spec, str) or not spec for spec in self.required_checked_specs):
+            raise ValueError("safety certificate policy required_checked_specs must contain non-empty strings")
+        if len(self.required_checked_specs) != len(set(self.required_checked_specs)):
+            raise ValueError("safety certificate policy required_checked_specs must be unique")
+
+    @classmethod
+    def certification_gate(
+        cls,
+        *,
+        name: str = "bounded-ctl-ltl-artifact-gate",
+        min_depth: int = 1,
+        required_checked_specs: tuple[str, ...] = (),
+    ) -> SafetyCertificatePolicy:
+        """Create a fail-closed policy requiring artifact binding plus CTL and LTL evidence."""
+
+        return cls(
+            name=name,
+            min_depth=min_depth,
+            require_artifact_binding=True,
+            require_ctl=True,
+            require_ltl=True,
+            required_checked_specs=required_checked_specs,
+        )
+
+
+@dataclass(frozen=True)
 class CTLFormula:
     """Bounded CTL formula over a compiled SCPN transition system.
 
@@ -823,6 +872,7 @@ def build_safety_certificate_payload(
     ltl_report: FormalPropertyReport | None = None,
     artifact_sha256: str | None = None,
     issuer: str = "scpn-control",
+    policy: SafetyCertificatePolicy | None = None,
 ) -> dict[str, Any]:
     """Build a schema-versioned tamper-evident formal safety certificate."""
 
@@ -854,8 +904,11 @@ def build_safety_certificate_payload(
         "checked_specs": _certificate_checked_specs(report, ctl_report, ltl_report),
         "scope": SAFETY_CERTIFICATE_SCOPE,
         "claim_boundary": SAFETY_CERTIFICATE_CLAIM_BOUNDARY,
+        "policy": _policy_payload(policy) if policy is not None else None,
         "sections": sections,
     }
+    if policy is not None:
+        _enforce_safety_certificate_policy(payload, policy)
     payload["payload_sha256"] = _payload_digest(payload)
     return validate_safety_certificate_payload(payload)
 
@@ -869,6 +922,7 @@ def write_safety_certificate(
     ltl_report: FormalPropertyReport | None = None,
     artifact_sha256: str | None = None,
     issuer: str = "scpn-control",
+    policy: SafetyCertificatePolicy | None = None,
 ) -> dict[str, Any]:
     """Persist a formal safety certificate as JSON and Markdown artifacts."""
 
@@ -878,6 +932,7 @@ def write_safety_certificate(
         ltl_report=ltl_report,
         artifact_sha256=artifact_sha256,
         issuer=issuer,
+        policy=policy,
     )
     json_target = Path(json_path)
     markdown_target = Path(markdown_path)
@@ -903,6 +958,7 @@ def generate_safety_certificate(
     artifact_sha256: str | None = None,
     issuer: str = "scpn-control",
     backend: FormalBackend = "explicit-state",
+    policy: SafetyCertificatePolicy | None = None,
 ) -> dict[str, Any]:
     """Run proof obligations and persist a bound formal safety certificate.
 
@@ -935,6 +991,7 @@ def generate_safety_certificate(
         ltl_report=ltl_report,
         artifact_sha256=bound_artifact_sha256,
         issuer=issuer,
+        policy=policy,
     )
 
 
@@ -972,6 +1029,7 @@ def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, An
         raise ValueError("safety certificate scope is unsupported")
     if payload.get("claim_boundary") != SAFETY_CERTIFICATE_CLAIM_BOUNDARY:
         raise ValueError("safety certificate claim_boundary is unsupported")
+    policy = _policy_from_payload(payload.get("policy"))
     if not isinstance(payload.get("sections"), dict):
         raise ValueError("safety certificate sections must be an object")
     sections = payload["sections"]
@@ -1001,6 +1059,8 @@ def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, An
         raise ValueError("safety certificate section holds must match certificate holds")
     if payload["checked_specs"] != _certificate_checked_specs_from_sections(sections):
         raise ValueError("safety certificate checked_specs must match certificate sections")
+    if policy is not None:
+        _enforce_safety_certificate_policy(payload, policy)
     declared_digest = payload.get("payload_sha256")
     if not isinstance(declared_digest, str) or not _is_sha256(declared_digest):
         raise ValueError("safety certificate payload_sha256 must be a SHA-256 hex digest")
@@ -1036,6 +1096,55 @@ def _certificate_checked_specs_from_sections(sections: dict[str, Any]) -> list[s
             if spec not in specs:
                 specs.append(spec)
     return specs
+
+
+def _policy_payload(policy: SafetyCertificatePolicy) -> dict[str, Any]:
+    return {
+        "name": policy.name,
+        "min_depth": policy.min_depth,
+        "require_artifact_binding": policy.require_artifact_binding,
+        "require_ctl": policy.require_ctl,
+        "require_ltl": policy.require_ltl,
+        "required_checked_specs": list(policy.required_checked_specs),
+    }
+
+
+def _policy_from_payload(value: Any) -> SafetyCertificatePolicy | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("safety certificate policy must be an object or null")
+    required_specs = value.get("required_checked_specs", [])
+    if not isinstance(required_specs, list):
+        raise ValueError("safety certificate policy required_checked_specs must be a list")
+    return SafetyCertificatePolicy(
+        name=value.get("name", ""),
+        min_depth=value.get("min_depth", 0),
+        require_artifact_binding=value.get("require_artifact_binding", False),
+        require_ctl=value.get("require_ctl", False),
+        require_ltl=value.get("require_ltl", False),
+        required_checked_specs=tuple(required_specs),
+    )
+
+
+def _enforce_safety_certificate_policy(payload: dict[str, Any], policy: SafetyCertificatePolicy) -> None:
+    if payload["max_depth"] < policy.min_depth:
+        raise ValueError("safety certificate policy requires max_depth to meet min_depth")
+    if policy.require_artifact_binding and payload.get("artifact_sha256") is None:
+        raise ValueError("safety certificate policy requires artifact binding")
+    sections = payload.get("sections")
+    if not isinstance(sections, dict):
+        raise ValueError("safety certificate policy requires certificate sections")
+    if policy.require_ctl and sections.get("ctl") is None:
+        raise ValueError("safety certificate policy requires CTL evidence")
+    if policy.require_ltl and sections.get("ltl") is None:
+        raise ValueError("safety certificate policy requires LTL evidence")
+    checked_specs = payload.get("checked_specs")
+    if not isinstance(checked_specs, list):
+        raise ValueError("safety certificate policy requires checked specs")
+    missing = [spec for spec in policy.required_checked_specs if spec not in checked_specs]
+    if missing:
+        raise ValueError(f"safety certificate policy missing required checked spec: {missing[0]}")
 
 
 def _payload_digest(payload: dict[str, Any]) -> str:
@@ -1099,6 +1208,19 @@ def _render_safety_certificate_markdown(payload: dict[str, Any]) -> str:
         "## Checked specifications",
         "",
     ]
+    if payload.get("policy") is not None:
+        lines.extend(
+            [
+                "## Policy",
+                "",
+                f"- Name: `{payload['policy']['name']}`",
+                f"- Min depth: `{payload['policy']['min_depth']}`",
+                f"- Requires artifact binding: `{payload['policy']['require_artifact_binding']}`",
+                f"- Requires CTL evidence: `{payload['policy']['require_ctl']}`",
+                f"- Requires LTL evidence: `{payload['policy']['require_ltl']}`",
+                "",
+            ]
+        )
     lines.extend(f"- `{spec}`" for spec in payload["checked_specs"])
     lines.extend(["", "## Section status", ""])
     for section_name, section in payload["sections"].items():

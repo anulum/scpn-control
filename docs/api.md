@@ -438,6 +438,8 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.PlaceInvariant
 
+::: scpn_control.scpn.formal_verification.SafetyCertificatePolicy
+
 ::: scpn_control.scpn.formal_verification.CTLFormula
 
 ::: scpn_control.scpn.formal_verification.LTLFormula

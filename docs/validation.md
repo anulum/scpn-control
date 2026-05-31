@@ -178,6 +178,9 @@ artifacts with a canonical digest. `build_safety_certificate_payload` and
 validated report objects. Certificate admission also revalidates section
 status, depth, backend, and checked-specification consistency, so an internally
 inconsistent certificate remains rejected even if its digest is recomputed. The
+optional `SafetyCertificatePolicy` gate can additionally require minimum proof
+depth, controller artifact binding, CTL evidence, LTL evidence, and named
+checked specifications before certificate artifacts are emitted or admitted. The
 certificate is evidence for bounded model checking only; it is not a facility
 safety approval or an unbounded proof.
 

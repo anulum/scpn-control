@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added formal safety certificate admission policies so certification campaigns
+  can require minimum proof depth, controller artifact binding, CTL/LTL
+  evidence, and named checked specifications before JSON/Markdown certificate
+  artifacts are emitted or admitted.
 - Added a one-call formal safety certificate workflow that resolves one
   Petri-net verifier backend, runs base safety/liveness plus CTL/LTL
   obligations, binds optional controller artifact bytes by SHA-256, and
