@@ -16,6 +16,7 @@ from scpn_control.core.gyrokinetic_transport import (
     SpectrumResult,
     compute_spectrum,
     quasilinear_fluxes,
+    saturated_growth_rate,
     solve_dispersion,
 )
 
@@ -140,6 +141,26 @@ def test_quasilinear_fluxes():
     assert fluxes.chi_i > 0.0
     assert fluxes.chi_e > 0.0
     assert fluxes.D_e >= 0.0
+
+
+def test_saturated_growth_rate_is_monotone_and_bounded_by_field_line_rate():
+    q = 1.7
+    gamma = np.array([0.0, 0.05, 0.2, 1.0, 5.0])
+    saturated = np.array([saturated_growth_rate(value, q) for value in gamma])
+
+    assert saturated[0] == 0.0
+    assert np.all(np.diff(saturated) > 0.0)
+    assert np.all(saturated < 1.0 / q)
+    assert saturated_growth_rate(1.0e6, q) == pytest.approx(1.0 / q, rel=1.0e-6)
+
+
+def test_saturated_growth_rate_rejects_nonphysical_inputs():
+    with pytest.raises(ValueError, match="gamma_linear"):
+        saturated_growth_rate(-1.0e-3, 1.5)
+    with pytest.raises(ValueError, match="gamma_linear"):
+        saturated_growth_rate(float("nan"), 1.5)
+    with pytest.raises(ValueError, match="q"):
+        saturated_growth_rate(0.1, 0.0)
 
 
 def test_stiffness():

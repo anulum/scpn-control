@@ -38,6 +38,8 @@
   regression coverage.
 - Added the Miller geometry contravariant metric-determinant identity to the
   public geometry result and regression coverage.
+- Added an explicit reduced-gyrokinetic saturation-rate utility with monotone,
+  non-negative, and field-line-rate-bounded regression coverage.
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.

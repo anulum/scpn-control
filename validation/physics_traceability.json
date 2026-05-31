@@ -988,7 +988,7 @@
       ],
       "unit_contract": "Growth rates and frequencies in declared normalised units, gradients dimensionless or m^-1 with explicit convention, rho and epsilon dimensionless, geometry in metres, heat flux in gyro-Bohm or SI units with conversion metadata.",
       "validation_evidence": [
-        "tests/test_gyrokinetic_transport.py",
+        "tests/test_gyrokinetic_transport.py dispersion branches, quasilinear fluxes, saturation monotonicity and boundedness, profile evaluation, and invalid-domain checks",
         "tests/test_gk_benchmark_linear.py"
       ],
       "evidence_paths": [

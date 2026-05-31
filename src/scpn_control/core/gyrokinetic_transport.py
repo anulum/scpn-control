@@ -130,6 +130,22 @@ class TransportFluxes:
     D_e: float
 
 
+def saturated_growth_rate(gamma_linear: Any, q: Any) -> float:
+    """Return bounded mixing-length growth rate for quasilinear saturation.
+
+    The reduced closure uses ``gamma_sat = gamma / (1 + gamma / gamma_max)``
+    with ``gamma_max = 1/q`` in ``c_s/R`` units. The map is monotone,
+    non-negative, and strictly bounded by ``gamma_max`` for finite positive
+    ``q``. Stable or marginal modes return zero.
+    """
+    gamma = _nonnegative_float("gamma_linear", gamma_linear)
+    q_value = _positive_float("q", q)
+    if gamma == 0.0:
+        return 0.0
+    gamma_max = 1.0 / q_value
+    return float(gamma / (1.0 + gamma / gamma_max))
+
+
 def solve_dispersion(
     params: GyrokineticsParams, k_theta_rho_s: float, etg_scale: bool = False
 ) -> tuple[float, float, int]:
@@ -278,7 +294,7 @@ def quasilinear_fluxes(params: GyrokineticsParams, spectrum: SpectrumResult) -> 
             continue
 
         # Saturation rule
-        gamma_sat = gamma_lin / (1.0 + gamma_lin / gamma_max)
+        gamma_sat = saturated_growth_rate(gamma_lin, params.q)
 
         # Mixing length amplitude
         phi_sq = 1.0 / ky**2
