@@ -311,7 +311,7 @@
     },
     {
       "component": "neural equilibrium cross-validation",
-      "equation_contract": "Neural equilibrium pretraining may use bounded synthetic Solovev-like equilibria, but fine-tuning and public predictive claims require comparison against identical P-EFIT or equivalent reference equilibria for psi, pressure, q, and boundary geometry.",
+      "equation_contract": "Neural equilibrium pretraining may use bounded synthetic Solovev-like equilibria, but fine-tuning and public predictive claims require fail-closed claim evidence tied to the same weight checksum and comparison against identical P-EFIT or documented public reference equilibria for psi, pressure, q-profile, LCFS boundary, and magnetic-axis position.",
       "fidelity_status": "external_dependency_blocked",
       "model_references": [
         "EFIT/P-EFIT equilibrium reconstruction workflow",
@@ -323,13 +323,14 @@
       "required_actions": [
         "Acquire matched P-EFIT reference equilibria or an openly redistributable equivalent",
         "Run fine-tuning only through the strict neural-equilibrium reference-artifact gate",
+        "Persist claim evidence with model identity, weight checksum, grid shape, feature contract, reference source, reference-equilibria count, tolerances, errors, and admission status before predictive claims",
         "Add error bounds for psi, pressure, q-profile, LCFS, and magnetic-axis predictions before facility claims"
       ],
       "unit_contract": "SI magnetic flux, pressure, metre-scale geometry, and dimensionless q-profile arrays on declared grids.",
       "validation_evidence": [
-        "tests/test_neural_equilibrium.py synthetic pretraining, reproducibility, JAX-compatible weight, and real-EFIT admission tests",
+        "tests/test_neural_equilibrium.py synthetic pretraining, reproducibility, JAX-compatible weight, fail-closed claim evidence, checksum matching, and real-EFIT admission tests",
         "tests/test_jax_neural_equilibrium.py synthetic-pretrained weight loading through JAX inference",
-        "validation/benchmark_neural_equilibrium_pretraining.py deterministic synthetic pretraining benchmark",
+        "validation/benchmark_neural_equilibrium_pretraining.py deterministic synthetic pretraining and claim-admission benchmark",
         "validation/validate_neural_equilibrium_reference.py strict P-EFIT/reference artifact gate"
       ],
       "evidence_paths": [
@@ -347,7 +348,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/neural_equilibrium.py"
       ],
-      "validity_domain": "Synthetic pretraining and JAX-compatible inference plumbing are implemented; real EFIT/P-EFIT fine-tuning is fail-closed unless reference artefacts pass the strict validator.",
+      "validity_domain": "Bounded synthetic Solovev-like pretraining, JAX-compatible inference plumbing, and fail-closed predictive-claim admission evidence only; not a facility EFIT/P-EFIT validation claim unless matched reference artefacts validate the same weight checksum and all declared tolerances.",
       "external_validation_tracker_issue": 50
     },
     {

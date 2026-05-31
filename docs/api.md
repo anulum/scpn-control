@@ -206,7 +206,15 @@ P-EFIT or documented-public-reference artefact validator passes.
 
 ::: scpn_control.core.neural_equilibrium.NeuralEquilibriumAccelerator
 
+::: scpn_control.core.neural_equilibrium.NeuralEquilibriumClaimEvidence
+
 ::: scpn_control.core.neural_equilibrium.generate_synthetic_equilibrium_dataset
+
+::: scpn_control.core.neural_equilibrium.neural_equilibrium_claim_evidence
+
+::: scpn_control.core.neural_equilibrium.assert_neural_equilibrium_facility_claim_admissible
+
+::: scpn_control.core.neural_equilibrium.save_neural_equilibrium_claim_evidence
 
 ::: scpn_control.core.neural_equilibrium.pretrain_neural_equilibrium_synthetic
 

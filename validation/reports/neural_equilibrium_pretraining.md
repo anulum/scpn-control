@@ -19,6 +19,8 @@
 - Test max error: 7.64689374e-01
 - GS residual: 2.83134332e-05
 - Weights SHA-256: `1984585aa58569b4cfffeefe4173f80b2617679f4602734fa098c5572e45830b`
+- Claim admission: synthetic pretraining evidence only; predictive EFIT/P-EFIT claims blocked
+- Facility claim allowed: False
 
 Claim boundary: this benchmark trains JAX-compatible PCA plus MLP
 weights on bounded synthetic Solovev-like equilibria. It is useful

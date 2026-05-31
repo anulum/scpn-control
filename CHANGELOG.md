@@ -48,6 +48,9 @@
 - Added density-control claim evidence with fail-closed facility-calibrated
   admission for matched Greenwald fraction, particle inventory, geometry,
   transport, actuator, diagnostic, and CFL provenance.
+- Added neural-equilibrium claim evidence with fail-closed predictive-claim
+  admission for matched P-EFIT or documented public reference artefacts,
+  weight checksums, flux, pressure, q-profile, boundary, and axis tolerances.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.

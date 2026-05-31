@@ -14,7 +14,10 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from scpn_control.core.neural_equilibrium import pretrain_neural_equilibrium_synthetic
+from scpn_control.core.neural_equilibrium import (
+    neural_equilibrium_claim_evidence,
+    pretrain_neural_equilibrium_synthetic,
+)
 
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
 WEIGHTS_PATH = REPORT_DIR / "neural_equilibrium_synthetic_pretrain.npz"
@@ -40,8 +43,15 @@ def main() -> None:
         n_components=20,
         seed=20240531,
     )
+    evidence = neural_equilibrium_claim_evidence(
+        result,
+        weights_path=WEIGHTS_PATH,
+        source="synthetic_regression_reference",
+        source_id="validation/benchmark_neural_equilibrium_pretraining.py::synthetic_pretraining",
+    )
     payload = asdict(result)
     payload["weights_sha256"] = _sha256(WEIGHTS_PATH)
+    payload["claim_evidence"] = asdict(evidence)
     payload["claim_boundary"] = (
         "Synthetic pretraining evidence only. Real EFIT/P-EFIT fine-tuning and "
         "cross-validation require passing validation/reports/neural_equilibrium_reference artifacts."
@@ -72,6 +82,8 @@ def main() -> None:
                 f"- Test max error: {result.test_max_error:.8e}",
                 f"- GS residual: {result.gs_residual:.8e}",
                 f"- Weights SHA-256: `{payload['weights_sha256']}`",
+                f"- Claim admission: {evidence.claim_status}",
+                f"- Facility claim allowed: {evidence.facility_claim_allowed}",
                 "",
                 "Claim boundary: this benchmark trains JAX-compatible PCA plus MLP",
                 "weights on bounded synthetic Solovev-like equilibria. It is useful",

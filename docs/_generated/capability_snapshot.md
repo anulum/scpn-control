@@ -16,7 +16,7 @@
 | Project scripts | 2 |
 | Public API exports | 17 |
 | Python control/physics modules | 131 |
-| Python public classes | 441 |
+| Python public classes | 442 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
 | Validation scripts | 52 |

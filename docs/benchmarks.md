@@ -220,6 +220,26 @@ Full VMEC or 3D MHD equilibrium claims still require matched VMEC, documented
 public, external-MHD, or measured-stellarator references for `R_mn`, `Z_mn`,
 rotational transform, convergence, and residual tolerance.
 
+## Neural-equilibrium Claim-Admission Benchmark
+
+`validation/benchmark_neural_equilibrium_pretraining.py` publishes bounded
+synthetic pretraining evidence for the neural-equilibrium surrogate and records
+claim-admission evidence around the generated weights. The generated report
+captures sample count, grid shape, PCA component count, explained variance,
+synthetic MSE, Grad-Shafranov residual, weight checksum, and the explicit
+predictive-claim boundary.
+
+Generated artefacts:
+
+- `validation/reports/neural_equilibrium_pretraining.json`
+- `validation/reports/neural_equilibrium_pretraining.md`
+- `validation/reports/neural_equilibrium_synthetic_pretrain.npz`
+
+Facility predictive claims remain blocked until a strict P-EFIT or documented
+public reference artefact validates the same weight checksum and declares
+psi, pressure, q-profile, boundary, and magnetic-axis errors inside stated
+tolerances.
+
 ## Orbit-following Claim-Admission Benchmark
 
 `validation/benchmark_orbit_following_claims.py` publishes bounded synthetic

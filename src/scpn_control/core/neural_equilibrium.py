@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural Equilibrium
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neural Equilibrium Accelerator
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 PCA + MLP surrogate for Grad-Shafranov equilibrium reconstruction.
 
@@ -34,9 +26,11 @@ Use for rapid design-space exploration and batch equilibrium sweeps.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
@@ -46,6 +40,8 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_WEIGHTS_PATH = REPO_ROOT / "weights" / "neural_equilibrium_sparc.npz"
+_NEURAL_EQUILIBRIUM_CLAIM_SCHEMA_VERSION = 1
+_NEURAL_EQUILIBRIUM_REFERENCE_SOURCES = frozenset({"real_pefit", "documented_public_reference"})
 
 
 # ── Data containers ──────────────────────────────────────────────────
@@ -108,6 +104,40 @@ class PretrainingResult:
     campaign: SyntheticEquilibriumCampaign
 
 
+@dataclass(frozen=True)
+class NeuralEquilibriumClaimEvidence:
+    """Serialisable admission evidence for neural-equilibrium predictive claims."""
+
+    schema_version: int
+    model_id: str
+    source: str
+    source_id: str
+    weights_path: str
+    weights_sha256: str
+    reference_source: str
+    reference_dataset_id: str
+    reference_artifact_sha256: str
+    reference_equilibria_count: int
+    grid_shape: tuple[int, int]
+    feature_names: tuple[str, ...]
+    n_components: int
+    explained_variance: float
+    synthetic_test_mse: float
+    synthetic_gs_residual: float
+    psi_rmse_Wb: float | None
+    pressure_rmse_Pa: float | None
+    q_profile_rmse: float | None
+    boundary_rmse_m: float | None
+    axis_position_error_m: float | None
+    psi_tolerance_Wb: float | None
+    pressure_tolerance_Pa: float | None
+    q_profile_tolerance: float | None
+    boundary_tolerance_m: float | None
+    axis_position_tolerance_m: float | None
+    facility_claim_allowed: bool
+    claim_status: str
+
+
 NEURAL_EQ_FEATURE_NAMES = (
     "Ip_MA",
     "Bt_T",
@@ -134,6 +164,42 @@ def _require_positive_float(name: str, value: float) -> float:
     result = float(value)
     if not np.isfinite(result) or result <= 0.0:
         raise ValueError(f"{name} must be positive and finite")
+    return result
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _sha256_file(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite and non-negative")
+    result = float(value)
+    if not np.isfinite(result) or result < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return result
+
+
+def _finite_positive_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite and positive")
+    result = float(value)
+    if not np.isfinite(result) or result <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
     return result
 
 
@@ -929,18 +995,138 @@ def pretrain_neural_equilibrium_synthetic(
     )
 
 
+def neural_equilibrium_claim_evidence(
+    pretraining: PretrainingResult,
+    *,
+    weights_path: str | Path,
+    source: str,
+    source_id: str,
+    model_id: str = "neural_equilibrium_pca_mlp",
+    reference_artifact_path: str | Path | None = None,
+) -> NeuralEquilibriumClaimEvidence:
+    """Build fail-closed evidence for neural-equilibrium predictive claims.
+
+    Synthetic pretraining may support bounded pretraining and inference-plumbing
+    statements only. Facility or predictive claims require a persisted
+    P-EFIT/documented-reference artefact that validates against the same weight
+    checksum and declares psi, pressure, q-profile, boundary, and magnetic-axis
+    error tolerances.
+    """
+    if not isinstance(pretraining, PretrainingResult):
+        raise ValueError("pretraining must be a PretrainingResult")
+    weights = Path(weights_path)
+    if not weights.is_file():
+        raise FileNotFoundError(f"neural-equilibrium weights not found: {weights}")
+    weights_sha256 = _sha256_file(weights)
+    metrics: dict[str, object] = {}
+    tolerances: dict[str, object] = {}
+    reference_source = "none"
+    reference_dataset_id = ""
+    reference_artifact_sha256 = ""
+    reference_equilibria_count = 0
+    facility_allowed = False
+    if reference_artifact_path is not None:
+        from validation.validate_neural_equilibrium_reference import validate_neural_equilibrium_reference
+
+        artifact_path = Path(reference_artifact_path)
+        report = validate_neural_equilibrium_reference(artifact_path, require_reference_artifacts=True)
+        if report["status"] != "pass":
+            raise ValueError("neural-equilibrium reference artifact failed strict validation")
+        payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+        reference_source = _non_empty_text("source", str(payload["source"]))
+        if reference_source not in _NEURAL_EQUILIBRIUM_REFERENCE_SOURCES:
+            raise ValueError("neural-equilibrium reference source is not admissible")
+        if payload["trained_weights_sha256"].lower() != weights_sha256.lower():
+            raise ValueError("neural-equilibrium reference artifact does not match supplied weights")
+        reference_dataset_id = _non_empty_text("reference_dataset_id", str(payload["reference_dataset_id"]))
+        reference_artifact_sha256 = _non_empty_text(
+            "reference_artifact_sha256", str(payload["reference_artifact_sha256"])
+        )
+        reference_equilibria_count = _require_positive_int(
+            "reference_equilibria_count", int(payload["reference_equilibria_count"])
+        )
+        metrics = dict(payload["metrics"])
+        tolerances = dict(payload["tolerances"])
+        facility_allowed = True
+    claim_status = (
+        "matched neural-equilibrium reference admission passed"
+        if facility_allowed
+        else "synthetic pretraining evidence only; predictive EFIT/P-EFIT claims blocked"
+    )
+    return NeuralEquilibriumClaimEvidence(
+        schema_version=_NEURAL_EQUILIBRIUM_CLAIM_SCHEMA_VERSION,
+        model_id=_non_empty_text("model_id", model_id),
+        source=_non_empty_text("source", source),
+        source_id=_non_empty_text("source_id", source_id),
+        weights_path=str(weights),
+        weights_sha256=weights_sha256,
+        reference_source=reference_source,
+        reference_dataset_id=reference_dataset_id,
+        reference_artifact_sha256=reference_artifact_sha256,
+        reference_equilibria_count=reference_equilibria_count,
+        grid_shape=(int(pretraining.campaign.grid_shape[0]), int(pretraining.campaign.grid_shape[1])),
+        feature_names=tuple(pretraining.campaign.feature_names),
+        n_components=int(pretraining.n_components),
+        explained_variance=float(pretraining.explained_variance),
+        synthetic_test_mse=float(pretraining.test_mse),
+        synthetic_gs_residual=float(pretraining.gs_residual),
+        psi_rmse_Wb=_finite_nonnegative_or_none("psi_rmse_Wb", metrics.get("psi_rmse_Wb")),
+        pressure_rmse_Pa=_finite_nonnegative_or_none("pressure_rmse_Pa", metrics.get("pressure_rmse_Pa")),
+        q_profile_rmse=_finite_nonnegative_or_none("q_profile_rmse", metrics.get("q_profile_rmse")),
+        boundary_rmse_m=_finite_nonnegative_or_none("boundary_rmse_m", metrics.get("boundary_rmse_m")),
+        axis_position_error_m=_finite_nonnegative_or_none(
+            "axis_position_error_m", metrics.get("axis_position_error_m")
+        ),
+        psi_tolerance_Wb=_finite_positive_or_none("psi_tolerance_Wb", tolerances.get("psi_rmse_Wb")),
+        pressure_tolerance_Pa=_finite_positive_or_none("pressure_tolerance_Pa", tolerances.get("pressure_rmse_Pa")),
+        q_profile_tolerance=_finite_positive_or_none("q_profile_tolerance", tolerances.get("q_profile_rmse")),
+        boundary_tolerance_m=_finite_positive_or_none("boundary_tolerance_m", tolerances.get("boundary_rmse_m")),
+        axis_position_tolerance_m=_finite_positive_or_none(
+            "axis_position_tolerance_m", tolerances.get("axis_position_error_m")
+        ),
+        facility_claim_allowed=facility_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_neural_equilibrium_facility_claim_admissible(
+    evidence: NeuralEquilibriumClaimEvidence,
+) -> NeuralEquilibriumClaimEvidence:
+    """Return evidence only when strict matched-reference admission passed."""
+    if not isinstance(evidence, NeuralEquilibriumClaimEvidence):
+        raise ValueError("evidence must be NeuralEquilibriumClaimEvidence")
+    if evidence.schema_version != _NEURAL_EQUILIBRIUM_CLAIM_SCHEMA_VERSION:
+        raise ValueError("neural-equilibrium claim evidence schema_version is unsupported")
+    if not evidence.facility_claim_allowed:
+        raise ValueError("neural-equilibrium predictive claim is blocked without matched reference evidence")
+    return evidence
+
+
+def save_neural_equilibrium_claim_evidence(evidence: NeuralEquilibriumClaimEvidence, path: str | Path) -> None:
+    """Persist neural-equilibrium claim evidence as deterministic JSON."""
+    if not isinstance(evidence, NeuralEquilibriumClaimEvidence):
+        raise ValueError("evidence must be NeuralEquilibriumClaimEvidence")
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 __all__ = [
     "DEFAULT_WEIGHTS_PATH",
     "NEURAL_EQ_FEATURE_NAMES",
     "MinimalPCA",
     "NeuralEqConfig",
     "NeuralEquilibriumAccelerator",
+    "NeuralEquilibriumClaimEvidence",
     "PretrainingResult",
     "SimpleMLP",
     "SyntheticEquilibriumCampaign",
     "TrainingResult",
+    "assert_neural_equilibrium_facility_claim_admissible",
     "generate_synthetic_equilibrium_dataset",
+    "neural_equilibrium_claim_evidence",
     "pretrain_neural_equilibrium_synthetic",
+    "save_neural_equilibrium_claim_evidence",
     "train_on_sparc",
 ]
 
