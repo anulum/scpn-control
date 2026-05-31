@@ -390,6 +390,31 @@ artifacts with source provenance, model identity, SHA-256 reference hash, radial
 grid metadata, actuator settings, unit contracts, case count, and
 fuelling-profile metrics inside declared tolerances.
 
+DT burn-control validation claims require persisted documented public,
+integrated transport benchmark, or measured burn replay artifacts for alpha
+power, Q, Lawson margin, burn fraction, and reactivity-exponent checks:
+
+Bounded local burn-control claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_burn_control_claims.py
+```
+
+This writes `validation/reports/burn_control_claims.json` and
+`validation/reports/burn_control_claims.md`. These artefacts demonstrate
+deterministic burn-control claim-admission plumbing only; reactor-control
+claims remain gated by the strict reference-artifact validator below.
+
+```bash
+scpn-control validate-burn-reference --require-reference-artifacts --json-out
+python validation/validate_burn_reference.py --require-reference-artifacts --output-json artifacts/burn_reference_report.json
+```
+
+Strict mode fails until `validation/reports/burn_reference/` contains artifacts
+with source provenance, model identity, SHA-256 reference hash, plasma metadata,
+unit contracts, case count, and burn-control metrics inside declared
+tolerances.
+
 Disruption-mitigation contract validation claims require persisted
 public-reference, measured-disruption, or external benchmark artifacts for
 warning lead time, mitigation outcome, halo current, runaway beam, and TBR

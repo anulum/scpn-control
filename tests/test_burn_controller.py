@@ -7,14 +7,19 @@
 # SCPN Control — Burn Control Tests
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 
 from scpn_control.control.burn_controller import (
     AlphaHeating,
     BurnController,
+    assert_burn_control_reactor_claim_admissible,
+    burn_control_claim_evidence,
     BurnStabilityAnalysis,
     SubignitedBurnPoint,
+    save_burn_control_claim_evidence,
 )
 
 
@@ -229,3 +234,108 @@ def test_subignited_burn_point_rejects_nonphysical_scan_inputs() -> None:
         sbp.find_operating_point(ne_20=1.0, P_aux_MW=-1.0, tau_E_s=3.0)
     with pytest.raises(ValueError, match="tau_E_s must be finite and > 0"):
         sbp.find_operating_point(ne_20=1.0, P_aux_MW=10.0, tau_E_s=0.0)
+
+
+def test_burn_claim_evidence_records_bounded_operating_point(tmp_path) -> None:
+    alpha = AlphaHeating(R0=6.2, a=2.0, kappa=1.7)
+    controller = BurnController(Q_target=10.0, T_target_keV=20.0, P_aux_max_MW=73.0)
+    rho = np.linspace(0.0, 1.0, 24)
+    ne = np.full(rho.shape, 1.0)
+    temp = np.full(rho.shape, 20.0)
+
+    evidence = burn_control_claim_evidence(
+        alpha,
+        controller,
+        rho=rho,
+        ne_20=ne,
+        Te_keV=temp,
+        Ti_keV=temp,
+        tau_E_s=3.7,
+        P_aux_MW=50.0,
+        source="repository_burn_regression",
+        source_id="burn-control-regression-v1",
+    )
+
+    assert evidence.claim_status == "bounded_burn_control_evidence"
+    assert evidence.reactor_claim_allowed is False
+    assert evidence.P_alpha_MW > 0.0
+    assert evidence.lawson_margin > 1.0
+    assert evidence.thermally_stable is True
+    with pytest.raises(ValueError, match="reactor burn-control claim requires matched"):
+        assert_burn_control_reactor_claim_admissible(evidence)
+
+    output = tmp_path / "burn_claim.json"
+    save_burn_control_claim_evidence(evidence, output)
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+    assert persisted["schema_version"] == 1
+    assert persisted["claim_status"] == "bounded_burn_control_evidence"
+
+
+def test_burn_reactor_claim_requires_reference_artifact() -> None:
+    alpha = AlphaHeating(R0=6.2, a=2.0, kappa=1.7)
+    controller = BurnController(Q_target=10.0, T_target_keV=20.0, P_aux_max_MW=73.0)
+    rho = np.linspace(0.0, 1.0, 16)
+    temp = np.full(rho.shape, 18.0)
+    artifact = {
+        "source": "integrated_transport_benchmark",
+        "reference_dataset_id": "burn-integrated-transport-fixture-v1",
+        "reference_artifact_sha256": "b" * 64,
+        "reference_case_count": 3,
+        "units": {
+            "density": "m^-3",
+            "temperature": "keV",
+            "power": "MW",
+            "time": "s",
+            "reactivity": "m^3/s",
+            "triple_product": "m^-3 s keV",
+            "dimensionless": "1",
+        },
+        "metrics": {
+            "P_alpha_relative_error": 0.01,
+            "Q_abs_error": 0.05,
+            "lawson_margin_abs_error": 0.02,
+            "burn_fraction_relative_error": 0.03,
+            "reactivity_exponent_abs_error": 0.04,
+        },
+        "tolerances": {
+            "P_alpha_relative_error": 0.05,
+            "Q_abs_error": 0.2,
+            "lawson_margin_abs_error": 0.1,
+            "burn_fraction_relative_error": 0.1,
+            "reactivity_exponent_abs_error": 0.2,
+        },
+    }
+    evidence = burn_control_claim_evidence(
+        alpha,
+        controller,
+        rho=rho,
+        ne_20=np.full(rho.shape, 0.95),
+        Te_keV=temp,
+        Ti_keV=temp,
+        tau_E_s=3.4,
+        P_aux_MW=45.0,
+        source="integrated_transport_benchmark",
+        source_id="burn-integrated-transport-fixture-v1",
+        reference_artifact=artifact,
+    )
+    assert evidence.reactor_claim_allowed is True
+    assert evidence.reference_dataset_id == "burn-integrated-transport-fixture-v1"
+    assert assert_burn_control_reactor_claim_admissible(evidence) is evidence
+
+    bad_artifact = dict(artifact)
+    bad_artifact["metrics"] = dict(artifact["metrics"])
+    bad_artifact["metrics"]["Q_abs_error"] = 1.0
+    with pytest.raises(ValueError, match="Q_abs_error exceeds declared tolerance"):
+        burn_control_claim_evidence(
+            alpha,
+            controller,
+            rho=rho,
+            ne_20=np.full(rho.shape, 0.95),
+            Te_keV=temp,
+            Ti_keV=temp,
+            tau_E_s=3.4,
+            P_aux_MW=45.0,
+            source="integrated_transport_benchmark",
+            source_id="burn-integrated-transport-fixture-v1",
+            reference_artifact=bad_artifact,
+        )

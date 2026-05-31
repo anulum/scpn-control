@@ -70,6 +70,10 @@
   admission for matched public, measured-replay, or external equilibrium
   artefacts covering shape, X-point, divertor, coil-current, response-rank,
   latency, and supervisor provenance.
+- Added DT burn-control claim evidence with fail-closed reactor-control
+  admission for matched public, integrated-transport benchmark, or measured
+  burn replay artefacts covering alpha power, Q, Lawson margin, burn fraction,
+  reactivity exponent, and controller-limit provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.

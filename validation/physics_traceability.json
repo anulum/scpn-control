@@ -831,27 +831,33 @@
       "model_references": [
         "Bosch and Hale 1992 DT reactivity",
         "Lawson 1957 ignition criterion",
-        "Mitarai and Muraoka 1999 delayed alpha-heating feedback"
+        "Mitarai and Muraoka 1999 delayed alpha-heating feedback",
+        "Repository fail-closed burn-control claim-admission contract"
       ],
       "module_path": "src/scpn_control/control/burn_controller.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate burn operating points against an integrated transport solver or published burn-control benchmark before reactor-control claims",
+        "Attach strict documented public, integrated-transport benchmark, or measured burn replay artifacts before reactor-control claims",
         "Replace the burn-fraction approximation with a calibrated slowing-down and ash-removal model before facility extrapolation"
       ],
       "unit_contract": "SI joules, m^-3, seconds, keV, MW, m^3/s, metres, normalised profile radius, dimensionless Q, and Lawson triple product units m^-3 s keV.",
       "validation_evidence": [
-        "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, profile-domain, and control checks",
-        "tests/test_burn_controller.py burn-controller edge-path checks"
+        "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, profile-domain, control, and claim-admission checks",
+        "validation/validate_burn_reference.py strict burn-control reference artifact gate",
+        "validation/benchmark_burn_control_claims.py bounded claim-admission benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/control/burn_controller.py",
-        "tests/test_burn_controller.py"
+        "tests/test_burn_controller.py",
+        "validation/validate_burn_reference.py",
+        "validation/benchmark_burn_control_claims.py",
+        "validation/reports/burn_control_claims.json",
+        "validation/reports/burn_control_claims.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/burn_controller.py"
       ],
-      "validity_domain": "Bounded DT burn-control and alpha-heating regression; not a validated reactor burn-control design.",
+      "validity_domain": "Bounded DT burn-control and alpha-heating regression plus fail-closed claim-admission evidence; not a validated reactor burn-control design unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {

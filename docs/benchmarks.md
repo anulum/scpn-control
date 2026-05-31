@@ -344,6 +344,23 @@ Facility-calibrated density-control claims still require matched measured
 discharge, documented-public, external particle-balance, or facility replay
 references for Greenwald fraction and particle inventory change.
 
+## Burn-control Claim-Admission Benchmark
+
+`validation/benchmark_burn_control_claims.py` publishes bounded repository
+regression evidence for the DT burn-control and alpha-heating claim boundary.
+The generated report records alpha power, auxiliary power, Q, Lawson margin,
+burn fraction, reactivity exponent, thermal stability, controller limits, and
+the explicit reactor-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/burn_control_claims.json`
+- `validation/reports/burn_control_claims.md`
+
+Reactor burn-control claims still require documented public, integrated
+transport benchmark, or measured burn replay references for alpha power, Q,
+Lawson margin, burn fraction, and reactivity-exponent agreement.
+
 ## Disruption-mitigation Claim-Admission Benchmark
 
 `validation/benchmark_disruption_mitigation_claims.py` publishes deterministic
