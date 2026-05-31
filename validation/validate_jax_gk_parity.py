@@ -12,16 +12,20 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
+_SCHEMA_VERSION = "scpn-control.jax-gk-parity.v1"
 _ALLOWED_CASES = {"cyclone_base_case", "tem_kinetic_electron", "electromagnetic_kbm", "stable_mode"}
 _ALLOWED_BACKENDS = {"cpu", "gpu", "tpu"}
 _REQUIRED_STR_FIELDS = (
+    "schema_version",
     "case",
     "backend",
     "jax_version",
@@ -30,6 +34,11 @@ _REQUIRED_STR_FIELDS = (
     "device_kind",
     "dtype",
     "executed_at",
+    "solver_contract",
+    "normalisation",
+    "evidence_boundary",
+    "solver_kwargs_sha256",
+    "payload_sha256",
 )
 _REQUIRED_FLOAT_FIELDS = (
     "native_gamma_max_cs_over_a",
@@ -86,21 +95,55 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     if not isinstance(payload, dict):
         errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
         return None
-    if payload.get("schema_version") != "1.0":
-        errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
+    if payload.get("schema_version") != _SCHEMA_VERSION:
+        errors.append(
+            {"path": str(path), "field": "schema_version", "error": f"schema_version must be {_SCHEMA_VERSION!r}"}
+        )
     if not isinstance(payload.get("x64_enabled"), bool):
         errors.append({"path": str(path), "field": "x64_enabled", "error": "field must be boolean"})
+    if not isinstance(payload.get("external_validation_required"), bool) or not payload.get("external_validation_required"):
+        errors.append(
+            {
+                "path": str(path),
+                "field": "external_validation_required",
+                "error": "JAX GK parity artifacts must keep external validation required",
+            }
+        )
+    if not isinstance(payload.get("admitted_for_control"), bool) or payload.get("admitted_for_control"):
+        errors.append(
+            {
+                "path": str(path),
+                "field": "admitted_for_control",
+                "error": "JAX GK parity artifacts are not control-admission evidence",
+            }
+        )
     for field in _REQUIRED_FLOAT_FIELDS:
         value = payload.get(field)
-        if isinstance(value, bool) or not isinstance(value, int | float):
-            errors.append({"path": str(path), "field": field, "error": "field must be numeric"})
+        if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(float(value)):
+            errors.append({"path": str(path), "field": field, "error": "field must be finite numeric"})
     if payload.get("case") not in _ALLOWED_CASES:
         errors.append({"path": str(path), "field": "case", "error": "unsupported JAX GK parity case"})
     if payload.get("backend") not in _ALLOWED_BACKENDS:
         errors.append({"path": str(path), "field": "backend", "error": "backend must be cpu, gpu, or tpu"})
+    if payload.get("solver_contract") != "native_linear_gk_local_dispersion":
+        errors.append({"path": str(path), "field": "solver_contract", "error": "unsupported solver contract"})
+    if payload.get("normalisation") != "c_s_over_a":
+        errors.append({"path": str(path), "field": "normalisation", "error": "normalisation must be c_s_over_a"})
+    if payload.get("evidence_boundary") != "backend_parity_only":
+        errors.append({"path": str(path), "field": "evidence_boundary", "error": "unsupported evidence boundary"})
+    if not _is_sha256_hex(payload.get("solver_kwargs_sha256")):
+        errors.append({"path": str(path), "field": "solver_kwargs_sha256", "error": "field must be SHA-256 hex"})
+    if not _is_sha256_hex(payload.get("payload_sha256")):
+        errors.append({"path": str(path), "field": "payload_sha256", "error": "field must be SHA-256 hex"})
+    elif _sha256_json(payload) != payload.get("payload_sha256"):
+        errors.append({"path": str(path), "field": "payload_sha256", "error": "payload digest mismatch"})
+    if not isinstance(payload.get("solver_kwargs"), dict) or not payload["solver_kwargs"]:
+        errors.append({"path": str(path), "field": "solver_kwargs", "error": "solver_kwargs must be a non-empty object"})
+    elif _sha256_json(payload["solver_kwargs"], include_payload_field=True) != payload.get("solver_kwargs_sha256"):
+        errors.append({"path": str(path), "field": "solver_kwargs_sha256", "error": "solver kwargs digest mismatch"})
     if any(error["path"] == str(path) for error in errors):
         return None
 
@@ -110,6 +153,8 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     jax_omega = float(payload["jax_omega_r_cs_over_a"])
     gamma_tolerance = float(payload["gamma_relative_tolerance"])
     omega_tolerance = float(payload["omega_absolute_tolerance"])
+    if native_gamma < 0.0 or jax_gamma < 0.0:
+        errors.append({"path": str(path), "field": "gamma_max_cs_over_a", "error": "growth rates must be non-negative"})
     if gamma_tolerance <= 0.0:
         errors.append({"path": str(path), "field": "gamma_relative_tolerance", "error": "tolerance must be positive"})
     if omega_tolerance <= 0.0:
@@ -132,6 +177,8 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         "x64_enabled": bool(payload["x64_enabled"]),
         "gamma_relative_error": gamma_error,
         "omega_absolute_error": omega_error,
+        "payload_sha256": str(payload["payload_sha256"]),
+        "evidence_boundary": str(payload["evidence_boundary"]),
     }
 
 
@@ -142,6 +189,16 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError(f"duplicate JSON key: {key}")
         out[key] = value
     return out
+
+
+def _is_sha256_hex(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdefABCDEF" for char in value)
+
+
+def _sha256_json(payload: dict[str, Any], *, include_payload_field: bool = False) -> str:
+    digest_payload = dict(payload) if include_payload_field else {k: v for k, v in payload.items() if k != "payload_sha256"}
+    encoded = json.dumps(digest_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def main(argv: list[str] | None = None) -> int:

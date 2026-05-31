@@ -11,12 +11,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+from scpn_control.core.jax_gk_solver import _HAS_JAX, write_jax_gk_parity_artifact
 from validation.validate_jax_gk_parity import validate_jax_gk_parity
 
 
 def _valid_parity_report() -> dict[str, object]:
-    return {
-        "schema_version": "1.0",
+    payload: dict[str, object] = {
+        "schema_version": "scpn-control.jax-gk-parity.v1",
         "case": "cyclone_base_case",
         "backend": "cpu",
         "jax_version": "0.5.0",
@@ -32,7 +35,34 @@ def _valid_parity_report() -> dict[str, object]:
         "jax_omega_r_cs_over_a": -0.419,
         "gamma_relative_tolerance": 0.05,
         "omega_absolute_tolerance": 0.02,
+        "solver_contract": "native_linear_gk_local_dispersion",
+        "normalisation": "c_s_over_a",
+        "evidence_boundary": "backend_parity_only",
+        "external_validation_required": True,
+        "admitted_for_control": False,
+        "solver_kwargs": {
+            "B0": 2.0,
+            "R0": 2.78,
+            "a": 1.0,
+            "n_ky_ion": 4,
+            "n_theta": 16,
+            "q": 1.4,
+            "s_hat": 0.78,
+        },
     }
+    payload["solver_kwargs_sha256"] = _payload_sha256(payload["solver_kwargs"], include_payload_field=True)
+    payload["payload_sha256"] = _payload_sha256(payload)
+    return payload
+
+
+def _payload_sha256(payload: object, *, include_payload_field: bool = False) -> str:
+    import hashlib
+
+    digest_payload = payload
+    if isinstance(payload, dict) and not include_payload_field:
+        digest_payload = {key: value for key, value in payload.items() if key != "payload_sha256"}
+    encoded = json.dumps(digest_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def test_strict_jax_parity_gate_requires_persisted_artifacts(tmp_path: Path) -> None:
@@ -70,6 +100,7 @@ def test_jax_parity_gate_rejects_missing_backend_metadata(tmp_path: Path) -> Non
 def test_jax_parity_gate_rejects_out_of_tolerance_artifact(tmp_path: Path) -> None:
     payload = _valid_parity_report()
     payload["jax_gamma_max_cs_over_a"] = 0.1
+    payload["payload_sha256"] = _payload_sha256(payload)
     artifact = tmp_path / "cbc_cpu.json"
     artifact.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -77,3 +108,46 @@ def test_jax_parity_gate_rejects_out_of_tolerance_artifact(tmp_path: Path) -> No
 
     assert report["status"] == "fail"
     assert report["errors"][0]["field"] == "gamma_max_cs_over_a"
+
+
+def test_jax_parity_gate_rejects_payload_digest_replay(tmp_path: Path) -> None:
+    payload = _valid_parity_report()
+    payload["payload_sha256"] = "0" * 64
+    artifact = tmp_path / "cbc_cpu.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_jax_gk_parity(tmp_path, require_parity_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "payload_sha256"
+
+
+def test_jax_parity_gate_rejects_control_admission_replay(tmp_path: Path) -> None:
+    payload = _valid_parity_report()
+    payload["admitted_for_control"] = True
+    payload["payload_sha256"] = _payload_sha256(payload)
+    artifact = tmp_path / "cbc_cpu.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_jax_gk_parity(tmp_path, require_parity_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "admitted_for_control"
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_jax_parity_writer_persists_valid_backend_artifact(tmp_path: Path) -> None:
+    payload, artifact_path = write_jax_gk_parity_artifact(
+        tmp_path,
+        solver_kwargs={"n_ky_ion": 2, "n_theta": 8},
+        gamma_relative_tolerance=1.0,
+        omega_absolute_tolerance=1.0,
+        executed_at="2026-05-31T00:00:00Z",
+    )
+
+    report = validate_jax_gk_parity(tmp_path, require_parity_artifacts=True)
+
+    assert artifact_path.exists()
+    assert payload["payload_sha256"] == report["entries"][0]["payload_sha256"]
+    assert report["status"] == "pass"
+    assert report["entries"][0]["evidence_boundary"] == "backend_parity_only"

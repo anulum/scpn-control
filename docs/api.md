@@ -1303,9 +1303,19 @@ JSON report containing every accepted or rejected update decision.
 
 #### JAX GK Solver
 
+The linear JAX GK solver includes a schema-versioned parity artifact producer
+for backend reproducibility. `build_jax_gk_parity_artifact()` and
+`write_jax_gk_parity_artifact()` bind the native local-dispersion comparison,
+backend metadata, dtype/X64 state, solver kwargs, tolerances, and canonical
+payload SHA-256 digest while preserving the backend-parity-only claim boundary.
+
 ::: scpn_control.core.jax_gk_solver
 
 ::: scpn_control.core.jax_gk_solver.gk_stiffness_chi_i_profile_jax
+
+::: scpn_control.core.jax_gk_solver.build_jax_gk_parity_artifact
+
+::: scpn_control.core.jax_gk_solver.write_jax_gk_parity_artifact
 
 #### JAX GS Solver
 

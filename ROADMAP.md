@@ -283,7 +283,10 @@
   GS2, CGYRO, or QuaLiKiz artefacts and validate them with the strict
   cross-code evidence gate.
 - [ ] Persist CPU/GPU JAX gyrokinetic parity artefacts with backend, platform,
-  dtype, X64, tolerance, growth-rate, and real-frequency metadata.
+  dtype, X64, tolerance, growth-rate, and real-frequency metadata. The
+  repository now has a schema-versioned producer and strict admission gate; the
+  item remains open until current CPU and GPU artefacts are generated on their
+  declared hardware and preserved as release evidence.
 - [ ] Cross-validate neural equilibrium weights against identical EFIT or
   P-EFIT equilibria before treating SPARC or ITER weights as production
   pre-trained assets.

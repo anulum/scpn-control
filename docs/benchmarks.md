@@ -13,6 +13,32 @@ This project has two benchmark tracks:
 1. Python CLI micro-benchmark (`scpn-control benchmark`)
 2. Rust Criterion benches (`cargo bench --workspace`)
 
+## JAX GK parity evidence
+
+`validation/benchmark_jax_gk_parity.py` persists schema-versioned parity
+artifacts for the JAX linear gyrokinetic backend against the repository native
+local-dispersion solver. Each artifact records backend, device kind, platform,
+JAX/JAXLIB versions, dtype, X64 state, solver kwargs, growth-rate and
+real-frequency tolerances, and a canonical SHA-256 payload digest.
+
+Run:
+
+```bash
+python validation/benchmark_jax_gk_parity.py --json-out
+```
+
+Strict admission:
+
+```bash
+python validation/validate_jax_gk_parity.py \
+  --artifact-root validation/reports/jax_gk_parity \
+  --require-parity-artifacts
+```
+
+The claim boundary is backend parity only. These artifacts do not replace
+external TGLF, GENE, GS2, CGYRO, or QuaLiKiz validation for quantitative
+gyrokinetic claims.
+
 ## Python CLI benchmark
 
 Run:

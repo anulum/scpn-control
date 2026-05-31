@@ -212,10 +212,10 @@
     },
     {
       "component": "JAX gyrokinetic numerical parity guard",
-      "equation_contract": "JAX linear gyrokinetic claims must preserve the native response-matrix eigenvalue formulation, expose identical physical input contracts, document numerical-precision or backend divergence, and keep the stiffness-to-transport closure bounded as a controller-tuning surrogate.",
+      "equation_contract": "JAX linear gyrokinetic claims must preserve the native local-dispersion eigenvalue formulation, expose identical physical input contracts, document numerical-precision or backend divergence, and keep the stiffness-to-transport closure bounded as a controller-tuning surrogate.",
       "fidelity_status": "validation_gap",
       "model_references": [
-        "Repository native linear GK response-matrix contract",
+        "Repository native linear GK local-dispersion contract",
         "JAX numerical backend reproducibility guidance"
       ],
       "module_path": "src/scpn_control/core/jax_gk_solver.py",
@@ -226,20 +226,27 @@
       ],
       "unit_contract": "Same growth-rate, frequency, geometry, and species units as native linear GK; backend dtype, tolerance, and normalisation must be explicit in validation artefacts.",
       "validation_evidence": [
-        "tests/test_jax_gk_solver.py response-matrix parity, stiffness, fail-closed, and bounded chi_i-profile closure checks",
+        "tests/test_jax_gk_solver.py local-dispersion parity, stiffness, fail-closed, and bounded chi_i-profile closure checks",
+        "tests/test_jax_gk_parity_validation.py schema-versioned artifact digest and fail-closed admission checks",
+        "validation/benchmark_jax_gk_parity.py strict persisted backend parity artifact producer",
         "validation/validate_jax_gk_parity.py strict persisted backend parity artifact gate",
-        "source-level native response-matrix parity contract"
+        "validation/reports/jax_gk_parity/cyclone_base_case_gpu_nvidia_geforce_gtx_1060_6gb.json GPU parity artifact with canonical payload digest",
+        "validation/reports/jax_gk_parity/cyclone_base_case_gpu_nvidia_geforce_gtx_1060_6gb.md GPU parity evidence summary",
+        "source-level native local-dispersion parity contract"
       ],
       "evidence_paths": [
         "tests/test_jax_gk_solver.py",
         "tests/test_jax_gk_parity_validation.py",
+        "validation/benchmark_jax_gk_parity.py",
         "validation/validate_jax_gk_parity.py",
-        "src/scpn_control/core/jax_gk_solver.py"
+        "src/scpn_control/core/jax_gk_solver.py",
+        "validation/reports/jax_gk_parity/cyclone_base_case_gpu_nvidia_geforce_gtx_1060_6gb.json",
+        "validation/reports/jax_gk_parity/cyclone_base_case_gpu_nvidia_geforce_gtx_1060_6gb.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/jax_gk_solver.py"
       ],
-      "validity_domain": "JAX response-matrix and stiffness-closure regression with optional backend parity evidence; not quantitative cross-code GK agreement or validated anomalous transport prediction.",
+      "validity_domain": "JAX local-dispersion and stiffness-closure regression with schema-versioned backend parity evidence that binds backend, device, platform, dtype, X64 state, solver kwargs, tolerances, growth-rate, real-frequency, and payload digests; not quantitative cross-code GK agreement or validated anomalous transport prediction.",
       "external_validation_tracker_issue": 47
     },
     {

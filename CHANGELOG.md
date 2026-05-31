@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added schema-versioned JAX gyrokinetic parity artifact production and
+  stricter admission so native/JAX local-dispersion comparisons bind backend,
+  device, platform, dtype, X64 state, solver kwargs, tolerances, and canonical
+  SHA-256 payload digests while keeping the evidence boundary limited to
+  backend parity until external GK validation artifacts are supplied.
 - Added a quantum-enhanced disruption bridge facade that keeps quantum backend
   ownership in `scpn-quantum-control`, lazily imports optional quantum
   dependencies, maps the CONTROL 8-feature disruption contract to the ITER
