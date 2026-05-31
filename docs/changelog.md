@@ -5,6 +5,12 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added a quantum-enhanced disruption bridge facade that keeps quantum backend
+  ownership in `scpn-quantum-control`, lazily imports optional quantum
+  dependencies, maps the CONTROL 8-feature disruption contract to the ITER
+  11-feature contract with explicit default provenance, emits bounded
+  amplitude-kernel evidence, and fail-closes advisory reports behind
+  tamper-evident claim boundaries.
 - Added a local-first physics debugging assistant for validation-gap analysis,
   falsifiable hypothesis generation, and campaign suggestions with loopback
   provider defaults, explicit endpoint allowlisting for facility gateways,

@@ -60,4 +60,11 @@ def get_nengo_controller() -> type:
     return NengoSNNController
 
 
-__all__ = ["get_nengo_controller", "normalize_bounds", "solve_kernel"]
+def get_quantum_disruption_bridge() -> Any:
+    """Lazy import of the optional SCPN-QUANTUM-CONTROL disruption bridge."""
+    from scpn_control.control import quantum_disruption_bridge
+
+    return quantum_disruption_bridge
+
+
+__all__ = ["get_nengo_controller", "get_quantum_disruption_bridge", "normalize_bounds", "solve_kernel"]

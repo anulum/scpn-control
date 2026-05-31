@@ -132,6 +132,40 @@ claim measured cross-facility validation without external shot databases.
 
 ---
 
+## Control — Quantum Disruption Bridge
+
+`scpn_control.control.quantum_disruption_bridge` is a fail-closed facade for
+optional quantum-enhanced disruption prediction. Quantum circuit and provider
+ownership stays in `scpn-quantum-control`; SCPN-CONTROL owns the control
+feature contract, lazy optional import boundary, bounded claim metadata, and
+tamper-evident advisory reports. The bridge maps the CONTROL 8-feature
+disruption vector to the ITER 11-feature contract only when missing ITER fields
+are either supplied explicitly or declared as bounded centre defaults. Reports
+are not facility validation, controller promotion, or publication-safe evidence
+without external disruption databases and benchmark artefacts.
+
+`quantum_disruption_kernel_matrix()` emits a bounded amplitude-encoding kernel
+report with symmetry, diagonal, and `[0, 1]` admission checks. The callable
+quantum owner path uses `scpn_quantum_control.control.q_disruption_iter`
+lazily; when that optional dependency is unavailable the report fails closed
+with `status="quantum-unavailable"` and no quantum score.
+
+::: scpn_control.control.quantum_disruption_bridge.QuantumDisruptionBridgeConfig
+
+::: scpn_control.control.quantum_disruption_bridge.QuantumFeatureMapping
+
+::: scpn_control.control.quantum_disruption_bridge.map_control_features_to_iter
+
+::: scpn_control.control.quantum_disruption_bridge.quantum_disruption_kernel_matrix
+
+::: scpn_control.control.quantum_disruption_bridge.run_quantum_disruption_bridge
+
+::: scpn_control.control.quantum_disruption_bridge.validate_quantum_disruption_bridge_report
+
+::: scpn_control.control.quantum_disruption_bridge.validate_quantum_disruption_kernel_report
+
+---
+
 ## Core — Physics Solvers
 
 ### FusionKernel

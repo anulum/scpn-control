@@ -37,6 +37,20 @@ corroborate the same gap and evidence set while meeting the required local
 provider count. These reports are not validated physics truth,
 controller-parameter promotion, or facility safety approval.
 
+## Quantum disruption bridge
+
+`scpn_control.control.quantum_disruption_bridge` keeps quantum circuit,
+Qiskit/PennyLane, and provider-specific execution in `scpn-quantum-control`.
+SCPN-CONTROL exposes only a control-grade facade with lazy optional imports,
+strict CONTROL-to-ITER feature mapping, explicit centre-default provenance,
+bounded amplitude-kernel reports, and tamper-evident advisory disruption
+reports. The facade fails closed when the optional quantum owner dependency is
+unavailable, records `status="quantum-unavailable"`, and never admits a
+control action. Missing ITER fields must be supplied explicitly unless
+`allow_center_defaults=True` is set for bounded fallback evidence. Public
+facility-validation or publication claims remain blocked until external
+disruption databases and benchmark artefacts are supplied.
+
 ## Federated disruption synthetic multi-facility benchmark
 
 Run:

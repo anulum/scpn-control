@@ -80,13 +80,13 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
-| Python control/physics modules | 133 |
-| Python public classes | 474 |
+| Python control/physics modules | 134 |
+| Python public classes | 476 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
 | Validation scripts | 68 |
 | Optional extras | 17 |
-| Python test files | 276 |
+| Python test files | 277 |
 | Public documentation pages | 32 |
 | GitHub Actions workflows | 8 |
 
