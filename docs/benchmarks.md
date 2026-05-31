@@ -327,6 +327,24 @@ Facility-calibrated density-control claims still require matched measured
 discharge, documented-public, external particle-balance, or facility replay
 references for Greenwald fraction and particle inventory change.
 
+## Disruption-mitigation Claim-Admission Benchmark
+
+`validation/benchmark_disruption_mitigation_claims.py` publishes deterministic
+bounded ensemble evidence for the halo-current and runaway-electron mitigation
+model. The generated report records ensemble seed, run count, prevention rate,
+P95 halo current, P95 runaway current, mean toroidal-peaking-factor product,
+ITER-limit summary, and the explicit mitigation-claim admission status.
+
+Generated artefacts:
+
+- `validation/reports/disruption_mitigation_claims.json`
+- `validation/reports/disruption_mitigation_claims.md`
+
+Measured disruption-mitigation claims remain blocked until strict measured,
+external-benchmark, or documented public reference artefacts validate warning
+lead time, mitigation outcome, halo-current envelope, runaway-beam envelope,
+and tritium-breeding-ratio metrics inside stated tolerances.
+
 ## Rust Criterion benchmarks
 
 Run from the Rust workspace root:

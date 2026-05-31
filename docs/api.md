@@ -629,6 +629,14 @@ fallback and checkpoint inference paths.
 
 ::: scpn_control.control.halo_re_physics.HaloCurrentModel
 
+::: scpn_control.control.halo_re_physics.DisruptionMitigationClaimEvidence
+
+::: scpn_control.control.halo_re_physics.disruption_mitigation_claim_evidence
+
+::: scpn_control.control.halo_re_physics.assert_disruption_mitigation_claim_admissible
+
+::: scpn_control.control.halo_re_physics.save_disruption_mitigation_claim_evidence
+
 ### HIL Test Harness
 
 ::: scpn_control.control.hil_harness.HILControlLoop

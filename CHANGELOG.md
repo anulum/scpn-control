@@ -59,6 +59,10 @@
   admission for matched gyrokinetic campaign or documented public reference
   artefacts, weight checksums, QLKNN-class feature ordering, gyro-Bohm flux
   errors, and critical-gradient accuracy.
+- Added disruption-mitigation claim evidence with fail-closed mitigation
+  admission for measured, external-benchmark, or documented public reference
+  artefacts covering warning lead time, mitigation outcome, halo-current
+  envelope, runaway-beam envelope, and tritium-breeding-ratio metrics.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
@@ -115,6 +119,7 @@
 - `python validation/benchmark_density_control_claims.py`
 - `python validation/benchmark_neural_transport_claims.py`
 - `python validation/benchmark_neural_turbulence_claims.py`
+- `python validation/benchmark_disruption_mitigation_claims.py`
 - `python validation/benchmark_digital_twin_online_update.py`
 - `python validation/benchmark_gk_online_learner.py`
 - `python validation/benchmark_integrated_scenario_coupling.py`

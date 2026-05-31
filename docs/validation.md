@@ -395,6 +395,18 @@ public-reference, measured-disruption, or external benchmark artifacts for
 warning lead time, mitigation outcome, halo current, runaway beam, and TBR
 equivalence checks:
 
+Bounded local disruption-mitigation claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_disruption_mitigation_claims.py
+```
+
+This writes `validation/reports/disruption_mitigation_claims.json` and
+`validation/reports/disruption_mitigation_claims.md`. These artefacts
+demonstrate deterministic halo/runaway ensemble and claim-admission plumbing
+only; mitigation validation remains gated by the strict reference-artifact
+validator below.
+
 ```bash
 scpn-control validate-disruption-reference --require-reference-artifacts --json-out
 python validation/validate_disruption_reference.py --require-reference-artifacts --output-json artifacts/disruption_reference_report.json

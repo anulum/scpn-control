@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Halo Re Physics
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Physics-Based Halo Current & Runaway Electron Models
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Halo Runaway Physics
 r"""Physics-based halo current and runaway electron models.
 
 Halo Current Model (Fitzpatrick-style L/R circuit)
@@ -57,7 +49,9 @@ References:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -69,6 +63,10 @@ from scpn_control.core._validators import (
 )
 
 logger = logging.getLogger(__name__)
+_DISRUPTION_CLAIM_SCHEMA_VERSION = 1
+_DISRUPTION_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "measured_disruption_campaign", "external_benchmark"}
+)
 
 # ─── Physical constants (CODATA 2018) ───────────────────────────────
 _E_CHARGE = 1.602176634e-19  # C
@@ -119,6 +117,76 @@ class DisruptionMitigationReport:
     mean_tpf_product: float
     passes_iter_limits: bool
     per_run_details: list[dict]
+
+
+@dataclass(frozen=True)
+class DisruptionMitigationClaimEvidence:
+    """Serialisable admission evidence for halo/runaway mitigation claims."""
+
+    schema_version: int
+    model_id: str
+    source: str
+    source_id: str
+    ensemble_runs: int
+    ensemble_seed: int
+    prevention_rate: float
+    mean_halo_peak_ma: float
+    p95_halo_peak_ma: float
+    mean_re_peak_ma: float
+    p95_re_peak_ma: float
+    mean_tpf_product: float
+    passes_iter_limits: bool
+    reference_source: str
+    reference_dataset_id: str
+    reference_artifact_sha256: str
+    reference_case_count: int
+    risk_after_abs_error: float | None
+    detection_lead_time_abs_error_ms: float | None
+    halo_current_relative_error: float | None
+    runaway_beam_relative_error: float | None
+    tbr_abs_error: float | None
+    risk_after_abs_tolerance: float | None
+    detection_lead_time_abs_tolerance_ms: float | None
+    halo_current_relative_tolerance: float | None
+    runaway_beam_relative_tolerance: float | None
+    tbr_abs_tolerance: float | None
+    mitigation_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite and non-negative")
+    result = float(value)
+    if not np.isfinite(result) or result < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return result
+
+
+def _finite_positive_or_none(name: str, value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{name} must be finite and positive")
+    result = float(value)
+    if not np.isfinite(result) or result <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
+    return result
+
+
+def _finite_unit_interval(name: str, value: float) -> float:
+    result = float(value)
+    if not np.isfinite(result) or not 0.0 <= result <= 1.0:
+        raise ValueError(f"{name} must be finite in [0, 1]")
+    return result
 
 
 class HaloCurrentModel:
@@ -704,3 +772,128 @@ def run_disruption_ensemble(
         passes_iter_limits=passes_iter,
         per_run_details=per_run,
     )
+
+
+def disruption_mitigation_claim_evidence(
+    report: DisruptionMitigationReport,
+    *,
+    source: str,
+    source_id: str,
+    ensemble_seed: int,
+    model_id: str = "halo_runaway_disruption_mitigation",
+    reference_artifact_path: str | Path | None = None,
+) -> DisruptionMitigationClaimEvidence:
+    """Build fail-closed evidence for halo/runaway mitigation claims."""
+    if not isinstance(report, DisruptionMitigationReport):
+        raise ValueError("report must be DisruptionMitigationReport")
+    if report.ensemble_runs < 1:
+        raise ValueError("report.ensemble_runs must be positive")
+    prevention_rate = _finite_unit_interval("prevention_rate", report.prevention_rate)
+    mean_tpf_product = _finite_nonnegative_or_none("mean_tpf_product", report.mean_tpf_product)
+    if mean_tpf_product is None:
+        raise ValueError("mean_tpf_product must be present")
+
+    metrics: dict[str, object] = {}
+    tolerances: dict[str, object] = {}
+    reference_source = "none"
+    reference_dataset_id = ""
+    reference_artifact_sha256 = ""
+    reference_case_count = 0
+    claim_allowed = False
+    if reference_artifact_path is not None:
+        from validation.validate_disruption_reference import validate_disruption_reference
+
+        artifact_path = Path(reference_artifact_path)
+        validator_report = validate_disruption_reference(artifact_path, require_reference_artifacts=True)
+        if validator_report["status"] != "pass":
+            raise ValueError("disruption reference artifact failed strict validation")
+        payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+        reference_source = _non_empty_text("source", str(payload["source"]))
+        if reference_source not in _DISRUPTION_REFERENCE_SOURCES:
+            raise ValueError("disruption reference source is not admissible")
+        reference_dataset_id = _non_empty_text("reference_dataset_id", str(payload["reference_dataset_id"]))
+        reference_artifact_sha256 = _non_empty_text(
+            "reference_artifact_sha256", str(payload["reference_artifact_sha256"])
+        )
+        reference_case_count = int(payload["reference_case_count"])
+        if reference_case_count < 1:
+            raise ValueError("reference_case_count must be positive")
+        metrics = dict(payload["metrics"])
+        tolerances = dict(payload["tolerances"])
+        claim_allowed = True
+
+    claim_status = (
+        "matched disruption reference admission passed"
+        if claim_allowed
+        else "bounded halo/runaway ensemble evidence only; mitigation claims blocked"
+    )
+    return DisruptionMitigationClaimEvidence(
+        schema_version=_DISRUPTION_CLAIM_SCHEMA_VERSION,
+        model_id=_non_empty_text("model_id", model_id),
+        source=_non_empty_text("source", source),
+        source_id=_non_empty_text("source_id", source_id),
+        ensemble_runs=int(report.ensemble_runs),
+        ensemble_seed=int(ensemble_seed),
+        prevention_rate=prevention_rate,
+        mean_halo_peak_ma=require_non_negative_float("mean_halo_peak_ma", report.mean_halo_peak_ma),
+        p95_halo_peak_ma=require_non_negative_float("p95_halo_peak_ma", report.p95_halo_peak_ma),
+        mean_re_peak_ma=require_non_negative_float("mean_re_peak_ma", report.mean_re_peak_ma),
+        p95_re_peak_ma=require_non_negative_float("p95_re_peak_ma", report.p95_re_peak_ma),
+        mean_tpf_product=mean_tpf_product,
+        passes_iter_limits=bool(report.passes_iter_limits),
+        reference_source=reference_source,
+        reference_dataset_id=reference_dataset_id,
+        reference_artifact_sha256=reference_artifact_sha256,
+        reference_case_count=reference_case_count,
+        risk_after_abs_error=_finite_nonnegative_or_none("risk_after_abs_error", metrics.get("risk_after_abs_error")),
+        detection_lead_time_abs_error_ms=_finite_nonnegative_or_none(
+            "detection_lead_time_abs_error_ms", metrics.get("detection_lead_time_abs_error_ms")
+        ),
+        halo_current_relative_error=_finite_nonnegative_or_none(
+            "halo_current_relative_error", metrics.get("halo_current_relative_error")
+        ),
+        runaway_beam_relative_error=_finite_nonnegative_or_none(
+            "runaway_beam_relative_error", metrics.get("runaway_beam_relative_error")
+        ),
+        tbr_abs_error=_finite_nonnegative_or_none("tbr_abs_error", metrics.get("tbr_abs_error")),
+        risk_after_abs_tolerance=_finite_positive_or_none(
+            "risk_after_abs_tolerance", tolerances.get("risk_after_abs_error")
+        ),
+        detection_lead_time_abs_tolerance_ms=_finite_positive_or_none(
+            "detection_lead_time_abs_tolerance_ms", tolerances.get("detection_lead_time_abs_error_ms")
+        ),
+        halo_current_relative_tolerance=_finite_positive_or_none(
+            "halo_current_relative_tolerance", tolerances.get("halo_current_relative_error")
+        ),
+        runaway_beam_relative_tolerance=_finite_positive_or_none(
+            "runaway_beam_relative_tolerance", tolerances.get("runaway_beam_relative_error")
+        ),
+        tbr_abs_tolerance=_finite_positive_or_none("tbr_abs_tolerance", tolerances.get("tbr_abs_error")),
+        mitigation_claim_allowed=claim_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_disruption_mitigation_claim_admissible(
+    evidence: DisruptionMitigationClaimEvidence,
+) -> DisruptionMitigationClaimEvidence:
+    """Return evidence only when strict matched-reference admission passed."""
+    if not isinstance(evidence, DisruptionMitigationClaimEvidence):
+        raise ValueError("evidence must be DisruptionMitigationClaimEvidence")
+    if evidence.schema_version != _DISRUPTION_CLAIM_SCHEMA_VERSION:
+        raise ValueError("disruption mitigation claim evidence schema_version is unsupported")
+    if not evidence.mitigation_claim_allowed:
+        raise ValueError("disruption mitigation claim is blocked without matched reference evidence")
+    return evidence
+
+
+def save_disruption_mitigation_claim_evidence(
+    evidence: DisruptionMitigationClaimEvidence,
+    path: str | Path,
+) -> None:
+    """Persist disruption mitigation claim evidence as deterministic JSON."""
+    if not isinstance(evidence, DisruptionMitigationClaimEvidence):
+        raise ValueError("evidence must be DisruptionMitigationClaimEvidence")
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")

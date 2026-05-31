@@ -540,7 +540,7 @@
     },
     {
       "component": "halo current and runaway electron disruption model",
-      "equation_contract": "Post-disruption claims must declare the halo L/R circuit, contact fraction, toroidal peaking factor, current-quench waveform, Connor-Hastie primary generation, Rosenbluth-Putvinski avalanche generation, and ensemble uncertainty assumptions.",
+      "equation_contract": "Post-disruption claims must declare the halo L/R circuit, contact fraction, toroidal peaking factor, current-quench waveform, Connor-Hastie primary generation, Rosenbluth-Putvinski avalanche generation, ensemble uncertainty assumptions, ITER-limit summaries, strict disruption-reference admission, and claim status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Fitzpatrick 2002 halo current and error-field interaction",
@@ -551,24 +551,34 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate halo current and runaway-current envelopes against measured disruption databases before mitigation claims",
-        "Attach wall-contact geometry and impurity-radiation evidence before extrapolating beyond the declared ensemble domain"
+        "Attach wall-contact geometry and impurity-radiation evidence before extrapolating beyond the declared ensemble domain",
+        "Persist ensemble seed, run count, halo/runaway P95 metrics, toroidal-peaking-factor summary, reference source, tolerances, errors, and admission status before promoted mitigation claims"
       ],
       "unit_contract": "SI amperes, mega-amperes, seconds, milliseconds, ohms, henries, metres, volts per metre, rates per second, and meganewtons per metre.",
       "validation_evidence": [
-        "tests/test_halo_re_physics.py halo-current and runaway-electron regression checks",
+        "tests/test_halo_re_physics.py halo-current, runaway-electron, ensemble, fail-closed claim evidence, and strict reference-admission regression checks",
         "tests/test_halo_nonfinite_guards.py non-finite guard checks",
-        "tests/test_halo_validation_paths.py validation-path guard checks"
+        "tests/test_halo_validation_paths.py validation-path guard checks",
+        "validation/benchmark_disruption_mitigation_claims.py deterministic bounded halo/runaway claim-admission benchmark",
+        "validation/validate_disruption_reference.py strict disruption reference artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/control/halo_re_physics.py",
         "tests/test_halo_re_physics.py",
         "tests/test_halo_nonfinite_guards.py",
-        "tests/test_halo_validation_paths.py"
+        "tests/test_halo_validation_paths.py",
+        "validation/benchmark_disruption_mitigation_claims.py",
+        "validation/reports/disruption_mitigation_claims.json",
+        "validation/reports/disruption_mitigation_claims.md",
+        "validation/validate_disruption_reference.py",
+        "docs/api.md",
+        "docs/benchmarks.md",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/halo_re_physics.py"
       ],
-      "validity_domain": "Disruption mitigation scenario analysis and bounded ensemble regression; not a facility-qualified halo-load or runaway-current predictor.",
+      "validity_domain": "Bounded halo-current and runaway-electron ensemble regression plus fail-closed disruption-mitigation claim-admission evidence; not measured disruption-campaign, external-MHD, or facility mitigation validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 52
     },
     {
