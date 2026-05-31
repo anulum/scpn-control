@@ -86,7 +86,7 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Rust PyO3 exports | 27 |
 | Validation scripts | 69 |
 | Optional extras | 17 |
-| Python test files | 277 |
+| Python test files | 278 |
 | Public documentation pages | 32 |
 | GitHub Actions workflows | 8 |
 

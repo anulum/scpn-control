@@ -54,3 +54,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/scpn_control/|docs/api\.md|tools/check_docs_coverage\.py)
+
+      - id: check-commit-authorship
+        name: commit authorship line
+        entry: python tools/check_commit_authorship.py
+        language: system
+        stages: [commit-msg]
