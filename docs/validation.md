@@ -442,6 +442,33 @@ artifacts with source provenance, model identity, SHA-256 reference hash,
 machine metadata, unit contracts, case count, and volt-second metrics inside
 declared tolerances.
 
+Auxiliary current-drive validation claims require persisted documented public,
+ray-tracing, Fokker-Planck, or measured-deposition artifacts for absorbed power,
+driven current, deposition centroid, peak current density, and NBI slowing-down
+checks:
+
+Bounded local current-drive claim evidence can be regenerated with:
+
+```bash
+python validation/benchmark_current_drive_claims.py
+```
+
+This writes `validation/reports/current_drive_claims.json` and
+`validation/reports/current_drive_claims.md`. These artefacts demonstrate
+deterministic current-drive claim-admission plumbing only; ray-traced,
+Fokker-Planck, or measured-deposition claims remain gated by the strict
+reference-artifact validator below.
+
+```bash
+scpn-control validate-current-drive-reference --require-reference-artifacts --json-out
+python validation/validate_current_drive_reference.py --require-reference-artifacts --output-json artifacts/current_drive_reference_report.json
+```
+
+Strict mode fails until `validation/reports/current_drive_reference/` contains
+artifacts with source provenance, model identity, SHA-256 reference hash, source
+metadata, unit contracts, case count, and current-drive metrics inside declared
+tolerances.
+
 Disruption-mitigation contract validation claims require persisted
 public-reference, measured-disruption, or external benchmark artifacts for
 warning lead time, mitigation outcome, halo current, runaway beam, and TBR

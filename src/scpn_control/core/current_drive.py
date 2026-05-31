@@ -1,10 +1,18 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
-# ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Current-drive source models
 """ECCD, NBI, and mixed current-drive source models for transport coupling."""
 
 from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -32,6 +40,13 @@ _E_CRIT_PREFACTOR = 14.8  # keV · (A_b/A_i)^(2/3) per keV of T_e
 
 # Stix 1972, Eq. 6 — pre-factor in the ion slowing-down time expression
 _TAU_S_PREFACTOR = 3.0 * np.sqrt(2.0 * np.pi)  # = 3√(2π)
+_CURRENT_DRIVE_CLAIM_SCHEMA_VERSION = 1
+_FACILITY_CURRENT_DRIVE_REFERENCE_SOURCES = frozenset(
+    {"documented_public_reference", "ray_tracing_benchmark", "fokker_planck_benchmark", "measured_deposition_replay"}
+)
+_BOUNDED_CURRENT_DRIVE_REFERENCE_SOURCES = frozenset(
+    {"repository_current_drive_regression", *_FACILITY_CURRENT_DRIVE_REFERENCE_SOURCES}
+)
 
 
 def _require_nonnegative_scalar(name: str, value: float) -> float:
@@ -123,6 +138,125 @@ def _normalised_radial_deposition(
     if norm <= 0.0 or not np.isfinite(norm):
         raise ValueError("deposition kernel cannot be normalised on the supplied rho grid")
     return np.asarray(total_power_w * kernel / norm)
+
+
+@dataclass(frozen=True)
+class CurrentDriveClaimEvidence:
+    """Serialisable evidence for bounded or externally validated current-drive claims."""
+
+    schema_version: int
+    source: str
+    source_id: str
+    model_id: str
+    profile_points: int
+    rho_min: float
+    rho_max: float
+    total_absorbed_power_W: float
+    total_driven_current_A: float
+    peak_current_density_A_m2: float
+    eccd_power_MW: float
+    lhcd_power_MW: float
+    nbi_power_MW: float
+    eccd_eta_cd: float
+    lhcd_eta_cd: float
+    nbi_beam_energy_keV: float | None
+    nbi_slowing_down_time_s: float | None
+    nbi_critical_energy_keV: float | None
+    current_drive_efficiency_A_W: float
+    grid_normalised_power: bool
+    reference_source: str | None
+    reference_dataset_id: str | None
+    reference_artifact_sha256: str | None
+    reference_case_count: int | None
+    total_power_relative_error: float | None
+    total_current_relative_error: float | None
+    deposition_centroid_abs_error: float | None
+    peak_current_density_relative_error: float | None
+    nbi_slowing_down_relative_error: float | None
+    total_power_relative_tolerance: float
+    total_current_relative_tolerance: float
+    deposition_centroid_abs_tolerance: float
+    peak_current_density_relative_tolerance: float
+    nbi_slowing_down_relative_tolerance: float
+    external_claim_allowed: bool
+    claim_status: str
+
+
+def _non_empty_text(name: str, value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value.strip()
+
+
+def _positive_reference_scalar(name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
+        raise ValueError(f"{name} must be finite and positive")
+    numeric = float(value)
+    if numeric <= 0.0:
+        raise ValueError(f"{name} must be finite and positive")
+    return numeric
+
+
+def _nonnegative_reference_scalar(name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
+        raise ValueError(f"{name} must be finite and non-negative")
+    numeric = float(value)
+    if numeric < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return numeric
+
+
+def _sha256_text(name: str, value: object) -> str:
+    text = _non_empty_text(name, str(value))
+    if len(text) != 64 or any(char not in "0123456789abcdefABCDEF" for char in text):
+        raise ValueError(f"{name} must be a SHA-256 hex digest")
+    return text
+
+
+def _extract_current_drive_reference_artifact(
+    reference_artifact: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, bool]:
+    if reference_artifact is None:
+        return None, False
+    if not isinstance(reference_artifact, dict):
+        raise ValueError("reference_artifact must be a dictionary")
+    source = _non_empty_text("reference_artifact.source", str(reference_artifact.get("source", "")))
+    if source not in _FACILITY_CURRENT_DRIVE_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_FACILITY_CURRENT_DRIVE_REFERENCE_SOURCES))
+        raise ValueError(f"reference_artifact.source must be one of: {allowed}")
+    units = reference_artifact.get("units")
+    expected_units = {
+        "power": "W",
+        "current": "A",
+        "current_density": "A/m^2",
+        "density": "10^19 m^-3",
+        "temperature": "keV",
+        "rho": "1",
+        "time": "s",
+        "energy": "keV",
+    }
+    if not isinstance(units, dict) or any(units.get(key) != unit for key, unit in expected_units.items()):
+        raise ValueError("reference_artifact.units must declare current-drive unit contracts")
+    _sha256_text("reference_artifact.reference_artifact_sha256", reference_artifact.get("reference_artifact_sha256"))
+    case_count = reference_artifact.get("reference_case_count")
+    if isinstance(case_count, bool) or not isinstance(case_count, int) or case_count <= 0:
+        raise ValueError("reference_artifact.reference_case_count must be a positive integer")
+    metrics = reference_artifact.get("metrics")
+    tolerances = reference_artifact.get("tolerances")
+    if not isinstance(metrics, dict) or not isinstance(tolerances, dict):
+        raise ValueError("reference_artifact metrics and tolerances must be dictionaries")
+    for metric in (
+        "total_power_relative_error",
+        "total_current_relative_error",
+        "deposition_centroid_abs_error",
+        "peak_current_density_relative_error",
+        "nbi_slowing_down_relative_error",
+    ):
+        observed = _nonnegative_reference_scalar(f"reference_artifact.metrics.{metric}", metrics.get(metric))
+        tolerance = _positive_reference_scalar(f"reference_artifact.tolerances.{metric}", tolerances.get(metric))
+        if observed > tolerance:
+            raise ValueError(f"reference_artifact metric {metric} exceeds declared tolerance")
+    return reference_artifact, True
 
 
 def eccd_efficiency(
@@ -420,3 +554,146 @@ class CurrentDriveMix:
         j_tot = self.total_j_cd(rho_arr, ne_arr, te_arr, ti_arr)
         current_density_integrand = j_tot * 2.0 * np.pi * rho_arr * self.a**2
         return float(np.trapezoid(current_density_integrand, rho_arr)) if rho_arr.size > 1 else 0.0
+
+
+def current_drive_claim_evidence(
+    mix: CurrentDriveMix,
+    *,
+    rho: np.ndarray,
+    ne_19: np.ndarray,
+    Te_keV: np.ndarray,
+    Ti_keV: np.ndarray,
+    source: str,
+    source_id: str,
+    model_id: str = "bounded_auxiliary_current_drive",
+    reference_artifact: dict[str, Any] | None = None,
+    total_power_relative_tolerance: float = 0.03,
+    total_current_relative_tolerance: float = 0.10,
+    deposition_centroid_abs_tolerance: float = 0.05,
+    peak_current_density_relative_tolerance: float = 0.15,
+    nbi_slowing_down_relative_tolerance: float = 0.10,
+) -> CurrentDriveClaimEvidence:
+    """Build fail-closed evidence for auxiliary current-drive deposition claims."""
+
+    source_clean = _non_empty_text("source", source)
+    if source_clean not in _BOUNDED_CURRENT_DRIVE_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_BOUNDED_CURRENT_DRIVE_REFERENCE_SOURCES))
+        raise ValueError(f"source must be one of: {allowed}")
+    rho_arr, ne_arr, te_arr, ti_arr = _require_current_drive_profiles(rho, ne_19, Te_keV, Ti_keV)
+    assert ti_arr is not None
+    p_tot = mix.total_heating_power(rho_arr)
+    j_tot = mix.total_j_cd(rho_arr, ne_arr, te_arr, ti_arr)
+    total_power = float(np.trapezoid(p_tot, rho_arr)) if rho_arr.size > 1 else float(p_tot[0])
+    total_current = mix.total_driven_current(rho_arr, ne_arr, te_arr, ti_arr)
+    peak_j = float(np.max(j_tot)) if j_tot.size else 0.0
+    eccd_power = sum(src.P_ec_MW for src in mix.sources if isinstance(src, ECCDSource))
+    lhcd_power = sum(src.P_lh_MW for src in mix.sources if isinstance(src, LHCDSource))
+    nbi_sources = [src for src in mix.sources if isinstance(src, NBISource)]
+    nbi_power = sum(src.P_nbi_MW for src in nbi_sources)
+    eccd_eta = max((src.eta_cd for src in mix.sources if isinstance(src, ECCDSource)), default=0.0)
+    lhcd_eta = max((src.eta_cd for src in mix.sources if isinstance(src, LHCDSource)), default=0.0)
+    nbi_energy = nbi_sources[0].E_beam_keV if nbi_sources else None
+    te_mean = float(np.mean(te_arr))
+    ne_mean = float(np.mean(ne_arr))
+    nbi_tau = float(nbi_slowing_down_time(te_mean, ne_mean)) if nbi_sources else None
+    nbi_ecrit = float(nbi_critical_energy(te_mean)) if nbi_sources else None
+    requested_power = (eccd_power + lhcd_power + nbi_power) * 1.0e6
+    grid_normalised = bool(np.isclose(total_power, requested_power, rtol=1.0e-10, atol=1.0e-6))
+    artifact, artifact_passed = _extract_current_drive_reference_artifact(reference_artifact)
+    external_claim_allowed = bool(source_clean in _FACILITY_CURRENT_DRIVE_REFERENCE_SOURCES and artifact_passed)
+    claim_status = (
+        "external_current_drive_reference_matched" if external_claim_allowed else "bounded_current_drive_evidence"
+    )
+    metrics = artifact.get("metrics", {}) if artifact else {}
+
+    return CurrentDriveClaimEvidence(
+        schema_version=_CURRENT_DRIVE_CLAIM_SCHEMA_VERSION,
+        source=source_clean,
+        source_id=_non_empty_text("source_id", source_id),
+        model_id=_non_empty_text("model_id", model_id),
+        profile_points=int(rho_arr.size),
+        rho_min=float(rho_arr[0]),
+        rho_max=float(rho_arr[-1]),
+        total_absorbed_power_W=total_power,
+        total_driven_current_A=float(total_current),
+        peak_current_density_A_m2=peak_j,
+        eccd_power_MW=float(eccd_power),
+        lhcd_power_MW=float(lhcd_power),
+        nbi_power_MW=float(nbi_power),
+        eccd_eta_cd=float(eccd_eta),
+        lhcd_eta_cd=float(lhcd_eta),
+        nbi_beam_energy_keV=None if nbi_energy is None else float(nbi_energy),
+        nbi_slowing_down_time_s=nbi_tau,
+        nbi_critical_energy_keV=nbi_ecrit,
+        current_drive_efficiency_A_W=float(total_current / max(total_power, 1.0e-30)),
+        grid_normalised_power=grid_normalised,
+        reference_source=None if artifact is None else str(artifact["source"]),
+        reference_dataset_id=None if artifact is None else str(artifact["reference_dataset_id"]),
+        reference_artifact_sha256=None if artifact is None else str(artifact["reference_artifact_sha256"]),
+        reference_case_count=None if artifact is None else int(artifact["reference_case_count"]),
+        total_power_relative_error=None if artifact is None else float(metrics["total_power_relative_error"]),
+        total_current_relative_error=None if artifact is None else float(metrics["total_current_relative_error"]),
+        deposition_centroid_abs_error=None if artifact is None else float(metrics["deposition_centroid_abs_error"]),
+        peak_current_density_relative_error=None
+        if artifact is None
+        else float(metrics["peak_current_density_relative_error"]),
+        nbi_slowing_down_relative_error=None if artifact is None else float(metrics["nbi_slowing_down_relative_error"]),
+        total_power_relative_tolerance=_positive_reference_scalar(
+            "total_power_relative_tolerance", total_power_relative_tolerance
+        ),
+        total_current_relative_tolerance=_positive_reference_scalar(
+            "total_current_relative_tolerance", total_current_relative_tolerance
+        ),
+        deposition_centroid_abs_tolerance=_positive_reference_scalar(
+            "deposition_centroid_abs_tolerance", deposition_centroid_abs_tolerance
+        ),
+        peak_current_density_relative_tolerance=_positive_reference_scalar(
+            "peak_current_density_relative_tolerance", peak_current_density_relative_tolerance
+        ),
+        nbi_slowing_down_relative_tolerance=_positive_reference_scalar(
+            "nbi_slowing_down_relative_tolerance", nbi_slowing_down_relative_tolerance
+        ),
+        external_claim_allowed=external_claim_allowed,
+        claim_status=claim_status,
+    )
+
+
+def assert_current_drive_external_claim_admissible(evidence: CurrentDriveClaimEvidence) -> CurrentDriveClaimEvidence:
+    """Raise when current-drive evidence is insufficient for external deposition claims."""
+
+    if not isinstance(evidence, CurrentDriveClaimEvidence):
+        raise ValueError("evidence must be CurrentDriveClaimEvidence")
+    if not evidence.external_claim_allowed:
+        raise ValueError(
+            "current-drive claim requires matched ray-tracing, Fokker-Planck, or measured deposition evidence"
+        )
+    return evidence
+
+
+def save_current_drive_claim_evidence(evidence: CurrentDriveClaimEvidence, path: str | Path) -> None:
+    """Persist current-drive claim evidence as deterministic JSON."""
+
+    if not isinstance(evidence, CurrentDriveClaimEvidence):
+        raise ValueError("evidence must be CurrentDriveClaimEvidence")
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+__all__ = [
+    "CurrentDriveClaimEvidence",
+    "CurrentDriveMix",
+    "ECCDSource",
+    "EPS_0",
+    "E_CHARGE",
+    "LHCDSource",
+    "M_E",
+    "M_P",
+    "NBISource",
+    "assert_current_drive_external_claim_admissible",
+    "current_drive_claim_evidence",
+    "eccd_efficiency",
+    "nbi_critical_energy",
+    "nbi_slowing_down_time",
+    "save_current_drive_claim_evidence",
+]

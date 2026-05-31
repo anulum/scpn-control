@@ -78,6 +78,10 @@
   for matched public, measured loop-voltage replay, or external scenario
   artefacts covering total flux, flat-top duration, Ejima flux, bootstrap
   current, and budget-margin provenance.
+- Added current-drive claim evidence with fail-closed external deposition
+  admission for matched public, ray-tracing, Fokker-Planck, or measured
+  deposition artefacts covering absorbed power, driven current, deposition
+  centroid, peak current density, and NBI slowing-down provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.

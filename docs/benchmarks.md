@@ -379,6 +379,23 @@ public, measured loop-voltage replay, or external scenario benchmark references
 for total flux, flat-top duration, Ejima flux, bootstrap current, and budget
 margin agreement.
 
+## Current-drive Claim-Admission Benchmark
+
+`validation/benchmark_current_drive_claims.py` publishes bounded repository
+regression evidence for the ECCD, LHCD, and NBI current-drive claim boundary.
+The generated report records grid-normalised absorbed power, total driven
+current, peak current density, source powers, efficiency coefficients, NBI
+slowing-down metadata, and the explicit external-claim boundary.
+
+Report artefacts:
+
+- `validation/reports/current_drive_claims.json`
+- `validation/reports/current_drive_claims.md`
+
+Ray-traced, Fokker-Planck, or measured-deposition current-drive claims still
+require strict reference artifacts for total power, driven current, deposition
+centroid, peak current density, and NBI slowing-down agreement.
+
 ## Disruption-mitigation Claim-Admission Benchmark
 
 `validation/benchmark_disruption_mitigation_claims.py` publishes deterministic

@@ -1164,29 +1164,34 @@
         "Prater 2004 ECCD launch-angle efficiency scaling",
         "Fisch 1978 lower-hybrid current-drive efficiency",
         "Stix 1972 neutral-beam slowing-down and critical-energy formulae",
-        "Ehst and Karney 1991 neutral-beam current-drive model"
+        "Ehst and Karney 1991 neutral-beam current-drive model",
+        "Repository fail-closed current-drive claim-admission contract"
       ],
       "module_path": "src/scpn_control/core/current_drive.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate ECCD and LHCD deposition against ray-tracing or measured deposition reconstructions before facility claims",
-        "Validate NBI deposition, fast-ion slowing down, and driven-current profiles against a beam-deposition or Fokker-Planck reference before facility claims",
+        "Attach strict ray-tracing, Fokker-Planck, measured deposition, or documented public artifacts before external current-drive claims",
         "Persist source power, deposition kernel, rho grid, density and temperature profiles, launch geometry, and efficiency coefficients for every promoted current-drive claim"
       ],
       "unit_contract": "Power in MW or W with explicit conversion, rho dimensionless, density in 10^19 m^-3, temperatures and beam energy in keV, current density in A/m^2, total current in amperes, efficiency coefficients in declared normalised A/W form.",
       "validation_evidence": [
-        "tests/test_current_drive.py verifies ECCD, LHCD, and NBI finite-width deposition power conservation, efficiency scaling, slowing-down time, critical energy, source superposition, and total-current integration"
+        "tests/test_current_drive.py ECCD, LHCD, and NBI deposition, scaling, source superposition, total-current integration, and claim-admission checks",
+        "validation/validate_current_drive_reference.py strict current-drive reference artifact gate",
+        "validation/benchmark_current_drive_claims.py bounded claim-admission benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/core/current_drive.py",
         "tests/test_current_drive.py",
-        "tests/test_cross_module_physics.py",
+        "validation/validate_current_drive_reference.py",
+        "validation/benchmark_current_drive_claims.py",
+        "validation/reports/current_drive_claims.json",
+        "validation/reports/current_drive_claims.md",
         "docs/learning/plasma_physics_primer.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/current_drive.py"
       ],
-      "validity_domain": "Bounded auxiliary current-drive source coupling for transport and NTM controller studies; not ray-traced, Fokker-Planck, or facility-validated deposition evidence.",
+      "validity_domain": "Bounded auxiliary current-drive source coupling plus fail-closed claim-admission evidence; not ray-traced, Fokker-Planck, or facility-validated deposition evidence unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {
