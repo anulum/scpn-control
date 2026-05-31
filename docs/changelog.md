@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added a one-call formal safety certificate workflow that resolves one
+  Petri-net verifier backend, runs base safety/liveness plus CTL/LTL
+  obligations, binds optional controller artifact bytes by SHA-256, and
+  persists certificate JSON/Markdown evidence.
 - Hardened formal safety certificate publication with JSON/Markdown writers and
   semantic section-admission checks that reject internally inconsistent
   certificate evidence even when the payload digest is recomputed.

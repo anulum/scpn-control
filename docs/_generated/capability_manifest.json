@@ -20,7 +20,7 @@
   },
   "counts": {
     "project_script_count": 2,
-    "public_api_export_count": 22,
+    "public_api_export_count": 23,
     "public_class_count": 472,
     "public_markdown_count": 32,
     "pyo3_export_count": 27,
@@ -115,6 +115,7 @@
       "__version__",
       "build_knm_paper27",
       "build_safety_certificate_payload",
+      "generate_safety_certificate",
       "kuramoto_sakaguchi_step",
       "order_parameter",
       "validate_safety_certificate_payload",

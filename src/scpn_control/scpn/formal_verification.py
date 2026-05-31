@@ -888,6 +888,56 @@ def write_safety_certificate(
     return payload
 
 
+def generate_safety_certificate(
+    net: StochasticPetriNet,
+    *,
+    max_depth: int,
+    marking_bounds: dict[str, tuple[float, float]],
+    json_path: str | Path,
+    markdown_path: str | Path,
+    temporal_specs: list[AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking]
+    | None = None,
+    ctl_specs: list[CTLFormula] | None = None,
+    ltl_specs: list[LTLFormula] | None = None,
+    artifact_path: str | Path | None = None,
+    artifact_sha256: str | None = None,
+    issuer: str = "scpn-control",
+    backend: FormalBackend = "explicit-state",
+) -> dict[str, Any]:
+    """Run proof obligations and persist a bound formal safety certificate.
+
+    The workflow resolves one verifier backend, runs base Petri-net safety,
+    liveness, optional CTL, and optional LTL obligations through that same
+    transition relation, binds the certificate to optional controller artifact
+    bytes, and writes JSON/Markdown evidence in one call.
+    """
+
+    bound_artifact_sha256 = _resolve_artifact_sha256(artifact_path, artifact_sha256)
+    verifier = FormalPetriNetVerifier(net, backend=backend)
+    reachability = verifier.analyze_reachability(max_depth=max_depth)
+    safety = verifier.prove_marking_bounds(marking_bounds, max_depth=max_depth)
+    liveness = verifier.prove_transition_liveness(max_depth=max_depth)
+    temporal = verifier.verify_temporal_specs(temporal_specs or [], max_depth=max_depth)
+    report = FormalVerificationReport(
+        holds=safety.holds and liveness.holds and temporal.holds,
+        reachability=reachability,
+        safety=safety,
+        liveness=liveness,
+        temporal=temporal,
+    )
+    ctl_report = verifier.verify_ctl_specs(ctl_specs, max_depth=max_depth) if ctl_specs is not None else None
+    ltl_report = verifier.verify_ltl_specs(ltl_specs, max_depth=max_depth) if ltl_specs is not None else None
+    return write_safety_certificate(
+        report,
+        json_path=json_path,
+        markdown_path=markdown_path,
+        ctl_report=ctl_report,
+        ltl_report=ltl_report,
+        artifact_sha256=bound_artifact_sha256,
+        issuer=issuer,
+    )
+
+
 def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a schema-versioned formal safety certificate payload."""
 
@@ -997,6 +1047,28 @@ def _payload_digest(payload: dict[str, Any]) -> str:
 
 def _is_sha256(value: str) -> bool:
     return len(value) == 64 and all(ch in "0123456789abcdefABCDEF" for ch in value)
+
+
+def _resolve_artifact_sha256(artifact_path: str | Path | None, artifact_sha256: str | None) -> str | None:
+    if artifact_sha256 is not None and not _is_sha256(artifact_sha256):
+        raise ValueError("artifact_sha256 must be a SHA-256 hex digest")
+    if artifact_path is None:
+        return artifact_sha256
+    digest = _file_sha256(artifact_path)
+    if artifact_sha256 is not None and digest != artifact_sha256.lower():
+        raise ValueError("artifact_sha256 does not match artifact_path bytes")
+    return digest
+
+
+def _file_sha256(path: str | Path) -> str:
+    target = Path(path)
+    if not target.is_file():
+        raise ValueError("artifact_path must be an existing file")
+    digest = hashlib.sha256()
+    with target.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _jsonable(value: Any) -> Any:

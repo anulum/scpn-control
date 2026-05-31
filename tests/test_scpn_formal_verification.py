@@ -29,6 +29,7 @@ from scpn_control.scpn.formal_verification import (
     NeverCoMarked,
     PlaceInvariant,
     build_safety_certificate_payload,
+    generate_safety_certificate,
     validate_safety_certificate_payload,
     verify_formal_contracts,
     write_safety_certificate,
@@ -336,6 +337,57 @@ def test_safety_certificate_writer_publishes_json_and_markdown(tmp_path: Path) -
     assert payload["payload_sha256"] in markdown
     assert "CTL:EF_move_fires:EF" in markdown
     assert "bounded formal safety certificate" in markdown
+
+
+def test_generate_safety_certificate_runs_full_workflow_and_binds_artifact(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "controller.scpnctl"
+    artifact_bytes = b"compiled-controller-artifact"
+    artifact_path.write_bytes(artifact_bytes)
+    json_path = tmp_path / "certificate.json"
+    markdown_path = tmp_path / "certificate.md"
+
+    payload = generate_safety_certificate(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        temporal_specs=[EventuallyFires("move_eventually_fires", "move")],
+        ctl_specs=[CTLFormula.ef_fires("EF_move_fires", "move")],
+        ltl_specs=[LTLFormula.eventually_fires("F_move_fires", "move")],
+        artifact_path=artifact_path,
+        json_path=json_path,
+        markdown_path=markdown_path,
+        issuer="release-safety-gate",
+        backend="explicit-state",
+    )
+
+    assert payload["status"] == "pass"
+    assert payload["artifact_sha256"] == hashlib.sha256(artifact_bytes).hexdigest()
+    assert payload["checked_specs"] == [
+        "marking_bounds",
+        "transition_liveness",
+        "move_eventually_fires",
+        "CTL:EF_move_fires:EF",
+        "LTL:F_move_fires:F",
+    ]
+    assert json.loads(json_path.read_text(encoding="utf-8")) == payload
+    assert payload["payload_sha256"] in markdown_path.read_text(encoding="utf-8")
+
+
+def test_generate_safety_certificate_rejects_artifact_digest_mismatch(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "controller.scpnctl"
+    artifact_path.write_bytes(b"compiled-controller-artifact")
+
+    with pytest.raises(ValueError, match="artifact_sha256"):
+        generate_safety_certificate(
+            _transfer_net(),
+            max_depth=2,
+            marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+            artifact_path=artifact_path,
+            artifact_sha256="0" * 64,
+            json_path=tmp_path / "certificate.json",
+            markdown_path=tmp_path / "certificate.md",
+            backend="explicit-state",
+        )
 
 
 def test_safety_certificate_validator_rejects_semantic_section_tampering() -> None:
