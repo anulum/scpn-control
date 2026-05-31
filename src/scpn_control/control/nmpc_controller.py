@@ -24,6 +24,7 @@ profile and kinetic variable control on TCV.
 from __future__ import annotations
 
 import dataclasses
+import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -1324,7 +1325,17 @@ class NonlinearMPC:
 
     def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
         """Release external solver resources without suppressing control-loop faults."""
-        self.close()
+        if exc_type is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except RuntimeError as cleanup_error:
+            warnings.warn(
+                f"acados backend cleanup failed during exception unwinding: {cleanup_error}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     @staticmethod
     def _acados_set(solver: object, stage: int, field: str, value: np.ndarray) -> None:

@@ -601,6 +601,55 @@ def test_nmpc_acados_context_manager_closes_solver_after_exception() -> None:
     assert nmpc._acados_ocp is None
 
 
+def test_nmpc_acados_context_manager_preserves_control_fault_when_free_fails() -> None:
+    """acados cleanup failures must not mask the controller fault being unwound."""
+    cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
+    cfg.qp_backend = "acados"
+
+    def identity_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        return x.copy()
+
+    class FaultingFreeAcadosSolver:
+        def set(self, stage: int, field: str, value: Any) -> None:
+            return None
+
+        def solve(self) -> int:
+            return 0
+
+        def get(self, stage: int, field: str) -> np.ndarray:
+            if field == "u":
+                return np.array([0.0, 1.0, 0.0])
+            if field == "x":
+                return np.r_[np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]), np.array([0.0, 1.0, 0.0])]
+            raise KeyError(field)
+
+        def get_stats(self, field: str) -> int:
+            return 1
+
+        def free(self) -> None:
+            raise OSError("native acados free failed")
+
+    nmpc = NonlinearMPC(
+        identity_plant,
+        cfg,
+        acados_ocp_factory=lambda config, terminal_cost: object(),
+        acados_solver_factory=lambda ocp, **kwargs: FaultingFreeAcadosSolver(),
+    )
+
+    with pytest.warns(RuntimeWarning, match="acados backend cleanup failed"):
+        with pytest.raises(RuntimeError, match="control-loop fault"):
+            with nmpc as managed:
+                managed.step(
+                    np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]),
+                    np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0]),
+                    np.array([0.0, 1.0, 0.0]),
+                )
+                raise RuntimeError("control-loop fault")
+
+    assert nmpc._acados_solver is None
+    assert nmpc._acados_ocp is None
+
+
 def test_nmpc_acados_backend_rejects_failed_solver_status() -> None:
     """Nonzero acados status must fail closed rather than returning stale input."""
     cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
