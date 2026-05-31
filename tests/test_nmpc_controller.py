@@ -551,6 +551,56 @@ def test_nmpc_acados_close_releases_cached_solver_once() -> None:
     assert nmpc._acados_ocp is None
 
 
+def test_nmpc_acados_context_manager_closes_solver_after_exception() -> None:
+    """Context-managed acados deployments must release solver state on faults."""
+    cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
+    cfg.qp_backend = "acados"
+    freed: list[int] = []
+
+    def identity_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        return x.copy()
+
+    class ContextAcadosSolver:
+        def set(self, stage: int, field: str, value: Any) -> None:
+            return None
+
+        def solve(self) -> int:
+            return 0
+
+        def get(self, stage: int, field: str) -> np.ndarray:
+            if field == "u":
+                return np.array([0.0, 1.0, 0.0])
+            if field == "x":
+                return np.r_[np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]), np.array([0.0, 1.0, 0.0])]
+            raise KeyError(field)
+
+        def get_stats(self, field: str) -> int:
+            return 1
+
+        def free(self) -> None:
+            freed.append(1)
+
+    nmpc = NonlinearMPC(
+        identity_plant,
+        cfg,
+        acados_ocp_factory=lambda config, terminal_cost: object(),
+        acados_solver_factory=lambda ocp, **kwargs: ContextAcadosSolver(),
+    )
+
+    with pytest.raises(RuntimeError, match="fault after solve"):
+        with nmpc as managed:
+            managed.step(
+                np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]),
+                np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0]),
+                np.array([0.0, 1.0, 0.0]),
+            )
+            raise RuntimeError("fault after solve")
+
+    assert freed == [1]
+    assert nmpc._acados_solver is None
+    assert nmpc._acados_ocp is None
+
+
 def test_nmpc_acados_backend_rejects_failed_solver_status() -> None:
     """Nonzero acados status must fail closed rather than returning stale input."""
     cfg = NMPCConfig(horizon=1, max_sqp_iter=1)

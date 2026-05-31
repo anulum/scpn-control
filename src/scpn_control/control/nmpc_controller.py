@@ -1318,6 +1318,14 @@ class NonlinearMPC:
         except Exception as exc:
             raise RuntimeError("acados backend failed while releasing solver resources.") from exc
 
+    def __enter__(self) -> NonlinearMPC:
+        """Return this controller for deterministic external-solver lifetime scopes."""
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        """Release external solver resources without suppressing control-loop faults."""
+        self.close()
+
     @staticmethod
     def _acados_set(solver: object, stage: int, field: str, value: np.ndarray) -> None:
         solver_api: Any = solver
