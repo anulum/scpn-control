@@ -453,8 +453,7 @@ def _validate_update_inputs(
         missing_units = sorted(target_names - set(artifact.signal_units))
         if missing_units:
             raise ValueError(
-                "external simulator artifact signal_units missing observation targets: "
-                + ", ".join(missing_units)
+                "external simulator artifact signal_units missing observation targets: " + ", ".join(missing_units)
             )
 
 

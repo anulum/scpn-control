@@ -77,7 +77,7 @@ def _require_manifest_text(name: str, value: Any) -> str:
 def _require_int(name: str, value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(f"{name} must be an integer")
-    return value
+    return int(value)
 
 
 def _fieldline_spread(config: StellaratorConfig, current_A: float) -> float:

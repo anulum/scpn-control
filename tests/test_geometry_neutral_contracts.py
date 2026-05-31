@@ -306,9 +306,7 @@ def test_replay_scenario_rejects_inconsistent_replay_admission_contracts() -> No
         )
 
     with pytest.raises(ValueError, match="failure_mode"):
-        ReplayScenario(
-            **(base_kwargs | {"actuator_set": ActuatorSet(channels=(unsupported_actuator,))})
-        )
+        ReplayScenario(**(base_kwargs | {"actuator_set": ActuatorSet(channels=(unsupported_actuator,))}))
 
     with pytest.raises(ValueError, match="weights"):
         ControlObjective(
