@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened EPED pedestal configuration with a Pydantic v2 schema/export path,
+  construction-time physics-bound validation, and immutable validated config
+  objects so solver calls cannot observe post-validation mutation.
 - Hardened FusionKernel configuration loading so runtime JSON is retained as a
   typed Pydantic v2 model with schema-normalised boundary variants while the
   legacy dict view remains a compatibility export for solver internals.

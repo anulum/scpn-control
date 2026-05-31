@@ -12,8 +12,10 @@ from __future__ import annotations
 import dataclasses
 import math
 from dataclasses import dataclass, field
+from typing import Any, cast
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # ── References ────────────────────────────────────────────────────────────────
@@ -52,31 +54,48 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
-def _validate_config(config: EPEDConfig) -> EPEDConfig:
-    R0 = _finite_scalar("R0", config.R0, positive=True)
-    a = _finite_scalar("a", config.a, positive=True)
-    if a >= R0:
-        raise ValueError("a must be smaller than R0 for tokamak ordering")
-    _finite_scalar("B0", config.B0, positive=True)
-    _finite_scalar("kappa", config.kappa, positive=True)
-    delta = _finite_scalar("delta", config.delta)
-    if abs(delta) >= 1.0:
-        raise ValueError("delta must remain inside the physical triangularity interval (-1, 1)")
-    _finite_scalar("Ip_MA", config.Ip_MA, positive=True)
-    _finite_scalar("ne_ped_19", config.ne_ped_19, positive=True)
-    _finite_scalar("B_pol_ped", config.B_pol_ped, positive=True)
-    _finite_scalar("C_KBM", config.C_KBM, positive=True)
-    if (
-        isinstance(config.n_mode_min, bool)
-        or isinstance(config.n_mode_max, bool)
-        or int(config.n_mode_min) != config.n_mode_min
-        or int(config.n_mode_max) != config.n_mode_max
-    ):
-        raise ValueError("mode bounds must be integers")
-    if config.n_mode_min <= 0 or config.n_mode_max < config.n_mode_min:
-        raise ValueError("mode bounds must be positive and ordered")
-    _finite_scalar("nu_star_e", config.nu_star_e, nonnegative=True)
-    return config
+class EPEDConfigSchema(BaseModel):
+    """Pydantic v2 schema for EPED pedestal operating-point configuration."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    R0: float = Field(..., gt=0.0, description="Major radius [m]")
+    a: float = Field(..., gt=0.0, description="Minor radius [m]")
+    B0: float = Field(..., gt=0.0, description="Vacuum toroidal field [T]")
+    kappa: float = Field(..., gt=0.0, description="Elongation")
+    delta: float = Field(..., description="Triangularity")
+    Ip_MA: float = Field(..., gt=0.0, description="Plasma current [MA]")
+    ne_ped_19: float = Field(..., gt=0.0, description="Pedestal electron density [10^19 m^-3]")
+    B_pol_ped: float = Field(..., gt=0.0, description="Poloidal field at pedestal [T]")
+    C_KBM: float = Field(default=C_KBM_DEFAULT, gt=0.0, description="KBM width coefficient")
+    n_mode_min: int = 5
+    n_mode_max: int = 30
+    nu_star_e: float = Field(default=0.0, ge=0.0, description="Electron collisionality")
+
+    @field_validator("R0", "a", "B0", "kappa", "delta", "Ip_MA", "ne_ped_19", "B_pol_ped", "C_KBM", "nu_star_e")
+    @classmethod
+    def _finite_scalar_field(cls, value: float) -> float:
+        value = float(value)
+        if not math.isfinite(value):
+            raise ValueError("EPEDConfig scalar fields must be finite")
+        return value
+
+    @field_validator("n_mode_min", "n_mode_max", mode="before")
+    @classmethod
+    def _integer_mode_bound(cls, value: object) -> object:
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError("mode bounds must be integers")
+        return value
+
+    @model_validator(mode="after")
+    def _physics_bounds(self) -> "EPEDConfigSchema":
+        if self.a >= self.R0:
+            raise ValueError("a must be smaller than R0 for tokamak ordering")
+        if abs(self.delta) >= 1.0:
+            raise ValueError("delta must remain inside the physical triangularity interval (-1, 1)")
+        if self.n_mode_min <= 0 or self.n_mode_max < self.n_mode_min:
+            raise ValueError("mode bounds must be positive and ordered")
+        return self
 
 
 def _validate_eped_result(result: EPEDResult) -> EPEDResult:
@@ -96,7 +115,7 @@ def _validate_eped_result(result: EPEDResult) -> EPEDResult:
     return result
 
 
-@dataclass
+@dataclass(frozen=True)
 class EPEDConfig:
     R0: float  # Major radius [m]
     a: float  # Minor radius [m]
@@ -110,6 +129,16 @@ class EPEDConfig:
     n_mode_min: int = 5
     n_mode_max: int = 30
     nu_star_e: float = 0.0  # Electron collisionality; 0 = collisionless limit
+
+    def __post_init__(self) -> None:
+        validated = EPEDConfigSchema.model_validate(dataclasses.asdict(self))
+        for field_name, value in validated.model_dump().items():
+            object.__setattr__(self, field_name, value)
+
+    @classmethod
+    def model_json_schema(cls) -> dict[str, Any]:
+        """Return the JSON Schema for serialized EPED pedestal configurations."""
+        return cast(dict[str, Any], EPEDConfigSchema.model_json_schema())
 
 
 @dataclass
@@ -161,7 +190,6 @@ def eped_validation_database() -> list[EPEDValidationPoint]:
 
 def _compute_q95(config: EPEDConfig) -> float:
     """Safety factor at 95% flux surface. [W04] Eq. 3.6.8."""
-    config = _validate_config(config)
     return (config.a * config.B0) / (config.R0 * config.B_pol_ped) * (1.0 + config.kappa**2) / 2.0
 
 
@@ -195,7 +223,6 @@ def _approx_alpha_crit(delta_ped: float, config: EPEDConfig) -> float:
     Peeling reduction: bootstrap current proximity — [Sau99] Sec. III.
     """
     delta_ped = _finite_scalar("delta_ped", delta_ped, positive=True)
-    config = _validate_config(config)
     F_shape = _shaping_factor(config.kappa, config.delta)
     alpha_ball = _ALPHA_BALL_COEFF * F_shape
 
@@ -229,7 +256,6 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
     Iteration: guess Δ → α_crit(Δ) → p_ped → β_p,ped → Δ_KBM.
     Collisionality correction applied after convergence. [S11]
     """
-    config = _validate_config(config)
     delta_ped = 0.04  # initial guess
 
     mu_0 = 4.0 * math.pi * 1e-7
@@ -281,7 +307,6 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
 
 def eped1_scan(config: EPEDConfig, ne_ped_range: np.ndarray) -> list[EPEDResult]:
     """Scan pedestal density across operating space."""
-    config = _validate_config(config)
     ne_values = np.asarray(ne_ped_range, dtype=float)
     if ne_values.ndim != 1 or ne_values.size == 0:
         raise ValueError("ne_ped_range must be a one-dimensional non-empty scan axis")

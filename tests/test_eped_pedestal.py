@@ -7,6 +7,8 @@
 # SCPN Control — EPED pedestal model tests
 from __future__ import annotations
 
+import dataclasses
+
 import numpy as np
 import pytest
 
@@ -103,6 +105,26 @@ def _iter_base() -> EPEDConfig:
         ne_ped_19=6.0,
         B_pol_ped=0.8,
     )
+
+
+def test_eped_config_is_pydantic_validated_at_construction():
+    schema = EPEDConfig.model_json_schema()
+
+    assert schema["type"] == "object"
+    assert {"R0", "a", "B0", "kappa", "delta", "Ip_MA", "ne_ped_19", "B_pol_ped"} <= set(schema["required"])
+
+    with pytest.raises(ValueError, match="a must be smaller"):
+        EPEDConfig(**{**vars(_iter_base()), "a": 6.2})
+
+    with pytest.raises(ValueError, match="mode bounds"):
+        EPEDConfig(**{**vars(_iter_base()), "n_mode_min": True})
+
+
+def test_eped_config_is_immutable_after_pydantic_validation():
+    config = _iter_base()
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        config.ne_ped_19 = 0.0
 
 
 def test_collisionality_narrows_pedestal():
