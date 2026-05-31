@@ -71,6 +71,7 @@ class TestPhaseStreamServer:
         assert server.command_rate_limit == 20
         assert server.max_payload_bytes == 65536
         assert server.client_send_timeout_s == 0.25
+        assert server.max_clients == 128
         assert server.require_client_auth is True
         assert server.allow_query_token_auth is False
         assert server.require_tls is False
@@ -98,6 +99,10 @@ class TestPhaseStreamServer:
             PhaseStreamServer(monitor=mon, client_send_timeout_s=0.0)
         with pytest.raises(ValueError, match="client_send_timeout_s"):
             PhaseStreamServer(monitor=mon, client_send_timeout_s=math.inf)
+        with pytest.raises(ValueError, match="max_clients"):
+            PhaseStreamServer(monitor=mon, max_clients=0)
+        with pytest.raises(ValueError, match="max_clients"):
+            PhaseStreamServer(monitor=mon, max_clients=True)
         with pytest.raises(ValueError, match="require_client_auth"):
             PhaseStreamServer(monitor=mon, require_client_auth="yes")
         with pytest.raises(ValueError, match="allow_query_token_auth"):
@@ -212,6 +217,25 @@ class TestPhaseStreamServer:
 
             assert mon.psi_driver == pytest.approx(0.5)
             assert not ws.closed
+
+        asyncio.run(_run())
+
+    def test_handler_rejects_clients_beyond_configured_backpressure_capacity(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", max_clients=1)
+            admitted = _FakeWS()
+            excess = _FakeWS([json.dumps({"action": "set_psi", "value": 0.5})])
+            server._clients.add(admitted)
+
+            await server._handler(excess)
+
+            assert mon.psi_driver == pytest.approx(0.0)
+            assert excess.closed
+            assert excess.close_code == 1013
+            assert "capacity" in (excess.close_reason or "")
+            assert excess not in server._clients
+            assert admitted in server._clients
 
         asyncio.run(_run())
 
@@ -817,6 +841,8 @@ class TestPhaseStreamServer:
                 "4096",
                 "--client-send-timeout-s",
                 "0.125",
+                "--max-clients",
+                "9",
                 "--allow-query-token-auth",
                 "--require-tls",
                 "--allowed-origin",
@@ -834,6 +860,7 @@ class TestPhaseStreamServer:
         assert captured["server"]["command_rate_window_s"] == 2.5
         assert captured["server"]["max_payload_bytes"] == 4096
         assert captured["server"]["client_send_timeout_s"] == 0.125
+        assert captured["server"]["max_clients"] == 9
         assert captured["server"]["allow_query_token_auth"] is True
         assert captured["server"]["require_tls"] is True
         assert captured["server"]["allowed_origins"] == ("https://ops.example",)
