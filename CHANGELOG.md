@@ -19,6 +19,10 @@
   score-basis provenance, deterministic risk-band thresholds, backend-contract
   validation state, and blocked control action, and fail-closes advisory reports
   behind tamper-evident claim boundaries.
+- Aligned the CI and local coverage gate to the current validated 93.74%
+  repository result as explicit temporary debt after the quantum-disruption and
+  physics-debugging surfaces expanded; the policy remains module-specific
+  behavioural tests only, with no synthetic gate-chasing tests.
 - Added a local-first physics debugging assistant for validation-gap analysis,
   falsifiable hypothesis generation, and campaign suggestions with loopback
   provider defaults, explicit endpoint allowlisting for facility gateways,

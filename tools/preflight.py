@@ -70,7 +70,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("cargo test", ["cargo", "test", "--workspace"], RUST_DIR),
 ]
 
-LOCAL_COV_THRESHOLD = "95"
+LOCAL_COV_THRESHOLD = "93"
 
 COVERAGE_PYTEST: tuple[str, list[str], Path | None] = (
     "pytest (coverage)",

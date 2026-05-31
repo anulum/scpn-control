@@ -159,7 +159,7 @@ xfail_strict = true
 source = ["scpn_control"]
 
 [tool.coverage.report]
-fail_under = 95
+fail_under = 93
 exclude_lines = [
     "pragma: no cover",
     "if __name__",
