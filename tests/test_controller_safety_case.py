@@ -513,6 +513,119 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
             artifact_root=tmp_path,
         )
 
+    for unsafe_uri in ("", "file:validation/report.json", "validation//report.json", "validation\\report.json"):
+        with pytest.raises(ValueError, match="artifact_uri"):
+            evaluate_controller_safety_case_readiness_from_artifacts(
+                evidence,
+                (
+                    ReadinessArtifactEvidence(
+                        kind="external_physics_validation",
+                        artifact_sha256="1" * 64,
+                        artifact_uri=unsafe_uri,
+                        producer="independent-validation-campaign",
+                        generated_utc="2026-05-31T00:00:00Z",
+                    ),
+                    ReadinessArtifactEvidence(
+                        kind="target_hardware_timing",
+                        artifact_sha256="2" * 64,
+                        artifact_uri="validation/reports/hardware/target_timing.json",
+                        producer="target-hardware-latency-bench",
+                        generated_utc="2026-05-31T00:00:00Z",
+                    ),
+                    ReadinessArtifactEvidence(
+                        kind="independent_safety_review",
+                        artifact_sha256="3" * 64,
+                        artifact_uri="validation/reports/review/safety_review.json",
+                        producer="independent-safety-review",
+                        generated_utc="2026-05-31T00:00:00Z",
+                    ),
+                ),
+                artifact_root=tmp_path,
+            )
+
+
+def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_contracts(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    valid_artifacts = _readiness_artifacts(tmp_path)
+
+    with pytest.raises(ValueError, match="non-empty tuple"):
+        evaluate_controller_safety_case_readiness_from_artifacts(evidence, (), artifact_root=tmp_path)
+    with pytest.raises(ValueError, match="non-empty tuple"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence, list(valid_artifacts), artifact_root=tmp_path
+        )
+    with pytest.raises(ValueError, match="ReadinessArtifactEvidence"):
+        evaluate_controller_safety_case_readiness_from_artifacts(evidence, (object(),), artifact_root=tmp_path)
+
+    invalid_digest = ReadinessArtifactEvidence(
+        kind="external_physics_validation",
+        artifact_sha256="g" * 64,
+        artifact_uri="validation/reports/external/physics_validation.json",
+        producer="independent-validation-campaign",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+    with pytest.raises(ValueError, match="SHA-256"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            (invalid_digest, valid_artifacts[1], valid_artifacts[2]),
+            artifact_root=tmp_path,
+        )
+
+    empty_producer = ReadinessArtifactEvidence(
+        kind="external_physics_validation",
+        artifact_sha256="1" * 64,
+        artifact_uri="validation/reports/external/physics_validation.json",
+        producer="",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+    with pytest.raises(ValueError, match="producer"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            (empty_producer, valid_artifacts[1], valid_artifacts[2]),
+            artifact_root=tmp_path,
+        )
+
+    empty_generated = ReadinessArtifactEvidence(
+        kind="external_physics_validation",
+        artifact_sha256="1" * 64,
+        artifact_uri="validation/reports/external/physics_validation.json",
+        producer="independent-validation-campaign",
+        generated_utc="",
+    )
+    with pytest.raises(ValueError, match="generated_utc"):
+        evaluate_controller_safety_case_readiness_from_artifacts(
+            evidence,
+            (empty_generated, valid_artifacts[1], valid_artifacts[2]),
+            artifact_root=tmp_path,
+        )
+
+
+def test_controller_safety_case_readiness_artifacts_reject_missing_files(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = list(_readiness_artifacts(tmp_path))
+    artifacts[0] = ReadinessArtifactEvidence(
+        kind="external_physics_validation",
+        artifact_sha256="1" * 64,
+        artifact_uri="validation/reports/external/missing_physics_validation.json",
+        producer="independent-validation-campaign",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+
+    with pytest.raises(ValueError, match="does not resolve"):
+        evaluate_controller_safety_case_readiness_from_artifacts(evidence, tuple(artifacts), artifact_root=tmp_path)
+
 
 def test_controller_safety_case_readiness_artifacts_reject_duplicate_kind(tmp_path: Path):
     artifact = _controller_artifact()
@@ -636,6 +749,39 @@ def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
         )
 
 
+def test_controller_safety_case_readiness_admission_rejects_type_and_state_drift():
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    readiness = evaluate_controller_safety_case_readiness(
+        evidence,
+        external_physics_validation_sha256="1" * 64,
+        target_hardware_timing_sha256="2" * 64,
+        independent_safety_review_sha256="3" * 64,
+    )
+
+    with pytest.raises(ValueError, match="readiness must"):
+        assert_controller_safety_case_readiness_admissible(object(), evidence)
+    with pytest.raises(ValueError, match="safety_case must"):
+        assert_controller_safety_case_readiness_admissible(readiness, object())
+
+    stale_schema = SafetyCaseReadinessEvidence(**{**readiness.__dict__, "schema_version": 2})
+    with pytest.raises(ValueError, match="schema_version"):
+        assert_controller_safety_case_readiness_admissible(stale_schema, evidence)
+
+    bad_status = SafetyCaseReadinessEvidence(**{**readiness.__dict__, "status": "unchecked"})
+    with pytest.raises(ValueError, match="status"):
+        assert_controller_safety_case_readiness_admissible(bad_status, evidence)
+
+    drifted = SafetyCaseReadinessEvidence(**{**readiness.__dict__, "claim_status": "bounded stale readiness"})
+    with pytest.raises(ValueError, match="evidence mismatch"):
+        assert_controller_safety_case_readiness_admissible(drifted, evidence)
+
+
 def test_controller_safety_case_rejects_mismatched_evidence_chain():
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -644,6 +790,62 @@ def test_controller_safety_case_rejects_mismatched_evidence_chain():
 
     with pytest.raises(ValueError, match="digital twin"):
         controller_safety_case_evidence(artifact, transport, digital_twin)
+
+    with pytest.raises(ValueError, match="transport evidence"):
+        controller_safety_case_evidence(
+            artifact, _transport_evidence("c" * 64), _digital_twin_evidence(controller_sha256)
+        )
+
+
+def test_controller_safety_case_rejects_invalid_public_input_types(tmp_path: Path):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    transport = _transport_evidence(controller_sha256)
+    digital_twin = _digital_twin_evidence(controller_sha256)
+    evidence = controller_safety_case_evidence(artifact, transport, digital_twin)
+
+    with pytest.raises(ValueError, match="safety_case must"):
+        evaluate_controller_safety_case_readiness(object())
+    with pytest.raises(ValueError, match="controller_artifact must"):
+        controller_safety_case_evidence(object(), transport, digital_twin)
+    with pytest.raises(ValueError, match="transport_evidence must"):
+        controller_safety_case_evidence(artifact, object(), digital_twin)
+    with pytest.raises(ValueError, match="digital_twin_evidence must"):
+        controller_safety_case_evidence(artifact, transport, object())
+    with pytest.raises(ValueError, match="readiness must"):
+        save_controller_safety_case_readiness(object(), tmp_path / "readiness.json")
+    with pytest.raises(ValueError, match="evidence must"):
+        save_controller_safety_case_evidence(object(), tmp_path / "evidence.json")
+    with pytest.raises(ValueError, match="evidence must"):
+        assert_controller_safety_case_admissible(object(), artifact, transport, digital_twin)
+
+    stale_schema = ControllerSafetyCaseEvidence(**{**evidence.__dict__, "schema_version": 2})
+    with pytest.raises(ValueError, match="schema_version"):
+        assert_controller_safety_case_admissible(stale_schema, artifact, transport, digital_twin)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "replacement", "message"),
+    [
+        ("controller_artifact_sha256", "9" * 64, "controller_artifact_sha256"),
+        ("formal_report_sha256", "9" * 64, "formal_report_sha256"),
+        ("formal_backend", "explicit-state", "formal_backend"),
+        ("formal_max_depth", 99, "formal_max_depth"),
+        ("transport_evidence_sha256", "9" * 64, "transport_evidence_sha256"),
+        ("digital_twin_evidence_sha256", "9" * 64, "digital_twin_evidence_sha256"),
+        ("claim_status", "bounded but stale", "claim_status"),
+    ],
+)
+def test_controller_safety_case_admission_rejects_each_evidence_field_drift(field_name, replacement, message):
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    transport = _transport_evidence(controller_sha256)
+    digital_twin = _digital_twin_evidence(controller_sha256)
+    evidence = controller_safety_case_evidence(artifact, transport, digital_twin)
+    drifted = ControllerSafetyCaseEvidence(**{**evidence.__dict__, field_name: replacement})
+
+    with pytest.raises(ValueError, match=message):
+        assert_controller_safety_case_admissible(drifted, artifact, transport, digital_twin)
 
 
 def test_controller_safety_case_rejects_bad_transport_and_twin_claims():

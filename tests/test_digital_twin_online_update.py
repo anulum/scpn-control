@@ -69,6 +69,36 @@ def test_external_simulator_artifact_rejects_unsupported_code():
         validate_external_simulator_artifact(payload)
 
 
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda payload: payload.update(schema_version="2.0"), "schema_version"),
+        (lambda payload: payload.update(artifact_uri=" "), "artifact_uri"),
+        (lambda payload: payload.update(artifact_sha256="not-a-digest"), "SHA-256"),
+        (lambda payload: payload.update(case_id=""), "case_id"),
+        (lambda payload: payload.update(time_base_s=[0.0]), "at least two"),
+        (lambda payload: payload.update(time_base_s=[0.0, float("nan")]), "finite"),
+        (lambda payload: payload.update(signal_units={}), "non-empty object"),
+        (lambda payload: payload.update(signal_units={"": "keV"}), "non-empty strings"),
+        (lambda payload: payload.update(signal_units={"final_avg_temp": ""}), "non-empty strings"),
+    ],
+)
+def test_external_simulator_artifact_rejects_malformed_metadata(mutation, message):
+    payload = _artifact_payload()
+    mutation(payload)
+
+    with pytest.raises(ValueError, match=message):
+        validate_external_simulator_artifact(payload)
+
+
+def test_load_external_simulator_artifact_rejects_non_object_json(tmp_path):
+    path = tmp_path / "artifact.json"
+    path.write_text(json.dumps(["not", "an", "object"]), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="JSON object"):
+        load_external_simulator_artifact(path)
+
+
 def test_artifact_payload_digest_is_stable():
     payload = _artifact_payload()
     assert artifact_payload_sha256(payload) == artifact_payload_sha256(dict(reversed(list(payload.items()))))
@@ -84,6 +114,11 @@ def test_digital_twin_physical_update_knobs_change_reference_loss():
     mismatched = run_digital_twin(time_steps=10, seed=41, save_plot=False, verbose=False, n_e=0.8e20, Z_eff=1.0)
     assert digital_twin_loss(matched, observation) == pytest.approx(0.0)
     assert digital_twin_loss(mismatched, observation) > 0.0
+
+    with pytest.raises(ValueError, match="missing target key"):
+        digital_twin_loss({}, observation)
+    with pytest.raises(ValueError, match="finite"):
+        digital_twin_loss({"final_avg_temp": float("nan"), "final_reward": 0.0}, observation)
 
 
 def test_bayesian_update_improves_over_nominal_baseline():
@@ -287,6 +322,19 @@ def test_bayesian_update_config_rejects_bool_and_float_integer_fields():
     with pytest.raises(ValueError, match="seed"):
         BayesianUpdateConfig(seed=True)  # type: ignore[arg-type]
 
+    with pytest.raises(ValueError, match="n_iterations"):
+        BayesianUpdateConfig(n_iterations=0)
+    with pytest.raises(ValueError, match="n_candidates"):
+        BayesianUpdateConfig(n_candidates=0)
+    with pytest.raises(ValueError, match="kernel_length_scale"):
+        BayesianUpdateConfig(kernel_length_scale=0.0)
+    with pytest.raises(ValueError, match="noise"):
+        BayesianUpdateConfig(noise=0.0)
+    with pytest.raises(ValueError, match="time_steps"):
+        BayesianUpdateConfig(time_steps=0)
+    with pytest.raises(ValueError, match="exploration_weight"):
+        BayesianUpdateConfig(exploration_weight=float("nan"))
+
 
 def test_twin_observation_requires_matching_positive_tolerances() -> None:
     with pytest.raises(ValueError, match="missing tolerance"):
@@ -294,6 +342,22 @@ def test_twin_observation_requires_matching_positive_tolerances() -> None:
 
     with pytest.raises(ValueError, match="tolerances"):
         TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.0})
+
+    with pytest.raises(ValueError, match="targets"):
+        TwinObservation(targets={}, tolerances={})
+    with pytest.raises(ValueError, match="targets"):
+        TwinObservation(targets={"final_avg_temp": float("nan")}, tolerances={"final_avg_temp": 0.1})
+
+
+def test_twin_parameter_prior_rejects_unphysical_domains() -> None:
+    with pytest.raises(ValueError, match="Unsupported"):
+        TwinParameterPrior("unsupported", 0.0, 1.0, 0.5)
+    with pytest.raises(ValueError, match="finite"):
+        TwinParameterPrior("n_e", float("nan"), 1.0, 0.5)
+    with pytest.raises(ValueError, match="< upper"):
+        TwinParameterPrior("n_e", 1.0, 1.0, 1.0)
+    with pytest.raises(ValueError, match="inside bounds"):
+        TwinParameterPrior("n_e", 0.0, 1.0, 2.0)
 
 
 def test_digital_twin_update_evidence_rejects_duplicate_priors() -> None:
@@ -315,3 +379,120 @@ def test_digital_twin_update_evidence_rejects_duplicate_priors() -> None:
 
     with pytest.raises(ValueError, match="unique parameter names"):
         digital_twin_update_evidence(observation, priors, result, artifacts)
+
+
+def test_digital_twin_update_evidence_rejects_type_and_digest_contract_violations() -> None:
+    artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
+    observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
+    priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
+    result = BayesianUpdateResult(
+        best_parameters={"n_e": 1.0e20},
+        best_loss=0.1,
+        baseline_loss=0.2,
+        evaluated_points=2,
+        loss_history=(0.2, 0.1),
+        source=observation.source,
+        evidence_kind="bounded_online_update",
+    )
+
+    with pytest.raises(ValueError, match="observation must"):
+        digital_twin_update_evidence(object(), priors, result, artifacts)
+    with pytest.raises(ValueError, match="priors must"):
+        digital_twin_update_evidence(observation, (object(),), result, artifacts)
+    with pytest.raises(ValueError, match="result must"):
+        digital_twin_update_evidence(observation, priors, object(), artifacts)
+    with pytest.raises(ValueError, match="external_artifacts must"):
+        digital_twin_update_evidence(observation, priors, result, (object(),))
+    with pytest.raises(ValueError, match="controller_formal_artifact_sha256"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            result,
+            artifacts,
+            controller_formal_artifact_sha256="not-a-digest",
+        )
+    with pytest.raises(ValueError, match="evidence must"):
+        assert_digital_twin_update_claim_admissible(object(), observation, priors, result, artifacts)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "replacement", "message"),
+    [
+        ("schema_version", 2, "schema_version"),
+        ("external_artifacts_sha256", "9" * 64, "external_artifacts_sha256"),
+        ("observation_sha256", "9" * 64, "observation_sha256"),
+        ("priors_sha256", "9" * 64, "priors_sha256"),
+        ("result_sha256", "9" * 64, "result_sha256"),
+        ("evaluated_points", 99, "evaluated_points"),
+        ("best_loss", 0.11, "best_loss"),
+        ("baseline_loss", 0.21, "baseline_loss"),
+        ("controller_formal_artifact_sha256", "not-a-digest", "controller_formal_artifact_sha256"),
+    ],
+)
+def test_digital_twin_update_admission_rejects_evidence_drift(field_name, replacement, message) -> None:
+    artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
+    observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
+    priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
+    result = BayesianUpdateResult(
+        best_parameters={"n_e": 1.0e20},
+        best_loss=0.1,
+        baseline_loss=0.2,
+        evaluated_points=2,
+        loss_history=(0.2, 0.1),
+        source=observation.source,
+        evidence_kind="bounded_online_update",
+    )
+    evidence = digital_twin_update_evidence(
+        observation,
+        priors,
+        result,
+        artifacts,
+        controller_formal_artifact_sha256="c" * 64,
+    )
+    drifted = type(evidence)(**{**evidence.__dict__, field_name: replacement})
+
+    with pytest.raises(ValueError, match=message):
+        assert_digital_twin_update_claim_admissible(drifted, observation, priors, result, artifacts)
+
+
+def test_digital_twin_update_evidence_rejects_malformed_result_accounting() -> None:
+    artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
+    observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
+    priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
+
+    with pytest.raises(ValueError, match="best_parameters"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            BayesianUpdateResult({}, 0.1, 0.2, 2, (0.2, 0.1), observation.source, "bounded_online_update"),
+            artifacts,
+        )
+    with pytest.raises(ValueError, match="evidence_kind"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            BayesianUpdateResult(
+                {"n_e": 1.0e20},
+                0.1,
+                0.2,
+                2,
+                (0.2, 0.1),
+                observation.source,
+                "unbounded_update",
+            ),
+            artifacts,
+        )
+    with pytest.raises(ValueError, match="loss_history"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            BayesianUpdateResult({"n_e": 1.0e20}, 0.1, 0.2, 2, (), observation.source, "bounded_online_update"),
+            artifacts,
+        )
+    with pytest.raises(ValueError, match="evaluated_points"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            BayesianUpdateResult({"n_e": 1.0e20}, 0.1, 0.2, 3, (0.2, 0.1), observation.source, "bounded_online_update"),
+            artifacts,
+        )

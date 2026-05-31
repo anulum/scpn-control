@@ -18,6 +18,7 @@ import time
 
 import pytest
 
+import scpn_control.phase.ws_phase_stream as ws_phase_stream
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
 from scpn_control.phase.ws_phase_stream import PhaseStreamServer
 
@@ -124,6 +125,31 @@ class TestPhaseStreamServer:
             assert ws not in server._clients
 
         asyncio.run(_run())
+
+    def test_handler_rejects_malformed_bearer_scheme_without_mutation(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _FakeWS(
+                [json.dumps({"action": "set_psi", "value": 0.5})],
+                headers={"Authorization": "Basic secret-token-123456"},
+            )
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.0)
+            assert ws.closed
+            assert ws.close_code == 1008
+            assert "authentication" in (ws.close_reason or "")
+
+        asyncio.run(_run())
+
+    def test_origin_check_treats_non_mapping_headers_as_no_origin(self):
+        mon = _make_monitor()
+        server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+        ws = _FakeWS(headers=object())
+
+        assert server._origin_allowed(ws) is True
 
     def test_handler_rejects_browser_origin_without_allowlist(self):
         async def _run():
@@ -331,6 +357,21 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    def test_handler_rejects_oversized_binary_payload_without_json_parsing(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", max_payload_bytes=4)
+            ws = _FakeWS([b'{"action":"set_psi","value":0.9}'])
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.0)
+            assert json.loads(ws._sent[-1])["error"] == "payload_too_large"
+            assert ws.closed
+            assert ws.close_code == 1009
+
+        asyncio.run(_run())
+
     def test_handler_set_psi(self):
         async def _run():
             mon = _make_monitor()
@@ -339,6 +380,19 @@ class TestPhaseStreamServer:
             await server._handler(ws)
             assert mon.psi_driver == pytest.approx(0.5)
             assert ws not in server._clients
+
+        asyncio.run(_run())
+
+    def test_handler_ignores_non_object_json_commands(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _FakeWS([json.dumps(["set_psi", 0.9]), json.dumps({"action": "stop"})])
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.0)
+            assert server._running is False
 
         asyncio.run(_run())
 
@@ -413,6 +467,21 @@ class TestPhaseStreamServer:
             await server._handler(ws)
 
         asyncio.run(_run())
+
+    def test_rate_limit_window_resets_after_configured_interval(self, monkeypatch):
+        mon = _make_monitor()
+        server = PhaseStreamServer(
+            monitor=mon,
+            api_key="secret-token-123456",
+            command_rate_limit=1,
+            command_rate_window_s=1.0,
+        )
+        ws = _FakeWS()
+        times = iter([10.0, 11.5])
+        monkeypatch.setattr(time, "monotonic", lambda: next(times))
+
+        assert server._rate_limited(ws) is False
+        assert server._rate_limited(ws) is False
 
     def test_tick_loop_sends_to_clients(self):
         async def _run():
@@ -566,6 +635,15 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    def test_serve_rejects_non_loopback_without_api_key_even_when_auth_disabled(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, require_client_auth=False)
+            with pytest.raises(ValueError, match="api_key"):
+                await server.serve(host="0.0.0.0", port=9999)
+
+        asyncio.run(_run())
+
     def test_serve_rejects_missing_api_key_when_auth_required(self):
         async def _run():
             mon = _make_monitor()
@@ -574,6 +652,117 @@ class TestPhaseStreamServer:
                 await server.serve(host="127.0.0.1", port=9999)
 
         asyncio.run(_run())
+
+    def test_serve_sync_delegates_to_async_server(self, monkeypatch):
+        mon = _make_monitor()
+        server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+        called = {}
+        tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+
+        async def _fake_serve(host, port, ssl_context):
+            called["host"] = host
+            called["port"] = port
+            called["ssl_context"] = ssl_context
+
+        monkeypatch.setattr(server, "serve", _fake_serve)
+
+        server.serve_sync(host="127.0.0.1", port=8766, ssl_context=tls_context)
+
+        assert called == {"host": "127.0.0.1", "port": 8766, "ssl_context": tls_context}
+
+    def test_main_builds_configured_secure_server_from_cli(self, monkeypatch):
+        captured = {}
+
+        class _FakeMonitorFactory:
+            @staticmethod
+            def from_paper27(*, L, N_per, zeta_uniform, psi_driver):
+                captured["monitor"] = {
+                    "L": L,
+                    "N_per": N_per,
+                    "zeta_uniform": zeta_uniform,
+                    "psi_driver": psi_driver,
+                }
+                return object()
+
+        class _FakeServer:
+            def __init__(self, **kwargs):
+                captured["server"] = kwargs
+
+            def serve_sync(self, *, host, port, ssl_context):
+                captured["serve"] = {"host": host, "port": port, "ssl_context": ssl_context}
+
+        monkeypatch.setattr(ws_phase_stream, "RealtimeMonitor", _FakeMonitorFactory)
+        monkeypatch.setattr(ws_phase_stream, "PhaseStreamServer", _FakeServer)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "ws_phase_stream",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "9999",
+                "--layers",
+                "8",
+                "--n-per",
+                "12",
+                "--zeta",
+                "0.25",
+                "--psi",
+                "0.4",
+                "--tick-interval",
+                "0.002",
+                "--api-key",
+                "secret-token-123456",
+                "--command-rate-limit",
+                "7",
+                "--command-rate-window-s",
+                "2.5",
+                "--max-payload-bytes",
+                "4096",
+                "--allow-query-token-auth",
+                "--require-tls",
+                "--allowed-origin",
+                "https://ops.example",
+                "--allowed-action",
+                "stop",
+            ],
+        )
+
+        ws_phase_stream.main()
+
+        assert captured["monitor"] == {"L": 8, "N_per": 12, "zeta_uniform": 0.25, "psi_driver": 0.4}
+        assert captured["server"]["api_key"] == "secret-token-123456"
+        assert captured["server"]["command_rate_limit"] == 7
+        assert captured["server"]["command_rate_window_s"] == 2.5
+        assert captured["server"]["max_payload_bytes"] == 4096
+        assert captured["server"]["allow_query_token_auth"] is True
+        assert captured["server"]["require_tls"] is True
+        assert captured["server"]["allowed_origins"] == ("https://ops.example",)
+        assert captured["server"]["allowed_actions"] == ("stop",)
+        assert captured["serve"] == {"host": "127.0.0.1", "port": 9999, "ssl_context": None}
+
+    def test_main_rejects_partial_tls_material(self, monkeypatch):
+        class _FakeMonitorFactory:
+            @staticmethod
+            def from_paper27(**_kwargs):
+                return object()
+
+        monkeypatch.setattr(ws_phase_stream, "RealtimeMonitor", _FakeMonitorFactory)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "ws_phase_stream",
+                "--api-key",
+                "secret-token-123456",
+                "--tls-cert",
+                "cert.pem",
+            ],
+        )
+
+        with pytest.raises(ValueError, match="--tls-cert and --tls-key"):
+            ws_phase_stream.main()
 
     def test_serve_rejects_plaintext_non_loopback_by_default(self):
         async def _run():

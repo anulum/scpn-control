@@ -342,6 +342,35 @@ def test_init_rejects_relative_env_solver_path(monkeypatch: pytest.MonkeyPatch) 
         HPCBridge()
 
 
+def test_init_rejects_non_library_suffix(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    candidate = tmp_path / "solver.txt"
+
+    def _unexpected_cdll(_path: str):
+        raise AssertionError("ctypes.CDLL must not receive a non-library path")
+
+    monkeypatch.setenv("SCPN_SOLVER_LIB", str(candidate))
+    monkeypatch.setenv("SCPN_ALLOW_EXTERNAL_SOLVER_LIB", "1")
+    monkeypatch.setattr(hpc_mod.ctypes, "CDLL", _unexpected_cdll)
+
+    with pytest.raises(ValueError, match="must end with"):
+        HPCBridge()
+
+
+def test_init_rejects_directory_solver_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    candidate = tmp_path / "libscpn_solver.so"
+    candidate.mkdir()
+
+    def _unexpected_cdll(_path: str):
+        raise AssertionError("ctypes.CDLL must not receive a directory path")
+
+    monkeypatch.setenv("SCPN_SOLVER_LIB", str(candidate))
+    monkeypatch.setenv("SCPN_ALLOW_EXTERNAL_SOLVER_LIB", "1")
+    monkeypatch.setattr(hpc_mod.ctypes, "CDLL", _unexpected_cdll)
+
+    with pytest.raises(ValueError, match="regular file"):
+        HPCBridge()
+
+
 def test_init_rejects_external_env_solver_path_without_trust_gate(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -444,6 +473,56 @@ def test_compile_cpp_refuses_missing_checksum_manifest(
     assert hpc_mod.compile_cpp() is None
 
 
+def test_compile_cpp_refuses_missing_solver_source(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module_file = tmp_path / "hpc_bridge.py"
+    module_file.write_text("# test module path\n", encoding="utf-8")
+    (tmp_path / "solver_manifest.json").write_text(
+        json.dumps({"solver.cpp": {"sha256": "0" * 64}}),
+        encoding="utf-8",
+    )
+
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        raise AssertionError("missing solver.cpp must not be compiled")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_refuses_unreadable_manifest_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module_file = tmp_path / "hpc_bridge.py"
+    module_file.write_text("# test module path\n", encoding="utf-8")
+    (tmp_path / "solver.cpp").write_text("int main() { return 0; }\n", encoding="utf-8")
+    (tmp_path / "solver_manifest.json").write_text("{", encoding="utf-8")
+
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        raise AssertionError("solver.cpp must not be compiled with unreadable manifest")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_refuses_manifest_without_valid_sha(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module_file = tmp_path / "hpc_bridge.py"
+    module_file.write_text("# test module path\n", encoding="utf-8")
+    (tmp_path / "solver.cpp").write_text("int main() { return 0; }\n", encoding="utf-8")
+    (tmp_path / "solver_manifest.json").write_text(json.dumps({"solver.cpp": {"sha256": "short"}}), encoding="utf-8")
+
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        raise AssertionError("solver.cpp must not be compiled without manifest SHA-256")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+
+    assert hpc_mod.compile_cpp() is None
+
+
 def test_compile_cpp_refuses_checksum_mismatch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -518,6 +597,22 @@ def test_close_noop_when_no_solver_ptr() -> None:
     bridge.solver_ptr = None
     bridge.close()
     assert bridge.lib.destroyed is None
+
+
+def test_close_handles_destroy_symbol_failure_without_leaking_pointer() -> None:
+    class _BrokenDestroyLib:
+        def destroy_solver(self, _solver_ptr) -> None:
+            raise AttributeError("symbol unavailable")
+
+    bridge = HPCBridge.__new__(HPCBridge)
+    bridge.lib = _BrokenDestroyLib()
+    bridge.solver_ptr = 321
+    bridge.loaded = True
+    bridge._destroy_symbol = "destroy_solver"
+
+    bridge.close()
+
+    assert bridge.solver_ptr is None
 
 
 def test_close_noop_when_not_loaded() -> None:
