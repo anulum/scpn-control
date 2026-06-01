@@ -145,7 +145,7 @@ def _safe_relative_uri(name: str, value: str) -> str:
 
 
 def _require_finite_nonnegative(name: str, value: object) -> float:
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         raise ValueError(f"{name} must be a finite non-negative number")
     try:
         result = float(value)
@@ -175,6 +175,12 @@ def _file_sha256(path: Path) -> str:
 
 def _resource_digest(resources: Mapping[str, Any]) -> str:
     return hashlib.sha256(_canonical_json(dict(resources)).encode("utf-8")).hexdigest()
+
+
+def _require_positive_integer(name: str, value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return value
 
 
 def _resolve_synthesis_report(
@@ -227,16 +233,9 @@ def _validate_hdl_export_payload(
     lif_bit_width = payload.get("lif_bit_width")
     if isinstance(lif_bit_width, bool) or lif_bit_width not in VALID_BIT_WIDTHS:
         raise ValueError("lif_bit_width must be a supported FPGA bit width")
-    n_neurons = payload.get("n_neurons")
-    n_places = payload.get("n_places")
-    bitstream_length = payload.get("bitstream_length")
-    for name, value in (
-        ("n_neurons", n_neurons),
-        ("n_places", n_places),
-        ("bitstream_length", bitstream_length),
-    ):
-        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-            raise ValueError(f"{name} must be a positive integer")
+    n_neurons = _require_positive_integer("n_neurons", payload.get("n_neurons"))
+    n_places = _require_positive_integer("n_places", payload.get("n_places"))
+    bitstream_length = _require_positive_integer("bitstream_length", payload.get("bitstream_length"))
     hdl_format = payload.get("hdl_format")
     if hdl_format not in {"verilog", "vhdl"}:
         raise ValueError("hdl_format must be verilog or vhdl")
@@ -250,18 +249,10 @@ def _validate_hdl_export_payload(
     ):
         if not _is_sha256(payload.get(name)):
             raise ValueError(f"{name} must be a SHA-256 hex digest")
-    estimated_lut_count = payload.get("estimated_lut_count")
-    estimated_ff_count = payload.get("estimated_ff_count")
-    estimated_bram_blocks = payload.get("estimated_bram_blocks")
-    weight_rom_depth = payload.get("weight_rom_depth")
-    for name, value in (
-        ("estimated_lut_count", estimated_lut_count),
-        ("estimated_ff_count", estimated_ff_count),
-        ("estimated_bram_blocks", estimated_bram_blocks),
-        ("weight_rom_depth", weight_rom_depth),
-    ):
-        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-            raise ValueError(f"{name} must be a positive integer")
+    estimated_lut_count = _require_positive_integer("estimated_lut_count", payload.get("estimated_lut_count"))
+    estimated_ff_count = _require_positive_integer("estimated_ff_count", payload.get("estimated_ff_count"))
+    estimated_bram_blocks = _require_positive_integer("estimated_bram_blocks", payload.get("estimated_bram_blocks"))
+    weight_rom_depth = _require_positive_integer("weight_rom_depth", payload.get("weight_rom_depth"))
     estimated_fmax_mhz = _require_finite_nonnegative("estimated_fmax_mhz", payload.get("estimated_fmax_mhz"))
     if estimated_fmax_mhz <= 0.0:
         raise ValueError("estimated_fmax_mhz must be positive")

@@ -186,7 +186,7 @@ def _require_positive_int(name: str, value: object) -> int:
 
 
 def _require_finite_positive(name: str, value: object) -> float:
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         raise ValueError(f"{name} must be a finite positive number")
     try:
         result = float(value)

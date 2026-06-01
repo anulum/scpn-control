@@ -288,7 +288,7 @@ def _validate_mu_synthesis_claim_payload(
         _non_empty_text("reference_dataset_id", evidence.reference_dataset_id or "")
         _sha256_text("reference digest", reference_hash)
         _require_positive_claim_int("reference_case_count", evidence.reference_case_count)
-        for name, value, tolerance in (
+        metric_checks: tuple[tuple[str, object, float], ...] = (
             (
                 "mu_upper_bound_relative_error",
                 evidence.mu_upper_bound_relative_error,
@@ -310,11 +310,12 @@ def _validate_mu_synthesis_claim_payload(
                 evidence.closed_loop_spectral_abscissa_abs_error,
                 evidence.closed_loop_spectral_abscissa_abs_tolerance,
             ),
-        ):
-            observed = _nonnegative_reference_scalar(name, value)
+        )
+        for metric_name, raw_metric, tolerance in metric_checks:
+            observed = _nonnegative_reference_scalar(metric_name, raw_metric)
             if observed > tolerance:
-                raise ValueError(f"{name} exceeds declared tolerance")
-    elif any(value is not None for value in reference_fields):
+                raise ValueError(f"{metric_name} exceeds declared tolerance")
+    elif any(reference_value is not None for reference_value in reference_fields):
         raise ValueError("bounded mu-synthesis evidence cannot carry partial reference fields")
     if require_validated_claim and not validated_claim_allowed:
         raise ValueError("validated mu-synthesis claim requires matched toolbox, public, or measured replay evidence")

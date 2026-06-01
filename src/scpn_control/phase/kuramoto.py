@@ -128,7 +128,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _finite_float(name: str, value: object) -> float:
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         raise ValueError(f"{name} must be finite")
     try:
         result = float(value)
