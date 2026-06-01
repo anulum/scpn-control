@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import importlib
 import json
+import socket
 import sys
 import time
 from dataclasses import dataclass
@@ -35,21 +36,30 @@ TARGET_KEYS: tuple[str, ...] = _DATASET_MODULE.TARGET_KEYS
 CAMPAIGN_PLAN_SCHEMA: str = _CAMPAIGN_MODULE.REPORT_SCHEMA
 
 TRAINING_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-training.v1"
+RESULT_TEMPLATES_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-result-templates.v1"
 EXECUTION_HOST_POLICY = (
     "ML350 is storage-only; execute training only on this workstation or external cloud compute with the SAS dataset "
     "mounted read-only or copied to admitted compute storage."
 )
 DEFAULT_DATASET_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
 DEFAULT_CAMPAIGN_PLAN = ROOT / "validation" / "reports" / "neural_equilibrium_training_campaign_plan.json"
+DEFAULT_FEATURE_PROVENANCE_REPORT = ROOT / "validation" / "reports" / "mast_efm_feature_provenance_audit.json"
+DEFAULT_ORIGINAL_SOURCE_REPORT = ROOT / "validation" / "reports" / "mast_efm_original_feature_source_audit.json"
 DEFAULT_DATASET_PATH = Path(
     "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz"
 )
-DEFAULT_WEIGHTS_OUT = Path(
-    "/mnt/data_sas/DATASETS/SCPN-CONTROL/models/neural_equilibrium/mast_efm_full_output_baseline_weights.npz"
-)
+DEFAULT_WEIGHTS_OUT = Path("artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz")
 DEFAULT_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_training_launch.json"
 DEFAULT_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_training_launch.md"
+DEFAULT_TEMPLATES_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_result_templates.json"
+DEFAULT_TEMPLATES_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_result_templates.md"
 SPLITS = ("train", "validation", "test")
+ADMITTED_COMPUTE_HOST_KINDS = ("workstation", "external_cloud")
+STORAGE_ONLY_HOST_MARKERS = ("ml350",)
+STORAGE_OUTPUT_ROOTS = (
+    Path("/mnt/data_sas"),
+    Path("/mnt/data_sas/DATASETS/SCPN-CONTROL"),
+)
 
 
 @dataclass(frozen=True)
@@ -60,6 +70,10 @@ class TrainingInputs:
     campaign_plan: Path
     dataset_path: Path
     weights_out: Path
+    feature_provenance_report: Path = DEFAULT_FEATURE_PROVENANCE_REPORT
+    original_source_report: Path = DEFAULT_ORIGINAL_SOURCE_REPORT
+    compute_host_kind: str = "unspecified"
+    compute_host_label: str = ""
     execute: bool = False
     ridge_alpha: float = 1.0e-6
     max_flux_components: int = 32
@@ -102,6 +116,127 @@ def _validate_reports(dataset_report: dict[str, Any], campaign_plan: dict[str, A
         raise ValueError("campaign plan has unsupported schema_version")
     if campaign_plan.get("status") != "prepared":
         raise ValueError("campaign plan must be prepared before training")
+
+
+def _path_is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve(strict=False).relative_to(root.resolve(strict=False))
+    except ValueError:
+        return False
+    return True
+
+
+def _display_path(path: Path) -> str:
+    """Render repository paths relative to the checkout for stable reports."""
+
+    if not path.is_absolute():
+        return str(path)
+    try:
+        return str(path.resolve(strict=False).relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _validate_feature_provenance(report: dict[str, Any], dataset_report: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if report.get("schema_version") != "scpn-control.mast-efm-feature-provenance-audit.v1":
+        errors.append("feature provenance report has unsupported schema_version")
+    if report.get("reference_dataset_id") != dataset_report.get("reference_dataset_id"):
+        errors.append("feature provenance report does not match the dataset reference_dataset_id")
+    if report.get("blocked_features") != []:
+        errors.append("feature provenance report still has blocked features")
+    feature_status = report.get("feature_status")
+    if not isinstance(feature_status, dict) or not feature_status:
+        errors.append("feature provenance report has no feature_status entries")
+    else:
+        unresolved = [
+            str(name)
+            for name, status in feature_status.items()
+            if not isinstance(status, dict) or status.get("status") != "resolved"
+        ]
+        if unresolved:
+            errors.append(f"feature provenance report has unresolved features: {', '.join(sorted(unresolved))}")
+    return errors
+
+
+def _validate_original_source_provenance(report: dict[str, Any], dataset_report: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if report.get("schema_version") != "scpn-control.mast-efm-original-feature-source-audit.v1":
+        errors.append("original source report has unsupported schema_version")
+    if report.get("reference_dataset_id") != dataset_report.get("reference_dataset_id"):
+        errors.append("original source report does not match the dataset reference_dataset_id")
+    if report.get("status") != "source_ready":
+        errors.append("original source report is not source_ready")
+    if report.get("can_rebuild_dataset_now") is not True:
+        errors.append("original source report does not admit rebuild readiness")
+    if report.get("blocked_features") != []:
+        errors.append("original source report still has blocked features")
+    return errors
+
+
+def _source_provenance_admission(inputs: TrainingInputs, dataset_report: dict[str, Any]) -> dict[str, Any]:
+    errors: list[str] = []
+    feature_report: dict[str, Any] | None = None
+    original_report: dict[str, Any] | None = None
+    if inputs.feature_provenance_report.is_file():
+        feature_report = _load_json_object(inputs.feature_provenance_report)
+        errors.extend(_validate_feature_provenance(feature_report, dataset_report))
+    else:
+        errors.append(f"feature provenance report is missing: {inputs.feature_provenance_report}")
+    if inputs.original_source_report.is_file():
+        original_report = _load_json_object(inputs.original_source_report)
+        errors.extend(_validate_original_source_provenance(original_report, dataset_report))
+    else:
+        errors.append(f"original source report is missing: {inputs.original_source_report}")
+    return {
+        "status": "pass" if not errors else "fail",
+        "feature_provenance_report": _display_path(inputs.feature_provenance_report),
+        "feature_provenance_payload_sha256": None if feature_report is None else feature_report.get("payload_sha256"),
+        "original_source_report": _display_path(inputs.original_source_report),
+        "original_source_payload_sha256": None if original_report is None else original_report.get("payload_sha256"),
+        "errors": errors,
+    }
+
+
+def _compute_execution_admission(inputs: TrainingInputs, dataset_sha256: str | None) -> dict[str, Any]:
+    errors: list[str] = []
+    host_label = inputs.compute_host_label or socket.gethostname()
+    host_label_lower = host_label.lower()
+    if inputs.compute_host_kind not in ADMITTED_COMPUTE_HOST_KINDS:
+        errors.append("compute host kind must be explicitly declared as workstation or external_cloud before --execute")
+    if any(marker in host_label_lower for marker in STORAGE_ONLY_HOST_MARKERS):
+        errors.append("ML350 is storage-only and is not an admitted training host")
+    if dataset_sha256 is None:
+        errors.append("dataset payload SHA-256 must be verified before --execute")
+    if any(_path_is_relative_to(inputs.weights_out, root) for root in STORAGE_OUTPUT_ROOTS):
+        errors.append("weights_out must not be under ML350 SAS storage; use workstation or cloud compute storage")
+    return {
+        "status": "pass" if not errors else "fail",
+        "compute_host_kind": inputs.compute_host_kind,
+        "compute_host_label": host_label,
+        "admitted_compute_host_kinds": list(ADMITTED_COMPUTE_HOST_KINDS),
+        "storage_only_host_markers": list(STORAGE_ONLY_HOST_MARKERS),
+        "forbidden_output_roots": [str(root) for root in STORAGE_OUTPUT_ROOTS],
+        "errors": errors,
+    }
+
+
+def _pre_run_admission(
+    inputs: TrainingInputs,
+    dataset_report: dict[str, Any],
+    dataset_sha256: str | None,
+) -> dict[str, Any]:
+    source = _source_provenance_admission(inputs, dataset_report)
+    compute = _compute_execution_admission(inputs, dataset_sha256)
+    errors = [*source["errors"], *compute["errors"]]
+    return {
+        "status": "pass" if not errors else "fail",
+        "required_for_execute": True,
+        "dataset_sha256_verified": dataset_sha256 == dataset_report.get("dataset_sha256"),
+        "source_provenance": source,
+        "compute_execution": compute,
+        "errors": errors,
+    }
 
 
 def _load_dataset(path: Path) -> dict[str, NDArray[Any]]:
@@ -393,6 +528,9 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
         data = _load_dataset(inputs.dataset_path)
         dataset_metadata = _dataset_metadata(data, dataset_report)
         if inputs.execute:
+            pre_run_admission = _pre_run_admission(inputs, dataset_report, dataset_sha256)
+            if pre_run_admission["status"] != "pass":
+                raise ValueError("pre-run admission failed before --execute: " + "; ".join(pre_run_admission["errors"]))
             execution_payload, _ = _execute_training(data, inputs)
         else:
             execution_payload = {
@@ -408,6 +546,7 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
             "weights_sha256": None,
             "holdout_metrics": None,
         }
+    pre_run_admission = _pre_run_admission(inputs, dataset_report, dataset_sha256)
 
     fallback_features = list(dataset_report["fallback_features"])
     blocked_before_admission = [
@@ -428,24 +567,106 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
             "This report prepares or executes a deterministic repository baseline. "
             "It is not predictive EFIT/P-EFIT admission evidence."
         ),
-        "dataset_report": str(inputs.dataset_report),
-        "campaign_plan": str(inputs.campaign_plan),
+        "dataset_report": _display_path(inputs.dataset_report),
+        "campaign_plan": _display_path(inputs.campaign_plan),
         "dataset_path": str(inputs.dataset_path),
         "dataset_exists_on_this_host": dataset_exists,
         "dataset_sha256": dataset_sha256 or dataset_report["dataset_sha256"],
         "dataset_metadata": dataset_metadata,
         "execution_host_policy": EXECUTION_HOST_POLICY,
+        "feature_provenance_report": _display_path(inputs.feature_provenance_report),
+        "original_source_report": _display_path(inputs.original_source_report),
+        "pre_run_admission": pre_run_admission,
         "required_targets": list(TARGET_KEYS),
         "fallback_features": fallback_features,
         "blocked_before_admission": blocked_before_admission,
         "run_command": (
             "python validation/train_mast_efm_neural_equilibrium.py --execute "
-            f"--dataset-path {inputs.dataset_path} --weights-out {inputs.weights_out}"
+            "--compute-host-kind workstation "
+            f"--dataset-path {inputs.dataset_path} --weights-out {inputs.weights_out} "
+            f"--feature-provenance-report {_display_path(inputs.feature_provenance_report)} "
+            f"--original-source-report {_display_path(inputs.original_source_report)}"
         ),
         **execution_payload,
     }
     report["payload_sha256"] = _sha256_json({**report, "payload_sha256": None})
     return report
+
+
+def build_result_templates(report: dict[str, Any]) -> dict[str, Any]:
+    """Build dry-run result schemas for the later compute campaign."""
+
+    templates: dict[str, Any] = {
+        "schema_version": RESULT_TEMPLATES_SCHEMA,
+        "claim_boundary": (
+            "These are result schemas for a later admitted compute run. They are not executed training evidence."
+        ),
+        "training_report_payload_sha256": report["payload_sha256"],
+        "expected_dataset_sha256": report["dataset_sha256"],
+        "expected_weight_path_policy": "weights are written to workstation or external cloud compute storage, not ML350 SAS",
+        "holdout_metrics": {
+            "schema_version": "scpn-control.mast-efm-neural-equilibrium-holdout-metrics.v1",
+            "required_splits": list(SPLITS),
+            "required_metrics": [
+                "psi_rmse_Wb_per_rad",
+                "pprime_rmse_Pa_per_Wb_rad",
+                "q_profile_rmse",
+                "lcfs_r_rmse_m",
+                "lcfs_z_rmse_m",
+                "magnetic_axis_rmse_m",
+            ],
+            "acceptance_policy": (
+                "compact train, validation, and test metrics must be emitted before predictive admission is requested"
+            ),
+        },
+        "latency_metrics": {
+            "schema_version": "scpn-control.mast-efm-neural-equilibrium-latency-metrics.v1",
+            "required_fields": [
+                "hardware_label",
+                "accelerator_kind",
+                "precision",
+                "batch_size",
+                "p50_ms",
+                "p95_ms",
+                "p99_ms",
+                "sample_count",
+            ],
+            "acceptance_policy": "latency is evidence only after hardware, precision, batch size, and sample count are recorded",
+        },
+        "gpu_cost": {
+            "schema_version": "scpn-control.mast-efm-neural-equilibrium-gpu-cost.v1",
+            "required_fields": [
+                "compute_provider",
+                "gpu_model",
+                "gpu_count",
+                "wall_time_hours",
+                "gpu_hours",
+                "storage_gb",
+                "currency",
+                "estimated_cost",
+            ],
+            "acceptance_policy": "cost reports must distinguish planning estimates from measured billing evidence",
+        },
+        "admission_certificate": {
+            "schema_version": "scpn-control.mast-efm-neural-equilibrium-admission-certificate.v1",
+            "required_fields": [
+                "dataset_sha256",
+                "weights_sha256",
+                "training_report_sha256",
+                "holdout_metrics_sha256",
+                "latency_metrics_sha256",
+                "source_provenance_payload_sha256",
+                "strict_reference_report_sha256",
+                "admission_status",
+            ],
+            "admission_status_enum": ["blocked", "pass", "fail"],
+            "acceptance_policy": (
+                "certificate stays blocked until the strict neural-equilibrium reference gate admits the exact weights"
+            ),
+        },
+    }
+    templates["payload_sha256"] = _sha256_json({**templates, "payload_sha256": None})
+    return templates
 
 
 def write_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
@@ -472,6 +693,13 @@ def write_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> 
         "",
         report["claim_boundary"],
         "",
+        "## Pre-run admission",
+        "",
+        f"Status: `{report['pre_run_admission']['status']}`",
+        f"Dataset SHA-256 verified: `{report['pre_run_admission']['dataset_sha256_verified']}`",
+        f"Source provenance: `{report['pre_run_admission']['source_provenance']['status']}`",
+        f"Compute execution: `{report['pre_run_admission']['compute_execution']['status']}`",
+        "",
         "## Run command",
         "",
         "```bash",
@@ -494,16 +722,59 @@ def write_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> 
     markdown_out.write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_result_templates(templates: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
+    """Write JSON and Markdown result templates for the later compute campaign."""
+
+    json_out.parent.mkdir(parents=True, exist_ok=True)
+    json_out.write_text(json.dumps(templates, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    lines = [
+        "# MAST EFM Neural-Equilibrium Result Templates",
+        "",
+        f"Schema: `{templates['schema_version']}`",
+        f"Expected dataset SHA-256: `{templates['expected_dataset_sha256']}`",
+        "",
+        templates["claim_boundary"],
+        "",
+        "## Output policy",
+        "",
+        templates["expected_weight_path_policy"],
+        "",
+        "## Template schemas",
+        "",
+    ]
+    for key in ("holdout_metrics", "latency_metrics", "gpu_cost", "admission_certificate"):
+        template = templates[key]
+        lines.extend(
+            [
+                f"### `{key}`",
+                "",
+                f"- Schema: `{template['schema_version']}`",
+                f"- Acceptance policy: {template['acceptance_policy']}",
+                "",
+            ]
+        )
+    markdown_out.parent.mkdir(parents=True, exist_ok=True)
+    markdown_out.write_text("\n".join(lines), encoding="utf-8")
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-report", default=DEFAULT_DATASET_REPORT, type=Path)
     parser.add_argument("--campaign-plan", default=DEFAULT_CAMPAIGN_PLAN, type=Path)
+    parser.add_argument("--feature-provenance-report", default=DEFAULT_FEATURE_PROVENANCE_REPORT, type=Path)
+    parser.add_argument("--original-source-report", default=DEFAULT_ORIGINAL_SOURCE_REPORT, type=Path)
     parser.add_argument("--dataset-path", default=DEFAULT_DATASET_PATH, type=Path)
     parser.add_argument("--weights-out", default=DEFAULT_WEIGHTS_OUT, type=Path)
     parser.add_argument("--json-out", default=DEFAULT_JSON_OUT, type=Path)
     parser.add_argument("--report-out", default=DEFAULT_MD_OUT, type=Path)
+    parser.add_argument("--templates-json-out", default=DEFAULT_TEMPLATES_JSON_OUT, type=Path)
+    parser.add_argument("--templates-report-out", default=DEFAULT_TEMPLATES_MD_OUT, type=Path)
+    parser.add_argument(
+        "--compute-host-kind", default="unspecified", choices=("unspecified", *ADMITTED_COMPUTE_HOST_KINDS)
+    )
+    parser.add_argument("--compute-host-label", default="")
     parser.add_argument("--ridge-alpha", default=1.0e-6, type=float)
     parser.add_argument("--max-flux-components", default=32, type=int)
     parser.add_argument("--execute", action="store_true")
@@ -520,12 +791,17 @@ def main() -> None:
             campaign_plan=args.campaign_plan,
             dataset_path=args.dataset_path,
             weights_out=args.weights_out,
+            feature_provenance_report=args.feature_provenance_report,
+            original_source_report=args.original_source_report,
+            compute_host_kind=args.compute_host_kind,
+            compute_host_label=args.compute_host_label,
             execute=args.execute,
             ridge_alpha=args.ridge_alpha,
             max_flux_components=args.max_flux_components,
         )
     )
     write_report(report, args.json_out, args.report_out)
+    write_result_templates(build_result_templates(report), args.templates_json_out, args.templates_report_out)
 
 
 if __name__ == "__main__":

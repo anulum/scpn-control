@@ -87,6 +87,12 @@ def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path)
     assert plan["mast_efm_dataset"]["payload"]["exists_on_this_host"] is False
     assert plan["mast_efm_dataset"]["payload"]["verified_available"] is False
     assert "ML350 is storage-only" in plan["execution_host_policy"]
+    package = plan["compute_execution_package"]
+    assert package["status"] == "prepared_not_executed"
+    assert package["weights_out"] == "artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz"
+    assert package["admitted_compute_host_kinds"] == ["workstation", "external_cloud"]
+    assert package["forbidden_training_hosts"] == ["ML350"]
+    assert any("weights_out must not be under ML350 SAS storage" in item for item in package["pre_run_admission_gates"])
     assert plan["prepared_dataset_lanes"][0]["status"] == "prepared_on_sas"
     assert "dry-run trainer" in plan["prepared_dataset_lanes"][0]["next_action"]
     assert "workstation or external cloud" in plan["prepared_dataset_lanes"][0]["next_action"]
@@ -142,5 +148,7 @@ def test_write_report_records_gpu_budget_table(tmp_path: Path) -> None:
     assert "Neural-Equilibrium Training Campaign Plan" in markdown
     assert "mast_efm_single_seed_full_output" in markdown
     assert "qlknn_qualikiz_payload_processing" in markdown
+    assert "Compute execution package" in markdown
+    assert "--compute-host-kind workstation" in markdown
     assert "predictive EFIT/P-EFIT" in markdown
     assert "ML350 is storage-only" in markdown

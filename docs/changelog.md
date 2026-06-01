@@ -16,6 +16,7 @@
 - Added an original public MAST Level 1 EFM Zarr source audit that admits `plasma_current_x` for `Ip_MA` and `bphi_rmag` for `Bt_T`, while keeping dataset rebuild blocked until the `ffprime` profile-to-scalar policy for `ffprime_scale` is declared.
 - Declared and implemented the public `ffprime` RMS-to-campaign-median policy, regenerated the MAST EFM converted references and supervised dataset on ML350 SAS, and updated the dataset, provenance, original-source, and dry-run launch reports so the former fallback feature list is empty.
 - Clarified neural-equilibrium campaign execution policy: ML350 is storage-only, while any `--execute` training must run on this workstation or external cloud compute with SAS-mounted or copied data.
+- Added a fail-closed MAST EFM compute-execution package: `--execute` now requires explicit workstation or external-cloud admission, matching dataset SHA-256, passing feature/source provenance reports, non-SAS weight output, and repository-published result templates for holdout, latency, GPU-cost, and admission-certificate evidence.
 
 ## [0.19.3] - 2026-06-01
 

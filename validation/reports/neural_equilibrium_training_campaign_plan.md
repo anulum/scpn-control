@@ -23,6 +23,26 @@ ML350 is storage-only; execute training only on this workstation or external clo
 - Exists on this host: `False`
 - Verified available: `True`
 
+## Compute execution package
+
+- Status: `prepared_not_executed`
+- Weights output: `artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz`
+- Dataset SHA-256: `3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`
+- Admitted compute hosts: `["workstation", "external_cloud"]`
+- Forbidden training hosts: `["ML350"]`
+
+```bash
+python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-kind workstation --dataset-path /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz
+```
+
+### Pre-run admission gates
+
+- dataset SHA-256 must match the supervised dataset report
+- converted feature-provenance audit must have no blocked features
+- original public-source audit must be source_ready
+- compute host must be explicitly declared as workstation or external_cloud
+- weights_out must not be under ML350 SAS storage
+
 ## Prepared dataset lanes
 
 | Lane | Status | Next action |
@@ -47,7 +67,8 @@ ML350 is storage-only; execute training only on this workstation or external clo
 
 1. Re-run the MAST EFM dataset readiness check before any campaign.
 2. Run the MAST EFM trainer in dry-run mode and inspect the launch report.
-3. Use explicit --execute only on workstation or external cloud compute with reserved GPU capacity.
-4. Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.
-5. Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.
-6. Keep all predictive and facility claims blocked until strict admission reports pass.
+3. Inspect the compute execution package and result templates before reserving GPU time.
+4. Use explicit --execute only on workstation or external cloud compute with reserved GPU capacity.
+5. Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.
+6. Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.
+7. Keep all predictive and facility claims blocked until strict admission reports pass.

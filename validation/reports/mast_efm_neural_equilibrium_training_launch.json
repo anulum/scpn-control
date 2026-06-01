@@ -42,8 +42,45 @@
   "execution_host_policy": "ML350 is storage-only; execute training only on this workstation or external cloud compute with the SAS dataset mounted read-only or copied to admitted compute storage.",
   "execution_mode": "dry_run",
   "fallback_features": [],
+  "feature_provenance_report": "validation/reports/mast_efm_feature_provenance_audit.json",
   "holdout_metrics": null,
-  "payload_sha256": "b042e8d2ffc9f2278999a0bd579373ba25d11dde2f15cf0a1689708f375c9544",
+  "original_source_report": "validation/reports/mast_efm_original_feature_source_audit.json",
+  "payload_sha256": "873ec5ffcea8d2ae174f836cf744a0cfe940f7a7921d2aff1097ea4619b53b8e",
+  "pre_run_admission": {
+    "compute_execution": {
+      "admitted_compute_host_kinds": [
+        "workstation",
+        "external_cloud"
+      ],
+      "compute_host_kind": "unspecified",
+      "compute_host_label": "aaarthuus",
+      "errors": [
+        "compute host kind must be explicitly declared as workstation or external_cloud before --execute"
+      ],
+      "forbidden_output_roots": [
+        "/mnt/data_sas",
+        "/mnt/data_sas/DATASETS/SCPN-CONTROL"
+      ],
+      "status": "fail",
+      "storage_only_host_markers": [
+        "ml350"
+      ]
+    },
+    "dataset_sha256_verified": true,
+    "errors": [
+      "compute host kind must be explicitly declared as workstation or external_cloud before --execute"
+    ],
+    "required_for_execute": true,
+    "source_provenance": {
+      "errors": [],
+      "feature_provenance_payload_sha256": "57ce933109ef83b796352978b617fc853622e2a1adfbab549e576ab1d3062923",
+      "feature_provenance_report": "validation/reports/mast_efm_feature_provenance_audit.json",
+      "original_source_payload_sha256": "d6089c2cd88bba6341cf784908fde7ebccf24e411b3281e971e08f77ad7141d0",
+      "original_source_report": "validation/reports/mast_efm_original_feature_source_audit.json",
+      "status": "pass"
+    },
+    "status": "fail"
+  },
   "required_targets": [
     "psirz_Wb_per_rad",
     "psirz_valid_mask",
@@ -59,10 +96,10 @@
     "magnetic_axis_r_m",
     "magnetic_axis_z_m"
   ],
-  "run_command": "python validation/train_mast_efm_neural_equilibrium.py --execute --dataset-path /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out /mnt/data_sas/DATASETS/SCPN-CONTROL/models/neural_equilibrium/mast_efm_full_output_baseline_weights.npz",
+  "run_command": "python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-kind workstation --dataset-path /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz --feature-provenance-report validation/reports/mast_efm_feature_provenance_audit.json --original-source-report validation/reports/mast_efm_original_feature_source_audit.json",
   "schema_version": "scpn-control.mast-efm-neural-equilibrium-training.v1",
   "status": "prepared",
   "strict_artefact_emitted": false,
-  "weights_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/models/neural_equilibrium/mast_efm_full_output_baseline_weights.npz",
+  "weights_path": "artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz",
   "weights_sha256": null
 }

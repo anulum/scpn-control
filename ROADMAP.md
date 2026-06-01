@@ -12,6 +12,11 @@
   batch, round, remaining, final, push, miscellaneous, or new-module test files.
 - [x] Release documentation, changelog, API version note, and generated
   capability snapshot prepared for `0.19.2`.
+- [x] MAST EFM neural-equilibrium compute execution package prepared with
+  ML350 storage-only enforcement, explicit workstation/cloud host admission,
+  source-provenance gates, non-SAS weight-output policy, and result-schema
+  templates for later holdout, latency, GPU-cost, and admission-certificate
+  evidence.
 - [ ] Create the `v0.19.2` tag only after current `main` CI is green for the
   release-preparation commit.
 - [ ] Keep the full-fidelity public-claim block in force until traceability

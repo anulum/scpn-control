@@ -30,6 +30,7 @@ EXECUTION_HOST_POLICY = (
     "or copied data."
 )
 DEFAULT_SAS_ROOT = Path("/mnt/data_sas/DATASETS/SCPN-CONTROL")
+DEFAULT_COMPUTE_WEIGHTS_OUT = Path("artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz")
 DEFAULT_MAST_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
 DEFAULT_PUBLIC_DATA_ROOT = ROOT / "validation" / "reference_data" / "qlknn"
 DEFAULT_JSON_OUT = ROOT / "validation" / "reports" / "neural_equilibrium_training_campaign_plan.json"
@@ -99,6 +100,16 @@ def _sas_payload_status(
 
 def _public_data_summary(root: Path) -> dict[str, Any]:
     report = validate_public_data_acquisition_directory(root)
+    manifests = []
+    for manifest in report.get("manifests", []):
+        item = dict(manifest)
+        manifest_path = item.get("path")
+        if isinstance(manifest_path, str):
+            try:
+                item["path"] = str(Path(manifest_path).resolve(strict=False).relative_to(ROOT))
+            except ValueError:
+                item["path"] = manifest_path
+        manifests.append(item)
     return {
         "status": report["status"],
         "records": int(report.get("records", 0)),
@@ -106,7 +117,7 @@ def _public_data_summary(root: Path) -> dict[str, Any]:
         "local_files": int(report.get("local_files", 0)),
         "deferred_files": int(report.get("deferred_files", 0)),
         "deferred_bytes": int(report.get("deferred_bytes", 0)),
-        "manifests": report.get("manifests", []),
+        "manifests": manifests,
     }
 
 
@@ -237,6 +248,35 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             ],
             "blocked_before_admission": admission_blockers,
         },
+        "compute_execution_package": {
+            "status": "prepared_not_executed",
+            "dataset_sha256": mast_report["dataset_sha256"],
+            "dataset_path": str(inputs.sas_root / mast_report["dataset_path"]),
+            "weights_out": str(DEFAULT_COMPUTE_WEIGHTS_OUT),
+            "admitted_compute_host_kinds": ["workstation", "external_cloud"],
+            "forbidden_training_hosts": ["ML350"],
+            "source_provenance_reports": [
+                "validation/reports/mast_efm_feature_provenance_audit.json",
+                "validation/reports/mast_efm_original_feature_source_audit.json",
+            ],
+            "result_template_reports": [
+                "validation/reports/mast_efm_neural_equilibrium_result_templates.json",
+                "validation/reports/mast_efm_neural_equilibrium_result_templates.md",
+            ],
+            "exact_command": (
+                "python validation/train_mast_efm_neural_equilibrium.py --execute "
+                "--compute-host-kind workstation "
+                f"--dataset-path {inputs.sas_root / mast_report['dataset_path']} "
+                f"--weights-out {DEFAULT_COMPUTE_WEIGHTS_OUT}"
+            ),
+            "pre_run_admission_gates": [
+                "dataset SHA-256 must match the supervised dataset report",
+                "converted feature-provenance audit must have no blocked features",
+                "original public-source audit must be source_ready",
+                "compute host must be explicitly declared as workstation or external_cloud",
+                "weights_out must not be under ML350 SAS storage",
+            ],
+        },
         "prepared_dataset_lanes": [
             {
                 "id": "mast_efm_neural_equilibrium",
@@ -267,6 +307,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
         "run_order": [
             "Re-run the MAST EFM dataset readiness check before any campaign.",
             "Run the MAST EFM trainer in dry-run mode and inspect the launch report.",
+            "Inspect the compute execution package and result templates before reserving GPU time.",
             "Use explicit --execute only on workstation or external cloud compute with reserved GPU capacity.",
             "Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.",
             "Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.",
@@ -315,11 +356,31 @@ def write_report(plan: dict[str, Any], json_out: Path, markdown_out: Path) -> No
         f"- Exists on this host: `{plan['mast_efm_dataset']['payload']['exists_on_this_host']}`",
         f"- Verified available: `{plan['mast_efm_dataset']['payload']['verified_available']}`",
         "",
-        "## Prepared dataset lanes",
+        "## Compute execution package",
         "",
-        "| Lane | Status | Next action |",
-        "|---|---|---|",
+        f"- Status: `{plan['compute_execution_package']['status']}`",
+        f"- Weights output: `{plan['compute_execution_package']['weights_out']}`",
+        f"- Dataset SHA-256: `{plan['compute_execution_package']['dataset_sha256']}`",
+        f"- Admitted compute hosts: `{json.dumps(plan['compute_execution_package']['admitted_compute_host_kinds'])}`",
+        f"- Forbidden training hosts: `{json.dumps(plan['compute_execution_package']['forbidden_training_hosts'])}`",
+        "",
+        "```bash",
+        plan["compute_execution_package"]["exact_command"],
+        "```",
+        "",
+        "### Pre-run admission gates",
+        "",
     ]
+    lines.extend(f"- {item}" for item in plan["compute_execution_package"]["pre_run_admission_gates"])
+    lines.extend(
+        [
+            "",
+            "## Prepared dataset lanes",
+            "",
+            "| Lane | Status | Next action |",
+            "|---|---|---|",
+        ]
+    )
     for lane in plan["prepared_dataset_lanes"]:
         lines.append(f"| `{lane['id']}` | `{lane['status']}` | {lane['next_action']} |")
     lines.extend(

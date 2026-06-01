@@ -1,0 +1,72 @@
+{
+  "admission_certificate": {
+    "acceptance_policy": "certificate stays blocked until the strict neural-equilibrium reference gate admits the exact weights",
+    "admission_status_enum": [
+      "blocked",
+      "pass",
+      "fail"
+    ],
+    "required_fields": [
+      "dataset_sha256",
+      "weights_sha256",
+      "training_report_sha256",
+      "holdout_metrics_sha256",
+      "latency_metrics_sha256",
+      "source_provenance_payload_sha256",
+      "strict_reference_report_sha256",
+      "admission_status"
+    ],
+    "schema_version": "scpn-control.mast-efm-neural-equilibrium-admission-certificate.v1"
+  },
+  "claim_boundary": "These are result schemas for a later admitted compute run. They are not executed training evidence.",
+  "expected_dataset_sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
+  "expected_weight_path_policy": "weights are written to workstation or external cloud compute storage, not ML350 SAS",
+  "gpu_cost": {
+    "acceptance_policy": "cost reports must distinguish planning estimates from measured billing evidence",
+    "required_fields": [
+      "compute_provider",
+      "gpu_model",
+      "gpu_count",
+      "wall_time_hours",
+      "gpu_hours",
+      "storage_gb",
+      "currency",
+      "estimated_cost"
+    ],
+    "schema_version": "scpn-control.mast-efm-neural-equilibrium-gpu-cost.v1"
+  },
+  "holdout_metrics": {
+    "acceptance_policy": "compact train, validation, and test metrics must be emitted before predictive admission is requested",
+    "required_metrics": [
+      "psi_rmse_Wb_per_rad",
+      "pprime_rmse_Pa_per_Wb_rad",
+      "q_profile_rmse",
+      "lcfs_r_rmse_m",
+      "lcfs_z_rmse_m",
+      "magnetic_axis_rmse_m"
+    ],
+    "required_splits": [
+      "train",
+      "validation",
+      "test"
+    ],
+    "schema_version": "scpn-control.mast-efm-neural-equilibrium-holdout-metrics.v1"
+  },
+  "latency_metrics": {
+    "acceptance_policy": "latency is evidence only after hardware, precision, batch size, and sample count are recorded",
+    "required_fields": [
+      "hardware_label",
+      "accelerator_kind",
+      "precision",
+      "batch_size",
+      "p50_ms",
+      "p95_ms",
+      "p99_ms",
+      "sample_count"
+    ],
+    "schema_version": "scpn-control.mast-efm-neural-equilibrium-latency-metrics.v1"
+  },
+  "payload_sha256": "d8bf61dc250b5fb8efad0760e3b5021ed70b44c52a9d57e5914c0632d189c823",
+  "schema_version": "scpn-control.mast-efm-neural-equilibrium-result-templates.v1",
+  "training_report_payload_sha256": "873ec5ffcea8d2ae174f836cf744a0cfe940f7a7921d2aff1097ea4619b53b8e"
+}

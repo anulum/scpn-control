@@ -597,12 +597,28 @@ dry-run storage-readiness check and confirms that the SAS dataset is visible on
 ML350 with 527 validated equilibria and the source-derived dataset SHA-256.
 ML350 is storage-only: the exact `--execute` command must be run only on this
 workstation or external cloud compute with the SAS dataset mounted read-only or
-copied to admitted compute storage. Execution mode trains deterministic
-ridge/PCA baseline heads for flux, pressure-gradient profile, q-profile, LCFS
-geometry, and magnetic-axis outputs, then writes weights and compact train,
-validation, and test metrics. Predictive admission still requires an executed
-training artefact, holdout metrics, exact weight checksum validation, and the
-strict reference admission gate.
+copied to admitted compute storage. The trainer now performs a strict pre-run
+admission check before `--execute`: the dataset SHA-256 must match the published
+supervised-dataset report, the converted feature-provenance audit must have no
+blocked features, the original public-source audit must be `source_ready`, the
+compute host must be declared as `workstation` or `external_cloud`, and
+`weights_out` must not be under ML350 SAS storage. Execution mode trains
+deterministic ridge/PCA baseline heads for flux, pressure-gradient profile,
+q-profile, LCFS geometry, and magnetic-axis outputs, then writes weights and
+compact train, validation, and test metrics. Predictive admission still
+requires an executed training artefact, holdout metrics, exact weight checksum
+validation, and the strict reference admission gate.
+
+The same dry-run command also publishes result-schema templates:
+
+```text
+validation/reports/mast_efm_neural_equilibrium_result_templates.json
+validation/reports/mast_efm_neural_equilibrium_result_templates.md
+```
+
+These templates define the required holdout-metric, latency, GPU-cost, and
+admission-certificate fields for the later workstation or cloud compute run.
+They are not executed training evidence.
 
 Feature provenance for the current converted public MAST EFM bundles can be
 audited with:

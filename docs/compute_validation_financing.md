@@ -121,7 +121,12 @@ RMS magnitude normalised by the campaign median. The remaining no-compute
 blocker has moved from feature provenance to execution evidence: long training
 must be launched with explicit `--execute` on workstation or cloud compute, then
 compact holdout metrics and strict reference-admission artefacts must be
-published.
+published. The compute execution package is now prepared in the campaign report:
+it fixes the expected dataset SHA-256, keeps default weights under
+`artifacts/neural_equilibrium/`, declares ML350 as a forbidden training host,
+requires `workstation` or `external_cloud` host admission, and points to
+repository-published templates for holdout metrics, latency metrics, GPU-cost
+accounting, and the final admission certificate.
 
 ## What support pays for
 
