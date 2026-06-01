@@ -510,6 +510,16 @@ because the model path does not yet produce pressure or q-profile predictions
 and some required diagnostic inputs are represented by documented fallback
 features.
 
+The repository-published campaign summary is checked in as
+`validation/reports/mast_efm_neural_equilibrium_campaign.json` and
+`validation/reports/mast_efm_neural_equilibrium_campaign.md`. The compact
+report aggregates all six shot evaluations, records SAS-relative paths and
+SHA-256 digests for the internal `.npz` payloads, and keeps the admission state
+blocked until the full-output predictive contract is satisfied. The current
+aggregate flux RMSE mean is 1.5551750363663988 Wb/rad, the magnetic-axis RMSE
+mean is 0.7715625800838742 m, and the LCFS mean-distance mean is
+0.5392084105619522 m across 527 evaluated equilibria.
+
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 
 ```bash
