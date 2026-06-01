@@ -214,8 +214,13 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_species.py"
       ],
-      "validity_domain": "Bounded test-particle species and collision-coefficient regression coverage with finite species parameters, integer velocity quadrature sizes of at least two points, and strictly ordered finite lambda grids bounded by the local trapped-passing boundary; no field-particle, momentum-conserving multispecies, or external Fokker-Planck collision-operator benchmark evidence.",
-      "external_validation_tracker_issue": 47
+      "validity_domain": "Bounded test-particle species and collision-coefficient reference admission with immutable reference-file SHA-256, per-case digests, explicit SI units, duplicate-case rejection, finite species parameters, integer velocity quadrature sizes of at least two points, and strictly ordered finite lambda grids bounded by the local trapped-passing boundary; full collision-operator claims remain blocked until field-particle momentum-conservation and external Fokker-Planck or equivalent multispecies evidence are supplied.",
+      "external_validation_tracker_issue": 47,
+      "evidence": [
+        "validation/validate_gk_species_reference.py schema-versioned digest-bound species and collision reference validator",
+        "validation/reports/gk_species_reference.json bounded operator reference evidence with canonical payload digest",
+        "tests/test_gk_species_reference_validation.py digest, duplicate-case, direct-run bootstrap, and tamper checks"
+      ]
     },
     {
       "component": "JAX gyrokinetic numerical parity guard",

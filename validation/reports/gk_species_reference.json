@@ -1,0 +1,98 @@
+{
+  "blocked_reasons": [
+    "field_particle_momentum_conservation_evidence",
+    "external_fokker_planck_reference"
+  ],
+  "bounded_operator_reference_admitted": true,
+  "cases": 4,
+  "claim_status": "bounded GK species and test-particle collision reference admitted; full collision-operator claim remains blocked",
+  "entries": [
+    {
+      "actual": {
+        "larmor_radius_per_tesla_m": 0.009138789816973865,
+        "mass_kg": 3.34524384738e-27,
+        "nu_D_s^-1": 227.88593079004036,
+        "nu_E_s^-1": 0.1240429917424071,
+        "thermal_speed_m_per_s": 437694.71452014666
+      },
+      "case": "deuterium_cbc_main_ion",
+      "case_sha256": "67442eae9d2366a0cfd7252b0db5e2451cfd36ffe6a11ed216b2b50eb49a7542",
+      "max_relative_error": 0.0,
+      "units": {
+        "larmor_radius_per_tesla_m": "m/T",
+        "mass_kg": "kg",
+        "nu_D_s^-1": "s^-1",
+        "nu_E_s^-1": "s^-1",
+        "thermal_speed_m_per_s": "m/s"
+      }
+    },
+    {
+      "actual": {
+        "larmor_radius_per_tesla_m": 0.0001508062346664185,
+        "mass_kg": 9.1093837015e-31,
+        "nu_D_s^-1": 13809.784644131727,
+        "nu_E_s^-1": 6904.8923220658635,
+        "thermal_speed_m_per_s": 26524102.328049958
+      },
+      "case": "kinetic_electron_cbc",
+      "case_sha256": "6e699b1fb5a808b7007ed7d346be6d103207242529a5804afa4116cf8c95dfc2",
+      "max_relative_error": 0.0,
+      "units": {
+        "larmor_radius_per_tesla_m": "m/T",
+        "mass_kg": "kg",
+        "nu_D_s^-1": "s^-1",
+        "nu_E_s^-1": "s^-1",
+        "thermal_speed_m_per_s": "m/s"
+      }
+    },
+    {
+      "actual": {
+        "larmor_radius_per_tesla_m": 0.0013190706902243181,
+        "mass_kg": 2.0071463084280003e-26,
+        "nu_D_s^-1": 9629066.796314036,
+        "nu_E_s^-1": 977.101649380879,
+        "thermal_speed_m_per_s": 63175.79031277077
+      },
+      "case": "carbon_impurity_edge",
+      "case_sha256": "f0fd89c8b1a5ee36dd2fc460e85bb6a30132ff7b1fc3861ed1151a4b87c95e6f",
+      "max_relative_error": 0.0,
+      "units": {
+        "larmor_radius_per_tesla_m": "m/T",
+        "mass_kg": "kg",
+        "nu_D_s^-1": "s^-1",
+        "nu_E_s^-1": "s^-1",
+        "thermal_speed_m_per_s": "m/s"
+      }
+    },
+    {
+      "actual": {
+        "larmor_radius_per_tesla_m": 0.05779878175838146,
+        "mass_kg": 3.34524384738e-27,
+        "nu_D_s^-1": 0.19075727329518236,
+        "nu_E_s^-1": 0.00010383310103491715,
+        "thermal_speed_m_per_s": 2768224.4354016725
+      },
+      "case": "hot_deuterium_extreme_temperature",
+      "case_sha256": "c6fdb3030cb54a883d2024c4a17b8e8f007197c0121efae9d4650263c949d76b",
+      "max_relative_error": 0.0,
+      "units": {
+        "larmor_radius_per_tesla_m": "m/T",
+        "mass_kg": "kg",
+        "nu_D_s^-1": "s^-1",
+        "nu_E_s^-1": "s^-1",
+        "thermal_speed_m_per_s": "m/s"
+      }
+    }
+  ],
+  "errors": [],
+  "full_fidelity_claim_admitted": false,
+  "payload_sha256": "e175aaf5c475dd2b6ff144b67b8d83bac9fe9b0ff6c2b8cb4c366525e4c79173",
+  "reference_path": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reference_data/gk_species/species_collision_reference_cases.json",
+  "reference_sha256": "3441484ea9a006daac9299587d421b4a86657a6e988d862785b07d0ef0be8a7f",
+  "schema_version": "scpn-control.gk-species-reference.v2",
+  "status": "pass",
+  "tolerances": {
+    "absolute": 1e-12,
+    "relative": 1e-10
+  }
+}

@@ -5,6 +5,13 @@
 ## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Hardened GK species reference admission so
+  `validation/validate_gk_species_reference.py` now emits schema-versioned,
+  digest-bound evidence with immutable reference-file SHA-256, per-case
+  digests, explicit SI units, bounded-operator admission status, duplicate-case
+  rejection, direct source-checkout execution support, and an explicit block on
+  full collision-operator claims pending field-particle and external
+  Fokker-Planck evidence.
 - Hardened nonlinear Cyclone Base Case evidence so
   `validation/gk_nonlinear_cyclone.py` writes schema-versioned JSON/Markdown
   reports with canonical payload SHA-256, separates diagnostic checks from

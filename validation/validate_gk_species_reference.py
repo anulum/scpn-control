@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -19,9 +20,32 @@ from typing import Any
 
 import numpy as np
 
+
+def ensure_repo_src_on_path() -> None:
+    """Allow direct script execution from a source checkout without installation."""
+
+    repo_src = str(Path(__file__).resolve().parents[1] / "src")
+    if repo_src not in sys.path:
+        sys.path.insert(0, repo_src)
+
+
+ensure_repo_src_on_path()
+
 from scpn_control.core.gk_species import GKSpecies, collision_frequencies
 
 ROOT = Path(__file__).resolve().parents[1]
+REPORT_SCHEMA_VERSION = "scpn-control.gk-species-reference.v2"
+EXPECTED_UNITS = {
+    "mass_kg": "kg",
+    "thermal_speed_m_per_s": "m/s",
+    "larmor_radius_per_tesla_m": "m/T",
+    "nu_D_s^-1": "s^-1",
+    "nu_E_s^-1": "s^-1",
+}
+FULL_FIDELITY_BLOCKERS = (
+    "field_particle_momentum_conservation_evidence",
+    "external_fokker_planck_reference",
+)
 
 _REQUIRED_CASES = {
     "deuterium_cbc_main_ion",
@@ -45,6 +69,61 @@ _ABS_TOLERANCE = 1.0e-12
 _REL_TOLERANCE = 1.0e-10
 
 
+def _canonical_json(value: Any) -> str:
+    """Serialise evidence deterministically for SHA-256 binding."""
+
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def _sha256_payload(value: Any) -> str:
+    """Return the canonical SHA-256 digest for a JSON-compatible payload."""
+
+    return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def _payload_without_digest(report: dict[str, Any]) -> dict[str, Any]:
+    """Return a report copy with the self-referential digest field removed."""
+
+    payload = dict(report)
+    payload.pop("payload_sha256", None)
+    return payload
+
+
+def verify_payload_digest(report: dict[str, Any]) -> bool:
+    """Return true when a persisted GK species report matches its digest."""
+
+    digest = report.get("payload_sha256")
+    if not isinstance(digest, str) or len(digest) != 64:
+        return False
+    return digest == _sha256_payload(_payload_without_digest(report))
+
+
+def _finalise_report(report: dict[str, Any], reference_path: Path) -> dict[str, Any]:
+    """Attach schema, claim boundary, and payload digest to a report."""
+
+    try:
+        reference_sha256 = hashlib.sha256(reference_path.read_bytes()).hexdigest()
+    except OSError:
+        reference_sha256 = None
+    status = report.get("status")
+    report.update(
+        {
+            "schema_version": REPORT_SCHEMA_VERSION,
+            "reference_sha256": reference_sha256,
+            "bounded_operator_reference_admitted": status == "pass",
+            "full_fidelity_claim_admitted": False,
+            "blocked_reasons": list(FULL_FIDELITY_BLOCKERS),
+            "claim_status": (
+                "bounded GK species and test-particle collision reference admitted; "
+                "full collision-operator claim remains blocked"
+            ),
+            "tolerances": {"absolute": _ABS_TOLERANCE, "relative": _REL_TOLERANCE},
+        }
+    )
+    report["payload_sha256"] = _sha256_payload(report)
+    return report
+
+
 def validate_gk_species_reference(reference_path: str | Path) -> dict[str, Any]:
     """Validate repository species and collision outputs against reference cases."""
     path = Path(reference_path)
@@ -55,31 +134,36 @@ def validate_gk_species_reference(reference_path: str | Path) -> dict[str, Any]:
         with path.open(encoding="utf-8") as handle:
             payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        return {**report, "status": "fail", "errors": [{"path": str(path), "field": "json", "error": str(exc)}]}
+        report.update({"status": "fail", "errors": [{"path": str(path), "field": "json", "error": str(exc)}]})
+        return _finalise_report(report, path)
 
     if not isinstance(payload, dict):
         errors.append({"path": str(path), "field": "root", "error": "reference root must be an object"})
         report["status"] = "fail"
-        return report
+        return _finalise_report(report, path)
     _validate_header(path, payload, errors)
     cases = payload.get("cases")
     if not isinstance(cases, list) or not cases:
         errors.append({"path": str(path), "field": "cases", "error": "cases must be a non-empty array"})
         report["status"] = "fail"
-        return report
+        return _finalise_report(report, path)
 
     seen_cases: set[str] = set()
     for index, case_payload in enumerate(cases):
         entry = _validate_case(path, index, case_payload, errors)
         if entry is not None:
-            seen_cases.add(str(entry["case"]))
-            entries.append(entry)
+            case_name = str(entry["case"])
+            if case_name in seen_cases:
+                errors.append({"path": str(path), "index": index, "field": "case", "error": f"duplicate case: {case_name}"})
+            else:
+                seen_cases.add(case_name)
+                entries.append(entry)
     for case_name in sorted(_REQUIRED_CASES - seen_cases):
         errors.append({"path": str(path), "field": "case", "error": f"missing required reference case: {case_name}"})
     report["cases"] = len(entries)
     if errors:
         report["status"] = "fail"
-    return report
+    return _finalise_report(report, path)
 
 
 def _validate_header(path: Path, payload: dict[str, Any], errors: list[dict[str, object]]) -> None:
@@ -167,7 +251,13 @@ def _validate_case(
             )
     if any(error.get("index") == index for error in errors):
         return None
-    return {"case": case_name, "max_relative_error": max_relative_error}
+    return {
+        "case": case_name,
+        "case_sha256": _sha256_payload(case_payload),
+        "max_relative_error": max_relative_error,
+        "units": EXPECTED_UNITS,
+        "actual": actual,
+    }
 
 
 def _object_fields_are_numeric(
