@@ -821,7 +821,8 @@ declared tolerances.
 - `rmse-gate` (SPARC and DIII-D GEQDSK regression bounds)
 - `e2e-diiid` (end-to-end DIII-D replay plumbing with synthetic fixtures, not public physics evidence)
 - `real-diiid` (DIII-D reference disruption-shot archive)
-- `jax-parity` (JAX transport, neural equilibrium, GS solver parity tests)
+- `jax-parity` (JAX transport, neural equilibrium, GS solver parity tests, and
+  strict persisted CPU/GPU JAX GK parity evidence admission)
 - `nengo-loihi` (LIF+NEF SNN wrapper emulator tests)
 - `rust-tests` (`cargo test --workspace` + clippy + fmt)
 - `rust-python-interop` (maturin build + PyO3 parity)

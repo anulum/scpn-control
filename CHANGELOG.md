@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Wired strict persisted JAX gyrokinetic CPU/GPU parity evidence admission into
+  the `jax-parity` CI job and added a module-specific repository-evidence
+  regression so missing CBC, kinetic-electron TEM, or stable-mode backend
+  pairs cannot silently drift out of release evidence.
 - Persisted the current JAX gyrokinetic CPU parity campaign alongside the
   existing GPU campaign, regenerated the strict parity summary, and updated the
   traceability and validation docs so backend parity is admitted for CPU/GPU

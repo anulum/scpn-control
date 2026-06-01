@@ -136,6 +136,29 @@ def test_jax_parity_gate_accepts_backend_metadata_and_tolerances(tmp_path: Path)
     assert report["entries"][0]["native_dominant_mode_type"] == "ITG"
 
 
+def test_repository_jax_parity_evidence_covers_release_cpu_gpu_campaign() -> None:
+    artifact_root = Path(__file__).resolve().parents[1] / "validation" / "reports" / "jax_gk_parity"
+
+    report = validate_jax_gk_parity(
+        artifact_root,
+        require_parity_artifacts=True,
+        require_cases=("cyclone_base_case", "tem_kinetic_electron", "stable_mode"),
+        require_backends=("cpu", "gpu"),
+    )
+
+    observed_pairs = {(entry["case"], entry["backend"]) for entry in report["entries"]}
+    assert report["status"] == "pass"
+    assert observed_pairs == {
+        ("cyclone_base_case", "cpu"),
+        ("cyclone_base_case", "gpu"),
+        ("tem_kinetic_electron", "cpu"),
+        ("tem_kinetic_electron", "gpu"),
+        ("stable_mode", "cpu"),
+        ("stable_mode", "gpu"),
+    }
+    assert all(entry["evidence_boundary"] == "backend_parity_only" for entry in report["entries"])
+
+
 def test_jax_parity_gate_rejects_missing_required_case_backend_pair(tmp_path: Path) -> None:
     artifact = tmp_path / "cbc_cpu.json"
     artifact.write_text(json.dumps(_valid_parity_report()), encoding="utf-8")

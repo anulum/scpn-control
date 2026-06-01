@@ -484,6 +484,13 @@ jobs:
           pytest -p hypothesis.extra.pytestplugin tests/test_jax_traceable_runtime.py -v --tb=short
           pytest tests/test_jax_solvers.py -v --tb=short
           pytest tests/test_jax_neural_equilibrium.py -v --tb=short
+      - name: Persisted GK parity evidence gate
+        run: |
+          python validation/validate_jax_gk_parity.py \
+            --artifact-root validation/reports/jax_gk_parity \
+            --require-parity-artifacts \
+            --require-cases cyclone_base_case,tem_kinetic_electron,stable_mode \
+            --require-backends cpu,gpu
 
   # ─── Job 17: Nengo Loihi emulator ───
   nengo-loihi:
