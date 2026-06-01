@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added the top-level `scpn-control validate --json-out` path to local
+  preflight as a non-test release-evidence gate, with source-tree import
+  precedence, so `make preflight` and `make preflight-fast` now catch data
+  provenance, JAX GK parity, and physics traceability drift before push.
 - Promoted physics traceability validation into the top-level
   `scpn-control validate` command with staged-registry and scoped-skip controls
   so local release validation now fails on bounded-claim registry drift in the

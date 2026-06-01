@@ -62,6 +62,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
     ("generated-traceability", [_PY, "tools/check_generated_traceability.py"], None),
+    ("release-evidence", [_PY, "-m", "scpn_control.cli", "validate", "--json-out"], None),
     ("module-linkage", [_PY, "tools/check_test_module_linkage.py"], None),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
@@ -92,11 +93,22 @@ RUST_GATES = {"cargo fmt", "cargo clippy", "cargo test"}
 TEST_GATES = {"pytest", "cargo test"}
 
 
+def _subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    source_paths = [str(ROOT / "src"), str(ROOT)]
+    existing = env.get("PYTHONPATH")
+    if existing:
+        source_paths.append(existing)
+    env["PYTHONPATH"] = os.pathsep.join(source_paths)
+    return env
+
+
 def run_gate(name: str, cmd: list[str], cwd: Path | None) -> bool:
     t0 = time.monotonic()
     result = subprocess.run(  # noqa: S603
         cmd,
         cwd=cwd or ROOT,
+        env=_subprocess_env(),
         capture_output=True,
         encoding="utf-8",
         errors="replace",
@@ -197,6 +209,7 @@ def run_hash_pin_check() -> bool:
         result = subprocess.run(  # noqa: S603
             [_PY, "-m", "pip", "install", "--require-hashes", "--dry-run", "-r", str(req_path)],
             cwd=ROOT,
+            env=_subprocess_env(),
             capture_output=True,
             encoding="utf-8",
             errors="replace",

@@ -147,7 +147,10 @@ The top-level `validate` command now includes repository data-manifest
 validation, strict persisted JAX GK parity evidence admission, and physics
 traceability validation by default, so routine validation cannot pass while
 ignoring data provenance, backend parity evidence drift, or bounded-claim
-registry drift. Use `--data-manifest-root` for staged facility drops,
+registry drift. The local `tools/preflight.py` path now runs this top-level
+release-evidence gate as a non-test gate, including in `make preflight-fast`,
+so release preflight cannot skip provenance, parity, or claim-boundary drift
+when tests are intentionally omitted. Use `--data-manifest-root` for staged facility drops,
 `--jax-gk-parity-root` for staged parity campaigns,
 `--physics-traceability-registry` for staged claim-boundary registries,
 `--no-verify-artifacts` for metadata-only manifest checks, and
