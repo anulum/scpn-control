@@ -1,0 +1,43 @@
+{
+  "doi": "10.5281/zenodo.3497066",
+  "files": [
+    {
+      "checksum": "md5:ad5b69e2e670f33c48b5e8242e4c0196",
+      "download_url": "https://zenodo.org/api/records/3497066/files/Zeffcombo_prepared.nc.1/content",
+      "key": "Zeffcombo_prepared.nc.1",
+      "size_bytes": 12584525386
+    },
+    {
+      "checksum": "md5:398bbe89a43e9563c7d30ee5ad2fee53",
+      "download_url": "https://zenodo.org/api/records/3497066/files/Zeffcombo_prepared_grow.nc.1/content",
+      "key": "Zeffcombo_prepared_grow.nc.1",
+      "size_bytes": 6228427127
+    },
+    {
+      "checksum": "md5:a4125ffb96672badf2526d51137df512",
+      "download_url": "https://zenodo.org/api/records/3497066/files/gen5_9D_nions0_flat_filter10.h5.1/content",
+      "key": "gen5_9D_nions0_flat_filter10.h5.1",
+      "size_bytes": 13267145486
+    },
+    {
+      "checksum": "md5:cf46f6c855996de219e35dfdaa471fce",
+      "download_url": "https://zenodo.org/api/records/3497066/files/derived_sets.md5/content",
+      "key": "derived_sets.md5",
+      "size_bytes": 240
+    },
+    {
+      "checksum": "md5:2e0cd6344e3269a6aca196f9913d6fff",
+      "download_url": "https://zenodo.org/api/records/3497066/files/README.md/content",
+      "key": "README.md",
+      "size_bytes": 4609
+    }
+  ],
+  "large_numeric_files_downloaded": false,
+  "large_numeric_files_policy": "deferred: files are multi-GB and should be pulled on storage/GPU target before training or validation campaign",
+  "license": "cc-by-4.0",
+  "record": "3497066",
+  "record_sha256": "77d168ed8a7fb84f7d60308a051943b9a00ebbd486812c28e9063e8e41b8b9ae",
+  "schema_version": "scpn-control.public-data-acquisition.v1",
+  "source": "zenodo",
+  "title": "QLKNN10D training set"
+}

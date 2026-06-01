@@ -14,16 +14,39 @@ with millisecond-scale inference.
 - **Data Science Stack**: `numpy`, `pandas`, `scikit-learn`.
 - **Hardware**: CPU is sufficient for this compact architecture (< 100k parameters).
 
-## 2. Download Dataset
+## 2. Acquire Dataset Metadata
 
-The default surrogate is trained on the **QLKNN-10D** dataset, which provides
-turbulent fluxes for a wide range of tokamak plasma parameters.
+The default surrogate training lane targets QLKNN-class QuaLiKiz data.
+Normalised public Zenodo file manifests are mirrored in
+`validation/reference_data/qlknn/` without vendoring raw third-party record
+descriptions or multi-GB tensors:
 
-- **Source**: Zenodo ([doi:10.5281/zenodo.3700755](https://doi.org/10.5281/zenodo.3700755))
-- **File Format**: CSV or HDF5.
-- **Columns**: 10 input features and 3--7 output fluxes.
+- `zenodo_3497066`: QLKNN10D training set,
+  [doi:10.5281/zenodo.3497066](https://doi.org/10.5281/zenodo.3497066).
+- `zenodo_7418108`: QuaLiKiz v2.6.2 JET linear-instability spectra,
+  [doi:10.5281/zenodo.7418108](https://doi.org/10.5281/zenodo.7418108).
+- `zenodo_8017522`: QLKNN11D training set,
+  [doi:10.5281/zenodo.8017522](https://doi.org/10.5281/zenodo.8017522).
+
+Each directory contains a Zenodo `record.json` and `files_manifest.json`.
+Each directory contains a `files_manifest.json` with source DOI, record digest,
+file sizes, Zenodo API download URLs, and MD5 checksums. Multi-GB NetCDF and
+HDF5 tensors remain deferred and must be pulled onto an admitted storage or GPU
+target before training or validation:
+
+```bash
+python validation/validate_public_data_acquisition.py --json-out
+```
+
+The acquisition manifests are not validation evidence by themselves. Quantitative
+neural-transport claims still require strict
+`scpn-control.neural-transport-reference.v1` artifacts for the trained weights,
+reference tensors, predictions, units, feature ordering, and error metrics.
+
+- **File Format**: NetCDF or HDF5.
+- **Columns**: QLKNN10D uses 10 input features and transport-flux targets.
 - **Units**: Normalised gradients (R/L), temperatures (keV), and fluxes
-  (Gyro-Bohm units or m²/s).
+  (gyro-Bohm units or m²/s), as declared by the processed reference artifacts.
 
 ## 3. Data Preparation
 

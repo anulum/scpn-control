@@ -40,6 +40,32 @@ H-mode confinement database, covering 18 tokamaks worldwide.
 
 **Source:** Verdoolaege et al., Nuclear Fusion 61 (2021) 076006
 
+### QLKNN and QuaLiKiz Public Acquisition Metadata
+
+Public Zenodo metadata and small auxiliary files are mirrored under
+`qlknn/` for neural-transport acquisition planning:
+
+| Directory | Dataset | DOI | Local status |
+|-----------|---------|-----|--------------|
+| `qlknn/zenodo_3497066/` | QLKNN10D training set | `10.5281/zenodo.3497066` | Normalised file manifest acquired |
+| `qlknn/zenodo_7418108/` | QuaLiKiz v2.6.2 JET linear-instability spectra | `10.5281/zenodo.7418108` | Normalised file manifest acquired |
+| `qlknn/zenodo_8017522/` | QLKNN11D training set | `10.5281/zenodo.8017522` | Normalised file manifest acquired |
+
+The multi-GB NetCDF/HDF5 tensor payloads are intentionally not stored in the
+repository. Raw Zenodo record payloads are also not vendored because their HTML
+descriptions are third-party publication text. Each `files_manifest.json`
+records the Zenodo API download URL, size, MD5 checksum, source DOI, record
+digest, and a deferred-download policy. Validate the acquisition metadata with:
+
+```bash
+python validation/validate_public_data_acquisition.py --json-out
+```
+
+These manifests are acquisition readiness evidence only. They do not constitute
+trained neural-transport weights, quantitative QuaLiKiz agreement, or measured
+facility validation until the large numeric files are downloaded on an admitted
+storage target and processed into strict reference-artifact evidence.
+
 ### ITER Configurations (existing)
 
 Four ITER-scale validation configurations with different coil current optimisations:

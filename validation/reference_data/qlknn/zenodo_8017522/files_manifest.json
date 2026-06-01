@@ -1,0 +1,289 @@
+{
+  "doi": "10.5281/zenodo.8017522",
+  "files": [
+    {
+      "checksum": "md5:4e526923227086b8efad159e0c7b2618",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_11_base.nc.3/content",
+      "key": "glued_11_base.nc.3",
+      "size_bytes": 4774384869
+    },
+    {
+      "checksum": "md5:e16815de8a91190ef89629729258a4bd",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_23_base.nc.3/content",
+      "key": "glued_23_base.nc.3",
+      "size_bytes": 6389231616
+    },
+    {
+      "checksum": "md5:7b9d8c34e34b9c2332ca626407f4b6df",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_22_base.nc.3/content",
+      "key": "glued_22_base.nc.3",
+      "size_bytes": 3558434423
+    },
+    {
+      "checksum": "md5:ae1117303290d09b06c50118e4e98e1f",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_21_base.nc.3/content",
+      "key": "glued_21_base.nc.3",
+      "size_bytes": 5751129080
+    },
+    {
+      "checksum": "md5:9970289792a52e1031754ab25dfcd297",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_20_base.nc.3/content",
+      "key": "glued_20_base.nc.3",
+      "size_bytes": 8236856186
+    },
+    {
+      "checksum": "md5:e0574790a13ed7f41eda6db46e937131",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_19_base.nc.3/content",
+      "key": "glued_19_base.nc.3",
+      "size_bytes": 5588560764
+    },
+    {
+      "checksum": "md5:ecbcf1f3e589db4a9c463eb0214614d4",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_18_base.nc.3/content",
+      "key": "glued_18_base.nc.3",
+      "size_bytes": 3732536983
+    },
+    {
+      "checksum": "md5:5c39600eb0596f822681162fcccf6b5f",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_17_base.nc.3/content",
+      "key": "glued_17_base.nc.3",
+      "size_bytes": 6614451067
+    },
+    {
+      "checksum": "md5:a47dac3eacd150839c4b5513971bc196",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_16_base.nc.3/content",
+      "key": "glued_16_base.nc.3",
+      "size_bytes": 8092252213
+    },
+    {
+      "checksum": "md5:490f879ebd38f2689594d3b89b827c7f",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_15_base.nc.3/content",
+      "key": "glued_15_base.nc.3",
+      "size_bytes": 4887955029
+    },
+    {
+      "checksum": "md5:668c3aa7023a7473dd4e29137fcb0519",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_14_base.nc.3/content",
+      "key": "glued_14_base.nc.3",
+      "size_bytes": 4676075658
+    },
+    {
+      "checksum": "md5:330f47c71c2145079051922c9281cc3f",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_13_base.nc.3/content",
+      "key": "glued_13_base.nc.3",
+      "size_bytes": 6845559951
+    },
+    {
+      "checksum": "md5:1c23d0d927fd4dd0b62a81b6db6d79c3",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_12_base.nc.3/content",
+      "key": "glued_12_base.nc.3",
+      "size_bytes": 7855632468
+    },
+    {
+      "checksum": "md5:d362351148246191d1898d743a0baee3",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_10_base.nc.3/content",
+      "key": "glued_10_base.nc.3",
+      "size_bytes": 5196672428
+    },
+    {
+      "checksum": "md5:3ce0ee2af98a29e2853499d463130dff",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_09_base.nc.3/content",
+      "key": "glued_09_base.nc.3",
+      "size_bytes": 7842955110
+    },
+    {
+      "checksum": "md5:d798902186617be25b1fbadfa521e08a",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_08_base.nc.3/content",
+      "key": "glued_08_base.nc.3",
+      "size_bytes": 7181997096
+    },
+    {
+      "checksum": "md5:49bec20eedbcc9a2f91552068395906c",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_07_base.nc.3/content",
+      "key": "glued_07_base.nc.3",
+      "size_bytes": 4633232747
+    },
+    {
+      "checksum": "md5:04f3dbcd1d2dde7a1d29469c8926e76d",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_06_base.nc.3/content",
+      "key": "glued_06_base.nc.3",
+      "size_bytes": 5885430682
+    },
+    {
+      "checksum": "md5:1b1ceb5e49444021e9c0386bf49e73a8",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_05_base.nc.3/content",
+      "key": "glued_05_base.nc.3",
+      "size_bytes": 8209441448
+    },
+    {
+      "checksum": "md5:b959abfd2e2767b63de98edc65c68acc",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_04_base.nc.3/content",
+      "key": "glued_04_base.nc.3",
+      "size_bytes": 7071968737
+    },
+    {
+      "checksum": "md5:263d47da4e03531ebc6f50a0fbca6554",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_03_base.nc.3/content",
+      "key": "glued_03_base.nc.3",
+      "size_bytes": 4020871692
+    },
+    {
+      "checksum": "md5:b289f23e12a981d1ff8da68ee99a3d39",
+      "download_url": "https://zenodo.org/api/records/8017522/files/README.md/content",
+      "key": "README.md",
+      "size_bytes": 3166
+    },
+    {
+      "checksum": "md5:b547c4772d5e1939f33913e770a4de8b",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_xx_base.md5/content",
+      "key": "glued_xx_base.md5",
+      "size_bytes": 2372
+    },
+    {
+      "checksum": "md5:625b4bd82e405d12d24a09f86e72e20f",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_42_base.nc.3/content",
+      "key": "glued_42_base.nc.3",
+      "size_bytes": 354050097
+    },
+    {
+      "checksum": "md5:b1d3abb12ffd603ba8624134ac3afc97",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_02_base.nc.3/content",
+      "key": "glued_02_base.nc.3",
+      "size_bytes": 6394842802
+    },
+    {
+      "checksum": "md5:b4debcc81e7378d55402d9a2a768413f",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_01_base.nc.3/content",
+      "key": "glued_01_base.nc.3",
+      "size_bytes": 8556325086
+    },
+    {
+      "checksum": "md5:be9e7bc2b0fa048f918b4c55a115e0a2",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_41_base.nc.3/content",
+      "key": "glued_41_base.nc.3",
+      "size_bytes": 4051761328
+    },
+    {
+      "checksum": "md5:23bc938f6deacdecd4ed4c4c030014cb",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_00_base.nc.3/content",
+      "key": "glued_00_base.nc.3",
+      "size_bytes": 6416981199
+    },
+    {
+      "checksum": "md5:9aaa2eb98b51ac9daae5960e56f3ce0e",
+      "download_url": "https://zenodo.org/api/records/8017522/files/browse_data.py/content",
+      "key": "browse_data.py",
+      "size_bytes": 1452
+    },
+    {
+      "checksum": "md5:f2a8dcabc54798c2928eac7238d098f4",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_40_base.nc.3/content",
+      "key": "glued_40_base.nc.3",
+      "size_bytes": 7145514506
+    },
+    {
+      "checksum": "md5:5e9c21401520d4478d6b306f7ef63035",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_39_base.nc.3/content",
+      "key": "glued_39_base.nc.3",
+      "size_bytes": 7673315113
+    },
+    {
+      "checksum": "md5:6861761e9893d094c901242901d6f151",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_38_base.nc.3/content",
+      "key": "glued_38_base.nc.3",
+      "size_bytes": 4963074731
+    },
+    {
+      "checksum": "md5:7f937817c08b82bcac504114ffb2e369",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_37_base.nc.3/content",
+      "key": "glued_37_base.nc.3",
+      "size_bytes": 3692724183
+    },
+    {
+      "checksum": "md5:c6327bf2b93f8a44bd4df859e518c80c",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_36_base.nc.3/content",
+      "key": "glued_36_base.nc.3",
+      "size_bytes": 5339406821
+    },
+    {
+      "checksum": "md5:d3498695c77b3de2dd37322fff30802e",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_35_base.nc.3/content",
+      "key": "glued_35_base.nc.3",
+      "size_bytes": 6659595884
+    },
+    {
+      "checksum": "md5:0ddff02f0c7f5da2b8ec609b4813ac7d",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_34_base.nc.3/content",
+      "key": "glued_34_base.nc.3",
+      "size_bytes": 4358949779
+    },
+    {
+      "checksum": "md5:afe4ebe442c3c500b2322f3c68b78cbf",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_33_base.nc.3/content",
+      "key": "glued_33_base.nc.3",
+      "size_bytes": 4207084895
+    },
+    {
+      "checksum": "md5:5ce7cc1e66ee938ef7261e8979462194",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_32_base.nc.3/content",
+      "key": "glued_32_base.nc.3",
+      "size_bytes": 6039959646
+    },
+    {
+      "checksum": "md5:00383f3aec96b30a78147aac7b56504f",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_31_base.nc.3/content",
+      "key": "glued_31_base.nc.3",
+      "size_bytes": 6309124045
+    },
+    {
+      "checksum": "md5:49005c7ce5987195c3bb2e93d40bf654",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_30_base.nc.3/content",
+      "key": "glued_30_base.nc.3",
+      "size_bytes": 4264857288
+    },
+    {
+      "checksum": "md5:fcb1dbea187ba01e7d0bde63d243aa0e",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_29_base.nc.3/content",
+      "key": "glued_29_base.nc.3",
+      "size_bytes": 4744423207
+    },
+    {
+      "checksum": "md5:49a846a30fea675582db2907542a8142",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_28_base.nc.3/content",
+      "key": "glued_28_base.nc.3",
+      "size_bytes": 6795843055
+    },
+    {
+      "checksum": "md5:f336aa7913da9bcfa887765bc5cc5290",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_27_base.nc.3/content",
+      "key": "glued_27_base.nc.3",
+      "size_bytes": 6503542600
+    },
+    {
+      "checksum": "md5:1459ca9f36c1a329ff502e771ee34ba8",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_26_base.nc.3/content",
+      "key": "glued_26_base.nc.3",
+      "size_bytes": 3669406928
+    },
+    {
+      "checksum": "md5:c94503f78eb91251d9935fec0406d76d",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_25_base.nc.3/content",
+      "key": "glued_25_base.nc.3",
+      "size_bytes": 5392961379
+    },
+    {
+      "checksum": "md5:09d28e38fbe8bc216e0830d465e168ef",
+      "download_url": "https://zenodo.org/api/records/8017522/files/glued_24_base.nc.3/content",
+      "key": "glued_24_base.nc.3",
+      "size_bytes": 7373374085
+    }
+  ],
+  "large_numeric_files_downloaded": false,
+  "large_numeric_files_policy": "deferred: files are multi-GB and should be pulled on storage/GPU target before training or validation campaign",
+  "license": "cc-by-4.0",
+  "record": "8017522",
+  "record_sha256": "6d0c58e6edad7cc25a5aa53d220f8134b75d6c87086e1aefb2a807b49442efc5",
+  "schema_version": "scpn-control.public-data-acquisition.v1",
+  "source": "zenodo",
+  "title": "QLKNN11D training set"
+}

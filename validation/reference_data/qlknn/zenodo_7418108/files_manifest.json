@@ -1,0 +1,19 @@
+{
+  "doi": "10.5281/zenodo.7418108",
+  "files": [
+    {
+      "checksum": "md5:0ba55c2c945049041355ba1d225961de",
+      "download_url": "https://zenodo.org/api/records/7418108/files/qlk_v262_jet_dataset_kspectra.h5/content",
+      "key": "qlk_v262_jet_dataset_kspectra.h5",
+      "size_bytes": 29655790232
+    }
+  ],
+  "large_numeric_files_downloaded": false,
+  "large_numeric_files_policy": "deferred: files are multi-GB and should be pulled on storage/GPU target before training or validation campaign",
+  "license": "cc-by-4.0",
+  "record": "7418108",
+  "record_sha256": "cd266e822811f94abbe646887d24fd39521185d37619a22612a142c5af9e4145",
+  "schema_version": "scpn-control.public-data-acquisition.v1",
+  "source": "zenodo",
+  "title": "QuaLiKiz-v2.6.2 linear instability spectra based on JET experimental plasma profiles"
+}

@@ -181,6 +181,21 @@ scpn-control validate-data-manifests --json-out
 python validation/validate_data_manifests.py --output-json artifacts/data_manifest_report.json
 ```
 
+Public neural-transport acquisition metadata is validated separately from
+facility-shot manifests:
+
+```bash
+python validation/validate_public_data_acquisition.py --json-out
+python validation/validate_public_data_acquisition.py --output-json artifacts/public_data_acquisition_report.json
+```
+
+The report covers the mirrored normalised Zenodo file metadata for QLKNN10D,
+QLKNN11D, and QuaLiKiz JET spectra, plus the deferred byte count for multi-GB
+numeric tensors. This is acquisition
+readiness evidence only. It does not satisfy neural-transport reference
+validation until the tensor payloads are downloaded on an admitted storage
+target and converted into strict reference-artifact evidence.
+
 The report also enforces DIII-D artefact coverage: every tracked DIII-D GEQDSK
 and disruption-shot NPZ under `validation/reference_data/diiid/` must be covered
 by a manifest entry with a local SHA-256 checksum. It reports acquisition-spec

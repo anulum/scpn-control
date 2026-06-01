@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added public QLKNN and QuaLiKiz Zenodo acquisition metadata, strict
+  public-data acquisition manifest validation, module-specific regression
+  tests, and documentation that separates acquired normalised metadata from
+  deferred multi-GB tensor payloads and neural-transport validation evidence.
 - Added strict NTM island-dynamics reference-artifact admission so
   full-fidelity q-profile, rational-surface, island-growth, saturated-width,
   suppression-time, seed-island, and ECCD-alignment claims require
