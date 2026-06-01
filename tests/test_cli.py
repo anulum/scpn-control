@@ -589,7 +589,7 @@ def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
             "--require-interface-artifacts",
             "GK interface artifacts: fail",
             "interface_artifacts",
-            "no external GK interface artifacts found",
+            "no external GK interface artefacts found",
         ),
         (
             "validate-blob-transport-reference",
@@ -637,7 +637,7 @@ def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
             "--require-reference-artifacts",
             "Neural equilibrium reference: fail",
             "reference_artifacts",
-            "no neural equilibrium reference artifacts found",
+            "no neural equilibrium reference artefacts found",
         ),
         (
             "validate-neural-transport-reference",
