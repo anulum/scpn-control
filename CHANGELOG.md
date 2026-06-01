@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added strict admission for persisted differentiable transport one-step and
+  rollout gradient-latency reports, including duplicate-key rejection, backend,
+  dtype, claim-boundary, audit-error, sampled-index, run-count, and latency
+  percentile checks before the reports can support release evidence.
 - Hardened local preflight release-evidence admission so the non-test
   `release-evidence` gate now generates a temporary `scpn-control validate
   --json-out` report and admits it through `scpn-control

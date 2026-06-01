@@ -256,6 +256,12 @@ Report artefacts:
 - `validation/reports/differentiable_transport_rollout_latency.json`
 - `validation/reports/differentiable_transport_rollout_latency.md`
 
+Admission:
+
+```bash
+python validation/validate_differentiable_transport_latency.py --require-admitted --json-out
+```
+
 The report is local latency evidence for the audited gradient-admission path.
 It is not a real-time control-loop guarantee and does not replace external
 transport validation.

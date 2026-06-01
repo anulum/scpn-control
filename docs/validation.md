@@ -705,6 +705,7 @@ with:
 
 ```bash
 python validation/benchmark_differentiable_transport_latency.py
+python validation/validate_differentiable_transport_latency.py --require-admitted --json-out
 ```
 
 This writes `validation/reports/differentiable_transport_latency.json`,
@@ -716,7 +717,8 @@ otherwise publish a blocked-backend status. Persisted evidence fails closed on
 non-finite or negative audit losses/errors, tolerance drift from campaign
 metadata, duplicate or out-of-domain sampled audit indices, inconsistent
 pass/fail flags, malformed latency run counts, and unordered latency
-percentiles. The rollout source-gradient loss remains inside the traced JAX
+percentiles. The standalone validator admits those persisted reports before
+they are used as release evidence. The rollout source-gradient loss remains inside the traced JAX
 graph, and the module enables JAX x64 before importing `jax.numpy` so benchmark
 dtype evidence matches the requested differentiable transport precision.
 
