@@ -535,6 +535,26 @@ bounds, and frequency/crash/profile/suppression/heat-flux metrics inside
 declared tolerances. Synthetic ELM-cycle regressions remain module-behaviour
 checks only.
 
+EPED pedestal validation claims require measured pedestal-database or
+documented public reference artifacts for pedestal height, pedestal width,
+peeling-ballooning pressure limit, bootstrap-current coupling, collisionality
+width ordering, and shaping input provenance:
+
+```bash
+scpn-control validate-eped-reference --require-reference-artifacts --json-out
+python validation/validate_eped_reference.py --require-reference-artifacts --output-json artifacts/eped_reference_report.json
+```
+
+Strict mode fails until `validation/reports/eped_reference/` contains artifacts
+using schema `scpn-control.eped-reference.v1` with source provenance, safe
+pedestal-profile, EPED-prediction, bootstrap-current, and peeling-ballooning
+artifact URIs, SHA-256 hashes for each artifact and the canonical payload,
+EPED unit contracts, strictly ordered rho grids, positive pedestal-width and
+beta-limit domains, finite tokamak shaping inputs, and pedestal-width,
+pedestal-height, pressure-limit, bootstrap-current, and collisionality-order
+metrics inside declared tolerances. Synthetic EPED regressions remain
+module-behaviour checks only.
+
 Orbit-following validation claims require persisted published-reference or
 real-campaign artifacts for banana-width, first-orbit-loss, and
 passing/trapped/lost classification checks:

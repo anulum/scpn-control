@@ -5,6 +5,16 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added strict EPED pedestal reference-artifact admission so full-fidelity
+  pedestal height, pedestal width, peeling-ballooning pressure-limit,
+  bootstrap-current, collisionality-width-ordering, and shaping-input claims
+  require schema-versioned `scpn-control.eped-reference.v1` evidence with
+  measured pedestal-database or documented public-reference provenance, safe
+  pedestal-profile, EPED-prediction, bootstrap-current, and
+  peeling-ballooning artifact URIs, SHA-256 digests for every artifact and the
+  canonical payload, EPED unit contracts, ordered rho grids, positive
+  width/beta domains, finite tokamak shaping metadata, tolerance-checked
+  physical metrics, and module-specific tamper/domain tests.
 - Added strict ELM crash and RMP suppression reference-artifact admission so
   full-fidelity ELM frequency, crash-depth, pedestal-drop, RMP-window, and
   heat-flux claims require schema-versioned `scpn-control.elm-reference.v1`
