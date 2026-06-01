@@ -19,6 +19,7 @@ import os
 import re
 import subprocess  # noqa: S404
 import sys
+import tempfile
 import time
 from pathlib import Path
 from urllib.request import urlopen
@@ -62,7 +63,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
     ("generated-traceability", [_PY, "tools/check_generated_traceability.py"], None),
-    ("release-evidence", [_PY, "-m", "scpn_control.cli", "validate", "--json-out"], None),
+    ("release-evidence", [_PY, "-m", "scpn_control.cli", "validate-release-evidence"], None),
     ("module-linkage", [_PY, "tools/check_test_module_linkage.py"], None),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
@@ -104,6 +105,9 @@ def _subprocess_env() -> dict[str, str]:
 
 
 def run_gate(name: str, cmd: list[str], cwd: Path | None) -> bool:
+    if name == "release-evidence":
+        return run_release_evidence_gate()
+
     t0 = time.monotonic()
     result = subprocess.run(  # noqa: S603
         cmd,
@@ -128,6 +132,67 @@ def run_gate(name: str, cmd: list[str], cwd: Path | None) -> bool:
         for line in err.splitlines()[-tail:]:
             print(f"        {line}")
     return False
+
+
+def _print_command_failure(result: subprocess.CompletedProcess[str]) -> None:
+    tail = 10
+    out = (result.stdout or "").strip()
+    err = (result.stderr or "").strip()
+    if out:
+        for line in out.splitlines()[-tail:]:
+            print(f"        {line}")
+    if err:
+        for line in err.splitlines()[-tail:]:
+            print(f"        {line}")
+
+
+def run_release_evidence_gate() -> bool:
+    """Generate and admit the top-level release evidence report."""
+
+    t0 = time.monotonic()
+    with tempfile.TemporaryDirectory(prefix="scpn-control-release-evidence-") as tmp:
+        tmp_path = Path(tmp)
+        report_path = tmp_path / "release_evidence_report.json"
+        admission_path = tmp_path / "release_evidence_admission.json"
+        with report_path.open("w", encoding="utf-8") as report_handle:
+            generate = subprocess.run(  # noqa: S603
+                [_PY, "-m", "scpn_control.cli", "validate", "--json-out"],
+                cwd=ROOT,
+                env=_subprocess_env(),
+                stdout=report_handle,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+                errors="replace",
+            )
+        if generate.returncode != 0:
+            elapsed = time.monotonic() - t0
+            print(f"  FAIL  release-evidence ({elapsed:.1f}s)")
+            _print_command_failure(generate)
+            return False
+        with admission_path.open("w", encoding="utf-8") as admission_handle:
+            admit = subprocess.run(  # noqa: S603
+                [
+                    _PY,
+                    "-m",
+                    "scpn_control.cli",
+                    "validate-release-evidence",
+                    str(report_path),
+                    "--json-out",
+                ],
+                cwd=ROOT,
+                env=_subprocess_env(),
+                stdout=admission_handle,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+                errors="replace",
+            )
+        elapsed = time.monotonic() - t0
+        if admit.returncode == 0:
+            print(f"  PASS  release-evidence ({elapsed:.1f}s)")
+            return True
+        print(f"  FAIL  release-evidence ({elapsed:.1f}s)")
+        _print_command_failure(admit)
+        return False
 
 
 def _requirements_changed() -> bool:

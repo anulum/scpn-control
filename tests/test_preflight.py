@@ -28,7 +28,7 @@ def _load_preflight_module():
 
 
 def test_preflight_runs_top_level_release_evidence_gate():
-    """Local preflight must exercise the same release gate as manual validation."""
+    """Local preflight must exercise release-evidence artifact admission."""
     preflight = _load_preflight_module()
 
     gates = {name: command for name, command, _cwd in preflight.GATES}
@@ -37,9 +37,9 @@ def test_preflight_runs_top_level_release_evidence_gate():
         preflight._PY,
         "-m",
         "scpn_control.cli",
-        "validate",
-        "--json-out",
+        "validate-release-evidence",
     ]
+    assert callable(preflight.run_release_evidence_gate)
 
 
 def test_release_evidence_gate_is_not_skipped_by_no_tests_or_no_rust():
@@ -58,3 +58,51 @@ def test_preflight_subprocess_env_prefers_source_tree():
 
     assert pythonpath[0] == str(REPO_ROOT / "src")
     assert pythonpath[1] == str(REPO_ROOT)
+
+
+def test_release_evidence_gate_generates_and_admits_temporary_artifacts(monkeypatch, tmp_path):
+    """Local preflight validates generated release evidence before passing the gate."""
+    preflight = _load_preflight_module()
+    calls: list[list[str]] = []
+
+    class DummyHandle:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc_info):
+            return False
+
+        def write(self, _data):
+            return None
+
+    class DummyTemporaryDirectory:
+        def __init__(self, prefix: str):
+            assert prefix == "scpn-control-release-evidence-"
+
+        def __enter__(self):
+            tmp_path.mkdir(exist_ok=True)
+            return str(tmp_path)
+
+        def __exit__(self, *_exc_info):
+            return False
+
+    class DummyCompletedProcess:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_open(self, *_args, **_kwargs):
+        return DummyHandle()
+
+    def fake_run(cmd, **_kwargs):
+        calls.append(cmd)
+        return DummyCompletedProcess()
+
+    monkeypatch.setattr(preflight.tempfile, "TemporaryDirectory", DummyTemporaryDirectory)
+    monkeypatch.setattr(preflight.Path, "open", fake_open)
+    monkeypatch.setattr(preflight.subprocess, "run", fake_run)
+
+    assert preflight.run_release_evidence_gate() is True
+    assert calls[0] == [preflight._PY, "-m", "scpn_control.cli", "validate", "--json-out"]
+    assert calls[1][:4] == [preflight._PY, "-m", "scpn_control.cli", "validate-release-evidence"]
+    assert calls[1][-1] == "--json-out"

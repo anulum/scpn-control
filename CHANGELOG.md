@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened local preflight release-evidence admission so the non-test
+  `release-evidence` gate now generates a temporary `scpn-control validate
+  --json-out` report and admits it through `scpn-control
+  validate-release-evidence`, matching the CI artifact-admission path.
 - Exposed release-evidence report admission as
   `scpn-control validate-release-evidence REPORT`, so operators can validate
   CI or release JSON reports through the public CLI instead of importing the

@@ -150,8 +150,10 @@ traceability validation by default, so routine validation cannot pass while
 ignoring data provenance, backend parity evidence drift, or bounded-claim
 registry drift. The local `tools/preflight.py` path now runs this top-level
 release-evidence gate as a non-test gate, including in `make preflight-fast`,
-so release preflight cannot skip provenance, parity, or claim-boundary drift
-when tests are intentionally omitted. Use `--data-manifest-root` for staged facility drops,
+and validates the generated JSON report with `validate-release-evidence`, so
+release preflight cannot skip provenance, parity, claim-boundary drift, or
+artifact-admission drift when tests are intentionally omitted. Use
+`--data-manifest-root` for staged facility drops,
 `--jax-gk-parity-root` for staged parity campaigns,
 `--physics-traceability-registry` for staged claim-boundary registries,
 `--no-verify-artifacts` for metadata-only manifest checks, and
