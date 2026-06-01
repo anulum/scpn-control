@@ -82,7 +82,7 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "gyrokinetic species and collision bounded-operator contract" in markdown
     assert "JAX gyrokinetic numerical parity guard" in markdown
     assert "gyrokinetic OOD detector distribution-bound contract" in markdown
-    assert "strict digest-bound external interface artifact gate" in markdown
+    assert "strict digest-bound external interface artefact gate" in markdown
     assert "transport solver neoclassical and source-term approximation contract" in markdown
     assert "reduced gyrokinetic transport closure contract" in markdown
     assert "momentum transport and torque-balance approximation contract" in markdown

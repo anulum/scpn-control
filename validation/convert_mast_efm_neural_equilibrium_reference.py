@@ -14,7 +14,7 @@ import argparse
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -127,7 +127,7 @@ def convert_campaign(
     report: dict[str, Any] = {
         "schema_version": CANDIDATE_SCHEMA,
         "status": status,
-        "created_at": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "dataset_root": dataset_root.as_posix(),
         "campaign_manifest": campaign_manifest.as_posix(),
         "output_root": output_root.as_posix(),
@@ -233,7 +233,9 @@ def extract_reference_arrays(ds: DatasetLike, *, shot_id: int, max_times: int | 
     return arrays
 
 
-def _converted_summary(*, shot_id: int, source_path: Path, output_path: Path, arrays: dict[str, np.ndarray]) -> ConvertedShot:
+def _converted_summary(
+    *, shot_id: int, source_path: Path, output_path: Path, arrays: dict[str, np.ndarray]
+) -> ConvertedShot:
     psirz = arrays["psirz_Wb_per_rad"]
     lcfs = arrays["lcfs_r_m"]
     return ConvertedShot(
@@ -329,7 +331,9 @@ def _take_time(data_array: Any, indices: np.ndarray, *, name: str) -> np.ndarray
     return np.take(values, indices, axis=axis)
 
 
-def _psirz_coordinate_grids(ds: DatasetLike, psirz_array: Any, grid_shape: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+def _psirz_coordinate_grids(
+    ds: DatasetLike, psirz_array: Any, grid_shape: tuple[int, int]
+) -> tuple[np.ndarray, np.ndarray]:
     dims = tuple(getattr(psirz_array, "dims", ()))
     if len(dims) < 3:
         raise ValueError("psirz must expose time, z, and r dimensions")
