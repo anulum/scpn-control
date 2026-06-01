@@ -23,42 +23,84 @@
 
 ---
 
-**scpn-control** is a standalone neuro-symbolic control engine that compiles
-Stochastic Petri Nets into spiking neural network controllers with
-contract-based pre/post-condition checking. Extracted from
-[scpn-fusion-core](https://github.com/anulum/scpn-fusion-core) — 134 Python
-source modules, 264 test files, **3,700+ collected Python tests**, 5 Rust crates, and a 20-job CI matrix.
-Five-tier gyrokinetic transport: critical-gradient, QLKNN surrogate, native linear eigenvalue, native TGLF-equivalent (SAT0/SAT1/SAT2), nonlinear δf GK (5D Vlasov, JAX-accelerable).
+# SCPN Control
+
+**SCPN Control** is a research-grade control and validation package for fusion
+plasma control loops. It turns stochastic Petri-net logic into executable
+neuro-symbolic controllers, surrounds those controllers with formal contracts,
+and connects them to equilibrium, transport, disruption, digital-twin, and
+hardware-in-the-loop evidence gates.
+
+The practical purpose is simple: help fusion teams decide whether a controller
+idea is safe enough, fast enough, reproducible enough, and well-evidenced enough
+to move from notebook experiments toward a facility control-system review.
+
+## Who it is for
+
+- Fusion control researchers prototyping PCS logic, NMPC, SNN, disruption, and
+  mitigation controllers.
+- Tokamak and stellarator programmes that need replayable validation artefacts
+  before promoting algorithms toward hardware tests.
+- Fusion startups that need a compact control package rather than a broad solver
+  laboratory.
+- Universities teaching plasma control, formal methods, differentiable physics,
+  and control-system safety cases.
+- Investors, grant reviewers, and collaborators who need to understand which
+  claims are already evidenced and which claims are still blocked by external
+  data, external codes, target hardware, or facility access.
+
+## What the package does
+
+- Compiles stochastic Petri nets into spiking-neural control artefacts with
+  bounded marking, transition, and temporal-logic evidence.
+- Runs control-facing equilibrium and transport facades for controller tuning,
+  replay, and validation admission.
+- Provides NMPC, robust control, phase-dynamics, reinforcement-learning,
+  digital-twin, WebSocket, CODAC/EPICS-facing, and hardware evidence surfaces.
+- Captures validation results as checksum-bound JSON/Markdown reports instead
+  of unverifiable claims.
+- Keeps facility-grade promotion fail-closed until the required measured-shot,
+  public-reference, external-code, hardware, or independent-review artefacts
+  are supplied and admitted.
 
 ## Relationship to SCPN Fusion Core
 
-`scpn-control` is the compact control package in the SCPN ecosystem. It keeps
-the controller-facing surfaces small enough for installation, CI, replay, and
-hardware-in-the-loop work: Petri-net compilation, SNN controllers, NMPC,
-runtime contracts, differentiable tuning facades, fail-closed adapters, and
-bounded validation reports.
+`scpn-control` is the compact controller-facing package in the SCPN ecosystem.
+It owns the admission contracts, replay metadata, runtime safety boundaries,
+control APIs, documentation, and release evidence needed by controller users.
 
 [`scpn-fusion-core`](https://github.com/anulum/scpn-fusion-core) is the broader
-physics and research suite. It carries the wider solver laboratory: extended
-equilibrium and transport models, gyrokinetic workflows, 3D and stellarator
-surfaces, Rust/polyglot kernels, neural surrogates, and high-volume validation
-or benchmark campaigns.
+solver and physics laboratory. Solver experiments and broad physics kernels
+mature there first; `scpn-control` ports or wraps the subset that has a clear
+control-loop contract.
 
-The two projects are developed together. Physics kernels and broad solver
-experiments mature in `scpn-fusion-core`; `scpn-control` exposes control-grade
-facades and replay-safe contracts for the subset needed in controller loops.
+The split avoids double work: FUSION-CORE advances physics breadth, while
+CONTROL turns selected physics into auditable controller surfaces.
 
-> **11.9 µs P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
+## Why it matters
+
+Fusion control software is usually split across offline modelling codes,
+facility-specific PCS infrastructure, and ad-hoc research notebooks. SCPN
+Control aims to fill the missing middle layer: an installable control package
+that can express novel neuro-symbolic controllers, run fast local validation,
+and produce evidence suitable for review.
+
+The current differentiators are formal Petri-net safety evidence,
+differentiable physics/control facades, local-first LLM-assisted physics-gap
+triage, quantum-disruption bridge contracts, strict public-data admission, and
+release artefact gates. These are valuable only when the evidence boundary is
+honest, so this repository distinguishes library readiness from facility
+certification throughout the documentation.
+
+> **11.9 us P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
-> See [competitive analysis](docs/competitive_analysis.md) for full benchmarks
-> and [Limitations](#limitations) for honest scope.
+> See [competitive analysis](docs/competitive_analysis.md) for methodology and
+> [production readiness](docs/production_readiness.md) for deployment limits.
 >
-> **Status: Alpha / Research.** Not a production PCS. No real tokamak
-> deployment. Public physics claims are limited to checksum-gated repository
-> reference artefacts, published GEQDSK files, and explicitly bounded synthetic
-> or non-facility domains. See
-> [Production Readiness Boundary](docs/production_readiness.md) for the
-> library-readiness versus facility-deployment distinction.
+> **Status: Alpha / Research.** This is not a commissioned plant PCS. Public
+> full-fidelity facility claims remain blocked unless the corresponding strict
+> validation gate admits real measured-shot, public-reference, external-code,
+> target-hardware, and review artefacts.
 
 ## Capability Inventory
 
@@ -76,7 +118,7 @@ facades and replay-safe contracts for the subset needed in controller loops.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.19.3 |
+| Package version | 0.20.0 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -87,7 +129,7 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Validation scripts | 80 |
 | Optional extras | 17 |
 | Python test files | 290 |
-| Public documentation pages | 34 |
+| Public documentation pages | 36 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

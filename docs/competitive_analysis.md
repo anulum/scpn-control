@@ -2,7 +2,7 @@
 
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-06-01 (v0.19.3).
+> **Last updated:** 2026-06-01 (v0.20.0).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 

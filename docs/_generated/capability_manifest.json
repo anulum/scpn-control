@@ -22,7 +22,7 @@
     "project_script_count": 2,
     "public_api_export_count": 44,
     "public_class_count": 483,
-    "public_markdown_count": 34,
+    "public_markdown_count": 36,
     "pyo3_export_count": 27,
     "python_test_file_count": 290,
     "rust_source_file_count": 50,
@@ -51,6 +51,7 @@
       "docs/learning/plasma_physics_primer.md",
       "docs/neural_transport_training.md",
       "docs/notebooks.md",
+      "docs/onboarding.md",
       "docs/paper27_phase_dynamics.md",
       "docs/physics_methods.md",
       "docs/physics_traceability.md",
@@ -59,6 +60,7 @@
       "docs/production_readiness.md",
       "docs/release_notes_v0.19.2.md",
       "docs/release_notes_v0.19.3.md",
+      "docs/release_notes_v0.20.0.md",
       "docs/theory.md",
       "docs/tutorials.md",
       "docs/tutorials/first_steps.md",
@@ -96,7 +98,7 @@
       "scpn-check-generated-traceability": "tools.check_generated_traceability:main",
       "scpn-control": "scpn_control.cli:main"
     },
-    "version": "0.19.3"
+    "version": "0.20.0"
   },
   "python": {
     "public_api_exports": [

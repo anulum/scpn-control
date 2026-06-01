@@ -2,57 +2,76 @@
 
 # SCPN Control
 
-SCPN Control is a standalone neuro-symbolic control engine that compiles
-stochastic Petri nets into spiking neural network controllers with formal
-contract checks and bounded Petri-net reachability proofs.
+SCPN Control is a neuro-symbolic fusion-control package for turning controller
+ideas into auditable, replayable, evidence-bound software artefacts. It combines
+stochastic Petri nets, spiking neural control, robust and nonlinear MPC,
+phase-dynamics monitoring, differentiable physics facades, public-data
+validation gates, and runtime safety contracts.
 
 ![SCPN Control Header](scpn_control_header.png)
+
+## Plain-language summary
+
+A fusion control team needs more than a simulator. It needs a way to answer
+five questions before any controller moves toward hardware:
+
+1. What physical contract is this controller allowed to claim?
+2. Which data, reference code, or hardware evidence supports that claim?
+3. Does the control logic satisfy bounded safety invariants?
+4. Can the runtime fail closed when evidence, authentication, or configuration
+   is missing?
+5. Can another lab replay the result and see the same admission decision?
+
+SCPN Control is built around those questions. It is not a replacement for a
+facility PCS, EFIT deployment, TRANSP workflow, or external gyrokinetic code.
+It is the controller-facing evidence layer that makes those integrations safer
+to discuss, test, fund, and review.
+
+## Main surfaces
+
+| Surface | Purpose |
+| --- | --- |
+| Petri-net to SNN compiler | Build neuro-symbolic controllers from explicit places, transitions, and firing contracts. |
+| Formal verification | Produce bounded reachability, marking, liveness, CTL/LTL, and certificate-bundle evidence for control logic. |
+| NMPC and robust control | Prototype constrained plasma-control policies with strict solver lifecycle and admission checks. |
+| Differentiable physics facades | Expose JAX-backed controller-tuning paths without claiming facility fidelity before admission. |
+| Digital twin and replay | Couple controller logic to replayable plant and external-simulator metadata. |
+| Public-data validation | Convert and evaluate public datasets while keeping predictive claims blocked until full evidence exists. |
+| Runtime security | Harden WebSocket, native-code, config, and artefact-loading boundaries for fail-closed operation. |
+| Documentation and release evidence | Publish enough context for users, collaborators, reviewers, and funders to understand the product boundary. |
 
 ## Visual overview
 
 ![SCPN Control Logic Map](SCPN%20CONTROL.PNG)
 ![SCPN Control Logic Map (compact)](SCPN%20CONTROL%20small.png)
 
-## What is in this repository
-
-- Python package: `src/scpn_control/`
-- Rust workspace: `scpn-control-rs/`
-- Tutorial notebooks: `examples/`
-- Validation and benchmark assets: `validation/`, `tests/`, `tools/`
-
-## Quick start
+## Fast start
 
 ```bash
-pip install scpn-control                        # core (numpy, scipy, click)
-pip install "scpn-control[dashboard,ws]"        # + Streamlit + WebSocket
+pip install scpn-control
 scpn-control demo --steps 1000
-scpn-control benchmark --n-bench 5000
 scpn-control validate
 ```
 
-## Build and verification baseline
+For a guided path, start with [Onboarding](onboarding.md), then run the
+[First Steps tutorial](tutorials/first_steps.md), then choose a workflow from
+[Use Cases](use_cases.md).
 
-Use this baseline before release:
+## Evidence boundary
 
-```bash
-# Python
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/ -q
+SCPN Control publishes many validators and reports. A passing bounded validator
+means the repository contract for that surface passed. It does not mean that a
+facility, regulator, ITER safety case, or external physics authority has
+accepted the result.
 
-# Rust workspace
-cd scpn-control-rs
-cargo build --workspace
-cargo clippy --workspace -- -D warnings
-cargo test --workspace
-```
+A full-fidelity public claim requires all required artefacts for that surface:
+measured-shot or documented public-reference data, external-code or independent
+reference where applicable, exact unit contracts, checksums, declared tolerances,
+target hardware timing where relevant, and human review.
 
-For notebook execution, see [Tutorials](tutorials.md). For parity and CI checks,
-see [Validation and QA](validation.md). For performance methodology, see
-[Benchmarks](benchmarks.md).
+## Support and collaboration
 
-## Compute validation campaign
-
-SCPN Control now publishes a dedicated [compute validation funding](compute_validation_financing.md)
-page for GPU, storage, public-data, and external-code validation needs. The page
-keeps the evidence boundary explicit: support funds reproducible validation
-artefacts, and full-fidelity claims remain blocked until those artefacts pass
-the repository admission gates.
+The project needs collaborators and financing for target-hardware benchmarks,
+external-code validation, public-data curation, cloud GPU campaigns, safety-case
+review, and facility replay access. See [Compute Validation Funding](compute_validation_financing.md)
+for concrete budget categories and why each category matters.

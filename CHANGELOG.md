@@ -2,6 +2,13 @@
 
 # Changelog
 
+## [0.20.0] - 2026-06-01
+
+### Changed
+- Bumped the package and citation metadata to `0.20.0` for the release-preparation candidate.
+- Reworked the README, documentation landing page, onboarding guide, use-case page, tutorial index, notebook gallery, API version snippet, MkDocs navigation, and release notes so new users can understand the controller-facing evidence layer, application value, collaboration needs, and strict production-readiness boundary.
+- Regenerated the capability manifest and README capability snapshot from the current tree.
+
 ## [0.19.3] - 2026-06-01
 
 ### Fixed

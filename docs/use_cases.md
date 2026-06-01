@@ -1,133 +1,93 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 
-# Use Cases
+# Use Cases and Market Value
 
-## Fusion Reactor Control
+SCPN Control is aimed at the gap between fusion-control research and facility
+promotion. Its value is not only that it can run controllers; it can attach
+claim boundaries, checksums, validators, formal evidence, and release artefacts
+to the result.
 
-### Tokamak Control Algorithm Prototyping
+## Primary users
 
-> **Status:** Research / Alpha. Not a production PCS. Real hardware
-> integration requires significant additional work (EPICS/CODAC interface,
-> deterministic OS, safety certification).
+| User | Pain point | SCPN Control value |
+| --- | --- | --- |
+| Fusion control researchers | Controller prototypes are hard to replay and review. | Executable controller artefacts with formal and validation metadata. |
+| Fusion startups | Need credible control evidence before hardware exists. | Digital-twin, public-data, and strict admission workflows for staged review. |
+| Facility teams | New algorithms need safety and timing boundaries before PCS integration. | Fail-closed runtime contracts, HIL evidence hooks, and target-hardware gates. |
+| Academic groups | Students need one package spanning control, physics facades, and safety evidence. | Tutorials, notebooks, API docs, and reproducible validators. |
+| Funders and collaborators | Need to see which claims are real and which require external resources. | Public roadmap, compute-validation budget categories, and honest blocked gates. |
 
-scpn-control provides a prototyping platform for control algorithm
-development. The 11.9 µs kernel step (Criterion-verified) enables:
+## Application areas
 
-- **Shape control algorithm R&D** — develop and test at high loop rates
-- **Disruption prediction prototyping** — ML inference pipeline (synthetic training data)
-- **SPI mitigation modeling** — halo current and runaway electron physics
-- **Profile control R&D** — neuro-cybernetic dual R+Z SNN feedback
+### Controller concept development
 
-**Target users:** Control algorithm researchers, fusion startups in early design,
-graduate students.
+Use stochastic Petri nets, robust control, NMPC, SNN controllers, and phase
+monitoring to express candidate plasma-control policies. The formal-verification
+surface can check bounded marking, liveness, reachability, and temporal
+properties before the controller is promoted to replay or HIL workflows.
 
-### ITER / DEMO (Future, Speculative)
+### Safety-case preparation
 
-The contract layer now includes bounded formal verification for compiled
-Petri-net control logic: exact reachability analysis, marking-bound safety
-proofs, algebraic place-invariant proofs, transition liveness checks, and
-bounded temporal specs such as always-bounded, always-eventually-marked,
-eventually-fires, fire-leads-to-marking, and never-co-marked. These artefacts
-are certification evidence for controller logic, but they do not by themselves
-certify a full plant PCS or replace external safety-case review.
+The package emits hash-bound evidence for safety-critical controller artefacts,
+formal certificates, WebSocket runtime evidence, CODAC runtime evidence, FPGA
+export evidence, and target-hardware timing. These reports are designed to be
+inputs to a larger safety case, not replacements for facility approval.
 
----
+### Public-data and external-code validation
 
-## Digital Twin & Commissioning
+Recent validation tooling converts and evaluates public MAST EFM data for neural
+equilibrium reference-candidate work, while keeping predictive EFIT/P-EFIT
+claims blocked until all strict inputs are available. Similar validators exist
+for gyrokinetic, transport, MHD, disruption, and digital-twin surfaces.
 
-### Offline Plant Commissioning
+### Differentiable controller tuning
 
-Before first plasma, use the digital twin to:
+JAX-backed equilibrium, transport, and gyrokinetic parity surfaces make gradient
+information available to controller-tuning workflows. The repository admits
+backend parity and bounded gradients separately from full facility physics
+claims.
 
-- Commission control algorithms against synthetic plasma scenarios
-- Train operators on disruption response procedures
-- Validate sensor/actuator configurations
-- Stress-test control logic with adversarial perturbations
+### Digital twin with online updating
 
-The digital twin runs in real-time on a single CPU core, enabling
-rapid iteration without dedicated HPC resources.
+The digital-twin surface supports strict simulator metadata, Bayesian update
+records, and external TRANSP/TSC bridge contracts. The market value is staged:
+first reproducible replay, then target-hardware timing, then facility-specific
+admission.
 
-### Hardware-in-the-Loop Testing
+### Local-first physics debugging
 
-The HIL harness (`scpn-control hil-test`) replays reference shot data
-through the full controller pipeline, verifying end-to-end latency
-and control fidelity against experimental baselines.
+The physics-debug assistant is designed for onsite use. It supports local
+providers first, optional hallucination guardrails, strict prompt-injection
+neutralisation, tamper-evident report digests, and human-review caps. Its output
+is advisory evidence, never automatic controller promotion.
 
----
+### Quantum-enhanced disruption research
 
-## Research & Education
+The quantum-disruption bridge contracts prepare controller-side integration for
+SCPN Quantum Control without duplicating that repository. SCPN Control owns the
+admission boundary and disruption-control interface; quantum-kernel development
+can mature in the quantum repository and return as an evidence-bound provider.
 
-### Neuro-Symbolic Control Research
+## Market position
 
-scpn-control is the only open-source implementation of:
+SCPN Control is not trying to replace major physics suites. Its commercial and
+collaboration value is the control-evidence layer:
 
-- Stochastic Petri Net to SNN compilation for fusion control
-- Kuramoto-Sakaguchi phase dynamics with Lyapunov stability monitoring
-- Phase-amplitude coupling (PAC) between oscillator populations
+- faster iteration between controller idea and reviewable artefact;
+- fewer unbounded claims in papers, grant proposals, and demos;
+- clearer separation between local research evidence and facility readiness;
+- explicit funding targets for data, hardware, and external-code validation;
+- reusable interfaces for labs that need local or air-gapped workflows.
 
-These are active research frontiers. The implementation is tested but
-not yet validated in peer-reviewed fusion publications.
+## Current limitations
 
-### Graduate-Level Course Material
+- No commissioned plant deployment is claimed.
+- Full predictive EFIT/P-EFIT claims remain blocked until matched public or
+  facility reference artefacts pass admission.
+- Full cross-code gyrokinetic and integrated-modelling claims remain blocked
+  where external artefacts are still missing.
+- Hardware timing evidence must be collected on target platforms before
+  real-time deployment claims are admissible.
 
-The codebase includes:
-
-- 5 tutorial notebooks (Jupyter) with step-by-step walkthroughs
-- A live Streamlit dashboard for interactive exploration
-- 2,417 tests (99.99% coverage) demonstrating expected behavior and edge cases
-- Competitive analysis against state-of-the-art codes
-
----
-
-## Edge & Embedded Deployment
-
-### No GPU Required
-
-The neural equilibrium kernel achieves 0.39 ms on CPU only (not
-head-to-head validated against P-EFIT on identical equilibria).
-This *potentially* enables deployment on:
-
-- ARM-based edge controllers (not tested on ARM)
-- Embedded systems (not tested in radiation-hard environments)
-- Air-gapped control networks (no cloud dependency)
-
-### Rust Native Backend
-
-The 5-crate Rust workspace provides:
-
-- Zero-copy PyO3 bindings for Python interop
-- No runtime garbage collection (deterministic latency)
-- Rayon parallelism for multi-core scaling
-- Criterion benchmarks for regression testing
-
----
-
-## Comparison Matrix
-
-| Use Case | scpn-control | TORAX | FUSE | FreeGS |
-|----------|-------------|-------|------|--------|
-| Real-time kernel | 11.9 µs (bare step) | No | No | No |
-| Disruption prediction | Experimental (synthetic) | No | No | No |
-| SPI mitigation | Experimental | No | No | No |
-| Digital twin | Experimental | No | No | No |
-| Neural equilibrium | 0.39 ms (CPU, not cross-validated) | No | No | No |
-| SNN controller | Yes (pure LIF+NEF, mocked CI) | No | No | No |
-| Contract checking | Yes (runtime assertions) | No | No | No |
-| QLKNN-10D transport | Yes (trained MLP) | Yes (QLKNN10D) | No | No |
-| PPO RL agent | Yes (beats MPC + PID) | No | No | No |
-| Edge deployment | Possible (Rust, untested on ARM) | No (JAX) | No (Julia) | Partial |
-| Autodifferentiation | **Yes (JAX)** | **Yes (JAX)** | **Yes (Julia)** | No |
-| GPU transport | **Yes (JAX)** | **Yes** | **Yes** | No |
-| Real tokamak data | **No** | **Yes** | **Yes** | **Yes** |
-| Peer-reviewed papers | **No** | **Yes** | **Yes** | **Yes** |
-
----
-
-## Get Started
-
-```bash
-pip install scpn-control
-scpn-control demo --steps 1000
-```
-
-For commercial licensing: [protoscience@anulum.li](mailto:protoscience@anulum.li)
+For claim language, use [Production Readiness](production_readiness.md) as the
+source of truth.
