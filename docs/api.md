@@ -1573,7 +1573,7 @@ scpn-control hil-test --shots-dir path/to/shots
 |---------|------------|
 | `demo` | Closed-loop control demonstration (PID, SNN, combined) |
 | `benchmark` | PID vs SNN timing benchmark with JSON output option |
-| `validate` | Import hygiene plus repository data-manifest provenance gate |
+| `validate` | Import hygiene plus repository data-manifest provenance and JAX GK parity evidence gates |
 | `info` | Version, Rust backend status, weight provenance, Python/NumPy versions |
 | `live` | Real-time WebSocket phase sync server |
 | `hil-test` | Hardware-in-the-loop test campaign against shot data |

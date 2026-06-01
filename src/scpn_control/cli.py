@@ -68,6 +68,12 @@ if TYPE_CHECKING:
     from scpn_control.core.mdsplus_acquisition import MDSplusSignalSpec
 
 
+def _split_csv_option(value: str | None) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
 @click.group()
 @click.version_option(version=_VERSION, prog_name="scpn-control")
 def main() -> None:
@@ -242,13 +248,19 @@ def benchmark(n_bench: int, json_out: bool) -> None:
 @click.option("--data-manifest-root", help="Root directory to scan for repository data manifests")
 @click.option("--no-data-manifests", is_flag=True, help="Skip repository data-manifest validation")
 @click.option("--no-verify-artifacts", is_flag=True, help="Validate manifest metadata without local checksums")
+@click.option(
+    "--jax-gk-parity-root", help="Directory or JSON artifact containing persisted JAX/native GK parity evidence"
+)
+@click.option("--no-jax-gk-parity", is_flag=True, help="Skip persisted JAX GK parity evidence validation")
 def validate(
     json_out: bool,
     data_manifest_root: str | None,
     no_data_manifests: bool,
     no_verify_artifacts: bool,
+    jax_gk_parity_root: str | None,
+    no_jax_gk_parity: bool,
 ) -> None:
-    """Run import hygiene and repository data-provenance validation."""
+    """Run import hygiene, data-provenance, and persisted parity validation."""
     try:
         from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
 
@@ -261,7 +273,7 @@ def validate(
         "import_clean": True,
         "status": "pass",
     }
-    manifest_gate_failed = False
+    validation_failed = False
 
     for mod in ["matplotlib", "torch", "streamlit"]:
         if mod in sys.modules:
@@ -280,7 +292,24 @@ def validate(
         result["data_manifests"] = manifest_report
         if manifest_report["status"] != "pass":
             result["status"] = "fail"
-            manifest_gate_failed = True
+            validation_failed = True
+
+    if no_jax_gk_parity:
+        result["jax_gk_parity"] = {"status": "skipped"}
+    else:
+        from validation.validate_jax_gk_parity import ROOT, validate_jax_gk_parity
+
+        parity_root = jax_gk_parity_root or str(ROOT / "validation" / "reports" / "jax_gk_parity")
+        parity_report = validate_jax_gk_parity(
+            parity_root,
+            require_parity_artifacts=True,
+            require_cases=("cyclone_base_case", "tem_kinetic_electron", "stable_mode"),
+            require_backends=("cpu", "gpu"),
+        )
+        result["jax_gk_parity"] = parity_report
+        if parity_report["status"] != "pass":
+            result["status"] = "fail"
+            validation_failed = True
 
     if json_out:
         click.echo(json.dumps(result, indent=2))
@@ -300,8 +329,15 @@ def validate(
             )
             for error in data_manifests["errors"]:
                 click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+        jax_gk_parity = result["jax_gk_parity"]
+        if isinstance(jax_gk_parity, dict) and jax_gk_parity.get("status") == "skipped":
+            click.echo("JAX GK parity: SKIPPED")
+        elif isinstance(jax_gk_parity, dict):
+            click.echo(f"JAX GK parity: {jax_gk_parity['status']} parity_artifacts={jax_gk_parity['parity_artifacts']}")
+            for error in jax_gk_parity["errors"]:
+                click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
         click.echo(f"Status: {result['status']}")
-    if manifest_gate_failed:
+    if validation_failed:
         raise click.exceptions.Exit(1)
 
 
@@ -534,11 +570,15 @@ def validate_gk_species_reference_command(
 @main.command("validate-jax-gk-parity")
 @click.option("--artifact-root", help="Directory or JSON artifact containing persisted JAX/native GK parity evidence")
 @click.option("--require-parity-artifacts", is_flag=True, help="Fail if no persisted parity artifacts are present")
+@click.option("--require-cases", help="Comma-separated required parity cases")
+@click.option("--require-backends", help="Comma-separated required JAX backends")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--json-out", is_flag=True, help="Emit JSON")
 def validate_jax_gk_parity_command(
     artifact_root: str | None,
     require_parity_artifacts: bool,
+    require_cases: str | None,
+    require_backends: str | None,
     output_json: str | None,
     json_out: bool,
 ) -> None:
@@ -546,7 +586,12 @@ def validate_jax_gk_parity_command(
     from validation.validate_jax_gk_parity import ROOT, validate_jax_gk_parity
 
     path = artifact_root or str(ROOT / "validation" / "reports" / "jax_gk_parity")
-    report = validate_jax_gk_parity(path, require_parity_artifacts=require_parity_artifacts)
+    report = validate_jax_gk_parity(
+        path,
+        require_parity_artifacts=require_parity_artifacts,
+        require_cases=_split_csv_option(require_cases),
+        require_backends=_split_csv_option(require_backends),
+    )
     if output_json is not None:
         from pathlib import Path as _P
 

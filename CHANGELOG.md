@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Promoted strict persisted JAX gyrokinetic CPU/GPU parity evidence admission
+  into the top-level `scpn-control validate` command, added scoped staging and
+  skip flags, and exposed case/backend requirements on
+  `validate-jax-gk-parity` so local release validation matches the CI gate.
 - Wired strict persisted JAX gyrokinetic CPU/GPU parity evidence admission into
   the `jax-parity` CI job and added a module-specific repository-evidence
   regression so missing CBC, kinetic-electron TEM, or stable-mode backend

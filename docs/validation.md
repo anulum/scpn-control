@@ -144,11 +144,13 @@ scpn-control validate-manifest validation/reference_data/diiid/manifests/mock_di
 ```
 
 The top-level `validate` command now includes repository data-manifest
-validation by default, so routine validation cannot pass while ignoring data
-provenance. Use `--data-manifest-root` for staged facility drops,
-`--no-verify-artifacts` for metadata-only checks, and `--no-data-manifests` only
-for explicitly scoped import-hygiene checks. The gate separates experimental
-validation evidence from CI fixtures. A manifest claiming real-shot validation
+validation and strict persisted JAX GK parity evidence admission by default, so
+routine validation cannot pass while ignoring data provenance or backend parity
+evidence drift. Use `--data-manifest-root` for staged facility drops,
+`--jax-gk-parity-root` for staged parity campaigns, `--no-verify-artifacts` for
+metadata-only manifest checks, and `--no-data-manifests` or `--no-jax-gk-parity`
+only for explicitly scoped import-hygiene checks. The gate separates
+experimental validation evidence from CI fixtures. A manifest claiming real-shot validation
 must include a non-synthetic source kind, machine, shot, signal paths, physical
 units, retrieval timestamp, checksum, and licence or facility data policy. Local
 real-data manifests can additionally verify the referenced artefact checksum
@@ -348,7 +350,7 @@ JAX GK parity claims require persisted native-vs-JAX parity artifacts with
 backend metadata, dtype, X64 setting, device kind, and pinned tolerances:
 
 ```bash
-scpn-control validate-jax-gk-parity --require-parity-artifacts --json-out
+scpn-control validate-jax-gk-parity --require-parity-artifacts --require-cases cyclone_base_case,tem_kinetic_electron,stable_mode --require-backends cpu,gpu --json-out
 python validation/validate_jax_gk_parity.py --require-parity-artifacts --output-json artifacts/jax_gk_parity_report.json
 python validation/validate_jax_gk_parity.py --require-parity-artifacts --require-cases cyclone_base_case,tem_kinetic_electron,stable_mode --require-backends cpu,gpu
 ```

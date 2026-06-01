@@ -71,6 +71,8 @@ def test_validate_json_out(runner):
     assert data["status"] in ("pass", "fail")
     assert data["data_manifests"]["status"] == "pass"
     assert data["data_manifests"]["total"] >= 3
+    assert data["jax_gk_parity"]["status"] == "pass"
+    assert data["jax_gk_parity"]["parity_artifacts"] >= 6
 
 
 def test_validate_reports_manifest_gate_failures(runner, tmp_path):
@@ -81,6 +83,27 @@ def test_validate_reports_manifest_gate_failures(runner, tmp_path):
     assert data["status"] == "fail"
     assert data["data_manifests"]["status"] == "fail"
     assert data["data_manifests"]["errors"][0]["error"] == "no data manifests found"
+    assert data["jax_gk_parity"]["status"] == "pass"
+
+
+def test_validate_reports_jax_gk_parity_gate_failures(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate",
+            "--no-data-manifests",
+            "--jax-gk-parity-root",
+            str(tmp_path),
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["data_manifests"]["status"] == "skipped"
+    assert data["jax_gk_parity"]["status"] == "fail"
+    assert data["jax_gk_parity"]["errors"][0]["error"] == "no JAX GK parity artifacts found"
 
 
 def test_validate_can_skip_data_manifest_gate(runner):
@@ -88,7 +111,16 @@ def test_validate_can_skip_data_manifest_gate(runner):
 
     assert result.exit_code == 0
     assert "Data manifests: SKIPPED" in result.output
+    assert "JAX GK parity: pass" in result.output
     assert "Status:" in result.output
+
+
+def test_validate_can_skip_jax_gk_parity_gate(runner):
+    result = runner.invoke(main, ["validate", "--no-data-manifests", "--no-jax-gk-parity"])
+
+    assert result.exit_code == 0
+    assert "Data manifests: SKIPPED" in result.output
+    assert "JAX GK parity: SKIPPED" in result.output
 
 
 def test_validate_text_reports_manifest_gate_errors(runner, tmp_path):
@@ -751,6 +783,27 @@ def test_validate_jax_gk_parity_requires_artifacts(runner, tmp_path):
     data = json.loads(result.output)
     assert data["status"] == "fail"
     assert data["errors"][0]["error"] == "no JAX GK parity artifacts found"
+
+
+def test_validate_jax_gk_parity_cli_requires_case_backend_pairs(runner):
+    result = runner.invoke(
+        main,
+        [
+            "validate-jax-gk-parity",
+            "--require-parity-artifacts",
+            "--require-cases",
+            "cyclone_base_case,tem_kinetic_electron,stable_mode",
+            "--require-backends",
+            "cpu,gpu",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["status"] == "pass"
+    assert data["required_cases"] == ["cyclone_base_case", "stable_mode", "tem_kinetic_electron"]
+    assert data["required_backends"] == ["cpu", "gpu"]
 
 
 def test_validate_gk_ood_calibration_requires_artifacts(runner, tmp_path):
