@@ -5,6 +5,12 @@
 ## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Hardened nonlinear Cyclone Base Case evidence so
+  `validation/gk_nonlinear_cyclone.py` writes schema-versioned JSON/Markdown
+  reports with canonical payload SHA-256, separates diagnostic checks from
+  saturated `chi_i` admission, emits boolean-safe persisted evidence, supports
+  direct source-checkout execution, and keeps the current 200-step V4 run
+  blocked for saturated nonlinear CBC claims.
 - Hardened the TORAX code-to-code benchmark evidence boundary with a
   schema-versioned JSON/Markdown report, canonical scenario and payload
   SHA-256 digests, direct source-checkout execution support, explicit

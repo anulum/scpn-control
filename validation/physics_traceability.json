@@ -107,8 +107,14 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_nonlinear.py"
       ],
-      "validity_domain": "Implemented CBC machinery and short audited traces; no published quantitative saturated chi_i claim.",
-      "external_validation_tracker_issue": 47
+      "validity_domain": "Implemented CBC machinery and schema-versioned local diagnostic evidence; the current 200-step V4 run passes linear, energy, and zonal-flow diagnostics but blocks saturated chi_i admission because it is below the minimum campaign length, outside the CBC chi_i_gB reference band, and above the tail-drift threshold. No published quantitative saturated chi_i claim.",
+      "external_validation_tracker_issue": 47,
+      "evidence": [
+        "validation/gk_nonlinear_cyclone.py schema-versioned diagnostic and saturation-admission report producer",
+        "validation/reports/gk_nonlinear_cyclone.json digest-bound diagnostic-pass/saturation-blocked evidence",
+        "validation/reports/gk_nonlinear_cyclone.md human-readable diagnostic-pass/saturation-blocked summary",
+        "tests/test_gk_nonlinear_cyclone_validation.py digest, admission, direct-run bootstrap, and blocked saturation evidence checks"
+      ]
     },
     {
       "component": "linear gyrokinetic cross-code agreement",

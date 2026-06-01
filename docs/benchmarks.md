@@ -155,6 +155,24 @@ Hybrid accuracy (`validation/benchmark_hybrid_accuracy.py`) measures the
 correction layer convergence over 20 transport steps with periodic GK
 spot-checks.
 
+## Nonlinear Cyclone Base Case Evidence
+
+`validation/gk_nonlinear_cyclone.py` publishes schema-versioned nonlinear CBC
+diagnostic and saturation-admission evidence. The report separates quick
+diagnostic checks from saturated `chi_i` admission, binds the payload with a
+canonical SHA-256 digest, and writes both JSON and Markdown summaries:
+
+- `validation/reports/gk_nonlinear_cyclone.json`
+- `validation/reports/gk_nonlinear_cyclone.md`
+
+The current local benchmark passed the linear recovery, energy-conservation,
+and zonal-flow diagnostics. The saturated nonlinear CBC claim remains blocked:
+the V4 run used `200` steps, produced `chi_i_gB=1.6568813509166032e-09`, failed
+the `1.0..5.0` CBC reference band, and had tail relative drift
+`0.30041712853638713` above the configured `0.10` threshold. Use
+`--require-saturation` for publication or release gates that must fail unless a
+long enough saturated campaign is admitted.
+
 ## RZIP Calibration Benchmark
 
 `validation/benchmark_rzip_calibration.py` publishes bounded local regression

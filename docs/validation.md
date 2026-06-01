@@ -337,9 +337,15 @@ tail heat-flux trace before a run can support saturated-transport claims:
 python validation/gk_nonlinear_cyclone.py
 ```
 
-Short finite traces remain useful diagnostics, but they are reported as
-insufficient saturation evidence rather than quantitative nonlinear CBC
-validation.
+The generated `validation/reports/gk_nonlinear_cyclone.json` and Markdown
+summary use the `scpn-control.gk-nonlinear-cyclone.v2` schema and bind the
+report payload with SHA-256. Short finite traces remain useful diagnostics, but
+they are reported as insufficient saturation evidence rather than quantitative
+nonlinear CBC validation. The current local run passed the linear, energy, and
+zonal-flow diagnostics, but kept the saturated `chi_i` claim blocked because
+the V4 campaign used `200` steps, returned `chi_i_gB=1.6568813509166032e-09`,
+fell outside the `1.0..5.0` CBC reference band, and had tail relative drift
+`0.30041712853638713` above the `0.10` saturation threshold.
 
 Linear GK cross-code agreement claims require immutable real external-code run
 evidence. Parser fixtures and published reference numbers are useful readiness

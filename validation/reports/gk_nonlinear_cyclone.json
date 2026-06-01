@@ -1,36 +1,71 @@
 {
+  "schema_version": "scpn-control.gk-nonlinear-cyclone.v2",
   "benchmark": "nonlinear_gk_cyclone_base_case",
   "reference": "Dimits et al., Phys. Plasmas 7 (2000) 969",
+  "normalisation_contract": {
+    "chi_i_gB": "Q_i divided by R/L_Ti in gyro-Bohm diffusivity units",
+    "reference_band": [
+      1.0,
+      5.0
+    ],
+    "min_saturation_steps": 2000,
+    "max_tail_relative_drift": 0.1
+  },
+  "diagnostic_checks_passed": true,
+  "saturation_claim_admitted": false,
+  "blocked_reasons": [
+    "n_steps below saturation evidence minimum",
+    "chi_i_gB outside CBC reference band",
+    "tail heat-flux drift exceeds saturation threshold"
+  ],
+  "claim_status": "diagnostic evidence only; saturated nonlinear CBC chi_i claim remains blocked",
   "results": [
     {
       "test": "V1_linear_recovery",
-      "phi_rms_initial": 6.991910708085786e-09,
-      "phi_rms_final": 7.032417753184129e-09,
-      "converged": "True",
-      "passed": "True"
+      "phi_rms_initial": 2.0503560855638483e-09,
+      "phi_rms_final": 1.234267168603751e-09,
+      "converged": true,
+      "passed": true
     },
     {
       "test": "V2_energy_conservation",
-      "E_initial": 8.465136882727821e-09,
-      "E_final": 8.467187867726295e-09,
-      "ratio": 1.0002422860996683,
+      "E_initial": 2.8487648594791522e-09,
+      "E_final": 2.7671443510597496e-09,
+      "ratio": 0.9713488081868836,
       "passed": true
     },
     {
       "test": "V3_zonal_flow_generation",
-      "zonal_rms_final": 179866.941815465,
-      "phi_rms_final": 63592.56713450074,
-      "converged": "True",
-      "passed": "True"
+      "zonal_rms_final": 0.0006038777682846126,
+      "phi_rms_final": 0.0002137361220080846,
+      "converged": true,
+      "passed": true
     },
     {
       "test": "V4_cbc_saturated",
-      "chi_i_gB": -1.7611303266178387e-07,
-      "chi_e_gB": -8.805651633089194e-08,
-      "converged": "True",
-      "elapsed_s": 60.22454399999697,
-      "passed": "True"
+      "chi_i_gB": 1.6568813509166032e-09,
+      "chi_e_gB": 5.7162406606622815e-09,
+      "converged": true,
+      "elapsed_s": 8.821150058996864,
+      "saturation_evidence": {
+        "chi_i_gB": 1.6568813509166032e-09,
+        "n_steps": 200,
+        "reference_band": [
+          1.0,
+          5.0
+        ],
+        "min_steps": 2000,
+        "tail_relative_drift": 0.30041712853638713,
+        "max_tail_relative_drift": 0.1,
+        "passed": false,
+        "reasons": [
+          "n_steps below saturation evidence minimum",
+          "chi_i_gB outside CBC reference band",
+          "tail heat-flux drift exceeds saturation threshold"
+        ]
+      },
+      "passed": false
     }
   ],
-  "all_passed": true
+  "payload_sha256": "df4e4683fe101c1794dc1dd73817730246d08023b6b9a4f3d8d5dfe2c7cf1d7f"
 }
