@@ -484,7 +484,9 @@ present.
 Current ML350 conversion evidence from the acquired campaign produced 527
 finite converged reference-candidate equilibria across shots 30419-30424
 with candidate report payload SHA-256
-`62e7aa720bcfe975d0f6f2ffc3e36eb4d676cf63310cd348a816d147b9f0e5f1`.
+`8d173f423440243c4362256480e7ec40a8ca16244ac862b727428d6f28f747e5`.
+Converted bundles now persist exact public EFM `profile_r` and `profile_z`
+coordinate grids as `r_grid_m` and `z_grid_m` with lengths 129 and 65.
 The report remains `admission_ready=false` and is intentionally not a
 passing predictive EFIT/P-EFIT admission artefact.
 
@@ -495,18 +497,18 @@ python validation/evaluate_mast_efm_neural_equilibrium.py --reference-path /mnt/
 ```
 
 Scoped 2026-06-01 evaluation over shots 30419-30424 used full 65 x 129
-reference grids and matching-grid synthetic-domain weights to exercise the
-current model prediction path. Flux masked RMSE values were 1.574623069235,
-1.643688910187, 1.565222714156, 1.486059078976, 1.499524077369, and
-1.561932368275 Wb/rad for shots 30419-30424 respectively. Derived magnetic-axis
-RMSE values were 0.547308892638, 0.566106907981, 0.544130630003,
-0.584207093542, 0.584390539005, and 0.546494055341 m. Derived LCFS mean-distance
-values were 0.289134250926, 0.306923074294, 0.288993242027,
-0.311673013122, 0.317069876763, and 0.290272487510 m. These reports remain
-`admission_ready=false` and `strict_artifact_emitted=false` because the model
-path does not yet produce pressure or q-profile predictions, the public bundles
-do not carry exact EFIT mesh coordinates, and some required diagnostic inputs are
-represented by documented fallback features.
+reference grids, exact public EFM coordinates, and matching-grid synthetic-domain
+weights to exercise the current model prediction path. Flux masked RMSE values
+were 1.574623069235, 1.643688910187, 1.565222714156, 1.486059078976,
+1.499524077369, and 1.561932368275 Wb/rad for shots 30419-30424 respectively.
+Derived magnetic-axis RMSE values were 0.800979524200, 0.783302289712,
+0.797510280021, 0.725725041659, 0.724815492014, and 0.797042852897 m. Derived
+LCFS mean-distance values were 0.594233082526, 0.490801237843,
+0.592467676720, 0.479744649844, 0.484618427508, and 0.593385388932 m. These
+reports remain `admission_ready=false` and `strict_artifact_emitted=false`
+because the model path does not yet produce pressure or q-profile predictions
+and some required diagnostic inputs are represented by documented fallback
+features.
 
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 

@@ -365,7 +365,7 @@
         "validation/benchmark_neural_equilibrium_pretraining.py deterministic synthetic pretraining and claim-admission benchmark",
         "validation/validate_neural_equilibrium_reference.py strict digest-bound P-EFIT/reference artefact gate with report schema, payload digest, artefact file digest, portable paths, duplicate reference-set rejection, and blocked public-claim state",
         "validation/convert_mast_efm_neural_equilibrium_reference.py converts public MAST EFM measured-shot Zarr campaigns into checksum-bound reference-candidate arrays while preserving strict predictive-claim blockage pending exact-model predictions and metric admission",
-        "validation/evaluate_mast_efm_neural_equilibrium.py evaluates current neural-equilibrium weights against converted public MAST EFM reference-candidate arrays, writes prediction artefacts, reports flux masked RMSE plus derived magnetic-axis and LCFS residuals, and preserves fail-closed predictive-claim blockage"
+        "validation/evaluate_mast_efm_neural_equilibrium.py evaluates current neural-equilibrium weights against converted public MAST EFM reference-candidate arrays with exact profile_r/profile_z grids, writes prediction artefacts, reports flux masked RMSE plus derived magnetic-axis and LCFS residuals, and preserves fail-closed predictive-claim blockage"
       ],
       "evidence_paths": [
         "src/scpn_control/core/neural_equilibrium.py",

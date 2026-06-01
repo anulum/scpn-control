@@ -14,9 +14,10 @@
 - Added `validation/evaluate_mast_efm_neural_equilibrium.py` to run
   current neural-equilibrium weights against the converted public MAST EFM
   reference-candidate arrays, persist prediction artefacts on ML350 SAS,
+  persist exact public EFM `profile_r`/`profile_z` coordinate grids,
   report flux RMSE plus derived magnetic-axis and LCFS residual evidence
   for 527 slices, and keep predictive EFIT/P-EFIT admission blocked until
-  full pressure, q-profile, exact-grid, and exact-input evidence exists.
+  full pressure, q-profile, and exact-input evidence exists.
 - Hardened neural equilibrium reference admission so
   `validation/validate_neural_equilibrium_reference.py` now emits
   schema-versioned, digest-bound reports with portable paths, explicit

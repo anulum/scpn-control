@@ -36,6 +36,8 @@ REQUIRED_EFM_VARIABLES = (
 )
 REFERENCE_ARRAY_KEYS = (
     "time_s",
+    "r_grid_m",
+    "z_grid_m",
     "psirz_Wb_per_rad",
     "psirz_valid_mask",
     "psi_axis_Wb_per_rad",
@@ -51,6 +53,7 @@ REFERENCE_ARRAY_KEYS = (
     "magnetic_axis_z_m",
     "shot_id",
 )
+TIME_ALIGNED_ARRAY_KEYS = tuple(key for key in REFERENCE_ARRAY_KEYS if key not in {"r_grid_m", "z_grid_m"})
 BLOCKED_REASON = (
     "Reference arrays were converted from public MAST EFM data, but predictive EFIT/P-EFIT claims remain blocked "
     "until exact-model predictions, pressure reconstruction, metrics, tolerances, and strict admission artefacts exist."
@@ -202,12 +205,15 @@ def extract_reference_arrays(ds: DatasetLike, *, shot_id: int, max_times: int | 
     if indices.size == 0:
         raise ValueError("MAST EFM dataset has no finite converged equilibrium slices")
     psirz = _take_time(ds["psirz"], indices, name="psirz")
+    r_grid, z_grid = _psirz_coordinate_grids(ds, ds["psirz"], psirz.shape[-2:])
     pprime = _take_time(ds["pprime"], indices, name="pprime")
     q_profile = _take_time(ds["qpsi_c"], indices, name="qpsi_c")
     lcfs_r = _take_time(ds["lcfs_r"], indices, name="lcfs_r")
     lcfs_z = _take_time(ds["lcfs_z"], indices, name="lcfs_z")
     arrays = {
         "time_s": time[indices].astype(np.float64),
+        "r_grid_m": r_grid.astype(np.float64),
+        "z_grid_m": z_grid.astype(np.float64),
         "psirz_Wb_per_rad": psirz.astype(np.float64),
         "psirz_valid_mask": np.isfinite(psirz),
         "psi_axis_Wb_per_rad": _take_time(ds["psi_axis"], indices, name="psi_axis").astype(np.float64),
@@ -247,8 +253,19 @@ def _validate_reference_arrays(arrays: dict[str, np.ndarray]) -> None:
     for key in REFERENCE_ARRAY_KEYS:
         if key not in arrays:
             raise ValueError(f"missing converted array {key}")
+    for key in TIME_ALIGNED_ARRAY_KEYS:
         if arrays[key].shape[0] != first:
             raise ValueError(f"converted array {key} does not share the selected time dimension")
+    r_grid = arrays["r_grid_m"]
+    z_grid = arrays["z_grid_m"]
+    if r_grid.ndim != 1 or z_grid.ndim != 1:
+        raise ValueError("converted coordinate grids must be one-dimensional")
+    if not np.all(np.isfinite(r_grid)) or not np.all(np.isfinite(z_grid)):
+        raise ValueError("converted coordinate grids must be finite")
+    if not (np.all(np.diff(r_grid) > 0.0) or np.all(np.diff(r_grid) < 0.0)):
+        raise ValueError("converted r_grid_m must be strictly monotonic")
+    if not (np.all(np.diff(z_grid) > 0.0) or np.all(np.diff(z_grid) < 0.0)):
+        raise ValueError("converted z_grid_m must be strictly monotonic")
     finite_required = (
         "time_s",
         "psi_axis_Wb_per_rad",
@@ -274,6 +291,10 @@ def _validate_reference_arrays(arrays: dict[str, np.ndarray]) -> None:
             raise ValueError(f"converted array {value_key} has no finite valid points")
     if arrays["psirz_Wb_per_rad"].ndim != 3:
         raise ValueError("psirz must be a time, z, r array")
+    if arrays["psirz_Wb_per_rad"].shape[-1] != r_grid.shape[0]:
+        raise ValueError("r_grid_m length must match psirz radial dimension")
+    if arrays["psirz_Wb_per_rad"].shape[-2] != z_grid.shape[0]:
+        raise ValueError("z_grid_m length must match psirz vertical dimension")
     if arrays["lcfs_r_m"].shape != arrays["lcfs_z_m"].shape:
         raise ValueError("LCFS R/Z arrays must have matching shapes")
     if np.any(arrays["psi_axis_Wb_per_rad"] == arrays["psi_boundary_Wb_per_rad"]):
@@ -306,6 +327,31 @@ def _take_time(data_array: Any, indices: np.ndarray, *, name: str) -> np.ndarray
     else:
         raise ValueError(f"{name} does not expose a usable time dimension")
     return np.take(values, indices, axis=axis)
+
+
+def _psirz_coordinate_grids(ds: DatasetLike, psirz_array: Any, grid_shape: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+    dims = tuple(getattr(psirz_array, "dims", ()))
+    if len(dims) < 3:
+        raise ValueError("psirz must expose time, z, and r dimensions")
+    z_dim = dims[-2]
+    r_dim = dims[-1]
+    return (
+        _coordinate_grid_from_dimension(ds, r_dim, expected_size=grid_shape[-1]),
+        _coordinate_grid_from_dimension(ds, z_dim, expected_size=grid_shape[-2]),
+    )
+
+
+def _coordinate_grid_from_dimension(ds: DatasetLike, dimension: str, *, expected_size: int) -> np.ndarray:
+    if dimension not in ds.variables:
+        raise ValueError(f"MAST EFM dataset missing exact coordinate grid for {dimension}")
+    grid = np.asarray(ds[dimension].values, dtype=np.float64).reshape(-1)
+    if grid.size != expected_size:
+        raise ValueError(f"coordinate grid {dimension} length does not match psirz dimension")
+    if not np.all(np.isfinite(grid)):
+        raise ValueError(f"coordinate grid {dimension} contains non-finite values")
+    if not (np.all(np.diff(grid) > 0.0) or np.all(np.diff(grid) < 0.0)):
+        raise ValueError(f"coordinate grid {dimension} must be strictly monotonic")
+    return grid
 
 
 def _as_1d_array(ds: DatasetLike, name: str, *, fallback_size: int) -> np.ndarray:

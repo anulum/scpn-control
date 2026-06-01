@@ -462,9 +462,9 @@ git push --tags
   experimental disruption databases.
 - **No GPU equilibrium**: P-EFIT is faster on GPU hardware. JAX neural equilibrium
   runs on GPU if available. Public MAST EFM prediction evidence is available as
-  fail-closed flux and derived-geometry evaluation, but it is not
-  cross-validated against matched P-EFIT pressure, q-profile, exact-grid, and
-  exact-input artefacts.
+  fail-closed flux and derived-geometry evaluation with exact public EFM
+  coordinate grids, but it is not cross-validated against matched P-EFIT
+  pressure, q-profile, and exact-input artefacts.
 - **Rust acceleration**: Optional. Pure-Python fallback is complete but 5-10x
   slower for GS solve and Kuramoto steps at N > 1000.
 

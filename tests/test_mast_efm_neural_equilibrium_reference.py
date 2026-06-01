@@ -37,14 +37,19 @@ class FakeDataset:
         return self._values[key]
 
 
-def _fake_dataset() -> FakeDataset:
+def _sample_dataset() -> FakeDataset:
     time = np.array([0.1, 0.2, 0.3])
     return FakeDataset(
         {
             "time": FakeArray(time, ("time",)),
+            "profile_r": FakeArray(np.array([0.4, 0.5]), ("profile_r",)),
+            "profile_z": FakeArray(np.array([-0.1, 0.1]), ("profile_z",)),
             "status": FakeArray([1, -1, 1], ("time",)),
             "cnvrgd_times": FakeArray([1, 1, 1], ("time",)),
-            "psirz": FakeArray(np.array([[[1.0, np.nan], [2.0, 3.0]], [[4.0, 5.0], [6.0, 7.0]], [[8.0, 9.0], [10.0, 11.0]]]), ("time", "z", "r")),
+            "psirz": FakeArray(
+                np.array([[[1.0, np.nan], [2.0, 3.0]], [[4.0, 5.0], [6.0, 7.0]], [[8.0, 9.0], [10.0, 11.0]]]),
+                ("time", "profile_z", "profile_r"),
+            ),
             "psi_axis": FakeArray([0.1, 0.2, 0.3], ("time",)),
             "psi_boundary": FakeArray([1.1, 1.2, 1.3], ("time",)),
             "pprime": FakeArray(np.ones((3, 2)), ("time", "psi_norm")),
@@ -58,7 +63,7 @@ def _fake_dataset() -> FakeDataset:
 
 
 def test_extract_reference_arrays_keeps_only_converged_time_slices() -> None:
-    arrays = extract_reference_arrays(_fake_dataset(), shot_id=30419)
+    arrays = extract_reference_arrays(_sample_dataset(), shot_id=30419)
 
     assert arrays["time_s"].tolist() == [0.1, 0.3]
     assert arrays["shot_id"].tolist() == [30419, 30419]
@@ -68,10 +73,24 @@ def test_extract_reference_arrays_keeps_only_converged_time_slices() -> None:
     assert arrays["psi_axis_Wb_per_rad"].tolist() == [0.1, 0.3]
     assert arrays["psi_boundary_Wb_per_rad"].tolist() == [1.1, 1.3]
     assert arrays["lcfs_r_m"].shape == arrays["lcfs_z_m"].shape
+    assert arrays["r_grid_m"].tolist() == [0.4, 0.5]
+    assert arrays["z_grid_m"].tolist() == [-0.1, 0.1]
+
+
+def test_extract_reference_arrays_rejects_missing_exact_coordinate_grid() -> None:
+    ds = _sample_dataset()
+    del ds.variables["profile_r"]
+
+    try:
+        extract_reference_arrays(ds, shot_id=30419)
+    except ValueError as exc:
+        assert "profile_r" in str(exc)
+    else:
+        raise AssertionError("missing profile_r was not rejected")
 
 
 def test_extract_reference_arrays_rejects_missing_required_variable() -> None:
-    ds = _fake_dataset()
+    ds = _sample_dataset()
     del ds.variables["psirz"]
 
     try:
@@ -97,8 +116,8 @@ def test_convert_campaign_reports_blocked_reference_candidate(monkeypatch, tmp_p
         encoding="utf-8",
     )
 
-    def fake_convert_shot_zarr(**kwargs: Any) -> object:
-        arrays = extract_reference_arrays(_fake_dataset(), shot_id=kwargs["shot_id"])
+    def sample_convert_shot_zarr(**kwargs: Any) -> object:
+        arrays = extract_reference_arrays(_sample_dataset(), shot_id=kwargs["shot_id"])
         kwargs["output_path"].parent.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(kwargs["output_path"], **arrays)
         from validation.convert_mast_efm_neural_equilibrium_reference import _converted_summary
@@ -112,7 +131,7 @@ def test_convert_campaign_reports_blocked_reference_candidate(monkeypatch, tmp_p
 
     monkeypatch.setattr(
         "validation.convert_mast_efm_neural_equilibrium_reference.convert_shot_zarr",
-        fake_convert_shot_zarr,
+        sample_convert_shot_zarr,
     )
 
     report = convert_campaign(dataset_root=dataset_root, campaign_manifest=manifest, output_root=output_root)
