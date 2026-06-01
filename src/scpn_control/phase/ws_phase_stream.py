@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 _MIN_API_KEY_BYTES = 16
 _KNOWN_ACTIONS = frozenset({"set_psi", "set_pac_gamma", "reset", "stop"})
 _DEFAULT_ALLOWED_ACTIONS = ("set_psi", "set_pac_gamma", "reset", "stop")
+_RUNTIME_CONFIG_DIGEST_KEY = b"scpn-control.phase-stream.runtime-config.v1"
 WEBSOCKET_RUNTIME_EVIDENCE_SCHEMA_VERSION = "scpn-control.websocket-runtime-evidence.v1"
 WEBSOCKET_RUNTIME_EVIDENCE_LOCAL_ONLY = "bounded_websocket_runtime_evidence_only"
 WEBSOCKET_RUNTIME_EVIDENCE_QUALIFIED = "qualified_websocket_runtime_evidence"
@@ -232,7 +233,11 @@ def _ws_config_payload(
 
 
 def _runtime_config_sha256(payload: Mapping[str, Any]) -> str:
-    return hashlib.sha256(_canonical_json(dict(payload)).encode("utf-8")).hexdigest()
+    return hmac.new(
+        _RUNTIME_CONFIG_DIGEST_KEY,
+        _canonical_json(dict(payload)).encode("utf-8"),
+        "sha256",
+    ).hexdigest()
 
 
 @dataclass

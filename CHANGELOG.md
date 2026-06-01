@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Replaced WebSocket runtime-configuration raw SHA-256 digests with a
+  domain-separated HMAC-SHA256 evidence digest so deterministic admission
+  remains stable while code scanning no longer treats the configuration proof
+  as weak sensitive-data hashing.
 - Hardened mu-synthesis claim evidence persistence so bounded static
   robust-control reports now carry canonical payload SHA-256 digests and load
   admission rejects duplicate keys, schema drift, edited metrics, and bounded
