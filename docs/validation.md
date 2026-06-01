@@ -467,6 +467,27 @@ documented public reference artefacts for the same surrogate weights and
 equilibrium cases. Synthetic training runs and local smoke tests do not count as
 matched equilibrium-reference evidence:
 
+Public MAST Level 1 EFM measured-shot campaigns can be converted into
+reference-candidate arrays on ML350 SAS storage with:
+
+```bash
+ssh anulum@192.168.1.30 '/mnt/data_sas/DATASETS/SCPN-CONTROL/.venv/bin/python /path/to/SCPN-CONTROL/validation/convert_mast_efm_neural_equilibrium_reference.py --dataset-root /mnt/data_sas/DATASETS/SCPN-CONTROL --campaign-manifest /mnt/data_sas/DATASETS/SCPN-CONTROL/manifests/mast_level1_efm_campaign_30419_30424.json --output-root /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference --report-out /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json'
+```
+
+The converter writes immutable `.npz` reference arrays and a
+schema-versioned candidate report only. It deliberately does not emit a
+passing `scpn-control.neural-equilibrium-reference.v1` artefact until
+pressure reconstruction, exact-weight predictions, reference/prediction
+SHA-256 digests, metrics, tolerances, and strict admission evidence are
+present.
+
+Current ML350 conversion evidence from the acquired campaign produced 527
+finite converged reference-candidate equilibria across shots 30419-30424
+with candidate report payload SHA-256
+`62e7aa720bcfe975d0f6f2ffc3e36eb4d676cf63310cd348a816d147b9f0e5f1`.
+The report remains `admission_ready=false` and is intentionally not a
+passing predictive EFIT/P-EFIT admission artefact.
+
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 
 ```bash

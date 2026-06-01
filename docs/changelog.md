@@ -5,6 +5,12 @@
 ## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Added `validation/convert_mast_efm_neural_equilibrium_reference.py`
+  to convert public MAST Level 1 EFM measured-shot Zarr campaigns into
+  checksum-bound neural-equilibrium reference-candidate arrays while
+  keeping predictive EFIT/P-EFIT claims blocked until exact-model
+  predictions, pressure reconstruction, declared metrics, and strict
+  admission artefacts exist.
 - Hardened neural equilibrium reference admission so
   `validation/validate_neural_equilibrium_reference.py` now emits
   schema-versioned, digest-bound reports with portable paths, explicit
