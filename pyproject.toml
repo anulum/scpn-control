@@ -12,7 +12,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scpn-control"
-version = "0.20.0"
+version = "0.20.1"
 description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller for plasma control"
 authors = [
     {name = "Miroslav Sotek", email = "protoscience@anulum.li"},
@@ -121,19 +121,11 @@ module = ["matplotlib", "matplotlib.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["streamlit", "streamlit.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
 module = ["torch", "torch.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["scipy", "scipy.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["osqp", "osqp.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

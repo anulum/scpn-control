@@ -77,6 +77,19 @@ Before presenting a stronger claim for any surface, require all of the following
 5. The change is reflected in the changelog, validation docs, and generated
    traceability report.
 
+## Decision tree for users
+
+- If you need a Python package for research, bounded controller experiments,
+  formal checks, and reproducible validation reports, SCPN Control is usable
+  today inside the documented claim boundaries.
+- If you need publication-grade quantitative physics claims, use only surfaces
+  whose strict validators admit the required public, external-code, or measured
+  artefacts.
+- If you need target-hardware or HIL claims, require target-specific timing,
+  interlock, backpressure, replay, and hardware metadata reports.
+- If you need plant deployment, treat this repository as supporting evidence
+  infrastructure only; facility-specific safety engineering remains required.
+
 ## Current concise classification
 
 SCPN Control is a production-oriented research and control-integration library.

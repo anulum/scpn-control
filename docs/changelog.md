@@ -2,6 +2,14 @@
 
 # Changelog
 
+## [0.20.1] - 2026-06-02
+
+### Changed
+- Bumped package, citation, and archive metadata to `0.20.1` for the documentation and evidence-polish release candidate.
+- Expanded the README, documentation landing page, onboarding guide, tutorials, notebook gallery, use-case page, production-readiness boundary, and compute-validation financing page so new users can understand the software purpose, applications, market value, collaboration needs, and strict evidence boundaries.
+- Added v0.20.1 release notes and exposed additional public documentation pages in the MkDocs navigation.
+- Preserved the release boundary: predictive EFIT/P-EFIT, external-code GK, target-hardware real-time, and plant-deployment claims remain blocked until strict admission artefacts exist.
+
 ## [0.20.0] - 2026-06-01
 
 ### Changed

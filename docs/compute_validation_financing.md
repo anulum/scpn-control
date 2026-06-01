@@ -26,6 +26,14 @@ reviewed, repeated, and challenged.
     Control keeps full-fidelity claims blocked until the corresponding external
     artefacts pass the repository admission gates.
 
+## Current support request
+
+The immediate need is funding and collaboration for validation, not marketing
+language. The prepared lanes need public-data acquisition, GPU execution,
+external-code comparisons, target-hardware timing, and independent review. The
+repository already records blockers as evidence gates; financing pays to run the
+campaigns that can close those gates or produce useful negative evidence.
+
 ## Why compute financing matters
 
 The repository already separates bounded local evidence from external validation

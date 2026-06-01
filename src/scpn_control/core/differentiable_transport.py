@@ -38,8 +38,8 @@ try:
 
     _HAS_JAX = True
 except ImportError:
-    jax = None
-    jnp = None
+    jax = None  # type: ignore[assignment]
+    jnp = None  # type: ignore[assignment]
     _HAS_JAX = False
 
 CHANNEL_COUNT = 4

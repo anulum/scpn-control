@@ -59,6 +59,7 @@ nav:
     - First Steps: tutorials/first_steps.md
     - Tutorials: tutorials.md
     - Notebook Gallery: notebooks.md
+    - FAQ: faq.md
   - Learning:
     - Plasma Physics Primer: learning/plasma_physics_primer.md
     - Control Theory Primer: learning/control_theory_primer.md
@@ -70,16 +71,22 @@ nav:
     - Paper 27 Phase Dynamics: paper27_phase_dynamics.md
     - Paper 27 Reviewer Integration: REVIEWER_PAPER27_INTEGRATION.md
     - Architecture: architecture.md
+    - Physics Methods: physics_methods.md
+    - Neural Transport Training: neural_transport_training.md
   - Validation:
     - Benchmarks: benchmarks.md
     - Validation and QA: validation.md
     - Physics Traceability: physics_traceability.md
     - Production Readiness: production_readiness.md
+    - Validation Summary: validation_summary.md
+    - Validation Deficiencies: validation_deficiencies.md
     - Competitive Analysis: competitive_analysis.md
+    - Deployment: deployment.md
   - Project:
     - JOSS Paper: joss_paper.md
     - Development: development.md
     - Capability Manifest: capability_manifest.md
+    - Release Notes v0.20.1: release_notes_v0.20.1.md
     - Release Notes v0.20.0: release_notes_v0.20.0.md
     - Release Notes v0.19.3: release_notes_v0.19.3.md
     - Compute Validation Funding: compute_validation_financing.md

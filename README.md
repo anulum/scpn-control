@@ -92,6 +92,43 @@ release artefact gates. These are valuable only when the evidence boundary is
 honest, so this repository distinguishes library readiness from facility
 certification throughout the documentation.
 
+## What it is in one sentence
+
+SCPN Control is the controller-facing evidence layer for fusion software: it
+helps teams convert controller ideas into executable artefacts, attach physics
+and runtime assumptions, run bounded validation, and decide what can or cannot
+be claimed before facility promotion.
+
+## The product boundary
+
+SCPN Control is intentionally not a monolithic replacement for established
+facility tools. It sits between four worlds that are often disconnected:
+research notebooks, physics solvers, plant-control infrastructure, and safety
+review. The package provides the contract layer between those worlds.
+
+| Boundary | SCPN Control role | What still belongs elsewhere |
+| --- | --- | --- |
+| Controller design | SPN/SNN, NMPC, robust control, phase dynamics, digital-twin control contracts | Site-specific PCS implementation and operator procedures |
+| Physics coupling | Control-grade facades, differentiable paths, replay metadata, validation admission | Broad solver development and full physics campaigns, primarily in SCPN Fusion Core or external codes |
+| Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
+| Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
+
+## Why this has market value
+
+Fusion organisations spend significant time proving that a controller result is
+not just an attractive plot. They need reproducibility, claim discipline,
+security boundaries, and a path from local validation to external review. SCPN
+Control packages that work into a reusable layer. The immediate market value is
+shorter review cycles, clearer due-diligence artefacts, better collaboration
+with facilities and external-code owners, and a concrete compute-validation
+funding plan instead of vague claims.
+
+The strongest near-term applications are controller concept review, formal
+safety-case preparation, public-data validation campaigns, differentiable
+controller tuning, target-hardware latency evidence, and local or air-gapped
+physics debugging. The project deliberately keeps broader facility claims
+blocked until the required external artefacts exist.
+
 > **11.9 us P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
 > This is a bare Rust kernel call, not a complete control cycle.
 > See [competitive analysis](docs/competitive_analysis.md) for methodology and
@@ -118,7 +155,7 @@ certification throughout the documentation.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.0 |
+| Package version | 0.20.1 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -129,7 +166,7 @@ certification throughout the documentation.
 | Validation scripts | 86 |
 | Optional extras | 17 |
 | Python test files | 296 |
-| Public documentation pages | 36 |
+| Public documentation pages | 37 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

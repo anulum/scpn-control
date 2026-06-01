@@ -41,6 +41,19 @@ jupyter nbconvert --to html examples/snn_compiler_walkthrough.ipynb --output-dir
 jupyter nbconvert --to html examples/h_infinity_controller_demo.ipynb --output-dir docs/_notebooks
 ```
 
+## Notebook to evidence workflow
+
+Use notebooks for exploration, teaching, and communication. Use validators for
+claims.
+
+1. Run the notebook locally and record the exact environment.
+2. Move any claim-bearing computation into a script under `validation/` or a
+   module-specific test.
+3. Persist JSON and Markdown evidence with schema version, units, source data,
+   checksums, tolerances, and claim boundary.
+4. Add or update the matching validator so edited artefacts fail closed.
+5. Link the admitted report from validation docs, benchmarks, or release notes.
+
 ## Interpretation rules
 
 - Notebook plots are explanatory, not facility evidence.

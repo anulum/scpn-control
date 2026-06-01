@@ -42,6 +42,24 @@ python examples/tutorial_01_closed_loop_control.py
 | Work on facility replay | Tutorial 01, then [Validation and QA](validation.md) |
 | Work on notebooks | [Notebook Gallery](notebooks.md) |
 
+## What each tutorial should teach
+
+A tutorial is successful when you can identify the controller surface, the
+physics or replay input, the produced output, and the claim boundary. If a
+script produces only a plot or console value, treat it as a learning artefact.
+If it produces JSON/Markdown under `validation/reports/`, treat it as evidence
+only after the matching validator admits it.
+
+| Tutorial family | Expected takeaway |
+| --- | --- |
+| Closed loop | How observations become controller actions and replayable summaries |
+| JAX autodiff | Where gradients are available for tuning and where fidelity remains bounded |
+| PPO/RL | How learning baselines compare to classical controllers without bypassing safety gates |
+| Neural transport/equilibrium | How surrogate evidence is separated from full reference admission |
+| Phase dynamics | How SCPN phase contracts, Lyapunov guards, and WebSocket runtime boundaries interact |
+| Frontier physics | Which physics modules are local bounded models and which require external validation |
+| Advanced controllers | How robust/NMPC/mu-synthesis surfaces expose lifecycle and admission constraints |
+
 ## Controller walkthrough
 
 ```python

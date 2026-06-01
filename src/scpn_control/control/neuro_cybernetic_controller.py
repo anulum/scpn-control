@@ -20,7 +20,7 @@ try:
 
     HAS_MPL = True
 except ImportError:
-    plt = None
+    plt = None  # type: ignore[assignment]
     HAS_MPL = False
 import logging
 

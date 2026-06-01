@@ -54,6 +54,27 @@ pip install -e ".[dev,docs,formal,jax,ws]"
 5. If you want to make a claim, find the matching validator in
    [Validation and QA](validation.md) before writing code.
 
+## First day by role
+
+| Role | Practical path | What to avoid |
+| --- | --- | --- |
+| Control researcher | Run Tutorial 01, inspect `scpn_control.control`, then persist a bounded validation report | Do not cite local plots as facility evidence |
+| Physics modeller | Start with traceability and validation pages before solver-facing examples | Do not duplicate solver kernels already owned by SCPN Fusion Core |
+| Safety reviewer | Read production readiness, formal verification API, and certificate bundle validation | Do not treat bounded proofs as facility certification |
+| Data collaborator | Read public-data acquisition, MAST EFM evidence, and compute financing pages | Do not commit large numeric payloads to git |
+| Funder or partner | Read use cases, market value, production readiness, and compute validation financing | Do not interpret blocked gates as failures; they are the work plan |
+
+## Evidence ladder
+
+1. **Demonstration**: tutorial, notebook, or example output.
+2. **Bounded repository evidence**: deterministic report with declared assumptions.
+3. **Reference admission**: strict validator admits documented public or measured reference artefacts.
+4. **External-code or facility validation**: matched cases, units, tolerances, and provenance from external tools or shots.
+5. **Deployment qualification**: target hardware, interlocks, safety review, operator procedures, and facility sign-off.
+
+Most new work starts at levels 1 or 2. The documentation should make that clear
+before any stronger language is used.
+
 ## Choosing a workflow
 
 | Goal | Start here |

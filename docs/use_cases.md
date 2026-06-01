@@ -79,6 +79,26 @@ collaboration value is the control-evidence layer:
 - explicit funding targets for data, hardware, and external-code validation;
 - reusable interfaces for labs that need local or air-gapped workflows.
 
+## What a collaborator can fund or contribute
+
+| Contribution | Repository outcome | Why it matters |
+| --- | --- | --- |
+| GPU or HPC allocation | Executed training, latency, and uncertainty reports | Converts prepared pipelines into measured evidence |
+| Public or facility data access | Immutable acquisition manifests and reference reports | Moves claims from bounded to reference-validated |
+| External-code runs | Matched input decks, raw outputs, parsed metrics, and checksums | Closes gyrokinetic, transport, equilibrium, and digital-twin gaps |
+| Target hardware | P50/P95/P99 timing and HIL replay reports | Separates local timing from deployment-relevant timing |
+| Safety review | Independent review artefacts and requirement traceability | Makes formal evidence useful for facility processes |
+| Documentation review | Better onboarding, tutorials, and claim wording | Lowers adoption friction and prevents overstated claims |
+
+## Why this is different from a solver repository
+
+A solver repository tries to improve physical models. SCPN Control tries to make
+controller claims auditable. It can wrap or port selected solver contracts, but
+its distinctive value is the evidence path around controllers: fail-closed
+runtime boundaries, proof artefacts, replay metadata, benchmark admission, and
+release documentation that tells users what is ready, what is bounded, and what
+is blocked.
+
 ## Current limitations
 
 - No commissioned plant deployment is claimed.

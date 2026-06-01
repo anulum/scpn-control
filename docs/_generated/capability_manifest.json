@@ -22,7 +22,7 @@
     "project_script_count": 2,
     "public_api_export_count": 44,
     "public_class_count": 483,
-    "public_markdown_count": 36,
+    "public_markdown_count": 37,
     "pyo3_export_count": 27,
     "python_test_file_count": 296,
     "rust_source_file_count": 50,
@@ -61,6 +61,7 @@
       "docs/release_notes_v0.19.2.md",
       "docs/release_notes_v0.19.3.md",
       "docs/release_notes_v0.20.0.md",
+      "docs/release_notes_v0.20.1.md",
       "docs/theory.md",
       "docs/tutorials.md",
       "docs/tutorials/first_steps.md",
@@ -98,7 +99,7 @@
       "scpn-check-generated-traceability": "tools.check_generated_traceability:main",
       "scpn-control": "scpn_control.cli:main"
     },
-    "version": "0.20.0"
+    "version": "0.20.1"
   },
   "python": {
     "public_api_exports": [

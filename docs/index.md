@@ -40,6 +40,31 @@ to discuss, test, fund, and review.
 | Runtime security | Harden WebSocket, native-code, config, and artefact-loading boundaries for fail-closed operation. |
 | Documentation and release evidence | Publish enough context for users, collaborators, reviewers, and funders to understand the product boundary. |
 
+## What the software is for
+
+SCPN Control is for the stage where a fusion-control idea needs to become a
+reviewable software artefact. The package helps you answer: what controller was
+run, what physics/replay contract fed it, what assumptions were declared, what
+validation artefact was produced, what checksum binds that artefact, and what
+stronger claims are still blocked.
+
+The core product is not a single algorithm. It is the control-evidence workflow:
+controller construction, bounded verification, physics/replay integration,
+benchmarking, report generation, strict admission, documentation, and release
+tracking. That workflow is useful to research groups, startups, facility teams,
+and funders because it turns ambiguous demonstrations into auditable evidence.
+
+## Application and value map
+
+| Application | Immediate value | Evidence still required for stronger claims |
+| --- | --- | --- |
+| Controller concept review | Prototype SPN/SNN, NMPC, robust, phase, and digital-twin controllers with explicit assumptions | HIL replay, target-hardware timing, independent safety review |
+| Neural equilibrium preparation | Prepare public MAST EFM datasets, launch reports, and result templates without hiding blockers | Executed full-output training, holdout metrics, latency/GPU-cost reports, EFIT/P-EFIT admission |
+| Differentiable control tuning | Use JAX transport/equilibrium paths and gradient evidence for optimisation experiments | External physics validation and target-hardware timing evidence |
+| Gyrokinetic validation | Persist CPU/GPU backend parity and local bounded reports | Real GENE, TGLF, GS2, CGYRO, or QuaLiKiz comparison artefacts |
+| Safety-case infrastructure | Emit formal proof and certificate bundles for bounded controller logic | Facility hazard analysis, independent V&V, requirements traceability |
+| Collaboration and financing | Show exactly what data, compute, and hardware evidence are missing | Funded acquisition, external-code runs, facility-data permissions |
+
 ## Visual overview
 
 ![SCPN Control Logic Map](SCPN%20CONTROL.PNG)
