@@ -457,8 +457,10 @@ python validation/validate_neural_transport_reference.py --require-reference-art
 ```
 
 Strict mode fails until `validation/reports/neural_transport_reference/`
-contains artifacts with source provenance, surrogate identity, weight and
-reference SHA-256 hashes, QLKNN-10D feature ordering, target-unit contracts,
+contains artifacts using schema `scpn-control.neural-transport-reference.v1`
+with source provenance, surrogate identity, weight SHA-256, safe reference and
+prediction artifact URIs, reference/prediction/payload SHA-256 hashes,
+QLKNN-10D feature ordering, target schema, target-unit contracts,
 reference-sample count, and chi_i/chi_e/D_e plus branch-accuracy metrics inside
 declared tolerances. Real QuaLiKiz artifacts must declare an admitted absolute
 `binary_path`; URI, relative, traversal, temporary, or system-control paths are

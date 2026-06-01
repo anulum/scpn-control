@@ -5,6 +5,14 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened neural transport reference-artifact admission so quantitative
+  QuaLiKiz, QLKNN, or documented-reference transport claims must use
+  schema-versioned `scpn-control.neural-transport-reference.v1` evidence with
+  safe reference/prediction artifact URIs, trained-weight,
+  reference-artifact, prediction-artifact, and canonical payload SHA-256
+  digests, explicit target schema, QLKNN-10D feature order, unit contracts,
+  finite tolerance-checked metrics, admitted real QuaLiKiz executable
+  provenance, and tamper-detection tests.
 - Hardened persisted external gyrokinetic interface artifact admission so real
   executable and documented public-reference parser evidence must use
   schema-versioned `scpn-control.gk-interface-artifact.v1` reports with safe

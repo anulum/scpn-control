@@ -1483,8 +1483,8 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Acquire or generate immutable reference QLKNN or transport benchmark cases for cross-validation",
-        "Record weight checksums, QLKNN-10D feature schema, fallback density-channel coefficients, closure source metadata, uncertainty metadata, OOD decisions, reference metrics, tolerances, and admission status with every surrogate evaluation",
-        "Gate quantitative QuaLiKiz, QLKNN, or documented-reference transport claims on strict reference artifacts that match the exact neural weight checksum"
+        "Persist schema-versioned reference and prediction artifact URIs with SHA-256 digests, exact weight checksum, QLKNN-10D feature schema, target schema, uncertainty metadata, OOD decisions, reference metrics, tolerances, and admission status with every surrogate evaluation",
+        "Gate quantitative QuaLiKiz, QLKNN, or documented-reference transport claims on strict reference artifacts sealed by canonical payload digests and matched to the exact neural weight checksum"
       ],
       "unit_contract": "Inputs and outputs use declared transport feature units, diffusivity in m^2/s or declared normalisation, fluxes in SI or gyro-Bohm units with conversion metadata.",
       "validation_evidence": [
@@ -1492,7 +1492,7 @@
         "tests/test_neural_transport_core.py profile fallback particle-channel checks, bounded closure provenance, fallback gating, fail-closed claim evidence, and checksum-matched reference admission checks",
         "tests/test_qlknn_transport.py",
         "validation/benchmark_neural_transport_claims.py deterministic local claim-admission benchmark",
-        "validation/validate_neural_transport_reference.py strict QuaLiKiz/reference artifact gate"
+        "validation/validate_neural_transport_reference.py strict digest-bound QuaLiKiz/reference artifact gate"
       ],
       "evidence_paths": [
         "tests/test_neural_transport.py",
@@ -1510,7 +1510,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/neural_transport.py"
       ],
-      "validity_domain": "Local surrogate, fallback-regression, closure-provenance, and fail-closed claim-admission evidence; quantitative QuaLiKiz, QLKNN, or measured transport-surrogate validation remains blocked until immutable reference artifacts match the exact neural weight checksum and pass declared tolerances.",
+      "validity_domain": "Local surrogate, fallback-regression, closure-provenance, and fail-closed claim-admission evidence plus a schema-versioned, digest-bound reference-artifact gate; quantitative QuaLiKiz, QLKNN, or measured transport-surrogate validation remains blocked until immutable reference artifacts match the exact neural weight checksum and pass declared tolerances.",
       "external_validation_tracker_issue": 50
     },
     {

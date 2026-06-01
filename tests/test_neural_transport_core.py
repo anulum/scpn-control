@@ -31,6 +31,7 @@ from scpn_control.core.neural_transport import (
     neural_transport_closure_profiles,
     save_neural_transport_claim_evidence,
 )
+from validation.validate_neural_transport_reference import canonical_artifact_sha256
 
 
 # ── Activation functions ────────────────────────────────────────────
@@ -432,14 +433,17 @@ class TestNeuralTransportClaimEvidence:
         )
 
     def _reference_artifact(self, weights_sha: str) -> dict[str, object]:
-        return {
-            "schema_version": "1.0",
+        payload: dict[str, object] = {
+            "schema_version": "scpn-control.neural-transport-reference.v1",
             "source": "documented_public_reference",
             "model_id": "neural_transport_qlknn_facade",
             "model_version": "test",
             "trained_weights_sha256": weights_sha,
             "reference_dataset_id": "bounded-qlknn-fixture",
+            "reference_artifact_uri": "bounded-qlknn-fixture/reference_targets.npz",
+            "prediction_artifact_uri": "bounded-qlknn-fixture/scpn_predictions.npz",
             "reference_artifact_sha256": "c" * 64,
+            "prediction_artifact_sha256": "d" * 64,
             "executed_at": "2026-05-31T00:00:00Z",
             "reference_url": "https://example.invalid/qlknn-reference",
             "feature_schema": [
@@ -454,6 +458,7 @@ class TestNeuralTransportClaimEvidence:
                 "collisionality",
                 "beta_e",
             ],
+            "target_schema": ["chi_i", "chi_e", "D_e", "unstable_branch"],
             "units": {
                 "chi_i": "m^2/s",
                 "chi_e": "m^2/s",
@@ -476,6 +481,8 @@ class TestNeuralTransportClaimEvidence:
                 "unstable_branch_accuracy_min": 0.90,
             },
         }
+        payload["payload_sha256"] = canonical_artifact_sha256(payload)
+        return payload
 
     def test_claim_evidence_records_local_fallback_boundary(self, tmp_path):
         result = cross_validate_neural_transport(NeuralTransportModel(auto_discover=False))
