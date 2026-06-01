@@ -558,10 +558,22 @@ The generated plan is checked in as
 `validation/reports/neural_equilibrium_training_campaign_plan.md`. It records
 the ML350-verified MAST EFM SAS payload, deferred QLKNN/QuaLiKiz public-data
 payloads, external EFIT/P-EFIT dataset requirements, run order, and GPU-hour
-planning budgets. It deliberately does not launch training. The next executable
-work item is a separate full-output trainer that defaults to dry-run or an
-explicit `--execute` flag and publishes compact holdout metrics before any
-multi-seed campaign.
+planning budgets. It deliberately does not launch training.
+
+The dry-run-first full-output baseline trainer can be prepared with:
+
+```bash
+python validation/train_mast_efm_neural_equilibrium.py
+```
+
+This writes `validation/reports/mast_efm_neural_equilibrium_training_launch.json`
+and `validation/reports/mast_efm_neural_equilibrium_training_launch.md` without
+touching SAS weights. The report records the exact `--execute` command to run
+later on admitted storage. Execution mode trains deterministic ridge/PCA
+baseline heads for flux, pressure-gradient profile, q-profile, LCFS geometry,
+and magnetic-axis outputs, then writes weights and compact train, validation,
+and test metrics. That execution remains blocked for admission until fallback
+features are replaced or documented and strict reference admission passes.
 
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 

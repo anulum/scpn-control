@@ -214,6 +214,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "payload": sas_payload,
             "ready_to_run_checks": [
                 "python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload",
+                "python validation/train_mast_efm_neural_equilibrium.py",
                 "python validation/build_mast_efm_neural_equilibrium_dataset.py --candidate-report "
                 f"{inputs.sas_root / mast_report['candidate_report']} --sas-root {inputs.sas_root} --output-npz "
                 f"{inputs.sas_root / mast_report['dataset_path']} --json-out "
@@ -221,7 +222,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
                 "validation/reports/mast_efm_neural_equilibrium_dataset.md",
             ],
             "blocked_before_admission": [
-                "full-output trainer must be implemented for pressure, q-profile, LCFS, and axis targets",
+                "full-output trainer must be executed on admitted storage and publish holdout metrics",
                 "fallback Ip_MA, Bt_T, and ffprime_scale inputs must be replaced by acquired or documented public inputs",
                 "strict neural-equilibrium reference admission must pass on the exact trained weight checksum",
             ],
@@ -230,7 +231,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             {
                 "id": "mast_efm_neural_equilibrium",
                 "status": "prepared_on_sas",
-                "next_action": "implement full-output trainer without launching long training by default",
+                "next_action": "run the dry-run trainer locally, then execute explicitly on admitted storage when compute is reserved",
             },
             {
                 "id": "qlknn_qualikiz_neural_transport",
@@ -252,7 +253,8 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
         "gpu_budget_estimates": gpu_budgets,
         "run_order": [
             "Re-run the MAST EFM dataset readiness check before any campaign.",
-            "Implement the full-output trainer as a separate commit; default it to dry-run or explicit --execute.",
+            "Run the MAST EFM trainer in dry-run mode and inspect the launch report.",
+            "Use explicit --execute only on admitted storage and reserved compute.",
             "Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.",
             "Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.",
             "Keep all predictive and facility claims blocked until strict admission reports pass.",

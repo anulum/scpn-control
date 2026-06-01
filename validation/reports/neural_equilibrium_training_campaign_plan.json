@@ -64,7 +64,7 @@
   ],
   "mast_efm_dataset": {
     "blocked_before_admission": [
-      "full-output trainer must be implemented for pressure, q-profile, LCFS, and axis targets",
+      "full-output trainer must be executed on admitted storage and publish holdout metrics",
       "fallback Ip_MA, Bt_T, and ffprime_scale inputs must be replaced by acquired or documented public inputs",
       "strict neural-equilibrium reference admission must pass on the exact trained weight checksum"
     ],
@@ -97,6 +97,7 @@
     },
     "ready_to_run_checks": [
       "python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload",
+      "python validation/train_mast_efm_neural_equilibrium.py",
       "python validation/build_mast_efm_neural_equilibrium_dataset.py --candidate-report /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json --sas-root /mnt/data_sas/DATASETS/SCPN-CONTROL --output-npz /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --json-out validation/reports/mast_efm_neural_equilibrium_dataset.json --report-out validation/reports/mast_efm_neural_equilibrium_dataset.md"
     ],
     "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
@@ -107,11 +108,11 @@
     },
     "status": "prepared"
   },
-  "payload_sha256": "eda928a5b9fc1242066e4fa49a45fd5659516ebc2a56435f434cc823845a1b87",
+  "payload_sha256": "976991cfe73314fc731392ac6c55f8f31732c8589bdc0eecdc95d0d875a16e34",
   "prepared_dataset_lanes": [
     {
       "id": "mast_efm_neural_equilibrium",
-      "next_action": "implement full-output trainer without launching long training by default",
+      "next_action": "run the dry-run trainer locally, then execute explicitly on admitted storage when compute is reserved",
       "status": "prepared_on_sas"
     },
     {
@@ -178,7 +179,8 @@
   ],
   "run_order": [
     "Re-run the MAST EFM dataset readiness check before any campaign.",
-    "Implement the full-output trainer as a separate commit; default it to dry-run or explicit --execute.",
+    "Run the MAST EFM trainer in dry-run mode and inspect the launch report.",
+    "Use explicit --execute only on admitted storage and reserved compute.",
     "Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.",
     "Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.",
     "Keep all predictive and facility claims blocked until strict admission reports pass."

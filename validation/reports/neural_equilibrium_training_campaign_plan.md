@@ -23,7 +23,7 @@ This report prepares data-processing and training campaigns. It is not predictiv
 
 | Lane | Status | Next action |
 |---|---|---|
-| `mast_efm_neural_equilibrium` | `prepared_on_sas` | implement full-output trainer without launching long training by default |
+| `mast_efm_neural_equilibrium` | `prepared_on_sas` | run the dry-run trainer locally, then execute explicitly on admitted storage when compute is reserved |
 | `qlknn_qualikiz_neural_transport` | `manifested_large_payloads_deferred` | download deferred payloads to SAS, verify checksums, then build processed transport tensors |
 | `external_efit_pefit_or_diiid_equilibrium` | `external_material_required` | acquire matched public EFIT/P-EFIT, GEQDSK, or MDSplus-derived reconstruction artefacts |
 | `sparc_or_public_geqdsk_equilibrium` | `external_material_required` | seal redistributable GEQDSK/EQDSK artefacts with source policy and SHA-256 manifests |
@@ -42,7 +42,8 @@ This report prepares data-processing and training campaigns. It is not predictiv
 ## Run order
 
 1. Re-run the MAST EFM dataset readiness check before any campaign.
-2. Implement the full-output trainer as a separate commit; default it to dry-run or explicit --execute.
-3. Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.
-4. Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.
-5. Keep all predictive and facility claims blocked until strict admission reports pass.
+2. Run the MAST EFM trainer in dry-run mode and inspect the launch report.
+3. Use explicit --execute only on admitted storage and reserved compute.
+4. Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.
+5. Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.
+6. Keep all predictive and facility claims blocked until strict admission reports pass.

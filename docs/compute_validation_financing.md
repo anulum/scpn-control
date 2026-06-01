@@ -108,6 +108,10 @@ budgets are:
 These are estimates for planning and financing. They are not benchmark claims.
 The MAST EFM dataset is prepared, but predictive EFIT/P-EFIT admission remains
 blocked until a full-output trainer and strict holdout admission artefacts exist.
+The launch path is also dry-run prepared through
+`validation/train_mast_efm_neural_equilibrium.py`; long training requires an
+explicit `--execute` flag and should only be run after storage and compute are
+reserved.
 
 ## What support pays for
 

@@ -87,6 +87,7 @@ def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path)
     assert plan["mast_efm_dataset"]["payload"]["exists_on_this_host"] is False
     assert plan["mast_efm_dataset"]["payload"]["verified_available"] is False
     assert plan["prepared_dataset_lanes"][0]["status"] == "prepared_on_sas"
+    assert "dry-run trainer" in plan["prepared_dataset_lanes"][0]["next_action"]
     assert plan["prepared_dataset_lanes"][1]["status"] == "manifested_large_payloads_deferred"
     assert plan["prepared_dataset_lanes"][1]["public_data_summary"]["deferred_bytes"] == 1024
     assert {budget["scenario"] for budget in plan["gpu_budget_estimates"]} >= {
