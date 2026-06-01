@@ -520,6 +520,32 @@ aggregate flux RMSE mean is 1.5551750363663988 Wb/rad, the magnetic-axis RMSE
 mean is 0.7715625800838742 m, and the LCFS mean-distance mean is
 0.5392084105619522 m across 527 evaluated equilibria.
 
+The supervised MAST EFM neural-equilibrium dataset can be rebuilt on ML350 SAS
+storage with:
+
+```bash
+python validation/build_mast_efm_neural_equilibrium_dataset.py \
+  --candidate-report /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json \
+  --output-npz /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz \
+  --json-out validation/reports/mast_efm_neural_equilibrium_dataset.json \
+  --report-out validation/reports/mast_efm_neural_equilibrium_dataset.md
+```
+
+The repository-published dataset report is checked in as
+`validation/reports/mast_efm_neural_equilibrium_dataset.json` and
+`validation/reports/mast_efm_neural_equilibrium_dataset.md`. The large numeric
+dataset remains on SAS at
+`processed/neural_equilibrium/mast_efm_supervised_dataset.npz` with SHA-256
+`e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e`.
+The deterministic shot-held-out split contains 340 training equilibria from
+shots 30419-30422, 80 validation equilibria from shot 30423, and 107 test
+equilibria from shot 30424. LCFS boundary targets are preserved with padded
+coordinate arrays, `False` padded validity masks, and per-slice
+`lcfs_point_count` metadata up to 157 boundary points. This dataset is suitable
+for training and holdout evaluation, but predictive EFIT/P-EFIT admission
+remains blocked until a full-output model passes declared tolerances for flux,
+pressure, q-profile, LCFS geometry, and magnetic-axis outputs.
+
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 
 ```bash

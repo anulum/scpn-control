@@ -1,0 +1,188 @@
+{
+  "admission_ready": false,
+  "blocked_reason": "This is a supervised public-MAST-EFM dataset for training and holdout evaluation. Predictive EFIT/P-EFIT admission remains blocked because Ip_MA, Bt_T, and ffprime_scale are fallback features and no trained full-output pressure/q-profile/LCFS predictive artefact has passed tolerances.",
+  "candidate_payload_sha256": "8d173f423440243c4362256480e7ec40a8ca16244ac862b727428d6f28f747e5",
+  "candidate_report": "converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json",
+  "dataset_path": "processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
+  "dataset_sha256": "e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e",
+  "equilibria_count": 527,
+  "fallback_features": [
+    "Ip_MA",
+    "Bt_T",
+    "ffprime_scale"
+  ],
+  "feature_names": [
+    "Ip_MA",
+    "Bt_T",
+    "R_axis_m",
+    "Z_axis_m",
+    "pprime_scale",
+    "ffprime_scale",
+    "simag_Wb",
+    "sibry_Wb",
+    "kappa",
+    "delta_upper",
+    "delta_lower",
+    "q95"
+  ],
+  "grid_shape": [
+    65,
+    129
+  ],
+  "next_processing_steps": [
+    "train a full-output model on the train split and evaluate only once on validation/test shot splits",
+    "add acquired or documented public Ip_MA, Bt_T, and ffprime_scale inputs when available",
+    "emit compact holdout metrics and keep large weights/predictions on SAS by SHA-256",
+    "run validate_neural_equilibrium_reference.py only after full predictive artefacts and tolerances exist"
+  ],
+  "payload_sha256": "43f32436695e3e2d3a7ef2d9fad3c178d4c1f3c7e7842d22ca9a19c957696cb2",
+  "r_grid_m": {
+    "count": 129,
+    "max": 2.0,
+    "min": 0.0
+  },
+  "ragged_target_policy": {
+    "keys": [
+      "lcfs_r_m",
+      "lcfs_z_m",
+      "lcfs_valid_mask"
+    ],
+    "max_lcfs_points": 157,
+    "padding": "NaN for coordinates and False for validity mask",
+    "point_count_key": "lcfs_point_count"
+  },
+  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
+  "reference_paths": [
+    "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz",
+    "converted/neural_equilibrium_reference/mast_efm_shot_30420_reference.npz",
+    "converted/neural_equilibrium_reference/mast_efm_shot_30421_reference.npz",
+    "converted/neural_equilibrium_reference/mast_efm_shot_30422_reference.npz",
+    "converted/neural_equilibrium_reference/mast_efm_shot_30423_reference.npz",
+    "converted/neural_equilibrium_reference/mast_efm_shot_30424_reference.npz"
+  ],
+  "schema_version": "scpn-control.mast-efm-neural-equilibrium-supervised-dataset.v1",
+  "shot_count": 6,
+  "shots": [
+    {
+      "equilibria_count": 107,
+      "grid_shape": [
+        65,
+        129
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz",
+      "reference_sha256": "f3acd3dbaedbd24f098b264ec33fd88417a95d72fcf7a6aa5e44076b46574b84",
+      "shot_id": 30419,
+      "split": "train",
+      "time_end_s": 0.5550000071525574,
+      "time_start_s": 0.009999999776482582
+    },
+    {
+      "equilibria_count": 53,
+      "grid_shape": [
+        65,
+        129
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30420_reference.npz",
+      "reference_sha256": "29dc87b7a7d550cd6bb590665546f855b3fcf192a01aa77838ef8b824101fff8",
+      "shot_id": 30420,
+      "split": "train",
+      "time_end_s": 0.29999998211860657,
+      "time_start_s": 0.03999999910593033
+    },
+    {
+      "equilibria_count": 108,
+      "grid_shape": [
+        65,
+        129
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30421_reference.npz",
+      "reference_sha256": "a3a55ed027b78a8690a6e13fa0e10878b2a41a554b6d1c50ddb322d8cc764b98",
+      "shot_id": 30421,
+      "split": "train",
+      "time_end_s": 0.5649999976158142,
+      "time_start_s": 0.029999999329447746
+    },
+    {
+      "equilibria_count": 72,
+      "grid_shape": [
+        65,
+        129
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30422_reference.npz",
+      "reference_sha256": "5b03daa06518cbaccedd8c1ac50cd90ea7a8bad2338dc86eb845e06e04c2fd97",
+      "shot_id": 30422,
+      "split": "train",
+      "time_end_s": 0.3799999952316284,
+      "time_start_s": 0.02499999850988388
+    },
+    {
+      "equilibria_count": 80,
+      "grid_shape": [
+        65,
+        129
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30423_reference.npz",
+      "reference_sha256": "b8dd256a1e4b003e3755625ef38bff40b00c6907247e3c62293027d26eba6795",
+      "shot_id": 30423,
+      "split": "validation",
+      "time_end_s": 0.41999998688697815,
+      "time_start_s": 0.02499999850988388
+    },
+    {
+      "equilibria_count": 107,
+      "grid_shape": [
+        65,
+        129
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30424_reference.npz",
+      "reference_sha256": "f2325a59126d69b286f96fc8b4e858547191f1cdab9e44f6a62731aa7991971a",
+      "shot_id": 30424,
+      "split": "test",
+      "time_end_s": 0.5600000023841858,
+      "time_start_s": 0.029999999329447746
+    }
+  ],
+  "source": "documented_public_reference",
+  "split_counts": {
+    "test": 107,
+    "train": 340,
+    "validation": 80
+  },
+  "split_policy": {
+    "policy": "shot-held-out deterministic split; no random time-slice leakage across holdout shots",
+    "test_shots": [
+      30424
+    ],
+    "train_shots": [
+      30419,
+      30420,
+      30421,
+      30422
+    ],
+    "validation_shots": [
+      30423
+    ]
+  },
+  "status": "blocked",
+  "strict_artefact_emitted": false,
+  "target_keys": [
+    "psirz_Wb_per_rad",
+    "psirz_valid_mask",
+    "psi_axis_Wb_per_rad",
+    "psi_boundary_Wb_per_rad",
+    "pprime_Pa_per_Wb_rad",
+    "pprime_valid_mask",
+    "q_profile",
+    "q_profile_valid_mask",
+    "lcfs_r_m",
+    "lcfs_z_m",
+    "lcfs_valid_mask",
+    "magnetic_axis_r_m",
+    "magnetic_axis_z_m"
+  ],
+  "z_grid_m": {
+    "count": 65,
+    "max": 2.0,
+    "min": -2.0
+  }
+}
