@@ -122,13 +122,14 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Install or provide real external GK binaries",
-        "Run native-vs-external benchmark cases and store parser artefact evidence"
+        "Run native-vs-external benchmark cases and store parser artefact evidence",
+        "Persist SHA-256 digests for external input decks, external outputs, native inputs, and canonical comparison reports before full-fidelity GK claims"
       ],
       "unit_contract": "Growth rate and frequency normalised consistently to c_s/a or declared external-code convention.",
       "validation_evidence": [
         "ROADMAP.md local-dispersion overprediction note",
         "docs/competitive_analysis.md linear GK quantitative accuracy status",
-        "validation/validate_gk_crosscode.py strict real-binary evidence gate"
+        "validation/validate_gk_crosscode.py strict real-binary schema-versioned and digest-bound evidence gate"
       ],
       "evidence_paths": [
         "ROADMAP.md",

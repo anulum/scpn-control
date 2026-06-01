@@ -338,9 +338,12 @@ python validation/validate_gk_crosscode.py --require-external-runs --output-json
 Strict mode fails until `validation/reports/gk_crosscode/` contains real-binary
 evidence with code identity, version, run id, execution timestamp, units, native
 and external growth rates, real frequencies, and dominant wavenumber agreement
-inside the declared tolerances. External-code `binary_path` provenance must be
-an absolute filesystem path under an admitted deployment or facility executable
-root; URI, relative, traversal, temporary, or system-control paths are rejected.
+inside the declared tolerances. Evidence reports are schema-versioned as
+`scpn-control.gk-crosscode.v1` and must bind the external input deck, external
+output, native input, and canonical report payload by SHA-256 digest. External-code
+`binary_path` provenance must be an absolute filesystem path under an admitted
+deployment or facility executable root; URI, relative, traversal, temporary, or
+system-control paths are rejected.
 
 Miller geometry validation compares repository flux-tube geometry output against
 immutable circular, shaped, and high-shear reference cases:

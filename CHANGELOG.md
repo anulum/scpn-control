@@ -5,6 +5,12 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened the real external-code linear gyrokinetic cross-code admission gate
+  so full-fidelity GK agreement evidence must use schema-versioned
+  `scpn-control.gk-crosscode.v1` reports with SHA-256 digests for the external
+  input deck, external output, native input, and canonical payload, finite
+  growth-rate/frequency/wavenumber fields, admitted executable provenance, and
+  bounded native-vs-external tolerances.
 - Added strict admission for persisted differentiable transport one-step and
   rollout gradient-latency reports, including duplicate-key rejection, backend,
   dtype, claim-boundary, audit-error, sampled-index, run-count, and latency
