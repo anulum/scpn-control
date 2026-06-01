@@ -16,6 +16,7 @@ is not admissible.
 - Radial points: `21`
 - Equilibrium coupled: `True`
 - Rollout steps: `4`
+- Controller formal artifact digest: `ca5e6eacc411dc4a8c97fe77511d315f639393ecca0cc5a422cde127ced96826`
 - Full-fidelity admissible: `False`
-- Blocked reasons: `controller_formal_artifact_sha256, external_reference_artifact_sha256`
+- Blocked reasons: `external_reference_artifact_sha256`
 - Claim boundary: `bounded differentiable transport readiness only; full-fidelity claim remains blocked`

@@ -1,7 +1,6 @@
 {
   "backend": "jax",
   "blocked_reasons": [
-    "controller_formal_artifact_sha256",
     "external_reference_artifact_sha256"
   ],
   "campaign_sha256": "3556de9bc496d0c5f03e408f2476d2e5bc5a5075e020a002eba32d18a867740b",
@@ -12,16 +11,16 @@
     "impurity_density"
   ],
   "claim_status": "bounded differentiable transport readiness only; full-fidelity claim remains blocked",
-  "controller_formal_artifact_sha256": null,
+  "controller_formal_artifact_sha256": "ca5e6eacc411dc4a8c97fe77511d315f639393ecca0cc5a422cde127ced96826",
   "equilibrium_coupled": true,
   "external_reference_admitted": false,
   "external_reference_artifact_sha256": null,
   "full_fidelity_claim_admissible": false,
   "gradient_audit_sha256": "a7474bd5698fdf51f4ed945f2cea75775c7cffe144189edf93abeeb1c1f2f525",
-  "gradient_latency_report_sha256": "31b8916738670ad4d315fefaa69afd64c5dcf7f1b2d9d2295eaa6f812575ba65",
+  "gradient_latency_report_sha256": "50fda765093ac39e40dbf8b6b2d192ff0547e8bfa1c30372e31be9502528d7af",
   "n_rho": 21,
   "rollout_audit_sha256": "52e14fd49ee5ba131ae06a2aeed58d41d84fae306203ab2efe657f6e729349f5",
-  "rollout_latency_report_sha256": "d3123238635d4fbcc4da5e34632953632bdc8cf9083f266eb2d1c20707579dde",
+  "rollout_latency_report_sha256": "5a3dec5f5dce5de08b7c57bef11f7c7bd0976948dd2ff52a2c1499f474ac2692",
   "rollout_steps": 4,
   "schema_version": 1
 }

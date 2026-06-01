@@ -82,13 +82,13 @@ def _readiness_report() -> dict[str, object]:
         "rollout_audit_sha256": "e" * 64,
         "external_reference_artifact_sha256": None,
         "external_reference_admitted": False,
-        "controller_formal_artifact_sha256": None,
+        "controller_formal_artifact_sha256": "f" * 64,
         "n_rho": 21,
         "rollout_steps": 4,
         "channel_order": ["electron_temperature", "ion_temperature", "electron_density", "impurity_density"],
         "equilibrium_coupled": True,
         "full_fidelity_claim_admissible": False,
-        "blocked_reasons": ["controller_formal_artifact_sha256", "external_reference_artifact_sha256"],
+        "blocked_reasons": ["external_reference_artifact_sha256"],
         "claim_status": "bounded differentiable transport readiness only; full-fidelity claim remains blocked",
     }
 
@@ -125,10 +125,23 @@ def test_differentiable_transport_latency_validates_full_fidelity_readiness(tmp_
     assert report["status"] == "pass"
     assert report["full_fidelity_ready"] is False
     assert report["readiness_entry"]["status"] == "blocked"
-    assert report["readiness_entry"]["blocked_reasons"] == [
-        "controller_formal_artifact_sha256",
-        "external_reference_artifact_sha256",
-    ]
+    assert report["readiness_entry"]["blocked_reasons"] == ["external_reference_artifact_sha256"]
+
+
+def test_differentiable_transport_latency_rejects_malformed_formal_artifact_digest(tmp_path: Path) -> None:
+    one_step = tmp_path / "one_step.json"
+    rollout = tmp_path / "rollout.json"
+    readiness = tmp_path / "readiness.json"
+    readiness_payload = _readiness_report()
+    readiness_payload["controller_formal_artifact_sha256"] = "not-a-digest"
+    one_step.write_text(json.dumps(_one_step_report()), encoding="utf-8")
+    rollout.write_text(json.dumps(_rollout_report()), encoding="utf-8")
+    readiness.write_text(json.dumps(readiness_payload), encoding="utf-8")
+
+    report = validate_differentiable_transport_latency(one_step, rollout, readiness_report=readiness)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "controller_formal_artifact_sha256" for error in report["errors"])
 
 
 def test_differentiable_transport_latency_rejects_inconsistent_readiness(tmp_path: Path) -> None:

@@ -310,7 +310,9 @@ and x64 state.
 for full-fidelity differentiable-transport claims. The gate binds campaign
 metadata, one-step gradient-latency evidence, rollout source-gradient latency
 evidence, audit digests, controller formal-proof digests, equilibrium-coupled
-metadata, and an admitted external reference artifact. Without all of those
+metadata, and an admitted external reference artifact. The repository benchmark
+binds the canonical payload SHA-256 from `validation/reports/scpn_z3_formal.json`
+when that bounded Z3 formal report is present and passing. Without all of those
 inputs the claim remains bounded local differentiability evidence.
 `equilibrium_weighted_transport_rollout_tracking_loss()` extends the optional
 Grad-Shafranov flux-map weighting from one transport step to a full source

@@ -854,7 +854,10 @@ Full-fidelity differentiable-transport claims additionally require the
 `transport_full_fidelity_readiness_evidence()` promotion gate to bind campaign
 metadata, one-step and rollout latency reports, audit digests, controller
 formal-proof evidence, equilibrium coupling, and an independently admitted
-external reference artifact. Missing external reference evidence leaves the
+external reference artifact. When `validation/reports/scpn_z3_formal.json`
+contains a passing bounded Z3 Petri-net formal report, the benchmark binds that
+report's canonical payload SHA-256 into differentiable-transport readiness.
+Missing external reference evidence leaves the
 claim explicitly blocked rather than promoted from local differentiability
 evidence.
 

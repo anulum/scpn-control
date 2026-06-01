@@ -23,7 +23,7 @@ a real-time control-loop guarantee.
 - Rollout steps: `4`
 - Timed runs: `5`
 - Audit passed: `True`
-- P50 latency [ms]: `1201.177850`
-- P95 latency [ms]: `1262.188181`
-- Max latency [ms]: `1262.571762`
+- P50 latency [ms]: `1024.499274`
+- P95 latency [ms]: `1069.227792`
+- Max latency [ms]: `1073.515644`
 - Claim boundary: `local audited rollout source-gradient latency only; not a real-time control-loop guarantee`

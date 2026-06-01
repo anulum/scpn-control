@@ -37,6 +37,7 @@ ROLLOUT_JSON_REPORT = REPORT_DIR / "differentiable_transport_rollout_latency.jso
 ROLLOUT_MD_REPORT = REPORT_DIR / "differentiable_transport_rollout_latency.md"
 READINESS_JSON_REPORT = REPORT_DIR / "differentiable_transport_full_fidelity_readiness.json"
 READINESS_MD_REPORT = REPORT_DIR / "differentiable_transport_full_fidelity_readiness.md"
+FORMAL_REPORT = REPORT_DIR / "scpn_z3_formal.json"
 
 
 def _profiles(rho: np.ndarray) -> np.ndarray:
@@ -45,6 +46,25 @@ def _profiles(rho: np.ndarray) -> np.ndarray:
     ne = 4.0 + 0.8 * (1.0 - rho**2)
     nz = 0.03 + 0.02 * np.exp(-((rho - 0.65) ** 2) / 0.02)
     return np.stack([te, ti, ne, nz])
+
+
+def _controller_formal_digest(report_path: Path = FORMAL_REPORT) -> str | None:
+    """Return the admitted bounded formal-report payload digest if present."""
+
+    if not report_path.exists():
+        return None
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    digest = payload.get("payload_sha256")
+    if (
+        payload.get("schema_version") != "scpn-control.z3-formal-report.v1"
+        or payload.get("status") != "pass"
+        or payload.get("holds") is not True
+        or not isinstance(digest, str)
+        or len(digest) != 64
+        or any(char not in "0123456789abcdef" for char in digest.lower())
+    ):
+        return None
+    return digest.lower()
 
 
 def main() -> None:
@@ -216,6 +236,7 @@ def main() -> None:
         campaign_metadata,
         report,
         rollout_report=rollout_report,
+        controller_formal_artifact_sha256=_controller_formal_digest(),
     )
     readiness_payload = asdict(readiness)
     READINESS_JSON_REPORT.write_text(
@@ -315,6 +336,7 @@ def main() -> None:
                 f"- Radial points: `{readiness_payload['n_rho']}`",
                 f"- Equilibrium coupled: `{readiness_payload['equilibrium_coupled']}`",
                 f"- Rollout steps: `{readiness_payload['rollout_steps']}`",
+                f"- Controller formal artifact digest: `{readiness_payload['controller_formal_artifact_sha256']}`",
                 f"- Full-fidelity admissible: `{readiness_payload['full_fidelity_claim_admissible']}`",
                 f"- Blocked reasons: `{', '.join(readiness_payload['blocked_reasons'])}`",
                 f"- Claim boundary: `{readiness_payload['claim_status']}`",

@@ -32,11 +32,11 @@
   "channel_count": 4,
   "claim_status": "local audited rollout source-gradient latency only; not a real-time control-loop guarantee",
   "dtype": "float64",
-  "max_ms": 1262.571762,
+  "max_ms": 1073.515644,
   "n_rho": 21,
   "n_steps": 4,
-  "p50_ms": 1201.17785,
-  "p95_ms": 1262.1881808,
+  "p50_ms": 1024.499274,
+  "p95_ms": 1069.2277918,
   "runtime_metadata": {
     "jax_default_backend": "gpu",
     "jax_devices": [
@@ -46,7 +46,7 @@
     "jax_version": "0.6.2",
     "jaxlib_version": "0.6.2",
     "machine": "x86_64",
-    "measured_at_unix_s": 1780323486.6972446,
+    "measured_at_unix_s": 1780323971.5778403,
     "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
     "processor": "x86_64",
     "python_version": "3.12.3",
