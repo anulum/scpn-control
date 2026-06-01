@@ -1,7 +1,7 @@
 {
   "admission_ready": false,
   "blocked_before_admission": [
-    "run --execute on admitted storage and publish holdout metrics for train, validation, and test splits",
+    "run --execute on workstation or external cloud compute and publish holdout metrics for train, validation, and test splits",
     "validate the exact trained weight checksum through the strict neural-equilibrium reference gate"
   ],
   "campaign_plan": "validation/reports/neural_equilibrium_training_campaign_plan.json",
@@ -37,12 +37,13 @@
     ]
   },
   "dataset_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
-  "dataset_report": "/tmp/mast_efm_neural_equilibrium_dataset.json",
+  "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
   "dataset_sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
+  "execution_host_policy": "ML350 is storage-only; execute training only on this workstation or external cloud compute with the SAS dataset mounted read-only or copied to admitted compute storage.",
   "execution_mode": "dry_run",
   "fallback_features": [],
   "holdout_metrics": null,
-  "payload_sha256": "c91c0ce6b9a676e768184af672f9cf861ef7f25f2d83e8c002c6f161dba1a04f",
+  "payload_sha256": "b042e8d2ffc9f2278999a0bd579373ba25d11dde2f15cf0a1689708f375c9544",
   "required_targets": [
     "psirz_Wb_per_rad",
     "psirz_valid_mask",

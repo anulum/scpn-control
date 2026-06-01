@@ -110,16 +110,18 @@ The MAST EFM dataset is prepared, but predictive EFIT/P-EFIT admission remains
 blocked until a full-output trainer and strict holdout admission artefacts exist.
 The launch path is also dry-run prepared through
 `validation/train_mast_efm_neural_equilibrium.py`; long training requires an
-explicit `--execute` flag and should only be run after storage and compute are
-reserved.
+explicit `--execute` flag and must run only on this workstation or external
+cloud compute after storage access and GPU capacity are reserved. ML350 is a
+storage host for this lane, not a training machine.
 ML350 dry-run evidence now confirms the prepared MAST EFM SAS dataset is visible
 from the storage host. The current supervised dataset has no fallback feature
 columns: `Ip_MA` derives from public `plasma_current_x`, `Bt_T` derives from
 public `bphi_rmag`, and `ffprime_scale` derives from public `ffprime` profile
 RMS magnitude normalised by the campaign median. The remaining no-compute
 blocker has moved from feature provenance to execution evidence: long training
-must be launched with explicit `--execute`, then compact holdout metrics and
-strict reference-admission artefacts must be published.
+must be launched with explicit `--execute` on workstation or cloud compute, then
+compact holdout metrics and strict reference-admission artefacts must be
+published.
 
 ## What support pays for
 

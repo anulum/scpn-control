@@ -35,6 +35,10 @@ TARGET_KEYS: tuple[str, ...] = _DATASET_MODULE.TARGET_KEYS
 CAMPAIGN_PLAN_SCHEMA: str = _CAMPAIGN_MODULE.REPORT_SCHEMA
 
 TRAINING_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-training.v1"
+EXECUTION_HOST_POLICY = (
+    "ML350 is storage-only; execute training only on this workstation or external cloud compute with the SAS dataset "
+    "mounted read-only or copied to admitted compute storage."
+)
 DEFAULT_DATASET_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
 DEFAULT_CAMPAIGN_PLAN = ROOT / "validation" / "reports" / "neural_equilibrium_training_campaign_plan.json"
 DEFAULT_DATASET_PATH = Path(
@@ -407,7 +411,7 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
 
     fallback_features = list(dataset_report["fallback_features"])
     blocked_before_admission = [
-        "run --execute on admitted storage and publish holdout metrics for train, validation, and test splits",
+        "run --execute on workstation or external cloud compute and publish holdout metrics for train, validation, and test splits",
         "validate the exact trained weight checksum through the strict neural-equilibrium reference gate",
     ]
     if fallback_features:
@@ -430,6 +434,7 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
         "dataset_exists_on_this_host": dataset_exists,
         "dataset_sha256": dataset_sha256 or dataset_report["dataset_sha256"],
         "dataset_metadata": dataset_metadata,
+        "execution_host_policy": EXECUTION_HOST_POLICY,
         "required_targets": list(TARGET_KEYS),
         "fallback_features": fallback_features,
         "blocked_before_admission": blocked_before_admission,
@@ -458,6 +463,10 @@ def write_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> 
         f"Dataset SHA-256: `{report['dataset_sha256']}`",
         f"Dataset exists on this host: `{report['dataset_exists_on_this_host']}`",
         f"Weights path: `{report['weights_path']}`",
+        "",
+        "## Execution host policy",
+        "",
+        report["execution_host_policy"],
         "",
         "## Claim boundary",
         "",

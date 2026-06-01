@@ -25,6 +25,10 @@ from validation.build_mast_efm_neural_equilibrium_dataset import DATASET_SCHEMA 
 from validation.validate_public_data_acquisition import validate_public_data_acquisition_directory
 
 REPORT_SCHEMA = "scpn-control.neural-equilibrium-training-campaign-plan.v1"
+EXECUTION_HOST_POLICY = (
+    "ML350 is storage-only; execute training only on this workstation or external cloud compute with SAS-mounted "
+    "or copied data."
+)
 DEFAULT_SAS_ROOT = Path("/mnt/data_sas/DATASETS/SCPN-CONTROL")
 DEFAULT_MAST_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
 DEFAULT_PUBLIC_DATA_ROOT = ROOT / "validation" / "reference_data" / "qlknn"
@@ -195,6 +199,15 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
     deferred_bytes = int(public_data["deferred_bytes"])
     equilibria_count = int(mast_report["equilibria_count"])
     gpu_budgets = _gpu_budget_table(equilibria_count, deferred_bytes)
+    admission_blockers = [
+        "full-output trainer must be executed on workstation or external cloud compute and publish holdout metrics",
+        "strict neural-equilibrium reference admission must pass on the exact trained weight checksum",
+    ]
+    if mast_report["fallback_features"]:
+        admission_blockers.insert(
+            1,
+            "fallback Ip_MA, Bt_T, and ffprime_scale inputs must be replaced by acquired or documented public inputs",
+        )
     plan: dict[str, Any] = {
         "schema_version": REPORT_SCHEMA,
         "status": "prepared",
@@ -202,6 +215,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "This report prepares data-processing and training campaigns. It is not predictive EFIT/P-EFIT "
             "admission evidence and does not launch GPU training."
         ),
+        "execution_host_policy": EXECUTION_HOST_POLICY,
         "sas_root": str(inputs.sas_root),
         "mast_efm_dataset": {
             "status": "prepared",
@@ -221,17 +235,16 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
                 "validation/reports/mast_efm_neural_equilibrium_dataset.json --report-out "
                 "validation/reports/mast_efm_neural_equilibrium_dataset.md",
             ],
-            "blocked_before_admission": [
-                "full-output trainer must be executed on admitted storage and publish holdout metrics",
-                "fallback Ip_MA, Bt_T, and ffprime_scale inputs must be replaced by acquired or documented public inputs",
-                "strict neural-equilibrium reference admission must pass on the exact trained weight checksum",
-            ],
+            "blocked_before_admission": admission_blockers,
         },
         "prepared_dataset_lanes": [
             {
                 "id": "mast_efm_neural_equilibrium",
                 "status": "prepared_on_sas",
-                "next_action": "run the dry-run trainer locally, then execute explicitly on admitted storage when compute is reserved",
+                "next_action": (
+                    "run the dry-run trainer locally, then execute explicitly on this workstation or external cloud "
+                    "compute when compute is reserved"
+                ),
             },
             {
                 "id": "qlknn_qualikiz_neural_transport",
@@ -254,7 +267,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
         "run_order": [
             "Re-run the MAST EFM dataset readiness check before any campaign.",
             "Run the MAST EFM trainer in dry-run mode and inspect the launch report.",
-            "Use explicit --execute only on admitted storage and reserved compute.",
+            "Use explicit --execute only on workstation or external cloud compute with reserved GPU capacity.",
             "Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.",
             "Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.",
             "Keep all predictive and facility claims blocked until strict admission reports pass.",
@@ -286,6 +299,10 @@ def write_report(plan: dict[str, Any], json_out: Path, markdown_out: Path) -> No
         "## Claim boundary",
         "",
         plan["claim_boundary"],
+        "",
+        "## Execution host policy",
+        "",
+        plan["execution_host_policy"],
         "",
         "## MAST EFM dataset",
         "",

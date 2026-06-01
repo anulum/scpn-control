@@ -1,5 +1,6 @@
 {
   "claim_boundary": "This report prepares data-processing and training campaigns. It is not predictive EFIT/P-EFIT admission evidence and does not launch GPU training.",
+  "execution_host_policy": "ML350 is storage-only; execute training only on this workstation or external cloud compute with SAS-mounted or copied data.",
   "gpu_budget_estimates": [
     {
       "blocking_condition": "full-output trainer still required before predictive admission",
@@ -64,16 +65,11 @@
   ],
   "mast_efm_dataset": {
     "blocked_before_admission": [
-      "full-output trainer must be executed on admitted storage and publish holdout metrics",
-      "fallback Ip_MA, Bt_T, and ffprime_scale inputs must be replaced by acquired or documented public inputs",
+      "full-output trainer must be executed on workstation or external cloud compute and publish holdout metrics",
       "strict neural-equilibrium reference admission must pass on the exact trained weight checksum"
     ],
     "equilibria_count": 527,
-    "fallback_features": [
-      "Ip_MA",
-      "Bt_T",
-      "ffprime_scale"
-    ],
+    "fallback_features": [],
     "grid_shape": [
       65,
       129
@@ -82,7 +78,7 @@
       "absolute_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
       "exists_on_this_host": false,
       "relative_path": "processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
-      "sha256": "e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e",
+      "sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
       "verified_available": true
     },
     "ragged_target_policy": {
@@ -100,7 +96,7 @@
       "python validation/train_mast_efm_neural_equilibrium.py",
       "python validation/build_mast_efm_neural_equilibrium_dataset.py --candidate-report /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json --sas-root /mnt/data_sas/DATASETS/SCPN-CONTROL --output-npz /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --json-out validation/reports/mast_efm_neural_equilibrium_dataset.json --report-out validation/reports/mast_efm_neural_equilibrium_dataset.md"
     ],
-    "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
+    "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-a50277960ea1ada9",
     "split_counts": {
       "test": 107,
       "train": 340,
@@ -108,11 +104,11 @@
     },
     "status": "prepared"
   },
-  "payload_sha256": "976991cfe73314fc731392ac6c55f8f31732c8589bdc0eecdc95d0d875a16e34",
+  "payload_sha256": "003badbbdf9a8891d7df7dd2d9e539dc0635d25265fecdc35825985f21f7b7a3",
   "prepared_dataset_lanes": [
     {
       "id": "mast_efm_neural_equilibrium",
-      "next_action": "run the dry-run trainer locally, then execute explicitly on admitted storage when compute is reserved",
+      "next_action": "run the dry-run trainer locally, then execute explicitly on this workstation or external cloud compute when compute is reserved",
       "status": "prepared_on_sas"
     },
     {
@@ -180,7 +176,7 @@
   "run_order": [
     "Re-run the MAST EFM dataset readiness check before any campaign.",
     "Run the MAST EFM trainer in dry-run mode and inspect the launch report.",
-    "Use explicit --execute only on admitted storage and reserved compute.",
+    "Use explicit --execute only on workstation or external cloud compute with reserved GPU capacity.",
     "Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.",
     "Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.",
     "Keep all predictive and facility claims blocked until strict admission reports pass."

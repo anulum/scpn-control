@@ -29,7 +29,7 @@ def _write_mast_report(path: Path) -> None:
                 "equilibria_count": 12,
                 "grid_shape": [65, 129],
                 "split_counts": {"train": 8, "validation": 2, "test": 2},
-                "fallback_features": ["Ip_MA", "Bt_T", "ffprime_scale"],
+                "fallback_features": [],
                 "ragged_target_policy": {
                     "keys": ["lcfs_r_m", "lcfs_z_m", "lcfs_valid_mask"],
                     "padding": "NaN for coordinates and False for validity mask",
@@ -86,8 +86,11 @@ def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path)
     assert plan["mast_efm_dataset"]["status"] == "prepared"
     assert plan["mast_efm_dataset"]["payload"]["exists_on_this_host"] is False
     assert plan["mast_efm_dataset"]["payload"]["verified_available"] is False
+    assert "ML350 is storage-only" in plan["execution_host_policy"]
     assert plan["prepared_dataset_lanes"][0]["status"] == "prepared_on_sas"
     assert "dry-run trainer" in plan["prepared_dataset_lanes"][0]["next_action"]
+    assert "workstation or external cloud" in plan["prepared_dataset_lanes"][0]["next_action"]
+    assert all("fallback" not in item for item in plan["mast_efm_dataset"]["blocked_before_admission"])
     assert plan["prepared_dataset_lanes"][1]["status"] == "manifested_large_payloads_deferred"
     assert plan["prepared_dataset_lanes"][1]["public_data_summary"]["deferred_bytes"] == 1024
     assert {budget["scenario"] for budget in plan["gpu_budget_estimates"]} >= {
@@ -140,3 +143,4 @@ def test_write_report_records_gpu_budget_table(tmp_path: Path) -> None:
     assert "mast_efm_single_seed_full_output" in markdown
     assert "qlknn_qualikiz_payload_processing" in markdown
     assert "predictive EFIT/P-EFIT" in markdown
+    assert "ML350 is storage-only" in markdown

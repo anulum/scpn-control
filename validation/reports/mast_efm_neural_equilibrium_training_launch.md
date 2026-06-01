@@ -8,6 +8,10 @@ Dataset SHA-256: `3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136
 Dataset exists on this host: `True`
 Weights path: `/mnt/data_sas/DATASETS/SCPN-CONTROL/models/neural_equilibrium/mast_efm_full_output_baseline_weights.npz`
 
+## Execution host policy
+
+ML350 is storage-only; execute training only on this workstation or external cloud compute with the SAS dataset mounted read-only or copied to admitted compute storage.
+
 ## Claim boundary
 
 This report prepares or executes a deterministic repository baseline. It is not predictive EFIT/P-EFIT admission evidence.
@@ -36,5 +40,5 @@ python validation/train_mast_efm_neural_equilibrium.py --execute --dataset-path 
 
 ## Admission blockers
 
-- run --execute on admitted storage and publish holdout metrics for train, validation, and test splits
+- run --execute on workstation or external cloud compute and publish holdout metrics for train, validation, and test splits
 - validate the exact trained weight checksum through the strict neural-equilibrium reference gate

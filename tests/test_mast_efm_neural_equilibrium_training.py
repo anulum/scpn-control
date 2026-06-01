@@ -100,7 +100,9 @@ def test_training_report_default_is_dry_run_and_does_not_write_weights(tmp_path:
     assert report["dataset_exists_on_this_host"] is True
     assert report["dataset_metadata"]["split_counts"] == {"train": 3, "validation": 1, "test": 2}
     assert report["fallback_features"] == []
+    assert "ML350 is storage-only" in report["execution_host_policy"]
     assert all("fallback" not in item for item in report["blocked_before_admission"])
+    assert any("workstation or external cloud" in item for item in report["blocked_before_admission"])
     assert report["holdout_metrics"] is None
     assert not weights.exists()
 
@@ -138,6 +140,7 @@ def test_write_report_records_execute_command_and_admission_boundary(tmp_path: P
         "dataset_sha256": "a" * 64,
         "dataset_exists_on_this_host": False,
         "weights_path": "/sas/weights.npz",
+        "execution_host_policy": "ML350 is storage-only; execute training only on workstation or external cloud compute.",
         "claim_boundary": "not predictive EFIT/P-EFIT admission evidence",
         "run_command": "python validation/train_mast_efm_neural_equilibrium.py --execute",
         "required_targets": ["psirz_Wb_per_rad"],
@@ -151,3 +154,4 @@ def test_write_report_records_execute_command_and_admission_boundary(tmp_path: P
     assert "MAST EFM Neural-Equilibrium Training Launch" in markdown
     assert "--execute" in markdown
     assert "not predictive EFIT/P-EFIT admission evidence" in markdown
+    assert "ML350 is storage-only" in markdown

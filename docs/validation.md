@@ -592,15 +592,17 @@ python validation/train_mast_efm_neural_equilibrium.py
 
 This writes `validation/reports/mast_efm_neural_equilibrium_training_launch.json`
 and `validation/reports/mast_efm_neural_equilibrium_training_launch.md` without
-touching SAS weights. The current checked-in launch report was generated from
-ML350 and confirms that the SAS dataset is visible on that host with 527
-validated equilibria and the source-derived dataset SHA-256. The report records
-the exact `--execute` command to run later on admitted storage. Execution mode
-trains deterministic ridge/PCA baseline heads for flux, pressure-gradient
-profile, q-profile, LCFS geometry, and magnetic-axis outputs, then writes
-weights and compact train, validation, and test metrics. Predictive admission
-still requires an executed training artefact, holdout metrics, exact weight
-checksum validation, and the strict reference admission gate.
+touching SAS weights. The current checked-in launch report was generated as a
+dry-run storage-readiness check and confirms that the SAS dataset is visible on
+ML350 with 527 validated equilibria and the source-derived dataset SHA-256.
+ML350 is storage-only: the exact `--execute` command must be run only on this
+workstation or external cloud compute with the SAS dataset mounted read-only or
+copied to admitted compute storage. Execution mode trains deterministic
+ridge/PCA baseline heads for flux, pressure-gradient profile, q-profile, LCFS
+geometry, and magnetic-axis outputs, then writes weights and compact train,
+validation, and test metrics. Predictive admission still requires an executed
+training artefact, holdout metrics, exact weight checksum validation, and the
+strict reference admission gate.
 
 Feature provenance for the current converted public MAST EFM bundles can be
 audited with:

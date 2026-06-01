@@ -8,13 +8,17 @@ SAS root: `/mnt/data_sas/DATASETS/SCPN-CONTROL`
 
 This report prepares data-processing and training campaigns. It is not predictive EFIT/P-EFIT admission evidence and does not launch GPU training.
 
+## Execution host policy
+
+ML350 is storage-only; execute training only on this workstation or external cloud compute with SAS-mounted or copied data.
+
 ## MAST EFM dataset
 
 - Dataset status: `prepared`
 - Equilibria: 527
 - Grid shape: 65 x 129
 - Split counts: `{"test": 107, "train": 340, "validation": 80}`
-- Dataset SHA-256: `e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e`
+- Dataset SHA-256: `3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`
 - SAS payload: `/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz`
 - Exists on this host: `False`
 - Verified available: `True`
@@ -23,7 +27,7 @@ This report prepares data-processing and training campaigns. It is not predictiv
 
 | Lane | Status | Next action |
 |---|---|---|
-| `mast_efm_neural_equilibrium` | `prepared_on_sas` | run the dry-run trainer locally, then execute explicitly on admitted storage when compute is reserved |
+| `mast_efm_neural_equilibrium` | `prepared_on_sas` | run the dry-run trainer locally, then execute explicitly on this workstation or external cloud compute when compute is reserved |
 | `qlknn_qualikiz_neural_transport` | `manifested_large_payloads_deferred` | download deferred payloads to SAS, verify checksums, then build processed transport tensors |
 | `external_efit_pefit_or_diiid_equilibrium` | `external_material_required` | acquire matched public EFIT/P-EFIT, GEQDSK, or MDSplus-derived reconstruction artefacts |
 | `sparc_or_public_geqdsk_equilibrium` | `external_material_required` | seal redistributable GEQDSK/EQDSK artefacts with source policy and SHA-256 manifests |
@@ -43,7 +47,7 @@ This report prepares data-processing and training campaigns. It is not predictiv
 
 1. Re-run the MAST EFM dataset readiness check before any campaign.
 2. Run the MAST EFM trainer in dry-run mode and inspect the launch report.
-3. Use explicit --execute only on admitted storage and reserved compute.
+3. Use explicit --execute only on workstation or external cloud compute with reserved GPU capacity.
 4. Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.
 5. Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.
 6. Keep all predictive and facility claims blocked until strict admission reports pass.
