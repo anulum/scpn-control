@@ -252,7 +252,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "status": "prepared_not_executed",
             "dataset_sha256": mast_report["dataset_sha256"],
             "dataset_path": str(inputs.sas_root / mast_report["dataset_path"]),
-            "weights_out": str(DEFAULT_COMPUTE_WEIGHTS_OUT),
+            "weights_out": DEFAULT_COMPUTE_WEIGHTS_OUT.as_posix(),
             "admitted_compute_host_kinds": ["workstation", "external_cloud"],
             "forbidden_training_hosts": ["ML350"],
             "source_provenance_reports": [
@@ -267,7 +267,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
                 "python validation/train_mast_efm_neural_equilibrium.py --execute "
                 "--compute-host-kind workstation "
                 f"--dataset-path {inputs.sas_root / mast_report['dataset_path']} "
-                f"--weights-out {DEFAULT_COMPUTE_WEIGHTS_OUT}"
+                f"--weights-out {DEFAULT_COMPUTE_WEIGHTS_OUT.as_posix()}"
             ),
             "pre_run_admission_gates": [
                 "dataset SHA-256 must match the supervised dataset report",
