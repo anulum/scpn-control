@@ -1,0 +1,3908 @@
+{
+  "blocked_features": [
+    "ffprime_scale"
+  ],
+  "can_rebuild_dataset_now": false,
+  "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
+  "fallback_features": [
+    "Ip_MA",
+    "Bt_T",
+    "ffprime_scale"
+  ],
+  "feature_status": {
+    "Bt_T": {
+      "candidate_sources": [
+        "bphi_rmag",
+        "bphi_rgeom",
+        "bvac_rmag",
+        "bvac_rgeom",
+        "bvac_val"
+      ],
+      "present_sources": [
+        "bphi_rgeom",
+        "bphi_rmag",
+        "bvac_rgeom",
+        "bvac_rmag",
+        "bvac_val"
+      ],
+      "required_dims": [
+        "time"
+      ],
+      "required_transform": "identity_T",
+      "required_units": "T",
+      "resolution": "total toroidal field at the magnetic axis is available in original public EFM metadata",
+      "selected_source": "bphi_rmag",
+      "selected_sources": [
+        "bphi_rmag"
+      ],
+      "source_kind": "total_toroidal_field_at_magnetic_axis",
+      "status": "source_found_requires_rebuild"
+    },
+    "Ip_MA": {
+      "candidate_sources": [
+        "plasma_current_x",
+        "plasma_current_c",
+        "plasma_current_rz"
+      ],
+      "present_sources": [
+        "plasma_current_c",
+        "plasma_current_rz",
+        "plasma_current_x"
+      ],
+      "required_dims": [
+        "time"
+      ],
+      "required_transform": "A_to_MA",
+      "required_units": "A",
+      "resolution": "measured total plasma current is available in original public EFM metadata",
+      "selected_source": "plasma_current_x",
+      "selected_sources": [
+        "plasma_current_x"
+      ],
+      "source_kind": "measured_total_plasma_current",
+      "status": "source_found_requires_rebuild"
+    },
+    "ffprime_scale": {
+      "candidate_sources": [
+        "ffprime",
+        "ffprime_coefs",
+        "fpsi_c"
+      ],
+      "present_sources": [
+        "ffprime",
+        "ffprime_coefs",
+        "fpsi_c"
+      ],
+      "required_dims": [
+        "time",
+        "psi_norm"
+      ],
+      "required_transform": "profile_to_training_scalar",
+      "required_units": "T-rad",
+      "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+      "selected_source": "ffprime",
+      "selected_sources": [
+        "ffprime"
+      ],
+      "source_kind": "ffprime_profile",
+      "status": "source_found_requires_policy"
+    }
+  },
+  "next_processing_steps": [
+    "define ffprime profile reduction before rebuilding the supervised dataset",
+    "rebuild the supervised dataset only after every fallback feature has an admitted original public source",
+    "record the source-variable policy in the dataset report before training"
+  ],
+  "payload_sha256": "df79059c4e9c22d1aa19955ecec5c30d14e5cdb06a68de2d7323d9f8f31e6be5",
+  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
+  "sas_root": "/mnt/data_sas/DATASETS/SCPN-CONTROL",
+  "schema_version": "scpn-control.mast-efm-original-feature-source-audit.v1",
+  "shot_count": 6,
+  "shots": [
+    {
+      "feature_status": {
+        "Bt_T": {
+          "candidate_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "present_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "identity_T",
+          "required_units": "T",
+          "resolution": "total toroidal field at the magnetic axis is available in original public EFM metadata",
+          "selected_source": "bphi_rmag",
+          "selected_source_metadata": {
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "quality": "Not Checked",
+            "shape": [
+              120
+            ],
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T"
+          },
+          "source_kind": "total_toroidal_field_at_magnetic_axis",
+          "status": "source_found_requires_rebuild"
+        },
+        "Ip_MA": {
+          "candidate_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "present_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "A_to_MA",
+          "required_units": "A",
+          "resolution": "measured total plasma current is available in original public EFM metadata",
+          "selected_source": "plasma_current_x",
+          "selected_source_metadata": {
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "quality": "Not Checked",
+            "shape": [
+              120
+            ],
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A"
+          },
+          "source_kind": "measured_total_plasma_current",
+          "status": "source_found_requires_rebuild"
+        },
+        "ffprime_scale": {
+          "candidate_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "present_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "required_dims": [
+            "time",
+            "psi_norm"
+          ],
+          "required_transform": "profile_to_training_scalar",
+          "required_units": "T-rad",
+          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "selected_source": "ffprime",
+          "selected_source_metadata": {
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "quality": "Not Checked",
+            "shape": [
+              120,
+              65
+            ],
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad"
+          },
+          "source_kind": "ffprime_profile",
+          "status": "source_found_requires_policy"
+        }
+      },
+      "shot_id": 30419,
+      "source_variables": {
+        "bphi_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+            "name": "efm/bphi_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RGEOM",
+            "units": "T",
+            "uuid": "051d03bf-0c72-5885-9680-337cd7bdc009",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Toroidal B field (total) at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BPHI_RGEOM",
+          "units": "T"
+        },
+        "bphi_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "name": "efm/bphi_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T",
+            "uuid": "017d8f70-643e-5dfe-9c2a-857f0736aa03",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Toroidal B field (total) at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BPHI_RMAG",
+          "units": "T"
+        },
+        "bvac_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+            "name": "efm/bvac_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RGEOM",
+            "units": "T",
+            "uuid": "262c7a95-1fc6-5fe8-8011-5510add9bc01",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Vacuum toroidal B field at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BVAC_RGEOM",
+          "units": "T"
+        },
+        "bvac_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+            "name": "efm/bvac_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RMAG",
+            "units": "T",
+            "uuid": "c1250626-811c-58fe-a260-408a86e3fae9",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BVAC_RMAG",
+          "units": "T"
+        },
+        "bvac_val": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Vacuum toroidal field at",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+            "name": "efm/bvac_val",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              120
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_VAL",
+            "units": "T",
+            "uuid": "a94a1088-ee72-5174-81e8-f0c76128b25d",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BVAC_VAL",
+          "units": "T"
+        },
+        "ffprime": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "ffprime (centre to edge)",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "name": "efm/ffprime",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              107,
+              65
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad",
+            "uuid": "efc28287-8aaa-5a36-9366-fb7950e61798",
+            "version": 0
+          },
+          "chunks": [
+            120,
+            65
+          ],
+          "description": "ff' profile; f(npsi, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+          "quality": "Not Checked",
+          "shape": [
+            120,
+            65
+          ],
+          "uda_name": "EFM_FFPRIME",
+          "units": "T-rad"
+        },
+        "ffprime_coefs": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "description": "Coefficients of ff' profile representation",
+            "dims": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "FFPrime Coefs",
+            "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+            "name": "efm/ffprime_coefs",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              107,
+              2
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME_COEFS",
+            "units": "",
+            "uuid": "b8695a1a-5412-5233-9bae-8932e9b46962",
+            "version": 0
+          },
+          "chunks": [
+            120,
+            2
+          ],
+          "description": "Coefficients of ff' profile representation",
+          "dims": [
+            "time",
+            "ffprime_coefs_n"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+          "quality": "Not Checked",
+          "shape": [
+            120,
+            2
+          ],
+          "uda_name": "EFM_FFPRIME_COEFS",
+          "units": ""
+        },
+        "fpsi_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "computed f=R*B (centre t",
+            "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+            "name": "efm/fpsi_c",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              107,
+              65
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_F(PSI)_(C)",
+            "units": "T-m",
+            "uuid": "16fe6dec-f6bf-532e-96c1-afd6e534c6fa",
+            "version": 0
+          },
+          "chunks": [
+            120,
+            65
+          ],
+          "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+          "quality": "Not Checked",
+          "shape": [
+            120,
+            65
+          ],
+          "uda_name": "EFM_F(PSI)_(C)",
+          "units": "T-m"
+        },
+        "plasma_current_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Output (computed) fitted total plasma current; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Computed Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+            "name": "efm/plasma_currc",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(C)",
+            "units": "A",
+            "uuid": "8d914310-071c-54ee-a58f-3ea56d145d73",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Output (computed) fitted total plasma current; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_PLASMA_CURR(C)",
+          "units": "A"
+        },
+        "plasma_current_rz": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "z",
+              "r"
+            ],
+            "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+            "dims": [
+              "time",
+              "z",
+              "r"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "J(r,z)",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+            "name": "efm/plasma_currrz",
+            "quality": "Not Checked",
+            "rank": 3,
+            "shape": [
+              107,
+              65,
+              65
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(R,Z)",
+            "units": "A / m ** 2",
+            "uuid": "5fdd12ee-175b-50a2-8aeb-3ee7de747ed3",
+            "version": 0
+          },
+          "chunks": [
+            60,
+            33,
+            33
+          ],
+          "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+          "dims": [
+            "time",
+            "z",
+            "r"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+          "quality": "Not Checked",
+          "shape": [
+            120,
+            65,
+            65
+          ],
+          "uda_name": "EFM_PLASMA_CURR(R,Z)",
+          "units": "A / m ** 2"
+        },
+        "plasma_current_x": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Measured Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "name": "efm/plasma_currx",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              120
+            ],
+            "shot_id": 30419,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A",
+            "uuid": "4c9151a8-b550-594d-aaae-bfe0557e643f",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Input (experimental) fitted total plasma current; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_PLASMA_CURR(X)",
+          "units": "A"
+        }
+      },
+      "zarr_path": "mast/level1/shot_30419/efm.zarr"
+    },
+    {
+      "feature_status": {
+        "Bt_T": {
+          "candidate_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "present_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "identity_T",
+          "required_units": "T",
+          "resolution": "total toroidal field at the magnetic axis is available in original public EFM metadata",
+          "selected_source": "bphi_rmag",
+          "selected_source_metadata": {
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "quality": "Not Checked",
+            "shape": [
+              64
+            ],
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T"
+          },
+          "source_kind": "total_toroidal_field_at_magnetic_axis",
+          "status": "source_found_requires_rebuild"
+        },
+        "Ip_MA": {
+          "candidate_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "present_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "A_to_MA",
+          "required_units": "A",
+          "resolution": "measured total plasma current is available in original public EFM metadata",
+          "selected_source": "plasma_current_x",
+          "selected_source_metadata": {
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "quality": "Not Checked",
+            "shape": [
+              64
+            ],
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A"
+          },
+          "source_kind": "measured_total_plasma_current",
+          "status": "source_found_requires_rebuild"
+        },
+        "ffprime_scale": {
+          "candidate_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "present_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "required_dims": [
+            "time",
+            "psi_norm"
+          ],
+          "required_transform": "profile_to_training_scalar",
+          "required_units": "T-rad",
+          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "selected_source": "ffprime",
+          "selected_source_metadata": {
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "quality": "Not Checked",
+            "shape": [
+              64,
+              65
+            ],
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad"
+          },
+          "source_kind": "ffprime_profile",
+          "status": "source_found_requires_policy"
+        }
+      },
+      "shot_id": 30420,
+      "source_variables": {
+        "bphi_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+            "name": "efm/bphi_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              53
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RGEOM",
+            "units": "T",
+            "uuid": "56188c7e-5ed0-58c9-a45e-3956dd976e00",
+            "version": 0
+          },
+          "chunks": [
+            64
+          ],
+          "description": "Toroidal B field (total) at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            64
+          ],
+          "uda_name": "EFM_BPHI_RGEOM",
+          "units": "T"
+        },
+        "bphi_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "name": "efm/bphi_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              53
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T",
+            "uuid": "30855da8-9b93-5f15-8020-15466cfcdfda",
+            "version": 0
+          },
+          "chunks": [
+            64
+          ],
+          "description": "Toroidal B field (total) at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            64
+          ],
+          "uda_name": "EFM_BPHI_RMAG",
+          "units": "T"
+        },
+        "bvac_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+            "name": "efm/bvac_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              53
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RGEOM",
+            "units": "T",
+            "uuid": "5efaa422-e4b9-5390-b2c4-e6cc58c50f97",
+            "version": 0
+          },
+          "chunks": [
+            64
+          ],
+          "description": "Vacuum toroidal B field at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            64
+          ],
+          "uda_name": "EFM_BVAC_RGEOM",
+          "units": "T"
+        },
+        "bvac_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+            "name": "efm/bvac_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              53
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RMAG",
+            "units": "T",
+            "uuid": "b3d92487-954b-540a-8bdd-ba31aab20633",
+            "version": 0
+          },
+          "chunks": [
+            64
+          ],
+          "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            64
+          ],
+          "uda_name": "EFM_BVAC_RMAG",
+          "units": "T"
+        },
+        "bvac_val": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Vacuum toroidal field at",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+            "name": "efm/bvac_val",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              64
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_VAL",
+            "units": "T",
+            "uuid": "93aa280a-d1fe-518c-8f09-36bfbabe318e",
+            "version": 0
+          },
+          "chunks": [
+            64
+          ],
+          "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+          "quality": "Not Checked",
+          "shape": [
+            64
+          ],
+          "uda_name": "EFM_BVAC_VAL",
+          "units": "T"
+        },
+        "ffprime": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "ffprime (centre to edge)",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "name": "efm/ffprime",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              53,
+              65
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad",
+            "uuid": "729dd97f-a12c-5e34-b962-d66f44ef306b",
+            "version": 0
+          },
+          "chunks": [
+            64,
+            65
+          ],
+          "description": "ff' profile; f(npsi, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+          "quality": "Not Checked",
+          "shape": [
+            64,
+            65
+          ],
+          "uda_name": "EFM_FFPRIME",
+          "units": "T-rad"
+        },
+        "ffprime_coefs": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "description": "Coefficients of ff' profile representation",
+            "dims": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "FFPrime Coefs",
+            "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+            "name": "efm/ffprime_coefs",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              53,
+              2
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME_COEFS",
+            "units": "",
+            "uuid": "43ae35d0-7c31-5853-8b2f-aa2f368e9e9f",
+            "version": 0
+          },
+          "chunks": [
+            64,
+            2
+          ],
+          "description": "Coefficients of ff' profile representation",
+          "dims": [
+            "time",
+            "ffprime_coefs_n"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+          "quality": "Not Checked",
+          "shape": [
+            64,
+            2
+          ],
+          "uda_name": "EFM_FFPRIME_COEFS",
+          "units": ""
+        },
+        "fpsi_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "computed f=R*B (centre t",
+            "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+            "name": "efm/fpsi_c",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              53,
+              65
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_F(PSI)_(C)",
+            "units": "T-m",
+            "uuid": "295574ab-d34d-501d-ae8d-5e3936a38fc2",
+            "version": 0
+          },
+          "chunks": [
+            64,
+            65
+          ],
+          "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+          "quality": "Not Checked",
+          "shape": [
+            64,
+            65
+          ],
+          "uda_name": "EFM_F(PSI)_(C)",
+          "units": "T-m"
+        },
+        "plasma_current_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Output (computed) fitted total plasma current; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Computed Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+            "name": "efm/plasma_currc",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              53
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(C)",
+            "units": "A",
+            "uuid": "740b5611-77cc-53be-ad21-de424871e0ce",
+            "version": 0
+          },
+          "chunks": [
+            64
+          ],
+          "description": "Output (computed) fitted total plasma current; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+          "quality": "Not Checked",
+          "shape": [
+            64
+          ],
+          "uda_name": "EFM_PLASMA_CURR(C)",
+          "units": "A"
+        },
+        "plasma_current_rz": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "z",
+              "r"
+            ],
+            "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+            "dims": [
+              "time",
+              "z",
+              "r"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "J(r,z)",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+            "name": "efm/plasma_currrz",
+            "quality": "Not Checked",
+            "rank": 3,
+            "shape": [
+              53,
+              65,
+              65
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(R,Z)",
+            "units": "A / m ** 2",
+            "uuid": "5ec0f335-5ffa-5ca7-93d5-96de6b502716",
+            "version": 0
+          },
+          "chunks": [
+            32,
+            33,
+            65
+          ],
+          "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+          "dims": [
+            "time",
+            "z",
+            "r"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+          "quality": "Not Checked",
+          "shape": [
+            64,
+            65,
+            65
+          ],
+          "uda_name": "EFM_PLASMA_CURR(R,Z)",
+          "units": "A / m ** 2"
+        },
+        "plasma_current_x": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Measured Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "name": "efm/plasma_currx",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              64
+            ],
+            "shot_id": 30420,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A",
+            "uuid": "0ea726da-5408-5571-ae9c-09c19d4d90b0",
+            "version": 0
+          },
+          "chunks": [
+            64
+          ],
+          "description": "Input (experimental) fitted total plasma current; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+          "quality": "Not Checked",
+          "shape": [
+            64
+          ],
+          "uda_name": "EFM_PLASMA_CURR(X)",
+          "units": "A"
+        }
+      },
+      "zarr_path": "mast/level1/shot_30420/efm.zarr"
+    },
+    {
+      "feature_status": {
+        "Bt_T": {
+          "candidate_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "present_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "identity_T",
+          "required_units": "T",
+          "resolution": "total toroidal field at the magnetic axis is available in original public EFM metadata",
+          "selected_source": "bphi_rmag",
+          "selected_source_metadata": {
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "quality": "Not Checked",
+            "shape": [
+              120
+            ],
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T"
+          },
+          "source_kind": "total_toroidal_field_at_magnetic_axis",
+          "status": "source_found_requires_rebuild"
+        },
+        "Ip_MA": {
+          "candidate_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "present_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "A_to_MA",
+          "required_units": "A",
+          "resolution": "measured total plasma current is available in original public EFM metadata",
+          "selected_source": "plasma_current_x",
+          "selected_source_metadata": {
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "quality": "Not Checked",
+            "shape": [
+              120
+            ],
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A"
+          },
+          "source_kind": "measured_total_plasma_current",
+          "status": "source_found_requires_rebuild"
+        },
+        "ffprime_scale": {
+          "candidate_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "present_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "required_dims": [
+            "time",
+            "psi_norm"
+          ],
+          "required_transform": "profile_to_training_scalar",
+          "required_units": "T-rad",
+          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "selected_source": "ffprime",
+          "selected_source_metadata": {
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "quality": "Not Checked",
+            "shape": [
+              120,
+              65
+            ],
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad"
+          },
+          "source_kind": "ffprime_profile",
+          "status": "source_found_requires_policy"
+        }
+      },
+      "shot_id": 30421,
+      "source_variables": {
+        "bphi_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+            "name": "efm/bphi_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              108
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RGEOM",
+            "units": "T",
+            "uuid": "f473dd76-b236-5ecf-bf6a-0c215924749d",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Toroidal B field (total) at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BPHI_RGEOM",
+          "units": "T"
+        },
+        "bphi_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "name": "efm/bphi_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              108
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T",
+            "uuid": "86365382-4e75-50ce-ac46-77fe8ae27c50",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Toroidal B field (total) at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BPHI_RMAG",
+          "units": "T"
+        },
+        "bvac_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+            "name": "efm/bvac_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              108
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RGEOM",
+            "units": "T",
+            "uuid": "3772a972-79fe-5ce1-bbb1-05107bc31b6b",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Vacuum toroidal B field at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BVAC_RGEOM",
+          "units": "T"
+        },
+        "bvac_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+            "name": "efm/bvac_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              108
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RMAG",
+            "units": "T",
+            "uuid": "fb0b4809-4d5e-54f2-8970-5a7a9ae2a338",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BVAC_RMAG",
+          "units": "T"
+        },
+        "bvac_val": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Vacuum toroidal field at",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+            "name": "efm/bvac_val",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              120
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_VAL",
+            "units": "T",
+            "uuid": "8251caa9-fcee-5d5a-829c-e2eca500e77d",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_BVAC_VAL",
+          "units": "T"
+        },
+        "ffprime": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "ffprime (centre to edge)",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "name": "efm/ffprime",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              108,
+              65
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad",
+            "uuid": "0a96d037-3559-593b-82f7-2e556d7e0c12",
+            "version": 0
+          },
+          "chunks": [
+            120,
+            65
+          ],
+          "description": "ff' profile; f(npsi, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+          "quality": "Not Checked",
+          "shape": [
+            120,
+            65
+          ],
+          "uda_name": "EFM_FFPRIME",
+          "units": "T-rad"
+        },
+        "ffprime_coefs": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "description": "Coefficients of ff' profile representation",
+            "dims": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "FFPrime Coefs",
+            "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+            "name": "efm/ffprime_coefs",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              108,
+              2
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME_COEFS",
+            "units": "",
+            "uuid": "150e37f3-5911-53e2-a61b-efeccaf4e1f9",
+            "version": 0
+          },
+          "chunks": [
+            120,
+            2
+          ],
+          "description": "Coefficients of ff' profile representation",
+          "dims": [
+            "time",
+            "ffprime_coefs_n"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+          "quality": "Not Checked",
+          "shape": [
+            120,
+            2
+          ],
+          "uda_name": "EFM_FFPRIME_COEFS",
+          "units": ""
+        },
+        "fpsi_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "computed f=R*B (centre t",
+            "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+            "name": "efm/fpsi_c",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              108,
+              65
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_F(PSI)_(C)",
+            "units": "T-m",
+            "uuid": "9161e283-b5de-577a-8b43-12fe32c27a9a",
+            "version": 0
+          },
+          "chunks": [
+            120,
+            65
+          ],
+          "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+          "quality": "Not Checked",
+          "shape": [
+            120,
+            65
+          ],
+          "uda_name": "EFM_F(PSI)_(C)",
+          "units": "T-m"
+        },
+        "plasma_current_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Output (computed) fitted total plasma current; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Computed Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+            "name": "efm/plasma_currc",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              108
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(C)",
+            "units": "A",
+            "uuid": "311ac948-1f9c-5e24-a0e5-6fc2eb5af81e",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Output (computed) fitted total plasma current; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_PLASMA_CURR(C)",
+          "units": "A"
+        },
+        "plasma_current_rz": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "z",
+              "r"
+            ],
+            "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+            "dims": [
+              "time",
+              "z",
+              "r"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "J(r,z)",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+            "name": "efm/plasma_currrz",
+            "quality": "Not Checked",
+            "rank": 3,
+            "shape": [
+              108,
+              65,
+              65
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(R,Z)",
+            "units": "A / m ** 2",
+            "uuid": "13598fc0-34e1-5c01-9085-2b83378bdecc",
+            "version": 0
+          },
+          "chunks": [
+            60,
+            33,
+            33
+          ],
+          "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+          "dims": [
+            "time",
+            "z",
+            "r"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+          "quality": "Not Checked",
+          "shape": [
+            120,
+            65,
+            65
+          ],
+          "uda_name": "EFM_PLASMA_CURR(R,Z)",
+          "units": "A / m ** 2"
+        },
+        "plasma_current_x": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Measured Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "name": "efm/plasma_currx",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              120
+            ],
+            "shot_id": 30421,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A",
+            "uuid": "1cde371e-86ad-57f6-a093-317ebe7d7ba0",
+            "version": 0
+          },
+          "chunks": [
+            120
+          ],
+          "description": "Input (experimental) fitted total plasma current; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+          "quality": "Not Checked",
+          "shape": [
+            120
+          ],
+          "uda_name": "EFM_PLASMA_CURR(X)",
+          "units": "A"
+        }
+      },
+      "zarr_path": "mast/level1/shot_30421/efm.zarr"
+    },
+    {
+      "feature_status": {
+        "Bt_T": {
+          "candidate_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "present_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "identity_T",
+          "required_units": "T",
+          "resolution": "total toroidal field at the magnetic axis is available in original public EFM metadata",
+          "selected_source": "bphi_rmag",
+          "selected_source_metadata": {
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "quality": "Not Checked",
+            "shape": [
+              87
+            ],
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T"
+          },
+          "source_kind": "total_toroidal_field_at_magnetic_axis",
+          "status": "source_found_requires_rebuild"
+        },
+        "Ip_MA": {
+          "candidate_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "present_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "A_to_MA",
+          "required_units": "A",
+          "resolution": "measured total plasma current is available in original public EFM metadata",
+          "selected_source": "plasma_current_x",
+          "selected_source_metadata": {
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "quality": "Not Checked",
+            "shape": [
+              87
+            ],
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A"
+          },
+          "source_kind": "measured_total_plasma_current",
+          "status": "source_found_requires_rebuild"
+        },
+        "ffprime_scale": {
+          "candidate_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "present_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "required_dims": [
+            "time",
+            "psi_norm"
+          ],
+          "required_transform": "profile_to_training_scalar",
+          "required_units": "T-rad",
+          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "selected_source": "ffprime",
+          "selected_source_metadata": {
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "quality": "Not Checked",
+            "shape": [
+              87,
+              65
+            ],
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad"
+          },
+          "source_kind": "ffprime_profile",
+          "status": "source_found_requires_policy"
+        }
+      },
+      "shot_id": 30422,
+      "source_variables": {
+        "bphi_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+            "name": "efm/bphi_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              72
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RGEOM",
+            "units": "T",
+            "uuid": "5a743e86-85df-5796-bbc9-23d71cf94ea4",
+            "version": 0
+          },
+          "chunks": [
+            87
+          ],
+          "description": "Toroidal B field (total) at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            87
+          ],
+          "uda_name": "EFM_BPHI_RGEOM",
+          "units": "T"
+        },
+        "bphi_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "name": "efm/bphi_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              72
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T",
+            "uuid": "69d5ffbf-7931-52b8-957a-40157f467409",
+            "version": 0
+          },
+          "chunks": [
+            87
+          ],
+          "description": "Toroidal B field (total) at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            87
+          ],
+          "uda_name": "EFM_BPHI_RMAG",
+          "units": "T"
+        },
+        "bvac_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+            "name": "efm/bvac_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              72
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RGEOM",
+            "units": "T",
+            "uuid": "4dc6e1bb-d725-5a99-b38b-e38cfa5d3927",
+            "version": 0
+          },
+          "chunks": [
+            87
+          ],
+          "description": "Vacuum toroidal B field at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            87
+          ],
+          "uda_name": "EFM_BVAC_RGEOM",
+          "units": "T"
+        },
+        "bvac_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+            "name": "efm/bvac_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              72
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RMAG",
+            "units": "T",
+            "uuid": "12597c55-27fd-5ecd-b6ff-ed9a86cdbcb2",
+            "version": 0
+          },
+          "chunks": [
+            87
+          ],
+          "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            87
+          ],
+          "uda_name": "EFM_BVAC_RMAG",
+          "units": "T"
+        },
+        "bvac_val": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Vacuum toroidal field at",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+            "name": "efm/bvac_val",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              87
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_VAL",
+            "units": "T",
+            "uuid": "977a999c-376f-5751-b6b9-199155ecbac0",
+            "version": 0
+          },
+          "chunks": [
+            87
+          ],
+          "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+          "quality": "Not Checked",
+          "shape": [
+            87
+          ],
+          "uda_name": "EFM_BVAC_VAL",
+          "units": "T"
+        },
+        "ffprime": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "ffprime (centre to edge)",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "name": "efm/ffprime",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              72,
+              65
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad",
+            "uuid": "7f904ff3-3631-53cc-b2d9-119090a69048",
+            "version": 0
+          },
+          "chunks": [
+            87,
+            65
+          ],
+          "description": "ff' profile; f(npsi, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+          "quality": "Not Checked",
+          "shape": [
+            87,
+            65
+          ],
+          "uda_name": "EFM_FFPRIME",
+          "units": "T-rad"
+        },
+        "ffprime_coefs": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "description": "Coefficients of ff' profile representation",
+            "dims": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "FFPrime Coefs",
+            "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+            "name": "efm/ffprime_coefs",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              72,
+              2
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME_COEFS",
+            "units": "",
+            "uuid": "87c5c828-99d3-59d1-8943-4cebb9a01fa9",
+            "version": 0
+          },
+          "chunks": [
+            87,
+            2
+          ],
+          "description": "Coefficients of ff' profile representation",
+          "dims": [
+            "time",
+            "ffprime_coefs_n"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+          "quality": "Not Checked",
+          "shape": [
+            87,
+            2
+          ],
+          "uda_name": "EFM_FFPRIME_COEFS",
+          "units": ""
+        },
+        "fpsi_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "computed f=R*B (centre t",
+            "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+            "name": "efm/fpsi_c",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              72,
+              65
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_F(PSI)_(C)",
+            "units": "T-m",
+            "uuid": "30fdc0e9-0a2c-58ee-9580-f458df362f13",
+            "version": 0
+          },
+          "chunks": [
+            87,
+            65
+          ],
+          "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+          "quality": "Not Checked",
+          "shape": [
+            87,
+            65
+          ],
+          "uda_name": "EFM_F(PSI)_(C)",
+          "units": "T-m"
+        },
+        "plasma_current_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Output (computed) fitted total plasma current; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Computed Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+            "name": "efm/plasma_currc",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              72
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(C)",
+            "units": "A",
+            "uuid": "773065f9-fab5-5665-bc03-f1cf1a3c7a09",
+            "version": 0
+          },
+          "chunks": [
+            87
+          ],
+          "description": "Output (computed) fitted total plasma current; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+          "quality": "Not Checked",
+          "shape": [
+            87
+          ],
+          "uda_name": "EFM_PLASMA_CURR(C)",
+          "units": "A"
+        },
+        "plasma_current_rz": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "z",
+              "r"
+            ],
+            "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+            "dims": [
+              "time",
+              "z",
+              "r"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "J(r,z)",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+            "name": "efm/plasma_currrz",
+            "quality": "Not Checked",
+            "rank": 3,
+            "shape": [
+              72,
+              65,
+              65
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(R,Z)",
+            "units": "A / m ** 2",
+            "uuid": "c35431c4-69ef-55ae-afa1-5e804756cd2d",
+            "version": 0
+          },
+          "chunks": [
+            44,
+            33,
+            65
+          ],
+          "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+          "dims": [
+            "time",
+            "z",
+            "r"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+          "quality": "Not Checked",
+          "shape": [
+            87,
+            65,
+            65
+          ],
+          "uda_name": "EFM_PLASMA_CURR(R,Z)",
+          "units": "A / m ** 2"
+        },
+        "plasma_current_x": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Measured Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "name": "efm/plasma_currx",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              87
+            ],
+            "shot_id": 30422,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A",
+            "uuid": "58b24971-aafb-52bb-bf0c-ae373720311f",
+            "version": 0
+          },
+          "chunks": [
+            87
+          ],
+          "description": "Input (experimental) fitted total plasma current; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+          "quality": "Not Checked",
+          "shape": [
+            87
+          ],
+          "uda_name": "EFM_PLASMA_CURR(X)",
+          "units": "A"
+        }
+      },
+      "zarr_path": "mast/level1/shot_30422/efm.zarr"
+    },
+    {
+      "feature_status": {
+        "Bt_T": {
+          "candidate_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "present_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "identity_T",
+          "required_units": "T",
+          "resolution": "total toroidal field at the magnetic axis is available in original public EFM metadata",
+          "selected_source": "bphi_rmag",
+          "selected_source_metadata": {
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "quality": "Not Checked",
+            "shape": [
+              91
+            ],
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T"
+          },
+          "source_kind": "total_toroidal_field_at_magnetic_axis",
+          "status": "source_found_requires_rebuild"
+        },
+        "Ip_MA": {
+          "candidate_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "present_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "A_to_MA",
+          "required_units": "A",
+          "resolution": "measured total plasma current is available in original public EFM metadata",
+          "selected_source": "plasma_current_x",
+          "selected_source_metadata": {
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "quality": "Not Checked",
+            "shape": [
+              91
+            ],
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A"
+          },
+          "source_kind": "measured_total_plasma_current",
+          "status": "source_found_requires_rebuild"
+        },
+        "ffprime_scale": {
+          "candidate_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "present_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "required_dims": [
+            "time",
+            "psi_norm"
+          ],
+          "required_transform": "profile_to_training_scalar",
+          "required_units": "T-rad",
+          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "selected_source": "ffprime",
+          "selected_source_metadata": {
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "quality": "Not Checked",
+            "shape": [
+              91,
+              65
+            ],
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad"
+          },
+          "source_kind": "ffprime_profile",
+          "status": "source_found_requires_policy"
+        }
+      },
+      "shot_id": 30423,
+      "source_variables": {
+        "bphi_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+            "name": "efm/bphi_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              80
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RGEOM",
+            "units": "T",
+            "uuid": "d0f314f8-9215-5bc1-9054-18bdbbce6446",
+            "version": 0
+          },
+          "chunks": [
+            91
+          ],
+          "description": "Toroidal B field (total) at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            91
+          ],
+          "uda_name": "EFM_BPHI_RGEOM",
+          "units": "T"
+        },
+        "bphi_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "name": "efm/bphi_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              80
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T",
+            "uuid": "02b71f67-76c1-54b7-88cd-e42d51ab7507",
+            "version": 0
+          },
+          "chunks": [
+            91
+          ],
+          "description": "Toroidal B field (total) at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            91
+          ],
+          "uda_name": "EFM_BPHI_RMAG",
+          "units": "T"
+        },
+        "bvac_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+            "name": "efm/bvac_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              80
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RGEOM",
+            "units": "T",
+            "uuid": "2ffc0570-5fa3-544d-a8fe-c827047c6a06",
+            "version": 0
+          },
+          "chunks": [
+            91
+          ],
+          "description": "Vacuum toroidal B field at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            91
+          ],
+          "uda_name": "EFM_BVAC_RGEOM",
+          "units": "T"
+        },
+        "bvac_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+            "name": "efm/bvac_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              80
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RMAG",
+            "units": "T",
+            "uuid": "152e4484-4105-5671-91d2-a6704f8eb0fe",
+            "version": 0
+          },
+          "chunks": [
+            91
+          ],
+          "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            91
+          ],
+          "uda_name": "EFM_BVAC_RMAG",
+          "units": "T"
+        },
+        "bvac_val": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Vacuum toroidal field at",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+            "name": "efm/bvac_val",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              91
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_VAL",
+            "units": "T",
+            "uuid": "f0d654fd-78fb-52e4-ad3e-f28afa74cb37",
+            "version": 0
+          },
+          "chunks": [
+            91
+          ],
+          "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+          "quality": "Not Checked",
+          "shape": [
+            91
+          ],
+          "uda_name": "EFM_BVAC_VAL",
+          "units": "T"
+        },
+        "ffprime": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "ffprime (centre to edge)",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "name": "efm/ffprime",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              80,
+              65
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad",
+            "uuid": "712fac73-3858-5956-922e-785e9903e497",
+            "version": 0
+          },
+          "chunks": [
+            91,
+            65
+          ],
+          "description": "ff' profile; f(npsi, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+          "quality": "Not Checked",
+          "shape": [
+            91,
+            65
+          ],
+          "uda_name": "EFM_FFPRIME",
+          "units": "T-rad"
+        },
+        "ffprime_coefs": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "description": "Coefficients of ff' profile representation",
+            "dims": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "FFPrime Coefs",
+            "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+            "name": "efm/ffprime_coefs",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              80,
+              2
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME_COEFS",
+            "units": "",
+            "uuid": "df674606-fd3e-5f00-9319-6f183f6245e0",
+            "version": 0
+          },
+          "chunks": [
+            91,
+            2
+          ],
+          "description": "Coefficients of ff' profile representation",
+          "dims": [
+            "time",
+            "ffprime_coefs_n"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+          "quality": "Not Checked",
+          "shape": [
+            91,
+            2
+          ],
+          "uda_name": "EFM_FFPRIME_COEFS",
+          "units": ""
+        },
+        "fpsi_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "computed f=R*B (centre t",
+            "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+            "name": "efm/fpsi_c",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              80,
+              65
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_F(PSI)_(C)",
+            "units": "T-m",
+            "uuid": "9e409575-86a4-59c9-b980-f9880c668b5d",
+            "version": 0
+          },
+          "chunks": [
+            91,
+            65
+          ],
+          "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+          "quality": "Not Checked",
+          "shape": [
+            91,
+            65
+          ],
+          "uda_name": "EFM_F(PSI)_(C)",
+          "units": "T-m"
+        },
+        "plasma_current_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Output (computed) fitted total plasma current; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Computed Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+            "name": "efm/plasma_currc",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              80
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(C)",
+            "units": "A",
+            "uuid": "4303e1d7-6ab7-59c2-8961-3683b4792fba",
+            "version": 0
+          },
+          "chunks": [
+            91
+          ],
+          "description": "Output (computed) fitted total plasma current; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+          "quality": "Not Checked",
+          "shape": [
+            91
+          ],
+          "uda_name": "EFM_PLASMA_CURR(C)",
+          "units": "A"
+        },
+        "plasma_current_rz": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "z",
+              "r"
+            ],
+            "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+            "dims": [
+              "time",
+              "z",
+              "r"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "J(r,z)",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+            "name": "efm/plasma_currrz",
+            "quality": "Not Checked",
+            "rank": 3,
+            "shape": [
+              80,
+              65,
+              65
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(R,Z)",
+            "units": "A / m ** 2",
+            "uuid": "f4bf7912-3863-5808-9ff1-2e13eaec75c0",
+            "version": 0
+          },
+          "chunks": [
+            46,
+            33,
+            65
+          ],
+          "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+          "dims": [
+            "time",
+            "z",
+            "r"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+          "quality": "Not Checked",
+          "shape": [
+            91,
+            65,
+            65
+          ],
+          "uda_name": "EFM_PLASMA_CURR(R,Z)",
+          "units": "A / m ** 2"
+        },
+        "plasma_current_x": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Measured Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "name": "efm/plasma_currx",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              91
+            ],
+            "shot_id": 30423,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A",
+            "uuid": "af8cf629-dc78-5f26-a735-8e60f9d5b398",
+            "version": 0
+          },
+          "chunks": [
+            91
+          ],
+          "description": "Input (experimental) fitted total plasma current; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+          "quality": "Not Checked",
+          "shape": [
+            91
+          ],
+          "uda_name": "EFM_PLASMA_CURR(X)",
+          "units": "A"
+        }
+      },
+      "zarr_path": "mast/level1/shot_30423/efm.zarr"
+    },
+    {
+      "feature_status": {
+        "Bt_T": {
+          "candidate_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "present_sources": [
+            "bphi_rmag",
+            "bphi_rgeom",
+            "bvac_rmag",
+            "bvac_rgeom",
+            "bvac_val"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "identity_T",
+          "required_units": "T",
+          "resolution": "total toroidal field at the magnetic axis is available in original public EFM metadata",
+          "selected_source": "bphi_rmag",
+          "selected_source_metadata": {
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "quality": "Not Checked",
+            "shape": [
+              121
+            ],
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T"
+          },
+          "source_kind": "total_toroidal_field_at_magnetic_axis",
+          "status": "source_found_requires_rebuild"
+        },
+        "Ip_MA": {
+          "candidate_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "present_sources": [
+            "plasma_current_x",
+            "plasma_current_c",
+            "plasma_current_rz"
+          ],
+          "required_dims": [
+            "time"
+          ],
+          "required_transform": "A_to_MA",
+          "required_units": "A",
+          "resolution": "measured total plasma current is available in original public EFM metadata",
+          "selected_source": "plasma_current_x",
+          "selected_source_metadata": {
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "quality": "Not Checked",
+            "shape": [
+              121
+            ],
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A"
+          },
+          "source_kind": "measured_total_plasma_current",
+          "status": "source_found_requires_rebuild"
+        },
+        "ffprime_scale": {
+          "candidate_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "present_sources": [
+            "ffprime",
+            "ffprime_coefs",
+            "fpsi_c"
+          ],
+          "required_dims": [
+            "time",
+            "psi_norm"
+          ],
+          "required_transform": "profile_to_training_scalar",
+          "required_units": "T-rad",
+          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "selected_source": "ffprime",
+          "selected_source_metadata": {
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "dtype": "<f4",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "quality": "Not Checked",
+            "shape": [
+              121,
+              65
+            ],
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad"
+          },
+          "source_kind": "ffprime_profile",
+          "status": "source_found_requires_policy"
+        }
+      },
+      "shot_id": 30424,
+      "source_variables": {
+        "bphi_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+            "name": "efm/bphi_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RGEOM",
+            "units": "T",
+            "uuid": "4c676ae2-8b67-59a2-93a7-cb3b05707a63",
+            "version": 0
+          },
+          "chunks": [
+            121
+          ],
+          "description": "Toroidal B field (total) at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            121
+          ],
+          "uda_name": "EFM_BPHI_RGEOM",
+          "units": "T"
+        },
+        "bphi_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Toroidal B field (total) at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bphi at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+            "name": "efm/bphi_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BPHI_RMAG",
+            "units": "T",
+            "uuid": "81e439ca-be10-58e3-9ec0-b6aab69da634",
+            "version": 0
+          },
+          "chunks": [
+            121
+          ],
+          "description": "Toroidal B field (total) at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BPHI_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            121
+          ],
+          "uda_name": "EFM_BPHI_RMAG",
+          "units": "T"
+        },
+        "bvac_rgeom": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at geometric axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rgeom",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+            "name": "efm/bvac_rgeom",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RGEOM",
+            "units": "T",
+            "uuid": "663df209-5f86-531c-9880-fb5992f827cd",
+            "version": 0
+          },
+          "chunks": [
+            121
+          ],
+          "description": "Vacuum toroidal B field at geometric axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RGEOM",
+          "quality": "Not Checked",
+          "shape": [
+            121
+          ],
+          "uda_name": "EFM_BVAC_RGEOM",
+          "units": "T"
+        },
+        "bvac_rmag": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Bvac at rmag",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+            "name": "efm/bvac_rmag",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_RMAG",
+            "units": "T",
+            "uuid": "8816d600-b6de-530c-acff-85c381796fa4",
+            "version": 0
+          },
+          "chunks": [
+            121
+          ],
+          "description": "Vacuum toroidal B field at magnetic axis; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_RMAG",
+          "quality": "Not Checked",
+          "shape": [
+            121
+          ],
+          "uda_name": "EFM_BVAC_RMAG",
+          "units": "T"
+        },
+        "bvac_val": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Vacuum toroidal field at",
+            "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+            "name": "efm/bvac_val",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              121
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_BVAC_VAL",
+            "units": "T",
+            "uuid": "92b710cf-d914-5498-bcbe-7426f40ad536",
+            "version": 0
+          },
+          "chunks": [
+            121
+          ],
+          "description": "Reference vacuum toroidal B field at efm_bvac_r; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:BVAC_VAL",
+          "quality": "Not Checked",
+          "shape": [
+            121
+          ],
+          "uda_name": "EFM_BVAC_VAL",
+          "units": "T"
+        },
+        "ffprime": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "ff' profile; f(npsi, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "ffprime (centre to edge)",
+            "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+            "name": "efm/ffprime",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              107,
+              65
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME",
+            "units": "T-rad",
+            "uuid": "948c1cf7-4371-568a-941b-f06a2ade570a",
+            "version": 0
+          },
+          "chunks": [
+            121,
+            65
+          ],
+          "description": "ff' profile; f(npsi, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:FFPRIME",
+          "quality": "Not Checked",
+          "shape": [
+            121,
+            65
+          ],
+          "uda_name": "EFM_FFPRIME",
+          "units": "T-rad"
+        },
+        "ffprime_coefs": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "description": "Coefficients of ff' profile representation",
+            "dims": [
+              "time",
+              "ffprime_coefs_n"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "FFPrime Coefs",
+            "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+            "name": "efm/ffprime_coefs",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              107,
+              2
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_FFPRIME_COEFS",
+            "units": "",
+            "uuid": "185be3e4-57ff-5b0b-979d-4922fee8b97d",
+            "version": 0
+          },
+          "chunks": [
+            121,
+            2
+          ],
+          "description": "Coefficients of ff' profile representation",
+          "dims": [
+            "time",
+            "ffprime_coefs_n"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.FFPRIME_:COEFS",
+          "quality": "Not Checked",
+          "shape": [
+            121,
+            2
+          ],
+          "uda_name": "EFM_FFPRIME_COEFS",
+          "units": ""
+        },
+        "fpsi_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "psi_norm"
+            ],
+            "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+            "dims": [
+              "time",
+              "psi_norm"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "computed f=R*B (centre t",
+            "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+            "name": "efm/fpsi_c",
+            "quality": "Not Checked",
+            "rank": 2,
+            "shape": [
+              107,
+              65
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_F(PSI)_(C)",
+            "units": "T-m",
+            "uuid": "387421ad-8909-52e1-a2bd-85ef72f26636",
+            "version": 0
+          },
+          "chunks": [
+            121,
+            65
+          ],
+          "description": "Poloidal current flux function, f=R*Bphi; f(psin, B)",
+          "dims": [
+            "time",
+            "psi_norm"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM:F_PSI_C",
+          "quality": "Not Checked",
+          "shape": [
+            121,
+            65
+          ],
+          "uda_name": "EFM_F(PSI)_(C)",
+          "units": "T-m"
+        },
+        "plasma_current_c": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Output (computed) fitted total plasma current; f(B)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Computed Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+            "name": "efm/plasma_currc",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              107
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(C)",
+            "units": "A",
+            "uuid": "09a7846b-e217-5812-9bc2-883d4d08fb8a",
+            "version": 0
+          },
+          "chunks": [
+            121
+          ],
+          "description": "Output (computed) fitted total plasma current; f(B)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:C",
+          "quality": "Not Checked",
+          "shape": [
+            121
+          ],
+          "uda_name": "EFM_PLASMA_CURR(C)",
+          "units": "A"
+        },
+        "plasma_current_rz": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time",
+              "z",
+              "r"
+            ],
+            "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+            "dims": [
+              "time",
+              "z",
+              "r"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "J(r,z)",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+            "name": "efm/plasma_currrz",
+            "quality": "Not Checked",
+            "rank": 3,
+            "shape": [
+              107,
+              65,
+              65
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(R,Z)",
+            "units": "A / m ** 2",
+            "uuid": "d6fab0e8-d0d7-56df-aba5-c5383b8549be",
+            "version": 0
+          },
+          "chunks": [
+            61,
+            33,
+            33
+          ],
+          "description": "Plasma current density as a function of R and Z; f(nw, nh, B)",
+          "dims": [
+            "time",
+            "z",
+            "r"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:R_Z",
+          "quality": "Not Checked",
+          "shape": [
+            121,
+            65,
+            65
+          ],
+          "uda_name": "EFM_PLASMA_CURR(R,Z)",
+          "units": "A / m ** 2"
+        },
+        "plasma_current_x": {
+          "attrs": {
+            "_ARRAY_DIMENSIONS": [
+              "time"
+            ],
+            "description": "Input (experimental) fitted total plasma current; f(A)",
+            "dims": [
+              "time"
+            ],
+            "file_name": null,
+            "format": null,
+            "label": "Measured Plasma Current",
+            "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+            "name": "efm/plasma_currx",
+            "quality": "Not Checked",
+            "rank": 1,
+            "shape": [
+              121
+            ],
+            "shot_id": 30424,
+            "signal_type": "Analysed",
+            "source": "efm",
+            "time_index": 0,
+            "uda_name": "EFM_PLASMA_CURR(X)",
+            "units": "A",
+            "uuid": "655411f9-0bef-5bb3-987a-e6dda0b7c8a3",
+            "version": 0
+          },
+          "chunks": [
+            121
+          ],
+          "description": "Input (experimental) fitted total plasma current; f(A)",
+          "dims": [
+            "time"
+          ],
+          "dtype": "<f4",
+          "mds_name": "\\TOP.ANALYSED.EFM.PLASMA_CURR:X",
+          "quality": "Not Checked",
+          "shape": [
+            121
+          ],
+          "uda_name": "EFM_PLASMA_CURR(X)",
+          "units": "A"
+        }
+      },
+      "zarr_path": "mast/level1/shot_30424/efm.zarr"
+    }
+  ],
+  "status": "blocked"
+}

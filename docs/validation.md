@@ -560,6 +560,26 @@ the ML350-verified MAST EFM SAS payload, deferred QLKNN/QuaLiKiz public-data
 payloads, external EFIT/P-EFIT dataset requirements, run order, and GPU-hour
 planning budgets. It deliberately does not launch training.
 
+Original public MAST Level 1 EFM Zarr metadata is audited with:
+
+```bash
+python validation/audit_mast_efm_original_feature_sources.py \
+  --dataset-report validation/reports/mast_efm_neural_equilibrium_dataset.json \
+  --sas-root /mnt/data_sas/DATASETS/SCPN-CONTROL \
+  --json-out validation/reports/mast_efm_original_feature_source_audit.json \
+  --report-out validation/reports/mast_efm_original_feature_source_audit.md
+```
+
+The repository-published original-source audit is checked in as
+`validation/reports/mast_efm_original_feature_source_audit.json` and
+`validation/reports/mast_efm_original_feature_source_audit.md`. It reads only
+consolidated Zarr metadata from the SAS-hosted public MAST Level 1 EFM stores.
+The audit admits `plasma_current_x` with an `A_to_MA` conversion for `Ip_MA` and
+`bphi_rmag` as the total toroidal field at the magnetic axis for `Bt_T` across
+all six shots. Dataset rebuild remains blocked because `ffprime` is available
+only as a profile source and the `ffprime_scale` profile-to-scalar training
+policy has not yet been declared.
+
 The dry-run-first full-output baseline trainer can be prepared with:
 
 ```bash
