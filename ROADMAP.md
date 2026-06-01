@@ -220,6 +220,10 @@
   threshold, magnetic-provenance, actuator-calibration, latency-model, and
   fault-model digests now keep synthetic stellarator replay separate from
   measured or benchmark device-control claims.
+- [x] Mu-synthesis claim evidence hardening — bounded static robust-control
+  evidence now persists a canonical payload digest and load admission rejects
+  duplicate-key, schema-drift, metric-tamper, and bounded-as-validated claim
+  attempts.
 
 ## Next
 

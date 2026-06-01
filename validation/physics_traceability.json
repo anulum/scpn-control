@@ -1702,12 +1702,12 @@
       "required_actions": [
         "Attach strict documented public, external mu-toolbox, or measured control replay artifacts before validated robust-control claims",
         "Wire a validated frequency-dependent H-infinity synthesis backend before making full D-K synthesis claims",
-        "Persist benchmark plants, frequency grids, D-scale fits, and mu upper/lower bounds for every promoted controller claim"
+        "Persist benchmark plants, frequency grids, D-scale fits, mu upper/lower bounds, and canonical evidence payload digests for every promoted controller claim"
       ],
       "unit_contract": "State, control, output, and uncertainty units inherit the supplied state-space plant contract; mu, uncertainty bounds, and D-scalings are dimensionless.",
       "validation_evidence": [
-        "tests/test_mu_synthesis.py D-scaled upper-bound behaviour, uncertainty-bound scaling, finite-domain rejection, closed-loop plant dependence, and claim-admission checks",
-        "validation/validate_mu_synthesis_reference.py strict mu-analysis reference artifact gate",
+        "tests/test_mu_synthesis.py D-scaled upper-bound behaviour, uncertainty-bound scaling, finite-domain rejection, closed-loop plant dependence, claim-admission, persisted digest, tamper, and duplicate-key checks",
+        "validation/validate_mu_synthesis_reference.py strict mu-analysis reference artefact gate",
         "validation/benchmark_mu_synthesis_claims.py bounded claim-admission benchmark",
         "docs/learning/control_theory_primer.md states the bounded static analysis domain"
       ],

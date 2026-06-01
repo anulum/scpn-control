@@ -638,9 +638,12 @@ python validation/benchmark_mu_synthesis_claims.py
 
 This writes `validation/reports/mu_synthesis_claims.json` and
 `validation/reports/mu_synthesis_claims.md`. These artefacts demonstrate
-deterministic static mu-analysis claim-admission plumbing only; full
-frequency-dependent D-K synthesis claims remain gated by the strict
-reference-artifact validator below.
+deterministic static mu-analysis claim-admission plumbing only. The persisted
+JSON carries a canonical payload SHA-256 digest and `load_mu_synthesis_claim_evidence()`
+rejects duplicate keys, schema drift, edited metric fields, and bounded
+evidence presented as a validated robust-control claim. Full frequency-dependent
+D-K synthesis claims remain gated by the strict reference-artefact validator
+below.
 
 ```bash
 scpn-control validate-mu-synthesis-reference --require-reference-artifacts --json-out

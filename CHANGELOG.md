@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened mu-synthesis claim evidence persistence so bounded static
+  robust-control reports now carry canonical payload SHA-256 digests and load
+  admission rejects duplicate keys, schema drift, edited metrics, and bounded
+  evidence presented as validated robust-control evidence.
 - Added schema-versioned geometry-neutral replay evidence admission so
   stellarator replay claims bind the validated report, scenario, trace,
   metrics, thresholds, magnetic-configuration provenance, actuator

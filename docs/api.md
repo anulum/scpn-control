@@ -1155,6 +1155,16 @@ NMPC tuning.
 
 ::: scpn_control.control.mu_synthesis.compute_mu_upper_bound
 
+::: scpn_control.control.mu_synthesis.MuSynthesisClaimEvidence
+
+::: scpn_control.control.mu_synthesis.mu_synthesis_claim_evidence
+
+::: scpn_control.control.mu_synthesis.assert_mu_synthesis_validated_claim_admissible
+
+::: scpn_control.control.mu_synthesis.save_mu_synthesis_claim_evidence
+
+::: scpn_control.control.mu_synthesis.load_mu_synthesis_claim_evidence
+
 ### Real-Time EFIT (v0.16.0)
 
 ::: scpn_control.control.realtime_efit.RealtimeEFIT

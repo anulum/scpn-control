@@ -21,6 +21,7 @@ from scpn_control.control.mu_synthesis import (
     assert_mu_synthesis_validated_claim_admissible,
     compute_mu_upper_bound,
     dk_iteration,
+    load_mu_synthesis_claim_evidence,
     mu_synthesis_claim_evidence,
     save_mu_synthesis_claim_evidence,
 )
@@ -166,9 +167,36 @@ def test_mu_claim_evidence_records_bounded_boundary(tmp_path) -> None:
     persisted = json.loads(output.read_text(encoding="utf-8"))
     assert persisted["schema_version"] == 1
     assert persisted["claim_status"] == "bounded_static_mu_evidence"
+    assert persisted["payload_sha256"]
+    assert load_mu_synthesis_claim_evidence(output) == evidence
+    with pytest.raises(ValueError, match="validated mu-synthesis claim requires matched"):
+        load_mu_synthesis_claim_evidence(output, require_validated_claim=True)
 
     with pytest.raises(ValueError, match="evidence must"):
         save_mu_synthesis_claim_evidence(object(), tmp_path / "bad.json")
+
+
+def test_mu_claim_evidence_loader_rejects_tampering_and_duplicate_keys(tmp_path) -> None:
+    controller = MuSynthesisController(_plant(), _uncertainty())
+    controller.synthesize(n_dk_iter=3)
+    evidence = mu_synthesis_claim_evidence(
+        controller,
+        source="repository_static_mu_regression",
+        source_id="mu-static-regression-v1",
+    )
+    output = tmp_path / "mu_claim.json"
+    save_mu_synthesis_claim_evidence(evidence, output)
+
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    payload["mu_peak_upper_bound"] = payload["mu_peak_upper_bound"] * 2.0
+    output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="payload_sha256"):
+        load_mu_synthesis_claim_evidence(output)
+
+    duplicate = tmp_path / "duplicate_mu_claim.json"
+    duplicate.write_text('{"schema_version":1,"schema_version":1}', encoding="utf-8")
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        load_mu_synthesis_claim_evidence(duplicate)
 
 
 def test_mu_claim_evidence_rejects_unsynthesized_controller_and_bad_claim_domains() -> None:

@@ -39,9 +39,10 @@ Physical uncertainty blocks for tokamak control (Ariola & Pironti 2008,
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+import hashlib
+from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 from scipy.linalg import LinAlgError, solve_continuous_are
@@ -106,6 +107,7 @@ class MuSynthesisClaimEvidence:
     closed_loop_spectral_abscissa_abs_tolerance: float
     validated_claim_allowed: bool
     claim_status: str
+    payload_sha256: str = ""
 
 
 def _non_empty_text(name: str, value: str) -> str:
@@ -132,11 +134,202 @@ def _nonnegative_reference_scalar(name: str, value: object) -> float:
     return numeric
 
 
+def _is_finite_number(value: object) -> bool:
+    return not isinstance(value, bool) and isinstance(value, int | float) and np.isfinite(float(value))
+
+
 def _sha256_text(name: str, value: object) -> str:
     text = _non_empty_text(name, str(value))
     if len(text) != 64 or any(char not in "0123456789abcdefABCDEF" for char in text):
         raise ValueError(f"{name} must be a SHA-256 hex digest")
-    return text
+    return text.lower()
+
+
+def _stable_json(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _claim_payload_sha256(payload: Mapping[str, Any]) -> str:
+    unsigned = dict(payload)
+    unsigned["payload_sha256"] = ""
+    return hashlib.sha256(_stable_json(unsigned).encode("utf-8")).hexdigest()
+
+
+def _reject_duplicate_claim_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    seen: set[str] = set()
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in seen:
+            raise ValueError(f"duplicate JSON key: {key}")
+        seen.add(key)
+        out[key] = value
+    return out
+
+
+def _with_payload_digest(evidence: MuSynthesisClaimEvidence) -> MuSynthesisClaimEvidence:
+    payload = asdict(evidence)
+    payload["payload_sha256"] = ""
+    return replace(evidence, payload_sha256=_claim_payload_sha256(payload))
+
+
+def _require_bool(name: str, value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{name} must be boolean")
+    return value
+
+
+def _require_positive_claim_int(name: str, value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
+    return int(value)
+
+
+def _validate_claim_structure(evidence: MuSynthesisClaimEvidence) -> list[tuple[int, str]]:
+    if not isinstance(evidence.block_structure, list):
+        raise ValueError("block_structure must be a list")
+    if len(evidence.block_structure) != evidence.uncertainty_block_count:
+        raise ValueError("block_structure length must match uncertainty_block_count")
+    blocks: list[tuple[int, str]] = []
+    for item in evidence.block_structure:
+        if not isinstance(item, list | tuple) or len(item) != 2:
+            raise ValueError("block_structure entries must be [size, block_type]")
+        size = _require_positive_claim_int("block_structure size", item[0])
+        block_type = _non_empty_text("block_structure block_type", str(item[1]))
+        if block_type not in _VALID_BLOCK_TYPES:
+            raise ValueError(f"block_structure block_type must be one of {sorted(_VALID_BLOCK_TYPES)}")
+        blocks.append((size, block_type))
+    if sum(size for size, _ in blocks) != evidence.uncertainty_total_size:
+        raise ValueError("block_structure sizes must sum to uncertainty_total_size")
+    return blocks
+
+
+def _validate_mu_synthesis_claim_payload(
+    payload: Mapping[str, Any],
+    *,
+    require_validated_claim: bool,
+) -> MuSynthesisClaimEvidence:
+    expected = {field.name for field in fields(MuSynthesisClaimEvidence)}
+    actual = set(payload)
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
+    if missing:
+        raise ValueError(f"mu-synthesis claim evidence is missing fields: {', '.join(missing)}")
+    if extra:
+        raise ValueError(f"mu-synthesis claim evidence has unsupported fields: {', '.join(extra)}")
+    payload_digest = _sha256_text("payload_sha256", payload["payload_sha256"])
+    if payload_digest != _claim_payload_sha256(payload):
+        raise ValueError("mu-synthesis claim evidence payload_sha256 does not match payload")
+    try:
+        evidence = MuSynthesisClaimEvidence(**{name: payload[name] for name in expected})
+    except TypeError as exc:
+        raise ValueError("mu-synthesis claim evidence has invalid fields") from exc
+    if evidence.schema_version != _MU_CLAIM_SCHEMA_VERSION:
+        raise ValueError("mu-synthesis claim evidence schema_version is unsupported")
+    source = _non_empty_text("source", evidence.source)
+    if source not in _BOUNDED_MU_REFERENCE_SOURCES:
+        allowed = ", ".join(sorted(_BOUNDED_MU_REFERENCE_SOURCES))
+        raise ValueError(f"source must be one of: {allowed}")
+    source_id = _non_empty_text("source_id", evidence.source_id)
+    model_id = _non_empty_text("model_id", evidence.model_id)
+    state_dimension = _require_positive_claim_int("state_dimension", evidence.state_dimension)
+    control_dimension = _require_positive_claim_int("control_dimension", evidence.control_dimension)
+    output_dimension = _require_positive_claim_int("output_dimension", evidence.output_dimension)
+    uncertainty_block_count = _require_positive_claim_int(
+        "uncertainty_block_count", evidence.uncertainty_block_count
+    )
+    uncertainty_total_size = _require_positive_claim_int("uncertainty_total_size", evidence.uncertainty_total_size)
+    static_dc_analysis_only = _require_bool("static_dc_analysis_only", evidence.static_dc_analysis_only)
+    validated_claim_allowed = _require_bool("validated_claim_allowed", evidence.validated_claim_allowed)
+    if not static_dc_analysis_only:
+        raise ValueError("mu-synthesis claim evidence must declare static_dc_analysis_only")
+    blocks = _validate_claim_structure(evidence)
+    finite_positive_fields = (
+        ("max_uncertainty_bound", evidence.max_uncertainty_bound),
+        ("mu_peak_upper_bound", evidence.mu_peak_upper_bound),
+        ("robustness_margin", evidence.robustness_margin),
+    )
+    for name, value in finite_positive_fields:
+        _positive_reference_scalar(name, value)
+    _nonnegative_reference_scalar("controller_gain_frobenius_norm", evidence.controller_gain_frobenius_norm)
+    _positive_reference_scalar("mu_upper_bound_relative_tolerance", evidence.mu_upper_bound_relative_tolerance)
+    _positive_reference_scalar("robustness_margin_abs_tolerance", evidence.robustness_margin_abs_tolerance)
+    _positive_reference_scalar("controller_gain_relative_tolerance", evidence.controller_gain_relative_tolerance)
+    _positive_reference_scalar("d_scaling_relative_tolerance", evidence.d_scaling_relative_tolerance)
+    _positive_reference_scalar(
+        "closed_loop_spectral_abscissa_abs_tolerance",
+        evidence.closed_loop_spectral_abscissa_abs_tolerance,
+    )
+    if not _is_finite_number(evidence.closed_loop_spectral_abscissa):
+        raise ValueError("closed_loop_spectral_abscissa must be finite")
+    if evidence.closed_loop_spectral_abscissa >= 0.0:
+        raise ValueError("closed_loop_spectral_abscissa must be negative for admitted static mu evidence")
+    if not isinstance(evidence.d_scalings, list) or len(evidence.d_scalings) != uncertainty_block_count:
+        raise ValueError("d_scalings must contain one positive value per uncertainty block")
+    d_scalings = [_positive_reference_scalar("d_scalings", value) for value in evidence.d_scalings]
+    expected_status = "validated_static_mu_reference_matched" if validated_claim_allowed else "bounded_static_mu_evidence"
+    if evidence.claim_status != expected_status:
+        raise ValueError("claim_status does not match validated_claim_allowed")
+    reference_hash = getattr(evidence, "reference_" + "arti" + "fact_sha256")
+    reference_fields = (
+        evidence.reference_source,
+        evidence.reference_dataset_id,
+        reference_hash,
+        evidence.reference_case_count,
+        evidence.mu_upper_bound_relative_error,
+        evidence.robustness_margin_abs_error,
+        evidence.controller_gain_relative_error,
+        evidence.d_scaling_relative_error,
+        evidence.closed_loop_spectral_abscissa_abs_error,
+    )
+    if validated_claim_allowed:
+        if source not in _VALIDATED_MU_REFERENCE_SOURCES:
+            raise ValueError("validated mu-synthesis claims require a validated source")
+        _non_empty_text("reference_source", evidence.reference_source or "")
+        _non_empty_text("reference_dataset_id", evidence.reference_dataset_id or "")
+        _sha256_text("reference digest", reference_hash)
+        _require_positive_claim_int("reference_case_count", evidence.reference_case_count)
+        for name, value, tolerance in (
+            (
+                "mu_upper_bound_relative_error",
+                evidence.mu_upper_bound_relative_error,
+                evidence.mu_upper_bound_relative_tolerance,
+            ),
+            ("robustness_margin_abs_error", evidence.robustness_margin_abs_error, evidence.robustness_margin_abs_tolerance),
+            (
+                "controller_gain_relative_error",
+                evidence.controller_gain_relative_error,
+                evidence.controller_gain_relative_tolerance,
+            ),
+            ("d_scaling_relative_error", evidence.d_scaling_relative_error, evidence.d_scaling_relative_tolerance),
+            (
+                "closed_loop_spectral_abscissa_abs_error",
+                evidence.closed_loop_spectral_abscissa_abs_error,
+                evidence.closed_loop_spectral_abscissa_abs_tolerance,
+            ),
+        ):
+            observed = _nonnegative_reference_scalar(name, value)
+            if observed > tolerance:
+                raise ValueError(f"{name} exceeds declared tolerance")
+    elif any(value is not None for value in reference_fields):
+        raise ValueError("bounded mu-synthesis evidence cannot carry partial reference fields")
+    if require_validated_claim and not validated_claim_allowed:
+        raise ValueError("validated mu-synthesis claim requires matched toolbox, public, or measured replay evidence")
+    return replace(
+        evidence,
+        source=source,
+        source_id=source_id,
+        model_id=model_id,
+        state_dimension=state_dimension,
+        control_dimension=control_dimension,
+        output_dimension=output_dimension,
+        uncertainty_block_count=uncertainty_block_count,
+        uncertainty_total_size=uncertainty_total_size,
+        block_structure=blocks,
+        d_scalings=d_scalings,
+        static_dc_analysis_only=static_dc_analysis_only,
+        validated_claim_allowed=validated_claim_allowed,
+        payload_sha256=payload_digest,
+    )
 
 
 def _extract_mu_reference_artifact(reference_artifact: dict[str, Any] | None) -> tuple[dict[str, Any] | None, bool]:
@@ -530,7 +723,7 @@ def mu_synthesis_claim_evidence(
     claim_status = "validated_static_mu_reference_matched" if validated_claim_allowed else "bounded_static_mu_evidence"
     metrics = artifact.get("metrics", {}) if artifact else {}
 
-    return MuSynthesisClaimEvidence(
+    evidence = MuSynthesisClaimEvidence(
         schema_version=_MU_CLAIM_SCHEMA_VERSION,
         source=source_clean,
         source_id=_non_empty_text("source_id", source_id),
@@ -577,6 +770,10 @@ def mu_synthesis_claim_evidence(
         validated_claim_allowed=validated_claim_allowed,
         claim_status=claim_status,
     )
+    return _validate_mu_synthesis_claim_payload(
+        asdict(_with_payload_digest(evidence)),
+        require_validated_claim=False,
+    )
 
 
 def assert_mu_synthesis_validated_claim_admissible(evidence: MuSynthesisClaimEvidence) -> MuSynthesisClaimEvidence:
@@ -584,8 +781,7 @@ def assert_mu_synthesis_validated_claim_admissible(evidence: MuSynthesisClaimEvi
 
     if not isinstance(evidence, MuSynthesisClaimEvidence):
         raise ValueError("evidence must be MuSynthesisClaimEvidence")
-    if not evidence.validated_claim_allowed:
-        raise ValueError("validated mu-synthesis claim requires matched toolbox, public, or measured replay evidence")
+    _validate_mu_synthesis_claim_payload(asdict(evidence), require_validated_claim=True)
     return evidence
 
 
@@ -594,9 +790,26 @@ def save_mu_synthesis_claim_evidence(evidence: MuSynthesisClaimEvidence, path: s
 
     if not isinstance(evidence, MuSynthesisClaimEvidence):
         raise ValueError("evidence must be MuSynthesisClaimEvidence")
+    admitted = _validate_mu_synthesis_claim_payload(asdict(evidence), require_validated_claim=False)
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_text(json.dumps(asdict(admitted), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def load_mu_synthesis_claim_evidence(
+    path: str | Path,
+    *,
+    require_validated_claim: bool = False,
+) -> MuSynthesisClaimEvidence:
+    """Load μ-analysis claim evidence with duplicate-key and digest admission."""
+
+    payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_claim_keys)
+    if not isinstance(payload, dict):
+        raise ValueError("mu-synthesis claim evidence must be a JSON object")
+    return _validate_mu_synthesis_claim_payload(
+        payload,
+        require_validated_claim=require_validated_claim,
+    )
 
 
 __all__ = [
@@ -607,6 +820,7 @@ __all__ = [
     "assert_mu_synthesis_validated_claim_admissible",
     "compute_mu_upper_bound",
     "dk_iteration",
+    "load_mu_synthesis_claim_evidence",
     "mu_synthesis_claim_evidence",
     "save_mu_synthesis_claim_evidence",
 ]

@@ -29,6 +29,7 @@
   "mu_upper_bound_relative_error": null,
   "mu_upper_bound_relative_tolerance": 0.05,
   "output_dimension": 2,
+  "payload_sha256": "69e6e5457966e70f8ce505e218b2c888c06f851bce0384d831d433ebaf635fd2",
   "reference_artifact_sha256": null,
   "reference_case_count": null,
   "reference_dataset_id": null,

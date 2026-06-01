@@ -77,6 +77,10 @@
   replay reports bind scenario, trace, metrics, thresholds, provenance,
   actuator calibration, latency model, and fault model digests while measured
   device claims fail closed without external artefact evidence.
+- Hardened mu-synthesis claim evidence persistence so bounded static
+  robust-control reports carry canonical payload SHA-256 digests and load
+  admission rejects duplicate keys, schema drift, edited metrics, and bounded
+  evidence presented as validated robust-control evidence.
 - Hardened end-to-end control-latency evidence so benchmark reports now use a
   schema-versioned canonical payload digest and admission rejects tampering,
   non-positive run counts, unordered percentiles, mismatched overhead factors,
