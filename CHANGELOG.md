@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Persisted the current JAX gyrokinetic CPU parity campaign alongside the
+  existing GPU campaign, regenerated the strict parity summary, and updated the
+  traceability and validation docs so backend parity is admitted for CPU/GPU
+  reproducibility without promoting quantitative external-code GK claims.
 - Replaced WebSocket runtime-configuration raw SHA-256 digests with a
   domain-separated HMAC-SHA256 evidence digest so deterministic admission
   remains stable while code scanning no longer treats the configuration proof

@@ -28,6 +28,7 @@ Run:
 
 ```bash
 python validation/benchmark_jax_gk_parity.py --json-out
+JAX_PLATFORM_NAME=cpu python validation/benchmark_jax_gk_parity.py --json-out
 ```
 
 Strict admission:
@@ -37,10 +38,12 @@ python validation/validate_jax_gk_parity.py \
   --artifact-root validation/reports/jax_gk_parity \
   --require-parity-artifacts \
   --require-cases cyclone_base_case,tem_kinetic_electron,stable_mode \
-  --require-backends gpu
+  --require-backends cpu,gpu
 ```
 
-The claim boundary is backend parity only. These artifacts do not replace
+The persisted campaign currently contains three CPU and three GPU parity
+artefacts over CBC, kinetic-electron TEM, and low-drive stable-mode cases. The
+claim boundary is backend parity only. These artifacts do not replace
 external TGLF, GENE, GS2, CGYRO, or QuaLiKiz validation for quantitative
 gyrokinetic claims.
 

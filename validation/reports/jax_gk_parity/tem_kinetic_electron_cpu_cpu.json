@@ -1,18 +1,18 @@
 {
   "admitted_for_control": false,
-  "backend": "gpu",
-  "case": "stable_mode",
+  "backend": "cpu",
+  "case": "tem_kinetic_electron",
   "case_acceptance": {
-    "description": "Low-drive bounded-growth branch parity guard",
-    "max_gamma_max_cs_over_a": 0.01,
+    "description": "Kinetic-electron trapped-electron-mode branch parity guard",
+    "max_gamma_max_cs_over_a": null,
     "required_mode_types": [
-      "stable",
+      "TEM",
       "ITG"
     ]
   },
   "case_parameters": {
-    "case": "stable_mode",
-    "electron_model": "adiabatic",
+    "case": "tem_kinetic_electron",
+    "electron_model": "kinetic",
     "solver_kwargs": {
       "B0": 2.0,
       "R0": 2.78,
@@ -24,8 +24,8 @@
     },
     "species": [
       {
-        "R_L_T": 0.1,
-        "R_L_n": 0.1,
+        "R_L_T": 1.0,
+        "R_L_n": 1.0,
         "adiabatic": false,
         "charge_e": 1.0,
         "density_19": 10.0,
@@ -35,9 +35,9 @@
         "temperature_keV": 8.0
       },
       {
-        "R_L_T": 0.1,
-        "R_L_n": 0.1,
-        "adiabatic": true,
+        "R_L_T": 8.0,
+        "R_L_n": 3.0,
+        "adiabatic": false,
         "charge_e": -1.0,
         "density_19": 10.0,
         "mass_amu": 0.000544617021484666,
@@ -47,36 +47,36 @@
       }
     ]
   },
-  "case_parameters_sha256": "4602b4e622f9aa096b3f8ad8079c60861eabb51dd5dc8fce24a76dc742a1cb01",
-  "device_kind": "nvidia geforce gtx 1060 6gb",
+  "case_parameters_sha256": "041d113895d5b0db5672be73f6b3075572ca68ee62f668292e09d3481a7cc0df",
+  "device_kind": "cpu",
   "dtype": "float32",
   "evidence_boundary": "backend_parity_only",
-  "executed_at": "2026-06-01T08:55:43Z",
+  "executed_at": "2026-06-01T08:56:00Z",
   "external_validation_required": true,
   "gamma_relative_tolerance": 0.25,
   "jax_dominant_mode_type": "ITG",
-  "jax_gamma_max_cs_over_a": 0.007543395527782974,
+  "jax_gamma_max_cs_over_a": 0.3923504037799389,
   "jax_mode_types": [
-    "stable",
+    "TEM",
+    "TEM",
     "ITG",
-    "stable",
     "stable"
   ],
-  "jax_omega_r_cs_over_a": -0.36397077211561496,
+  "jax_omega_r_cs_over_a": -0.27562812662452185,
   "jax_version": "0.6.2",
   "jaxlib_version": "0.6.2",
   "native_dominant_mode_type": "ITG",
-  "native_gamma_max_cs_over_a": 0.007543383921424607,
+  "native_gamma_max_cs_over_a": 0.392350362542419,
   "native_mode_types": [
-    "stable",
+    "TEM",
+    "TEM",
     "ITG",
-    "stable",
     "stable"
   ],
-  "native_omega_r_cs_over_a": -0.36397059753036676,
+  "native_omega_r_cs_over_a": -0.2756279504954613,
   "normalisation": "c_s_over_a",
   "omega_absolute_tolerance": 0.25,
-  "payload_sha256": "974253f42619acebe5bb6bf4f351261262ad33cd1948974072386b8782917142",
+  "payload_sha256": "5c2f622e96175e32431a33bcb4b3e919437b238b58120e08cf1b4da463b0d96d",
   "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
   "schema_version": "scpn-control.jax-gk-parity.v1",
   "solver_contract": "native_linear_gk_local_dispersion",

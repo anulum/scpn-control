@@ -1,6 +1,6 @@
 {
   "admitted_for_control": false,
-  "backend": "gpu",
+  "backend": "cpu",
   "case": "stable_mode",
   "case_acceptance": {
     "description": "Low-drive bounded-growth branch parity guard",
@@ -48,21 +48,21 @@
     ]
   },
   "case_parameters_sha256": "4602b4e622f9aa096b3f8ad8079c60861eabb51dd5dc8fce24a76dc742a1cb01",
-  "device_kind": "nvidia geforce gtx 1060 6gb",
+  "device_kind": "cpu",
   "dtype": "float32",
   "evidence_boundary": "backend_parity_only",
-  "executed_at": "2026-06-01T08:55:43Z",
+  "executed_at": "2026-06-01T08:56:00Z",
   "external_validation_required": true,
   "gamma_relative_tolerance": 0.25,
   "jax_dominant_mode_type": "ITG",
-  "jax_gamma_max_cs_over_a": 0.007543395527782974,
+  "jax_gamma_max_cs_over_a": 0.0075433774905039695,
   "jax_mode_types": [
     "stable",
     "ITG",
     "stable",
     "stable"
   ],
-  "jax_omega_r_cs_over_a": -0.36397077211561496,
+  "jax_omega_r_cs_over_a": -0.3639707249727126,
   "jax_version": "0.6.2",
   "jaxlib_version": "0.6.2",
   "native_dominant_mode_type": "ITG",
@@ -76,7 +76,7 @@
   "native_omega_r_cs_over_a": -0.36397059753036676,
   "normalisation": "c_s_over_a",
   "omega_absolute_tolerance": 0.25,
-  "payload_sha256": "974253f42619acebe5bb6bf4f351261262ad33cd1948974072386b8782917142",
+  "payload_sha256": "08ade6592110b5207ec60b374ce17f088c76fe97039719fcb6c8208d06c7bfdb",
   "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
   "schema_version": "scpn-control.jax-gk-parity.v1",
   "solver_contract": "native_linear_gk_local_dispersion",

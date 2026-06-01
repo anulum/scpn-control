@@ -350,11 +350,14 @@ backend metadata, dtype, X64 setting, device kind, and pinned tolerances:
 ```bash
 scpn-control validate-jax-gk-parity --require-parity-artifacts --json-out
 python validation/validate_jax_gk_parity.py --require-parity-artifacts --output-json artifacts/jax_gk_parity_report.json
+python validation/validate_jax_gk_parity.py --require-parity-artifacts --require-cases cyclone_base_case,tem_kinetic_electron,stable_mode --require-backends cpu,gpu
 ```
 
-Strict mode fails until `validation/reports/jax_gk_parity/` contains parity
-artifacts for the declared backend campaign. Live smoke tests remain useful
-diagnostics, but they do not replace persisted CPU/GPU/TPU parity evidence.
+Strict mode now admits the persisted CPU and GPU parity campaign in
+`validation/reports/jax_gk_parity/` for CBC, kinetic-electron TEM, and
+low-drive stable-mode cases. Live smoke tests remain useful diagnostics, but
+they do not replace persisted CPU/GPU/TPU parity evidence, and parity evidence
+does not replace external-code GK validation.
 
 GK OOD detector deployment claims require persisted calibration artifacts with a
 declared 10D feature schema, training-distribution metadata, threshold
