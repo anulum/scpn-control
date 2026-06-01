@@ -54,6 +54,28 @@ def _rollout_report() -> dict[str, object]:
     return payload
 
 
+def _readiness_report() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "backend": "jax",
+        "campaign_sha256": "a" * 64,
+        "gradient_latency_report_sha256": "b" * 64,
+        "gradient_audit_sha256": "c" * 64,
+        "rollout_latency_report_sha256": "d" * 64,
+        "rollout_audit_sha256": "e" * 64,
+        "external_reference_artifact_sha256": None,
+        "external_reference_admitted": False,
+        "controller_formal_artifact_sha256": None,
+        "n_rho": 21,
+        "rollout_steps": 4,
+        "channel_order": ["electron_temperature", "ion_temperature", "electron_density", "impurity_density"],
+        "equilibrium_coupled": True,
+        "full_fidelity_claim_admissible": False,
+        "blocked_reasons": ["controller_formal_artifact_sha256", "external_reference_artifact_sha256"],
+        "claim_status": "bounded differentiable transport readiness only; full-fidelity claim remains blocked",
+    }
+
+
 def test_differentiable_transport_latency_admits_complete_reports(tmp_path: Path) -> None:
     one_step = tmp_path / "one_step.json"
     rollout = tmp_path / "rollout.json"
@@ -66,6 +88,46 @@ def test_differentiable_transport_latency_admits_complete_reports(tmp_path: Path
     assert report["admitted_reports"] == 2
     assert report["blocked_reports"] == 0
     assert report["errors"] == []
+
+
+def test_differentiable_transport_latency_validates_full_fidelity_readiness(tmp_path: Path) -> None:
+    one_step = tmp_path / "one_step.json"
+    rollout = tmp_path / "rollout.json"
+    readiness = tmp_path / "readiness.json"
+    one_step.write_text(json.dumps(_one_step_report()), encoding="utf-8")
+    rollout.write_text(json.dumps(_rollout_report()), encoding="utf-8")
+    readiness.write_text(json.dumps(_readiness_report()), encoding="utf-8")
+
+    report = validate_differentiable_transport_latency(
+        one_step,
+        rollout,
+        readiness_report=readiness,
+        require_admitted=True,
+    )
+
+    assert report["status"] == "pass"
+    assert report["full_fidelity_ready"] is False
+    assert report["readiness_entry"]["status"] == "blocked"
+    assert report["readiness_entry"]["blocked_reasons"] == [
+        "controller_formal_artifact_sha256",
+        "external_reference_artifact_sha256",
+    ]
+
+
+def test_differentiable_transport_latency_rejects_inconsistent_readiness(tmp_path: Path) -> None:
+    one_step = tmp_path / "one_step.json"
+    rollout = tmp_path / "rollout.json"
+    readiness = tmp_path / "readiness.json"
+    readiness_payload = _readiness_report()
+    readiness_payload["full_fidelity_claim_admissible"] = True
+    one_step.write_text(json.dumps(_one_step_report()), encoding="utf-8")
+    rollout.write_text(json.dumps(_rollout_report()), encoding="utf-8")
+    readiness.write_text(json.dumps(readiness_payload), encoding="utf-8")
+
+    report = validate_differentiable_transport_latency(one_step, rollout, readiness_report=readiness)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "readiness.blocked_reasons" for error in report["errors"])
 
 
 def test_differentiable_transport_latency_rejects_unordered_latency(tmp_path: Path) -> None:
@@ -115,8 +177,10 @@ def test_repository_differentiable_transport_latency_evidence_is_admitted() -> N
     report = validate_differentiable_transport_latency(
         root / "validation" / "reports" / "differentiable_transport_latency.json",
         root / "validation" / "reports" / "differentiable_transport_rollout_latency.json",
+        readiness_report=root / "validation" / "reports" / "differentiable_transport_full_fidelity_readiness.json",
         require_admitted=True,
     )
 
     assert report["status"] == "pass"
     assert report["admitted_reports"] == 2
+    assert report["full_fidelity_ready"] is False

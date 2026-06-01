@@ -255,6 +255,8 @@ Report artefacts:
 - `validation/reports/differentiable_transport_latency.md`
 - `validation/reports/differentiable_transport_rollout_latency.json`
 - `validation/reports/differentiable_transport_rollout_latency.md`
+- `validation/reports/differentiable_transport_full_fidelity_readiness.json`
+- `validation/reports/differentiable_transport_full_fidelity_readiness.md`
 
 Admission:
 
@@ -264,7 +266,10 @@ python validation/validate_differentiable_transport_latency.py --require-admitte
 
 The report is local latency evidence for the audited gradient-admission path.
 It is not a real-time control-loop guarantee and does not replace external
-transport validation.
+transport validation. Full-fidelity differentiable-transport promotion must
+also pass `transport_full_fidelity_readiness_evidence()` with bound one-step and
+rollout reports, controller proof digest, equilibrium-coupled campaign
+metadata, and an admitted external reference artifact.
 
 ## End-to-End Control Latency Evidence
 

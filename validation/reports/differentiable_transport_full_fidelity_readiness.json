@@ -1,0 +1,27 @@
+{
+  "backend": "jax",
+  "blocked_reasons": [
+    "controller_formal_artifact_sha256",
+    "external_reference_artifact_sha256"
+  ],
+  "campaign_sha256": "3556de9bc496d0c5f03e408f2476d2e5bc5a5075e020a002eba32d18a867740b",
+  "channel_order": [
+    "electron_temperature",
+    "ion_temperature",
+    "electron_density",
+    "impurity_density"
+  ],
+  "claim_status": "bounded differentiable transport readiness only; full-fidelity claim remains blocked",
+  "controller_formal_artifact_sha256": null,
+  "equilibrium_coupled": true,
+  "external_reference_admitted": false,
+  "external_reference_artifact_sha256": null,
+  "full_fidelity_claim_admissible": false,
+  "gradient_audit_sha256": "a7474bd5698fdf51f4ed945f2cea75775c7cffe144189edf93abeeb1c1f2f525",
+  "gradient_latency_report_sha256": "4e35ada53617ac1aa9fb854348af2b94ba121ffa7e6da38cd37d3a8d14de9494",
+  "n_rho": 21,
+  "rollout_audit_sha256": "52e14fd49ee5ba131ae06a2aeed58d41d84fae306203ab2efe657f6e729349f5",
+  "rollout_latency_report_sha256": "b62ad3cef5360fe0d8c3a4cb3877584012c94212de5a4ae4cce5a8b012b5ea9c",
+  "rollout_steps": 4,
+  "schema_version": 1
+}

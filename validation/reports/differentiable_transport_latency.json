@@ -29,10 +29,10 @@
   "channel_count": 4,
   "claim_status": "local audited gradient-admission latency only; not a real-time control-loop guarantee",
   "dtype": "float64",
-  "max_ms": 38.426561,
+  "max_ms": 24.79153,
   "n_rho": 21,
-  "p50_ms": 30.768817,
-  "p95_ms": 37.788684,
+  "p50_ms": 17.999959,
+  "p95_ms": 24.193632400000002,
   "schema_version": 1,
   "timed_runs": 5,
   "warmup_runs": 1

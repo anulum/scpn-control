@@ -1497,3 +1497,138 @@ def test_equilibrium_weighted_transport_gradient_is_finite_with_jax_gs_flux():
     assert np.any(np.abs(result.chi_gradient) > 0.0)
     assert np.any(np.abs(result.equilibrium_gradient) > 0.0)
     assert np.mean(result.radial_weights) == pytest.approx(1.0)
+
+
+def _transport_readiness_fixture():
+    metadata = dt.TransportCampaignMetadata(
+        backend="jax",
+        dtype="float64",
+        channel_order=dt.CHANNELS,
+        n_rho=17,
+        rho_min=0.0,
+        rho_max=1.0,
+        rho_spacing=1.0 / 16.0,
+        dt=1.0e-3,
+        core_boundary="zero_gradient",
+        edge_boundary="dirichlet",
+        edge_values=(0.2, 0.2, 4.0, 0.03),
+        closure_source="validated-gk-profile",
+        closure_weights_checksum="c" * 64,
+        gradient_tolerance=5.0e-4,
+        equilibrium_grid_shape=(17, 17),
+    )
+    gradient_audit = dt.TransportGradientAudit(
+        loss=1.0e-3,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 1), (1, 8), (2, 15), (3, 8)),
+        chi_max_abs_error=1.0e-7,
+        source_max_abs_error=2.0e-7,
+        passed=True,
+    )
+    gradient_report = dt.TransportGradientLatencyReport(
+        schema_version=1,
+        backend="jax",
+        dtype="float64",
+        n_rho=17,
+        channel_count=dt.CHANNEL_COUNT,
+        warmup_runs=1,
+        timed_runs=3,
+        p50_ms=3.0,
+        p95_ms=4.0,
+        max_ms=4.5,
+        audit=gradient_audit,
+        claim_status="local audited gradient-admission latency only",
+    )
+    rollout_audit = dt.TransportRolloutGradientAudit(
+        loss=2.0e-3,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 0, 1), (1, 1, 8), (2, 2, 15), (2, 3, 8)),
+        source_max_abs_error=3.0e-7,
+        passed=True,
+    )
+    rollout_report = dt.TransportRolloutGradientLatencyReport(
+        schema_version=1,
+        backend="jax",
+        dtype="float64",
+        n_rho=17,
+        n_steps=3,
+        channel_count=dt.CHANNEL_COUNT,
+        warmup_runs=1,
+        timed_runs=3,
+        p50_ms=6.0,
+        p95_ms=8.0,
+        max_ms=9.0,
+        audit=rollout_audit,
+        claim_status="local audited rollout source-gradient latency only",
+    )
+    return metadata, gradient_report, rollout_report
+
+
+def test_transport_full_fidelity_readiness_fails_closed_without_external_admission():
+    metadata, gradient_report, rollout_report = _transport_readiness_fixture()
+
+    evidence = dt.transport_full_fidelity_readiness_evidence(
+        metadata,
+        gradient_report,
+        rollout_report=rollout_report,
+        controller_formal_artifact_sha256="a" * 64,
+    )
+
+    assert not evidence.full_fidelity_claim_admissible
+    assert "external_reference_artifact_sha256" in evidence.blocked_reasons
+    with pytest.raises(ValueError, match="external reference"):
+        dt.assert_transport_full_fidelity_claim_ready(
+            evidence,
+            metadata,
+            gradient_report,
+            rollout_report=rollout_report,
+        )
+
+
+def test_transport_full_fidelity_readiness_binds_reports_digests_and_controller_proof():
+    from dataclasses import replace
+
+    metadata, gradient_report, rollout_report = _transport_readiness_fixture()
+
+    evidence = dt.transport_full_fidelity_readiness_evidence(
+        metadata,
+        gradient_report,
+        rollout_report=rollout_report,
+        external_reference_artifact_sha256="b" * 64,
+        external_reference_admitted=True,
+        controller_formal_artifact_sha256="a" * 64,
+    )
+
+    assert evidence.full_fidelity_claim_admissible
+    assert evidence.rollout_steps == 3
+    assert evidence.gradient_latency_report_sha256
+    assert evidence.rollout_latency_report_sha256
+    assert dt.assert_transport_full_fidelity_claim_ready(
+        evidence,
+        metadata,
+        gradient_report,
+        rollout_report=rollout_report,
+    ) is evidence
+
+    tampered_report = replace(gradient_report, n_rho=19)
+    with pytest.raises(ValueError, match="campaign metadata"):
+        dt.transport_full_fidelity_readiness_evidence(
+            metadata,
+            tampered_report,
+            rollout_report=rollout_report,
+            external_reference_artifact_sha256="b" * 64,
+            external_reference_admitted=True,
+            controller_formal_artifact_sha256="a" * 64,
+        )
+
+    with pytest.raises(ValueError, match="SHA-256"):
+        dt.transport_full_fidelity_readiness_evidence(
+            metadata,
+            gradient_report,
+            rollout_report=rollout_report,
+            external_reference_artifact_sha256="not-a-digest",
+            external_reference_admitted=True,
+            controller_formal_artifact_sha256="a" * 64,
+        )

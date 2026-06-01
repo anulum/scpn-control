@@ -302,6 +302,13 @@ Admission revalidates finite non-negative audit losses and errors, tolerance
 agreement with campaign metadata, unique in-domain sampled audit indices,
 pass/fail consistency with maximum audit error, and ordered latency percentiles
 before persisted controller-tuning evidence is accepted.
+`transport_full_fidelity_readiness_evidence()` and
+`assert_transport_full_fidelity_claim_ready()` add the stricter promotion gate
+for full-fidelity differentiable-transport claims. The gate binds campaign
+metadata, one-step gradient-latency evidence, rollout source-gradient latency
+evidence, audit digests, controller formal-proof digests, equilibrium-coupled
+metadata, and an admitted external reference artifact. Without all of those
+inputs the claim remains bounded local differentiability evidence.
 `equilibrium_weighted_transport_rollout_tracking_loss()` extends the optional
 Grad-Shafranov flux-map weighting from one transport step to a full source
 rollout. `equilibrium_weighted_transport_rollout_source_gradient()` returns
@@ -373,6 +380,12 @@ equilibrium flux map for controller-tuning studies.
 ::: scpn_control.core.differentiable_transport.transport_differentiability_evidence
 
 ::: scpn_control.core.differentiable_transport.assert_transport_differentiability_claim_admissible
+
+::: scpn_control.core.differentiable_transport.TransportFullFidelityReadinessEvidence
+
+::: scpn_control.core.differentiable_transport.transport_full_fidelity_readiness_evidence
+
+::: scpn_control.core.differentiable_transport.assert_transport_full_fidelity_claim_ready
 
 ::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
 

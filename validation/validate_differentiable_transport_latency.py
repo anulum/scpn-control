@@ -20,6 +20,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 ONE_STEP_CLAIM_STATUS = "local audited gradient-admission latency only; not a real-time control-loop guarantee"
 ROLLOUT_CLAIM_STATUS = "local audited rollout source-gradient latency only; not a real-time control-loop guarantee"
+READINESS_BLOCKED_CLAIM_STATUS = "bounded differentiable transport readiness only; full-fidelity claim remains blocked"
+READINESS_ADMITTED_CLAIM_STATUS = "full-fidelity differentiable transport claim admitted"
+CHANNEL_ORDER = ["electron_temperature", "ion_temperature", "electron_density", "impurity_density"]
 BLOCKED_CLAIM_STATUSES = {
     "no latency claim; JAX gradient backend unavailable in this environment",
 }
@@ -29,12 +32,14 @@ def validate_differentiable_transport_latency(
     one_step_report: str | Path,
     rollout_report: str | Path | None = None,
     *,
+    readiness_report: str | Path | None = None,
     require_admitted: bool = False,
 ) -> dict[str, Any]:
     """Validate one-step and optional rollout differentiable transport reports."""
 
     one_step_path = Path(one_step_report)
     rollout_path = Path(rollout_report) if rollout_report is not None else None
+    readiness_path = Path(readiness_report) if readiness_report is not None else None
     errors: list[dict[str, object]] = []
     entries: list[dict[str, object]] = []
 
@@ -60,6 +65,9 @@ def validate_differentiable_transport_latency(
 
     admitted = [entry for entry in entries if entry.get("status") == "pass"]
     blocked = [entry for entry in entries if entry.get("status") == "blocked"]
+    readiness_entry: dict[str, object] | None = None
+    if readiness_path is not None:
+        readiness_entry = _validate_readiness_report(readiness_path, errors)
     if require_admitted and blocked:
         for entry in blocked:
             errors.append(
@@ -74,11 +82,99 @@ def validate_differentiable_transport_latency(
         "status": "pass" if not errors else "fail",
         "one_step_report": str(one_step_path),
         "rollout_report": str(rollout_path) if rollout_path is not None else None,
+        "readiness_report": str(readiness_path) if readiness_path is not None else None,
         "require_admitted": require_admitted,
         "admitted_reports": len(admitted),
         "blocked_reports": len(blocked),
+        "readiness_entry": readiness_entry,
+        "full_fidelity_ready": bool(readiness_entry and readiness_entry.get("full_fidelity_ready") is True),
         "entries": entries,
         "errors": errors,
+    }
+
+
+def _validate_readiness_report(path: Path, errors: list[dict[str, object]]) -> dict[str, object]:
+    try:
+        payload = _load_json(path)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        errors.append({"path": str(path), "field": "json", "error": str(exc)})
+        return {"path": str(path), "kind": "full_fidelity_readiness", "status": "fail"}
+
+    if payload.get("status") == "blocked":
+        entry = _validate_blocked_report(path, payload, "full_fidelity_readiness", errors)
+        entry["full_fidelity_ready"] = False
+        entry["blocked_reasons"] = ["jax_backend"]
+        return entry
+
+    _require_value(path, payload, "schema_version", 1, errors)
+    _require_value(path, payload, "backend", "jax", errors)
+    if not _positive_int(payload.get("n_rho")) or int(payload.get("n_rho", 0)) < 3:
+        errors.append({"path": str(path), "field": "readiness.n_rho", "error": "n_rho must be an integer >= 3"})
+    if not _positive_int(payload.get("rollout_steps")):
+        errors.append(
+            {"path": str(path), "field": "readiness.rollout_steps", "error": "rollout_steps must be positive"}
+        )
+    for field in (
+        "campaign_sha256",
+        "gradient_latency_report_sha256",
+        "gradient_audit_sha256",
+        "rollout_latency_report_sha256",
+        "rollout_audit_sha256",
+    ):
+        if not _is_sha256_hex(payload.get(field)):
+            errors.append({"path": str(path), "field": field, "error": "field must be a SHA-256 hex digest"})
+    for field in ("external_reference_artifact_sha256", "controller_formal_artifact_sha256"):
+        value = payload.get(field)
+        if value is not None and not _is_sha256_hex(value):
+            errors.append({"path": str(path), "field": field, "error": "field must be null or a SHA-256 hex digest"})
+
+    channel_order = payload.get("channel_order")
+    if channel_order != CHANNEL_ORDER:
+        errors.append({"path": str(path), "field": "readiness.channel_order", "error": "unexpected channel order"})
+    if payload.get("equilibrium_coupled") is not True:
+        errors.append(
+            {"path": str(path), "field": "readiness.equilibrium_coupled", "error": "equilibrium coupling required"}
+        )
+    if not isinstance(payload.get("external_reference_admitted"), bool):
+        errors.append(
+            {"path": str(path), "field": "readiness.external_reference_admitted", "error": "field must be boolean"}
+        )
+    full_fidelity_ready = payload.get("full_fidelity_claim_admissible")
+    blocked_reasons = payload.get("blocked_reasons")
+    if not isinstance(full_fidelity_ready, bool):
+        errors.append(
+            {"path": str(path), "field": "readiness.full_fidelity_claim_admissible", "error": "field must be boolean"}
+        )
+        full_fidelity_ready = False
+    if not isinstance(blocked_reasons, list) or not all(isinstance(reason, str) for reason in blocked_reasons):
+        errors.append(
+            {"path": str(path), "field": "readiness.blocked_reasons", "error": "blocked_reasons must be string list"}
+        )
+        blocked_reasons = []
+    if full_fidelity_ready and blocked_reasons:
+        errors.append(
+            {
+                "path": str(path),
+                "field": "readiness.blocked_reasons",
+                "error": "full-fidelity readiness cannot have blocked reasons",
+            }
+        )
+    if not full_fidelity_ready and not blocked_reasons:
+        errors.append(
+            {
+                "path": str(path),
+                "field": "readiness.blocked_reasons",
+                "error": "blocked readiness must explain blocked reasons",
+            }
+        )
+    expected_claim_status = READINESS_ADMITTED_CLAIM_STATUS if full_fidelity_ready else READINESS_BLOCKED_CLAIM_STATUS
+    _require_value(path, payload, "claim_status", expected_claim_status, errors)
+    return {
+        "path": str(path),
+        "kind": "full_fidelity_readiness",
+        "status": "pass" if full_fidelity_ready else "blocked",
+        "full_fidelity_ready": bool(full_fidelity_ready),
+        "blocked_reasons": blocked_reasons,
     }
 
 
@@ -284,6 +380,10 @@ def _load_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _is_sha256_hex(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdef" for char in value.lower())
+
+
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for key, value in pairs:
@@ -341,6 +441,11 @@ def main() -> None:
         type=Path,
         default=ROOT / "validation" / "reports" / "differentiable_transport_rollout_latency.json",
     )
+    parser.add_argument(
+        "--readiness-report",
+        type=Path,
+        default=ROOT / "validation" / "reports" / "differentiable_transport_full_fidelity_readiness.json",
+    )
     parser.add_argument("--require-admitted", action="store_true")
     parser.add_argument("--json-out", action="store_true")
     args = parser.parse_args()
@@ -348,6 +453,7 @@ def main() -> None:
     report = validate_differentiable_transport_latency(
         args.one_step_report,
         args.rollout_report,
+        readiness_report=args.readiness_report,
         require_admitted=args.require_admitted,
     )
     if args.json_out:

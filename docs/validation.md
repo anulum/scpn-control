@@ -835,8 +835,10 @@ python validation/validate_differentiable_transport_latency.py --require-admitte
 This writes `validation/reports/differentiable_transport_latency.json`,
 `validation/reports/differentiable_transport_latency.md`,
 `validation/reports/differentiable_transport_rollout_latency.json`, and
-`validation/reports/differentiable_transport_rollout_latency.md`. The reports
-exercise the audited JAX gradient-admission path when JAX is available and
+`validation/reports/differentiable_transport_rollout_latency.md`, plus
+`validation/reports/differentiable_transport_full_fidelity_readiness.json` and
+`validation/reports/differentiable_transport_full_fidelity_readiness.md`. The
+reports exercise the audited JAX gradient-admission path when JAX is available and
 otherwise publish a blocked-backend status. Persisted evidence fails closed on
 non-finite or negative audit losses/errors, tolerance drift from campaign
 metadata, duplicate or out-of-domain sampled audit indices, inconsistent
@@ -845,6 +847,13 @@ percentiles. The standalone validator admits those persisted reports before
 they are used as release evidence. The rollout source-gradient loss remains inside the traced JAX
 graph, and the module enables JAX x64 before importing `jax.numpy` so benchmark
 dtype evidence matches the requested differentiable transport precision.
+Full-fidelity differentiable-transport claims additionally require the
+`transport_full_fidelity_readiness_evidence()` promotion gate to bind campaign
+metadata, one-step and rollout latency reports, audit digests, controller
+formal-proof evidence, equilibrium coupling, and an independently admitted
+external reference artifact. Missing external reference evidence leaves the
+claim explicitly blocked rather than promoted from local differentiability
+evidence.
 
 Tokamak digital-twin validation claims require persisted public-reference,
 measured-discharge replay, or external integrated-modelling artifacts for grid

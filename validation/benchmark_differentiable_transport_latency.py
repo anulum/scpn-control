@@ -26,6 +26,8 @@ from scpn_control.core.differentiable_transport import (
     has_jax,
     save_transport_gradient_latency_report,
     save_transport_rollout_gradient_latency_report,
+    transport_campaign_metadata,
+    transport_full_fidelity_readiness_evidence,
 )
 
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
@@ -33,6 +35,8 @@ JSON_REPORT = REPORT_DIR / "differentiable_transport_latency.json"
 MD_REPORT = REPORT_DIR / "differentiable_transport_latency.md"
 ROLLOUT_JSON_REPORT = REPORT_DIR / "differentiable_transport_rollout_latency.json"
 ROLLOUT_MD_REPORT = REPORT_DIR / "differentiable_transport_rollout_latency.md"
+READINESS_JSON_REPORT = REPORT_DIR / "differentiable_transport_full_fidelity_readiness.json"
+READINESS_MD_REPORT = REPORT_DIR / "differentiable_transport_full_fidelity_readiness.md"
 
 
 def _profiles(rho: np.ndarray) -> np.ndarray:
@@ -56,6 +60,7 @@ def main() -> None:
         }
         JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         ROLLOUT_JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        READINESS_JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         MD_REPORT.write_text(
             "\n".join(
                 [
@@ -97,6 +102,29 @@ def main() -> None:
                     "JAX is required for audited differentiable transport rollout",
                     "source-gradient latency evidence. This environment does not",
                     "provide the JAX gradient backend, so no latency claim is made.",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        READINESS_MD_REPORT.write_text(
+            "\n".join(
+                [
+                    "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
+                    "<!-- Commercial license available -->",
+                    "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
+                    "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
+                    "<!-- ORCID: 0009-0009-3560-0851 -->",
+                    "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
+                    "<!-- SCPN Control — Differentiable transport full-fidelity readiness report -->",
+                    "",
+                    "# Differentiable Transport Full-Fidelity Readiness",
+                    "",
+                    "Status: `blocked`.",
+                    "",
+                    "JAX is required before readiness evidence can bind gradient",
+                    "latency, rollout latency, campaign metadata, and external",
+                    "reference admission artifacts.",
                     "",
                 ]
             ),
@@ -172,6 +200,28 @@ def main() -> None:
     )
     rollout_payload = asdict(rollout_report)
     save_transport_rollout_gradient_latency_report(rollout_report, ROLLOUT_JSON_REPORT)
+    equilibrium_psi = np.tile(np.linspace(0.0, 1.0, rho.size), (rho.size, 1))
+    campaign_metadata = transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        8.0e-4,
+        edge_values,
+        backend="jax",
+        gradient_tolerance=2.0e-3,
+        equilibrium_psi=equilibrium_psi,
+    )
+    readiness = transport_full_fidelity_readiness_evidence(
+        campaign_metadata,
+        report,
+        rollout_report=rollout_report,
+    )
+    readiness_payload = asdict(readiness)
+    READINESS_JSON_REPORT.write_text(
+        json.dumps(readiness_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     MD_REPORT.write_text(
         "\n".join(
             [
@@ -229,6 +279,35 @@ def main() -> None:
                 f"- P95 latency [ms]: `{rollout_payload['p95_ms']:.6f}`",
                 f"- Max latency [ms]: `{rollout_payload['max_ms']:.6f}`",
                 f"- Claim boundary: `{rollout_payload['claim_status']}`",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    READINESS_MD_REPORT.write_text(
+        "\n".join(
+            [
+                "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
+                "<!-- Commercial license available -->",
+                "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
+                "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
+                "<!-- ORCID: 0009-0009-3560-0851 -->",
+                "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
+                "<!-- SCPN Control — Differentiable transport full-fidelity readiness report -->",
+                "",
+                "# Differentiable Transport Full-Fidelity Readiness",
+                "",
+                "This report binds local differentiable-transport latency evidence",
+                "to campaign metadata and records why a full-fidelity claim is or",
+                "is not admissible.",
+                "",
+                f"- Backend: `{readiness_payload['backend']}`",
+                f"- Radial points: `{readiness_payload['n_rho']}`",
+                f"- Equilibrium coupled: `{readiness_payload['equilibrium_coupled']}`",
+                f"- Rollout steps: `{readiness_payload['rollout_steps']}`",
+                f"- Full-fidelity admissible: `{readiness_payload['full_fidelity_claim_admissible']}`",
+                f"- Blocked reasons: `{', '.join(readiness_payload['blocked_reasons'])}`",
+                f"- Claim boundary: `{readiness_payload['claim_status']}`",
                 "",
             ]
         ),

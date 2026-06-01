@@ -5,6 +5,12 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added a fail-closed differentiable-transport full-fidelity readiness gate
+  that binds campaign metadata, one-step and rollout latency reports, gradient
+  audit digests, controller formal-proof digests, equilibrium-coupled metadata,
+  and admitted external reference evidence before any full-fidelity claim can
+  pass, and extended the benchmark/validator evidence path to publish and
+  structurally admit the corresponding blocked readiness artifact.
 - Added a GitHub Pages compute-validation financing page that explains GPU-hour,
   storage, public-data, and external-code validation needs while preserving the
   repository claim boundary.

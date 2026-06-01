@@ -197,6 +197,29 @@ class TransportDifferentiabilityEvidence:
     claim_status: str
 
 
+@dataclass(frozen=True)
+class TransportFullFidelityReadinessEvidence:
+    """Fail-closed readiness evidence for full-fidelity transport claims."""
+
+    schema_version: int
+    backend: str
+    campaign_sha256: str
+    gradient_latency_report_sha256: str
+    gradient_audit_sha256: str
+    rollout_latency_report_sha256: str | None
+    rollout_audit_sha256: str | None
+    external_reference_artifact_sha256: str | None
+    external_reference_admitted: bool
+    controller_formal_artifact_sha256: str | None
+    n_rho: int
+    rollout_steps: int | None
+    channel_order: tuple[str, ...]
+    equilibrium_coupled: bool
+    full_fidelity_claim_admissible: bool
+    blocked_reasons: tuple[str, ...]
+    claim_status: str
+
+
 def has_jax() -> bool:
     """Return whether the differentiable JAX transport path is available."""
     return _HAS_JAX
@@ -723,6 +746,158 @@ def assert_transport_differentiability_claim_admissible(
         if audit.chi_max_abs_error > audit.tolerance or audit.source_max_abs_error > audit.tolerance:
             raise ValueError("transport differentiability parameter-gradient error exceeds tolerance")
     return evidence
+
+
+def transport_full_fidelity_readiness_evidence(
+    metadata: TransportCampaignMetadata,
+    gradient_report: TransportGradientLatencyReport,
+    *,
+    rollout_report: TransportRolloutGradientLatencyReport | None = None,
+    external_reference_artifact_sha256: str | None = None,
+    external_reference_admitted: bool = False,
+    controller_formal_artifact_sha256: str | None = None,
+) -> TransportFullFidelityReadinessEvidence:
+    """Build fail-closed readiness evidence for full-fidelity transport claims.
+
+    Local gradient audits and timing reports are necessary but not sufficient
+    for a full-fidelity claim. This certificate requires a JAX campaign,
+    equilibrium coupling, one-step and rollout audit reports, a controller proof
+    digest, and an independently admitted external reference artefact.
+    """
+
+    if not isinstance(metadata, TransportCampaignMetadata):
+        raise ValueError("metadata must be TransportCampaignMetadata")
+    if not isinstance(gradient_report, TransportGradientLatencyReport):
+        raise ValueError("gradient_report must be TransportGradientLatencyReport")
+    if rollout_report is not None and not isinstance(rollout_report, TransportRolloutGradientLatencyReport):
+        raise ValueError("rollout_report must be TransportRolloutGradientLatencyReport")
+    if not isinstance(external_reference_admitted, bool):
+        raise ValueError("external_reference_admitted must be boolean")
+
+    _validate_transport_gradient_latency_report(gradient_report)
+    _assert_latency_report_matches_campaign(metadata, gradient_report, report_name="gradient latency report")
+    _validate_transport_gradient_audit(metadata, gradient_report.audit)
+
+    rollout_steps: int | None = None
+    rollout_report_sha256: str | None = None
+    rollout_audit_sha256: str | None = None
+    if rollout_report is not None:
+        _validate_transport_rollout_gradient_latency_report(rollout_report)
+        _assert_latency_report_matches_campaign(metadata, rollout_report, report_name="rollout latency report")
+        _validate_transport_gradient_audit(metadata, rollout_report.audit)
+        for step, _, rho_index in rollout_report.audit.checked_indices:
+            if step < 0 or step >= rollout_report.n_steps or rho_index < 0 or rho_index >= metadata.n_rho:
+                raise ValueError("rollout latency report audit indices exceed campaign metadata bounds")
+        rollout_steps = int(rollout_report.n_steps)
+        rollout_report_sha256 = _canonical_sha256(rollout_report)
+        rollout_audit_sha256 = _canonical_sha256(rollout_report.audit)
+
+    external_digest = _validate_optional_sha256(
+        "external_reference_artifact_sha256",
+        external_reference_artifact_sha256,
+    )
+    proof_digest = _validate_optional_sha256(
+        "controller_formal_artifact_sha256",
+        controller_formal_artifact_sha256,
+    )
+
+    blocked_reasons: list[str] = []
+    if metadata.backend != "jax" or gradient_report.backend != "jax" or (
+        rollout_report is not None and rollout_report.backend != "jax"
+    ):
+        blocked_reasons.append("jax_backend")
+    if metadata.equilibrium_grid_shape is None:
+        blocked_reasons.append("equilibrium_coupled_campaign")
+    if not gradient_report.audit.passed:
+        blocked_reasons.append("gradient_latency_audit")
+    if rollout_report is None:
+        blocked_reasons.append("rollout_latency_report")
+    elif not rollout_report.audit.passed:
+        blocked_reasons.append("rollout_latency_audit")
+    if proof_digest is None:
+        blocked_reasons.append("controller_formal_artifact_sha256")
+    if external_digest is None:
+        blocked_reasons.append("external_reference_artifact_sha256")
+    elif not external_reference_admitted:
+        blocked_reasons.append("external_reference_admission")
+
+    full_fidelity_admissible = len(blocked_reasons) == 0
+    return TransportFullFidelityReadinessEvidence(
+        schema_version=1,
+        backend=metadata.backend,
+        campaign_sha256=_canonical_sha256(metadata),
+        gradient_latency_report_sha256=_canonical_sha256(gradient_report),
+        gradient_audit_sha256=_canonical_sha256(gradient_report.audit),
+        rollout_latency_report_sha256=rollout_report_sha256,
+        rollout_audit_sha256=rollout_audit_sha256,
+        external_reference_artifact_sha256=external_digest,
+        external_reference_admitted=external_reference_admitted,
+        controller_formal_artifact_sha256=proof_digest,
+        n_rho=int(metadata.n_rho),
+        rollout_steps=rollout_steps,
+        channel_order=metadata.channel_order,
+        equilibrium_coupled=metadata.equilibrium_grid_shape is not None,
+        full_fidelity_claim_admissible=full_fidelity_admissible,
+        blocked_reasons=tuple(blocked_reasons),
+        claim_status=(
+            "full-fidelity differentiable transport claim admitted"
+            if full_fidelity_admissible
+            else "bounded differentiable transport readiness only; full-fidelity claim remains blocked"
+        ),
+    )
+
+
+def assert_transport_full_fidelity_claim_ready(
+    evidence: TransportFullFidelityReadinessEvidence,
+    metadata: TransportCampaignMetadata,
+    gradient_report: TransportGradientLatencyReport,
+    *,
+    rollout_report: TransportRolloutGradientLatencyReport | None = None,
+) -> TransportFullFidelityReadinessEvidence:
+    """Fail closed unless readiness evidence admits a full-fidelity claim."""
+
+    if not isinstance(evidence, TransportFullFidelityReadinessEvidence):
+        raise ValueError("evidence must be TransportFullFidelityReadinessEvidence")
+    if evidence.schema_version != 1:
+        raise ValueError("transport full-fidelity readiness schema_version is unsupported")
+    expected = transport_full_fidelity_readiness_evidence(
+        metadata,
+        gradient_report,
+        rollout_report=rollout_report,
+        external_reference_artifact_sha256=evidence.external_reference_artifact_sha256,
+        external_reference_admitted=evidence.external_reference_admitted,
+        controller_formal_artifact_sha256=evidence.controller_formal_artifact_sha256,
+    )
+    if evidence != expected:
+        raise ValueError("transport full-fidelity readiness evidence digest mismatch")
+    if not evidence.full_fidelity_claim_admissible:
+        reasons = ", ".join(evidence.blocked_reasons)
+        if "external_reference_artifact_sha256" in evidence.blocked_reasons:
+            raise ValueError(f"transport full-fidelity claim requires external reference evidence: {reasons}")
+        if "external_reference_admission" in evidence.blocked_reasons:
+            raise ValueError(f"transport full-fidelity claim requires external reference admission: {reasons}")
+        raise ValueError(f"transport full-fidelity claim is not ready: {reasons}")
+    return evidence
+
+
+def _assert_latency_report_matches_campaign(
+    metadata: TransportCampaignMetadata,
+    report: TransportGradientLatencyReport | TransportRolloutGradientLatencyReport,
+    *,
+    report_name: str,
+) -> None:
+    if report.backend != metadata.backend:
+        raise ValueError(f"campaign metadata and {report_name} backend mismatch")
+    if report.dtype != metadata.dtype:
+        raise ValueError(f"campaign metadata and {report_name} dtype mismatch")
+    if report.n_rho != metadata.n_rho:
+        raise ValueError(f"campaign metadata and {report_name} n_rho mismatch")
+    if report.channel_count != len(metadata.channel_order) or metadata.channel_order != CHANNELS:
+        raise ValueError(f"campaign metadata and {report_name} channel contract mismatch")
+    if metadata.gradient_tolerance is None:
+        raise ValueError("campaign metadata gradient_tolerance is required for latency evidence")
+    if not np.isclose(report.audit.tolerance, metadata.gradient_tolerance, rtol=1.0e-12, atol=1.0e-15):
+        raise ValueError(f"campaign metadata and {report_name} audit tolerance mismatch")
 
 
 def _validate_transport_gradient_audit(

@@ -16,7 +16,7 @@ controller-tuning studies. It is not a real-time control-loop guarantee.
 - Radial points: `21`
 - Timed runs: `5`
 - Audit passed: `True`
-- P50 latency [ms]: `30.768817`
-- P95 latency [ms]: `37.788684`
-- Max latency [ms]: `38.426561`
+- P50 latency [ms]: `17.999959`
+- P95 latency [ms]: `24.193632`
+- Max latency [ms]: `24.791530`
 - Claim boundary: `local audited gradient-admission latency only; not a real-time control-loop guarantee`
