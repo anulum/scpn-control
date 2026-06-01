@@ -107,11 +107,7 @@ def test_convert_campaign_reports_blocked_reference_candidate(monkeypatch, tmp_p
     manifest = tmp_path / "campaign.json"
     manifest.write_text(
         json.dumps(
-            {
-                "shots": [
-                    {"status": "acquired", "shot_id": 30419, "local_path": "mast/level1/shot_30419/efm.zarr"}
-                ]
-            }
+            {"shots": [{"status": "acquired", "shot_id": 30419, "local_path": "mast/level1/shot_30419/efm.zarr"}]}
         ),
         encoding="utf-8",
     )
