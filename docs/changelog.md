@@ -5,6 +5,13 @@
 ## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Hardened GK geometry reference admission so
+  `validation/validate_gk_geometry_reference.py` now emits schema-versioned,
+  digest-bound evidence with immutable reference-file SHA-256, per-case
+  digests, explicit SI units, bounded local Miller-geometry admission status,
+  duplicate-case rejection, direct source-checkout execution support, and an
+  explicit block on full equilibrium-reconstruction claims pending independent
+  Miller-geometry implementation or external equilibrium-code evidence.
 - Hardened GK species reference admission so
   `validation/validate_gk_species_reference.py` now emits schema-versioned,
   digest-bound evidence with immutable reference-file SHA-256, per-case

@@ -22,12 +22,27 @@ def test_repository_geometry_reference_cases_pass() -> None:
     report = validate_gk_geometry_reference(REFERENCE_CASES)
 
     assert report["status"] == "pass"
+    assert report["schema_version"] == "scpn-control.gk-geometry-reference.v2"
+    assert len(report["reference_file_sha256"]) == 64
+    assert len(report["payload_sha256"]) == 64
+    assert report["tolerances"] == {"absolute": 1.0e-11, "relative": 1.0e-10}
+    assert report["units"]["R"] == "m"
+    assert report["units"]["theta"] == "rad"
+    assert report["units"]["B_toroidal"] == "T"
+    assert report["public_claims"] == {
+        "bounded_local_miller_geometry_reference": True,
+        "full_equilibrium_reconstruction": False,
+        "full_equilibrium_blocked_reason": (
+            "Requires independent Miller-geometry implementation or external equilibrium-code evidence."
+        ),
+    }
     assert report["cases"] == 3
     assert {entry["case"] for entry in report["entries"]} == {
         "circular_cyclone_limit",
         "shaped_positive_triangularity",
         "high_shear_local_equilibrium",
     }
+    assert all(len(entry["case_sha256"]) == 64 for entry in report["entries"])
 
 
 def test_geometry_reference_gate_rejects_missing_required_case(tmp_path: Path) -> None:
@@ -88,3 +103,15 @@ def test_geometry_reference_gate_rejects_metric_drift(tmp_path: Path) -> None:
 
     assert report["status"] == "fail"
     assert report["errors"][0]["field"] == "g_tt"
+
+
+def test_geometry_reference_gate_rejects_duplicate_valid_case(tmp_path: Path) -> None:
+    payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
+    payload["cases"].append(payload["cases"][0])
+    path = tmp_path / "miller_reference_cases.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_geometry_reference(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "case" and "duplicate" in error["error"] for error in report["errors"])

@@ -161,19 +161,20 @@
       "module_path": "src/scpn_control/core/gk_geometry.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Compare metric coefficients and field-pitch factors against an independent Miller-geometry reference implementation",
-        "Store immutable reference cases covering circular, shaped, and high-shear local equilibria"
+        "Compare metric coefficients and field-pitch factors against an independent Miller-geometry reference implementation or external equilibrium-code evidence",
+        "Keep immutable schema-versioned evidence covering circular, shaped, and high-shear local equilibria"
       ],
       "unit_contract": "Major radius, minor radius, local radius, and gradient lengths in metres; angles in radians; magnetic-field strength in tesla; q, shear, elongation, triangularity, and shaping derivatives dimensionless.",
       "validation_evidence": [
         "tests/test_gk_geometry.py field-pitch, metric, contravariant metric-determinant identity, curvature, shaping, and interface checks",
-        "validation/validate_gk_geometry_reference.py immutable Miller reference cases with b-dot-grad-theta samples",
+        "validation/validate_gk_geometry_reference.py schema-versioned immutable Miller reference cases with b-dot-grad-theta samples, per-case digests, unit contracts, tolerance metadata, and canonical payload SHA-256",
         "source-level local Miller geometry contract"
       ],
       "evidence_paths": [
         "tests/test_gk_geometry.py",
         "tests/test_gk_geometry_reference_validation.py",
         "validation/validate_gk_geometry_reference.py",
+        "validation/reports/gk_geometry_reference.json",
         "validation/reference_data/gk_geometry/miller_reference_cases.json",
         "src/scpn_control/core/gk_geometry.py"
       ],

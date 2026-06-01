@@ -374,6 +374,15 @@ scpn-control validate-gk-geometry-reference --json-out
 python validation/validate_gk_geometry_reference.py --output-json artifacts/gk_geometry_reference_report.json
 ```
 
+The strict report uses the `scpn-control.gk-geometry-reference.v2` schema,
+records the immutable reference-file SHA-256, per-case digests, SI units,
+absolute and relative tolerances, and the canonical payload SHA-256. Current
+local evidence in `validation/reports/gk_geometry_reference.json` admits the
+bounded local Miller-geometry reference with three cases and sub-`1e-15`
+maximum absolute drift. It does not admit a full equilibrium-reconstruction
+claim; independent Miller-geometry implementation evidence or external
+equilibrium-code evidence remains required.
+
 Gyrokinetic species validation compares mass, charge, thermal speed,
 Larmor-radius normalisation, and collision-frequency coefficients against
 immutable electron, main-ion, impurity, and extreme-temperature reference cases:

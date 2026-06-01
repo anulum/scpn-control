@@ -1,0 +1,49 @@
+{
+  "cases": 3,
+  "entries": [
+    {
+      "case": "circular_cyclone_limit",
+      "case_sha256": "17cd1f37876ecb1d69f7394b2b4c46bee709f947c5671d2747a7b8b71586b63f",
+      "max_abs_error": 4.440892098500626e-16,
+      "samples": 4
+    },
+    {
+      "case": "shaped_positive_triangularity",
+      "case_sha256": "c8b90bc00a93edddcaee2a316f52ebe007e1a2f444cc59a252e7aab8648c78ba",
+      "max_abs_error": 4.440892098500626e-16,
+      "samples": 4
+    },
+    {
+      "case": "high_shear_local_equilibrium",
+      "case_sha256": "5174f6fa8d608fc97123d5efe93b0cd83c3388ce63721d5be7faee632f8ae644",
+      "max_abs_error": 8.881784197001252e-16,
+      "samples": 4
+    }
+  ],
+  "errors": [],
+  "payload_sha256": "1eeb4c9100796ed34387da95a12c01d4381cce9b2e4c910dce9e38c790325029",
+  "public_claims": {
+    "bounded_local_miller_geometry_reference": true,
+    "full_equilibrium_blocked_reason": "Requires independent Miller-geometry implementation or external equilibrium-code evidence.",
+    "full_equilibrium_reconstruction": false
+  },
+  "reference_file_sha256": "c69d5edaf55a73d295329438f809e15e11e5df93f2ce7eecd20b8cc124fc9e6c",
+  "reference_path": "validation/reference_data/gk_geometry/miller_reference_cases.json",
+  "schema_version": "scpn-control.gk-geometry-reference.v2",
+  "status": "pass",
+  "tolerances": {
+    "absolute": 1e-11,
+    "relative": 1e-10
+  },
+  "units": {
+    "B_toroidal": "T",
+    "R": "m",
+    "Z": "m",
+    "b_dot_grad_theta": "m-1",
+    "g_rr": "dimensionless",
+    "g_rt": "m",
+    "g_tt": "m2",
+    "jacobian": "m2",
+    "theta": "rad"
+  }
+}

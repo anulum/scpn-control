@@ -12,16 +12,20 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 import numpy as np
 
 from scpn_control.core.gk_geometry import miller_geometry
-
-ROOT = Path(__file__).resolve().parents[1]
 
 _REQUIRED_CASES = {"circular_cyclone_limit", "shaped_positive_triangularity", "high_shear_local_equilibrium"}
 _REQUIRED_HEADER_FIELDS = (
@@ -60,36 +64,58 @@ _GEOMETRY_PARAMETERS = {
 }
 _ABS_TOLERANCE = 1.0e-11
 _REL_TOLERANCE = 1.0e-10
+_REPORT_SCHEMA = "scpn-control.gk-geometry-reference.v2"
+_UNITS = {
+    "theta": "rad",
+    "R": "m",
+    "Z": "m",
+    "jacobian": "m2",
+    "g_rr": "dimensionless",
+    "g_rt": "m",
+    "g_tt": "m2",
+    "B_toroidal": "T",
+    "b_dot_grad_theta": "m-1",
+}
+_FULL_EQUILIBRIUM_BLOCKED_REASON = (
+    "Requires independent Miller-geometry implementation or external equilibrium-code evidence."
+)
 
 
 def validate_gk_geometry_reference(reference_path: str | Path) -> dict[str, Any]:
     """Validate repository Miller geometry against stored reference cases."""
     path = Path(reference_path)
-    report: dict[str, Any] = {"status": "pass", "reference_path": str(path), "cases": 0, "entries": [], "errors": []}
+    report = _new_report(path)
     entries: list[dict[str, object]] = report["entries"]
     errors: list[dict[str, object]] = report["errors"]
     try:
-        with path.open(encoding="utf-8") as handle:
-            payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
+        raw_payload = path.read_text(encoding="utf-8")
+        report["reference_file_sha256"] = hashlib.sha256(raw_payload.encode("utf-8")).hexdigest()
+        payload = json.loads(raw_payload, object_pairs_hook=_reject_duplicate_json_keys)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        return {**report, "status": "fail", "errors": [{"path": str(path), "field": "json", "error": str(exc)}]}
+        report["status"] = "fail"
+        errors.append({"path": str(path), "field": "json", "error": str(exc)})
+        return _finalise_report(report)
 
     if not isinstance(payload, dict):
         errors.append({"path": str(path), "field": "root", "error": "reference root must be an object"})
         report["status"] = "fail"
-        return report
+        return _finalise_report(report)
     _validate_header(path, payload, errors)
     cases = payload.get("cases")
     if not isinstance(cases, list) or not cases:
         errors.append({"path": str(path), "field": "cases", "error": "cases must be a non-empty array"})
         report["status"] = "fail"
-        return report
+        return _finalise_report(report)
 
     seen_cases: set[str] = set()
     for index, case_payload in enumerate(cases):
         entry = _validate_case(path, index, case_payload, errors)
         if entry is not None:
-            seen_cases.add(str(entry["case"]))
+            case_name = str(entry["case"])
+            if case_name in seen_cases:
+                errors.append({"path": str(path), "index": index, "field": "case", "error": f"duplicate case: {case_name}"})
+                continue
+            seen_cases.add(case_name)
             entries.append(entry)
     missing_cases = sorted(_REQUIRED_CASES - seen_cases)
     for case_name in missing_cases:
@@ -97,7 +123,7 @@ def validate_gk_geometry_reference(reference_path: str | Path) -> dict[str, Any]
     report["cases"] = len(entries)
     if errors:
         report["status"] = "fail"
-    return report
+    return _finalise_report(report)
 
 
 def _validate_header(path: Path, payload: dict[str, Any], errors: list[dict[str, object]]) -> None:
@@ -175,7 +201,12 @@ def _validate_case(
                 )
     if any(error.get("index") == index for error in errors):
         return None
-    return {"case": case_name, "samples": len(sample_points), "max_abs_error": max_abs_error}
+    return {
+        "case": case_name,
+        "samples": len(sample_points),
+        "max_abs_error": max_abs_error,
+        "case_sha256": _json_sha256(case_payload),
+    }
 
 
 def _parameters_are_numeric(
@@ -217,6 +248,46 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError(f"duplicate JSON key: {key}")
         out[key] = value
     return out
+
+
+def _new_report(path: Path) -> dict[str, Any]:
+    return {
+        "schema_version": _REPORT_SCHEMA,
+        "status": "pass",
+        "reference_path": _portable_path(path),
+        "reference_file_sha256": None,
+        "payload_sha256": None,
+        "tolerances": {"absolute": _ABS_TOLERANCE, "relative": _REL_TOLERANCE},
+        "units": dict(_UNITS),
+        "public_claims": {
+            "bounded_local_miller_geometry_reference": False,
+            "full_equilibrium_reconstruction": False,
+            "full_equilibrium_blocked_reason": _FULL_EQUILIBRIUM_BLOCKED_REASON,
+        },
+        "cases": 0,
+        "entries": [],
+        "errors": [],
+    }
+
+
+def _json_sha256(payload: object) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _portable_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
+    report["public_claims"]["bounded_local_miller_geometry_reference"] = report["status"] == "pass"
+    payload = dict(report)
+    payload["payload_sha256"] = None
+    report["payload_sha256"] = _json_sha256(payload)
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:
