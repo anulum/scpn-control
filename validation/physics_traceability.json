@@ -341,16 +341,15 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Acquire matched P-EFIT reference equilibria or an openly redistributable equivalent",
-        "Run fine-tuning only through the strict neural-equilibrium reference-artifact gate",
-        "Persist claim evidence with model identity, weight checksum, grid shape, feature contract, reference source, reference-equilibria count, tolerances, errors, and admission status before predictive claims",
-        "Add error bounds for psi, pressure, q-profile, LCFS, and magnetic-axis predictions before facility claims"
+        "Persist schema-versioned reference and prediction artifact URIs with SHA-256 digests, exact weight checksum, grid shape, target schema, unit contracts, and declared psi/pressure/q-profile/boundary/axis tolerances",
+        "Keep predictive equilibrium claims blocked until immutable reference artifacts are sealed by canonical payload digests and validate the exact surrogate weight checksum"
       ],
       "unit_contract": "SI magnetic flux, pressure, metre-scale geometry, and dimensionless q-profile arrays on declared grids.",
       "validation_evidence": [
         "tests/test_neural_equilibrium.py synthetic pretraining, reproducibility, JAX-compatible weight, fail-closed claim evidence, checksum matching, and real-EFIT admission tests",
         "tests/test_jax_neural_equilibrium.py synthetic-pretrained weight loading through JAX inference",
         "validation/benchmark_neural_equilibrium_pretraining.py deterministic synthetic pretraining and claim-admission benchmark",
-        "validation/validate_neural_equilibrium_reference.py strict P-EFIT/reference artifact gate"
+        "validation/validate_neural_equilibrium_reference.py strict digest-bound P-EFIT/reference artifact gate"
       ],
       "evidence_paths": [
         "src/scpn_control/core/neural_equilibrium.py",
@@ -367,7 +366,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/neural_equilibrium.py"
       ],
-      "validity_domain": "Bounded synthetic Solovev-like pretraining, JAX-compatible inference plumbing, and fail-closed predictive-claim admission evidence only; not a facility EFIT/P-EFIT validation claim unless matched reference artefacts validate the same weight checksum and all declared tolerances.",
+      "validity_domain": "Bounded synthetic Solovev-like pretraining, JAX-compatible inference plumbing, and fail-closed predictive-claim admission evidence plus a schema-versioned, digest-bound reference-artifact gate; not a facility EFIT/P-EFIT validation claim unless matched reference artefacts validate the same weight checksum and all declared tolerances.",
       "external_validation_tracker_issue": 50
     },
     {

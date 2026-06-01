@@ -28,6 +28,7 @@ from scpn_control.core.neural_equilibrium import (
     neural_equilibrium_claim_evidence,
     save_neural_equilibrium_claim_evidence,
 )
+from validation.validate_neural_equilibrium_reference import canonical_artifact_sha256
 
 
 class TestSimpleMLP:
@@ -179,16 +180,20 @@ class TestSyntheticPretraining:
         result = acc.pretrain_from_synthetic_equilibria(160, seed=9, save_path=weights)
         weights_sha = hashlib.sha256(weights.read_bytes()).hexdigest()
         artifact_payload = {
-            "schema_version": "1.0",
+            "schema_version": "scpn-control.neural-equilibrium-reference.v1",
             "source": "documented_public_reference",
             "model_id": "neural_equilibrium_pca_mlp",
             "model_version": "test",
             "trained_weights_sha256": weights_sha,
             "reference_dataset_id": "bounded-reference-fixture",
+            "reference_artifact_uri": "bounded-reference-fixture/reference_equilibria.npz",
+            "prediction_artifact_uri": "bounded-reference-fixture/scpn_predictions.npz",
             "reference_artifact_sha256": "a" * 64,
+            "prediction_artifact_sha256": "b" * 64,
             "executed_at": "2026-05-31T00:00:00Z",
             "reference_url": "https://example.invalid/reference",
             "grid_shape": [17, 19],
+            "target_schema": ["psi", "pressure", "q_profile", "lcfs_boundary", "magnetic_axis"],
             "units": {"psi": "Wb/rad", "pressure": "Pa", "q_profile": "1", "boundary": "m"},
             "reference_equilibria_count": 3,
             "metrics": {
@@ -206,6 +211,7 @@ class TestSyntheticPretraining:
                 "axis_position_error_m": 0.01,
             },
         }
+        artifact_payload["payload_sha256"] = canonical_artifact_sha256(artifact_payload)
         artifact = tmp_path / "reference.json"
         artifact.write_text(json.dumps(artifact_payload), encoding="utf-8")
 
@@ -225,6 +231,7 @@ class TestSyntheticPretraining:
         assert assert_neural_equilibrium_facility_claim_admissible(evidence) is evidence
 
         artifact_payload["trained_weights_sha256"] = "b" * 64
+        artifact_payload["payload_sha256"] = canonical_artifact_sha256(artifact_payload)
         artifact.write_text(json.dumps(artifact_payload), encoding="utf-8")
         with pytest.raises(ValueError, match="does not match supplied weights"):
             neural_equilibrium_claim_evidence(

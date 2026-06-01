@@ -431,9 +431,14 @@ python validation/validate_neural_equilibrium_reference.py --require-reference-a
 ```
 
 Strict mode fails until `validation/reports/neural_equilibrium_reference/`
-contains artifacts with source provenance, surrogate identity, weight and
-reference SHA-256 hashes, grid shape, psi/pressure/q/boundary unit contracts,
-reference-equilibrium count, and error metrics inside declared tolerances.
+contains artifacts using schema `scpn-control.neural-equilibrium-reference.v1`
+with source provenance, surrogate identity, trained-weight SHA-256, safe
+reference and prediction artifact URIs, reference/prediction/payload SHA-256
+hashes, grid shape, target schema, psi/pressure/q/boundary unit contracts,
+reference-equilibrium count, and error metrics inside declared tolerances. Real
+P-EFIT artifacts must declare an admitted absolute `binary_path`; URI,
+relative, traversal, temporary, or system-control paths are rejected before the
+artifact can support predictive equilibrium claims.
 
 Neural transport surrogate validation claims require persisted QuaLiKiz or
 documented public reference artifacts for the same QLKNN-style feature schema

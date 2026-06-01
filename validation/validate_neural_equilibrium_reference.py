@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import math
 import re
@@ -20,15 +22,24 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from validation.reference_uri import external_executable_path_error
 
 _ALLOWED_SOURCES = {"real_pefit", "documented_public_reference"}
+_SCHEMA_VERSION = "scpn-control.neural-equilibrium-reference.v1"
 _REQUIRED_STR_FIELDS = (
     "source",
     "model_id",
     "model_version",
     "trained_weights_sha256",
     "reference_dataset_id",
+    "reference_artifact_uri",
+    "prediction_artifact_uri",
     "reference_artifact_sha256",
+    "prediction_artifact_sha256",
+    "payload_sha256",
     "executed_at",
 )
 _REQUIRED_METRICS = (
@@ -44,7 +55,15 @@ _REQUIRED_UNITS = {
     "q_profile": "1",
     "boundary": "m",
 }
+_REQUIRED_TARGET_SCHEMA = ("psi", "pressure", "q_profile", "lcfs_boundary", "magnetic_axis")
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_ARTIFACT_URI_FIELDS = ("reference_artifact_uri", "prediction_artifact_uri")
+_SHA256_FIELDS = (
+    "trained_weights_sha256",
+    "reference_artifact_sha256",
+    "prediction_artifact_sha256",
+    "payload_sha256",
+)
 
 
 def validate_neural_equilibrium_reference(
@@ -96,15 +115,34 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     if not isinstance(payload, dict):
         errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
         return None
-    if payload.get("schema_version") != "1.0":
-        errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
+    if payload.get("schema_version") != _SCHEMA_VERSION:
+        errors.append(
+            {
+                "path": str(path),
+                "field": "schema_version",
+                "error": f"schema_version must be '{_SCHEMA_VERSION}'",
+            }
+        )
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
-    for field in ("trained_weights_sha256", "reference_artifact_sha256"):
+    for field in _SHA256_FIELDS:
         value = payload.get(field)
         if isinstance(value, str) and not _SHA256_RE.match(value):
             errors.append({"path": str(path), "field": field, "error": "field must be a SHA-256 hex digest"})
+    for field in _ARTIFACT_URI_FIELDS:
+        error = _artifact_uri_error(payload.get(field))
+        if error is not None:
+            errors.append({"path": str(path), "field": field, "error": error})
+    if payload.get("target_schema") != list(_REQUIRED_TARGET_SCHEMA):
+        errors.append(
+            {"path": str(path), "field": "target_schema", "error": "target_schema must match equilibrium outputs"}
+        )
+    if isinstance(payload.get("payload_sha256"), str):
+        expected = canonical_artifact_sha256(payload)
+        observed = str(payload["payload_sha256"])
+        if not hmac.compare_digest(observed.lower(), expected):
+            errors.append({"path": str(path), "field": "payload_sha256", "error": "canonical payload digest mismatch"})
     if payload.get("source") not in _ALLOWED_SOURCES:
         errors.append(
             {
@@ -113,6 +151,10 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
                 "error": "source must be real_pefit or documented_public_reference",
             }
         )
+    if payload.get("source") == "real_pefit":
+        binary_path_error = external_executable_path_error(payload.get("binary_path"))
+        if binary_path_error is not None:
+            errors.append({"path": str(path), "field": "binary_path", "error": binary_path_error})
     if payload.get("source") == "documented_public_reference" and not _has_public_reference(payload):
         errors.append(
             {
@@ -144,6 +186,7 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         "model_version": str(payload["model_version"]),
         "reference_dataset_id": str(payload["reference_dataset_id"]),
         "reference_equilibria_count": int(payload["reference_equilibria_count"]),
+        "payload_sha256": str(payload["payload_sha256"]).lower(),
     }
 
 
@@ -190,6 +233,30 @@ def _has_public_reference(payload: dict[str, object]) -> bool:
         if isinstance(value, str) and value.strip():
             return True
     return False
+
+
+def canonical_artifact_sha256(payload: dict[str, object]) -> str:
+    """Return the tamper-evident digest for a neural equilibrium reference artifact."""
+    canonical_payload = dict(payload)
+    canonical_payload.pop("payload_sha256", None)
+    encoded = json.dumps(canonical_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _artifact_uri_error(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return "artifact URI must be a non-empty string"
+    ref = value.strip()
+    if "\x00" in ref:
+        return "artifact URI must not contain NUL bytes"
+    if ref.startswith(("http://", "https://", "doi:", "s3://", "gs://")):
+        return None
+    path = Path(ref)
+    if path.is_absolute():
+        return "artifact URI must be relative or an admitted external reference URI"
+    if any(part == ".." for part in path.parts):
+        return "artifact URI must not contain traversal"
+    return None
 
 
 def _is_nonnegative_finite(value: object) -> bool:

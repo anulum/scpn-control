@@ -5,6 +5,14 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened neural equilibrium reference-artifact admission so predictive
+  EFIT/P-EFIT or documented-reference equilibrium claims must use
+  schema-versioned `scpn-control.neural-equilibrium-reference.v1` evidence with
+  safe reference/prediction artifact URIs, trained-weight,
+  reference-artifact, prediction-artifact, and canonical payload SHA-256
+  digests, explicit target schema, grid/unit contracts, finite
+  tolerance-checked psi/pressure/q-profile/boundary/axis metrics, admitted real
+  P-EFIT executable provenance, and tamper-detection tests.
 - Hardened neural transport reference-artifact admission so quantitative
   QuaLiKiz, QLKNN, or documented-reference transport claims must use
   schema-versioned `scpn-control.neural-transport-reference.v1` evidence with
