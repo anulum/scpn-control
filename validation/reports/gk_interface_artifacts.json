@@ -1,0 +1,21 @@
+{
+  "entries": [],
+  "errors": [
+    {
+      "error": "no external GK interface artefacts found",
+      "field": "artifact_root",
+      "path": "validation/reports/gk_interfaces"
+    }
+  ],
+  "interface_artifacts": 0,
+  "payload_sha256": "141d89e3b413b58b62af84b39ed95b5b8d9ef43425b9b232e6aebd0ed06d6f85",
+  "public_claims": {
+    "blocked_reason": "Requires persisted real-executable or documented public-reference GK interface artefacts.",
+    "external_interface_artifacts_admitted": false,
+    "full_gk_cross_code_claim_admitted": false
+  },
+  "require_interface_artifacts": true,
+  "root": "validation/reports/gk_interfaces",
+  "schema_version": "scpn-control.gk-interface-artifact-report.v2",
+  "status": "fail"
+}

@@ -984,7 +984,7 @@ def test_validate_gk_interface_artifacts_requires_artifacts(runner, tmp_path):
     assert result.exit_code == 1
     data = json.loads(result.output)
     assert data["status"] == "fail"
-    assert data["errors"][0]["error"] == "no external GK interface artifacts found"
+    assert data["errors"][0]["error"] == "no external GK interface artefacts found"
 
 
 def test_validate_blob_transport_reference_requires_artifacts(runner, tmp_path):

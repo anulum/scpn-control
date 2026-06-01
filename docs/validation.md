@@ -437,7 +437,7 @@ zero admitted campaign artefacts and payload SHA-256
 will continue to fail until `validation/reports/gk_ood_calibration/` contains
 real external-code, facility, or published GK campaign calibration evidence.
 
-External GK interface parser claims require persisted artifacts from real
+External GK interface parser claims require persisted artefacts from real
 solver executables or documented public reference outputs. Mock subprocess
 fixtures remain parser-readiness checks only:
 
@@ -446,13 +446,19 @@ scpn-control validate-gk-interface-artifacts --require-interface-artifacts --jso
 python validation/validate_gk_interface_artifacts.py --require-interface-artifacts --output-json artifacts/gk_interface_artifacts_report.json
 ```
 
+The strict report uses the `scpn-control.gk-interface-artifact-report.v2`
+schema and binds the canonical report payload by SHA-256. Current local
+evidence in `validation/reports/gk_interface_artifacts.json` remains blocked
+with zero admitted interface artefacts and payload SHA-256
+`141d89e3b413b58b62af84b39ed95b5b8d9ef43425b9b232e6aebd0ed06d6f85`.
+
 Strict mode fails until `validation/reports/gk_interfaces/` contains interface
-artifacts using schema `scpn-control.gk-interface-artifact.v1` with code
+artefacts using schema `scpn-control.gk-interface-artifact.v1` with code
 identity, source provenance, version, run id, execution timestamp, safe deck,
-raw-output, and parsed-output artifact URIs, SHA-256 hashes for each of those
-artifacts, a canonical payload SHA-256 hash, parser version, explicit `m^2/s`,
+raw-output, and parsed-output artefact URIs, SHA-256 hashes for each of those
+artefacts, a canonical payload SHA-256 hash, parser version, explicit `m^2/s`,
 `c_s/a`, and `k_y*rho_s` units, finite transport coefficients, growth rate,
-real frequency, and dominant wavenumber. Real-executable artifacts must also
+real frequency, and dominant wavenumber. Real-executable artefacts must also
 declare an admitted absolute `binary_path`; URI, relative, traversal,
 temporary, or system-control paths are not accepted as executable provenance.
 

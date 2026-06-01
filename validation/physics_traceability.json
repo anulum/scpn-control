@@ -327,12 +327,13 @@
       "unit_contract": "Code-specific flux, growth-rate, frequency, and geometry units converted into repository normalisation with explicit metadata.",
       "validation_evidence": [
         "docs/joss_paper.md external GK limitation",
-        "validation/validate_gk_interface_artifacts.py strict digest-bound external interface artifact gate"
+        "validation/validate_gk_interface_artifacts.py strict digest-bound external interface artefact gate with report schema, payload digest, artefact file digest, portable paths, duplicate code/run rejection, and blocked public-claim state"
       ],
       "evidence_paths": [
         "docs/joss_paper.md",
         "tests/test_gk_interface_artifact_validation.py",
         "validation/validate_gk_interface_artifacts.py",
+        "validation/reports/gk_interface_artifacts.json",
         "src/scpn_control/core/gk_interface.py"
       ],
       "covered_source_paths": [

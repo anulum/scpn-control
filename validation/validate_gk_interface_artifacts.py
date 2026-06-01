@@ -63,6 +63,8 @@ _SHA256_FIELDS = (
     "payload_sha256",
 )
 _REQUIRED_UNIT_TOKENS = ("m^2/s", "c_s/a", "k_y*rho_s")
+_REPORT_SCHEMA = "scpn-control.gk-interface-artifact-report.v2"
+_BLOCKED_REASON = "Requires persisted real-executable or documented public-reference GK interface artefacts."
 
 
 def validate_gk_interface_artifacts(
@@ -70,74 +72,84 @@ def validate_gk_interface_artifacts(
     *,
     require_interface_artifacts: bool = False,
 ) -> dict[str, Any]:
-    """Validate external GK parser artifacts and reject mock-only evidence."""
+    """Validate external GK parser artefacts and reject mock-only evidence."""
     root = Path(artifact_root)
     paths = sorted(root.glob("*.json")) if root.is_dir() else ([root] if root.is_file() else [])
-    report: dict[str, Any] = {
-        "status": "pass",
-        "root": str(root),
-        "interface_artifacts": 0,
-        "require_interface_artifacts": bool(require_interface_artifacts),
-        "entries": [],
-        "errors": [],
-    }
+    report = _new_report(root, require_interface_artifacts=require_interface_artifacts)
     entries: list[dict[str, object]] = report["entries"]
     errors: list[dict[str, object]] = report["errors"]
 
     if require_interface_artifacts and not paths:
         errors.append(
-            {"path": str(root), "field": "artifact_root", "error": "no external GK interface artifacts found"}
+            {"path": _portable_path(root), "field": "artifact_root", "error": "no external GK interface artefacts found"}
         )
 
+    seen_code_runs: set[tuple[str, str]] = set()
     for path in paths:
         try:
-            with path.open(encoding="utf-8") as handle:
-                payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
-            entry = _validate_artifact(path, payload, errors)
+            raw_payload = path.read_text(encoding="utf-8")
+            payload = json.loads(raw_payload, object_pairs_hook=_reject_duplicate_json_keys)
+            entry = _validate_artifact(path, raw_payload, payload, errors)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            errors.append({"path": str(path), "field": "json", "error": str(exc)})
+            errors.append({"path": _portable_path(path), "field": "json", "error": str(exc)})
             continue
         if entry is not None:
+            code_run = (str(entry["interface_code"]), str(entry["run_id"]))
+            if code_run in seen_code_runs:
+                errors.append(
+                    {
+                        "path": _portable_path(path),
+                        "field": "run_id",
+                        "error": f"duplicate interface_code/run_id: {code_run[0]} {code_run[1]}",
+                    }
+                )
+                continue
+            seen_code_runs.add(code_run)
             entries.append(entry)
             report["interface_artifacts"] += 1
 
     if require_interface_artifacts and report["interface_artifacts"] == 0 and not errors:
         errors.append(
-            {"path": str(root), "field": "artifact_root", "error": "no external GK interface artifacts found"}
+            {"path": _portable_path(root), "field": "artifact_root", "error": "no external GK interface artefacts found"}
         )
     if errors:
         report["status"] = "fail"
-    return report
+    return _finalise_report(report)
 
 
-def _validate_artifact(path: Path, payload: object, errors: list[dict[str, object]]) -> dict[str, object] | None:
+def _validate_artifact(
+    path: Path,
+    raw_payload: str,
+    payload: object,
+    errors: list[dict[str, object]],
+) -> dict[str, object] | None:
     if not isinstance(payload, dict):
-        errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
+        errors.append({"path": _portable_path(path), "field": "root", "error": "artefact root must be an object"})
         return None
     if payload.get("schema_version") != _SCHEMA_VERSION:
         errors.append(
             {
-                "path": str(path),
+                "path": _portable_path(path),
                 "field": "schema_version",
                 "error": f"schema_version must be '{_SCHEMA_VERSION}'",
             }
         )
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
-            errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
+            errors.append({"path": _portable_path(path), "field": field, "error": "field must be a non-empty string"})
     for field in _SHA256_FIELDS:
         value = payload.get(field)
         if isinstance(value, str) and not _SHA256_RE.match(value):
-            errors.append({"path": str(path), "field": field, "error": "field must be a SHA-256 hex digest"})
+            errors.append({"path": _portable_path(path), "field": field, "error": "field must be a SHA-256 hex digest"})
     for field in _ARTIFACT_URI_FIELDS:
         error = _artifact_uri_error(payload.get(field))
         if error is not None:
-            errors.append({"path": str(path), "field": field, "error": error})
+            errors.append({"path": _portable_path(path), "field": field, "error": error})
     units = payload.get("units")
     if isinstance(units, str) and not all(token in units for token in _REQUIRED_UNIT_TOKENS):
         errors.append(
             {
-                "path": str(path),
+                "path": _portable_path(path),
                 "field": "units",
                 "error": "units must declare m^2/s transport, c_s/a frequencies, and k_y*rho_s wavenumber",
             }
@@ -146,16 +158,20 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         expected = canonical_artifact_sha256(payload)
         observed = str(payload["payload_sha256"])
         if not hmac.compare_digest(observed.lower(), expected):
-            errors.append({"path": str(path), "field": "payload_sha256", "error": "canonical payload digest mismatch"})
+            errors.append(
+                {"path": _portable_path(path), "field": "payload_sha256", "error": "canonical payload digest mismatch"}
+            )
     for field in _REQUIRED_NUMERIC_FIELDS:
         if not _is_finite_number(payload.get(field)):
-            errors.append({"path": str(path), "field": field, "error": "field must be finite numeric"})
+            errors.append({"path": _portable_path(path), "field": field, "error": "field must be finite numeric"})
     if payload.get("interface_code") not in _ALLOWED_CODES:
-        errors.append({"path": str(path), "field": "interface_code", "error": "unsupported external GK interface code"})
+        errors.append(
+            {"path": _portable_path(path), "field": "interface_code", "error": "unsupported external GK interface code"}
+        )
     if payload.get("source") not in _ALLOWED_SOURCES:
         errors.append(
             {
-                "path": str(path),
+                "path": _portable_path(path),
                 "field": "source",
                 "error": "source must be real_executable or documented_public_reference",
             }
@@ -165,16 +181,16 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     if source == "real_executable":
         binary_path_error = external_executable_path_error(payload.get("binary_path"))
         if binary_path_error is not None:
-            errors.append({"path": str(path), "field": "binary_path", "error": binary_path_error})
+            errors.append({"path": _portable_path(path), "field": "binary_path", "error": binary_path_error})
     if source == "documented_public_reference" and not _has_public_reference(payload):
         errors.append(
             {
-                "path": str(path),
+                "path": _portable_path(path),
                 "field": "reference",
-                "error": "documented public reference artifacts require reference_url or reference_doi",
+                "error": "documented public reference artefacts require reference_url or reference_doi",
             }
         )
-    if any(error["path"] == str(path) for error in errors):
+    if any(error["path"] == _portable_path(path) for error in errors):
         return None
 
     chi_i = float(payload["chi_i_m2_s"])
@@ -183,26 +199,39 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     gamma = float(payload["gamma_max_cs_over_a"])
     ky = float(payload["k_y_rho_s_at_max"])
     if chi_i < 0.0:
-        errors.append({"path": str(path), "field": "chi_i_m2_s", "error": "transport coefficient must be non-negative"})
+        errors.append(
+            {"path": _portable_path(path), "field": "chi_i_m2_s", "error": "transport coefficient must be non-negative"}
+        )
     if chi_e < 0.0:
-        errors.append({"path": str(path), "field": "chi_e_m2_s", "error": "transport coefficient must be non-negative"})
+        errors.append(
+            {"path": _portable_path(path), "field": "chi_e_m2_s", "error": "transport coefficient must be non-negative"}
+        )
     if d_e < 0.0:
-        errors.append({"path": str(path), "field": "D_e_m2_s", "error": "transport coefficient must be non-negative"})
+        errors.append(
+            {"path": _portable_path(path), "field": "D_e_m2_s", "error": "transport coefficient must be non-negative"}
+        )
     if gamma < 0.0:
         errors.append(
-            {"path": str(path), "field": "gamma_max_cs_over_a", "error": "dominant growth rate must be non-negative"}
+            {
+                "path": _portable_path(path),
+                "field": "gamma_max_cs_over_a",
+                "error": "dominant growth rate must be non-negative",
+            }
         )
     if ky <= 0.0:
-        errors.append({"path": str(path), "field": "k_y_rho_s_at_max", "error": "dominant wavenumber must be positive"})
-    if any(error["path"] == str(path) for error in errors):
+        errors.append(
+            {"path": _portable_path(path), "field": "k_y_rho_s_at_max", "error": "dominant wavenumber must be positive"}
+        )
+    if any(error["path"] == _portable_path(path) for error in errors):
         return None
 
     return {
-        "path": str(path),
+        "path": _portable_path(path),
         "interface_code": str(payload["interface_code"]),
         "source": str(payload["source"]),
         "run_id": str(payload["run_id"]),
         "code_version": str(payload["code_version"]),
+        "artifact_file_sha256": hashlib.sha256(raw_payload.encode("utf-8")).hexdigest(),
         "payload_sha256": str(payload["payload_sha256"]).lower(),
     }
 
@@ -225,17 +254,17 @@ def canonical_artifact_sha256(payload: dict[str, object]) -> str:
 
 def _artifact_uri_error(value: object) -> str | None:
     if not isinstance(value, str) or not value.strip():
-        return "artifact URI must be a non-empty string"
+        return "artefact URI must be a non-empty string"
     ref = value.strip()
     if "\x00" in ref:
-        return "artifact URI must not contain NUL bytes"
+        return "artefact URI must not contain NUL bytes"
     if ref.startswith(("http://", "https://", "doi:", "s3://", "gs://")):
         return None
     path = Path(ref)
     if path.is_absolute():
-        return "artifact URI must be relative or an admitted external reference URI"
+        return "artefact URI must be relative or an admitted external reference URI"
     if any(part == ".." for part in path.parts):
-        return "artifact URI must not contain traversal"
+        return "artefact URI must not contain traversal"
     return None
 
 
@@ -250,6 +279,45 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError(f"duplicate JSON key: {key}")
         out[key] = value
     return out
+
+
+def _new_report(root: Path, *, require_interface_artifacts: bool) -> dict[str, Any]:
+    return {
+        "schema_version": _REPORT_SCHEMA,
+        "status": "pass",
+        "root": _portable_path(root),
+        "payload_sha256": None,
+        "interface_artifacts": 0,
+        "require_interface_artifacts": bool(require_interface_artifacts),
+        "public_claims": {
+            "external_interface_artifacts_admitted": False,
+            "full_gk_cross_code_claim_admitted": False,
+            "blocked_reason": _BLOCKED_REASON,
+        },
+        "entries": [],
+        "errors": [],
+    }
+
+
+def _portable_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return path.as_posix()
+
+
+def _json_sha256(payload: object) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
+    admitted = report["status"] == "pass" and report["interface_artifacts"] > 0
+    report["public_claims"]["external_interface_artifacts_admitted"] = admitted
+    payload = dict(report)
+    payload["payload_sha256"] = None
+    report["payload_sha256"] = _json_sha256(payload)
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:

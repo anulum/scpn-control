@@ -46,8 +46,15 @@ def test_strict_gk_interface_gate_requires_real_artifacts(tmp_path: Path) -> Non
     report = validate_gk_interface_artifacts(tmp_path, require_interface_artifacts=True)
 
     assert report["status"] == "fail"
+    assert report["schema_version"] == "scpn-control.gk-interface-artifact-report.v2"
+    assert len(report["payload_sha256"]) == 64
+    assert report["public_claims"] == {
+        "external_interface_artifacts_admitted": False,
+        "full_gk_cross_code_claim_admitted": False,
+        "blocked_reason": "Requires persisted real-executable or documented public-reference GK interface artefacts.",
+    }
     assert report["interface_artifacts"] == 0
-    assert report["errors"][0]["error"] == "no external GK interface artifacts found"
+    assert report["errors"][0]["error"] == "no external GK interface artefacts found"
 
 
 def test_gk_interface_gate_accepts_real_executable_artifact(tmp_path: Path) -> None:
@@ -60,6 +67,9 @@ def test_gk_interface_gate_accepts_real_executable_artifact(tmp_path: Path) -> N
     assert report["interface_artifacts"] == 1
     assert report["entries"][0]["interface_code"] == "GENE"
     assert report["entries"][0]["source"] == "real_executable"
+    assert len(report["entries"][0]["artifact_file_sha256"]) == 64
+    assert report["entries"][0]["path"] == artifact.as_posix()
+    assert report["public_claims"]["external_interface_artifacts_admitted"] is True
 
 
 def test_gk_interface_gate_accepts_documented_public_reference_artifact(tmp_path: Path) -> None:
@@ -166,3 +176,15 @@ def test_gk_interface_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> No
 
     assert report["status"] == "fail"
     assert report["errors"][0]["field"] == "parsed_output_uri"
+
+
+def test_gk_interface_gate_rejects_duplicate_code_run_id(tmp_path: Path) -> None:
+    payload = _valid_real_executable_artifact()
+    for index in range(2):
+        artifact = tmp_path / f"duplicate_gene_{index}.json"
+        artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_interface_artifacts(tmp_path, require_interface_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "run_id" and "duplicate" in error["error"] for error in report["errors"])

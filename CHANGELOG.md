@@ -5,6 +5,13 @@
 ## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Hardened external GK interface artefact admission so
+  `validation/validate_gk_interface_artifacts.py` now emits schema-versioned,
+  digest-bound reports with portable paths, explicit public-claim state,
+  artefact-file SHA-256 digests, duplicate interface-code/run-id rejection,
+  fail-closed strict-mode report persistence, and an explicit block on
+  external-interface and full GK cross-code claims until real executable or
+  documented public-reference artefacts are supplied.
 - Hardened GK OOD calibration admission so
   `validation/validate_gk_ood_calibration.py` now emits schema-versioned,
   digest-bound reports with portable paths, explicit feature-schema and public
