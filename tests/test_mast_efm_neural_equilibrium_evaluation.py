@@ -16,6 +16,7 @@ from scpn_control.core.neural_equilibrium import NeuralEqConfig, NeuralEquilibri
 from validation.evaluate_mast_efm_neural_equilibrium import (
     EVALUATION_SCHEMA,
     build_feature_projection,
+    evaluate_flux_geometry,
     evaluate_reference_bundle,
     masked_rmse,
 )
@@ -75,6 +76,37 @@ def test_build_feature_projection_records_source_boundaries(tmp_path: Path) -> N
     assert np.all(np.isfinite(projection.features))
 
 
+def test_evaluate_flux_geometry_recovers_axis_and_lcfs_on_explicit_grid() -> None:
+    r_grid = np.linspace(0.4, 1.0, 61)
+    z_grid = np.linspace(-0.3, 0.3, 61)
+    rr, zz = np.meshgrid(r_grid, z_grid)
+    axis_r = 0.7
+    axis_z = 0.0
+    boundary_radius = 0.18
+    psi = ((rr - axis_r) ** 2 + (zz - axis_z) ** 2)[None, :, :]
+    theta = np.linspace(0.0, 2.0 * np.pi, 72, endpoint=False)
+    reference = {
+        "r_grid_m": r_grid,
+        "z_grid_m": z_grid,
+        "psi_axis_Wb_per_rad": np.array([0.0]),
+        "psi_boundary_Wb_per_rad": np.array([boundary_radius**2]),
+        "magnetic_axis_r_m": np.array([axis_r]),
+        "magnetic_axis_z_m": np.array([axis_z]),
+        "lcfs_r_m": axis_r + boundary_radius * np.cos(theta)[None, :],
+        "lcfs_z_m": axis_z + boundary_radius * np.sin(theta)[None, :],
+        "lcfs_valid_mask": np.ones((1, theta.size), dtype=bool),
+    }
+
+    metrics, arrays = evaluate_flux_geometry(psi, reference)
+
+    assert metrics["coordinate_grid_provenance"] == "source: r_grid_m and z_grid_m"
+    assert metrics["magnetic_axis_rmse_m"] <= 1.0e-12
+    assert metrics["boundary_mean_distance_m"] < 0.02
+    assert metrics["boundary_p95_distance_m"] < 0.04
+    assert arrays["derived_magnetic_axis_r_m"].shape == (1,)
+    assert arrays["derived_lcfs_point_count"][0] > 20
+
+
 def test_evaluate_reference_bundle_writes_predictions_and_blocks_admission(tmp_path: Path) -> None:
     bundle = tmp_path / "reference.npz"
     weights = tmp_path / "weights.npz"
@@ -90,9 +122,13 @@ def test_evaluate_reference_bundle_writes_predictions_and_blocks_admission(tmp_p
     assert report["strict_artifact_emitted"] is False
     assert report["reference_equilibria_count"] == 2
     assert report["metrics"]["psi_rmse_Wb"] >= 0.0
+    assert report["metrics"]["magnetic_axis_rmse_m"] is not None
+    assert report["metrics"]["boundary_mean_distance_m"] is not None
     assert report["metrics"]["pressure_rmse_Pa"] is None
     assert report["required_follow_up"]
     assert predictions.exists()
     with np.load(predictions, allow_pickle=False) as data:
         assert data["psi_prediction_Wb_per_rad"].shape == (2, 5, 7)
         assert data["feature_projection"].shape == (2, 12)
+        assert data["derived_magnetic_axis_r_m"].shape == (2,)
+        assert data["derived_lcfs_point_count"].shape == (2,)
