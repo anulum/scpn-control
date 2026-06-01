@@ -451,9 +451,7 @@ def _validate_kuramoto_runtime_payload(
     )
     deployment_claim_allowed = bool(payload["deployment_claim_allowed"])
     expected_status = (
-        KURAMOTO_RUNTIME_EVIDENCE_QUALIFIED
-        if deployment_claim_allowed
-        else KURAMOTO_RUNTIME_EVIDENCE_BOUNDED
+        KURAMOTO_RUNTIME_EVIDENCE_QUALIFIED if deployment_claim_allowed else KURAMOTO_RUNTIME_EVIDENCE_BOUNDED
     )
     if payload.get("claim_status") != expected_status:
         raise ValueError("Kuramoto runtime evidence claim_status does not match deployment claim state")
@@ -640,9 +638,7 @@ def kuramoto_runtime_evidence(
         "timestep_refinement_passed": bool(timestep_error <= timestep_tolerance_value),
         "deployment_claim_allowed": bool(deployment_claim_allowed),
         "claim_status": (
-            KURAMOTO_RUNTIME_EVIDENCE_QUALIFIED
-            if deployment_claim_allowed
-            else KURAMOTO_RUNTIME_EVIDENCE_BOUNDED
+            KURAMOTO_RUNTIME_EVIDENCE_QUALIFIED if deployment_claim_allowed else KURAMOTO_RUNTIME_EVIDENCE_BOUNDED
         ),
         "payload_sha256": "",
     }

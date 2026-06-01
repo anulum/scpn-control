@@ -605,9 +605,7 @@ def _validate_websocket_runtime_payload(
     }
     facility_claim_allowed = bool(payload["facility_claim_allowed"])
     expected_status = (
-        WEBSOCKET_RUNTIME_EVIDENCE_QUALIFIED
-        if facility_claim_allowed
-        else WEBSOCKET_RUNTIME_EVIDENCE_LOCAL_ONLY
+        WEBSOCKET_RUNTIME_EVIDENCE_QUALIFIED if facility_claim_allowed else WEBSOCKET_RUNTIME_EVIDENCE_LOCAL_ONLY
     )
     if payload.get("claim_status") != expected_status:
         raise ValueError("WebSocket runtime evidence claim_status does not match facility_claim_allowed")
@@ -718,9 +716,7 @@ def websocket_runtime_evidence(
         "backpressure_disconnects": int(runtime_counters.get("backpressure_disconnects", 0)),
         "facility_claim_allowed": bool(facility_claim_allowed),
         "claim_status": (
-            WEBSOCKET_RUNTIME_EVIDENCE_QUALIFIED
-            if facility_claim_allowed
-            else WEBSOCKET_RUNTIME_EVIDENCE_LOCAL_ONLY
+            WEBSOCKET_RUNTIME_EVIDENCE_QUALIFIED if facility_claim_allowed else WEBSOCKET_RUNTIME_EVIDENCE_LOCAL_ONLY
         ),
         "payload_sha256": "",
     }

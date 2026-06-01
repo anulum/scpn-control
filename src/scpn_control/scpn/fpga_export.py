@@ -317,9 +317,7 @@ def _validate_hdl_export_payload(
     if not isinstance(facility_claim_allowed, bool):
         raise ValueError("facility_claim_allowed must be boolean")
     expected_status = (
-        HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED
-        if facility_claim_allowed
-        else HDL_EXPORT_EVIDENCE_LOCAL_ONLY
+        HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED if facility_claim_allowed else HDL_EXPORT_EVIDENCE_LOCAL_ONLY
     )
     if claim_status != expected_status:
         raise ValueError("HDL export evidence claim_status does not match facility_claim_allowed")
@@ -978,9 +976,7 @@ def hdl_export_evidence(
         "timing_slack_ns": timing_slack_ns,
         "facility_claim_allowed": bool(facility_claim_allowed),
         "claim_status": (
-            HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED
-            if facility_claim_allowed
-            else HDL_EXPORT_EVIDENCE_LOCAL_ONLY
+            HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED if facility_claim_allowed else HDL_EXPORT_EVIDENCE_LOCAL_ONLY
         ),
         "payload_sha256": "",
     }

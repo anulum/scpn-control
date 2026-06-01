@@ -267,9 +267,7 @@ def _validate_evidence_payload(payload: Mapping[str, Any], *, require_facility_c
     claim_status = payload.get("claim_status")
     if not isinstance(facility_claim_allowed, bool):
         raise ValueError("facility_claim_allowed must be boolean")
-    expected_status = (
-        CODAC_RUNTIME_EVIDENCE_QUALIFIED if facility_claim_allowed else CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY
-    )
+    expected_status = CODAC_RUNTIME_EVIDENCE_QUALIFIED if facility_claim_allowed else CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY
     if claim_status != expected_status:
         raise ValueError("CODAC runtime evidence claim_status does not match facility_claim_allowed")
 
@@ -520,9 +518,7 @@ def codac_runtime_evidence(
         "opcua_nodeset_sha256": _text_sha256(interface.render_opcua_nodeset()),
         "facility_claim_allowed": bool(facility_claim_allowed),
         "claim_status": (
-            CODAC_RUNTIME_EVIDENCE_QUALIFIED
-            if facility_claim_allowed
-            else CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY
+            CODAC_RUNTIME_EVIDENCE_QUALIFIED if facility_claim_allowed else CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY
         ),
         "payload_sha256": "",
     }

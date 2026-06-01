@@ -288,9 +288,7 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
                 else str(payload["hil_replay_evidence_sha256"])
             ),
             hdl_export_evidence_sha256=(
-                None
-                if payload["hdl_export_evidence_sha256"] is None
-                else str(payload["hdl_export_evidence_sha256"])
+                None if payload["hdl_export_evidence_sha256"] is None else str(payload["hdl_export_evidence_sha256"])
             ),
             codac_runtime_evidence_sha256=(
                 None

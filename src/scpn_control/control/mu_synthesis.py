@@ -234,9 +234,7 @@ def _validate_mu_synthesis_claim_payload(
     state_dimension = _require_positive_claim_int("state_dimension", evidence.state_dimension)
     control_dimension = _require_positive_claim_int("control_dimension", evidence.control_dimension)
     output_dimension = _require_positive_claim_int("output_dimension", evidence.output_dimension)
-    uncertainty_block_count = _require_positive_claim_int(
-        "uncertainty_block_count", evidence.uncertainty_block_count
-    )
+    uncertainty_block_count = _require_positive_claim_int("uncertainty_block_count", evidence.uncertainty_block_count)
     uncertainty_total_size = _require_positive_claim_int("uncertainty_total_size", evidence.uncertainty_total_size)
     static_dc_analysis_only = _require_bool("static_dc_analysis_only", evidence.static_dc_analysis_only)
     validated_claim_allowed = _require_bool("validated_claim_allowed", evidence.validated_claim_allowed)
@@ -266,7 +264,9 @@ def _validate_mu_synthesis_claim_payload(
     if not isinstance(evidence.d_scalings, list) or len(evidence.d_scalings) != uncertainty_block_count:
         raise ValueError("d_scalings must contain one positive value per uncertainty block")
     d_scalings = [_positive_reference_scalar("d_scalings", value) for value in evidence.d_scalings]
-    expected_status = "validated_static_mu_reference_matched" if validated_claim_allowed else "bounded_static_mu_evidence"
+    expected_status = (
+        "validated_static_mu_reference_matched" if validated_claim_allowed else "bounded_static_mu_evidence"
+    )
     if evidence.claim_status != expected_status:
         raise ValueError("claim_status does not match validated_claim_allowed")
     reference_hash = getattr(evidence, "reference_" + "arti" + "fact_sha256")
@@ -294,7 +294,11 @@ def _validate_mu_synthesis_claim_payload(
                 evidence.mu_upper_bound_relative_error,
                 evidence.mu_upper_bound_relative_tolerance,
             ),
-            ("robustness_margin_abs_error", evidence.robustness_margin_abs_error, evidence.robustness_margin_abs_tolerance),
+            (
+                "robustness_margin_abs_error",
+                evidence.robustness_margin_abs_error,
+                evidence.robustness_margin_abs_tolerance,
+            ),
             (
                 "controller_gain_relative_error",
                 evidence.controller_gain_relative_error,
