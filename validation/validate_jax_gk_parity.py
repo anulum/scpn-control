@@ -65,7 +65,7 @@ def validate_jax_gk_parity(
     required_backends = _normalise_required_values(require_backends, _ALLOWED_BACKENDS, "backend")
     report: dict[str, Any] = {
         "status": "pass",
-        "root": str(root),
+        "root": _display_path(root),
         "parity_artifacts": 0,
         "require_parity_artifacts": bool(require_parity_artifacts),
         "required_cases": sorted(required_cases),
@@ -77,7 +77,9 @@ def validate_jax_gk_parity(
     errors: list[dict[str, object]] = report["errors"]
 
     if require_parity_artifacts and not paths:
-        errors.append({"path": str(root), "field": "artifact_root", "error": "no JAX GK parity artifacts found"})
+        errors.append(
+            {"path": _display_path(root), "field": "artifact_root", "error": "no JAX GK parity artifacts found"}
+        )
 
     for path in paths:
         try:
@@ -85,7 +87,7 @@ def validate_jax_gk_parity(
                 payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
             entry = _validate_artifact(path, payload, errors)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            errors.append({"path": str(path), "field": "json", "error": str(exc)})
+            errors.append({"path": _display_path(path), "field": "json", "error": str(exc)})
             continue
         if entry is not None:
             entries.append(entry)
@@ -99,29 +101,77 @@ def validate_jax_gk_parity(
         required_backends=required_backends,
     )
     if require_parity_artifacts and report["parity_artifacts"] == 0 and not errors:
-        errors.append({"path": str(root), "field": "artifact_root", "error": "no JAX GK parity artifacts found"})
+        errors.append(
+            {"path": _display_path(root), "field": "artifact_root", "error": "no JAX GK parity artifacts found"}
+        )
     if errors:
         report["status"] = "fail"
+    _attach_summary_fields(report)
     return report
 
 
+def _attach_summary_fields(report: dict[str, Any]) -> None:
+    entries = sorted(
+        report["entries"], key=lambda entry: (str(entry["case"]), str(entry["backend"]), str(entry["path"]))
+    )
+    report["entries"] = entries
+    backend_counts: dict[str, int] = {}
+    case_counts: dict[str, int] = {}
+    observed_pairs: list[str] = []
+    gamma_errors: list[float] = []
+    omega_errors: list[float] = []
+    payload_digests: list[str] = []
+    for entry in entries:
+        backend = str(entry["backend"])
+        case = str(entry["case"])
+        backend_counts[backend] = backend_counts.get(backend, 0) + 1
+        case_counts[case] = case_counts.get(case, 0) + 1
+        observed_pairs.append(f"{case}/{backend}")
+        gamma_errors.append(float(entry["gamma_relative_error"]))
+        omega_errors.append(float(entry["omega_absolute_error"]))
+        payload_digests.append(str(entry["payload_sha256"]))
+    required_pairs = [
+        f"{case}/{backend}" for case in report["required_cases"] for backend in report["required_backends"]
+    ]
+    report["backend_counts"] = dict(sorted(backend_counts.items()))
+    report["case_counts"] = dict(sorted(case_counts.items()))
+    report["observed_case_backend_pairs"] = sorted(observed_pairs)
+    report["required_case_backend_pairs"] = required_pairs
+    report["complete_required_case_backend_coverage"] = (
+        set(required_pairs).issubset(set(observed_pairs)) if required_pairs else None
+    )
+    report["max_gamma_relative_error"] = max(gamma_errors) if gamma_errors else None
+    report["max_omega_absolute_error"] = max(omega_errors) if omega_errors else None
+    report["entries_payload_sha256"] = _sha256_json(
+        {"payload_sha256_values": sorted(payload_digests)}, include_payload_field=True
+    )
+    report["report_payload_sha256"] = _sha256_json(report)
+
+
 def _validate_artifact(path: Path, payload: object, errors: list[dict[str, object]]) -> dict[str, object] | None:
+    display_path = _display_path(path)
     if not isinstance(payload, dict):
-        errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
+        errors.append({"path": display_path, "field": "root", "error": "artifact root must be an object"})
         return None
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
-            errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
+            errors.append({"path": display_path, "field": field, "error": "field must be a non-empty string"})
     if payload.get("schema_version") != _SCHEMA_VERSION:
         errors.append(
-            {"path": str(path), "field": "schema_version", "error": f"schema_version must be {_SCHEMA_VERSION!r}"}
+            {
+                "path": _display_path(path),
+                "field": "schema_version",
+                "error": f"schema_version must be {_SCHEMA_VERSION!r}",
+            }
         )
     if not isinstance(payload.get("x64_enabled"), bool):
-        errors.append({"path": str(path), "field": "x64_enabled", "error": "field must be boolean"})
-    if not isinstance(payload.get("external_validation_required"), bool) or not payload.get("external_validation_required"):
+        errors.append({"path": display_path, "field": "x64_enabled", "error": "field must be boolean"})
+    if not isinstance(payload.get("external_validation_required"), bool) or not payload.get(
+        "external_validation_required"
+    ):
         errors.append(
             {
-                "path": str(path),
+                "path": _display_path(path),
                 "field": "external_validation_required",
                 "error": "JAX GK parity artifacts must keep external validation required",
             }
@@ -129,7 +179,7 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     if not isinstance(payload.get("admitted_for_control"), bool) or payload.get("admitted_for_control"):
         errors.append(
             {
-                "path": str(path),
+                "path": _display_path(path),
                 "field": "admitted_for_control",
                 "error": "JAX GK parity artifacts are not control-admission evidence",
             }
@@ -137,46 +187,102 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     for field in _REQUIRED_FLOAT_FIELDS:
         value = payload.get(field)
         if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(float(value)):
-            errors.append({"path": str(path), "field": field, "error": "field must be finite numeric"})
+            errors.append({"path": _display_path(path), "field": field, "error": "field must be finite numeric"})
     if payload.get("case") not in _ALLOWED_CASES:
-        errors.append({"path": str(path), "field": "case", "error": "unsupported JAX GK parity case"})
+        errors.append({"path": _display_path(path), "field": "case", "error": "unsupported JAX GK parity case"})
     if payload.get("backend") not in _ALLOWED_BACKENDS:
-        errors.append({"path": str(path), "field": "backend", "error": "backend must be cpu, gpu, or tpu"})
+        errors.append({"path": _display_path(path), "field": "backend", "error": "backend must be cpu, gpu, or tpu"})
     if payload.get("solver_contract") != "native_linear_gk_local_dispersion":
-        errors.append({"path": str(path), "field": "solver_contract", "error": "unsupported solver contract"})
+        errors.append({"path": _display_path(path), "field": "solver_contract", "error": "unsupported solver contract"})
     if payload.get("normalisation") != "c_s_over_a":
-        errors.append({"path": str(path), "field": "normalisation", "error": "normalisation must be c_s_over_a"})
+        errors.append(
+            {"path": _display_path(path), "field": "normalisation", "error": "normalisation must be c_s_over_a"}
+        )
     if payload.get("evidence_boundary") != "backend_parity_only":
-        errors.append({"path": str(path), "field": "evidence_boundary", "error": "unsupported evidence boundary"})
+        errors.append(
+            {"path": _display_path(path), "field": "evidence_boundary", "error": "unsupported evidence boundary"}
+        )
     if not _is_sha256_hex(payload.get("solver_kwargs_sha256")):
-        errors.append({"path": str(path), "field": "solver_kwargs_sha256", "error": "field must be SHA-256 hex"})
+        errors.append(
+            {"path": _display_path(path), "field": "solver_kwargs_sha256", "error": "field must be SHA-256 hex"}
+        )
     if not _is_sha256_hex(payload.get("case_parameters_sha256")):
-        errors.append({"path": str(path), "field": "case_parameters_sha256", "error": "field must be SHA-256 hex"})
+        errors.append(
+            {"path": _display_path(path), "field": "case_parameters_sha256", "error": "field must be SHA-256 hex"}
+        )
     if not _is_sha256_hex(payload.get("payload_sha256")):
-        errors.append({"path": str(path), "field": "payload_sha256", "error": "field must be SHA-256 hex"})
+        errors.append({"path": _display_path(path), "field": "payload_sha256", "error": "field must be SHA-256 hex"})
     elif _sha256_json(payload) != payload.get("payload_sha256"):
-        errors.append({"path": str(path), "field": "payload_sha256", "error": "payload digest mismatch"})
+        errors.append({"path": _display_path(path), "field": "payload_sha256", "error": "payload digest mismatch"})
     if not isinstance(payload.get("solver_kwargs"), dict) or not payload["solver_kwargs"]:
-        errors.append({"path": str(path), "field": "solver_kwargs", "error": "solver_kwargs must be a non-empty object"})
+        errors.append(
+            {"path": _display_path(path), "field": "solver_kwargs", "error": "solver_kwargs must be a non-empty object"}
+        )
     elif _sha256_json(payload["solver_kwargs"], include_payload_field=True) != payload.get("solver_kwargs_sha256"):
-        errors.append({"path": str(path), "field": "solver_kwargs_sha256", "error": "solver kwargs digest mismatch"})
+        errors.append(
+            {"path": _display_path(path), "field": "solver_kwargs_sha256", "error": "solver kwargs digest mismatch"}
+        )
     if not isinstance(payload.get("case_parameters"), dict) or not payload["case_parameters"]:
-        errors.append({"path": str(path), "field": "case_parameters", "error": "case_parameters must be a non-empty object"})
+        errors.append(
+            {
+                "path": _display_path(path),
+                "field": "case_parameters",
+                "error": "case_parameters must be a non-empty object",
+            }
+        )
     elif _sha256_json(payload["case_parameters"], include_payload_field=True) != payload.get("case_parameters_sha256"):
-        errors.append({"path": str(path), "field": "case_parameters_sha256", "error": "case parameters digest mismatch"})
+        errors.append(
+            {"path": _display_path(path), "field": "case_parameters_sha256", "error": "case parameters digest mismatch"}
+        )
     if not isinstance(payload.get("case_acceptance"), dict) or not payload["case_acceptance"]:
-        errors.append({"path": str(path), "field": "case_acceptance", "error": "case_acceptance must be a non-empty object"})
+        errors.append(
+            {
+                "path": _display_path(path),
+                "field": "case_acceptance",
+                "error": "case_acceptance must be a non-empty object",
+            }
+        )
     native_mode_types = _string_list(payload.get("native_mode_types"))
     jax_mode_types = _string_list(payload.get("jax_mode_types"))
     if not native_mode_types:
-        errors.append({"path": str(path), "field": "native_mode_types", "error": "mode spectrum must be a non-empty string list"})
+        errors.append(
+            {
+                "path": _display_path(path),
+                "field": "native_mode_types",
+                "error": "mode spectrum must be a non-empty string list",
+            }
+        )
     if not jax_mode_types:
-        errors.append({"path": str(path), "field": "jax_mode_types", "error": "mode spectrum must be a non-empty string list"})
-    if not isinstance(payload.get("native_dominant_mode_type"), str) or not str(payload.get("native_dominant_mode_type")).strip():
-        errors.append({"path": str(path), "field": "native_dominant_mode_type", "error": "field must be a non-empty string"})
-    if not isinstance(payload.get("jax_dominant_mode_type"), str) or not str(payload.get("jax_dominant_mode_type")).strip():
-        errors.append({"path": str(path), "field": "jax_dominant_mode_type", "error": "field must be a non-empty string"})
-    if any(error["path"] == str(path) for error in errors):
+        errors.append(
+            {
+                "path": _display_path(path),
+                "field": "jax_mode_types",
+                "error": "mode spectrum must be a non-empty string list",
+            }
+        )
+    if (
+        not isinstance(payload.get("native_dominant_mode_type"), str)
+        or not str(payload.get("native_dominant_mode_type")).strip()
+    ):
+        errors.append(
+            {
+                "path": _display_path(path),
+                "field": "native_dominant_mode_type",
+                "error": "field must be a non-empty string",
+            }
+        )
+    if (
+        not isinstance(payload.get("jax_dominant_mode_type"), str)
+        or not str(payload.get("jax_dominant_mode_type")).strip()
+    ):
+        errors.append(
+            {
+                "path": _display_path(path),
+                "field": "jax_dominant_mode_type",
+                "error": "field must be a non-empty string",
+            }
+        )
+    if any(error["path"] == display_path for error in errors):
         return None
 
     native_gamma = float(payload["native_gamma_max_cs_over_a"])
@@ -186,26 +292,40 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     gamma_tolerance = float(payload["gamma_relative_tolerance"])
     omega_tolerance = float(payload["omega_absolute_tolerance"])
     if native_gamma < 0.0 or jax_gamma < 0.0:
-        errors.append({"path": str(path), "field": "gamma_max_cs_over_a", "error": "growth rates must be non-negative"})
+        errors.append(
+            {"path": display_path, "field": "gamma_max_cs_over_a", "error": "growth rates must be non-negative"}
+        )
     if gamma_tolerance <= 0.0:
-        errors.append({"path": str(path), "field": "gamma_relative_tolerance", "error": "tolerance must be positive"})
+        errors.append(
+            {"path": _display_path(path), "field": "gamma_relative_tolerance", "error": "tolerance must be positive"}
+        )
     if omega_tolerance <= 0.0:
-        errors.append({"path": str(path), "field": "omega_absolute_tolerance", "error": "tolerance must be positive"})
+        errors.append(
+            {"path": _display_path(path), "field": "omega_absolute_tolerance", "error": "tolerance must be positive"}
+        )
 
     gamma_error = abs(jax_gamma - native_gamma) / max(abs(native_gamma), 1e-12)
     omega_error = abs(jax_omega - native_omega)
     if gamma_error > gamma_tolerance:
-        errors.append({"path": str(path), "field": "gamma_max_cs_over_a", "error": "JAX/native gamma mismatch"})
+        errors.append(
+            {"path": _display_path(path), "field": "gamma_max_cs_over_a", "error": "JAX/native gamma mismatch"}
+        )
     if omega_error > omega_tolerance:
-        errors.append({"path": str(path), "field": "omega_r_cs_over_a", "error": "JAX/native omega mismatch"})
+        errors.append({"path": _display_path(path), "field": "omega_r_cs_over_a", "error": "JAX/native omega mismatch"})
     native_dominant = str(payload["native_dominant_mode_type"]).strip()
     jax_dominant = str(payload["jax_dominant_mode_type"]).strip()
     if native_mode_types != jax_mode_types:
-        errors.append({"path": str(path), "field": "mode_types", "error": "JAX/native mode spectrum mismatch"})
+        errors.append(
+            {"path": _display_path(path), "field": "mode_types", "error": "JAX/native mode spectrum mismatch"}
+        )
     if native_dominant != jax_dominant:
-        errors.append({"path": str(path), "field": "dominant_mode_type", "error": "JAX/native dominant mode mismatch"})
+        errors.append(
+            {"path": _display_path(path), "field": "dominant_mode_type", "error": "JAX/native dominant mode mismatch"}
+        )
     if native_dominant not in native_mode_types or jax_dominant not in jax_mode_types:
-        errors.append({"path": str(path), "field": "dominant_mode_type", "error": "dominant mode missing from spectrum"})
+        errors.append(
+            {"path": _display_path(path), "field": "dominant_mode_type", "error": "dominant mode missing from spectrum"}
+        )
     _validate_case_acceptance(
         path,
         payload["case_acceptance"],
@@ -214,11 +334,11 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         max(native_gamma, jax_gamma),
         errors,
     )
-    if any(error["path"] == str(path) for error in errors):
+    if any(error["path"] == display_path for error in errors):
         return None
 
     return {
-        "path": str(path),
+        "path": display_path,
         "case": str(payload["case"]),
         "backend": str(payload["backend"]),
         "dtype": str(payload["dtype"]),
@@ -232,7 +352,9 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     }
 
 
-def _normalise_required_values(values: tuple[str, ...] | list[str] | set[str] | None, allowed: set[str], label: str) -> set[str]:
+def _normalise_required_values(
+    values: tuple[str, ...] | list[str] | set[str] | None, allowed: set[str], label: str
+) -> set[str]:
     if values is None:
         return set()
     out: set[str] = set()
@@ -256,19 +378,25 @@ def _validate_required_coverage(
 ) -> None:
     observed_cases = {str(entry["case"]) for entry in entries if "case" in entry}
     observed_backends = {str(entry["backend"]) for entry in entries if "backend" in entry}
-    observed_pairs = {(str(entry["case"]), str(entry["backend"])) for entry in entries if "case" in entry and "backend" in entry}
+    observed_pairs = {
+        (str(entry["case"]), str(entry["backend"])) for entry in entries if "case" in entry and "backend" in entry
+    }
 
     for case in sorted(required_cases - observed_cases):
-        errors.append({"path": str(root), "field": "required_case", "error": f"missing required case: {case}"})
+        errors.append(
+            {"path": _display_path(root), "field": "required_case", "error": f"missing required case: {case}"}
+        )
     for backend in sorted(required_backends - observed_backends):
-        errors.append({"path": str(root), "field": "required_backend", "error": f"missing required backend: {backend}"})
+        errors.append(
+            {"path": _display_path(root), "field": "required_backend", "error": f"missing required backend: {backend}"}
+        )
     if required_cases and required_backends:
         for case in sorted(required_cases):
             for backend in sorted(required_backends):
                 if (case, backend) not in observed_pairs:
                     errors.append(
                         {
-                            "path": str(root),
+                            "path": _display_path(root),
                             "field": "required_case_backend",
                             "error": f"missing required case/backend evidence: {case}/{backend}",
                         }
@@ -284,26 +412,50 @@ def _validate_case_acceptance(
     errors: list[dict[str, object]],
 ) -> None:
     if not isinstance(case_acceptance, dict):
-        errors.append({"path": str(path), "field": "case_acceptance", "error": "case_acceptance must be an object"})
+        errors.append(
+            {"path": _display_path(path), "field": "case_acceptance", "error": "case_acceptance must be an object"}
+        )
         return
     required_mode_types = _string_list(case_acceptance.get("required_mode_types"))
     if not required_mode_types:
-        errors.append({"path": str(path), "field": "case_acceptance.required_mode_types", "error": "required mode types missing"})
+        errors.append(
+            {
+                "path": _display_path(path),
+                "field": "case_acceptance.required_mode_types",
+                "error": "required mode types missing",
+            }
+        )
     for mode_type in required_mode_types:
         if mode_type not in native_mode_types or mode_type not in jax_mode_types:
             errors.append(
                 {
-                    "path": str(path),
+                    "path": _display_path(path),
                     "field": "case_acceptance.required_mode_types",
                     "error": f"required mode absent from native/JAX spectra: {mode_type}",
                 }
             )
     gamma_bound = case_acceptance.get("max_gamma_max_cs_over_a")
     if gamma_bound is not None:
-        if isinstance(gamma_bound, bool) or not isinstance(gamma_bound, int | float) or not math.isfinite(float(gamma_bound)):
-            errors.append({"path": str(path), "field": "case_acceptance.max_gamma_max_cs_over_a", "error": "gamma bound must be finite numeric or null"})
+        if (
+            isinstance(gamma_bound, bool)
+            or not isinstance(gamma_bound, int | float)
+            or not math.isfinite(float(gamma_bound))
+        ):
+            errors.append(
+                {
+                    "path": _display_path(path),
+                    "field": "case_acceptance.max_gamma_max_cs_over_a",
+                    "error": "gamma bound must be finite numeric or null",
+                }
+            )
         elif gamma_max > float(gamma_bound):
-            errors.append({"path": str(path), "field": "case_acceptance.max_gamma_max_cs_over_a", "error": "growth exceeds case bound"})
+            errors.append(
+                {
+                    "path": _display_path(path),
+                    "field": "case_acceptance.max_gamma_max_cs_over_a",
+                    "error": "growth exceeds case bound",
+                }
+            )
 
 
 def _string_list(value: object) -> list[str]:
@@ -326,12 +478,23 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return out
 
 
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.resolve(strict=False).relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _is_sha256_hex(value: object) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdefABCDEF" for char in value)
 
 
 def _sha256_json(payload: dict[str, Any], *, include_payload_field: bool = False) -> str:
-    digest_payload = dict(payload) if include_payload_field else {k: v for k, v in payload.items() if k != "payload_sha256"}
+    digest_payload = (
+        dict(payload)
+        if include_payload_field
+        else {k: v for k, v in payload.items() if k not in {"payload_sha256", "report_payload_sha256"}}
+    )
     encoded = json.dumps(digest_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 

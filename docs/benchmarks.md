@@ -41,11 +41,32 @@ python validation/validate_jax_gk_parity.py \
   --require-backends cpu,gpu
 ```
 
+The benchmark command also writes aggregate timing evidence outside the artifact
+directory so strict admission does not accidentally ingest benchmark summaries
+as parity artifacts:
+
+```text
+validation/reports/jax_gk_parity_benchmark.json
+validation/reports/jax_gk_parity_benchmark.md
+```
+
+Current local CPU run, generated with `JAX_PLATFORM_NAME=cpu`, regenerated the
+three CPU artifacts in `2.963800` seconds total. Per-case timings were:
+
+| Case | Backend | Device | Elapsed s |
+|---|---|---|---:|
+| `cyclone_base_case` | `cpu` | `cpu` | 2.731885 |
+| `tem_kinetic_electron` | `cpu` | `cpu` | 0.106864 |
+| `stable_mode` | `cpu` | `cpu` | 0.096412 |
+
 The persisted campaign currently contains three CPU and three GPU parity
 artefacts over CBC, kinetic-electron TEM, and low-drive stable-mode cases. The
-claim boundary is backend parity only. These artifacts do not replace
-external TGLF, GENE, GS2, CGYRO, or QuaLiKiz validation for quantitative
-gyrokinetic claims.
+strict CPU/GPU admission gate reports complete required case/backend coverage,
+maximum gamma relative error `1.5386142994101046e-06`, maximum omega absolute
+error `2.9658060068937786e-07`, and entries payload SHA-256
+`7c7d3c7eefd5d2577579d1fd89d1fdaa056eebc13aa9d7f06f14cb1e8e755dfb`. The claim
+boundary is backend parity only. These artifacts do not replace external TGLF,
+GENE, GS2, CGYRO, or QuaLiKiz validation for quantitative gyrokinetic claims.
 
 ## Python CLI benchmark
 

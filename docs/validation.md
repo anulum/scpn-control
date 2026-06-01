@@ -416,6 +416,16 @@ low-drive stable-mode cases. Live smoke tests remain useful diagnostics, but
 they do not replace persisted CPU/GPU/TPU parity evidence, and parity evidence
 does not replace external-code GK validation.
 
+The strict validator now emits aggregate case/backend coverage, backend counts,
+case counts, maximum gamma and real-frequency drift, an entries payload digest,
+and a report payload digest. The benchmark producer writes local timing evidence
+to `validation/reports/jax_gk_parity_benchmark.json` and
+`validation/reports/jax_gk_parity_benchmark.md` outside the parity-artifact
+directory, preserving strict artifact admission. The current workstation CPU
+benchmark regenerated the three CPU cases in `2.963800` seconds and the
+persisted CPU/GPU gate still passes with six artifacts and complete
+case/backend coverage.
+
 GK OOD detector deployment claims require persisted calibration artefacts with a
 declared 10D feature schema, training-distribution metadata, threshold
 provenance, and false-positive / false-negative acceptance metrics:

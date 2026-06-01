@@ -1,0 +1,44 @@
+{
+  "artifact_root": "validation/reports/jax_gk_parity",
+  "cases_requested": [
+    "cyclone_base_case",
+    "tem_kinetic_electron",
+    "stable_mode"
+  ],
+  "claim_boundary": "local benchmark timing and backend parity evidence only; external GK validation remains required",
+  "entries_payload_sha256": "7c7d3c7eefd5d2577579d1fd89d1fdaa056eebc13aa9d7f06f14cb1e8e755dfb",
+  "generated_artifact_count": 3,
+  "generated_artifacts": [
+    {
+      "backend": "cpu",
+      "case": "cyclone_base_case",
+      "device_kind": "cpu",
+      "elapsed_s": 2.2730431009549648,
+      "path": "validation/reports/jax_gk_parity/cyclone_base_case_cpu_cpu.json",
+      "payload_sha256": "0b8249fdf333a260fbfa398f37bf9db02871a8669b7b3ea2faad249d47f1fb0f"
+    },
+    {
+      "backend": "cpu",
+      "case": "tem_kinetic_electron",
+      "device_kind": "cpu",
+      "elapsed_s": 0.14746205101255327,
+      "path": "validation/reports/jax_gk_parity/tem_kinetic_electron_cpu_cpu.json",
+      "payload_sha256": "9937aafa7b1d046848af6ddaeb275fbe903d525c7cb3ecd9de49c1243f833aa8"
+    },
+    {
+      "backend": "cpu",
+      "case": "stable_mode",
+      "device_kind": "cpu",
+      "elapsed_s": 0.08415286301169544,
+      "path": "validation/reports/jax_gk_parity/stable_mode_cpu_cpu.json",
+      "payload_sha256": "9c7c427848d7fec2c937fc0036ebf4a838b260042ec1b7e4ffe1379c02f36128"
+    }
+  ],
+  "max_gamma_relative_error": 1.5386142994101046e-06,
+  "max_omega_absolute_error": 2.9658060068937786e-07,
+  "payload_sha256": "0f9491dc4b065d0654ef128e013f20e9500f8ead3a0c4a165b1e0f889b4e078c",
+  "schema_version": "scpn-control.jax-gk-parity-benchmark.v1",
+  "status": "pass",
+  "total_elapsed_s": 2.5265443508978933,
+  "validation_report_payload_sha256": "bc8df1e6a27e077b04c83054c3b38b54879a32e470c0a66d181fb36328d5ec2f"
+}

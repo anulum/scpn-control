@@ -17,6 +17,7 @@
 - Declared and implemented the public `ffprime` RMS-to-campaign-median policy, regenerated the MAST EFM converted references and supervised dataset on ML350 SAS, and updated the dataset, provenance, original-source, and dry-run launch reports so the former fallback feature list is empty.
 - Clarified neural-equilibrium campaign execution policy: ML350 is storage-only, while any `--execute` training must run on this workstation or external cloud compute with SAS-mounted or copied data.
 - Added a fail-closed MAST EFM compute-execution package: `--execute` now requires explicit workstation or external-cloud admission, matching dataset SHA-256, passing feature/source provenance reports, non-SAS weight output, and repository-published result templates for holdout, latency, GPU-cost, and admission-certificate evidence.
+- Hardened JAX gyrokinetic parity evidence with aggregate case/backend coverage digests, portable report paths, a separate local CPU timing benchmark report, and refreshed CPU parity artifacts while preserving the backend-parity-only claim boundary.
 
 ## [0.19.3] - 2026-06-01
 

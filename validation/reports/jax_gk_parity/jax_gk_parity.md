@@ -10,6 +10,9 @@
 
 - Status: `pass`
 - Artifacts: `6`
+- Max gamma relative error: `1.5386142994101046e-06`
+- Max omega absolute error: `2.9658060068937786e-07`
+- Entries payload SHA-256: `7c7d3c7eefd5d2577579d1fd89d1fdaa056eebc13aa9d7f06f14cb1e8e755dfb`
 - Claim boundary: backend parity only; external GK validation remains required.
 
 | Case | Backend | Dtype | X64 | Native dominant | JAX dominant | Gamma relative error | Omega absolute error |

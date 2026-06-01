@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from scpn_control.core.jax_gk_solver import _HAS_JAX, write_jax_gk_parity_artifact
+from validation.benchmark_jax_gk_parity import build_benchmark_report, write_benchmark_report
 from validation.validate_jax_gk_parity import validate_jax_gk_parity
 
 
@@ -131,6 +132,13 @@ def test_jax_parity_gate_accepts_backend_metadata_and_tolerances(tmp_path: Path)
 
     assert report["status"] == "pass"
     assert report["parity_artifacts"] == 1
+    assert report["backend_counts"] == {"cpu": 1}
+    assert report["case_counts"] == {"cyclone_base_case": 1}
+    assert report["observed_case_backend_pairs"] == ["cyclone_base_case/cpu"]
+    assert report["complete_required_case_backend_coverage"] is True
+    assert report["max_gamma_relative_error"] < 0.01
+    assert len(report["entries_payload_sha256"]) == 64
+    assert len(report["report_payload_sha256"]) == 64
     assert report["entries"][0]["case"] == "cyclone_base_case"
     assert report["entries"][0]["backend"] == "cpu"
     assert report["entries"][0]["native_dominant_mode_type"] == "ITG"
@@ -171,6 +179,7 @@ def test_jax_parity_gate_rejects_missing_required_case_backend_pair(tmp_path: Pa
     )
 
     assert report["status"] == "fail"
+    assert report["complete_required_case_backend_coverage"] is False
     assert any(error["field"] == "required_case_backend" for error in report["errors"])
 
 
@@ -296,3 +305,38 @@ def test_jax_parity_writer_persists_kinetic_electron_mode_contract(tmp_path: Pat
     assert payload["case_parameters"]["electron_model"] == "kinetic"
     assert "TEM" in payload["native_mode_types"]
     assert "TEM" in payload["jax_mode_types"]
+
+
+def test_jax_parity_benchmark_report_keeps_timing_separate_from_artifacts(tmp_path: Path) -> None:
+    artifact = tmp_path / "cbc_cpu.json"
+    artifact.write_text(json.dumps(_valid_parity_report()), encoding="utf-8")
+    validation_report = validate_jax_gk_parity(
+        tmp_path,
+        require_parity_artifacts=True,
+        require_cases=("cyclone_base_case",),
+        require_backends=("cpu",),
+    )
+
+    benchmark = build_benchmark_report(
+        artifact_root=tmp_path,
+        generated_artifacts=[
+            {
+                "case": "cyclone_base_case",
+                "backend": "cpu",
+                "device_kind": "cpu",
+                "path": "cbc_cpu.json",
+                "payload_sha256": validation_report["entries"][0]["payload_sha256"],
+                "elapsed_s": 0.125,
+            }
+        ],
+        validation_report=validation_report,
+        total_elapsed_s=0.25,
+        cases=("cyclone_base_case",),
+    )
+    write_benchmark_report(benchmark, tmp_path / "benchmark.json", tmp_path / "benchmark.md")
+
+    assert benchmark["schema_version"] == "scpn-control.jax-gk-parity-benchmark.v1"
+    assert benchmark["validation_report_payload_sha256"] == validation_report["report_payload_sha256"]
+    assert benchmark["generated_artifact_count"] == 1
+    assert "external GK validation remains required" in benchmark["claim_boundary"]
+    assert "JAX GK Parity Benchmark Report" in (tmp_path / "benchmark.md").read_text(encoding="utf-8")
