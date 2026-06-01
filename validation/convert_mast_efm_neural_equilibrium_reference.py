@@ -25,6 +25,9 @@ REQUIRED_EFM_VARIABLES = (
     "psirz",
     "psi_axis",
     "psi_boundary",
+    "plasma_current_x",
+    "bphi_rmag",
+    "ffprime",
     "pprime",
     "qpsi_c",
     "lcfs_r",
@@ -42,6 +45,9 @@ REFERENCE_ARRAY_KEYS = (
     "psirz_valid_mask",
     "psi_axis_Wb_per_rad",
     "psi_boundary_Wb_per_rad",
+    "Ip_MA",
+    "Bt_T",
+    "ffprime_rms_T_rad",
     "pprime_Pa_per_Wb_rad",
     "pprime_valid_mask",
     "q_profile",
@@ -206,6 +212,9 @@ def extract_reference_arrays(ds: DatasetLike, *, shot_id: int, max_times: int | 
         raise ValueError("MAST EFM dataset has no finite converged equilibrium slices")
     psirz = _take_time(ds["psirz"], indices, name="psirz")
     r_grid, z_grid = _psirz_coordinate_grids(ds, ds["psirz"], psirz.shape[-2:])
+    plasma_current = _take_time(ds["plasma_current_x"], indices, name="plasma_current_x").astype(np.float64)
+    toroidal_field = _take_time(ds["bphi_rmag"], indices, name="bphi_rmag").astype(np.float64)
+    ffprime_profile = _take_time(ds["ffprime"], indices, name="ffprime").astype(np.float64)
     pprime = _take_time(ds["pprime"], indices, name="pprime")
     q_profile = _take_time(ds["qpsi_c"], indices, name="qpsi_c")
     lcfs_r = _take_time(ds["lcfs_r"], indices, name="lcfs_r")
@@ -218,6 +227,9 @@ def extract_reference_arrays(ds: DatasetLike, *, shot_id: int, max_times: int | 
         "psirz_valid_mask": np.isfinite(psirz),
         "psi_axis_Wb_per_rad": _take_time(ds["psi_axis"], indices, name="psi_axis").astype(np.float64),
         "psi_boundary_Wb_per_rad": _take_time(ds["psi_boundary"], indices, name="psi_boundary").astype(np.float64),
+        "Ip_MA": (plasma_current / 1.0e6).astype(np.float64),
+        "Bt_T": toroidal_field.astype(np.float64),
+        "ffprime_rms_T_rad": _profile_rms(ffprime_profile),
         "pprime_Pa_per_Wb_rad": pprime.astype(np.float64),
         "pprime_valid_mask": np.isfinite(pprime),
         "q_profile": q_profile.astype(np.float64),
@@ -272,6 +284,9 @@ def _validate_reference_arrays(arrays: dict[str, np.ndarray]) -> None:
         "time_s",
         "psi_axis_Wb_per_rad",
         "psi_boundary_Wb_per_rad",
+        "Ip_MA",
+        "Bt_T",
+        "ffprime_rms_T_rad",
         "magnetic_axis_r_m",
         "magnetic_axis_z_m",
         "shot_id",
@@ -301,6 +316,8 @@ def _validate_reference_arrays(arrays: dict[str, np.ndarray]) -> None:
         raise ValueError("LCFS R/Z arrays must have matching shapes")
     if np.any(arrays["psi_axis_Wb_per_rad"] == arrays["psi_boundary_Wb_per_rad"]):
         raise ValueError("psi_axis and psi_boundary must not be equal for selected equilibria")
+    if np.any(arrays["ffprime_rms_T_rad"] <= 0.0):
+        raise ValueError("ffprime_rms_T_rad must be positive for selected equilibria")
 
 
 def _converged_time_indices(ds: DatasetLike, n_time: int) -> np.ndarray:
@@ -329,6 +346,22 @@ def _take_time(data_array: Any, indices: np.ndarray, *, name: str) -> np.ndarray
     else:
         raise ValueError(f"{name} does not expose a usable time dimension")
     return np.take(values, indices, axis=axis)
+
+
+def _profile_rms(values: np.ndarray) -> np.ndarray:
+    arr = np.asarray(values, dtype=np.float64)
+    if arr.ndim == 1:
+        arr = arr.reshape(-1, 1)
+    if arr.ndim < 2:
+        raise ValueError("profile RMS requires a time-aligned profile array")
+    flattened = arr.reshape(arr.shape[0], -1)
+    result = np.empty(flattened.shape[0], dtype=np.float64)
+    for row in range(flattened.shape[0]):
+        valid = flattened[row][np.isfinite(flattened[row])]
+        if valid.size == 0:
+            raise ValueError("profile RMS cannot be computed from an all-non-finite row")
+        result[row] = float(np.sqrt(np.mean(np.square(valid))))
+    return result
 
 
 def _psirz_coordinate_grids(

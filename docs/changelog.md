@@ -14,6 +14,7 @@
 - Added a dry-run-first MAST EFM neural-equilibrium trainer that validates the prepared dataset/report contract by default, emits a launch report, and requires explicit `--execute` before writing deterministic full-output baseline weights or holdout metrics.
 - Added a MAST EFM feature-provenance audit and ML350 dry-run launch evidence showing the prepared SAS dataset validates on the storage host while `Ip_MA`, `Bt_T`, and `ffprime_scale` remain blocked because the converted public EFM bundles do not contain direct source keys.
 - Added an original public MAST Level 1 EFM Zarr source audit that admits `plasma_current_x` for `Ip_MA` and `bphi_rmag` for `Bt_T`, while keeping dataset rebuild blocked until the `ffprime` profile-to-scalar policy for `ffprime_scale` is declared.
+- Declared and implemented the public `ffprime` RMS-to-campaign-median policy, regenerated the MAST EFM converted references and supervised dataset on ML350 SAS, and updated the dataset, provenance, original-source, and dry-run launch reports so the former fallback feature list is empty.
 
 ## [0.19.3] - 2026-06-01
 

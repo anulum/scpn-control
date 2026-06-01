@@ -34,7 +34,7 @@ DEFAULT_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_feature_provenance_
 FEATURE_CANDIDATES = {
     "Ip_MA": ("Ip_MA", "plasma_current_MA", "plasma_current_A", "ip", "Ip", "current_A"),
     "Bt_T": ("Bt_T", "bcentr_T", "b_tor_T", "toroidal_field_T", "Bt", "bcentr"),
-    "ffprime_scale": ("ffprime_scale", "ffprime", "ffprime_Wb_per_rad", "fpol", "fpol_profile"),
+    "ffprime_scale": ("ffprime_scale", "ffprime_rms_T_rad", "ffprime", "ffprime_Wb_per_rad", "fpol", "fpol_profile"),
 }
 
 
@@ -115,6 +115,18 @@ def build_audit(dataset_report_path: Path, sas_root: Path) -> dict[str, Any]:
             else "not present in converted public EFM bundles",
         }
     blocked = [feature for feature, entry in feature_status.items() if entry["status"] != "resolved"]
+    next_processing_steps = (
+        [
+            "keep the converted public feature-source keys fixed while training and holdout evaluation are performed",
+            "rebuild the supervised dataset whenever converted reference bundles are regenerated",
+        ]
+        if not blocked
+        else [
+            "inspect the original public MAST Level 1 EFM/Zarr metadata for plasma-current and toroidal-field channels",
+            "acquire or document public FF-prime/fpol provenance or keep ffprime_scale blocked",
+            "rebuild the supervised dataset after any non-fallback feature sources are admitted",
+        ]
+    )
     audit: dict[str, Any] = {
         "schema_version": AUDIT_SCHEMA,
         "status": "blocked" if blocked else "pass",
@@ -127,11 +139,7 @@ def build_audit(dataset_report_path: Path, sas_root: Path) -> dict[str, Any]:
         "blocked_features": blocked,
         "all_reference_keys": sorted(all_keys),
         "shots": shot_reports,
-        "next_processing_steps": [
-            "inspect the original public MAST Level 1 EFM/Zarr metadata for plasma-current and toroidal-field channels",
-            "acquire or document public FF-prime/fpol provenance or keep ffprime_scale blocked",
-            "rebuild the supervised dataset after any non-fallback feature sources are admitted",
-        ],
+        "next_processing_steps": next_processing_steps,
     }
     audit["payload_sha256"] = _sha256_json({**audit, "payload_sha256": None})
     return audit

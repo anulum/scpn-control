@@ -36,6 +36,27 @@ FEATURE_NAMES = (
     "q95",
 )
 FALLBACK_FEATURES = ("Ip_MA", "Bt_T", "ffprime_scale")
+FEATURE_SOURCE_POLICY = {
+    "Ip_MA": {
+        "source_key": "Ip_MA",
+        "original_source": "plasma_current_x",
+        "transform": "A_to_MA during reference conversion; identity_MA during dataset build",
+        "units": "MA",
+    },
+    "Bt_T": {
+        "source_key": "Bt_T",
+        "original_source": "bphi_rmag",
+        "transform": "identity_T",
+        "units": "T",
+    },
+    "ffprime_scale": {
+        "source_key": "ffprime_rms_T_rad",
+        "original_source": "ffprime",
+        "transform": "campaign_median_normalised_rms",
+        "units": "dimensionless",
+        "clip": [0.25, 4.0],
+    },
+}
 TARGET_KEYS = (
     "psirz_Wb_per_rad",
     "psirz_valid_mask",
@@ -178,6 +199,70 @@ def _pprime_scales(data: dict[str, NDArray[Any]], count: int) -> NDArray[np.floa
     return np.clip(magnitudes / reference, 0.25, 4.0).astype(np.float64)
 
 
+def _ffprime_rms_values(data: dict[str, NDArray[Any]], count: int) -> NDArray[np.float64] | None:
+    raw = data.get("ffprime_rms_T_rad")
+    if raw is None:
+        return None
+    values = np.asarray(raw, dtype=np.float64).reshape(-1)
+    if values.size != count:
+        raise ValueError("ffprime_rms_T_rad row count must match psirz_Wb_per_rad")
+    if not np.all(np.isfinite(values)) or np.any(values <= 0.0):
+        raise ValueError("ffprime_rms_T_rad must contain finite positive per-equilibrium values")
+    return values
+
+
+def _campaign_ffprime_reference(rows: list[dict[str, NDArray[Any]]]) -> float | None:
+    values: list[NDArray[np.float64]] = []
+    for row in rows:
+        psi = np.asarray(row["psirz_Wb_per_rad"])
+        count = int(psi.shape[0])
+        rms = _ffprime_rms_values(row, count)
+        if rms is not None:
+            values.append(rms)
+    if not values or len(values) != len(rows):
+        return None
+    concatenated = np.concatenate(values)
+    positive = concatenated[np.isfinite(concatenated) & (concatenated > 0.0)]
+    if positive.size == 0:
+        return None
+    reference = float(np.median(positive))
+    if not np.isfinite(reference) or reference <= 0.0:
+        return None
+    return reference
+
+
+def _public_feature_availability(
+    rows: list[dict[str, NDArray[Any]]], ffprime_reference: float | None
+) -> tuple[tuple[str, ...], dict[str, dict[str, Any]]]:
+    fallback: list[str] = []
+    policy: dict[str, dict[str, Any]] = {}
+    for feature in ("Ip_MA", "Bt_T"):
+        key = str(FEATURE_SOURCE_POLICY[feature]["source_key"])
+        if all(key in row for row in rows):
+            policy[feature] = dict(FEATURE_SOURCE_POLICY[feature])
+        else:
+            fallback.append(feature)
+    if ffprime_reference is not None and all("ffprime_rms_T_rad" in row for row in rows):
+        policy["ffprime_scale"] = {**FEATURE_SOURCE_POLICY["ffprime_scale"], "campaign_reference": ffprime_reference}
+    else:
+        fallback.append("ffprime_scale")
+    return tuple(fallback), policy
+
+
+def _sourced_scalar_feature(
+    data: dict[str, NDArray[Any]], key: str, count: int, fallback: float
+) -> NDArray[np.float64]:
+    raw = data.get(key)
+    if raw is None:
+        return np.full(count, fallback, dtype=np.float64)
+    values = np.asarray(raw, dtype=np.float64).reshape(-1)
+    if values.size != count:
+        raise ValueError(f"{key} row count must match psirz_Wb_per_rad")
+    if not np.all(np.isfinite(values)):
+        raise ValueError(f"{key} contains non-finite values")
+    return values
+
+
 def _lcfs_geometry_features(
     data: dict[str, NDArray[Any]], axis_r: NDArray[np.float64], axis_z: NDArray[np.float64], count: int
 ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
@@ -225,7 +310,9 @@ def _lcfs_geometry_features(
     return kappa, delta_upper, delta_lower
 
 
-def build_feature_matrix(data: dict[str, NDArray[Any]]) -> NDArray[np.float64]:
+def build_feature_matrix(
+    data: dict[str, NDArray[Any]], *, ffprime_reference: float | None = None
+) -> NDArray[np.float64]:
     """Build the current 12-column neural-equilibrium feature matrix."""
 
     psi = np.asarray(data["psirz_Wb_per_rad"])
@@ -237,15 +324,20 @@ def build_feature_matrix(data: dict[str, NDArray[Any]]) -> NDArray[np.float64]:
     psi_axis = _per_equilibrium_array(data, "psi_axis_Wb_per_rad", count, 0.0)
     psi_boundary = _per_equilibrium_array(data, "psi_boundary_Wb_per_rad", count, 1.0)
     pprime_scale = _pprime_scales(data, count)
+    ffprime_rms = _ffprime_rms_values(data, count)
+    if ffprime_rms is not None and ffprime_reference is not None:
+        ffprime_scale = np.clip(ffprime_rms / ffprime_reference, 0.25, 4.0).astype(np.float64)
+    else:
+        ffprime_scale = np.ones(count, dtype=np.float64)
     q95 = _profile_last_values(data, "q_profile", "q_profile_valid_mask", count, 4.0)
     kappa, delta_upper, delta_lower = _lcfs_geometry_features(data, axis_r, axis_z, count)
     columns = {
-        "Ip_MA": np.full(count, 8.0, dtype=np.float64),
-        "Bt_T": np.full(count, 5.0, dtype=np.float64),
+        "Ip_MA": _sourced_scalar_feature(data, "Ip_MA", count, 8.0),
+        "Bt_T": _sourced_scalar_feature(data, "Bt_T", count, 5.0),
         "R_axis_m": axis_r,
         "Z_axis_m": axis_z,
         "pprime_scale": pprime_scale,
-        "ffprime_scale": np.ones(count, dtype=np.float64),
+        "ffprime_scale": ffprime_scale,
         "simag_Wb": psi_axis,
         "sibry_Wb": psi_boundary,
         "kappa": kappa,
@@ -330,8 +422,7 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
         data = _load_npz(path)
         count = int(np.asarray(data["psirz_Wb_per_rad"]).shape[0])
         rows.append(data)
-        feature_matrix = build_feature_matrix(data)
-        features.append(feature_matrix)
+        features.append(np.empty((count, len(FEATURE_NAMES)), dtype=np.float64))
         split_labels.append(np.full(count, label, dtype="U10"))
         reference_paths.append(safe_sas_reference(str(path), inputs.sas_root))
         shot_reports.append(
@@ -346,6 +437,9 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
                 "time_end_s": float(np.asarray(data["time_s"], dtype=np.float64)[-1]),
             }
         )
+    ffprime_reference = _campaign_ffprime_reference(rows)
+    fallback_features, feature_source_policy = _public_feature_availability(rows, ffprime_reference)
+    features = [build_feature_matrix(data, ffprime_reference=ffprime_reference) for data in rows]
     target_payload: dict[str, NDArray[Any]] = {}
     lcfs_point_count: NDArray[np.int64] | None = None
     for key in TARGET_KEYS:
@@ -394,7 +488,8 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
         "dataset_path": safe_sas_reference(str(inputs.output_npz), inputs.sas_root),
         "dataset_sha256": sha256_file(inputs.output_npz),
         "feature_names": list(FEATURE_NAMES),
-        "fallback_features": list(FALLBACK_FEATURES),
+        "fallback_features": list(fallback_features),
+        "feature_source_policy": feature_source_policy,
         "target_keys": list(TARGET_KEYS),
         "ragged_target_policy": {
             "keys": list(RAGGED_LCFS_KEYS),
@@ -423,12 +518,17 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
         "strict_artefact_emitted": False,
         "blocked_reason": (
             "This is a supervised public-MAST-EFM dataset for training and holdout evaluation. "
-            "Predictive EFIT/P-EFIT admission remains blocked because Ip_MA, Bt_T, and ffprime_scale are fallback "
-            "features and no trained full-output pressure/q-profile/LCFS predictive artefact has passed tolerances."
+            + (
+                "Predictive EFIT/P-EFIT admission remains blocked because no trained full-output pressure/q-profile/LCFS "
+                "predictive artefact has passed tolerances."
+                if not fallback_features
+                else "Predictive EFIT/P-EFIT admission remains blocked because Ip_MA, Bt_T, and ffprime_scale are fallback "
+                "features and no trained full-output pressure/q-profile/LCFS predictive artefact has passed tolerances."
+            )
         ),
         "next_processing_steps": [
             "train a full-output model on the train split and evaluate only once on validation/test shot splits",
-            "add acquired or documented public Ip_MA, Bt_T, and ffprime_scale inputs when available",
+            "keep public-source feature policy fixed while training and holdout evaluation are performed",
             "emit compact holdout metrics and keep large weights/predictions on SAS by SHA-256",
             "run validate_neural_equilibrium_reference.py only after full predictive artefacts and tolerances exist",
         ],
@@ -476,7 +576,21 @@ def write_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> 
             "",
             report["blocked_reason"],
             "",
-            "Fallback features: " + ", ".join(f"`{item}`" for item in report["fallback_features"]),
+            "Fallback features: "
+            + (
+                ", ".join(f"`{item}`" for item in report["fallback_features"])
+                if report["fallback_features"]
+                else "none"
+            ),
+            "",
+            "## Feature source policy",
+            "",
+        ]
+    )
+    for feature, policy in report.get("feature_source_policy", {}).items():
+        lines.append(f"- `{feature}` from `{policy['source_key']}` using `{policy['transform']}`")
+    lines.extend(
+        [
             "",
             "## Next processing steps",
             "",

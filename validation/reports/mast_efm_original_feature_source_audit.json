@@ -1,9 +1,7 @@
 {
-  "blocked_features": [
-    "ffprime_scale"
-  ],
-  "can_rebuild_dataset_now": false,
-  "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
+  "blocked_features": [],
+  "can_rebuild_dataset_now": true,
+  "dataset_report": "/tmp/mast_efm_neural_equilibrium_dataset.json",
   "fallback_features": [
     "Ip_MA",
     "Bt_T",
@@ -77,24 +75,23 @@
         "time",
         "psi_norm"
       ],
-      "required_transform": "profile_to_training_scalar",
+      "required_transform": "profile_rms_to_campaign_median_normalised_scalar",
       "required_units": "T-rad",
-      "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+      "resolution": "FF-prime profile is available; the dataset policy uses per-time-slice RMS magnitude, campaign-median normalisation, and [0.25, 4.0] clipping",
       "selected_source": "ffprime",
       "selected_sources": [
         "ffprime"
       ],
       "source_kind": "ffprime_profile",
-      "status": "source_found_requires_policy"
+      "status": "source_found_requires_rebuild"
     }
   },
   "next_processing_steps": [
-    "define ffprime profile reduction before rebuilding the supervised dataset",
-    "rebuild the supervised dataset only after every fallback feature has an admitted original public source",
-    "record the source-variable policy in the dataset report before training"
+    "rebuild or verify the supervised dataset with all former fallback features sourced from public EFM metadata",
+    "keep the source-variable policy fixed while training and holdout evaluation are performed"
   ],
-  "payload_sha256": "df79059c4e9c22d1aa19955ecec5c30d14e5cdb06a68de2d7323d9f8f31e6be5",
-  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
+  "payload_sha256": "d6089c2cd88bba6341cf784908fde7ebccf24e411b3281e971e08f77ad7141d0",
+  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-a50277960ea1ada9",
   "sas_root": "/mnt/data_sas/DATASETS/SCPN-CONTROL",
   "schema_version": "scpn-control.mast-efm-original-feature-source-audit.v1",
   "shot_count": 6,
@@ -190,9 +187,9 @@
             "time",
             "psi_norm"
           ],
-          "required_transform": "profile_to_training_scalar",
+          "required_transform": "profile_rms_to_campaign_median_normalised_scalar",
           "required_units": "T-rad",
-          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "resolution": "FF-prime profile is available; the dataset policy uses per-time-slice RMS magnitude, campaign-median normalisation, and [0.25, 4.0] clipping",
           "selected_source": "ffprime",
           "selected_source_metadata": {
             "description": "ff' profile; f(npsi, B)",
@@ -211,7 +208,7 @@
             "units": "T-rad"
           },
           "source_kind": "ffprime_profile",
-          "status": "source_found_requires_policy"
+          "status": "source_found_requires_rebuild"
         }
       },
       "shot_id": 30419,
@@ -824,9 +821,9 @@
             "time",
             "psi_norm"
           ],
-          "required_transform": "profile_to_training_scalar",
+          "required_transform": "profile_rms_to_campaign_median_normalised_scalar",
           "required_units": "T-rad",
-          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "resolution": "FF-prime profile is available; the dataset policy uses per-time-slice RMS magnitude, campaign-median normalisation, and [0.25, 4.0] clipping",
           "selected_source": "ffprime",
           "selected_source_metadata": {
             "description": "ff' profile; f(npsi, B)",
@@ -845,7 +842,7 @@
             "units": "T-rad"
           },
           "source_kind": "ffprime_profile",
-          "status": "source_found_requires_policy"
+          "status": "source_found_requires_rebuild"
         }
       },
       "shot_id": 30420,
@@ -1458,9 +1455,9 @@
             "time",
             "psi_norm"
           ],
-          "required_transform": "profile_to_training_scalar",
+          "required_transform": "profile_rms_to_campaign_median_normalised_scalar",
           "required_units": "T-rad",
-          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "resolution": "FF-prime profile is available; the dataset policy uses per-time-slice RMS magnitude, campaign-median normalisation, and [0.25, 4.0] clipping",
           "selected_source": "ffprime",
           "selected_source_metadata": {
             "description": "ff' profile; f(npsi, B)",
@@ -1479,7 +1476,7 @@
             "units": "T-rad"
           },
           "source_kind": "ffprime_profile",
-          "status": "source_found_requires_policy"
+          "status": "source_found_requires_rebuild"
         }
       },
       "shot_id": 30421,
@@ -2092,9 +2089,9 @@
             "time",
             "psi_norm"
           ],
-          "required_transform": "profile_to_training_scalar",
+          "required_transform": "profile_rms_to_campaign_median_normalised_scalar",
           "required_units": "T-rad",
-          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "resolution": "FF-prime profile is available; the dataset policy uses per-time-slice RMS magnitude, campaign-median normalisation, and [0.25, 4.0] clipping",
           "selected_source": "ffprime",
           "selected_source_metadata": {
             "description": "ff' profile; f(npsi, B)",
@@ -2113,7 +2110,7 @@
             "units": "T-rad"
           },
           "source_kind": "ffprime_profile",
-          "status": "source_found_requires_policy"
+          "status": "source_found_requires_rebuild"
         }
       },
       "shot_id": 30422,
@@ -2726,9 +2723,9 @@
             "time",
             "psi_norm"
           ],
-          "required_transform": "profile_to_training_scalar",
+          "required_transform": "profile_rms_to_campaign_median_normalised_scalar",
           "required_units": "T-rad",
-          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "resolution": "FF-prime profile is available; the dataset policy uses per-time-slice RMS magnitude, campaign-median normalisation, and [0.25, 4.0] clipping",
           "selected_source": "ffprime",
           "selected_source_metadata": {
             "description": "ff' profile; f(npsi, B)",
@@ -2747,7 +2744,7 @@
             "units": "T-rad"
           },
           "source_kind": "ffprime_profile",
-          "status": "source_found_requires_policy"
+          "status": "source_found_requires_rebuild"
         }
       },
       "shot_id": 30423,
@@ -3360,9 +3357,9 @@
             "time",
             "psi_norm"
           ],
-          "required_transform": "profile_to_training_scalar",
+          "required_transform": "profile_rms_to_campaign_median_normalised_scalar",
           "required_units": "T-rad",
-          "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+          "resolution": "FF-prime profile is available; the dataset policy uses per-time-slice RMS magnitude, campaign-median normalisation, and [0.25, 4.0] clipping",
           "selected_source": "ffprime",
           "selected_source_metadata": {
             "description": "ff' profile; f(npsi, B)",
@@ -3381,7 +3378,7 @@
             "units": "T-rad"
           },
           "source_kind": "ffprime_profile",
-          "status": "source_found_requires_policy"
+          "status": "source_found_requires_rebuild"
         }
       },
       "shot_id": 30424,
@@ -3904,5 +3901,5 @@
       "zarr_path": "mast/level1/shot_30424/efm.zarr"
     }
   ],
-  "status": "blocked"
+  "status": "source_ready"
 }

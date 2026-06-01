@@ -1,7 +1,6 @@
 {
   "admission_ready": false,
   "blocked_before_admission": [
-    "replace fallback Ip_MA, Bt_T, and ffprime_scale with acquired or documented public inputs",
     "run --execute on admitted storage and publish holdout metrics for train, validation, and test splits",
     "validate the exact trained weight checksum through the strict neural-equilibrium reference gate"
   ],
@@ -38,16 +37,12 @@
     ]
   },
   "dataset_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
-  "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
-  "dataset_sha256": "e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e",
+  "dataset_report": "/tmp/mast_efm_neural_equilibrium_dataset.json",
+  "dataset_sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
   "execution_mode": "dry_run",
-  "fallback_features": [
-    "Ip_MA",
-    "Bt_T",
-    "ffprime_scale"
-  ],
+  "fallback_features": [],
   "holdout_metrics": null,
-  "payload_sha256": "d512f1d517f926af6121c8412ea422be9edcfeaee2d9c93f7e7ada02592ef794",
+  "payload_sha256": "c91c0ce6b9a676e768184af672f9cf861ef7f25f2d83e8c002c6f161dba1a04f",
   "required_targets": [
     "psirz_Wb_per_rad",
     "psirz_valid_mask",

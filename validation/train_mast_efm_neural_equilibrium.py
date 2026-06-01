@@ -405,6 +405,16 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
             "holdout_metrics": None,
         }
 
+    fallback_features = list(dataset_report["fallback_features"])
+    blocked_before_admission = [
+        "run --execute on admitted storage and publish holdout metrics for train, validation, and test splits",
+        "validate the exact trained weight checksum through the strict neural-equilibrium reference gate",
+    ]
+    if fallback_features:
+        blocked_before_admission.insert(
+            0,
+            "replace fallback Ip_MA, Bt_T, and ffprime_scale with acquired or documented public inputs",
+        )
     report: dict[str, Any] = {
         "schema_version": TRAINING_SCHEMA,
         "status": "executed" if inputs.execute else "prepared",
@@ -421,12 +431,8 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
         "dataset_sha256": dataset_sha256 or dataset_report["dataset_sha256"],
         "dataset_metadata": dataset_metadata,
         "required_targets": list(TARGET_KEYS),
-        "fallback_features": dataset_report["fallback_features"],
-        "blocked_before_admission": [
-            "replace fallback Ip_MA, Bt_T, and ffprime_scale with acquired or documented public inputs",
-            "run --execute on admitted storage and publish holdout metrics for train, validation, and test splits",
-            "validate the exact trained weight checksum through the strict neural-equilibrium reference gate",
-        ],
+        "fallback_features": fallback_features,
+        "blocked_before_admission": blocked_before_admission,
         "run_command": (
             "python validation/train_mast_efm_neural_equilibrium.py --execute "
             f"--dataset-path {inputs.dataset_path} --weights-out {inputs.weights_out}"

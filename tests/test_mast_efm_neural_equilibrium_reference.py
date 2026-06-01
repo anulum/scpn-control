@@ -52,6 +52,9 @@ def _sample_dataset() -> FakeDataset:
             ),
             "psi_axis": FakeArray([0.1, 0.2, 0.3], ("time",)),
             "psi_boundary": FakeArray([1.1, 1.2, 1.3], ("time",)),
+            "plasma_current_x": FakeArray([8.0e6, 8.1e6, 8.2e6], ("time",)),
+            "bphi_rmag": FakeArray([5.0, 5.1, 5.2], ("time",)),
+            "ffprime": FakeArray(np.array([[2.0, 4.0], [3.0, 5.0], [6.0, 8.0]]), ("time", "psi_norm")),
             "pprime": FakeArray(np.ones((3, 2)), ("time", "psi_norm")),
             "qpsi_c": FakeArray(np.full((3, 2), 2.0), ("time", "psi_norm")),
             "lcfs_r": FakeArray(np.full((3, 4), 0.8), ("time", "lcfs_coords")),
@@ -72,6 +75,9 @@ def test_extract_reference_arrays_keeps_only_converged_time_slices() -> None:
     assert arrays["psirz_valid_mask"][0].tolist() == [[True, False], [True, True]]
     assert arrays["psi_axis_Wb_per_rad"].tolist() == [0.1, 0.3]
     assert arrays["psi_boundary_Wb_per_rad"].tolist() == [1.1, 1.3]
+    assert arrays["Ip_MA"].tolist() == [8.0, 8.2]
+    assert arrays["Bt_T"].tolist() == [5.0, 5.2]
+    assert np.allclose(arrays["ffprime_rms_T_rad"], [np.sqrt(10.0), np.sqrt(50.0)])
     assert arrays["lcfs_r_m"].shape == arrays["lcfs_z_m"].shape
     assert arrays["r_grid_m"].tolist() == [0.4, 0.5]
     assert arrays["z_grid_m"].tolist() == [-0.1, 0.1]

@@ -17,7 +17,7 @@ from validation.audit_mast_efm_feature_provenance import AUDIT_SCHEMA, build_aud
 from validation.build_mast_efm_neural_equilibrium_dataset import DATASET_SCHEMA
 
 
-def _write_reference(path: Path, *, include_ip: bool = False) -> None:
+def _write_reference(path: Path, *, include_ip: bool = False, include_ffprime_rms: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "time_s": np.array([0.1]),
@@ -35,6 +35,8 @@ def _write_reference(path: Path, *, include_ip: bool = False) -> None:
     }
     if include_ip:
         payload["Ip_MA"] = np.array([1.0])
+    if include_ffprime_rms:
+        payload["ffprime_rms_T_rad"] = np.array([0.5])
     np.savez_compressed(path, **payload)
 
 
@@ -78,6 +80,19 @@ def test_feature_provenance_audit_records_resolved_direct_key(tmp_path: Path) ->
     assert audit["feature_status"]["Ip_MA"]["status"] == "resolved"
     assert audit["feature_status"]["Ip_MA"]["present_keys"] == ["Ip_MA"]
     assert "Bt_T" in audit["blocked_features"]
+
+
+def test_feature_provenance_audit_records_converted_ffprime_rms_key(tmp_path: Path) -> None:
+    sas_root = tmp_path / "sas"
+    reference = sas_root / "converted/reference.npz"
+    _write_reference(reference, include_ffprime_rms=True)
+    report = tmp_path / "dataset.json"
+    _write_dataset_report(report, ["converted/reference.npz"])
+
+    audit = build_audit(report, sas_root)
+
+    assert audit["feature_status"]["ffprime_scale"]["status"] == "resolved"
+    assert audit["feature_status"]["ffprime_scale"]["present_keys"] == ["ffprime_rms_T_rad"]
 
 
 def test_write_report_lists_available_keys_and_next_steps(tmp_path: Path) -> None:

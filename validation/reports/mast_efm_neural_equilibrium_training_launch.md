@@ -4,7 +4,7 @@ Schema: `scpn-control.mast-efm-neural-equilibrium-training.v1`
 Status: `prepared`
 Execution mode: `dry_run`
 Dataset path: `/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz`
-Dataset SHA-256: `e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e`
+Dataset SHA-256: `3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`
 Dataset exists on this host: `True`
 Weights path: `/mnt/data_sas/DATASETS/SCPN-CONTROL/models/neural_equilibrium/mast_efm_full_output_baseline_weights.npz`
 
@@ -36,6 +36,5 @@ python validation/train_mast_efm_neural_equilibrium.py --execute --dataset-path 
 
 ## Admission blockers
 
-- replace fallback Ip_MA, Bt_T, and ffprime_scale with acquired or documented public inputs
 - run --execute on admitted storage and publish holdout metrics for train, validation, and test splits
 - validate the exact trained weight checksum through the strict neural-equilibrium reference gate

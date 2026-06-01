@@ -74,7 +74,7 @@ def _write_payloads(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
                 "status": "blocked",
                 "dataset_sha256": sha,
                 "split_counts": {"train": 3, "validation": 1, "test": 2},
-                "fallback_features": ["Ip_MA", "Bt_T", "ffprime_scale"],
+                "fallback_features": [],
             }
         ),
         encoding="utf-8",
@@ -99,6 +99,8 @@ def test_training_report_default_is_dry_run_and_does_not_write_weights(tmp_path:
     assert report["execution_mode"] == "dry_run"
     assert report["dataset_exists_on_this_host"] is True
     assert report["dataset_metadata"]["split_counts"] == {"train": 3, "validation": 1, "test": 2}
+    assert report["fallback_features"] == []
+    assert all("fallback" not in item for item in report["blocked_before_admission"])
     assert report["holdout_metrics"] is None
     assert not weights.exists()
 

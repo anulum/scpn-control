@@ -35,6 +35,9 @@ def _write_reference(path: Path, shot_id: int, *, n: int = 2, lcfs_points: int =
         psirz_valid_mask=np.ones_like(psirz, dtype=bool),
         psi_axis_Wb_per_rad=np.full(n, 0.1),
         psi_boundary_Wb_per_rad=np.full(n, 1.1),
+        Ip_MA=np.linspace(0.8, 0.9, n),
+        Bt_T=np.linspace(0.5, 0.6, n),
+        ffprime_rms_T_rad=np.linspace(2.0, 4.0, n),
         pprime_Pa_per_Wb_rad=np.ones((n, 5)),
         pprime_valid_mask=np.ones((n, 5), dtype=bool),
         q_profile=np.full((n, 5), 2.5),
@@ -88,13 +91,19 @@ def test_build_dataset_writes_supervised_npz_and_compact_report(tmp_path: Path) 
     assert report["status"] == "blocked"
     assert report["equilibria_count"] == 6
     assert report["split_counts"] == {"train": 2, "validation": 2, "test": 2}
-    assert report["fallback_features"] == ["Ip_MA", "Bt_T", "ffprime_scale"]
+    assert report["fallback_features"] == []
+    assert report["feature_source_policy"]["Ip_MA"]["source_key"] == "Ip_MA"
+    assert report["feature_source_policy"]["Bt_T"]["source_key"] == "Bt_T"
+    assert report["feature_source_policy"]["ffprime_scale"]["source_key"] == "ffprime_rms_T_rad"
     assert report["ragged_target_policy"]["max_lcfs_points"] == 5
     assert report["dataset_path"] == "processed/neural_equilibrium/mast_efm_supervised_dataset.npz"
     assert len(report["dataset_sha256"]) == 64
     assert output_npz.exists()
     with np.load(output_npz, allow_pickle=False) as payload:
         assert payload["features"].shape == (6, 12)
+        assert np.allclose(payload["features"][:2, 0], [0.8, 0.9])
+        assert np.allclose(payload["features"][:2, 1], [0.5, 0.6])
+        assert np.all(payload["features"][:, 5] > 0.0)
         assert payload["psirz_Wb_per_rad"].shape == (6, 3, 4)
         assert payload["lcfs_r_m"].shape == (6, 5)
         assert payload["lcfs_point_count"].tolist() == [3, 3, 4, 4, 5, 5]
@@ -127,7 +136,12 @@ def test_write_report_records_split_and_admission_boundary(tmp_path: Path) -> No
         },
         "target_keys": ["psirz_Wb_per_rad"],
         "blocked_reason": "predictive claims remain blocked",
-        "fallback_features": ["Ip_MA"],
+        "fallback_features": [],
+        "feature_source_policy": {
+            "Ip_MA": {"source_key": "Ip_MA", "transform": "identity_MA"},
+            "Bt_T": {"source_key": "Bt_T", "transform": "identity_T"},
+            "ffprime_scale": {"source_key": "ffprime_rms_T_rad", "transform": "campaign_median_normalised_rms"},
+        },
         "next_processing_steps": ["train model"],
     }
 
@@ -138,3 +152,5 @@ def test_write_report_records_split_and_admission_boundary(tmp_path: Path) -> No
     assert "train=2, validation=2, test=2" in markdown
     assert "Maximum LCFS points: 5" in markdown
     assert "predictive claims remain blocked" in markdown
+    assert "Fallback features: none" in markdown
+    assert "`ffprime_scale` from `ffprime_rms_T_rad`" in markdown

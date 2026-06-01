@@ -58,10 +58,13 @@ FEATURE_SOURCE_POLICY: dict[str, dict[str, Any]] = {
         "preferred": "ffprime",
         "required_units": "T-rad",
         "required_dims": ("time", "psi_norm"),
-        "required_transform": "profile_to_training_scalar",
+        "required_transform": "profile_rms_to_campaign_median_normalised_scalar",
         "source_kind": "ffprime_profile",
-        "resolved_status": "source_found_requires_policy",
-        "resolution": "FF-prime profile is available, but the scalar training-feature reduction must be specified before rebuild",
+        "resolved_status": "source_found_requires_rebuild",
+        "resolution": (
+            "FF-prime profile is available; the dataset policy uses per-time-slice RMS magnitude, "
+            "campaign-median normalisation, and [0.25, 4.0] clipping"
+        ),
     },
 }
 
@@ -301,12 +304,17 @@ def build_original_feature_source_audit(dataset_report_path: Path, sas_root: Pat
 
 
 def _next_processing_steps(blocked_features: list[str]) -> list[str]:
+    if not blocked_features:
+        return [
+            "rebuild or verify the supervised dataset with all former fallback features sourced from public EFM metadata",
+            "keep the source-variable policy fixed while training and holdout evaluation are performed",
+        ]
     steps = [
         "rebuild the supervised dataset only after every fallback feature has an admitted original public source",
         "record the source-variable policy in the dataset report before training",
     ]
     if "ffprime_scale" in blocked_features:
-        steps.insert(0, "define ffprime profile reduction before rebuilding the supervised dataset")
+        steps.insert(0, "repair FF-prime metadata before rebuilding the supervised dataset")
     if "Bt_T" in blocked_features:
         steps.insert(0, "confirm total versus vacuum toroidal-field policy before rebuilding Bt_T")
     if "Ip_MA" in blocked_features:

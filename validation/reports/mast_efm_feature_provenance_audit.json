@@ -1,5 +1,8 @@
 {
   "all_reference_keys": [
+    "Bt_T",
+    "Ip_MA",
+    "ffprime_rms_T_rad",
     "lcfs_r_m",
     "lcfs_valid_mask",
     "lcfs_z_m",
@@ -18,12 +21,8 @@
     "time_s",
     "z_grid_m"
   ],
-  "blocked_features": [
-    "Ip_MA",
-    "Bt_T",
-    "ffprime_scale"
-  ],
-  "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
+  "blocked_features": [],
+  "dataset_report": "/tmp/mast_efm_neural_equilibrium_dataset.json",
   "fallback_features": [
     "Ip_MA",
     "Bt_T",
@@ -39,9 +38,11 @@
         "Bt",
         "bcentr"
       ],
-      "present_keys": [],
-      "resolution": "not present in converted public EFM bundles",
-      "status": "blocked"
+      "present_keys": [
+        "Bt_T"
+      ],
+      "resolution": "direct public bundle key available",
+      "status": "resolved"
     },
     "Ip_MA": {
       "candidate_keys": [
@@ -52,37 +53,44 @@
         "Ip",
         "current_A"
       ],
-      "present_keys": [],
-      "resolution": "not present in converted public EFM bundles",
-      "status": "blocked"
+      "present_keys": [
+        "Ip_MA"
+      ],
+      "resolution": "direct public bundle key available",
+      "status": "resolved"
     },
     "ffprime_scale": {
       "candidate_keys": [
         "ffprime_scale",
+        "ffprime_rms_T_rad",
         "ffprime",
         "ffprime_Wb_per_rad",
         "fpol",
         "fpol_profile"
       ],
-      "present_keys": [],
-      "resolution": "not present in converted public EFM bundles",
-      "status": "blocked"
+      "present_keys": [
+        "ffprime_rms_T_rad"
+      ],
+      "resolution": "direct public bundle key available",
+      "status": "resolved"
     }
   },
   "next_processing_steps": [
-    "inspect the original public MAST Level 1 EFM/Zarr metadata for plasma-current and toroidal-field channels",
-    "acquire or document public FF-prime/fpol provenance or keep ffprime_scale blocked",
-    "rebuild the supervised dataset after any non-fallback feature sources are admitted"
+    "keep the converted public feature-source keys fixed while training and holdout evaluation are performed",
+    "rebuild the supervised dataset whenever converted reference bundles are regenerated"
   ],
-  "payload_sha256": "4bc751b88e9704a53fc91019efb4c9442488486faf435d28bcb5b15c9ab82a0c",
+  "payload_sha256": "57ce933109ef83b796352978b617fc853622e2a1adfbab549e576ab1d3062923",
   "reference_count": 6,
-  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
+  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-a50277960ea1ada9",
   "sas_root": "/mnt/data_sas/DATASETS/SCPN-CONTROL",
   "schema_version": "scpn-control.mast-efm-feature-provenance-audit.v1",
   "shots": [
     {
-      "key_count": 17,
+      "key_count": 20,
       "keys": [
+        "Bt_T",
+        "Ip_MA",
+        "ffprime_rms_T_rad",
         "lcfs_r_m",
         "lcfs_valid_mask",
         "lcfs_z_m",
@@ -103,6 +111,15 @@
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz",
       "shapes": {
+        "Bt_T": [
+          107
+        ],
+        "Ip_MA": [
+          107
+        ],
+        "ffprime_rms_T_rad": [
+          107
+        ],
         "lcfs_r_m": [
           107,
           137
@@ -168,8 +185,11 @@
       }
     },
     {
-      "key_count": 17,
+      "key_count": 20,
       "keys": [
+        "Bt_T",
+        "Ip_MA",
+        "ffprime_rms_T_rad",
         "lcfs_r_m",
         "lcfs_valid_mask",
         "lcfs_z_m",
@@ -190,6 +210,15 @@
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30420_reference.npz",
       "shapes": {
+        "Bt_T": [
+          53
+        ],
+        "Ip_MA": [
+          53
+        ],
+        "ffprime_rms_T_rad": [
+          53
+        ],
         "lcfs_r_m": [
           53,
           147
@@ -255,8 +284,11 @@
       }
     },
     {
-      "key_count": 17,
+      "key_count": 20,
       "keys": [
+        "Bt_T",
+        "Ip_MA",
+        "ffprime_rms_T_rad",
         "lcfs_r_m",
         "lcfs_valid_mask",
         "lcfs_z_m",
@@ -277,6 +309,15 @@
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30421_reference.npz",
       "shapes": {
+        "Bt_T": [
+          108
+        ],
+        "Ip_MA": [
+          108
+        ],
+        "ffprime_rms_T_rad": [
+          108
+        ],
         "lcfs_r_m": [
           108,
           139
@@ -342,8 +383,11 @@
       }
     },
     {
-      "key_count": 17,
+      "key_count": 20,
       "keys": [
+        "Bt_T",
+        "Ip_MA",
+        "ffprime_rms_T_rad",
         "lcfs_r_m",
         "lcfs_valid_mask",
         "lcfs_z_m",
@@ -364,6 +408,15 @@
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30422_reference.npz",
       "shapes": {
+        "Bt_T": [
+          72
+        ],
+        "Ip_MA": [
+          72
+        ],
+        "ffprime_rms_T_rad": [
+          72
+        ],
         "lcfs_r_m": [
           72,
           157
@@ -429,8 +482,11 @@
       }
     },
     {
-      "key_count": 17,
+      "key_count": 20,
       "keys": [
+        "Bt_T",
+        "Ip_MA",
+        "ffprime_rms_T_rad",
         "lcfs_r_m",
         "lcfs_valid_mask",
         "lcfs_z_m",
@@ -451,6 +507,15 @@
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30423_reference.npz",
       "shapes": {
+        "Bt_T": [
+          80
+        ],
+        "Ip_MA": [
+          80
+        ],
+        "ffprime_rms_T_rad": [
+          80
+        ],
         "lcfs_r_m": [
           80,
           157
@@ -516,8 +581,11 @@
       }
     },
     {
-      "key_count": 17,
+      "key_count": 20,
       "keys": [
+        "Bt_T",
+        "Ip_MA",
+        "ffprime_rms_T_rad",
         "lcfs_r_m",
         "lcfs_valid_mask",
         "lcfs_z_m",
@@ -538,6 +606,15 @@
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30424_reference.npz",
       "shapes": {
+        "Bt_T": [
+          107
+        ],
+        "Ip_MA": [
+          107
+        ],
+        "ffprime_rms_T_rad": [
+          107
+        ],
         "lcfs_r_m": [
           107,
           137
@@ -603,5 +680,5 @@
       }
     }
   ],
-  "status": "blocked"
+  "status": "pass"
 }

@@ -113,12 +113,13 @@ The launch path is also dry-run prepared through
 explicit `--execute` flag and should only be run after storage and compute are
 reserved.
 ML350 dry-run evidence now confirms the prepared MAST EFM SAS dataset is visible
-from the storage host. The converted public EFM bundles do not contain direct
-`Ip_MA`, `Bt_T`, or `ffprime_scale` source keys, but the original public Zarr
-metadata now admits `plasma_current_x` for `Ip_MA` and `bphi_rmag` for `Bt_T`.
-The remaining no-compute blocker is `ffprime_scale`: the public `ffprime`
-profile exists, but the profile-to-scalar training policy must be declared
-before the supervised dataset is rebuilt or used for predictive admission.
+from the storage host. The current supervised dataset has no fallback feature
+columns: `Ip_MA` derives from public `plasma_current_x`, `Bt_T` derives from
+public `bphi_rmag`, and `ffprime_scale` derives from public `ffprime` profile
+RMS magnitude normalised by the campaign median. The remaining no-compute
+blocker has moved from feature provenance to execution evidence: long training
+must be launched with explicit `--execute`, then compact holdout metrics and
+strict reference-admission artefacts must be published.
 
 ## What support pays for
 

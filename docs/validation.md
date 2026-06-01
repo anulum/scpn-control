@@ -536,15 +536,19 @@ The repository-published dataset report is checked in as
 `validation/reports/mast_efm_neural_equilibrium_dataset.md`. The large numeric
 dataset remains on SAS at
 `processed/neural_equilibrium/mast_efm_supervised_dataset.npz` with SHA-256
-`e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e`.
+`3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`.
 The deterministic shot-held-out split contains 340 training equilibria from
 shots 30419-30422, 80 validation equilibria from shot 30423, and 107 test
 equilibria from shot 30424. LCFS boundary targets are preserved with padded
 coordinate arrays, `False` padded validity masks, and per-slice
-`lcfs_point_count` metadata up to 157 boundary points. This dataset is suitable
-for training and holdout evaluation, but predictive EFIT/P-EFIT admission
-remains blocked until a full-output model passes declared tolerances for flux,
-pressure, q-profile, LCFS geometry, and magnetic-axis outputs.
+`lcfs_point_count` metadata up to 157 boundary points. The former fallback
+feature columns are now sourced from public MAST EFM metadata: `Ip_MA` comes
+from `plasma_current_x` with A-to-MA conversion, `Bt_T` comes from `bphi_rmag`,
+and `ffprime_scale` comes from per-time-slice `ffprime` RMS magnitude
+normalised by the campaign median and clipped to `[0.25, 4.0]`. This dataset is
+suitable for training and holdout evaluation, but predictive EFIT/P-EFIT
+admission remains blocked until a full-output model passes declared tolerances
+for flux, pressure, q-profile, LCFS geometry, and magnetic-axis outputs.
 
 Training is prepared as an explicit campaign plan rather than launched during
 documentation or release work:
@@ -574,11 +578,11 @@ The repository-published original-source audit is checked in as
 `validation/reports/mast_efm_original_feature_source_audit.json` and
 `validation/reports/mast_efm_original_feature_source_audit.md`. It reads only
 consolidated Zarr metadata from the SAS-hosted public MAST Level 1 EFM stores.
-The audit admits `plasma_current_x` with an `A_to_MA` conversion for `Ip_MA` and
-`bphi_rmag` as the total toroidal field at the magnetic axis for `Bt_T` across
-all six shots. Dataset rebuild remains blocked because `ffprime` is available
-only as a profile source and the `ffprime_scale` profile-to-scalar training
-policy has not yet been declared.
+The audit is `source_ready`: it admits `plasma_current_x` with an `A_to_MA`
+conversion for `Ip_MA`, `bphi_rmag` as the total toroidal field at the magnetic
+axis for `Bt_T`, and `ffprime` with the declared RMS plus campaign-median
+normalisation policy for `ffprime_scale` across all six shots. The supervised
+dataset report records that no former fallback feature remains.
 
 The dry-run-first full-output baseline trainer can be prepared with:
 
@@ -590,12 +594,13 @@ This writes `validation/reports/mast_efm_neural_equilibrium_training_launch.json
 and `validation/reports/mast_efm_neural_equilibrium_training_launch.md` without
 touching SAS weights. The current checked-in launch report was generated from
 ML350 and confirms that the SAS dataset is visible on that host with 527
-validated equilibria. The report records the exact `--execute` command to run
-later on admitted storage. Execution mode trains deterministic ridge/PCA
-baseline heads for flux, pressure-gradient profile, q-profile, LCFS geometry,
-and magnetic-axis outputs, then writes weights and compact train, validation,
-and test metrics. That execution remains blocked for admission until fallback
-features are replaced or documented and strict reference admission passes.
+validated equilibria and the source-derived dataset SHA-256. The report records
+the exact `--execute` command to run later on admitted storage. Execution mode
+trains deterministic ridge/PCA baseline heads for flux, pressure-gradient
+profile, q-profile, LCFS geometry, and magnetic-axis outputs, then writes
+weights and compact train, validation, and test metrics. Predictive admission
+still requires an executed training artefact, holdout metrics, exact weight
+checksum validation, and the strict reference admission gate.
 
 Feature provenance for the current converted public MAST EFM bundles can be
 audited with:
@@ -608,12 +613,11 @@ python validation/audit_mast_efm_feature_provenance.py \
 
 The generated audit is checked in as
 `validation/reports/mast_efm_feature_provenance_audit.json` and
-`validation/reports/mast_efm_feature_provenance_audit.md`. It confirms that the
+`validation/reports/mast_efm_feature_provenance_audit.md`. It now passes: the
 converted `.npz` bundles contain flux, masks, pressure-gradient, q-profile,
-LCFS, axis, grid, shot, and time arrays, but no direct `Ip_MA`, `Bt_T`, or
-`ffprime_scale` source keys. Those inputs therefore remain blocked until the
-original public MAST metadata supplies admitted equivalents or the dataset is
-rebuilt with documented replacement features.
+LCFS, axis, grid, shot, time, `Ip_MA`, `Bt_T`, and `ffprime_rms_T_rad` arrays.
+Those keys close the former feature-source blocker while leaving predictive
+admission gated by training, holdout, and strict-reference evidence.
 
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 

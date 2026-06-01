@@ -1,16 +1,12 @@
 {
   "admission_ready": false,
-  "blocked_reason": "This is a supervised public-MAST-EFM dataset for training and holdout evaluation. Predictive EFIT/P-EFIT admission remains blocked because Ip_MA, Bt_T, and ffprime_scale are fallback features and no trained full-output pressure/q-profile/LCFS predictive artefact has passed tolerances.",
-  "candidate_payload_sha256": "8d173f423440243c4362256480e7ec40a8ca16244ac862b727428d6f28f747e5",
+  "blocked_reason": "This is a supervised public-MAST-EFM dataset for training and holdout evaluation. Predictive EFIT/P-EFIT admission remains blocked because no trained full-output pressure/q-profile/LCFS predictive artefact has passed tolerances.",
+  "candidate_payload_sha256": "ec9c089544d5f2d59198b2516c22401e41612e4b238310f314640ea94960c325",
   "candidate_report": "converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json",
   "dataset_path": "processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
-  "dataset_sha256": "e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e",
+  "dataset_sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
   "equilibria_count": 527,
-  "fallback_features": [
-    "Ip_MA",
-    "Bt_T",
-    "ffprime_scale"
-  ],
+  "fallback_features": [],
   "feature_names": [
     "Ip_MA",
     "Bt_T",
@@ -25,17 +21,42 @@
     "delta_lower",
     "q95"
   ],
+  "feature_source_policy": {
+    "Bt_T": {
+      "original_source": "bphi_rmag",
+      "source_key": "Bt_T",
+      "transform": "identity_T",
+      "units": "T"
+    },
+    "Ip_MA": {
+      "original_source": "plasma_current_x",
+      "source_key": "Ip_MA",
+      "transform": "A_to_MA during reference conversion; identity_MA during dataset build",
+      "units": "MA"
+    },
+    "ffprime_scale": {
+      "campaign_reference": 0.6020265361658412,
+      "clip": [
+        0.25,
+        4.0
+      ],
+      "original_source": "ffprime",
+      "source_key": "ffprime_rms_T_rad",
+      "transform": "campaign_median_normalised_rms",
+      "units": "dimensionless"
+    }
+  },
   "grid_shape": [
     65,
     129
   ],
   "next_processing_steps": [
     "train a full-output model on the train split and evaluate only once on validation/test shot splits",
-    "add acquired or documented public Ip_MA, Bt_T, and ffprime_scale inputs when available",
+    "keep public-source feature policy fixed while training and holdout evaluation are performed",
     "emit compact holdout metrics and keep large weights/predictions on SAS by SHA-256",
     "run validate_neural_equilibrium_reference.py only after full predictive artefacts and tolerances exist"
   ],
-  "payload_sha256": "43f32436695e3e2d3a7ef2d9fad3c178d4c1f3c7e7842d22ca9a19c957696cb2",
+  "payload_sha256": "b6f1b8651d32b2b9b2d2a5e581132983c163a4201a04c43009dcd8383f12243c",
   "r_grid_m": {
     "count": 129,
     "max": 2.0,
@@ -51,7 +72,7 @@
     "padding": "NaN for coordinates and False for validity mask",
     "point_count_key": "lcfs_point_count"
   },
-  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
+  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-a50277960ea1ada9",
   "reference_paths": [
     "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz",
     "converted/neural_equilibrium_reference/mast_efm_shot_30420_reference.npz",
@@ -70,7 +91,7 @@
         129
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz",
-      "reference_sha256": "f3acd3dbaedbd24f098b264ec33fd88417a95d72fcf7a6aa5e44076b46574b84",
+      "reference_sha256": "e923388a02ca9b309d27fbd8a386ee78a94aa2e2011700810fcc885a41d93343",
       "shot_id": 30419,
       "split": "train",
       "time_end_s": 0.5550000071525574,
@@ -83,7 +104,7 @@
         129
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30420_reference.npz",
-      "reference_sha256": "29dc87b7a7d550cd6bb590665546f855b3fcf192a01aa77838ef8b824101fff8",
+      "reference_sha256": "2d568a673cd9fb8d2b3d94b4910ad29ab15374a0274b6725c724f707c4fa52f7",
       "shot_id": 30420,
       "split": "train",
       "time_end_s": 0.29999998211860657,
@@ -96,7 +117,7 @@
         129
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30421_reference.npz",
-      "reference_sha256": "a3a55ed027b78a8690a6e13fa0e10878b2a41a554b6d1c50ddb322d8cc764b98",
+      "reference_sha256": "6dc922063279ecdf6f11dbe7a9ec9574ebec9416947022c89f1e43d738eabeb3",
       "shot_id": 30421,
       "split": "train",
       "time_end_s": 0.5649999976158142,
@@ -109,7 +130,7 @@
         129
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30422_reference.npz",
-      "reference_sha256": "5b03daa06518cbaccedd8c1ac50cd90ea7a8bad2338dc86eb845e06e04c2fd97",
+      "reference_sha256": "d80836838c5dd489cb036812c26724cea2cb04c3bda562e2e4247fa6c4823d7d",
       "shot_id": 30422,
       "split": "train",
       "time_end_s": 0.3799999952316284,
@@ -122,7 +143,7 @@
         129
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30423_reference.npz",
-      "reference_sha256": "b8dd256a1e4b003e3755625ef38bff40b00c6907247e3c62293027d26eba6795",
+      "reference_sha256": "7117666dac00a964a1eb04a3a77a33f2095be137ff9c7872582278ca4871bb36",
       "shot_id": 30423,
       "split": "validation",
       "time_end_s": 0.41999998688697815,
@@ -135,7 +156,7 @@
         129
       ],
       "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30424_reference.npz",
-      "reference_sha256": "f2325a59126d69b286f96fc8b4e858547191f1cdab9e44f6a62731aa7991971a",
+      "reference_sha256": "44dfce8dd8e9c1de4510b5d8cb0144e94102d7f05cb390d9c422b49d1bdab44b",
       "shot_id": 30424,
       "split": "test",
       "time_end_s": 0.5600000023841858,

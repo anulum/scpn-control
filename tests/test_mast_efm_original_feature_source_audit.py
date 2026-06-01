@@ -93,8 +93,8 @@ def test_classify_feature_sources_admits_current_and_blocks_policy_choices() -> 
     assert status["Ip_MA"]["required_transform"] == "A_to_MA"
     assert status["Bt_T"]["status"] == "source_found_requires_rebuild"
     assert status["Bt_T"]["selected_source"] == "bphi_rmag"
-    assert status["ffprime_scale"]["status"] == "source_found_requires_policy"
-    assert status["ffprime_scale"]["required_transform"] == "profile_to_training_scalar"
+    assert status["ffprime_scale"]["status"] == "source_found_requires_rebuild"
+    assert status["ffprime_scale"]["required_transform"] == "profile_rms_to_campaign_median_normalised_scalar"
 
 
 def test_original_feature_source_audit_reads_consolidated_zarr_metadata(tmp_path: Path) -> None:
@@ -114,11 +114,11 @@ def test_original_feature_source_audit_reads_consolidated_zarr_metadata(tmp_path
     audit = build_original_feature_source_audit(dataset_report, sas_root)
 
     assert audit["schema_version"] == AUDIT_SCHEMA
-    assert audit["status"] == "blocked"
-    assert audit["can_rebuild_dataset_now"] is False
+    assert audit["status"] == "source_ready"
+    assert audit["can_rebuild_dataset_now"] is True
     assert audit["feature_status"]["Ip_MA"]["selected_source"] == "plasma_current_x"
     assert audit["feature_status"]["Bt_T"]["selected_source"] == "bphi_rmag"
-    assert audit["feature_status"]["ffprime_scale"]["status"] == "source_found_requires_policy"
+    assert audit["feature_status"]["ffprime_scale"]["status"] == "source_found_requires_rebuild"
     assert audit["shots"][0]["zarr_path"] == "mast/level1/shot_30419/efm.zarr"
 
 
