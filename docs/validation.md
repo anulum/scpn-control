@@ -416,7 +416,7 @@ low-drive stable-mode cases. Live smoke tests remain useful diagnostics, but
 they do not replace persisted CPU/GPU/TPU parity evidence, and parity evidence
 does not replace external-code GK validation.
 
-GK OOD detector deployment claims require persisted calibration artifacts with a
+GK OOD detector deployment claims require persisted calibration artefacts with a
 declared 10D feature schema, training-distribution metadata, threshold
 provenance, and false-positive / false-negative acceptance metrics:
 
@@ -425,8 +425,17 @@ scpn-control validate-gk-ood-calibration --require-campaign-artifacts --json-out
 python validation/validate_gk_ood_calibration.py --require-campaign-artifacts --output-json artifacts/gk_ood_calibration_report.json
 ```
 
-Strict mode fails until `validation/reports/gk_ood_calibration/` contains real,
-external-code, facility, or published GK campaign calibration evidence.
+The strict report uses the `scpn-control.gk-ood-calibration-report.v2` schema
+and binds the canonical report payload by SHA-256. Each admitted calibration
+artefact must use `scpn-control.gk-ood-calibration-artifact.v2`, bind the raw
+artefact and canonical payload by SHA-256, preserve the declared 10D feature
+order, prove positive-definite Mahalanobis-metric provenance, and pass
+false-positive, false-negative, and OOD-recall acceptance bounds. Current local
+evidence in `validation/reports/gk_ood_calibration.json` remains blocked with
+zero admitted campaign artefacts and payload SHA-256
+`1d81ac7337eaa3370dc7dd8e003b394fcb0684cdc41b60b74f5e4e6f87a39f70`. Strict mode
+will continue to fail until `validation/reports/gk_ood_calibration/` contains
+real external-code, facility, or published GK campaign calibration evidence.
 
 External GK interface parser claims require persisted artifacts from real
 solver executables or documented public reference outputs. Mock subprocess

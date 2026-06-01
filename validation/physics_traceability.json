@@ -284,19 +284,20 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Calibrate thresholds against real or published GK campaign ensembles",
-        "Add false-positive and false-negative acceptance criteria for deployment gating"
+        "Keep strict schema-versioned calibration evidence with Mahalanobis-metric provenance, false-positive, false-negative, and OOD-recall acceptance criteria for deployment gating"
       ],
       "unit_contract": "Feature units inherit declared GK inputs and outputs; detector scores are dimensionless with explicit calibration metadata, Mahalanobis metric provenance, threshold provenance, and transport prediction channels in non-negative diffusivity units.",
       "validation_evidence": [
         "tests/test_gk_ood_detector.py",
         "tests/test_gk_hybrid_integration.py",
-        "validation/validate_gk_ood_calibration.py strict persisted campaign calibration gate"
+        "validation/validate_gk_ood_calibration.py strict persisted campaign calibration gate with report and artefact digests, Mahalanobis-metric provenance, duplicate-campaign rejection, and acceptance-bound checks"
       ],
       "evidence_paths": [
         "tests/test_gk_ood_detector.py",
         "tests/test_gk_ood_calibration_validation.py",
         "tests/test_gk_hybrid_integration.py",
         "validation/validate_gk_ood_calibration.py",
+        "validation/reports/gk_ood_calibration.json",
         "src/scpn_control/core/gk_ood_detector.py"
       ],
       "covered_source_paths": [

@@ -5,6 +5,14 @@
 ## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Hardened GK OOD calibration admission so
+  `validation/validate_gk_ood_calibration.py` now emits schema-versioned,
+  digest-bound reports with portable paths, explicit feature-schema and public
+  claim state, raw and canonical calibration-artefact SHA-256 digests,
+  Mahalanobis-metric provenance checks, duplicate-campaign rejection,
+  fail-closed strict-mode report persistence, and an explicit block on
+  deployment-calibration claims until real published, external-code, or
+  facility GK campaign evidence is supplied.
 - Hardened GK geometry reference admission so
   `validation/validate_gk_geometry_reference.py` now emits schema-versioned,
   digest-bound evidence with immutable reference-file SHA-256, per-case

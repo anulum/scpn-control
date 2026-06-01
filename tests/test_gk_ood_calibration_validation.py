@@ -16,7 +16,7 @@ from validation.validate_gk_ood_calibration import validate_gk_ood_calibration
 
 def _valid_calibration_report() -> dict[str, object]:
     return {
-        "schema_version": "1.0",
+        "schema_version": "scpn-control.gk-ood-calibration-artifact.v2",
         "campaign_id": "qlknn-public-cbc-shift-2026-05-18",
         "source": "published_gk_campaign",
         "feature_schema": [
@@ -42,6 +42,23 @@ def _valid_calibration_report() -> dict[str, object]:
             "soft_sigma": 2.0,
             "ensemble_disagreement": 0.3,
         },
+        "mahalanobis_metric": {
+            "calibration_method": "sample_covariance_inverse",
+            "covariance_inverse_sha256": "a" * 64,
+            "positive_definite": True,
+            "feature_order": [
+                "R_L_Ti",
+                "R_L_Te",
+                "R_L_ne",
+                "q",
+                "s_hat",
+                "alpha_MHD",
+                "Te_Ti",
+                "Z_eff",
+                "nu_star",
+                "beta_e",
+            ],
+        },
         "acceptance": {
             "false_positive_rate": 0.02,
             "false_negative_rate": 0.01,
@@ -58,6 +75,13 @@ def test_strict_ood_calibration_gate_requires_campaign_artifacts(tmp_path: Path)
     report = validate_gk_ood_calibration(tmp_path, require_campaign_artifacts=True)
 
     assert report["status"] == "fail"
+    assert report["schema_version"] == "scpn-control.gk-ood-calibration-report.v2"
+    assert len(report["payload_sha256"]) == 64
+    assert report["public_claims"] == {
+        "deployment_calibration_admitted": False,
+        "full_gk_operating_envelope_admitted": False,
+        "blocked_reason": "Requires persisted published, external-code, or facility GK OOD calibration artifacts.",
+    }
     assert report["campaign_artifacts"] == 0
     assert report["errors"][0]["error"] == "no GK OOD calibration artifacts found"
 
@@ -71,6 +95,11 @@ def test_ood_calibration_gate_accepts_valid_campaign_artifact(tmp_path: Path) ->
     assert report["status"] == "pass"
     assert report["campaign_artifacts"] == 1
     assert report["entries"][0]["campaign_id"] == "qlknn-public-cbc-shift-2026-05-18"
+    assert report["entries"][0]["schema_version"] == "scpn-control.gk-ood-calibration-artifact.v2"
+    assert len(report["entries"][0]["artifact_sha256"]) == 64
+    assert len(report["entries"][0]["canonical_payload_sha256"]) == 64
+    assert report["entries"][0]["mahalanobis_metric"]["positive_definite"] is True
+    assert report["public_claims"]["deployment_calibration_admitted"] is True
 
 
 def test_ood_calibration_gate_rejects_missing_feature_schema(tmp_path: Path) -> None:
@@ -97,3 +126,27 @@ def test_ood_calibration_gate_rejects_false_negative_regression(tmp_path: Path) 
 
     assert report["status"] == "fail"
     assert report["errors"][0]["field"] == "false_negative_rate"
+
+
+def test_ood_calibration_gate_rejects_missing_metric_provenance(tmp_path: Path) -> None:
+    payload = _valid_calibration_report()
+    payload.pop("mahalanobis_metric")
+    artifact = tmp_path / "bad_metric.json"
+    artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_ood_calibration(tmp_path, require_campaign_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert report["errors"][0]["field"] == "mahalanobis_metric"
+
+
+def test_ood_calibration_gate_rejects_duplicate_campaign_ids(tmp_path: Path) -> None:
+    payload = _valid_calibration_report()
+    for index in range(2):
+        artifact = tmp_path / f"duplicate_{index}.json"
+        artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_ood_calibration(tmp_path, require_campaign_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "campaign_id" and "duplicate" in error["error"] for error in report["errors"])

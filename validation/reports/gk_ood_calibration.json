@@ -1,0 +1,33 @@
+{
+  "campaign_artifacts": 0,
+  "entries": [],
+  "errors": [
+    {
+      "error": "no GK OOD calibration artifacts found",
+      "field": "artifact_root",
+      "path": "validation/reports/gk_ood_calibration"
+    }
+  ],
+  "feature_schema": [
+    "R_L_Ti",
+    "R_L_Te",
+    "R_L_ne",
+    "q",
+    "s_hat",
+    "alpha_MHD",
+    "Te_Ti",
+    "Z_eff",
+    "nu_star",
+    "beta_e"
+  ],
+  "payload_sha256": "1d81ac7337eaa3370dc7dd8e003b394fcb0684cdc41b60b74f5e4e6f87a39f70",
+  "public_claims": {
+    "blocked_reason": "Requires persisted published, external-code, or facility GK OOD calibration artifacts.",
+    "deployment_calibration_admitted": false,
+    "full_gk_operating_envelope_admitted": false
+  },
+  "require_campaign_artifacts": true,
+  "root": "validation/reports/gk_ood_calibration",
+  "schema_version": "scpn-control.gk-ood-calibration-report.v2",
+  "status": "fail"
+}
