@@ -79,6 +79,7 @@ nav:
     - JOSS Paper: joss_paper.md
     - Development: development.md
     - Capability Manifest: capability_manifest.md
+    - Release Notes v0.19.3: release_notes_v0.19.3.md
     - Compute Validation Funding: compute_validation_financing.md
     - Changelog: changelog.md
     - Pricing: pricing.md

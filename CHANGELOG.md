@@ -2,7 +2,7 @@
 
 # Changelog
 
-## [0.19.2] - 2026-05-24
+## [0.19.3] - 2026-06-01
 
 ### Fixed
 - Added a fail-closed differentiable-transport full-fidelity readiness gate
@@ -10,7 +10,7 @@
   audit digests, controller formal-proof digests, equilibrium-coupled metadata,
   and admitted external reference evidence before any full-fidelity claim can
   pass, and extended the benchmark/validator evidence path to publish and
-  structurally admit the corresponding blocked readiness artifact.
+  structurally admit the corresponding blocked readiness artefact.
 - Added a GitHub Pages compute-validation financing page that explains GPU-hour,
   storage, public-data, and external-code validation needs while preserving the
   repository claim boundary.
@@ -178,7 +178,7 @@
   loading, and canonical SHA-256 payload digests before facility runtime
   claims can cite CODAC evidence.
 - Hardened controller safety-case readiness so promotion now requires a typed
-  `hil_replay_evidence` artifact in addition to external physics validation,
+  `hil_replay_evidence` artefact in addition to external physics validation,
   target-hardware timing, and independent review; the artifact must resolve
   under the declared evidence root, match its SHA-256 bytes, and pass
   qualified-target HIL replay admission before deployment readiness can cite it.
@@ -262,7 +262,7 @@
 - Hardened FusionKernel configuration loading so runtime JSON is retained as a
   typed Pydantic v2 model with schema-normalised boundary variants while the
   legacy dict view remains a compatibility export for solver internals.
-- Hardened controller safety-case readiness artifacts so target-hardware timing evidence must resolve under a supplied artifact root, match the declared SHA-256 bytes, and pass the schema-versioned E2E latency validator before promotion readiness can cite it.
+- Hardened controller safety-case readiness artefacts so target-hardware timing evidence must resolve under a supplied artifact root, match the declared SHA-256 bytes, and pass the schema-versioned E2E latency validator before promotion readiness can cite it.
 - Hardened end-to-end control-latency evidence so benchmark reports now use a
   schema-versioned canonical payload digest and admission rejects tampering,
   non-positive run counts, unordered percentiles, mismatched overhead factors,
@@ -334,7 +334,7 @@
 - Added schema-versioned controller safety-case readiness manifest persistence
   with an integrity digest so promotion decisions fail closed on malformed
   schema or payload tampering before replay.
-- Added typed controller safety-case readiness artifacts so promotion evidence
+- Added typed controller safety-case readiness artefacts so promotion evidence
   requires kind-specific external validation, target-hardware timing, and
   independent-review artifacts with safe relative URIs, producers, timestamps,
   and SHA-256 digests.
@@ -501,7 +501,7 @@
   release-candidate CI starts from the same formatting state as local checks.
 
 ### Changed
-- Package version bumped to `0.19.2`.
+- Package version bumped to `0.19.3`.
 - Documented the hardening release-candidate scope, residual validation gaps,
   and tag gate before creating a release tag.
 - Retained the physics traceability boundary: public full-fidelity claims remain

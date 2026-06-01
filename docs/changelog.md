@@ -2,9 +2,209 @@
 
 # Changelog
 
-## [0.19.2] - 2026-05-24
+## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Added a fail-closed differentiable-transport full-fidelity readiness gate
+  that binds campaign metadata, one-step and rollout latency reports, gradient
+  audit digests, controller formal-proof digests, equilibrium-coupled metadata,
+  and admitted external reference evidence before any full-fidelity claim can
+  pass, and extended the benchmark/validator evidence path to publish and
+  structurally admit the corresponding blocked readiness artefact.
+- Added a GitHub Pages compute-validation financing page that explains GPU-hour,
+  storage, public-data, and external-code validation needs while preserving the
+  repository claim boundary.
+- Added public QLKNN and QuaLiKiz Zenodo acquisition metadata, strict
+  public-data acquisition manifest validation, module-specific regression
+  tests, and documentation that separates acquired normalised metadata from
+  deferred multi-GB tensor payloads and neural-transport validation evidence.
+- Added strict NTM island-dynamics reference-artifact admission so
+  full-fidelity q-profile, rational-surface, island-growth, saturated-width,
+  suppression-time, seed-island, and ECCD-alignment claims require
+  schema-versioned `scpn-control.ntm-reference.v1` evidence with measured NTM
+  campaign or documented public-reference provenance, safe q-profile,
+  rational-surface, island-width-trace, and ECCD-alignment artifact URIs,
+  SHA-256 digests for every artifact and the canonical payload, NTM unit
+  contracts, ordered rho grids, positive q-profile domains, rational-surface
+  tokamak-ordering metadata, positive seed-island domains, tolerance-checked
+  physical metrics, and module-specific tamper/domain tests.
+- Added strict MARFE radiation-condensation reference-artifact admission so
+  full-fidelity onset-temperature, density-limit, Greenwald-fraction,
+  front-temperature, radiative-growth, impurity-fraction, connection-length,
+  and power-balance claims require schema-versioned
+  `scpn-control.marfe-reference.v1` evidence with measured MARFE campaign or
+  documented public-reference provenance, safe temperature-profile,
+  density-limit, radiation-curve, and power-balance artifact URIs, SHA-256
+  digests for every artifact and the canonical payload, MARFE unit contracts,
+  ordered temperature and density scans, bounded impurity-fraction domains,
+  finite tokamak geometry and power-balance metadata, tolerance-checked
+  physical metrics, and module-specific tamper/domain tests.
+- Added strict EPED pedestal reference-artifact admission so full-fidelity
+  pedestal height, pedestal width, peeling-ballooning pressure-limit,
+  bootstrap-current, collisionality-width-ordering, and shaping-input claims
+  require schema-versioned `scpn-control.eped-reference.v1` evidence with
+  measured pedestal-database or documented public-reference provenance, safe
+  pedestal-profile, EPED-prediction, bootstrap-current, and
+  peeling-ballooning artifact URIs, SHA-256 digests for every artifact and the
+  canonical payload, EPED unit contracts, ordered rho grids, positive
+  width/beta domains, finite tokamak shaping metadata, tolerance-checked
+  physical metrics, and module-specific tamper/domain tests.
+- Added strict ELM crash and RMP suppression reference-artifact admission so
+  full-fidelity ELM frequency, crash-depth, pedestal-drop, RMP-window, and
+  heat-flux claims require schema-versioned `scpn-control.elm-reference.v1`
+  evidence with measured H-mode campaign or documented public-reference
+  provenance, safe pre-crash/post-crash/event/RMP artifact URIs, SHA-256
+  digests for every artifact and the canonical payload, ELM/RMP unit
+  contracts, ordered pedestal grids, Type-I energy-fraction bounds,
+  tolerance-checked physical metrics, and module-specific tamper/domain tests.
+- Added strict SOL blob-transport reference-artifact admission so full-fidelity
+  blob velocity, spreading, wall-flux, and detector-event claims require
+  schema-versioned `scpn-control.blob-transport-reference.v1` evidence with
+  measured probe-campaign or documented public-reference provenance, safe
+  reference/profile/detector artifact URIs, SHA-256 digests for every artifact
+  and the canonical payload, SOL unit contracts, strictly ordered
+  separatrix-to-wall coordinates, positive detector and blob-size domains,
+  positive magnetic-geometry metadata, tolerance-checked physical metrics, and
+  module-specific tamper/domain tests.
+- Hardened neural equilibrium reference-artifact admission so predictive
+  EFIT/P-EFIT or documented-reference equilibrium claims must use
+  schema-versioned `scpn-control.neural-equilibrium-reference.v1` evidence with
+  safe reference/prediction artifact URIs, trained-weight,
+  reference-artifact, prediction-artifact, and canonical payload SHA-256
+  digests, explicit target schema, grid/unit contracts, finite
+  tolerance-checked psi/pressure/q-profile/boundary/axis metrics, admitted real
+  P-EFIT executable provenance, and tamper-detection tests.
+- Hardened neural transport reference-artifact admission so quantitative
+  QuaLiKiz, QLKNN, or documented-reference transport claims must use
+  schema-versioned `scpn-control.neural-transport-reference.v1` evidence with
+  safe reference/prediction artifact URIs, trained-weight,
+  reference-artifact, prediction-artifact, and canonical payload SHA-256
+  digests, explicit target schema, QLKNN-10D feature order, unit contracts,
+  finite tolerance-checked metrics, admitted real QuaLiKiz executable
+  provenance, and tamper-detection tests.
+- Hardened persisted external gyrokinetic interface artifact admission so real
+  executable and documented public-reference parser evidence must use
+  schema-versioned `scpn-control.gk-interface-artifact.v1` reports with safe
+  deck/raw-output/parsed-output artifact URIs, SHA-256 digests for each
+  artifact, a canonical payload digest, explicit transport/frequency/wavenumber
+  unit declarations, finite physical fields, admitted executable provenance,
+  and tamper-detection tests.
+- Hardened the real external-code linear gyrokinetic cross-code admission gate
+  so full-fidelity GK agreement evidence must use schema-versioned
+  `scpn-control.gk-crosscode.v1` reports with SHA-256 digests for the external
+  input deck, external output, native input, and canonical payload, finite
+  growth-rate/frequency/wavenumber fields, admitted executable provenance, and
+  bounded native-vs-external tolerances.
+- Added strict admission for persisted differentiable transport one-step and
+  rollout gradient-latency reports, including duplicate-key rejection, backend,
+  dtype, claim-boundary, audit-error, sampled-index, run-count, and latency
+  percentile checks before the reports can support release evidence.
+- Hardened local preflight release-evidence admission so the non-test
+  `release-evidence` gate now generates a temporary `scpn-control validate
+  --json-out` report and admits it through `scpn-control
+  validate-release-evidence`, matching the CI artifact-admission path.
+- Exposed release-evidence report admission as
+  `scpn-control validate-release-evidence REPORT`, so operators can validate
+  CI or release JSON reports through the public CLI instead of importing the
+  Python validation module directly.
+- Added strict release-evidence report admission for the CI artifact produced
+  by `scpn-control validate --json-out`, including duplicate-key rejection,
+  mandatory pass status for data manifests, JAX GK parity, and physics
+  traceability, complete CPU/GPU parity case coverage, and an admission JSON
+  artifact with the source report SHA-256 digest.
+- Added a CI `release-evidence-gate` job that runs top-level
+  `scpn-control validate --json-out` and uploads the JSON report, so remote
+  runs now publish auditable data-manifest, JAX GK parity, and physics
+  traceability admission evidence.
+- Added the top-level `scpn-control validate --json-out` path to local
+  preflight as a non-test release-evidence gate, with source-tree import
+  precedence, so `make preflight` and `make preflight-fast` now catch data
+  provenance, JAX GK parity, and physics traceability drift before push.
+- Promoted physics traceability validation into the top-level
+  `scpn-control validate` command with staged-registry and scoped-skip controls
+  so local release validation now fails on bounded-claim registry drift in the
+  same path as data provenance and JAX GK parity evidence.
+- Promoted strict persisted JAX gyrokinetic CPU/GPU parity evidence admission
+  into the top-level `scpn-control validate` command, added scoped staging and
+  skip flags, and exposed case/backend requirements on
+  `validate-jax-gk-parity` so local release validation matches the CI gate.
+- Wired strict persisted JAX gyrokinetic CPU/GPU parity evidence admission into
+  the `jax-parity` CI job and added a module-specific repository-evidence
+  regression so missing CBC, kinetic-electron TEM, or stable-mode backend
+  pairs cannot silently drift out of release evidence.
+- Persisted the current JAX gyrokinetic CPU parity campaign alongside the
+  existing GPU campaign, regenerated the strict parity summary, and updated the
+  traceability and validation docs so backend parity is admitted for CPU/GPU
+  reproducibility without promoting quantitative external-code GK claims.
+- Replaced WebSocket runtime-configuration raw SHA-256 digests with a
+  domain-separated HMAC-SHA256 evidence digest so deterministic admission
+  remains stable while code scanning no longer treats the configuration proof
+  as weak sensitive-data hashing.
+- Hardened mu-synthesis claim evidence persistence so bounded static
+  robust-control reports now carry canonical payload SHA-256 digests and load
+  admission rejects duplicate keys, schema drift, edited metrics, and bounded
+  evidence presented as validated robust-control evidence.
+- Added schema-versioned geometry-neutral replay evidence admission so
+  stellarator replay claims bind the validated report, scenario, trace,
+  metrics, thresholds, magnetic-configuration provenance, actuator
+  calibration, latency model, and fault model by SHA-256 digest while keeping
+  synthetic W7-X-like replay separate from measured or benchmark device claims.
+- Added schema-versioned Kuramoto phase-runtime evidence admission so
+  deployment-target phase claims bind deterministic input digests, Python
+  reference output digests, optional Rust parity errors, deployment-target
+  oscillator coverage, and timestep-refinement convergence before runtime
+  claims can cite the optional Rust fast path.
+- Hardened controller safety-case readiness so promotion now also requires a
+  typed `websocket_runtime_evidence` artifact that resolves under the declared
+  evidence root, matches its SHA-256 bytes, and passes qualified WebSocket
+  runtime admission before deployment readiness can cite authenticated command
+  streams, TLS enforcement, payload caps, token-bucket limiting, broadcast
+  delivery, or backpressure absence.
+- Added schema-versioned FPGA HDL export evidence admission so generated
+  Verilog/VHDL project claims bind controller artifact SHA-256, generated HDL,
+  weight memory, timing constraints, Makefile, resource estimates, synthesis
+  report digests, safe report URIs, non-negative timing slack, and local-only
+  versus qualified synthesis claim status before safety-case readiness can cite
+  hardware export evidence.
+- Hardened controller safety-case readiness so promotion now also requires a
+  typed `codac_runtime_evidence` artifact that resolves under the declared
+  evidence root, matches its SHA-256 bytes, and passes qualified CODAC/EPICS
+  runtime admission before deployment readiness can cite CODAC timing,
+  interlock, export, or backpressure evidence.
+- Added schema-versioned CODAC/EPICS runtime evidence admission so control
+  boundary claims bind generated EPICS database and OPC-UA nodeset hashes,
+  cycle-deadline percentiles, exercised interlock blocking, backpressure
+  counts, local-only versus qualified claim status, duplicate-key-safe JSON
+  loading, and canonical SHA-256 payload digests before facility runtime
+  claims can cite CODAC evidence.
+- Hardened controller safety-case readiness so promotion now requires a typed
+  `hil_replay_evidence` artefact in addition to external physics validation,
+  target-hardware timing, and independent review; the artifact must resolve
+  under the declared evidence root, match its SHA-256 bytes, and pass
+  qualified-target HIL replay admission before deployment readiness can cite it.
+- Added schema-versioned HIL replay evidence admission for CONTROL-owned
+  runtime deployment claims, including canonical SHA-256 payload digests,
+  replay digests over controller, timing, target-hardware, interlock, and
+  backpressure fields, fail-closed target-hardware promotion checks, duplicate
+  JSON key rejection on load, and module-specific behavioural tests that keep
+  local workstation replay evidence separate from qualified deployment
+  evidence.
+- Hardened reviewed control-runtime defects by replacing fixed-window
+  WebSocket command limiting with token buckets per connection and peer,
+  adding structured WebSocket security audit logs, arming native-solver cleanup
+  only after a C++ library loads successfully, rejecting degenerate
+  Grad-Shafranov flux normalisation, fixing multigrid restriction on
+  rectangular odd grids, vectorising free-boundary coil Green's flux over the
+  grid, tightening NMPC SPD symmetry admission, and adding optional JAX
+  autodiff plant linearisation.
+- Added schema-versioned JAX gyrokinetic parity artifact production and
+  stricter admission so native/JAX local-dispersion comparisons bind backend,
+  device, platform, dtype, X64 state, solver kwargs, tolerances, and canonical
+  SHA-256 payload digests while keeping the evidence boundary limited to
+  backend parity until external GK validation artifacts are supplied; admission
+  now requires named CBC, kinetic-electron TEM, and low-drive stable-mode case
+  coverage when requested, binds case-parameter digests, rejects mode-spectrum
+  replay, and supports backend coverage requirements.
 - Added a quantum-enhanced disruption bridge facade that keeps quantum backend
   ownership in `scpn-quantum-control`, lazily imports optional quantum
   dependencies, maps the CONTROL 8-feature disruption contract to the ITER
@@ -62,25 +262,7 @@
 - Hardened FusionKernel configuration loading so runtime JSON is retained as a
   typed Pydantic v2 model with schema-normalised boundary variants while the
   legacy dict view remains a compatibility export for solver internals.
-- Hardened controller safety-case readiness artifacts so target-hardware timing
-  evidence must resolve under a supplied artifact root, match the declared
-  SHA-256 bytes, and pass the schema-versioned E2E latency validator before
-  promotion readiness can cite it.
-- Hardened controller safety-case readiness so qualified WebSocket runtime
-  evidence is required before deployment readiness can cite authenticated
-  command-stream, TLS, payload-cap, token-bucket, broadcast, or backpressure
-  claims.
-- Added Kuramoto phase-runtime evidence admission so optional Rust fast-path
-  claims bind Python reference digests, parity errors, deployment-target
-  oscillator coverage, and timestep-refinement convergence.
-- Added geometry-neutral replay evidence admission so synthetic stellarator
-  replay reports bind scenario, trace, metrics, thresholds, provenance,
-  actuator calibration, latency model, and fault model digests while measured
-  device claims fail closed without external artefact evidence.
-- Hardened mu-synthesis claim evidence persistence so bounded static
-  robust-control reports carry canonical payload SHA-256 digests and load
-  admission rejects duplicate keys, schema drift, edited metrics, and bounded
-  evidence presented as validated robust-control evidence.
+- Hardened controller safety-case readiness artefacts so target-hardware timing evidence must resolve under a supplied artifact root, match the declared SHA-256 bytes, and pass the schema-versioned E2E latency validator before promotion readiness can cite it.
 - Hardened end-to-end control-latency evidence so benchmark reports now use a
   schema-versioned canonical payload digest and admission rejects tampering,
   non-positive run counts, unordered percentiles, mismatched overhead factors,
@@ -91,6 +273,104 @@
   digest, explicit solver metadata, and manifest-matching status, depth, solver,
   and checked-specification admission before safety-critical controller
   artifacts can reference SMT proof reports.
+- Hardened differentiable-transport evidence admission so gradient-audit
+  evidence revalidates finite non-negative losses, tolerance agreement with
+  campaign metadata, unique in-domain sampled audit indices, pass/fail
+  consistency with maximum audit error, strict integer latency run counts, and
+  ordered latency percentiles before controller-tuning evidence is persisted or
+  admitted; the rollout source-gradient loss now remains inside the traced JAX
+  graph and the module enables JAX x64 before importing `jax.numpy` so dtype
+  evidence is not silently downgraded.
+- Hardened digital-twin online-update evidence admission so bounded Bayesian
+  update claims revalidate finite non-negative losses, loss-history minima,
+  source binding, unique bounded parameter priors, best-parameter domains,
+  strict integer campaign settings, and simulator units for every observation
+  target before evidence digests are admitted.
+- Hardened geometry-neutral stellarator replay admission so scenarios fail
+  closed on nonzero initial frames, missing objective metrics, impossible
+  current constraints, unsupported stuck-fault modes, and non-integer runtime
+  report inputs before replay evidence or manifest digests are produced.
+- Added tamper-evident SHA-256 payload digests to persisted RZIP
+  calibration evidence and benchmark reports so admission rejects modified
+  evidence payloads before facility-claim promotion.
+- Hardened RZIP facility-claim admission so calibration evidence is
+  revalidated against source class, reference growth-rate presence, finite
+  physical fields, and declared growth-rate tolerance at admission time.
+- Hardened the JAX traceable runtime public boundary so single-loop rollouts
+  reject batched command arrays, reject vector initial states deterministically,
+  and validate parity integer seeds before reproducibility campaigns are built.
+- Added tamper-evident geometry-neutral stellarator replay manifests that bind
+  scenario, trace, metric, and threshold payloads with SHA-256 digests and
+  fail closed on manifest, trace, or acceptance tampering.
+- Renamed the IMAS ODS adapter contract test file to avoid the retired generic
+  test filename pattern while preserving the same module-specific behaviour.
+- Added a fail-closed formal proof-manifest gate for safety-critical SCPN
+  controller artifacts, including bounded-claim enforcement, hash-addressed
+  report metadata, and mandatory counterexample paths for failed proof
+  evidence.
+- Hardened safety-critical proof-manifest admission by binding evidence to the
+  canonical controller-artifact payload SHA-256, rejecting unsafe report URIs,
+  constraining formal backends, and optionally verifying report bytes under a
+  caller-supplied report root.
+- Added tamper-evident differentiable transport admission evidence that binds
+  JAX campaign metadata, sampled gradient-audit results, equilibrium coupling,
+  and optional safety-critical controller proof artifact digests before
+  controller-tuning claims can be promoted.
+- Added tamper-evident digital-twin online-update evidence that binds TRANSP
+  and TSC simulator metadata, observation and prior digests, Bayesian-update
+  result digests, baseline-improvement status, and optional safety-critical
+  controller proof artifact digests.
+- Added a bounded controller safety-case evidence workflow that links a passing
+  formal controller proof manifest, audited differentiable-transport evidence,
+  and TRANSP/TSC-backed digital-twin update evidence to the same canonical
+  controller artifact digest.
+- Added schema-versioned controller safety-case manifest persistence with an
+  integrity digest so archived evidence bundles fail closed on malformed schema
+  or payload tampering before replay admission.
+- Added an explicit controller safety-case readiness gate that remains blocked
+  until external physics validation, target-hardware timing evidence, and
+  independent safety-review digests are all present and bound to the current
+  safety-case bundle.
+- Added schema-versioned controller safety-case readiness manifest persistence
+  with an integrity digest so promotion decisions fail closed on malformed
+  schema or payload tampering before replay.
+- Added typed controller safety-case readiness artefacts so promotion evidence
+  requires kind-specific external validation, target-hardware timing, and
+  independent-review artifacts with safe relative URIs, producers, timestamps,
+  and SHA-256 digests.
+- Hardened the phase WebSocket stream with explicit payload-size limits,
+  server-side frame caps, default client authentication, TLS-required startup
+  mode, disabled-by-default query-token authentication, fail-closed plaintext
+  non-loopback binding, browser-origin allowlisting, command allowlisting, and
+  CLI/documentation coverage for authenticated remote exposure.
+- Added a Pydantic v2 schema/export path to `TokamakConfig`, extended E2E
+  latency evidence with target-hardware metadata, and exposed NMPC optional
+  `casadi`/fail-closed `acados` solver backend contracts.
+- Implemented the optional NMPC `acados` OCP interface with injected runtime
+  factories, symbolic discrete dynamics support, augmented-state slew-rate path
+  constraints, SQP/partial-condensing HPIPM defaults, exact-Hessian mode,
+  warm-start staging, and fail-closed solver-status handling.
+- Hardened NMPC `acados` result admission with finite state/control trajectory
+  checks, state and terminal-set enforcement, slew-rate revalidation, and a
+  runtime plant-consistency residual gate for symbolic-dynamics drift.
+- Added a strict E2E latency-evidence validator so unqualified local benchmark
+  runs cannot be admitted as target-hardware or real-time performance evidence.
+- Double-gated controller bit-flip fault injection behind both constructor and
+  environment opt-ins, and hardened controller JSONL append handling against
+  symlink-target writes where platform support is available.
+- Hardened real-data manifest artefact verification so checksum-covered local
+  evidence must use relative, non-traversing paths resolved under the manifest
+  evidence tree or repository root.
+- Added shared external-reference URI admission for density, RZIP, orbit, and
+  VMEC validation gates so external artifact claims reject ambiguous relative
+  paths, arbitrary local file URIs, hosted file URIs, and traversal paths.
+- Hardened external executable provenance admission for GK cross-code, GK
+  interface, and neural transport reference validators so real external-code
+  claims reject URI, relative, traversal, temporary, and system-control
+  `binary_path` values.
+- Added a public production-readiness boundary that separates
+  production-oriented library engineering from facility deployment, external
+  validation, measured-shot validation, and certification claims.
 - Hardened fail-closed physics and mathematics boundaries across MHD,
   pedestal, edge, transport, orbit-following, scenario, and uncertainty
   surfaces without promoting unsupported facility or full-fidelity claims.
@@ -103,16 +383,117 @@
 - Added differentiable transport source-schedule gradients so controller
   tuning can optimise additive heating, fuelling, and impurity-source inputs
   through the same JAX Crank-Nicolson facade as transport coefficients.
+- Added bounded multi-step differentiable transport rollout gradients so
+  controller tuning can optimise time-distributed source schedules without
+  finite-difference plant evaluations.
+- Wired NMPC source-rollout tuning to the multi-step differentiable transport
+  gradient path with explicit source bounds and sampled finite-difference
+  audit admission.
+- Added audited multi-step differentiable transport rollout-gradient latency
+  reporting for bounded NMPC source-rollout admission evidence.
+- Added Grad-Shafranov flux-weighted multi-step transport rollout loss and
+  source/equilibrium gradients for bounded controller-tuning studies.
+- Added a bounded reduced-gyrokinetic transport closure adapter for mapping
+  existing quasilinear GK profile outputs into differentiable transport
+  coefficient channels with explicit provenance.
+- Added explicit gyrokinetic species diamagnetic-frequency bookkeeping with
+  charge-direction, density-gradient, temperature-gradient, and zero-drive
+  regression coverage.
+- Added the Miller geometry contravariant metric-determinant identity to the
+  public geometry result and regression coverage.
+- Added an explicit reduced-gyrokinetic saturation-rate utility with monotone,
+  non-negative, and field-line-rate-bounded regression coverage.
 - Added a differentiable transport gradient audit that compares JAX transport
   coefficient and source-schedule gradients against sampled finite-difference
   perturbations before controller-tuning admission.
+- Added differentiable transport gradient-latency reporting for the audited
+  controller-tuning admission path with persisted bounded benchmark artefacts.
 - Wired the NMPC transport-tuning path to require that gradient audit by
   default and to persist the audit result with each coefficient update.
 - Added audited NMPC source-schedule tuning for additive heating, fuelling, and
   impurity-source controls with explicit finite source bounds.
+- Added RZIP vertical-stability calibration evidence and fail-closed
+  facility-claim admission with bounded local benchmark artefacts.
+- Added resistive-wall-mode feedback claim evidence and fail-closed
+  facility-claim admission with bounded wall, rotation, coil, and latency
+  provenance reports.
+- Added EFIT-lite reconstruction claim evidence and fail-closed facility-claim
+  admission with bounded diagnostic and shape provenance reports.
+- Added kinetic-EFIT pressure and q-profile claim evidence with fail-closed
+  facility-claim admission for matched pressure, q-profile, anisotropy,
+  diagnostic, profile, fast-ion, MSE-calibration, and interpolation provenance.
+- Added VMEC-lite spectral facade claim evidence with fail-closed full-VMEC
+  admission for matched Fourier geometry, rotational transform, residual, and
+  convergence provenance.
+- Added orbit-following claim evidence with fail-closed external-code
+  admission for matched banana-width, first-orbit-loss, particle, geometry,
+  collision-model, and loss-boundary provenance.
+- Added uncertainty-quantification claim evidence with fail-closed calibrated
+  predictive-UQ admission for matched central values, sigma statistics, seed,
+  prior, scenario, propagation-chain, and sensitivity provenance.
+- Added density-control claim evidence with fail-closed facility-calibrated
+  admission for matched Greenwald fraction, particle inventory, geometry,
+  transport, actuator, diagnostic, and CFL provenance.
+- Added neural-equilibrium claim evidence with fail-closed predictive-claim
+  admission for matched P-EFIT or documented public reference artefacts,
+  weight checksums, flux, pressure, q-profile, boundary, and axis tolerances.
+- Added neural-transport claim evidence with fail-closed quantitative
+  admission for matched QuaLiKiz or documented public reference artefacts,
+  weight checksums, QLKNN-10D feature ordering, diffusivity errors, and branch
+  accuracy.
+- Added neural-turbulence claim evidence with fail-closed quantitative
+  admission for matched gyrokinetic campaign or documented public reference
+  artefacts, weight checksums, QLKNN-class feature ordering, gyro-Bohm flux
+  errors, and critical-gradient accuracy.
+- Added disruption-mitigation claim evidence with fail-closed mitigation
+  admission for measured, external-benchmark, or documented public reference
+  artefacts covering warning lead time, mitigation outcome, halo-current
+  envelope, runaway-beam envelope, and tritium-breeding-ratio metrics.
+- Added free-boundary tracking claim evidence with fail-closed facility-control
+  admission for matched public, measured-replay, or external equilibrium
+  artefacts covering shape, X-point, divertor, coil-current, response-rank,
+  latency, and supervisor provenance.
+- Added DT burn-control claim evidence with fail-closed reactor-control
+  admission for matched public, integrated-transport benchmark, or measured
+  burn replay artefacts covering alpha power, Q, Lawson margin, burn fraction,
+  reactivity exponent, and controller-limit provenance.
+- Added volt-second claim evidence with fail-closed pulse-duration admission
+  for matched public, measured loop-voltage replay, or external scenario
+  artefacts covering total flux, flat-top duration, Ejima flux, bootstrap
+  current, and budget-margin provenance.
+- Added current-drive claim evidence with fail-closed external deposition
+  admission for matched public, ray-tracing, Fokker-Planck, or measured
+  deposition artefacts covering absorbed power, driven current, deposition
+  centroid, peak current density, and NBI slowing-down provenance.
+- Added mu-synthesis claim evidence with fail-closed validated robust-control
+  admission for matched public, external mu-toolbox, or measured replay
+  artefacts covering mu upper bounds, robustness margin, controller gain,
+  D-scaling, and closed-loop spectral-abscissa provenance.
 - Hardened SCPN formal verification with algebraic place-invariant proofs and
   bounded temporal response and recurrence specifications over all bounded
   firing paths.
+- Added optional Z3 bounded model checking for compiled SCPN control logic,
+  including SMT-backed marking-bound counterexamples, temporal exclusivity and
+  response specs, and JSON/Markdown evidence publication with explicit blocked
+  status when `z3-solver` is unavailable.
+- Hardened federated disruption prediction with per-facility array ingestion,
+  facility-update differential privacy accounting, serialisable privacy
+  ledgers, and a deterministic synthetic multi-facility benchmark report. This
+  remains bounded synthetic evidence, not measured cross-facility validation.
+- Added neural equilibrium synthetic pretraining with deterministic
+  JAX-compatible weights, benchmark reports, and a fail-closed real EFIT/P-EFIT
+  fine-tuning admission gate backed by persisted reference artefacts.
+- Added digital-twin online model updating with fail-closed TRANSP/TSC
+  simulator artifact metadata validation, deterministic Bayesian optimisation
+  over bounded density, effective-charge, and actuator parameters, and a
+  synthetic online-update benchmark report.
+- Hardened the gyrokinetic online learner with OOD-threshold sample admission,
+  auditable retraining decisions, persisted update reports, and a deterministic
+  synthetic online-retraining benchmark.
+- Added integrated-scenario coupling audits with deterministic replay metadata,
+  module-by-module exchange records, timestep consistency checks, and bounded
+  current and thermal-energy diagnostics while preserving the external
+  validation claim boundary.
 - Preserved JAX gyrokinetic stiffness-closure monotonicity under the CI JAX
   backend while keeping the closure explicitly bounded as a controller-tuning
   surrogate.
@@ -120,7 +501,7 @@
   release-candidate CI starts from the same formatting state as local checks.
 
 ### Changed
-- Package version bumped to `0.19.2`.
+- Package version bumped to `0.19.3`.
 - Documented the hardening release-candidate scope, residual validation gaps,
   and tag gate before creating a release tag.
 - Retained the physics traceability boundary: public full-fidelity claims remain
@@ -135,6 +516,23 @@
 - `pre-commit run --all-files`
 - `python tools/check_test_quality_policy.py`
 - `python validation/validate_physics_traceability.py --registry validation/physics_traceability.json --json-out`
+- `python validation/benchmark_federated_disruption.py`
+- `python validation/benchmark_neural_equilibrium_pretraining.py`
+- `python validation/benchmark_differentiable_transport_latency.py`
+- `python validation/benchmark_rzip_calibration.py`
+- `python validation/benchmark_rwm_claims.py`
+- `python validation/benchmark_efit_lite_claims.py`
+- `python validation/benchmark_kinetic_efit_claims.py`
+- `python validation/benchmark_vmec_lite_claims.py`
+- `python validation/benchmark_orbit_following_claims.py`
+- `python validation/benchmark_uq_claims.py`
+- `python validation/benchmark_density_control_claims.py`
+- `python validation/benchmark_neural_transport_claims.py`
+- `python validation/benchmark_neural_turbulence_claims.py`
+- `python validation/benchmark_disruption_mitigation_claims.py`
+- `python validation/benchmark_digital_twin_online_update.py`
+- `python validation/benchmark_gk_online_learner.py`
+- `python validation/benchmark_integrated_scenario_coupling.py`
 - `python tools/capability_manifest.py --check`
 - `python -m tools.check_generated_traceability`
 
