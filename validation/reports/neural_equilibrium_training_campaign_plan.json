@@ -1,0 +1,189 @@
+{
+  "claim_boundary": "This report prepares data-processing and training campaigns. It is not predictive EFIT/P-EFIT admission evidence and does not launch GPU training.",
+  "gpu_budget_estimates": [
+    {
+      "blocking_condition": "full-output trainer still required before predictive admission",
+      "gpu_class": "single 16-24 GB CUDA GPU or CPU fallback",
+      "minimum_gpu_hours": 0.0,
+      "nominal_gpu_hours": 1.0,
+      "scenario": "mast_efm_readiness_smoke",
+      "storage_tb": 0.05,
+      "target": "load dataset, verify splits, run one short fit/evaluation dry campaign",
+      "upper_gpu_hours": 3.0
+    },
+    {
+      "blocking_condition": "requires implementation of full-output trainer and admitted input-feature provenance",
+      "gpu_class": "single 24-48 GB CUDA GPU",
+      "minimum_gpu_hours": 2.0,
+      "nominal_gpu_hours": 6.0,
+      "scenario": "mast_efm_single_seed_full_output",
+      "storage_tb": 0.1,
+      "target": "one full-output neural-equilibrium training run with flux, pressure, q-profile, LCFS, and axis heads",
+      "upper_gpu_hours": 12.0
+    },
+    {
+      "blocking_condition": "requires single-seed trainer and stable holdout metric schema",
+      "gpu_class": "one to four 24-80 GB CUDA GPUs",
+      "minimum_gpu_hours": 30.0,
+      "nominal_gpu_hours": 80.0,
+      "scenario": "mast_efm_multiseed_ablation",
+      "storage_tb": 0.5,
+      "target": "five seeds, architecture sweep, uncertainty calibration, and holdout reports",
+      "upper_gpu_hours": 180.0
+    },
+    {
+      "blocking_condition": "large numeric payloads must be pulled to SAS and checksum-verified first",
+      "gpu_class": "single A10/A100-class GPU for first pass; A100/H100 for sweeps",
+      "minimum_gpu_hours": 100.0,
+      "nominal_gpu_hours": 350.0,
+      "scenario": "qlknn_qualikiz_payload_processing",
+      "storage_tb": 2.0,
+      "target": "download, checksum, preprocess, split, and train neural-transport baselines",
+      "upper_gpu_hours": 900.0
+    },
+    {
+      "blocking_condition": "requires acquired public or collaborator-provided matched reconstruction artefacts",
+      "gpu_class": "single 24-80 GB CUDA GPU after CPU-side conversion",
+      "minimum_gpu_hours": 20.0,
+      "nominal_gpu_hours": 120.0,
+      "scenario": "external_efit_pefit_or_diiid_equilibrium_set",
+      "storage_tb": 1.0,
+      "target": "matched EFIT/P-EFIT or documented public equilibrium artefacts converted into strict reference reports",
+      "upper_gpu_hours": 400.0
+    },
+    {
+      "blocking_condition": "requires at least one admitted external equilibrium reference set beyond MAST EFM candidate data",
+      "gpu_class": "multi-GPU A100/H100-class allocation",
+      "minimum_gpu_hours": 500.0,
+      "nominal_gpu_hours": 1500.0,
+      "scenario": "publication_grade_equilibrium_campaign",
+      "storage_tb": 4.0,
+      "target": "multi-dataset training, seed repeats, uncertainty, latency, and strict admission evidence",
+      "upper_gpu_hours": 4000.0
+    }
+  ],
+  "mast_efm_dataset": {
+    "blocked_before_admission": [
+      "full-output trainer must be implemented for pressure, q-profile, LCFS, and axis targets",
+      "fallback Ip_MA, Bt_T, and ffprime_scale inputs must be replaced by acquired or documented public inputs",
+      "strict neural-equilibrium reference admission must pass on the exact trained weight checksum"
+    ],
+    "equilibria_count": 527,
+    "fallback_features": [
+      "Ip_MA",
+      "Bt_T",
+      "ffprime_scale"
+    ],
+    "grid_shape": [
+      65,
+      129
+    ],
+    "payload": {
+      "absolute_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
+      "exists_on_this_host": false,
+      "relative_path": "processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
+      "sha256": "e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e",
+      "verified_available": true
+    },
+    "ragged_target_policy": {
+      "keys": [
+        "lcfs_r_m",
+        "lcfs_z_m",
+        "lcfs_valid_mask"
+      ],
+      "max_lcfs_points": 157,
+      "padding": "NaN for coordinates and False for validity mask",
+      "point_count_key": "lcfs_point_count"
+    },
+    "ready_to_run_checks": [
+      "python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload",
+      "python validation/build_mast_efm_neural_equilibrium_dataset.py --candidate-report /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json --sas-root /mnt/data_sas/DATASETS/SCPN-CONTROL --output-npz /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --json-out validation/reports/mast_efm_neural_equilibrium_dataset.json --report-out validation/reports/mast_efm_neural_equilibrium_dataset.md"
+    ],
+    "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
+    "split_counts": {
+      "test": 107,
+      "train": 340,
+      "validation": 80
+    },
+    "status": "prepared"
+  },
+  "payload_sha256": "eda928a5b9fc1242066e4fa49a45fd5659516ebc2a56435f434cc823845a1b87",
+  "prepared_dataset_lanes": [
+    {
+      "id": "mast_efm_neural_equilibrium",
+      "next_action": "implement full-output trainer without launching long training by default",
+      "status": "prepared_on_sas"
+    },
+    {
+      "id": "qlknn_qualikiz_neural_transport",
+      "next_action": "download deferred payloads to SAS, verify checksums, then build processed transport tensors",
+      "public_data_summary": {
+        "deferred_bytes": 309688648974,
+        "deferred_files": 52,
+        "files": 52,
+        "local_files": 0,
+        "manifests": [
+          {
+            "deferred_files": 5,
+            "doi": "10.5281/zenodo.3497066",
+            "files": 5,
+            "large_numeric_files_downloaded": false,
+            "large_numeric_files_policy": "deferred: files are multi-GB and should be pulled on storage/GPU target before training or validation campaign",
+            "licence": "cc-by-4.0",
+            "local_files": 0,
+            "path": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reference_data/qlknn/zenodo_3497066/files_manifest.json",
+            "record_sha256": "77d168ed8a7fb84f7d60308a051943b9a00ebbd486812c28e9063e8e41b8b9ae",
+            "title": "QLKNN10D training set"
+          },
+          {
+            "deferred_files": 1,
+            "doi": "10.5281/zenodo.7418108",
+            "files": 1,
+            "large_numeric_files_downloaded": false,
+            "large_numeric_files_policy": "deferred: files are multi-GB and should be pulled on storage/GPU target before training or validation campaign",
+            "licence": "cc-by-4.0",
+            "local_files": 0,
+            "path": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reference_data/qlknn/zenodo_7418108/files_manifest.json",
+            "record_sha256": "cd266e822811f94abbe646887d24fd39521185d37619a22612a142c5af9e4145",
+            "title": "QuaLiKiz-v2.6.2 linear instability spectra based on JET experimental plasma profiles"
+          },
+          {
+            "deferred_files": 46,
+            "doi": "10.5281/zenodo.8017522",
+            "files": 46,
+            "large_numeric_files_downloaded": false,
+            "large_numeric_files_policy": "deferred: files are multi-GB and should be pulled on storage/GPU target before training or validation campaign",
+            "licence": "cc-by-4.0",
+            "local_files": 0,
+            "path": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reference_data/qlknn/zenodo_8017522/files_manifest.json",
+            "record_sha256": "6d0c58e6edad7cc25a5aa53d220f8134b75d6c87086e1aefb2a807b49442efc5",
+            "title": "QLKNN11D training set"
+          }
+        ],
+        "records": 3,
+        "status": "pass"
+      },
+      "status": "manifested_large_payloads_deferred"
+    },
+    {
+      "id": "external_efit_pefit_or_diiid_equilibrium",
+      "next_action": "acquire matched public EFIT/P-EFIT, GEQDSK, or MDSplus-derived reconstruction artefacts",
+      "status": "external_material_required"
+    },
+    {
+      "id": "sparc_or_public_geqdsk_equilibrium",
+      "next_action": "seal redistributable GEQDSK/EQDSK artefacts with source policy and SHA-256 manifests",
+      "status": "external_material_required"
+    }
+  ],
+  "run_order": [
+    "Re-run the MAST EFM dataset readiness check before any campaign.",
+    "Implement the full-output trainer as a separate commit; default it to dry-run or explicit --execute.",
+    "Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.",
+    "Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.",
+    "Keep all predictive and facility claims blocked until strict admission reports pass."
+  ],
+  "sas_root": "/mnt/data_sas/DATASETS/SCPN-CONTROL",
+  "schema_version": "scpn-control.neural-equilibrium-training-campaign-plan.v1",
+  "status": "prepared"
+}

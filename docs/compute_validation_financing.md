@@ -80,6 +80,35 @@ CPU/HPC resources are also needed. Formal verification is mostly CPU/RAM-bound,
 and external tools such as TRANSP, TSC, TGLF, GENE, GS2, CGYRO, and QuaLiKiz may
 require CPU clusters, facility licences, or code-specific runtime environments.
 
+## Prepared neural-equilibrium campaign budget
+
+The MAST EFM neural-equilibrium dataset is prepared on ML350 SAS and can be
+checked without launching long training jobs:
+
+```bash
+python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload --verified-sas-payload
+```
+
+The generated reports
+`validation/reports/neural_equilibrium_training_campaign_plan.json` and
+`validation/reports/neural_equilibrium_training_campaign_plan.md` record the
+prepared MAST EFM payload, deferred QLKNN/QuaLiKiz public-data lane, external
+EFIT/P-EFIT dataset requirements, and GPU-hour estimates. Current planning
+budgets are:
+
+| Scenario | Minimum GPU-h | Nominal GPU-h | Upper GPU-h | Storage |
+|---|---:|---:|---:|---:|
+| MAST EFM readiness smoke | 0 | 1 | 3 | 0.05 TB |
+| MAST EFM single-seed full-output trainer | 2 | 6 | 12 | 0.1 TB |
+| MAST EFM multi-seed ablation and uncertainty | 30 | 80 | 180 | 0.5 TB |
+| QLKNN/QuaLiKiz payload processing and baseline training | 100 | 350 | 900 | 2 TB |
+| External EFIT/P-EFIT or DIII-D equilibrium set | 20 | 120 | 400 | 1 TB |
+| Publication-grade equilibrium campaign | 500 | 1,500 | 4,000 | 4 TB |
+
+These are estimates for planning and financing. They are not benchmark claims.
+The MAST EFM dataset is prepared, but predictive EFIT/P-EFIT admission remains
+blocked until a full-output trainer and strict holdout admission artefacts exist.
+
 ## What support pays for
 
 Funding is used for concrete, auditable work products:

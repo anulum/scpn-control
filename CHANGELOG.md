@@ -10,6 +10,7 @@
 - Regenerated the capability manifest and README capability snapshot from the current tree.
 - Added a repository-published MAST EFM neural-equilibrium campaign report that aggregates the six-shot public EFM evaluation, records SAS-relative artefact references and digests, and keeps predictive EFIT/P-EFIT admission blocked pending full-output evidence.
 - Added a SAS-hosted MAST EFM neural-equilibrium supervised dataset builder and repository-published dataset evidence report with deterministic shot-held-out train, validation, and test splits, padded LCFS geometry metadata, SHA-256 traceability, and an explicit block on predictive EFIT/P-EFIT admission pending full-output model validation.
+- Added a neural-equilibrium training-campaign planner that verifies prepared MAST EFM SAS payloads, tracks deferred QLKNN/QuaLiKiz and external EFIT/P-EFIT dataset lanes, publishes run-order evidence, and records GPU-hour planning budgets without launching long training jobs.
 
 ## [0.19.3] - 2026-06-01
 

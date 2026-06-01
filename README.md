@@ -126,9 +126,9 @@ certification throughout the documentation.
 | Python public classes | 483 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
-| Validation scripts | 82 |
+| Validation scripts | 83 |
 | Optional extras | 17 |
-| Python test files | 292 |
+| Python test files | 293 |
 | Public documentation pages | 36 |
 | GitHub Actions workflows | 8 |
 

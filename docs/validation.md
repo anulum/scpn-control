@@ -546,6 +546,23 @@ for training and holdout evaluation, but predictive EFIT/P-EFIT admission
 remains blocked until a full-output model passes declared tolerances for flux,
 pressure, q-profile, LCFS geometry, and magnetic-axis outputs.
 
+Training is prepared as an explicit campaign plan rather than launched during
+documentation or release work:
+
+```bash
+python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload --verified-sas-payload
+```
+
+The generated plan is checked in as
+`validation/reports/neural_equilibrium_training_campaign_plan.json` and
+`validation/reports/neural_equilibrium_training_campaign_plan.md`. It records
+the ML350-verified MAST EFM SAS payload, deferred QLKNN/QuaLiKiz public-data
+payloads, external EFIT/P-EFIT dataset requirements, run order, and GPU-hour
+planning budgets. It deliberately does not launch training. The next executable
+work item is a separate full-output trainer that defaults to dry-run or an
+explicit `--execute` flag and publishes compact holdout metrics before any
+multi-seed campaign.
+
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 
 ```bash
