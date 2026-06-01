@@ -301,7 +301,10 @@ an optional link to the safety-critical controller proof artifact digest.
 Admission revalidates finite non-negative audit losses and errors, tolerance
 agreement with campaign metadata, unique in-domain sampled audit indices,
 pass/fail consistency with maximum audit error, and ordered latency percentiles
-before persisted controller-tuning evidence is accepted.
+before persisted controller-tuning evidence is accepted. Latency reports also
+bind runtime provenance for later CPU/GPU comparison: Python version, platform,
+machine class, JAX and jaxlib versions, default backend, visible JAX devices,
+and x64 state.
 `transport_full_fidelity_readiness_evidence()` and
 `assert_transport_full_fidelity_claim_ready()` add the stricter promotion gate
 for full-fidelity differentiable-transport claims. The gate binds campaign

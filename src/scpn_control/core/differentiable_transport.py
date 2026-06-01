@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import platform
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -122,6 +124,23 @@ class TransportGradientAudit:
 
 
 @dataclass(frozen=True)
+class TransportRuntimeMetadata:
+    """Runtime provenance for differentiable transport latency evidence."""
+
+    schema_version: int
+    measured_at_unix_s: float
+    python_version: str
+    platform: str
+    machine: str
+    processor: str
+    jax_version: str
+    jaxlib_version: str
+    jax_default_backend: str
+    jax_devices: tuple[str, ...]
+    jax_enable_x64: bool
+
+
+@dataclass(frozen=True)
 class TransportGradientLatencyReport:
     """Latency evidence for audited differentiable transport tuning gradients."""
 
@@ -135,6 +154,7 @@ class TransportGradientLatencyReport:
     p50_ms: float
     p95_ms: float
     max_ms: float
+    runtime_metadata: TransportRuntimeMetadata
     audit: TransportGradientAudit
     claim_status: str
 
@@ -154,6 +174,7 @@ class TransportRolloutGradientLatencyReport:
     p50_ms: float
     p95_ms: float
     max_ms: float
+    runtime_metadata: TransportRuntimeMetadata
     audit: TransportRolloutGradientAudit
     claim_status: str
 
@@ -223,6 +244,32 @@ class TransportFullFidelityReadinessEvidence:
 def has_jax() -> bool:
     """Return whether the differentiable JAX transport path is available."""
     return _HAS_JAX
+
+
+def transport_runtime_metadata() -> TransportRuntimeMetadata:
+    """Return runtime provenance for audited JAX transport latency reports."""
+
+    if not _HAS_JAX or jax is None:
+        raise RuntimeError("transport runtime metadata requires JAX")
+    try:
+        import jaxlib
+
+        jaxlib_version = str(getattr(jaxlib, "__version__", "unknown"))
+    except ImportError:
+        jaxlib_version = "unknown"
+    return TransportRuntimeMetadata(
+        schema_version=1,
+        measured_at_unix_s=float(time.time()),
+        python_version=sys.version.split()[0],
+        platform=platform.platform(),
+        machine=platform.machine(),
+        processor=platform.processor(),
+        jax_version=str(getattr(jax, "__version__", "unknown")),
+        jaxlib_version=jaxlib_version,
+        jax_default_backend=str(jax.default_backend()),
+        jax_devices=tuple(str(device) for device in jax.devices()),
+        jax_enable_x64=bool(jax.config.read("jax_enable_x64")),
+    )
 
 
 def _canonical_sha256(value: Any) -> str:
@@ -2191,6 +2238,7 @@ def benchmark_transport_parameter_gradient_latency(
         p50_ms=_percentile(sorted_latencies, 0.50),
         p95_ms=_percentile(sorted_latencies, 0.95),
         max_ms=float(max(sorted_latencies)),
+        runtime_metadata=transport_runtime_metadata(),
         audit=audit,
         claim_status="local audited gradient-admission latency only; not a real-time control-loop guarantee",
     )
@@ -2287,6 +2335,7 @@ def benchmark_transport_rollout_source_gradient_latency(
         p50_ms=_percentile(sorted_latencies, 0.50),
         p95_ms=_percentile(sorted_latencies, 0.95),
         max_ms=float(max(sorted_latencies)),
+        runtime_metadata=transport_runtime_metadata(),
         audit=audit,
         claim_status="local audited rollout source-gradient latency only; not a real-time control-loop guarantee",
     )
@@ -2327,6 +2376,7 @@ def _validate_transport_gradient_latency_report(report: TransportGradientLatency
         p95_ms=report.p95_ms,
         max_ms=report.max_ms,
     )
+    _validate_transport_runtime_metadata(report.runtime_metadata)
     metadata = TransportCampaignMetadata(
         backend=report.backend,
         dtype=report.dtype,
@@ -2361,6 +2411,7 @@ def _validate_transport_rollout_gradient_latency_report(report: TransportRollout
         p95_ms=report.p95_ms,
         max_ms=report.max_ms,
     )
+    _validate_transport_runtime_metadata(report.runtime_metadata)
     _require_int("n_steps", report.n_steps, minimum=1)
     metadata = TransportCampaignMetadata(
         backend=report.backend,
@@ -2408,6 +2459,33 @@ def _validate_latency_common(
     maximum = _require_nonnegative_finite("max_ms", max_ms)
     if not (p50 <= p95 <= maximum):
         raise ValueError("transport latency report percentiles must satisfy p50 <= p95 <= max")
+
+
+def _validate_transport_runtime_metadata(metadata: TransportRuntimeMetadata) -> None:
+    if not isinstance(metadata, TransportRuntimeMetadata):
+        raise ValueError("transport latency report runtime_metadata is invalid")
+    if metadata.schema_version != 1:
+        raise ValueError("transport runtime metadata schema_version is unsupported")
+    _require_nonnegative_finite("measured_at_unix_s", metadata.measured_at_unix_s)
+    for name in (
+        "python_version",
+        "platform",
+        "machine",
+        "jax_version",
+        "jaxlib_version",
+        "jax_default_backend",
+    ):
+        value = getattr(metadata, name)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"transport runtime metadata {name} must be a non-empty string")
+    if not isinstance(metadata.processor, str):
+        raise ValueError("transport runtime metadata processor must be a string")
+    if not isinstance(metadata.jax_devices, tuple) or not metadata.jax_devices:
+        raise ValueError("transport runtime metadata jax_devices must be a non-empty tuple")
+    if not all(isinstance(device, str) and device for device in metadata.jax_devices):
+        raise ValueError("transport runtime metadata jax_devices must contain non-empty strings")
+    if not isinstance(metadata.jax_enable_x64, bool):
+        raise ValueError("transport runtime metadata jax_enable_x64 must be boolean")
 
 
 def _require_nonnegative_finite(name: str, value: float) -> float:

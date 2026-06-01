@@ -843,8 +843,11 @@ otherwise publish a blocked-backend status. Persisted evidence fails closed on
 non-finite or negative audit losses/errors, tolerance drift from campaign
 metadata, duplicate or out-of-domain sampled audit indices, inconsistent
 pass/fail flags, malformed latency run counts, and unordered latency
-percentiles. The standalone validator admits those persisted reports before
-they are used as release evidence. The rollout source-gradient loss remains inside the traced JAX
+percentiles. The same admission path now binds runtime provenance for CPU/GPU
+comparison campaigns, including Python version, operating platform, machine
+class, JAX and jaxlib versions, default backend, visible JAX devices, and x64
+state. The standalone validator admits those persisted reports before they are
+used as release evidence. The rollout source-gradient loss remains inside the traced JAX
 graph, and the module enables JAX x64 before importing `jax.numpy` so benchmark
 dtype evidence matches the requested differentiable transport precision.
 Full-fidelity differentiable-transport claims additionally require the

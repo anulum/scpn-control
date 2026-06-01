@@ -21,7 +21,7 @@
   "counts": {
     "project_script_count": 2,
     "public_api_export_count": 44,
-    "public_class_count": 482,
+    "public_class_count": 483,
     "public_markdown_count": 34,
     "pyo3_export_count": 27,
     "python_test_file_count": 288,
@@ -596,6 +596,7 @@
       "TransportRolloutGradientAudit",
       "TransportRolloutGradientLatencyReport",
       "TransportRolloutSourceGradients",
+      "TransportRuntimeMetadata",
       "TransportSolver",
       "TransportSourceRolloutGradientAudit",
       "TransportSourceRolloutTuningResult",

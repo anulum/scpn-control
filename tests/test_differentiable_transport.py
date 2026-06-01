@@ -27,6 +27,22 @@ def _profiles(rho: np.ndarray) -> np.ndarray:
     return np.stack([te, ti, ne, nz])
 
 
+def _runtime_metadata() -> dt.TransportRuntimeMetadata:
+    return dt.TransportRuntimeMetadata(
+        schema_version=1,
+        measured_at_unix_s=1_717_171_717.0,
+        python_version="3.12.0",
+        platform="Linux-test",
+        machine="x86_64",
+        processor="",
+        jax_version="0.6.2",
+        jaxlib_version="0.6.2",
+        jax_default_backend="cpu",
+        jax_devices=("TFRT_CPU_0",),
+        jax_enable_x64=True,
+    )
+
+
 def test_numpy_transport_step_diffuses_all_channels_and_applies_boundaries():
     rho = np.linspace(0.05, 1.0, 48)
     profiles = _profiles(rho)
@@ -1159,6 +1175,7 @@ def test_transport_latency_report_persistence_rejects_invalid_percentile_contrac
         p50_ms=3.0,
         p95_ms=2.0,
         max_ms=4.0,
+        runtime_metadata=_runtime_metadata(),
         audit=audit,
         claim_status="local audited gradient-admission latency only; not a real-time control-loop guarantee",
     )
@@ -1188,6 +1205,7 @@ def test_transport_rollout_latency_report_persistence_rejects_invalid_audit_indi
         p50_ms=1.0,
         p95_ms=2.0,
         max_ms=3.0,
+        runtime_metadata=_runtime_metadata(),
         audit=audit,
         claim_status="local audited rollout source-gradient latency only; not a real-time control-loop guarantee",
     )
@@ -1377,6 +1395,7 @@ def test_transport_latency_report_persistence_rejects_malformed_timing_and_audit
         p50_ms=1.0,
         p95_ms=1.2,
         max_ms=1.4,
+        runtime_metadata=_runtime_metadata(),
         audit=audit,
         claim_status="local audited gradient-admission latency only",
     )
@@ -1394,6 +1413,7 @@ def test_transport_latency_report_persistence_rejects_malformed_timing_and_audit
         p50_ms=1.3,
         p95_ms=1.2,
         max_ms=1.4,
+        runtime_metadata=_runtime_metadata(),
         audit=audit,
         claim_status="local audited gradient-admission latency only",
     )
@@ -1411,6 +1431,7 @@ def test_transport_latency_report_persistence_rejects_malformed_timing_and_audit
         p50_ms=1.0,
         p95_ms=1.2,
         max_ms=1.4,
+        runtime_metadata=_runtime_metadata(),
         audit=dt.TransportGradientAudit(
             loss=0.125,
             epsilon=1.0e-5,
@@ -1537,6 +1558,7 @@ def _transport_readiness_fixture():
         p50_ms=3.0,
         p95_ms=4.0,
         max_ms=4.5,
+        runtime_metadata=_runtime_metadata(),
         audit=gradient_audit,
         claim_status="local audited gradient-admission latency only",
     )
@@ -1560,6 +1582,7 @@ def _transport_readiness_fixture():
         p50_ms=6.0,
         p95_ms=8.0,
         max_ms=9.0,
+        runtime_metadata=_runtime_metadata(),
         audit=rollout_audit,
         claim_status="local audited rollout source-gradient latency only",
     )

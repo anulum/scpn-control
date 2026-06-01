@@ -14,11 +14,16 @@ a real-time control-loop guarantee.
 
 - Backend: `jax`
 - dtype: `float64`
+- Runtime platform: `Linux-6.17.0-29-generic-x86_64-with-glibc2.39`
+- Runtime machine: `x86_64`
+- JAX default backend: `gpu`
+- JAX devices: `cuda:0`
+- JAX x64 enabled: `True`
 - Radial points: `21`
 - Rollout steps: `4`
 - Timed runs: `5`
 - Audit passed: `True`
-- P50 latency [ms]: `1619.318969`
-- P95 latency [ms]: `1716.828626`
-- Max latency [ms]: `1730.490974`
+- P50 latency [ms]: `1201.177850`
+- P95 latency [ms]: `1262.188181`
+- Max latency [ms]: `1262.571762`
 - Claim boundary: `local audited rollout source-gradient latency only; not a real-time control-loop guarantee`

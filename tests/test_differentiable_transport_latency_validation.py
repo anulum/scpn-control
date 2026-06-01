@@ -16,6 +16,22 @@ from pathlib import Path
 from validation.validate_differentiable_transport_latency import validate_differentiable_transport_latency
 
 
+def _runtime_metadata() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "measured_at_unix_s": 1_717_171_717.0,
+        "python_version": "3.12.0",
+        "platform": "Linux-test",
+        "machine": "x86_64",
+        "processor": "",
+        "jax_version": "0.6.2",
+        "jaxlib_version": "0.6.2",
+        "jax_default_backend": "cpu",
+        "jax_devices": ["TFRT_CPU_0"],
+        "jax_enable_x64": True,
+    }
+
+
 def _one_step_report() -> dict[str, object]:
     return {
         "schema_version": 1,
@@ -28,6 +44,7 @@ def _one_step_report() -> dict[str, object]:
         "p50_ms": 10.0,
         "p95_ms": 12.0,
         "max_ms": 13.0,
+        "runtime_metadata": _runtime_metadata(),
         "claim_status": "local audited gradient-admission latency only; not a real-time control-loop guarantee",
         "audit": {
             "loss": 0.1,
@@ -158,6 +175,20 @@ def test_differentiable_transport_latency_rejects_failed_audit(tmp_path: Path) -
 
     assert report["status"] == "fail"
     assert any(error["field"] == "audit.passed" for error in report["errors"])
+
+
+def test_differentiable_transport_latency_rejects_missing_runtime_metadata(tmp_path: Path) -> None:
+    one_step_payload = _one_step_report()
+    one_step_payload.pop("runtime_metadata")
+    one_step = tmp_path / "one_step.json"
+    rollout = tmp_path / "rollout.json"
+    one_step.write_text(json.dumps(one_step_payload), encoding="utf-8")
+    rollout.write_text(json.dumps(_rollout_report()), encoding="utf-8")
+
+    report = validate_differentiable_transport_latency(one_step, rollout)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "runtime_metadata" for error in report["errors"])
 
 
 def test_differentiable_transport_latency_rejects_duplicate_keys(tmp_path: Path) -> None:

@@ -29,10 +29,25 @@
   "channel_count": 4,
   "claim_status": "local audited gradient-admission latency only; not a real-time control-loop guarantee",
   "dtype": "float64",
-  "max_ms": 24.79153,
+  "max_ms": 33.862582,
   "n_rho": 21,
-  "p50_ms": 17.999959,
-  "p95_ms": 24.193632400000002,
+  "p50_ms": 27.174822,
+  "p95_ms": 33.4666814,
+  "runtime_metadata": {
+    "jax_default_backend": "gpu",
+    "jax_devices": [
+      "cuda:0"
+    ],
+    "jax_enable_x64": true,
+    "jax_version": "0.6.2",
+    "jaxlib_version": "0.6.2",
+    "machine": "x86_64",
+    "measured_at_unix_s": 1780323476.0794644,
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python_version": "3.12.3",
+    "schema_version": 1
+  },
   "schema_version": 1,
   "timed_runs": 5,
   "warmup_runs": 1

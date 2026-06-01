@@ -211,6 +211,7 @@ def _validate_report(
     if not _positive_int(payload.get("timed_runs")):
         errors.append({"path": str(path), "field": "timed_runs", "error": "timed_runs must be a positive integer"})
     _validate_latency_order(path, payload, errors)
+    _validate_runtime_metadata(path, payload.get("runtime_metadata"), errors)
     _validate_audit(path, payload, kind, errors)
 
     status = "pass"
@@ -267,6 +268,68 @@ def _validate_latency_order(path: Path, payload: dict[str, Any], errors: list[di
                 "path": str(path),
                 "field": "latency",
                 "error": "latency percentiles must satisfy p50_ms <= p95_ms <= max_ms",
+            }
+        )
+
+
+def _validate_runtime_metadata(path: Path, metadata: object, errors: list[dict[str, object]]) -> None:
+    if not isinstance(metadata, dict):
+        errors.append({"path": str(path), "field": "runtime_metadata", "error": "runtime metadata must be an object"})
+        return
+    _require_value(path, metadata, "schema_version", 1, errors)
+    measured = _finite_positive(metadata.get("measured_at_unix_s"))
+    if measured is None:
+        errors.append(
+            {
+                "path": str(path),
+                "field": "runtime_metadata.measured_at_unix_s",
+                "error": "measurement timestamp must be positive and finite",
+            }
+        )
+    for field in (
+        "python_version",
+        "platform",
+        "machine",
+        "jax_version",
+        "jaxlib_version",
+        "jax_default_backend",
+    ):
+        value = metadata.get(field)
+        if not isinstance(value, str) or not value:
+            errors.append(
+                {
+                    "path": str(path),
+                    "field": f"runtime_metadata.{field}",
+                    "error": "field must be a non-empty string",
+                }
+            )
+    if not isinstance(metadata.get("processor"), str):
+        errors.append(
+            {
+                "path": str(path),
+                "field": "runtime_metadata.processor",
+                "error": "field must be a string",
+            }
+        )
+    devices = metadata.get("jax_devices")
+    if (
+        not isinstance(devices, list)
+        or not devices
+        or not all(isinstance(device, str) and device for device in devices)
+    ):
+        errors.append(
+            {
+                "path": str(path),
+                "field": "runtime_metadata.jax_devices",
+                "error": "field must be a non-empty string list",
+            }
+        )
+    if not isinstance(metadata.get("jax_enable_x64"), bool):
+        errors.append(
+            {
+                "path": str(path),
+                "field": "runtime_metadata.jax_enable_x64",
+                "error": "field must be boolean",
             }
         )
 
