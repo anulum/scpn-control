@@ -1138,22 +1138,27 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate onset temperatures and density limits against measured or published MARFE cases",
-        "Add impurity-specific radiation tables or documented provenance for each supported impurity species"
+        "Add impurity-specific radiation tables or documented provenance for each supported impurity species",
+        "Keep full-fidelity MARFE density-limit claims blocked until measured MARFE campaign or documented public reference artifacts pass the strict admission gate"
       ],
       "unit_contract": "Temperature in eV, density in m^-3, power in MW or W with explicit conversion, plasma current in MA or A with convention metadata, impurity fraction dimensionless on (0, 1], connection length in metres.",
       "validation_evidence": [
         "tests/test_marfe.py",
+        "tests/test_marfe_reference_validation.py strict reference-artifact admission checks",
+        "validation/validate_marfe_reference.py strict digest-bound MARFE reference gate",
         "tests/test_cross_module_physics.py"
       ],
       "evidence_paths": [
         "tests/test_marfe.py",
+        "tests/test_marfe_reference_validation.py",
+        "validation/validate_marfe_reference.py",
         "tests/test_cross_module_physics.py",
         "src/scpn_control/core/marfe.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/marfe.py"
       ],
-      "validity_domain": "Radiation-condensation and density-limit regression with fail-closed front-temperature state checks; not a facility-validated MARFE prediction model.",
+      "validity_domain": "Radiation-condensation and density-limit regression with fail-closed front-temperature state checks plus a fail-closed, schema-versioned, digest-bound reference-artifact gate; not a facility-validated MARFE prediction model until measured MARFE campaign or documented public artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {

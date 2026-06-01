@@ -5,6 +5,17 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added strict MARFE radiation-condensation reference-artifact admission so
+  full-fidelity onset-temperature, density-limit, Greenwald-fraction,
+  front-temperature, radiative-growth, impurity-fraction, connection-length,
+  and power-balance claims require schema-versioned
+  `scpn-control.marfe-reference.v1` evidence with measured MARFE campaign or
+  documented public-reference provenance, safe temperature-profile,
+  density-limit, radiation-curve, and power-balance artifact URIs, SHA-256
+  digests for every artifact and the canonical payload, MARFE unit contracts,
+  ordered temperature and density scans, bounded impurity-fraction domains,
+  finite tokamak geometry and power-balance metadata, tolerance-checked
+  physical metrics, and module-specific tamper/domain tests.
 - Added strict EPED pedestal reference-artifact admission so full-fidelity
   pedestal height, pedestal width, peeling-ballooning pressure-limit,
   bootstrap-current, collisionality-width-ordering, and shaping-input claims

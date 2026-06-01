@@ -555,6 +555,26 @@ pedestal-height, pressure-limit, bootstrap-current, and collisionality-order
 metrics inside declared tolerances. Synthetic EPED regressions remain
 module-behaviour checks only.
 
+MARFE radiation-condensation and density-limit validation claims require
+measured MARFE campaign or documented public reference artifacts for onset
+temperature, density-limit, Greenwald fraction, front-temperature, and
+radiative-growth checks:
+
+```bash
+scpn-control validate-marfe-reference --require-reference-artifacts --json-out
+python validation/validate_marfe_reference.py --require-reference-artifacts --output-json artifacts/marfe_reference_report.json
+```
+
+Strict mode fails until `validation/reports/marfe_reference/` contains
+artifacts using schema `scpn-control.marfe-reference.v1` with source
+provenance, safe temperature-profile, density-limit, radiation-curve, and
+power-balance artifact URIs, SHA-256 hashes for each artifact and the canonical
+payload, MARFE unit contracts, strictly ordered temperature and density scans,
+bounded impurity-fraction domains, finite tokamak geometry and power-balance
+metadata, and onset-temperature, density-limit, Greenwald-fraction,
+front-temperature, and radiation-growth metrics inside declared tolerances.
+Synthetic MARFE regressions remain module-behaviour checks only.
+
 Orbit-following validation claims require persisted published-reference or
 real-campaign artifacts for banana-width, first-orbit-loss, and
 passing/trapped/lost classification checks:
