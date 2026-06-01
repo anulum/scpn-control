@@ -5,6 +5,9 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added a GitHub Pages compute-validation financing page that explains GPU-hour,
+  storage, public-data, and external-code validation needs while preserving the
+  repository claim boundary.
 - Added public QLKNN and QuaLiKiz Zenodo acquisition metadata, strict
   public-data acquisition manifest validation, module-specific regression
   tests, and documentation that separates acquired normalised metadata from

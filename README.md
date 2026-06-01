@@ -87,7 +87,7 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Validation scripts | 78 |
 | Optional extras | 17 |
 | Python test files | 288 |
-| Public documentation pages | 32 |
+| Public documentation pages | 33 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -468,7 +468,7 @@ git push --tags
 ## Support the Project
 
 **scpn-control** is open-source (AGPL-3.0-or-later | commercial license available).
-Funding goes to compute, validation data, and development time.
+Funding goes to compute, validation data, and development time. See the GitHub Pages [compute validation funding plan](https://anulum.github.io/scpn-control/compute_validation_financing/) for GPU-hour, storage, public-data, and external-code validation needs.
 
 | | | |
 |---|---|---|

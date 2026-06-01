@@ -48,3 +48,11 @@ cargo test --workspace
 For notebook execution, see [Tutorials](tutorials.md). For parity and CI checks,
 see [Validation and QA](validation.md). For performance methodology, see
 [Benchmarks](benchmarks.md).
+
+## Compute validation campaign
+
+SCPN Control now publishes a dedicated [compute validation funding](compute_validation_financing.md)
+page for GPU, storage, public-data, and external-code validation needs. The page
+keeps the evidence boundary explicit: support funds reproducible validation
+artefacts, and full-fidelity claims remain blocked until those artefacts pass
+the repository admission gates.
