@@ -854,12 +854,28 @@ Full-fidelity differentiable-transport claims additionally require the
 `transport_full_fidelity_readiness_evidence()` promotion gate to bind campaign
 metadata, one-step and rollout latency reports, audit digests, controller
 formal-proof evidence, equilibrium coupling, and an independently admitted
-external reference artifact. When `validation/reports/scpn_z3_formal.json`
+external reference artefact. When `validation/reports/scpn_z3_formal.json`
 contains a passing bounded Z3 Petri-net formal report, the benchmark binds that
 report's canonical payload SHA-256 into differentiable-transport readiness.
 Missing external reference evidence leaves the
 claim explicitly blocked rather than promoted from local differentiability
 evidence.
+
+The TORAX code-to-code transport benchmark publishes its own strict
+external-reference evidence boundary:
+
+```bash
+python validation/code_to_code_benchmark.py --with-torax
+python validation/code_to_code_benchmark.py --with-torax --require-external
+```
+
+The generated `validation/reports/code_to_code_benchmark.json` and Markdown
+summary use the `scpn-control.code-to-code-benchmark.v2` schema, bind the
+scenario and report payloads with SHA-256 digests, and classify TORAX evidence
+as `admitted`, `blocked`, or `not_requested`. External-reference admission
+requires a real TORAX payload plus finite scpn-control, TORAX, and comparison
+metrics. A missing TORAX installation is therefore persisted as blocked
+evidence rather than converted into a full-fidelity transport claim.
 
 Tokamak digital-twin validation claims require persisted public-reference,
 measured-discharge replay, or external integrated-modelling artifacts for grid

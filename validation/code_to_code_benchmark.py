@@ -1,16 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Code To Code Benchmark
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Code-to-Code Benchmark: scpn-control vs TORAX
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Code-to-Code Benchmark
 """
 Benchmark scpn-control transport solver against TORAX on identical scenarios.
 
@@ -23,26 +17,45 @@ and compares:
   - Convergence behaviour
 
 Usage:
-  python -m validation.code_to_code_benchmark [--with-torax]
+  python -m validation.code_to_code_benchmark [--with-torax] [--require-external]
 
 Without --with-torax, only scpn-control is run and results are saved
 for later comparison. With --with-torax, TORAX is imported and run
 on the same scenario (requires `pip install torax`).
 
-Results are saved to validation/reports/code_to_code_benchmark.json.
+Results are saved to validation/reports/code_to_code_benchmark.json and
+validation/reports/code_to_code_benchmark.md.
 """
 
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
+import math
 import pprint
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
+REPORT_SCHEMA_VERSION = "scpn-control.code-to-code-benchmark.v2"
+REPORT_PATH = Path("validation/reports/code_to_code_benchmark.json")
+MARKDOWN_REPORT_PATH = Path("validation/reports/code_to_code_benchmark.md")
 TORAX_TMP_CONFIG = Path("validation/reports/_tmp_torax_c2c_config.py")
+
+
+def _ensure_repo_src_on_path() -> None:
+    """Allow direct script execution from a source checkout without installation."""
+
+    repo_src = str(Path(__file__).resolve().parents[1] / "src")
+    if repo_src not in sys.path:
+        sys.path.insert(0, repo_src)
+
+
+_ensure_repo_src_on_path()
 
 
 # ── Scenario Definition ──────────────────────────────────────────────
@@ -64,6 +77,61 @@ ITER_SCENARIO = {
     "n_steps": 100,
     "t_final": 1.0,  # s
 }
+
+
+def _canonical_json(value: Any) -> str:
+    """Serialise evidence deterministically for SHA-256 binding."""
+
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def _sha256_payload(value: Any) -> str:
+    """Return the canonical SHA-256 digest for a JSON-compatible payload."""
+
+    return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def _payload_without_digest(report: dict[str, Any]) -> dict[str, Any]:
+    """Return a report copy with the self-referential digest field removed."""
+
+    payload = dict(report)
+    payload.pop("payload_sha256", None)
+    return payload
+
+
+def _verify_payload_digest(report: dict[str, Any]) -> bool:
+    """Return true when a persisted benchmark report matches its payload digest."""
+
+    digest = report.get("payload_sha256")
+    if not isinstance(digest, str) or len(digest) != 64:
+        return False
+    return digest == _sha256_payload(_payload_without_digest(report))
+
+
+def _finite_number(value: Any) -> bool:
+    """Return whether a scalar can be safely admitted as finite numeric evidence."""
+
+    return isinstance(value, (int, float, np.integer, np.floating)) and math.isfinite(float(value))
+
+
+def _finite_vector(value: Any) -> bool:
+    """Return whether a vector-like payload is finite and non-empty."""
+
+    try:
+        arr = np.asarray(value, dtype=np.float64)
+    except (TypeError, ValueError):
+        return False
+    return arr.ndim == 1 and arr.size > 0 and bool(np.all(np.isfinite(arr)))
+
+
+def _benchmark_numeric_payload_is_finite(result: dict[str, Any]) -> bool:
+    """Validate the profile and scalar fields needed for external admission."""
+
+    required_vectors = ("rho", "Te_final", "Ti_final")
+    if any(not _finite_vector(result.get(field)) for field in required_vectors):
+        return False
+    optional_scalars = ("Te_avg", "Ti_avg", "wall_time_s", "tau_E_s", "W_thermal_total_J")
+    return all(field not in result or _finite_number(result[field]) for field in optional_scalars)
 
 
 # ── scpn-control run ─────────────────────────────────────────────────
@@ -320,11 +388,154 @@ def _compare_results(scpn: dict, torax: dict | None) -> dict:
     return comparison
 
 
+def _external_reference_status(
+    comparison: dict[str, Any],
+    *,
+    requested_torax: bool,
+) -> dict[str, Any]:
+    """Classify whether the external-code comparison can support admission."""
+
+    torax = comparison.get("torax")
+    metrics = comparison.get("comparison", {})
+    blocked_reasons: list[str] = []
+    if not requested_torax:
+        blocked_reasons.append("torax_not_requested")
+        status = "not_requested"
+    elif torax is None:
+        blocked_reasons.append("torax_not_available_or_failed")
+        status = "blocked"
+    elif not isinstance(torax, dict) or torax.get("code") != "torax":
+        blocked_reasons.append("torax_payload_identity")
+        status = "blocked"
+    elif not _benchmark_numeric_payload_is_finite(torax):
+        blocked_reasons.append("torax_numeric_payload")
+        status = "blocked"
+    elif not isinstance(metrics, dict) or not metrics:
+        blocked_reasons.append("comparison_metrics_missing")
+        status = "blocked"
+    elif any(not _finite_number(value) for value in metrics.values()):
+        blocked_reasons.append("comparison_metrics_non_finite")
+        status = "blocked"
+    else:
+        status = "admitted"
+
+    scpn = comparison.get("scpn_control")
+    if not isinstance(scpn, dict) or scpn.get("code") != "scpn-control":
+        blocked_reasons.append("scpn_payload_identity")
+    elif not _benchmark_numeric_payload_is_finite(scpn):
+        blocked_reasons.append("scpn_numeric_payload")
+
+    if blocked_reasons and status == "admitted":
+        status = "blocked"
+
+    return {
+        "provider": "TORAX",
+        "artifact_kind": "code_to_code_transport_reference",
+        "requested": requested_torax,
+        "admitted": status == "admitted",
+        "status": status,
+        "blocked_reasons": blocked_reasons,
+    }
+
+
+def _build_external_reference_report(
+    comparison: dict[str, Any],
+    scenario: dict[str, Any],
+    *,
+    requested_torax: bool,
+) -> dict[str, Any]:
+    """Build a digest-bound code-to-code external-reference evidence report."""
+
+    report: dict[str, Any] = {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "scenario_name": scenario["name"],
+        "scenario_sha256": _sha256_payload(scenario),
+        "external_reference": _external_reference_status(
+            comparison,
+            requested_torax=requested_torax,
+        ),
+        "benchmark": comparison,
+        "claim_boundary": (
+            "Admits only a code-to-code transport comparison when TORAX runs "
+            "successfully on the declared scenario; otherwise full-fidelity "
+            "external-reference claims remain blocked."
+        ),
+    }
+    report["payload_sha256"] = _sha256_payload(report)
+    return report
+
+
+def _write_markdown_report(report: dict[str, Any], path: Path = MARKDOWN_REPORT_PATH) -> None:
+    """Write a human-readable summary of the code-to-code evidence report."""
+
+    external = report["external_reference"]
+    metrics = report["benchmark"].get("comparison", {})
+    metric_lines = (
+        [f"- `{name}`: `{value}`" for name, value in sorted(metrics.items())]
+        if metrics
+        else ["- No comparison metrics admitted."]
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\n".join(
+            [
+                "# TORAX Code-to-Code Benchmark Evidence",
+                "",
+                f"- Schema: `{report['schema_version']}`",
+                f"- Scenario: `{report['scenario_name']}`",
+                f"- Scenario digest: `{report['scenario_sha256']}`",
+                f"- External provider: `{external['provider']}`",
+                f"- External status: `{external['status']}`",
+                f"- External admitted: `{external['admitted']}`",
+                f"- Blocked reasons: `{', '.join(external['blocked_reasons']) or 'none'}`",
+                f"- Payload digest: `{report['payload_sha256']}`",
+                f"- Claim boundary: {report['claim_boundary']}",
+                "",
+                "## Comparison metrics",
+                "",
+                *metric_lines,
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 # ── Main ──────────────────────────────────────────────────────────────
 
 
-def main():
-    with_torax = "--with-torax" in sys.argv
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse code-to-code benchmark command-line options."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--with-torax",
+        action="store_true",
+        help="Run TORAX and admit the report only when the external comparison succeeds.",
+    )
+    parser.add_argument(
+        "--require-external",
+        action="store_true",
+        help="Exit non-zero if the TORAX external-reference comparison is not admitted.",
+    )
+    parser.add_argument(
+        "--json-out",
+        type=Path,
+        default=REPORT_PATH,
+        help="Path for the schema-versioned JSON evidence report.",
+    )
+    parser.add_argument(
+        "--markdown-out",
+        type=Path,
+        default=MARKDOWN_REPORT_PATH,
+        help="Path for the Markdown evidence summary.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    with_torax = bool(args.with_torax)
 
     print(f"Running code-to-code benchmark: {ITER_SCENARIO['name']}")
     print("=" * 60)
@@ -348,21 +559,31 @@ def main():
 
     print("\n[3/3] Comparing results...")
     comparison = _compare_results(scpn_result, torax_result)
+    report = _build_external_reference_report(
+        comparison,
+        ITER_SCENARIO,
+        requested_torax=with_torax,
+    )
 
-    report_dir = Path("validation/reports")
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / "code_to_code_benchmark.json"
+    args.json_out.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.json_out, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2)
+        f.write("\n")
+    _write_markdown_report(report, args.markdown_out)
 
-    with open(report_path, "w") as f:
-        json.dump(comparison, f, indent=2)
-
-    print(f"\nResults saved to {report_path}")
+    print(f"\nResults saved to {args.json_out}")
+    print(f"Summary saved to {args.markdown_out}")
+    print(f"External reference status: {report['external_reference']['status']}")
 
     if comparison["comparison"]:
         print("\nComparison metrics:")
         for k, v in comparison["comparison"].items():
             print(f"  {k}: {v}")
 
+    if args.require_external and not report["external_reference"]["admitted"]:
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

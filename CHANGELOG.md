@@ -5,6 +5,12 @@
 ## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Hardened the TORAX code-to-code benchmark evidence boundary with a
+  schema-versioned JSON/Markdown report, canonical scenario and payload
+  SHA-256 digests, direct source-checkout execution support, explicit
+  admitted/blocked/not-requested external-reference states, finite-metric
+  admission checks, and a `--require-external` gate that fails closed unless a
+  real TORAX comparison is present.
 - Added a fail-closed differentiable-transport full-fidelity readiness gate
   that binds campaign metadata, one-step and rollout latency reports, gradient
   audit digests, controller formal-proof digests, equilibrium-coupled metadata,

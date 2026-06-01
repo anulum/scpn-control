@@ -269,7 +269,35 @@ It is not a real-time control-loop guarantee and does not replace external
 transport validation. Full-fidelity differentiable-transport promotion must
 also pass `transport_full_fidelity_readiness_evidence()` with bound one-step and
 rollout reports, controller proof digest, equilibrium-coupled campaign
-metadata, and an admitted external reference artifact.
+metadata, and an admitted external reference artefact.
+
+## TORAX Code-to-Code External-Reference Evidence
+
+`validation/code_to_code_benchmark.py` runs the local transport stack on a
+declared ITER-like scenario and can optionally execute TORAX on the same
+scenario. The script now emits schema-versioned JSON and Markdown evidence with
+a canonical payload digest, scenario digest, external-reference status, blocked
+reasons, and finite comparison metrics when TORAX is available.
+
+Report artefacts:
+
+- `validation/reports/code_to_code_benchmark.json`
+- `validation/reports/code_to_code_benchmark.md`
+
+Admission commands:
+
+```bash
+python validation/code_to_code_benchmark.py --with-torax
+python validation/code_to_code_benchmark.py --with-torax --require-external
+```
+
+`--require-external` exits non-zero unless TORAX actually runs and the report
+contains finite scpn-control and TORAX profile/comparison payloads. Reports
+without TORAX remain explicit blocked evidence and do not satisfy full-fidelity
+external-reference requirements. The current local evidence run executed the
+scpn-control scenario path with average `Te=8.142 keV`, average `Ti=8.109 keV`,
+energy-balance error `1.3548e-02`, particle-balance error `7.4357e-03`, and
+blocked TORAX admission because TORAX is not installed in this environment.
 
 ## End-to-End Control Latency Evidence
 

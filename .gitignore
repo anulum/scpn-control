@@ -60,6 +60,7 @@ site/
 
 # Local generated validation reports
 validation/reports/code_to_code_benchmark.json
+validation/reports/code_to_code_benchmark.md
 
 # Streamlit (allow config.toml for Cloud deployment)
 .streamlit/secrets.toml

@@ -9,6 +9,9 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import numpy as np
 
 from validation import code_to_code_benchmark as c2c
@@ -71,6 +74,15 @@ def test_torax_config_maps_scenario_fields() -> None:
     assert cfg["geometry"]["B_0"] == c2c.ITER_SCENARIO["B0"]
     assert cfg["geometry"]["n_rho"] == c2c.ITER_SCENARIO["n_rho"]
     assert cfg["sources"]["generic_heat"]["P_total"] == c2c.ITER_SCENARIO["P_aux"] * 1.0e6
+
+
+def test_repo_src_bootstrap_supports_direct_script_execution(monkeypatch) -> None:
+    repo_src = str(Path(c2c.__file__).resolve().parents[1] / "src")
+    monkeypatch.setattr(sys, "path", [entry for entry in sys.path if entry != repo_src])
+
+    c2c._ensure_repo_src_on_path()
+
+    assert sys.path[0] == repo_src
 
 
 def test_extract_torax_result_reads_profiles_and_scalars() -> None:
@@ -137,3 +149,75 @@ def test_compare_results_keeps_electron_metrics_when_torax_omits_ion_profile() -
     assert result["comparison"]["Te_rmse_keV"] > 0.0
     assert "Ti_rmse_keV" not in result["comparison"]
     assert result["comparison"]["torax_tau_E_s"] == 1.1
+
+
+def test_external_reference_report_blocks_when_torax_was_not_requested() -> None:
+    scpn = {
+        "code": "scpn-control",
+        "scenario": c2c.ITER_SCENARIO["name"],
+        "rho": [0.0, 1.0],
+        "Te_final": [8.0, 1.0],
+        "Ti_final": [7.0, 1.0],
+    }
+
+    report = c2c._build_external_reference_report(
+        c2c._compare_results(scpn, None),
+        c2c.ITER_SCENARIO,
+        requested_torax=False,
+    )
+
+    assert report["schema_version"] == c2c.REPORT_SCHEMA_VERSION
+    assert report["external_reference"]["admitted"] is False
+    assert report["external_reference"]["status"] == "not_requested"
+    assert report["external_reference"]["blocked_reasons"] == ["torax_not_requested"]
+    assert c2c._verify_payload_digest(report) is True
+
+
+def test_external_reference_report_admits_real_torax_comparison() -> None:
+    scpn = {
+        "code": "scpn-control",
+        "scenario": c2c.ITER_SCENARIO["name"],
+        "rho": [0.0, 0.5, 1.0],
+        "Te_final": [8.0, 5.0, 1.0],
+        "Ti_final": [7.0, 4.0, 1.0],
+    }
+    torax = {
+        "code": "torax",
+        "scenario": c2c.ITER_SCENARIO["name"],
+        "status": "done",
+        "rho": [0.0, 0.5, 1.0],
+        "Te_final": [7.9, 5.1, 1.1],
+        "Ti_final": [7.1, 4.1, 1.0],
+        "tau_E_s": 1.1,
+    }
+
+    report = c2c._build_external_reference_report(
+        c2c._compare_results(scpn, torax),
+        c2c.ITER_SCENARIO,
+        requested_torax=True,
+    )
+
+    assert report["external_reference"]["admitted"] is True
+    assert report["external_reference"]["status"] == "admitted"
+    assert report["external_reference"]["blocked_reasons"] == []
+    assert report["external_reference"]["provider"] == "TORAX"
+    assert report["scenario_sha256"] == c2c._sha256_payload(c2c.ITER_SCENARIO)
+    assert c2c._verify_payload_digest(report) is True
+
+
+def test_external_reference_report_rejects_digest_tampering() -> None:
+    scpn = {
+        "code": "scpn-control",
+        "scenario": c2c.ITER_SCENARIO["name"],
+        "rho": [0.0, 1.0],
+        "Te_final": [8.0, 1.0],
+        "Ti_final": [7.0, 1.0],
+    }
+    report = c2c._build_external_reference_report(
+        c2c._compare_results(scpn, None),
+        c2c.ITER_SCENARIO,
+        requested_torax=True,
+    )
+    report["benchmark"]["scpn_control"]["Te_final"][0] = 12.0
+
+    assert c2c._verify_payload_digest(report) is False
