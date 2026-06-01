@@ -739,7 +739,9 @@ def validate_gk_interface_artifacts_command(
 
 
 @main.command("validate-blob-transport-reference")
-@click.option("--artifact-root", help="Directory or JSON artifact containing persisted blob transport reference evidence")
+@click.option(
+    "--artifact-root", help="Directory or JSON artifact containing persisted blob transport reference evidence"
+)
 @click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--json-out", is_flag=True, help="Emit JSON")

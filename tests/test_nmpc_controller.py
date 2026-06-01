@@ -589,14 +589,13 @@ def test_nmpc_acados_context_manager_closes_solver_after_exception() -> None:
         acados_solver_factory=lambda ocp, **kwargs: ContextAcadosSolver(),
     )
 
-    with pytest.raises(RuntimeError, match="fault after solve"):
-        with nmpc as managed:
-            managed.step(
-                np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]),
-                np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0]),
-                np.array([0.0, 1.0, 0.0]),
-            )
-            raise RuntimeError("fault after solve")
+    with pytest.raises(RuntimeError, match="fault after solve"), nmpc as managed:
+        managed.step(
+            np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]),
+            np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0]),
+            np.array([0.0, 1.0, 0.0]),
+        )
+        raise RuntimeError("fault after solve")
 
     assert freed == [1]
     assert nmpc._acados_solver is None
@@ -638,15 +637,17 @@ def test_nmpc_acados_context_manager_preserves_control_fault_when_free_fails() -
         acados_solver_factory=lambda ocp, **kwargs: FaultingFreeAcadosSolver(),
     )
 
-    with pytest.warns(RuntimeWarning, match="acados backend cleanup failed"):
-        with pytest.raises(RuntimeError, match="control-loop fault"):
-            with nmpc as managed:
-                managed.step(
-                    np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]),
-                    np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0]),
-                    np.array([0.0, 1.0, 0.0]),
-                )
-                raise RuntimeError("control-loop fault")
+    with (
+        pytest.warns(RuntimeWarning, match="acados backend cleanup failed"),
+        pytest.raises(RuntimeError, match="control-loop fault"),
+        nmpc as managed,
+    ):
+        managed.step(
+            np.array([1.0, 1.0, 5.0, 1.0, 2.0, 1.0]),
+            np.array([5.0, 2.0, 3.0, 1.0, 5.0, 2.0]),
+            np.array([0.0, 1.0, 0.0]),
+        )
+        raise RuntimeError("control-loop fault")
 
     assert nmpc._acados_solver is None
     assert nmpc._acados_ocp is None

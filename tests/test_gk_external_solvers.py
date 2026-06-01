@@ -219,9 +219,9 @@ def test_cgyro_run_subprocess_failure(cbc_params, tmp_path):
     with (
         patch("shutil.which", return_value="/usr/bin/cgyro"),
         patch("subprocess.run", side_effect=FileNotFoundError),
+        pytest.raises(RuntimeError, match="legacy fallback is disabled"),
     ):
-        with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
-            solver.run(tmp_path)
+        solver.run(tmp_path)
 
     solver_legacy = CGYROSolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
     solver_legacy.prepare_input(cbc_params)
@@ -265,9 +265,9 @@ def test_gene_run_subprocess_failure(cbc_params, tmp_path):
     with (
         patch("shutil.which", return_value="/usr/bin/gene"),
         patch("subprocess.run", side_effect=FileNotFoundError),
+        pytest.raises(RuntimeError, match="legacy fallback is disabled"),
     ):
-        with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
-            solver.run(tmp_path)
+        solver.run(tmp_path)
 
     solver_legacy = GENESolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
     solver_legacy.prepare_input(cbc_params)
@@ -286,9 +286,12 @@ def test_gene_run_without_converged_output_requires_explicit_fallback(cbc_params
 
     solver = GENESolver(work_dir=tmp_path)
     solver.prepare_input(cbc_params)
-    with patch("shutil.which", return_value="/usr/bin/gene"), patch("subprocess.run", return_value=None):
-        with pytest.raises(RuntimeError, match="without converged output"):
-            solver.run(tmp_path)
+    with (
+        patch("shutil.which", return_value="/usr/bin/gene"),
+        patch("subprocess.run", return_value=None),
+        pytest.raises(RuntimeError, match="without converged output"),
+    ):
+        solver.run(tmp_path)
 
     solver_legacy = GENESolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
     solver_legacy.prepare_input(cbc_params)
@@ -315,9 +318,12 @@ def test_gs2_run_subprocess_failure(cbc_params, tmp_path):
 
     solver = GS2Solver(work_dir=tmp_path)
     solver.prepare_input(cbc_params)
-    with patch("shutil.which", return_value="/usr/bin/gs2"), patch("subprocess.run", side_effect=FileNotFoundError):
-        with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
-            solver.run(tmp_path)
+    with (
+        patch("shutil.which", return_value="/usr/bin/gs2"),
+        patch("subprocess.run", side_effect=FileNotFoundError),
+        pytest.raises(RuntimeError, match="legacy fallback is disabled"),
+    ):
+        solver.run(tmp_path)
 
     solver_legacy = GS2Solver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
     solver_legacy.prepare_input(cbc_params)
@@ -333,9 +339,12 @@ def test_gs2_run_without_converged_output_requires_explicit_fallback(cbc_params,
 
     solver = GS2Solver(work_dir=tmp_path)
     solver.prepare_input(cbc_params)
-    with patch("shutil.which", return_value="/usr/bin/gs2"), patch("subprocess.run", return_value=None):
-        with pytest.raises(RuntimeError, match="without converged output"):
-            solver.run(tmp_path)
+    with (
+        patch("shutil.which", return_value="/usr/bin/gs2"),
+        patch("subprocess.run", return_value=None),
+        pytest.raises(RuntimeError, match="without converged output"),
+    ):
+        solver.run(tmp_path)
 
     solver_legacy = GS2Solver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
     solver_legacy.prepare_input(cbc_params)
@@ -380,9 +389,12 @@ def test_cgyro_run_without_converged_output_requires_explicit_fallback(cbc_param
 
     solver = CGYROSolver(work_dir=tmp_path)
     solver.prepare_input(cbc_params)
-    with patch("shutil.which", return_value="/usr/bin/cgyro"), patch("subprocess.run", return_value=None):
-        with pytest.raises(RuntimeError, match="without converged output"):
-            solver.run(tmp_path)
+    with (
+        patch("shutil.which", return_value="/usr/bin/cgyro"),
+        patch("subprocess.run", return_value=None),
+        pytest.raises(RuntimeError, match="without converged output"),
+    ):
+        solver.run(tmp_path)
 
     solver_legacy = CGYROSolver(work_dir=tmp_path, allow_fallback=True, allow_legacy_fallback=True)
     solver_legacy.prepare_input(cbc_params)

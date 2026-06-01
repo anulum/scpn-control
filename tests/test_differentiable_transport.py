@@ -1605,12 +1605,15 @@ def test_transport_full_fidelity_readiness_binds_reports_digests_and_controller_
     assert evidence.rollout_steps == 3
     assert evidence.gradient_latency_report_sha256
     assert evidence.rollout_latency_report_sha256
-    assert dt.assert_transport_full_fidelity_claim_ready(
-        evidence,
-        metadata,
-        gradient_report,
-        rollout_report=rollout_report,
-    ) is evidence
+    assert (
+        dt.assert_transport_full_fidelity_claim_ready(
+            evidence,
+            metadata,
+            gradient_report,
+            rollout_report=rollout_report,
+        )
+        is evidence
+    )
 
     tampered_report = replace(gradient_report, n_rho=19)
     with pytest.raises(ValueError, match="campaign metadata"):

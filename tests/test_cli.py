@@ -986,6 +986,7 @@ def test_validate_gk_interface_artifacts_requires_artifacts(runner, tmp_path):
     assert data["status"] == "fail"
     assert data["errors"][0]["error"] == "no external GK interface artifacts found"
 
+
 def test_validate_blob_transport_reference_requires_artifacts(runner, tmp_path):
     result = runner.invoke(
         main,
@@ -1002,6 +1003,7 @@ def test_validate_blob_transport_reference_requires_artifacts(runner, tmp_path):
     data = json.loads(result.output)
     assert data["status"] == "fail"
     assert data["errors"][0]["error"] == "no blob transport reference artifacts found"
+
 
 def test_validate_elm_reference_requires_artifacts(runner, tmp_path):
     result = runner.invoke(

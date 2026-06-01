@@ -802,8 +802,10 @@ def transport_full_fidelity_readiness_evidence(
     )
 
     blocked_reasons: list[str] = []
-    if metadata.backend != "jax" or gradient_report.backend != "jax" or (
-        rollout_report is not None and rollout_report.backend != "jax"
+    if (
+        metadata.backend != "jax"
+        or gradient_report.backend != "jax"
+        or (rollout_report is not None and rollout_report.backend != "jax")
     ):
         blocked_reasons.append("jax_backend")
     if metadata.equilibrium_grid_shape is None:
