@@ -216,6 +216,10 @@
   Python reference digests, optional Rust parity metrics, deployment-target
   oscillator coverage, and timestep-refinement convergence now gate
   deployment-target phase-runtime claims.
+- [x] Geometry-neutral replay evidence admission — scenario, trace, metric,
+  threshold, magnetic-provenance, actuator-calibration, latency-model, and
+  fault-model digests now keep synthetic stellarator replay separate from
+  measured or benchmark device-control claims.
 
 ## Next
 

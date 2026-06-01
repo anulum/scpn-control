@@ -22,12 +22,17 @@ from scpn_control.scpn import (
 )
 from scpn_control.scpn.geometry_neutral_replay import (
     DEFAULT_THRESHOLDS,
+    GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION,
     GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION,
     SCHEMA_VERSION,
     _build_manifest,
+    assert_geometry_neutral_replay_claim_admissible,
     generate_report,
+    geometry_neutral_replay_evidence,
+    load_geometry_neutral_replay_evidence,
     render_geometry_neutral_markdown,
     render_markdown,
+    save_geometry_neutral_replay_evidence,
     validate_geometry_neutral_report,
     validate_report,
 )
@@ -217,6 +222,80 @@ def test_geometry_neutral_replay_public_aliases_validate_and_render_manual_contr
 
     assert markdown.startswith("# Geometry-Neutral Stellarator Replay")
     assert "Threshold pass: `YES`" in markdown
+
+
+def test_geometry_neutral_replay_evidence_round_trips_bounded_report(tmp_path: Path) -> None:
+    report = generate_report(steps=8, seed=41)
+    evidence = geometry_neutral_replay_evidence(
+        report,
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+
+    assert evidence.schema_version == GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION
+    assert evidence.device_claim_allowed is False
+    assert evidence.deterministic is True
+    assert evidence.passes_thresholds is True
+    assert evidence.replay_report_sha256
+    assert evidence.scenario_digest == report["geometry_neutral_replay"]["manifest"]["scenario_digest"]
+    with pytest.raises(ValueError, match="bounded-only"):
+        assert_geometry_neutral_replay_claim_admissible(evidence)
+
+    path = tmp_path / "geometry_neutral_replay_evidence.json"
+    save_geometry_neutral_replay_evidence(evidence, path)
+    assert load_geometry_neutral_replay_evidence(path) == evidence
+
+
+def test_geometry_neutral_replay_evidence_rejects_device_claim_without_external_artefact() -> None:
+    report = generate_report(steps=8, seed=42)
+
+    with pytest.raises(ValueError, match="measured or benchmark"):
+        geometry_neutral_replay_evidence(
+            report,
+            generated_utc="2026-05-31T00:00:00Z",
+            device_claim_allowed=True,
+        )
+
+
+def test_geometry_neutral_replay_evidence_rejects_synthetic_device_claim_even_with_artefact() -> None:
+    report = generate_report(steps=8, seed=43)
+
+    with pytest.raises(ValueError, match="synthetic magnetic-configuration"):
+        geometry_neutral_replay_evidence(
+            report,
+            generated_utc="2026-05-31T00:00:00Z",
+            measured_or_benchmark_artefact_sha256="a" * 64,
+            device_claim_allowed=True,
+        )
+
+
+def test_geometry_neutral_replay_evidence_rejects_tampering_and_duplicate_keys(tmp_path: Path) -> None:
+    report = generate_report(steps=8, seed=44)
+    evidence = geometry_neutral_replay_evidence(
+        report,
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+    path = tmp_path / "geometry_neutral_replay_evidence.json"
+    save_geometry_neutral_replay_evidence(evidence, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["p95_latency_us"] = 999999.0
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="payload_sha256"):
+        load_geometry_neutral_replay_evidence(path)
+
+    duplicate_path = tmp_path / "duplicate_geometry_neutral_replay_evidence.json"
+    duplicate_path.write_text(
+        (
+            '{"schema_version":"'
+            + GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION
+            + '","schema_version":"'
+            + GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION
+            + '"}'
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        load_geometry_neutral_replay_evidence(duplicate_path)
 
 
 @pytest.mark.parametrize(

@@ -232,6 +232,15 @@ against the Python reference, deployment-target oscillator count coverage, and
 timestep-refinement convergence under the declared tolerance. Python-only
 reports remain bounded runtime evidence and do not satisfy deployment claims.
 
+Geometry-neutral stellarator replay reports now have a separate
+schema-versioned evidence envelope,
+`scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the
+validated replay report, scenario, trace, metrics, thresholds, magnetic
+configuration provenance, actuator calibration, latency model, and fault model
+by SHA-256 digest. Synthetic W7-X-like replay remains bounded evidence; device
+control claims require a measured or benchmark stellarator artefact digest and
+non-synthetic magnetic-configuration provenance.
+
 Physics traceability validates that high-risk physics surfaces are bounded to
 their current evidence status before full-fidelity or facility-validation claims
 are made:

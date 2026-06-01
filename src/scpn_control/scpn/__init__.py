@@ -79,6 +79,7 @@ from scpn_control.scpn.structure import StochasticPetriNet
 
 GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay.v1"
 GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
+GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-evidence.v1"
 
 
 def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> dict[str, object]:
@@ -97,6 +98,30 @@ def render_geometry_neutral_markdown(report: object) -> str:
     from scpn_control.scpn.geometry_neutral_replay import render_geometry_neutral_markdown as _impl
 
     return _impl(report)  # type: ignore[arg-type]
+
+
+def geometry_neutral_replay_evidence(report: object, **kwargs: object) -> object:
+    from scpn_control.scpn.geometry_neutral_replay import geometry_neutral_replay_evidence as _impl
+
+    return _impl(report, **kwargs)  # type: ignore[arg-type]
+
+
+def assert_geometry_neutral_replay_claim_admissible(evidence: object) -> object:
+    from scpn_control.scpn.geometry_neutral_replay import assert_geometry_neutral_replay_claim_admissible as _impl
+
+    return _impl(evidence)  # type: ignore[arg-type]
+
+
+def save_geometry_neutral_replay_evidence(evidence: object, output_path: object) -> None:
+    from scpn_control.scpn.geometry_neutral_replay import save_geometry_neutral_replay_evidence as _impl
+
+    _impl(evidence, output_path)  # type: ignore[arg-type]
+
+
+def load_geometry_neutral_replay_evidence(path: object, **kwargs: object) -> object:
+    from scpn_control.scpn.geometry_neutral_replay import load_geometry_neutral_replay_evidence as _impl
+
+    return _impl(path, **kwargs)  # type: ignore[arg-type]
 
 
 __all__ = [
@@ -118,9 +143,14 @@ __all__ = [
     "ReplayScenario",
     "GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION",
     "GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION",
+    "GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION",
     "generate_geometry_neutral_report",
     "validate_geometry_neutral_report",
     "render_geometry_neutral_markdown",
+    "geometry_neutral_replay_evidence",
+    "assert_geometry_neutral_replay_claim_admissible",
+    "save_geometry_neutral_replay_evidence",
+    "load_geometry_neutral_replay_evidence",
     "Artifact",
     "load_artifact",
     "save_artifact",

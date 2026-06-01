@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, cast
 
@@ -41,12 +43,44 @@ SCHEMA_VERSION = "scpn-control.geometry-neutral-replay.v1"
 GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION = SCHEMA_VERSION
 MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
 GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = MANIFEST_SCHEMA_VERSION
+EVIDENCE_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-evidence.v1"
+GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION = EVIDENCE_SCHEMA_VERSION
+GEOMETRY_NEUTRAL_REPLAY_BOUNDED = "bounded_synthetic_geometry_neutral_replay_only"
+GEOMETRY_NEUTRAL_REPLAY_QUALIFIED = "qualified_geometry_neutral_replay_evidence"
 DEFAULT_THRESHOLDS: dict[str, float] = {
     "max_final_fieldline_spread": 0.026,
     "min_improvement_fraction": 0.20,
     "max_abs_current_A": 1200.0,
     "max_p95_latency_us": 1000.0,
 }
+
+
+@dataclass(frozen=True)
+class GeometryNeutralReplayEvidence:
+    """Tamper-evident geometry-neutral replay evidence admission object."""
+
+    schema_version: str
+    generated_utc: str
+    replay_schema_version: str
+    replay_report_sha256: str
+    scenario_digest: str
+    trace_digest: str
+    metrics_digest: str
+    thresholds_digest: str
+    magnetic_configuration_reference: str
+    actuator_calibration: str
+    latency_model: str
+    fault_model: str
+    final_fieldline_spread: float
+    improvement_fraction: float
+    max_abs_current_A: float
+    p95_latency_us: float
+    deterministic: bool
+    passes_thresholds: bool
+    measured_or_benchmark_artefact_sha256: str | None
+    device_claim_allowed: bool
+    claim_status: str
+    payload_sha256: str
 
 
 def _stable_json(payload: Any) -> str:
@@ -59,6 +93,49 @@ def _signature(payload: Mapping[str, Any]) -> str:
 
 def _digest(payload: Any) -> str:
     return hashlib.sha256(_stable_json(payload).encode("utf-8")).hexdigest()
+
+
+def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    unsigned = dict(payload)
+    unsigned["payload_sha256"] = ""
+    return _digest(unsigned)
+
+
+def _is_sha256(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    seen: set[str] = set()
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in seen:
+            raise ValueError(f"duplicate JSON key in geometry-neutral replay evidence: {key}")
+        seen.add(key)
+        out[key] = value
+    return out
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _require_bool(name: str, value: Any) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{name} must be boolean")
+    return value
+
+
+def _require_finite_nonnegative(name: str, value: Any) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be finite and non-negative")
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be finite and non-negative") from exc
+    if not np.isfinite(result) or result < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return result
 
 
 def _require_mapping(name: str, value: Any) -> Mapping[str, Any]:
@@ -438,6 +515,184 @@ def validate_report(report: Mapping[str, Any]) -> None:
 def validate_geometry_neutral_report(report: Mapping[str, Any]) -> None:
     """Public package alias for :func:`validate_report`."""
     validate_report(report)
+
+
+def _validate_geometry_neutral_replay_evidence_payload(
+    payload: Mapping[str, Any],
+    *,
+    require_device_claim: bool,
+) -> GeometryNeutralReplayEvidence:
+    if payload.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
+        raise ValueError("geometry-neutral replay evidence schema_version is unsupported")
+    declared_digest = payload.get("payload_sha256")
+    if not _is_sha256(declared_digest):
+        raise ValueError("geometry-neutral replay evidence payload_sha256 must be a SHA-256 hex digest")
+    if declared_digest != _payload_sha256(payload):
+        raise ValueError("geometry-neutral replay evidence payload_sha256 does not match payload")
+    generated_utc = payload.get("generated_utc")
+    if not isinstance(generated_utc, str) or not generated_utc.endswith("Z"):
+        raise ValueError("geometry-neutral replay evidence generated_utc must be a UTC timestamp ending in Z")
+    replay_schema_version = payload.get("replay_schema_version")
+    if replay_schema_version != SCHEMA_VERSION:
+        raise ValueError("geometry-neutral replay evidence replay_schema_version is unsupported")
+    for name in (
+        "replay_report_sha256",
+        "scenario_digest",
+        "trace_digest",
+        "metrics_digest",
+        "thresholds_digest",
+    ):
+        if not _is_sha256(payload.get(name)):
+            raise ValueError(f"{name} must be a SHA-256 hex digest")
+    measured_digest = payload.get("measured_or_benchmark_artefact_sha256")
+    if measured_digest is not None and not _is_sha256(measured_digest):
+        raise ValueError("measured_or_benchmark_artefact_sha256 must be a SHA-256 hex digest")
+    magnetic_reference = _require_manifest_text(
+        "magnetic_configuration_reference",
+        payload.get("magnetic_configuration_reference"),
+    )
+    actuator_calibration = _require_manifest_text("actuator_calibration", payload.get("actuator_calibration"))
+    latency_model = _require_manifest_text("latency_model", payload.get("latency_model"))
+    fault_model = _require_manifest_text("fault_model", payload.get("fault_model"))
+    final_fieldline_spread = _require_finite_nonnegative(
+        "final_fieldline_spread",
+        payload.get("final_fieldline_spread"),
+    )
+    improvement_fraction = _require_finite_nonnegative(
+        "improvement_fraction",
+        payload.get("improvement_fraction"),
+    )
+    max_abs_current = _require_finite_nonnegative("max_abs_current_A", payload.get("max_abs_current_A"))
+    p95_latency = _require_finite_nonnegative("p95_latency_us", payload.get("p95_latency_us"))
+    deterministic = _require_bool("deterministic", payload.get("deterministic"))
+    passes_thresholds = _require_bool("passes_thresholds", payload.get("passes_thresholds"))
+    device_claim_allowed = _require_bool("device_claim_allowed", payload.get("device_claim_allowed"))
+    expected_status = GEOMETRY_NEUTRAL_REPLAY_QUALIFIED if device_claim_allowed else GEOMETRY_NEUTRAL_REPLAY_BOUNDED
+    if payload.get("claim_status") != expected_status:
+        raise ValueError("geometry-neutral replay evidence claim_status does not match device claim state")
+    if require_device_claim or device_claim_allowed:
+        if not device_claim_allowed:
+            raise ValueError("geometry-neutral replay evidence is bounded-only and cannot support device claims")
+        if measured_digest is None:
+            raise ValueError("device replay claims require measured or benchmark artefact evidence")
+        if not deterministic or not passes_thresholds:
+            raise ValueError("device replay claims require deterministic threshold-passing replay evidence")
+        if "synthetic" in magnetic_reference.lower():
+            raise ValueError("device replay claims cannot rely on synthetic magnetic-configuration provenance")
+    return GeometryNeutralReplayEvidence(
+        schema_version=str(payload["schema_version"]),
+        generated_utc=generated_utc,
+        replay_schema_version=str(replay_schema_version),
+        replay_report_sha256=str(payload["replay_report_sha256"]),
+        scenario_digest=str(payload["scenario_digest"]),
+        trace_digest=str(payload["trace_digest"]),
+        metrics_digest=str(payload["metrics_digest"]),
+        thresholds_digest=str(payload["thresholds_digest"]),
+        magnetic_configuration_reference=magnetic_reference,
+        actuator_calibration=actuator_calibration,
+        latency_model=latency_model,
+        fault_model=fault_model,
+        final_fieldline_spread=final_fieldline_spread,
+        improvement_fraction=improvement_fraction,
+        max_abs_current_A=max_abs_current,
+        p95_latency_us=p95_latency,
+        deterministic=deterministic,
+        passes_thresholds=passes_thresholds,
+        measured_or_benchmark_artefact_sha256=None if measured_digest is None else str(measured_digest),
+        device_claim_allowed=device_claim_allowed,
+        claim_status=str(payload["claim_status"]),
+        payload_sha256=str(declared_digest),
+    )
+
+
+def geometry_neutral_replay_evidence(
+    report: Mapping[str, Any],
+    *,
+    generated_utc: str | None = None,
+    measured_or_benchmark_artefact_sha256: str | None = None,
+    device_claim_allowed: bool = False,
+) -> GeometryNeutralReplayEvidence:
+    """Build tamper-evident replay evidence over an admitted replay report."""
+
+    validate_report(report)
+    bench = _require_mapping("geometry_neutral_replay", report["geometry_neutral_replay"])
+    replay = _require_mapping("geometry_neutral_replay.replay", bench["replay"])
+    metrics = _require_mapping("geometry_neutral_replay.metrics", bench["metrics"])
+    manifest = _require_mapping("geometry_neutral_replay.manifest", bench["manifest"])
+    provenance = _require_mapping("geometry_neutral_replay.manifest.provenance", manifest["provenance"])
+    measured_digest = (
+        None if measured_or_benchmark_artefact_sha256 is None else str(measured_or_benchmark_artefact_sha256).lower()
+    )
+    payload: dict[str, Any] = {
+        "schema_version": EVIDENCE_SCHEMA_VERSION,
+        "generated_utc": generated_utc or _utc_now(),
+        "replay_schema_version": str(bench["schema_version"]),
+        "replay_report_sha256": _digest(bench),
+        "scenario_digest": str(manifest["scenario_digest"]),
+        "trace_digest": str(manifest["trace_digest"]),
+        "metrics_digest": str(manifest["metrics_digest"]),
+        "thresholds_digest": str(manifest["thresholds_digest"]),
+        "magnetic_configuration_reference": str(provenance["magnetic_configuration_reference"]),
+        "actuator_calibration": str(provenance["actuator_calibration"]),
+        "latency_model": str(provenance["latency_model"]),
+        "fault_model": str(provenance["fault_model"]),
+        "final_fieldline_spread": float(metrics["final_fieldline_spread"]),
+        "improvement_fraction": float(metrics["improvement_fraction"]),
+        "max_abs_current_A": float(metrics["max_abs_current_A"]),
+        "p95_latency_us": float(metrics["p95_latency_us"]),
+        "deterministic": bool(replay["deterministic"]),
+        "passes_thresholds": bool(bench["passes_thresholds"]),
+        "measured_or_benchmark_artefact_sha256": measured_digest,
+        "device_claim_allowed": bool(device_claim_allowed),
+        "claim_status": (
+            GEOMETRY_NEUTRAL_REPLAY_QUALIFIED if device_claim_allowed else GEOMETRY_NEUTRAL_REPLAY_BOUNDED
+        ),
+        "payload_sha256": "",
+    }
+    payload["payload_sha256"] = _payload_sha256(payload)
+    return _validate_geometry_neutral_replay_evidence_payload(
+        payload,
+        require_device_claim=bool(device_claim_allowed),
+    )
+
+
+def assert_geometry_neutral_replay_claim_admissible(
+    evidence: GeometryNeutralReplayEvidence,
+) -> GeometryNeutralReplayEvidence:
+    """Fail closed unless replay evidence supports a device-control claim."""
+
+    if not isinstance(evidence, GeometryNeutralReplayEvidence):
+        raise ValueError("evidence must be GeometryNeutralReplayEvidence")
+    return _validate_geometry_neutral_replay_evidence_payload(asdict(evidence), require_device_claim=True)
+
+
+def save_geometry_neutral_replay_evidence(
+    evidence: GeometryNeutralReplayEvidence,
+    output_path: str | Path,
+) -> None:
+    """Persist geometry-neutral replay evidence as sorted JSON."""
+
+    if not isinstance(evidence, GeometryNeutralReplayEvidence):
+        raise ValueError("evidence must be GeometryNeutralReplayEvidence")
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def load_geometry_neutral_replay_evidence(
+    path: str | Path,
+    *,
+    require_device_claim: bool = False,
+) -> GeometryNeutralReplayEvidence:
+    """Load geometry-neutral replay evidence with duplicate-key and digest admission."""
+
+    payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
+    if not isinstance(payload, dict):
+        raise ValueError("geometry-neutral replay evidence must be a JSON object")
+    return _validate_geometry_neutral_replay_evidence_payload(
+        payload,
+        require_device_claim=require_device_claim,
+    )
 
 
 def render_markdown(report: Mapping[str, Any]) -> str:

@@ -1883,12 +1883,13 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Replace synthetic W7-X-like replay inputs with measured or benchmark stellarator field-line artefacts before device-control claims",
-        "Keep tamper-evident replay manifests attached with magnetic-configuration provenance, actuator calibration, latency evidence, acceptance thresholds, and digest validation"
+        "Generate schema-versioned replay evidence for every promoted replay and keep measured or benchmark device claims blocked until external artefact digests and non-synthetic magnetic provenance are supplied"
       ],
       "unit_contract": "Field-line spread in radians, currents in amperes, timestep in seconds, latency in microseconds, effective ripple dimensionless, controller objectives and thresholds declared per replay manifest, manifest digests encoded as SHA-256 hex.",
       "validation_evidence": [
         "tests/test_geometry_neutral_replay.py",
-        "tests/test_geometry_neutral_contracts.py"
+        "tests/test_geometry_neutral_contracts.py",
+        "tests/test_geometry_neutral_replay.py replay evidence admission, digest, bounded-claim, device-claim, tamper, and duplicate-key checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/geometry_neutral_replay.py",
@@ -1899,7 +1900,7 @@
       "covered_source_paths": [
         "src/scpn_control/scpn/geometry_neutral_replay.py"
       ],
-      "validity_domain": "Synthetic reduced-order stellarator replay for controller regression; not a measured W7-X or device-qualified control validation.",
+      "validity_domain": "Synthetic reduced-order stellarator replay for controller regression; schema-versioned replay evidence is admissible only for bounded synthetic claims unless external artefact digests and non-synthetic magnetic provenance are supplied.",
       "external_validation_tracker_issue": 48
     },
     {

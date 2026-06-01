@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added schema-versioned geometry-neutral replay evidence admission so
+  stellarator replay claims bind the validated report, scenario, trace,
+  metrics, thresholds, magnetic-configuration provenance, actuator
+  calibration, latency model, and fault model by SHA-256 digest while keeping
+  synthetic W7-X-like replay separate from measured or benchmark device claims.
 - Added schema-versioned Kuramoto phase-runtime evidence admission so
   deployment-target phase claims bind deterministic input digests, Python
   reference output digests, optional Rust parity errors, deployment-target

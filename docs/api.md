@@ -1536,6 +1536,16 @@ coverage.
 
 ::: scpn_control.scpn.geometry_neutral_replay
 
+::: scpn_control.scpn.geometry_neutral_replay.GeometryNeutralReplayEvidence
+
+::: scpn_control.scpn.geometry_neutral_replay.geometry_neutral_replay_evidence
+
+::: scpn_control.scpn.geometry_neutral_replay.assert_geometry_neutral_replay_claim_admissible
+
+::: scpn_control.scpn.geometry_neutral_replay.save_geometry_neutral_replay_evidence
+
+::: scpn_control.scpn.geometry_neutral_replay.load_geometry_neutral_replay_evidence
+
 ---
 
 ## CLI

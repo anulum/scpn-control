@@ -73,6 +73,10 @@
 - Added Kuramoto phase-runtime evidence admission so optional Rust fast-path
   claims bind Python reference digests, parity errors, deployment-target
   oscillator coverage, and timestep-refinement convergence.
+- Added geometry-neutral replay evidence admission so synthetic stellarator
+  replay reports bind scenario, trace, metrics, thresholds, provenance,
+  actuator calibration, latency model, and fault model digests while measured
+  device claims fail closed without external artefact evidence.
 - Hardened end-to-end control-latency evidence so benchmark reports now use a
   schema-versioned canonical payload digest and admission rejects tampering,
   non-positive run counts, unordered percentiles, mismatched overhead factors,
