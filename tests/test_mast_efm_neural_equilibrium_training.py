@@ -22,6 +22,8 @@ from validation.train_mast_efm_neural_equilibrium import (
     TrainingInputs,
     build_result_templates,
     build_training_report,
+    validate_result_templates,
+    validate_training_report,
     write_result_templates,
     write_report,
 )
@@ -148,6 +150,7 @@ def test_training_report_default_is_dry_run_and_does_not_write_weights(tmp_path:
     assert all("fallback" not in item for item in report["blocked_before_admission"])
     assert any("workstation or external cloud" in item for item in report["blocked_before_admission"])
     assert report["holdout_metrics"] is None
+    assert validate_training_report(report) is report
     assert not weights.exists()
 
 
@@ -175,6 +178,7 @@ def test_training_report_execute_writes_weights_and_holdout_metrics(tmp_path: Pa
     assert report["weights_sha256"]
     assert report["holdout_metrics"]["validation"]["psi_rmse_Wb_per_rad"] is not None
     assert report["holdout_metrics"]["test"]["magnetic_axis_rmse_m"] is not None
+    assert validate_training_report(report, require_executed=True) is report
     with np.load(weights, allow_pickle=False) as payload:
         assert payload["flux_components"].shape == (2, 12)
         assert payload["axis_regression"].shape[1] == 2
@@ -255,32 +259,72 @@ def test_result_templates_bind_training_report_and_required_outputs(tmp_path: Pa
     assert "psi_rmse_Wb_per_rad" in templates["holdout_metrics"]["required_metrics"]
     assert "p99_ms" in templates["latency_metrics"]["required_fields"]
     assert "strict_reference_report_sha256" in templates["admission_certificate"]["required_fields"]
+    assert validate_result_templates(templates, training_report=report) is templates
     markdown = (tmp_path / "templates.md").read_text(encoding="utf-8")
     assert "MAST EFM Neural-Equilibrium Result Templates" in markdown
 
 
+def test_training_report_validation_rejects_digest_and_policy_tampering(tmp_path: Path) -> None:
+    dataset, dataset_report, campaign_plan, weights, feature_provenance, original_source = _write_payloads(tmp_path)
+    report = build_training_report(
+        TrainingInputs(
+            dataset_report=dataset_report,
+            campaign_plan=campaign_plan,
+            dataset_path=dataset,
+            weights_out=weights,
+            feature_provenance_report=feature_provenance,
+            original_source_report=original_source,
+        )
+    )
+
+    tampered = dict(report)
+    tampered["blocked_before_admission"] = []
+    with pytest.raises(ValueError, match="payload_sha256"):
+        validate_training_report(tampered)
+
+    tampered = dict(report)
+    tampered["execution_host_policy"] = "training may run anywhere"
+    with pytest.raises(ValueError, match="payload_sha256"):
+        validate_training_report(tampered)
+
+
+def test_result_templates_validation_rejects_report_binding_drift(tmp_path: Path) -> None:
+    dataset, dataset_report, campaign_plan, weights, feature_provenance, original_source = _write_payloads(tmp_path)
+    report = build_training_report(
+        TrainingInputs(
+            dataset_report=dataset_report,
+            campaign_plan=campaign_plan,
+            dataset_path=dataset,
+            weights_out=weights,
+            feature_provenance_report=feature_provenance,
+            original_source_report=original_source,
+        )
+    )
+    templates = build_result_templates(report)
+
+    drifted = dict(templates)
+    drifted["training_report_payload_sha256"] = "d" * 64
+    with pytest.raises(ValueError, match="payload_sha256"):
+        validate_result_templates(drifted, training_report=report)
+
+    drifted = json.loads(json.dumps(templates))
+    drifted["holdout_metrics"]["required_metrics"].remove("q_profile_rmse")
+    with pytest.raises(ValueError, match="payload_sha256"):
+        validate_result_templates(drifted)
+
+
 def test_write_report_records_execute_command_and_admission_boundary(tmp_path: Path) -> None:
-    report = {
-        "schema_version": TRAINING_SCHEMA,
-        "status": "prepared",
-        "execution_mode": "dry_run",
-        "dataset_path": "/sas/dataset.npz",
-        "dataset_sha256": "a" * 64,
-        "dataset_exists_on_this_host": False,
-        "weights_path": "/sas/weights.npz",
-        "execution_host_policy": "ML350 is storage-only; execute training only on workstation or external cloud compute.",
-        "pre_run_admission": {
-            "status": "fail",
-            "dataset_sha256_verified": False,
-            "source_provenance": {"status": "pass"},
-            "compute_execution": {"status": "fail"},
-        },
-        "claim_boundary": "not predictive EFIT/P-EFIT admission evidence",
-        "run_command": "python validation/train_mast_efm_neural_equilibrium.py --execute",
-        "required_targets": ["psirz_Wb_per_rad"],
-        "blocked_before_admission": ["strict reference gate"],
-        "holdout_metrics": None,
-    }
+    dataset, dataset_report, campaign_plan, weights, feature_provenance, original_source = _write_payloads(tmp_path)
+    report = build_training_report(
+        TrainingInputs(
+            dataset_report=dataset_report,
+            campaign_plan=campaign_plan,
+            dataset_path=dataset,
+            weights_out=weights,
+            feature_provenance_report=feature_provenance,
+            original_source_report=original_source,
+        )
+    )
 
     write_report(report, tmp_path / "report.json", tmp_path / "report.md")
 

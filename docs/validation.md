@@ -602,22 +602,30 @@ python validation/train_mast_efm_neural_equilibrium.py
 
 This writes `validation/reports/mast_efm_neural_equilibrium_training_launch.json`
 and `validation/reports/mast_efm_neural_equilibrium_training_launch.md` without
-touching SAS weights. The current checked-in launch report was generated as a
-dry-run storage-readiness check and confirms that the SAS dataset is visible on
-ML350 with 527 validated equilibria and the source-derived dataset SHA-256.
+touching SAS weights. The current checked-in launch report is a workstation
+preparation report: it preserves the expected supervised-dataset SHA-256
+`3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`, records
+that the SAS dataset payload is not mounted on this workstation, and remains
+fail-closed until the data are mounted read-only or copied to admitted compute
+storage. The launch report payload digest is
+`fc8724dc72801e8a92126a4e5cd46fd574f33eb320cb6889fd37bc6ae90d2b7d`. The
+companion result-template report is
+`validation/reports/mast_efm_neural_equilibrium_result_templates.json` with
+payload digest `ca3c80f970e63ca50ace0186caf7555de2d0476a0374716cfbd8940a20d04d28`.
 ML350 is storage-only: the exact `--execute` command must be run only on this
 workstation or external cloud compute with the SAS dataset mounted read-only or
-copied to admitted compute storage. The trainer now performs a strict pre-run
-admission check before `--execute`: the dataset SHA-256 must match the published
-supervised-dataset report, the converted feature-provenance audit must have no
-blocked features, the original public-source audit must be `source_ready`, the
-compute host must be declared as `workstation` or `external_cloud`, and
-`weights_out` must not be under ML350 SAS storage. Execution mode trains
-deterministic ridge/PCA baseline heads for flux, pressure-gradient profile,
-q-profile, LCFS geometry, and magnetic-axis outputs, then writes weights and
-compact train, validation, and test metrics. Predictive admission still
-requires an executed training artefact, holdout metrics, exact weight checksum
-validation, and the strict reference admission gate.
+copied to admitted compute storage. The trainer now validates launch and result
+template reports before persistence, rejects tampered payload digests, and
+performs a strict pre-run admission check before `--execute`: the dataset
+SHA-256 must match the published supervised-dataset report, the converted
+feature-provenance audit must have no blocked features, the original
+public-source audit must be `source_ready`, the compute host must be declared as
+`workstation` or `external_cloud`, and `weights_out` must not be under ML350 SAS
+storage. Execution mode trains deterministic ridge/PCA baseline heads for flux,
+pressure-gradient profile, q-profile, LCFS geometry, and magnetic-axis outputs,
+then writes weights and compact train, validation, and test metrics. Predictive
+admission still requires an executed training artefact, holdout metrics, exact
+weight checksum validation, and the strict reference admission gate.
 
 The same dry-run command also publishes result-schema templates:
 

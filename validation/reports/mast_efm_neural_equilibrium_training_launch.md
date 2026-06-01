@@ -5,7 +5,7 @@ Status: `prepared`
 Execution mode: `dry_run`
 Dataset path: `/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz`
 Dataset SHA-256: `3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`
-Dataset exists on this host: `True`
+Dataset exists on this host: `False`
 Weights path: `artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz`
 
 ## Execution host policy
@@ -19,7 +19,7 @@ This report prepares or executes a deterministic repository baseline. It is not 
 ## Pre-run admission
 
 Status: `fail`
-Dataset SHA-256 verified: `True`
+Dataset SHA-256 verified: `False`
 Source provenance: `pass`
 Compute execution: `fail`
 

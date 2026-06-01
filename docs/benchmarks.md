@@ -402,6 +402,15 @@ public reference artefact validates the same weight checksum and declares
 psi, pressure, q-profile, boundary, and magnetic-axis errors inside stated
 tolerances.
 
+MAST EFM full-output baseline training is prepared through
+`validation/train_mast_efm_neural_equilibrium.py`. The checked-in dry-run launch
+report records the expected supervised-dataset SHA-256, current workstation
+payload visibility, ML350 storage-only execution policy, and fail-closed pre-run
+admission status. The companion result-template report binds the launch digest
+and declares the holdout, latency, GPU-cost, and admission-certificate outputs
+that a future workstation or cloud execution must publish before strict
+predictive admission is requested.
+
 ## Neural-transport Claim-Admission Benchmark
 
 `validation/benchmark_neural_transport_claims.py` publishes bounded local

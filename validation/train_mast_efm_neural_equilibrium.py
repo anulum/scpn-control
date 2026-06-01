@@ -60,6 +60,44 @@ STORAGE_OUTPUT_ROOTS = (
     Path("/mnt/data_sas"),
     Path("/mnt/data_sas/DATASETS/SCPN-CONTROL"),
 )
+REQUIRED_HOLDOUT_METRICS = (
+    "psi_rmse_Wb_per_rad",
+    "pprime_rmse_Pa_per_Wb_rad",
+    "q_profile_rmse",
+    "lcfs_r_rmse_m",
+    "lcfs_z_rmse_m",
+    "magnetic_axis_rmse_m",
+)
+REQUIRED_LATENCY_FIELDS = (
+    "hardware_label",
+    "accelerator_kind",
+    "precision",
+    "batch_size",
+    "p50_ms",
+    "p95_ms",
+    "p99_ms",
+    "sample_count",
+)
+REQUIRED_GPU_COST_FIELDS = (
+    "compute_provider",
+    "gpu_model",
+    "gpu_count",
+    "wall_time_hours",
+    "gpu_hours",
+    "storage_gb",
+    "currency",
+    "estimated_cost",
+)
+REQUIRED_ADMISSION_CERTIFICATE_FIELDS = (
+    "dataset_sha256",
+    "weights_sha256",
+    "training_report_sha256",
+    "holdout_metrics_sha256",
+    "latency_metrics_sha256",
+    "source_provenance_payload_sha256",
+    "strict_reference_report_sha256",
+    "admission_status",
+)
 
 
 @dataclass(frozen=True)
@@ -90,6 +128,33 @@ def _sha256_file(path: Path) -> str:
 def _sha256_json(payload: dict[str, Any]) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _is_sha256(value: Any) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
+
+
+def _payload_digest(payload: dict[str, Any]) -> str:
+    return _sha256_json({**payload, "payload_sha256": None})
+
+
+def _require(condition: bool, field: str, message: str, errors: list[dict[str, str]]) -> None:
+    if not condition:
+        errors.append({"field": field, "error": message})
+
+
+def _require_string_members(
+    values: Any,
+    expected: tuple[str, ...],
+    field: str,
+    errors: list[dict[str, str]],
+) -> None:
+    if not isinstance(values, list) or any(not isinstance(item, str) for item in values):
+        errors.append({"field": field, "error": "must be a list of strings"})
+        return
+    missing = [item for item in expected if item not in values]
+    if missing:
+        errors.append({"field": field, "error": f"missing required entries: {', '.join(missing)}"})
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:
@@ -607,58 +672,24 @@ def build_result_templates(report: dict[str, Any]) -> dict[str, Any]:
         "holdout_metrics": {
             "schema_version": "scpn-control.mast-efm-neural-equilibrium-holdout-metrics.v1",
             "required_splits": list(SPLITS),
-            "required_metrics": [
-                "psi_rmse_Wb_per_rad",
-                "pprime_rmse_Pa_per_Wb_rad",
-                "q_profile_rmse",
-                "lcfs_r_rmse_m",
-                "lcfs_z_rmse_m",
-                "magnetic_axis_rmse_m",
-            ],
+            "required_metrics": list(REQUIRED_HOLDOUT_METRICS),
             "acceptance_policy": (
                 "compact train, validation, and test metrics must be emitted before predictive admission is requested"
             ),
         },
         "latency_metrics": {
             "schema_version": "scpn-control.mast-efm-neural-equilibrium-latency-metrics.v1",
-            "required_fields": [
-                "hardware_label",
-                "accelerator_kind",
-                "precision",
-                "batch_size",
-                "p50_ms",
-                "p95_ms",
-                "p99_ms",
-                "sample_count",
-            ],
+            "required_fields": list(REQUIRED_LATENCY_FIELDS),
             "acceptance_policy": "latency is evidence only after hardware, precision, batch size, and sample count are recorded",
         },
         "gpu_cost": {
             "schema_version": "scpn-control.mast-efm-neural-equilibrium-gpu-cost.v1",
-            "required_fields": [
-                "compute_provider",
-                "gpu_model",
-                "gpu_count",
-                "wall_time_hours",
-                "gpu_hours",
-                "storage_gb",
-                "currency",
-                "estimated_cost",
-            ],
+            "required_fields": list(REQUIRED_GPU_COST_FIELDS),
             "acceptance_policy": "cost reports must distinguish planning estimates from measured billing evidence",
         },
         "admission_certificate": {
             "schema_version": "scpn-control.mast-efm-neural-equilibrium-admission-certificate.v1",
-            "required_fields": [
-                "dataset_sha256",
-                "weights_sha256",
-                "training_report_sha256",
-                "holdout_metrics_sha256",
-                "latency_metrics_sha256",
-                "source_provenance_payload_sha256",
-                "strict_reference_report_sha256",
-                "admission_status",
-            ],
+            "required_fields": list(REQUIRED_ADMISSION_CERTIFICATE_FIELDS),
             "admission_status_enum": ["blocked", "pass", "fail"],
             "acceptance_policy": (
                 "certificate stays blocked until the strict neural-equilibrium reference gate admits the exact weights"
@@ -669,9 +700,216 @@ def build_result_templates(report: dict[str, Any]) -> dict[str, Any]:
     return templates
 
 
+def validate_training_report(report: dict[str, Any], *, require_executed: bool = False) -> dict[str, Any]:
+    """Validate a MAST EFM training launch report before it is cited as evidence."""
+
+    errors: list[dict[str, str]] = []
+    _require(report.get("schema_version") == TRAINING_SCHEMA, "schema_version", "unsupported schema_version", errors)
+    _require(report.get("status") in {"prepared", "executed"}, "status", "must be prepared or executed", errors)
+    _require(
+        report.get("execution_mode") in {"dry_run", "execute"}, "execution_mode", "must be dry_run or execute", errors
+    )
+    _require(_is_sha256(report.get("payload_sha256")), "payload_sha256", "must be a SHA-256 hex digest", errors)
+    if _is_sha256(report.get("payload_sha256")):
+        _require(
+            report["payload_sha256"] == _payload_digest(report),
+            "payload_sha256",
+            "does not match canonical report payload",
+            errors,
+        )
+    _require(_is_sha256(report.get("dataset_sha256")), "dataset_sha256", "must be a SHA-256 hex digest", errors)
+    _require(
+        "not predictive EFIT/P-EFIT admission evidence" in str(report.get("claim_boundary", "")),
+        "claim_boundary",
+        "must preserve predictive admission block",
+        errors,
+    )
+    _require(
+        "ML350 is storage-only" in str(report.get("execution_host_policy", "")),
+        "execution_host_policy",
+        "must preserve ML350 storage-only policy",
+        errors,
+    )
+    _require(report.get("admission_ready") is False, "admission_ready", "launch report cannot self-admit", errors)
+    _require(
+        report.get("strict_artefact_emitted") is False,
+        "strict_artefact_emitted",
+        "strict reference artefact must remain false in launch report",
+        errors,
+    )
+    _require_string_members(report.get("required_targets"), TARGET_KEYS, "required_targets", errors)
+
+    weights_path = Path(str(report.get("weights_path", "")))
+    _require(bool(str(weights_path)), "weights_path", "must declare weights output path", errors)
+    if str(weights_path):
+        _require(
+            not any(_path_is_relative_to(weights_path, root) for root in STORAGE_OUTPUT_ROOTS),
+            "weights_path",
+            "must not write weights under ML350 SAS storage",
+            errors,
+        )
+    pre_run = report.get("pre_run_admission")
+    if not isinstance(pre_run, dict):
+        errors.append({"field": "pre_run_admission", "error": "must be an object"})
+        pre_run = {}
+    else:
+        _require(
+            pre_run.get("required_for_execute") is True,
+            "pre_run_admission.required_for_execute",
+            "must be true",
+            errors,
+        )
+        _require(
+            isinstance(pre_run.get("errors"), list),
+            "pre_run_admission.errors",
+            "must list pre-run admission errors",
+            errors,
+        )
+
+    if report.get("execution_mode") == "execute":
+        _require(report.get("status") == "executed", "status", "execute mode must have executed status", errors)
+        _require(pre_run.get("status") == "pass", "pre_run_admission.status", "execute mode requires pass", errors)
+        _require(
+            report.get("dataset_exists_on_this_host") is True,
+            "dataset_exists_on_this_host",
+            "execute requires dataset",
+            errors,
+        )
+        _require(_is_sha256(report.get("weights_sha256")), "weights_sha256", "execute requires weights digest", errors)
+        holdout = report.get("holdout_metrics")
+        if not isinstance(holdout, dict):
+            errors.append({"field": "holdout_metrics", "error": "execute requires holdout metrics"})
+        else:
+            for split in SPLITS:
+                split_metrics = holdout.get(split)
+                if not isinstance(split_metrics, dict):
+                    errors.append({"field": f"holdout_metrics.{split}", "error": "missing split metrics"})
+                    continue
+                for metric in REQUIRED_HOLDOUT_METRICS:
+                    value = split_metrics.get(metric)
+                    _require(
+                        value is None or isinstance(value, int | float),
+                        f"holdout_metrics.{split}.{metric}",
+                        "must be null or numeric",
+                        errors,
+                    )
+    else:
+        _require(report.get("status") == "prepared", "status", "dry_run mode must have prepared status", errors)
+        _require(report.get("weights_sha256") is None, "weights_sha256", "dry_run must not declare weights", errors)
+        _require(
+            report.get("holdout_metrics") is None, "holdout_metrics", "dry_run must not declare holdout metrics", errors
+        )
+
+    if require_executed:
+        _require(report.get("execution_mode") == "execute", "execution_mode", "executed report required", errors)
+
+    if errors:
+        raise ValueError("; ".join(f"{error['field']}: {error['error']}" for error in errors))
+    return report
+
+
+def validate_result_templates(
+    templates: dict[str, Any],
+    *,
+    training_report: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Validate result templates before future compute evidence references them."""
+
+    errors: list[dict[str, str]] = []
+    _require(
+        templates.get("schema_version") == RESULT_TEMPLATES_SCHEMA,
+        "schema_version",
+        "unsupported schema_version",
+        errors,
+    )
+    _require(_is_sha256(templates.get("payload_sha256")), "payload_sha256", "must be a SHA-256 hex digest", errors)
+    if _is_sha256(templates.get("payload_sha256")):
+        _require(
+            templates["payload_sha256"] == _payload_digest(templates),
+            "payload_sha256",
+            "does not match canonical template payload",
+            errors,
+        )
+    _require(
+        _is_sha256(templates.get("training_report_payload_sha256")),
+        "training_report_payload_sha256",
+        "must be a SHA-256 hex digest",
+        errors,
+    )
+    _require(
+        _is_sha256(templates.get("expected_dataset_sha256")),
+        "expected_dataset_sha256",
+        "must be a SHA-256 hex digest",
+        errors,
+    )
+    _require(
+        "not ML350 SAS" in str(templates.get("expected_weight_path_policy", "")),
+        "expected_weight_path_policy",
+        "must forbid ML350 SAS weight output",
+        errors,
+    )
+    _require(
+        "not executed training evidence" in str(templates.get("claim_boundary", "")),
+        "claim_boundary",
+        "must preserve non-executed boundary",
+        errors,
+    )
+
+    template_specs = {
+        "holdout_metrics": ("required_metrics", REQUIRED_HOLDOUT_METRICS),
+        "latency_metrics": ("required_fields", REQUIRED_LATENCY_FIELDS),
+        "gpu_cost": ("required_fields", REQUIRED_GPU_COST_FIELDS),
+        "admission_certificate": ("required_fields", REQUIRED_ADMISSION_CERTIFICATE_FIELDS),
+    }
+    for section, (key, expected) in template_specs.items():
+        payload = templates.get(section)
+        if not isinstance(payload, dict):
+            errors.append({"field": section, "error": "must be an object"})
+            continue
+        _require(
+            isinstance(payload.get("schema_version"), str), f"{section}.schema_version", "must be a string", errors
+        )
+        _require(
+            isinstance(payload.get("acceptance_policy"), str) and bool(payload["acceptance_policy"]),
+            f"{section}.acceptance_policy",
+            "must be a non-empty string",
+            errors,
+        )
+        _require_string_members(payload.get(key), expected, f"{section}.{key}", errors)
+
+    certificate = templates.get("admission_certificate", {})
+    if isinstance(certificate, dict):
+        _require(
+            certificate.get("admission_status_enum") == ["blocked", "pass", "fail"],
+            "admission_certificate.admission_status_enum",
+            "must be ['blocked', 'pass', 'fail']",
+            errors,
+        )
+
+    if training_report is not None:
+        validate_training_report(training_report)
+        _require(
+            templates.get("training_report_payload_sha256") == training_report.get("payload_sha256"),
+            "training_report_payload_sha256",
+            "does not match launch report",
+            errors,
+        )
+        _require(
+            templates.get("expected_dataset_sha256") == training_report.get("dataset_sha256"),
+            "expected_dataset_sha256",
+            "does not match launch report",
+            errors,
+        )
+
+    if errors:
+        raise ValueError("; ".join(f"{error['field']}: {error['error']}" for error in errors))
+    return templates
+
+
 def write_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
     """Write JSON and Markdown launch reports."""
 
+    validate_training_report(report)
     json_out.parent.mkdir(parents=True, exist_ok=True)
     json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     lines = [
@@ -725,6 +963,7 @@ def write_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> 
 def write_result_templates(templates: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
     """Write JSON and Markdown result templates for the later compute campaign."""
 
+    validate_result_templates(templates)
     json_out.parent.mkdir(parents=True, exist_ok=True)
     json_out.write_text(json.dumps(templates, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     lines = [

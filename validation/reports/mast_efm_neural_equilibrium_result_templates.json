@@ -66,7 +66,7 @@
     ],
     "schema_version": "scpn-control.mast-efm-neural-equilibrium-latency-metrics.v1"
   },
-  "payload_sha256": "d8bf61dc250b5fb8efad0760e3b5021ed70b44c52a9d57e5914c0632d189c823",
+  "payload_sha256": "ca3c80f970e63ca50ace0186caf7555de2d0476a0374716cfbd8940a20d04d28",
   "schema_version": "scpn-control.mast-efm-neural-equilibrium-result-templates.v1",
-  "training_report_payload_sha256": "873ec5ffcea8d2ae174f836cf744a0cfe940f7a7921d2aff1097ea4619b53b8e"
+  "training_report_payload_sha256": "fc8724dc72801e8a92126a4e5cd46fd574f33eb320cb6889fd37bc6ae90d2b7d"
 }

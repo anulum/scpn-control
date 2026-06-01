@@ -6,36 +6,8 @@
   ],
   "campaign_plan": "validation/reports/neural_equilibrium_training_campaign_plan.json",
   "claim_boundary": "This report prepares or executes a deterministic repository baseline. It is not predictive EFIT/P-EFIT admission evidence.",
-  "dataset_exists_on_this_host": true,
-  "dataset_metadata": {
-    "equilibria_count": 527,
-    "feature_count": 12,
-    "grid_shape": [
-      65,
-      129
-    ],
-    "max_lcfs_points": 157,
-    "split_counts": {
-      "test": 107,
-      "train": 340,
-      "validation": 80
-    },
-    "target_keys": [
-      "psirz_Wb_per_rad",
-      "psirz_valid_mask",
-      "psi_axis_Wb_per_rad",
-      "psi_boundary_Wb_per_rad",
-      "pprime_Pa_per_Wb_rad",
-      "pprime_valid_mask",
-      "q_profile",
-      "q_profile_valid_mask",
-      "lcfs_r_m",
-      "lcfs_z_m",
-      "lcfs_valid_mask",
-      "magnetic_axis_r_m",
-      "magnetic_axis_z_m"
-    ]
-  },
+  "dataset_exists_on_this_host": false,
+  "dataset_metadata": null,
   "dataset_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
   "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
   "dataset_sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
@@ -45,7 +17,7 @@
   "feature_provenance_report": "validation/reports/mast_efm_feature_provenance_audit.json",
   "holdout_metrics": null,
   "original_source_report": "validation/reports/mast_efm_original_feature_source_audit.json",
-  "payload_sha256": "873ec5ffcea8d2ae174f836cf744a0cfe940f7a7921d2aff1097ea4619b53b8e",
+  "payload_sha256": "fc8724dc72801e8a92126a4e5cd46fd574f33eb320cb6889fd37bc6ae90d2b7d",
   "pre_run_admission": {
     "compute_execution": {
       "admitted_compute_host_kinds": [
@@ -55,7 +27,8 @@
       "compute_host_kind": "unspecified",
       "compute_host_label": "aaarthuus",
       "errors": [
-        "compute host kind must be explicitly declared as workstation or external_cloud before --execute"
+        "compute host kind must be explicitly declared as workstation or external_cloud before --execute",
+        "dataset payload SHA-256 must be verified before --execute"
       ],
       "forbidden_output_roots": [
         "/mnt/data_sas",
@@ -66,9 +39,10 @@
         "ml350"
       ]
     },
-    "dataset_sha256_verified": true,
+    "dataset_sha256_verified": false,
     "errors": [
-      "compute host kind must be explicitly declared as workstation or external_cloud before --execute"
+      "compute host kind must be explicitly declared as workstation or external_cloud before --execute",
+      "dataset payload SHA-256 must be verified before --execute"
     ],
     "required_for_execute": true,
     "source_provenance": {
