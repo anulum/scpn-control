@@ -84,9 +84,9 @@ facades and replay-safe contracts for the subset needed in controller loops.
 | Python public classes | 481 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
-| Validation scripts | 76 |
+| Validation scripts | 77 |
 | Optional extras | 17 |
-| Python test files | 286 |
+| Python test files | 287 |
 | Public documentation pages | 32 |
 | GitHub Actions workflows | 8 |
 
@@ -321,6 +321,7 @@ scpn-control benchmark --n-bench 5000                 # PID vs SNN timing benchm
 scpn-control validate                                 # RMSE validation dashboard
 scpn-control validate-eped-reference --require-reference-artifacts --json-out  # EPED pedestal reference gate
 scpn-control validate-marfe-reference --require-reference-artifacts --json-out # MARFE density-limit reference gate
+scpn-control validate-ntm-reference --require-reference-artifacts --json-out   # NTM island-dynamics reference gate
 scpn-control live --host 127.0.0.1 --port 8765 --zeta 0.5 --api-key "$SCPN_PHASE_WS_API_KEY"  # Real-time WS phase sync server
 scpn-control hil-test --shots-dir ...                 # HIL test campaign
 ```

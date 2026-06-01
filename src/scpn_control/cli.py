@@ -27,6 +27,7 @@ Usage::
     scpn-control validate-elm-reference --require-reference-artifacts --json-out
     scpn-control validate-eped-reference --require-reference-artifacts --json-out
     scpn-control validate-marfe-reference --require-reference-artifacts --json-out
+    scpn-control validate-ntm-reference --require-reference-artifacts --json-out
     scpn-control validate-neural-equilibrium-reference --require-reference-artifacts --json-out
     scpn-control validate-neural-transport-reference --require-reference-artifacts --json-out
     scpn-control validate-neural-turbulence-reference --require-reference-artifacts --json-out
@@ -859,6 +860,38 @@ def validate_marfe_reference_command(
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
         click.echo(f"MARFE reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        for error in report["errors"]:
+            click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+    if report["status"] != "pass":
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-ntm-reference")
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted NTM reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_ntm_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted NTM reference artifacts."""
+    from validation.validate_ntm_reference import ROOT, validate_ntm_reference
+
+    path = artifact_root or str(ROOT / "validation" / "reports" / "ntm_reference")
+    report = validate_ntm_reference(path, require_reference_artifacts=require_reference_artifacts)
+    if output_json is not None:
+        from pathlib import Path as _P
+
+        output_path = _P(output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if json_out:
+        click.echo(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        click.echo(f"NTM reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":

@@ -5,6 +5,16 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added strict NTM island-dynamics reference-artifact admission so
+  full-fidelity q-profile, rational-surface, island-growth, saturated-width,
+  suppression-time, seed-island, and ECCD-alignment claims require
+  schema-versioned `scpn-control.ntm-reference.v1` evidence with measured NTM
+  campaign or documented public-reference provenance, safe q-profile,
+  rational-surface, island-width-trace, and ECCD-alignment artifact URIs,
+  SHA-256 digests for every artifact and the canonical payload, NTM unit
+  contracts, ordered rho grids, positive q-profile domains, rational-surface
+  tokamak-ordering metadata, positive seed-island domains, tolerance-checked
+  physical metrics, and module-specific tamper/domain tests.
 - Added strict MARFE radiation-condensation reference-artifact admission so
   full-fidelity onset-temperature, density-limit, Greenwald-fraction,
   front-temperature, radiative-growth, impurity-fraction, connection-length,

@@ -1174,22 +1174,27 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate island growth and suppression against measured or published NTM benchmark cases",
-        "Persist q-profile, rational-surface, seed-island, and ECCD alignment metadata with each validation case"
+        "Persist q-profile, rational-surface, seed-island, and ECCD alignment metadata with each validation case",
+        "Keep full-fidelity NTM forecasting and suppression claims blocked until measured NTM campaign or documented public reference artifacts pass the strict admission gate"
       ],
       "unit_contract": "Island width in metres, time in seconds, current in amperes, q dimensionless, rho dimensionless, ECCD power in MW or W with conversion metadata.",
       "validation_evidence": [
         "tests/test_ntm_dynamics.py",
+        "tests/test_ntm_reference_validation.py strict reference-artifact admission checks",
+        "validation/validate_ntm_reference.py strict digest-bound NTM reference gate",
         "tests/test_cross_module_physics.py"
       ],
       "evidence_paths": [
         "tests/test_ntm_dynamics.py",
+        "tests/test_ntm_reference_validation.py",
+        "validation/validate_ntm_reference.py",
         "tests/test_cross_module_physics.py",
         "src/scpn_control/core/ntm_dynamics.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/ntm_dynamics.py"
       ],
-      "validity_domain": "Rational-surface, island-growth, and local control regression; not facility-qualified NTM forecasting or suppression validation.",
+      "validity_domain": "Rational-surface, island-growth, and local control regression plus a fail-closed, schema-versioned, digest-bound reference-artifact gate; not facility-qualified NTM forecasting or suppression validation until measured NTM campaign or documented public artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {

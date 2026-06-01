@@ -575,6 +575,26 @@ metadata, and onset-temperature, density-limit, Greenwald-fraction,
 front-temperature, and radiation-growth metrics inside declared tolerances.
 Synthetic MARFE regressions remain module-behaviour checks only.
 
+NTM island-dynamics validation claims require measured NTM campaign or
+documented public reference artifacts for q-profile reconstruction,
+rational-surface location, island-width growth and saturation, suppression
+time, seed-island domain, and ECCD alignment:
+
+```bash
+scpn-control validate-ntm-reference --require-reference-artifacts --json-out
+python validation/validate_ntm_reference.py --require-reference-artifacts --output-json artifacts/ntm_reference_report.json
+```
+
+Strict mode fails until `validation/reports/ntm_reference/` contains artifacts
+using schema `scpn-control.ntm-reference.v1` with source provenance, safe
+q-profile, rational-surface, island-width-trace, and ECCD-alignment artifact
+URIs, SHA-256 hashes for each artifact and the canonical payload, NTM unit
+contracts, strictly ordered rho grids, positive q profiles, rational-surface
+metadata with tokamak ordering, positive seed-island domains, finite ECCD
+alignment metadata, and rational-surface, growth, saturation, suppression, and
+alignment metrics inside declared tolerances. Synthetic NTM regressions remain
+module-behaviour checks only.
+
 Orbit-following validation claims require persisted published-reference or
 real-campaign artifacts for banana-width, first-orbit-loss, and
 passing/trapped/lost classification checks:

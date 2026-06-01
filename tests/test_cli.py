@@ -624,6 +624,14 @@ def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
             "no MARFE reference artifacts found",
         ),
         (
+            "validate-ntm-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "NTM reference: fail",
+            "reference_artifacts",
+            "no NTM reference artifacts found",
+        ),
+        (
             "validate-neural-equilibrium-reference",
             "--artifact-root",
             "--require-reference-artifacts",
@@ -742,6 +750,7 @@ def test_gk_validation_text_error_paths(
         ("validate-elm-reference", "--artifact-root", "--require-reference-artifacts", "elm.json"),
         ("validate-eped-reference", "--artifact-root", "--require-reference-artifacts", "eped.json"),
         ("validate-marfe-reference", "--artifact-root", "--require-reference-artifacts", "marfe.json"),
+        ("validate-ntm-reference", "--artifact-root", "--require-reference-artifacts", "ntm.json"),
         (
             "validate-neural-equilibrium-reference",
             "--artifact-root",
@@ -1046,6 +1055,24 @@ def test_validate_marfe_reference_requires_artifacts(runner, tmp_path):
     data = json.loads(result.output)
     assert data["status"] == "fail"
     assert data["errors"][0]["error"] == "no MARFE reference artifacts found"
+
+
+def test_validate_ntm_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-ntm-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no NTM reference artifacts found"
 
 
 def test_validate_neural_equilibrium_reference_requires_artifacts(runner, tmp_path):
