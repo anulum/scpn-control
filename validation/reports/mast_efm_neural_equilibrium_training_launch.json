@@ -5,12 +5,40 @@
     "run --execute on admitted storage and publish holdout metrics for train, validation, and test splits",
     "validate the exact trained weight checksum through the strict neural-equilibrium reference gate"
   ],
-  "campaign_plan": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reports/neural_equilibrium_training_campaign_plan.json",
+  "campaign_plan": "validation/reports/neural_equilibrium_training_campaign_plan.json",
   "claim_boundary": "This report prepares or executes a deterministic repository baseline. It is not predictive EFIT/P-EFIT admission evidence.",
-  "dataset_exists_on_this_host": false,
-  "dataset_metadata": null,
+  "dataset_exists_on_this_host": true,
+  "dataset_metadata": {
+    "equilibria_count": 527,
+    "feature_count": 12,
+    "grid_shape": [
+      65,
+      129
+    ],
+    "max_lcfs_points": 157,
+    "split_counts": {
+      "test": 107,
+      "train": 340,
+      "validation": 80
+    },
+    "target_keys": [
+      "psirz_Wb_per_rad",
+      "psirz_valid_mask",
+      "psi_axis_Wb_per_rad",
+      "psi_boundary_Wb_per_rad",
+      "pprime_Pa_per_Wb_rad",
+      "pprime_valid_mask",
+      "q_profile",
+      "q_profile_valid_mask",
+      "lcfs_r_m",
+      "lcfs_z_m",
+      "lcfs_valid_mask",
+      "magnetic_axis_r_m",
+      "magnetic_axis_z_m"
+    ]
+  },
   "dataset_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
-  "dataset_report": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reports/mast_efm_neural_equilibrium_dataset.json",
+  "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
   "dataset_sha256": "e5d3bb4bbf426b489f8f6b51ae44a17c7cfcbde15d91da18db4329c7a772605e",
   "execution_mode": "dry_run",
   "fallback_features": [
@@ -19,7 +47,7 @@
     "ffprime_scale"
   ],
   "holdout_metrics": null,
-  "payload_sha256": "0f4a4386e470bcb92eae966b4e4a00da6fff60c8035f852fa412de4a42c02899",
+  "payload_sha256": "d512f1d517f926af6121c8412ea422be9edcfeaee2d9c93f7e7ada02592ef794",
   "required_targets": [
     "psirz_Wb_per_rad",
     "psirz_valid_mask",

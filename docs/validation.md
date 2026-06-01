@@ -568,12 +568,32 @@ python validation/train_mast_efm_neural_equilibrium.py
 
 This writes `validation/reports/mast_efm_neural_equilibrium_training_launch.json`
 and `validation/reports/mast_efm_neural_equilibrium_training_launch.md` without
-touching SAS weights. The report records the exact `--execute` command to run
+touching SAS weights. The current checked-in launch report was generated from
+ML350 and confirms that the SAS dataset is visible on that host with 527
+validated equilibria. The report records the exact `--execute` command to run
 later on admitted storage. Execution mode trains deterministic ridge/PCA
 baseline heads for flux, pressure-gradient profile, q-profile, LCFS geometry,
 and magnetic-axis outputs, then writes weights and compact train, validation,
 and test metrics. That execution remains blocked for admission until fallback
 features are replaced or documented and strict reference admission passes.
+
+Feature provenance for the current converted public MAST EFM bundles can be
+audited with:
+
+```bash
+python validation/audit_mast_efm_feature_provenance.py \
+  --dataset-report validation/reports/mast_efm_neural_equilibrium_dataset.json \
+  --sas-root /mnt/data_sas/DATASETS/SCPN-CONTROL
+```
+
+The generated audit is checked in as
+`validation/reports/mast_efm_feature_provenance_audit.json` and
+`validation/reports/mast_efm_feature_provenance_audit.md`. It confirms that the
+converted `.npz` bundles contain flux, masks, pressure-gradient, q-profile,
+LCFS, axis, grid, shot, and time arrays, but no direct `Ip_MA`, `Bt_T`, or
+`ffprime_scale` source keys. Those inputs therefore remain blocked until the
+original public MAST metadata supplies admitted equivalents or the dataset is
+rebuilt with documented replacement features.
 
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 

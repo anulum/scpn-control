@@ -1,0 +1,607 @@
+{
+  "all_reference_keys": [
+    "lcfs_r_m",
+    "lcfs_valid_mask",
+    "lcfs_z_m",
+    "magnetic_axis_r_m",
+    "magnetic_axis_z_m",
+    "pprime_Pa_per_Wb_rad",
+    "pprime_valid_mask",
+    "psi_axis_Wb_per_rad",
+    "psi_boundary_Wb_per_rad",
+    "psirz_Wb_per_rad",
+    "psirz_valid_mask",
+    "q_profile",
+    "q_profile_valid_mask",
+    "r_grid_m",
+    "shot_id",
+    "time_s",
+    "z_grid_m"
+  ],
+  "blocked_features": [
+    "Ip_MA",
+    "Bt_T",
+    "ffprime_scale"
+  ],
+  "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
+  "fallback_features": [
+    "Ip_MA",
+    "Bt_T",
+    "ffprime_scale"
+  ],
+  "feature_status": {
+    "Bt_T": {
+      "candidate_keys": [
+        "Bt_T",
+        "bcentr_T",
+        "b_tor_T",
+        "toroidal_field_T",
+        "Bt",
+        "bcentr"
+      ],
+      "present_keys": [],
+      "resolution": "not present in converted public EFM bundles",
+      "status": "blocked"
+    },
+    "Ip_MA": {
+      "candidate_keys": [
+        "Ip_MA",
+        "plasma_current_MA",
+        "plasma_current_A",
+        "ip",
+        "Ip",
+        "current_A"
+      ],
+      "present_keys": [],
+      "resolution": "not present in converted public EFM bundles",
+      "status": "blocked"
+    },
+    "ffprime_scale": {
+      "candidate_keys": [
+        "ffprime_scale",
+        "ffprime",
+        "ffprime_Wb_per_rad",
+        "fpol",
+        "fpol_profile"
+      ],
+      "present_keys": [],
+      "resolution": "not present in converted public EFM bundles",
+      "status": "blocked"
+    }
+  },
+  "next_processing_steps": [
+    "inspect the original public MAST Level 1 EFM/Zarr metadata for plasma-current and toroidal-field channels",
+    "acquire or document public FF-prime/fpol provenance or keep ffprime_scale blocked",
+    "rebuild the supervised dataset after any non-fallback feature sources are admitted"
+  ],
+  "payload_sha256": "4bc751b88e9704a53fc91019efb4c9442488486faf435d28bcb5b15c9ab82a0c",
+  "reference_count": 6,
+  "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-2cb0254259360c05",
+  "sas_root": "/mnt/data_sas/DATASETS/SCPN-CONTROL",
+  "schema_version": "scpn-control.mast-efm-feature-provenance-audit.v1",
+  "shots": [
+    {
+      "key_count": 17,
+      "keys": [
+        "lcfs_r_m",
+        "lcfs_valid_mask",
+        "lcfs_z_m",
+        "magnetic_axis_r_m",
+        "magnetic_axis_z_m",
+        "pprime_Pa_per_Wb_rad",
+        "pprime_valid_mask",
+        "psi_axis_Wb_per_rad",
+        "psi_boundary_Wb_per_rad",
+        "psirz_Wb_per_rad",
+        "psirz_valid_mask",
+        "q_profile",
+        "q_profile_valid_mask",
+        "r_grid_m",
+        "shot_id",
+        "time_s",
+        "z_grid_m"
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz",
+      "shapes": {
+        "lcfs_r_m": [
+          107,
+          137
+        ],
+        "lcfs_valid_mask": [
+          107,
+          137
+        ],
+        "lcfs_z_m": [
+          107,
+          137
+        ],
+        "magnetic_axis_r_m": [
+          107
+        ],
+        "magnetic_axis_z_m": [
+          107
+        ],
+        "pprime_Pa_per_Wb_rad": [
+          107,
+          65
+        ],
+        "pprime_valid_mask": [
+          107,
+          65
+        ],
+        "psi_axis_Wb_per_rad": [
+          107
+        ],
+        "psi_boundary_Wb_per_rad": [
+          107
+        ],
+        "psirz_Wb_per_rad": [
+          107,
+          65,
+          129
+        ],
+        "psirz_valid_mask": [
+          107,
+          65,
+          129
+        ],
+        "q_profile": [
+          107,
+          65
+        ],
+        "q_profile_valid_mask": [
+          107,
+          65
+        ],
+        "r_grid_m": [
+          129
+        ],
+        "shot_id": [
+          107
+        ],
+        "time_s": [
+          107
+        ],
+        "z_grid_m": [
+          65
+        ]
+      }
+    },
+    {
+      "key_count": 17,
+      "keys": [
+        "lcfs_r_m",
+        "lcfs_valid_mask",
+        "lcfs_z_m",
+        "magnetic_axis_r_m",
+        "magnetic_axis_z_m",
+        "pprime_Pa_per_Wb_rad",
+        "pprime_valid_mask",
+        "psi_axis_Wb_per_rad",
+        "psi_boundary_Wb_per_rad",
+        "psirz_Wb_per_rad",
+        "psirz_valid_mask",
+        "q_profile",
+        "q_profile_valid_mask",
+        "r_grid_m",
+        "shot_id",
+        "time_s",
+        "z_grid_m"
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30420_reference.npz",
+      "shapes": {
+        "lcfs_r_m": [
+          53,
+          147
+        ],
+        "lcfs_valid_mask": [
+          53,
+          147
+        ],
+        "lcfs_z_m": [
+          53,
+          147
+        ],
+        "magnetic_axis_r_m": [
+          53
+        ],
+        "magnetic_axis_z_m": [
+          53
+        ],
+        "pprime_Pa_per_Wb_rad": [
+          53,
+          65
+        ],
+        "pprime_valid_mask": [
+          53,
+          65
+        ],
+        "psi_axis_Wb_per_rad": [
+          53
+        ],
+        "psi_boundary_Wb_per_rad": [
+          53
+        ],
+        "psirz_Wb_per_rad": [
+          53,
+          65,
+          129
+        ],
+        "psirz_valid_mask": [
+          53,
+          65,
+          129
+        ],
+        "q_profile": [
+          53,
+          65
+        ],
+        "q_profile_valid_mask": [
+          53,
+          65
+        ],
+        "r_grid_m": [
+          129
+        ],
+        "shot_id": [
+          53
+        ],
+        "time_s": [
+          53
+        ],
+        "z_grid_m": [
+          65
+        ]
+      }
+    },
+    {
+      "key_count": 17,
+      "keys": [
+        "lcfs_r_m",
+        "lcfs_valid_mask",
+        "lcfs_z_m",
+        "magnetic_axis_r_m",
+        "magnetic_axis_z_m",
+        "pprime_Pa_per_Wb_rad",
+        "pprime_valid_mask",
+        "psi_axis_Wb_per_rad",
+        "psi_boundary_Wb_per_rad",
+        "psirz_Wb_per_rad",
+        "psirz_valid_mask",
+        "q_profile",
+        "q_profile_valid_mask",
+        "r_grid_m",
+        "shot_id",
+        "time_s",
+        "z_grid_m"
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30421_reference.npz",
+      "shapes": {
+        "lcfs_r_m": [
+          108,
+          139
+        ],
+        "lcfs_valid_mask": [
+          108,
+          139
+        ],
+        "lcfs_z_m": [
+          108,
+          139
+        ],
+        "magnetic_axis_r_m": [
+          108
+        ],
+        "magnetic_axis_z_m": [
+          108
+        ],
+        "pprime_Pa_per_Wb_rad": [
+          108,
+          65
+        ],
+        "pprime_valid_mask": [
+          108,
+          65
+        ],
+        "psi_axis_Wb_per_rad": [
+          108
+        ],
+        "psi_boundary_Wb_per_rad": [
+          108
+        ],
+        "psirz_Wb_per_rad": [
+          108,
+          65,
+          129
+        ],
+        "psirz_valid_mask": [
+          108,
+          65,
+          129
+        ],
+        "q_profile": [
+          108,
+          65
+        ],
+        "q_profile_valid_mask": [
+          108,
+          65
+        ],
+        "r_grid_m": [
+          129
+        ],
+        "shot_id": [
+          108
+        ],
+        "time_s": [
+          108
+        ],
+        "z_grid_m": [
+          65
+        ]
+      }
+    },
+    {
+      "key_count": 17,
+      "keys": [
+        "lcfs_r_m",
+        "lcfs_valid_mask",
+        "lcfs_z_m",
+        "magnetic_axis_r_m",
+        "magnetic_axis_z_m",
+        "pprime_Pa_per_Wb_rad",
+        "pprime_valid_mask",
+        "psi_axis_Wb_per_rad",
+        "psi_boundary_Wb_per_rad",
+        "psirz_Wb_per_rad",
+        "psirz_valid_mask",
+        "q_profile",
+        "q_profile_valid_mask",
+        "r_grid_m",
+        "shot_id",
+        "time_s",
+        "z_grid_m"
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30422_reference.npz",
+      "shapes": {
+        "lcfs_r_m": [
+          72,
+          157
+        ],
+        "lcfs_valid_mask": [
+          72,
+          157
+        ],
+        "lcfs_z_m": [
+          72,
+          157
+        ],
+        "magnetic_axis_r_m": [
+          72
+        ],
+        "magnetic_axis_z_m": [
+          72
+        ],
+        "pprime_Pa_per_Wb_rad": [
+          72,
+          65
+        ],
+        "pprime_valid_mask": [
+          72,
+          65
+        ],
+        "psi_axis_Wb_per_rad": [
+          72
+        ],
+        "psi_boundary_Wb_per_rad": [
+          72
+        ],
+        "psirz_Wb_per_rad": [
+          72,
+          65,
+          129
+        ],
+        "psirz_valid_mask": [
+          72,
+          65,
+          129
+        ],
+        "q_profile": [
+          72,
+          65
+        ],
+        "q_profile_valid_mask": [
+          72,
+          65
+        ],
+        "r_grid_m": [
+          129
+        ],
+        "shot_id": [
+          72
+        ],
+        "time_s": [
+          72
+        ],
+        "z_grid_m": [
+          65
+        ]
+      }
+    },
+    {
+      "key_count": 17,
+      "keys": [
+        "lcfs_r_m",
+        "lcfs_valid_mask",
+        "lcfs_z_m",
+        "magnetic_axis_r_m",
+        "magnetic_axis_z_m",
+        "pprime_Pa_per_Wb_rad",
+        "pprime_valid_mask",
+        "psi_axis_Wb_per_rad",
+        "psi_boundary_Wb_per_rad",
+        "psirz_Wb_per_rad",
+        "psirz_valid_mask",
+        "q_profile",
+        "q_profile_valid_mask",
+        "r_grid_m",
+        "shot_id",
+        "time_s",
+        "z_grid_m"
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30423_reference.npz",
+      "shapes": {
+        "lcfs_r_m": [
+          80,
+          157
+        ],
+        "lcfs_valid_mask": [
+          80,
+          157
+        ],
+        "lcfs_z_m": [
+          80,
+          157
+        ],
+        "magnetic_axis_r_m": [
+          80
+        ],
+        "magnetic_axis_z_m": [
+          80
+        ],
+        "pprime_Pa_per_Wb_rad": [
+          80,
+          65
+        ],
+        "pprime_valid_mask": [
+          80,
+          65
+        ],
+        "psi_axis_Wb_per_rad": [
+          80
+        ],
+        "psi_boundary_Wb_per_rad": [
+          80
+        ],
+        "psirz_Wb_per_rad": [
+          80,
+          65,
+          129
+        ],
+        "psirz_valid_mask": [
+          80,
+          65,
+          129
+        ],
+        "q_profile": [
+          80,
+          65
+        ],
+        "q_profile_valid_mask": [
+          80,
+          65
+        ],
+        "r_grid_m": [
+          129
+        ],
+        "shot_id": [
+          80
+        ],
+        "time_s": [
+          80
+        ],
+        "z_grid_m": [
+          65
+        ]
+      }
+    },
+    {
+      "key_count": 17,
+      "keys": [
+        "lcfs_r_m",
+        "lcfs_valid_mask",
+        "lcfs_z_m",
+        "magnetic_axis_r_m",
+        "magnetic_axis_z_m",
+        "pprime_Pa_per_Wb_rad",
+        "pprime_valid_mask",
+        "psi_axis_Wb_per_rad",
+        "psi_boundary_Wb_per_rad",
+        "psirz_Wb_per_rad",
+        "psirz_valid_mask",
+        "q_profile",
+        "q_profile_valid_mask",
+        "r_grid_m",
+        "shot_id",
+        "time_s",
+        "z_grid_m"
+      ],
+      "reference_path": "converted/neural_equilibrium_reference/mast_efm_shot_30424_reference.npz",
+      "shapes": {
+        "lcfs_r_m": [
+          107,
+          137
+        ],
+        "lcfs_valid_mask": [
+          107,
+          137
+        ],
+        "lcfs_z_m": [
+          107,
+          137
+        ],
+        "magnetic_axis_r_m": [
+          107
+        ],
+        "magnetic_axis_z_m": [
+          107
+        ],
+        "pprime_Pa_per_Wb_rad": [
+          107,
+          65
+        ],
+        "pprime_valid_mask": [
+          107,
+          65
+        ],
+        "psi_axis_Wb_per_rad": [
+          107
+        ],
+        "psi_boundary_Wb_per_rad": [
+          107
+        ],
+        "psirz_Wb_per_rad": [
+          107,
+          65,
+          129
+        ],
+        "psirz_valid_mask": [
+          107,
+          65,
+          129
+        ],
+        "q_profile": [
+          107,
+          65
+        ],
+        "q_profile_valid_mask": [
+          107,
+          65
+        ],
+        "r_grid_m": [
+          129
+        ],
+        "shot_id": [
+          107
+        ],
+        "time_s": [
+          107
+        ],
+        "z_grid_m": [
+          65
+        ]
+      }
+    }
+  ],
+  "status": "blocked"
+}

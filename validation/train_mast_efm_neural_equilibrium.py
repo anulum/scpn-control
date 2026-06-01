@@ -126,8 +126,11 @@ def _dataset_metadata(data: dict[str, NDArray[Any]], dataset_report: dict[str, A
     if split_counts != dict(dataset_report["split_counts"]):
         raise ValueError("dataset split_counts do not match the dataset report")
     psirz = np.asarray(data["psirz_Wb_per_rad"], dtype=np.float64)
-    if psirz.ndim != 3 or psirz.shape[0] != features.shape[0] or not np.all(np.isfinite(psirz)):
-        raise ValueError("psirz_Wb_per_rad must be finite with shape (n, z, r)")
+    psirz_mask = np.asarray(data["psirz_valid_mask"], dtype=bool)
+    if psirz.ndim != 3 or psirz.shape[0] != features.shape[0] or psirz_mask.shape != psirz.shape:
+        raise ValueError("psirz_Wb_per_rad and psirz_valid_mask must have shape (n, z, r)")
+    if not np.all(np.isfinite(psirz[psirz_mask])):
+        raise ValueError("psirz_Wb_per_rad must be finite on valid mask entries")
     mask_targets = {
         "psirz_valid_mask": "psirz_Wb_per_rad",
         "pprime_valid_mask": "pprime_Pa_per_Wb_rad",
@@ -220,6 +223,14 @@ def _fill_masked_columns(
     return filled
 
 
+def _fill_masked_flux(
+    values: NDArray[np.float64], mask: NDArray[np.bool_], train_mask: NDArray[np.bool_]
+) -> NDArray[np.float64]:
+    flat_values = values.reshape(values.shape[0], -1)
+    flat_mask = mask.reshape(mask.shape[0], -1)
+    return _fill_masked_columns(flat_values, flat_mask, train_mask)
+
+
 def _split_metrics(
     data: dict[str, NDArray[Any]],
     labels: NDArray[np.str_],
@@ -283,7 +294,7 @@ def _execute_training(
         raise ValueError("at least two training equilibria are required")
     x, x_mean, x_std = _standardise_train(features, train_mask)
     psirz = np.asarray(data["psirz_Wb_per_rad"], dtype=np.float64)
-    y_flux = psirz.reshape(psirz.shape[0], -1)
+    y_flux = _fill_masked_flux(psirz, np.asarray(data["psirz_valid_mask"], dtype=bool), train_mask)
     flux_mean, flux_components, flux_train_coeffs, flux_explained = _pca_fit(
         y_flux[train_mask],
         inputs.max_flux_components,

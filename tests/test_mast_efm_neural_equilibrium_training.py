@@ -30,6 +30,9 @@ def _write_payloads(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     split = np.array(["train", "train", "train", "validation", "test", "test"])
     z, r = 3, 4
     base = np.arange(n * z * r, dtype=np.float64).reshape(n, z, r) / 10.0
+    psirz_mask = np.ones_like(base, dtype=bool)
+    base[0, 0, 0] = np.nan
+    psirz_mask[0, 0, 0] = False
     lcfs_r = np.tile(np.linspace(0.4, 0.8, 5), (n, 1))
     lcfs_z = np.tile(np.linspace(-0.2, 0.2, 5), (n, 1))
     lcfs_mask = np.ones((n, 5), dtype=bool)
@@ -46,7 +49,7 @@ def _write_payloads(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
         r_grid_m=np.linspace(0.0, 1.0, r),
         z_grid_m=np.linspace(-1.0, 1.0, z),
         psirz_Wb_per_rad=base,
-        psirz_valid_mask=np.ones_like(base, dtype=bool),
+        psirz_valid_mask=psirz_mask,
         psi_axis_Wb_per_rad=np.linspace(0.0, 0.1, n),
         psi_boundary_Wb_per_rad=np.linspace(1.0, 1.1, n),
         pprime_Pa_per_Wb_rad=np.column_stack([np.linspace(1.0, 2.0, n), np.linspace(2.0, 3.0, n)]),

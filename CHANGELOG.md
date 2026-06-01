@@ -12,6 +12,7 @@
 - Added a SAS-hosted MAST EFM neural-equilibrium supervised dataset builder and repository-published dataset evidence report with deterministic shot-held-out train, validation, and test splits, padded LCFS geometry metadata, SHA-256 traceability, and an explicit block on predictive EFIT/P-EFIT admission pending full-output model validation.
 - Added a neural-equilibrium training-campaign planner that verifies prepared MAST EFM SAS payloads, tracks deferred QLKNN/QuaLiKiz and external EFIT/P-EFIT dataset lanes, publishes run-order evidence, and records GPU-hour planning budgets without launching long training jobs.
 - Added a dry-run-first MAST EFM neural-equilibrium trainer that validates the prepared dataset/report contract by default, emits a launch report, and requires explicit `--execute` before writing deterministic full-output baseline weights or holdout metrics.
+- Added a MAST EFM feature-provenance audit and ML350 dry-run launch evidence showing the prepared SAS dataset validates on the storage host while `Ip_MA`, `Bt_T`, and `ffprime_scale` remain blocked because the converted public EFM bundles do not contain direct source keys.
 
 ## [0.19.3] - 2026-06-01
 
