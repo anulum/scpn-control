@@ -5,6 +5,15 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added strict SOL blob-transport reference-artifact admission so full-fidelity
+  blob velocity, spreading, wall-flux, and detector-event claims require
+  schema-versioned `scpn-control.blob-transport-reference.v1` evidence with
+  measured probe-campaign or documented public-reference provenance, safe
+  reference/profile/detector artifact URIs, SHA-256 digests for every artifact
+  and the canonical payload, SOL unit contracts, strictly ordered
+  separatrix-to-wall coordinates, positive detector and blob-size domains,
+  positive magnetic-geometry metadata, tolerance-checked physical metrics, and
+  module-specific tamper/domain tests.
 - Hardened neural equilibrium reference-artifact admission so predictive
   EFIT/P-EFIT or documented-reference equilibrium claims must use
   schema-versioned `scpn-control.neural-equilibrium-reference.v1` evidence with

@@ -498,6 +498,24 @@ reference SHA-256 hashes, feature ordering, gyro-Bohm flux target units,
 reference-sample count, and Q_i/Q_e/Gamma_e plus critical-gradient metrics
 inside declared tolerances.
 
+Blob transport validation claims require measured probe-campaign or documented
+public reference artifacts for SOL filament velocity, spreading, wall-flux, and
+event-domain checks:
+
+```bash
+scpn-control validate-blob-transport-reference --require-reference-artifacts --json-out
+python validation/validate_blob_transport_reference.py --require-reference-artifacts --output-json artifacts/blob_transport_reference_report.json
+```
+
+Strict mode fails until `validation/reports/blob_transport_reference/` contains
+artifacts using schema `scpn-control.blob-transport-reference.v1` with source
+provenance, safe reference/profile/detector artifact URIs, SHA-256 hashes for
+each artifact and the canonical payload, SOL unit contracts, strictly ordered
+separatrix-to-wall coordinates, positive detector-time and blob-size domains,
+positive magnetic-geometry metadata, and velocity/profile/wall-flux/event
+metrics inside declared tolerances. Synthetic blob regressions remain
+module-behaviour checks only.
+
 Orbit-following validation claims require persisted published-reference or
 real-campaign artifacts for banana-width, first-orbit-loss, and
 passing/trapped/lost classification checks:

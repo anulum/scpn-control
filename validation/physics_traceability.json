@@ -1290,21 +1290,26 @@
       "module_path": "src/scpn_control/core/blob_transport.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate blob velocity and spreading against measured or published SOL filament cases",
-        "Persist filament size, collisionality, sheath, and magnetic-geometry metadata with each validation artefact"
+        "Validate blob velocity and spreading against measured probe-campaign or published SOL filament cases",
+        "Persist schema-versioned reference, profile, and detector artifact URIs with SHA-256 digests, SOL unit contracts, separatrix-to-wall coordinates, detector event domains, blob-size domains, magnetic-geometry metadata, metrics, tolerances, and canonical payload digests with each validation artefact",
+        "Keep full-fidelity SOL blob-transport claims blocked until measured or documented public reference artifacts pass the strict admission gate"
       ],
       "unit_contract": "SI metres, seconds, m/s, density in m^-3, temperature in eV, magnetic field in tesla, and dimensionless normalised perturbations.",
       "validation_evidence": [
-        "tests/test_blob_transport.py velocity-regime, size-scaling, ensemble, flux, strict-profile-grid, wall-flux, and detector-domain checks"
+        "tests/test_blob_transport.py velocity-regime, size-scaling, ensemble, flux, strict-profile-grid, wall-flux, and detector-domain checks",
+        "tests/test_blob_transport_reference_validation.py strict reference-artifact admission checks",
+        "validation/validate_blob_transport_reference.py strict digest-bound SOL blob reference gate"
       ],
       "evidence_paths": [
         "tests/test_blob_transport.py",
+        "tests/test_blob_transport_reference_validation.py",
+        "validation/validate_blob_transport_reference.py",
         "src/scpn_control/core/blob_transport.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/blob_transport.py"
       ],
-      "validity_domain": "Analytic SOL filament regression; not a validated edge-plasma transport model.",
+      "validity_domain": "Analytic SOL filament regression plus a fail-closed, schema-versioned, digest-bound reference-artifact gate; not a validated edge-plasma transport model until measured probe-campaign or documented public SOL filament artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {
