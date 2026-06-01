@@ -213,10 +213,13 @@ jobs:
         run: |
           mkdir -p artifacts
           python -m scpn_control.cli validate --json-out > artifacts/release_evidence_report.json
+          python validation/validate_release_evidence.py artifacts/release_evidence_report.json --json-out > artifacts/release_evidence_admission.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: release-evidence-report
-          path: artifacts/release_evidence_report.json
+          path: |
+            artifacts/release_evidence_report.json
+            artifacts/release_evidence_admission.json
 
   # ─── Job 5: RMSE gate ───
   rmse-gate:

@@ -5,6 +5,11 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added strict release-evidence report admission for the CI artifact produced
+  by `scpn-control validate --json-out`, including duplicate-key rejection,
+  mandatory pass status for data manifests, JAX GK parity, and physics
+  traceability, complete CPU/GPU parity case coverage, and an admission JSON
+  artifact with the source report SHA-256 digest.
 - Added a CI `release-evidence-gate` job that runs top-level
   `scpn-control validate --json-out` and uploads the JSON report, so remote
   runs now publish auditable data-manifest, JAX GK parity, and physics
