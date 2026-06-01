@@ -29,7 +29,7 @@ def test_ci_publishes_top_level_release_evidence_report():
     assert "release-evidence-gate:" in workflow
     assert "python -m scpn_control.cli validate --json-out > artifacts/release_evidence_report.json" in workflow
     assert (
-        "python validation/validate_release_evidence.py artifacts/release_evidence_report.json "
+        "python -m scpn_control.cli validate-release-evidence artifacts/release_evidence_report.json "
         "--json-out > artifacts/release_evidence_admission.json"
     ) in workflow
     assert "name: release-evidence-report" in workflow

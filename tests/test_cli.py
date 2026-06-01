@@ -134,6 +134,64 @@ def test_validate_reports_physics_traceability_gate_failures(runner, tmp_path):
     assert any(error["field"] == "entries" for error in data["physics_traceability"]["errors"])
 
 
+def _release_evidence_report() -> dict[str, object]:
+    cases = ("cyclone_base_case", "tem_kinetic_electron", "stable_mode")
+    backends = ("cpu", "gpu")
+    return {
+        "transport_solver_available": True,
+        "import_clean": True,
+        "status": "pass",
+        "data_manifests": {
+            "status": "pass",
+            "total": 5,
+            "real": 4,
+            "synthetic": 1,
+            "artifact_coverage": {"expected": 21, "covered": 21, "missing": []},
+        },
+        "jax_gk_parity": {
+            "status": "pass",
+            "parity_artifacts": 6,
+            "required_cases": list(cases),
+            "required_backends": list(backends),
+            "entries": [{"case": case, "backend": backend} for case in cases for backend in backends],
+        },
+        "physics_traceability": {
+            "status": "pass",
+            "total": 54,
+            "open_fidelity_gaps": 53,
+            "public_claim_blocked": 53,
+        },
+    }
+
+
+def test_validate_release_evidence_json_out(runner, tmp_path):
+    report_path = tmp_path / "release_evidence_report.json"
+    report_path.write_text(json.dumps(_release_evidence_report()), encoding="utf-8")
+
+    result = runner.invoke(main, ["validate-release-evidence", str(report_path), "--json-out"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["status"] == "pass"
+    assert payload["schema_version"] == "scpn-control.release-evidence-admission.v1"
+    assert payload["admitted_gates"] == ["data_manifests", "jax_gk_parity", "physics_traceability"]
+    assert len(payload["report_sha256"]) == 64
+
+
+def test_validate_release_evidence_reports_failures(runner, tmp_path):
+    report = _release_evidence_report()
+    report["jax_gk_parity"] = {"status": "skipped"}
+    report_path = tmp_path / "release_evidence_report.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = runner.invoke(main, ["validate-release-evidence", str(report_path), "--json-out"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["status"] == "fail"
+    assert "jax_gk_parity.status must be 'pass', got 'skipped'" in payload["errors"]
+
+
 def test_validate_can_skip_data_manifest_gate(runner):
     result = runner.invoke(main, ["validate", "--no-data-manifests"])
 

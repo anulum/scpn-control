@@ -1564,6 +1564,7 @@ coverage.
 scpn-control demo --scenario combined --steps 1000
 scpn-control benchmark --n-bench 5000 --json-out
 scpn-control validate --json-out
+scpn-control validate-release-evidence artifacts/release_evidence_report.json --json-out
 scpn-control info --json-out
 scpn-control live --port 8765 --zeta 0.5 --layers 16
 scpn-control hil-test --shots-dir path/to/shots
@@ -1574,6 +1575,7 @@ scpn-control hil-test --shots-dir path/to/shots
 | `demo` | Closed-loop control demonstration (PID, SNN, combined) |
 | `benchmark` | PID vs SNN timing benchmark with JSON output option |
 | `validate` | Import hygiene plus data-manifest, JAX GK parity, and physics-traceability gates |
+| `validate-release-evidence` | Admission check for JSON reports emitted by `scpn-control validate --json-out` |
 | `info` | Version, Rust backend status, weight provenance, Python/NumPy versions |
 | `live` | Real-time WebSocket phase sync server |
 | `hil-test` | Hardware-in-the-loop test campaign against shot data |

@@ -16,6 +16,7 @@ Usage::
     scpn-control validate
     scpn-control validate-manifest real_manifest.json --json-out
     scpn-control validate-data-manifests --json-out
+    scpn-control validate-release-evidence artifacts/release_evidence_report.json --json-out
     scpn-control validate-physics-traceability --json-out
     scpn-control validate-gk-geometry-reference --json-out
     scpn-control validate-gk-species-reference --json-out
@@ -368,6 +369,36 @@ def validate(
                 click.echo(f"ERROR {error['path']}[{index}].{error['field']}: {error['error']}", err=True)
         click.echo(f"Status: {result['status']}")
     if validation_failed:
+        raise click.exceptions.Exit(1)
+
+
+@main.command("validate-release-evidence")
+@click.argument("report", type=click.Path(exists=True, dir_okay=False, readable=True))
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_release_evidence_command(report: str, json_out: bool) -> None:
+    """Validate top-level release evidence report admission."""
+    from validation.validate_release_evidence import (
+        RELEASE_EVIDENCE_SCHEMA_VERSION,
+        validate_release_evidence,
+    )
+
+    result = validate_release_evidence(report)
+    payload = {
+        "schema_version": RELEASE_EVIDENCE_SCHEMA_VERSION,
+        "status": result.status,
+        "errors": list(result.errors),
+        "report_sha256": result.report_sha256,
+        "admitted_gates": list(result.admitted_gates),
+    }
+    if json_out:
+        click.echo(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        click.echo(f"Release evidence: {result.status}")
+        if result.report_sha256 is not None:
+            click.echo(f"Report SHA-256: {result.report_sha256}")
+        for error in result.errors:
+            click.echo(f"ERROR {error}", err=True)
+    if result.status != "pass":
         raise click.exceptions.Exit(1)
 
 

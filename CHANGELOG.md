@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Exposed release-evidence report admission as
+  `scpn-control validate-release-evidence REPORT`, so operators can validate
+  CI or release JSON reports through the public CLI instead of importing the
+  Python validation module directly.
 - Added strict release-evidence report admission for the CI artifact produced
   by `scpn-control validate --json-out`, including duplicate-key rejection,
   mandatory pass status for data manifests, JAX GK parity, and physics

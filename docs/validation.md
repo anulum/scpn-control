@@ -138,6 +138,7 @@ Real-data manifest provenance gate:
 
 ```bash
 scpn-control validate --json-out
+scpn-control validate-release-evidence artifacts/release_evidence_report.json --json-out
 scpn-control validate-manifest validation/reference_data/diiid/manifests/diiid_hmode_1p5MA.geqdsk.manifest.json --verify-artifact
 scpn-control validate-manifest validation/reference_data/diiid/manifests/shot_163303_hmode.npz.manifest.json --verify-artifact --json-out
 scpn-control validate-manifest validation/reference_data/diiid/manifests/mock_diiid_ci.manifest.json --json-out
@@ -155,7 +156,11 @@ when tests are intentionally omitted. Use `--data-manifest-root` for staged faci
 `--physics-traceability-registry` for staged claim-boundary registries,
 `--no-verify-artifacts` for metadata-only manifest checks, and
 `--no-data-manifests`, `--no-jax-gk-parity`, or `--no-physics-traceability` only
-for explicitly scoped import-hygiene checks. The gate separates experimental
+for explicitly scoped import-hygiene checks. `validate-release-evidence` admits
+the resulting JSON report as a release artifact by rejecting duplicate keys,
+skipped or failing mandatory gates, incomplete CPU/GPU JAX GK parity case
+coverage, and traceability reports that do not block every open fidelity gap.
+The gate separates experimental
 validation evidence from CI fixtures. A manifest claiming real-shot validation
 must include a non-synthetic source kind, machine, shot, signal paths, physical
 units, retrieval timestamp, checksum, and licence or facility data policy. Local
@@ -821,9 +826,9 @@ declared tolerances.
 - `data-manifest-gate` (data manifest provenance and local artefact checksum report)
 - `release-evidence-gate` (`scpn-control validate --json-out` over data
   provenance, strict persisted JAX GK CPU/GPU parity evidence, and physics
-  traceability; validates the generated JSON with
-  `validation/validate_release_evidence.py`; uploads `release-evidence-report`
-  with the raw report and admission report)
+  traceability; validates the generated JSON with `scpn-control
+  validate-release-evidence`; uploads `release-evidence-report` with the raw
+  report and admission report)
 - `python-benchmark` (E2E control latency)
 - `python validation/validate_e2e_latency_evidence.py <report> --max-e2e-p95-us 1000 --json-out`
   admits only schema-versioned, digest-bound, qualified target-hardware latency
