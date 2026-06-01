@@ -600,6 +600,14 @@ def test_validate_gk_crosscode_requires_external_runs(runner, tmp_path):
             "no blob transport reference artifacts found",
         ),
         (
+            "validate-elm-reference",
+            "--artifact-root",
+            "--require-reference-artifacts",
+            "ELM reference: fail",
+            "reference_artifacts",
+            "no ELM reference artifacts found",
+        ),
+        (
             "validate-neural-equilibrium-reference",
             "--artifact-root",
             "--require-reference-artifacts",
@@ -715,6 +723,7 @@ def test_gk_validation_text_error_paths(
         ("validate-gk-ood-calibration", "--artifact-root", "--require-campaign-artifacts", "ood.json"),
         ("validate-gk-interface-artifacts", "--artifact-root", "--require-interface-artifacts", "interface.json"),
         ("validate-blob-transport-reference", "--artifact-root", "--require-reference-artifacts", "blob.json"),
+        ("validate-elm-reference", "--artifact-root", "--require-reference-artifacts", "elm.json"),
         (
             "validate-neural-equilibrium-reference",
             "--artifact-root",
@@ -966,6 +975,23 @@ def test_validate_blob_transport_reference_requires_artifacts(runner, tmp_path):
     data = json.loads(result.output)
     assert data["status"] == "fail"
     assert data["errors"][0]["error"] == "no blob transport reference artifacts found"
+
+def test_validate_elm_reference_requires_artifacts(runner, tmp_path):
+    result = runner.invoke(
+        main,
+        [
+            "validate-elm-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--require-reference-artifacts",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["errors"][0]["error"] == "no ELM reference artifacts found"
 
 
 def test_validate_neural_equilibrium_reference_requires_artifacts(runner, tmp_path):

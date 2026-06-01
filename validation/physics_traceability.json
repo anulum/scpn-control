@@ -1096,23 +1096,28 @@
       "module_path": "src/scpn_control/core/elm_model.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate ELM frequency, crash depth, and RMP suppression windows against measured or published H-mode cases",
-        "Persist pedestal pre-crash and post-crash profiles with every ELM validation artefact"
+        "Validate ELM frequency, crash depth, pedestal profile drops, RMP suppression windows, and peak heat flux against measured H-mode campaign or published ELM cases",
+        "Persist schema-versioned pre-crash, post-crash, event-catalog, and RMP artifact URIs with SHA-256 digests, pedestal rho grids, event windows, Type-I energy-fraction bounds, metrics, tolerances, and canonical payload digests with every ELM validation artefact",
+        "Keep full-fidelity ELM/RMP claims blocked until measured or documented public reference artifacts pass the strict admission gate"
       ],
       "unit_contract": "Time in seconds, energy in joules, density in m^-3, temperature in eV or keV, pressure in pascals, magnetic perturbation amplitude dimensionless or tesla with explicit convention.",
       "validation_evidence": [
         "tests/test_elm_model.py",
-        "tests/test_integrated_scenario.py"
+        "tests/test_integrated_scenario.py",
+        "tests/test_elm_reference_validation.py strict reference-artifact admission checks",
+        "validation/validate_elm_reference.py strict digest-bound ELM/RMP reference gate"
       ],
       "evidence_paths": [
         "tests/test_elm_model.py",
         "tests/test_integrated_scenario.py",
+        "tests/test_elm_reference_validation.py",
+        "validation/validate_elm_reference.py",
         "src/scpn_control/core/elm_model.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/elm_model.py"
       ],
-      "validity_domain": "ELM cycle and suppression regression; not a validated pedestal-crash predictor for a facility.",
+      "validity_domain": "ELM cycle and suppression regression plus a fail-closed, schema-versioned, digest-bound reference-artifact gate; not a validated pedestal-crash predictor for a facility until measured H-mode campaign or documented public ELM/RMP artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {

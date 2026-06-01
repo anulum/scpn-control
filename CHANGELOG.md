@@ -5,6 +5,14 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added strict ELM crash and RMP suppression reference-artifact admission so
+  full-fidelity ELM frequency, crash-depth, pedestal-drop, RMP-window, and
+  heat-flux claims require schema-versioned `scpn-control.elm-reference.v1`
+  evidence with measured H-mode campaign or documented public-reference
+  provenance, safe pre-crash/post-crash/event/RMP artifact URIs, SHA-256
+  digests for every artifact and the canonical payload, ELM/RMP unit
+  contracts, ordered pedestal grids, Type-I energy-fraction bounds,
+  tolerance-checked physical metrics, and module-specific tamper/domain tests.
 - Added strict SOL blob-transport reference-artifact admission so full-fidelity
   blob velocity, spreading, wall-flux, and detector-event claims require
   schema-versioned `scpn-control.blob-transport-reference.v1` evidence with

@@ -516,6 +516,25 @@ positive magnetic-geometry metadata, and velocity/profile/wall-flux/event
 metrics inside declared tolerances. Synthetic blob regressions remain
 module-behaviour checks only.
 
+ELM crash and RMP suppression validation claims require measured H-mode
+campaign or documented public reference artifacts for ELM frequency, crash
+energy fraction, pedestal profile drops, RMP suppression windows, and peak heat
+flux:
+
+```bash
+scpn-control validate-elm-reference --require-reference-artifacts --json-out
+python validation/validate_elm_reference.py --require-reference-artifacts --output-json artifacts/elm_reference_report.json
+```
+
+Strict mode fails until `validation/reports/elm_reference/` contains artifacts
+using schema `scpn-control.elm-reference.v1` with source provenance, safe
+pre-crash/post-crash/event/RMP artifact URIs, SHA-256 hashes for each artifact
+and the canonical payload, ELM/RMP unit contracts, strictly ordered pedestal
+rho grids, positive event and RMP suppression windows, Type-I energy-fraction
+bounds, and frequency/crash/profile/suppression/heat-flux metrics inside
+declared tolerances. Synthetic ELM-cycle regressions remain module-behaviour
+checks only.
+
 Orbit-following validation claims require persisted published-reference or
 real-campaign artifacts for banana-width, first-orbit-loss, and
 passing/trapped/lost classification checks:
