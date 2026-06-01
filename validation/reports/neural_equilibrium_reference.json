@@ -1,0 +1,21 @@
+{
+  "entries": [],
+  "errors": [
+    {
+      "error": "no neural equilibrium reference artefacts found",
+      "field": "artifact_root",
+      "path": "validation/reports/neural_equilibrium_reference"
+    }
+  ],
+  "payload_sha256": "bf6b89baaf1a81e7e93c1e7d9625da81d6ef8b134d339407905893b0ff1491d4",
+  "public_claims": {
+    "blocked_reason": "Requires persisted real P-EFIT or documented public-reference neural equilibrium artefacts.",
+    "predictive_equilibrium_claim_admitted": false,
+    "reference_artifacts_admitted": false
+  },
+  "reference_artifacts": 0,
+  "require_reference_artifacts": true,
+  "root": "validation/reports/neural_equilibrium_reference",
+  "schema_version": "scpn-control.neural-equilibrium-reference-report.v2",
+  "status": "fail"
+}

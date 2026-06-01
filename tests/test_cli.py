@@ -1092,7 +1092,7 @@ def test_validate_neural_equilibrium_reference_requires_artifacts(runner, tmp_pa
     assert result.exit_code == 1
     data = json.loads(result.output)
     assert data["status"] == "fail"
-    assert data["errors"][0]["error"] == "no neural equilibrium reference artifacts found"
+    assert data["errors"][0]["error"] == "no neural equilibrium reference artefacts found"
 
 
 def test_validate_neural_transport_reference_requires_artifacts(runner, tmp_path):

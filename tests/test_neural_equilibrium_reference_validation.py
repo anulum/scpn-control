@@ -64,8 +64,17 @@ def test_strict_neural_equilibrium_gate_requires_reference_artifacts(tmp_path: P
     report = validate_neural_equilibrium_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
+    assert report["schema_version"] == "scpn-control.neural-equilibrium-reference-report.v2"
+    assert len(report["payload_sha256"]) == 64
+    assert report["public_claims"] == {
+        "reference_artifacts_admitted": False,
+        "predictive_equilibrium_claim_admitted": False,
+        "blocked_reason": (
+            "Requires persisted real P-EFIT or documented public-reference neural equilibrium artefacts."
+        ),
+    }
     assert report["reference_artifacts"] == 0
-    assert report["errors"][0]["error"] == "no neural equilibrium reference artifacts found"
+    assert report["errors"][0]["error"] == "no neural equilibrium reference artefacts found"
 
 
 def test_neural_equilibrium_gate_accepts_real_pefit_artifact(tmp_path: Path) -> None:
@@ -78,6 +87,9 @@ def test_neural_equilibrium_gate_accepts_real_pefit_artifact(tmp_path: Path) -> 
     assert report["reference_artifacts"] == 1
     assert report["entries"][0]["source"] == "real_pefit"
     assert report["entries"][0]["reference_equilibria_count"] == 32
+    assert len(report["entries"][0]["artifact_file_sha256"]) == 64
+    assert report["entries"][0]["path"] == artifact.as_posix()
+    assert report["public_claims"]["reference_artifacts_admitted"] is True
 
 
 def test_neural_equilibrium_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
@@ -185,3 +197,15 @@ def test_neural_equilibrium_gate_rejects_traversing_artifact_uri(tmp_path: Path)
 
     assert report["status"] == "fail"
     assert report["errors"][0]["field"] == "reference_artifact_uri"
+
+
+def test_neural_equilibrium_gate_rejects_duplicate_reference_set(tmp_path: Path) -> None:
+    payload = _valid_pefit_reference_artifact()
+    for index in range(2):
+        artifact = tmp_path / f"duplicate_reference_{index}.json"
+        artifact.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_neural_equilibrium_reference(tmp_path, require_reference_artifacts=True)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "reference_dataset_id" and "duplicate" in error["error"] for error in report["errors"])

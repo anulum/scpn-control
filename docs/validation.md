@@ -463,7 +463,7 @@ declare an admitted absolute `binary_path`; URI, relative, traversal,
 temporary, or system-control paths are not accepted as executable provenance.
 
 Neural equilibrium cross-validation claims require persisted P-EFIT or
-documented public reference artifacts for the same surrogate weights and
+documented public reference artefacts for the same surrogate weights and
 equilibrium cases. Synthetic training runs and local smoke tests do not count as
 matched equilibrium-reference evidence:
 
@@ -477,22 +477,28 @@ This writes `validation/reports/neural_equilibrium_pretraining.json`,
 `validation/reports/neural_equilibrium_pretraining.md`, and JAX-compatible
 synthetic pretraining weights. These artefacts demonstrate pretraining and
 inference plumbing only; real EFIT/P-EFIT fine-tuning remains gated by the
-strict reference-artifact validator below.
+strict reference-artefact validator below.
 
 ```bash
 scpn-control validate-neural-equilibrium-reference --require-reference-artifacts --json-out
 python validation/validate_neural_equilibrium_reference.py --require-reference-artifacts --output-json artifacts/neural_equilibrium_reference_report.json
 ```
 
+The strict report uses the `scpn-control.neural-equilibrium-reference-report.v2`
+schema and binds the canonical report payload by SHA-256. Current local
+evidence in `validation/reports/neural_equilibrium_reference.json` remains
+blocked with zero admitted reference artefacts and payload SHA-256
+`bf6b89baaf1a81e7e93c1e7d9625da81d6ef8b134d339407905893b0ff1491d4`.
+
 Strict mode fails until `validation/reports/neural_equilibrium_reference/`
-contains artifacts using schema `scpn-control.neural-equilibrium-reference.v1`
+contains artefacts using schema `scpn-control.neural-equilibrium-reference.v1`
 with source provenance, surrogate identity, trained-weight SHA-256, safe
-reference and prediction artifact URIs, reference/prediction/payload SHA-256
+reference and prediction artefact URIs, reference/prediction/payload SHA-256
 hashes, grid shape, target schema, psi/pressure/q/boundary unit contracts,
 reference-equilibrium count, and error metrics inside declared tolerances. Real
-P-EFIT artifacts must declare an admitted absolute `binary_path`; URI,
+P-EFIT artefacts must declare an admitted absolute `binary_path`; URI,
 relative, traversal, temporary, or system-control paths are rejected before the
-artifact can support predictive equilibrium claims.
+artefact can support predictive equilibrium claims.
 
 Neural transport surrogate validation claims require persisted QuaLiKiz or
 documented public reference artifacts for the same QLKNN-style feature schema

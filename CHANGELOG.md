@@ -5,6 +5,13 @@
 ## [0.19.3] - 2026-06-01
 
 ### Fixed
+- Hardened neural equilibrium reference admission so
+  `validation/validate_neural_equilibrium_reference.py` now emits
+  schema-versioned, digest-bound reports with portable paths, explicit
+  predictive-claim state, artefact-file SHA-256 digests, duplicate
+  model/weight/reference-set rejection, fail-closed strict-mode report
+  persistence, and an explicit block on predictive EFIT/P-EFIT claims until
+  real P-EFIT or documented public-reference artefacts are supplied.
 - Hardened external GK interface artefact admission so
   `validation/validate_gk_interface_artifacts.py` now emits schema-versioned,
   digest-bound reports with portable paths, explicit public-claim state,

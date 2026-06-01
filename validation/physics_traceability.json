@@ -355,15 +355,15 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Acquire matched P-EFIT reference equilibria or an openly redistributable equivalent",
-        "Persist schema-versioned reference and prediction artifact URIs with SHA-256 digests, exact weight checksum, grid shape, target schema, unit contracts, and declared psi/pressure/q-profile/boundary/axis tolerances",
-        "Keep predictive equilibrium claims blocked until immutable reference artifacts are sealed by canonical payload digests and validate the exact surrogate weight checksum"
+        "Persist schema-versioned reference and prediction artefact URIs with SHA-256 digests, exact weight checksum, grid shape, target schema, unit contracts, and declared psi/pressure/q-profile/boundary/axis tolerances",
+        "Keep predictive equilibrium claims blocked until immutable reference artefacts are sealed by canonical payload digests and validate the exact surrogate weight checksum"
       ],
       "unit_contract": "SI magnetic flux, pressure, metre-scale geometry, and dimensionless q-profile arrays on declared grids.",
       "validation_evidence": [
         "tests/test_neural_equilibrium.py synthetic pretraining, reproducibility, JAX-compatible weight, fail-closed claim evidence, checksum matching, and real-EFIT admission tests",
         "tests/test_jax_neural_equilibrium.py synthetic-pretrained weight loading through JAX inference",
         "validation/benchmark_neural_equilibrium_pretraining.py deterministic synthetic pretraining and claim-admission benchmark",
-        "validation/validate_neural_equilibrium_reference.py strict digest-bound P-EFIT/reference artifact gate"
+        "validation/validate_neural_equilibrium_reference.py strict digest-bound P-EFIT/reference artefact gate with report schema, payload digest, artefact file digest, portable paths, duplicate reference-set rejection, and blocked public-claim state"
       ],
       "evidence_paths": [
         "src/scpn_control/core/neural_equilibrium.py",
@@ -374,6 +374,7 @@
         "validation/reports/neural_equilibrium_pretraining.json",
         "validation/reports/neural_equilibrium_pretraining.md",
         "validation/validate_neural_equilibrium_reference.py",
+        "validation/reports/neural_equilibrium_reference.json",
         "docs/api.md",
         "docs/validation.md"
       ],

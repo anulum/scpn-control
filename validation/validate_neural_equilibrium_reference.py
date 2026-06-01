@@ -64,6 +64,8 @@ _SHA256_FIELDS = (
     "prediction_artifact_sha256",
     "payload_sha256",
 )
+_REPORT_SCHEMA = "scpn-control.neural-equilibrium-reference-report.v2"
+_BLOCKED_REASON = "Requires persisted real P-EFIT or documented public-reference neural equilibrium artefacts."
 
 
 def validate_neural_equilibrium_reference(
@@ -74,79 +76,98 @@ def validate_neural_equilibrium_reference(
     """Validate neural-equilibrium surrogate evidence against persisted references."""
     root = Path(artifact_root)
     paths = sorted(root.glob("*.json")) if root.is_dir() else ([root] if root.is_file() else [])
-    report: dict[str, Any] = {
-        "status": "pass",
-        "root": str(root),
-        "reference_artifacts": 0,
-        "require_reference_artifacts": bool(require_reference_artifacts),
-        "entries": [],
-        "errors": [],
-    }
+    report = _new_report(root, require_reference_artifacts=require_reference_artifacts)
     entries: list[dict[str, object]] = report["entries"]
     errors: list[dict[str, object]] = report["errors"]
 
     if require_reference_artifacts and not paths:
         errors.append(
-            {"path": str(root), "field": "artifact_root", "error": "no neural equilibrium reference artifacts found"}
+            {"path": _portable_path(root), "field": "artifact_root", "error": "no neural equilibrium reference artefacts found"}
         )
 
+    seen_reference_sets: set[tuple[str, str, str]] = set()
     for path in paths:
         try:
-            with path.open(encoding="utf-8") as handle:
-                payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
-            entry = _validate_artifact(path, payload, errors)
+            raw_payload = path.read_text(encoding="utf-8")
+            payload = json.loads(raw_payload, object_pairs_hook=_reject_duplicate_json_keys)
+            entry = _validate_artifact(path, raw_payload, payload, errors)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            errors.append({"path": str(path), "field": "json", "error": str(exc)})
+            errors.append({"path": _portable_path(path), "field": "json", "error": str(exc)})
             continue
         if entry is not None:
+            reference_set = (
+                str(entry["model_id"]),
+                str(entry["trained_weights_sha256"]),
+                str(entry["reference_dataset_id"]),
+            )
+            if reference_set in seen_reference_sets:
+                errors.append(
+                    {
+                        "path": _portable_path(path),
+                        "field": "reference_dataset_id",
+                        "error": (
+                            "duplicate model_id/trained_weights_sha256/reference_dataset_id: "
+                            f"{reference_set[0]} {reference_set[2]}"
+                        ),
+                    }
+                )
+                continue
+            seen_reference_sets.add(reference_set)
             entries.append(entry)
             report["reference_artifacts"] += 1
 
     if require_reference_artifacts and report["reference_artifacts"] == 0 and not errors:
         errors.append(
-            {"path": str(root), "field": "artifact_root", "error": "no neural equilibrium reference artifacts found"}
+            {"path": _portable_path(root), "field": "artifact_root", "error": "no neural equilibrium reference artefacts found"}
         )
     if errors:
         report["status"] = "fail"
-    return report
+    return _finalise_report(report)
 
 
-def _validate_artifact(path: Path, payload: object, errors: list[dict[str, object]]) -> dict[str, object] | None:
+def _validate_artifact(
+    path: Path,
+    raw_payload: str,
+    payload: object,
+    errors: list[dict[str, object]],
+) -> dict[str, object] | None:
     if not isinstance(payload, dict):
-        errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
+        errors.append({"path": _portable_path(path), "field": "root", "error": "artefact root must be an object"})
         return None
     if payload.get("schema_version") != _SCHEMA_VERSION:
         errors.append(
             {
-                "path": str(path),
+                "path": _portable_path(path),
                 "field": "schema_version",
                 "error": f"schema_version must be '{_SCHEMA_VERSION}'",
             }
         )
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
-            errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
+            errors.append({"path": _portable_path(path), "field": field, "error": "field must be a non-empty string"})
     for field in _SHA256_FIELDS:
         value = payload.get(field)
         if isinstance(value, str) and not _SHA256_RE.match(value):
-            errors.append({"path": str(path), "field": field, "error": "field must be a SHA-256 hex digest"})
+            errors.append({"path": _portable_path(path), "field": field, "error": "field must be a SHA-256 hex digest"})
     for field in _ARTIFACT_URI_FIELDS:
         error = _artifact_uri_error(payload.get(field))
         if error is not None:
-            errors.append({"path": str(path), "field": field, "error": error})
+            errors.append({"path": _portable_path(path), "field": field, "error": error})
     if payload.get("target_schema") != list(_REQUIRED_TARGET_SCHEMA):
         errors.append(
-            {"path": str(path), "field": "target_schema", "error": "target_schema must match equilibrium outputs"}
+            {"path": _portable_path(path), "field": "target_schema", "error": "target_schema must match equilibrium outputs"}
         )
     if isinstance(payload.get("payload_sha256"), str):
         expected = canonical_artifact_sha256(payload)
         observed = str(payload["payload_sha256"])
         if not hmac.compare_digest(observed.lower(), expected):
-            errors.append({"path": str(path), "field": "payload_sha256", "error": "canonical payload digest mismatch"})
+            errors.append(
+                {"path": _portable_path(path), "field": "payload_sha256", "error": "canonical payload digest mismatch"}
+            )
     if payload.get("source") not in _ALLOWED_SOURCES:
         errors.append(
             {
-                "path": str(path),
+                "path": _portable_path(path),
                 "field": "source",
                 "error": "source must be real_pefit or documented_public_reference",
             }
@@ -154,38 +175,48 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     if payload.get("source") == "real_pefit":
         binary_path_error = external_executable_path_error(payload.get("binary_path"))
         if binary_path_error is not None:
-            errors.append({"path": str(path), "field": "binary_path", "error": binary_path_error})
+            errors.append({"path": _portable_path(path), "field": "binary_path", "error": binary_path_error})
     if payload.get("source") == "documented_public_reference" and not _has_public_reference(payload):
         errors.append(
             {
-                "path": str(path),
+                "path": _portable_path(path),
                 "field": "reference",
-                "error": "documented public reference artifacts require reference_url or reference_doi",
+                "error": "documented public reference artefacts require reference_url or reference_doi",
             }
         )
     if not _valid_grid_shape(payload.get("grid_shape")):
-        errors.append({"path": str(path), "field": "grid_shape", "error": "grid_shape must be two positive integers"})
+        errors.append(
+            {"path": _portable_path(path), "field": "grid_shape", "error": "grid_shape must be two positive integers"}
+        )
     if not _valid_units(payload.get("units")):
-        errors.append({"path": str(path), "field": "units", "error": "units must declare psi, pressure, q_profile, and boundary"})
+        errors.append(
+            {
+                "path": _portable_path(path),
+                "field": "units",
+                "error": "units must declare psi, pressure, q_profile, and boundary",
+            }
+        )
     count = payload.get("reference_equilibria_count")
     if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
         errors.append(
             {
-                "path": str(path),
+                "path": _portable_path(path),
                 "field": "reference_equilibria_count",
                 "error": "field must be a positive integer",
             }
         )
     _validate_metric_block(path, payload.get("metrics"), payload.get("tolerances"), errors)
-    if any(error["path"] == str(path) for error in errors):
+    if any(error["path"] == _portable_path(path) for error in errors):
         return None
     return {
-        "path": str(path),
+        "path": _portable_path(path),
         "source": str(payload["source"]),
         "model_id": str(payload["model_id"]),
         "model_version": str(payload["model_version"]),
+        "trained_weights_sha256": str(payload["trained_weights_sha256"]).lower(),
         "reference_dataset_id": str(payload["reference_dataset_id"]),
         "reference_equilibria_count": int(payload["reference_equilibria_count"]),
+        "artifact_file_sha256": hashlib.sha256(raw_payload.encode("utf-8")).hexdigest(),
         "payload_sha256": str(payload["payload_sha256"]).lower(),
     }
 
@@ -197,22 +228,22 @@ def _validate_metric_block(
     errors: list[dict[str, object]],
 ) -> None:
     if not isinstance(metrics, dict):
-        errors.append({"path": str(path), "field": "metrics", "error": "metrics must be an object"})
+        errors.append({"path": _portable_path(path), "field": "metrics", "error": "metrics must be an object"})
         return
     if not isinstance(tolerances, dict):
-        errors.append({"path": str(path), "field": "tolerances", "error": "tolerances must be an object"})
+        errors.append({"path": _portable_path(path), "field": "tolerances", "error": "tolerances must be an object"})
         return
     for field in _REQUIRED_METRICS:
         metric = metrics.get(field)
         tolerance = tolerances.get(field)
         if not _is_nonnegative_finite(metric):
-            errors.append({"path": str(path), "field": field, "error": "metric must be finite and non-negative"})
+            errors.append({"path": _portable_path(path), "field": field, "error": "metric must be finite and non-negative"})
             continue
         if not _is_positive_finite(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "tolerance must be finite and positive"})
+            errors.append({"path": _portable_path(path), "field": field, "error": "tolerance must be finite and positive"})
             continue
         if float(metric) > float(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "metric exceeds declared tolerance"})
+            errors.append({"path": _portable_path(path), "field": field, "error": "metric exceeds declared tolerance"})
 
 
 def _valid_grid_shape(value: object) -> bool:
@@ -245,17 +276,17 @@ def canonical_artifact_sha256(payload: dict[str, object]) -> str:
 
 def _artifact_uri_error(value: object) -> str | None:
     if not isinstance(value, str) or not value.strip():
-        return "artifact URI must be a non-empty string"
+        return "artefact URI must be a non-empty string"
     ref = value.strip()
     if "\x00" in ref:
-        return "artifact URI must not contain NUL bytes"
+        return "artefact URI must not contain NUL bytes"
     if ref.startswith(("http://", "https://", "doi:", "s3://", "gs://")):
         return None
     path = Path(ref)
     if path.is_absolute():
-        return "artifact URI must be relative or an admitted external reference URI"
+        return "artefact URI must be relative or an admitted external reference URI"
     if any(part == ".." for part in path.parts):
-        return "artifact URI must not contain traversal"
+        return "artefact URI must not contain traversal"
     return None
 
 
@@ -274,6 +305,45 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError(f"duplicate JSON key: {key}")
         out[key] = value
     return out
+
+
+def _new_report(root: Path, *, require_reference_artifacts: bool) -> dict[str, Any]:
+    return {
+        "schema_version": _REPORT_SCHEMA,
+        "status": "pass",
+        "root": _portable_path(root),
+        "payload_sha256": None,
+        "reference_artifacts": 0,
+        "require_reference_artifacts": bool(require_reference_artifacts),
+        "public_claims": {
+            "reference_artifacts_admitted": False,
+            "predictive_equilibrium_claim_admitted": False,
+            "blocked_reason": _BLOCKED_REASON,
+        },
+        "entries": [],
+        "errors": [],
+    }
+
+
+def _portable_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(ROOT))
+    except ValueError:
+        return path.as_posix()
+
+
+def _json_sha256(payload: object) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
+    admitted = report["status"] == "pass" and report["reference_artifacts"] > 0
+    report["public_claims"]["reference_artifacts_admitted"] = admitted
+    payload = dict(report)
+    payload["payload_sha256"] = None
+    report["payload_sha256"] = _json_sha256(payload)
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:
