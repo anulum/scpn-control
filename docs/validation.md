@@ -399,12 +399,14 @@ python validation/validate_gk_interface_artifacts.py --require-interface-artifac
 ```
 
 Strict mode fails until `validation/reports/gk_interfaces/` contains interface
-artifacts with code identity, source provenance, version, run id, execution
-timestamp, input and output SHA-256 hashes, parser version, units, finite
-transport coefficients, growth rate, real frequency, and dominant wavenumber.
-Real-executable artifacts must also declare an admitted absolute `binary_path`;
-URI, relative, traversal, temporary, or system-control paths are not accepted as
-executable provenance.
+artifacts using schema `scpn-control.gk-interface-artifact.v1` with code
+identity, source provenance, version, run id, execution timestamp, safe deck,
+raw-output, and parsed-output artifact URIs, SHA-256 hashes for each of those
+artifacts, a canonical payload SHA-256 hash, parser version, explicit `m^2/s`,
+`c_s/a`, and `k_y*rho_s` units, finite transport coefficients, growth rate,
+real frequency, and dominant wavenumber. Real-executable artifacts must also
+declare an admitted absolute `binary_path`; URI, relative, traversal,
+temporary, or system-control paths are not accepted as executable provenance.
 
 Neural equilibrium cross-validation claims require persisted P-EFIT or
 documented public reference artifacts for the same surrogate weights and

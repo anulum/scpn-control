@@ -308,12 +308,13 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Run each interface against a real executable or documented public reference output",
-        "Promote parser fixtures from mock subprocesses to immutable external-code artefacts"
+        "Persist schema-versioned artifacts with safe deck/raw-output/parsed-output URIs and SHA-256 digests",
+        "Promote parser fixtures from mock subprocesses to immutable external-code artefacts sealed by canonical payload digests"
       ],
       "unit_contract": "Code-specific flux, growth-rate, frequency, and geometry units converted into repository normalisation with explicit metadata.",
       "validation_evidence": [
         "docs/joss_paper.md external GK limitation",
-        "validation/validate_gk_interface_artifacts.py strict external interface artifact gate"
+        "validation/validate_gk_interface_artifacts.py strict digest-bound external interface artifact gate"
       ],
       "evidence_paths": [
         "docs/joss_paper.md",
@@ -324,7 +325,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/gk_interface.py"
       ],
-      "validity_domain": "Input/output wiring and mock-subprocess tests; real executable validation not yet present in CI.",
+      "validity_domain": "Input/output wiring and mock-subprocess tests plus a fail-closed, schema-versioned, digest-bound artifact admission gate; real executable validation is not yet present in CI.",
       "external_validation_tracker_issue": 47
     },
     {

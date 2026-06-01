@@ -5,6 +5,13 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Hardened persisted external gyrokinetic interface artifact admission so real
+  executable and documented public-reference parser evidence must use
+  schema-versioned `scpn-control.gk-interface-artifact.v1` reports with safe
+  deck/raw-output/parsed-output artifact URIs, SHA-256 digests for each
+  artifact, a canonical payload digest, explicit transport/frequency/wavenumber
+  unit declarations, finite physical fields, admitted executable provenance,
+  and tamper-detection tests.
 - Hardened the real external-code linear gyrokinetic cross-code admission gate
   so full-fidelity GK agreement evidence must use schema-versioned
   `scpn-control.gk-crosscode.v1` reports with SHA-256 digests for the external
