@@ -252,6 +252,8 @@ def benchmark(n_bench: int, json_out: bool) -> None:
     "--jax-gk-parity-root", help="Directory or JSON artifact containing persisted JAX/native GK parity evidence"
 )
 @click.option("--no-jax-gk-parity", is_flag=True, help="Skip persisted JAX GK parity evidence validation")
+@click.option("--physics-traceability-registry", help="Physics traceability registry JSON path")
+@click.option("--no-physics-traceability", is_flag=True, help="Skip physics traceability validation")
 def validate(
     json_out: bool,
     data_manifest_root: str | None,
@@ -259,8 +261,10 @@ def validate(
     no_verify_artifacts: bool,
     jax_gk_parity_root: str | None,
     no_jax_gk_parity: bool,
+    physics_traceability_registry: str | None,
+    no_physics_traceability: bool,
 ) -> None:
-    """Run import hygiene, data-provenance, and persisted parity validation."""
+    """Run import hygiene, data-provenance, parity, and traceability validation."""
     try:
         from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
 
@@ -311,6 +315,18 @@ def validate(
             result["status"] = "fail"
             validation_failed = True
 
+    if no_physics_traceability:
+        result["physics_traceability"] = {"status": "skipped"}
+    else:
+        from validation.validate_physics_traceability import ROOT, validate_physics_traceability
+
+        registry_path = physics_traceability_registry or str(ROOT / "validation" / "physics_traceability.json")
+        traceability_report = validate_physics_traceability(registry_path)
+        result["physics_traceability"] = traceability_report
+        if traceability_report["status"] != "pass":
+            result["status"] = "fail"
+            validation_failed = True
+
     if json_out:
         click.echo(json.dumps(result, indent=2))
     else:
@@ -336,6 +352,20 @@ def validate(
             click.echo(f"JAX GK parity: {jax_gk_parity['status']} parity_artifacts={jax_gk_parity['parity_artifacts']}")
             for error in jax_gk_parity["errors"]:
                 click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
+        physics_traceability = result["physics_traceability"]
+        if isinstance(physics_traceability, dict) and physics_traceability.get("status") == "skipped":
+            click.echo("Physics traceability: SKIPPED")
+        elif isinstance(physics_traceability, dict):
+            click.echo(
+                "Physics traceability: "
+                f"{physics_traceability['status']} "
+                f"total={physics_traceability['total']} "
+                f"open_fidelity_gaps={physics_traceability['open_fidelity_gaps']} "
+                f"public_claim_blocked={physics_traceability['public_claim_blocked']}"
+            )
+            for error in physics_traceability["errors"]:
+                index = error.get("index", "-")
+                click.echo(f"ERROR {error['path']}[{index}].{error['field']}: {error['error']}", err=True)
         click.echo(f"Status: {result['status']}")
     if validation_failed:
         raise click.exceptions.Exit(1)

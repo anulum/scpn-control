@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Promoted physics traceability validation into the top-level
+  `scpn-control validate` command with staged-registry and scoped-skip controls
+  so local release validation now fails on bounded-claim registry drift in the
+  same path as data provenance and JAX GK parity evidence.
 - Promoted strict persisted JAX gyrokinetic CPU/GPU parity evidence admission
   into the top-level `scpn-control validate` command, added scoped staging and
   skip flags, and exposed case/backend requirements on

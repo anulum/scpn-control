@@ -144,13 +144,16 @@ scpn-control validate-manifest validation/reference_data/diiid/manifests/mock_di
 ```
 
 The top-level `validate` command now includes repository data-manifest
-validation and strict persisted JAX GK parity evidence admission by default, so
-routine validation cannot pass while ignoring data provenance or backend parity
-evidence drift. Use `--data-manifest-root` for staged facility drops,
-`--jax-gk-parity-root` for staged parity campaigns, `--no-verify-artifacts` for
-metadata-only manifest checks, and `--no-data-manifests` or `--no-jax-gk-parity`
-only for explicitly scoped import-hygiene checks. The gate separates
-experimental validation evidence from CI fixtures. A manifest claiming real-shot validation
+validation, strict persisted JAX GK parity evidence admission, and physics
+traceability validation by default, so routine validation cannot pass while
+ignoring data provenance, backend parity evidence drift, or bounded-claim
+registry drift. Use `--data-manifest-root` for staged facility drops,
+`--jax-gk-parity-root` for staged parity campaigns,
+`--physics-traceability-registry` for staged claim-boundary registries,
+`--no-verify-artifacts` for metadata-only manifest checks, and
+`--no-data-manifests`, `--no-jax-gk-parity`, or `--no-physics-traceability` only
+for explicitly scoped import-hygiene checks. The gate separates experimental
+validation evidence from CI fixtures. A manifest claiming real-shot validation
 must include a non-synthetic source kind, machine, shot, signal paths, physical
 units, retrieval timestamp, checksum, and licence or facility data policy. Local
 real-data manifests can additionally verify the referenced artefact checksum

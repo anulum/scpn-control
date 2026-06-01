@@ -73,6 +73,8 @@ def test_validate_json_out(runner):
     assert data["data_manifests"]["total"] >= 3
     assert data["jax_gk_parity"]["status"] == "pass"
     assert data["jax_gk_parity"]["parity_artifacts"] >= 6
+    assert data["physics_traceability"]["status"] == "pass"
+    assert data["physics_traceability"]["public_claim_blocked"] >= 1
 
 
 def test_validate_reports_manifest_gate_failures(runner, tmp_path):
@@ -84,6 +86,7 @@ def test_validate_reports_manifest_gate_failures(runner, tmp_path):
     assert data["data_manifests"]["status"] == "fail"
     assert data["data_manifests"]["errors"][0]["error"] == "no data manifests found"
     assert data["jax_gk_parity"]["status"] == "pass"
+    assert data["physics_traceability"]["status"] == "pass"
 
 
 def test_validate_reports_jax_gk_parity_gate_failures(runner, tmp_path):
@@ -104,6 +107,31 @@ def test_validate_reports_jax_gk_parity_gate_failures(runner, tmp_path):
     assert data["data_manifests"]["status"] == "skipped"
     assert data["jax_gk_parity"]["status"] == "fail"
     assert data["jax_gk_parity"]["errors"][0]["error"] == "no JAX GK parity artifacts found"
+    assert data["physics_traceability"]["status"] == "pass"
+
+
+def test_validate_reports_physics_traceability_gate_failures(runner, tmp_path):
+    registry = tmp_path / "physics_traceability.json"
+    registry.write_text('{"schema_version":"1.0","entries":[]}', encoding="utf-8")
+    result = runner.invoke(
+        main,
+        [
+            "validate",
+            "--no-data-manifests",
+            "--no-jax-gk-parity",
+            "--physics-traceability-registry",
+            str(registry),
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert data["status"] == "fail"
+    assert data["data_manifests"]["status"] == "skipped"
+    assert data["jax_gk_parity"]["status"] == "skipped"
+    assert data["physics_traceability"]["status"] == "fail"
+    assert any(error["field"] == "entries" for error in data["physics_traceability"]["errors"])
 
 
 def test_validate_can_skip_data_manifest_gate(runner):
@@ -112,6 +140,7 @@ def test_validate_can_skip_data_manifest_gate(runner):
     assert result.exit_code == 0
     assert "Data manifests: SKIPPED" in result.output
     assert "JAX GK parity: pass" in result.output
+    assert "Physics traceability: pass" in result.output
     assert "Status:" in result.output
 
 
@@ -121,6 +150,19 @@ def test_validate_can_skip_jax_gk_parity_gate(runner):
     assert result.exit_code == 0
     assert "Data manifests: SKIPPED" in result.output
     assert "JAX GK parity: SKIPPED" in result.output
+    assert "Physics traceability: pass" in result.output
+
+
+def test_validate_can_skip_physics_traceability_gate(runner):
+    result = runner.invoke(
+        main,
+        ["validate", "--no-data-manifests", "--no-jax-gk-parity", "--no-physics-traceability"],
+    )
+
+    assert result.exit_code == 0
+    assert "Data manifests: SKIPPED" in result.output
+    assert "JAX GK parity: SKIPPED" in result.output
+    assert "Physics traceability: SKIPPED" in result.output
 
 
 def test_validate_text_reports_manifest_gate_errors(runner, tmp_path):
