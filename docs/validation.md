@@ -488,6 +488,22 @@ with candidate report payload SHA-256
 The report remains `admission_ready=false` and is intentionally not a
 passing predictive EFIT/P-EFIT admission artefact.
 
+Current-model prediction evidence can be generated with:
+
+```bash
+python validation/evaluate_mast_efm_neural_equilibrium.py --reference-path /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz --weights-path /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/neural_equilibrium_synthetic_65x129_weights.npz --prediction-path /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_prediction.npz --json-out /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.json --report-out /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.md
+```
+
+Scoped 2026-06-01 evaluation over shots 30419-30424 used full 65 x 129
+reference grids and matching-grid synthetic-domain weights to exercise the
+current model prediction path. Flux-only masked RMSE values were 1.574623069235,
+1.643688910187, 1.565222714156, 1.486059078976, 1.499524077369, and
+1.561932368275 Wb/rad for shots 30419-30424 respectively. These reports remain
+`admission_ready=false` and `strict_artifact_emitted=false` because the model
+path does not yet produce pressure, q-profile, LCFS boundary, or magnetic-axis
+predictions and some required diagnostic inputs are represented by documented
+fallback features.
+
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 
 ```bash
