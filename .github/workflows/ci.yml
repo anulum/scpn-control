@@ -199,6 +199,25 @@ jobs:
       - name: Validate capability manifest
         run: python tools/capability_manifest.py --check
 
+  # ─── Job 4d: Release evidence gate ───
+  release-evidence-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.12"
+      - name: Install validation dependencies
+        run: pip install --require-hashes -r requirements/ci-deps.txt
+      - name: Validate release evidence
+        run: |
+          mkdir -p artifacts
+          python -m scpn_control.cli validate --json-out > artifacts/release_evidence_report.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: release-evidence-report
+          path: artifacts/release_evidence_report.json
+
   # ─── Job 5: RMSE gate ───
   rmse-gate:
     needs: python-tests

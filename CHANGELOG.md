@@ -5,6 +5,10 @@
 ## [0.19.2] - 2026-05-24
 
 ### Fixed
+- Added a CI `release-evidence-gate` job that runs top-level
+  `scpn-control validate --json-out` and uploads the JSON report, so remote
+  runs now publish auditable data-manifest, JAX GK parity, and physics
+  traceability admission evidence.
 - Added the top-level `scpn-control validate --json-out` path to local
   preflight as a non-test release-evidence gate, with source-tree import
   precedence, so `make preflight` and `make preflight-fast` now catch data

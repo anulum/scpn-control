@@ -819,6 +819,9 @@ declared tolerances.
 - `python-security` (bandit SAST)
 - `python-audit` (`pip_audit`)
 - `data-manifest-gate` (data manifest provenance and local artefact checksum report)
+- `release-evidence-gate` (`scpn-control validate --json-out` over data
+  provenance, strict persisted JAX GK CPU/GPU parity evidence, and physics
+  traceability; uploads `release-evidence-report`)
 - `python-benchmark` (E2E control latency)
 - `python validation/validate_e2e_latency_evidence.py <report> --max-e2e-p95-us 1000 --json-out`
   admits only schema-versioned, digest-bound, qualified target-hardware latency
