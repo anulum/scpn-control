@@ -15,7 +15,7 @@ import json
 import math
 import sys
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TypeAlias, cast
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -101,15 +101,27 @@ def _as_positive_int(value: JSONValue, field: str, errors: list[str]) -> int:
     return value
 
 
-def _is_safe_repo_relative_uri(uri: str) -> bool:
+def _safe_repo_relative_uri_parts(uri: str) -> tuple[str, ...] | None:
     if not uri or "\\" in uri or "://" in uri or uri.startswith(("/", "~", "file:")):
-        return False
-    parts = Path(uri).parts
-    return bool(parts) and all(part not in {"", ".", ".."} for part in parts)
+        return None
+    posix_path = PurePosixPath(uri)
+    parts = posix_path.parts
+    if not parts or posix_path.is_absolute():
+        return None
+    if any(part in {"", ".", ".."} for part in parts):
+        return None
+    return tuple(str(part) for part in parts)
+
+
+def _is_safe_repo_relative_uri(uri: str) -> bool:
+    return _safe_repo_relative_uri_parts(uri) is not None
 
 
 def _report_path(uri: str, report_root: Path) -> Path:
-    path = (report_root / uri).resolve()
+    parts = _safe_repo_relative_uri_parts(uri)
+    if parts is None:
+        raise ValueError(f"unsafe report path escapes report root: {uri}")
+    path = (report_root / Path(*parts)).resolve()
     if not path.is_relative_to(report_root):
         raise ValueError(f"unsafe report path escapes report root: {uri}")
     return path
