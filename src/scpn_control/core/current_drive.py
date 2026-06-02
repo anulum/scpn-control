@@ -117,6 +117,12 @@ def _require_current_drive_grid(rho: np.ndarray) -> np.ndarray:
     return rho_arr
 
 
+def _trapezoid_integral(values: np.ndarray, grid: np.ndarray) -> float:
+    """Integrate one-dimensional profiles across NumPy 1.x and 2.x runtimes."""
+    integrate = getattr(np, "trapezoid", np.trapz)
+    return float(integrate(values, grid))
+
+
 def _normalised_radial_deposition(
     rho: np.ndarray,
     total_power_w: float,
@@ -134,7 +140,7 @@ def _normalised_radial_deposition(
     _require_positive_scalar("total_power_w", total_power_w)
 
     kernel = np.exp(-((rho_arr - rho_centre) ** 2) / (2.0 * width_rho**2))
-    norm = float(np.trapezoid(kernel, rho_arr)) if rho_arr.size > 1 else float(kernel[0])
+    norm = _trapezoid_integral(kernel, rho_arr) if rho_arr.size > 1 else float(kernel[0])
     if norm <= 0.0 or not np.isfinite(norm):
         raise ValueError("deposition kernel cannot be normalised on the supplied rho grid")
     return np.asarray(total_power_w * kernel / norm)
@@ -553,7 +559,7 @@ class CurrentDriveMix:
         assert ti_arr is not None
         j_tot = self.total_j_cd(rho_arr, ne_arr, te_arr, ti_arr)
         current_density_integrand = j_tot * 2.0 * np.pi * rho_arr * self.a**2
-        return float(np.trapezoid(current_density_integrand, rho_arr)) if rho_arr.size > 1 else 0.0
+        return _trapezoid_integral(current_density_integrand, rho_arr) if rho_arr.size > 1 else 0.0
 
 
 def current_drive_claim_evidence(
@@ -583,7 +589,7 @@ def current_drive_claim_evidence(
     assert ti_arr is not None
     p_tot = mix.total_heating_power(rho_arr)
     j_tot = mix.total_j_cd(rho_arr, ne_arr, te_arr, ti_arr)
-    total_power = float(np.trapezoid(p_tot, rho_arr)) if rho_arr.size > 1 else float(p_tot[0])
+    total_power = _trapezoid_integral(p_tot, rho_arr) if rho_arr.size > 1 else float(p_tot[0])
     total_current = mix.total_driven_current(rho_arr, ne_arr, te_arr, ti_arr)
     peak_j = float(np.max(j_tot)) if j_tot.size else 0.0
     eccd_power = sum(src.P_ec_MW for src in mix.sources if isinstance(src, ECCDSource))

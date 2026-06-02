@@ -36,21 +36,26 @@ def _profiles(n: int = 64) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarr
     return rho, ne, te, ti
 
 
+def _trapezoid(y: np.ndarray, x: np.ndarray) -> float:
+    integrate = getattr(np, "trapezoid", np.trapz)
+    return float(integrate(y, x))
+
+
 def test_current_drive_sources_conserve_grid_normalised_power() -> None:
     rho, ne, te, ti = _profiles()
     eccd = ECCDSource(P_ec_MW=10.0, rho_dep=0.35, sigma_rho=0.08)
     lhcd = LHCDSource(P_lh_MW=4.0, rho_dep=0.65, sigma_rho=0.12)
     nbi = NBISource(P_nbi_MW=16.0, E_beam_keV=1000.0, rho_tangency=0.45, sigma_rho=0.15)
 
-    assert np.trapezoid(eccd.P_absorbed(rho), rho) == pytest.approx(10.0e6)
-    assert np.trapezoid(lhcd.P_absorbed(rho), rho) == pytest.approx(4.0e6)
-    assert np.trapezoid(nbi.P_heating(rho), rho) == pytest.approx(16.0e6)
+    assert _trapezoid(eccd.P_absorbed(rho), rho) == pytest.approx(10.0e6)
+    assert _trapezoid(lhcd.P_absorbed(rho), rho) == pytest.approx(4.0e6)
+    assert _trapezoid(nbi.P_heating(rho), rho) == pytest.approx(16.0e6)
 
     mix = CurrentDriveMix(a=2.0)
     mix.add_source(eccd)
     mix.add_source(lhcd)
     mix.add_source(nbi)
-    assert np.trapezoid(mix.total_heating_power(rho), rho) == pytest.approx(30.0e6)
+    assert _trapezoid(mix.total_heating_power(rho), rho) == pytest.approx(30.0e6)
     assert mix.total_driven_current(rho, ne, te, ti) > 0.0
 
 

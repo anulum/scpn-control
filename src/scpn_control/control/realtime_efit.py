@@ -29,6 +29,12 @@ _FACILITY_REFERENCE_SOURCES = frozenset(
 _BOUNDED_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *_FACILITY_REFERENCE_SOURCES})
 
 
+def _trapezoid_integral(values: np.ndarray, grid: np.ndarray, *, axis: int = -1) -> np.ndarray:
+    """Integrate profiles across NumPy 1.x and 2.x runtimes."""
+    integrate = getattr(np, "trapezoid", np.trapz)
+    return np.asarray(integrate(values, grid, axis=axis))
+
+
 @dataclass
 class MagneticDiagnostics:
     """Layout of magnetic sensors."""
@@ -290,7 +296,7 @@ class DiagnosticResponse:
         d2psi_dZ2 = np.gradient(dpsi_dZ, self.Z, axis=1, edge_order=2)
         delta_star_psi = d2psi_dR2 - dpsi_dR / self.R[:, np.newaxis] + d2psi_dZ2
         j_phi = -delta_star_psi / (MU0 * self.R[:, np.newaxis])
-        Ip = float(np.trapezoid(np.trapezoid(j_phi, self.Z, axis=1), self.R))
+        Ip = float(_trapezoid_integral(_trapezoid_integral(j_phi, self.Z, axis=1), self.R))
 
         return {
             "flux_loops": np.array(flux_vals),
