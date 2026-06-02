@@ -718,6 +718,11 @@ Lean report JSON with duplicate-key rejection and can additionally call
 `load_artifact(..., require_formal_verification=True)` against a supplied
 artifact and report root. This is the release-gate path for admitting Lean proof
 evidence without running long proof jobs inside the Python test suite.
+The Lean report and artifact manifest validators also enforce namespace
+coverage for required controller contracts: PID actuator-saturation evidence
+must include a `ScpnControl.PID` theorem module and theorem name, while
+SNN/neuro-symbolic marking-bound evidence must include a `ScpnControl.SNN`
+theorem module and theorem name.
 
 ---
 

@@ -33,6 +33,7 @@ from scpn_control.scpn.lean_verification import (
     SAFETY_CASE_ID_RE,
     LeanFormalVerificationError,
     validate_lean_formal_report_payload,
+    validate_required_contract_theorem_coverage,
 )
 
 ARTIFACT_SCHEMA_VERSION = "1.0.0"
@@ -489,6 +490,14 @@ def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) ->
         )
     if len(theorem_modules) > len(theorem_names):
         raise ArtifactValidationError("formal_verification.theorem_modules cannot exceed theorem_names")
+    try:
+        validate_required_contract_theorem_coverage(
+            proved_contracts=proved_contracts,
+            theorem_names=theorem_names,
+            theorem_modules=theorem_modules,
+        )
+    except LeanFormalVerificationError as exc:
+        raise ArtifactValidationError(f"formal_verification.{exc}") from exc
     if len(module_paths) < len(theorem_modules):
         raise ArtifactValidationError("formal_verification.module_paths must cover theorem_modules")
     if len(safety_case_ids) < len(proved_contracts):

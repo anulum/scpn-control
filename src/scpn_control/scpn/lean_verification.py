@@ -25,6 +25,10 @@ from typing import Any, cast
 
 LEAN_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.lean4-formal-report.v1"
 LEAN_REQUIRED_PROVED_CONTRACTS = frozenset({"pid.actuator_saturation", "snn.marking_bounds"})
+LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES = {
+    "pid.actuator_saturation": "ScpnControl.PID",
+    "snn.marking_bounds": "ScpnControl.SNN",
+}
 LEAN_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_'.]*(?:\.[A-Za-z_][A-Za-z0-9_'.]*)*$")
 LEAN_MODULE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 SAFETY_CASE_ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9_.:-]*$")
@@ -110,6 +114,27 @@ def validate_safe_relative_path_list(value: object, field_name: str) -> list[str
     return paths
 
 
+def validate_required_contract_theorem_coverage(
+    *,
+    proved_contracts: list[str],
+    theorem_names: list[str],
+    theorem_modules: list[str],
+) -> None:
+    """Validate that required contracts are covered by matching Lean theorem namespaces."""
+    for contract, module_prefix in LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES.items():
+        if contract not in proved_contracts:
+            continue
+        if module_prefix not in theorem_modules:
+            raise LeanFormalVerificationError(
+                f"{contract} requires theorem_modules to include {module_prefix}"
+            )
+        theorem_prefix = f"{module_prefix}."
+        if not any(theorem.startswith(theorem_prefix) for theorem in theorem_names):
+            raise LeanFormalVerificationError(
+                f"{contract} requires theorem_names under {module_prefix}"
+            )
+
+
 def build_lean_formal_report_payload(report: LeanFormalVerificationReport) -> dict[str, Any]:
     """Build a canonical Lean formal-verification report payload."""
     payload: dict[str, Any] = {
@@ -186,6 +211,11 @@ def validate_lean_formal_report_payload(payload: object) -> None:
         )
     if len(theorem_modules) > len(theorem_names):
         raise LeanFormalVerificationError("Lean 4 report theorem_modules cannot exceed theorem_names")
+    validate_required_contract_theorem_coverage(
+        proved_contracts=proved_contracts,
+        theorem_names=theorem_names,
+        theorem_modules=theorem_modules,
+    )
     if len(module_paths) < len(theorem_modules):
         raise LeanFormalVerificationError("Lean 4 report module_paths must cover theorem_modules")
     if len(safety_case_ids) < len(proved_contracts):

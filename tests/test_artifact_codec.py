@@ -610,6 +610,16 @@ class TestArtifactValidationContract:
             ("proved_contracts", ["pid.actuator_saturation"], "proved_contracts"),
             ("module_paths", ["../src/scpn_control/scpn/controller.py"], "module_paths"),
             ("safety_case_ids", ["bad id"], "safety_case_ids"),
+            (
+                "theorem_names",
+                ["ScpnControl.Transport.unrelated", "ScpnControl.SNN.markingBoundsPreserved"],
+                "pid.actuator_saturation requires theorem_names",
+            ),
+            (
+                "theorem_modules",
+                ["ScpnControl.Transport", "ScpnControl.SNN"],
+                "pid.actuator_saturation requires theorem_modules",
+            ),
         ],
     )
     def test_lean4_formal_proof_requires_machine_checkable_contract_metadata(

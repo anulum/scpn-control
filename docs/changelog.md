@@ -23,6 +23,10 @@
 - Added a Lean formal-verification validation executable with duplicate-key
   rejection, report SHA-256 calculation, malformed-contract rejection, and
   optional safety-critical artifact admission against a supplied report root.
+- Hardened Lean report and artifact-manifest admission so required PID and
+  SNN/neuro-symbolic proof contracts must be backed by matching
+  `ScpnControl.PID` and `ScpnControl.SNN` theorem namespaces, not just listed
+  as unchecked contract names.
 - Bumped package, citation, and archive metadata to `0.20.1` for the documentation and evidence-polish release candidate.
 - Expanded the README, documentation landing page, onboarding guide, tutorials, notebook gallery, use-case page, production-readiness boundary, and compute-validation financing page so new users can understand the software purpose, applications, market value, collaboration needs, and strict evidence boundaries.
 - Added v0.20.1 release notes and exposed additional public documentation pages in the MkDocs navigation.

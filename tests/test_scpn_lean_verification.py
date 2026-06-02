@@ -77,6 +77,16 @@ def test_lean_formal_report_rejects_payload_digest_mismatch() -> None:
         ("checked_specs", ["pid.actuator_saturation"], "checked_specs missing proved contracts"),
         ("theorem_names", ["bad theorem"], "invalid identifier"),
         ("safety_case_ids", ["bad id"], "invalid identifier"),
+        (
+            "theorem_names",
+            ["ScpnControl.Transport.unrelated", "ScpnControl.SNN.markingBoundsPreserved"],
+            "pid.actuator_saturation requires theorem_names",
+        ),
+        (
+            "theorem_modules",
+            ["ScpnControl.Transport", "ScpnControl.SNN"],
+            "pid.actuator_saturation requires theorem_modules",
+        ),
     ],
 )
 def test_lean_formal_report_rejects_malformed_contract_payload(field: str, value: object, match: str) -> None:
