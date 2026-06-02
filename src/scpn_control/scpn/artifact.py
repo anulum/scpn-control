@@ -23,16 +23,16 @@ import math
 import zlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from re import Pattern
+from collections.abc import Callable
 from typing import Any, Dict, List
 
 from scpn_control.scpn.lean_verification import (
-    LEAN_IDENTIFIER_RE,
-    LEAN_MODULE_RE,
     LEAN_REQUIRED_PROVED_CONTRACTS,
-    SAFETY_CASE_ID_RE,
     LeanFormalVerificationError,
     compute_assumption_sha256,
+    is_lean_module_name,
+    is_lean_theorem_name,
+    is_safety_case_id,
     validate_bounded_proof_assumptions,
     validate_lean_formal_report_payload,
     validate_required_contract_theorem_coverage,
@@ -435,7 +435,7 @@ def _validate_non_empty_string_list(
     value: object,
     field_name: str,
     *,
-    pattern: Pattern[str] | None = None,
+    validator: Callable[[str], bool] | None = None,
 ) -> List[str]:
     if not isinstance(value, list) or not value:
         raise ArtifactValidationError(f"formal_verification.{field_name} must be a non-empty list")
@@ -444,7 +444,7 @@ def _validate_non_empty_string_list(
     for item in value:
         if not isinstance(item, str) or not item:
             raise ArtifactValidationError(f"formal_verification.{field_name} must contain non-empty strings")
-        if pattern is not None and pattern.fullmatch(item) is None:
+        if validator is not None and not validator(item):
             raise ArtifactValidationError(f"formal_verification.{field_name} contains invalid identifier")
         if item in seen:
             raise ArtifactValidationError(f"formal_verification.{field_name} must not contain duplicates")
@@ -474,19 +474,19 @@ def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) ->
     theorem_names = _validate_non_empty_string_list(
         evidence.theorem_names,
         "theorem_names",
-        pattern=LEAN_IDENTIFIER_RE,
+        validator=is_lean_theorem_name,
     )
     theorem_modules = _validate_non_empty_string_list(
         evidence.theorem_modules,
         "theorem_modules",
-        pattern=LEAN_MODULE_RE,
+        validator=is_lean_module_name,
     )
     proved_contracts = _validate_non_empty_string_list(evidence.proved_contracts, "proved_contracts")
     module_paths = _validate_safe_relative_path_list(evidence.module_paths, "module_paths")
     safety_case_ids = _validate_non_empty_string_list(
         evidence.safety_case_ids,
         "safety_case_ids",
-        pattern=SAFETY_CASE_ID_RE,
+        validator=is_safety_case_id,
     )
     try:
         proof_assumptions = validate_bounded_proof_assumptions(evidence.proof_assumptions)

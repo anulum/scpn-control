@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
@@ -29,9 +29,7 @@ LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES = {
     "pid.actuator_saturation": "ScpnControl.PID",
     "snn.marking_bounds": "ScpnControl.SNN",
 }
-LEAN_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_'.]*(?:\.[A-Za-z_][A-Za-z0-9_'.]*)*$")
-LEAN_MODULE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
-SAFETY_CASE_ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9_.:-]*$")
+_SAFETY_CASE_ID_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.:-")
 
 
 class LeanFormalVerificationError(ValueError):
@@ -90,11 +88,54 @@ def compute_assumption_sha256(proof_assumptions: list[str]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _is_lean_identifier_segment(value: str, *, allow_prime: bool) -> bool:
+    """Return True for one Lean identifier segment in linear time."""
+    if not value:
+        return False
+    first = value[0]
+    if not (first.isascii() and (first.isalpha() or first == "_")):
+        return False
+    for char in value[1:]:
+        if char == "'" and allow_prime:
+            continue
+        if not (char.isascii() and (char.isalnum() or char == "_")):
+            return False
+    return True
+
+
+def _is_dotted_lean_identifier(value: str, *, allow_prime: bool) -> bool:
+    """Return True for dotted Lean names without regex backtracking risk."""
+    segments = value.split(".")
+    if not segments:
+        return False
+    return all(_is_lean_identifier_segment(segment, allow_prime=allow_prime) for segment in segments)
+
+
+def is_lean_theorem_name(value: str) -> bool:
+    """Return True when ``value`` is an admissible dotted Lean theorem name."""
+    return _is_dotted_lean_identifier(value, allow_prime=True)
+
+
+def is_lean_module_name(value: str) -> bool:
+    """Return True when ``value`` is an admissible dotted Lean module name."""
+    return _is_dotted_lean_identifier(value, allow_prime=False)
+
+
+def is_safety_case_id(value: str) -> bool:
+    """Return True when ``value`` is an admissible safety-case identifier."""
+    if not value:
+        return False
+    first = value[0]
+    if first not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789":
+        return False
+    return all(char in _SAFETY_CASE_ID_CHARS for char in value)
+
+
 def validate_non_empty_string_list(
     value: object,
     field_name: str,
     *,
-    pattern: re.Pattern[str] | None = None,
+    validator: Callable[[str], bool] | None = None,
 ) -> list[str]:
     """Validate a non-empty, duplicate-free string list."""
     if not isinstance(value, list) or not value:
@@ -104,7 +145,7 @@ def validate_non_empty_string_list(
     for item in value:
         if not isinstance(item, str) or not item:
             raise LeanFormalVerificationError(f"{field_name} must contain non-empty strings")
-        if pattern is not None and pattern.fullmatch(item) is None:
+        if validator is not None and not validator(item):
             raise LeanFormalVerificationError(f"{field_name} contains invalid identifier")
         if item in seen:
             raise LeanFormalVerificationError(f"{field_name} must not contain duplicates")
@@ -212,19 +253,19 @@ def validate_lean_formal_report_payload(payload: object) -> None:
     theorem_names = validate_non_empty_string_list(
         payload.get("theorem_names"),
         "theorem_names",
-        pattern=LEAN_IDENTIFIER_RE,
+        validator=is_lean_theorem_name,
     )
     theorem_modules = validate_non_empty_string_list(
         payload.get("theorem_modules"),
         "theorem_modules",
-        pattern=LEAN_MODULE_RE,
+        validator=is_lean_module_name,
     )
     proved_contracts = validate_non_empty_string_list(payload.get("proved_contracts"), "proved_contracts")
     module_paths = validate_safe_relative_path_list(payload.get("module_paths"), "module_paths")
     safety_case_ids = validate_non_empty_string_list(
         payload.get("safety_case_ids"),
         "safety_case_ids",
-        pattern=SAFETY_CASE_ID_RE,
+        validator=is_safety_case_id,
     )
     missing_contracts = sorted(LEAN_REQUIRED_PROVED_CONTRACTS.difference(proved_contracts))
     if missing_contracts:
