@@ -33,6 +33,22 @@ scpn_control.PhysicsDebugAssistant
 
 ---
 
+## Validation — Benchmark Regression Gates
+
+`validation/validate_benchmark_regression_gates.py` admits persisted benchmark
+evidence before the preflight gate accepts a regression baseline. The gate does
+not run benchmarks and does not create timing evidence. It validates
+`validation/reports/benchmark_regression_gates.json` against the referenced
+latency reports, SHA-256 digests, metric paths, bounded thresholds, sample
+counts, hardware-context metadata, and explicit non-HIL claim boundaries.
+
+The gate is intended to catch stale, tampered, overclaimed, or regressed local
+benchmark evidence before release preflight continues. Hardware-in-the-loop,
+target-device, cloud-GPU, or plant real-time claims remain blocked until those
+specific benchmark artefacts are generated and admitted separately.
+
+---
+
 ## Physics Debug Assistance
 
 `scpn_control.physics_debug` provides a local-first advisory assistant for

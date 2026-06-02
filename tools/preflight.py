@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Preflight
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# SCPN Control — Local CI preflight
-# Mirrors every CI gate so failures are caught before push.
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
+# Project: SCPN Control
+# Description: Local CI preflight gates.
 
 from __future__ import annotations
 
@@ -64,6 +59,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
     ("generated-traceability", [_PY, "tools/check_generated_traceability.py"], None),
     ("release-evidence", [_PY, "-m", "scpn_control.cli", "validate-release-evidence"], None),
+    ("benchmark-regression", [_PY, "validation/validate_benchmark_regression_gates.py"], None),
     ("module-linkage", [_PY, "tools/check_test_module_linkage.py"], None),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),

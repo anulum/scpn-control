@@ -1,0 +1,72 @@
+{
+  "schema_version": "scpn-control.benchmark-regression-gates.v1",
+  "gate_set_id": "scpn-control-local-benchmark-regression-2026-06-02",
+  "claim_boundary": "bounded regression gate over persisted local benchmark evidence only; not a hardware-in-the-loop real-time guarantee",
+  "generated_utc": "2026-06-02T00:00:00Z",
+  "entries": [
+    {
+      "benchmark_id": "e2e_control_latency.kernel_only_p95_us",
+      "report_uri": "validation/reports/e2e_control_latency.json",
+      "report_sha256": "c806d0c4dc9e94506d02db51b959cf980213a1af01b2d2d70810cb3f99cd29bf",
+      "metric_path": "kernel_only_us.p95",
+      "observed": 135.9,
+      "unit": "us",
+      "max_threshold": 250.0,
+      "sample_count_path": "iterations",
+      "sample_count": 200,
+      "min_sample_count": 100,
+      "claim_status_path": "claim_status",
+      "required_claim_substring": "not a hardware-in-the-loop real-time guarantee",
+      "hardware_context_path": "target_hardware",
+      "status": "pass"
+    },
+    {
+      "benchmark_id": "e2e_control_latency.e2e_p95_us",
+      "report_uri": "validation/reports/e2e_control_latency.json",
+      "report_sha256": "c806d0c4dc9e94506d02db51b959cf980213a1af01b2d2d70810cb3f99cd29bf",
+      "metric_path": "e2e_us.p95",
+      "observed": 5486.3,
+      "unit": "us",
+      "max_threshold": 7500.0,
+      "sample_count_path": "iterations",
+      "sample_count": 200,
+      "min_sample_count": 100,
+      "claim_status_path": "claim_status",
+      "required_claim_substring": "not a hardware-in-the-loop real-time guarantee",
+      "hardware_context_path": "target_hardware",
+      "status": "pass"
+    },
+    {
+      "benchmark_id": "differentiable_transport.one_step_p95_ms",
+      "report_uri": "validation/reports/differentiable_transport_latency.json",
+      "report_sha256": "a3b801455fe7206eaaef9922454598cdd3c216aaf31b3207d93ac16c64e5dff8",
+      "metric_path": "p95_ms",
+      "observed": 20.741123199999997,
+      "unit": "ms",
+      "max_threshold": 25.0,
+      "sample_count_path": "timed_runs",
+      "sample_count": 5,
+      "min_sample_count": 5,
+      "claim_status_path": "claim_status",
+      "required_claim_substring": "not a real-time control-loop guarantee",
+      "hardware_context_path": "runtime_metadata",
+      "status": "pass"
+    },
+    {
+      "benchmark_id": "differentiable_transport.rollout_p95_ms",
+      "report_uri": "validation/reports/differentiable_transport_rollout_latency.json",
+      "report_sha256": "0474caa0185b4abc8dc094c4e4e0ddfae15f63f7d654293b756cc59fd64da1be",
+      "metric_path": "p95_ms",
+      "observed": 1069.2277918,
+      "unit": "ms",
+      "max_threshold": 1200.0,
+      "sample_count_path": "timed_runs",
+      "sample_count": 5,
+      "min_sample_count": 5,
+      "claim_status_path": "claim_status",
+      "required_claim_substring": "not a real-time control-loop guarantee",
+      "hardware_context_path": "runtime_metadata",
+      "status": "pass"
+    }
+  ]
+}

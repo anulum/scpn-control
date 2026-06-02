@@ -23,6 +23,10 @@
 - Added a Lean formal-verification validation executable with duplicate-key
   rejection, report SHA-256 calculation, malformed-contract rejection, and
   optional safety-critical artifact admission against a supplied report root.
+- Added a preflight benchmark-regression gate that validates persisted latency
+  evidence against SHA-256-bound reports, bounded thresholds, sample counts,
+  hardware-context metadata, and explicit non-HIL claim boundaries without
+  executing benchmarks or creating new timing evidence.
 - Hardened Lean report and artifact-manifest admission so required PID and
   SNN/neuro-symbolic proof contracts must be backed by matching
   `ScpnControl.PID` and `ScpnControl.SNN` theorem namespaces, not just listed
