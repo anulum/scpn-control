@@ -713,6 +713,12 @@ machine-checked proof artefacts are present and verified.
 
 ::: scpn_control.scpn.lean_verification.load_lean_formal_report
 
+The validation executable `validation/validate_scpn_lean_formal.py` validates
+Lean report JSON with duplicate-key rejection and can additionally call
+`load_artifact(..., require_formal_verification=True)` against a supplied
+artifact and report root. This is the release-gate path for admitting Lean proof
+evidence without running long proof jobs inside the Python test suite.
+
 ---
 
 ## Phase — Paper 27 Dynamics
