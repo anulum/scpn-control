@@ -723,6 +723,10 @@ coverage for required controller contracts: PID actuator-saturation evidence
 must include a `ScpnControl.PID` theorem module and theorem name, while
 SNN/neuro-symbolic marking-bound evidence must include a `ScpnControl.SNN`
 theorem module and theorem name.
+Lean evidence must also declare explicit bounded `proof_assumptions` and a
+canonical `assumption_sha256`; report and artifact admission reject unbounded
+assumptions, certification overclaims, malformed assumption digests, or
+manifest/report assumption mismatches.
 
 ---
 

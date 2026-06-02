@@ -32,6 +32,8 @@ from scpn_control.scpn.lean_verification import (
     LEAN_REQUIRED_PROVED_CONTRACTS,
     SAFETY_CASE_ID_RE,
     LeanFormalVerificationError,
+    compute_assumption_sha256,
+    validate_bounded_proof_assumptions,
     validate_lean_formal_report_payload,
     validate_required_contract_theorem_coverage,
 )
@@ -184,6 +186,8 @@ class FormalVerificationEvidence:
     proved_contracts: List[str] | None = None
     module_paths: List[str] | None = None
     safety_case_ids: List[str] | None = None
+    proof_assumptions: List[str] | None = None
+    assumption_sha256: str | None = None
 
 
 # ── Artifact ────────────────────────────────────────────────────────────────
@@ -243,6 +247,8 @@ def _parse_formal_verification(raw: Any) -> FormalVerificationEvidence | None:
         proved_contracts=raw.get("proved_contracts"),
         module_paths=raw.get("module_paths"),
         safety_case_ids=raw.get("safety_case_ids"),
+        proof_assumptions=raw.get("proof_assumptions"),
+        assumption_sha256=raw.get("assumption_sha256"),
     )
 
 
@@ -282,6 +288,10 @@ def _formal_verification_dict(evidence: FormalVerificationEvidence) -> Dict[str,
         obj["module_paths"] = evidence.module_paths
     if evidence.safety_case_ids is not None:
         obj["safety_case_ids"] = evidence.safety_case_ids
+    if evidence.proof_assumptions is not None:
+        obj["proof_assumptions"] = evidence.proof_assumptions
+    if evidence.assumption_sha256 is not None:
+        obj["assumption_sha256"] = evidence.assumption_sha256
     return obj
 
 
@@ -478,6 +488,16 @@ def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) ->
         "safety_case_ids",
         pattern=SAFETY_CASE_ID_RE,
     )
+    try:
+        proof_assumptions = validate_bounded_proof_assumptions(evidence.proof_assumptions)
+    except LeanFormalVerificationError as exc:
+        raise ArtifactValidationError(f"formal_verification.{exc}") from exc
+    if not isinstance(evidence.assumption_sha256, str) or not _is_sha256_hex(evidence.assumption_sha256):
+        raise ArtifactValidationError("formal_verification.assumption_sha256 must be a SHA-256 hex digest for lean4")
+    if evidence.assumption_sha256.lower() != compute_assumption_sha256(proof_assumptions):
+        raise ArtifactValidationError(
+            "formal_verification.assumption_sha256 does not match formal_verification.proof_assumptions"
+        )
     missing_contracts = sorted(LEAN_REQUIRED_PROVED_CONTRACTS.difference(proved_contracts))
     if missing_contracts:
         raise ArtifactValidationError(
@@ -637,6 +657,10 @@ def _verify_formal_report_digest(
             "module_paths": evidence.module_paths,
             "safety_case_ids": evidence.safety_case_ids,
             "claim_boundary": evidence.claim_boundary,
+            "proof_assumptions": evidence.proof_assumptions,
+            "assumption_sha256": evidence.assumption_sha256.lower()
+            if evidence.assumption_sha256 is not None
+            else None,
         }
         for key, expected_value in expected.items():
             actual_value = report_payload[key]
@@ -1123,6 +1147,8 @@ def get_artifact_json_schema() -> Dict[str, Any]:
                     "proved_contracts": {"type": "array", "items": {"type": "string"}, "minItems": 1},
                     "module_paths": {"type": "array", "items": {"type": "string"}, "minItems": 1},
                     "safety_case_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "proof_assumptions": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "assumption_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
                 },
             },
         },

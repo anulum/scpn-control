@@ -49,6 +49,7 @@ from scpn_control.scpn.z3_model_checking import (
     Z3ModelCheckingReport,
     build_z3_formal_report_payload,
 )
+from scpn_control.scpn.lean_verification import compute_assumption_sha256
 
 
 def _build_artifact_file(tmp_path: Path) -> Path:
@@ -141,6 +142,10 @@ def _passing_lean_evidence(artifact_path: Path, report_path: Path | None = None)
         import hashlib
 
         report_sha256 = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    proof_assumptions = [
+        "bounded actuator command interval from exported artifact readout limits",
+        "bounded SNN marking interval [0, 1] from compiled artifact topology",
+    ]
     return {
         "required": True,
         "status": "pass",
@@ -167,6 +172,8 @@ def _passing_lean_evidence(artifact_path: Path, report_path: Path | None = None)
             "src/scpn_control/scpn/controller.py",
         ],
         "safety_case_ids": ["SC-PID-ACTUATOR-SATURATION", "SC-SNN-MARKING-BOUNDS"],
+        "proof_assumptions": proof_assumptions,
+        "assumption_sha256": compute_assumption_sha256(proof_assumptions),
     }
 
 
@@ -206,6 +213,8 @@ def _write_valid_lean_report(path: Path, evidence: dict[str, object]) -> None:
         "module_paths": evidence["module_paths"],
         "safety_case_ids": evidence["safety_case_ids"],
         "claim_boundary": evidence["claim_boundary"],
+        "proof_assumptions": evidence["proof_assumptions"],
+        "assumption_sha256": evidence["assumption_sha256"],
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -610,6 +619,9 @@ class TestArtifactValidationContract:
             ("proved_contracts", ["pid.actuator_saturation"], "proved_contracts"),
             ("module_paths", ["../src/scpn_control/scpn/controller.py"], "module_paths"),
             ("safety_case_ids", ["bad id"], "safety_case_ids"),
+            ("proof_assumptions", ["unbounded plant dynamics"], "proof_assumptions"),
+            ("assumption_sha256", "not-a-sha", "assumption_sha256"),
+            ("assumption_sha256", "0" * 64, "assumption_sha256"),
             (
                 "theorem_names",
                 ["ScpnControl.Transport.unrelated", "ScpnControl.SNN.markingBoundsPreserved"],

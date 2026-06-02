@@ -41,6 +41,10 @@ def _lean_report(*, artifact_sha256: str = "a" * 64) -> LeanFormalVerificationRe
         ],
         safety_case_ids=["SC-PID-ACTUATOR-SATURATION", "SC-SNN-MARKING-BOUNDS"],
         claim_boundary="bounded Lean proof over exported controller envelope",
+        proof_assumptions=[
+            "bounded actuator command interval from exported artifact readout limits",
+            "bounded SNN marking interval [0, 1] from compiled artifact topology",
+        ],
     )
 
 
@@ -134,6 +138,8 @@ def test_lean_formal_validator_admits_artifact_bound_to_report(tmp_path: Path) -
         "proved_contracts": report.proved_contracts,
         "module_paths": report.module_paths,
         "safety_case_ids": report.safety_case_ids,
+        "proof_assumptions": report.proof_assumptions,
+        "assumption_sha256": json.loads(report_path.read_text(encoding="utf-8"))["assumption_sha256"],
     }
     artifact_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 

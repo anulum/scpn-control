@@ -17,6 +17,7 @@ from scpn_control.scpn.lean_verification import (
     LeanFormalVerificationError,
     LeanFormalVerificationReport,
     build_lean_formal_report_payload,
+    compute_assumption_sha256,
     load_lean_formal_report,
     validate_lean_formal_report_payload,
     write_lean_formal_report,
@@ -44,6 +45,10 @@ def _lean_report() -> LeanFormalVerificationReport:
         ],
         safety_case_ids=["SC-PID-ACTUATOR-SATURATION", "SC-SNN-MARKING-BOUNDS"],
         claim_boundary="bounded Lean proof over exported controller envelope",
+        proof_assumptions=[
+            "bounded actuator command interval from exported artifact readout limits",
+            "bounded SNN marking interval [0, 1] from compiled artifact topology",
+        ],
     )
 
 
@@ -77,6 +82,8 @@ def test_lean_formal_report_rejects_payload_digest_mismatch() -> None:
         ("checked_specs", ["pid.actuator_saturation"], "checked_specs missing proved contracts"),
         ("theorem_names", ["bad theorem"], "invalid identifier"),
         ("safety_case_ids", ["bad id"], "invalid identifier"),
+        ("proof_assumptions", ["plant is linear"], "bounded assumptions"),
+        ("assumption_sha256", "0" * 64, "assumption_sha256"),
         (
             "theorem_names",
             ["ScpnControl.Transport.unrelated", "ScpnControl.SNN.markingBoundsPreserved"],
@@ -93,6 +100,8 @@ def test_lean_formal_report_rejects_malformed_contract_payload(field: str, value
     payload = build_lean_formal_report_payload(_lean_report())
     payload.pop("payload_sha256")
     payload[field] = value
+    if field == "proof_assumptions":
+        payload["assumption_sha256"] = compute_assumption_sha256(value)
 
     with pytest.raises(LeanFormalVerificationError, match=match):
         validate_lean_formal_report_payload(payload)

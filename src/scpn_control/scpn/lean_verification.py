@@ -55,6 +55,7 @@ class LeanFormalVerificationReport:
     module_paths: list[str]
     safety_case_ids: list[str]
     claim_boundary: str
+    proof_assumptions: list[str]
 
 
 def _is_sha256_hex(value: str) -> bool:
@@ -75,6 +76,16 @@ def _canonical_payload_sha256(payload: dict[str, Any]) -> str:
         ensure_ascii=True,
         separators=(",", ":"),
         sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def compute_assumption_sha256(proof_assumptions: list[str]) -> str:
+    """Compute a canonical digest for bounded proof assumptions."""
+    encoded = json.dumps(
+        proof_assumptions,
+        ensure_ascii=True,
+        separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
@@ -135,6 +146,18 @@ def validate_required_contract_theorem_coverage(
             )
 
 
+def validate_bounded_proof_assumptions(value: object) -> list[str]:
+    """Validate explicit bounded proof assumptions for Lean evidence."""
+    assumptions = validate_non_empty_string_list(value, "proof_assumptions")
+    for assumption in assumptions:
+        lowered = assumption.lower()
+        if "bounded" not in lowered or "unbounded" in lowered:
+            raise LeanFormalVerificationError("proof_assumptions must state bounded assumptions")
+        if "certified" in lowered or "certification" in lowered:
+            raise LeanFormalVerificationError("proof_assumptions must not claim certification")
+    return assumptions
+
+
 def build_lean_formal_report_payload(report: LeanFormalVerificationReport) -> dict[str, Any]:
     """Build a canonical Lean formal-verification report payload."""
     payload: dict[str, Any] = {
@@ -153,6 +176,8 @@ def build_lean_formal_report_payload(report: LeanFormalVerificationReport) -> di
         "module_paths": report.module_paths,
         "safety_case_ids": report.safety_case_ids,
         "claim_boundary": report.claim_boundary,
+        "proof_assumptions": report.proof_assumptions,
+        "assumption_sha256": compute_assumption_sha256(report.proof_assumptions),
     }
     validate_lean_formal_report_payload(payload)
     payload["payload_sha256"] = _canonical_payload_sha256(payload)
@@ -181,6 +206,12 @@ def validate_lean_formal_report_payload(payload: object) -> None:
         value = payload.get(field)
         if not isinstance(value, str) or not _is_sha256_hex(value):
             raise LeanFormalVerificationError(f"Lean 4 report {field} is invalid")
+    proof_assumptions = validate_bounded_proof_assumptions(payload.get("proof_assumptions"))
+    assumption_sha256 = payload.get("assumption_sha256")
+    if not isinstance(assumption_sha256, str) or not _is_sha256_hex(assumption_sha256):
+        raise LeanFormalVerificationError("Lean 4 report assumption_sha256 is invalid")
+    if assumption_sha256.lower() != compute_assumption_sha256(proof_assumptions):
+        raise LeanFormalVerificationError("Lean 4 report assumption_sha256 does not match proof_assumptions")
     checked_specs = validate_non_empty_string_list(payload.get("checked_specs"), "checked_specs")
     theorem_names = validate_non_empty_string_list(
         payload.get("theorem_names"),

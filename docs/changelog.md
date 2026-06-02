@@ -27,6 +27,9 @@
   SNN/neuro-symbolic proof contracts must be backed by matching
   `ScpnControl.PID` and `ScpnControl.SNN` theorem namespaces, not just listed
   as unchecked contract names.
+- Hardened Lean proof evidence with explicit bounded proof assumptions and a
+  canonical assumption SHA-256 digest that must match between report and
+  safety-critical artifact manifests.
 - Bumped package, citation, and archive metadata to `0.20.1` for the documentation and evidence-polish release candidate.
 - Expanded the README, documentation landing page, onboarding guide, tutorials, notebook gallery, use-case page, production-readiness boundary, and compute-validation financing page so new users can understand the software purpose, applications, market value, collaboration needs, and strict evidence boundaries.
 - Added v0.20.1 release notes and exposed additional public documentation pages in the MkDocs navigation.
