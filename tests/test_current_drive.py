@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Current-drive tests
+# Project: SCPN Control
+# Description: Current-drive tests.
 """Module-specific tests for auxiliary current-drive source contracts."""
 
 from __future__ import annotations
@@ -37,8 +37,15 @@ def _profiles(n: int = 64) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarr
 
 
 def _trapezoid(y: np.ndarray, x: np.ndarray) -> float:
-    integrate = getattr(np, "trapezoid", np.trapz)
-    return float(integrate(y, x))
+    y_arr = np.asarray(y, dtype=float)
+    x_arr = np.asarray(x, dtype=float)
+    if y_arr.ndim != 1 or x_arr.ndim != 1:
+        raise ValueError("test trapezoid helper expects one-dimensional arrays")
+    if y_arr.shape[0] != x_arr.shape[0]:
+        raise ValueError("test trapezoid helper values and grid lengths must match")
+    if x_arr.size < 2:
+        return 0.0
+    return float(np.sum(0.5 * (y_arr[1:] + y_arr[:-1]) * np.diff(x_arr)))
 
 
 def test_current_drive_sources_conserve_grid_normalised_power() -> None:
