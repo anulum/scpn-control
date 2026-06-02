@@ -136,14 +136,10 @@ def validate_required_contract_theorem_coverage(
         if contract not in proved_contracts:
             continue
         if module_prefix not in theorem_modules:
-            raise LeanFormalVerificationError(
-                f"{contract} requires theorem_modules to include {module_prefix}"
-            )
+            raise LeanFormalVerificationError(f"{contract} requires theorem_modules to include {module_prefix}")
         theorem_prefix = f"{module_prefix}."
         if not any(theorem.startswith(theorem_prefix) for theorem in theorem_names):
-            raise LeanFormalVerificationError(
-                f"{contract} requires theorem_names under {module_prefix}"
-            )
+            raise LeanFormalVerificationError(f"{contract} requires theorem_names under {module_prefix}")
 
 
 def validate_bounded_proof_assumptions(value: object) -> list[str]:

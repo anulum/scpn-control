@@ -1,14 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Realtime Efit
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Real-Time Equilibrium Reconstruction (EFIT-lite)
-# ──────────────────────────────────────────────────────────────────────
+# Project: SCPN Control
+# Description: Real-time equilibrium reconstruction utilities.
 """Real-time fixed-boundary EFIT-style reconstruction utilities and diagnostics."""
 
 from __future__ import annotations
@@ -31,8 +27,17 @@ _BOUNDED_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *_FACI
 
 def _trapezoid_integral(values: np.ndarray, grid: np.ndarray, *, axis: int = -1) -> np.ndarray:
     """Integrate profiles across NumPy 1.x and 2.x runtimes."""
-    integrate = getattr(np, "trapezoid", np.trapz)
-    return np.asarray(integrate(values, grid, axis=axis))
+    values_arr = np.asarray(values, dtype=float)
+    grid_arr = np.asarray(grid, dtype=float)
+    if grid_arr.ndim != 1:
+        raise ValueError("trapezoidal integration grid must be one-dimensional")
+    moved = np.moveaxis(values_arr, axis, -1)
+    if moved.shape[-1] != grid_arr.shape[0]:
+        raise ValueError("trapezoidal integration values and grid lengths must match")
+    if grid_arr.size < 2:
+        return np.zeros(moved.shape[:-1], dtype=float)
+    widths = np.diff(grid_arr)
+    return np.asarray(np.sum(0.5 * (moved[..., 1:] + moved[..., :-1]) * widths, axis=-1))
 
 
 @dataclass

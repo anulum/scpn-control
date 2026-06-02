@@ -1438,8 +1438,7 @@ class FusionKernel:
             d_p = self.mtanh_profile_derivative(Psi_norm, self.ped_params_p)
             d_ff = self.mtanh_profile_derivative(Psi_norm, self.ped_params_ff)
             dJ_dpsi[mask_plasma] = (
-                self.RR[mask_plasma] * d_p[mask_plasma]
-                + d_ff[mask_plasma] / (mu0 * self.RR[mask_plasma])
+                self.RR[mask_plasma] * d_p[mask_plasma] + d_ff[mask_plasma] / (mu0 * self.RR[mask_plasma])
             ) / denom
         else:
             # For the linear L-mode profile: Source = -mu0 * R * J_phi

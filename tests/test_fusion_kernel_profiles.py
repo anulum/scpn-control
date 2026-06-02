@@ -94,10 +94,7 @@ class TestProfileConfig:
         p_minus = fk.mtanh_profile(fk.Psi - eps, fk.ped_params_p)
         ff_plus = fk.mtanh_profile(fk.Psi + eps, fk.ped_params_ff)
         ff_minus = fk.mtanh_profile(fk.Psi - eps, fk.ped_params_ff)
-        finite_diff = (
-            fk.RR * (p_plus - p_minus) / (2.0 * eps)
-            + (ff_plus - ff_minus) / (2.0 * eps) / fk.RR
-        )
+        finite_diff = fk.RR * (p_plus - p_minus) / (2.0 * eps) + (ff_plus - ff_minus) / (2.0 * eps) / fk.RR
         np.testing.assert_allclose(jac[iz, ir], finite_diff[iz, ir], rtol=2.0e-4, atol=1.0e-7)
 
 

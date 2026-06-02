@@ -636,11 +636,15 @@ def _verify_formal_report_digest(
         try:
             report_payload = json.loads(report_bytes.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise ArtifactValidationError("formal_verification.report_uri must reference a valid Lean 4 report") from exc
+            raise ArtifactValidationError(
+                "formal_verification.report_uri must reference a valid Lean 4 report"
+            ) from exc
         try:
             validate_lean_formal_report_payload(report_payload)
         except LeanFormalVerificationError as exc:
-            raise ArtifactValidationError("formal_verification.report_uri must reference a valid Lean 4 report") from exc
+            raise ArtifactValidationError(
+                "formal_verification.report_uri must reference a valid Lean 4 report"
+            ) from exc
         expected = {
             "status": evidence.status,
             "solver": evidence.solver,
@@ -658,9 +662,7 @@ def _verify_formal_report_digest(
             "safety_case_ids": evidence.safety_case_ids,
             "claim_boundary": evidence.claim_boundary,
             "proof_assumptions": evidence.proof_assumptions,
-            "assumption_sha256": evidence.assumption_sha256.lower()
-            if evidence.assumption_sha256 is not None
-            else None,
+            "assumption_sha256": evidence.assumption_sha256.lower() if evidence.assumption_sha256 is not None else None,
         }
         for key, expected_value in expected.items():
             actual_value = report_payload[key]

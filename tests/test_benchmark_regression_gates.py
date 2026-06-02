@@ -81,11 +81,7 @@ def test_benchmark_regression_gate_rejects_duplicate_json_keys(
 ) -> None:
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
-        '{"schema_version":"'
-        + SCHEMA_VERSION
-        + '","schema_version":"'
-        + SCHEMA_VERSION
-        + '"}',
+        '{"schema_version":"' + SCHEMA_VERSION + '","schema_version":"' + SCHEMA_VERSION + '"}',
         encoding="utf-8",
     )
 

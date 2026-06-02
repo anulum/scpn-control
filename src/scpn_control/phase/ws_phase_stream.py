@@ -293,7 +293,11 @@ class PhaseStreamServer:
         self.max_payload_bytes = int(self.max_payload_bytes)
         if not math.isfinite(self.client_send_timeout_s) or self.client_send_timeout_s <= 0.0:
             raise ValueError("client_send_timeout_s must be finite and positive")
-        if isinstance(self.max_clients, bool) or not isinstance(self.max_clients, numbers.Integral) or self.max_clients <= 0:
+        if (
+            isinstance(self.max_clients, bool)
+            or not isinstance(self.max_clients, numbers.Integral)
+            or self.max_clients <= 0
+        ):
             raise ValueError("max_clients must be a positive integer")
         self.max_clients = int(self.max_clients)
         if (

@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Current-drive source models
+# Project: SCPN Control
+# Description: Current-drive source models.
 """ECCD, NBI, and mixed current-drive source models for transport coupling."""
 
 from __future__ import annotations
@@ -119,8 +119,16 @@ def _require_current_drive_grid(rho: np.ndarray) -> np.ndarray:
 
 def _trapezoid_integral(values: np.ndarray, grid: np.ndarray) -> float:
     """Integrate one-dimensional profiles across NumPy 1.x and 2.x runtimes."""
-    integrate = getattr(np, "trapezoid", np.trapz)
-    return float(integrate(values, grid))
+    values_arr = np.asarray(values, dtype=float)
+    grid_arr = np.asarray(grid, dtype=float)
+    if values_arr.ndim != 1 or grid_arr.ndim != 1:
+        raise ValueError("trapezoidal integration expects one-dimensional arrays")
+    if values_arr.shape[0] != grid_arr.shape[0]:
+        raise ValueError("trapezoidal integration values and grid lengths must match")
+    if grid_arr.size < 2:
+        return 0.0
+    widths = np.diff(grid_arr)
+    return float(np.sum(0.5 * (values_arr[1:] + values_arr[:-1]) * widths))
 
 
 def _normalised_radial_deposition(
