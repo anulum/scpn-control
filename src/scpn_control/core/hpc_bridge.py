@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — HPC Bridge
+# Project: SCPN Control
+# Description: Native C++ solver bridge and build admission.
 """HPC job bridge for submitting and tracking external validation workloads."""
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import logging
 import math
 import os
 import platform
+import shutil
 import subprocess
 import weakref
 from pathlib import Path
@@ -32,6 +33,7 @@ _ALLOW_EXTERNAL_SOLVER_LIB = "SCPN_ALLOW_EXTERNAL_SOLVER_LIB"
 _SOLVER_SOURCE = "solver.cpp"
 _SOLVER_MANIFEST = "solver_manifest.json"
 _NATIVE_BUILD_TIMEOUT_S = 120
+_NATIVE_BUILD_COMPILER = "g++"
 
 
 def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
@@ -117,10 +119,10 @@ def _validate_solver_library_path(raw_path: str, *, source: str) -> str:
 
 def _verify_solver_source(src: Path, manifest_path: Path) -> bool:
     """Return ``True`` only when ``solver.cpp`` matches its SHA-256 manifest."""
-    if not src.is_file():
+    if src.is_symlink() or not src.is_file():
         logger.error("Native solver source missing: %s", src)
         return False
-    if not manifest_path.is_file():
+    if manifest_path.is_symlink() or not manifest_path.is_file():
         logger.error("Native solver checksum manifest missing: %s", manifest_path)
         return False
 
@@ -150,12 +152,57 @@ def _verify_solver_source(src: Path, manifest_path: Path) -> bool:
 
 def _native_build_environment(out_dir: Path) -> dict[str, str]:
     """Return a minimal environment for the opt-in native build process."""
-    env = {"PATH": os.environ.get("PATH", ""), "TMPDIR": str(out_dir)}
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "TMPDIR": str(out_dir),
+        "LC_ALL": "C",
+        "LANG": "C",
+    }
     for key in ("SystemRoot", "WINDIR"):
         value = os.environ.get(key)
         if value:
             env[key] = value
     return env
+
+
+def _native_build_compiler() -> str | None:
+    """Return the absolute C++ compiler path admitted for native builds."""
+    compiler = shutil.which(_NATIVE_BUILD_COMPILER)
+    if compiler is None:
+        logger.error("Native build compiler not found: %s", _NATIVE_BUILD_COMPILER)
+        return None
+    compiler_path = Path(compiler)
+    if not compiler_path.is_absolute():
+        logger.error("Native build compiler path is not admissible: %s", compiler)
+        return None
+    try:
+        resolved_compiler = compiler_path.resolve(strict=True)
+    except OSError as exc:
+        logger.error("Native build compiler path cannot be resolved: %s", exc)
+        return None
+    if not resolved_compiler.is_file():
+        logger.error("Native build compiler is not a regular file: %s", compiler)
+        return None
+    return str(resolved_compiler)
+
+
+def _prepare_native_output_path(out_dir: Path, out: Path) -> Path | None:
+    """Return a temporary output path after rejecting symlink build targets."""
+    if out_dir.is_symlink():
+        logger.error("Native build output directory must not be a symlink: %s", out_dir)
+        return None
+    if out.exists() and (out.is_symlink() or not out.is_file()):
+        logger.error("Native build output path is not a regular file: %s", out)
+        return None
+
+    temp_out = out_dir / f".{out.name}.build.{os.getpid()}"
+    if temp_out.exists() or temp_out.is_symlink():
+        try:
+            temp_out.unlink()
+        except OSError as exc:
+            logger.error("Native build temporary output path is not removable: %s", exc)
+            return None
+    return temp_out
 
 
 def _release_native_solver(state: dict[str, Any]) -> None:
@@ -517,6 +564,10 @@ def compile_cpp() -> str | None:
         logger.warning("Native build disabled. Set SCPN_ALLOW_NATIVE_BUILD=1 to enable.")
         return None
 
+    compiler = _native_build_compiler()
+    if compiler is None:
+        return None
+
     logger.info("Compiling C++ solver kernel…")
     script_dir = Path(__file__).resolve().parent
     src = script_dir / _SOLVER_SOURCE
@@ -529,15 +580,21 @@ def compile_cpp() -> str | None:
 
     if platform.system() == "Windows":
         out = out_dir / "scpn_solver.dll"
-        cmd = ["g++", "-shared", "-o", str(out), str(src), "-O3", "-fstack-protector-strong"]
+        temp_out = _prepare_native_output_path(out_dir, out)
+        if temp_out is None:
+            return None
+        cmd = [compiler, "-shared", "-o", str(temp_out), str(src), "-O3", "-fstack-protector-strong"]
     else:
         out = out_dir / "libscpn_solver.so"
+        temp_out = _prepare_native_output_path(out_dir, out)
+        if temp_out is None:
+            return None
         cmd = [
-            "g++",
+            compiler,
             "-shared",
             "-fPIC",
             "-o",
-            str(out),
+            str(temp_out),
             str(src),
             "-O3",
             "-fstack-protector-strong",
@@ -557,6 +614,21 @@ def compile_cpp() -> str | None:
         )
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as exc:
         logger.error("Compilation failed: %s", exc)
+        try:
+            temp_out.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError as cleanup_exc:
+            logger.debug("Native build temporary cleanup failed: %s", cleanup_exc)
+        return None
+
+    if temp_out.is_symlink() or not temp_out.is_file():
+        logger.error("Native build did not produce a regular shared library: %s", temp_out)
+        return None
+    try:
+        os.replace(temp_out, out)
+    except OSError as exc:
+        logger.error("Native build output publication failed: %s", exc)
         return None
 
     logger.info("Compilation succeeded: %s", out)

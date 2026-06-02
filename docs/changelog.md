@@ -27,6 +27,11 @@
   evidence against SHA-256-bound reports, bounded thresholds, sample counts,
   hardware-context metadata, and explicit non-HIL claim boundaries without
   executing benchmarks or creating new timing evidence.
+- Hardened optional C++ solver compilation by resolving the compiler to an
+  absolute regular executable, stripping dynamic-loader injection variables
+  from the build environment, rejecting symlinked native source, manifest, and
+  output targets, compiling to a package-local temporary library, and
+  atomically publishing only regular build outputs.
 - Hardened Lean report and artifact-manifest admission so required PID and
   SNN/neuro-symbolic proof contracts must be backed by matching
   `ScpnControl.PID` and `ScpnControl.SNN` theorem namespaces, not just listed

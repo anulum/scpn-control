@@ -1,17 +1,18 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — HPC Bridge Tests
-"""Unit tests for HPC bridge safety and low-copy behavior."""
+# Project: SCPN Control
+# Description: Tests for native C++ solver bridge safety and low-copy behaviour.
+"""Unit tests for HPC bridge safety and low-copy behaviour."""
 
 from __future__ import annotations
 
 import hashlib
 import inspect
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -106,6 +107,10 @@ def _write_solver_source(
     )
     monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
     return source_path
+
+
+def _admit_test_compiler(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(hpc_mod, "_native_build_compiler", lambda: "/usr/bin/g++")
 
 
 def test_as_contiguous_f64_reuses_float64_c_contiguous() -> None:
@@ -413,6 +418,7 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch, tmp_
     calls: dict[str, object] = {}
 
     def _fake_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        Path(cmd[cmd.index("-o") + 1]).write_bytes(b"shared object")
         calls["cmd"] = list(cmd)
         calls["check"] = check
         calls["cwd"] = cwd
@@ -420,6 +426,7 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch, tmp_
         calls["timeout"] = timeout
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
     monkeypatch.setattr(hpc_mod.platform, "system", lambda: "Linux")
     monkeypatch.setattr(hpc_mod.subprocess, "run", _fake_run)
     _write_solver_source(tmp_path, monkeypatch)
@@ -430,23 +437,29 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch, tmp_
     assert Path(out).parent.name == "bin"
     assert calls["check"] is True
     assert isinstance(calls["cmd"], list)
-    assert calls["cmd"][0] == "g++"
+    assert Path(str(calls["cmd"][0])).is_absolute()
     assert "-march=native" not in calls["cmd"]
     assert "-mtune=generic" in calls["cmd"]
     assert "-fstack-protector-strong" in calls["cmd"]
     assert "-Wl,-z,relro" in calls["cmd"]
     assert calls["timeout"] == hpc_mod._NATIVE_BUILD_TIMEOUT_S
     assert "PYTHONPATH" not in calls["env"]
+    assert "LD_PRELOAD" not in calls["env"]
+    assert "LD_LIBRARY_PATH" not in calls["env"]
+    assert "DYLD_INSERT_LIBRARIES" not in calls["env"]
     assert Path(str(calls["cwd"])).name == tmp_path.name
+    assert Path(out).read_bytes() == b"shared object"
 
 
 def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: dict[str, list[str]] = {}
 
     def _fake_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        Path(cmd[cmd.index("-o") + 1]).write_bytes(b"shared object")
         calls["cmd"] = list(cmd)
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
     monkeypatch.setattr(hpc_mod.platform, "system", lambda: "Windows")
     monkeypatch.setattr(hpc_mod.subprocess, "run", _fake_run)
     _write_solver_source(tmp_path, monkeypatch)
@@ -455,6 +468,93 @@ def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert out is not None
     assert Path(out).name == "scpn_solver.dll"
     assert "-mavx2" not in calls["cmd"]
+
+
+def test_compile_cpp_refuses_missing_compiler(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        raise AssertionError("native build must not run without an admitted compiler")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    monkeypatch.setattr(hpc_mod.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+    _write_solver_source(tmp_path, monkeypatch)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_refuses_symlink_output_directory(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "symlink"):
+        pytest.skip("symlink support unavailable")
+
+    real_bin = tmp_path / "real-bin"
+    real_bin.mkdir()
+    (tmp_path / "bin").symlink_to(real_bin, target_is_directory=True)
+
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        raise AssertionError("native build must not write into symlink output directory")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+    _write_solver_source(tmp_path, monkeypatch)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_refuses_existing_symlink_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "symlink"):
+        pytest.skip("symlink support unavailable")
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "target.so").write_bytes(b"target")
+    (bin_dir / "libscpn_solver.so").symlink_to(bin_dir / "target.so")
+
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        raise AssertionError("native build must not overwrite symlink output")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
+    monkeypatch.setattr(hpc_mod.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+    _write_solver_source(tmp_path, monkeypatch)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_refuses_symlink_solver_source(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "symlink"):
+        pytest.skip("symlink support unavailable")
+
+    module_file = tmp_path / "hpc_bridge.py"
+    module_file.write_text("# test module path\n", encoding="utf-8")
+    real_source = tmp_path / "real_solver.cpp"
+    real_source.write_text("int main() { return 0; }\n", encoding="utf-8")
+    (tmp_path / "solver.cpp").symlink_to(real_source)
+    digest = hashlib.sha256(real_source.read_bytes()).hexdigest()
+    (tmp_path / "solver_manifest.json").write_text(
+        json.dumps({"solver.cpp": {"sha256": digest}}),
+        encoding="utf-8",
+    )
+
+    def _unexpected_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        raise AssertionError("symlinked solver source must not be compiled")
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
+    monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
+
+    assert hpc_mod.compile_cpp() is None
 
 
 def test_compile_cpp_refuses_missing_checksum_manifest(
@@ -469,6 +569,7 @@ def test_compile_cpp_refuses_missing_checksum_manifest(
         raise AssertionError("unchecked solver.cpp must not be compiled")
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
     monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
     monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
 
@@ -487,6 +588,7 @@ def test_compile_cpp_refuses_missing_solver_source(monkeypatch: pytest.MonkeyPat
         raise AssertionError("missing solver.cpp must not be compiled")
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
     monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
     monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
 
@@ -503,6 +605,7 @@ def test_compile_cpp_refuses_unreadable_manifest_json(monkeypatch: pytest.Monkey
         raise AssertionError("solver.cpp must not be compiled with unreadable manifest")
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
     monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
     monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
 
@@ -519,6 +622,7 @@ def test_compile_cpp_refuses_manifest_without_valid_sha(monkeypatch: pytest.Monk
         raise AssertionError("solver.cpp must not be compiled without manifest SHA-256")
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
     monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
     monkeypatch.setattr(hpc_mod.subprocess, "run", _unexpected_run)
 
@@ -554,7 +658,23 @@ def test_compile_cpp_handles_build_failure(monkeypatch: pytest.MonkeyPatch, tmp_
         raise subprocess.CalledProcessError(1, cmd)
 
     monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
     monkeypatch.setattr(hpc_mod.subprocess, "run", _fail_run)
+    _write_solver_source(tmp_path, monkeypatch)
+
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_refuses_missing_temporary_output(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def _fake_run(cmd, check, cwd, env, timeout):  # type: ignore[no-untyped-def]
+        return None
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _fake_run)
     _write_solver_source(tmp_path, monkeypatch)
 
     assert hpc_mod.compile_cpp() is None

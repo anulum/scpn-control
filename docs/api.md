@@ -49,6 +49,24 @@ specific benchmark artefacts are generated and admitted separately.
 
 ---
 
+## Core — Native C++ Solver Bridge
+
+`scpn_control.core.hpc_bridge` exposes the optional native Grad-Shafranov
+solver bridge. Native compilation is disabled unless
+`SCPN_ALLOW_NATIVE_BUILD=1` is set. When enabled, the bridge admits only the
+package-local `solver.cpp` whose SHA-256 digest matches
+`solver_manifest.json`, resolves the compiler to an absolute regular
+executable, strips dynamic-loader injection variables from the build
+environment, rejects symlinked solver inputs and output targets, compiles to a
+temporary package-local file, and publishes the shared library atomically after
+the compiler produced a regular file.
+
+External runtime solver libraries remain blocked unless
+`SCPN_ALLOW_EXTERNAL_SOLVER_LIB=1` is set for a vetted absolute path. The
+default path searches package-local solver locations only.
+
+---
+
 ## Physics Debug Assistance
 
 `scpn_control.physics_debug` provides a local-first advisory assistant for
