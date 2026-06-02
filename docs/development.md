@@ -1,4 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- Project: SCPN Control -->
+<!-- Description: Development guide. -->
 
 # Development
 
@@ -60,7 +66,7 @@ pytest -m "not slow"                     # skip slow markers
 pytest --cov=scpn_control --cov-report=term  # coverage
 ```
 
-Coverage gate: 99% (configured in `pyproject.toml`). Coverage claims should
+Coverage gate: 93% (configured in `pyproject.toml`). Coverage claims should
 come from the latest local coverage run or the GitHub coverage lane, not from
 static documentation text.
 

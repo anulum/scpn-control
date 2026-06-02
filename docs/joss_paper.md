@@ -1,4 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- Project: SCPN Control -->
+<!-- Description: JOSS paper draft. -->
 
 # JOSS Paper: SCPN Control
 
@@ -25,7 +31,7 @@ and an 8-layer Kuramoto-Sakaguchi phase dynamics engine.
 The package provides: a Grad-Shafranov equilibrium solver (fixed and free
 boundary, JAX-differentiable), a 1.5D Crank-Nicolson transport solver with
 multi-ion physics, a native linear gyrokinetic eigenvalue solver with
-electromagnetic extension, a native TGLF-equivalent quasilinear model
+electromagnetic extension, a native TGLF-like quasilinear approximation
 (SAT0/SAT1/SAT2 saturation rules), a nonlinear $\delta f$ gyrokinetic
 solver in flux-tube geometry with JAX GPU acceleration, interfaces to five
 external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz), a hybrid
@@ -43,8 +49,8 @@ heat-flux normalisation is treated as an open validation target: the latest
 local-dispersion path overpredicts the published GENE growth rate.
 
 The codebase comprises 134 Python source modules and 5 Rust crates
-(ndarray 0.16, rand 0.9, PyO3 0.25) with 4,000+ collected Python tests, a
-99% local package-coverage gate, and a 20-job CI matrix.
+(ndarray 0.16, rand 0.9, PyO3 0.25) with broad Python and Rust test coverage,
+a 93% local package-coverage gate, and a multi-workflow CI matrix.
 
 ## Statement of Need
 
@@ -64,7 +70,7 @@ surrogate validation), and multi-layer phase dynamics in one coherent stack.
 1. **Five-tier gyrokinetic transport** — critical-gradient baseline,
    QLKNN surrogate [@plassche2020], native linear GK eigenvalue solver
    in ballooning space (Miller geometry, Sugama collision operator)
-   [@dimits2000; @miller1998; @sugama2006], native TGLF-equivalent
+   [@dimits2000; @miller1998; @sugama2006], native TGLF-like approximation
    (SAT0/SAT1/SAT2, no Fortran binary), and nonlinear δf GK (5D Vlasov,
    JAX-accelerable). Interfaces to five external GK codes via subprocess,
    plus a hybrid layer that validates the surrogate against GK spot-checks
@@ -169,12 +175,11 @@ The solver is validated against:
   across modules (bootstrap→NTM, IPB98→power balance, EPED→Troyon limit,
   sawtooth→NTM seed, L-H→H-mode→EPED, runaway→SPI trigger).
 
-The test suite comprises 4,000+ collected Python tests and Rust workspace
-tests across 20 CI jobs (Python 3.10–3.13 on Linux/Windows/macOS, Rust
-stable, JAX parity, LIF+NEF SNN emulator, CodeQL security analysis, OpenSSF
-Scorecard). The local coverage configuration enforces a 99% package-coverage
-gate; the GitHub coverage upload lane enforces the same 99% fail-under while
-publishing XML coverage to Codecov. The project holds an OpenSSF CII Best
+The test suite comprises Python module tests and Rust workspace tests across
+CI workflows for Python, Rust, JAX parity, LIF+NEF SNN emulation, security
+analysis, and OpenSSF Scorecard checks. The local coverage configuration
+currently enforces a 93% package-coverage gate while specialised tests continue
+to replace broad coverage-bucket debt. The project holds an OpenSSF CII Best
 Practices badge.
 All physics equations cite their source papers; ~80 citations spanning
 Porcelli (1996), Sauter (1999), Rosenbluth-Putvinski (1997), Connor-Hastie

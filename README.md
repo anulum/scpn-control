@@ -1,4 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- Project: SCPN Control -->
+<!-- Description: Public project overview and quick start. -->
 
 <p align="center">
   <img src="docs/scpn_control_header.png" alt="SCPN-CONTROL — Formal Stochastic Petri Net Engine" width="100%">
@@ -62,6 +68,16 @@ to move from notebook experiments toward a facility control-system review.
 - Keeps facility-grade promotion fail-closed until the required measured-shot,
   public-reference, external-code, hardware, or independent-review artefacts
   are supplied and admitted.
+
+## Read this first
+
+| If you are... | Start with | Why |
+| --- | --- | --- |
+| New to the package | [Quick Start](#quick-start), then [Onboarding](docs/onboarding.md) | Confirms installation and explains the three-layer mental model. |
+| Evaluating market or collaboration value | [Why it matters](#why-it-matters), [Use Cases](docs/use_cases.md), [Compute Validation Funding](docs/compute_validation_financing.md) | Shows the practical control-evidence workflow and the open support needs. |
+| Reviewing claims | [Limitations & Honest Scope](#limitations--honest-scope), [Production Readiness](docs/production_readiness.md), [Validation](docs/validation.md) | Separates bounded repository evidence from facility, external-code, and deployment claims. |
+| Building a controller | [Python in 30 Seconds](#python-in-30-seconds), [Tutorials](docs/tutorials.md), [API Reference](docs/api.md) | Moves from SPN/SNN basics to control and validation surfaces. |
+| Preparing a release or audit | [Benchmarks](docs/benchmarks.md), [Validation Summary](docs/validation_summary.md), [Changelog](docs/changelog.md) | Shows persisted evidence, benchmark boundaries, and release history. |
 
 ## Relationship to SCPN Fusion Core
 
@@ -142,31 +158,30 @@ blocked until the required external artefacts exist.
 ## Capability Inventory
 
 <!-- capability-snapshot:start -->
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — Generated Capability Snapshot -->
-<!-- Embedded in README.md between capability-snapshot markers. -->
+<!-- Project: SCPN Control -->
+<!-- Description: Generated capability snapshot. -->
 
 **Capability Inventory**
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.1 |
+| Package version | 0.20.2 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
-| Python control/physics modules | 134 |
-| Python public classes | 483 |
+| Python control/physics modules | 135 |
+| Python public classes | 485 |
 | Rust source files | 50 |
 | Rust PyO3 exports | 27 |
-| Validation scripts | 86 |
+| Validation scripts | 88 |
 | Optional extras | 17 |
-| Python test files | 296 |
-| Public documentation pages | 37 |
+| Python test files | 299 |
+| Public documentation pages | 38 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -245,22 +260,51 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 
 ## Features
 
-- **Petri Net to SNN compilation** -- Translates Stochastic Petri Nets into spiking neural network controllers with LIF neurons and bitstream encoding
-- **Bounded formal verification** -- Exact Petri-net reachability, marking-bound proofs, algebraic place invariants, transition liveness, bounded temporal response specifications, optional Z3 bounded model checking for compiled control logic, and fail-closed proof-manifest admission for safety-critical controller artifacts
-- **Sub-millisecond latency** -- <1ms control loop with optional Rust-accelerated kernels
-- **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update, Boris integration, SNN pools, and MPC
-- **10 controller types** -- PID, MPC, NMPC, H-infinity, mu-synthesis, gain-scheduled, sliding-mode, fault-tolerant, SNN, PPO reinforcement learning
-- **Grad-Shafranov solver** -- Fixed + free-boundary equilibrium solver with L/H-mode profiles, JAX-differentiable (`jax.grad` through full Picard solve)
-- **Frontier physics** -- Nonlinear δf gyrokinetic solver (5D Vlasov, JAX-accelerable), native TGLF-equivalent (SAT0/SAT1/SAT2, no Fortran binary), kinetic electron species, Sugama collision operator (particle/momentum/energy conservation), electromagnetic A_∥ via Ampere's law (KBM/MTM capable), Dimits-shift scan machinery requiring post-audit revalidation, ballooning connection BC (kx shift), Rosenbluth-Hinton zonal Krook damping, 62× JAX GPU speedup, ballooning eigenvalue solver, sawtooth Kadomtsev model, NTM dynamics, current diffusion/drive, SOL two-point model
-- **MHD stability** -- Five independent criteria: Mercier interchange, ballooning, Kruskal-Shafranov kink, Troyon beta limit, NTM seeding
-- **JAX autodiff** -- Thomas solver, Crank-Nicolson transport, neural equilibrium, GS solver — all JIT-compiled and GPU-compatible
-- **PPO agent** -- 500K-step cloud-trained RL controller (reward 143.7 vs MPC 58.1 vs PID −912.3), 3-seed reproducible
-- **Neural transport** -- QLKNN-10D trained MLP with auto-discovered weights
-- **Scenario management** -- Integrated scenario simulator (transport + current diffusion + sawteeth + NTM + SOL), scenario scheduler, ITER/NSTX-U presets
-- **Digital twin integration** -- Real-time telemetry ingest, closed-loop simulation, real-time EFIT, and flight simulator
-- **RMSE validation** -- CI-gated regression testing against DIII-D reference artefacts and published SPARC GEQDSK files
-- **Disruption prediction** -- ML-based predictor with SPI mitigation and halo/RE physics
-- **Robust control** -- H-infinity DARE synthesis, bounded static mu-analysis, fault-tolerant degraded-mode operation, shape controller with boundary Jacobian
+### Control and formal methods
+
+- **Petri Net to SNN compilation** -- translates stochastic Petri nets into
+  spiking neural controller artefacts with LIF neurons and bitstream metadata.
+- **Bounded formal verification** -- covers exact finite Petri-net reachability,
+  marking-bound checks, place invariants, transition liveness, bounded temporal
+  response specifications, optional Z3 bounded model checking, Lean proof
+  evidence admission, and fail-closed proof-manifest validation.
+- **Controller families** -- PID, MPC, NMPC, H-infinity, mu-synthesis,
+  gain-scheduled, sliding-mode, fault-tolerant, SNN, and reinforcement-learning
+  research controllers.
+- **Robust control** -- H-infinity DARE synthesis, bounded static mu-analysis,
+  degraded-mode operation, and shape-control surfaces with explicit admission
+  boundaries.
+
+### Physics and differentiable facades
+
+- **Grad-Shafranov facades** -- fixed-boundary and experimental free-boundary
+  equilibrium paths with L/H-mode profiles and JAX-differentiable research
+  surfaces where JAX is available.
+- **Transport and scenario management** -- integrated transport, current
+  diffusion, sawteeth, NTM, SOL, scenario scheduling, and ITER/NSTX-U presets.
+- **Gyrokinetic research surfaces** -- nonlinear delta-f GK, local dispersion,
+  TGLF-like native approximations, kinetic electron/species tooling,
+  collision/operator research paths, and JAX backend parity evidence. Full
+  quantitative GK claims still require external-code validation on identical
+  inputs.
+- **Neural transport and equilibrium** -- QLKNN-style and neural-equilibrium
+  surrogate paths with strict reference-admission boundaries.
+
+### Runtime, evidence, and deployment preparation
+
+- **Rust acceleration** -- PyO3 bindings for SCPN activation, marking update,
+  Boris integration, SNN pools, and MPC kernels.
+- **Benchmark admission** -- persisted benchmark-regression reports validate
+  digests, thresholds, sample counts, hardware context, and claim text before
+  release preflight can treat local latency evidence as current.
+- **Native-build security** -- optional C++ solver compilation is gated,
+  checksum-bound, compiler-admitted, environment-reduced, symlink-hardened, and
+  atomically published.
+- **Digital twin integration** -- telemetry ingest, replay metadata,
+  closed-loop simulation, EFIT-facing contracts, and flight-simulator surfaces.
+- **Disruption prediction** -- ML disruption and mitigation research surfaces.
+  Facility-facing disruption claims remain blocked without measured databases
+  and strict admission.
 
 ## Architecture
 
@@ -499,7 +543,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.2.0
+git tag v0.20.2
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```
@@ -513,14 +557,17 @@ git push --tags
   repository reference artefacts with manifest checksums. Synthetic fixtures
   remain for CI plumbing only, not public physics evidence. No live MDSplus,
   no experimental control-room replay, and no real-world validation.
-- **No peer-reviewed fusion publication**: Paper 27 (arXiv:2004.06344) is
-  unpublished in a fusion journal. No external citations.
+- **No peer-reviewed fusion-control publication yet**: Paper 27
+  (arXiv:2004.06344) is public, but this repository still needs a dedicated
+  peer-reviewed fusion-control software paper for the current stack.
 - **Not a production PCS**: Alpha-stage research software. CODAC/EPICS support
   and WebSocket control-stream support are research adapters and
   evidence-admission contracts, not a certified ITER plant deployment. No
   safety certification and no real hardware deployment.
-- **"Formal verification" is contract checking**: Runtime pre/post-condition
-  assertions, not theorem-proved guarantees (no Coq/Lean/TLA+).
+- **Formal verification is bounded evidence**: The repository includes
+  Petri-net reachability, temporal-logic, Z3-backed, certificate-bundle, and
+  Lean proof-admission paths. Those reports are bounded software evidence, not
+  facility safety certification.
 - **Benchmark comparisons are not apples-to-apples**: The 11.9 µs number is a
   bare Rust kernel step. DIII-D PCS timings include I/O, diagnostics, and
   actuator commands. A fair comparison requires equivalent end-to-end
@@ -533,10 +580,11 @@ git push --tags
   experimental free-boundary external-coil scaffold. The free-boundary path is
   not yet sufficient for full shape control, X-point geometry, or divertor
   configuration. No stellarator geometry.
-- **Transport**: 1.5D flux-surface-averaged with five tiers from critical-gradient
-  to nonlinear δf GK. Native TGLF-equivalent (no Fortran binary) and nonlinear
-  solver produce physically meaningful transport, but are not yet cross-validated
-  against production TGLF or GENE on identical equilibria.
+- **Transport and GK**: 1.5D flux-surface-averaged transport and nonlinear
+  delta-f GK research surfaces exist. Native TGLF-like approximations and
+  nonlinear solvers remain bounded local models until cross-validated against
+  production TGLF, GENE, GS2, CGYRO, QuaLiKiz, or documented public references
+  on identical equilibria.
 - **Disruption predictor**: Synthetic training data only. Not validated on
   experimental disruption databases.
 - **No GPU equilibrium**: P-EFIT is faster on GPU hardware. JAX neural equilibrium

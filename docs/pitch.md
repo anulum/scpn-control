@@ -1,4 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- Project: SCPN Control -->
+<!-- Description: Project pitch. -->
 
 # SCPN Control — Neuro-Symbolic Fusion Controller
 
@@ -46,7 +52,7 @@ complete control cycle including I/O, diagnostics, and actuator commands.
 > kernel call. A fair comparison would require equivalent end-to-end
 > measurement on comparable hardware.
 
-### 0.39 ms neural equilibrium — without GPU
+### 0.39 ms neural equilibrium research path — without GPU
 
 P-EFIT achieves <1 ms on GPU hardware. scpn-control's PCA + MLP surrogate
 achieves 0.39 ms on **CPU only**. Not validated against P-EFIT on identical
@@ -76,7 +82,7 @@ P-EFIT typically reconstructs.
 | Neuro-cybernetic controller | Experimental |
 | JAX autodiff (transport + GS solver) | Tested |
 | QLKNN-10D neural transport | Tested |
-| PPO reinforcement learning agent | Tested (beats MPC + PID) |
+| PPO reinforcement learning agent | Research benchmark evidence |
 | GPU dispatch (JAX) | Tested |
 
 ---
@@ -88,8 +94,10 @@ P-EFIT typically reconstructs.
 You need real-time control prototyping **now**, not after a 3-year bespoke
 development cycle. scpn-control gives you:
 
-- A tested controller with 4,000+ collected Python tests, a 99% coverage gate, and CI-gated RMSE validation
-- Five-tier gyrokinetic transport (native solver + 5 external codes + hybrid validation)
+- A tested controller stack with module-specific tests, a 93% coverage gate, and
+  CI-gated bounded validation
+- Five-tier gyrokinetic transport research surfaces with strict boundaries for
+  external-code agreement
 - Runs on commodity hardware (no GPU or data center required)
 - AGPL-3.0 open source; commercial licensing available
 

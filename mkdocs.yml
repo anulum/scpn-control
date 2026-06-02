@@ -86,6 +86,7 @@ nav:
     - JOSS Paper: joss_paper.md
     - Development: development.md
     - Capability Manifest: capability_manifest.md
+    - Release Notes v0.20.2: release_notes_v0.20.2.md
     - Release Notes v0.20.1: release_notes_v0.20.1.md
     - Release Notes v0.20.0: release_notes_v0.20.0.md
     - Release Notes v0.19.3: release_notes_v0.19.3.md

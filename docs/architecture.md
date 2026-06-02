@@ -1,4 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- Project: SCPN Control -->
+<!-- Description: Architecture guide. -->
 
 # Architecture
 
@@ -209,7 +215,7 @@ scpn-control/
 │   ├── control/          # Controllers (42 modules, optional deps guarded)
 │   └── phase/            # Kuramoto/UPDE engine (9 modules)
 ├── scpn-control-rs/      # Rust workspace (5 crates)
-├── tests/                # 4,000+ collected tests (264 files, 99% gate)
+├── tests/                # Module-specific tests with a 93% coverage gate
 
 
 ├── examples/             # 6 notebooks + 3 scripts

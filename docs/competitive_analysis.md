@@ -1,8 +1,14 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- Project: SCPN Control -->
+<!-- Description: Competitive analysis. -->
 
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-06-01 (v0.20.0).
+> **Last updated:** 2026-06-02 (v0.20.2).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 
@@ -20,10 +26,9 @@
 | FUSE | N/A (design code) | N/A | Julia | Meneghini 2024 |
 
 > **Note on DIII-D:** The raw data-acquisition cycle runs at ~16.7 kHz (60 us),
-> but the physics-level control algorithms (rtEFIT, shape control, NTM
-> feedback) execute at 4--10 kHz depending on the algorithm. scpn-control's
-> 11.9 us P50 is still faster than any published DIII-D physics control loop
-> and operates without dedicated FPGA or InfiniBand hardware.
+> but physics-level control algorithms include IO, diagnostics, state
+> estimation, and actuator paths. scpn-control's 11.9 us P50 is a bare kernel
+> measurement only. It is not an end-to-end PCS-cycle comparison.
 
 ## 2. Transport Simulation Speed
 
@@ -41,12 +46,12 @@
 > **Fidelity note (v0.17.0+):** scpn-control now offers five transport tiers:
 > (1) critical-gradient model (fastest, ~µs), (2) QLKNN-10D MLP surrogate
 > (~24 ns single-point), (3) native linear GK eigenvalue solver (~0.3s per
-> flux surface), **(4) native TGLF-equivalent model** (SAT0/SAT1/SAT2 with
+> flux surface), **(4) native TGLF-like approximation** (SAT0/SAT1/SAT2 with
 > E×B shear quench, ~0.5s per surface, no external binary), **(5) nonlinear
 > δf gyrokinetic solver** (5D Vlasov, JAX-accelerable, ~15s/surface on GPU).
-> External GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) can
-> be called via subprocess. The hybrid layer validates the surrogate against
-> GK spot-checks in real time.
+> External GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) can be represented via
+> strict interface contracts. Quantitative agreement still requires real
+> external runs on identical inputs and digest-bound artefacts.
 
 ## 3. Equilibrium Reconstruction
 
@@ -75,7 +80,7 @@
 | Transport solver | 1.5D coupled | 1D flux-driven | 0D | No | 1D | 0--1D |
 | **External GK coupling** | **5 codes (TGLF/GENE/GS2/CGYRO/QuaLiKiz)** | TGLF only | No | No | TGLF only | No |
 | **Native linear GK solver** | **Yes (ballooning eigenvalue)** | No | No | No | No | No |
-| **Native TGLF-equivalent** | **Yes (SAT0/SAT1/SAT2, no binary)** | No | No | No | No | No |
+| **Native TGLF-like approximation** | **Yes (SAT0/SAT1/SAT2, no binary)** | No | No | No | No | No |
 | **Nonlinear δf GK solver** | **Yes (5D Vlasov, JAX-accelerable)** | No | No | No | No | No |
 | **GK-surrogate hybrid** | **Yes + OOD + online learning** | No | No | No | No | No |
 | **SCPN phase coupling** | **Yes (8-layer UPDE bridge)** | No | No | No | No | No |
@@ -117,7 +122,7 @@
 | Rust LOC (all .rs) | ~61,900 |
 | Test files | 264 |
 | Tests collected | 4,000+ |
-| Test coverage | 99% gate |
+| Test coverage | 93% gate |
 | CI jobs | 20 |
 | Real DIII-D shots | 17 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |
@@ -130,12 +135,13 @@
 1. **Fastest open-source kernel step** — 11.9 µs P50 (Criterion-verified).
    Bare kernel call, not a complete control cycle.
 
-2. **Only code with nonlinear δf GK + native TGLF + 5 external GK interfaces +
+2. **Nonlinear delta-f GK + native TGLF-like approximation + 5 external GK interfaces +
    hybrid surrogate validation** — no competing code (TORAX, FUSE, DREAM,
-   FreeGS) has a self-contained nonlinear GK solver or native TGLF-equivalent.
+   FreeGS) has the same bundled research breadth.
    TORAX and FUSE interface external TGLF only (Fortran binary dependency);
    scpn-control has 5 transport tiers from critical-gradient to nonlinear δf,
-   all pip-installable, no Fortran.
+   all pip-installable, no Fortran. Quantitative external-code agreement remains
+   blocked until matched artefacts pass admission.
 
 3. **Neuro-symbolic SNN + contract checking + digital twin** — the Petri
    Net to SNN compiler with runtime contract assertions is architecturally

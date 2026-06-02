@@ -1,6 +1,27 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- Project: SCPN Control -->
+<!-- Description: Release changelog. -->
 
 # Changelog
+
+## [0.20.2] - 2026-06-02
+
+### Changed
+- Bumped package, citation, archive, API, README capability, and release-note
+  metadata to `0.20.2`.
+- Reworked the README into clearer product, reading-path, feature, evidence,
+  and limitation sections while preserving existing project content.
+- Added v0.20.2 release notes and exposed them in the MkDocs navigation.
+- Tightened public wording for gyrokinetic, real-time latency, disruption,
+  validation-summary, and coverage claims so external-code, measured-shot,
+  target-hardware, peer-reviewed, and plant-deployment claims remain blocked
+  until strict evidence admission exists.
+- Documented the benchmark-regression and native C++ build-hardening changes
+  as release-readiness improvements.
 
 ## [0.20.1] - 2026-06-02
 
@@ -671,7 +692,7 @@
   RK4 with CFL-adaptive dt, zonal flow diagnostics.
   JAX-accelerated variant (`jax_gk_nonlinear.py`) with `jax.checkpoint`.
   CBC validation: linear recovery, energy conservation, zonal flows, saturated state.
-- **Native TGLF-equivalent model** (`gk_tglf_native.py`):
+- **Native TGLF-like approximation** (`gk_tglf_native.py`):
   SAT0/SAT1/SAT2 spectral saturation (Staebler 2007/2017),
   E×B shear quench (Waltz 1997), trapped-particle damping (Connor 1974),
   multi-scale ITG-ETG cross-scale coupling (Maeyama 2015, α_cs=3.0),

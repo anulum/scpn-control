@@ -1,10 +1,10 @@
-# ─────────────────────────────────────────────────────────────────────
-# SCPN Control — Citation Metadata
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: AGPL-3.0-or-later
-# ─────────────────────────────────────────────────────────────────────
+# Project: SCPN Control
+# Description: Citation metadata.
 cff-version: 1.2.0
 title: "SCPN Control"
 message: "If you use this software, please cite it using the metadata below."
@@ -13,7 +13,7 @@ authors:
   - family-names: "Sotek"
     given-names: "Miroslav"
     orcid: "https://orcid.org/0009-0009-3560-0851"
-version: "0.20.1"
+version: "0.20.2"
 date-released: "2026-06-02"
 license: "AGPL-3.0-or-later"
 repository-code: "https://github.com/anulum/scpn-control"
