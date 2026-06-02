@@ -13,7 +13,7 @@ import hashlib
 import inspect
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import numpy as np
 import pytest
@@ -437,7 +437,8 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch, tmp_
     assert Path(out).parent.name == "bin"
     assert calls["check"] is True
     assert isinstance(calls["cmd"], list)
-    assert Path(str(calls["cmd"][0])).is_absolute()
+    compiler_cmd = str(calls["cmd"][0])
+    assert PurePosixPath(compiler_cmd).is_absolute() or PureWindowsPath(compiler_cmd).is_absolute()
     assert "-march=native" not in calls["cmd"]
     assert "-mtune=generic" in calls["cmd"]
     assert "-fstack-protector-strong" in calls["cmd"]
