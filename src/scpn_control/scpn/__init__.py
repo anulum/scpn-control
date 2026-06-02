@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Scpn Package
+# Project: SCPN Control
+# Description: SCPN package public exports.
 from __future__ import annotations
 
 """SCPN Petri net to SNN compilation pipeline."""
@@ -62,6 +62,14 @@ from scpn_control.scpn.formal_verification import (
     verify_formal_contracts,
     write_safety_certificate_bundle,
     write_safety_certificate,
+)
+from scpn_control.scpn.lean_verification import (
+    LeanFormalVerificationError,
+    LeanFormalVerificationReport,
+    build_lean_formal_report_payload,
+    load_lean_formal_report,
+    validate_lean_formal_report_payload,
+    write_lean_formal_report,
 )
 from scpn_control.scpn.fpga_export import (
     FPGAConfig,
@@ -162,6 +170,8 @@ __all__ = [
     "ReachabilityReport",
     "FormalPropertyReport",
     "FormalVerificationReport",
+    "LeanFormalVerificationError",
+    "LeanFormalVerificationReport",
     "PlaceInvariant",
     "SafetyCertificatePolicy",
     "SafetyCertificateBundlePolicy",
@@ -183,6 +193,10 @@ __all__ = [
     "validate_safety_certificate_bundle_artifact",
     "write_safety_certificate_bundle",
     "write_safety_certificate",
+    "build_lean_formal_report_payload",
+    "load_lean_formal_report",
+    "validate_lean_formal_report_payload",
+    "write_lean_formal_report",
     "FPGAConfig",
     "HDLExportEvidence",
     "compile_to_verilog",

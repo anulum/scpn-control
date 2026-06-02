@@ -703,6 +703,16 @@ machine-checked proof artefacts are present and verified.
 
 ::: scpn_control.scpn.artifact.validate_safety_critical_artifact
 
+::: scpn_control.scpn.lean_verification.LeanFormalVerificationReport
+
+::: scpn_control.scpn.lean_verification.build_lean_formal_report_payload
+
+::: scpn_control.scpn.lean_verification.validate_lean_formal_report_payload
+
+::: scpn_control.scpn.lean_verification.write_lean_formal_report
+
+::: scpn_control.scpn.lean_verification.load_lean_formal_report
+
 ---
 
 ## Phase — Paper 27 Dynamics

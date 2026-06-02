@@ -16,6 +16,10 @@
   modules, Lean/Lake/source hashes, proved PID and SNN contracts, production
   module paths, safety-case identifiers, report digests, and artifact digests
   before a `lean4` proof report can be accepted.
+- Added a canonical Lean 4 formal-verification report API with payload digest
+  validation, report writer/loader helpers, and package exports so downstream
+  proof-generation workflows can produce admissible evidence without duplicating
+  JSON schemas.
 - Bumped package, citation, and archive metadata to `0.20.1` for the documentation and evidence-polish release candidate.
 - Expanded the README, documentation landing page, onboarding guide, tutorials, notebook gallery, use-case page, production-readiness boundary, and compute-validation financing page so new users can understand the software purpose, applications, market value, collaboration needs, and strict evidence boundaries.
 - Added v0.20.1 release notes and exposed additional public documentation pages in the MkDocs navigation.

@@ -641,7 +641,10 @@ class TestArtifactValidationContract:
         evidence = _passing_lean_evidence(artifact_path)
         _write_valid_lean_report(report_path, evidence)
         report_payload = json.loads(report_path.read_text(encoding="utf-8"))
-        report_payload["theorem_names"] = ["ScpnControl.PID.onlyPartial"]
+        report_payload["theorem_names"] = [
+            "ScpnControl.PID.onlyPartial",
+            "ScpnControl.SNN.markingBoundsPreserved",
+        ]
         report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         evidence = _passing_lean_evidence(artifact_path, report_path)
         bad_path = _write_mutated_artifact_raw(

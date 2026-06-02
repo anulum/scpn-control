@@ -20,22 +20,26 @@ import binascii
 import hashlib
 import json
 import math
-import re
 import zlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from re import Pattern
 from typing import Any, Dict, List
+
+from scpn_control.scpn.lean_verification import (
+    LEAN_IDENTIFIER_RE,
+    LEAN_MODULE_RE,
+    LEAN_REQUIRED_PROVED_CONTRACTS,
+    SAFETY_CASE_ID_RE,
+    LeanFormalVerificationError,
+    validate_lean_formal_report_payload,
+)
 
 ARTIFACT_SCHEMA_VERSION = "1.0.0"
 MAX_PACKED_WORDS = 10_000_000
 MAX_DECOMPRESSED_BYTES = MAX_PACKED_WORDS * 8
 MAX_COMPRESSED_BYTES = 50_000_000
 FORMAL_VERIFICATION_BACKENDS = {"explicit-state", "lean4", "z3"}
-LEAN_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.lean4-formal-report.v1"
-LEAN_REQUIRED_PROVED_CONTRACTS = frozenset({"pid.actuator_saturation", "snn.marking_bounds"})
-LEAN_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_'.]*(?:\.[A-Za-z_][A-Za-z0-9_'.]*)*$")
-LEAN_MODULE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
-SAFETY_CASE_ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9_.:-]*$")
 
 
 # ── Sub-structures ──────────────────────────────────────────────────────────
@@ -420,7 +424,7 @@ def _validate_non_empty_string_list(
     value: object,
     field_name: str,
     *,
-    pattern: re.Pattern[str] | None = None,
+    pattern: Pattern[str] | None = None,
 ) -> List[str]:
     if not isinstance(value, list) or not value:
         raise ArtifactValidationError(f"formal_verification.{field_name} must be a non-empty list")
@@ -604,7 +608,10 @@ def _verify_formal_report_digest(
             report_payload = json.loads(report_bytes.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ArtifactValidationError("formal_verification.report_uri must reference a valid Lean 4 report") from exc
-        _validate_lean4_formal_report_payload(report_payload)
+        try:
+            validate_lean_formal_report_payload(report_payload)
+        except LeanFormalVerificationError as exc:
+            raise ArtifactValidationError("formal_verification.report_uri must reference a valid Lean 4 report") from exc
         expected = {
             "status": evidence.status,
             "solver": evidence.solver,
@@ -628,58 +635,6 @@ def _verify_formal_report_digest(
                 actual_value = actual_value.lower()
             if actual_value != expected_value:
                 raise ArtifactValidationError(f"formal_verification.{key} does not match Lean 4 report")
-
-
-def _validate_lean4_formal_report_payload(payload: object) -> None:
-    if not isinstance(payload, dict):
-        raise ArtifactValidationError("formal_verification.report_uri must reference a Lean 4 report object")
-    if payload.get("schema_version") != LEAN_FORMAL_REPORT_SCHEMA_VERSION:
-        raise ArtifactValidationError("formal_verification.report_uri must reference a valid Lean 4 report")
-    if payload.get("backend") != "lean4":
-        raise ArtifactValidationError("formal_verification.report_uri must reference a lean4 report")
-    status = payload.get("status")
-    if status not in {"pass", "fail", "blocked"}:
-        raise ArtifactValidationError("formal_verification Lean 4 report status is invalid")
-    solver = payload.get("solver")
-    lean_version = payload.get("lean_version")
-    claim_boundary = payload.get("claim_boundary")
-    if not isinstance(solver, str) or not solver:
-        raise ArtifactValidationError("formal_verification Lean 4 report solver is invalid")
-    if not isinstance(lean_version, str) or not lean_version:
-        raise ArtifactValidationError("formal_verification Lean 4 report lean_version is invalid")
-    if not isinstance(claim_boundary, str) or not claim_boundary:
-        raise ArtifactValidationError("formal_verification Lean 4 report claim_boundary is invalid")
-    for field in ("artifact_sha256", "proof_source_sha256", "lakefile_sha256"):
-        value = payload.get(field)
-        if not isinstance(value, str) or not _is_sha256_hex(value):
-            raise ArtifactValidationError(f"formal_verification Lean 4 report {field} is invalid")
-    checked_specs = _validate_non_empty_string_list(payload.get("checked_specs"), "checked_specs")
-    theorem_names = _validate_non_empty_string_list(
-        payload.get("theorem_names"),
-        "theorem_names",
-        pattern=LEAN_IDENTIFIER_RE,
-    )
-    theorem_modules = _validate_non_empty_string_list(
-        payload.get("theorem_modules"),
-        "theorem_modules",
-        pattern=LEAN_MODULE_RE,
-    )
-    proved_contracts = _validate_non_empty_string_list(payload.get("proved_contracts"), "proved_contracts")
-    _validate_safe_relative_path_list(payload.get("module_paths"), "module_paths")
-    _validate_non_empty_string_list(payload.get("safety_case_ids"), "safety_case_ids", pattern=SAFETY_CASE_ID_RE)
-    missing_contracts = sorted(LEAN_REQUIRED_PROVED_CONTRACTS.difference(proved_contracts))
-    if missing_contracts:
-        raise ArtifactValidationError(
-            "formal_verification Lean 4 report proved_contracts missing required contracts: "
-            + ", ".join(missing_contracts)
-        )
-    missing_specs = sorted(set(proved_contracts).difference(checked_specs))
-    if missing_specs:
-        raise ArtifactValidationError(
-            "formal_verification Lean 4 report checked_specs missing proved contracts: " + ", ".join(missing_specs)
-        )
-    if len(theorem_modules) > len(theorem_names):
-        raise ArtifactValidationError("formal_verification Lean 4 report theorem_modules cannot exceed theorem_names")
 
 
 def validate_safety_critical_artifact(
