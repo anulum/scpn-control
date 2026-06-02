@@ -1566,6 +1566,12 @@ def validate_rmse(json_out: bool, output_json: str, output_md: str) -> None:
     type=int,
     help="Maximum WebSocket command payload size in bytes",
 )
+@click.option(
+    "--max-client-write-buffer-bytes",
+    default=262144,
+    type=int,
+    help="Maximum per-client WebSocket outbound write buffer before ejection",
+)
 @click.option("--allow-unauthenticated-clients", is_flag=True, help="Allow unauthenticated local development clients")
 @click.option("--allow-query-token-auth", is_flag=True, help="Allow token query-string authentication")
 @click.option("--require-tls", is_flag=True, help="Require TLS before starting the phase stream")
@@ -1597,6 +1603,7 @@ def live(
     command_rate_limit: int,
     command_rate_window_s: float,
     max_payload_bytes: int,
+    max_client_write_buffer_bytes: int,
     allow_unauthenticated_clients: bool,
     allow_query_token_auth: bool,
     require_tls: bool,
@@ -1646,6 +1653,7 @@ def live(
         command_rate_limit=command_rate_limit,
         command_rate_window_s=command_rate_window_s,
         max_payload_bytes=max_payload_bytes,
+        max_client_write_buffer_bytes=max_client_write_buffer_bytes,
         require_client_auth=not allow_unauthenticated_clients,
         allow_query_token_auth=allow_query_token_auth,
         require_tls=require_tls,

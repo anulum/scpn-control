@@ -749,6 +749,31 @@ class FusionKernel:
         result[mask] = pedestal + params["core_alpha"] * core
         return result
 
+    @staticmethod
+    def mtanh_profile_derivative(psi_norm: FloatArray, params: dict[str, float]) -> FloatArray:
+        """Evaluate ``d(mtanh_profile)/dpsi_norm`` for H-mode Newton linearisation."""
+        result = np.zeros_like(psi_norm)
+        mask = (psi_norm >= 0) & (psi_norm < 1.0)
+        x = psi_norm[mask]
+        ped_top = params["ped_top"]
+        ped_width = params["ped_width"]
+        raw_y = (ped_top - x) / ped_width
+        y = np.clip(raw_y, -20, 20)
+        active_pedestal = (raw_y >= -20.0) & (raw_y <= 20.0)
+        sech2 = 1.0 - np.tanh(y) ** 2
+        pedestal_slope = np.where(
+            active_pedestal,
+            -0.5 * params["ped_height"] * sech2 / ped_width,
+            0.0,
+        )
+        core_slope = np.where(
+            x < ped_top,
+            -2.0 * params["core_alpha"] * x / (ped_top * ped_top),
+            0.0,
+        )
+        result[mask] = pedestal_slope + core_slope
+        return result
+
     # ── source term ───────────────────────────────────────────────────
 
     def update_plasma_source_nonlinear(self, Psi_axis: float, Psi_boundary: float) -> FloatArray:
@@ -1408,17 +1433,27 @@ class FusionKernel:
         Psi_norm = (self.Psi - Psi_axis) / denom
         mask_plasma = (Psi_norm >= 0) & (Psi_norm < 1.0)
 
-        # For the linear L-mode profile: Source = -mu0 * R * J_phi
-        # J_phi = c * (1 - psi_norm) * R  =>  dJ_phi/dpsi_norm = -c * R
-        # dJ_phi/dpsi = dJ_phi/dpsi_norm * dpsi_norm/dpsi = -c * R / denom
-        # c from Ip normalisation: I_p = ∫ J_phi dA
-        I_target = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get("plasma_current_sign", 1.0)
-        # I = ∫ J_phi dA ≈ c · Σ_plasma((1-ψ_norm)·R)·ΔR·ΔZ  (midpoint quadrature)
-        s = float(np.sum(np.where(mask_plasma, (1 - Psi_norm) * self.RR, 0.0))) * self.dR * self.dZ
-        c = I_target / max(abs(s), 1e-9)
-
         dJ_dpsi = np.zeros_like(self.Psi)
-        dJ_dpsi[mask_plasma] = -c * self.RR[mask_plasma] / denom
+        if self.profile_mode in ("h-mode", "H-mode", "hmode"):
+            d_p = self.mtanh_profile_derivative(Psi_norm, self.ped_params_p)
+            d_ff = self.mtanh_profile_derivative(Psi_norm, self.ped_params_ff)
+            dJ_dpsi[mask_plasma] = (
+                self.RR[mask_plasma] * d_p[mask_plasma]
+                + d_ff[mask_plasma] / (mu0 * self.RR[mask_plasma])
+            ) / denom
+        else:
+            # For the linear L-mode profile: Source = -mu0 * R * J_phi
+            # J_phi = c * (1 - psi_norm) * R  =>  dJ_phi/dpsi_norm = -c * R
+            # dJ_phi/dpsi = dJ_phi/dpsi_norm * dpsi_norm/dpsi = -c * R / denom
+            # c from Ip normalisation: I_p = ∫ J_phi dA
+            I_target = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get(
+                "plasma_current_sign", 1.0
+            )
+            # I = ∫ J_phi dA ≈ c · Σ_plasma((1-ψ_norm)·R)·ΔR·ΔZ  (midpoint quadrature)
+            s = float(np.sum(np.where(mask_plasma, (1 - Psi_norm) * self.RR, 0.0))) * self.dR * self.dZ
+            c = I_target / max(abs(s), 1e-9)
+
+            dJ_dpsi[mask_plasma] = -c * self.RR[mask_plasma] / denom
 
         return dJ_dpsi
 

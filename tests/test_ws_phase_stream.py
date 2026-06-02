@@ -18,6 +18,7 @@ import sys
 import time
 from dataclasses import asdict
 
+import numpy as np
 import pytest
 
 import scpn_control.phase.ws_phase_stream as ws_phase_stream
@@ -112,6 +113,8 @@ class TestPhaseStreamServer:
             PhaseStreamServer(monitor=mon, max_clients=0)
         with pytest.raises(ValueError, match="max_clients"):
             PhaseStreamServer(monitor=mon, max_clients=True)
+        with pytest.raises(ValueError, match="max_client_write_buffer_bytes"):
+            PhaseStreamServer(monitor=mon, max_client_write_buffer_bytes=0)
         with pytest.raises(ValueError, match="require_client_auth"):
             PhaseStreamServer(monitor=mon, require_client_auth="yes")
         with pytest.raises(ValueError, match="allow_query_token_auth"):
@@ -128,6 +131,21 @@ class TestPhaseStreamServer:
             PhaseStreamServer(monitor=mon, allowed_actions=())
         with pytest.raises(ValueError, match="allowed_actions"):
             PhaseStreamServer(monitor=mon, allowed_actions=("shell",))
+
+    def test_init_accepts_numpy_integral_security_limits(self):
+        mon = _make_monitor()
+        server = PhaseStreamServer(
+            monitor=mon,
+            command_rate_limit=np.int64(3),
+            max_payload_bytes=np.int64(4096),
+            max_clients=np.int64(8),
+            max_client_write_buffer_bytes=np.int64(8192),
+        )
+
+        assert server.command_rate_limit == 3
+        assert server.max_payload_bytes == 4096
+        assert server.max_clients == 8
+        assert server.max_client_write_buffer_bytes == 8192
 
     def test_handler_rejects_unauthenticated_control_connection_when_api_key_configured(self, caplog):
         async def _run():
@@ -418,6 +436,34 @@ class TestPhaseStreamServer:
             assert ws.close_code == 1011
             assert "backpressure" in (ws.close_reason or "")
             assert ws not in server._clients
+
+        asyncio.run(_run())
+
+    def test_send_frame_drops_client_when_transport_buffer_exceeds_limit(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(
+                monitor=mon,
+                api_key="secret-token-123456",
+                max_client_write_buffer_bytes=64,
+            )
+
+            class _BufferedTransport:
+                def get_write_buffer_size(self):
+                    return 128
+
+            class _BufferedWS(_FakeWS):
+                transport = _BufferedTransport()
+
+            ws = _BufferedWS()
+
+            dead = await server._send_frame_or_dead(ws, json.dumps({"R_global": 1.0}))
+
+            assert dead is ws
+            assert ws.closed
+            assert ws.close_code == 1011
+            assert "backpressure" in (ws.close_reason or "")
+            assert server.runtime_counters()["backpressure_disconnects"] == 1
 
         asyncio.run(_run())
 
@@ -913,6 +959,8 @@ class TestPhaseStreamServer:
                 "0.125",
                 "--max-clients",
                 "9",
+                "--max-client-write-buffer-bytes",
+                "8192",
                 "--allow-query-token-auth",
                 "--require-tls",
                 "--allowed-origin",
@@ -931,6 +979,7 @@ class TestPhaseStreamServer:
         assert captured["server"]["max_payload_bytes"] == 4096
         assert captured["server"]["client_send_timeout_s"] == 0.125
         assert captured["server"]["max_clients"] == 9
+        assert captured["server"]["max_client_write_buffer_bytes"] == 8192
         assert captured["server"]["allow_query_token_auth"] is True
         assert captured["server"]["require_tls"] is True
         assert captured["server"]["allowed_origins"] == ("https://ops.example",)

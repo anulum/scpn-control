@@ -68,6 +68,38 @@ class TestProfileConfig:
         fk = FusionKernel(path)
         assert fk.profile_mode == "l-mode"
 
+    def test_hmode_profile_jacobian_uses_mtanh_slope(self, tmp_path):
+        """H-mode Newton Jacobian must follow the mtanh pedestal derivative."""
+        path = _cfg(
+            tmp_path,
+            extra_physics={
+                "profiles": {
+                    "mode": "h-mode",
+                    "p_prime": {"ped_top": 0.65, "ped_width": 0.08, "ped_height": 2.0, "core_alpha": 0.7},
+                    "ff_prime": {"ped_top": 0.65, "ped_width": 0.08, "ped_height": 1.0, "core_alpha": 0.4},
+                },
+            },
+        )
+        fk = FusionKernel(path)
+        fk.Psi = np.linspace(0.0, 1.0, fk.NZ * fk.NR).reshape(fk.NZ, fk.NR)
+
+        jac = fk._compute_profile_jacobian(Psi_axis=0.0, Psi_boundary=1.0, mu0=1.0)
+        plasma = (fk.Psi >= 0.0) & (fk.Psi < 1.0)
+
+        assert np.all(np.isfinite(jac))
+        assert np.std(jac[plasma]) > 1.0e-6
+        iz, ir = fk.NZ // 2, fk.NR // 2
+        eps = 1.0e-6
+        p_plus = fk.mtanh_profile(fk.Psi + eps, fk.ped_params_p)
+        p_minus = fk.mtanh_profile(fk.Psi - eps, fk.ped_params_p)
+        ff_plus = fk.mtanh_profile(fk.Psi + eps, fk.ped_params_ff)
+        ff_minus = fk.mtanh_profile(fk.Psi - eps, fk.ped_params_ff)
+        finite_diff = (
+            fk.RR * (p_plus - p_minus) / (2.0 * eps)
+            + (ff_plus - ff_minus) / (2.0 * eps) / fk.RR
+        )
+        np.testing.assert_allclose(jac[iz, ir], finite_diff[iz, ir], rtol=2.0e-4, atol=1.0e-7)
+
 
 class TestAndersonMixing:
     def test_singular_gram_fallback(self, tmp_path):

@@ -1321,9 +1321,9 @@ class NonlinearMPC:
         ocp.constraints.uh = self.config.du_max.copy()
         terminal_x_min = self.config.terminal_x_min if self.config.terminal_x_min is not None else self.config.x_min
         terminal_x_max = self.config.terminal_x_max if self.config.terminal_x_max is not None else self.config.x_max
-        ocp.constraints.idxbx_e = np.arange(n_aug, dtype=int)
-        ocp.constraints.lbx_e = np.r_[terminal_x_min, self.config.u_min]
-        ocp.constraints.ubx_e = np.r_[terminal_x_max, self.config.u_max]
+        ocp.constraints.idxbx_e = np.arange(self.nx, dtype=int)
+        ocp.constraints.lbx_e = terminal_x_min.copy()
+        ocp.constraints.ubx_e = terminal_x_max.copy()
         return ocp
 
     def _make_acados_solver(self, ocp: object) -> object:
@@ -1454,8 +1454,8 @@ class NonlinearMPC:
             terminal_aug = np.r_[self.x_traj[self.N], self.u_traj[self.N - 1]]
             self._acados_set(solver, self.N, "x", terminal_aug)
             self._acados_set(solver, self.N, "yref", x_ref)
-            self._acados_set(solver, self.N, "lbx", np.r_[terminal_x_min, self.config.u_min])
-            self._acados_set(solver, self.N, "ubx", np.r_[terminal_x_max, self.config.u_max])
+            self._acados_set(solver, self.N, "lbx", terminal_x_min)
+            self._acados_set(solver, self.N, "ubx", terminal_x_max)
 
             solver_api: Any = solver
             status = int(solver_api.solve())

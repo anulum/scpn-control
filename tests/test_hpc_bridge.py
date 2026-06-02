@@ -672,6 +672,10 @@ def test_native_build_environment_keeps_only_portable_build_variables(tmp_path, 
     from scpn_control.core.hpc_bridge import _native_build_environment
 
     monkeypatch.setenv("LD_PRELOAD", "/tmp/untrusted.so")
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/tmp")
+    monkeypatch.setenv("DYLD_INSERT_LIBRARIES", "/tmp/untrusted.dylib")
+    monkeypatch.setenv("DYLD_LIBRARY_PATH", "/tmp")
+    monkeypatch.setenv("DYLD_FRAMEWORK_PATH", "/tmp")
     monkeypatch.setenv("SCPN_SOLVER_LIB", "/tmp/untrusted.so")
 
     env = _native_build_environment(tmp_path)
@@ -679,6 +683,10 @@ def test_native_build_environment_keeps_only_portable_build_variables(tmp_path, 
     assert env["TMPDIR"] == str(tmp_path)
     assert "PATH" in env
     assert "LD_PRELOAD" not in env
+    assert "LD_LIBRARY_PATH" not in env
+    assert "DYLD_INSERT_LIBRARIES" not in env
+    assert "DYLD_LIBRARY_PATH" not in env
+    assert "DYLD_FRAMEWORK_PATH" not in env
     assert "SCPN_SOLVER_LIB" not in env
 
 

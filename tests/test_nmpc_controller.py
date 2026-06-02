@@ -840,7 +840,9 @@ def test_nmpc_acados_symbolic_builder_creates_augmented_slew_constrained_ocp(mon
     assert ocp.cost.W.shape == (9, 9)
     assert ocp.cost.W_e.shape == (6, 6)
     assert ocp.constraints.idxbx.shape == (9,)
-    assert ocp.constraints.idxbx_e.shape == (9,)
+    np.testing.assert_array_equal(ocp.constraints.idxbx_e, np.arange(6))
+    np.testing.assert_allclose(ocp.constraints.lbx_e, cfg.x_min)
+    np.testing.assert_allclose(ocp.constraints.ubx_e, cfg.x_max)
     np.testing.assert_allclose(ocp.constraints.lh, -cfg.du_max)
     np.testing.assert_allclose(ocp.constraints.uh, cfg.du_max)
     assert ocp.model.disc_dyn_expr[0] == "vertcat"

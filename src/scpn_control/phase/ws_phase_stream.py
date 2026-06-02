@@ -31,6 +31,7 @@ import hmac
 import json
 import logging
 import math
+import numbers
 import os
 import ssl
 import time
@@ -72,6 +73,7 @@ class WebSocketRuntimeEvidence:
     max_payload_bytes: int
     client_send_timeout_s: float
     max_clients: int
+    max_client_write_buffer_bytes: int
     allowed_actions: tuple[str, ...]
     allowed_origins: tuple[str, ...]
     config_sha256: str
@@ -227,6 +229,7 @@ def _ws_config_payload(
         "max_payload_bytes": int(server.max_payload_bytes),
         "client_send_timeout_s": float(server.client_send_timeout_s),
         "max_clients": int(server.max_clients),
+        "max_client_write_buffer_bytes": int(server.max_client_write_buffer_bytes),
         "allowed_actions": tuple(server.allowed_actions),
         "allowed_origins": tuple(server.allowed_origins),
     }
@@ -252,6 +255,7 @@ class PhaseStreamServer:
     max_payload_bytes: int = 65536
     client_send_timeout_s: float = 0.25
     max_clients: int = 128
+    max_client_write_buffer_bytes: int = 262144
     require_client_auth: bool = True
     allow_query_token_auth: bool = False
     require_tls: bool = False
@@ -273,22 +277,32 @@ class PhaseStreamServer:
             raise ValueError(f"api_key must be at least {_MIN_API_KEY_BYTES} bytes")
         if (
             isinstance(self.command_rate_limit, bool)
-            or not isinstance(self.command_rate_limit, int)
+            or not isinstance(self.command_rate_limit, numbers.Integral)
             or self.command_rate_limit <= 0
         ):
             raise ValueError("command_rate_limit must be a positive integer")
+        self.command_rate_limit = int(self.command_rate_limit)
         if not math.isfinite(self.command_rate_window_s) or self.command_rate_window_s <= 0.0:
             raise ValueError("command_rate_window_s must be finite and positive")
         if (
             isinstance(self.max_payload_bytes, bool)
-            or not isinstance(self.max_payload_bytes, int)
+            or not isinstance(self.max_payload_bytes, numbers.Integral)
             or self.max_payload_bytes <= 0
         ):
             raise ValueError("max_payload_bytes must be a positive integer")
+        self.max_payload_bytes = int(self.max_payload_bytes)
         if not math.isfinite(self.client_send_timeout_s) or self.client_send_timeout_s <= 0.0:
             raise ValueError("client_send_timeout_s must be finite and positive")
-        if isinstance(self.max_clients, bool) or not isinstance(self.max_clients, int) or self.max_clients <= 0:
+        if isinstance(self.max_clients, bool) or not isinstance(self.max_clients, numbers.Integral) or self.max_clients <= 0:
             raise ValueError("max_clients must be a positive integer")
+        self.max_clients = int(self.max_clients)
+        if (
+            isinstance(self.max_client_write_buffer_bytes, bool)
+            or not isinstance(self.max_client_write_buffer_bytes, numbers.Integral)
+            or self.max_client_write_buffer_bytes <= 0
+        ):
+            raise ValueError("max_client_write_buffer_bytes must be a positive integer")
+        self.max_client_write_buffer_bytes = int(self.max_client_write_buffer_bytes)
         if not isinstance(self.require_client_auth, bool):
             raise ValueError("require_client_auth must be a boolean")
         if not isinstance(self.allow_query_token_auth, bool):
@@ -463,6 +477,13 @@ class PhaseStreamServer:
     async def _send_frame_or_dead(self, websocket: Any, frame: str) -> Any | None:
         try:
             await asyncio.wait_for(websocket.send(frame), timeout=self.client_send_timeout_s)
+            transport = getattr(websocket, "transport", None)
+            get_write_buffer_size = getattr(transport, "get_write_buffer_size", None)
+            if get_write_buffer_size is not None:
+                buffered = int(get_write_buffer_size())
+                if buffered > self.max_client_write_buffer_bytes:
+                    await self._close_backpressured_client(websocket)
+                    return websocket
         except asyncio.TimeoutError:
             await self._close_backpressured_client(websocket)
             return websocket
@@ -511,6 +532,8 @@ class PhaseStreamServer:
             port,
             ssl=ssl_context,
             max_size=self.max_payload_bytes,
+            max_queue=4,
+            write_limit=self.max_client_write_buffer_bytes,
         ):
             scheme = "wss" if ssl_context is not None else "ws"
             logger.info("Phase stream listening on %s://%s:%d", scheme, host, port)
@@ -558,6 +581,10 @@ def _validate_websocket_runtime_payload(
     command_rate_limit = _require_positive_int("command_rate_limit", payload.get("command_rate_limit"))
     max_payload_bytes = _require_positive_int("max_payload_bytes", payload.get("max_payload_bytes"))
     max_clients = _require_positive_int("max_clients", payload.get("max_clients"))
+    max_client_write_buffer_bytes = _require_positive_int(
+        "max_client_write_buffer_bytes",
+        payload.get("max_client_write_buffer_bytes"),
+    )
     command_rate_window_s = _require_finite_positive(
         "command_rate_window_s",
         payload.get("command_rate_window_s"),
@@ -584,6 +611,7 @@ def _validate_websocket_runtime_payload(
         "max_payload_bytes": max_payload_bytes,
         "client_send_timeout_s": client_send_timeout_s,
         "max_clients": max_clients,
+        "max_client_write_buffer_bytes": max_client_write_buffer_bytes,
         "allowed_actions": allowed_actions,
         "allowed_origins": allowed_origins,
     }
@@ -658,6 +686,7 @@ def _validate_websocket_runtime_payload(
         max_payload_bytes=max_payload_bytes,
         client_send_timeout_s=client_send_timeout_s,
         max_clients=max_clients,
+        max_client_write_buffer_bytes=max_client_write_buffer_bytes,
         allowed_actions=allowed_actions,
         allowed_origins=allowed_origins,
         config_sha256=str(config_sha256),
@@ -781,6 +810,7 @@ def main() -> None:
     )
     parser.add_argument("--client-send-timeout-s", type=float, default=0.25)
     parser.add_argument("--max-clients", type=int, default=128)
+    parser.add_argument("--max-client-write-buffer-bytes", type=int, default=262144)
     parser.add_argument("--require-tls", action="store_true")
     parser.add_argument("--allow-unauthenticated-clients", action="store_true")
     parser.add_argument("--allow-query-token-auth", action="store_true")
@@ -813,6 +843,7 @@ def main() -> None:
         max_payload_bytes=args.max_payload_bytes,
         client_send_timeout_s=args.client_send_timeout_s,
         max_clients=args.max_clients,
+        max_client_write_buffer_bytes=args.max_client_write_buffer_bytes,
         require_client_auth=not args.allow_unauthenticated_clients,
         allow_query_token_auth=args.allow_query_token_auth,
         require_tls=args.require_tls,
