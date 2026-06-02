@@ -8,6 +8,19 @@
 
 # Changelog
 
+## [0.20.3] - 2026-06-02
+
+### Changed
+- Bumped package, citation, archive, API, README capability, and release-note
+  metadata to `0.20.3`.
+- Added v0.20.3 release notes so the public release tag includes the
+  Lean formal-evidence security remediation.
+
+### Security
+- Replaced regex-based Lean theorem, module, and safety-case identifier
+  admission with linear-time validators to remove the CodeQL ReDoS finding
+  while preserving the formal-evidence identifier contract.
+
 ## [0.20.2] - 2026-06-02
 
 ### Changed
