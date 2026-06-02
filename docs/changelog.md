@@ -1,10 +1,21 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- Project: SCPN Control -->
+<!-- Description: Release changelog. -->
 
 # Changelog
 
 ## [0.20.1] - 2026-06-02
 
 ### Changed
+- Added Lean 4 formal-proof evidence admission for safety-critical controller
+  artifacts, requiring bounded manifests that bind theorem names, theorem
+  modules, Lean/Lake/source hashes, proved PID and SNN contracts, production
+  module paths, safety-case identifiers, report digests, and artifact digests
+  before a `lean4` proof report can be accepted.
 - Bumped package, citation, and archive metadata to `0.20.1` for the documentation and evidence-polish release candidate.
 - Expanded the README, documentation landing page, onboarding guide, tutorials, notebook gallery, use-case page, production-readiness boundary, and compute-validation financing page so new users can understand the software purpose, applications, market value, collaboration needs, and strict evidence boundaries.
 - Added v0.20.1 release notes and exposed additional public documentation pages in the MkDocs navigation.

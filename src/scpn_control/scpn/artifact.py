@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Artifact
+# Project: SCPN Control
+# Description: Artifact admission and validation.
 """
 SCPN Controller Artifact (``.scpnctl.json``) loader / saver.
 
@@ -20,6 +20,7 @@ import binascii
 import hashlib
 import json
 import math
+import re
 import zlib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -29,7 +30,12 @@ ARTIFACT_SCHEMA_VERSION = "1.0.0"
 MAX_PACKED_WORDS = 10_000_000
 MAX_DECOMPRESSED_BYTES = MAX_PACKED_WORDS * 8
 MAX_COMPRESSED_BYTES = 50_000_000
-FORMAL_VERIFICATION_BACKENDS = {"explicit-state", "z3"}
+FORMAL_VERIFICATION_BACKENDS = {"explicit-state", "lean4", "z3"}
+LEAN_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.lean4-formal-report.v1"
+LEAN_REQUIRED_PROVED_CONTRACTS = frozenset({"pid.actuator_saturation", "snn.marking_bounds"})
+LEAN_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_'.]*(?:\.[A-Za-z_][A-Za-z0-9_'.]*)*$")
+LEAN_MODULE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
+SAFETY_CASE_ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9_.:-]*$")
 
 
 # ── Sub-structures ──────────────────────────────────────────────────────────
@@ -165,6 +171,14 @@ class FormalVerificationEvidence:
     generated_utc: str | None = None
     counterexample_path: List[str] | None = None
     counterexample_property: str | None = None
+    lean_version: str | None = None
+    lakefile_sha256: str | None = None
+    proof_source_sha256: str | None = None
+    theorem_names: List[str] | None = None
+    theorem_modules: List[str] | None = None
+    proved_contracts: List[str] | None = None
+    module_paths: List[str] | None = None
+    safety_case_ids: List[str] | None = None
 
 
 # ── Artifact ────────────────────────────────────────────────────────────────
@@ -216,6 +230,14 @@ def _parse_formal_verification(raw: Any) -> FormalVerificationEvidence | None:
         generated_utc=raw.get("generated_utc"),
         counterexample_path=raw.get("counterexample_path"),
         counterexample_property=raw.get("counterexample_property"),
+        lean_version=raw.get("lean_version"),
+        lakefile_sha256=raw.get("lakefile_sha256"),
+        proof_source_sha256=raw.get("proof_source_sha256"),
+        theorem_names=raw.get("theorem_names"),
+        theorem_modules=raw.get("theorem_modules"),
+        proved_contracts=raw.get("proved_contracts"),
+        module_paths=raw.get("module_paths"),
+        safety_case_ids=raw.get("safety_case_ids"),
     )
 
 
@@ -239,6 +261,22 @@ def _formal_verification_dict(evidence: FormalVerificationEvidence) -> Dict[str,
         obj["counterexample_path"] = evidence.counterexample_path
     if evidence.counterexample_property is not None:
         obj["counterexample_property"] = evidence.counterexample_property
+    if evidence.lean_version is not None:
+        obj["lean_version"] = evidence.lean_version
+    if evidence.lakefile_sha256 is not None:
+        obj["lakefile_sha256"] = evidence.lakefile_sha256
+    if evidence.proof_source_sha256 is not None:
+        obj["proof_source_sha256"] = evidence.proof_source_sha256
+    if evidence.theorem_names is not None:
+        obj["theorem_names"] = evidence.theorem_names
+    if evidence.theorem_modules is not None:
+        obj["theorem_modules"] = evidence.theorem_modules
+    if evidence.proved_contracts is not None:
+        obj["proved_contracts"] = evidence.proved_contracts
+    if evidence.module_paths is not None:
+        obj["module_paths"] = evidence.module_paths
+    if evidence.safety_case_ids is not None:
+        obj["safety_case_ids"] = evidence.safety_case_ids
     return obj
 
 
@@ -378,6 +416,81 @@ def _is_sha256_hex(value: str) -> bool:
     return True
 
 
+def _validate_non_empty_string_list(
+    value: object,
+    field_name: str,
+    *,
+    pattern: re.Pattern[str] | None = None,
+) -> List[str]:
+    if not isinstance(value, list) or not value:
+        raise ArtifactValidationError(f"formal_verification.{field_name} must be a non-empty list")
+    result: List[str] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, str) or not item:
+            raise ArtifactValidationError(f"formal_verification.{field_name} must contain non-empty strings")
+        if pattern is not None and pattern.fullmatch(item) is None:
+            raise ArtifactValidationError(f"formal_verification.{field_name} contains invalid identifier")
+        if item in seen:
+            raise ArtifactValidationError(f"formal_verification.{field_name} must not contain duplicates")
+        seen.add(item)
+        result.append(item)
+    return result
+
+
+def _validate_safe_relative_path_list(value: object, field_name: str) -> List[str]:
+    paths = _validate_non_empty_string_list(value, field_name)
+    for path in paths:
+        if "\\" in path or "://" in path or path.startswith(("file:", "/", "~")):
+            raise ArtifactValidationError(f"formal_verification.{field_name} must contain safe relative paths")
+        rel = PurePosixPath(path)
+        if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
+            raise ArtifactValidationError(f"formal_verification.{field_name} must contain safe relative paths")
+    return paths
+
+
+def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) -> None:
+    if not isinstance(evidence.lean_version, str) or not evidence.lean_version:
+        raise ArtifactValidationError("formal_verification.lean_version must be a non-empty string for lean4")
+    if not isinstance(evidence.lakefile_sha256, str) or not _is_sha256_hex(evidence.lakefile_sha256):
+        raise ArtifactValidationError("formal_verification.lakefile_sha256 must be a SHA-256 hex digest for lean4")
+    if not isinstance(evidence.proof_source_sha256, str) or not _is_sha256_hex(evidence.proof_source_sha256):
+        raise ArtifactValidationError("formal_verification.proof_source_sha256 must be a SHA-256 hex digest for lean4")
+    theorem_names = _validate_non_empty_string_list(
+        evidence.theorem_names,
+        "theorem_names",
+        pattern=LEAN_IDENTIFIER_RE,
+    )
+    theorem_modules = _validate_non_empty_string_list(
+        evidence.theorem_modules,
+        "theorem_modules",
+        pattern=LEAN_MODULE_RE,
+    )
+    proved_contracts = _validate_non_empty_string_list(evidence.proved_contracts, "proved_contracts")
+    module_paths = _validate_safe_relative_path_list(evidence.module_paths, "module_paths")
+    safety_case_ids = _validate_non_empty_string_list(
+        evidence.safety_case_ids,
+        "safety_case_ids",
+        pattern=SAFETY_CASE_ID_RE,
+    )
+    missing_contracts = sorted(LEAN_REQUIRED_PROVED_CONTRACTS.difference(proved_contracts))
+    if missing_contracts:
+        raise ArtifactValidationError(
+            "formal_verification.proved_contracts missing required lean4 contracts: " + ", ".join(missing_contracts)
+        )
+    missing_specs = sorted(set(proved_contracts).difference(evidence.checked_specs))
+    if missing_specs:
+        raise ArtifactValidationError(
+            "formal_verification.checked_specs must include every lean4 proved_contract: " + ", ".join(missing_specs)
+        )
+    if len(theorem_modules) > len(theorem_names):
+        raise ArtifactValidationError("formal_verification.theorem_modules cannot exceed theorem_names")
+    if len(module_paths) < len(theorem_modules):
+        raise ArtifactValidationError("formal_verification.module_paths must cover theorem_modules")
+    if len(safety_case_ids) < len(proved_contracts):
+        raise ArtifactValidationError("formal_verification.safety_case_ids must cover proved_contracts")
+
+
 def _validate_formal_verification(evidence: FormalVerificationEvidence) -> None:
     if not isinstance(evidence.required, bool):
         raise ArtifactValidationError("formal_verification.required must be a boolean")
@@ -433,6 +546,8 @@ def _validate_formal_verification(evidence: FormalVerificationEvidence) -> None:
         evidence.counterexample_path is not None or evidence.counterexample_property is not None
     ):
         raise ArtifactValidationError("formal_verification passing evidence must not include a counterexample")
+    if evidence.backend == "lean4":
+        _validate_lean4_formal_verification(evidence)
 
 
 def _formal_report_relative_path(evidence: FormalVerificationEvidence) -> Path | None:
@@ -484,6 +599,87 @@ def _verify_formal_report_digest(
             raise ArtifactValidationError("formal_verification.checked_specs does not match Z3 report")
         if report_payload["solver"] != evidence.solver:
             raise ArtifactValidationError("formal_verification.solver does not match Z3 report")
+    if evidence.backend == "lean4":
+        try:
+            report_payload = json.loads(report_bytes.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ArtifactValidationError("formal_verification.report_uri must reference a valid Lean 4 report") from exc
+        _validate_lean4_formal_report_payload(report_payload)
+        expected = {
+            "status": evidence.status,
+            "solver": evidence.solver,
+            "lean_version": evidence.lean_version,
+            "checked_specs": evidence.checked_specs,
+            "artifact_sha256": evidence.artifact_sha256.lower(),
+            "proof_source_sha256": evidence.proof_source_sha256.lower()
+            if evidence.proof_source_sha256 is not None
+            else None,
+            "lakefile_sha256": evidence.lakefile_sha256.lower() if evidence.lakefile_sha256 is not None else None,
+            "theorem_names": evidence.theorem_names,
+            "theorem_modules": evidence.theorem_modules,
+            "proved_contracts": evidence.proved_contracts,
+            "module_paths": evidence.module_paths,
+            "safety_case_ids": evidence.safety_case_ids,
+            "claim_boundary": evidence.claim_boundary,
+        }
+        for key, expected_value in expected.items():
+            actual_value = report_payload[key]
+            if key.endswith("_sha256") and isinstance(actual_value, str):
+                actual_value = actual_value.lower()
+            if actual_value != expected_value:
+                raise ArtifactValidationError(f"formal_verification.{key} does not match Lean 4 report")
+
+
+def _validate_lean4_formal_report_payload(payload: object) -> None:
+    if not isinstance(payload, dict):
+        raise ArtifactValidationError("formal_verification.report_uri must reference a Lean 4 report object")
+    if payload.get("schema_version") != LEAN_FORMAL_REPORT_SCHEMA_VERSION:
+        raise ArtifactValidationError("formal_verification.report_uri must reference a valid Lean 4 report")
+    if payload.get("backend") != "lean4":
+        raise ArtifactValidationError("formal_verification.report_uri must reference a lean4 report")
+    status = payload.get("status")
+    if status not in {"pass", "fail", "blocked"}:
+        raise ArtifactValidationError("formal_verification Lean 4 report status is invalid")
+    solver = payload.get("solver")
+    lean_version = payload.get("lean_version")
+    claim_boundary = payload.get("claim_boundary")
+    if not isinstance(solver, str) or not solver:
+        raise ArtifactValidationError("formal_verification Lean 4 report solver is invalid")
+    if not isinstance(lean_version, str) or not lean_version:
+        raise ArtifactValidationError("formal_verification Lean 4 report lean_version is invalid")
+    if not isinstance(claim_boundary, str) or not claim_boundary:
+        raise ArtifactValidationError("formal_verification Lean 4 report claim_boundary is invalid")
+    for field in ("artifact_sha256", "proof_source_sha256", "lakefile_sha256"):
+        value = payload.get(field)
+        if not isinstance(value, str) or not _is_sha256_hex(value):
+            raise ArtifactValidationError(f"formal_verification Lean 4 report {field} is invalid")
+    checked_specs = _validate_non_empty_string_list(payload.get("checked_specs"), "checked_specs")
+    theorem_names = _validate_non_empty_string_list(
+        payload.get("theorem_names"),
+        "theorem_names",
+        pattern=LEAN_IDENTIFIER_RE,
+    )
+    theorem_modules = _validate_non_empty_string_list(
+        payload.get("theorem_modules"),
+        "theorem_modules",
+        pattern=LEAN_MODULE_RE,
+    )
+    proved_contracts = _validate_non_empty_string_list(payload.get("proved_contracts"), "proved_contracts")
+    _validate_safe_relative_path_list(payload.get("module_paths"), "module_paths")
+    _validate_non_empty_string_list(payload.get("safety_case_ids"), "safety_case_ids", pattern=SAFETY_CASE_ID_RE)
+    missing_contracts = sorted(LEAN_REQUIRED_PROVED_CONTRACTS.difference(proved_contracts))
+    if missing_contracts:
+        raise ArtifactValidationError(
+            "formal_verification Lean 4 report proved_contracts missing required contracts: "
+            + ", ".join(missing_contracts)
+        )
+    missing_specs = sorted(set(proved_contracts).difference(checked_specs))
+    if missing_specs:
+        raise ArtifactValidationError(
+            "formal_verification Lean 4 report checked_specs missing proved contracts: " + ", ".join(missing_specs)
+        )
+    if len(theorem_modules) > len(theorem_names):
+        raise ArtifactValidationError("formal_verification Lean 4 report theorem_modules cannot exceed theorem_names")
 
 
 def validate_safety_critical_artifact(
@@ -955,6 +1151,14 @@ def get_artifact_json_schema() -> Dict[str, Any]:
                     "generated_utc": {"type": "string"},
                     "counterexample_path": {"type": "array", "items": {"type": "string"}},
                     "counterexample_property": {"type": "string"},
+                    "lean_version": {"type": "string"},
+                    "lakefile_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+                    "proof_source_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+                    "theorem_names": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "theorem_modules": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "proved_contracts": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "module_paths": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "safety_case_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
                 },
             },
         },

@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Artifact Codec Tests
+# Project: SCPN Control
+# Description: Artifact codec and proof-admission tests.
 """Edge case tests for the u64 compact codec and artifact validation."""
 
 from __future__ import annotations
@@ -134,6 +134,42 @@ def _passing_formal_evidence(artifact_path: Path, report_path: Path | None = Non
     }
 
 
+def _passing_lean_evidence(artifact_path: Path, report_path: Path | None = None) -> dict[str, object]:
+    artifact = load_artifact(str(artifact_path))
+    report_sha256 = "c" * 64
+    if report_path is not None:
+        import hashlib
+
+        report_sha256 = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    return {
+        "required": True,
+        "status": "pass",
+        "backend": "lean4",
+        "solver": "Lean 4.13.0",
+        "max_depth": 0,
+        "checked_specs": ["pid.actuator_saturation", "snn.marking_bounds"],
+        "artifact_sha256": compute_artifact_payload_sha256(artifact),
+        "report_sha256": report_sha256,
+        "claim_boundary": "bounded Lean proof over compiled controller envelope and exported artifact hash",
+        "report_uri": "validation/reports/scpn_lean4_formal.json",
+        "generated_utc": "2026-06-02T00:00:00Z",
+        "lean_version": "4.13.0",
+        "lakefile_sha256": "d" * 64,
+        "proof_source_sha256": "e" * 64,
+        "theorem_names": [
+            "ScpnControl.PID.actuatorSaturationPreserved",
+            "ScpnControl.SNN.markingBoundsPreserved",
+        ],
+        "theorem_modules": ["ScpnControl.PID", "ScpnControl.SNN"],
+        "proved_contracts": ["pid.actuator_saturation", "snn.marking_bounds"],
+        "module_paths": [
+            "src/scpn_control/control/pid_controller.py",
+            "src/scpn_control/scpn/controller.py",
+        ],
+        "safety_case_ids": ["SC-PID-ACTUATOR-SATURATION", "SC-SNN-MARKING-BOUNDS"],
+    }
+
+
 def _write_valid_z3_report(path: Path) -> None:
     payload = build_z3_formal_report_payload(
         Z3FormalVerificationReport(
@@ -150,6 +186,27 @@ def _write_valid_z3_report(path: Path) -> None:
             ),
         )
     )
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _write_valid_lean_report(path: Path, evidence: dict[str, object]) -> None:
+    payload = {
+        "schema_version": "scpn-control.lean4-formal-report.v1",
+        "status": evidence["status"],
+        "backend": "lean4",
+        "solver": evidence["solver"],
+        "lean_version": evidence["lean_version"],
+        "checked_specs": evidence["checked_specs"],
+        "artifact_sha256": evidence["artifact_sha256"],
+        "proof_source_sha256": evidence["proof_source_sha256"],
+        "lakefile_sha256": evidence["lakefile_sha256"],
+        "theorem_names": evidence["theorem_names"],
+        "theorem_modules": evidence["theorem_modules"],
+        "proved_contracts": evidence["proved_contracts"],
+        "module_paths": evidence["module_paths"],
+        "safety_case_ids": evidence["safety_case_ids"],
+        "claim_boundary": evidence["claim_boundary"],
+    }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -432,9 +489,11 @@ class TestArtifactValidationContract:
             "report_sha256",
             "claim_boundary",
         ]
-        assert formal["properties"]["backend"]["enum"] == ["explicit-state", "z3"]
+        assert formal["properties"]["backend"]["enum"] == ["explicit-state", "lean4", "z3"]
         assert formal["properties"]["status"]["enum"] == ["pass", "fail", "blocked"]
         assert formal["properties"]["artifact_sha256"]["pattern"] == "^[0-9a-fA-F]{64}$"
+        assert formal["properties"]["lean_version"]["type"] == "string"
+        assert formal["properties"]["proof_source_sha256"]["pattern"] == "^[0-9a-fA-F]{64}$"
 
     def test_artifact_rejects_out_of_range_initial_marking(self, artifact_path: Path, tmp_path: Path) -> None:
         bad_path = _write_mutated_artifact_raw(
@@ -508,6 +567,91 @@ class TestArtifactValidationContract:
         assert artifact.formal_verification.backend == "z3"
         assert artifact.formal_verification.max_depth == 8
         assert artifact.formal_verification.report_sha256 == "a" * 64
+
+    def test_safety_critical_artifact_accepts_passing_lean4_formal_proof(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        report_root = tmp_path / "reports"
+        report_path = report_root / "validation" / "reports" / "scpn_lean4_formal.json"
+        report_path.parent.mkdir(parents=True)
+        evidence = _passing_lean_evidence(artifact_path)
+        _write_valid_lean_report(report_path, evidence)
+        evidence = _passing_lean_evidence(artifact_path, report_path)
+        proven_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "proven-lean.scpnctl.json",
+            lambda payload: payload.__setitem__("formal_verification", evidence),
+        )
+
+        artifact = load_artifact(
+            str(proven_path),
+            require_formal_verification=True,
+            formal_report_root=report_root,
+        )
+
+        assert artifact.formal_verification is not None
+        assert artifact.formal_verification.backend == "lean4"
+        assert artifact.formal_verification.theorem_names == [
+            "ScpnControl.PID.actuatorSaturationPreserved",
+            "ScpnControl.SNN.markingBoundsPreserved",
+        ]
+
+    @pytest.mark.parametrize(
+        ("field", "value", "match"),
+        [
+            ("lean_version", "", "lean_version"),
+            ("lakefile_sha256", "not-a-sha", "lakefile_sha256"),
+            ("proof_source_sha256", "not-a-sha", "proof_source_sha256"),
+            ("theorem_names", [], "theorem_names"),
+            ("theorem_names", ["bad theorem"], "theorem_names"),
+            ("theorem_modules", ["../Escape"], "theorem_modules"),
+            ("proved_contracts", ["pid.actuator_saturation"], "proved_contracts"),
+            ("module_paths", ["../src/scpn_control/scpn/controller.py"], "module_paths"),
+            ("safety_case_ids", ["bad id"], "safety_case_ids"),
+        ],
+    )
+    def test_lean4_formal_proof_requires_machine_checkable_contract_metadata(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+        field: str,
+        value: object,
+        match: str,
+    ) -> None:
+        def mutate(payload: dict[str, object]) -> None:
+            evidence = _passing_lean_evidence(artifact_path)
+            evidence[field] = value
+            payload["formal_verification"] = evidence
+
+        bad_path = _write_mutated_artifact_raw(artifact_path, tmp_path / f"bad-lean-{field}.scpnctl.json", mutate)
+
+        with pytest.raises(ArtifactValidationError, match=match):
+            load_artifact(str(bad_path), require_formal_verification=True)
+
+    def test_lean4_formal_report_must_match_manifest_theorems(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        report_root = tmp_path / "reports"
+        report_path = report_root / "validation" / "reports" / "scpn_lean4_formal.json"
+        report_path.parent.mkdir(parents=True)
+        evidence = _passing_lean_evidence(artifact_path)
+        _write_valid_lean_report(report_path, evidence)
+        report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+        report_payload["theorem_names"] = ["ScpnControl.PID.onlyPartial"]
+        report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        evidence = _passing_lean_evidence(artifact_path, report_path)
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "bad-lean-report.scpnctl.json",
+            lambda payload: payload.__setitem__("formal_verification", evidence),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="theorem_names"):
+            load_artifact(str(bad_path), require_formal_verification=True, formal_report_root=report_root)
 
     def test_safety_critical_artifact_rejects_tampered_artifact_payload(
         self,

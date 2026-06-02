@@ -1,10 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — API reference -->
+<!-- Project: SCPN Control -->
+<!-- Description: Public API reference. -->
 
 # API Reference
 
@@ -674,11 +674,22 @@ compiled controller artifact. The proof manifest must include the canonical
 artifact payload SHA-256, report SHA-256, bounded proof depth, checked
 specification names, backend/solver metadata, and a safe relative report URI.
 When callers provide `formal_report_root`, the loader resolves the report URI
-under that root and verifies the report bytes against the declared SHA-256. Z3
-reports are additionally schema-versioned as
+under that root and verifies the report bytes against the declared SHA-256.
+Z3 reports are additionally schema-versioned as
 `scpn-control.z3-formal-report.v1`, carry a canonical payload SHA-256 over the
 proof payload, and must match the manifest status, solver, proof depth, and
 checked specification list before a safety-critical artifact is admitted.
+Lean 4 reports are admitted only through the bounded `lean4` manifest path:
+the manifest must bind the Lean version, Lake file SHA-256, proof-source
+SHA-256, theorem names, theorem modules, proved contracts, linked production
+module paths, safety-case identifiers, checked specification list, report
+SHA-256, and compiled artifact SHA-256. The Lean report schema is
+`scpn-control.lean4-formal-report.v1`; when a report root is supplied, every
+manifest field above must match the report before admission. The current
+required Lean proof-contract surface covers PID actuator-saturation preservation
+and SNN/neuro-symbolic marking-bound preservation. This is an evidence
+admission contract; it does not claim certification unless the referenced
+machine-checked proof artefacts are present and verified.
 
 ::: scpn_control.scpn.artifact.Artifact
 
