@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Capability manifest tests
+# Project: SCPN Control
+# Description: Capability manifest tests.
 
 from __future__ import annotations
 
@@ -125,8 +125,17 @@ def test_readme_snapshot_matches_generated_markdown(capability_tool) -> None:
 def test_markdown_snapshot_is_readme_safe(capability_tool) -> None:
     manifest = capability_tool.build_manifest(REPO_ROOT)
     markdown = capability_tool.render_markdown(manifest)
+    header_lines = markdown.splitlines()[:7]
 
-    assert markdown.startswith("<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->\n")
+    assert header_lines == [
+        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->",
+        "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
+        "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
+        "<!-- ORCID: 0009-0009-3560-0851 -->",
+        "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
+        "<!-- Project: SCPN Control -->",
+        "<!-- Description: Generated capability snapshot. -->",
+    ]
     assert "<h1" not in markdown.lower()
     assert "\n# " not in markdown
     assert "| Project scripts | 2 |" in markdown
