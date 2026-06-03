@@ -42,6 +42,59 @@ class _DummyKernel:
         self.Psi = 1.0 - ((self.RR - center_r) ** 2 + ((self.ZZ - center_z) / 1.4) ** 2)
 
 
+class _FarOffKernel:
+    def __init__(self, _config_file: str) -> None:
+        self.cfg = {
+            "physics": {"plasma_current_target": 5.0},
+            "coils": [{"current": 0.0} for _ in range(5)],
+        }
+        self.R = np.linspace(5.9, 6.5, 25)
+        self.Z = np.linspace(-0.3, 0.3, 25)
+        self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
+        self.Psi = np.zeros((25, 25), dtype=np.float64)
+        self.solve_equilibrium()
+
+    def solve_equilibrium(self) -> None:
+        # Keep the plasma axis far from TARGET_R (6.2) for deterministic low-confidence.
+        self.Psi = 1.0 - ((self.RR - 100.0) ** 2 + ((self.ZZ - 0.0) / 1.4) ** 2)
+
+
+class _SafeStatePool:
+    """Deterministic pool used to drive safety FSM transitions in tests."""
+
+    def __init__(
+        self,
+        n_neurons: int = 20,
+        gain: float = 1.0,
+        tau_window: int = 10,
+        use_quantum: bool = False,
+        *,
+        seed: int = 42,
+        allow_numpy_fallback: bool = True,
+        allow_legacy_numpy_fallback: bool = True,
+        dt_s: float = 1.0e-3,
+        tau_mem_s: float = 15.0e-3,
+        noise_std: float = 0.02,
+        command_value: float = 1.0,
+    ) -> None:
+        del n_neurons, gain, tau_window, use_quantum, seed, allow_numpy_fallback, allow_legacy_numpy_fallback, dt_s, tau_mem_s, noise_std
+        self.backend = "safe-state-fallback"
+        self.command_value = float(command_value)
+        self.last_rate_pos = 0.0
+        self.last_rate_neg = 0.0
+        self.confidence = 1.0
+
+    def step(self, error_signal: float) -> float:
+        self.confidence = max(0.0, 1.0 - abs(float(error_signal)) / 20.0)
+        return float(self.command_value)
+
+
+class _OverflowPool(_SafeStatePool):
+    def step(self, _error_signal: float) -> float:
+        self.confidence = 1.0
+        return float("inf")
+
+
 @pytest.fixture(autouse=True)
 def _force_numpy_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     # CI py3.11 lane does not bootstrap sc-neurocore; force same path locally.
@@ -313,6 +366,62 @@ def test_controller_coils_updated() -> None:
     nc.run_shot(save_plot=False, verbose=False)
     any_nonzero = any(abs(float(c["current"])) > 0.0 for c in nc.kernel.cfg["coils"])
     assert any_nonzero
+
+
+def test_safe_shutdown_reduces_commands_with_single_ramp_step_per_tick() -> None:
+    nc = controller_mod.NeuroCyberneticController(
+        "dummy.json",
+        seed=42,
+        shot_duration=4,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+        kernel_factory=_FarOffKernel,
+        safe_shutdown_ramp_steps=3,
+    )
+    nc.brain_R = _SafeStatePool(command_value=1.0)
+    nc.brain_Z = _SafeStatePool(command_value=2.0)
+
+    nc._execute_simulation("safe-shutdown test", mode="classical", save_plot=False, verbose=False)
+
+    assert nc.safety_state == "safe_shutdown"
+    assert nc.history["Safety_State"] == [
+        "safe_shutdown_ramp",
+        "safe_shutdown_ramp",
+        "safe_shutdown",
+        "safe_shutdown",
+    ]
+    assert nc.safety_reason == "low_confidence"
+    assert nc._safe_shutdown_counter == 0
+    assert nc.safety_trigger_count == 1
+    assert nc.history["Control_R"] == [1.0, pytest.approx(2 / 3), pytest.approx(1 / 3), 0.0]
+    assert nc.history["Control_Z"] == [2.0, pytest.approx(4 / 3), pytest.approx(2 / 3), 0.0]
+
+
+def test_safe_shutdown_overflow_trap_overrides_commands_and_tracks_overflow_events() -> None:
+    nc = controller_mod.NeuroCyberneticController(
+        "dummy.json",
+        seed=42,
+        shot_duration=3,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+        kernel_factory=_DummyKernel,
+        safe_shutdown_ramp_steps=2,
+    )
+    nc.brain_R = _OverflowPool()
+    nc.brain_Z = _SafeStatePool(command_value=0.25)
+
+    nc._execute_simulation("safe-shutdown overflow test", mode="classical", save_plot=False, verbose=False)
+
+    assert nc.safety_state == "safe_shutdown"
+    assert nc.history["Safety_State"] == [
+        "safe_shutdown_ramp",
+        "safe_shutdown",
+        "safe_shutdown",
+    ]
+    assert nc.safety_reason == "overflow_trap"
+    assert nc._overflow_trap_count == 3
+    assert all(abs(float(v)) == pytest.approx(0.0) for v in nc.history["Control_R"])
+    assert all(abs(float(v)) == pytest.approx(0.0) for v in nc.history["Control_Z"])
 
 
 def test_spiking_pool_rejects_inf_dt() -> None:

@@ -48,6 +48,7 @@ from scpn_control.scpn.z3_model_checking import (  # noqa: E402
     Z3BoundedModelChecker,
     Z3FormalVerificationReport,
     Z3ModelCheckingReport,
+    SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION,
     build_blocked_z3_formal_report_payload,
     build_z3_formal_report_payload,
     validate_z3_formal_report_payload,
@@ -65,6 +66,36 @@ def _transfer_net() -> StochasticPetriNet:
     net.add_transition("move", threshold=1.0)
     net.add_arc("source", "move", weight=1.0)
     net.add_arc("move", "sink", weight=1.0)
+    net.compile()
+    return net
+
+
+def _weighted_transfer_net(*, source_tokens: float) -> StochasticPetriNet:
+    net = StochasticPetriNet()
+    net.add_place("source", initial_tokens=float(source_tokens))
+    net.add_place("sink", initial_tokens=0.0)
+    net.add_transition("move", threshold=1.0)
+    net.add_arc("source", "move", weight=1.0)
+    net.add_arc("move", "sink", weight=1.0)
+    net.compile()
+    return net
+
+
+def _latency_chain_net() -> StochasticPetriNet:
+    net = StochasticPetriNet()
+    net.add_place("armed", initial_tokens=1.0)
+    net.add_place("staging", initial_tokens=0.0)
+    net.add_place("ready", initial_tokens=0.0)
+    net.add_place("safe", initial_tokens=0.0)
+    net.add_transition("trigger", threshold=1.0)
+    net.add_transition("stage", threshold=1.0)
+    net.add_transition("response", threshold=1.0)
+    net.add_arc("armed", "trigger", weight=1.0)
+    net.add_arc("trigger", "staging", weight=1.0)
+    net.add_arc("staging", "stage", weight=1.0)
+    net.add_arc("stage", "ready", weight=1.0)
+    net.add_arc("ready", "response", weight=1.0)
+    net.add_arc("response", "safe", weight=1.0)
     net.compile()
     return net
 
@@ -861,6 +892,149 @@ def test_z3_temporal_specs_prove_all_supported_contracts_together() -> None:
         "source_initially_marked",
         "move_marks_sink",
     ]
+
+
+@requires_z3
+def test_z3_checker_enforces_parametric_weight_bounds_for_marking_safety() -> None:
+    checker = Z3BoundedModelChecker(_weighted_transfer_net(source_tokens=4.0))
+
+    bounded = checker.prove_marking_bounds(
+        {"sink": (0.0, 4.0)},
+        max_depth=1,
+        weight_bounds={"move": (0.0, 1.0)},
+    )
+    assert bounded.holds is True
+    assert bounded.solver_status == "unsat"
+
+    unbounded = checker.prove_marking_bounds(
+        {"sink": (0.0, 1.5)},
+        max_depth=1,
+        weight_bounds={"move": (2.0, 4.0)},
+    )
+    assert unbounded.holds is False
+    assert unbounded.solver_status == "sat"
+    assert unbounded.violations[0].property_name == "marking_bounds"
+
+
+@requires_z3
+def test_z3_checker_rejects_weight_bound_domain_mismatch_and_invalid_range() -> None:
+    checker = Z3BoundedModelChecker(_weighted_transfer_net(source_tokens=2.0))
+
+    with pytest.raises(ValueError, match="unknown transition"):
+        checker.prove_marking_bounds({"sink": (0.0, 1.0)}, max_depth=1, weight_bounds={"unknown": (0.0, 1.0)})
+
+    with pytest.raises(ValueError, match="lower exceeds"):
+        checker.prove_marking_bounds(
+            {"sink": (0.0, 1.0)},
+            max_depth=1,
+            weight_bounds={"move": (2.0, 1.0)},
+        )
+
+
+def test_z3_checker_builds_symbiyosys_contract_with_parametric_weight_and_latency_contracts() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+    contract = checker.build_symbiyosys_contract(
+        max_depth=3,
+        weight_bounds={"trigger": (0.5, 2.0), "stage": (0.25, 0.75), "response": (0.1, 0.9)},
+        trigger_transition="trigger",
+        response_transition="response",
+        max_latency_ns=30.0,
+        tick_period_ns=10.0,
+        no_stall_window_ns=20.0,
+    )
+    payload = json.loads(contract["metadata"])
+    assert payload["schema_version"] == SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION
+    assert payload["max_depth"] == 3
+    assert payload["trigger_transition"] == "trigger"
+    assert payload["response_transition"] == "response"
+    assert payload["weight_bounds"]["trigger"] == [0.5, 2.0]
+    assert payload["weight_bounds"]["response"] == [0.1, 0.9]
+    for step in range(3):
+        for transition in ("trigger", "stage", "response"):
+            assert f"(assume (>= weight_{step}_{transition}" in contract["smt2"]
+            assert f"(assume (<= weight_{step}_{transition}" in contract["smt2"]
+    assert "(assert (=> fire_0_trigger (or fire_1_response fire_2_response)))" in contract["smt2"]
+    assert "(assert (not fire_2_trigger))" not in contract["smt2"]
+    assert "(assert (not (and idle_0 idle_1)))" in contract["smt2"]
+    assert "(set-logic QF_NRA)" in contract["smt2"]
+
+
+def test_z3_checker_enforces_50ns_symbiyosys_contract_budget_limits() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+
+    with pytest.raises(ValueError, match="must not exceed 50.0 ns contract budget"):
+        checker.build_symbiyosys_contract(
+            max_depth=10,
+            max_latency_ns=60.0,
+            no_stall_window_ns=20.0,
+            trigger_transition="trigger",
+            response_transition="response",
+        )
+
+    with pytest.raises(ValueError, match="must not exceed 50.0 ns contract budget"):
+        checker.build_symbiyosys_contract(
+            max_depth=10,
+            max_latency_ns=20.0,
+            no_stall_window_ns=60.0,
+            trigger_transition="trigger",
+            response_transition="response",
+        )
+
+
+def test_z3_checker_rejects_symbiyosys_contract_depth_contract_mismatch() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+
+    with pytest.raises(ValueError, match="max_depth must be >= ceil"):
+        checker.build_symbiyosys_contract(max_depth=1, max_latency_ns=30.0, tick_period_ns=10.0, no_stall_window_ns=20.0)
+
+    with pytest.raises(ValueError, match="max_depth must be >= ceil"):
+        checker.build_symbiyosys_contract(max_depth=1, max_latency_ns=10.0, tick_period_ns=10.0, no_stall_window_ns=30.0)
+
+
+@requires_z3
+def test_z3_checker_proves_trigger_to_response_latency_bound() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+    report = checker.verify_trigger_response_latency(
+        trigger_transition="trigger",
+        response_transition="response",
+        max_latency_ns=20.0,
+        tick_period_ns=10.0,
+        max_depth=3,
+    )
+
+    assert report.holds is True
+    assert report.solver_status == "unsat"
+    assert report.checked_specs == ["trigger_response_latency"]
+
+
+@requires_z3
+def test_z3_checker_reports_trigger_to_response_latency_violation() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+    report = checker.verify_trigger_response_latency(
+        trigger_transition="trigger",
+        response_transition="response",
+        max_latency_ns=10.0,
+        tick_period_ns=10.0,
+        max_depth=3,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "sat"
+    assert report.violations[0].property_name == "trigger_response_latency"
+    assert "can fire without" in report.violations[0].message
+
+
+def test_z3_checker_enforces_trigger_latency_contract_budget_before_solver_invoke() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+
+    with pytest.raises(ValueError, match="must not exceed 50.0 ns contract budget"):
+        checker.verify_trigger_response_latency(
+            trigger_transition="trigger",
+            response_transition="response",
+            max_latency_ns=60.0,
+            tick_period_ns=10.0,
+            max_depth=7,
+        )
 
 
 @requires_z3
