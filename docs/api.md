@@ -33,6 +33,42 @@ scpn_control.PhysicsDebugAssistant
 
 ---
 
+## Control — Pulsed Scenario Scheduler v2
+
+`scpn_control.control.pulsed_scenario_scheduler_v2` owns the reusable
+pulsed-fusion lifecycle contract that MIF-CORE incubated as MIF-004. The
+scheduler models the adjacent state ring:
+
+`idle -> ramp_up -> flat_top -> burn -> expansion -> dump -> recharge -> cool_down -> idle`
+
+The Python surface provides the control-plane API and audit-log contract. The
+matching Rust kernel lives in `control_control::pulsed_scenario` for the
+compiled hot-path lane. Both surfaces use the same state names, action names,
+guard thresholds, monotone timestamp checks, and transition reasons.
+
+The scheduler is a generic pulsed-reactor controller primitive. It is not a
+facility-validated PCS implementation by itself. Hardware timing, actuator
+mapping, capacitor-bank plant dynamics, and measured-shot validation remain
+separate admission surfaces.
+
+::: scpn_control.control.pulsed_scenario_scheduler_v2.PulsedScenarioState
+
+::: scpn_control.control.pulsed_scenario_scheduler_v2.PulsedScenarioAction
+
+::: scpn_control.control.pulsed_scenario_scheduler_v2.PulsedScenarioSpec
+
+::: scpn_control.control.pulsed_scenario_scheduler_v2.PulsedPlasmaTelemetry
+
+::: scpn_control.control.pulsed_scenario_scheduler_v2.CapacitorBankTelemetry
+
+::: scpn_control.control.pulsed_scenario_scheduler_v2.PulsedScenarioTransition
+
+::: scpn_control.control.pulsed_scenario_scheduler_v2.PulsedScenarioCommand
+
+::: scpn_control.control.pulsed_scenario_scheduler_v2.PulsedScenarioScheduler
+
+---
+
 ## Validation — Benchmark Regression Gates
 
 `validation/validate_benchmark_regression_gates.py` admits persisted benchmark

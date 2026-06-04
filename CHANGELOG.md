@@ -8,6 +8,13 @@
 
 # Changelog
 
+## Unreleased
+
+### Added
+- Added CONTROL-owned `PulsedScenarioScheduler v2` for reusable pulsed-fusion
+  shot lifecycles, with Python and Rust scheduler surfaces, audit-log
+  semantics, guard validation, public API documentation, and direct tests.
+
 ## [0.20.3] - 2026-06-02
 
 ### Changed
