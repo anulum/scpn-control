@@ -794,7 +794,27 @@ fn capacitor_energy_report_to_dict<'py>(
 ) -> PyResult<Bound<'py, PyDict>> {
     let dict = PyDict::new(py);
     dict.set_item("energy_delivered_J", report.energy_delivered_j)?;
+    dict.set_item("energy_initial_J", report.energy_initial_j)?;
     dict.set_item("energy_remaining_J", report.energy_remaining_j)?;
+    dict.set_item(
+        "capacitor_energy_remaining_J",
+        report.capacitor_energy_remaining_j,
+    )?;
+    dict.set_item(
+        "inductor_energy_remaining_J",
+        report.inductor_energy_remaining_j,
+    )?;
+    dict.set_item("resistive_loss_J", report.resistive_loss_j)?;
+    dict.set_item("load_energy_J", report.load_energy_j)?;
+    dict.set_item(
+        "energy_balance_residual_J",
+        report.energy_balance_residual_j,
+    )?;
+    dict.set_item(
+        "energy_balance_relative_error",
+        report.energy_balance_relative_error,
+    )?;
+    dict.set_item("energy_balance_passed", report.energy_balance_passed)?;
     dict.set_item("peak_voltage_V", report.peak_voltage_v)?;
     dict.set_item("peak_current_A", report.peak_current_a)?;
     dict.set_item("discharge_duration_s", report.discharge_duration_s)?;

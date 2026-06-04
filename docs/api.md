@@ -158,6 +158,23 @@ energy. The matching Rust kernel lives in
 and `scpn_control_rs.capacitor_bank_free_response()` expose the compiled
 surface directly to Python.
 
+`CapacitorBank.discharge()` now reports an explicit total RLC energy ledger for
+admission and replay: initial total stored energy, remaining total stored
+energy, remaining capacitor electric energy, remaining inductor magnetic energy,
+integrated ohmic loss, integrated prescribed-load extraction, absolute residual,
+relative residual, and a boolean pass/fail flag. The residual contract is:
+
+```text
+energy_initial - energy_remaining
+  = resistive_loss + load_energy + energy_balance_residual
+```
+
+The ledger uses midpoint quantities from the same Crank-Nicolson step that
+advances the state, so the residual is a numerical consistency check on the
+CONTROL admission model rather than a facility hardware protection claim.
+`CapacitorBankState.energy_J` remains scheduler-facing capacitor electric
+energy only.
+
 This model is a bounded control admission and scheduling primitive. It is not a
 validated facility capacitor-bank driver, insulation model, switch model, or
 hardware interlock implementation. Facility deployment still requires target

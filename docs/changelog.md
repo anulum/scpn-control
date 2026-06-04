@@ -55,6 +55,10 @@
   and optional PyO3 surfaces, fail-closed scheduler-state admission, capacitor
   feasibility gating, module-specific tests, public documentation, and local
   regression benchmark tooling.
+- Added total RLC energy-balance reporting to capacitor-bank discharge reports,
+  including capacitor/inductor remaining energy, ohmic loss, prescribed-load
+  extraction, residual admission, PyO3 fields, dedicated tests, public guide
+  documentation, and Python/Rust benchmark harnesses.
 - Added the CONTROL-owned multi-shot campaign orchestrator with Python, Rust,
   and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
   metadata fields, module-specific tests, public documentation, and local

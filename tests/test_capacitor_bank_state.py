@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Capacitor-bank state model tests.
+# SCPN Control — Capacitor-bank state model tests.
 """Tests for the CONTROL-owned capacitor-bank RLC state model."""
 
 from __future__ import annotations
@@ -19,6 +19,8 @@ from scpn_control.control.capacitor_bank_state import (
     CapacitorBank,
     CapacitorBankSpec,
     CapacitorBankState,
+    ENERGY_BALANCE_REL_TOLERANCE,
+    EnergyReport,
     PulseSpec,
     RLCRegime,
     WaveformName,
@@ -143,14 +145,54 @@ def test_pulse_spec_rejects_unknown_waveform() -> None:
         PulseSpec(peak_current_A=1_000.0, duration_s=1.0e-3, waveform=cast(WaveformName, "triangle"))
 
 
-def test_discharge_preserves_capacitor_energy_bookkeeping() -> None:
+def test_discharge_preserves_total_rlc_energy_bookkeeping() -> None:
     bank = CapacitorBank(_overdamped_spec(), initial_voltage_V=5_000.0)
     initial_energy = bank.state.energy_J
     pulse = PulseSpec(peak_current_A=500.0, duration_s=1.0e-3, waveform="half_sine")
     report = bank.discharge(pulse, dt=1.0e-6, n_steps=1_000)
     assert report.energy_delivered_J + report.energy_remaining_J == pytest.approx(initial_energy, rel=1.0e-12)
+    assert report.capacitor_energy_remaining_J + report.inductor_energy_remaining_J == pytest.approx(
+        report.energy_remaining_J,
+        rel=1.0e-12,
+    )
+    assert report.energy_balance_residual_J == pytest.approx(
+        report.energy_delivered_J - report.resistive_loss_J - report.load_energy_J,
+        abs=1.0e-12,
+    )
+    assert report.energy_balance_relative_error <= ENERGY_BALANCE_REL_TOLERANCE
+    assert report.energy_balance_passed is True
     assert report.rlc_regime is RLCRegime.OVERDAMPED
     assert report.discharge_duration_s == pytest.approx(1.0e-3)
+
+
+def test_discharge_energy_balance_includes_initial_inductor_energy() -> None:
+    bank = CapacitorBank(_underdamped_spec(), initial_voltage_V=4_000.0, initial_current_A=75.0)
+    capacitor_only_initial = bank.state.energy_J
+    pulse = PulseSpec(peak_current_A=0.1, duration_s=2.0e-5, waveform="rect")
+    report = bank.discharge(pulse, dt=1.0e-7, n_steps=200)
+    assert report.energy_initial_J > capacitor_only_initial
+    assert report.energy_delivered_J + report.energy_remaining_J == pytest.approx(report.energy_initial_J, rel=1.0e-12)
+    assert report.energy_balance_passed is True
+
+
+def test_energy_report_rejects_invalid_balance_components() -> None:
+    with pytest.raises(ValueError, match="resistive_loss_J"):
+        EnergyReport(
+            energy_delivered_J=1.0,
+            energy_initial_J=1.0,
+            energy_remaining_J=0.0,
+            capacitor_energy_remaining_J=0.0,
+            inductor_energy_remaining_J=0.0,
+            resistive_loss_J=-1.0,
+            load_energy_J=0.0,
+            energy_balance_residual_J=0.0,
+            energy_balance_relative_error=0.0,
+            energy_balance_passed=True,
+            peak_voltage_V=1.0,
+            peak_current_A=1.0,
+            discharge_duration_s=1.0,
+            rlc_regime=RLCRegime.UNDERDAMPED,
+        )
 
 
 def test_feasibility_rejects_peak_current_above_natural_bank_limit() -> None:

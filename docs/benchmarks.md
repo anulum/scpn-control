@@ -156,6 +156,45 @@ zero publish failures, Python-orchestrated active-cycle average `11.9141358 us`,
 native active-cycle average `5.7648218 us`, and native wall-time speedup
 `1.052610246860105x` under a `100 us` campaign tick.
 
+## Capacitor-bank energy ledger
+
+Use this track after changes to the CONTROL-owned capacitor-bank RLC admission
+surface:
+
+- `src/scpn_control/control/capacitor_bank_state.py`
+- `scpn-control-rs/crates/control-control/src/capacitor_bank.rs`
+- `scpn-control-rs/crates/control-python/src/lib.rs`
+- `benchmarks/bench_capacitor_bank_energy.py`
+- `scpn-control-rs/crates/control-control/examples/bench_capacitor_bank_energy.rs`
+
+The benchmark measures one discharge report per sample. Each report includes
+the total RLC energy ledger, residual, relative residual, and pass/fail flag.
+Python and Rust commands use the same capacitance, inductance, resistance,
+initial voltage, initial current, waveform, step size, and discharge length.
+
+```bash
+PYTHONPATH=src python benchmarks/bench_capacitor_bank_energy.py \
+  --steps 500 \
+  --warmup 50 \
+  --discharge-steps 200 \
+  --dt-s 1.0e-7 \
+  --json-out validation/reports/capacitor_bank_energy_python.json \
+  --markdown-out validation/reports/capacitor_bank_energy_python.md
+
+cargo run --release --manifest-path scpn-control-rs/Cargo.toml \
+  -p control-control --example bench_capacitor_bank_energy -- \
+  --steps 500 \
+  --warmup 50 \
+  --discharge-steps 200 \
+  --dt-s 1.0e-7 \
+  --json-out validation/reports/capacitor_bank_energy_rust.json \
+  --markdown-out validation/reports/capacitor_bank_energy_rust.md
+```
+
+The JSON artifacts are the machine-readable evidence. Markdown reports are for
+review. Runs without hard CPU isolation must retain
+`evidence_class=local_regression` and `production_claim_allowed=false`.
+
 ## JAX GK parity evidence
 
 `validation/benchmark_jax_gk_parity.py` persists schema-versioned parity

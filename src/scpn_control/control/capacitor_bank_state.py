@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Control-owned capacitor-bank RLC state model.
+# SCPN Control — Control-owned capacitor-bank RLC state model.
 """Bounded capacitor-bank state model for CONTROL pulsed-shot contracts."""
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ class RLCRegime(StrEnum):
 
 
 WaveformName = Literal["rect", "half_sine", "exp_decay"]
+ENERGY_BALANCE_REL_TOLERANCE = 1.0e-8
 
 
 @dataclass(frozen=True)
@@ -120,7 +121,15 @@ class EnergyReport:
     """Energy bookkeeping returned by a discharge simulation."""
 
     energy_delivered_J: float
+    energy_initial_J: float
     energy_remaining_J: float
+    capacitor_energy_remaining_J: float
+    inductor_energy_remaining_J: float
+    resistive_loss_J: float
+    load_energy_J: float
+    energy_balance_residual_J: float
+    energy_balance_relative_error: float
+    energy_balance_passed: bool
     peak_voltage_V: float
     peak_current_A: float
     discharge_duration_s: float
@@ -128,12 +137,36 @@ class EnergyReport:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "energy_delivered_J", _finite("energy_delivered_J", self.energy_delivered_J))
+        object.__setattr__(self, "energy_initial_J", _non_negative("energy_initial_J", self.energy_initial_J))
         object.__setattr__(self, "energy_remaining_J", _non_negative("energy_remaining_J", self.energy_remaining_J))
+        object.__setattr__(
+            self,
+            "capacitor_energy_remaining_J",
+            _non_negative("capacitor_energy_remaining_J", self.capacitor_energy_remaining_J),
+        )
+        object.__setattr__(
+            self,
+            "inductor_energy_remaining_J",
+            _non_negative("inductor_energy_remaining_J", self.inductor_energy_remaining_J),
+        )
+        object.__setattr__(self, "resistive_loss_J", _non_negative("resistive_loss_J", self.resistive_loss_J))
+        object.__setattr__(self, "load_energy_J", _finite("load_energy_J", self.load_energy_J))
+        object.__setattr__(
+            self,
+            "energy_balance_residual_J",
+            _finite("energy_balance_residual_J", self.energy_balance_residual_J),
+        )
+        object.__setattr__(
+            self,
+            "energy_balance_relative_error",
+            _non_negative("energy_balance_relative_error", self.energy_balance_relative_error),
+        )
         object.__setattr__(self, "peak_voltage_V", _non_negative("peak_voltage_V", self.peak_voltage_V))
         object.__setattr__(self, "peak_current_A", _non_negative("peak_current_A", self.peak_current_A))
         object.__setattr__(
             self, "discharge_duration_s", _non_negative("discharge_duration_s", self.discharge_duration_s)
         )
+        object.__setattr__(self, "energy_balance_passed", bool(self.energy_balance_passed))
 
 
 def free_response(spec: CapacitorBankSpec, v0: float, i0: float, t: float) -> CapacitorBankState:
@@ -284,25 +317,57 @@ class CapacitorBank:
         if not isinstance(n_steps, int) or n_steps <= 0:
             raise ValueError("n_steps must be a positive integer")
         step_s = _positive("dt", dt)
-        energy_initial = self.state.energy_J
+        energy_initial = self._total_stored_energy_J()
+        resistive_loss = 0.0
+        load_energy = 0.0
         peak_voltage = abs(self._v)
         peak_current = abs(self._i)
         pulse_t = 0.0
         for _ in range(n_steps):
             load_current = _sample_waveform(pulse, pulse_t + step_s / 2.0)
+            voltage_before = self._v
+            current_before = self._i
             state = self.step(step_s, external_load_current_A=load_current)
+            voltage_midpoint = 0.5 * (voltage_before + state.voltage_V)
+            current_midpoint = 0.5 * (current_before + state.current_A)
+            resistive_loss += self._spec.series_resistance_ohm * current_midpoint * current_midpoint * step_s
+            load_energy += voltage_midpoint * load_current * step_s
             peak_voltage = max(peak_voltage, abs(state.voltage_V))
             peak_current = max(peak_current, abs(state.current_A))
             pulse_t += step_s
-        energy_remaining = self.state.energy_J
+        energy_remaining = self._total_stored_energy_J()
+        capacitor_energy_remaining = self.state.energy_J
+        inductor_energy_remaining = 0.5 * self._spec.inductance_H * self._i * self._i
+        energy_delivered = energy_initial - energy_remaining
+        residual = energy_delivered - resistive_loss - load_energy
+        relative_error = _energy_balance_relative_error(
+            energy_initial,
+            energy_remaining,
+            resistive_loss,
+            load_energy,
+            residual,
+        )
         return EnergyReport(
-            energy_delivered_J=energy_initial - energy_remaining,
+            energy_delivered_J=energy_delivered,
+            energy_initial_J=energy_initial,
             energy_remaining_J=energy_remaining,
+            capacitor_energy_remaining_J=capacitor_energy_remaining,
+            inductor_energy_remaining_J=inductor_energy_remaining,
+            resistive_loss_J=resistive_loss,
+            load_energy_J=load_energy,
+            energy_balance_residual_J=residual,
+            energy_balance_relative_error=relative_error,
+            energy_balance_passed=relative_error <= ENERGY_BALANCE_REL_TOLERANCE,
             peak_voltage_V=peak_voltage,
             peak_current_A=peak_current,
             discharge_duration_s=n_steps * step_s,
             rlc_regime=self._spec.regime,
         )
+
+    def _total_stored_energy_J(self) -> float:
+        capacitor_energy = 0.5 * self._spec.capacitance_F * self._v * self._v
+        inductor_energy = 0.5 * self._spec.inductance_H * self._i * self._i
+        return capacitor_energy + inductor_energy
 
     def feasibility(self, pulse: PulseSpec) -> tuple[bool, str]:
         """Run conservative pulse admissibility guards against current bank state."""
@@ -430,10 +495,27 @@ def _non_negative(name: str, value: float) -> float:
     return number
 
 
+def _energy_balance_relative_error(
+    energy_initial: float,
+    energy_remaining: float,
+    resistive_loss: float,
+    load_energy: float,
+    residual: float,
+) -> float:
+    scale = max(
+        abs(energy_initial),
+        abs(energy_remaining),
+        abs(resistive_loss) + abs(load_energy) + abs(energy_initial - energy_remaining),
+        1.0,
+    )
+    return abs(residual) / scale
+
+
 __all__ = [
     "CapacitorBank",
     "CapacitorBankSpec",
     "CapacitorBankState",
+    "ENERGY_BALANCE_REL_TOLERANCE",
     "EnergyReport",
     "PulseSpec",
     "RLCRegime",

@@ -19,6 +19,10 @@
 - Added the CONTROL-owned capacitor-bank series-RLC state model with Python,
   Rust, and optional PyO3 surfaces, scheduler telemetry adaptation, dedicated
   tests, public API documentation, and benchmark evidence.
+- Added total RLC energy-balance reporting to capacitor-bank discharge reports,
+  including capacitor/inductor remaining energy, ohmic loss, prescribed-load
+  extraction, residual admission, PyO3 fields, dedicated tests, public guide
+  documentation, and Python/Rust benchmark harnesses.
 - Added the CONTROL-owned AER control-observation adapter with Python spike
   buffers, rate/temporal/ISI decoders, Rust parity surfaces, optional PyO3
   bindings, dedicated tests, and public documentation.

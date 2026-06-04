@@ -1,0 +1,54 @@
+{
+  "context": {
+    "cpu_affinity": [
+      4,
+      5
+    ],
+    "isolation_method": "caller-provided affinity only; not a production benchmark",
+    "loadavg_end": [
+      5.92919921875,
+      5.380859375,
+      4.5478515625
+    ],
+    "loadavg_start": [
+      5.92919921875,
+      5.380859375,
+      4.5478515625
+    ],
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "evidence_class": "local_regression",
+  "generated_utc": "2026-06-04T14:00:35.721186+00:00",
+  "payload_sha256": "d7f8f814d3f14ff2aa817292a5ec1ae82208f5657bc74d65bf891109cc01d69b",
+  "production_claim_allowed": false,
+  "result": {
+    "last_report": {
+      "energy_balance_passed": true,
+      "energy_balance_relative_error": 1.883495835016864e-14,
+      "energy_balance_residual_J": 2.354383354941092e-11,
+      "energy_delivered_J": 34.58746402295151,
+      "energy_initial_J": 1250.0072,
+      "energy_remaining_J": 1215.4197359770485,
+      "load_energy_J": 31.436711280457875,
+      "resistive_loss_J": 3.150752742470089,
+      "rlc_regime": "underdamped"
+    },
+    "stats": {
+      "max_us": 1074.641,
+      "mean_us": 663.9572959999999,
+      "median_us": 640.3025,
+      "min_us": 556.697,
+      "p95_us": 842.915,
+      "p99_us": 989.046,
+      "samples": 500
+    }
+  },
+  "schema_version": "scpn-control.capacitor-bank-energy-benchmark.v1",
+  "settings": {
+    "discharge_steps": 200,
+    "dt_s": 1e-07,
+    "steps": 500,
+    "warmup": 50
+  }
+}

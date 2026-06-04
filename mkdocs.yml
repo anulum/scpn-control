@@ -73,6 +73,7 @@ nav:
     - Architecture: architecture.md
     - Physics Methods: physics_methods.md
     - Neural Transport Training: neural_transport_training.md
+    - Capacitor-Bank State Model: control/capacitor_bank_state.md
     - Multi-Shot Campaign: control/multi_shot_campaign.md
     - Runtime Admission: control/runtime_admission.md
     - Pulsed MPC Adapter: control/pulsed_mpc_adapter.md

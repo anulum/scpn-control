@@ -1,14 +1,17 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Commercial license available
 // © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 // © Code 2020–2026 Miroslav Šotek. All rights reserved.
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// Project: SCPN Control
-// Description: Control-owned capacitor-bank RLC state model.
+// SCPN Control — Control-owned capacitor-bank RLC state model.
 //! Bounded capacitor-bank state model for CONTROL pulsed-shot contracts.
 
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+
+/// Relative residual tolerance for Crank-Nicolson RLC energy-balance admission.
+pub const ENERGY_BALANCE_REL_TOLERANCE: f64 = 1.0e-8;
 
 /// Canonical damping regimes for the series RLC bank model.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -184,10 +187,26 @@ impl PulseSpec {
 /// Energy bookkeeping returned by a discharge simulation.
 #[derive(Clone, Copy, Debug)]
 pub struct EnergyReport {
-    /// Energy removed from capacitor storage.
+    /// Energy removed from total RLC storage.
     pub energy_delivered_j: f64,
-    /// Remaining capacitor energy.
+    /// Initial total RLC stored energy.
+    pub energy_initial_j: f64,
+    /// Remaining total RLC stored energy.
     pub energy_remaining_j: f64,
+    /// Remaining capacitor electric energy.
+    pub capacitor_energy_remaining_j: f64,
+    /// Remaining inductor magnetic energy.
+    pub inductor_energy_remaining_j: f64,
+    /// Integrated ohmic dissipation over the discharge.
+    pub resistive_loss_j: f64,
+    /// Integrated prescribed load extraction over the discharge.
+    pub load_energy_j: f64,
+    /// Energy ledger residual: delivered - resistive_loss - load_energy.
+    pub energy_balance_residual_j: f64,
+    /// Scale-normalised absolute residual.
+    pub energy_balance_relative_error: f64,
+    /// Whether the residual passes the CONTROL admission tolerance.
+    pub energy_balance_passed: bool,
     /// Peak absolute capacitor voltage observed.
     pub peak_voltage_v: f64,
     /// Peak absolute current observed.
@@ -324,21 +343,50 @@ impl CapacitorBank {
         if n_steps == 0 {
             return Err(CapacitorBankError::NonPositiveInteger("n_steps"));
         }
-        let energy_initial = self.state().energy_j();
+        let energy_initial = self.total_stored_energy_j();
+        let mut resistive_loss = 0.0;
+        let mut load_energy = 0.0;
         let mut peak_voltage = self.voltage_v.abs();
         let mut peak_current = self.current_a.abs();
         let mut pulse_t = 0.0;
         for _ in 0..n_steps {
             let load_current = sample_waveform(pulse, pulse_t + dt / 2.0)?;
+            let voltage_before = self.voltage_v;
+            let current_before = self.current_a;
             let state = self.step(dt, load_current)?;
+            let voltage_midpoint = 0.5 * (voltage_before + state.voltage_v);
+            let current_midpoint = 0.5 * (current_before + state.current_a);
+            resistive_loss +=
+                self.spec.series_resistance_ohm * current_midpoint * current_midpoint * dt;
+            load_energy += voltage_midpoint * load_current * dt;
             peak_voltage = peak_voltage.max(state.voltage_v.abs());
             peak_current = peak_current.max(state.current_a.abs());
             pulse_t += dt;
         }
-        let energy_remaining = self.state().energy_j();
+        let energy_remaining = self.total_stored_energy_j();
+        let capacitor_energy_remaining = self.state().energy_j();
+        let inductor_energy_remaining =
+            0.5 * self.spec.inductance_h * self.current_a * self.current_a;
+        let energy_delivered = energy_initial - energy_remaining;
+        let residual = energy_delivered - resistive_loss - load_energy;
+        let relative_error = energy_balance_relative_error(
+            energy_initial,
+            energy_remaining,
+            resistive_loss,
+            load_energy,
+            residual,
+        );
         Ok(EnergyReport {
-            energy_delivered_j: energy_initial - energy_remaining,
+            energy_delivered_j: energy_delivered,
+            energy_initial_j: energy_initial,
             energy_remaining_j: energy_remaining,
+            capacitor_energy_remaining_j: capacitor_energy_remaining,
+            inductor_energy_remaining_j: inductor_energy_remaining,
+            resistive_loss_j: resistive_loss,
+            load_energy_j: load_energy,
+            energy_balance_residual_j: residual,
+            energy_balance_relative_error: relative_error,
+            energy_balance_passed: relative_error <= ENERGY_BALANCE_REL_TOLERANCE,
             peak_voltage_v: peak_voltage,
             peak_current_a: peak_current,
             discharge_duration_s: n_steps as f64 * dt,
@@ -378,6 +426,12 @@ impl CapacitorBank {
             ));
         }
         Ok((true, "ok".to_string()))
+    }
+
+    fn total_stored_energy_j(&self) -> f64 {
+        let capacitor_energy = 0.5 * self.spec.capacitance_f * self.voltage_v * self.voltage_v;
+        let inductor_energy = 0.5 * self.spec.inductance_h * self.current_a * self.current_a;
+        capacitor_energy + inductor_energy
     }
 
     /// Project constant-power recharge state after non-negative time t.
@@ -600,6 +654,20 @@ fn validate_non_negative(field: &'static str, value: f64) -> Result<(), Capacito
     Ok(())
 }
 
+fn energy_balance_relative_error(
+    energy_initial: f64,
+    energy_remaining: f64,
+    resistive_loss: f64,
+    load_energy: f64,
+    residual: f64,
+) -> f64 {
+    let scale = energy_initial.abs().max(energy_remaining.abs()).max(
+        (resistive_loss.abs() + load_energy.abs() + (energy_initial - energy_remaining).abs())
+            .max(1.0),
+    );
+    residual.abs() / scale
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -654,9 +722,9 @@ mod tests {
     }
 
     #[test]
-    fn discharge_preserves_energy_bookkeeping() {
+    fn discharge_preserves_total_rlc_energy_bookkeeping() {
         let mut bank = CapacitorBank::new(overdamped_spec(), 5_000.0, 0.0).expect("valid bank");
-        let initial_energy = bank.state().energy_j();
+        let initial_energy = bank.total_stored_energy_j();
         let pulse = PulseSpec::new(500.0, 1e-3, PulseWaveform::HalfSine).expect("valid pulse");
         let report = bank
             .discharge(pulse, 1e-6, 1000)
@@ -664,7 +732,27 @@ mod tests {
         assert!(
             (report.energy_delivered_j + report.energy_remaining_j - initial_energy).abs() < 1e-9
         );
+        assert!(report.resistive_loss_j >= 0.0);
+        assert!(report.load_energy_j > 0.0);
+        assert!(report.energy_balance_passed);
+        assert!(report.energy_balance_relative_error <= ENERGY_BALANCE_REL_TOLERANCE);
         assert_eq!(report.rlc_regime, RlcRegime::Overdamped);
+    }
+
+    #[test]
+    fn discharge_balance_includes_inductor_energy() {
+        let mut bank = CapacitorBank::new(underdamped_spec(), 4_000.0, 75.0).expect("valid bank");
+        let capacitor_only_initial = bank.state().energy_j();
+        let pulse = PulseSpec::new(0.1, 2e-5, PulseWaveform::Rect).expect("valid pulse");
+        let report = bank
+            .discharge(pulse, 1e-7, 200)
+            .expect("discharge evaluates");
+        assert!(report.energy_initial_j > capacitor_only_initial);
+        assert!(
+            (report.energy_delivered_j + report.energy_remaining_j - report.energy_initial_j).abs()
+                < 1e-9
+        );
+        assert!(report.energy_balance_passed);
     }
 
     #[test]

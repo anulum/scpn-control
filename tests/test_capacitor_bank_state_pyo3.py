@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Capacitor-bank PyO3 bridge tests.
+# SCPN Control — Capacitor-bank PyO3 bridge tests.
 """Optional tests for the Rust capacitor-bank state bridge."""
 
 from __future__ import annotations
@@ -48,5 +48,11 @@ def test_pyo3_capacitor_bank_model_step_discharge_and_recharge() -> None:
     assert reason == "ok"
     report = bank.discharge(100.0, 1.0e-4, "rect", 1.0e-6, 10)
     assert report["discharge_duration_s"] == pytest.approx(1.0e-5)
+    assert report["energy_initial_J"] >= report["energy_remaining_J"]
+    assert report["capacitor_energy_remaining_J"] + report["inductor_energy_remaining_J"] == pytest.approx(
+        report["energy_remaining_J"],
+    )
+    assert report["energy_balance_passed"] is True
+    assert report["energy_balance_relative_error"] <= 1.0e-8
     recharge = bank.recharge_status(0.1)
     assert recharge["target_voltage_V"] == pytest.approx(10_000.0)

@@ -1,0 +1,41 @@
+{
+  "context": {
+    "cpu_affinity": "4-5",
+    "isolation_method": "caller-provided affinity only; not a production benchmark",
+    "loadavg_end": "4.98 5.15 4.52 2/2925 2220886",
+    "loadavg_start": "4.98 5.15 4.52 2/2925 2220886"
+  },
+  "evidence_class": "local_regression",
+  "generated_unix_seconds": 1780581701,
+  "payload_sha256": "76e505d1e1ca17d8738cf3c6ea9cb380b306194a6481b89dab7c289eeaf18151",
+  "production_claim_allowed": false,
+  "result": {
+    "last_report": {
+      "energy_balance_passed": true,
+      "energy_balance_relative_error": 1.883495835016864e-14,
+      "energy_balance_residual_J": 2.354383354941092e-11,
+      "energy_delivered_J": 34.58746402295151,
+      "energy_initial_J": 1250.0072,
+      "energy_remaining_J": 1215.4197359770485,
+      "load_energy_J": 31.436711280457875,
+      "resistive_loss_J": 3.150752742470089,
+      "rlc_regime": "underdamped"
+    },
+    "stats": {
+      "max_us": 13.299,
+      "mean_us": 3.641378,
+      "median_us": 3.499,
+      "min_us": 3.346,
+      "p95_us": 4.039,
+      "p99_us": 5.263,
+      "samples": 500
+    }
+  },
+  "schema_version": "scpn-control.rust-capacitor-bank-energy-benchmark.v1",
+  "settings": {
+    "discharge_steps": 200,
+    "dt_s": 1e-7,
+    "steps": 500,
+    "warmup": 50
+  }
+}
