@@ -27,6 +27,13 @@ use formal_worker::{
 use transport_bridge::PyUdpTransportBridge;
 
 use control_control::analytic;
+use control_control::capacitor_bank::{
+    free_response as control_capacitor_bank_free_response,
+    CapacitorBank as ControlCapacitorBankModel, CapacitorBankSpec as ControlCapacitorBankSpecModel,
+    CapacitorBankState as ControlCapacitorBankStateModel,
+    EnergyReport as ControlCapacitorBankEnergyReport, PulseSpec as ControlCapacitorPulseSpec,
+    PulseWaveform as ControlCapacitorPulseWaveform,
+};
 use control_control::digital_twin::Plasma2D;
 use control_control::h_infinity::HInfController;
 use control_control::mpc::{MPController, NeuralSurrogate};
@@ -277,6 +284,9 @@ struct PySnnPool {
     inner: SpikingControllerPool,
 }
 
+type PySchedulerCommand = (f64, String, String, String, bool, f64);
+type PyTransitionRecord = (f64, String, String, String);
+
 #[pyclass(name = "PyPulsedScenarioSpec")]
 #[derive(Clone, Copy)]
 struct PyPulsedScenarioSpec {
@@ -447,6 +457,288 @@ impl PyPulsedScenarioScheduler {
             })
             .collect()
     }
+}
+
+#[pyclass(name = "PyCapacitorBankSpec")]
+#[derive(Clone, Copy)]
+struct PyCapacitorBankSpecModel {
+    inner: ControlCapacitorBankSpecModel,
+}
+
+#[pymethods]
+impl PyCapacitorBankSpecModel {
+    #[new]
+    #[pyo3(signature = (
+        capacitance_f,
+        inductance_h,
+        series_resistance_ohm,
+        voltage_max_v,
+        recharge_power_kw=0.0
+    ))]
+    fn new(
+        capacitance_f: f64,
+        inductance_h: f64,
+        series_resistance_ohm: f64,
+        voltage_max_v: f64,
+        recharge_power_kw: f64,
+    ) -> PyResult<Self> {
+        ControlCapacitorBankSpecModel::new(
+            capacitance_f,
+            inductance_h,
+            series_resistance_ohm,
+            voltage_max_v,
+            recharge_power_kw,
+        )
+        .map(|inner| Self { inner })
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    #[getter]
+    fn capacitance_f(&self) -> f64 {
+        self.inner.capacitance_f
+    }
+
+    #[getter]
+    fn inductance_h(&self) -> f64 {
+        self.inner.inductance_h
+    }
+
+    #[getter]
+    fn series_resistance_ohm(&self) -> f64 {
+        self.inner.series_resistance_ohm
+    }
+
+    #[getter]
+    fn voltage_max_v(&self) -> f64 {
+        self.inner.voltage_max_v
+    }
+
+    #[getter]
+    fn recharge_power_kw(&self) -> f64 {
+        self.inner.recharge_power_kw
+    }
+
+    #[getter]
+    fn regime(&self) -> String {
+        self.inner.regime().as_str().to_string()
+    }
+
+    #[getter]
+    fn natural_impedance_ohm(&self) -> f64 {
+        self.inner.natural_impedance_ohm()
+    }
+
+    #[getter]
+    fn damping_ratio(&self) -> f64 {
+        self.inner.damping_ratio()
+    }
+}
+
+#[pyclass(name = "PyCapacitorBankModel")]
+struct PyCapacitorBankModel {
+    inner: ControlCapacitorBankModel,
+}
+
+#[pymethods]
+impl PyCapacitorBankModel {
+    #[new]
+    #[pyo3(signature = (
+        capacitance_f,
+        inductance_h,
+        series_resistance_ohm,
+        voltage_max_v,
+        recharge_power_kw=0.0,
+        initial_voltage_v=0.0,
+        initial_current_a=0.0
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        capacitance_f: f64,
+        inductance_h: f64,
+        series_resistance_ohm: f64,
+        voltage_max_v: f64,
+        recharge_power_kw: f64,
+        initial_voltage_v: f64,
+        initial_current_a: f64,
+    ) -> PyResult<Self> {
+        let spec = ControlCapacitorBankSpecModel::new(
+            capacitance_f,
+            inductance_h,
+            series_resistance_ohm,
+            voltage_max_v,
+            recharge_power_kw,
+        )
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        ControlCapacitorBankModel::new(spec, initial_voltage_v, initial_current_a)
+            .map(|inner| Self { inner })
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    fn state<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        capacitor_state_to_dict(py, self.inner.state())
+    }
+
+    fn telemetry<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let (voltage_v, voltage_max_v, energy_j) = self
+            .inner
+            .telemetry_fields()
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let dict = PyDict::new(py);
+        dict.set_item("voltage_V", voltage_v)?;
+        dict.set_item("voltage_max_V", voltage_max_v)?;
+        dict.set_item("energy_J", energy_j)?;
+        dict.set_item("voltage_fraction", voltage_v / voltage_max_v)?;
+        Ok(dict)
+    }
+
+    #[pyo3(signature = (initial_voltage_v=0.0, initial_current_a=0.0))]
+    fn reset<'py>(
+        &mut self,
+        py: Python<'py>,
+        initial_voltage_v: f64,
+        initial_current_a: f64,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let state = self
+            .inner
+            .reset(initial_voltage_v, initial_current_a)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        capacitor_state_to_dict(py, state)
+    }
+
+    #[pyo3(signature = (dt, external_load_current_a=0.0))]
+    fn step<'py>(
+        &mut self,
+        py: Python<'py>,
+        dt: f64,
+        external_load_current_a: f64,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let state = self
+            .inner
+            .step(dt, external_load_current_a)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        capacitor_state_to_dict(py, state)
+    }
+
+    #[pyo3(signature = (peak_current_a, duration_s, waveform="half_sine", dt=1.0e-6, n_steps=1))]
+    fn discharge<'py>(
+        &mut self,
+        py: Python<'py>,
+        peak_current_a: f64,
+        duration_s: f64,
+        waveform: &str,
+        dt: f64,
+        n_steps: usize,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let pulse = ControlCapacitorPulseSpec::new(
+            peak_current_a,
+            duration_s,
+            parse_capacitor_waveform(waveform)?,
+        )
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let report = self
+            .inner
+            .discharge(pulse, dt, n_steps)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        capacitor_energy_report_to_dict(py, report)
+    }
+
+    #[pyo3(signature = (peak_current_a, duration_s, waveform="half_sine"))]
+    fn feasibility(
+        &self,
+        peak_current_a: f64,
+        duration_s: f64,
+        waveform: &str,
+    ) -> PyResult<(bool, String)> {
+        let pulse = ControlCapacitorPulseSpec::new(
+            peak_current_a,
+            duration_s,
+            parse_capacitor_waveform(waveform)?,
+        )
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        self.inner
+            .feasibility(pulse)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    fn recharge_status<'py>(&self, py: Python<'py>, t: f64) -> PyResult<Bound<'py, PyDict>> {
+        let status = self
+            .inner
+            .recharge_status(t)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let dict = PyDict::new(py);
+        dict.set_item("target_voltage_V", status.target_voltage_v)?;
+        dict.set_item("projected_voltage_V", status.projected_voltage_v)?;
+        dict.set_item("time_to_full_s", status.time_to_full_s)?;
+        Ok(dict)
+    }
+}
+
+#[pyfunction]
+#[pyo3(signature = (
+    capacitance_f,
+    inductance_h,
+    series_resistance_ohm,
+    voltage_max_v,
+    recharge_power_kw,
+    v0,
+    i0,
+    t
+))]
+#[allow(clippy::too_many_arguments)]
+fn capacitor_bank_free_response<'py>(
+    py: Python<'py>,
+    capacitance_f: f64,
+    inductance_h: f64,
+    series_resistance_ohm: f64,
+    voltage_max_v: f64,
+    recharge_power_kw: f64,
+    v0: f64,
+    i0: f64,
+    t: f64,
+) -> PyResult<Bound<'py, PyDict>> {
+    let spec = ControlCapacitorBankSpecModel::new(
+        capacitance_f,
+        inductance_h,
+        series_resistance_ohm,
+        voltage_max_v,
+        recharge_power_kw,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let state = control_capacitor_bank_free_response(spec, v0, i0, t)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    capacitor_state_to_dict(py, state)
+}
+
+fn parse_capacitor_waveform(value: &str) -> PyResult<ControlCapacitorPulseWaveform> {
+    ControlCapacitorPulseWaveform::parse(value).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+fn capacitor_state_to_dict<'py>(
+    py: Python<'py>,
+    state: ControlCapacitorBankStateModel,
+) -> PyResult<Bound<'py, PyDict>> {
+    let dict = PyDict::new(py);
+    dict.set_item("t", state.t)?;
+    dict.set_item("voltage_V", state.voltage_v)?;
+    dict.set_item("current_A", state.current_a)?;
+    dict.set_item("di_dt_A_s", state.di_dt_a_s)?;
+    dict.set_item("capacitance_F", state.capacitance_f)?;
+    dict.set_item("energy_J", state.energy_j())?;
+    Ok(dict)
+}
+
+fn capacitor_energy_report_to_dict<'py>(
+    py: Python<'py>,
+    report: ControlCapacitorBankEnergyReport,
+) -> PyResult<Bound<'py, PyDict>> {
+    let dict = PyDict::new(py);
+    dict.set_item("energy_delivered_J", report.energy_delivered_j)?;
+    dict.set_item("energy_remaining_J", report.energy_remaining_j)?;
+    dict.set_item("peak_voltage_V", report.peak_voltage_v)?;
+    dict.set_item("peak_current_A", report.peak_current_a)?;
+    dict.set_item("discharge_duration_s", report.discharge_duration_s)?;
+    dict.set_item("rlc_regime", report.rlc_regime.as_str())?;
+    Ok(dict)
 }
 
 fn parse_pulsed_scenario_state(value: &str) -> PyResult<ControlPulsedScenarioState> {
@@ -2027,6 +2319,9 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_class::<PyPulsedPlasmaTelemetry>()?;
     m.add_class::<PyCapacitorBankTelemetry>()?;
     m.add_class::<PyPulsedScenarioScheduler>()?;
+    m.add_class::<PyCapacitorBankSpecModel>()?;
+    m.add_class::<PyCapacitorBankModel>()?;
+    m.add_function(wrap_pyfunction!(capacitor_bank_free_response, m)?)?;
     m.add_class::<PySpikingControllerPool>()?;
     m.add_class::<PyMpcController>()?;
     m.add_class::<PyPlasma2D>()?;

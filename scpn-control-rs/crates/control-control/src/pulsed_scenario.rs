@@ -151,7 +151,9 @@ impl PulsedScenarioSpec {
             return Err(PulsedScenarioError::NonFinite("recharge_voltage_fraction"));
         }
         if recharge_voltage_fraction <= 0.0 || recharge_voltage_fraction > 1.0 {
-            return Err(PulsedScenarioError::FractionOutOfRange("recharge_voltage_fraction"));
+            return Err(PulsedScenarioError::FractionOutOfRange(
+                "recharge_voltage_fraction",
+            ));
         }
         Ok(Self {
             min_precharge_energy_j,
@@ -227,7 +229,11 @@ pub struct CapacitorBankTelemetry {
 
 impl CapacitorBankTelemetry {
     /// Construct validated bank telemetry.
-    pub fn new(voltage_v: f64, voltage_max_v: f64, energy_j: f64) -> Result<Self, PulsedScenarioError> {
+    pub fn new(
+        voltage_v: f64,
+        voltage_max_v: f64,
+        energy_j: f64,
+    ) -> Result<Self, PulsedScenarioError> {
         validate_non_negative("voltage_v", voltage_v)?;
         validate_positive("voltage_max_v", voltage_max_v)?;
         validate_non_negative("energy_j", energy_j)?;
@@ -441,7 +447,10 @@ impl PulsedScenarioScheduler {
         match self.state {
             PulsedScenarioState::Idle => {
                 if bank.energy_j >= spec.min_precharge_energy_j {
-                    (Some(PulsedScenarioState::RampUp), "precharge energy available")
+                    (
+                        Some(PulsedScenarioState::RampUp),
+                        "precharge energy available",
+                    )
                 } else {
                     (None, "waiting for precharge energy")
                 }
@@ -475,21 +484,30 @@ impl PulsedScenarioScheduler {
                 if dwell_s < spec.min_burn_duration_s {
                     (None, "waiting for minimum burn dwell")
                 } else if plasma.fusion_power_w >= spec.min_fusion_power_w {
-                    (Some(PulsedScenarioState::Expansion), "fusion power threshold reached")
+                    (
+                        Some(PulsedScenarioState::Expansion),
+                        "fusion power threshold reached",
+                    )
                 } else {
                     (None, "waiting for fusion power")
                 }
             }
             PulsedScenarioState::Expansion => {
                 if plasma.radial_velocity_m_s >= spec.expansion_velocity_m_s {
-                    (Some(PulsedScenarioState::Dump), "expansion velocity reached")
+                    (
+                        Some(PulsedScenarioState::Dump),
+                        "expansion velocity reached",
+                    )
                 } else {
                     (None, "waiting for expansion velocity")
                 }
             }
             PulsedScenarioState::Dump => {
                 if bank.energy_j <= spec.dump_energy_floor_j {
-                    (Some(PulsedScenarioState::Recharge), "residual energy dumped")
+                    (
+                        Some(PulsedScenarioState::Recharge),
+                        "residual energy dumped",
+                    )
                 } else {
                     (None, "waiting for dump energy floor")
                 }
@@ -610,7 +628,11 @@ mod tests {
     fn campaign_traverses_eight_states() {
         let mut scheduler = PulsedScenarioScheduler::new(spec());
         let samples = [
-            (0.0, plasma(0.0, 10.0, 0.02, 0.01, 0.0, 0.0), bank(9800.0, 200.0)),
+            (
+                0.0,
+                plasma(0.0, 10.0, 0.02, 0.01, 0.0, 0.0),
+                bank(9800.0, 200.0),
+            ),
             (
                 1.0e-3,
                 plasma(2.5e6, 10.0, 0.02, 0.01, 0.0, 0.0),

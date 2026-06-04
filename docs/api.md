@@ -72,6 +72,58 @@ separate admission surfaces.
 
 ---
 
+## Control — Capacitor Bank State Model
+
+`scpn_control.control.capacitor_bank_state` owns the CONTROL-side bounded
+series-RLC capacitor-bank contract for pulsed-shot admission. It mirrors the
+MIF-CORE MIF-005 capacitor-bank mathematics at the control boundary: damping
+regime classification, closed-form free response, Crank-Nicolson stepping,
+midpoint-sampled discharge waveforms, conservative feasibility guards, and
+constant-power recharge projection.
+
+The state equation is:
+
+```text
+d/dt [v_C, i]^T = [[0, -1/C], [1/L, -R/L]] [v_C, i]^T + [-i_load/C, 0]^T
+```
+
+where `C` is capacitance in farads, `L` is inductance in henries, `R` is series
+resistance in ohms, `v_C` is capacitor voltage in volts, `i` is series current
+in amperes, and `i_load` is the prescribed external load current. The numerical
+step uses a Crank-Nicolson update so natural-response validation can compare
+against the analytical underdamped, critical, and overdamped solutions.
+
+`CapacitorBank.telemetry()` adapts the state model to
+`PulsedScenarioScheduler v2` by emitting scheduler-compatible capacitor-bank
+telemetry with absolute voltage magnitude, declared voltage limit, and stored
+energy. The matching Rust kernel lives in
+`control_control::capacitor_bank`. When the optional extension is built,
+`scpn_control_rs.PyCapacitorBankModel`, `scpn_control_rs.PyCapacitorBankSpec`,
+and `scpn_control_rs.capacitor_bank_free_response()` expose the compiled
+surface directly to Python.
+
+This model is a bounded control admission and scheduling primitive. It is not a
+validated facility capacitor-bank driver, insulation model, switch model, or
+hardware interlock implementation. Facility deployment still requires target
+hardware timing, protection relays, isolation evidence, and shot-matched
+validation artefacts.
+
+::: scpn_control.control.capacitor_bank_state.RLCRegime
+
+::: scpn_control.control.capacitor_bank_state.CapacitorBankSpec
+
+::: scpn_control.control.capacitor_bank_state.CapacitorBankState
+
+::: scpn_control.control.capacitor_bank_state.PulseSpec
+
+::: scpn_control.control.capacitor_bank_state.EnergyReport
+
+::: scpn_control.control.capacitor_bank_state.free_response
+
+::: scpn_control.control.capacitor_bank_state.CapacitorBank
+
+---
+
 ## Validation — Benchmark Regression Gates
 
 `validation/validate_benchmark_regression_gates.py` admits persisted benchmark

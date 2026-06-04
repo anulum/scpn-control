@@ -16,6 +16,9 @@
   semantics, guard validation, public API documentation, and direct tests.
 - Exposed the Rust pulsed-scenario scheduler through the optional PyO3
   `scpn_control_rs` extension with direct parity tests.
+- Added the CONTROL-owned capacitor-bank series-RLC state model with Python,
+  Rust, and optional PyO3 surfaces, scheduler telemetry adaptation, dedicated
+  tests, public API documentation, and benchmark evidence.
 
 ## [0.20.3] - 2026-06-02
 

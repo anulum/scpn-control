@@ -11,6 +11,7 @@
 //! Stage 7: PID, optimal, MPC, SNN, digital twin, SPI, SOC-learning, analytic.
 
 pub mod analytic;
+pub mod capacitor_bank;
 pub mod digital_twin;
 pub mod h_infinity;
 pub mod mpc;
