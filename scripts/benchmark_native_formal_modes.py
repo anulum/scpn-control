@@ -92,12 +92,25 @@ def _parse_csv_ints(raw: str) -> list[int]:
     return values
 
 
+def _parse_csv_strings(raw: str) -> list[str]:
+    values = [part.strip() for part in raw.split(",") if part.strip()]
+    if not values:
+        raise argparse.ArgumentTypeError("at least one value is required")
+    return values
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark native formal verification modes.")
     parser.add_argument("--steps", type=int, default=5000)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--tick-interval-s", type=float, default=0.0)
     parser.add_argument("--strides", type=_parse_csv_ints, default=[1, 5, 20, 30])
+    parser.add_argument(
+        "--formal-modes",
+        type=_parse_csv_strings,
+        default=["disabled", "async_drop", "sync_stride", "aot_certificate"],
+    )
+    parser.add_argument("--pacing-modes", type=_parse_csv_strings, default=["sleep"])
     parser.add_argument("--transports", default="std,io-uring")
     parser.add_argument("--transport-endpoint", default="127.0.0.1")
     parser.add_argument("--transport-port-base", type=int, default=57300)
@@ -152,6 +165,7 @@ def _run_case(
     *,
     transport: str,
     formal_mode: str,
+    pacing_mode: str,
     stride: int,
     repeat: int,
     port: int,
@@ -188,6 +202,7 @@ def _run_case(
         summary = engine.execute_hardware_loop(
             steps=args.steps,
             tick_interval_s=args.tick_interval_s,
+            pacing_mode=pacing_mode,
             max_publish_failures=args.max_publish_failures,
             execution_backend="native",
             core_snn=args.core_snn,
@@ -200,6 +215,7 @@ def _run_case(
     summary["effective_step_us"] = wall_s * 1_000_000.0 / max(1, int(summary.get("steps", 0)))
     summary["udp_sink_packets"] = sink.packets
     summary["formal_mode_requested"] = formal_mode
+    summary["pacing_mode_requested"] = pacing_mode
     summary["formal_stride_requested"] = stride
     summary["transport_requested"] = transport
     summary["repeat"] = repeat
@@ -248,13 +264,23 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _case_names(transports: Iterable[str], strides: Iterable[int]) -> list[tuple[str, str, int]]:
-    cases: list[tuple[str, str, int]] = []
+def _case_names(
+    transports: Iterable[str],
+    strides: Iterable[int],
+    formal_modes: Iterable[str],
+    pacing_modes: Iterable[str],
+) -> list[tuple[str, str, str, int]]:
+    cases: list[tuple[str, str, str, int]] = []
     for transport in transports:
-        cases.append((transport, "disabled", 30))
-        for mode in ("async_drop", "sync_stride", "aot_certificate"):
-            for stride in strides:
-                cases.append((transport, mode, int(stride)))
+        for pacing_mode in pacing_modes:
+            if "disabled" in formal_modes:
+                cases.append((transport, pacing_mode, "disabled", 30))
+        for pacing_mode in pacing_modes:
+            for mode in formal_modes:
+                if mode == "disabled":
+                    continue
+                for stride in strides:
+                    cases.append((transport, pacing_mode, mode, int(stride)))
     return cases
 
 
@@ -306,15 +332,24 @@ def main() -> int:
         raise SystemExit("--tick-interval-s must be >= 0")
 
     transports = [item.strip() for item in args.transports.split(",") if item.strip()]
+    formal_modes = [item.strip().lower().replace("-", "_") for item in args.formal_modes]
+    pacing_modes = [item.strip().lower().replace("-", "_") for item in args.pacing_modes]
+    invalid_formal_modes = sorted(set(formal_modes) - {"disabled", "async_drop", "sync_stride", "aot_certificate"})
+    invalid_pacing_modes = sorted(set(pacing_modes) - {"sleep", "spin"})
+    if invalid_formal_modes:
+        raise SystemExit(f"unsupported formal modes: {', '.join(invalid_formal_modes)}")
+    if invalid_pacing_modes:
+        raise SystemExit(f"unsupported pacing modes: {', '.join(invalid_pacing_modes)}")
     runs: list[dict[str, Any]] = []
     port = args.transport_port_base
-    for transport, mode, stride in _case_names(transports, args.strides):
+    for transport, pacing_mode, mode, stride in _case_names(transports, args.strides, formal_modes, pacing_modes):
         for repeat in range(args.repeats):
             runs.append(
                 _run_case(
                     args,
                     transport=transport,
                     formal_mode=mode,
+                    pacing_mode=pacing_mode,
                     stride=stride,
                     repeat=repeat,
                     port=port,
@@ -323,16 +358,17 @@ def main() -> int:
             port += 1
 
     summaries = {
-        f"{transport}:{mode}:stride_{stride}": _summarise(
+        f"{transport}:{pacing_mode}:{mode}:stride_{stride}": _summarise(
             [
                 row
                 for row in runs
                 if row["transport_requested"] == transport
+                and row["pacing_mode_requested"] == pacing_mode
                 and row["formal_mode_requested"] == mode
                 and int(row["formal_stride_requested"]) == stride
             ]
         )
-        for transport, mode, stride in _case_names(transports, args.strides)
+        for transport, pacing_mode, mode, stride in _case_names(transports, args.strides, formal_modes, pacing_modes)
     }
     payload = {
         "schema": "scpn-control.native_formal_modes.v1",
@@ -346,6 +382,8 @@ def main() -> int:
             "repeats": args.repeats,
             "tick_interval_s": args.tick_interval_s,
             "strides": list(args.strides),
+            "formal_modes": formal_modes,
+            "pacing_modes": pacing_modes,
             "transports": transports,
             "core_snn": args.core_snn,
             "core_z3": args.core_z3,
@@ -366,6 +404,7 @@ def main() -> int:
             "async_drop deliberately drops saturated snapshots and is not strict proof coverage.",
             "sync_stride blocks on designated stride steps and exposes sync wait telemetry.",
             "aot_certificate is a compiled sufficient certificate monitor; it is not a live SMT solver.",
+            "spin pacing busy-waits on a native core and should only be used for short timing experiments.",
         ],
         "summaries": summaries,
         "runs": runs,

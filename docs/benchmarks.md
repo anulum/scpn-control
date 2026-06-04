@@ -56,6 +56,7 @@ PYTHONPATH=src .venv/bin/python scripts/benchmark_native_formal_modes.py \
   --steps 5000 \
   --repeats 3 \
   --tick-interval-s 0 \
+  --pacing-modes sleep \
   --strides 1,5,20,30 \
   --transports std,io-uring
 ```
@@ -65,6 +66,29 @@ plus sync wait timing. A strict certification argument must use `sync_stride`
 as the ground-truth proof engine or `aot_certificate` with matching
 certificate-admission evidence. `async_drop` must be described as asynchronous
 proof sampling.
+
+The native fused loop also exposes pacing modes:
+
+- `sleep`: default scheduler-yield pacing. This is safe for normal developer
+  runs but measures host wake-up latency as part of wall time.
+- `spin`: opt-in busy-wait pacing. The Rust loop uses `std::hint::spin_loop`
+  instead of `sleep`, holds the native execution thread on-core, and is intended
+  only for short deterministic timing experiments on isolated cores. Spin pacing
+  rejects tick intervals above `0.01 s` to prevent accidental long-duration core
+  burn.
+
+Compare sleep and spin pacing on the AOT hot path with:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/benchmark_native_formal_modes.py \
+  --steps 5000 \
+  --repeats 3 \
+  --tick-interval-s 0.0001 \
+  --formal-modes disabled,aot_certificate \
+  --pacing-modes sleep,spin \
+  --strides 1 \
+  --transports std
+```
 
 Run:
 

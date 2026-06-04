@@ -373,6 +373,12 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
 @click.option("--steps", default=None, type=int, help="Exact number of control iterations")
 @click.option("--runtime-s", default=None, type=float, help="Alternative run horizon in seconds")
 @click.option("--tick-interval-s", default=0.001, type=float, help="Control tick interval")
+@click.option(
+    "--pacing-mode",
+    default="sleep",
+    type=click.Choice(["sleep", "spin"], case_sensitive=False),
+    help="Native pacing mode; spin busy-waits instead of yielding to the OS scheduler",
+)
 @click.option("--max-publish-failures", default=None, type=int, help="Python fallback publish fail tolerance")
 @click.option(
     "--formal-mode",
@@ -416,6 +422,7 @@ def run_hardware_campaign(
     steps: int | None,
     runtime_s: float | None,
     tick_interval_s: float,
+    pacing_mode: str,
     max_publish_failures: int | None,
     formal_mode: str,
     formal_stride: int,
@@ -493,6 +500,7 @@ def run_hardware_campaign(
             core_net=core_net,
             core_hb=core_hb,
             execution_backend=execution_backend,
+            pacing_mode=pacing_mode,
         )
         _emit_campaign_result(summary, json_out=json_out)
     except RuntimeError as exc:

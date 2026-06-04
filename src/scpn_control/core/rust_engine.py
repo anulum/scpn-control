@@ -95,6 +95,7 @@ _PYO3_ARG_ORDER: dict[str, tuple[str, ...]] = {
         "tick_interval",
         "initial_state",
         "plant_gain",
+        "pacing_mode",
     ),
     "start": (
         "core_snn",
@@ -119,6 +120,23 @@ def _normalise_execution_backend(value: str) -> str:
     if backend not in {"auto", "native", "python"}:
         raise ValueError("execution_backend must be one of: auto, native, python")
     return backend
+
+
+def _normalise_pacing_mode(value: str) -> str:
+    """Validate and canonicalise the native pacing selector."""
+
+    mode = str(value).strip().lower().replace("-", "_")
+    aliases = {
+        "yield": "sleep",
+        "scheduler": "sleep",
+        "spin_loop": "spin",
+        "busy_wait": "spin",
+        "busywait": "spin",
+    }
+    mode = aliases.get(mode, mode)
+    if mode not in {"sleep", "spin"}:
+        raise ValueError("pacing_mode must be one of: sleep, spin")
+    return mode
 
 
 def _coerce_telemetry_int(value: object, default: int = 0) -> int:
@@ -484,6 +502,7 @@ class NeuroCyberneticEngine:
         core_net: int = 3,
         core_hb: int = 4,
         execution_backend: str = "auto",
+        pacing_mode: str = "sleep",
     ) -> dict[str, Any]:
         """Campaign-facing wrapper used by command-line and external orchestrators."""
         return self.execute_hardware_loop(
@@ -498,6 +517,7 @@ class NeuroCyberneticEngine:
             core_net=core_net,
             core_hb=core_hb,
             execution_backend=execution_backend,
+            pacing_mode=pacing_mode,
         )
 
     def execute_hardware_loop(
@@ -514,6 +534,7 @@ class NeuroCyberneticEngine:
         core_net: int = 3,
         core_hb: int = 4,
         execution_backend: str = "auto",
+        pacing_mode: str = "sleep",
     ) -> dict[str, Any]:
         """Run the Rust-accelerated control loop.
 
@@ -523,6 +544,9 @@ class NeuroCyberneticEngine:
         """
 
         execution_backend = _normalise_execution_backend(execution_backend)
+        pacing_mode_value = _normalise_pacing_mode(pacing_mode)
+        if execution_backend == "python" and pacing_mode_value == "spin":
+            raise ValueError("spin pacing is only available with the native execution backend")
 
         if max_publish_failures is not None:
             self.set_max_publish_failures(max_publish_failures)
@@ -576,11 +600,12 @@ class NeuroCyberneticEngine:
                     tick_interval=tick_interval,
                     initial_state=(measured_r, measured_z),
                     plant_gain=plant_gain,
+                    pacing_mode=pacing_mode_value,
                 )
             except RuntimeError:
                 raise
             except Exception:
-                if execution_backend == "native":
+                if execution_backend == "native" or pacing_mode_value == "spin":
                     raise
                 _LOGGER.exception("Native controller handoff failed; falling back to Python orchestrated mode")
 
@@ -602,6 +627,7 @@ class NeuroCyberneticEngine:
         tick_interval: float,
         initial_state: tuple[float, float],
         plant_gain: float,
+        pacing_mode: str,
     ) -> dict[str, Any]:
         """Execute via a fused native loop when available."""
         if _NativeSpikingControllerPool is None:
@@ -692,6 +718,7 @@ class NeuroCyberneticEngine:
                 tick_interval=tick_interval,
                 initial_state=list(initial_state),
                 plant_gain=plant_gain,
+                pacing_mode=pacing_mode,
             )
             max_steps = 0 if max_iterations is None else max_iterations
             last_start_error: Exception | None = None

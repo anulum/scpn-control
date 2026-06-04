@@ -16,6 +16,7 @@ use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use std::collections::HashMap;
+use std::hint::spin_loop;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -38,6 +39,31 @@ use control_core::ignition;
 use control_core::kernel::FusionKernel;
 use control_core::particles::{self, ChargedParticle};
 use control_core::transport::TransportSolver;
+
+const MAX_SPIN_TICK_INTERVAL_S: f64 = 0.01;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum NativePacingMode {
+    Sleep,
+    Spin,
+}
+
+impl NativePacingMode {
+    fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().replace('-', "_").as_str() {
+            "sleep" | "yield" | "scheduler" => Some(Self::Sleep),
+            "spin" | "spin_loop" | "busy_wait" | "busywait" => Some(Self::Spin),
+            _ => None,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Sleep => "sleep",
+            Self::Spin => "spin",
+        }
+    }
+}
 use control_core::vmec_interface::{self, VmecBoundaryState, VmecFourierMode, VmecSolverConfig};
 use control_core::xpoint;
 use control_math::kuramoto;
@@ -330,6 +356,7 @@ struct PySpikingControllerPool {
     core_hb: usize,
     max_iterations: Option<usize>,
     tick_interval_s: f64,
+    pacing_mode: NativePacingMode,
     initial_state: (f64, f64),
     plant_gain: f64,
     u_min: Option<f64>,
@@ -397,6 +424,7 @@ impl PySpikingControllerPool {
             core_hb: 4,
             max_iterations: None,
             tick_interval_s: 0.001,
+            pacing_mode: NativePacingMode::Sleep,
             initial_state: (6.2, 0.0),
             plant_gain: 0.0,
             u_min: None,
@@ -542,17 +570,25 @@ impl PySpikingControllerPool {
         self.apply_acados_targets(targets)
     }
 
-    #[pyo3(signature = (max_iterations=None, tick_interval=0.001, initial_state=None, plant_gain=0.0))]
+    #[pyo3(signature = (max_iterations=None, tick_interval=0.001, initial_state=None, plant_gain=0.0, pacing_mode="sleep"))]
     fn configure_runtime_budget(
         &mut self,
         max_iterations: Option<usize>,
         tick_interval: f64,
         initial_state: Option<Vec<f64>>,
         plant_gain: f64,
+        pacing_mode: &str,
     ) -> PyResult<()> {
         if !tick_interval.is_finite() || tick_interval < 0.0 {
             return Err(PyValueError::new_err(
                 "tick_interval must be finite and >= 0",
+            ));
+        }
+        let pacing = NativePacingMode::parse(pacing_mode)
+            .ok_or_else(|| PyValueError::new_err("pacing_mode must be sleep or spin"))?;
+        if pacing == NativePacingMode::Spin && tick_interval > MAX_SPIN_TICK_INTERVAL_S {
+            return Err(PyValueError::new_err(
+                "spin pacing requires tick_interval <= 0.01 seconds",
             ));
         }
         if !plant_gain.is_finite() {
@@ -573,6 +609,7 @@ impl PySpikingControllerPool {
 
         self.max_iterations = max_iterations;
         self.tick_interval_s = tick_interval;
+        self.pacing_mode = pacing;
         self.plant_gain = plant_gain;
         Ok(())
     }
@@ -887,9 +924,18 @@ impl PySpikingControllerPool {
             if self.tick_interval_s > 0.0 {
                 let target_ns = (self.tick_interval_s * 1_000_000_000.0) as u128;
                 if target_ns > self.last_cycle_ns {
-                    std::thread::sleep(Duration::from_nanos(
-                        (target_ns - self.last_cycle_ns) as u64,
-                    ));
+                    match self.pacing_mode {
+                        NativePacingMode::Sleep => {
+                            std::thread::sleep(Duration::from_nanos(
+                                (target_ns - self.last_cycle_ns) as u64,
+                            ));
+                        }
+                        NativePacingMode::Spin => {
+                            while step_start.elapsed().as_nanos() < target_ns {
+                                spin_loop();
+                            }
+                        }
+                    }
                 }
             }
         };
@@ -938,6 +984,7 @@ impl PySpikingControllerPool {
         execution.set_item("core_net", self.core_net)?;
         execution.set_item("core_hb", self.core_hb)?;
         execution.set_item("mode", "native")?;
+        execution.set_item("pacing_mode", self.pacing_mode.label())?;
         dict.set_item("execution", execution)?;
 
         let formal = PyDict::new(py);
@@ -1781,4 +1828,26 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_function(wrap_pyfunction!(py_multigrid_solve, m)?)?;
     m.add_class::<PyUdpTransportBridge>()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod native_pacing_tests {
+    use super::NativePacingMode;
+
+    #[test]
+    fn pacing_mode_parser_accepts_supported_aliases() {
+        assert_eq!(
+            NativePacingMode::parse("sleep"),
+            Some(NativePacingMode::Sleep)
+        );
+        assert_eq!(
+            NativePacingMode::parse("spin-loop"),
+            Some(NativePacingMode::Spin)
+        );
+        assert_eq!(
+            NativePacingMode::parse("busy_wait"),
+            Some(NativePacingMode::Spin)
+        );
+        assert_eq!(NativePacingMode::parse("timer_magic"), None);
+    }
 }

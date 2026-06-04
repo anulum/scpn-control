@@ -29,6 +29,10 @@
 - Added an `aot_certificate` native formal-verification mode that keeps Z3 out
   of the hot loop by evaluating a compiled Petri-net certificate monitor and
   reporting the backend as `compiled-certificate`.
+- Added opt-in native `spin` pacing for short hot-path timing experiments. The
+  default remains scheduler-yield `sleep` pacing; spin pacing is exposed through
+  the Python wrapper, hardware-campaign CLI, native telemetry, and formal-mode
+  benchmark script.
 
 ### Changed
 - Added an execution-backend selector to the hardware-campaign CLI and Rust

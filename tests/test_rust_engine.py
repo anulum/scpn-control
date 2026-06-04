@@ -23,6 +23,20 @@ def test_execute_hardware_loop_rejects_unknown_execution_backend() -> None:
         engine.execute_hardware_loop(steps=1, execution_backend="unknown")
 
 
+def test_execute_hardware_loop_rejects_unknown_pacing_mode() -> None:
+    engine = rust_engine.NeuroCyberneticEngine()
+
+    with pytest.raises(ValueError, match="pacing_mode"):
+        engine.execute_hardware_loop(steps=1, pacing_mode="timer_magic")
+
+
+def test_execute_hardware_loop_rejects_spin_pacing_on_python_backend() -> None:
+    engine = rust_engine.NeuroCyberneticEngine()
+
+    with pytest.raises(ValueError, match="native execution backend"):
+        engine.execute_hardware_loop(steps=1, execution_backend="python", pacing_mode="spin")
+
+
 def test_execute_hardware_loop_force_native_requires_native_pool(monkeypatch: pytest.MonkeyPatch) -> None:
     engine = rust_engine.NeuroCyberneticEngine()
     monkeypatch.setattr(rust_engine, "_NATIVE_CONTROLLER_AVAILABLE", False)
