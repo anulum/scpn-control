@@ -33,6 +33,10 @@
   and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
   metadata fields, module-specific tests, public documentation, and local
   regression benchmark tooling.
+- Added PREEMPT_RT runtime admission for native hardware campaigns, including
+  Python policy evaluation, PyO3 native snapshot evidence, CLI fail-closed
+  `--runtime-admission-policy require`, public documentation, tests, and local
+  admission benchmark tooling.
 
 ## [0.20.3] - 2026-06-02
 

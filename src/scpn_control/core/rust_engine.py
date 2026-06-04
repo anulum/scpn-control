@@ -32,6 +32,12 @@ from scpn_control.core._rust_compat import (
     RustSnnController,
     RustUdpTransportBridge,
 )
+from scpn_control.core.runtime_admission import (
+    RuntimeAdmissionRequest,
+    collect_runtime_admission,
+    normalise_runtime_admission_policy,
+    skipped_runtime_admission,
+)
 
 try:  # pragma: no cover - optional runtime dependency
     from scpn_control_rs import PySpikingControllerPool as _NativeSpikingControllerPool
@@ -241,6 +247,7 @@ class NeuroCyberneticEngine:
         self._itpa_constraints: dict[str, float | str] = {}
         self._kuramoto_weights: dict[str, float] = {}
         self._max_publish_failures = 128
+        self._last_runtime_admission: dict[str, Any] | None = None
 
     @property
     def transport_backend(self) -> str:
@@ -503,6 +510,7 @@ class NeuroCyberneticEngine:
         core_hb: int = 4,
         execution_backend: str = "auto",
         pacing_mode: str = "sleep",
+        runtime_admission_policy: str = "warn",
     ) -> dict[str, Any]:
         """Campaign-facing wrapper used by command-line and external orchestrators."""
         return self.execute_hardware_loop(
@@ -518,6 +526,7 @@ class NeuroCyberneticEngine:
             core_hb=core_hb,
             execution_backend=execution_backend,
             pacing_mode=pacing_mode,
+            runtime_admission_policy=runtime_admission_policy,
         )
 
     def execute_hardware_loop(
@@ -535,6 +544,7 @@ class NeuroCyberneticEngine:
         core_hb: int = 4,
         execution_backend: str = "auto",
         pacing_mode: str = "sleep",
+        runtime_admission_policy: str = "warn",
     ) -> dict[str, Any]:
         """Run the Rust-accelerated control loop.
 
@@ -545,6 +555,7 @@ class NeuroCyberneticEngine:
 
         execution_backend = _normalise_execution_backend(execution_backend)
         pacing_mode_value = _normalise_pacing_mode(pacing_mode)
+        runtime_admission_policy = normalise_runtime_admission_policy(runtime_admission_policy)
         if execution_backend == "python" and pacing_mode_value == "spin":
             raise ValueError("spin pacing is only available with the native execution backend")
 
@@ -590,6 +601,16 @@ class NeuroCyberneticEngine:
         native_available = _NATIVE_CONTROLLER_AVAILABLE and _NativeSpikingControllerPool is not None
         if execution_backend == "native" and not native_available:
             raise RuntimeError("SC-NEUROCORE native controller bridge is not available")
+        if execution_backend == "auto" and pacing_mode_value == "spin" and not native_available:
+            raise RuntimeError("spin pacing requires an available native controller bridge")
+
+        self.admit_runtime(
+            execution_backend="native" if execution_backend == "auto" and native_available else execution_backend,
+            pacing_mode=pacing_mode_value,
+            tick_interval_s=tick_interval,
+            native_backend_available=native_available,
+            policy=runtime_admission_policy,
+        )
 
         if execution_backend in {"auto", "native"} and native_available:
             try:
@@ -617,6 +638,52 @@ class NeuroCyberneticEngine:
             tick_interval=tick_interval,
             max_iterations=max_iterations,
         )
+
+    def admit_runtime(
+        self,
+        *,
+        execution_backend: str,
+        pacing_mode: str,
+        tick_interval_s: float,
+        native_backend_available: bool,
+        policy: str = "warn",
+    ) -> dict[str, Any]:
+        """Collect runtime admission evidence and optionally fail closed."""
+
+        policy_value = normalise_runtime_admission_policy(policy)
+        if policy_value == "off":
+            self._last_runtime_admission = skipped_runtime_admission(policy_value)
+            return dict(self._last_runtime_admission)
+
+        require = policy_value == "require"
+        request = RuntimeAdmissionRequest(
+            execution_backend=execution_backend,
+            pacing_mode=pacing_mode,
+            transport_backend=self._transport.backend,
+            formal_mode=self._formal_verification.mode if self._formal_verification.enabled else "disabled",
+            tick_interval_s=tick_interval_s,
+            core_snn=self._execution.core_snn,
+            core_z3=self._execution.core_z3,
+            core_net=self._execution.core_net,
+            core_hb=self._execution.core_hb,
+            heartbeat_port=self._transport.heartbeat_port,
+            native_backend_available=native_backend_available,
+            require_preempt_rt=require,
+            require_realtime_scheduler=require,
+            require_performance_governor=require,
+            require_heartbeat=require,
+        )
+        report = collect_runtime_admission(request)
+        report["policy"] = policy_value
+        self._last_runtime_admission = report
+
+        problems = list(report.get("errors", ())) + list(report.get("warnings", ()))
+        if require and report.get("status") != "pass":
+            detail = "; ".join(str(problem) for problem in problems[:6])
+            raise RuntimeError(f"runtime admission failed: {detail}")
+        if policy_value == "warn" and problems:
+            _LOGGER.warning("Runtime admission is not production-qualified: %s", "; ".join(map(str, problems[:6])))
+        return dict(report)
 
     def _execute_native_handoff(
         self,
@@ -1067,6 +1134,8 @@ class NeuroCyberneticEngine:
             },
             "itpa_profile": self._itpa_constraints,
         }
+        if self._last_runtime_admission is not None:
+            result["runtime_admission"] = dict(self._last_runtime_admission)
 
         if snapshot is not None:
             result["snapshot"] = {

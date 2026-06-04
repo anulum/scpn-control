@@ -83,6 +83,61 @@ impl NativePacingMode {
         }
     }
 }
+
+#[pyfunction]
+#[pyo3(signature = (core_snn, core_z3, core_net, core_hb, tick_interval_s, pacing_mode))]
+fn runtime_admission_snapshot<'py>(
+    py: Python<'py>,
+    core_snn: usize,
+    core_z3: usize,
+    core_net: usize,
+    core_hb: usize,
+    tick_interval_s: f64,
+    pacing_mode: &str,
+) -> PyResult<Bound<'py, PyDict>> {
+    let pacing = NativePacingMode::parse(pacing_mode)
+        .ok_or_else(|| PyValueError::new_err("pacing_mode must be sleep or spin"))?;
+    let requested = vec![core_snn, core_z3, core_net, core_hb];
+    let mut sorted = requested.clone();
+    sorted.sort_unstable();
+    sorted.dedup();
+
+    let kernel_release = std::fs::read_to_string("/proc/sys/kernel/osrelease")
+        .map(|value| value.trim().to_string())
+        .unwrap_or_else(|_| String::from("unknown"));
+    let realtime_sysfs = std::fs::read_to_string("/sys/kernel/realtime")
+        .ok()
+        .map(|value| value.trim() == "1");
+    let release_lc = kernel_release.to_ascii_lowercase();
+    let preempt_rt = realtime_sysfs.unwrap_or(false)
+        || release_lc.contains("preempt_rt")
+        || release_lc.contains("-rt")
+        || release_lc.contains("realtime");
+    let available_parallelism = std::thread::available_parallelism()
+        .map(|value| value.get())
+        .unwrap_or(1);
+    let max_requested_core = requested.iter().copied().max().unwrap_or(0);
+
+    let dict = PyDict::new(py);
+    dict.set_item("schema_version", "scpn-control.runtime-admission-native.v1")?;
+    dict.set_item("kernel_release", kernel_release)?;
+    dict.set_item("realtime_sysfs", realtime_sysfs)?;
+    dict.set_item("preempt_rt", preempt_rt)?;
+    dict.set_item("available_parallelism", available_parallelism)?;
+    dict.set_item("requested_cores", requested)?;
+    dict.set_item("requested_cores_distinct", sorted.len() == 4)?;
+    dict.set_item(
+        "requested_cores_in_range",
+        max_requested_core < available_parallelism,
+    )?;
+    dict.set_item("tick_interval_s", tick_interval_s)?;
+    dict.set_item("pacing_mode", pacing.label())?;
+    dict.set_item(
+        "spin_tick_admissible",
+        pacing != NativePacingMode::Spin || tick_interval_s <= MAX_SPIN_TICK_INTERVAL_S,
+    )?;
+    Ok(dict)
+}
 use control_core::vmec_interface::{self, VmecBoundaryState, VmecFourierMode, VmecSolverConfig};
 use control_core::xpoint;
 use control_math::kuramoto;
@@ -2492,6 +2547,7 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_class::<PyEquilibriumResult>()?;
     m.add_class::<PyUpdeTick>()?;
     m.add_function(wrap_pyfunction!(upde_tick, m)?)?;
+    m.add_function(wrap_pyfunction!(runtime_admission_snapshot, m)?)?;
     m.add_function(wrap_pyfunction!(scpn_dense_activations, m)?)?;
     m.add_function(wrap_pyfunction!(scpn_marking_update, m)?)?;
     m.add_function(wrap_pyfunction!(scpn_sample_firing, m)?)?;

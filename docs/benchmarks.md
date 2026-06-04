@@ -232,6 +232,38 @@ Current outputs include:
 - `snn_us_per_step`
 - `speedup_ratio`
 
+## Runtime admission benchmark
+
+Run this benchmark after changes to `scpn_control.core.runtime_admission`,
+`NeuroCyberneticEngine.execute_hardware_loop(...)`, `run-hardware-campaign`, or
+the PyO3 `runtime_admission_snapshot()` counterpart:
+
+```bash
+taskset -c 4,5,6,7 env PYTHONPATH=src python benchmarks/bench_runtime_admission.py \
+  --iterations 500 \
+  --warmup 50 \
+  --core-snn 4 \
+  --core-z3 5 \
+  --core-net 6 \
+  --core-hb 7 \
+  --json-out validation/reports/runtime_admission_soft_isolated.json \
+  --md-out validation/reports/runtime_admission_soft_isolated.md
+```
+
+This measures launch-time admission overhead only. It is not a control-loop
+hot-path benchmark and does not qualify hard real-time PCS timing by itself. A
+production timing claim still requires `--runtime-admission-policy require`,
+PREEMPT_RT or realtime sysfs evidence, SCHED_FIFO/SCHED_RR execution, requested
+cores inside the process affinity mask, performance CPU governors, adequate
+memory-lock limits, heartbeat configuration, and hard-isolated benchmark
+context.
+
+Current local regression evidence:
+
+| Evidence | Samples | Warmup | Median | p95 | p99 | Admission result |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `validation/reports/runtime_admission_soft_isolated_20260604T132240Z.md` | 500 | 50 | 376.391 us | 551.487 us | 630.043 us | failed strict production admission: no PREEMPT_RT, no SCHED_FIFO/SCHED_RR, non-performance governors |
+
 ## Pulsed-shot MPC adapter regression
 
 Use this benchmark after changes to the pulsed MPC admission boundary:

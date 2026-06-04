@@ -240,6 +240,32 @@ for examples, claim boundaries, and benchmark commands.
 
 ---
 
+## Control — PREEMPT_RT Runtime Admission
+
+`scpn_control.core.runtime_admission` emits a schema-versioned admission report
+before native hardware-campaign execution. It binds the observed Linux kernel,
+PREEMPT_RT evidence, current process affinity, requested execution cores,
+scheduler policy, CPU governors, heartbeat configuration, and memory-lock limits
+to the campaign summary. `run-hardware-campaign --runtime-admission-policy
+require` fails closed before native execution if the host is not
+production-admissible.
+
+The optional PyO3 counterpart `scpn_control_rs.runtime_admission_snapshot()`
+exposes native-side kernel/core parsing when the Rust extension is installed.
+
+Use the dedicated [PREEMPT_RT Runtime Admission](control/runtime_admission.md)
+guide for policy semantics and operator examples.
+
+::: scpn_control.core.runtime_admission.RuntimeAdmissionRequest
+
+::: scpn_control.core.runtime_admission.RuntimeAdmissionProbe
+
+::: scpn_control.core.runtime_admission.collect_runtime_admission
+
+::: scpn_control.core.runtime_admission.evaluate_runtime_admission
+
+---
+
 ## Validation — Benchmark Regression Gates
 
 `validation/validate_benchmark_regression_gates.py` admits persisted benchmark

@@ -1,0 +1,37 @@
+{
+  "context": {
+    "cpu_affinity": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "loadavg": [
+      1.630859375,
+      2.18408203125,
+      2.7978515625
+    ],
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "evidence_class": "local_regression",
+  "generated_utc": "2026-06-04T13:22:41Z",
+  "last_admission_errors": [
+    "PREEMPT_RT kernel evidence is required but was not detected",
+    "real-time scheduler policy required, observed SCHED_OTHER",
+    "performance CPU governor required on cores [4, 5, 6, 7]"
+  ],
+  "last_admission_status": "fail",
+  "last_admission_warnings": [],
+  "production_claim_allowed": false,
+  "schema_version": "scpn-control.runtime-admission-benchmark.v1",
+  "stats": {
+    "max_us": 752.402,
+    "mean_us": 401.112276,
+    "median_us": 376.391,
+    "min_us": 341.969,
+    "p95_us": 551.487,
+    "p99_us": 630.043,
+    "samples": 500
+  }
+}

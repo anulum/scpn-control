@@ -113,6 +113,13 @@ def _emit_campaign_result(summary: dict[str, object], *, json_out: bool) -> None
         native_summary = summary.get("native")
         if isinstance(native_summary, dict):
             click.echo(f"Native summary keys: {sorted(native_summary.keys())}")
+        runtime_admission = summary.get("runtime_admission")
+        if isinstance(runtime_admission, dict):
+            click.echo(
+                "Runtime admission: "
+                f"{runtime_admission.get('status')} "
+                f"production_claim_allowed={runtime_admission.get('production_claim_allowed')}"
+            )
         if summary.get("status") != "normal":
             click.echo(f"Anomaly details: status={summary.get('status')}", err=True)
 
@@ -379,6 +386,12 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
     type=click.Choice(["sleep", "spin"], case_sensitive=False),
     help="Native pacing mode; spin busy-waits instead of yielding to the OS scheduler",
 )
+@click.option(
+    "--runtime-admission-policy",
+    default="warn",
+    type=click.Choice(["off", "warn", "require"], case_sensitive=False),
+    help="PREEMPT_RT/core-affinity admission policy before campaign execution",
+)
 @click.option("--max-publish-failures", default=None, type=int, help="Python fallback publish fail tolerance")
 @click.option(
     "--formal-mode",
@@ -423,6 +436,7 @@ def run_hardware_campaign(
     runtime_s: float | None,
     tick_interval_s: float,
     pacing_mode: str,
+    runtime_admission_policy: str,
     max_publish_failures: int | None,
     formal_mode: str,
     formal_stride: int,
@@ -501,6 +515,7 @@ def run_hardware_campaign(
             core_hb=core_hb,
             execution_backend=execution_backend,
             pacing_mode=pacing_mode,
+            runtime_admission_policy=runtime_admission_policy,
         )
         _emit_campaign_result(summary, json_out=json_out)
     except RuntimeError as exc:

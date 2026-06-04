@@ -37,6 +37,10 @@
   now expose the certificate schema, identifier, contract label, admitted flag,
   and SHA-256 assumption digest, and the formal-mode benchmark summarizes the
   certificate evidence used by each AOT run.
+- Added PREEMPT_RT runtime admission for native hardware campaigns, including
+  Python policy evaluation, PyO3 native snapshot evidence, CLI fail-closed
+  `--runtime-admission-policy require`, public documentation, tests, and local
+  admission benchmark tooling.
 - Added a native formal AOT certificate evidence validator that rejects
   malformed reports, missing or unstable certificate admission, dropped checks,
   formal failures, incomplete generated/submitted/checked coverage, and AOT p99
