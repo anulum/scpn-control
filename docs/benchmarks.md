@@ -334,11 +334,14 @@ taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_pulsed_mpc_adapter.py 
   --md-out validation/reports/pulsed_mpc_adapter_soft_isolated.md
 ```
 
-The report records Python adapter timing for non-burn masking, feasible burn
-admission, and infeasible-bank safe-action replacement. If the optional PyO3
-extension is installed and rebuilt with `PyMpcController.plan_pulsed()`, the
-same report records Rust/PyO3 adapter timing. Reports generated on a loaded
-workstation or with soft affinity only must keep
+The v1.1 report records Python adapter timing for non-burn masking, feasible
+burn admission, and infeasible-bank safe-action replacement. Each case also
+preserves the latest `scpn-control.pulsed-mpc-decision-evidence.v1`
+admission digest, action digest, safe-action digest, and burn-mask digest. If
+the optional PyO3 extension is installed and rebuilt with
+`PyMpcController.plan_pulsed()`, the same report records Rust/PyO3 adapter
+timing and evidence fields. Reports generated on a loaded workstation or with
+soft affinity only must keep
 `production_claim_allowed=false`; they are local regression evidence, not
 target-hardware timing evidence.
 
@@ -358,8 +361,9 @@ cargo run --manifest-path scpn-control-rs/Cargo.toml \
 ```
 
 This example times the Rust `MPController.plan_pulsed()` surface directly and
-writes a separate digest-bound JSON/Markdown report. Use the Python and Rust
-reports together as polyglot regression evidence.
+writes a separate digest-bound JSON/Markdown report whose case payloads include
+the same pulsed-MPC decision evidence fields. Use the Python and Rust reports
+together as polyglot regression evidence.
 
 ## Multi-shot campaign regression
 

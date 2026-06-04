@@ -92,6 +92,12 @@ fn decision_to_json(
             "bank_feasible": decision.bank_feasible,
             "safe_action_applied": decision.safe_action_applied,
             "burn_components_masked": decision.burn_components_masked,
+            "peak_current_A": decision.peak_current_a,
+            "evidence_schema_version": decision.evidence_schema_version,
+            "action_sha256": decision.action_sha256,
+            "safe_action_sha256": decision.safe_action_sha256,
+            "burn_action_mask_sha256": decision.burn_action_mask_sha256,
+            "admission_digest": decision.admission_digest,
         },
     })
 }
@@ -181,7 +187,7 @@ fn main() {
     });
 
     let mut payload = json!({
-        "schema_version": "scpn-control.rust-pulsed-mpc-adapter-benchmark.v1",
+        "schema_version": "scpn-control.rust-pulsed-mpc-adapter-benchmark.v1.1",
         "generated_unix_s": generated_unix_s,
         "command": args.join(" "),
         "evidence_class": "local_regression",

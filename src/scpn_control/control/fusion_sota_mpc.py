@@ -15,6 +15,8 @@ solver, not a neural network despite the class name.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,6 +49,27 @@ logger = logging.getLogger(__name__)
 # --- SOTA PARAMETERS ---
 PREDICTION_HORIZON = 10
 SHOT_LENGTH = 100
+PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION = "scpn-control.pulsed-mpc-decision-evidence.v1"
+
+
+def _float_array_sha256(values: np.ndarray) -> str:
+    arr = np.asarray(values, dtype="<f8").reshape(-1)
+    return hashlib.sha256(arr.tobytes()).hexdigest()
+
+
+def _bool_array_sha256(values: np.ndarray) -> str:
+    arr = np.asarray(values, dtype=np.bool_).reshape(-1).astype(np.uint8, copy=False)
+    return hashlib.sha256(arr.tobytes()).hexdigest()
+
+
+def _evidence_digest(payload: Mapping[str, float | str | bool]) -> str:
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class NeuralSurrogate:
@@ -168,6 +191,11 @@ class PulsedShotMPCDecision:
     safe_action_applied: bool
     burn_components_masked: bool
     peak_current_A: float
+    evidence_schema_version: str
+    action_sha256: str
+    safe_action_sha256: str
+    burn_action_mask_sha256: str
+    admission_digest: str
 
 
 class PulsedShotMPCAdapter:
@@ -270,9 +298,12 @@ class PulsedShotMPCAdapter:
         else:
             bank_reason = "bank guard disabled by policy"
 
-        self._last_decision = PulsedShotMPCDecision(
-            action=action.copy(),
-            mpc_objective=self._objective(state_vec, raw_action, target),
+        mpc_objective = self._objective(state_vec, raw_action, target)
+        evidence = self._decision_evidence(
+            action=action,
+            safe_action=self.safe_action,
+            burn_action_mask=self.burn_action_mask,
+            mpc_objective=mpc_objective,
             constraint_slack=constraint_slack,
             scheduler_state=scheduler_state.value,
             bank_feasibility=bank_reason,
@@ -281,6 +312,24 @@ class PulsedShotMPCAdapter:
             safe_action_applied=safe_action_applied,
             burn_components_masked=burn_components_masked,
             peak_current_A=0.0 if pulse_spec is None else float(pulse_spec.peak_current_A),
+        )
+
+        self._last_decision = PulsedShotMPCDecision(
+            action=action.copy(),
+            mpc_objective=mpc_objective,
+            constraint_slack=constraint_slack,
+            scheduler_state=scheduler_state.value,
+            bank_feasibility=bank_reason,
+            reason=reason,
+            bank_feasible=bool(bank_feasible),
+            safe_action_applied=safe_action_applied,
+            burn_components_masked=burn_components_masked,
+            peak_current_A=0.0 if pulse_spec is None else float(pulse_spec.peak_current_A),
+            evidence_schema_version=str(evidence["schema_version"]),
+            action_sha256=str(evidence["action_sha256"]),
+            safe_action_sha256=str(evidence["safe_action_sha256"]),
+            burn_action_mask_sha256=str(evidence["burn_action_mask_sha256"]),
+            admission_digest=_evidence_digest(evidence),
         )
         return action
 
@@ -299,6 +348,11 @@ class PulsedShotMPCAdapter:
             "safe_action_applied": decision.safe_action_applied,
             "burn_components_masked": decision.burn_components_masked,
             "peak_current_A": decision.peak_current_A,
+            "evidence_schema_version": decision.evidence_schema_version,
+            "action_sha256": decision.action_sha256,
+            "safe_action_sha256": decision.safe_action_sha256,
+            "burn_action_mask_sha256": decision.burn_action_mask_sha256,
+            "admission_digest": decision.admission_digest,
         }
 
     def _scheduler_state(self, context: object | None) -> PulsedScenarioState:
@@ -342,6 +396,44 @@ class PulsedShotMPCAdapter:
         predicted = self.nmpc.model.predict(state, action)
         error = predicted - target
         return float(np.dot(error, error) + self.nmpc.action_regularization * np.dot(action, action))
+
+    def _decision_evidence(
+        self,
+        *,
+        action: np.ndarray,
+        safe_action: np.ndarray,
+        burn_action_mask: np.ndarray,
+        mpc_objective: float,
+        constraint_slack: float,
+        scheduler_state: str,
+        bank_feasibility: str,
+        reason: str,
+        bank_feasible: bool,
+        safe_action_applied: bool,
+        burn_components_masked: bool,
+        peak_current_A: float,
+    ) -> dict[str, float | str | bool]:
+        if not np.isfinite(mpc_objective):
+            raise ValueError("mpc_objective must be finite")
+        if not np.isfinite(constraint_slack):
+            raise ValueError("constraint_slack must be finite")
+        if not np.isfinite(peak_current_A) or peak_current_A < 0.0:
+            raise ValueError("peak_current_A must be finite and non-negative")
+        return {
+            "schema_version": PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
+            "scheduler_state": scheduler_state,
+            "bank_feasibility": bank_feasibility,
+            "reason": reason,
+            "bank_feasible": bool(bank_feasible),
+            "safe_action_applied": bool(safe_action_applied),
+            "burn_components_masked": bool(burn_components_masked),
+            "constraint_slack": float(constraint_slack),
+            "mpc_objective": float(mpc_objective),
+            "peak_current_A": float(peak_current_A),
+            "action_sha256": _float_array_sha256(action),
+            "safe_action_sha256": _float_array_sha256(safe_action),
+            "burn_action_mask_sha256": _bool_array_sha256(burn_action_mask),
+        }
 
 
 def _plot_telemetry(

@@ -220,13 +220,15 @@ The adapter applies three deterministic checks:
 - `burn` state evaluates a `PulseSpec` against `CapacitorBank.feasibility()`
   unless the caller disables that policy.
 - Every step records an explainable decision dictionary with scheduler state,
-  capacitor feasibility text, constraint slack, MPC objective, and whether a
-  safe action was applied.
+  capacitor feasibility text, constraint slack, MPC objective, whether a safe
+  action was applied, and a digest-bound admission evidence payload.
 
 The matching Rust kernel lives in `control_control::mpc::MPController` as
 `plan_pulsed()`. When the optional PyO3 extension is rebuilt,
 `scpn_control_rs.PyMpcController.plan_pulsed()` exposes the same admission
-fields to Python.
+fields to Python, including `evidence_schema_version`, `action_sha256`,
+`safe_action_sha256`, `burn_action_mask_sha256`, `peak_current_A`, and
+`admission_digest`.
 
 Use the dedicated [Pulsed MPC Adapter](control/pulsed_mpc_adapter.md) guide for
 examples, runtime boundaries, and benchmark evidence commands.

@@ -1696,6 +1696,12 @@ impl PyMpcController {
         dict.set_item("bank_feasible", decision.bank_feasible)?;
         dict.set_item("safe_action_applied", decision.safe_action_applied)?;
         dict.set_item("burn_components_masked", decision.burn_components_masked)?;
+        dict.set_item("peak_current_A", decision.peak_current_a)?;
+        dict.set_item("evidence_schema_version", decision.evidence_schema_version)?;
+        dict.set_item("action_sha256", decision.action_sha256)?;
+        dict.set_item("safe_action_sha256", decision.safe_action_sha256)?;
+        dict.set_item("burn_action_mask_sha256", decision.burn_action_mask_sha256)?;
+        dict.set_item("admission_digest", decision.admission_digest)?;
         Ok((decision.action.into_pyarray(py), dict))
     }
 }

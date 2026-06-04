@@ -1986,6 +1986,47 @@
       ],
       "validity_domain": "Phase, replay, and fixed-point export approximations inside local runtime validation only.",
       "external_validation_tracker_issue": 53
+    },
+    {
+      "component": "pulsed-shot MPC admission evidence",
+      "equation_contract": "Pulsed-shot MPC admission claims must bind the first gradient-MPC action to the pulsed lifecycle state, capacitor-bank feasibility result, constraint slack, objective value, burn-action mask, safe action, peak-current estimate, and schema-versioned admission digest before replay or campaign evidence can rely on the command.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Repository pulsed-scenario lifecycle contract",
+        "Repository capacitor-bank RLC admission contract",
+        "Repository gradient MPC admission adapter contract"
+      ],
+      "module_path": "src/scpn_control/control/fusion_sota_mpc.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Attach measured scheduler telemetry, capacitor-bank interlock evidence, and facility pulse-response artefacts before PCS or facility-control claims",
+        "Keep Python, Rust, PyO3, and benchmark decision-evidence fields in parity whenever pulsed-MPC admission changes"
+      ],
+      "unit_contract": "State vectors use the MPC surrogate units declared by the caller; action components and safe-action components share coil/current actuator units; capacitor-bank slack is joules; pulse duration is seconds; peak current is amperes; digests are SHA-256 hex strings.",
+      "validation_evidence": [
+        "tests/test_fusion_sota_mpc_pulsed_adapter.py module-specific Python admission and decision-digest checks",
+        "tests/test_fusion_sota_mpc_pulsed_adapter_rust_parity.py optional PyO3 parity checks for evidence fields",
+        "scpn-control-rs/crates/control-control/tests/pulsed_mpc_adapter.rs native Rust admission and decision-digest checks",
+        "benchmarks/bench_pulsed_mpc_adapter.py local regression benchmark with decision evidence",
+        "scpn-control-rs/crates/control-control/examples/bench_pulsed_mpc_adapter.rs native Rust local regression benchmark with decision evidence"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/fusion_sota_mpc.py",
+        "tests/test_fusion_sota_mpc_pulsed_adapter.py",
+        "tests/test_fusion_sota_mpc_pulsed_adapter_rust_parity.py",
+        "scpn-control-rs/crates/control-control/src/mpc.rs",
+        "scpn-control-rs/crates/control-control/tests/pulsed_mpc_adapter.rs",
+        "scpn-control-rs/crates/control-python/src/lib.rs",
+        "benchmarks/bench_pulsed_mpc_adapter.py",
+        "scpn-control-rs/crates/control-control/examples/bench_pulsed_mpc_adapter.rs",
+        "docs/control/pulsed_mpc_adapter.md",
+        "docs/benchmarks.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/fusion_sota_mpc.py"
+      ],
+      "validity_domain": "Control-boundary admission and digest-bound local evidence only; not a measured capacitor-bank driver, hardware interlock, equilibrium-solver upgrade, or facility PCS validation claim.",
+      "external_validation_tracker_issue": 51
     }
   ],
   "schema_version": "1.0",

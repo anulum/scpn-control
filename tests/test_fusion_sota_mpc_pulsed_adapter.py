@@ -14,6 +14,7 @@ from scpn_control.control.capacitor_bank_state import CapacitorBank, CapacitorBa
 from scpn_control.control.fusion_sota_mpc import (
     ModelPredictiveController,
     NeuralSurrogate,
+    PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
     PulsedShotMPCAdapter,
 )
 from scpn_control.control.pulsed_scenario_scheduler_v2 import (
@@ -120,6 +121,12 @@ def test_explicit_feasible_pulse_is_admitted_during_burn() -> None:
     assert decision["bank_feasible"] is True
     assert decision["safe_action_applied"] is False
     assert decision["mpc_objective"] >= 0.0
+    assert decision["evidence_schema_version"] == PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION
+    assert isinstance(decision["admission_digest"], str)
+    assert len(decision["admission_digest"]) == 64
+    assert len(str(decision["action_sha256"])) == 64
+    assert len(str(decision["safe_action_sha256"])) == 64
+    assert len(str(decision["burn_action_mask_sha256"])) == 64
 
 
 def test_invalid_adapter_shapes_fail_closed() -> None:
@@ -136,3 +143,33 @@ def test_explain_requires_prior_decision() -> None:
 
     with pytest.raises(RuntimeError, match="no pulsed MPC decision"):
         adapter.explain_last_decision()
+
+
+def test_decision_digest_changes_when_admission_state_changes() -> None:
+    adapter = PulsedShotMPCAdapter(
+        _mpc(),
+        _scheduler(PulsedScenarioState.BURN),
+        _bank(initial_voltage_V=10.0, resistance_ohm=0.01),
+        burn_action_mask=np.array([True, False]),
+    )
+
+    adapter.step(
+        np.array([5.0, 1.0]),
+        np.array([6.0, 0.0]),
+        context=PulsedScenarioState.BURN,
+        pulse=PulseSpec(peak_current_A=0.5, duration_s=0.001),
+    )
+    burn_decision = adapter.explain_last_decision()
+
+    adapter.step(
+        np.array([5.0, 1.0]),
+        np.array([6.0, 0.0]),
+        context=PulsedScenarioState.FLAT_TOP,
+    )
+    masked_decision = adapter.explain_last_decision()
+
+    assert burn_decision["evidence_schema_version"] == PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION
+    assert masked_decision["evidence_schema_version"] == PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION
+    assert burn_decision["admission_digest"] != masked_decision["admission_digest"]
+    assert burn_decision["action_sha256"] != masked_decision["action_sha256"]
+    assert masked_decision["burn_components_masked"] is True

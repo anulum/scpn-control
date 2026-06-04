@@ -61,6 +61,8 @@
   and optional PyO3 surfaces, fail-closed scheduler-state admission, capacitor
   feasibility gating, module-specific tests, public documentation, and local
   regression benchmark tooling.
+- Added digest-bound pulsed-MPC admission decision evidence across Python,
+  Rust, PyO3, and benchmark reports.
 - Added total RLC energy-balance reporting to capacitor-bank discharge reports,
   including capacitor/inductor remaining energy, ohmic loss, prescribed-load
   extraction, residual admission, PyO3 fields, dedicated tests, public guide

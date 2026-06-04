@@ -1,0 +1,116 @@
+{
+  "command": "scpn-control-rs/target/release/examples/bench_pulsed_mpc_adapter --steps 2000 --warmup 200 --json-out validation/reports/pulsed_mpc_adapter_decision_evidence_rust_20260604T165651Z.json --md-out validation/reports/pulsed_mpc_adapter_decision_evidence_rust_20260604T165651Z.md",
+  "context": {
+    "current_dir": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL",
+    "target_arch": "x86_64",
+    "target_os": "linux"
+  },
+  "evidence_class": "local_regression",
+  "generated_unix_s": 1780592241,
+  "payload_sha256": "f4a0501aacd12d45acc4cce48b1c8eadb43d674404e58d003a4d495816f17fea",
+  "production_claim_allowed": false,
+  "results": {
+    "rust_burn_feasible": {
+      "last_value": {
+        "action": [
+          0.6158372194324608,
+          -0.6158372194324606
+        ],
+        "decision": {
+          "action_sha256": "cfffb91ee1e5c43b2173c8a4d7b527a3cf0dee3a89ba98de48ecbb029b609384",
+          "admission_digest": "34ab75500b47117d39e6abdf04bcda71c876820ddf8f1077c5ddb989c3198d4a",
+          "bank_feasibility": "ok",
+          "bank_feasible": true,
+          "burn_action_mask_sha256": "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
+          "burn_components_masked": false,
+          "constraint_slack": 12.0,
+          "evidence_schema_version": "scpn-control.pulsed-mpc-decision-evidence.v1",
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.6158372194324608,
+          "reason": "burn action admitted",
+          "safe_action_applied": false,
+          "safe_action_sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "scheduler_state": "burn"
+        }
+      },
+      "stats": {
+        "max_us": 332.442,
+        "mean_us": 45.12883,
+        "median_us": 41.718,
+        "min_us": 36.363,
+        "p95_us": 64.106,
+        "p99_us": 102.958,
+        "samples": 2000
+      }
+    },
+    "rust_burn_infeasible_safe": {
+      "last_value": {
+        "action": [
+          0.0,
+          0.0
+        ],
+        "decision": {
+          "action_sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "admission_digest": "6c62e697693c48364c119c4b60dcbac5ac135696db8f65153e460ecc18d754ae",
+          "bank_feasibility": "bank feasibility rejected burn action",
+          "bank_feasible": false,
+          "burn_action_mask_sha256": "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
+          "burn_components_masked": false,
+          "constraint_slack": -0.5,
+          "evidence_schema_version": "scpn-control.pulsed-mpc-decision-evidence.v1",
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.6158372194324608,
+          "reason": "bank feasibility rejected burn action",
+          "safe_action_applied": true,
+          "safe_action_sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "scheduler_state": "burn"
+        }
+      },
+      "stats": {
+        "max_us": 245.428,
+        "mean_us": 42.1629765,
+        "median_us": 38.995,
+        "min_us": 34.296,
+        "p95_us": 63.912,
+        "p99_us": 91.7,
+        "samples": 2000
+      }
+    },
+    "rust_non_burn_mask": {
+      "last_value": {
+        "action": [
+          0.0,
+          -0.6158372194324606
+        ],
+        "decision": {
+          "action_sha256": "f06e7b4fe60b1514db9599da4d7c251a9b1154d7037166ab6fafce4e234a7876",
+          "admission_digest": "a63d1c283b33d4b8bae35f058daa766ea8d0390826c09da5c2c3d81ed2853a2b",
+          "bank_feasibility": "not evaluated outside burn",
+          "bank_feasible": true,
+          "burn_action_mask_sha256": "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254",
+          "burn_components_masked": true,
+          "constraint_slack": 12.0,
+          "evidence_schema_version": "scpn-control.pulsed-mpc-decision-evidence.v1",
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.6158372194324608,
+          "reason": "scheduler state flat_top masks burn action",
+          "safe_action_applied": false,
+          "safe_action_sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "scheduler_state": "flat_top"
+        }
+      },
+      "stats": {
+        "max_us": 247.654,
+        "mean_us": 43.92227,
+        "median_us": 39.369,
+        "min_us": 34.2,
+        "p95_us": 72.767,
+        "p99_us": 101.519,
+        "samples": 2000
+      }
+    }
+  },
+  "schema_version": "scpn-control.rust-pulsed-mpc-adapter-benchmark.v1.1",
+  "steps": 2000,
+  "warmup": 200
+}

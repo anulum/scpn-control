@@ -1,0 +1,131 @@
+{
+  "command": "benchmarks/bench_pulsed_mpc_adapter.py --steps 2000 --warmup 200 --evidence-class local_regression --json-out validation/reports/pulsed_mpc_adapter_decision_evidence_python_20260604T165651Z.json --md-out validation/reports/pulsed_mpc_adapter_decision_evidence_python_20260604T165651Z.md",
+  "context": {
+    "cpu_affinity": [
+      4,
+      5
+    ],
+    "cwd": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL",
+    "loadavg_end": [
+      2.79248046875,
+      2.859375,
+      3.060546875
+    ],
+    "loadavg_start": [
+      2.65234375,
+      2.8369140625,
+      3.0556640625
+    ],
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]"
+  },
+  "evidence_class": "local_regression",
+  "generated_utc": "2026-06-04T16:56:59Z",
+  "payload_sha256": "c74cea4cad7d204ebcd5f96cec5243421eb1aba168e73e9b4fc205cff95b2019",
+  "production_claim_allowed": false,
+  "pyo3_status": "optional PyO3 extension is installed but was not rebuilt with pulsed decision evidence",
+  "results": {
+    "python_burn_feasible": {
+      "last_value": [
+        [
+          0.6158372194324608,
+          -0.6158372194324606
+        ],
+        {
+          "action_sha256": "cfffb91ee1e5c43b2173c8a4d7b527a3cf0dee3a89ba98de48ecbb029b609384",
+          "admission_digest": "32660be0e2b9b606de4978539261888b94a3ba8596fa719669b5171b1d46729f",
+          "bank_feasibility": "ok",
+          "bank_feasible": true,
+          "burn_action_mask_sha256": "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
+          "burn_components_masked": false,
+          "constraint_slack": 49.99999875,
+          "evidence_schema_version": "scpn-control.pulsed-mpc-decision-evidence.v1",
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.5,
+          "reason": "burn action admitted",
+          "safe_action_applied": false,
+          "safe_action_sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "scheduler_state": "burn"
+        }
+      ],
+      "stats": {
+        "max_us": 2415.058,
+        "mean_us": 955.6216035,
+        "median_us": 913.2275,
+        "min_us": 822.589,
+        "p95_us": 1210.088,
+        "p99_us": 1421.172,
+        "samples": 2000
+      }
+    },
+    "python_burn_infeasible_safe": {
+      "last_value": [
+        [
+          0.0,
+          0.0
+        ],
+        {
+          "action_sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "admission_digest": "aad3e22471db0de45466ff5045663b4394530bf7c769e6b254818e2d17dbfdde",
+          "bank_feasibility": "resistive dissipation 0.19 J exceeds available 0 J",
+          "bank_feasible": false,
+          "burn_action_mask_sha256": "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2",
+          "burn_components_masked": false,
+          "constraint_slack": -0.18962774041915245,
+          "evidence_schema_version": "scpn-control.pulsed-mpc-decision-evidence.v1",
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.6158372194324608,
+          "reason": "bank feasibility rejected burn action: resistive dissipation 0.19 J exceeds available 0 J",
+          "safe_action_applied": true,
+          "safe_action_sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "scheduler_state": "burn"
+        }
+      ],
+      "stats": {
+        "max_us": 2353.859,
+        "mean_us": 1152.562707,
+        "median_us": 1104.886,
+        "min_us": 897.468,
+        "p95_us": 1565.198,
+        "p99_us": 1815.799,
+        "samples": 2000
+      }
+    },
+    "python_non_burn_mask": {
+      "last_value": [
+        [
+          0.0,
+          -0.6158372194324606
+        ],
+        {
+          "action_sha256": "f06e7b4fe60b1514db9599da4d7c251a9b1154d7037166ab6fafce4e234a7876",
+          "admission_digest": "ec19f2d8da1d0d6640715452371f72df5942911728bafaaf5de4688a70053130",
+          "bank_feasibility": "not evaluated outside burn",
+          "bank_feasible": true,
+          "burn_action_mask_sha256": "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254",
+          "burn_components_masked": true,
+          "constraint_slack": 49.99999051861298,
+          "evidence_schema_version": "scpn-control.pulsed-mpc-decision-evidence.v1",
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.6158372194324608,
+          "reason": "scheduler state flat_top masks burn action",
+          "safe_action_applied": false,
+          "safe_action_sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "scheduler_state": "flat_top"
+        }
+      ],
+      "stats": {
+        "max_us": 1617.324,
+        "mean_us": 925.1022879999999,
+        "median_us": 900.629,
+        "min_us": 823.864,
+        "p95_us": 1121.022,
+        "p99_us": 1256.894,
+        "samples": 2000
+      }
+    }
+  },
+  "schema_version": "scpn-control.pulsed-mpc-adapter-benchmark.v1.1",
+  "steps": 2000,
+  "warmup": 200
+}

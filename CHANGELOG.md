@@ -39,6 +39,8 @@
   and optional PyO3 surfaces, fail-closed scheduler-state admission, capacitor
   feasibility gating, module-specific tests, public documentation, and local
   regression benchmark tooling.
+- Added digest-bound pulsed-MPC admission decision evidence across Python,
+  Rust, PyO3, and benchmark reports.
 - Added the CONTROL-owned multi-shot campaign orchestrator with Python, Rust,
   and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
   metadata fields, module-specific tests, public documentation, and local

@@ -12,6 +12,7 @@
 
 use control_types::error::{FusionError, FusionResult};
 use ndarray::{Array1, Array2};
+use sha2::{Digest, Sha256};
 
 /// Prediction horizon. Python: 10.
 const HORIZON: usize = 10;
@@ -27,6 +28,10 @@ const LAMBDA: f64 = 0.1;
 
 /// Action clipping. Python: 2.0.
 const ACTION_CLIP: f64 = 2.0;
+
+/// Schema version for digest-bound pulsed MPC admission evidence.
+pub const PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION: &str =
+    "scpn-control.pulsed-mpc-decision-evidence.v1";
 
 fn ensure_finite_vector(name: &str, values: &Array1<f64>) -> FusionResult<()> {
     if values.iter().any(|v| !v.is_finite()) {
@@ -61,6 +66,87 @@ fn normalise_scheduler_state(value: &str) -> FusionResult<String> {
             "mpc scheduler_state must be one of idle, ramp_up, flat_top, burn, expansion, dump, recharge, cool_down; got {value:?}"
         ))),
     }
+}
+
+fn hash_f64_array(values: &Array1<f64>) -> String {
+    let mut hasher = Sha256::new();
+    for value in values {
+        hasher.update(value.to_le_bytes());
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn hash_bool_mask(values: &[bool]) -> String {
+    let mut hasher = Sha256::new();
+    for value in values {
+        hasher.update([u8::from(*value)]);
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn update_str(hasher: &mut Sha256, name: &str, value: &str) {
+    hasher.update(name.as_bytes());
+    hasher.update([0]);
+    hasher.update(value.as_bytes());
+    hasher.update([255]);
+}
+
+fn update_bool(hasher: &mut Sha256, name: &str, value: bool) {
+    hasher.update(name.as_bytes());
+    hasher.update([0]);
+    hasher.update([u8::from(value)]);
+    hasher.update([255]);
+}
+
+fn update_f64(hasher: &mut Sha256, name: &str, value: f64) {
+    hasher.update(name.as_bytes());
+    hasher.update([0]);
+    hasher.update(value.to_le_bytes());
+    hasher.update([255]);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn decision_evidence_digest(
+    scheduler_state: &str,
+    bank_feasibility: &str,
+    reason: &str,
+    bank_feasible: bool,
+    safe_action_applied: bool,
+    burn_components_masked: bool,
+    constraint_slack: f64,
+    mpc_objective: f64,
+    peak_current_a: f64,
+    action_sha256: &str,
+    safe_action_sha256: &str,
+    burn_action_mask_sha256: &str,
+) -> String {
+    let mut hasher = Sha256::new();
+    update_str(
+        &mut hasher,
+        "schema_version",
+        PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
+    );
+    update_str(&mut hasher, "scheduler_state", scheduler_state);
+    update_str(&mut hasher, "bank_feasibility", bank_feasibility);
+    update_str(&mut hasher, "reason", reason);
+    update_bool(&mut hasher, "bank_feasible", bank_feasible);
+    update_bool(&mut hasher, "safe_action_applied", safe_action_applied);
+    update_bool(
+        &mut hasher,
+        "burn_components_masked",
+        burn_components_masked,
+    );
+    update_f64(&mut hasher, "constraint_slack", constraint_slack);
+    update_f64(&mut hasher, "mpc_objective", mpc_objective);
+    update_f64(&mut hasher, "peak_current_A", peak_current_a);
+    update_str(&mut hasher, "action_sha256", action_sha256);
+    update_str(&mut hasher, "safe_action_sha256", safe_action_sha256);
+    update_str(
+        &mut hasher,
+        "burn_action_mask_sha256",
+        burn_action_mask_sha256,
+    );
+    format!("{:x}", hasher.finalize())
 }
 
 /// Linear surrogate model: x_{t+1} = x_t + B·u_t.
@@ -107,6 +193,12 @@ pub struct PulsedMpcDecision {
     pub bank_feasible: bool,
     pub safe_action_applied: bool,
     pub burn_components_masked: bool,
+    pub peak_current_a: f64,
+    pub evidence_schema_version: &'static str,
+    pub action_sha256: String,
+    pub safe_action_sha256: String,
+    pub burn_action_mask_sha256: String,
+    pub admission_digest: String,
 }
 
 /// Model Predictive Controller.
@@ -333,6 +425,29 @@ impl MPController {
         let predicted = self.model.predict(current_state, &raw_action)?;
         let error = &predicted - &self.target;
         let mpc_objective = error.dot(&error) + raw_action.dot(&raw_action) * LAMBDA;
+        let peak_current_a = burn_action_mask
+            .iter()
+            .enumerate()
+            .filter(|(_, selected)| **selected)
+            .map(|(idx, _)| raw_action[idx].abs())
+            .fold(0.0_f64, f64::max);
+        let action_sha256 = hash_f64_array(&action);
+        let safe_action_sha256 = hash_f64_array(safe_action);
+        let burn_action_mask_sha256 = hash_bool_mask(burn_action_mask);
+        let admission_digest = decision_evidence_digest(
+            &state_label,
+            &bank_reason,
+            &reason,
+            bank_feasible,
+            safe_action_applied,
+            burn_components_masked,
+            constraint_slack,
+            mpc_objective,
+            peak_current_a,
+            &action_sha256,
+            &safe_action_sha256,
+            &burn_action_mask_sha256,
+        );
         Ok(PulsedMpcDecision {
             action,
             mpc_objective,
@@ -343,6 +458,12 @@ impl MPController {
             bank_feasible,
             safe_action_applied,
             burn_components_masked,
+            peak_current_a,
+            evidence_schema_version: PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
+            action_sha256,
+            safe_action_sha256,
+            burn_action_mask_sha256,
+            admission_digest,
         })
     }
 }

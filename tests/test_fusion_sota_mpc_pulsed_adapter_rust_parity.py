@@ -64,6 +64,11 @@ def _rust_mpc() -> object:
     return rust_mpc
 
 
+def _require_pulsed_decision_evidence(decision: dict[str, object]) -> None:
+    if "evidence_schema_version" not in decision:
+        pytest.skip("installed PyO3 extension was not rebuilt with pulsed decision evidence")
+
+
 def test_pyo3_pulsed_mpc_matches_python_non_burn_mask() -> None:
     adapter = _python_adapter()
     state = np.array([5.0, 1.0], dtype=np.float64)
@@ -73,10 +78,14 @@ def test_pyo3_pulsed_mpc_matches_python_non_burn_mask() -> None:
     py_action = adapter.step(state, context=PulsedScenarioState.FLAT_TOP)
     rust_mpc = _rust_mpc()
     rust_action, rust_decision = rust_mpc.plan_pulsed(state, "flat_top", True, mask, safe, 0.0)
+    _require_pulsed_decision_evidence(rust_decision)
 
     assert np.allclose(np.asarray(rust_action), py_action)
     assert rust_decision["burn_components_masked"] is True
     assert rust_decision["scheduler_state"] == "flat_top"
+    assert rust_decision["evidence_schema_version"] == "scpn-control.pulsed-mpc-decision-evidence.v1"
+    assert len(rust_decision["admission_digest"]) == 64
+    assert len(rust_decision["action_sha256"]) == 64
 
 
 def test_pyo3_pulsed_mpc_matches_python_infeasible_bank_safe_action() -> None:
@@ -93,9 +102,12 @@ def test_pyo3_pulsed_mpc_matches_python_infeasible_bank_safe_action() -> None:
         np.zeros(2, dtype=np.float64),
         float(decision["constraint_slack"]),
     )
+    _require_pulsed_decision_evidence(rust_decision)
 
     assert np.array_equal(np.asarray(rust_action), py_action)
     assert rust_decision["safe_action_applied"] is True
+    assert rust_decision["burn_action_mask_sha256"]
+    assert rust_decision["safe_action_sha256"]
 
 
 def test_pyo3_extension_spec_is_available_when_imported() -> None:

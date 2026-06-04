@@ -134,7 +134,7 @@ def _bank(*, initial_voltage_V: float, resistance_ohm: float) -> CapacitorBank:
 
 def _mpc() -> ModelPredictiveController:
     surrogate = NeuralSurrogate(n_coils=2, n_state=2, verbose=False)
-    surrogate.B = np.array([[0.1, 0.0], [0.0, 0.1]], dtype=np.float64)
+    surrogate.B[:, :] = np.array([[0.1, 0.0], [0.0, 0.1]], dtype=np.float64)
     return ModelPredictiveController(surrogate, np.array([6.0, 0.0], dtype=np.float64))
 
 
@@ -194,6 +194,17 @@ def _rust_cases() -> tuple[dict[str, Callable[[], Any]], str | None]:
 
     state = np.array([5.0, 1.0], dtype=np.float64)
     safe = np.zeros(2, dtype=np.float64)
+    _, probe_decision = rust_mpc.plan_pulsed(
+        state,
+        "flat_top",
+        True,
+        np.array([True, False], dtype=bool),
+        safe,
+        12.0,
+    )
+    if "evidence_schema_version" not in probe_decision:
+        return {}, "optional PyO3 extension is installed but was not rebuilt with pulsed decision evidence"
+
     return {
         "pyo3_non_burn_mask": lambda: rust_mpc.plan_pulsed(
             state,
@@ -286,7 +297,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             results[name] = _measure(fn, steps=args.steps, warmup=args.warmup)
 
     payload: dict[str, Any] = {
-        "schema_version": "scpn-control.pulsed-mpc-adapter-benchmark.v1",
+        "schema_version": "scpn-control.pulsed-mpc-adapter-benchmark.v1.1",
         "generated_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "command": " ".join(sys.argv),
         "evidence_class": args.evidence_class,

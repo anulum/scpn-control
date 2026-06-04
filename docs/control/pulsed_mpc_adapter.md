@@ -32,6 +32,9 @@ The adapter executes the same admission sequence for each step:
 5. Reject the burn action if `CapacitorBank.feasibility()` says the bank cannot
    supply the requested pulse.
 6. Persist the decision rationale through `explain_last_decision()`.
+7. Bind the admitted action, safe action, burn-action mask, scheduler state,
+   capacitor feasibility, objective, slack, reason, and peak-current estimate
+   into a SHA-256 admission digest.
 
 The decision record includes:
 
@@ -44,6 +47,11 @@ The decision record includes:
 - `safe_action_applied`
 - `burn_components_masked`
 - `peak_current_A`
+- `evidence_schema_version`
+- `action_sha256`
+- `safe_action_sha256`
+- `burn_action_mask_sha256`
+- `admission_digest`
 
 ## Python use
 
@@ -112,6 +120,12 @@ In this example, the scheduler is in `flat_top`, so the first action component
 is replaced with the safe value and the second component remains available for
 non-burn trim.
 
+`admission_digest` is a tamper-evident digest over schema
+`scpn-control.pulsed-mpc-decision-evidence.v1`. It is intended for replay,
+benchmark, and campaign evidence. It is not a proof that a facility capacitor
+bank can satisfy the pulse; measured hardware interlock evidence still has to be
+attached before facility claims.
+
 ## Rust and PyO3 surfaces
 
 The Rust parity surface lives in `control_control::mpc::MPController`:
@@ -160,10 +174,17 @@ If the local PyO3 wheel was not rebuilt after this API landed, parity tests skip
 the optional extension rather than treating a stale developer environment as a
 runtime contract failure.
 
+The Rust and PyO3 surfaces expose the same evidence field names as Python:
+`evidence_schema_version`, `action_sha256`, `safe_action_sha256`,
+`burn_action_mask_sha256`, `peak_current_A`, and `admission_digest`.
+
 ## Evidence boundary
 
 The adapter is a CONTROL admission primitive. It is not a facility PCS driver,
 capacitor hardware interlock, measured-shot validation result, or new solver.
+The decision digest records the adapter's local admission evidence; it must be
+carried with replay or campaign evidence if downstream systems depend on the
+admitted pulsed-MPC action.
 
 Use local regression benchmarks to catch Python/Rust adapter drift:
 
