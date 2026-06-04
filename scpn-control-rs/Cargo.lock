@@ -1627,6 +1627,7 @@ dependencies = [
  "pyo3",
  "rand 0.9.4",
  "rand_chacha 0.9.0",
+ "sha2",
  "socket2",
  "z3",
 ]

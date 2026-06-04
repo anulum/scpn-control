@@ -33,6 +33,10 @@
   default remains scheduler-yield `sleep` pacing; spin pacing is exposed through
   the Python wrapper, hardware-campaign CLI, native telemetry, and formal-mode
   benchmark script.
+- Added digest-bound AOT certificate admission telemetry. Native formal reports
+  now expose the certificate schema, identifier, contract label, admitted flag,
+  and SHA-256 assumption digest, and the formal-mode benchmark summarizes the
+  certificate evidence used by each AOT run.
 
 ### Changed
 - Added an execution-backend selector to the hardware-campaign CLI and Rust

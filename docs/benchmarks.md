@@ -47,7 +47,13 @@ Three formal-verification execution modes are benchmarkable:
   loop evaluates the admitted Petri invariant directly and does not construct
   Z3 contexts or enqueue proof work in the hot path. The current certificate is
   a sound sufficient condition for the configured bounded contract and fails
-  closed when the state needs full Z3 search to admit.
+  closed when the state needs full Z3 search to admit. Admission is bound to a
+  canonical certificate-assumption payload covering schema version, certificate
+  identifier, Petri topology, maximum marking, maximum depth, and contract
+  semantics. Runtime telemetry exposes `certificate_admitted`,
+  `certificate_schema_version`, `certificate_id`, `certificate_contract`, and
+  `certificate_assumption_sha256` so benchmark artifacts identify the exact
+  admitted monitor used in the hot path.
 
 Use `scripts/benchmark_native_formal_modes.py` to quantify the difference:
 
@@ -61,11 +67,12 @@ PYTHONPATH=src .venv/bin/python scripts/benchmark_native_formal_modes.py \
   --transports std,io-uring
 ```
 
-The report includes generated, submitted, checked, dropped, and failure counts
-plus sync wait timing. A strict certification argument must use `sync_stride`
-as the ground-truth proof engine or `aot_certificate` with matching
-certificate-admission evidence. `async_drop` must be described as asynchronous
-proof sampling.
+The report includes generated, submitted, checked, dropped, failure counts,
+certificate-admission fields, and sync wait timing. A strict certification
+argument must use `sync_stride` as the ground-truth proof engine or
+`aot_certificate` with `certificate_admitted=true` and one stable
+`certificate_assumption_sha256` across the relevant comparison cases.
+`async_drop` must be described as asynchronous proof sampling.
 
 The native fused loop also exposes pacing modes:
 
@@ -107,6 +114,9 @@ failures. For formal-runtime evidence, inspect `native.formal_verification` in
 the returned campaign summary. The expected backend is `rust-z3`, and any
 nonzero `failures` count means the fused loop tripped the fail-closed formal
 contract instead of continuing under Python control-plane intervention.
+For AOT certificate runs, the expected backend is `compiled-certificate`; strict
+release evidence must include the schema, certificate identifier, contract label,
+and full SHA-256 assumption digest.
 
 This benchmark isolates execution ownership. Use the transport-specific Rust
 benchmark and UDP fault-tolerance benchmark for `std` versus `io-uring`

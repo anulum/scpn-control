@@ -12,12 +12,17 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender, TrySendError};
+use sha2::{Digest, Sha256};
 use z3::ast::{Bool, Int};
 use z3::{SatResult, Solver};
 
 const NUM_PLACES: usize = 4;
 const NUM_TRANSITIONS: usize = 3;
 const RECV_TIMEOUT_MS: u64 = 10;
+const AOT_CERTIFICATE_SCHEMA_VERSION: &str = "scpn-control.native-formal.aot-certificate.v1";
+const AOT_CERTIFICATE_ID: &str = "bounded-petri-marking-sufficient-invariant";
+const AOT_CERTIFICATE_CONTRACT: &str =
+    "non_negative_markings_and_bounded_core_total_imply_depth_bounded_marking_safety";
 
 const W_IN: [[i64; NUM_PLACES]; NUM_TRANSITIONS] = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]];
 
@@ -128,6 +133,11 @@ pub(crate) struct NativeFormalReport {
     pub(crate) sync_wait_p95_ns: u64,
     pub(crate) sync_wait_p99_ns: u64,
     pub(crate) sync_wait_max_ns: u64,
+    pub(crate) certificate_admitted: bool,
+    pub(crate) certificate_schema_version: String,
+    pub(crate) certificate_id: String,
+    pub(crate) certificate_contract: String,
+    pub(crate) certificate_assumption_sha256: String,
 }
 
 impl Default for NativeFormalReport {
@@ -155,6 +165,11 @@ impl NativeFormalReport {
             sync_wait_p95_ns: 0,
             sync_wait_p99_ns: 0,
             sync_wait_max_ns: 0,
+            certificate_admitted: false,
+            certificate_schema_version: String::new(),
+            certificate_id: String::new(),
+            certificate_contract: String::new(),
+            certificate_assumption_sha256: String::new(),
         }
     }
 
@@ -229,10 +244,10 @@ impl NativeFormalRuntime {
         let sync_wait_max_ns = Arc::new(AtomicU64::new(0));
         let sync_wait_samples = Arc::new(Mutex::new(Vec::new()));
         let certificate_monitor = if config.mode == NativeFormalMode::AotCertificate {
-            Some(CompiledCertificateMonitor::new(
+            Some(CompiledCertificateMonitor::admit(
                 config.max_marking,
                 config.max_depth,
-            ))
+            )?)
         } else {
             None
         };
@@ -359,6 +374,10 @@ impl NativeFormalRuntime {
             Err(_) => Vec::new(),
         };
         let wait_count = samples.len() as u64;
+        let certificate_admission = self
+            .certificate_monitor
+            .as_ref()
+            .map(|monitor| &monitor.admission);
         NativeFormalReport {
             mode_code: self.mode.code(),
             generated: self.generated.load(Ordering::Relaxed),
@@ -376,6 +395,18 @@ impl NativeFormalRuntime {
             sync_wait_p95_ns: percentile_from_samples(&samples, 95),
             sync_wait_p99_ns: percentile_from_samples(&samples, 99),
             sync_wait_max_ns: self.sync_wait_max_ns.load(Ordering::Relaxed),
+            certificate_admitted: certificate_admission.is_some(),
+            certificate_schema_version: certificate_admission
+                .map_or_else(String::new, |admission| {
+                    admission.schema_version.to_string()
+                }),
+            certificate_id: certificate_admission.map_or_else(String::new, |admission| {
+                admission.certificate_id.to_string()
+            }),
+            certificate_contract: certificate_admission
+                .map_or_else(String::new, |admission| admission.contract.to_string()),
+            certificate_assumption_sha256: certificate_admission
+                .map_or_else(String::new, |admission| admission.assumption_sha256.clone()),
         }
     }
 
@@ -497,23 +528,109 @@ enum VerificationOutcome {
     Unknown,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
+struct CertificateAdmission {
+    schema_version: &'static str,
+    certificate_id: &'static str,
+    contract: &'static str,
+    assumption_sha256: String,
+}
+
+impl CertificateAdmission {
+    fn new(max_marking: i64, max_depth: usize) -> std::io::Result<Self> {
+        if max_marking <= 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "AOT certificate admission requires a positive max_marking",
+            ));
+        }
+        let bounded_depth = i64::try_from(max_depth).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "AOT certificate admission requires max_depth to fit in i64",
+            )
+        })?;
+        if bounded_depth <= 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "AOT certificate admission requires a positive max_depth",
+            ));
+        }
+
+        let payload = build_certificate_assumption_payload(max_marking, bounded_depth);
+        Ok(Self {
+            schema_version: AOT_CERTIFICATE_SCHEMA_VERSION,
+            certificate_id: AOT_CERTIFICATE_ID,
+            contract: AOT_CERTIFICATE_CONTRACT,
+            assumption_sha256: sha256_hex(payload.as_bytes()),
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
 struct CompiledCertificateMonitor {
     max_marking: i64,
     max_depth: i64,
+    admission: CertificateAdmission,
 }
 
 impl CompiledCertificateMonitor {
-    fn new(max_marking: i64, max_depth: usize) -> Self {
-        Self {
+    fn admit(max_marking: i64, max_depth: usize) -> std::io::Result<Self> {
+        let admission = CertificateAdmission::new(max_marking, max_depth)?;
+        let bounded_depth = i64::try_from(max_depth).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "AOT certificate max_depth must fit in i64",
+            )
+        })?;
+        Ok(Self {
             max_marking,
-            max_depth: max_depth.min(i64::MAX as usize) as i64,
-        }
+            max_depth: bounded_depth,
+            admission,
+        })
     }
 
     fn evaluate(&self, snapshot: &PetriNetSnapshot) -> VerificationOutcome {
         verify_snapshot_with_compiled_certificate(snapshot, self.max_marking, self.max_depth)
     }
+}
+
+fn build_certificate_assumption_payload(max_marking: i64, max_depth: i64) -> String {
+    [
+        format!("schema_version={AOT_CERTIFICATE_SCHEMA_VERSION}"),
+        format!("certificate_id={AOT_CERTIFICATE_ID}"),
+        format!("contract={AOT_CERTIFICATE_CONTRACT}"),
+        format!("num_places={NUM_PLACES}"),
+        format!("num_transitions={NUM_TRANSITIONS}"),
+        format!("max_marking={max_marking}"),
+        format!("max_depth={max_depth}"),
+        format!("w_in={}", matrix_to_canonical(&W_IN)),
+        format!("w_out={}", matrix_to_canonical(&W_OUT)),
+        String::new(),
+    ]
+    .join("\n")
+}
+
+fn matrix_to_canonical<const R: usize, const C: usize>(matrix: &[[i64; C]; R]) -> String {
+    matrix
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(i64::to_string)
+                .collect::<Vec<String>>()
+                .join(",")
+        })
+        .collect::<Vec<String>>()
+        .join(";")
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    let mut encoded = String::with_capacity(64);
+    for byte in digest {
+        encoded.push_str(&format!("{byte:02x}"));
+    }
+    encoded
 }
 
 fn verify_snapshot_with_compiled_certificate(
@@ -834,11 +951,44 @@ mod tests {
         let report = runtime.shutdown();
         assert_eq!(report.mode_label(), "aot_certificate");
         assert_eq!(report.backend_label(), "compiled-certificate");
+        assert!(report.certificate_admitted);
+        assert_eq!(
+            report.certificate_schema_version,
+            AOT_CERTIFICATE_SCHEMA_VERSION
+        );
+        assert_eq!(report.certificate_id, AOT_CERTIFICATE_ID);
+        assert_eq!(report.certificate_contract, AOT_CERTIFICATE_CONTRACT);
+        assert_eq!(report.certificate_assumption_sha256.len(), 64);
         assert_eq!(report.generated, 1);
         assert_eq!(report.submitted, 1);
         assert_eq!(report.checked, 1);
         assert_eq!(report.dropped, 0);
         assert_eq!(report.failures, 0);
         assert_eq!(report.sync_wait_count, 0);
+    }
+
+    #[test]
+    fn aot_certificate_admission_digest_binds_assumptions() {
+        let baseline = CompiledCertificateMonitor::admit(10, 4)
+            .expect("valid certificate assumptions should admit");
+        let changed_marking = CompiledCertificateMonitor::admit(11, 4)
+            .expect("valid certificate assumptions should admit");
+        let changed_depth = CompiledCertificateMonitor::admit(10, 5)
+            .expect("valid certificate assumptions should admit");
+
+        assert_eq!(baseline.admission.assumption_sha256.len(), 64);
+        assert!(baseline
+            .admission
+            .assumption_sha256
+            .chars()
+            .all(|ch| ch.is_ascii_hexdigit()));
+        assert_ne!(
+            baseline.admission.assumption_sha256,
+            changed_marking.admission.assumption_sha256
+        );
+        assert_ne!(
+            baseline.admission.assumption_sha256,
+            changed_depth.admission.assumption_sha256
+        );
     }
 }

@@ -1024,6 +1024,28 @@ impl PySpikingControllerPool {
         formal.set_item("sync_wait_p95_ns", self.formal_last_report.sync_wait_p95_ns)?;
         formal.set_item("sync_wait_p99_ns", self.formal_last_report.sync_wait_p99_ns)?;
         formal.set_item("sync_wait_max_ns", self.formal_last_report.sync_wait_max_ns)?;
+        formal.set_item(
+            "certificate_admitted",
+            self.formal_last_report.certificate_admitted,
+        )?;
+        formal.set_item(
+            "certificate_schema_version",
+            self.formal_last_report.certificate_schema_version.as_str(),
+        )?;
+        formal.set_item(
+            "certificate_id",
+            self.formal_last_report.certificate_id.as_str(),
+        )?;
+        formal.set_item(
+            "certificate_contract",
+            self.formal_last_report.certificate_contract.as_str(),
+        )?;
+        formal.set_item(
+            "certificate_assumption_sha256",
+            self.formal_last_report
+                .certificate_assumption_sha256
+                .as_str(),
+        )?;
         dict.set_item("formal_verification", formal)?;
         Ok(dict)
     }

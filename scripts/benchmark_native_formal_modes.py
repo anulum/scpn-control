@@ -160,6 +160,15 @@ def _formal(summary: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def _formal_string_set(rows: list[dict[str, Any]], key: str) -> list[str]:
+    values: set[str] = set()
+    for row in rows:
+        value = _formal(row).get(key)
+        if isinstance(value, str) and value:
+            values.add(value)
+    return sorted(values)
+
+
 def _run_case(
     args: argparse.Namespace,
     *,
@@ -255,6 +264,12 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "formal_checked_total": sum(int(_formal(row).get("checked", 0)) for row in rows),
         "formal_dropped_total": sum(int(_formal(row).get("dropped", 0)) for row in rows),
         "formal_failures_total": sum(int(_formal(row).get("failures", 0)) for row in rows),
+        "certificate_admitted_total": sum(
+            1 for row in rows if bool(_formal(row).get("certificate_admitted", False))
+        ),
+        "certificate_schema_versions": _formal_string_set(rows, "certificate_schema_version"),
+        "certificate_ids": _formal_string_set(rows, "certificate_id"),
+        "certificate_assumption_sha256_values": _formal_string_set(rows, "certificate_assumption_sha256"),
         "sync_wait_count_total": sum(int(_formal(row).get("sync_wait_count", 0)) for row in rows),
         "sync_wait_p99_ns_max": max((int(_formal(row).get("sync_wait_p99_ns", 0)) for row in rows), default=0),
         "drops_total": sum(int(row.get("dropped", 0)) for row in rows),
@@ -294,13 +309,15 @@ def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
         "",
         payload["classification"],
         "",
-        "| Case | Runs | p50 cycle us | p99 cycle us | p99 headroom % | Generated | Submitted | Checked | Dropped | Failures | Sync waits | Max sync p99 ns |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Case | Runs | p50 cycle us | p99 cycle us | p99 headroom % | Generated | Submitted | Checked | Dropped | Failures | Certificate admitted | Certificate SHA-256 | Sync waits | Max sync p99 ns |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |",
     ]
     for name, summary in payload["summaries"].items():
+        certificate_digest = ", ".join(summary["certificate_assumption_sha256_values"]) or "-"
         lines.append(
             "| {name} | {runs} | {p50:.6f} | {p99:.6f} | {headroom:.3f} | "
-            "{generated} | {submitted} | {checked} | {dropped} | {failures} | {waits} | {wait_p99} |".format(
+            "{generated} | {submitted} | {checked} | {dropped} | {failures} | "
+            "{cert_admitted} | {cert_digest} | {waits} | {wait_p99} |".format(
                 name=name,
                 runs=summary["runs"],
                 p50=summary["avg_cycle_us"]["p50"],
@@ -311,6 +328,8 @@ def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
                 checked=summary["formal_checked_total"],
                 dropped=summary["formal_dropped_total"],
                 failures=summary["formal_failures_total"],
+                cert_admitted=summary["certificate_admitted_total"],
+                cert_digest=certificate_digest,
                 waits=summary["sync_wait_count_total"],
                 wait_p99=summary["sync_wait_p99_ns_max"],
             )
@@ -404,6 +423,8 @@ def main() -> int:
             "async_drop deliberately drops saturated snapshots and is not strict proof coverage.",
             "sync_stride blocks on designated stride steps and exposes sync wait telemetry.",
             "aot_certificate is a compiled sufficient certificate monitor; it is not a live SMT solver.",
+            "aot_certificate strict evidence requires certificate_admitted=true and one stable "
+            "certificate_assumption_sha256.",
             "spin pacing busy-waits on a native core and should only be used for short timing experiments.",
         ],
         "summaries": summaries,
