@@ -25,6 +25,7 @@ pub mod particles;
 pub mod pedestal;
 pub mod rf_heating;
 pub mod source;
+pub mod spike_buffer;
 pub mod stability;
 pub mod transport;
 pub mod vacuum;

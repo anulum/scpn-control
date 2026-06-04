@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 use formal_worker::{
     NativeFormalConfig, NativeFormalMode, NativeFormalReport, NativeFormalRuntime, PetriNetSnapshot,
 };
+use spike_buffer::register_spike_buffer;
 use transport_bridge::PyUdpTransportBridge;
 
 use control_control::analytic;
@@ -87,6 +88,7 @@ use control_types::state::Grid2D;
 
 mod formal_worker;
 mod slab;
+mod spike_buffer;
 mod transport_bridge;
 
 // ─── Equilibrium solver ───
@@ -2341,6 +2343,7 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_function(wrap_pyfunction!(kuramoto_run_lyapunov, m)?)?;
     m.add_function(wrap_pyfunction!(py_multigrid_solve, m)?)?;
     m.add_class::<PyUdpTransportBridge>()?;
+    register_spike_buffer(m)?;
     Ok(())
 }
 

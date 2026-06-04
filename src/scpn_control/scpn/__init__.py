@@ -74,6 +74,16 @@ from scpn_control.scpn.lean_verification import (
     validate_required_contract_theorem_coverage,
     write_lean_formal_report,
 )
+from scpn_control.scpn.observation import (
+    AERControlObservation,
+    DecodeStrategy,
+    FeatureNormalisation,
+    SpikeBuffer,
+    SpikeEvent,
+    decode_isi,
+    decode_rate,
+    decode_temporal,
+)
 from scpn_control.scpn.fpga_export import (
     FPGAConfig,
     HDLExportEvidence,
@@ -145,6 +155,14 @@ __all__ = [
     "ControlScales",
     "extract_features",
     "decode_actions",
+    "AERControlObservation",
+    "DecodeStrategy",
+    "FeatureNormalisation",
+    "SpikeBuffer",
+    "SpikeEvent",
+    "decode_rate",
+    "decode_temporal",
+    "decode_isi",
     "MagneticConfiguration",
     "ActuatorChannel",
     "ActuatorSet",

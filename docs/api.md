@@ -33,6 +33,34 @@ scpn_control.PhysicsDebugAssistant
 
 ---
 
+## SCPN — AER Control Observation
+
+`scpn_control.scpn.observation` adapts asynchronous Address-Event
+Representation spike streams into bounded controller features without changing
+the existing `ControlObservation` consumers. The Python surface provides
+`SpikeEvent`, `SpikeBuffer`, rate/temporal/ISI decoders, and
+`AERControlObservation.to_features()`. The matching Rust implementation lives in
+`control_core::spike_buffer`, with optional PyO3 bindings exposed as
+`scpn_control_rs.PySpikeBuffer` and `scpn_control_rs.aer_decode_*`.
+
+This is an ingress adapter and feature-decoding contract. It does not claim
+hardware AER signal integrity, target neuromorphic-device deployment, FPGA
+timing closure, or PCS admission without separate hardware evidence.
+
+::: scpn_control.scpn.observation.SpikeEvent
+
+::: scpn_control.scpn.observation.SpikeBuffer
+
+::: scpn_control.scpn.observation.AERControlObservation
+
+::: scpn_control.scpn.observation.decode_rate
+
+::: scpn_control.scpn.observation.decode_temporal
+
+::: scpn_control.scpn.observation.decode_isi
+
+---
+
 ## Control — Pulsed Scenario Scheduler v2
 
 `scpn_control.control.pulsed_scenario_scheduler_v2` owns the reusable
