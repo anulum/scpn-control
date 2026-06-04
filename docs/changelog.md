@@ -1,10 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: Release changelog. -->
+<!-- SCPN Control — Release changelog. -->
 
 # Changelog
 
@@ -47,6 +47,14 @@
 - Added benchmark-context admission for native formal AOT certificate reports
   so non-isolated workstation timings remain local-regression evidence and
   production benchmark evidence requires explicit CPU/core isolation metadata.
+- Added the CONTROL-owned pulsed-shot MPC admission adapter with Python, Rust,
+  and optional PyO3 surfaces, fail-closed scheduler-state admission, capacitor
+  feasibility gating, module-specific tests, public documentation, and local
+  regression benchmark tooling.
+- Added the CONTROL-owned multi-shot campaign orchestrator with Python, Rust,
+  and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
+  metadata fields, module-specific tests, public documentation, and local
+  regression benchmark tooling.
 
 ### Changed
 - Added an execution-backend selector to the hardware-campaign CLI and Rust

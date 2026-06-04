@@ -37,6 +37,11 @@ use control_control::capacitor_bank::{
 use control_control::digital_twin::Plasma2D;
 use control_control::h_infinity::HInfController;
 use control_control::mpc::{MPController, NeuralSurrogate};
+use control_control::multi_shot_campaign::{
+    CampaignShotPlan as ControlCampaignShotPlan, CampaignShotSample as ControlCampaignShotSample,
+    MultiShotCampaignOrchestrator as ControlMultiShotCampaignOrchestrator,
+    MultiShotCampaignReport as ControlMultiShotCampaignReport,
+};
 use control_control::pulsed_scenario::{
     CapacitorBankTelemetry as ControlCapacitorBankTelemetry,
     PulsedPlasmaTelemetry as ControlPulsedPlasmaTelemetry,
@@ -1620,6 +1625,148 @@ impl PyMpcController {
     }
 }
 
+#[pyclass(name = "PyMultiShotCampaignOrchestrator")]
+struct PyMultiShotCampaignOrchestrator {
+    inner: ControlMultiShotCampaignOrchestrator,
+}
+
+#[pymethods]
+impl PyMultiShotCampaignOrchestrator {
+    #[new]
+    fn new(
+        campaign_id: &str,
+        scheduler_spec: &PyPulsedScenarioSpec,
+        bank_spec: &PyCapacitorBankSpecModel,
+        require_complete_lifecycle: bool,
+    ) -> PyResult<Self> {
+        let inner = ControlMultiShotCampaignOrchestrator::new(
+            campaign_id,
+            scheduler_spec.inner,
+            bank_spec.inner,
+            require_complete_lifecycle,
+        )
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok(Self { inner })
+    }
+
+    fn run_table<'py>(
+        &self,
+        py: Python<'py>,
+        shot_ids: Vec<String>,
+        sample_shot_index: PyReadonlyArray1<'py, usize>,
+        sample_t_s: PyReadonlyArray1<'py, f64>,
+        plasma: PyReadonlyArray2<'py, f64>,
+        bank: PyReadonlyArray2<'py, f64>,
+        initial_bank_voltage_v: PyReadonlyArray1<'py, f64>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let indices = sample_shot_index.as_slice()?;
+        let times = sample_t_s.as_slice()?;
+        let initial_voltages = initial_bank_voltage_v.as_slice()?;
+        let plasma_view = plasma.as_array();
+        let bank_view = bank.as_array();
+        if shot_ids.is_empty() {
+            return Err(PyValueError::new_err("shot_ids must not be empty"));
+        }
+        if initial_voltages.len() != shot_ids.len() {
+            return Err(PyValueError::new_err(
+                "initial_bank_voltage_v length must equal shot_ids length",
+            ));
+        }
+        if indices.len() != times.len()
+            || plasma_view.nrows() != times.len()
+            || bank_view.nrows() != times.len()
+            || plasma_view.ncols() != 6
+            || bank_view.ncols() != 3
+        {
+            return Err(PyValueError::new_err(
+                "sample arrays must have matching rows; plasma must be N x 6 and bank N x 3",
+            ));
+        }
+        let mut grouped: Vec<Vec<ControlCampaignShotSample>> = vec![Vec::new(); shot_ids.len()];
+        for row in 0..times.len() {
+            let shot_index = indices[row];
+            if shot_index >= shot_ids.len() {
+                return Err(PyValueError::new_err(
+                    "sample_shot_index entry out of range",
+                ));
+            }
+            let plasma_row = plasma_view.row(row);
+            let bank_row = bank_view.row(row);
+            let plasma_sample = ControlPulsedPlasmaTelemetry::new(
+                plasma_row[0],
+                plasma_row[1],
+                plasma_row[2],
+                plasma_row[3],
+                plasma_row[4],
+                plasma_row[5],
+            )
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            let bank_sample =
+                ControlCapacitorBankTelemetry::new(bank_row[0], bank_row[1], bank_row[2])
+                    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            grouped[shot_index].push(
+                ControlCampaignShotSample::new(times[row], plasma_sample, bank_sample)
+                    .map_err(|e| PyValueError::new_err(e.to_string()))?,
+            );
+        }
+        let mut shots = Vec::with_capacity(shot_ids.len());
+        for (idx, shot_id) in shot_ids.iter().enumerate() {
+            shots.push(
+                ControlCampaignShotPlan::new(
+                    shot_id,
+                    grouped[idx].clone(),
+                    initial_voltages[idx],
+                    0.0,
+                )
+                .map_err(|e| PyValueError::new_err(e.to_string()))?,
+            );
+        }
+        let report = self
+            .inner
+            .run(&shots)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        multi_shot_report_to_dict(py, &report)
+    }
+}
+
+fn multi_shot_report_to_dict<'py>(
+    py: Python<'py>,
+    report: &ControlMultiShotCampaignReport,
+) -> PyResult<Bound<'py, PyDict>> {
+    let dict = PyDict::new(py);
+    dict.set_item("schema_version", report.schema_version.as_str())?;
+    dict.set_item("campaign_id", report.campaign_id.as_str())?;
+    dict.set_item("shot_count", report.shot_count)?;
+    dict.set_item("passed_count", report.passed_count)?;
+    dict.set_item("failed_count", report.failed_count)?;
+    dict.set_item(
+        "require_complete_lifecycle",
+        report.require_complete_lifecycle,
+    )?;
+    dict.set_item(
+        "expected_transition_states",
+        report.expected_transition_states.clone(),
+    )?;
+    let shots = PyList::empty(py);
+    for shot in &report.shots {
+        let shot_dict = PyDict::new(py);
+        shot_dict.set_item("shot_id", shot.shot_id.as_str())?;
+        shot_dict.set_item("pulse_id", shot.pulse_id.as_str())?;
+        shot_dict.set_item("passed", shot.passed)?;
+        shot_dict.set_item("failure_reason", shot.failure_reason.clone())?;
+        shot_dict.set_item("terminal_state", shot.terminal_state.as_str())?;
+        shot_dict.set_item("transition_states", shot.transition_states.clone())?;
+        shot_dict.set_item("capacitor_state_initial_J", shot.capacitor_state_initial_j)?;
+        shot_dict.set_item("capacitor_state_final_J", shot.capacitor_state_final_j)?;
+        shot_dict.set_item("energy_recovered_J", shot.energy_recovered_j)?;
+        shot_dict.set_item("trigger_timestamp_ns", shot.trigger_timestamp_ns)?;
+        shots.append(shot_dict)?;
+    }
+    dict.set_item("shots", shots)?;
+    dict.set_item("payload_sha256", report.payload_sha256.as_str())?;
+    Ok(dict)
+}
+
 #[pyclass]
 struct PyPlasma2D {
     inner: Plasma2D,
@@ -2361,6 +2508,7 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_function(wrap_pyfunction!(capacitor_bank_free_response, m)?)?;
     m.add_class::<PySpikingControllerPool>()?;
     m.add_class::<PyMpcController>()?;
+    m.add_class::<PyMultiShotCampaignOrchestrator>()?;
     m.add_class::<PyPlasma2D>()?;
     m.add_class::<PyRealtimeMonitor>()?;
     m.add_class::<PyTransportSolver>()?;

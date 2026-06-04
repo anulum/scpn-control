@@ -212,6 +212,34 @@ examples, runtime boundaries, and benchmark evidence commands.
 
 ---
 
+## Control — Multi-Shot Campaign Orchestrator
+
+`scpn_control.control.multi_shot_campaign` runs repeated pulsed-shot admission
+over the scheduler, capacitor-bank telemetry, and replay v1.1 metadata
+contracts. It accepts explicit shot telemetry, records command and transition
+logs, requires the canonical pulsed lifecycle by default, and emits a
+digest-bound campaign report.
+
+The matching Rust kernel lives in `control_control::multi_shot_campaign`. When
+the optional PyO3 extension is rebuilt,
+`scpn_control_rs.PyMultiShotCampaignOrchestrator.run_table()` exposes the Rust
+surface through table-shaped NumPy inputs.
+
+Use the dedicated [Multi-Shot Campaign](control/multi_shot_campaign.md) guide
+for examples, claim boundaries, and benchmark commands.
+
+::: scpn_control.control.multi_shot_campaign.CampaignShotSample
+
+::: scpn_control.control.multi_shot_campaign.CampaignShotPlan
+
+::: scpn_control.control.multi_shot_campaign.CampaignCommandLog
+
+::: scpn_control.control.multi_shot_campaign.CampaignShotResult
+
+::: scpn_control.control.multi_shot_campaign.MultiShotCampaignOrchestrator
+
+---
+
 ## Validation — Benchmark Regression Gates
 
 `validation/validate_benchmark_regression_gates.py` admits persisted benchmark

@@ -25,11 +25,11 @@ ndarray = { workspace = true }
 ndarray-linalg = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
+sha2 = "0.10"
 
 [dev-dependencies]
 criterion = { workspace = true }
 serde_json = { workspace = true }
-sha2 = "0.10"
 
 [[bench]]
 name = "bench_lif"

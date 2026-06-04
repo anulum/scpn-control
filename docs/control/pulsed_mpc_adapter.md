@@ -69,7 +69,21 @@ surrogate = NeuralSurrogate(n_coils=2, n_state=2, verbose=False)
 surrogate.B = np.array([[0.1, 0.0], [0.0, 0.1]], dtype=np.float64)
 mpc = ModelPredictiveController(surrogate, np.array([6.0, 0.0]))
 
-scheduler = PulsedScenarioScheduler(PulsedScenarioSpec())
+scheduler = PulsedScenarioScheduler(
+    PulsedScenarioSpec(
+        min_precharge_energy_J=5.0,
+        ramp_current_A=10.0,
+        phase_tolerance_rad=0.1,
+        spatial_tolerance_m=0.01,
+        burn_temperature_eV=100.0,
+        min_fusion_power_W=50.0,
+        expansion_velocity_m_s=5.0,
+        dump_energy_floor_J=0.5,
+        recharge_voltage_fraction=0.8,
+        cooldown_temperature_eV=10.0,
+        cooldown_current_A=1.0,
+    )
+)
 scheduler.state = PulsedScenarioState.FLAT_TOP
 
 bank = CapacitorBank(
