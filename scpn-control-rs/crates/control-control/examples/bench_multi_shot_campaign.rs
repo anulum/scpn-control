@@ -35,6 +35,31 @@ fn parse_path(args: &[String], name: &str) -> Option<PathBuf> {
     arg_value(args, name).map(PathBuf::from)
 }
 
+fn read_trimmed(path: &str) -> Option<String> {
+    fs::read_to_string(path)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn cpu_affinity() -> String {
+    fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|status| {
+            status.lines().find_map(|line| {
+                line.strip_prefix("Cpus_allowed_list:")
+                    .map(str::trim)
+                    .map(str::to_string)
+                    .filter(|value| !value.is_empty())
+            })
+        })
+        .unwrap_or_else(|| "unavailable".to_string())
+}
+
+fn loadavg() -> String {
+    read_trimmed("/proc/loadavg").unwrap_or_else(|| "unavailable".to_string())
+}
+
 fn scheduler_spec() -> PulsedScenarioSpec {
     PulsedScenarioSpec::new(
         100.0, 2.0e6, 0.01, 0.002, 1.0e3, 2.0e6, 1.0e3, 40.0, 0.95, 20.0, 1.0e3, 0.0,
@@ -166,6 +191,7 @@ fn write_markdown(path: &PathBuf, payload: &Value) {
         fs::create_dir_all(parent).expect("create report directory");
     }
     let stats = &payload["result"]["stats"];
+    let context = &payload["context"];
     let body = format!(
         "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->\n\
 <!-- Commercial license available -->\n\
@@ -178,12 +204,17 @@ fn write_markdown(path: &PathBuf, payload: &Value) {
 | Samples | Mean us | Median us | p95 us | p99 us |\n\
 |---:|---:|---:|---:|---:|\n\
 | {} | {:.6} | {:.6} | {:.6} | {:.6} |\n\n\
+Context: CPU affinity `{}`, isolation `{}`, loadavg `{}` -> `{}`.\n\n\
 Payload SHA-256: `{}`\n",
         stats["samples"].as_u64().unwrap(),
         stats["mean_us"].as_f64().unwrap(),
         stats["median_us"].as_f64().unwrap(),
         stats["p95_us"].as_f64().unwrap(),
         stats["p99_us"].as_f64().unwrap(),
+        context["cpu_affinity"].as_str().unwrap(),
+        context["isolation_method"].as_str().unwrap(),
+        context["loadavg_start"].as_str().unwrap(),
+        context["loadavg_end"].as_str().unwrap(),
         payload["payload_sha256"].as_str().unwrap()
     );
     fs::write(path, body).expect("write Markdown");
@@ -194,6 +225,7 @@ fn main() {
     let steps = parse_usize(&args, "--steps", 2_000);
     let warmup = parse_usize(&args, "--warmup", 200);
     assert!(steps > 0, "--steps must be >= 1");
+    let loadavg_start = loadavg();
     let orchestrator =
         MultiShotCampaignOrchestrator::new("campaign-a", scheduler_spec(), bank_spec(), true)
             .expect("valid orchestrator");
@@ -211,12 +243,26 @@ fn main() {
         passed_count = report.passed_count;
         pulsed_mpc_admission_digest_count = report.pulsed_mpc_admission_digest_count;
     }
+    let loadavg_end = loadavg();
     let mut payload = json!({
         "schema_version": "scpn-control.rust-multi-shot-campaign-benchmark.v1.1",
         "generated_unix_s": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
         "command": args.join(" "),
         "evidence_class": "local_regression",
         "production_claim_allowed": false,
+        "context": {
+            "cwd": env::current_dir()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|_| "unavailable".to_string()),
+            "cpu_affinity": cpu_affinity(),
+            "isolation_method": "process-affinity-inherited-or-taskset",
+            "loadavg_start": loadavg_start,
+            "loadavg_end": loadavg_end,
+            "os": env::consts::OS,
+            "arch": env::consts::ARCH,
+            "kernel_release": read_trimmed("/proc/sys/kernel/osrelease").unwrap_or_else(|| "unavailable".to_string()),
+            "rust_crate_version": env!("CARGO_PKG_VERSION")
+        },
         "steps": steps,
         "warmup": warmup,
         "result": {
@@ -224,6 +270,7 @@ fn main() {
             "last_passed_count": passed_count,
             "last_pulsed_mpc_admission_digest_count": pulsed_mpc_admission_digest_count,
         },
+        "payload_sha256": "",
     });
     let digest = Sha256::digest(serde_json::to_vec(&payload).unwrap());
     payload["payload_sha256"] = Value::String(format!("{digest:x}"));

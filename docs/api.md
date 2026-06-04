@@ -258,6 +258,14 @@ surface through table-shaped NumPy inputs, including optional per-shot
 Use the dedicated [Multi-Shot Campaign](control/multi_shot_campaign.md) guide
 for examples, claim boundaries, and benchmark commands.
 
+Release admission is handled by
+`validation.validate_multi_shot_campaign_evidence`. The gate admits the
+Python/PyO3 benchmark report and the Rust benchmark report only when both carry
+the pulsed-MPC digest chain, benchmark context, stable SHA-256 payload seals,
+and a complete Python, PyO3, and Rust surface set. The top-level
+`scpn-control validate` command runs this gate by default before a release
+evidence JSON can be admitted.
+
 ::: scpn_control.control.multi_shot_campaign.CampaignShotSample
 
 ::: scpn_control.control.multi_shot_campaign.CampaignShotPlan
@@ -1926,7 +1934,7 @@ scpn-control hil-test --shots-dir path/to/shots
 | `demo` | Closed-loop control demonstration (PID, SNN, combined) |
 | `benchmark` | PID vs SNN timing benchmark with JSON output option |
 | `validate` | Import hygiene plus data-manifest, JAX GK parity, and physics-traceability gates |
-| `validate-release-evidence` | Admission check for JSON reports emitted by `scpn-control validate --json-out` |
+| `validate-release-evidence` | Admission check for JSON reports emitted by `scpn-control validate --json-out`, including data manifests, JAX GK parity, physics traceability, multi-shot campaign evidence, and native formal certificate evidence |
 | `info` | Version, Rust backend status, weight provenance, Python/NumPy versions |
 | `live` | Real-time WebSocket phase sync server |
 | `hil-test` | Hardware-in-the-loop test campaign against shot data |

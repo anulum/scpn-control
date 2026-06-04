@@ -76,6 +76,9 @@
 - Added optional pulsed-MPC admission digest propagation through multi-shot
   campaign reports, replay v1.1 extensions, Rust/PyO3 parity, and Python/Rust
   benchmark harnesses.
+- Added release-evidence admission for multi-shot pulsed-MPC campaign reports,
+  requiring Python, PyO3, and Rust digest-chain evidence with benchmark-context
+  metadata before the top-level release gate can pass.
 
 ### Changed
 - Runtime telemetry now preserves the latest runtime-admission report in

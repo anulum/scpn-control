@@ -1,10 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: Public project overview and quick start. -->
+<!-- SCPN Control — Public project overview and quick start. -->
 
 <p align="center">
   <img src="docs/scpn_control_header.png" alt="SCPN-CONTROL — Formal Stochastic Petri Net Engine" width="100%">
@@ -158,13 +158,13 @@ blocked until the required external artefacts exist.
 ## Capability Inventory
 
 <!-- capability-snapshot:start -->
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: Generated capability snapshot. -->
+<!-- SCPN Control — Generated capability snapshot. -->
 
 **Capability Inventory**
 
@@ -174,14 +174,14 @@ blocked until the required external artefacts exist.
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
-| Python control/physics modules | 136 |
-| Python public classes | 486 |
-| Rust source files | 54 |
-| Rust PyO3 exports | 30 |
-| Validation scripts | 88 |
+| Python control/physics modules | 141 |
+| Python public classes | 512 |
+| Rust source files | 64 |
+| Rust PyO3 exports | 39 |
+| Validation scripts | 91 |
 | Optional extras | 17 |
-| Python test files | 301 |
-| Public documentation pages | 39 |
+| Python test files | 321 |
+| Public documentation pages | 45 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

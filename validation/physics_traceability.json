@@ -2057,7 +2057,10 @@
         "benchmarks/bench_multi_shot_campaign.py local regression benchmark with per-shot pulsed-MPC digest evidence",
         "scpn-control-rs/crates/control-control/examples/bench_multi_shot_campaign.rs native Rust local regression benchmark with per-shot pulsed-MPC digest evidence",
         "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.json Python and PyO3 local regression report with per-shot pulsed-MPC digest evidence",
-        "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.json native Rust local regression report with per-shot pulsed-MPC digest evidence"
+        "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T173322Z.json native Rust local regression report with per-shot pulsed-MPC digest evidence and benchmark context",
+        "validation/validate_multi_shot_campaign_evidence.py release-admission gate for Python, PyO3, Rust, digest count, SHA-256, and benchmark-context evidence",
+        "tests/test_multi_shot_campaign_evidence_validation.py module-specific release-admission checks",
+        "tests/test_release_evidence_validation.py top-level release-evidence mandatory gate checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/multi_shot_campaign.py",
@@ -2072,8 +2075,11 @@
         "docs/benchmarks.md",
         "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.json",
         "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.md",
-        "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.json",
-        "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.md"
+        "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T173322Z.json",
+        "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T173322Z.md",
+        "validation/validate_multi_shot_campaign_evidence.py",
+        "tests/test_multi_shot_campaign_evidence_validation.py",
+        "tests/test_release_evidence_validation.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/multi_shot_campaign.py"

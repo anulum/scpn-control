@@ -18,7 +18,13 @@ from typing import Any
 
 
 RELEASE_EVIDENCE_SCHEMA_VERSION = "scpn-control.release-evidence-admission.v1"
-REQUIRED_GATES = ("data_manifests", "jax_gk_parity", "physics_traceability", "native_formal_certificate")
+REQUIRED_GATES = (
+    "data_manifests",
+    "jax_gk_parity",
+    "physics_traceability",
+    "multi_shot_campaign",
+    "native_formal_certificate",
+)
 REQUIRED_JAX_CASES = frozenset({"cyclone_base_case", "tem_kinetic_electron", "stable_mode"})
 REQUIRED_JAX_BACKENDS = frozenset({"cpu", "gpu"})
 NATIVE_FORMAL_EVIDENCE_CLASSES = frozenset({"local_regression", "production_benchmark"})
@@ -143,6 +149,32 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
             errors.append("physics_traceability.public_claim_blocked must be a non-negative integer")
         if traceability.get("public_claim_blocked", 0) < traceability.get("open_fidelity_gaps", 0):
             errors.append("physics_traceability must block every open fidelity gap from public claims")
+
+    multi_shot = _require_pass_gate(payload, "multi_shot_campaign", errors)
+    if multi_shot:
+        admitted_surfaces = multi_shot.get("admitted_surfaces")
+        if not isinstance(admitted_surfaces, list):
+            errors.append("multi_shot_campaign.admitted_surfaces must be a list")
+        elif set(admitted_surfaces) != {"python", "pyo3", "rust"}:
+            errors.append("multi_shot_campaign.admitted_surfaces must include python, pyo3, and rust")
+        if multi_shot.get("pyo3_status") != "ok":
+            errors.append("multi_shot_campaign.pyo3_status must be 'ok'")
+        if not _sha256_hex(multi_shot.get("python_report_sha256")):
+            errors.append("multi_shot_campaign.python_report_sha256 must be a SHA-256 hex digest")
+        if not _sha256_hex(multi_shot.get("rust_report_sha256")):
+            errors.append("multi_shot_campaign.rust_report_sha256 must be a SHA-256 hex digest")
+        if not _sha256_hex(multi_shot.get("python_payload_sha256")):
+            errors.append("multi_shot_campaign.python_payload_sha256 must be a SHA-256 hex digest")
+        if not _sha256_hex(multi_shot.get("rust_payload_sha256")):
+            errors.append("multi_shot_campaign.rust_payload_sha256 must be a SHA-256 hex digest")
+        if not _positive_int(multi_shot.get("minimum_digest_count")):
+            errors.append("multi_shot_campaign.minimum_digest_count must be a positive integer")
+        production_claim_allowed = multi_shot.get("production_claim_allowed")
+        if not isinstance(production_claim_allowed, bool):
+            errors.append("multi_shot_campaign.production_claim_allowed must be a boolean")
+        multi_shot_errors = multi_shot.get("errors")
+        if multi_shot_errors != []:
+            errors.append("multi_shot_campaign.errors must be empty")
 
     native_formal = _require_pass_gate(payload, "native_formal_certificate", errors)
     if native_formal:

@@ -42,6 +42,18 @@ def _valid_report() -> dict[str, object]:
             "open_fidelity_gaps": 53,
             "public_claim_blocked": 53,
         },
+        "multi_shot_campaign": {
+            "status": "pass",
+            "errors": [],
+            "admitted_surfaces": ["python", "pyo3", "rust"],
+            "pyo3_status": "ok",
+            "python_report_sha256": "c" * 64,
+            "rust_report_sha256": "d" * 64,
+            "python_payload_sha256": "e" * 64,
+            "rust_payload_sha256": "f" * 64,
+            "production_claim_allowed": False,
+            "minimum_digest_count": 2,
+        },
         "native_formal_certificate": {
             "status": "pass",
             "admitted_cases": ["std:spin:aot_certificate:stride_1"],
@@ -68,6 +80,7 @@ def test_release_evidence_admits_complete_passing_report(tmp_path):
         "data_manifests",
         "jax_gk_parity",
         "physics_traceability",
+        "multi_shot_campaign",
         "native_formal_certificate",
     )
 
@@ -97,10 +110,22 @@ def test_release_evidence_rejects_invalid_native_certificate_digest(tmp_path):
     result = validate_release_evidence(path)
 
     assert result.status == "fail"
-    assert (
-        "native_formal_certificate.certificate_assumption_sha256 must be a SHA-256 hex digest"
-        in result.errors
-    )
+    assert "native_formal_certificate.certificate_assumption_sha256 must be a SHA-256 hex digest" in result.errors
+
+
+def test_release_evidence_rejects_incomplete_multi_shot_campaign_evidence(tmp_path):
+    """Release evidence cannot admit multi-shot campaigns without Python, PyO3, and Rust surfaces."""
+    report = _valid_report()
+    multi_shot = report["multi_shot_campaign"]
+    assert isinstance(multi_shot, dict)
+    multi_shot["admitted_surfaces"] = ["python", "rust"]
+    path = tmp_path / "release_evidence_report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = validate_release_evidence(path)
+
+    assert result.status == "fail"
+    assert "multi_shot_campaign.admitted_surfaces must include python, pyo3, and rust" in result.errors
 
 
 def test_release_evidence_rejects_incomplete_jax_case_backend_pairs(tmp_path):

@@ -145,23 +145,31 @@ scpn-control validate-manifest validation/reference_data/diiid/manifests/mock_di
 ```
 
 The top-level `validate` command now includes repository data-manifest
-validation, strict persisted JAX GK parity evidence admission, and physics
-traceability validation by default, so routine validation cannot pass while
-ignoring data provenance, backend parity evidence drift, or bounded-claim
-registry drift. The local `tools/preflight.py` path now runs this top-level
+validation, strict persisted JAX GK parity evidence admission, physics
+traceability validation, multi-shot pulsed-MPC campaign evidence admission, and
+native formal certificate admission by default, so routine validation cannot
+pass while ignoring data provenance, backend parity evidence drift,
+bounded-claim registry drift, campaign replay evidence drift, or native
+certificate drift. The local `tools/preflight.py` path now runs this top-level
 release-evidence gate as a non-test gate, including in `make preflight-fast`,
 and validates the generated JSON report with `validate-release-evidence`, so
-release preflight cannot skip provenance, parity, claim-boundary drift, or
-artifact-admission drift when tests are intentionally omitted. Use
+release preflight cannot skip provenance, parity, claim-boundary drift,
+multi-shot campaign evidence, or artifact-admission drift when tests are
+intentionally omitted. Use
 `--data-manifest-root` for staged facility drops,
 `--jax-gk-parity-root` for staged parity campaigns,
 `--physics-traceability-registry` for staged claim-boundary registries,
+`--multi-shot-campaign-python-report` and `--multi-shot-campaign-rust-report`
+for staged campaign benchmark reports,
 `--no-verify-artifacts` for metadata-only manifest checks, and
 `--no-data-manifests`, `--no-jax-gk-parity`, or `--no-physics-traceability` only
-for explicitly scoped import-hygiene checks. `validate-release-evidence` admits
-the resulting JSON report as a release artifact by rejecting duplicate keys,
-skipped or failing mandatory gates, incomplete CPU/GPU JAX GK parity case
-coverage, and traceability reports that do not block every open fidelity gap.
+for explicitly scoped import-hygiene checks. `--no-multi-shot-campaign-evidence`
+is limited to scoped CLI/import checks and must not be used for release
+evidence. `validate-release-evidence` admits the resulting JSON report as a
+release artifact by rejecting duplicate keys, skipped or failing mandatory
+gates, incomplete CPU/GPU JAX GK parity case coverage, traceability reports that
+do not block every open fidelity gap, and multi-shot campaign evidence that
+lacks Python, PyO3, Rust, digest-count, SHA-256, or benchmark-context admission.
 The gate separates experimental
 validation evidence from CI fixtures. A manifest claiming real-shot validation
 must include a non-synthetic source kind, machine, shot, signal paths, physical

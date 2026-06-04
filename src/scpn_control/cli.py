@@ -550,6 +550,16 @@ def run_hardware_campaign(
 @click.option("--no-jax-gk-parity", is_flag=True, help="Skip persisted JAX GK parity evidence validation")
 @click.option("--physics-traceability-registry", help="Physics traceability registry JSON path")
 @click.option("--no-physics-traceability", is_flag=True, help="Skip physics traceability validation")
+@click.option("--multi-shot-campaign-python-report", help="Python/PyO3 multi-shot campaign benchmark JSON report")
+@click.option("--multi-shot-campaign-rust-report", help="Rust multi-shot campaign benchmark JSON report")
+@click.option(
+    "--multi-shot-min-digest-count",
+    default=2,
+    show_default=True,
+    type=int,
+    help="Minimum pulsed-MPC admission digests required in each multi-shot campaign report",
+)
+@click.option("--no-multi-shot-campaign-evidence", is_flag=True, help="Skip multi-shot campaign evidence validation")
 @click.option("--native-formal-certificate-report", help="Native formal AOT certificate benchmark JSON report")
 @click.option(
     "--native-formal-max-aot-p99-cycle-us",
@@ -568,6 +578,10 @@ def validate(
     no_jax_gk_parity: bool,
     physics_traceability_registry: str | None,
     no_physics_traceability: bool,
+    multi_shot_campaign_python_report: str | None,
+    multi_shot_campaign_rust_report: str | None,
+    multi_shot_min_digest_count: int,
+    no_multi_shot_campaign_evidence: bool,
     native_formal_certificate_report: str | None,
     native_formal_max_aot_p99_cycle_us: float,
     no_native_formal_certificate: bool,
@@ -635,6 +649,25 @@ def validate(
             result["status"] = "fail"
             validation_failed = True
 
+    if no_multi_shot_campaign_evidence:
+        result["multi_shot_campaign"] = {"status": "skipped"}
+    else:
+        from validation.validate_multi_shot_campaign_evidence import (
+            DEFAULT_PYTHON_REPORT,
+            DEFAULT_RUST_REPORT,
+            validate_multi_shot_campaign_evidence,
+        )
+
+        multi_shot_report = validate_multi_shot_campaign_evidence(
+            multi_shot_campaign_python_report or DEFAULT_PYTHON_REPORT,
+            multi_shot_campaign_rust_report or DEFAULT_RUST_REPORT,
+            minimum_digest_count=multi_shot_min_digest_count,
+        ).as_dict()
+        result["multi_shot_campaign"] = multi_shot_report
+        if multi_shot_report["status"] != "pass":
+            result["status"] = "fail"
+            validation_failed = True
+
     if no_native_formal_certificate:
         result["native_formal_certificate"] = {"status": "skipped"}
     else:
@@ -692,6 +725,20 @@ def validate(
             for error in physics_traceability["errors"]:
                 index = error.get("index", "-")
                 click.echo(f"ERROR {error['path']}[{index}].{error['field']}: {error['error']}", err=True)
+        multi_shot_campaign = result["multi_shot_campaign"]
+        if isinstance(multi_shot_campaign, dict) and multi_shot_campaign.get("status") == "skipped":
+            click.echo("Multi-shot campaign evidence: SKIPPED")
+        elif isinstance(multi_shot_campaign, dict):
+            surfaces = multi_shot_campaign.get("admitted_surfaces", ())
+            surface_count = len(surfaces) if isinstance(surfaces, list) else 0
+            click.echo(
+                "Multi-shot campaign evidence: "
+                f"{multi_shot_campaign['status']} "
+                f"surfaces={surface_count} "
+                f"pyo3={multi_shot_campaign.get('pyo3_status') or '-'}"
+            )
+            for error in multi_shot_campaign["errors"]:
+                click.echo(f"ERROR multi_shot_campaign: {error}", err=True)
         native_formal_certificate = result["native_formal_certificate"]
         if isinstance(native_formal_certificate, dict) and native_formal_certificate.get("status") == "skipped":
             click.echo("Native formal certificate: SKIPPED")
