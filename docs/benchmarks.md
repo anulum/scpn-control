@@ -97,6 +97,20 @@ PYTHONPATH=src .venv/bin/python scripts/benchmark_native_formal_modes.py \
   --transports std
 ```
 
+Admit the persisted AOT certificate evidence before using it in a release or
+safety-case argument:
+
+```bash
+python validation/validate_native_formal_certificate_evidence.py \
+  validation/reports/native_formal_aot_certificate_admission_20260604T103219Z.json \
+  --max-aot-p99-cycle-us 10.0
+```
+
+The validator rejects reports with malformed JSON, the wrong benchmark schema,
+missing AOT cases, unstable certificate digests, missing certificate admission,
+nonzero drops, nonzero formal failures, incomplete generated/submitted/checked
+coverage, or AOT p99 cycle latency above the configured threshold.
+
 Run:
 
 ```bash

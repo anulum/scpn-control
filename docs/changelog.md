@@ -37,6 +37,10 @@
   now expose the certificate schema, identifier, contract label, admitted flag,
   and SHA-256 assumption digest, and the formal-mode benchmark summarizes the
   certificate evidence used by each AOT run.
+- Added a native formal AOT certificate evidence validator that rejects
+  malformed reports, missing or unstable certificate admission, dropped checks,
+  formal failures, incomplete generated/submitted/checked coverage, and AOT p99
+  cycle regressions before release or safety-case use.
 
 ### Changed
 - Added an execution-backend selector to the hardware-campaign CLI and Rust
