@@ -42,6 +42,13 @@ def _valid_report() -> dict[str, object]:
             "open_fidelity_gaps": 53,
             "public_claim_blocked": 53,
         },
+        "native_formal_certificate": {
+            "status": "pass",
+            "admitted_cases": ["std:spin:aot_certificate:stride_1"],
+            "certificate_assumption_sha256": "a" * 64,
+            "errors": [],
+            "report_sha256": "b" * 64,
+        },
     }
 
 
@@ -55,11 +62,16 @@ def test_release_evidence_admits_complete_passing_report(tmp_path):
     assert result.status == "pass"
     assert result.errors == ()
     assert result.report_sha256 is not None
-    assert result.admitted_gates == ("data_manifests", "jax_gk_parity", "physics_traceability")
+    assert result.admitted_gates == (
+        "data_manifests",
+        "jax_gk_parity",
+        "physics_traceability",
+        "native_formal_certificate",
+    )
 
 
 def test_release_evidence_rejects_skipped_required_gate(tmp_path):
-    """Release evidence cannot skip mandatory provenance, parity, or traceability gates."""
+    """Release evidence cannot skip mandatory provenance, parity, traceability, or formal gates."""
     report = _valid_report()
     report["jax_gk_parity"] = {"status": "skipped"}
     path = tmp_path / "release_evidence_report.json"
@@ -69,6 +81,24 @@ def test_release_evidence_rejects_skipped_required_gate(tmp_path):
 
     assert result.status == "fail"
     assert "jax_gk_parity.status must be 'pass', got 'skipped'" in result.errors
+
+
+def test_release_evidence_rejects_invalid_native_certificate_digest(tmp_path):
+    """Native formal certificate evidence must bind a SHA-256 assumption digest."""
+    report = _valid_report()
+    native_formal = report["native_formal_certificate"]
+    assert isinstance(native_formal, dict)
+    native_formal["certificate_assumption_sha256"] = "not-a-digest"
+    path = tmp_path / "release_evidence_report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = validate_release_evidence(path)
+
+    assert result.status == "fail"
+    assert (
+        "native_formal_certificate.certificate_assumption_sha256 must be a SHA-256 hex digest"
+        in result.errors
+    )
 
 
 def test_release_evidence_rejects_incomplete_jax_case_backend_pairs(tmp_path):

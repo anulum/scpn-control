@@ -41,6 +41,9 @@
   malformed reports, missing or unstable certificate admission, dropped checks,
   formal failures, incomplete generated/submitted/checked coverage, and AOT p99
   cycle regressions before release or safety-case use.
+- Added native formal AOT certificate evidence to the top-level validation and
+  release-evidence admission gates, including digest checks for the admitted
+  certificate assumptions and persisted benchmark report.
 
 ### Changed
 - Added an execution-backend selector to the hardware-campaign CLI and Rust

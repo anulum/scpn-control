@@ -111,6 +111,13 @@ missing AOT cases, unstable certificate digests, missing certificate admission,
 nonzero drops, nonzero formal failures, incomplete generated/submitted/checked
 coverage, or AOT p99 cycle latency above the configured threshold.
 
+`scpn-control validate` runs the same native formal certificate gate by default
+and emits the result under `native_formal_certificate`. The release-evidence
+admission step requires this section to pass, requires at least one admitted AOT
+certificate case, and binds the report to both the certificate-assumption digest
+and the benchmark-report digest. Use `--no-native-formal-certificate` only for
+local diagnostics; release evidence and preflight admission must not skip it.
+
 Run:
 
 ```bash

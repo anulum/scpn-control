@@ -18,7 +18,7 @@ from typing import Any
 
 
 RELEASE_EVIDENCE_SCHEMA_VERSION = "scpn-control.release-evidence-admission.v1"
-REQUIRED_GATES = ("data_manifests", "jax_gk_parity", "physics_traceability")
+REQUIRED_GATES = ("data_manifests", "jax_gk_parity", "physics_traceability", "native_formal_certificate")
 REQUIRED_JAX_CASES = frozenset({"cyclone_base_case", "tem_kinetic_electron", "stable_mode"})
 REQUIRED_JAX_BACKENDS = frozenset({"cpu", "gpu"})
 
@@ -56,6 +56,10 @@ def _positive_int(value: object) -> bool:
 
 def _non_negative_int(value: object) -> bool:
     return not isinstance(value, bool) and isinstance(value, int) and value >= 0
+
+
+def _sha256_hex(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _require_pass_gate(payload: dict[str, Any], gate: str, errors: list[str]) -> dict[str, Any]:
@@ -138,6 +142,21 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
             errors.append("physics_traceability.public_claim_blocked must be a non-negative integer")
         if traceability.get("public_claim_blocked", 0) < traceability.get("open_fidelity_gaps", 0):
             errors.append("physics_traceability must block every open fidelity gap from public claims")
+
+    native_formal = _require_pass_gate(payload, "native_formal_certificate", errors)
+    if native_formal:
+        admitted_cases = native_formal.get("admitted_cases")
+        if not isinstance(admitted_cases, list) or not admitted_cases:
+            errors.append("native_formal_certificate.admitted_cases must be a non-empty list")
+        elif not all(isinstance(case, str) and ":aot_certificate:" in case for case in admitted_cases):
+            errors.append("native_formal_certificate.admitted_cases must contain AOT certificate case labels")
+        if not _sha256_hex(native_formal.get("certificate_assumption_sha256")):
+            errors.append("native_formal_certificate.certificate_assumption_sha256 must be a SHA-256 hex digest")
+        if not _sha256_hex(native_formal.get("report_sha256")):
+            errors.append("native_formal_certificate.report_sha256 must be a SHA-256 hex digest")
+        native_errors = native_formal.get("errors")
+        if native_errors != []:
+            errors.append("native_formal_certificate.errors must be empty")
 
     admitted = tuple(
         gate for gate in REQUIRED_GATES if isinstance(payload.get(gate), dict) and payload[gate].get("status") == "pass"

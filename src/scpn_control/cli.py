@@ -535,6 +535,15 @@ def run_hardware_campaign(
 @click.option("--no-jax-gk-parity", is_flag=True, help="Skip persisted JAX GK parity evidence validation")
 @click.option("--physics-traceability-registry", help="Physics traceability registry JSON path")
 @click.option("--no-physics-traceability", is_flag=True, help="Skip physics traceability validation")
+@click.option("--native-formal-certificate-report", help="Native formal AOT certificate benchmark JSON report")
+@click.option(
+    "--native-formal-max-aot-p99-cycle-us",
+    default=10.0,
+    show_default=True,
+    type=float,
+    help="Maximum admitted native formal AOT p99 cycle latency in microseconds",
+)
+@click.option("--no-native-formal-certificate", is_flag=True, help="Skip native formal certificate evidence validation")
 def validate(
     json_out: bool,
     data_manifest_root: str | None,
@@ -544,8 +553,11 @@ def validate(
     no_jax_gk_parity: bool,
     physics_traceability_registry: str | None,
     no_physics_traceability: bool,
+    native_formal_certificate_report: str | None,
+    native_formal_max_aot_p99_cycle_us: float,
+    no_native_formal_certificate: bool,
 ) -> None:
-    """Run import hygiene, data-provenance, parity, and traceability validation."""
+    """Run import hygiene, provenance, parity, traceability, and formal evidence validation."""
     try:
         from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
 
@@ -608,6 +620,24 @@ def validate(
             result["status"] = "fail"
             validation_failed = True
 
+    if no_native_formal_certificate:
+        result["native_formal_certificate"] = {"status": "skipped"}
+    else:
+        from validation.validate_native_formal_certificate_evidence import (
+            DEFAULT_REPORT,
+            validate_native_formal_certificate_evidence,
+        )
+
+        certificate_report_path = native_formal_certificate_report or str(DEFAULT_REPORT)
+        certificate_report = validate_native_formal_certificate_evidence(
+            certificate_report_path,
+            max_aot_p99_cycle_us=native_formal_max_aot_p99_cycle_us,
+        ).as_dict()
+        result["native_formal_certificate"] = certificate_report
+        if certificate_report["status"] != "pass":
+            result["status"] = "fail"
+            validation_failed = True
+
     if json_out:
         click.echo(json.dumps(result, indent=2))
     else:
@@ -647,6 +677,21 @@ def validate(
             for error in physics_traceability["errors"]:
                 index = error.get("index", "-")
                 click.echo(f"ERROR {error['path']}[{index}].{error['field']}: {error['error']}", err=True)
+        native_formal_certificate = result["native_formal_certificate"]
+        if isinstance(native_formal_certificate, dict) and native_formal_certificate.get("status") == "skipped":
+            click.echo("Native formal certificate: SKIPPED")
+        elif isinstance(native_formal_certificate, dict):
+            digest = native_formal_certificate.get("certificate_assumption_sha256") or "-"
+            admitted_cases = native_formal_certificate.get("admitted_cases", ())
+            admitted_count = len(admitted_cases) if isinstance(admitted_cases, list) else 0
+            click.echo(
+                "Native formal certificate: "
+                f"{native_formal_certificate['status']} "
+                f"admitted_cases={admitted_count} "
+                f"digest={digest}"
+            )
+            for error in native_formal_certificate["errors"]:
+                click.echo(f"ERROR native_formal_certificate: {error}", err=True)
         click.echo(f"Status: {result['status']}")
     if validation_failed:
         raise click.exceptions.Exit(1)
