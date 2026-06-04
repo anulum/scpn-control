@@ -105,6 +105,9 @@ scpn-check-generated-traceability = "tools.check_generated_traceability:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"scpn_control.scpn" = ["replay_schemas/*.json"]
+
 [tool.mypy]
 strict = false
 warn_return_any = true

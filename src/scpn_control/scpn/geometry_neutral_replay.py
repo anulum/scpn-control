@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Geometry-Neutral Replay
+# Project: SCPN Control
+# Description: Geometry-neutral replay reports and schema admission.
 """Compact geometry-neutral stellarator replay through the SCPN controller."""
 
 from __future__ import annotations
@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,7 +42,10 @@ from scpn_control.scpn.geometry_neutral_contracts import (
 from scpn_control.scpn.structure import StochasticPetriNet
 
 SCHEMA_VERSION = "scpn-control.geometry-neutral-replay.v1"
+SCHEMA_VERSION_V1_1 = "scpn-control.geometry-neutral-replay.v1.1"
 GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION = SCHEMA_VERSION
+GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION_V1_1 = SCHEMA_VERSION_V1_1
+SUPPORTED_REPLAY_SCHEMA_VERSIONS = (SCHEMA_VERSION, SCHEMA_VERSION_V1_1)
 MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
 GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = MANIFEST_SCHEMA_VERSION
 EVIDENCE_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-evidence.v1"
@@ -138,6 +143,18 @@ def _require_finite_nonnegative(name: str, value: Any) -> float:
     return result
 
 
+def _require_finite(name: str, value: Any) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be finite")
+    try:
+        result = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be finite") from exc
+    if not np.isfinite(result):
+        raise ValueError(f"{name} must be finite")
+    return result
+
+
 def _require_mapping(name: str, value: Any) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise ValueError(f"{name} must be an object")
@@ -155,6 +172,56 @@ def _require_int(name: str, value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(f"{name} must be an integer")
     return int(value)
+
+
+def _require_nonnegative_int(name: str, value: Any) -> int:
+    result = _require_int(name, value)
+    if result < 0:
+        raise ValueError(f"{name} must be non-negative")
+    return result
+
+
+def _require_uuid_text(name: str, value: Any) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a UUID string")
+    try:
+        parsed = uuid.UUID(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a valid UUID") from exc
+    return str(parsed)
+
+
+def load_replay_schema(version: str) -> dict[str, Any]:
+    """Load a bundled geometry-neutral replay JSON Schema document."""
+    if version == SCHEMA_VERSION:
+        filename = "v1.json"
+    elif version == SCHEMA_VERSION_V1_1:
+        filename = "v1_1.json"
+    else:
+        raise ValueError("unsupported geometry-neutral replay schema version")
+    path = Path(__file__).with_name("replay_schemas") / filename
+    payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
+    if not isinstance(payload, dict):
+        raise ValueError("replay schema document must be a JSON object")
+    return payload
+
+
+def register_v1_1_schema() -> dict[str, Any]:
+    """Return the bundled v1.1 replay schema after self-identification checks."""
+    schema = load_replay_schema(SCHEMA_VERSION_V1_1)
+    if schema.get("$id") != SCHEMA_VERSION_V1_1:
+        raise ValueError("v1.1 replay schema id mismatch")
+    return schema
+
+
+def assert_v1_replay_loadable_under_v1_1_schema_bundle(report: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Validate a v1 replay report while the v1.1 schema bundle is installed."""
+    register_v1_1_schema()
+    validate_report(report)
+    bench = _require_mapping("geometry_neutral_replay", report["geometry_neutral_replay"])
+    if bench.get("schema_version") != SCHEMA_VERSION:
+        raise ValueError("expected a v1 replay report for v1.1 back-compatibility admission")
+    return report
 
 
 def _fieldline_spread(config: StellaratorConfig, current_A: float) -> float:
@@ -442,6 +509,62 @@ def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> 
     return generate_report(steps=steps, seed=seed)
 
 
+def _validate_v1_1_extensions(bench: Mapping[str, Any]) -> None:
+    if "pulse_id" in bench:
+        _require_uuid_text("pulse_id", bench["pulse_id"])
+
+    if "capacitor_state_initial_J" in bench:
+        _require_finite_nonnegative(
+            "capacitor_state_initial_J",
+            bench["capacitor_state_initial_J"],
+        )
+
+    if "trigger_timestamp_ns" in bench:
+        _require_nonnegative_int("trigger_timestamp_ns", bench["trigger_timestamp_ns"])
+
+    if "energy_recovered_J" in bench:
+        _require_finite_nonnegative("energy_recovered_J", bench["energy_recovered_J"])
+
+    if "shot_phase_log" in bench:
+        phase_log = bench["shot_phase_log"]
+        if not isinstance(phase_log, list):
+            raise ValueError("shot_phase_log must be a list")
+        previous_t = -math.inf
+        for index, row in enumerate(phase_log):
+            if not isinstance(row, Mapping):
+                raise ValueError(f"shot_phase_log[{index}] must be an object")
+            t = _require_finite(f"shot_phase_log[{index}].t", row.get("t"))
+            if t < 0.0:
+                raise ValueError(f"shot_phase_log[{index}].t must be non-negative")
+            if t < previous_t:
+                raise ValueError("shot_phase_log entries must be sorted by t")
+            previous_t = t
+            state = row.get("state")
+            if not isinstance(state, str) or not state.strip():
+                raise ValueError(f"shot_phase_log[{index}].state must be non-empty text")
+            reason = row.get("reason")
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError(f"shot_phase_log[{index}].reason must be non-empty text")
+
+    if "frc_diagnostics" in bench:
+        diagnostics = _require_mapping("frc_diagnostics", bench["frc_diagnostics"])
+        if "s_parameter_at_burn" in diagnostics:
+            _require_finite_nonnegative(
+                "frc_diagnostics.s_parameter_at_burn",
+                diagnostics["s_parameter_at_burn"],
+            )
+        if "mrti_peak_amplitude_m" in diagnostics:
+            _require_finite_nonnegative(
+                "frc_diagnostics.mrti_peak_amplitude_m",
+                diagnostics["mrti_peak_amplitude_m"],
+            )
+        if "tilt_growth_rate_s_inv" in diagnostics:
+            _require_finite(
+                "frc_diagnostics.tilt_growth_rate_s_inv",
+                diagnostics["tilt_growth_rate_s_inv"],
+            )
+
+
 def validate_report(report: Mapping[str, Any]) -> None:
     """Validate the compact replay report contract without external packages."""
     if "geometry_neutral_replay" not in report:
@@ -461,7 +584,8 @@ def validate_report(report: Mapping[str, Any]) -> None:
     for key in required:
         if key not in bench:
             raise ValueError(f"missing geometry_neutral_replay.{key}")
-    if bench["schema_version"] != SCHEMA_VERSION:
+    schema_version = bench["schema_version"]
+    if schema_version not in SUPPORTED_REPLAY_SCHEMA_VERSIONS:
         raise ValueError("unexpected schema_version")
     replay = _require_mapping("geometry_neutral_replay.replay", bench["replay"])
     scenario = _require_mapping("geometry_neutral_replay.scenario", bench["scenario"])
@@ -510,11 +634,37 @@ def validate_report(report: Mapping[str, Any]) -> None:
         "acceptance_threshold_source",
     ):
         _require_manifest_text(f"manifest provenance {key}", provenance[key])
+    if schema_version == SCHEMA_VERSION_V1_1:
+        _validate_v1_1_extensions(bench)
 
 
 def validate_geometry_neutral_report(report: Mapping[str, Any]) -> None:
     """Public package alias for :func:`validate_report`."""
     validate_report(report)
+
+
+def save_geometry_neutral_replay_report(
+    report: Mapping[str, Any],
+    output_path: str | Path,
+) -> Path:
+    """Persist a validated geometry-neutral replay report as stable JSON."""
+    validate_report(report)
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_stable_json(report), encoding="utf-8")
+    return path
+
+
+def load_geometry_neutral_replay_report(path: str | Path) -> dict[str, Any]:
+    """Load and validate a geometry-neutral replay report with duplicate-key checks."""
+    payload = json.loads(
+        Path(path).read_text(encoding="utf-8"),
+        object_pairs_hook=_reject_duplicate_keys,
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("geometry-neutral replay report must be a JSON object")
+    validate_report(payload)
+    return payload
 
 
 def _validate_geometry_neutral_replay_evidence_payload(
@@ -533,7 +683,7 @@ def _validate_geometry_neutral_replay_evidence_payload(
     if not isinstance(generated_utc, str) or not generated_utc.endswith("Z"):
         raise ValueError("geometry-neutral replay evidence generated_utc must be a UTC timestamp ending in Z")
     replay_schema_version = payload.get("replay_schema_version")
-    if replay_schema_version != SCHEMA_VERSION:
+    if replay_schema_version not in SUPPORTED_REPLAY_SCHEMA_VERSIONS:
         raise ValueError("geometry-neutral replay evidence replay_schema_version is unsupported")
     for name in (
         "replay_report_sha256",

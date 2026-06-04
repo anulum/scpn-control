@@ -73,6 +73,7 @@ nav:
     - Architecture: architecture.md
     - Physics Methods: physics_methods.md
     - Neural Transport Training: neural_transport_training.md
+    - Geometry-Neutral Replay: scpn/geometry_neutral_replay.md
   - Validation:
     - Benchmarks: benchmarks.md
     - Validation and QA: validation.md

@@ -99,6 +99,11 @@ from scpn_control.scpn.fpga_export import (
 from scpn_control.scpn.structure import StochasticPetriNet
 
 GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay.v1"
+GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION_V1_1 = "scpn-control.geometry-neutral-replay.v1.1"
+SUPPORTED_GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSIONS = (
+    GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION,
+    GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION_V1_1,
+)
 GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
 GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-evidence.v1"
 
@@ -113,6 +118,38 @@ def validate_geometry_neutral_report(report: object) -> None:
     from scpn_control.scpn.geometry_neutral_replay import validate_geometry_neutral_report as _impl
 
     _impl(report)  # type: ignore[arg-type]
+
+
+def load_geometry_neutral_replay_schema(version: str) -> dict[str, object]:
+    from scpn_control.scpn.geometry_neutral_replay import load_replay_schema as _impl
+
+    return _impl(version)
+
+
+def register_geometry_neutral_replay_v1_1_schema() -> dict[str, object]:
+    from scpn_control.scpn.geometry_neutral_replay import register_v1_1_schema as _impl
+
+    return _impl()
+
+
+def assert_geometry_neutral_v1_replay_loadable_under_v1_1_schema_bundle(report: object) -> object:
+    from scpn_control.scpn.geometry_neutral_replay import (
+        assert_v1_replay_loadable_under_v1_1_schema_bundle as _impl,
+    )
+
+    return _impl(report)  # type: ignore[arg-type]
+
+
+def save_geometry_neutral_replay_report(report: object, output_path: object) -> object:
+    from scpn_control.scpn.geometry_neutral_replay import save_geometry_neutral_replay_report as _impl
+
+    return _impl(report, output_path)  # type: ignore[arg-type]
+
+
+def load_geometry_neutral_replay_report(path: object) -> dict[str, object]:
+    from scpn_control.scpn.geometry_neutral_replay import load_geometry_neutral_replay_report as _impl
+
+    return _impl(path)  # type: ignore[arg-type]
 
 
 def render_geometry_neutral_markdown(report: object) -> str:
@@ -171,10 +208,17 @@ __all__ = [
     "ControlObjective",
     "ReplayScenario",
     "GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION",
+    "GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION_V1_1",
+    "SUPPORTED_GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSIONS",
     "GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION",
     "GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION",
     "generate_geometry_neutral_report",
     "validate_geometry_neutral_report",
+    "load_geometry_neutral_replay_schema",
+    "register_geometry_neutral_replay_v1_1_schema",
+    "assert_geometry_neutral_v1_replay_loadable_under_v1_1_schema_bundle",
+    "save_geometry_neutral_replay_report",
+    "load_geometry_neutral_replay_report",
     "render_geometry_neutral_markdown",
     "geometry_neutral_replay_evidence",
     "assert_geometry_neutral_replay_claim_admissible",

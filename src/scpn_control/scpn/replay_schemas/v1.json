@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scpn-control.geometry-neutral-replay.v1",
+  "title": "SCPN Control Geometry-Neutral Replay v1",
+  "type": "object",
+  "required": ["geometry_neutral_replay"],
+  "additionalProperties": true,
+  "properties": {
+    "geometry_neutral_replay": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "scenario",
+        "replay",
+        "magnetic_configuration",
+        "metrics",
+        "thresholds",
+        "passes_thresholds",
+        "manifest",
+        "limitations"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "schema_version": {
+          "const": "scpn-control.geometry-neutral-replay.v1"
+        },
+        "scenario": {
+          "type": "object"
+        },
+        "replay": {
+          "type": "object",
+          "required": ["trace", "deterministic"],
+          "properties": {
+            "trace": {
+              "type": "array"
+            },
+            "deterministic": {
+              "type": "boolean"
+            }
+          }
+        },
+        "magnetic_configuration": {
+          "type": "object"
+        },
+        "metrics": {
+          "type": "object",
+          "required": [
+            "initial_fieldline_spread",
+            "final_fieldline_spread",
+            "improvement_fraction",
+            "max_abs_current_A",
+            "p95_latency_us"
+          ],
+          "properties": {
+            "initial_fieldline_spread": {
+              "type": "number"
+            },
+            "final_fieldline_spread": {
+              "type": "number"
+            },
+            "improvement_fraction": {
+              "type": "number"
+            },
+            "max_abs_current_A": {
+              "type": "number"
+            },
+            "p95_latency_us": {
+              "type": "number"
+            }
+          }
+        },
+        "thresholds": {
+          "type": "object"
+        },
+        "passes_thresholds": {
+          "type": "boolean"
+        },
+        "manifest": {
+          "type": "object"
+        },
+        "limitations": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}

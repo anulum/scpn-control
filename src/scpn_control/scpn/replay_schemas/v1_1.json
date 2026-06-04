@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scpn-control.geometry-neutral-replay.v1.1",
+  "title": "SCPN Control Geometry-Neutral Replay v1.1",
+  "type": "object",
+  "required": ["geometry_neutral_replay"],
+  "additionalProperties": true,
+  "properties": {
+    "geometry_neutral_replay": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "scenario",
+        "replay",
+        "magnetic_configuration",
+        "metrics",
+        "thresholds",
+        "passes_thresholds",
+        "manifest",
+        "limitations"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "schema_version": {
+          "enum": [
+            "scpn-control.geometry-neutral-replay.v1",
+            "scpn-control.geometry-neutral-replay.v1.1"
+          ]
+        },
+        "scenario": {
+          "type": "object"
+        },
+        "replay": {
+          "type": "object",
+          "required": ["trace", "deterministic"],
+          "properties": {
+            "trace": {
+              "type": "array"
+            },
+            "deterministic": {
+              "type": "boolean"
+            }
+          }
+        },
+        "magnetic_configuration": {
+          "type": "object"
+        },
+        "metrics": {
+          "type": "object"
+        },
+        "thresholds": {
+          "type": "object"
+        },
+        "passes_thresholds": {
+          "type": "boolean"
+        },
+        "manifest": {
+          "type": "object"
+        },
+        "limitations": {
+          "type": "array"
+        },
+        "pulse_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "capacitor_state_initial_J": {
+          "type": "number",
+          "minimum": 0
+        },
+        "trigger_timestamp_ns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "energy_recovered_J": {
+          "type": "number",
+          "minimum": 0
+        },
+        "shot_phase_log": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "state", "reason"],
+            "additionalProperties": true,
+            "properties": {
+              "t": {
+                "type": "number",
+                "minimum": 0
+              },
+              "state": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "frc_diagnostics": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "s_parameter_at_burn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "mrti_peak_amplitude_m": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tilt_growth_rate_s_inv": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -61,6 +61,34 @@ timing closure, or PCS admission without separate hardware evidence.
 
 ---
 
+## SCPN — Geometry-Neutral Replay Schema
+
+`scpn_control.scpn.geometry_neutral_replay` publishes deterministic
+geometry-neutral replay reports and schema admission helpers. The v1.1 schema
+extends the v1 report with optional pulsed-shot context: UUID pulse IDs,
+capacitor initial energy, trigger timestamp, recovered energy, sorted
+shot-phase logs, and FRC diagnostic scalars. Existing v1 reports remain
+loadable under the v1.1 schema bundle.
+
+Use the dedicated [Geometry-Neutral Replay](scpn/geometry_neutral_replay.md)
+guide for field semantics, example payloads, and claim boundaries.
+
+::: scpn_control.scpn.geometry_neutral_replay.generate_report
+
+::: scpn_control.scpn.geometry_neutral_replay.validate_report
+
+::: scpn_control.scpn.geometry_neutral_replay.load_replay_schema
+
+::: scpn_control.scpn.geometry_neutral_replay.register_v1_1_schema
+
+::: scpn_control.scpn.geometry_neutral_replay.assert_v1_replay_loadable_under_v1_1_schema_bundle
+
+::: scpn_control.scpn.geometry_neutral_replay.save_geometry_neutral_replay_report
+
+::: scpn_control.scpn.geometry_neutral_replay.load_geometry_neutral_replay_report
+
+---
+
 ## Control — Pulsed Scenario Scheduler v2
 
 `scpn_control.control.pulsed_scenario_scheduler_v2` owns the reusable

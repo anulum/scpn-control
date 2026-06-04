@@ -22,6 +22,9 @@
 - Added the CONTROL-owned AER control-observation adapter with Python spike
   buffers, rate/temporal/ISI decoders, Rust parity surfaces, optional PyO3
   bindings, dedicated tests, and public documentation.
+- Added geometry-neutral replay schema v1.1 for pulsed-shot metadata admission,
+  with bundled schemas, v1 back-compatibility checks, report load/save helpers,
+  dedicated tests, and public documentation.
 
 ## [0.20.3] - 2026-06-02
 
