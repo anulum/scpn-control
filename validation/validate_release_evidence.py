@@ -21,6 +21,7 @@ RELEASE_EVIDENCE_SCHEMA_VERSION = "scpn-control.release-evidence-admission.v1"
 REQUIRED_GATES = ("data_manifests", "jax_gk_parity", "physics_traceability", "native_formal_certificate")
 REQUIRED_JAX_CASES = frozenset({"cyclone_base_case", "tem_kinetic_electron", "stable_mode"})
 REQUIRED_JAX_BACKENDS = frozenset({"cpu", "gpu"})
+NATIVE_FORMAL_EVIDENCE_CLASSES = frozenset({"local_regression", "production_benchmark"})
 
 
 @dataclass(frozen=True)
@@ -154,6 +155,14 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
             errors.append("native_formal_certificate.certificate_assumption_sha256 must be a SHA-256 hex digest")
         if not _sha256_hex(native_formal.get("report_sha256")):
             errors.append("native_formal_certificate.report_sha256 must be a SHA-256 hex digest")
+        evidence_class = native_formal.get("benchmark_evidence_class")
+        if evidence_class not in NATIVE_FORMAL_EVIDENCE_CLASSES:
+            errors.append("native_formal_certificate.benchmark_evidence_class must be a recognised evidence class")
+        production_claim_allowed = native_formal.get("production_claim_allowed")
+        if not isinstance(production_claim_allowed, bool):
+            errors.append("native_formal_certificate.production_claim_allowed must be a boolean")
+        elif evidence_class == "local_regression" and production_claim_allowed:
+            errors.append("local native formal evidence must not allow production benchmark claims")
         native_errors = native_formal.get("errors")
         if native_errors != []:
             errors.append("native_formal_certificate.errors must be empty")

@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 from validation.validate_native_formal_certificate_evidence import (
+    BENCHMARK_CONTEXT_SCHEMA_VERSION,
     CERTIFICATE_ID,
     CERTIFICATE_SCHEMA_VERSION,
     validate_native_formal_certificate_evidence,
@@ -46,6 +47,26 @@ def _payload(**summary_overrides: object) -> dict[str, object]:
     summary.update(summary_overrides)
     return {
         "schema": "scpn-control.native_formal_modes.v1",
+        "workspace_dirty": True,
+        "benchmark_context": {
+            "schema_version": BENCHMARK_CONTEXT_SCHEMA_VERSION,
+            "evidence_class": "local_regression",
+            "production_claim_allowed": False,
+            "command": ["python", "scripts/benchmark_native_formal_modes.py"],
+            "affinity_cpus": [0, 1],
+            "reserved_core_set": [0, 1],
+            "isolation_method": "none",
+            "host_load_before": "1.00 1.00 1.00 1/100 1",
+            "host_load_after": "1.01 1.00 1.00 1/100 2",
+            "cpu_governor": "performance",
+            "cpu_frequency_context": "min_khz=1000000 max_khz=1000000",
+            "hardware_model": "test cpu",
+            "os": "test os",
+            "python": "3.12",
+            "runtime_versions": {"python": "3.12"},
+            "other_heavy_jobs_running": "unknown",
+            "claim_boundary": "local regression evidence only",
+        },
         "summaries": {
             "std:spin:aot_certificate:stride_1": summary,
             "std:spin:disabled:stride_30": {
@@ -75,6 +96,8 @@ def test_native_formal_certificate_evidence_admits_complete_report(tmp_path: Pat
     assert result.status == "pass"
     assert result.admitted_cases == ("std:spin:aot_certificate:stride_1",)
     assert result.certificate_assumption_sha256 == "a" * 64
+    assert result.benchmark_evidence_class == "local_regression"
+    assert result.production_claim_allowed is False
     assert result.errors == ()
 
 
@@ -109,10 +132,41 @@ def test_native_formal_certificate_evidence_rejects_digest_instability(tmp_path:
     assert any("stable across admitted cases" in error for error in result.errors)
 
 
+def test_native_formal_certificate_evidence_rejects_missing_benchmark_context(tmp_path: Path) -> None:
+    payload = _payload()
+    del payload["benchmark_context"]
+    report = _write_report(tmp_path / "report.json", payload)
+
+    result = validate_native_formal_certificate_evidence(report)
+
+    assert result.status == "fail"
+    assert "benchmark_context must be an object" in result.errors
+
+
+def test_native_formal_certificate_evidence_rejects_unisolated_production_claim(tmp_path: Path) -> None:
+    payload = _payload()
+    context = payload["benchmark_context"]
+    assert isinstance(context, dict)
+    context["evidence_class"] = "production_benchmark"
+    context["production_claim_allowed"] = True
+    context["isolation_method"] = "none"
+    context["other_heavy_jobs_running"] = "unknown"
+    report = _write_report(tmp_path / "report.json", payload)
+
+    result = validate_native_formal_certificate_evidence(report)
+
+    assert result.status == "fail"
+    assert "production benchmark evidence requires an explicit CPU/core isolation method" in result.errors
+    assert "production benchmark evidence must declare whether other heavy jobs were running" in result.errors
+    assert "production benchmark evidence must not come from a dirty workspace" in result.errors
+
+
 def test_repository_native_formal_certificate_evidence_is_admitted() -> None:
     result = validate_native_formal_certificate_evidence()
 
     assert result.status == "pass"
+    assert result.benchmark_evidence_class == "local_regression"
+    assert result.production_claim_allowed is False
     assert result.certificate_assumption_sha256 == (
         "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd"
     )

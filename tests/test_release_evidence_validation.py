@@ -46,6 +46,8 @@ def _valid_report() -> dict[str, object]:
             "status": "pass",
             "admitted_cases": ["std:spin:aot_certificate:stride_1"],
             "certificate_assumption_sha256": "a" * 64,
+            "benchmark_evidence_class": "local_regression",
+            "production_claim_allowed": False,
             "errors": [],
             "report_sha256": "b" * 64,
         },

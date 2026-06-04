@@ -25,9 +25,14 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPORT = ROOT / "validation" / "reports" / "native_formal_aot_certificate_admission_20260604T103219Z.json"
 RESULT_SCHEMA_VERSION = "scpn-control.native-formal-certificate-evidence.v1"
 BENCHMARK_SCHEMA_VERSION = "scpn-control.native_formal_modes.v1"
+BENCHMARK_CONTEXT_SCHEMA_VERSION = "scpn-control.benchmark-context.v1"
 CERTIFICATE_SCHEMA_VERSION = "scpn-control.native-formal.aot-certificate.v1"
 CERTIFICATE_ID = "bounded-petri-marking-sufficient-invariant"
 DEFAULT_MAX_AOT_P99_CYCLE_US = 10.0
+LOCAL_REGRESSION_EVIDENCE = "local_regression"
+PRODUCTION_BENCHMARK_EVIDENCE = "production_benchmark"
+ALLOWED_EVIDENCE_CLASSES = frozenset({LOCAL_REGRESSION_EVIDENCE, PRODUCTION_BENCHMARK_EVIDENCE})
+UNISOLATED_METHODS = frozenset({"", "none", "unknown", "unspecified"})
 
 JSONValue: TypeAlias = None | bool | int | float | str | list["JSONValue"] | dict[str, "JSONValue"]
 JSONMapping: TypeAlias = dict[str, JSONValue]
@@ -40,6 +45,8 @@ class NativeFormalCertificateEvidenceResult:
     status: str
     admitted_cases: tuple[str, ...]
     certificate_assumption_sha256: str | None
+    benchmark_evidence_class: str | None
+    production_claim_allowed: bool
     errors: tuple[str, ...]
     report_sha256: str | None
 
@@ -49,6 +56,8 @@ class NativeFormalCertificateEvidenceResult:
             "status": self.status,
             "admitted_cases": list(self.admitted_cases),
             "certificate_assumption_sha256": self.certificate_assumption_sha256,
+            "benchmark_evidence_class": self.benchmark_evidence_class,
+            "production_claim_allowed": self.production_claim_allowed,
             "errors": list(self.errors),
             "report_sha256": self.report_sha256,
         }
@@ -98,6 +107,92 @@ def _mapping(value: JSONValue) -> JSONMapping | None:
     if isinstance(value, dict):
         return cast(JSONMapping, value)
     return None
+
+
+def _string_list(value: JSONValue) -> list[str] | None:
+    if isinstance(value, list) and value and all(isinstance(item, str) and item for item in value):
+        return cast(list[str], value)
+    return None
+
+
+def _int_list(value: JSONValue) -> list[int] | None:
+    if (
+        isinstance(value, list)
+        and value
+        and all(not isinstance(item, bool) and isinstance(item, int) and item >= 0 for item in value)
+    ):
+        return cast(list[int], value)
+    return None
+
+
+def _non_empty_string(value: JSONValue) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _validate_benchmark_context(payload: JSONMapping, errors: list[str]) -> tuple[str | None, bool]:
+    context = _mapping(payload.get("benchmark_context"))
+    if context is None:
+        errors.append("benchmark_context must be an object")
+        return None, False
+
+    if context.get("schema_version") != BENCHMARK_CONTEXT_SCHEMA_VERSION:
+        errors.append(f"benchmark_context.schema_version must be {BENCHMARK_CONTEXT_SCHEMA_VERSION!r}")
+
+    evidence_class_raw = context.get("evidence_class")
+    evidence_class = evidence_class_raw if isinstance(evidence_class_raw, str) else None
+    if evidence_class not in ALLOWED_EVIDENCE_CLASSES:
+        errors.append("benchmark_context.evidence_class must be local_regression or production_benchmark")
+
+    production_claim_allowed = context.get("production_claim_allowed")
+    if not isinstance(production_claim_allowed, bool):
+        errors.append("benchmark_context.production_claim_allowed must be a boolean")
+        production_claim_allowed_bool = False
+    else:
+        production_claim_allowed_bool = production_claim_allowed
+
+    if _string_list(context.get("command")) is None:
+        errors.append("benchmark_context.command must be a non-empty list of command arguments")
+    if _int_list(context.get("affinity_cpus")) is None:
+        errors.append("benchmark_context.affinity_cpus must be a non-empty integer list")
+    if _int_list(context.get("reserved_core_set")) is None:
+        errors.append("benchmark_context.reserved_core_set must be a non-empty integer list")
+
+    for field in (
+        "isolation_method",
+        "host_load_before",
+        "host_load_after",
+        "cpu_governor",
+        "cpu_frequency_context",
+        "hardware_model",
+        "os",
+        "python",
+        "claim_boundary",
+    ):
+        if not _non_empty_string(context.get(field)):
+            errors.append(f"benchmark_context.{field} must be a non-empty string")
+
+    runtime_versions = _mapping(context.get("runtime_versions"))
+    if runtime_versions is None or not runtime_versions:
+        errors.append("benchmark_context.runtime_versions must be a non-empty object")
+
+    heavy_jobs = context.get("other_heavy_jobs_running")
+    if not (isinstance(heavy_jobs, bool) or heavy_jobs == "unknown"):
+        errors.append("benchmark_context.other_heavy_jobs_running must be a boolean or 'unknown'")
+
+    if evidence_class == LOCAL_REGRESSION_EVIDENCE and production_claim_allowed_bool:
+        errors.append("local regression evidence must not allow production benchmark claims")
+    if evidence_class == PRODUCTION_BENCHMARK_EVIDENCE:
+        isolation_method = str(context.get("isolation_method", "")).strip().lower()
+        if isolation_method in UNISOLATED_METHODS:
+            errors.append("production benchmark evidence requires an explicit CPU/core isolation method")
+        if heavy_jobs == "unknown":
+            errors.append("production benchmark evidence must declare whether other heavy jobs were running")
+        if payload.get("workspace_dirty") is True:
+            errors.append("production benchmark evidence must not come from a dirty workspace")
+        if not production_claim_allowed_bool:
+            errors.append("production benchmark evidence must set production_claim_allowed=true")
+
+    return evidence_class, production_claim_allowed_bool
 
 
 def _validate_summary_case(
@@ -187,10 +282,12 @@ def validate_native_formal_certificate_evidence(
         report_sha256 = _sha256_file(path)
         payload = _load_json(path)
     except (OSError, ValueError) as exc:
-        return NativeFormalCertificateEvidenceResult("fail", (), None, (str(exc),), None)
+        return NativeFormalCertificateEvidenceResult("fail", (), None, None, False, (str(exc),), None)
 
     if payload.get("schema") != BENCHMARK_SCHEMA_VERSION:
         errors.append(f"schema must be {BENCHMARK_SCHEMA_VERSION!r}")
+
+    benchmark_evidence_class, production_claim_allowed = _validate_benchmark_context(payload, errors)
 
     if not _is_finite_number(cast(JSONValue, max_aot_p99_cycle_us)) or max_aot_p99_cycle_us <= 0.0:
         errors.append("max_aot_p99_cycle_us must be positive and finite")
@@ -229,6 +326,8 @@ def validate_native_formal_certificate_evidence(
         status,
         tuple(sorted(admitted_cases)),
         certificate_digest,
+        benchmark_evidence_class,
+        production_claim_allowed,
         tuple(errors),
         report_sha256,
     )

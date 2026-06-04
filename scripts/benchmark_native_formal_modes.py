@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import socket
 import statistics
@@ -22,7 +23,7 @@ import time
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src"
@@ -32,6 +33,7 @@ if str(SRC_ROOT) not in sys.path:
 from scpn_control.core.rust_engine import NeuroCyberneticEngine  # noqa: E402
 
 LOOP_DEADLINE_US = 100.0
+BENCHMARK_CONTEXT_SCHEMA_VERSION = "scpn-control.benchmark-context.v1"
 
 
 class _UdpSink:
@@ -116,6 +118,31 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--transport-port-base", type=int, default=57300)
     parser.add_argument("--transport-max-queue", type=int, default=128)
     parser.add_argument("--max-publish-failures", type=int, default=1_000_000)
+    parser.add_argument(
+        "--evidence-class",
+        choices=["local_regression", "production_benchmark"],
+        default="local_regression",
+        help="Classify timing evidence as local regression or production benchmark evidence",
+    )
+    parser.add_argument(
+        "--isolation-method",
+        default="auto",
+        help="CPU/core isolation method used for the run, or auto to derive from host affinity",
+    )
+    parser.add_argument(
+        "--other-heavy-jobs-running",
+        choices=["unknown", "yes", "no"],
+        default="unknown",
+        help="Whether other heavy jobs were running during capture",
+    )
+    parser.add_argument(
+        "--claim-boundary",
+        default=(
+            "Local regression evidence only unless evidence_class=production_benchmark "
+            "and benchmark_context records explicit CPU/core isolation."
+        ),
+        help="Claim boundary attached to the benchmark report",
+    )
     parser.add_argument("--core-snn", type=int, default=1)
     parser.add_argument("--core-z3", type=int, default=2)
     parser.add_argument("--core-net", type=int, default=3)
@@ -149,6 +176,94 @@ def _read_text(path: str) -> str:
         return Path(path).read_text(encoding="utf-8").strip()
     except OSError:
         return ""
+
+
+def _affinity_cpus() -> list[int]:
+    if hasattr(os, "sched_getaffinity"):
+        return sorted(int(cpu) for cpu in os.sched_getaffinity(0))
+    return []
+
+
+def _online_cpus() -> list[int]:
+    cpu_count = os.cpu_count() or 0
+    return list(range(cpu_count))
+
+
+def _read_cpu_model() -> str:
+    try:
+        for line in Path("/proc/cpuinfo").read_text(encoding="utf-8").splitlines():
+            if line.lower().startswith("model name"):
+                return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or "unavailable"
+
+
+def _read_cpu_governor() -> str:
+    governors: set[str] = set()
+    for path in Path("/sys/devices/system/cpu").glob("cpu[0-9]*/cpufreq/scaling_governor"):
+        text = _read_text(str(path))
+        if text:
+            governors.add(text)
+    return ",".join(sorted(governors)) or "unavailable"
+
+
+def _read_cpu_frequency_context() -> str:
+    frequencies: list[int] = []
+    for path in Path("/sys/devices/system/cpu").glob("cpu[0-9]*/cpufreq/scaling_cur_freq"):
+        text = _read_text(str(path))
+        if text.isdigit():
+            frequencies.append(int(text))
+    if not frequencies:
+        return "unavailable"
+    return f"min_khz={min(frequencies)} max_khz={max(frequencies)}"
+
+
+def _derive_isolation_method(requested: str, affinity: list[int]) -> str:
+    if requested != "auto":
+        return requested
+    isolated = _read_text("/sys/devices/system/cpu/isolated")
+    nohz_full = _read_text("/sys/devices/system/cpu/nohz_full")
+    if isolated or (nohz_full and nohz_full != "(null)"):
+        return "kernel-isolated"
+    online = _online_cpus()
+    if affinity and online and set(affinity) != set(online):
+        return "process-affinity"
+    return "none"
+
+
+def _benchmark_context(args: argparse.Namespace, *, load_before: str, load_after: str) -> dict[str, Any]:
+    affinity = _affinity_cpus()
+    evidence_class = str(args.evidence_class)
+    heavy_jobs: bool | str
+    if args.other_heavy_jobs_running == "yes":
+        heavy_jobs = True
+    elif args.other_heavy_jobs_running == "no":
+        heavy_jobs = False
+    else:
+        heavy_jobs = "unknown"
+    return {
+        "schema_version": BENCHMARK_CONTEXT_SCHEMA_VERSION,
+        "evidence_class": evidence_class,
+        "production_claim_allowed": evidence_class == "production_benchmark",
+        "command": [sys.executable, *sys.argv],
+        "affinity_cpus": affinity,
+        "reserved_core_set": sorted({int(args.core_snn), int(args.core_z3), int(args.core_net), int(args.core_hb)}),
+        "isolation_method": _derive_isolation_method(str(args.isolation_method), affinity),
+        "host_load_before": load_before,
+        "host_load_after": load_after,
+        "cpu_governor": _read_cpu_governor(),
+        "cpu_frequency_context": _read_cpu_frequency_context(),
+        "hardware_model": _read_cpu_model(),
+        "os": platform.platform(),
+        "python": platform.python_version(),
+        "runtime_versions": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+        },
+        "other_heavy_jobs_running": heavy_jobs,
+        "claim_boundary": str(args.claim_boundary),
+    }
 
 
 def _formal(summary: dict[str, Any]) -> dict[str, Any]:
@@ -208,16 +323,19 @@ def _run_case(
 
     started = time.perf_counter()
     with _UdpSink(args.transport_endpoint, port) as sink:
-        summary = engine.execute_hardware_loop(
-            steps=args.steps,
-            tick_interval_s=args.tick_interval_s,
-            pacing_mode=pacing_mode,
-            max_publish_failures=args.max_publish_failures,
-            execution_backend="native",
-            core_snn=args.core_snn,
-            core_z3=args.core_z3,
-            core_net=args.core_net,
-            core_hb=args.core_hb,
+        summary = cast(
+            dict[str, Any],
+            engine.execute_hardware_loop(
+                steps=args.steps,
+                tick_interval_s=args.tick_interval_s,
+                pacing_mode=pacing_mode,
+                max_publish_failures=args.max_publish_failures,
+                execution_backend="native",
+                core_snn=args.core_snn,
+                core_z3=args.core_z3,
+                core_net=args.core_net,
+                core_hb=args.core_hb,
+            ),
         )
     wall_s = time.perf_counter() - started
     summary["wall_s"] = wall_s
@@ -300,12 +418,21 @@ def _case_names(
 
 
 def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
+    context = payload.get("benchmark_context", {})
+    if not isinstance(context, dict):
+        context = {}
     lines = [
         "# Native formal verification mode benchmark",
         "",
         f"Generated: {payload['generated_at']}",
         f"Commit: `{payload['commit_short']}`",
         f"Workspace dirty: `{payload['workspace_dirty']}`",
+        f"Evidence class: `{context.get('evidence_class', '-')}`",
+        f"Production claim allowed: `{context.get('production_claim_allowed', '-')}`",
+        f"Isolation method: `{context.get('isolation_method', '-')}`",
+        f"Affinity CPUs: `{context.get('affinity_cpus', '-')}`",
+        f"Host load before: `{context.get('host_load_before', '-')}`",
+        f"Host load after: `{context.get('host_load_after', '-')}`",
         "",
         payload["classification"],
         "",
@@ -359,6 +486,7 @@ def main() -> int:
         raise SystemExit(f"unsupported formal modes: {', '.join(invalid_formal_modes)}")
     if invalid_pacing_modes:
         raise SystemExit(f"unsupported pacing modes: {', '.join(invalid_pacing_modes)}")
+    load_before = _read_text("/proc/loadavg")
     runs: list[dict[str, Any]] = []
     port = args.transport_port_base
     for transport, pacing_mode, mode, stride in _case_names(transports, args.strides, formal_modes, pacing_modes):
@@ -375,6 +503,7 @@ def main() -> int:
                 )
             )
             port += 1
+    load_after = _read_text("/proc/loadavg")
 
     summaries = {
         f"{transport}:{pacing_mode}:{mode}:stride_{stride}": _summarise(
@@ -392,7 +521,10 @@ def main() -> int:
     payload = {
         "schema": "scpn-control.native_formal_modes.v1",
         "generated_at": datetime.now(UTC).isoformat(),
-        "classification": "native formal mode benchmark; isolation depends on caller taskset/governor setup",
+        "classification": (
+            "native formal mode benchmark; benchmark_context defines whether timing evidence is local regression "
+            "or production benchmark evidence"
+        ),
         "commit": _shell(["git", "rev-parse", "HEAD"]),
         "commit_short": _shell(["git", "rev-parse", "--short", "HEAD"]),
         "workspace_dirty": _git_dirty(),
@@ -413,10 +545,11 @@ def main() -> int:
         "host": {
             "platform": platform.platform(),
             "python": platform.python_version(),
-            "loadavg": _read_text("/proc/loadavg"),
+            "loadavg": load_after,
             "isolated_cpus": _read_text("/sys/devices/system/cpu/isolated"),
             "nohz_full": _read_text("/sys/devices/system/cpu/nohz_full"),
         },
+        "benchmark_context": _benchmark_context(args, load_before=load_before, load_after=load_after),
         "limitations": [
             "p50/p95/p99 are across repeated campaign summaries, not per-tick histograms.",
             "workspace_dirty means the benchmark includes uncommitted local changes on top of the reported commit.",

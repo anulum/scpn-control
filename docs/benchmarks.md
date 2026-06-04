@@ -94,7 +94,8 @@ PYTHONPATH=src .venv/bin/python scripts/benchmark_native_formal_modes.py \
   --formal-modes disabled,aot_certificate \
   --pacing-modes sleep,spin \
   --strides 1 \
-  --transports std
+  --transports std \
+  --evidence-class local_regression
 ```
 
 Admit the persisted AOT certificate evidence before using it in a release or
@@ -107,16 +108,22 @@ python validation/validate_native_formal_certificate_evidence.py \
 ```
 
 The validator rejects reports with malformed JSON, the wrong benchmark schema,
-missing AOT cases, unstable certificate digests, missing certificate admission,
-nonzero drops, nonzero formal failures, incomplete generated/submitted/checked
-coverage, or AOT p99 cycle latency above the configured threshold.
+missing benchmark context, invalid evidence-class metadata, missing AOT cases,
+unstable certificate digests, missing certificate admission, nonzero drops,
+nonzero formal failures, incomplete generated/submitted/checked coverage, or
+AOT p99 cycle latency above the configured threshold. Reports generated on a
+loaded workstation or without explicit CPU/core isolation must use
+`evidence_class=local_regression` and `production_claim_allowed=false`.
+`evidence_class=production_benchmark` requires explicit isolation metadata,
+a clean workspace, and a declared yes/no value for concurrent heavy jobs.
 
 `scpn-control validate` runs the same native formal certificate gate by default
 and emits the result under `native_formal_certificate`. The release-evidence
 admission step requires this section to pass, requires at least one admitted AOT
-certificate case, and binds the report to both the certificate-assumption digest
-and the benchmark-report digest. Use `--no-native-formal-certificate` only for
-local diagnostics; release evidence and preflight admission must not skip it.
+certificate case, and binds the report to the certificate-assumption digest,
+benchmark-report digest, and benchmark evidence class. Use
+`--no-native-formal-certificate` only for local diagnostics; release evidence
+and preflight admission must not skip it.
 
 Run:
 

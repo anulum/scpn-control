@@ -44,6 +44,9 @@
 - Added native formal AOT certificate evidence to the top-level validation and
   release-evidence admission gates, including digest checks for the admitted
   certificate assumptions and persisted benchmark report.
+- Added benchmark-context admission for native formal AOT certificate reports
+  so non-isolated workstation timings remain local-regression evidence and
+  production benchmark evidence requires explicit CPU/core isolation metadata.
 
 ### Changed
 - Added an execution-backend selector to the hardware-campaign CLI and Rust
