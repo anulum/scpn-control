@@ -232,6 +232,64 @@ Current outputs include:
 - `snn_us_per_step`
 - `speedup_ratio`
 
+## Pulsed-shot MPC adapter regression
+
+Use this benchmark after changes to the pulsed MPC admission boundary:
+
+- `src/scpn_control/control/fusion_sota_mpc.py`
+- `src/scpn_control/control/pulsed_scenario_scheduler_v2.py`
+- `src/scpn_control/control/capacitor_bank_state.py`
+- `scpn-control-rs/crates/control-control/src/mpc.rs`
+- `scpn-control-rs/crates/control-python/src/lib.rs`
+
+Run the local regression harness with explicit output paths:
+
+```bash
+PYTHONPATH=src python benchmarks/bench_pulsed_mpc_adapter.py \
+  --steps 2000 \
+  --warmup 200 \
+  --json-out validation/reports/pulsed_mpc_adapter_local_regression.json \
+  --md-out validation/reports/pulsed_mpc_adapter_local_regression.md
+```
+
+For soft core affinity on a developer workstation:
+
+```bash
+taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_pulsed_mpc_adapter.py \
+  --steps 2000 \
+  --warmup 200 \
+  --evidence-class local_regression \
+  --json-out validation/reports/pulsed_mpc_adapter_soft_isolated.json \
+  --md-out validation/reports/pulsed_mpc_adapter_soft_isolated.md
+```
+
+The report records Python adapter timing for non-burn masking, feasible burn
+admission, and infeasible-bank safe-action replacement. If the optional PyO3
+extension is installed and rebuilt with `PyMpcController.plan_pulsed()`, the
+same report records Rust/PyO3 adapter timing. Reports generated on a loaded
+workstation or with soft affinity only must keep
+`production_claim_allowed=false`; they are local regression evidence, not
+target-hardware timing evidence.
+
+Run the native Rust adapter benchmark when Rust control-surface timing changed
+or when the PyO3 extension is unavailable:
+
+```bash
+cargo run --manifest-path scpn-control-rs/Cargo.toml \
+  -p control-control \
+  --example bench_pulsed_mpc_adapter \
+  --release \
+  -- \
+  --steps 2000 \
+  --warmup 200 \
+  --json-out validation/reports/pulsed_mpc_adapter_rust_local_regression.json \
+  --md-out validation/reports/pulsed_mpc_adapter_rust_local_regression.md
+```
+
+This example times the Rust `MPController.plan_pulsed()` surface directly and
+writes a separate digest-bound JSON/Markdown report. Use the Python and Rust
+reports together as polyglot regression evidence.
+
 ## Kuramoto Phase Sync — Python vs Rust Speedup
 
 Single `kuramoto_sakaguchi_step()` with ζ=0.5, Ψ=0.3.

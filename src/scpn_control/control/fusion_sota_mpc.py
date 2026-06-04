@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Fusion Sota Mpc
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Gradient-Based Trajectory MPC
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Gradient MPC and pulsed-shot admission adapter.
 """Gradient-based trajectory optimizer over a linearized surrogate.
 
 Not a full MPC in the Rawlings-Mayne sense: no terminal cost, no
@@ -24,8 +16,9 @@ solver, not a neural network despite the class name.
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Mapping, Tuple
 
 try:
     import matplotlib.pyplot as plt
@@ -43,6 +36,11 @@ except ImportError:
 import logging
 
 from scpn_control.control import normalize_bounds, solve_kernel
+from scpn_control.control.capacitor_bank_state import CapacitorBank, PulseSpec, WaveformName
+from scpn_control.control.pulsed_scenario_scheduler_v2 import (
+    PulsedScenarioScheduler,
+    PulsedScenarioState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +152,196 @@ class ModelPredictiveController:
             np.clip(planned_actions, -self.action_limit, self.action_limit, out=planned_actions)
 
         return np.asarray(planned_actions[0], dtype=np.float64)
+
+
+@dataclass(frozen=True)
+class PulsedShotMPCDecision:
+    """Admitted pulsed-shot MPC action and its control-boundary rationale."""
+
+    action: np.ndarray
+    mpc_objective: float
+    constraint_slack: float
+    scheduler_state: str
+    bank_feasibility: str
+    reason: str
+    bank_feasible: bool
+    safe_action_applied: bool
+    burn_components_masked: bool
+    peak_current_A: float
+
+
+class PulsedShotMPCAdapter:
+    """Gate an existing MPC action through pulsed-shot lifecycle and bank guards."""
+
+    def __init__(
+        self,
+        nmpc: ModelPredictiveController,
+        scheduler: PulsedScenarioScheduler,
+        bank: CapacitorBank,
+        *,
+        burn_action_mask: np.ndarray | None = None,
+        safe_action: np.ndarray | None = None,
+        pulse_duration_s: float = 0.001,
+        pulse_waveform: WaveformName = "half_sine",
+        refuse_burn_when_uncharged: bool = True,
+    ) -> None:
+        self.nmpc = nmpc
+        self.scheduler = scheduler
+        self.bank = bank
+        n_actions = int(self.nmpc.model.B.shape[1])
+        if burn_action_mask is None:
+            mask = np.ones(n_actions, dtype=bool)
+        else:
+            mask = np.asarray(burn_action_mask, dtype=bool).reshape(-1)
+        if mask.shape != (n_actions,):
+            raise ValueError("burn_action_mask length must match MPC action dimension")
+        if not bool(np.any(mask)):
+            raise ValueError("burn_action_mask must select at least one burn action component")
+        self.burn_action_mask = mask
+        if safe_action is None:
+            safe = np.zeros(n_actions, dtype=np.float64)
+        else:
+            safe = np.asarray(safe_action, dtype=np.float64).reshape(-1)
+        if safe.shape != (n_actions,) or not np.all(np.isfinite(safe)):
+            raise ValueError("safe_action must be finite and match MPC action dimension")
+        self.safe_action = safe
+        duration = float(pulse_duration_s)
+        if not np.isfinite(duration) or duration <= 0.0:
+            raise ValueError("pulse_duration_s must be finite and > 0")
+        if pulse_waveform not in ("rect", "half_sine", "exp_decay"):
+            raise ValueError("pulse_waveform must be one of: rect, half_sine, exp_decay")
+        self.pulse_duration_s = duration
+        self.pulse_waveform: WaveformName = pulse_waveform
+        self.refuse_burn_when_uncharged = bool(refuse_burn_when_uncharged)
+        self._last_decision: PulsedShotMPCDecision | None = None
+
+    def step(
+        self,
+        state: np.ndarray,
+        ref: np.ndarray | None = None,
+        context: object | None = None,
+        *,
+        pulse: PulseSpec | None = None,
+    ) -> np.ndarray:
+        """Return an MPC action admitted by scheduler and capacitor-bank guards."""
+        state_vec = np.asarray(state, dtype=np.float64).reshape(-1)
+        if state_vec.shape != self.nmpc.target.shape or not np.all(np.isfinite(state_vec)):
+            raise ValueError("state must be finite and match MPC target dimension")
+        target = self.nmpc.target
+        if ref is not None:
+            target = np.asarray(ref, dtype=np.float64).reshape(-1)
+            if target.shape != self.nmpc.target.shape or not np.all(np.isfinite(target)):
+                raise ValueError("ref must be finite and match MPC target dimension")
+
+        original_target = self.nmpc.target.copy()
+        try:
+            if ref is not None:
+                self.nmpc.target = target
+            raw_action = np.asarray(self.nmpc.plan_trajectory(state_vec), dtype=np.float64).reshape(-1)
+        finally:
+            self.nmpc.target = original_target
+
+        if raw_action.shape != self.safe_action.shape or not np.all(np.isfinite(raw_action)):
+            raise ValueError("MPC action must be finite and match safe_action dimension")
+
+        scheduler_state = self._scheduler_state(context)
+        pulse_spec = self._pulse_from_action(raw_action, pulse)
+        bank_feasible = True
+        bank_reason = "not evaluated outside burn"
+        constraint_slack = self._constraint_slack(pulse_spec)
+        action = raw_action.copy()
+        safe_action_applied = False
+        burn_components_masked = False
+        reason = "burn action admitted"
+
+        if scheduler_state is not PulsedScenarioState.BURN:
+            action[self.burn_action_mask] = self.safe_action[self.burn_action_mask]
+            burn_components_masked = True
+            reason = f"scheduler state {scheduler_state.value} masks burn action"
+        elif self.refuse_burn_when_uncharged:
+            if pulse_spec is None:
+                bank_reason = "no burn demand"
+            else:
+                bank_feasible, bank_reason = self.bank.feasibility(pulse_spec)
+            if not bank_feasible:
+                action = self.safe_action.copy()
+                safe_action_applied = True
+                reason = f"bank feasibility rejected burn action: {bank_reason}"
+        else:
+            bank_reason = "bank guard disabled by policy"
+
+        self._last_decision = PulsedShotMPCDecision(
+            action=action.copy(),
+            mpc_objective=self._objective(state_vec, raw_action, target),
+            constraint_slack=constraint_slack,
+            scheduler_state=scheduler_state.value,
+            bank_feasibility=bank_reason,
+            reason=reason,
+            bank_feasible=bool(bank_feasible),
+            safe_action_applied=safe_action_applied,
+            burn_components_masked=burn_components_masked,
+            peak_current_A=0.0 if pulse_spec is None else float(pulse_spec.peak_current_A),
+        )
+        return action
+
+    def explain_last_decision(self) -> dict[str, float | str | bool]:
+        """Return the latest scheduler, bank, and MPC admission summary."""
+        if self._last_decision is None:
+            raise RuntimeError("no pulsed MPC decision has been recorded")
+        decision = self._last_decision
+        return {
+            "mpc_objective": decision.mpc_objective,
+            "constraint_slack": decision.constraint_slack,
+            "scheduler_state": decision.scheduler_state,
+            "bank_feasibility": decision.bank_feasibility,
+            "reason": decision.reason,
+            "bank_feasible": decision.bank_feasible,
+            "safe_action_applied": decision.safe_action_applied,
+            "burn_components_masked": decision.burn_components_masked,
+            "peak_current_A": decision.peak_current_A,
+        }
+
+    def _scheduler_state(self, context: object | None) -> PulsedScenarioState:
+        if context is None:
+            return PulsedScenarioState(self.scheduler.state)
+        if isinstance(context, PulsedScenarioState):
+            return context
+        if isinstance(context, str):
+            return PulsedScenarioState(context)
+        if isinstance(context, Mapping) and "state" in context:
+            return PulsedScenarioState(context["state"])
+        state = getattr(context, "state", None)
+        if state is not None:
+            return PulsedScenarioState(state)
+        return PulsedScenarioState(self.scheduler.state)
+
+    def _pulse_from_action(self, action: np.ndarray, pulse: PulseSpec | None) -> PulseSpec | None:
+        if pulse is not None:
+            return pulse
+        peak_current = float(np.max(np.abs(action[self.burn_action_mask])))
+        if peak_current <= 0.0:
+            return None
+        return PulseSpec(
+            peak_current_A=peak_current,
+            duration_s=self.pulse_duration_s,
+            waveform=self.pulse_waveform,
+        )
+
+    def _constraint_slack(self, pulse: PulseSpec | None) -> float:
+        if pulse is None:
+            return float(self.bank.state.energy_J)
+        factor = {
+            "rect": 1.0,
+            "half_sine": 0.5,
+            "exp_decay": 0.25 * (1.0 - np.exp(-10.0)),
+        }[pulse.waveform]
+        estimated_loss = self.bank.spec.series_resistance_ohm * pulse.peak_current_A**2 * factor * pulse.duration_s
+        return float(self.bank.state.energy_J - estimated_loss)
+
+    def _objective(self, state: np.ndarray, action: np.ndarray, target: np.ndarray) -> float:
+        predicted = self.nmpc.model.predict(state, action)
+        error = predicted - target
+        return float(np.dot(error, error) + self.nmpc.action_regularization * np.dot(action, action))
 
 
 def _plot_telemetry(

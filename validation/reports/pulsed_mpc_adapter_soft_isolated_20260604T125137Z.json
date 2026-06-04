@@ -1,0 +1,116 @@
+{
+  "command": "benchmarks/bench_pulsed_mpc_adapter.py --steps 2000 --warmup 200 --evidence-class local_regression --json-out validation/reports/pulsed_mpc_adapter_soft_isolated_20260604T125137Z.json --md-out validation/reports/pulsed_mpc_adapter_soft_isolated_20260604T125137Z.md",
+  "context": {
+    "cpu_affinity": [
+      4,
+      5
+    ],
+    "cwd": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL",
+    "loadavg_end": [
+      4.46923828125,
+      4.38232421875,
+      4.22509765625
+    ],
+    "loadavg_start": [
+      4.4228515625,
+      4.37158203125,
+      4.220703125
+    ],
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]"
+  },
+  "evidence_class": "local_regression",
+  "generated_utc": "2026-06-04T12:51:45Z",
+  "payload_sha256": "4e8013b256afe9e1917eaa29138417ab9f91f7b578ef26f7c24d4934e35aa7b1",
+  "production_claim_allowed": false,
+  "pyo3_status": "optional PyO3 extension unavailable: No module named 'scpn_control_rs'",
+  "results": {
+    "python_burn_feasible": {
+      "last_value": [
+        [
+          0.6158372194324608,
+          -0.6158372194324606
+        ],
+        {
+          "bank_feasibility": "ok",
+          "bank_feasible": true,
+          "burn_components_masked": false,
+          "constraint_slack": 49.99999875,
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.5,
+          "reason": "burn action admitted",
+          "safe_action_applied": false,
+          "scheduler_state": "burn"
+        }
+      ],
+      "stats": {
+        "max_us": 4237.082,
+        "mean_us": 1039.9416115,
+        "median_us": 992.3055,
+        "min_us": 800.241,
+        "p95_us": 1317.322,
+        "p99_us": 1838.956,
+        "samples": 2000
+      }
+    },
+    "python_burn_infeasible_safe": {
+      "last_value": [
+        [
+          0.0,
+          0.0
+        ],
+        {
+          "bank_feasibility": "resistive dissipation 0.19 J exceeds available 0 J",
+          "bank_feasible": false,
+          "burn_components_masked": false,
+          "constraint_slack": -0.18962774041915245,
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.6158372194324608,
+          "reason": "bank feasibility rejected burn action: resistive dissipation 0.19 J exceeds available 0 J",
+          "safe_action_applied": true,
+          "scheduler_state": "burn"
+        }
+      ],
+      "stats": {
+        "max_us": 4290.708,
+        "mean_us": 1046.8813595,
+        "median_us": 1021.2055,
+        "min_us": 933.837,
+        "p95_us": 1206.399,
+        "p99_us": 1354.851,
+        "samples": 2000
+      }
+    },
+    "python_non_burn_mask": {
+      "last_value": [
+        [
+          0.0,
+          -0.6158372194324606
+        ],
+        {
+          "bank_feasibility": "not evaluated outside burn",
+          "bank_feasible": true,
+          "burn_components_masked": true,
+          "constraint_slack": 49.99999051861298,
+          "mpc_objective": 1.8371013180114426,
+          "peak_current_A": 0.6158372194324608,
+          "reason": "scheduler state flat_top masks burn action",
+          "safe_action_applied": false,
+          "scheduler_state": "flat_top"
+        }
+      ],
+      "stats": {
+        "max_us": 2307.336,
+        "mean_us": 954.4507865,
+        "median_us": 907.4795,
+        "min_us": 794.872,
+        "p95_us": 1227.176,
+        "p99_us": 1387.188,
+        "samples": 2000
+      }
+    }
+  },
+  "schema_version": "scpn-control.pulsed-mpc-adapter-benchmark.v1",
+  "steps": 2000,
+  "warmup": 200
+}

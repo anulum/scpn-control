@@ -221,6 +221,8 @@ dependencies = [
  "ndarray-linalg",
  "rand 0.9.4",
  "rand_distr",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

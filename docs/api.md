@@ -1,10 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: Public API reference. -->
+<!-- SCPN Control — Public API reference. -->
 
 # API Reference
 
@@ -177,6 +177,38 @@ validation artefacts.
 ::: scpn_control.control.capacitor_bank_state.free_response
 
 ::: scpn_control.control.capacitor_bank_state.CapacitorBank
+
+---
+
+## Control — Pulsed-Shot MPC Admission Adapter
+
+`scpn_control.control.fusion_sota_mpc.PulsedShotMPCAdapter` wraps the
+CONTROL-owned gradient MPC surface and admits its first action through the
+pulsed-scenario scheduler and capacitor-bank feasibility guard. It is a
+control-boundary adapter over existing MPC output, not a new equilibrium solver
+or a duplicate solver lane.
+
+The adapter applies three deterministic checks:
+
+- Non-`burn` scheduler states replace selected burn-action components with the
+  configured safe action.
+- `burn` state evaluates a `PulseSpec` against `CapacitorBank.feasibility()`
+  unless the caller disables that policy.
+- Every step records an explainable decision dictionary with scheduler state,
+  capacitor feasibility text, constraint slack, MPC objective, and whether a
+  safe action was applied.
+
+The matching Rust kernel lives in `control_control::mpc::MPController` as
+`plan_pulsed()`. When the optional PyO3 extension is rebuilt,
+`scpn_control_rs.PyMpcController.plan_pulsed()` exposes the same admission
+fields to Python.
+
+Use the dedicated [Pulsed MPC Adapter](control/pulsed_mpc_adapter.md) guide for
+examples, runtime boundaries, and benchmark evidence commands.
+
+::: scpn_control.control.fusion_sota_mpc.PulsedShotMPCDecision
+
+::: scpn_control.control.fusion_sota_mpc.PulsedShotMPCAdapter
 
 ---
 

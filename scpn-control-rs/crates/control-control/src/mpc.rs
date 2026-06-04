@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// ──────────────────────────────────────────────────────────────────────
-// SCPN Control — MPC
-// © 1998–2026 Miroslav Šotek. All rights reserved.
+// Commercial license available
+// © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+// © Code 2020–2026 Miroslav Šotek. All rights reserved.
+// ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// ORCID: https://orcid.org/0009-0009-3560-0851
-// ──────────────────────────────────────────────────────────────────────
-
+// SCPN Control — Rust gradient MPC and pulsed-shot admission adapter.
 //! Model Predictive Control for tokamak shape control.
 //!
 //! Port of `fusion_sota_mpc.py`.
@@ -36,6 +35,32 @@ fn ensure_finite_vector(name: &str, values: &Array1<f64>) -> FusionResult<()> {
         )));
     }
     Ok(())
+}
+
+fn ensure_mask_shape(name: &str, mask: &[bool], expected: usize) -> FusionResult<()> {
+    if mask.len() != expected {
+        return Err(FusionError::ConfigError(format!(
+            "mpc {name} length mismatch: expected {expected}, got {}",
+            mask.len()
+        )));
+    }
+    if !mask.iter().any(|value| *value) {
+        return Err(FusionError::ConfigError(format!(
+            "mpc {name} must select at least one burn action component"
+        )));
+    }
+    Ok(())
+}
+
+fn normalise_scheduler_state(value: &str) -> FusionResult<String> {
+    let state = value.trim().to_ascii_lowercase().replace('-', "_");
+    match state.as_str() {
+        "idle" | "ramp_up" | "flat_top" | "burn" | "expansion" | "dump" | "recharge"
+        | "cool_down" => Ok(state),
+        _ => Err(FusionError::ConfigError(format!(
+            "mpc scheduler_state must be one of idle, ramp_up, flat_top, burn, expansion, dump, recharge, cool_down; got {value:?}"
+        ))),
+    }
 }
 
 /// Linear surrogate model: x_{t+1} = x_t + B·u_t.
@@ -69,6 +94,19 @@ impl NeuralSurrogate {
         ensure_finite_vector("action", action)?;
         Ok(state + &self.b_matrix.dot(action))
     }
+}
+
+/// Result of the Rust pulsed-shot MPC admission adapter.
+pub struct PulsedMpcDecision {
+    pub action: Array1<f64>,
+    pub mpc_objective: f64,
+    pub constraint_slack: f64,
+    pub scheduler_state: String,
+    pub bank_feasibility: String,
+    pub reason: String,
+    pub bank_feasible: bool,
+    pub safe_action_applied: bool,
+    pub burn_components_masked: bool,
 }
 
 /// Model Predictive Controller.
@@ -240,6 +278,72 @@ impl MPController {
         }
 
         self.plan(&predicted_state)
+    }
+
+    /// Plan an action and admit it through pulsed-shot scheduler and bank guards.
+    pub fn plan_pulsed(
+        &self,
+        current_state: &Array1<f64>,
+        scheduler_state: &str,
+        bank_feasible: bool,
+        burn_action_mask: &[bool],
+        safe_action: &Array1<f64>,
+        constraint_slack: f64,
+    ) -> FusionResult<PulsedMpcDecision> {
+        ensure_finite_vector("current_state", current_state)?;
+        ensure_finite_vector("safe_action", safe_action)?;
+        let n_coils = self.model.b_matrix.ncols();
+        if safe_action.len() != n_coils {
+            return Err(FusionError::ConfigError(format!(
+                "mpc safe_action length mismatch: expected {n_coils}, got {}",
+                safe_action.len()
+            )));
+        }
+        if !constraint_slack.is_finite() {
+            return Err(FusionError::ConfigError(
+                "mpc constraint_slack must be finite".to_string(),
+            ));
+        }
+        ensure_mask_shape("burn_action_mask", burn_action_mask, n_coils)?;
+
+        let raw_action = self.plan(current_state)?;
+        let state_label = normalise_scheduler_state(scheduler_state)?;
+        let mut action = raw_action.clone();
+        let mut reason = "burn action admitted".to_string();
+        let mut bank_reason = "ok".to_string();
+        let mut safe_action_applied = false;
+        let mut burn_components_masked = false;
+
+        if state_label != "burn" {
+            for (idx, selected) in burn_action_mask.iter().enumerate() {
+                if *selected {
+                    action[idx] = safe_action[idx];
+                }
+            }
+            burn_components_masked = true;
+            bank_reason = "not evaluated outside burn".to_string();
+            reason = format!("scheduler state {state_label} masks burn action");
+        } else if !bank_feasible {
+            action = safe_action.clone();
+            safe_action_applied = true;
+            bank_reason = "bank feasibility rejected burn action".to_string();
+            reason = bank_reason.clone();
+        }
+
+        let predicted = self.model.predict(current_state, &raw_action)?;
+        let error = &predicted - &self.target;
+        let mpc_objective = error.dot(&error) + raw_action.dot(&raw_action) * LAMBDA;
+        Ok(PulsedMpcDecision {
+            action,
+            mpc_objective,
+            constraint_slack,
+            scheduler_state: state_label,
+            bank_feasibility: bank_reason,
+            reason,
+            bank_feasible,
+            safe_action_applied,
+            burn_components_masked,
+        })
     }
 }
 

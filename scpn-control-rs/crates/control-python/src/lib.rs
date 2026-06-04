@@ -4,8 +4,7 @@
 // © Code 2020–2026 Miroslav Šotek. All rights reserved.
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// SCPN Control — Rust Crate
-
+// SCPN Control — PyO3 bindings for Rust kernels.
 //! PyO3 Python bindings for SCPN Control (Modern Bound API).
 
 use ndarray::{Array1, Array2};
@@ -1582,6 +1581,42 @@ impl PyMpcController {
             .plan(&s)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         Ok(u.into_pyarray(py))
+    }
+
+    fn plan_pulsed<'py>(
+        &self,
+        py: Python<'py>,
+        state: PyReadonlyArray1<'py, f64>,
+        scheduler_state: &str,
+        bank_feasible: bool,
+        burn_action_mask: PyReadonlyArray1<'py, bool>,
+        safe_action: PyReadonlyArray1<'py, f64>,
+        constraint_slack: f64,
+    ) -> PyResult<(Bound<'py, PyArray1<f64>>, Bound<'py, PyDict>)> {
+        let s = state.as_array().to_owned();
+        let mask: Vec<bool> = burn_action_mask.as_array().iter().copied().collect();
+        let safe = safe_action.as_array().to_owned();
+        let decision = self
+            .inner
+            .plan_pulsed(
+                &s,
+                scheduler_state,
+                bank_feasible,
+                &mask,
+                &safe,
+                constraint_slack,
+            )
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let dict = PyDict::new(py);
+        dict.set_item("mpc_objective", decision.mpc_objective)?;
+        dict.set_item("constraint_slack", decision.constraint_slack)?;
+        dict.set_item("scheduler_state", decision.scheduler_state)?;
+        dict.set_item("bank_feasibility", decision.bank_feasibility)?;
+        dict.set_item("reason", decision.reason)?;
+        dict.set_item("bank_feasible", decision.bank_feasible)?;
+        dict.set_item("safe_action_applied", decision.safe_action_applied)?;
+        dict.set_item("burn_components_masked", decision.burn_components_masked)?;
+        Ok((decision.action.into_pyarray(py), dict))
     }
 }
 
