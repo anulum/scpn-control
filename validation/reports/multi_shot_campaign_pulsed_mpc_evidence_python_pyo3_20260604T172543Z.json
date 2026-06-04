@@ -1,0 +1,56 @@
+{
+  "command": "benchmarks/bench_multi_shot_campaign.py --steps 2000 --warmup 200 --evidence-class local_regression --json-out validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.json --md-out validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.md",
+  "context": {
+    "cpu_affinity": [
+      4,
+      5
+    ],
+    "cwd": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL",
+    "loadavg_end": [
+      3.6318359375,
+      3.880859375,
+      3.8408203125
+    ],
+    "loadavg_start": [
+      3.42529296875,
+      3.8447265625,
+      3.8291015625
+    ],
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]"
+  },
+  "evidence_class": "local_regression",
+  "generated_utc": "2026-06-04T17:25:43Z",
+  "payload_sha256": "85c7c6e8343bd3c4a0adbdcc69c3fa7f49d06dec52f2e50258ca1c99d3bafb1a",
+  "production_claim_allowed": false,
+  "pyo3_result": {
+    "last_passed_count": 2,
+    "last_pulsed_mpc_admission_digest_count": 2,
+    "stats": {
+      "max_us": 41.502,
+      "mean_us": 11.353324500000001,
+      "median_us": 10.6215,
+      "min_us": 9.464,
+      "p95_us": 14.885,
+      "p99_us": 21.042,
+      "samples": 2000
+    }
+  },
+  "pyo3_status": "ok",
+  "result": {
+    "last_passed_count": 2,
+    "last_pulsed_mpc_admission_digest_count": 2,
+    "stats": {
+      "max_us": 2333.763,
+      "mean_us": 154.037847,
+      "median_us": 144.769,
+      "min_us": 128.675,
+      "p95_us": 196.827,
+      "p99_us": 244.097,
+      "samples": 2000
+    }
+  },
+  "schema_version": "scpn-control.multi-shot-campaign-benchmark.v1.1",
+  "steps": 2000,
+  "warmup": 200
+}

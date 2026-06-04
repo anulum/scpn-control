@@ -245,12 +245,15 @@ examples, runtime boundaries, and benchmark evidence commands.
 over the scheduler, capacitor-bank telemetry, and replay v1.1 metadata
 contracts. It accepts explicit shot telemetry, records command and transition
 logs, requires the canonical pulsed lifecycle by default, and emits a
-digest-bound campaign report.
+digest-bound campaign report. When supplied, per-shot
+`pulsed_mpc_admission_digest` values are validated as lowercase SHA-256
+digests and preserved in the campaign report plus replay v1.1 extension fields.
 
 The matching Rust kernel lives in `control_control::multi_shot_campaign`. When
 the optional PyO3 extension is rebuilt,
 `scpn_control_rs.PyMultiShotCampaignOrchestrator.run_table()` exposes the Rust
-surface through table-shaped NumPy inputs.
+surface through table-shaped NumPy inputs, including optional per-shot
+`pulsed_mpc_admission_digests`.
 
 Use the dedicated [Multi-Shot Campaign](control/multi_shot_campaign.md) guide
 for examples, claim boundaries, and benchmark commands.

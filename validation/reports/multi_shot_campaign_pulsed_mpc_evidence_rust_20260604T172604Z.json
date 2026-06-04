@@ -1,0 +1,23 @@
+{
+  "command": "scpn-control-rs/target/release/examples/bench_multi_shot_campaign --steps 2000 --warmup 200 --json-out validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.json --md-out validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.md",
+  "evidence_class": "local_regression",
+  "generated_unix_s": 1780593979,
+  "payload_sha256": "a1c6d0311a716d583e1873ed7a639bd9805e025fc02aeddf285e8b122d16ee49",
+  "production_claim_allowed": false,
+  "result": {
+    "last_passed_count": 2,
+    "last_pulsed_mpc_admission_digest_count": 2,
+    "stats": {
+      "max_us": 20.459,
+      "mean_us": 2.9338665,
+      "median_us": 2.794,
+      "min_us": 2.571,
+      "p95_us": 3.573,
+      "p99_us": 4.536,
+      "samples": 2000
+    }
+  },
+  "schema_version": "scpn-control.rust-multi-shot-campaign-benchmark.v1.1",
+  "steps": 2000,
+  "warmup": 200
+}

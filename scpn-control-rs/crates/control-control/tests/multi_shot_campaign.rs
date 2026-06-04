@@ -47,6 +47,10 @@ fn bank(voltage_v: f64, energy_j: f64) -> CapacitorBankTelemetry {
     CapacitorBankTelemetry::new(voltage_v, 10_000.0, energy_j).expect("valid bank")
 }
 
+fn admission_digest(prefix: &str) -> String {
+    format!("{prefix:0<64}")[..64].to_string()
+}
+
 fn sample(
     t_s: f64,
     plasma: PulsedPlasmaTelemetry,
@@ -104,6 +108,8 @@ fn complete_shot(shot_id: &str) -> CampaignShotPlan {
         0.0,
     )
     .expect("valid shot")
+    .with_pulsed_mpc_admission_digest(&admission_digest("a"))
+    .expect("valid admission digest")
 }
 
 fn orchestrator() -> MultiShotCampaignOrchestrator {
@@ -123,6 +129,16 @@ fn runs_two_complete_shots() {
     assert_eq!(report.shots[0].terminal_state, "idle");
     assert_eq!(report.shots[0].trigger_timestamp_ns, Some(2_000_000));
     assert_eq!(report.shots[0].energy_recovered_j, 180.0);
+    assert_eq!(report.pulsed_mpc_admission_digest_count, 2);
+    assert_eq!(
+        report.pulsed_mpc_evidence_schema_version,
+        "scpn-control.pulsed-mpc-decision-evidence.v1"
+    );
+    let expected_digest = admission_digest("a");
+    assert_eq!(
+        report.shots[0].pulsed_mpc_admission_digest.as_deref(),
+        Some(expected_digest.as_str())
+    );
     assert_eq!(report.payload_sha256.len(), 64);
 }
 
@@ -134,6 +150,25 @@ fn rejects_duplicate_shot_ids() {
         .expect_err("duplicate rejected");
 
     assert!(err.to_string().contains("duplicate shot_id"));
+}
+
+#[test]
+fn rejects_malformed_pulsed_mpc_digest() {
+    let err = CampaignShotPlan::new(
+        "bad-digest",
+        vec![sample(
+            0.0,
+            plasma(0.0, 10.0, 0.02, 0.01, 0.0, 0.0),
+            bank(9800.0, 200.0),
+        )],
+        5000.0,
+        0.0,
+    )
+    .expect("valid shot")
+    .with_pulsed_mpc_admission_digest(&"A".repeat(64))
+    .expect_err("uppercase digest rejected");
+
+    assert!(err.to_string().contains("lowercase SHA-256"));
 }
 
 #[test]

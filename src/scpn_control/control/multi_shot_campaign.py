@@ -26,6 +26,7 @@ from scpn_control.control.pulsed_scenario_scheduler_v2 import (
 )
 
 MULTI_SHOT_CAMPAIGN_SCHEMA_VERSION = "scpn-control.multi-shot-campaign.v1"
+PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION = "scpn-control.pulsed-mpc-decision-evidence.v1"
 _EXPECTED_TRANSITION_STATES = (
     "ramp_up",
     "flat_top",
@@ -62,6 +63,7 @@ class CampaignShotPlan:
     samples: tuple[CampaignShotSample, ...]
     initial_bank_voltage_V: float
     initial_bank_current_A: float = 0.0
+    pulsed_mpc_admission_digest: str | None = None
 
     def __post_init__(self) -> None:
         shot_id = self.shot_id.strip()
@@ -76,6 +78,11 @@ class CampaignShotPlan:
         )
         object.__setattr__(
             self, "initial_bank_current_A", _finite("initial_bank_current_A", self.initial_bank_current_A)
+        )
+        object.__setattr__(
+            self,
+            "pulsed_mpc_admission_digest",
+            _optional_sha256("pulsed_mpc_admission_digest", self.pulsed_mpc_admission_digest),
         )
 
 
@@ -130,6 +137,7 @@ class CampaignShotResult:
     capacitor_state_final_J: float
     energy_recovered_J: float
     trigger_timestamp_ns: int | None
+    pulsed_mpc_admission_digest: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         """Return the JSON representation."""
@@ -146,6 +154,10 @@ class CampaignShotResult:
             "capacitor_state_final_J": self.capacitor_state_final_J,
             "energy_recovered_J": self.energy_recovered_J,
             "trigger_timestamp_ns": self.trigger_timestamp_ns,
+            "pulsed_mpc_evidence_schema_version": (
+                PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION if self.pulsed_mpc_admission_digest is not None else None
+            ),
+            "pulsed_mpc_admission_digest": self.pulsed_mpc_admission_digest,
         }
 
     def replay_v1_1_extension(self) -> dict[str, Any]:
@@ -156,6 +168,10 @@ class CampaignShotResult:
             "trigger_timestamp_ns": self.trigger_timestamp_ns,
             "energy_recovered_J": self.energy_recovered_J,
             "shot_phase_log": list(self.shot_phase_log),
+            "pulsed_mpc_evidence_schema_version": (
+                PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION if self.pulsed_mpc_admission_digest is not None else None
+            ),
+            "pulsed_mpc_admission_digest": self.pulsed_mpc_admission_digest,
         }
 
 
@@ -205,6 +221,10 @@ class MultiShotCampaignOrchestrator:
             "failed_count": len(results) - passed_count,
             "require_complete_lifecycle": self.require_complete_lifecycle,
             "expected_transition_states": list(_EXPECTED_TRANSITION_STATES),
+            "pulsed_mpc_evidence_schema_version": PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
+            "pulsed_mpc_admission_digest_count": sum(
+                1 for result in results if result.pulsed_mpc_admission_digest is not None
+            ),
             "shots": [result.to_json() for result in results],
             "payload_sha256": "",
         }
@@ -263,6 +283,7 @@ class MultiShotCampaignOrchestrator:
             capacitor_state_final_J=last_energy,
             energy_recovered_J=max(last_energy - min_energy, 0.0),
             trigger_timestamp_ns=trigger_timestamp_ns,
+            pulsed_mpc_admission_digest=shot.pulsed_mpc_admission_digest,
         )
 
     def _admission_failure_reason(self, terminal_state: str, transition_states: tuple[str, ...]) -> str | None:
@@ -301,6 +322,15 @@ def _non_negative(name: str, value: float) -> float:
     return number
 
 
+def _optional_sha256(name: str, value: str | None) -> str | None:
+    if value is None:
+        return None
+    digest = str(value).strip()
+    if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+        raise ValueError(f"{name} must be a lowercase SHA-256 hex digest")
+    return digest
+
+
 __all__ = [
     "CampaignCommandLog",
     "CampaignShotPlan",
@@ -308,4 +338,5 @@ __all__ = [
     "CampaignShotSample",
     "MULTI_SHOT_CAMPAIGN_SCHEMA_VERSION",
     "MultiShotCampaignOrchestrator",
+    "PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION",
 ]

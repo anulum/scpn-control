@@ -12,7 +12,9 @@ import pytest
 from scpn_control.control.capacitor_bank_state import CapacitorBankSpec
 from scpn_control.control.multi_shot_campaign import (
     MULTI_SHOT_CAMPAIGN_SCHEMA_VERSION,
+    PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
     CampaignShotPlan,
+    CampaignShotResult,
     CampaignShotSample,
     MultiShotCampaignOrchestrator,
 )
@@ -72,6 +74,10 @@ def _bank(voltage_V: float, energy_J: float) -> CapacitorBankTelemetry:
     return CapacitorBankTelemetry(voltage_V=voltage_V, voltage_max_V=10_000.0, energy_J=energy_J)
 
 
+def _admission_digest(label: str) -> str:
+    return f"{label:0<64}"[:64]
+
+
 def _complete_shot(shot_id: str) -> CampaignShotPlan:
     samples = (
         CampaignShotSample(0.0, _plasma(0.0, 10.0, 0.02, 0.01, 0.0, 0.0), _bank(9800.0, 200.0)),
@@ -83,7 +89,12 @@ def _complete_shot(shot_id: str) -> CampaignShotPlan:
         CampaignShotSample(6.0e-3, _plasma(0.0, 40.0, 0.02, 0.01, 0.0, 0.0), _bank(9700.0, 180.0)),
         CampaignShotSample(7.0e-3, _plasma(100.0, 15.0, 0.02, 0.01, 0.0, 0.0), _bank(9800.0, 200.0)),
     )
-    return CampaignShotPlan(shot_id=shot_id, samples=samples, initial_bank_voltage_V=5000.0)
+    return CampaignShotPlan(
+        shot_id=shot_id,
+        samples=samples,
+        initial_bank_voltage_V=5000.0,
+        pulsed_mpc_admission_digest=_admission_digest("a"),
+    )
 
 
 def _orchestrator() -> MultiShotCampaignOrchestrator:
@@ -98,12 +109,39 @@ def test_campaign_runs_two_complete_shots_with_replay_extensions() -> None:
     assert report["passed_count"] == 2
     assert report["failed_count"] == 0
     first = report["shots"][0]
+    assert report["pulsed_mpc_evidence_schema_version"] == PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION
+    assert report["pulsed_mpc_admission_digest_count"] == 2
     assert first["terminal_state"] == "idle"
     assert first["transition_states"] == report["expected_transition_states"]
     assert first["trigger_timestamp_ns"] == 2_000_000
     assert first["energy_recovered_J"] == pytest.approx(180.0)
+    assert first["pulsed_mpc_evidence_schema_version"] == PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION
+    assert first["pulsed_mpc_admission_digest"] == _admission_digest("a")
     assert len(first["pulse_id"]) == 36
     assert len(report["payload_sha256"]) == 64
+
+
+def test_shot_result_replay_extension_carries_pulsed_mpc_digest() -> None:
+    result = CampaignShotResult(
+        shot_id="shot-001",
+        pulse_id="123e4567-e89b-12d3-a456-426614174000",
+        passed=True,
+        failure_reason=None,
+        terminal_state="idle",
+        transition_states=("idle",),
+        command_log=(),
+        shot_phase_log=({"t": 0.0, "state": "burn", "reason": "admitted"},),
+        capacitor_state_initial_J=200.0,
+        capacitor_state_final_J=180.0,
+        energy_recovered_J=20.0,
+        trigger_timestamp_ns=0,
+        pulsed_mpc_admission_digest=_admission_digest("b"),
+    )
+
+    extension = result.replay_v1_1_extension()
+
+    assert extension["pulsed_mpc_evidence_schema_version"] == PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION
+    assert extension["pulsed_mpc_admission_digest"] == _admission_digest("b")
 
 
 def test_campaign_rejects_duplicate_shot_ids() -> None:
@@ -111,6 +149,78 @@ def test_campaign_rejects_duplicate_shot_ids() -> None:
 
     with pytest.raises(ValueError, match="duplicate shot_id"):
         _orchestrator().run([shot, shot])
+
+
+def test_campaign_rejects_malformed_pulsed_mpc_digest() -> None:
+    with pytest.raises(ValueError, match="lowercase SHA-256"):
+        CampaignShotPlan(
+            shot_id="bad-digest",
+            samples=_complete_shot("reference").samples,
+            initial_bank_voltage_V=5000.0,
+            pulsed_mpc_admission_digest="A" * 64,
+        )
+
+
+def test_pyo3_table_bridge_preserves_pulsed_mpc_digest() -> None:
+    np = pytest.importorskip("numpy")
+    scpn_control_rs = pytest.importorskip("scpn_control_rs")
+    if not hasattr(scpn_control_rs, "PyMultiShotCampaignOrchestrator"):
+        pytest.skip("scpn_control_rs extension was not rebuilt with multi-shot campaign bindings")
+
+    shot_ids = ["shot-001", "shot-002"]
+    shots = [_complete_shot(shot_id) for shot_id in shot_ids]
+    sample_shot_index: list[int] = []
+    sample_t_s: list[float] = []
+    plasma_rows: list[list[float]] = []
+    bank_rows: list[list[float]] = []
+    for shot_index, shot in enumerate(shots):
+        for sample in shot.samples:
+            assert sample.bank is not None
+            sample_shot_index.append(shot_index)
+            sample_t_s.append(sample.t_s)
+            plasma_rows.append(
+                [
+                    sample.plasma.coil_current_A,
+                    sample.plasma.temperature_eV,
+                    sample.plasma.phase_lock_error_rad,
+                    sample.plasma.reference_error_m,
+                    sample.plasma.fusion_power_W,
+                    sample.plasma.radial_velocity_m_s,
+                ]
+            )
+            bank_rows.append([sample.bank.voltage_V, sample.bank.voltage_max_V, sample.bank.energy_J])
+
+    orchestrator = scpn_control_rs.PyMultiShotCampaignOrchestrator(
+        "campaign-a",
+        scpn_control_rs.PyPulsedScenarioSpec(
+            100.0,
+            2.0e6,
+            0.01,
+            0.002,
+            1.0e3,
+            2.0e6,
+            1.0e3,
+            40.0,
+            0.95,
+            20.0,
+            1.0e3,
+            0.0,
+        ),
+        scpn_control_rs.PyCapacitorBankSpec(100e-6, 100e-6, 0.5, 10_000.0, 20.0),
+        True,
+    )
+    report = orchestrator.run_table(
+        shot_ids,
+        np.asarray(sample_shot_index, dtype=np.uintp),
+        np.asarray(sample_t_s, dtype=np.float64),
+        np.asarray(plasma_rows, dtype=np.float64),
+        np.asarray(bank_rows, dtype=np.float64),
+        np.asarray([5000.0, 5000.0], dtype=np.float64),
+        [shot.pulsed_mpc_admission_digest for shot in shots],
+    )
+
+    assert report["pulsed_mpc_admission_digest_count"] == 2
+    assert report["shots"][0]["pulsed_mpc_admission_digest"] == _admission_digest("a")
 
 
 def test_incomplete_lifecycle_fails_closed_without_aborting_campaign() -> None:

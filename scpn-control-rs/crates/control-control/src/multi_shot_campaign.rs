@@ -17,6 +17,9 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
+const MULTI_SHOT_CAMPAIGN_SCHEMA_VERSION: &str = "scpn-control.multi-shot-campaign.v1";
+const PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION: &str =
+    "scpn-control.pulsed-mpc-decision-evidence.v1";
 const EXPECTED_TRANSITION_STATES: [&str; 8] = [
     "ramp_up",
     "flat_top",
@@ -55,6 +58,7 @@ pub struct CampaignShotPlan {
     pub samples: Vec<CampaignShotSample>,
     pub initial_bank_voltage_v: f64,
     pub initial_bank_current_a: f64,
+    pub pulsed_mpc_admission_digest: Option<String>,
 }
 
 impl CampaignShotPlan {
@@ -79,7 +83,20 @@ impl CampaignShotPlan {
             samples,
             initial_bank_voltage_v,
             initial_bank_current_a,
+            pulsed_mpc_admission_digest: None,
         })
+    }
+
+    /// Attach digest-bound pulsed-MPC admission evidence to this shot plan.
+    pub fn with_pulsed_mpc_admission_digest(
+        mut self,
+        digest: &str,
+    ) -> Result<Self, MultiShotCampaignError> {
+        self.pulsed_mpc_admission_digest = Some(validate_sha256_digest(
+            "pulsed_mpc_admission_digest",
+            digest,
+        )?);
+        Ok(self)
     }
 }
 
@@ -130,6 +147,7 @@ pub struct CampaignShotResult {
     pub capacitor_state_final_j: f64,
     pub energy_recovered_j: f64,
     pub trigger_timestamp_ns: Option<u64>,
+    pub pulsed_mpc_admission_digest: Option<String>,
 }
 
 /// Campaign report summary.
@@ -142,6 +160,8 @@ pub struct MultiShotCampaignReport {
     pub failed_count: usize,
     pub require_complete_lifecycle: bool,
     pub expected_transition_states: Vec<String>,
+    pub pulsed_mpc_evidence_schema_version: String,
+    pub pulsed_mpc_admission_digest_count: usize,
     pub shots: Vec<CampaignShotResult>,
     pub payload_sha256: String,
 }
@@ -195,7 +215,7 @@ impl MultiShotCampaignOrchestrator {
         }
         let passed_count = results.iter().filter(|shot| shot.passed).count();
         let mut report = MultiShotCampaignReport {
-            schema_version: "scpn-control.multi-shot-campaign.v1".to_string(),
+            schema_version: MULTI_SHOT_CAMPAIGN_SCHEMA_VERSION.to_string(),
             campaign_id: self.campaign_id.clone(),
             shot_count: results.len(),
             passed_count,
@@ -205,6 +225,12 @@ impl MultiShotCampaignOrchestrator {
                 .iter()
                 .map(|value| value.to_string())
                 .collect(),
+            pulsed_mpc_evidence_schema_version: PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION
+                .to_string(),
+            pulsed_mpc_admission_digest_count: results
+                .iter()
+                .filter(|shot| shot.pulsed_mpc_admission_digest.is_some())
+                .count(),
             shots: results,
             payload_sha256: String::new(),
         };
@@ -273,6 +299,7 @@ impl MultiShotCampaignOrchestrator {
             capacitor_state_final_j: last_energy,
             energy_recovered_j: (last_energy - min_energy).max(0.0),
             trigger_timestamp_ns,
+            pulsed_mpc_admission_digest: shot.pulsed_mpc_admission_digest.clone(),
         })
     }
 
@@ -307,6 +334,7 @@ pub enum MultiShotCampaignError {
     DuplicateShotId(String),
     NonFinite(&'static str),
     Negative(&'static str),
+    InvalidDigest(&'static str),
     Bank(String),
     Scheduler(String),
 }
@@ -327,6 +355,9 @@ impl Display for MultiShotCampaignError {
             Self::DuplicateShotId(shot_id) => write!(f, "duplicate shot_id: {shot_id}"),
             Self::NonFinite(field) => write!(f, "{field} must be finite"),
             Self::Negative(field) => write!(f, "{field} must be non-negative"),
+            Self::InvalidDigest(field) => {
+                write!(f, "{field} must be a lowercase SHA-256 hex digest")
+            }
             Self::Bank(reason) => write!(f, "{reason}"),
             Self::Scheduler(reason) => write!(f, "{reason}"),
         }
@@ -348,6 +379,22 @@ fn validate_non_negative(name: &'static str, value: f64) -> Result<(), MultiShot
         return Err(MultiShotCampaignError::Negative(name));
     }
     Ok(())
+}
+
+fn validate_sha256_digest(
+    name: &'static str,
+    value: &str,
+) -> Result<String, MultiShotCampaignError> {
+    let digest = value.trim();
+    if digest.len() != 64
+        || !digest
+            .as_bytes()
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || (*byte >= b'a' && *byte <= b'f'))
+    {
+        return Err(MultiShotCampaignError::InvalidDigest(name));
+    }
+    Ok(digest.to_string())
 }
 
 fn pulse_id(campaign_id: &str, shot_id: &str) -> String {
@@ -389,11 +436,21 @@ fn report_digest(report: &MultiShotCampaignReport) -> String {
     hasher.update(report.shot_count.to_string().as_bytes());
     hasher.update(report.passed_count.to_string().as_bytes());
     hasher.update(report.failed_count.to_string().as_bytes());
+    hasher.update(report.pulsed_mpc_evidence_schema_version.as_bytes());
+    hasher.update(
+        report
+            .pulsed_mpc_admission_digest_count
+            .to_string()
+            .as_bytes(),
+    );
     for shot in &report.shots {
         hasher.update(shot.shot_id.as_bytes());
         hasher.update(shot.pulse_id.as_bytes());
         hasher.update(shot.passed.to_string().as_bytes());
         hasher.update(shot.terminal_state.as_bytes());
+        if let Some(digest) = &shot.pulsed_mpc_admission_digest {
+            hasher.update(digest.as_bytes());
+        }
         for state in &shot.transition_states {
             hasher.update(state.as_bytes());
         }

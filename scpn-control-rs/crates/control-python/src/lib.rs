@@ -1730,6 +1730,15 @@ impl PyMultiShotCampaignOrchestrator {
         Ok(Self { inner })
     }
 
+    #[pyo3(signature = (
+        shot_ids,
+        sample_shot_index,
+        sample_t_s,
+        plasma,
+        bank,
+        initial_bank_voltage_v,
+        pulsed_mpc_admission_digests=None
+    ))]
     fn run_table<'py>(
         &self,
         py: Python<'py>,
@@ -1739,6 +1748,7 @@ impl PyMultiShotCampaignOrchestrator {
         plasma: PyReadonlyArray2<'py, f64>,
         bank: PyReadonlyArray2<'py, f64>,
         initial_bank_voltage_v: PyReadonlyArray1<'py, f64>,
+        pulsed_mpc_admission_digests: Option<Vec<Option<String>>>,
     ) -> PyResult<Bound<'py, PyDict>> {
         let indices = sample_shot_index.as_slice()?;
         let times = sample_t_s.as_slice()?;
@@ -1752,6 +1762,13 @@ impl PyMultiShotCampaignOrchestrator {
             return Err(PyValueError::new_err(
                 "initial_bank_voltage_v length must equal shot_ids length",
             ));
+        }
+        if let Some(digests) = &pulsed_mpc_admission_digests {
+            if digests.len() != shot_ids.len() {
+                return Err(PyValueError::new_err(
+                    "pulsed_mpc_admission_digests length must equal shot_ids length",
+                ));
+            }
         }
         if indices.len() != times.len()
             || plasma_view.nrows() != times.len()
@@ -1792,15 +1809,21 @@ impl PyMultiShotCampaignOrchestrator {
         }
         let mut shots = Vec::with_capacity(shot_ids.len());
         for (idx, shot_id) in shot_ids.iter().enumerate() {
-            shots.push(
-                ControlCampaignShotPlan::new(
-                    shot_id,
-                    grouped[idx].clone(),
-                    initial_voltages[idx],
-                    0.0,
-                )
-                .map_err(|e| PyValueError::new_err(e.to_string()))?,
-            );
+            let mut shot = ControlCampaignShotPlan::new(
+                shot_id,
+                grouped[idx].clone(),
+                initial_voltages[idx],
+                0.0,
+            )
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            if let Some(digests) = &pulsed_mpc_admission_digests {
+                if let Some(digest) = &digests[idx] {
+                    shot = shot
+                        .with_pulsed_mpc_admission_digest(digest)
+                        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+                }
+            }
+            shots.push(shot);
         }
         let report = self
             .inner
@@ -1828,6 +1851,14 @@ fn multi_shot_report_to_dict<'py>(
         "expected_transition_states",
         report.expected_transition_states.clone(),
     )?;
+    dict.set_item(
+        "pulsed_mpc_evidence_schema_version",
+        report.pulsed_mpc_evidence_schema_version.as_str(),
+    )?;
+    dict.set_item(
+        "pulsed_mpc_admission_digest_count",
+        report.pulsed_mpc_admission_digest_count,
+    )?;
     let shots = PyList::empty(py);
     for shot in &report.shots {
         let shot_dict = PyDict::new(py);
@@ -1841,6 +1872,17 @@ fn multi_shot_report_to_dict<'py>(
         shot_dict.set_item("capacitor_state_final_J", shot.capacitor_state_final_j)?;
         shot_dict.set_item("energy_recovered_J", shot.energy_recovered_j)?;
         shot_dict.set_item("trigger_timestamp_ns", shot.trigger_timestamp_ns)?;
+        shot_dict.set_item(
+            "pulsed_mpc_evidence_schema_version",
+            match &shot.pulsed_mpc_admission_digest {
+                Some(_) => Some(report.pulsed_mpc_evidence_schema_version.as_str()),
+                None => None,
+            },
+        )?;
+        shot_dict.set_item(
+            "pulsed_mpc_admission_digest",
+            shot.pulsed_mpc_admission_digest.clone(),
+        )?;
         shots.append(shot_dict)?;
     }
     dict.set_item("shots", shots)?;

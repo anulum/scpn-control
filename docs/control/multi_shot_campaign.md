@@ -27,9 +27,15 @@ For each shot, the adapter:
 6. Emits replay-compatible pulse metadata: `pulse_id`,
    `capacitor_state_initial_J`, `trigger_timestamp_ns`, `energy_recovered_J`,
    and sorted `shot_phase_log` rows.
+7. Preserves optional per-shot pulsed-MPC decision evidence through
+   `pulsed_mpc_admission_digest` and
+   `pulsed_mpc_evidence_schema_version` when the campaign consumes an admitted
+   pulsed-MPC command.
 
 Per-shot failures are fail-closed and do not abort the remaining campaign
 unless campaign-level input is malformed, such as duplicate shot IDs.
+The pulsed-MPC digest is a replay provenance binding. It does not admit a
+facility interlock, target-hardware actuator path, or PCS timing claim.
 
 ## Python surface
 
@@ -52,6 +58,7 @@ report = orchestrator.run(
             shot_id="shot-001",
             samples=tuple(samples),
             initial_bank_voltage_V=5000.0,
+            pulsed_mpc_admission_digest=admitted_mpc_decision.admission_digest,
         )
     ]
 )
@@ -59,6 +66,9 @@ report = orchestrator.run(
 
 The returned report uses schema version
 `scpn-control.multi-shot-campaign.v1` and includes a SHA-256 payload digest.
+If any shot supplies `pulsed_mpc_admission_digest`, the report also records
+`pulsed_mpc_admission_digest_count` and binds each digest into the report
+payload hash.
 
 ## Rust and PyO3 surfaces
 
@@ -71,8 +81,9 @@ The Rust kernel lives in `control_control::multi_shot_campaign` and exposes:
 
 The optional PyO3 bridge exposes `PyMultiShotCampaignOrchestrator.run_table()`.
 It accepts table-shaped NumPy arrays for sample index, sample time, plasma
-telemetry, bank telemetry, and initial bank voltages. This keeps the bridge
-explicit about units and array shapes.
+telemetry, bank telemetry, initial bank voltages, and optional
+`pulsed_mpc_admission_digests`. This keeps the bridge explicit about units,
+array shapes, and evidence handoff.
 
 ## Benchmarks
 

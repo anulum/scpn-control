@@ -47,6 +47,9 @@
   and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
   metadata fields, module-specific tests, public documentation, and local
   regression benchmark tooling.
+- Added optional pulsed-MPC admission digest propagation through multi-shot
+  campaign reports, replay v1.1 extensions, Rust/PyO3 parity, and Python/Rust
+  benchmark harnesses.
 - Added PREEMPT_RT runtime admission for native hardware campaigns, including
   Python policy evaluation, PyO3 native snapshot evidence, CLI fail-closed
   `--runtime-admission-policy require`, public documentation, tests, and local

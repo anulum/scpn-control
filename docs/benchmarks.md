@@ -402,6 +402,10 @@ Use this benchmark after changes to the multi-shot orchestration boundary:
 - `scpn-control-rs/crates/control-control/src/multi_shot_campaign.rs`
 - `scpn-control-rs/crates/control-python/src/lib.rs`
 
+The current harnesses exercise two complete shots with per-shot
+`pulsed_mpc_admission_digest` evidence so Python, Rust, and PyO3 surfaces are
+compared against the same digest-bound replay contract.
+
 Python:
 
 ```bash
@@ -427,9 +431,9 @@ taskset -c 4,5 cargo run --manifest-path scpn-control-rs/Cargo.toml \
   --md-out validation/reports/multi_shot_campaign_rust_soft_isolated.md
 ```
 
-These reports compare the Python campaign adapter and native Rust campaign
-kernel. Loaded workstation reports and soft-affinity reports are local
-regression evidence only.
+These reports compare the Python campaign adapter, native Rust campaign kernel,
+and PyO3 table bridge evidence contract. Loaded workstation reports and
+soft-affinity reports are local regression evidence only.
 
 ## Kuramoto Phase Sync — Python vs Rust Speedup
 
@@ -978,3 +982,13 @@ The CON-C.6 multi-shot campaign orchestrator was measured on the local workstati
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | Python | `validation/reports/multi_shot_campaign_soft_isolated_20260604T131105Z.md` | 2000 | 200 | 136.581 us | 166.287 us | 193.620 us | 1589.225 us | `local_regression` |
 | Rust | `validation/reports/multi_shot_campaign_rust_soft_isolated_20260604T131112Z.md` | 2000 | 200 | 2.558 us | 3.030 us | 4.666 us | 15.440 us | `local_regression` |
+
+Digest-bound pulsed-MPC replay evidence was remeasured after adding per-shot
+`pulsed_mpc_admission_digest` propagation. Each run carried two admitted MPC
+decision digests through the campaign report.
+
+| Surface | Evidence | Samples | Warmup | Median | p95 | p99 | Max | Evidence class |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Python | `validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.md` | 2000 | 200 | 144.769 us | 196.827 us | 244.097 us | 2333.763 us | `local_regression` |
+| PyO3 | `validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.md` | 2000 | 200 | 10.6215 us | 14.885 us | 21.042 us | 41.502 us | `local_regression` |
+| Rust | `validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.md` | 2000 | 200 | 2.794 us | 3.573 us | 4.536 us | 20.459 us | `local_regression` |

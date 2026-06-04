@@ -69,6 +69,14 @@ fn bank(voltage_v: f64, energy_j: f64) -> CapacitorBankTelemetry {
     CapacitorBankTelemetry::new(voltage_v, 10_000.0, energy_j).expect("valid bank")
 }
 
+fn admission_digest(label: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"scpn-control.multi-shot-campaign.benchmark");
+    hasher.update([0]);
+    hasher.update(label.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
 fn sample(
     t_s: f64,
     plasma: PulsedPlasmaTelemetry,
@@ -126,6 +134,8 @@ fn complete_shot(shot_id: &str) -> CampaignShotPlan {
         0.0,
     )
     .expect("valid shot")
+    .with_pulsed_mpc_admission_digest(&admission_digest(shot_id))
+    .expect("valid admission digest")
 }
 
 fn stats(samples_ns: &[u128]) -> Value {
@@ -193,14 +203,16 @@ fn main() {
     }
     let mut timings = Vec::with_capacity(steps);
     let mut passed_count = 0usize;
+    let mut pulsed_mpc_admission_digest_count = 0usize;
     for _ in 0..steps {
         let start = Instant::now();
         let report = orchestrator.run(&shots).expect("valid campaign");
         timings.push(start.elapsed().as_nanos());
         passed_count = report.passed_count;
+        pulsed_mpc_admission_digest_count = report.pulsed_mpc_admission_digest_count;
     }
     let mut payload = json!({
-        "schema_version": "scpn-control.rust-multi-shot-campaign-benchmark.v1",
+        "schema_version": "scpn-control.rust-multi-shot-campaign-benchmark.v1.1",
         "generated_unix_s": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
         "command": args.join(" "),
         "evidence_class": "local_regression",
@@ -210,6 +222,7 @@ fn main() {
         "result": {
             "stats": stats(&timings),
             "last_passed_count": passed_count,
+            "last_pulsed_mpc_admission_digest_count": pulsed_mpc_admission_digest_count,
         },
     });
     let digest = Sha256::digest(serde_json::to_vec(&payload).unwrap());

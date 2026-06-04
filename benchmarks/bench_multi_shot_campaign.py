@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 import os
 import platform
@@ -73,6 +74,10 @@ def _bank(voltage_V: float, energy_J: float) -> CapacitorBankTelemetry:
     return CapacitorBankTelemetry(voltage_V=voltage_V, voltage_max_V=10_000.0, energy_J=energy_J)
 
 
+def _admission_digest(label: str) -> str:
+    return hashlib.sha256(f"scpn-control.multi-shot-campaign.benchmark:{label}".encode()).hexdigest()
+
+
 def _complete_shot(shot_id: str) -> CampaignShotPlan:
     rows = (
         (0.0, (0.0, 10.0, 0.02, 0.01, 0.0, 0.0), 9800.0, 200.0),
@@ -87,7 +92,12 @@ def _complete_shot(shot_id: str) -> CampaignShotPlan:
     samples = tuple(
         CampaignShotSample(t_s, _plasma(plasma), _bank(voltage, energy)) for t_s, plasma, voltage, energy in rows
     )
-    return CampaignShotPlan(shot_id=shot_id, samples=samples, initial_bank_voltage_V=5000.0)
+    return CampaignShotPlan(
+        shot_id=shot_id,
+        samples=samples,
+        initial_bank_voltage_V=5000.0,
+        pulsed_mpc_admission_digest=_admission_digest(shot_id),
+    )
 
 
 def _orchestrator() -> MultiShotCampaignOrchestrator:
@@ -123,7 +133,85 @@ def _measure(fn: Callable[[], Any], *, steps: int, warmup: int) -> dict[str, Any
         start = time.perf_counter_ns()
         last = fn()
         samples.append(time.perf_counter_ns() - start)
-    return {"stats": _stats(samples), "last_passed_count": last["passed_count"]}
+    return {
+        "stats": _stats(samples),
+        "last_passed_count": last["passed_count"],
+        "last_pulsed_mpc_admission_digest_count": last["pulsed_mpc_admission_digest_count"],
+    }
+
+
+def _pyo3_measurement(shots: list[CampaignShotPlan], *, steps: int, warmup: int) -> tuple[dict[str, Any] | None, str]:
+    try:
+        scpn_control_rs = importlib.import_module("scpn_control_rs")
+    except ImportError:
+        return None, "optional PyO3 extension is not installed"
+    if not hasattr(scpn_control_rs, "PyMultiShotCampaignOrchestrator"):
+        return None, "optional PyO3 extension is installed but was not rebuilt with multi-shot bindings"
+
+    shot_ids = [shot.shot_id for shot in shots]
+    sample_shot_index: list[int] = []
+    sample_t_s: list[float] = []
+    plasma_rows: list[list[float]] = []
+    bank_rows: list[list[float]] = []
+    for shot_index, shot in enumerate(shots):
+        for sample in shot.samples:
+            if sample.bank is None:
+                return None, "PyO3 benchmark requires explicit bank telemetry for every sample"
+            sample_shot_index.append(shot_index)
+            sample_t_s.append(sample.t_s)
+            plasma_rows.append(
+                [
+                    sample.plasma.coil_current_A,
+                    sample.plasma.temperature_eV,
+                    sample.plasma.phase_lock_error_rad,
+                    sample.plasma.reference_error_m,
+                    sample.plasma.fusion_power_W,
+                    sample.plasma.radial_velocity_m_s,
+                ]
+            )
+            bank_rows.append([sample.bank.voltage_V, sample.bank.voltage_max_V, sample.bank.energy_J])
+
+    bridge = scpn_control_rs.PyMultiShotCampaignOrchestrator(
+        "campaign-a",
+        scpn_control_rs.PyPulsedScenarioSpec(
+            100.0,
+            2.0e6,
+            0.01,
+            0.002,
+            1.0e3,
+            2.0e6,
+            1.0e3,
+            40.0,
+            0.95,
+            20.0,
+            1.0e3,
+            0.0,
+        ),
+        scpn_control_rs.PyCapacitorBankSpec(100e-6, 100e-6, 0.5, 10_000.0, 20.0),
+        True,
+    )
+    sample_shot_index_array = np.asarray(sample_shot_index, dtype=np.uintp)
+    sample_t_s_array = np.asarray(sample_t_s, dtype=np.float64)
+    plasma_array = np.asarray(plasma_rows, dtype=np.float64)
+    bank_array = np.asarray(bank_rows, dtype=np.float64)
+    initial_voltage_array = np.asarray([shot.initial_bank_voltage_V for shot in shots], dtype=np.float64)
+    admission_digests = [shot.pulsed_mpc_admission_digest for shot in shots]
+    return (
+        _measure(
+            lambda: bridge.run_table(
+                shot_ids,
+                sample_shot_index_array,
+                sample_t_s_array,
+                plasma_array,
+                bank_array,
+                initial_voltage_array,
+                admission_digests,
+            ),
+            steps=steps,
+            warmup=warmup,
+        ),
+        "ok",
+    )
 
 
 def _loadavg() -> tuple[float, float, float] | None:
@@ -148,6 +236,32 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     stats = payload["result"]["stats"]
+    rows = [
+        (
+            "Python",
+            stats["samples"],
+            stats["mean_us"],
+            stats["median_us"],
+            stats["p95_us"],
+            stats["p99_us"],
+        )
+    ]
+    if payload["pyo3_result"] is not None:
+        pyo3_stats = payload["pyo3_result"]["stats"]
+        rows.append(
+            (
+                "PyO3",
+                pyo3_stats["samples"],
+                pyo3_stats["mean_us"],
+                pyo3_stats["median_us"],
+                pyo3_stats["p95_us"],
+                pyo3_stats["p99_us"],
+            )
+        )
+    table_rows = "\n".join(
+        f"| {surface} | {samples} | {mean_us:.6f} | {median_us:.6f} | {p95_us:.6f} | {p99_us:.6f} |"
+        for surface, samples, mean_us, median_us, p95_us, p99_us in rows
+    )
     body = "\n".join(
         [
             "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
@@ -167,14 +281,14 @@ def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
             f"- Load average start: `{payload['context']['loadavg_start']}`",
             f"- Load average end: `{payload['context']['loadavg_end']}`",
             "",
-            "| Samples | Mean us | Median us | p95 us | p99 us |",
-            "|---:|---:|---:|---:|---:|",
-            (
-                f"| {stats['samples']} | {stats['mean_us']:.6f} | {stats['median_us']:.6f} | "
-                f"{stats['p95_us']:.6f} | {stats['p99_us']:.6f} |"
-            ),
+            f"- PyO3 status: `{payload['pyo3_status']}`",
+            "",
+            "| Surface | Samples | Mean us | Median us | p95 us | p99 us |",
+            "|---|---:|---:|---:|---:|---:|",
+            table_rows,
             "",
             "This is local regression evidence for the CONTROL multi-shot campaign adapter.",
+            "Each measured campaign carries two digest-bound pulsed-MPC admission references.",
             "It is not target-hardware timing evidence and does not admit facility PCS claims.",
             "",
             f"Payload SHA-256: `{payload['payload_sha256']}`",
@@ -192,8 +306,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     orchestrator = _orchestrator()
     shots = [_complete_shot("shot-001"), _complete_shot("shot-002")]
     load_start = _loadavg()
+    pyo3_result, pyo3_status = _pyo3_measurement(shots, steps=args.steps, warmup=args.warmup)
     payload: dict[str, Any] = {
-        "schema_version": "scpn-control.multi-shot-campaign-benchmark.v1",
+        "schema_version": "scpn-control.multi-shot-campaign-benchmark.v1.1",
         "generated_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "command": " ".join(sys.argv),
         "evidence_class": args.evidence_class,
@@ -209,6 +324,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "loadavg_end": None,
         },
         "result": _measure(lambda: orchestrator.run(shots), steps=args.steps, warmup=args.warmup),
+        "pyo3_result": pyo3_result,
+        "pyo3_status": pyo3_status,
         "payload_sha256": "",
     }
     payload["context"]["loadavg_end"] = _loadavg()

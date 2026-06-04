@@ -73,6 +73,9 @@
   and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
   metadata fields, module-specific tests, public documentation, and local
   regression benchmark tooling.
+- Added optional pulsed-MPC admission digest propagation through multi-shot
+  campaign reports, replay v1.1 extensions, Rust/PyO3 parity, and Python/Rust
+  benchmark harnesses.
 
 ### Changed
 - Runtime telemetry now preserves the latest runtime-admission report in
