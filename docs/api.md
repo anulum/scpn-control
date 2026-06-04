@@ -42,6 +42,10 @@ the existing `ControlObservation` consumers. The Python surface provides
 `AERControlObservation.to_features()`. The matching Rust implementation lives in
 `control_core::spike_buffer`, with optional PyO3 bindings exposed as
 `scpn_control_rs.PySpikeBuffer` and `scpn_control_rs.aer_decode_*`.
+`SpikeBuffer.admission_report()`, `monotonic_input`, and
+`out_of_order_event_count` provide bounded ingress evidence. Observations may
+set `require_monotonic=True` to fail closed before decoding if upstream AER
+timestamps violate the monotonic admission contract.
 
 This is an ingress adapter and feature-decoding contract. It does not claim
 hardware AER signal integrity, target neuromorphic-device deployment, FPGA

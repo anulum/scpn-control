@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Commercial license available
 // © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 // © Code 2020–2026 Miroslav Šotek. All rights reserved.
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// Project: SCPN Control
-// Description: AER spike-buffer ring and decoders.
+// SCPN Control — AER spike-buffer ring and decoders.
 //! Address-event spike buffers and decoders for SCPN control observations.
 
 use std::collections::VecDeque;
@@ -36,6 +36,23 @@ pub struct SpikeBuffer {
     capacity: usize,
     events: VecDeque<SpikeEvent>,
     overflowed: bool,
+    last_timestamp_ns: Option<u64>,
+    out_of_order_event_count: u64,
+}
+
+/// Admission metadata for bounded AER ingress.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SpikeBufferAdmission {
+    /// Maximum retained events.
+    pub capacity: usize,
+    /// Current retained event count.
+    pub retained_events: usize,
+    /// Whether at least one event has been dropped.
+    pub overflowed: bool,
+    /// Count of events admitted after a later timestamp was already seen.
+    pub out_of_order_event_count: u64,
+    /// Whether admitted timestamps were non-decreasing.
+    pub monotonic_input: bool,
 }
 
 impl SpikeBuffer {
@@ -48,6 +65,8 @@ impl SpikeBuffer {
             capacity,
             events: VecDeque::with_capacity(capacity),
             overflowed: false,
+            last_timestamp_ns: None,
+            out_of_order_event_count: 0,
         })
     }
 
@@ -71,8 +90,27 @@ impl SpikeBuffer {
         self.overflowed
     }
 
+    /// Count events admitted after a later timestamp was already seen.
+    pub fn out_of_order_event_count(&self) -> u64 {
+        self.out_of_order_event_count
+    }
+
+    /// Return whether admitted timestamps were non-decreasing.
+    pub fn monotonic_input(&self) -> bool {
+        self.out_of_order_event_count == 0
+    }
+
     /// Append an event, dropping the oldest if full.
     pub fn push(&mut self, event: SpikeEvent) {
+        match self.last_timestamp_ns {
+            Some(last_timestamp_ns) if event.timestamp_ns < last_timestamp_ns => {
+                self.out_of_order_event_count += 1;
+            }
+            Some(_) | None => {
+                self.last_timestamp_ns = Some(event.timestamp_ns);
+            }
+        }
+
         if self.events.len() >= self.capacity {
             let _ = self.events.pop_front();
             self.overflowed = true;
@@ -112,6 +150,19 @@ impl SpikeBuffer {
     pub fn clear(&mut self) {
         self.events.clear();
         self.overflowed = false;
+        self.last_timestamp_ns = None;
+        self.out_of_order_event_count = 0;
+    }
+
+    /// Return bounded-buffer admission metadata for safety gating.
+    pub fn admission_report(&self) -> SpikeBufferAdmission {
+        SpikeBufferAdmission {
+            capacity: self.capacity,
+            retained_events: self.events.len(),
+            overflowed: self.overflowed,
+            out_of_order_event_count: self.out_of_order_event_count,
+            monotonic_input: self.monotonic_input(),
+        }
     }
 }
 
@@ -248,6 +299,42 @@ mod tests {
             vec![SpikeEvent::new(2, 20), SpikeEvent::new(3, 30)]
         );
         assert!(buffer.overflowed());
+    }
+
+    #[test]
+    fn ring_buffer_latches_out_of_order_events() {
+        let mut buffer = SpikeBuffer::new(4).expect("valid buffer");
+        buffer.push(SpikeEvent::new(1, 100));
+        buffer.push(SpikeEvent::new(1, 90));
+        buffer.push(SpikeEvent::new(1, 95));
+        buffer.push(SpikeEvent::new(1, 110));
+
+        assert_eq!(buffer.out_of_order_event_count(), 2);
+        assert!(!buffer.monotonic_input());
+        assert_eq!(
+            buffer.admission_report(),
+            SpikeBufferAdmission {
+                capacity: 4,
+                retained_events: 4,
+                overflowed: false,
+                out_of_order_event_count: 2,
+                monotonic_input: false,
+            }
+        );
+    }
+
+    #[test]
+    fn clear_resets_admission_latches() {
+        let mut buffer = SpikeBuffer::new(4).expect("valid buffer");
+        buffer.push(SpikeEvent::new(1, 100));
+        buffer.push(SpikeEvent::new(1, 90));
+
+        buffer.clear();
+
+        assert_eq!(buffer.out_of_order_event_count(), 0);
+        assert!(buffer.monotonic_input());
+        assert!(!buffer.overflowed());
+        assert!(buffer.is_empty());
     }
 
     #[test]

@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: AER observation benchmark runner.
+# SCPN Control — AER observation benchmark runner.
 """Benchmark Python and Rust AER decoder paths."""
 
 from __future__ import annotations
@@ -22,7 +22,13 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from scpn_control.scpn.observation import SpikeEvent, decode_isi, decode_rate, decode_temporal
+from scpn_control.scpn.observation import (
+    SpikeBuffer,
+    SpikeEvent,
+    decode_isi,
+    decode_rate,
+    decode_temporal,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONTROL_CORE = PROJECT_ROOT / "scpn-control-rs" / "crates" / "control-core"
@@ -48,11 +54,14 @@ def main() -> None:
     finished_ns = time.time_ns()
     report = {
         "schema_version": "scpn-control.aer-observation-benchmark.v1",
+        "evidence_class": "local_regression",
+        "production_claim_allowed": False,
         "claim_boundary": (
             "soft-isolated local decoder benchmark evidence only; not target-hardware, "
             "neuromorphic-device, FPGA, HIL, or plant PCS timing evidence"
         ),
         "command": " ".join([Path(sys.executable).name, *sys.argv]),
+        "outer_command": os.environ.get("SCPN_BENCH_OUTER_COMMAND"),
         "duration_s": (finished_ns - started_ns) / 1.0e9,
         "host": _host(load_before, _loadavg()),
         "parameters": {"iterations": args.iterations, "warmup": args.warmup},
@@ -70,15 +79,27 @@ def _events() -> list[SpikeEvent]:
 
 def _python_bench(iterations: int, warmup: int) -> dict[str, dict[str, float]]:
     events = _events()
+    admission_buffer = SpikeBuffer(capacity=len(events))
+    admission_buffer.extend(events)
     for _ in range(warmup):
         decode_rate(events, 30_000, 64)
         decode_temporal(events, 30_000, 64, now_ns=30_000)
         decode_isi(events, 30_000, 64)
+        admission_buffer.admission_report()
+        _admission_push_report(events)
     return {
         "rate_ns": _stats(_measure(iterations, lambda: decode_rate(events, 30_000, 64))),
         "temporal_ns": _stats(_measure(iterations, lambda: decode_temporal(events, 30_000, 64, now_ns=30_000))),
         "isi_ns": _stats(_measure(iterations, lambda: decode_isi(events, 30_000, 64))),
+        "admission_report_ns": _stats(_measure(iterations, admission_buffer.admission_report)),
+        "admission_push_report_ns": _stats(_measure(iterations, lambda: _admission_push_report(events))),
     }
+
+
+def _admission_push_report(events: list[SpikeEvent]) -> dict[str, int | bool]:
+    buffer = SpikeBuffer(capacity=len(events))
+    buffer.extend(events)
+    return buffer.admission_report()
 
 
 def _rust_bench(iterations: int, warmup: int) -> dict[str, object]:
@@ -174,19 +195,22 @@ def _version(cmd: list[str]) -> str | None:
 def _markdown(report: dict[str, object], json_path: Path) -> str:
     return "\n".join(
         [
-            "<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->",
+            "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
+            "<!-- Commercial license available -->",
             "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
             "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
             "<!-- ORCID: 0009-0009-3560-0851 -->",
             "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-            "<!-- Project: SCPN Control -->",
-            "<!-- Description: AER observation benchmark report. -->",
+            "<!-- SCPN Control — AER observation benchmark report. -->",
             "",
             "# AER Observation Benchmark",
             "",
             f"- JSON evidence: `{json_path.as_posix()}`",
+            f"- Evidence class: `{report['evidence_class']}`",
+            f"- Production claim allowed: `{report['production_claim_allowed']}`",
             f"- Claim boundary: {report['claim_boundary']}",
             f"- Command: `{report['command']}`",
+            f"- Outer command: `{report.get('outer_command')}`",
             f"- Duration: {report['duration_s']:.3f} s",
             "",
             "## Host Context",
@@ -206,7 +230,9 @@ def _markdown(report: dict[str, object], json_path: Path) -> str:
 
 
 _RUST_SOURCE = r"""
-use control_core::spike_buffer::{decode_isi, decode_rate, decode_temporal, SpikeEvent};
+use control_core::spike_buffer::{
+    decode_isi, decode_rate, decode_temporal, SpikeBuffer, SpikeEvent,
+};
 use std::env;
 use std::time::Instant;
 
@@ -217,10 +243,13 @@ fn main() {
     let events: Vec<SpikeEvent> = (0..256)
         .map(|idx| SpikeEvent::new(idx % 64, idx as u64 * 100))
         .collect();
+    let admission_buffer = build_admission_buffer(&events);
     for _ in 0..warmup {
         let _ = decode_rate(&events, 30_000, 64).expect("rate");
         let _ = decode_temporal(&events, 30_000, 64, 30_000).expect("temporal");
         let _ = decode_isi(&events, 30_000, 64).expect("isi");
+        let _ = admission_buffer.admission_report();
+        admission_push_report(&events);
     }
     let rate = measure(iterations, || {
         let _ = decode_rate(&events, 30_000, 64).expect("rate");
@@ -231,12 +260,33 @@ fn main() {
     let isi = measure(iterations, || {
         let _ = decode_isi(&events, 30_000, 64).expect("isi");
     });
+    let admission = measure(iterations, || {
+        std::hint::black_box(admission_buffer.admission_report());
+    });
+    let admission_push = measure(iterations, || {
+        admission_push_report(&events);
+    });
     println!(
-        "{{\"rate_ns\":{},\"temporal_ns\":{},\"isi_ns\":{}}}",
+        "{{\"rate_ns\":{},\"temporal_ns\":{},\"isi_ns\":{},\"admission_report_ns\":{},\"admission_push_report_ns\":{}}}",
         stats_json(&rate),
         stats_json(&temporal),
-        stats_json(&isi)
+        stats_json(&isi),
+        stats_json(&admission),
+        stats_json(&admission_push)
     );
+}
+
+fn build_admission_buffer(events: &[SpikeEvent]) -> SpikeBuffer {
+    let mut buffer = SpikeBuffer::new(events.len()).expect("buffer");
+    for event in events {
+        buffer.push(*event);
+    }
+    buffer
+}
+
+fn admission_push_report(events: &[SpikeEvent]) {
+    let buffer = build_admission_buffer(events);
+    std::hint::black_box(buffer.admission_report());
 }
 
 fn measure<F: FnMut()>(n: usize, mut f: F) -> Vec<u128> {

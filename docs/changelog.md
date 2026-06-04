@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Added
+- Hardened AER control-observation admission with monotonic timestamp evidence,
+  strict fail-closed decoding mode, Rust/PyO3 parity, and Python/Rust benchmark
+  coverage.
 - Added an explicit native-handoff comparison benchmark that forces
   Python-orchestrated and PyO3 fused Rust execution at the same campaign
   boundary and emits JSON plus Markdown evidence artifacts.

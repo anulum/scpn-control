@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: AER control-observation adapter.
+# SCPN Control — AER control-observation adapter.
 """Address-event spike observation adapters for SCPN control loops."""
 
 from __future__ import annotations
@@ -42,6 +42,8 @@ class SpikeBuffer:
         self._capacity = _positive_int("capacity", capacity)
         self._events: list[SpikeEvent] = []
         self._overflowed = False
+        self._last_timestamp_ns: int | None = None
+        self._out_of_order_event_count = 0
 
     @property
     def capacity(self) -> int:
@@ -53,11 +55,28 @@ class SpikeBuffer:
         """Return whether the buffer has dropped at least one event."""
         return self._overflowed
 
+    @property
+    def out_of_order_event_count(self) -> int:
+        """Return count of events admitted after a later timestamp was seen."""
+        return self._out_of_order_event_count
+
+    @property
+    def monotonic_input(self) -> bool:
+        """Return whether admitted timestamps were non-decreasing."""
+        return self._out_of_order_event_count == 0
+
     def __len__(self) -> int:
         return len(self._events)
 
     def push(self, event: SpikeEvent) -> None:
         """Append ``event`` and drop the oldest event if the buffer is full."""
+        if self._last_timestamp_ns is None:
+            self._last_timestamp_ns = event.timestamp_ns
+        elif event.timestamp_ns < self._last_timestamp_ns:
+            self._out_of_order_event_count += 1
+        else:
+            self._last_timestamp_ns = event.timestamp_ns
+
         if len(self._events) >= self._capacity:
             self._events.pop(0)
             self._overflowed = True
@@ -95,6 +114,18 @@ class SpikeBuffer:
         """Clear buffered events and reset the overflow latch."""
         self._events.clear()
         self._overflowed = False
+        self._last_timestamp_ns = None
+        self._out_of_order_event_count = 0
+
+    def admission_report(self) -> dict[str, int | bool]:
+        """Return bounded-buffer admission metadata for safety gating."""
+        return {
+            "capacity": self._capacity,
+            "retained_events": len(self._events),
+            "overflowed": self._overflowed,
+            "out_of_order_event_count": self._out_of_order_event_count,
+            "monotonic_input": self.monotonic_input,
+        }
 
 
 @dataclass(frozen=True)
@@ -107,6 +138,7 @@ class AERControlObservation:
     decode_strategy: DecodeStrategy = "rate"
     n_features: int = 64
     feature_normalisation: FeatureNormalisation = "unit"
+    require_monotonic: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "timestamp_ns", _non_negative_int("timestamp_ns", self.timestamp_ns))
@@ -116,9 +148,14 @@ class AERControlObservation:
             raise ValueError("decode_strategy must be one of: rate, temporal, isi")
         if self.feature_normalisation not in ("unit", "max", "zscore"):
             raise ValueError("feature_normalisation must be one of: unit, max, zscore")
+        if not isinstance(self.require_monotonic, bool):
+            raise ValueError("require_monotonic must be a boolean")
 
     def to_features(self) -> np.ndarray:
         """Drain the active window and return ``float64`` features in ``[0, 1]``."""
+        if self.require_monotonic and not self.spike_stream.monotonic_input:
+            raise ValueError("AER spike stream violated monotonic timestamp admission")
+
         events = self.spike_stream.drain_window(self.decode_window_ns, self.timestamp_ns)
         if self.decode_strategy == "rate":
             features = decode_rate(events, self.decode_window_ns, self.n_features)
@@ -134,6 +171,10 @@ class AERControlObservation:
             raise ValueError("prefix must not be empty")
         features = self.to_features()
         return {f"{prefix}{idx}": float(value) for idx, value in enumerate(features)}
+
+    def admission_report(self) -> dict[str, int | bool]:
+        """Return spike-buffer admission metadata for this observation source."""
+        return self.spike_stream.admission_report()
 
 
 def decode_rate(events: list[SpikeEvent], window_ns: int, n_features: int) -> np.ndarray:

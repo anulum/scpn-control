@@ -1,10 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: AER control-observation guide. -->
+<!-- SCPN Control — AER control-observation guide. -->
 
 # AER Control Observation
 
@@ -20,6 +20,7 @@ The public Python surface provides:
 
 - `SpikeEvent(neuron_id, timestamp_ns)` for one AER event.
 - `SpikeBuffer(capacity)` for a bounded FIFO ring buffer.
+- `SpikeBuffer.admission_report()` for bounded ingress evidence.
 - `decode_rate(events, window_ns, n_features)` for event-fraction features.
 - `decode_temporal(events, window_ns, n_features, now_ns=...)` for first-spike
   timing features.
@@ -42,6 +43,19 @@ the oldest event and latches `overflowed=True`. `drain_window(window_ns, now_ns)
 returns events with timestamps in `[now_ns - window_ns, now_ns]`, discards older
 events, and keeps future events. This makes burst handling explicit and prevents
 unbounded memory growth under a noisy neuromorphic input stream.
+
+The buffer also latches timestamp-order admission evidence. `monotonic_input`
+remains true only while admitted timestamps are non-decreasing.
+`out_of_order_event_count` increments when an event arrives after a later
+timestamp has already been observed. `admission_report()` returns capacity,
+retained event count, overflow state, monotonic state, and out-of-order count.
+
+Out-of-order events are retained by default. That preserves forensic replay and
+keeps the decoder deterministic even when upstream hardware delivers delayed
+events. Safety-critical ingress can opt into fail-closed behavior with
+`AERControlObservation(require_monotonic=True)`. Strict mode checks the latched
+admission state before draining, so rejected events remain available for
+post-mortem inspection.
 
 ## Decode equations
 
@@ -91,8 +105,10 @@ obs = AERControlObservation(
     decode_window_ns=100,
     decode_strategy="rate",
     n_features=8,
+    require_monotonic=True,
 )
 
 features = obs.to_features()
 mapping = obs.to_feature_mapping(prefix="aer_")
+report = obs.admission_report()
 ```

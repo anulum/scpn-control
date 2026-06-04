@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Added
+- Hardened AER control-observation admission with monotonic timestamp evidence,
+  strict fail-closed decoding mode, Rust/PyO3 parity, and Python/Rust benchmark
+  coverage.
 - Added CONTROL-owned `PulsedScenarioScheduler v2` for reusable pulsed-fusion
   shot lifecycles, with Python and Rust scheduler surfaces, audit-log
   semantics, guard validation, public API documentation, and direct tests.

@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: AER PyO3 parity tests.
+# SCPN Control — AER PyO3 parity tests.
 """Optional parity tests for Rust AER spike-buffer bindings."""
 
 from __future__ import annotations
@@ -51,3 +51,21 @@ def test_rust_spike_buffer_matches_python_overflow_and_drain_semantics() -> None
     assert buffer.overflowed is True
     assert buffer.drain_window(15, 25) == [(2, 20)]
     assert buffer.snapshot() == [(3, 30)]
+
+
+def test_rust_spike_buffer_exposes_admission_metadata() -> None:
+    buffer = rust.PySpikeBuffer(4)
+    buffer.push(1, 100)
+    buffer.push(1, 90)
+    buffer.push(1, 95)
+    buffer.push(1, 110)
+
+    assert buffer.out_of_order_event_count == 2
+    assert buffer.monotonic_input is False
+    assert buffer.admission_report() == {
+        "capacity": 4,
+        "retained_events": 4,
+        "overflowed": False,
+        "out_of_order_event_count": 2,
+        "monotonic_input": False,
+    }

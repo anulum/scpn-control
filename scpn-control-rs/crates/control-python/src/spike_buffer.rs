@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Commercial license available
 // © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 // © Code 2020–2026 Miroslav Šotek. All rights reserved.
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// Project: SCPN Control
-// Description: PyO3 AER spike-buffer bindings.
+// SCPN Control — PyO3 AER spike-buffer bindings.
 //! Python bindings for AER spike buffers and decoders.
 
 use control_core::spike_buffer::{
@@ -14,6 +14,7 @@ use ndarray::Array1;
 use numpy::{IntoPyArray, PyArray1};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 /// Python wrapper for the Rust spike buffer.
 #[pyclass(name = "PySpikeBuffer")]
@@ -78,6 +79,30 @@ impl PySpikeBuffer {
     #[getter]
     fn overflowed(&self) -> bool {
         self.inner.overflowed()
+    }
+
+    /// Return count of out-of-order admitted events.
+    #[getter]
+    fn out_of_order_event_count(&self) -> u64 {
+        self.inner.out_of_order_event_count()
+    }
+
+    /// Return whether admitted timestamps were non-decreasing.
+    #[getter]
+    fn monotonic_input(&self) -> bool {
+        self.inner.monotonic_input()
+    }
+
+    /// Return bounded-buffer admission metadata for safety gating.
+    fn admission_report<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let report = self.inner.admission_report();
+        let dict = PyDict::new(py);
+        dict.set_item("capacity", report.capacity)?;
+        dict.set_item("retained_events", report.retained_events)?;
+        dict.set_item("overflowed", report.overflowed)?;
+        dict.set_item("out_of_order_event_count", report.out_of_order_event_count)?;
+        dict.set_item("monotonic_input", report.monotonic_input)?;
+        Ok(dict)
     }
 }
 
