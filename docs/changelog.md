@@ -63,6 +63,8 @@
   regression benchmark tooling.
 - Added digest-bound pulsed-MPC admission decision evidence across Python,
   Rust, PyO3, and benchmark reports.
+- Added PyO3-inclusive pulsed-MPC local regression evidence and documented the
+  editable bridge rebuild protocol for this workstation.
 - Added total RLC energy-balance reporting to capacitor-bank discharge reports,
   including capacitor/inductor remaining energy, ohmic loss, prescribed-load
   extraction, residual admission, PyO3 fields, dedicated tests, public guide

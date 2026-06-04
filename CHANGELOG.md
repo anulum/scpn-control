@@ -41,6 +41,8 @@
   regression benchmark tooling.
 - Added digest-bound pulsed-MPC admission decision evidence across Python,
   Rust, PyO3, and benchmark reports.
+- Added PyO3-inclusive pulsed-MPC local regression evidence and documented the
+  editable bridge rebuild protocol for this workstation.
 - Added the CONTROL-owned multi-shot campaign orchestrator with Python, Rust,
   and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
   metadata fields, module-specific tests, public documentation, and local

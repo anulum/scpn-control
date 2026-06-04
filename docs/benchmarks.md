@@ -323,6 +323,26 @@ PYTHONPATH=src python benchmarks/bench_pulsed_mpc_adapter.py \
   --md-out validation/reports/pulsed_mpc_adapter_local_regression.md
 ```
 
+If the optional PyO3 extension was rebuilt for the current Rust source, the
+Python report includes `pyo3_non_burn_mask` and
+`pyo3_burn_infeasible_safe` rows. On this workstation, build the editable PyO3
+extension with a target directory on `/tmp`; the repository checkout is on a
+`fuseblk` volume, and maturin's rpath patching path can fail against generated
+shared objects in the repository target directory.
+
+```bash
+cd scpn-control-rs/crates/control-python
+../../../.venv/bin/python -m maturin develop \
+  --release \
+  --features io-uring \
+  --target-dir /tmp/scpn_control_rs_maturin_target
+```
+
+If `patchelf` is available on `PATH` and maturin reports an ELF parse error for
+`libscpn_control_rs.so`, remove that optional Python package from the virtual
+environment and rerun the command above. The extension does not require
+committing generated shared objects.
+
 For soft core affinity on a developer workstation:
 
 ```bash
@@ -364,6 +384,13 @@ This example times the Rust `MPController.plan_pulsed()` surface directly and
 writes a separate digest-bound JSON/Markdown report whose case payloads include
 the same pulsed-MPC decision evidence fields. Use the Python and Rust reports
 together as polyglot regression evidence.
+
+Current PyO3-inclusive local regression evidence:
+
+| Evidence | Cases | Median range | p99 range | Claim boundary |
+| --- | --- | ---: | ---: | --- |
+| `validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_python_20260604T171015Z.md` | Python + PyO3 | 40.112-873.7225 us | 57.746-1264.718 us | local regression only |
+| `validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.md` | native Rust | 34.826-36.843 us | 46.76-49.0 us | local regression only |
 
 ## Multi-shot campaign regression
 

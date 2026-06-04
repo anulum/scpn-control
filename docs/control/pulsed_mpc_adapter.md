@@ -178,6 +178,15 @@ The Rust and PyO3 surfaces expose the same evidence field names as Python:
 `evidence_schema_version`, `action_sha256`, `safe_action_sha256`,
 `burn_action_mask_sha256`, `peak_current_A`, and `admission_digest`.
 
+After rebuilding the editable PyO3 wheel from the current Rust source, the
+dedicated parity tests must run without stale-wheel skips:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m pytest \
+  tests/test_fusion_sota_mpc_pulsed_adapter.py \
+  tests/test_fusion_sota_mpc_pulsed_adapter_rust_parity.py -q
+```
+
 ## Evidence boundary
 
 The adapter is a CONTROL admission primitive. It is not a facility PCS driver,

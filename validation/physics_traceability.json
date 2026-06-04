@@ -2008,7 +2008,9 @@
         "tests/test_fusion_sota_mpc_pulsed_adapter_rust_parity.py optional PyO3 parity checks for evidence fields",
         "scpn-control-rs/crates/control-control/tests/pulsed_mpc_adapter.rs native Rust admission and decision-digest checks",
         "benchmarks/bench_pulsed_mpc_adapter.py local regression benchmark with decision evidence",
-        "scpn-control-rs/crates/control-control/examples/bench_pulsed_mpc_adapter.rs native Rust local regression benchmark with decision evidence"
+        "scpn-control-rs/crates/control-control/examples/bench_pulsed_mpc_adapter.rs native Rust local regression benchmark with decision evidence",
+        "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_python_20260604T171015Z.json PyO3-inclusive local regression report",
+        "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.json native Rust local regression report"
       ],
       "evidence_paths": [
         "src/scpn_control/control/fusion_sota_mpc.py",
@@ -2020,7 +2022,11 @@
         "benchmarks/bench_pulsed_mpc_adapter.py",
         "scpn-control-rs/crates/control-control/examples/bench_pulsed_mpc_adapter.rs",
         "docs/control/pulsed_mpc_adapter.md",
-        "docs/benchmarks.md"
+        "docs/benchmarks.md",
+        "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_python_20260604T171015Z.json",
+        "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_python_20260604T171015Z.md",
+        "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.json",
+        "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/fusion_sota_mpc.py"
