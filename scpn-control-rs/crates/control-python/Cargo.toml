@@ -23,3 +23,12 @@ numpy = { workspace = true }
 ndarray = { workspace = true }
 rand = { workspace = true }
 rand_chacha = "0.9"
+socket2 = "0.5"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+io-uring = { version = "0.7", optional = true }
+
+[features]
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+io-uring = ["dep:io-uring"]

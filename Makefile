@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-.PHONY: test test-rust test-all lint fmt bandit sast preflight preflight-fast docs docs-build bench bench-rust bridge build install-hooks docker-build docker-run clean
+.PHONY: test test-rust test-all lint fmt bandit sast preflight preflight-fast docs docs-build bench bench-rust bench-native-handoff bridge build install-hooks docker-build docker-run clean
 
 test:
 	pytest tests/ -v --cov=scpn_control --cov-report=term --cov-fail-under=93
@@ -41,8 +41,14 @@ bench:
 bench-rust:
 	cd scpn-control-rs && cargo bench --workspace
 
+bench-native-handoff:
+	PYTHONPATH=src .venv/bin/python scripts/benchmark_native_handoff.py --steps 5000 --tick-interval-s 0.0001 --transport-backend std
+
 bridge:
 	cd scpn-control-rs/crates/control-python && maturin develop --release
+
+bridge-io-uring:
+	cd scpn-control-rs/crates/control-python && maturin develop --release --features io-uring
 
 build:
 	python -m build

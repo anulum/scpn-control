@@ -27,7 +27,7 @@ log = "0.4"
 env_logger = "0.11"
 rand = "0.9"
 rand_distr = "0.5"
-pyo3 = { version = "0.25", features = ["extension-module"] }
+pyo3 = "0.25"
 numpy = "0.25"
 ndarray-npy = "0.10"
 ndarray-linalg = { version = "0.17", features = ["intel-mkl-static"] }

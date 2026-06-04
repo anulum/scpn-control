@@ -15,6 +15,12 @@ use numpy::{
 use pyo3::exceptions::{PyIOError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use transport_bridge::PyUdpTransportBridge;
 
 use control_control::analytic;
 use control_control::digital_twin::Plasma2D;
@@ -35,6 +41,9 @@ use control_math::kuramoto;
 use control_math::multigrid::{multigrid_solve, MultigridConfig};
 use control_math::tridiag;
 use control_types::state::Grid2D;
+
+mod slab;
+mod transport_bridge;
 
 // ─── Equilibrium solver ───
 
@@ -287,6 +296,515 @@ impl PySnnController {
     fn target_z(&self) -> f64 {
         self.inner.target_z
     }
+}
+
+#[pyclass]
+struct PySpikingControllerPool {
+    n_neurons: usize,
+    seed: u64,
+    brain_r: SpikingControllerPool,
+    brain_z: SpikingControllerPool,
+    target_r: f64,
+    target_z: f64,
+    pid_kp: f64,
+    pid_ki: f64,
+    pid_kd: f64,
+    pid_integral_r: f64,
+    pid_integral_z: f64,
+    pid_prev_error_r: f64,
+    pid_prev_error_z: f64,
+    transport_endpoint: String,
+    transport_port: u16,
+    transport_ttl: u8,
+    transport_max_queue: usize,
+    transport_backend: String,
+    transport_heartbeat_port: u16,
+    transport_heartbeat_timeout_ms: u64,
+    core_snn: usize,
+    core_z3: usize,
+    core_net: usize,
+    core_hb: usize,
+    max_iterations: Option<usize>,
+    tick_interval_s: f64,
+    initial_state: (f64, f64),
+    plant_gain: f64,
+    u_min: Option<f64>,
+    u_max: Option<f64>,
+    kuramoto_weights: HashMap<String, f64>,
+    itpa_constraints: HashMap<String, f64>,
+    acados_targets: HashMap<String, f64>,
+    steps_executed: usize,
+    dropped: usize,
+    publish_failures: usize,
+    max_publish_failures: usize,
+    last_cycle_ns: u128,
+    total_cycle_ns: u128,
+    last_acados_time_ns: u64,
+    last_snn_time_ns: u64,
+    is_running: bool,
+    stop_flag: Arc<AtomicBool>,
+}
+
+#[pymethods]
+impl PySpikingControllerPool {
+    #[new]
+    #[pyo3(signature = (n_neurons=64, seed=7))]
+    fn new(n_neurons: usize, seed: u64) -> PyResult<Self> {
+        if n_neurons == 0 {
+            return Err(PyValueError::new_err("n_neurons must be positive"));
+        }
+
+        let brain_r = SpikingControllerPool::new(n_neurons, 10.0, 20)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let brain_z = SpikingControllerPool::new(n_neurons, 20.0, 20)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        Ok(Self {
+            n_neurons,
+            seed,
+            brain_r,
+            brain_z,
+            target_r: 6.2,
+            target_z: 0.0,
+            pid_kp: 1.0,
+            pid_ki: 0.05,
+            pid_kd: 0.01,
+            pid_integral_r: 0.0,
+            pid_integral_z: 0.0,
+            pid_prev_error_r: 0.0,
+            pid_prev_error_z: 0.0,
+            transport_endpoint: "239.0.0.1".to_string(),
+            transport_port: 5555,
+            transport_ttl: 1,
+            transport_max_queue: 4,
+            transport_backend: "std".to_string(),
+            transport_heartbeat_port: 0,
+            transport_heartbeat_timeout_ms: 3,
+            core_snn: 1,
+            core_z3: 2,
+            core_net: 3,
+            core_hb: 4,
+            max_iterations: None,
+            tick_interval_s: 0.001,
+            initial_state: (6.2, 0.0),
+            plant_gain: 0.0,
+            u_min: None,
+            u_max: None,
+            kuramoto_weights: HashMap::new(),
+            itpa_constraints: HashMap::new(),
+            acados_targets: HashMap::new(),
+            steps_executed: 0,
+            dropped: 0,
+            publish_failures: 0,
+            max_publish_failures: 128,
+            last_cycle_ns: 0,
+            total_cycle_ns: 0,
+            last_acados_time_ns: 0,
+            last_snn_time_ns: 0,
+            is_running: false,
+            stop_flag: Arc::new(AtomicBool::new(false)),
+        })
+    }
+
+    #[pyo3(signature = (endpoint, port, ttl, max_queue, backend, heartbeat_port, heartbeat_timeout_ms))]
+    fn set_transport_settings(
+        &mut self,
+        endpoint: &str,
+        port: u16,
+        ttl: u8,
+        max_queue: usize,
+        backend: &str,
+        heartbeat_port: u16,
+        heartbeat_timeout_ms: u64,
+    ) -> PyResult<()> {
+        if port == 0 {
+            return Err(PyValueError::new_err("transport port must be positive"));
+        }
+        if max_queue == 0 {
+            return Err(PyValueError::new_err(
+                "transport max_queue must be positive",
+            ));
+        }
+        if heartbeat_timeout_ms == 0 {
+            return Err(PyValueError::new_err(
+                "heartbeat_timeout_ms must be positive",
+            ));
+        }
+
+        let backend_lc = backend.trim().to_ascii_lowercase();
+        if !matches!(
+            backend_lc.as_str(),
+            "std" | "udp" | "io-uring" | "io_uring" | "ioring"
+        ) {
+            return Err(PyValueError::new_err(
+                "transport backend must be std, udp, or io-uring",
+            ));
+        }
+
+        self.transport_endpoint = endpoint.to_string();
+        self.transport_port = port;
+        self.transport_ttl = ttl;
+        self.transport_max_queue = max_queue;
+        self.transport_backend = if matches!(backend_lc.as_str(), "io_uring" | "ioring") {
+            "io-uring".to_string()
+        } else {
+            backend_lc
+        };
+        self.transport_heartbeat_port = heartbeat_port;
+        self.transport_heartbeat_timeout_ms = heartbeat_timeout_ms;
+        Ok(())
+    }
+
+    #[pyo3(signature = (endpoint, port, ttl, max_queue, backend, heartbeat_port, heartbeat_timeout_ms))]
+    fn configure_transport(
+        &mut self,
+        endpoint: &str,
+        port: u16,
+        ttl: u8,
+        max_queue: usize,
+        backend: &str,
+        heartbeat_port: u16,
+        heartbeat_timeout_ms: u64,
+    ) -> PyResult<()> {
+        self.set_transport_settings(
+            endpoint,
+            port,
+            ttl,
+            max_queue,
+            backend,
+            heartbeat_port,
+            heartbeat_timeout_ms,
+        )
+    }
+
+    #[pyo3(signature = (core_snn, core_z3, core_net, core_hb))]
+    fn set_execution_affinity(
+        &mut self,
+        core_snn: usize,
+        core_z3: usize,
+        core_net: usize,
+        core_hb: usize,
+    ) {
+        self.core_snn = core_snn;
+        self.core_z3 = core_z3;
+        self.core_net = core_net;
+        self.core_hb = core_hb;
+    }
+
+    fn set_kuramoto_weights(&mut self, weights: &Bound<'_, PyDict>) -> PyResult<()> {
+        self.kuramoto_weights = parse_f64_dict(weights)?;
+        Ok(())
+    }
+
+    fn configure_itpa_gyro_bohm(&mut self, constraints: &Bound<'_, PyDict>) -> PyResult<()> {
+        self.itpa_constraints = parse_f64_dict(constraints)?;
+        if let Some(c_gb) = self.itpa_constraints.get("c_gB") {
+            self.acados_targets.insert("c_gB".to_string(), *c_gb);
+        }
+        Ok(())
+    }
+
+    fn set_nmpc_targets(&mut self, targets: &Bound<'_, PyDict>) -> PyResult<()> {
+        self.apply_acados_targets(targets)
+    }
+
+    fn set_acados_targets(&mut self, targets: &Bound<'_, PyDict>) -> PyResult<()> {
+        self.apply_acados_targets(targets)
+    }
+
+    fn configure_acados_targets(&mut self, targets: &Bound<'_, PyDict>) -> PyResult<()> {
+        self.apply_acados_targets(targets)
+    }
+
+    #[pyo3(signature = (max_iterations=None, tick_interval=0.001, initial_state=None, plant_gain=0.0))]
+    fn configure_runtime_budget(
+        &mut self,
+        max_iterations: Option<usize>,
+        tick_interval: f64,
+        initial_state: Option<Vec<f64>>,
+        plant_gain: f64,
+    ) -> PyResult<()> {
+        if !tick_interval.is_finite() || tick_interval < 0.0 {
+            return Err(PyValueError::new_err(
+                "tick_interval must be finite and >= 0",
+            ));
+        }
+        if !plant_gain.is_finite() {
+            return Err(PyValueError::new_err("plant_gain must be finite"));
+        }
+
+        if let Some(values) = initial_state {
+            if values.len() != 2 {
+                return Err(PyValueError::new_err(
+                    "initial_state must contain exactly two floats",
+                ));
+            }
+            if !values[0].is_finite() || !values[1].is_finite() {
+                return Err(PyValueError::new_err("initial_state must be finite"));
+            }
+            self.initial_state = (values[0], values[1]);
+        }
+
+        self.max_iterations = max_iterations;
+        self.tick_interval_s = tick_interval;
+        self.plant_gain = plant_gain;
+        Ok(())
+    }
+
+    #[pyo3(signature = (arg1=None, arg2=None, arg3=None))]
+    fn start(
+        &mut self,
+        py: Python<'_>,
+        arg1: Option<usize>,
+        arg2: Option<usize>,
+        arg3: Option<usize>,
+    ) -> PyResult<()> {
+        if self.is_running {
+            return Ok(());
+        }
+
+        let mut max_iterations = self.max_iterations;
+        match (arg1, arg2, arg3) {
+            (Some(steps), None, None) => {
+                max_iterations = Some(steps);
+            }
+            (Some(core_snn), Some(core_z3), None) => {
+                self.core_snn = core_snn;
+                self.core_z3 = core_z3;
+            }
+            (Some(core_snn), Some(core_z3), Some(steps)) => {
+                self.core_snn = core_snn;
+                self.core_z3 = core_z3;
+                max_iterations = Some(steps);
+            }
+            _ => {}
+        }
+
+        self.stop_flag.store(false, Ordering::Release);
+        self.steps_executed = 0;
+        self.dropped = 0;
+        self.publish_failures = 0;
+        self.last_cycle_ns = 0;
+        self.total_cycle_ns = 0;
+        self.last_acados_time_ns = 0;
+        self.last_snn_time_ns = 0;
+        self.is_running = true;
+
+        let result = py.allow_threads(|| self.run_native_loop(max_iterations));
+        self.is_running = false;
+        result
+    }
+
+    fn stop(&mut self) {
+        self.stop_flag.store(true, Ordering::Release);
+        self.is_running = false;
+    }
+
+    fn force_shutdown(&mut self) {
+        self.stop();
+    }
+
+    fn set_max_publish_failures(&mut self, max_publish_failures: usize) {
+        self.max_publish_failures = max_publish_failures;
+    }
+
+    fn extract_slab_telemetry<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        self.telemetry(py)
+    }
+
+    fn campaign_summary<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        self.telemetry(py)
+    }
+}
+
+impl PySpikingControllerPool {
+    fn apply_acados_targets(&mut self, targets: &Bound<'_, PyDict>) -> PyResult<()> {
+        let parsed = parse_f64_dict(targets)?;
+        if let Some(target_r) = parsed
+            .get("target_r")
+            .or_else(|| parsed.get("rho_tor_target"))
+            .or_else(|| parsed.get("R_target"))
+        {
+            self.target_r = *target_r;
+        }
+        if let Some(target_z) = parsed
+            .get("target_z")
+            .or_else(|| parsed.get("z_tor_target"))
+            .or_else(|| parsed.get("Z_target"))
+        {
+            self.target_z = *target_z;
+        }
+        if let Some(u_min) = parsed.get("u_min") {
+            self.u_min = Some(*u_min);
+        }
+        if let Some(u_max) = parsed.get("u_max") {
+            self.u_max = Some(*u_max);
+        }
+        self.acados_targets.extend(parsed);
+        Ok(())
+    }
+
+    fn run_native_loop(&mut self, max_iterations: Option<usize>) -> PyResult<()> {
+        let mut bridge = PyUdpTransportBridge::new(
+            &self.transport_endpoint,
+            self.transport_port,
+            self.transport_ttl,
+            self.transport_max_queue,
+            &self.transport_backend,
+            self.transport_heartbeat_port,
+            self.transport_heartbeat_timeout_ms,
+        )?;
+        bridge.start()?;
+
+        let mut measured_r = self.initial_state.0;
+        let mut measured_z = self.initial_state.1;
+        let loop_result = loop {
+            if self.stop_flag.load(Ordering::Acquire) {
+                break Ok(());
+            }
+
+            if let Some(limit) = max_iterations {
+                if self.steps_executed >= limit {
+                    break Ok(());
+                }
+            }
+
+            if bridge.heartbeat_expired() {
+                break Err(PyRuntimeError::new_err("transport heartbeat timeout"));
+            }
+
+            let step_start = Instant::now();
+            let error_r = self.target_r - measured_r;
+            let error_z = self.target_z - measured_z;
+
+            let snn_start = Instant::now();
+            let r_snn = self
+                .brain_r
+                .step(error_r)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+            let z_snn = self
+                .brain_z
+                .step(error_z)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+            self.last_snn_time_ns = snn_start.elapsed().as_nanos() as u64;
+
+            let pid_start = Instant::now();
+            self.pid_integral_r =
+                (self.pid_integral_r + error_r * self.tick_interval_s).clamp(-1.0e6, 1.0e6);
+            self.pid_integral_z =
+                (self.pid_integral_z + error_z * self.tick_interval_s).clamp(-1.0e6, 1.0e6);
+            let d_error_r = error_r - self.pid_prev_error_r;
+            let d_error_z = error_z - self.pid_prev_error_z;
+            self.pid_prev_error_r = error_r;
+            self.pid_prev_error_z = error_z;
+
+            let r_pid =
+                self.pid_kp * error_r + self.pid_ki * self.pid_integral_r + self.pid_kd * d_error_r;
+            let z_pid =
+                self.pid_kp * error_z + self.pid_ki * self.pid_integral_z + self.pid_kd * d_error_z;
+            self.last_acados_time_ns = pid_start.elapsed().as_nanos() as u64;
+
+            let mut r_command = r_snn + r_pid;
+            let mut z_command = z_snn + z_pid;
+            if let Some(u_min) = self.u_min {
+                r_command = r_command.max(u_min);
+                z_command = z_command.max(u_min);
+            }
+            if let Some(u_max) = self.u_max {
+                r_command = r_command.min(u_max);
+                z_command = z_command.min(u_max);
+            }
+
+            match bridge.publish(
+                error_r,
+                error_z,
+                r_command,
+                z_command,
+                self.last_acados_time_ns,
+                self.last_snn_time_ns,
+                0,
+            ) {
+                Ok(true) => {
+                    self.publish_failures = 0;
+                }
+                Ok(false) => {
+                    self.dropped = self.dropped.saturating_add(1);
+                    self.publish_failures = self.publish_failures.saturating_add(1);
+                    if self.publish_failures > self.max_publish_failures {
+                        break Err(PyRuntimeError::new_err(
+                            "transport publish backpressure exceeded tolerance",
+                        ));
+                    }
+                }
+                Err(error) => {
+                    break Err(error);
+                }
+            }
+
+            measured_r += self.plant_gain * r_command * self.tick_interval_s;
+            measured_z += self.plant_gain * z_command * self.tick_interval_s;
+            self.steps_executed = self.steps_executed.saturating_add(1);
+            self.last_cycle_ns = step_start.elapsed().as_nanos();
+            self.total_cycle_ns = self.total_cycle_ns.saturating_add(self.last_cycle_ns);
+
+            if self.tick_interval_s > 0.0 {
+                let target_ns = (self.tick_interval_s * 1_000_000_000.0) as u128;
+                if target_ns > self.last_cycle_ns {
+                    std::thread::sleep(Duration::from_nanos(
+                        (target_ns - self.last_cycle_ns) as u64,
+                    ));
+                }
+            }
+        };
+
+        let stop_result = bridge.stop();
+        if loop_result.is_ok() {
+            stop_result?;
+        }
+        loop_result
+    }
+
+    fn telemetry<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let dict = PyDict::new(py);
+        dict.set_item("running", self.is_running)?;
+        dict.set_item("n_neurons", self.n_neurons)?;
+        dict.set_item("seed", self.seed)?;
+        dict.set_item("steps", self.steps_executed)?;
+        dict.set_item("dropped", self.dropped)?;
+        dict.set_item("publish_failures", self.publish_failures)?;
+        dict.set_item("last_cycle_ns", self.last_cycle_ns.to_string())?;
+        dict.set_item("total_cycle_ns", self.total_cycle_ns.to_string())?;
+        dict.set_item("last_acados_time_ns", self.last_acados_time_ns)?;
+        dict.set_item("last_snn_time_ns", self.last_snn_time_ns)?;
+        dict.set_item("target_r", self.target_r)?;
+        dict.set_item("target_z", self.target_z)?;
+        dict.set_item("transport_backend", self.transport_backend.clone())?;
+        dict.set_item("transport_endpoint", self.transport_endpoint.clone())?;
+        dict.set_item("transport_port", self.transport_port)?;
+        dict.set_item("heartbeat_enabled", self.transport_heartbeat_port > 0)?;
+
+        let execution = PyDict::new(py);
+        execution.set_item("core_snn", self.core_snn)?;
+        execution.set_item("core_z3", self.core_z3)?;
+        execution.set_item("core_net", self.core_net)?;
+        execution.set_item("core_hb", self.core_hb)?;
+        execution.set_item("mode", "native")?;
+        dict.set_item("execution", execution)?;
+        Ok(dict)
+    }
+}
+
+fn parse_f64_dict(dict: &Bound<'_, PyDict>) -> PyResult<HashMap<String, f64>> {
+    let mut parsed = HashMap::with_capacity(dict.len());
+    for (key, value) in dict.iter() {
+        let key = key.extract::<String>()?;
+        if let Ok(number) = value.extract::<f64>() {
+            if number.is_finite() {
+                parsed.insert(key, number);
+            }
+        }
+    }
+    Ok(parsed)
 }
 
 #[pyclass]
@@ -898,6 +1416,7 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_function(wrap_pyfunction!(solve_coil_currents, m)?)?;
     m.add_class::<PySnnPool>()?;
     m.add_class::<PySnnController>()?;
+    m.add_class::<PySpikingControllerPool>()?;
     m.add_class::<PyMpcController>()?;
     m.add_class::<PyPlasma2D>()?;
     m.add_class::<PyTransportSolver>()?;
@@ -914,5 +1433,6 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_function(wrap_pyfunction!(kuramoto_run, m)?)?;
     m.add_function(wrap_pyfunction!(kuramoto_run_lyapunov, m)?)?;
     m.add_function(wrap_pyfunction!(py_multigrid_solve, m)?)?;
+    m.add_class::<PyUdpTransportBridge>()?;
     Ok(())
 }

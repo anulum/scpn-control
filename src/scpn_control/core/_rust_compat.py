@@ -41,6 +41,7 @@ try:
         PyFusionKernel,
         shafranov_bv,
         solve_coil_currents,
+        PyUdpTransportBridge,
     )
 
     _RUST_AVAILABLE = True  # pragma: no cover
@@ -318,6 +319,119 @@ class RustSnnController:
         return f"RustSnnController(target_r={self.target_r}, target_z={self.target_z})"
 
 
+if _RUST_AVAILABLE:  # pragma: no cover
+
+    class RustUdpTransportBridge:
+        """Python wrapper for zero-copy Rust UDP transport publisher."""
+
+        def __init__(
+            self,
+            endpoint: str = "239.0.0.1",
+            port: int = 5555,
+            ttl: int = 1,
+            max_queue: int = 4,
+            backend: str = "std",
+            heartbeat_port: int = 0,
+            heartbeat_timeout_ms: int = 3,
+        ):
+            self._inner = PyUdpTransportBridge(
+                str(endpoint),
+                int(port),
+                int(ttl),
+                int(max_queue),
+                str(backend),
+                int(heartbeat_port),
+                int(heartbeat_timeout_ms),
+            )  # pragma: no cover
+
+        def start(self) -> None:
+            """Start the background UDP publisher worker."""
+            self._inner.start()
+
+        def publish(
+            self,
+            r_error: float,
+            z_error: float,
+            r_command: float,
+            z_command: float,
+            acados_time_ns: int,
+            snn_time_ns: int,
+            status: int = 0,
+        ) -> bool:
+            """Publish one transport snapshot. Returns False if publisher queue is full."""
+            return bool(
+                self._inner.publish(
+                    r_error,
+                    z_error,
+                    r_command,
+                    z_command,
+                    int(acados_time_ns),
+                    int(snn_time_ns),
+                    int(status),
+                )
+            )
+
+        def stop(self) -> None:
+            """Stop publisher thread and close the bridge."""
+            self._inner.stop()
+
+        def is_running(self) -> bool:
+            return bool(self._inner.is_running())
+
+        def stopped(self) -> bool:
+            return bool(getattr(self._inner, "stopped")())
+
+        def heartbeat_age_ns(self) -> int:
+            return int(self._inner.heartbeat_age_ns())
+
+        def heartbeat_expired(self) -> bool:
+            return bool(self._inner.heartbeat_expired())
+
+        def payload_bytes(self) -> int:
+            return int(self._inner.payload_bytes())
+
+        def backend(self) -> str:
+            return str(self._inner.backend())
+
+else:
+
+    class RustUdpTransportBridge:
+        """Fallback when compiled Rust extension is unavailable."""
+
+        def __init__(
+            self,
+            endpoint: str = "239.0.0.1",
+            port: int = 5555,
+            ttl: int = 1,
+            max_queue: int = 4,
+            backend: str = "std",
+            heartbeat_port: int = 0,
+            heartbeat_timeout_ms: int = 3,
+        ):
+            raise ImportError("scpn_control_rs not installed. Run: maturin develop")
+
+        def start(self) -> None:
+            raise ImportError("scpn_control_rs not installed. Run: maturin develop")
+
+        def publish(self, *args: Any, **kwargs: Any) -> bool:
+            raise ImportError("scpn_control_rs not installed. Run: maturin develop")
+
+        def stop(self) -> None:
+            raise ImportError("scpn_control_rs not installed. Run: maturin develop")
+
+        def is_running(self) -> bool:
+            return False
+
+        def stopped(self) -> bool:
+            return True
+
+        def payload_bytes(self) -> int:
+            return 0
+
+        def backend(self) -> str:
+            return ""
+
+
 class RustPIDController:
     """Rust PID controller (kp, ki, kd gains with finite-input validation).
 
@@ -327,25 +441,75 @@ class RustPIDController:
         Proportional / integral / derivative gains.
     """
 
-    def __init__(self, kp: float, ki: float, kd: float):
-        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
+    class _PurePythonPID:
+        """Pure Python fallback for environments where PyPIDController is absent."""
 
-        self._inner = PyPIDController(kp, ki, kd)  # pragma: no cover
+        __slots__ = ("_kp", "_ki", "_kd", "_integral", "_prev_error")
+
+        def __init__(self, kp: float, ki: float, kd: float) -> None:
+            self._kp = float(kp)
+            self._ki = float(ki)
+            self._kd = float(kd)
+            self._integral = 0.0
+            self._prev_error = 0.0
+
+        def step(self, error: float) -> float:
+            err = float(error)
+            derivative = err - self._prev_error
+            self._prev_error = err
+            self._integral += err
+            return self._kp * err + self._ki * self._integral + self._kd * derivative
+
+        def reset(self) -> None:
+            self._integral = 0.0
+            self._prev_error = 0.0
+
+        @property
+        def kp(self) -> float:
+            return self._kp
+
+        @property
+        def ki(self) -> float:
+            return self._ki
+
+        @property
+        def kd(self) -> float:
+            return self._kd
+
+    def __init__(self, kp: float, ki: float, kd: float):
+        try:
+            from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
+
+            self._inner = PyPIDController(kp, ki, kd)  # pragma: no cover
+            self._mode = "rust"
+        except (ImportError, AttributeError):  # pragma: no cover
+            self._inner = self._PurePythonPID(kp, ki, kd)  # pragma: no cover
+            self._mode = "fallback"
 
     @classmethod
     def radial(cls) -> "RustPIDController":
-        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
-
         obj = cls.__new__(cls)  # pragma: no cover
-        obj._inner = PyPIDController.radial()  # pragma: no cover
+        try:
+            from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
+
+            obj._inner = PyPIDController.radial()  # pragma: no cover
+            obj._mode = "rust"
+        except (ImportError, AttributeError):  # pragma: no cover
+            obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover
+            obj._mode = "fallback"
         return obj  # pragma: no cover
 
     @classmethod
     def vertical(cls) -> "RustPIDController":
-        from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
-
         obj = cls.__new__(cls)  # pragma: no cover
-        obj._inner = PyPIDController.vertical()  # pragma: no cover
+        try:
+            from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
+
+            obj._inner = PyPIDController.vertical()  # pragma: no cover
+            obj._mode = "rust"
+        except (ImportError, AttributeError):  # pragma: no cover
+            obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover
+            obj._mode = "fallback"
         return obj  # pragma: no cover
 
     def step(self, error: float) -> float:
@@ -367,7 +531,7 @@ class RustPIDController:
         return float(self._inner.kd)
 
     def __repr__(self) -> str:
-        return f"RustPIDController(kp={self.kp}, ki={self.ki}, kd={self.kd})"
+        return f"RustPIDController(mode={self._mode}, kp={self.kp}, ki={self.ki}, kd={self.kd})"
 
 
 class RustIsoFluxController:
@@ -380,9 +544,16 @@ class RustIsoFluxController:
     """
 
     def __init__(self, target_r: float, target_z: float):
-        from scpn_control_rs import PyIsoFluxController  # type: ignore[import-untyped]  # pragma: no cover
+        try:
+            from scpn_control_rs import PyIsoFluxController  # type: ignore[import-untyped]  # pragma: no cover
 
-        self._inner = PyIsoFluxController(target_r, target_z)  # pragma: no cover
+            self._inner = PyIsoFluxController(target_r, target_z)  # pragma: no cover
+            self._mode = "rust"  # pragma: no cover
+        except (ImportError, AttributeError):  # pragma: no cover
+            from scpn_control_rs import PySnnController  # type: ignore[import-untyped]  # pragma: no cover
+
+            self._inner = PySnnController(float(target_r), float(target_z))  # pragma: no cover
+            self._mode = "fallback"
 
     def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
         r, z = self._inner.step(measured_r, measured_z)
@@ -397,7 +568,7 @@ class RustIsoFluxController:
         return float(self._inner.target_z)
 
     def __repr__(self) -> str:
-        return f"RustIsoFluxController(target_r={self.target_r}, target_z={self.target_z})"
+        return f"RustIsoFluxController(mode={self._mode}, target_r={self.target_r}, target_z={self.target_z})"
 
 
 class RustHInfController:

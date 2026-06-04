@@ -8,10 +8,50 @@
 
 # Benchmarks
 
-This project has two benchmark tracks:
+This project has three benchmark tracks:
 
 1. Python CLI micro-benchmark (`scpn-control benchmark`)
 2. Rust Criterion benches (`cargo bench --workspace`)
+3. Native handoff comparison (`scripts/benchmark_native_handoff.py`)
+
+## Native handoff comparison
+
+Use this track after changes to the control-loop execution boundary:
+
+- `src/scpn_control/core/rust_engine.py`
+- `src/scpn_control/cli.py`
+- `scpn-control-rs/crates/control-python`
+
+The benchmark forces both execution modes at the same campaign boundary:
+
+- `python`: Python orchestration with Rust-compatible controller and transport
+  primitives.
+- `native`: fused PyO3 Rust loop with cumulative native cycle telemetry.
+
+Run:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/benchmark_native_handoff.py \
+  --steps 5000 \
+  --tick-interval-s 0.0001 \
+  --transport-backend std \
+  --json-out validation/reports/native_handoff_comparison.json \
+  --markdown-out validation/reports/native_handoff_comparison.md
+```
+
+The JSON output is the machine-readable evidence artifact. The Markdown output
+is the review table. A valid native run must report zero drops and zero publish
+failures.
+
+This benchmark isolates execution ownership. Use the transport-specific Rust
+benchmark and UDP fault-tolerance benchmark for `std` versus `io-uring`
+transport measurements.
+
+Current local evidence in `validation/reports/native_handoff_comparison.json`
+records 5000 delivered UDP sink packets for each execution path, zero drops,
+zero publish failures, Python-orchestrated active-cycle average `11.9141358 us`,
+native active-cycle average `5.7648218 us`, and native wall-time speedup
+`1.052610246860105x` under a `100 us` campaign tick.
 
 ## JAX GK parity evidence
 

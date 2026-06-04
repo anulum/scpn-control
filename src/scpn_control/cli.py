@@ -47,13 +47,16 @@ Usage::
     scpn-control acquire-mdsplus-shot --spec-json validation/reference_data/diiid/acquisition_specs/shot_163303_mdsplus.json
     scpn-control live --port 8765 --zeta 0.5
     scpn-control hil-test --shots-dir validation/reference_data/diiid/disruption_shots
+    scpn-control run-hardware-campaign --neurons 64 --core-snn 1 --core-z3 2 --core-net 3 --core-hb 4
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import sys
 import time
+import statistics
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import TYPE_CHECKING, Mapping, cast
@@ -73,11 +76,43 @@ except PackageNotFoundError:
 if TYPE_CHECKING:
     from scpn_control.core.mdsplus_acquisition import MDSplusSignalSpec
 
+_LOGGER = logging.getLogger("SCPN.Control.CLI")
+
 
 def _split_csv_option(value: str | None) -> tuple[str, ...]:
     if value is None:
         return ()
     return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
+def _coerce_float(name: str, value: str | None) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError) as exc:
+        raise click.ClickException(f"invalid float for {name}: {value!r}") from exc
+
+
+def _emit_campaign_result(summary: dict[str, object], *, json_out: bool) -> None:
+    if json_out:
+        click.echo(json.dumps(summary, indent=2))
+    else:
+        click.echo(f"Hardware campaign completed: {summary.get('status', 'unknown')}")
+        if "execution" in summary:
+            execution = summary["execution"]
+            if isinstance(execution, dict):
+                click.echo(
+                    "Execution: "
+                    f"mode={execution.get('mode')} "
+                    f"targets=(r={summary.get('target_r')}, z={summary.get('target_z')}) "
+                    f"steps={summary.get('steps')} "
+                    f"elapsed_s={summary.get('elapsed_s')}"
+                )
+        if "native" in summary:
+            click.echo(f"Native summary keys: {sorted(summary['native'].keys())}")  # type: ignore[arg-type]
+        if summary.get("status") != "normal":
+            click.echo(f"Anomaly details: status={summary.get('status')}", err=True)
 
 
 @click.group()
@@ -206,47 +241,251 @@ def demo(scenario: str, steps: int, json_out: bool) -> None:
 
 @main.command()
 @click.option("--n-bench", default=5000, type=int, help="Number of benchmark iterations")
+@click.option("--n-warmup", default=100, type=int, help="Warm-up iterations excluded from timing")
 @click.option("--json-out", is_flag=True, help="Emit JSON")
-def benchmark(n_bench: int, json_out: bool) -> None:
-    """Timing benchmark: PID vs SNN control step latency."""
+def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
+    """Timing benchmark: PID vs SNN control step latency.
 
-    t0 = time.perf_counter()
-    kp, ki, kd = 1.0, 0.1, 0.01
-    integral, prev_error = 0.0, 0.0
-    for _ in range(n_bench):
+    A warm-up phase is executed but excluded from timing to isolate steady-state
+    micro-benchmark behavior from cold-start effects (JIT, allocator, cache, init).
+    """
+
+    def _run_benchmark(iterations: int, op) -> list[float]:
+        timings_ns: list[float] = []
+        for _ in range(iterations):
+            t0 = time.perf_counter_ns()
+            op()
+            timings_ns.append(time.perf_counter_ns() - t0)
+        return timings_ns
+
+    def _percentile(sorted_values: list[float], frac: float) -> float:
+        if not sorted_values:
+            return 0.0
+        idx = int(len(sorted_values) * frac)
+        if idx >= len(sorted_values):
+            idx = len(sorted_values) - 1
+        return float(sorted_values[idx]) / 1000.0
+
+    def pid_step() -> None:
+        nonlocal integral, prev_error
         error = np.random.randn()
         integral += error
         derivative = error - prev_error
         _ = kp * error + ki * integral + kd * derivative
         prev_error = error
-    pid_time = (time.perf_counter() - t0) / n_bench * 1e6  # microseconds
 
-    t0 = time.perf_counter()
-    n_neurons = 50
-    v = np.zeros(n_neurons)
-    threshold = 1.0
-    decay = 0.9
-    for _ in range(n_bench):
+    def snn_step() -> None:
+        nonlocal v
         error = np.random.randn()
         v[:] = v * decay + error * np.random.randn(n_neurons) * 0.1
         spikes = v > threshold
         v[spikes] = 0.0
         _ = np.mean(spikes.astype(float))
-    snn_time = (time.perf_counter() - t0) / n_bench * 1e6
+
+    kp, ki, kd = 1.0, 0.1, 0.01
+    integral, prev_error = 0.0, 0.0
+    n_neurons = 50
+    v = np.zeros(n_neurons)
+    threshold = 1.0
+    decay = 0.9
+
+    # Warm-up phase: compile/freeze hot paths before timing.
+    for _ in range(n_warmup):
+        pid_step()
+        snn_step()
+
+    pid_ns = _run_benchmark(n_bench, pid_step)
+    snn_ns = _run_benchmark(n_bench, snn_step)
+
+    pid_sorted = sorted(pid_ns)
+    snn_sorted = sorted(snn_ns)
+
+    pid_mean_us = statistics.mean(pid_ns) / 1000.0
+    snn_mean_us = statistics.mean(snn_ns) / 1000.0
+    pid_p50_us = statistics.median(pid_ns) / 1000.0
+    snn_p50_us = statistics.median(snn_ns) / 1000.0
+    pid_p95_us = _percentile(pid_sorted, 0.95)
+    snn_p95_us = _percentile(snn_sorted, 0.95)
+    pid_p99_us = _percentile(pid_sorted, 0.99)
+    snn_p99_us = _percentile(snn_sorted, 0.99)
 
     result = {
         "n_bench": n_bench,
-        "pid_us_per_step": round(pid_time, 2),
-        "snn_us_per_step": round(snn_time, 2),
-        "speedup_ratio": round(pid_time / max(snn_time, 1e-9), 2),
+        "n_warmup": n_warmup,
+        "pid_us_per_step": round(pid_mean_us, 2),
+        "pid_p50_us": round(pid_p50_us, 2),
+        "pid_p95_us": round(pid_p95_us, 2),
+        "pid_p99_us": round(pid_p99_us, 2),
+        "snn_us_per_step": round(snn_mean_us, 2),
+        "snn_p50_us": round(snn_p50_us, 2),
+        "snn_p95_us": round(snn_p95_us, 2),
+        "snn_p99_us": round(snn_p99_us, 2),
+        "speedup_ratio": round(pid_mean_us / max(snn_mean_us, 1e-9), 2),
     }
 
     if json_out:
         click.echo(json.dumps(result, indent=2))
     else:
+        click.echo(f"Benchmarked steps: {n_bench} (warmup: {n_warmup})")
         click.echo(f"PID: {result['pid_us_per_step']} us/step")
+        click.echo(f"PID p50/p95/p99: {result['pid_p50_us']} / {result['pid_p95_us']} / {result['pid_p99_us']} us")
         click.echo(f"SNN: {result['snn_us_per_step']} us/step")
+        click.echo(f"SNN p50/p95/p99: {result['snn_p50_us']} / {result['snn_p95_us']} / {result['snn_p99_us']} us")
         click.echo(f"Ratio: {result['speedup_ratio']}x")
+
+
+@main.command(name="run-hardware-campaign")
+@click.option("--neurons", default=64, type=int, help="Neuro core neuron count used by native controller")
+@click.option("--seed", default=7, type=int, help="Native controller seed")
+@click.option("--state-init-r", default=None, type=float, help="Initial major radius [m]")
+@click.option("--state-init-z", default=None, type=float, help="Initial vertical position [m]")
+@click.option("--plant-gain", default=0.0, type=float, help="Plant gain used by hybrid fallback")
+@click.option("--target-r", default=6.2, type=float, help="Primary ACADOS/NSC target radius")
+@click.option("--target-z", default=0.0, type=float, help="Primary ACADOS/NSC target vertical position")
+@click.option("--beta-n-limit", default=2.5, type=float, help="Normalized beta limit")
+@click.option("--itpa-cgb", default=None, type=str, help="Optional override for c_gB")
+@click.option("--itpa-path", default=None, type=click.Path(exists=True, dir_okay=False), help="ITPA gyro-Bohm JSON")
+@click.option(
+    "--kuramoto-weights",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="JSON file with Kuramoto weights",
+)
+@click.option("--transport-endpoint", default="239.0.0.1", help="UDP destination address")
+@click.option("--transport-port", default=5555, type=int, help="UDP destination port")
+@click.option("--transport-ttl", default=1, type=int, help="UDP TTL / multicast hop count")
+@click.option("--transport-max-queue", default=4, type=int, help="Max unprocessed outbound frames")
+@click.option("--transport-backend", default="std", help="Transport backend (std / io-uring)")
+@click.option(
+    "--execution-backend",
+    default="auto",
+    type=click.Choice(["auto", "native", "python"], case_sensitive=False),
+    help="Execution backend (auto / native / python)",
+)
+@click.option("--heartbeat-port", default=0, type=int, help="Heartbeat listen port used for dead-man switch")
+@click.option("--heartbeat-timeout-ms", default=3, type=int, help="Heartbeat timeout threshold (ms)")
+@click.option("--core-snn", default=1, type=int, help="Core pinned to SNN execution")
+@click.option("--core-z3", default=2, type=int, help="Core pinned to Z3 verification")
+@click.option("--core-net", default=3, type=int, help="Core pinned to UDP publisher")
+@click.option("--core-hb", default=4, type=int, help="Core pinned to heartbeat monitor")
+@click.option("--steps", default=None, type=int, help="Exact number of control iterations")
+@click.option("--runtime-s", default=None, type=float, help="Alternative run horizon in seconds")
+@click.option("--tick-interval-s", default=0.001, type=float, help="Control tick interval")
+@click.option("--max-publish-failures", default=None, type=int, help="Python fallback publish fail tolerance")
+@click.option("--require-native", is_flag=True, help="Abort when native bridge is unavailable")
+@click.option("--json-out", is_flag=True, help="Emit JSON instead of text")
+def run_hardware_campaign(
+    neurons: int,
+    seed: int,
+    state_init_r: float | None,
+    state_init_z: float | None,
+    plant_gain: float,
+    target_r: float,
+    target_z: float,
+    beta_n_limit: float,
+    itpa_cgb: str | None,
+    itpa_path: str | None,
+    kuramoto_weights: str | None,
+    transport_endpoint: str,
+    transport_port: int,
+    transport_ttl: int,
+    transport_max_queue: int,
+    transport_backend: str,
+    execution_backend: str,
+    heartbeat_port: int,
+    heartbeat_timeout_ms: int,
+    core_snn: int,
+    core_z3: int,
+    core_net: int,
+    core_hb: int,
+    steps: int | None,
+    runtime_s: float | None,
+    tick_interval_s: float,
+    max_publish_failures: int | None,
+    require_native: bool,
+    json_out: bool,
+) -> None:
+    """Launch the Rust-native execution plane from Python control layer."""
+    from scpn_control.core.rust_engine import NeuroCyberneticEngine
+
+    engine_kwargs: dict[str, object] = {"n_neurons": neurons, "seed": seed, "plant_gain": plant_gain}
+    if state_init_r is not None:
+        engine_kwargs["state_init_r"] = float(state_init_r)
+    if state_init_z is not None:
+        engine_kwargs["state_init_z"] = float(state_init_z)
+
+    engine = NeuroCyberneticEngine(**engine_kwargs)
+    if require_native and not engine.native_backend_available:
+        raise click.ClickException("Native bridge not available: _NATIVE_CONTROLLER_AVAILABLE is False.")
+
+    targets = {
+        "target_r": float(target_r),
+        "target_z": float(target_z),
+        "beta_n_limit": float(beta_n_limit),
+    }
+    if itpa_cgb is not None:
+        target_c_gb = _coerce_float("itpa_cgb", itpa_cgb)
+        if target_c_gb is None:
+            raise click.ClickException("--itpa-cgb must be numeric")
+        targets["c_gB"] = target_c_gb
+    engine.configure_acados_targets(targets)
+
+    if itpa_path is None:
+        default_itpa = _REPO_ROOT / "validation" / "reference_data" / "itpa" / "gyro_bohm_coefficients.json"
+        if default_itpa.exists():
+            _ = engine.configure_itpa_gyro_bohm(default_itpa)
+    else:
+        _ = engine.configure_itpa_gyro_bohm(itpa_path)
+
+    if kuramoto_weights is not None:
+        _ = engine.configure_kuramoto_weights(kuramoto_weights)
+
+    engine.configure_transport(
+        endpoint=transport_endpoint,
+        port=transport_port,
+        ttl=transport_ttl,
+        max_queue=transport_max_queue,
+        backend=transport_backend,
+        heartbeat_port=heartbeat_port,
+        heartbeat_timeout_ms=heartbeat_timeout_ms,
+    )
+
+    engine.configure_execution_affinity(core_snn=core_snn, core_z3=core_z3, core_net=core_net, core_hb=core_hb)
+    if max_publish_failures is not None:
+        engine.set_max_publish_failures(max_publish_failures)
+
+    try:
+        summary = engine.execute_hardware_loop(
+            steps=steps,
+            runtime_s=runtime_s,
+            tick_interval_s=tick_interval_s,
+            max_publish_failures=max_publish_failures,
+            core_snn=core_snn,
+            core_z3=core_z3,
+            core_net=core_net,
+            core_hb=core_hb,
+            execution_backend=execution_backend,
+        )
+        _emit_campaign_result(summary, json_out=json_out)
+    except RuntimeError as exc:
+        emergency = engine.execute_emergency_shutdown()
+        _LOGGER.critical("Campaign aborted by runtime safety system: %s", exc)
+        if not isinstance(emergency, dict):
+            emergency = {}
+        payload = {"status": "runtime_aborted", "error": str(exc), "emergency": emergency}
+        if json_out:
+            click.echo(json.dumps(payload, indent=2))
+        else:
+            click.echo(f"Campaign aborted: {exc}", err=True)
+            click.echo(f"Emergency telemetry: {emergency}", err=True)
+    except KeyboardInterrupt:
+        emergency = engine.execute_emergency_shutdown()
+        payload = {"status": "keyboard_interrupt", "emergency": emergency}
+        if json_out:
+            click.echo(json.dumps(payload, indent=2))
+        else:
+            click.echo("Campaign interrupted by operator", err=True)
+            click.echo(f"Emergency telemetry: {emergency}", err=True)
 
 
 @main.command()

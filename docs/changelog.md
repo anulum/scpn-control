@@ -8,6 +8,21 @@
 
 # Changelog
 
+## Unreleased
+
+### Added
+- Added an explicit native-handoff comparison benchmark that forces
+  Python-orchestrated and PyO3 fused Rust execution at the same campaign
+  boundary and emits JSON plus Markdown evidence artifacts.
+
+### Changed
+- Added an execution-backend selector to the hardware-campaign CLI and Rust
+  engine wrapper so release evidence can require `auto`, `native`, or `python`
+  execution explicitly.
+- Added cumulative native cycle telemetry to the PyO3 spiking-controller pool
+  so Python summaries report measured native average cycle latency instead of
+  inferring it from a final tick.
+
 ## [0.20.3] - 2026-06-02
 
 ### Changed

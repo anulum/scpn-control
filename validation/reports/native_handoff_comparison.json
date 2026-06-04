@@ -1,0 +1,160 @@
+{
+  "comparison": {
+    "native_drops_zero": true,
+    "native_publish_failures_zero": true,
+    "native_udp_sink_packets": 5000,
+    "python_udp_sink_packets": 5000,
+    "wall_time_speedup": 1.052610246860105
+  },
+  "generated_at": "2026-06-04T02:25:26.729640+00:00",
+  "parameters": {
+    "steps": 5000,
+    "tick_interval_s": 0.0001,
+    "transport_backend": "std",
+    "transport_endpoint": "127.0.0.1",
+    "transport_max_queue": 128,
+    "transport_port_base": 55900
+  },
+  "platform": {
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]"
+  },
+  "rows": [
+    {
+      "avg_cycle_us": 11.9141358,
+      "dropped": 0,
+      "effective_step_us": 206.86973496340215,
+      "mode": "python",
+      "name": "python",
+      "native_last_acados_time_ns": null,
+      "native_last_cycle_ns": null,
+      "native_last_snn_time_ns": null,
+      "native_total_cycle_ns": null,
+      "publish_failures": 0,
+      "status": "completed",
+      "steps": 5000,
+      "transport_backend": "std",
+      "wall_s": 1.0343486748170108
+    },
+    {
+      "avg_cycle_us": 5.7648218,
+      "dropped": 0,
+      "effective_step_us": 196.53023099526763,
+      "mode": "native",
+      "name": "native",
+      "native_last_acados_time_ns": 35,
+      "native_last_cycle_ns": "3264",
+      "native_last_snn_time_ns": 1753,
+      "native_total_cycle_ns": "28824109",
+      "publish_failures": 0,
+      "status": "normal",
+      "steps": 5000,
+      "transport_backend": "std",
+      "wall_s": 0.9826511549763381
+    }
+  ],
+  "schema": "scpn-control.native_handoff_comparison.v1",
+  "summaries": {
+    "native": {
+      "avg_cycle_us": 5.7648218,
+      "c_gB": 0.0424,
+      "dropped": 0,
+      "effective_step_us": 196.53023099526763,
+      "elapsed_s": 0.9309507238212973,
+      "execution": {
+        "core_hb": 4,
+        "core_net": 3,
+        "core_snn": 1,
+        "core_z3": 2,
+        "mode": "native"
+      },
+      "heartbeat_expired": false,
+      "itpa_profile": {},
+      "native": {
+        "dropped": 0,
+        "execution": {
+          "core_hb": 4,
+          "core_net": 3,
+          "core_snn": 1,
+          "core_z3": 2,
+          "mode": "native"
+        },
+        "heartbeat_enabled": false,
+        "last_acados_time_ns": 35,
+        "last_cycle_ns": "3264",
+        "last_snn_time_ns": 1753,
+        "mode": "native",
+        "n_neurons": 64,
+        "publish_failures": 0,
+        "running": false,
+        "seed": 7,
+        "steps": 5000,
+        "target_r": 6.2,
+        "target_z": 0.0,
+        "total_cycle_ns": "28824109",
+        "transport_backend": "std",
+        "transport_endpoint": "127.0.0.1",
+        "transport_port": 55901
+      },
+      "publish_failures": 0,
+      "requested_execution_backend": "native",
+      "status": "normal",
+      "steps": 5000,
+      "target_r": 6.2,
+      "target_z": 0.0,
+      "transport": {
+        "backend": "std",
+        "endpoint": "127.0.0.1",
+        "heartbeat_port": 0,
+        "port": 55901
+      },
+      "udp_sink_packets": 5000,
+      "wall_s": 0.9826511549763381
+    },
+    "python": {
+      "avg_cycle_us": 11.9141358,
+      "c_gB": 0.0424,
+      "dropped": 0,
+      "effective_step_us": 206.86973496340215,
+      "elapsed_s": 0.9803619689773768,
+      "execution": {
+        "core_hb": 4,
+        "core_net": 3,
+        "core_snn": 1,
+        "core_z3": 2,
+        "mode": "python"
+      },
+      "heartbeat_expired": false,
+      "itpa_profile": {},
+      "publish_failures": 0,
+      "requested_execution_backend": "python",
+      "snapshot": {
+        "acados_time_ns": 581,
+        "cycle_us": 3.892,
+        "heartbeat_expired": false,
+        "measured_r": 6.2,
+        "measured_z": 0.0,
+        "publish_ok": true,
+        "r_command": 0.0,
+        "r_error": 0.0,
+        "snn_time_ns": 1043,
+        "step": 4999,
+        "z_command": 0.0,
+        "z_error": 0.0
+      },
+      "status": "completed",
+      "steps": 5000,
+      "target_r": 6.2,
+      "target_z": 0.0,
+      "transport": {
+        "backend": "std",
+        "endpoint": "127.0.0.1",
+        "heartbeat_port": 0,
+        "port": 55900
+      },
+      "udp_sink_packets": 5000,
+      "wall_s": 1.0343486748170108
+    }
+  }
+}
