@@ -128,7 +128,13 @@ def _load_gyro_bohm_coefficient(
     try:
         with open(p, encoding="utf-8") as f:
             data = json.load(f)
-        c_gB = _finite_scalar("c_gB", data["c_gB"], positive=True)
+        c_gb_payload = data.get("c_gB")
+        scaling_payload = data.get("scaling_parameters")
+        if c_gb_payload is None and isinstance(scaling_payload, dict):
+            c_gb_payload = scaling_payload.get("c_gB_nominal")
+        if c_gb_payload is None:
+            raise KeyError("c_gB")
+        c_gB = _finite_scalar("c_gB", c_gb_payload, positive=True)
         _logger.debug("Loaded c_gB = %.6f from %s", c_gB, p)
         return c_gB
     except (FileNotFoundError, KeyError, json.JSONDecodeError, TypeError) as exc:
@@ -350,6 +356,8 @@ class TransportSolver(FusionKernel):
         allow_legacy_approximations: bool = False,
     ) -> None:
         super().__init__(config_path)
+        dims = self.cfg["dimensions"]
+        self.a = max(float(dims["R_max"] - dims["R_min"]) / 2.0, 1.0e-9)
         if int(nr) != nr or nr < 2:
             raise ValueError("nr must be an integer >= 2")
         if (

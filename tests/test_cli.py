@@ -238,7 +238,16 @@ def test_validate_command_is_import_clean_in_fresh_process():
     env["PYTHONPATH"] = str(repo_root / "src")
 
     completed = subprocess.run(
-        [sys.executable, "-m", "scpn_control.cli", "validate", "--json-out"],
+        [
+            sys.executable,
+            "-m",
+            "scpn_control.cli",
+            "validate",
+            "--no-data-manifests",
+            "--no-jax-gk-parity",
+            "--no-physics-traceability",
+            "--json-out",
+        ],
         check=True,
         cwd=repo_root,
         env=env,

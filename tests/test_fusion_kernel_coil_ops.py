@@ -332,7 +332,10 @@ class TestRustMultigridFallback:
         )
         assert result["solver_method"] in ("sor", "anderson")
 
-    def test_rust_unavailable_fallback(self, tmp_path):
+    def test_rust_unavailable_fallback(self, tmp_path, monkeypatch):
+        from scpn_control.core import _rust_compat
+
+        monkeypatch.setattr(_rust_compat, "_rust_available", lambda: False)
         cfg = _write_config(
             tmp_path / "rust2.json",
             grid=(10, 10),

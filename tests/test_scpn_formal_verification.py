@@ -75,7 +75,7 @@ def _weighted_transfer_net(*, source_tokens: float) -> StochasticPetriNet:
     net.add_place("source", initial_tokens=float(source_tokens))
     net.add_place("sink", initial_tokens=0.0)
     net.add_transition("move", threshold=1.0)
-    net.add_arc("source", "move", weight=1.0)
+    net.add_arc("source", "move", weight=0.25)
     net.add_arc("move", "sink", weight=1.0)
     net.compile()
     return net
@@ -896,7 +896,7 @@ def test_z3_temporal_specs_prove_all_supported_contracts_together() -> None:
 
 @requires_z3
 def test_z3_checker_enforces_parametric_weight_bounds_for_marking_safety() -> None:
-    checker = Z3BoundedModelChecker(_weighted_transfer_net(source_tokens=4.0))
+    checker = Z3BoundedModelChecker(_weighted_transfer_net(source_tokens=1.0))
 
     bounded = checker.prove_marking_bounds(
         {"sink": (0.0, 4.0)},
@@ -918,7 +918,7 @@ def test_z3_checker_enforces_parametric_weight_bounds_for_marking_safety() -> No
 
 @requires_z3
 def test_z3_checker_rejects_weight_bound_domain_mismatch_and_invalid_range() -> None:
-    checker = Z3BoundedModelChecker(_weighted_transfer_net(source_tokens=2.0))
+    checker = Z3BoundedModelChecker(_weighted_transfer_net(source_tokens=1.0))
 
     with pytest.raises(ValueError, match="unknown transition"):
         checker.prove_marking_bounds({"sink": (0.0, 1.0)}, max_depth=1, weight_bounds={"unknown": (0.0, 1.0)})
@@ -985,10 +985,14 @@ def test_z3_checker_rejects_symbiyosys_contract_depth_contract_mismatch() -> Non
     checker = Z3BoundedModelChecker(_latency_chain_net())
 
     with pytest.raises(ValueError, match="max_depth must be >= ceil"):
-        checker.build_symbiyosys_contract(max_depth=1, max_latency_ns=30.0, tick_period_ns=10.0, no_stall_window_ns=20.0)
+        checker.build_symbiyosys_contract(
+            max_depth=1, max_latency_ns=30.0, tick_period_ns=10.0, no_stall_window_ns=20.0
+        )
 
     with pytest.raises(ValueError, match="max_depth must be >= ceil"):
-        checker.build_symbiyosys_contract(max_depth=1, max_latency_ns=10.0, tick_period_ns=10.0, no_stall_window_ns=30.0)
+        checker.build_symbiyosys_contract(
+            max_depth=1, max_latency_ns=10.0, tick_period_ns=10.0, no_stall_window_ns=30.0
+        )
 
 
 @requires_z3

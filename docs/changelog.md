@@ -14,6 +14,11 @@
 - Added an explicit native-handoff comparison benchmark that forces
   Python-orchestrated and PyO3 fused Rust execution at the same campaign
   boundary and emits JSON plus Markdown evidence artifacts.
+- Added a Rust-native Z3 formal-verification worker to the PyO3 fused
+  controller loop. The Python control plane configures bounded Petri-net
+  verification parameters, while the Rust data plane moves only numeric
+  snapshots over a bounded channel and constructs all SMT state on the pinned
+  native worker thread.
 
 ### Changed
 - Added an execution-backend selector to the hardware-campaign CLI and Rust

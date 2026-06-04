@@ -734,6 +734,7 @@ class NeuroSymbolicController:
             assert _rust_marking_update is not None
             rust_out = _rust_marking_update(marking, self._W_in, self._W_out, firing)
             np.copyto(out, np.asarray(rust_out, dtype=np.float64))
+            np.clip(out, 0.0, 1.0, out=out)
             return out
         self._tmp_consumption[:] = self._W_in_t @ firing
         self._tmp_production[:] = self._W_out @ firing

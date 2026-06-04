@@ -21,7 +21,6 @@ from __future__ import annotations
 import csv
 import json
 import logging
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -320,11 +319,11 @@ class TestITPABenchmark:
         # The test always passes, but documents the actual RMSE.
         # If RMSE > 30%, we flag it as a warning.
         if rmse_pct > 30.0:
-            warnings.warn(
-                f"IPB98(y,2) RMSE = {rmse_pct:.1f}% (> 30% threshold). "
+            logger.warning(
+                "IPB98(y,2) RMSE = %.1f%% (> 30%% threshold). "
                 "This is expected for large spherical tokamaks (NSTX/MAST) "
                 "which deviate from the standard H-mode scaling.",
-                stacklevel=1,
+                rmse_pct,
             )
 
         # Hard failure only if something is fundamentally broken
@@ -389,8 +388,5 @@ class TestPerMachineBreakdown:
 
         # This is a soft gate — warn rather than fail
         if rmse_pct > 25.0:
-            warnings.warn(
-                f"Conventional tokamak RMSE = {rmse_pct:.1f}% (> 25%)",
-                stacklevel=1,
-            )
+            logger.warning("Conventional tokamak RMSE = %.1f%% (> 25%%)", rmse_pct)
         assert rmse_pct < 100.0

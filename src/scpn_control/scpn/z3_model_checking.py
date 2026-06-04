@@ -35,7 +35,8 @@ from scpn_control.scpn.structure import StochasticPetriNet
 Z3_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.z3-formal-report.v1"
 Z3_FORMAL_REPORT_SCOPE = "bounded SMT evidence for compiled Petri-net control logic"
 Z3_FORMAL_REPORT_CLAIM_BOUNDARY = "not hardware timing evidence, PCS certification, or unbounded liveness proof"
-SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION = "scpn-control.symbiyosys-contract.v1"
+SYMBIYOSYS_SYMBOLIC_CONTRACT_VERSION = "scpn-control.symbiyosys-contract.v1"
+SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION = SYMBIYOSYS_SYMBOLIC_CONTRACT_VERSION
 RTI_CONTRACT_BUDGET_NS = 50.0
 
 
@@ -157,15 +158,15 @@ class Z3BoundedModelChecker:
         for spec in specs:
             checked.append(spec.name)
             if isinstance(spec, AlwaysBounded):
-                report = self.prove_marking_bounds(spec.bounds, max_depth=max_depth, weight_bounds=checked_weight_bounds)
+                report = self.prove_marking_bounds(
+                    spec.bounds, max_depth=max_depth, weight_bounds=checked_weight_bounds
+                )
                 if not report.holds:
                     return Z3ModelCheckingReport(
                         False, "z3", max_depth, report.solver_status, report.violations, checked
                     )
             elif isinstance(spec, EventuallyFires):
-                report = self._prove_eventually_fires(
-                    spec, max_depth=max_depth, weight_bounds=checked_weight_bounds
-                )
+                report = self._prove_eventually_fires(spec, max_depth=max_depth, weight_bounds=checked_weight_bounds)
                 if not report.holds:
                     return Z3ModelCheckingReport(
                         False, "z3", max_depth, report.solver_status, report.violations, checked
@@ -225,8 +226,10 @@ class Z3BoundedModelChecker:
         """Verify a bounded trigger->response latency contract in transition steps.
 
         The bound is interpreted as:
-        at most ``ceil(max_latency_ns / tick_period_ns)`` steps from a trigger fire
-        to the first subsequent response fire.
+        at most ``ceil(max_latency_ns / tick_period_ns)`` non-idle transition
+        steps from a trigger fire to the first subsequent response fire. Idle
+        stalls are intentionally discharged by the separate no-stall SymbiYosys
+        contract rather than conflated with trigger-response latency.
         """
         self._require_transition(trigger_transition)
         self._require_transition(response_transition)
@@ -243,15 +246,18 @@ class Z3BoundedModelChecker:
         if max_depth < max_latency_steps:
             raise ValueError("max_depth must be >= ceil(max_latency_ns / tick_period_ns)")
 
-        z3, solver, markings, firings, _idle = self._transition_system(max_depth, weight_bounds=weight_bounds or {})
+        z3, solver, markings, firings, idle = self._transition_system(max_depth, weight_bounds=weight_bounds or {})
         t_idx = self._transition_index[trigger_transition]
         r_idx = self._transition_index[response_transition]
         checks = []
-        for step in range(max_depth - max_latency_steps + 1):
-            response_window_end = min(max_depth, step + max_latency_steps + 1)
-            response_window = [firings[window][r_idx] for window in range(step + 1, response_window_end)]
+        for step in range(max_depth):
+            deadline = step + max_latency_steps
+            if deadline >= max_depth:
+                continue
+            response_window = [firings[window][r_idx] for window in range(step + 1, deadline + 1)]
             if response_window:
-                checks.append(z3.And(firings[step][t_idx], z3.Not(z3.Or(*response_window))))
+                non_idle_window = [z3.Not(idle[window]) for window in range(step + 1, deadline + 1)]
+                checks.append(z3.And(firings[step][t_idx], *non_idle_window, z3.Not(z3.Or(*response_window))))
             else:
                 checks.append(firings[step][t_idx])
         if not checks:
@@ -275,7 +281,9 @@ class Z3BoundedModelChecker:
         if status == z3.unsat:
             return Z3ModelCheckingReport(True, "z3", max_depth, "unsat", checked_specs=["trigger_response_latency"])
         if status != z3.sat:
-            return Z3ModelCheckingReport(False, "z3", max_depth, str(status), checked_specs=["trigger_response_latency"])
+            return Z3ModelCheckingReport(
+                False, "z3", max_depth, str(status), checked_specs=["trigger_response_latency"]
+            )
         model = solver.model()
         path = self._path_from_model(model, firings, max_depth)
         marking = self._marking_from_model(z3, model, markings[min(len(path), max_depth)])
@@ -289,9 +297,7 @@ class Z3BoundedModelChecker:
             path=path,
             transition=trigger_transition,
         )
-        return Z3ModelCheckingReport(
-            False, "z3", max_depth, "sat", [violation], ["trigger_response_latency"]
-        )
+        return Z3ModelCheckingReport(False, "z3", max_depth, "sat", [violation], ["trigger_response_latency"])
 
     def _compile_ctl_formula(
         self,
@@ -456,7 +462,11 @@ class Z3BoundedModelChecker:
         return Z3ModelCheckingReport(False, "z3", max_depth, "sat", [violation], [spec.name])
 
     def _prove_always_eventually_marked(
-        self, spec: AlwaysEventuallyMarked, *, max_depth: int, weight_bounds: dict[str, tuple[float, float]] | None = None
+        self,
+        spec: AlwaysEventuallyMarked,
+        *,
+        max_depth: int,
+        weight_bounds: dict[str, tuple[float, float]] | None = None,
     ) -> Z3ModelCheckingReport:
         self._require_place(spec.place)
         z3, solver, markings, firings, _idle = self._transition_system(max_depth, weight_bounds=weight_bounds or {})
@@ -502,8 +512,7 @@ class Z3BoundedModelChecker:
                 solver.add(markings[step][p_idx] >= _z3_fraction(z3, Fraction(0)))
         for step in range(max_depth):
             weights = {
-                t_idx: z3.Real(f"weight_{step}_{transition}")
-                for transition, t_idx in self._transition_index.items()
+                t_idx: z3.Real(f"weight_{step}_{transition}") for transition, t_idx in self._transition_index.items()
             }
             for transition, t_idx in self._transition_index.items():
                 lower, upper = validated_bounds.get(transition, (Fraction(1), Fraction(1)))
@@ -531,7 +540,9 @@ class Z3BoundedModelChecker:
                 for p_idx, threshold in self._inhibitors[t_idx].items():
                     constraints.append(markings[step][p_idx] < transition_weight * _z3_fraction(z3, threshold))
                 for p_idx in range(len(self.place_names)):
-                    base_delta = self._outputs[t_idx].get(p_idx, Fraction(0)) - self._inputs[t_idx].get(p_idx, Fraction(0))
+                    base_delta = self._outputs[t_idx].get(p_idx, Fraction(0)) - self._inputs[t_idx].get(
+                        p_idx, Fraction(0)
+                    )
                     constraints.append(
                         markings[step + 1][p_idx]
                         == markings[step][p_idx] + (transition_weight * _z3_fraction(z3, base_delta))
@@ -602,7 +613,7 @@ class Z3BoundedModelChecker:
                     smt2_lines.append(f"(declare-fun weight_{step}_{transition} () Real)")
 
         for p_idx, value in enumerate(self._initial):
-            smt2_lines.append(f"(assert (= m_0_{p_idx} {_as_smt_real(_as_fraction(value))}))")
+            smt2_lines.append(f"(assert (= m_0_{p_idx} {_as_smt_real(value)}))")
 
         for step in range(max_depth + 1):
             for p_idx in range(len(self.place_names)):
@@ -626,12 +637,12 @@ class Z3BoundedModelChecker:
                 _format_asserted_weight_assumption(step, transition, lower, upper)
 
                 for p_idx, amount in self._inputs[t_idx].items():
-                    amount_expr = _as_smt_real(_as_fraction(amount))
+                    amount_expr = _as_smt_real(amount)
                     smt2_lines.append(
                         f"(assert (=> fire_{step}_{transition} (>= m_{step}_{p_idx} (* {transition_weight} {amount_expr})))"
                     )
                 for p_idx, threshold in self._inhibitors[t_idx].items():
-                    threshold_expr = _as_smt_real(_as_fraction(threshold))
+                    threshold_expr = _as_smt_real(threshold)
                     smt2_lines.append(
                         f"(assert (=> fire_{step}_{transition} (< m_{step}_{p_idx} (* {transition_weight} {threshold_expr})))"
                     )
@@ -640,7 +651,7 @@ class Z3BoundedModelChecker:
                     output_delta = self._outputs[t_idx].get(p_idx, Fraction(0))
                     delta_expr = _as_smt_real(output_delta - input_delta)
                     smt2_lines.append(
-                        f"(assert (=> fire_{step}_{transition} (= m_{step+1}_{p_idx} "
+                        f"(assert (=> fire_{step}_{transition} (= m_{step + 1}_{p_idx} "
                         f"(+ m_{step}_{p_idx} (* {transition_weight} {delta_expr}))))"
                     )
             for p_idx in range(len(self.place_names)):
@@ -762,7 +773,9 @@ class Z3BoundedModelChecker:
             _as_fraction(lower)
             _as_fraction(upper)
 
-    def _validate_weight_bounds(self, weight_bounds: dict[str, tuple[float, float]]) -> dict[str, tuple[Fraction, Fraction]]:
+    def _validate_weight_bounds(
+        self, weight_bounds: dict[str, tuple[float, float]]
+    ) -> dict[str, tuple[Fraction, Fraction]]:
         normalized: dict[str, tuple[Fraction, Fraction]] = {}
         for transition in self.transition_names:
             normalized[transition] = (Fraction(1), Fraction(1))

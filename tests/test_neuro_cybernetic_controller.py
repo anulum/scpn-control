@@ -28,7 +28,7 @@ class _DummyKernel:
             "physics": {"plasma_current_target": 5.0},
             "coils": [{"current": 0.0} for _ in range(5)],
         }
-        self.R = np.linspace(5.9, 6.5, 25)
+        self.R = np.linspace(90.0, 100.0, 25)
         self.Z = np.linspace(-0.3, 0.3, 25)
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
         self.Psi = np.zeros((25, 25), dtype=np.float64)
@@ -48,7 +48,7 @@ class _FarOffKernel:
             "physics": {"plasma_current_target": 5.0},
             "coils": [{"current": 0.0} for _ in range(5)],
         }
-        self.R = np.linspace(5.9, 6.5, 25)
+        self.R = np.linspace(90.0, 100.0, 25)
         self.Z = np.linspace(-0.3, 0.3, 25)
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
         self.Psi = np.zeros((25, 25), dtype=np.float64)
@@ -77,7 +77,18 @@ class _SafeStatePool:
         noise_std: float = 0.02,
         command_value: float = 1.0,
     ) -> None:
-        del n_neurons, gain, tau_window, use_quantum, seed, allow_numpy_fallback, allow_legacy_numpy_fallback, dt_s, tau_mem_s, noise_std
+        del (
+            n_neurons,
+            gain,
+            tau_window,
+            use_quantum,
+            seed,
+            allow_numpy_fallback,
+            allow_legacy_numpy_fallback,
+            dt_s,
+            tau_mem_s,
+            noise_std,
+        )
         self.backend = "safe-state-fallback"
         self.command_value = float(command_value)
         self.last_rate_pos = 0.0
@@ -381,7 +392,7 @@ def test_safe_shutdown_reduces_commands_with_single_ramp_step_per_tick() -> None
     nc.brain_R = _SafeStatePool(command_value=1.0)
     nc.brain_Z = _SafeStatePool(command_value=2.0)
 
-    nc._execute_simulation("safe-shutdown test", mode="classical", save_plot=False, verbose=False)
+    nc._execute_simulation("safe-shutdown test", mode="classical", save_plot=False, verbose=False, output_path=None)
 
     assert nc.safety_state == "safe_shutdown"
     assert nc.history["Safety_State"] == [
@@ -410,7 +421,9 @@ def test_safe_shutdown_overflow_trap_overrides_commands_and_tracks_overflow_even
     nc.brain_R = _OverflowPool()
     nc.brain_Z = _SafeStatePool(command_value=0.25)
 
-    nc._execute_simulation("safe-shutdown overflow test", mode="classical", save_plot=False, verbose=False)
+    nc._execute_simulation(
+        "safe-shutdown overflow test", mode="classical", save_plot=False, verbose=False, output_path=None
+    )
 
     assert nc.safety_state == "safe_shutdown"
     assert nc.history["Safety_State"] == [

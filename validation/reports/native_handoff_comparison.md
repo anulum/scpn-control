@@ -1,12 +1,12 @@
 # Native handoff comparison
 
-Generated: 2026-06-04T02:25:26.729640+00:00
+Generated: 2026-06-04T03:04:04.927464+00:00
 
 | Backend | Status | Mode | Steps | Effective step us | Avg cycle us | Drops | Publish failures |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| python | completed | python | 5000 | 206.870 | 11.914 | 0 | 0 |
-| native | normal | native | 5000 | 196.530 | 5.765 | 0 | 0 |
+| python | completed | python | 5000 | 194.835 | 9.039 | 0 | 0 |
+| native | normal | native | 5000 | 254.089 | 17.790 | 0 | 0 |
 
-Native handoff wall-time speedup: 1.053x.
+Native handoff wall-time speedup: 0.767x.
 
 The Python row forces the Python orchestration path. The native row forces the PyO3 fused Rust loop.

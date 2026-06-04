@@ -571,8 +571,8 @@ class TestUPDESystem:
         out_base = sys.step(theta, omega, pac_gamma=0.0)
         out_pac = sys.step(theta, omega, pac_gamma=1.0)
 
-        # dtheta should differ when PAC gate is active
-        diff = sum(float(np.max(np.abs(a - b))) for a, b in zip(out_base["dtheta"], out_pac["dtheta"]))
+        # The observable phase update should differ when PAC gate is active.
+        diff = sum(float(np.max(np.abs(a - b))) for a, b in zip(out_base["theta1"], out_pac["theta1"]))
         assert diff > 0.0
 
     def test_wrong_layer_count_raises(self):

@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import pytest
 
+import scpn_control.core.rust_engine
 from scpn_control.core import rust_engine
+
+assert scpn_control.core.rust_engine is rust_engine
 
 
 def test_execute_hardware_loop_rejects_unknown_execution_backend() -> None:

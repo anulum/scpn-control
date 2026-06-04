@@ -57,6 +57,7 @@ import logging
 import sys
 import time
 import statistics
+from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import TYPE_CHECKING, Mapping, cast
@@ -109,8 +110,9 @@ def _emit_campaign_result(summary: dict[str, object], *, json_out: bool) -> None
                     f"steps={summary.get('steps')} "
                     f"elapsed_s={summary.get('elapsed_s')}"
                 )
-        if "native" in summary:
-            click.echo(f"Native summary keys: {sorted(summary['native'].keys())}")  # type: ignore[arg-type]
+        native_summary = summary.get("native")
+        if isinstance(native_summary, dict):
+            click.echo(f"Native summary keys: {sorted(native_summary.keys())}")
         if summary.get("status") != "normal":
             click.echo(f"Anomaly details: status={summary.get('status')}", err=True)
 
@@ -250,7 +252,14 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
     micro-benchmark behavior from cold-start effects (JIT, allocator, cache, init).
     """
 
-    def _run_benchmark(iterations: int, op) -> list[float]:
+    kp, ki, kd = 1.0, 0.1, 0.01
+    integral, prev_error = 0.0, 0.0
+    n_neurons = 50
+    v = np.zeros(n_neurons)
+    threshold = 1.0
+    decay = 0.9
+
+    def _run_benchmark(iterations: int, op: Callable[[], None]) -> list[float]:
         timings_ns: list[float] = []
         for _ in range(iterations):
             t0 = time.perf_counter_ns()
@@ -281,13 +290,6 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
         spikes = v > threshold
         v[spikes] = 0.0
         _ = np.mean(spikes.astype(float))
-
-    kp, ki, kd = 1.0, 0.1, 0.01
-    integral, prev_error = 0.0, 0.0
-    n_neurons = 50
-    v = np.zeros(n_neurons)
-    threshold = 1.0
-    decay = 0.9
 
     # Warm-up phase: compile/freeze hot paths before timing.
     for _ in range(n_warmup):
@@ -408,13 +410,13 @@ def run_hardware_campaign(
     """Launch the Rust-native execution plane from Python control layer."""
     from scpn_control.core.rust_engine import NeuroCyberneticEngine
 
-    engine_kwargs: dict[str, object] = {"n_neurons": neurons, "seed": seed, "plant_gain": plant_gain}
-    if state_init_r is not None:
-        engine_kwargs["state_init_r"] = float(state_init_r)
-    if state_init_z is not None:
-        engine_kwargs["state_init_z"] = float(state_init_z)
-
-    engine = NeuroCyberneticEngine(**engine_kwargs)
+    engine = NeuroCyberneticEngine(
+        n_neurons=neurons,
+        seed=seed,
+        plant_gain=plant_gain,
+        state_init_r=6.2 if state_init_r is None else float(state_init_r),
+        state_init_z=0.0 if state_init_z is None else float(state_init_z),
+    )
     if require_native and not engine.native_backend_available:
         raise click.ClickException("Native bridge not available: _NATIVE_CONTROLLER_AVAILABLE is False.")
 

@@ -13,7 +13,7 @@ import math
 import sys
 from collections import deque
 from pathlib import Path
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, cast
 
 try:
     import matplotlib.pyplot as plt
@@ -257,6 +257,16 @@ class NeuroCyberneticController:
         self._min_confidence_z = 1.0
         self._reset_history()
 
+    @property
+    def safety_trigger_count(self) -> int:
+        """Number of safety-FSM entries since the last reset."""
+        return int(self._safety_trigger_count)
+
+    @property
+    def overflow_trap_count(self) -> int:
+        """Number of non-finite command traps since the last reset."""
+        return int(self._overflow_trap_count)
+
     def _reset_history(self) -> None:
         self.history = {
             "t": [],
@@ -448,7 +458,7 @@ class NeuroCyberneticController:
             self.history["Spike_Rates"].append(float(self.brain_R.last_rate_pos - self.brain_R.last_rate_neg))
             self.history["Confidence_R"].append(conf_r)
             self.history["Confidence_Z"].append(conf_z)
-            self.history["Safety_State"].append(self.safety_state)
+            cast(list[str], self.history["Safety_State"]).append(self.safety_state)
 
             if verbose:
                 logger.info(

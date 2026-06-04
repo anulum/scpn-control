@@ -57,7 +57,13 @@ class LyapunovVerdict:
     @property
     def score(self) -> float:
         """Stability score ∈ [0, 1].  1 = fully stable (λ ≪ 0)."""
-        return float(np.clip(1.0 / (1.0 + np.exp(10.0 * self.lambda_exp)), 0.0, 1.0))
+        scaled_lambda = 10.0 * self.lambda_exp
+        if scaled_lambda >= 0.0:
+            exp_neg = np.exp(-scaled_lambda)
+            score = exp_neg / (1.0 + exp_neg)
+        else:
+            score = 1.0 / (1.0 + np.exp(scaled_lambda))
+        return float(np.clip(score, 0.0, 1.0))
 
 
 class LyapunovGuard:

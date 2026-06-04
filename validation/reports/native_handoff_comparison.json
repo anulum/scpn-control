@@ -4,9 +4,9 @@
     "native_publish_failures_zero": true,
     "native_udp_sink_packets": 5000,
     "python_udp_sink_packets": 5000,
-    "wall_time_speedup": 1.052610246860105
+    "wall_time_speedup": 0.7667998850708321
   },
-  "generated_at": "2026-06-04T02:25:26.729640+00:00",
+  "generated_at": "2026-06-04T03:04:04.927464+00:00",
   "parameters": {
     "steps": 5000,
     "tick_interval_s": 0.0001,
@@ -22,9 +22,9 @@
   },
   "rows": [
     {
-      "avg_cycle_us": 11.9141358,
+      "avg_cycle_us": 9.0385306,
       "dropped": 0,
-      "effective_step_us": 206.86973496340215,
+      "effective_step_us": 194.83539359644055,
       "mode": "python",
       "name": "python",
       "native_last_acados_time_ns": null,
@@ -35,33 +35,33 @@
       "status": "completed",
       "steps": 5000,
       "transport_backend": "std",
-      "wall_s": 1.0343486748170108
+      "wall_s": 0.9741769679822028
     },
     {
-      "avg_cycle_us": 5.7648218,
+      "avg_cycle_us": 17.7901706,
       "dropped": 0,
-      "effective_step_us": 196.53023099526763,
+      "effective_step_us": 254.08897078596056,
       "mode": "native",
       "name": "native",
-      "native_last_acados_time_ns": 35,
-      "native_last_cycle_ns": "3264",
-      "native_last_snn_time_ns": 1753,
-      "native_total_cycle_ns": "28824109",
+      "native_last_acados_time_ns": 40,
+      "native_last_cycle_ns": "3931",
+      "native_last_snn_time_ns": 1192,
+      "native_total_cycle_ns": "88950853",
       "publish_failures": 0,
       "status": "normal",
       "steps": 5000,
       "transport_backend": "std",
-      "wall_s": 0.9826511549763381
+      "wall_s": 1.2704448539298028
     }
   ],
   "schema": "scpn-control.native_handoff_comparison.v1",
   "summaries": {
     "native": {
-      "avg_cycle_us": 5.7648218,
+      "avg_cycle_us": 17.7901706,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 196.53023099526763,
-      "elapsed_s": 0.9309507238212973,
+      "effective_step_us": 254.08897078596056,
+      "elapsed_s": 1.2351607119198889,
       "execution": {
         "core_hb": 4,
         "core_net": 3,
@@ -80,10 +80,26 @@
           "core_z3": 2,
           "mode": "native"
         },
+        "formal_verification": {
+          "backend": "rust-z3",
+          "channel_capacity": 2,
+          "checked": 20,
+          "core_z3": 2,
+          "dispatch_interval_steps": 30,
+          "dropped": 144,
+          "enabled": true,
+          "failures": 0,
+          "last_checked_step": 4560,
+          "last_failed_step": 0,
+          "last_status": "safe",
+          "max_depth": 4,
+          "max_marking": 100,
+          "submitted": 22
+        },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 35,
-        "last_cycle_ns": "3264",
-        "last_snn_time_ns": 1753,
+        "last_acados_time_ns": 40,
+        "last_cycle_ns": "3931",
+        "last_snn_time_ns": 1192,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -92,7 +108,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "28824109",
+        "total_cycle_ns": "88950853",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 55901
@@ -110,14 +126,14 @@
         "port": 55901
       },
       "udp_sink_packets": 5000,
-      "wall_s": 0.9826511549763381
+      "wall_s": 1.2704448539298028
     },
     "python": {
-      "avg_cycle_us": 11.9141358,
+      "avg_cycle_us": 9.0385306,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 206.86973496340215,
-      "elapsed_s": 0.9803619689773768,
+      "effective_step_us": 194.83539359644055,
+      "elapsed_s": 0.9189060789067298,
       "execution": {
         "core_hb": 4,
         "core_net": 3,
@@ -130,15 +146,15 @@
       "publish_failures": 0,
       "requested_execution_backend": "python",
       "snapshot": {
-        "acados_time_ns": 581,
-        "cycle_us": 3.892,
+        "acados_time_ns": 3438,
+        "cycle_us": 26.074,
         "heartbeat_expired": false,
         "measured_r": 6.2,
         "measured_z": 0.0,
         "publish_ok": true,
         "r_command": 0.0,
         "r_error": 0.0,
-        "snn_time_ns": 1043,
+        "snn_time_ns": 12394,
         "step": 4999,
         "z_command": 0.0,
         "z_error": 0.0
@@ -154,7 +170,7 @@
         "port": 55900
       },
       "udp_sink_packets": 5000,
-      "wall_s": 1.0343486748170108
+      "wall_s": 0.9741769679822028
     }
   }
 }

@@ -133,7 +133,14 @@ class _FallbackProbeRustKernel(_NoJPhiRustKernel):
 
 
 def _write_config(path: Path) -> None:
-    cfg = {"dimensions": {"Z_min": -1.0}}
+    cfg = {
+        "reactor_name": "RustCompatTest",
+        "grid_resolution": [5, 5],
+        "dimensions": {"R_min": 1.0, "R_max": 3.0, "Z_min": -1.0, "Z_max": 1.0},
+        "physics": {"plasma_current_target": 1.0, "vacuum_permeability": 1.0},
+        "coils": [{"name": "CS", "r": 2.0, "z": 0.0, "current": 0.0}],
+        "solver": {"max_iterations": 5, "convergence_threshold": 1.0e-4},
+    }
     path.write_text(json.dumps(cfg), encoding="utf-8")
 
 
@@ -297,7 +304,10 @@ def test_wrapper_find_x_point_returns_global_minimum_when_divertor_region_is_abs
     tmp_path: Path,
 ) -> None:
     cfg = tmp_path / "cfg.json"
-    cfg.write_text(json.dumps({"dimensions": {"Z_min": -100.0}}), encoding="utf-8")
+    _write_config(cfg)
+    payload = json.loads(cfg.read_text(encoding="utf-8"))
+    payload["dimensions"]["Z_min"] = -100.0
+    cfg.write_text(json.dumps(payload), encoding="utf-8")
     monkeypatch.setattr(_rust_compat, "PyFusionKernel", _FallbackProbeRustKernel, raising=False)
 
     wrapper = _rust_compat.RustAcceleratedKernel(str(cfg))

@@ -28,6 +28,14 @@ The benchmark forces both execution modes at the same campaign boundary:
   primitives.
 - `native`: fused PyO3 Rust loop with cumulative native cycle telemetry.
 
+The native loop also owns runtime formal verification. Python supplies bounded
+Petri-net checking policy through
+`NeuroCyberneticEngine.configure_native_formal_verification(...)`; the PyO3
+crate spawns the Z3 worker inside Rust, pins it to `core_z3` when host affinity
+is available, and passes only fixed numeric snapshots over a bounded
+`crossbeam-channel`. No Z3 ASTs, solver contexts, or proof objects cross the
+Python boundary during the fused campaign loop.
+
 Run:
 
 ```bash
@@ -41,7 +49,10 @@ PYTHONPATH=src .venv/bin/python scripts/benchmark_native_handoff.py \
 
 The JSON output is the machine-readable evidence artifact. The Markdown output
 is the review table. A valid native run must report zero drops and zero publish
-failures.
+failures. For formal-runtime evidence, inspect `native.formal_verification` in
+the returned campaign summary. The expected backend is `rust-z3`, and any
+nonzero `failures` count means the fused loop tripped the fail-closed formal
+contract instead of continuing under Python control-plane intervention.
 
 This benchmark isolates execution ownership. Use the transport-specific Rust
 benchmark and UDP fault-tolerance benchmark for `std` versus `io-uring`

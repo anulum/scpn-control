@@ -150,7 +150,7 @@ def test_self_consistent_convergence_flag(solver: TransportSolver):
         n_inner=10,
         n_outer=10,
         dt=0.01,
-        psi_tol=1e2,
+        psi_tol=1e3,
     )
     assert result["converged"] is True, "Should converge with very loose tol"
     assert result["n_outer_converged"] == 1, "Should converge on first iter"

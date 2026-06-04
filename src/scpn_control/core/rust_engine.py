@@ -23,7 +23,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, SupportsInt, cast
 
 from collections.abc import Callable, Mapping, Sequence
 
@@ -82,6 +82,13 @@ _PYO3_ARG_ORDER: dict[str, tuple[str, ...]] = {
         "core_net",
         "core_hb",
     ),
+    "configure_native_formal_verification": (
+        "enabled",
+        "max_marking",
+        "max_depth",
+        "dispatch_interval_steps",
+        "channel_capacity",
+    ),
     "configure_runtime_budget": (
         "max_iterations",
         "tick_interval",
@@ -119,9 +126,13 @@ def _coerce_telemetry_int(value: object, default: int = 0) -> int:
     if value is None:
         return default
     try:
-        return int(value)
+        if isinstance(value, (str, bytes, bytearray)):
+            return int(value)
+        if isinstance(value, SupportsInt):
+            return int(value)
     except (TypeError, ValueError):
         return default
+    return default
 
 
 @dataclass(slots=True)
@@ -141,6 +152,15 @@ class _ExecutionSettings:
     core_z3: int = 2
     core_net: int = 3
     core_hb: int = 4
+
+
+@dataclass(slots=True)
+class _FormalVerificationSettings:
+    enabled: bool = True
+    max_marking: int = 100
+    max_depth: int = 4
+    dispatch_interval_steps: int = 30
+    channel_capacity: int = 2
 
 
 @dataclass(slots=True)
@@ -190,10 +210,11 @@ class NeuroCyberneticEngine:
 
         self._transport = _TransportSettings()
         self._execution = _ExecutionSettings()
+        self._formal_verification = _FormalVerificationSettings()
         self._snn: RustSnnController | None = None
         self._pid_r: RustPIDController | None = None
         self._pid_z: RustPIDController | None = None
-        self._bridge: RustUdpTransportBridge | None = None
+        self._bridge: Any | None = None
         self._native_pool: object | None = None
         self._running = False
         self._state_sampler: Callable[[], tuple[float, float]] | None = None
@@ -335,6 +356,47 @@ class NeuroCyberneticEngine:
             core_net=_coerce_int("core_net", core_net, minimum=0, maximum=4095),
             core_hb=_coerce_int("core_hb", core_hb, minimum=0, maximum=4095),
         )
+
+    def configure_native_formal_verification(
+        self,
+        *,
+        enabled: bool = True,
+        max_marking: int = 100,
+        max_depth: int = 4,
+        dispatch_interval_steps: int = 30,
+        channel_capacity: int = 2,
+    ) -> dict[str, int | bool]:
+        """Configure Rust-native Z3 checking for the fused hardware loop."""
+
+        max_marking_value = _coerce_int("max_marking", max_marking, minimum=1, maximum=2_147_483_647)
+        max_depth_value = _coerce_int("max_depth", max_depth, minimum=1, maximum=64)
+        dispatch_interval_value = _coerce_int(
+            "dispatch_interval_steps",
+            dispatch_interval_steps,
+            minimum=1,
+            maximum=1_000_000,
+        )
+        channel_capacity_value = _coerce_int(
+            "channel_capacity",
+            channel_capacity,
+            minimum=1,
+            maximum=1024,
+        )
+
+        self._formal_verification = _FormalVerificationSettings(
+            enabled=bool(enabled),
+            max_marking=max_marking_value,
+            max_depth=max_depth_value,
+            dispatch_interval_steps=dispatch_interval_value,
+            channel_capacity=channel_capacity_value,
+        )
+        return {
+            "enabled": self._formal_verification.enabled,
+            "max_marking": self._formal_verification.max_marking,
+            "max_depth": self._formal_verification.max_depth,
+            "dispatch_interval_steps": self._formal_verification.dispatch_interval_steps,
+            "channel_capacity": self._formal_verification.channel_capacity,
+        }
 
     def configure_itpa_gyro_bohm(self, path: str | Path | None = None) -> dict[str, float | str]:
         """Load and apply ITPA gyro-Bohm profile constraints.
@@ -579,7 +641,19 @@ class NeuroCyberneticEngine:
         status = "normal"
 
         try:
-            start = self._native_pool.start
+            self._call_optional(
+                self._native_pool,
+                "configure_native_formal_verification",
+                enabled=self._formal_verification.enabled,
+                max_marking=self._formal_verification.max_marking,
+                max_depth=self._formal_verification.max_depth,
+                dispatch_interval_steps=self._formal_verification.dispatch_interval_steps,
+                channel_capacity=self._formal_verification.channel_capacity,
+            )
+            start_obj = getattr(self._native_pool, "start", None)
+            if not callable(start_obj):
+                raise RuntimeError("native controller pool does not expose start()")
+            start = cast(Callable[..., Any], start_obj)
             self._call_optional(
                 self._native_pool,
                 "configure_runtime_budget",

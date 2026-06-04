@@ -23,14 +23,20 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import os
+import tempfile
+import weakref
 from typing import Any
 
 import numpy as np
 
 from scpn_control.core.fusion_kernel import (
+    _fusion_kernel_config_dump,
+    _parse_fusion_kernel_config,
     _psi_gradient_fields,
     _psi_hessian_determinant,
+    _reject_duplicate_json_keys,
     _select_x_point_index,
     _x_point_search_mask,
 )
@@ -54,6 +60,39 @@ def _rust_available() -> bool:
     return _RUST_AVAILABLE
 
 
+def _remove_normalised_config(path: str) -> None:
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        return
+
+
+def _normalise_rust_config_path(config_path: str) -> tuple[dict[str, Any], str, str | None]:
+    with open(config_path, encoding="utf-8") as f:
+        raw_config = json.load(f, object_pairs_hook=_reject_duplicate_json_keys)
+    normalised_config = _fusion_kernel_config_dump(_parse_fusion_kernel_config(raw_config))
+    physics_config_any = normalised_config.setdefault("physics", {})
+    if not isinstance(physics_config_any, dict):
+        raise ValueError("physics configuration must be an object")
+    physics_config: dict[str, Any] = physics_config_any
+    physics_config.setdefault("vacuum_permeability", 1.0)
+    solver_config_any = normalised_config.setdefault("solver", {})
+    if not isinstance(solver_config_any, dict):
+        raise ValueError("solver configuration must be an object")
+    solver_config: dict[str, Any] = solver_config_any
+    solver_config.setdefault("solver_method", "sor")
+    solver_config.setdefault("max_iterations", 1000)
+    solver_config.setdefault("convergence_threshold", 1.0e-4)
+    solver_config.setdefault("sor_omega", 1.8)
+    if raw_config == normalised_config:
+        return normalised_config, config_path, None
+
+    handle, normalised_path = tempfile.mkstemp(prefix="scpn_control_rust_cfg_", suffix=".json")
+    with os.fdopen(handle, "w", encoding="utf-8") as f:
+        json.dump(normalised_config, f)
+    return normalised_config, normalised_path, normalised_path
+
+
 class RustAcceleratedKernel:
     """
     Drop-in wrapper around Rust PyFusionKernel that mirrors the Python
@@ -65,12 +104,12 @@ class RustAcceleratedKernel:
 
     def __init__(self, config_path: str | os.PathLike[str]) -> None:
         self._config_path = str(config_path)
-        self._rust = PyFusionKernel(self._config_path)
-
-        import json
-
-        with open(config_path, "r") as f:
-            self.cfg = json.load(f)
+        self._normalised_config_finalizer: Any | None = None
+        self.cfg, rust_config_path, cleanup_path = _normalise_rust_config_path(self._config_path)
+        if cleanup_path is not None:
+            self._config_path = rust_config_path
+            self._normalised_config_finalizer = weakref.finalize(self, _remove_normalised_config, cleanup_path)
+        self._rust = PyFusionKernel(rust_config_path)
 
         self.R = np.asarray(self._rust.get_r())
         self.Z = np.asarray(self._rust.get_z())
@@ -321,7 +360,7 @@ class RustSnnController:
 
 if _RUST_AVAILABLE:  # pragma: no cover
 
-    class RustUdpTransportBridge:
+    class _NativeRustUdpTransportBridge:
         """Python wrapper for zero-copy Rust UDP transport publisher."""
 
         def __init__(
@@ -379,7 +418,7 @@ if _RUST_AVAILABLE:  # pragma: no cover
             return bool(self._inner.is_running())
 
         def stopped(self) -> bool:
-            return bool(getattr(self._inner, "stopped")())
+            return bool(self._inner.stopped())
 
         def heartbeat_age_ns(self) -> int:
             return int(self._inner.heartbeat_age_ns())
@@ -395,7 +434,7 @@ if _RUST_AVAILABLE:  # pragma: no cover
 
 else:
 
-    class RustUdpTransportBridge:
+    class _FallbackRustUdpTransportBridge:
         """Fallback when compiled Rust extension is unavailable."""
 
         def __init__(
@@ -425,11 +464,24 @@ else:
         def stopped(self) -> bool:
             return True
 
+        def heartbeat_age_ns(self) -> int:
+            return 0
+
+        def heartbeat_expired(self) -> bool:
+            return False
+
         def payload_bytes(self) -> int:
             return 0
 
         def backend(self) -> str:
             return ""
+
+
+RustUdpTransportBridge: type[_NativeRustUdpTransportBridge] | type[_FallbackRustUdpTransportBridge]
+if _RUST_AVAILABLE:  # pragma: no cover
+    RustUdpTransportBridge = _NativeRustUdpTransportBridge
+else:
+    RustUdpTransportBridge = _FallbackRustUdpTransportBridge
 
 
 class RustPIDController:

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// ──────────────────────────────────────────────────────────────────────
-// SCPN Control — Rust Crate
-// © 1998–2026 Miroslav Šotek. All rights reserved.
+// Commercial license available
+// © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+// © Code 2020–2026 Miroslav Šotek. All rights reserved.
+// ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// ORCID: https://orcid.org/0009-0009-3560-0851
-// ──────────────────────────────────────────────────────────────────────
+// SCPN Control — Rust Crate
 
 //! PyO3 Python bindings for SCPN Control (Modern Bound API).
 
@@ -20,6 +20,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use formal_worker::{
+    NativeFormalConfig, NativeFormalReport, NativeFormalRuntime, PetriNetSnapshot,
+};
 use transport_bridge::PyUdpTransportBridge;
 
 use control_control::analytic;
@@ -42,6 +45,7 @@ use control_math::multigrid::{multigrid_solve, MultigridConfig};
 use control_math::tridiag;
 use control_types::state::Grid2D;
 
+mod formal_worker;
 mod slab;
 mod transport_bridge;
 
@@ -341,6 +345,12 @@ struct PySpikingControllerPool {
     total_cycle_ns: u128,
     last_acados_time_ns: u64,
     last_snn_time_ns: u64,
+    formal_enabled: bool,
+    formal_max_marking: i64,
+    formal_max_depth: usize,
+    formal_dispatch_interval_steps: usize,
+    formal_channel_capacity: usize,
+    formal_last_report: NativeFormalReport,
     is_running: bool,
     stop_flag: Arc<AtomicBool>,
 }
@@ -401,11 +411,21 @@ impl PySpikingControllerPool {
             total_cycle_ns: 0,
             last_acados_time_ns: 0,
             last_snn_time_ns: 0,
+            formal_enabled: true,
+            formal_max_marking: 100,
+            formal_max_depth: 4,
+            formal_dispatch_interval_steps: 30,
+            formal_channel_capacity: 2,
+            formal_last_report: NativeFormalReport::disabled(),
             is_running: false,
             stop_flag: Arc::new(AtomicBool::new(false)),
         })
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "PyO3 preserves stable Python keyword API"
+    )]
     #[pyo3(signature = (endpoint, port, ttl, max_queue, backend, heartbeat_port, heartbeat_timeout_ms))]
     fn set_transport_settings(
         &mut self,
@@ -455,6 +475,10 @@ impl PySpikingControllerPool {
         Ok(())
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "PyO3 preserves stable Python keyword API"
+    )]
     #[pyo3(signature = (endpoint, port, ttl, max_queue, backend, heartbeat_port, heartbeat_timeout_ms))]
     fn configure_transport(
         &mut self,
@@ -551,6 +575,47 @@ impl PySpikingControllerPool {
         Ok(())
     }
 
+    #[pyo3(signature = (enabled=true, max_marking=100, max_depth=4, dispatch_interval_steps=30, channel_capacity=2))]
+    fn configure_native_formal_verification(
+        &mut self,
+        enabled: bool,
+        max_marking: i64,
+        max_depth: usize,
+        dispatch_interval_steps: usize,
+        channel_capacity: usize,
+    ) -> PyResult<()> {
+        if max_marking <= 0 {
+            return Err(PyValueError::new_err("max_marking must be positive"));
+        }
+        if !(1..=64).contains(&max_depth) {
+            return Err(PyValueError::new_err("max_depth must be in [1, 64]"));
+        }
+        if dispatch_interval_steps == 0 {
+            return Err(PyValueError::new_err(
+                "dispatch_interval_steps must be positive",
+            ));
+        }
+        if !(1..=1024).contains(&channel_capacity) {
+            return Err(PyValueError::new_err(
+                "channel_capacity must be in [1, 1024]",
+            ));
+        }
+
+        self.formal_enabled = enabled;
+        self.formal_max_marking = max_marking;
+        self.formal_max_depth = max_depth;
+        self.formal_dispatch_interval_steps = dispatch_interval_steps;
+        self.formal_channel_capacity = channel_capacity;
+        self.formal_last_report = if enabled {
+            NativeFormalReport {
+                ..NativeFormalReport::default()
+            }
+        } else {
+            NativeFormalReport::disabled()
+        };
+        Ok(())
+    }
+
     #[pyo3(signature = (arg1=None, arg2=None, arg3=None))]
     fn start(
         &mut self,
@@ -588,6 +653,13 @@ impl PySpikingControllerPool {
         self.total_cycle_ns = 0;
         self.last_acados_time_ns = 0;
         self.last_snn_time_ns = 0;
+        self.formal_last_report = if self.formal_enabled {
+            NativeFormalReport {
+                ..NativeFormalReport::default()
+            }
+        } else {
+            NativeFormalReport::disabled()
+        };
         self.is_running = true;
 
         let result = py.allow_threads(|| self.run_native_loop(max_iterations));
@@ -645,6 +717,21 @@ impl PySpikingControllerPool {
     }
 
     fn run_native_loop(&mut self, max_iterations: Option<usize>) -> PyResult<()> {
+        let formal_config = NativeFormalConfig {
+            max_marking: self.formal_max_marking,
+            max_depth: self.formal_max_depth,
+            channel_capacity: self.formal_channel_capacity,
+            core_z3: self.core_z3,
+        };
+        let mut formal_runtime = if self.formal_enabled {
+            Some(
+                NativeFormalRuntime::spawn(formal_config.clone(), Arc::clone(&self.stop_flag))
+                    .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+            )
+        } else {
+            None
+        };
+
         let mut bridge = PyUdpTransportBridge::new(
             &self.transport_endpoint,
             self.transport_port,
@@ -659,6 +746,14 @@ impl PySpikingControllerPool {
         let mut measured_r = self.initial_state.0;
         let mut measured_z = self.initial_state.1;
         let loop_result = loop {
+            if let Some(runtime) = formal_runtime.as_ref() {
+                if runtime.violation_detected() {
+                    break Err(PyRuntimeError::new_err(
+                        "native formal verification contract violation",
+                    ));
+                }
+            }
+
             if self.stop_flag.load(Ordering::Acquire) {
                 break Ok(());
             }
@@ -715,6 +810,20 @@ impl PySpikingControllerPool {
                 z_command = z_command.min(u_max);
             }
 
+            if let Some(runtime) = formal_runtime.as_ref() {
+                let next_step = self.steps_executed.saturating_add(1);
+                if next_step.is_multiple_of(self.formal_dispatch_interval_steps) {
+                    let snapshot = PetriNetSnapshot::from_control_outputs(
+                        next_step as u64,
+                        error_r,
+                        error_z,
+                        r_command,
+                        z_command,
+                    );
+                    let _ = runtime.try_submit(snapshot);
+                }
+            }
+
             match bridge.publish(
                 error_r,
                 error_z,
@@ -757,9 +866,21 @@ impl PySpikingControllerPool {
             }
         };
 
+        let formal_report = if let Some(runtime) = formal_runtime.take() {
+            runtime.shutdown()
+        } else {
+            NativeFormalReport::disabled()
+        };
+        self.formal_last_report = formal_report;
+
         let stop_result = bridge.stop();
         if loop_result.is_ok() {
             stop_result?;
+            if self.formal_last_report.failures > 0 {
+                return Err(PyRuntimeError::new_err(
+                    "native formal verification contract violation",
+                ));
+            }
         }
         loop_result
     }
@@ -790,6 +911,29 @@ impl PySpikingControllerPool {
         execution.set_item("core_hb", self.core_hb)?;
         execution.set_item("mode", "native")?;
         dict.set_item("execution", execution)?;
+
+        let formal = PyDict::new(py);
+        formal.set_item("enabled", self.formal_enabled)?;
+        formal.set_item("backend", "rust-z3")?;
+        formal.set_item("max_marking", self.formal_max_marking)?;
+        formal.set_item("max_depth", self.formal_max_depth)?;
+        formal.set_item(
+            "dispatch_interval_steps",
+            self.formal_dispatch_interval_steps,
+        )?;
+        formal.set_item("channel_capacity", self.formal_channel_capacity)?;
+        formal.set_item("core_z3", self.core_z3)?;
+        formal.set_item("submitted", self.formal_last_report.submitted)?;
+        formal.set_item("dropped", self.formal_last_report.dropped)?;
+        formal.set_item("checked", self.formal_last_report.checked)?;
+        formal.set_item("failures", self.formal_last_report.failures)?;
+        formal.set_item(
+            "last_checked_step",
+            self.formal_last_report.last_checked_step,
+        )?;
+        formal.set_item("last_failed_step", self.formal_last_report.last_failed_step)?;
+        formal.set_item("last_status", self.formal_last_report.status_label())?;
+        dict.set_item("formal_verification", formal)?;
         Ok(dict)
     }
 }
@@ -859,6 +1003,163 @@ impl PyPlasma2D {
         self.inner
             .step(action)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+    }
+
+    fn measure_core_temp(&self, measurement_noise: f64) -> PyResult<f64> {
+        self.inner
+            .measure_core_temp(measurement_noise)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+    }
+}
+
+#[pyclass]
+struct PyRealtimeMonitor {
+    knm_flat: Vec<f64>,
+    alpha_flat: Vec<f64>,
+    zeta: Vec<f64>,
+    theta_flat: Vec<f64>,
+    omega_flat: Vec<f64>,
+    n_layers: usize,
+    n_per: usize,
+    dt: f64,
+    psi_driver: f64,
+    tick_count: usize,
+}
+
+#[pymethods]
+impl PyRealtimeMonitor {
+    #[new]
+    #[pyo3(signature = (knm_flat, zeta_flat, theta_flat, omega_flat, n_layers, n_per, dt=1.0e-3, psi_driver=0.0))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        knm_flat: PyReadonlyArray1<'_, f64>,
+        zeta_flat: PyReadonlyArray1<'_, f64>,
+        theta_flat: PyReadonlyArray1<'_, f64>,
+        omega_flat: PyReadonlyArray1<'_, f64>,
+        n_layers: usize,
+        n_per: usize,
+        dt: f64,
+        psi_driver: f64,
+    ) -> PyResult<Self> {
+        if n_layers == 0 || n_per == 0 {
+            return Err(PyValueError::new_err("n_layers and n_per must be positive"));
+        }
+        if !dt.is_finite() || dt <= 0.0 {
+            return Err(PyValueError::new_err("dt must be finite and > 0"));
+        }
+        if !psi_driver.is_finite() {
+            return Err(PyValueError::new_err("psi_driver must be finite"));
+        }
+
+        let knm = knm_flat
+            .as_slice()
+            .map_err(|_| PyValueError::new_err("knm_flat must be contiguous"))?
+            .to_vec();
+        let zeta = zeta_flat
+            .as_slice()
+            .map_err(|_| PyValueError::new_err("zeta_flat must be contiguous"))?
+            .to_vec();
+        let theta = theta_flat
+            .as_slice()
+            .map_err(|_| PyValueError::new_err("theta_flat must be contiguous"))?
+            .to_vec();
+        let omega = omega_flat
+            .as_slice()
+            .map_err(|_| PyValueError::new_err("omega_flat must be contiguous"))?
+            .to_vec();
+
+        let phase_len = n_layers
+            .checked_mul(n_per)
+            .ok_or_else(|| PyValueError::new_err("n_layers * n_per overflowed"))?;
+        if knm.len() != n_layers * n_layers {
+            return Err(PyValueError::new_err(
+                "knm_flat length must equal n_layers ** 2",
+            ));
+        }
+        if zeta.len() != n_layers {
+            return Err(PyValueError::new_err(
+                "zeta_flat length must equal n_layers",
+            ));
+        }
+        if theta.len() != phase_len || omega.len() != phase_len {
+            return Err(PyValueError::new_err(
+                "theta_flat and omega_flat lengths must equal n_layers * n_per",
+            ));
+        }
+        if !knm.iter().all(|v| v.is_finite())
+            || !zeta.iter().all(|v| v.is_finite())
+            || !theta.iter().all(|v| v.is_finite())
+            || !omega.iter().all(|v| v.is_finite())
+        {
+            return Err(PyValueError::new_err(
+                "monitor arrays must contain only finite values",
+            ));
+        }
+
+        Ok(Self {
+            knm_flat: knm,
+            alpha_flat: vec![0.0; n_layers * n_layers],
+            zeta,
+            theta_flat: theta,
+            omega_flat: omega,
+            n_layers,
+            n_per,
+            dt,
+            psi_driver,
+            tick_count: 0,
+        })
+    }
+
+    #[getter]
+    fn tick_count(&self) -> usize {
+        self.tick_count
+    }
+
+    fn tick<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let result = kuramoto::upde_tick(
+            &self.theta_flat,
+            &self.omega_flat,
+            &self.knm_flat,
+            &self.alpha_flat,
+            &self.zeta,
+            self.n_layers,
+            self.n_per,
+            self.dt,
+            self.psi_driver,
+            0.0,
+        );
+        self.theta_flat.clone_from(&result.theta_flat);
+        self.tick_count += 1;
+
+        let dict = PyDict::new(py);
+        dict.set_item("tick", self.tick_count)?;
+        dict.set_item("theta_flat", result.theta_flat.into_pyarray(py))?;
+        dict.set_item("R_layer", result.r_layer.into_pyarray(py))?;
+        dict.set_item("R_global", result.r_global)?;
+        dict.set_item("Psi_global", result.psi_global)?;
+        dict.set_item("V_layer", result.v_layer.into_pyarray(py))?;
+        dict.set_item("V_global", result.v_global)?;
+        Ok(dict)
+    }
+
+    fn reset(&mut self, theta_flat: PyReadonlyArray1<'_, f64>) -> PyResult<()> {
+        let theta = theta_flat
+            .as_slice()
+            .map_err(|_| PyValueError::new_err("theta_flat must be contiguous"))?;
+        if theta.len() != self.n_layers * self.n_per {
+            return Err(PyValueError::new_err(
+                "theta_flat length must equal n_layers * n_per",
+            ));
+        }
+        if !theta.iter().all(|v| v.is_finite()) {
+            return Err(PyValueError::new_err(
+                "theta_flat must contain only finite values",
+            ));
+        }
+        self.theta_flat.clear();
+        self.theta_flat.extend_from_slice(theta);
+        self.tick_count = 0;
+        Ok(())
     }
 }
 
@@ -1419,6 +1720,7 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_class::<PySpikingControllerPool>()?;
     m.add_class::<PyMpcController>()?;
     m.add_class::<PyPlasma2D>()?;
+    m.add_class::<PyRealtimeMonitor>()?;
     m.add_class::<PyTransportSolver>()?;
     m.add_class::<PyHInfController>()?;
     m.add_function(wrap_pyfunction!(py_thomas_solve, m)?)?;

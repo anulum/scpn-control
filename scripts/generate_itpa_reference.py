@@ -23,6 +23,7 @@ def generate_gyro_bohm_reference() -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
 
     payload = {
+        "c_gB": 0.0424,
         "metadata": {
             "itpa_version": "2026.1",
             "confinement_regime_targets": ["H-mode", "J-mode"],
