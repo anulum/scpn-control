@@ -82,3 +82,8 @@ report = collect_runtime_admission(
 The returned report is JSON-serializable and includes
 `production_claim_allowed`. That field remains `false` unless strict production
 requirements were requested and passed.
+
+`NeuroCyberneticEngine.extract_slab_telemetry()` also carries the most recent
+`runtime_admission` record. Emergency telemetry and post-run diagnostic dumps
+therefore preserve the launch-time scheduler, affinity, governor, heartbeat,
+and PREEMPT_RT assumptions that governed the campaign.

@@ -1085,6 +1085,8 @@ class NeuroCyberneticEngine:
         }
         if bridge is not None:
             payload["bridge_payload_bytes"] = bridge.payload_bytes()
+        if self._last_runtime_admission is not None:
+            payload["runtime_admission"] = dict(self._last_runtime_admission)
         if self._native_pool is not None:
             telemetry = self._call_optional(self._native_pool, "extract_slab_telemetry")
             if telemetry is None:

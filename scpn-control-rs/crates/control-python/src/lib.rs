@@ -2588,7 +2588,13 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
 
 #[cfg(test)]
 mod native_pacing_tests {
+    #[cfg(not(feature = "extension-module"))]
+    use super::runtime_admission_snapshot;
     use super::NativePacingMode;
+    #[cfg(not(feature = "extension-module"))]
+    use pyo3::types::{PyAnyMethods, PyDictMethods};
+    #[cfg(not(feature = "extension-module"))]
+    use pyo3::{prepare_freethreaded_python, Python};
 
     #[test]
     fn pacing_mode_parser_accepts_supported_aliases() {
@@ -2605,5 +2611,45 @@ mod native_pacing_tests {
             Some(NativePacingMode::Spin)
         );
         assert_eq!(NativePacingMode::parse("timer_magic"), None);
+    }
+
+    #[cfg(not(feature = "extension-module"))]
+    #[test]
+    fn runtime_admission_snapshot_binds_kernel_and_core_contract() {
+        prepare_freethreaded_python();
+        Python::with_gil(|py| {
+            let snapshot = runtime_admission_snapshot(py, 4, 5, 6, 7, 0.0001, "spin")
+                .expect("runtime admission snapshot should be constructible");
+
+            let schema = snapshot
+                .get_item("schema_version")
+                .expect("schema lookup should not fail")
+                .expect("schema should exist")
+                .extract::<String>()
+                .expect("schema should be a string");
+            let cores_distinct = snapshot
+                .get_item("requested_cores_distinct")
+                .expect("distinct lookup should not fail")
+                .expect("distinct flag should exist")
+                .extract::<bool>()
+                .expect("distinct flag should be bool");
+            let pacing_mode = snapshot
+                .get_item("pacing_mode")
+                .expect("pacing lookup should not fail")
+                .expect("pacing should exist")
+                .extract::<String>()
+                .expect("pacing should be a string");
+            let spin_admissible = snapshot
+                .get_item("spin_tick_admissible")
+                .expect("spin lookup should not fail")
+                .expect("spin admissibility should exist")
+                .extract::<bool>()
+                .expect("spin admissibility should be bool");
+
+            assert_eq!(schema, "scpn-control.runtime-admission-native.v1");
+            assert!(cores_distinct);
+            assert_eq!(pacing_mode, "spin");
+            assert!(spin_admissible);
+        });
     }
 }

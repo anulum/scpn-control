@@ -61,6 +61,9 @@
   regression benchmark tooling.
 
 ### Changed
+- Runtime telemetry now preserves the latest runtime-admission report in
+  `extract_slab_telemetry()` so emergency dumps retain scheduler, affinity,
+  governor, heartbeat, and PREEMPT_RT assumptions.
 - Added an execution-backend selector to the hardware-campaign CLI and Rust
   engine wrapper so release evidence can require `auto`, `native`, or `python`
   execution explicitly.

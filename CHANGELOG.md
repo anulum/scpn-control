@@ -38,6 +38,11 @@
   `--runtime-admission-policy require`, public documentation, tests, and local
   admission benchmark tooling.
 
+### Changed
+- Runtime telemetry now preserves the latest runtime-admission report in
+  `extract_slab_telemetry()` so emergency dumps retain scheduler, affinity,
+  governor, heartbeat, and PREEMPT_RT assumptions.
+
 ## [0.20.3] - 2026-06-02
 
 ### Changed

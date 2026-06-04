@@ -8,11 +8,15 @@
 
 from __future__ import annotations
 
+import sys
+import types
+
 import pytest
 
 from scpn_control.core.runtime_admission import (
     RuntimeAdmissionProbe,
     RuntimeAdmissionRequest,
+    collect_runtime_probe,
     evaluate_runtime_admission,
     normalise_runtime_admission_policy,
     skipped_runtime_admission,
@@ -106,3 +110,40 @@ def test_runtime_admission_policy_normalisation_and_skip_record() -> None:
 
     with pytest.raises(ValueError, match="runtime admission policy"):
         normalise_runtime_admission_policy("maybe")
+
+
+def test_runtime_probe_binds_native_snapshot_when_extension_exposes_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    native = types.ModuleType("scpn_control_rs")
+
+    def runtime_admission_snapshot(
+        core_snn: int,
+        core_z3: int,
+        core_net: int,
+        core_hb: int,
+        tick_interval_s: float,
+        pacing_mode: str,
+    ) -> dict[str, object]:
+        return {
+            "schema_version": "scpn-control.runtime-admission-native.v1",
+            "requested_cores": [core_snn, core_z3, core_net, core_hb],
+            "tick_interval_s": tick_interval_s,
+            "pacing_mode": pacing_mode,
+        }
+
+    native.__dict__["runtime_admission_snapshot"] = runtime_admission_snapshot
+    monkeypatch.setitem(sys.modules, "scpn_control_rs", native)
+
+    probe = collect_runtime_probe(
+        RuntimeAdmissionRequest(
+            core_snn=4,
+            core_z3=5,
+            core_net=6,
+            core_hb=7,
+            tick_interval_s=0.0001,
+            pacing_mode="spin",
+        )
+    )
+
+    assert probe.native_snapshot is not None
+    assert probe.native_snapshot["schema_version"] == "scpn-control.runtime-admission-native.v1"
+    assert probe.native_snapshot["requested_cores"] == [4, 5, 6, 7]
