@@ -30,6 +30,13 @@ use control_control::analytic;
 use control_control::digital_twin::Plasma2D;
 use control_control::h_infinity::HInfController;
 use control_control::mpc::{MPController, NeuralSurrogate};
+use control_control::pulsed_scenario::{
+    CapacitorBankTelemetry as ControlCapacitorBankTelemetry,
+    PulsedPlasmaTelemetry as ControlPulsedPlasmaTelemetry,
+    PulsedScenarioScheduler as ControlPulsedScenarioScheduler,
+    PulsedScenarioSpec as ControlPulsedScenarioSpec,
+    PulsedScenarioState as ControlPulsedScenarioState,
+};
 use control_control::snn::{NeuroCyberneticController, SpikingControllerPool};
 use control_control::spi::SPIMitigation;
 use control_core::amr_kernel::{AmrKernelConfig, AmrKernelSolver};
@@ -268,6 +275,192 @@ fn solve_coil_currents<'py>(
 #[pyclass]
 struct PySnnPool {
     inner: SpikingControllerPool,
+}
+
+#[pyclass(name = "PyPulsedScenarioSpec")]
+#[derive(Clone, Copy)]
+struct PyPulsedScenarioSpec {
+    inner: ControlPulsedScenarioSpec,
+}
+
+#[pymethods]
+impl PyPulsedScenarioSpec {
+    #[new]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        min_precharge_energy_j: f64,
+        ramp_current_a: f64,
+        phase_tolerance_rad: f64,
+        spatial_tolerance_m: f64,
+        burn_temperature_ev: f64,
+        min_fusion_power_w: f64,
+        expansion_velocity_m_s: f64,
+        dump_energy_floor_j: f64,
+        recharge_voltage_fraction: f64,
+        cooldown_temperature_ev: f64,
+        cooldown_current_a: f64,
+        min_burn_duration_s: f64,
+    ) -> PyResult<Self> {
+        ControlPulsedScenarioSpec::new(
+            min_precharge_energy_j,
+            ramp_current_a,
+            phase_tolerance_rad,
+            spatial_tolerance_m,
+            burn_temperature_ev,
+            min_fusion_power_w,
+            expansion_velocity_m_s,
+            dump_energy_floor_j,
+            recharge_voltage_fraction,
+            cooldown_temperature_ev,
+            cooldown_current_a,
+            min_burn_duration_s,
+        )
+        .map(|inner| Self { inner })
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
+#[pyclass(name = "PyPulsedPlasmaTelemetry")]
+#[derive(Clone, Copy)]
+struct PyPulsedPlasmaTelemetry {
+    inner: ControlPulsedPlasmaTelemetry,
+}
+
+#[pymethods]
+impl PyPulsedPlasmaTelemetry {
+    #[new]
+    fn new(
+        coil_current_a: f64,
+        temperature_ev: f64,
+        phase_lock_error_rad: f64,
+        reference_error_m: f64,
+        fusion_power_w: f64,
+        radial_velocity_m_s: f64,
+    ) -> PyResult<Self> {
+        ControlPulsedPlasmaTelemetry::new(
+            coil_current_a,
+            temperature_ev,
+            phase_lock_error_rad,
+            reference_error_m,
+            fusion_power_w,
+            radial_velocity_m_s,
+        )
+        .map(|inner| Self { inner })
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
+#[pyclass(name = "PyCapacitorBankTelemetry")]
+#[derive(Clone, Copy)]
+struct PyCapacitorBankTelemetry {
+    inner: ControlCapacitorBankTelemetry,
+}
+
+#[pymethods]
+impl PyCapacitorBankTelemetry {
+    #[new]
+    fn new(voltage_v: f64, voltage_max_v: f64, energy_j: f64) -> PyResult<Self> {
+        ControlCapacitorBankTelemetry::new(voltage_v, voltage_max_v, energy_j)
+            .map(|inner| Self { inner })
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    #[getter]
+    fn voltage_fraction(&self) -> f64 {
+        self.inner.voltage_fraction()
+    }
+}
+
+#[pyclass(name = "PyPulsedScenarioScheduler")]
+struct PyPulsedScenarioScheduler {
+    inner: ControlPulsedScenarioScheduler,
+}
+
+#[pymethods]
+impl PyPulsedScenarioScheduler {
+    #[new]
+    fn new(spec: &PyPulsedScenarioSpec) -> Self {
+        Self {
+            inner: ControlPulsedScenarioScheduler::new(spec.inner),
+        }
+    }
+
+    #[getter]
+    fn state(&self) -> String {
+        self.inner.state.as_str().to_string()
+    }
+
+    fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    fn step(
+        &mut self,
+        t_s: f64,
+        plasma: &PyPulsedPlasmaTelemetry,
+        bank: &PyCapacitorBankTelemetry,
+    ) -> PyResult<PySchedulerCommand> {
+        let command = self
+            .inner
+            .step(t_s, plasma.inner, bank.inner)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok((
+            command.t_s,
+            command.state.as_str().to_string(),
+            command.action.as_str().to_string(),
+            command.reason,
+            command.transition,
+            command.dwell_s,
+        ))
+    }
+
+    fn transition_to(
+        &mut self,
+        next_state: &str,
+        t_s: f64,
+        reason: &str,
+    ) -> PyResult<PyTransitionRecord> {
+        let state = parse_pulsed_scenario_state(next_state)?;
+        let record = self
+            .inner
+            .transition_to(state, t_s, reason)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok((
+            record.t_s,
+            record.from_state.as_str().to_string(),
+            record.to_state.as_str().to_string(),
+            record.reason,
+        ))
+    }
+
+    fn audit_log(&self) -> Vec<PyTransitionRecord> {
+        self.inner
+            .audit_log()
+            .iter()
+            .map(|record| {
+                (
+                    record.t_s,
+                    record.from_state.as_str().to_string(),
+                    record.to_state.as_str().to_string(),
+                    record.reason.clone(),
+                )
+            })
+            .collect()
+    }
+}
+
+fn parse_pulsed_scenario_state(value: &str) -> PyResult<ControlPulsedScenarioState> {
+    match value.trim() {
+        "idle" => Ok(ControlPulsedScenarioState::Idle),
+        "ramp_up" => Ok(ControlPulsedScenarioState::RampUp),
+        "flat_top" => Ok(ControlPulsedScenarioState::FlatTop),
+        "burn" => Ok(ControlPulsedScenarioState::Burn),
+        "expansion" => Ok(ControlPulsedScenarioState::Expansion),
+        "dump" => Ok(ControlPulsedScenarioState::Dump),
+        "recharge" => Ok(ControlPulsedScenarioState::Recharge),
+        "cool_down" => Ok(ControlPulsedScenarioState::CoolDown),
+        _ => Err(PyValueError::new_err("unknown pulsed scenario state")),
+    }
 }
 
 #[pymethods]
@@ -1830,6 +2023,10 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_function(wrap_pyfunction!(solve_coil_currents, m)?)?;
     m.add_class::<PySnnPool>()?;
     m.add_class::<PySnnController>()?;
+    m.add_class::<PyPulsedScenarioSpec>()?;
+    m.add_class::<PyPulsedPlasmaTelemetry>()?;
+    m.add_class::<PyCapacitorBankTelemetry>()?;
+    m.add_class::<PyPulsedScenarioScheduler>()?;
     m.add_class::<PySpikingControllerPool>()?;
     m.add_class::<PyMpcController>()?;
     m.add_class::<PyPlasma2D>()?;

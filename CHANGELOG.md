@@ -14,6 +14,8 @@
 - Added CONTROL-owned `PulsedScenarioScheduler v2` for reusable pulsed-fusion
   shot lifecycles, with Python and Rust scheduler surfaces, audit-log
   semantics, guard validation, public API documentation, and direct tests.
+- Exposed the Rust pulsed-scenario scheduler through the optional PyO3
+  `scpn_control_rs` extension with direct parity tests.
 
 ## [0.20.3] - 2026-06-02
 

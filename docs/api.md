@@ -43,8 +43,11 @@ scheduler models the adjacent state ring:
 
 The Python surface provides the control-plane API and audit-log contract. The
 matching Rust kernel lives in `control_control::pulsed_scenario` for the
-compiled hot-path lane. Both surfaces use the same state names, action names,
-guard thresholds, monotone timestamp checks, and transition reasons.
+compiled hot-path lane. When the optional extension is built,
+`scpn_control_rs.PyPulsedScenarioScheduler` exposes that Rust kernel directly
+to Python without changing the pure-Python API. All surfaces use the same state
+names, action names, guard thresholds, monotone timestamp checks, and
+transition reasons.
 
 The scheduler is a generic pulsed-reactor controller primitive. It is not a
 facility-validated PCS implementation by itself. Hardware timing, actuator
