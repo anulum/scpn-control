@@ -19,6 +19,16 @@
   verification parameters, while the Rust data plane moves only numeric
   snapshots over a bounded channel and constructs all SMT state on the pinned
   native worker thread.
+- Added an explicit `sync_stride` formal-verification mode alongside the
+  existing non-blocking `async_drop` mode. Native telemetry now records generated
+  snapshots, effective verification rate, and synchronous proof wait timing for
+  deterministic stride benchmarks.
+- Added a native formal-mode benchmark script covering disabled, asynchronous,
+  and synchronous stride verification across `std` and `io-uring` transport
+  requests.
+- Added an `aot_certificate` native formal-verification mode that keeps Z3 out
+  of the hot loop by evaluating a compiled Petri-net certificate monitor and
+  reporting the backend as `compiled-certificate`.
 
 ### Changed
 - Added an execution-backend selector to the hardware-campaign CLI and Rust

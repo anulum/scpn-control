@@ -374,6 +374,19 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
 @click.option("--runtime-s", default=None, type=float, help="Alternative run horizon in seconds")
 @click.option("--tick-interval-s", default=0.001, type=float, help="Control tick interval")
 @click.option("--max-publish-failures", default=None, type=int, help="Python fallback publish fail tolerance")
+@click.option(
+    "--formal-mode",
+    default="async_drop",
+    type=click.Choice(
+        ["disabled", "async_drop", "sync_stride", "aot_certificate"],
+        case_sensitive=False,
+    ),
+    help="Native formal verification mode",
+)
+@click.option("--formal-stride", default=30, type=int, help="Formal verification dispatch stride")
+@click.option("--formal-depth", default=4, type=int, help="Bounded Z3 verification depth")
+@click.option("--formal-max-marking", default=100, type=int, help="Formal marking safety bound")
+@click.option("--formal-channel-capacity", default=2, type=int, help="Formal worker queue capacity")
 @click.option("--require-native", is_flag=True, help="Abort when native bridge is unavailable")
 @click.option("--json-out", is_flag=True, help="Emit JSON instead of text")
 def run_hardware_campaign(
@@ -404,6 +417,11 @@ def run_hardware_campaign(
     runtime_s: float | None,
     tick_interval_s: float,
     max_publish_failures: int | None,
+    formal_mode: str,
+    formal_stride: int,
+    formal_depth: int,
+    formal_max_marking: int,
+    formal_channel_capacity: int,
     require_native: bool,
     json_out: bool,
 ) -> None:
@@ -453,6 +471,14 @@ def run_hardware_campaign(
     )
 
     engine.configure_execution_affinity(core_snn=core_snn, core_z3=core_z3, core_net=core_net, core_hb=core_hb)
+    engine.configure_native_formal_verification(
+        enabled=formal_mode != "disabled",
+        mode=formal_mode,
+        max_marking=formal_max_marking,
+        max_depth=formal_depth,
+        dispatch_interval_steps=formal_stride,
+        channel_capacity=formal_channel_capacity,
+    )
     if max_publish_failures is not None:
         engine.set_max_publish_failures(max_publish_failures)
 

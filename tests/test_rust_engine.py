@@ -70,3 +70,43 @@ def test_execute_hardware_loop_auto_falls_back_after_non_runtime_native_error(
     summary = engine.execute_hardware_loop(steps=1, execution_backend="auto")
 
     assert summary["execution"]["mode"] == "python"
+
+
+def test_configure_native_formal_verification_accepts_sync_stride_mode() -> None:
+    engine = rust_engine.NeuroCyberneticEngine()
+
+    settings = engine.configure_native_formal_verification(
+        mode="sync_stride",
+        dispatch_interval_steps=5,
+        channel_capacity=3,
+    )
+
+    assert settings["enabled"] is True
+    assert settings["mode"] == "sync_stride"
+    assert settings["dispatch_interval_steps"] == 5
+    assert settings["channel_capacity"] == 3
+
+
+def test_configure_native_formal_verification_accepts_aot_certificate_mode() -> None:
+    engine = rust_engine.NeuroCyberneticEngine()
+
+    settings = engine.configure_native_formal_verification(mode="certificate")
+
+    assert settings["enabled"] is True
+    assert settings["mode"] == "aot_certificate"
+
+
+def test_configure_native_formal_verification_disabled_alias_turns_off_checks() -> None:
+    engine = rust_engine.NeuroCyberneticEngine()
+
+    settings = engine.configure_native_formal_verification(mode="disabled")
+
+    assert settings["enabled"] is False
+    assert settings["mode"] == "async_drop"
+
+
+def test_configure_native_formal_verification_rejects_unknown_mode() -> None:
+    engine = rust_engine.NeuroCyberneticEngine()
+
+    with pytest.raises(ValueError, match="native formal verification mode"):
+        engine.configure_native_formal_verification(mode="inline_magic")

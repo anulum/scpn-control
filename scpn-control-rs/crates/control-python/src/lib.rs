@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use formal_worker::{
-    NativeFormalConfig, NativeFormalReport, NativeFormalRuntime, PetriNetSnapshot,
+    NativeFormalConfig, NativeFormalMode, NativeFormalReport, NativeFormalRuntime, PetriNetSnapshot,
 };
 use transport_bridge::PyUdpTransportBridge;
 
@@ -346,6 +346,7 @@ struct PySpikingControllerPool {
     last_acados_time_ns: u64,
     last_snn_time_ns: u64,
     formal_enabled: bool,
+    formal_mode: NativeFormalMode,
     formal_max_marking: i64,
     formal_max_depth: usize,
     formal_dispatch_interval_steps: usize,
@@ -412,6 +413,7 @@ impl PySpikingControllerPool {
             last_acados_time_ns: 0,
             last_snn_time_ns: 0,
             formal_enabled: true,
+            formal_mode: NativeFormalMode::AsyncDrop,
             formal_max_marking: 100,
             formal_max_depth: 4,
             formal_dispatch_interval_steps: 30,
@@ -575,7 +577,7 @@ impl PySpikingControllerPool {
         Ok(())
     }
 
-    #[pyo3(signature = (enabled=true, max_marking=100, max_depth=4, dispatch_interval_steps=30, channel_capacity=2))]
+    #[pyo3(signature = (enabled=true, max_marking=100, max_depth=4, dispatch_interval_steps=30, channel_capacity=2, mode="async_drop"))]
     fn configure_native_formal_verification(
         &mut self,
         enabled: bool,
@@ -583,6 +585,7 @@ impl PySpikingControllerPool {
         max_depth: usize,
         dispatch_interval_steps: usize,
         channel_capacity: usize,
+        mode: &str,
     ) -> PyResult<()> {
         if max_marking <= 0 {
             return Err(PyValueError::new_err("max_marking must be positive"));
@@ -600,8 +603,14 @@ impl PySpikingControllerPool {
                 "channel_capacity must be in [1, 1024]",
             ));
         }
+        let formal_mode = NativeFormalMode::parse(mode).ok_or_else(|| {
+            PyValueError::new_err(
+                "native formal verification mode must be async_drop, sync_stride, or aot_certificate",
+            )
+        })?;
 
         self.formal_enabled = enabled;
+        self.formal_mode = formal_mode;
         self.formal_max_marking = max_marking;
         self.formal_max_depth = max_depth;
         self.formal_dispatch_interval_steps = dispatch_interval_steps;
@@ -718,6 +727,7 @@ impl PySpikingControllerPool {
 
     fn run_native_loop(&mut self, max_iterations: Option<usize>) -> PyResult<()> {
         let formal_config = NativeFormalConfig {
+            mode: self.formal_mode,
             max_marking: self.formal_max_marking,
             max_depth: self.formal_max_depth,
             channel_capacity: self.formal_channel_capacity,
@@ -820,7 +830,25 @@ impl PySpikingControllerPool {
                         r_command,
                         z_command,
                     );
-                    let _ = runtime.try_submit(snapshot);
+                    match self.formal_mode {
+                        NativeFormalMode::AsyncDrop => {
+                            let _ = runtime.try_submit_async(snapshot);
+                        }
+                        NativeFormalMode::SyncStride => {
+                            if !runtime.submit_sync(snapshot) {
+                                break Err(PyRuntimeError::new_err(
+                                    "native formal verification contract violation",
+                                ));
+                            }
+                        }
+                        NativeFormalMode::AotCertificate => {
+                            if !runtime.check_aot_certificate(snapshot) {
+                                break Err(PyRuntimeError::new_err(
+                                    "native formal verification contract violation",
+                                ));
+                            }
+                        }
+                    }
                 }
             }
 
@@ -914,7 +942,8 @@ impl PySpikingControllerPool {
 
         let formal = PyDict::new(py);
         formal.set_item("enabled", self.formal_enabled)?;
-        formal.set_item("backend", "rust-z3")?;
+        formal.set_item("backend", self.formal_last_report.backend_label())?;
+        formal.set_item("mode", self.formal_last_report.mode_label())?;
         formal.set_item("max_marking", self.formal_max_marking)?;
         formal.set_item("max_depth", self.formal_max_depth)?;
         formal.set_item(
@@ -923,16 +952,31 @@ impl PySpikingControllerPool {
         )?;
         formal.set_item("channel_capacity", self.formal_channel_capacity)?;
         formal.set_item("core_z3", self.core_z3)?;
+        formal.set_item("generated", self.formal_last_report.generated)?;
         formal.set_item("submitted", self.formal_last_report.submitted)?;
         formal.set_item("dropped", self.formal_last_report.dropped)?;
         formal.set_item("checked", self.formal_last_report.checked)?;
         formal.set_item("failures", self.formal_last_report.failures)?;
+        formal.set_item(
+            "effective_verification_rate",
+            self.formal_last_report.effective_verification_rate(),
+        )?;
         formal.set_item(
             "last_checked_step",
             self.formal_last_report.last_checked_step,
         )?;
         formal.set_item("last_failed_step", self.formal_last_report.last_failed_step)?;
         formal.set_item("last_status", self.formal_last_report.status_label())?;
+        formal.set_item("sync_wait_count", self.formal_last_report.sync_wait_count)?;
+        formal.set_item(
+            "sync_wait_total_ns",
+            self.formal_last_report.sync_wait_total_ns,
+        )?;
+        formal.set_item("sync_wait_min_ns", self.formal_last_report.sync_wait_min_ns)?;
+        formal.set_item("sync_wait_p50_ns", self.formal_last_report.sync_wait_p50_ns)?;
+        formal.set_item("sync_wait_p95_ns", self.formal_last_report.sync_wait_p95_ns)?;
+        formal.set_item("sync_wait_p99_ns", self.formal_last_report.sync_wait_p99_ns)?;
+        formal.set_item("sync_wait_max_ns", self.formal_last_report.sync_wait_max_ns)?;
         dict.set_item("formal_verification", formal)?;
         Ok(dict)
     }

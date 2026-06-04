@@ -88,6 +88,7 @@ _PYO3_ARG_ORDER: dict[str, tuple[str, ...]] = {
         "max_depth",
         "dispatch_interval_steps",
         "channel_capacity",
+        "mode",
     ),
     "configure_runtime_budget": (
         "max_iterations",
@@ -157,6 +158,7 @@ class _ExecutionSettings:
 @dataclass(slots=True)
 class _FormalVerificationSettings:
     enabled: bool = True
+    mode: str = "async_drop"
     max_marking: int = 100
     max_depth: int = 4
     dispatch_interval_steps: int = 30
@@ -361,12 +363,33 @@ class NeuroCyberneticEngine:
         self,
         *,
         enabled: bool = True,
+        mode: str = "async_drop",
         max_marking: int = 100,
         max_depth: int = 4,
         dispatch_interval_steps: int = 30,
         channel_capacity: int = 2,
-    ) -> dict[str, int | bool]:
-        """Configure Rust-native Z3 checking for the fused hardware loop."""
+    ) -> dict[str, int | bool | str]:
+        """Configure native formal checking for the fused hardware loop."""
+
+        mode_value = str(mode).strip().lower().replace("-", "_")
+        if mode_value == "disabled":
+            enabled = False
+            mode_value = "async_drop"
+        aliases = {
+            "async": "async_drop",
+            "drop": "async_drop",
+            "blocking": "sync_stride",
+            "strict": "sync_stride",
+            "sync": "sync_stride",
+            "aot": "aot_certificate",
+            "certificate": "aot_certificate",
+            "runtime_certificate": "aot_certificate",
+        }
+        mode_value = aliases.get(mode_value, mode_value)
+        if mode_value not in {"async_drop", "sync_stride", "aot_certificate"}:
+            raise ValueError(
+                "native formal verification mode must be async_drop, sync_stride, aot_certificate, or disabled"
+            )
 
         max_marking_value = _coerce_int("max_marking", max_marking, minimum=1, maximum=2_147_483_647)
         max_depth_value = _coerce_int("max_depth", max_depth, minimum=1, maximum=64)
@@ -385,6 +408,7 @@ class NeuroCyberneticEngine:
 
         self._formal_verification = _FormalVerificationSettings(
             enabled=bool(enabled),
+            mode=mode_value,
             max_marking=max_marking_value,
             max_depth=max_depth_value,
             dispatch_interval_steps=dispatch_interval_value,
@@ -392,6 +416,7 @@ class NeuroCyberneticEngine:
         )
         return {
             "enabled": self._formal_verification.enabled,
+            "mode": self._formal_verification.mode,
             "max_marking": self._formal_verification.max_marking,
             "max_depth": self._formal_verification.max_depth,
             "dispatch_interval_steps": self._formal_verification.dispatch_interval_steps,
@@ -649,6 +674,12 @@ class NeuroCyberneticEngine:
                 max_depth=self._formal_verification.max_depth,
                 dispatch_interval_steps=self._formal_verification.dispatch_interval_steps,
                 channel_capacity=self._formal_verification.channel_capacity,
+                mode=self._formal_verification.mode,
+            )
+            self._call_optional(
+                self._native_pool,
+                "set_max_publish_failures",
+                self._max_publish_failures,
             )
             start_obj = getattr(self._native_pool, "start", None)
             if not callable(start_obj):

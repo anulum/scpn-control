@@ -31,10 +31,40 @@ The benchmark forces both execution modes at the same campaign boundary:
 The native loop also owns runtime formal verification. Python supplies bounded
 Petri-net checking policy through
 `NeuroCyberneticEngine.configure_native_formal_verification(...)`; the PyO3
-crate spawns the Z3 worker inside Rust, pins it to `core_z3` when host affinity
-is available, and passes only fixed numeric snapshots over a bounded
-`crossbeam-channel`. No Z3 ASTs, solver contexts, or proof objects cross the
-Python boundary during the fused campaign loop.
+crate either spawns the Z3 worker inside Rust or evaluates a compiled
+certificate monitor in the native loop. Worker-backed modes pin to `core_z3`
+when host affinity is available and pass only fixed numeric snapshots over a
+bounded `crossbeam-channel`. No Z3 ASTs, solver contexts, or proof objects
+cross the Python boundary during the fused campaign loop.
+
+Three formal-verification execution modes are benchmarkable:
+
+- `async_drop`: non-blocking proof sampling. The control loop never waits for
+  Z3; saturated snapshots are counted as drops.
+- `sync_stride`: deterministic stride verification. The control loop blocks on
+  each configured stride step until the Rust Z3 worker returns a proof result.
+- `aot_certificate`: deterministic compiled-certificate monitoring. The control
+  loop evaluates the admitted Petri invariant directly and does not construct
+  Z3 contexts or enqueue proof work in the hot path. The current certificate is
+  a sound sufficient condition for the configured bounded contract and fails
+  closed when the state needs full Z3 search to admit.
+
+Use `scripts/benchmark_native_formal_modes.py` to quantify the difference:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/benchmark_native_formal_modes.py \
+  --steps 5000 \
+  --repeats 3 \
+  --tick-interval-s 0 \
+  --strides 1,5,20,30 \
+  --transports std,io-uring
+```
+
+The report includes generated, submitted, checked, dropped, and failure counts
+plus sync wait timing. A strict certification argument must use `sync_stride`
+as the ground-truth proof engine or `aot_certificate` with matching
+certificate-admission evidence. `async_drop` must be described as asynchronous
+proof sampling.
 
 Run:
 
