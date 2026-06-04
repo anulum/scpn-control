@@ -506,11 +506,33 @@ class PhaseStreamServer:
                 continue
             snap = self.monitor.tick()
             frame = json.dumps(snap)
-            send_results = await asyncio.gather(
-                *(self._send_frame_or_dead(ws, frame) for ws in tuple(self._clients)),
-            )
-            dead = {ws for ws in send_results if ws is not None}
-            self._bump_runtime_counter("broadcast_frames", len(send_results) - len(dead))
+            dead: set[Any] = set()
+            sent_count = 0
+            # Bound fan-out to avoid coroutine amplification under large client counts.
+            # Each frame is still delivered independently; slow or disconnected
+            # clients are dropped quickly and do not stall healthy peers.
+            frame_senders = tuple(self._clients)
+            batch_size = 16
+            for start in range(0, len(frame_senders), batch_size):
+                batch = frame_senders[start : start + batch_size]
+                send_results = await asyncio.gather(
+                    *(self._send_frame_or_dead(ws, frame) for ws in batch),
+                    return_exceptions=True,
+                )
+                sent_count += len(send_results)
+                for maybe_dead in send_results:
+                    if isinstance(maybe_dead, asyncio.CancelledError):
+                        raise maybe_dead
+                    if isinstance(maybe_dead, Exception):
+                        logger.warning(
+                            "phase_stream_send_exception type=%s detail=%s",
+                            type(maybe_dead).__name__,
+                            maybe_dead,
+                        )
+                        continue
+                    if maybe_dead is not None:
+                        dead.add(maybe_dead)
+            self._bump_runtime_counter("broadcast_frames", sent_count - len(dead))
             self._clients -= dead
             await asyncio.sleep(self.tick_interval_s)
 

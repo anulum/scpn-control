@@ -419,6 +419,7 @@ def test_nmpc_acados_backend_solves_through_runtime_boundary() -> None:
     cfg.acados_build = False
     ocp_calls: list[dict[str, object]] = []
     solver_calls: list[dict[str, object]] = []
+    solvers: list[object] = []
 
     def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
         out = x.copy()
@@ -468,7 +469,9 @@ def test_nmpc_acados_backend_solves_through_runtime_boundary() -> None:
             return 3
 
     def solver_factory(ocp: object, **kwargs: object) -> FakeAcadosSolver:
-        return FakeAcadosSolver(ocp, **kwargs)
+        solver = FakeAcadosSolver(ocp, **kwargs)
+        solvers.append(solver)
+        return solver
 
     nmpc = NonlinearMPC(
         plant,
@@ -491,6 +494,10 @@ def test_nmpc_acados_backend_solves_through_runtime_boundary() -> None:
     assert len(ocp_calls) == 1
     assert ocp_calls[0]["horizon"] == 2
     np.testing.assert_allclose(ocp_calls[0]["terminal_cost"], 2.0 * np.eye(6))
+    terminal_stage_set_calls = [
+        (stage, field) for stage, field, _ in solvers[0].set_calls if stage == nmpc.N and field in {"lbx", "ubx"}
+    ]
+    assert terminal_stage_set_calls == []
     assert solver_calls[0]["kwargs"] == {
         "json_file": "build/acados/scpn_control_nmpc.json",
         "build": False,

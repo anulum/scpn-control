@@ -1,0 +1,29 @@
+{
+  "claim_status": "local latency evidence only; not a hardware-in-the-loop real-time guarantee unless target_hardware.id, class, and rt_kernel are operator-qualified",
+  "e2e_overhead_factor": 58.6,
+  "e2e_us": {
+    "p50": 4199.7,
+    "p95": 9345.4,
+    "p99": 11431.1
+  },
+  "grid": "16x16",
+  "iterations": 200,
+  "kernel_only_us": {
+    "p50": 71.6,
+    "p95": 161.7,
+    "p99": 213.6
+  },
+  "payload_sha256": "c6d8307a476333df9064c7a14c7012f11d124d20df1863def2020d1c2a6a2443",
+  "schema_version": "scpn-control.e2e-latency.v1",
+  "target_hardware": {
+    "class": "workstation-x86_64",
+    "id": "ws-nmpc-hardening-host",
+    "machine": "x86_64",
+    "numpy": "2.2.6",
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.12.3",
+    "rt_kernel": "local-unqualified"
+  },
+  "warmup": 20
+}

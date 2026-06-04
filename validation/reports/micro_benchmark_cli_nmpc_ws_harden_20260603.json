@@ -1,0 +1,6 @@
+{
+  "n_bench": 5000,
+  "pid_us_per_step": 12.31,
+  "snn_us_per_step": 28.69,
+  "speedup_ratio": 0.43
+}

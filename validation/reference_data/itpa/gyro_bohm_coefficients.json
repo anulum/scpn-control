@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "itpa_version": "2026.1",
+        "confinement_regime_targets": [
+            "H-mode",
+            "J-mode"
+        ],
+        "last_modified": "2026-06-03"
+    },
+    "scaling_parameters": {
+        "c_gB_nominal": 0.0424,
+        "alpha_Te": 1.5,
+        "alpha_B": -2.0,
+        "normalized_radius_bounds": {
+            "rho_tor_min": 0.1,
+            "rho_tor_max": 0.95
+        }
+    },
+    "thresholds": {
+        "h_mode_transition_critical_gradient": 12.85,
+        "j_mode_suppression_factor": 0.761
+    }
+}

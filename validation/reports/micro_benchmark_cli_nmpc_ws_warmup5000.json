@@ -1,0 +1,13 @@
+{
+  "n_bench": 5000,
+  "n_warmup": 100,
+  "pid_us_per_step": 0.51,
+  "pid_p50_us": 0.49,
+  "pid_p95_us": 0.57,
+  "pid_p99_us": 0.93,
+  "snn_us_per_step": 12.97,
+  "snn_p50_us": 10.58,
+  "snn_p95_us": 22.65,
+  "snn_p99_us": 29.22,
+  "speedup_ratio": 0.04
+}

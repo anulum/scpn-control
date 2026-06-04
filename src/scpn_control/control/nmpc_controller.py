@@ -1454,8 +1454,11 @@ class NonlinearMPC:
             terminal_aug = np.r_[self.x_traj[self.N], self.u_traj[self.N - 1]]
             self._acados_set(solver, self.N, "x", terminal_aug)
             self._acados_set(solver, self.N, "yref", x_ref)
-            self._acados_set(solver, self.N, "lbx", terminal_x_min)
-            self._acados_set(solver, self.N, "ubx", terminal_x_max)
+
+            # Terminal set constraints are configured in OCP construction as an
+            # explicit terminal-state block (idxbx_e). We intentionally avoid
+            # constraining the augmented terminal control coordinates here so
+            # the solver does not over-constrain the final control component.
 
             solver_api: Any = solver
             status = int(solver_api.solve())
