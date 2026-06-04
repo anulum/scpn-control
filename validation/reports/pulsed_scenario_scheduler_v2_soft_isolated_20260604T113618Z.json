@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0.0",
+  "report_id": "pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z",
+  "generated_at_utc": "2026-06-04T11:36:18Z",
+  "repository": "SCPN-CONTROL",
+  "repository_commit_under_test": "850198b",
+  "surface": "scpn_control.control.pulsed_scenario_scheduler_v2",
+  "benchmark_scope": "Eight-step pulsed scenario lifecycle campaign: idle -> ramp_up -> flat_top -> burn -> expansion -> dump -> recharge -> cool_down -> idle.",
+  "claim_boundary": "Soft-isolated workstation timing evidence only. This report is not clean-room, target-hardware, HIL, PREEMPT_RT, or plant-deployment evidence.",
+  "environment": {
+    "host_cpu": "11th Gen Intel(R) Core(TM) i5-11600K @ 3.90GHz",
+    "cpu_topology": "12 logical CPUs, 6 physical cores, one socket, SMT pairs 0/6 1/7 2/8 3/9 4/10 5/11",
+    "affinity": "taskset -c 0",
+    "load_average_snapshot": "5.04, 3.94, 3.94",
+    "known_background_load": [
+      "pytest on tests/test_server_contracts.py using about 141% CPU",
+      "rustc release build for SCPN-FUSION-CORE using about 99% CPU",
+      "mypy pre-commit worker using about 58% CPU",
+      "browser and Codex terminal processes active"
+    ],
+    "isolation_quality": "soft-core-affinity only; contaminated by active workstation load"
+  },
+  "benchmarks": [
+    {
+      "name": "pulsed_scenario_scheduler_v2_python_campaign_8",
+      "language": "python",
+      "affinity": [0],
+      "n_warmup": 2000,
+      "n_bench": 50000,
+      "mean_us": 34.34026648,
+      "median_us": 31.0155,
+      "p95_us": 71.658,
+      "p99_us": 91.564,
+      "min_us": 17.892,
+      "max_us": 2106.596
+    },
+    {
+      "name": "pulsed_scenario_scheduler_v2_rust_campaign_8",
+      "language": "rust",
+      "affinity": "0",
+      "n_warmup": 20000,
+      "n_bench": 300000,
+      "mean_us": 0.441466,
+      "median_us": 0.376,
+      "p95_us": 0.826,
+      "p99_us": 0.905,
+      "min_us": 0.351,
+      "max_us": 57.427
+    }
+  ],
+  "derived": {
+    "rust_speedup_mean_vs_python": 77.787,
+    "rust_speedup_p99_vs_python": 101.176,
+    "interpretation": "Rust is justified for hot-path/control-loop execution. Python remains suitable for control-plane orchestration and debugging. Tail outliers are dominated by workstation contamination, not by the scheduler contract alone."
+  },
+  "commands": {
+    "python": "taskset -c 0 env PYTHONPATH=src python - <<'PY' ... focused in-process benchmark ... PY",
+    "rust": "cargo build --release --manifest-path /tmp/scpn-control-pulsed-bench/Cargo.toml && taskset -c 0 /tmp/scpn-control-pulsed-bench/target/release/bench_control_pulsed"
+  },
+  "follow_up": [
+    "Repeat on a quiet workstation or isolated ML350/PREEMPT_RT host before release-grade claims.",
+    "Persist a first-class repository benchmark harness if the scheduler becomes a gating latency surface.",
+    "Expose or benchmark the PyO3 path separately if Python needs to call the Rust scheduler directly."
+  ]
+}
