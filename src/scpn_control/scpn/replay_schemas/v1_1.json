@@ -114,6 +114,71 @@
               "type": "number"
             }
           }
+        },
+        "aer_admission": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "capacity",
+            "retained_events",
+            "overflowed",
+            "monotonic_input",
+            "out_of_order_event_count",
+            "decode_strategy",
+            "decode_window_ns",
+            "n_features",
+            "feature_normalisation",
+            "require_monotonic"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "scpn-control.geometry-neutral-replay-aer-admission.v1"
+            },
+            "capacity": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "retained_events": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "overflowed": {
+              "type": "boolean"
+            },
+            "monotonic_input": {
+              "type": "boolean"
+            },
+            "out_of_order_event_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "decode_strategy": {
+              "enum": ["rate", "temporal", "isi"]
+            },
+            "decode_window_ns": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "n_features": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "feature_normalisation": {
+              "enum": ["unit", "max", "zscore"]
+            },
+            "require_monotonic": {
+              "type": "boolean"
+            },
+            "feature_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "feature_vector_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
         }
       }
     }

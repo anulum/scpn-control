@@ -71,8 +71,8 @@ timing closure, or PCS admission without separate hardware evidence.
 geometry-neutral replay reports and schema admission helpers. The v1.1 schema
 extends the v1 report with optional pulsed-shot context: UUID pulse IDs,
 capacitor initial energy, trigger timestamp, recovered energy, sorted
-shot-phase logs, and FRC diagnostic scalars. Existing v1 reports remain
-loadable under the v1.1 schema bundle.
+shot-phase logs, FRC diagnostic scalars, and digest-bound AER admission
+metadata. Existing v1 reports remain loadable under the v1.1 schema bundle.
 
 Use the dedicated [Geometry-Neutral Replay](scpn/geometry_neutral_replay.md)
 guide for field semantics, example payloads, and claim boundaries.
@@ -86,6 +86,10 @@ guide for field semantics, example payloads, and claim boundaries.
 ::: scpn_control.scpn.geometry_neutral_replay.register_v1_1_schema
 
 ::: scpn_control.scpn.geometry_neutral_replay.assert_v1_replay_loadable_under_v1_1_schema_bundle
+
+::: scpn_control.scpn.geometry_neutral_replay.build_aer_admission_metadata
+
+::: scpn_control.scpn.geometry_neutral_replay.attach_aer_admission_metadata
 
 ::: scpn_control.scpn.geometry_neutral_replay.save_geometry_neutral_replay_report
 

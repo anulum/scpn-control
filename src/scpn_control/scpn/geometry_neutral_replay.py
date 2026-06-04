@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Geometry-neutral replay reports and schema admission.
+# SCPN Control — Geometry-neutral replay reports and schema admission.
 """Compact geometry-neutral stellarator replay through the SCPN controller."""
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import uuid
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,6 +51,8 @@ MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
 GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = MANIFEST_SCHEMA_VERSION
 EVIDENCE_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-evidence.v1"
 GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION = EVIDENCE_SCHEMA_VERSION
+AER_ADMISSION_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-aer-admission.v1"
+GEOMETRY_NEUTRAL_REPLAY_AER_ADMISSION_SCHEMA_VERSION = AER_ADMISSION_SCHEMA_VERSION
 GEOMETRY_NEUTRAL_REPLAY_BOUNDED = "bounded_synthetic_geometry_neutral_replay_only"
 GEOMETRY_NEUTRAL_REPLAY_QUALIFIED = "qualified_geometry_neutral_replay_evidence"
 DEFAULT_THRESHOLDS: dict[str, float] = {
@@ -168,6 +171,14 @@ def _require_manifest_text(name: str, value: Any) -> str:
     return text
 
 
+def _require_optional_sha256(name: str, value: Any) -> str | None:
+    if value is None:
+        return None
+    if not _is_sha256(value):
+        raise ValueError(f"{name} must be a SHA-256 hex digest")
+    return str(value)
+
+
 def _require_int(name: str, value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(f"{name} must be an integer")
@@ -178,6 +189,13 @@ def _require_nonnegative_int(name: str, value: Any) -> int:
     result = _require_int(name, value)
     if result < 0:
         raise ValueError(f"{name} must be non-negative")
+    return result
+
+
+def _require_positive_int(name: str, value: Any) -> int:
+    result = _require_int(name, value)
+    if result <= 0:
+        raise ValueError(f"{name} must be positive")
     return result
 
 
@@ -222,6 +240,71 @@ def assert_v1_replay_loadable_under_v1_1_schema_bundle(report: Mapping[str, Any]
     if bench.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("expected a v1 replay report for v1.1 back-compatibility admission")
     return report
+
+
+def build_aer_admission_metadata(
+    *,
+    admission_report: Mapping[str, Any],
+    decode_strategy: str,
+    decode_window_ns: int,
+    n_features: int,
+    feature_normalisation: str = "unit",
+    require_monotonic: bool = False,
+    feature_vector: object | None = None,
+) -> dict[str, Any]:
+    """Build replay-safe AER admission metadata from a decoded observation."""
+
+    report = _require_mapping("admission_report", admission_report)
+    payload: dict[str, Any] = {
+        "schema_version": AER_ADMISSION_SCHEMA_VERSION,
+        "capacity": _require_positive_int("aer_admission.capacity", report.get("capacity")),
+        "retained_events": _require_nonnegative_int(
+            "aer_admission.retained_events",
+            report.get("retained_events"),
+        ),
+        "overflowed": _require_bool("aer_admission.overflowed", report.get("overflowed")),
+        "monotonic_input": _require_bool(
+            "aer_admission.monotonic_input",
+            report.get("monotonic_input"),
+        ),
+        "out_of_order_event_count": _require_nonnegative_int(
+            "aer_admission.out_of_order_event_count",
+            report.get("out_of_order_event_count"),
+        ),
+        "decode_strategy": str(decode_strategy),
+        "decode_window_ns": _require_positive_int("aer_admission.decode_window_ns", decode_window_ns),
+        "n_features": _require_positive_int("aer_admission.n_features", n_features),
+        "feature_normalisation": str(feature_normalisation),
+        "require_monotonic": _require_bool("aer_admission.require_monotonic", require_monotonic),
+    }
+    if feature_vector is not None:
+        features = np.asarray(feature_vector, dtype=np.float64)
+        if features.shape != (payload["n_features"],):
+            raise ValueError("aer_admission.feature_vector must match n_features")
+        if not np.all(np.isfinite(features)):
+            raise ValueError("aer_admission.feature_vector must be finite")
+        payload["feature_count"] = int(features.size)
+        payload["feature_vector_sha256"] = _digest([float(value) for value in features.tolist()])
+    return _validate_aer_admission_metadata(payload)
+
+
+def attach_aer_admission_metadata(
+    report: Mapping[str, Any],
+    aer_admission: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Attach digest-bound AER admission metadata to a replay v1.1 report."""
+
+    validate_report(report)
+    payload = deepcopy(dict(report))
+    bench = _require_mapping("geometry_neutral_replay", payload["geometry_neutral_replay"])
+    bench_mut = cast(dict[str, Any], bench)
+    metadata = _validate_aer_admission_metadata(aer_admission)
+    bench_mut["schema_version"] = SCHEMA_VERSION_V1_1
+    bench_mut["aer_admission"] = metadata
+    manifest = _require_mapping("geometry_neutral_replay.manifest", bench_mut["manifest"])
+    cast(dict[str, Any], manifest)["aer_admission_digest"] = _digest(metadata)
+    validate_report(payload)
+    return payload
 
 
 def _fieldline_spread(config: StellaratorConfig, current_A: float) -> float:
@@ -509,6 +592,74 @@ def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> 
     return generate_report(steps=steps, seed=seed)
 
 
+def _validate_aer_admission_metadata(value: Mapping[str, Any]) -> dict[str, Any]:
+    metadata = dict(_require_mapping("aer_admission", value))
+    if metadata.get("schema_version") != AER_ADMISSION_SCHEMA_VERSION:
+        raise ValueError("aer_admission.schema_version is unsupported")
+    capacity = _require_positive_int("aer_admission.capacity", metadata.get("capacity"))
+    retained_events = _require_nonnegative_int(
+        "aer_admission.retained_events",
+        metadata.get("retained_events"),
+    )
+    if retained_events > capacity:
+        raise ValueError("aer_admission.retained_events must not exceed capacity")
+    overflowed = _require_bool("aer_admission.overflowed", metadata.get("overflowed"))
+    monotonic_input = _require_bool(
+        "aer_admission.monotonic_input",
+        metadata.get("monotonic_input"),
+    )
+    out_of_order_event_count = _require_nonnegative_int(
+        "aer_admission.out_of_order_event_count",
+        metadata.get("out_of_order_event_count"),
+    )
+    if monotonic_input and out_of_order_event_count != 0:
+        raise ValueError("aer_admission.monotonic_input conflicts with out_of_order_event_count")
+    if (not monotonic_input) and out_of_order_event_count == 0:
+        raise ValueError("aer_admission non-monotonic streams must record out_of_order_event_count")
+    decode_strategy = metadata.get("decode_strategy")
+    if decode_strategy not in ("rate", "temporal", "isi"):
+        raise ValueError("aer_admission.decode_strategy must be one of: rate, temporal, isi")
+    decode_window_ns = _require_positive_int(
+        "aer_admission.decode_window_ns",
+        metadata.get("decode_window_ns"),
+    )
+    n_features = _require_positive_int("aer_admission.n_features", metadata.get("n_features"))
+    feature_normalisation = metadata.get("feature_normalisation")
+    if feature_normalisation not in ("unit", "max", "zscore"):
+        raise ValueError("aer_admission.feature_normalisation must be one of: unit, max, zscore")
+    require_monotonic = _require_bool(
+        "aer_admission.require_monotonic",
+        metadata.get("require_monotonic"),
+    )
+    if require_monotonic and not monotonic_input:
+        raise ValueError("aer_admission strict monotonic replay cannot admit non-monotonic input")
+    feature_count = metadata.get("feature_count")
+    if feature_count is not None:
+        if _require_nonnegative_int("aer_admission.feature_count", feature_count) != n_features:
+            raise ValueError("aer_admission.feature_count must match n_features")
+    feature_digest = _require_optional_sha256(
+        "aer_admission.feature_vector_sha256",
+        metadata.get("feature_vector_sha256"),
+    )
+    if feature_digest is not None and feature_count is None:
+        raise ValueError("aer_admission.feature_vector_sha256 requires feature_count")
+    return {
+        "schema_version": AER_ADMISSION_SCHEMA_VERSION,
+        "capacity": capacity,
+        "retained_events": retained_events,
+        "overflowed": overflowed,
+        "monotonic_input": monotonic_input,
+        "out_of_order_event_count": out_of_order_event_count,
+        "decode_strategy": str(decode_strategy),
+        "decode_window_ns": decode_window_ns,
+        "n_features": n_features,
+        "feature_normalisation": str(feature_normalisation),
+        "require_monotonic": require_monotonic,
+        **({} if feature_count is None else {"feature_count": int(feature_count)}),
+        **({} if feature_digest is None else {"feature_vector_sha256": feature_digest}),
+    }
+
+
 def _validate_v1_1_extensions(bench: Mapping[str, Any]) -> None:
     if "pulse_id" in bench:
         _require_uuid_text("pulse_id", bench["pulse_id"])
@@ -563,6 +714,15 @@ def _validate_v1_1_extensions(bench: Mapping[str, Any]) -> None:
                 "frc_diagnostics.tilt_growth_rate_s_inv",
                 diagnostics["tilt_growth_rate_s_inv"],
             )
+
+    manifest = _require_mapping("geometry_neutral_replay.manifest", bench["manifest"])
+    if "aer_admission" in bench:
+        metadata = _validate_aer_admission_metadata(bench["aer_admission"])
+        expected_digest = _digest(metadata)
+        if manifest.get("aer_admission_digest") != expected_digest:
+            raise ValueError("manifest aer admission digest mismatch")
+    elif "aer_admission_digest" in manifest:
+        raise ValueError("manifest aer admission digest requires aer_admission metadata")
 
 
 def validate_report(report: Mapping[str, Any]) -> None:
@@ -864,9 +1024,24 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         f"- Max absolute current: `{metrics['max_abs_current_A']:.3f} A`",
         f"- P95 latency: `{metrics['p95_latency_us']:.3f} us`",
         "",
-        "## Limitations",
-        "",
     ]
+    if "aer_admission" in bench:
+        aer_admission = _require_mapping("geometry_neutral_replay.aer_admission", bench["aer_admission"])
+        lines.extend(
+            [
+                "## AER Admission",
+                "",
+                f"- Decode strategy: `{aer_admission['decode_strategy']}`",
+                f"- Decode window: `{aer_admission['decode_window_ns']} ns`",
+                f"- Feature count: `{aer_admission['n_features']}`",
+                f"- Monotonic input: `{aer_admission['monotonic_input']}`",
+                f"- Out-of-order events: `{aer_admission['out_of_order_event_count']}`",
+                f"- Overflowed: `{aer_admission['overflowed']}`",
+                f"- Strict monotonic required: `{aer_admission['require_monotonic']}`",
+                "",
+            ]
+        )
+    lines.extend(["## Limitations", ""])
     lines.extend(f"- {item}" for item in bench["limitations"])
     lines.append("")
     return "\n".join(lines)

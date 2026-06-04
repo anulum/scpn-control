@@ -14,6 +14,9 @@
 - Hardened AER control-observation admission with monotonic timestamp evidence,
   strict fail-closed decoding mode, Rust/PyO3 parity, and Python/Rust benchmark
   coverage.
+- Added digest-bound AER admission metadata for geometry-neutral replay v1.1 so
+  replay artefacts preserve monotonic AER ingress evidence without changing
+  replay numerics.
 - Added an explicit native-handoff comparison benchmark that forces
   Python-orchestrated and PyO3 fused Rust execution at the same campaign
   boundary and emits JSON plus Markdown evidence artifacts.

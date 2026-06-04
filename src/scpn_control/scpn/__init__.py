@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: SCPN package public exports.
+# SCPN Control — SCPN package public exports.
 from __future__ import annotations
 
 """SCPN Petri net to SNN compilation pipeline."""
@@ -106,6 +106,7 @@ SUPPORTED_GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSIONS = (
 )
 GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
 GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-evidence.v1"
+GEOMETRY_NEUTRAL_REPLAY_AER_ADMISSION_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-aer-admission.v1"
 
 
 def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> dict[str, object]:
@@ -138,6 +139,18 @@ def assert_geometry_neutral_v1_replay_loadable_under_v1_1_schema_bundle(report: 
     )
 
     return _impl(report)  # type: ignore[arg-type]
+
+
+def build_geometry_neutral_aer_admission_metadata(**kwargs: object) -> dict[str, object]:
+    from scpn_control.scpn.geometry_neutral_replay import build_aer_admission_metadata as _impl
+
+    return _impl(**kwargs)  # type: ignore[arg-type]
+
+
+def attach_geometry_neutral_aer_admission_metadata(report: object, aer_admission: object) -> dict[str, object]:
+    from scpn_control.scpn.geometry_neutral_replay import attach_aer_admission_metadata as _impl
+
+    return _impl(report, aer_admission)  # type: ignore[arg-type]
 
 
 def save_geometry_neutral_replay_report(report: object, output_path: object) -> object:
@@ -212,11 +225,14 @@ __all__ = [
     "SUPPORTED_GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSIONS",
     "GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION",
     "GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION",
+    "GEOMETRY_NEUTRAL_REPLAY_AER_ADMISSION_SCHEMA_VERSION",
     "generate_geometry_neutral_report",
     "validate_geometry_neutral_report",
     "load_geometry_neutral_replay_schema",
     "register_geometry_neutral_replay_v1_1_schema",
     "assert_geometry_neutral_v1_replay_loadable_under_v1_1_schema_bundle",
+    "build_geometry_neutral_aer_admission_metadata",
+    "attach_geometry_neutral_aer_admission_metadata",
     "save_geometry_neutral_replay_report",
     "load_geometry_neutral_replay_report",
     "render_geometry_neutral_markdown",

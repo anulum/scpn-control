@@ -1,10 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: Geometry-neutral replay schema and pulsed-shot metadata guide. -->
+<!-- SCPN Control — Geometry-neutral replay schema and pulsed-shot metadata guide. -->
 
 # Geometry-Neutral Replay
 
@@ -29,8 +29,9 @@ contains the deterministic replay trace, scenario declaration, geometry
 contract, acceptance metrics, thresholds, limitations, and manifest digests.
 
 `scpn-control.geometry-neutral-replay.v1.1` extends the same base report with
-optional pulsed-shot context fields. A v1 report remains loadable while the v1.1
-schema bundle is installed, so existing replay artefacts do not need migration.
+optional pulsed-shot context fields and digest-bound AER admission metadata. A
+v1 report remains loadable while the v1.1 schema bundle is installed, so
+existing replay artefacts do not need migration.
 
 The v1.1 optional fields are:
 
@@ -44,6 +45,15 @@ The v1.1 optional fields are:
 | `frc_diagnostics.s_parameter_at_burn` | number | Must be finite and non-negative when present. |
 | `frc_diagnostics.mrti_peak_amplitude_m` | number | Must be finite and non-negative when present. |
 | `frc_diagnostics.tilt_growth_rate_s_inv` | number | Must be finite when present. |
+| `aer_admission` | object | Optional AER ingress evidence built from `SpikeBuffer.admission_report()` and digest-bound into `manifest.aer_admission_digest`. |
+
+The AER admission object records the decode strategy, decode window,
+feature-normalisation mode, feature count, strict-monotonic policy, overflow
+state, retained event count, monotonic latch, and out-of-order event count.
+When `require_monotonic=True`, validation fails if the replay attempts to admit
+non-monotonic AER input. If `aer_admission` is present,
+`manifest.aer_admission_digest` must equal the SHA-256 digest of the canonical
+AER admission payload; otherwise the replay is rejected.
 
 ## Python API
 
@@ -51,12 +61,15 @@ The v1.1 optional fields are:
 from scpn_control.scpn.geometry_neutral_replay import (
     SCHEMA_VERSION_V1_1,
     assert_v1_replay_loadable_under_v1_1_schema_bundle,
+    attach_aer_admission_metadata,
+    build_aer_admission_metadata,
     generate_report,
     load_geometry_neutral_replay_report,
     register_v1_1_schema,
     save_geometry_neutral_replay_report,
     validate_report,
 )
+from scpn_control.scpn.observation import AERControlObservation, SpikeBuffer, SpikeEvent
 
 report = generate_report(steps=12, seed=314159)
 bench = report["geometry_neutral_replay"]
@@ -76,6 +89,30 @@ bench["frc_diagnostics"] = {
     "tilt_growth_rate_s_inv": -8.5,
 }
 
+buffer = SpikeBuffer(capacity=8)
+buffer.extend([
+    SpikeEvent(neuron_id=0, timestamp_ns=10),
+    SpikeEvent(neuron_id=1, timestamp_ns=30),
+    SpikeEvent(neuron_id=1, timestamp_ns=50),
+])
+observation = AERControlObservation(
+    timestamp_ns=100,
+    spike_stream=buffer,
+    decode_window_ns=100,
+    decode_strategy="rate",
+    n_features=4,
+    require_monotonic=True,
+)
+admission = build_aer_admission_metadata(
+    admission_report=observation.admission_report(),
+    decode_strategy="rate",
+    decode_window_ns=100,
+    n_features=4,
+    require_monotonic=True,
+    feature_vector=observation.to_features(),
+)
+report = attach_aer_admission_metadata(report, admission)
+
 register_v1_1_schema()
 validate_report(report)
 path = save_geometry_neutral_replay_report(report, "validation/reports/replay.json")
@@ -92,12 +129,13 @@ assert_v1_replay_loadable_under_v1_1_schema_bundle(report)
 
 ## Runtime and benchmark impact
 
-The v1.1 change is metadata admission and schema validation. It does not change
-the control loop, Rust data plane, solver hot path, transport layer, or replay
-numerics. No new performance benchmark is required for this schema lane. If a
-future change wires these fields into runtime scheduling, capacitor-bank control,
-FRC state estimation, or transport egress, the matching Python/Rust/PyO3
-benchmarks must be rerun and documented with the hardware context.
+The v1.1 AER admission change is metadata admission, digest binding, and schema
+validation. It does not change the control loop, Rust data plane, solver hot
+path, transport layer, or replay numerics. No new performance benchmark is
+required for this schema lane. If a future change wires these fields into
+runtime scheduling, capacitor-bank control, AER transport egress, FRC state
+estimation, or actuator commands, the matching Python/Rust/PyO3 benchmarks must
+be rerun and documented with the hardware context.
 
 ## Claim boundary
 

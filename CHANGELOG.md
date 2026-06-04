@@ -14,6 +14,9 @@
 - Hardened AER control-observation admission with monotonic timestamp evidence,
   strict fail-closed decoding mode, Rust/PyO3 parity, and Python/Rust benchmark
   coverage.
+- Added digest-bound AER admission metadata for geometry-neutral replay v1.1 so
+  replay artefacts preserve monotonic AER ingress evidence without changing
+  replay numerics.
 - Added CONTROL-owned `PulsedScenarioScheduler v2` for reusable pulsed-fusion
   shot lifecycles, with Python and Rust scheduler surfaces, audit-log
   semantics, guard validation, public API documentation, and direct tests.

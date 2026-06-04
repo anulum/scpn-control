@@ -1926,11 +1926,12 @@
     },
     {
       "component": "geometry-neutral stellarator replay fixture",
-      "equation_contract": "Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, replay acceptance thresholds, tamper-evident manifest digests, and fail-closed scenario admission for initial-frame alignment, objective metric availability, current-envelope constraints, and actuator-supported fault modes.",
+      "equation_contract": "Geometry-neutral replay claims must declare synthetic W7-X-like fixture provenance, field-line spread metric, actuator current bounds, latency model, stuck-actuator fault schedule, controller feature mapping, replay acceptance thresholds, tamper-evident manifest digests, digest-bound AER admission evidence when present, and fail-closed scenario admission for initial-frame alignment, objective metric availability, current-envelope constraints, actuator-supported fault modes, and AER monotonic-ingress consistency.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Repository geometry-neutral control contract",
-        "W7-X-like reduced-order stellarator replay fixture"
+        "W7-X-like reduced-order stellarator replay fixture",
+        "Repository AER admission replay contract"
       ],
       "module_path": "src/scpn_control/scpn/geometry_neutral_replay.py",
       "public_claim_allowed": false,
@@ -1938,17 +1939,19 @@
         "Replace synthetic W7-X-like replay inputs with measured or benchmark stellarator field-line artefacts before device-control claims",
         "Generate schema-versioned replay evidence for every promoted replay and keep measured or benchmark device claims blocked until external artefact digests and non-synthetic magnetic provenance are supplied"
       ],
-      "unit_contract": "Field-line spread in radians, currents in amperes, timestep in seconds, latency in microseconds, effective ripple dimensionless, controller objectives and thresholds declared per replay manifest, manifest digests encoded as SHA-256 hex.",
+      "unit_contract": "Field-line spread in radians, currents in amperes, timestep in seconds, latency in microseconds, effective ripple dimensionless, AER timestamps in nanoseconds, AER feature counts dimensionless, controller objectives and thresholds declared per replay manifest, manifest digests encoded as SHA-256 hex.",
       "validation_evidence": [
         "tests/test_geometry_neutral_replay.py",
         "tests/test_geometry_neutral_contracts.py",
+        "tests/test_geometry_neutral_replay_v1_1.py AER admission digest, strict-monotonic, tamper, retention-domain, and schema checks",
         "tests/test_geometry_neutral_replay.py replay evidence admission, digest, bounded-claim, device-claim, tamper, and duplicate-key checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/geometry_neutral_replay.py",
         "src/scpn_control/scpn/geometry_neutral_contracts.py",
         "tests/test_geometry_neutral_replay.py",
-        "tests/test_geometry_neutral_contracts.py"
+        "tests/test_geometry_neutral_contracts.py",
+        "tests/test_geometry_neutral_replay_v1_1.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/scpn/geometry_neutral_replay.py"
