@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from scpn_control.scpn.observation import AERControlObservation, SpikeBuffer, SpikeEvent
 
@@ -131,3 +133,55 @@ def test_aer_control_observation_is_deterministic_for_fixed_input() -> None:
     obs_a = AERControlObservation(timestamp_ns=100, spike_stream=first, decode_window_ns=100, n_features=4)
     obs_b = AERControlObservation(timestamp_ns=100, spike_stream=second, decode_window_ns=100, n_features=4)
     assert np.array_equal(obs_a.to_features(), obs_b.to_features())
+
+
+@given(
+    st.lists(
+        st.tuples(st.integers(min_value=0, max_value=7), st.integers(min_value=0, max_value=1_000)),
+        min_size=0,
+        max_size=32,
+    )
+)
+def test_aer_control_observation_is_deterministic_for_generated_streams(
+    raw_events: list[tuple[int, int]],
+) -> None:
+    events = [SpikeEvent(neuron_id, timestamp_ns) for neuron_id, timestamp_ns in raw_events]
+    first = SpikeBuffer(capacity=64)
+    second = SpikeBuffer(capacity=64)
+    first.extend(events)
+    second.extend(events)
+
+    obs_a = AERControlObservation(timestamp_ns=1_000, spike_stream=first, decode_window_ns=1_000, n_features=8)
+    obs_b = AERControlObservation(timestamp_ns=1_000, spike_stream=second, decode_window_ns=1_000, n_features=8)
+
+    features_a = obs_a.to_features()
+    features_b = obs_b.to_features()
+    assert np.array_equal(features_a, features_b)
+    assert features_a.shape == (8,)
+    assert np.all(np.isfinite(features_a))
+    assert np.all((features_a >= 0.0) & (features_a <= 1.0))
+
+
+@given(
+    st.lists(
+        st.integers(min_value=0, max_value=1_000),
+        min_size=0,
+        max_size=32,
+    )
+)
+def test_spike_buffer_out_of_order_count_matches_admission_contract(timestamps: list[int]) -> None:
+    buffer = SpikeBuffer(capacity=64)
+    last_seen: int | None = None
+    expected_out_of_order = 0
+    for timestamp_ns in timestamps:
+        buffer.push(SpikeEvent(neuron_id=0, timestamp_ns=timestamp_ns))
+        if last_seen is None:
+            last_seen = timestamp_ns
+        elif timestamp_ns < last_seen:
+            expected_out_of_order += 1
+        else:
+            last_seen = timestamp_ns
+
+    report = buffer.admission_report()
+    assert report["out_of_order_event_count"] == expected_out_of_order
+    assert report["monotonic_input"] is (expected_out_of_order == 0)
