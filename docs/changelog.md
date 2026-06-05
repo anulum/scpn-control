@@ -119,6 +119,9 @@
   fields even when the payload digest is recomputed.
 - Z3 formal report admission now schema-checks serialized counterexample
   records before accepting bounded proof evidence.
+- Z3 formal report admission now rejects inconsistent section solver statuses,
+  including `sat` sections that claim to hold and `unsat` sections carrying
+  counterexamples.
 
 ## [0.20.3] - 2026-06-02
 

@@ -1162,6 +1162,51 @@ def test_load_z3_formal_report_rejects_unknown_violation_fields(tmp_path: Path) 
         load_z3_formal_report(path)
 
 
+def test_load_z3_formal_report_rejects_sat_section_that_claims_hold(tmp_path: Path) -> None:
+    path = tmp_path / "sat-section-holds-z3-report.json"
+    report = Z3FormalVerificationReport(
+        holds=True,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["marking_bounds"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["response_ok"]),
+    )
+    payload = build_z3_formal_report_payload(report)
+    payload["safety"]["solver_status"] = "sat"
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="sat.*must not hold"):
+        load_z3_formal_report(path)
+
+
+def test_load_z3_formal_report_rejects_unsat_section_with_violations(tmp_path: Path) -> None:
+    path = tmp_path / "unsat-section-violation-z3-report.json"
+    report = Z3FormalVerificationReport(
+        holds=True,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["marking_bounds"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["response_ok"]),
+    )
+    payload = build_z3_formal_report_payload(report)
+    payload["safety"]["violations"] = [
+        {
+            "marking": {"sink": 1.0},
+            "message": "unsat section cannot carry counterexamples",
+            "path": ["move"],
+            "place": "sink",
+            "property_name": "unsafe_bound",
+            "transition": None,
+        }
+    ]
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unsat.*must not carry violations"):
+        load_z3_formal_report(path)
+
+
 def test_z3_formal_payload_records_fail_closed_counterexample_evidence() -> None:
     violation = FormalViolation(
         property_name="unsafe_bound",

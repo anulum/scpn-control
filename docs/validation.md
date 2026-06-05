@@ -365,6 +365,9 @@ producer recomputes the report payload digest.
 Serialized Z3 counterexample records must carry only the admitted
 `property_name`, `message`, `marking`, `path`, `place`, and `transition` fields,
 with finite numeric marking values.
+Z3 proof sections also enforce solver-status consistency: `unsat` sections must
+hold and carry no counterexamples, `sat` sections must not hold and must carry
+counterexamples, and `unknown` sections must not be admitted as holding.
 
 ```bash
 python validation/validate_scpn_z3_formal.py

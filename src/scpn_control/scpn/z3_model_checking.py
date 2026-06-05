@@ -971,6 +971,26 @@ def _validate_z3_violation_record(violation: Any, *, context: str) -> None:
             raise ValueError(f"{context} violation {optional_name} must be null or a non-empty string")
 
 
+def _validate_z3_section_solver_consistency(section: dict[str, Any], *, context: str) -> None:
+    solver_status = section["solver_status"]
+    holds = section["holds"]
+    violations = section["violations"]
+    if solver_status == "unsat":
+        if not holds:
+            raise ValueError(f"{context} unsat section must hold")
+        if violations:
+            raise ValueError(f"{context} unsat section must not carry violations")
+        return
+    if solver_status == "sat":
+        if holds:
+            raise ValueError(f"{context} sat section must not hold")
+        if not violations:
+            raise ValueError(f"{context} sat section must carry counterexample violations")
+        return
+    if holds:
+        raise ValueError(f"{context} unknown section must not hold")
+
+
 def load_z3_formal_report(path: str | Path) -> dict[str, Any]:
     """Load and validate a duplicate-key-safe Z3 formal evidence report."""
     report_path = Path(path)
@@ -1049,6 +1069,7 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
             raise ValueError(f"Z3 formal report {section_name} violations must be a list")
         for violation in section["violations"]:
             _validate_z3_violation_record(violation, context=f"Z3 formal report {section_name}")
+        _validate_z3_section_solver_consistency(section, context=f"Z3 formal report {section_name}")
         if not isinstance(section.get("checked_specs"), list):
             raise ValueError(f"Z3 formal report {section_name} checked_specs must be a list")
     if payload["holds"] != (payload["safety"]["holds"] and payload["temporal"]["holds"]):
