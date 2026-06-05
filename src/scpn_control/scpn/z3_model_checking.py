@@ -38,6 +38,8 @@ Z3_FORMAL_REPORT_CLAIM_BOUNDARY = "not hardware timing evidence, PCS certificati
 SYMBIYOSYS_SYMBOLIC_CONTRACT_VERSION = "scpn-control.symbiyosys-contract.v1"
 SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION = SYMBIYOSYS_SYMBOLIC_CONTRACT_VERSION
 RTI_CONTRACT_BUDGET_NS = 50.0
+_Z3_BLOCKED_SOLVER_LABEL = "z3-solver unavailable"
+_Z3_BLOCKED_CHECKED_SPECS = ["z3_solver_available"]
 
 _Z3_REPORT_PASS_FAIL_KEYS = frozenset(
     {
@@ -906,10 +908,10 @@ def build_blocked_z3_formal_report_payload(reason: str) -> dict[str, Any]:
         "schema_version": Z3_FORMAL_REPORT_SCHEMA_VERSION,
         "status": "blocked",
         "backend": "z3",
-        "solver": "z3-solver unavailable",
+        "solver": _Z3_BLOCKED_SOLVER_LABEL,
         "holds": False,
         "max_depth": 0,
-        "checked_specs": ["z3_solver_available"],
+        "checked_specs": list(_Z3_BLOCKED_CHECKED_SPECS),
         "scope": Z3_FORMAL_REPORT_SCOPE,
         "claim_boundary": Z3_FORMAL_REPORT_CLAIM_BOUNDARY,
         "reason": reason,
@@ -1043,6 +1045,12 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
     if status == "blocked":
         if payload["holds"]:
             raise ValueError("blocked Z3 formal report must not hold")
+        if payload["solver"] != _Z3_BLOCKED_SOLVER_LABEL:
+            raise ValueError("blocked Z3 formal report solver must be z3-solver unavailable")
+        if payload["max_depth"] != 0:
+            raise ValueError("blocked Z3 formal report max_depth must be 0")
+        if payload["checked_specs"] != _Z3_BLOCKED_CHECKED_SPECS:
+            raise ValueError("blocked Z3 formal report checked_specs must only contain z3_solver_available")
         if not isinstance(payload.get("reason"), str) or not payload["reason"]:
             raise ValueError("blocked Z3 formal report must include a reason")
         if payload.get("safety") is not None or payload.get("temporal") is not None:

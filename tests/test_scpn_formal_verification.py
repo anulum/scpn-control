@@ -1207,6 +1207,39 @@ def test_load_z3_formal_report_rejects_unsat_section_with_violations(tmp_path: P
         load_z3_formal_report(path)
 
 
+def test_load_z3_formal_report_rejects_blocked_report_with_proof_depth(tmp_path: Path) -> None:
+    path = tmp_path / "blocked-proof-depth-z3-report.json"
+    payload = build_blocked_z3_formal_report_payload("z3 unavailable in fixture")
+    payload["max_depth"] = 2
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="blocked.*max_depth"):
+        load_z3_formal_report(path)
+
+
+def test_load_z3_formal_report_rejects_blocked_report_with_proof_specs(tmp_path: Path) -> None:
+    path = tmp_path / "blocked-proof-specs-z3-report.json"
+    payload = build_blocked_z3_formal_report_payload("z3 unavailable in fixture")
+    payload["checked_specs"] = ["marking_bounds"]
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="blocked.*checked_specs"):
+        load_z3_formal_report(path)
+
+
+def test_load_z3_formal_report_rejects_blocked_report_with_live_solver_label(tmp_path: Path) -> None:
+    path = tmp_path / "blocked-live-solver-z3-report.json"
+    payload = build_blocked_z3_formal_report_payload("z3 unavailable in fixture")
+    payload["solver"] = "z3-solver 4.16.0"
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="blocked.*solver"):
+        load_z3_formal_report(path)
+
+
 def test_z3_formal_payload_records_fail_closed_counterexample_evidence() -> None:
     violation = FormalViolation(
         property_name="unsafe_bound",

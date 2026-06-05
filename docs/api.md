@@ -994,6 +994,9 @@ proof payload, reject unknown top-level and proof-section fields, schema-check
 serialized counterexample records, enforce solver-status/holds/counterexample
 consistency, and must match the manifest status, solver, proof depth, and
 checked specification list before a safety-critical artifact is admitted.
+Blocked Z3 reports are not proof evidence: they must use the unavailable solver
+label, zero proof depth, and only the `z3_solver_available` checked
+specification.
 Lean 4 reports are admitted only through the bounded `lean4` manifest path:
 the manifest must bind a solver string that identifies Lean and includes the
 declared Lean version, Lake file SHA-256, proof-source SHA-256, theorem names,

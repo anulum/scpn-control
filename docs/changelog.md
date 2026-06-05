@@ -122,6 +122,9 @@
 - Z3 formal report admission now rejects inconsistent section solver statuses,
   including `sat` sections that claim to hold and `unsat` sections carrying
   counterexamples.
+- Blocked Z3 formal reports now fail closed unless they carry the unavailable
+  solver label, zero proof depth, and only the `z3_solver_available` checked
+  spec.
 
 ## [0.20.3] - 2026-06-02
 
