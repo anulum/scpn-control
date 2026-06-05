@@ -49,7 +49,11 @@ from scpn_control.scpn.z3_model_checking import (
     Z3ModelCheckingReport,
     build_z3_formal_report_payload,
 )
-from scpn_control.scpn.lean_verification import compute_assumption_sha256
+from scpn_control.scpn.lean_verification import (
+    LeanFormalVerificationReport,
+    build_lean_formal_report_payload,
+    compute_assumption_sha256,
+)
 
 
 def _build_artifact_file(tmp_path: Path) -> Path:
@@ -197,25 +201,24 @@ def _write_valid_z3_report(path: Path) -> None:
 
 
 def _write_valid_lean_report(path: Path, evidence: dict[str, object]) -> None:
-    payload = {
-        "schema_version": "scpn-control.lean4-formal-report.v1",
-        "status": evidence["status"],
-        "backend": "lean4",
-        "solver": evidence["solver"],
-        "lean_version": evidence["lean_version"],
-        "checked_specs": evidence["checked_specs"],
-        "artifact_sha256": evidence["artifact_sha256"],
-        "proof_source_sha256": evidence["proof_source_sha256"],
-        "lakefile_sha256": evidence["lakefile_sha256"],
-        "theorem_names": evidence["theorem_names"],
-        "theorem_modules": evidence["theorem_modules"],
-        "proved_contracts": evidence["proved_contracts"],
-        "module_paths": evidence["module_paths"],
-        "safety_case_ids": evidence["safety_case_ids"],
-        "claim_boundary": evidence["claim_boundary"],
-        "proof_assumptions": evidence["proof_assumptions"],
-        "assumption_sha256": evidence["assumption_sha256"],
-    }
+    payload = build_lean_formal_report_payload(
+        LeanFormalVerificationReport(
+            status=str(evidence["status"]),
+            solver=str(evidence["solver"]),
+            lean_version=str(evidence["lean_version"]),
+            checked_specs=list(evidence["checked_specs"]),
+            artifact_sha256=str(evidence["artifact_sha256"]),
+            proof_source_sha256=str(evidence["proof_source_sha256"]),
+            lakefile_sha256=str(evidence["lakefile_sha256"]),
+            theorem_names=list(evidence["theorem_names"]),
+            theorem_modules=list(evidence["theorem_modules"]),
+            proved_contracts=list(evidence["proved_contracts"]),
+            module_paths=list(evidence["module_paths"]),
+            safety_case_ids=list(evidence["safety_case_ids"]),
+            claim_boundary=str(evidence["claim_boundary"]),
+            proof_assumptions=list(evidence["proof_assumptions"]),
+        )
+    )
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -701,14 +704,12 @@ class TestArtifactValidationContract:
         report_root = tmp_path / "reports"
         report_path = report_root / "validation" / "reports" / "scpn_lean4_formal.json"
         report_path.parent.mkdir(parents=True)
-        evidence = _passing_lean_evidence(artifact_path)
-        _write_valid_lean_report(report_path, evidence)
-        report_payload = json.loads(report_path.read_text(encoding="utf-8"))
-        report_payload["theorem_names"] = [
+        report_evidence = _passing_lean_evidence(artifact_path)
+        report_evidence["theorem_names"] = [
             "ScpnControl.PID.onlyPartial",
             "ScpnControl.SNN.markingBoundsPreserved",
         ]
-        report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        _write_valid_lean_report(report_path, report_evidence)
         evidence = _passing_lean_evidence(artifact_path, report_path)
         bad_path = _write_mutated_artifact_raw(
             artifact_path,
@@ -717,6 +718,31 @@ class TestArtifactValidationContract:
         )
 
         with pytest.raises(ArtifactValidationError, match="theorem_names"):
+            load_artifact(str(bad_path), require_formal_verification=True, formal_report_root=report_root)
+
+    def test_lean4_formal_report_rejects_duplicate_json_keys_under_report_root(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        report_root = tmp_path / "reports"
+        report_path = report_root / "validation" / "reports" / "scpn_lean4_formal.json"
+        report_path.parent.mkdir(parents=True)
+        evidence = _passing_lean_evidence(artifact_path)
+        _write_valid_lean_report(report_path, evidence)
+        report_text = report_path.read_text(encoding="utf-8")
+        report_path.write_text(
+            report_text.replace('"status": "pass",', '"status": "pass",\n  "status": "fail",', 1),
+            encoding="utf-8",
+        )
+        evidence = _passing_lean_evidence(artifact_path, report_path)
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "duplicate-key-lean-report.scpnctl.json",
+            lambda payload: payload.__setitem__("formal_verification", evidence),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="duplicate JSON key: status"):
             load_artifact(str(bad_path), require_formal_verification=True, formal_report_root=report_root)
 
     def test_safety_critical_artifact_rejects_tampered_artifact_payload(

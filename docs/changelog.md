@@ -111,6 +111,8 @@
   instead of accepting otherwise valid digestless reports.
 - Lean report loading now rejects duplicate JSON keys at the public API boundary,
   matching the release validation executable.
+- Safety-critical artifact admission now uses the same duplicate-key-safe Lean
+  report loader for report-root manifest checks.
 
 ## [0.20.3] - 2026-06-02
 

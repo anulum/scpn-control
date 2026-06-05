@@ -1867,6 +1867,7 @@
         "Reject unknown Lean report and artifact formal-verification fields instead of ignoring stale or foreign proof evidence",
         "Reject digestless Lean proof reports by requiring the canonical payload_sha256 self-digest",
         "Reject duplicate JSON keys through the public Lean report loader and release validation executable",
+        "Reject duplicate JSON keys in Lean reports reached through safety-critical artifact report-root manifests",
         "Bind promoted controller safety-case bundles to the same controller artifact digest across formal proof, differentiable-transport, and digital-twin update evidence",
         "Persist controller safety-case bundles with schema-versioned integrity manifests before replay admission",
         "Keep controller safety-case readiness blocked until external physics validation, target-hardware timing, qualified runtime/hardware evidence, and independent safety-review digests are all present",
@@ -1886,7 +1887,7 @@
         "validation/validate_scpn_lean_formal.py duplicate-key and Lean proof-report admission gate routed through load_lean_formal_report",
         "tests/test_scpn_lean_verification.py Lean solver/version binding, duplicate-key rejection, unsupported-contract rejection, theorem namespace, module-path, safety-case-ID, assumption, and mandatory digest checks",
         "tests/test_scpn_lean_formal_validation.py validator-level Lean report, mandatory digest, unrelated module-path rejection, and artifact admission checks",
-        "tests/test_artifact_codec.py safety-critical artifact-manifest Lean solver/version, unsupported-contract, namespace, module-path, safety-case-ID, and unknown-field rejection checks"
+        "tests/test_artifact_codec.py safety-critical artifact-manifest Lean solver/version, unsupported-contract, namespace, module-path, safety-case-ID, duplicate report key, and unknown-field rejection checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/formal_verification.py",

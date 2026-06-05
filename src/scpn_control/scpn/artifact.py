@@ -33,8 +33,8 @@ from scpn_control.scpn.lean_verification import (
     is_lean_module_name,
     is_lean_theorem_name,
     is_safety_case_id,
+    load_lean_formal_report,
     validate_bounded_proof_assumptions,
-    validate_lean_formal_report_payload,
     validate_lean_solver_version_binding,
     validate_required_contract_evidence_links,
     validate_required_contract_theorem_coverage,
@@ -664,16 +664,10 @@ def _verify_formal_report_digest(
             raise ArtifactValidationError("formal_verification.solver does not match Z3 report")
     if evidence.backend == "lean4":
         try:
-            report_payload = json.loads(report_bytes.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise ArtifactValidationError(
-                "formal_verification.report_uri must reference a valid Lean 4 report"
-            ) from exc
-        try:
-            validate_lean_formal_report_payload(report_payload)
+            report_payload = load_lean_formal_report(report_path)
         except LeanFormalVerificationError as exc:
             raise ArtifactValidationError(
-                "formal_verification.report_uri must reference a valid Lean 4 report"
+                "formal_verification.report_uri must reference a valid Lean 4 report: " + str(exc)
             ) from exc
         expected = {
             "status": evidence.status,
