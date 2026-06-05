@@ -560,6 +560,8 @@ def run_hardware_campaign(
     help="Minimum pulsed-MPC admission digests required in each multi-shot campaign report",
 )
 @click.option("--no-multi-shot-campaign-evidence", is_flag=True, help="Skip multi-shot campaign evidence validation")
+@click.option("--runtime-admission-report", help="Runtime-admission benchmark JSON report")
+@click.option("--no-runtime-admission-evidence", is_flag=True, help="Skip runtime-admission evidence validation")
 @click.option("--native-formal-certificate-report", help="Native formal AOT certificate benchmark JSON report")
 @click.option(
     "--native-formal-max-aot-p99-cycle-us",
@@ -582,6 +584,8 @@ def validate(
     multi_shot_campaign_rust_report: str | None,
     multi_shot_min_digest_count: int,
     no_multi_shot_campaign_evidence: bool,
+    runtime_admission_report: str | None,
+    no_runtime_admission_evidence: bool,
     native_formal_certificate_report: str | None,
     native_formal_max_aot_p99_cycle_us: float,
     no_native_formal_certificate: bool,
@@ -668,6 +672,22 @@ def validate(
             result["status"] = "fail"
             validation_failed = True
 
+    if no_runtime_admission_evidence:
+        result["runtime_admission"] = {"status": "skipped"}
+    else:
+        from validation.validate_runtime_admission_evidence import (
+            DEFAULT_REPORT as DEFAULT_RUNTIME_ADMISSION_REPORT,
+            validate_runtime_admission_evidence,
+        )
+
+        runtime_report = validate_runtime_admission_evidence(
+            runtime_admission_report or DEFAULT_RUNTIME_ADMISSION_REPORT
+        ).as_dict()
+        result["runtime_admission"] = runtime_report
+        if runtime_report["status"] != "pass":
+            result["status"] = "fail"
+            validation_failed = True
+
     if no_native_formal_certificate:
         result["native_formal_certificate"] = {"status": "skipped"}
     else:
@@ -739,6 +759,18 @@ def validate(
             )
             for error in multi_shot_campaign["errors"]:
                 click.echo(f"ERROR multi_shot_campaign: {error}", err=True)
+        runtime_admission = result["runtime_admission"]
+        if isinstance(runtime_admission, dict) and runtime_admission.get("status") == "skipped":
+            click.echo("Runtime admission evidence: SKIPPED")
+        elif isinstance(runtime_admission, dict):
+            click.echo(
+                "Runtime admission evidence: "
+                f"{runtime_admission['status']} "
+                f"admission={runtime_admission.get('admission_status') or '-'} "
+                f"class={runtime_admission.get('benchmark_evidence_class') or '-'}"
+            )
+            for error in runtime_admission["errors"]:
+                click.echo(f"ERROR runtime_admission: {error}", err=True)
         native_formal_certificate = result["native_formal_certificate"]
         if isinstance(native_formal_certificate, dict) and native_formal_certificate.get("status") == "skipped":
             click.echo("Native formal certificate: SKIPPED")

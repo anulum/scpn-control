@@ -9,10 +9,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
 import statistics
+import sys
 import time
 from pathlib import Path
 from typing import Callable
@@ -53,16 +55,42 @@ def _affinity() -> list[int] | None:
     return None
 
 
+def _loadavg() -> list[float] | None:
+    if hasattr(os, "getloadavg"):
+        return list(os.getloadavg())
+    return None
+
+
+def _payload_digest(payload: dict[str, object]) -> str:
+    unsigned = dict(payload)
+    unsigned["payload_sha256"] = ""
+    canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def _write_markdown(path: Path, payload: dict[str, object]) -> None:
     stats = payload["stats"]
     assert isinstance(stats, dict)
+    context = payload["context"]
+    assert isinstance(context, dict)
     lines = [
+        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
+        "<!-- Commercial license available -->",
+        "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
+        "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
+        "<!-- ORCID: 0009-0009-3560-0851 -->",
+        "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
+        "<!-- SCPN Control — Runtime admission benchmark report. -->",
+        "",
         "# Runtime Admission Benchmark",
         "",
         f"- Generated UTC: `{payload['generated_utc']}`",
+        f"- Command: `{payload['command']}`",
         f"- Evidence class: `{payload['evidence_class']}`",
         f"- Production claim allowed: `{payload['production_claim_allowed']}`",
-        f"- CPU affinity: `{payload['context']['cpu_affinity']}`",  # type: ignore[index]
+        f"- CPU affinity: `{context['cpu_affinity']}`",
+        f"- Isolation method: `{context['isolation_method']}`",
+        f"- Load average: `{context['loadavg_start']}` -> `{context['loadavg_end']}`",
         f"- Samples: `{stats['samples']}`",
         f"- Median: `{stats['median_us']:.3f} us`",
         f"- p95: `{stats['p95_us']:.3f} us`",
@@ -86,6 +114,7 @@ def main() -> None:
     parser.add_argument("--md-out", type=Path)
     args = parser.parse_args()
 
+    loadavg_start = _loadavg()
     request = RuntimeAdmissionRequest(
         execution_backend="native",
         pacing_mode="spin",
@@ -111,19 +140,24 @@ def main() -> None:
     payload: dict[str, object] = {
         "schema_version": "scpn-control.runtime-admission-benchmark.v1",
         "generated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "command": " ".join(sys.argv),
         "evidence_class": "local_regression",
         "production_claim_allowed": False,
         "context": {
             "platform": platform.platform(),
             "python": platform.python_version(),
             "cpu_affinity": _affinity(),
-            "loadavg": list(os.getloadavg()) if hasattr(os, "getloadavg") else None,
+            "isolation_method": "process-affinity-inherited-or-taskset",
+            "loadavg_start": loadavg_start,
+            "loadavg_end": _loadavg(),
         },
         "stats": stats,
         "last_admission_status": last_report.get("status"),
         "last_admission_errors": last_report.get("errors", []),
         "last_admission_warnings": last_report.get("warnings", []),
+        "payload_sha256": "",
     }
+    payload["payload_sha256"] = _payload_digest(payload)
 
     if args.json_out is not None:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)

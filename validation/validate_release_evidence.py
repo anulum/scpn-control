@@ -23,11 +23,13 @@ REQUIRED_GATES = (
     "jax_gk_parity",
     "physics_traceability",
     "multi_shot_campaign",
+    "runtime_admission",
     "native_formal_certificate",
 )
 REQUIRED_JAX_CASES = frozenset({"cyclone_base_case", "tem_kinetic_electron", "stable_mode"})
 REQUIRED_JAX_BACKENDS = frozenset({"cpu", "gpu"})
 NATIVE_FORMAL_EVIDENCE_CLASSES = frozenset({"local_regression", "production_benchmark"})
+RUNTIME_ADMISSION_EVIDENCE_CLASSES = frozenset({"local_regression", "production_benchmark"})
 
 
 @dataclass(frozen=True)
@@ -175,6 +177,37 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
         multi_shot_errors = multi_shot.get("errors")
         if multi_shot_errors != []:
             errors.append("multi_shot_campaign.errors must be empty")
+
+    runtime_admission = _require_pass_gate(payload, "runtime_admission", errors)
+    if runtime_admission:
+        if not _sha256_hex(runtime_admission.get("report_sha256")):
+            errors.append("runtime_admission.report_sha256 must be a SHA-256 hex digest")
+        if not _sha256_hex(runtime_admission.get("payload_sha256")):
+            errors.append("runtime_admission.payload_sha256 must be a SHA-256 hex digest")
+        evidence_class = runtime_admission.get("benchmark_evidence_class")
+        if evidence_class not in RUNTIME_ADMISSION_EVIDENCE_CLASSES:
+            errors.append("runtime_admission.benchmark_evidence_class must be a recognised evidence class")
+        production_claim_allowed = runtime_admission.get("production_claim_allowed")
+        if not isinstance(production_claim_allowed, bool):
+            errors.append("runtime_admission.production_claim_allowed must be a boolean")
+        elif evidence_class == "local_regression" and production_claim_allowed:
+            errors.append("local runtime admission evidence must not allow production benchmark claims")
+        elif evidence_class == "production_benchmark" and production_claim_allowed is not True:
+            errors.append("production runtime admission evidence must allow production benchmark claims")
+        admission_status = runtime_admission.get("admission_status")
+        if admission_status not in {"pass", "fail"}:
+            errors.append("runtime_admission.admission_status must be 'pass' or 'fail'")
+        elif evidence_class == "production_benchmark" and admission_status != "pass":
+            errors.append("production runtime admission evidence must pass strict runtime admission")
+        if not _non_negative_int(runtime_admission.get("admission_error_count")):
+            errors.append("runtime_admission.admission_error_count must be a non-negative integer")
+        elif evidence_class == "production_benchmark" and runtime_admission.get("admission_error_count") != 0:
+            errors.append("production runtime admission evidence must not carry admission errors")
+        if not _positive_int(runtime_admission.get("samples")):
+            errors.append("runtime_admission.samples must be a positive integer")
+        runtime_errors = runtime_admission.get("errors")
+        if runtime_errors != []:
+            errors.append("runtime_admission.errors must be empty")
 
     native_formal = _require_pass_gate(payload, "native_formal_certificate", errors)
     if native_formal:

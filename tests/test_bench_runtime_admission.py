@@ -49,6 +49,11 @@ def test_runtime_admission_benchmark_emits_schema_bound_report(tmp_path: Path) -
     assert payload["schema_version"] == "scpn-control.runtime-admission-benchmark.v1"
     assert payload["evidence_class"] == "local_regression"
     assert payload["production_claim_allowed"] is False
+    assert "bench_runtime_admission.py" in payload["command"]
+    assert len(payload["payload_sha256"]) == 64
+    assert payload["context"]["loadavg_start"] is not None
+    assert payload["context"]["loadavg_end"] is not None
+    assert payload["context"]["isolation_method"]
     assert payload["stats"]["samples"] == 2
     assert stdout_payload["schema_version"] == payload["schema_version"]
-    assert markdown.read_text(encoding="utf-8").startswith("# Runtime Admission Benchmark")
+    assert "<!-- SCPN Control — Runtime admission benchmark report. -->" in markdown.read_text(encoding="utf-8")

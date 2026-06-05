@@ -290,6 +290,10 @@ production-admissible.
 
 The optional PyO3 counterpart `scpn_control_rs.runtime_admission_snapshot()`
 exposes native-side kernel/core parsing when the Rust extension is installed.
+`validation.validate_runtime_admission_evidence` admits persisted
+runtime-admission benchmark reports into the top-level release gate only when
+the report carries command, CPU-affinity, host-load, isolation, latency,
+SHA-256 payload, and production-claim-boundary evidence.
 
 Use the dedicated [PREEMPT_RT Runtime Admission](control/runtime_admission.md)
 guide for policy semantics and operator examples.

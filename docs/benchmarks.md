@@ -285,8 +285,8 @@ taskset -c 4,5,6,7 env PYTHONPATH=src python benchmarks/bench_runtime_admission.
   --core-z3 5 \
   --core-net 6 \
   --core-hb 7 \
-  --json-out validation/reports/runtime_admission_soft_isolated.json \
-  --md-out validation/reports/runtime_admission_soft_isolated.md
+  --json-out validation/reports/runtime_admission_release_20260605T000000Z.json \
+  --md-out validation/reports/runtime_admission_release_20260605T000000Z.md
 ```
 
 This measures launch-time admission overhead only. It is not a control-loop
@@ -301,7 +301,7 @@ Current local regression evidence:
 
 | Evidence | Samples | Warmup | Median | p95 | p99 | Admission result |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| `validation/reports/runtime_admission_soft_isolated_20260604T132240Z.md` | 500 | 50 | 376.391 us | 551.487 us | 630.043 us | failed strict production admission: no PREEMPT_RT, no SCHED_FIFO/SCHED_RR, non-performance governors |
+| `validation/reports/runtime_admission_release_20260605T000000Z.md` | 500 | 50 | 140.395 us | 182.384 us | 216.253 us | failed strict production admission: no PREEMPT_RT, no SCHED_FIFO/SCHED_RR, non-performance governors |
 
 ## Pulsed-shot MPC adapter regression
 

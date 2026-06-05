@@ -77,6 +77,8 @@ def test_validate_json_out(runner):
     assert data["physics_traceability"]["public_claim_blocked"] >= 1
     assert data["multi_shot_campaign"]["status"] == "pass"
     assert set(data["multi_shot_campaign"]["admitted_surfaces"]) == {"python", "pyo3", "rust"}
+    assert data["runtime_admission"]["status"] == "pass"
+    assert data["runtime_admission"]["production_claim_allowed"] is False
     assert data["native_formal_certificate"]["status"] == "pass"
     assert data["native_formal_certificate"]["admitted_cases"]
     assert len(data["native_formal_certificate"]["certificate_assumption_sha256"]) == 64
@@ -93,6 +95,7 @@ def test_validate_reports_manifest_gate_failures(runner, tmp_path):
     assert data["jax_gk_parity"]["status"] == "pass"
     assert data["physics_traceability"]["status"] == "pass"
     assert data["multi_shot_campaign"]["status"] == "pass"
+    assert data["runtime_admission"]["status"] == "pass"
     assert data["native_formal_certificate"]["status"] == "pass"
 
 
@@ -116,6 +119,7 @@ def test_validate_reports_jax_gk_parity_gate_failures(runner, tmp_path):
     assert data["jax_gk_parity"]["errors"][0]["error"] == "no JAX GK parity artifacts found"
     assert data["physics_traceability"]["status"] == "pass"
     assert data["multi_shot_campaign"]["status"] == "pass"
+    assert data["runtime_admission"]["status"] == "pass"
     assert data["native_formal_certificate"]["status"] == "pass"
 
 
@@ -142,6 +146,7 @@ def test_validate_reports_physics_traceability_gate_failures(runner, tmp_path):
     assert data["physics_traceability"]["status"] == "fail"
     assert any(error["field"] == "entries" for error in data["physics_traceability"]["errors"])
     assert data["multi_shot_campaign"]["status"] == "pass"
+    assert data["runtime_admission"]["status"] == "pass"
     assert data["native_formal_certificate"]["status"] == "pass"
 
 
@@ -184,6 +189,17 @@ def _release_evidence_report() -> dict[str, object]:
             "production_claim_allowed": False,
             "minimum_digest_count": 2,
         },
+        "runtime_admission": {
+            "status": "pass",
+            "errors": [],
+            "report_sha256": "1" * 64,
+            "payload_sha256": "2" * 64,
+            "benchmark_evidence_class": "local_regression",
+            "production_claim_allowed": False,
+            "admission_status": "fail",
+            "admission_error_count": 3,
+            "samples": 500,
+        },
         "native_formal_certificate": {
             "status": "pass",
             "admitted_cases": ["std:spin:aot_certificate:stride_1"],
@@ -211,6 +227,7 @@ def test_validate_release_evidence_json_out(runner, tmp_path):
         "jax_gk_parity",
         "physics_traceability",
         "multi_shot_campaign",
+        "runtime_admission",
         "native_formal_certificate",
     ]
     assert len(payload["report_sha256"]) == 64
@@ -238,6 +255,7 @@ def test_validate_can_skip_data_manifest_gate(runner):
     assert "JAX GK parity: pass" in result.output
     assert "Physics traceability: pass" in result.output
     assert "Multi-shot campaign evidence: pass" in result.output
+    assert "Runtime admission evidence: pass" in result.output
     assert "Native formal certificate: pass" in result.output
     assert "Status:" in result.output
 
@@ -250,6 +268,7 @@ def test_validate_can_skip_jax_gk_parity_gate(runner):
     assert "JAX GK parity: SKIPPED" in result.output
     assert "Physics traceability: pass" in result.output
     assert "Multi-shot campaign evidence: pass" in result.output
+    assert "Runtime admission evidence: pass" in result.output
     assert "Native formal certificate: pass" in result.output
 
 
@@ -264,6 +283,7 @@ def test_validate_can_skip_physics_traceability_gate(runner):
     assert "JAX GK parity: SKIPPED" in result.output
     assert "Physics traceability: SKIPPED" in result.output
     assert "Multi-shot campaign evidence: pass" in result.output
+    assert "Runtime admission evidence: pass" in result.output
     assert "Native formal certificate: pass" in result.output
 
 
@@ -276,12 +296,14 @@ def test_validate_can_skip_native_formal_certificate_gate(runner):
             "--no-jax-gk-parity",
             "--no-physics-traceability",
             "--no-multi-shot-campaign-evidence",
+            "--no-runtime-admission-evidence",
             "--no-native-formal-certificate",
         ],
     )
 
     assert result.exit_code == 0
     assert "Multi-shot campaign evidence: SKIPPED" in result.output
+    assert "Runtime admission evidence: SKIPPED" in result.output
     assert "Native formal certificate: SKIPPED" in result.output
 
 
@@ -297,6 +319,7 @@ def test_validate_reports_native_formal_certificate_gate_failures(runner, tmp_pa
             "--no-jax-gk-parity",
             "--no-physics-traceability",
             "--no-multi-shot-campaign-evidence",
+            "--no-runtime-admission-evidence",
             "--native-formal-certificate-report",
             str(report),
             "--json-out",
@@ -334,6 +357,7 @@ def test_validate_command_is_import_clean_in_fresh_process():
             "--no-jax-gk-parity",
             "--no-physics-traceability",
             "--no-multi-shot-campaign-evidence",
+            "--no-runtime-admission-evidence",
             "--json-out",
         ],
         check=True,

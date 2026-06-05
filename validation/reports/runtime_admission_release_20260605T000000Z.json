@@ -1,0 +1,45 @@
+{
+  "command": "benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --core-snn 4 --core-z3 5 --core-net 6 --core-hb 7 --json-out validation/reports/runtime_admission_release_20260605T000000Z.json --md-out validation/reports/runtime_admission_release_20260605T000000Z.md",
+  "context": {
+    "cpu_affinity": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "isolation_method": "process-affinity-inherited-or-taskset",
+    "loadavg_end": [
+      3.54541015625,
+      2.55517578125,
+      1.2998046875
+    ],
+    "loadavg_start": [
+      3.54541015625,
+      2.55517578125,
+      1.2998046875
+    ],
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "evidence_class": "local_regression",
+  "generated_utc": "2026-06-05T00:33:21Z",
+  "last_admission_errors": [
+    "PREEMPT_RT kernel evidence is required but was not detected",
+    "real-time scheduler policy required, observed SCHED_OTHER",
+    "performance CPU governor required on cores [4, 5, 6, 7]"
+  ],
+  "last_admission_status": "fail",
+  "last_admission_warnings": [],
+  "payload_sha256": "155a2dad5db7dac83ce08ebd3cd5d193679a28d5c83d01c5ea7a086b7ae5254f",
+  "production_claim_allowed": false,
+  "schema_version": "scpn-control.runtime-admission-benchmark.v1",
+  "stats": {
+    "max_us": 275.081,
+    "mean_us": 147.24257999999998,
+    "median_us": 140.395,
+    "min_us": 131.56,
+    "p95_us": 182.384,
+    "p99_us": 216.253,
+    "samples": 500
+  }
+}

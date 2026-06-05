@@ -2086,6 +2086,57 @@
       ],
       "validity_domain": "Digest-bound local campaign replay provenance only; not a measured capacitor-bank driver, hardware interlock, target-hardware timing, or facility PCS validation claim.",
       "external_validation_tracker_issue": 51
+    },
+    {
+      "component": "PREEMPT_RT runtime admission evidence",
+      "equation_contract": "Runtime-admission evidence must bind the requested native execution backend, spin pacing mode, requested SNN/Z3/network/heartbeat cores, kernel realtime capability, scheduler policy, per-core CPU governor state, CPU affinity, host load, admission status, admission errors, latency statistics, benchmark command, and canonical payload SHA-256 before release evidence can rely on local runtime-admission measurements.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Linux PREEMPT_RT and realtime scheduler admission contract",
+        "Repository native hardware campaign runtime-admission contract",
+        "Repository release-evidence benchmark admission contract"
+      ],
+      "module_path": "src/scpn_control/core/runtime_admission.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Capture production timing evidence only on a PREEMPT_RT or otherwise qualified realtime kernel with SCHED_FIFO or SCHED_RR execution, performance governors, hard-isolated cores, IRQ shielding, and documented host load",
+        "Keep local workstation reports in fail-closed local-regression mode with production_claim_allowed false until qualified runtime evidence is present",
+        "Keep Python, PyO3, Rust, CLI, release-evidence, and benchmark report admission semantics in parity whenever runtime-admission policy changes"
+      ],
+      "unit_contract": "Core identifiers are non-negative CPU indices, scheduler policies use Linux scheduler names, CPU governors use sysfs governor strings, load averages are host process-queue averages, latencies are microseconds, and report and payload digests are lowercase SHA-256 hex strings.",
+      "validation_evidence": [
+        "tests/test_runtime_admission.py Python runtime-admission policy, sysfs parsing, affinity, and fail-closed checks",
+        "tests/test_cli_runtime_admission.py CLI runtime-admission policy checks",
+        "tests/test_rust_engine_runtime_admission.py optional PyO3 runtime-admission snapshot checks",
+        "tests/test_bench_runtime_admission.py benchmark context, load, command, and payload digest checks",
+        "tests/test_runtime_admission_evidence_validation.py strict persisted runtime-admission benchmark admission checks",
+        "tests/test_release_evidence_validation.py top-level release-evidence mandatory runtime-admission gate checks",
+        "validation/reports/runtime_admission_release_20260605T000000Z.json local-regression report with canonical payload SHA-256 and fail-closed production-claim boundary"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/core/runtime_admission.py",
+        "tests/test_runtime_admission.py",
+        "tests/test_cli_runtime_admission.py",
+        "tests/test_rust_engine_runtime_admission.py",
+        "tests/test_bench_runtime_admission.py",
+        "tests/test_runtime_admission_evidence_validation.py",
+        "tests/test_release_evidence_validation.py",
+        "benchmarks/bench_runtime_admission.py",
+        "validation/validate_runtime_admission_evidence.py",
+        "validation/validate_release_evidence.py",
+        "src/scpn_control/cli.py",
+        "docs/control/runtime_admission.md",
+        "docs/api.md",
+        "docs/benchmarks.md",
+        "docs/validation.md",
+        "validation/reports/runtime_admission_release_20260605T000000Z.json",
+        "validation/reports/runtime_admission_release_20260605T000000Z.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/core/runtime_admission.py"
+      ],
+      "validity_domain": "Local fail-closed runtime-admission evidence for native hardware-campaign launch policy and benchmark-report admission; not a production hard-real-time PCS timing claim unless qualified PREEMPT_RT or equivalent realtime-kernel, scheduler, governor, hard-isolation, IRQ-shielding, transport, heartbeat, and hardware evidence is supplied.",
+      "external_validation_tracker_issue": 53
     }
   ],
   "schema_version": "1.0",

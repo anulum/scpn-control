@@ -54,6 +54,17 @@ def _valid_report() -> dict[str, object]:
             "production_claim_allowed": False,
             "minimum_digest_count": 2,
         },
+        "runtime_admission": {
+            "status": "pass",
+            "errors": [],
+            "report_sha256": "1" * 64,
+            "payload_sha256": "2" * 64,
+            "benchmark_evidence_class": "local_regression",
+            "production_claim_allowed": False,
+            "admission_status": "fail",
+            "admission_error_count": 3,
+            "samples": 500,
+        },
         "native_formal_certificate": {
             "status": "pass",
             "admitted_cases": ["std:spin:aot_certificate:stride_1"],
@@ -81,6 +92,7 @@ def test_release_evidence_admits_complete_passing_report(tmp_path):
         "jax_gk_parity",
         "physics_traceability",
         "multi_shot_campaign",
+        "runtime_admission",
         "native_formal_certificate",
     )
 
@@ -126,6 +138,58 @@ def test_release_evidence_rejects_incomplete_multi_shot_campaign_evidence(tmp_pa
 
     assert result.status == "fail"
     assert "multi_shot_campaign.admitted_surfaces must include python, pyo3, and rust" in result.errors
+
+
+def test_release_evidence_rejects_runtime_admission_production_overclaim(tmp_path):
+    """Release evidence cannot promote local runtime-admission evidence to production timing claims."""
+    report = _valid_report()
+    runtime_admission = report["runtime_admission"]
+    assert isinstance(runtime_admission, dict)
+    runtime_admission["production_claim_allowed"] = True
+    path = tmp_path / "release_evidence_report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = validate_release_evidence(path)
+
+    assert result.status == "fail"
+    assert "local runtime admission evidence must not allow production benchmark claims" in result.errors
+
+
+def test_release_evidence_rejects_runtime_admission_production_class_without_claim_boundary(tmp_path):
+    """Production runtime-admission evidence must carry production claim admission."""
+    report = _valid_report()
+    runtime_admission = report["runtime_admission"]
+    assert isinstance(runtime_admission, dict)
+    runtime_admission["benchmark_evidence_class"] = "production_benchmark"
+    runtime_admission["production_claim_allowed"] = False
+    runtime_admission["admission_status"] = "pass"
+    runtime_admission["admission_error_count"] = 0
+    path = tmp_path / "release_evidence_report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = validate_release_evidence(path)
+
+    assert result.status == "fail"
+    assert "production runtime admission evidence must allow production benchmark claims" in result.errors
+
+
+def test_release_evidence_rejects_runtime_admission_production_class_failed_admission(tmp_path):
+    """Production runtime-admission evidence cannot carry fail-closed scheduler errors."""
+    report = _valid_report()
+    runtime_admission = report["runtime_admission"]
+    assert isinstance(runtime_admission, dict)
+    runtime_admission["benchmark_evidence_class"] = "production_benchmark"
+    runtime_admission["production_claim_allowed"] = True
+    runtime_admission["admission_status"] = "fail"
+    runtime_admission["admission_error_count"] = 3
+    path = tmp_path / "release_evidence_report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = validate_release_evidence(path)
+
+    assert result.status == "fail"
+    assert "production runtime admission evidence must pass strict runtime admission" in result.errors
+    assert "production runtime admission evidence must not carry admission errors" in result.errors
 
 
 def test_release_evidence_rejects_incomplete_jax_case_backend_pairs(tmp_path):

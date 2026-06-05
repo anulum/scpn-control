@@ -79,6 +79,9 @@
 - Added release-evidence admission for multi-shot pulsed-MPC campaign reports,
   requiring Python, PyO3, and Rust digest-chain evidence with benchmark-context
   metadata before the top-level release gate can pass.
+- Added release-evidence admission for PREEMPT_RT runtime-admission benchmark
+  reports, requiring fail-closed production-claim boundaries, benchmark
+  context, latency stats, and SHA-256 payload sealing.
 
 ### Changed
 - Runtime telemetry now preserves the latest runtime-admission report in
