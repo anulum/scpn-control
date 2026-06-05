@@ -20,7 +20,7 @@
   },
   "claim_boundary": "These are result schemas for a later admitted compute run. They are not executed training evidence.",
   "expected_dataset_sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
-  "expected_weight_path_policy": "weights are written to workstation or external cloud compute storage, not ML350 SAS",
+  "expected_weight_path_policy": "weights are written to workstation or external cloud compute storage, not storage-host dataset storage",
   "gpu_cost": {
     "acceptance_policy": "cost reports must distinguish planning estimates from measured billing evidence",
     "required_fields": [

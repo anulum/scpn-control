@@ -536,6 +536,7 @@ def tune_transport_source_rollout_for_tracking(
     max_absolute_update: float | None = None,
     gradient_tolerance: float | None = None,
     require_gradient_audit: bool = True,
+    gradient_audit_failure_mode: str = "raise",
     gradient_audit_epsilon: float = 1.0e-5,
     gradient_audit_tolerance: float = 5.0e-4,
     gradient_audit_sample_indices: object | None = None,
@@ -551,6 +552,8 @@ def tune_transport_source_rollout_for_tracking(
     """
     if not has_differentiable_transport_jax():
         raise RuntimeError("tune_transport_source_rollout_for_tracking requires JAX")
+    if gradient_audit_failure_mode not in {"raise", "warn"}:
+        raise ValueError("gradient_audit_failure_mode must be 'raise' or 'warn'.")
     learning_rate_float = float(learning_rate)
     if not np.isfinite(learning_rate_float) or learning_rate_float <= 0.0:
         raise ValueError("learning_rate must be positive and finite.")
@@ -604,7 +607,14 @@ def tune_transport_source_rollout_for_tracking(
             sample_indices=gradient_audit_sample_indices,
         )
         if not gradient_audit.passed:
-            raise ValueError("rollout source gradient audit failed.")
+            if gradient_audit_failure_mode == "raise":
+                raise ValueError("rollout source gradient audit failed.")
+            warnings.warn(
+                "rollout source gradient audit failed; proceeding is advisory-only and must not be used "
+                "for production control admission",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     delta = -learning_rate_float * source_gradient
     if max_absolute_update_float is not None:

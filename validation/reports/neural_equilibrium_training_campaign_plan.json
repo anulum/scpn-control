@@ -5,18 +5,18 @@
       "workstation",
       "external_cloud"
     ],
-    "dataset_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
+    "dataset_path": "/data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
     "dataset_sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
-    "exact_command": "python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-kind workstation --dataset-path /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz",
+    "exact_command": "python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-kind workstation --dataset-path /data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz",
     "forbidden_training_hosts": [
-      "ML350"
+      "storage host"
     ],
     "pre_run_admission_gates": [
       "dataset SHA-256 must match the supervised dataset report",
       "converted feature-provenance audit must have no blocked features",
       "original public-source audit must be source_ready",
       "compute host must be explicitly declared as workstation or external_cloud",
-      "weights_out must not be under ML350 SAS storage"
+      "weights_out must not be under storage-host dataset storage"
     ],
     "result_template_reports": [
       "validation/reports/mast_efm_neural_equilibrium_result_templates.json",
@@ -29,7 +29,7 @@
     "status": "prepared_not_executed",
     "weights_out": "artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz"
   },
-  "execution_host_policy": "ML350 is storage-only; execute training only on this workstation or external cloud compute with SAS-mounted or copied data.",
+  "execution_host_policy": "The storage host is storage-only; execute training only on this workstation or external cloud compute with storage-mounted or copied data.",
   "gpu_budget_estimates": [
     {
       "blocking_condition": "full-output trainer still required before predictive admission",
@@ -62,7 +62,7 @@
       "upper_gpu_hours": 180.0
     },
     {
-      "blocking_condition": "large numeric payloads must be pulled to SAS and checksum-verified first",
+      "blocking_condition": "large numeric payloads must be pulled to storage-host storage and checksum-verified first",
       "gpu_class": "single A10/A100-class GPU for first pass; A100/H100 for sweeps",
       "minimum_gpu_hours": 100.0,
       "nominal_gpu_hours": 350.0,
@@ -104,7 +104,7 @@
       129
     ],
     "payload": {
-      "absolute_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
+      "absolute_path": "/data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
       "exists_on_this_host": false,
       "relative_path": "processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
       "sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
@@ -121,9 +121,9 @@
       "point_count_key": "lcfs_point_count"
     },
     "ready_to_run_checks": [
-      "python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload",
+      "python validation/plan_neural_equilibrium_training_campaign.py --require-storage-payload",
       "python validation/train_mast_efm_neural_equilibrium.py",
-      "python validation/build_mast_efm_neural_equilibrium_dataset.py --candidate-report /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json --sas-root /mnt/data_sas/DATASETS/SCPN-CONTROL --output-npz /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --json-out validation/reports/mast_efm_neural_equilibrium_dataset.json --report-out validation/reports/mast_efm_neural_equilibrium_dataset.md"
+      "python validation/build_mast_efm_neural_equilibrium_dataset.py --candidate-report /data/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json --storage-root /data/SCPN-CONTROL --output-npz /data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --json-out validation/reports/mast_efm_neural_equilibrium_dataset.json --report-out validation/reports/mast_efm_neural_equilibrium_dataset.md"
     ],
     "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-a50277960ea1ada9",
     "split_counts": {
@@ -138,11 +138,11 @@
     {
       "id": "mast_efm_neural_equilibrium",
       "next_action": "run the dry-run trainer locally, then execute explicitly on this workstation or external cloud compute when compute is reserved",
-      "status": "prepared_on_sas"
+      "status": "prepared_on_storage"
     },
     {
       "id": "qlknn_qualikiz_neural_transport",
-      "next_action": "download deferred payloads to SAS, verify checksums, then build processed transport tensors",
+      "next_action": "download deferred payloads to storage-host storage, verify checksums, then build processed transport tensors",
       "public_data_summary": {
         "deferred_bytes": 309688648974,
         "deferred_files": 52,
@@ -208,10 +208,10 @@
     "Inspect the compute execution package and result templates before reserving GPU time.",
     "Use explicit --execute only on workstation or external cloud compute with reserved GPU capacity.",
     "Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.",
-    "Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.",
+    "Pull QLKNN/QuaLiKiz large payloads to storage-host storage only when storage and GPU allocation are reserved.",
     "Keep all predictive and facility claims blocked until strict admission reports pass."
   ],
-  "sas_root": "/mnt/data_sas/DATASETS/SCPN-CONTROL",
+  "storage_root": "/data/SCPN-CONTROL",
   "schema_version": "scpn-control.neural-equilibrium-training-campaign-plan.v1",
   "status": "prepared"
 }

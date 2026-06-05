@@ -10,6 +10,21 @@
 
 ## Current native runtime evidence package
 
+## How to read benchmark numbers responsibly
+
+Every benchmark in this repository carries an evidence class:
+
+- `local_regression`: valid for comparison and engineering iteration, not a PCS
+  deployment claim.
+- `production_benchmark`: requires the report metadata to justify host isolation,
+  scheduler context, and explicit admission conditions.
+
+The same command can therefore be technically correct but materially insufficient
+for deployment planning if the evidence class and environment metadata are not in
+the right channel for the audience. Use local-reported numbers to prioritize
+implementation paths; use production-admitted reports for procurement, safety, or
+facility discussions.
+
 The v0.20.4 release candidate includes the following repository reports as
 local-regression evidence for the native execution and formal-runtime lane:
 
@@ -772,7 +787,7 @@ tolerances.
 MAST EFM full-output baseline training is prepared through
 `validation/train_mast_efm_neural_equilibrium.py`. The checked-in dry-run launch
 report records the expected supervised-dataset SHA-256, current workstation
-payload visibility, ML350 storage-only execution policy, and fail-closed pre-run
+payload visibility, storage-host storage-only execution policy, and fail-closed pre-run
 admission status. The companion result-template report binds the launch digest
 and declares the holdout, latency, GPU-cost, and admission-certificate outputs
 that a future workstation or cloud execution must publish before strict

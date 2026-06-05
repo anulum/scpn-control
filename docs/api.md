@@ -1540,7 +1540,9 @@ from a single transport step to a complete `(n_steps, 4, n_rho)` source
 schedule. It uses JAX for the multi-step rollout gradient, requires a sampled
 NumPy finite-difference audit by default, clips per-entry source updates when
 configured, and records bounded campaign metadata before the schedule can enter
-NMPC tuning.
+NMPC tuning. The default audit-failure mode is fail-closed. The explicit
+`gradient_audit_failure_mode="warn"` mode exists only for advisory, non-control
+analysis and preserves the failed audit evidence in the returned result.
 
 ::: scpn_control.control.nmpc_controller.NonlinearMPC
 

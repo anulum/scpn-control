@@ -52,14 +52,14 @@ def _write_reference(path: Path, shot_id: int, *, n: int = 2, lcfs_points: int =
 
 
 def test_build_dataset_writes_supervised_npz_and_compact_report(tmp_path: Path) -> None:
-    sas_root = tmp_path / "sas"
-    ref_a = sas_root / "converted/neural_equilibrium_reference/mast_efm_shot_1_reference.npz"
-    ref_b = sas_root / "converted/neural_equilibrium_reference/mast_efm_shot_2_reference.npz"
-    ref_c = sas_root / "converted/neural_equilibrium_reference/mast_efm_shot_3_reference.npz"
+    storage_root = tmp_path / "storage"
+    ref_a = storage_root / "converted/neural_equilibrium_reference/mast_efm_shot_1_reference.npz"
+    ref_b = storage_root / "converted/neural_equilibrium_reference/mast_efm_shot_2_reference.npz"
+    ref_c = storage_root / "converted/neural_equilibrium_reference/mast_efm_shot_3_reference.npz"
     _write_reference(ref_a, 1, lcfs_points=3)
     _write_reference(ref_b, 2, lcfs_points=4)
     _write_reference(ref_c, 3, lcfs_points=5)
-    candidate = sas_root / "converted/neural_equilibrium_reference/candidate.json"
+    candidate = storage_root / "converted/neural_equilibrium_reference/candidate.json"
     candidate.write_text(
         json.dumps(
             {
@@ -74,12 +74,12 @@ def test_build_dataset_writes_supervised_npz_and_compact_report(tmp_path: Path) 
         ),
         encoding="utf-8",
     )
-    output_npz = sas_root / "processed/neural_equilibrium/mast_efm_supervised_dataset.npz"
+    output_npz = storage_root / "processed/neural_equilibrium/mast_efm_supervised_dataset.npz"
 
     report = build_dataset(
         DatasetInput(
             candidate_report=candidate,
-            sas_root=sas_root,
+            storage_root=storage_root,
             output_npz=output_npz,
             train_shots=(1,),
             validation_shots=(2,),

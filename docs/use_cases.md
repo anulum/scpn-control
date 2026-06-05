@@ -109,5 +109,19 @@ is blocked.
 - Hardware timing evidence must be collected on target platforms before
   real-time deployment claims are admissible.
 
+## Read this page as a decision map
+
+For each user profile above, SCPN Control should be considered in three levels:
+
+1. **Internal iteration:** use local and local-regression evidence to reduce risk and
+   increase repeatability.
+2. **Pre-facility argument:** add reference adapters, stricter validation gates,
+   and publication-quality reproducibility artifacts.
+3. **Deployment-ready argument:** pair validated controllers with external-code and
+   facility pathways that already have operator and safety governance.
+
+This structure keeps the same codebase useful across research and collaboration
+contexts while avoiding over-claiming before each governance boundary is met.
+
 For claim language, use [Production Readiness](production_readiness.md) as the
 source of truth.

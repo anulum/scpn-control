@@ -26,7 +26,7 @@ class CampaignInput:
 
     candidate_report: Path
     evaluation_reports: tuple[Path, ...]
-    sas_root: Path
+    storage_root: Path
 
 
 def sha256_json(payload: dict[str, Any]) -> str:
@@ -45,12 +45,12 @@ def load_json(path: str | Path) -> dict[str, Any]:
     return payload
 
 
-def safe_repo_reference(path_text: str, sas_root: Path) -> str:
-    """Return a stable SAS-relative reference for an internal data path."""
+def safe_repo_reference(path_text: str, storage_root: Path) -> str:
+    """Return a stable storage-relative reference for an internal data path."""
 
     path = Path(path_text)
     try:
-        return path.resolve().relative_to(sas_root.resolve()).as_posix()
+        return path.resolve().relative_to(storage_root.resolve()).as_posix()
     except (OSError, ValueError):
         return path.as_posix()
 
@@ -132,8 +132,8 @@ def build_campaign_report(inputs: CampaignInput) -> dict[str, Any]:
                 "shot_id": shot_id,
                 "reference_equilibria_count": int(evaluation.get("reference_equilibria_count", 0)),
                 "grid_shape": evaluation.get("grid_shape"),
-                "reference_path": safe_repo_reference(reference_path, inputs.sas_root),
-                "prediction_path": safe_repo_reference(str(evaluation.get("prediction_path", "")), inputs.sas_root),
+                "reference_path": safe_repo_reference(reference_path, inputs.storage_root),
+                "prediction_path": safe_repo_reference(str(evaluation.get("prediction_path", "")), inputs.storage_root),
                 "reference_sha256": evaluation.get("reference_artifact_sha256") or candidate_shot.get("sha256"),
                 "prediction_sha256": evaluation.get("prediction_artifact_sha256"),
                 "weights_sha256": evaluation.get("weights_sha256"),
@@ -154,8 +154,8 @@ def build_campaign_report(inputs: CampaignInput) -> dict[str, Any]:
         "schema_version": CAMPAIGN_SCHEMA,
         "status": "blocked",
         "source": "documented_public_reference",
-        "sas_root": inputs.sas_root.as_posix(),
-        "candidate_report": safe_repo_reference(str(inputs.candidate_report), inputs.sas_root),
+        "storage_root": inputs.storage_root.as_posix(),
+        "candidate_report": safe_repo_reference(str(inputs.candidate_report), inputs.storage_root),
         "candidate_payload_sha256": candidate.get("payload_sha256"),
         "reference_dataset_id": candidate.get("reference_dataset_id"),
         "converted_reference_equilibria_count": int(candidate.get("reference_equilibria_count", 0)),
@@ -265,7 +265,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate-report", required=True, type=Path)
     parser.add_argument("--evaluation-report", required=True, action="append", type=Path)
-    parser.add_argument("--sas-root", default=Path("/mnt/data_sas/DATASETS/SCPN-CONTROL"), type=Path)
+    parser.add_argument("--storage-root", default=Path("/data/SCPN-CONTROL"), type=Path)
     parser.add_argument("--json-out", required=True, type=Path)
     parser.add_argument("--report-out", required=True, type=Path)
     return parser.parse_args()
@@ -279,7 +279,7 @@ def main() -> None:
         CampaignInput(
             candidate_report=args.candidate_report,
             evaluation_reports=tuple(args.evaluation_report),
-            sas_root=args.sas_root,
+            storage_root=args.storage_root,
         )
     )
     write_campaign_report(report, args.json_out, args.report_out)

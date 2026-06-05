@@ -92,7 +92,7 @@
   ],
   "payload_sha256": "d6089c2cd88bba6341cf784908fde7ebccf24e411b3281e971e08f77ad7141d0",
   "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-a50277960ea1ada9",
-  "sas_root": "/mnt/data_sas/DATASETS/SCPN-CONTROL",
+  "storage_root": "/data/SCPN-CONTROL",
   "schema_version": "scpn-control.mast-efm-original-feature-source-audit.v1",
   "shot_count": 6,
   "shots": [

@@ -24,7 +24,7 @@ surface for users, collaborators, reviewers, and funders.
   differentiable controller tuning, public-data validation, target-hardware
   timing, and local or air-gapped physics debugging.
 - MAST EFM neural-equilibrium training remains correctly fail-closed until the
-  SAS payload is available on an admitted compute host and executed full-output
+  storage-host payload is available on an admitted compute host and executed full-output
   training, holdout, latency, GPU-cost, and strict reference-admission artefacts
   exist.
 - JAX gyrokinetic CPU/GPU parity evidence is published with aggregate digests

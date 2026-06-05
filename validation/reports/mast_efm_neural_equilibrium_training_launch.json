@@ -8,10 +8,10 @@
   "claim_boundary": "This report prepares or executes a deterministic repository baseline. It is not predictive EFIT/P-EFIT admission evidence.",
   "dataset_exists_on_this_host": false,
   "dataset_metadata": null,
-  "dataset_path": "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
+  "dataset_path": "/data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz",
   "dataset_report": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
   "dataset_sha256": "3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3",
-  "execution_host_policy": "ML350 is storage-only; execute training only on this workstation or external cloud compute with the SAS dataset mounted read-only or copied to admitted compute storage.",
+  "execution_host_policy": "The storage host is storage-only; execute training only on this workstation or external cloud compute with the storage-host dataset mounted read-only or copied to admitted compute storage.",
   "execution_mode": "dry_run",
   "fallback_features": [],
   "feature_provenance_report": "validation/reports/mast_efm_feature_provenance_audit.json",
@@ -31,12 +31,12 @@
         "dataset payload SHA-256 must be verified before --execute"
       ],
       "forbidden_output_roots": [
-        "/mnt/data_sas",
-        "/mnt/data_sas/DATASETS/SCPN-CONTROL"
+        "/data",
+        "/data/SCPN-CONTROL"
       ],
       "status": "fail",
       "storage_only_host_markers": [
-        "ml350"
+        "storage_host"
       ]
     },
     "dataset_sha256_verified": false,
@@ -70,7 +70,7 @@
     "magnetic_axis_r_m",
     "magnetic_axis_z_m"
   ],
-  "run_command": "python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-kind workstation --dataset-path /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz --feature-provenance-report validation/reports/mast_efm_feature_provenance_audit.json --original-source-report validation/reports/mast_efm_original_feature_source_audit.json",
+  "run_command": "python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-kind workstation --dataset-path /data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz --feature-provenance-report validation/reports/mast_efm_feature_provenance_audit.json --original-source-report validation/reports/mast_efm_original_feature_source_audit.json",
   "schema_version": "scpn-control.mast-efm-neural-equilibrium-training.v1",
   "status": "prepared",
   "strict_artefact_emitted": false,

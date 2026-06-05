@@ -98,10 +98,10 @@ def test_classify_feature_sources_admits_current_and_blocks_policy_choices() -> 
 
 
 def test_original_feature_source_audit_reads_consolidated_zarr_metadata(tmp_path: Path) -> None:
-    sas_root = tmp_path / "sas"
+    storage_root = tmp_path / "storage"
     dataset_report = tmp_path / "dataset.json"
     _write_dataset_report(dataset_report)
-    zarr_path = sas_root / "mast/level1/shot_30419/efm.zarr"
+    zarr_path = storage_root / "mast/level1/shot_30419/efm.zarr"
     _write_zmetadata(
         zarr_path,
         {
@@ -111,7 +111,7 @@ def test_original_feature_source_audit_reads_consolidated_zarr_metadata(tmp_path
         },
     )
 
-    audit = build_original_feature_source_audit(dataset_report, sas_root)
+    audit = build_original_feature_source_audit(dataset_report, storage_root)
 
     assert audit["schema_version"] == AUDIT_SCHEMA
     assert audit["status"] == "source_ready"
@@ -123,13 +123,13 @@ def test_original_feature_source_audit_reads_consolidated_zarr_metadata(tmp_path
 
 
 def test_original_feature_source_audit_rejects_missing_metadata(tmp_path: Path) -> None:
-    sas_root = tmp_path / "sas"
+    storage_root = tmp_path / "storage"
     dataset_report = tmp_path / "dataset.json"
     _write_dataset_report(dataset_report)
-    (sas_root / "mast/level1/shot_30419/efm.zarr").mkdir(parents=True)
+    (storage_root / "mast/level1/shot_30419/efm.zarr").mkdir(parents=True)
 
     with pytest.raises(FileNotFoundError, match="consolidated Zarr metadata is missing"):
-        build_original_feature_source_audit(dataset_report, sas_root)
+        build_original_feature_source_audit(dataset_report, storage_root)
 
 
 def test_write_report_lists_original_sources_and_blocker(tmp_path: Path) -> None:

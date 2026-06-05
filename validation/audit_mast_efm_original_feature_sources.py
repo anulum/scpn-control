@@ -26,7 +26,7 @@ from validation.build_mast_efm_neural_equilibrium_dataset import DATASET_SCHEMA,
 
 AUDIT_SCHEMA = "scpn-control.mast-efm-original-feature-source-audit.v1"
 DEFAULT_DATASET_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
-DEFAULT_SAS_ROOT = Path("/mnt/data_sas/DATASETS/SCPN-CONTROL")
+DEFAULT_STORAGE_ROOT = Path("/data/SCPN-CONTROL")
 DEFAULT_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_original_feature_source_audit.json"
 DEFAULT_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_original_feature_source_audit.md"
 
@@ -95,7 +95,7 @@ def _safe_path(root: Path, relative_path: str) -> Path:
     try:
         path.relative_to(resolved_root)
     except ValueError as exc:
-        raise ValueError(f"path escapes SAS root: {relative_path}") from exc
+        raise ValueError(f"path escapes storage root: {relative_path}") from exc
     return path
 
 
@@ -261,7 +261,7 @@ def _aggregate_feature_status(shots: list[dict[str, Any]]) -> dict[str, dict[str
     return aggregate
 
 
-def build_original_feature_source_audit(dataset_report_path: Path, sas_root: Path) -> dict[str, Any]:
+def build_original_feature_source_audit(dataset_report_path: Path, storage_root: Path) -> dict[str, Any]:
     """Build the original public Zarr feature-source audit."""
 
     dataset_report = _load_json_object(dataset_report_path)
@@ -271,7 +271,7 @@ def build_original_feature_source_audit(dataset_report_path: Path, sas_root: Pat
     shot_reports: list[dict[str, Any]] = []
     for shot_id in shot_ids:
         relative_zarr_path = f"mast/level1/shot_{shot_id}/efm.zarr"
-        zarr_path = _safe_path(sas_root, relative_zarr_path)
+        zarr_path = _safe_path(storage_root, relative_zarr_path)
         variables = load_zarr_candidate_metadata(zarr_path)
         shot_reports.append(
             {
@@ -295,7 +295,7 @@ def build_original_feature_source_audit(dataset_report_path: Path, sas_root: Pat
         "feature_status": feature_status,
         "next_processing_steps": _next_processing_steps(blocked_features),
         "reference_dataset_id": dataset_report.get("reference_dataset_id"),
-        "sas_root": str(sas_root),
+        "storage_root": str(storage_root),
         "shot_count": len(shot_reports),
         "shots": shot_reports,
     }
@@ -367,7 +367,7 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-report", default=DEFAULT_DATASET_REPORT, type=Path)
-    parser.add_argument("--sas-root", default=DEFAULT_SAS_ROOT, type=Path)
+    parser.add_argument("--storage-root", default=DEFAULT_STORAGE_ROOT, type=Path)
     parser.add_argument("--json-out", default=DEFAULT_JSON_OUT, type=Path)
     parser.add_argument("--report-out", default=DEFAULT_MD_OUT, type=Path)
     return parser.parse_args()
@@ -377,7 +377,7 @@ def main() -> None:
     """Run the original public Zarr feature-source audit."""
 
     args = parse_args()
-    audit = build_original_feature_source_audit(args.dataset_report, args.sas_root)
+    audit = build_original_feature_source_audit(args.dataset_report, args.storage_root)
     write_report(audit, args.json_out, args.report_out)
 
 

@@ -28,6 +28,25 @@ evidence gate is not ready for promotion. A physics result without a controller
 contract is not yet a control feature. A benchmark without hardware and claim
 metadata is only a local timing observation.
 
+## Narrative of a first contribution
+
+The fastest path to useful impact is to follow the evidence ladder in order:
+
+1. Run one tutorial so the team can verify core semantics from the same command
+   sequence.
+2. Confirm reproducibility metadata in the report surface (`json` + checksum +
+   manifest entries).
+3. Choose one controller and one validator and keep the workflow inside one
+   bounded scope first (for example one machine configuration and one validation
+   mode).
+4. Only after admissible evidence appears in the strict validator, open the next
+   layer (additional transport modes, alternate formal mode, or new physics
+   surface).
+
+This sequence is intentional. It prevents spending cycles on fast iterations that
+cannot yet be claimed, and it ensures each code change lands with a visible
+evidence transition.
+
 ## Install paths
 
 ```bash

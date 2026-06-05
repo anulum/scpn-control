@@ -25,14 +25,14 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
 
 
 def test_build_campaign_report_aggregates_metrics_and_keeps_claim_blocked(tmp_path: Path) -> None:
-    sas_root = tmp_path / "sas"
-    candidate = sas_root / "converted/neural_equilibrium_reference/candidate.json"
-    reference_path = sas_root / "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz"
+    storage_root = tmp_path / "storage"
+    candidate = storage_root / "converted/neural_equilibrium_reference/candidate.json"
+    reference_path = storage_root / "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz"
     prediction_path = (
-        sas_root / "converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_prediction.npz"
+        storage_root / "converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_prediction.npz"
     )
     evaluation = (
-        sas_root / "converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.json"
+        storage_root / "converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.json"
     )
     _write_json(
         candidate,
@@ -71,7 +71,7 @@ def test_build_campaign_report_aggregates_metrics_and_keeps_claim_blocked(tmp_pa
     )
 
     report = build_campaign_report(
-        CampaignInput(candidate_report=candidate, evaluation_reports=(evaluation,), sas_root=sas_root)
+        CampaignInput(candidate_report=candidate, evaluation_reports=(evaluation,), storage_root=storage_root)
     )
 
     assert report["schema_version"] == CAMPAIGN_SCHEMA

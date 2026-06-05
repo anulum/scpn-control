@@ -553,10 +553,10 @@ equilibrium cases. Synthetic training runs and local smoke tests do not count as
 matched equilibrium-reference evidence:
 
 Public MAST Level 1 EFM measured-shot campaigns can be converted into
-reference-candidate arrays on ML350 SAS storage with:
+reference-candidate arrays on storage-host dataset storage with:
 
 ```bash
-ssh anulum@192.168.1.30 '/mnt/data_sas/DATASETS/SCPN-CONTROL/.venv/bin/python /path/to/SCPN-CONTROL/validation/convert_mast_efm_neural_equilibrium_reference.py --dataset-root /mnt/data_sas/DATASETS/SCPN-CONTROL --campaign-manifest /mnt/data_sas/DATASETS/SCPN-CONTROL/manifests/mast_level1_efm_campaign_30419_30424.json --output-root /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference --report-out /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json'
+ssh storage-operator@storage-host '/data/SCPN-CONTROL/.venv/bin/python /path/to/SCPN-CONTROL/validation/convert_mast_efm_neural_equilibrium_reference.py --dataset-root /data/SCPN-CONTROL --campaign-manifest /data/SCPN-CONTROL/manifests/mast_level1_efm_campaign_30419_30424.json --output-root /data/SCPN-CONTROL/converted/neural_equilibrium_reference --report-out /data/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json'
 ```
 
 The converter writes immutable `.npz` reference arrays and a
@@ -566,7 +566,7 @@ pressure reconstruction, exact-weight predictions, reference/prediction
 SHA-256 digests, metrics, tolerances, and strict admission evidence are
 present.
 
-Current ML350 conversion evidence from the acquired campaign produced 527
+Current storage host conversion evidence from the acquired campaign produced 527
 finite converged reference-candidate equilibria across shots 30419-30424
 with candidate report payload SHA-256
 `8d173f423440243c4362256480e7ec40a8ca16244ac862b727428d6f28f747e5`.
@@ -578,7 +578,7 @@ passing predictive EFIT/P-EFIT admission artefact.
 Current-model prediction evidence can be generated with:
 
 ```bash
-python validation/evaluate_mast_efm_neural_equilibrium.py --reference-path /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz --weights-path /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/neural_equilibrium_synthetic_65x129_weights.npz --prediction-path /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_prediction.npz --json-out /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.json --report-out /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.md
+python validation/evaluate_mast_efm_neural_equilibrium.py --reference-path /data/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz --weights-path /data/SCPN-CONTROL/converted/neural_equilibrium_reference/neural_equilibrium_synthetic_65x129_weights.npz --prediction-path /data/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_prediction.npz --json-out /data/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.json --report-out /data/SCPN-CONTROL/converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.md
 ```
 
 Scoped 2026-06-01 evaluation over shots 30419-30424 used full 65 x 129
@@ -598,20 +598,20 @@ features.
 The repository-published campaign summary is checked in as
 `validation/reports/mast_efm_neural_equilibrium_campaign.json` and
 `validation/reports/mast_efm_neural_equilibrium_campaign.md`. The compact
-report aggregates all six shot evaluations, records SAS-relative paths and
+report aggregates all six shot evaluations, records storage-relative paths and
 SHA-256 digests for the internal `.npz` payloads, and keeps the admission state
 blocked until the full-output predictive contract is satisfied. The current
 aggregate flux RMSE mean is 1.5551750363663988 Wb/rad, the magnetic-axis RMSE
 mean is 0.7715625800838742 m, and the LCFS mean-distance mean is
 0.5392084105619522 m across 527 evaluated equilibria.
 
-The supervised MAST EFM neural-equilibrium dataset can be rebuilt on ML350 SAS
+The supervised MAST EFM neural-equilibrium dataset can be rebuilt on storage-host dataset storage
 storage with:
 
 ```bash
 python validation/build_mast_efm_neural_equilibrium_dataset.py \
-  --candidate-report /mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json \
-  --output-npz /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz \
+  --candidate-report /data/SCPN-CONTROL/converted/neural_equilibrium_reference/mast_efm_neural_equilibrium_reference_candidate.json \
+  --output-npz /data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz \
   --json-out validation/reports/mast_efm_neural_equilibrium_dataset.json \
   --report-out validation/reports/mast_efm_neural_equilibrium_dataset.md
 ```
@@ -619,7 +619,7 @@ python validation/build_mast_efm_neural_equilibrium_dataset.py \
 The repository-published dataset report is checked in as
 `validation/reports/mast_efm_neural_equilibrium_dataset.json` and
 `validation/reports/mast_efm_neural_equilibrium_dataset.md`. The large numeric
-dataset remains on SAS at
+dataset remains on storage-host at
 `processed/neural_equilibrium/mast_efm_supervised_dataset.npz` with SHA-256
 `3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`.
 The deterministic shot-held-out split contains 340 training equilibria from
@@ -639,13 +639,13 @@ Training is prepared as an explicit campaign plan rather than launched during
 documentation or release work:
 
 ```bash
-python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload --verified-sas-payload
+python validation/plan_neural_equilibrium_training_campaign.py --require-storage-payload --verified-storage-payload
 ```
 
 The generated plan is checked in as
 `validation/reports/neural_equilibrium_training_campaign_plan.json` and
 `validation/reports/neural_equilibrium_training_campaign_plan.md`. It records
-the ML350-verified MAST EFM SAS payload, deferred QLKNN/QuaLiKiz public-data
+the storage-host-verified MAST EFM storage-host payload, deferred QLKNN/QuaLiKiz public-data
 payloads, external EFIT/P-EFIT dataset requirements, run order, and GPU-hour
 planning budgets. It deliberately does not launch training.
 
@@ -654,7 +654,7 @@ Original public MAST Level 1 EFM Zarr metadata is audited with:
 ```bash
 python validation/audit_mast_efm_original_feature_sources.py \
   --dataset-report validation/reports/mast_efm_neural_equilibrium_dataset.json \
-  --sas-root /mnt/data_sas/DATASETS/SCPN-CONTROL \
+  --storage-root /data/SCPN-CONTROL \
   --json-out validation/reports/mast_efm_original_feature_source_audit.json \
   --report-out validation/reports/mast_efm_original_feature_source_audit.md
 ```
@@ -662,7 +662,7 @@ python validation/audit_mast_efm_original_feature_sources.py \
 The repository-published original-source audit is checked in as
 `validation/reports/mast_efm_original_feature_source_audit.json` and
 `validation/reports/mast_efm_original_feature_source_audit.md`. It reads only
-consolidated Zarr metadata from the SAS-hosted public MAST Level 1 EFM stores.
+consolidated Zarr metadata from the storage-hosted public MAST Level 1 EFM stores.
 The audit is `source_ready`: it admits `plasma_current_x` with an `A_to_MA`
 conversion for `Ip_MA`, `bphi_rmag` as the total toroidal field at the magnetic
 axis for `Bt_T`, and `ffprime` with the declared RMS plus campaign-median
@@ -677,25 +677,25 @@ python validation/train_mast_efm_neural_equilibrium.py
 
 This writes `validation/reports/mast_efm_neural_equilibrium_training_launch.json`
 and `validation/reports/mast_efm_neural_equilibrium_training_launch.md` without
-touching SAS weights. The current checked-in launch report is a workstation
+touching storage-host weights. The current checked-in launch report is a workstation
 preparation report: it preserves the expected supervised-dataset SHA-256
 `3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`, records
-that the SAS dataset payload is not mounted on this workstation, and remains
+that the storage-host dataset payload is not mounted on this workstation, and remains
 fail-closed until the data are mounted read-only or copied to admitted compute
 storage. The launch report payload digest is
 `fc8724dc72801e8a92126a4e5cd46fd574f33eb320cb6889fd37bc6ae90d2b7d`. The
 companion result-template report is
 `validation/reports/mast_efm_neural_equilibrium_result_templates.json` with
 payload digest `ca3c80f970e63ca50ace0186caf7555de2d0476a0374716cfbd8940a20d04d28`.
-ML350 is storage-only: the exact `--execute` command must be run only on this
-workstation or external cloud compute with the SAS dataset mounted read-only or
+The storage host is storage-only: the exact `--execute` command must be run only on this
+workstation or external cloud compute with the storage-host dataset mounted read-only or
 copied to admitted compute storage. The trainer now validates launch and result
 template reports before persistence, rejects tampered payload digests, and
 performs a strict pre-run admission check before `--execute`: the dataset
 SHA-256 must match the published supervised-dataset report, the converted
 feature-provenance audit must have no blocked features, the original
 public-source audit must be `source_ready`, the compute host must be declared as
-`workstation` or `external_cloud`, and `weights_out` must not be under ML350 SAS
+`workstation` or `external_cloud`, and `weights_out` must not be under storage-host dataset storage
 storage. Execution mode trains deterministic ridge/PCA baseline heads for flux,
 pressure-gradient profile, q-profile, LCFS geometry, and magnetic-axis outputs,
 then writes weights and compact train, validation, and test metrics. Predictive
@@ -719,7 +719,7 @@ audited with:
 ```bash
 python validation/audit_mast_efm_feature_provenance.py \
   --dataset-report validation/reports/mast_efm_neural_equilibrium_dataset.json \
-  --sas-root /mnt/data_sas/DATASETS/SCPN-CONTROL
+  --storage-root /data/SCPN-CONTROL
 ```
 
 The generated audit is checked in as

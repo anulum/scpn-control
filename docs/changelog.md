@@ -201,16 +201,16 @@ No unreleased changes.
 - Bumped the package and citation metadata to `0.20.0` for the release-preparation candidate.
 - Reworked the README, documentation landing page, onboarding guide, use-case page, tutorial index, notebook gallery, API version snippet, MkDocs navigation, and release notes so new users can understand the controller-facing evidence layer, application value, collaboration needs, and strict production-readiness boundary.
 - Regenerated the capability manifest and README capability snapshot from the current tree.
-- Added a repository-published MAST EFM neural-equilibrium campaign report that aggregates the six-shot public EFM evaluation, records SAS-relative artefact references and digests, and keeps predictive EFIT/P-EFIT admission blocked pending full-output evidence.
-- Added a SAS-hosted MAST EFM neural-equilibrium supervised dataset builder and repository-published dataset evidence report with deterministic shot-held-out train, validation, and test splits, padded LCFS geometry metadata, SHA-256 traceability, and an explicit block on predictive EFIT/P-EFIT admission pending full-output model validation.
-- Added a neural-equilibrium training-campaign planner that verifies prepared MAST EFM SAS payloads, tracks deferred QLKNN/QuaLiKiz and external EFIT/P-EFIT dataset lanes, publishes run-order evidence, and records GPU-hour planning budgets without launching long training jobs.
+- Added a repository-published MAST EFM neural-equilibrium campaign report that aggregates the six-shot public EFM evaluation, records storage-relative artefact references and digests, and keeps predictive EFIT/P-EFIT admission blocked pending full-output evidence.
+- Added a storage-hosted MAST EFM neural-equilibrium supervised dataset builder and repository-published dataset evidence report with deterministic shot-held-out train, validation, and test splits, padded LCFS geometry metadata, SHA-256 traceability, and an explicit block on predictive EFIT/P-EFIT admission pending full-output model validation.
+- Added a neural-equilibrium training-campaign planner that verifies prepared MAST EFM storage-host payloads, tracks deferred QLKNN/QuaLiKiz and external EFIT/P-EFIT dataset lanes, publishes run-order evidence, and records GPU-hour planning budgets without launching long training jobs.
 - Added a dry-run-first MAST EFM neural-equilibrium trainer that validates the prepared dataset/report contract by default, emits a launch report, and requires explicit `--execute` before writing deterministic full-output baseline weights or holdout metrics.
-- Added a MAST EFM feature-provenance audit and ML350 dry-run launch evidence showing the prepared SAS dataset validates on the storage host while `Ip_MA`, `Bt_T`, and `ffprime_scale` remain blocked because the converted public EFM bundles do not contain direct source keys.
+- Added a MAST EFM feature-provenance audit and storage host dry-run launch evidence showing the prepared storage-host dataset validates on the storage host while `Ip_MA`, `Bt_T`, and `ffprime_scale` remain blocked because the converted public EFM bundles do not contain direct source keys.
 - Added an original public MAST Level 1 EFM Zarr source audit that admits `plasma_current_x` for `Ip_MA` and `bphi_rmag` for `Bt_T`, while keeping dataset rebuild blocked until the `ffprime` profile-to-scalar policy for `ffprime_scale` is declared.
-- Declared and implemented the public `ffprime` RMS-to-campaign-median policy, regenerated the MAST EFM converted references and supervised dataset on ML350 SAS, and updated the dataset, provenance, original-source, and dry-run launch reports so the former fallback feature list is empty.
-- Clarified neural-equilibrium campaign execution policy: ML350 is storage-only, while any `--execute` training must run on this workstation or external cloud compute with SAS-mounted or copied data.
-- Added a fail-closed MAST EFM compute-execution package: `--execute` now requires explicit workstation or external-cloud admission, matching dataset SHA-256, passing feature/source provenance reports, non-SAS weight output, and repository-published result templates for holdout, latency, GPU-cost, and admission-certificate evidence.
-- Hardened the MAST EFM neural-equilibrium launch and result-template evidence path with explicit report validators, canonical payload digests, ML350 storage-only output checks, and tamper-detection tests before any future workstation or cloud training run can be cited.
+- Declared and implemented the public `ffprime` RMS-to-campaign-median policy, regenerated the MAST EFM converted references and supervised dataset on storage-host dataset storage, and updated the dataset, provenance, original-source, and dry-run launch reports so the former fallback feature list is empty.
+- Clarified neural-equilibrium campaign execution policy: The storage host is storage-only, while any `--execute` training must run on this workstation or external cloud compute with storage-mounted or copied data.
+- Added a fail-closed MAST EFM compute-execution package: `--execute` now requires explicit workstation or external-cloud admission, matching dataset SHA-256, passing feature/source provenance reports, non-storage-host weight output, and repository-published result templates for holdout, latency, GPU-cost, and admission-certificate evidence.
+- Hardened the MAST EFM neural-equilibrium launch and result-template evidence path with explicit report validators, canonical payload digests, storage-host storage-only output checks, and tamper-detection tests before any future workstation or cloud training run can be cited.
 - Hardened JAX gyrokinetic parity evidence with aggregate case/backend coverage digests, portable report paths, a separate local CPU timing benchmark report, and refreshed CPU parity artifacts while preserving the backend-parity-only claim boundary.
 
 ## [0.19.3] - 2026-06-01
@@ -224,7 +224,7 @@ No unreleased changes.
   admission artefacts exist.
 - Added `validation/evaluate_mast_efm_neural_equilibrium.py` to run
   current neural-equilibrium weights against the converted public MAST EFM
-  reference-candidate arrays, persist prediction artefacts on ML350 SAS,
+  reference-candidate arrays, persist prediction artefacts on storage-host dataset storage,
   persist exact public EFM `profile_r`/`profile_z` coordinate grids,
   report flux RMSE plus derived magnetic-axis and LCFS residual evidence
   for 527 slices, and keep predictive EFIT/P-EFIT admission blocked until

@@ -3,14 +3,14 @@
 Schema: `scpn-control.mast-efm-neural-equilibrium-training.v1`
 Status: `prepared`
 Execution mode: `dry_run`
-Dataset path: `/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz`
+Dataset path: `/data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz`
 Dataset SHA-256: `3206bd530efdd6fc73bae57b2ac18646aff39e130533c7d5167abe1ae7d136f3`
 Dataset exists on this host: `False`
 Weights path: `artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz`
 
 ## Execution host policy
 
-ML350 is storage-only; execute training only on this workstation or external cloud compute with the SAS dataset mounted read-only or copied to admitted compute storage.
+The storage host is storage-only; execute training only on this workstation or external cloud compute with the storage-host dataset mounted read-only or copied to admitted compute storage.
 
 ## Claim boundary
 
@@ -26,7 +26,7 @@ Compute execution: `fail`
 ## Run command
 
 ```bash
-python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-kind workstation --dataset-path /mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz --feature-provenance-report validation/reports/mast_efm_feature_provenance_audit.json --original-source-report validation/reports/mast_efm_original_feature_source_audit.json
+python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-kind workstation --dataset-path /data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz --weights-out artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz --feature-provenance-report validation/reports/mast_efm_feature_provenance_audit.json --original-source-report validation/reports/mast_efm_original_feature_source_audit.json
 ```
 
 ## Required targets

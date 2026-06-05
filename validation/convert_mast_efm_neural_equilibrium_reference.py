@@ -444,16 +444,16 @@ def _json_sha256(payload: object) -> str:
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point for MAST EFM reference-candidate conversion."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset-root", type=Path, default=Path("/mnt/data_sas/DATASETS/SCPN-CONTROL"))
+    parser.add_argument("--dataset-root", type=Path, default=Path("/data/SCPN-CONTROL"))
     parser.add_argument(
         "--campaign-manifest",
         type=Path,
-        default=Path("/mnt/data_sas/DATASETS/SCPN-CONTROL/manifests/mast_level1_efm_campaign_30419_30424.json"),
+        default=Path("/data/SCPN-CONTROL/manifests/mast_level1_efm_campaign_30419_30424.json"),
     )
     parser.add_argument(
         "--output-root",
         type=Path,
-        default=Path("/mnt/data_sas/DATASETS/SCPN-CONTROL/converted/neural_equilibrium_reference"),
+        default=Path("/data/SCPN-CONTROL/converted/neural_equilibrium_reference"),
     )
     parser.add_argument("--report-out", type=Path, default=None)
     parser.add_argument("--max-times-per-shot", type=int, default=None)

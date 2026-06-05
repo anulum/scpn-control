@@ -87,7 +87,7 @@
   "errors": [],
   "full_fidelity_claim_admitted": false,
   "payload_sha256": "e175aaf5c475dd2b6ff144b67b8d83bac9fe9b0ff6c2b8cb4c366525e4c79173",
-  "reference_path": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reference_data/gk_species/species_collision_reference_cases.json",
+  "reference_path": "<repo-root>/validation/reference_data/gk_species/species_collision_reference_cases.json",
   "reference_sha256": "3441484ea9a006daac9299587d421b4a86657a6e988d862785b07d0ef0be8a7f",
   "schema_version": "scpn-control.gk-species-reference.v2",
   "status": "pass",

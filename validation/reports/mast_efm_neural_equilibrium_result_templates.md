@@ -7,7 +7,7 @@ These are result schemas for a later admitted compute run. They are not executed
 
 ## Output policy
 
-weights are written to workstation or external cloud compute storage, not ML350 SAS
+weights are written to workstation or external cloud compute storage, not storage-host dataset storage
 
 ## Template schemas
 

@@ -91,7 +91,7 @@
     "step_iterations": 50000,
     "warmup": 2000
   },
-  "project_root": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL",
+  "project_root": "<repo-root>",
   "schema_version": "scpn-control.capacitor-bank-benchmark.v1",
   "started_unix_ns": 1780574329442225338
 }

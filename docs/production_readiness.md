@@ -90,6 +90,21 @@ Before presenting a stronger claim for any surface, require all of the following
 - If you need plant deployment, treat this repository as supporting evidence
   infrastructure only; facility-specific safety engineering remains required.
 
+## Narrative for enterprise decision-makers
+
+For enterprise programs, the important signal is not only what is implemented but
+what is *admissible for decision gates*. SCPN Control provides:
+
+- explicit separation between bounded/local and external/measured evidence levels,
+- deterministic artefact metadata,
+- strict default refusal for over-claims,
+- and a documented path to move a surface from bounded → validated → measured.
+
+The current value is strongest in governance and reproducibility: teams can
+decide what they can responsibly claim to investors, collaborators, or internal
+review boards, and where each claim still needs external physics or hardware
+evidence.
+
 ## Current concise classification
 
 SCPN Control is a production-oriented research and control-integration library.

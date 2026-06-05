@@ -1620,6 +1620,114 @@ def test_nmpc_transport_rollout_tuning_rejects_malformed_schedule(monkeypatch: p
         )
 
 
+def test_nmpc_transport_rollout_tuning_rejects_unknown_audit_failure_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Audit failure handling must be explicit and bounded to known modes."""
+    profiles, chi, source_sequence, rho, edge_values, dt, _ = _rollout_transport_fixture()
+    target_history = np.repeat(profiles[None, :, :], source_sequence.shape[0], axis=0)
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+
+    with pytest.raises(ValueError, match="gradient_audit_failure_mode"):
+        nmpc_mod.tune_transport_source_rollout_for_tracking(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            dt,
+            edge_values,
+            learning_rate=0.05,
+            gradient_audit_failure_mode="continue",
+        )
+
+
+def test_nmpc_transport_rollout_tuning_warn_mode_keeps_failed_audit_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Warning mode is advisory-only and must preserve the failed audit result."""
+    profiles, chi, source_sequence, rho, edge_values, dt, _ = _rollout_transport_fixture()
+    target_history = np.repeat(profiles[None, :, :], source_sequence.shape[0], axis=0)
+    gradient = np.full_like(source_sequence, 0.125)
+    failed_audit = nmpc_mod.TransportSourceRolloutGradientAudit(
+        loss=1.0,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 0, 0),),
+        source_max_abs_error=1.0,
+        passed=False,
+    )
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(
+        nmpc_mod,
+        "transport_rollout_source_gradients",
+        lambda *args, **kwargs: transport_mod.TransportRolloutSourceGradients(
+            loss=2.0,
+            source_gradient=gradient,
+            final_profiles=profiles,
+        ),
+    )
+    monkeypatch.setattr(nmpc_mod, "_audit_transport_rollout_source_gradients", lambda *args, **kwargs: failed_audit)
+
+    with pytest.warns(RuntimeWarning, match="advisory-only"):
+        result = nmpc_mod.tune_transport_source_rollout_for_tracking(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            dt,
+            edge_values,
+            learning_rate=0.05,
+            gradient_audit_failure_mode="warn",
+        )
+
+    assert result.gradient_audit == failed_audit
+    assert result.gradient_audit.passed is False
+    assert result.step_norm > 0.0
+    np.testing.assert_allclose(result.updated_sources, source_sequence - 0.05 * gradient)
+
+
+def test_nmpc_transport_rollout_tuning_default_fails_closed_on_failed_audit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Production default must still reject rollout updates with failed audit evidence."""
+    profiles, chi, source_sequence, rho, edge_values, dt, _ = _rollout_transport_fixture()
+    target_history = np.repeat(profiles[None, :, :], source_sequence.shape[0], axis=0)
+    gradient = np.full_like(source_sequence, 0.125)
+    failed_audit = nmpc_mod.TransportSourceRolloutGradientAudit(
+        loss=1.0,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 0, 0),),
+        source_max_abs_error=1.0,
+        passed=False,
+    )
+    monkeypatch.setattr(nmpc_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(
+        nmpc_mod,
+        "transport_rollout_source_gradients",
+        lambda *args, **kwargs: transport_mod.TransportRolloutSourceGradients(
+            loss=2.0,
+            source_gradient=gradient,
+            final_profiles=profiles,
+        ),
+    )
+    monkeypatch.setattr(nmpc_mod, "_audit_transport_rollout_source_gradients", lambda *args, **kwargs: failed_audit)
+
+    with pytest.raises(ValueError, match="rollout source gradient audit failed"):
+        nmpc_mod.tune_transport_source_rollout_for_tracking(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            dt,
+            edge_values,
+            learning_rate=0.05,
+        )
+
+
 @pytest.mark.skipif(not transport_mod.has_jax(), reason="JAX optional dependency not installed")
 def test_nmpc_transport_rollout_tuning_updates_bounded_source_schedule() -> None:
     """Rollout tuning should produce finite audited source updates within actuator bounds."""

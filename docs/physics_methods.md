@@ -13,6 +13,15 @@ $$\Delta^* \psi = R \frac{\partial}{\partial R}\left(\frac{1}{R}\frac{\partial \
 - **Implementation**: `src/scpn_control/core/fusion_kernel.py:380` (Picard + SOR).
 - **Simplifications**: Axisymmetric assumption. Poloidal current $F(\psi)$ and pressure $p(\psi)$ are specified as polynomial or pedestal functions of $\psi$.
 
+### Evidence context for equilibrium methods
+
+These equations are the implementation basis for bounded controller experiments.
+They are not a full replacement for validated external equilibria unless the
+relevant reference validator admits external evidence for the specific use case.
+The repository therefore treats equation-level implementation and claim-level
+admission as separate layers: model code can exist before all claims are fully
+validated.
+
 ### Green's Function for Coil Flux
 $$\psi_{coil}(R,Z) = \frac{\mu_0 I}{\pi k} \sqrt{R R_c} [(1-k^2/2) K(k^2) - E(k^2)]$$
 where $k^2 = \frac{4 R R_c}{(R+R_c)^2 + (Z-Z_c)^2}$.
@@ -95,3 +104,10 @@ $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \
 - **Source**: Kuramoto (1975), Sakaguchi & Kuramoto (1986).
 - **Implementation**: `src/scpn_control/phase/kuramoto.py:80`.
 - **Simplifications**: Mean-field coupling.
+
+### What this section is for
+
+This reference page is used as a physics starting point for implementation and
+review, not as a standalone guarantee of facility accuracy. Its practical role is
+to align equations, files, and assumptions before benchmark and validation
+evidence upgrades are claimed in production-facing documents.

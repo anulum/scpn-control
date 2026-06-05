@@ -11,6 +11,21 @@ A hands-on introduction to scpn-control. No plasma physics background required.
 - Python 3.10+
 - numpy (installed automatically as a dependency)
 
+## What this tutorial proves
+
+This page is not only a code recipe. It is the smallest reproducible workflow
+that turns three concerns into one observable chain:
+
+- **Physics assumptions** are declared through a machine preset and equilibrium
+  input.
+- **Control intent** is expressed through a controller object and an explicit
+  step interface.
+- **Evidence discipline** is preserved when the same output is reused in validation
+  and benchmark reports.
+
+The value is in closure: one short run is easy to re-run, one command sequence is
+easy to review, and one report chain is easy to trace.
+
 ## Installation
 
 ```bash
@@ -146,6 +161,18 @@ For multi-ion D-T transport with helium ash:
 ```python
 solver = TransportSolver("iter_config.json", nr=50, multi_ion=True)
 ```
+
+## How the pieces connect
+
+The sections above are intentionally ordered from data model to actuator intent:
+
+1. define a machine geometry,
+2. compute equilibrium structure,
+3. choose a controller family,
+4. attach a transport evolution,
+5. convert symbolic control logic into runnable execution.
+
+Each step is independently replaceable, but the evidence chain is cumulative.
 
 ---
 

@@ -37,6 +37,22 @@ workstation timings remain local-regression evidence; production benchmark
 claims still require isolated cores, host-load metadata, governor context, and
 target-hardware or PREEMPT_RT admission.
 
+## Why this matters in practice
+
+SCPN Control is designed to close the gap between "works in notebook" and
+"auditable for a review cycle." The project’s practical thesis is:
+
+- keep controller prototypes executable,
+- keep every promoted claim coupled to a validator,
+- keep every validator output versioned and reproducible,
+- keep missing evidence explicitly visible instead of silently converting into
+  marketing claims.
+
+This means the documentation should be read as an evidence catalog first and a
+feature catalog second. The strongest value is not a single solver speed number.
+The strongest value is that claims remain tied to artefacts, and claims that are
+still blocked remain clearly blocked.
+
 ## Main surfaces
 
 | Surface | Purpose |

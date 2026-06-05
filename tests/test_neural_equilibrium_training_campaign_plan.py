@@ -79,21 +79,21 @@ def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path)
     _write_mast_report(mast_report)
     _write_public_data_manifest(public_root)
 
-    plan = build_plan(CampaignInputs(mast_dataset_report=mast_report, sas_root=tmp_path, public_data_root=public_root))
+    plan = build_plan(CampaignInputs(mast_dataset_report=mast_report, storage_root=tmp_path, public_data_root=public_root))
 
     assert plan["schema_version"] == REPORT_SCHEMA
     assert plan["status"] == "prepared"
     assert plan["mast_efm_dataset"]["status"] == "prepared"
     assert plan["mast_efm_dataset"]["payload"]["exists_on_this_host"] is False
     assert plan["mast_efm_dataset"]["payload"]["verified_available"] is False
-    assert "ML350 is storage-only" in plan["execution_host_policy"]
+    assert "The storage host is storage-only" in plan["execution_host_policy"]
     package = plan["compute_execution_package"]
     assert package["status"] == "prepared_not_executed"
     assert package["weights_out"] == "artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz"
     assert package["admitted_compute_host_kinds"] == ["workstation", "external_cloud"]
-    assert package["forbidden_training_hosts"] == ["ML350"]
-    assert any("weights_out must not be under ML350 SAS storage" in item for item in package["pre_run_admission_gates"])
-    assert plan["prepared_dataset_lanes"][0]["status"] == "prepared_on_sas"
+    assert package["forbidden_training_hosts"] == ["storage host"]
+    assert any("weights_out must not be under storage-host dataset storage" in item for item in package["pre_run_admission_gates"])
+    assert plan["prepared_dataset_lanes"][0]["status"] == "prepared_on_storage"
     assert "dry-run trainer" in plan["prepared_dataset_lanes"][0]["next_action"]
     assert "workstation or external cloud" in plan["prepared_dataset_lanes"][0]["next_action"]
     assert all("fallback" not in item for item in plan["mast_efm_dataset"]["blocked_before_admission"])
@@ -107,29 +107,29 @@ def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path)
     assert len(plan["payload_sha256"]) == 64
 
 
-def test_build_plan_can_require_sas_payload(tmp_path: Path) -> None:
+def test_build_plan_can_require_storage_payload(tmp_path: Path) -> None:
     mast_report = tmp_path / "mast.json"
     public_root = tmp_path / "public"
     _write_mast_report(mast_report)
     _write_public_data_manifest(public_root)
 
-    with pytest.raises(FileNotFoundError, match="SAS dataset payload is missing"):
+    with pytest.raises(FileNotFoundError, match="storage-host dataset payload is missing"):
         build_plan(
             CampaignInputs(
                 mast_dataset_report=mast_report,
-                sas_root=tmp_path,
+                storage_root=tmp_path,
                 public_data_root=public_root,
-                require_sas_payload=True,
+                require_storage_payload=True,
             )
         )
 
     plan = build_plan(
         CampaignInputs(
             mast_dataset_report=mast_report,
-            sas_root=tmp_path,
+            storage_root=tmp_path,
             public_data_root=public_root,
-            require_sas_payload=True,
-            verified_sas_payload=True,
+            require_storage_payload=True,
+            verified_storage_payload=True,
         )
     )
     assert plan["mast_efm_dataset"]["payload"]["verified_available"] is True
@@ -140,7 +140,7 @@ def test_write_report_records_gpu_budget_table(tmp_path: Path) -> None:
     public_root = tmp_path / "public"
     _write_mast_report(mast_report)
     _write_public_data_manifest(public_root)
-    plan = build_plan(CampaignInputs(mast_dataset_report=mast_report, sas_root=tmp_path, public_data_root=public_root))
+    plan = build_plan(CampaignInputs(mast_dataset_report=mast_report, storage_root=tmp_path, public_data_root=public_root))
 
     write_report(plan, tmp_path / "plan.json", tmp_path / "plan.md")
 
@@ -151,4 +151,4 @@ def test_write_report_records_gpu_budget_table(tmp_path: Path) -> None:
     assert "Compute execution package" in markdown
     assert "--compute-host-kind workstation" in markdown
     assert "predictive EFIT/P-EFIT" in markdown
-    assert "ML350 is storage-only" in markdown
+    assert "The storage host is storage-only" in markdown

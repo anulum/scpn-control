@@ -85,8 +85,7 @@ mypy
 
 ## Code style
 
-This project enforces an anti-slop policy. Read the full rules in `CLAUDE.md`
-at the repository root. Summary:
+This project enforces an anti-slop policy. Follow the private local rule stack when available. Public summary:
 
 **Comments** exist only to cite papers/equations, state non-obvious assumptions,
 or mark `TODO(gh-ISSUE):` items. Delete anything that restates what the code does.

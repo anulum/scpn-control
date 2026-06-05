@@ -28,7 +28,7 @@ are admissible.
   no commissioned plant PCS claim, no predictive EFIT/P-EFIT claim without
   strict public-reference or facility artefact admission, and no target-hardware
   real-time claim without target-hardware timing evidence.
-- The repository now has a clearer collaboration and financing narrative for
+- The repository now has a clearer collaboration and financing positioning for
   GPU campaigns, public-data curation, external-code validation, and facility
   replay access.
 

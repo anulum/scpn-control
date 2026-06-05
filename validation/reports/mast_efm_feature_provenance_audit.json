@@ -82,7 +82,7 @@
   "payload_sha256": "57ce933109ef83b796352978b617fc853622e2a1adfbab549e576ab1d3062923",
   "reference_count": 6,
   "reference_dataset_id": "mast-efm-30419-30420-30421-30422-30423-30424-a50277960ea1ada9",
-  "sas_root": "/mnt/data_sas/DATASETS/SCPN-CONTROL",
+  "storage_root": "/data/SCPN-CONTROL",
   "schema_version": "scpn-control.mast-efm-feature-provenance-audit.v1",
   "shots": [
     {

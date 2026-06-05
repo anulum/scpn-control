@@ -93,6 +93,26 @@ NeuralEquilibrium   IntegratedTransportSolver
     Rust Kernel (11.9 µs, PyO3)
 ```
 
+## Practical architecture framing
+
+The stack is organized in layers so teams can replace one layer without
+rebuilding the whole system:
+
+- **Plant models (Core)** evolve state and produce physics-ready observables.
+- **Controllers (Control)** convert those observables into actions under explicit
+  constraints.
+- **Phase dynamics (Phase)** manage timing and synchronization artifacts that are
+  hard to model as low-order linear systems.
+- **Execution boundary (Rust/Python)** defines where hard-time and safety-critical
+  work must stay deterministic and where Python orchestration can remain
+  high-level.
+
+The practical guarantee this architecture targets is not “all code in Rust,” but a
+controlled boundary: scientific experimentation stays ergonomic, while hot-path
+execution uses bounded contracts and evidence-linked certificates. This is why
+the project publishes both a pure-Python path and a fused native path: they share
+the same contracts, but have different runtime envelopes and admissible claims.
+
 ## Module Dependencies
 
 Simplified internal dependency graph (arrows indicate "imports"):

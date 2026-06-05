@@ -16,7 +16,7 @@
       "pytest on tests/test_server_contracts.py using about 141% CPU",
       "rustc release build for SCPN-FUSION-CORE using about 99% CPU",
       "mypy pre-commit worker using about 58% CPU",
-      "browser and Codex terminal processes active"
+      "browser and development terminal processes active"
     ],
     "isolation_quality": "soft-core-affinity only; contaminated by active workstation load"
   },
@@ -58,7 +58,7 @@
     "rust": "cargo build --release --manifest-path /tmp/scpn-control-pulsed-bench/Cargo.toml && taskset -c 0 /tmp/scpn-control-pulsed-bench/target/release/bench_control_pulsed"
   },
   "follow_up": [
-    "Repeat on a quiet workstation or isolated ML350/PREEMPT_RT host before release-grade claims.",
+    "Repeat on a quiet workstation or isolated PREEMPT_RT host before release-grade claims.",
     "Persist a first-class repository benchmark harness if the scheduler becomes a gating latency surface.",
     "Expose or benchmark the PyO3 path separately if Python needs to call the Rust scheduler directly."
   ]

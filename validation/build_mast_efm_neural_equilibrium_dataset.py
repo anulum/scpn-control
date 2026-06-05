@@ -83,7 +83,7 @@ class DatasetInput:
     """Input paths and split declaration for the dataset builder."""
 
     candidate_report: Path
-    sas_root: Path
+    storage_root: Path
     output_npz: Path
     train_shots: tuple[int, ...] = DEFAULT_TRAIN_SHOTS
     validation_shots: tuple[int, ...] = DEFAULT_VALIDATION_SHOTS
@@ -116,12 +116,12 @@ def load_json(path: str | Path) -> dict[str, Any]:
     return payload
 
 
-def safe_sas_reference(path_text: str, sas_root: Path) -> str:
-    """Return a stable SAS-relative reference for an internal path."""
+def safe_storage_reference(path_text: str, storage_root: Path) -> str:
+    """Return a stable storage-relative reference for an internal path."""
 
     path = Path(path_text)
     try:
-        return path.resolve().relative_to(sas_root.resolve()).as_posix()
+        return path.resolve().relative_to(storage_root.resolve()).as_posix()
     except (OSError, ValueError):
         return path.as_posix()
 
@@ -397,7 +397,7 @@ def _concat_lcfs_arrays(rows: list[dict[str, NDArray[Any]]], key: str) -> tuple[
 
 
 def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
-    """Build the SAS-hosted supervised dataset and compact repository report."""
+    """Build the storage-hosted supervised dataset and compact repository report."""
 
     candidate = load_json(inputs.candidate_report)
     shots = candidate.get("shots")
@@ -424,13 +424,13 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
         rows.append(data)
         features.append(np.empty((count, len(FEATURE_NAMES)), dtype=np.float64))
         split_labels.append(np.full(count, label, dtype="U10"))
-        reference_paths.append(safe_sas_reference(str(path), inputs.sas_root))
+        reference_paths.append(safe_storage_reference(str(path), inputs.storage_root))
         shot_reports.append(
             {
                 "shot_id": shot_id,
                 "split": label,
                 "equilibria_count": count,
-                "reference_path": safe_sas_reference(str(path), inputs.sas_root),
+                "reference_path": safe_storage_reference(str(path), inputs.storage_root),
                 "reference_sha256": sha256_file(path),
                 "grid_shape": [int(feature) for feature in np.asarray(data["psirz_Wb_per_rad"]).shape[1:]],
                 "time_start_s": float(np.asarray(data["time_s"], dtype=np.float64)[0]),
@@ -482,10 +482,10 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
         "schema_version": DATASET_SCHEMA,
         "status": "blocked",
         "source": "documented_public_reference",
-        "candidate_report": safe_sas_reference(str(inputs.candidate_report), inputs.sas_root),
+        "candidate_report": safe_storage_reference(str(inputs.candidate_report), inputs.storage_root),
         "candidate_payload_sha256": candidate.get("payload_sha256"),
         "reference_dataset_id": candidate.get("reference_dataset_id"),
-        "dataset_path": safe_sas_reference(str(inputs.output_npz), inputs.sas_root),
+        "dataset_path": safe_storage_reference(str(inputs.output_npz), inputs.storage_root),
         "dataset_sha256": sha256_file(inputs.output_npz),
         "feature_names": list(FEATURE_NAMES),
         "fallback_features": list(fallback_features),
@@ -529,7 +529,7 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
         "next_processing_steps": [
             "train a full-output model on the train split and evaluate only once on validation/test shot splits",
             "keep public-source feature policy fixed while training and holdout evaluation are performed",
-            "emit compact holdout metrics and keep large weights/predictions on SAS by SHA-256",
+            "emit compact holdout metrics and keep large weights/predictions on storage-host storage by SHA-256",
             "run validate_neural_equilibrium_reference.py only after full predictive artefacts and tolerances exist",
         ],
     }
@@ -614,7 +614,7 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate-report", required=True, type=Path)
-    parser.add_argument("--sas-root", default=Path("/mnt/data_sas/DATASETS/SCPN-CONTROL"), type=Path)
+    parser.add_argument("--storage-root", default=Path("/data/SCPN-CONTROL"), type=Path)
     parser.add_argument("--output-npz", required=True, type=Path)
     parser.add_argument("--json-out", required=True, type=Path)
     parser.add_argument("--report-out", required=True, type=Path)
@@ -631,7 +631,7 @@ def main() -> None:
     report = build_dataset(
         DatasetInput(
             candidate_report=args.candidate_report,
-            sas_root=args.sas_root,
+            storage_root=args.storage_root,
             output_npz=args.output_npz,
             train_shots=args.train_shots,
             validation_shots=args.validation_shots,

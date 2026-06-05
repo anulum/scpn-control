@@ -143,7 +143,7 @@ def test_training_report_default_is_dry_run_and_does_not_write_weights(tmp_path:
     assert report["dataset_exists_on_this_host"] is True
     assert report["dataset_metadata"]["split_counts"] == {"train": 3, "validation": 1, "test": 2}
     assert report["fallback_features"] == []
-    assert "ML350 is storage-only" in report["execution_host_policy"]
+    assert "The storage host is storage-only" in report["execution_host_policy"]
     assert report["pre_run_admission"]["source_provenance"]["status"] == "pass"
     assert report["pre_run_admission"]["compute_execution"]["status"] == "fail"
     assert any("compute host kind" in item for item in report["pre_run_admission"]["errors"])
@@ -193,20 +193,20 @@ def test_training_execute_refuses_storage_output_and_unadmitted_host(tmp_path: P
                 dataset_report=dataset_report,
                 campaign_plan=campaign_plan,
                 dataset_path=dataset,
-                weights_out=Path("/mnt/data_sas/DATASETS/SCPN-CONTROL/models/weights.npz"),
+                weights_out=Path("/data/SCPN-CONTROL/models/weights.npz"),
                 feature_provenance_report=feature_provenance,
                 original_source_report=original_source,
                 execute=True,
             )
         )
 
-    with pytest.raises(ValueError, match="weights_out must not be under ML350 SAS storage"):
+    with pytest.raises(ValueError, match="weights_out must not be under storage-host dataset storage"):
         build_training_report(
             TrainingInputs(
                 dataset_report=dataset_report,
                 campaign_plan=campaign_plan,
                 dataset_path=dataset,
-                weights_out=Path("/mnt/data_sas/DATASETS/SCPN-CONTROL/models/weights.npz"),
+                weights_out=Path("/data/SCPN-CONTROL/models/weights.npz"),
                 feature_provenance_report=feature_provenance,
                 original_source_report=original_source,
                 compute_host_kind="external_cloud",
@@ -332,4 +332,4 @@ def test_write_report_records_execute_command_and_admission_boundary(tmp_path: P
     assert "MAST EFM Neural-Equilibrium Training Launch" in markdown
     assert "--execute" in markdown
     assert "not predictive EFIT/P-EFIT admission evidence" in markdown
-    assert "ML350 is storage-only" in markdown
+    assert "The storage host is storage-only" in markdown

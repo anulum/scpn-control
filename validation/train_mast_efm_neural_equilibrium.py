@@ -38,7 +38,7 @@ CAMPAIGN_PLAN_SCHEMA: str = _CAMPAIGN_MODULE.REPORT_SCHEMA
 TRAINING_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-training.v1"
 RESULT_TEMPLATES_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-result-templates.v1"
 EXECUTION_HOST_POLICY = (
-    "ML350 is storage-only; execute training only on this workstation or external cloud compute with the SAS dataset "
+    "The storage host is storage-only; execute training only on this workstation or external cloud compute with the storage-host dataset "
     "mounted read-only or copied to admitted compute storage."
 )
 DEFAULT_DATASET_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
@@ -46,7 +46,7 @@ DEFAULT_CAMPAIGN_PLAN = ROOT / "validation" / "reports" / "neural_equilibrium_tr
 DEFAULT_FEATURE_PROVENANCE_REPORT = ROOT / "validation" / "reports" / "mast_efm_feature_provenance_audit.json"
 DEFAULT_ORIGINAL_SOURCE_REPORT = ROOT / "validation" / "reports" / "mast_efm_original_feature_source_audit.json"
 DEFAULT_DATASET_PATH = Path(
-    "/mnt/data_sas/DATASETS/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz"
+    "/data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz"
 )
 DEFAULT_WEIGHTS_OUT = Path("artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz")
 DEFAULT_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_training_launch.json"
@@ -55,10 +55,10 @@ DEFAULT_TEMPLATES_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_
 DEFAULT_TEMPLATES_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_result_templates.md"
 SPLITS = ("train", "validation", "test")
 ADMITTED_COMPUTE_HOST_KINDS = ("workstation", "external_cloud")
-STORAGE_ONLY_HOST_MARKERS = ("ml350",)
+STORAGE_ONLY_HOST_MARKERS = ("storage_host",)
 STORAGE_OUTPUT_ROOTS = (
-    Path("/mnt/data_sas"),
-    Path("/mnt/data_sas/DATASETS/SCPN-CONTROL"),
+    Path("/data"),
+    Path("/data/SCPN-CONTROL"),
 )
 REQUIRED_HOLDOUT_METRICS = (
     "psi_rmse_Wb_per_rad",
@@ -270,11 +270,11 @@ def _compute_execution_admission(inputs: TrainingInputs, dataset_sha256: str | N
     if inputs.compute_host_kind not in ADMITTED_COMPUTE_HOST_KINDS:
         errors.append("compute host kind must be explicitly declared as workstation or external_cloud before --execute")
     if any(marker in host_label_lower for marker in STORAGE_ONLY_HOST_MARKERS):
-        errors.append("ML350 is storage-only and is not an admitted training host")
+        errors.append("The storage host is storage-only and is not an admitted training host")
     if dataset_sha256 is None:
         errors.append("dataset payload SHA-256 must be verified before --execute")
     if any(_path_is_relative_to(inputs.weights_out, root) for root in STORAGE_OUTPUT_ROOTS):
-        errors.append("weights_out must not be under ML350 SAS storage; use workstation or cloud compute storage")
+        errors.append("weights_out must not be under storage-host dataset storage; use workstation or cloud compute storage")
     return {
         "status": "pass" if not errors else "fail",
         "compute_host_kind": inputs.compute_host_kind,
@@ -668,7 +668,7 @@ def build_result_templates(report: dict[str, Any]) -> dict[str, Any]:
         ),
         "training_report_payload_sha256": report["payload_sha256"],
         "expected_dataset_sha256": report["dataset_sha256"],
-        "expected_weight_path_policy": "weights are written to workstation or external cloud compute storage, not ML350 SAS",
+        "expected_weight_path_policy": "weights are written to workstation or external cloud compute storage, not storage-host dataset storage",
         "holdout_metrics": {
             "schema_version": "scpn-control.mast-efm-neural-equilibrium-holdout-metrics.v1",
             "required_splits": list(SPLITS),
@@ -725,9 +725,9 @@ def validate_training_report(report: dict[str, Any], *, require_executed: bool =
         errors,
     )
     _require(
-        "ML350 is storage-only" in str(report.get("execution_host_policy", "")),
+        "The storage host is storage-only" in str(report.get("execution_host_policy", "")),
         "execution_host_policy",
-        "must preserve ML350 storage-only policy",
+        "must preserve storage-host storage-only policy",
         errors,
     )
     _require(report.get("admission_ready") is False, "admission_ready", "launch report cannot self-admit", errors)
@@ -745,7 +745,7 @@ def validate_training_report(report: dict[str, Any], *, require_executed: bool =
         _require(
             not any(_path_is_relative_to(weights_path, root) for root in STORAGE_OUTPUT_ROOTS),
             "weights_path",
-            "must not write weights under ML350 SAS storage",
+            "must not write weights under storage-host dataset storage",
             errors,
         )
     pre_run = report.get("pre_run_admission")
@@ -843,9 +843,9 @@ def validate_result_templates(
         errors,
     )
     _require(
-        "not ML350 SAS" in str(templates.get("expected_weight_path_policy", "")),
+        "not storage-host dataset storage" in str(templates.get("expected_weight_path_policy", "")),
         "expected_weight_path_policy",
-        "must forbid ML350 SAS weight output",
+        "must forbid storage-host dataset storage weight output",
         errors,
     )
     _require(

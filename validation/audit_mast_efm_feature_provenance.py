@@ -27,7 +27,7 @@ from validation.build_mast_efm_neural_equilibrium_dataset import DATASET_SCHEMA,
 
 AUDIT_SCHEMA = "scpn-control.mast-efm-feature-provenance-audit.v1"
 DEFAULT_DATASET_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
-DEFAULT_SAS_ROOT = Path("/mnt/data_sas/DATASETS/SCPN-CONTROL")
+DEFAULT_STORAGE_ROOT = Path("/data/SCPN-CONTROL")
 DEFAULT_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_feature_provenance_audit.json"
 DEFAULT_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_feature_provenance_audit.md"
 
@@ -58,13 +58,13 @@ def _load_json_object(path: Path) -> dict[str, Any]:
     return payload
 
 
-def _safe_path(sas_root: Path, relative_path: str) -> Path:
-    path = (sas_root / relative_path).resolve()
-    root = sas_root.resolve()
+def _safe_path(storage_root: Path, relative_path: str) -> Path:
+    path = (storage_root / relative_path).resolve()
+    root = storage_root.resolve()
     try:
         path.relative_to(root)
     except ValueError as exc:
-        raise ValueError(f"reference path escapes SAS root: {relative_path}") from exc
+        raise ValueError(f"reference path escapes storage root: {relative_path}") from exc
     return path
 
 
@@ -75,7 +75,7 @@ def _array_summary(path: Path) -> dict[str, Any]:
     return {"keys": keys, "shapes": shapes}
 
 
-def build_audit(dataset_report_path: Path, sas_root: Path) -> dict[str, Any]:
+def build_audit(dataset_report_path: Path, storage_root: Path) -> dict[str, Any]:
     """Build the provenance audit from prepared MAST EFM reference bundles."""
 
     dataset_report = _load_json_object(dataset_report_path)
@@ -89,7 +89,7 @@ def build_audit(dataset_report_path: Path, sas_root: Path) -> dict[str, Any]:
     for reference in references:
         if not isinstance(reference, str):
             raise ValueError("reference_paths entries must be strings")
-        path = _safe_path(sas_root, reference)
+        path = _safe_path(storage_root, reference)
         if not path.is_file():
             raise FileNotFoundError(f"reference bundle is missing: {path}")
         summary = _array_summary(path)
@@ -131,7 +131,7 @@ def build_audit(dataset_report_path: Path, sas_root: Path) -> dict[str, Any]:
         "schema_version": AUDIT_SCHEMA,
         "status": "blocked" if blocked else "pass",
         "dataset_report": str(dataset_report_path),
-        "sas_root": str(sas_root),
+        "storage_root": str(storage_root),
         "reference_dataset_id": dataset_report.get("reference_dataset_id"),
         "reference_count": len(shot_reports),
         "fallback_features": list(FALLBACK_FEATURES),
@@ -180,7 +180,7 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-report", default=DEFAULT_DATASET_REPORT, type=Path)
-    parser.add_argument("--sas-root", default=DEFAULT_SAS_ROOT, type=Path)
+    parser.add_argument("--storage-root", default=DEFAULT_STORAGE_ROOT, type=Path)
     parser.add_argument("--json-out", default=DEFAULT_JSON_OUT, type=Path)
     parser.add_argument("--report-out", default=DEFAULT_MD_OUT, type=Path)
     return parser.parse_args()
@@ -190,7 +190,7 @@ def main() -> None:
     """Run the feature-provenance audit."""
 
     args = parse_args()
-    audit = build_audit(args.dataset_report, args.sas_root)
+    audit = build_audit(args.dataset_report, args.storage_root)
     write_report(audit, args.json_out, args.report_out)
 
 

@@ -51,5 +51,5 @@ Fallback features: none
 
 - train a full-output model on the train split and evaluate only once on validation/test shot splits
 - keep public-source feature policy fixed while training and holdout evaluation are performed
-- emit compact holdout metrics and keep large weights/predictions on SAS by SHA-256
+- emit compact holdout metrics and keep large weights/predictions on storage-host storage by SHA-256
 - run validate_neural_equilibrium_reference.py only after full predictive artefacts and tolerances exist

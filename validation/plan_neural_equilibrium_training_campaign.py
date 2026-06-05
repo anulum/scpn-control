@@ -26,10 +26,10 @@ from validation.validate_public_data_acquisition import validate_public_data_acq
 
 REPORT_SCHEMA = "scpn-control.neural-equilibrium-training-campaign-plan.v1"
 EXECUTION_HOST_POLICY = (
-    "ML350 is storage-only; execute training only on this workstation or external cloud compute with SAS-mounted "
+    "The storage host is storage-only; execute training only on this workstation or external cloud compute with storage-mounted "
     "or copied data."
 )
-DEFAULT_SAS_ROOT = Path("/mnt/data_sas/DATASETS/SCPN-CONTROL")
+DEFAULT_STORAGE_ROOT = Path("/data/SCPN-CONTROL")
 DEFAULT_COMPUTE_WEIGHTS_OUT = Path("artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz")
 DEFAULT_MAST_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
 DEFAULT_PUBLIC_DATA_ROOT = ROOT / "validation" / "reference_data" / "qlknn"
@@ -42,10 +42,10 @@ class CampaignInputs:
     """Inputs for generating the campaign plan."""
 
     mast_dataset_report: Path
-    sas_root: Path
+    storage_root: Path
     public_data_root: Path
-    require_sas_payload: bool = False
-    verified_sas_payload: bool = False
+    require_storage_payload: bool = False
+    verified_storage_payload: bool = False
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:
@@ -77,18 +77,18 @@ def _validate_mast_report(path: Path) -> dict[str, Any]:
     return report
 
 
-def _sas_payload_status(
+def _storage_payload_status(
     report: dict[str, Any],
-    sas_root: Path,
+    storage_root: Path,
     require_payload: bool,
     verified_payload: bool,
 ) -> dict[str, Any]:
     relative = Path(str(report["dataset_path"]))
-    absolute = sas_root / relative
+    absolute = storage_root / relative
     exists = absolute.is_file()
     available = bool(exists or verified_payload)
     if require_payload and not available:
-        raise FileNotFoundError(f"SAS dataset payload is missing: {absolute}")
+        raise FileNotFoundError(f"storage-host dataset payload is missing: {absolute}")
     return {
         "relative_path": str(relative),
         "absolute_path": str(absolute),
@@ -171,7 +171,7 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
             "nominal_gpu_hours": round(350.0 * qlknn_scale, 2),
             "upper_gpu_hours": round(900.0 * qlknn_scale, 2),
             "storage_tb": 2.0,
-            "blocking_condition": "large numeric payloads must be pulled to SAS and checksum-verified first",
+            "blocking_condition": "large numeric payloads must be pulled to storage-host storage and checksum-verified first",
         },
         {
             "scenario": "external_efit_pefit_or_diiid_equilibrium_set",
@@ -200,11 +200,11 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
     """Build the deterministic campaign plan."""
 
     mast_report = _validate_mast_report(inputs.mast_dataset_report)
-    sas_payload = _sas_payload_status(
+    storage_payload = _storage_payload_status(
         mast_report,
-        inputs.sas_root,
-        inputs.require_sas_payload,
-        inputs.verified_sas_payload,
+        inputs.storage_root,
+        inputs.require_storage_payload,
+        inputs.verified_storage_payload,
     )
     public_data = _public_data_summary(inputs.public_data_root)
     deferred_bytes = int(public_data["deferred_bytes"])
@@ -227,7 +227,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "admission evidence and does not launch GPU training."
         ),
         "execution_host_policy": EXECUTION_HOST_POLICY,
-        "sas_root": str(inputs.sas_root),
+        "storage_root": str(inputs.storage_root),
         "mast_efm_dataset": {
             "status": "prepared",
             "reference_dataset_id": mast_report["reference_dataset_id"],
@@ -236,13 +236,13 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "split_counts": mast_report["split_counts"],
             "fallback_features": mast_report["fallback_features"],
             "ragged_target_policy": mast_report["ragged_target_policy"],
-            "payload": sas_payload,
+            "payload": storage_payload,
             "ready_to_run_checks": [
-                "python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload",
+                "python validation/plan_neural_equilibrium_training_campaign.py --require-storage-payload",
                 "python validation/train_mast_efm_neural_equilibrium.py",
                 "python validation/build_mast_efm_neural_equilibrium_dataset.py --candidate-report "
-                f"{inputs.sas_root / mast_report['candidate_report']} --sas-root {inputs.sas_root} --output-npz "
-                f"{inputs.sas_root / mast_report['dataset_path']} --json-out "
+                f"{inputs.storage_root / mast_report['candidate_report']} --storage-root {inputs.storage_root} --output-npz "
+                f"{inputs.storage_root / mast_report['dataset_path']} --json-out "
                 "validation/reports/mast_efm_neural_equilibrium_dataset.json --report-out "
                 "validation/reports/mast_efm_neural_equilibrium_dataset.md",
             ],
@@ -251,10 +251,10 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
         "compute_execution_package": {
             "status": "prepared_not_executed",
             "dataset_sha256": mast_report["dataset_sha256"],
-            "dataset_path": str(inputs.sas_root / mast_report["dataset_path"]),
+            "dataset_path": str(inputs.storage_root / mast_report["dataset_path"]),
             "weights_out": DEFAULT_COMPUTE_WEIGHTS_OUT.as_posix(),
             "admitted_compute_host_kinds": ["workstation", "external_cloud"],
-            "forbidden_training_hosts": ["ML350"],
+            "forbidden_training_hosts": ["storage host"],
             "source_provenance_reports": [
                 "validation/reports/mast_efm_feature_provenance_audit.json",
                 "validation/reports/mast_efm_original_feature_source_audit.json",
@@ -266,7 +266,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "exact_command": (
                 "python validation/train_mast_efm_neural_equilibrium.py --execute "
                 "--compute-host-kind workstation "
-                f"--dataset-path {inputs.sas_root / mast_report['dataset_path']} "
+                f"--dataset-path {inputs.storage_root / mast_report['dataset_path']} "
                 f"--weights-out {DEFAULT_COMPUTE_WEIGHTS_OUT.as_posix()}"
             ),
             "pre_run_admission_gates": [
@@ -274,13 +274,13 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
                 "converted feature-provenance audit must have no blocked features",
                 "original public-source audit must be source_ready",
                 "compute host must be explicitly declared as workstation or external_cloud",
-                "weights_out must not be under ML350 SAS storage",
+                "weights_out must not be under storage-host dataset storage",
             ],
         },
         "prepared_dataset_lanes": [
             {
                 "id": "mast_efm_neural_equilibrium",
-                "status": "prepared_on_sas",
+                "status": "prepared_on_storage",
                 "next_action": (
                     "run the dry-run trainer locally, then execute explicitly on this workstation or external cloud "
                     "compute when compute is reserved"
@@ -289,7 +289,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             {
                 "id": "qlknn_qualikiz_neural_transport",
                 "status": "manifested_large_payloads_deferred",
-                "next_action": "download deferred payloads to SAS, verify checksums, then build processed transport tensors",
+                "next_action": "download deferred payloads to storage-host storage, verify checksums, then build processed transport tensors",
                 "public_data_summary": public_data,
             },
             {
@@ -310,7 +310,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "Inspect the compute execution package and result templates before reserving GPU time.",
             "Use explicit --execute only on workstation or external cloud compute with reserved GPU capacity.",
             "Run a smoke campaign and publish compact metrics before spending multi-seed GPU budget.",
-            "Pull QLKNN/QuaLiKiz large payloads to SAS only when storage and GPU allocation are reserved.",
+            "Pull QLKNN/QuaLiKiz large payloads to storage-host storage only when storage and GPU allocation are reserved.",
             "Keep all predictive and facility claims blocked until strict admission reports pass.",
         ],
     }
@@ -335,7 +335,7 @@ def write_report(plan: dict[str, Any], json_out: Path, markdown_out: Path) -> No
         "",
         f"Schema: `{plan['schema_version']}`",
         f"Status: `{plan['status']}`",
-        f"SAS root: `{plan['sas_root']}`",
+        f"Storage root: `{plan['storage_root']}`",
         "",
         "## Claim boundary",
         "",
@@ -352,7 +352,7 @@ def write_report(plan: dict[str, Any], json_out: Path, markdown_out: Path) -> No
         f"- Grid shape: {plan['mast_efm_dataset']['grid_shape'][0]} x {plan['mast_efm_dataset']['grid_shape'][1]}",
         f"- Split counts: `{json.dumps(plan['mast_efm_dataset']['split_counts'], sort_keys=True)}`",
         f"- Dataset SHA-256: `{plan['mast_efm_dataset']['payload']['sha256']}`",
-        f"- SAS payload: `{plan['mast_efm_dataset']['payload']['absolute_path']}`",
+        f"- storage-host payload: `{plan['mast_efm_dataset']['payload']['absolute_path']}`",
         f"- Exists on this host: `{plan['mast_efm_dataset']['payload']['exists_on_this_host']}`",
         f"- Verified available: `{plan['mast_efm_dataset']['payload']['verified_available']}`",
         "",
@@ -411,12 +411,12 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mast-dataset-report", default=DEFAULT_MAST_REPORT, type=Path)
-    parser.add_argument("--sas-root", default=DEFAULT_SAS_ROOT, type=Path)
+    parser.add_argument("--storage-root", default=DEFAULT_STORAGE_ROOT, type=Path)
     parser.add_argument("--public-data-root", default=DEFAULT_PUBLIC_DATA_ROOT, type=Path)
     parser.add_argument("--json-out", default=DEFAULT_JSON_OUT, type=Path)
     parser.add_argument("--report-out", default=DEFAULT_MD_OUT, type=Path)
-    parser.add_argument("--require-sas-payload", action="store_true")
-    parser.add_argument("--verified-sas-payload", action="store_true")
+    parser.add_argument("--require-storage-payload", action="store_true")
+    parser.add_argument("--verified-storage-payload", action="store_true")
     return parser.parse_args()
 
 
@@ -427,10 +427,10 @@ def main() -> None:
     plan = build_plan(
         CampaignInputs(
             mast_dataset_report=args.mast_dataset_report,
-            sas_root=args.sas_root,
+            storage_root=args.storage_root,
             public_data_root=args.public_data_root,
-            require_sas_payload=args.require_sas_payload,
-            verified_sas_payload=args.verified_sas_payload,
+            require_storage_payload=args.require_storage_payload,
+            verified_storage_payload=args.verified_storage_payload,
         )
     )
     write_report(plan, args.json_out, args.report_out)

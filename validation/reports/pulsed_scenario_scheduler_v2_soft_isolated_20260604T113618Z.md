@@ -81,7 +81,7 @@ taskset -c 0 /tmp/scpn-control-pulsed-bench/target/release/bench_control_pulsed
 
 ## Follow-up
 
-1. Repeat on a quiet workstation or isolated ML350/PREEMPT_RT host before release-grade claims.
+1. Repeat on a quiet workstation or isolated PREEMPT_RT host before release-grade claims.
 2. Persist a first-class repository benchmark harness if the scheduler becomes a gating latency surface.
 3. Expose or benchmark the PyO3 path separately if Python needs to call the Rust scheduler directly.
 

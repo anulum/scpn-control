@@ -1,7 +1,7 @@
 {
   "command": "scpn-control-rs/target/release/examples/bench_pulsed_mpc_adapter --steps 2000 --warmup 200 --json-out validation/reports/pulsed_mpc_adapter_decision_evidence_rust_20260604T165651Z.json --md-out validation/reports/pulsed_mpc_adapter_decision_evidence_rust_20260604T165651Z.md",
   "context": {
-    "current_dir": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL",
+    "current_dir": "<repo-root>",
     "target_arch": "x86_64",
     "target_os": "linux"
   },

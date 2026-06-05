@@ -3,7 +3,7 @@
   "context": {
     "arch": "x86_64",
     "cpu_affinity": "4-5",
-    "cwd": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL",
+    "cwd": "<repo-root>",
     "isolation_method": "process-affinity-inherited-or-taskset",
     "kernel_release": "6.17.0-29-generic",
     "loadavg_end": "1.62 2.12 2.88 1/3194 2443201",

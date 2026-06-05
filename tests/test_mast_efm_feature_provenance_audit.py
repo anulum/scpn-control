@@ -54,13 +54,13 @@ def _write_dataset_report(path: Path, references: list[str]) -> None:
 
 
 def test_feature_provenance_audit_blocks_unresolved_fallbacks(tmp_path: Path) -> None:
-    sas_root = tmp_path / "sas"
-    reference = sas_root / "converted/reference.npz"
+    storage_root = tmp_path / "storage"
+    reference = storage_root / "converted/reference.npz"
     _write_reference(reference)
     report = tmp_path / "dataset.json"
     _write_dataset_report(report, ["converted/reference.npz"])
 
-    audit = build_audit(report, sas_root)
+    audit = build_audit(report, storage_root)
 
     assert audit["schema_version"] == AUDIT_SCHEMA
     assert audit["status"] == "blocked"
@@ -69,13 +69,13 @@ def test_feature_provenance_audit_blocks_unresolved_fallbacks(tmp_path: Path) ->
 
 
 def test_feature_provenance_audit_records_resolved_direct_key(tmp_path: Path) -> None:
-    sas_root = tmp_path / "sas"
-    reference = sas_root / "converted/reference.npz"
+    storage_root = tmp_path / "storage"
+    reference = storage_root / "converted/reference.npz"
     _write_reference(reference, include_ip=True)
     report = tmp_path / "dataset.json"
     _write_dataset_report(report, ["converted/reference.npz"])
 
-    audit = build_audit(report, sas_root)
+    audit = build_audit(report, storage_root)
 
     assert audit["feature_status"]["Ip_MA"]["status"] == "resolved"
     assert audit["feature_status"]["Ip_MA"]["present_keys"] == ["Ip_MA"]
@@ -83,13 +83,13 @@ def test_feature_provenance_audit_records_resolved_direct_key(tmp_path: Path) ->
 
 
 def test_feature_provenance_audit_records_converted_ffprime_rms_key(tmp_path: Path) -> None:
-    sas_root = tmp_path / "sas"
-    reference = sas_root / "converted/reference.npz"
+    storage_root = tmp_path / "storage"
+    reference = storage_root / "converted/reference.npz"
     _write_reference(reference, include_ffprime_rms=True)
     report = tmp_path / "dataset.json"
     _write_dataset_report(report, ["converted/reference.npz"])
 
-    audit = build_audit(report, sas_root)
+    audit = build_audit(report, storage_root)
 
     assert audit["feature_status"]["ffprime_scale"]["status"] == "resolved"
     assert audit["feature_status"]["ffprime_scale"]["present_keys"] == ["ffprime_rms_T_rad"]

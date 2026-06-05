@@ -99,13 +99,7 @@ docs/internal/
 docs/assets/orcid_qr.png
 .coordination/
 
-# Local agent config — never commit
-CLAUDE.md
-.claude/
 
 # Local backups — never committed
 BACKUP/
 ARCHIVE/
-
-# Internal advisory reports
-docs/internal/gemini/

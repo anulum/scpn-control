@@ -66,7 +66,7 @@
     "source_id": "validation/benchmark_neural_equilibrium_pretraining.py::synthetic_pretraining",
     "synthetic_gs_residual": 2.831343316042275e-05,
     "synthetic_test_mse": 0.012545188853562799,
-    "weights_path": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reports/neural_equilibrium_synthetic_pretrain.npz",
+    "weights_path": "<repo-root>/validation/reports/neural_equilibrium_synthetic_pretrain.npz",
     "weights_sha256": "1984585aa58569b4cfffeefe4173f80b2617679f4602734fa098c5572e45830b"
   },
   "evidence_kind": "synthetic_pretraining",
@@ -79,6 +79,6 @@
   "train_mse": 0.01148531207017691,
   "train_time_s": 49.86505394196138,
   "val_mse": 0.011484955952816164,
-  "weights_path": "/media/anulum/724AA8E84AA8AA75/aaa_God_of_the_Math_Collection/03_CODE/SCPN-CONTROL/validation/reports/neural_equilibrium_synthetic_pretrain.npz",
+  "weights_path": "<repo-root>/validation/reports/neural_equilibrium_synthetic_pretrain.npz",
   "weights_sha256": "1984585aa58569b4cfffeefe4173f80b2617679f4602734fa098c5572e45830b"
 }

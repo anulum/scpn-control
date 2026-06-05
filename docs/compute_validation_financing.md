@@ -90,11 +90,11 @@ require CPU clusters, facility licences, or code-specific runtime environments.
 
 ## Prepared neural-equilibrium campaign budget
 
-The MAST EFM neural-equilibrium dataset is prepared on ML350 SAS and can be
+The MAST EFM neural-equilibrium dataset is prepared on storage-host dataset storage and can be
 checked without launching long training jobs:
 
 ```bash
-python validation/plan_neural_equilibrium_training_campaign.py --require-sas-payload --verified-sas-payload
+python validation/plan_neural_equilibrium_training_campaign.py --require-storage-payload --verified-storage-payload
 ```
 
 The generated reports
@@ -119,9 +119,9 @@ blocked until a full-output trainer and strict holdout admission artefacts exist
 The launch path is also dry-run prepared through
 `validation/train_mast_efm_neural_equilibrium.py`; long training requires an
 explicit `--execute` flag and must run only on this workstation or external
-cloud compute after storage access and GPU capacity are reserved. ML350 is a
+cloud compute after storage access and GPU capacity are reserved. storage host is a
 storage host for this lane, not a training machine.
-ML350 dry-run evidence now confirms the prepared MAST EFM SAS dataset is visible
+storage host dry-run evidence now confirms the prepared MAST EFM storage-host dataset is visible
 from the storage host. The current supervised dataset has no fallback feature
 columns: `Ip_MA` derives from public `plasma_current_x`, `Bt_T` derives from
 public `bphi_rmag`, and `ffprime_scale` derives from public `ffprime` profile
@@ -131,7 +131,7 @@ must be launched with explicit `--execute` on workstation or cloud compute, then
 compact holdout metrics and strict reference-admission artefacts must be
 published. The compute execution package is now prepared in the campaign report:
 it fixes the expected dataset SHA-256, keeps default weights under
-`artifacts/neural_equilibrium/`, declares ML350 as a forbidden training host,
+`artifacts/neural_equilibrium/`, declares storage host as a forbidden training host,
 requires `workstation` or `external_cloud` host admission, and points to
 repository-published templates for holdout metrics, latency metrics, GPU-cost
 accounting, and the final admission certificate.
