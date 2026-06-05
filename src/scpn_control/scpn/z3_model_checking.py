@@ -1069,6 +1069,8 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
         raise ValueError("passing Z3 formal report must hold")
     if status == "fail" and payload["holds"]:
         raise ValueError("failed Z3 formal report must not hold")
+    if payload["solver"] == _Z3_BLOCKED_SOLVER_LABEL:
+        raise ValueError("unavailable Z3 solver reports must use blocked status")
     for section_name in ("safety", "temporal"):
         section = payload.get(section_name)
         if not isinstance(section, dict):

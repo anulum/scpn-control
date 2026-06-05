@@ -1881,7 +1881,8 @@
         "Persist controller safety-case readiness decisions with schema-versioned integrity manifests before promotion replay",
         "Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation",
         "Treat missing `z3-solver` as blocked SMT evidence, not as a successful proof",
-        "Reject Z3 unknown solver sections that carry counterexamples before admitting bounded proof evidence"
+        "Reject Z3 unknown solver sections that carry counterexamples before admitting bounded proof evidence",
+        "Reject pass/fail Z3 reports that reuse the unavailable solver label before admitting bounded proof evidence"
       ],
       "unit_contract": "Markings are dimensionless token densities; arc weights and invariant weights are rationalised from finite decimal inputs; max_depth is a non-negative integer firing bound; temporal response windows count transition firings.",
       "validation_evidence": [
@@ -1902,7 +1903,9 @@
         "tests/test_scpn_lean_formal_validation.py validator-level Lean report, mandatory digest, unrelated module-path rejection, and artifact admission checks",
         "tests/test_artifact_codec.py safety-critical artifact-manifest Z3/Lean duplicate report key, Z3 unknown report and counterexample fields, Z3 solver-status consistency, Z3 section checked_specs uniqueness, Lean solver/version, unsupported-contract, namespace, module-path, safety-case-ID, and unknown-field rejection checks",
         "tests/test_scpn_formal_verification.py Z3 unknown solver-section counterexample rejection checks",
-        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3 unknown solver-section counterexample rejection checks"
+        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3 unknown solver-section counterexample rejection checks",
+        "tests/test_scpn_formal_verification.py Z3 pass-report unavailable-solver rejection checks",
+        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3 pass-report unavailable-solver rejection checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/formal_verification.py",

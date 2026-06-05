@@ -102,6 +102,9 @@
 - Z3 proof sections with `solver_status="unknown"` now reject
   counterexamples because unknown solver states are not discovered
   violation paths.
+- Z3 pass/fail reports now reject the unavailable-solver label so
+  missing `z3-solver` remains blocked evidence rather than proof
+  evidence.
 
 ## [0.20.3] - 2026-06-02
 
