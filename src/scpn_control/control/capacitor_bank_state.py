@@ -18,8 +18,10 @@ if sys.version_info >= (3, 11):
     from enum import StrEnum
 else:
 
-    class StrEnum(str, Enum):
+    class _CompatStrEnum(str, Enum):
         """Local Python 3.10-compatible subset of enum.StrEnum."""
+
+    StrEnum = _CompatStrEnum
 
 
 from typing import Literal
