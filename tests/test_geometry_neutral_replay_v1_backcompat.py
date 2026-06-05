@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Tests for geometry-neutral replay v1 compatibility under v1.1 bundle.
+# SCPN Control — Geometry-neutral replay v1 back-compatibility tests.
 from __future__ import annotations
 
 import pytest
@@ -19,8 +19,21 @@ from scpn_control.scpn.geometry_neutral_replay import (
 )
 
 
-def test_v1_report_loads_under_v1_1_schema_bundle() -> None:
-    report = generate_report(steps=8, seed=20260604)
+@pytest.mark.parametrize(
+    ("steps", "seed"),
+    [
+        (8, 20260604),
+        (9, 20260605),
+        (10, 20260606),
+        (11, 20260607),
+        (12, 314159),
+        (13, 271828),
+        (14, 161803),
+        (15, 141421),
+    ],
+)
+def test_v1_report_fixtures_load_under_v1_1_schema_bundle(steps: int, seed: int) -> None:
+    report = generate_report(steps=steps, seed=seed)
 
     assert load_replay_schema(SCHEMA_VERSION)["$id"] == SCHEMA_VERSION
     assert register_v1_1_schema()["$id"] == SCHEMA_VERSION_V1_1

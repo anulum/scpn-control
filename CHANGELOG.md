@@ -10,7 +10,9 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Changed
+- Hardened geometry-neutral replay v1.1 acceptance coverage with eight v1
+  back-compatibility fixtures and byte-stable v1.1 serialisation evidence.
 
 ## [0.20.6] - 2026-06-05
 
