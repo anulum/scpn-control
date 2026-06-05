@@ -69,8 +69,9 @@ evidence for compiled Petri-net transition relations. The public report loader
 rejects duplicate JSON keys, unknown top-level fields, unknown proof-section
 fields, malformed counterexample records, duplicate or malformed section
 `checked_specs`, blocked reports that carry proof depth or live solver labels,
-pass/fail reports that reuse the unavailable-solver label, and inconsistent
-solver-state combinations. `unsat` sections must hold and carry
+pass/fail reports that do not identify `z3-solver`, pass/fail reports that
+reuse the unavailable-solver label, and inconsistent solver-state
+combinations. `unsat` sections must hold and carry
 no counterexamples; `sat` sections must not hold and must carry a schema-checked
 counterexample; `unknown` sections must not hold and must not carry
 counterexamples because an unknown solver state is not a discovered violation

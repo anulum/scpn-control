@@ -999,9 +999,9 @@ Each Z3 proof section must also carry unique non-empty `checked_specs`; duplicat
 section obligations are rejected before top-level report/spec matching.
 Blocked Z3 reports are not proof evidence: they must use the unavailable solver
 label, zero proof depth, and only the `z3_solver_available` checked
-specification. Pass/fail Z3 reports must not use the unavailable-solver
-label; a missing `z3-solver` dependency is admitted only as blocked SMT
-evidence.
+specification. Pass/fail Z3 reports must identify `z3-solver` and must not
+use the unavailable-solver label; a missing `z3-solver` dependency is
+admitted only as blocked SMT evidence.
 Lean 4 reports are admitted only through the bounded `lean4` manifest path:
 the manifest must bind a solver string that identifies Lean and includes the
 declared Lean version, Lake file SHA-256, proof-source SHA-256, theorem names,

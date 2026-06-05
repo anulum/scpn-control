@@ -255,6 +255,26 @@ def test_z3_formal_report_rejects_pass_report_unavailable_solver_under_report_ro
         load_artifact(str(artifact_path), require_formal_verification=True, formal_report_root=report_root)
 
 
+def test_z3_formal_report_rejects_pass_report_non_z3_solver_under_report_root(tmp_path: Path) -> None:
+    artifact_path = _build_artifact_file(tmp_path)
+    report_root = tmp_path / "reports"
+    report_path = report_root / "validation" / "reports" / "scpn_z3_formal.json"
+    report_path.parent.mkdir(parents=True)
+    _write_valid_z3_report(report_path)
+
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    report_payload["solver"] = "foreign-smt 1.0"
+    _reseal_z3_report_payload(report_payload)
+    report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    artifact = load_artifact(str(artifact_path))
+    artifact.formal_verification = FormalVerificationEvidence(**_passing_formal_evidence(artifact_path, report_path))
+    save_artifact(artifact, str(artifact_path))
+
+    with pytest.raises(ArtifactValidationError, match="solver.*z3-solver"):
+        load_artifact(str(artifact_path), require_formal_verification=True, formal_report_root=report_root)
+
+
 def _reseal_z3_report_payload(payload: dict[str, object]) -> dict[str, object]:
     canonical = dict(payload)
     canonical.pop("payload_sha256", None)

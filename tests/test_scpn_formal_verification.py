@@ -124,6 +124,24 @@ def test_load_z3_formal_report_rejects_pass_report_with_unavailable_solver(tmp_p
         load_z3_formal_report(path)
 
 
+def test_load_z3_formal_report_rejects_pass_report_with_non_z3_solver(tmp_path: Path) -> None:
+    path = tmp_path / "pass-non-z3-solver-report.json"
+    report = Z3FormalVerificationReport(
+        holds=True,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["marking_bounds"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["response_ok"]),
+    )
+    payload = build_z3_formal_report_payload(report)
+    payload["solver"] = "foreign-smt 1.0"
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="solver.*z3-solver"):
+        load_z3_formal_report(path)
+
+
 def _weighted_transfer_net(*, source_tokens: float) -> StochasticPetriNet:
     net = StochasticPetriNet()
     net.add_place("source", initial_tokens=float(source_tokens))

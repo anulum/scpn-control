@@ -133,6 +133,9 @@
 - Z3 pass/fail reports now reject the unavailable-solver label so
   missing `z3-solver` remains blocked evidence rather than proof
   evidence.
+- Z3 pass/fail reports now require solver metadata to identify
+  `z3-solver`, preventing foreign SMT labels from being admitted as
+  Z3 proof evidence.
 
 ## [0.20.3] - 2026-06-02
 
