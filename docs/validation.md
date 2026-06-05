@@ -368,6 +368,9 @@ with finite numeric marking values.
 Z3 proof sections also enforce solver-status consistency: `unsat` sections must
 hold and carry no counterexamples, `sat` sections must not hold and must carry
 counterexamples, and `unknown` sections must not be admitted as holding.
+Section-level Z3 `checked_specs` must contain unique non-empty strings so a
+report cannot hide duplicate proof obligations behind the top-level
+de-duplicated checked-spec list.
 Blocked Z3 reports are limited to solver-availability evidence only: the
 admitted blocked shape has solver `z3-solver unavailable`, `max_depth` equal to
 zero, and exactly `z3_solver_available` as its checked specification.

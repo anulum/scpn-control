@@ -993,6 +993,13 @@ def _validate_z3_section_solver_consistency(section: dict[str, Any], *, context:
         raise ValueError(f"{context} unknown section must not hold")
 
 
+def _validate_z3_section_checked_specs(checked_specs: list[Any], *, context: str) -> None:
+    if any(not isinstance(spec, str) or not spec for spec in checked_specs):
+        raise ValueError(f"{context} checked_specs must contain non-empty strings")
+    if len(checked_specs) != len(set(checked_specs)):
+        raise ValueError(f"{context} checked_specs must be unique")
+
+
 def load_z3_formal_report(path: str | Path) -> dict[str, Any]:
     """Load and validate a duplicate-key-safe Z3 formal evidence report."""
     report_path = Path(path)
@@ -1080,6 +1087,7 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
         _validate_z3_section_solver_consistency(section, context=f"Z3 formal report {section_name}")
         if not isinstance(section.get("checked_specs"), list):
             raise ValueError(f"Z3 formal report {section_name} checked_specs must be a list")
+        _validate_z3_section_checked_specs(section["checked_specs"], context=f"Z3 formal report {section_name}")
     if payload["holds"] != (payload["safety"]["holds"] and payload["temporal"]["holds"]):
         raise ValueError("Z3 formal report holds must match safety and temporal sections")
     if payload["checked_specs"] != _checked_specs(payload["safety"], payload["temporal"]):

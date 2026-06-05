@@ -97,6 +97,8 @@
 - Blocked Z3 formal reports now fail closed unless they carry the unavailable
   solver label, zero proof depth, and only the `z3_solver_available` checked
   spec.
+- Z3 proof-section `checked_specs` now reject duplicate or malformed entries
+  instead of relying only on top-level report de-duplication.
 
 ## [0.20.3] - 2026-06-02
 

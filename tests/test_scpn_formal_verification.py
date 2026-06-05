@@ -1240,6 +1240,43 @@ def test_load_z3_formal_report_rejects_blocked_report_with_live_solver_label(tmp
         load_z3_formal_report(path)
 
 
+def test_load_z3_formal_report_rejects_duplicate_section_checked_specs(tmp_path: Path) -> None:
+    path = tmp_path / "duplicate-section-spec-z3-report.json"
+    report = Z3FormalVerificationReport(
+        holds=True,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["marking_bounds"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["response_ok"]),
+    )
+    payload = build_z3_formal_report_payload(report)
+    payload["temporal"]["checked_specs"] = ["response_ok", "response_ok"]
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="temporal.*checked_specs.*unique"):
+        load_z3_formal_report(path)
+
+
+def test_load_z3_formal_report_rejects_empty_section_checked_spec(tmp_path: Path) -> None:
+    path = tmp_path / "empty-section-spec-z3-report.json"
+    report = Z3FormalVerificationReport(
+        holds=True,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["marking_bounds"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["response_ok"]),
+    )
+    payload = build_z3_formal_report_payload(report)
+    payload["temporal"]["checked_specs"] = ["response_ok", ""]
+    payload["checked_specs"] = ["marking_bounds", "response_ok", ""]
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="checked_specs.*non-empty"):
+        load_z3_formal_report(path)
+
+
 def test_z3_formal_payload_records_fail_closed_counterexample_evidence() -> None:
     violation = FormalViolation(
         property_name="unsafe_bound",
