@@ -87,6 +87,8 @@
   report loader for report-root manifest checks.
 - Z3 formal report loading now rejects duplicate JSON keys and artifact
   report-root admission uses the same loader.
+- Z3 formal report admission now rejects unknown top-level and proof-section
+  fields even when the payload digest is recomputed.
 
 ## [0.20.3] - 2026-06-02
 

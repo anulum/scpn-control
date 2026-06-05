@@ -39,6 +39,34 @@ SYMBIYOSYS_SYMBOLIC_CONTRACT_VERSION = "scpn-control.symbiyosys-contract.v1"
 SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION = SYMBIYOSYS_SYMBOLIC_CONTRACT_VERSION
 RTI_CONTRACT_BUDGET_NS = 50.0
 
+_Z3_REPORT_PASS_FAIL_KEYS = frozenset(
+    {
+        "backend",
+        "checked_specs",
+        "claim_boundary",
+        "holds",
+        "max_depth",
+        "payload_sha256",
+        "safety",
+        "schema_version",
+        "scope",
+        "solver",
+        "status",
+        "temporal",
+    }
+)
+_Z3_REPORT_BLOCKED_KEYS = _Z3_REPORT_PASS_FAIL_KEYS | {"reason"}
+_Z3_REPORT_SECTION_KEYS = frozenset(
+    {
+        "backend",
+        "checked_specs",
+        "holds",
+        "max_depth",
+        "solver_status",
+        "violations",
+    }
+)
+
 
 @dataclass(frozen=True)
 class Z3ModelCheckingReport:
@@ -891,6 +919,12 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _reject_unknown_keys(payload: dict[str, Any], *, allowed: frozenset[str], context: str) -> None:
+    unknown = sorted(set(payload) - allowed)
+    if unknown:
+        raise ValueError(f"{context} unknown fields: {', '.join(unknown)}")
+
+
 def load_z3_formal_report(path: str | Path) -> dict[str, Any]:
     """Load and validate a duplicate-key-safe Z3 formal evidence report."""
     report_path = Path(path)
@@ -912,6 +946,11 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
     status = payload.get("status")
     if status not in {"pass", "fail", "blocked"}:
         raise ValueError("Z3 formal report status must be pass, fail, or blocked")
+    _reject_unknown_keys(
+        payload,
+        allowed=_Z3_REPORT_BLOCKED_KEYS if status == "blocked" else _Z3_REPORT_PASS_FAIL_KEYS,
+        context="Z3 formal report",
+    )
     if not isinstance(payload.get("solver"), str) or not payload["solver"]:
         raise ValueError("Z3 formal report solver must be a non-empty string")
     if not isinstance(payload.get("holds"), bool):
@@ -951,6 +990,7 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
         section = payload.get(section_name)
         if not isinstance(section, dict):
             raise ValueError(f"Z3 formal report {section_name} section must be an object")
+        _reject_unknown_keys(section, allowed=_Z3_REPORT_SECTION_KEYS, context=f"Z3 formal report {section_name}")
         if section.get("backend") != "z3":
             raise ValueError(f"Z3 formal report {section_name} backend must be 'z3'")
         if section.get("max_depth") != payload["max_depth"]:

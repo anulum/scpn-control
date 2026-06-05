@@ -71,6 +71,14 @@ def _transfer_net() -> StochasticPetriNet:
     return net
 
 
+def _reseal_z3_report_payload(payload: dict[str, object]) -> dict[str, object]:
+    canonical = dict(payload)
+    canonical.pop("payload_sha256", None)
+    blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload["payload_sha256"] = hashlib.sha256(blob).hexdigest()
+    return payload
+
+
 def _weighted_transfer_net(*, source_tokens: float) -> StochasticPetriNet:
     net = StochasticPetriNet()
     net.add_place("source", initial_tokens=float(source_tokens))
@@ -1100,6 +1108,35 @@ def test_load_z3_formal_report_rejects_duplicate_json_keys(tmp_path: Path) -> No
         load_z3_formal_report(path)
 
 
+def test_load_z3_formal_report_rejects_unknown_top_level_fields(tmp_path: Path) -> None:
+    path = tmp_path / "unknown-z3-report-field.json"
+    payload = build_blocked_z3_formal_report_payload("z3 unavailable in fixture")
+    payload["foreign_attestation"] = "unrelated-proof-engine"
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unknown fields"):
+        load_z3_formal_report(path)
+
+
+def test_load_z3_formal_report_rejects_unknown_proof_section_fields(tmp_path: Path) -> None:
+    path = tmp_path / "unknown-z3-section-field.json"
+    report = Z3FormalVerificationReport(
+        holds=True,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["marking_bounds"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["move_eventually_fires"]),
+    )
+    payload = build_z3_formal_report_payload(report)
+    payload["safety"]["foreign_bound"] = "unsafe-padding"
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="safety.*unknown fields"):
+        load_z3_formal_report(path)
+
+
 def test_z3_formal_payload_records_fail_closed_counterexample_evidence() -> None:
     violation = FormalViolation(
         property_name="unsafe_bound",
@@ -1151,6 +1188,7 @@ def test_z3_formal_report_validator_rejects_inconsistent_safety_case_payloads() 
     tampered["holds"] = False
     tampered["safety"] = {}
     tampered["temporal"] = {}
+    tampered.pop("reason")
     tampered["payload_sha256"] = "0" * 64
     with pytest.raises(ValueError, match="payload_sha256"):
         validate_z3_formal_report_payload(tampered)

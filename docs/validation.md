@@ -358,8 +358,10 @@ validation. The
 certificate is evidence for bounded model checking only; it is not a facility
 safety approval or an unbounded proof.
 Z3 formal report files reached through safety-critical artifact manifests are
-loaded through the duplicate-key-safe public `load_z3_formal_report()` path
-before manifest/report field matching runs.
+loaded through the duplicate-key-safe and schema-strict public
+`load_z3_formal_report()` path before manifest/report field matching runs.
+Unknown Z3 top-level or proof-section fields are rejected even when a foreign
+producer recomputes the report payload digest.
 
 ```bash
 python validation/validate_scpn_z3_formal.py
