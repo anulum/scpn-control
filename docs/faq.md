@@ -50,3 +50,16 @@ GPU acceleration via JAX is highly effective for large-scale ensemble runs
 (`jax.vmap`) or gradient-based optimization (`jax.grad`). However, for
 single-shot real-time control, the overhead of CPU-to-GPU memory transfer
 and JAX kernel dispatch often makes the Rust CPU backend faster.
+
+## How to read FAQ answers safely
+
+The FAQ is a usage-level layer. Each answer is tied to a current implementation
+surface and must be interpreted with the same admission context as the project:
+
+- local-repeatability and benchmark reproducibility are distinct,
+- raw timing lines depend on host load and scheduler context,
+- physics and transport claims require matching validation artifacts for the same
+  intended domain.
+
+If a claim changes after a version bump or a formal-mode change, treat this page
+as a starting point and verify through the linked validator and report outputs.

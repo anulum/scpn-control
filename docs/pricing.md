@@ -60,3 +60,17 @@ The code is free. These tiers fund compute, validation data, and development tim
 
 - Web: [anulum.li](https://www.anulum.li)
 - Email: protoscience@anulum.li
+
+## Practical funding policy
+
+Funding visibility is explicit in this page because claim development and
+validation have fixed cost drivers:
+
+- compute-hour cost for multi-shot or large ensemble studies,
+- data conversion and cleaning for public reference runs,
+- cross-code validation campaigns,
+- hardware qualification experiments (GPU/FPGA/network).
+
+The same support tier can be consumed as one-off validation effort or as a
+continuous partner stream if you need sustained benchmark and safety evidence
+for pitch, due diligence, or investor-facing deliverables.

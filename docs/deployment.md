@@ -138,3 +138,19 @@ equilibrium = client.get_ids("equilibrium")
 cfg = equilibrium.to_scpn_config()
 ```
 Requires `imas` Python bindings to be installed in the environment.
+
+## Deployment boundary and approval route
+
+This guide is a technical deployment map, not a facility certification manual.
+
+Use this sequence for a safe rollout:
+
+1. Start with containerized or local simulations to validate command wiring.
+2. Move to native execution only for timing-sensitive loops.
+3. Record host/core isolation metadata for any hard real-time claim.
+4. Keep proof, benchmark, and runtime evidence in matching validators before
+   proposing production timing claims.
+
+The same configuration can be technically correct but claim-insufficient for
+facility integration if the environment metadata and admission artifacts are
+absent.

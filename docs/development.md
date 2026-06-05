@@ -107,6 +107,19 @@ mkdocs build     # static site in site/
 
 CI deploys to GitHub Pages on push to `main` via `.github/workflows/docs-pages.yml`.
 
+## How to use this guide in practice
+
+This page defines the engineering path to stable work, not the path for first contact.
+Use it after onboarding is complete when you need to:
+
+- reproduce an existing result,
+- add a new module behind an existing interface,
+- or prepare a release candidate with validation and documentation updates.
+
+Each section is intentionally scoped: setup to make the stack runnable, test and
+type gates to keep it safe, and release steps to keep claim and version metadata
+aligned.
+
 The docs site includes:
 
 - Full API reference via mkdocstrings, including a complete module index for

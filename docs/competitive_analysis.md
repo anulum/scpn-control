@@ -194,3 +194,19 @@
 - FreeGS: https://github.com/freegs-plasma/freegs
 - FreeGSNKE: https://docs.freegsnke.com/
 - Gym-TORAX: *arXiv:2510.11283*
+
+## How to interpret this comparison
+
+This document mixes measured local benchmarking, repository-reported metrics,
+and external literature references. The goal is not to claim equal deployment
+readiness across systems, but to identify where engineering scope differs.
+
+When comparing entries:
+
+- treat bare-kernel timing as a local runtime indicator,
+- treat published literature values as method-level baselines,
+- keep cross-code and facility claims outside this table unless strict, matched
+  external artifacts are attached.
+
+The practical use is to decide integration priority, not to conclude market-wide
+dominance from a single number.

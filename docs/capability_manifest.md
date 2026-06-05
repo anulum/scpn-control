@@ -40,3 +40,14 @@ python tools/capability_manifest.py --check
 The README embeds `docs/_generated/capability_snapshot.md` between
 `capability-snapshot` markers. The generated fragment uses HTML comments for
 metadata so SPDX and provenance lines do not render as large page titles.
+
+## Why this manifest exists
+
+This inventory is the machine-readable map for reviewers, contributors, and
+release auditors. It answers two concrete questions:
+
+- Which public modules, scripts, validators, and workflows are present now?
+- Which parts changed since the last manifest regeneration?
+
+Use it before broad documentation updates, because regenerated capability data
+must match the public claim language in README and release notes.
