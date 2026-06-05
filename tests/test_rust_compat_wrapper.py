@@ -1,18 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Rust Compat Wrapper
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Rust Compat Wrapper Tests
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Rust compatibility wrapper tests.
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -23,6 +20,9 @@ _HAS_RUST = _rust_compat._rust_available()
 
 _HAS_RUST_PID = False
 _HAS_RUST_ISOFLUX = False
+_HAS_RUST_SNN_POOL = False
+_HAS_RUST_SNN_CONTROLLER = False
+_HAS_RUST_HINF = False
 _HAS_RUST_MG_VCYCLE = False
 _HAS_RUST_SVD = False
 try:
@@ -41,11 +41,39 @@ try:
 except ImportError:
     pass
 try:
+    from scpn_control_rs import PySnnPool  # noqa: F401
+
+    _HAS_RUST_SNN_POOL = True
+except ImportError:
+    pass
+try:
+    from scpn_control_rs import PySnnController  # noqa: F401
+
+    _HAS_RUST_SNN_CONTROLLER = True
+except ImportError:
+    pass
+try:
+    from scpn_control_rs import PyHInfController  # noqa: F401
+
+    _HAS_RUST_HINF = True
+except ImportError:
+    pass
+try:
     from scpn_control_rs import multigrid_vcycle  # noqa: F401
 
     _HAS_RUST_MG_VCYCLE = True
 except ImportError:
     pass
+
+_HAS_ANY_CONTROLLER_WRAPPER_BINDING = any(
+    (
+        _HAS_RUST_PID,
+        _HAS_RUST_ISOFLUX,
+        _HAS_RUST_SNN_POOL,
+        _HAS_RUST_SNN_CONTROLLER,
+        _HAS_RUST_HINF,
+    )
+)
 try:
     from scpn_control_rs import svd_optimal_correction  # noqa: F401
 
@@ -66,10 +94,10 @@ class _DummyRustKernel:
         return (5, 5)
 
     def get_r(self) -> list[float]:
-        return self._r.tolist()
+        return cast("list[float]", self._r.tolist())
 
     def get_z(self) -> list[float]:
-        return self._z.tolist()
+        return cast("list[float]", self._z.tolist())
 
     def get_psi(self) -> np.ndarray:
         return self._psi.copy()
@@ -120,7 +148,7 @@ class _NoJPhiRustKernel(_DummyRustKernel):
 
 
 class _FallbackProbeRustKernel(_NoJPhiRustKernel):
-    def __getattribute__(self, name: str):
+    def __getattribute__(self, name: str) -> Any:
         if name == "sample_psi_at_probes":
             raise AttributeError(name)
         return super().__getattribute__(name)
@@ -355,7 +383,7 @@ def test_no_rust_bosch_hale_helper_fails_closed() -> None:
         _rust_compat.rust_bosch_hale_dt(10.0)
 
 
-@_needs_no_rust
+@pytest.mark.skipif(_HAS_ANY_CONTROLLER_WRAPPER_BINDING, reason="Rust controller wrapper binding is available")
 def test_no_rust_controller_wrappers_fail_closed() -> None:
     with pytest.raises(ImportError):
         _rust_compat.RustSnnPool()

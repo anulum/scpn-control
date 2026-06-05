@@ -21,7 +21,7 @@ import sys
 import threading
 import time
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -382,9 +382,7 @@ def _summarise(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "formal_checked_total": sum(int(_formal(row).get("checked", 0)) for row in rows),
         "formal_dropped_total": sum(int(_formal(row).get("dropped", 0)) for row in rows),
         "formal_failures_total": sum(int(_formal(row).get("failures", 0)) for row in rows),
-        "certificate_admitted_total": sum(
-            1 for row in rows if bool(_formal(row).get("certificate_admitted", False))
-        ),
+        "certificate_admitted_total": sum(1 for row in rows if bool(_formal(row).get("certificate_admitted", False))),
         "certificate_schema_versions": _formal_string_set(rows, "certificate_schema_version"),
         "certificate_ids": _formal_string_set(rows, "certificate_id"),
         "certificate_assumption_sha256_values": _formal_string_set(rows, "certificate_assumption_sha256"),
@@ -520,7 +518,7 @@ def main() -> int:
     }
     payload = {
         "schema": "scpn-control.native_formal_modes.v1",
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "classification": (
             "native formal mode benchmark; benchmark_context defines whether timing evidence is local regression "
             "or production benchmark evidence"
