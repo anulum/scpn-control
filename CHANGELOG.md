@@ -12,6 +12,15 @@
 
 No unreleased changes.
 
+## [0.20.5] - 2026-06-05
+
+### Fixed
+- Bumped package, citation, archive, API, README capability, and release-note metadata to `0.20.5`.
+- Added API documentation coverage for the native Rust engine wrapper.
+- Preserved the AER domain acronym in typo checks so Address-Event Representation surfaces are not rewritten.
+- Fixed the AER observation NumPy return annotation path for strict mypy pre-commit checks.
+- Kept internal documentation excluded from the MkDocs/GitHub Pages build and applied tracked validation-report whitespace fixes.
+
 ## [0.20.4] - 2026-06-05
 
 ### Added

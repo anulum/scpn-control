@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Capability manifest tests.
+# SCPN Control — Capability manifest tests.
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ import copy
 import importlib.util
 import json
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -20,7 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TOOL_PATH = REPO_ROOT / "tools" / "capability_manifest.py"
 
 
-def _load_tool():
+def _load_tool() -> ModuleType:
     spec = importlib.util.spec_from_file_location("capability_manifest", TOOL_PATH)
     assert spec is not None
     assert spec.loader is not None
@@ -30,11 +32,11 @@ def _load_tool():
 
 
 @pytest.fixture()
-def capability_tool():
+def capability_tool() -> ModuleType:
     return _load_tool()
 
 
-def test_manifest_scans_control_specific_surfaces(capability_tool) -> None:
+def test_manifest_scans_control_specific_surfaces(capability_tool: Any) -> None:
     manifest = capability_tool.build_manifest(REPO_ROOT)
 
     assert manifest["project"]["name"] == "scpn-control"
@@ -77,7 +79,7 @@ def test_manifest_scans_control_specific_surfaces(capability_tool) -> None:
         assert manifest["counts"][count_name] == len(manifest[section][values_name])
 
 
-def test_manifest_validation_rejects_count_drift(capability_tool) -> None:
+def test_manifest_validation_rejects_count_drift(capability_tool: Any) -> None:
     manifest = capability_tool.build_manifest(REPO_ROOT)
     broken = copy.deepcopy(manifest)
     broken["counts"]["source_module_count"] += 1
@@ -86,7 +88,7 @@ def test_manifest_validation_rejects_count_drift(capability_tool) -> None:
         capability_tool.validate_manifest(broken)
 
 
-def test_manifest_validation_rejects_missing_project_scripts(capability_tool) -> None:
+def test_manifest_validation_rejects_missing_project_scripts(capability_tool: Any) -> None:
     manifest = capability_tool.build_manifest(REPO_ROOT)
     broken = copy.deepcopy(manifest)
     broken["project"]["scripts"] = {}
@@ -96,7 +98,7 @@ def test_manifest_validation_rejects_missing_project_scripts(capability_tool) ->
         capability_tool.validate_manifest(broken)
 
 
-def test_manifest_validation_rejects_invalid_project_script_targets(capability_tool) -> None:
+def test_manifest_validation_rejects_invalid_project_script_targets(capability_tool: Any) -> None:
     manifest = capability_tool.build_manifest(REPO_ROOT)
     broken = copy.deepcopy(manifest)
     broken["project"]["scripts"]["scpn-control"] = "scpn_control.cli"
@@ -105,7 +107,7 @@ def test_manifest_validation_rejects_invalid_project_script_targets(capability_t
         capability_tool.validate_manifest(broken)
 
 
-def test_generated_outputs_are_current(capability_tool) -> None:
+def test_generated_outputs_are_current(capability_tool: Any) -> None:
     expected_manifest = capability_tool.build_manifest(REPO_ROOT)
     expected_markdown = capability_tool.render_markdown(expected_manifest)
     manifest_path = REPO_ROOT / "docs" / "_generated" / "capability_manifest.json"
@@ -115,26 +117,26 @@ def test_generated_outputs_are_current(capability_tool) -> None:
     assert markdown_path.read_text(encoding="utf-8") == expected_markdown
 
 
-def test_readme_snapshot_matches_generated_markdown(capability_tool) -> None:
+def test_readme_snapshot_matches_generated_markdown(capability_tool: Any) -> None:
     generated = (REPO_ROOT / "docs" / "_generated" / "capability_snapshot.md").read_text(encoding="utf-8")
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert capability_tool.extract_readme_block(readme) == generated
 
 
-def test_markdown_snapshot_is_readme_safe(capability_tool) -> None:
+def test_markdown_snapshot_is_readme_safe(capability_tool: Any) -> None:
     manifest = capability_tool.build_manifest(REPO_ROOT)
     markdown = capability_tool.render_markdown(manifest)
     header_lines = markdown.splitlines()[:7]
 
     assert header_lines == [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->",
+        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
+        "<!-- Commercial license available -->",
         "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
         "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
         "<!-- ORCID: 0009-0009-3560-0851 -->",
         "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-        "<!-- Project: SCPN Control -->",
-        "<!-- Description: Generated capability snapshot. -->",
+        "<!-- SCPN Control — Generated capability snapshot. -->",
     ]
     assert "<h1" not in markdown.lower()
     assert "\n# " not in markdown

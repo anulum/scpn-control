@@ -17,9 +17,9 @@ import socket
 import sys
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src"
@@ -27,6 +27,10 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from scpn_control.core.rust_engine import NeuroCyberneticEngine  # noqa: E402
+
+
+def _loopback_sink_host(host: str) -> str:
+    return "127.0.0.1" if host.startswith("239.") else host
 
 
 class _UdpSink:
@@ -45,7 +49,7 @@ class _UdpSink:
         return int(self._packets)
 
     def __enter__(self) -> "_UdpSink":
-        bind_host = "0.0.0.0" if self._host.startswith("239.") else self._host
+        bind_host = _loopback_sink_host(self._host)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((bind_host, self._port))
@@ -119,11 +123,14 @@ def _run_campaign(args: argparse.Namespace, *, backend: str, port: int) -> dict[
 
     started = time.perf_counter()
     with _UdpSink(args.transport_endpoint, port) as sink:
-        summary = engine.execute_hardware_loop(
-            steps=args.steps,
-            tick_interval_s=args.tick_interval_s,
-            max_publish_failures=args.transport_max_queue,
-            execution_backend=backend,
+        summary = cast(
+            "dict[str, Any]",
+            engine.execute_hardware_loop(
+                steps=args.steps,
+                tick_interval_s=args.tick_interval_s,
+                max_publish_failures=args.transport_max_queue,
+                execution_backend=backend,
+            ),
         )
     wall_s = time.perf_counter() - started
     summary["wall_s"] = wall_s
@@ -217,7 +224,7 @@ def main() -> int:
 
     payload = {
         "schema": "scpn-control.native_handoff_comparison.v1",
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "platform": {
             "python": sys.version,
             "platform": platform.platform(),

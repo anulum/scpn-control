@@ -17,15 +17,29 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _load_benchmark_module() -> ModuleType:
+    return _load_script_module("benchmark_native_formal_modes", "benchmark_native_formal_modes.py")
+
+
+def _load_script_module(name: str, filename: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location(
-        "benchmark_native_formal_modes",
-        REPO_ROOT / "scripts" / "benchmark_native_formal_modes.py",
+        name,
+        REPO_ROOT / "scripts" / filename,
     )
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def test_udp_sink_binding_keeps_multicast_consumers_on_loopback() -> None:
+    formal = _load_benchmark_module()
+    handoff = _load_script_module("benchmark_native_handoff", "benchmark_native_handoff.py")
+
+    assert formal._loopback_sink_host("239.0.0.1") == "127.0.0.1"
+    assert handoff._loopback_sink_host("239.0.0.1") == "127.0.0.1"
+    assert formal._loopback_sink_host("127.0.0.1") == "127.0.0.1"
+    assert handoff._loopback_sink_host("127.0.0.1") == "127.0.0.1"
 
 
 def test_summary_preserves_aot_certificate_admission_fields() -> None:

@@ -14,7 +14,7 @@ import os
 import platform
 import statistics
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -162,7 +162,7 @@ def main() -> int:
     result = _measure(steps=args.steps, warmup=args.warmup, discharge_steps=args.discharge_steps, dt_s=args.dt_s)
     payload: dict[str, Any] = {
         "schema_version": "scpn-control.capacitor-bank-energy-benchmark.v1",
-        "generated_utc": datetime.now(UTC).isoformat(),
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
         "evidence_class": args.evidence_class,
         "production_claim_allowed": False,
         "settings": {

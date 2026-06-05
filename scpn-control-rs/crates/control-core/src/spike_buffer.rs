@@ -275,13 +275,7 @@ fn validate_window_and_features(window_ns: u64, n_features: usize) -> Result<(),
 }
 
 fn clip01(value: f64) -> f64 {
-    if value < 0.0 {
-        0.0
-    } else if value > 1.0 {
-        1.0
-    } else {
-        value
-    }
+    value.clamp(0.0, 1.0)
 }
 
 #[cfg(test)]

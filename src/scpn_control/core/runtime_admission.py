@@ -19,13 +19,18 @@ from __future__ import annotations
 
 import os
 import platform
-import resource
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from collections.abc import Mapping, Sequence
+
+_resource: Any
+try:
+    import resource as _resource
+except ModuleNotFoundError:  # Windows does not provide POSIX resource limits.
+    _resource = None
 
 RUNTIME_ADMISSION_SCHEMA_VERSION = "scpn-control.runtime-admission.v1"
 DEFAULT_MIN_MEMLOCK_BYTES = 64 * 1024 * 1024
@@ -338,15 +343,17 @@ def _scheduler_policy() -> tuple[str, int | None]:
 
 
 def _memlock_limits() -> tuple[int | str, int | str]:
+    if _resource is None:
+        return "unknown", "unknown"
     try:
-        soft, hard = resource.getrlimit(resource.RLIMIT_MEMLOCK)
+        soft, hard = _resource.getrlimit(_resource.RLIMIT_MEMLOCK)
     except (OSError, ValueError):
         return "unknown", "unknown"
     return _format_limit(soft), _format_limit(hard)
 
 
 def _format_limit(value: int) -> int | str:
-    if value == resource.RLIM_INFINITY:
+    if _resource is not None and value == _resource.RLIM_INFINITY:
         return "unlimited"
     return int(value)
 

@@ -13,7 +13,7 @@ authors:
   - family-names: "Sotek"
     given-names: "Miroslav"
     orcid: "https://orcid.org/0009-0009-3560-0851"
-version: "0.20.4"
+version: "0.20.5"
 date-released: "2026-06-05"
 license: "AGPL-3.0-or-later"
 repository-code: "https://github.com/anulum/scpn-control"

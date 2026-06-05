@@ -1663,6 +1663,7 @@ impl PyMpcController {
         Ok(u.into_pyarray(py))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn plan_pulsed<'py>(
         &self,
         py: Python<'py>,
@@ -1739,6 +1740,7 @@ impl PyMultiShotCampaignOrchestrator {
         initial_bank_voltage_v,
         pulsed_mpc_admission_digests=None
     ))]
+    #[allow(clippy::too_many_arguments)]
     fn run_table<'py>(
         &self,
         py: Python<'py>,
@@ -1874,10 +1876,9 @@ fn multi_shot_report_to_dict<'py>(
         shot_dict.set_item("trigger_timestamp_ns", shot.trigger_timestamp_ns)?;
         shot_dict.set_item(
             "pulsed_mpc_evidence_schema_version",
-            match &shot.pulsed_mpc_admission_digest {
-                Some(_) => Some(report.pulsed_mpc_evidence_schema_version.as_str()),
-                None => None,
-            },
+            shot.pulsed_mpc_admission_digest
+                .as_ref()
+                .map(|_| report.pulsed_mpc_evidence_schema_version.as_str()),
         )?;
         shot_dict.set_item(
             "pulsed_mpc_admission_digest",

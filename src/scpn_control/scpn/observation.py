@@ -263,7 +263,8 @@ def _normalise_features(features: np.ndarray, mode: FeatureNormalisation) -> np.
 
 
 def _clip01(values: np.ndarray) -> np.ndarray:
-    return np.clip(values, 0.0, 1.0).astype(np.float64, copy=False)
+    clipped = np.asarray(np.clip(values, 0.0, 1.0), dtype=np.float64)
+    return clipped
 
 
 def _positive_int(name: str, value: int) -> int:

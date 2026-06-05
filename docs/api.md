@@ -13,7 +13,7 @@
 ```python
 import scpn_control
 
-scpn_control.__version__       # "0.20.4"
+scpn_control.__version__       # "0.20.5"
 scpn_control.FusionKernel      # Grad-Shafranov equilibrium solver
 scpn_control.RUST_BACKEND      # True if Rust acceleration available
 scpn_control.TokamakConfig     # Preset tokamak geometries
@@ -2008,3 +2008,19 @@ maturin develop --release
 | `MpcController` | `PyMpcController` | control-control |
 | `Plasma2D` | `PyPlasma2D` | control-core |
 | `TransportSolver` | `PyTransportSolver` | control-core |
+
+---
+
+## Core — Native Rust Engine Wrapper
+
+`scpn_control.core.rust_engine` is the Python control-plane wrapper for the
+optional PyO3 native execution bridge. It configures native campaign execution,
+formal-verification mode, runtime admission, transport backend selection, and
+emergency telemetry handoff while keeping timing-critical execution inside the
+compiled Rust data plane when the extension is available.
+
+This wrapper is an execution boundary, not a physics solver. It does not turn a
+local workstation run into target-hardware PCS evidence unless the matching
+runtime-admission and benchmark-context reports pass.
+
+::: scpn_control.core.rust_engine
