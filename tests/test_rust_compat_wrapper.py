@@ -7,6 +7,7 @@
 # SCPN Control — Rust compatibility wrapper tests.
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -17,6 +18,7 @@ import pytest
 from scpn_control.core import _rust_compat
 
 _HAS_RUST = _rust_compat._rust_available()
+_HAS_SCPN_CONTROL_RS = importlib.util.find_spec("scpn_control_rs") is not None
 
 _HAS_RUST_PID = False
 _HAS_RUST_ISOFLUX = False
@@ -383,18 +385,19 @@ def test_no_rust_bosch_hale_helper_fails_closed() -> None:
         _rust_compat.rust_bosch_hale_dt(10.0)
 
 
-@pytest.mark.skipif(_HAS_ANY_CONTROLLER_WRAPPER_BINDING, reason="Rust controller wrapper binding is available")
-def test_no_rust_controller_wrappers_fail_closed() -> None:
+@pytest.mark.skipif(_HAS_SCPN_CONTROL_RS, reason="scpn_control_rs module is importable")
+def test_no_rust_controller_wrappers_fail_closed_or_use_python_fallback() -> None:
     with pytest.raises(ImportError):
         _rust_compat.RustSnnPool()
     with pytest.raises(ImportError):
         _rust_compat.RustSnnController()
-    with pytest.raises(ImportError):
-        _rust_compat.RustPIDController(1.0, 0.1, 0.01)
-    with pytest.raises(ImportError):
-        _rust_compat.RustPIDController.radial()
-    with pytest.raises(ImportError):
-        _rust_compat.RustPIDController.vertical()
+
+    pid = _rust_compat.RustPIDController(1.0, 0.1, 0.01)
+    assert "mode=fallback" in repr(pid)
+    assert np.isfinite(pid.step(0.25))
+    assert "mode=fallback" in repr(_rust_compat.RustPIDController.radial())
+    assert "mode=fallback" in repr(_rust_compat.RustPIDController.vertical())
+
     with pytest.raises(ImportError):
         _rust_compat.RustIsoFluxController(6.2, 0.0)
     with pytest.raises(ImportError):
