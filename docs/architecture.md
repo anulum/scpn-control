@@ -255,3 +255,23 @@ In practice:
 - Treat `cli.py` and orchestration scripts as control-plane selectors, not as the timing-critical loop itself.
 
 Use this map to isolate review risk: logic updates belong to module-level testing; timing regressions belong to native-path benchmarks and deployment constraints.
+
+## Enterprise onboarding to this architecture
+
+This map is intended to reduce review uncertainty in three steps:
+
+1. **Traceability first**: map each change to a module family (`scpn`, `core`,
+   `control`, or `phase`) before touching timing paths.
+2. **Execution boundary check**: choose whether code is expected to run in
+   Python orchestration or Rust/PyO3 hot path.
+3. **Claim boundary check**: only promote the relevant result channel (`local_regression`,
+   `reference_validated`, `external_code_validated`, etc.) when the claim level
+   explicitly allows it.
+
+The same graph is therefore used for two different operations:
+
+- **Research mode**: maximize iteration speed with clear module-level acceptance.
+- **Deployment readiness mode**: pin execution boundaries, capture host metadata, and
+  route claims through the strict validators.
+
+This gives the project a practical control plane for both speed and governance.

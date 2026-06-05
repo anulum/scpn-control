@@ -2050,3 +2050,21 @@ This page is the binding map for practical integration, not a promise of stable 
 - Use documented Rust bindings for hot-path execution only after matching environment checks pass.
 
 When uncertain, start in Python for reproducibility and then switch to native paths only for timing and production-oriented experiments.
+
+## API usage expectation for enterprise workflows
+
+This API surface is intentionally split by risk and execution boundary:
+
+- **Safe exploratory usage**: top-level Python entry points with explicit argument
+  checks and deterministic defaults.
+- **Research extension usage**: module-level APIs where validation still controls the
+  admissible claim level.
+- **Deployment-oriented usage**: PyO3-backed primitives where timing and transport
+  behavior are benchmarked under explicit host context.
+
+When preparing an integration PR, include both:
+
+- one reproducible usage example against the public API,
+- one admission-visible benchmark or validation record for the same path.
+
+That pairing is the minimum contract for external-facing confidence.

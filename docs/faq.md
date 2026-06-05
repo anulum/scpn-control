@@ -51,6 +51,20 @@ GPU acceleration via JAX is highly effective for large-scale ensemble runs
 single-shot real-time control, the overhead of CPU-to-GPU memory transfer
 and JAX kernel dispatch often makes the Rust CPU backend faster.
 
+### 8. How should I decide which result to quote outside the repository?
+
+Use this rule set:
+
+- Use local benchmark output only for engineering direction and short-term tuning.
+- Use validator-admitted reports for release-bound claims.
+- Use traceability entries to identify claim level before any external statement.
+- Use timing claims only from production-admitted reports with execution context
+  preserved.
+
+If a question asks about deployment suitability, cross-check the answer against
+`production_readiness.md` and the matching validation manifest before creating
+slides, press material, or funding claims.
+
 ## How to read FAQ answers safely
 
 The FAQ is a usage-level layer. Each answer is tied to a current implementation

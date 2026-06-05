@@ -187,3 +187,27 @@ $K(k)$ and $E(k)$.
 
 Ref: Lao, L. L. et al. (1985). *Nuclear Fusion*, 25, 1611.
 Implementation: `scpn_control.core.fusion_kernel.FusionKernel`.
+
+## How the mathematical components connect to production code
+
+The formulas above map directly to runtime surfaces in this repository. The goal
+is to avoid a gap between symbol-level derivation and implementation detail.
+
+- **SPN and phase equations** provide control-time structure, and their
+  invariants are enforced by contracts before action publication.
+- **Transport and scaling laws** provide admissibility windows used by
+  disruption risk and actuator-limiter surfaces.
+- **Reactivity and confinement equations** contribute to bounded diagnostics and
+  are compared against validated reference domains through validators.
+- **Disruption dynamics** are not treated as full predictive guarantees; they are
+  warning surfaces with explicit assumptions and admitted validity regions.
+
+The practical interpretation is:
+
+1. Mathematical form defines intent.
+2. Controller implementation chooses the admissible control law.
+3. Evidence gates decide where a mathematical claim may be communicated as
+   bounded, reference-validated, or measured-facility admissible.
+
+For external reviewers, this separation makes it easier to separate what is
+implemented correctly from what is approved for external use.

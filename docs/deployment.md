@@ -154,3 +154,47 @@ Use this sequence for a safe rollout:
 The same configuration can be technically correct but claim-insufficient for
 facility integration if the environment metadata and admission artifacts are
 absent.
+
+## Deployment by stakeholder role
+
+This section helps teams decide which deployment path to run first for their
+decision context.
+
+### Research teams and model iteration
+
+Use containerized or local Python-only runs for:
+
+- fast algorithm comparison,
+- configuration debugging,
+- dataset-driven sensitivity work,
+- pre-merger evidence generation inside `validation/`.
+
+For this path, the goal is reproducibility and bounded local evidence, not
+plant timing.
+
+### Timing-sensitive control experiments
+
+Use the native Rust/PyO3 path when the team needs:
+
+- consistent microsecond-level compute ownership,
+- explicit hot-path boundaries (`PyO3` compiled extension),
+- reproducible formal-verification mode switching (`async_drop`, `sync_stride`,
+  `aot_certificate`),
+- deterministic packet publication behavior.
+
+Use the native benchmark scripts from this repository and keep host metadata in
+the report (`core` usage, governor mode, concurrent load tags).
+
+### Integration and review
+
+Use container + Rust + validation artifacts before external sharing with reviewers
+or safety teams. For this context, each report should include:
+
+- command transcript,
+- report and manifest hashes,
+- admission mode,
+- declared claim boundary,
+- and the exact deployment gate that admits the result.
+
+Treat these artifacts as part of the release evidence bundle, not as optional
+appendices.

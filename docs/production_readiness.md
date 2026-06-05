@@ -90,7 +90,7 @@ Before presenting a stronger claim for any surface, require all of the following
 - If you need plant deployment, treat this repository as supporting evidence
   infrastructure only; facility-specific safety engineering remains required.
 
-## Narrative for enterprise decision-makers
+## Operational framing for enterprise decision-makers
 
 For enterprise programs, the important signal is not only what is implemented but
 what is *admissible for decision gates*. SCPN Control provides:
@@ -104,6 +104,27 @@ The current value is strongest in governance and reproducibility: teams can
 decide what they can responsibly claim to investors, collaborators, or internal
 review boards, and where each claim still needs external physics or hardware
 evidence.
+
+## What this readiness boundary is for
+
+Use this page as the first stop when external teams ask:
+
+- Can this result be used to trigger funding decisions?
+- Which evidence class is admissible for this statement?
+- What additional tests are still required before facility conversation?
+
+The page is explicitly intended to prevent over-extended claims. A function may be
+correct in repository conditions and still be non-admissible for plant-level or
+regulatory use.
+
+When your objective is enterprise planning, the practical reading is:
+
+- if a claim is not explicitly listed as `Reference-validated` or stronger,
+  treat it as bounded research output,
+- if validation is missing (EFIT/P-EFIT, external-code parity, measured-shot match),
+  treat the surface as pending,
+- and if host/timing metadata is absent, treat timing claims as local iteration
+  evidence only.
 
 ## Current concise classification
 

@@ -28,7 +28,7 @@ evidence gate is not ready for promotion. A physics result without a controller
 contract is not yet a control feature. A benchmark without hardware and claim
 metadata is only a local timing observation.
 
-## Narrative of a first contribution
+## Practical path for a first contribution
 
 The fastest path to useful impact is to follow the evidence ladder in order:
 
@@ -46,6 +46,45 @@ The fastest path to useful impact is to follow the evidence ladder in order:
 This sequence is intentional. It prevents spending cycles on fast iterations that
 cannot yet be claimed, and it ensures each code change lands with a visible
 evidence transition.
+
+## Why this onboarding order matters to teams
+
+SCPN Control is built as a claim-sensitive system. Every module can be run and
+every report can be generated, but not every output can be used for the same
+decision.
+
+Before making a code contribution, teams are expected to keep three facts
+explicit:
+
+1. what changed,
+2. what evidence is available now,
+3. what decision this evidence can support.
+
+That order is why the onboarding path starts with a tutorial and ends with a
+validator run. It is also why local benchmark numbers are retained separately from
+deployment-admissible metrics.
+
+You can use this checklist before merging:
+
+- **Scope**: controller path, benchmark mode, and formal mode are all set.
+- **Evidence**: report has matching metadata (timestamps, manifests, checksums, and
+  claim boundary).
+- **Next action**: either close with bounded evidence, or keep in local iteration
+  mode when external validation remains unresolved.
+
+## Roles and expected next evidence
+
+For a team lead deciding whether to accept a change quickly:
+
+- **Controllers and control engineers** should confirm API behavior, then run the
+  native handoff comparison and at least one `validate` pass.
+- **Physics contributors** should confirm source data and traceability entries before
+  touching solver parameters.
+- **Safety reviewers** should check whether the same change altered any
+  admissibility condition, and ensure the change is mirrored in the relevant
+  validator report.
+- **Partners and investors** should require the bounded claim level and the missing
+  blockers list before the result is quoted externally.
 
 ## Install paths
 

@@ -1038,3 +1038,18 @@ Benchmark figures should be treated as a three-value statement: measured latency
 - Admissibility comes from whether the run appears in a validator-linked release note or validation page.
 
 Do not merge local-regression and isolated-target reports without marking the context difference in your interpretation.
+
+## Evidence-first execution checklist
+
+Before sharing any benchmark in planning material, check each report against:
+
+1. **Scope**: the benchmark class matches the command surface you are discussing
+   (`native_formal_*`, `runtime_admission`, `multi_shot_campaign`, etc.).
+2. **Context**: host load, isolation, core assignment, and timing-mode metadata are
+   present and readable.
+3. **Admission**: claim level is mapped to `local_regression`, `production_benchmark`,
+   `reference_validated`, or stronger where available.
+4. **Version lock**: package version and artifact SHA are retained.
+
+If all four checks pass, the benchmark can enter decision discussions.
+If any check fails, keep it in implementation-only iteration mode.
