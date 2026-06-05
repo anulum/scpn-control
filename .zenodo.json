@@ -1,23 +1,22 @@
 {
-  "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controllers with First-Principles Gyrokinetic Transport for Real-Time Tokamak Plasma Control",
-  "version": "0.20.3",
-  "description": "Standalone neuro-symbolic control and evidence-admission package for fusion plasma control research. The package compiles Stochastic Petri Nets into spiking neural controller artefacts, provides bounded controller and physics facades, records digest-bound validation evidence, and keeps facility, external-code, target-hardware, and plant-deployment claims blocked until strict artefact admission passes. Features include Grad-Shafranov and differentiable-equilibrium facades, transport and gyrokinetic research surfaces, NMPC and robust-control interfaces, formal Petri-net and Lean proof admission, WebSocket/native-build security hardening, benchmark-regression gates, public-data acquisition manifests, and documentation for collaboration and compute-validation support. The v0.20.3 public validation posture treats predictive EFIT/P-EFIT, nonlinear Cyclone Base Case saturation, external-code GK agreement, target-hardware real-time operation, and plant deployment as blocked until matching evidence exists.",
-  "upload_type": "software",
-  "publication_date": "2026-06-01",
   "access_right": "open",
-  "license": "AGPL-3.0-or-later",
-  "language": "eng",
-  "creators": [
+  "communities": [
     {
-      "name": "Sotek, Miroslav",
-      "orcid": "0009-0009-3560-0851",
-      "affiliation": "ANULUM CH & LI"
-    },
-    {
-      "name": "Reiprich, Michal",
-      "affiliation": "ANULUM CH & LI"
+      "identifier": "zenodo"
     }
   ],
+  "creators": [
+    {
+      "affiliation": "ANULUM CH & LI",
+      "name": "Sotek, Miroslav",
+      "orcid": "0009-0009-3560-0851"
+    },
+    {
+      "affiliation": "ANULUM CH & LI",
+      "name": "Reiprich, Michal"
+    }
+  ],
+  "description": "Standalone neuro-symbolic control and evidence-admission package for fusion plasma control research. The package compiles Stochastic Petri Nets into spiking neural controller artefacts, provides bounded controller and physics facades, records digest-bound validation evidence, and keeps facility, external-code, target-hardware, and plant-deployment claims blocked until strict artefact admission passes. Features include Grad-Shafranov and differentiable-equilibrium facades, transport and gyrokinetic research surfaces, NMPC and robust-control interfaces, formal Petri-net and Lean proof admission, WebSocket/native-build security hardening, benchmark-regression gates, public-data acquisition manifests, and documentation for collaboration and compute-validation support. The v0.20.3 public validation posture treats predictive EFIT/P-EFIT, nonlinear Cyclone Base Case saturation, external-code GK agreement, target-hardware real-time operation, and plant deployment as blocked until matching evidence exists.",
   "keywords": [
     "tokamak control",
     "stochastic Petri net",
@@ -45,6 +44,10 @@
     "gyrokinetic transport",
     "fault-tolerant control"
   ],
+  "language": "eng",
+  "license": "AGPL-3.0-or-later",
+  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.20.3 focuses on release documentation, evidence-bound claim wording, native-build hardening, benchmark-regression admission, and clearer onboarding. Earlier versions added physics/control modules, gyrokinetic transport research surfaces, scenario simulation, robust/NMPC controllers, safe RL research paths, differentiable solvers, and validation artefact infrastructure. Quantitative facility, external-code, and deployment claims remain bounded by the strict validators documented in the repository.",
+  "publication_date": "2026-06-01",
   "related_identifiers": [
     {
       "identifier": "https://github.com/anulum/scpn-control",
@@ -77,8 +80,7 @@
       "scheme": "arxiv"
     }
   ],
-  "communities": [
-    {"identifier": "zenodo"}
-  ],
-  "notes": "Part of the SCPN (Self-Consistent Phenomenological Network) research framework by ANULUM. v0.20.3 focuses on release documentation, evidence-bound claim wording, native-build hardening, benchmark-regression admission, and clearer onboarding. Earlier versions added physics/control modules, gyrokinetic transport research surfaces, scenario simulation, robust/NMPC controllers, safe RL research paths, differentiable solvers, and validation artefact infrastructure. Quantitative facility, external-code, and deployment claims remain bounded by the strict validators documented in the repository."
+  "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controllers with First-Principles Gyrokinetic Transport for Real-Time Tokamak Plasma Control",
+  "upload_type": "software",
+  "version": "0.20.5"
 }

@@ -129,7 +129,7 @@ review. The package provides the contract layer between those worlds.
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
 
-## What is new in v0.20.4
+## What is new in v0.20.5
 
 This release line packages the native execution and formal-evidence hardening
 work into a clearer public surface:
@@ -187,7 +187,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.4 |
+| Package version | 0.20.5 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -198,7 +198,7 @@ blocked until the required external artefacts exist.
 | Validation scripts | 92 |
 | Optional extras | 17 |
 | Python test files | 322 |
-| Public documentation pages | 46 |
+| Public documentation pages | 47 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -560,7 +560,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.20.4
+git tag v0.20.5
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```
