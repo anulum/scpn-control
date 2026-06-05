@@ -79,6 +79,33 @@ def _reseal_z3_report_payload(payload: dict[str, object]) -> dict[str, object]:
     return payload
 
 
+def test_load_z3_formal_report_rejects_unknown_section_with_violations(tmp_path: Path) -> None:
+    path = tmp_path / "unknown-section-violation-z3-report.json"
+    report = Z3FormalVerificationReport(
+        holds=False,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(False, "z3", 2, "unknown", [], ["marking_bounds"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["response_ok"]),
+    )
+    payload = build_z3_formal_report_payload(report)
+    payload["safety"]["violations"] = [
+        {
+            "marking": {"sink": 1.0},
+            "message": "unknown section cannot carry counterexamples",
+            "path": ["move"],
+            "place": "sink",
+            "property_name": "unsafe_bound",
+            "transition": None,
+        }
+    ]
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unknown section must not carry violations"):
+        load_z3_formal_report(path)
+
+
 def _weighted_transfer_net(*, source_tokens: float) -> StochasticPetriNet:
     net = StochasticPetriNet()
     net.add_place("source", initial_tokens=float(source_tokens))

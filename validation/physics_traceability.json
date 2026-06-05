@@ -1880,7 +1880,8 @@
         "Prefer typed readiness artifacts with safe relative URIs, producers, timestamps, and kind-specific SHA-256 digests over anonymous promotion digests",
         "Persist controller safety-case readiness decisions with schema-versioned integrity manifests before promotion replay",
         "Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation",
-        "Treat missing `z3-solver` as blocked SMT evidence, not as a successful proof"
+        "Treat missing `z3-solver` as blocked SMT evidence, not as a successful proof",
+        "Reject Z3 unknown solver sections that carry counterexamples before admitting bounded proof evidence"
       ],
       "unit_contract": "Markings are dimensionless token densities; arc weights and invariant weights are rationalised from finite decimal inputs; max_depth is a non-negative integer firing bound; temporal response windows count transition firings.",
       "validation_evidence": [
@@ -1899,7 +1900,9 @@
         "validation/validate_scpn_lean_formal.py duplicate-key and Lean proof-report admission gate routed through load_lean_formal_report",
         "tests/test_scpn_lean_verification.py Lean solver/version binding, duplicate-key rejection, unsupported-contract rejection, theorem namespace, module-path, safety-case-ID, assumption, and mandatory digest checks",
         "tests/test_scpn_lean_formal_validation.py validator-level Lean report, mandatory digest, unrelated module-path rejection, and artifact admission checks",
-        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3/Lean duplicate report key, Z3 unknown report and counterexample fields, Z3 solver-status consistency, Z3 section checked_specs uniqueness, Lean solver/version, unsupported-contract, namespace, module-path, safety-case-ID, and unknown-field rejection checks"
+        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3/Lean duplicate report key, Z3 unknown report and counterexample fields, Z3 solver-status consistency, Z3 section checked_specs uniqueness, Lean solver/version, unsupported-contract, namespace, module-path, safety-case-ID, and unknown-field rejection checks",
+        "tests/test_scpn_formal_verification.py Z3 unknown solver-section counterexample rejection checks",
+        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3 unknown solver-section counterexample rejection checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/formal_verification.py",

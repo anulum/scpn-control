@@ -127,6 +127,9 @@
   spec.
 - Z3 proof-section `checked_specs` now reject duplicate or malformed entries
   instead of relying only on top-level report de-duplication.
+- Z3 proof sections with `solver_status="unknown"` now reject
+  counterexamples because unknown solver states are not discovered
+  violation paths.
 
 ## [0.20.3] - 2026-06-02
 

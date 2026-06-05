@@ -991,6 +991,8 @@ def _validate_z3_section_solver_consistency(section: dict[str, Any], *, context:
         return
     if holds:
         raise ValueError(f"{context} unknown section must not hold")
+    if violations:
+        raise ValueError(f"{context} unknown section must not carry violations")
 
 
 def _validate_z3_section_checked_specs(checked_specs: list[Any], *, context: str) -> None:

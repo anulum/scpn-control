@@ -992,7 +992,8 @@ Z3 reports are additionally schema-versioned as
 `scpn-control.z3-formal-report.v1`, carry a canonical payload SHA-256 over the
 proof payload, reject unknown top-level and proof-section fields, schema-check
 serialized counterexample records, enforce solver-status/holds/counterexample
-consistency, and must match the manifest status, solver, proof depth, and
+consistency, reject counterexamples on `unknown` solver sections, and must
+match the manifest status, solver, proof depth, and
 checked specification list before a safety-critical artifact is admitted.
 Each Z3 proof section must also carry unique non-empty `checked_specs`; duplicate
 section obligations are rejected before top-level report/spec matching.

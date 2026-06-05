@@ -61,6 +61,22 @@ instead of silently ignoring stale or foreign evidence. External Lean report
 payloads must carry the canonical `payload_sha256` self-digest; reports that
 omit it are not admissible safety-case evidence.
 
+## Z3 proof evidence admission
+
+Z3 formal-verification reports use the
+`scpn-control.z3-formal-report.v1` schema and are admitted only as bounded SMT
+evidence for compiled Petri-net transition relations. The public report loader
+rejects duplicate JSON keys, unknown top-level fields, unknown proof-section
+fields, malformed counterexample records, duplicate or malformed section
+`checked_specs`, blocked reports that carry proof depth or live solver labels,
+and inconsistent solver-state combinations. `unsat` sections must hold and carry
+no counterexamples; `sat` sections must not hold and must carry a schema-checked
+counterexample; `unknown` sections must not hold and must not carry
+counterexamples because an unknown solver state is not a discovered violation
+path. Safety-critical `.scpnctl` artifact admission applies the same Z3 report
+loader before matching the manifest status, solver, bounded depth, checked
+specifications, report digest, and compiled artifact digest.
+
 ## Quantum disruption bridge
 
 `scpn_control.control.quantum_disruption_bridge` keeps quantum circuit,
