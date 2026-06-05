@@ -62,6 +62,14 @@ def test_lean_formal_report_payload_carries_canonical_digest() -> None:
     validate_lean_formal_report_payload(payload)
 
 
+def test_lean_formal_report_rejects_missing_payload_digest() -> None:
+    payload = build_lean_formal_report_payload(_lean_report())
+    payload.pop("payload_sha256")
+
+    with pytest.raises(LeanFormalVerificationError, match="payload_sha256 is required"):
+        validate_lean_formal_report_payload(payload)
+
+
 def test_lean_formal_report_rejects_payload_digest_mismatch() -> None:
     payload = build_lean_formal_report_payload(_lean_report())
     payload["theorem_names"] = [

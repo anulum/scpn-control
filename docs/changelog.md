@@ -107,6 +107,8 @@
   admission policy before safety-critical artifact loading can pass.
 - Lean report payloads and artifact formal-verification manifests now reject
   unknown proof fields so stale or foreign evidence cannot be silently ignored.
+- Lean report admission now requires the canonical `payload_sha256` self-digest
+  instead of accepting otherwise valid digestless reports.
 
 ## [0.20.3] - 2026-06-02
 

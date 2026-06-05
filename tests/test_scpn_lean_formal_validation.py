@@ -122,6 +122,18 @@ def test_lean_formal_validator_rejects_solver_version_mismatch(tmp_path: Path) -
     assert any("solver must include lean_version" in error for error in result.errors)
 
 
+def test_lean_formal_validator_rejects_missing_payload_digest(tmp_path: Path) -> None:
+    report_path = tmp_path / "missing-payload-digest.json"
+    payload = write_lean_formal_report(_lean_report(), report_path)
+    payload.pop("payload_sha256")
+    report_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+    result = validate_lean_formal_evidence(report_path)
+
+    assert result.status == "fail"
+    assert any("payload_sha256 is required" in error for error in result.errors)
+
+
 def test_lean_formal_validator_rejects_unrelated_module_path(tmp_path: Path) -> None:
     report_path = tmp_path / "unrelated-path.json"
     payload = write_lean_formal_report(_lean_report(), report_path)

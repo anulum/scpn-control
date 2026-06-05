@@ -1053,6 +1053,8 @@ report root, so safety-critical artifact loading cannot admit a stale or padded
 Lean manifest before report-byte comparison is available.
 Both Lean report payloads and artifact `formal_verification` manifests are
 closed schemas: unknown proof fields are rejected rather than ignored.
+External Lean reports must also carry the canonical `payload_sha256` self-digest;
+reports that omit it are rejected before safety-critical artifact admission.
 
 ---
 

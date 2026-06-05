@@ -299,12 +299,13 @@ def build_lean_formal_report_payload(report: LeanFormalVerificationReport) -> di
         "proof_assumptions": report.proof_assumptions,
         "assumption_sha256": compute_assumption_sha256(report.proof_assumptions),
     }
-    validate_lean_formal_report_payload(payload)
+    validate_lean_formal_report_payload(payload, require_payload_sha256=False)
     payload["payload_sha256"] = _canonical_payload_sha256(payload)
+    validate_lean_formal_report_payload(payload)
     return payload
 
 
-def validate_lean_formal_report_payload(payload: object) -> None:
+def validate_lean_formal_report_payload(payload: object, *, require_payload_sha256: bool = True) -> None:
     """Validate a Lean formal-verification report payload."""
     if not isinstance(payload, dict):
         raise LeanFormalVerificationError("Lean 4 report must be an object")
@@ -391,7 +392,10 @@ def validate_lean_formal_report_payload(payload: object) -> None:
     if len(safety_case_ids) < len(proved_contracts):
         raise LeanFormalVerificationError("Lean 4 report safety_case_ids must cover proved_contracts")
     payload_digest = payload.get("payload_sha256")
-    if payload_digest is not None:
+    if payload_digest is None:
+        if require_payload_sha256:
+            raise LeanFormalVerificationError("Lean 4 report payload_sha256 is required")
+    else:
         if not isinstance(payload_digest, str) or not _is_sha256_hex(payload_digest):
             raise LeanFormalVerificationError("Lean 4 report payload_sha256 is invalid")
         if payload_digest.lower() != _canonical_payload_sha256(payload):

@@ -55,7 +55,9 @@ before the artifact can be loaded with `require_formal_verification=True`. The
 artifact manifest gate applies the same Lean solver/version and exact-link
 checks before optional report-root byte comparison runs. Lean reports and
 artifact formal-verification manifests reject unknown proof fields instead of
-silently ignoring stale or foreign evidence.
+silently ignoring stale or foreign evidence. External Lean report payloads must
+carry the canonical `payload_sha256` self-digest; reports that omit it are not
+admissible safety-case evidence.
 
 ## Quantum disruption bridge
 
