@@ -227,3 +227,20 @@ cd crates/control-python && maturin develop --release
 2. **See benchmarks:** [Competitive Analysis](competitive_analysis.md)
 3. **Live demo:** [scpn-control.streamlit.app](https://scpn-control.streamlit.app)
 4. **Talk to us:** [protoscience@anulum.li](mailto:protoscience@anulum.li)
+
+## Decision-context guide for this pitch
+
+This document presents the technical value of the stack and the market position. For external communication, use this map:
+
+- **What the platform proves today:** bounded controller execution, contract-admitted validation workflow, and benchmark evidence in its declared context.
+- **What it does not prove yet:** facility commissioning equivalence, measured-shot deployment claims, and CODAC/EPICS production acceptance.
+- **What to state when pitching:** separate local/controlled benchmarks from hardware deployment claims.
+
+A practical investor-facing summary should pair this page with:
+
+- `docs/production_readiness.md` (admission gates and limitations),
+- `docs/validation.md` (validator outputs and claim boundaries),
+- `docs/benchmarks.md` (timing context and evidence classes).
+
+If a claim depends on external-code or facility validation, indicate that this is
+an explicit next-work item, not a completed fact.

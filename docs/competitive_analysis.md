@@ -210,3 +210,23 @@ When comparing entries:
 
 The practical use is to decide integration priority, not to conclude market-wide
 dominance from a single number.
+
+## How to consume this comparison in decision-making
+
+The values in this file combine three evidence types:
+
+- repository-reported measurements,
+- local CI or benchmark evidence, and
+- external literature values.
+
+Treat each row as follows:
+
+- **Use local repository timings for engineering direction and implementation
+  comparison,** not as full production-cycle claims.
+- **Use literature values to understand methodological scope,** not to infer deployment
+  equivalence.
+- **Use admission gates in `docs/validation.md` and `docs/production_readiness.md`
+  before any market-facing statement about facility-grade performance.
+
+The practical effect is to preserve the difference between a fast inner-kernel
+path and a PCS-ready closed-loop system.

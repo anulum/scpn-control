@@ -51,3 +51,15 @@ release auditors. It answers two concrete questions:
 
 Use it before broad documentation updates, because regenerated capability data
 must match the public claim language in README and release notes.
+
+## How to keep it aligned
+
+Keep this manifest aligned whenever public-facing content changes:
+
+- add or remove module entries in `tools/capability_manifest.toml`,
+- rerun `python tools/capability_manifest.py`,
+- run `python tools/capability_manifest.py --check`,
+- then confirm the README snapshot and release notes reference the same scope.
+
+This is a documentation hygiene step that prevents mismatched release claims and
+reviewer confusion during audits.

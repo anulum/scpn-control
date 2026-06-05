@@ -74,3 +74,22 @@ validation have fixed cost drivers:
 The same support tier can be consumed as one-off validation effort or as a
 continuous partner stream if you need sustained benchmark and safety evidence
 for pitch, due diligence, or investor-facing deliverables.
+
+## How to use this page for planning
+
+This page separates what is immediately available from what requires additional
+campaign output:
+
+- **Open code** is immediately available from the repository under AGPL and can be
+  used for bounded engineering work.
+- **Commercial support** is optional and is used to fund specific evidence lines:
+  benchmark expansion, external-code validation campaigns, and hardware-timing
+  experiments.
+- **Support commitments** are not a substitute for release evidence. They are a
+  mechanism to fund the missing validation and acquisition steps.
+
+Use this structure when discussing milestones:
+
+- short-term: fund reproducible local evidence and validator coverage,
+- mid-term: fund external-code and real-shot campaigns,
+- long-term: fund hardening work for facility deployment (interlocks, CODAC/EPICS, HIL paths).

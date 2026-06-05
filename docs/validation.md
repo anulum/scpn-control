@@ -6,6 +6,25 @@
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
 <!-- SCPN Control — Validation and QA -->
 
+## Validation entry map
+
+This page is the admission surface for all bounded and measurable claims.
+Use it as the source of truth before publishing any benchmark, timing, or
+physics improvement statement.
+
+- **Local evidence**: deterministic fixtures, repository benchmarks, and local
+  manifests.
+- **Admitted evidence**: outputs that pass strict validators and match declared
+  claim boundaries.
+- **Blocked claims**: outputs that remain local-only, synthetic, or missing
+  external-code / facility-level evidence.
+
+The practical review workflow is:
+
+1. run the relevant checker for the changed surface,
+2. inspect the report for required digests, context, and boundaries,
+3. only then promote the result into planning or investor-facing material.
+
 ## Local-first physics debug assistance
 
 `scpn_control.physics_debug` is an advisory triage boundary for physics
