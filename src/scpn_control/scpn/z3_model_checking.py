@@ -66,6 +66,16 @@ _Z3_REPORT_SECTION_KEYS = frozenset(
         "violations",
     }
 )
+_Z3_REPORT_VIOLATION_KEYS = frozenset(
+    {
+        "marking",
+        "message",
+        "path",
+        "place",
+        "property_name",
+        "transition",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -925,6 +935,42 @@ def _reject_unknown_keys(payload: dict[str, Any], *, allowed: frozenset[str], co
         raise ValueError(f"{context} unknown fields: {', '.join(unknown)}")
 
 
+def _reject_missing_keys(payload: dict[str, Any], *, required: frozenset[str], context: str) -> None:
+    missing = sorted(required - set(payload))
+    if missing:
+        raise ValueError(f"{context} missing fields: {', '.join(missing)}")
+
+
+def _is_finite_json_number(value: Any) -> bool:
+    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
+
+
+def _validate_z3_violation_record(violation: Any, *, context: str) -> None:
+    if not isinstance(violation, dict):
+        raise ValueError(f"{context} violation must be an object")
+    _reject_unknown_keys(violation, allowed=_Z3_REPORT_VIOLATION_KEYS, context=f"{context} violation")
+    _reject_missing_keys(violation, required=_Z3_REPORT_VIOLATION_KEYS, context=f"{context} violation")
+    if not isinstance(violation["property_name"], str) or not violation["property_name"]:
+        raise ValueError(f"{context} violation property_name must be a non-empty string")
+    if not isinstance(violation["message"], str) or not violation["message"]:
+        raise ValueError(f"{context} violation message must be a non-empty string")
+    marking = violation["marking"]
+    if not isinstance(marking, dict):
+        raise ValueError(f"{context} violation marking must be an object")
+    for place, value in marking.items():
+        if not isinstance(place, str) or not place:
+            raise ValueError(f"{context} violation marking keys must be non-empty strings")
+        if not _is_finite_json_number(value):
+            raise ValueError(f"{context} violation marking values must be finite numbers")
+    path = violation["path"]
+    if not isinstance(path, list) or any(not isinstance(step, str) or not step for step in path):
+        raise ValueError(f"{context} violation path must contain transition-name strings")
+    for optional_name in ("place", "transition"):
+        value = violation[optional_name]
+        if value is not None and (not isinstance(value, str) or not value):
+            raise ValueError(f"{context} violation {optional_name} must be null or a non-empty string")
+
+
 def load_z3_formal_report(path: str | Path) -> dict[str, Any]:
     """Load and validate a duplicate-key-safe Z3 formal evidence report."""
     report_path = Path(path)
@@ -1001,6 +1047,8 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
             raise ValueError(f"Z3 formal report {section_name} holds must be a boolean")
         if not isinstance(section.get("violations"), list):
             raise ValueError(f"Z3 formal report {section_name} violations must be a list")
+        for violation in section["violations"]:
+            _validate_z3_violation_record(violation, context=f"Z3 formal report {section_name}")
         if not isinstance(section.get("checked_specs"), list):
             raise ValueError(f"Z3 formal report {section_name} checked_specs must be a list")
     if payload["holds"] != (payload["safety"]["holds"] and payload["temporal"]["holds"]):

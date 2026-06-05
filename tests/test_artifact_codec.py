@@ -888,6 +888,41 @@ class TestArtifactValidationContract:
         with pytest.raises(ArtifactValidationError, match="unknown fields"):
             load_artifact(str(bad_path), require_formal_verification=True, formal_report_root=report_root)
 
+    def test_z3_formal_report_rejects_unknown_violation_fields_under_report_root(
+        self,
+        artifact_path: Path,
+        tmp_path: Path,
+    ) -> None:
+        report_root = tmp_path / "reports"
+        report_path = report_root / "validation" / "reports" / "scpn_z3_formal.json"
+        report_path.parent.mkdir(parents=True)
+        _write_valid_z3_report(report_path)
+        report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+        report_payload["safety"]["violations"] = [
+            {
+                "foreign_counterexample": "padded-proof",
+                "marking": {"sink": 1.0},
+                "message": "sink exceeds admitted control envelope",
+                "path": ["move"],
+                "place": "sink",
+                "property_name": "unsafe_bound",
+                "transition": None,
+            }
+        ]
+        _reseal_z3_report_payload(report_payload)
+        report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        bad_path = _write_mutated_artifact_raw(
+            artifact_path,
+            tmp_path / "unknown-violation-field-z3-report.scpnctl.json",
+            lambda payload: payload.__setitem__(
+                "formal_verification",
+                _passing_formal_evidence(artifact_path, report_path),
+            ),
+        )
+
+        with pytest.raises(ArtifactValidationError, match="violation.*unknown fields"):
+            load_artifact(str(bad_path), require_formal_verification=True, formal_report_root=report_root)
+
     def test_formal_proof_manifest_rejects_unsafe_report_uri(
         self,
         artifact_path: Path,

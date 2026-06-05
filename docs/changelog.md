@@ -117,6 +117,8 @@
   report-root admission uses the same loader.
 - Z3 formal report admission now rejects unknown top-level and proof-section
   fields even when the payload digest is recomputed.
+- Z3 formal report admission now schema-checks serialized counterexample
+  records before accepting bounded proof evidence.
 
 ## [0.20.3] - 2026-06-02
 

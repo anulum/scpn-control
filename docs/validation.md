@@ -362,6 +362,9 @@ loaded through the duplicate-key-safe and schema-strict public
 `load_z3_formal_report()` path before manifest/report field matching runs.
 Unknown Z3 top-level or proof-section fields are rejected even when a foreign
 producer recomputes the report payload digest.
+Serialized Z3 counterexample records must carry only the admitted
+`property_name`, `message`, `marking`, `path`, `place`, and `transition` fields,
+with finite numeric marking values.
 
 ```bash
 python validation/validate_scpn_z3_formal.py

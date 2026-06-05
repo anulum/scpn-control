@@ -1137,6 +1137,31 @@ def test_load_z3_formal_report_rejects_unknown_proof_section_fields(tmp_path: Pa
         load_z3_formal_report(path)
 
 
+def test_load_z3_formal_report_rejects_unknown_violation_fields(tmp_path: Path) -> None:
+    path = tmp_path / "unknown-z3-violation-field.json"
+    violation = FormalViolation(
+        property_name="unsafe_bound",
+        message="sink exceeds admitted control envelope",
+        marking={"sink": 1.0},
+        path=["move"],
+        place="sink",
+    )
+    report = Z3FormalVerificationReport(
+        holds=False,
+        backend="z3",
+        max_depth=2,
+        safety=Z3ModelCheckingReport(False, "z3", 2, "sat", [violation], ["unsafe_bound"]),
+        temporal=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["response_ok"]),
+    )
+    payload = build_z3_formal_report_payload(report)
+    payload["safety"]["violations"][0]["foreign_counterexample"] = "padded-proof"
+    _reseal_z3_report_payload(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="violation.*unknown fields"):
+        load_z3_formal_report(path)
+
+
 def test_z3_formal_payload_records_fail_closed_counterexample_evidence() -> None:
     violation = FormalViolation(
         property_name="unsafe_bound",

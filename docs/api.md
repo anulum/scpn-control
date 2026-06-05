@@ -990,9 +990,10 @@ Z3 and Lean report files reached through an artifact manifest are loaded through
 duplicate-key-safe and schema-strict public report loaders.
 Z3 reports are additionally schema-versioned as
 `scpn-control.z3-formal-report.v1`, carry a canonical payload SHA-256 over the
-proof payload, reject unknown top-level and proof-section fields, and must match
-the manifest status, solver, proof depth, and checked specification list before
-a safety-critical artifact is admitted.
+proof payload, reject unknown top-level and proof-section fields, schema-check
+serialized counterexample records, and must match the manifest status, solver,
+proof depth, and checked specification list before a safety-critical artifact is
+admitted.
 Lean 4 reports are admitted only through the bounded `lean4` manifest path:
 the manifest must bind a solver string that identifies Lean and includes the
 declared Lean version, Lake file SHA-256, proof-source SHA-256, theorem names,
