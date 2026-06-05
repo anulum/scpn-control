@@ -99,6 +99,9 @@
 - Lean proof-report admission now rejects non-Lean solver declarations, solver
   strings that do not include the declared Lean version, and proved-contract
   overclaims outside the admitted PID/SNN proof surface.
+- Lean proof-report admission now also rejects unrelated theorem namespaces,
+  module paths, and safety-case IDs so valid PID/SNN evidence cannot be padded
+  with stale or unrelated proof links.
 
 ## [0.20.3] - 2026-06-02
 

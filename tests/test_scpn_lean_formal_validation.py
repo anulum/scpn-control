@@ -122,6 +122,22 @@ def test_lean_formal_validator_rejects_solver_version_mismatch(tmp_path: Path) -
     assert any("solver must include lean_version" in error for error in result.errors)
 
 
+def test_lean_formal_validator_rejects_unrelated_module_path(tmp_path: Path) -> None:
+    report_path = tmp_path / "unrelated-path.json"
+    payload = write_lean_formal_report(_lean_report(), report_path)
+    payload.pop("payload_sha256")
+    payload["module_paths"] = [
+        "src/scpn_control/control/pid_controller.py",
+        "src/scpn_control/scpn/geometry_neutral_replay.py",
+    ]
+    report_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+    result = validate_lean_formal_evidence(report_path)
+
+    assert result.status == "fail"
+    assert any("module_paths missing required paths" in error for error in result.errors)
+
+
 def test_lean_formal_validator_admits_artifact_bound_to_report(tmp_path: Path) -> None:
     artifact_path = _artifact_path(tmp_path)
     artifact = load_artifact(artifact_path)

@@ -1001,6 +1001,10 @@ and SNN/neuro-symbolic marking-bound preservation, and reports cannot list
 unsupported proved contracts to imply wider formal coverage. This is an evidence
 admission contract; it does not claim certification unless the referenced
 machine-checked proof artefacts are present and verified.
+The admitted PID/SNN surface is also exact-linked: theorem modules, theorem
+names, linked production module paths, and safety-case identifiers must remain
+inside the expected PID/SNN namespaces and module paths instead of padding a
+valid report with unrelated evidence.
 
 ::: scpn_control.scpn.artifact.Artifact
 
@@ -1041,6 +1045,9 @@ manifest/report assumption mismatches.
 Admission also rejects non-Lean solver declarations, Lean solver strings that
 do not include the reported `lean_version`, and any `proved_contracts` outside
 the currently admitted PID/SNN proof surface.
+Reports also fail closed when `theorem_names`, `theorem_modules`,
+`module_paths`, or `safety_case_ids` include unrelated entries outside the
+admitted PID/SNN proof boundary.
 
 ---
 

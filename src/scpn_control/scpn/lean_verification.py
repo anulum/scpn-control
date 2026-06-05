@@ -29,6 +29,14 @@ LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES = {
     "pid.actuator_saturation": "ScpnControl.PID",
     "snn.marking_bounds": "ScpnControl.SNN",
 }
+LEAN_REQUIRED_CONTRACT_MODULE_PATHS = {
+    "pid.actuator_saturation": "src/scpn_control/control/pid_controller.py",
+    "snn.marking_bounds": "src/scpn_control/scpn/controller.py",
+}
+LEAN_REQUIRED_CONTRACT_SAFETY_CASE_IDS = {
+    "pid.actuator_saturation": "SC-PID-ACTUATOR-SATURATION",
+    "snn.marking_bounds": "SC-SNN-MARKING-BOUNDS",
+}
 _SAFETY_CASE_ID_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.:-")
 
 
@@ -183,6 +191,51 @@ def validate_required_contract_theorem_coverage(
             raise LeanFormalVerificationError(f"{contract} requires theorem_names under {module_prefix}")
 
 
+def validate_required_contract_evidence_links(
+    *,
+    proved_contracts: list[str],
+    theorem_names: list[str],
+    theorem_modules: list[str],
+    module_paths: list[str],
+    safety_case_ids: list[str],
+) -> None:
+    """Validate that Lean evidence links only to admitted production contracts."""
+    expected_modules = {LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES[contract] for contract in proved_contracts}
+    unsupported_modules = sorted(set(theorem_modules).difference(expected_modules))
+    if unsupported_modules:
+        raise LeanFormalVerificationError(
+            "Lean 4 report theorem_modules contains unsupported namespaces: " + ", ".join(unsupported_modules)
+        )
+    expected_prefixes = tuple(f"{module}." for module in sorted(expected_modules))
+    unsupported_theorems = sorted(theorem for theorem in theorem_names if not theorem.startswith(expected_prefixes))
+    if unsupported_theorems:
+        raise LeanFormalVerificationError(
+            "Lean 4 report theorem_names contains unsupported namespaces: " + ", ".join(unsupported_theorems)
+        )
+    expected_paths = {LEAN_REQUIRED_CONTRACT_MODULE_PATHS[contract] for contract in proved_contracts}
+    missing_paths = sorted(expected_paths.difference(module_paths))
+    if missing_paths:
+        raise LeanFormalVerificationError(
+            "Lean 4 report module_paths missing required paths: " + ", ".join(missing_paths)
+        )
+    unsupported_paths = sorted(set(module_paths).difference(expected_paths))
+    if unsupported_paths:
+        raise LeanFormalVerificationError(
+            "Lean 4 report module_paths contains unsupported paths: " + ", ".join(unsupported_paths)
+        )
+    expected_case_ids = {LEAN_REQUIRED_CONTRACT_SAFETY_CASE_IDS[contract] for contract in proved_contracts}
+    missing_case_ids = sorted(expected_case_ids.difference(safety_case_ids))
+    if missing_case_ids:
+        raise LeanFormalVerificationError(
+            "Lean 4 report safety_case_ids missing required IDs: " + ", ".join(missing_case_ids)
+        )
+    unsupported_case_ids = sorted(set(safety_case_ids).difference(expected_case_ids))
+    if unsupported_case_ids:
+        raise LeanFormalVerificationError(
+            "Lean 4 report safety_case_ids contains unsupported IDs: " + ", ".join(unsupported_case_ids)
+        )
+
+
 def validate_lean_solver_version_binding(*, solver: str, lean_version: str) -> None:
     """Validate that the report toolchain string is bound to Lean and its version."""
     if not solver.startswith("Lean "):
@@ -300,6 +353,13 @@ def validate_lean_formal_report_payload(payload: object) -> None:
         proved_contracts=proved_contracts,
         theorem_names=theorem_names,
         theorem_modules=theorem_modules,
+    )
+    validate_required_contract_evidence_links(
+        proved_contracts=proved_contracts,
+        theorem_names=theorem_names,
+        theorem_modules=theorem_modules,
+        module_paths=module_paths,
+        safety_case_ids=safety_case_ids,
     )
     if len(module_paths) < len(theorem_modules):
         raise LeanFormalVerificationError("Lean 4 report module_paths must cover theorem_modules")

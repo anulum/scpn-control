@@ -46,11 +46,12 @@ surface. The report validator rejects non-Lean solver declarations, Lean solver
 strings that do not include the declared `lean_version`, unsupported
 `proved_contracts`, unsafe report paths, malformed theorem identifiers, missing
 PID/SNN namespace coverage, unbounded proof assumptions, and certification
-overclaims. Safety-critical `.scpnctl` artifact admission must still bind the
-report digest, compiled artifact digest, Lake file digest, proof-source digest,
-checked specifications, theorem namespaces, production module paths, and
-bounded proof assumptions before the artifact can be loaded with
-`require_formal_verification=True`.
+overclaims. It also rejects unrelated theorem namespaces, production module
+paths, and safety-case IDs instead of accepting padded reports. Safety-critical
+`.scpnctl` artifact admission must still bind the report digest, compiled
+artifact digest, Lake file digest, proof-source digest, checked specifications,
+theorem namespaces, production module paths, and bounded proof assumptions
+before the artifact can be loaded with `require_formal_verification=True`.
 
 ## Quantum disruption bridge
 

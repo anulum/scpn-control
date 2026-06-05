@@ -96,6 +96,33 @@ def test_lean_formal_report_rejects_payload_digest_mismatch() -> None:
             ["ScpnControl.Transport", "ScpnControl.SNN"],
             "pid.actuator_saturation requires theorem_modules",
         ),
+        (
+            "theorem_names",
+            [
+                "ScpnControl.PID.actuatorSaturationPreserved",
+                "ScpnControl.SNN.markingBoundsPreserved",
+                "ScpnControl.Transport.unrelatedProof",
+            ],
+            "theorem_names contains unsupported namespaces",
+        ),
+        (
+            "theorem_modules",
+            ["ScpnControl.PID", "ScpnControl.SNN", "ScpnControl.Transport"],
+            "theorem_modules cannot exceed theorem_names",
+        ),
+        (
+            "module_paths",
+            [
+                "src/scpn_control/control/pid_controller.py",
+                "src/scpn_control/scpn/geometry_neutral_replay.py",
+            ],
+            "module_paths missing required paths",
+        ),
+        (
+            "safety_case_ids",
+            ["SC-PID-ACTUATOR-SATURATION", "SC-UNRELATED-FORMAL-EVIDENCE"],
+            "safety_case_ids missing required IDs",
+        ),
     ],
 )
 def test_lean_formal_report_rejects_malformed_contract_payload(field: str, value: object, match: str) -> None:
@@ -120,6 +147,20 @@ def test_lean_formal_report_rejects_unsupported_proved_contract() -> None:
     payload["checked_specs"] = list(payload["proved_contracts"])
 
     with pytest.raises(LeanFormalVerificationError, match="unsupported contracts"):
+        validate_lean_formal_report_payload(payload)
+
+
+def test_lean_formal_report_rejects_unsupported_theorem_module_padding() -> None:
+    payload = build_lean_formal_report_payload(_lean_report())
+    payload.pop("payload_sha256")
+    payload["theorem_names"] = [
+        "ScpnControl.PID.actuatorSaturationPreserved",
+        "ScpnControl.SNN.markingBoundsPreserved",
+        "ScpnControl.PID.helperInvariant",
+    ]
+    payload["theorem_modules"] = ["ScpnControl.PID", "ScpnControl.SNN", "ScpnControl.Transport"]
+
+    with pytest.raises(LeanFormalVerificationError, match="theorem_modules contains unsupported namespaces"):
         validate_lean_formal_report_payload(payload)
 
 
