@@ -12,6 +12,21 @@
 
 No unreleased changes.
 
+## [0.20.6] - 2026-06-05
+
+### Fixed
+- Restored the remote Ubuntu 3.12 coverage gate with focused module-specific
+  `rust_engine` and quantum disruption bridge tests covering native handoff,
+  fail-closed runtime behaviour, coefficient loading, contract tamper
+  detection, and advisory evidence validation.
+- Merged the pending green Dependabot updates for `click`, `z3-solver`,
+  `hypothesis`, GitHub Actions pins, and Rust `log` after refreshing stale PR
+  branches and confirming fresh checks.
+- Reconfirmed zero open code-scanning, Dependabot, and secret-scanning alerts
+  after the dependency maintenance lane.
+- Bumped package, citation, API, README capability, release-note, and public
+  changelog metadata to `0.20.6`.
+
 ## [0.20.5] - 2026-06-05
 
 ### Fixed

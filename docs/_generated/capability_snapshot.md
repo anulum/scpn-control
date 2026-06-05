@@ -10,7 +10,7 @@
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.5 |
+| Package version | 0.20.6 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |

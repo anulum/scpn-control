@@ -129,10 +129,11 @@ review. The package provides the contract layer between those worlds.
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
 
-## What is new in v0.20.5
+## What is new in v0.20.6
 
-This release line packages the native execution and formal-evidence hardening
-work into a clearer public surface:
+This release line keeps the native execution and formal-evidence hardening
+public surface current while closing the CI, dependency, and security-hygiene
+lane:
 
 - native fused Rust execution can be compared against Python orchestration with
   persisted JSON/Markdown reports;
@@ -143,8 +144,12 @@ work into a clearer public surface:
   evidence unless the benchmark context proves isolated production conditions;
 - opt-in spin pacing is documented as a short timing experiment, not a default
   deployment mode;
-- release gates now keep non-isolated workstation timing separate from target
-  hardware and PREEMPT_RT production claims.
+- release gates keep non-isolated workstation timing separate from target
+  hardware and PREEMPT_RT production claims;
+- focused `rust_engine` and quantum disruption bridge tests restore the remote
+  coverage margin without adding bucket tests;
+- all pending Dependabot pull requests were merged after fresh green checks,
+  leaving open code scanning, Dependabot, and secret-scanning alerts at zero.
 
 ## Why this has market value
 
@@ -187,7 +192,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.5 |
+| Package version | 0.20.6 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -560,7 +565,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.20.5
+git tag v0.20.6
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```
