@@ -1051,6 +1051,8 @@ admitted PID/SNN proof boundary.
 The same checks run on the `.scpnctl` artifact manifest itself, even without a
 report root, so safety-critical artifact loading cannot admit a stale or padded
 Lean manifest before report-byte comparison is available.
+Both Lean report payloads and artifact `formal_verification` manifests are
+closed schemas: unknown proof fields are rejected rather than ignored.
 
 ---
 

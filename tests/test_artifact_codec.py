@@ -501,6 +501,7 @@ class TestArtifactValidationContract:
         assert formal["properties"]["backend"]["enum"] == ["explicit-state", "lean4", "z3"]
         assert formal["properties"]["status"]["enum"] == ["pass", "fail", "blocked"]
         assert formal["properties"]["artifact_sha256"]["pattern"] == "^[0-9a-fA-F]{64}$"
+        assert formal["additionalProperties"] is False
         assert formal["properties"]["lean_version"]["type"] == "string"
         assert formal["properties"]["proof_source_sha256"]["pattern"] == "^[0-9a-fA-F]{64}$"
 
@@ -557,6 +558,17 @@ class TestArtifactValidationContract:
     def test_safety_critical_artifact_requires_formal_proof_manifest(self, artifact_path: Path) -> None:
         with pytest.raises(ArtifactValidationError, match="formal_verification"):
             load_artifact(str(artifact_path), require_formal_verification=True)
+
+    def test_formal_proof_manifest_rejects_unknown_fields(self, artifact_path: Path, tmp_path: Path) -> None:
+        def mutate(payload: dict[str, object]) -> None:
+            evidence = _passing_formal_evidence(artifact_path)
+            evidence["certification_status"] = "certified"
+            payload["formal_verification"] = evidence
+
+        bad_path = _write_mutated_artifact_raw(artifact_path, tmp_path / "unknown-formal-field.scpnctl.json", mutate)
+
+        with pytest.raises(ArtifactValidationError, match="unsupported fields"):
+            load_artifact(str(bad_path), require_formal_verification=True)
 
     def test_safety_critical_artifact_accepts_passing_z3_formal_proof(
         self,

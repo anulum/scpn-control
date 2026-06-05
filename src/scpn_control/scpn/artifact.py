@@ -192,6 +192,9 @@ class FormalVerificationEvidence:
     assumption_sha256: str | None = None
 
 
+FORMAL_VERIFICATION_ALLOWED_FIELDS = frozenset(FormalVerificationEvidence.__dataclass_fields__)
+
+
 # ── Artifact ────────────────────────────────────────────────────────────────
 
 
@@ -227,6 +230,11 @@ def _parse_formal_verification(raw: Any) -> FormalVerificationEvidence | None:
         return None
     if not isinstance(raw, dict):
         raise ArtifactValidationError("formal_verification must be an object")
+    unsupported_fields = sorted(set(raw).difference(FORMAL_VERIFICATION_ALLOWED_FIELDS))
+    if unsupported_fields:
+        raise ArtifactValidationError(
+            "formal_verification contains unsupported fields: " + ", ".join(unsupported_fields)
+        )
     return FormalVerificationEvidence(
         required=raw["required"],
         status=raw["status"],
@@ -1138,6 +1146,7 @@ def get_artifact_json_schema() -> Dict[str, Any]:
             },
             "formal_verification": {
                 "type": "object",
+                "additionalProperties": False,
                 "required": [
                     "required",
                     "status",

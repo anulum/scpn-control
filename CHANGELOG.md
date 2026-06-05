@@ -77,6 +77,8 @@
 - Lean proof evidence in `.scpnctl` artifact manifests now applies the same
   solver/version, proved-contract, namespace, module-path, and safety-case-ID
   admission policy before safety-critical artifact loading can pass.
+- Lean report payloads and artifact formal-verification manifests now reject
+  unknown proof fields so stale or foreign evidence cannot be silently ignored.
 
 ## [0.20.3] - 2026-06-02
 

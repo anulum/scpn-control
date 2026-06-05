@@ -24,6 +24,28 @@ from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
 LEAN_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.lean4-formal-report.v1"
+LEAN_FORMAL_REPORT_ALLOWED_FIELDS = frozenset(
+    {
+        "schema_version",
+        "status",
+        "backend",
+        "solver",
+        "lean_version",
+        "checked_specs",
+        "artifact_sha256",
+        "proof_source_sha256",
+        "lakefile_sha256",
+        "theorem_names",
+        "theorem_modules",
+        "proved_contracts",
+        "module_paths",
+        "safety_case_ids",
+        "claim_boundary",
+        "proof_assumptions",
+        "assumption_sha256",
+        "payload_sha256",
+    }
+)
 LEAN_REQUIRED_PROVED_CONTRACTS = frozenset({"pid.actuator_saturation", "snn.marking_bounds"})
 LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES = {
     "pid.actuator_saturation": "ScpnControl.PID",
@@ -286,6 +308,9 @@ def validate_lean_formal_report_payload(payload: object) -> None:
     """Validate a Lean formal-verification report payload."""
     if not isinstance(payload, dict):
         raise LeanFormalVerificationError("Lean 4 report must be an object")
+    unsupported_fields = sorted(set(payload).difference(LEAN_FORMAL_REPORT_ALLOWED_FIELDS))
+    if unsupported_fields:
+        raise LeanFormalVerificationError("Lean 4 report contains unsupported fields: " + ", ".join(unsupported_fields))
     if payload.get("schema_version") != LEAN_FORMAL_REPORT_SCHEMA_VERSION:
         raise LeanFormalVerificationError("Lean 4 report schema_version is invalid")
     if payload.get("backend") != "lean4":

@@ -138,6 +138,19 @@ def test_lean_formal_validator_rejects_unrelated_module_path(tmp_path: Path) -> 
     assert any("module_paths missing required paths" in error for error in result.errors)
 
 
+def test_lean_formal_validator_rejects_unknown_report_field(tmp_path: Path) -> None:
+    report_path = tmp_path / "unknown-field.json"
+    payload = write_lean_formal_report(_lean_report(), report_path)
+    payload.pop("payload_sha256")
+    payload["certification_status"] = "certified"
+    report_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+    result = validate_lean_formal_evidence(report_path)
+
+    assert result.status == "fail"
+    assert any("unsupported fields" in error for error in result.errors)
+
+
 def test_lean_formal_validator_admits_artifact_bound_to_report(tmp_path: Path) -> None:
     artifact_path = _artifact_path(tmp_path)
     artifact = load_artifact(artifact_path)

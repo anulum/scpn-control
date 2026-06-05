@@ -164,6 +164,15 @@ def test_lean_formal_report_rejects_unsupported_theorem_module_padding() -> None
         validate_lean_formal_report_payload(payload)
 
 
+def test_lean_formal_report_rejects_unknown_fields() -> None:
+    payload = build_lean_formal_report_payload(_lean_report())
+    payload.pop("payload_sha256")
+    payload["external_certification_status"] = "certified"
+
+    with pytest.raises(LeanFormalVerificationError, match="unsupported fields"):
+        validate_lean_formal_report_payload(payload)
+
+
 def test_write_and_load_lean_formal_report_roundtrip(tmp_path: Path) -> None:
     path = tmp_path / "lean-report.json"
 
