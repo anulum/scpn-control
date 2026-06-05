@@ -1,5 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
+<!-- Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- SCPN Control — Pricing and support options. -->
 # Pricing & Support
 
 **scpn-control** is open-source under AGPL-3.0-or-later (commercial license available).
@@ -14,8 +19,8 @@ The code is free. These tiers fund compute, validation data, and development tim
 | Custom Donation | You choose | Fund the project at any level | [Donate](https://buy.stripe.com/4gM00kbiMdjAberaYz5J601) |
 | Lab Hour | 25 CHF | Fund one hour of compute | [Buy](https://buy.stripe.com/eVq7sMgD6gvM6YbaYz5J602) |
 | Simulation Sponsor | 500 CHF | Named in simulation campaign report | [Buy](https://buy.stripe.com/8x25kE72w2EWcivc2D5J60a) |
-| Feature Sponsor | 2,500 CHF | Fund a roadmap item (free-boundary GS, TGLF surrogate, etc.) — credited in release notes | [Buy](https://buy.stripe.com/3cI28s9aEbbs4Q32s35J60b) |
-| Hardware Sponsor | 10,000 CHF | Fund FPGA prototype or GPU benchmark campaign — co-author on technical report | [Buy](https://buy.stripe.com/cNiaEY4Uo5R8eqD9Uv5J60c) |
+| Feature Sponsor | 2,500 CHF | Fund a roadmap item (free-boundary GS, TGLF surrogate, etc.) with opt-in public acknowledgement | [Buy](https://buy.stripe.com/3cI28s9aEbbs4Q32s35J60b) |
+| Hardware Sponsor | 10,000 CHF | Fund FPGA prototype or GPU benchmark campaign with opt-in campaign acknowledgement | [Buy](https://buy.stripe.com/cNiaEY4Uo5R8eqD9Uv5J60c) |
 
 ### Recurring
 

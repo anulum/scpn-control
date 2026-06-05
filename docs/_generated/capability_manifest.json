@@ -22,7 +22,7 @@
     "project_script_count": 2,
     "public_api_export_count": 44,
     "public_class_count": 512,
-    "public_markdown_count": 45,
+    "public_markdown_count": 46,
     "pyo3_export_count": 39,
     "python_test_file_count": 322,
     "rust_source_file_count": 64,
@@ -68,6 +68,7 @@
       "docs/release_notes_v0.20.1.md",
       "docs/release_notes_v0.20.2.md",
       "docs/release_notes_v0.20.3.md",
+      "docs/release_notes_v0.20.4.md",
       "docs/scpn/aer_observation.md",
       "docs/scpn/geometry_neutral_replay.md",
       "docs/theory.md",
@@ -107,7 +108,7 @@
       "scpn-check-generated-traceability": "tools.check_generated_traceability:main",
       "scpn-control": "scpn_control.cli:main"
     },
-    "version": "0.20.3"
+    "version": "0.20.4"
   },
   "python": {
     "public_api_exports": [

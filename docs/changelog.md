@@ -10,6 +10,10 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## [0.20.4] - 2026-06-05
+
 ### Added
 - Hardened AER control-observation admission with monotonic timestamp evidence,
   strict fail-closed decoding mode, Rust/PyO3 parity, and Python/Rust benchmark
@@ -136,6 +140,11 @@
 - Z3 pass/fail reports now require solver metadata to identify
   `z3-solver`, preventing foreign SMT labels from being admitted as
   Z3 proof evidence.
+
+### Changed
+- Bumped package, citation, API, README capability, and release-note metadata to `0.20.4`.
+- Added v0.20.4 release notes and exposed them in the MkDocs navigation.
+- Updated documentation, benchmark, validation, deployment, onboarding, notebook, and pricing surfaces for the native runtime evidence lane and local-regression benchmark boundary.
 
 ## [0.20.3] - 2026-06-02
 

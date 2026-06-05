@@ -1,85 +1,12 @@
 {
-  "benchmark_context": {
-    "affinity_cpus": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11
-    ],
-    "claim_boundary": "Local regression evidence only unless evidence_class=production_benchmark and benchmark_context records explicit CPU/core isolation.",
-    "command": [
-      ".venv/bin/python",
-      "scripts/benchmark_native_formal_modes.py",
-      "--steps",
-      "5000",
-      "--repeats",
-      "3",
-      "--tick-interval-s",
-      "0.0001",
-      "--formal-modes",
-      "disabled,aot_certificate",
-      "--pacing-modes",
-      "sleep,spin",
-      "--strides",
-      "1",
-      "--transports",
-      "std",
-      "--core-snn",
-      "1",
-      "--core-z3",
-      "3",
-      "--core-net",
-      "5",
-      "--core-hb",
-      "7",
-      "--evidence-class",
-      "local_regression",
-      "--other-heavy-jobs-running",
-      "unknown",
-      "--json-out",
-      "validation/reports/native_formal_aot_certificate_admission_20260604T103219Z.json",
-      "--markdown-out",
-      "validation/reports/native_formal_aot_certificate_admission_20260604T103219Z.md"
-    ],
-    "cpu_frequency_context": "min_khz=2374723 max_khz=4405275",
-    "cpu_governor": "powersave",
-    "evidence_class": "local_regression",
-    "hardware_model": "11th Gen Intel(R) Core(TM) i5-11600K @ 3.90GHz",
-    "host_load_after": "6.47 6.01 4.68 1/2869 1893906",
-    "host_load_before": "7.29 6.15 4.70 2/2867 1893504",
-    "isolation_method": "none",
-    "os": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
-    "other_heavy_jobs_running": "unknown",
-    "production_claim_allowed": false,
-    "python": "3.12.3",
-    "reserved_core_set": [
-      1,
-      3,
-      5,
-      7
-    ],
-    "runtime_versions": {
-      "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
-      "python": "3.12.3"
-    },
-    "schema_version": "scpn-control.benchmark-context.v1"
-  },
-  "classification": "native formal mode benchmark; benchmark_context defines whether timing evidence is local regression or production benchmark evidence",
-  "commit": "32bad6080323f0176f9909948a8c1db179d11add",
-  "commit_short": "32bad60",
+  "classification": "native formal mode benchmark; isolation depends on caller taskset/governor setup",
+  "commit": "3aa4132d3f2cacee15d9393eb30bc30497de5bc7",
+  "commit_short": "3aa4132",
   "execution": {
-    "core_hb": 7,
-    "core_net": 5,
+    "core_hb": 3,
+    "core_net": 3,
     "core_snn": 1,
-    "core_z3": 3,
+    "core_z3": 5,
     "formal_modes": [
       "disabled",
       "aot_certificate"
@@ -99,10 +26,10 @@
       "std"
     ]
   },
-  "generated_at": "2026-06-04T10:57:30.673627+00:00",
+  "generated_at": "2026-06-04T08:40:39.277448+00:00",
   "host": {
     "isolated_cpus": "",
-    "loadavg": "6.47 6.01 4.68 1/2869 1893906",
+    "loadavg": "6.49 9.70 8.07 2/6326 1630760",
     "nohz_full": "(null)",
     "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
     "python": "3.12.3"
@@ -113,21 +40,20 @@
     "async_drop deliberately drops saturated snapshots and is not strict proof coverage.",
     "sync_stride blocks on designated stride steps and exposes sync wait telemetry.",
     "aot_certificate is a compiled sufficient certificate monitor; it is not a live SMT solver.",
-    "aot_certificate strict evidence requires certificate_admitted=true and one stable certificate_assumption_sha256.",
     "spin pacing busy-waits on a native core and should only be used for short timing experiments."
   ],
   "runs": [
     {
-      "avg_cycle_us": 3.2827887999999996,
+      "avg_cycle_us": 1.9880494000000002,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 167.6691603846848,
-      "elapsed_s": 0.7869399120099843,
+      "effective_step_us": 164.04502158984542,
+      "elapsed_s": 0.7701554901432246,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "disabled",
@@ -137,23 +63,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "sleep"
         },
         "formal_verification": {
           "backend": "disabled",
-          "certificate_admitted": false,
-          "certificate_assumption_sha256": "",
-          "certificate_contract": "",
-          "certificate_id": "",
-          "certificate_schema_version": "",
           "channel_capacity": 2,
           "checked": 0,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 30,
           "dropped": 0,
           "effective_verification_rate": 0.0,
@@ -176,9 +97,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 21,
-        "last_cycle_ns": "2154",
-        "last_snn_time_ns": 1452,
+        "last_acados_time_ns": 62,
+        "last_cycle_ns": "3969",
+        "last_snn_time_ns": 2586,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -187,7 +108,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "16413944",
+        "total_cycle_ns": "9940247",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57300
@@ -207,19 +128,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.838345801923424
+      "wall_s": 0.8202251079492271
     },
     {
-      "avg_cycle_us": 2.6980944,
+      "avg_cycle_us": 1.6814162,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 167.70261437632143,
-      "elapsed_s": 0.7882802200037986,
+      "effective_step_us": 163.4460617788136,
+      "elapsed_s": 0.766968258889392,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "disabled",
@@ -229,23 +150,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "sleep"
         },
         "formal_verification": {
           "backend": "disabled",
-          "certificate_admitted": false,
-          "certificate_assumption_sha256": "",
-          "certificate_contract": "",
-          "certificate_id": "",
-          "certificate_schema_version": "",
           "channel_capacity": 2,
           "checked": 0,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 30,
           "dropped": 0,
           "effective_verification_rate": 0.0,
@@ -268,9 +184,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 23,
-        "last_cycle_ns": "1308",
-        "last_snn_time_ns": 471,
+        "last_acados_time_ns": 17,
+        "last_cycle_ns": "967",
+        "last_snn_time_ns": 346,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -279,7 +195,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "13490472",
+        "total_cycle_ns": "8407081",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57301
@@ -299,19 +215,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.8385130718816072
+      "wall_s": 0.817230308894068
     },
     {
-      "avg_cycle_us": 2.5424892,
+      "avg_cycle_us": 1.6247791999999999,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 164.4952204078436,
-      "elapsed_s": 0.7722770660184324,
+      "effective_step_us": 163.30566140823066,
+      "elapsed_s": 0.7662306020502001,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "disabled",
@@ -321,23 +237,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "sleep"
         },
         "formal_verification": {
           "backend": "disabled",
-          "certificate_admitted": false,
-          "certificate_assumption_sha256": "",
-          "certificate_contract": "",
-          "certificate_id": "",
-          "certificate_schema_version": "",
           "channel_capacity": 2,
           "checked": 0,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 30,
           "dropped": 0,
           "effective_verification_rate": 0.0,
@@ -360,9 +271,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 34,
-        "last_cycle_ns": "10641",
-        "last_snn_time_ns": 4675,
+        "last_acados_time_ns": 18,
+        "last_cycle_ns": "988",
+        "last_snn_time_ns": 407,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -371,7 +282,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "12712446",
+        "total_cycle_ns": "8123896",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57302
@@ -391,19 +302,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.822476102039218
+      "wall_s": 0.8165283070411533
     },
     {
-      "avg_cycle_us": 2.0857631999999997,
+      "avg_cycle_us": 1.9321464000000002,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 110.21660477854311,
-      "elapsed_s": 0.5007535899057984,
+      "effective_step_us": 110.16513123176992,
+      "elapsed_s": 0.5006690679583699,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "disabled",
@@ -413,23 +324,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "spin"
         },
         "formal_verification": {
           "backend": "disabled",
-          "certificate_admitted": false,
-          "certificate_assumption_sha256": "",
-          "certificate_contract": "",
-          "certificate_id": "",
-          "certificate_schema_version": "",
           "channel_capacity": 2,
           "checked": 0,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 30,
           "dropped": 0,
           "effective_verification_rate": 0.0,
@@ -453,8 +359,8 @@
         },
         "heartbeat_enabled": false,
         "last_acados_time_ns": 16,
-        "last_cycle_ns": "928",
-        "last_snn_time_ns": 357,
+        "last_cycle_ns": "910",
+        "last_snn_time_ns": 362,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -463,7 +369,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "10428816",
+        "total_cycle_ns": "9660732",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57303
@@ -483,19 +389,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.5510830238927156
+      "wall_s": 0.5508256561588496
     },
     {
-      "avg_cycle_us": 1.9077228,
+      "avg_cycle_us": 2.0162788000000003,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 110.25050659663975,
-      "elapsed_s": 0.5008127801120281,
+      "effective_step_us": 110.18423959612846,
+      "elapsed_s": 0.5006851020734757,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "disabled",
@@ -505,23 +411,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "spin"
         },
         "formal_verification": {
           "backend": "disabled",
-          "certificate_admitted": false,
-          "certificate_assumption_sha256": "",
-          "certificate_contract": "",
-          "certificate_id": "",
-          "certificate_schema_version": "",
           "channel_capacity": 2,
           "checked": 0,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 30,
           "dropped": 0,
           "effective_verification_rate": 0.0,
@@ -544,9 +445,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 16,
-        "last_cycle_ns": "2505",
-        "last_snn_time_ns": 1124,
+        "last_acados_time_ns": 17,
+        "last_cycle_ns": "1057",
+        "last_snn_time_ns": 439,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -555,7 +456,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "9538614",
+        "total_cycle_ns": "10081394",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57304
@@ -575,19 +476,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.5512525329831988
+      "wall_s": 0.5509211979806423
     },
     {
-      "avg_cycle_us": 2.1374724,
+      "avg_cycle_us": 1.6978997999999998,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 110.30358839780092,
-      "elapsed_s": 0.5011867058929056,
+      "effective_step_us": 110.22805320098996,
+      "elapsed_s": 0.5008092268835753,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "disabled",
@@ -597,23 +498,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "spin"
         },
         "formal_verification": {
           "backend": "disabled",
-          "certificate_admitted": false,
-          "certificate_assumption_sha256": "",
-          "certificate_contract": "",
-          "certificate_id": "",
-          "certificate_schema_version": "",
           "channel_capacity": 2,
           "checked": 0,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 30,
           "dropped": 0,
           "effective_verification_rate": 0.0,
@@ -636,9 +532,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 18,
-        "last_cycle_ns": "1797",
-        "last_snn_time_ns": 903,
+        "last_acados_time_ns": 84,
+        "last_cycle_ns": "1609",
+        "last_snn_time_ns": 751,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -647,7 +543,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "10687362",
+        "total_cycle_ns": "8489499",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57305
@@ -667,19 +563,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.5515179419890046
+      "wall_s": 0.5511402660049498
     },
     {
-      "avg_cycle_us": 2.1872472,
+      "avg_cycle_us": 1.9458354,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 164.21028077602386,
-      "elapsed_s": 0.7706515740137547,
+      "effective_step_us": 165.79695278778672,
+      "elapsed_s": 0.7785126711241901,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "aot_certificate",
@@ -689,23 +585,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "sleep"
         },
         "formal_verification": {
           "backend": "compiled-certificate",
-          "certificate_admitted": true,
-          "certificate_assumption_sha256": "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd",
-          "certificate_contract": "non_negative_markings_and_bounded_core_total_imply_depth_bounded_marking_safety",
-          "certificate_id": "bounded-petri-marking-sufficient-invariant",
-          "certificate_schema_version": "scpn-control.native-formal.aot-certificate.v1",
           "channel_capacity": 2,
           "checked": 5000,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 1,
           "dropped": 0,
           "effective_verification_rate": 100.0,
@@ -729,8 +620,8 @@
         },
         "heartbeat_enabled": false,
         "last_acados_time_ns": 16,
-        "last_cycle_ns": "1038",
-        "last_snn_time_ns": 340,
+        "last_cycle_ns": "1200",
+        "last_snn_time_ns": 426,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -739,7 +630,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "10936236",
+        "total_cycle_ns": "9729177",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57306
@@ -759,19 +650,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.8210514038801193
+      "wall_s": 0.8289847639389336
     },
     {
-      "avg_cycle_us": 1.521987,
+      "avg_cycle_us": 1.7205034000000001,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 161.95107139647007,
-      "elapsed_s": 0.759242539992556,
+      "effective_step_us": 163.03267581388354,
+      "elapsed_s": 0.7650635070167482,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "aot_certificate",
@@ -781,23 +672,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "sleep"
         },
         "formal_verification": {
           "backend": "compiled-certificate",
-          "certificate_admitted": true,
-          "certificate_assumption_sha256": "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd",
-          "certificate_contract": "non_negative_markings_and_bounded_core_total_imply_depth_bounded_marking_safety",
-          "certificate_id": "bounded-petri-marking-sufficient-invariant",
-          "certificate_schema_version": "scpn-control.native-formal.aot-certificate.v1",
           "channel_capacity": 2,
           "checked": 5000,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 1,
           "dropped": 0,
           "effective_verification_rate": 100.0,
@@ -820,9 +706,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 16,
-        "last_cycle_ns": "1082",
-        "last_snn_time_ns": 345,
+        "last_acados_time_ns": 17,
+        "last_cycle_ns": "1191",
+        "last_snn_time_ns": 381,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -831,7 +717,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "7609935",
+        "total_cycle_ns": "8602517",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57307
@@ -851,19 +737,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.8097553569823503
+      "wall_s": 0.8151633790694177
     },
     {
-      "avg_cycle_us": 1.5685536,
+      "avg_cycle_us": 1.7305553999999999,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 161.7495922371745,
-      "elapsed_s": 0.7582929700147361,
+      "effective_step_us": 163.17406841553748,
+      "elapsed_s": 0.7658904190175235,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "aot_certificate",
@@ -873,23 +759,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "sleep"
         },
         "formal_verification": {
           "backend": "compiled-certificate",
-          "certificate_admitted": true,
-          "certificate_assumption_sha256": "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd",
-          "certificate_contract": "non_negative_markings_and_bounded_core_total_imply_depth_bounded_marking_safety",
-          "certificate_id": "bounded-petri-marking-sufficient-invariant",
-          "certificate_schema_version": "scpn-control.native-formal.aot-certificate.v1",
           "channel_capacity": 2,
           "checked": 5000,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 1,
           "dropped": 0,
           "effective_verification_rate": 100.0,
@@ -912,9 +793,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 16,
-        "last_cycle_ns": "1282",
-        "last_snn_time_ns": 502,
+        "last_acados_time_ns": 30,
+        "last_cycle_ns": "1609",
+        "last_snn_time_ns": 614,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -923,7 +804,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "7842768",
+        "total_cycle_ns": "8652777",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57308
@@ -943,19 +824,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.8087479611858726
+      "wall_s": 0.8158703420776874
     },
     {
-      "avg_cycle_us": 1.5847159999999998,
+      "avg_cycle_us": 1.6944476,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 110.15887740068138,
-      "elapsed_s": 0.5006538541056216,
+      "effective_step_us": 110.26976080611348,
+      "elapsed_s": 0.5012477880809456,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "aot_certificate",
@@ -965,23 +846,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "spin"
         },
         "formal_verification": {
           "backend": "compiled-certificate",
-          "certificate_admitted": true,
-          "certificate_assumption_sha256": "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd",
-          "certificate_contract": "non_negative_markings_and_bounded_core_total_imply_depth_bounded_marking_safety",
-          "certificate_id": "bounded-petri-marking-sufficient-invariant",
-          "certificate_schema_version": "scpn-control.native-formal.aot-certificate.v1",
           "channel_capacity": 2,
           "checked": 5000,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 1,
           "dropped": 0,
           "effective_verification_rate": 100.0,
@@ -1004,9 +880,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 16,
-        "last_cycle_ns": "1185",
-        "last_snn_time_ns": 340,
+        "last_acados_time_ns": 17,
+        "last_cycle_ns": "1130",
+        "last_snn_time_ns": 344,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -1015,7 +891,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "7923580",
+        "total_cycle_ns": "8472238",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57309
@@ -1035,19 +911,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.5507943870034069
+      "wall_s": 0.5513488040305674
     },
     {
-      "avg_cycle_us": 1.5932878000000001,
+      "avg_cycle_us": 2.3821696,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 110.66969661042094,
-      "elapsed_s": 0.5026692519895732,
+      "effective_step_us": 110.4360000230372,
+      "elapsed_s": 0.5019659448880702,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "aot_certificate",
@@ -1057,23 +933,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "spin"
         },
         "formal_verification": {
           "backend": "compiled-certificate",
-          "certificate_admitted": true,
-          "certificate_assumption_sha256": "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd",
-          "certificate_contract": "non_negative_markings_and_bounded_core_total_imply_depth_bounded_marking_safety",
-          "certificate_id": "bounded-petri-marking-sufficient-invariant",
-          "certificate_schema_version": "scpn-control.native-formal.aot-certificate.v1",
           "channel_capacity": 2,
           "checked": 5000,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 1,
           "dropped": 0,
           "effective_verification_rate": 100.0,
@@ -1096,9 +967,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 18,
-        "last_cycle_ns": "1522",
-        "last_snn_time_ns": 588,
+        "last_acados_time_ns": 17,
+        "last_cycle_ns": "1462",
+        "last_snn_time_ns": 641,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -1107,7 +978,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "7966439",
+        "total_cycle_ns": "11910848",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57310
@@ -1127,19 +998,19 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.5533484830521047
+      "wall_s": 0.552180000115186
     },
     {
-      "avg_cycle_us": 1.6426007999999999,
+      "avg_cycle_us": 2.8134926,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 110.23874981328845,
-      "elapsed_s": 0.5007129800505936,
+      "effective_step_us": 110.48572980798781,
+      "elapsed_s": 0.5020871988963336,
       "execution": {
-        "core_hb": 7,
-        "core_net": 5,
+        "core_hb": 3,
+        "core_net": 3,
         "core_snn": 1,
-        "core_z3": 3,
+        "core_z3": 5,
         "mode": "native"
       },
       "formal_mode_requested": "aot_certificate",
@@ -1149,23 +1020,18 @@
       "native": {
         "dropped": 0,
         "execution": {
-          "core_hb": 7,
-          "core_net": 5,
+          "core_hb": 3,
+          "core_net": 3,
           "core_snn": 1,
-          "core_z3": 3,
+          "core_z3": 5,
           "mode": "native",
           "pacing_mode": "spin"
         },
         "formal_verification": {
           "backend": "compiled-certificate",
-          "certificate_admitted": true,
-          "certificate_assumption_sha256": "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd",
-          "certificate_contract": "non_negative_markings_and_bounded_core_total_imply_depth_bounded_marking_safety",
-          "certificate_id": "bounded-petri-marking-sufficient-invariant",
-          "certificate_schema_version": "scpn-control.native-formal.aot-certificate.v1",
           "channel_capacity": 2,
           "checked": 5000,
-          "core_z3": 3,
+          "core_z3": 5,
           "dispatch_interval_steps": 1,
           "dropped": 0,
           "effective_verification_rate": 100.0,
@@ -1188,9 +1054,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 15,
-        "last_cycle_ns": "1029",
-        "last_snn_time_ns": 320,
+        "last_acados_time_ns": 21,
+        "last_cycle_ns": "4072",
+        "last_snn_time_ns": 2552,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -1199,7 +1065,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "8213004",
+        "total_cycle_ns": "14067463",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 57311
@@ -1219,38 +1085,28 @@
       },
       "transport_requested": "std",
       "udp_sink_packets": 5000,
-      "wall_s": 0.5511937490664423
+      "wall_s": 0.552428649039939
     }
   ],
   "schema": "scpn-control.native_formal_modes.v1",
   "summaries": {
     "std:sleep:aot_certificate:stride_1": {
       "avg_cycle_us": {
-        "max": 2.1872472,
-        "mean": 1.7592625999999998,
-        "min": 1.521987,
-        "p50": 1.5685536,
-        "p95": 2.1872472,
-        "p99": 2.1872472
+        "max": 1.9458354,
+        "mean": 1.7989647333333334,
+        "min": 1.7205034000000001,
+        "p50": 1.7305553999999999,
+        "p95": 1.9458354,
+        "p99": 1.9458354
       },
-      "certificate_admitted_total": 3,
-      "certificate_assumption_sha256_values": [
-        "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd"
-      ],
-      "certificate_ids": [
-        "bounded-petri-marking-sufficient-invariant"
-      ],
-      "certificate_schema_versions": [
-        "scpn-control.native-formal.aot-certificate.v1"
-      ],
       "drops_total": 0,
       "effective_step_us": {
-        "max": 164.21028077602386,
-        "mean": 162.6369814698895,
-        "min": 161.7495922371745,
-        "p50": 161.95107139647007,
-        "p95": 164.21028077602386,
-        "p99": 164.21028077602386
+        "max": 165.79695278778672,
+        "mean": 164.00123233906925,
+        "min": 163.03267581388354,
+        "p50": 163.17406841553748,
+        "p95": 165.79695278778672,
+        "p99": 165.79695278778672
       },
       "formal_checked_total": 15000,
       "formal_dropped_total": 0,
@@ -1259,32 +1115,28 @@
       "formal_submitted_total": 15000,
       "publish_failures_total": 0,
       "runs": 3,
-      "safety_headroom_pct_p99_cycle": 97.8127528,
+      "safety_headroom_pct_p99_cycle": 98.05416460000001,
       "sync_wait_count_total": 0,
       "sync_wait_p99_ns_max": 0,
       "udp_sink_packets_total": 15000
     },
     "std:sleep:disabled:stride_30": {
       "avg_cycle_us": {
-        "max": 3.2827887999999996,
-        "mean": 2.841124133333333,
-        "min": 2.5424892,
-        "p50": 2.6980944,
-        "p95": 3.2827887999999996,
-        "p99": 3.2827887999999996
+        "max": 1.9880494000000002,
+        "mean": 1.7647482666666665,
+        "min": 1.6247791999999999,
+        "p50": 1.6814162,
+        "p95": 1.9880494000000002,
+        "p99": 1.9880494000000002
       },
-      "certificate_admitted_total": 0,
-      "certificate_assumption_sha256_values": [],
-      "certificate_ids": [],
-      "certificate_schema_versions": [],
       "drops_total": 0,
       "effective_step_us": {
-        "max": 167.70261437632143,
-        "mean": 166.62233172294995,
-        "min": 164.4952204078436,
-        "p50": 167.6691603846848,
-        "p95": 167.70261437632143,
-        "p99": 167.70261437632143
+        "max": 164.04502158984542,
+        "mean": 163.59891492562988,
+        "min": 163.30566140823066,
+        "p50": 163.4460617788136,
+        "p95": 164.04502158984542,
+        "p99": 164.04502158984542
       },
       "formal_checked_total": 0,
       "formal_dropped_total": 0,
@@ -1293,38 +1145,28 @@
       "formal_submitted_total": 0,
       "publish_failures_total": 0,
       "runs": 3,
-      "safety_headroom_pct_p99_cycle": 96.71721120000001,
+      "safety_headroom_pct_p99_cycle": 98.0119506,
       "sync_wait_count_total": 0,
       "sync_wait_p99_ns_max": 0,
       "udp_sink_packets_total": 15000
     },
     "std:spin:aot_certificate:stride_1": {
       "avg_cycle_us": {
-        "max": 1.6426007999999999,
-        "mean": 1.6068681999999999,
-        "min": 1.5847159999999998,
-        "p50": 1.5932878000000001,
-        "p95": 1.6426007999999999,
-        "p99": 1.6426007999999999
+        "max": 2.8134926,
+        "mean": 2.296703266666667,
+        "min": 1.6944476,
+        "p50": 2.3821696,
+        "p95": 2.8134926,
+        "p99": 2.8134926
       },
-      "certificate_admitted_total": 3,
-      "certificate_assumption_sha256_values": [
-        "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd"
-      ],
-      "certificate_ids": [
-        "bounded-petri-marking-sufficient-invariant"
-      ],
-      "certificate_schema_versions": [
-        "scpn-control.native-formal.aot-certificate.v1"
-      ],
       "drops_total": 0,
       "effective_step_us": {
-        "max": 110.66969661042094,
-        "mean": 110.35577460813026,
-        "min": 110.15887740068138,
-        "p50": 110.23874981328845,
-        "p95": 110.66969661042094,
-        "p99": 110.66969661042094
+        "max": 110.48572980798781,
+        "mean": 110.39716354571283,
+        "min": 110.26976080611348,
+        "p50": 110.4360000230372,
+        "p95": 110.48572980798781,
+        "p99": 110.48572980798781
       },
       "formal_checked_total": 15000,
       "formal_dropped_total": 0,
@@ -1333,32 +1175,28 @@
       "formal_submitted_total": 15000,
       "publish_failures_total": 0,
       "runs": 3,
-      "safety_headroom_pct_p99_cycle": 98.3573992,
+      "safety_headroom_pct_p99_cycle": 97.1865074,
       "sync_wait_count_total": 0,
       "sync_wait_p99_ns_max": 0,
       "udp_sink_packets_total": 15000
     },
     "std:spin:disabled:stride_30": {
       "avg_cycle_us": {
-        "max": 2.1374724,
-        "mean": 2.0436528,
-        "min": 1.9077228,
-        "p50": 2.0857631999999997,
-        "p95": 2.1374724,
-        "p99": 2.1374724
+        "max": 2.0162788000000003,
+        "mean": 1.8821083333333333,
+        "min": 1.6978997999999998,
+        "p50": 1.9321464000000002,
+        "p95": 2.0162788000000003,
+        "p99": 2.0162788000000003
       },
-      "certificate_admitted_total": 0,
-      "certificate_assumption_sha256_values": [],
-      "certificate_ids": [],
-      "certificate_schema_versions": [],
       "drops_total": 0,
       "effective_step_us": {
-        "max": 110.30358839780092,
-        "mean": 110.25689992432793,
-        "min": 110.21660477854311,
-        "p50": 110.25050659663975,
-        "p95": 110.30358839780092,
-        "p99": 110.30358839780092
+        "max": 110.22805320098996,
+        "mean": 110.19247467629611,
+        "min": 110.16513123176992,
+        "p50": 110.18423959612846,
+        "p95": 110.22805320098996,
+        "p99": 110.22805320098996
       },
       "formal_checked_total": 0,
       "formal_dropped_total": 0,
@@ -1367,7 +1205,7 @@
       "formal_submitted_total": 0,
       "publish_failures_total": 0,
       "runs": 3,
-      "safety_headroom_pct_p99_cycle": 97.86252759999999,
+      "safety_headroom_pct_p99_cycle": 97.9837212,
       "sync_wait_count_total": 0,
       "sync_wait_p99_ns_max": 0,
       "udp_sink_packets_total": 15000

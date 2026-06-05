@@ -1,0 +1,27 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- SCPN Control — Native runtime validation report. -->
+# Native formal verification mode benchmark
+
+Generated: 2026-06-04T10:13:21.484985+00:00
+Commit: `f83865a`
+Workspace dirty: `False`
+
+native formal mode benchmark; isolation depends on caller taskset/governor setup
+
+| Case | Runs | p50 cycle us | p99 cycle us | p99 headroom % | Generated | Submitted | Checked | Dropped | Failures | Sync waits | Max sync p99 ns |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| std:sleep:aot_certificate:stride_1 | 5 | 1.089020 | 1.112043 | 98.888 | 50000 | 50000 | 50000 | 0 | 0 | 0 | 0 |
+| std:spin:aot_certificate:stride_1 | 5 | 1.101018 | 1.179034 | 98.821 | 50000 | 50000 | 50000 | 0 | 0 | 0 | 0 |
+
+Limitations:
+- p50/p95/p99 are across repeated campaign summaries, not per-tick histograms.
+- workspace_dirty means the benchmark includes uncommitted local changes on top of the reported commit.
+- async_drop deliberately drops saturated snapshots and is not strict proof coverage.
+- sync_stride blocks on designated stride steps and exposes sync wait telemetry.
+- aot_certificate is a compiled sufficient certificate monitor; it is not a live SMT solver.
+- spin pacing busy-waits on a native core and should only be used for short timing experiments.

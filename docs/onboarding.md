@@ -95,3 +95,20 @@ before any stronger language is used.
 - A simulator bridge is not a TRANSP, TSC, CODAC, or EPICS acceptance test.
 - A neural surrogate is not a substitute for external-code or measured-shot
   evidence unless the corresponding validator admits that claim.
+
+## Native runtime evidence path
+
+For the current release line, use the native runtime evidence path when you
+need to discuss timing or formal-runtime coverage:
+
+1. Run the normal tutorials first so controller semantics are clear.
+2. Use `scripts/benchmark_native_handoff.py` to compare Python orchestration
+   with fused Rust/PyO3 execution at the same campaign boundary.
+3. Use `scripts/benchmark_native_formal_modes.py` to choose between
+   `async_drop`, `sync_stride`, and `aot_certificate` formal modes.
+4. Treat `async_drop` as proof sampling, `sync_stride` as ground-truth bounded
+   proof timing, and `aot_certificate` as the hot-path monitor admitted by its
+   certificate digest.
+5. Label workstation runs as local-regression evidence unless the benchmark
+   artefact records isolated cores, host load, governor/frequency context,
+   runtime versions, and concurrent-job status.

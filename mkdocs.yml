@@ -7,6 +7,9 @@ repo_name: anulum/scpn-control
 docs_dir: docs
 site_dir: site
 
+exclude_docs: |
+  internal/**
+
 theme:
   name: material
   palette:
@@ -91,6 +94,7 @@ nav:
     - JOSS Paper: joss_paper.md
     - Development: development.md
     - Capability Manifest: capability_manifest.md
+    - Release Notes v0.20.4: release_notes_v0.20.4.md
     - Release Notes v0.20.3: release_notes_v0.20.3.md
     - Release Notes v0.20.2: release_notes_v0.20.2.md
     - Release Notes v0.20.1: release_notes_v0.20.1.md

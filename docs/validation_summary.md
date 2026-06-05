@@ -1,11 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: Validation evidence summary. -->
-
+<!-- SCPN Control — Validation evidence summary. -->
 # Validation Summary — scpn-control
 
 This document summarises current validation evidence and its claim boundary.
@@ -22,6 +21,7 @@ target-hardware, and deployment evidence that still needs admission.
 | Kernel latency | Rust kernel benchmark | Criterion and benchmark reports | 11.9 µs P50 bare kernel |
 | Disruption prediction | Synthetic ROC analysis | disruption benchmark tooling | Synthetic-only evidence |
 | Physical Consistency | Energy balance diagnostic | `benchmark_transport.py` | Error < 1% (Internal) |
+| Native formal AOT certificate monitor | Digest-bound local-regression reports | `validation/validate_native_formal_certificate_evidence.py` | Admitted only inside declared benchmark context |
 
 ## Key Benchmarks
 
@@ -45,3 +45,13 @@ baselines unless matched HIL, target-hardware, and measured-shot evidence exists
 The published 11.9 us figure is a bare Rust kernel measurement. It is not an
 end-to-end PCS-cycle claim. Deployment timing needs target hardware, IO,
 diagnostics, actuator, queue/backpressure, and HIL replay evidence.
+
+### 5. Native Runtime Formal Evidence
+
+The native runtime lane now distinguishes proof sampling from strict formal
+coverage. `async_drop` is diagnostic sampling and may drop saturated snapshots.
+`sync_stride` measures the cost of waiting for a Rust-owned Z3 worker on selected
+steps. `aot_certificate` keeps the hot path out of the SMT solver and checks a
+digest-bound certificate monitor at runtime. Current workstation reports are
+local-regression evidence unless the benchmark context records production-grade
+core isolation, host-load, governor, runtime, and concurrent-job metadata.

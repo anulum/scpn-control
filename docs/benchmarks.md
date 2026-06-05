@@ -8,6 +8,24 @@
 
 # Benchmarks
 
+## Current native runtime evidence package
+
+The v0.20.4 release candidate includes the following repository reports as
+local-regression evidence for the native execution and formal-runtime lane:
+
+| Report family | Purpose | Claim boundary |
+| --- | --- | --- |
+| `native_handoff_comparison.*` | Compare Python orchestration with fused Rust/PyO3 execution at one campaign boundary | Local execution-ownership evidence; not target PCS timing |
+| `native_formal_modes_*.*` | Compare disabled, `async_drop`, `sync_stride`, and `aot_certificate` formal modes | Shows coverage/drop/timing semantics; non-isolated timings remain local regression |
+| `native_formal_aot_certificate_admission_*.*` | Persist digest-bound AOT certificate admission evidence | Hot-path certificate evidence; production use requires production benchmark context |
+| `native_formal_spin_pacing_*.*` and `native_control_spin_pacing_*.*` | Exercise opt-in spin pacing under workstation constraints | Short timing experiments only; do not cite as deployment timing |
+
+The reports intentionally keep workstation limitations visible: workspace state,
+proof-sampling drops where applicable, certificate digests, and evidence-class
+metadata. Do not promote their timing numbers into market, release, or facility
+claims unless the matching JSON report records production benchmark context and
+the validator admits it.
+
 This project has three benchmark tracks:
 
 1. Python CLI micro-benchmark (`scpn-control benchmark`)

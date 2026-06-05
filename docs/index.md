@@ -27,6 +27,16 @@ facility PCS, EFIT deployment, TRANSP workflow, or external gyrokinetic code.
 It is the controller-facing evidence layer that makes those integrations safer
 to discuss, test, fund, and review.
 
+## Current release focus
+
+The current release focus is native execution evidence and formal-runtime claim
+discipline. SCPN Control now separates Python-orchestrated campaigns from fused
+Rust/PyO3 campaigns, reports formal-verification coverage explicitly, and uses
+digest-bound AOT certificate evidence for the hot path. Non-isolated
+workstation timings remain local-regression evidence; production benchmark
+claims still require isolated cores, host-load metadata, governor context, and
+target-hardware or PREEMPT_RT admission.
+
 ## Main surfaces
 
 | Surface | Purpose |

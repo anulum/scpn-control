@@ -21,7 +21,7 @@ For optional extras:
 
 ```bash
 pip install scpn-control[jax]     # JAX autodiff solvers
-pip install scpn-control[snn]     # SNN engine (pure NumPy)
+pip install scpn-control[neuro]   # optional SC-NeuroCore bridge
 pip install scpn-control[rl]      # stable-baselines3 PPO agent
 ```
 
@@ -220,3 +220,21 @@ scpn-control hil-test --shots-dir validation/reference_data/diiid/disruption_sho
   Kuramoto-Sakaguchi model, UPDE, Lyapunov stability analysis.
 - [glossary.md](../learning/glossary.md) -- definitions of all plasma physics and
   control theory terms used in the codebase.
+
+## Evidence quick path
+
+After the introductory examples, generate one small evidence artefact so the
+validation workflow is concrete:
+
+```bash
+PYTHONPATH=src python scripts/benchmark_native_handoff.py \
+  --steps 500 \
+  --tick-interval-s 0 \
+  --transport-backend std \
+  --json-out validation/reports/native_handoff_smoke.json \
+  --markdown-out validation/reports/native_handoff_smoke.md
+```
+
+Use this only as local smoke evidence unless the run records isolated benchmark
+context. Claim-bearing releases should cite the persisted validation reports
+listed in [Benchmarks](../benchmarks.md) and admitted by `scpn-control validate`.

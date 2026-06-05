@@ -1,5 +1,10 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
+<!-- Commercial license available -->
+<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
+<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
+<!-- ORCID: 0009-0009-3560-0851 -->
+<!-- Contact: www.anulum.li | protoscience@anulum.li -->
+<!-- SCPN Control — Deployment guide. -->
 # Deployment Guide
 
 This guide describes how to deploy `scpn-control` in various environments,
@@ -61,19 +66,36 @@ source venv/bin/activate
 python tools/run_parameter_scan.py --config configs/iter_scan.json
 ```
 
-## 4. Real-Time Mode (Rust + PyO3)
+## 4. Native execution mode (Rust + PyO3)
 
-To achieve the 11.9 µs P50 latency target, ensure the Rust backend is
-compiled and available.
+Use the native bridge when timing or formal-runtime ownership matters. Python
+loads configuration and campaign parameters; the fused Rust/PyO3 data plane owns
+the hot loop, transport publisher, formal-mode telemetry, and optional AOT
+certificate monitor.
 
-1.  **Build Rust Extension**:
-    ```bash
-    cd scpn-control-rs
-    cargo build --release
-    cp target/release/libscpn_control_rs.so ../src/scpn_control/
-    ```
-2.  **Verify Dispatch**:
-    Check the logs for `[scpn_control] Backend: RUST` during initialization.
+Build the editable extension from the PyO3 crate:
+
+```bash
+python -m pip install maturin
+cd scpn-control-rs/crates/control-python
+maturin develop --release
+```
+
+Then compare Python and native execution at the same campaign boundary:
+
+```bash
+cd ../../..
+PYTHONPATH=src python scripts/benchmark_native_handoff.py \
+  --steps 5000 \
+  --tick-interval-s 0.0001 \
+  --transport-backend std \
+  --json-out validation/reports/native_handoff_comparison.json \
+  --markdown-out validation/reports/native_handoff_comparison.md
+```
+
+For production timing claims, run on isolated cores with recorded host load, CPU
+governor/frequency context, runtime versions, and concurrent-job status.
+Workstation reports without that metadata are local-regression evidence only.
 
 ## 5. WebSocket Monitoring
 

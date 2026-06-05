@@ -129,6 +129,23 @@ review. The package provides the contract layer between those worlds.
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
 
+## What is new in v0.20.4
+
+This release line packages the native execution and formal-evidence hardening
+work into a clearer public surface:
+
+- native fused Rust execution can be compared against Python orchestration with
+  persisted JSON/Markdown reports;
+- formal verification has explicit `async_drop`, `sync_stride`, and
+  `aot_certificate` modes, so proof sampling is no longer confused with strict
+  coverage;
+- AOT certificate reports are digest-bound and admitted only as local-regression
+  evidence unless the benchmark context proves isolated production conditions;
+- opt-in spin pacing is documented as a short timing experiment, not a default
+  deployment mode;
+- release gates now keep non-isolated workstation timing separate from target
+  hardware and PREEMPT_RT production claims.
+
 ## Why this has market value
 
 Fusion organisations spend significant time proving that a controller result is
@@ -170,7 +187,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.3 |
+| Package version | 0.20.4 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -181,7 +198,7 @@ blocked until the required external artefacts exist.
 | Validation scripts | 92 |
 | Optional extras | 17 |
 | Python test files | 322 |
-| Public documentation pages | 45 |
+| Public documentation pages | 46 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -543,7 +560,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.20.3
+git tag v0.20.4
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```

@@ -7,6 +7,13 @@ teaching, and exploratory analysis. They are not claim-bearing evidence unless
 their outputs are converted into the matching validation artefact and admitted by
 the relevant validator.
 
+## Suggested first notebook sequence
+
+1. `examples/snn_compiler_walkthrough.ipynb` for SPN-to-SNN mechanics.
+2. `examples/q10_breakeven_demo.ipynb` for transport and fusion-gain context.
+3. `examples/h_infinity_controller_demo.ipynb` for robust-control intuition.
+4. `examples/scpn_full_stack_demo_2026.ipynb` only after reading the evidence boundary below.
+
 ## Core notebooks
 
 | Notebook | Purpose | Extra dependencies |
