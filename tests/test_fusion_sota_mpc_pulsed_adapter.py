@@ -18,6 +18,10 @@ from scpn_control.control.fusion_sota_mpc import (
     PulsedShotMPCAdapter,
 )
 from scpn_control.control.pulsed_scenario_scheduler_v2 import (
+    CapacitorBankTelemetry,
+    PulsedPlasmaTelemetry,
+    PulsedScenarioAction,
+    PulsedScenarioCommand,
     PulsedScenarioScheduler,
     PulsedScenarioSpec,
     PulsedScenarioState,
@@ -173,3 +177,89 @@ def test_decision_digest_changes_when_admission_state_changes() -> None:
     assert burn_decision["admission_digest"] != masked_decision["admission_digest"]
     assert burn_decision["action_sha256"] != masked_decision["action_sha256"]
     assert masked_decision["burn_components_masked"] is True
+
+
+def test_ten_tick_campaign_yields_expected_scheduler_and_action_pairs() -> None:
+    scheduler = _scheduler(PulsedScenarioState.IDLE)
+    adapter = PulsedShotMPCAdapter(
+        _mpc(),
+        scheduler,
+        _bank(initial_voltage_V=10.0, resistance_ohm=0.01),
+        burn_action_mask=np.array([True, True]),
+    )
+    state = np.array([5.0, 1.0], dtype=np.float64)
+    ref = np.array([6.0, 0.0], dtype=np.float64)
+    expected = [
+        (PulsedScenarioState.RAMP_UP, PulsedScenarioAction.RAMP_FIELD, False),
+        (PulsedScenarioState.FLAT_TOP, PulsedScenarioAction.HOLD_FLAT_TOP, False),
+        (PulsedScenarioState.BURN, PulsedScenarioAction.FIRE_COMPRESSION, True),
+        (PulsedScenarioState.EXPANSION, PulsedScenarioAction.RECOVER_ENERGY, False),
+        (PulsedScenarioState.DUMP, PulsedScenarioAction.DUMP_RESIDUAL, False),
+        (PulsedScenarioState.RECHARGE, PulsedScenarioAction.RECHARGE_BANK, False),
+        (PulsedScenarioState.COOL_DOWN, PulsedScenarioAction.COOL_DOWN, False),
+        (PulsedScenarioState.IDLE, PulsedScenarioAction.ARM_PRECHARGE, False),
+        (PulsedScenarioState.RAMP_UP, PulsedScenarioAction.RAMP_FIELD, False),
+        (PulsedScenarioState.FLAT_TOP, PulsedScenarioAction.HOLD_FLAT_TOP, False),
+    ]
+    observed: list[tuple[PulsedScenarioState, PulsedScenarioAction, bool]] = []
+
+    for tick, (expected_state, expected_action, _) in enumerate(expected):
+        command = _advance_scheduler_for_expected_state(scheduler, expected_state, tick)
+        action = adapter.step(
+            state,
+            ref,
+            context=command,
+            pulse=PulseSpec(peak_current_A=0.5, duration_s=0.001),
+        )
+        decision = adapter.explain_last_decision()
+        burn_admitted = bool(np.any(action != 0.0) and not decision["burn_components_masked"])
+
+        assert command.action is expected_action
+        assert command.state is expected_state
+        assert decision["scheduler_state"] == expected_state.value
+        if expected_state is PulsedScenarioState.BURN:
+            assert decision["bank_feasible"] is True
+            assert decision["safe_action_applied"] is False
+        else:
+            assert np.array_equal(action, np.zeros(2))
+            assert decision["burn_components_masked"] is True
+        observed.append((command.state, command.action, burn_admitted))
+
+    assert observed == expected
+
+
+def _advance_scheduler_for_expected_state(
+    scheduler: PulsedScenarioScheduler,
+    expected_state: PulsedScenarioState,
+    tick: int,
+) -> PulsedScenarioCommand:
+    bank_energy = 10.0
+    bank_voltage = 10.0
+    temperature = 150.0
+    coil_current = 10.0
+    fusion_power = 60.0
+    radial_velocity = 6.0
+    if expected_state in (PulsedScenarioState.RECHARGE, PulsedScenarioState.COOL_DOWN):
+        bank_energy = 0.0
+    if expected_state is PulsedScenarioState.COOL_DOWN:
+        bank_voltage = 16.0
+    if expected_state is PulsedScenarioState.IDLE:
+        temperature = 5.0
+        coil_current = 0.0
+
+    return scheduler.step(
+        t_s=float(tick + 1),
+        plasma=PulsedPlasmaTelemetry(
+            coil_current_A=coil_current,
+            temperature_eV=temperature,
+            phase_lock_error_rad=0.0,
+            reference_error_m=0.0,
+            fusion_power_W=fusion_power,
+            radial_velocity_m_s=radial_velocity,
+        ),
+        bank=CapacitorBankTelemetry(
+            voltage_V=bank_voltage,
+            voltage_max_V=20.0,
+            energy_J=bank_energy,
+        ),
+    )
