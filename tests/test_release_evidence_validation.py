@@ -125,6 +125,52 @@ def test_release_evidence_rejects_invalid_native_certificate_digest(tmp_path):
     assert "native_formal_certificate.certificate_assumption_sha256 must be a SHA-256 hex digest" in result.errors
 
 
+def test_release_evidence_rejects_native_formal_production_overclaim(tmp_path):
+    """Release evidence cannot promote local native-formal evidence to production timing claims."""
+    report = _valid_report()
+    native_formal = report["native_formal_certificate"]
+    assert isinstance(native_formal, dict)
+    native_formal["production_claim_allowed"] = True
+    path = tmp_path / "release_evidence_report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = validate_release_evidence(path)
+
+    assert result.status == "fail"
+    assert "local native formal evidence must not allow production benchmark claims" in result.errors
+
+
+def test_release_evidence_rejects_native_formal_production_class_without_claim_boundary(tmp_path):
+    """Production native-formal evidence must carry a production claim boundary."""
+    report = _valid_report()
+    native_formal = report["native_formal_certificate"]
+    assert isinstance(native_formal, dict)
+    native_formal["benchmark_evidence_class"] = "production_benchmark"
+    native_formal["production_claim_allowed"] = False
+    path = tmp_path / "release_evidence_report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = validate_release_evidence(path)
+
+    assert result.status == "fail"
+    assert "production native formal evidence must allow production benchmark claims" in result.errors
+
+
+def test_release_evidence_rejects_native_formal_errors(tmp_path):
+    """Native formal certificate admission must not carry lower-level validator errors."""
+    report = _valid_report()
+    native_formal = report["native_formal_certificate"]
+    assert isinstance(native_formal, dict)
+    native_formal["errors"] = ["production benchmark evidence must not come from a dirty workspace"]
+    path = tmp_path / "release_evidence_report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    result = validate_release_evidence(path)
+
+    assert result.status == "fail"
+    assert "native_formal_certificate.errors must be empty" in result.errors
+
+
 def test_release_evidence_rejects_incomplete_multi_shot_campaign_evidence(tmp_path):
     """Release evidence cannot admit multi-shot campaigns without Python, PyO3, and Rust surfaces."""
     report = _valid_report()

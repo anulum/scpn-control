@@ -228,6 +228,8 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
             errors.append("native_formal_certificate.production_claim_allowed must be a boolean")
         elif evidence_class == "local_regression" and production_claim_allowed:
             errors.append("local native formal evidence must not allow production benchmark claims")
+        elif evidence_class == "production_benchmark" and production_claim_allowed is not True:
+            errors.append("production native formal evidence must allow production benchmark claims")
         native_errors = native_formal.get("errors")
         if native_errors != []:
             errors.append("native_formal_certificate.errors must be empty")

@@ -121,7 +121,10 @@ a clean workspace, and a declared yes/no value for concurrent heavy jobs.
 and emits the result under `native_formal_certificate`. The release-evidence
 admission step requires this section to pass, requires at least one admitted AOT
 certificate case, and binds the report to the certificate-assumption digest,
-benchmark-report digest, and benchmark evidence class. Use
+benchmark-report digest, benchmark evidence class, and production-claim
+boundary. Local regression reports must keep `production_claim_allowed=false`;
+production benchmark reports must set it explicitly and must carry no
+validator errors. Use
 `--no-native-formal-certificate` only for local diagnostics; release evidence
 and preflight admission must not skip it.
 

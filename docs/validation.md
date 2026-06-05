@@ -173,7 +173,10 @@ gates, incomplete CPU/GPU JAX GK parity case coverage, traceability reports that
 do not block every open fidelity gap, multi-shot campaign evidence that lacks
 Python, PyO3, Rust, digest-count, SHA-256, or benchmark-context admission, and
 runtime-admission evidence that lacks benchmark context, payload sealing, or
-fail-closed production-claim boundaries. `--no-runtime-admission-evidence` is
+fail-closed production-claim boundaries, and native formal certificate evidence
+that attempts to promote production-class AOT timing without an explicit
+production-claim boundary and an empty validator-error list.
+`--no-runtime-admission-evidence` is
 limited to scoped CLI/import checks and must not be used for release evidence.
 The gate separates experimental
 validation evidence from CI fixtures. A manifest claiming real-shot validation

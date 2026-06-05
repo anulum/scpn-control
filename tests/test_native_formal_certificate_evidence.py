@@ -143,6 +143,19 @@ def test_native_formal_certificate_evidence_rejects_missing_benchmark_context(tm
     assert "benchmark_context must be an object" in result.errors
 
 
+def test_native_formal_certificate_evidence_rejects_unidentified_command(tmp_path: Path) -> None:
+    payload = _payload()
+    context = payload["benchmark_context"]
+    assert isinstance(context, dict)
+    context["command"] = ["python", "other_benchmark.py"]
+    report = _write_report(tmp_path / "report.json", payload)
+
+    result = validate_native_formal_certificate_evidence(report)
+
+    assert result.status == "fail"
+    assert "benchmark_context.command must identify the native formal benchmark" in result.errors
+
+
 def test_native_formal_certificate_evidence_rejects_unisolated_production_claim(tmp_path: Path) -> None:
     payload = _payload()
     context = payload["benchmark_context"]
@@ -167,6 +180,4 @@ def test_repository_native_formal_certificate_evidence_is_admitted() -> None:
     assert result.status == "pass"
     assert result.benchmark_evidence_class == "local_regression"
     assert result.production_claim_allowed is False
-    assert result.certificate_assumption_sha256 == (
-        "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd"
-    )
+    assert result.certificate_assumption_sha256 == ("ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd")

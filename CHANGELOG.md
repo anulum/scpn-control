@@ -56,6 +56,9 @@
 - Added release-evidence admission for PREEMPT_RT runtime-admission benchmark
   reports, requiring fail-closed production-claim boundaries, benchmark
   context, latency stats, and SHA-256 payload sealing.
+- Tightened native formal certificate release admission so production-class
+  AOT certificate evidence cannot be accepted unless the evidence explicitly
+  allows production benchmark claims and carries no validator errors.
 - Added PREEMPT_RT runtime admission for native hardware campaigns, including
   Python policy evaluation, PyO3 native snapshot evidence, CLI fail-closed
   `--runtime-admission-policy require`, public documentation, tests, and local

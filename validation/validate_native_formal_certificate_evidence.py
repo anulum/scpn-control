@@ -150,8 +150,11 @@ def _validate_benchmark_context(payload: JSONMapping, errors: list[str]) -> tupl
     else:
         production_claim_allowed_bool = production_claim_allowed
 
-    if _string_list(context.get("command")) is None:
+    command = _string_list(context.get("command"))
+    if command is None:
         errors.append("benchmark_context.command must be a non-empty list of command arguments")
+    elif not any("benchmark_native_formal_modes.py" in item for item in command):
+        errors.append("benchmark_context.command must identify the native formal benchmark")
     if _int_list(context.get("affinity_cpus")) is None:
         errors.append("benchmark_context.affinity_cpus must be a non-empty integer list")
     if _int_list(context.get("reserved_core_set")) is None:
@@ -262,8 +265,7 @@ def _validate_summary_case(
             errors.append(f"{name}: avg_cycle_us.p99 must be positive and finite")
         elif float(cast(float, p99)) > max_aot_p99_cycle_us:
             errors.append(
-                f"{name}: avg_cycle_us.p99 {float(cast(float, p99)):.6f} us exceeds "
-                f"{max_aot_p99_cycle_us:.6f} us"
+                f"{name}: avg_cycle_us.p99 {float(cast(float, p99)):.6f} us exceeds {max_aot_p99_cycle_us:.6f} us"
             )
 
     return name, digest, errors
@@ -334,9 +336,7 @@ def validate_native_formal_certificate_evidence(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Validate native AOT formal-certificate benchmark evidence."
-    )
+    parser = argparse.ArgumentParser(description="Validate native AOT formal-certificate benchmark evidence.")
     parser.add_argument(
         "report",
         nargs="?",

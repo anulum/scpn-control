@@ -1874,13 +1874,20 @@
         "tests/test_scpn_formal_verification.py exact reachability, marking bounds, transition liveness, algebraic place invariants, all-path bounded response, recurrence, counterexample, and invalid-domain checks",
         "src/scpn_control/scpn/formal_verification.py exact explicit-state finite transition relation over rational markings",
         "validation/reports/scpn_z3_formal.json schema-versioned bounded SMT evidence with canonical payload SHA-256",
-        "tests/test_controller_safety_case.py target-hardware readiness artifact digest and E2E latency admission checks"
+        "tests/test_controller_safety_case.py target-hardware readiness artifact digest and E2E latency admission checks",
+        "validation/validate_release_evidence.py native formal certificate release admission requires AOT certificate evidence, report digest, evidence class, production-claim boundary, and empty validator-error list",
+        "tests/test_release_evidence_validation.py native formal production-overclaim, production-class boundary, and validator-error rejection checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/formal_verification.py",
         "src/scpn_control/scpn/z3_model_checking.py",
         "tests/test_scpn_formal_verification.py",
         "validation/reports/scpn_z3_formal.json",
+        "validation/validate_native_formal_certificate_evidence.py",
+        "validation/validate_release_evidence.py",
+        "tests/test_native_formal_certificate_evidence.py",
+        "tests/test_release_evidence_validation.py",
+        "validation/reports/native_formal_aot_certificate_admission_20260604T103219Z.json",
         "docs/api.md",
         "docs/use_cases.md",
         "src/scpn_control/control/safety_case.py",
