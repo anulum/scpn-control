@@ -55,10 +55,10 @@ def _affinity() -> list[int] | None:
     return None
 
 
-def _loadavg() -> list[float] | None:
+def _loadavg() -> list[float | str]:
     if hasattr(os, "getloadavg"):
         return list(os.getloadavg())
-    return None
+    return ["unavailable"]
 
 
 def _payload_digest(payload: dict[str, object]) -> str:

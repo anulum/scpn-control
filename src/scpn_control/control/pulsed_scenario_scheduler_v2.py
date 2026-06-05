@@ -1,18 +1,28 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Pulsed-scenario scheduler v2.
+# SCPN Control — Pulsed-scenario scheduler v2.
 """Reusable pulsed-fusion lifecycle scheduler for CONTROL-owned shot logic."""
 
 from __future__ import annotations
 
 import json
 import math
+import sys
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+
+    class _CompatStrEnum(str, Enum):
+        """Local Python 3.10-compatible subset of enum.StrEnum."""
+
+    StrEnum = _CompatStrEnum
 
 
 class PulsedScenarioState(StrEnum):
