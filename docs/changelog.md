@@ -12,6 +12,23 @@
 
 No unreleased changes.
 
+## [0.20.7] - 2026-06-05
+
+### Added
+- Added a Lean-backed pulsed-scheduler liveness proof import path for
+  MIF-compatible cyclic pulsed scenarios.
+- Added a capacitor-bank compatibility import surface for MIF pulsed-control
+  lanes.
+
+### Changed
+- Hardened geometry-neutral replay v1.1 acceptance coverage with eight v1
+  back-compatibility fixtures and byte-stable v1.1 serialisation evidence.
+- Hardened pulsed-shot MPC adapter coverage with a ten-tick scheduler/action
+  integration sequence spanning the full pulsed lifecycle.
+- Hardened AER control-observation property coverage and optional PyO3 parity.
+- Bumped package, citation, API, README capability, release-note, MkDocs, and
+  generated capability metadata to `0.20.7`.
+
 ## [0.20.6] - 2026-06-05
 
 ### Fixed
@@ -45,46 +62,24 @@ No unreleased changes.
 - Added digest-bound AER admission metadata for geometry-neutral replay v1.1 so
   replay artefacts preserve monotonic AER ingress evidence without changing
   replay numerics.
-- Added an explicit native-handoff comparison benchmark that forces
-  Python-orchestrated and PyO3 fused Rust execution at the same campaign
-  boundary and emits JSON plus Markdown evidence artifacts.
-- Added a Rust-native Z3 formal-verification worker to the PyO3 fused
-  controller loop. The Python control plane configures bounded Petri-net
-  verification parameters, while the Rust data plane moves only numeric
-  snapshots over a bounded channel and constructs all SMT state on the pinned
-  native worker thread.
-- Added an explicit `sync_stride` formal-verification mode alongside the
-  existing non-blocking `async_drop` mode. Native telemetry now records generated
-  snapshots, effective verification rate, and synchronous proof wait timing for
-  deterministic stride benchmarks.
-- Added a native formal-mode benchmark script covering disabled, asynchronous,
-  and synchronous stride verification across `std` and `io-uring` transport
-  requests.
-- Added an `aot_certificate` native formal-verification mode that keeps Z3 out
-  of the hot loop by evaluating a compiled Petri-net certificate monitor and
-  reporting the backend as `compiled-certificate`.
-- Added opt-in native `spin` pacing for short hot-path timing experiments. The
-  default remains scheduler-yield `sleep` pacing; spin pacing is exposed through
-  the Python wrapper, hardware-campaign CLI, native telemetry, and formal-mode
-  benchmark script.
-- Added digest-bound AOT certificate admission telemetry. Native formal reports
-  now expose the certificate schema, identifier, contract label, admitted flag,
-  and SHA-256 assumption digest, and the formal-mode benchmark summarizes the
-  certificate evidence used by each AOT run.
-- Added PREEMPT_RT runtime admission for native hardware campaigns, including
-  Python policy evaluation, PyO3 native snapshot evidence, CLI fail-closed
-  `--runtime-admission-policy require`, public documentation, tests, and local
-  admission benchmark tooling.
-- Added a native formal AOT certificate evidence validator that rejects
-  malformed reports, missing or unstable certificate admission, dropped checks,
-  formal failures, incomplete generated/submitted/checked coverage, and AOT p99
-  cycle regressions before release or safety-case use.
-- Added native formal AOT certificate evidence to the top-level validation and
-  release-evidence admission gates, including digest checks for the admitted
-  certificate assumptions and persisted benchmark report.
-- Added benchmark-context admission for native formal AOT certificate reports
-  so non-isolated workstation timings remain local-regression evidence and
-  production benchmark evidence requires explicit CPU/core isolation metadata.
+- Added CONTROL-owned `PulsedScenarioScheduler v2` for reusable pulsed-fusion
+  shot lifecycles, with Python and Rust scheduler surfaces, audit-log
+  semantics, guard validation, public API documentation, and direct tests.
+- Exposed the Rust pulsed-scenario scheduler through the optional PyO3
+  `scpn_control_rs` extension with direct parity tests.
+- Added the CONTROL-owned capacitor-bank series-RLC state model with Python,
+  Rust, and optional PyO3 surfaces, scheduler telemetry adaptation, dedicated
+  tests, public API documentation, and benchmark evidence.
+- Added total RLC energy-balance reporting to capacitor-bank discharge reports,
+  including capacitor/inductor remaining energy, ohmic loss, prescribed-load
+  extraction, residual admission, PyO3 fields, dedicated tests, public guide
+  documentation, and Python/Rust benchmark harnesses.
+- Added the CONTROL-owned AER control-observation adapter with Python spike
+  buffers, rate/temporal/ISI decoders, Rust parity surfaces, optional PyO3
+  bindings, dedicated tests, and public documentation.
+- Added geometry-neutral replay schema v1.1 for pulsed-shot metadata admission,
+  with bundled schemas, v1 back-compatibility checks, report load/save helpers,
+  dedicated tests, and public documentation.
 - Added the CONTROL-owned pulsed-shot MPC admission adapter with Python, Rust,
   and optional PyO3 surfaces, fail-closed scheduler-state admission, capacitor
   feasibility gating, module-specific tests, public documentation, and local
@@ -93,10 +88,6 @@ No unreleased changes.
   Rust, PyO3, and benchmark reports.
 - Added PyO3-inclusive pulsed-MPC local regression evidence and documented the
   editable bridge rebuild protocol for this workstation.
-- Added total RLC energy-balance reporting to capacitor-bank discharge reports,
-  including capacitor/inductor remaining energy, ohmic loss, prescribed-load
-  extraction, residual admission, PyO3 fields, dedicated tests, public guide
-  documentation, and Python/Rust benchmark harnesses.
 - Added the CONTROL-owned multi-shot campaign orchestrator with Python, Rust,
   and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
   metadata fields, module-specific tests, public documentation, and local
@@ -113,17 +104,15 @@ No unreleased changes.
 - Tightened native formal certificate release admission so production-class
   AOT certificate evidence cannot be accepted unless the evidence explicitly
   allows production benchmark claims and carries no validator errors.
+- Added PREEMPT_RT runtime admission for native hardware campaigns, including
+  Python policy evaluation, PyO3 native snapshot evidence, CLI fail-closed
+  `--runtime-admission-policy require`, public documentation, tests, and local
+  admission benchmark tooling.
 
 ### Changed
 - Runtime telemetry now preserves the latest runtime-admission report in
   `extract_slab_telemetry()` so emergency dumps retain scheduler, affinity,
   governor, heartbeat, and PREEMPT_RT assumptions.
-- Added an execution-backend selector to the hardware-campaign CLI and Rust
-  engine wrapper so release evidence can require `auto`, `native`, or `python`
-  execution explicitly.
-- Added cumulative native cycle telemetry to the PyO3 spiking-controller pool
-  so Python summaries report measured native average cycle latency instead of
-  inferring it from a final tick.
 - Lean proof-report admission now rejects non-Lean solver declarations, solver
   strings that do not include the declared Lean version, and proved-contract
   overclaims outside the admitted PID/SNN proof surface.
@@ -201,34 +190,6 @@ No unreleased changes.
 ## [0.20.1] - 2026-06-02
 
 ### Changed
-- Added Lean 4 formal-proof evidence admission for safety-critical controller
-  artifacts, requiring bounded manifests that bind theorem names, theorem
-  modules, Lean/Lake/source hashes, proved PID and SNN contracts, production
-  module paths, safety-case identifiers, report digests, and artifact digests
-  before a `lean4` proof report can be accepted.
-- Added a canonical Lean 4 formal-verification report API with payload digest
-  validation, report writer/loader helpers, and package exports so downstream
-  proof-generation workflows can produce admissible evidence without duplicating
-  JSON schemas.
-- Added a Lean formal-verification validation executable with duplicate-key
-  rejection, report SHA-256 calculation, malformed-contract rejection, and
-  optional safety-critical artifact admission against a supplied report root.
-- Added a preflight benchmark-regression gate that validates persisted latency
-  evidence against SHA-256-bound reports, bounded thresholds, sample counts,
-  hardware-context metadata, and explicit non-HIL claim boundaries without
-  executing benchmarks or creating new timing evidence.
-- Hardened optional C++ solver compilation by resolving the compiler to an
-  absolute regular executable, stripping dynamic-loader injection variables
-  from the build environment, rejecting symlinked native source, manifest, and
-  output targets, compiling to a package-local temporary library, and
-  atomically publishing only regular build outputs.
-- Hardened Lean report and artifact-manifest admission so required PID and
-  SNN/neuro-symbolic proof contracts must be backed by matching
-  `ScpnControl.PID` and `ScpnControl.SNN` theorem namespaces, not just listed
-  as unchecked contract names.
-- Hardened Lean proof evidence with explicit bounded proof assumptions and a
-  canonical assumption SHA-256 digest that must match between report and
-  safety-critical artifact manifests.
 - Bumped package, citation, and archive metadata to `0.20.1` for the documentation and evidence-polish release candidate.
 - Expanded the README, documentation landing page, onboarding guide, tutorials, notebook gallery, use-case page, production-readiness boundary, and compute-validation financing page so new users can understand the software purpose, applications, market value, collaboration needs, and strict evidence boundaries.
 - Added v0.20.1 release notes and exposed additional public documentation pages in the MkDocs navigation.

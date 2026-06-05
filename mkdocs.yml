@@ -79,7 +79,9 @@ nav:
     - Capacitor-Bank State Model: control/capacitor_bank_state.md
     - Multi-Shot Campaign: control/multi_shot_campaign.md
     - Runtime Admission: control/runtime_admission.md
+    - Pulsed Scenario Scheduler: control/pulsed_scenario_scheduler.md
     - Pulsed MPC Adapter: control/pulsed_mpc_adapter.md
+    - AER Observation: scpn/aer_observation.md
     - Geometry-Neutral Replay: scpn/geometry_neutral_replay.md
   - Validation:
     - Benchmarks: benchmarks.md
@@ -94,6 +96,9 @@ nav:
     - JOSS Paper: joss_paper.md
     - Development: development.md
     - Capability Manifest: capability_manifest.md
+    - Capability Snapshot: _generated/capability_snapshot.md
+    - Release Notes v0.20.7: release_notes_v0.20.7.md
+    - Release Notes v0.20.6: release_notes_v0.20.6.md
     - Release Notes v0.20.5: release_notes_v0.20.5.md
     - Release Notes v0.20.4: release_notes_v0.20.4.md
     - Release Notes v0.20.3: release_notes_v0.20.3.md
@@ -101,6 +106,7 @@ nav:
     - Release Notes v0.20.1: release_notes_v0.20.1.md
     - Release Notes v0.20.0: release_notes_v0.20.0.md
     - Release Notes v0.19.3: release_notes_v0.19.3.md
+    - Release Notes v0.19.2: release_notes_v0.19.2.md
     - Compute Validation Funding: compute_validation_financing.md
     - Changelog: changelog.md
     - Pricing: pricing.md

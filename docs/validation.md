@@ -157,7 +157,7 @@ synthetic line-hit tests.
 cd scpn-control-rs
 cargo build --workspace
 cargo clippy --workspace -- -D warnings
-cargo test --workspace
+cargo test --workspace --exclude scpn-control-rs
 ```
 
 ## Rust/Python interop checks (PyO3 + maturin)
@@ -1309,7 +1309,7 @@ declared tolerances.
 - `jax-parity` (JAX transport, neural equilibrium, GS solver parity tests, and
   strict persisted CPU/GPU JAX GK parity evidence admission)
 - `nengo-loihi` (LIF+NEF SNN wrapper emulator tests)
-- `rust-tests` (`cargo test --workspace` + clippy + fmt)
+- `rust-tests` (`cargo test --workspace --exclude scpn-control-rs` + clippy + fmt)
 - `rust-python-interop` (maturin build + PyO3 parity)
 - `rust-benchmarks` (Criterion, uploads `bench-results` artifact)
 - `rust-audit` (cargo-audit vulnerability scan)

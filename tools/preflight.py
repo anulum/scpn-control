@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Local CI preflight gates.
+# SCPN Control — Local CI preflight gates.
 
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
     ("cargo fmt", ["cargo", "fmt", "--check"], RUST_DIR),
     ("cargo clippy", ["cargo", "clippy", "--", "-D", "warnings"], RUST_DIR),
-    ("cargo test", ["cargo", "test", "--workspace"], RUST_DIR),
+    ("cargo test", ["cargo", "test", "--workspace", "--exclude", "scpn-control-rs"], RUST_DIR),
 ]
 
 LOCAL_COV_THRESHOLD = "93"

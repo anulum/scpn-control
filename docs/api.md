@@ -13,7 +13,7 @@
 ```python
 import scpn_control
 
-scpn_control.__version__       # "0.20.6"
+scpn_control.__version__       # "0.20.7"
 scpn_control.FusionKernel      # Grad-Shafranov equilibrium solver
 scpn_control.RUST_BACKEND      # True if Rust acceleration available
 scpn_control.TokamakConfig     # Preset tokamak geometries

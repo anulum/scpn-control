@@ -129,27 +129,29 @@ review. The package provides the contract layer between those worlds.
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
 
-## What is new in v0.20.6
+## What is new in v0.20.7
 
-This release line keeps the native execution and formal-evidence hardening
-public surface current while closing the CI, dependency, and security-hygiene
-lane:
+This release line closes the CON-C pulsed-control acceptance lane that SCPN
+MIF Core needs for reusable pulsed-shot workflows. It does not relax the
+facility, target-hardware, P-EFIT, PREEMPT_RT, or external-code evidence gates.
 
-- native fused Rust execution can be compared against Python orchestration with
-  persisted JSON/Markdown reports;
-- formal verification has explicit `async_drop`, `sync_stride`, and
-  `aot_certificate` modes, so proof sampling is no longer confused with strict
-  coverage;
-- AOT certificate reports are digest-bound and admitted only as local-regression
-  evidence unless the benchmark context proves isolated production conditions;
-- opt-in spin pacing is documented as a short timing experiment, not a default
-  deployment mode;
-- release gates keep non-isolated workstation timing separate from target
-  hardware and PREEMPT_RT production claims;
-- focused `rust_engine` and quantum disruption bridge tests restore the remote
-  coverage margin without adding bucket tests;
-- all pending Dependabot pull requests were merged after fresh green checks,
-  leaving open code scanning, Dependabot, and secret-scanning alerts at zero.
+- `PulsedScenarioScheduler v2` now has a Lean liveness proof artefact, a stable
+  MIF-facing import path, public scheduler documentation, and focused regression
+  tests.
+- The capacitor-bank state model now exposes the MIF-compatible
+  `scpn_control.control.capacitor_bank` import surface without duplicating the
+  RLC mathematics.
+- AER observation coverage now includes generated-stream determinism and
+  admission-latch property checks, while local PyO3 parity verifies the Rust
+  decoder and spike-buffer bindings.
+- Geometry-neutral replay v1.1 acceptance now checks eight v1 back-compatibility
+  fixtures and byte-stable v1.1 serialisation.
+- `PulsedShotMPCAdapter` now has a ten-tick scheduler/action integration
+  sequence spanning the full pulsed lifecycle, proving burn admission is limited
+  to the burn state and non-burn states mask burn components to the safe action.
+- Release documentation keeps all new evidence classified as repository
+  acceptance coverage. No new production timing or facility validation claim is
+  admitted by this patch.
 
 ## Why this has market value
 
@@ -192,7 +194,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.6 |
+| Package version | 0.20.7 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -203,7 +205,7 @@ blocked until the required external artefacts exist.
 | Validation scripts | 92 |
 | Optional extras | 17 |
 | Python test files | 324 |
-| Public documentation pages | 49 |
+| Public documentation pages | 50 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -514,7 +516,7 @@ To deploy your own instance:
 
 ```bash
 cd scpn-control-rs
-cargo test --workspace
+cargo test --workspace --exclude scpn-control-rs
 
 # Build Python bindings
 cd crates/control-python
@@ -565,7 +567,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.20.6
+git tag v0.20.7
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```

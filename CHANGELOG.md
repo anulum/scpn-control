@@ -10,11 +10,24 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## [0.20.7] - 2026-06-05
+
+### Added
+- Added a Lean-backed pulsed-scheduler liveness proof import path for
+  MIF-compatible cyclic pulsed scenarios.
+- Added a capacitor-bank compatibility import surface for MIF pulsed-control
+  lanes.
+
 ### Changed
 - Hardened geometry-neutral replay v1.1 acceptance coverage with eight v1
   back-compatibility fixtures and byte-stable v1.1 serialisation evidence.
 - Hardened pulsed-shot MPC adapter coverage with a ten-tick scheduler/action
   integration sequence spanning the full pulsed lifecycle.
+- Hardened AER control-observation property coverage and optional PyO3 parity.
+- Bumped package, citation, API, README capability, release-note, MkDocs, and
+  generated capability metadata to `0.20.7`.
 
 ## [0.20.6] - 2026-06-05
 
