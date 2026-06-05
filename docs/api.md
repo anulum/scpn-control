@@ -174,6 +174,10 @@ energy. The matching Rust kernel lives in
 and `scpn_control_rs.capacitor_bank_free_response()` expose the compiled
 surface directly to Python.
 
+`scpn_control.control.capacitor_bank` is retained as the SCPN-MIF-CORE
+compatibility import and re-exports the state-model implementation without
+duplicating the RLC mathematics.
+
 `CapacitorBank.discharge()` now reports an explicit total RLC energy ledger for
 admission and replay: initial total stored energy, remaining total stored
 energy, remaining capacitor electric energy, remaining inductor magnetic energy,
@@ -196,6 +200,8 @@ validated facility capacitor-bank driver, insulation model, switch model, or
 hardware interlock implementation. Facility deployment still requires target
 hardware timing, protection relays, isolation evidence, and shot-matched
 validation artefacts.
+
+::: scpn_control.control.capacitor_bank
 
 ::: scpn_control.control.capacitor_bank_state.RLCRegime
 
