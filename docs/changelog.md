@@ -96,6 +96,9 @@
 - Added cumulative native cycle telemetry to the PyO3 spiking-controller pool
   so Python summaries report measured native average cycle latency instead of
   inferring it from a final tick.
+- Lean proof-report admission now rejects non-Lean solver declarations, solver
+  strings that do not include the declared Lean version, and proved-contract
+  overclaims outside the admitted PID/SNN proof surface.
 
 ## [0.20.3] - 2026-06-02
 

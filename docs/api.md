@@ -989,14 +989,16 @@ Z3 reports are additionally schema-versioned as
 proof payload, and must match the manifest status, solver, proof depth, and
 checked specification list before a safety-critical artifact is admitted.
 Lean 4 reports are admitted only through the bounded `lean4` manifest path:
-the manifest must bind the Lean version, Lake file SHA-256, proof-source
-SHA-256, theorem names, theorem modules, proved contracts, linked production
-module paths, safety-case identifiers, checked specification list, report
-SHA-256, and compiled artifact SHA-256. The Lean report schema is
+the manifest must bind a solver string that identifies Lean and includes the
+declared Lean version, Lake file SHA-256, proof-source SHA-256, theorem names,
+theorem modules, proved contracts, linked production module paths, safety-case
+identifiers, checked specification list, report SHA-256, and compiled artifact
+SHA-256. The Lean report schema is
 `scpn-control.lean4-formal-report.v1`; when a report root is supplied, every
 manifest field above must match the report before admission. The current
 required Lean proof-contract surface covers PID actuator-saturation preservation
-and SNN/neuro-symbolic marking-bound preservation. This is an evidence
+and SNN/neuro-symbolic marking-bound preservation, and reports cannot list
+unsupported proved contracts to imply wider formal coverage. This is an evidence
 admission contract; it does not claim certification unless the referenced
 machine-checked proof artefacts are present and verified.
 
@@ -1036,6 +1038,9 @@ Lean evidence must also declare explicit bounded `proof_assumptions` and a
 canonical `assumption_sha256`; report and artifact admission reject unbounded
 assumptions, certification overclaims, malformed assumption digests, or
 manifest/report assumption mismatches.
+Admission also rejects non-Lean solver declarations, Lean solver strings that
+do not include the reported `lean_version`, and any `proved_contracts` outside
+the currently admitted PID/SNN proof surface.
 
 ---
 

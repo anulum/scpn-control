@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Lean formal-verification report tests.
+# SCPN Control — Lean formal-verification report tests.
 """Tests for Lean 4 formal-verification report admission contracts."""
 
 from __future__ import annotations
@@ -84,6 +84,8 @@ def test_lean_formal_report_rejects_payload_digest_mismatch() -> None:
         ("safety_case_ids", ["bad id"], "invalid identifier"),
         ("proof_assumptions", ["plant is linear"], "bounded assumptions"),
         ("assumption_sha256", "0" * 64, "assumption_sha256"),
+        ("solver", "Coq 8.19.0", "solver must identify Lean"),
+        ("solver", "Lean 4.12.0", "solver must include lean_version"),
         (
             "theorem_names",
             ["ScpnControl.Transport.unrelated", "ScpnControl.SNN.markingBoundsPreserved"],
@@ -104,6 +106,20 @@ def test_lean_formal_report_rejects_malformed_contract_payload(field: str, value
         payload["assumption_sha256"] = compute_assumption_sha256(value)
 
     with pytest.raises(LeanFormalVerificationError, match=match):
+        validate_lean_formal_report_payload(payload)
+
+
+def test_lean_formal_report_rejects_unsupported_proved_contract() -> None:
+    payload = build_lean_formal_report_payload(_lean_report())
+    payload.pop("payload_sha256")
+    payload["proved_contracts"] = [
+        "pid.actuator_saturation",
+        "snn.marking_bounds",
+        "facility.full_certification",
+    ]
+    payload["checked_specs"] = list(payload["proved_contracts"])
+
+    with pytest.raises(LeanFormalVerificationError, match="unsupported contracts"):
         validate_lean_formal_report_payload(payload)
 
 

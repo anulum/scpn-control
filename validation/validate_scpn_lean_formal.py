@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Lean formal-verification evidence validator.
+# SCPN Control — Lean formal-verification evidence validator.
 """Validate Lean 4 formal-verification evidence for SCPN controller artefacts."""
 
 from __future__ import annotations
@@ -97,7 +97,9 @@ def validate_lean_formal_evidence(
             report_sha256=report_sha256,
             errors=tuple(errors),
             backend=str(payload.get("backend")) if payload is not None and "backend" in payload else None,
-            lean_version=str(payload.get("lean_version")) if payload is not None and "lean_version" in payload else None,
+            lean_version=str(payload.get("lean_version"))
+            if payload is not None and "lean_version" in payload
+            else None,
         )
     assert payload is not None
     report_status = str(payload["status"])

@@ -1861,6 +1861,7 @@
         "Require qualified HIL replay, HDL export, CODAC/EPICS runtime, and WebSocket runtime evidence artifacts before controller safety-case promotion readiness.",
         "Admit safety-critical `.scpnctl` artifacts only through the bounded formal-verification manifest gate",
         "Bind admitted proof manifests to the exact canonical artifact payload digest and declared report digest",
+        "Reject Lean proof reports with solver/version drift or unsupported proved-contract overclaims before safety-critical artifact admission",
         "Bind promoted controller safety-case bundles to the same controller artifact digest across formal proof, differentiable-transport, and digital-twin update evidence",
         "Persist controller safety-case bundles with schema-versioned integrity manifests before replay admission",
         "Keep controller safety-case readiness blocked until external physics validation, target-hardware timing, qualified runtime/hardware evidence, and independent safety-review digests are all present",
@@ -1876,12 +1877,19 @@
         "validation/reports/scpn_z3_formal.json schema-versioned bounded SMT evidence with canonical payload SHA-256",
         "tests/test_controller_safety_case.py target-hardware readiness artifact digest and E2E latency admission checks",
         "validation/validate_release_evidence.py native formal certificate release admission requires AOT certificate evidence, report digest, evidence class, production-claim boundary, and empty validator-error list",
-        "tests/test_release_evidence_validation.py native formal production-overclaim, production-class boundary, and validator-error rejection checks"
+        "tests/test_release_evidence_validation.py native formal production-overclaim, production-class boundary, and validator-error rejection checks",
+        "validation/validate_scpn_lean_formal.py duplicate-key and Lean proof-report admission gate",
+        "tests/test_scpn_lean_verification.py Lean solver/version binding, unsupported-contract rejection, theorem namespace, assumption, and digest checks",
+        "tests/test_scpn_lean_formal_validation.py validator-level Lean report and artifact admission checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/formal_verification.py",
+        "src/scpn_control/scpn/lean_verification.py",
         "src/scpn_control/scpn/z3_model_checking.py",
         "tests/test_scpn_formal_verification.py",
+        "validation/validate_scpn_lean_formal.py",
+        "tests/test_scpn_lean_verification.py",
+        "tests/test_scpn_lean_formal_validation.py",
         "validation/reports/scpn_z3_formal.json",
         "validation/validate_native_formal_certificate_evidence.py",
         "validation/validate_release_evidence.py",

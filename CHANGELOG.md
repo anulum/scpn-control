@@ -68,6 +68,9 @@
 - Runtime telemetry now preserves the latest runtime-admission report in
   `extract_slab_telemetry()` so emergency dumps retain scheduler, affinity,
   governor, heartbeat, and PREEMPT_RT assumptions.
+- Lean proof-report admission now rejects non-Lean solver declarations, solver
+  strings that do not include the declared Lean version, and proved-contract
+  overclaims outside the admitted PID/SNN proof surface.
 
 ## [0.20.3] - 2026-06-02
 

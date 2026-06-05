@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Lean formal-verification report contracts.
+# SCPN Control — Lean formal-verification report contracts.
 """Lean 4 formal-verification evidence contracts for SCPN controllers.
 
 This module does not execute Lean. It defines the repository admission format
@@ -183,6 +183,14 @@ def validate_required_contract_theorem_coverage(
             raise LeanFormalVerificationError(f"{contract} requires theorem_names under {module_prefix}")
 
 
+def validate_lean_solver_version_binding(*, solver: str, lean_version: str) -> None:
+    """Validate that the report toolchain string is bound to Lean and its version."""
+    if not solver.startswith("Lean "):
+        raise LeanFormalVerificationError("Lean 4 report solver must identify Lean")
+    if lean_version not in solver:
+        raise LeanFormalVerificationError("Lean 4 report solver must include lean_version")
+
+
 def validate_bounded_proof_assumptions(value: object) -> list[str]:
     """Validate explicit bounded proof assumptions for Lean evidence."""
     assumptions = validate_non_empty_string_list(value, "proof_assumptions")
@@ -236,6 +244,10 @@ def validate_lean_formal_report_payload(payload: object) -> None:
         value = payload.get(field)
         if not isinstance(value, str) or not value:
             raise LeanFormalVerificationError(f"Lean 4 report {field} is invalid")
+    validate_lean_solver_version_binding(
+        solver=str(payload["solver"]),
+        lean_version=str(payload["lean_version"]),
+    )
     boundary = str(payload["claim_boundary"]).lower()
     if "bounded" not in boundary or "unbounded" in boundary:
         raise LeanFormalVerificationError("Lean 4 report claim_boundary must state a bounded proof boundary")
@@ -261,6 +273,11 @@ def validate_lean_formal_report_payload(payload: object) -> None:
         validator=is_lean_module_name,
     )
     proved_contracts = validate_non_empty_string_list(payload.get("proved_contracts"), "proved_contracts")
+    unsupported_contracts = sorted(set(proved_contracts).difference(LEAN_REQUIRED_PROVED_CONTRACTS))
+    if unsupported_contracts:
+        raise LeanFormalVerificationError(
+            "Lean 4 report proved_contracts contains unsupported contracts: " + ", ".join(unsupported_contracts)
+        )
     module_paths = validate_safe_relative_path_list(payload.get("module_paths"), "module_paths")
     safety_case_ids = validate_non_empty_string_list(
         payload.get("safety_case_ids"),

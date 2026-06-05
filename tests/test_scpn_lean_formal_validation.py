@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Lean formal-verification evidence validator tests.
+# SCPN Control — Lean formal-verification evidence validator tests.
 """Tests for the Lean formal-verification validation executable."""
 
 from __future__ import annotations
@@ -107,6 +107,19 @@ def test_lean_formal_validator_rejects_missing_required_contract(tmp_path: Path)
 
     assert result.status == "fail"
     assert any("missing required contracts" in error for error in result.errors)
+
+
+def test_lean_formal_validator_rejects_solver_version_mismatch(tmp_path: Path) -> None:
+    report_path = tmp_path / "solver-mismatch.json"
+    payload = write_lean_formal_report(_lean_report(), report_path)
+    payload.pop("payload_sha256")
+    payload["solver"] = "Lean 4.12.0"
+    report_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+    result = validate_lean_formal_evidence(report_path)
+
+    assert result.status == "fail"
+    assert any("solver must include lean_version" in error for error in result.errors)
 
 
 def test_lean_formal_validator_admits_artifact_bound_to_report(tmp_path: Path) -> None:
