@@ -51,6 +51,7 @@ from scpn_control.scpn.z3_model_checking import (  # noqa: E402
     SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION,
     build_blocked_z3_formal_report_payload,
     build_z3_formal_report_payload,
+    load_z3_formal_report,
     validate_z3_formal_report_payload,
     verify_z3_formal_contracts,
     write_z3_formal_report,
@@ -1089,6 +1090,14 @@ def test_z3_formal_report_writer_publishes_json_and_markdown(tmp_path: Path) -> 
     assert "# SCPN Z3 Formal Verification Report" in markdown
     assert "bounded SMT evidence" in markdown
     assert payload["payload_sha256"] in markdown
+
+
+def test_load_z3_formal_report_rejects_duplicate_json_keys(tmp_path: Path) -> None:
+    path = tmp_path / "duplicate-z3-report.json"
+    path.write_text('{"status": "pass", "status": "fail"}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="duplicate JSON key: status"):
+        load_z3_formal_report(path)
 
 
 def test_z3_formal_payload_records_fail_closed_counterexample_evidence() -> None:

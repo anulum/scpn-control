@@ -936,6 +936,8 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.z3_model_checking.validate_z3_formal_report_payload
 
+::: scpn_control.scpn.z3_model_checking.load_z3_formal_report
+
 ::: scpn_control.scpn.z3_model_checking.write_z3_formal_report
 
 ### FusionCompiler
@@ -984,8 +986,8 @@ artifact payload SHA-256, report SHA-256, bounded proof depth, checked
 specification names, backend/solver metadata, and a safe relative report URI.
 When callers provide `formal_report_root`, the loader resolves the report URI
 under that root and verifies the report bytes against the declared SHA-256.
-Lean report files reached through an artifact manifest are loaded through the
-same duplicate-key-safe public report loader as direct Lean report validation.
+Z3 and Lean report files reached through an artifact manifest are loaded through
+duplicate-key-safe public report loaders.
 Z3 reports are additionally schema-versioned as
 `scpn-control.z3-formal-report.v1`, carry a canonical payload SHA-256 over the
 proof payload, and must match the manifest status, solver, proof depth, and

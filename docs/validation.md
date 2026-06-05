@@ -357,6 +357,9 @@ artifact metadata digest and non-future UTC creation timestamp, before replay
 validation. The
 certificate is evidence for bounded model checking only; it is not a facility
 safety approval or an unbounded proof.
+Z3 formal report files reached through safety-critical artifact manifests are
+loaded through the duplicate-key-safe public `load_z3_formal_report()` path
+before manifest/report field matching runs.
 
 ```bash
 python validation/validate_scpn_z3_formal.py

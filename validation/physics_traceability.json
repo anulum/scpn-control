@@ -1857,6 +1857,7 @@
         "Validate certification packages with an external safety-case review before hardware-control claims",
         "Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted",
         "Require schema-versioned Z3 report payload digests to match safety-critical proof manifests before artifact admission",
+        "Reject duplicate JSON keys through the public Z3 report loader and safety-critical artifact report-root manifests",
         "Resolve typed readiness artifact URIs under an explicit artifact root and validate target-hardware timing reports through the E2E latency evidence gate before promotion readiness.",
         "Require qualified HIL replay, HDL export, CODAC/EPICS runtime, and WebSocket runtime evidence artifacts before controller safety-case promotion readiness.",
         "Admit safety-critical `.scpnctl` artifacts only through the bounded formal-verification manifest gate",
@@ -1881,13 +1882,14 @@
         "tests/test_scpn_formal_verification.py exact reachability, marking bounds, transition liveness, algebraic place invariants, all-path bounded response, recurrence, counterexample, and invalid-domain checks",
         "src/scpn_control/scpn/formal_verification.py exact explicit-state finite transition relation over rational markings",
         "validation/reports/scpn_z3_formal.json schema-versioned bounded SMT evidence with canonical payload SHA-256",
+        "tests/test_scpn_formal_verification.py Z3 formal report duplicate-key loader rejection checks",
         "tests/test_controller_safety_case.py target-hardware readiness artifact digest and E2E latency admission checks",
         "validation/validate_release_evidence.py native formal certificate release admission requires AOT certificate evidence, report digest, evidence class, production-claim boundary, and empty validator-error list",
         "tests/test_release_evidence_validation.py native formal production-overclaim, production-class boundary, and validator-error rejection checks",
         "validation/validate_scpn_lean_formal.py duplicate-key and Lean proof-report admission gate routed through load_lean_formal_report",
         "tests/test_scpn_lean_verification.py Lean solver/version binding, duplicate-key rejection, unsupported-contract rejection, theorem namespace, module-path, safety-case-ID, assumption, and mandatory digest checks",
         "tests/test_scpn_lean_formal_validation.py validator-level Lean report, mandatory digest, unrelated module-path rejection, and artifact admission checks",
-        "tests/test_artifact_codec.py safety-critical artifact-manifest Lean solver/version, unsupported-contract, namespace, module-path, safety-case-ID, duplicate report key, and unknown-field rejection checks"
+        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3/Lean duplicate report key, Lean solver/version, unsupported-contract, namespace, module-path, safety-case-ID, and unknown-field rejection checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/formal_verification.py",

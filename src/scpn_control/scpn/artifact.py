@@ -647,13 +647,14 @@ def _verify_formal_report_digest(
     if actual != evidence.report_sha256.lower():
         raise ArtifactValidationError("formal_verification.report_sha256 does not match report file")
     if evidence.backend == "z3":
-        from scpn_control.scpn.z3_model_checking import validate_z3_formal_report_payload
+        from scpn_control.scpn.z3_model_checking import load_z3_formal_report
 
         try:
-            report_payload = json.loads(report_bytes.decode("utf-8"))
-            validate_z3_formal_report_payload(report_payload)
-        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
-            raise ArtifactValidationError("formal_verification.report_uri must reference a valid Z3 report") from exc
+            report_payload = load_z3_formal_report(report_path)
+        except ValueError as exc:
+            raise ArtifactValidationError(
+                "formal_verification.report_uri must reference a valid Z3 report: " + str(exc)
+            ) from exc
         if report_payload["status"] != evidence.status:
             raise ArtifactValidationError("formal_verification.status does not match Z3 report")
         if report_payload["max_depth"] != evidence.max_depth:

@@ -113,6 +113,8 @@
   matching the release validation executable.
 - Safety-critical artifact admission now uses the same duplicate-key-safe Lean
   report loader for report-root manifest checks.
+- Z3 formal report loading now rejects duplicate JSON keys and artifact
+  report-root admission uses the same loader.
 
 ## [0.20.3] - 2026-06-02
 

@@ -882,6 +882,27 @@ def build_blocked_z3_formal_report_payload(reason: str) -> dict[str, Any]:
     return validate_z3_formal_report_payload(payload)
 
 
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def load_z3_formal_report(path: str | Path) -> dict[str, Any]:
+    """Load and validate a duplicate-key-safe Z3 formal evidence report."""
+    report_path = Path(path)
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_json_keys)
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+        raise ValueError(str(exc)) from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Z3 formal report must be a JSON object")
+    return validate_z3_formal_report_payload(payload)
+
+
 def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a schema-versioned Z3 formal evidence report."""
     if payload.get("schema_version") != Z3_FORMAL_REPORT_SCHEMA_VERSION:
