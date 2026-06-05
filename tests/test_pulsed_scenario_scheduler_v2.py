@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Pulsed-scenario scheduler v2 tests.
+# SCPN Control — Pulsed-scenario scheduler v2 tests.
 """Tests for the CONTROL-owned pulsed-scenario scheduler v2."""
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from scpn_control.control.pulsed_scenario_scheduler_v2 import (
     PulsedScenarioSpec,
     PulsedScenarioState,
 )
+from scpn_control.control import pulsed_scenario_scheduler as mif_contract
 
 
 def _spec() -> PulsedScenarioSpec:
@@ -221,3 +222,34 @@ def test_rejects_non_monotone_time_and_non_adjacent_manual_transition() -> None:
     scheduler.reset()
     with pytest.raises(ValueError, match="invalid transition"):
         scheduler.transition_to(PulsedScenarioState.BURN, t_s=0.0, reason="skip ramp")
+
+
+def test_mif_contract_import_path_reexports_v2_scheduler() -> None:
+    assert mif_contract.PulsedScenarioScheduler is PulsedScenarioScheduler
+    assert mif_contract.PulsedScenarioState is PulsedScenarioState
+
+
+def test_all_states_return_to_idle_within_one_formal_cycle() -> None:
+    ordered_states = [
+        PulsedScenarioState.IDLE,
+        PulsedScenarioState.RAMP_UP,
+        PulsedScenarioState.FLAT_TOP,
+        PulsedScenarioState.BURN,
+        PulsedScenarioState.EXPANSION,
+        PulsedScenarioState.DUMP,
+        PulsedScenarioState.RECHARGE,
+        PulsedScenarioState.COOL_DOWN,
+    ]
+    successor = dict(zip(ordered_states, ordered_states[1:] + [PulsedScenarioState.IDLE], strict=True))
+
+    for start in ordered_states:
+        state = start
+        visited = [state]
+        for _ in range(8):
+            state = successor[state]
+            visited.append(state)
+            if state is PulsedScenarioState.IDLE:
+                break
+
+        assert state is PulsedScenarioState.IDLE
+        assert len(visited) <= 9

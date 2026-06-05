@@ -113,10 +113,18 @@ to Python without changing the pure-Python API. All surfaces use the same state
 names, action names, guard thresholds, monotone timestamp checks, and
 transition reasons.
 
+`scpn_control.control.pulsed_scenario_scheduler` is retained as the
+SCPN-MIF-CORE compatibility import and re-exports the v2 implementation. The
+finite-state topology is also captured in `lean/SCPNControl/PulsedFSM.lean`,
+including the liveness theorem
+`pulsed_fsm_eventually_returns_to_idle`.
+
 The scheduler is a generic pulsed-reactor controller primitive. It is not a
 facility-validated PCS implementation by itself. Hardware timing, actuator
 mapping, capacitor-bank plant dynamics, and measured-shot validation remain
 separate admission surfaces.
+
+::: scpn_control.control.pulsed_scenario_scheduler
 
 ::: scpn_control.control.pulsed_scenario_scheduler_v2.PulsedScenarioState
 

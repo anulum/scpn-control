@@ -88,6 +88,7 @@ validation/reports/code_to_code_benchmark.md
 .mypy_cache/
 .ruff_cache/
 .benchmarks/
+.lake/
 
 # Jupyter
 .ipynb_checkpoints/
