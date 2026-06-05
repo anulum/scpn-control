@@ -102,6 +102,9 @@
 - Lean proof-report admission now also rejects unrelated theorem namespaces,
   module paths, and safety-case IDs so valid PID/SNN evidence cannot be padded
   with stale or unrelated proof links.
+- Lean proof evidence in `.scpnctl` artifact manifests now applies the same
+  solver/version, proved-contract, namespace, module-path, and safety-case-ID
+  admission policy before safety-critical artifact loading can pass.
 
 ## [0.20.3] - 2026-06-02
 

@@ -1048,6 +1048,9 @@ the currently admitted PID/SNN proof surface.
 Reports also fail closed when `theorem_names`, `theorem_modules`,
 `module_paths`, or `safety_case_ids` include unrelated entries outside the
 admitted PID/SNN proof boundary.
+The same checks run on the `.scpnctl` artifact manifest itself, even without a
+report root, so safety-critical artifact loading cannot admit a stale or padded
+Lean manifest before report-byte comparison is available.
 
 ---
 

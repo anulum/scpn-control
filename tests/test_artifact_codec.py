@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Artifact codec and proof-admission tests.
+# SCPN Control — Artifact codec and proof-admission tests.
 """Edge case tests for the u64 compact codec and artifact validation."""
 
 from __future__ import annotations
@@ -611,12 +611,19 @@ class TestArtifactValidationContract:
         ("field", "value", "match"),
         [
             ("lean_version", "", "lean_version"),
+            ("solver", "Coq 8.19.0", "solver must identify Lean"),
+            ("solver", "Lean 4.12.0", "solver must include lean_version"),
             ("lakefile_sha256", "not-a-sha", "lakefile_sha256"),
             ("proof_source_sha256", "not-a-sha", "proof_source_sha256"),
             ("theorem_names", [], "theorem_names"),
             ("theorem_names", ["bad theorem"], "theorem_names"),
             ("theorem_modules", ["../Escape"], "theorem_modules"),
             ("proved_contracts", ["pid.actuator_saturation"], "proved_contracts"),
+            (
+                "proved_contracts",
+                ["pid.actuator_saturation", "snn.marking_bounds", "facility.full_certification"],
+                "proved_contracts contains unsupported lean4 contracts",
+            ),
             ("module_paths", ["../src/scpn_control/scpn/controller.py"], "module_paths"),
             ("safety_case_ids", ["bad id"], "safety_case_ids"),
             ("proof_assumptions", ["unbounded plant dynamics"], "proof_assumptions"),
@@ -631,6 +638,28 @@ class TestArtifactValidationContract:
                 "theorem_modules",
                 ["ScpnControl.Transport", "ScpnControl.SNN"],
                 "pid.actuator_saturation requires theorem_modules",
+            ),
+            (
+                "theorem_names",
+                [
+                    "ScpnControl.PID.actuatorSaturationPreserved",
+                    "ScpnControl.SNN.markingBoundsPreserved",
+                    "ScpnControl.Transport.unrelatedProof",
+                ],
+                "theorem_names contains unsupported namespaces",
+            ),
+            (
+                "module_paths",
+                [
+                    "src/scpn_control/control/pid_controller.py",
+                    "src/scpn_control/scpn/geometry_neutral_replay.py",
+                ],
+                "module_paths missing required paths",
+            ),
+            (
+                "safety_case_ids",
+                ["SC-PID-ACTUATOR-SATURATION", "SC-UNRELATED-FORMAL-EVIDENCE"],
+                "safety_case_ids missing required IDs",
             ),
         ],
     )

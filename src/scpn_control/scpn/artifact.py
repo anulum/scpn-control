@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Artifact admission and validation.
+# SCPN Control — Artifact admission and validation.
 """
 SCPN Controller Artifact (``.scpnctl.json``) loader / saver.
 
@@ -35,6 +35,8 @@ from scpn_control.scpn.lean_verification import (
     is_safety_case_id,
     validate_bounded_proof_assumptions,
     validate_lean_formal_report_payload,
+    validate_lean_solver_version_binding,
+    validate_required_contract_evidence_links,
     validate_required_contract_theorem_coverage,
 )
 
@@ -467,6 +469,10 @@ def _validate_safe_relative_path_list(value: object, field_name: str) -> List[st
 def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) -> None:
     if not isinstance(evidence.lean_version, str) or not evidence.lean_version:
         raise ArtifactValidationError("formal_verification.lean_version must be a non-empty string for lean4")
+    try:
+        validate_lean_solver_version_binding(solver=evidence.solver, lean_version=evidence.lean_version)
+    except LeanFormalVerificationError as exc:
+        raise ArtifactValidationError(f"formal_verification.{exc}") from exc
     if not isinstance(evidence.lakefile_sha256, str) or not _is_sha256_hex(evidence.lakefile_sha256):
         raise ArtifactValidationError("formal_verification.lakefile_sha256 must be a SHA-256 hex digest for lean4")
     if not isinstance(evidence.proof_source_sha256, str) or not _is_sha256_hex(evidence.proof_source_sha256):
@@ -503,6 +509,12 @@ def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) ->
         raise ArtifactValidationError(
             "formal_verification.proved_contracts missing required lean4 contracts: " + ", ".join(missing_contracts)
         )
+    unsupported_contracts = sorted(set(proved_contracts).difference(LEAN_REQUIRED_PROVED_CONTRACTS))
+    if unsupported_contracts:
+        raise ArtifactValidationError(
+            "formal_verification.proved_contracts contains unsupported lean4 contracts: "
+            + ", ".join(unsupported_contracts)
+        )
     missing_specs = sorted(set(proved_contracts).difference(evidence.checked_specs))
     if missing_specs:
         raise ArtifactValidationError(
@@ -515,6 +527,16 @@ def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) ->
             proved_contracts=proved_contracts,
             theorem_names=theorem_names,
             theorem_modules=theorem_modules,
+        )
+    except LeanFormalVerificationError as exc:
+        raise ArtifactValidationError(f"formal_verification.{exc}") from exc
+    try:
+        validate_required_contract_evidence_links(
+            proved_contracts=proved_contracts,
+            theorem_names=theorem_names,
+            theorem_modules=theorem_modules,
+            module_paths=module_paths,
+            safety_case_ids=safety_case_ids,
         )
     except LeanFormalVerificationError as exc:
         raise ArtifactValidationError(f"formal_verification.{exc}") from exc

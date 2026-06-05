@@ -51,7 +51,9 @@ paths, and safety-case IDs instead of accepting padded reports. Safety-critical
 `.scpnctl` artifact admission must still bind the report digest, compiled
 artifact digest, Lake file digest, proof-source digest, checked specifications,
 theorem namespaces, production module paths, and bounded proof assumptions
-before the artifact can be loaded with `require_formal_verification=True`.
+before the artifact can be loaded with `require_formal_verification=True`. The
+artifact manifest gate applies the same Lean solver/version and exact-link
+checks before optional report-root byte comparison runs.
 
 ## Quantum disruption bridge
 
