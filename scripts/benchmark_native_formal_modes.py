@@ -36,6 +36,10 @@ LOOP_DEADLINE_US = 100.0
 BENCHMARK_CONTEXT_SCHEMA_VERSION = "scpn-control.benchmark-context.v1"
 
 
+def _loopback_sink_host(host: str) -> str:
+    return "127.0.0.1" if host.startswith("239.") else host
+
+
 class _UdpSink:
     """Consume local UDP frames so connected loopback sends do not fail closed."""
 
@@ -52,7 +56,7 @@ class _UdpSink:
         return int(self._packets)
 
     def __enter__(self) -> "_UdpSink":
-        bind_host = "0.0.0.0" if self._host.startswith("239.") else self._host
+        bind_host = _loopback_sink_host(self._host)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((bind_host, self._port))
