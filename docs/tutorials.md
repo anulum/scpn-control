@@ -101,3 +101,15 @@ jupyter nbconvert --to notebook --execute examples/q10_breakeven_demo.ipynb     
 
 Notebook outputs are demonstrations. Claim-bearing results must be captured by
 the matching validator and admitted under [Validation and QA](validation.md).
+
+## Tutorial selection model
+
+Choose a tutorial path by review intent, not by perceived complexity.
+
+- Use tutorial 01 for architecture and command-path confidence.
+- Use tutorial 02 for differentiable tuning workflows.
+- Use tutorial 05 for phase timing and synchronization behavior.
+- Use tutorial 06 for frontier physics coupling context.
+- Use tutorial 07 for advanced controller breadth and admission constraints.
+
+Each tutorial is a learning path; only validated artifacts are evidence for claims.

@@ -131,3 +131,15 @@ need to discuss timing or formal-runtime coverage:
 5. Label workstation runs as local-regression evidence unless the benchmark
    artefact records isolated cores, host load, governor/frequency context,
    runtime versions, and concurrent-job status.
+
+## Where this onboarding path ends
+
+This page should end with a concrete workflow, not just broad understanding.
+
+The onboarding sequence is considered complete when all three are true:
+
+- One tutorial run completes without runtime dependency errors.
+- One benchmark command executes from a clean environment context.
+- One matching admissibility report is saved with clear host metadata and command line trace.
+
+At that point, move to validation pages before adding a new marketing claim or claiming hardware readiness.

@@ -2040,3 +2040,13 @@ local workstation run into target-hardware PCS evidence unless the matching
 runtime-admission and benchmark-context reports pass.
 
 ::: scpn_control.core.rust_engine
+
+## API surface usage model
+
+This page is the binding map for practical integration, not a promise of stable semantics for every release.
+
+- Use top-level exports for workflow composition.
+- Use submodules for module-specific interfaces and keep import paths explicit.
+- Use documented Rust bindings for hot-path execution only after matching environment checks pass.
+
+When uncertain, start in Python for reproducibility and then switch to native paths only for timing and production-oriented experiments.

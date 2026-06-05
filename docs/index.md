@@ -126,3 +126,16 @@ The project needs collaborators and financing for target-hardware benchmarks,
 external-code validation, public-data curation, cloud GPU campaigns, safety-case
 review, and facility replay access. See [Compute Validation Funding](compute_validation_financing.md)
 for concrete budget categories and why each category matters.
+
+## How this entry page is best consumed
+
+This document is the first orientation point for readers who want a complete picture in one pass.
+
+Use this order:
+
+- Read the plain-language summary to establish the claim and evidence boundaries.
+- Read the main surfaces table to identify which module family your review concerns.
+- Open the onboarding guide before running any tutorial, benchmark, or notebook.
+- Open validation, production readiness, and release notes for claim status before using any metric in funding or external communications.
+
+The goal is to prevent local engineering results from being interpreted as facility-grade evidence.

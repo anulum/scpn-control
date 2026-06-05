@@ -70,3 +70,15 @@ claims.
   admissible.
 - Optional dependencies should be installed explicitly so notebook failures are
   attributable to environment state rather than hidden imports.
+
+## Converting notebook work into evidence
+
+A notebook can propose a hypothesis and show a visual result.
+
+To turn that output into a reviewable deliverable:
+
+- Re-run the notebook with explicit version and dependency capture.
+- Copy the core computation into a script under `validation/` or tests.
+- Link the persisted report to the matching validator before sharing externally.
+
+Notebooks remain valuable for learning and review, but only adopted evidence can support a technical claim.

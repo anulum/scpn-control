@@ -265,3 +265,13 @@ PYTHONPATH=src python scripts/benchmark_native_handoff.py \
 Use this only as local smoke evidence unless the run records isolated benchmark
 context. Claim-bearing releases should cite the persisted validation reports
 listed in [Benchmarks](../benchmarks.md) and admitted by `scpn-control validate`.
+
+## Completion criteria after first steps
+
+After the first-run sequence, keep the result in a recoverable artifact and move to the evidence step.
+
+- Save the exact command sequence with environment details.
+- Copy or archive outputs into `validation/reports/` if they are used in review.
+- Keep one unresolved note if a claim still depends on external reference validation.
+
+This keeps the first-run section useful as onboarding and as traceable evidence history.

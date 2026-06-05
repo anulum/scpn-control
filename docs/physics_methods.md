@@ -111,3 +111,15 @@ This reference page is used as a physics starting point for implementation and
 review, not as a standalone guarantee of facility accuracy. Its practical role is
 to align equations, files, and assumptions before benchmark and validation
 evidence upgrades are claimed in production-facing documents.
+
+## How to use this methods page in reviews
+
+This page is the assumptions ledger for model code.
+
+Use it when:
+
+- You need a reproducible mapping from equation to file path.
+- You need to confirm what is modeled as simplified and what remains approximate.
+- You need to decide whether external-code comparisons are already required for your claim.
+
+Physics pages are not admission gates by themselves. Admission is granted only when matching validators admit the corresponding evidence bundle.

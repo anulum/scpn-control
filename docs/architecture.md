@@ -243,3 +243,15 @@ scpn-control/
 ├── docs/                 # MkDocs site
 └── tools/                # CI gates, calibration, publishing
 ```
+
+## How to read this architecture page
+
+The architecture page is for tracing where data and control move, and where timing guarantees are expected to hold.
+
+In practice:
+
+- Treat `control/` and `core/` as semantic surfaces that describe behavior.
+- Treat `scpn-control-rs` as the execution boundary for hot-path timing constraints.
+- Treat `cli.py` and orchestration scripts as control-plane selectors, not as the timing-critical loop itself.
+
+Use this map to isolate review risk: logic updates belong to module-level testing; timing regressions belong to native-path benchmarks and deployment constraints.

@@ -1028,3 +1028,13 @@ decision digests through the campaign report.
 | Python | `validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.md` | 2000 | 200 | 144.769 us | 196.827 us | 244.097 us | 2333.763 us | `local_regression` |
 | PyO3 | `validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.md` | 2000 | 200 | 10.6215 us | 14.885 us | 21.042 us | 41.502 us | `local_regression` |
 | Rust | `validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.md` | 2000 | 200 | 2.794 us | 3.573 us | 4.536 us | 20.459 us | `local_regression` |
+
+## How to interpret benchmark evidence
+
+Benchmark figures should be treated as a three-value statement: measured latency, reproducibility context, and admissibility.
+
+- Measured latency comes from the reported timing columns.
+- Reproducibility context comes from host, governor, and core-affinity context in the artifact.
+- Admissibility comes from whether the run appears in a validator-linked release note or validation page.
+
+Do not merge local-regression and isolated-target reports without marking the context difference in your interpretation.
