@@ -81,6 +81,8 @@
   unknown proof fields so stale or foreign evidence cannot be silently ignored.
 - Lean report admission now requires the canonical `payload_sha256` self-digest
   instead of accepting otherwise valid digestless reports.
+- Lean report loading now rejects duplicate JSON keys at the public API boundary,
+  matching the release validation executable.
 
 ## [0.20.3] - 2026-06-02
 

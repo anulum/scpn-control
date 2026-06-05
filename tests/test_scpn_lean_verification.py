@@ -189,3 +189,11 @@ def test_write_and_load_lean_formal_report_roundtrip(tmp_path: Path) -> None:
 
     assert loaded == written
     assert loaded["theorem_modules"] == ["ScpnControl.PID", "ScpnControl.SNN"]
+
+
+def test_load_lean_formal_report_rejects_duplicate_json_keys(tmp_path: Path) -> None:
+    path = tmp_path / "duplicate-report.json"
+    path.write_text('{"status": "pass", "status": "fail"}', encoding="utf-8")
+
+    with pytest.raises(LeanFormalVerificationError, match="duplicate JSON key: status"):
+        load_lean_formal_report(path)

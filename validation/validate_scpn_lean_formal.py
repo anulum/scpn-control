@@ -24,7 +24,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from scpn_control.scpn.artifact import ArtifactValidationError, load_artifact
-from scpn_control.scpn.lean_verification import LeanFormalVerificationError, validate_lean_formal_report_payload
+from scpn_control.scpn.lean_verification import LeanFormalVerificationError, load_lean_formal_report
 
 
 @dataclass(frozen=True)
@@ -39,25 +39,6 @@ class LeanFormalValidationResult:
     theorem_names: tuple[str, ...] = ()
     proved_contracts: tuple[str, ...] = ()
     artifact_admitted: bool = False
-
-
-def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError(f"duplicate JSON key: {key}")
-        result[key] = value
-    return result
-
-
-def _load_json_no_duplicates(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
-    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
-        raise LeanFormalVerificationError(str(exc)) from exc
-    if not isinstance(payload, dict):
-        raise LeanFormalVerificationError("Lean 4 report must be a JSON object")
-    return payload
 
 
 def validate_lean_formal_evidence(
@@ -76,8 +57,7 @@ def validate_lean_formal_evidence(
     errors: list[str] = []
     payload: dict[str, Any] | None = None
     try:
-        payload = _load_json_no_duplicates(path)
-        validate_lean_formal_report_payload(payload)
+        payload = load_lean_formal_report(path)
     except LeanFormalVerificationError as exc:
         errors.append(str(exc))
     artifact_admitted = False

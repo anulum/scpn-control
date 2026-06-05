@@ -21,7 +21,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, cast
+from typing import Any
 
 LEAN_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.lean4-formal-report.v1"
 LEAN_FORMAL_REPORT_ALLOWED_FIELDS = frozenset(
@@ -106,6 +106,25 @@ def _canonical_payload_sha256(payload: dict[str, Any]) -> str:
         sort_keys=True,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise LeanFormalVerificationError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _load_json_object_no_duplicates(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_json_keys)
+    except (json.JSONDecodeError, UnicodeDecodeError, LeanFormalVerificationError) as exc:
+        raise LeanFormalVerificationError(str(exc)) from exc
+    if not isinstance(payload, dict):
+        raise LeanFormalVerificationError("Lean 4 report must be a JSON object")
+    return payload
 
 
 def compute_assumption_sha256(proof_assumptions: list[str]) -> str:
@@ -413,6 +432,6 @@ def write_lean_formal_report(report: LeanFormalVerificationReport, path: str | P
 
 def load_lean_formal_report(path: str | Path) -> dict[str, Any]:
     """Load and validate a Lean formal-verification report payload."""
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload = _load_json_object_no_duplicates(Path(path))
     validate_lean_formal_report_payload(payload)
-    return cast(dict[str, Any], payload)
+    return payload

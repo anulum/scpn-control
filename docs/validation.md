@@ -42,7 +42,8 @@ controller-parameter promotion, or facility safety approval.
 Lean 4 formal-verification reports use the
 `scpn-control.lean4-formal-report.v1` schema and are admitted only as bounded
 evidence for the current PID actuator-saturation and SNN marking-bound proof
-surface. The report validator rejects non-Lean solver declarations, Lean solver
+surface. The public report loader and validator reject duplicate JSON keys,
+non-Lean solver declarations, Lean solver
 strings that do not include the declared `lean_version`, unsupported
 `proved_contracts`, unsafe report paths, malformed theorem identifiers, missing
 PID/SNN namespace coverage, unbounded proof assumptions, and certification
