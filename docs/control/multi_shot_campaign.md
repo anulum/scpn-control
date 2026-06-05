@@ -114,3 +114,13 @@ taskset -c 4,5 cargo run --manifest-path scpn-control-rs/Cargo.toml \
 Soft-affinity workstation reports must keep `production_claim_allowed=false`.
 Production timing claims require explicit core isolation, host-load context, and
 target-runtime evidence.
+
+## How to use the campaign orchestrator in a validation workflow
+
+The orchestrator itself does not prove hardware correctness. It structures repeated shot handling so downstream validators can consume bounded evidence.
+
+- run one short campaign first to confirm scheduler and bank handoff,
+- persist campaign reports with digest fields,
+- run the matching validator to convert the campaign output into admissible claims.
+
+Do not use multi-shot campaign outputs for deployment proof unless the strict campaign validator and execution context are included.

@@ -55,3 +55,15 @@ steps. `aot_certificate` keeps the hot path out of the SMT solver and checks a
 digest-bound certificate monitor at runtime. Current workstation reports are
 local-regression evidence unless the benchmark context records production-grade
 core isolation, host-load, governor, runtime, and concurrent-job metadata.
+
+## How to read this evidence summary in proposals
+
+This page is a compact index for claim status only; it is not a substitute for the linked detailed report.
+
+For each row, use:
+
+- the listed script to reproduce the result,
+- the evidence type (`local-regression` vs `admitted`) to decide scope,
+- the strict validator gate for cross-publication or partner-facing use.
+
+When proposing external validation, include the script, report file, and a short admission note for each claim.

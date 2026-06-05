@@ -197,3 +197,13 @@ or contact `protoscience@anulum.li` with the resource you can provide:
 The public page will be updated as new evidence is admitted. Until then, the
 claim boundary remains explicit: support funds the validation campaign; the
 validation campaign must earn the claims.
+
+## Funding-to-evidence translation
+
+This page links budget tiers to evidence outputs, not to speculative outcomes.
+
+- allocate budget first to unblock blocked claim gates,
+- run one evidence pack per funded tier,
+- then only expand scope when the prior tier outputs are admitted by validators.
+
+This keeps spend aligned with claim clarity rather than model output volume.

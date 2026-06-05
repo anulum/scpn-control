@@ -125,3 +125,13 @@ contexts while avoiding over-claiming before each governance boundary is met.
 
 For claim language, use [Production Readiness](production_readiness.md) as the
 source of truth.
+
+## How to apply this page to planning
+
+Use this page to decide what to build next in a constrained budget.
+
+- Pick the user profile that matches your immediate goal.
+- Choose one primary surface and one blocked surface for that cycle.
+- Collect only the evidence required for that profile before broadening scope.
+
+This keeps the project from mixing research iteration with deployment commitment in the same cycle.

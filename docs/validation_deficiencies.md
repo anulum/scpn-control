@@ -59,3 +59,15 @@ conditions.
 
 The IPB98(y,2) scaling remains robust across the ITPA database for the
 current parameter range.
+
+## How this page should drive remediation
+
+Each listed deficiency includes both a symptom and a root cause. Remediation should close the script, the threshold, or the applicability condition, not just the metric.
+
+For practical triage:
+
+- keep the existing pass/fail status unchanged until the matching gate is rerun,
+- run the referenced script with the same version context before declaring any blocker resolved,
+- keep mitigation notes linked to evidence, not internal assumptions.
+
+This keeps this page aligned with reviewable engineering decisions.

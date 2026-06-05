@@ -87,3 +87,15 @@ requirements were requested and passed.
 `runtime_admission` record. Emergency telemetry and post-run diagnostic dumps
 therefore preserve the launch-time scheduler, affinity, governor, heartbeat,
 and PREEMPT_RT assumptions that governed the campaign.
+
+## Runtime admission role in deployments
+
+This document defines what must pass before code moves from local execution to campaign-grade orchestration.
+
+A safe campaign run requires:
+
+- policy check for required artifacts,
+- environment checks that match the target mode,
+- and explicit handling of missing or failed admission checks.
+
+The runtime admission surface is the final gate in the execution boundary and should be treated as non-optional in any hardening flow.

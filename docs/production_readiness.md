@@ -110,3 +110,15 @@ evidence.
 SCPN Control is a production-oriented research and control-integration library.
 It is not production-grade software for real tokamak operation or certified
 industrial deployment.
+
+## How to use this boundary in release planning
+
+Treat this page as the first checkpoint before any external claim. A change is ready for internal use when it remains within the current readiness level and all required checks are recorded in the matching validator output.
+
+Before promoting a surface:
+
+- confirm the claim level in the table remains true for that surface,
+- confirm the linked validator run records provenance, units, and tolerances,
+- confirm timing claims were produced under the matching benchmark context.
+
+A release can include local capability upgrades while keeping facility claims blocked, as long as each change is anchored to the exact evidence lane that admitted it.

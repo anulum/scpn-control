@@ -223,3 +223,13 @@ cargo run --manifest-path scpn-control-rs/Cargo.toml \
   --json-out validation/reports/pulsed_mpc_adapter_rust_local_regression.json \
   --md-out validation/reports/pulsed_mpc_adapter_rust_local_regression.md
 ```
+
+## Practical selection criteria
+
+Use this adapter when an MPC command is useful but lifecycle and bank constraints must dominate execution decisions.
+
+- If phase state is outside burn, trust the safe-action path and do not override bank-limited behavior.
+- In burn, evaluate the pulse proposal, then persist the admission digest and rationale.
+- Re-run the related decision test after changing objective, mask, or constraint limits.
+
+This keeps runtime decisions explainable and replayable.

@@ -93,3 +93,14 @@ To require the Lean proof build where `lake` is installed:
 ```bash
 MIF_LEAN_CI=1 PYTHONPATH=src python -m pytest tests/test_pulsed_scenario_scheduler_formal.py
 ```
+
+## Practical use pattern
+
+Use this scheduler as a shared lifecycle reference between python control, native execution, and lean formal checks.
+
+1. initialise the scheduler and bank/coil guard parameters,
+2. step through intended phases in the documented order,
+3. check transition reasons before accepting a phase move,
+4. persist rejected transitions for later review.
+
+For facility-like timing claims, combine this with the production-readiness and benchmark context checks.
