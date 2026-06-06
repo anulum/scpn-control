@@ -121,7 +121,9 @@ files = [
 [[tool.mypy.overrides]]
 module = [
     "scpn_control.core.current_drive",
-    "scpn_control.control.realtime_efit"
+    "scpn_control.control.realtime_efit",
+    "scpn_control.core.runtime_admission",
+    "scpn_control.core.tokamak_config"
 ]
 strict = true
 

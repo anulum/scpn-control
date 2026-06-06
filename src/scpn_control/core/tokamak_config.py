@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -87,9 +87,9 @@ class TokamakConfig:
             object.__setattr__(self, field_name, value)
 
     @classmethod
-    def model_json_schema(cls) -> dict[str, Any]:
+    def model_json_schema(cls) -> dict[str, object]:
         """Return the JSON Schema for serialized tokamak configurations."""
-        return cast(dict[str, Any], TokamakConfigSchema.model_json_schema())
+        return TokamakConfigSchema.model_json_schema()
 
     @property
     def aspect_ratio(self) -> float:

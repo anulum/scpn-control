@@ -22,15 +22,15 @@ import platform
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Mapping
 
 from collections.abc import Mapping, Sequence
 
-_resource: Any
-try:
+import sys
+if sys.platform != 'win32':
     import resource as _resource
-except ModuleNotFoundError:  # Windows does not provide POSIX resource limits.
-    _resource = None
+else:
+    _resource = None  # type: ignore[assignment]
 
 RUNTIME_ADMISSION_SCHEMA_VERSION = "scpn-control.runtime-admission.v1"
 DEFAULT_MIN_MEMLOCK_BYTES = 64 * 1024 * 1024
@@ -61,7 +61,7 @@ class RuntimeAdmissionRequest:
     def requested_cores(self) -> tuple[int, int, int, int]:
         return (self.core_snn, self.core_z3, self.core_net, self.core_hb)
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, object]:
         return {
             "execution_backend": self.execution_backend,
             "pacing_mode": self.pacing_mode,
@@ -99,9 +99,9 @@ class RuntimeAdmissionProbe:
     governors: Mapping[int, str | None]
     memlock_soft_bytes: int | str
     memlock_hard_bytes: int | str
-    native_snapshot: Mapping[str, Any] | None = None
+    native_snapshot: Mapping[str, object] | None = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, object]:
         return {
             "generated_ns": self.generated_ns,
             "platform_system": self.platform_system,
@@ -176,7 +176,7 @@ def collect_runtime_probe(request: RuntimeAdmissionRequest | None = None) -> Run
 def evaluate_runtime_admission(
     request: RuntimeAdmissionRequest,
     probe: RuntimeAdmissionProbe,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Evaluate a runtime admission request against an observed probe."""
 
     errors: list[str] = []
@@ -266,13 +266,13 @@ def evaluate_runtime_admission(
     }
 
 
-def collect_runtime_admission(request: RuntimeAdmissionRequest) -> dict[str, Any]:
+def collect_runtime_admission(request: RuntimeAdmissionRequest) -> dict[str, object]:
     """Collect and evaluate current host runtime admission evidence."""
 
     return evaluate_runtime_admission(request, collect_runtime_probe(request))
 
 
-def skipped_runtime_admission(policy: str = "off") -> dict[str, Any]:
+def skipped_runtime_admission(policy: str = "off") -> dict[str, object]:
     """Return a schema-valid skipped admission record."""
 
     return {
@@ -366,9 +366,9 @@ def _limit_to_int(value: int | str) -> int | None:
     return None
 
 
-def _native_runtime_snapshot(request: RuntimeAdmissionRequest) -> Mapping[str, Any] | None:
+def _native_runtime_snapshot(request: RuntimeAdmissionRequest) -> Mapping[str, object] | None:
     try:
-        from scpn_control_rs import runtime_admission_snapshot  # type: ignore[import-not-found]
+        from scpn_control_rs import runtime_admission_snapshot
     except Exception:
         return None
 
