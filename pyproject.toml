@@ -119,6 +119,13 @@ files = [
 ]
 
 [[tool.mypy.overrides]]
+module = [
+    "scpn_control.core.current_drive",
+    "scpn_control.control.realtime_efit"
+]
+strict = true
+
+[[tool.mypy.overrides]]
 module = ["matplotlib", "matplotlib.*"]
 ignore_missing_imports = true
 

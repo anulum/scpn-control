@@ -12,9 +12,25 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
 import numpy as np
+
+
+class CurrentDriveMetricsDict(TypedDict, total=False):
+    total_power_relative_error: float
+    total_current_relative_error: float
+    deposition_centroid_abs_error: float
+    peak_current_density_relative_error: float
+    nbi_slowing_down_relative_error: float
+
+class CurrentDriveArtifactDict(TypedDict, total=False):
+    source: str
+    reference_dataset_id: str
+    reference_artifact_sha256: str
+    reference_case_count: int
+    units: dict[str, str]
+    metrics: CurrentDriveMetricsDict
 
 # SI constants
 E_CHARGE = 1.602176634e-19  # C
@@ -228,8 +244,8 @@ def _sha256_text(name: str, value: object) -> str:
 
 
 def _extract_current_drive_reference_artifact(
-    reference_artifact: dict[str, Any] | None,
-) -> tuple[dict[str, Any] | None, bool]:
+    reference_artifact: CurrentDriveArtifactDict | None,
+) -> tuple[CurrentDriveArtifactDict | None, bool]:
     if reference_artifact is None:
         return None, False
     if not isinstance(reference_artifact, dict):
@@ -580,7 +596,7 @@ def current_drive_claim_evidence(
     source: str,
     source_id: str,
     model_id: str = "bounded_auxiliary_current_drive",
-    reference_artifact: dict[str, Any] | None = None,
+    reference_artifact: CurrentDriveArtifactDict | None = None,
     total_power_relative_tolerance: float = 0.03,
     total_current_relative_tolerance: float = 0.10,
     deposition_centroid_abs_tolerance: float = 0.05,

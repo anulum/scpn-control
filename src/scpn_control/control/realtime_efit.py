@@ -13,9 +13,8 @@ import json
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
-
 import numpy as np
+import numpy.typing as npt
 
 MU0 = 4.0e-7 * np.pi
 _EFIT_CLAIM_SCHEMA_VERSION = 1
@@ -120,7 +119,7 @@ def _finite_float(name: str, value: float, *, positive: bool = False, nonnegativ
     return out
 
 
-def _relative_array_error(name: str, candidate: np.ndarray, reference: Any) -> float:
+def _relative_array_error(name: str, candidate: np.ndarray, reference: npt.ArrayLike) -> float:
     ref = np.asarray(reference, dtype=float)
     cand = np.asarray(candidate, dtype=float)
     if ref.shape != cand.shape:
@@ -139,7 +138,7 @@ def efit_lite_claim_evidence(
     source_id: str,
     diagnostic_source: str,
     model_id: str = "bounded_efit_lite",
-    reference_psi: Any | None = None,
+    reference_psi: npt.ArrayLike | None = None,
     reference_shape: ShapeParams | None = None,
     psi_relative_tolerance: float = 0.05,
     ip_relative_tolerance: float = 0.02,
@@ -264,7 +263,7 @@ class DiagnosticResponse:
         self.R = R_grid
         self.Z = Z_grid
 
-    def simulate_measurements(self, psi: np.ndarray, coil_currents: np.ndarray) -> dict[str, Any]:
+    def simulate_measurements(self, psi: np.ndarray, coil_currents: np.ndarray) -> dict[str, float | np.ndarray]:
         """Generate synthetic measurements from a given psi field."""
 
         from scipy.interpolate import RegularGridInterpolator
@@ -405,7 +404,7 @@ class RealtimeEFIT:
         psi[1:-1, 1:-1] = interior.reshape((n_r_inner, n_z_inner))
         return psi
 
-    def reconstruct(self, measurements: dict[str, Any]) -> ReconstructionResult:
+    def reconstruct(self, measurements: dict[str, float | np.ndarray]) -> ReconstructionResult:
         """
         Main EFIT loop.
         """
@@ -422,7 +421,7 @@ class RealtimeEFIT:
         # 4. Solve for new coeffs
 
         # Mock converging on a solution based on the measured Ip
-        Ip_meas = measurements.get("Ip", 15.0e6)
+        Ip_meas = float(measurements.get("Ip", 15.0e6))
 
         # Force coefficients to roughly match the current scale
         p_coeffs[0] = Ip_meas / 1e6
