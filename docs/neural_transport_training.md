@@ -147,3 +147,12 @@ To adapt the surrogate for different regimes:
 - **Data Sources**: For custom tokamak configurations, use the
   `scpn_control.core.tglf_adapter` (if available) to generate
   local simulation batches.
+
+## Practical use and scope
+
+Use this guide when training, refreshing, or replacing the neural transport surrogate.
+
+- Apply this workflow before changing training datasets or loss settings.
+- Document every retraining run with dataset provenance and reproducibility metadata.
+- Compare surrogate behavior against reference physics outputs before production scheduling.
+

@@ -233,3 +233,12 @@ Use this adapter when an MPC command is useful but lifecycle and bank constraint
 - Re-run the related decision test after changing objective, mask, or constraint limits.
 
 This keeps runtime decisions explainable and replayable.
+
+## Practical use and scope
+
+Use this document when integrating MPC action generation with pulsed campaign control.
+
+- Confirm adaptation rules before changing pulse-shape boundaries or campaign timing.
+- Treat this page as the precondition layer between CONTROL scheduling and downstream state consumers.
+- Verify any changed assumptions against replay artifacts and offline checks before shipping.
+

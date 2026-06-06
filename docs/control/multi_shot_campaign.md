@@ -124,3 +124,12 @@ The orchestrator itself does not prove hardware correctness. It structures repea
 - run the matching validator to convert the campaign output into admissible claims.
 
 Do not use multi-shot campaign outputs for deployment proof unless the strict campaign validator and execution context are included.
+
+## Practical use and scope
+
+Use this guide when orchestrating repeated campaign runs across multiple shots.
+
+- Review this before scheduling campaign batches or changing replay metadata expectations.
+- Keep campaign orchestration consistent with control-runtime and data contracts in companion pages.
+- Verify that output artifacts remain stable when scaling shot count.
+

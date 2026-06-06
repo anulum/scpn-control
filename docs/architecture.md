@@ -275,3 +275,12 @@ The same graph is therefore used for two different operations:
   route claims through the strict validators.
 
 This gives the project a practical control plane for both speed and governance.
+
+## Practical use and scope
+
+Use this document to identify the module boundaries before making engineering changes across control, physics, transport, and verification surfaces.
+
+- Start here when deciding whether to modify Rust/PyO3, Python orchestration, or deployment-admission code.
+- Use it as the first checkpoint before changing subsystem APIs or control-loop contracts.
+- Cross-check release claims against this map and `docs/capability_manifest.md` before updating public narratives.
+

@@ -739,3 +739,12 @@ drops below $\sim$5 eV, sharply reducing the ion flux to the target.
 6. **ITER Physics Basis.** Nuclear Fusion 39, 2175 (1999) and updates in
    Nuclear Fusion 47 (2007). The definitive compilation of scaling laws,
    stability limits, and design parameters used by the fusion community.
+
+## Practical use and scope
+
+Use this primer to align plasma terms and state variables with code-level references.
+
+- Use it as the onboarding entry for users without extensive tokamak background.
+- Return here when reviewing glossary terms in `docs/learning/glossary.md`.
+- Do not treat this page as deployment validation; it is a scientific onboarding reference.
+

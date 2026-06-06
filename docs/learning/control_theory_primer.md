@@ -689,3 +689,12 @@ a transformer-based predictor. When $p_{\text{disrupt}} > 0.8$:
 6. **Humphreys, D. A. et al.** "Novel aspects of plasma control in ITER",
    *Physics of Plasmas* 22, 021806, 2015.
    ITER control architecture: the nested-loop hierarchy that scpn-control implements.
+
+## Practical use and scope
+
+Use this primer as the bridge from control fundamentals to SCPN Control implementations.
+
+- Use it when moving from mathematical background into practical controller tuning.
+- Pair it with `docs/physics_methods.md` and `docs/theory.md` for notation consistency.
+- Verify implementation changes against these concepts before editing controller gain flow.
+

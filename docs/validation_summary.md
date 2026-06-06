@@ -67,3 +67,12 @@ For each row, use:
 - the strict validator gate for cross-publication or partner-facing use.
 
 When proposing external validation, include the script, report file, and a short admission note for each claim.
+
+## Practical use and scope
+
+Use this summary when making release or planning decisions about current evidence.
+
+- Read the claim table before updating any external communication material.
+- Use this page to select the next validation run for physics, software, and transport gaps.
+- Keep it aligned with `docs/validation.md` after each evidence refresh.
+

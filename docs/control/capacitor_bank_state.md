@@ -134,3 +134,12 @@ cargo run --release --manifest-path scpn-control-rs/Cargo.toml \
 ```
 
 Reports generated without hard CPU isolation are local regression evidence only.
+
+## Practical use and scope
+
+Use this page to understand admissible capacitor-bank state transitions in pulsed workflows.
+
+- Read before changing series-RLC assumptions or scheduler interactions for shot campaigns.
+- Keep model parameter updates synchronized with pulsed scenario and replay artifacts.
+- Use it alongside `docs/control/pulsed_scenario_scheduler.md` for lifecycle-consistent edits.
+

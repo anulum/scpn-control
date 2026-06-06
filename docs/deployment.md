@@ -198,3 +198,12 @@ or safety teams. For this context, each report should include:
 
 Treat these artifacts as part of the release evidence bundle, not as optional
 appendices.
+
+## Practical use and scope
+
+Use this page to align deployment mode with runtime assumptions.
+
+- Read the environment matrix before selecting transport, scheduling, and hardware assumptions.
+- Do not use a Python-only path for hard real-time PCS claims.
+- Confirm security, admission, and benchmark evidence after deployment choices are set.
+

@@ -168,3 +168,12 @@ K_adapted = adaptive_knm(K_base, gk_output, chi_i_profile=chi_i)
 - Staebler et al., Phys. Plasmas 14 (2007) 055909 — TGLF
 - Bourdelle et al., Phys. Plasmas 14 (2007) 112501 — QuaLiKiz
 - van de Plassche et al., Phys. Plasmas 27 (2020) 022310 — QLKNN
+
+## Practical use and scope
+
+Use this page to compare transport model routing and fallback sequencing.
+
+- Use it when deciding which transport path is active for a benchmark or campaign run.
+- Confirm model selection against campaign requirements and compute-budget constraints.
+- Keep transport-mode changes coupled with reproducible benchmark evidence and boundary checks.
+

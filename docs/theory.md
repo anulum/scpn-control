@@ -211,3 +211,12 @@ The practical interpretation is:
 
 For external reviewers, this separation makes it easier to separate what is
 implemented correctly from what is approved for external use.
+
+## Practical use and scope
+
+Use this document as the formal foundation for stochastic and control formulations.
+
+- Use it to align mathematical terms with implementation contracts in controller and transport modules.
+- Keep terminology updates here synchronized with `docs/learning/control_theory_primer.md`.
+- Route formal-language changes through release and validation checks before external publication.
+

@@ -2068,3 +2068,12 @@ When preparing an integration PR, include both:
 - one admission-visible benchmark or validation record for the same path.
 
 That pairing is the minimum contract for external-facing confidence.
+
+## Practical use and scope
+
+Use this page as the public contract boundary for `scpn_control` exports and import-level behavior.
+
+- Validate import and symbol usage here before changing interface signatures in `src/scpn_control`.
+- Use the API map to decide whether integration changes are safe for third-party callers.
+- Pair API updates with corresponding validation and release notes for any public call-flow changes.
+

@@ -215,3 +215,12 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 ## Z
 
 **Z_eff (Effective charge)** — Ion-charge-weighted average: Z_eff = sum(n_i Z_i^2) / n_e. Increases Bremsstrahlung and resistivity. Typical range 1.2-3.0. *Dimensionless.* `core.integrated_transport_solver`
+
+## Practical use and scope
+
+Use this glossary as the shared terminology baseline for discussions and code reviews.
+
+- Use term definitions before introducing new internal naming in docs or code comments.
+- Keep wording consistent with `docs/physics_methods.md` and `docs/theory.md`.
+- Expand this file when new scientific symbols become stable in the public interface.
+

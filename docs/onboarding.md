@@ -182,3 +182,12 @@ The onboarding sequence is considered complete when all three are true:
 - One matching admissibility report is saved with clear host metadata and command line trace.
 
 At that point, move to validation pages before adding a new marketing claim or claiming hardware readiness.
+
+## Practical use and scope
+
+Use this guide as the entry lane for new operators and campaign owners.
+
+- Read it first if you are joining the project and need a repeatable setup and first-run path.
+- Move to `docs/tutorials.md` after environment checks, then to `docs/physics_traceability.md` for claim boundaries.
+- For production discussions, follow this with `docs/production_readiness.md` before running facility-admissibility conversations.
+

@@ -71,3 +71,12 @@ For practical triage:
 - keep mitigation notes linked to evidence, not internal assumptions.
 
 This keeps this page aligned with reviewable engineering decisions.
+
+## Practical use and scope
+
+Use this document as the backlog for unresolved evidence and model-data mismatch work.
+
+- Treat each active deficiency as a candidate for the next milestone task order.
+- Link every mitigation to a specific benchmark, validator, or script-based check.
+- Close entries only when reproducer and evidence outputs are committed and rerun.
+

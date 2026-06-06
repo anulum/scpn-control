@@ -112,3 +112,12 @@ features = obs.to_features()
 mapping = obs.to_feature_mapping(prefix="aer_")
 report = obs.admission_report()
 ```
+
+## Practical use and scope
+
+Use this page for Address-Event Representation observation wiring in control loops.
+
+- Apply this when introducing or changing neuromorphic observation adapters.
+- Keep stream-format assumptions synchronized with downstream feature-contract checks.
+- Validate with deterministic traces before declaring production interoperability.
+

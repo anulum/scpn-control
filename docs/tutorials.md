@@ -113,3 +113,12 @@ Choose a tutorial path by review intent, not by perceived complexity.
 - Use tutorial 07 for advanced controller breadth and admission constraints.
 
 Each tutorial is a learning path; only validated artifacts are evidence for claims.
+
+## Practical use and scope
+
+Use this page to choose the correct tutorial for your immediate goal.
+
+- Select a path by intent: first-steps onboarding, control workflow, physics setup, validation, or deployment.
+- Prefer the control and validation paths before changing runtime parameters in scripts or campaigns.
+- Use tutorial outputs as reproducible checkpoints and record results in your session log.
+

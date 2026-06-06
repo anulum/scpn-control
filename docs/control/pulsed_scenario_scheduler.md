@@ -104,3 +104,12 @@ Use this scheduler as a shared lifecycle reference between python control, nativ
 4. persist rejected transitions for later review.
 
 For facility-like timing claims, combine this with the production-readiness and benchmark context checks.
+
+## Practical use and scope
+
+Use this document to map pulsed-control lifecycle transitions and transition preconditions.
+
+- Use it before changing state ordering, dwell periods, or ring-stage behavior.
+- Keep any edits aligned with admission and replay requirements in related control docs.
+- Validate scheduler changes with representative campaign traces before release.
+
