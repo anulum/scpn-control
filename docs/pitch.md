@@ -244,3 +244,11 @@ A practical investor-facing summary should pair this page with:
 
 If a claim depends on external-code or facility validation, indicate that this is
 an explicit next-work item, not a completed fact.
+
+## Practical use and scope
+
+Use this page as the investor-facing positioning artifact.
+
+- Align each claim with corresponding evidence artifacts before external circulation.
+- Keep this pitch synchronized with funding and readiness checkpoints.
+- Route any measurable claim changes through benchmark and validation updates.

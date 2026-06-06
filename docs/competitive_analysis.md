@@ -230,3 +230,11 @@ Treat each row as follows:
 
 The practical effect is to preserve the difference between a fast inner-kernel
 path and a PCS-ready closed-loop system.
+
+## Practical use and scope
+
+Use this document to benchmark positioning decisions between SCPN Control and adjacent approaches.
+
+- Use local measurements for engineering direction, not direct facility readiness claims.
+- Use literature values for comparison context and methodology interpretation.
+- Use this page before prioritizing roadmap items that depend on speed, robustness, or deployment maturity.

@@ -207,3 +207,11 @@ This page links budget tiers to evidence outputs, not to speculative outcomes.
 - then only expand scope when the prior tier outputs are admitted by validators.
 
 This keeps spend aligned with claim clarity rather than model output volume.
+
+## Practical use and scope
+
+Use this plan to align funding decisions with measurable validation milestones.
+
+- Convert each funding tranche into one or more concrete benchmark or hardening outcomes.
+- Track cost estimates against observable outputs in `docs/validation.md`.
+- Do not spend this budget on un-measured work; every line here should map to executable evidence.

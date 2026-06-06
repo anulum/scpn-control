@@ -60,3 +60,11 @@ The release keeps the current evidence boundary explicit:
 - Target-hardware latency and deployment readiness claims require qualified HIL,
   CODAC/EPICS/WebSocket runtime, and safety-case artefacts rather than local
   workstation timing alone.
+
+## Practical use and scope
+
+Use this historical release note to review feature and interface changes in that release window.
+
+- Keep historical behavior distinctions when reproducing legacy campaigns.
+- Cross-check with migration notes before changing dependent scripts.
+- Pair with current release notes before claiming present-day capabilities.

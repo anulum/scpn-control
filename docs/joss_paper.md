@@ -205,3 +205,11 @@ QuaLiKiz development teams for their publicly documented input/output formats.
 ## References
 
 See [`paper.bib`](https://github.com/anulum/scpn-control/blob/main/paper.bib) for the full BibTeX bibliography.
+
+## Practical use and scope
+
+Use this paper draft as the publication-grade summary of the project contribution.
+
+- Keep the manuscript aligned with reproducible code and benchmark evidence.
+- Ensure scientific claims in this draft remain bounded by current validation status.
+- Do not introduce new benchmark claims in this document without upstream evidence updates.

@@ -135,3 +135,11 @@ Use this page to decide what to build next in a constrained budget.
 - Collect only the evidence required for that profile before broadening scope.
 
 This keeps the project from mixing research iteration with deployment commitment in the same cycle.
+
+## Practical use and scope
+
+Use this page to map target users and practical deployment scenarios.
+
+- Use it when prioritizing which workflows to optimize next.
+- Use this with pricing and readiness pages when planning support, proof, and roadmaps.
+- Keep use-case claims tied to validated evidence instead of generic capability statements.

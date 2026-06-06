@@ -144,3 +144,11 @@ scenario replay. It is not a measured-shot cross-validation, public P-EFIT
 admission, HIL campaign, real-time PCS certification, or facility safety case.
 Those claims remain blocked until their own artefacts are produced, digested,
 reviewed, and admitted.
+
+## Practical use and scope
+
+Use this file to understand geometry-neutral replay behavior in controlled campaign traces.
+
+- Use this workflow when comparing replay sequences across machine geometries.
+- Keep replay assumptions explicit before scaling across campaign conditions.
+- Validate replay outcomes against geometry-specific metrics in corresponding validation pages.

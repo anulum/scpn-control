@@ -571,3 +571,11 @@ plt.show()
 | Rust Kuramoto kernel | `control-math::kuramoto` | Rayon-parallelised, 7/7 tests |
 | PAC cross-layer SNN | Notebook §10 | Dual-pool, per-layer gain control |
 | Markdown export | `docs/paper27_phase_dynamics.md` | Auto-generated from notebook |
+
+## Practical use and scope
+
+Use this page to document phase-dynamics assumptions and campaign-specific evidence.
+
+- Treat it as a technical reference for contributors and review readers.
+- Keep equations and parameter definitions synchronized with implementation in code.
+- Validate conclusions through `docs/validation.md` before publishing external claims.

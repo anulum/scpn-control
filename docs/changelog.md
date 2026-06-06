@@ -1439,3 +1439,11 @@ No unreleased changes.
 - CI reduced from 13 jobs to 6
 - `hpc_bridge.py` relocated from `hpc/` to `core/` subpackage
 - Import guards added for excluded modules (stability_analyzer, global_design_scanner, imas_connector, diagnostics.forward, fusion_ignition_sim)
+
+## Practical use and scope
+
+Use this as the project event log for backward-compatible planning.
+
+- Use the changelog for version-to-version behavior and compatibility tracking.
+- Pair entries here with `docs/release_notes_v*` when preparing a release summary.
+- Treat this as timeline evidence, not as an admission gate on its own.

@@ -63,3 +63,11 @@ Keep this manifest aligned whenever public-facing content changes:
 
 This is a documentation hygiene step that prevents mismatched release claims and
 reviewer confusion during audits.
+
+## Practical use and scope
+
+Use this page to verify declared capabilities before publishing release or onboarding material.
+
+- Use it to validate that documented features have executable counterparts in `tools/capability_manifest.toml`.
+- Run the manifest checks whenever public claims are widened.
+- Keep scope updates synchronized with `docs/production_readiness.md` and release notes.

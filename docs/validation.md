@@ -1350,3 +1350,11 @@ Scope: deterministic synthetic DIII-D/JET/KSTAR/EAST facility distributions,
 FedProx aggregation, and facility-update differential privacy accounting.
 This is not measured cross-facility validation; measured claims remain blocked
 until external facility shot databases and provenance manifests are supplied.
+
+## Practical use and scope
+
+Use this as the admission boundary for all measurable scientific and software claims.
+
+- Route every timing, physics, and safety statement through this evidence surface.
+- Use this page as the source of truth before updating external-facing claims.
+- Keep this section synchronized with any new validator, benchmark, or experiment workflow.

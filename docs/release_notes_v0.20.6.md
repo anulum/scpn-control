@@ -48,3 +48,11 @@ Do not treat `v0.20.6` as published until all items are true:
 - Failed or cancelled Actions/deployment records are deleted only when safe and
   only after replacement evidence is green.
 - The GitHub release is created from the `v0.20.6` tag.
+
+## Practical use and scope
+
+Use this release note to review 0.20.6 milestone work and known behavior shifts.
+
+- Use it to verify when specific optimization or safety paths were introduced.
+- Keep migration notes aligned with current defaults before reusing old commands.
+- Treat historical records as context for traceability, not active guarantees.

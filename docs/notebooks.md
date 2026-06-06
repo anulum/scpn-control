@@ -82,3 +82,12 @@ To turn that output into a reviewable deliverable:
 - Link the persisted report to the matching validator before sharing externally.
 
 Notebooks remain valuable for learning and review, but only adopted evidence can support a technical claim.
+
+## Practical use and scope
+
+Use this page as the discoverability index for notebooks used for analysis and demonstration.
+
+- Use notebook inventory before creating new analysis material.
+- Preserve reproducibility by linking notebooks to pinned environment and data assumptions.
+- Route any experimental conclusions here back into code or validation artifacts.
+

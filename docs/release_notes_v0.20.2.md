@@ -68,3 +68,11 @@ Do not treat `v0.20.2` as published until all items are true:
 - Failed or cancelled Actions/deployment records are deleted only when safe and
   only after replacement evidence is green.
 - The GitHub release is created from the `v0.20.2` tag.
+
+## Practical use and scope
+
+Use this release note to review the incremental platform and safety changes for 0.20.2.
+
+- Use it for compatibility checks when rerunning older runs.
+- Confirm feature claims against current validated evidence before operational use.
+- Keep migration notes synchronized with campaign manifests.

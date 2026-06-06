@@ -44,3 +44,11 @@ Do not treat `v0.20.5` as published until all items are true:
 - Failed or cancelled Actions/deployment records are deleted only when safe and
   only after replacement evidence is green.
 - The GitHub release is created from the `v0.20.5` tag.
+
+## Practical use and scope
+
+Use this record to understand release-time changes and fixes in 0.20.5.
+
+- Use it for artifact comparison during replay and benchmark review.
+- Confirm deployment assumptions with current runtime documentation.
+- Preserve this as historical evidence and do not treat it as an active compliance statement.

@@ -800,3 +800,11 @@ M. Šotek, "The Knm Matrix: A Simulation Framework for Modelling Multi-Scale
 Bidirectional Causality in the Self-Consistent Phenomenological Network,"
 SCPN Paper 27, 2026.
 Available: [academia.edu](https://www.academia.edu/) | ORCID [0009-0009-3560-0851](https://orcid.org/0009-0009-3560-0851)
+
+## Practical use and scope
+
+Use this file only as an integration handoff checklist for external review of Paper 27.
+
+- Keep it aligned with the latest commit and validation outputs before sending for review.
+- Use the checklist to map manuscript claims to executed tests, runtime logs, and reproducibility artifacts.
+- Do not treat this as deployment guidance; use it to scope review readiness and remaining evidence actions.

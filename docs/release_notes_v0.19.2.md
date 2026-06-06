@@ -80,3 +80,11 @@ The release keeps the current evidence boundary explicit:
   transport claims.
 - External materials, facility artefacts, and benchmark provenance should remain
   tracked through repository issues before future claim expansion.
+
+## Practical use and scope
+
+Use this historical release note to compare behavior changes and compatibility boundaries.
+
+- Read it when reproducing past results or debugging long-lived campaigns.
+- Treat historical notes as informative context, not current operational guarantees.
+- Use with the latest release notes when describing current supported behavior.

@@ -45,3 +45,11 @@ Do not treat `v0.20.3` as published until all items are true:
 - Failed or cancelled Actions/deployment records are deleted only when safe and
   only after replacement evidence is green.
 - The GitHub release is created from the `v0.20.3` tag.
+
+## Practical use and scope
+
+Use this release note as a compatibility checkpoint for 0.20.3.
+
+- Use it to validate command and runtime behavior against pre-existing configurations.
+- Compare to current release notes before extending benchmarks or deployment claims.
+- Keep this historical context attached to any script-level migration work.

@@ -49,3 +49,11 @@ Do not treat `v0.20.7` as published until all items are true:
 - Failed or cancelled Actions/deployment records are deleted only when safe and
   only after replacement evidence is green.
 - The GitHub release is created from the `v0.20.7` tag.
+
+## Practical use and scope
+
+Use this latest historical note to verify what changed in the 0.20.7 line.
+
+- Use it as a checkpoint before upgrading local scripts or benchmarks.
+- Confirm any referenced claims with current validation and admission surfaces.
+- Keep this page as historical context for reproducibility evidence.

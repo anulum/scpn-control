@@ -93,3 +93,11 @@ Use this structure when discussing milestones:
 - short-term: fund reproducible local evidence and validator coverage,
 - mid-term: fund external-code and real-shot campaigns,
 - long-term: fund hardening work for facility deployment (interlocks, CODAC/EPICS, HIL paths).
+
+## Practical use and scope
+
+Use this page as the commercial support and services boundary.
+
+- Use it to separate open-source code access from optional commercial support.
+- Keep support tiers tied to measurable outcomes and published deliverables.
+- Track scope changes against updated service commitments and milestones.

@@ -65,3 +65,11 @@ Do not treat `v0.20.1` as published until all items are true:
 - Historical failed or cancelled Actions/deployment records are deleted only
   when safe and only after replacement evidence is green.
 - The GitHub release is created from the `v0.20.1` tag.
+
+## Practical use and scope
+
+Use this record to trace behavior introduced in the 0.20.1 cycle.
+
+- Use it for reproducibility checkpoints in long-running benchmarking history.
+- Validate any references to this release against current runtime constraints.
+- Use historical notes to inform safe back-porting decisions.

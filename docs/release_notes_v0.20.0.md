@@ -52,3 +52,11 @@ Do not treat `v0.20.0` as published until all items are true:
 - Safe failed or cancelled historical Actions/deployment records are deleted
   only after the current replacement evidence is green.
 - The GitHub release is created from the `v0.20.0` tag.
+
+## Practical use and scope
+
+Use this record to identify baseline behavior at the 0.20.0 milestone.
+
+- Use it during migration planning for downstream workflows.
+- Treat it as historical context, then confirm current behavior in the latest `docs/changelog.md` and release notes.
+- Keep operational assumptions explicit when comparing against older tags.

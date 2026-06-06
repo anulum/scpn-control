@@ -54,3 +54,11 @@ Do not treat `v0.20.4` as published until all items are true:
 - Failed or cancelled Actions/deployment records are deleted only when safe and
   only after replacement evidence is green.
 - The GitHub release is created from the `v0.20.4` tag.
+
+## Practical use and scope
+
+Use this historical note as a baseline for what changed in 0.20.4.
+
+- Use it to confirm feature provenance and avoid regressing known behavior.
+- Keep this in the historical context when reviewing long-lived automation outputs.
+- Use alongside newer release notes for present-time claims.

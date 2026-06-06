@@ -139,3 +139,11 @@ Use this order:
 - Open validation, production readiness, and release notes for claim status before using any metric in funding or external communications.
 
 The goal is to prevent local engineering results from being interpreted as facility-grade evidence.
+
+## Practical use and scope
+
+Use this file as the entry hub for public documentation navigation.
+
+- Use this page to find the canonical sequence for onboarding, deployment, validation, and evidence.
+- If you are new to the project, begin with onboarding and tutorials before advanced physics files.
+- Keep index links synchronized with document renames and release updates.

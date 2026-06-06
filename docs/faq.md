@@ -77,3 +77,11 @@ surface and must be interpreted with the same admission context as the project:
 
 If a claim changes after a version bump or a formal-mode change, treat this page
 as a starting point and verify through the linked validator and report outputs.
+
+## Practical use and scope
+
+Use this page as operational first aid for common implementation and configuration issues.
+
+- Start with the troubleshooting path that matches the failure symptom.
+- Use the linked settings in each answer before changing solver internals.
+- Escalate unresolved questions to validation workflows and preserve traceability in your session notes.
