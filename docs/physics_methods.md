@@ -218,6 +218,32 @@ $q=1$ surface.
   `tests/test_sawtooth_kadomtsev_validation.py`. Full nonlinear MHD sawtooth-crash
   or measured-shot claims still require a measured or published reference.
 
+### Auxiliary Current Drive
+Electron-cyclotron, lower-hybrid, and neutral-beam sources with grid-normalised
+radial deposition, the Prater ECCD figure of merit, and the Stix beam
+slowing-down time and critical energy.
+
+$$\eta_{\rm ECCD} = \eta_0 \frac{T_e}{5 + Z_{\rm eff}}
+  \frac{\xi}{1 + \xi^2}, \qquad
+  E_{\rm crit} = 14.8\, T_e (A_b/A_i)^{2/3}, \qquad
+  \tau_s = \frac{3\sqrt{2\pi}\, m_i T_e^{3/2}}{4\sqrt{m_e}\, n_e e^4 \ln\Lambda\, Z_{\rm eff}}$$
+
+- **Source**: Fisch & Boozer, *Phys. Rev. Lett.* 45, 720 (1980); Prater,
+  *Phys. Plasmas* 11, 2349 (2004); Stix, *Plasma Physics* 14, 367 (1972).
+- **Implementation**: `src/scpn_control/core/current_drive.py:294`.
+- **Validation**: The production `ECCDSource`/`LHCDSource`/`NBISource`,
+  `eccd_efficiency`, `nbi_critical_energy`, and `nbi_slowing_down_time` are
+  checked against their exact closed forms — grid-normalised deposition power
+  conservation ($\int P\,d\rho = P_{\rm source}$), the deposition centroid, the
+  Stix critical energy and slowing-down scalings ($T_e^{3/2}$, $1/n_e$,
+  $1/Z_{\rm eff}$), the Prater efficiency with the launch-angle factor maximised
+  at $N_\parallel = 1$, the driven-current proportionality
+  $j_{\rm cd} = \eta_{\rm cd} P_{\rm abs}/(n_e T_e)$, and the neutral-beam
+  fast-ion current chain — all to machine precision, in
+  `validation/validate_current_drive.py` with tests in
+  `tests/test_current_drive_validation.py`. External current-drive claims still
+  require ray-tracing, Fokker-Planck, or measured-deposition artefacts.
+
 ### Kuramoto-Sakaguchi Phase Dynamics
 $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \sin(\Psi - \theta_i)$$
 

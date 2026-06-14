@@ -529,6 +529,27 @@ precision. This validates the two-point edge model against analytic references;
 facility-validated edge-transport or divertor-heat-load claims still require
 measured probe-campaign or published reference artefacts.
 
+Auxiliary current-drive evidence against exact closed forms can be regenerated
+with:
+
+```bash
+python -m validation.validate_current_drive \
+  --report validation/reports/current_drive.json
+```
+
+The produced JSON uses `scpn-control.current-drive-validation.v1` and binds its
+own payload by SHA-256. It checks the production ECCD, LHCD, and NBI sources and
+efficiency helpers against their exact closed forms: grid-normalised deposition
+power conservation (`integral P drho = P_source`) for all three sources, the
+deposition centroid, the Stix critical energy `E_crit = 14.8 T_e (A_b/A_i)^{2/3}`
+and the slowing-down-time scalings (`T_e^{3/2}`, `1/n_e`, `1/Z_eff`), the Prater
+ECCD efficiency with the launch-angle factor maximised at `N_parallel = 1`, the
+driven-current proportionality `j_cd = eta_cd P_abs/(n_e T_e)`, and the
+neutral-beam fast-ion current chain `j_cd = e n_fast v_par/Z_beam` — all to
+machine precision. This validates the deposition and efficiency physics against
+analytic references; external current-drive claims still require ray-tracing,
+Fokker-Planck, or measured-deposition artefacts.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

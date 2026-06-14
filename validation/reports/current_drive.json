@@ -1,0 +1,56 @@
+{
+  "centroid_passed": true,
+  "critical_energy_passed": true,
+  "critical_energy_rel_error": 0.0,
+  "critical_energy_scaling": {
+    "expected_ratio": 1.5874010519681994,
+    "measured_ratio": 1.5874010519681994,
+    "name": "mass_ratio_two_thirds",
+    "rel_error": 0.0
+  },
+  "deposition_centroid_rel_error": 0.0,
+  "deposition_conservation": {
+    "eccd": 1.164153218269348e-16,
+    "lhcd": 0.0,
+    "nbi": 0.0
+  },
+  "deposition_passed": true,
+  "eccd_efficiency_passed": true,
+  "eccd_efficiency_rel_error": 0.0,
+  "exact_tol": 1e-09,
+  "generated_utc": "2026-06-14T15:11:20Z",
+  "grid_points": 401,
+  "jcd_passed": true,
+  "jcd_proportionality_rel_error": 0.0,
+  "launch_factor_maximised": true,
+  "max_deposition_conservation_rel_error": 1.164153218269348e-16,
+  "max_scaling_rel_error": 0.0,
+  "max_slowing_down_scaling_rel_error": 0.0,
+  "nbi_chain_passed": true,
+  "nbi_current_chain_rel_error": 0.0,
+  "passed": true,
+  "payload_sha256": "d124ca2c031c23b2fa5e44e18db313ff5a4deb7fad96e46142c3043e71e11159",
+  "schema_version": "scpn-control.current-drive-validation.v1",
+  "slowing_down_passed": true,
+  "slowing_down_scaling": [
+    {
+      "expected_ratio": 8.0,
+      "measured_ratio": 8.0,
+      "name": "temperature_1.5",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "density_inverse",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "z_eff_inverse",
+      "rel_error": 0.0
+    }
+  ],
+  "target_id": "local-current-drive"
+}

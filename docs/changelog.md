@@ -48,6 +48,11 @@
   parallel-flux mapping, Spitzer-Härm upstream conduction integral, pressure
   balance, Eich regression exponents, peak heat flux, and the detachment density
   boundary against exact closed forms, with tamper-evident sealed evidence.
+- Added an auxiliary current-drive validator that checks deposition power
+  conservation, the Stix critical energy and slowing-down scalings, the Prater
+  ECCD efficiency and launch-angle maximisation, the driven-current
+  proportionality, and the neutral-beam current chain against exact closed forms,
+  with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -73,6 +78,9 @@
   and validation guide with the reconnection conservation evidence.
 - Added a two-point scrape-off-layer traceability entry, physics methods
   reference, and validation guide with the divertor closed-form evidence.
+- Updated the auxiliary current-drive traceability entry, physics methods
+  reference, and validation guide with the deposition and efficiency closed-form
+  evidence.
 
 ## [0.20.7] - 2026-06-05
 

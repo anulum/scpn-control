@@ -1299,7 +1299,9 @@
       "validation_evidence": [
         "tests/test_current_drive.py ECCD, LHCD, and NBI deposition, scaling, source superposition, total-current integration, and claim-admission checks",
         "validation/validate_current_drive_reference.py strict current-drive reference artifact gate",
-        "validation/benchmark_current_drive_claims.py bounded claim-admission benchmark"
+        "validation/benchmark_current_drive_claims.py bounded claim-admission benchmark",
+        "validation/validate_current_drive.py validates grid-normalised deposition power conservation, the deposition centroid, the Stix critical energy and slowing-down formulae and scalings, the Prater ECCD efficiency and launch-angle maximisation, the ECCD/LHCD driven-current proportionality, and the neutral-beam current chain against exact closed forms, with tamper-evident sealed evidence",
+        "tests/test_current_drive_validation.py deposition-conservation, Stix-formula, Prater-efficiency, j_cd-proportionality, NBI-chain, and evidence-seal checks"
       ],
       "evidence_paths": [
         "src/scpn_control/core/current_drive.py",
@@ -1308,12 +1310,23 @@
         "validation/benchmark_current_drive_claims.py",
         "validation/reports/current_drive_claims.json",
         "validation/reports/current_drive_claims.md",
-        "docs/learning/plasma_physics_primer.md"
+        "docs/learning/plasma_physics_primer.md",
+        "validation/validate_current_drive.py",
+        "validation/reports/current_drive.json",
+        "validation/reports/current_drive.md",
+        "tests/test_current_drive_validation.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/current_drive.py"
       ],
-      "validity_domain": "Bounded auxiliary current-drive source coupling plus fail-closed claim-admission evidence; not ray-traced, Fokker-Planck, or facility-validated deposition evidence unless strict reference artifacts pass declared tolerances.",
+      "evidence": [
+        "validation/validate_current_drive.py schema-versioned digest-bound deposition-conservation, Stix, Prater, and current-chain validator",
+        "validation/reports/current_drive.json sealed exact-closed-form evidence",
+        "validation/reports/current_drive.md human-readable deposition, efficiency, and current-chain summary",
+        "tests/test_current_drive_validation.py deposition-conservation, Stix-formula, Prater-efficiency, NBI-chain, and tamper checks"
+      ],
+      "validity_domain": "Bounded auxiliary current-drive source coupling plus fail-closed claim-admission evidence, with the production deposition conservation, deposition centroid, Stix critical-energy and slowing-down formulae and scalings, Prater ECCD efficiency and launch-angle maximisation, ECCD/LHCD driven-current proportionality, and neutral-beam fast-ion current chain now validated against their exact closed forms to machine precision; not ray-traced, Fokker-Planck, or facility-validated deposition evidence unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {
