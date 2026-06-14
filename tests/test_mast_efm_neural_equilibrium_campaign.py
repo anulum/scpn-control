@@ -29,10 +29,12 @@ def test_build_campaign_report_aggregates_metrics_and_keeps_claim_blocked(tmp_pa
     candidate = storage_root / "converted/neural_equilibrium_reference/candidate.json"
     reference_path = storage_root / "converted/neural_equilibrium_reference/mast_efm_shot_30419_reference.npz"
     prediction_path = (
-        storage_root / "converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_prediction.npz"
+        storage_root
+        / "converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_prediction.npz"
     )
     evaluation = (
-        storage_root / "converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.json"
+        storage_root
+        / "converted/neural_equilibrium_reference/evaluation_predictions/mast_efm_shot_30419_evaluation.json"
     )
     _write_json(
         candidate,

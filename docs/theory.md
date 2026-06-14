@@ -219,4 +219,3 @@ Use this document as the formal foundation for stochastic and control formulatio
 - Use it to align mathematical terms with implementation contracts in controller and transport modules.
 - Keep terminology updates here synchronized with `docs/learning/control_theory_primer.md`.
 - Route formal-language changes through release and validation checks before external publication.
-

@@ -31,11 +31,11 @@ numpy = { workspace = true }
 ndarray = { workspace = true }
 rand = { workspace = true }
 rand_chacha = "0.9"
-socket2 = "0.5"
+socket2 = "0.6"
 crossbeam-channel = "0.5"
 core_affinity = "0.8"
 z3 = "0.20"
-sha2 = "0.10"
+sha2 = "0.11"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { version = "0.7", optional = true }

@@ -73,7 +73,7 @@ fn hash_f64_array(values: &Array1<f64>) -> String {
     for value in values {
         hasher.update(value.to_le_bytes());
     }
-    format!("{:x}", hasher.finalize())
+    crate::to_hex(&hasher.finalize())
 }
 
 fn hash_bool_mask(values: &[bool]) -> String {
@@ -81,7 +81,7 @@ fn hash_bool_mask(values: &[bool]) -> String {
     for value in values {
         hasher.update([u8::from(*value)]);
     }
-    format!("{:x}", hasher.finalize())
+    crate::to_hex(&hasher.finalize())
 }
 
 fn update_str(hasher: &mut Sha256, name: &str, value: &str) {
@@ -146,7 +146,7 @@ fn decision_evidence_digest(
         "burn_action_mask_sha256",
         burn_action_mask_sha256,
     );
-    format!("{:x}", hasher.finalize())
+    crate::to_hex(&hasher.finalize())
 }
 
 /// Linear surrogate model: x_{t+1} = x_t + B·u_t.

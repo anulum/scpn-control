@@ -747,4 +747,3 @@ Use this primer to align plasma terms and state variables with code-level refere
 - Use it as the onboarding entry for users without extensive tokamak background.
 - Return here when reviewing glossary terms in `docs/learning/glossary.md`.
 - Do not treat this page as deployment validation; it is a scientific onboarding reference.
-

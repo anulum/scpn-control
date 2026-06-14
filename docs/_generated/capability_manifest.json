@@ -21,7 +21,7 @@
   "counts": {
     "project_script_count": 2,
     "public_api_export_count": 44,
-    "public_class_count": 512,
+    "public_class_count": 514,
     "public_markdown_count": 50,
     "pyo3_export_count": 39,
     "python_test_file_count": 324,
@@ -240,7 +240,9 @@
       "CoupledSandpileReactor",
       "CoupledTearingModes",
       "CurrentDiffusionSolver",
+      "CurrentDriveArtifactDict",
       "CurrentDriveClaimEvidence",
+      "CurrentDriveMetricsDict",
       "CurrentDriveMix",
       "CurrentQuench",
       "CycleTimer",

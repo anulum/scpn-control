@@ -2076,4 +2076,3 @@ Use this page as the public contract boundary for `scpn_control` exports and imp
 - Validate import and symbol usage here before changing interface signatures in `src/scpn_control`.
 - Use the API map to decide whether integration changes are safe for third-party callers.
 - Pair API updates with corresponding validation and release notes for any public call-flow changes.
-
