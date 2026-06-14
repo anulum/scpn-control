@@ -347,7 +347,9 @@ class MomentumTransportSolver:
             T_nbi,
             T_intrinsic,
         )
-        nu_phi = _nonnegative_profile_or_scalar("momentum_damping_frequency_s", momentum_damping_frequency_s, chi_i.shape)
+        nu_phi = _nonnegative_profile_or_scalar(
+            "momentum_damping_frequency_s", momentum_damping_frequency_s, chi_i.shape
+        )
         if len(chi_i) != self.nr:
             raise ValueError("transport profiles must match the solver rho grid")
         if np.any(chi_i < 0.0):
