@@ -219,6 +219,29 @@ $$\Delta_{\rm KBM} = C_{\rm KBM}\sqrt{\beta_{p,\rm ped}}, \qquad
   `tests/test_eped_pedestal_validation.py`. Externally validated EPED-database
   claims still require measured pedestal data or published benchmark points.
 
+### ELM Peeling-Ballooning Crash
+Edge-localised-mode onset from the coupled peeling-ballooning boundary and a
+Type-I crash that sheds a fixed fraction of the pedestal stored energy.
+
+$$\left(\frac{j_{\rm edge}}{j_{\rm crit}}\right)^2 +
+  \left(\frac{\alpha_{\rm edge}}{\alpha_{\rm crit}}\right)^2 > 1, \qquad
+  \Delta W = f\,W_{\rm ped}, \qquad
+  T, n \to T, n\,\sqrt{1 - f}\ \Rightarrow\ W_{\rm post} = (1 - f)\,W_{\rm ped}$$
+
+- **Source**: Snyder et al., *Phys. Plasmas* 9, 2037 (2002); Loarte et al.,
+  *Plasma Phys. Control. Fusion* 45, 1549 (2003).
+- **Implementation**: `src/scpn_control/core/elm_model.py:26`.
+- **Validation**: The production `PeelingBallooningBoundary` and `ELMCrashModel`
+  are checked against their exact closed forms — the ballooning $\alpha_{\rm
+  crit}$ and peeling $j_{\rm crit}$ limits with their $1/q_{95}$,
+  $1/\sqrt{n}$, and $R_0/a$ scalings, the elliptical stability margin
+  $1 - \sqrt{(j/j_{\rm crit})^2 + (\alpha/\alpha_{\rm crit})^2}$ (zero on the
+  unit ellipse, sign-consistent with `is_unstable`), and the Type-I crash energy
+  conservation $W_{\rm post} = (1 - f)\,W_{\rm ped}$ — all to machine precision,
+  in `validation/validate_elm_peeling_ballooning.py` with tests in
+  `tests/test_elm_peeling_ballooning_validation.py`. Facility ELM/RMP claims
+  still require measured H-mode campaign data or published ELM cases.
+
 ### Resistive-Wall-Mode Feedback
 Wall-limited growth rate with rotation stabilisation and active PD feedback for
 the $n=1$ resistive wall mode between the no-wall and ideal-wall $\beta$ limits.

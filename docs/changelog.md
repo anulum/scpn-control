@@ -61,6 +61,10 @@
   pressure, poloidal-beta definition, ideal-gas temperature, collisionality width
   narrowing, shaping-factor reference, and the KBM width constraint against the
   exact construction relations, with tamper-evident sealed evidence.
+- Added an ELM peeling-ballooning validator that checks the ballooning and
+  peeling limits and scalings, the elliptical stability boundary, and the Type-I
+  ELM crash energy conservation against exact closed forms, with tamper-evident
+  sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -94,6 +98,9 @@
   closed-form evidence.
 - Updated the EPED pedestal traceability entry, physics methods reference, and
   validation guide with the construction-relation and KBM-constraint evidence.
+- Updated the ELM crash traceability entry, physics methods reference, and
+  validation guide with the peeling-ballooning and crash-energy closed-form
+  evidence.
 
 ## [0.20.7] - 2026-06-05
 

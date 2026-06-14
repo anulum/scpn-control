@@ -593,6 +593,27 @@ not a parity counterpart, so no cross-language parity is asserted. This validate
 the EPED construction; externally validated EPED-database claims still require
 measured pedestal data or published benchmark points.
 
+ELM peeling-ballooning and crash evidence against exact closed forms can be
+regenerated with:
+
+```bash
+python -m validation.validate_elm_peeling_ballooning \
+  --report validation/reports/elm_peeling_ballooning.json
+```
+
+The produced JSON uses
+`scpn-control.elm-peeling-ballooning-validation.v1` and binds its own payload by
+SHA-256. It checks the production `PeelingBallooningBoundary` and `ELMCrashModel`
+against their exact closed forms: the ballooning `alpha_crit` and peeling
+`j_crit` limits with their `1/q95`, `1/sqrt(n_mode)`, and `R0/a` scalings, the
+elliptical stability margin `1 - sqrt((j/j_crit)^2 + (alpha/alpha_crit)^2)` (zero
+on the unit ellipse, sign-consistent with `is_unstable`, stable interior /
+unstable exterior), and the Type-I ELM crash energy conservation `Delta_W = f
+W_ped` with `W_post = (1 - f) W_ped` and the pedestal-region `n T` product
+dropping by `(1 - f)` while the core stays unchanged — all to machine precision.
+This validates the ELM stability and crash physics; facility ELM/RMP claims still
+require measured H-mode campaign data or published ELM cases.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

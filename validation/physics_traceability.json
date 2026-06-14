@@ -1175,7 +1175,9 @@
       "equation_contract": "ELM model claims must declare pedestal crash trigger, crash depth, recovery timescale, peeling-ballooning boundary, ELM cycle state, RMP suppression threshold, and energy-particle-loss accounting.",
       "fidelity_status": "validation_gap",
       "model_references": [
-        "peeling-ballooning ELM trigger references",
+        "Snyder et al. 2002 peeling-ballooning ELM trigger",
+        "Sauter et al. 1999 edge shaping factor",
+        "Loarte et al. 2003 Type-I ELM energy loss",
         "resonant magnetic perturbation ELM suppression references"
       ],
       "module_path": "src/scpn_control/core/elm_model.py",
@@ -1190,19 +1192,32 @@
         "tests/test_elm_model.py",
         "tests/test_integrated_scenario.py",
         "tests/test_elm_reference_validation.py strict reference-artifact admission checks",
-        "validation/validate_elm_reference.py strict digest-bound ELM/RMP reference gate"
+        "validation/validate_elm_reference.py strict digest-bound ELM/RMP reference gate",
+        "validation/validate_elm_peeling_ballooning.py validates the ballooning and peeling limits and scalings, the elliptical peeling-ballooning boundary margin and flag consistency, and the Type-I ELM crash energy conservation (W_post = (1-f) W_ped) against exact closed forms, with tamper-evident sealed evidence",
+        "tests/test_elm_peeling_ballooning_validation.py ballooning, peeling-scaling, elliptical-boundary, crash-energy, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_elm_model.py",
         "tests/test_integrated_scenario.py",
         "tests/test_elm_reference_validation.py",
         "validation/validate_elm_reference.py",
-        "src/scpn_control/core/elm_model.py"
+        "src/scpn_control/core/elm_model.py",
+        "validation/validate_elm_peeling_ballooning.py",
+        "validation/reports/elm_peeling_ballooning.json",
+        "validation/reports/elm_peeling_ballooning.md",
+        "tests/test_elm_peeling_ballooning_validation.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/elm_model.py"
       ],
-      "validity_domain": "ELM cycle and suppression regression plus a fail-closed, schema-versioned, digest-bound reference-artifact gate; not a validated pedestal-crash predictor for a facility until measured H-mode campaign or documented public ELM/RMP artifacts pass declared tolerances.",
+      "evidence": [
+        "validation/validate_elm_peeling_ballooning.py schema-versioned digest-bound peeling-ballooning boundary and ELM-crash energy validator",
+        "validation/reports/elm_peeling_ballooning.json sealed exact-closed-form evidence",
+        "validation/reports/elm_peeling_ballooning.md human-readable boundary and crash-energy summary",
+        "tests/test_elm_peeling_ballooning_validation.py ballooning, peeling, elliptical-boundary, crash-energy, and tamper checks"
+      ],
+      "validity_domain": "ELM cycle and suppression regression plus a fail-closed, schema-versioned, digest-bound reference-artifact gate, with the production peeling and ballooning limits and scalings, the elliptical peeling-ballooning boundary margin, and the Type-I ELM-crash energy conservation now validated against their exact closed forms to machine precision; not a validated pedestal-crash predictor for a facility until measured H-mode campaign or documented public ELM/RMP artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {

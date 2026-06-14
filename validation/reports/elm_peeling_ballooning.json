@@ -1,0 +1,49 @@
+{
+  "ballooning_passed": true,
+  "ballooning_rel_error": 0.0,
+  "boundary": {
+    "exterior_unstable": true,
+    "flag_margin_consistent": true,
+    "interior_stable": true,
+    "margin_formula_rel_error": 0.0,
+    "on_boundary_margin_abs": 0.0
+  },
+  "boundary_passed": true,
+  "crash": {
+    "energy_loss_rel_error": 0.0,
+    "peak_heat_flux_rel_error": 0.0,
+    "profile_core_unchanged": true,
+    "profile_pedestal_drop_rel_error": 0.0,
+    "stored_energy_ratio_rel_error": 1.206764157201257e-16
+  },
+  "crash_passed": true,
+  "exact_tol": 1e-09,
+  "generated_utc": "2026-06-14T15:57:47Z",
+  "max_peeling_scaling_rel_error": 0.0,
+  "passed": true,
+  "payload_sha256": "90f129f1d6dc3994a298eeeafad88dc6bc50b94d69508d30c302172b05a13ce7",
+  "peeling_passed": true,
+  "peeling_rel_error": 0.0,
+  "peeling_scaling": [
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "q95_inverse",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "n_mode_inverse_sqrt",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "aspect_ratio_linear",
+      "rel_error": 0.0
+    }
+  ],
+  "schema_version": "scpn-control.elm-peeling-ballooning-validation.v1",
+  "target_id": "local-elm-peeling-ballooning"
+}
