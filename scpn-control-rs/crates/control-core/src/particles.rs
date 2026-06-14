@@ -41,7 +41,7 @@ pub struct ParticleSummary {
 }
 
 /// Charged macro-particle state.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChargedParticle {
     #[pyo3(get, set)]

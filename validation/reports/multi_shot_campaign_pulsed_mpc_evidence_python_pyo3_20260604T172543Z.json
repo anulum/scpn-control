@@ -21,7 +21,7 @@
   },
   "evidence_class": "local_regression",
   "generated_utc": "2026-06-04T17:25:43Z",
-  "payload_sha256": "85c7c6e8343bd3c4a0adbdcc69c3fa7f49d06dec52f2e50258ca1c99d3bafb1a",
+  "payload_sha256": "5ae0eff16129be7400addec7970a58171d82849019b8ae1796e77ca6d63e48aa",
   "production_claim_allowed": false,
   "pyo3_result": {
     "last_passed_count": 2,

@@ -107,4 +107,3 @@ Use this page to define what enters the production-timing admissible path.
 - Apply these rules before running hot-path validation in native or threaded execution modes.
 - Keep runtime admission checks consistent across benchmarking and campaign scripts.
 - When a timing claim changes, revalidate both scheduler and hardware-admission assumptions.
-

@@ -79,7 +79,10 @@ jobs:
         with:
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
+          # Coverage is gated locally by the --cov-fail-under step above; the
+          # upload to the external Codecov dashboard must not fail CI on a
+          # transient uploader/GPG signature problem.
+          fail_ci_if_error: false
 
   # ─── Job 2: Notebook smoke tests ───
   notebook-smoke:
