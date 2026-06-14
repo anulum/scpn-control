@@ -206,4 +206,3 @@ Use this page to align deployment mode with runtime assumptions.
 - Read the environment matrix before selecting transport, scheduling, and hardware assumptions.
 - Do not use a Python-only path for hard real-time PCS claims.
 - Confirm security, admission, and benchmark evidence after deployment choices are set.
-

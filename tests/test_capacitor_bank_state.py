@@ -203,6 +203,19 @@ def test_feasibility_rejects_peak_current_above_natural_bank_limit() -> None:
     assert "natural peak" in reason
 
 
+def test_feasibility_uses_total_rlc_energy_when_inductor_already_stores_current() -> None:
+    spec = _underdamped_spec()
+    bank = CapacitorBank(spec, initial_voltage_V=100.0, initial_current_A=700.0)
+    pulse = PulseSpec(peak_current_A=650.0, duration_s=1.0e-6, waveform="rect")
+
+    feasible, reason = bank.feasibility(pulse)
+
+    assert feasible is True
+    assert reason == "ok"
+    total_energy = bank.state.energy_J + 0.5 * spec.inductance_H * bank.state.current_A**2
+    assert pulse.peak_current_A < math.sqrt(2.0 * total_energy / spec.inductance_H)
+
+
 def test_feasibility_rejects_resistive_dissipation_above_available_energy() -> None:
     bank = CapacitorBank(_underdamped_spec(), initial_voltage_V=100.0)
     pulse = PulseSpec(peak_current_A=80.0, duration_s=1.0e-3, waveform="rect")

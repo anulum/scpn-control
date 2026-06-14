@@ -697,4 +697,3 @@ Use this primer as the bridge from control fundamentals to SCPN Control implemen
 - Use it when moving from mathematical background into practical controller tuning.
 - Pair it with `docs/physics_methods.md` and `docs/theory.md` for notation consistency.
 - Verify implementation changes against these concepts before editing controller gain flow.
-

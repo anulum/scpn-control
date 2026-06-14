@@ -1,26 +1,34 @@
 {
   "context": {
     "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
       4,
-      5
+      5,
+      6,
+      7,
+      8,
+      9
     ],
     "isolation_method": "caller-provided affinity only; not a production benchmark",
     "loadavg_end": [
-      5.92919921875,
-      5.380859375,
-      4.5478515625
+      20.328125,
+      19.50732421875,
+      18.33642578125
     ],
     "loadavg_start": [
-      5.92919921875,
-      5.380859375,
-      4.5478515625
+      21.140625,
+      19.6513671875,
+      18.37646484375
     ],
     "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
     "python": "3.12.3"
   },
   "evidence_class": "local_regression",
-  "generated_utc": "2026-06-04T14:00:35.721186+00:00",
-  "payload_sha256": "d7f8f814d3f14ff2aa817292a5ec1ae82208f5657bc74d65bf891109cc01d69b",
+  "generated_utc": "2026-06-13T23:37:44.282340+00:00",
+  "payload_sha256": "2a1fc89fe385ee7a12d1d7ff6b45261a3e2a1f67684257b33c5a96965f4e1633",
   "production_claim_allowed": false,
   "result": {
     "last_report": {
@@ -35,12 +43,12 @@
       "rlc_regime": "underdamped"
     },
     "stats": {
-      "max_us": 1074.641,
-      "mean_us": 663.9572959999999,
-      "median_us": 640.3025,
-      "min_us": 556.697,
-      "p95_us": 842.915,
-      "p99_us": 989.046,
+      "max_us": 2583.542,
+      "mean_us": 1274.536338,
+      "median_us": 1330.647,
+      "min_us": 735.619,
+      "p95_us": 1630.417,
+      "p99_us": 1832.57,
       "samples": 500
     }
   },

@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Capacitor-bank state model benchmark runner.
+# SCPN Control — Capacitor-bank state model benchmark runner.
 """Benchmark the Python and Rust capacitor-bank state surfaces."""
 
 from __future__ import annotations
@@ -253,13 +253,13 @@ def _markdown_report(report: dict[str, object], json_path: Path) -> str:
     rust_results = benchmarks["rust"]
     return "\n".join(
         [
-            "<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->",
+            "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
+            "<!-- Commercial license available -->",
             "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
             "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
             "<!-- ORCID: 0009-0009-3560-0851 -->",
             "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-            "<!-- Project: SCPN Control -->",
-            "<!-- Description: Capacitor-bank state model benchmark report. -->",
+            "<!-- SCPN Control — Capacitor-bank state model benchmark report. -->",
             "",
             "# Capacitor-Bank State Model Benchmark",
             "",

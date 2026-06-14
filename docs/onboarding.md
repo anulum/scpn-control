@@ -190,4 +190,3 @@ Use this guide as the entry lane for new operators and campaign owners.
 - Read it first if you are joining the project and need a repeatable setup and first-run path.
 - Move to `docs/tutorials.md` after environment checks, then to `docs/physics_traceability.md` for claim boundaries.
 - For production discussions, follow this with `docs/production_readiness.md` before running facility-admissibility conversations.
-

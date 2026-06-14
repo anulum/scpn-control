@@ -155,4 +155,3 @@ Use this guide when training, refreshing, or replacing the neural transport surr
 - Apply this workflow before changing training datasets or loss settings.
 - Document every retraining run with dataset provenance and reproducibility metadata.
 - Compare surrogate behavior against reference physics outputs before production scheduling.
-

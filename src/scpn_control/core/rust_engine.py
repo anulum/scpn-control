@@ -677,7 +677,13 @@ class NeuroCyberneticEngine:
         report["policy"] = policy_value
         self._last_runtime_admission = report
 
-        problems = list(report.get("errors", ())) + list(report.get("warnings", ()))
+        raw_errors = report.get("errors", ())
+        raw_warnings = report.get("warnings", ())
+        problems: list[object] = []
+        if isinstance(raw_errors, (list, tuple)):
+            problems.extend(raw_errors)
+        if isinstance(raw_warnings, (list, tuple)):
+            problems.extend(raw_warnings)
         if require and report.get("status") != "pass":
             detail = "; ".join(str(problem) for problem in problems[:6])
             raise RuntimeError(f"runtime admission failed: {detail}")
