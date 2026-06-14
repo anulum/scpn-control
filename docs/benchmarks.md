@@ -1061,4 +1061,3 @@ Use this page for benchmark interpretation and replay evidence, not as a substit
 - Record benchmark context when comparing results across Python, Rust, and benchmark modes.
 - Use this with `docs/validation.md` for claim boundaries and with `docs/physics_traceability.md` for evidence lineage.
 - Treat every number as environment- and mode-dependent unless explicitly documented otherwise.
-

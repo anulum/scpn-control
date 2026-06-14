@@ -383,22 +383,22 @@ class CapacitorBank:
 
     def feasibility(self, pulse: PulseSpec) -> tuple[bool, str]:
         """Run conservative pulse admissibility guards against current bank state."""
-        voltage_now = abs(self.state.voltage_V)
-        if voltage_now > 0.0:
-            max_natural_current = voltage_now / self._spec.natural_impedance_ohm
+        total_energy = self._total_stored_energy_J()
+        if total_energy > 0.0:
+            max_natural_current = math.sqrt(2.0 * total_energy / self._spec.inductance_H)
             if pulse.peak_current_A > max_natural_current:
                 return (
                     False,
                     (
                         f"requested peak current {pulse.peak_current_A:.3g} A exceeds bank natural peak "
-                        f"{max_natural_current:.3g} A at |v0| = {voltage_now:.3g} V"
+                        f"{max_natural_current:.3g} A from stored RLC energy {total_energy:.3g} J"
                     ),
                 )
         rms_squared_factor = _waveform_rms_squared_fraction(pulse.waveform)
         rough_resistive_loss = (
             self._spec.series_resistance_ohm * pulse.peak_current_A**2 * rms_squared_factor * pulse.duration_s
         )
-        available_energy = self.state.energy_J
+        available_energy = total_energy
         if rough_resistive_loss > available_energy:
             return (
                 False,

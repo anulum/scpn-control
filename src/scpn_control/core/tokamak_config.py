@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 

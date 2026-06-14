@@ -131,4 +131,3 @@ Use this file to trace implemented physics equations to their solver locations.
 - Read the model entries before changing equilibrium, transport, or profile settings.
 - Use this page to confirm which simplifications are active for a given configuration.
 - Validate physics claim scope using `docs/validation.md` before changing public-facing statements.
-

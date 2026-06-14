@@ -121,4 +121,3 @@ Use this page to choose the correct tutorial for your immediate goal.
 - Select a path by intent: first-steps onboarding, control workflow, physics setup, validation, or deployment.
 - Prefer the control and validation paths before changing runtime parameters in scripts or campaigns.
 - Use tutorial outputs as reproducible checkpoints and record results in your session log.
-
