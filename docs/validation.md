@@ -339,6 +339,27 @@ against the Python reference, deployment-target oscillator count coverage, and
 timestep-refinement convergence under the declared tolerance. Python-only
 reports remain bounded runtime evidence and do not satisfy deployment claims.
 
+Grad-Shafranov solver evidence against the exact Solov'ev analytic equilibrium
+can be regenerated with:
+
+```bash
+python -m validation.validate_grad_shafranov_solovev \
+  --report validation/reports/grad_shafranov_solovev.json
+```
+
+The produced JSON uses `scpn-control.grad-shafranov-solovev-validation.v1` and
+binds its own payload by SHA-256. It confirms that the production discrete
+operator `FusionKernel._apply_gs_operator` (sharing the `_mg_residual` stencil)
+and the production Red-Black SOR smoother `_sor_step` both converge at second
+order in the mesh spacing to the exact field
+`ψ = c1 R⁴/8 + c2 Z²`, `Δ*ψ = c1 R² + 2 c2`. The Rust
+`scpn_control_rs.py_multigrid_solve` binding is recorded for transparency: its
+fixed-cycle multigrid does not converge on this forcing and is not admitted,
+consistent with the Rust/Python SOR parity gap in
+`tests/test_rust_python_parity.py`. This validates the equilibrium
+discretisation and SOR solver against an analytic benchmark; facility-grade
+EFIT/GEQDSK reconstruction claims still require matched external equilibria.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

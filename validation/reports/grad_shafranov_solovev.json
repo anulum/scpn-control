@@ -1,0 +1,96 @@
+{
+  "generated_utc": "2026-06-14T09:26:56Z",
+  "geometry": {
+    "a": 0.5,
+    "c1": 1.0,
+    "c2": 0.5,
+    "r0": 1.7,
+    "r_max": 2.45,
+    "r_min": 0.95,
+    "z_max": 0.75,
+    "z_min": -0.75
+  },
+  "min_order": 1.8,
+  "operator_error_finest": 6.10351614893645e-05,
+  "operator_error_gate": 0.0005,
+  "operator_order": 1.9999999272728683,
+  "operator_passed": true,
+  "operator_records": [
+    {
+      "error": 0.0005493164067589262,
+      "mesh_spacing": 0.04687500000000001,
+      "resolution": 33
+    },
+    {
+      "error": 0.00024414062642108547,
+      "mesh_spacing": 0.03125000000000001,
+      "resolution": 49
+    },
+    {
+      "error": 0.00013732910260433329,
+      "mesh_spacing": 0.023437500000000003,
+      "resolution": 65
+    },
+    {
+      "error": 6.10351614893645e-05,
+      "mesh_spacing": 0.015625000000000003,
+      "resolution": 97
+    }
+  ],
+  "passed": true,
+  "payload_sha256": "2a0b062ef8578be523916f92bcbd4905752d6fbd74568907f4546006dc118a1c",
+  "reconstruction_nrmse_finest": 1.1939229649189492e-06,
+  "reconstruction_nrmse_gate": 0.0001,
+  "reconstruction_order": 2.018732165798584,
+  "reconstruction_passed": true,
+  "reconstruction_records": [
+    {
+      "converged": true,
+      "iterations": 651,
+      "mesh_spacing": 0.04687500000000001,
+      "nrmse": 1.0969371872753927e-05,
+      "residual_inf": 1.9237411663652892e-10,
+      "resolution": 33
+    },
+    {
+      "converged": true,
+      "iterations": 1451,
+      "mesh_spacing": 0.03125000000000001,
+      "nrmse": 4.825336500499185e-06,
+      "residual_inf": 4.432383349239899e-10,
+      "resolution": 49
+    },
+    {
+      "converged": true,
+      "iterations": 2551,
+      "mesh_spacing": 0.023437500000000003,
+      "nrmse": 2.7002680112030824e-06,
+      "residual_inf": 7.165930071550974e-10,
+      "resolution": 65
+    },
+    {
+      "converged": true,
+      "iterations": 5701,
+      "mesh_spacing": 0.015625000000000003,
+      "nrmse": 1.1939229649189492e-06,
+      "residual_inf": 9.718208460185451e-10,
+      "resolution": 97
+    }
+  ],
+  "resolutions": [
+    33,
+    49,
+    65,
+    97
+  ],
+  "rust_available": true,
+  "rust_record": {
+    "boundary_preserved": true,
+    "meets_analytic_tolerance": false,
+    "nrmse": 0.1563842134479154,
+    "residual_inf": 13.852363282355917,
+    "resolution": 97
+  },
+  "schema_version": "scpn-control.grad-shafranov-solovev-validation.v1",
+  "target_id": "local-grad-shafranov-solovev"
+}

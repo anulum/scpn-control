@@ -10,10 +10,18 @@
 
 ## Unreleased
 
+### Added
+- Added a Grad-Shafranov Solov'ev analytic-equilibrium validator that checks the
+  production discrete operator and Red-Black SOR smoother for second-order
+  convergence, emits tamper-evident sealed evidence, and records the Rust
+  multigrid backend behaviour for transparency.
+
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
   damping frequency profile, fail-closed damping validation, and updated
   physics traceability evidence.
+- Updated the Grad-Shafranov fusion-kernel traceability entry, physics methods
+  reference, and validation guide with the Solov'ev convergence evidence.
 
 ## [0.20.7] - 2026-06-05
 

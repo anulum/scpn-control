@@ -1416,6 +1416,9 @@
       "fidelity_status": "validation_gap",
       "model_references": [
         "Grad-Shafranov equilibrium equation",
+        "Solov'ev 1968 exact toroidal equilibrium solution",
+        "Cerfon and Freidberg 2010 analytic Grad-Shafranov solutions",
+        "Jardin 2010 Computational Methods in Plasma Physics",
         "Green-function tokamak coil-response references",
         "repository Rust/Python fusion-kernel parity contract"
       ],
@@ -1423,24 +1426,39 @@
       "public_claim_allowed": false,
       "required_actions": [
         "Validate reconstructed equilibria against EFIT, GEQDSK, or published fixed-boundary benchmark cases",
-        "Preserve residual norms, convergence metadata, and Rust/Python parity evidence for every validation artefact"
+        "Preserve residual norms, convergence metadata, and Rust/Python parity evidence for every validation artefact",
+        "Close the Python multigrid V-cycle divergence and the Rust py_multigrid_solve non-convergence on the Solov'ev manufactured forcing so all solver backends reproduce the analytic equilibrium"
       ],
       "unit_contract": "SI metres, webers per radian, tesla, amperes, pascals, source derivatives, grid spacings, and dimensionless convergence tolerances.",
       "validation_evidence": [
         "tests/test_fusion_kernel.py",
         "tests/test_geqdsk_regression.py",
-        "tests/test_rust_python_parity.py"
+        "tests/test_rust_python_parity.py",
+        "validation/validate_grad_shafranov_solovev.py production discrete-operator and SOR-solver second-order convergence against the exact Solov'ev equilibrium with tamper-evident sealed evidence",
+        "tests/test_grad_shafranov_solovev_validation.py analytic-identity, operator-convergence, SOR-reconstruction, Rust-backend-record, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_fusion_kernel.py",
         "tests/test_geqdsk_regression.py",
         "tests/test_rust_python_parity.py",
-        "src/scpn_control/core/fusion_kernel.py"
+        "src/scpn_control/core/fusion_kernel.py",
+        "validation/validate_grad_shafranov_solovev.py",
+        "validation/reports/grad_shafranov_solovev.json",
+        "validation/reports/grad_shafranov_solovev.md",
+        "tests/test_grad_shafranov_solovev_validation.py",
+        "docs/physics_methods.md",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/fusion_kernel.py"
       ],
-      "validity_domain": "Local equilibrium-kernel regression and parity checks; not a facility-grade equilibrium reconstruction claim.",
+      "evidence": [
+        "validation/validate_grad_shafranov_solovev.py schema-versioned digest-bound Solov'ev convergence validator",
+        "validation/reports/grad_shafranov_solovev.json sealed second-order operator and SOR-reconstruction evidence with the Rust multigrid backend record",
+        "validation/reports/grad_shafranov_solovev.md human-readable convergence and backend summary",
+        "tests/test_grad_shafranov_solovev_validation.py digest, tamper, analytic-identity, convergence-order, and unconverged-budget checks"
+      ],
+      "validity_domain": "The production discrete Grad-Shafranov operator (FusionKernel._apply_gs_operator, sharing the _mg_residual stencil) and the production Red-Black SOR smoother (_sor_step) are validated to second-order convergence against the exact Solov'ev analytic equilibrium with tamper-evident sealed evidence; the Python _multigrid_vcycle and the Rust py_multigrid_solve binding do not reproduce the analytic equilibrium on this forcing and are recorded but not admitted. Local equilibrium-kernel regression and analytic-benchmark convergence only; not a facility-grade equilibrium reconstruction claim against EFIT or GEQDSK.",
       "external_validation_tracker_issue": 48
     },
     {
