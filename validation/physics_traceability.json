@@ -730,7 +730,9 @@
         "tests/test_pellet_injection.py Parks-Turnbull NGS ablation and pellet trajectory checks",
         "validation/benchmark_density_control_claims.py publishes deterministic bounded synthetic claim evidence with explicit facility-calibrated claim exclusion",
         "validation/reports/density_control_claims.json records bounded geometry, transport, actuator, diagnostic, CFL, Greenwald, source-integral, and inventory evidence",
-        "validation/validate_density_reference.py strict density reference artefact gate"
+        "validation/validate_density_reference.py strict density reference artefact gate",
+        "validation/validate_density_control.py validates the Greenwald limit I_p/(pi a^2), the volume-averaged Greenwald fraction, the circular flux-surface volume elements V' and V, the gas-puff, neutral-beam, and recycling source normalisation (particle conservation of the source integral), the cryopump edge sink, the diffusion operator vanishing on a uniform interior, and the Greenwald scaling laws against exact closed forms, with tamper-evident sealed evidence",
+        "tests/test_density_control_validation.py Greenwald-limit, Greenwald-fraction, volume-element, source-conservation, cryopump-sink, diffusion-invariance, scaling-law, configuration-guard, and evidence-seal checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/density_controller.py",
@@ -741,13 +743,23 @@
         "validation/reports/density_control_claims.json",
         "validation/reports/density_control_claims.md",
         "validation/validate_density_reference.py",
+        "validation/validate_density_control.py",
+        "validation/reports/density_control.json",
+        "validation/reports/density_control.md",
+        "tests/test_density_control_validation.py",
         "docs/api.md",
         "docs/benchmarks.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/density_controller.py"
       ],
-      "validity_domain": "Bounded density-control, particle-source, Greenwald-limit, finite-volume transport, and claim-admission regression evidence on declared radial geometry; not facility-calibrated fuelling, exhaust, or particle-balance validation unless matched Greenwald and particle-inventory references pass the admission gate.",
+      "evidence": [
+        "validation/validate_density_control.py schema-versioned digest-bound Greenwald, volume-element, source-conservation, cryopump-sink, and diffusion-operator validator",
+        "validation/reports/density_control.json sealed exact-closed-form particle-balance evidence",
+        "validation/reports/density_control.md human-readable Greenwald, source-conservation, and diffusion-operator summary",
+        "tests/test_density_control_validation.py Greenwald, volume-element, source-conservation, cryopump, diffusion-invariance, scaling, configuration-guard, and tamper checks"
+      ],
+      "validity_domain": "Bounded density-control, particle-source, Greenwald-limit, finite-volume transport, and claim-admission regression evidence on declared radial geometry, with the production Greenwald limit and volume-averaged fraction, the circular flux-surface volume elements, the gas-puff, neutral-beam, and recycling source normalisation, the cryopump edge sink, and the diffusion operator's vanishing on constants now validated against their exact closed forms to machine precision; not facility-calibrated fuelling, exhaust, or particle-balance validation unless matched Greenwald and particle-inventory references pass the admission gate. The pellet neutral-gas-shielding ablation profile remains a separate bounded model outside this exact-closed-form scope.",
       "external_validation_tracker_issue": 51
     },
     {

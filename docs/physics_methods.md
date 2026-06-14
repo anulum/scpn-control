@@ -414,6 +414,32 @@ $$\int V_{\rm loop}\,\mathrm{d}t = L_p\,\mathrm{d}I_p + R_p I_p\,\mathrm{d}t,
   commissioning claims still require measured loop-voltage or scenario
   references.
 
+### Density Control and Particle Balance
+Line-averaged density control against the Greenwald limit, with a cylindrical
+finite-volume particle-transport equation fed by normalised gas-puff,
+neutral-beam, and recycling sources and drained by a cryopump sink.
+
+$$n_{\rm GW} = \frac{I_p}{\pi a^2}, \qquad
+  f_{\rm GW} = \frac{\langle n \rangle}{n_{\rm GW}}, \qquad
+  \langle n \rangle = \frac{\int n\,V'\,\mathrm{d}\rho}{\int V'\,\mathrm{d}\rho},
+  \qquad V' = 4\pi^2 R_0 a^2 \rho$$
+
+- **Source**: Greenwald, *Plasma Phys. Control. Fusion* 44, R27 (2002); ITER
+  Physics Basis, *Nucl. Fusion* 39, 2175, §4.2 (1999).
+- **Implementation**: `src/scpn_control/control/density_controller.py:285`.
+- **Validation**: The production `ParticleTransportModel` and `DensityController`
+  are checked against their exact closed forms — the Greenwald limit
+  $I_p/(\pi a^2)$ (with linear $I_p$ and inverse-square $a$ scaling), the
+  volume-averaged Greenwald fraction, the circular flux-surface volume elements
+  $V'$ and $V$, the gas-puff, neutral-beam, and recycling source normalisation
+  (particle conservation of the source integral, with the neutral-beam rate
+  $P/E_{\rm beam}/e$), the cryopump edge sink, and the finite-volume diffusion
+  operator vanishing on a spatially uniform interior — all to machine precision,
+  in `validation/validate_density_control.py` with tests in
+  `tests/test_density_control_validation.py`. The pellet neutral-gas-shielding
+  ablation profile remains a separate bounded model, and facility-calibrated
+  fuelling or exhaust claims still require measured particle-balance references.
+
 ### Kuramoto-Sakaguchi Phase Dynamics
 $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \sin(\Psi - \theta_i)$$
 

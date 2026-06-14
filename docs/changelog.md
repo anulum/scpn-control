@@ -83,6 +83,12 @@
   the ramp/flat-top/ramp-down scenario decomposition and margin, the consumption
   integrator, the linear ramp optimiser, and the inductive and Ejima flux scaling
   laws against exact closed forms, with tamper-evident sealed evidence.
+- Added a density-control particle-balance validator that checks the Greenwald
+  limit, the volume-averaged Greenwald fraction, the circular flux-surface volume
+  elements, the gas-puff, neutral-beam, and recycling source normalisation, the
+  cryopump edge sink, the diffusion operator vanishing on a uniform interior, and
+  the Greenwald scaling laws against exact closed forms, with tamper-evident
+  sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -105,6 +111,9 @@
 - Updated the volt-second flux-budget traceability entry, physics methods
   reference, and validation guide with the inductive, Ejima, resistive, flat-top
   budget-closure, decomposition, integrator, optimiser, and scaling-law evidence.
+- Updated the density-control traceability entry, physics methods reference, and
+  validation guide with the Greenwald-limit, volume-element, source-conservation,
+  cryopump-sink, and diffusion-operator closed-form evidence.
 - Updated the RZIP vertical-stability traceability entry, physics methods
   reference, and validation guide with the no-wall eigenvalue and scaling-law
   evidence.

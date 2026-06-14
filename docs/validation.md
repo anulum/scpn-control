@@ -697,6 +697,29 @@ remains a documented rough scaling outside this exact-closed-form scope. This
 validates the flux-accounting physics; facility pulse-design or central-solenoid
 commissioning claims still require measured loop-voltage or scenario references.
 
+Density-control particle-balance evidence against exact closed forms can be
+regenerated with:
+
+```bash
+python -m validation.validate_density_control \
+  --report validation/reports/density_control.json
+```
+
+The produced JSON uses `scpn-control.density-control-validation.v1` and binds its
+own payload by SHA-256. It checks the production `ParticleTransportModel` and
+`DensityController` against their exact closed forms: the Greenwald limit
+`n_GW = I_p/(pi a^2)` (with linear `I_p` and inverse-square `a` scaling), the
+volume-averaged Greenwald fraction `<n>/n_GW`, the circular flux-surface volume
+elements `V' = 4 pi^2 R0 a^2 rho` and `V = 2 pi^2 R0 (a rho)^2`, the gas-puff,
+neutral-beam, and recycling source normalisation (the source profiles integrate
+to their requested particle rate, with the neutral-beam rate `P/E_beam/e`), the
+cryopump edge sink, and the finite-volume diffusion operator vanishing on a
+spatially uniform interior — all to machine precision. The pellet
+neutral-gas-shielding ablation profile remains a separate bounded model outside
+this exact-closed-form scope. This validates the particle-balance physics;
+facility-calibrated fuelling or exhaust claims still require measured
+particle-balance references.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the
