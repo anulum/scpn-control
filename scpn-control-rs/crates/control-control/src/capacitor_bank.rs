@@ -396,15 +396,15 @@ impl CapacitorBank {
 
     /// Run conservative pulse admissibility guards against current bank state.
     pub fn feasibility(&self, pulse: PulseSpec) -> Result<(bool, String), CapacitorBankError> {
-        let voltage_now = self.voltage_v.abs();
-        if voltage_now > 0.0 {
-            let max_natural_current = voltage_now / self.spec.natural_impedance_ohm();
+        let total_energy = self.total_stored_energy_j();
+        if total_energy > 0.0 {
+            let max_natural_current = (2.0 * total_energy / self.spec.inductance_h).sqrt();
             if pulse.peak_current_a > max_natural_current {
                 return Ok((
                     false,
                     format!(
-                        "requested peak current {:.3e} A exceeds bank natural peak {:.3e} A at |v0| = {:.3e} V",
-                        pulse.peak_current_a, max_natural_current, voltage_now
+                        "requested peak current {:.3e} A exceeds bank natural peak {:.3e} A from stored RLC energy {:.3e} J",
+                        pulse.peak_current_a, max_natural_current, total_energy
                     ),
                 ));
             }
@@ -415,7 +415,7 @@ impl CapacitorBank {
             * pulse.peak_current_a
             * rms_squared_factor
             * pulse.duration_s;
-        let available_energy = self.state().energy_j();
+        let available_energy = total_energy;
         if rough_resistive_loss > available_energy {
             return Ok((
                 false,
@@ -719,6 +719,19 @@ mod tests {
         let (feasible, reason) = bank.feasibility(pulse).expect("feasibility evaluates");
         assert!(!feasible);
         assert!(reason.contains("natural peak"));
+    }
+
+    #[test]
+    fn feasibility_uses_total_rlc_energy_when_inductor_already_stores_current() {
+        let spec = underdamped_spec();
+        let bank = CapacitorBank::new(spec, 100.0, 700.0).expect("valid bank");
+        let pulse = PulseSpec::new(650.0, 1e-6, PulseWaveform::Rect).expect("valid pulse");
+        let (feasible, reason) = bank.feasibility(pulse).expect("feasibility evaluates");
+        assert!(feasible);
+        assert_eq!(reason, "ok");
+        assert!(
+            pulse.peak_current_a < (2.0 * bank.total_stored_energy_j() / spec.inductance_h).sqrt()
+        );
     }
 
     #[test]

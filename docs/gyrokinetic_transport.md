@@ -176,4 +176,3 @@ Use this page to compare transport model routing and fallback sequencing.
 - Use it when deciding which transport path is active for a benchmark or campaign run.
 - Confirm model selection against campaign requirements and compute-budget constraints.
 - Keep transport-mode changes coupled with reproducible benchmark evidence and boundary checks.
-
