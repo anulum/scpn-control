@@ -223,4 +223,3 @@ Use this glossary as the shared terminology baseline for discussions and code re
 - Use term definitions before introducing new internal naming in docs or code comments.
 - Keep wording consistent with `docs/physics_methods.md` and `docs/theory.md`.
 - Expand this file when new scientific symbols become stable in the public interface.
-

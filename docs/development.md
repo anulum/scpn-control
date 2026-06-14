@@ -136,4 +136,3 @@ Use this guide for change workflow in `scpn-control` itself.
 - Run setup and local checks here before editing core modules.
 - Use the workflow before opening implementation tasks that affect CI or packaging.
 - Keep claim-boundary and admission checks in lockstep with this guide when production-relevant files change.
-

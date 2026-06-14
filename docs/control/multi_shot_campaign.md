@@ -132,4 +132,3 @@ Use this guide when orchestrating repeated campaign runs across multiple shots.
 - Review this before scheduling campaign batches or changing replay metadata expectations.
 - Keep campaign orchestration consistent with control-runtime and data contracts in companion pages.
 - Verify that output artifacts remain stable when scaling shot count.
-

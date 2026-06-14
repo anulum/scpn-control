@@ -82,6 +82,29 @@ energy_initial_J - energy_remaining_J
 This contract catches drift between the RLC state update and the energy ledger.
 It does not replace hardware metrology, relay timing, or plant protection logic.
 
+## Pulse admissibility
+
+`CapacitorBank.feasibility()` is a conservative pre-admission guard for
+controller planning. It bounds requested pulse peak current from total stored
+series-RLC energy, not capacitor voltage alone:
+
+```text
+I_bound = sqrt(2 E_total / L)
+```
+
+This matters after a prior pulse step because the series inductor may still
+hold magnetic energy even when capacitor voltage is low. The same total-energy
+ledger is used for the rough resistive-loss guard:
+
+```text
+R I_peak^2 f_waveform duration <= E_total
+```
+
+The guard is intentionally not a switch, relay, insulation, or interlock model.
+It only admits whether the bounded CONTROL model has enough stored RLC energy
+for the requested prescribed waveform before scheduler or pulsed-MPC logic uses
+the state.
+
 ## Python example
 
 ```python
@@ -101,6 +124,7 @@ report = bank.discharge(
     n_steps=200,
 )
 assert report.energy_balance_passed
+assert bank.feasibility(PulseSpec(peak_current_A=200.0, duration_s=10e-6))[0]
 ```
 
 ## Rust example
@@ -113,6 +137,8 @@ let mut bank = CapacitorBank::new(spec, 5_000.0, 12.0).expect("valid bank");
 let pulse = PulseSpec::new(500.0, 20e-6, PulseWaveform::HalfSine).expect("valid pulse");
 let report = bank.discharge(pulse, 100e-9, 200).expect("discharge evaluates");
 assert!(report.energy_balance_passed);
+let admission = PulseSpec::new(200.0, 10e-6, PulseWaveform::HalfSine).expect("valid pulse");
+assert!(bank.feasibility(admission).expect("feasibility evaluates").0);
 ```
 
 ## Benchmarking
@@ -142,4 +168,3 @@ Use this page to understand admissible capacitor-bank state transitions in pulse
 - Read before changing series-RLC assumptions or scheduler interactions for shot campaigns.
 - Keep model parameter updates synchronized with pulsed scenario and replay artifacts.
 - Use it alongside `docs/control/pulsed_scenario_scheduler.md` for lifecycle-consistent edits.
-

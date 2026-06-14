@@ -157,7 +157,7 @@ struct PyFusionKernel {
     inner: FusionKernel,
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 struct PyEquilibriumResult {
     #[pyo3(get)]
@@ -348,7 +348,7 @@ struct PySnnPool {
 type PySchedulerCommand = (f64, String, String, String, bool, f64);
 type PyTransitionRecord = (f64, String, String, String);
 
-#[pyclass(name = "PyPulsedScenarioSpec")]
+#[pyclass(name = "PyPulsedScenarioSpec", from_py_object)]
 #[derive(Clone, Copy)]
 struct PyPulsedScenarioSpec {
     inner: ControlPulsedScenarioSpec,
@@ -391,7 +391,7 @@ impl PyPulsedScenarioSpec {
     }
 }
 
-#[pyclass(name = "PyPulsedPlasmaTelemetry")]
+#[pyclass(name = "PyPulsedPlasmaTelemetry", from_py_object)]
 #[derive(Clone, Copy)]
 struct PyPulsedPlasmaTelemetry {
     inner: ControlPulsedPlasmaTelemetry,
@@ -421,7 +421,7 @@ impl PyPulsedPlasmaTelemetry {
     }
 }
 
-#[pyclass(name = "PyCapacitorBankTelemetry")]
+#[pyclass(name = "PyCapacitorBankTelemetry", from_py_object)]
 #[derive(Clone, Copy)]
 struct PyCapacitorBankTelemetry {
     inner: ControlCapacitorBankTelemetry,
@@ -520,7 +520,7 @@ impl PyPulsedScenarioScheduler {
     }
 }
 
-#[pyclass(name = "PyCapacitorBankSpec")]
+#[pyclass(name = "PyCapacitorBankSpec", from_py_object)]
 #[derive(Clone, Copy)]
 struct PyCapacitorBankSpecModel {
     inner: ControlCapacitorBankSpecModel,
@@ -1274,7 +1274,7 @@ impl PySpikingControllerPool {
         };
         self.is_running = true;
 
-        let result = py.allow_threads(|| self.run_native_loop(max_iterations));
+        let result = py.detach(|| self.run_native_loop(max_iterations));
         self.is_running = false;
         result
     }
@@ -2248,7 +2248,7 @@ impl PyVmecSolver {
         pressure: PyReadonlyArray1<'py, f64>,
         iota: PyReadonlyArray1<'py, f64>,
         phi_edge: f64,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let fourier_modes: Vec<VmecFourierMode> = modes
             .into_iter()
             .map(|(m, n, r_cos, r_sin, z_cos, z_sin)| VmecFourierMode {

@@ -283,4 +283,3 @@ Use this document to identify the module boundaries before making engineering ch
 - Start here when deciding whether to modify Rust/PyO3, Python orchestration, or deployment-admission code.
 - Use it as the first checkpoint before changing subsystem APIs or control-loop contracts.
 - Cross-check release claims against this map and `docs/capability_manifest.md` before updating public narratives.
-

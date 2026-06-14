@@ -79,4 +79,3 @@ Use this document as the backlog for unresolved evidence and model-data mismatch
 - Treat each active deficiency as a candidate for the next milestone task order.
 - Link every mitigation to a specific benchmark, validator, or script-based check.
 - Close entries only when reproducer and evidence outputs are committed and rerun.
-
