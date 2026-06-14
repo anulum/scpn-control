@@ -10,7 +10,7 @@
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.7 |
+| Package version | 0.21.0 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -18,10 +18,10 @@
 | Python public classes | 514 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 92 |
+| Validation scripts | 112 |
 | Optional extras | 17 |
-| Python test files | 324 |
-| Public documentation pages | 50 |
+| Python test files | 344 |
+| Public documentation pages | 51 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

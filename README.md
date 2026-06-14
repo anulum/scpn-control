@@ -129,29 +129,32 @@ review. The package provides the contract layer between those worlds.
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
 
-## What is new in v0.20.7
+## What is new in v0.21.0
 
-This release line closes the CON-C pulsed-control acceptance lane that SCPN
-MIF Core needs for reusable pulsed-shot workflows. It does not relax the
-facility, target-hardware, P-EFIT, PREEMPT_RT, or external-code evidence gates.
+This release strengthens validation evidence. Twenty control and physics models
+gained tests that compare their outputs against independently derived exact
+closed-form, analytic, eigenvalue, or conservation-law references, and the
+differentiable-transport facade reached near-complete statement coverage. It
+does not relax the facility, target-hardware, P-EFIT, PREEMPT_RT, or
+external-code evidence gates.
 
-- `PulsedScenarioScheduler v2` now has a Lean liveness proof artefact, a stable
-  MIF-facing import path, public scheduler documentation, and focused regression
-  tests.
-- The capacitor-bank state model now exposes the MIF-compatible
-  `scpn_control.control.capacitor_bank` import surface without duplicating the
-  RLC mathematics.
-- AER observation coverage now includes generated-stream determinism and
-  admission-latch property checks, while local PyO3 parity verifies the Rust
-  decoder and spike-buffer bindings.
-- Geometry-neutral replay v1.1 acceptance now checks eight v1 back-compatibility
-  fixtures and byte-stable v1.1 serialisation.
-- `PulsedShotMPCAdapter` now has a ten-tick scheduler/action integration
-  sequence spanning the full pulsed lifecycle, proving burn admission is limited
-  to the burn state and non-burn states mask burn components to the safe action.
+- Twenty models are now checked against exact references rather than
+  self-consistency fixtures, including the Grad-Shafranov solver against the
+  Solov'ev equilibrium, the Kuramoto runtime against published synchronisation
+  results, structured singular value against exact mu identities, the
+  guiding-centre orbit integrator against conservation laws, and the
+  Modified Rutherford, RZIP, resistive-wall-mode, sawtooth, scrape-off-layer,
+  current-drive, ideal-MHD, EPED, ELM, momentum-transport, runaway-avalanche,
+  halo-current, volt-second, density-control, and DT burn-control models.
+- The differentiable-transport facade reached 99.5% statement coverage with
+  module-specific input-validation, evidence-guard, and JAX-path tests.
+- Strict mypy typing now covers the admission, configuration, current-drive,
+  and real-time EFIT modules.
+- A Rust advisory was cleared (pyo3/numpy 0.25 to 0.29) and numpy, osqp,
+  tornado, hypothesis, pip-audit, ruff, sha2, and socket2 were bumped.
 - Release documentation keeps all new evidence classified as repository
-  acceptance coverage. No new production timing or facility validation claim is
-  admitted by this patch.
+  validation coverage. No new production timing or facility validation claim is
+  admitted by this release.
 
 ## Why this has market value
 
@@ -194,7 +197,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.20.7 |
+| Package version | 0.21.0 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -202,10 +205,10 @@ blocked until the required external artefacts exist.
 | Python public classes | 514 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 92 |
+| Validation scripts | 112 |
 | Optional extras | 17 |
-| Python test files | 324 |
-| Public documentation pages | 50 |
+| Python test files | 344 |
+| Public documentation pages | 51 |
 | GitHub Actions workflows | 8 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -567,7 +570,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.20.7
+git tag v0.21.0
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```

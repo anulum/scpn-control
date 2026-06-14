@@ -12,6 +12,61 @@
 
 No unreleased changes.
 
+## [0.21.0] - 2026-06-15
+
+### Added
+- Validated the Kuramoto phase-synchronisation runtime against published
+  synchronisation results.
+- Validated the Grad-Shafranov equilibrium solver against the Solov'ev exact
+  equilibrium.
+- Validated the structured-singular-value (mu) computation against exact mu
+  identities.
+- Validated the guiding-centre orbit integrator against conservation laws.
+- Validated the transport heat-diffusion solver against analytic results.
+- Validated the neoclassical tearing-mode Modified Rutherford Equation against
+  exact references.
+- Validated RZIP rigid vertical stability against exact eigenvalues.
+- Validated resistive-wall-mode feedback against exact closed forms.
+- Validated the Kadomtsev sawtooth crash against exact conservation laws.
+- Validated the two-point scrape-off-layer model against exact closed forms.
+- Validated the auxiliary current-drive model against exact closed forms.
+- Validated ideal-MHD stability metrics against exact closed forms.
+- Validated the EPED pedestal model against exact construction relations.
+- Validated the ELM peeling-ballooning boundary and crash against exact forms.
+- Validated toroidal momentum transport against exact closed forms.
+- Validated the runaway-electron avalanche model against exact closed forms.
+- Validated the Fitzpatrick halo-current L/R circuit against exact closed forms.
+- Validated the volt-second flux budget against exact closed forms.
+- Validated density-control particle balance against exact closed forms.
+- Validated DT burn-control alpha-heating algebra against exact closed forms.
+
+### Changed
+- Raised differentiable-transport facade test coverage to 99.5% with
+  module-specific validation, evidence-guard, and JAX-path tests.
+- Enforced strict mypy typing for the admission, configuration, current-drive,
+  and real-time EFIT modules.
+- Hardened the momentum-damping transport contract and capacitor-bank energy
+  admission.
+- Resealed multi-shot campaign evidence payload digests.
+- Regenerated the capability manifest for current-drive typed dictionaries and
+  the physics-traceability report.
+
+### Fixed
+- Restored ruff lint and format compliance on the control core.
+- Scoped per-module mypy strict flags and fixed the admission consumer.
+
+### Security
+- Bumped Rust pyo3 and numpy bindings from 0.25 to 0.29 to clear an advisory.
+- Bumped Rust sha2 0.10 to 0.11 and socket2 0.5 to 0.6.
+- Bumped numpy to 2.2.6, osqp to 1.1.2, tornado to 6.5.6, hypothesis to
+  6.155.2, pip-audit to 2.10.1, and ruff to 0.15.16.
+
+### Repository hygiene
+- Bumped codecov-action from 6 to 7 and stopped failing CI on transient
+  Codecov upload errors.
+- Expanded user-oriented scope and orientation sections across the guides and
+  normalised trailing newlines.
+
 ## [0.20.7] - 2026-06-05
 
 ### Added
