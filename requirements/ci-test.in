@@ -1,8 +1,8 @@
 pytest==9.0.3
 pytest-cov==7.1.0
-hypothesis==6.155.1
+hypothesis==6.155.2
 mypy==2.1.0
-osqp==1.1.1
+osqp==1.1.2
 z3-solver==4.16.0.0
 exceptiongroup==1.3.1; python_version < "3.11"
 tomli==2.4.1; python_version < "3.11"
