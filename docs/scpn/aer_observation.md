@@ -120,4 +120,3 @@ Use this page for Address-Event Representation observation wiring in control loo
 - Apply this when introducing or changing neuromorphic observation adapters.
 - Keep stream-format assumptions synchronized with downstream feature-contract checks.
 - Validate with deterministic traces before declaring production interoperability.
-

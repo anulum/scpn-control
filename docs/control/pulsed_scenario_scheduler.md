@@ -112,4 +112,3 @@ Use this document to map pulsed-control lifecycle transitions and transition pre
 - Use it before changing state ordering, dwell periods, or ring-stage behavior.
 - Keep any edits aligned with admission and replay requirements in related control docs.
 - Validate scheduler changes with representative campaign traces before release.
-

@@ -455,5 +455,5 @@ fn report_digest(report: &MultiShotCampaignReport) -> String {
             hasher.update(state.as_bytes());
         }
     }
-    format!("{:x}", hasher.finalize())
+    crate::to_hex(&hasher.finalize())
 }

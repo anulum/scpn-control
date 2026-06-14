@@ -8,18 +8,18 @@
 
 # Rust Capacitor-Bank Energy Ledger Benchmark
 
-- Generated unix seconds: `1780581701`
+- Generated unix seconds: `1781393862`
 - Evidence class: `"local_regression"`
 - Production claim allowed: `false`
-- CPU affinity: `"4-5"`
-- Load average start: `"4.98 5.15 4.52 2/2925 2220886"`
-- Load average end: `"4.98 5.15 4.52 2/2925 2220886"`
+- CPU affinity: `"0-9"`
+- Load average start: `"21.14 19.65 18.38 21/5305 3520503"`
+- Load average end: `"21.14 19.65 18.38 22/5305 3520503"`
 - Discharge steps per sample: `200`
 - Step size s: `1e-7`
 
 | Samples | Mean us | Median us | p95 us | p99 us |
 |---:|---:|---:|---:|---:|
-| 500 | 3.641378 | 3.499000 | 4.039000 | 5.263000 |
+| 500 | 15.896618 | 4.023000 | 4.776000 | 5.581000 |
 
 ## Last energy ledger
 

@@ -118,6 +118,13 @@ files = [
     "src/scpn_control/",
 ]
 
+# Per-module strict typing for the control/config boundary modules. The strict
+# component flags are listed explicitly because mypy applies the `strict = true`
+# meta-flag globally even inside a per-module override, silently enforcing strict
+# checks across the whole package. Only flags mypy accepts per-module are listed
+# (warn_redundant_casts and warn_unused_configs are global-only). disallow_any_generics
+# is deferred until the bare numpy.ndarray annotations in current_drive and
+# realtime_efit are parametrised.
 [[tool.mypy.overrides]]
 module = [
     "scpn_control.core.current_drive",
@@ -125,7 +132,14 @@ module = [
     "scpn_control.core.runtime_admission",
     "scpn_control.core.tokamak_config"
 ]
-strict = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+warn_unused_ignores = true
+strict_equality = true
+no_implicit_reexport = true
+extra_checks = true
 
 [[tool.mypy.overrides]]
 module = ["matplotlib", "matplotlib.*"]

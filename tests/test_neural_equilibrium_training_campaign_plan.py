@@ -79,7 +79,9 @@ def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path)
     _write_mast_report(mast_report)
     _write_public_data_manifest(public_root)
 
-    plan = build_plan(CampaignInputs(mast_dataset_report=mast_report, storage_root=tmp_path, public_data_root=public_root))
+    plan = build_plan(
+        CampaignInputs(mast_dataset_report=mast_report, storage_root=tmp_path, public_data_root=public_root)
+    )
 
     assert plan["schema_version"] == REPORT_SCHEMA
     assert plan["status"] == "prepared"
@@ -92,7 +94,10 @@ def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path)
     assert package["weights_out"] == "artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz"
     assert package["admitted_compute_host_kinds"] == ["workstation", "external_cloud"]
     assert package["forbidden_training_hosts"] == ["storage host"]
-    assert any("weights_out must not be under storage-host dataset storage" in item for item in package["pre_run_admission_gates"])
+    assert any(
+        "weights_out must not be under storage-host dataset storage" in item
+        for item in package["pre_run_admission_gates"]
+    )
     assert plan["prepared_dataset_lanes"][0]["status"] == "prepared_on_storage"
     assert "dry-run trainer" in plan["prepared_dataset_lanes"][0]["next_action"]
     assert "workstation or external cloud" in plan["prepared_dataset_lanes"][0]["next_action"]
@@ -140,7 +145,9 @@ def test_write_report_records_gpu_budget_table(tmp_path: Path) -> None:
     public_root = tmp_path / "public"
     _write_mast_report(mast_report)
     _write_public_data_manifest(public_root)
-    plan = build_plan(CampaignInputs(mast_dataset_report=mast_report, storage_root=tmp_path, public_data_root=public_root))
+    plan = build_plan(
+        CampaignInputs(mast_dataset_report=mast_report, storage_root=tmp_path, public_data_root=public_root)
+    )
 
     write_report(plan, tmp_path / "plan.json", tmp_path / "plan.md")
 

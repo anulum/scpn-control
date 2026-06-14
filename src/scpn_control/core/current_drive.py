@@ -24,6 +24,7 @@ class CurrentDriveMetricsDict(TypedDict, total=False):
     peak_current_density_relative_error: float
     nbi_slowing_down_relative_error: float
 
+
 class CurrentDriveArtifactDict(TypedDict, total=False):
     source: str
     reference_dataset_id: str
@@ -31,6 +32,7 @@ class CurrentDriveArtifactDict(TypedDict, total=False):
     reference_case_count: int
     units: dict[str, str]
     metrics: CurrentDriveMetricsDict
+
 
 # SI constants
 E_CHARGE = 1.602176634e-19  # C

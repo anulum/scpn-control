@@ -100,7 +100,7 @@ fn payload_sha256(payload: &Value) -> String {
     let encoded = serde_json::to_vec(payload).expect("payload encodes");
     let mut hasher = Sha256::new();
     hasher.update(encoded);
-    format!("{:x}", hasher.finalize())
+    control_control::to_hex(&hasher.finalize())
 }
 
 fn write_markdown(path: PathBuf, payload: &Value) {

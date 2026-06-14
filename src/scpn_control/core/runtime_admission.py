@@ -20,14 +20,12 @@ from __future__ import annotations
 import os
 import platform
 import time
+import sys
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
 
-from collections.abc import Mapping, Sequence
-
-import sys
-if sys.platform != 'win32':
+if sys.platform != "win32":
     import resource as _resource
 else:
     _resource = None  # type: ignore[assignment]

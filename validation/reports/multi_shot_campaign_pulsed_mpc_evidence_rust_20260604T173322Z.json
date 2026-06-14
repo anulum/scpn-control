@@ -13,7 +13,7 @@
   },
   "evidence_class": "local_regression",
   "generated_unix_s": 1780595136,
-  "payload_sha256": "ff585c98168e513559724b1f3f7c4d1cd3ffe5a822b5cde34fa261b556a388ab",
+  "payload_sha256": "d86bc999f693b703e6d79852a3db0ae527c0e93d30d4b9dc9b4b39f0f39259f7",
   "production_claim_allowed": false,
   "result": {
     "last_passed_count": 2,

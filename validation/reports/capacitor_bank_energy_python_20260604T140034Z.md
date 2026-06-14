@@ -8,18 +8,18 @@
 
 # Capacitor-Bank Energy Ledger Benchmark
 
-- Generated UTC: `2026-06-04T14:00:35.721186+00:00`
+- Generated UTC: `2026-06-13T23:37:44.282340+00:00`
 - Evidence class: `local_regression`
 - Production claim allowed: `False`
-- CPU affinity: `[4, 5]`
-- Load average start: `(5.92919921875, 5.380859375, 4.5478515625)`
-- Load average end: `(5.92919921875, 5.380859375, 4.5478515625)`
+- CPU affinity: `[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]`
+- Load average start: `(21.140625, 19.6513671875, 18.37646484375)`
+- Load average end: `(20.328125, 19.50732421875, 18.33642578125)`
 - Discharge steps per sample: `200`
 - Step size s: `1e-07`
 
 | Samples | Mean us | Median us | p95 us | p99 us |
 |---:|---:|---:|---:|---:|
-| 500 | 663.957296 | 640.302500 | 842.915000 | 989.046000 |
+| 500 | 1274.536338 | 1330.647000 | 1630.417000 | 1832.570000 |
 
 ## Last energy ledger
 
