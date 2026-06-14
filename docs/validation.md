@@ -402,6 +402,28 @@ total speed. This validates the orbit integrator and drift physics against
 analytic conservation laws; external orbit-code, banana-width, and measured
 fast-ion loss claims still require matched reference artefacts.
 
+Transport heat-diffusion evidence against exact analytic references can be
+regenerated with:
+
+```bash
+python -m validation.validate_transport_diffusion \
+  --report validation/reports/transport_diffusion.json
+```
+
+The produced JSON uses `scpn-control.transport-diffusion-validation.v1` and binds
+its own payload by SHA-256. It confirms the production cylindrical diffusion
+operator `TransportSolver._explicit_diffusion_rhs` reproduces the exact Bessel
+eigenvalue `L[J0(lambda rho)] = -(chi lambda^2 / a^2) J0` at second order, and
+the Crank-Nicolson tridiagonal solve (`_build_cn_tridiag` + `_thomas_solve`)
+recovers the manufactured steady state `T* = 1 - rho^3` (source
+`S = 9 chi rho / a^2`) at second order. The polyglot leg checks that the Rust
+`scpn_control_rs.py_thomas_solve` — the compute primitive used by the Rust
+`transport_step` — reproduces the Python `_thomas_solve` solution of the
+identical Crank-Nicolson system to machine precision. This validates the
+diffusion discretisation and linear-solver chain against analytic references;
+facility-calibrated integrated-modelling claims still require a measured
+discharge or published benchmark.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

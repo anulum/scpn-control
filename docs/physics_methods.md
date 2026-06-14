@@ -56,6 +56,20 @@ $$\frac{3}{2} n \frac{\partial T}{\partial t} = \frac{1}{r} \frac{\partial}{\par
 - **Source**: Wesson, *Tokamaks* (2011) Ch. 3.
 - **Implementation**: `src/scpn_control/core/integrated_transport_solver.py:850`.
 - **Simplifications**: 1D radial approximation on flux surfaces.
+- **Validation**: The production cylindrical diffusion operator
+  `TransportSolver._explicit_diffusion_rhs` is checked against the exact Bessel
+  eigenvalue $L[J_0(\lambda\rho)] = -(\chi\lambda^2/a^2)\,J_0(\lambda\rho)$, and
+  the Crank-Nicolson tridiagonal solve (`_build_cn_tridiag` + `_thomas_solve`)
+  against the manufactured steady state $T^*=1-\rho^3$ with source
+  $S=9\chi\rho/a^2$; both converge at second order in $\Delta\rho$ (operator
+  order $\approx 2.00$, steady-state order $\approx 1.93$) in
+  `validation/validate_transport_diffusion.py`, with tests in
+  `tests/test_transport_diffusion_validation.py`. The Python `_thomas_solve` and
+  the Rust `scpn_control_rs.py_thomas_solve` (used by the Rust `transport_step`)
+  agree to machine precision, validating the polyglot diffusion-solve chain.
+  This validates the diffusion discretisation and linear solver against analytic
+  references; facility-calibrated integrated-modelling claims still require a
+  measured discharge or published benchmark.
 
 ### Chang-Hinton Neoclassical Transport
 $$\chi_i = 0.66 (1 + 1.54 \epsilon) q^2 \rho_i^2 \nu_{ii} / (\epsilon^{3/2} (1 + 0.74 \nu_*^{2/3}))$$

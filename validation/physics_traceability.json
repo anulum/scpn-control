@@ -943,6 +943,9 @@
       "model_references": [
         "Chang-Hinton neoclassical transport model",
         "Sauter et al. 1999 bootstrap-current fits",
+        "Wesson 2011 radial transport equations",
+        "Crank and Nicolson 1947 implicit diffusion scheme",
+        "Abramowitz and Stegun 1965 Bessel functions",
         "repository integrated transport solver contract"
       ],
       "module_path": "src/scpn_control/core/integrated_transport_solver.py",
@@ -955,18 +958,34 @@
       "validation_evidence": [
         "tests/test_integrated_transport_solver.py",
         "tests/test_transport_energy_conservation.py",
-        "tests/test_transport_neoclassical_guards.py"
+        "tests/test_transport_neoclassical_guards.py",
+        "validation/validate_transport_diffusion.py validates the production cylindrical heat-diffusion operator against the exact Bessel eigenvalue and the Crank-Nicolson tridiagonal solve against a manufactured steady state, both at second order, and checks Python/Rust Thomas-solver parity, with tamper-evident sealed evidence",
+        "tests/test_transport_diffusion_validation.py operator-eigenvalue, manufactured-steady-state, Python/Rust Thomas-parity, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_integrated_transport_solver.py",
         "tests/test_transport_energy_conservation.py",
         "tests/test_transport_neoclassical_guards.py",
-        "src/scpn_control/core/integrated_transport_solver.py"
+        "src/scpn_control/core/integrated_transport_solver.py",
+        "scpn-control-rs/crates/control-core/src/transport.rs",
+        "scpn-control-rs/crates/control-math/src/tridiag.rs",
+        "validation/validate_transport_diffusion.py",
+        "validation/reports/transport_diffusion.json",
+        "validation/reports/transport_diffusion.md",
+        "tests/test_transport_diffusion_validation.py",
+        "docs/physics_methods.md",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/integrated_transport_solver.py"
       ],
-      "validity_domain": "Solver-level transport regression and conservation checks; not a facility-calibrated integrated-modelling result.",
+      "evidence": [
+        "validation/validate_transport_diffusion.py schema-versioned digest-bound diffusion-operator, Crank-Nicolson, and Python/Rust Thomas-parity validator",
+        "validation/reports/transport_diffusion.json sealed second-order operator and steady-state evidence with the Rust Thomas-parity record",
+        "validation/reports/transport_diffusion.md human-readable convergence and parity summary",
+        "tests/test_transport_diffusion_validation.py eigenvalue, manufactured-steady-state, Thomas-parity, and tamper checks"
+      ],
+      "validity_domain": "Solver-level transport regression and conservation checks, with the production cylindrical heat-diffusion operator now validated to second order against the exact Bessel eigenvalue and the Crank-Nicolson tridiagonal solve validated to second order against a manufactured steady state, and the Python and Rust Thomas solvers shown to agree to machine precision; not a facility-calibrated integrated-modelling result.",
       "external_validation_tracker_issue": 49
     },
     {

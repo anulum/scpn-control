@@ -1,0 +1,65 @@
+{
+  "bessel_lambda": 2.4048255576957724,
+  "chi_m2_s": 0.7,
+  "generated_utc": "2026-06-14T13:43:34Z",
+  "min_order": 1.8,
+  "minor_radius_m": 0.5,
+  "operator_error_finest": 3.309143860108982e-05,
+  "operator_error_gate": 0.005,
+  "operator_order": 1.999929345113753,
+  "operator_passed": true,
+  "operator_records": [
+    {
+      "error": 0.0005294111600644585,
+      "mesh_spacing": 0.03125,
+      "resolution": 33
+    },
+    {
+      "error": 0.00013236316189192644,
+      "mesh_spacing": 0.015625,
+      "resolution": 65
+    },
+    {
+      "error": 3.309143860108982e-05,
+      "mesh_spacing": 0.0078125,
+      "resolution": 129
+    }
+  ],
+  "passed": true,
+  "payload_sha256": "0aa3fe34d52468f69fbb3d2345c0b1a50296031fe0ec334fc44e728460eeb682",
+  "resolutions": [
+    33,
+    65,
+    129
+  ],
+  "schema_version": "scpn-control.transport-diffusion-validation.v1",
+  "steady_nrmse_finest": 2.4224830114297153e-05,
+  "steady_nrmse_gate": 0.001,
+  "steady_order": 1.9275131087850972,
+  "steady_passed": true,
+  "steady_records": [
+    {
+      "mesh_spacing": 0.03125,
+      "nrmse": 0.0003505413586868918,
+      "resolution": 33
+    },
+    {
+      "mesh_spacing": 0.015625,
+      "nrmse": 9.261789306045335e-05,
+      "resolution": 65
+    },
+    {
+      "mesh_spacing": 0.0078125,
+      "nrmse": 2.4224830114297153e-05,
+      "resolution": 129
+    }
+  ],
+  "target_id": "local-transport-diffusion",
+  "thomas_available": true,
+  "thomas_passed": true,
+  "thomas_record": {
+    "matches": true,
+    "max_abs_diff": 0.0,
+    "max_abs_diff_vs_dense": 7.649436639667329e-14
+  }
+}

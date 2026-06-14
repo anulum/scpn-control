@@ -23,6 +23,11 @@
   production orbit stepper in a static analytic axisymmetric field and checks
   exact conservation of kinetic energy and canonical toroidal momentum over
   passing and trapped orbits, with tamper-evident sealed evidence.
+- Added a transport heat-diffusion validator that checks the production
+  cylindrical diffusion operator against the exact Bessel eigenvalue and the
+  Crank-Nicolson tridiagonal solve against a manufactured steady state at second
+  order, with Python/Rust Thomas-solver parity and tamper-evident sealed
+  evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -34,6 +39,9 @@
   with the closed-form mu identity evidence.
 - Updated the orbit-following traceability entry and validation guide with the
   guiding-centre conservation evidence.
+- Updated the transport-solver traceability entry, physics methods reference, and
+  validation guide with the heat-diffusion analytic and Python/Rust parity
+  evidence.
 
 ## [0.20.7] - 2026-06-05
 
