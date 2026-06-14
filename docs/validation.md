@@ -382,6 +382,26 @@ local-minimum spread. This validates the static mu upper bound against analytic
 identities; frequency-dependent D-K synthesis and facility robust-control claims
 still require an external validated backend.
 
+Guiding-centre orbit-integrator evidence against exact conservation laws can be
+regenerated with:
+
+```bash
+python -m validation.validate_guiding_centre_conservation \
+  --report validation/reports/guiding_centre_conservation.json
+```
+
+The produced JSON uses
+`scpn-control.guiding-centre-conservation-validation.v1` and binds its own
+payload by SHA-256. It integrates the production `GuidingCenterOrbit` RK4 stepper
+in a static analytic axisymmetric tokamak field and confirms the exact
+guiding-centre invariants: kinetic energy `E = (1/2) m v_par^2 + mu B` and the
+canonical toroidal momentum `p_phi = m R v_par (B_phi/B) + q psi(R, Z)` are both
+conserved to better than `1e-4` relative over passing and trapped (banana)
+orbits for deuterons and 3.5 MeV alphas, and the parallel speed never exceeds the
+total speed. This validates the orbit integrator and drift physics against
+analytic conservation laws; external orbit-code, banana-width, and measured
+fast-ion loss claims still require matched reference artefacts.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

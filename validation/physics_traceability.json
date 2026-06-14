@@ -1620,6 +1620,8 @@
       "fidelity_status": "validation_gap",
       "model_references": [
         "Cordey 1981 orbit-width estimate",
+        "Boozer 2004 guiding-centre equations of motion",
+        "White 2014 guiding-centre canonical invariants",
         "tokamak guiding-centre orbit references"
       ],
       "module_path": "src/scpn_control/core/orbit_following.py",
@@ -1631,6 +1633,8 @@
       "unit_contract": "SI metres, seconds, tesla, electronvolts, kg, coulombs, pitch angle in radians on [0, pi], and ensemble probabilities dimensionless.",
       "validation_evidence": [
         "tests/test_orbit_following.py verifies guiding-centre domain checks, classifier boundaries, Stix slowing-down, banana-width scaling, first-orbit-loss scaling, ensemble counts, and fail-closed orbit-following claim evidence admission",
+        "validation/validate_guiding_centre_conservation.py integrates the production GuidingCenterOrbit RK4 stepper in a static analytic axisymmetric field and verifies exact conservation of kinetic energy and canonical toroidal momentum over passing and trapped orbits for deuterons and 3.5 MeV alphas, with tamper-evident sealed evidence",
+        "tests/test_guiding_centre_conservation_validation.py divergence-free-field, energy/momentum-conservation, passing/trapped-coverage, degenerate-baseline, and evidence-seal checks",
         "validation/benchmark_orbit_following_claims.py publishes deterministic bounded synthetic claim evidence with explicit external-code claim exclusion",
         "validation/reports/orbit_following_claims.json records bounded geometry, particle, collision, loss-boundary, banana-width, first-orbit-loss, and ensemble-count evidence",
         "validation/validate_orbit_reference.py strict orbit reference artefact gate"
@@ -1638,17 +1642,28 @@
       "evidence_paths": [
         "tests/test_orbit_following.py",
         "src/scpn_control/core/orbit_following.py",
+        "validation/validate_guiding_centre_conservation.py",
+        "validation/reports/guiding_centre_conservation.json",
+        "validation/reports/guiding_centre_conservation.md",
+        "tests/test_guiding_centre_conservation_validation.py",
         "validation/benchmark_orbit_following_claims.py",
         "validation/reports/orbit_following_claims.json",
         "validation/reports/orbit_following_claims.md",
         "validation/validate_orbit_reference.py",
         "docs/api.md",
-        "docs/benchmarks.md"
+        "docs/benchmarks.md",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/orbit_following.py"
       ],
-      "validity_domain": "Bounded guiding-centre, banana-width, slowing-down, and first-orbit-loss regression evidence for local controller studies; not external orbit-code, measured fast-ion diagnostic, or device-qualified loss validation unless matched banana-width and loss-fraction references pass the admission gate.",
+      "evidence": [
+        "validation/validate_guiding_centre_conservation.py schema-versioned digest-bound guiding-centre conservation validator",
+        "validation/reports/guiding_centre_conservation.json sealed energy and canonical-toroidal-momentum conservation evidence over passing and trapped orbits",
+        "validation/reports/guiding_centre_conservation.md human-readable per-orbit conservation summary",
+        "tests/test_guiding_centre_conservation_validation.py conservation, divergence-free-field, passing/trapped-coverage, and tamper checks"
+      ],
+      "validity_domain": "Bounded guiding-centre, banana-width, slowing-down, and first-orbit-loss regression evidence for local controller studies, with the production guiding-centre integrator now validated to conserve kinetic energy and canonical toroidal momentum to better than 1e-4 relative over passing and trapped orbits in a static analytic axisymmetric field; not external orbit-code, measured fast-ion diagnostic, or device-qualified loss validation unless matched banana-width and loss-fraction references pass the admission gate.",
       "external_validation_tracker_issue": 49
     },
     {

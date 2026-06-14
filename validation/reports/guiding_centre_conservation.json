@@ -1,0 +1,68 @@
+{
+  "covers_passing_and_trapped": true,
+  "energy_passed": true,
+  "energy_tol": 0.001,
+  "field": {
+    "a": 0.5,
+    "b0": 2.0,
+    "b_pol_coeff": 0.5,
+    "r0": 1.7
+  },
+  "generated_utc": "2026-06-14T09:49:47Z",
+  "max_energy_drift": 2.5894939807464333e-05,
+  "max_momentum_drift": 3.3816787358006656e-05,
+  "momentum_passed": true,
+  "momentum_tol": 0.001,
+  "parallel_passed": true,
+  "parallel_tol": 1e-06,
+  "passed": true,
+  "payload_sha256": "d35127eea01d70dd04cf397d56419a8e3e7cfe20d46531f83f3decf0301ab134",
+  "records": [
+    {
+      "energy_drift_rel": 6.402676067518766e-06,
+      "energy_passed": true,
+      "label": "passing_deuteron",
+      "max_parallel_speed_ratio": 0.8775825618903728,
+      "momentum_drift_rel": 1.564015802734063e-05,
+      "momentum_passed": true,
+      "parallel_passed": true,
+      "steps": 6000,
+      "trapped": false
+    },
+    {
+      "energy_drift_rel": 5.139104590525253e-07,
+      "energy_passed": true,
+      "label": "trapped_deuteron",
+      "max_parallel_speed_ratio": 0.12050276936736662,
+      "momentum_drift_rel": 6.179815181282269e-08,
+      "momentum_passed": true,
+      "parallel_passed": true,
+      "steps": 6000,
+      "trapped": true
+    },
+    {
+      "energy_drift_rel": 2.5894939807464333e-05,
+      "energy_passed": true,
+      "label": "passing_alpha",
+      "max_parallel_speed_ratio": 0.8253362221499668,
+      "momentum_drift_rel": 3.244329534185378e-05,
+      "momentum_passed": true,
+      "parallel_passed": true,
+      "steps": 6000,
+      "trapped": false
+    },
+    {
+      "energy_drift_rel": 1.7026714686931315e-05,
+      "energy_passed": true,
+      "label": "trapped_alpha",
+      "max_parallel_speed_ratio": 0.6360547150791486,
+      "momentum_drift_rel": 3.3816787358006656e-05,
+      "momentum_passed": true,
+      "parallel_passed": true,
+      "steps": 6000,
+      "trapped": true
+    }
+  ],
+  "schema_version": "scpn-control.guiding-centre-conservation-validation.v1",
+  "target_id": "local-guiding-centre-conservation"
+}

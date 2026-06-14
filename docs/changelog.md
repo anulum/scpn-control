@@ -19,6 +19,10 @@
   bound against exact closed-form identities (full-block, diagonal-plant,
   rank-one, and the spectral sandwich) with tamper-evident sealed evidence and a
   recorded D-scaling-invariance diagnostic.
+- Added a guiding-centre orbit conservation validator that integrates the
+  production orbit stepper in a static analytic axisymmetric field and checks
+  exact conservation of kinetic energy and canonical toroidal momentum over
+  passing and trapped orbits, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -28,6 +32,8 @@
   reference, and validation guide with the Solov'ev convergence evidence.
 - Updated the structured-singular-value traceability entry and validation guide
   with the closed-form mu identity evidence.
+- Updated the orbit-following traceability entry and validation guide with the
+  guiding-centre conservation evidence.
 
 ## [0.20.7] - 2026-06-05
 
