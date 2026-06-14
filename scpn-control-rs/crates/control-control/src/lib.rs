@@ -22,3 +22,17 @@ pub mod pulsed_scenario;
 pub mod snn;
 pub mod soc_learning;
 pub mod spi;
+
+/// Lowercase hex-encode a byte slice (e.g. a SHA-256 digest).
+///
+/// `digest` 0.11 returns an array type that no longer implements `LowerHex`,
+/// so digests are encoded explicitly; the output is byte-identical to the
+/// previous `format!("{:x}", finalize())`.
+pub fn to_hex(bytes: &[u8]) -> String {
+    use core::fmt::Write as _;
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
+}
