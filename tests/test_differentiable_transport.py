@@ -8,8 +8,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -1658,3 +1659,1166 @@ def test_transport_full_fidelity_readiness_binds_reports_digests_and_controller_
             external_reference_admitted=True,
             controller_formal_artifact_sha256="a" * 64,
         )
+
+
+# --------------------------------------------------------------------------- #
+# Input-validation contracts                                                   #
+# --------------------------------------------------------------------------- #
+
+
+def _uniform_rho(n: int = 12) -> np.ndarray:
+    return np.linspace(0.05, 1.0, n)
+
+
+def _valid_chi(rho: np.ndarray) -> np.ndarray:
+    return np.stack(
+        [
+            0.20 + 0.02 * rho,
+            0.16 + 0.02 * rho,
+            0.04 + 0.005 * rho,
+            0.012 + 0.001 * rho,
+        ]
+    )
+
+
+def _one_step_setup(n: int = 12):
+    rho = _uniform_rho(n)
+    profiles = _profiles(rho)
+    chi = _valid_chi(rho)
+    sources = np.zeros_like(profiles)
+    edge = np.array([0.2, 0.2, 4.0, 0.03])
+    return profiles, chi, sources, rho, 1.0e-3, edge
+
+
+def _rollout_setup(n: int = 12, n_steps: int = 3):
+    profiles, chi, _, rho, dt_value, edge = _one_step_setup(n)
+    source_sequence = np.zeros((n_steps, dt.CHANNEL_COUNT, rho.size))
+    source_sequence[:, 0, 3:7] = 0.01
+    source_sequence[:, 2, 2:6] = 0.004
+    target_history = np.asarray(
+        dt.differentiable_transport_rollout(profiles, chi, source_sequence, rho, dt_value, edge, use_jax=False)
+    )
+    target_history[:, 0, 4:8] += 0.01
+    return profiles, chi, source_sequence, target_history, rho, dt_value, edge
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        ("profiles_1d", "profiles must have shape"),
+        ("profiles_wrong_channels", "profiles must have shape"),
+        ("profiles_nan", "must contain only finite values"),
+        ("chi_shape", "chi must match profiles shape"),
+        ("chi_negative", "chi must be non-negative"),
+        ("sources_shape", "sources must match profiles shape"),
+        ("rho_length", "same radial length"),
+        ("rho_2d", "one-dimensional"),
+        ("rho_not_increasing", "strictly increasing"),
+        ("rho_non_uniform", "uniform normalised radial spacing"),
+        ("edge_shape", "edge_values must have shape"),
+        ("dt_zero", "dt must be positive and finite"),
+        ("dt_inf", "dt must be positive and finite"),
+    ],
+)
+def test_differentiable_transport_step_rejects_invalid_inputs(mutation, match):
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup()
+    if mutation == "profiles_1d":
+        profiles = profiles[0]
+    elif mutation == "profiles_wrong_channels":
+        profiles = profiles[:3]
+    elif mutation == "profiles_nan":
+        profiles = profiles.copy()
+        profiles[0, 0] = np.nan
+    elif mutation == "chi_shape":
+        chi = chi[:, :-1]
+    elif mutation == "chi_negative":
+        chi = chi.copy()
+        chi[0, 0] = -1.0
+    elif mutation == "sources_shape":
+        sources = sources[:, :-1]
+    elif mutation == "rho_length":
+        rho = rho[:-1]
+    elif mutation == "rho_2d":
+        rho = rho.reshape(2, 6)
+    elif mutation == "rho_not_increasing":
+        rho = rho.copy()
+        rho[5] = rho[4] - 0.01
+    elif mutation == "rho_non_uniform":
+        rho = rho.copy()
+        rho[6] += 0.002
+    elif mutation == "edge_shape":
+        edge = edge[:3]
+    elif mutation == "dt_zero":
+        dt_value = 0.0
+    elif mutation == "dt_inf":
+        dt_value = np.inf
+
+    with pytest.raises(ValueError, match=match):
+        dt.differentiable_transport_step(profiles, chi, sources, rho, dt_value, edge, use_jax=False)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        ("target_shape", "target_profiles must match profiles shape"),
+        ("target_none", "target_profiles is required"),
+        ("weights_shape", "weights must have shape"),
+        ("weights_negative", "weights must be non-negative"),
+    ],
+)
+def test_transport_tracking_loss_rejects_invalid_target_and_weights(mutation, match):
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup()
+    target = profiles.copy()
+    weights = None
+    if mutation == "target_shape":
+        target = target[:, :-1]
+    elif mutation == "target_none":
+        target = None
+    elif mutation == "weights_shape":
+        weights = np.ones(3)
+    elif mutation == "weights_negative":
+        weights = np.array([-1.0, 1.0, 1.0, 1.0])
+
+    with pytest.raises(ValueError, match=match):
+        dt.transport_tracking_loss(profiles, chi, sources, target, rho, dt_value, edge, weights=weights, use_jax=False)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        ("profiles_1d", "initial_profiles must have shape"),
+        ("chi_shape", "chi must match initial_profiles shape"),
+        ("rho_length", "same radial length"),
+        ("edge_shape", "edge_values must have shape"),
+        ("dt_zero", "dt must be positive and finite"),
+        ("chi_negative", "chi must be non-negative"),
+        ("rho_not_increasing", "strictly increasing"),
+    ],
+)
+def test_differentiable_transport_rollout_rejects_invalid_inputs(mutation, match):
+    profiles, chi, source_sequence, _, rho, dt_value, edge = _rollout_setup()
+    if mutation == "profiles_1d":
+        profiles = profiles[0]
+    elif mutation == "chi_shape":
+        chi = chi[:, :-1]
+    elif mutation == "rho_length":
+        rho = rho[:-1]
+    elif mutation == "edge_shape":
+        edge = edge[:3]
+    elif mutation == "dt_zero":
+        dt_value = 0.0
+    elif mutation == "chi_negative":
+        chi = chi.copy()
+        chi[1, 2] = -0.5
+    elif mutation == "rho_not_increasing":
+        rho = rho.copy()
+        rho[5] = rho[4] - 0.01
+
+    with pytest.raises(ValueError, match=match):
+        dt.differentiable_transport_rollout(profiles, chi, source_sequence, rho, dt_value, edge, use_jax=False)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        ("target_none", "target_history is required"),
+        ("weights_shape", "weights must have shape"),
+        ("weights_negative", "weights must be non-negative"),
+    ],
+)
+def test_transport_rollout_tracking_loss_rejects_invalid_target_and_weights(mutation, match):
+    profiles, chi, source_sequence, target_history, rho, dt_value, edge = _rollout_setup()
+    weights = None
+    if mutation == "target_none":
+        target_history = None
+    elif mutation == "weights_shape":
+        weights = np.ones(3)
+    elif mutation == "weights_negative":
+        weights = np.array([1.0, -1.0, 1.0, 1.0])
+
+    with pytest.raises(ValueError, match=match):
+        dt.transport_rollout_tracking_loss(
+            profiles,
+            chi,
+            source_sequence,
+            target_history,
+            rho,
+            dt_value,
+            edge,
+            weights=weights,
+            use_jax=False,
+        )
+
+
+def test_transport_rollout_tracking_loss_defaults_unit_weights_numpy():
+    profiles, chi, source_sequence, target_history, rho, dt_value, edge = _rollout_setup()
+    loss = dt.transport_rollout_tracking_loss(
+        profiles, chi, source_sequence, target_history, rho, dt_value, edge, use_jax=False
+    )
+    assert np.isfinite(loss)
+    assert loss > 0.0
+
+
+# --------------------------------------------------------------------------- #
+# Closure adapter validation                                                   #
+# --------------------------------------------------------------------------- #
+
+
+def _closure_ns(chi_e, chi_i, d_e, channel_weights, *, source="neural", checksum=None):
+    return SimpleNamespace(
+        chi_e=np.asarray(chi_e, dtype=float),
+        chi_i=np.asarray(chi_i, dtype=float),
+        d_e=np.asarray(d_e, dtype=float),
+        channel_weights=np.asarray(channel_weights, dtype=float),
+        source=source,
+        weights_checksum=checksum,
+    )
+
+
+def _valid_closure(n: int = 5):
+    profile = np.linspace(0.5, 1.5, n)
+    weights = np.full((3, n), 1.0 / 3.0)
+    return _closure_ns(profile, profile, profile, weights)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "channel_override", "match"),
+    [
+        ({"impurity_diffusivity_fraction": 1.5}, None, "impurity_diffusivity_fraction"),
+        ({"impurity_diffusivity_fraction": -0.1}, None, "impurity_diffusivity_fraction"),
+        ({"chi_floor": -1.0e-6}, None, "chi_floor"),
+    ],
+)
+def test_neural_closure_coefficients_reject_invalid_scalars(kwargs, channel_override, match):
+    closure = _valid_closure()
+    with pytest.raises(ValueError, match=match):
+        dt.transport_coefficients_from_neural_closure(closure, **kwargs)
+
+
+def test_neural_closure_coefficients_reject_short_profile():
+    closure = _closure_ns([1.0, 2.0], [1.0, 2.0], [1.0, 2.0], np.full((3, 2), 1.0 / 3.0))
+    with pytest.raises(ValueError, match="at least three points"):
+        dt.transport_coefficients_from_neural_closure(closure)
+
+
+def test_neural_closure_coefficients_reject_negative_profile():
+    closure = _closure_ns([-1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0], np.full((3, 3), 1.0 / 3.0))
+    with pytest.raises(ValueError, match="must be non-negative"):
+        dt.transport_coefficients_from_neural_closure(closure)
+
+
+def test_neural_closure_coefficients_reject_mismatched_profile_shapes():
+    closure = _closure_ns([1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0], np.full((3, 3), 1.0 / 3.0))
+    with pytest.raises(ValueError, match="same shape"):
+        dt.transport_coefficients_from_neural_closure(closure)
+
+
+@pytest.mark.parametrize(
+    ("channel_weights", "match"),
+    [
+        (np.full((2, 5), 0.5), "shape"),
+        (np.array([[-1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 0.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0, 0.0]]), "non-negative"),
+        (np.full((3, 5), 0.5), "sum to one"),
+    ],
+)
+def test_neural_closure_coefficients_reject_bad_channel_weights(channel_weights, match):
+    profile = np.linspace(0.5, 1.5, 5)
+    closure = _closure_ns(profile, profile, profile, channel_weights)
+    with pytest.raises(ValueError, match=match):
+        dt.transport_coefficients_from_neural_closure(closure)
+
+
+@pytest.mark.parametrize(
+    ("rho", "match"),
+    [
+        (np.array([0.1, 0.2]), "at least three points"),
+        (np.array([0.1, 0.3, 0.2, 0.4]), "strictly increasing"),
+    ],
+)
+def test_gyrokinetic_closure_rejects_bad_rho(rho, match):
+    with pytest.raises(ValueError, match=match):
+        dt.gyrokinetic_transport_closure_profiles(object(), rho, {})
+
+
+def test_gyrokinetic_closure_uses_uniform_weights_for_degenerate_total():
+    rho = np.linspace(0.1, 0.9, 6)
+
+    class _ZeroModel:
+        def evaluate_profile(self, rho, profiles):
+            zero = np.zeros(rho.size)
+            return zero, zero, zero
+
+    closure = dt.gyrokinetic_transport_closure_profiles(_ZeroModel(), rho, {})
+    np.testing.assert_allclose(closure.channel_weights, 1.0 / 3.0)
+    np.testing.assert_allclose(closure.channel_weights.sum(axis=0), 1.0)
+
+
+# --------------------------------------------------------------------------- #
+# Campaign metadata mapping validation                                         #
+# --------------------------------------------------------------------------- #
+
+
+def _valid_metadata_payload():
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup()
+    psi = np.outer(np.linspace(1.0, 0.2, 5), np.linspace(1.0, 0.3, rho.size))
+    metadata = dt.transport_campaign_metadata(
+        profiles,
+        chi,
+        sources,
+        rho,
+        dt_value,
+        edge,
+        backend="jax",
+        gradient_tolerance=5.0e-4,
+        equilibrium_psi=psi,
+    )
+    return asdict(metadata)
+
+
+def test_campaign_metadata_mapping_accepts_none_tolerance_and_equilibrium():
+    payload = _valid_metadata_payload()
+    payload["gradient_tolerance"] = None
+    restored = dt._transport_campaign_metadata_from_mapping(payload)
+    assert restored.gradient_tolerance is None
+    assert restored.equilibrium_grid_shape == (5, 12)
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "match"),
+    [
+        ("backend", "torch", "backend is invalid"),
+        ("channel_order", ["a", "b", "c", "d"], "channel_order is invalid"),
+        ("n_rho", 2, "n_rho must be >= 3"),
+        ("rho_max", -1.0, "rho bounds are invalid"),
+        ("edge_values", [0.1, 0.2], "edge_values length is invalid"),
+        ("core_boundary", "fixed", "boundary contract is invalid"),
+        ("equilibrium_grid_shape", [5], "equilibrium_grid_shape is invalid"),
+        ("equilibrium_grid_shape", [2, 2], "must be >= 3 in both dimensions"),
+        ("rho_min", float("inf"), "payload is malformed"),
+    ],
+)
+def test_campaign_metadata_mapping_rejects_invalid_fields(key, value, match):
+    payload = _valid_metadata_payload()
+    payload[key] = value
+    with pytest.raises(ValueError, match=match):
+        dt._transport_campaign_metadata_from_mapping(payload)
+
+
+def test_metadata_field_matches_distinguishes_tuple_lengths():
+    assert dt._metadata_field_matches((1.0, 2.0), (1.0, 2.0))
+    assert not dt._metadata_field_matches((1.0, 2.0), (1.0, 2.0, 3.0))
+    assert dt._metadata_field_matches(None, None)
+    assert not dt._metadata_field_matches(None, 1.0)
+
+
+def test_campaign_metadata_replay_rejects_non_metadata_archive():
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup()
+    with pytest.raises(ValueError, match="must be TransportCampaignMetadata"):
+        dt.assert_transport_campaign_metadata_replay(
+            "not-metadata", profiles, chi, sources, rho, dt_value, edge, backend="numpy"
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Gradient-audit and index validators                                          #
+# --------------------------------------------------------------------------- #
+
+
+def _audit_metadata(tolerance=5.0e-4, n_rho=12):
+    return dt.TransportCampaignMetadata(
+        backend="jax",
+        dtype="float64",
+        channel_order=dt.CHANNELS,
+        n_rho=n_rho,
+        rho_min=0.0,
+        rho_max=1.0,
+        rho_spacing=1.0 / float(n_rho - 1),
+        dt=1.0e-3,
+        core_boundary="zero_gradient",
+        edge_boundary="dirichlet",
+        edge_values=(0.2, 0.2, 4.0, 0.03),
+        closure_source=None,
+        closure_weights_checksum=None,
+        gradient_tolerance=tolerance,
+        equilibrium_grid_shape=None,
+    )
+
+
+def _parameter_audit(**overrides):
+    base = dict(
+        loss=1.0e-3,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 1), (1, 6)),
+        chi_max_abs_error=1.0e-7,
+        source_max_abs_error=2.0e-7,
+        passed=True,
+    )
+    base.update(overrides)
+    return dt.TransportGradientAudit(**base)
+
+
+@pytest.mark.parametrize(
+    ("metadata_kwargs", "audit_overrides", "match"),
+    [
+        ({"tolerance": None}, {}, "requires metadata.gradient_tolerance"),
+        ({}, {"loss": -1.0}, "loss must be finite and non-negative"),
+        ({}, {"epsilon": 0.0}, "epsilon must be positive and finite"),
+        ({}, {"tolerance": 0.0, "passed": False}, "tolerance must be positive and finite"),
+        ({}, {"tolerance": 1.0e-3}, "must match campaign metadata"),
+        ({}, {"chi_max_abs_error": -1.0}, "chi_max_abs_error must be finite and non-negative"),
+        ({}, {"passed": False}, "inconsistent with tolerance"),
+    ],
+)
+def test_validate_transport_gradient_audit_rejects(metadata_kwargs, audit_overrides, match):
+    metadata = _audit_metadata(**metadata_kwargs)
+    audit = _parameter_audit(**audit_overrides)
+    with pytest.raises(ValueError, match=match):
+        dt._validate_transport_gradient_audit(metadata, audit)
+
+
+def test_validate_transport_gradient_audit_rejects_non_bool_passed():
+    metadata = _audit_metadata()
+    audit = _parameter_audit(passed=1)
+    with pytest.raises(ValueError, match="passed flag must be boolean"):
+        dt._validate_transport_gradient_audit(metadata, audit)
+
+
+@pytest.mark.parametrize(
+    ("indices", "match"),
+    [
+        ((), "must not be empty"),
+        (((0, 1), (0, 1)), "must be unique"),
+        (((0, 99),), "out of campaign bounds"),
+    ],
+)
+def test_validate_parameter_audit_indices_rejects(indices, match):
+    with pytest.raises(ValueError, match=match):
+        dt._validate_parameter_audit_indices(indices, 12)
+
+
+@pytest.mark.parametrize(
+    ("indices", "match"),
+    [
+        ((), "must not be empty"),
+        (((0, 0, 1), (0, 0, 1)), "must be unique"),
+        (((0, 0, 99),), "out of campaign bounds"),
+    ],
+)
+def test_validate_rollout_audit_indices_rejects(indices, match):
+    with pytest.raises(ValueError, match=match):
+        dt._validate_rollout_audit_indices(indices, 12)
+
+
+def test_assert_latency_report_matches_campaign_rejects_drift():
+    metadata, gradient_report, _ = _transport_readiness_fixture()
+    with pytest.raises(ValueError, match="backend mismatch"):
+        dt._assert_latency_report_matches_campaign(
+            replace(metadata, backend="numpy"), gradient_report, report_name="gradient latency report"
+        )
+    with pytest.raises(ValueError, match="dtype mismatch"):
+        dt._assert_latency_report_matches_campaign(
+            replace(metadata, dtype="float32"), gradient_report, report_name="gradient latency report"
+        )
+    with pytest.raises(ValueError, match="channel contract mismatch"):
+        dt._assert_latency_report_matches_campaign(
+            replace(metadata, channel_order=("a", "b", "c", "d")),
+            gradient_report,
+            report_name="gradient latency report",
+        )
+    with pytest.raises(ValueError, match="gradient_tolerance is required"):
+        dt._assert_latency_report_matches_campaign(
+            replace(metadata, gradient_tolerance=None), gradient_report, report_name="gradient latency report"
+        )
+    with pytest.raises(ValueError, match="audit tolerance mismatch"):
+        dt._assert_latency_report_matches_campaign(
+            replace(metadata, gradient_tolerance=1.0e-3), gradient_report, report_name="gradient latency report"
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Differentiability evidence guards                                            #
+# --------------------------------------------------------------------------- #
+
+
+def _admissible_evidence_fixture():
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup(16)
+    target = profiles.copy()
+    target[0, 5:11] *= 0.97
+    target[1, 5:11] *= 0.98
+    metadata = dt.transport_campaign_metadata(
+        profiles, chi, sources, rho, dt_value, edge, backend="jax", gradient_tolerance=5.0e-4
+    )
+    audit = dt.audit_transport_parameter_gradients(
+        profiles, chi, sources, target, rho, dt_value, edge, tolerance=5.0e-4
+    )
+    evidence = dt.transport_differentiability_evidence(metadata, audit, controller_formal_artifact_sha256="a" * 64)
+    return metadata, audit, evidence
+
+
+def test_transport_differentiability_evidence_rejects_wrong_types():
+    metadata = _audit_metadata()
+    audit = _parameter_audit()
+    with pytest.raises(ValueError, match="metadata must be TransportCampaignMetadata"):
+        dt.transport_differentiability_evidence("not-metadata", audit)
+    with pytest.raises(ValueError, match="audit must be a transport gradient audit"):
+        dt.transport_differentiability_evidence(metadata, object())
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+@pytest.mark.parametrize(
+    ("kind", "match"),
+    [
+        ("evidence_type", "evidence must be TransportDifferentiabilityEvidence"),
+        ("schema", "schema_version is unsupported"),
+        ("backend", "requires JAX backend"),
+        ("tolerance_none", "requires metadata.gradient_tolerance"),
+        ("audit_sha", "gradient_audit_sha256 mismatch"),
+        ("channel_order", "channel_order mismatch"),
+        ("n_rho", "n_rho mismatch"),
+        ("equilibrium", "equilibrium_coupled mismatch"),
+        ("tolerance_value", "gradient_tolerance mismatch"),
+    ],
+)
+def test_assert_transport_differentiability_claim_admissible_rejects(kind, match):
+    metadata, audit, evidence = _admissible_evidence_fixture()
+    if kind == "evidence_type":
+        with pytest.raises(ValueError, match=match):
+            dt.assert_transport_differentiability_claim_admissible(object(), metadata, audit)
+        return
+    if kind == "schema":
+        evidence = replace(evidence, schema_version=2)
+    elif kind == "backend":
+        metadata = replace(metadata, backend="numpy")
+    elif kind == "tolerance_none":
+        metadata = replace(metadata, gradient_tolerance=None)
+    elif kind == "audit_sha":
+        evidence = replace(evidence, gradient_audit_sha256="0" * 64)
+    elif kind == "channel_order":
+        evidence = replace(evidence, channel_order=("x", "y", "z", "w"))
+    elif kind == "n_rho":
+        evidence = replace(evidence, n_rho=evidence.n_rho + 1)
+    elif kind == "equilibrium":
+        evidence = replace(evidence, equilibrium_coupled=not evidence.equilibrium_coupled)
+    elif kind == "tolerance_value":
+        evidence = replace(evidence, gradient_tolerance=evidence.gradient_tolerance * 2.0)
+    with pytest.raises(ValueError, match=match):
+        dt.assert_transport_differentiability_claim_admissible(evidence, metadata, audit)
+
+
+# --------------------------------------------------------------------------- #
+# Full-fidelity readiness blocked reasons and guards                           #
+# --------------------------------------------------------------------------- #
+
+
+def test_full_fidelity_readiness_blocks_missing_equilibrium_and_rollout_and_proof():
+    metadata, gradient_report, _ = _transport_readiness_fixture()
+    no_equilibrium = replace(metadata, equilibrium_grid_shape=None)
+    evidence = dt.transport_full_fidelity_readiness_evidence(
+        no_equilibrium,
+        gradient_report,
+        rollout_report=None,
+        external_reference_artifact_sha256="b" * 64,
+        external_reference_admitted=True,
+        controller_formal_artifact_sha256=None,
+    )
+    assert not evidence.full_fidelity_claim_admissible
+    assert "equilibrium_coupled_campaign" in evidence.blocked_reasons
+    assert "rollout_latency_report" in evidence.blocked_reasons
+    assert "controller_formal_artifact_sha256" in evidence.blocked_reasons
+
+
+def test_full_fidelity_readiness_blocks_unadmitted_external_reference():
+    metadata, gradient_report, rollout_report = _transport_readiness_fixture()
+    evidence = dt.transport_full_fidelity_readiness_evidence(
+        metadata,
+        gradient_report,
+        rollout_report=rollout_report,
+        external_reference_artifact_sha256="b" * 64,
+        external_reference_admitted=False,
+        controller_formal_artifact_sha256="a" * 64,
+    )
+    assert "external_reference_admission" in evidence.blocked_reasons
+    with pytest.raises(ValueError, match="external reference admission"):
+        dt.assert_transport_full_fidelity_claim_ready(
+            evidence, metadata, gradient_report, rollout_report=rollout_report
+        )
+
+
+def test_full_fidelity_claim_ready_rejects_generic_block_without_external_reasons():
+    metadata, gradient_report, _ = _transport_readiness_fixture()
+    evidence = dt.transport_full_fidelity_readiness_evidence(
+        metadata,
+        gradient_report,
+        rollout_report=None,
+        external_reference_artifact_sha256="b" * 64,
+        external_reference_admitted=True,
+        controller_formal_artifact_sha256="a" * 64,
+    )
+    assert "rollout_latency_report" in evidence.blocked_reasons
+    assert "external_reference_artifact_sha256" not in evidence.blocked_reasons
+    with pytest.raises(ValueError, match="not ready"):
+        dt.assert_transport_full_fidelity_claim_ready(evidence, metadata, gradient_report, rollout_report=None)
+
+
+def test_full_fidelity_claim_ready_rejects_type_schema_and_digest():
+    metadata, gradient_report, rollout_report = _transport_readiness_fixture()
+    evidence = dt.transport_full_fidelity_readiness_evidence(
+        metadata,
+        gradient_report,
+        rollout_report=rollout_report,
+        external_reference_artifact_sha256="b" * 64,
+        external_reference_admitted=True,
+        controller_formal_artifact_sha256="a" * 64,
+    )
+    with pytest.raises(ValueError, match="must be TransportFullFidelityReadinessEvidence"):
+        dt.assert_transport_full_fidelity_claim_ready(
+            object(), metadata, gradient_report, rollout_report=rollout_report
+        )
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        dt.assert_transport_full_fidelity_claim_ready(
+            replace(evidence, schema_version=2), metadata, gradient_report, rollout_report=rollout_report
+        )
+    with pytest.raises(ValueError, match="digest mismatch"):
+        dt.assert_transport_full_fidelity_claim_ready(
+            replace(evidence, claim_status="tampered"), metadata, gradient_report, rollout_report=rollout_report
+        )
+
+
+def test_full_fidelity_readiness_rejects_invalid_argument_types():
+    metadata, gradient_report, rollout_report = _transport_readiness_fixture()
+    with pytest.raises(ValueError, match="metadata must be TransportCampaignMetadata"):
+        dt.transport_full_fidelity_readiness_evidence("x", gradient_report)
+    with pytest.raises(ValueError, match="gradient_report must be TransportGradientLatencyReport"):
+        dt.transport_full_fidelity_readiness_evidence(metadata, object())
+    with pytest.raises(ValueError, match="rollout_report must be TransportRolloutGradientLatencyReport"):
+        dt.transport_full_fidelity_readiness_evidence(metadata, gradient_report, rollout_report=object())
+    with pytest.raises(ValueError, match="external_reference_admitted must be boolean"):
+        dt.transport_full_fidelity_readiness_evidence(metadata, gradient_report, external_reference_admitted="yes")
+
+
+# --------------------------------------------------------------------------- #
+# Latency-report and runtime-metadata validators                              #
+# --------------------------------------------------------------------------- #
+
+
+def test_latency_report_validators_reject_wrong_types():
+    with pytest.raises(ValueError, match="must be TransportGradientLatencyReport"):
+        dt._validate_transport_gradient_latency_report(object())
+    with pytest.raises(ValueError, match="must be TransportRolloutGradientLatencyReport"):
+        dt._validate_transport_rollout_gradient_latency_report(object())
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"schema_version": 2}, "schema_version is unsupported"),
+        ({"backend": "numpy"}, "requires JAX backend"),
+        ({"channel_count": 3}, "channel_count is invalid"),
+        ({"p50_ms": 9.0}, "p50 <= p95 <= max"),
+    ],
+)
+def test_gradient_latency_report_validation_rejects(overrides, match):
+    _, gradient_report, _ = _transport_readiness_fixture()
+    with pytest.raises(ValueError, match=match):
+        dt._validate_transport_gradient_latency_report(replace(gradient_report, **overrides))
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"schema_version": 2}, "schema_version is unsupported"),
+        ({"measured_at_unix_s": -1.0}, "must be finite and non-negative"),
+        ({"jax_version": ""}, "must be a non-empty string"),
+        ({"processor": 5}, "processor must be a string"),
+        ({"jax_devices": ()}, "must be a non-empty tuple"),
+        ({"jax_devices": ("",)}, "must contain non-empty strings"),
+        ({"jax_enable_x64": "yes"}, "must be boolean"),
+    ],
+)
+def test_runtime_metadata_validation_rejects(overrides, match):
+    metadata = _runtime_metadata()
+    with pytest.raises(ValueError, match=match):
+        dt._validate_transport_runtime_metadata(replace(metadata, **overrides))
+
+
+def test_runtime_metadata_validation_rejects_wrong_type():
+    with pytest.raises(ValueError, match="runtime_metadata is invalid"):
+        dt._validate_transport_runtime_metadata(object())
+
+
+@pytest.mark.parametrize("value", [-1.0, np.nan, np.inf])
+def test_require_nonnegative_finite_rejects(value):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        dt._require_nonnegative_finite("x", value)
+
+
+@pytest.mark.parametrize("value", [True, 1.5, "3"])
+def test_require_int_rejects_non_integers(value):
+    with pytest.raises(ValueError, match="must be an integer"):
+        dt._require_int("x", value, minimum=0)
+
+
+def test_percentile_handles_empty_single_and_integer_rank():
+    with pytest.raises(ValueError, match="must not be empty"):
+        dt._percentile([], 0.5)
+    assert dt._percentile([4.2], 0.95) == pytest.approx(4.2)
+    assert dt._percentile([1.0, 2.0, 3.0], 0.5) == pytest.approx(2.0)
+    assert dt._percentile([1.0, 2.0, 3.0, 4.0], 0.5) == pytest.approx(2.5)
+
+
+# --------------------------------------------------------------------------- #
+# Equilibrium radial weighting                                                 #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    ("psi", "match"),
+    [
+        (np.ones((2, 5)), "two-dimensional flux map"),
+        (np.ones(5), "two-dimensional flux map"),
+    ],
+)
+def test_validate_equilibrium_psi_rejects(psi, match):
+    with pytest.raises(ValueError, match=match):
+        dt._validate_equilibrium_psi(psi)
+
+
+def test_equilibrium_radial_weights_rejects_bad_n_rho():
+    psi = np.outer(np.linspace(1.0, 0.2, 5), np.linspace(1.0, 0.3, 8))
+    with pytest.raises(ValueError, match="n_rho must be an integer >= 3"):
+        dt.equilibrium_radial_weights(psi, 2)
+    with pytest.raises(ValueError, match="n_rho must be an integer >= 3"):
+        dt.equilibrium_radial_weights(psi, True)
+
+
+def test_equilibrium_radial_weights_interpolates_to_requested_length():
+    psi = np.outer(np.linspace(1.0, 0.2, 5), np.linspace(1.0, 0.3, 7))
+    weights = dt.equilibrium_radial_weights(psi, 12)
+    assert weights.shape == (12,)
+    assert np.mean(weights) == pytest.approx(1.0)
+    assert np.all(weights >= 0.0)
+
+
+def test_equilibrium_radial_weights_returns_ones_for_degenerate_flux():
+    weights = dt.equilibrium_radial_weights(np.zeros((4, 6)), 6)
+    np.testing.assert_allclose(weights, 1.0)
+
+
+# --------------------------------------------------------------------------- #
+# JAX-unavailable fail-closed contracts for private helpers                    #
+# --------------------------------------------------------------------------- #
+
+
+def test_private_jax_helpers_fail_closed_when_jnp_missing(monkeypatch):
+    monkeypatch.setattr(dt, "jnp", None)
+    monkeypatch.setattr(dt, "jax", None)
+    rho = _uniform_rho(6)
+    profiles = _profiles(rho)
+    chi = _valid_chi(rho)
+    sources = np.zeros_like(profiles)
+    edge = np.array([0.2, 0.2, 4.0, 0.03])
+    with pytest.raises(RuntimeError, match="JAX"):
+        dt._transport_step_jax(profiles, chi, sources, rho, 1.0e-3, edge)
+    with pytest.raises(RuntimeError, match="JAX"):
+        dt._transport_rollout_jax(profiles, chi, sources[None], rho, 1.0e-3, edge)
+    with pytest.raises(RuntimeError, match="JAX"):
+        dt._tracking_loss_jax(profiles, chi, sources, profiles, rho, 1.0e-3, edge, np.ones(4))
+    with pytest.raises(RuntimeError, match="JAX"):
+        dt._equilibrium_radial_weights_jax(np.ones((4, 6)), 6)
+    with pytest.raises(RuntimeError, match="JAX"):
+        dt._equilibrium_weighted_tracking_loss_jax(
+            profiles, chi, sources, profiles, rho, 1.0e-3, edge, np.ones((4, 6)), np.ones(4)
+        )
+    with pytest.raises(RuntimeError, match="JAX"):
+        dt._equilibrium_weighted_rollout_tracking_loss_jax(
+            profiles, chi, sources[None], profiles[None], rho, 1.0e-3, edge, np.ones((4, 6)), np.ones(4)
+        )
+
+
+def test_resolve_use_jax_allows_explicit_numpy_fallback(monkeypatch):
+    monkeypatch.setattr(dt, "_HAS_JAX", False)
+    monkeypatch.setattr(dt._jax_solvers, "_HAS_JAX", False)
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup()
+    stepped = dt.differentiable_transport_step(
+        profiles,
+        chi,
+        sources,
+        rho,
+        dt_value,
+        edge,
+        use_jax=True,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+    )
+    assert np.all(np.isfinite(stepped))
+
+
+# --------------------------------------------------------------------------- #
+# JAX compute paths and default-weight branches                                #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_jax_step_and_losses_match_numpy_within_tolerance():
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup(20)
+    target = profiles.copy()
+    target[0, 6:12] *= 0.97
+    psi = np.outer(np.linspace(1.0, 0.2, 6), np.linspace(1.0, 0.3, rho.size))
+
+    step_jax = np.asarray(dt.differentiable_transport_step(profiles, chi, sources, rho, dt_value, edge, use_jax=True))
+    step_numpy = dt.differentiable_transport_step(profiles, chi, sources, rho, dt_value, edge, use_jax=False)
+    np.testing.assert_allclose(step_jax, step_numpy, rtol=1e-9, atol=1e-11)
+
+    loss_jax = float(dt.transport_tracking_loss(profiles, chi, sources, target, rho, dt_value, edge, use_jax=True))
+    loss_numpy = dt.transport_tracking_loss(profiles, chi, sources, target, rho, dt_value, edge, use_jax=False)
+    assert loss_jax == pytest.approx(loss_numpy, rel=1e-7, abs=1e-12)
+
+    eq_loss_jax = float(
+        dt.equilibrium_weighted_transport_tracking_loss(
+            profiles, chi, sources, target, rho, dt_value, edge, psi, use_jax=True
+        )
+    )
+    eq_loss_numpy = dt.equilibrium_weighted_transport_tracking_loss(
+        profiles, chi, sources, target, rho, dt_value, edge, psi, use_jax=False
+    )
+    assert eq_loss_jax == pytest.approx(eq_loss_numpy, rel=1e-6, abs=1e-12)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_jax_rollout_losses_match_numpy_and_interpolate_equilibrium():
+    profiles, chi, source_sequence, target_history, rho, dt_value, edge = _rollout_setup(18, 3)
+    psi = np.outer(np.linspace(1.0, 0.2, 5), np.linspace(1.0, 0.3, 7))
+
+    loss_jax = float(
+        dt.transport_rollout_tracking_loss(
+            profiles, chi, source_sequence, target_history, rho, dt_value, edge, use_jax=True
+        )
+    )
+    loss_numpy = dt.transport_rollout_tracking_loss(
+        profiles, chi, source_sequence, target_history, rho, dt_value, edge, use_jax=False
+    )
+    assert loss_jax == pytest.approx(loss_numpy, rel=1e-7, abs=1e-12)
+
+    eq_loss_jax = float(
+        dt.equilibrium_weighted_transport_rollout_tracking_loss(
+            profiles, chi, source_sequence, target_history, rho, dt_value, edge, psi, use_jax=True
+        )
+    )
+    eq_loss_numpy = dt.equilibrium_weighted_transport_rollout_tracking_loss(
+        profiles, chi, source_sequence, target_history, rho, dt_value, edge, psi, use_jax=False
+    )
+    assert eq_loss_jax == pytest.approx(eq_loss_numpy, rel=1e-6, abs=1e-12)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_jax_gradient_apis_default_unit_weights():
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup(16)
+    target = profiles.copy()
+    target[0, 5:11] *= 0.97
+    psi = np.outer(np.linspace(1.0, 0.2, 6), np.linspace(1.0, 0.3, rho.size))
+
+    loss, gradient = dt.transport_loss_gradient(profiles, chi, sources, target, rho, dt_value, edge)
+    assert np.isfinite(loss)
+    assert gradient.shape == chi.shape
+
+    params = dt.transport_parameter_gradients(profiles, chi, sources, target, rho, dt_value, edge)
+    assert np.all(np.isfinite(params.chi_gradient))
+
+    eq = dt.equilibrium_weighted_transport_loss_gradient(profiles, chi, sources, target, rho, dt_value, edge, psi)
+    assert eq.chi_gradient.shape == chi.shape
+    assert eq.equilibrium_gradient.shape == psi.shape
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_jax_rollout_gradient_apis_default_unit_weights():
+    profiles, chi, source_sequence, target_history, rho, dt_value, edge = _rollout_setup(16, 3)
+    psi = np.outer(np.linspace(1.0, 0.2, 6), np.linspace(1.0, 0.3, rho.size))
+
+    rollout = dt.transport_rollout_source_gradients(profiles, chi, source_sequence, target_history, rho, dt_value, edge)
+    assert rollout.source_gradient.shape == source_sequence.shape
+
+    eq_rollout = dt.equilibrium_weighted_transport_rollout_source_gradient(
+        profiles, chi, source_sequence, target_history, rho, dt_value, edge, psi
+    )
+    assert eq_rollout.source_gradient.shape == source_sequence.shape
+    assert eq_rollout.equilibrium_gradient.shape == psi.shape
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+@pytest.mark.parametrize(
+    ("func", "target_is_history"),
+    [
+        (dt.transport_loss_gradient, False),
+        (dt.transport_parameter_gradients, False),
+        (dt.transport_rollout_source_gradients, True),
+    ],
+)
+def test_jax_gradient_apis_require_target(func, target_is_history):
+    if target_is_history:
+        profiles, chi, sequence, _, rho, dt_value, edge = _rollout_setup(12, 2)
+        with pytest.raises(ValueError, match="target_history is required"):
+            func(profiles, chi, sequence, None, rho, dt_value, edge)
+    else:
+        profiles, chi, sources, rho, dt_value, edge = _one_step_setup()
+        with pytest.raises(ValueError, match="target_profiles is required"):
+            func(profiles, chi, sources, None, rho, dt_value, edge)
+
+
+# --------------------------------------------------------------------------- #
+# Audit helpers, fail-closed asserts, and benchmark latency paths              #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"epsilon": 0.0}, "epsilon must be positive and finite"),
+        ({"tolerance": 0.0}, "tolerance must be positive and finite"),
+    ],
+)
+def test_audit_rollout_source_gradients_rejects_bad_audit_scalars(kwargs, match):
+    profiles, chi, sequence, target_history, rho, dt_value, edge = _rollout_setup(14, 2)
+    with pytest.raises(ValueError, match=match):
+        dt.audit_transport_rollout_source_gradients(
+            profiles, chi, sequence, target_history, rho, dt_value, edge, **kwargs
+        )
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+@pytest.mark.parametrize(
+    ("sample_indices", "match"),
+    [
+        ([(0, 0)], "three-part rollout source indices"),
+        ([(0, 0, 99)], "out-of-range rollout source index"),
+    ],
+)
+def test_audit_rollout_source_gradients_rejects_bad_sample_indices(sample_indices, match):
+    profiles, chi, sequence, target_history, rho, dt_value, edge = _rollout_setup(14, 2)
+    with pytest.raises(ValueError, match=match):
+        dt.audit_transport_rollout_source_gradients(
+            profiles, chi, sequence, target_history, rho, dt_value, edge, sample_indices=sample_indices
+        )
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_assert_rollout_source_gradients_consistent_fails_closed_on_tiny_tolerance():
+    profiles, chi, sequence, target_history, rho, dt_value, edge = _rollout_setup(14, 2)
+    with pytest.raises(ValueError, match="rollout source-gradient audit failed"):
+        dt.assert_transport_rollout_source_gradients_consistent(
+            profiles, chi, sequence, target_history, rho, dt_value, edge, tolerance=1.0e-30
+        )
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_assert_parameter_gradients_consistent_fails_closed_on_tiny_tolerance():
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup(14)
+    target = profiles.copy()
+    target[0, 4:10] *= 0.97
+    with pytest.raises(ValueError, match="parameter gradient audit failed"):
+        dt.assert_transport_parameter_gradients_consistent(
+            profiles, chi, sources, target, rho, dt_value, edge, tolerance=1.0e-30
+        )
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_parameter_gradient_audit_rejects_bad_sample_indices():
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup(14)
+    target = profiles.copy()
+    target[0, 4:10] *= 0.97
+    with pytest.raises(ValueError, match="\\(channel, radial\\) pairs"):
+        dt.audit_transport_parameter_gradients(
+            profiles, chi, sources, target, rho, dt_value, edge, sample_indices=[(0,)]
+        )
+    with pytest.raises(ValueError, match="out-of-bounds transport index"):
+        dt.audit_transport_parameter_gradients(
+            profiles, chi, sources, target, rho, dt_value, edge, sample_indices=[(0, 999)]
+        )
+    with pytest.raises(ValueError, match="tolerance must be positive"):
+        dt.audit_transport_parameter_gradients(profiles, chi, sources, target, rho, dt_value, edge, tolerance=0.0)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_benchmark_parameter_gradient_latency_runs_warmup_and_defaults_weights():
+    profiles, chi, sources, rho, dt_value, edge = _one_step_setup(14)
+    target = profiles.copy()
+    target[0, 4:10] *= 0.97
+    report = dt.benchmark_transport_parameter_gradient_latency(
+        profiles, chi, sources, target, rho, dt_value, edge, warmup_runs=1, timed_runs=2
+    )
+    assert report.backend == "jax"
+    assert report.timed_runs == 2
+    assert report.audit.passed
+    assert report.p50_ms <= report.p95_ms <= report.max_ms
+    with pytest.raises(ValueError, match="target_profiles is required"):
+        dt.benchmark_transport_parameter_gradient_latency(
+            profiles, chi, sources, None, rho, dt_value, edge, warmup_runs=0, timed_runs=1
+        )
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_benchmark_rollout_gradient_latency_runs_warmup_and_defaults_weights():
+    profiles, chi, sequence, target_history, rho, dt_value, edge = _rollout_setup(14, 2)
+    report = dt.benchmark_transport_rollout_source_gradient_latency(
+        profiles, chi, sequence, target_history, rho, dt_value, edge, warmup_runs=1, timed_runs=2
+    )
+    assert report.backend == "jax"
+    assert report.n_steps == 2
+    assert report.audit.passed
+    assert report.p50_ms <= report.p95_ms <= report.max_ms
+    with pytest.raises(ValueError, match="target_history is required"):
+        dt.benchmark_transport_rollout_source_gradient_latency(
+            profiles, chi, sequence, None, rho, dt_value, edge, warmup_runs=0, timed_runs=1
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Remaining edge branches: digests, blocked-audit reports, index helpers       #
+# --------------------------------------------------------------------------- #
+
+
+def test_evidence_rejects_non_hex_proof_digest():
+    metadata = _audit_metadata()
+    audit = _parameter_audit()
+    with pytest.raises(ValueError, match="SHA-256 hex digest"):
+        dt.transport_differentiability_evidence(metadata, audit, controller_formal_artifact_sha256="g" * 64)
+
+
+def test_full_fidelity_readiness_blocks_failing_gradient_and_rollout_audits():
+    metadata, gradient_report, rollout_report = _transport_readiness_fixture()
+
+    failing_gradient = replace(
+        gradient_report,
+        audit=replace(gradient_report.audit, chi_max_abs_error=1.0e-3, passed=False),
+    )
+    evidence = dt.transport_full_fidelity_readiness_evidence(
+        metadata,
+        failing_gradient,
+        rollout_report=rollout_report,
+        external_reference_artifact_sha256="b" * 64,
+        external_reference_admitted=True,
+        controller_formal_artifact_sha256="a" * 64,
+    )
+    assert "gradient_latency_audit" in evidence.blocked_reasons
+
+    failing_rollout = replace(
+        rollout_report,
+        audit=replace(rollout_report.audit, source_max_abs_error=1.0e-3, passed=False),
+    )
+    evidence = dt.transport_full_fidelity_readiness_evidence(
+        metadata,
+        gradient_report,
+        rollout_report=failing_rollout,
+        external_reference_artifact_sha256="b" * 64,
+        external_reference_admitted=True,
+        controller_formal_artifact_sha256="a" * 64,
+    )
+    assert "rollout_latency_audit" in evidence.blocked_reasons
+
+
+def test_full_fidelity_readiness_rejects_rollout_audit_indices_out_of_bounds():
+    metadata, gradient_report, rollout_report = _transport_readiness_fixture()
+    out_of_bounds = replace(
+        rollout_report,
+        audit=replace(
+            rollout_report.audit,
+            checked_indices=((9, 0, 1),),
+            source_max_abs_error=2.0e-7,
+            passed=True,
+        ),
+    )
+    with pytest.raises(ValueError, match="exceed campaign metadata bounds"):
+        dt.transport_full_fidelity_readiness_evidence(
+            metadata,
+            gradient_report,
+            rollout_report=out_of_bounds,
+            external_reference_artifact_sha256="b" * 64,
+            external_reference_admitted=True,
+            controller_formal_artifact_sha256="a" * 64,
+        )
+
+
+def test_validate_gradient_audit_rejects_negative_rollout_source_error():
+    metadata = _audit_metadata()
+    rollout_audit = dt.TransportRolloutGradientAudit(
+        loss=1.0e-3,
+        epsilon=1.0e-5,
+        tolerance=5.0e-4,
+        checked_indices=((0, 0, 1),),
+        source_max_abs_error=-1.0,
+        passed=True,
+    )
+    with pytest.raises(ValueError, match="source_max_abs_error must be finite and non-negative"):
+        dt._validate_transport_gradient_audit(metadata, rollout_audit)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+def test_differentiable_transport_rollout_jax_matches_numpy():
+    profiles, chi, sequence, _, rho, dt_value, edge = _rollout_setup(16, 3)
+    out_jax = np.asarray(
+        dt.differentiable_transport_rollout(profiles, chi, sequence, rho, dt_value, edge, use_jax=True)
+    )
+    out_numpy = np.asarray(
+        dt.differentiable_transport_rollout(profiles, chi, sequence, rho, dt_value, edge, use_jax=False)
+    )
+    np.testing.assert_allclose(out_jax, out_numpy, rtol=1e-9, atol=1e-11)
+
+
+def test_rollout_gradient_audit_indices_reject_bad_shapes_and_empty():
+    with pytest.raises(ValueError, match="must have shape"):
+        dt._rollout_gradient_audit_indices((4, 5), None)
+    with pytest.raises(ValueError, match="n_rho >= 3"):
+        dt._rollout_gradient_audit_indices((0, 4, 5), None)
+    with pytest.raises(ValueError, match="at least one rollout source index"):
+        dt._rollout_gradient_audit_indices((3, 4, 5), [])
+
+
+def test_gradient_audit_indices_reject_empty_samples():
+    with pytest.raises(ValueError, match="at least one transport index"):
+        dt._gradient_audit_indices((4, 12), [])
+
+
+def test_audit_rollout_source_gradients_requires_target():
+    profiles, chi, sequence, _, rho, dt_value, edge = _rollout_setup(12, 2)
+    with pytest.raises(ValueError, match="target_history is required"):
+        dt.audit_transport_rollout_source_gradients(profiles, chi, sequence, None, rho, dt_value, edge)
+
+
+@pytest.mark.parametrize(
+    ("func", "uses_history"),
+    [
+        (dt.equilibrium_weighted_transport_tracking_loss, False),
+        (dt.equilibrium_weighted_transport_rollout_tracking_loss, True),
+    ],
+)
+def test_equilibrium_weighted_tracking_losses_require_target(func, uses_history):
+    psi = np.outer(np.linspace(1.0, 0.2, 5), np.linspace(1.0, 0.3, 12))
+    if uses_history:
+        profiles, chi, sequence, _, rho, dt_value, edge = _rollout_setup(12, 2)
+        with pytest.raises(ValueError, match="target_history is required"):
+            func(profiles, chi, sequence, None, rho, dt_value, edge, psi, use_jax=False)
+    else:
+        profiles, chi, sources, rho, dt_value, edge = _one_step_setup()
+        with pytest.raises(ValueError, match="target_profiles is required"):
+            func(profiles, chi, sources, None, rho, dt_value, edge, psi, use_jax=False)
+
+
+@pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
+@pytest.mark.parametrize(
+    ("func", "uses_history"),
+    [
+        (dt.equilibrium_weighted_transport_loss_gradient, False),
+        (dt.equilibrium_weighted_transport_rollout_source_gradient, True),
+    ],
+)
+def test_equilibrium_weighted_gradients_require_target(func, uses_history):
+    psi = np.outer(np.linspace(1.0, 0.2, 5), np.linspace(1.0, 0.3, 12))
+    if uses_history:
+        profiles, chi, sequence, _, rho, dt_value, edge = _rollout_setup(12, 2)
+        with pytest.raises(ValueError, match="target_history is required"):
+            func(profiles, chi, sequence, None, rho, dt_value, edge, psi)
+    else:
+        profiles, chi, sources, rho, dt_value, edge = _one_step_setup()
+        with pytest.raises(ValueError, match="target_profiles is required"):
+            func(profiles, chi, sources, None, rho, dt_value, edge, psi)
