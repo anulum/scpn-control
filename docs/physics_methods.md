@@ -128,6 +128,27 @@ Estimated from Naydon instability timescale for elongated plasmas.
 - **Source**: Naydon et al., *Phys. Plasmas* (2005).
 - **Implementation**: `src/scpn_control/control/h_infinity_controller.py:115`.
 
+### RZIP Rigid Vertical Stability
+Linearised rigid-plasma vertical response with the destabilising curvature
+spring $K = n\,\mu_0 I_p^2 / (4\pi R_0)$ (field decay index $n$) coupled to the
+vessel/coil circuit currents; the growth rate is the largest real eigenvalue of
+the state-space matrix for $x = [Z, \dot Z, I_1, \ldots]$.
+
+- **Source**: Lazarus et al., *Nucl. Fusion* 30, 111 (1990); Wesson,
+  *Tokamaks* (2011) Ch. 3.10.
+- **Implementation**: `src/scpn_control/control/rzip_model.py:251`.
+- **Validation**: In the no-wall limit the rigid mode reduces to the exact
+  $2\times2$ block with eigenvalues $\pm\sqrt{-K/M_{\mathrm{eff}}}$, so the
+  production `vertical_growth_rate` reproduces $\gamma=\sqrt{-n\,\mu_0 I_p^2/
+  (4\pi R_0 M_{\mathrm{eff}})}$ for $n<0$, the oscillation frequency
+  $\sqrt{K/M_{\mathrm{eff}}}$ for $n>0$, the exact $I_p$, $\sqrt{-n}$, and
+  $1/\sqrt{M_{\mathrm{eff}}}$ scaling laws (all to $\sim10^{-16}$ relative), and
+  a passive resistive wall reduces the growth rate below the no-wall value, in
+  `validation/validate_rzip_vertical_stability.py` with tests in
+  `tests/test_rzip_vertical_stability_validation.py`. Facility-validated
+  vertical-control claims still require a matched RZIP/CREATE-L/TSC or measured
+  vertical-displacement benchmark.
+
 ### Kuramoto-Sakaguchi Phase Dynamics
 $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \sin(\Psi - \theta_i)$$
 

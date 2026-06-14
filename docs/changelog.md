@@ -32,6 +32,10 @@
   Equation right-hand side and RK4 integrator against the exact classical-only
   separable trajectory and the closed-form classical+bootstrap saturated-width
   attractor, with tamper-evident sealed evidence.
+- Added an RZIP rigid vertical stability validator that checks the production
+  state-space growth rate against the exact no-wall eigenvalue, the stable-index
+  oscillation frequency, the exact current/index/inertia scaling laws, and
+  resistive-wall stabilisation, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -48,6 +52,9 @@
   evidence.
 - Updated the NTM island-dynamics traceability entry and validation guide with the
   Modified Rutherford Equation analytic evidence.
+- Updated the RZIP vertical-stability traceability entry, physics methods
+  reference, and validation guide with the no-wall eigenvalue and scaling-law
+  evidence.
 
 ## [0.20.7] - 2026-06-05
 

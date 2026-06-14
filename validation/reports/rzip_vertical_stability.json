@@ -1,0 +1,63 @@
+{
+  "config": {
+    "a": 0.5,
+    "b0": 2.0,
+    "ip_ma": 1.0,
+    "kappa": 1.8,
+    "m_eff_kg": 2.0,
+    "r0": 1.7
+  },
+  "exact_tol": 1e-09,
+  "frequency_passed": true,
+  "generated_utc": "2026-06-14T14:24:29Z",
+  "growth_passed": true,
+  "growth_time_passed": true,
+  "marginal_growth_rate": 0.0,
+  "marginal_passed": true,
+  "marginal_tol": 1e-06,
+  "max_frequency_rel_error": 0.0,
+  "max_growth_rel_error": 2.139508560245193e-16,
+  "max_growth_time_rel_error": 1.1368683772161603e-16,
+  "max_scaling_rel_error": 0.0,
+  "passed": true,
+  "payload_sha256": "5bd05ccfa9ba71b34370fde181dde00ea6acaddae51c81a2cb0ea8edd099a87f",
+  "scaling": [
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "current_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "index_sqrt",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "inertia_inverse_sqrt",
+      "rel_error": 0.0
+    }
+  ],
+  "scaling_passed": true,
+  "schema_version": "scpn-control.rzip-vertical-stability-validation.v1",
+  "stable_indices": [
+    0.8,
+    1.5
+  ],
+  "target_id": "local-rzip-vertical-stability",
+  "unstable_indices": [
+    -2.5,
+    -1.2,
+    -0.6
+  ],
+  "wall": {
+    "no_wall_growth_rate": 171.49858514250886,
+    "wall_slows_growth": true,
+    "with_wall_finite": true,
+    "with_wall_growth_rate": 0.4216183578546968
+  },
+  "wall_passed": true
+}

@@ -445,6 +445,27 @@ above. This validates the island-evolution ODE right-hand side and integrator
 against analytic references; facility-qualified NTM forecasting or suppression
 claims still require a measured campaign or documented public reference.
 
+RZIP rigid vertical stability evidence against exact eigenvalue references can be
+regenerated with:
+
+```bash
+python -m validation.validate_rzip_vertical_stability \
+  --report validation/reports/rzip_vertical_stability.json
+```
+
+The produced JSON uses `scpn-control.rzip-vertical-stability-validation.v1` and
+binds its own payload by SHA-256. In the no-wall limit the rigid vertical mode
+reduces to the exact 2x2 block with eigenvalues `+/- sqrt(-K/M_eff)`, so the
+production `RZIPModel.vertical_growth_rate` is checked against
+`gamma = sqrt(-n mu_0 Ip^2 / (4 pi R_0 M_eff))` for a destabilising index
+`n < 0`, the oscillation frequency `sqrt(K/M_eff)` for a stabilising `n > 0`, the
+growth-time identity, and the exact `Ip`, `sqrt(-n)`, and `1/sqrt(M_eff)` scaling
+laws — all to about `1e-16` relative. A passive resistive wall is shown to reduce
+the growth rate below the no-wall value, confirming the eddy-current circuit
+coupling is stabilising. This validates the rigid-mode physics and eigenvalue
+machinery; facility-validated vertical-control claims still require a matched
+RZIP/CREATE-L/TSC or measured vertical-displacement benchmark.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

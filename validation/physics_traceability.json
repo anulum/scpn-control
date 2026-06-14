@@ -443,7 +443,9 @@
         "validation/validate_rzip_reference.py strict RZIP reference artifact gate",
         "tests/test_rzip_model.py calibration evidence, facility-claim admission, and persisted evidence checks",
         "validation/benchmark_rzip_calibration.py bounded local RZIP calibration benchmark",
-        "validation/reports/rzip_calibration.json bounded local calibration report with evidence payload digest"
+        "validation/reports/rzip_calibration.json bounded local calibration report with evidence payload digest",
+        "validation/validate_rzip_vertical_stability.py validates the production state-space growth rate against the exact no-wall rigid-mode eigenvalue sqrt(-K/M_eff), the stable-index oscillation frequency, the growth-time identity, exact Ip/index/inertia scaling laws, and resistive-wall stabilisation, with tamper-evident sealed evidence",
+        "tests/test_rzip_vertical_stability_validation.py no-wall growth, oscillation-frequency, scaling-law, wall-stabilisation, and evidence-seal checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rzip_model.py",
@@ -453,12 +455,22 @@
         "validation/benchmark_rzip_calibration.py",
         "validation/reports/rzip_calibration.json",
         "validation/reports/rzip_calibration.md",
-        "docs/benchmarks.md"
+        "docs/benchmarks.md",
+        "validation/validate_rzip_vertical_stability.py",
+        "validation/reports/rzip_vertical_stability.json",
+        "validation/reports/rzip_vertical_stability.md",
+        "tests/test_rzip_vertical_stability_validation.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/rzip_model.py"
       ],
-      "validity_domain": "Linearised rigid-plasma vertical stability analysis for controller prototyping, local regression tests, and bounded calibration-admission evidence; not a facility-validated vertical-control plant unless external or measured reference evidence passes the strict admission gate.",
+      "evidence": [
+        "validation/validate_rzip_vertical_stability.py schema-versioned digest-bound no-wall growth-rate, oscillation, scaling-law, and wall-stabilisation validator",
+        "validation/reports/rzip_vertical_stability.json sealed exact-reference and scaling evidence",
+        "validation/reports/rzip_vertical_stability.md human-readable growth-rate, scaling, and wall-stabilisation summary",
+        "tests/test_rzip_vertical_stability_validation.py exact-eigenvalue, scaling, wall, and tamper checks"
+      ],
+      "validity_domain": "Linearised rigid-plasma vertical stability analysis for controller prototyping, local regression tests, and bounded calibration-admission evidence, with the production state-space growth rate now validated against the exact no-wall rigid-mode eigenvalue sqrt(-K/M_eff) (to ~1e-16 relative), the stable-index oscillation frequency, the growth-time identity, the exact Ip/index/inertia scaling laws, and resistive-wall stabilisation of the eddy-current circuit; not a facility-validated vertical-control plant unless external or measured reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 51
     },
     {
