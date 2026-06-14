@@ -943,7 +943,9 @@
       "validation_evidence": [
         "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, profile-domain, control, and claim-admission checks",
         "validation/validate_burn_reference.py strict burn-control reference artifact gate",
-        "validation/benchmark_burn_control_claims.py bounded claim-admission benchmark"
+        "validation/benchmark_burn_control_claims.py bounded claim-admission benchmark",
+        "validation/validate_burn_control.py validates the alpha-energy partition E_fus/E_alpha = 5, the alpha power density (n_e/2)^2 <sigma v> E_alpha, the alpha-power volume integral, the energy gain Q = 5 P_alpha/P_aux with its ignition limits, the Lawson triple product and ignition margin, the burn fraction, the reactivity-exponent centred finite difference, and the energy-gain/Lawson/burn-fraction scaling laws against exact closed forms (holding the separately validated Bosch-Hale reactivity as the shared input), with tamper-evident sealed evidence",
+        "tests/test_burn_control_validation.py energy-partition, power-density, volume-integral, energy-gain, ignition-limit, Lawson, burn-fraction, reactivity-exponent, scaling-law, configuration-guard, and evidence-seal checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/burn_controller.py",
@@ -951,12 +953,22 @@
         "validation/validate_burn_reference.py",
         "validation/benchmark_burn_control_claims.py",
         "validation/reports/burn_control_claims.json",
-        "validation/reports/burn_control_claims.md"
+        "validation/reports/burn_control_claims.md",
+        "validation/validate_burn_control.py",
+        "validation/reports/burn_control.json",
+        "validation/reports/burn_control.md",
+        "tests/test_burn_control_validation.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/burn_controller.py"
       ],
-      "validity_domain": "Bounded DT burn-control and alpha-heating regression plus fail-closed claim-admission evidence; not a validated reactor burn-control design unless strict reference artifacts pass declared tolerances.",
+      "evidence": [
+        "validation/validate_burn_control.py schema-versioned digest-bound alpha-power, energy-gain, Lawson, burn-fraction, and reactivity-exponent validator",
+        "validation/reports/burn_control.json sealed exact-closed-form burn-control algebra evidence",
+        "validation/reports/burn_control.md human-readable alpha-power, Lawson, and stability summary",
+        "tests/test_burn_control_validation.py energy-partition, power-density, volume-integral, energy-gain, Lawson, burn-fraction, reactivity-exponent, scaling, configuration-guard, and tamper checks"
+      ],
+      "validity_domain": "Bounded DT burn-control and alpha-heating regression plus fail-closed claim-admission evidence, with the production alpha-energy partition, alpha power density, alpha-power volume integral, energy gain and ignition limits, Lawson triple product and margin, burn fraction, and reactivity-exponent finite difference now validated against their exact closed forms to machine precision (the Bosch-Hale DT reactivity is validated separately and held as the shared input); not a validated reactor burn-control design unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {

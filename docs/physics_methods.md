@@ -414,6 +414,35 @@ $$\int V_{\rm loop}\,\mathrm{d}t = L_p\,\mathrm{d}I_p + R_p I_p\,\mathrm{d}t,
   commissioning claims still require measured loop-voltage or scenario
   references.
 
+### DT Burn Control and Alpha Heating
+Deuterium-tritium alpha-heating power, fusion energy gain, the Lawson ignition
+criterion, the burn fraction, and the thermal-stability reactivity exponent,
+assembled from the Bosch-Hale DT reactivity.
+
+$$p_\alpha = \left(\frac{n_e}{2}\right)^2 \langle \sigma v \rangle(T_i) E_\alpha,
+  \qquad
+  Q = \frac{P_{\rm fus}}{P_{\rm aux}} = \frac{5 P_\alpha}{P_{\rm aux}}, \qquad
+  n \tau_E T > 3\times10^{21}\ \mathrm{m^{-3}\,s\,keV}$$
+
+- **Source**: Bosch & Hale, *Nucl. Fusion* 32, 611 (1992); Lawson, *Proc. Phys.
+  Soc. B* 70, 6 (1957); ITER Physics Basis, *Nucl. Fusion* 39, 2137 (1999);
+  Mitarai & Muraoka, *Nucl. Fusion* 39, 725 (1999).
+- **Implementation**: `src/scpn_control/control/burn_controller.py:334`.
+- **Validation**: The production `AlphaHeating`, `BurnStabilityAnalysis`,
+  `lawson_triple_product`, and `burn_fraction` are checked against their exact
+  closed forms — the alpha-energy partition $E_{\rm fus}/E_\alpha = 5$, the
+  alpha power density $(n_e/2)^2 \langle\sigma v\rangle E_\alpha$, the alpha-power
+  volume integral (the trapezoidal integral of the shell element
+  $4\pi^2 R_0 a^2 \kappa \rho$ is exact for the linear integrand), the energy gain
+  $Q = 5 P_\alpha/P_{\rm aux}$ with its ignition limits, the Lawson triple product
+  and ignition margin, the burn fraction $a^2 n_{\rm DT}\langle\sigma v\rangle/(4
+  v_{\rm th})$, and the reactivity exponent $\mathrm{d}\ln\langle\sigma
+  v\rangle/\mathrm{d}\ln T$ — all to machine precision, in
+  `validation/validate_burn_control.py` with tests in
+  `tests/test_burn_control_validation.py`. The Bosch-Hale DT reactivity is
+  validated separately and held as the shared input; reactor burn-control claims
+  still require integrated-transport or measured burn references.
+
 ### Density Control and Particle Balance
 Line-averaged density control against the Greenwald limit, with a cylindrical
 finite-volume particle-transport equation fed by normalised gas-puff,

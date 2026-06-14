@@ -89,6 +89,11 @@
   cryopump edge sink, the diffusion operator vanishing on a uniform interior, and
   the Greenwald scaling laws against exact closed forms, with tamper-evident
   sealed evidence.
+- Added a DT burn-control alpha-heating validator that checks the alpha-energy
+  partition, the alpha power density, the alpha-power volume integral, the energy
+  gain and ignition limits, the Lawson triple product and ignition margin, the
+  burn fraction, the reactivity-exponent finite difference, and the burn scaling
+  laws against exact closed forms, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -114,6 +119,9 @@
 - Updated the density-control traceability entry, physics methods reference, and
   validation guide with the Greenwald-limit, volume-element, source-conservation,
   cryopump-sink, and diffusion-operator closed-form evidence.
+- Updated the DT burn-control traceability entry, physics methods reference, and
+  validation guide with the alpha-power, energy-gain, Lawson, burn-fraction, and
+  reactivity-exponent closed-form evidence.
 - Updated the RZIP vertical-stability traceability entry, physics methods
   reference, and validation guide with the no-wall eigenvalue and scaling-law
   evidence.

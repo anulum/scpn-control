@@ -720,6 +720,29 @@ this exact-closed-form scope. This validates the particle-balance physics;
 facility-calibrated fuelling or exhaust claims still require measured
 particle-balance references.
 
+DT burn-control alpha-heating evidence against exact closed forms can be
+regenerated with:
+
+```bash
+python -m validation.validate_burn_control \
+  --report validation/reports/burn_control.json
+```
+
+The produced JSON uses `scpn-control.burn-control-validation.v1` and binds its
+own payload by SHA-256. It checks the production `AlphaHeating`,
+`BurnStabilityAnalysis`, `lawson_triple_product`, and `burn_fraction` against
+their exact closed forms: the alpha-energy partition `E_fus/E_alpha = 5`, the
+alpha power density `(n_e/2)^2 <sigma v> E_alpha`, the alpha-power volume integral
+`p_alpha 2 pi^2 R0 a^2 kappa` for a constant power density, the energy gain
+`Q = 5 P_alpha/P_aux` with its `P_aux = 0` ignition limits, the Lawson triple
+product `n tau_E T` and the `3e21` ignition margin, the burn fraction
+`a^2 n_DT <sigma v> / (4 v_th)`, and the reactivity exponent
+`d ln<sigma v>/d ln T` reproduced by the centred finite difference — all to
+machine precision. The Bosch-Hale DT reactivity is validated separately
+(`scpn_control.core.uncertainty.bosch_hale_reactivity`) and held as the shared
+input. This validates the burn-control algebra; reactor burn-control claims still
+require integrated-transport or measured burn references.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

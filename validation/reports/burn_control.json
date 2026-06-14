@@ -1,0 +1,66 @@
+{
+  "burn_fraction_rel_error": 0.0,
+  "config": {
+    "alpha_power_mw": 100.0,
+    "aux_power_mw": 50.0,
+    "confinement_time_s": 3.0,
+    "density_m3": 1e+20,
+    "electron_density_1e20": 1.0,
+    "electron_temperature_kev": 20.0,
+    "elongation": 1.7,
+    "ion_temperature_kev": 20.0,
+    "major_radius_m": 6.2,
+    "minor_radius_m": 2.0,
+    "n_rho": 32,
+    "thermal_speed_ms": 1000000.0
+  },
+  "energetics_passed": true,
+  "energy_gain_rel_error": 0.0,
+  "energy_partition_rel_error": 0.0,
+  "exact_tol": 1e-09,
+  "generated_utc": "2026-06-14T19:27:45Z",
+  "ignition_limits": {
+    "infinite_when_burning": true,
+    "zero_when_dark": true
+  },
+  "lawson_margin_rel_error": 0.0,
+  "lawson_passed": true,
+  "lawson_rel_error": 0.0,
+  "low_temperature_guard_ok": true,
+  "max_scaling_rel_error": 0.0,
+  "passed": true,
+  "payload_sha256": "a5ad85d50c223a0208c21ff254496fece7dbcc214f018b5995d3d81f7d9f5137",
+  "power_density_rel_error": 0.0,
+  "reactivity_exponent_rel_error": 0.0,
+  "scaling": [
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "energy_gain_alpha_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "energy_gain_aux_inverse",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "lawson_density_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 4.0,
+      "measured_ratio": 4.0,
+      "name": "burn_fraction_minor_radius_square",
+      "rel_error": 0.0
+    }
+  ],
+  "scaling_passed": true,
+  "schema_version": "scpn-control.burn-control-validation.v1",
+  "stability_passed": true,
+  "target_id": "burn-control-alpha-heating",
+  "volume_integral_rel_error": 1.119808848877034e-16
+}
