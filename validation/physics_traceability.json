@@ -494,7 +494,9 @@
         "tests/test_rwm_feedback.py growth-rate, rotation, wall-geometry, feedback, ideal-kink, and required-gain checks",
         "tests/test_rwm_feedback.py claim-evidence provenance, external tolerance admission, and invalid-domain checks",
         "validation/benchmark_rwm_claims.py bounded local RWM claim-admission benchmark",
-        "validation/reports/rwm_claims.json bounded local RWM claim report"
+        "validation/reports/rwm_claims.json bounded local RWM claim report",
+        "validation/validate_rwm_feedback.py validates the Bondeson-Ward growth rate, wall-gap tau_eff, Fitzpatrick rotation stabilisation, critical-rotation marginality, required-feedback-gain marginalisation, ideal-kink and no-wall boundaries, and 1/tau_wall scaling against exact closed forms, with tamper-evident sealed evidence",
+        "tests/test_rwm_feedback_validation.py growth-rate, rotation, critical-rotation, feedback-marginality, boundary, and evidence-seal checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/rwm_feedback.py",
@@ -504,12 +506,23 @@
         "validation/benchmark_rwm_claims.py",
         "validation/reports/rwm_claims.json",
         "validation/reports/rwm_claims.md",
-        "docs/benchmarks.md"
+        "docs/benchmarks.md",
+        "validation/validate_rwm_feedback.py",
+        "validation/reports/rwm_feedback.json",
+        "validation/reports/rwm_feedback.md",
+        "tests/test_rwm_feedback_validation.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/rwm_feedback.py"
       ],
-      "validity_domain": "Bounded analytic RWM stability-window and active-feedback calculations for local controller studies plus bounded claim-admission evidence; not facility-validated MHD stability or hardware-control evidence unless external or measured reference evidence passes the strict admission gate.",
+      "evidence": [
+        "validation/validate_rwm_feedback.py schema-versioned digest-bound Bondeson-Ward, rotation, critical-rotation, and feedback-marginality validator",
+        "validation/reports/rwm_feedback.json sealed exact-closed-form evidence",
+        "validation/reports/rwm_feedback.md human-readable growth-rate, rotation, feedback, and boundary summary",
+        "tests/test_rwm_feedback_validation.py exact-growth-rate, critical-rotation, feedback-marginality, and tamper checks"
+      ],
+      "validity_domain": "Bounded analytic RWM stability-window and active-feedback calculations for local controller studies plus bounded claim-admission evidence, with the production growth rate, wall-gap correction, rotation stabilisation, passive critical-rotation marginality, and active-feedback marginalisation now validated against their exact closed forms (to ~1e-16 relative); not facility-validated MHD stability or hardware-control evidence unless external or measured reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 51
     },
     {

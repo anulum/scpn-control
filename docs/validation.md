@@ -466,6 +466,28 @@ coupling is stabilising. This validates the rigid-mode physics and eigenvalue
 machinery; facility-validated vertical-control claims still require a matched
 RZIP/CREATE-L/TSC or measured vertical-displacement benchmark.
 
+Resistive-wall-mode feedback evidence against exact closed forms can be
+regenerated with:
+
+```bash
+python -m validation.validate_rwm_feedback \
+  --report validation/reports/rwm_feedback.json
+```
+
+The produced JSON uses `scpn-control.rwm-feedback-validation.v1` and binds its
+own payload by SHA-256. It checks the production `RWMPhysics` and
+`RWMFeedbackController` against their exact closed forms: the Bondeson-Ward
+growth rate `gamma_wall = (1/tau_eff)(beta_N - beta_nw)/(beta_w - beta_N)`, the
+wall-gap `tau_eff = tau_wall (b/d)^2`, the Fitzpatrick rotation term, the
+critical-rotation marginality (total growth rate is exactly zero at
+`Omega_crit`), and the feedback marginalisation (the closed-loop growth rate is
+exactly zero at the required gain `(1 + gamma tau_ctrl)/M_coil`) — all to about
+`1e-16` relative — plus the no-wall/ideal-kink window boundaries and the
+`1/tau_wall` scaling. This validates the RWM stability-window and feedback
+physics against analytic references; facility-validated MHD-stability or
+hardware-control claims still require measured RWM shots or an external MHD
+stability reference.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

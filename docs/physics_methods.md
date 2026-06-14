@@ -149,6 +149,31 @@ the state-space matrix for $x = [Z, \dot Z, I_1, \ldots]$.
   vertical-control claims still require a matched RZIP/CREATE-L/TSC or measured
   vertical-displacement benchmark.
 
+### Resistive-Wall-Mode Feedback
+Wall-limited growth rate with rotation stabilisation and active PD feedback for
+the $n=1$ resistive wall mode between the no-wall and ideal-wall $\beta$ limits.
+
+$$\gamma_{\mathrm{wall}} = \frac{1}{\tau_{\mathrm{eff}}}
+  \frac{\beta_N - \beta_{N,\mathrm{nw}}}{\beta_{N,\mathrm{w}} - \beta_N}, \qquad
+  \tau_{\mathrm{eff}} = \tau_{\mathrm{wall}} (b/d)^2$$
+
+- **Source**: Bondeson & Ward, *Phys. Rev. Lett.* 72, 2709 (1994); Fitzpatrick,
+  *Phys. Plasmas* 8, 4489 (2001); Garofalo et al., *Phys. Plasmas* 9, 1997
+  (2002).
+- **Implementation**: `src/scpn_control/control/rwm_feedback.py:295`.
+- **Validation**: The production `growth_rate`, `tau_eff`, `critical_rotation`,
+  `effective_growth_rate`, and `required_feedback_gain` are checked against their
+  exact closed forms — the Bondeson-Ward growth rate, the wall-gap $\tau_{\rm
+  eff}$, the Fitzpatrick rotation term, the critical-rotation marginality
+  ($\gamma=0$ at $\Omega_{\rm crit}$), and the feedback marginalisation
+  ($\gamma_{\rm eff}=0$ at the required gain $(1+\gamma\tau_{\rm ctrl})/M_{\rm
+  coil}$) — all to $\sim10^{-16}$ relative, plus the no-wall/ideal-kink window
+  boundaries and $1/\tau_{\rm wall}$ scaling, in
+  `validation/validate_rwm_feedback.py` with tests in
+  `tests/test_rwm_feedback_validation.py`. Facility-validated MHD-stability or
+  hardware-control claims still require measured RWM shots or an external MHD
+  stability reference.
+
 ### Kuramoto-Sakaguchi Phase Dynamics
 $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \sin(\Psi - \theta_i)$$
 

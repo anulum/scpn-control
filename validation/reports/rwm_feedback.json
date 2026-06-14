@@ -1,0 +1,56 @@
+{
+  "boundary_passed": true,
+  "config": {
+    "beta_n_nowall": 2.0,
+    "beta_n_wall": 4.0,
+    "tau_wall_s": 0.005
+  },
+  "critical_rotation_passed": true,
+  "exact_tol": 1e-09,
+  "feedback_checks": [
+    {
+      "beta_n": 2.5,
+      "closed_loop_residual": 0.0,
+      "required_gain_rel_error": 0.0
+    },
+    {
+      "beta_n": 3.0,
+      "closed_loop_residual": 0.0,
+      "required_gain_rel_error": 0.0
+    },
+    {
+      "beta_n": 3.5,
+      "closed_loop_residual": 0.0,
+      "required_gain_rel_error": 0.0
+    }
+  ],
+  "feedback_passed": true,
+  "gamma_wall_passed": true,
+  "generated_utc": "2026-06-14T14:33:26Z",
+  "ideal_growth_rate_is_infinite": true,
+  "max_critical_rotation_residual": 1.4210854715202004e-16,
+  "max_feedback_residual": 0.0,
+  "max_gamma_wall_rel_error": 0.0,
+  "max_required_gain_rel_error": 0.0,
+  "max_rotation_rel_error": 0.0,
+  "max_scaling_rel_error": 0.0,
+  "passed": true,
+  "payload_sha256": "ca101ed7147d38efe290793592ef6d3b107aefdc0bb4602a3d590d303565cd53",
+  "rotation_indices": [
+    2.3,
+    2.5,
+    2.8
+  ],
+  "rotation_passed": true,
+  "scaling_passed": true,
+  "schema_version": "scpn-control.rwm-feedback-validation.v1",
+  "stable_growth_rate": 0.0,
+  "target_id": "local-rwm-feedback",
+  "tau_eff_passed": true,
+  "tau_eff_rel_error": 0.0,
+  "window_indices": [
+    2.5,
+    3.0,
+    3.5
+  ]
+}

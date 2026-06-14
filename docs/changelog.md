@@ -36,6 +36,10 @@
   state-space growth rate against the exact no-wall eigenvalue, the stable-index
   oscillation frequency, the exact current/index/inertia scaling laws, and
   resistive-wall stabilisation, with tamper-evident sealed evidence.
+- Added a resistive-wall-mode feedback validator that checks the Bondeson-Ward
+  growth rate, wall-gap correction, rotation stabilisation, critical-rotation
+  marginality, and feedback marginalisation against their exact closed forms,
+  with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -55,6 +59,8 @@
 - Updated the RZIP vertical-stability traceability entry, physics methods
   reference, and validation guide with the no-wall eigenvalue and scaling-law
   evidence.
+- Updated the resistive-wall-mode traceability entry, physics methods reference,
+  and validation guide with the Bondeson-Ward and feedback closed-form evidence.
 
 ## [0.20.7] - 2026-06-05
 
