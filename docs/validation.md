@@ -488,6 +488,27 @@ physics against analytic references; facility-validated MHD-stability or
 hardware-control claims still require measured RWM shots or an external MHD
 stability reference.
 
+Kadomtsev sawtooth-crash evidence against exact conservation laws can be
+regenerated with:
+
+```bash
+python -m validation.validate_sawtooth_kadomtsev \
+  --report validation/reports/sawtooth_kadomtsev.json
+```
+
+The produced JSON uses `scpn-control.sawtooth-kadomtsev-validation.v1` and binds
+its own payload by SHA-256. It confirms the production `kadomtsev_crash`
+conserves the volume integrals `integral T rho drho` and `integral n rho drho`
+over the mixing region to machine precision (energy and particle conservation),
+that the helical-flux proxy vanishes at the mixing radius
+(`psi*(rho_mix) = 0`), that the temperature and density flatten inside the mixing
+radius while `q` is reset to one and outer profiles stay invariant, that the
+grid-interpolated `q = 1` radius converges at second order to the analytic
+`rho_1 = sqrt((1 - q0)/(qa - q0))`, and that a `q > 1` profile triggers no crash.
+This validates the full-reconnection redistribution against analytic references;
+full nonlinear MHD sawtooth-crash or measured-shot claims still require a measured
+or published reference.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

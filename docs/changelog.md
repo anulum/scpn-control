@@ -40,6 +40,10 @@
   growth rate, wall-gap correction, rotation stabilisation, critical-rotation
   marginality, and feedback marginalisation against their exact closed forms,
   with tamper-evident sealed evidence.
+- Added a Kadomtsev sawtooth-crash validator that checks volume-integrated energy
+  and particle conservation, the helical-flux mixing condition, profile
+  flattening and q reset, outside invariance, and the analytic q=1-radius
+  convergence against exact references, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -61,6 +65,8 @@
   evidence.
 - Updated the resistive-wall-mode traceability entry, physics methods reference,
   and validation guide with the Bondeson-Ward and feedback closed-form evidence.
+- Added a Kadomtsev sawtooth-crash traceability entry, physics methods reference,
+  and validation guide with the reconnection conservation evidence.
 
 ## [0.20.7] - 2026-06-05
 

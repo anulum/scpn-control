@@ -174,6 +174,27 @@ $$\gamma_{\mathrm{wall}} = \frac{1}{\tau_{\mathrm{eff}}}
   hardware-control claims still require measured RWM shots or an external MHD
   stability reference.
 
+### Kadomtsev Sawtooth Crash
+Full-reconnection sawtooth crash: inside the mixing radius the temperature and
+density are replaced by their volume averages and $q$ is reset to one, with the
+mixing radius fixed by the helical-flux proxy
+$\psi^*(\rho) = \int_0^\rho \rho'(1/q - 1)\,d\rho'$ returning to zero outside the
+$q=1$ surface.
+
+- **Source**: Kadomtsev, *Sov. J. Plasma Phys.* 1, 389 (1975); Porcelli et al.,
+  *Plasma Phys. Control. Fusion* 38, 2163 (1996).
+- **Implementation**: `src/scpn_control/core/sawtooth.py:279`.
+- **Validation**: The production `kadomtsev_crash` is checked against exact
+  conservation laws — the volume integrals $\int T\rho\,d\rho$ and
+  $\int n\rho\,d\rho$ over the mixing region are conserved to machine precision,
+  the helical-flux proxy vanishes at the mixing radius
+  ($\psi^*(\rho_{\rm mix})=0$), profiles flatten inside and stay invariant
+  outside, and the interpolated $q=1$ radius converges at second order to the
+  analytic $\rho_1 = \sqrt{(1-q_0)/(q_a-q_0)}$ — in
+  `validation/validate_sawtooth_kadomtsev.py` with tests in
+  `tests/test_sawtooth_kadomtsev_validation.py`. Full nonlinear MHD sawtooth-crash
+  or measured-shot claims still require a measured or published reference.
+
 ### Kuramoto-Sakaguchi Phase Dynamics
 $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \sin(\Psi - \theta_i)$$
 

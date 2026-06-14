@@ -1380,6 +1380,47 @@
       "external_validation_tracker_issue": 49
     },
     {
+      "component": "Kadomtsev sawtooth crash and reconnection contract",
+      "equation_contract": "Kadomtsev sawtooth-crash claims must declare the q=1 surface location, the helical-flux proxy psi*(rho) = integral rho(1/q - 1) drho, the mixing radius where psi* returns to zero, volume-average redistribution of temperature and density inside the mixing radius, post-crash q=1 reset, conservation of volume-integrated energy and particles, profile invariance outside the mixing radius, and exclusion of full nonlinear MHD reconnection dynamics.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Kadomtsev 1975 full-reconnection sawtooth crash model",
+        "Porcelli et al. 1996 sawtooth trigger and reconnection contract"
+      ],
+      "module_path": "src/scpn_control/core/sawtooth.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Validate crash timing, mixing radius, and post-crash profiles against measured or published sawtooth-crash cases before facility claims",
+        "Persist pre-crash q-profile, q=1 radius, mixing radius, and redistribution metadata with each validation case"
+      ],
+      "unit_contract": "Normalised radius dimensionless, temperature in keV, density in 10^19 m^-3, q dimensionless, helical-flux proxy dimensionless, and major/minor radii in metres.",
+      "validation_evidence": [
+        "tests/test_sawtooth.py crash, trigger, monitor, and cycle checks",
+        "validation/validate_sawtooth_kadomtsev.py validates volume-integral energy and particle conservation, the helical-flux mixing condition, profile flattening and q reset inside the mixing radius, outside invariance, the analytic q=1-radius convergence, and the no-crash guard against exact references, with tamper-evident sealed evidence",
+        "tests/test_sawtooth_kadomtsev_validation.py conservation, helical-flux, flattening, outside-invariance, q1-convergence, no-crash, and evidence-seal checks"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/core/sawtooth.py",
+        "tests/test_sawtooth.py",
+        "validation/validate_sawtooth_kadomtsev.py",
+        "validation/reports/sawtooth_kadomtsev.json",
+        "validation/reports/sawtooth_kadomtsev.md",
+        "tests/test_sawtooth_kadomtsev_validation.py",
+        "docs/validation.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/core/sawtooth.py"
+      ],
+      "evidence": [
+        "validation/validate_sawtooth_kadomtsev.py schema-versioned digest-bound Kadomtsev crash conservation and reconnection validator",
+        "validation/reports/sawtooth_kadomtsev.json sealed conservation, helical-flux, and q1-convergence evidence",
+        "validation/reports/sawtooth_kadomtsev.md human-readable conservation and mixing-radius summary",
+        "tests/test_sawtooth_kadomtsev_validation.py conservation, helical-flux, flattening, and tamper checks"
+      ],
+      "validity_domain": "Local Kadomtsev full-reconnection crash regression with the production crash now validated to conserve volume-integrated energy and particles to machine precision, satisfy the helical-flux mixing condition psi*(rho_mix)=0, flatten profiles and reset q inside the mixing radius, leave outer profiles invariant, and recover the analytic q=1 radius under grid refinement; not full nonlinear MHD sawtooth-crash or measured-shot validation.",
+      "external_validation_tracker_issue": 49
+    },
+    {
       "component": "blob transport and scrape-off-layer approximation contract",
       "equation_contract": "Blob transport claims must declare interchange drive, sheath closure, radial velocity scaling, filament size, density and temperature perturbation assumptions, non-empty strictly ordered separatrix-to-wall scrape-off-layer profile coordinates, positive ordered detector-event domains, and scrape-off-layer validity bounds.",
       "fidelity_status": "validation_gap",
