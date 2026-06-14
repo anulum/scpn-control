@@ -53,6 +53,10 @@
   ECCD efficiency and launch-angle maximisation, the driven-current
   proportionality, and the neutral-beam current chain against exact closed forms,
   with tamper-evident sealed evidence.
+- Added an ideal-MHD stability-metric validator that checks the Troyon beta limit
+  and scalings, the Mercier interchange index, the Connor-Hastie-Taylor
+  ballooning boundary, and the Kruskal-Shafranov criterion against exact closed
+  forms, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -81,6 +85,9 @@
 - Updated the auxiliary current-drive traceability entry, physics methods
   reference, and validation guide with the deposition and efficiency closed-form
   evidence.
+- Updated the ideal-MHD stability traceability entry, physics methods reference,
+  and validation guide with the Troyon, Mercier, ballooning, and Kruskal-Shafranov
+  closed-form evidence.
 
 ## [0.20.7] - 2026-06-05
 

@@ -550,6 +550,26 @@ machine precision. This validates the deposition and efficiency physics against
 analytic references; external current-drive claims still require ray-tracing,
 Fokker-Planck, or measured-deposition artefacts.
 
+Ideal-MHD stability-metric evidence against exact closed forms can be regenerated
+with:
+
+```bash
+python -m validation.validate_mhd_stability \
+  --report validation/reports/mhd_stability.json
+```
+
+The produced JSON uses `scpn-control.mhd-stability-validation.v1` and binds its
+own payload by SHA-256. It checks the production stability metrics against their
+exact closed forms: the Troyon limit `beta_N = 100 beta_t a B0 / Ip` with its
+`beta_t`, `a`, `B0`, and `1/Ip` scaling and no-wall/ideal-wall boundaries, the
+Mercier interchange index `D_M = s(s-1) + alpha(1-s/2)` with hand-evaluated
+marginal cases, the Connor-Hastie-Taylor ballooning boundary
+`alpha_crit = s(1-s/2)` for `s<1` and `0.6 s` for `s>=1`, and the
+Kruskal-Shafranov `q_edge > 1` external-kink criterion — all to machine precision
+with consistent stability flags. This validates the analytic stability metrics;
+full ideal- or resistive-MHD eigenmode claims still require an independent MHD
+stability code or benchmark profiles.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

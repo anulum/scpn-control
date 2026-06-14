@@ -1,0 +1,46 @@
+{
+  "ballooning_branches_consistent": true,
+  "ballooning_passed": true,
+  "ballooning_rel_error": 0.0,
+  "exact_tol": 1e-09,
+  "generated_utc": "2026-06-14T15:21:10Z",
+  "kruskal_shafranov_consistent": true,
+  "kruskal_shafranov_passed": true,
+  "max_troyon_scaling_rel_error": 0.0,
+  "mercier_cases_consistent": true,
+  "mercier_passed": true,
+  "mercier_rel_error": 0.0,
+  "passed": true,
+  "payload_sha256": "1674490438bd85a20865778427d48a039bb355926834bd4cbbf060c3d69ff255",
+  "schema_version": "scpn-control.mhd-stability-validation.v1",
+  "target_id": "local-mhd-stability",
+  "troyon_boundary_consistent": true,
+  "troyon_passed": true,
+  "troyon_rel_error": 0.0,
+  "troyon_scaling": [
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "beta_t_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "minor_radius_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "field_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "current_inverse",
+      "rel_error": 0.0
+    }
+  ]
+}

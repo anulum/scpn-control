@@ -172,6 +172,29 @@ the state-space matrix for $x = [Z, \dot Z, I_1, \ldots]$.
   vertical-control claims still require a matched RZIP/CREATE-L/TSC or measured
   vertical-displacement benchmark.
 
+### Ideal-MHD Stability Metrics
+Troyon normalised-beta limit, Mercier interchange index, ballooning
+first-stability boundary, and the Kruskal-Shafranov external-kink criterion.
+
+$$\beta_N = \frac{100\,\beta_t\, a B_0}{I_p}, \qquad
+  D_M = s(s - 1) + \alpha\left(1 - \tfrac{s}{2}\right), \qquad
+  \alpha_{\rm crit} = \begin{cases} s(1 - s/2) & s < 1 \\ 0.6\,s & s \ge 1 \end{cases}$$
+
+- **Source**: Troyon et al., *Plasma Phys. Control. Fusion* 26, 209 (1984);
+  Freidberg, *Ideal MHD* (2014) Ch. 12; Connor, Hastie & Taylor, *Phys. Rev.
+  Lett.* 40, 396 (1978).
+- **Implementation**: `src/scpn_control/core/stability_mhd.py:319`.
+- **Validation**: The production `troyon_beta_limit`, `mercier_stability`,
+  `ballooning_stability`, and `kruskal_shafranov_stability` are checked against
+  their exact closed forms — the Troyon $\beta_N$ limit with its $\beta_t$, $a$,
+  $B_0$, $1/I_p$ scaling, the Mercier index, the Connor-Hastie-Taylor ballooning
+  boundary, and the Kruskal-Shafranov $q_{\rm edge} > 1$ criterion — all to
+  machine precision with consistent stability flags, in
+  `validation/validate_mhd_stability.py` with tests in
+  `tests/test_mhd_stability_validation.py`. Full ideal- or resistive-MHD
+  eigenmode claims still require an independent MHD stability code or benchmark
+  profiles.
+
 ### Resistive-Wall-Mode Feedback
 Wall-limited growth rate with rotation stabilisation and active PD feedback for
 the $n=1$ resistive wall mode between the no-wall and ideal-wall $\beta$ limits.

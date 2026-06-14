@@ -1334,8 +1334,10 @@
       "equation_contract": "MHD stability claims must declare q-profile interpolation, magnetic shear, interior-point radial grids for profile-resolved criteria, Mercier and Troyon criteria, beta-limit inputs, first-unstable-radius search, bounded bootstrap-current fraction, and the exclusion boundary for full ideal-MHD or resistive-MHD eigenmode claims.",
       "fidelity_status": "validation_gap",
       "model_references": [
-        "Troyon beta-limit reference",
-        "Mercier ideal-MHD stability criterion",
+        "Troyon et al. 1984 normalised-beta limit",
+        "Freidberg 2014 Mercier interchange criterion",
+        "Connor-Hastie-Taylor 1978 ballooning first-stability boundary",
+        "Kruskal-Schwarzschild 1954 external-kink criterion",
         "tokamak q-profile and magnetic-shear references"
       ],
       "module_path": "src/scpn_control/core/stability_mhd.py",
@@ -1348,18 +1350,31 @@
       "validation_evidence": [
         "tests/test_stability_mhd.py",
         "tests/test_ballooning_solver.py",
-        "tests/test_cross_module_physics.py"
+        "tests/test_cross_module_physics.py",
+        "validation/validate_mhd_stability.py validates the Troyon beta_N limit and scalings, the Mercier interchange index, the Connor-Hastie-Taylor ballooning boundary, and the Kruskal-Shafranov criterion against exact closed forms with consistent stability flags, with tamper-evident sealed evidence",
+        "tests/test_mhd_stability_validation.py Troyon, Mercier, ballooning, Kruskal-Shafranov, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_stability_mhd.py",
         "tests/test_ballooning_solver.py",
         "tests/test_cross_module_physics.py",
-        "src/scpn_control/core/stability_mhd.py"
+        "src/scpn_control/core/stability_mhd.py",
+        "validation/validate_mhd_stability.py",
+        "validation/reports/mhd_stability.json",
+        "validation/reports/mhd_stability.md",
+        "tests/test_mhd_stability_validation.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/stability_mhd.py"
       ],
-      "validity_domain": "Analytic stability metric regression; not full ideal-MHD, resistive-MHD, or facility stability validation.",
+      "evidence": [
+        "validation/validate_mhd_stability.py schema-versioned digest-bound Troyon, Mercier, ballooning, and Kruskal-Shafranov validator",
+        "validation/reports/mhd_stability.json sealed exact-closed-form evidence",
+        "validation/reports/mhd_stability.md human-readable stability-metric summary",
+        "tests/test_mhd_stability_validation.py Troyon-scaling, Mercier-index, ballooning-boundary, Kruskal-Shafranov, and tamper checks"
+      ],
+      "validity_domain": "Analytic stability metric regression with the production Troyon beta_N limit and scalings, Mercier interchange index, Connor-Hastie-Taylor ballooning boundary, and Kruskal-Shafranov external-kink criterion now validated against their exact closed forms to machine precision with consistent stability flags; not full ideal-MHD, resistive-MHD, or facility eigenmode stability validation.",
       "external_validation_tracker_issue": 49
     },
     {
