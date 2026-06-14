@@ -1122,7 +1122,9 @@
       "equation_contract": "EPED claims must declare the pedestal-width scaling, collisionless width versus collisionality-narrowed effective-width ordering, peeling-ballooning pressure limit, bootstrap-current coupling, H-mode entry assumptions, global beta limits, and compatibility boundary to the transport solver.",
       "fidelity_status": "validation_gap",
       "model_references": [
-        "Snyder et al. EPED pedestal model",
+        "Snyder et al. 2009 EPED1 pedestal model and KBM width scaling",
+        "Snyder et al. 2011 collisionality width narrowing",
+        "Connor et al. 1998 ballooning first-stability boundary",
         "Troyon beta-limit reference",
         "Sauter bootstrap-current fit"
       ],
@@ -1139,7 +1141,9 @@
         "tests/test_eped_reference_validation.py strict reference-artifact admission checks",
         "validation/validate_eped_reference.py strict digest-bound EPED pedestal reference gate",
         "tests/test_cross_module_physics.py",
-        "tests/test_transport_hmode_edge.py"
+        "tests/test_transport_hmode_edge.py",
+        "validation/validate_eped_pedestal.py validates the q95 formula, alpha-inversion pedestal pressure, poloidal-beta definition, ideal-gas temperature, collisionality width narrowing, shaping-factor reference, and the KBM width constraint against exact construction relations, with tamper-evident sealed evidence",
+        "tests/test_eped_pedestal_validation.py construction-relation, collisionality, shaping, KBM-fixed-point, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_eped_pedestal.py",
@@ -1147,12 +1151,23 @@
         "validation/validate_eped_reference.py",
         "tests/test_cross_module_physics.py",
         "tests/test_transport_hmode_edge.py",
-        "src/scpn_control/core/eped_pedestal.py"
+        "src/scpn_control/core/eped_pedestal.py",
+        "validation/validate_eped_pedestal.py",
+        "validation/reports/eped_pedestal.json",
+        "validation/reports/eped_pedestal.md",
+        "tests/test_eped_pedestal_validation.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/eped_pedestal.py"
       ],
-      "validity_domain": "Pedestal-model regression, cross-module consistency checks, and a fail-closed, schema-versioned, digest-bound reference-artifact gate; not an externally validated EPED database fit until measured pedestal-database or documented public artifacts pass declared tolerances.",
+      "evidence": [
+        "validation/validate_eped_pedestal.py schema-versioned digest-bound EPED construction-relation, collisionality, shaping, and KBM-constraint validator",
+        "validation/reports/eped_pedestal.json sealed exact-construction-relation evidence",
+        "validation/reports/eped_pedestal.md human-readable construction, collisionality, shaping, and KBM summary",
+        "tests/test_eped_pedestal_validation.py construction-relation, collisionality, shaping, KBM-fixed-point, and tamper checks"
+      ],
+      "validity_domain": "Pedestal-model regression, cross-module consistency checks, and a fail-closed, schema-versioned, digest-bound reference-artifact gate, with the production EPED1 construction relations (q95, alpha-inversion pressure, poloidal beta, ideal-gas temperature, collisionality narrowing, shaping factor) now validated to machine precision and the KBM width constraint satisfied at the converged collisionless width within the fixed-point iteration tolerance; not an externally validated EPED database fit until measured pedestal-database or documented public artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {

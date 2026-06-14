@@ -57,6 +57,10 @@
   and scalings, the Mercier interchange index, the Connor-Hastie-Taylor
   ballooning boundary, and the Kruskal-Shafranov criterion against exact closed
   forms, with tamper-evident sealed evidence.
+- Added an EPED pedestal validator that checks the q95 formula, alpha-inversion
+  pressure, poloidal-beta definition, ideal-gas temperature, collisionality width
+  narrowing, shaping-factor reference, and the KBM width constraint against the
+  exact construction relations, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -88,6 +92,8 @@
 - Updated the ideal-MHD stability traceability entry, physics methods reference,
   and validation guide with the Troyon, Mercier, ballooning, and Kruskal-Shafranov
   closed-form evidence.
+- Updated the EPED pedestal traceability entry, physics methods reference, and
+  validation guide with the construction-relation and KBM-constraint evidence.
 
 ## [0.20.7] - 2026-06-05
 

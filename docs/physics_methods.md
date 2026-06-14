@@ -195,6 +195,30 @@ $$\beta_N = \frac{100\,\beta_t\, a B_0}{I_p}, \qquad
   eigenmode claims still require an independent MHD stability code or benchmark
   profiles.
 
+### EPED Pedestal Model
+Self-consistent pedestal pressure and width from the peeling-ballooning and
+kinetic-ballooning-mode constraints, with a collisionality width-narrowing
+correction.
+
+$$\Delta_{\rm KBM} = C_{\rm KBM}\sqrt{\beta_{p,\rm ped}}, \qquad
+  p_{\rm ped} = \frac{\alpha_{\rm crit} B_0^2 a \Delta}{2\mu_0 q_{95}^2 R_0},
+  \qquad \Delta_{\rm eff} = \frac{\Delta_{\rm KBM}}{1 + 0.4\ln(1 + \nu^*_e)}$$
+
+- **Source**: Snyder et al., *Phys. Plasmas* 16, 056118 (2009); *Nucl. Fusion*
+  51, 103016 (2011).
+- **Implementation**: `src/scpn_control/core/eped_pedestal.py:252`.
+- **Validation**: The production `eped1_predict` and helpers are checked against
+  their exact construction relations — the $q_{95}$ formula, the
+  $\alpha$-inversion pedestal pressure, the poloidal-beta definition, the
+  ideal-gas temperature, the collisionality width narrowing (with the
+  $\nu^*=0$ identity), and the shaping-factor reference — all to machine
+  precision, plus the KBM width constraint
+  $\Delta_{\rm KBM} = C_{\rm KBM}\sqrt{\beta_{p,\rm ped}}$ satisfied at the
+  converged collisionless width within the fixed-point iteration tolerance, in
+  `validation/validate_eped_pedestal.py` with tests in
+  `tests/test_eped_pedestal_validation.py`. Externally validated EPED-database
+  claims still require measured pedestal data or published benchmark points.
+
 ### Resistive-Wall-Mode Feedback
 Wall-limited growth rate with rotation stabilisation and active PD feedback for
 the $n=1$ resistive wall mode between the no-wall and ideal-wall $\beta$ limits.

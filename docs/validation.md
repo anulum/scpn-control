@@ -570,6 +570,29 @@ with consistent stability flags. This validates the analytic stability metrics;
 full ideal- or resistive-MHD eigenmode claims still require an independent MHD
 stability code or benchmark profiles.
 
+EPED pedestal-model evidence against its exact construction relations can be
+regenerated with:
+
+```bash
+python -m validation.validate_eped_pedestal \
+  --report validation/reports/eped_pedestal.json
+```
+
+The produced JSON uses `scpn-control.eped-pedestal-validation.v1` and binds its
+own payload by SHA-256. It checks the production `eped1_predict` against the exact
+construction relations — the `q95 = a B0/(R0 B_pol)(1+kappa^2)/2` formula, the
+alpha-inversion pedestal pressure `p_ped = alpha_crit B0^2 a Delta/(2 mu0 q95^2
+R0)`, the poloidal beta `beta_p = 2 mu0 p/B_pol^2`, the ideal-gas temperature
+`T_ped = p/(2 n_e e)`, the collisionality width narrowing (with the `nu*=0`
+identity), and the shaping-factor reference (unity at the ITER reference shape) —
+all to machine precision, plus the KBM width constraint
+`Delta_KBM = C_KBM sqrt(beta_p)` satisfied at the converged collisionless width
+within the fixed-point iteration tolerance. The Rust `control-core/src/pedestal.rs`
+is a separate simplified ELM-trigger proxy with a different width scaling and is
+not a parity counterpart, so no cross-language parity is asserted. This validates
+the EPED construction; externally validated EPED-database claims still require
+measured pedestal data or published benchmark points.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

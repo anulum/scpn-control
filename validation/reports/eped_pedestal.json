@@ -1,0 +1,23 @@
+{
+  "alpha_inversion_rel_error": 0.0,
+  "beta_p_rel_error": 0.0,
+  "collisionality_passed": true,
+  "collisionality_rel_error": 0.0,
+  "collisionless_identity": true,
+  "construction_passed": true,
+  "exact_tol": 1e-09,
+  "generated_utc": "2026-06-14T15:46:09Z",
+  "kbm_fixed_point_rel_error": 0.01262683362278566,
+  "kbm_passed": true,
+  "kbm_tol": 0.03,
+  "passed": true,
+  "payload_sha256": "99c7892f197bbc9357a3e463464f86c9c9c83236f9c2e0ee3187d697293fc0f5",
+  "q95_rel_error": 0.0,
+  "schema_version": "scpn-control.eped-pedestal-validation.v1",
+  "shaping_monotonic_in_triangularity": true,
+  "shaping_passed": true,
+  "shaping_reference_rel_error": 0.0,
+  "shaping_reference_value": 1.0,
+  "target_id": "local-eped-pedestal",
+  "temperature_rel_error": 0.0
+}
