@@ -264,6 +264,34 @@ $$\left(\frac{j_{\rm edge}}{j_{\rm crit}}\right)^2 +
   `tests/test_elm_peeling_ballooning_validation.py`. Facility ELM/RMP claims
   still require measured H-mode campaign data or published ELM cases.
 
+### Halo-Current L/R Circuit
+Post-disruption halo current driven through the wall by the decaying plasma
+current during a current quench, modelled as a Fitzpatrick-style L/R circuit
+with closed-form circuit parameters and an electromagnetic wall-force estimate.
+
+$$L_h \frac{\mathrm{d} I_h}{\mathrm{d} t} + R_h I_h = M
+  \left| \frac{\mathrm{d} I_p}{\mathrm{d} t} \right|, \qquad
+  R_h = \frac{\eta\, 2\pi R_0}{d_{\rm wall}\, a\, f_{\rm contact}}, \qquad
+  L_h = \mu_0 R_0 \left( \ln \frac{8 R_0}{a} - 1.5 \right)$$
+
+$$M = f_{\rm contact} \sqrt{L_p L_h}, \qquad \tau_h = \frac{L_h}{R_h}, \qquad
+  F = \frac{\mu_0 I_{h,\rm peak} I_{p0}}{2\pi a}$$
+
+- **Source**: Fitzpatrick, *Phys. Plasmas* 9, 3459 (2002); Wesson, *Tokamaks*,
+  4th ed., Oxford University Press, Ch. 7 (2011).
+- **Implementation**: `src/scpn_control/control/halo_re_physics.py:213`.
+- **Validation**: The production `HaloCurrentModel` is checked against its exact
+  closed forms — the halo resistance $R_h$, the halo inductance $L_h$, the mutual
+  inductance $M$, and the time constant $\tau_h = L_h/R_h$, together with the
+  $R_h$ scaling laws (linear in $\eta$ and $R_0$, inverse in $f_{\rm contact}$
+  and $d_{\rm wall}$), the simulated electromagnetic wall force $F$, and the
+  toroidal-peaking product — all to machine precision, plus the fast-circuit
+  quasi-static limit in which the halo current tracks $M |\mathrm{d} I_p/\mathrm{d}
+  t| / R_h$ with an error that decreases monotonically as $\tau_h/\tau_{cq} \to
+  0$, in `validation/validate_halo_current.py` with tests in
+  `tests/test_halo_current_validation.py`. Facility mitigation claims still
+  require measured disruption-campaign data.
+
 ### Runaway-Electron Avalanche
 Post-disruption runaway-electron generation from the Connor-Hastie critical and
 Dreicer fields and the Rosenbluth-Putvinski avalanche multiplication.

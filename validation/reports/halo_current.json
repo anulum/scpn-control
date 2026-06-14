@@ -1,0 +1,69 @@
+{
+  "circuit_passed": true,
+  "config": {
+    "contact_fraction": 0.3,
+    "major_radius_m": 6.2,
+    "minor_radius_m": 2.0,
+    "plasma_current_ma": 15.0,
+    "tpf": 2.0,
+    "wall_resistivity_ohm_m": 7e-07,
+    "wall_thickness_m": 0.06
+  },
+  "exact_tol": 1e-09,
+  "generated_utc": "2026-06-14T19:10:38Z",
+  "inductance_rel_error": 0.0,
+  "loads_passed": true,
+  "max_resistance_scaling_rel_error": 0.0,
+  "mutual_rel_error": 0.0,
+  "passed": true,
+  "payload_sha256": "d862dad9f8bd74e92aa24f661cdae0260c4cf6b352e4be32ffa035c8279ca5d1",
+  "quasi_static": {
+    "finest_error": 0.005421050149625251,
+    "monotonic_decrease": true,
+    "tau_cq_values": [
+      0.5,
+      1.0,
+      2.0
+    ],
+    "tracking_errors": [
+      0.03235217440459491,
+      0.01424667451334438,
+      0.005421050149625251
+    ]
+  },
+  "quasi_static_passed": true,
+  "quasi_static_tol": 0.01,
+  "resistance_rel_error": 0.0,
+  "resistance_scaling": [
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "resistivity_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "contact_inverse",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "major_radius_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "thickness_inverse",
+      "rel_error": 0.0
+    }
+  ],
+  "scaling_passed": true,
+  "schema_version": "scpn-control.halo-current-validation.v1",
+  "target_id": "halo-current-lr-circuit",
+  "time_constant_rel_error": 0.0,
+  "tpf_product_rel_error": 0.0,
+  "wall_force_rel_error": 0.0
+}

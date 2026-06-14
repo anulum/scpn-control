@@ -654,6 +654,27 @@ deconfinement factor above 0.3 mol of neon) — all to machine precision. This
 validates the runaway-generation physics; facility disruption-mitigation claims
 still require measured disruption-campaign data.
 
+Halo-current L/R circuit evidence against exact closed forms can be regenerated
+with:
+
+```bash
+python -m validation.validate_halo_current \
+  --report validation/reports/halo_current.json
+```
+
+The produced JSON uses `scpn-control.halo-current-validation.v1` and binds its
+own payload by SHA-256. It checks the production `HaloCurrentModel` against its
+exact closed forms: the halo resistance `R_h = eta 2 pi R0 / (d_wall a
+f_contact)`, the halo inductance `L_h = mu0 R0 (ln(8 R0/a) - 1.5)`, the mutual
+inductance `M = f_contact sqrt(L_p L_h)`, and the time constant `tau_h = L_h/R_h`,
+together with the `R_h` scaling laws (linear in `eta` and `R0`, inverse in
+`f_contact` and `d_wall`), the simulated electromagnetic wall force `F = mu0
+I_h,peak I_p0 / (2 pi a)`, and the toroidal-peaking product — all to machine
+precision — plus the fast-circuit quasi-static limit in which the halo current
+tracks `M |dI_p/dt| / R_h` with an error that decreases monotonically as
+`tau_h/tau_cq -> 0`. This validates the halo-circuit physics; facility
+disruption-mitigation claims still require measured disruption-campaign data.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

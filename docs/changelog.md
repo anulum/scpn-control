@@ -73,6 +73,11 @@
   Dreicer fields, the collision and avalanche time constants, and the
   Rosenbluth-Putvinski avalanche growth rate, threshold, linearity, and RMP
   deconfinement against exact closed forms, with tamper-evident sealed evidence.
+- Added a halo-current validator that checks the Fitzpatrick L/R circuit halo
+  resistance, inductance, mutual inductance, and time constant, the
+  halo-resistance scaling laws, the electromagnetic wall force and
+  toroidal-peaking product, and the fast-circuit quasi-static tracking limit
+  against exact closed forms, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -89,6 +94,9 @@
   evidence.
 - Updated the NTM island-dynamics traceability entry and validation guide with the
   Modified Rutherford Equation analytic evidence.
+- Updated the halo-current and runaway-electron disruption traceability entry,
+  physics methods reference, and validation guide with the Fitzpatrick halo L/R
+  circuit closed-form and quasi-static-tracking evidence.
 - Updated the RZIP vertical-stability traceability entry, physics methods
   reference, and validation guide with the no-wall eigenvalue and scaling-law
   evidence.
