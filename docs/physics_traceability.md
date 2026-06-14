@@ -15,11 +15,11 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 ## Summary
 
 - Status: pass
-- Registry entries: 58
-- Open fidelity gaps: 57
-- Full-fidelity public claims blocked: 57
-- Resolved module paths: 58
-- Resolved evidence paths: 459
+- Registry entries: 59
+- Open fidelity gaps: 58
+- Full-fidelity public claims blocked: 58
+- Resolved module paths: 59
+- Resolved evidence paths: 466
 - External validation trackers: 8
 - Source marker coverage: 33/33
 
@@ -28,7 +28,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - External validation artefacts needed for full-fidelity SCPN-CONTROL claims: [#46](https://github.com/anulum/scpn-control/issues/46) — 0 open claim(s) — Parent tracker for external code, reference data, facility replay, benchmark, and hardware evidence requests.
 - External gyrokinetic validation artefacts: [#47](https://github.com/anulum/scpn-control/issues/47) — 9 open claim(s) — TGLF, GENE, GS2, CGYRO, QuaLiKiz, nonlinear CBC, Miller geometry, species, JAX parity, OOD, and online-learning artefacts.
 - Equilibrium and reconstruction reference artefacts: [#48](https://github.com/anulum/scpn-control/issues/48) — 5 open claim(s) — DIII-D or equivalent shots, EFIT, P-EFIT, GEQDSK, VMEC, and stellarator replay artefacts.
-- Transport, edge, MHD, and scenario benchmark artefacts: [#49](https://github.com/anulum/scpn-control/issues/49) — 16 open claim(s) — Integrated transport, momentum, pedestal, ELM, MARFE, NTM, current drive, stability, tearing, SOL, orbit, UQ, and scenario benchmarks.
+- Transport, edge, MHD, and scenario benchmark artefacts: [#49](https://github.com/anulum/scpn-control/issues/49) — 17 open claim(s) — Integrated transport, momentum, pedestal, ELM, MARFE, NTM, current drive, stability, tearing, SOL, orbit, UQ, and scenario benchmarks.
 - Neural surrogate validation artefacts: [#50](https://github.com/anulum/scpn-control/issues/50) — 3 open claim(s) — QLKNN, QuaLiKiz, gyrokinetic, transport, turbulence, and equilibrium surrogate reference datasets and weight provenance.
 - Plasma-control and facility replay artefacts: [#51](https://github.com/anulum/scpn-control/issues/51) — 14 open claim(s) — RZIP, RWM, free-boundary, density, digital twin, SOC learning, burn, volt-second, mu-synthesis, and reduced-plant replay evidence.
 - Disruption, halo-current, and mitigation benchmark artefacts: [#52](https://github.com/anulum/scpn-control/issues/52) — 4 open claim(s) — Measured disruption databases, labelled disruption windows, halo/runaway envelopes, wall contact, impurity radiation, and mitigation metadata.
@@ -95,6 +95,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 | `src/scpn_control/core/tearing_mode_coupling.py` | Sawtooth-to-NTM seeding claims must declare sawtooth crash trigger, seed-island generation, rational-surface coupling, phase and amplitude assumptions, bounded bootstrap-current fraction, NTM coupling path, and exclusion of full nonlinear MHD crash dynamics. | sawtooth crash and NTM seeding references; repository tearing-mode coupling contract | Time in seconds, island width in metres, q dimensionless, rho dimensionless, phase in radians, local bootstrap-current fraction within [0, 1], and amplitude units declared per coupling signal. | tests/test_tearing_mode_coupling.py; tests/test_integrated_scenario.py | validation_gap | [#49](https://github.com/anulum/scpn-control/issues/49) |
 | `src/scpn_control/control/tokamak_digital_twin.py` | Digital-twin claims must declare the 2D poloidal grid, q-profile topology update, rational-surface island mask, finite-difference diffusion, radiation-loss scaling with density and effective charge, actuator latency, RNG seed, IDS export assumptions, external simulator artifact provenance, and bounded online model-update parameters. | Repository digital-twin runtime contract; Wesson 2011 radiation-loss reference; TRANSP integrated modelling evidence contract; TSC time-dependent simulation evidence contract; Bayesian optimisation for bounded model calibration | Declared normalised grid indices, keV, m^-3, dimensionless q-profile values, actuator-lag summary units, RNG seed metadata, and IDS-compatible pulse history fields. | tests/test_tokamak_digital_twin.py deterministic twin checks; tests/test_digital_twin_physics.py physics-path checks; tests/test_digital_twin_online_update.py external artifact, loss, Bayesian-update, and deterministic benchmark checks; tests/test_digital_twin_reference_validation.py strict digital-twin artifact gate including TRANSP and TSC; validation/benchmark_digital_twin_online_update.py deterministic bounded online-update benchmark; validation/validate_digital_twin_reference.py strict reference-artifact gate | bounded_model | [#51](https://github.com/anulum/scpn-control/issues/51) |
 | `src/scpn_control/core/integrated_transport_solver.py` | Integrated transport claims must declare the axis-to-edge radial grid, heat and particle diffusion equations, neoclassical closure, bootstrap-current fit, source deposition terms, boundary conditions, timestep limits, and coupling contracts to pedestal and gyrokinetic closures. | Chang-Hinton neoclassical transport model; Sauter et al. 1999 bootstrap-current fits; Wesson 2011 radial transport equations; Crank and Nicolson 1947 implicit diffusion scheme; Abramowitz and Stegun 1965 Bessel functions; repository integrated transport solver contract | SI metres, seconds, m^-3, eV, W/m^3, m^2/s, amperes per square metre, and dimensionless profile coordinates with explicit axis-to-edge normalisation metadata. | tests/test_integrated_transport_solver.py; tests/test_transport_energy_conservation.py; tests/test_transport_neoclassical_guards.py; validation/validate_transport_diffusion.py validates the production cylindrical heat-diffusion operator against the exact Bessel eigenvalue and the Crank-Nicolson tridiagonal solve against a manufactured steady state, both at second order, and checks Python/Rust Thomas-solver parity, with tamper-evident sealed evidence; tests/test_transport_diffusion_validation.py operator-eigenvalue, manufactured-steady-state, Python/Rust Thomas-parity, and evidence-seal checks | validation_gap | [#49](https://github.com/anulum/scpn-control/issues/49) |
+| `src/scpn_control/core/sol_model.py` | Two-point SOL claims must declare the connection length L_par = pi q95 R0, the parallel heat-flux mapping with the poloidal-to-total field ratio, the Spitzer-Härm upstream conduction integral q_par = kappa_0 T_u^{7/2}/(7/2 L_par), the upstream-target pressure balance n_u T_u = 2 n_t T_t, the Eich heat-flux-width regression exponents, the divertor peak-heat-flux geometry, the sheath heat-transmission target temperature, the detachment-onset criterion, and exclusion of full edge-transport facility validation. | Stangeby 2000 two-point model and sheath heat transmission; Eich et al. 2013 scrape-off-layer heat-flux-width regression; Lipschultz et al. 1999 divertor detachment onset | SI metres, megawatts, density in 10^19 m^-3, temperature in eV, heat flux in MW/m^2, connection length in metres, and dimensionless inverse aspect ratio, safety factor, and radiated fraction. | tests/test_sol_model.py two-point, Eich, peak-heat-flux, and detachment checks; validation/validate_sol_two_point.py validates the connection length, parallel-flux mapping, Spitzer-Härm upstream conduction integral, pressure balance, Eich regression exponents, peak target heat flux, and the detachment density boundary against exact closed forms, with tamper-evident sealed evidence; tests/test_sol_two_point_validation.py conduction, pressure-balance, Eich-exponent, peak-flux, detachment-boundary, and evidence-seal checks | bounded_model | [#49](https://github.com/anulum/scpn-control/issues/49) |
 | `src/scpn_control/control/volt_second_manager.py` | Volt-second management claims must declare inductive flux, resistive loop-voltage integration, Ejima startup flux, bootstrap-current correction, flat-top duration estimate, ramp and ramp-down decomposition, flux-budget margin assumptions, finite positive machine constants, nonnegative current and voltage domains, positive timesteps, and strictly ordered bootstrap-profile grids. | Wesson 2011 tokamak loop-voltage and flux-balance equations; Ejima et al. 1982 startup flux coefficient; ITER Physics Basis 1999 flat-top flux-budget references; Repository fail-closed volt-second claim-admission contract | SI webers, volt-seconds, henries, ohms, amperes, mega-amperes, seconds, metres, normalised profile radius, and dimensionless Ejima coefficient. | tests/test_volt_second_manager.py flux budget, scenario analysis, bootstrap-profile, domain-boundary, and claim-admission checks; validation/validate_volt_second_reference.py strict volt-second reference artifact gate; validation/benchmark_volt_second_claims.py bounded claim-admission benchmark | bounded_model | [#51](https://github.com/anulum/scpn-control/issues/51) |
 
 ## Components
@@ -775,6 +776,17 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Validate radial transport profiles against a measured discharge or published integrated-modelling benchmark
   - Persist source deposition, boundary condition, and convergence metadata with every transport validation artefact
+
+### two-point scrape-off-layer divertor model contract
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/core/sol_model.py`
+- Full-fidelity public claim: blocked
+- External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
+- Covered source paths: 1
+- Required actions:
+  - Validate upstream and target conditions against measured divertor probe or published edge-transport benchmark cases before facility claims
+  - Persist geometry, power, density, radiated fraction, and detachment metadata with each validation case
 
 ### volt-second budget and flux-consumption manager
 

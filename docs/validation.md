@@ -509,6 +509,26 @@ This validates the full-reconnection redistribution against analytic references;
 full nonlinear MHD sawtooth-crash or measured-shot claims still require a measured
 or published reference.
 
+Two-point scrape-off-layer model evidence against exact closed forms can be
+regenerated with:
+
+```bash
+python -m validation.validate_sol_two_point \
+  --report validation/reports/sol_two_point.json
+```
+
+The produced JSON uses `scpn-control.sol-two-point-validation.v1` and binds its
+own payload by SHA-256. It checks the production `TwoPointSOL` and divertor
+helpers against their exact closed forms: the connection length
+`L_par = pi q95 R0`, the parallel heat-flux mapping, the Spitzer-Härm upstream
+conduction integral `q_par = kappa_0 T_u^{7/2}/((7/2) L_par)`, the pressure
+balance `n_u T_u = 2 n_t T_t`, the Eich regression exponents
+(`P^{-0.02}`, `R^{0.04}`, `B_pol^{-0.92}`, `eps^{0.42}`), the peak target heat
+flux, and the sheath-limited detachment density boundary — all to machine
+precision. This validates the two-point edge model against analytic references;
+facility-validated edge-transport or divertor-heat-load claims still require
+measured probe-campaign or published reference artefacts.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

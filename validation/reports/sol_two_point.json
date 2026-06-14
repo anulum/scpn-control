@@ -1,0 +1,72 @@
+{
+  "conduction_passed": true,
+  "config": {
+    "a": 0.5,
+    "b_pol": 0.4,
+    "q95": 3.5,
+    "r0": 1.7
+  },
+  "connection_length_rel_error": 0.0,
+  "connection_passed": true,
+  "detachment": {
+    "critical_density_19": 15.557166614685919,
+    "detached_above_critical": true,
+    "detached_below_critical": false
+  },
+  "detachment_passed": true,
+  "exact_tol": 1e-09,
+  "flux_mapping_passed": true,
+  "generated_utc": "2026-06-14T15:02:31Z",
+  "max_conduction_rel_error": 1.1118237404416066e-15,
+  "max_flux_mapping_rel_error": 0.0,
+  "max_pressure_balance_rel_error": 0.0,
+  "max_scaling_rel_error": 2.100669964034898e-16,
+  "operating_points": [
+    [
+      10.0,
+      3.0
+    ],
+    [
+      20.0,
+      5.0
+    ],
+    [
+      5.0,
+      1.5
+    ]
+  ],
+  "passed": true,
+  "payload_sha256": "3307aa5468ebfd7ce4afac0deefa535479a17ba66a1fd169faabd8c0f9cfb955",
+  "peak_flux_passed": true,
+  "peak_heat_flux_rel_error": 0.0,
+  "pressure_passed": true,
+  "scaling": [
+    {
+      "expected_ratio": 0.9862327044933592,
+      "measured_ratio": 0.9862327044933591,
+      "name": "power_-0.02",
+      "rel_error": 1.1257211604998364e-16
+    },
+    {
+      "expected_ratio": 1.0281138266560665,
+      "measured_ratio": 1.0281138266560665,
+      "name": "major_radius_0.04",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5285090202806901,
+      "measured_ratio": 0.5285090202806902,
+      "name": "b_pol_-0.92",
+      "rel_error": 2.100669964034898e-16
+    },
+    {
+      "expected_ratio": 1.337927554786112,
+      "measured_ratio": 1.337927554786112,
+      "name": "epsilon_0.42",
+      "rel_error": 0.0
+    }
+  ],
+  "scaling_passed": true,
+  "schema_version": "scpn-control.sol-two-point-validation.v1",
+  "target_id": "local-sol-two-point"
+}

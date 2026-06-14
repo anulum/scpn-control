@@ -101,6 +101,29 @@ Piecewise power-law fit to ADAS data for tungsten in coronal equilibrium.
 - **Implementation**: `src/scpn_control/core/integrated_transport_solver.py:755`.
 - **Simplifications**: Coronal equilibrium (no transport effects on charge states).
 
+### Two-Point Scrape-Off-Layer Model
+Upstream and target conditions from the Stangeby two-point model with the
+Spitzer-Härm parallel conduction integral, the Eich heat-flux-width regression,
+and the sheath-limited target temperature.
+
+$$q_\parallel = \frac{\kappa_0 T_u^{7/2}}{(7/2) L_\parallel}, \qquad
+  L_\parallel = \pi q_{95} R_0, \qquad n_u T_u = 2 n_t T_t$$
+
+- **Source**: Stangeby, *The Plasma Boundary of Magnetic Fusion Devices* (2000);
+  Eich et al., *Nucl. Fusion* 53, 093031 (2013).
+- **Implementation**: `src/scpn_control/core/sol_model.py:111`.
+- **Validation**: The production `TwoPointSOL.solve`, `eich_heat_flux_width`,
+  `peak_target_heat_flux`, and `detachment_threshold` are checked against their
+  exact closed forms — the connection length $L_\parallel = \pi q_{95} R_0$, the
+  parallel-flux mapping, the Spitzer-Härm upstream conduction integral, the
+  pressure balance $n_u T_u = 2 n_t T_t$, the Eich regression exponents
+  ($P^{-0.02}$, $R^{0.04}$, $B_{\rm pol}^{-0.92}$, $\varepsilon^{0.42}$), the
+  peak-heat-flux geometry, and the sheath-limited detachment density boundary —
+  all to machine precision, in `validation/validate_sol_two_point.py` with tests
+  in `tests/test_sol_two_point_validation.py`. Facility-validated edge-transport
+  or divertor-heat-load claims still require measured probe-campaign or published
+  reference artefacts.
+
 ---
 
 ## 4. Scaling Laws

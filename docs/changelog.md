@@ -44,6 +44,10 @@
   and particle conservation, the helical-flux mixing condition, profile
   flattening and q reset, outside invariance, and the analytic q=1-radius
   convergence against exact references, with tamper-evident sealed evidence.
+- Added a two-point scrape-off-layer validator that checks the connection length,
+  parallel-flux mapping, Spitzer-Härm upstream conduction integral, pressure
+  balance, Eich regression exponents, peak heat flux, and the detachment density
+  boundary against exact closed forms, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -67,6 +71,8 @@
   and validation guide with the Bondeson-Ward and feedback closed-form evidence.
 - Added a Kadomtsev sawtooth-crash traceability entry, physics methods reference,
   and validation guide with the reconnection conservation evidence.
+- Added a two-point scrape-off-layer traceability entry, physics methods
+  reference, and validation guide with the divertor closed-form evidence.
 
 ## [0.20.7] - 2026-06-05
 

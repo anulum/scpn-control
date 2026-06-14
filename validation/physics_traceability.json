@@ -1454,6 +1454,48 @@
       "external_validation_tracker_issue": 49
     },
     {
+      "component": "two-point scrape-off-layer divertor model contract",
+      "equation_contract": "Two-point SOL claims must declare the connection length L_par = pi q95 R0, the parallel heat-flux mapping with the poloidal-to-total field ratio, the Spitzer-Härm upstream conduction integral q_par = kappa_0 T_u^{7/2}/(7/2 L_par), the upstream-target pressure balance n_u T_u = 2 n_t T_t, the Eich heat-flux-width regression exponents, the divertor peak-heat-flux geometry, the sheath heat-transmission target temperature, the detachment-onset criterion, and exclusion of full edge-transport facility validation.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Stangeby 2000 two-point model and sheath heat transmission",
+        "Eich et al. 2013 scrape-off-layer heat-flux-width regression",
+        "Lipschultz et al. 1999 divertor detachment onset"
+      ],
+      "module_path": "src/scpn_control/core/sol_model.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Validate upstream and target conditions against measured divertor probe or published edge-transport benchmark cases before facility claims",
+        "Persist geometry, power, density, radiated fraction, and detachment metadata with each validation case"
+      ],
+      "unit_contract": "SI metres, megawatts, density in 10^19 m^-3, temperature in eV, heat flux in MW/m^2, connection length in metres, and dimensionless inverse aspect ratio, safety factor, and radiated fraction.",
+      "validation_evidence": [
+        "tests/test_sol_model.py two-point, Eich, peak-heat-flux, and detachment checks",
+        "validation/validate_sol_two_point.py validates the connection length, parallel-flux mapping, Spitzer-Härm upstream conduction integral, pressure balance, Eich regression exponents, peak target heat flux, and the detachment density boundary against exact closed forms, with tamper-evident sealed evidence",
+        "tests/test_sol_two_point_validation.py conduction, pressure-balance, Eich-exponent, peak-flux, detachment-boundary, and evidence-seal checks"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/core/sol_model.py",
+        "tests/test_sol_model.py",
+        "validation/validate_sol_two_point.py",
+        "validation/reports/sol_two_point.json",
+        "validation/reports/sol_two_point.md",
+        "tests/test_sol_two_point_validation.py",
+        "docs/validation.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/core/sol_model.py"
+      ],
+      "evidence": [
+        "validation/validate_sol_two_point.py schema-versioned digest-bound two-point conduction, pressure-balance, Eich-scaling, and detachment validator",
+        "validation/reports/sol_two_point.json sealed exact-closed-form evidence",
+        "validation/reports/sol_two_point.md human-readable conduction, scaling, and detachment summary",
+        "tests/test_sol_two_point_validation.py conduction, pressure-balance, Eich-exponent, detachment-boundary, and tamper checks"
+      ],
+      "validity_domain": "Analytic two-point SOL and divertor regression with the production model now validated to satisfy the connection length, parallel-flux mapping, Spitzer-Härm upstream conduction integral, upstream-target pressure balance, Eich regression exponents, peak-heat-flux geometry, and the sheath-limited detachment density boundary to machine precision; not facility-validated edge-transport or divertor-heat-load evidence until measured probe-campaign or documented public artifacts pass declared tolerances.",
+      "external_validation_tracker_issue": 49
+    },
+    {
       "component": "checkpoint state serialisation boundary contract",
       "equation_contract": "Checkpoint claims must declare serialised solver state, non-negative episode counter, object-valued metrics schema, finite-value policy, schema-version boundary, and fail-closed handling for corrupt or missing checkpoint artefacts.",
       "fidelity_status": "bounded_model",
