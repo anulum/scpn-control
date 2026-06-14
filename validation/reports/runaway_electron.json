@@ -1,0 +1,50 @@
+{
+  "avalanche": {
+    "deconfinement_rel_error": 0.0,
+    "density_linearity_rel_error": 0.0,
+    "drive_linearity_rel_error": 0.0,
+    "zero_below_critical": true
+  },
+  "avalanche_passed": true,
+  "avalanche_rate_rel_error": 0.0,
+  "avalanche_time_rel_error": 0.0,
+  "collision_time_rel_error": 0.0,
+  "critical_field_rel_error": 0.0,
+  "dreicer_field_rel_error": 0.0,
+  "exact_tol": 1e-09,
+  "fields_passed": true,
+  "generated_utc": "2026-06-14T18:59:14Z",
+  "impurity_critical_field_rel_error": 0.0,
+  "max_scaling_rel_error": 0.0,
+  "passed": true,
+  "payload_sha256": "d7a4586d302c3110a2678245d93471c4ef81d09f4d361395d8ff959b3d607fc6",
+  "scaling": [
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "critical_field_density_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "dreicer_density_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.5,
+      "measured_ratio": 0.5,
+      "name": "dreicer_temperature_inverse",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 4.0,
+      "measured_ratio": 4.0,
+      "name": "avalanche_time_z_eff",
+      "rel_error": 0.0
+    }
+  ],
+  "scaling_passed": true,
+  "schema_version": "scpn-control.runaway-electron-validation.v1",
+  "target_id": "local-runaway-electron"
+}

@@ -69,6 +69,10 @@
   Hinton-Hazeltine radial electric field, the E×B shearing rate, the
   turbulence-suppression factor, the Rice intrinsic-rotation scaling, and the
   Mach number against exact closed forms, with tamper-evident sealed evidence.
+- Added a runaway-electron validator that checks the Connor-Hastie critical and
+  Dreicer fields, the collision and avalanche time constants, and the
+  Rosenbluth-Putvinski avalanche growth rate, threshold, linearity, and RMP
+  deconfinement against exact closed forms, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -107,6 +111,9 @@
   evidence.
 - Updated the momentum-transport traceability entry, physics methods reference,
   and validation guide with the torque, force-balance, and rotation closed-form
+  evidence.
+- Updated the halo/runaway disruption traceability entry, physics methods
+  reference, and validation guide with the runaway-field and avalanche closed-form
   evidence.
 
 ## [0.20.7] - 2026-06-05

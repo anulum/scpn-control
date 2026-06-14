@@ -624,7 +624,9 @@
         "tests/test_halo_nonfinite_guards.py non-finite guard checks",
         "tests/test_halo_validation_paths.py validation-path guard checks",
         "validation/benchmark_disruption_mitigation_claims.py deterministic bounded halo/runaway claim-admission benchmark",
-        "validation/validate_disruption_reference.py strict disruption reference artifact gate"
+        "validation/validate_disruption_reference.py strict disruption reference artifact gate",
+        "validation/validate_runaway_electron.py validates the Connor-Hastie critical and Dreicer fields, the collision and avalanche time constants, the impurity-aware critical field, and the Rosenbluth-Putvinski avalanche growth rate (threshold, linearity, and RMP deconfinement) against exact closed forms, with tamper-evident sealed evidence",
+        "tests/test_runaway_electron_validation.py critical-field, Dreicer, avalanche-rate, threshold, linearity, scaling, and evidence-seal checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/halo_re_physics.py",
@@ -637,12 +639,22 @@
         "validation/validate_disruption_reference.py",
         "docs/api.md",
         "docs/benchmarks.md",
-        "docs/validation.md"
+        "docs/validation.md",
+        "validation/validate_runaway_electron.py",
+        "validation/reports/runaway_electron.json",
+        "validation/reports/runaway_electron.md",
+        "tests/test_runaway_electron_validation.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/halo_re_physics.py"
       ],
-      "validity_domain": "Bounded halo-current and runaway-electron ensemble regression plus fail-closed disruption-mitigation claim-admission evidence; not measured disruption-campaign, external-MHD, or facility mitigation validation unless strict reference artifacts pass declared tolerances.",
+      "evidence": [
+        "validation/validate_runaway_electron.py schema-versioned digest-bound Connor-Hastie, Dreicer, and Rosenbluth-Putvinski avalanche validator",
+        "validation/reports/runaway_electron.json sealed exact-closed-form runaway-field and avalanche evidence",
+        "validation/reports/runaway_electron.md human-readable critical-field, avalanche, and scaling summary",
+        "tests/test_runaway_electron_validation.py critical-field, Dreicer, avalanche-rate, threshold, deconfinement, and tamper checks"
+      ],
+      "validity_domain": "Bounded halo-current and runaway-electron ensemble regression plus fail-closed disruption-mitigation claim-admission evidence, with the production Connor-Hastie critical and Dreicer fields, collision and avalanche time constants, impurity-aware critical field, and Rosenbluth-Putvinski avalanche growth rate now validated against their exact closed forms to machine precision; not measured disruption-campaign, external-MHD, or facility mitigation validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 52
     },
     {

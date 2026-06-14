@@ -264,6 +264,27 @@ $$\left(\frac{j_{\rm edge}}{j_{\rm crit}}\right)^2 +
   `tests/test_elm_peeling_ballooning_validation.py`. Facility ELM/RMP claims
   still require measured H-mode campaign data or published ELM cases.
 
+### Runaway-Electron Avalanche
+Post-disruption runaway-electron generation from the Connor-Hastie critical and
+Dreicer fields and the Rosenbluth-Putvinski avalanche multiplication.
+
+$$E_c = \frac{n_e e^3 \ln\Lambda}{4\pi\varepsilon_0^2 m_e c^2}, \qquad
+  E_D = \frac{n_e e^3 \ln\Lambda}{4\pi\varepsilon_0^2 T_e}, \qquad
+  \gamma_{\rm av} = \frac{n_{\rm RE}(E/E_c - 1)}{\tau_{\rm av}\ln\Lambda}$$
+
+- **Source**: Connor & Hastie, *Nucl. Fusion* 15, 415 (1975); Rosenbluth &
+  Putvinski, *Nucl. Fusion* 37, 1355 (1997).
+- **Implementation**: `src/scpn_control/control/halo_re_physics.py:327`.
+- **Validation**: The production `RunawayElectronModel` is checked against its
+  exact closed forms — the critical field $E_c$ (with total free-plus-bound
+  electron density), the Dreicer field $E_D$, the collision time, the avalanche
+  time constant $\tau_{\rm av}$ (with $Z_{\rm eff}$ enhancement), and the
+  Rosenbluth-Putvinski avalanche rate (zero below $E_c$, linear in $n_{\rm RE}$
+  and $(E/E_c-1)$, with the 0.001 RMP deconfinement factor) — all to machine
+  precision, in `validation/validate_runaway_electron.py` with tests in
+  `tests/test_runaway_electron_validation.py`. Facility mitigation claims still
+  require measured disruption-campaign data.
+
 ### Resistive-Wall-Mode Feedback
 Wall-limited growth rate with rotation stabilisation and active PD feedback for
 the $n=1$ resistive wall mode between the no-wall and ideal-wall $\beta$ limits.

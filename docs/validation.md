@@ -634,6 +634,26 @@ intrinsic velocity `3.5 W_p/I_p` with its scaling, and the toroidal Mach number 
 all to machine precision. This validates the rotation and torque diagnostics;
 facility momentum-transport claims still require measured NBI rotation cases.
 
+Runaway-electron avalanche evidence against exact closed forms can be regenerated
+with:
+
+```bash
+python -m validation.validate_runaway_electron \
+  --report validation/reports/runaway_electron.json
+```
+
+The produced JSON uses `scpn-control.runaway-electron-validation.v1` and binds its
+own payload by SHA-256. It checks the production `RunawayElectronModel` against
+its exact closed forms: the Connor-Hastie critical field `E_c = n_e e^3 lnL /
+(4 pi eps0^2 m_e c^2)` (with the total free-plus-bound electron density), the
+Dreicer field `E_D`, the collision time, the avalanche time constant `tau_av`
+(with `Z_eff` enhancement), the impurity-aware critical field, and the
+Rosenbluth-Putvinski avalanche rate `gamma_av = n_RE (E/E_c - 1)/(tau_av lnL)`
+(zero below `E_c`, linear in `n_RE` and `(E/E_c - 1)`, with the 0.001 RMP
+deconfinement factor above 0.3 mol of neon) — all to machine precision. This
+validates the runaway-generation physics; facility disruption-mitigation claims
+still require measured disruption-campaign data.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the
