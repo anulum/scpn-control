@@ -75,4 +75,3 @@ Use this summary when making release or planning decisions about current evidenc
 - Read the claim table before updating any external communication material.
 - Use this page to select the next validation run for physics, software, and transport gaps.
 - Keep it aligned with `docs/validation.md` after each evidence refresh.
-

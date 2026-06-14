@@ -99,7 +99,7 @@ fn admission_digest(label: &str) -> String {
     hasher.update(b"scpn-control.multi-shot-campaign.benchmark");
     hasher.update([0]);
     hasher.update(label.as_bytes());
-    format!("{:x}", hasher.finalize())
+    control_control::to_hex(&hasher.finalize())
 }
 
 fn sample(
@@ -273,7 +273,7 @@ fn main() {
         "payload_sha256": "",
     });
     let digest = Sha256::digest(serde_json::to_vec(&payload).unwrap());
-    payload["payload_sha256"] = Value::String(format!("{digest:x}"));
+    payload["payload_sha256"] = Value::String(control_control::to_hex(&digest));
     if let Some(path) = parse_path(&args, "--json-out") {
         write_json(&path, &payload);
     }

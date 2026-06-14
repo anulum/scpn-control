@@ -151,4 +151,3 @@ Use this as the admission gate before external claims are made for hardware use.
 - Confirm every production statement against the explicit boundary checks in this document.
 - Keep engineering tasks in sync with this gate list while changing transport, runtime, or controller timing paths.
 - If a requirement is not met here, treat it as deferred to the next milestone rather than a shipped guarantee.
-

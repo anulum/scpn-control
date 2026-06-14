@@ -203,7 +203,7 @@ fn main() {
     });
     let encoded = serde_json::to_vec(&payload).expect("encode payload");
     let digest = Sha256::digest(&encoded);
-    payload["payload_sha256"] = Value::String(format!("{digest:x}"));
+    payload["payload_sha256"] = Value::String(control_control::to_hex(&digest));
 
     if let Some(path) = parse_path(&args, "--json-out") {
         if let Some(parent) = path.parent() {

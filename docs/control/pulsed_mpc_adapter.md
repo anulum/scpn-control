@@ -241,4 +241,3 @@ Use this document when integrating MPC action generation with pulsed campaign co
 - Confirm adaptation rules before changing pulse-shape boundaries or campaign timing.
 - Treat this page as the precondition layer between CONTROL scheduling and downstream state consumers.
 - Verify any changed assumptions against replay artifacts and offline checks before shipping.
-
