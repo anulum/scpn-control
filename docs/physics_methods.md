@@ -83,6 +83,28 @@ $$\chi_i = 0.66 (1 + 1.54 \epsilon) q^2 \rho_i^2 \nu_{ii} / (\epsilon^{3/2} (1 +
 - **Implementation**: `src/scpn_control/core/integrated_transport_solver.py:125`.
 - **Simplifications**: Uses analytic fit for trapped particle fraction $f_t$.
 
+### Toroidal Momentum Transport and Rotation
+Neutral-beam torque, the neoclassical radial electric field, and the E×B
+shearing rate that set the rotation profile and turbulence suppression.
+
+$$E_r = \frac{1}{Z_i e n_i}\frac{dp_i}{dr} + v_\phi B_\theta, \qquad
+  \omega_{E\times B} = \left|\frac{R_0 B_\theta}{B}\frac{d\omega_\phi}{dr}\right|,
+  \qquad v_{\phi,{\rm intr}} = 3.5\,\frac{W_p}{I_p}$$
+
+- **Source**: Hinton & Hazeltine, *Rev. Mod. Phys.* 48, 239 (1976); Burrell,
+  *Phys. Plasmas* 4, 1499 (1997); Rice et al., *Nucl. Fusion* 47, 1618 (2007).
+- **Implementation**: `src/scpn_control/core/momentum_transport.py:167`.
+- **Validation**: The production `nbi_torque`, `radial_electric_field`,
+  `exb_shearing_rate`, `turbulence_suppression_factor`, `rice_intrinsic_velocity`,
+  and `RotationDiagnostics.mach_number` are checked against their exact closed
+  forms — the NBI torque geometry, the Hinton-Hazeltine force balance (exact for
+  constant and linear pressure, where `np.gradient` is exact), the Burrell E×B
+  shearing rate (exact for a linear rotation profile), the Biglari-Diamond-Terry
+  suppression factor, the Rice $W_p/I_p$ scaling, and the toroidal Mach number —
+  all to machine precision, in `validation/validate_momentum_transport.py` with
+  tests in `tests/test_momentum_transport_validation.py`. Facility momentum-
+  transport claims still require measured NBI rotation cases.
+
 ---
 
 ## 3. Radiation and Sinks

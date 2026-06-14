@@ -65,6 +65,10 @@
   peeling limits and scalings, the elliptical stability boundary, and the Type-I
   ELM crash energy conservation against exact closed forms, with tamper-evident
   sealed evidence.
+- Added a toroidal momentum-transport validator that checks the NBI torque, the
+  Hinton-Hazeltine radial electric field, the E×B shearing rate, the
+  turbulence-suppression factor, the Rice intrinsic-rotation scaling, and the
+  Mach number against exact closed forms, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -100,6 +104,9 @@
   validation guide with the construction-relation and KBM-constraint evidence.
 - Updated the ELM crash traceability entry, physics methods reference, and
   validation guide with the peeling-ballooning and crash-energy closed-form
+  evidence.
+- Updated the momentum-transport traceability entry, physics methods reference,
+  and validation guide with the torque, force-balance, and rotation closed-form
   evidence.
 
 ## [0.20.7] - 2026-06-05

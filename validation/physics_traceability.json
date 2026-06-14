@@ -1092,7 +1092,10 @@
       "equation_contract": "Momentum transport claims must declare NBI torque, collisional damping, viscous momentum diffusion, rotation-profile boundary conditions, angular-momentum units, and the coupling boundary to the integrated transport solver.",
       "fidelity_status": "validation_gap",
       "model_references": [
-        "tokamak toroidal momentum transport references",
+        "Stacey and Sigmar 1985 NBI torque",
+        "Hinton and Hazeltine 1976 radial force balance",
+        "Burrell 1997 E x B shearing rate",
+        "Rice et al. 2007 intrinsic-rotation scaling",
         "repository NBI torque and rotation-profile contract"
       ],
       "module_path": "src/scpn_control/core/momentum_transport.py",
@@ -1104,17 +1107,30 @@
       "unit_contract": "SI newton metres, kg m^2/s^2, rad/s, metres, seconds, density in m^-3, and momentum diffusivity in m^2/s.",
       "validation_evidence": [
         "tests/test_momentum_transport.py verifies NBI torque direction, viscous diffusion damping, implicit bounded collisional damping, fail-closed damping-profile validation, force-balance helpers, and diagnostic guards",
-        "tests/test_momentum_integration.py"
+        "tests/test_momentum_integration.py",
+        "validation/validate_momentum_transport.py validates the NBI torque, the Hinton-Hazeltine radial electric field (constant and linear pressure), the Burrell E x B shearing rate, the Biglari-Diamond-Terry suppression factor, the Rice intrinsic-rotation scaling, and the toroidal Mach number against exact closed forms, with tamper-evident sealed evidence",
+        "tests/test_momentum_transport_validation.py NBI-torque, force-balance, E x B-shearing, Rice-scaling, Mach, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_momentum_transport.py",
         "tests/test_momentum_integration.py",
-        "src/scpn_control/core/momentum_transport.py"
+        "src/scpn_control/core/momentum_transport.py",
+        "validation/validate_momentum_transport.py",
+        "validation/reports/momentum_transport.json",
+        "validation/reports/momentum_transport.md",
+        "tests/test_momentum_transport_validation.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/momentum_transport.py"
       ],
-      "validity_domain": "Local torque, implicit linear damping, and integration regression; bounded collisional damping is a configurable ν_phi sink, not a quantitative multispecies collision-operator or facility momentum-transport validation claim.",
+      "evidence": [
+        "validation/validate_momentum_transport.py schema-versioned digest-bound NBI-torque, force-balance, E x B-shearing, Rice, and Mach validator",
+        "validation/reports/momentum_transport.json sealed exact-closed-form evidence",
+        "validation/reports/momentum_transport.md human-readable torque, force-balance, and rotation summary",
+        "tests/test_momentum_transport_validation.py NBI-torque, force-balance, E x B-shearing, Rice-scaling, Mach, and tamper checks"
+      ],
+      "validity_domain": "Local torque, implicit linear damping, and integration regression, with the production NBI torque, Hinton-Hazeltine radial electric field, Burrell E x B shearing rate, Biglari-Diamond-Terry suppression factor, Rice intrinsic-rotation scaling, and toroidal Mach number now validated against their exact closed forms to machine precision; bounded collisional damping is a configurable nu_phi sink, not a quantitative multispecies collision-operator or facility momentum-transport validation claim.",
       "external_validation_tracker_issue": 49
     },
     {

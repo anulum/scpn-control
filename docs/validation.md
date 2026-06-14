@@ -614,6 +614,26 @@ dropping by `(1 - f)` while the core stays unchanged — all to machine precisio
 This validates the ELM stability and crash physics; facility ELM/RMP claims still
 require measured H-mode campaign data or published ELM cases.
 
+Toroidal momentum-transport evidence against exact closed forms can be
+regenerated with:
+
+```bash
+python -m validation.validate_momentum_transport \
+  --report validation/reports/momentum_transport.json
+```
+
+The produced JSON uses `scpn-control.momentum-transport-validation.v1` and binds
+its own payload by SHA-256. It checks the production momentum-transport functions
+against their exact closed forms: the NBI torque `P_NBI R0 sin(theta)/v_beam`
+(and zero torque for a non-positive beam), the Hinton-Hazeltine radial electric
+field `E_r = (1/(e n_i)) dp_i/dr + R0 omega_phi B_theta` (exact for constant and
+linear pressure, where `np.gradient` is exact), the Burrell E×B shearing rate
+`|R0 B_theta/B domega_phi/dr|` (exact for a linear rotation profile), the
+Biglari-Diamond-Terry suppression factor `1/(1 + (omega_ExB/gamma)^2)`, the Rice
+intrinsic velocity `3.5 W_p/I_p` with its scaling, and the toroidal Mach number —
+all to machine precision. This validates the rotation and torque diagnostics;
+facility momentum-transport claims still require measured NBI rotation cases.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the
