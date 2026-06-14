@@ -967,7 +967,9 @@
       "validation_evidence": [
         "tests/test_volt_second_manager.py flux budget, scenario analysis, bootstrap-profile, domain-boundary, and claim-admission checks",
         "validation/validate_volt_second_reference.py strict volt-second reference artifact gate",
-        "validation/benchmark_volt_second_claims.py bounded claim-admission benchmark"
+        "validation/benchmark_volt_second_claims.py bounded claim-admission benchmark",
+        "validation/validate_volt_second.py validates the inductive flux L_p I_p, the Ejima startup flux C_E mu0 R0 I_p, the resistive ramp integral, the flat-top budget closure (flat-top resistive consumption equals remaining flux at tau_flat), the ramp/flat-top/ramp-down scenario decomposition and margin, the consumption integrator, the linear ramp optimiser, and the inductive and Ejima flux scaling laws against exact closed forms, with tamper-evident sealed evidence",
+        "tests/test_volt_second_validation.py inductive-flux, Ejima-flux, resistive-ramp, flat-top-closure, scenario-decomposition, consumption-integrator, ramp-optimiser, scaling-law, configuration-guard, and evidence-seal checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/volt_second_manager.py",
@@ -975,12 +977,22 @@
         "validation/validate_volt_second_reference.py",
         "validation/benchmark_volt_second_claims.py",
         "validation/reports/volt_second_claims.json",
-        "validation/reports/volt_second_claims.md"
+        "validation/reports/volt_second_claims.md",
+        "validation/validate_volt_second.py",
+        "validation/reports/volt_second.json",
+        "validation/reports/volt_second.md",
+        "tests/test_volt_second_validation.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/volt_second_manager.py"
       ],
-      "validity_domain": "Scenario-level volt-second accounting regression plus fail-closed claim-admission evidence; not a validated pulse-design or central-solenoid commissioning model unless strict reference artifacts pass declared tolerances.",
+      "evidence": [
+        "validation/validate_volt_second.py schema-versioned digest-bound inductive, Ejima, resistive, flat-top-closure, decomposition, integrator, optimiser, and scaling validator",
+        "validation/reports/volt_second.json sealed exact-closed-form flux-budget evidence",
+        "validation/reports/volt_second.md human-readable flux-relation, optimiser, and margin summary",
+        "tests/test_volt_second_validation.py flux-relation, decomposition, integrator, optimiser, scaling, configuration-guard, and tamper checks"
+      ],
+      "validity_domain": "Scenario-level volt-second accounting regression plus fail-closed claim-admission evidence, with the production inductive flux, Ejima startup flux, resistive ramp integral, flat-top budget closure, scenario flux decomposition, consumption integrator, linear ramp optimiser, and inductive/Ejima scaling laws now validated against their exact closed forms to machine precision; not a validated pulse-design or central-solenoid commissioning model unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {

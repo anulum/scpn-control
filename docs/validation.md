@@ -675,6 +675,28 @@ tracks `M |dI_p/dt| / R_h` with an error that decreases monotonically as
 `tau_h/tau_cq -> 0`. This validates the halo-circuit physics; facility
 disruption-mitigation claims still require measured disruption-campaign data.
 
+Volt-second flux-budget evidence against exact closed forms can be regenerated
+with:
+
+```bash
+python -m validation.validate_volt_second \
+  --report validation/reports/volt_second.json
+```
+
+The produced JSON uses `scpn-control.volt-second-validation.v1` and binds its
+own payload by SHA-256. It checks the production `FluxBudget`,
+`ScenarioFluxAnalysis`, `FluxConsumptionMonitor`, and `VoltSecondOptimizer`
+against their exact closed forms: the inductive flux `L_p I_p`, the Ejima startup
+flux `C_E mu0 R0 I_p` (with their linear scalings in `I_p`, `L_p`, and `R0`), the
+resistive ramp integral `sum R_p I_p dt`, the flat-top budget closure in which
+the flat-top resistive consumption `R_p (I_p - I_bs) tau_flat` exactly equals the
+remaining flux at `tau_flat`, the ramp/flat-top/ramp-down scenario decomposition
+and the budget margin, the `V_loop dt` consumption integrator, and the uniform
+linear ramp optimiser — all to machine precision. The bootstrap-current proxy
+remains a documented rough scaling outside this exact-closed-form scope. This
+validates the flux-accounting physics; facility pulse-design or central-solenoid
+commissioning claims still require measured loop-voltage or scenario references.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

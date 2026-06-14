@@ -385,6 +385,35 @@ $$\eta_{\rm ECCD} = \eta_0 \frac{T_e}{5 + Z_{\rm eff}}
   `tests/test_current_drive_validation.py`. External current-drive claims still
   require ray-tracing, Fokker-Planck, or measured-deposition artefacts.
 
+### Volt-Second Flux Budget
+Central-solenoid flux budgeting against the inductive and resistive plasma
+consumption that drives a tokamak pulse, with the Ejima startup flux and the
+flat-top duration set by the remaining flux.
+
+$$\int V_{\rm loop}\,\mathrm{d}t = L_p\,\mathrm{d}I_p + R_p I_p\,\mathrm{d}t,
+  \qquad
+  \Delta\Psi_{\rm startup} = C_E \mu_0 R_0 I_p, \qquad
+  \tau_{\rm flat} = \frac{\Psi_{\rm avail} - \Psi_{\rm startup}}{R_p (I_p - I_{bs})}$$
+
+- **Source**: Wesson, *Tokamaks*, 4th ed., Oxford University Press, Eq. 3.7.4
+  (2011); Ejima et al., *Nucl. Fusion* 22, 1313 (1982); ITER Physics Basis,
+  *Nucl. Fusion* 39, 2137, §3 (1999).
+- **Implementation**: `src/scpn_control/control/volt_second_manager.py:338`.
+- **Validation**: The production `FluxBudget`, `ScenarioFluxAnalysis`,
+  `FluxConsumptionMonitor`, and `VoltSecondOptimizer` are checked against their
+  exact closed forms — the inductive flux $L_p I_p$, the Ejima startup flux
+  $C_E \mu_0 R_0 I_p$ (with their linear scalings), the resistive ramp integral
+  $\sum R_p I_p\,\mathrm{d}t$, the flat-top budget closure in which the flat-top
+  resistive consumption exactly equals the remaining flux at $\tau_{\rm flat}$,
+  the ramp/flat-top/ramp-down scenario decomposition and budget margin, the
+  $V_{\rm loop}\,\mathrm{d}t$ consumption integrator, and the linear ramp
+  optimiser — all to machine precision, in
+  `validation/validate_volt_second.py` with tests in
+  `tests/test_volt_second_validation.py`. The bootstrap-current proxy remains a
+  documented rough scaling, and facility pulse-design or central-solenoid
+  commissioning claims still require measured loop-voltage or scenario
+  references.
+
 ### Kuramoto-Sakaguchi Phase Dynamics
 $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \sin(\Psi - \theta_i)$$
 

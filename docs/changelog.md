@@ -78,6 +78,11 @@
   halo-resistance scaling laws, the electromagnetic wall force and
   toroidal-peaking product, and the fast-circuit quasi-static tracking limit
   against exact closed forms, with tamper-evident sealed evidence.
+- Added a volt-second flux-budget validator that checks the inductive flux, the
+  Ejima startup flux, the resistive ramp integral, the flat-top budget closure,
+  the ramp/flat-top/ramp-down scenario decomposition and margin, the consumption
+  integrator, the linear ramp optimiser, and the inductive and Ejima flux scaling
+  laws against exact closed forms, with tamper-evident sealed evidence.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -97,6 +102,9 @@
 - Updated the halo-current and runaway-electron disruption traceability entry,
   physics methods reference, and validation guide with the Fitzpatrick halo L/R
   circuit closed-form and quasi-static-tracking evidence.
+- Updated the volt-second flux-budget traceability entry, physics methods
+  reference, and validation guide with the inductive, Ejima, resistive, flat-top
+  budget-closure, decomposition, integrator, optimiser, and scaling-law evidence.
 - Updated the RZIP vertical-stability traceability entry, physics methods
   reference, and validation guide with the no-wall eigenvalue and scaling-law
   evidence.

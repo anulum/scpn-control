@@ -1,0 +1,77 @@
+{
+  "config": {
+    "bootstrap_current_ma": 2.0,
+    "flat_duration_s": 100.0,
+    "flux_budget_vs": 300.0,
+    "major_radius_m": 6.2,
+    "plasma_current_ma": 15.0,
+    "plasma_inductance_uh": 10.0,
+    "plasma_resistance_uohm": 5.0,
+    "ramp_down_duration_s": 10.0,
+    "ramp_duration_s": 10.0,
+    "standalone_ramp_flux_vs": 5.0
+  },
+  "decomposition": {
+    "flat_top_rel_error": 0.0,
+    "margin_abs_error": 0.0,
+    "max_rel_error": 0.0,
+    "ramp_down_rel_error": 0.0,
+    "ramp_rel_error": 0.0,
+    "sum_rel_error": 0.0
+  },
+  "decomposition_passed": true,
+  "ejima_rel_error": 0.0,
+  "exact_tol": 1e-09,
+  "flat_top_closure_rel_error": 0.0,
+  "fluxes_passed": true,
+  "generated_utc": "2026-06-14T19:17:06Z",
+  "inductive_rel_error": 0.0,
+  "margin_abs_tol": 1e-06,
+  "max_scaling_rel_error": 0.0,
+  "monitor": {
+    "consumed_rel_error": 7.401486830834377e-16,
+    "fraction_rel_error": 6.938893903907228e-16,
+    "max_rel_error": 7.401486830834377e-16,
+    "remaining_rel_error": 0.0
+  },
+  "monitor_passed": true,
+  "optimizer_passed": true,
+  "passed": true,
+  "payload_sha256": "dced373cf995c3dc3ed998e1d0f32f8d828b04b6baab37d1af98237248818f53",
+  "ramp_optimizer": {
+    "end_rel_error": 0.0,
+    "is_linear": true,
+    "spacing_max_rel_error": 0.0,
+    "start_abs_error": 0.0
+  },
+  "resistive_ramp_rel_error": 0.0,
+  "scaling": [
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "inductive_current_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "inductive_inductance_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "ejima_major_radius_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "ejima_current_linear",
+      "rel_error": 0.0
+    }
+  ],
+  "scaling_passed": true,
+  "schema_version": "scpn-control.volt-second-validation.v1",
+  "target_id": "volt-second-flux-budget"
+}
