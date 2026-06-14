@@ -1764,6 +1764,7 @@
       "fidelity_status": "bounded_model",
       "model_references": [
         "Doyle 1982 structured singular value definition",
+        "Packard and Doyle 1993 the complex structured singular value",
         "Balas et al. 1993 mu-analysis and synthesis toolbox",
         "Skogestad and Postlethwaite 2005 multivariable feedback control",
         "Repository fail-closed static mu-analysis claim-admission contract"
@@ -1773,11 +1774,14 @@
       "required_actions": [
         "Attach strict documented public, external mu-toolbox, or measured control replay artifacts before validated robust-control claims",
         "Wire a validated frequency-dependent H-infinity synthesis backend before making full D-K synthesis claims",
-        "Persist benchmark plants, frequency grids, D-scale fits, mu upper/lower bounds, and canonical evidence payload digests for every promoted controller claim"
+        "Persist benchmark plants, frequency grids, D-scale fits, mu upper/lower bounds, and canonical evidence payload digests for every promoted controller claim",
+        "Tighten the static D-scaling descent so the bound becomes D-scaling invariant to machine precision (currently a recorded diagnostic with a per-orientation spread)"
       ],
       "unit_contract": "State, control, output, and uncertainty units inherit the supplied state-space plant contract; mu, uncertainty bounds, and D-scalings are dimensionless.",
       "validation_evidence": [
         "tests/test_mu_synthesis.py D-scaled upper-bound behaviour, uncertainty-bound scaling, finite-domain rejection, closed-loop plant dependence, claim-admission, persisted digest, tamper, and duplicate-key checks",
+        "validation/validate_mu_structured_singular_value.py closed-form exact-identity validation of compute_mu_upper_bound (full-block mu=sigma_max, diagonal mu=max|M_ii|, rank-one mu=sum|u_i v_i|, and the rho<=mu<=sigma_max sandwich) with tamper-evident sealed evidence",
+        "tests/test_mu_structured_singular_value_validation.py exact-identity, sandwich, determinism, diagnostic-not-gated, and evidence-seal checks",
         "validation/validate_mu_synthesis_reference.py strict mu-analysis reference artefact gate",
         "validation/benchmark_mu_synthesis_claims.py bounded claim-admission benchmark",
         "docs/learning/control_theory_primer.md states the bounded static analysis domain"
@@ -1785,17 +1789,28 @@
       "evidence_paths": [
         "src/scpn_control/control/mu_synthesis.py",
         "tests/test_mu_synthesis.py",
+        "validation/validate_mu_structured_singular_value.py",
+        "validation/reports/mu_structured_singular_value.json",
+        "validation/reports/mu_structured_singular_value.md",
+        "tests/test_mu_structured_singular_value_validation.py",
         "validation/validate_mu_synthesis_reference.py",
         "validation/benchmark_mu_synthesis_claims.py",
         "validation/reports/mu_synthesis_claims.json",
         "validation/reports/mu_synthesis_claims.md",
         "docs/learning/control_theory_primer.md",
+        "docs/validation.md",
         "README.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/mu_synthesis.py"
       ],
-      "validity_domain": "Static continuous-time state-feedback analysis plus fail-closed claim-admission evidence for repository benchmark plants; not full frequency-dependent D-K synthesis and not facility hardware validation unless strict reference artifacts pass declared tolerances.",
+      "evidence": [
+        "validation/validate_mu_structured_singular_value.py schema-versioned digest-bound closed-form mu identity validator",
+        "validation/reports/mu_structured_singular_value.json sealed exact-identity evidence with the D-scaling-invariance diagnostic",
+        "validation/reports/mu_structured_singular_value.md human-readable identity and diagnostic summary",
+        "tests/test_mu_structured_singular_value_validation.py exact-identity, sandwich, tamper, and unknown-schema checks"
+      ],
+      "validity_domain": "Static continuous-time state-feedback analysis plus fail-closed claim-admission evidence for repository benchmark plants, with the D-scaled mu upper bound now validated against exact closed-form structured-singular-value identities (full block, diagonal plant, rank-one plant, and the spectral sandwich); D-scaling invariance is recorded as a diagnostic only. Not full frequency-dependent D-K synthesis and not facility hardware validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
     },
     {

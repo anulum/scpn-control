@@ -1,0 +1,55 @@
+{
+  "cases": [
+    {
+      "max_error": 2.6645352591003757e-15,
+      "name": "full_block_equals_sigma_max",
+      "passed": true,
+      "sample_count": 16,
+      "tolerance": 1e-09
+    },
+    {
+      "max_error": 4.440892098500626e-16,
+      "name": "diagonal_equals_max_abs_entry",
+      "passed": true,
+      "sample_count": 16,
+      "tolerance": 1e-09
+    },
+    {
+      "max_error": 0.00016163621355775806,
+      "name": "rank_one_equals_sum_abs_products",
+      "passed": true,
+      "sample_count": 16,
+      "tolerance": 0.001
+    },
+    {
+      "max_error": 1.7763568394002505e-15,
+      "name": "spectral_sandwich_rho_le_mu_le_sigma_max",
+      "passed": true,
+      "sample_count": 16,
+      "tolerance": 1e-06
+    }
+  ],
+  "diagnostics": [
+    {
+      "max_error": 0.06234278290451144,
+      "name": "d_scaling_invariance",
+      "passed": true,
+      "sample_count": 16,
+      "tolerance": 0.2
+    }
+  ],
+  "generated_utc": "2026-06-14T09:37:23Z",
+  "passed": true,
+  "payload_sha256": "e099780bffd8aecd1b87f769070536af192900d1824738e9973eade063229f3a",
+  "samples_per_size": 4,
+  "sandwich_min_margin": -1.7763568394002505e-15,
+  "schema_version": "scpn-control.mu-structured-singular-value-validation.v1",
+  "seed": 20260614,
+  "sizes": [
+    2,
+    3,
+    4,
+    5
+  ],
+  "target_id": "local-mu-structured-singular-value"
+}

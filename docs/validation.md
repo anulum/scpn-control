@@ -360,6 +360,28 @@ consistent with the Rust/Python SOR parity gap in
 discretisation and SOR solver against an analytic benchmark; facility-grade
 EFIT/GEQDSK reconstruction claims still require matched external equilibria.
 
+Structured-singular-value (mu) evidence against the exact closed-form mu
+identities can be regenerated with:
+
+```bash
+python -m validation.validate_mu_structured_singular_value \
+  --report validation/reports/mu_structured_singular_value.json
+```
+
+The produced JSON uses
+`scpn-control.mu-structured-singular-value-validation.v1` and binds its own
+payload by SHA-256. It confirms the production D-scaled upper bound
+`compute_mu_upper_bound` reproduces the analytic structured singular value where
+it is known in closed form: a single full block gives `mu = sigma_max(M)`, a
+diagonal plant with diagonal uncertainty gives `mu = max|M_ii|`, a rank-one
+plant gives `mu = sum|u_i v_i|`, and every diagonal case satisfies the spectral
+sandwich `rho(M) <= mu(M) <= sigma_max(M)`. D-scaling invariance is recorded as
+a diagnostic only: the bound minimises `sigma_max(D M D^{-1})` with a finite
+finite-difference descent, so its invariance holds only up to the descent's
+local-minimum spread. This validates the static mu upper bound against analytic
+identities; frequency-dependent D-K synthesis and facility robust-control claims
+still require an external validated backend.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the

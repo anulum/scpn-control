@@ -15,6 +15,10 @@
   production discrete operator and Red-Black SOR smoother for second-order
   convergence, emits tamper-evident sealed evidence, and records the Rust
   multigrid backend behaviour for transparency.
+- Added a structured-singular-value validator that checks the D-scaled mu upper
+  bound against exact closed-form identities (full-block, diagonal-plant,
+  rank-one, and the spectral sandwich) with tamper-evident sealed evidence and a
+  recorded D-scaling-invariance diagnostic.
 
 ### Changed
 - Hardened toroidal momentum transport with a bounded implicit collisional
@@ -22,6 +26,8 @@
   physics traceability evidence.
 - Updated the Grad-Shafranov fusion-kernel traceability entry, physics methods
   reference, and validation guide with the Solov'ev convergence evidence.
+- Updated the structured-singular-value traceability entry and validation guide
+  with the closed-form mu identity evidence.
 
 ## [0.20.7] - 2026-06-05
 
