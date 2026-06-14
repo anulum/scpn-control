@@ -1,0 +1,54 @@
+{
+  "dw_dt_tol": 1e-10,
+  "eta": 5e-08,
+  "generated_utc": "2026-06-14T13:55:25Z",
+  "max_dw_dt_rel_error": 1.4881572258170164e-16,
+  "max_trajectory_rel_error": 1.491862189340054e-14,
+  "passed": true,
+  "payload_sha256": "f780f02750834ddd9f04debf21857ad351a5efaaffc7638959864f3445d4c9b9",
+  "residual_tol": 1e-09,
+  "saturated_delta_prime_0": -6.0,
+  "saturated_residual": 1.302069952520693e-16,
+  "saturated_width": 0.02194068528649583,
+  "saturation_from_above_monotonic": true,
+  "saturation_from_above_rel_error": 1.1528207860423413e-06,
+  "saturation_from_below_monotonic": true,
+  "saturation_from_below_rel_error": 4.09399279438798e-07,
+  "saturation_passed": true,
+  "saturation_tol": 0.005,
+  "schema_version": "scpn-control.ntm-island-dynamics-validation.v1",
+  "surface": {
+    "B0": 2.0,
+    "R0": 1.7,
+    "a": 0.5,
+    "m": 2,
+    "n": 1,
+    "r_s": 0.3
+  },
+  "target_id": "local-ntm-island-dynamics",
+  "trajectory_cases": [
+    {
+      "delta_prime_0": -3.0,
+      "dw_dt_rel_error": 1.4881572258170164e-16,
+      "label": "decaying_strong",
+      "trajectory_rel_error": 4.0245584642661925e-15,
+      "w0": 0.05
+    },
+    {
+      "delta_prime_0": -1.5,
+      "dw_dt_rel_error": 1.4881572258170164e-16,
+      "label": "decaying_weak",
+      "trajectory_rel_error": 7.112366251504909e-15,
+      "w0": 0.08
+    },
+    {
+      "delta_prime_0": 2.0,
+      "dw_dt_rel_error": 1.116117919362762e-16,
+      "label": "growing",
+      "trajectory_rel_error": 1.491862189340054e-14,
+      "w0": 0.01
+    }
+  ],
+  "trajectory_passed": true,
+  "trajectory_tol": 1e-08
+}

@@ -1206,7 +1206,9 @@
       "equation_contract": "NTM dynamics claims must declare rational-surface search, rational-surface containment inside the minor radius, tokamak major/minor-radius ordering, modified Rutherford equation terms, bootstrap drive, polarisation and curvature terms, ECCD control coupling, seed-island assumptions, and controller-validity limits.",
       "fidelity_status": "validation_gap",
       "model_references": [
-        "modified Rutherford equation NTM references",
+        "Rutherford 1973 tearing-mode island evolution",
+        "Sauter et al. 1997 neoclassical tearing-mode model",
+        "La Haye 2006 modified Rutherford equation and ECCD control",
         "ECCD NTM control references",
         "repository rational-surface and island-dynamics contract"
       ],
@@ -1222,19 +1224,32 @@
         "tests/test_ntm_dynamics.py",
         "tests/test_ntm_reference_validation.py strict reference-artifact admission checks",
         "validation/validate_ntm_reference.py strict digest-bound NTM reference gate",
-        "tests/test_cross_module_physics.py"
+        "tests/test_cross_module_physics.py",
+        "validation/validate_ntm_island_dynamics.py validates the production Modified Rutherford Equation solver against the exact classical-only separable trajectory and the closed-form classical+bootstrap saturated-width fixed point, with tamper-evident sealed evidence",
+        "tests/test_ntm_island_dynamics_validation.py classical-trajectory, saturated-width-attractor, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_ntm_dynamics.py",
         "tests/test_ntm_reference_validation.py",
         "validation/validate_ntm_reference.py",
         "tests/test_cross_module_physics.py",
-        "src/scpn_control/core/ntm_dynamics.py"
+        "src/scpn_control/core/ntm_dynamics.py",
+        "validation/validate_ntm_island_dynamics.py",
+        "validation/reports/ntm_island_dynamics.json",
+        "validation/reports/ntm_island_dynamics.md",
+        "tests/test_ntm_island_dynamics_validation.py",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/ntm_dynamics.py"
       ],
-      "validity_domain": "Rational-surface, island-growth, and local control regression plus a fail-closed, schema-versioned, digest-bound reference-artifact gate; not facility-qualified NTM forecasting or suppression validation until measured NTM campaign or documented public artifacts pass declared tolerances.",
+      "evidence": [
+        "validation/validate_ntm_island_dynamics.py schema-versioned digest-bound Modified Rutherford Equation analytic validator",
+        "validation/reports/ntm_island_dynamics.json sealed classical-trajectory and saturated-width evidence",
+        "validation/reports/ntm_island_dynamics.md human-readable trajectory and saturated-width summary",
+        "tests/test_ntm_island_dynamics_validation.py exact-trajectory, fixed-point, attractor, and tamper checks"
+      ],
+      "validity_domain": "Rational-surface, island-growth, and local control regression plus a fail-closed, schema-versioned, digest-bound reference-artifact gate, with the production Modified Rutherford Equation right-hand side and RK4 integrator now validated against the exact classical-only separable trajectory (to ~1e-14 relative) and the closed-form classical+bootstrap saturated-width fixed point (machine-precision residual, stable attractor from both sides); not facility-qualified NTM forecasting or suppression validation until measured NTM campaign or documented public artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {

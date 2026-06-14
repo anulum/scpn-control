@@ -424,6 +424,27 @@ diffusion discretisation and linear-solver chain against analytic references;
 facility-calibrated integrated-modelling claims still require a measured
 discharge or published benchmark.
 
+NTM island-dynamics evidence against exact Modified Rutherford Equation
+references can be regenerated with:
+
+```bash
+python -m validation.validate_ntm_island_dynamics \
+  --report validation/reports/ntm_island_dynamics.json
+```
+
+The produced JSON uses `scpn-control.ntm-island-dynamics-validation.v1` and binds
+its own payload by SHA-256. It confirms that, in the classical-only limit
+(bootstrap, polarisation, diamagnetic, and ECCD terms off), the production
+`NTMIslandDynamics.dw_dt` and RK4 `evolve` reproduce the exact separable solution
+`w(t) = -2 r_s + 2 sqrt((r_s + 0.5 w0)^2 + K t)` with
+`K = Delta'_0 r_s^2 / tau_R` to integrator precision, and that the closed-form
+classical+bootstrap saturated width
+`w_sat = -a1 (j_bs/j_phi) r_s / (Delta'_0 r_s + 0.5 a1 (j_bs/j_phi))` zeroes
+`dw_dt` and acts as a stable attractor for the RK4 evolution from both below and
+above. This validates the island-evolution ODE right-hand side and integrator
+against analytic references; facility-qualified NTM forecasting or suppression
+claims still require a measured campaign or documented public reference.
+
 Geometry-neutral stellarator replay reports now have a separate
 schema-versioned evidence envelope,
 `scpn-control.geometry-neutral-replay-evidence.v1`. The envelope binds the
