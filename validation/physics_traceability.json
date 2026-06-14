@@ -1813,12 +1813,15 @@
       "fidelity_status": "bounded_model",
       "model_references": [
         "Kuramoto and Sakaguchi phase oscillator model",
+        "Sakaguchi H., Kuramoto Y. (1986) Prog. Theor. Phys. 76, 576",
+        "Strogatz S. H. (2000) From Kuramoto to Crawford, Physica D 143, 1",
+        "Acebron J. A. et al. (2005) Rev. Mod. Phys. 77, 137",
         "Repository phase synchronisation runtime contract"
       ],
       "module_path": "src/scpn_control/phase/kuramoto.py",
       "public_claim_allowed": false,
       "required_actions": [
-        "Validate synchronisation and stability metrics against published Kuramoto-Sakaguchi benchmark cases before broader phase-control claims",
+        "Synchronisation onset and order-parameter metrics are validated against the exact mean-field Lorentzian Kuramoto results in validation/validate_kuramoto_synchronisation.py; remaining work is plasma-phase control-law validation before broader phase-control claims",
         "Generate current deployment-target Rust/Python parity and timestep-convergence evidence with validation/benchmark_kuramoto_runtime_evidence.py before deployment-target phase claims"
       ],
       "unit_contract": "Phases in radians, angular frequencies in radians per second, timestep in seconds, coupling gains dimensionless or radians per second by declared convention, order parameter dimensionless.",
@@ -1826,14 +1829,18 @@
         "tests/test_phase_kuramoto.py",
         "tests/test_phase_properties.py",
         "tests/test_phase_properties_extended.py",
-        "validation/benchmark_kuramoto_runtime_evidence.py schema-versioned runtime parity and timestep-refinement evidence producer"
+        "tests/test_kuramoto_synchronisation_validation.py",
+        "validation/benchmark_kuramoto_runtime_evidence.py schema-versioned runtime parity and timestep-refinement evidence producer",
+        "validation/validate_kuramoto_synchronisation.py published-benchmark synchronisation validation: critical coupling Kc(alpha)=2*gamma/cos(alpha), exact Lorentzian order-parameter branch R=sqrt(1-Kc/K), and Sakaguchi onset shift"
       ],
       "evidence_paths": [
         "src/scpn_control/phase/kuramoto.py",
         "tests/test_phase_kuramoto.py",
         "tests/test_phase_properties.py",
         "tests/test_phase_properties_extended.py",
-        "validation/benchmark_kuramoto_runtime_evidence.py"
+        "tests/test_kuramoto_synchronisation_validation.py",
+        "validation/benchmark_kuramoto_runtime_evidence.py",
+        "validation/validate_kuramoto_synchronisation.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/phase/kuramoto.py"

@@ -104,6 +104,12 @@ $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \
 - **Source**: Kuramoto (1975), Sakaguchi & Kuramoto (1986).
 - **Implementation**: `src/scpn_control/phase/kuramoto.py:80`.
 - **Simplifications**: Mean-field coupling.
+- **Validation**: Synchronisation onset and the partially synchronised
+  order-parameter branch are checked against the exact mean-field Lorentzian
+  results — critical coupling `Kc(α) = 2γ/cos α` and `R∞(K) = sqrt(1 − Kc/K)` —
+  in `validation/validate_kuramoto_synchronisation.py`, with tests in
+  `tests/test_kuramoto_synchronisation_validation.py`. This validates the
+  synchronisation physics only; it is not a validated plasma-phase control law.
 
 ### What this section is for
 
