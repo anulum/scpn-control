@@ -227,6 +227,22 @@ def _require_equal_shape(label: str, *arrays: np.ndarray) -> None:
         raise ValueError(f"{label} must have matching shape")
 
 
+def _nonnegative_profile_or_scalar(
+    name: str,
+    values: np.ndarray | float | None,
+    shape: tuple[int, ...],
+) -> np.ndarray:
+    if values is None:
+        return np.zeros(shape, dtype=float)
+
+    arr = _finite_array(name, np.asarray(values, dtype=float), nonnegative=True)
+    if arr.ndim == 0:
+        return np.full(shape, float(arr), dtype=float)
+    if arr.shape != shape:
+        raise ValueError(f"{name} must have matching shape")
+    return arr
+
+
 class RotationDiagnostics:
     @staticmethod
     def mach_number(
@@ -299,13 +315,18 @@ class MomentumTransportSolver:
         Ti_keV: np.ndarray,
         T_nbi: np.ndarray,
         T_intrinsic: np.ndarray,
+        *,
+        momentum_damping_frequency_s: np.ndarray | float | None = None,
     ) -> np.ndarray:
         """Advance rotation profile one step [rad/s].
 
         Momentum equation (cylindrical approximation):
-          ∂(ρ_m R² ω)/∂t + (1/r) ∂/∂r(r Π_φ) = T_tot
+          ∂(ρ_m R² ω)/∂t + (1/r) ∂/∂r(r Π_φ) = T_tot − ν_φ ρ_m R² ω
           Π_φ = −χ_φ ∂(ρ_m R² ω)/∂r   (pinch neglected)
-        Wesson 2011, "Tokamaks", §4.10.
+        Wesson 2011, "Tokamaks", §4.10. The optional ν_φ profile is a
+        non-negative bounded linear momentum damping frequency [s⁻¹], treated
+        implicitly so zero-source, zero-diffusion cells decay as
+        ωⁿ⁺¹ = ωⁿ / (1 + Δt ν_φ).
         """
         import scipy.linalg
 
@@ -318,7 +339,15 @@ class MomentumTransportSolver:
         T_nbi = _finite_array("T_nbi", T_nbi)
         T_intrinsic = _finite_array("T_intrinsic", T_intrinsic)
         self.omega_phi = _finite_array("omega_phi", self.omega_phi)
-        _require_equal_shape("chi_i, ne, Ti_keV, T_nbi, and T_intrinsic", chi_i, ne, Ti_keV, T_nbi, T_intrinsic)
+        _require_equal_shape(
+            "chi_i, ne, Ti_keV, T_nbi, and T_intrinsic",
+            chi_i,
+            ne,
+            Ti_keV,
+            T_nbi,
+            T_intrinsic,
+        )
+        nu_phi = _nonnegative_profile_or_scalar("momentum_damping_frequency_s", momentum_damping_frequency_s, chi_i.shape)
         if len(chi_i) != self.nr:
             raise ValueError("transport profiles must match the solver rho grid")
         if np.any(chi_i < 0.0):
@@ -358,7 +387,7 @@ class MomentumTransportSolver:
             c_0 = -2.0 * chi_phi[i] / dr**2
 
             lower[i] = -dt * c_minus
-            diag[i] = 1.0 - dt * c_0
+            diag[i] = 1.0 - dt * c_0 + dt * nu_phi[i]
             upper[i] = -dt * c_plus
             rhs[i] = L[i] + dt * T_tot[i]
 

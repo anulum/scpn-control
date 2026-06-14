@@ -70,6 +70,51 @@ def test_solver_steady_state():
     assert solver.omega_phi[0] > 0.0
 
 
+def test_solver_applies_collisional_damping_implicitly() -> None:
+    rho = np.linspace(0.0, 1.0, 16)
+    solver = MomentumTransportSolver(rho, R0=6.2, a=2.0, B0=5.3)
+    initial_omega = 1.5e4 * (1.0 - 0.2 * rho)
+    solver.omega_phi = initial_omega.copy()
+
+    chi_i = np.zeros_like(rho)
+    ne = np.ones_like(rho) * 5.0
+    Ti = np.ones_like(rho) * 7.0
+    torque = np.zeros_like(rho)
+    dt = 0.25
+    damping_frequency = np.ones_like(rho) * 0.8
+
+    omega = solver.step(
+        dt,
+        chi_i,
+        ne,
+        Ti,
+        torque,
+        torque,
+        momentum_damping_frequency_s=damping_frequency,
+    )
+
+    expected = initial_omega / (1.0 + dt * damping_frequency)
+    np.testing.assert_allclose(omega[1:-1], expected[1:-1], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(omega[0], omega[1], rtol=1e-12, atol=1e-12)
+    assert omega[-1] == 0.0
+
+
+def test_solver_rejects_nonphysical_collisional_damping_profiles() -> None:
+    rho = np.linspace(0.0, 1.0, 8)
+    solver = MomentumTransportSolver(rho, R0=6.2, a=2.0, B0=5.3)
+    chi_i = np.ones_like(rho)
+    ne = np.ones_like(rho)
+    Ti = np.ones_like(rho)
+    torque = np.zeros_like(rho)
+
+    with pytest.raises(ValueError, match="momentum_damping_frequency_s"):
+        solver.step(0.1, chi_i, ne, Ti, torque, torque, momentum_damping_frequency_s=-0.1)
+    with pytest.raises(ValueError, match="matching shape"):
+        solver.step(0.1, chi_i, ne, Ti, torque, torque, momentum_damping_frequency_s=np.ones(7))
+    with pytest.raises(ValueError, match="momentum_damping_frequency_s"):
+        solver.step(0.1, chi_i, ne, Ti, torque, torque, momentum_damping_frequency_s=np.full(8, np.nan))
+
+
 def test_exb_shear_suppression():
     rho = np.linspace(0, 1, 50)
     omega = 1e5 * (1.0 - rho**2)  # Peaked rotation

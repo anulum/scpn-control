@@ -1059,7 +1059,7 @@
       ],
       "unit_contract": "SI newton metres, kg m^2/s^2, rad/s, metres, seconds, density in m^-3, and momentum diffusivity in m^2/s.",
       "validation_evidence": [
-        "tests/test_momentum_transport.py",
+        "tests/test_momentum_transport.py verifies NBI torque direction, viscous diffusion damping, implicit bounded collisional damping, fail-closed damping-profile validation, force-balance helpers, and diagnostic guards",
         "tests/test_momentum_integration.py"
       ],
       "evidence_paths": [
@@ -1070,7 +1070,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/momentum_transport.py"
       ],
-      "validity_domain": "Local torque and integration regression; not validated facility momentum-transport prediction.",
+      "validity_domain": "Local torque, implicit linear damping, and integration regression; bounded collisional damping is a configurable ν_phi sink, not a quantitative multispecies collision-operator or facility momentum-transport validation claim.",
       "external_validation_tracker_issue": 49
     },
     {

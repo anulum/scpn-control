@@ -10,7 +10,10 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Changed
+- Hardened toroidal momentum transport with a bounded implicit collisional
+  damping frequency profile, fail-closed damping validation, and updated
+  physics traceability evidence.
 
 ## [0.20.7] - 2026-06-05
 
