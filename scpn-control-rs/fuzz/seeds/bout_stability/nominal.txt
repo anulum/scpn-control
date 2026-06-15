@@ -1,0 +1,5 @@
+# BOUT++ stability output
+n=1
+gamma=1.5e4
+omega=-2.3e3
+amplitude=0.1,0.3,0.8,0.5,0.2

@@ -52,8 +52,19 @@ pub(crate) fn matrix_exp(a: &Array2<f64>) -> Array2<f64> {
         .map(|i| (0..n).map(|j| a[[i, j]].abs()).sum::<f64>())
         .fold(0.0_f64, f64::max);
 
-    let s = if norm_a > 0.0 {
-        norm_a.log2().ceil() as u32
+    // The squaring count is bounded by the f64 exponent range: for any finite
+    // norm, `log2(norm).ceil()` never exceeds ~1024 (log2(f64::MAX)). A
+    // non-finite norm — produced when an adversarial-but-finite parameter set
+    // overflows the assembled matrix to +inf — would otherwise make
+    // `f64::INFINITY as u32` saturate to `u32::MAX`, turning the squaring loop
+    // below into ~4.3e9 matrix multiplies (an unbounded-runtime / denial-of-
+    // service hang). We fail closed: a non-finite norm yields no scaling, so the
+    // Padé approximant returns a non-finite matrix fast and the caller's own
+    // finiteness checks reject it instead of the routine spinning. The clamp is
+    // defence-in-depth for any other route to an oversized exponent.
+    const MAX_SCALING_SQUARINGS: u32 = 1100;
+    let s = if norm_a.is_finite() && norm_a > 0.0 {
+        (norm_a.log2().ceil() as u32).min(MAX_SCALING_SQUARINGS)
     } else {
         0
     };
@@ -433,6 +444,25 @@ mod tests {
         );
         assert!(result[[0, 1]].abs() < 1e-12);
         assert!(result[[1, 0]].abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_matrix_exp_non_finite_norm_fails_closed_without_hang() {
+        // An entry that overflows the row-sum norm to +inf must NOT make the
+        // scaling exponent saturate to u32::MAX and spin the squaring loop
+        // ~4.3e9 times. The routine must return promptly with a non-finite
+        // result so callers fail closed. Regression for the capacitor-bank
+        // discharge denial-of-service found by the libFuzzer `capacitor_bank`
+        // target (timeout-be2a810f...): extreme finite L*C overflowed the Van
+        // Loan gramian matrix norm.
+        let a = Array2::from_shape_vec((2, 2), vec![f64::MAX, f64::MAX, 0.0, f64::MAX]).unwrap();
+        let result = matrix_exp(&a);
+        // The contract is bounded runtime + a non-finite (rejectable) result,
+        // not a specific value: a row-sum norm of 2*f64::MAX is +inf.
+        assert!(
+            result.iter().any(|v| !v.is_finite()),
+            "expected a non-finite result for an inf-norm matrix, got {result:?}"
+        );
     }
 
     #[test]

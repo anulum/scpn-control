@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — libFuzzer harness package for untrusted-input Rust surfaces.
+
+[package]
+name = "scpn-control-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "AGPL-3.0-or-later"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Standalone workspace: the fuzz package is intentionally outside the main
+# scpn-control-rs workspace (which lists it under `exclude`) so the libFuzzer
+# build flags and the nightly sanitiser profile never leak into normal
+# `cargo build`/`cargo test` of the production crates.
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4.13"
+arbitrary = { version = "1.4.2", features = ["derive"] }
+serde_json = "1.0"
+
+[dependencies.control-types]
+path = "../crates/control-types"
+
+[dependencies.control-core]
+path = "../crates/control-core"
+
+[dependencies.control-control]
+path = "../crates/control-control"
+
+[dependencies.control-math]
+path = "../crates/control-math"
+
+# Release-grade optimisation keeps the fuzzers fast; debug-assertions and
+# overflow-checks stay on so arithmetic UB and debug invariants surface as
+# crashes rather than silently wrapping.
+[profile.release]
+debug = 1
+debug-assertions = true
+overflow-checks = true
+
+# Parser surface — reactor configuration JSON deserialisation (untrusted file).
+[[bin]]
+name = "config_json"
+path = "fuzz_targets/config_json.rs"
+test = false
+doc = false
+bench = false
+
+# Parser surface — VMEC-like fixed-boundary text import (untrusted text).
+[[bin]]
+name = "vmec_import"
+path = "fuzz_targets/vmec_import.rs"
+test = false
+doc = false
+bench = false
+
+# Parser surface — BOUT++ linear-stability output parser (untrusted text).
+[[bin]]
+name = "bout_stability"
+path = "fuzz_targets/bout_stability.rs"
+test = false
+doc = false
+bench = false
+
+# Safety-critical numeric adapter — series-RLC capacitor-bank discharge ledger
+# under adversarial spec/pulse parameters (also the PyO3 FFI numeric boundary).
+[[bin]]
+name = "capacitor_bank"
+path = "fuzz_targets/capacitor_bank.rs"
+test = false
+doc = false
+bench = false
+
+# Vector kernel / FFI boundary — Kuramoto-Sakaguchi phase step and order
+# parameter over adversarial phase/coupling arrays (exposed through PyO3).
+[[bin]]
+name = "kuramoto_kernel"
+path = "fuzz_targets/kuramoto_kernel.rs"
+test = false
+doc = false
+bench = false

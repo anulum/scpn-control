@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Nightly libFuzzer campaign for untrusted-input Rust surfaces.
+#
+# This workflow is deliberately NOT part of the per-commit CI. The per-commit
+# `Fuzz build smoke` job keeps the targets compiling cheaply; the time-boxed
+# fuzzing run lives here on a nightly schedule (and manual dispatch) so it never
+# blocks normal development while still exercising the parser, numeric-adapter,
+# vector-kernel, and FFI surfaces for real and failing closed on any crash.
+name: Fuzz nightly
+on:
+  schedule:
+    # 03:17 UTC daily — off the hour to avoid scheduler contention.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      max_total_time:
+        description: "Seconds of fuzzing per target"
+        required: false
+        default: "300"
+
+permissions: {}
+
+concurrency:
+  group: fuzz-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz-campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # nightly
+        with:
+          toolchain: nightly
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.12"
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Run fuzz campaign (fail-closed triage)
+        run: |
+          python tools/run_fuzz_campaign.py \
+            --max-total-time "${{ github.event.inputs.max_total_time || '300' }}" \
+            --evidence-class nightly_regression \
+            --json-out artifacts/fuzz/fuzz_campaign_report.json \
+            --markdown-out artifacts/fuzz/fuzz_campaign_report.md
+      - name: Upload fuzz evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: fuzz-campaign-evidence
+          path: |
+            artifacts/fuzz/
+            scpn-control-rs/fuzz/artifacts/
+      - name: Upload crash reproducers
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: fuzz-crash-reproducers
+          path: scpn-control-rs/fuzz/artifacts/
+
+  fuzz-build-smoke:
+    # Fast compile-only check so the targets cannot bit-rot between nightly runs.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # nightly
+        with:
+          toolchain: nightly
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.12"
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Build all fuzz targets
+        run: python tools/run_fuzz_campaign.py --build-only

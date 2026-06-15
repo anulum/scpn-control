@@ -6,6 +6,7 @@ members = [
     "crates/control-control",
     "crates/control-python",
 ]
+exclude = ["fuzz"]
 resolver = "2"
 
 [workspace.package]

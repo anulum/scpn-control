@@ -921,4 +921,44 @@ mod tests {
             0.5 * spec.capacitance_f * status.projected_voltage_v * status.projected_voltage_v;
         assert!((energy - spec.recharge_power_kw * 1000.0 * 0.1).abs() < 1e-9);
     }
+
+    #[test]
+    fn discharge_with_extreme_finite_parameters_fails_closed_without_hang() {
+        // Regression for the libFuzzer `capacitor_bank` finding
+        // (timeout-be2a810f...): a denormal capacitance with ~1e103 H/Ω
+        // inductance and resistance overflowed the Van Loan gramian matrix norm
+        // to +inf, which — before the matrix_exp scaling-exponent guard —
+        // saturated the squaring count to u32::MAX and spun the squaring loop
+        // for minutes. The discharge must now return promptly and fail closed:
+        // it may report a non-admitted (or non-finite) ledger, but it must
+        // neither hang nor panic.
+        let spec = CapacitorBankSpec::new(
+            5e-323,
+            1.175_865_990_282_161_7e103,
+            1.194_530_529_161_495_5e103,
+            5.241_383_972_045_715e-304,
+            0.0,
+        )
+        .expect("spec validates: all parameters are finite and in range");
+        let mut bank =
+            CapacitorBank::new(spec, 0.0, 4.329_103_699_111_611e-304).expect("valid bank");
+        let pulse = PulseSpec::new(
+            1.194_676_345_876_481e103,
+            1.194_530_529_161_495_5e103,
+            PulseWaveform::HalfSine,
+        )
+        .expect("pulse validates");
+        // Reaching this assertion at all proves the call returned (no hang). The
+        // fail-closed contract admits two outcomes: an explicit error (the step
+        // detects the non-finite state and rejects it), or an Ok ledger that —
+        // if admitted — carries only finite quantities. Both are acceptable; a
+        // hang, panic, or admitted non-finite ledger are not.
+        match bank.discharge(pulse, 1.341_801_598_285_21e-309, 1) {
+            Err(_) => {}
+            Ok(report) if report.energy_balance_passed => {
+                assert!(report.energy_initial_j.is_finite() && report.resistive_loss_j.is_finite());
+            }
+            Ok(_) => {}
+        }
+    }
 }

@@ -10,7 +10,19 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+- libFuzzer harness for the Rust parser, numeric-adapter, and FFI surfaces:
+  reactor-configuration JSON, VMEC-like and BOUT++ text parsers, the
+  capacitor-bank discharge ledger, and the Kuramoto phase kernel. Includes a
+  fail-closed campaign orchestrator with provenance and seed-checksum evidence
+  reports, a tracked seed corpus, and a nightly fuzzing workflow separate from
+  per-commit CI.
+
+### Fixed
+- Bounded the scaling-and-squaring exponent in the Rust matrix exponential so an
+  overflowing matrix norm can no longer stall the capacitor-bank discharge; the
+  routine now fails closed on a non-finite norm and the discharge rejects the
+  input instead of looping.
 
 ## [0.21.0] - 2026-06-15
 
