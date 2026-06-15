@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
+from numpy.typing import NDArray
 
 # Ejima et al. 1982, Nucl. Fusion 22, 1313 — startup flux coefficient.
 # C_Ejima ≈ 0.4 is the ITER design value.
@@ -62,7 +63,9 @@ def _positive_int(name: str, value: int, *, minimum: int = 1) -> int:
     return value
 
 
-def _finite_profile(name: str, values: np.ndarray, *, positive: bool = False, nonnegative: bool = False) -> np.ndarray:
+def _finite_profile(
+    name: str, values: NDArray[np.float64], *, positive: bool = False, nonnegative: bool = False
+) -> NDArray[np.float64]:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size == 0:
         raise ValueError(f"{name} must be a one-dimensional non-empty profile")
@@ -75,7 +78,7 @@ def _finite_profile(name: str, values: np.ndarray, *, positive: bool = False, no
     return arr
 
 
-def _strict_rho(values: np.ndarray) -> np.ndarray:
+def _strict_rho(values: NDArray[np.float64]) -> NDArray[np.float64]:
     rho = _finite_profile("rho", values, nonnegative=True)
     if rho.size < 2:
         raise ValueError("rho must contain at least two points")
@@ -356,7 +359,7 @@ class FluxBudget:
         Ip_MA = _finite_scalar("Ip_MA", Ip_MA, nonnegative=True)
         return self.L_plasma_H * (Ip_MA * 1e6)
 
-    def resistive_flux_ramp(self, Ip_trace: np.ndarray, dt: float) -> float:
+    def resistive_flux_ramp(self, Ip_trace: NDArray[np.float64], dt: float) -> float:
         """∫ R_p I_p dt — resistive volt-second consumption during ramp.
 
         Wesson 2011, Tokamaks 4th ed., Eq. 3.7.4 (second term).
@@ -395,23 +398,29 @@ class FluxBudget:
 
 
 class VoltSecondOptimizer:
-    def __init__(self, flux_budget: FluxBudget, transport_model: Callable | None = None):
+    def __init__(self, flux_budget: FluxBudget, transport_model: Callable[..., Any] | None = None):
         self.budget = flux_budget
         self.transport_model = transport_model
 
-    def optimize_ramp(self, Ip_target_MA: float, t_ramp_max: float, n_segments: int = 10) -> np.ndarray:
+    def optimize_ramp(self, Ip_target_MA: float, t_ramp_max: float, n_segments: int = 10) -> NDArray[np.float64]:
         Ip_target_MA = _finite_scalar("Ip_target_MA", Ip_target_MA, nonnegative=True)
         t_ramp_max = _finite_scalar("t_ramp_max", t_ramp_max, positive=True)
         n_segments = _positive_int("n_segments", n_segments, minimum=2)
         t_arr = np.linspace(0, t_ramp_max, n_segments)
         Ip_trace = Ip_target_MA * (t_arr / t_ramp_max)
-        return Ip_trace
+        return np.asarray(Ip_trace, dtype=np.float64)
 
 
 class BootstrapCurrentEstimate:
     @staticmethod
     def from_profiles(
-        ne: np.ndarray, Te: np.ndarray, Ti: np.ndarray, q: np.ndarray, rho: np.ndarray, R0: float, a: float
+        ne: NDArray[np.float64],
+        Te: NDArray[np.float64],
+        Ti: NDArray[np.float64],
+        q: NDArray[np.float64],
+        rho: NDArray[np.float64],
+        R0: float,
+        a: float,
     ) -> float:
         """Simplified bootstrap current proxy: I_bs ~ ε^{1/2} · ∫ dp/dr dr.
 

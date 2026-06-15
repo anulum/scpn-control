@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
+from numpy.typing import NDArray
 
 DecodeStrategy = Literal["rate", "temporal", "isi"]
 FeatureNormalisation = Literal["unit", "max", "zscore"]
@@ -151,7 +152,7 @@ class AERControlObservation:
         if not isinstance(self.require_monotonic, bool):
             raise ValueError("require_monotonic must be a boolean")
 
-    def to_features(self) -> np.ndarray:
+    def to_features(self) -> NDArray[np.float64]:
         """Drain the active window and return ``float64`` features in ``[0, 1]``."""
         if self.require_monotonic and not self.spike_stream.monotonic_input:
             raise ValueError("AER spike stream violated monotonic timestamp admission")
@@ -177,7 +178,7 @@ class AERControlObservation:
         return self.spike_stream.admission_report()
 
 
-def decode_rate(events: list[SpikeEvent], window_ns: int, n_features: int) -> np.ndarray:
+def decode_rate(events: list[SpikeEvent], window_ns: int, n_features: int) -> NDArray[np.float64]:
     """Decode AER events as per-feature event fractions over the active window."""
     _positive_int("window_ns", window_ns)
     n = _positive_int("n_features", n_features)
@@ -195,7 +196,7 @@ def decode_temporal(
     n_features: int,
     *,
     now_ns: int | None = None,
-) -> np.ndarray:
+) -> NDArray[np.float64]:
     """Decode by first-spike timing; earlier spikes map closer to one."""
     window = _positive_int("window_ns", window_ns)
     n = _positive_int("n_features", n_features)
@@ -218,7 +219,7 @@ def decode_temporal(
     return _clip01(features)
 
 
-def decode_isi(events: list[SpikeEvent], window_ns: int, n_features: int) -> np.ndarray:
+def decode_isi(events: list[SpikeEvent], window_ns: int, n_features: int) -> NDArray[np.float64]:
     """Decode by mean inter-spike interval; faster repeated spikes map higher."""
     window = _positive_int("window_ns", window_ns)
     n = _positive_int("n_features", n_features)
@@ -237,7 +238,7 @@ def decode_isi(events: list[SpikeEvent], window_ns: int, n_features: int) -> np.
     return _clip01(features)
 
 
-def _normalise_features(features: np.ndarray, mode: FeatureNormalisation) -> np.ndarray:
+def _normalise_features(features: NDArray[np.float64], mode: FeatureNormalisation) -> NDArray[np.float64]:
     values = np.asarray(features, dtype=np.float64)
     if values.shape != (values.size,):
         raise ValueError("features must be a one-dimensional array")
@@ -262,7 +263,7 @@ def _normalise_features(features: np.ndarray, mode: FeatureNormalisation) -> np.
     raise ValueError("feature_normalisation must be one of: unit, max, zscore")
 
 
-def _clip01(values: np.ndarray) -> np.ndarray:
+def _clip01(values: NDArray[np.float64]) -> NDArray[np.float64]:
     clipped = np.asarray(np.clip(values, 0.0, 1.0), dtype=np.float64)
     return clipped
 

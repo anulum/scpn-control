@@ -122,16 +122,40 @@ files = [
 # component flags are listed explicitly because mypy applies the `strict = true`
 # meta-flag globally even inside a per-module override, silently enforcing strict
 # checks across the whole package. Only flags mypy accepts per-module are listed
-# (warn_redundant_casts and warn_unused_configs are global-only). disallow_any_generics
-# is deferred until the bare numpy.ndarray annotations in current_drive and
-# realtime_efit are parametrised.
+# (warn_redundant_casts and warn_unused_configs are global-only).
+#
+# Tier 1 (component-strict, generic args deferred): current_drive and
+# realtime_efit still carry bare numpy.ndarray annotations (42 and 14 sites), so
+# disallow_any_generics stays off for them until those are parametrised.
 [[tool.mypy.overrides]]
 module = [
     "scpn_control.core.current_drive",
-    "scpn_control.control.realtime_efit",
-    "scpn_control.core.runtime_admission",
-    "scpn_control.core.tokamak_config"
+    "scpn_control.control.realtime_efit"
 ]
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+warn_unused_ignores = true
+strict_equality = true
+no_implicit_reexport = true
+extra_checks = true
+
+# Tier 2 (fully strict, including disallow_any_generics): these modules have no
+# bare numpy.ndarray or other unparametrised generics, so they carry the full
+# strict component set plus generic-argument enforcement.
+[[tool.mypy.overrides]]
+module = [
+    "scpn_control.core.runtime_admission",
+    "scpn_control.core.tokamak_config",
+    "scpn_control.core.checkpoint",
+    "scpn_control.scpn.observation",
+    "scpn_control.scpn.geometry_neutral_replay",
+    "scpn_control.control.volt_second_manager",
+    "scpn_control.control.rzip_model",
+    "scpn_control.control.rwm_feedback"
+]
+disallow_any_generics = true
 disallow_subclassing_any = true
 disallow_untyped_calls = true
 disallow_incomplete_defs = true

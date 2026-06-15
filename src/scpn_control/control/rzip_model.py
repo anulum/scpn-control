@@ -15,6 +15,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
+from numpy.typing import NDArray
 
 from scpn_control.core.vessel_model import VesselElement, VesselModel
 
@@ -248,7 +249,9 @@ class RZIPModel:
         M_minus = self.vessel._mutual_inductance(R1, Z1 - dZ, R2, Z2)
         return float((M_plus - M_minus) / (2.0 * dZ))
 
-    def build_state_space(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def build_state_space(
+        self,
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
         # x = [Z, dZ/dt, I_1, ..., I_n]
         n_states = 2 + self.n_circuits
         n_inputs = self.n_coils
@@ -330,7 +333,7 @@ class RZIPModel:
 
 class VerticalStabilityAnalysis:
     @staticmethod
-    def _differentiate_radial(field: np.ndarray, r_axis: np.ndarray) -> np.ndarray:
+    def _differentiate_radial(field: NDArray[np.float64], r_axis: NDArray[np.float64]) -> NDArray[np.float64]:
         derivative = np.empty_like(field, dtype=float)
         derivative[:, 0] = (field[:, 1] - field[:, 0]) / (r_axis[1] - r_axis[0])
         derivative[:, -1] = (field[:, -1] - field[:, -2]) / (r_axis[-1] - r_axis[-2])
@@ -346,7 +349,9 @@ class VerticalStabilityAnalysis:
         return derivative
 
     @staticmethod
-    def _grid_axes(R: np.ndarray, Z: np.ndarray, shape: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+    def _grid_axes(
+        R: NDArray[np.float64], Z: NDArray[np.float64], shape: tuple[int, int]
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         if R.ndim == 1 and Z.ndim == 1:
             if R.size != shape[1] or Z.size != shape[0]:
                 raise ValueError("R/Z axes must match psi shape")
@@ -371,7 +376,7 @@ class VerticalStabilityAnalysis:
         return r_axis, z_axis
 
     @staticmethod
-    def compute_n_index(psi: np.ndarray, R: np.ndarray, Z: np.ndarray, R0: float) -> float:
+    def compute_n_index(psi: NDArray[np.float64], R: NDArray[np.float64], Z: NDArray[np.float64], R0: float) -> float:
         """
         Compute the vertical field index at the magnetic-axis radius.
 
@@ -476,7 +481,7 @@ class RZIPController:
             # Fallback if scipy not available or LQR fails
             self.K_gain = np.zeros((B.shape[1], A.shape[1]))
 
-    def step(self, dZ_measured: float, dt: float) -> np.ndarray:
+    def step(self, dZ_measured: float, dt: float) -> NDArray[np.float64]:
         if not np.isfinite(dZ_measured):
             raise ValueError("dZ_measured must be finite.")
         if not np.isfinite(dt) or dt <= 0.0:
@@ -496,7 +501,7 @@ class RZIPController:
         V_coils = -self.K_gain @ x
         return np.asarray(V_coils)
 
-    def closed_loop_eigenvalues(self) -> np.ndarray:
+    def closed_loop_eigenvalues(self) -> NDArray[np.float64]:
         A, B, C, D = self.rzip.build_state_space()
         A_cl = A - B @ self.K_gain
         return np.linalg.eigvals(A_cl)
