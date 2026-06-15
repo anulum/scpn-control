@@ -1903,7 +1903,7 @@ class NonlinearMPC:
 
         The Hessian is taken with respect to the flattened control sequence and
         includes the second-order dynamics curvature, unlike the Gauss-Newton
-        approximation used inside the condensed QP. It fails closed when JAX is
+        curvature used inside the condensed QP. It fails closed when JAX is
         unavailable or the plant is not JAX-traceable; existing analytic terminal
         and linearisation providers remain authoritative for the control law.
         """
