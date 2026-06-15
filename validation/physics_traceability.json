@@ -1315,19 +1315,32 @@
         "tests/test_marfe.py",
         "tests/test_marfe_reference_validation.py strict reference-artifact admission checks",
         "validation/validate_marfe_reference.py strict digest-bound MARFE reference gate",
+        "validation/validate_marfe_onset.py validates the Greenwald limit, bounded MARFE density-limit scaling, edge connection length, radiation-condensation critical density, onset cooling-slope membership, stability-diagram boundary, and front-temperature detector thresholds against exact closed forms, with tamper-evident sealed evidence",
+        "validation/reports/marfe_onset.json sealed exact-closed-form MARFE evidence",
+        "validation/reports/marfe_onset.md human-readable MARFE onset and density-limit summary",
+        "validation/benchmark_marfe_onset_claims.py bounded local-regression benchmark with production_claim_allowed=false",
+        "validation/reports/marfe_onset_claims.json local-regression benchmark evidence for the sealed MARFE validator",
+        "tests/test_marfe_onset_validation.py Greenwald, MARFE-limit, condensation, scan-boundary, front-detector, configuration-guard, CLI, and evidence-seal checks",
         "tests/test_cross_module_physics.py"
       ],
       "evidence_paths": [
         "tests/test_marfe.py",
         "tests/test_marfe_reference_validation.py",
         "validation/validate_marfe_reference.py",
+        "validation/validate_marfe_onset.py",
+        "validation/reports/marfe_onset.json",
+        "validation/reports/marfe_onset.md",
+        "validation/benchmark_marfe_onset_claims.py",
+        "validation/reports/marfe_onset_claims.json",
+        "validation/reports/marfe_onset_claims.md",
+        "tests/test_marfe_onset_validation.py",
         "tests/test_cross_module_physics.py",
         "src/scpn_control/core/marfe.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/marfe.py"
       ],
-      "validity_domain": "Radiation-condensation and density-limit regression with fail-closed front-temperature state checks plus a fail-closed, schema-versioned, digest-bound reference-artifact gate; not a facility-validated MARFE prediction model until measured MARFE campaign or documented public artifacts pass declared tolerances.",
+      "validity_domain": "Radiation-condensation and density-limit regression with fail-closed front-temperature state checks plus a fail-closed, schema-versioned, digest-bound reference-artifact gate, with the production Greenwald limit, bounded MARFE density-limit scaling, edge connection length, radiation-condensation critical-density threshold, onset cooling-slope membership, stability-diagram boundary, and front-temperature detector thresholds now validated against exact closed forms; not a facility-validated MARFE prediction model until measured MARFE campaign or documented public artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {

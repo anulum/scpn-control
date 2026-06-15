@@ -1321,6 +1321,20 @@ metadata, and onset-temperature, density-limit, Greenwald-fraction,
 front-temperature, and radiation-growth metrics inside declared tolerances.
 Synthetic MARFE regressions remain module-behaviour checks only.
 
+The repository-owned bounded MARFE algebra is validated separately against
+exact closed forms:
+
+```bash
+python validation/validate_marfe_onset.py --report validation/reports/marfe_onset.json
+python validation/benchmark_marfe_onset_claims.py
+```
+
+The local validator covers the Greenwald limit, Greenwald scaling, bounded
+MARFE density-limit scaling, edge connection length, radiation-condensation
+critical-density bracket, cooling-slope onset membership, density-power scan
+boundary, and front-temperature detector thresholds. Its benchmark report is
+local-regression evidence only and sets `production_claim_allowed=false`.
+
 NTM island-dynamics validation claims require measured NTM campaign or
 documented public reference artifacts for q-profile reconstruction,
 rational-surface location, island-width growth and saturation, suppression

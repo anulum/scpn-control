@@ -1,0 +1,81 @@
+{
+  "claim_status": "bounded_model",
+  "condensation_passed": true,
+  "config": {
+    "electron_density_20": 2.0,
+    "impurity": "W",
+    "impurity_fraction": 0.0001,
+    "k_parallel_m_inv": 0.01,
+    "kappa_parallel": 2000.0,
+    "major_radius_m": 6.2,
+    "minor_radius_m": 2.0,
+    "p_sol_mw": 40.0,
+    "plasma_current_ma": 15.0,
+    "q95": 3.0,
+    "temperature_eV": 2000.0
+  },
+  "connection_length_rel_error": 0.0,
+  "critical_density": {
+    "critical_density_20": 0.12740134575695342,
+    "high_density_growth_rate_s": 0.0012999704061228813,
+    "low_density_growth_rate_s": -0.0013130360918972759
+  },
+  "exact_tol": 1e-09,
+  "front_detection": {
+    "at_temperature_threshold_is_marfe": false,
+    "below_threshold_is_marfe": true,
+    "hot_profile_is_marfe": false
+  },
+  "front_detection_passed": true,
+  "generated_utc": "2026-06-15T10:11:57Z",
+  "greenwald_limit_rel_error": 0.0,
+  "greenwald_passed": true,
+  "greenwald_scaling": [
+    {
+      "expected_ratio": 2.0,
+      "measured_ratio": 2.0,
+      "name": "current_linear",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.25,
+      "measured_ratio": 0.25,
+      "name": "minor_radius_inverse_square",
+      "rel_error": 0.0
+    }
+  ],
+  "marfe_limit_passed": true,
+  "marfe_limit_rel_error": 0.0,
+  "marfe_limit_scaling": [
+    {
+      "expected_ratio": 1.4142135623730951,
+      "measured_ratio": 1.4142135623730951,
+      "name": "power_sqrt",
+      "rel_error": 0.0
+    },
+    {
+      "expected_ratio": 0.7071067811865476,
+      "measured_ratio": 0.7071067811865476,
+      "name": "impurity_inverse_sqrt",
+      "rel_error": 0.0
+    }
+  ],
+  "max_greenwald_scaling_rel_error": 0.0,
+  "max_marfe_limit_scaling_rel_error": 0.0,
+  "onset_temperature": {
+    "is_scan_member": true,
+    "onset_temperature_eV": 5000.0,
+    "slope_at_onset": -1.1238566260536926e-35
+  },
+  "passed": true,
+  "payload_sha256": "3cf0088f0e4cae7c52b8d85f51a7e7b334215250e610cb0c9f38fb4ac181fa22",
+  "public_claim_allowed": false,
+  "scan_boundary": {
+    "above_limit_state": -1,
+    "below_limit_state": 1,
+    "critical_density_20": 75.49381815673055
+  },
+  "scan_passed": true,
+  "schema_version": "scpn-control.marfe-onset-validation.v1",
+  "target_id": "local-marfe-onset"
+}
