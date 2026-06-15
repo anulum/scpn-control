@@ -17,6 +17,11 @@
   fail-closed campaign orchestrator with provenance and seed-checksum evidence
   reports, a tracked seed corpus, and a nightly fuzzing workflow separate from
   per-commit CI.
+- Polyglot benchmark regression gate: a suite runner that records per-language
+  p50/p95/p99 latency, throughput, and run provenance, and a fail-closed gate
+  that compares a fresh report against a tracked baseline under an explicit
+  threshold policy, rejecting tampered reports or baselines, missing metrics, and
+  cross-CPU comparisons. Runs in evidence-only mode on the nightly workflow.
 
 ### Fixed
 - Bounded the scaling-and-squaring exponent in the Rust matrix exponential so an

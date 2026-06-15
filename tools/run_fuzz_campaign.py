@@ -214,9 +214,7 @@ def _payload_digest(payload: dict[str, Any]) -> str:
 
 
 def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        cmd, cwd=cwd, capture_output=True, text=True, check=False
-    )
+    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
 
 
 def toolchain_metadata() -> tuple[dict[str, str], str]:
@@ -248,8 +246,15 @@ def run_target(target: str, max_total_time_s: int, rss_limit_mb: int) -> TargetR
     """Build (implicitly) and run one fuzz target for a bounded wall-clock time."""
     _seed_corpus(target)
     cmd = [
-        "cargo", "+nightly", "fuzz", "run", target, str(CORPUS_ROOT / target),
-        "--", f"-max_total_time={max_total_time_s}", f"-rss_limit_mb={rss_limit_mb}",
+        "cargo",
+        "+nightly",
+        "fuzz",
+        "run",
+        target,
+        str(CORPUS_ROOT / target),
+        "--",
+        f"-max_total_time={max_total_time_s}",
+        f"-rss_limit_mb={rss_limit_mb}",
         "-print_final_stats=1",
     ]
     start = time.perf_counter()
@@ -271,9 +276,7 @@ def run_target(target: str, max_total_time_s: int, rss_limit_mb: int) -> TargetR
 
 def build_all() -> int:
     """Build every fuzz target so a compile break fails fast and cheaply."""
-    proc = subprocess.run(
-        ["cargo", "+nightly", "fuzz", "build"], cwd=RUST_ROOT, check=False
-    )
+    proc = subprocess.run(["cargo", "+nightly", "fuzz", "build"], cwd=RUST_ROOT, check=False)
     return proc.returncode
 
 
@@ -322,7 +325,9 @@ def _markdown(report: dict[str, Any]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the scpn-control-rs libFuzzer campaign.")
     parser.add_argument(
-        "--targets", nargs="*", default=list(FUZZ_TARGETS),
+        "--targets",
+        nargs="*",
+        default=list(FUZZ_TARGETS),
         help="Subset of fuzz targets to run (default: all).",
     )
     parser.add_argument("--max-total-time", type=int, default=300)
@@ -331,7 +336,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--markdown-out", type=Path)
     parser.add_argument(
-        "--build-only", action="store_true",
+        "--build-only",
+        action="store_true",
         help="Only build the targets (fast CI smoke check); do not fuzz.",
     )
     args = parser.parse_args(argv)

@@ -1,0 +1,68 @@
+{
+  "baseline_commit": "98d6b2a539a1b064510eb3aba3eb41dad19a1aaf",
+  "baseline_sha256": "39d57bc64bb7a59f7f1a9cbba364a6c1d9a4f0211d95add79fd2a8f459efeb5a",
+  "benchmarks": {
+    "capacitor_bank_discharge": {
+      "cross_language_parity": {
+        "max_relative_difference": 1.409460659999415e-16
+      },
+      "languages": {
+        "python": {
+          "p50_us": 1337.005,
+          "p95_us": 1428.416,
+          "p99_us": 1486.593,
+          "throughput_ops_s": 744.1748278165027
+        },
+        "rust": {
+          "p50_us": 14.86,
+          "p95_us": 16.67,
+          "p99_us": 27.394,
+          "throughput_ops_s": 65482.931710142424
+        }
+      }
+    }
+  },
+  "evidence_class": "local_regression",
+  "measured_utc": "2026-06-15T21:23:03Z",
+  "production_claim_allowed": false,
+  "provenance": {
+    "commit": "98d6b2a539a1b064510eb3aba3eb41dad19a1aaf",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "cpu_count": 12,
+    "cpu_model": "11th Gen Intel(R) Core(TM) i5-11600K @ 3.90GHz",
+    "loadavg_end": [
+      4.04541015625,
+      4.26318359375,
+      4.1943359375
+    ],
+    "loadavg_start": [
+      4.04541015625,
+      4.26318359375,
+      4.1943359375
+    ],
+    "peak_rss_mb": 59.0,
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "python": "3.12.13",
+    "rust_backend": "present",
+    "rust_release_profile": {
+      "codegen-units": 1,
+      "lto": "fat",
+      "opt-level": 3
+    }
+  },
+  "schema_version": "scpn-control.benchmark-baseline.v1",
+  "suite": "capacitor_bank"
+}

@@ -1058,6 +1058,46 @@ Before sharing any benchmark in planning material, check each report against:
 If all four checks pass, the benchmark can enter decision discussions.
 If any check fails, keep it in implementation-only iteration mode.
 
+## Benchmark regression gate
+
+The polyglot suite runner (`tools/run_benchmark_suite.py`) executes the
+registered Python/Rust comparison benchmarks — currently the capacitor-bank
+discharge ledger — and emits a `scpn-control.benchmark-regression.v1` report:
+per-benchmark, per-language p50/p95/p99 latency and throughput, plus provenance
+(CPU model, Rust release profile read from the workspace manifest, commit digest,
+CPU affinity, load average, peak RSS, and whether the Rust backend was built).
+
+The gate (`tools/benchmark_regression_gate.py`) compares a fresh report against
+the tracked baseline (`benchmarks/baselines/capacitor_bank.json`) under an
+explicit threshold policy (`benchmarks/regression_thresholds.toml`). Latency and
+memory metrics are upper-bounded (`current <= baseline * ratio`); throughput is
+lower-bounded (`current >= baseline * ratio`). It fails closed: a missing report
+or baseline, a tampered baseline (its `baseline_sha256` no longer matches its
+metrics), a tampered report (`payload_sha256` mismatch), a benchmark/language
+metric present in the baseline but absent from the report, or a metric with no
+threshold policy are all failures.
+
+```bash
+# Refresh the baseline on declared hardware (records the CPU it was measured on):
+PYTHONPATH=src python tools/run_benchmark_suite.py \
+  --steps 400 --warmup 40 --write-baseline benchmarks/baselines/capacitor_bank.json
+
+# Gate a fresh run against it:
+PYTHONPATH=src python tools/run_benchmark_suite.py --json-out artifacts/benchmarks/report.json
+python tools/benchmark_regression_gate.py \
+  --report artifacts/benchmarks/report.json \
+  --baseline benchmarks/baselines/capacitor_bank.json
+```
+
+Absolute-latency comparison is only valid on the same CPU as the baseline: the
+gate emits a `hardware_mismatch` failure when the report and baseline CPU models
+differ. The nightly `Benchmark nightly` workflow therefore runs the gate in
+`--evidence-only` mode on GitHub-hosted runners — it collects and uploads the
+report and verdict without blocking — while real gating is intended on declared
+or self-hosted hardware whose baseline was captured on the same CPU. The
+committed baseline carries `production_claim_allowed: false`; it is a local
+regression guard, not a published performance claim.
+
 ## Practical use and scope
 
 Use this page for benchmark interpretation and replay evidence, not as a substitute for deployment qualification.

@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — benchmark regression threshold policy.
+#
+# Ratios are regression guards, not performance targets. Latency and memory
+# metrics are upper-bounded: the current value may be at most `baseline * ratio`.
+# Throughput is lower-bounded: the current value must be at least
+# `baseline * ratio`. The margins are deliberately wide because the baseline is
+# captured on a non-isolated developer host; they catch order-of-magnitude
+# regressions, not microbenchmark noise. Tighten per benchmark once a baseline
+# exists on declared, isolated target hardware.
+
+[default]
+p50_us = 1.50
+p95_us = 1.75
+p99_us = 2.00
+throughput_ops_s = 0.60
+
+# Per-benchmark overrides go in a [<benchmark_name>] table, for example:
+# [capacitor_bank_discharge]
+# p50_us = 1.30

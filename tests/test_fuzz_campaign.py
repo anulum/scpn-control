@@ -159,7 +159,13 @@ def test_target_run_nonzero_exit_is_crashed() -> None:
 
 def test_target_run_artefacts_imply_crashed_even_on_zero_exit() -> None:
     run = TargetRun(
-        "capacitor_bank", FUZZ_TARGETS["capacitor_bank"], 1.0, 0, 10, 5, 12,
+        "capacitor_bank",
+        FUZZ_TARGETS["capacitor_bank"],
+        1.0,
+        0,
+        10,
+        5,
+        12,
         artefacts=["crash-abcd"],
     )
     assert run.crashed is True
@@ -191,7 +197,13 @@ def test_triage_fails_on_nonzero_exit() -> None:
 
 def test_triage_fails_on_reproducer_artefacts() -> None:
     crashed = TargetRun(
-        "kuramoto_kernel", FUZZ_TARGETS["kuramoto_kernel"], 2.0, 0, 9, 4, 11,
+        "kuramoto_kernel",
+        FUZZ_TARGETS["kuramoto_kernel"],
+        2.0,
+        0,
+        9,
+        4,
+        11,
         artefacts=["crash-1234", "timeout-5678"],
     )
     passed, failures = triage([crashed], ["kuramoto_kernel"])
@@ -236,9 +248,7 @@ def test_assemble_report_embeds_triage_failures() -> None:
 def test_assemble_report_payload_digest_is_deterministic_and_binding() -> None:
     report = _assemble([_clean_run("config_json")], ["config_json"])
     digest = report.pop("payload_sha256")
-    recomputed = hashlib.sha256(
-        json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+    recomputed = hashlib.sha256(json.dumps(report, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     assert digest == recomputed
 
 
