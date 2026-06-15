@@ -729,6 +729,41 @@ equilibrium flux map for controller-tuning studies.
 
 ::: scpn_control.core.differentiable_transport.EquilibriumWeightedTransportRolloutGradient
 
+### End-to-End Differentiable Scenario
+
+`differentiable_scenario_gradient()` couples a bounded analytic Solov'ev-form
+equilibrium parametrisation to the differentiable transport rollout, so a
+controller-tuning loss is differentiable with respect to both the source
+schedule and the equilibrium shape parameters. The flux parametrisation is a
+differentiable equilibrium surface, not a Grad-Shafranov PDE solve. Gradient
+APIs fail closed without JAX, and `assert_scenario_claim_admissible()` keeps a
+full-fidelity claim bounded until the gradient audit, latency evidence, and
+physics-traceability checks pass.
+
+::: scpn_control.core.differentiable_scenario.scenario_equilibrium_flux
+
+::: scpn_control.core.differentiable_scenario.differentiable_scenario_loss
+
+::: scpn_control.core.differentiable_scenario.differentiable_scenario_gradient
+
+::: scpn_control.core.differentiable_scenario.DifferentiableScenarioGradient
+
+::: scpn_control.core.differentiable_scenario.audit_differentiable_scenario_gradient
+
+::: scpn_control.core.differentiable_scenario.assert_differentiable_scenario_gradient_consistent
+
+::: scpn_control.core.differentiable_scenario.DifferentiableScenarioGradientAudit
+
+::: scpn_control.core.differentiable_scenario.scenario_campaign_metadata
+
+::: scpn_control.core.differentiable_scenario.ScenarioCampaignMetadata
+
+::: scpn_control.core.differentiable_scenario.differentiable_scenario_readiness_evidence
+
+::: scpn_control.core.differentiable_scenario.assert_scenario_claim_admissible
+
+::: scpn_control.core.differentiable_scenario.ScenarioReadinessEvidence
+
 ### Neural Equilibrium
 
 `NeuralEquilibriumAccelerator.pretrain_from_synthetic_equilibria()` trains
