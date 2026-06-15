@@ -1626,14 +1626,18 @@ class TransportSolver(FusionKernel):
         ne_m3 = self.ne * 1e19
 
         # W = 3/2 * (ne * Te + ni * Ti) * V. Assume ni = ne for energy calc.
-        W_before = 1.5 * np.sum(ne_m3 * (Te_old + Ti_old) * e_keV_J * dV)
-        W_after = 1.5 * np.sum(ne_m3 * (self.Te + self.Ti) * e_keV_J * dV)
+        # Non-finite profile inputs are handled explicitly below (the error is
+        # marked infinite), so the intermediate inf/nan arithmetic must not leak
+        # a RuntimeWarning into solver logs.
+        with np.errstate(invalid="ignore", over="ignore"):
+            W_before = 1.5 * np.sum(ne_m3 * (Te_old + Ti_old) * e_keV_J * dV)
+            W_after = 1.5 * np.sum(ne_m3 * (self.Te + self.Ti) * e_keV_J * dV)
 
-        # Source term integrated over volume
-        dW_source_total = dt * 1.5 * np.sum(ne_m3 * (net_source_i + net_source_e) * e_keV_J * dV)
+            # Source term integrated over volume
+            dW_source_total = dt * 1.5 * np.sum(ne_m3 * (net_source_i + net_source_e) * e_keV_J * dV)
 
-        dW_actual = W_after - W_before
-        self._last_conservation_error = abs(dW_actual - dW_source_total) / max(abs(W_before), 1e-10)
+            dW_actual = W_after - W_before
+            self._last_conservation_error = abs(dW_actual - dW_source_total) / max(abs(W_before), 1e-10)
 
         if not np.isfinite(self._last_conservation_error):
             self._last_conservation_error = float("inf")
