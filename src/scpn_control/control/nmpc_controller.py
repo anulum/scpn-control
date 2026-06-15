@@ -24,6 +24,7 @@ profile and kinetic variable control on TCV.
 from __future__ import annotations
 
 import dataclasses
+import time
 import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -56,6 +57,21 @@ def _as_finite_vector(name: str, value: np.ndarray, size: int) -> np.ndarray:
     if arr.shape != (size,) or not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} must be a finite vector with shape ({size},).")
     return arr
+
+
+def _percentile_ms(sorted_values: list[float], percentile: float) -> float:
+    """Linear-interpolated percentile of a pre-sorted latency sample (ms)."""
+    if not sorted_values:
+        raise ValueError("latency sample must not be empty.")
+    if len(sorted_values) == 1:
+        return float(sorted_values[0])
+    rank = (len(sorted_values) - 1) * percentile
+    lower = int(np.floor(rank))
+    upper = int(np.ceil(rank))
+    if lower == upper:
+        return float(sorted_values[lower])
+    fraction = rank - lower
+    return float(sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction)
 
 
 def _as_spd_matrix(name: str, value: np.ndarray, size: int) -> np.ndarray:
@@ -117,6 +133,9 @@ class NMPCConfig:
     acados_generate: bool = True
     acados_build: bool = True
     acados_dynamics_residual_tol: float = 1.0e-7
+    # Real-Time Iteration: a single-SQP-iteration tick is admitted only when its
+    # projected KKT stationarity residual stays at or below this bound.
+    rti_residual_tol: float = 1.0e-3
 
 
 AcadosSymbolicDynamics = Callable[[Any, Any, Any], Any]
@@ -171,6 +190,64 @@ class TransportSourceRolloutTuningResult:
     step_norm: float
     metadata: TransportCampaignMetadata
     gradient_audit: TransportSourceRolloutGradientAudit | None
+
+
+@dataclass(frozen=True)
+class RTIStepResult:
+    """Diagnostics for a single Real-Time Iteration control tick.
+
+    The Real-Time Iteration scheme performs exactly one SQP linearisation and one
+    structured QP solve per tick, carrying the previous solution forward as the
+    warm start (Diehl et al. 2005, J. Process Control 15, 593). ``admitted`` is
+    a fail-closed flag: it is ``True`` only when the projected KKT stationarity
+    residual is within ``rti_residual_tol`` and the rolled-out trajectory honours
+    the state bounds.
+    """
+
+    u0: np.ndarray
+    solve_time_ms: float
+    sqp_iterations: int
+    stationarity_residual: float
+    constraint_violation: bool
+    warm_started: bool
+    admitted: bool
+    qp_backend: str
+
+
+@dataclass(frozen=True)
+class RTILatencyReport:
+    """Wall-clock latency evidence for the audited Real-Time Iteration tick.
+
+    Latency is local timing evidence on the recorded host, not a hard real-time
+    guarantee; sub-millisecond claims require isolated-core measurement on the
+    declared target hardware.
+    """
+
+    backend: str
+    horizon: int
+    nx: int
+    nu: int
+    warmup_ticks: int
+    timed_ticks: int
+    admitted_ticks: int
+    p50_ms: float
+    p95_ms: float
+    p99_ms: float
+    max_ms: float
+    max_stationarity_residual: float
+
+
+@dataclass(frozen=True)
+class CostHessianAudit:
+    """Finite-difference audit of the JAX NMPC cost Hessian."""
+
+    epsilon: float
+    tolerance: float
+    max_abs_error: float
+    symmetry_error: float
+    min_eigenvalue: float
+    is_positive_semidefinite: bool
+    passed: bool
 
 
 def _optional_finite_array_bound(name: str, value: object, shape: tuple[int, ...]) -> np.ndarray | None:
@@ -740,6 +817,7 @@ class NonlinearMPC:
         self.last_acados_dynamics_residual = np.inf
         self._acados_ocp: object | None = None
         self._acados_solver: object | None = None
+        self._rti_warm_started = False
 
     def _estimate_qp_step_size(
         self,
@@ -1655,3 +1733,315 @@ class NonlinearMPC:
             self.infeasibility_count += 1
 
         return np.asarray(self.u_traj[0])
+
+    # ── Real-Time Iteration ───────────────────────────────────────────
+
+    def _reduced_cost_gradient(self, x_ref_safe: np.ndarray) -> np.ndarray:
+        """Adjoint reduced gradient dJ/du over the current (x_traj, u_traj).
+
+        Re-linearises the plant along the stored trajectory and runs one backward
+        adjoint pass, giving the unconstrained cost gradient with respect to each
+        control in the horizon.
+        """
+        A_k: list[np.ndarray] = []
+        B_k: list[np.ndarray] = []
+        for k in range(self.N):
+            Ak, Bk = self.linearize(self.x_traj[k], self.u_traj[k])
+            A_k.append(Ak)
+            B_k.append(Bk)
+        P_term = self.config.P if self.config.P is not None else self._compute_terminal_cost(A_k[-1], B_k[-1])
+
+        adj = np.zeros((self.N + 1, self.nx))
+        adj[self.N] = 2.0 * P_term @ (self.x_traj[self.N] - x_ref_safe)
+        grad_u = np.zeros((self.N, self.nu))
+        for k in range(self.N - 1, -1, -1):
+            adj[k] = A_k[k].T @ adj[k + 1] + 2.0 * self.config.Q @ (self.x_traj[k] - x_ref_safe)
+            grad_u[k] = B_k[k].T @ adj[k + 1] + 2.0 * self.config.R @ self.u_traj[k]
+        return grad_u
+
+    def _projected_stationarity_residual(self, grad_u: np.ndarray) -> float:
+        """Infinity-norm of the box-projected KKT stationarity residual.
+
+        Gradient components whose descent direction is blocked by an active input
+        bound are projected out, so a small residual certifies that the iterate is
+        first-order optimal for the active set.
+        """
+        proj = np.asarray(grad_u, dtype=np.float64).copy()
+        at_upper = self.u_traj >= (self.config.u_max - 1.0e-9)
+        at_lower = self.u_traj <= (self.config.u_min + 1.0e-9)
+        proj[at_upper & (grad_u < 0.0)] = 0.0
+        proj[at_lower & (grad_u > 0.0)] = 0.0
+        return float(np.max(np.abs(proj))) if proj.size else 0.0
+
+    def step_rti(self, x: np.ndarray, x_ref: np.ndarray, u_prev: np.ndarray) -> RTIStepResult:
+        """Advance one Real-Time Iteration tick: one linearisation, one QP solve.
+
+        The previous horizon solution is shifted forward as the warm start, then a
+        single SQP iteration is taken — never an inner convergence loop. The tick
+        is timed and its projected KKT stationarity residual is checked, so a
+        controller can fail closed (``admitted is False``) when the linearised step
+        drifts beyond ``rti_residual_tol`` or violates the state envelope.
+        """
+        x_safe = _as_finite_vector("x", x, self.nx)
+        x_ref_safe = _as_finite_vector("x_ref", x_ref, self.nx)
+        u_prev_safe = self._bounded_input_vector("u_prev", u_prev)
+        warm_started = self._rti_warm_started
+
+        if self.N > 1:
+            self.u_traj[:-1] = self.u_traj[1:]
+            self.u_traj[-1] = self.u_traj[-2]
+        else:
+            self.u_traj[0] = u_prev_safe
+
+        start_ns = time.perf_counter_ns()
+        self.x_traj[0] = x_safe
+        for k in range(self.N):
+            self.x_traj[k + 1] = self._plant_step(self.x_traj[k], self.u_traj[k])
+        dU = self._solve_qp(x_safe, u_prev_safe, x_ref_safe)
+        self.u_traj += dU
+        self.x_traj[0] = x_safe
+        for k in range(self.N):
+            self.x_traj[k + 1] = self._plant_step(self.x_traj[k], self.u_traj[k])
+        solve_time_ms = (time.perf_counter_ns() - start_ns) / 1.0e6
+
+        grad_u = self._reduced_cost_gradient(x_ref_safe)
+        stationarity = self._projected_stationarity_residual(grad_u)
+        viol = any(
+            np.any(self.x_traj[k] < self.config.x_min - 1e-3) or np.any(self.x_traj[k] > self.config.x_max + 1e-3)
+            for k in range(1, self.N + 1)
+        )
+        if viol:
+            self.infeasibility_count += 1
+        self._rti_warm_started = True
+
+        admitted = bool(stationarity <= self.config.rti_residual_tol and not viol)
+        return RTIStepResult(
+            u0=np.asarray(self.u_traj[0]),
+            solve_time_ms=float(solve_time_ms),
+            sqp_iterations=1,
+            stationarity_residual=float(stationarity),
+            constraint_violation=bool(viol),
+            warm_started=bool(warm_started),
+            admitted=admitted,
+            qp_backend=self.last_qp_backend,
+        )
+
+    def reset_warm_start(self) -> None:
+        """Clear the Real-Time Iteration warm-start memory and control horizon."""
+        self.u_traj = np.zeros((self.N, self.nu))
+        self.x_traj = np.zeros((self.N + 1, self.nx))
+        self._rti_warm_started = False
+
+    def benchmark_rti_latency(
+        self,
+        x: np.ndarray,
+        x_ref: np.ndarray,
+        u_prev: np.ndarray,
+        *,
+        warmup_ticks: int = 2,
+        timed_ticks: int = 20,
+    ) -> RTILatencyReport:
+        """Measure Real-Time Iteration tick latency percentiles on this host.
+
+        The report is local timing evidence on the recorded host, not a hard
+        real-time guarantee; production sub-millisecond claims require
+        isolated-core measurement on the declared target hardware.
+        """
+        if isinstance(warmup_ticks, bool) or not isinstance(warmup_ticks, int) or warmup_ticks < 0:
+            raise ValueError("warmup_ticks must be a non-negative integer.")
+        if isinstance(timed_ticks, bool) or not isinstance(timed_ticks, int) or timed_ticks < 1:
+            raise ValueError("timed_ticks must be a positive integer.")
+
+        for _ in range(warmup_ticks):
+            self.step_rti(x, x_ref, u_prev)
+
+        latencies: list[float] = []
+        admitted = 0
+        max_residual = 0.0
+        for _ in range(timed_ticks):
+            result = self.step_rti(x, x_ref, u_prev)
+            latencies.append(result.solve_time_ms)
+            admitted += int(result.admitted)
+            max_residual = max(max_residual, result.stationarity_residual)
+
+        ordered = sorted(latencies)
+        return RTILatencyReport(
+            backend=self.last_qp_backend,
+            horizon=self.N,
+            nx=self.nx,
+            nu=self.nu,
+            warmup_ticks=warmup_ticks,
+            timed_ticks=timed_ticks,
+            admitted_ticks=admitted,
+            p50_ms=_percentile_ms(ordered, 0.50),
+            p95_ms=_percentile_ms(ordered, 0.95),
+            p99_ms=_percentile_ms(ordered, 0.99),
+            max_ms=float(ordered[-1]),
+            max_stationarity_residual=float(max_residual),
+        )
+
+    # ── JAX exact cost Hessian ────────────────────────────────────────
+
+    def _cost_value_jax(self, x0: Any, u_flat: Any, x_ref: Any, jnp: Any) -> Any:
+        """Traced rolled-out NMPC cost J(U) for JAX autodiff."""
+        controls = u_flat.reshape(self.N, self.nu)
+        Q = jnp.asarray(self.config.Q, dtype=jnp.float64)
+        R = jnp.asarray(self.config.R, dtype=jnp.float64)
+        P = jnp.asarray(self.config.P if self.config.P is not None else self.config.Q * 10.0, dtype=jnp.float64)
+        x = jnp.asarray(x0, dtype=jnp.float64)
+        x_ref_arr = jnp.asarray(x_ref, dtype=jnp.float64)
+        cost = jnp.asarray(0.0, dtype=jnp.float64)
+        for k in range(self.N):
+            err = x - x_ref_arr
+            cost = cost + err @ Q @ err + controls[k] @ R @ controls[k]
+            x = jnp.asarray(self.plant_model(x, controls[k]), dtype=jnp.float64)
+        err_terminal = x - x_ref_arr
+        return cost + err_terminal @ P @ err_terminal
+
+    def cost_hessian_jax(self, x0: np.ndarray, U: np.ndarray, x_ref: np.ndarray) -> np.ndarray:
+        """Exact Hessian d²J/dU² of the rolled-out NMPC cost through JAX autodiff.
+
+        The Hessian is taken with respect to the flattened control sequence and
+        includes the second-order dynamics curvature, unlike the Gauss-Newton
+        approximation used inside the condensed QP. It fails closed when JAX is
+        unavailable or the plant is not JAX-traceable; existing analytic terminal
+        and linearisation providers remain authoritative for the control law.
+        """
+        try:
+            import jax
+            import jax.numpy as jnp
+        except ImportError as exc:
+            raise RuntimeError("cost_hessian_jax requires jax and jaxlib") from exc
+
+        x0_safe = _as_finite_vector("x0", x0, self.nx)
+        x_ref_safe = _as_finite_vector("x_ref", x_ref, self.nx)
+        u_arr = np.asarray(U, dtype=np.float64)
+        if u_arr.shape != (self.N, self.nu) or not np.all(np.isfinite(u_arr)):
+            raise ValueError(f"U must be finite with shape ({self.N}, {self.nu}).")
+
+        u_flat = jnp.asarray(u_arr.reshape(-1), dtype=jnp.float64)
+
+        def cost(candidate: Any) -> Any:
+            return self._cost_value_jax(x0_safe, candidate, x_ref_safe, jnp)
+
+        try:
+            hessian_raw = jax.hessian(cost)(u_flat)
+        except Exception as exc:
+            raise RuntimeError("plant_model must be JAX-traceable for cost_hessian_jax") from exc
+
+        hessian = np.asarray(hessian_raw, dtype=np.float64)
+        dim = self.N * self.nu
+        if hessian.shape != (dim, dim) or not np.all(np.isfinite(hessian)):
+            raise ValueError(f"cost Hessian must be finite with shape ({dim}, {dim}).")
+        return hessian
+
+    def audit_cost_hessian_jax(
+        self,
+        x0: np.ndarray,
+        U: np.ndarray,
+        x_ref: np.ndarray,
+        *,
+        epsilon: float = 1.0e-4,
+        tolerance: float = 1.0e-3,
+        sample_indices: Iterable[tuple[int, int]] | None = None,
+    ) -> CostHessianAudit:
+        """Audit the JAX cost Hessian against sampled finite differences.
+
+        A deterministic subset of Hessian entries is compared with independent
+        central second differences of the NumPy cost rollout. The audit also
+        reports the symmetry error and the smallest eigenvalue so callers can see
+        whether the curvature is positive semidefinite at the evaluation point.
+        """
+        eps = float(epsilon)
+        tol = float(tolerance)
+        if not np.isfinite(eps) or eps <= 0.0:
+            raise ValueError("epsilon must be positive and finite.")
+        if not np.isfinite(tol) or tol <= 0.0:
+            raise ValueError("tolerance must be positive and finite.")
+
+        hessian = self.cost_hessian_jax(x0, U, x_ref)
+        dim = self.N * self.nu
+        x0_safe = _as_finite_vector("x0", x0, self.nx)
+        x_ref_safe = _as_finite_vector("x_ref", x_ref, self.nx)
+        u_flat = np.asarray(U, dtype=np.float64).reshape(-1)
+
+        def cost_np(candidate: np.ndarray) -> float:
+            controls = candidate.reshape(self.N, self.nu)
+            x = x0_safe.copy()
+            terminal_p = self.config.P if self.config.P is not None else self.config.Q * 10.0
+            total = 0.0
+            for k in range(self.N):
+                err = x - x_ref_safe
+                total += float(err @ self.config.Q @ err + controls[k] @ self.config.R @ controls[k])
+                x = self._plant_step(x, controls[k])
+            err_terminal = x - x_ref_safe
+            return total + float(err_terminal @ terminal_p @ err_terminal)
+
+        if sample_indices is None:
+            picks = sorted({0, dim // 2, dim - 1})
+            indices: tuple[tuple[int, int], ...] = tuple((i, j) for i in picks for j in picks)
+        else:
+            indices = tuple((int(i), int(j)) for i, j in sample_indices)
+            if not indices:
+                raise ValueError("sample_indices must contain at least one (row, col) pair.")
+            for i, j in indices:
+                if not (0 <= i < dim and 0 <= j < dim):
+                    raise ValueError("sample_indices contain an out-of-range Hessian entry.")
+
+        max_abs_error = 0.0
+        for i, j in indices:
+            if i == j:
+                plus = u_flat.copy()
+                minus = u_flat.copy()
+                plus[i] += eps
+                minus[i] -= eps
+                fd = (cost_np(plus) - 2.0 * cost_np(u_flat) + cost_np(minus)) / (eps * eps)
+            else:
+                pp = u_flat.copy()
+                pm = u_flat.copy()
+                mp = u_flat.copy()
+                mm = u_flat.copy()
+                pp[i] += eps
+                pp[j] += eps
+                pm[i] += eps
+                pm[j] -= eps
+                mp[i] -= eps
+                mp[j] += eps
+                mm[i] -= eps
+                mm[j] -= eps
+                fd = (cost_np(pp) - cost_np(pm) - cost_np(mp) + cost_np(mm)) / (4.0 * eps * eps)
+            max_abs_error = max(max_abs_error, abs(float(hessian[i, j]) - fd))
+
+        symmetry_error = float(np.max(np.abs(hessian - hessian.T))) if hessian.size else 0.0
+        symmetric = 0.5 * (hessian + hessian.T)
+        min_eigenvalue = float(np.min(np.linalg.eigvalsh(symmetric))) if hessian.size else 0.0
+        return CostHessianAudit(
+            epsilon=eps,
+            tolerance=tol,
+            max_abs_error=float(max_abs_error),
+            symmetry_error=symmetry_error,
+            min_eigenvalue=min_eigenvalue,
+            is_positive_semidefinite=bool(min_eigenvalue >= -tol),
+            passed=bool(max_abs_error <= tol),
+        )
+
+    def assert_cost_hessian_consistent(
+        self,
+        x0: np.ndarray,
+        U: np.ndarray,
+        x_ref: np.ndarray,
+        *,
+        epsilon: float = 1.0e-4,
+        tolerance: float = 1.0e-3,
+        sample_indices: Iterable[tuple[int, int]] | None = None,
+    ) -> CostHessianAudit:
+        """Return the cost-Hessian audit or fail closed on a finite-difference gap."""
+        audit = self.audit_cost_hessian_jax(
+            x0, U, x_ref, epsilon=epsilon, tolerance=tolerance, sample_indices=sample_indices
+        )
+        if not audit.passed:
+            raise ValueError(
+                f"NMPC cost Hessian audit failed: max_abs_error={audit.max_abs_error:.6g}, "
+                f"tolerance={audit.tolerance:.6g}"
+            )
+        return audit

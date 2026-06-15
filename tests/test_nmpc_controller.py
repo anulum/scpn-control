@@ -1776,3 +1776,191 @@ def test_nmpc_transport_rollout_tuning_updates_bounded_source_schedule() -> None
     assert result.gradient_audit is not None
     assert result.gradient_audit.passed is True
     assert result.gradient_audit.checked_indices == ((0, 0, 2), (2, 2, 3), (3, 1, 4))
+
+
+# ── Real-Time Iteration ──────────────────────────────────────────────
+
+
+def _linear_traceable_plant(x: Any, u: Any) -> Any:
+    """A smooth, JAX-traceable linear plant: x_next = x + 0.1 (M x + N u)."""
+    M = np.diag([-0.5, -0.5, -0.2, -0.1, -0.5, -0.5])
+    N = np.zeros((6, 3))
+    N[0, 1] = 0.5
+    N[1, 0] = 0.5
+    N[4, 0] = 0.3
+    N[5, 2] = 1.0
+    return x + 0.1 * (M @ x + N @ u)
+
+
+def _wide_rti_config(horizon: int = 5, **kwargs: Any) -> NMPCConfig:
+    cfg = NMPCConfig(horizon=horizon, **kwargs)
+    cfg.u_max = np.array([1000.0, 1000.0, 1000.0])
+    cfg.du_max = np.array([1000.0, 1000.0, 1000.0])
+    return cfg
+
+
+def test_rti_is_single_iteration_and_reuses_warm_start() -> None:
+    mpc = NonlinearMPC(_linear_traceable_plant, _wide_rti_config())
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    u_prev = np.array([10.0, 5.0, 1.0])
+
+    first = mpc.step_rti(x, x_ref, u_prev)
+    assert first.sqp_iterations == 1
+    assert first.warm_started is False
+    assert first.u0.shape == (3,)
+    assert first.solve_time_ms >= 0.0
+
+    second = mpc.step_rti(x, x_ref, u_prev)
+    assert second.warm_started is True
+    assert second.sqp_iterations == 1
+
+
+def test_rti_admits_well_posed_step_and_certifies_stationarity() -> None:
+    mpc = NonlinearMPC(_linear_traceable_plant, _wide_rti_config())
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    u_prev = np.array([10.0, 5.0, 1.0])
+
+    for _ in range(4):
+        result = mpc.step_rti(x, x_ref, u_prev)
+    assert result.admitted is True
+    assert result.constraint_violation is False
+    assert result.stationarity_residual <= mpc.config.rti_residual_tol
+
+
+def test_rti_fails_closed_when_residual_tolerance_is_tight() -> None:
+    mpc = NonlinearMPC(_linear_traceable_plant, _wide_rti_config(rti_residual_tol=1e-30))
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    u_prev = np.array([10.0, 5.0, 1.0])
+    result = mpc.step_rti(x, x_ref, u_prev)
+    assert result.admitted is False
+    assert result.stationarity_residual > mpc.config.rti_residual_tol
+
+
+def test_rti_reset_clears_warm_start() -> None:
+    mpc = NonlinearMPC(_linear_traceable_plant, _wide_rti_config())
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    u_prev = np.array([10.0, 5.0, 1.0])
+    mpc.step_rti(x, x_ref, u_prev)
+    mpc.reset_warm_start()
+    assert mpc.step_rti(x, x_ref, u_prev).warm_started is False
+
+
+def test_rti_rejects_out_of_bounds_previous_input() -> None:
+    mpc = NonlinearMPC(_linear_traceable_plant, NMPCConfig(horizon=3))
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    with pytest.raises(ValueError, match="input bounds"):
+        mpc.step_rti(x, x_ref, np.array([1e6, 5.0, 1.0]))
+
+
+def test_rti_latency_report_orders_percentiles() -> None:
+    mpc = NonlinearMPC(_linear_traceable_plant, _wide_rti_config())
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    u_prev = np.array([10.0, 5.0, 1.0])
+    report = mpc.benchmark_rti_latency(x, x_ref, u_prev, warmup_ticks=2, timed_ticks=12)
+    assert report.timed_ticks == 12
+    assert report.horizon == 5
+    assert 0.0 <= report.p50_ms <= report.p95_ms <= report.p99_ms <= report.max_ms
+    assert 0 <= report.admitted_ticks <= 12
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"warmup_ticks": -1}, "warmup_ticks"),
+        ({"timed_ticks": 0}, "timed_ticks"),
+    ],
+)
+def test_rti_latency_rejects_invalid_tick_counts(kwargs: dict[str, int], match: str) -> None:
+    mpc = NonlinearMPC(_linear_traceable_plant, _wide_rti_config())
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    with pytest.raises(ValueError, match=match):
+        mpc.benchmark_rti_latency(x, x, np.array([10.0, 5.0, 1.0]), **kwargs)
+
+
+# ── JAX exact cost Hessian ───────────────────────────────────────────
+
+
+def _hessian_setup() -> tuple[NonlinearMPC, np.ndarray, np.ndarray, np.ndarray]:
+    mpc = NonlinearMPC(_linear_traceable_plant, _wide_rti_config(horizon=3))
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    U = np.tile(np.array([10.0, 5.0, 1.0]), (3, 1))
+    return mpc, x, U, x_ref
+
+
+def test_cost_hessian_is_symmetric_and_positive_semidefinite() -> None:
+    pytest.importorskip("jax")
+    mpc, x, U, x_ref = _hessian_setup()
+    hessian = mpc.cost_hessian_jax(x, U, x_ref)
+    assert hessian.shape == (9, 9)
+    np.testing.assert_allclose(hessian, hessian.T, atol=1e-8)
+    assert float(np.min(np.linalg.eigvalsh(0.5 * (hessian + hessian.T)))) >= -1e-8
+
+
+def test_cost_hessian_audit_matches_finite_difference() -> None:
+    pytest.importorskip("jax")
+    mpc, x, U, x_ref = _hessian_setup()
+    audit = mpc.assert_cost_hessian_consistent(x, U, x_ref)
+    assert audit.passed is True
+    assert audit.max_abs_error <= audit.tolerance
+    assert audit.is_positive_semidefinite is True
+    assert audit.symmetry_error < 1e-6
+
+
+def test_assert_cost_hessian_consistent_fails_closed_on_tight_tolerance() -> None:
+    pytest.importorskip("jax")
+    mpc, x, U, x_ref = _hessian_setup()
+    with pytest.raises(ValueError, match="cost Hessian audit failed"):
+        mpc.assert_cost_hessian_consistent(x, U, x_ref, tolerance=1e-30)
+
+
+def test_cost_hessian_rejects_wrong_control_shape() -> None:
+    pytest.importorskip("jax")
+    mpc, x, _, x_ref = _hessian_setup()
+    with pytest.raises(ValueError, match="U must be finite with shape"):
+        mpc.cost_hessian_jax(x, np.zeros((2, 3)), x_ref)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"epsilon": 0.0}, "epsilon"),
+        ({"tolerance": -1.0}, "tolerance"),
+        ({"sample_indices": []}, "at least one"),
+        ({"sample_indices": [(0, 99)]}, "out-of-range"),
+    ],
+)
+def test_cost_hessian_audit_rejects_invalid_arguments(kwargs: dict[str, Any], match: str) -> None:
+    pytest.importorskip("jax")
+    mpc, x, U, x_ref = _hessian_setup()
+    with pytest.raises(ValueError, match=match):
+        mpc.audit_cost_hessian_jax(x, U, x_ref, **kwargs)
+
+
+def test_cost_hessian_fails_closed_without_jax(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "jax", None)
+    mpc, x, U, x_ref = _hessian_setup()
+    with pytest.raises(RuntimeError, match="requires jax"):
+        mpc.cost_hessian_jax(x, U, x_ref)
+
+
+def test_cost_hessian_requires_traceable_plant() -> None:
+    pytest.importorskip("jax")
+
+    def untraceable_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+        out = np.array(x, dtype=float)
+        if float(out[0]) > 0.0:  # data-dependent Python branch breaks tracing
+            out[0] = out[0] + float(u[0])
+        return out
+
+    mpc = NonlinearMPC(untraceable_plant, _wide_rti_config(horizon=3))
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    U = np.tile(np.array([10.0, 5.0, 1.0]), (3, 1))
+    with pytest.raises(RuntimeError, match="JAX-traceable"):
+        mpc.cost_hessian_jax(x, U, x)
