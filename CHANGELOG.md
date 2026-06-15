@@ -22,6 +22,12 @@
   that compares a fresh report against a tracked baseline under an explicit
   threshold policy, rejecting tampered reports or baselines, missing metrics, and
   cross-CPU comparisons. Runs in evidence-only mode on the nightly workflow.
+- Runtime-bound formal safety certificate: binds a holding bounded CTL/LTL
+  certificate to a structured controller runtime identity — controller
+  configuration, Petri-net topology digest, SNN parameters, solver mode, runtime
+  target, and a declared timing envelope. Issuance, proof replay, and
+  facility-facing admission all fail closed unless the binding, runtime target,
+  timing envelope, and re-proved obligations match on the declared stack.
 
 ### Fixed
 - Bounded the scaling-and-squaring exponent in the Rust matrix exponential so an

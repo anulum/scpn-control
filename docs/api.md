@@ -975,6 +975,26 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.formal_verification.write_safety_certificate_bundle
 
+### Runtime-Bound Safety Certificate
+
+::: scpn_control.scpn.runtime_safety_certificate.RuntimeTarget
+
+::: scpn_control.scpn.runtime_safety_certificate.TimingEnvelope
+
+::: scpn_control.scpn.runtime_safety_certificate.ControllerRuntimeBinding
+
+::: scpn_control.scpn.runtime_safety_certificate.CertificateReplayResult
+
+::: scpn_control.scpn.runtime_safety_certificate.compute_petri_topology_digest
+
+::: scpn_control.scpn.runtime_safety_certificate.issue_runtime_safety_certificate
+
+::: scpn_control.scpn.runtime_safety_certificate.validate_runtime_safety_certificate_payload
+
+::: scpn_control.scpn.runtime_safety_certificate.replay_runtime_safety_certificate
+
+::: scpn_control.scpn.runtime_safety_certificate.assert_runtime_certificate_admissible
+
 ::: scpn_control.scpn.z3_model_checking.Z3BoundedModelChecker
 
 ::: scpn_control.scpn.z3_model_checking.verify_z3_formal_contracts

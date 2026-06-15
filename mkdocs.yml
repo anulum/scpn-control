@@ -83,6 +83,7 @@ nav:
     - Pulsed MPC Adapter: control/pulsed_mpc_adapter.md
     - AER Observation: scpn/aer_observation.md
     - Geometry-Neutral Replay: scpn/geometry_neutral_replay.md
+    - Runtime-Bound Safety Certificate: scpn/runtime_safety_certificate.md
   - Validation:
     - Benchmarks: benchmarks.md
     - Fuzzing and Robustness: validation/fuzzing.md
