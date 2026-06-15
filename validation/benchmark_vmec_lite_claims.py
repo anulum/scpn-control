@@ -9,15 +9,25 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 from scpn_control.core.vmec_lite import StellaratorBoundary, VMECLiteSolver, vmec_lite_claim_evidence
+from validation.validate_vmec_lite_geometry import build_evidence, validate_evidence_payload, validate_vmec_lite_geometry
 
 
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
+GEOMETRY_REPORT = REPORT_DIR / "vmec_lite_geometry.json"
 JSON_REPORT = REPORT_DIR / "vmec_lite_claims.json"
 MARKDOWN_REPORT = REPORT_DIR / "vmec_lite_claims.md"
 
@@ -30,9 +40,21 @@ def build_reference_case() -> VMECLiteSolver:
     return solver
 
 
+def _load_or_build_geometry_validation() -> dict[str, object]:
+    if GEOMETRY_REPORT.exists():
+        payload = json.loads(GEOMETRY_REPORT.read_text(encoding="utf-8"))
+        validate_evidence_payload(payload)
+        return payload
+    return build_evidence(
+        validate_vmec_lite_geometry(),
+        target_id="local-vmec-lite-geometry-benchmark",
+    )
+
+
 def main() -> None:
     solver = build_reference_case()
     result = solver.solve(max_iter=100, tol=1e-3)
+    geometry_validation = _load_or_build_geometry_validation()
     evidence = vmec_lite_claim_evidence(
         solver,
         result,
@@ -44,10 +66,22 @@ def main() -> None:
     )
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    JSON_REPORT.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload = asdict(evidence)
+    payload.update(
+        {
+            "benchmark_context": "local_regression_non_isolated",
+            "production_claim_allowed": False,
+            "geometry_validation_schema_version": geometry_validation["schema_version"],
+            "geometry_validation_payload_sha256": geometry_validation["payload_sha256"],
+            "geometry_validation_passed": geometry_validation["passed"],
+        }
+    )
+    JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     MARKDOWN_REPORT.write_text(
         "\n".join(
             [
+                "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
+                "",
                 "# VMEC-lite Claim-Admission Benchmark",
                 "",
                 "This report records bounded synthetic-regression evidence for the",
@@ -58,6 +92,9 @@ def main() -> None:
                 "",
                 f"- Claim status: `{evidence.claim_status}`",
                 f"- Full VMEC claim allowed: `{evidence.full_vmec_claim_allowed}`",
+                f"- Production claim allowed: `{payload['production_claim_allowed']}`",
+                f"- Benchmark context: `{payload['benchmark_context']}`",
+                f"- Geometry validation SHA-256: `{payload['geometry_validation_payload_sha256']}`",
                 f"- Fourier modes: `{evidence.n_modes}`",
                 f"- Field periods: `{evidence.n_fp}`",
                 f"- Force residual: `{evidence.force_residual:.12g}`",

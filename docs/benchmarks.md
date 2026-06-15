@@ -753,10 +753,14 @@ P95 latency threshold regressions.
 regression evidence for the fixed-boundary VMEC-lite spectral facade. The
 generated report records Fourier truncation, field periods, pressure and
 rotational-transform profile provenance, current-assumption provenance,
-positive sampled major-radius bounds, force residual, and q-domain.
+positive sampled major-radius bounds, force residual, q-domain, the local
+non-isolated benchmark context, and the sealed VMEC-lite geometry-validation
+payload SHA-256.
 
 Report artefacts:
 
+- `validation/reports/vmec_lite_geometry.json`
+- `validation/reports/vmec_lite_geometry.md`
 - `validation/reports/vmec_lite_claims.json`
 - `validation/reports/vmec_lite_claims.md`
 

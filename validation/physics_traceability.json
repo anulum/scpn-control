@@ -2011,13 +2011,23 @@
       "unit_contract": "SI metres, tesla, pascals, amperes, webers, dimensionless rotational transform, and Fourier coefficients with declared length units.",
       "validation_evidence": [
         "tests/test_vmec_lite.py verifies finite spectral reconstruction, bounded force residuals, physical domains, and fail-closed VMEC-lite claim evidence admission",
-        "validation/benchmark_vmec_lite_claims.py publishes deterministic bounded synthetic claim evidence with explicit full-VMEC exclusion",
-        "validation/reports/vmec_lite_claims.json records bounded Fourier, field-period, profile, residual, q-domain, and positive-major-radius evidence",
+        "validation/validate_vmec_lite_geometry.py validates spectral mode count, direct Fourier evaluation, axisymmetric boundary coefficients, fixed-boundary radial scaling, q/iota reciprocity, B-coefficient construction, and positive sampled major radius against exact repository forms, with tamper-evident sealed evidence",
+        "tests/test_vmec_lite_geometry_validation.py exact-geometry, evidence-seal, CLI, and failure-path checks",
+        "validation/reports/vmec_lite_geometry.json sealed exact-geometry VMEC-lite evidence",
+        "validation/reports/vmec_lite_geometry.md human-readable VMEC-lite exact-geometry summary",
+        "validation/benchmark_vmec_lite_claims.py publishes deterministic bounded synthetic claim evidence with explicit full-VMEC exclusion and sealed geometry-validation payload binding",
+        "validation/reports/vmec_lite_claims.json records bounded Fourier, field-period, profile, residual, q-domain, positive-major-radius, and geometry-validation evidence",
+        "scpn-control-rs/crates/control-core/src/vmec_interface.rs Rust VMEC interface uses the same non-duplicated m=0 toroidal-mode convention as the Python VMEC-lite spectral basis and carries VMEC interface unit tests",
         "validation/validate_vmec_reference.py strict VMEC reference artefact gate"
       ],
       "evidence_paths": [
         "tests/test_vmec_lite.py",
+        "tests/test_vmec_lite_geometry_validation.py",
         "src/scpn_control/core/vmec_lite.py",
+        "scpn-control-rs/crates/control-core/src/vmec_interface.rs",
+        "validation/validate_vmec_lite_geometry.py",
+        "validation/reports/vmec_lite_geometry.json",
+        "validation/reports/vmec_lite_geometry.md",
         "validation/benchmark_vmec_lite_claims.py",
         "validation/reports/vmec_lite_claims.json",
         "validation/reports/vmec_lite_claims.md",
@@ -2028,7 +2038,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/vmec_lite.py"
       ],
-      "validity_domain": "Bounded fixed-boundary VMEC-lite spectral facade evidence for local regression and controller studies; not full VMEC-grade 3D MHD equilibrium validation unless matched external R_mn, Z_mn, iota, convergence, and residual references pass the admission gate.",
+      "validity_domain": "Bounded fixed-boundary VMEC-lite spectral facade evidence for local regression and controller studies, with spectral mode count, direct Fourier evaluation, axisymmetric boundary coefficients, fixed-boundary radial scaling, q/iota reciprocity, B-coefficient construction, positive sampled major radius, and Python/Rust VMEC mode-index convention now validated against exact repository forms; not full VMEC-grade 3D MHD equilibrium validation unless matched external R_mn, Z_mn, iota, convergence, and residual references pass the admission gate.",
       "external_validation_tracker_issue": 48
     },
     {

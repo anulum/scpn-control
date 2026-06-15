@@ -1400,6 +1400,20 @@ declared tolerances. Real-VMEC artifact URIs must use an admitted scheme
 (`file`, `https`, `s3`, or `gs`); local `file://` URIs must stay under
 `/validation/reports/` or `/validation/reference_data/`.
 
+The repository-owned bounded VMEC-lite spectral geometry is validated
+separately against exact local forms:
+
+```bash
+python validation/validate_vmec_lite_geometry.py --report validation/reports/vmec_lite_geometry.json
+python validation/benchmark_vmec_lite_claims.py
+```
+
+The local validator covers spectral mode count, direct Fourier-basis
+evaluation, axisymmetric boundary coefficients, fixed-boundary radial scaling,
+q/iota reciprocity, B-coefficient construction, and positive sampled major
+radius. Its benchmark report binds the claim-admission evidence to the sealed
+geometry-validation payload and keeps `production_claim_allowed=false`.
+
 RZIP vertical-stability validation claims require persisted public-reference,
 external-code, or measured-discharge artifacts for vertical growth rates,
 vertical displacement, and closed-loop pole checks:

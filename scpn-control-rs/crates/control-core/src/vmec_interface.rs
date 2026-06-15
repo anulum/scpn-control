@@ -376,11 +376,7 @@ pub struct VmecEquilibrium {
 
 /// Number of Fourier modes for given (m_pol, n_tor).
 pub fn vmec_n_modes(m_pol: usize, n_tor: usize) -> usize {
-    if n_tor == 0 {
-        m_pol + 1
-    } else {
-        (m_pol + 1) * (2 * n_tor + 1)
-    }
+    vmec_mode_pairs(m_pol, n_tor).len()
 }
 
 /// Flat index for mode (m, n). Returns None if out of range.
@@ -398,8 +394,31 @@ pub fn vmec_mode_idx(m: usize, n: i32, m_pol: usize, n_tor: usize) -> Option<usi
         if n_abs > n_tor {
             return None;
         }
-        Some(m * (2 * n_tor + 1) + (n + n_tor as i32) as usize)
+        if m == 0 {
+            if n < 0 {
+                return None;
+            }
+            Some(n as usize)
+        } else {
+            Some(n_tor + 1 + (m - 1) * (2 * n_tor + 1) + (n + n_tor as i32) as usize)
+        }
     }
+}
+
+fn vmec_mode_pairs(m_pol: usize, n_tor: usize) -> Vec<(usize, i32)> {
+    if n_tor == 0 {
+        return (0..=m_pol).map(|m| (m, 0)).collect();
+    }
+    let mut modes = Vec::with_capacity(n_tor + 1 + m_pol * (2 * n_tor + 1));
+    for n in 0..=n_tor {
+        modes.push((0, n as i32));
+    }
+    for m in 1..=m_pol {
+        for n in -(n_tor as i32)..=(n_tor as i32) {
+            modes.push((m, n));
+        }
+    }
+    modes
 }
 
 /// Evaluate R(θ,ζ) and Z(θ,ζ) from one surface's Fourier coefficients.
@@ -414,23 +433,11 @@ fn eval_surface_point(
 ) -> (f64, f64) {
     let mut r = 0.0;
     let mut z = 0.0;
-    if n_tor == 0 {
-        for m in 0..=m_pol {
-            let angle = m as f64 * theta;
-            let (sin_a, cos_a) = angle.sin_cos();
-            r += rmnc[m] * cos_a;
-            z += zmns[m] * sin_a;
-        }
-    } else {
-        for m in 0..=m_pol {
-            for nn in -(n_tor as i32)..=(n_tor as i32) {
-                let idx = m * (2 * n_tor + 1) + (nn + n_tor as i32) as usize;
-                let angle = m as f64 * theta - nn as f64 * nfp as f64 * zeta;
-                let (sin_a, cos_a) = angle.sin_cos();
-                r += rmnc[idx] * cos_a;
-                z += zmns[idx] * sin_a;
-            }
-        }
+    for (idx, (m, nn)) in vmec_mode_pairs(m_pol, n_tor).into_iter().enumerate() {
+        let angle = m as f64 * theta - nn as f64 * nfp as f64 * zeta;
+        let (sin_a, cos_a) = angle.sin_cos();
+        r += rmnc[idx] * cos_a;
+        z += zmns[idx] * sin_a;
     }
     (r, z)
 }
@@ -447,25 +454,12 @@ fn eval_surface_deriv_theta(
 ) -> (f64, f64) {
     let mut dr = 0.0;
     let mut dz = 0.0;
-    if n_tor == 0 {
-        for m in 0..=m_pol {
-            let mf = m as f64;
-            let angle = mf * theta;
-            let (sin_a, cos_a) = angle.sin_cos();
-            dr -= mf * rmnc[m] * sin_a;
-            dz += mf * zmns[m] * cos_a;
-        }
-    } else {
-        for m in 0..=m_pol {
-            let mf = m as f64;
-            for nn in -(n_tor as i32)..=(n_tor as i32) {
-                let idx = m * (2 * n_tor + 1) + (nn + n_tor as i32) as usize;
-                let angle = mf * theta - nn as f64 * nfp as f64 * zeta;
-                let (sin_a, cos_a) = angle.sin_cos();
-                dr -= mf * rmnc[idx] * sin_a;
-                dz += mf * zmns[idx] * cos_a;
-            }
-        }
+    for (idx, (m, nn)) in vmec_mode_pairs(m_pol, n_tor).into_iter().enumerate() {
+        let mf = m as f64;
+        let angle = mf * theta - nn as f64 * nfp as f64 * zeta;
+        let (sin_a, cos_a) = angle.sin_cos();
+        dr -= mf * rmnc[idx] * sin_a;
+        dz += mf * zmns[idx] * cos_a;
     }
     (dr, dz)
 }
@@ -644,23 +638,11 @@ pub fn vmec_fixed_boundary_solve(
                     total_b2_vol += b_sq * dvol;
 
                     // Accumulate gradient for steepest descent
-                    if n_tor == 0 {
-                        for m in 0..=m_pol {
-                            let angle = m as f64 * theta;
-                            let (sin_a, cos_a) = angle.sin_cos();
-                            grad_r[[js, m]] += force_s * cos_a * dtheta * dzeta;
-                            grad_z[[js, m]] += force_s * sin_a * dtheta * dzeta;
-                        }
-                    } else {
-                        for m in 0..=m_pol {
-                            for nn in -(n_tor as i32)..=(n_tor as i32) {
-                                let idx = m * (2 * n_tor + 1) + (nn + n_tor as i32) as usize;
-                                let angle = m as f64 * theta - nn as f64 * nfp as f64 * zeta;
-                                let (sin_a, cos_a) = angle.sin_cos();
-                                grad_r[[js, idx]] += force_s * cos_a * dtheta * dzeta;
-                                grad_z[[js, idx]] += force_s * sin_a * dtheta * dzeta;
-                            }
-                        }
+                    for (idx, (m, nn)) in vmec_mode_pairs(m_pol, n_tor).into_iter().enumerate() {
+                        let angle = m as f64 * theta - nn as f64 * nfp as f64 * zeta;
+                        let (sin_a, cos_a) = angle.sin_cos();
+                        grad_r[[js, idx]] += force_s * cos_a * dtheta * dzeta;
+                        grad_z[[js, idx]] += force_s * sin_a * dtheta * dzeta;
                     }
                 }
             }
@@ -923,12 +905,15 @@ nfp=1
     #[test]
     fn test_vmec_mode_indexing() {
         assert_eq!(vmec_n_modes(6, 0), 7);
-        assert_eq!(vmec_n_modes(3, 2), 4 * 5);
+        assert_eq!(vmec_n_modes(3, 2), 3 + 3 * 5);
+        assert_eq!(vmec_n_modes(2, 1), 8);
         assert_eq!(vmec_mode_idx(0, 0, 6, 0), Some(0));
         assert_eq!(vmec_mode_idx(3, 0, 6, 0), Some(3));
         assert_eq!(vmec_mode_idx(0, 1, 6, 0), None);
         assert_eq!(vmec_mode_idx(7, 0, 6, 0), None);
-        assert_eq!(vmec_mode_idx(1, -1, 3, 2), Some(6));
+        assert_eq!(vmec_mode_idx(0, -1, 3, 2), None);
+        assert_eq!(vmec_mode_idx(0, 2, 3, 2), Some(2));
+        assert_eq!(vmec_mode_idx(1, -1, 3, 2), Some(4));
     }
 
     #[test]
