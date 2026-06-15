@@ -37,9 +37,29 @@ Where:
 | `i` | series current in amperes |
 | `i_load` | prescribed external load current in amperes |
 
-The Python and Rust implementations use the same Crank-Nicolson update and the
-same midpoint-sampled load-current waveforms: `rect`, `half_sine`, and
+The Python and Rust implementations use the same exact zero-order-hold update
+and the same midpoint-sampled load-current waveforms: `rect`, `half_sine`, and
 `exp_decay`.
+
+## Exact discretisation
+
+For a load current held constant over a step `dt`, the linear time-invariant
+series-RLC system has the exact discrete solution
+
+```text
+x_{n+1} = Phi x_n + Gamma u,   Phi = exp(A dt),   Gamma = A^{-1}(Phi - I) B
+```
+
+The state-transition matrix `Phi` is assembled column by column from the
+closed-form `free_response`, so the stepper reproduces the analytic homogeneous
+solution to accumulated floating-point precision across the underdamped,
+critical, and overdamped regimes — it does not carry the second-order truncation
+of the Crank-Nicolson update it replaces. The energy ledger is closed in closed
+form as well: each step integrates `int_0^dt v dt` from the same discretisation
+matrices and the ohmic dissipation `int_0^dt i(t)^2 dt` from the finite-horizon
+current gramian of the augmented state `[v, i, u]` (Van Loan's augmented matrix
+exponential). With exact dynamics and exact energy integrals the discharge ledger
+closes to machine precision rather than the previous quadrature tolerance.
 
 ## Energy surfaces
 
@@ -143,23 +163,24 @@ assert!(bank.feasibility(admission).expect("feasibility evaluates").0);
 
 ## Benchmarking
 
-Use the dedicated Python and Rust benchmark harnesses when changing the RLC
-admission ledger:
+The benchmark harness times the Python discharge ledger and, when the compiled
+`scpn_control_rs` extension is installed, the Rust discharge through the PyO3
+bridge in the same run. It reports per-language timing percentiles, the Rust
+speedup against the Python reference, and the cross-language ledger parity
+(maximum relative difference between the two implementations):
 
 ```bash
 PYTHONPATH=src python benchmarks/bench_capacitor_bank_energy.py \
   --steps 500 --warmup 50 --discharge-steps 200 --dt-s 1.0e-7 \
-  --json-out validation/reports/capacitor_bank_energy_python.json \
-  --markdown-out validation/reports/capacitor_bank_energy_python.md
-
-cargo run --release --manifest-path scpn-control-rs/Cargo.toml \
-  -p control-control --example bench_capacitor_bank_energy -- \
-  --steps 500 --warmup 50 --discharge-steps 200 --dt-s 1.0e-7 \
-  --json-out validation/reports/capacitor_bank_energy_rust.json \
-  --markdown-out validation/reports/capacitor_bank_energy_rust.md
+  --json-out benchmarks/results/capacitor_bank_energy.json \
+  --markdown-out benchmarks/results/capacitor_bank_energy.md
 ```
 
-Reports generated without hard CPU isolation are local regression evidence only.
+The exact discretisation makes the two implementations agree on the energy
+ledger to machine precision, so the cross-language parity is a tamper check on
+the polyglot chain. Reports generated without hard CPU isolation are local
+regression evidence only; production timing claims require isolated-core runs on
+declared target hardware.
 
 ## Practical use and scope
 

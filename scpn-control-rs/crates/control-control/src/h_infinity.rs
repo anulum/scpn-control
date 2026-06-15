@@ -28,7 +28,7 @@ use ndarray::{s, Array1, Array2, Axis};
 ///
 /// Padé(6,6) coefficients: b_k = (12-k)! * 12! / ((12-k)! * k! * 12!)
 /// simplified to the standard sequence for p=q=6.
-fn matrix_exp(a: &Array2<f64>) -> Array2<f64> {
+pub(crate) fn matrix_exp(a: &Array2<f64>) -> Array2<f64> {
     let n = a.nrows();
     assert_eq!(n, a.ncols(), "matrix_exp requires square matrix");
 

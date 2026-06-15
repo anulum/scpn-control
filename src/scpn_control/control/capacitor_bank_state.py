@@ -232,6 +232,119 @@ def free_response(spec: CapacitorBankSpec, v0: float, i0: float, t: float) -> Ca
     )
 
 
+@dataclass(frozen=True)
+class _ExactRLCStep:
+    r"""Cached exact zero-order-hold discretisation of the series-RLC bank.
+
+    The bank obeys the linear time-invariant system
+
+    .. math::
+
+        \frac{d}{dt}\begin{bmatrix} v \\ i \end{bmatrix}
+        = A \begin{bmatrix} v \\ i \end{bmatrix} + B\,u,
+        \quad
+        A = \begin{bmatrix} 0 & -1/C \\ 1/L & -R/L \end{bmatrix},
+        \quad
+        B = \begin{bmatrix} -1/C \\ 0 \end{bmatrix},
+
+    with ``u`` the prescribed load current. The exact zero-order-hold update over
+    a step ``dt`` with constant load is :math:`x_{n+1} = \Phi x_n + \Gamma u`,
+    :math:`\Phi = e^{A\,dt}`, :math:`\Gamma = A^{-1}(\Phi - I)B`. The state
+    transition ``Phi`` is taken from the closed-form :func:`free_response`, so the
+    stepper reproduces the analytic homogeneous solution to machine precision.
+    The energy ledger is closed analytically as well: ``intv_*`` give
+    :math:`\int_0^{dt} v\,dt` and ``w_*`` is the finite-horizon current gramian
+    :math:`\int_0^{dt} i(t)^2\,dt` of the augmented state :math:`[v, i, u]`.
+    """
+
+    dt: float
+    phi11: float
+    phi12: float
+    phi21: float
+    phi22: float
+    gamma_v: float
+    gamma_i: float
+    intv_v0: float
+    intv_i0: float
+    intv_u: float
+    w_vv: float
+    w_vi: float
+    w_vu: float
+    w_ii: float
+    w_iu: float
+    w_uu: float
+
+
+def _build_exact_rlc_step(spec: CapacitorBankSpec, dt: float) -> _ExactRLCStep:
+    """Build the exact zero-order-hold discretisation for ``spec`` at step ``dt``."""
+    import numpy as np
+    from scipy.linalg import expm
+
+    capacitance = spec.capacitance_F
+    inductance = spec.inductance_H
+    resistance = spec.series_resistance_ohm
+
+    # Phi = exp(A dt) from the closed-form homogeneous response columns.
+    col_v = free_response(spec, 1.0, 0.0, dt)
+    col_i = free_response(spec, 0.0, 1.0, dt)
+    phi11, phi12 = col_v.voltage_V, col_i.voltage_V
+    phi21, phi22 = col_v.current_A, col_i.current_A
+
+    # A^{-1} = [[-RC, L], [-C, 0]]; B = [-1/C, 0]. M1 = A^{-1}(Phi - I) = integral of Phi.
+    ainv_11, ainv_12 = -resistance * capacitance, inductance
+    ainv_21, ainv_22 = -capacitance, 0.0
+    pm11, pm12, pm21, pm22 = phi11 - 1.0, phi12, phi21, phi22 - 1.0
+    m1_11 = ainv_11 * pm11 + ainv_12 * pm21
+    m1_12 = ainv_11 * pm12 + ainv_12 * pm22
+    m1_21 = ainv_21 * pm11 + ainv_22 * pm21
+    m1_22 = ainv_21 * pm12 + ainv_22 * pm22
+
+    b0 = -1.0 / capacitance
+    gamma_v = m1_11 * b0
+    gamma_i = m1_21 * b0
+
+    # N = A^{-1}(M1 - dt I) B, giving the constant-load contribution to int v dt.
+    md_11, md_12, md_21, md_22 = m1_11 - dt, m1_12, m1_21, m1_22 - dt
+    mdb0 = md_11 * b0
+    mdb1 = md_21 * b0
+    n0 = ainv_11 * mdb0 + ainv_12 * mdb1
+
+    # Finite-horizon current gramian W via Van Loan's augmented matrix exponential,
+    # so int_0^dt i(t)^2 dt = z0^T W z0 with z0 = [v, i, u].
+    a_mat = np.array([[0.0, b0], [1.0 / inductance, -resistance / inductance]], dtype=np.float64)
+    a_tilde = np.zeros((3, 3), dtype=np.float64)
+    a_tilde[:2, :2] = a_mat
+    a_tilde[0, 2] = b0
+    pick = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+    weight = np.outer(pick, pick)
+    block = np.zeros((6, 6), dtype=np.float64)
+    block[:3, :3] = -a_tilde.T
+    block[:3, 3:] = weight
+    block[3:, 3:] = a_tilde
+    expo = expm(block * dt)
+    gramian = expo[3:, 3:].T @ expo[:3, 3:]
+    gramian = 0.5 * (gramian + gramian.T)
+
+    return _ExactRLCStep(
+        dt=float(dt),
+        phi11=phi11,
+        phi12=phi12,
+        phi21=phi21,
+        phi22=phi22,
+        gamma_v=float(gamma_v),
+        gamma_i=float(gamma_i),
+        intv_v0=float(m1_11),
+        intv_i0=float(m1_12),
+        intv_u=float(n0),
+        w_vv=float(gramian[0, 0]),
+        w_vi=float(gramian[0, 1]),
+        w_vu=float(gramian[0, 2]),
+        w_ii=float(gramian[1, 1]),
+        w_iu=float(gramian[1, 2]),
+        w_uu=float(gramian[2, 2]),
+    )
+
+
 class CapacitorBank:
     """Mutable bounded series-RLC bank with analytical and numerical stepping."""
 
@@ -246,7 +359,16 @@ class CapacitorBank:
         self._v = 0.0
         self._i = 0.0
         self._di_dt = 0.0
+        self._disc: _ExactRLCStep | None = None
         self.reset(initial_voltage_V, initial_current_A=initial_current_A)
+
+    def _discretization(self, dt: float) -> _ExactRLCStep:
+        """Return the cached exact discretisation for ``dt``, rebuilding on change."""
+        cached = self._disc
+        if cached is None or cached.dt != dt:
+            cached = _build_exact_rlc_step(self._spec, dt)
+            self._disc = cached
+        return cached
 
     @property
     def spec(self) -> CapacitorBankSpec:
@@ -290,28 +412,21 @@ class CapacitorBank:
         return self.state
 
     def step(self, dt: float, *, external_load_current_A: float = 0.0) -> CapacitorBankState:
-        """Advance the bank one Crank-Nicolson step with optional load current."""
+        """Advance the bank one exact zero-order-hold step with optional load current.
+
+        The update is the exact state-transition solution of the series-RLC system
+        for a load current held constant over the step, so it reproduces the
+        closed-form :func:`free_response` to machine precision rather than the
+        second-order Crank-Nicolson truncation it replaces.
+        """
         step_s = _positive("dt", dt)
         load_current = _finite("external_load_current_A", external_load_current_A)
-        capacitance = self._spec.capacitance_F
+        disc = self._discretization(step_s)
         inductance = self._spec.inductance_H
         resistance = self._spec.series_resistance_ohm
-        a12 = -1.0 / capacitance
-        a21 = 1.0 / inductance
-        a22 = -resistance / inductance
-        h = step_s / 2.0
-        lhs_11 = 1.0
-        lhs_12 = -h * a12
-        lhs_21 = -h * a21
-        lhs_22 = 1.0 - h * a22
-        rhs_v = self._v + h * a12 * self._i - step_s * load_current / capacitance
-        rhs_i = h * a21 * self._v + (1.0 + h * a22) * self._i
-        determinant = lhs_11 * lhs_22 - lhs_12 * lhs_21
-        if not math.isfinite(determinant) or abs(determinant) <= 1e-30:
-            raise ValueError("RLC step matrix is singular")
-        voltage_next = (lhs_22 * rhs_v - lhs_12 * rhs_i) / determinant
-        current_next = (-lhs_21 * rhs_v + lhs_11 * rhs_i) / determinant
-        di_dt_next = a21 * voltage_next + a22 * current_next
+        voltage_next = disc.phi11 * self._v + disc.phi12 * self._i + disc.gamma_v * load_current
+        current_next = disc.phi21 * self._v + disc.phi22 * self._i + disc.gamma_i * load_current
+        di_dt_next = voltage_next / inductance - resistance * current_next / inductance
         for name, value in (
             ("voltage_next", voltage_next),
             ("current_next", current_next),
@@ -325,10 +440,19 @@ class CapacitorBank:
         return self.state
 
     def discharge(self, pulse: PulseSpec, dt: float, n_steps: int) -> EnergyReport:
-        """Drive the bank with ``pulse`` using midpoint-sampled load current."""
+        """Drive the bank with ``pulse`` using midpoint-sampled load current.
+
+        The bank dynamics advance with the exact zero-order-hold stepper, and each
+        step's ohmic dissipation :math:`R\\int i^2\\,dt` and load extraction
+        :math:`\\int v\\,u\\,dt` are integrated in closed form, so the energy ledger
+        closes to machine precision instead of carrying second-order quadrature
+        error.
+        """
         if not isinstance(n_steps, int) or n_steps <= 0:
             raise ValueError("n_steps must be a positive integer")
         step_s = _positive("dt", dt)
+        disc = self._discretization(step_s)
+        resistance = self._spec.series_resistance_ohm
         energy_initial = self._total_stored_energy_J()
         resistive_loss = 0.0
         load_energy = 0.0
@@ -337,13 +461,18 @@ class CapacitorBank:
         pulse_t = 0.0
         for _ in range(n_steps):
             load_current = _sample_waveform(pulse, pulse_t + step_s / 2.0)
-            voltage_before = self._v
-            current_before = self._i
+            v0 = self._v
+            i0 = self._i
+            int_v = disc.intv_v0 * v0 + disc.intv_i0 * i0 + disc.intv_u * load_current
+            int_i_squared = (
+                disc.w_vv * v0 * v0
+                + disc.w_ii * i0 * i0
+                + disc.w_uu * load_current * load_current
+                + 2.0 * (disc.w_vi * v0 * i0 + disc.w_vu * v0 * load_current + disc.w_iu * i0 * load_current)
+            )
             state = self.step(step_s, external_load_current_A=load_current)
-            voltage_midpoint = 0.5 * (voltage_before + state.voltage_V)
-            current_midpoint = 0.5 * (current_before + state.current_A)
-            resistive_loss += self._spec.series_resistance_ohm * current_midpoint * current_midpoint * step_s
-            load_energy += voltage_midpoint * load_current * step_s
+            resistive_loss += resistance * int_i_squared
+            load_energy += load_current * int_v
             peak_voltage = max(peak_voltage, abs(state.voltage_V))
             peak_current = max(peak_current, abs(state.current_A))
             pulse_t += step_s

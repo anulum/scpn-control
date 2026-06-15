@@ -66,10 +66,16 @@ def _spec() -> CapacitorBankSpec:
     )
 
 
-def _run_once(*, discharge_steps: int, dt_s: float) -> dict[str, float | bool | str]:
-    bank = CapacitorBank(_spec(), initial_voltage_V=5_000.0, initial_current_A=12.0)
+_SPEC_ARGS = (100e-6, 100e-6, 0.5, 10_000.0, 20.0)
+_INITIAL_VOLTAGE_V = 5_000.0
+_INITIAL_CURRENT_A = 12.0
+_PEAK_CURRENT_A = 500.0
+
+
+def _run_python(*, discharge_steps: int, dt_s: float) -> dict[str, float | bool | str]:
+    bank = CapacitorBank(_spec(), initial_voltage_V=_INITIAL_VOLTAGE_V, initial_current_A=_INITIAL_CURRENT_A)
     report = bank.discharge(
-        PulseSpec(peak_current_A=500.0, duration_s=discharge_steps * dt_s, waveform="half_sine"),
+        PulseSpec(peak_current_A=_PEAK_CURRENT_A, duration_s=discharge_steps * dt_s, waveform="half_sine"),
         dt=dt_s,
         n_steps=discharge_steps,
     )
@@ -86,21 +92,114 @@ def _run_once(*, discharge_steps: int, dt_s: float) -> dict[str, float | bool | 
     }
 
 
-def _measure(*, steps: int, warmup: int, discharge_steps: int, dt_s: float) -> dict[str, Any]:
+def _load_rust_backend() -> Any:
+    try:
+        import scpn_control_rs as rust
+    except ImportError:
+        return None
+    return rust if hasattr(rust, "PyCapacitorBankModel") else None
+
+
+def _run_rust(rust: Any, *, discharge_steps: int, dt_s: float) -> dict[str, float | bool | str]:
+    bank = rust.PyCapacitorBankModel(*_SPEC_ARGS, _INITIAL_VOLTAGE_V, _INITIAL_CURRENT_A)
+    report = bank.discharge(_PEAK_CURRENT_A, discharge_steps * dt_s, "half_sine", dt_s, discharge_steps)
+    return {
+        "energy_initial_J": report["energy_initial_J"],
+        "energy_remaining_J": report["energy_remaining_J"],
+        "energy_delivered_J": report["energy_delivered_J"],
+        "resistive_loss_J": report["resistive_loss_J"],
+        "load_energy_J": report["load_energy_J"],
+        "energy_balance_residual_J": report["energy_balance_residual_J"],
+        "energy_balance_relative_error": report["energy_balance_relative_error"],
+        "energy_balance_passed": report["energy_balance_passed"],
+        "rlc_regime": report["rlc_regime"],
+    }
+
+
+def _measure_backend(run_once: Any, *, steps: int, warmup: int) -> dict[str, Any]:
     for _ in range(warmup):
-        _run_once(discharge_steps=discharge_steps, dt_s=dt_s)
+        run_once()
     samples: list[int] = []
     last: dict[str, float | bool | str] | None = None
     for _ in range(steps):
         start = time.perf_counter_ns()
-        last = _run_once(discharge_steps=discharge_steps, dt_s=dt_s)
+        last = run_once()
         samples.append(time.perf_counter_ns() - start)
     return {"stats": _stats(samples), "last_report": last}
+
+
+def _cross_language_parity(python_report: dict[str, Any], rust_report: dict[str, Any]) -> dict[str, float]:
+    keys = ("energy_delivered_J", "resistive_loss_J", "load_energy_J")
+    worst = 0.0
+    for key in keys:
+        py_value = float(python_report[key])
+        rs_value = float(rust_report[key])
+        scale = max(abs(py_value), abs(rs_value), 1.0)
+        worst = max(worst, abs(py_value - rs_value) / scale)
+    return {"max_relative_difference": worst}
+
+
+def _measure(*, steps: int, warmup: int, discharge_steps: int, dt_s: float) -> dict[str, Any]:
+    python_result = _measure_backend(
+        lambda: _run_python(discharge_steps=discharge_steps, dt_s=dt_s), steps=steps, warmup=warmup
+    )
+    languages: dict[str, Any] = {"python": python_result}
+
+    rust = _load_rust_backend()
+    if rust is not None:
+        rust_result = _measure_backend(
+            lambda: _run_rust(rust, discharge_steps=discharge_steps, dt_s=dt_s), steps=steps, warmup=warmup
+        )
+        languages["rust"] = rust_result
+        py_mean = python_result["stats"]["mean_us"]
+        rs_mean = rust_result["stats"]["mean_us"]
+        languages["rust_speedup_vs_python"] = py_mean / rs_mean if rs_mean > 0.0 else None
+        languages["cross_language_parity"] = _cross_language_parity(
+            python_result["last_report"], rust_result["last_report"]
+        )
+    else:
+        languages["rust"] = None
+        languages["rust_speedup_vs_python"] = None
+        languages["cross_language_parity"] = None
+
+    # Backwards-compatible top-level view of the Python reference path.
+    return {
+        "stats": python_result["stats"],
+        "last_report": python_result["last_report"],
+        "languages": languages,
+    }
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _language_rows(languages: dict[str, Any]) -> list[str]:
+    rows: list[str] = []
+    for name in ("python", "rust"):
+        backend = languages.get(name)
+        if backend is None:
+            rows.append(f"| {name} | not available | — | — | — | — |")
+            continue
+        stats = backend["stats"]
+        rows.append(
+            f"| {name} | {stats['samples']} | {stats['mean_us']:.6f} | {stats['median_us']:.6f} | "
+            f"{stats['p95_us']:.6f} | {stats['p99_us']:.6f} |"
+        )
+    return rows
+
+
+def _comparison_lines(languages: dict[str, Any]) -> list[str]:
+    speedup = languages.get("rust_speedup_vs_python")
+    parity = languages.get("cross_language_parity")
+    if speedup is None or parity is None:
+        return ["- Rust path: not available in this run.", ""]
+    return [
+        f"- Rust speedup vs Python (mean): `{speedup:.3f}x`",
+        f"- Cross-language ledger parity (max relative difference): `{parity['max_relative_difference']:.3e}`",
+        "",
+    ]
 
 
 def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
@@ -128,13 +227,13 @@ def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
             f"- Discharge steps per sample: `{payload['settings']['discharge_steps']}`",
             f"- Step size s: `{payload['settings']['dt_s']}`",
             "",
-            "| Samples | Mean us | Median us | p95 us | p99 us |",
-            "|---:|---:|---:|---:|---:|",
-            (
-                f"| {stats['samples']} | {stats['mean_us']:.6f} | {stats['median_us']:.6f} | "
-                f"{stats['p95_us']:.6f} | {stats['p99_us']:.6f} |"
-            ),
+            "## Per-language discharge timing",
             "",
+            "| Language | Samples | Mean us | Median us | p95 us | p99 us |",
+            "|---|---:|---:|---:|---:|---:|",
+            *_language_rows(payload["result"]["languages"]),
+            "",
+            *_comparison_lines(payload["result"]["languages"]),
             "## Last energy ledger",
             "",
             f"- Energy balance passed: `{report['energy_balance_passed']}`",

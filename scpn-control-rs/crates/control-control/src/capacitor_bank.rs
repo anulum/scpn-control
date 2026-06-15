@@ -10,7 +10,11 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-/// Relative residual tolerance for Crank-Nicolson RLC energy-balance admission.
+use ndarray::Array2;
+
+use crate::h_infinity::matrix_exp;
+
+/// Relative residual tolerance for the exact-discretisation RLC energy-balance admission.
 pub const ENERGY_BALANCE_REL_TOLERANCE: f64 = 1.0e-8;
 
 /// Canonical damping regimes for the series RLC bank model.
@@ -217,7 +221,25 @@ pub struct EnergyReport {
     pub rlc_regime: RlcRegime,
 }
 
-/// Mutable bounded series-RLC bank with analytical and numerical stepping.
+/// Cached exact zero-order-hold discretisation of the series-RLC bank.
+///
+/// The bank obeys `d/dt [v; i] = A [v; i] + B u` with
+/// `A = [[0, -1/C], [1/L, -R/L]]`, `B = [-1/C, 0]^T`, and load current `u`.
+/// The exact step over `dt` with constant load is `x_{n+1} = Phi x_n + Gamma u`,
+/// `Phi = exp(A dt)` taken from the closed-form [`free_response`]. The ledger is
+/// closed analytically: `intv` gives the coefficients of `int_0^dt v dt` and `w`
+/// is the finite-horizon current gramian for `int_0^dt i(t)^2 dt` over the
+/// augmented state `[v, i, u]`.
+#[derive(Clone, Copy, Debug)]
+struct ExactRlcStep {
+    dt: f64,
+    phi: [[f64; 2]; 2],
+    gamma: [f64; 2],
+    intv: [f64; 3],
+    w: [[f64; 3]; 3],
+}
+
+/// Mutable bounded series-RLC bank with analytical and exact discrete stepping.
 #[derive(Clone, Debug)]
 pub struct CapacitorBank {
     spec: CapacitorBankSpec,
@@ -225,6 +247,7 @@ pub struct CapacitorBank {
     voltage_v: f64,
     current_a: f64,
     di_dt_a_s: f64,
+    disc: Option<ExactRlcStep>,
 }
 
 impl CapacitorBank {
@@ -240,6 +263,7 @@ impl CapacitorBank {
             voltage_v: 0.0,
             current_a: 0.0,
             di_dt_a_s: 0.0,
+            disc: None,
         };
         bank.reset(initial_voltage_v, initial_current_a)?;
         Ok(bank)
@@ -293,7 +317,24 @@ impl CapacitorBank {
         Ok(self.state())
     }
 
-    /// Advance the bank one Crank-Nicolson step with optional load current.
+    /// Return the cached exact discretisation for `dt`, rebuilding on change.
+    fn discretization(&mut self, dt: f64) -> Result<ExactRlcStep, CapacitorBankError> {
+        if let Some(disc) = self.disc {
+            if disc.dt == dt {
+                return Ok(disc);
+            }
+        }
+        let disc = build_exact_rlc_step(self.spec, dt)?;
+        self.disc = Some(disc);
+        Ok(disc)
+    }
+
+    /// Advance the bank one exact zero-order-hold step with optional load current.
+    ///
+    /// The update is the exact state-transition solution of the series-RLC system
+    /// for a load current held constant over the step, so it reproduces the
+    /// closed-form [`free_response`] to machine precision rather than the
+    /// second-order Crank-Nicolson truncation it replaces.
     pub fn step(
         &mut self,
         dt: f64,
@@ -301,27 +342,16 @@ impl CapacitorBank {
     ) -> Result<CapacitorBankState, CapacitorBankError> {
         validate_positive("dt", dt)?;
         validate_finite("external_load_current_a", external_load_current_a)?;
-        let capacitance = self.spec.capacitance_f;
+        let disc = self.discretization(dt)?;
         let inductance = self.spec.inductance_h;
         let resistance = self.spec.series_resistance_ohm;
-        let a12 = -1.0 / capacitance;
-        let a21 = 1.0 / inductance;
-        let a22 = -resistance / inductance;
-        let h = dt / 2.0;
-        let lhs_11 = 1.0;
-        let lhs_12 = -h * a12;
-        let lhs_21 = -h * a21;
-        let lhs_22 = 1.0 - h * a22;
-        let rhs_v =
-            self.voltage_v + h * a12 * self.current_a - dt * external_load_current_a / capacitance;
-        let rhs_i = h * a21 * self.voltage_v + (1.0 + h * a22) * self.current_a;
-        let determinant = lhs_11 * lhs_22 - lhs_12 * lhs_21;
-        if !determinant.is_finite() || determinant.abs() <= 1e-30 {
-            return Err(CapacitorBankError::SingularStepMatrix);
-        }
-        let voltage_next = (lhs_22 * rhs_v - lhs_12 * rhs_i) / determinant;
-        let current_next = (-lhs_21 * rhs_v + lhs_11 * rhs_i) / determinant;
-        let di_dt_next = a21 * voltage_next + a22 * current_next;
+        let voltage_next = disc.phi[0][0] * self.voltage_v
+            + disc.phi[0][1] * self.current_a
+            + disc.gamma[0] * external_load_current_a;
+        let current_next = disc.phi[1][0] * self.voltage_v
+            + disc.phi[1][1] * self.current_a
+            + disc.gamma[1] * external_load_current_a;
+        let di_dt_next = voltage_next / inductance - resistance * current_next / inductance;
         validate_finite("voltage_next", voltage_next)?;
         validate_finite("current_next", current_next)?;
         validate_finite("di_dt_next", di_dt_next)?;
@@ -343,6 +373,8 @@ impl CapacitorBank {
         if n_steps == 0 {
             return Err(CapacitorBankError::NonPositiveInteger("n_steps"));
         }
+        let disc = self.discretization(dt)?;
+        let resistance = self.spec.series_resistance_ohm;
         let energy_initial = self.total_stored_energy_j();
         let mut resistive_loss = 0.0;
         let mut load_energy = 0.0;
@@ -351,14 +383,19 @@ impl CapacitorBank {
         let mut pulse_t = 0.0;
         for _ in 0..n_steps {
             let load_current = sample_waveform(pulse, pulse_t + dt / 2.0)?;
-            let voltage_before = self.voltage_v;
-            let current_before = self.current_a;
+            let v0 = self.voltage_v;
+            let i0 = self.current_a;
+            let int_v = disc.intv[0] * v0 + disc.intv[1] * i0 + disc.intv[2] * load_current;
+            let int_i_squared = disc.w[0][0] * v0 * v0
+                + disc.w[1][1] * i0 * i0
+                + disc.w[2][2] * load_current * load_current
+                + 2.0
+                    * (disc.w[0][1] * v0 * i0
+                        + disc.w[0][2] * v0 * load_current
+                        + disc.w[1][2] * i0 * load_current);
             let state = self.step(dt, load_current)?;
-            let voltage_midpoint = 0.5 * (voltage_before + state.voltage_v);
-            let current_midpoint = 0.5 * (current_before + state.current_a);
-            resistive_loss +=
-                self.spec.series_resistance_ohm * current_midpoint * current_midpoint * dt;
-            load_energy += voltage_midpoint * load_current * dt;
+            resistive_loss += resistance * int_i_squared;
+            load_energy += load_current * int_v;
             peak_voltage = peak_voltage.max(state.voltage_v.abs());
             peak_current = peak_current.max(state.current_a.abs());
             pulse_t += dt;
@@ -540,6 +577,99 @@ pub fn free_response(
     })
 }
 
+/// Build the exact zero-order-hold discretisation for `spec` at step `dt`.
+fn build_exact_rlc_step(
+    spec: CapacitorBankSpec,
+    dt: f64,
+) -> Result<ExactRlcStep, CapacitorBankError> {
+    let capacitance = spec.capacitance_f;
+    let inductance = spec.inductance_h;
+    let resistance = spec.series_resistance_ohm;
+
+    // Phi = exp(A dt) from the closed-form homogeneous response columns.
+    let col_v = free_response(spec, 1.0, 0.0, dt)?;
+    let col_i = free_response(spec, 0.0, 1.0, dt)?;
+    let phi = [
+        [col_v.voltage_v, col_i.voltage_v],
+        [col_v.current_a, col_i.current_a],
+    ];
+
+    // A^{-1} = [[-RC, L], [-C, 0]]; B = [-1/C, 0]. M1 = A^{-1}(Phi - I) = integral of Phi.
+    let ainv = [[-resistance * capacitance, inductance], [-capacitance, 0.0]];
+    let pm = [[phi[0][0] - 1.0, phi[0][1]], [phi[1][0], phi[1][1] - 1.0]];
+    let m1 = [
+        [
+            ainv[0][0] * pm[0][0] + ainv[0][1] * pm[1][0],
+            ainv[0][0] * pm[0][1] + ainv[0][1] * pm[1][1],
+        ],
+        [
+            ainv[1][0] * pm[0][0] + ainv[1][1] * pm[1][0],
+            ainv[1][0] * pm[0][1] + ainv[1][1] * pm[1][1],
+        ],
+    ];
+    let b0 = -1.0 / capacitance;
+    let gamma = [m1[0][0] * b0, m1[1][0] * b0];
+
+    // N = A^{-1}(M1 - dt I) B: the constant-load contribution to int v dt.
+    let md = [[m1[0][0] - dt, m1[0][1]], [m1[1][0], m1[1][1] - dt]];
+    let mdb0 = md[0][0] * b0;
+    let mdb1 = md[1][0] * b0;
+    let n0 = ainv[0][0] * mdb0 + ainv[0][1] * mdb1;
+    let intv = [m1[0][0], m1[0][1], n0];
+
+    // Finite-horizon current gramian via Van Loan's augmented matrix exponential.
+    // Augmented A_tilde = [[A, B], [0, 0]] on state [v, i, u]; weight picks i.
+    let a_tilde = [
+        [0.0_f64, b0, b0],
+        [1.0 / inductance, -resistance / inductance, 0.0],
+        [0.0, 0.0, 0.0],
+    ];
+    let mut block = Array2::<f64>::zeros((6, 6));
+    for r in 0..3 {
+        for c in 0..3 {
+            block[[r, c]] = -a_tilde[c][r];
+            block[[3 + r, 3 + c]] = a_tilde[r][c];
+        }
+    }
+    block[[1, 4]] = 1.0; // (e_i e_i^T)[i][i] with i the current index
+    let expo = matrix_exp(&(block * dt));
+    let mut w = [[0.0_f64; 3]; 3];
+    for r in 0..3 {
+        for c in 0..3 {
+            let mut acc = 0.0;
+            for k in 0..3 {
+                acc += expo[[3 + k, 3 + r]] * expo[[k, 3 + c]];
+            }
+            w[r][c] = acc;
+        }
+    }
+    let w_sym = [
+        [
+            w[0][0],
+            0.5 * (w[0][1] + w[1][0]),
+            0.5 * (w[0][2] + w[2][0]),
+        ],
+        [
+            0.5 * (w[1][0] + w[0][1]),
+            w[1][1],
+            0.5 * (w[1][2] + w[2][1]),
+        ],
+        [
+            0.5 * (w[2][0] + w[0][2]),
+            0.5 * (w[2][1] + w[1][2]),
+            w[2][2],
+        ],
+    ];
+
+    Ok(ExactRlcStep {
+        dt,
+        phi,
+        gamma,
+        intv,
+        w: w_sym,
+    })
+}
+
 /// Return the load current at time t since pulse start.
 pub fn sample_waveform(pulse: PulseSpec, t: f64) -> Result<f64, CapacitorBankError> {
     validate_finite("t", t)?;
@@ -574,7 +704,8 @@ pub enum CapacitorBankError {
     InitialVoltageExceedsMax,
     /// Runtime voltage magnitude exceeded the declared maximum.
     VoltageExceedsMax,
-    /// Crank-Nicolson matrix was singular.
+    /// Step state matrix was singular. Retained for API stability; the exact
+    /// zero-order-hold discretisation no longer constructs this variant.
     SingularStepMatrix,
     /// Unknown waveform string.
     UnknownWaveform,
@@ -700,16 +831,29 @@ mod tests {
     }
 
     #[test]
-    fn crank_nicolson_tracks_closed_form_response() {
-        let spec = underdamped_spec();
-        let mut bank = CapacitorBank::new(spec, 5_000.0, 0.0).expect("valid bank");
-        let dt = 1e-7;
-        for _ in 0..200 {
-            bank.step(dt, 0.0).expect("step must evaluate");
+    fn exact_step_reproduces_closed_form_response_across_regimes() {
+        for spec in [underdamped_spec(), critical_spec(), overdamped_spec()] {
+            let mut bank = CapacitorBank::new(spec, 5_000.0, 12.0).expect("valid bank");
+            let dt = 1e-7;
+            for _ in 0..200 {
+                bank.step(dt, 0.0).expect("step must evaluate");
+            }
+            let expected = free_response(spec, 5_000.0, 12.0, 200.0 * dt).expect("closed form");
+            assert!((bank.state().voltage_v - expected.voltage_v).abs() < 1e-7);
+            assert!((bank.state().current_a - expected.current_a).abs() < 1e-7);
         }
-        let expected = free_response(spec, 5_000.0, 0.0, 200.0 * dt).expect("closed form");
-        assert!((bank.state().voltage_v - expected.voltage_v).abs() < 5e-2);
-        assert!((bank.state().current_a - expected.current_a).abs() < 5e-2);
+    }
+
+    #[test]
+    fn discharge_energy_ledger_closes_to_machine_precision() {
+        let mut bank = CapacitorBank::new(overdamped_spec(), 5_000.0, 20.0).expect("valid bank");
+        let pulse = PulseSpec::new(300.0, 1e-3, PulseWaveform::HalfSine).expect("valid pulse");
+        let report = bank
+            .discharge(pulse, 1e-6, 1000)
+            .expect("discharge evaluates");
+        assert!(report.energy_balance_relative_error < 1e-11);
+        assert!(report.energy_balance_passed);
+        assert!(report.resistive_loss_j >= 0.0);
     }
 
     #[test]

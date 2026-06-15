@@ -108,16 +108,64 @@ def test_free_response_returns_finite_state_for_all_regimes(
     assert state.energy_J >= 0.0
 
 
-def test_crank_nicolson_tracks_closed_form_under_natural_response() -> None:
-    spec = _underdamped_spec()
-    bank = CapacitorBank(spec, initial_voltage_V=5_000.0)
+@pytest.mark.parametrize("regime_resistance", [0.5, 2.0, 5.0])
+def test_exact_step_reproduces_closed_form_under_natural_response(regime_resistance: float) -> None:
+    """The zero-order-hold stepper must match the analytic free response exactly.
+
+    Across the underdamped, critical, and overdamped regimes the stepped state
+    agrees with :func:`free_response` to accumulated floating-point precision,
+    not the second-order truncation the Crank-Nicolson update used to leave.
+    """
+    spec = CapacitorBankSpec(
+        capacitance_F=100.0e-6,
+        inductance_H=100.0e-6,
+        series_resistance_ohm=regime_resistance,
+        voltage_max_V=10_000.0,
+    )
+    bank = CapacitorBank(spec, initial_voltage_V=5_000.0, initial_current_A=12.0)
     dt = 1.0e-7
     n_steps = 200
     for _ in range(n_steps):
         bank.step(dt)
-    expected = free_response(spec, v0=5_000.0, i0=0.0, t=n_steps * dt)
-    assert bank.state.voltage_V == pytest.approx(expected.voltage_V, abs=5.0e-2)
-    assert bank.state.current_A == pytest.approx(expected.current_A, abs=5.0e-2)
+    expected = free_response(spec, v0=5_000.0, i0=12.0, t=n_steps * dt)
+    assert bank.state.voltage_V == pytest.approx(expected.voltage_V, abs=1.0e-7)
+    assert bank.state.current_A == pytest.approx(expected.current_A, abs=1.0e-7)
+
+
+def test_single_exact_step_matches_closed_form_with_load() -> None:
+    """One forced step must equal the closed-form zero-order-hold response."""
+    spec = _underdamped_spec()
+    bank = CapacitorBank(spec, initial_voltage_V=5_000.0, initial_current_A=40.0)
+    dt = 1.0e-6
+    load = 300.0
+    state = bank.step(dt, external_load_current_A=load)
+    # Zero-order-hold reference: shift to the load steady state, evolve the
+    # homogeneous part, and shift back. v_ss = -R u, i_ss = -u.
+    v_ss = -spec.series_resistance_ohm * load
+    i_ss = -load
+    homogeneous = free_response(spec, v0=5_000.0 - v_ss, i0=40.0 - i_ss, t=dt)
+    assert state.voltage_V == pytest.approx(homogeneous.voltage_V + v_ss, abs=1.0e-7)
+    assert state.current_A == pytest.approx(homogeneous.current_A + i_ss, abs=1.0e-7)
+
+
+@pytest.mark.parametrize(
+    ("regime_resistance", "waveform"),
+    [(0.5, "rect"), (2.0, "exp_decay"), (5.0, "half_sine")],
+)
+def test_discharge_energy_ledger_closes_to_machine_precision(regime_resistance: float, waveform: str) -> None:
+    """Exact dynamics plus closed-form energy integrals close the ledger exactly."""
+    spec = CapacitorBankSpec(
+        capacitance_F=100.0e-6,
+        inductance_H=100.0e-6,
+        series_resistance_ohm=regime_resistance,
+        voltage_max_V=10_000.0,
+    )
+    bank = CapacitorBank(spec, initial_voltage_V=5_000.0, initial_current_A=20.0)
+    pulse = PulseSpec(peak_current_A=300.0, duration_s=1.0e-3, waveform=waveform)
+    report = bank.discharge(pulse, dt=1.0e-6, n_steps=1_000)
+    assert report.energy_balance_relative_error < 1.0e-11
+    assert report.energy_balance_passed is True
+    assert report.resistive_loss_J >= 0.0
 
 
 def test_reset_rejects_voltage_above_bank_limit() -> None:
