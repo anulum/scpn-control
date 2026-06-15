@@ -466,7 +466,7 @@ def run_digital_twin(
 
             # 2. Learning Curve
             ax2 = fig.add_subplot(1, 3, 2)
-            ax2.plot(history_rewards, color="orange", alpha=0.6)
+            ax2.plot(history_rewards, color="orange", alpha=0.6, label="Reward")
             # Moving average
             if len(history_rewards) > 50:
                 mov_avg = np.convolve(history_rewards, np.ones(50) / 50, mode="valid")
