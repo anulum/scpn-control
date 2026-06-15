@@ -1883,6 +1883,32 @@ def test_rti_latency_rejects_invalid_tick_counts(kwargs: dict[str, int], match: 
         mpc.benchmark_rti_latency(x, x, np.array([10.0, 5.0, 1.0]), **kwargs)
 
 
+def test_rti_supports_horizon_one_receding_step() -> None:
+    mpc = NonlinearMPC(_linear_traceable_plant, _wide_rti_config(horizon=1))
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    u_prev = np.array([10.0, 5.0, 1.0])
+    first = mpc.step_rti(x, x_ref, u_prev)
+    assert first.sqp_iterations == 1
+    assert first.u0.shape == (3,)
+    # With a one-step horizon the warm start is seeded from the previous input.
+    second = mpc.step_rti(x, x_ref, u_prev)
+    assert second.warm_started is True
+
+
+def test_rti_marks_constraint_violation_and_fails_closed() -> None:
+    cfg = _wide_rti_config(horizon=4)
+    cfg.x_max = np.array([1.0, 0.5, 4.0, 1.5, 1.0, 1.0])  # tighter than the rolled-out state
+    mpc = NonlinearMPC(_linear_traceable_plant, cfg)
+    x = np.array([5.0, 1.0, 3.0, 1.0, 2.0, 3.0])
+    x_ref = np.array([6.0, 1.5, 3.0, 1.0, 2.5, 3.5])
+    u_prev = np.array([10.0, 5.0, 1.0])
+    result = mpc.step_rti(x, x_ref, u_prev)
+    assert result.constraint_violation is True
+    assert result.admitted is False
+    assert mpc.infeasibility_count >= 1
+
+
 # ── JAX exact cost Hessian ───────────────────────────────────────────
 
 
