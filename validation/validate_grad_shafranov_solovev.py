@@ -32,17 +32,18 @@ Two **production** code paths are validated against this exact field:
 2. **SOR equilibrium solver.** The production ``_sor_step`` smoother is iterated
    to a fixed residual with Dirichlet data taken from the exact ψ. The
    reconstructed flux must converge to the exact Solov'ev field at second order.
+3. **Geometric multigrid solver.** The production ``_multigrid_vcycle`` is driven
+   on the same problem via :func:`multigrid_reconstruction`. Each corrected
+   V-cycle damps the whole error spectrum, so the discrete Grad-Shafranov
+   residual decays geometrically and the reconstruction reaches the second-order
+   discretisation floor in a handful of cycles.
 
-A third, **polyglot**, path is recorded for transparency but not gated: the Rust
+A **polyglot** path is recorded for transparency but not gated: the Rust
 ``scpn_control_rs.py_multigrid_solve`` binding is run on the same problem when
-the compiled extension is present. The binding exposes a fixed 100-cycle / 1e-8
-budget that does not converge on this forcing: it preserves the injected
-Dirichlet boundary but leaves a large interior Grad-Shafranov residual, so it
-does not reproduce the analytic equilibrium. This is recorded honestly and
-cross-references the Rust/Python SOR parity gap tracked in
-``tests/test_rust_python_parity.py``. The Python ``_multigrid_vcycle`` V-cycle is
-likewise not the validated reconstruction path here because it is not a stand-
-alone contraction on this forcing; the SOR smoother is the validated solver.
+the compiled extension is present. The binding solves the Grad-Shafranov system
+in the Rust sign convention (``-Δ*ψ = source``), so the validator feeds it the
+negated forcing to target the same analytic equilibrium; the recorded NRMSE then
+reflects whether the binding reproduces the Solov'ev field.
 
 References:
   Solov'ev L. S. (1968) "The theory of hydromagnetic stability of toroidal
@@ -269,6 +270,79 @@ def sor_reconstruction(
 
 
 @dataclass(frozen=True)
+class MultigridReconstruction:
+    """Outcome of a geometric-multigrid reconstruction of the Solov'ev field."""
+
+    nrmse: float
+    cycles: int
+    converged: bool
+    residual_inf: float
+    initial_residual_inf: float
+
+
+def multigrid_reconstruction(
+    geometry: SolovevGeometry,
+    n: int,
+    *,
+    omega: float = 1.6,
+    residual_tol: float = 1e-6,
+    max_cycles: int = 60,
+    pre_smooth: int = 3,
+    post_smooth: int = 3,
+) -> MultigridReconstruction:
+    """Drive the production ``_multigrid_vcycle`` to reconstruct the exact ψ.
+
+    Dirichlet data are taken from the exact Solov'ev field and the interior is
+    seeded with zeros. V-cycles run until the infinity-norm of the discrete
+    Grad-Shafranov residual falls below ``residual_tol`` or ``max_cycles`` is
+    reached. Unlike the single-grid SOR sweep, one V-cycle damps the whole error
+    spectrum, so the residual decays geometrically per cycle.
+    """
+    _positive_float("omega", omega)
+    _positive_float("residual_tol", residual_tol)
+    _positive_int("max_cycles", max_cycles)
+    _positive_int("pre_smooth", pre_smooth)
+    _positive_int("post_smooth", post_smooth)
+
+    kernel = _build_kernel(geometry, n)
+    psi_exact = solovev_psi(kernel.RR, kernel.ZZ, geometry)
+    source = solovev_source(kernel.RR, geometry)
+
+    psi = np.zeros_like(psi_exact)
+    _enforce_dirichlet(psi, psi_exact)
+
+    def residual_inf(field: FloatArray) -> float:
+        residual = np.asarray(kernel._apply_gs_operator(field), dtype=np.float64) - source
+        return float(np.max(np.abs(residual[1:-1, 1:-1])))
+
+    initial_residual_inf = residual_inf(psi)
+    current_residual = initial_residual_inf
+    cycles = 0
+    converged = False
+    for cycle in range(max_cycles):
+        psi = np.asarray(
+            kernel._multigrid_vcycle(
+                psi, source, kernel.RR, kernel.dR, kernel.dZ, omega=omega, pre_smooth=pre_smooth, post_smooth=post_smooth
+            ),
+            dtype=np.float64,
+        )
+        cycles = cycle + 1
+        current_residual = residual_inf(psi)
+        if current_residual < residual_tol:
+            converged = True
+            break
+
+    nrmse = _interior_nrmse(psi, psi_exact)
+    return MultigridReconstruction(
+        nrmse=nrmse,
+        cycles=cycles,
+        converged=converged,
+        residual_inf=current_residual,
+        initial_residual_inf=initial_residual_inf,
+    )
+
+
+@dataclass(frozen=True)
 class RustBackendRecord:
     """Recorded behaviour of the Rust multigrid binding on the Solov'ev problem."""
 
@@ -287,11 +361,13 @@ def rust_multigrid_reconstruction(
 ) -> RustBackendRecord | None:
     """Run ``scpn_control_rs.py_multigrid_solve`` and record its analytic error.
 
-    Returns ``None`` when the compiled extension is unavailable. The record is
-    informational only: the binding's fixed-cycle multigrid does not converge on
-    this forcing (it preserves the injected boundary but leaves a large interior
-    residual), so ``meets_analytic_tolerance`` is expected to be ``False`` and
-    this surface is not part of the pass/fail gate.
+    Returns ``None`` when the compiled extension is unavailable. The Rust solver
+    stack uses the ``-Δ*ψ = source`` sign convention, so the analytic forcing
+    (``Δ*ψ = source``) is negated before it is handed to the binding to target
+    the same Solov'ev equilibrium. With the matched convention the multigrid
+    binding reconstructs the analytic field, so ``meets_analytic_tolerance`` is
+    expected to be ``True``; the record stays informational and does not gate the
+    Python pass/fail outcome.
     """
     try:
         import scpn_control_rs as rust
@@ -306,7 +382,10 @@ def rust_multigrid_reconstruction(
     psi = np.zeros_like(psi_exact)
     _enforce_dirichlet(psi, psi_exact)
 
-    result = np.asarray(rust.py_multigrid_solve(psi, source, kernel.R, kernel.Z), dtype=np.float64)
+    # The Rust binding solves -Δ*ψ = source in the shared solver-stack
+    # convention, so the Δ*ψ = source forcing is negated to target the same
+    # analytic equilibrium the Python operator validates.
+    result = np.asarray(rust.py_multigrid_solve(psi, -source, kernel.R, kernel.Z), dtype=np.float64)
     residual = np.asarray(kernel._apply_gs_operator(result), dtype=np.float64) - source
     residual_inf = float(np.max(np.abs(residual[1:-1, 1:-1])))
     nrmse = _interior_nrmse(result, psi_exact)

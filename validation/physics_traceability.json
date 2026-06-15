@@ -1732,7 +1732,7 @@
         "validation/reports/grad_shafranov_solovev.md human-readable convergence and backend summary",
         "tests/test_grad_shafranov_solovev_validation.py digest, tamper, analytic-identity, convergence-order, and unconverged-budget checks"
       ],
-      "validity_domain": "The production discrete Grad-Shafranov operator (FusionKernel._apply_gs_operator, sharing the _mg_residual stencil) and the production Red-Black SOR smoother (_sor_step) are validated to second-order convergence against the exact Solov'ev analytic equilibrium with tamper-evident sealed evidence; the Python _multigrid_vcycle and the Rust py_multigrid_solve binding do not reproduce the analytic equilibrium on this forcing and are recorded but not admitted. Local equilibrium-kernel regression and analytic-benchmark convergence only; not a facility-grade equilibrium reconstruction claim against EFIT or GEQDSK.",
+      "validity_domain": "The production discrete Grad-Shafranov operator (FusionKernel._apply_gs_operator, sharing the _mg_residual stencil) and the production Red-Black SOR smoother (_sor_step) are validated to second-order convergence against the exact Solov'ev analytic equilibrium with tamper-evident sealed evidence; the Python _multigrid_vcycle and the Rust py_multigrid_solve binding now reconstruct the same analytic equilibrium to the second-order discretisation floor (the V-cycle defect sign was corrected and the Rust binding is fed the negated forcing for its -Delta*psi sign convention). Local equilibrium-kernel regression and analytic-benchmark convergence only; not a facility-grade equilibrium reconstruction claim against EFIT or GEQDSK.",
       "external_validation_tracker_issue": 48
     },
     {

@@ -1128,11 +1128,15 @@ class FusionKernel:
         # 1. Pre-smooth
         Psi = self._mg_smooth(Psi.copy(), Source, R_grid, dR, dZ, omega, pre_smooth)
 
-        # 2. Compute residual
-        residual = self._mg_residual(Psi, Source, R_grid, dR, dZ)
+        # 2. Compute the defect d = Source - L*[Psi].  ``_mg_residual`` returns
+        #    the signed residual L*[Psi] - Source, so the coarse-grid correction
+        #    equation L*[e] = d requires its negation. Feeding the unnegated
+        #    residual inverts every correction (Psi <- Psi - e), which stalls the
+        #    V-cycle and lets the interior error grow instead of decaying.
+        defect = -self._mg_residual(Psi, Source, R_grid, dR, dZ)
 
-        # 3. Restrict residual and R-grid to coarse level
-        r_coarse = self._restrict_full_weight(residual)
+        # 3. Restrict defect and R-grid to coarse level
+        r_coarse = self._restrict_full_weight(defect)
         R_coarse = self._restrict_full_weight(R_grid)
         nz_c, nr_c = r_coarse.shape
 

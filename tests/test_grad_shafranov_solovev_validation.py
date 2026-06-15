@@ -16,8 +16,10 @@ from validation.validate_grad_shafranov_solovev import (
     GRAD_SHAFRANOV_SOLOVEV_SCHEMA_VERSION,
     ConvergenceRecord,
     GradShafranovValidationResult,
+    MultigridReconstruction,
     SolovevGeometry,
     build_evidence,
+    multigrid_reconstruction,
     operator_truncation_error,
     solovev_psi,
     solovev_source,
@@ -112,6 +114,66 @@ def test_sor_reconstruction_reports_unconverged_when_capped() -> None:
     assert reconstruction.iterations == 50
 
 
+# ── Multigrid reconstruction ─────────────────────────────────────────
+
+
+def test_multigrid_reconstructs_solovev_field() -> None:
+    """The production V-cycle must reconstruct the exact ψ to the residual floor."""
+    geometry = SolovevGeometry.from_aspect()
+    reconstruction = multigrid_reconstruction(geometry, 65, residual_tol=1e-6, max_cycles=40)
+    assert reconstruction.converged is True
+    assert reconstruction.residual_inf < 1e-6
+    # NRMSE settles at the second-order discretisation floor, well under the SOR gate.
+    assert reconstruction.nrmse < 1e-4
+    # A handful of V-cycles is enough; this is not a slow single-grid relaxation.
+    assert reconstruction.cycles <= 20
+
+
+def test_multigrid_reduces_residual_geometrically() -> None:
+    """One V-cycle must collapse the residual by orders of magnitude, not a constant.
+
+    A single-grid smoother removes only high-frequency error and stalls on the
+    smooth component, so its per-sweep residual reduction is close to one. The
+    corrected V-cycle damps the whole spectrum, so the residual after a few
+    cycles is a tiny fraction of the initial Grad-Shafranov residual.
+    """
+    geometry = SolovevGeometry.from_aspect()
+    one_cycle = multigrid_reconstruction(geometry, 65, max_cycles=1)
+    assert one_cycle.residual_inf < 0.2 * one_cycle.initial_residual_inf
+    converged = multigrid_reconstruction(geometry, 65, residual_tol=1e-6, max_cycles=40)
+    assert converged.residual_inf < 1e-9 * converged.initial_residual_inf
+
+
+def test_multigrid_reconstruction_order_matches_discretisation() -> None:
+    """Halving h must quarter the converged reconstruction NRMSE (second order)."""
+    geometry = SolovevGeometry.from_aspect()
+    coarse = multigrid_reconstruction(geometry, 33, residual_tol=1e-7, max_cycles=60)
+    fine = multigrid_reconstruction(geometry, 65, residual_tol=1e-7, max_cycles=60)
+    assert coarse.converged and fine.converged
+    assert 3.0 < coarse.nrmse / fine.nrmse < 5.0
+
+
+def test_multigrid_reconstruction_is_frozen() -> None:
+    record = MultigridReconstruction(nrmse=1e-6, cycles=8, converged=True, residual_inf=1e-7, initial_residual_inf=1e4)
+    with pytest.raises(AttributeError):
+        record.nrmse = 2e-6  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"omega": 0.0}, "omega"),
+        ({"residual_tol": -1.0}, "residual_tol"),
+        ({"max_cycles": 0}, "max_cycles"),
+        ({"pre_smooth": 0}, "pre_smooth"),
+    ],
+)
+def test_multigrid_reconstruction_rejects_invalid_arguments(kwargs, match) -> None:
+    geometry = SolovevGeometry.from_aspect()
+    with pytest.raises(ValueError, match=match):
+        multigrid_reconstruction(geometry, 33, **kwargs)
+
+
 # ── Rust backend record ──────────────────────────────────────────────
 
 
@@ -119,8 +181,9 @@ def test_rust_backend_recorded_or_absent(result: GradShafranovValidationResult) 
     """The Rust record is present iff the extension is, and never spoofs a pass."""
     if result.rust_available:
         assert result.rust_record is not None
-        # The fixed-cycle Rust multigrid is not expected to meet the analytic gate.
-        assert result.rust_record.meets_analytic_tolerance is False
+        # With the matched -Δ*ψ sign convention the Rust multigrid reconstructs
+        # the analytic field and meets the gate.
+        assert result.rust_record.meets_analytic_tolerance is True
         assert result.rust_record.resolution == result.resolutions[-1]
     else:
         assert result.rust_record is None
@@ -189,7 +252,7 @@ def test_evidence_rejects_unknown_schema(result: GradShafranovValidationResult) 
 def test_evidence_rust_record_serialised_faithfully(result: GradShafranovValidationResult) -> None:
     evidence = build_evidence(result, target_id="test-target")
     if result.rust_available:
-        assert evidence["rust_record"]["meets_analytic_tolerance"] is False
+        assert evidence["rust_record"]["meets_analytic_tolerance"] is True
         assert evidence["rust_record"]["resolution"] == result.resolutions[-1]
     else:
         assert evidence["rust_record"] is None
