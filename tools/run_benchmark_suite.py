@@ -28,12 +28,16 @@ import hashlib
 import json
 import os
 import platform
-import resource
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any, Callable
+
+try:
+    import resource
+except ModuleNotFoundError:  # pragma: no cover - resource is Unix-only (absent on Windows).
+    resource = None  # type: ignore[assignment]
 
 try:
     import tomllib
@@ -82,7 +86,7 @@ def _affinity() -> list[int] | None:
 def _loadavg() -> list[float] | None:
     try:
         return list(os.getloadavg())
-    except OSError:
+    except (OSError, AttributeError):  # getloadavg is absent on Windows.
         return None
 
 
@@ -106,6 +110,8 @@ def _rust_release_profile() -> dict[str, Any]:
 
 
 def _peak_rss_mb() -> float:
+    if resource is None:  # pragma: no cover - Windows has no resource module.
+        return 0.0
     # ru_maxrss is kibibytes on Linux.
     return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
 

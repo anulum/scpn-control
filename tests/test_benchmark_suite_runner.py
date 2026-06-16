@@ -142,7 +142,8 @@ def test_loadavg_returns_none_on_oserror(monkeypatch: pytest.MonkeyPatch) -> Non
     def _raise() -> list[float]:
         raise OSError("no loadavg")
 
-    monkeypatch.setattr(rbs.os, "getloadavg", _raise)
+    # getloadavg is absent on Windows, so allow creating the attribute there.
+    monkeypatch.setattr(rbs.os, "getloadavg", _raise, raising=False)
     assert _loadavg() is None
 
 
