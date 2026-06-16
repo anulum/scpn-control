@@ -21,8 +21,9 @@
   },
   "evidence_class": "local_regression",
   "generated_utc": "2026-06-04T12:51:45Z",
-  "payload_sha256": "4e8013b256afe9e1917eaa29138417ab9f91f7b578ef26f7c24d4934e35aa7b1",
+  "payload_sha256": "462ae9832eca342eb052d72ef2265fabc66818edc3086cc661548c908888f982",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded soft-isolated Python pulsed-MPC adapter benchmark evidence only; not target-hardware, HIL, facility PCS, or production timing evidence",
   "pyo3_status": "optional PyO3 extension unavailable: No module named 'scpn_control_rs'",
   "results": {
     "python_burn_feasible": {

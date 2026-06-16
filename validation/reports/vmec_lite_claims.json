@@ -25,6 +25,7 @@
   "pressure_axis": 50000.0,
   "pressure_edge": 0.0,
   "production_claim_allowed": false,
+  "claim_boundary": "bounded VMEC-lite regression evidence only; full VMEC equivalence and facility stellarator prediction claims require matched reference artifacts and residual/tolerance admission",
   "profile_source": "repository pressure and rotational-transform fixture",
   "q_max": 1.1111111111111112,
   "q_min": 1.1111111111111112,

@@ -7,8 +7,9 @@
   },
   "evidence_class": "local_regression",
   "generated_unix_s": 1780577667,
-  "payload_sha256": "79469bca420a771a00daa013297ea7f5767160a75e4ed70d5e24352e8c16c4f7",
+  "payload_sha256": "a290ed72dcf15228e983de7c2576145fe578578983a5f72650cfe40ac5b99918",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded soft-isolated Rust pulsed-MPC adapter benchmark evidence only; not target-hardware, HIL, facility PCS, or production timing evidence",
   "results": {
     "rust_burn_feasible": {
       "last_value": {

@@ -161,8 +161,9 @@
     "src/scpn_control/scpn/formal_verification.py": "formal_local_regression",
     "src/scpn_control/scpn/fpga_export.py": "generated_hdl"
   },
-  "manifest_sha256": "2105d9e479998364b8a98f7e952790bb18c4ff891429f6451950c409ed410e93",
+  "manifest_sha256": "a21bfbecbfcb463704bce5d90e2451b9fede227420c0de1c516e84236b684dc7",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded aggregate tracker #53 gate; production deployment claims require qualified evidence for all child hardware and runtime surfaces",
   "require_production_claim": false,
   "schema_version": "scpn-control.tracker53-evidence-gate.v1",
   "status": "pass",

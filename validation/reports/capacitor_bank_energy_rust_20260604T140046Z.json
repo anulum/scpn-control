@@ -7,8 +7,9 @@
   },
   "evidence_class": "local_regression",
   "generated_unix_seconds": 1781393862,
-  "payload_sha256": "1be6520e55bd9c5b0406e4d761cff95acf162a021239c398876dfebca1cf2d8d",
+  "payload_sha256": "268dca98919bff0a2644155a20b2cfeab653a18cd55af7f90fa249f98db932e8",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded local Rust capacitor-bank energy benchmark evidence only; not target-hardware, HIL, facility interlock, or plant PCS timing evidence",
   "result": {
     "last_report": {
       "energy_balance_passed": true,
@@ -34,7 +35,7 @@
   "schema_version": "scpn-control.rust-capacitor-bank-energy-benchmark.v1",
   "settings": {
     "discharge_steps": 200,
-    "dt_s": 1e-7,
+    "dt_s": 1e-07,
     "steps": 500,
     "warmup": 50
   }

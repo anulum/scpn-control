@@ -21,8 +21,9 @@
   },
   "evidence_class": "local_regression",
   "generated_utc": "2026-06-04T13:11:05Z",
-  "payload_sha256": "671d84a2520f4c838430d97c403f8035b0fee7103752a1cdcd320686d6f071b9",
+  "payload_sha256": "6dbfa887557c577eb6c61513f02520a41c4fb14726c722f8ace9a1fd69d0041f",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded soft-isolated Python multi-shot campaign benchmark evidence only; not target-hardware, HIL, facility PCS, or production timing evidence",
   "result": {
     "last_passed_count": 2,
     "stats": {

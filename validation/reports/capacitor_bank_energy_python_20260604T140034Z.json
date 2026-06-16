@@ -28,8 +28,9 @@
   },
   "evidence_class": "local_regression",
   "generated_utc": "2026-06-13T23:37:44.282340+00:00",
-  "payload_sha256": "2a1fc89fe385ee7a12d1d7ff6b45261a3e2a1f67684257b33c5a96965f4e1633",
+  "payload_sha256": "c1beb9fd41be0fa10d7f37e5e371613c7d336691bae7697315abd6cd8be0a160",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded local capacitor-bank energy benchmark evidence only; not target-hardware, HIL, facility interlock, or plant PCS timing evidence",
   "result": {
     "last_report": {
       "energy_balance_passed": true,

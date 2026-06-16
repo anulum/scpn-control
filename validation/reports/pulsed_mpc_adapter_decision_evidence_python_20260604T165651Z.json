@@ -21,8 +21,9 @@
   },
   "evidence_class": "local_regression",
   "generated_utc": "2026-06-04T16:56:59Z",
-  "payload_sha256": "c74cea4cad7d204ebcd5f96cec5243421eb1aba168e73e9b4fc205cff95b2019",
+  "payload_sha256": "00b0ebbe27d51107d992aff0cbc2ac8c77e79effc16651608040ee489acc4582",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded local Python pulsed-MPC adapter decision benchmark evidence only; not target-hardware, HIL, facility PCS, or production timing evidence",
   "pyo3_status": "optional PyO3 extension is installed but was not rebuilt with pulsed decision evidence",
   "results": {
     "python_burn_feasible": {

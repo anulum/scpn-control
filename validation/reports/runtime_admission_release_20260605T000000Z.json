@@ -30,8 +30,9 @@
   ],
   "last_admission_status": "fail",
   "last_admission_warnings": [],
-  "payload_sha256": "155a2dad5db7dac83ce08ebd3cd5d193679a28d5c83d01c5ea7a086b7ae5254f",
+  "payload_sha256": "c9a2419dfa7f2715a2df4f56e59ec6fe6e2f00484322408867bcabba0a87c071",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded local runtime-admission benchmark only; production timing claims require qualified PREEMPT_RT or equivalent realtime-host evidence with isolated cores, scheduler, governor, and host-load admission",
   "schema_version": "scpn-control.runtime-admission-benchmark.v1",
   "stats": {
     "max_us": 275.081,

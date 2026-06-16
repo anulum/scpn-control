@@ -24,6 +24,7 @@
   "last_admission_status": "fail",
   "last_admission_warnings": [],
   "production_claim_allowed": false,
+  "claim_boundary": "bounded soft-isolated runtime-admission benchmark only; production timing claims require qualified PREEMPT_RT or equivalent realtime-host evidence with isolated cores, scheduler, governor, and host-load admission",
   "schema_version": "scpn-control.runtime-admission-benchmark.v1",
   "stats": {
     "max_us": 752.402,

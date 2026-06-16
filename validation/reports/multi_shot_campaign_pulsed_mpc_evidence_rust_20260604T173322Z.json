@@ -13,8 +13,9 @@
   },
   "evidence_class": "local_regression",
   "generated_unix_s": 1780595136,
-  "payload_sha256": "d86bc999f693b703e6d79852a3db0ae527c0e93d30d4b9dc9b4b39f0f39259f7",
+  "payload_sha256": "4e2c27aa68485aab7f026dffd785d70e194081db0b792bc28c819a3932e516a5",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded local Rust multi-shot campaign admission benchmark evidence only; not target-hardware, HIL, facility PCS, or production timing evidence",
   "result": {
     "last_passed_count": 2,
     "last_pulsed_mpc_admission_digest_count": 2,

@@ -21,8 +21,9 @@
   },
   "evidence_class": "local_regression",
   "generated_utc": "2026-06-04T17:10:22Z",
-  "payload_sha256": "dac7ab25a0d48d67906696851a37b550ca55876857dca0b37745262e4f0b0d9f",
+  "payload_sha256": "310997c479966cf36abc5871f8db6ee916fec60c7e7d98a771d126e7893669cd",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded local Python/PyO3 pulsed-MPC adapter decision benchmark evidence only; not target-hardware, HIL, facility PCS, or production timing evidence",
   "pyo3_status": "available",
   "results": {
     "pyo3_burn_infeasible_safe": {

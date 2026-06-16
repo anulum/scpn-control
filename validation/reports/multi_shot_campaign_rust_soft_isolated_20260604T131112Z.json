@@ -2,8 +2,9 @@
   "command": "scpn-control-rs/target/release/examples/bench_multi_shot_campaign --steps 2000 --warmup 200 --json-out validation/reports/multi_shot_campaign_rust_soft_isolated_20260604T131112Z.json --md-out validation/reports/multi_shot_campaign_rust_soft_isolated_20260604T131112Z.md",
   "evidence_class": "local_regression",
   "generated_unix_s": 1780578684,
-  "payload_sha256": "59c0dd6d41e3c32f3b9344abc835db09fc102df28c559a8260bcab12d5a88394",
+  "payload_sha256": "95d0a496c003bfc7545cf1b6ae2a7fbf2762b0c12c32da8f1608cdff0835c747",
   "production_claim_allowed": false,
+  "claim_boundary": "bounded soft-isolated Rust multi-shot campaign benchmark evidence only; not target-hardware, HIL, facility PCS, or production timing evidence",
   "result": {
     "last_passed_count": 2,
     "stats": {

@@ -5,6 +5,7 @@
   "iterations": 40,
   "onset_temperature_eV": 5000.0,
   "production_claim_allowed": false,
+  "claim_boundary": "bounded local MARFE onset regression evidence only; measured or documented public MARFE reference artefacts remain required before production density-limit claims",
   "public_claim_allowed": false,
   "schema_version": "scpn-control.marfe-onset-claims-benchmark.v1",
   "timing_us": {
