@@ -36,14 +36,16 @@ boundary, JAX-differentiable), a 1.5D Crank-Nicolson transport solver with
 multi-ion physics, a native linear gyrokinetic eigenvalue solver with
 electromagnetic extension, a native TGLF-equivalent quasilinear model
 (SAT0/SAT1/SAT2 saturation rules), a nonlinear $\delta f$ gyrokinetic
-solver in flux-tube geometry with JAX GPU acceleration (62$\times$ speedup),
-interfaces to five external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz),
-a hybrid surrogate+GK validation layer with out-of-distribution detection
+solver in flux-tube geometry with JAX GPU acceleration measured in a bounded
+local GPU benchmark (62$\times$ in that recorded context), interfaces to five
+external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) whose quantitative
+external-code claims remain blocked until real artefacts are admitted, a
+hybrid surrogate+GK validation layer with out-of-distribution detection
 and online retraining, ten controllers (PID, MPC, $H_\infty$, $\mu$-synthesis,
 NMPC, SNN, safe RL, sliding-mode, gain-scheduled, fault-tolerant),
 disruption prediction with SPI mitigation, and a
-companion Rust backend (5 crates, PyO3 bindings) achieving 11.9 µs median
-kernel latency.
+companion Rust backend (5 crates, PyO3 bindings) with a local Criterion
+benchmark reporting 11.9 µs median kernel latency for the measured kernel path.
 
 The nonlinear gyrokinetic solver implements the Cyclone Base Case
 configuration [@dimits2000], Rosenbluth-Hinton zonal-flow damping, kinetic
@@ -55,14 +57,14 @@ GENE growth rate. The manuscript therefore does not claim quantitative
 nonlinear CBC agreement until a longer, reverified convergence campaign is
 complete.
 
-The codebase comprises 130 Python source modules and 5 Rust crates with
-3,700+ collected Python tests, a 99% local package-coverage gate, and a
-20-job CI matrix.
+The codebase comprises a Python package and 5 Rust crates with broad Python
+module tests, a 93% local package-coverage gate, and a multi-workflow CI
+matrix.
 
 # Statement of Need
 
-Real-time plasma control in magnetic confinement fusion requires
-sub-millisecond decision latencies, validated transport physics, and robust
+Real-time plasma control in magnetic confinement fusion requires low-latency
+decision paths, bounded and traceable transport-physics evidence, and robust
 safety guarantees. Existing open-source tools address subsets of this problem:
 TORAX [@torax2024] provides JAX-differentiable transport with TGLF coupling,
 TCV-RL [@degrave2022] applies deep RL to tokamak control, FreeGS [@freegs]
@@ -83,7 +85,9 @@ in one coherent stack.
    boundary conditions, Rosenbluth-Hinton zonal flow physics
    [@rosenbluth1998], Sugama collision operator [@sugama2006], and optional
    kinetic electrons via semi-implicit backward-Euler treatment.
-   JAX GPU acceleration delivers 62$\times$ speedup on commodity hardware.
+   JAX GPU acceleration is reported as a bounded local benchmark result
+   (62$\times$ in the recorded GPU context), not as a facility or production
+   timing claim.
 
 2. **Cyclone Base Case validation harness** — the repository includes CBC
    scenarios, grid scans, kinetic-electron lanes, and published-code interface
@@ -108,7 +112,7 @@ in one coherent stack.
 
 # Implementation
 
-The Python package (125 modules) is organised into four layers:
+The Python package is organised into four layers:
 
 - **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration
   with multigrid or SOR), 1.5D Crank-Nicolson transport, GEQDSK/IMAS I/O,
@@ -128,7 +132,8 @@ The Python package (125 modules) is organised into four layers:
       [@rosenbluth1998], Sugama collision operator [@sugama2006] with
       particle/momentum/energy conservation, optional kinetic electrons
       (semi-implicit backward-Euler for electron parallel streaming),
-      RK4 with CFL-adaptive dt, JAX-accelerated variant (62$\times$ on GPU).
+      RK4 with CFL-adaptive dt, JAX-accelerated variant with the recorded
+      bounded local GPU speedup described above.
     - *External GK*: TGLF [@staebler2007], GENE [@jenko2000], GS2
       [@kotschenreuther1995], CGYRO [@candy2003], QuaLiKiz [@bourdelle2007]
       via subprocess with automatic input deck generation and output parsing.
@@ -148,8 +153,9 @@ The Python package (125 modules) is organised into four layers:
   ITER CODAC/EPICS interface, federated disruption prediction.
 
 The Rust backend (`scpn-control-rs`, 5 crates, ndarray 0.16, rand 0.9)
-provides PyO3 bindings for performance-critical paths, achieving a median
-kernel latency of 11.9 µs (Criterion-verified).
+provides PyO3 bindings for performance-critical paths. Its local Criterion
+benchmark reports a median kernel latency of 11.9 µs for the measured kernel
+path; production runtime claims remain subject to runtime-admission evidence.
 
 # Validation
 
@@ -177,18 +183,17 @@ The solver is validated against:
   part of the CBC revalidation target.
 - **SPARC/ITER equilibria**: RMSE-gated against CFS SPARCPublic GEQDSK files
   and ITER design parameters.
-- **DIII-D disruption shots**: 17 synthetic shots covering H-mode, VDE,
+- **DIII-D disruption shots**: 17 synthetic fixture shots covering H-mode, VDE,
   beta-limit, locked-mode, density-limit, tearing, and snowflake
   configurations.
 - **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
-The test suite comprises 3,700+ collected Python tests and Rust workspace
-tests across 20 CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust
-stable, JAX parity, CodeQL security analysis, OpenSSF Scorecard). The local
-coverage configuration enforces a 99% package-coverage gate; the GitHub
-coverage upload lane currently uses an 85% fail-under while publishing XML
-coverage to Codecov. The project holds an OpenSSF CII Best Practices badge.
+The test suite comprises Python module tests and Rust workspace tests across
+CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity,
+CodeQL security analysis, OpenSSF Scorecard). The local and CI coverage
+configuration currently enforces a 93% package-coverage gate while publishing
+XML coverage artefacts. The project holds an OpenSSF CII Best Practices badge.
 All physics equations cite their source papers; ~80 citations spanning
 Porcelli (1996), Sauter (1999), Rosenbluth-Putvinski (1997), Stix (1972),
 Bosch-Hale (1992), Doyle (1989), Rawlings (2017), Stangeby (2000),

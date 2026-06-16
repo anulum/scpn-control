@@ -33,13 +33,15 @@ boundary, JAX-differentiable), a 1.5D Crank-Nicolson transport solver with
 multi-ion physics, a native linear gyrokinetic eigenvalue solver with
 electromagnetic extension, a native TGLF-like quasilinear approximation
 (SAT0/SAT1/SAT2 saturation rules), a nonlinear $\delta f$ gyrokinetic
-solver in flux-tube geometry with JAX GPU acceleration, interfaces to five
-external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz), a hybrid
-surrogate+GK validation layer with out-of-distribution detection and online
-retraining, ten controllers (PID, MPC, $H_\infty$, $\mu$-synthesis, NMPC,
-SNN, safe RL, sliding-mode, gain-scheduled, fault-tolerant), disruption
-prediction with SPI mitigation, and a companion Rust backend (5 crates,
-PyO3 bindings) achieving 11.9 µs median kernel latency.
+solver in flux-tube geometry with JAX GPU acceleration measured in a bounded
+local GPU benchmark, interfaces to five external GK codes (TGLF, GENE, GS2,
+CGYRO, QuaLiKiz) whose quantitative external-code claims remain blocked until
+real artefacts are admitted, a hybrid surrogate+GK validation layer with
+out-of-distribution detection and online retraining, ten controllers (PID,
+MPC, $H_\infty$, $\mu$-synthesis, NMPC, SNN, safe RL, sliding-mode,
+gain-scheduled, fault-tolerant), disruption prediction with SPI mitigation,
+and a companion Rust backend (5 crates, PyO3 bindings) with a local Criterion
+benchmark reporting 11.9 µs median kernel latency for the measured kernel path.
 
 The nonlinear gyrokinetic solver implements the Cyclone Base Case
 configuration, Rosenbluth-Hinton zonal-flow damping, kinetic electrons, and
@@ -48,14 +50,14 @@ heat-flux normalisation is treated as an open validation target: the latest
 2000-step adiabatic run had not reached saturated $\chi_i$, and the linear
 local-dispersion path overpredicts the published GENE growth rate.
 
-The codebase comprises 134 Python source modules and 5 Rust crates
-(ndarray 0.16, rand 0.9, PyO3 0.25) with broad Python and Rust test coverage,
-a 93% local package-coverage gate, and a multi-workflow CI matrix.
+The codebase comprises a Python package and 5 Rust crates (ndarray 0.16,
+rand 0.9, PyO3 0.25) with broad Python and Rust test coverage, a 93% local
+package-coverage gate, and a multi-workflow CI matrix.
 
 ## Statement of Need
 
-Real-time plasma control in magnetic confinement fusion requires
-sub-millisecond decision latencies, validated transport physics, and robust
+Real-time plasma control in magnetic confinement fusion requires low-latency
+decision paths, bounded and traceable transport-physics evidence, and robust
 safety guarantees. Existing open-source tools address subsets of this problem:
 TORAX [@torax2024] provides JAX-differentiable transport with TGLF coupling,
 TCV-RL [@degrave2022] applies deep RL to tokamak control, FreeGS [@freegs]
@@ -72,9 +74,10 @@ surrogate validation), and multi-layer phase dynamics in one coherent stack.
    in ballooning space (Miller geometry, Sugama collision operator)
    [@dimits2000; @miller1998; @sugama2006], native TGLF-like approximation
    (SAT0/SAT1/SAT2, no Fortran binary), and nonlinear δf GK (5D Vlasov,
-   JAX-accelerable). Interfaces to five external GK codes via subprocess,
-   plus a hybrid layer that validates the surrogate against GK spot-checks
-   with OOD detection, correction, and online retraining.
+   JAX-accelerable). Interfaces to five external GK codes via subprocess are
+   present, but quantitative external-code claims remain blocked until real
+   artefacts are admitted; the hybrid layer validates the surrogate against
+   GK spot-checks with OOD detection, correction, and online retraining.
 
 2. **SPN-to-SNN compilation** — translates control graphs into leaky
    integrate-and-fire neuron pools with stochastic bitstream encoding
@@ -89,7 +92,7 @@ surrogate validation), and multi-layer phase dynamics in one coherent stack.
 
 ## Implementation
 
-The Python package (129 non-init modules) is organised into four layers:
+The Python package is organised into four layers:
 
 - **Core** (`scpn_control.core`): Grad-Shafranov solver (Picard iteration
   with multigrid or SOR), 1.5D Crank-Nicolson transport, GEQDSK/IMAS I/O,
@@ -143,9 +146,10 @@ The Python package (129 non-init modules) is organised into four layers:
   flight simulator, Gymnasium environment, JAX-traceable runtime.
 
 The Rust backend (`scpn-control-rs`, 5 crates, ndarray 0.16, rand 0.9)
-provides PyO3 bindings for performance-critical paths, achieving a median
-kernel latency of 11.9 µs (Criterion-verified). The workspace passes 317
-Rust tests with zero clippy warnings.
+provides PyO3 bindings for performance-critical paths. Its local Criterion
+benchmark reports a median kernel latency of 11.9 µs for the measured kernel
+path; production runtime claims remain subject to runtime-admission evidence.
+The workspace includes Rust test and clippy coverage.
 
 A JAX-accelerated GK backend (`jax_gk_solver.py`) batches eigenvalue solves
 across the $k_y$ grid via `jax.vmap` and computes transport stiffness
