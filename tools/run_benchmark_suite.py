@@ -32,9 +32,13 @@ import resource
 import subprocess
 import sys
 import time
-import tomllib
 from pathlib import Path
 from typing import Any, Callable
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI.
+    import tomli as tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_CARGO = REPO_ROOT / "scpn-control-rs" / "Cargo.toml"
