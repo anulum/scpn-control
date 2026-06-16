@@ -84,4 +84,6 @@ def test_tracker53_cli_reports_fail_closed_production_requirement(capsys) -> Non
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "fail"
     assert payload["production_claim_allowed"] is False
-    assert any("production tracker #53 claim requires qualified hardware evidence" in error for error in payload["errors"])
+    assert any(
+        "production tracker #53 claim requires qualified hardware evidence" in error for error in payload["errors"]
+    )

@@ -7,6 +7,46 @@
   "contact": "www.anulum.li | protoscience@anulum.li",
   "file": "SCPN Control - GK Species and Collision Reference Cases",
   "schema_version": "1.0",
+  "operator_checks": {
+    "bessel_j0": [
+      {
+        "argument": 0.0,
+        "expected": 1.0
+      },
+      {
+        "argument": 0.5,
+        "expected": 0.938469807240813
+      },
+      {
+        "argument": 1.25,
+        "expected": 0.6459060852712852
+      },
+      {
+        "argument": 2.4048,
+        "expected": 0.00001326828430112823
+      }
+    ],
+    "velocity_grid": {
+      "n_energy": 4,
+      "n_lambda": 5,
+      "energy_weight_sum": 6.0,
+      "lambda_weight_sum": 1.0,
+      "energy_min": 0.4165910652178423,
+      "energy_max": 5.583408934782158
+    },
+    "pitch_angle_operator": {
+      "lambda_grid": [
+        0.05,
+        0.2,
+        0.4,
+        0.65,
+        0.9
+      ],
+      "B_ratio": 1.0,
+      "constant_nullspace_max_abs": 0.0,
+      "tridiagonal_nonzero_entries": 9
+    }
+  },
   "cases": [
     {
       "case": "deuterium_cbc_main_ion",
@@ -25,12 +65,18 @@
         "Z_eff": 1.0,
         "ln_lambda": 17.0
       },
+      "drive": {
+        "k_y_rho_s": 0.3
+      },
       "expected": {
         "mass_kg": 3.34524384738e-27,
         "thermal_speed_m_per_s": 437694.71452014666,
         "larmor_radius_per_tesla_m": 0.009138789816973865,
         "nu_D_s^-1": 227.88593079004036,
-        "nu_E_s^-1": 0.1240429917424071
+        "nu_E_s^-1": 0.1240429917424071,
+        "omega_star_density": -0.66,
+        "omega_star_temperature": -2.07,
+        "omega_star_pressure": -2.73
       }
     },
     {
@@ -50,12 +96,18 @@
         "Z_eff": 1.0,
         "ln_lambda": 17.0
       },
+      "drive": {
+        "k_y_rho_s": 0.3
+      },
       "expected": {
         "mass_kg": 9.1093837015e-31,
         "thermal_speed_m_per_s": 26524102.328049958,
         "larmor_radius_per_tesla_m": 0.0001508062346664185,
         "nu_D_s^-1": 13809.784644131727,
-        "nu_E_s^-1": 6904.8923220658635
+        "nu_E_s^-1": 6904.8923220658635,
+        "omega_star_density": 0.66,
+        "omega_star_temperature": 2.07,
+        "omega_star_pressure": 2.73
       }
     },
     {
@@ -75,12 +127,18 @@
         "Z_eff": 2.5,
         "ln_lambda": 15.0
       },
+      "drive": {
+        "k_y_rho_s": 0.45
+      },
       "expected": {
         "mass_kg": 2.0071463084280003e-26,
         "thermal_speed_m_per_s": 63175.79031277077,
         "larmor_radius_per_tesla_m": 0.0013190706902243181,
         "nu_D_s^-1": 9629066.796314036,
-        "nu_E_s^-1": 977.101649380879
+        "nu_E_s^-1": 977.101649380879,
+        "omega_star_density": -0.675,
+        "omega_star_temperature": -1.8,
+        "omega_star_pressure": -2.475
       }
     },
     {
@@ -100,12 +158,18 @@
         "Z_eff": 1.0,
         "ln_lambda": 18.0
       },
+      "drive": {
+        "k_y_rho_s": 0.2
+      },
       "expected": {
         "mass_kg": 3.34524384738e-27,
         "thermal_speed_m_per_s": 2768224.4354016725,
         "larmor_radius_per_tesla_m": 0.05779878175838146,
         "nu_D_s^-1": 0.19075727329518236,
-        "nu_E_s^-1": 0.00010383310103491715
+        "nu_E_s^-1": 0.00010383310103491715,
+        "omega_star_density": -0.1,
+        "omega_star_temperature": -0.6000000000000001,
+        "omega_star_pressure": -0.7000000000000001
       }
     }
   ]

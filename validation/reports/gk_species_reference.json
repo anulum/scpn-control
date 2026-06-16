@@ -13,16 +13,22 @@
         "mass_kg": 3.34524384738e-27,
         "nu_D_s^-1": 227.88593079004036,
         "nu_E_s^-1": 0.1240429917424071,
+        "omega_star_density": -0.66,
+        "omega_star_pressure": -2.73,
+        "omega_star_temperature": -2.07,
         "thermal_speed_m_per_s": 437694.71452014666
       },
       "case": "deuterium_cbc_main_ion",
-      "case_sha256": "67442eae9d2366a0cfd7252b0db5e2451cfd36ffe6a11ed216b2b50eb49a7542",
+      "case_sha256": "fce150576a3cc1741b2e55b29b824d71bf4c2ae762e06ce859846b593ed2c72e",
       "max_relative_error": 0.0,
       "units": {
         "larmor_radius_per_tesla_m": "m/T",
         "mass_kg": "kg",
         "nu_D_s^-1": "s^-1",
         "nu_E_s^-1": "s^-1",
+        "omega_star_density": "dimensionless",
+        "omega_star_pressure": "dimensionless",
+        "omega_star_temperature": "dimensionless",
         "thermal_speed_m_per_s": "m/s"
       }
     },
@@ -32,16 +38,22 @@
         "mass_kg": 9.1093837015e-31,
         "nu_D_s^-1": 13809.784644131727,
         "nu_E_s^-1": 6904.8923220658635,
+        "omega_star_density": 0.66,
+        "omega_star_pressure": 2.73,
+        "omega_star_temperature": 2.07,
         "thermal_speed_m_per_s": 26524102.328049958
       },
       "case": "kinetic_electron_cbc",
-      "case_sha256": "6e699b1fb5a808b7007ed7d346be6d103207242529a5804afa4116cf8c95dfc2",
+      "case_sha256": "6a312736933b09f8ae565797d55ce4a195eb880356f233e02557231059e80f33",
       "max_relative_error": 0.0,
       "units": {
         "larmor_radius_per_tesla_m": "m/T",
         "mass_kg": "kg",
         "nu_D_s^-1": "s^-1",
         "nu_E_s^-1": "s^-1",
+        "omega_star_density": "dimensionless",
+        "omega_star_pressure": "dimensionless",
+        "omega_star_temperature": "dimensionless",
         "thermal_speed_m_per_s": "m/s"
       }
     },
@@ -51,16 +63,22 @@
         "mass_kg": 2.0071463084280003e-26,
         "nu_D_s^-1": 9629066.796314036,
         "nu_E_s^-1": 977.101649380879,
+        "omega_star_density": -0.675,
+        "omega_star_pressure": -2.475,
+        "omega_star_temperature": -1.8,
         "thermal_speed_m_per_s": 63175.79031277077
       },
       "case": "carbon_impurity_edge",
-      "case_sha256": "f0fd89c8b1a5ee36dd2fc460e85bb6a30132ff7b1fc3861ed1151a4b87c95e6f",
+      "case_sha256": "e099ca4c1f0b01ade54372f73ee738a0e9008455621a92a5d8ecc49ffa2b973a",
       "max_relative_error": 0.0,
       "units": {
         "larmor_radius_per_tesla_m": "m/T",
         "mass_kg": "kg",
         "nu_D_s^-1": "s^-1",
         "nu_E_s^-1": "s^-1",
+        "omega_star_density": "dimensionless",
+        "omega_star_pressure": "dimensionless",
+        "omega_star_temperature": "dimensionless",
         "thermal_speed_m_per_s": "m/s"
       }
     },
@@ -70,26 +88,73 @@
         "mass_kg": 3.34524384738e-27,
         "nu_D_s^-1": 0.19075727329518236,
         "nu_E_s^-1": 0.00010383310103491715,
+        "omega_star_density": -0.1,
+        "omega_star_pressure": -0.7000000000000001,
+        "omega_star_temperature": -0.6000000000000001,
         "thermal_speed_m_per_s": 2768224.4354016725
       },
       "case": "hot_deuterium_extreme_temperature",
-      "case_sha256": "c6fdb3030cb54a883d2024c4a17b8e8f007197c0121efae9d4650263c949d76b",
+      "case_sha256": "f6c6cb3943183cee8c7fe0abe653b22240d94b2c3f85b52fa92c814ce6c62665",
       "max_relative_error": 0.0,
       "units": {
         "larmor_radius_per_tesla_m": "m/T",
         "mass_kg": "kg",
         "nu_D_s^-1": "s^-1",
         "nu_E_s^-1": "s^-1",
+        "omega_star_density": "dimensionless",
+        "omega_star_pressure": "dimensionless",
+        "omega_star_temperature": "dimensionless",
         "thermal_speed_m_per_s": "m/s"
       }
     }
   ],
   "errors": [],
   "full_fidelity_claim_admitted": false,
-  "payload_sha256": "e175aaf5c475dd2b6ff144b67b8d83bac9fe9b0ff6c2b8cb4c366525e4c79173",
+  "operator_checks": {
+    "bessel_j0": [
+      {
+        "actual": 1.0,
+        "argument": 0.0,
+        "relative_error": 0.0
+      },
+      {
+        "actual": 0.938469807240813,
+        "argument": 0.5,
+        "relative_error": 0.0
+      },
+      {
+        "actual": 0.6459060852712852,
+        "argument": 1.25,
+        "relative_error": 0.0
+      },
+      {
+        "actual": 1.326828430112823e-05,
+        "argument": 2.4048,
+        "relative_error": 0.0
+      }
+    ],
+    "pitch_angle_operator": {
+      "B_ratio": 1.0,
+      "constant_nullspace_max_abs": 0.0,
+      "n_lambda": 5,
+      "tridiagonal_nonzero_entries": 9
+    },
+    "velocity_grid": {
+      "actual": {
+        "energy_max": 5.583408934782158,
+        "energy_min": 0.4165910652178423,
+        "energy_weight_sum": 6.0,
+        "lambda_weight_sum": 1.0
+      },
+      "max_relative_error": 0.0,
+      "n_energy": 4,
+      "n_lambda": 5
+    }
+  },
+  "payload_sha256": "4b62d3b490c2671866c9c1931e7e890435c6fc8f76bd706ecf11f242ef6dfb0f",
   "reference_path": "<repo-root>/validation/reference_data/gk_species/species_collision_reference_cases.json",
-  "reference_sha256": "3441484ea9a006daac9299587d421b4a86657a6e988d862785b07d0ef0be8a7f",
-  "schema_version": "scpn-control.gk-species-reference.v2",
+  "reference_sha256": "97798b1731e504c11ad6081783f1b1a8ec680fefeb453ae749d6d4bf86e3cd29",
+  "schema_version": "scpn-control.gk-species-reference.v3",
   "status": "pass",
   "tolerances": {
     "absolute": 1e-12,

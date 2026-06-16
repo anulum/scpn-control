@@ -15,7 +15,6 @@ from pathlib import Path
 from validation import validate_gk_species_reference as gk_species_ref
 from validation.validate_gk_species_reference import validate_gk_species_reference
 
-
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_CASES = ROOT / "validation" / "reference_data" / "gk_species" / "species_collision_reference_cases.json"
 
@@ -34,6 +33,10 @@ def test_repository_species_reference_cases_pass() -> None:
 
     assert report["status"] == "pass"
     assert report["schema_version"] == gk_species_ref.REPORT_SCHEMA_VERSION
+    assert (
+        report["reference_path"]
+        == "<repo-root>/validation/reference_data/gk_species/species_collision_reference_cases.json"
+    )
     assert report["cases"] == 4
     assert report["bounded_operator_reference_admitted"] is True
     assert report["full_fidelity_claim_admitted"] is False
@@ -50,6 +53,11 @@ def test_repository_species_reference_cases_pass() -> None:
     }
     assert all(len(entry["case_sha256"]) == 64 for entry in report["entries"])
     assert all(set(entry["units"]) == set(gk_species_ref.EXPECTED_UNITS) for entry in report["entries"])
+    assert report["operator_checks"]["bessel_j0"][1]["actual"] == 0.938469807240813
+    assert report["operator_checks"]["velocity_grid"]["actual"]["energy_weight_sum"] == 6.0
+    assert report["operator_checks"]["velocity_grid"]["actual"]["lambda_weight_sum"] == 1.0
+    assert report["operator_checks"]["pitch_angle_operator"]["constant_nullspace_max_abs"] == 0.0
+    assert report["operator_checks"]["pitch_angle_operator"]["tridiagonal_nonzero_entries"] == 9
 
 
 def test_species_reference_gate_rejects_missing_required_case(tmp_path: Path) -> None:
@@ -87,6 +95,59 @@ def test_species_reference_gate_rejects_collision_drift(tmp_path: Path) -> None:
 
     assert report["status"] == "fail"
     assert report["errors"][0]["field"] == "nu_D_s^-1"
+
+
+def test_species_reference_gate_rejects_diamagnetic_drive_drift(tmp_path: Path) -> None:
+    payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
+    payload["cases"][1]["expected"]["omega_star_pressure"] *= -1.0
+    path = tmp_path / "species_collision_reference_cases.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_species_reference(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "omega_star_pressure" for error in report["errors"])
+
+
+def test_species_reference_gate_rejects_bessel_drift(tmp_path: Path) -> None:
+    payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
+    payload["operator_checks"]["bessel_j0"][2]["expected"] = 0.5
+    path = tmp_path / "species_collision_reference_cases.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_species_reference(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "operator_checks.bessel_j0" for error in report["errors"])
+
+
+def test_species_reference_gate_rejects_velocity_grid_drift(tmp_path: Path) -> None:
+    payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
+    payload["operator_checks"]["velocity_grid"]["lambda_weight_sum"] = 0.75
+    path = tmp_path / "species_collision_reference_cases.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_species_reference(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "operator_checks.velocity_grid.lambda_weight_sum" for error in report["errors"])
+
+
+def test_species_reference_gate_rejects_pitch_angle_operator_drift(
+    tmp_path: Path,
+) -> None:
+    payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
+    payload["operator_checks"]["pitch_angle_operator"]["tridiagonal_nonzero_entries"] = 7
+    path = tmp_path / "species_collision_reference_cases.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_species_reference(path)
+
+    assert report["status"] == "fail"
+    assert any(
+        error["field"] == "operator_checks.pitch_angle_operator.tridiagonal_nonzero_entries"
+        for error in report["errors"]
+    )
 
 
 def test_species_reference_report_digest_rejects_tampering() -> None:

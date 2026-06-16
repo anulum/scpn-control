@@ -73,13 +73,15 @@ def test_generated_traceability_cli_reports_missing_registry_path(tmp_path: Path
     assert f"{missing_registry} is missing" in capsys.readouterr().err
 
 
-def test_generated_traceability_check_detects_missing_tracker_line(tmp_path: Path) -> None:
+def test_generated_traceability_check_detects_missing_tracker_line(
+    tmp_path: Path,
+) -> None:
     registry = ROOT / "validation" / "physics_traceability.json"
     current_report = expected_traceability_markdown(registry)
-    drifted_report = current_report.replace(
-        "- External gyrokinetic validation artefacts: [#47](https://github.com/anulum/scpn-control/issues/47) — 9 open claim(s) — TGLF, GENE, GS2, CGYRO, QuaLiKiz, nonlinear CBC, Miller geometry, species, JAX parity, OOD, and online-learning artefacts.\n",
-        "",
+    tracker_line = next(
+        line for line in current_report.splitlines() if line.startswith("- External gyrokinetic validation artefacts:")
     )
+    drifted_report = current_report.replace(f"{tracker_line}\n", "")
     report_path = tmp_path / "physics_traceability.md"
     report_path.write_text(drifted_report, encoding="utf-8")
 

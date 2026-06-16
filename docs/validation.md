@@ -917,7 +917,9 @@ claim; independent Miller-geometry implementation evidence or external
 equilibrium-code evidence remains required.
 
 Gyrokinetic species validation compares mass, charge, thermal speed,
-Larmor-radius normalisation, and collision-frequency coefficients against
+Larmor-radius normalisation, gyroaverage Bessel values, diamagnetic-drive
+signs, velocity-grid quadrature normalisation, pitch-angle operator sparsity
+and nullspace behaviour, and collision-frequency coefficients against
 immutable electron, main-ion, impurity, and extreme-temperature reference cases:
 
 ```bash
@@ -925,14 +927,15 @@ scpn-control validate-gk-species-reference --json-out
 python validation/validate_gk_species_reference.py --output-json artifacts/gk_species_reference_report.json
 ```
 
-The strict report uses the `scpn-control.gk-species-reference.v2` schema,
+The strict report uses the `scpn-control.gk-species-reference.v3` schema,
 records the immutable reference-file SHA-256, per-case digests, SI units,
 absolute and relative tolerances, and the canonical payload SHA-256. Current
 local evidence in `validation/reports/gk_species_reference.json` admits the
-bounded species and test-particle collision-coefficient reference with four
-cases and zero relative drift. It does not admit a full collision-operator
-claim; field-particle momentum-conservation evidence and an external
-Fokker-Planck or equivalent reference remain required.
+bounded species, gyroaverage, diamagnetic-drive, velocity-grid,
+pitch-angle-operator, and test-particle collision-coefficient reference with
+four species cases and zero relative drift. It does not admit a full
+collision-operator claim; field-particle momentum-conservation evidence and an
+external Fokker-Planck or equivalent reference remain required.
 
 JAX GK parity claims require persisted native-vs-JAX parity artifacts with
 backend metadata, dtype, X64 setting, device kind, and pinned tolerances:
