@@ -382,7 +382,9 @@
         "validation/convert_mast_efm_neural_equilibrium_reference.py",
         "tests/test_mast_efm_neural_equilibrium_reference.py",
         "validation/evaluate_mast_efm_neural_equilibrium.py",
-        "tests/test_mast_efm_neural_equilibrium_evaluation.py"
+        "tests/test_mast_efm_neural_equilibrium_evaluation.py",
+        "validation/reports/mast_efm_neural_equilibrium_training_launch.json",
+        "validation/reports/mast_efm_neural_equilibrium_training_launch.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/neural_equilibrium.py"
@@ -1056,6 +1058,10 @@
         "validation/reports/transport_diffusion.json",
         "validation/reports/transport_diffusion.md",
         "tests/test_transport_diffusion_validation.py",
+        "validation/code_to_code_benchmark.py",
+        "validation/reports/code_to_code_benchmark.json",
+        "validation/reports/code_to_code_benchmark.md",
+        "tests/test_code_to_code_benchmark.py",
         "docs/physics_methods.md",
         "docs/validation.md"
       ],
