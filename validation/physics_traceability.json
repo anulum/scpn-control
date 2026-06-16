@@ -1670,7 +1670,7 @@
     {
       "component": "disruption sequence phase-ordering contract",
       "equation_contract": "Disruption-sequence claims must declare phase ordering, finite positive configuration domains, Rechester-Rosenbluth thermal-quench transport, post-quench radiative-cooling exposure, current-quench timing, mitigation action coupling, runaway-electron beam phase, stochastic event boundaries, halo-force convention, and replay provenance.",
-      "fidelity_status": "validation_gap",
+      "fidelity_status": "bounded_model",
       "model_references": [
         "ITER disruption mitigation sequence references",
         "repository disruption phase-state contract"
@@ -1684,17 +1684,31 @@
       "unit_contract": "Time in seconds or milliseconds with explicit convention, current in amperes or mega-amperes, energy in joules or megajoules, magnetic field in tesla, geometry in metres, density in 10^20 m^-3, and dimensionless phase labels.",
       "validation_evidence": [
         "tests/test_disruption_sequence.py post-quench cooling, phase ordering, current quench, runaway, and halo-force checks",
-        "tests/test_disruption_safe_api.py"
+        "tests/test_disruption_safe_api.py",
+        "validation/validate_disruption_sequence.py validates the bounded phase-ordering, total-duration, wall-heat-load, current-trace, halo-force, post-TQ temperature, and SPI mitigation-branch contracts against exact repository-owned identities, with tamper-evident sealed evidence",
+        "tests/test_disruption_sequence_validation.py exact phase-order, current-trace, mitigation-branch, CLI, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_disruption_sequence.py",
         "tests/test_disruption_safe_api.py",
-        "src/scpn_control/core/disruption_sequence.py"
+        "src/scpn_control/core/disruption_sequence.py",
+        "validation/validate_disruption_sequence.py",
+        "validation/reports/disruption_sequence.json",
+        "validation/reports/disruption_sequence.md",
+        "tests/test_disruption_sequence_validation.py",
+        "docs/physics_methods.md",
+        "docs/validation.md"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/disruption_sequence.py"
       ],
-      "validity_domain": "Sequence-state and mitigation-branch regression; not measured-shot disruption forecasting.",
+      "evidence": [
+        "validation/validate_disruption_sequence.py schema-versioned digest-bound phase-ordering, duration, heat-load, current-trace, halo-force, temperature, and SPI-branch validator",
+        "validation/reports/disruption_sequence.json sealed bounded disruption-sequence evidence with production_claim_allowed=false",
+        "validation/reports/disruption_sequence.md human-readable disruption-sequence validation summary",
+        "tests/test_disruption_sequence_validation.py exact-identity, mitigation-branch, CLI, and tamper checks"
+      ],
+      "validity_domain": "Bounded disruption phase-ordering and mitigation-branch regression with sealed local evidence for duration composition, wall-heat composition, monotone current quench, halo-force convention, post-TQ temperature bounds, and SPI density-branch response; not measured-shot disruption forecasting or facility mitigation validation unless labelled disruption-window artefacts pass the strict admission gate.",
       "external_validation_tracker_issue": 52
     },
     {

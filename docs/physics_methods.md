@@ -264,6 +264,28 @@ $$\left(\frac{j_{\rm edge}}{j_{\rm crit}}\right)^2 +
   `tests/test_elm_peeling_ballooning_validation.py`. Facility ELM/RMP claims
   still require measured H-mode campaign data or published ELM cases.
 
+### Disruption Sequence Phase Ordering
+Bounded disruption replay through thermal quench, current quench, runaway-beam
+evolution, and halo-current loading with explicit mitigation-branch separation.
+
+$$t_{\rm total} = \tau_{\rm TQ} + \tau_{\rm CQ}, \qquad
+  q_{\rm wall,total} = q_{\rm TQ} + q_{\rm RE}, \qquad
+  F_{\rm vessel} = F_{z,\rm halo}$$
+
+- **Source**: ITER disruption mitigation sequence references and repository
+  disruption phase-state contract.
+- **Implementation**: `src/scpn_control/core/disruption_sequence.py:286`.
+- **Validation**: `validation/validate_disruption_sequence.py` checks the
+  production sequence against repository-owned exact identities: total-duration
+  composition, wall-heat composition, monotone current-quench trace, initial
+  current preservation, halo-force convention, post-TQ temperature bounds, and
+  the SPI density-branch response. The generated
+  `validation/reports/disruption_sequence.json` payload is sealed by SHA-256 and
+  keeps `production_claim_allowed=false`. Facility disruption-sequence claims
+  still require labelled measured disruption windows, shot identifiers, phase
+  labels, wall-contact geometry, impurity/radiation metadata, and mitigation
+  branch timing evidence.
+
 ### Halo-Current L/R Circuit
 Post-disruption halo current driven through the wall by the decaying plasma
 current during a current quench, modelled as a Fitzpatrick-style L/R circuit

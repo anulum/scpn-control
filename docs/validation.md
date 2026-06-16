@@ -675,6 +675,26 @@ tracks `M |dI_p/dt| / R_h` with an error that decreases monotonically as
 `tau_h/tau_cq -> 0`. This validates the halo-circuit physics; facility
 disruption-mitigation claims still require measured disruption-campaign data.
 
+Disruption-sequence phase-ordering evidence can be regenerated with:
+
+```bash
+python -m validation.validate_disruption_sequence \
+  --output-json validation/reports/disruption_sequence.json \
+  --output-md validation/reports/disruption_sequence.md
+```
+
+The produced JSON uses `scpn-control.disruption-sequence-validation.v1` and
+binds its own payload by SHA-256. It checks the bounded production sequence
+against exact repository-owned identities: total duration equals thermal-quench
+plus current-quench duration, wall heat load equals thermal-quench deposition
+plus runaway termination load, the current trace starts at the configured plasma
+current and decays monotonically, the vessel force is the vertical halo force,
+the post-TQ temperature remains below the pre-TQ state, and the SPI density
+branch changes the current-quench phase without pretending to validate measured
+disruption windows. The payload keeps `production_claim_allowed=false`; facility
+claims still require labelled disruption-window and mitigation-campaign
+artifacts through the strict reference gate.
+
 Volt-second flux-budget evidence against exact closed forms can be regenerated
 with:
 

@@ -1,0 +1,57 @@
+{
+  "claim_boundary": "Bounded local disruption-sequence validation only; measured labelled disruption windows and mitigation campaign artefacts remain required for facility claims.",
+  "config": {
+    "B0": 5.3,
+    "Ip_MA": 15.0,
+    "R0": 6.2,
+    "Te_pre_keV": 20.0,
+    "W_th_MJ": 350.0,
+    "a": 2.0,
+    "dBr_over_B_trigger": 0.003,
+    "kappa": 1.7,
+    "ne_pre_20": 1.0
+  },
+  "current_trace_passed": true,
+  "exact_tol": 1e-12,
+  "generated_utc": "2026-06-16T10:07:16Z",
+  "halo": {
+    "halo_limit_product": 0.24038607681005947,
+    "passed": true,
+    "sideways_force_rel_error": 0.0,
+    "vessel_force_rel_error": 0.0
+  },
+  "halo_force_passed": true,
+  "mitigation": {
+    "metadata": {
+      "mitigated_zeff": 1.0,
+      "mode": "bounded_spi_density_branch",
+      "spi_density_target_20": 50.0,
+      "unmitigated_density_20": 1.0,
+      "unmitigated_zeff": 1.5
+    },
+    "mitigated_cq_duration_ms": 180.33875667924096,
+    "passed": true
+  },
+  "mitigation_branch_passed": true,
+  "passed": true,
+  "payload_sha256": "04e7094dacfd6729493a8278f560cca33217d8bacb9b0b29f2b2334d26bc9ce1",
+  "phase_order": {
+    "current_initial_rel_error": 0.0,
+    "current_trace_finite": true,
+    "current_trace_monotonic": true,
+    "total_duration_rel_error": 0.0,
+    "unmitigated_cq_duration_ms": 120.22583778616062,
+    "unmitigated_tq_duration_ms": 0.09068360247513561,
+    "wall_heat_load_rel_error": 0.0
+  },
+  "phase_order_passed": true,
+  "production_claim_allowed": false,
+  "schema_version": "scpn-control.disruption-sequence-validation.v1",
+  "target_id": "disruption-sequence-bounded-contract",
+  "temperature": {
+    "mitigated_post_tq_temperature_eV": 6.652586424425486,
+    "passed": true,
+    "unmitigated_post_tq_temperature_eV": 6.652586424425486
+  },
+  "temperature_passed": true
+}
