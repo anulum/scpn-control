@@ -3381,7 +3381,7 @@ wheels = [
 
 [[package]]
 name = "scpn-control"
-version = "0.20.7"
+version = "0.21.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
