@@ -144,6 +144,25 @@ before any stronger language is used.
 | Understand deployment limits | [Production Readiness](production_readiness.md) |
 | Discuss funding or collaboration | [Compute Validation Funding](compute_validation_financing.md) |
 
+## Smallest Evidence Workflows
+
+These are the shortest existing entry points for checking a workflow boundary.
+They do not upgrade any facility, hardware, or external-code claim by
+themselves; the corresponding strict validator and traceability entry decide the
+claim level.
+
+| Workflow | Smallest current entry point | Evidence check | Boundary |
+| --- | --- | --- | --- |
+| Control replay | `PYTHONPATH=src python -m scpn_control.scpn.geometry_neutral_replay --steps 12 --strict --output-json artifacts/geometry_neutral_replay.json --output-md artifacts/geometry_neutral_replay.md` | `pytest tests/test_geometry_neutral_replay.py tests/test_geometry_neutral_replay_v1_1.py` | API/module entry point for bounded synthetic replay; device claims still need non-synthetic magnetic provenance and external artefact digests. |
+| Physics validation artefact | `scpn-control validate-physics-traceability --json-out` | `pytest tests/test_physics_traceability.py tests/test_generate_physics_traceability_report.py` | Confirms registry structure and claim blocking; it does not create the missing external artefacts. |
+| Formal-verification report | `python validation/validate_scpn_z3_formal.py` and `scpn-control validate --json-out` | `pytest tests/test_scpn_formal_verification.py tests/test_native_formal_certificate_evidence.py` | Bounded Petri-net and native formal evidence only; facility certification and hardware timing remain separate gates. |
+| Benchmark gate | `PYTHONPATH=src python tools/run_benchmark_suite.py --json-out artifacts/benchmarks/report.json` then `python tools/benchmark_regression_gate.py --report artifacts/benchmarks/report.json --baseline benchmarks/baselines/capacitor_bank.json` | `pytest tests/test_benchmark_suite_runner.py tests/test_benchmark_regression_gate.py tests/test_benchmark_regression_gates.py` | Absolute latency comparison is valid only against a baseline from the same CPU class and recorded benchmark context. |
+| Real-data manifest | `scpn-control validate-data-manifests --json-out` or `scpn-control validate-manifest <manifest.json> --verify-artifact --json-out` | `pytest tests/test_validate_data_manifests.py tests/test_real_diiid_shots.py` | Repository manifest admission; live MDSplus acquisition needs authorised access, policy metadata, and `--require-real-acquisition` when promoting facility artefacts. |
+
+When a workflow writes under `artifacts/`, treat the output as a local working
+artefact until it is moved into an admitted validation report path with stable
+checksums and a traceability entry.
+
 ## What not to assume
 
 - A fast local benchmark is not a full control-cycle guarantee.
