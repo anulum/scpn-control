@@ -251,6 +251,21 @@ metadata and are reported as `kind: synthetic`. Manifest and acquisition-spec
 JSON is parsed with duplicate-key rejection so provenance fields cannot be
 overwritten silently by ambiguous objects.
 
+Tracker #53 hardware/runtime evidence is aggregated by a dedicated bounded
+gate:
+
+```bash
+python validation/validate_tracker53_evidence.py --output-json validation/reports/tracker53_evidence_gate.json
+python validation/validate_tracker53_evidence.py --require-production-claim --json-out
+```
+
+The first command refreshes the local bounded manifest for checkpoint replay,
+Kuramoto runtime parity, formal proof packaging, FPGA HDL export, package-level
+runtime markers, and PREEMPT_RT runtime admission. The second command is
+expected to fail until every tracker #53 surface supplies qualified hardware,
+synthesis, PREEMPT_RT, replay, or external safety-review evidence. A passing
+local tracker #53 manifest is therefore not a production hardware claim.
+
 CI validates the full manifest set and writes a JSON evidence report:
 
 ```bash

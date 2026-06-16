@@ -1,0 +1,170 @@
+{
+  "entries": [
+    {
+      "claim_boundary": "schema and round-trip replay checks only; not hardware-qualified restoration evidence",
+      "component": "checkpoint state serialisation boundary contract",
+      "evidence_class": "local_bounded_checkpoint",
+      "evidence_paths": [
+        "tests/test_checkpoint.py",
+        "src/scpn_control/core/checkpoint.py"
+      ],
+      "fidelity_status": "bounded_model",
+      "module_path": "src/scpn_control/core/checkpoint.py",
+      "public_claim_allowed": false,
+      "qualified_for_production_claim": false,
+      "validity_domain": "Local JSON checkpoint round-trip and recovery regression; not a distributed campaign persistence guarantee."
+    },
+    {
+      "claim_boundary": "exact-form synchronisation and local runtime parity; not deployment-class timing evidence",
+      "component": "Kuramoto-Sakaguchi phase synchronisation runtime",
+      "evidence_class": "runtime_local_regression",
+      "evidence_paths": [
+        "src/scpn_control/phase/kuramoto.py",
+        "tests/test_phase_kuramoto.py",
+        "tests/test_phase_properties.py",
+        "tests/test_phase_properties_extended.py",
+        "tests/test_kuramoto_synchronisation_validation.py",
+        "validation/benchmark_kuramoto_runtime_evidence.py",
+        "validation/validate_kuramoto_synchronisation.py"
+      ],
+      "fidelity_status": "bounded_model",
+      "module_path": "src/scpn_control/phase/kuramoto.py",
+      "public_claim_allowed": false,
+      "qualified_for_production_claim": false,
+      "validity_domain": "Local Kuramoto-Sakaguchi oscillator regression and runtime parity checks; not a validated plasma-phase control law."
+    },
+    {
+      "admitted_cases": [
+        "std:sleep:aot_certificate:stride_1",
+        "std:spin:aot_certificate:stride_1"
+      ],
+      "benchmark_evidence_class": "local_regression",
+      "certificate_assumption_sha256": "ee058c7c918ce8eb800c03e0c6e5ae979ba01f95dc48c6da3dc3c1f63391fdfd",
+      "claim_boundary": "local exact-form proof packaging; not an externally reviewed safety-case signoff",
+      "component": "SCPN formal Petri-net verification contract",
+      "evidence_class": "formal_local_regression",
+      "evidence_paths": [
+        "src/scpn_control/scpn/formal_verification.py",
+        "src/scpn_control/scpn/lean_verification.py",
+        "src/scpn_control/scpn/z3_model_checking.py",
+        "tests/test_scpn_formal_verification.py",
+        "validation/validate_scpn_lean_formal.py",
+        "tests/test_scpn_lean_verification.py",
+        "tests/test_scpn_lean_formal_validation.py",
+        "validation/reports/scpn_z3_formal.json",
+        "validation/validate_native_formal_certificate_evidence.py",
+        "validation/validate_release_evidence.py",
+        "tests/test_native_formal_certificate_evidence.py",
+        "tests/test_release_evidence_validation.py",
+        "validation/reports/native_formal_aot_certificate_admission_20260604T103219Z.json",
+        "docs/api.md",
+        "docs/use_cases.md",
+        "src/scpn_control/control/safety_case.py",
+        "tests/test_controller_safety_case.py",
+        "validation/validate_e2e_latency_evidence.py",
+        "validation/reports/e2e_control_latency.json"
+      ],
+      "fidelity_status": "bounded_model",
+      "module_path": "src/scpn_control/scpn/formal_verification.py",
+      "native_report_path": "validation/reports/native_formal_aot_certificate_admission_20260604T103219Z.json",
+      "native_report_sha256": "92f95b9ffbfccfdc9ac3949d17b5f86bb34d872376adb9e98f3e74214dc5f21a",
+      "production_claim_allowed_by_report": false,
+      "public_claim_allowed": false,
+      "qualified_for_production_claim": false,
+      "validator_status": "pass",
+      "validity_domain": "Exact bounded Petri-net control-logic verification for compiled finite SCPN graphs; not a full plant PCS certification, stochastic runtime proof, FPGA timing proof, or unbounded model-checking claim.",
+      "z3_report": {
+        "path": "validation/reports/scpn_z3_formal.json",
+        "report_sha256": "8c4158db8abad2088d4a75c163e20e1e41a2ee96ced8484ba94f1a6dd58b9d41",
+        "status": "pass"
+      }
+    },
+    {
+      "claim_boundary": "generated HDL schema and fixed-point checks only; no synthesis timing or bitstream closure",
+      "component": "SCPN FPGA fixed-point export boundary",
+      "evidence_class": "generated_hdl",
+      "evidence_paths": [
+        "src/scpn_control/scpn/fpga_export.py",
+        "tests/test_fpga_export.py",
+        "tests/test_scpn_compiler.py"
+      ],
+      "fidelity_status": "bounded_model",
+      "module_path": "src/scpn_control/scpn/fpga_export.py",
+      "public_claim_allowed": false,
+      "qualified_for_production_claim": false,
+      "validity_domain": "Generated HDL and fixed-point export regression only; no target-specific timing closure or bitstream validation is claimed."
+    },
+    {
+      "claim_boundary": "package-level tracker guard; production unblock depends on all child module evidence classes",
+      "component": "bounded phase and spiking runtime approximations",
+      "evidence_class": "aggregate_boundary",
+      "evidence_paths": [
+        "src/scpn_control/phase/kuramoto.py",
+        "src/scpn_control/scpn/fpga_export.py",
+        "src/scpn_control/scpn/geometry_neutral_replay.py",
+        "validation/validate_tracker53_evidence.py",
+        "tests/test_tracker53_evidence_gate.py",
+        "validation/reports/tracker53_evidence_gate.json",
+        "docs/validation.md"
+      ],
+      "fidelity_status": "bounded_model",
+      "module_path": "src/scpn_control",
+      "public_claim_allowed": false,
+      "qualified_for_production_claim": false,
+      "validity_domain": "Phase, replay, and fixed-point export approximations inside local runtime validation only."
+    },
+    {
+      "admission_error_count": 3,
+      "admission_status": "fail",
+      "benchmark_evidence_class": "local_regression",
+      "claim_boundary": "local runtime-admission benchmark only unless production realtime-host evidence is supplied",
+      "component": "PREEMPT_RT runtime admission evidence",
+      "evidence_class": "runtime_local_regression",
+      "evidence_paths": [
+        "src/scpn_control/core/runtime_admission.py",
+        "tests/test_runtime_admission.py",
+        "tests/test_cli_runtime_admission.py",
+        "tests/test_rust_engine_runtime_admission.py",
+        "tests/test_bench_runtime_admission.py",
+        "tests/test_runtime_admission_evidence_validation.py",
+        "tests/test_release_evidence_validation.py",
+        "benchmarks/bench_runtime_admission.py",
+        "validation/validate_runtime_admission_evidence.py",
+        "validation/validate_release_evidence.py",
+        "src/scpn_control/cli.py",
+        "docs/control/runtime_admission.md",
+        "docs/api.md",
+        "docs/benchmarks.md",
+        "docs/validation.md",
+        "validation/reports/runtime_admission_release_20260605T000000Z.json",
+        "validation/reports/runtime_admission_release_20260605T000000Z.md"
+      ],
+      "fidelity_status": "bounded_model",
+      "module_path": "src/scpn_control/core/runtime_admission.py",
+      "payload_sha256": "155a2dad5db7dac83ce08ebd3cd5d193679a28d5c83d01c5ea7a086b7ae5254f",
+      "production_claim_allowed_by_report": false,
+      "public_claim_allowed": false,
+      "qualified_for_production_claim": false,
+      "report_path": "validation/reports/runtime_admission_release_20260605T000000Z.json",
+      "report_sha256": "297805674702a5b3332ad10246ac651ef54d1f08ffda1effc532643715dc7140",
+      "samples": 500,
+      "validator_status": "pass",
+      "validity_domain": "Local fail-closed runtime-admission evidence for native hardware-campaign launch policy and benchmark-report admission; not a production hard-real-time PCS timing claim unless qualified PREEMPT_RT or equivalent realtime-kernel, scheduler, governor, hard-isolation, IRQ-shielding, transport, heartbeat, and hardware evidence is supplied."
+    }
+  ],
+  "errors": [],
+  "evidence_classes": {
+    "src/scpn_control": "aggregate_boundary",
+    "src/scpn_control/core/checkpoint.py": "local_bounded_checkpoint",
+    "src/scpn_control/core/runtime_admission.py": "runtime_local_regression",
+    "src/scpn_control/phase/kuramoto.py": "runtime_local_regression",
+    "src/scpn_control/scpn/formal_verification.py": "formal_local_regression",
+    "src/scpn_control/scpn/fpga_export.py": "generated_hdl"
+  },
+  "manifest_sha256": "2105d9e479998364b8a98f7e952790bb18c4ff891429f6451950c409ed410e93",
+  "production_claim_allowed": false,
+  "require_production_claim": false,
+  "schema_version": "scpn-control.tracker53-evidence-gate.v1",
+  "status": "pass",
+  "tracker_issue": 53
+}

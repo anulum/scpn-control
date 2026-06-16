@@ -2386,12 +2386,19 @@
       "validation_evidence": [
         "src/scpn_control/phase/kuramoto.py",
         "src/scpn_control/scpn/fpga_export.py",
-        "src/scpn_control/scpn/geometry_neutral_replay.py"
+        "src/scpn_control/scpn/geometry_neutral_replay.py",
+        "validation/validate_tracker53_evidence.py aggregate tracker #53 hardware/runtime evidence gate with fail-closed production-claim mode",
+        "tests/test_tracker53_evidence_gate.py tracker #53 manifest, digest, missing-report, and production-overclaim checks",
+        "validation/reports/tracker53_evidence_gate.json digest-bound tracker #53 local bounded evidence manifest"
       ],
       "evidence_paths": [
         "src/scpn_control/phase/kuramoto.py",
         "src/scpn_control/scpn/fpga_export.py",
-        "src/scpn_control/scpn/geometry_neutral_replay.py"
+        "src/scpn_control/scpn/geometry_neutral_replay.py",
+        "validation/validate_tracker53_evidence.py",
+        "tests/test_tracker53_evidence_gate.py",
+        "validation/reports/tracker53_evidence_gate.json",
+        "docs/validation.md"
       ],
       "validity_domain": "Phase, replay, and fixed-point export approximations inside local runtime validation only.",
       "external_validation_tracker_issue": 53
