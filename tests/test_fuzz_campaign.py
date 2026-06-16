@@ -12,18 +12,28 @@ import hashlib
 import json
 from pathlib import Path
 
+import subprocess
+
 import pytest
 
+import tools.run_fuzz_campaign as rfc
 from tools.run_fuzz_campaign import (
     ARTEFACT_PREFIXES,
     FUZZ_TARGETS,
     SCHEMA_VERSION,
     TargetRun,
+    _markdown,
+    _run,
+    _seed_corpus,
     assemble_report,
+    build_all,
     collect_crash_artifacts,
+    main,
     parse_libfuzzer_stats,
+    run_target,
     seed_corpus_manifest,
     sha256_file,
+    toolchain_metadata,
     triage,
 )
 
@@ -266,3 +276,171 @@ def test_fuzz_targets_cover_the_documented_surface_classes() -> None:
     assert "numeric adapter" in surfaces
     assert "vector kernel" in surfaces
     assert "FFI" in surfaces
+
+
+# ── subprocess + orchestration coverage ───────────────────────────────
+
+
+def _completed(cmd: list[str], *, stdout: str = "", stderr: str = "", rc: int = 0) -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(cmd, rc, stdout=stdout, stderr=stderr)
+
+
+def test_run_passes_command_through(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured["cmd"] = cmd
+        return _completed(cmd, stdout="ok")
+
+    monkeypatch.setattr(rfc.subprocess, "run", fake)
+    result = _run(["echo", "hi"])
+    assert result.stdout == "ok"
+    assert captured["cmd"] == ["echo", "hi"]
+
+
+def test_toolchain_metadata_records_versions_and_triple(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(cmd: list[str], cwd: object = None) -> subprocess.CompletedProcess[str]:
+        text = " ".join(cmd)
+        if "-vV" in text:
+            return _completed(cmd, stdout="rustc 1.98.0\nhost: x86_64-unknown-linux-gnu\n")
+        if "fuzz" in text:
+            return _completed(cmd, stdout="cargo-fuzz 0.13.1\n")
+        return _completed(cmd, stdout="rustc 1.98.0-nightly\n")
+
+    monkeypatch.setattr(rfc, "_run", fake_run)
+    toolchain, triple = toolchain_metadata()
+    assert toolchain["cargo_fuzz"] == "cargo-fuzz 0.13.1"
+    assert toolchain["rustc"] == "rustc 1.98.0-nightly"
+    assert triple == "x86_64-unknown-linux-gnu"
+
+
+def test_toolchain_metadata_defaults_triple_when_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(rfc, "_run", lambda cmd, cwd=None: _completed(cmd, stdout="no host line"))
+    _toolchain, triple = toolchain_metadata()
+    assert triple == "unknown"
+
+
+def test_seed_corpus_copies_tracked_seeds(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    seeds = tmp_path / "seeds"
+    corpus = tmp_path / "corpus"
+    (seeds / "config_json").mkdir(parents=True)
+    (seeds / "config_json" / "a.json").write_bytes(b"{}")
+    monkeypatch.setattr(rfc, "SEEDS_ROOT", seeds)
+    monkeypatch.setattr(rfc, "CORPUS_ROOT", corpus)
+    _seed_corpus("config_json")
+    assert (corpus / "config_json" / "a.json").read_bytes() == b"{}"
+    # Re-running must not fail when the seed already exists.
+    _seed_corpus("config_json")
+
+
+def test_run_target_builds_a_clean_target_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(rfc, "_seed_corpus", lambda target: None)
+    monkeypatch.setattr(rfc, "ARTIFACTS_ROOT", tmp_path / "artifacts")
+    monkeypatch.setattr(
+        rfc,
+        "_run",
+        lambda cmd, cwd=None: _completed(cmd, stdout=LIBFUZZER_STDOUT),
+    )
+    run = run_target("config_json", 5, 4096)
+    assert run.name == "config_json"
+    assert run.exit_code == 0
+    assert run.executed_units == 7_271_771
+    assert run.crashed is False
+
+
+def test_run_target_flags_crash_from_artifacts(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts" / "config_json"
+    artifacts.mkdir(parents=True)
+    (artifacts / "crash-dead").write_bytes(b"\x00")
+    monkeypatch.setattr(rfc, "_seed_corpus", lambda target: None)
+    monkeypatch.setattr(rfc, "ARTIFACTS_ROOT", tmp_path / "artifacts")
+    monkeypatch.setattr(rfc, "_run", lambda cmd, cwd=None: _completed(cmd, stdout="", rc=77))
+    run = run_target("config_json", 5, 4096)
+    assert run.crashed is True
+    assert run.artefacts == ["crash-dead"]
+
+
+def test_build_all_returns_process_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(rfc.subprocess, "run", lambda *a, **k: _completed(["x"], rc=0))
+    assert build_all() == 0
+
+
+def test_markdown_renders_table_and_failures() -> None:
+    clean = assemble_report(
+        runs=[_clean_run("config_json")],
+        requested=["config_json"],
+        seeds={"config_json": {"seed_count": 1, "aggregate_sha256": "0" * 64}},
+        toolchain={"rustc": "rustc 1.98.0", "cargo_fuzz": "cargo-fuzz 0.13.1"},
+        target_triple="x86_64-unknown-linux-gnu",
+        sanitizer="AddressSanitizer",
+        max_total_time_s=5,
+        evidence_class="nightly_regression",
+        generated_utc="2026-06-16T00:00:00Z",
+    )
+    body = _markdown(clean)
+    assert "libFuzzer Campaign Evidence" in body
+    assert "`config_json`" in body
+
+    failing = assemble_report(
+        runs=[TargetRun("config_json", FUZZ_TARGETS["config_json"], 1.0, 1, 9, 4, 11)],
+        requested=["config_json", "vmec_import"],
+        seeds={},
+        toolchain={"rustc": "rustc", "cargo_fuzz": "cargo-fuzz"},
+        target_triple="x86_64-unknown-linux-gnu",
+        sanitizer="AddressSanitizer",
+        max_total_time_s=5,
+        evidence_class="nightly_regression",
+        generated_utc="2026-06-16T00:00:00Z",
+    )
+    failing_body = _markdown(failing)
+    assert "Triage failures" in failing_body
+
+
+def _patch_main(monkeypatch: pytest.MonkeyPatch, *, run: TargetRun, build_rc: int = 0) -> None:
+    monkeypatch.setattr(rfc, "build_all", lambda: build_rc)
+    monkeypatch.setattr(rfc, "toolchain_metadata", lambda: ({"rustc": "rustc", "cargo_fuzz": "cargo-fuzz"}, "triple"))
+    monkeypatch.setattr(rfc, "run_target", lambda target, t, rss: run)
+
+
+def test_main_build_only_skips_fuzzing(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, bool] = {"ran": False}
+    monkeypatch.setattr(rfc, "build_all", lambda: 0)
+    monkeypatch.setattr(rfc, "run_target", lambda *a, **k: calls.__setitem__("ran", True))
+    assert main(["--build-only"]) == 0
+    assert calls["ran"] is False
+
+
+def test_main_returns_build_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(rfc, "build_all", lambda: 3)
+    assert main(["--targets", "config_json"]) == 3
+
+
+def test_main_passes_and_writes_evidence(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    _patch_main(monkeypatch, run=_clean_run("config_json"))
+    json_out = tmp_path / "report.json"
+    md_out = tmp_path / "report.md"
+    rc = main(["--targets", "config_json", "--json-out", str(json_out), "--markdown-out", str(md_out)])
+    assert rc == 0
+    report = json.loads(json_out.read_text(encoding="utf-8"))
+    assert report["triage"]["passed"] is True
+    assert md_out.read_text(encoding="utf-8")
+
+
+def test_main_prints_report_without_output_paths(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _patch_main(monkeypatch, run=_clean_run("config_json"))
+    rc = main(["--targets", "config_json"])
+    assert rc == 0
+    assert SCHEMA_VERSION in capsys.readouterr().out
+
+
+def test_main_fails_on_triage_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    crashed = TargetRun("config_json", FUZZ_TARGETS["config_json"], 1.0, 1, 9, 4, 11)
+    _patch_main(monkeypatch, run=crashed)
+    assert main(["--targets", "config_json"]) == 1
+
+
+def test_main_rejects_unknown_target() -> None:
+    with pytest.raises(SystemExit):
+        main(["--targets", "no_such_target"])

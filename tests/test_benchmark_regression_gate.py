@@ -384,3 +384,50 @@ def test_main_fails_closed_on_invalid_threshold_file(tmp_path: Path) -> None:
     thresholds.write_text("[capacitor_bank_discharge]\np50_us = 1.2\n", encoding="utf-8")
     rc = main(["--report", str(report), "--baseline", str(baseline), "--thresholds", str(thresholds)])
     assert rc == 1
+
+
+# ── remaining guard branches ──────────────────────────────────────────
+
+
+def test_parse_thresholds_rejects_non_table_section() -> None:
+    with pytest.raises(ValueError, match="must be a table"):
+        parse_thresholds({"default": {"p50_us": 1.5}, "capacitor_bank_discharge": "not-a-table"})
+
+
+def test_validate_report_flags_absent_benchmarks_block() -> None:
+    report = _report()
+    del report["benchmarks"]
+    assert any("no benchmarks block" in e for e in validate_report(report))
+
+
+def test_verify_baseline_integrity_rejects_wrong_schema() -> None:
+    baseline = _baseline()
+    baseline["schema_version"] = "other"
+    assert any("schema_version" in e for e in verify_baseline_integrity(baseline))
+
+
+def test_verify_baseline_integrity_flags_absent_benchmarks_block() -> None:
+    baseline = {"schema_version": BASELINE_SCHEMA, "baseline_sha256": "0" * 64}
+    errors = verify_baseline_integrity(baseline)
+    assert any("no benchmarks block" in e for e in errors)
+
+
+def test_compare_skips_non_numeric_baseline_metric() -> None:
+    # A non-numeric baseline metric is skipped, not compared.
+    bench = _benchmarks()
+    bench["capacitor_bank_discharge"]["languages"]["python"]["p50_us"] = "fast"
+    findings = compare(_report(), _baseline(bench), THRESHOLDS)
+    assert all(f.metric != "p50_us" or f.language != "python" for f in findings)
+
+
+def test_main_returns_failure_on_real_regression(tmp_path: Path) -> None:
+    report = tmp_path / "report.json"
+    baseline = tmp_path / "baseline.json"
+    thresholds = tmp_path / "thresholds.toml"
+    report.write_text(json.dumps(_report(_benchmarks(p50=10_000.0))), encoding="utf-8")
+    baseline.write_text(json.dumps(_baseline()), encoding="utf-8")
+    thresholds.write_text(
+        "[default]\np50_us = 1.5\np95_us = 1.75\np99_us = 2.0\nthroughput_ops_s = 0.6\n", encoding="utf-8"
+    )
+    rc = main(["--report", str(report), "--baseline", str(baseline), "--thresholds", str(thresholds)])
+    assert rc == 1

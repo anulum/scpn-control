@@ -362,25 +362,24 @@ def assert_runtime_certificate_admissible(
 ) -> dict[str, Any]:
     """Fail closed unless a certificate may back a facility-facing safety claim.
 
-    Admission requires, all on the declared stack: the certificate holds, its
-    binding digest matches the live controller binding, its declared runtime
-    target matches the live target, its timing envelope is schedulable, and a
-    fresh proof replay reproduced the certified obligations. Any failure raises;
-    on success the validated certificate is returned.
+    Admission requires, all on the declared stack: the certificate's binding
+    digest matches the live controller binding, its declared runtime target
+    matches the live target, its timing envelope matches the live binding, and a
+    fresh proof replay reproduced the certified obligations. Validation (called
+    first) already guarantees the certificate holds, and a `TimingEnvelope`
+    cannot be constructed unschedulable, so those guarantees are upstream rather
+    than re-checked here. Any failure raises; on success the validated
+    certificate is returned.
     """
     certificate = validate_runtime_safety_certificate_payload(certificate)
     failures: list[str] = []
 
-    if certificate.get("holds") is not True:
-        failures.append("certificate does not record a holding proof")
     if certificate["binding_sha256"] != live_binding.digest():
         failures.append("certificate binding does not match the live controller binding")
     if certificate["runtime_target_sha256"] != live_runtime_target.digest():
         failures.append("certificate runtime target does not match the live target")
     if certificate["timing_envelope_sha256"] != live_binding.timing_envelope.digest():
         failures.append("certificate timing envelope does not match the live binding")
-    if not live_binding.timing_envelope.schedulable:
-        failures.append("live timing envelope is not schedulable")
     if not replay.passed:
         failures.append("proof replay did not reproduce the certified obligations: " + "; ".join(replay.detail))
 

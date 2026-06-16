@@ -431,3 +431,114 @@ def test_replay_result_passed_requires_all_four_checks() -> None:
     assert CertificateReplayResult(True, True, True, True).passed is True
     assert CertificateReplayResult(True, True, True, False).passed is False
     assert CertificateReplayResult(False, True, True, True).passed is False
+
+
+# ── error branches (exhaustive guard coverage) ────────────────────────
+
+
+def test_timing_envelope_rejects_non_numeric_time() -> None:
+    with pytest.raises(ValueError, match="must be a number"):
+        TimingEnvelope(
+            control_period_us="fast",  # type: ignore[arg-type]
+            worst_case_response_us=180.0,
+            deadline_us=500.0,
+            proof_firing_depth=4,
+        )
+
+
+def test_timing_envelope_rejects_non_integer_proof_depth() -> None:
+    with pytest.raises(ValueError, match="must be an integer"):
+        TimingEnvelope(
+            control_period_us=1000.0,
+            worst_case_response_us=180.0,
+            deadline_us=500.0,
+            proof_firing_depth=4.5,  # type: ignore[arg-type]
+        )
+
+
+def test_binding_rejects_non_mapping_snn_parameters() -> None:
+    with pytest.raises(ValueError, match="snn_parameters"):
+        _binding(_disarm_net(), snn_parameters=[1, 2, 3])
+
+
+def test_binding_rejects_non_runtime_target() -> None:
+    with pytest.raises(ValueError, match="runtime_target"):
+        _binding(_disarm_net(), runtime_target="rpi4")  # type: ignore[arg-type]
+
+
+def test_binding_rejects_non_timing_envelope() -> None:
+    with pytest.raises(ValueError, match="timing_envelope"):
+        _binding(_disarm_net(), timing_envelope="fast")  # type: ignore[arg-type]
+
+
+def test_issue_rejects_valid_but_failing_formal_certificate() -> None:
+    net = _disarm_net()
+    # A genuinely failing proof (violated lower bound) is a *valid* failing
+    # formal certificate; issuance must still reject it at its own holds gate.
+    with tempfile.TemporaryDirectory() as tmp:
+        failing = generate_safety_certificate(
+            net,
+            max_depth=4,
+            marking_bounds={"armed": (0.5, 1.0), "safe": (0.0, 1.0)},
+            json_path=os.path.join(tmp, "c.json"),
+            markdown_path=os.path.join(tmp, "c.md"),
+        )
+    assert failing["holds"] is False
+    with pytest.raises(ValueError, match="does not hold"):
+        issue_runtime_safety_certificate(net, _binding(net), formal_certificate=failing)
+
+
+def test_validate_rejects_non_object_payload() -> None:
+    with pytest.raises(ValueError, match="must be an object"):
+        validate_runtime_safety_certificate_payload("not-a-certificate")  # type: ignore[arg-type]
+
+
+def test_validate_rejects_tampered_claim_boundary() -> None:
+    cert, _ = _issued(_disarm_net())
+    cert["claim_boundary"] = "broader than proven"
+    with pytest.raises(ValueError, match="claim_boundary"):
+        validate_runtime_safety_certificate_payload(cert)
+
+
+def test_validate_rejects_non_object_binding() -> None:
+    cert, _ = _issued(_disarm_net())
+    cert["binding"] = "not-an-object"
+    with pytest.raises(ValueError, match="binding must be an object"):
+        validate_runtime_safety_certificate_payload(cert)
+
+
+def test_validate_rejects_non_sha256_digest_field() -> None:
+    cert, _ = _issued(_disarm_net())
+    cert["runtime_target_sha256"] = "not-a-digest"
+    with pytest.raises(ValueError, match="runtime_target_sha256"):
+        validate_runtime_safety_certificate_payload(cert)
+
+
+def test_validate_rejects_non_holding_wrapper() -> None:
+    cert, _ = _issued(_disarm_net())
+    cert["holds"] = False  # caught before the payload-digest check
+    with pytest.raises(ValueError, match="passing, holding proof"):
+        validate_runtime_safety_certificate_payload(cert)
+
+
+def test_validate_rejects_non_sha256_binding_topology() -> None:
+    cert, _ = _issued(_disarm_net())
+    cert["binding"]["petri_topology_sha256"] = "not-a-digest"
+    with pytest.raises(ValueError, match="petri_topology_sha256"):
+        validate_runtime_safety_certificate_payload(cert)
+
+
+def test_admission_fails_on_timing_envelope_mismatch() -> None:
+    net = _disarm_net()
+    cert, _ = _issued(net)
+    # Same controller, but a different (still schedulable) timing envelope.
+    drifted = _binding(
+        net,
+        timing_envelope=TimingEnvelope(
+            control_period_us=2000.0, worst_case_response_us=200.0, deadline_us=600.0, proof_firing_depth=4
+        ),
+    )
+    with pytest.raises(ValueError, match="timing envelope does not match"):
+        assert_runtime_certificate_admissible(
+            cert, live_binding=drifted, live_runtime_target=_target(), replay=_passing_replay()
+        )

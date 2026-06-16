@@ -1990,3 +1990,27 @@ def test_cost_hessian_requires_traceable_plant() -> None:
     U = np.tile(np.array([10.0, 5.0, 1.0]), (3, 1))
     with pytest.raises(RuntimeError, match="JAX-traceable"):
         mpc.cost_hessian_jax(x, U, x)
+
+
+def test_cost_hessian_rejects_non_finite_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("jax")
+    import jax
+    import jax.numpy as jnp
+
+    mpc, x, U, x_ref = _hessian_setup()
+    dim = mpc.N * mpc.nu
+    # A pathological plant could yield a non-finite Hessian; the guard must catch
+    # it even though the shape is correct.
+    monkeypatch.setattr(jax, "hessian", lambda fn: lambda u: jnp.full((dim, dim), jnp.inf))
+    with pytest.raises(ValueError, match="Hessian must be finite"):
+        mpc.cost_hessian_jax(x, U, x_ref)
+
+
+def test_percentile_ms_helper_covers_edge_branches() -> None:
+    # Empty sample is rejected; a single sample returns itself; a percentile that
+    # lands on an exact integer rank returns that element without interpolation.
+    with pytest.raises(ValueError, match="must not be empty"):
+        nmpc_mod._percentile_ms([], 0.5)
+    assert nmpc_mod._percentile_ms([3.0], 0.95) == 3.0
+    assert nmpc_mod._percentile_ms([1.0, 2.0, 3.0], 0.5) == 2.0
+    assert nmpc_mod._percentile_ms([1.0, 2.0], 0.5) == pytest.approx(1.5)

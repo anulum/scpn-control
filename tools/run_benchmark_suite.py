@@ -39,11 +39,20 @@ from typing import Any, Callable
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_CARGO = REPO_ROOT / "scpn-control-rs" / "Cargo.toml"
 
-# Make the in-repo `benchmarks` harnesses and the `scpn_control` package
-# importable when this runner is invoked as a standalone script.
-for _path in (REPO_ROOT, REPO_ROOT / "src"):
-    if str(_path) not in sys.path:
-        sys.path.insert(0, str(_path))
+
+def _ensure_repo_on_path(search_path: list[str] | None = None) -> None:
+    """Put the repo root and `src` on the import path for standalone runs.
+
+    Makes the in-repo `benchmarks` harnesses and the `scpn_control` package
+    importable when this runner is invoked directly rather than via pytest.
+    """
+    target = sys.path if search_path is None else search_path
+    for path in (REPO_ROOT, REPO_ROOT / "src"):
+        if str(path) not in target:
+            target.insert(0, str(path))
+
+
+_ensure_repo_on_path()
 
 REPORT_SCHEMA = "scpn-control.benchmark-regression.v1"
 BASELINE_SCHEMA = "scpn-control.benchmark-baseline.v1"

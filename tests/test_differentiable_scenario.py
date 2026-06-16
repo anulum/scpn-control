@@ -142,6 +142,7 @@ def test_scenario_flux_rejects_invalid_inputs(mutation: str, match: str) -> None
         ({"tolerance": -1.0}, "tolerance must be positive"),
         ({"sample_indices": []}, "at least one rollout source index"),
         ({"sample_indices": [(0, 0, 99)]}, "out-of-range rollout source index"),
+        ({"sample_indices": [(0, 0)]}, "three-part rollout source indices"),
     ],
 )
 def test_scenario_audit_rejects_invalid_arguments(kwargs: dict[str, object], match: str) -> None:
@@ -150,6 +151,53 @@ def test_scenario_audit_rejects_invalid_arguments(kwargs: dict[str, object], mat
         ds.audit_differentiable_scenario_gradient(
             params, profiles, chi, sources, target, rho, r_grid, z_grid, dt, edge, **kwargs
         )
+
+
+@pytest.mark.skipif(not ds.has_jax(), reason="JAX optional dependency is not installed")
+def test_scenario_audit_accepts_explicit_sample_indices() -> None:
+    params, profiles, chi, sources, target, rho, r_grid, z_grid, dt, edge = _scenario_setup()
+    audit = ds.audit_differentiable_scenario_gradient(
+        params,
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        r_grid,
+        z_grid,
+        dt,
+        edge,
+        sample_indices=[(0, 0, 1), (1, 2, 3)],
+    )
+    assert audit.checked_source_indices == ((0, 0, 1), (1, 2, 3))
+
+
+@pytest.mark.skipif(not ds.has_jax(), reason="JAX optional dependency is not installed")
+def test_scenario_gradient_requires_target_history() -> None:
+    params, profiles, chi, sources, _target, rho, r_grid, z_grid, dt, edge = _scenario_setup()
+    with pytest.raises(ValueError, match="target_history is required"):
+        ds.differentiable_scenario_gradient(params, profiles, chi, sources, None, rho, r_grid, z_grid, dt, edge)
+
+
+def test_scenario_metadata_rejects_non_positive_tolerance() -> None:
+    params, profiles, chi, sources, _target, rho, r_grid, z_grid, dt, edge = _scenario_setup()
+    with pytest.raises(ValueError, match="gradient_tolerance must be positive and finite"):
+        ds.scenario_campaign_metadata(
+            params, profiles, chi, sources, rho, r_grid, z_grid, dt, edge, backend="jax", gradient_tolerance=-1.0
+        )
+
+
+@pytest.mark.skipif(not ds.has_jax(), reason="JAX optional dependency is not installed")
+def test_scenario_readiness_rejects_audit_tolerance_mismatch() -> None:
+    params, profiles, chi, sources, target, rho, r_grid, z_grid, dt, edge = _scenario_setup()
+    audit = ds.audit_differentiable_scenario_gradient(
+        params, profiles, chi, sources, target, rho, r_grid, z_grid, dt, edge, tolerance=5.0e-4
+    )
+    metadata = ds.scenario_campaign_metadata(
+        params, profiles, chi, sources, rho, r_grid, z_grid, dt, edge, backend="jax", gradient_tolerance=9.0e-4
+    )
+    with pytest.raises(ValueError, match="audit tolerance must match"):
+        ds.differentiable_scenario_readiness_evidence(metadata, audit)
 
 
 def test_scenario_metadata_records_grid_and_provenance() -> None:
