@@ -22,10 +22,15 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     registry_path = ROOT / "validation" / "physics_traceability.json"
     report = validate_physics_traceability(registry_path)
     tracker_counts: dict[int, int] = {}
+    tracker_status_counts: dict[int, dict[str, int]] = {}
     for entry in report["entries"]:
         issue = entry.get("external_validation_tracker_issue")
         if isinstance(issue, int):
             tracker_counts[issue] = tracker_counts.get(issue, 0) + 1
+            status = entry.get("fidelity_status")
+            assert isinstance(status, str)
+            tracker_status_counts.setdefault(issue, {})
+            tracker_status_counts[issue][status] = tracker_status_counts[issue].get(status, 0) + 1
     markdown = generate_physics_traceability_markdown(registry_path)
 
     assert markdown.startswith("<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->")
@@ -48,6 +53,16 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert f"#47](https://github.com/anulum/scpn-control/issues/47) — {tracker_counts[47]} open claim(s)" in markdown
     assert f"#49](https://github.com/anulum/scpn-control/issues/49) — {tracker_counts[49]} open claim(s)" in markdown
     assert f"#53](https://github.com/anulum/scpn-control/issues/53) — {tracker_counts[53]} open claim(s)" in markdown
+    assert tracker_status_counts[49]["validation_gap"] == 12
+    assert tracker_status_counts[49]["bounded_model"] == 5
+    assert (
+        f"#49](https://github.com/anulum/scpn-control/issues/49) — {tracker_counts[49]} open claim(s) "
+        "(validation_gap=12, bounded_model=5)"
+    ) in markdown
+    assert (
+        f"#50](https://github.com/anulum/scpn-control/issues/50) — {tracker_counts[50]} open claim(s) "
+        "(external_dependency_blocked=2, validation_gap=1)"
+    ) in markdown
     assert (
         "| Module | Equation or contract | References | Unit contract | Validation evidence | Status | Tracker |"
         in markdown

@@ -58,12 +58,15 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
     if trackers:
         lines.extend(["## External Validation Collaboration Trackers", ""])
         ownership = _tracker_ownership_counts(report)
+        status_counts = _tracker_status_counts(report)
         for tracker in trackers:
             issue = tracker["issue"]
             owned_count = ownership.get(issue, 0)
+            status_summary = _format_status_counts(status_counts.get(issue, {}))
             lines.append(
                 f"- {tracker['title']}: [#{issue}]({tracker['url']}) — "
-                f"{owned_count} open claim(s) — {tracker['scope']}"
+                f"{owned_count} open claim(s)"
+                f"{status_summary} — {tracker['scope']}"
             )
         lines.append("")
     lines.extend(
@@ -152,6 +155,32 @@ def _tracker_ownership_counts(report: dict[str, Any]) -> dict[int, int]:
         if isinstance(issue, int):
             counts[issue] = counts.get(issue, 0) + 1
     return counts
+
+
+def _tracker_status_counts(report: dict[str, Any]) -> dict[int, dict[str, int]]:
+    counts: dict[int, dict[str, int]] = {issue: {} for issue in _tracker_by_issue(report)}
+    for entry in _entries(report):
+        issue = entry.get("external_validation_tracker_issue")
+        status = entry.get("fidelity_status")
+        if not isinstance(issue, int) or not isinstance(status, str):
+            continue
+        tracker_counts = counts.setdefault(issue, {})
+        tracker_counts[status] = tracker_counts.get(status, 0) + 1
+    return counts
+
+
+def _format_status_counts(counts: dict[str, int]) -> str:
+    ordered_statuses = (
+        "external_dependency_blocked",
+        "validation_gap",
+        "bounded_model",
+        "reference_validated",
+        "facility_validated",
+    )
+    parts = [f"{status}={counts[status]}" for status in ordered_statuses if counts.get(status, 0) > 0]
+    if not parts:
+        return ""
+    return f" ({', '.join(parts)})"
 
 
 def _tracker_link(entry: dict[str, Any], report: dict[str, Any]) -> str:
