@@ -13,16 +13,11 @@ import json
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
-# Reconstruction grids (psi, R, Z) and source-coefficient vectors are real-valued
-# arrays normalised with ``asarray(dtype=float)`` at every entry point; this alias
-# gives the annotations explicit generic arguments (satisfying
-# ``disallow_any_generics``) while still accepting any floating-precision input.
-FloatArray = npt.NDArray[np.floating[Any]]
+from scpn_control._typing import AnyFloatArray
 
 MU0 = 4.0e-7 * np.pi
 _EFIT_CLAIM_SCHEMA_VERSION = 1
@@ -32,7 +27,7 @@ _FACILITY_REFERENCE_SOURCES = frozenset(
 _BOUNDED_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *_FACILITY_REFERENCE_SOURCES})
 
 
-def _trapezoid_integral(values: FloatArray, grid: FloatArray, *, axis: int = -1) -> FloatArray:
+def _trapezoid_integral(values: AnyFloatArray, grid: AnyFloatArray, *, axis: int = -1) -> AnyFloatArray:
     """Integrate profiles across NumPy 1.x and 2.x runtimes."""
     values_arr = np.asarray(values, dtype=float)
     grid_arr = np.asarray(grid, dtype=float)
@@ -73,9 +68,9 @@ class ShapeParams:
 
 @dataclass
 class ReconstructionResult:
-    psi: FloatArray
-    p_prime_coeffs: FloatArray
-    ff_prime_coeffs: FloatArray
+    psi: AnyFloatArray
+    p_prime_coeffs: AnyFloatArray
+    ff_prime_coeffs: AnyFloatArray
     shape: ShapeParams
     chi_squared: float
     n_iterations: int
@@ -127,7 +122,7 @@ def _finite_float(name: str, value: float, *, positive: bool = False, nonnegativ
     return out
 
 
-def _relative_array_error(name: str, candidate: FloatArray, reference: npt.ArrayLike) -> float:
+def _relative_array_error(name: str, candidate: AnyFloatArray, reference: npt.ArrayLike) -> float:
     ref = np.asarray(reference, dtype=float)
     cand = np.asarray(candidate, dtype=float)
     if ref.shape != cand.shape:
@@ -266,12 +261,12 @@ def save_efit_lite_claim_evidence(evidence: EFITLiteClaimEvidence, path: str | P
 
 
 class DiagnosticResponse:
-    def __init__(self, diagnostics: MagneticDiagnostics, R_grid: FloatArray, Z_grid: FloatArray):
+    def __init__(self, diagnostics: MagneticDiagnostics, R_grid: AnyFloatArray, Z_grid: AnyFloatArray):
         self.diagnostics = diagnostics
         self.R = R_grid
         self.Z = Z_grid
 
-    def simulate_measurements(self, psi: FloatArray, coil_currents: FloatArray) -> dict[str, float | FloatArray]:
+    def simulate_measurements(self, psi: AnyFloatArray, coil_currents: AnyFloatArray) -> dict[str, float | AnyFloatArray]:
         """Generate synthetic measurements from a given psi field."""
 
         from scipy.interpolate import RegularGridInterpolator
@@ -326,8 +321,8 @@ class RealtimeEFIT:
     def __init__(
         self,
         diagnostics: MagneticDiagnostics,
-        R_grid: FloatArray,
-        Z_grid: FloatArray,
+        R_grid: AnyFloatArray,
+        Z_grid: AnyFloatArray,
         n_p_modes: int = 3,
         n_ff_modes: int = 3,
     ):
@@ -341,7 +336,7 @@ class RealtimeEFIT:
 
         self.response = DiagnosticResponse(diagnostics, R_grid, Z_grid)
 
-    def _solve_gs_with_sources(self, p_coeffs: FloatArray, ff_coeffs: FloatArray) -> FloatArray:
+    def _solve_gs_with_sources(self, p_coeffs: AnyFloatArray, ff_coeffs: AnyFloatArray) -> AnyFloatArray:
         """Solve fixed-boundary Grad-Shafranov with polynomial source profiles."""
 
         from scipy.sparse import lil_matrix
@@ -412,7 +407,7 @@ class RealtimeEFIT:
         psi[1:-1, 1:-1] = interior.reshape((n_r_inner, n_z_inner))
         return psi
 
-    def reconstruct(self, measurements: dict[str, float | FloatArray]) -> ReconstructionResult:
+    def reconstruct(self, measurements: dict[str, float | AnyFloatArray]) -> ReconstructionResult:
         """
         Main EFIT loop.
         """
@@ -453,7 +448,7 @@ class RealtimeEFIT:
             wall_time_ms=(t1 - t0) * 1000.0,
         )
 
-    def find_lcfs(self, psi: FloatArray) -> FloatArray:
+    def find_lcfs(self, psi: AnyFloatArray) -> AnyFloatArray:
         psi_arr = np.asarray(psi, dtype=float)
         if psi_arr.shape != (self.nR, self.nZ):
             raise ValueError("psi shape must match the EFIT R/Z grid")
@@ -479,7 +474,7 @@ class RealtimeEFIT:
         angles = np.arctan2(points[:, 1] - centroid[1], points[:, 0] - centroid[0])
         return np.asarray(points[np.argsort(angles)])
 
-    def find_xpoint(self, psi: FloatArray) -> tuple[float, float] | None:
+    def find_xpoint(self, psi: AnyFloatArray) -> tuple[float, float] | None:
         """
         Locate magnetic nulls (dpsi/dR = 0, dpsi/dZ = 0).
         """
@@ -487,7 +482,7 @@ class RealtimeEFIT:
         R0 = float(np.mean(self.R))
         return (R0, float(self.Z[0]) + 0.1)
 
-    def compute_shape_params(self, psi: FloatArray) -> ShapeParams:
+    def compute_shape_params(self, psi: AnyFloatArray) -> ShapeParams:
         # Extract R0 and a from the simple base_psi
         R0 = float(np.mean(self.R))
         a = float(self.R[-1] - self.R[0]) / 2.0

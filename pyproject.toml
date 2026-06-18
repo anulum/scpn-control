@@ -130,6 +130,7 @@ files = [
 # strict debt is retired in the staged migration to global `strict = true`.
 [[tool.mypy.overrides]]
 module = [
+    "scpn_control._typing",
     "scpn_control.core.current_drive",
     "scpn_control.core.runtime_admission",
     "scpn_control.core.tokamak_config",

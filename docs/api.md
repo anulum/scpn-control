@@ -1709,6 +1709,10 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control.cli
 
+#### Shared Typing Aliases
+
+::: scpn_control._typing
+
 ### Control Modules
 
 #### Burn Controller

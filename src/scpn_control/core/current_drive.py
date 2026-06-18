@@ -12,17 +12,11 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
-import numpy.typing as npt
 
-# Current-drive profiles and grids are one-dimensional real-valued arrays on the
-# normalised radial coordinate. Inputs are normalised with ``asarray(dtype=float)``
-# internally, so the contract is any floating-precision array rather than strictly
-# float64; this alias gives the annotations explicit generic arguments (satisfying
-# ``disallow_any_generics``) without forcing callers to pre-cast their arrays.
-FloatArray = npt.NDArray[np.floating[Any]]
+from scpn_control._typing import AnyFloatArray
 
 
 class CurrentDriveMetricsDict(TypedDict, total=False):
@@ -100,8 +94,8 @@ def _require_unit_interval(name: str, value: float) -> float:
 
 
 def _require_positive_profile(
-    name: str, values: float | FloatArray, shape: tuple[int, ...] | None = None
-) -> FloatArray:
+    name: str, values: float | AnyFloatArray, shape: tuple[int, ...] | None = None
+) -> AnyFloatArray:
     """Return finite positive profile values with optional exact shape."""
     arr = np.asarray(values, dtype=float)
     if shape is not None and arr.shape != shape:
@@ -112,11 +106,11 @@ def _require_positive_profile(
 
 
 def _require_current_drive_profiles(
-    rho: FloatArray,
-    ne_19: FloatArray,
-    Te_keV: FloatArray,
-    Ti_keV: FloatArray | None = None,
-) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray | None]:
+    rho: AnyFloatArray,
+    ne_19: AnyFloatArray,
+    Te_keV: AnyFloatArray,
+    Ti_keV: AnyFloatArray | None = None,
+) -> tuple[AnyFloatArray, AnyFloatArray, AnyFloatArray, AnyFloatArray | None]:
     """Validate grid and kinetic profiles used by current-drive sources."""
     rho_arr = np.asarray(rho, dtype=float)
     if rho_arr.ndim != 1:
@@ -131,7 +125,7 @@ def _require_current_drive_profiles(
     return rho_arr, ne_arr, te_arr, ti_arr
 
 
-def _require_current_drive_grid(rho: FloatArray) -> FloatArray:
+def _require_current_drive_grid(rho: AnyFloatArray) -> AnyFloatArray:
     """Validate a one-dimensional finite strictly increasing rho grid."""
     rho_arr = np.asarray(rho, dtype=float)
     if rho_arr.ndim != 1:
@@ -143,7 +137,7 @@ def _require_current_drive_grid(rho: FloatArray) -> FloatArray:
     return rho_arr
 
 
-def _trapezoid_integral(values: FloatArray, grid: FloatArray) -> float:
+def _trapezoid_integral(values: AnyFloatArray, grid: AnyFloatArray) -> float:
     """Integrate one-dimensional profiles across NumPy 1.x and 2.x runtimes."""
     values_arr = np.asarray(values, dtype=float)
     grid_arr = np.asarray(grid, dtype=float)
@@ -158,11 +152,11 @@ def _trapezoid_integral(values: FloatArray, grid: FloatArray) -> float:
 
 
 def _normalised_radial_deposition(
-    rho: FloatArray,
+    rho: AnyFloatArray,
     total_power_w: float,
     rho_centre: float,
     width_rho: float,
-) -> FloatArray:
+) -> AnyFloatArray:
     """Return a finite-width radial deposition kernel conserving total power on the supplied grid."""
     rho_arr = _require_current_drive_grid(rho)
     if rho_arr.size == 0:
@@ -300,11 +294,11 @@ def _extract_current_drive_reference_artifact(
 
 
 def eccd_efficiency(
-    Te_keV: float | FloatArray,
+    Te_keV: float | AnyFloatArray,
     Z_eff: float,
     N_parallel: float,
     eta_0: float = _ETA_ECCD_DEFAULT,
-) -> float | FloatArray:
+) -> float | AnyFloatArray:
     """
     ECCD figure of merit including T_e scaling and launch-angle factor.
 
@@ -335,11 +329,11 @@ def eccd_efficiency(
 
 
 def nbi_slowing_down_time(
-    Te_keV: float | FloatArray,
-    ne_19: float | FloatArray,
+    Te_keV: float | AnyFloatArray,
+    ne_19: float | AnyFloatArray,
     A_beam: float = _A_BEAM_D,
     Z_eff: float = 1.5,
-) -> float | FloatArray:
+) -> float | AnyFloatArray:
     """
     Beam-ion classical slowing-down time on electrons.
 
@@ -372,10 +366,10 @@ def nbi_slowing_down_time(
 
 
 def nbi_critical_energy(
-    Te_keV: float | FloatArray,
+    Te_keV: float | AnyFloatArray,
     A_beam: float = _A_BEAM_D,
     A_ion: float = 2.0,
-) -> float | FloatArray:
+) -> float | AnyFloatArray:
     """
     Critical energy separating electron- from ion-dominated beam heating.
 
@@ -420,11 +414,11 @@ class ECCDSource:
         self.sigma_rho = _require_nonnegative_scalar("sigma_rho", sigma_rho)
         self.eta_cd = _require_nonnegative_scalar("eta_cd", eta_cd)
 
-    def P_absorbed(self, rho: FloatArray) -> FloatArray:
+    def P_absorbed(self, rho: AnyFloatArray) -> AnyFloatArray:
         """Absorbed power per unit rho [W] using a grid-normalised finite-width deposition kernel."""
         return _normalised_radial_deposition(rho, self.P_ec_MW * 1e6, self.rho_dep, self.sigma_rho)
 
-    def j_cd(self, rho: FloatArray, ne_19: FloatArray, Te_keV: FloatArray) -> FloatArray:
+    def j_cd(self, rho: AnyFloatArray, ne_19: AnyFloatArray, Te_keV: AnyFloatArray) -> AnyFloatArray:
         """
         Driven current density [A/m^2].
 
@@ -461,18 +455,18 @@ class NBISource:
         self.A_beam = _require_positive_scalar("A_beam", A_beam)
         self.Z_beam = _require_positive_scalar("Z_beam", Z_beam)
 
-    def P_heating(self, rho: FloatArray) -> FloatArray:
+    def P_heating(self, rho: AnyFloatArray) -> AnyFloatArray:
         """Beam heating power per unit rho [W] using a grid-normalised finite-width deposition kernel."""
         return _normalised_radial_deposition(rho, self.P_nbi_MW * 1e6, self.rho_tangency, self.sigma_rho)
 
     def j_cd(
         self,
-        rho: FloatArray,
-        ne_19: FloatArray,
-        Te_keV: FloatArray,
-        Ti_keV: FloatArray,
+        rho: AnyFloatArray,
+        ne_19: AnyFloatArray,
+        Te_keV: AnyFloatArray,
+        Ti_keV: AnyFloatArray,
         Z_eff: float = 1.5,
-    ) -> FloatArray:
+    ) -> AnyFloatArray:
         """
         Beam-driven current density [A/m^2].
 
@@ -526,10 +520,10 @@ class LHCDSource:
         self.sigma_rho = _require_nonnegative_scalar("sigma_rho", sigma_rho)
         self.eta_cd = _require_nonnegative_scalar("eta_cd", eta_cd)
 
-    def P_absorbed(self, rho: FloatArray) -> FloatArray:
+    def P_absorbed(self, rho: AnyFloatArray) -> AnyFloatArray:
         return _normalised_radial_deposition(rho, self.P_lh_MW * 1e6, self.rho_dep, self.sigma_rho)
 
-    def j_cd(self, rho: FloatArray, ne_19: FloatArray, Te_keV: FloatArray) -> FloatArray:
+    def j_cd(self, rho: AnyFloatArray, ne_19: AnyFloatArray, Te_keV: AnyFloatArray) -> AnyFloatArray:
         """
         j_cd = η_cd · P_abs / (n_e · T_e)
         Fisch 1978, PRL 41, 873, normalised form.
@@ -552,11 +546,11 @@ class CurrentDriveMix:
 
     def total_j_cd(
         self,
-        rho: FloatArray,
-        ne: FloatArray,
-        Te: FloatArray,
-        Ti: FloatArray,
-    ) -> FloatArray:
+        rho: AnyFloatArray,
+        ne: AnyFloatArray,
+        Te: AnyFloatArray,
+        Ti: AnyFloatArray,
+    ) -> AnyFloatArray:
         rho_arr, ne_arr, te_arr, ti_arr = _require_current_drive_profiles(rho, ne, Te, Ti)
         assert ti_arr is not None
         j_tot = np.zeros_like(rho_arr, dtype=float)
@@ -567,7 +561,7 @@ class CurrentDriveMix:
                 j_tot += src.j_cd(rho_arr, ne_arr, te_arr)
         return j_tot
 
-    def total_heating_power(self, rho: FloatArray) -> FloatArray:
+    def total_heating_power(self, rho: AnyFloatArray) -> AnyFloatArray:
         rho_arr = _require_current_drive_grid(rho)
         p_tot = np.zeros_like(rho_arr, dtype=float)
         for src in self.sources:
@@ -579,10 +573,10 @@ class CurrentDriveMix:
 
     def total_driven_current(
         self,
-        rho: FloatArray,
-        ne: FloatArray,
-        Te: FloatArray,
-        Ti: FloatArray,
+        rho: AnyFloatArray,
+        ne: AnyFloatArray,
+        Te: AnyFloatArray,
+        Ti: AnyFloatArray,
     ) -> float:
         """
         I_cd = ∫ j_cd · 2π r dr  [A]
@@ -599,10 +593,10 @@ class CurrentDriveMix:
 def current_drive_claim_evidence(
     mix: CurrentDriveMix,
     *,
-    rho: FloatArray,
-    ne_19: FloatArray,
-    Te_keV: FloatArray,
-    Ti_keV: FloatArray,
+    rho: AnyFloatArray,
+    ne_19: AnyFloatArray,
+    Te_keV: AnyFloatArray,
+    Ti_keV: AnyFloatArray,
     source: str,
     source_id: str,
     model_id: str = "bounded_auxiliary_current_drive",
