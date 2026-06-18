@@ -18,14 +18,21 @@ import numpy as np
 
 HAS_MPL = find_spec("matplotlib") is not None
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-try:
-    from scpn_control.core._rust_compat import FusionKernel
-except ImportError:
-    from scpn_control.core.fusion_kernel import FusionKernel  # type: ignore[assignment]
+if TYPE_CHECKING:
+    # Type-check against the concrete Python base class. At runtime the Rust-backed
+    # wrapper (typed Any in _rust_compat) is preferred when available; it mirrors the
+    # Python FusionKernel attribute interface, so the Python class is the correct
+    # static base for TransportSolver and avoids subclassing Any.
+    from scpn_control.core.fusion_kernel import FusionKernel
+else:
+    try:
+        from scpn_control.core._rust_compat import FusionKernel
+    except ImportError:
+        from scpn_control.core.fusion_kernel import FusionKernel
 
-from scpn_control._typing import FloatArray
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.momentum_transport import (
     MomentumTransportSolver,
     intrinsic_rotation_torque,
@@ -60,7 +67,7 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
-def _normalised_radius(rho: np.ndarray) -> np.ndarray:
+def _normalised_radius(rho: AnyFloatArray) -> FloatArray:
     arr = np.asarray(rho, dtype=float)
     if arr.ndim != 1 or arr.size < 2:
         raise ValueError("rho must be a one-dimensional profile with at least two points")
@@ -79,13 +86,13 @@ def _normalised_radius(rho: np.ndarray) -> np.ndarray:
 
 def _profile_array(
     name: str,
-    values: np.ndarray,
+    values: AnyFloatArray,
     shape: tuple[int, ...],
     *,
     positive: bool = False,
     nonnegative: bool = False,
     allow_last_zero: bool = False,
-) -> np.ndarray:
+) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.shape != shape:
         raise ValueError(f"{name} must match the rho grid shape")
@@ -149,16 +156,16 @@ def _load_gyro_bohm_coefficient(
 
 
 def chang_hinton_chi_profile(
-    rho: np.ndarray,
-    T_i: np.ndarray,
-    n_e_19: np.ndarray,
-    q: np.ndarray,
+    rho: AnyFloatArray,
+    T_i: AnyFloatArray,
+    n_e_19: AnyFloatArray,
+    q: AnyFloatArray,
     R0: float,
     a: float,
     B0: float,
     A_ion: float = 2.0,
     Z_eff: float = 1.5,
-) -> np.ndarray:
+) -> FloatArray:
     """
     Chang-Hinton (1982) neoclassical ion thermal diffusivity profile [m²/s].
 
@@ -234,16 +241,16 @@ def chang_hinton_chi_profile(
 
 
 def calculate_sauter_bootstrap_current_full(
-    rho: np.ndarray,
-    Te: np.ndarray,
-    Ti: np.ndarray,
-    ne: np.ndarray,
-    q: np.ndarray,
+    rho: AnyFloatArray,
+    Te: AnyFloatArray,
+    Ti: AnyFloatArray,
+    ne: AnyFloatArray,
+    q: AnyFloatArray,
     R0: float,
     a: float,
     B0: float,
     Z_eff: float = 1.5,
-) -> np.ndarray:
+) -> FloatArray:
     """Full Sauter bootstrap current model (Sauter et al., Phys. Plasmas 6, 1999).
 
     Parameters
@@ -387,13 +394,16 @@ class TransportSolver(FusionKernel):
         self.Ti = 1.0 * (1 - self.rho**2)
         self.ne = 5.0 * (1 - self.rho**2) ** 0.5
 
-        # Transport Coefficients (Anomalous Transport Models)
-        self.chi_e = np.ones(self.nr)  # Electron diffusivity
-        self.chi_i = np.ones(self.nr)  # Ion diffusivity
-        self.D_n = np.ones(self.nr)  # Particle diffusivity
+        # Transport Coefficients (Anomalous Transport Models). Explicit FloatArray
+        # annotations keep the any-dimensional shape type, so the general-shape
+        # arrays returned by sanitisation and numpy reductions remain assignable to
+        # these one-dimensional np.ones/np.zeros-initialised attributes.
+        self.chi_e: FloatArray = np.ones(self.nr)  # Electron diffusivity
+        self.chi_i: FloatArray = np.ones(self.nr)  # Ion diffusivity
+        self.D_n: FloatArray = np.ones(self.nr)  # Particle diffusivity
 
         # Impurity Profile (Tungsten density)
-        self.n_impurity = np.zeros(self.nr)
+        self.n_impurity: FloatArray = np.zeros(self.nr)
 
         # Neoclassical transport configuration (None = constant chi_base=0.5)
         self.neoclassical_params: dict[str, Any] | None = None
@@ -405,9 +415,12 @@ class TransportSolver(FusionKernel):
         # ── Multi-ion species (P1.1) ──
         # Densities in 10^19 m^-3 (same units as ne)
         if self.multi_ion:
-            self.n_D = 0.5 * self.ne.copy()  # Deuterium
-            self.n_T = 0.5 * self.ne.copy()  # Tritium
-            self.n_He = np.zeros(self.nr)  # He-4 ash
+            # Species densities inherit ne's floating precision and are reassigned
+            # by general-shape numpy reductions during evolution, so AnyFloatArray
+            # is the precise storage type here.
+            self.n_D: AnyFloatArray = 0.5 * self.ne.copy()  # Deuterium
+            self.n_T: AnyFloatArray = 0.5 * self.ne.copy()  # Tritium
+            self.n_He: AnyFloatArray = np.zeros(self.nr)  # He-4 ash
         else:
             self.n_D = None  # type: ignore[assignment]
             self.n_T = None  # type: ignore[assignment]
@@ -510,7 +523,7 @@ class TransportSolver(FusionKernel):
         }
         self._momentum_solver = MomentumTransportSolver(self.rho, R0, a, B0)
 
-    def chang_hinton_chi_profile(self) -> np.ndarray:
+    def chang_hinton_chi_profile(self) -> FloatArray:
         """Backward-compatible Chang-Hinton profile helper.
 
         Older parity tests call this no-arg method on a partially-initialized
@@ -576,7 +589,7 @@ class TransportSolver(FusionKernel):
 
         np.maximum(0, new_imp, out=self.n_impurity)
 
-    def _legacy_bootstrap_current_approx(self, R0: float, B_pol: np.ndarray) -> np.ndarray:
+    def _legacy_bootstrap_current_approx(self, R0: float, B_pol: AnyFloatArray) -> FloatArray:
         """Legacy approximate bootstrap-current closure (compatibility mode only)."""
         # Legacy reduced-order closure retained only for compatibility mode.
         dims = self.cfg["dimensions"]
@@ -599,7 +612,7 @@ class TransportSolver(FusionKernel):
 
         return np.asarray(J_bs)
 
-    def calculate_bootstrap_current(self, R0: float, B_pol: np.ndarray) -> np.ndarray:
+    def calculate_bootstrap_current(self, R0: float, B_pol: AnyFloatArray) -> FloatArray:
         """Calculate bootstrap current using full Sauter closure by default.
 
         If neoclassical configuration is missing, this method fails closed unless
@@ -625,7 +638,7 @@ class TransportSolver(FusionKernel):
             )
         return self._legacy_bootstrap_current_approx(R0, B_pol)
 
-    def _gyro_bohm_chi(self) -> np.ndarray:
+    def _gyro_bohm_chi(self) -> FloatArray:
         """Gyro-Bohm anomalous transport diffusivity [m^2/s].
 
         chi_gB = c_gB * rho_s^2 * c_s / (a * q * R)
@@ -681,7 +694,7 @@ class TransportSolver(FusionKernel):
 
         return chi_gB
 
-    def _external_gk_transport(self, p: dict) -> np.ndarray:
+    def _external_gk_transport(self, p: dict[str, Any]) -> FloatArray:
         """Run an external GK solver at each flux surface, return chi_i profile.
 
         Also updates self.chi_e and self.D_n directly. By default, fails closed
@@ -797,7 +810,7 @@ class TransportSolver(FusionKernel):
         self.D_n = D_e_out
         return chi_i_out
 
-    def _tglf_native_transport(self, p: dict) -> np.ndarray:
+    def _tglf_native_transport(self, p: dict[str, Any]) -> FloatArray:
         """Run the native TGLF-equivalent solver at each flux surface.
 
         Uses SAT1 spectral saturation with E×B shear quench.  Also
@@ -1054,7 +1067,7 @@ class TransportSolver(FusionKernel):
     # ── Tridiagonal (Thomas) solver ─────────────────────────────────
 
     @staticmethod
-    def _thomas_solve(a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray) -> np.ndarray:
+    def _thomas_solve(a: AnyFloatArray, b: AnyFloatArray, c: AnyFloatArray, d: AnyFloatArray) -> FloatArray:
         """O(n) tridiagonal solver (Thomas algorithm).
 
         Solves  A x = d  where A is tridiagonal with sub-diagonal *a*,
@@ -1107,7 +1120,7 @@ class TransportSolver(FusionKernel):
 
     # ── Crank-Nicolson helpers ───────────────────────────────────────
 
-    def _explicit_diffusion_rhs(self, T: np.ndarray, chi: np.ndarray) -> np.ndarray:
+    def _explicit_diffusion_rhs(self, T: AnyFloatArray, chi: AnyFloatArray) -> FloatArray:
         """Compute explicit diffusion operator L_h(T) = (1/a^2) * (1/rho) d/drho(rho chi dT/drho).
 
         Uses half-grid diffusivities and central differences on the
@@ -1136,7 +1149,7 @@ class TransportSolver(FusionKernel):
 
         return Lh
 
-    def _build_cn_tridiag(self, chi: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _build_cn_tridiag(self, chi: AnyFloatArray, dt: float) -> tuple[FloatArray, FloatArray, FloatArray]:
         """Build tridiagonal coefficients for the Crank-Nicolson LHS.
 
         The implicit system is:
@@ -1173,12 +1186,12 @@ class TransportSolver(FusionKernel):
 
     @staticmethod
     def _sanitize_with_fallback(
-        arr: np.ndarray,
-        fallback: np.ndarray,
+        arr: AnyFloatArray,
+        fallback: AnyFloatArray,
         *,
         floor: float | None = None,
         ceil: float | None = None,
-    ) -> tuple[np.ndarray, int]:
+    ) -> tuple[FloatArray, int]:
         """Replace non-finite entries and enforce optional lower/upper bounds."""
         out = np.asarray(arr, dtype=np.float64).copy()
         fb = np.asarray(fallback, dtype=np.float64)
@@ -1239,7 +1252,7 @@ class TransportSolver(FusionKernel):
 
         return recovered_total
 
-    def _rho_volume_element(self) -> np.ndarray:
+    def _rho_volume_element(self) -> FloatArray:
         """Toroidal volume element per radial cell [m^3]."""
         dims = self.cfg["dimensions"]
         r0 = (dims["R_min"] + dims["R_max"]) / 2.0
@@ -1256,7 +1269,7 @@ class TransportSolver(FusionKernel):
         perimeter = 2.0 * np.pi * np.sqrt((a_safe * a_safe + b * b) / 2.0)
         return float(2.0 * np.pi * r0_safe * perimeter)
 
-    def _compute_aux_heating_sources(self, P_aux_MW: float) -> tuple[np.ndarray, np.ndarray]:
+    def _compute_aux_heating_sources(self, P_aux_MW: float) -> tuple[FloatArray, FloatArray]:
         """Return ion/electron auxiliary-heating sources in keV/s.
 
         The source is power-normalised against the radial cell volumes to ensure
@@ -1323,7 +1336,7 @@ class TransportSolver(FusionKernel):
     # ── Multi-ion helpers (P1.1) ────────────────────────────────────
 
     @staticmethod
-    def _bosch_hale_sigmav(T_keV: np.ndarray) -> np.ndarray:
+    def _bosch_hale_sigmav(T_keV: AnyFloatArray) -> FloatArray:
         """D-T <sigma*v> [m^3/s] using NRL Plasma Formulary fit (Bosch & Hale 1992).
 
         Valid for 0.2 < T < 100 keV.
@@ -1332,7 +1345,7 @@ class TransportSolver(FusionKernel):
         return np.asarray(3.68e-18 / (T ** (2.0 / 3.0)) * np.exp(-19.94 / (T ** (1.0 / 3.0))))
 
     @staticmethod
-    def _tungsten_radiation_rate(Te_keV: np.ndarray) -> np.ndarray:
+    def _tungsten_radiation_rate(Te_keV: AnyFloatArray) -> FloatArray:
         r"""Coronal equilibrium radiation rate coefficient L_z(Te) for tungsten [W·m^3].
 
         Piecewise power-law fit to Pütterich et al. (2010) / ADAS data:
@@ -1358,7 +1371,7 @@ class TransportSolver(FusionKernel):
         return np.asarray(Lz)
 
     @staticmethod
-    def _bremsstrahlung_power_density(ne_1e19: np.ndarray, Te_keV: np.ndarray, Z_eff: float) -> np.ndarray:
+    def _bremsstrahlung_power_density(ne_1e19: AnyFloatArray, Te_keV: AnyFloatArray, Z_eff: float) -> FloatArray:
         """Bremsstrahlung power density [W/m^3].
 
         P_brem = 5.35e-37 * Z_eff * ne^2 * sqrt(Te)
@@ -1369,7 +1382,7 @@ class TransportSolver(FusionKernel):
         Te = np.maximum(Te_keV, 0.01)
         return np.asarray(5.35e-37 * Z_eff * ne_m3**2 * np.sqrt(Te))
 
-    def _evolve_species(self, dt: float) -> tuple[np.ndarray, np.ndarray]:
+    def _evolve_species(self, dt: float) -> tuple[FloatArray, FloatArray]:
         """Evolve D, T, He-ash densities for one time-step (explicit diffusion + sources).
 
         Uses internal sub-stepping to respect the CFL stability limit of the
@@ -1408,8 +1421,8 @@ class TransportSolver(FusionKernel):
         dN_source_expected = float(dt * np.sum((-S_fuel - S_fuel + S_He - S_He_pump) * 1e19 * dV))
 
         # Diffusion operator (explicit, simple Laplacian)
-        def _diffuse(n: np.ndarray) -> np.ndarray:
-            d2n = np.zeros_like(n)
+        def _diffuse(n: AnyFloatArray) -> FloatArray:
+            d2n = np.zeros_like(n, dtype=float)
             d2n[1:-1] = (n[2:] - 2.0 * n[1:-1] + n[:-2]) / (self.drho**2)
             return self.D_species * d2n
 
@@ -1787,7 +1800,7 @@ class TransportSolver(FusionKernel):
         n_outer: int = 10,
         dt: float = 0.01,
         psi_tol: float = 1e-3,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Run self-consistent GS <-> transport iteration.
 
         This implements the standard integrated-modelling loop used by
@@ -1901,7 +1914,7 @@ class TransportSolver(FusionKernel):
         sc_n_inner: int = 100,
         sc_n_outer: int = 10,
         sc_psi_tol: float = 1e-3,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Run transport evolution until approximate steady state.
 
         Parameters
