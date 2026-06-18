@@ -33,6 +33,8 @@ Sauter 1999    : O. Sauter et al., Phys. Plasmas 6, 2834 (1999).
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import hashlib
 import tempfile
@@ -40,6 +42,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scipy.integrate import trapezoid
 
 from scpn_control.core.current_diffusion import (
@@ -105,11 +109,11 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
 
 def _profile_array(
     name: str,
-    values: np.ndarray,
+    values: AnyFloatArray,
     shape: tuple[int, ...],
     *,
     nonnegative: bool = False,
-) -> np.ndarray:
+) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.shape != shape:
         raise ValueError(f"{name} must match the simulator rho-grid shape")
@@ -187,15 +191,15 @@ class ScenarioConfig:
 @dataclass
 class ScenarioState:
     time: float
-    rho: np.ndarray
-    Te: np.ndarray
-    Ti: np.ndarray
-    ne: np.ndarray
-    q: np.ndarray
-    psi: np.ndarray
-    j_total: np.ndarray
-    j_bs: np.ndarray
-    j_cd: np.ndarray
+    rho: AnyFloatArray
+    Te: AnyFloatArray
+    Ti: AnyFloatArray
+    ne: AnyFloatArray
+    q: AnyFloatArray
+    psi: AnyFloatArray
+    j_total: AnyFloatArray
+    j_bs: AnyFloatArray
+    j_cd: AnyFloatArray
 
     Ip_MA: float
     beta_N: float
@@ -354,7 +358,7 @@ def _finite_profile_set(state: ScenarioState) -> bool:
     return all(np.all(np.isfinite(np.asarray(profile, dtype=float))) for profile in profiles)
 
 
-def _relative_energy_steps(states: list[ScenarioState]) -> np.ndarray:
+def _relative_energy_steps(states: list[ScenarioState]) -> FloatArray:
     energies = np.asarray([state.W_thermal for state in states], dtype=float)
     if len(energies) < 2:
         return np.zeros(0, dtype=float)
@@ -573,7 +577,7 @@ def save_scenario_coupling_report(audit: ScenarioCouplingAudit, path: Path) -> N
         json.dump(data, f, indent=2, sort_keys=True)
 
 
-def _spitzer_resistivity(Te_keV: np.ndarray, Z_eff: float) -> np.ndarray:
+def _spitzer_resistivity(Te_keV: AnyFloatArray, Z_eff: float) -> FloatArray:
     """Spitzer parallel resistivity profile.
 
     η = SPITZER_COEFF * Z_eff * ln_Λ / T_e^1.5
@@ -589,14 +593,14 @@ def _spitzer_resistivity(Te_keV: np.ndarray, Z_eff: float) -> np.ndarray:
 
 
 def _gyro_bohm_chi(
-    rho: np.ndarray,
-    Te: np.ndarray,
-    Ti: np.ndarray,
-    ne: np.ndarray,
-    q: np.ndarray,
+    rho: AnyFloatArray,
+    Te: AnyFloatArray,
+    Ti: AnyFloatArray,
+    ne: AnyFloatArray,
+    q: AnyFloatArray,
     a: float,
     B0: float,
-) -> np.ndarray:
+) -> FloatArray:
     """Gyro-Bohm anomalous electron/ion thermal diffusivity.
 
     chi_gB = c_gB * rho_i * v_ti * (rho_i / a)^2 * q^2
@@ -625,14 +629,14 @@ def _gyro_bohm_chi(
 
 
 def _diffusion_step(
-    T: np.ndarray,
-    rho: np.ndarray,
-    chi: np.ndarray,
-    ne: np.ndarray,
-    S: np.ndarray,
+    T: AnyFloatArray,
+    rho: AnyFloatArray,
+    chi: AnyFloatArray,
+    ne: AnyFloatArray,
+    S: AnyFloatArray,
     dt: float,
     a: float,
-) -> np.ndarray:
+) -> FloatArray:
     """Explicit cylindrical thermal diffusion step.
 
     Solves one half-step of:
@@ -752,8 +756,8 @@ class IntegratedScenarioSimulator:
         self.lh_threshold = MartinThreshold()
 
         # Phase bridge state (populated when include_phase_bridge=True)
-        self._phase_K_nm: np.ndarray | None = None
-        self._phase_omega: np.ndarray | None = None
+        self._phase_K_nm: FloatArray | None = None
+        self._phase_omega: FloatArray | None = None
         self._last_gk_output: GKOutput | None = None
 
     # ── initialisation ────────────────────────────────────────────────────────
@@ -793,7 +797,7 @@ class IntegratedScenarioSimulator:
         solver.ne = np.ones(self.nr) * 5.0  # 10^19 m^-3
         return solver
 
-    def initialize(self, profiles: dict | None = None) -> ScenarioState:
+    def initialize(self, profiles: dict[str, Any] | None = None) -> ScenarioState:
         self.ts_solver = self._setup_transport_solver()
         if profiles:
             if "Te" in profiles:
@@ -837,7 +841,7 @@ class IntegratedScenarioSimulator:
 
     # ── internal physics helpers ──────────────────────────────────────────────
 
-    def _chi_total(self, q: np.ndarray) -> np.ndarray:
+    def _chi_total(self, q: AnyFloatArray) -> FloatArray:
         """Combined neoclassical + gyro-Bohm anomalous diffusivity.
 
         Wesson 2011, Ch. 14 — total chi = chi_neo + chi_anom.
@@ -862,12 +866,12 @@ class IntegratedScenarioSimulator:
         )
         return np.asarray(chi_neo + chi_anom)
 
-    def _source_density(self, S_heat_W_m3: np.ndarray) -> np.ndarray:
+    def _source_density(self, S_heat_W_m3: AnyFloatArray) -> FloatArray:
         """Convert volumetric power density [W/m^3] to keV/s / (10^19 m^-3)."""
         n_si = np.maximum(self.ts_solver.ne, 0.01) * 1e19
         return np.asarray(S_heat_W_m3 / (_E_CHARGE * 1e3 * n_si))
 
-    def _ohmic_power_density(self, q_prof: np.ndarray) -> np.ndarray:
+    def _ohmic_power_density(self, q_prof: AnyFloatArray) -> FloatArray:
         """Ohmic heating power density.
 
         P_ohm = η_Spitzer * j_ohm^2  where  j_ohm = E_loop / (η * (1 - f_t))
@@ -892,7 +896,7 @@ class IntegratedScenarioSimulator:
         P_ohm = eta * j_total**2 * (1.0 - f_t)
         return np.asarray(np.maximum(P_ohm, 0.0))
 
-    def _j_total_from_psi(self, q_prof: np.ndarray) -> np.ndarray:
+    def _j_total_from_psi(self, q_prof: AnyFloatArray) -> FloatArray:
         """Approximate toroidal current density from q profile.
 
         j_tor ≈ B0 * a / (μ_0 * R0) * d/dr(1/q) * (1/r)
@@ -905,7 +909,7 @@ class IntegratedScenarioSimulator:
         j_tor = (self.config.B0 * self.config.a / (_MU_0 * self.config.R0)) * dinvq_drho / r
         return np.asarray(j_tor)
 
-    def _aux_source_profile(self, q_prof: np.ndarray) -> np.ndarray:
+    def _aux_source_profile(self, q_prof: AnyFloatArray) -> FloatArray:
         """Gaussian auxiliary heating profile [W/m^3].
 
         Peaked at rho = 0.3 with sigma = 0.15 for NBI-like deposition.
@@ -927,7 +931,7 @@ class IntegratedScenarioSimulator:
             profile * self.config.P_aux_MW * 1e6 / (vol_norm * trapezoid(2.0 * self.rho * profile, self.rho) + 1e-12)
         )
 
-    def _transport_step(self, dt: float, q_prof: np.ndarray) -> None:
+    def _transport_step(self, dt: float, q_prof: AnyFloatArray) -> None:
         """Advance Te and Ti by one transport half-step.
 
         When ``config.use_transport_solver`` is True, delegates to the full
@@ -978,7 +982,7 @@ class IntegratedScenarioSimulator:
                 self.config.a,
             )
 
-    def _ntm_step(self, dt: float, q_prof: np.ndarray) -> None:
+    def _ntm_step(self, dt: float, q_prof: AnyFloatArray) -> None:
         """NTM island dynamics via the Modified Rutherford Equation.
 
         La Haye 2006, Phys. Plasmas 13, 055501 — full MRE.

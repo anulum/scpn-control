@@ -16,6 +16,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 from scpn_control.core.uncertainty import bosch_hale_reactivity
 
 # ── Fusion physics constants ──────────────────────────────────────────
@@ -56,7 +58,7 @@ def _require_nonnegative_scalar(name: str, value: float) -> float:
     return scalar
 
 
-def _require_nonnegative_profile(name: str, values: np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
+def _require_nonnegative_profile(name: str, values: AnyFloatArray, shape: tuple[int, ...] | None = None) -> FloatArray:
     """Return a finite non-negative profile with an optional exact shape."""
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1:
@@ -72,7 +74,7 @@ def _require_nonnegative_profile(name: str, values: np.ndarray, shape: tuple[int
     return arr
 
 
-def _require_normalised_rho(rho: np.ndarray) -> np.ndarray:
+def _require_normalised_rho(rho: AnyFloatArray) -> FloatArray:
     rho_arr = _require_nonnegative_profile("rho", rho)
     if np.any(rho_arr > 1.0):
         raise ValueError("rho must stay within the normalised interval [0, 1]")
@@ -132,7 +134,7 @@ def _non_empty_text(name: str, value: str) -> str:
     return value.strip()
 
 
-def _weighted_average(values: np.ndarray, rho: np.ndarray) -> float:
+def _weighted_average(values: AnyFloatArray, rho: AnyFloatArray) -> float:
     rho_arr = _require_normalised_rho(rho)
     value_arr = _require_nonnegative_profile("values", values, rho_arr.shape)
     weights = rho_arr.copy()
@@ -216,10 +218,10 @@ def burn_control_claim_evidence(
     alpha_heating: AlphaHeating,
     controller: BurnController,
     *,
-    rho: np.ndarray,
-    ne_20: np.ndarray,
-    Te_keV: np.ndarray,
-    Ti_keV: np.ndarray,
+    rho: AnyFloatArray,
+    ne_20: AnyFloatArray,
+    Te_keV: AnyFloatArray,
+    Ti_keV: AnyFloatArray,
     tau_E_s: float,
     P_aux_MW: float,
     source: str,
@@ -347,7 +349,7 @@ class AlphaHeating:
         self.kappa = _require_positive_scalar("kappa", kappa)
         self.E_alpha_J = E_ALPHA_J
 
-    def power_density(self, ne_20: np.ndarray, Te_keV: np.ndarray, Ti_keV: np.ndarray) -> np.ndarray:
+    def power_density(self, ne_20: AnyFloatArray, Te_keV: AnyFloatArray, Ti_keV: AnyFloatArray) -> FloatArray:
         """Alpha power density [MW/m^3] for 50:50 D-T mixture.
 
         p_α = n_D n_T <σv>(T_i) E_α.
@@ -370,7 +372,7 @@ class AlphaHeating:
         p_alpha_W = nD * nT * sigv * self.E_alpha_J
         return np.asarray(p_alpha_W / 1e6, dtype=float)
 
-    def power(self, ne_20: np.ndarray, Te_keV: np.ndarray, Ti_keV: np.ndarray, rho: np.ndarray) -> float:
+    def power(self, ne_20: AnyFloatArray, Te_keV: AnyFloatArray, Ti_keV: AnyFloatArray, rho: AnyFloatArray) -> float:
         """P_alpha [MW] integrated over plasma volume.
 
         dV = 4π² R₀ a² κ ρ dρ (torus shell element in normalised radius).

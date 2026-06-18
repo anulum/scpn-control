@@ -12,6 +12,8 @@ from typing import Any, Callable
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # Safety constraints for tokamak RL control.
 #
 # Disruption avoidance formulated as RL safety constraints:
@@ -55,11 +57,11 @@ class SafetyConstraint:
     """
 
     name: str
-    cost_fn: Callable[[np.ndarray, np.ndarray, np.ndarray], float]
+    cost_fn: Callable[[AnyFloatArray, AnyFloatArray, AnyFloatArray], float]
     limit: float
 
 
-def cbf_beta_n(x: np.ndarray, beta_n_limit: float = BETA_N_LIMIT) -> float:
+def cbf_beta_n(x: AnyFloatArray, beta_n_limit: float = BETA_N_LIMIT) -> float:
     """Control barrier function for β_N safety.
 
     h(x) = β_limit - β_N  >  0 inside safe set.
@@ -69,7 +71,7 @@ def cbf_beta_n(x: np.ndarray, beta_n_limit: float = BETA_N_LIMIT) -> float:
     return float(beta_n_limit - x[1])
 
 
-def cbf_q95(x: np.ndarray, q95_min: float = Q95_MIN) -> float:
+def cbf_q95(x: AnyFloatArray, q95_min: float = Q95_MIN) -> float:
     """Control barrier function for q_95 safety.
 
     h(x) = q_95 - q_min  >  0 inside safe set.
@@ -93,12 +95,12 @@ class ConstrainedGymTokamakEnv:
         self.action_space = base_env.action_space
         self.observation_space = base_env.observation_space
 
-    def reset(self, **kwargs: Any) -> tuple[np.ndarray, dict[str, Any]]:
+    def reset(self, **kwargs: Any) -> tuple[FloatArray, dict[str, Any]]:
         obs, info = self.base_env.reset(**kwargs)
         self._last_obs = obs
         return obs, info
 
-    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
+    def step(self, action: AnyFloatArray) -> tuple[FloatArray, float, bool, bool, dict[str, Any]]:
         obs, reward, terminated, truncated, info = self.base_env.step(action)
 
         costs = [c.cost_fn(self._last_obs, action, obs) for c in self.constraints]
@@ -181,7 +183,7 @@ class LagrangianPPO:
 
         self.trained = True
 
-    def predict(self, obs: np.ndarray) -> np.ndarray:
+    def predict(self, obs: AnyFloatArray) -> FloatArray:
         return np.asarray(self.env.action_space.sample())
 
 
@@ -190,7 +192,7 @@ class LagrangianPPO:
 # Constraint values: Wesson 2004, §3.4 (q_95); Greenwald & Strait 1993 (β_N).
 
 
-def q95_cost_fn(obs: np.ndarray, act: np.ndarray, next_obs: np.ndarray) -> float:
+def q95_cost_fn(obs: AnyFloatArray, act: AnyFloatArray, next_obs: AnyFloatArray) -> float:
     """Cost for q_95 < Q95_MIN (kink instability region).
 
     C = max(0, Q95_MIN - q_95)
@@ -199,7 +201,7 @@ def q95_cost_fn(obs: np.ndarray, act: np.ndarray, next_obs: np.ndarray) -> float
     return float(max(0.0, Q95_MIN - next_obs[2]))
 
 
-def beta_n_cost_fn(obs: np.ndarray, act: np.ndarray, next_obs: np.ndarray) -> float:
+def beta_n_cost_fn(obs: AnyFloatArray, act: AnyFloatArray, next_obs: AnyFloatArray) -> float:
     """Cost for β_N > BETA_N_LIMIT (Troyon limit violation).
 
     C = max(0, β_N - β_limit)
@@ -208,7 +210,7 @@ def beta_n_cost_fn(obs: np.ndarray, act: np.ndarray, next_obs: np.ndarray) -> fl
     return float(max(0.0, next_obs[1] - BETA_N_LIMIT))
 
 
-def ip_cost_fn(obs: np.ndarray, act: np.ndarray, next_obs: np.ndarray) -> float:
+def ip_cost_fn(obs: AnyFloatArray, act: AnyFloatArray, next_obs: AnyFloatArray) -> float:
     """Cost for I_p ≤ 0 (plasma lost).
 
     C = max(0, -I_p)

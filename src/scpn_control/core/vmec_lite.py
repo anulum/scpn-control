@@ -27,6 +27,8 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 _VMEC_LITE_CLAIM_SCHEMA_VERSION = 1
 _FULL_VMEC_REFERENCE_SOURCES = frozenset(
     {"documented_public_reference", "vmec_reference", "external_mhd_reference", "measured_stellarator"}
@@ -47,7 +49,7 @@ def _finite_float(name: str, value: float) -> float:
     return scalar
 
 
-def _profile_array(name: str, values: np.ndarray, *, nonnegative: bool = False, positive: bool = False) -> np.ndarray:
+def _profile_array(name: str, values: AnyFloatArray, *, nonnegative: bool = False, positive: bool = False) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size < 2:
         raise ValueError(f"{name} must be a one-dimensional profile with at least two points")
@@ -62,9 +64,9 @@ def _profile_array(name: str, values: np.ndarray, *, nonnegative: bool = False, 
 
 @dataclass
 class VMECResult:
-    R_mn: np.ndarray
-    Z_mn: np.ndarray
-    B_mn: np.ndarray
+    R_mn: AnyFloatArray
+    Z_mn: AnyFloatArray
+    B_mn: AnyFloatArray
     force_residual: float
     iterations: int
     converged: bool
@@ -113,7 +115,7 @@ def _non_empty_text(name: str, value: str) -> str:
     return value.strip()
 
 
-def _relative_array_error(name: str, observed: np.ndarray, reference: np.ndarray | None) -> float | None:
+def _relative_array_error(name: str, observed: AnyFloatArray, reference: AnyFloatArray | None) -> float | None:
     if reference is None:
         return None
     obs = np.asarray(observed, dtype=float)
@@ -148,9 +150,9 @@ def vmec_lite_claim_evidence(
     profile_source: str,
     current_assumption: str,
     model_id: str = "bounded_vmec_lite",
-    reference_R_mn: np.ndarray | None = None,
-    reference_Z_mn: np.ndarray | None = None,
-    reference_iota: np.ndarray | None = None,
+    reference_R_mn: AnyFloatArray | None = None,
+    reference_Z_mn: AnyFloatArray | None = None,
+    reference_iota: AnyFloatArray | None = None,
     residual_tolerance: float = 1e-3,
     spectral_relative_tolerance: float = 0.05,
     iota_relative_tolerance: float = 0.02,
@@ -280,7 +282,7 @@ class SpectralBasis:
 
         self.n_modes = len(self.mn_modes)
 
-    def evaluate(self, coeffs_mn: np.ndarray, theta: np.ndarray, zeta: np.ndarray, is_sin: bool = False) -> np.ndarray:
+    def evaluate(self, coeffs_mn: AnyFloatArray, theta: AnyFloatArray, zeta: AnyFloatArray, is_sin: bool = False) -> AnyFloatArray:
         """Evaluate spectral expansion at (θ, ζ) grid points.
 
         Hirshman & Whitson 1983, Eq. 1–2:
@@ -338,7 +340,7 @@ class VMECLiteSolver:
             if (m, n) in Z_bound:
                 self.Z_mn[-1, i] = _finite_float(f"Z_bound[{(m, n)}]", Z_bound[(m, n)])
 
-    def set_profiles(self, pressure: np.ndarray, iota: np.ndarray) -> None:
+    def set_profiles(self, pressure: AnyFloatArray, iota: AnyFloatArray) -> None:
         """Interpolate finite pressure and rotational-transform profiles onto the solver grid."""
         pressure = _profile_array("pressure", pressure, nonnegative=True)
         iota = _profile_array("iota", iota, positive=True)
@@ -465,7 +467,7 @@ class AxisymmetricTokamakBoundary:
 
 class StellaratorBoundary:
     @staticmethod
-    def w7x_standard() -> tuple[dict, dict]:
+    def w7x_standard() -> tuple[dict[tuple[int, int], float], dict[tuple[int, int], float]]:
         """W7-X standard configuration boundary.
 
         Grieger et al., Phys. Fluids B 4 (1992) 2081 — modular coil geometry.

@@ -45,6 +45,8 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scipy.linalg import LinAlgError, solve_continuous_are
 
 _VALID_BLOCK_TYPES = frozenset({"real_scalar", "complex_scalar", "full"})
@@ -424,16 +426,16 @@ class StructuredUncertainty:
     def total_size(self) -> int:
         return sum(b.size for b in self.blocks)
 
-    def bound_matrix(self) -> np.ndarray:
+    def bound_matrix(self) -> FloatArray:
         """Block-diagonal bound matrix mapping normalised Δ blocks to physical Δ."""
         bounds = np.concatenate([np.full(block.size, block.bound, dtype=float) for block in self.blocks])
         return np.diag(bounds)
 
 
 def _compute_mu_upper_bound_and_scalings(
-    M: np.ndarray,
+    M: AnyFloatArray,
     delta_structure: list[tuple[int, str]],
-) -> tuple[float, np.ndarray]:
+) -> tuple[float, FloatArray]:
     """D-scaling upper bound on μ(M).
 
     Computes  min_D  σ̄(D M D^{-1})  where D is block-diagonal with positive
@@ -455,7 +457,7 @@ def _compute_mu_upper_bound_and_scalings(
         if block_type not in _VALID_BLOCK_TYPES:
             raise ValueError(f"Delta block_type must be one of {sorted(_VALID_BLOCK_TYPES)}")
 
-    def apply_D(d_vec: np.ndarray) -> np.ndarray:
+    def apply_D(d_vec: AnyFloatArray) -> FloatArray:
         D = np.zeros((n, n), dtype=complex)
         idx = 0
         for d_idx, (size, _btype) in enumerate(delta_structure):
@@ -502,7 +504,7 @@ def _compute_mu_upper_bound_and_scalings(
     return float(best_mu), best_d
 
 
-def compute_mu_upper_bound(M: np.ndarray, delta_structure: list[tuple[int, str]]) -> float:
+def compute_mu_upper_bound(M: AnyFloatArray, delta_structure: list[tuple[int, str]]) -> float:
     """D-scaling upper bound on μ(M).
 
     Computes  min_D  σ̄(D M D^{-1})  where D is block-diagonal with positive
@@ -513,7 +515,7 @@ def compute_mu_upper_bound(M: np.ndarray, delta_structure: list[tuple[int, str]]
 
     Parameters
     ----------
-    M : np.ndarray, shape (n, n)
+    M : AnyFloatArray, shape (n, n)
         Closed-loop transfer matrix evaluated at a single frequency.
     delta_structure : list of (size, block_type)
         Block sizes and types from StructuredUncertainty.build_Delta_structure().
@@ -528,9 +530,9 @@ def compute_mu_upper_bound(M: np.ndarray, delta_structure: list[tuple[int, str]]
 
 
 def _validate_state_space(
-    plant_ss: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    plant_ss: tuple[AnyFloatArray, AnyFloatArray, AnyFloatArray, AnyFloatArray],
     uncertainty: StructuredUncertainty,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
     A, B, C, D_mat = (np.atleast_2d(np.asarray(mat, dtype=float)) for mat in plant_ss)
 
     if A.shape[0] != A.shape[1]:
@@ -557,7 +559,7 @@ def _validate_state_space(
     return A, B, C, D_mat
 
 
-def _riccati_state_feedback(A: np.ndarray, B: np.ndarray, C: np.ndarray) -> np.ndarray:
+def _riccati_state_feedback(A: AnyFloatArray, B: AnyFloatArray, C: AnyFloatArray) -> FloatArray:
     """Continuous-time Riccati state-feedback K for the D-K K-step."""
     q_weight = C.T @ C + np.eye(A.shape[0]) * 1e-9
     r_weight = np.eye(B.shape[1])
@@ -572,12 +574,12 @@ def _riccati_state_feedback(A: np.ndarray, B: np.ndarray, C: np.ndarray) -> np.n
 
 
 def _closed_loop_dc_uncertainty_map(
-    A: np.ndarray,
-    B: np.ndarray,
-    C: np.ndarray,
-    D_mat: np.ndarray,
-    K: np.ndarray,
-) -> np.ndarray:
+    A: AnyFloatArray,
+    B: AnyFloatArray,
+    C: AnyFloatArray,
+    D_mat: AnyFloatArray,
+    K: AnyFloatArray,
+) -> FloatArray:
     """Return C (0I - A_cl)^-1 B + D for the static robust-performance channel."""
     A_cl = A - B @ K
     try:
@@ -591,11 +593,11 @@ def _closed_loop_dc_uncertainty_map(
 
 
 def dk_iteration(
-    plant_ss: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+    plant_ss: tuple[AnyFloatArray, AnyFloatArray, AnyFloatArray, AnyFloatArray],
     uncertainty: StructuredUncertainty,
     n_iter: int = 5,
     gamma_bisect_tol: float = 0.01,
-) -> tuple[Any, float, np.ndarray]:
+) -> tuple[Any, float, FloatArray]:
     """Bounded static D-scaled mu-analysis pass for μ-synthesis workflows.
 
     This bounded-domain implementation performs a Riccati state-feedback K-step
@@ -616,11 +618,11 @@ def dk_iteration(
 
     Returns
     -------
-    K_controller : np.ndarray
+    K_controller : AnyFloatArray
         Synthesised controller gain matrix.
     mu_peak : float
         Peak μ upper bound achieved after n_iter iterations.
-    D_scalings : np.ndarray
+    D_scalings : AnyFloatArray
         Final D-scale vector (one entry per uncertainty block).
     """
     if n_iter <= 0:
@@ -656,14 +658,14 @@ class MuSynthesisController:
 
     def __init__(
         self,
-        plant_ss: tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+        plant_ss: tuple[AnyFloatArray, AnyFloatArray, AnyFloatArray, AnyFloatArray],
         uncertainty: StructuredUncertainty,
     ):
         self.plant_ss = plant_ss
         self.uncertainty = uncertainty
-        self.K: np.ndarray | None = None
+        self.K: AnyFloatArray | None = None
         self.mu_peak = float("inf")
-        self.D_scalings: np.ndarray | None = None
+        self.D_scalings: AnyFloatArray | None = None
 
         self.integral_error = 0.0
 
@@ -674,7 +676,7 @@ class MuSynthesisController:
         self.mu_peak = mu
         self.D_scalings = D_s
 
-    def step(self, x: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, x: AnyFloatArray, dt: float) -> FloatArray:
         """Apply synthesised controller: u = -K x."""
         if self.K is None:
             raise RuntimeError("Controller not synthesized yet")

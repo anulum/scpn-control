@@ -17,6 +17,8 @@ from typing import Callable
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # ── Physical constants ────────────────────────────────────────────────────────
 _M_P = 1.67262192e-27  # kg
 _M_E = 9.10938e-31  # kg
@@ -40,7 +42,7 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
-def _profile_array(name: str, values: np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
+def _profile_array(name: str, values: AnyFloatArray, shape: tuple[int, ...] | None = None) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size == 0:
         raise ValueError(f"{name} must be a one-dimensional non-empty profile")
@@ -54,7 +56,7 @@ def _profile_array(name: str, values: np.ndarray, shape: tuple[int, ...] | None 
 @dataclass
 class EnsembleResult:
     loss_fraction: float
-    heating_profile: np.ndarray
+    heating_profile: AnyFloatArray
     current_drive: float
     n_passing: int
     n_trapped: int
@@ -268,7 +270,7 @@ class GuidingCenterOrbit:
         self.mu = -1.0
         self.v_perp_0 = v_perp
 
-    def _eom(self, state: np.ndarray, B_field: Callable) -> np.ndarray:
+    def _eom(self, state: AnyFloatArray, B_field: Callable[..., tuple[float, float, float]]) -> FloatArray:
         R, Z, phi, v_par = state
         if not np.all(np.isfinite(state)) or R <= 0.0:
             raise ValueError("orbit state must be finite with positive major radius")
@@ -315,7 +317,7 @@ class GuidingCenterOrbit:
 
         return np.array([dR_dt, dZ_dt, dphi_dt, dv_par_dt])
 
-    def step(self, B_field: Callable, dt: float) -> tuple[float, float, float, float]:
+    def step(self, B_field: Callable[..., tuple[float, float, float]], dt: float) -> tuple[float, float, float, float]:
         dt = _finite_scalar("dt", dt, positive=True)
         state = np.array([self.R, self.Z, self.phi, self.v_par])
 
@@ -333,9 +335,9 @@ class GuidingCenterOrbit:
 class OrbitClassifier:
     @staticmethod
     def classify(
-        orbit_R: np.ndarray,
-        orbit_Z: np.ndarray,
-        v_par: np.ndarray,
+        orbit_R: AnyFloatArray,
+        orbit_Z: AnyFloatArray,
+        v_par: AnyFloatArray,
         R_wall: float,
         Z_wall_upper: float,
     ) -> str:
@@ -367,7 +369,7 @@ class MonteCarloEnsemble:
         self.B0 = _finite_scalar("B0", B0, positive=True)
         self.particles: list[GuidingCenterOrbit] = []
 
-    def initialize(self, ne_profile: np.ndarray, Te_profile: np.ndarray, rho: np.ndarray) -> None:
+    def initialize(self, ne_profile: AnyFloatArray, Te_profile: AnyFloatArray, rho: AnyFloatArray) -> None:
         rho = _profile_array("rho", rho)
         if np.any(rho < 0.0) or np.any(rho > 1.0) or np.any(np.diff(rho) <= 0.0):
             raise ValueError("rho must be strictly increasing within [0, 1]")
@@ -389,7 +391,7 @@ class MonteCarloEnsemble:
             p = GuidingCenterOrbit(4.0, 2, self.E_birth_keV, pitch, R_init, Z_init)
             self.particles.append(p)
 
-    def follow(self, B_field: Callable, n_bounces: int = 10, dt: float = 1e-7) -> EnsembleResult:
+    def follow(self, B_field: Callable[..., tuple[float, float, float]], n_bounces: int = 10, dt: float = 1e-7) -> EnsembleResult:
         if not self.particles:
             raise ValueError("particles must be initialised before follow")
         if isinstance(n_bounces, bool) or int(n_bounces) != n_bounces or n_bounces <= 0:

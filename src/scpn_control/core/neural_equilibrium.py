@@ -34,7 +34,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
-from numpy.typing import NDArray
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 
 logger = logging.getLogger(__name__)
 
@@ -203,14 +204,14 @@ def _finite_positive_or_none(name: str, value: object) -> float | None:
     return result
 
 
-def _validate_feature_matrix(features: NDArray) -> NDArray:
+def _validate_feature_matrix(features: AnyFloatArray) -> FloatArray:
     x = np.asarray(features, dtype=np.float64)
     if x.ndim != 2 or x.shape[1] != len(NEURAL_EQ_FEATURE_NAMES) or not np.all(np.isfinite(x)):
         raise ValueError(f"features must be finite with shape (n, {len(NEURAL_EQ_FEATURE_NAMES)})")
     return x
 
 
-def _validate_psi_matrix(psi: NDArray, grid_shape: tuple[int, int]) -> NDArray:
+def _validate_psi_matrix(psi: AnyFloatArray, grid_shape: tuple[int, int]) -> FloatArray:
     y = np.asarray(psi, dtype=np.float64)
     n_grid = int(grid_shape[0] * grid_shape[1])
     if y.ndim != 2 or y.shape[1] != n_grid or not np.all(np.isfinite(y)):
@@ -218,7 +219,7 @@ def _validate_psi_matrix(psi: NDArray, grid_shape: tuple[int, int]) -> NDArray:
     return y
 
 
-def _synthetic_equilibrium_from_features(features: NDArray, grid_shape: tuple[int, int]) -> NDArray:
+def _synthetic_equilibrium_from_features(features: AnyFloatArray, grid_shape: tuple[int, int]) -> FloatArray:
     nh, nw = grid_shape
     r = np.linspace(1.0, 2.5, nw)
     z = np.linspace(-1.0, 1.0, nh)
@@ -251,7 +252,7 @@ def generate_synthetic_equilibrium_dataset(
     *,
     grid_shape: tuple[int, int] = (65, 65),
     seed: int = 20240531,
-) -> tuple[NDArray, NDArray, SyntheticEquilibriumCampaign]:
+) -> tuple[FloatArray, FloatArray, SyntheticEquilibriumCampaign]:
     """Generate bounded Solovev-like equilibria for pretraining.
 
     The generated targets are synthetic Grad-Shafranov-shaped flux maps for
@@ -302,8 +303,8 @@ class SimpleMLP:
 
     def __init__(self, layer_sizes: list[int], seed: int = 42) -> None:
         self.rng = np.random.default_rng(seed)
-        self.weights: list[NDArray] = []
-        self.biases: list[NDArray] = []
+        self.weights: list[AnyFloatArray] = []
+        self.biases: list[AnyFloatArray] = []
         for i in range(len(layer_sizes) - 1):
             fan_in = layer_sizes[i]
             # He initialisation
@@ -311,7 +312,7 @@ class SimpleMLP:
             self.weights.append(self.rng.normal(0, scale, (layer_sizes[i], layer_sizes[i + 1])))
             self.biases.append(np.zeros(layer_sizes[i + 1]))
 
-    def forward(self, x: NDArray) -> NDArray:
+    def forward(self, x: AnyFloatArray) -> AnyFloatArray:
         h = x
         for i, (W, b) in enumerate(zip(self.weights, self.biases)):
             h = h @ W + b
@@ -319,7 +320,7 @@ class SimpleMLP:
                 h = np.maximum(0, h)  # ReLU
         return h
 
-    def predict(self, x: NDArray) -> NDArray:
+    def predict(self, x: AnyFloatArray) -> AnyFloatArray:
         return self.forward(x)
 
 
@@ -331,11 +332,11 @@ class MinimalPCA:
 
     def __init__(self, n_components: int = 20) -> None:
         self.n_components = n_components
-        self.mean_: NDArray | None = None
-        self.components_: NDArray | None = None
-        self.explained_variance_ratio_: NDArray | None = None
+        self.mean_: AnyFloatArray | None = None
+        self.components_: AnyFloatArray | None = None
+        self.explained_variance_ratio_: AnyFloatArray | None = None
 
-    def fit(self, X: NDArray) -> "MinimalPCA":
+    def fit(self, X: AnyFloatArray) -> "MinimalPCA":
         self.mean_ = X.mean(axis=0)
         X_centered = X - self.mean_
         U, S, Vt = np.linalg.svd(X_centered, full_matrices=False)
@@ -344,15 +345,15 @@ class MinimalPCA:
         self.explained_variance_ratio_ = S[: self.n_components] ** 2 / max(total_var, 1e-15)
         return self
 
-    def transform(self, X: NDArray) -> NDArray:
+    def transform(self, X: AnyFloatArray) -> FloatArray:
         assert self.mean_ is not None and self.components_ is not None
         return np.asarray((X - self.mean_) @ self.components_.T)
 
-    def inverse_transform(self, Z: NDArray) -> NDArray:
+    def inverse_transform(self, Z: AnyFloatArray) -> FloatArray:
         assert self.mean_ is not None and self.components_ is not None
         return np.asarray(Z @ self.components_ + self.mean_)
 
-    def fit_transform(self, X: NDArray) -> NDArray:
+    def fit_transform(self, X: AnyFloatArray) -> FloatArray:
         self.fit(X)
         return self.transform(X)
 
@@ -373,12 +374,12 @@ class NeuralEquilibriumAccelerator:
         self.pca = MinimalPCA(n_components=self.cfg.n_components)
         self.mlp: SimpleMLP | None = None
         self.is_trained = False
-        self._input_mean: NDArray | None = None
-        self._input_std: NDArray | None = None
+        self._input_mean: AnyFloatArray | None = None
+        self._input_std: AnyFloatArray | None = None
 
     # ── GS residual loss ───────────────────────────────────────────
 
-    def _gs_residual_loss(self, psi_pred_flat: NDArray, grid_shape: tuple[int, int]) -> float:
+    def _gs_residual_loss(self, psi_pred_flat: AnyFloatArray, grid_shape: tuple[int, int]) -> float:
         """GS* residual loss: d²ψ/dR² - (1/R)dψ/dR + d²ψ/dZ²."""
         nh, nw = grid_shape
         psi = psi_pred_flat.reshape(nh, nw)
@@ -398,7 +399,7 @@ class NeuralEquilibriumAccelerator:
 
     # ── Evaluation ────────────────────────────────────────────────
 
-    def evaluate_surrogate(self, X_test: NDArray, Y_test_raw: NDArray) -> dict[str, float]:
+    def evaluate_surrogate(self, X_test: AnyFloatArray, Y_test_raw: AnyFloatArray) -> dict[str, float]:
         """Evaluate on test set. Returns dict with mse, max_error, gs_residual."""
         if not self.is_trained:
             raise RuntimeError("Not trained")
@@ -557,8 +558,8 @@ class NeuralEquilibriumAccelerator:
         rng = np.random.default_rng(seed)
         t0 = time.perf_counter()
 
-        X_features: list[NDArray] = []
-        Y_psi: list[NDArray] = []
+        X_features: list[AnyFloatArray] = []
+        Y_psi: list[AnyFloatArray] = []
 
         # Target grid: use the first file's grid as reference
         first_eq = read_geqdsk(geqdsk_paths[0])
@@ -827,18 +828,18 @@ class NeuralEquilibriumAccelerator:
 
     # ── Inference ────────────────────────────────────────────────────
 
-    def predict(self, features: NDArray) -> NDArray:
+    def predict(self, features: AnyFloatArray) -> FloatArray:
         """
         Predict ψ(R,Z) from input features.
 
         Parameters
         ----------
-        features : NDArray
+        features : AnyFloatArray
             Shape (n_features,) or (batch, n_features).
 
         Returns
         -------
-        NDArray
+        AnyFloatArray
             Shape (nh, nw) or (batch, nh, nw).
         """
         if not self.is_trained:
@@ -871,7 +872,7 @@ class NeuralEquilibriumAccelerator:
         assert self.pca.explained_variance_ratio_ is not None
         assert self._input_mean is not None
         assert self._input_std is not None
-        payload: dict[str, NDArray] = {
+        payload: dict[str, AnyFloatArray] = {
             "n_components": np.array([self.cfg.n_components]),
             "grid_nh": np.array([self.cfg.grid_shape[0]]),
             "grid_nw": np.array([self.cfg.grid_shape[1]]),
@@ -923,7 +924,7 @@ class NeuralEquilibriumAccelerator:
 
     # ── Convenience ──────────────────────────────────────────────────
 
-    def benchmark(self, features: NDArray, n_runs: int = 100) -> dict[str, float]:
+    def benchmark(self, features: AnyFloatArray, n_runs: int = 100) -> dict[str, float]:
         """Time inference over n_runs and return stats."""
         times = []
         for _ in range(n_runs):

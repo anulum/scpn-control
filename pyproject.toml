@@ -131,6 +131,15 @@ files = [
 [[tool.mypy.overrides]]
 module = [
     "scpn_control._typing",
+    "scpn_control.core.integrated_scenario",
+    "scpn_control.core.neural_equilibrium",
+    "scpn_control.control.fusion_sota_mpc",
+    "scpn_control.control.mu_synthesis",
+    "scpn_control.core.vmec_lite",
+    "scpn_control.core.orbit_following",
+    "scpn_control.control.burn_controller",
+    "scpn_control.control.gain_scheduled_controller",
+    "scpn_control.control.safe_rl_controller",
     "scpn_control.core.sawtooth",
     "scpn_control.core.current_diffusion",
     "scpn_control.core.kinetic_efit",

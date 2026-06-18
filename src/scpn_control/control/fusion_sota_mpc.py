@@ -30,6 +30,8 @@ except ImportError:
     HAS_MPL = False
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 try:
     from scpn_control.core._rust_compat import FusionKernel
 except ImportError:
@@ -52,12 +54,12 @@ SHOT_LENGTH = 100
 PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION = "scpn-control.pulsed-mpc-decision-evidence.v1"
 
 
-def _float_array_sha256(values: np.ndarray) -> str:
+def _float_array_sha256(values: AnyFloatArray) -> str:
     arr = np.asarray(values, dtype="<f8").reshape(-1)
     return hashlib.sha256(arr.tobytes()).hexdigest()
 
 
-def _bool_array_sha256(values: np.ndarray) -> str:
+def _bool_array_sha256(values: AnyFloatArray) -> str:
     arr = np.asarray(values, dtype=np.bool_).reshape(-1).astype(np.uint8, copy=False)
     return hashlib.sha256(arr.tobytes()).hexdigest()
 
@@ -105,7 +107,7 @@ class NeuralSurrogate:
         solve_kernel(kernel)
         self._log("[SOTA] Surrogate Training Complete.")
 
-    def get_state(self, kernel: Any) -> np.ndarray:
+    def get_state(self, kernel: Any) -> FloatArray:
         idx_max = int(np.argmax(kernel.Psi))
         iz, ir = np.unravel_index(idx_max, kernel.Psi.shape)
         r_ax = float(kernel.R[ir])
@@ -113,7 +115,7 @@ class NeuralSurrogate:
         xp_pos, _ = kernel.find_x_point(kernel.Psi)
         return np.array([r_ax, z_ax, float(xp_pos[0]), float(xp_pos[1])], dtype=np.float64)
 
-    def predict(self, current_state: np.ndarray, action_delta: np.ndarray) -> np.ndarray:
+    def predict(self, current_state: AnyFloatArray, action_delta: AnyFloatArray) -> FloatArray:
         return np.asarray(current_state, dtype=np.float64) + (self.B @ np.asarray(action_delta, dtype=np.float64))
 
 
@@ -125,7 +127,7 @@ class ModelPredictiveController:
     def __init__(
         self,
         surrogate: NeuralSurrogate,
-        target_state: np.ndarray,
+        target_state: AnyFloatArray,
         *,
         prediction_horizon: int = PREDICTION_HORIZON,
         learning_rate: float = 0.5,
@@ -156,13 +158,13 @@ class ModelPredictiveController:
         self.action_limit = action_limit
         self.action_regularization = action_regularization
 
-    def plan_trajectory(self, current_state: np.ndarray) -> np.ndarray:
+    def plan_trajectory(self, current_state: AnyFloatArray) -> FloatArray:
         n_coils = int(self.model.B.shape[1])
-        planned_actions = np.zeros((self.horizon, n_coils), dtype=np.float64)
+        planned_actions: FloatArray = np.zeros((self.horizon, n_coils), dtype=np.float64)
         state0 = np.asarray(current_state, dtype=np.float64).reshape(-1)
 
         for _ in range(self.iterations):
-            temp_state = state0.copy()
+            temp_state: FloatArray = state0.copy()
             grads = np.zeros_like(planned_actions)
             for t in range(self.horizon):
                 next_state = self.model.predict(temp_state, planned_actions[t])
@@ -181,7 +183,7 @@ class ModelPredictiveController:
 class PulsedShotMPCDecision:
     """Admitted pulsed-shot MPC action and its control-boundary rationale."""
 
-    action: np.ndarray
+    action: AnyFloatArray
     mpc_objective: float
     constraint_slack: float
     scheduler_state: str
@@ -207,8 +209,8 @@ class PulsedShotMPCAdapter:
         scheduler: PulsedScenarioScheduler,
         bank: CapacitorBank,
         *,
-        burn_action_mask: np.ndarray | None = None,
-        safe_action: np.ndarray | None = None,
+        burn_action_mask: AnyFloatArray | None = None,
+        safe_action: AnyFloatArray | None = None,
         pulse_duration_s: float = 0.001,
         pulse_waveform: WaveformName = "half_sine",
         refuse_burn_when_uncharged: bool = True,
@@ -245,12 +247,12 @@ class PulsedShotMPCAdapter:
 
     def step(
         self,
-        state: np.ndarray,
-        ref: np.ndarray | None = None,
+        state: AnyFloatArray,
+        ref: AnyFloatArray | None = None,
         context: object | None = None,
         *,
         pulse: PulseSpec | None = None,
-    ) -> np.ndarray:
+    ) -> FloatArray:
         """Return an MPC action admitted by scheduler and capacitor-bank guards."""
         state_vec = np.asarray(state, dtype=np.float64).reshape(-1)
         if state_vec.shape != self.nmpc.target.shape or not np.all(np.isfinite(state_vec)):
@@ -369,7 +371,7 @@ class PulsedShotMPCAdapter:
             return PulsedScenarioState(state)
         return PulsedScenarioState(self.scheduler.state)
 
-    def _pulse_from_action(self, action: np.ndarray, pulse: PulseSpec | None) -> PulseSpec | None:
+    def _pulse_from_action(self, action: AnyFloatArray, pulse: PulseSpec | None) -> PulseSpec | None:
         if pulse is not None:
             return pulse
         peak_current = float(np.max(np.abs(action[self.burn_action_mask])))
@@ -392,7 +394,7 @@ class PulsedShotMPCAdapter:
         estimated_loss = self.bank.spec.series_resistance_ohm * pulse.peak_current_A**2 * factor * pulse.duration_s
         return float(self.bank.state.energy_J - estimated_loss)
 
-    def _objective(self, state: np.ndarray, action: np.ndarray, target: np.ndarray) -> float:
+    def _objective(self, state: AnyFloatArray, action: AnyFloatArray, target: AnyFloatArray) -> float:
         predicted = self.nmpc.model.predict(state, action)
         error = predicted - target
         return float(np.dot(error, error) + self.nmpc.action_regularization * np.dot(action, action))
@@ -400,9 +402,9 @@ class PulsedShotMPCAdapter:
     def _decision_evidence(
         self,
         *,
-        action: np.ndarray,
-        safe_action: np.ndarray,
-        burn_action_mask: np.ndarray,
+        action: AnyFloatArray,
+        safe_action: AnyFloatArray,
+        burn_action_mask: AnyFloatArray,
         mpc_objective: float,
         constraint_slack: float,
         scheduler_state: str,
@@ -437,11 +439,11 @@ class PulsedShotMPCAdapter:
 
 
 def _plot_telemetry(
-    h_r: np.ndarray,
-    h_z: np.ndarray,
-    h_xr: np.ndarray,
-    h_xz: np.ndarray,
-    target_vec: np.ndarray,
+    h_r: AnyFloatArray,
+    h_z: AnyFloatArray,
+    h_xr: AnyFloatArray,
+    h_xz: AnyFloatArray,
+    target_vec: AnyFloatArray,
     output_path: str,
 ) -> Tuple[bool, str | None]:
     try:
@@ -474,7 +476,7 @@ def run_sota_simulation(
     config_file: str | None = None,
     shot_length: int = SHOT_LENGTH,
     prediction_horizon: int = PREDICTION_HORIZON,
-    target_vector: np.ndarray | None = None,
+    target_vector: AnyFloatArray | None = None,
     disturbance_start_step: int = 20,
     disturbance_per_step_ma: float = 0.1,
     current_target_bounds: Tuple[float, float] = (5.0, 16.0),

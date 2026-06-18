@@ -13,6 +13,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # Gain scheduling: operating-point-indexed PID gains.
 # Theoretical basis:
 #   Rugh & Shamma 2000, Automatica 36, 1401 — survey of gain-scheduling.
@@ -48,10 +50,10 @@ class RegimeController:
     """
 
     regime: OperatingRegime
-    Kp: np.ndarray
-    Ki: np.ndarray
-    Kd: np.ndarray
-    x_ref: np.ndarray
+    Kp: AnyFloatArray
+    Ki: AnyFloatArray
+    Kd: AnyFloatArray
+    x_ref: AnyFloatArray
     constraints: dict[str, Any]
 
 
@@ -84,8 +86,8 @@ class RegimeDetector:
 
     def detect(
         self,
-        state: np.ndarray,
-        dstate_dt: np.ndarray,
+        state: AnyFloatArray,
+        dstate_dt: AnyFloatArray,
         tau_E: float,
         p_disrupt: float,
     ) -> OperatingRegime:
@@ -147,11 +149,11 @@ class GainScheduledController:
 
     def step(
         self,
-        x: np.ndarray,
+        x: AnyFloatArray,
         t: float,
         dt: float,
         detected_regime: OperatingRegime,
-    ) -> np.ndarray:
+    ) -> FloatArray:
         """Compute PID output with bumpless gain interpolation.
 
         On regime switch: α = (t - t_switch) / τ_switch ∈ [0,1].
@@ -195,7 +197,7 @@ class GainScheduledController:
 class ScenarioWaveform:
     """Piecewise-linear waveform for a single scenario variable."""
 
-    def __init__(self, name: str, times: np.ndarray, values: np.ndarray, interp_kind: str = "linear") -> None:
+    def __init__(self, name: str, times: AnyFloatArray, values: AnyFloatArray, interp_kind: str = "linear") -> None:
         self.name = name
         self.times = times
         self.values = values
