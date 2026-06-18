@@ -54,10 +54,10 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert f"#49](https://github.com/anulum/scpn-control/issues/49) — {tracker_counts[49]} open claim(s)" in markdown
     assert f"#53](https://github.com/anulum/scpn-control/issues/53) — {tracker_counts[53]} open claim(s)" in markdown
     assert tracker_status_counts[49]["validation_gap"] == 12
-    assert tracker_status_counts[49]["bounded_model"] == 5
+    assert tracker_status_counts[49]["bounded_model"] == 6
     assert (
         f"#49](https://github.com/anulum/scpn-control/issues/49) — {tracker_counts[49]} open claim(s) "
-        "(validation_gap=12, bounded_model=5)"
+        "(validation_gap=12, bounded_model=6)"
     ) in markdown
     assert (
         f"#50](https://github.com/anulum/scpn-control/issues/50) — {tracker_counts[50]} open claim(s) "

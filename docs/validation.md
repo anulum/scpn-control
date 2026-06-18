@@ -1658,6 +1658,22 @@ Missing external reference evidence leaves the
 claim explicitly blocked rather than promoted from local differentiability
 evidence.
 
+Bounded coupled differentiable-scenario evidence can be regenerated with:
+
+```bash
+python validation/benchmark_differentiable_scenario.py
+python validation/validate_differentiable_scenario.py --json-out
+```
+
+This writes `validation/reports/differentiable_scenario_readiness.json` and
+`validation/reports/differentiable_scenario_readiness.md`. The report binds the
+analytic Solov'ev-form equilibrium parameters, R/Z flux grid, four-channel
+transport rollout, sampled finite-difference gradient audit, campaign digest,
+and local non-isolated timing context. The validator admits the persisted
+evidence only as bounded local scenario-gradient evidence and requires
+`claim_admissible=false` until physics traceability is satisfied by external
+equilibrium or integrated-modelling evidence.
+
 The TORAX code-to-code transport benchmark publishes its own strict
 external-reference evidence boundary:
 

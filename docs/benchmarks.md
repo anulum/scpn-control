@@ -692,6 +692,30 @@ also pass `transport_full_fidelity_readiness_evidence()` with bound one-step and
 rollout reports, controller proof digest, equilibrium-coupled campaign
 metadata, and an admitted external reference artefact.
 
+## Differentiable Scenario Readiness Evidence
+
+The coupled differentiable scenario facade records bounded evidence for an
+analytic Solov'ev-form flux surface coupled to the four-channel differentiable
+transport rollout. The report audits gradients with respect to both equilibrium
+parameters and source schedules, records local non-isolated timing context, and
+keeps the claim blocked until the physics-traceability gate is satisfied.
+
+Report artefacts:
+
+- `validation/reports/differentiable_scenario_readiness.json`
+- `validation/reports/differentiable_scenario_readiness.md`
+
+Admission:
+
+```bash
+python validation/benchmark_differentiable_scenario.py
+python validation/validate_differentiable_scenario.py --json-out
+```
+
+The timing field is local admission evidence only. It is not an isolated
+hardware benchmark, real-time guarantee, external integrated-modelling result,
+or facility-control claim.
+
 ## TORAX Code-to-Code External-Reference Evidence
 
 `validation/code_to_code_benchmark.py` runs the local transport stack on a

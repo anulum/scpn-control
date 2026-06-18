@@ -1,0 +1,92 @@
+{
+  "benchmark_context": {
+    "command": "python validation/benchmark_differentiable_scenario.py",
+    "durations_ms": [
+      247.89969698758796,
+      245.34882901934907,
+      249.94627299020067,
+      244.08053001388907,
+      264.8425119696185
+    ],
+    "isolation": "local_non_isolated_admission_smoke",
+    "loadavg_after": [
+      3.0634765625,
+      3.46826171875,
+      9.20263671875
+    ],
+    "loadavg_before": [
+      3.0693359375,
+      3.4765625,
+      9.236328125
+    ],
+    "timed_runs": 5,
+    "warmup_runs": 1
+  },
+  "campaign_metadata": {
+    "backend": "jax",
+    "dt": 0.0008,
+    "dtype": "float64",
+    "equilibrium_param_count": 2,
+    "equilibrium_params": [
+      1.3,
+      0.7
+    ],
+    "flux_grid_shape": [
+      13,
+      16
+    ],
+    "gradient_tolerance": 0.0005,
+    "inputs_sha256": "f8de9a97edc80f80b9111cbade1b59c19c7f06413cdba4e8006d700a162679c6",
+    "jax_enable_x64": true,
+    "n_rho": 16,
+    "n_steps": 3,
+    "schema_version": 1
+  },
+  "claim_status": "bounded coupled differentiable scenario evidence only; full-fidelity claim remains blocked",
+  "gradient_audit": {
+    "checked_param_indices": [
+      0,
+      1
+    ],
+    "checked_source_indices": [
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        2,
+        1,
+        8
+      ],
+      [
+        1,
+        2,
+        14
+      ]
+    ],
+    "epsilon": 1e-05,
+    "loss": 0.00013296039827647148,
+    "param_max_abs_error": 1.9115416037161423e-15,
+    "passed": true,
+    "source_max_abs_error": 1.314359781600334e-13,
+    "tolerance": 0.0005
+  },
+  "readiness": {
+    "audit_passed": true,
+    "backend": "jax",
+    "blocked_reasons": [
+      "physics_traceability"
+    ],
+    "campaign_sha256": "181bc074202c985102ac25c40dcc75e4fe8c401bad40a3390ebbd469581a3517",
+    "claim_admissible": false,
+    "claim_status": "bounded coupled differentiable scenario gradient evidence only",
+    "gradient_audit_sha256": "29896a18deae42b2d170dde8c58b791bfae548aa780877e66399593caafa8e0a",
+    "gradient_tolerance": 0.0005,
+    "latency_p95_ms": 261.86326417373493,
+    "schema_version": 1,
+    "traceability_passed": false
+  },
+  "schema_version": "scpn-control.differentiable-scenario-readiness.v1",
+  "status": "pass"
+}

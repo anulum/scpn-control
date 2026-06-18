@@ -739,6 +739,10 @@ differentiable equilibrium surface, not a Grad-Shafranov PDE solve. Gradient
 APIs fail closed without JAX, and `assert_scenario_claim_admissible()` keeps a
 full-fidelity claim bounded until the gradient audit, latency evidence, and
 physics-traceability checks pass.
+Persisted readiness reports are validated with
+`validation.validate_differentiable_scenario.validate_differentiable_scenario_report()`;
+the checked-in report remains blocked on physics traceability rather than
+promoting the analytic surface to a facility-grade scenario claim.
 
 ::: scpn_control.core.differentiable_scenario.scenario_equilibrium_flux
 

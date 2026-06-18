@@ -1123,6 +1123,50 @@
       "external_validation_tracker_issue": 49
     },
     {
+      "component": "coupled differentiable scenario facade contract",
+      "equation_contract": "Coupled differentiable scenario claims must declare the analytic Solov'ev-form equilibrium parameters, R/Z flux grid, flux-derived radial weights, four-channel transport rollout, source-schedule target, gradient tolerance, sampled finite-difference audit of both equilibrium parameters and source schedule, local non-isolated timing context, and fail-closed readiness state before any end-to-end differentiable scenario claim is promoted.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Solov'ev 1968 analytic equilibrium reference",
+        "repository differentiable transport facade contract",
+        "repository coupled scenario readiness contract"
+      ],
+      "module_path": "src/scpn_control/core/differentiable_scenario.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Replace the bounded analytic Solov'ev-form surface with matched EFIT, P-EFIT, or documented public-reference equilibrium evidence before facility-facing scenario-gradient claims",
+        "Validate coupled source-schedule gradients against measured discharges or published integrated-modelling benchmarks before predictive controller-tuning claims",
+        "Promote timing evidence only after isolated hardware runs record affinity, host load, governor context, backend, dtype, and repeated latency distributions",
+        "Bind any promoted coupled-scenario evidence to the safety-critical controller proof artifact digest when used in a controller safety case"
+      ],
+      "unit_contract": "Equilibrium parameters retain the declared analytic flux normalisation; R and Z grids use metres; rho is dimensionless and uniformly spaced; transport profiles, coefficients, and sources inherit the four-channel differentiable-transport units; audit losses, gradient errors, and p95 timing are finite non-negative scalar evidence.",
+      "validation_evidence": [
+        "tests/test_differentiable_scenario.py Solov'ev closed-form flux, NumPy/JAX loss parity, source and equilibrium gradient coupling, sampled finite-difference audit, metadata, and fail-closed readiness checks",
+        "tests/test_differentiable_scenario_validation.py report duplicate-key, promotion-overclaim, inconsistent-audit, blocked-backend, and repository evidence validation checks",
+        "validation/benchmark_differentiable_scenario.py emits bounded coupled-scenario readiness evidence or a blocked JAX-unavailable report",
+        "validation/validate_differentiable_scenario.py admits the schema-versioned report while requiring claim_admissible=false until physics traceability is satisfied",
+        "validation/reports/differentiable_scenario_readiness.json records campaign metadata, gradient audit, readiness state, and local non-isolated timing context",
+        "validation/reports/differentiable_scenario_readiness.md provides the human-readable bounded evidence summary"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/core/differentiable_scenario.py",
+        "tests/test_differentiable_scenario.py",
+        "tests/test_differentiable_scenario_validation.py",
+        "validation/benchmark_differentiable_scenario.py",
+        "validation/validate_differentiable_scenario.py",
+        "validation/reports/differentiable_scenario_readiness.json",
+        "validation/reports/differentiable_scenario_readiness.md",
+        "docs/api.md",
+        "docs/validation.md",
+        "docs/benchmarks.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/core/differentiable_scenario.py"
+      ],
+      "validity_domain": "Bounded local coupled differentiable scenario evidence over an analytic Solov'ev-form flux surface and four-channel differentiable transport rollout, with sampled finite-difference checks for equilibrium-parameter and source-schedule gradients plus local non-isolated timing context; not an externally validated integrated-modelling, equilibrium-reconstruction, real-time, or facility-control claim.",
+      "external_validation_tracker_issue": 49
+    },
+    {
       "component": "reduced gyrokinetic transport closure contract",
       "equation_contract": "Reduced gyrokinetic transport claims must declare the dispersion relation, instability branch classification, quasilinear heat-flux closure, critical-gradient threshold, saturation rule, positive integer mode-count domain, tokamak geometry ordering, and mapping from local GK outputs to transport coefficients.",
       "fidelity_status": "validation_gap",
