@@ -25,6 +25,7 @@ try:
 except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel  # type: ignore[assignment]
 
+from scpn_control._typing import FloatArray
 from scpn_control.core.momentum_transport import (
     MomentumTransportSolver,
     intrinsic_rotation_torque,
@@ -374,7 +375,7 @@ class TransportSolver(FusionKernel):
         self.allow_constant_transport_fallback = allow_constant_transport_fallback
         self.allow_simplified_bootstrap_fallback = allow_simplified_bootstrap_fallback
         self.external_profile_mode = True  # Tell Kernel to respect our calculated profiles
-        self.nr = int(nr)  # Radial grid points (normalized radius rho)
+        self.nr = int(nr)  # Radial grid points (normalised radius rho)
         self.rho = np.linspace(0, 1, self.nr)
         self.drho = 1.0 / (self.nr - 1)
 
@@ -438,12 +439,14 @@ class TransportSolver(FusionKernel):
         # Numerical hardening telemetry (non-finite replacements per step)
         self._last_numerical_recovery_count: int = 0
 
-        # Momentum transport (rotation profile)
-        self.omega_phi = np.zeros(self.nr)
+        # Momentum transport (rotation profile). Explicit FloatArray annotation
+        # keeps the any-dimensional shape type so the momentum solver's
+        # reconstructed rotation profile (general shape) remains assignable.
+        self.omega_phi: FloatArray = np.zeros(self.nr)
         self._momentum_solver: MomentumTransportSolver | None = None
 
     def _ensure_valid_radial_grid(self) -> int:
-        """Restore the normalized radial grid if external mutation broke it."""
+        """Restore the normalised radial grid if external mutation broke it."""
         rho = np.asarray(self.rho, dtype=np.float64)
         valid = (
             rho.shape == (self.nr,)
@@ -469,7 +472,7 @@ class TransportSolver(FusionKernel):
         self.drho = 1.0 / (self.nr - 1)
 
         if self._momentum_solver is not None:
-            self._momentum_solver.rho = self.rho
+            self._momentum_solver.rho = np.asarray(self.rho, dtype=float)
             self._momentum_solver.drho = self.drho
 
         return 1

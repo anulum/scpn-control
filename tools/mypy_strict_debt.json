@@ -1,7 +1,7 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 937,
+  "total": 900,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 9,
     "scpn_control.control.analytic_solver": 4,
@@ -67,7 +67,6 @@
     "scpn_control.core.locked_mode": 2,
     "scpn_control.core.marfe": 6,
     "scpn_control.core.mdsplus_acquisition": 1,
-    "scpn_control.core.momentum_transport": 37,
     "scpn_control.core.neoclassical": 6,
     "scpn_control.core.neural_equilibrium": 24,
     "scpn_control.core.neural_turbulence": 23,

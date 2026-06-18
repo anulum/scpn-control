@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # Momentum Prandtl number: χ_φ / χ_i ≈ 0.7 (deuterium, ρ* ~ 0.004–0.007)
 # Peeters et al. 2011, Nucl. Fusion 51, 083015, Fig. 5.
 PRANDTL_MOMENTUM: float = 0.7
@@ -27,7 +29,7 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
-def _finite_array(name: str, values: np.ndarray, *, positive: bool = False, nonnegative: bool = False) -> np.ndarray:
+def _finite_array(name: str, values: AnyFloatArray, *, positive: bool = False, nonnegative: bool = False) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} must contain only finite values")
@@ -38,7 +40,7 @@ def _finite_array(name: str, values: np.ndarray, *, positive: bool = False, nonn
     return arr
 
 
-def _finite_1d_grid(name: str, values: np.ndarray, *, minimum_size: int = 1) -> np.ndarray:
+def _finite_1d_grid(name: str, values: AnyFloatArray, *, minimum_size: int = 1) -> FloatArray:
     arr = _finite_array(name, values)
     if arr.ndim != 1 or arr.size < minimum_size:
         if minimum_size == 2:
@@ -47,7 +49,7 @@ def _finite_1d_grid(name: str, values: np.ndarray, *, minimum_size: int = 1) -> 
     return arr
 
 
-def _strictly_increasing_rho_grid(rho: np.ndarray) -> np.ndarray:
+def _strictly_increasing_rho_grid(rho: AnyFloatArray) -> FloatArray:
     rho = _finite_1d_grid("rho", rho, minimum_size=2)
     if np.any(np.diff(rho) < 0.0):
         raise ValueError("rho must be sorted")
@@ -56,7 +58,7 @@ def _strictly_increasing_rho_grid(rho: np.ndarray) -> np.ndarray:
     return rho
 
 
-def _uniform_axis_to_edge_rho_grid(rho: np.ndarray) -> np.ndarray:
+def _uniform_axis_to_edge_rho_grid(rho: AnyFloatArray) -> FloatArray:
     rho = _strictly_increasing_rho_grid(rho)
     if not np.isclose(rho[0], 0.0, rtol=0.0, atol=1e-12):
         raise ValueError("rho must start at the magnetic axis")
@@ -69,11 +71,11 @@ def _uniform_axis_to_edge_rho_grid(rho: np.ndarray) -> np.ndarray:
 
 
 def nbi_torque(
-    P_nbi_profile: np.ndarray,
+    P_nbi_profile: AnyFloatArray,
     R0: float,
     v_beam: float,
     theta_inj_deg: float,
-) -> np.ndarray:
+) -> FloatArray:
     """NBI torque density [N·m/m³].
 
     T_NBI = P_NBI · R_tang / v_beam  where R_tang = R₀ sin(θ).
@@ -92,11 +94,11 @@ def nbi_torque(
 
 
 def intrinsic_rotation_torque(
-    grad_Ti: np.ndarray,
-    grad_ne: np.ndarray,
+    grad_Ti: AnyFloatArray,
+    grad_ne: AnyFloatArray,
     R0: float,
     a: float,
-) -> np.ndarray:
+) -> FloatArray:
     """Residual-stress torque driving intrinsic counter-current rotation [N·m/m³].
 
     Residual stress Π_res ∝ −∇T_i → counter-current rotation.
@@ -115,13 +117,13 @@ def intrinsic_rotation_torque(
 
 
 def exb_shearing_rate(
-    omega_phi: np.ndarray,
-    B_theta: np.ndarray,
+    omega_phi: AnyFloatArray,
+    B_theta: AnyFloatArray,
     B0: float,
     R0: float,
-    rho: np.ndarray,
+    rho: AnyFloatArray,
     a: float,
-) -> np.ndarray:
+) -> FloatArray:
     """E×B shearing rate [rad/s].
 
     ω_E×B = (R B_θ / B) · d/dr (E_r / R B_θ)
@@ -147,9 +149,9 @@ def exb_shearing_rate(
 
 
 def turbulence_suppression_factor(
-    omega_ExB: np.ndarray,
-    gamma_max: np.ndarray,
-) -> np.ndarray:
+    omega_ExB: AnyFloatArray,
+    gamma_max: AnyFloatArray,
+) -> FloatArray:
     """Suppression factor on anomalous transport.
 
     F = 1 / (1 + (ω_E×B / γ_max)²)
@@ -165,15 +167,15 @@ def turbulence_suppression_factor(
 
 
 def radial_electric_field(
-    ne: np.ndarray,
-    Ti_keV: np.ndarray,
-    omega_phi: np.ndarray,
-    B_theta: np.ndarray,
+    ne: AnyFloatArray,
+    Ti_keV: AnyFloatArray,
+    omega_phi: AnyFloatArray,
+    B_theta: AnyFloatArray,
     B0: float,
     R0: float,
-    rho: np.ndarray,
+    rho: AnyFloatArray,
     a: float,
-) -> np.ndarray:
+) -> FloatArray:
     """E_r [V/m] from radial force balance (neoclassical), Z_i = 1.
 
     E_r = (1 / Z_i e n_i) dp_i/dr + v_φ B_θ   (v_θ ≈ 0)
@@ -221,7 +223,7 @@ def rice_intrinsic_velocity(W_p_MJ: float, I_p_MA: float) -> float:
     return C_RICE * W_p_MJ / I_p_MA
 
 
-def _require_equal_shape(label: str, *arrays: np.ndarray) -> None:
+def _require_equal_shape(label: str, *arrays: AnyFloatArray) -> None:
     shapes = {array.shape for array in arrays}
     if len(shapes) != 1:
         raise ValueError(f"{label} must have matching shape")
@@ -229,9 +231,9 @@ def _require_equal_shape(label: str, *arrays: np.ndarray) -> None:
 
 def _nonnegative_profile_or_scalar(
     name: str,
-    values: np.ndarray | float | None,
+    values: AnyFloatArray | float | None,
     shape: tuple[int, ...],
-) -> np.ndarray:
+) -> FloatArray:
     if values is None:
         return np.zeros(shape, dtype=float)
 
@@ -246,10 +248,10 @@ def _nonnegative_profile_or_scalar(
 class RotationDiagnostics:
     @staticmethod
     def mach_number(
-        omega_phi: np.ndarray,
-        Ti_keV: np.ndarray,
+        omega_phi: AnyFloatArray,
+        Ti_keV: AnyFloatArray,
         R0: float,
-    ) -> np.ndarray:
+    ) -> FloatArray:
         omega_phi = _finite_array("omega_phi", omega_phi)
         Ti_keV = _finite_array("Ti_keV", Ti_keV)
         _require_equal_shape("omega_phi and Ti_keV", omega_phi, Ti_keV)
@@ -266,7 +268,7 @@ class RotationDiagnostics:
 
     @staticmethod
     def rwm_stabilization_criterion(
-        omega_phi: np.ndarray,
+        omega_phi: AnyFloatArray,
         tau_wall: float,
     ) -> bool:
         omega_phi = _finite_array("omega_phi", omega_phi)
@@ -282,7 +284,7 @@ class RotationDiagnostics:
 class MomentumTransportSolver:
     def __init__(
         self,
-        rho: np.ndarray,
+        rho: AnyFloatArray,
         R0: float,
         a: float,
         B0: float,
@@ -305,19 +307,19 @@ class MomentumTransportSolver:
         self.prandtl = prandtl
         self.nr = len(rho)
         self.drho = rho[1] - rho[0]
-        self.omega_phi = np.zeros(self.nr)
+        self.omega_phi: FloatArray = np.zeros(self.nr)
 
     def step(
         self,
         dt: float,
-        chi_i: np.ndarray,
-        ne: np.ndarray,
-        Ti_keV: np.ndarray,
-        T_nbi: np.ndarray,
-        T_intrinsic: np.ndarray,
+        chi_i: AnyFloatArray,
+        ne: AnyFloatArray,
+        Ti_keV: AnyFloatArray,
+        T_nbi: AnyFloatArray,
+        T_intrinsic: AnyFloatArray,
         *,
-        momentum_damping_frequency_s: np.ndarray | float | None = None,
-    ) -> np.ndarray:
+        momentum_damping_frequency_s: AnyFloatArray | float | None = None,
+    ) -> FloatArray:
         """Advance rotation profile one step [rad/s].
 
         Momentum equation (cylindrical approximation):

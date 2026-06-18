@@ -132,6 +132,7 @@ files = [
 module = [
     "scpn_control._typing",
     "scpn_control.core.current_drive",
+    "scpn_control.core.momentum_transport",
     "scpn_control.core.runtime_admission",
     "scpn_control.core.tokamak_config",
     "scpn_control.core.checkpoint",
