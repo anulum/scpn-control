@@ -16,6 +16,8 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 from scpn_control.core.pellet_injection import PelletParams, PelletTrajectory
 
 # Greenwald density limit: n_GW = I_p / (π a²) [10^20 m^-3]
@@ -55,14 +57,14 @@ class ParticleTransportModel:
         self.V = 2.0 * np.pi**2 * self.R0 * (self.a * self.rho) ** 2
         self.V_prime = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.rho
 
-    def set_transport(self, D: np.ndarray, V_pinch: np.ndarray) -> None:
+    def set_transport(self, D: AnyFloatArray, V_pinch: AnyFloatArray) -> None:
         D_arr = self._validate_profile(D, "D")
         if np.any(D_arr < 0.0):
             raise ValueError("D must be non-negative.")
         self.D = D_arr
         self.V_pinch = self._validate_profile(V_pinch, "V_pinch")
 
-    def _validate_profile(self, values: np.ndarray, name: str) -> np.ndarray:
+    def _validate_profile(self, values: AnyFloatArray, name: str) -> FloatArray:
         arr = np.asarray(values, dtype=float)
         if arr.shape != (self.n_rho,):
             raise ValueError(f"{name} must have shape ({self.n_rho},).")
@@ -70,7 +72,7 @@ class ParticleTransportModel:
             raise ValueError(f"{name} must contain only finite values.")
         return arr
 
-    def gas_puff_source(self, rate: float, penetration_depth: float = 0.03) -> np.ndarray:
+    def gas_puff_source(self, rate: float, penetration_depth: float = 0.03) -> FloatArray:
         """Particles/s. Edge-localised source from gas injection.
 
         Pacher et al. 2007, Nucl. Fusion 47, 469: ITER gas-injection modelling
@@ -90,11 +92,11 @@ class ParticleTransportModel:
         radius_mm: float,
         launch_angle_deg: float = 0.0,
         *,
-        ne_profile: np.ndarray | None = None,
-        Te_eV_profile: np.ndarray | None = None,
+        ne_profile: AnyFloatArray | None = None,
+        Te_eV_profile: AnyFloatArray | None = None,
         B0_T: float = 5.3,
         injection_side: str = "HFS",
-    ) -> np.ndarray:
+    ) -> FloatArray:
         """NGS trajectory deposition profile from a single pellet.
 
         The deposition path is delegated to :class:`PelletTrajectory`, which
@@ -141,15 +143,15 @@ class ParticleTransportModel:
         result = trajectory.simulate(self.rho, ne_m3 / 1e19, Te_eV)
         return np.asarray(result.deposition_profile, dtype=float)
 
-    def _default_density_profile(self) -> np.ndarray:
+    def _default_density_profile(self) -> FloatArray:
         """ITER-like positive density profile used only when no measurement is supplied."""
-        return np.linspace(1.1e20, 0.7e20, self.n_rho)
+        return np.asarray(np.linspace(1.1e20, 0.7e20, self.n_rho), dtype=float)
 
-    def _default_temperature_profile(self) -> np.ndarray:
+    def _default_temperature_profile(self) -> FloatArray:
         """ITER-like electron-temperature profile used only when no measurement is supplied."""
-        return np.linspace(8000.0, 800.0, self.n_rho)
+        return np.asarray(np.linspace(8000.0, 800.0, self.n_rho), dtype=float)
 
-    def nbi_source(self, beam_energy_keV: float, power_MW: float) -> np.ndarray:
+    def nbi_source(self, beam_energy_keV: float, power_MW: float) -> FloatArray:
         """Core-peaked particle source from neutral beam injection."""
         if not math.isfinite(beam_energy_keV) or beam_energy_keV <= 0.0:
             raise ValueError("NBI beam_energy_keV must be finite and positive.")
@@ -165,7 +167,7 @@ class ParticleTransportModel:
         dep /= np.sum(dep * self.V_prime * self.drho) + 1e-10
         return np.asarray(rate * dep)
 
-    def cryopump_sink(self, pump_speed: float, ne_edge: float) -> np.ndarray:
+    def cryopump_sink(self, pump_speed: float, ne_edge: float) -> FloatArray:
         """Edge particle removal from cryopump."""
         if not math.isfinite(pump_speed) or pump_speed < 0.0:
             raise ValueError("Cryopump pump_speed must be finite and non-negative.")
@@ -175,7 +177,7 @@ class ParticleTransportModel:
         sink[-1] = pump_speed * ne_edge / (self.V_prime[-1] * self.drho + 1e-10)
         return sink
 
-    def recycling_source(self, outflux: float, recycling_coeff: float = 0.97) -> np.ndarray:
+    def recycling_source(self, outflux: float, recycling_coeff: float = 0.97) -> FloatArray:
         """
         Recycling_coeff = 0.97 is the standard ITER assumption for a metal wall.
         ITER Physics Basis 1999, Nucl. Fusion 39, 2175, §4.2.
@@ -186,7 +188,7 @@ class ParticleTransportModel:
             raise ValueError("Recycling coefficient must be finite and between 0 and 1.")
         return self.gas_puff_source(outflux * recycling_coeff, penetration_depth=0.02)
 
-    def step(self, ne: np.ndarray, sources: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, ne: AnyFloatArray, sources: AnyFloatArray, dt: float) -> FloatArray:
         ne_arr = self._validate_profile(ne, "ne")
         sources_arr = self._validate_profile(sources, "sources")
         if np.any(ne_arr < 0.0):
@@ -297,7 +299,7 @@ class DensityController:
             raise ValueError("dt_control must be finite and positive.")
         self.model = model
         self.dt = dt_control
-        self.ne_target = np.zeros(model.n_rho)
+        self.ne_target: FloatArray = np.zeros(model.n_rho)
 
         # Default n_GW for ITER: I_p=15 MA, a=2.0 m → n_GW = 15/(π·4) ≈ 1.19×10^20 m^-3.
         # Greenwald 2002, PPCF 44, R27, Eq. 1.
@@ -311,7 +313,7 @@ class DensityController:
         self._Ki = 1.0
         self.integral_error = 0.0
 
-    def set_target(self, ne_target: np.ndarray) -> None:
+    def set_target(self, ne_target: AnyFloatArray) -> None:
         self.ne_target = self._validate_density_profile(ne_target, "ne_target")
 
     def set_constraints(self, n_GW: float, gas_max: float, pellet_freq_max: float, pump_max: float) -> None:
@@ -332,7 +334,7 @@ class DensityController:
             raise ValueError("a_m must be finite and positive.")
         return I_p_MA / (math.pi * a_m**2) * 1e20
 
-    def greenwald_fraction(self, ne: np.ndarray, I_p_MA: float, a: float) -> float:
+    def greenwald_fraction(self, ne: AnyFloatArray, I_p_MA: float, a: float) -> float:
         """Volume-averaged n / n_GW.
 
         Greenwald 2002, PPCF 44, R27, Eq. 1.
@@ -347,7 +349,7 @@ class DensityController:
         n_GW = self.compute_greenwald_limit(I_p_MA, a)
         return float(n_avg / n_GW)
 
-    def below_greenwald_safety_margin(self, ne: np.ndarray) -> bool:
+    def below_greenwald_safety_margin(self, ne: AnyFloatArray) -> bool:
         """True if volume-averaged density is within the ITER safety margin.
 
         ITER Physics Basis 1999, Nucl. Fusion 39, 2175, §2.3: n/n_GW < 0.85.
@@ -357,7 +359,7 @@ class DensityController:
         n_avg = np.sum(ne_arr * self.model.V_prime * self.model.drho) / vol
         return bool(n_avg < _GW_ITER_SAFETY_MARGIN * self.n_GW)
 
-    def step(self, ne_measured: np.ndarray) -> ActuatorCommand:
+    def step(self, ne_measured: AnyFloatArray) -> ActuatorCommand:
         ne_arr = self._validate_density_profile(ne_measured, "ne_measured")
         vol = np.sum(self.model.V_prime * self.model.drho)
         N_meas = np.sum(ne_arr * self.model.V_prime * self.model.drho)
@@ -385,7 +387,7 @@ class DensityController:
 
         return ActuatorCommand(gas, pellet, 500.0, pump)
 
-    def _validate_density_profile(self, values: np.ndarray, name: str) -> np.ndarray:
+    def _validate_density_profile(self, values: AnyFloatArray, name: str) -> FloatArray:
         arr = self.model._validate_profile(values, name)
         if np.any(arr < 0.0):
             raise ValueError(f"{name} must be non-negative.")
@@ -414,9 +416,9 @@ def density_control_claim_evidence(
     transport_source: str,
     actuator_source: str,
     diagnostic_source: str,
-    ne_before: np.ndarray,
-    ne_after: np.ndarray,
-    sources: np.ndarray,
+    ne_before: AnyFloatArray,
+    ne_after: AnyFloatArray,
+    sources: AnyFloatArray,
     command: ActuatorCommand,
     dt_requested_s: float,
     model_id: str = "bounded_density_control",
@@ -535,12 +537,12 @@ class KalmanDensityEstimator:
     def __init__(self, n_rho: int, n_chords: int = 8):
         self.n_rho = n_rho
         self.n_chords = n_chords
-        self.x = np.zeros(n_rho)
+        self.x: AnyFloatArray = np.zeros(n_rho)
         self.P = np.eye(n_rho) * 1e38
         self.Q = np.eye(n_rho) * 1e36  # process noise covariance
         self.R = np.eye(n_chords) * 1e34  # measurement noise covariance
 
-    def measurement_matrix(self, chord_angles: np.ndarray) -> np.ndarray:
+    def measurement_matrix(self, chord_angles: AnyFloatArray) -> FloatArray:
         """Abel-transform projection matrix for interferometry chords."""
         C = np.zeros((self.n_chords, self.n_rho))
         for i in range(self.n_chords):
@@ -551,12 +553,12 @@ class KalmanDensityEstimator:
                     C[i, j] = 2.0 * rho / math.sqrt(rho**2 - impact**2 + 1e-6)
         return C
 
-    def predict(self, ne: np.ndarray, dt: float) -> np.ndarray:
+    def predict(self, ne: AnyFloatArray, dt: float) -> AnyFloatArray:
         self.x = ne
         self.P = self.P + self.Q * dt
         return self.x
 
-    def update(self, ne_pred: np.ndarray, measurements: np.ndarray, chord_angles: np.ndarray) -> np.ndarray:
+    def update(self, ne_pred: AnyFloatArray, measurements: AnyFloatArray, chord_angles: AnyFloatArray) -> AnyFloatArray:
         C = self.measurement_matrix(chord_angles)
         S = C @ self.P @ C.T + self.R
         K = self.P @ C.T @ np.linalg.inv(S)
@@ -575,7 +577,7 @@ class PelletSchedule:
 
 class FuelingOptimizer:
     def optimize_pellet_sequence(
-        self, ne_current: np.ndarray, ne_target: np.ndarray, n_pellets: int, time_horizon: float
+        self, ne_current: AnyFloatArray, ne_target: AnyFloatArray, n_pellets: int, time_horizon: float
     ) -> PelletSchedule:
         """Evenly-spaced pellet schedule over the given horizon."""
         if n_pellets <= 0:

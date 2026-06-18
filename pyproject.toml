@@ -131,6 +131,7 @@ files = [
 [[tool.mypy.overrides]]
 module = [
     "scpn_control._typing",
+    "scpn_control.core.blob_transport",
     "scpn_control.core.current_drive",
     "scpn_control.core.momentum_transport",
     "scpn_control.core.integrated_transport_solver",
@@ -139,6 +140,7 @@ module = [
     "scpn_control.core.checkpoint",
     "scpn_control.scpn.observation",
     "scpn_control.scpn.geometry_neutral_replay",
+    "scpn_control.control.density_controller",
     "scpn_control.control.realtime_efit",
     "scpn_control.control.volt_second_manager",
     "scpn_control.control.rzip_model",

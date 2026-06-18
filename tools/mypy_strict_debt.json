@@ -1,13 +1,12 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 861,
+  "total": 827,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 9,
     "scpn_control.control.analytic_solver": 4,
     "scpn_control.control.burn_controller": 9,
     "scpn_control.control.codac_interface": 1,
-    "scpn_control.control.density_controller": 24,
     "scpn_control.control.detachment_controller": 2,
     "scpn_control.control.digital_twin_online_update": 7,
     "scpn_control.control.disruption_predictor": 7,
@@ -36,7 +35,6 @@
     "scpn_control.core._rust_compat": 28,
     "scpn_control.core.alfven_eigenmodes": 5,
     "scpn_control.core.ballooning_solver": 6,
-    "scpn_control.core.blob_transport": 10,
     "scpn_control.core.current_diffusion": 14,
     "scpn_control.core.differentiable_scenario": 9,
     "scpn_control.core.differentiable_transport": 44,

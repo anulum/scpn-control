@@ -29,6 +29,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # Sheath-connected velocity prefactor — Krasheninnikov 2001, Eq. 5
 _SHEATH_PREFACTOR: float = 2.0
 
@@ -52,12 +54,12 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
 
 def _finite_1d_array(
     name: str,
-    values: np.ndarray,
+    values: AnyFloatArray,
     *,
     nonnegative: bool = False,
     positive: bool = False,
     non_empty: bool = False,
-) -> np.ndarray:
+) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1:
         raise ValueError(f"{name} must be one-dimensional")
@@ -72,7 +74,7 @@ def _finite_1d_array(
     return arr
 
 
-def _validate_population(population: BlobPopulation) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _validate_population(population: BlobPopulation) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
     sizes = _finite_1d_array("population sizes", population.sizes, positive=True)
     amplitudes = _finite_1d_array("population amplitudes", population.amplitudes, nonnegative=True)
     velocities = _finite_1d_array("population velocities", population.velocities, nonnegative=True)
@@ -171,10 +173,10 @@ class BlobDynamics:
 
 @dataclass
 class BlobPopulation:
-    sizes: np.ndarray
-    amplitudes: np.ndarray
-    velocities: np.ndarray
-    birth_times: np.ndarray
+    sizes: AnyFloatArray
+    amplitudes: AnyFloatArray
+    velocities: AnyFloatArray
+    birth_times: AnyFloatArray
 
 
 class BlobEnsemble:
@@ -247,7 +249,7 @@ class BlobEnsemble:
 
 class SOLBlobProfile:
     @staticmethod
-    def radial_density(r: np.ndarray, Gamma_blob: float, D_perp: float, lambda_n: float) -> np.ndarray:
+    def radial_density(r: AnyFloatArray, Gamma_blob: float, D_perp: float, lambda_n: float) -> FloatArray:
         """SOL density profile with blob-enhanced transport.
 
         Without blobs: n = n₀ exp(−r / λ_n).
@@ -310,7 +312,7 @@ class BlobDetector:
     identifying intermittent transport events in probe signals.
     """
 
-    def detect_blobs(self, signal: np.ndarray, dt: float = 1e-6, threshold: float = 2.5) -> list[BlobEvent]:
+    def detect_blobs(self, signal: AnyFloatArray, dt: float = 1e-6, threshold: float = 2.5) -> list[BlobEvent]:
         signal = _finite_1d_array("signal", signal)
         dt = _finite_scalar("dt", dt, positive=True)
         threshold = _finite_scalar("threshold", threshold, positive=True)
@@ -338,17 +340,17 @@ class BlobDetector:
                 in_blob = False
                 dur = (i - start) * dt
                 size = dur * 1000.0
-                events.append(BlobEvent(start, i, peak * std_sig, dur, size))
+                events.append(BlobEvent(start, i, float(peak * std_sig), dur, size))
 
         if in_blob:
             end = len(norm_sig)
             dur = (end - start) * dt
             size = dur * 1000.0
-            events.append(BlobEvent(start, end, peak * std_sig, dur, size))
+            events.append(BlobEvent(start, end, float(peak * std_sig), dur, size))
 
         return events
 
-    def conditional_average(self, signal: np.ndarray, events: list[BlobEvent], window: int = 50) -> np.ndarray:
+    def conditional_average(self, signal: AnyFloatArray, events: list[BlobEvent], window: int = 50) -> FloatArray:
         signal = _finite_1d_array("signal", signal)
         if window < 0:
             raise ValueError("window must be non-negative")
