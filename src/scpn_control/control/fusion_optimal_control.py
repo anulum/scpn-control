@@ -31,6 +31,8 @@ except ImportError:
     HAS_MPL = False
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 try:
     from scpn_control.core._rust_compat import FusionKernel
 except ImportError:
@@ -118,7 +120,7 @@ class OptimalController:
 
         self._log("[OptControl] System Identification Complete.")
 
-    def get_plasma_pos(self) -> np.ndarray:
+    def get_plasma_pos(self) -> FloatArray:
         """Return current plasma-axis position [R, Z]."""
         idx_max = int(np.argmax(self.kernel.Psi))
         iz, ir = np.unravel_index(idx_max, self.kernel.Psi.shape)
@@ -126,10 +128,10 @@ class OptimalController:
 
     def compute_optimal_correction(
         self,
-        current_pos: np.ndarray,
-        target_pos: np.ndarray,
+        current_pos: AnyFloatArray,
+        target_pos: AnyFloatArray,
         regularization_limit: float = 1e-2,
-    ) -> np.ndarray:
+    ) -> FloatArray:
         """
         Solve Error = J * Delta_I using damped pseudoinverse.
         """
@@ -148,7 +150,7 @@ class OptimalController:
         delta_currents = np.asarray(j_inv @ error, dtype=np.float64)
         return np.clip(delta_currents, -self.correction_limit, self.correction_limit)
 
-    def _apply_corrections(self, delta_currents: np.ndarray, gain: float) -> None:
+    def _apply_corrections(self, delta_currents: AnyFloatArray, gain: float) -> None:
         lo, hi = self.coil_current_limits
         g = float(gain)
         for i in range(self.n_coils):

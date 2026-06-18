@@ -17,6 +17,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 
 def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
     scalar = float(value)
@@ -29,7 +31,7 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
-def _profile_array(name: str, values: np.ndarray, shape: tuple[int, ...], *, nonnegative: bool = False) -> np.ndarray:
+def _profile_array(name: str, values: AnyFloatArray, shape: tuple[int, ...], *, nonnegative: bool = False) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.shape != shape:
         raise ValueError(f"{name} must match rho shape")
@@ -60,7 +62,7 @@ class PelletParams:
 @dataclass
 class PelletResult:
     penetration_depth: float
-    deposition_profile: np.ndarray
+    deposition_profile: AnyFloatArray
     total_particles: float
     drift_displacement: float
 
@@ -99,7 +101,7 @@ class PelletTrajectory:
         volume_m3 = (4.0 / 3.0) * np.pi * (params.r_p_mm * 1e-3) ** 3
         self.N_initial = volume_m3 * self.n_solid
 
-    def simulate(self, rho: np.ndarray, ne: np.ndarray, Te_eV: np.ndarray) -> PelletResult:
+    def simulate(self, rho: AnyFloatArray, ne: AnyFloatArray, Te_eV: AnyFloatArray) -> PelletResult:
         rho = np.asarray(rho, dtype=float)
         if rho.ndim != 1 or rho.size < 2:
             raise ValueError("rho must be a one-dimensional grid with at least two points")
@@ -217,7 +219,7 @@ class PelletFuelingController:
         return float(f)
 
     def step(
-        self, ne_profile: np.ndarray, Te_profile: np.ndarray, dt: float, V_plasma: float
+        self, ne_profile: AnyFloatArray, Te_profile: AnyFloatArray, dt: float, V_plasma: float
     ) -> PelletInjectionCommand | None:
         ne_profile = np.asarray(ne_profile, dtype=float)
         if ne_profile.ndim != 1 or ne_profile.size == 0:
@@ -233,7 +235,7 @@ class PelletFuelingController:
 
         if current_density < self.target_density * 0.95:
             # Need fueling
-            freq = self.required_frequency(current_density, 5.0, V_plasma)
+            freq = self.required_frequency(float(current_density), 5.0, V_plasma)
             period = 1.0 / max(freq, 0.1)
 
             if self.time - self.last_injection > period:

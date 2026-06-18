@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # ─── EKF state-space dimensions ─────────────────────────────────────
 # State x: [R (m), Z (m), vR (m/s), vZ (m/s), Ip (MA), Te_core (keV)]
 # Measurement z: [R (m), Z (m), Ip (MA), Te_core (keV)]
@@ -62,22 +64,22 @@ class ExtendedKalmanFilter:
 
     Parameters
     ----------
-    x0 : np.ndarray
+    x0 : AnyFloatArray
         Initial state estimate (6D).
-    P0 : np.ndarray
+    P0 : AnyFloatArray
         Initial error covariance (6×6).
-    Q : np.ndarray
+    Q : AnyFloatArray
         Process noise covariance (6×6).
-    R_cov : np.ndarray
+    R_cov : AnyFloatArray
         Measurement noise covariance (4×4).
     """
 
     def __init__(
         self,
-        x0: np.ndarray,
-        P0: np.ndarray,
-        Q: np.ndarray,
-        R_cov: np.ndarray,
+        x0: AnyFloatArray,
+        P0: AnyFloatArray,
+        Q: AnyFloatArray,
+        R_cov: AnyFloatArray,
     ) -> None:
         self.x = x0.astype(float)
         self.P = P0.astype(float)
@@ -92,7 +94,7 @@ class ExtendedKalmanFilter:
         self.H[2, _IDX_IP] = 1.0
         self.H[3, _IDX_TE] = 1.0
 
-    def predict(self, dt: float, u: np.ndarray | None = None) -> np.ndarray:
+    def predict(self, dt: float, u: AnyFloatArray | None = None) -> FloatArray:
         """Advance state estimate and covariance.
 
         x_{k+1|k} = F x_k       (constant-velocity kinematics + random walk)
@@ -104,12 +106,12 @@ class ExtendedKalmanFilter:
         ----------
         dt : float
             Time step [s].
-        u : np.ndarray, optional
+        u : AnyFloatArray, optional
             Control input (unused in constant-velocity model).
 
         Returns
         -------
-        np.ndarray — Predicted state.
+        AnyFloatArray — Predicted state.
         """
         F = np.eye(_NX)
         F[_IDX_R, _IDX_VR] = dt
@@ -119,7 +121,7 @@ class ExtendedKalmanFilter:
         self.P = F @ self.P @ F.T + self.Q * dt
         return self.x
 
-    def update(self, z: np.ndarray) -> np.ndarray:
+    def update(self, z: AnyFloatArray) -> FloatArray:
         """Correct state estimate with a new measurement.
 
         y   = z − H x_{k|k−1}
@@ -132,12 +134,12 @@ class ExtendedKalmanFilter:
 
         Parameters
         ----------
-        z : np.ndarray
+        z : AnyFloatArray
             Measured values [R, Z, Ip, Te_core] (4D).
 
         Returns
         -------
-        np.ndarray — Updated state.
+        AnyFloatArray — Updated state.
         """
         y = z - self.H @ self.x
         S = self.H @ self.P @ self.H.T + self.R
@@ -146,6 +148,6 @@ class ExtendedKalmanFilter:
         self.P = (np.eye(_NX) - K @ self.H) @ self.P
         return self.x
 
-    def estimate(self) -> np.ndarray:
+    def estimate(self) -> FloatArray:
         """Return the current state estimate."""
         return self.x.copy()

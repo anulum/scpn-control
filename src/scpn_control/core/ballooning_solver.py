@@ -16,6 +16,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scipy.integrate import solve_ivp
 
 from scpn_control.core.stability_mhd import QProfile
@@ -49,8 +51,8 @@ def _require_positive_scalar(name: str, value: float) -> float:
 class BallooningEigenResult:
     """Result of solving the ballooning equation for a single (s, alpha) pair."""
 
-    theta: np.ndarray
-    xi: np.ndarray
+    theta: AnyFloatArray
+    xi: AnyFloatArray
     is_stable: bool
 
 
@@ -81,7 +83,7 @@ class BallooningEquation:
         No zero crossing within [0, θ_max] means stable.
         """
 
-        def eqs(t: float, y: np.ndarray) -> list[float]:
+        def eqs(t: float, y: AnyFloatArray) -> list[float]:
             u1, u2 = y
             du1 = u2 / self.f(t)
             du2 = -self.g(t) * u1
@@ -91,7 +93,7 @@ class BallooningEquation:
             terminal = True
             direction = -1
 
-            def __call__(self, t: float, y: np.ndarray) -> float:
+            def __call__(self, t: float, y: AnyFloatArray) -> float:
                 return float(y[0])
 
         t_span = (0.0, self.theta_max)
@@ -164,7 +166,7 @@ def find_marginal_stability(s: float, alpha_min: float = 0.0, alpha_max: float =
     return (amin + amax) / 2.0
 
 
-def compute_stability_diagram(s_range: np.ndarray, alpha_min: float = 0.0, alpha_max: float = 2.0) -> np.ndarray:
+def compute_stability_diagram(s_range: AnyFloatArray, alpha_min: float = 0.0, alpha_max: float = 2.0) -> FloatArray:
     """
     Compute alpha_crit(s) for an array of shear values.
     """
@@ -184,7 +186,7 @@ class BallooningStabilityAnalysis:
     Performs ballooning stability analysis given a QProfile.
     """
 
-    def analyze(self, q_profile: QProfile) -> np.ndarray:
+    def analyze(self, q_profile: QProfile) -> FloatArray:
         """
         Extracts (s, alpha) at each radial point and returns per-radius stability margin.
         Positive margin means stable.

@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # ─── Kim-Diamond 2003 predator-prey coefficients ────────────────────────────
 # Kim & Diamond, Phys. Rev. Lett. 90, 185006 (2003), Eqs. (1–3).
 # Turbulence (epsilon) is the prey; zonal flow (V_ZF) is the predator.
@@ -58,7 +60,7 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
-def _ordered_heating_scan(name: str, values: np.ndarray) -> np.ndarray:
+def _ordered_heating_scan(name: str, values: AnyFloatArray) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size == 0:
         raise ValueError(f"{name} must be a non-empty one-dimensional array")
@@ -73,10 +75,10 @@ def _ordered_heating_scan(name: str, values: np.ndarray) -> np.ndarray:
 
 @dataclass
 class PredatorPreyResult:
-    epsilon_trace: np.ndarray
-    V_ZF_trace: np.ndarray
-    p_trace: np.ndarray
-    time: np.ndarray
+    epsilon_trace: AnyFloatArray
+    V_ZF_trace: AnyFloatArray
+    p_trace: AnyFloatArray
+    time: AnyFloatArray
     regime: str
 
 
@@ -114,7 +116,7 @@ class PredatorPreyModel:
         # γ_ZF ≈ α₃ ε* − γ_damp evaluated at ε = 2 ε* (ZF-growing regime).
         return float(self.alpha3 * eps_star)
 
-    def step(self, state: np.ndarray, dt: float, Q_heating: float) -> np.ndarray:
+    def step(self, state: AnyFloatArray, dt: float, Q_heating: float) -> FloatArray:
         state = np.asarray(state, dtype=float)
         if state.shape != (3,):
             raise ValueError("state must contain epsilon, V_ZF, and pressure")
@@ -171,7 +173,7 @@ class LHTrigger:
     def __init__(self, model: PredatorPreyModel):
         self.model = model
 
-    def find_threshold(self, Q_range: np.ndarray) -> float:
+    def find_threshold(self, Q_range: AnyFloatArray) -> float:
         """Bisect Q_range to find onset of L→H bifurcation."""
         Q_range = _ordered_heating_scan("Q_range", Q_range)
         for Q in Q_range:
@@ -269,7 +271,7 @@ class IPhaseDetector:
             raise ValueError("window_size must be an integer greater than one")
         self.window_size = window_size
 
-    def detect(self, epsilon_trace: np.ndarray) -> bool:
+    def detect(self, epsilon_trace: AnyFloatArray) -> bool:
         """True if recent trace shows relative std > 10 %."""
         epsilon_trace = np.asarray(epsilon_trace, dtype=float)
         if epsilon_trace.ndim != 1:

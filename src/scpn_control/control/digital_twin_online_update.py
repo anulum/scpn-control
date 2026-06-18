@@ -18,6 +18,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 from scpn_control.control.tokamak_digital_twin import run_digital_twin
 
 SUPPORTED_EXTERNAL_SIMULATORS = ("TRANSP", "TSC")
@@ -203,7 +205,7 @@ def bayesian_update_digital_twin(
     baseline = {prior.name: prior.nominal for prior in priors}
     baseline_loss = _evaluate_parameters(baseline, observation, cfg)
 
-    x_seen: list[np.ndarray] = []
+    x_seen: list[AnyFloatArray] = []
     y_seen: list[float] = []
     loss_history: list[float] = []
 
@@ -457,7 +459,7 @@ def _validate_update_inputs(
             )
 
 
-def _denormalise(x: np.ndarray, priors: tuple[TwinParameterPrior, ...]) -> dict[str, float]:
+def _denormalise(x: AnyFloatArray, priors: tuple[TwinParameterPrior, ...]) -> dict[str, float]:
     params: dict[str, float] = {}
     for value, prior in zip(x, priors):
         params[prior.name] = float(prior.lower + np.clip(value, 0.0, 1.0) * (prior.upper - prior.lower))
@@ -465,11 +467,11 @@ def _denormalise(x: np.ndarray, priors: tuple[TwinParameterPrior, ...]) -> dict[
 
 
 def _gp_predict(
-    x_seen: np.ndarray,
-    y_seen: np.ndarray,
-    candidates: np.ndarray,
+    x_seen: AnyFloatArray,
+    y_seen: AnyFloatArray,
+    candidates: AnyFloatArray,
     config: BayesianUpdateConfig,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[FloatArray, FloatArray]:
     length = float(config.kernel_length_scale)
     k_xx = _rbf_kernel(x_seen, x_seen, length) + config.noise * np.eye(len(x_seen))
     k_cx = _rbf_kernel(candidates, x_seen, length)
@@ -483,7 +485,7 @@ def _gp_predict(
     return np.asarray(mean, dtype=np.float64), np.sqrt(variance)
 
 
-def _rbf_kernel(a: np.ndarray, b: np.ndarray, length: float) -> np.ndarray:
+def _rbf_kernel(a: AnyFloatArray, b: AnyFloatArray, length: float) -> FloatArray:
     diff = a[:, np.newaxis, :] - b[np.newaxis, :, :]
     dist2 = np.sum(diff * diff, axis=2)
     return np.asarray(np.exp(-0.5 * dist2 / (length**2)), dtype=np.float64)

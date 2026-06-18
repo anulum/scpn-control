@@ -22,6 +22,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 try:
     import matplotlib.pyplot as plt
 
@@ -118,7 +120,7 @@ class TokamakTopology:
         # Parabolic q-profile: q(r) = q0 + (qa-q0)*r^2
         self.q_map = mod_q0 + (mod_qa - mod_q0) * (self.r_map**2)
 
-    def get_rational_surfaces(self) -> np.ndarray:
+    def get_rational_surfaces(self) -> FloatArray:
         """
         Returns a boolean map of where Magnetic Islands are likely to form.
         Resonances at q = 1.5, 2.0, 2.5, 3.0
@@ -168,7 +170,7 @@ class Plasma2D:
         self.n_e = _require_non_negative_finite("n_e", n_e)
         self.Z_eff = _require_non_negative_finite("Z_eff", Z_eff)
 
-    def step(self, action: float) -> tuple[np.ndarray, float]:
+    def step(self, action: float) -> tuple[FloatArray, float]:
         """
         Evolves plasma for one time step.
         action: Control signal for current drive (modifies q-profile).
@@ -248,7 +250,7 @@ class SimpleNeuralNet:
         self.W2 = rng.standard_normal((hidden_size, output_size)) * np.sqrt(1 / hidden_size)
         self.b2 = np.zeros((1, output_size))
 
-    def forward(self, x: np.ndarray) -> np.ndarray:
+    def forward(self, x: AnyFloatArray) -> FloatArray:
         # x shape: (batch, input)
         self.z1 = np.dot(x, self.W1) + self.b1
         self.a1 = np.tanh(self.z1)  # Activation
@@ -256,7 +258,7 @@ class SimpleNeuralNet:
         self.out = np.tanh(self.z2)  # Output -1 to 1 (Action)
         return np.asarray(self.out)
 
-    def train_step(self, x: np.ndarray, target_action: Any, advantage: float) -> float:
+    def train_step(self, x: AnyFloatArray, target_action: Any, advantage: float) -> float:
         """
         Simplified Policy Gradient update (REINFORCE-like).
         We want to move the output closer to 'target_action' scaled by 'advantage'.

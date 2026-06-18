@@ -35,6 +35,8 @@ from typing import Any, Callable, cast
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 logger = logging.getLogger(__name__)
 
 HIL_REPLAY_EVIDENCE_SCHEMA_VERSION = "scpn-control.hil-replay-evidence.v1"
@@ -993,9 +995,9 @@ class HILDemoRunner:
         # Register file (simulated as uint32 array)
         self.registers = np.zeros(512, dtype=np.uint32)
         # TMR: 3 copies of neuron state
-        self.tmr_copies = [np.zeros(n_neurons, dtype=np.float64) for _ in range(3)]
-        self.weights: np.ndarray = np.zeros((n_neurons, n_inputs), dtype=np.float64)
-        self.output_weights: np.ndarray = np.zeros((n_outputs, n_neurons), dtype=np.float64)
+        self.tmr_copies: list[AnyFloatArray] = [np.zeros(n_neurons, dtype=np.float64) for _ in range(3)]
+        self.weights: AnyFloatArray = np.zeros((n_neurons, n_inputs), dtype=np.float64)
+        self.output_weights: AnyFloatArray = np.zeros((n_outputs, n_neurons), dtype=np.float64)
         self.tmr_mismatches = 0
         self.total_steps = 0
         self.latency_cycles: list[int] = []
@@ -1019,7 +1021,7 @@ class HILDemoRunner:
             ow = np.asarray(controller.output_weights, dtype=np.float64)
             self.output_weights = ow[: self.n_outputs, : self.n_neurons]
 
-    def _lif_step(self, state: np.ndarray, inputs: np.ndarray, dt_s: float = 0.001) -> tuple[np.ndarray, np.ndarray]:
+    def _lif_step(self, state: AnyFloatArray, inputs: AnyFloatArray, dt_s: float = 0.001) -> tuple[AnyFloatArray, AnyFloatArray]:
         """Leaky Integrate-and-Fire neuron update."""
         tau = 0.02  # 20ms membrane time constant
         threshold = 1.0
@@ -1030,7 +1032,7 @@ class HILDemoRunner:
         state = np.where(spikes > 0, reset, state)
         return state, spikes
 
-    def _tmr_vote(self) -> np.ndarray:
+    def _tmr_vote(self) -> FloatArray:
         """Majority vote across TMR copies. Returns voted state."""
         # TMR median voter
         stacked = np.stack(self.tmr_copies, axis=0)
@@ -1042,7 +1044,7 @@ class HILDemoRunner:
                 break
         return np.asarray(voted)
 
-    def step(self, inputs: np.ndarray) -> np.ndarray:
+    def step(self, inputs: AnyFloatArray) -> FloatArray:
         """Execute one SNN inference step through simulated register pipeline."""
         t0 = time.perf_counter_ns()
         inp = np.asarray(inputs[: self.n_inputs], dtype=np.float64)
@@ -1084,7 +1086,7 @@ class HILDemoRunner:
         if np.isfinite(new_val):
             self.tmr_copies[0][neuron_idx] = new_val
 
-    def run_episode(self, n_steps: int = 1000, inject_faults: bool = False) -> dict:
+    def run_episode(self, n_steps: int = 1000, inject_faults: bool = False) -> dict[str, Any]:
         """Run a demo episode with optional fault injection."""
         rng = np.random.default_rng(42)
         outputs = []
@@ -1098,7 +1100,7 @@ class HILDemoRunner:
 
         return self.report()
 
-    def report(self) -> dict:
+    def report(self) -> dict[str, Any]:
         """Generate benchmark report."""
         lat = np.array(self.latency_cycles) if self.latency_cycles else np.array([0])
         return {

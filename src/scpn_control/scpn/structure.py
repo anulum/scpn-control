@@ -28,10 +28,11 @@ from __future__ import annotations
 from enum import Enum, auto
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 from numpy.typing import NDArray
 from scipy import sparse
 
-FloatArray = NDArray[np.float64]
 
 
 class _NodeKind(Enum):
@@ -439,8 +440,8 @@ class StochasticPetriNet:
         _W_out = self.W_out
         if _W_in is None or _W_out is None:
             raise RuntimeError("Net must be compiled before verification.")
-        W_in_dense: np.ndarray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
-        W_out_dense: np.ndarray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
+        W_in_dense: AnyFloatArray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
+        W_out_dense: AnyFloatArray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
 
         for _ in range(n_trials):
             marking = self.get_initial_marking().copy()
@@ -494,8 +495,8 @@ class StochasticPetriNet:
         _W_out = self.W_out
         if _W_in is None or _W_out is None:
             raise RuntimeError("Net must be compiled before verification.")
-        W_in_dense: np.ndarray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
-        W_out_dense: np.ndarray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
+        W_in_dense: AnyFloatArray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
+        W_out_dense: AnyFloatArray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
         thresholds = self.get_thresholds()
 
         for _ in range(n_trials):

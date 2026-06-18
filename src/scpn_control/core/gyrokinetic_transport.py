@@ -14,6 +14,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # Physical constants
 # m_p = 1.67262192369e-27  kg
 
@@ -115,10 +117,10 @@ class GyrokineticsParams:
 class SpectrumResult:
     """Computed instability spectrum."""
 
-    k_y: np.ndarray
-    gamma_linear: np.ndarray
-    omega_r: np.ndarray
-    mode_type: np.ndarray  # 0: stable, 1: ITG, 2: TEM, 3: ETG
+    k_y: AnyFloatArray
+    gamma_linear: AnyFloatArray
+    omega_r: AnyFloatArray
+    mode_type: AnyFloatArray  # 0: stable, 1: ITG, 2: TEM, 3: ETG
 
 
 @dataclass
@@ -437,8 +439,8 @@ class GyrokineticTransportModel:
         return chi_i_phys, chi_e_phys, D_e_phys
 
     def evaluate_profile(
-        self, rho: np.ndarray, profiles: dict[str, np.ndarray]
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self, rho: AnyFloatArray, profiles: dict[str, AnyFloatArray]
+    ) -> tuple[FloatArray, FloatArray, FloatArray]:
         """
         Evaluate full radial profile over a finite one-dimensional rho grid in [0, 1].
         """

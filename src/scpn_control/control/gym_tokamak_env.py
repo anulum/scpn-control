@@ -20,9 +20,13 @@ Action:      [P_aux_delta, Ip_delta]               (2-dim, continuous)
 
 from __future__ import annotations
 
+from typing import Any
+
 import logging
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 
 logger = logging.getLogger(__name__)
 
@@ -99,14 +103,14 @@ class TokamakEnv:
         self.action_high = np.array([5.0, 1.0])
 
     @property
-    def observation_space_shape(self) -> tuple:
+    def observation_space_shape(self) -> tuple[int, ...]:
         return (6,)
 
     @property
-    def action_space_shape(self) -> tuple:
+    def action_space_shape(self) -> tuple[int, ...]:
         return (2,)
 
-    def reset(self, seed: int | None = None) -> tuple[np.ndarray, dict]:
+    def reset(self, seed: int | None = None) -> tuple[FloatArray, dict[str, Any]]:
         """Reset to initial plasma state."""
         if seed is not None:
             self._rng = np.random.default_rng(seed)
@@ -125,7 +129,7 @@ class TokamakEnv:
         self.P_aux = 50.0
         return self._observe(), {}
 
-    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: AnyFloatArray) -> tuple[FloatArray, float, bool, bool, dict[str, Any]]:
         """Advance one timestep using physics-based energy balance.
 
         Returns (obs, reward, terminated, truncated, info).
@@ -214,7 +218,7 @@ class TokamakEnv:
         }
         return self._observe(), float(reward), terminated, truncated, info
 
-    def _observe(self) -> np.ndarray:
+    def _observe(self) -> FloatArray:
         """Return noisy observation."""
         noise = self._rng.normal(0, self.noise_std, 6)
         obs = np.clip(
@@ -224,7 +228,7 @@ class TokamakEnv:
         )
         return obs.astype(np.float64)
 
-    def _validate_action(self, action: np.ndarray) -> np.ndarray:
+    def _validate_action(self, action: AnyFloatArray) -> FloatArray:
         arr = np.asarray(action, dtype=np.float64)
         if arr.shape != (2,):
             raise ValueError("action must have shape (2,) for [P_aux_delta, Ip_delta].")

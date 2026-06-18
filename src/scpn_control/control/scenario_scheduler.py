@@ -18,12 +18,14 @@ from typing import Callable
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 
 @dataclass
 class ScenarioWaveform:
     name: str
-    times: np.ndarray
-    values: np.ndarray
+    times: AnyFloatArray
+    values: AnyFloatArray
     interp_kind: str = "linear"
 
     def __call__(self, t: float) -> float:
@@ -70,11 +72,11 @@ class FeedforwardController:
     Combines pre-computed feedforward trajectories with a feedback trim.
     """
 
-    def __init__(self, schedule: ScenarioSchedule, feedback: Callable):
+    def __init__(self, schedule: ScenarioSchedule, feedback: Callable[..., AnyFloatArray]):
         self.schedule = schedule
         self.feedback = feedback
 
-    def step(self, x: np.ndarray, t: float, dt: float) -> np.ndarray:
+    def step(self, x: AnyFloatArray, t: float, dt: float) -> FloatArray:
         """
         u = u_ff(t) + u_fb(x_err)
         """
@@ -102,7 +104,7 @@ class ScenarioOptimizer:
     Offline trajectory design.
     """
 
-    def __init__(self, plant_model: Callable, target_state: np.ndarray, T_total: float, dt: float = 0.5):
+    def __init__(self, plant_model: Callable[..., AnyFloatArray], target_state: AnyFloatArray, T_total: float, dt: float = 0.5):
         self.plant_model = plant_model
         self.target_state = target_state
         self.T_total = T_total
@@ -121,12 +123,12 @@ class ScenarioOptimizer:
         p0 = np.zeros(n_u * len(times))
 
         # Objective function
-        def objective(p: np.ndarray) -> float:
+        def objective(p: AnyFloatArray) -> float:
             p = p.reshape(n_u, len(times))
             wfs = {"P_aux": ScenarioWaveform("P_aux", times, p[0]), "Ip": ScenarioWaveform("Ip", times, p[1])}
             sched = ScenarioSchedule(wfs)
 
-            x = np.zeros(len(self.target_state))
+            x: AnyFloatArray = np.zeros(len(self.target_state))
             cost = 0.0
 
             t = 0.0

@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # ─── Physical constants (CODATA 2018) ───────────────────────────────────────
 _E_CHARGE = 1.602176634e-19  # C
 _M_PROTON = 1.67262192369e-27  # kg
@@ -361,16 +363,16 @@ def _sauter_L34(f_t: float, nu_e: float, Z: float) -> float:
 
 
 def sauter_bootstrap(
-    rho: np.ndarray,
-    Te: np.ndarray,
-    Ti: np.ndarray,
-    ne: np.ndarray,
-    q: np.ndarray,
+    rho: AnyFloatArray,
+    Te: AnyFloatArray,
+    Ti: AnyFloatArray,
+    ne: AnyFloatArray,
+    q: AnyFloatArray,
     R0: float,
     a: float,
     B0: float = 5.3,
     z_eff: float = 1.5,
-) -> np.ndarray:
+) -> FloatArray:
     """Sauter bootstrap current density profile with full L31+L32+L34 coefficients.
 
     Sauter et al. 1999, Phys. Plasmas 6, 2834, Eqs. 14–16.
@@ -380,13 +382,13 @@ def sauter_bootstrap(
 
     Parameters
     ----------
-    rho : np.ndarray
+    rho : AnyFloatArray
         Normalised radial grid.
-    Te, Ti : np.ndarray
+    Te, Ti : AnyFloatArray
         Electron and ion temperatures [keV].
-    ne : np.ndarray
+    ne : AnyFloatArray
         Electron density [10^19 m^-3].
-    q : np.ndarray
+    q : AnyFloatArray
         Safety factor profile.
     R0, a : float
         Major and minor radii [m].
@@ -397,7 +399,7 @@ def sauter_bootstrap(
 
     Returns
     -------
-    np.ndarray
+    AnyFloatArray
         Bootstrap current density [A/m^2].
     """
     n = len(rho)

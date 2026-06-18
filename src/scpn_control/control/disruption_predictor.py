@@ -30,6 +30,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import FloatArray
+
 try:
     import torch  # pragma: no cover
     import torch.nn as nn  # pragma: no cover
@@ -74,7 +76,7 @@ def simulate_tearing_mode(
     *,
     mode: str = "ntm",
     rng: np.random.Generator | None = None,
-) -> tuple[np.ndarray, int, int]:
+) -> tuple[FloatArray, int, int]:
     """Generate synthetic shot data for multiple disruption mechanisms.
 
     Physics models:
@@ -162,7 +164,7 @@ def simulate_tearing_mode(
     return np.array(signal_history), 0, -1
 
 
-def build_disruption_feature_vector(signal: Any, toroidal_observables: dict[str, float] | None = None) -> np.ndarray:
+def build_disruption_feature_vector(signal: Any, toroidal_observables: dict[str, float] | None = None) -> FloatArray:
     """Build a compact feature vector for control-oriented disruption scoring.
 
     Feature layout:
@@ -273,7 +275,7 @@ def apply_bit_flip_fault(value: float, bit_index: int) -> float:
     return float(out if np.isfinite(out) else value)
 
 
-def _synthetic_control_signal(rng: np.random.Generator, length: int) -> np.ndarray:
+def _synthetic_control_signal(rng: np.random.Generator, length: int) -> FloatArray:
     t = np.linspace(0.0, 1.0, int(length), dtype=float)
     # 3 Hz ≈ rotating 2/1 NTM, 7 Hz ≈ 3/1 mode (synthetic test signal)
     base = 0.7 + 0.15 * np.sin(2.0 * np.pi * 3.0 * t) + 0.05 * np.cos(2.0 * np.pi * 7.0 * t)
@@ -571,7 +573,7 @@ def _normalize_seq_len(seq_len: int) -> int:
     return _require_int("seq_len", seq_len, 8)
 
 
-def _prepare_signal_window(signal: Any, seq_len: int) -> np.ndarray:
+def _prepare_signal_window(signal: Any, seq_len: int) -> FloatArray:
     seq_len = _normalize_seq_len(seq_len)
     flat = np.asarray(signal, dtype=float).reshape(-1)
     if flat.size >= seq_len:
@@ -587,7 +589,7 @@ def _estimate_signal_noise_scale(signal: Any) -> float:
     return max(diff_scale, MIN_PROBABILISTIC_NOISE_SCALE)
 
 
-def _sigma_point_pattern(length: int) -> np.ndarray:
+def _sigma_point_pattern(length: int) -> FloatArray:
     n = _require_int("length", length, 1)
     if n == 1:
         return np.ones(1, dtype=float)
@@ -634,7 +636,7 @@ def _summarize_risk_samples(
 def _deterministic_risk_samples(
     signal: Any,
     toroidal_observables: dict[str, float] | None,
-) -> np.ndarray:
+) -> FloatArray:
     flat = np.asarray(signal, dtype=float).reshape(-1)
     noise_scale = _estimate_signal_noise_scale(flat)
     pattern = _sigma_point_pattern(max(flat.size, 1))
@@ -653,7 +655,7 @@ def _model_risk_samples(  # pragma: no cover - requires torch
     signal: Any,
     *,
     seq_len: int,
-) -> np.ndarray:
+) -> FloatArray:
     if torch is None:
         raise RuntimeError("Torch is required for model-based risk samples.")
     prepared = _prepare_signal_window(signal, seq_len)

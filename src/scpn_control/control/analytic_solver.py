@@ -16,6 +16,8 @@ from typing import Any, Callable, Dict
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 logger = logging.getLogger(__name__)
 
 _PRESERVED_METADATA_KEYS = (
@@ -123,7 +125,7 @@ class AnalyticEquilibriumSolver:
         target_R: float,
         *,
         target_Z: float = 0.0,
-    ) -> np.ndarray:
+    ) -> FloatArray:
         """
         Compute dBz/dI per coil at target location using kernel vacuum-field map.
         """
@@ -196,7 +198,7 @@ class AnalyticEquilibriumSolver:
         *,
         target_Z: float = 0.0,
         ridge_lambda: float = 0.0,
-    ) -> np.ndarray:
+    ) -> FloatArray:
         """
         Solve least-norm coil currents for desired vertical field target.
         """
@@ -225,7 +227,7 @@ class AnalyticEquilibriumSolver:
             self._log(f"  {name}: {float(val):.6f} MA")
         return np.asarray(currents, dtype=np.float64)
 
-    def apply_currents(self, currents: np.ndarray) -> None:
+    def apply_currents(self, currents: AnyFloatArray) -> None:
         arr = np.asarray(currents, dtype=np.float64).reshape(-1)
         coils = self.kernel.cfg.get("coils", [])
         if arr.size != len(coils):
@@ -237,7 +239,7 @@ class AnalyticEquilibriumSolver:
 
     def apply_and_save(
         self,
-        currents: np.ndarray,
+        currents: AnyFloatArray,
         output_path: str | None = None,
     ) -> str:
         self.apply_currents(currents)

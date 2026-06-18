@@ -28,6 +28,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 from scpn_control.core.sawtooth import SawtoothCycler
 
 # MRE bootstrap drive coefficient.
@@ -59,7 +61,7 @@ def _mode_tuple(name: str, mode: tuple[int, int]) -> tuple[int, int]:
     return int(m), int(n)
 
 
-def _profile_axis(name: str, values: np.ndarray) -> np.ndarray:
+def _profile_axis(name: str, values: AnyFloatArray) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size == 0:
         raise ValueError(f"{name} must be a one-dimensional non-empty scan axis")
@@ -74,9 +76,9 @@ def _profile_axis(name: str, values: np.ndarray) -> np.ndarray:
 
 @dataclass
 class CoupledResult:
-    w1_trace: np.ndarray
-    w2_trace: np.ndarray
-    chirikov_trace: np.ndarray
+    w1_trace: AnyFloatArray
+    w2_trace: AnyFloatArray
+    chirikov_trace: AnyFloatArray
     overlap_time: float
     disruption: bool
 
@@ -347,7 +349,7 @@ class DisruptionTriggerAssessment:
 
 
 class TearingModeStabilityMap:
-    def scan_beta_li(self, beta_N_range: np.ndarray, li_range: np.ndarray) -> np.ndarray:
+    def scan_beta_li(self, beta_N_range: AnyFloatArray, li_range: AnyFloatArray) -> FloatArray:
         """Heuristic stability map: beta_N × l_i > 3.0 → unstable.
 
         Rough guideline from ITER Physics Basis Ch.3 (Nucl. Fusion 39, 2175,

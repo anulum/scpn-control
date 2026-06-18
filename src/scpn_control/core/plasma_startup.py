@@ -15,6 +15,8 @@ from enum import Enum, auto
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 from scpn_control.core.impurity_transport import CoolingCurve
 
 # ── Townsend ionisation coefficients for D₂ ───────────────────────────────
@@ -74,7 +76,7 @@ def _positive_int(name: str, value: int) -> int:
     return value
 
 
-def _finite_1d(name: str, values: np.ndarray, *, nonnegative: bool = False) -> np.ndarray:
+def _finite_1d(name: str, values: AnyFloatArray, *, nonnegative: bool = False) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1:
         raise ValueError(f"{name} must be one-dimensional")
@@ -139,7 +141,7 @@ class PaschenBreakdown:
         V_loop = _finite_float("V_loop", V_loop)
         return V_loop > self.breakdown_voltage(p_Pa, connection_length_m)
 
-    def paschen_curve(self, p_range: np.ndarray, connection_length_m: float = 100.0) -> np.ndarray:
+    def paschen_curve(self, p_range: AnyFloatArray, connection_length_m: float = 100.0) -> FloatArray:
         p_range = _finite_1d("p_range", p_range)
         _finite_float("connection_length_m", connection_length_m)
         return np.array([self.breakdown_voltage(p, connection_length_m) for p in p_range])
@@ -154,8 +156,8 @@ class PaschenBreakdown:
 
 @dataclass
 class AvalancheResult:
-    ne_trace: np.ndarray
-    Te_trace: np.ndarray
+    ne_trace: AnyFloatArray
+    Te_trace: AnyFloatArray
     time_to_full_ionization_ms: float
 
 
@@ -230,7 +232,7 @@ class TownsendAvalanche:
 
 @dataclass
 class BurnThroughResult:
-    Te_trace: np.ndarray
+    Te_trace: AnyFloatArray
     success: bool
     time_to_burn_through_ms: float
 

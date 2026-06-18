@@ -13,6 +13,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # Physical constants (SI)
 _M_P = 1.67262192e-27  # kg, proton mass
 _M_E = 9.10938e-31  # kg, electron mass
@@ -43,7 +45,7 @@ def _require_positive_int(name: str, value: int) -> int:
     return value
 
 
-def _require_positive_profile(name: str, values: np.ndarray, shape: tuple[int, ...] | None = None) -> np.ndarray:
+def _require_positive_profile(name: str, values: AnyFloatArray, shape: tuple[int, ...] | None = None) -> FloatArray:
     """Return a finite positive profile with an optional exact shape."""
     arr = np.asarray(values, dtype=float)
     if shape is not None and arr.shape != shape:
@@ -70,9 +72,9 @@ class AlfvenContinuum:
 
     def __init__(
         self,
-        rho: np.ndarray,
-        q: np.ndarray,
-        ne: np.ndarray,
+        rho: AnyFloatArray,
+        q: AnyFloatArray,
+        ne: AnyFloatArray,
         B0: float,
         R0: float,
         m_i_amu: float = 2.5,
@@ -104,7 +106,7 @@ class AlfvenContinuum:
             raise ValueError("rho_eval must be finite and within the continuum grid")
         return float(np.interp(rho_eval, self.rho, self.v_A))
 
-    def continuum(self, m: int, n: int) -> np.ndarray:
+    def continuum(self, m: int, n: int) -> FloatArray:
         """
         ω_A(ρ) = |n q − m| / (q R₀) · v_A
         Cheng & Chance 1986, Eq. 2.

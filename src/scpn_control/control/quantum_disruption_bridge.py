@@ -24,6 +24,8 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 SCHEMA_VERSION = "scpn-control.quantum-disruption-bridge-report.v1"
 KERNEL_SCHEMA_VERSION = "scpn-control.quantum-disruption-kernel-report.v1"
 CERTIFICATE_SCHEMA_VERSION = "scpn-control.quantum-disruption-advisory-certificate.v1"
@@ -112,8 +114,8 @@ class QuantumDisruptionBridgeConfig:
 class QuantumFeatureMapping:
     """CONTROL-to-ITER feature mapping with provenance."""
 
-    raw_iter_features: np.ndarray
-    normalized_iter_features: np.ndarray
+    raw_iter_features: AnyFloatArray
+    normalized_iter_features: AnyFloatArray
     control_feature_names: tuple[str, ...]
     iter_feature_names: tuple[str, ...]
     defaults_used: tuple[str, ...] = field(default_factory=tuple)
@@ -180,7 +182,7 @@ def map_control_features_to_iter(
     )
 
 
-def normalize_iter_features(raw_features: Any) -> np.ndarray:
+def normalize_iter_features(raw_features: Any) -> FloatArray:
     """Normalise ITER feature values into the SCPN-QUANTUM-CONTROL 11-feature range."""
 
     raw = _as_feature_vector("raw_iter_features", raw_features, 11)
@@ -499,7 +501,7 @@ def validate_quantum_disruption_kernel_report(payload: dict[str, Any]) -> dict[s
     return payload
 
 
-def _as_feature_vector(name: str, value: Any, expected_size: int) -> np.ndarray:
+def _as_feature_vector(name: str, value: Any, expected_size: int) -> FloatArray:
     arr = np.asarray(value, dtype=np.float64).reshape(-1)
     if arr.size != expected_size:
         raise ValueError(f"{name} must contain {expected_size} values")
@@ -508,7 +510,7 @@ def _as_feature_vector(name: str, value: Any, expected_size: int) -> np.ndarray:
     return arr
 
 
-def _as_sample_matrix(name: str, value: Any) -> np.ndarray:
+def _as_sample_matrix(name: str, value: Any) -> FloatArray:
     arr = np.asarray(value, dtype=np.float64)
     if arr.ndim == 1:
         arr = arr.reshape(1, -1)
@@ -519,7 +521,7 @@ def _as_sample_matrix(name: str, value: Any) -> np.ndarray:
     return arr
 
 
-def _amplitude_encode(values: np.ndarray) -> np.ndarray:
+def _amplitude_encode(values: AnyFloatArray) -> FloatArray:
     padded = np.zeros(16, dtype=np.float64)
     padded[: values.size] = values
     norm = float(np.linalg.norm(padded))
@@ -529,7 +531,7 @@ def _amplitude_encode(values: np.ndarray) -> np.ndarray:
     return padded / norm
 
 
-def _classical_baseline_score(normalized_iter_features: np.ndarray) -> float:
+def _classical_baseline_score(normalized_iter_features: AnyFloatArray) -> float:
     q95_instability = 1.0 - normalized_iter_features[1]
     raw = (
         0.22 * normalized_iter_features[6]

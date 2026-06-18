@@ -25,6 +25,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # ─── Shape control constants ─────────────────────────────────────────
 # Maximum rate-limited coil current step per control cycle.
 # Conservative estimate based on JET/ITER PF power supply ramp rates.
@@ -53,10 +55,10 @@ class ShapeTarget:
 @dataclass
 class ShapeControlResult:
     isoflux_error: float
-    gap_errors: np.ndarray
+    gap_errors: AnyFloatArray
     min_gap: float
     xpoint_error: float
-    strike_point_errors: np.ndarray
+    strike_point_errors: AnyFloatArray
 
 
 class CoilSet:
@@ -92,7 +94,7 @@ class ShapeJacobian:
         rng = np.random.default_rng(42)
         self.J = rng.standard_normal((self.n_errors, coil_set.n_coils)) * 1e-4
 
-    def compute(self) -> np.ndarray:
+    def compute(self) -> FloatArray:
         return self.J
 
     def update(self, state: dict[str, Any]) -> None:
@@ -123,13 +125,13 @@ class PlasmaShapeController:
         self.lambda_reg = _LAMBDA_REG
         self.K_shape = self._compute_gain()
 
-    def _compute_gain(self) -> np.ndarray:
+    def _compute_gain(self) -> FloatArray:
         J = self.jacobian.compute()
         J_T_W = J.T @ self.W
         H = J_T_W @ J + self.lambda_reg * np.eye(self.coil_set.n_coils)
         return np.asarray(np.linalg.inv(H) @ J_T_W)
 
-    def _compute_shape_error(self, psi: np.ndarray) -> np.ndarray:
+    def _compute_shape_error(self, psi: AnyFloatArray) -> FloatArray:
         """Shape error vector e = [ψ_err, gap_err, xpoint_err, strike_err].
 
         ISOFLUX method: ψ should be constant on the LCFS; deviations define
@@ -148,7 +150,7 @@ class PlasmaShapeController:
 
         return np.concatenate([e_iso, e_gap, e_xp, e_sp])
 
-    def step(self, psi: np.ndarray, coil_currents: np.ndarray) -> np.ndarray:
+    def step(self, psi: AnyFloatArray, coil_currents: AnyFloatArray) -> FloatArray:
         """Compute coil current corrections to reduce shape errors."""
         e_shape = self._compute_shape_error(psi)
         delta_I = -self.K_shape @ e_shape
@@ -161,7 +163,7 @@ class PlasmaShapeController:
         )
         return np.asarray(I_next - coil_currents)
 
-    def evaluate_performance(self, psi: np.ndarray) -> ShapeControlResult:
+    def evaluate_performance(self, psi: AnyFloatArray) -> ShapeControlResult:
         e_shape = self._compute_shape_error(psi)
 
         idx1 = self.jacobian.n_isoflux

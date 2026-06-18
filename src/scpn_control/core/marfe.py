@@ -13,6 +13,8 @@ import math
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 from scpn_control.core.impurity_transport import CoolingCurve
 
 
@@ -51,7 +53,7 @@ def _impurity_fraction(value: float) -> float:
     return fraction
 
 
-def _ordered_positive_array(name: str, values: np.ndarray) -> np.ndarray:
+def _ordered_positive_array(name: str, values: AnyFloatArray) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size == 0:
         raise ValueError(f"{name} must be a non-empty one-dimensional array")
@@ -64,7 +66,7 @@ def _ordered_positive_array(name: str, values: np.ndarray) -> np.ndarray:
     return arr
 
 
-def _front_temperature_state(values: np.ndarray, expected_size: int) -> np.ndarray:
+def _front_temperature_state(values: AnyFloatArray, expected_size: int) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.shape != (expected_size,):
         raise ValueError(f"T state must have shape ({expected_size},)")
@@ -119,7 +121,7 @@ class RadiationCondensation:
         """True when dL/dT < 0 and radiation term exceeds parallel conduction damping."""
         return self.growth_rate(Te_eV, k_par, kappa_par) > 0.0
 
-    def onset_temperature(self, Te_scan: np.ndarray) -> float:
+    def onset_temperature(self, Te_scan: AnyFloatArray) -> float:
         """
         Estimate T_MARFE as the highest T where dL_Z/dT first turns negative.
 
@@ -165,7 +167,7 @@ class MARFEFrontModel:
         self.T = np.ones(self.n_s) * 100.0
         self.curve = CoolingCurve(impurity)
 
-    def step(self, dt: float, ne_20: float) -> np.ndarray:
+    def step(self, dt: float, ne_20: float) -> FloatArray:
         import scipy.linalg
 
         dt = _finite_scalar("dt", dt, positive=True)
@@ -212,7 +214,7 @@ class MARFEFrontModel:
         self.T = np.maximum(self.T, 1.0)
         return self.T
 
-    def equilibrium(self, ne_20: float) -> np.ndarray:
+    def equilibrium(self, ne_20: float) -> FloatArray:
         ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
         for _ in range(1000):
             self.step(1e-4, ne_20)
@@ -274,7 +276,7 @@ class MARFEStabilityDiagram:
         """Approximate edge parallel connection length L_parallel = pi q95 R0."""
         return float(math.pi * self.q95 * self.R0)
 
-    def scan_density_power(self, ne_range: np.ndarray, P_SOL_range: np.ndarray) -> np.ndarray:
+    def scan_density_power(self, ne_range: AnyFloatArray, P_SOL_range: AnyFloatArray) -> FloatArray:
         ne_range = _ordered_positive_array("ne_range", ne_range)
         P_SOL_range = _ordered_positive_array("P_SOL_range", P_SOL_range)
         result = np.zeros((len(ne_range), len(P_SOL_range)))

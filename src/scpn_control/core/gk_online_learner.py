@@ -15,12 +15,15 @@ automatic rollback if performance degrades.
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
+
 from numpy.typing import NDArray
 
 _logger = logging.getLogger(__name__)
@@ -88,8 +91,8 @@ class OnlineLearner:
         self.buffer: list[TrainingSample] = []
         self.generation: int = 0
         self._best_val_loss: float = float("inf")
-        self._weights_backup: dict | None = None
-        self.retrain_history: list[dict] = []
+        self._weights_backup: dict[str, Any] | None = None
+        self.retrain_history: list[dict[str, Any]] = []
 
     def add_sample(
         self,
@@ -131,8 +134,8 @@ class OnlineLearner:
 
     def try_retrain(
         self,
-        current_weights: dict | None = None,
-    ) -> dict | None:
+        current_weights: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
         """Attempt retraining if buffer is full.
 
         Parameters

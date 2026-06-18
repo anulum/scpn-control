@@ -13,6 +13,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # FDIR terminology: Blanke et al. 2006, "Diagnosis and Fault-Tolerant Control",
 # Springer, Ch. 1 — fault detection, isolation, reconfiguration.
 #
@@ -80,7 +82,7 @@ class FDIMonitor:
         self.detected_faults: list[FaultReport] = []
         self.faulted_sensors: set[int] = set()
 
-    def update(self, y_measured: np.ndarray, y_predicted: np.ndarray, t: float) -> list[FaultReport]:
+    def update(self, y_measured: AnyFloatArray, y_predicted: AnyFloatArray, t: float) -> list[FaultReport]:
         """Check for sensor faults using the prediction residual (innovation)."""
         nu = y_measured - y_predicted
 
@@ -127,7 +129,7 @@ class ReconfigurableController:
     Fusion Eng. Des. 83, 1485 for the ITER VS system.
     """
 
-    def __init__(self, base_controller: Any, jacobian: np.ndarray, n_coils: int, n_sensors: int):
+    def __init__(self, base_controller: Any, jacobian: AnyFloatArray, n_coils: int, n_sensors: int):
         self.base_controller = base_controller
         self.nominal_jacobian = jacobian.copy()
         self.current_jacobian = jacobian.copy()
@@ -144,7 +146,7 @@ class ReconfigurableController:
 
         self.K = self._compute_gain()
 
-    def _compute_gain(self) -> np.ndarray:
+    def _compute_gain(self) -> FloatArray:
         # u = B^+ v  where B^+ = (J^T W J + λI)^{-1} J^T W
         # Bodson 2002, J. Guidance 25, 307, Eq. 12
         J = self.current_jacobian
@@ -192,7 +194,7 @@ class ReconfigurableController:
         self.W[:, sensor_index] = 0.0
         self.K = self._compute_gain()
 
-    def step(self, error: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, error: AnyFloatArray, dt: float) -> FloatArray:
         """Apply reconfigured gain; compensate for stuck-coil offsets."""
         adjusted_error = error.copy()
         for sensor_idx in self.faulted_sensors:
@@ -221,7 +223,7 @@ class ReconfigurableController:
         rank = np.linalg.matrix_rank(J)
         return bool(rank >= MIN_REQUIRED_RANK)
 
-    def graceful_shutdown(self) -> np.ndarray:
+    def graceful_shutdown(self) -> FloatArray:
         """Return zero ramp-down command for all coils."""
         return np.zeros(self.n_coils)
 
@@ -233,7 +235,7 @@ class FaultInjector:
         self.fault_type = fault_type
         self.severity = severity
 
-    def inject(self, t: float, signals: np.ndarray) -> np.ndarray:
+    def inject(self, t: float, signals: AnyFloatArray) -> AnyFloatArray:
         if t < self.fault_time:
             return signals
 

@@ -37,6 +37,8 @@ from __future__ import annotations
 import logging
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 import numpy.typing as npt
 from scipy.linalg import expm, solve_continuous_are, solve_discrete_are
 
@@ -50,7 +52,7 @@ from scpn_control.core._validators import (
 logger = logging.getLogger(__name__)
 
 
-def _zoh_discretize(A: np.ndarray, B: np.ndarray, dt: float) -> tuple[np.ndarray, np.ndarray]:
+def _zoh_discretize(A: AnyFloatArray, B: AnyFloatArray, dt: float) -> tuple[FloatArray, FloatArray]:
     """Exact zero-order-hold discretisation via matrix exponential.
 
     Returns (Ad, Bd) such that x_{k+1} = Ad x_k + Bd u_k.
@@ -169,10 +171,10 @@ class HInfinityController:
 
         # Discrete gains cache (recomputed when dt changes)
         self._cached_dt: float = 0.0
-        self._Fd: np.ndarray = self.F
-        self._Ld: np.ndarray = self.L_gain.copy()
-        self._Ad: np.ndarray = np.eye(self.n)
-        self._Bd_u: np.ndarray = np.zeros((self.n, self.m))
+        self._Fd: AnyFloatArray = self.F
+        self._Ld: AnyFloatArray = self.L_gain.copy()
+        self._Ad: AnyFloatArray = np.eye(self.n)
+        self._Bd_u: AnyFloatArray = np.zeros((self.n, self.m))
 
         self.state = np.zeros(self.n)
         self._converged = True
@@ -191,7 +193,7 @@ class HInfinityController:
         rows: int,
         cols: int,
         name: str,
-    ) -> np.ndarray:
+    ) -> FloatArray:
         if value is not None:
             mat = np.atleast_2d(np.asarray(value, dtype=float))
         else:
@@ -203,7 +205,7 @@ class HInfinityController:
         require_finite_array(name, mat)
         return np.asarray(mat)
 
-    def _synthesize(self, gamma: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def _synthesize(self, gamma: float) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
         """Solve the two continuous AREs and extract controller gains.
 
         Both AREs follow Zhou, Doyle & Glover 1996, Eq. 14.18:
