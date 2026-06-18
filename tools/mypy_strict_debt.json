@@ -1,7 +1,7 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 951,
+  "total": 937,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 9,
     "scpn_control.control.analytic_solver": 4,
@@ -27,7 +27,6 @@
     "scpn_control.control.neuro_cybernetic_controller": 1,
     "scpn_control.control.nmpc_controller": 147,
     "scpn_control.control.quantum_disruption_bridge": 7,
-    "scpn_control.control.realtime_efit": 14,
     "scpn_control.control.safe_rl_controller": 9,
     "scpn_control.control.scenario_scheduler": 7,
     "scpn_control.control.shape_controller": 7,

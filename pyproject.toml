@@ -124,25 +124,10 @@ files = [
 # checks across the whole package. Only flags mypy accepts per-module are listed
 # (warn_redundant_casts and warn_unused_configs are global-only).
 #
-# Tier 1 (component-strict, generic args deferred): realtime_efit still carries
-# bare numpy.ndarray annotations (14 sites), so disallow_any_generics stays off
-# for it until those are parametrised.
-[[tool.mypy.overrides]]
-module = [
-    "scpn_control.control.realtime_efit"
-]
-disallow_subclassing_any = true
-disallow_untyped_calls = true
-disallow_incomplete_defs = true
-disallow_untyped_decorators = true
-warn_unused_ignores = true
-strict_equality = true
-no_implicit_reexport = true
-extra_checks = true
-
-# Tier 2 (fully strict, including disallow_any_generics): these modules have no
-# bare numpy.ndarray or other unparametrised generics, so they carry the full
-# strict component set plus generic-argument enforcement.
+# Fully strict (including disallow_any_generics): these modules carry no bare
+# numpy.ndarray or other unparametrised generics, so they enforce the full strict
+# component set plus generic-argument enforcement. New modules join here as their
+# strict debt is retired in the staged migration to global `strict = true`.
 [[tool.mypy.overrides]]
 module = [
     "scpn_control.core.current_drive",
@@ -151,6 +136,7 @@ module = [
     "scpn_control.core.checkpoint",
     "scpn_control.scpn.observation",
     "scpn_control.scpn.geometry_neutral_replay",
+    "scpn_control.control.realtime_efit",
     "scpn_control.control.volt_second_manager",
     "scpn_control.control.rzip_model",
     "scpn_control.control.rwm_feedback"
