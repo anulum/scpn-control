@@ -17,6 +17,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 _NEURAL_TURBULENCE_CLAIM_SCHEMA_VERSION = 1
 _NEURAL_TURBULENCE_REFERENCE_SOURCES = frozenset({"real_gk_campaign", "documented_public_reference"})
 _NEURAL_TURBULENCE_FEATURE_SCHEMA = (
@@ -140,12 +142,12 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False) -> float:
 
 def _profile_array(
     name: str,
-    values: np.ndarray,
+    values: AnyFloatArray,
     shape: tuple[int, ...] | None = None,
     *,
     positive: bool = False,
     allow_last_zero: bool = False,
-) -> np.ndarray:
+) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size < 2:
         raise ValueError(f"{name} must be a one-dimensional profile with at least two points")
@@ -177,8 +179,8 @@ class QLKNNSurrogate:
         self.hidden_layers = hidden_layers
         self.activation = activation
 
-        self.weights: list[np.ndarray] = []
-        self.biases: list[np.ndarray] = []
+        self.weights: list[AnyFloatArray] = []
+        self.biases: list[AnyFloatArray] = []
 
         rng = np.random.RandomState(42) if pretrained else np.random.RandomState()
 
@@ -194,7 +196,7 @@ class QLKNNSurrogate:
         if pretrained:
             self._pretrain(rng)
 
-    def _activate(self, x: np.ndarray) -> np.ndarray:
+    def _activate(self, x: AnyFloatArray) -> AnyFloatArray:
         if self.activation == "elu":
             out = np.asarray(x, dtype=float).copy()
             negative = out <= 0.0
@@ -206,7 +208,7 @@ class QLKNNSurrogate:
             return np.asarray(np.tanh(x))
         return x
 
-    def _activate_deriv(self, x: np.ndarray) -> np.ndarray:
+    def _activate_deriv(self, x: AnyFloatArray) -> FloatArray:
         if self.activation == "elu":
             return np.where(x > 0, 1.0, np.exp(x))
         if self.activation == "relu":
@@ -224,9 +226,9 @@ class QLKNNSurrogate:
         X_train, y_train = X[:-n_val], y[:-n_val]
 
         for _ in range(100):
-            activations = [X_train]
-            pre_acts: list[np.ndarray] = []
-            out = X_train
+            activations: list[AnyFloatArray] = [X_train]
+            pre_acts: list[AnyFloatArray] = []
+            out: AnyFloatArray = X_train
             for i in range(len(self.weights) - 1):
                 z = out @ self.weights[i] + self.biases[i]
                 pre_acts.append(z)
@@ -251,7 +253,7 @@ class QLKNNSurrogate:
                     delta = (delta @ self.weights[i].T) * self._activate_deriv(pre_acts[i - 1])
                     np.clip(delta, -1e6, 1e6, out=delta)
 
-    def forward(self, x: np.ndarray) -> np.ndarray:
+    def forward(self, x: AnyFloatArray) -> FloatArray:
         """
         x shape: (batch_size, 10)
         returns shape: (batch_size, 3)
@@ -283,8 +285,8 @@ class QLKNNSurrogate:
 class TransportInputNormalizer:
     @staticmethod
     def from_profiles(
-        Te: np.ndarray, Ti: np.ndarray, ne: np.ndarray, q: np.ndarray, R0: float, a: float, B0: float, r: np.ndarray
-    ) -> np.ndarray:
+        Te: AnyFloatArray, Ti: AnyFloatArray, ne: AnyFloatArray, q: AnyFloatArray, R0: float, a: float, B0: float, r: AnyFloatArray
+    ) -> FloatArray:
         """
         Convert physical profiles into the 10 dimensionless QLKNN inputs.
         """
@@ -349,7 +351,7 @@ class TransportInputNormalizer:
 
 class TrainingDataGenerator:
     @staticmethod
-    def generate_parameter_scan(n_samples: int, rng: np.random.RandomState | None = None) -> np.ndarray:
+    def generate_parameter_scan(n_samples: int, rng: np.random.RandomState | None = None) -> FloatArray:
         """Uniform random sampling in 10D QLKNN parameter space."""
         if rng is None:
             rng = np.random.RandomState()
@@ -375,7 +377,7 @@ class TrainingDataGenerator:
         return X
 
     @staticmethod
-    def generate_analytic_targets(inputs: np.ndarray) -> np.ndarray:
+    def generate_analytic_targets(inputs: AnyFloatArray) -> FloatArray:
         """
         Compute bounded analytic quasilinear flux targets.
         Returns [Q_i, Q_e, Gamma_e] in gyro-Bohm units.
@@ -420,7 +422,7 @@ class TrainingDataGenerator:
 
 
 class NeuralTransportTrainer:
-    def _activate_deriv(self, x: np.ndarray, activation: str) -> np.ndarray:
+    def _activate_deriv(self, x: AnyFloatArray, activation: str) -> FloatArray:
         if activation == "elu":
             return np.where(x > 0, 1.0, np.exp(x))
         if activation == "relu":
@@ -429,7 +431,7 @@ class NeuralTransportTrainer:
             return np.asarray(1.0 - np.tanh(x) ** 2)
         return np.ones_like(x)
 
-    def train(self, X: np.ndarray, y: np.ndarray, epochs: int = 200, lr: float = 1e-3, val_frac: float = 0.2) -> dict:
+    def train(self, X: AnyFloatArray, y: AnyFloatArray, epochs: int = 200, lr: float = 1e-3, val_frac: float = 0.2) -> dict[str, Any]:
         n_samples = X.shape[0]
         n_val = max(int(n_samples * val_frac), 1)
 
@@ -442,9 +444,9 @@ class NeuralTransportTrainer:
 
         for epoch in range(epochs):
             # Forward pass — store pre-activations for backprop
-            activations = [X_train]
+            activations: list[AnyFloatArray] = [X_train]
             pre_acts = []
-            out = X_train
+            out: AnyFloatArray = X_train
             for i in range(len(model.weights) - 1):
                 z = out @ model.weights[i] + model.biases[i]
                 pre_acts.append(z)
@@ -487,9 +489,9 @@ class NeuralTransportTrainer:
 
 @dataclass
 class TransportFluxes:
-    Q_i_W_m2: np.ndarray
-    Q_e_W_m2: np.ndarray
-    Gamma_e_inv_m2_s: np.ndarray
+    Q_i_W_m2: AnyFloatArray
+    Q_e_W_m2: AnyFloatArray
+    Gamma_e_inv_m2_s: AnyFloatArray
 
 
 class QLKNNTransportModel:
@@ -499,14 +501,14 @@ class QLKNNTransportModel:
 
     def compute_fluxes(
         self,
-        Te: np.ndarray,
-        Ti: np.ndarray,
-        ne: np.ndarray,
-        q: np.ndarray,
+        Te: AnyFloatArray,
+        Ti: AnyFloatArray,
+        ne: AnyFloatArray,
+        q: AnyFloatArray,
         R0: float,
         a: float,
         B0: float,
-        r: np.ndarray,
+        r: AnyFloatArray,
     ) -> TransportFluxes:
         inputs = self.normalizer.from_profiles(Te, Ti, ne, q, R0, a, B0, r)
 

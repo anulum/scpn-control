@@ -23,9 +23,11 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 
 from scpn_control.core.scaling_laws import load_ipb98y2_coefficients
 
@@ -140,9 +142,9 @@ class UQResult:
     Q_sigma: float
 
     # Percentiles [5%, 25%, 50%, 75%, 95%]
-    tau_E_percentiles: np.ndarray = field(default_factory=lambda: np.zeros(5))
-    P_fusion_percentiles: np.ndarray = field(default_factory=lambda: np.zeros(5))
-    Q_percentiles: np.ndarray = field(default_factory=lambda: np.zeros(5))
+    tau_E_percentiles: AnyFloatArray = field(default_factory=lambda: np.zeros(5))
+    P_fusion_percentiles: AnyFloatArray = field(default_factory=lambda: np.zeros(5))
+    Q_percentiles: AnyFloatArray = field(default_factory=lambda: np.zeros(5))
 
     # Raw samples (for custom analysis)
     n_samples: int = 0
@@ -191,7 +193,7 @@ def _non_empty_text(name: str, value: str) -> str:
     return value.strip()
 
 
-def _ordered(values: np.ndarray) -> bool:
+def _ordered(values: AnyFloatArray) -> bool:
     arr = np.asarray(values, dtype=float)
     return bool(arr.ndim == 1 and arr.size >= 2 and np.all(np.isfinite(arr)) and np.all(np.diff(arr) >= -1e-12))
 
@@ -321,7 +323,7 @@ def save_uq_claim_evidence(evidence: UQClaimEvidence, path: str | Path) -> None:
     output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
+def ipb98_tau_e(scenario: PlasmaScenario, params: dict[str, Any] | None = None) -> float:
     """
     Compute IPB98(y,2) confinement time for given plasma parameters.
 
@@ -351,7 +353,7 @@ def ipb98_tau_e(scenario: PlasmaScenario, params: dict | None = None) -> float:
     )
 
 
-def _bosch_hale_reactivity_array(T_i_kev: np.ndarray) -> np.ndarray:
+def _bosch_hale_reactivity_array(T_i_kev: AnyFloatArray) -> FloatArray:
     """Vectorised Bosch-Hale D-T reactivity implementation."""
     T = np.asarray(T_i_kev, dtype=float)
     if T.ndim == 0:
@@ -372,10 +374,10 @@ def _bosch_hale_reactivity_array(T_i_kev: np.ndarray) -> np.ndarray:
     theta = T / (1.0 - T * (C2 + T * (C4 + T * C6)) / (1.0 + T * (C3 + T * (C5 + T * C7))))
     xi = (B_G**2 / (4.0 * theta)) ** (1.0 / 3.0)
     sig_v = C1 * theta * np.sqrt(xi / (m_rc2 * T**3)) * np.exp(-3.0 * xi)
-    return cast(np.ndarray, np.asarray(sig_v * 1.0e-6, dtype=float))
+    return cast(FloatArray, np.asarray(sig_v * 1.0e-6, dtype=float))
 
 
-def bosch_hale_reactivity(T_i_kev: float | np.ndarray) -> float | np.ndarray:
+def bosch_hale_reactivity(T_i_kev: float | AnyFloatArray) -> float | FloatArray:
     """
     Compute D-T fusion reactivity <σv> using Bosch-Hale parameterization.
 
@@ -384,12 +386,12 @@ def bosch_hale_reactivity(T_i_kev: float | np.ndarray) -> float | np.ndarray:
 
     Parameters
     ----------
-    T_i_kev : float | np.ndarray
+    T_i_kev : float | AnyFloatArray
         Ion temperature in keV.
 
     Returns
     -------
-    float | np.ndarray — Reactivity in m^3/s.
+    float | AnyFloatArray — Reactivity in m^3/s.
     """
 
     if isinstance(T_i_kev, np.ndarray):
@@ -537,21 +539,21 @@ class FullChainUQResult:
     Q_sigma: float
 
     # Percentile bands [5%, 50%, 95%]
-    psi_nrmse_bands: np.ndarray = field(default_factory=lambda: np.zeros(3))
-    tau_E_bands: np.ndarray = field(default_factory=lambda: np.zeros(3))
-    P_fusion_bands: np.ndarray = field(default_factory=lambda: np.zeros(3))
-    Q_bands: np.ndarray = field(default_factory=lambda: np.zeros(3))
-    beta_N_bands: np.ndarray = field(default_factory=lambda: np.zeros(3))
+    psi_nrmse_bands: AnyFloatArray = field(default_factory=lambda: np.zeros(3))
+    tau_E_bands: AnyFloatArray = field(default_factory=lambda: np.zeros(3))
+    P_fusion_bands: AnyFloatArray = field(default_factory=lambda: np.zeros(3))
+    Q_bands: AnyFloatArray = field(default_factory=lambda: np.zeros(3))
+    beta_N_bands: AnyFloatArray = field(default_factory=lambda: np.zeros(3))
 
     # Legacy-compatible percentiles [5, 25, 50, 75, 95]
-    tau_E_percentiles: np.ndarray = field(default_factory=lambda: np.zeros(5))
-    P_fusion_percentiles: np.ndarray = field(default_factory=lambda: np.zeros(5))
-    Q_percentiles: np.ndarray = field(default_factory=lambda: np.zeros(5))
+    tau_E_percentiles: AnyFloatArray = field(default_factory=lambda: np.zeros(5))
+    P_fusion_percentiles: AnyFloatArray = field(default_factory=lambda: np.zeros(5))
+    Q_percentiles: AnyFloatArray = field(default_factory=lambda: np.zeros(5))
 
     n_samples: int = 0
 
 
-def _build_ipb98_covariance() -> np.ndarray:
+def _build_ipb98_covariance() -> FloatArray:
     """Build the covariance matrix for IPB98(y,2) coefficients.
 
     Incorporates known physical correlations (Verdoolaege et al. 2021).
@@ -577,7 +579,7 @@ def _build_ipb98_covariance() -> np.ndarray:
     cov[idx_i, idx_b] = corr_ib * sigmas[idx_i] * sigmas[idx_b]
     cov[idx_b, idx_i] = cov[idx_i, idx_b]
 
-    return cast(np.ndarray, cov)
+    return cast(FloatArray, cov)
 
 
 def quantify_full_chain(
@@ -723,7 +725,7 @@ def quantify_full_chain(
     )
 
 
-def summarize_uq(result: FullChainUQResult) -> dict:
+def summarize_uq(result: FullChainUQResult) -> dict[str, Any]:
     """
     Pretty-print a FullChainUQResult as a plain dict suitable for
     ``json.dumps()``.
@@ -744,7 +746,7 @@ def summarize_uq(result: FullChainUQResult) -> dict:
     def _round(x: float, sig: int = 6) -> float:
         return float(f"{x:.{sig}g}")
 
-    def _arr(a: np.ndarray) -> list:
+    def _arr(a: AnyFloatArray) -> list[float]:
         return [_round(float(v)) for v in a]
 
     return {

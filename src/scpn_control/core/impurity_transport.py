@@ -14,6 +14,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 
 # Neoclassical impurity pinch velocity:
 #   V_neo = -D_neo (Z/T_i) dT_i/dr
@@ -35,7 +37,7 @@ import numpy as np
 #   Ne:             T_peak ≈ 50 eV,    σ = 1.0                      — Post et al. 1977
 
 
-def _positive_finite_profile(name: str, values: np.ndarray) -> np.ndarray:
+def _positive_finite_profile(name: str, values: AnyFloatArray) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim == 0:
         arr = arr.reshape(1)
@@ -46,7 +48,7 @@ def _positive_finite_profile(name: str, values: np.ndarray) -> np.ndarray:
     return arr
 
 
-def _finite_profile_like(name: str, values: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
+def _finite_profile_like(name: str, values: AnyFloatArray, shape: tuple[int, ...]) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.shape != shape:
         raise ValueError(f"{name} must match rho shape")
@@ -55,14 +57,14 @@ def _finite_profile_like(name: str, values: np.ndarray, shape: tuple[int, ...]) 
     return arr
 
 
-def _nonnegative_profile_like(name: str, values: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
+def _nonnegative_profile_like(name: str, values: AnyFloatArray, shape: tuple[int, ...]) -> FloatArray:
     arr = _finite_profile_like(name, values, shape)
     if np.any(arr < 0.0):
         raise ValueError(f"{name} must be non-negative")
     return arr
 
 
-def _radiation_rho_grid(rho: np.ndarray) -> np.ndarray:
+def _radiation_rho_grid(rho: AnyFloatArray) -> FloatArray:
     arr = np.asarray(rho, dtype=float)
     if arr.ndim != 1 or arr.size < 2:
         raise ValueError("rho must be a one-dimensional profile with at least two points")
@@ -75,7 +77,7 @@ def _radiation_rho_grid(rho: np.ndarray) -> np.ndarray:
     return arr
 
 
-def _uniform_axis_to_edge_rho_grid(rho: np.ndarray) -> np.ndarray:
+def _uniform_axis_to_edge_rho_grid(rho: AnyFloatArray) -> FloatArray:
     arr = _radiation_rho_grid(rho)
     if not np.isclose(arr[0], 0.0, rtol=0.0, atol=1e-12):
         raise ValueError("rho must start at the magnetic axis")
@@ -107,7 +109,7 @@ class CoolingCurve:
     def __init__(self, element: str):
         self.element = element
 
-    def L_z(self, Te_eV: np.ndarray) -> np.ndarray:
+    def L_z(self, Te_eV: AnyFloatArray) -> FloatArray:
         """Return cooling coefficients for positive finite electron temperatures [W m³]."""
         Te_eV = _positive_finite_profile("Te_eV", Te_eV)
         log_Te = np.log(Te_eV)
@@ -135,15 +137,15 @@ class CoolingCurve:
 
 def neoclassical_impurity_pinch(
     Z: int,
-    ne: np.ndarray,
-    Te_eV: np.ndarray,
-    Ti_eV: np.ndarray,
-    q: np.ndarray,
-    rho: np.ndarray,
+    ne: AnyFloatArray,
+    Te_eV: AnyFloatArray,
+    Ti_eV: AnyFloatArray,
+    q: AnyFloatArray,
+    rho: AnyFloatArray,
     R0: float,
     a: float,
-    epsilon: np.ndarray,
-) -> np.ndarray:
+    epsilon: AnyFloatArray,
+) -> FloatArray:
     """
     Neoclassical impurity pinch velocity V_neo [m/s].
 
@@ -199,10 +201,10 @@ def neoclassical_impurity_pinch(
 
 
 def total_radiated_power(
-    ne: np.ndarray,
-    n_impurity: dict[str, np.ndarray],
-    Te_eV: np.ndarray,
-    rho: np.ndarray,
+    ne: AnyFloatArray,
+    n_impurity: dict[str, AnyFloatArray],
+    Te_eV: AnyFloatArray,
+    rho: AnyFloatArray,
     R0: float,
     a: float,
 ) -> float:
@@ -245,7 +247,7 @@ def total_radiated_power(
     return float(P_rad_W / 1e6)
 
 
-def tungsten_accumulation_diagnostic(n_W: np.ndarray, ne: np.ndarray) -> dict[str, Any]:
+def tungsten_accumulation_diagnostic(n_W: AnyFloatArray, ne: AnyFloatArray) -> dict[str, Any]:
     c_W_core = float(n_W[0] / max(ne[0], 1e-6))
     c_W_edge = float(n_W[-1] / max(ne[-1], 1e-6))
 
@@ -262,7 +264,7 @@ def tungsten_accumulation_diagnostic(n_W: np.ndarray, ne: np.ndarray) -> dict[st
 
 
 class ImpurityTransportSolver:
-    def __init__(self, rho: np.ndarray, R0: float, a: float, species: list[ImpuritySpecies]):
+    def __init__(self, rho: AnyFloatArray, R0: float, a: float, species: list[ImpuritySpecies]):
         self.rho = _uniform_axis_to_edge_rho_grid(rho)
         self.R0 = float(R0)
         self.a = float(a)
@@ -275,17 +277,17 @@ class ImpurityTransportSolver:
         self.nr = len(self.rho)
         self.drho = self.rho[1] - self.rho[0]
 
-        self.n_z = {s.element: np.zeros(self.nr) for s in species}
+        self.n_z: dict[str, FloatArray] = {s.element: np.zeros(self.nr) for s in species}
 
     def step(
         self,
         dt: float,
-        ne: np.ndarray,
-        Te_eV: np.ndarray,
-        Ti_eV: np.ndarray,
+        ne: AnyFloatArray,
+        Te_eV: AnyFloatArray,
+        Ti_eV: AnyFloatArray,
         D_anom: float,
-        V_pinch: dict[str, np.ndarray],
-    ) -> dict[str, np.ndarray]:
+        V_pinch: dict[str, AnyFloatArray],
+    ) -> dict[str, FloatArray]:
         """
         1D transport advance for each impurity species.
 

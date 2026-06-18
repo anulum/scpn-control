@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scipy.linalg import solve_banded
 
 # Physical constants
@@ -24,7 +26,7 @@ def _require_positive_scalar(name: str, value: float) -> float:
     return scalar
 
 
-def _require_flux_grid(name: str, values: np.ndarray, *, minimum_size: int = 3) -> np.ndarray:
+def _require_flux_grid(name: str, values: AnyFloatArray, *, minimum_size: int = 3) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size < minimum_size:
         raise ValueError(f"{name} must be a one-dimensional grid with at least {minimum_size} points")
@@ -33,14 +35,14 @@ def _require_flux_grid(name: str, values: np.ndarray, *, minimum_size: int = 3) 
     return arr
 
 
-def _require_strictly_increasing_rho(rho: np.ndarray, *, minimum_size: int = 3) -> np.ndarray:
+def _require_strictly_increasing_rho(rho: AnyFloatArray, *, minimum_size: int = 3) -> FloatArray:
     rho_arr = _require_flux_grid("rho", rho, minimum_size=minimum_size)
     if not np.all(np.diff(rho_arr) > 0.0):
         raise ValueError("rho must be strictly increasing")
     return rho_arr
 
 
-def _require_axis_to_edge_uniform_rho(rho: np.ndarray) -> np.ndarray:
+def _require_axis_to_edge_uniform_rho(rho: AnyFloatArray) -> FloatArray:
     """Return a uniform [0, 1] rho grid for finite-difference diffusion."""
     rho_arr = _require_strictly_increasing_rho(rho, minimum_size=3)
     if not np.isclose(rho_arr[0], 0.0, rtol=0.0, atol=1.0e-12):
@@ -122,7 +124,7 @@ def neoclassical_resistivity(
     return float(max(eta_neo, eta_Spitzer))
 
 
-def q_from_psi(rho: np.ndarray, psi: np.ndarray, R0: float, a: float, B0: float) -> np.ndarray:
+def q_from_psi(rho: AnyFloatArray, psi: AnyFloatArray, R0: float, a: float, B0: float) -> FloatArray:
     """Safety factor q(ρ) from poloidal flux ψ(ρ).
 
     q(ρ) = −ρ a² B₀ / (R₀ · ∂ψ/∂ρ)
@@ -155,7 +157,7 @@ def q_from_psi(rho: np.ndarray, psi: np.ndarray, R0: float, a: float, B0: float)
     return q
 
 
-def psi_from_q(rho: np.ndarray, q: np.ndarray, R0: float, a: float, B0: float) -> np.ndarray:
+def psi_from_q(rho: AnyFloatArray, q: AnyFloatArray, R0: float, a: float, B0: float) -> FloatArray:
     """Reconstruct poloidal flux ψ(ρ) from a safety-factor profile q(ρ).
 
     Inverse of q_from_psi.  From q = −ρ a² B₀ / (R₀ dψ/dρ):
@@ -204,7 +206,7 @@ class CurrentDiffusionSolver:
     second-order accurate in time and space.
     """
 
-    def __init__(self, rho: np.ndarray, R0: float, a: float, B0: float):
+    def __init__(self, rho: AnyFloatArray, R0: float, a: float, B0: float):
         self.rho = _require_axis_to_edge_uniform_rho(rho)
         self.R0 = _require_positive_scalar("R0", R0)
         self.a = _require_positive_scalar("minor radius a", a)
@@ -214,7 +216,7 @@ class CurrentDiffusionSolver:
 
         # Initialise ψ for q(0)=1, q(1)=3 (parabolic current profile)
         # ψ(ρ) = −∫₀^ρ ρ′ a² B₀ / (R₀ q(ρ′)) dρ′,  q(ρ) = 1 + 2ρ²
-        self.psi = np.zeros(self.nr)
+        self.psi: FloatArray = np.zeros(self.nr)
         for i in range(1, self.nr):
             r = self.rho[i]
             q_r = 1.0 + 2.0 * r**2
@@ -225,13 +227,13 @@ class CurrentDiffusionSolver:
     def step(
         self,
         dt: float,
-        Te: np.ndarray,
-        ne: np.ndarray,
+        Te: AnyFloatArray,
+        ne: AnyFloatArray,
         Z_eff: float,
-        j_bs: np.ndarray,
-        j_cd: np.ndarray,
-        j_ext: np.ndarray | None = None,
-    ) -> np.ndarray:
+        j_bs: AnyFloatArray,
+        j_cd: AnyFloatArray,
+        j_ext: AnyFloatArray | None = None,
+    ) -> FloatArray:
         """Advance ψ by one timestep dt [s].
 
         Source term: j_source = j_bs + j_cd + j_ext
@@ -312,7 +314,7 @@ class CurrentDiffusionSolver:
         self.psi = solve_banded((1, 1), ab, rhs)
         return self.psi
 
-    def _validate_positive_profile(self, name: str, values: np.ndarray) -> np.ndarray:
+    def _validate_positive_profile(self, name: str, values: AnyFloatArray) -> FloatArray:
         """Validate positive finite kinetic profiles on the solver grid."""
         arr = np.asarray(values, dtype=float)
         if arr.shape != (self.nr,):
@@ -321,7 +323,7 @@ class CurrentDiffusionSolver:
             raise ValueError(f"{name} must contain finite positive values")
         return arr
 
-    def _validate_current_profile(self, name: str, values: np.ndarray) -> np.ndarray:
+    def _validate_current_profile(self, name: str, values: AnyFloatArray) -> FloatArray:
         """Validate finite current-source profiles on the solver grid."""
         arr = np.asarray(values, dtype=float)
         if arr.shape != (self.nr,):

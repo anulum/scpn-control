@@ -20,6 +20,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 from scpn_control.control.realtime_efit import (
     MagneticDiagnostics,
     RealtimeEFIT,
@@ -45,7 +47,7 @@ class FastIonPressure:
         self.n_fast_frac = n_fast_frac
         self.sigma = anisotropy_sigma  # sigma = 1 - p_par / p_perp
 
-    def p_perp(self, rho: np.ndarray, ne_19: np.ndarray) -> np.ndarray:
+    def p_perp(self, rho: AnyFloatArray, ne_19: AnyFloatArray) -> AnyFloatArray:
         # p_fast = 2/3 n_fast E_fast for isotropic
         # p_fast = (2 p_perp + p_par)/3 = p_perp(2 + (1-sigma))/3 = p_perp(3-sigma)/3
         # p_perp = p_fast * 3 / (3 - sigma)
@@ -53,10 +55,10 @@ class FastIonPressure:
         p_fast_Pa = (2.0 / 3.0) * n_fast * (self.E_fast_keV * 1e3 * 1.602e-19)
         return p_fast_Pa * 3.0 / (3.0 - self.sigma)
 
-    def p_par(self, rho: np.ndarray, ne_19: np.ndarray) -> np.ndarray:
+    def p_par(self, rho: AnyFloatArray, ne_19: AnyFloatArray) -> AnyFloatArray:
         return self.p_perp(rho, ne_19) * (1.0 - self.sigma)
 
-    def p_isotropic_equivalent(self, rho: np.ndarray, ne_19: np.ndarray) -> np.ndarray:
+    def p_isotropic_equivalent(self, rho: AnyFloatArray, ne_19: AnyFloatArray) -> AnyFloatArray:
         p_perp = self.p_perp(rho, ne_19)
         p_par = self.p_par(rho, ne_19)
         return np.asarray((2.0 * p_perp + p_par) / 3.0)
@@ -72,12 +74,12 @@ class KineticConstraints:
 
 @dataclass
 class KineticReconstructionResult(ReconstructionResult):
-    p_kinetic: np.ndarray
-    p_equilibrium: np.ndarray
+    p_kinetic: AnyFloatArray
+    p_equilibrium: AnyFloatArray
     pressure_consistency: float
-    q_profile: np.ndarray
+    q_profile: AnyFloatArray
     beta_fast: float
-    sigma_anisotropy: np.ndarray
+    sigma_anisotropy: AnyFloatArray
 
 
 @dataclass(frozen=True)
@@ -127,7 +129,7 @@ def _non_empty_text(name: str, value: str) -> str:
     return value.strip()
 
 
-def _relative_profile_error(name: str, observed: np.ndarray, reference: np.ndarray | None) -> float | None:
+def _relative_profile_error(name: str, observed: AnyFloatArray, reference: AnyFloatArray | None) -> float | None:
     if reference is None:
         return None
     ref = np.asarray(reference, dtype=float)
@@ -150,8 +152,8 @@ def kinetic_efit_claim_evidence(
     fast_ion_source: str,
     mse_calibration_source: str,
     model_id: str = "bounded_kinetic_efit",
-    reference_pressure: np.ndarray | None = None,
-    reference_q_profile: np.ndarray | None = None,
+    reference_pressure: AnyFloatArray | None = None,
+    reference_q_profile: AnyFloatArray | None = None,
     reference_anisotropy_sigma: float | None = None,
     pressure_relative_tolerance: float = 0.05,
     q_profile_relative_tolerance: float = 0.05,
@@ -276,14 +278,14 @@ class KineticEFIT(RealtimeEFIT):
         diagnostics: MagneticDiagnostics,
         kinetic: KineticConstraints,
         fast_ions: FastIonPressure,
-        R_grid: np.ndarray,
-        Z_grid: np.ndarray,
+        R_grid: AnyFloatArray,
+        Z_grid: AnyFloatArray,
     ):
         super().__init__(diagnostics, R_grid, Z_grid)
         self.kinetic = kinetic
         self.fast_ions = fast_ions
 
-    def _rho_from_points(self, points: list[tuple[float, float, float]]) -> np.ndarray:
+    def _rho_from_points(self, points: list[tuple[float, float, float]]) -> FloatArray:
         arr = np.asarray([(point[0], point[1]) for point in points], dtype=float)
         if arr.ndim != 2 or arr.shape[1] != 2 or not np.all(np.isfinite(arr)):
             raise ValueError("kinetic constraint coordinates must be finite (R, Z) pairs")
@@ -296,8 +298,8 @@ class KineticEFIT(RealtimeEFIT):
         self,
         label: str,
         points: list[tuple[float, float, float]],
-        rho_grid: np.ndarray,
-    ) -> np.ndarray:
+        rho_grid: AnyFloatArray,
+    ) -> FloatArray:
         if not points:
             raise ValueError(f"{label} must contain at least one measured kinetic constraint")
 

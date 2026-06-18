@@ -131,6 +131,12 @@ files = [
 [[tool.mypy.overrides]]
 module = [
     "scpn_control._typing",
+    "scpn_control.core.sawtooth",
+    "scpn_control.core.current_diffusion",
+    "scpn_control.core.kinetic_efit",
+    "scpn_control.core.uncertainty",
+    "scpn_control.core.neural_turbulence",
+    "scpn_control.core.impurity_transport",
     "scpn_control.core.blob_transport",
     "scpn_control.core.current_drive",
     "scpn_control.core.momentum_transport",

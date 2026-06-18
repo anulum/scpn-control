@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray
 from scipy.integrate import trapezoid
 
 # Physical constants
@@ -50,9 +52,9 @@ def _bussac_dW_mhd(beta_p1: float, s1: float) -> float:
 
 
 def _poloidal_beta_q1(
-    rho: np.ndarray,
-    T: np.ndarray,
-    n: np.ndarray,
+    rho: AnyFloatArray,
+    T: AnyFloatArray,
+    n: AnyFloatArray,
     B_pol: float,
     rho_1: float,
 ) -> float:
@@ -132,11 +134,11 @@ class PorcelliParams:
 
 
 def porcelli_trigger(
-    rho: np.ndarray,
-    T: np.ndarray,
-    n: np.ndarray,
-    q: np.ndarray,
-    shear: np.ndarray,
+    rho: AnyFloatArray,
+    T: AnyFloatArray,
+    n: AnyFloatArray,
+    q: AnyFloatArray,
+    shear: AnyFloatArray,
     R0: float,
     a: float,
     params: PorcelliParams | None = None,
@@ -195,7 +197,7 @@ def porcelli_trigger(
 
 
 class SawtoothMonitor:
-    def __init__(self, rho: np.ndarray, s_crit: float = 0.1):
+    def __init__(self, rho: AnyFloatArray, s_crit: float = 0.1):
         if rho.ndim != 1:
             raise ValueError("rho must be one-dimensional")
         if len(rho) == 0:
@@ -205,7 +207,7 @@ class SawtoothMonitor:
         self.rho = rho
         self.s_crit = s_crit
 
-    def find_q1_radius(self, q: np.ndarray) -> float | None:
+    def find_q1_radius(self, q: AnyFloatArray) -> float | None:
         """Return normalised radius where q=1 by linear interpolation."""
         if q.ndim != 1:
             raise ValueError("q must be one-dimensional")
@@ -229,11 +231,11 @@ class SawtoothMonitor:
 
     def check_trigger(
         self,
-        q: np.ndarray,
-        shear: np.ndarray,
+        q: AnyFloatArray,
+        shear: AnyFloatArray,
         trigger_model: str = "shear",
-        T: np.ndarray | None = None,
-        n: np.ndarray | None = None,
+        T: AnyFloatArray | None = None,
+        n: AnyFloatArray | None = None,
         R0: float = 3.0,
         a: float = 1.0,
         porcelli_params: PorcelliParams | None = None,
@@ -277,8 +279,8 @@ class SawtoothMonitor:
 
 
 def kadomtsev_crash(
-    rho: np.ndarray, T: np.ndarray, n: np.ndarray, q: np.ndarray, R0: float, a: float
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, float]:
+    rho: AnyFloatArray, T: AnyFloatArray, n: AnyFloatArray, q: AnyFloatArray, R0: float, a: float
+) -> tuple[AnyFloatArray, AnyFloatArray, AnyFloatArray, float, float]:
     """Apply Kadomtsev full-reconnection crash.
 
     Returns (T_new, n_new, q_new, rho_1, rho_mix).
@@ -319,7 +321,7 @@ def kadomtsev_crash(
 
     rho_inner = rho[:idx_mix]
 
-    def _volume_average(prof: np.ndarray) -> float:
+    def _volume_average(prof: AnyFloatArray) -> float:
         # dV ∝ ρ dρ in circular cross-section
         vol_int = trapezoid(prof[:idx_mix] * rho_inner, rho_inner)
         vol_tot = trapezoid(rho_inner, rho_inner)
@@ -349,7 +351,7 @@ class SawtoothCycler:
 
     def __init__(
         self,
-        rho: np.ndarray,
+        rho: AnyFloatArray,
         R0: float,
         a: float,
         s_crit: float = 0.1,
@@ -367,10 +369,10 @@ class SawtoothCycler:
     def step(
         self,
         dt: float,
-        q: np.ndarray,
-        shear: np.ndarray,
-        T: np.ndarray,
-        n: np.ndarray,
+        q: AnyFloatArray,
+        shear: AnyFloatArray,
+        T: AnyFloatArray,
+        n: AnyFloatArray,
     ) -> SawtoothEvent | None:
         self.time += dt
 
@@ -390,7 +392,7 @@ class SawtoothCycler:
 
         T_core_old = T[0]
 
-        def _plasma_energy(Te: np.ndarray, ne: np.ndarray) -> float:
+        def _plasma_energy(Te: AnyFloatArray, ne: AnyFloatArray) -> float:
             # W = 3/2 ∫ n T dV,  dV = 4π² R₀ a² ρ dρ  (toroidal volume element)
             energy_dens = 1.5 * (ne * 1e19) * (Te * 1e3 * E_CHARGE)
             vol_element = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.rho
