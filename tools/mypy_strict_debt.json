@@ -1,7 +1,7 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 993,
+  "total": 951,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 9,
     "scpn_control.control.analytic_solver": 4,
@@ -39,7 +39,6 @@
     "scpn_control.core.ballooning_solver": 6,
     "scpn_control.core.blob_transport": 10,
     "scpn_control.core.current_diffusion": 14,
-    "scpn_control.core.current_drive": 42,
     "scpn_control.core.differentiable_scenario": 9,
     "scpn_control.core.differentiable_transport": 44,
     "scpn_control.core.disruption_sequence": 2,

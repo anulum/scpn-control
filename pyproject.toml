@@ -124,12 +124,11 @@ files = [
 # checks across the whole package. Only flags mypy accepts per-module are listed
 # (warn_redundant_casts and warn_unused_configs are global-only).
 #
-# Tier 1 (component-strict, generic args deferred): current_drive and
-# realtime_efit still carry bare numpy.ndarray annotations (42 and 14 sites), so
-# disallow_any_generics stays off for them until those are parametrised.
+# Tier 1 (component-strict, generic args deferred): realtime_efit still carries
+# bare numpy.ndarray annotations (14 sites), so disallow_any_generics stays off
+# for it until those are parametrised.
 [[tool.mypy.overrides]]
 module = [
-    "scpn_control.core.current_drive",
     "scpn_control.control.realtime_efit"
 ]
 disallow_subclassing_any = true
@@ -146,6 +145,7 @@ extra_checks = true
 # strict component set plus generic-argument enforcement.
 [[tool.mypy.overrides]]
 module = [
+    "scpn_control.core.current_drive",
     "scpn_control.core.runtime_admission",
     "scpn_control.core.tokamak_config",
     "scpn_control.core.checkpoint",
