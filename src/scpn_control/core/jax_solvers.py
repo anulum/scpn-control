@@ -36,6 +36,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray
+
 try:
     import jax
     import jax.numpy as jnp
@@ -93,11 +95,11 @@ def _resolve_use_jax(
 
 
 def _thomas_solve_np(
-    a: np.ndarray,
-    b: np.ndarray,
-    c: np.ndarray,
-    d: np.ndarray,
-) -> np.ndarray:
+    a: AnyFloatArray,
+    b: AnyFloatArray,
+    c: AnyFloatArray,
+    d: AnyFloatArray,
+) -> AnyFloatArray:
     """Thomas algorithm (NumPy). Same semantics as TransportSolver._thomas_solve."""
     n = len(d)
     cp = np.empty(n - 1)
@@ -125,11 +127,11 @@ def _thomas_solve_np(
 
 
 def _diffusion_rhs_np(
-    T: np.ndarray,
-    chi: np.ndarray,
-    rho: np.ndarray,
+    T: AnyFloatArray,
+    chi: AnyFloatArray,
+    rho: AnyFloatArray,
     drho: float,
-) -> np.ndarray:
+) -> AnyFloatArray:
     """L_h(T) = (1/r) d/dr(r chi dT/dr) via central differences."""
     n = len(T)
     Lh = np.zeros(n)
@@ -164,7 +166,7 @@ if _HAS_JAX:
         n = d.shape[0]
 
         # Forward sweep
-        def fwd_step(carry: tuple, i: jnp.ndarray) -> tuple:
+        def fwd_step(carry: tuple[Any, ...], i: jnp.ndarray) -> tuple[Any, ...]:
             cp_prev, dp_prev = carry
             # Use where to handle i==0 (no previous cp/dp)
             ai = jnp.where(i > 0, a[i - 1], 0.0)
@@ -181,7 +183,7 @@ if _HAS_JAX:
         dp_all: jnp.ndarray = stacked[1]
 
         # Back substitution
-        def bwd_step(x_next: jnp.ndarray, i: jnp.ndarray) -> tuple:
+        def bwd_step(x_next: jnp.ndarray, i: jnp.ndarray) -> tuple[Any, ...]:
             x_i = dp_all[i] - cp_all[i] * x_next
             return x_i, x_i
 
@@ -277,15 +279,15 @@ if _HAS_JAX:
 
 
 def thomas_solve(
-    a: np.ndarray,
-    b: np.ndarray,
-    c: np.ndarray,
-    d: np.ndarray,
+    a: AnyFloatArray,
+    b: AnyFloatArray,
+    c: AnyFloatArray,
+    d: AnyFloatArray,
     *,
     use_jax: bool = True,
     allow_numpy_fallback: bool = False,
     allow_legacy_numpy_fallback: bool = False,
-) -> np.ndarray:
+) -> AnyFloatArray:
     """Tridiagonal solve with automatic JAX/GPU dispatch.
 
     Parameters
@@ -315,15 +317,15 @@ def thomas_solve(
 
 
 def diffusion_rhs(
-    T: np.ndarray,
-    chi: np.ndarray,
-    rho: np.ndarray,
+    T: AnyFloatArray,
+    chi: AnyFloatArray,
+    rho: AnyFloatArray,
     drho: float,
     *,
     use_jax: bool = True,
     allow_numpy_fallback: bool = False,
     allow_legacy_numpy_fallback: bool = False,
-) -> np.ndarray:
+) -> AnyFloatArray:
     """Cylindrical diffusion operator L_h(T) with JAX/GPU dispatch."""
     use_jax_runtime = _resolve_use_jax(
         use_jax,
@@ -344,10 +346,10 @@ def diffusion_rhs(
 
 
 def crank_nicolson_step(
-    T: np.ndarray,
-    chi: np.ndarray,
-    source: np.ndarray,
-    rho: np.ndarray,
+    T: AnyFloatArray,
+    chi: AnyFloatArray,
+    source: AnyFloatArray,
+    rho: AnyFloatArray,
     drho: float,
     dt: float,
     T_edge: float = 0.1,
@@ -355,7 +357,7 @@ def crank_nicolson_step(
     use_jax: bool = True,
     allow_numpy_fallback: bool = False,
     allow_legacy_numpy_fallback: bool = False,
-) -> np.ndarray:
+) -> AnyFloatArray:
     """Single Crank-Nicolson transport step with JAX/GPU dispatch.
 
     Parameters
@@ -414,17 +416,17 @@ def crank_nicolson_step(
 
 
 def batched_crank_nicolson(
-    T_batch: np.ndarray,
-    chi: np.ndarray,
-    source: np.ndarray,
-    rho: np.ndarray,
+    T_batch: AnyFloatArray,
+    chi: AnyFloatArray,
+    source: AnyFloatArray,
+    rho: AnyFloatArray,
     drho: float,
     dt: float,
     T_edge: float = 0.1,
     *,
     allow_numpy_fallback: bool = False,
     allow_legacy_numpy_fallback: bool = False,
-) -> np.ndarray:
+) -> AnyFloatArray:
     """Batched transport step via jax.vmap for ensemble/sensitivity runs.
 
     Parameters
