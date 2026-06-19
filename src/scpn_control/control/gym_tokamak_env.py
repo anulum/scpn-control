@@ -104,10 +104,12 @@ class TokamakEnv:
 
     @property
     def observation_space_shape(self) -> tuple[int, ...]:
+        """Shape of the observation vector (6 plasma-state features)."""
         return (6,)
 
     @property
     def action_space_shape(self) -> tuple[int, ...]:
+        """Shape of the action vector (2 actuator commands)."""
         return (2,)
 
     def reset(self, seed: int | None = None) -> tuple[FloatArray, dict[str, Any]]:
