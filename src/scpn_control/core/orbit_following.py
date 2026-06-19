@@ -55,6 +55,24 @@ def _profile_array(name: str, values: AnyFloatArray, shape: tuple[int, ...] | No
 
 @dataclass
 class EnsembleResult:
+    """Aggregate outcome of a Monte-Carlo fast-ion orbit ensemble.
+
+    Attributes
+    ----------
+    loss_fraction
+        Fraction of launched particles lost to the wall.
+    heating_profile
+        Radial power-deposition profile from confined particles.
+    current_drive
+        Net driven current from passing particles in amperes.
+    n_passing
+        Number of passing particles.
+    n_trapped
+        Number of trapped particles.
+    n_lost
+        Number of lost particles.
+    """
+
     loss_fraction: float
     heating_profile: AnyFloatArray
     current_drive: float
@@ -318,6 +336,21 @@ class GuidingCenterOrbit:
         return np.array([dR_dt, dZ_dt, dphi_dt, dv_par_dt])
 
     def step(self, B_field: Callable[..., tuple[float, float, float]], dt: float) -> tuple[float, float, float, float]:
+        """Advance the guiding-centre orbit one RK4 step.
+
+        Parameters
+        ----------
+        B_field
+            Callable ``(R, Z) -> (B_R, B_Z, B_phi)`` giving the field in tesla.
+        dt
+            Time step in seconds; must be positive.
+
+        Returns
+        -------
+        tuple of float
+            The updated ``(R, Z, phi, v_par)`` state in metres, metres, radians,
+            and m/s.
+        """
         dt = _finite_scalar("dt", dt, positive=True)
         state = np.array([self.R, self.Z, self.phi, self.v_par])
 
@@ -333,6 +366,8 @@ class GuidingCenterOrbit:
 
 
 class OrbitClassifier:
+    """Classify a guiding-centre orbit as passing, trapped, or lost."""
+
     @staticmethod
     def classify(
         orbit_R: AnyFloatArray,
@@ -341,6 +376,27 @@ class OrbitClassifier:
         R_wall: float,
         Z_wall_upper: float,
     ) -> str:
+        """Classify an orbit trajectory against the wall and the v_par sign.
+
+        Parameters
+        ----------
+        orbit_R
+            Major-radius trajectory in metres.
+        orbit_Z
+            Vertical trajectory in metres, same shape as ``orbit_R``.
+        v_par
+            Parallel-velocity trajectory in m/s, same shape as ``orbit_R``.
+        R_wall
+            Outer wall major radius in metres; must be positive.
+        Z_wall_upper
+            Upper wall height in metres; must be positive.
+
+        Returns
+        -------
+        str
+            ``"lost"`` if the orbit leaves the wall, ``"trapped"`` if ``v_par``
+            reverses sign, otherwise ``"passing"``.
+        """
         orbit_R = _profile_array("orbit_R", orbit_R)
         orbit_Z = _profile_array("orbit_Z", orbit_Z, orbit_R.shape)
         v_par = _profile_array("v_par", v_par, orbit_R.shape)
@@ -357,6 +413,22 @@ class OrbitClassifier:
 
 
 class MonteCarloEnsemble:
+    """Monte-Carlo ensemble of fast-ion guiding-centre orbits.
+
+    Parameters
+    ----------
+    n_particles
+        Number of test particles; must be a positive integer.
+    E_birth_keV
+        Birth energy in keV; must be positive.
+    R0
+        Major radius in metres; must be positive.
+    a
+        Minor radius in metres; must be positive and below ``R0``.
+    B0
+        Toroidal field on axis in tesla; must be positive.
+    """
+
     def __init__(self, n_particles: int, E_birth_keV: float, R0: float, a: float, B0: float) -> None:
         if isinstance(n_particles, bool) or int(n_particles) != n_particles or n_particles <= 0:
             raise ValueError("n_particles must be a positive integer")
@@ -370,6 +442,17 @@ class MonteCarloEnsemble:
         self.particles: list[GuidingCenterOrbit] = []
 
     def initialize(self, ne_profile: AnyFloatArray, Te_profile: AnyFloatArray, rho: AnyFloatArray) -> None:
+        """Seed the ensemble with randomly distributed birth orbits.
+
+        Parameters
+        ----------
+        ne_profile
+            Electron-density profile on ``rho``; must be positive.
+        Te_profile
+            Electron-temperature profile on ``rho``; must be positive.
+        rho
+            Strictly increasing normalised-radius grid in [0, 1].
+        """
         rho = _profile_array("rho", rho)
         if np.any(rho < 0.0) or np.any(rho > 1.0) or np.any(np.diff(rho) <= 0.0):
             raise ValueError("rho must be strictly increasing within [0, 1]")
@@ -394,6 +477,23 @@ class MonteCarloEnsemble:
     def follow(
         self, B_field: Callable[..., tuple[float, float, float]], n_bounces: int = 10, dt: float = 1e-7
     ) -> EnsembleResult:
+        """Integrate the ensemble and aggregate confinement statistics.
+
+        Parameters
+        ----------
+        B_field
+            Callable ``(R, Z) -> (B_R, B_Z, B_phi)`` giving the field in tesla.
+        n_bounces
+            Number of bounce times to follow; must be a positive integer.
+        dt
+            Orbit time step in seconds; must be positive.
+
+        Returns
+        -------
+        EnsembleResult
+            Loss fraction, heating profile, driven current, and the passing,
+            trapped, and lost counts.
+        """
         if not self.particles:
             raise ValueError("particles must be initialised before follow")
         if isinstance(n_bounces, bool) or int(n_bounces) != n_bounces or n_bounces <= 0:
