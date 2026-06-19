@@ -32,6 +32,8 @@ _DT_EPS: float = 1e-6  # s
 
 
 class OperatingRegime(Enum):
+    """Discharge operating regimes for gain scheduling."""
+
     RAMP_UP = auto()
     L_MODE_FLAT = auto()
     LH_TRANSITION = auto()
@@ -204,6 +206,7 @@ class ScenarioWaveform:
         self.interp_kind = interp_kind
 
     def __call__(self, t: float) -> float:
+        """Return the interpolated waveform value at time ``t`` in seconds."""
         return float(np.interp(t, self.times, self.values))
 
 
@@ -214,14 +217,35 @@ class ScenarioSchedule:
         self.waveforms = waveforms
 
     def evaluate(self, t: float) -> dict[str, float]:
+        """Return all waveform values at time ``t``.
+
+        Parameters
+        ----------
+        t
+            Time in seconds.
+
+        Returns
+        -------
+        dict[str, float]
+            Each waveform name mapped to its interpolated value.
+        """
         return {name: wf(t) for name, wf in self.waveforms.items()}
 
     def duration(self) -> float:
+        """Return the scenario duration in seconds (latest waveform end time)."""
         if not self.waveforms:
             return 0.0
         return float(max(wf.times[-1] for wf in self.waveforms.values()))
 
     def validate(self) -> list[str]:
+        """Validate the schedule waveforms.
+
+        Returns
+        -------
+        list[str]
+            Error messages for any waveform with non-monotonic times; empty when
+            the schedule is valid.
+        """
         errors = []
         for name, wf in self.waveforms.items():
             if not np.all(np.diff(wf.times) > 0):
