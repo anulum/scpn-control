@@ -119,6 +119,36 @@ def _validate_eped_result(result: EPEDResult) -> EPEDResult:
 
 @dataclass(frozen=True)
 class EPEDConfig:
+    """Machine and pedestal inputs for the EPED pedestal model.
+
+    Attributes
+    ----------
+    R0
+        Major radius in metres.
+    a
+        Minor radius in metres.
+    B0
+        Vacuum toroidal field in tesla.
+    kappa
+        Plasma elongation.
+    delta
+        Plasma triangularity.
+    Ip_MA
+        Plasma current in MA.
+    ne_ped_19
+        Pedestal electron density in 10¹⁹ m⁻³.
+    B_pol_ped
+        Poloidal field at the pedestal in tesla.
+    C_KBM
+        Kinetic-ballooning-mode coefficient (Snyder 2009, Eq. 4).
+    n_mode_min
+        Minimum toroidal mode number scanned for peeling-ballooning.
+    n_mode_max
+        Maximum toroidal mode number scanned.
+    nu_star_e
+        Electron collisionality (0 = collisionless limit).
+    """
+
     R0: float  # Major radius [m]
     a: float  # Minor radius [m]
     B0: float  # Vacuum toroidal field [T]
@@ -145,6 +175,26 @@ class EPEDConfig:
 
 @dataclass
 class EPEDResult:
+    """Predicted pedestal structure from the EPED model.
+
+    Attributes
+    ----------
+    p_ped_kPa
+        Pedestal pressure in kPa.
+    T_ped_keV
+        Pedestal temperature in keV.
+    n_ped_19
+        Pedestal density in 10¹⁹ m⁻³.
+    delta_ped
+        Pedestal width in normalised poloidal flux.
+    beta_p_ped
+        Pedestal poloidal beta.
+    alpha_crit
+        Critical normalised pressure gradient at the peeling-ballooning limit.
+    delta_ped_collisionless
+        Pedestal width before the collisionality correction.
+    """
+
     p_ped_kPa: float
     T_ped_keV: float
     n_ped_19: float
@@ -156,6 +206,24 @@ class EPEDResult:
 
 @dataclass
 class EPEDValidationPoint:
+    """Measured-versus-EPED pedestal comparison for one discharge.
+
+    Attributes
+    ----------
+    machine
+        Device name.
+    shot
+        Shot number; must be a positive integer.
+    p_ped_measured_kPa
+        Measured pedestal pressure in kPa.
+    p_ped_eped_kPa
+        EPED-predicted pedestal pressure in kPa.
+    delta_ped_measured
+        Measured pedestal width.
+    delta_ped_eped
+        EPED-predicted pedestal width.
+    """
+
     machine: str
     shot: int
     p_ped_measured_kPa: float
@@ -356,6 +424,18 @@ class PedestalProfileGenerator:
 
 @dataclass
 class EpedPedestalPrediction:
+    """Compact EPED prediction for the integrated transport solver.
+
+    Attributes
+    ----------
+    Delta_ped
+        Pedestal width in normalised poloidal flux.
+    T_ped_keV
+        Pedestal temperature in keV.
+    p_ped_kPa
+        Pedestal pressure in kPa.
+    """
+
     Delta_ped: float
     T_ped_keV: float
     p_ped_kPa: float
@@ -393,6 +473,20 @@ class EpedPedestalModel:
         self._B_pol_ped = B_pol
 
     def predict(self, ne_ped_19: float, nu_star_e: float = 0.0) -> EpedPedestalPrediction:
+        """Predict the pedestal structure at a given density and collisionality.
+
+        Parameters
+        ----------
+        ne_ped_19
+            Pedestal electron density in 10¹⁹ m⁻³; must be positive.
+        nu_star_e
+            Electron collisionality; must be non-negative (0 = collisionless).
+
+        Returns
+        -------
+        EpedPedestalPrediction
+            The predicted pedestal width, temperature, and pressure.
+        """
         ne_ped_19 = _finite_scalar("ne_ped_19", ne_ped_19, positive=True)
         nu_star_e = _finite_scalar("nu_star_e", nu_star_e, nonnegative=True)
         cfg = EPEDConfig(
