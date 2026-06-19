@@ -184,6 +184,21 @@ class SpikingControllerPool:
         return n_fired
 
     def step(self, error_signal: float) -> float:
+        """Advance the SNN populations one step and return the decoded command.
+
+        The error is split into excitatory drives to the positive and negative
+        neuron populations; the spike-rate difference decodes the command.
+
+        Parameters
+        ----------
+        error_signal
+            The scalar control error driving the populations.
+
+        Returns
+        -------
+        float
+            The decoded actuator command for this step.
+        """
         input_pos = max(0.0, float(error_signal)) * self._i_scale
         input_neg = max(0.0, -float(error_signal)) * self._i_scale
 
@@ -332,6 +347,14 @@ class NeuroCyberneticController:
         self._min_confidence_z = 1.0
 
     def initialize_brains(self, use_quantum: bool = False) -> None:
+        """Reset and initialise the SNN populations and the safety FSM.
+
+        Parameters
+        ----------
+        use_quantum
+            Whether to initialise the quantum-hybrid entropy source instead of
+            the classical generator.
+        """
         self._reset_safe_fsm()
 
         self.brain_R = SpikingControllerPool(
@@ -360,6 +383,22 @@ class NeuroCyberneticController:
         verbose: bool = True,
         output_path: str | None = None,
     ) -> Dict[str, Any]:
+        """Run a classical-SNN control shot end to end.
+
+        Parameters
+        ----------
+        save_plot
+            Whether to save a history plot.
+        verbose
+            Whether to log progress.
+        output_path
+            Optional output path for the plot.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The simulation history and summary metrics.
+        """
         self.initialize_brains(use_quantum=False)
         return self._execute_simulation(
             "Neuro-Cybernetic (Classical SNN)",
@@ -376,6 +415,22 @@ class NeuroCyberneticController:
         verbose: bool = True,
         output_path: str | None = None,
     ) -> Dict[str, Any]:
+        """Run a quantum-neuro-hybrid control shot end to end.
+
+        Parameters
+        ----------
+        save_plot
+            Whether to save a history plot.
+        verbose
+            Whether to log progress.
+        output_path
+            Optional output path for the plot.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The simulation history and summary metrics.
+        """
         self.initialize_brains(use_quantum=True)
         return self._execute_simulation(
             "Quantum-Neuro Hybrid (QNN)",
@@ -515,6 +570,27 @@ class NeuroCyberneticController:
         output_path: str | None = None,
         verbose: bool = True,
     ) -> str:
+        """Plot the control history and return the saved figure path.
+
+        Parameters
+        ----------
+        title
+            Plot title prefix.
+        output_path
+            Optional path for the saved figure.
+        verbose
+            Whether to log the save location.
+
+        Returns
+        -------
+        str
+            The path to the saved figure.
+
+        Raises
+        ------
+        RuntimeError
+            If matplotlib is unavailable.
+        """
         if not HAS_MPL or plt is None:
             raise RuntimeError("matplotlib is required to visualize neuro-cybernetic controller history")
 

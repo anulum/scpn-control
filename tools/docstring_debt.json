@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 151,
+  "total": 146,
   "per_module": {
     "scpn_control.control.analytic_solver": 2,
     "scpn_control.control.burn_controller": 3,
@@ -25,7 +25,6 @@
     "scpn_control.control.gym_tokamak_env": 2,
     "scpn_control.control.hil_harness": 4,
     "scpn_control.control.mu_synthesis": 2,
-    "scpn_control.control.neuro_cybernetic_controller": 5,
     "scpn_control.control.nmpc_controller": 1,
     "scpn_control.control.realtime_efit": 4,
     "scpn_control.control.safe_rl_controller": 4,
