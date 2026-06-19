@@ -182,7 +182,12 @@ class Z3BoundedModelChecker:
                             )
                         ],
                     )
-        raise RuntimeError("Z3 returned a model without an identifiable marking-bound violation.")
+        # Unreachable by SMT soundness: a `sat` result on the disjunction of
+        # out-of-bounds terms guarantees at least one (step, place) violates, so
+        # the loop above always returns. The raise is a fail-closed guard.
+        raise RuntimeError(  # pragma: no cover
+            "Z3 returned a model without an identifiable marking-bound violation."
+        )
 
     def verify_temporal_specs(
         self,
@@ -298,7 +303,7 @@ class Z3BoundedModelChecker:
             if response_window:
                 non_idle_window = [z3.Not(idle[window]) for window in range(step + 1, deadline + 1)]
                 checks.append(z3.And(firings[step][t_idx], *non_idle_window, z3.Not(z3.Or(*response_window))))
-            else:
+            else:  # pragma: no cover - max_latency_steps>=1 makes the response window non-empty
                 checks.append(firings[step][t_idx])
         if not checks:
             return Z3ModelCheckingReport(
@@ -452,7 +457,11 @@ class Z3BoundedModelChecker:
                     path=path[:step],
                 )
                 return Z3ModelCheckingReport(False, "z3", max_depth, "sat", [violation], [spec.name])
-        raise RuntimeError("Z3 returned a model without an identifiable co-marking violation.")
+        # Unreachable by SMT soundness: a `sat` co-marking disjunction guarantees
+        # some step has both places above threshold, so the loop returns first.
+        raise RuntimeError(  # pragma: no cover
+            "Z3 returned a model without an identifiable co-marking violation."
+        )
 
     def _prove_fire_leads_to_marking(
         self,
@@ -587,7 +596,9 @@ class Z3BoundedModelChecker:
                         markings[step + 1][p_idx]
                         == markings[step][p_idx] + (transition_weight * _z3_fraction(z3, base_delta))
                     )
-                if not constraints:
+                if (
+                    not constraints
+                ):  # pragma: no cover - compile() guarantees >=1 place, so a per-place delta constraint always exists
                     raise RuntimeError(f"transition {transition!r} produced an empty SMT constraint set")
                 solver.add(z3.Implies(firings[step][t_idx], z3.And(*constraints)))
         return z3, solver, markings, firings, idle
@@ -666,7 +677,7 @@ class Z3BoundedModelChecker:
                 for left_idx, left in enumerate(firing_terms):
                     for right in firing_terms[left_idx + 1 :]:
                         smt2_lines.append(f"(assert (not (and {left} {right})))")
-            else:
+            else:  # pragma: no cover - compile() guarantees >=1 transition, so firing_terms is never empty
                 smt2_lines.append(f"(assert idle_{step})")
 
             transition_names = list(self._transition_index.keys())
@@ -697,7 +708,7 @@ class Z3BoundedModelChecker:
             for p_idx in range(len(self.place_names)):
                 smt2_lines.append(f"(assert (=> idle_{step} (= m_{step + 1}_{p_idx} m_{step}_{p_idx})))")
 
-        if not self.transition_names:
+        if not self.transition_names:  # pragma: no cover - compile() guarantees >=1 transition
             smt2_lines.append("(assert false) ; no transitions means vacuous safety contract")
 
         if trigger_transition is not None and response_transition is not None:
@@ -778,7 +789,7 @@ class Z3BoundedModelChecker:
             value = model.evaluate(variable, model_completion=True)
             if z3.is_rational_value(value):
                 marking[place] = Fraction(value.numerator_as_long(), value.denominator_as_long())
-            else:
+            else:  # pragma: no cover - the transition relation is linear in rationals, so Z3 models are always rational
                 marking[place] = Fraction(str(value))
         return marking
 
