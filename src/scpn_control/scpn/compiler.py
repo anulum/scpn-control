@@ -171,6 +171,7 @@ class CompiledNet:
 
     @property
     def has_stochastic_path(self) -> bool:
+        """Whether the compiled net has a packed stochastic-bitstream path."""
         return self.W_in_packed is not None
 
     # ── Forward passes ───────────────────────────────────────────────────
@@ -268,6 +269,7 @@ class CompiledNet:
     # ── Convenience ──────────────────────────────────────────────────────
 
     def summary(self) -> str:
+        """Return a one-line summary of the compiled net's size and mode."""
         mode = "stochastic" if self.has_stochastic_path else "float-only"
         return f"CompiledNet  P={self.n_places}  T={self.n_transitions}  L={self.bitstream_length}  mode={mode}"
 
