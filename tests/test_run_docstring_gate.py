@@ -167,6 +167,13 @@ def patched_probe(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(rdg, "run_ruff_probe", lambda: list(_DIAGNOSTICS_SAMPLE))
 
 
+@pytest.fixture
+def ratchet_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise the ratchet machinery with the hard-zero floor disabled."""
+
+    monkeypatch.setattr(rdg, "ENFORCE_ZERO", False)
+
+
 def _point_ledger_at(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     ledger_path = tmp_path / "docstring_debt.json"
     monkeypatch.setattr(rdg, "LEDGER_PATH", ledger_path)
@@ -174,9 +181,9 @@ def _point_ledger_at(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_main_passes_when_debt_within_baseline(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None, ratchet_mode: None
 ) -> None:
-    """Current debt equal to the committed baseline passes."""
+    """Current debt equal to the committed baseline passes (ratchet mode)."""
 
     ledger_path = _point_ledger_at(tmp_path, monkeypatch)
     rdg.write_ledger(
@@ -187,7 +194,9 @@ def test_main_passes_when_debt_within_baseline(
     assert rdg.main([]) == 0
 
 
-def test_main_fails_on_regression(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None) -> None:
+def test_main_fails_on_regression(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None, ratchet_mode: None
+) -> None:
     """Debt above the baseline fails the ratchet."""
 
     ledger_path = _point_ledger_at(tmp_path, monkeypatch)
@@ -197,7 +206,7 @@ def test_main_fails_on_regression(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
 
 def test_main_update_baseline_creates_ledger(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None, ratchet_mode: None
 ) -> None:
     """``--update-baseline`` writes a ledger reflecting the current probe."""
 
@@ -212,7 +221,7 @@ def test_main_update_baseline_creates_ledger(
 
 
 def test_main_update_baseline_refuses_increase(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None, ratchet_mode: None
 ) -> None:
     """Raising the recorded total needs the explicit increase flag."""
 
@@ -224,15 +233,50 @@ def test_main_update_baseline_refuses_increase(
 
 
 def test_main_update_baseline_allows_increase_with_flag(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None, ratchet_mode: None
 ) -> None:
-    """The increase flag permits recording higher debt deliberately."""
+    """The increase flag permits recording higher debt deliberately (ratchet mode)."""
 
     ledger_path = _point_ledger_at(tmp_path, monkeypatch)
     rdg.write_ledger(_ledger(1, {}), ledger_path)
 
     assert rdg.main(["--update-baseline", "--allow-baseline-increase"]) == 0
     assert json.loads(ledger_path.read_text())["total"] == 3
+
+
+def test_main_hard_zero_fails_on_any_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None
+) -> None:
+    """With the hard-zero floor active, any missing docstring fails the run."""
+
+    ledger_path = _point_ledger_at(tmp_path, monkeypatch)
+    rdg.write_ledger(
+        _ledger(3, {"scpn_control.core.locked_mode": 2, "scpn_control.control.density_controller": 1}), ledger_path
+    )
+
+    assert rdg.ENFORCE_ZERO is True
+    assert rdg.main([]) == 1
+
+
+def test_main_hard_zero_refuses_update_baseline_even_with_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None
+) -> None:
+    """The hard-zero floor refuses to record non-zero debt, flag notwithstanding."""
+
+    ledger_path = _point_ledger_at(tmp_path, monkeypatch)
+
+    assert rdg.main(["--update-baseline", "--allow-baseline-increase"]) == 3
+    assert not ledger_path.exists()
+
+
+def test_main_passes_when_probe_clean(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty probe passes the hard-zero gate against a zero ledger."""
+
+    ledger_path = _point_ledger_at(tmp_path, monkeypatch)
+    rdg.write_ledger(_ledger(0, {}), ledger_path)
+    monkeypatch.setattr(rdg, "run_ruff_probe", list)
+
+    assert rdg.main([]) == 0
 
 
 def test_main_fails_on_unparsable_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

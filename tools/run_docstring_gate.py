@@ -33,6 +33,12 @@ per module. On every run the current count must stay equal or fall, and no
 module may exceed its recorded count — mirroring ``run_mypy_strict.py``. The
 ledger is rewritten only with ``--update-baseline``, which refuses to raise the
 recorded total unless ``--allow-baseline-increase`` is also given.
+
+The migration is complete: the recorded total is zero. With ``ENFORCE_ZERO`` set
+the gate is now a hard floor — any missing public-API docstring fails the run
+regardless of the ledger, and ``--update-baseline`` refuses to record a non-zero
+total even with ``--allow-baseline-increase``. The per-module ledger is retained
+for diagnostic reporting.
 """
 
 from __future__ import annotations
@@ -49,6 +55,10 @@ SOURCE_TARGET = "src/scpn_control/"
 LEDGER_PATH = REPO_ROOT / "tools" / "docstring_debt.json"
 LEDGER_SCHEMA = "scpn-control.docstring-debt.v1"
 COVERAGE_RULES = ("D101", "D102", "D103", "D104", "D106")
+
+# The migration reached zero missing docstrings; the gate now enforces that as a
+# hard floor rather than a movable ratchet baseline.
+ENFORCE_ZERO = True
 
 
 def file_to_module(path: str) -> str:
@@ -320,6 +330,14 @@ def main(argv: list[str] | None = None) -> int:
     current_total = sum(current_modules.values())
 
     if args.update_baseline:
+        if ENFORCE_ZERO and current_total > 0:
+            print(
+                f"[docstrings] REFUSED: hard-zero gate is active; cannot record {current_total} "
+                "missing docstrings. Document the listed APIs instead of recording debt.",
+                file=sys.stderr,
+            )
+            _report_debt(current_total, current_modules)
+            return 3
         new_ledger = DocstringDebtLedger(total=current_total, per_module=current_modules)
         if LEDGER_PATH.exists() and not args.allow_baseline_increase:
             existing = load_ledger(LEDGER_PATH)
@@ -333,6 +351,15 @@ def main(argv: list[str] | None = None) -> int:
         write_ledger(new_ledger, LEDGER_PATH)
         print(f"[docstrings] baseline updated: total {current_total} missing docstrings recorded.")
         return 0
+
+    if ENFORCE_ZERO and current_total > 0:
+        _report_debt(current_total, current_modules)
+        print(
+            f"[docstrings] FAILED: hard-zero gate is active and {current_total} public-API "
+            f"docstrings are missing across {len(current_modules)} module(s). Document them.",
+            file=sys.stderr,
+        )
+        return 1
 
     ledger = load_ledger(LEDGER_PATH)
     result = evaluate_ratchet(current_total, current_modules, ledger)
