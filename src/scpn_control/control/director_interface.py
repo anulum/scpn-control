@@ -194,6 +194,41 @@ class DirectorInterface:
         allow_runtime_contract_fallback: bool = False,
         allow_legacy_runtime_contract_fallback: bool = False,
     ) -> dict[str, Any]:
+        """Run a Director-mediated closed-loop fusion-control mission.
+
+        Parameters
+        ----------
+        duration
+            Number of mission steps; must be at least 1.
+        use_quantum
+            Whether to engage the quantum-assisted control path.
+        glitch_start_step
+            Step at which an injected sensor glitch begins.
+        glitch_std
+            Standard deviation of the injected glitch.
+        rng_seed
+            Random seed for reproducibility.
+        save_plot
+            Whether to render the mission figure.
+        output_path
+            File path for the rendered figure.
+        verbose
+            Whether to log progress.
+        allow_plot_fallback, allow_legacy_plot_fallback
+            Explicit opt-ins for degraded plotting paths.
+        allow_runtime_contract_fallback, allow_legacy_runtime_contract_fallback
+            Explicit opt-ins for degraded runtime-contract paths.
+
+        Returns
+        -------
+        dict[str, Any]
+            The mission summary and recorded telemetry log.
+
+        Raises
+        ------
+        ValueError
+            If ``duration`` is less than 1.
+        """
         duration = int(duration)
         if duration < 1:
             raise ValueError("duration must be >= 1.")
@@ -342,6 +377,18 @@ class DirectorInterface:
         }
 
     def visualize(self, output_path: str = "Director_Interface_Result.png") -> str:
+        """Render the Director-mediated control telemetry figure.
+
+        Parameters
+        ----------
+        output_path
+            Destination path for the PNG figure.
+
+        Returns
+        -------
+        str
+            The path to the written figure.
+        """
         t = [x["t"] for x in self.log]
         ip = [x["Ip"] for x in self.log]
         err = [x["Err_R"] for x in self.log]
