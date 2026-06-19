@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 60,
+  "total": 57,
   "per_module": {
     "scpn_control.control.analytic_solver": 2,
     "scpn_control.control.burn_controller": 3,
@@ -28,7 +28,6 @@
     "scpn_control.core.gk_nonlinear": 1,
     "scpn_control.core.gk_online_learner": 3,
     "scpn_control.core.gk_ood_detector": 1,
-    "scpn_control.core.gk_qualikiz": 3,
     "scpn_control.core.gk_scheduler": 1,
     "scpn_control.core.jax_gk_nonlinear": 2,
     "scpn_control.core.jax_gk_solver": 1,

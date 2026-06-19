@@ -75,6 +75,7 @@ class QuaLiKizSolver(GKSolverBase):
         self.allow_legacy_fallback = bool(allow_legacy_fallback)
 
     def is_available(self) -> bool:
+        """Return whether the ``qualikiz_tools`` Python package is importable."""
         try:
             import qualikiz_tools  # noqa: F401
 
@@ -83,6 +84,18 @@ class QuaLiKizSolver(GKSolverBase):
             return False
 
     def prepare_input(self, params: GKLocalParams) -> Path:
+        """Stage the QuaLiKiz run directory and cache the input parameters.
+
+        Parameters
+        ----------
+        params
+            Local gyrokinetic input parameters (stored for the Python API path).
+
+        Returns
+        -------
+        Path
+            The working directory for the run.
+        """
         base = self.work_dir or Path(tempfile.mkdtemp(prefix="qualikiz_"))
         base.mkdir(parents=True, exist_ok=True)
         # Store params for Python API path
@@ -90,6 +103,29 @@ class QuaLiKizSolver(GKSolverBase):
         return base
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:
+        """Run QuaLiKiz via its Python API on the staged parameters.
+
+        Fails closed when the API is unavailable or fails, unless the explicit
+        legacy fallback is enabled.
+
+        Parameters
+        ----------
+        input_path
+            The staged working directory.
+        timeout_s
+            Run timeout in seconds.
+
+        Returns
+        -------
+        GKOutput
+            The parsed QuaLiKiz result.
+
+        Raises
+        ------
+        RuntimeError
+            If the QuaLiKiz API is unavailable or fails and the legacy fallback
+            is disabled.
+        """
         params = getattr(self, "_last_params", None)
         if params is not None:
             result = _try_qualikiz_python(params)
