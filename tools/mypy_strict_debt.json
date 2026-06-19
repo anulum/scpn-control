@@ -1,10 +1,9 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 294,
+  "total": 266,
   "per_module": {
     "scpn_control.control.nmpc_controller": 147,
-    "scpn_control.core._rust_compat": 28,
     "scpn_control.core.differentiable_scenario": 9,
     "scpn_control.core.differentiable_transport": 44,
     "scpn_control.core.jax_gk_nonlinear": 1,

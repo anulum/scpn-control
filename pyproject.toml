@@ -222,7 +222,8 @@ module = [
     "scpn_control.control.halo_re_physics",
     "scpn_control.control.neuro_cybernetic_controller",
     "scpn_control.control.tokamak_flight_sim",
-    "scpn_control.control.nengo_snn_wrapper"
+    "scpn_control.control.nengo_snn_wrapper",
+    "scpn_control.core._rust_compat"
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true

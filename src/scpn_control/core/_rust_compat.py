@@ -31,6 +31,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.fusion_kernel import (
     _fusion_kernel_config_dump,
     _parse_fusion_kernel_config,
@@ -45,9 +46,9 @@ try:
     from scpn_control_rs import (
         PyEquilibriumResult,  # noqa: F401
         PyFusionKernel,
+        PyUdpTransportBridge,
         shafranov_bv,
         solve_coil_currents,
-        PyUdpTransportBridge,
     )
 
     _RUST_AVAILABLE = True  # pragma: no cover
@@ -148,7 +149,7 @@ class RustAcceleratedKernel:
         """Interpolate psi at a single (R, Z) point via Rust bilinear interpolation."""
         return float(self._rust.sample_psi_at(float(r), float(z)))
 
-    def sample_psi_at_probes(self, probes: list) -> np.ndarray:
+    def sample_psi_at_probes(self, probes: list[tuple[float, float]]) -> FloatArray:
         """Interpolate psi at multiple (R, Z) probe positions.
 
         Parameters
@@ -176,7 +177,7 @@ class RustAcceleratedKernel:
             self.B_R = -(1.0 / R_safe) * dPsi_dZ
             self.B_Z = (1.0 / R_safe) * dPsi_dR
 
-    def find_x_point(self, Psi: np.ndarray) -> tuple[tuple[Any, Any], Any]:
+    def find_x_point(self, Psi: AnyFloatArray) -> tuple[tuple[Any, Any], Any]:
         """
         Locate the null point (B=0) using local minimization.
         Matches Python FusionKernel.find_x_point() interface.
@@ -303,7 +304,7 @@ class RustSnnPool:
     """
 
     def __init__(self, n_neurons: int = 50, gain: float = 10.0, window_size: int = 20):
-        from scpn_control_rs import PySnnPool  # type: ignore[import-untyped]  # pragma: no cover
+        from scpn_control_rs import PySnnPool  # pragma: no cover
 
         self._inner = PySnnPool(n_neurons, gain, window_size)  # pragma: no cover
 
@@ -337,7 +338,7 @@ class RustSnnController:
     """
 
     def __init__(self, target_r: float = 6.2, target_z: float = 0.0):
-        from scpn_control_rs import PySnnController  # type: ignore[import-untyped]  # pragma: no cover
+        from scpn_control_rs import PySnnController  # pragma: no cover
 
         self._inner = PySnnController(target_r, target_z)  # pragma: no cover
 
@@ -530,7 +531,7 @@ class RustPIDController:
 
     def __init__(self, kp: float, ki: float, kd: float):
         try:
-            from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
+            from scpn_control_rs import PyPIDController  # pragma: no cover
 
             self._inner = PyPIDController(kp, ki, kd)  # pragma: no cover
             self._mode = "rust"
@@ -542,7 +543,7 @@ class RustPIDController:
     def radial(cls) -> "RustPIDController":
         obj = cls.__new__(cls)  # pragma: no cover
         try:
-            from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
+            from scpn_control_rs import PyPIDController  # pragma: no cover
 
             obj._inner = PyPIDController.radial()  # pragma: no cover
             obj._mode = "rust"
@@ -555,7 +556,7 @@ class RustPIDController:
     def vertical(cls) -> "RustPIDController":
         obj = cls.__new__(cls)  # pragma: no cover
         try:
-            from scpn_control_rs import PyPIDController  # type: ignore[import-untyped]  # pragma: no cover
+            from scpn_control_rs import PyPIDController  # pragma: no cover
 
             obj._inner = PyPIDController.vertical()  # pragma: no cover
             obj._mode = "rust"
@@ -597,12 +598,12 @@ class RustIsoFluxController:
 
     def __init__(self, target_r: float, target_z: float):
         try:
-            from scpn_control_rs import PyIsoFluxController  # type: ignore[import-untyped]  # pragma: no cover
+            from scpn_control_rs import PyIsoFluxController  # pragma: no cover
 
             self._inner = PyIsoFluxController(target_r, target_z)  # pragma: no cover
             self._mode = "rust"  # pragma: no cover
         except (ImportError, AttributeError):  # pragma: no cover
-            from scpn_control_rs import PySnnController  # type: ignore[import-untyped]  # pragma: no cover
+            from scpn_control_rs import PySnnController  # pragma: no cover
 
             self._inner = PySnnController(float(target_r), float(target_z))  # pragma: no cover
             self._mode = "fallback"
@@ -651,7 +652,7 @@ class RustHInfController:
         u_max: float = 10.0,
         dt: float = 1e-3,
     ):
-        from scpn_control_rs import PyHInfController  # type: ignore[import-untyped]  # pragma: no cover
+        from scpn_control_rs import PyHInfController  # pragma: no cover
 
         a = np.array([[0.0, 1.0], [gamma_growth**2, -damping]], dtype=np.float64)  # pragma: no cover
         b2 = np.array([[0.0], [1.0]], dtype=np.float64)  # pragma: no cover
@@ -680,8 +681,8 @@ class RustHInfController:
 
 
 def rust_multigrid_vcycle(
-    source: np.ndarray,
-    psi_bc: np.ndarray,
+    source: AnyFloatArray,
+    psi_bc: AnyFloatArray,
     r_min: float,
     r_max: float,
     z_min: float,
@@ -690,7 +691,7 @@ def rust_multigrid_vcycle(
     nz: int,
     tol: float = 1e-6,
     max_cycles: int = 500,
-) -> tuple[np.ndarray, float, int, bool]:
+) -> tuple[FloatArray, float, int, bool]:
     """Multigrid V-cycle GS solver. Uses Rust backend when available,
     falls back to FusionKernel's Python multigrid.
 
@@ -699,7 +700,7 @@ def rust_multigrid_vcycle(
     tuple of (psi, residual, n_cycles, converged)
     """
     try:
-        from scpn_control_rs import multigrid_vcycle as _rust_mg  # type: ignore[import-untyped]  # pragma: no cover
+        from scpn_control_rs import multigrid_vcycle as _rust_mg  # pragma: no cover
 
         result = _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)  # pragma: no cover
         return (np.asarray(result[0]), float(result[1]), int(result[2]), bool(result[3]))  # pragma: no cover
@@ -708,8 +709,8 @@ def rust_multigrid_vcycle(
 
 
 def _python_multigrid_vcycle(
-    source: np.ndarray,
-    psi_bc: np.ndarray,
+    source: AnyFloatArray,
+    psi_bc: AnyFloatArray,
     r_min: float,
     r_max: float,
     z_min: float,
@@ -718,11 +719,11 @@ def _python_multigrid_vcycle(
     nz: int,
     tol: float,
     max_cycles: int,
-) -> tuple[np.ndarray, float, int, bool]:
+) -> tuple[FloatArray, float, int, bool]:
     """Pure-Python multigrid V-cycle via FusionKernel methods."""
     from scpn_control.core.fusion_kernel import FusionKernel
 
-    source = np.ascontiguousarray(source, dtype=np.float64)
+    source = np.ascontiguousarray(source, dtype=np.float64).copy()
     psi = np.ascontiguousarray(psi_bc, dtype=np.float64).copy()
 
     R = np.linspace(r_min, r_max, nr)
@@ -774,7 +775,7 @@ class RustSPIMitigation:
                 raise ValueError(f"{name} must be finite and > 0, got {val}")
 
         try:
-            from scpn_control_rs import PySPIMitigation  # type: ignore[import-untyped]  # pragma: no cover
+            from scpn_control_rs import PySPIMitigation  # pragma: no cover
 
             self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)  # pragma: no cover
             self._use_rust = True  # pragma: no cover
@@ -784,14 +785,14 @@ class RustSPIMitigation:
             self._ip = ip_ma * 1e6  # A
             self._te = te_kev
 
-    def run(self) -> list[dict]:
+    def run(self) -> list[dict[str, Any]]:
         """Run full SPI simulation and return snapshot history."""
         if self._use_rust:  # pragma: no cover
             return list(self._inner.run())
 
         w_th, ip, te = self._w_th, self._ip, self._te
         n_steps = int(_SPI_T_TOTAL / _SPI_DT)
-        history: list[dict] = []
+        history: list[dict[str, Any]] = []
         t = 0.0
         phase = "Assimilation"
 
@@ -829,10 +830,10 @@ class RustSPIMitigation:
 
 
 def rust_svd_optimal_correction(
-    response_matrix: np.ndarray,
-    error: np.ndarray,
+    response_matrix: AnyFloatArray,
+    error: AnyFloatArray,
     gain: float = 0.8,
-) -> np.ndarray:
+) -> FloatArray:
     """SVD-based coil current correction. Uses Rust backend when available,
     falls back to NumPy SVD pseudoinverse.
 
@@ -851,7 +852,7 @@ def rust_svd_optimal_correction(
         Coil current deltas.
     """
     try:
-        from scpn_control_rs import svd_optimal_correction as _rust_svd  # type: ignore[import-untyped]  # pragma: no cover
+        from scpn_control_rs import svd_optimal_correction as _rust_svd  # pragma: no cover
 
         return np.asarray(  # pragma: no cover
             _rust_svd(
@@ -865,11 +866,11 @@ def rust_svd_optimal_correction(
 
 
 def _python_svd_optimal_correction(
-    response_matrix: np.ndarray,
-    error: np.ndarray,
+    response_matrix: AnyFloatArray,
+    error: AnyFloatArray,
     gain: float,
     sv_cutoff: float = 1e-6,
-) -> np.ndarray:
+) -> FloatArray:
     """Truncated SVD pseudoinverse with singular value cutoff.
 
     Matches Rust linalg.rs svd_optimal_correction algorithm.
