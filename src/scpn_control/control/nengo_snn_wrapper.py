@@ -33,9 +33,12 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
+
+from scpn_control._typing import AnyFloatArray
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +77,7 @@ class _Lowpass:
         self._decay = np.exp(-dt / tau) if tau > 0 else 0.0
         self._val = np.zeros(n)
 
-    def step(self, x: NDArray) -> NDArray:
+    def step(self, x: AnyFloatArray) -> AnyFloatArray:
         self._val = np.asarray(self._decay * self._val + (1.0 - self._decay) * x)
         return self._val
 
@@ -101,9 +104,9 @@ class _LIFPopulation:
         n: int,
         tau_rc: float,
         tau_ref: float,
-        max_rates: NDArray,
-        intercepts: NDArray,
-        encoders: NDArray,
+        max_rates: AnyFloatArray,
+        intercepts: AnyFloatArray,
+        encoders: AnyFloatArray,
         dt: float,
     ) -> None:
         self.n = n
@@ -119,7 +122,7 @@ class _LIFPopulation:
         self.voltage = np.zeros(n)
         self.ref_time = np.zeros(n)
 
-    def step(self, x: float) -> NDArray:
+    def step(self, x: float) -> AnyFloatArray:
         """One dt step. Returns spike rates (1/dt on spike, else 0)."""
         J = self.alpha * self.encoders * x + self.J_bias
         delta = np.clip(self.dt - self.ref_time, 0.0, self.dt)
@@ -132,7 +135,7 @@ class _LIFPopulation:
 
         return spiked.astype(np.float64) / self.dt
 
-    def steady_rates(self, x_eval: NDArray) -> NDArray:
+    def steady_rates(self, x_eval: AnyFloatArray) -> AnyFloatArray:
         """Analytic steady-state firing rates. Shape (n, len(x_eval))."""
         J = self.alpha[:, None] * self.encoders[:, None] * x_eval[None, :] + self.J_bias[:, None]
         rates = np.zeros_like(J)
@@ -148,7 +151,9 @@ class _LIFPopulation:
 from typing import Callable as _Callable
 
 
-def _nef_decoder(pop: _LIFPopulation, fn: _Callable[..., NDArray], n_eval: int = 200, reg: float = 0.1) -> NDArray:
+def _nef_decoder(
+    pop: _LIFPopulation, fn: _Callable[..., AnyFloatArray], n_eval: int = 200, reg: float = 0.1
+) -> AnyFloatArray:
     """Least-squares NEF decoder for target function fn(x).
 
     Tikhonov regularization matches Nengo's LstsqL2 default.
@@ -241,7 +246,7 @@ class NengoSNNController:
         self._built = False
         self._step_count = 0
         self._last_output = np.zeros(self.cfg.n_channels)
-        self._output_history: list[NDArray] = []
+        self._output_history: list[AnyFloatArray] = []
         self._output_probe_filt = _Lowpass(0.01, self.cfg.dt, self.cfg.n_channels)
 
         self.build_network()
@@ -296,11 +301,11 @@ class NengoSNNController:
         self._output_history.clear()
         self._output_probe_filt.reset()
 
-    def get_spike_data(self) -> dict[str, NDArray]:
+    def get_spike_data(self) -> dict[str, NDArray[Any]]:
         """Return probe data from simulation."""
         if not self._output_history:
             return {}
-        data: dict[str, NDArray] = {
+        data: dict[str, NDArray[Any]] = {
             "output": np.array(self._output_history),
         }
         for i, ch in enumerate(self._channels):
@@ -308,7 +313,7 @@ class NengoSNNController:
                 data[f"error_ch{i}"] = np.array(ch.probe_history)[:, None]
         return data
 
-    def export_weights(self) -> dict[str, NDArray]:
+    def export_weights(self) -> dict[str, AnyFloatArray]:
         """Extract decoder, encoder, and gain/bias arrays.
 
         Returns
@@ -318,7 +323,7 @@ class NengoSNNController:
         if not self._built:
             raise RuntimeError("Network not built.")
 
-        weights: dict[str, NDArray] = {}
+        weights: dict[str, AnyFloatArray] = {}
         for i, ch in enumerate(self._channels):
             weights[f"ch{i}_error_encoders"] = ch.error_pop.encoders.copy()
             weights[f"ch{i}_error_alpha"] = ch.error_pop.alpha.copy()
@@ -335,7 +340,7 @@ class NengoSNNController:
         path = Path(filename)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        payload: dict[str, NDArray] = {
+        payload: dict[str, NDArray[Any]] = {
             "n_neurons": np.array([self.cfg.n_neurons]),
             "n_channels": np.array([self.cfg.n_channels]),
             "dt": np.array([self.cfg.dt]),
