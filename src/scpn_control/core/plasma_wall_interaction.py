@@ -176,6 +176,23 @@ class WallThermalModel:
         self.alpha = self.kappa / (self.rho * self.cp)
 
     def step(self, dt: float, q_surface_MW_m2: float) -> float:
+        """Advance the 1-D wall heat-conduction model one step.
+
+        Integrates explicit conduction with a radiating front face and a fixed
+        coolant boundary, sub-cycling to satisfy the diffusion CFL limit.
+
+        Parameters
+        ----------
+        dt
+            Time step in seconds; must be positive.
+        q_surface_MW_m2
+            Incident surface heat flux in MW/m²; must be non-negative.
+
+        Returns
+        -------
+        float
+            The updated front-surface temperature in kelvin.
+        """
         if dt <= 0.0:
             raise ValueError("dt must be positive")
         if q_surface_MW_m2 < 0.0:
@@ -213,10 +230,19 @@ class WallThermalModel:
         return float(self.T_nodes[0])
 
     def is_melted(self) -> bool:
+        """Return whether the front surface has exceeded the melting point."""
         return bool(self.T_nodes[0] > self.T_melt)
 
 
 class TransientThermalLoad:
+    """Transient (ELM/disruption) surface heating and fatigue estimates.
+
+    Parameters
+    ----------
+    wall
+        The wall thermal model providing material properties.
+    """
+
     def __init__(self, wall: WallThermalModel):
         self.wall = wall
 
@@ -237,6 +263,22 @@ class TransientThermalLoad:
         return float(delta_T)
 
     def disruption_load(self, W_th_MJ: float, A_wet_m2: float, tau_TQ_ms: float = 1.0) -> float:
+        """Peak surface temperature rise from a thermal-quench heat pulse.
+
+        Parameters
+        ----------
+        W_th_MJ
+            Thermal energy deposited in MJ; must be non-negative.
+        A_wet_m2
+            Wetted area in m².
+        tau_TQ_ms
+            Thermal-quench duration in milliseconds.
+
+        Returns
+        -------
+        float
+            Peak surface temperature rise in kelvin.
+        """
         return self.elm_load(W_th_MJ, A_wet_m2, tau_TQ_ms)
 
     def n_elm_cycles_to_fatigue(self, delta_T_K: float, T_base_K: float = 600.0) -> int:
@@ -249,6 +291,25 @@ class TransientThermalLoad:
 
 @dataclass
 class LifetimeReport:
+    """Divertor-target lifetime assessment summary.
+
+    Attributes
+    ----------
+    erosion_mm_per_year
+        Net erosion rate in mm/year.
+    peak_T_steady_K
+        Steady-state peak surface temperature in kelvin.
+    peak_T_elm_K
+        Peak surface temperature including the ELM transient in kelvin.
+    n_cycles_to_fatigue
+        Estimated ELM cycles to thermal fatigue.
+    lifetime_years
+        Estimated component lifetime in years.
+    limiting_factor
+        The lifetime-limiting mechanism (``"Erosion"``, ``"Fatigue"``, or
+        ``"Melting"``).
+    """
+
     erosion_mm_per_year: float
     peak_T_steady_K: float
     peak_T_elm_K: float
@@ -258,6 +319,20 @@ class LifetimeReport:
 
 
 class DivertorLifetimeAssessment:
+    """Divertor lifetime assessment coupling SOL, sputtering, erosion, and heat.
+
+    Parameters
+    ----------
+    sol
+        Two-point SOL model for target conditions.
+    sputtering
+        Sputtering-yield model.
+    erosion
+        Erosion-rate model.
+    wall
+        Wall thermal model.
+    """
+
     def __init__(self, sol: TwoPointSOL, sputtering: SputteringYield, erosion: ErosionModel, wall: WallThermalModel):
         self.sol = sol
         self.sputtering = sputtering
@@ -266,6 +341,25 @@ class DivertorLifetimeAssessment:
         self.transient = TransientThermalLoad(wall)
 
     def assess(self, P_SOL_MW: float, n_u_19: float, f_ELM_Hz: float, delta_W_ELM_MJ: float) -> LifetimeReport:
+        """Estimate divertor lifetime from steady, erosion, and ELM-fatigue limits.
+
+        Parameters
+        ----------
+        P_SOL_MW
+            Scrape-off-layer power in MW.
+        n_u_19
+            Upstream density in 10¹⁹ m⁻³.
+        f_ELM_Hz
+            ELM frequency in Hz.
+        delta_W_ELM_MJ
+            Energy expelled per ELM in MJ.
+
+        Returns
+        -------
+        LifetimeReport
+            Erosion rate, peak temperatures, fatigue cycles, lifetime, and the
+            limiting mechanism.
+        """
         sol_res = self.sol.solve(P_SOL_MW, n_u_19)
         T_t = sol_res.T_target_eV
         q_steady = sol_res.q_parallel_MW_m2
