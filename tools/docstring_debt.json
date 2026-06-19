@@ -7,13 +7,12 @@
     "D104",
     "D106"
   ],
-  "total": 441,
+  "total": 429,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
     "scpn_control.control.burn_controller": 3,
     "scpn_control.control.codac_interface": 3,
-    "scpn_control.control.density_controller": 12,
     "scpn_control.control.detachment_controller": 7,
     "scpn_control.control.digital_twin_ingest": 4,
     "scpn_control.control.director_interface": 2,

@@ -35,6 +35,25 @@ _BOUNDED_DENSITY_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference"
 
 
 class ParticleTransportModel:
+    """Radial particle-transport plant for the density-control loop.
+
+    Integrates the flux-surface-averaged continuity equation
+    ``∂_t n = -V'^{-1} ∂_ρ (V' Γ) + S`` with anomalous flux
+    ``Γ = -D ∂_r n + V_pinch n`` on a uniform ``rho = r/a`` grid, using an
+    explicit forward-Euler step clamped to the diffusion CFL limit. Source and
+    sink terms (gas puff, pellet, NBI, recycling, cryopump) are supplied by the
+    dedicated methods. A circular cross-section sets the volume elements.
+
+    Parameters
+    ----------
+    n_rho
+        Number of radial grid points; must be at least 2.
+    R0
+        Major radius in metres; must be finite and positive.
+    a
+        Minor radius in metres; must be finite and positive.
+    """
+
     def __init__(self, n_rho: int = 50, R0: float = 6.2, a: float = 2.0):
         if n_rho < 2:
             raise ValueError("n_rho must be at least 2 for a physical radial grid.")
@@ -58,6 +77,23 @@ class ParticleTransportModel:
         self.V_prime = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.rho
 
     def set_transport(self, D: AnyFloatArray, V_pinch: AnyFloatArray) -> None:
+        """Override the diffusivity and pinch-velocity radial profiles.
+
+        Parameters
+        ----------
+        D
+            Particle diffusivity in m²/s, shape ``(n_rho,)``; finite and
+            non-negative.
+        V_pinch
+            Pinch velocity in m/s, shape ``(n_rho,)`` (negative is inward);
+            finite.
+
+        Raises
+        ------
+        ValueError
+            If a profile has the wrong shape, is non-finite, or ``D`` is
+            negative.
+        """
         D_arr = self._validate_profile(D, "D")
         if np.any(D_arr < 0.0):
             raise ValueError("D must be non-negative.")
@@ -189,6 +225,30 @@ class ParticleTransportModel:
         return self.gas_puff_source(outflux * recycling_coeff, penetration_depth=0.02)
 
     def step(self, ne: AnyFloatArray, sources: AnyFloatArray, dt: float) -> FloatArray:
+        """Advance the density profile by one CFL-limited diffusion step.
+
+        Parameters
+        ----------
+        ne
+            Current electron-density profile in m⁻³, shape ``(n_rho,)``.
+        sources
+            Net particle source profile in m⁻³ s⁻¹, shape ``(n_rho,)``.
+        dt
+            Requested time step in seconds; clamped to the explicit-diffusion
+            CFL limit ``(drho a)² / (2 D_max)`` when larger.
+
+        Returns
+        -------
+        FloatArray
+            Updated density profile in m⁻³, floored at 1e16 m⁻³, shape
+            ``(n_rho,)``.
+
+        Raises
+        ------
+        ValueError
+            If profiles are mis-shaped or negative, or ``dt`` is not finite and
+            positive.
+        """
         ne_arr = self._validate_profile(ne, "ne")
         sources_arr = self._validate_profile(sources, "sources")
         if np.any(ne_arr < 0.0):
@@ -230,6 +290,20 @@ class ParticleTransportModel:
 
 @dataclass
 class ActuatorCommand:
+    """Fuelling and pumping set-points emitted by the density controller.
+
+    Attributes
+    ----------
+    gas_puff_rate
+        Gas-puff particle rate in particles/s.
+    pellet_freq
+        Pellet injection frequency in Hz.
+    pellet_speed
+        Pellet velocity in m/s.
+    cryo_pump_speed
+        Cryopump pumping speed in facility units.
+    """
+
     gas_puff_rate: float
     pellet_freq: float
     pellet_speed: float
@@ -314,9 +388,30 @@ class DensityController:
         self.integral_error = 0.0
 
     def set_target(self, ne_target: AnyFloatArray) -> None:
+        """Set the target electron-density profile.
+
+        Parameters
+        ----------
+        ne_target
+            Desired density profile in m⁻³, shape ``(n_rho,)``; finite and
+            non-negative.
+        """
         self.ne_target = self._validate_density_profile(ne_target, "ne_target")
 
     def set_constraints(self, n_GW: float, gas_max: float, pellet_freq_max: float, pump_max: float) -> None:
+        """Set the Greenwald density limit and actuator saturation bounds.
+
+        Parameters
+        ----------
+        n_GW
+            Greenwald density limit in m⁻³; must be positive.
+        gas_max
+            Maximum gas-puff rate in particles/s; must be non-negative.
+        pellet_freq_max
+            Maximum pellet frequency in Hz; must be non-negative.
+        pump_max
+            Maximum cryopump speed; must be non-negative.
+        """
         self.n_GW = self._validate_positive_scalar(n_GW, "n_GW")
         self.gas_max = self._validate_non_negative_scalar(gas_max, "gas_max")
         self.pellet_freq_max = self._validate_non_negative_scalar(pellet_freq_max, "pellet_freq_max")
@@ -360,6 +455,23 @@ class DensityController:
         return bool(n_avg < _GW_ITER_SAFETY_MARGIN * self.n_GW)
 
     def step(self, ne_measured: AnyFloatArray) -> ActuatorCommand:
+        """Compute one PI control action with Greenwald-limit enforcement.
+
+        The volume-integrated particle error drives a PI command; gas puffing
+        and pellets fuel a deficit while the cryopump removes excess. Above the
+        hard Greenwald fraction (0.95) the pump saturates regardless of the PI
+        term.
+
+        Parameters
+        ----------
+        ne_measured
+            Measured electron-density profile in m⁻³, shape ``(n_rho,)``.
+
+        Returns
+        -------
+        ActuatorCommand
+            Fuelling and pumping set-points for this control cycle.
+        """
         ne_arr = self._validate_density_profile(ne_measured, "ne_measured")
         vol = np.sum(self.model.V_prime * self.model.drho)
         N_meas = np.sum(ne_arr * self.model.V_prime * self.model.drho)
@@ -534,6 +646,21 @@ def save_density_control_claim_evidence(evidence: DensityControlClaimEvidence, p
 
 
 class KalmanDensityEstimator:
+    """Linear Kalman filter reconstructing the density profile from interferometry.
+
+    The state is the radial density profile; the measurement model is the
+    Abel-transform line integral along ``n_chords`` interferometer chords. The
+    initial state and the process/measurement covariances are scaled to m⁻³
+    magnitudes.
+
+    Parameters
+    ----------
+    n_rho
+        Number of radial state grid points.
+    n_chords
+        Number of interferometer chords (measurements).
+    """
+
     def __init__(self, n_rho: int, n_chords: int = 8):
         self.n_rho = n_rho
         self.n_chords = n_chords
@@ -554,11 +681,42 @@ class KalmanDensityEstimator:
         return C
 
     def predict(self, ne: AnyFloatArray, dt: float) -> AnyFloatArray:
+        """Propagate the state and inflate its covariance by process noise.
+
+        Parameters
+        ----------
+        ne
+            Predicted density profile in m⁻³, shape ``(n_rho,)``, used as the
+            propagated state mean.
+        dt
+            Time step in seconds scaling the process-noise increment.
+
+        Returns
+        -------
+        AnyFloatArray
+            The predicted state (density profile) in m⁻³, shape ``(n_rho,)``.
+        """
         self.x = ne
         self.P = self.P + self.Q * dt
         return self.x
 
     def update(self, ne_pred: AnyFloatArray, measurements: AnyFloatArray, chord_angles: AnyFloatArray) -> AnyFloatArray:
+        """Correct the predicted state with chord measurements (Kalman update).
+
+        Parameters
+        ----------
+        ne_pred
+            Predicted density profile in m⁻³, shape ``(n_rho,)``.
+        measurements
+            Line-integrated chord measurements, shape ``(n_chords,)``.
+        chord_angles
+            Chord impact geometry passed to :meth:`measurement_matrix`.
+
+        Returns
+        -------
+        AnyFloatArray
+            Posterior density estimate in m⁻³, shape ``(n_rho,)``.
+        """
         C = self.measurement_matrix(chord_angles)
         S = C @ self.P @ C.T + self.R
         K = self.P @ C.T @ np.linalg.inv(S)
@@ -570,12 +728,26 @@ class KalmanDensityEstimator:
 
 @dataclass
 class PelletSchedule:
+    """Timed pellet-injection sequence.
+
+    Attributes
+    ----------
+    times
+        Injection times in seconds.
+    speeds
+        Pellet velocities in m/s, one per injection.
+    sizes
+        Pellet radii in mm, one per injection.
+    """
+
     times: list[float]
     speeds: list[float]
     sizes: list[float]
 
 
 class FuelingOptimizer:
+    """Plan evenly-spaced pellet-injection sequences toward a target density."""
+
     def optimize_pellet_sequence(
         self, ne_current: AnyFloatArray, ne_target: AnyFloatArray, n_pellets: int, time_horizon: float
     ) -> PelletSchedule:
