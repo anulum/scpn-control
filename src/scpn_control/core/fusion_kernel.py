@@ -27,9 +27,11 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 from scipy.special import ellipe, ellipk
@@ -63,7 +65,6 @@ _BH_C6 = -1.06750e-4  # keV^-3
 _BH_C7 = 1.36600e-5  # keV^-3
 
 # ── Type aliases ──────────────────────────────────────────────────────
-FloatArray = NDArray[np.float64]
 BoolArray = NDArray[np.bool_]
 
 
@@ -251,11 +252,11 @@ class FusionKernelConfig(BaseModel):
 def _parse_fusion_kernel_config(raw: Any) -> FusionKernelConfig:
     if not isinstance(raw, dict):
         raise ValueError("fusion kernel config root must be a JSON object.")
-    return cast(FusionKernelConfig, FusionKernelConfig.model_validate(raw))
+    return FusionKernelConfig.model_validate(raw)
 
 
 def _fusion_kernel_config_dump(config: FusionKernelConfig) -> dict[str, Any]:
-    validated = cast(dict[str, Any], config.model_dump(mode="python", exclude_none=True))
+    validated = config.model_dump(mode="python", exclude_none=True)
     validated["grid_resolution"] = list(validated["grid_resolution"])
     return validated
 
@@ -314,21 +315,21 @@ class CoilSet:
     ----------
     positions : list of (R, Z) tuples
         Coil centre coordinates [m].
-    currents : NDArray
+    currents : AnyFloatArray
         Current per coil [A].
     turns : list of int
         Number of turns per coil.
-    current_limits : NDArray or None
+    current_limits : AnyFloatArray or None
         Per-coil maximum absolute current [A].  Shape ``(n_coils,)``.
         When set, ``optimize_coil_currents`` enforces these bounds.
-    target_flux_points : NDArray or None
+    target_flux_points : AnyFloatArray or None
         Points ``(R, Z)`` on the desired separatrix for shape optimisation.
         Shape ``(n_pts, 2)``.
-    target_flux_values : NDArray or None
+    target_flux_values : AnyFloatArray or None
         Explicit target flux values at ``target_flux_points``.  When set, the
         free-boundary shape objective becomes an actual target-tracking problem
         instead of reproducing the current solved boundary flux.
-    x_point_target : NDArray or None
+    x_point_target : AnyFloatArray or None
         Explicit X-point target location ``(R, Z)``. When set, the free-boundary
         objective can enforce null-field and isoflux constraints there.
     x_point_flux_target : float or None
@@ -339,10 +340,10 @@ class CoilSet:
         Weight applied to the X-point isoflux objective row.
     x_point_null_weight : float
         Weight applied to the X-point null-field objective rows.
-    divertor_strike_points : NDArray or None
+    divertor_strike_points : AnyFloatArray or None
         Explicit divertor strike-point targets ``(R, Z)``. These are enforced
         as isoflux constraints during free-boundary optimisation.
-    divertor_flux_values : NDArray or None
+    divertor_flux_values : AnyFloatArray or None
         Optional target flux value at each divertor strike point.
     divertor_weight : float
         Weight applied to divertor strike-point isoflux constraints.
@@ -1574,7 +1575,7 @@ class FusionKernel:
                 dJ_dpsi = self._compute_profile_jacobian(Psi_axis, Psi_boundary, mu0)
                 diag_term = -mu0 * self.RR * dJ_dpsi  # the source derivative
 
-                def matvec(v_flat: np.ndarray, _dt: np.ndarray = diag_term) -> np.ndarray:  # noqa: B006
+                def matvec(v_flat: AnyFloatArray, _dt: AnyFloatArray = diag_term) -> FloatArray:  # noqa: B006
                     v2d = np.zeros((NZ, NR_grid))
                     v2d[1:-1, 1:-1] = v_flat.reshape(NZ - 2, NR_grid - 2)
                     Lv = self._apply_gs_operator(v2d)
@@ -1677,8 +1678,8 @@ class FusionKernel:
         # Sync state back
         self.Psi = rk.Psi
         self.J_phi = rk.J_phi
-        self.B_R: np.ndarray = rk.B_R
-        self.B_Z: np.ndarray = rk.B_Z
+        self.B_R: AnyFloatArray = rk.B_R
+        self.B_Z: AnyFloatArray = rk.B_Z
 
         mu0: float = self.cfg["physics"]["vacuum_permeability"]
         source = -mu0 * self.RR * self.J_phi
@@ -1963,7 +1964,7 @@ class FusionKernel:
         psi = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / k2
         return np.asarray(np.where(active, psi, 0.0), dtype=np.float64)
 
-    def _compute_external_flux(self, coils: Any) -> np.ndarray:
+    def _compute_external_flux(self, coils: Any) -> FloatArray:
         """Sum Green's function contributions on boundary from CoilSet."""
         NR, NZ = len(self.R), len(self.Z)
         psi_ext = np.zeros((NZ, NR))
@@ -2033,7 +2034,7 @@ class FusionKernel:
         sample_fn: Any,
         R_pt: float,
         Z_pt: float,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[FloatArray, FloatArray]:
         """Estimate d/dR and d/dZ using central or one-sided finite differences."""
         r_min = float(self.R[0])
         r_max = float(self.R[-1])
@@ -2396,7 +2397,7 @@ class FusionKernel:
         -------
         dict
             ``{"outer_iterations": int, "final_diff": float,
-            "coil_currents": NDArray}``
+            "coil_currents": AnyFloatArray}``
         """
         psi_ext = self._compute_external_flux(coils)
         shape_error_history: list[float] = []

@@ -27,9 +27,9 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 
-FloatArray = NDArray[np.float64]
+from scpn_control._typing import FloatArray
+
 
 ITER_B0_VACUUM_T = 5.3  # T, ITER Design Description Document §2.1
 
@@ -73,7 +73,7 @@ def from_kernel(kernel: Any, time: float = 0.0) -> EquilibriumIDS:
     )
 
 
-def to_kernel_arrays(ids: EquilibriumIDS) -> dict:
+def to_kernel_arrays(ids: EquilibriumIDS) -> dict[str, Any]:
     """Convert EquilibriumIDS to arrays compatible with FusionKernel init."""
     return {
         "R": ids.r.copy(),
@@ -92,7 +92,7 @@ def to_omas(ids: EquilibriumIDS) -> Any:
     Returns None if omas is not installed.
     """
     try:
-        from omas import ODS  # type: ignore[import-untyped]
+        from omas import ODS
     except ImportError:
         return None
 

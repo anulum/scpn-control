@@ -131,6 +131,17 @@ files = [
 [[tool.mypy.overrides]]
 module = [
     "scpn_control._typing",
+    "scpn_control.core.fusion_kernel",
+    "scpn_control.control.fusion_control_room",
+    "scpn_control.control.free_boundary_tracking",
+    "scpn_control.core.eped_pedestal",
+    "scpn_control.core.gk_qualikiz",
+    "scpn_control.core.imas_adapter",
+    "scpn_control.control.codac_interface",
+    "scpn_control.core.gk_tglf_native",
+    "scpn_control.core.hpc_bridge",
+    "scpn_control.core.rust_engine",
+    "scpn_control.core.stellarator_geometry",
     "scpn_control.control.federated_disruption",
     "scpn_control.control.gym_tokamak_env",
     "scpn_control.core.lh_transition",

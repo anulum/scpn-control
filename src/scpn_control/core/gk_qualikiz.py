@@ -28,7 +28,7 @@ _logger = logging.getLogger(__name__)
 def _try_qualikiz_python(params: GKLocalParams) -> GKOutput | None:
     """Try running QuaLiKiz via Python API."""
     try:
-        import qualikiz_tools  # type: ignore[import-not-found]
+        import qualikiz_tools
 
         result = qualikiz_tools.run(
             Rmin=params.rho,
@@ -76,7 +76,7 @@ class QuaLiKizSolver(GKSolverBase):
 
     def is_available(self) -> bool:
         try:
-            import qualikiz_tools  # type: ignore[import-not-found]  # noqa: F401
+            import qualikiz_tools  # noqa: F401
 
             return True
         except ImportError:

@@ -389,7 +389,7 @@ class CODACInterface:
         """Single control cycle: pack -> step -> unpack."""
         self._cycle_timer.start_cycle()
         obs = self.pack_observation(pv_values)
-        action = self.controller.step(obs, self._step_k)  # type: ignore[union-attr]
+        action = self.controller.step(obs, self._step_k)
         self._step_k += 1
         result = self.unpack_action(action)
         self._cycle_timer.end_cycle()

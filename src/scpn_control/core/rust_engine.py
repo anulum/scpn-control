@@ -847,7 +847,7 @@ class NeuroCyberneticEngine:
                     },
                 }
             else:
-                native_summary["execution"] = dict(native_summary.get("execution", {}))  # type: ignore[assignment]
+                native_summary["execution"] = dict(native_summary.get("execution", {}))
                 native_summary.setdefault("mode", "native")
                 native_summary.setdefault("heartbeat_enabled", bool(self._transport.heartbeat_port > 0))
             native_steps = _coerce_telemetry_int(

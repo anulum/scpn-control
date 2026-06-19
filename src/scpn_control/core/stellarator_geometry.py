@@ -26,9 +26,10 @@ Beidler, C. D. et al., Nucl. Fusion 51 (2011) 076001.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Tuple, cast
+from typing import Any, Tuple
 
 import numpy as np
+
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -160,7 +161,7 @@ class StellaratorConfig:
     def model_json_schema(cls) -> dict[str, Any]:
         """Return the Pydantic JSON Schema for stellarator configuration."""
 
-        return cast(dict[str, Any], StellaratorConfigSchema.model_json_schema())
+        return StellaratorConfigSchema.model_json_schema()
 
 
 def w7x_config() -> StellaratorConfig:

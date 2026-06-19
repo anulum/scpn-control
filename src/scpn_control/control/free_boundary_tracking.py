@@ -32,14 +32,14 @@ from pathlib import Path
 from typing import Any, Callable, cast
 
 import numpy as np
-from numpy.typing import NDArray
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 
 from scpn_control.control.tokamak_flight_sim import FirstOrderActuator
 from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
 from scpn_control.control.state_estimator import ExtendedKalmanFilter
 
 logger = logging.getLogger(__name__)
-FloatArray = NDArray[np.float64]
 _FREE_BOUNDARY_CLAIM_SCHEMA_VERSION = 1
 _FACILITY_FREE_BOUNDARY_REFERENCE_SOURCES = frozenset(
     {"documented_public_reference", "measured_free_boundary_replay", "external_equilibrium_benchmark"}
@@ -771,7 +771,7 @@ class FreeBoundaryTrackingController:
     def _resolve_measurement_vector(self, raw_value: Any, *, name: str) -> FloatArray:  # pragma: no cover
         vector = np.zeros_like(self.target_vector, dtype=np.float64)
         if raw_value is None:
-            return cast(FloatArray, vector)
+            return vector
         if not isinstance(raw_value, dict):
             raise ValueError(f"{name} must be a mapping of objective block names to finite scalars or vectors.")
 
@@ -1109,7 +1109,7 @@ class FreeBoundaryTrackingController:
                 raise ValueError(f"Unknown objective block {block.name!r}.")
             if relevant and all(objective_checks.get(key, False) for key in relevant):
                 mask[block.start : block.stop] = 0.0
-        return cast(FloatArray, mask)
+        return mask
 
     def _build_coil_penalties(self, delta_hint: FloatArray) -> FloatArray:  # pragma: no cover
         headrooms = np.ones(self.n_coils, dtype=np.float64)
@@ -1210,7 +1210,7 @@ class FreeBoundaryTrackingController:
         )
         return metrics_after, true_metrics_after, supervisor_after, max_abs_actuator_lag, fallback_active
 
-    def evaluate_objectives(self, observation: np.ndarray) -> dict[str, Any]:
+    def evaluate_objectives(self, observation: AnyFloatArray) -> dict[str, Any]:
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
         error = self.target_vector - obs
         metrics: dict[str, Any] = {
@@ -1684,7 +1684,7 @@ class FreeBoundaryTrackingController:
 
         return z if found_rz else None
 
-    def _map_ekf_to_observation(self, observation: FloatArray, x_ekf: np.ndarray) -> FloatArray:
+    def _map_ekf_to_observation(self, observation: FloatArray, x_ekf: AnyFloatArray) -> FloatArray:
         """Inject EKF estimate [R, Z] back into observation vector."""
         refined = observation.copy()
         for block in self.objective_blocks:

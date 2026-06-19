@@ -23,12 +23,15 @@ from typing import Any, Callable
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 logger = logging.getLogger(__name__)
 from scpn_control.control import solve_kernel
 
 try:
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation, PillowWriter
+    from matplotlib.patches import Rectangle
 
     HAS_MPL = True
 except ImportError:
@@ -70,7 +73,7 @@ class TokamakPhysicsEngine:
         self.R = np.linspace(1.0, 5.0, self.size)
         self.Z = np.linspace(-3.0, 3.0, self.size)
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
-        self.density: np.ndarray = np.zeros((self.size, self.size), dtype=np.float64)
+        self.density: AnyFloatArray = np.zeros((self.size, self.size), dtype=np.float64)
 
         # ITER design: R0=6.2 m, a=2.0 m, κ=1.7, δ=0.33
         # Scaled to R0=3.0, a=1.0 for reduced-grid demo (same aspect ratio)
@@ -84,7 +87,7 @@ class TokamakPhysicsEngine:
         self.z_pos = 0.0
         self.v_drift = 0.0
 
-    def _kernel_psi(self, *, strict: bool = False) -> np.ndarray | None:
+    def _kernel_psi(self, *, strict: bool = False) -> FloatArray | None:
         if self.kernel is None or not hasattr(self.kernel, "Psi"):
             return None
         psi = np.asarray(self.kernel.Psi, dtype=np.float64)
@@ -98,7 +101,7 @@ class TokamakPhysicsEngine:
             return None
         return psi
 
-    def solve_flux_surfaces(self) -> tuple[np.ndarray, np.ndarray]:
+    def solve_flux_surfaces(self) -> tuple[AnyFloatArray, FloatArray]:
         """
         Return `(density, psi)` from kernel state when available, otherwise
         from analytic Miller-parameterized geometry.
@@ -238,7 +241,7 @@ def _render_outputs(
 
     (top_marker,) = ax_plasma.plot(3.0, 2.9, "s", color="red", markersize=20, alpha=0.3)
     (bot_marker,) = ax_plasma.plot(3.0, -2.9, "s", color="blue", markersize=20, alpha=0.3)
-    wall = plt.Rectangle(
+    wall = Rectangle(
         (extent[0], extent[2] + 0.2),
         extent[1] - extent[0],
         (extent[3] - extent[2]) - 0.4,
@@ -248,7 +251,7 @@ def _render_outputs(
     )
     ax_plasma.add_patch(wall)
 
-    def update(frame_idx: int) -> tuple:
+    def update(frame_idx: int) -> tuple[Any, ...]:
         rec = frames[frame_idx]
         im.set_data(np.asarray(rec["density"]))
         line_z.set_data(range(frame_idx + 1), history_z[: frame_idx + 1])

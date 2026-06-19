@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
 from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
     """Return ``array`` as C-contiguous ``float64`` with minimal copying."""
     if isinstance(array, np.ndarray) and array.dtype == np.float64 and array.flags.c_contiguous:
         return array  # type: ignore[return-value]
-    return np.ascontiguousarray(array, dtype=np.float64)  # type: ignore[return-value]
+    return np.ascontiguousarray(array, dtype=np.float64)
 
 
 def _require_c_contiguous_f64(

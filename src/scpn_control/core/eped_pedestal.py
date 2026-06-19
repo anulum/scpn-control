@@ -12,9 +12,11 @@ from __future__ import annotations
 import dataclasses
 import math
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
@@ -138,7 +140,7 @@ class EPEDConfig:
     @classmethod
     def model_json_schema(cls) -> dict[str, Any]:
         """Return the JSON Schema for serialized EPED pedestal configurations."""
-        return cast(dict[str, Any], EPEDConfigSchema.model_json_schema())
+        return EPEDConfigSchema.model_json_schema()
 
 
 @dataclass
@@ -305,7 +307,7 @@ def eped1_predict(config: EPEDConfig) -> EPEDResult:
     )
 
 
-def eped1_scan(config: EPEDConfig, ne_ped_range: np.ndarray) -> list[EPEDResult]:
+def eped1_scan(config: EPEDConfig, ne_ped_range: AnyFloatArray) -> list[EPEDResult]:
     """Scan pedestal density across operating space."""
     ne_values = np.asarray(ne_ped_range, dtype=float)
     if ne_values.ndim != 1 or ne_values.size == 0:
@@ -327,7 +329,7 @@ class PedestalProfileGenerator:
         if self.ne_sep >= self.res.n_ped_19:
             raise ValueError("ne_sep_19 must be below the pedestal-top density")
 
-    def generate(self, rho: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def generate(self, rho: AnyFloatArray) -> tuple[FloatArray, FloatArray]:
         """
         Produce (Te, ne) via mtanh.
 
@@ -343,7 +345,7 @@ class PedestalProfileGenerator:
         if np.any(np.diff(rho) <= 0.0):
             raise ValueError("rho must be strictly increasing")
 
-        def _mtanh(r: np.ndarray, height: float, sep: float) -> np.ndarray:
+        def _mtanh(r: AnyFloatArray, height: float, sep: float) -> FloatArray:
             z = 2.0 * (rho_sym - r) / max(width / 2.0, 1e-3)
             prof = np.asarray((height - sep) / 2.0 * (np.tanh(z) + 1.0) + sep)
             prof[r >= 1.0] = sep
