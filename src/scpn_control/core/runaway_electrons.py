@@ -67,6 +67,26 @@ def _validate_params(params: "RunawayParams") -> "RunawayParams":
 
 @dataclass
 class RunawayParams:
+    """Plasma parameters for runaway-electron generation.
+
+    Attributes
+    ----------
+    ne_20
+        Electron density in 10²⁰ m⁻³.
+    Te_keV
+        Electron temperature in keV.
+    E_par
+        Parallel electric field in V/m.
+    Z_eff
+        Effective ion charge.
+    B0
+        Toroidal field on axis in tesla.
+    R0
+        Major radius in metres.
+    a
+        Minor radius in metres.
+    """
+
     ne_20: float  # electron density [10^20 m^-3]
     Te_keV: float  # electron temperature [keV]
     E_par: float  # parallel electric field [V/m]
@@ -273,10 +293,34 @@ def synchrotron_energy_limit(E_par: float, E_c: float) -> float:
 
 
 class RunawayEvolution:
+    """Runaway-electron density evolution from Dreicer and avalanche generation.
+
+    Parameters
+    ----------
+    params
+        The plasma parameters driving runaway generation.
+    """
+
     def __init__(self, params: RunawayParams) -> None:
         self.params = _validate_params(params)
 
     def step(self, dt: float, n_RE: float, E_par: float) -> float:
+        """Advance the runaway density one step with the current field.
+
+        Parameters
+        ----------
+        dt
+            Time step in seconds; must be positive.
+        n_RE
+            Current runaway-electron density; must be non-negative.
+        E_par
+            Parallel electric field in V/m.
+
+        Returns
+        -------
+        float
+            The updated runaway-electron density.
+        """
         dt = _positive_float("dt", dt)
         n_RE = _nonnegative_float("n_RE", n_RE)
         self.params.E_par = _finite_float("E_par", E_par)
@@ -293,6 +337,24 @@ class RunawayEvolution:
         t_span: tuple[float, float],
         dt: float,
     ) -> tuple[FloatArray, FloatArray]:
+        """Integrate the runaway density over a time span with a field profile.
+
+        Parameters
+        ----------
+        n_RE_0
+            Initial runaway-electron density; must be non-negative.
+        E_par_profile
+            Callable ``t -> E_par`` giving the parallel field in V/m.
+        t_span
+            ``(t_start, t_end)`` in seconds with ``t_end > t_start``.
+        dt
+            Time step in seconds; must be positive.
+
+        Returns
+        -------
+        tuple[FloatArray, FloatArray]
+            The time grid and the runaway-density trace.
+        """
         dt = _positive_float("dt", dt)
         n_RE_0 = _nonnegative_float("n_RE_0", n_RE_0)
         t_start, t_end = t_span
@@ -328,6 +390,8 @@ class RunawayEvolution:
 
 
 class RunawayMitigationAssessment:
+    """Runaway-electron mitigation thresholds such as collisional suppression."""
+
     @staticmethod
     def required_density_for_suppression(E_par: float, Z_eff: float, Te_keV: float = 1.0) -> float:
         """Electron density [10^20 m^-3] required to raise E_c above E_par.
