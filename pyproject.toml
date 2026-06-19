@@ -108,7 +108,7 @@ where = ["src"]
 "scpn_control.scpn" = ["replay_schemas/*.json"]
 
 [tool.mypy]
-strict = false
+strict = true
 warn_return_any = true
 warn_unused_configs = true
 check_untyped_defs = true
@@ -117,131 +117,6 @@ ignore_missing_imports = true
 files = [
     "src/scpn_control/",
 ]
-
-# Per-module strict typing for the control/config boundary modules. The strict
-# component flags are listed explicitly because mypy applies the `strict = true`
-# meta-flag globally even inside a per-module override, silently enforcing strict
-# checks across the whole package. Only flags mypy accepts per-module are listed
-# (warn_redundant_casts and warn_unused_configs are global-only).
-#
-# Fully strict (including disallow_any_generics): these modules carry no bare
-# numpy.ndarray or other unparametrised generics, so they enforce the full strict
-# component set plus generic-argument enforcement. New modules join here as their
-# strict debt is retired in the staged migration to global `strict = true`.
-[[tool.mypy.overrides]]
-module = [
-    "scpn_control._typing",
-    "scpn_control.core.fusion_kernel",
-    "scpn_control.control.fusion_control_room",
-    "scpn_control.control.free_boundary_tracking",
-    "scpn_control.core.eped_pedestal",
-    "scpn_control.core.gk_qualikiz",
-    "scpn_control.core.imas_adapter",
-    "scpn_control.control.codac_interface",
-    "scpn_control.core.gk_tglf_native",
-    "scpn_control.core.hpc_bridge",
-    "scpn_control.core.rust_engine",
-    "scpn_control.core.stellarator_geometry",
-    "scpn_control.control.federated_disruption",
-    "scpn_control.control.gym_tokamak_env",
-    "scpn_control.core.lh_transition",
-    "scpn_control.control.digital_twin_online_update",
-    "scpn_control.control.disruption_predictor",
-    "scpn_control.control.h_infinity_controller",
-    "scpn_control.control.hil_harness",
-    "scpn_control.control.quantum_disruption_bridge",
-    "scpn_control.control.scenario_scheduler",
-    "scpn_control.control.shape_controller",
-    "scpn_control.control.state_estimator",
-    "scpn_control.control.fault_tolerant_control",
-    "scpn_control.core.ballooning_solver",
-    "scpn_control.core.gyrokinetic_transport",
-    "scpn_control.core.marfe",
-    "scpn_control.core.neoclassical",
-    "scpn_control.control.fusion_optimal_control",
-    "scpn_control.core.alfven_eigenmodes",
-    "scpn_control.core.plasma_startup",
-    "scpn_control.core.tearing_mode_coupling",
-    "scpn_control.control.analytic_solver",
-    "scpn_control.control.tokamak_digital_twin",
-    "scpn_control.core.gk_online_learner",
-    "scpn_control.core.pellet_injection",
-    "scpn_control.scpn.structure",
-    "scpn_control.core.integrated_scenario",
-    "scpn_control.core.neural_equilibrium",
-    "scpn_control.control.fusion_sota_mpc",
-    "scpn_control.control.mu_synthesis",
-    "scpn_control.core.vmec_lite",
-    "scpn_control.core.orbit_following",
-    "scpn_control.control.burn_controller",
-    "scpn_control.control.gain_scheduled_controller",
-    "scpn_control.control.safe_rl_controller",
-    "scpn_control.core.sawtooth",
-    "scpn_control.core.current_diffusion",
-    "scpn_control.core.kinetic_efit",
-    "scpn_control.core.uncertainty",
-    "scpn_control.core.neural_turbulence",
-    "scpn_control.core.impurity_transport",
-    "scpn_control.core.blob_transport",
-    "scpn_control.core.current_drive",
-    "scpn_control.core.momentum_transport",
-    "scpn_control.core.integrated_transport_solver",
-    "scpn_control.core.runtime_admission",
-    "scpn_control.core.tokamak_config",
-    "scpn_control.core.checkpoint",
-    "scpn_control.scpn.observation",
-    "scpn_control.scpn.geometry_neutral_replay",
-    "scpn_control.control.density_controller",
-    "scpn_control.control.realtime_efit",
-    "scpn_control.control.volt_second_manager",
-    "scpn_control.control.rzip_model",
-    "scpn_control.control.rwm_feedback",
-    "scpn_control.phase.adaptive_knm",
-    "scpn_control.phase.kuramoto",
-    "scpn_control.phase.lyapunov_guard",
-    "scpn_control.phase.realtime_monitor",
-    "scpn_control.phase.upde",
-    "scpn_control.phase.ws_phase_stream",
-    "scpn_control.scpn.contracts",
-    "scpn_control.scpn.fpga_export",
-    "scpn_control.core.disruption_sequence",
-    "scpn_control.core.elm_model",
-    "scpn_control.core.eqdsk",
-    "scpn_control.core.gk_ood_detector",
-    "scpn_control.core.gk_tglf",
-    "scpn_control.core.gk_verification_report",
-    "scpn_control.core.locked_mode",
-    "scpn_control.core.mdsplus_acquisition",
-    "scpn_control.core.ntm_dynamics",
-    "scpn_control.core.pedestal",
-    "scpn_control.core.runaway_electrons",
-    "scpn_control.core.scaling_laws",
-    "scpn_control.core.vessel_model",
-    "scpn_control.control.advanced_soc_fusion_learning",
-    "scpn_control.control.detachment_controller",
-    "scpn_control.control.halo_re_physics",
-    "scpn_control.control.neuro_cybernetic_controller",
-    "scpn_control.control.tokamak_flight_sim",
-    "scpn_control.control.nengo_snn_wrapper",
-    "scpn_control.core._rust_compat",
-    "scpn_control.core.differentiable_scenario",
-    "scpn_control.core.jax_gk_nonlinear",
-    "scpn_control.core.jax_gk_solver",
-    "scpn_control.core.jax_gs_solver",
-    "scpn_control.core.jax_neural_equilibrium",
-    "scpn_control.core.jax_solvers",
-    "scpn_control.core.differentiable_transport",
-    "scpn_control.control.nmpc_controller"
-]
-disallow_any_generics = true
-disallow_subclassing_any = true
-disallow_untyped_calls = true
-disallow_incomplete_defs = true
-disallow_untyped_decorators = true
-warn_unused_ignores = true
-strict_equality = true
-no_implicit_reexport = true
-extra_checks = true
 
 [[tool.mypy.overrides]]
 module = ["matplotlib", "matplotlib.*"]
