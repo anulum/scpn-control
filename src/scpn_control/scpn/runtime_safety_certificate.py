@@ -120,6 +120,7 @@ class RuntimeTarget:
         _require_nonempty_str("runtime target toolchain", self.toolchain)
 
     def as_dict(self) -> dict[str, str]:
+        """Return the runtime target as a JSON-serialisable mapping."""
         return {
             "name": self.name,
             "architecture": self.architecture,
@@ -128,6 +129,7 @@ class RuntimeTarget:
         }
 
     def digest(self) -> str:
+        """Return the SHA-256 digest of the runtime target."""
         return _digest(self.as_dict())
 
 
@@ -161,9 +163,11 @@ class TimingEnvelope:
 
     @property
     def schedulable(self) -> bool:
+        """Whether ``worst_case_response_us <= deadline_us <= control_period_us``."""
         return self.worst_case_response_us <= self.deadline_us <= self.control_period_us
 
     def as_dict(self) -> dict[str, float | int]:
+        """Return the timing envelope as a JSON-serialisable mapping."""
         return {
             "control_period_us": self.control_period_us,
             "worst_case_response_us": self.worst_case_response_us,
@@ -172,6 +176,7 @@ class TimingEnvelope:
         }
 
     def digest(self) -> str:
+        """Return the SHA-256 digest of the timing envelope."""
         return _digest(self.as_dict())
 
 
@@ -214,6 +219,7 @@ class ControllerRuntimeBinding:
         }
 
     def digest(self) -> str:
+        """Return the SHA-256 digest of the canonical controller binding."""
         return _digest(self.canonical())
 
 
@@ -229,6 +235,7 @@ class CertificateReplayResult:
 
     @property
     def passed(self) -> bool:
+        """Whether the topology, holds, checked specs, and formal digest all matched."""
         return self.topology_matches and self.holds_matches and self.checked_specs_match and self.formal_digest_matches
 
 
