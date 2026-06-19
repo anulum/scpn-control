@@ -138,15 +138,63 @@ class PaschenBreakdown:
         return float(self.B_V * pd / denom)
 
     def is_breakdown(self, V_loop: float, p_Pa: float, connection_length_m: float = 100.0) -> bool:
+        """Return whether the loop voltage exceeds the Paschen breakdown voltage.
+
+        Parameters
+        ----------
+        V_loop
+            Applied loop voltage in volts.
+        p_Pa
+            Prefill gas pressure in pascals.
+        connection_length_m
+            Field-line connection length in metres (the effective gap).
+
+        Returns
+        -------
+        bool
+            ``True`` when ``V_loop`` exceeds :meth:`breakdown_voltage`.
+        """
         V_loop = _finite_float("V_loop", V_loop)
         return V_loop > self.breakdown_voltage(p_Pa, connection_length_m)
 
     def paschen_curve(self, p_range: AnyFloatArray, connection_length_m: float = 100.0) -> FloatArray:
+        """Evaluate the Paschen breakdown voltage across a pressure range.
+
+        Parameters
+        ----------
+        p_range
+            Pressures in pascals; one-dimensional and finite.
+        connection_length_m
+            Field-line connection length in metres.
+
+        Returns
+        -------
+        FloatArray
+            Breakdown voltage in volts at each pressure (``inf`` where no
+            breakdown solution exists), same shape as ``p_range``.
+        """
         p_range = _finite_1d("p_range", p_range)
         _finite_float("connection_length_m", connection_length_m)
         return np.array([self.breakdown_voltage(p, connection_length_m) for p in p_range])
 
     def optimal_prefill_pressure(self, V_loop_max: float, connection_length_m: float = 100.0) -> float:
+        """Return the prefill pressure that sits at the Paschen minimum.
+
+        The voltage-minimising ``(pd)_min`` (Lieberman 2005, Eq. 14.3.2) divided
+        by the connection length gives the easiest-breakdown pressure.
+
+        Parameters
+        ----------
+        V_loop_max
+            Available loop-voltage budget in volts; must be positive.
+        connection_length_m
+            Field-line connection length in metres; must be positive.
+
+        Returns
+        -------
+        float
+            Optimal prefill pressure in pascals.
+        """
         _positive_float("V_loop_max", V_loop_max)
         connection_length_m = _positive_float("connection_length_m", connection_length_m)
         # (pd)_min from Paschen minimum — Lieberman 2005 Eq. 14.3.2
@@ -156,6 +204,19 @@ class PaschenBreakdown:
 
 @dataclass
 class AvalancheResult:
+    """Time traces from a Townsend avalanche simulation.
+
+    Attributes
+    ----------
+    ne_trace
+        Electron-density trace in m⁻³, one sample per step.
+    Te_trace
+        Electron-temperature trace in eV, one sample per step.
+    time_to_full_ionization_ms
+        Time to reach 99% of the neutral density in milliseconds, or ``-1`` if
+        not reached within the simulated steps.
+    """
+
     ne_trace: AnyFloatArray
     Te_trace: AnyFloatArray
     time_to_full_ionization_ms: float
@@ -195,6 +256,23 @@ class TownsendAvalanche:
         return float(self.n_neutral * k_iz)
 
     def evolve(self, dt: float, n_steps: int) -> AvalancheResult:
+        """Integrate the avalanche ionisation and electron energy balance.
+
+        Steps the seed plasma forward with ohmic heating against ionisation
+        energy loss until the electron density saturates at the neutral density.
+
+        Parameters
+        ----------
+        dt
+            Time step in seconds; must be positive.
+        n_steps
+            Number of integration steps; must be a positive integer.
+
+        Returns
+        -------
+        AvalancheResult
+            The density and temperature traces and the full-ionisation time.
+        """
         dt = _positive_float("dt", dt)
         n_steps = _positive_int("n_steps", n_steps)
         ne = 1e13  # seed density [m⁻³]
@@ -232,6 +310,18 @@ class TownsendAvalanche:
 
 @dataclass
 class BurnThroughResult:
+    """Outcome of a burn-through energy-balance simulation.
+
+    Attributes
+    ----------
+    Te_trace
+        Electron-temperature trace in eV, one sample per step.
+    success
+        ``True`` if the temperature crossed the 100 eV burn-through threshold.
+    time_to_burn_through_ms
+        Time to cross the threshold in milliseconds, or ``-1`` if not reached.
+    """
+
     Te_trace: AnyFloatArray
     success: bool
     time_to_burn_through_ms: float
@@ -260,6 +350,22 @@ class BurnThrough:
         self.E_par = V_loop / (2.0 * math.pi * R0)
 
     def ohmic_power(self, Te_eV: float, ne_19: float, Ip_kA: float) -> float:
+        """Ohmic heating power from Spitzer resistivity (Wesson 2011, Eq. 2.5.4).
+
+        Parameters
+        ----------
+        Te_eV
+            Electron temperature in eV; must be positive.
+        ne_19
+            Electron density in 10¹⁹ m⁻³; must be positive.
+        Ip_kA
+            Plasma current in kA; must be non-negative.
+
+        Returns
+        -------
+        float
+            Ohmic power in watts.
+        """
         Te_eV = _positive_float("Te_eV", Te_eV)
         _positive_float("ne_19", ne_19)
         Ip_kA = _nonnegative_float("Ip_kA", Ip_kA)
@@ -270,6 +376,28 @@ class BurnThrough:
         return float((Ip_kA * 1e3) ** 2 * R_p)
 
     def radiation_barrier(self, Te_eV: float, ne_19: float, f_imp: float, impurity: str = "C") -> float:
+        """Impurity line-radiation power that opposes burn-through.
+
+        Uses the impurity cooling curve ``L_z(T_e)`` over the plasma volume:
+        ``P_rad = n_e² f_imp L_z V``.
+
+        Parameters
+        ----------
+        Te_eV
+            Electron temperature in eV; must be positive.
+        ne_19
+            Electron density in 10¹⁹ m⁻³; must be positive.
+        f_imp
+            Impurity fraction relative to electron density; must be
+            non-negative.
+        impurity
+            Impurity species symbol passed to :class:`CoolingCurve`.
+
+        Returns
+        -------
+        float
+            Radiated power in watts.
+        """
         Te_eV = _positive_float("Te_eV", Te_eV)
         ne_19 = _positive_float("ne_19", ne_19)
         f_imp = _nonnegative_float("f_imp", f_imp)
@@ -282,9 +410,49 @@ class BurnThrough:
     def burn_through_condition(
         self, Te_eV: float, ne_19: float, Ip_kA: float, f_imp: float, impurity: str = "C"
     ) -> bool:
+        """Return whether ohmic power exceeds the impurity radiation barrier.
+
+        Parameters
+        ----------
+        Te_eV
+            Electron temperature in eV.
+        ne_19
+            Electron density in 10¹⁹ m⁻³.
+        Ip_kA
+            Plasma current in kA.
+        f_imp
+            Impurity fraction relative to electron density.
+        impurity
+            Impurity species symbol.
+
+        Returns
+        -------
+        bool
+            ``True`` when :meth:`ohmic_power` exceeds :meth:`radiation_barrier`.
+        """
         return self.ohmic_power(Te_eV, ne_19, Ip_kA) > self.radiation_barrier(Te_eV, ne_19, f_imp, impurity)
 
     def critical_impurity_fraction(self, Te_eV: float, ne_19: float, Ip_kA: float, impurity: str) -> float:
+        """Maximum impurity fraction for which burn-through still succeeds.
+
+        Solves ``P_ohmic = n_e² f_crit L_z V`` for ``f_crit``.
+
+        Parameters
+        ----------
+        Te_eV
+            Electron temperature in eV; must be positive.
+        ne_19
+            Electron density in 10¹⁹ m⁻³; must be positive.
+        Ip_kA
+            Plasma current in kA; must be non-negative.
+        impurity
+            Impurity species symbol passed to :class:`CoolingCurve`.
+
+        Returns
+        -------
+        float
+            Critical impurity fraction (1.0 when the cooling curve vanishes).
+        """
         Te_eV = _positive_float("Te_eV", Te_eV)
         ne_19 = _positive_float("ne_19", ne_19)
         Ip_kA = _nonnegative_float("Ip_kA", Ip_kA)
@@ -299,6 +467,30 @@ class BurnThrough:
         return float(n_imp_crit / ne)
 
     def evolve(self, ne_19: float, f_imp: float, dt: float, n_steps: int, impurity: str = "C") -> BurnThroughResult:
+        """Integrate the burn-through temperature equation with a current ramp.
+
+        Advances ``3/2 n_e V dT_e/dt = P_ohmic − P_rad`` (Wesson 2011, Eq. 6.4.3);
+        once T_e exceeds 20 eV the plasma current ramps at 1 MA/s.
+
+        Parameters
+        ----------
+        ne_19
+            Electron density in 10¹⁹ m⁻³; must be positive.
+        f_imp
+            Impurity fraction relative to electron density; must be
+            non-negative.
+        dt
+            Time step in seconds; must be positive.
+        n_steps
+            Number of integration steps; must be a positive integer.
+        impurity
+            Impurity species symbol.
+
+        Returns
+        -------
+        BurnThroughResult
+            The temperature trace and the burn-through success and timing.
+        """
         ne_19 = _positive_float("ne_19", ne_19)
         f_imp = _nonnegative_float("f_imp", f_imp)
         dt = _positive_float("dt", dt)
@@ -339,6 +531,22 @@ class BurnThrough:
 
 @dataclass
 class StartupResult:
+    """Summary of a full startup sequence.
+
+    Attributes
+    ----------
+    breakdown_time_ms
+        Time to full ionisation in milliseconds, or ``-1`` if breakdown failed.
+    burn_through_time_ms
+        Time to burn-through in milliseconds, or ``-1`` if not achieved.
+    Ip_at_100ms_kA
+        Plasma current at 100 ms in kA.
+    Te_at_100ms_eV
+        Electron temperature at the end of the burn-through trace in eV.
+    success
+        ``True`` if the sequence reached burn-through.
+    """
+
     breakdown_time_ms: float
     burn_through_time_ms: float
     Ip_at_100ms_kA: float
@@ -347,6 +555,24 @@ class StartupResult:
 
 
 class StartupSequence:
+    """End-to-end startup: Paschen breakdown, avalanche, then burn-through.
+
+    Parameters
+    ----------
+    R0
+        Major radius in metres.
+    a
+        Minor radius in metres.
+    B0
+        Toroidal field on axis in tesla.
+    V_loop
+        Applied loop voltage in volts.
+    p_prefill_Pa
+        Prefill gas pressure in pascals.
+    f_imp
+        Impurity fraction relative to electron density.
+    """
+
     def __init__(self, R0: float, a: float, B0: float, V_loop: float, p_prefill_Pa: float, f_imp: float = 0.01):
         self.R0 = _positive_float("R0", R0)
         self.a = _positive_float("minor radius a", a)
@@ -356,6 +582,14 @@ class StartupSequence:
         self.f_imp = _nonnegative_float("f_imp", f_imp)
 
     def run(self) -> StartupResult:
+        """Execute the breakdown → avalanche → burn-through sequence.
+
+        Returns
+        -------
+        StartupResult
+            The timing and success summary; a failed breakdown short-circuits to
+            an unsuccessful result.
+        """
         conn = 100.0
         paschen = PaschenBreakdown("D2", self.R0, self.a)
 
@@ -379,6 +613,8 @@ class StartupSequence:
 
 
 class StartupPhase(Enum):
+    """Discrete phases of the startup sequence."""
+
     GAS_PUFF = auto()
     BREAKDOWN = auto()
     BURN_THROUGH = auto()
@@ -387,18 +623,63 @@ class StartupPhase(Enum):
 
 @dataclass
 class StartupCommand:
+    """Actuator command issued during a startup phase.
+
+    Attributes
+    ----------
+    V_loop
+        Commanded loop voltage in volts.
+    gas_puff_rate
+        Commanded gas-puff rate in facility units.
+    phase
+        The startup phase that produced this command.
+    """
+
     V_loop: float
     gas_puff_rate: float
     phase: StartupPhase
 
 
 class StartupController:
+    """Phase-machine controller scheduling voltage and gas puff during startup.
+
+    Parameters
+    ----------
+    V_loop_max
+        Maximum loop voltage in volts; must be non-negative.
+    gas_puff_max
+        Maximum gas-puff rate in facility units; must be non-negative.
+    """
+
     def __init__(self, V_loop_max: float, gas_puff_max: float):
         self.V_loop_max = _nonnegative_float("V_loop_max", V_loop_max)
         self.gas_puff_max = _nonnegative_float("gas_puff_max", gas_puff_max)
         self.phase = StartupPhase.GAS_PUFF
 
     def step(self, ne: float, Te: float, Ip: float, t: float, dt: float) -> StartupCommand:
+        """Advance the phase machine and return the actuator command.
+
+        Phase transitions: gas puff → breakdown at ``t`` > 0.1 s, → burn-through
+        once n_e exceeds 1e18 m⁻³, → ramp once T_e exceeds 50 eV.
+
+        Parameters
+        ----------
+        ne
+            Electron density in m⁻³.
+        Te
+            Electron temperature in eV.
+        Ip
+            Plasma current (validated non-negative).
+        t
+            Elapsed time in seconds.
+        dt
+            Time step in seconds; must be positive.
+
+        Returns
+        -------
+        StartupCommand
+            The voltage and gas-puff command for the current phase.
+        """
         ne = _nonnegative_float("ne", ne)
         Te = _nonnegative_float("Te", Te)
         _nonnegative_float("Ip", Ip)
