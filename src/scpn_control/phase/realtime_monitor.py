@@ -77,6 +77,15 @@ class TrajectoryRecorder:
     Psi_global: list[float] = field(default_factory=list)
 
     def record(self, snap: dict[str, Any]) -> None:
+        """Append one control-tick snapshot to the recorded trajectory.
+
+        Parameters
+        ----------
+        snap
+            Snapshot mapping with the per-tick fields (``R_global``, ``R_layer``,
+            ``V_global``, ``V_layer``, ``lambda_exp``, ``guard_approved``,
+            ``latency_us``, ``Psi_global``).
+        """
         self.R_global.append(snap["R_global"])
         self.R_layer.append(snap["R_layer"])
         self.V_global.append(snap["V_global"])
@@ -87,6 +96,7 @@ class TrajectoryRecorder:
         self.Psi_global.append(snap["Psi_global"])
 
     def clear(self) -> None:
+        """Clear all recorded trajectory channels."""
         for lst in (
             self.R_global,
             self.R_layer,
@@ -101,6 +111,7 @@ class TrajectoryRecorder:
 
     @property
     def n_ticks(self) -> int:
+        """Number of recorded control ticks."""
         return len(self.R_global)
 
 
@@ -269,6 +280,7 @@ class RealtimeMonitor:
 
     @property
     def recorder(self) -> TrajectoryRecorder:
+        """The trajectory recorder accumulating per-tick monitor snapshots."""
         return self._recorder
 
     def reset(self, seed: int = 42) -> None:
