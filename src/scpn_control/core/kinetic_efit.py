@@ -48,6 +48,20 @@ class FastIonPressure:
         self.sigma = anisotropy_sigma  # sigma = 1 - p_par / p_perp
 
     def p_perp(self, rho: AnyFloatArray, ne_19: AnyFloatArray) -> AnyFloatArray:
+        """Perpendicular fast-ion pressure profile.
+
+        Parameters
+        ----------
+        rho
+            Normalised-radius grid.
+        ne_19
+            Electron density in 10¹⁹ m⁻³ on ``rho``.
+
+        Returns
+        -------
+        AnyFloatArray
+            Perpendicular fast-ion pressure in pascals.
+        """
         # p_fast = 2/3 n_fast E_fast for isotropic
         # p_fast = (2 p_perp + p_par)/3 = p_perp(2 + (1-sigma))/3 = p_perp(3-sigma)/3
         # p_perp = p_fast * 3 / (3 - sigma)
@@ -56,9 +70,37 @@ class FastIonPressure:
         return p_fast_Pa * 3.0 / (3.0 - self.sigma)
 
     def p_par(self, rho: AnyFloatArray, ne_19: AnyFloatArray) -> AnyFloatArray:
+        """Parallel fast-ion pressure profile.
+
+        Parameters
+        ----------
+        rho
+            Normalised-radius grid.
+        ne_19
+            Electron density in 10¹⁹ m⁻³ on ``rho``.
+
+        Returns
+        -------
+        AnyFloatArray
+            Parallel fast-ion pressure in pascals, ``p_perp (1 - sigma)``.
+        """
         return self.p_perp(rho, ne_19) * (1.0 - self.sigma)
 
     def p_isotropic_equivalent(self, rho: AnyFloatArray, ne_19: AnyFloatArray) -> AnyFloatArray:
+        """Isotropic-equivalent scalar fast-ion pressure ``(2 p_perp + p_par)/3``.
+
+        Parameters
+        ----------
+        rho
+            Normalised-radius grid.
+        ne_19
+            Electron density in 10¹⁹ m⁻³ on ``rho``.
+
+        Returns
+        -------
+        AnyFloatArray
+            Scalar fast-ion pressure in pascals.
+        """
         p_perp = self.p_perp(rho, ne_19)
         p_par = self.p_par(rho, ne_19)
         return np.asarray((2.0 * p_perp + p_par) / 3.0)
@@ -66,6 +108,20 @@ class FastIonPressure:
 
 @dataclass
 class KineticConstraints:
+    """Measured kinetic constraints for kinetic-EFIT reconstruction.
+
+    Attributes
+    ----------
+    Te_points
+        Electron-temperature constraints as ``(R, Z, Te_keV)`` tuples.
+    ne_points
+        Electron-density constraints as ``(R, Z, ne_19)`` tuples.
+    Ti_points
+        Ion-temperature constraints as ``(R, Z, Ti_keV)`` tuples.
+    mse_points
+        Motional-Stark-effect constraints as ``(R, Z, pitch_angle_deg)`` tuples.
+    """
+
     Te_points: list[tuple[float, float, float]]  # (R, Z, Te_keV)
     ne_points: list[tuple[float, float, float]]  # (R, Z, ne_19)
     Ti_points: list[tuple[float, float, float]]  # (R, Z, Ti_keV)
@@ -74,6 +130,24 @@ class KineticConstraints:
 
 @dataclass
 class KineticReconstructionResult(ReconstructionResult):
+    """Kinetic-EFIT result extending the magnetic reconstruction.
+
+    Attributes
+    ----------
+    p_kinetic
+        Kinetic pressure profile in pascals.
+    p_equilibrium
+        Equilibrium pressure profile in pascals.
+    pressure_consistency
+        Relative agreement between the kinetic and equilibrium pressure.
+    q_profile
+        Safety-factor profile.
+    beta_fast
+        Fast-ion beta fraction.
+    sigma_anisotropy
+        Fast-ion anisotropy ``1 - p_par/p_perp`` profile.
+    """
+
     p_kinetic: AnyFloatArray
     p_equilibrium: AnyFloatArray
     pressure_consistency: float
@@ -273,6 +347,25 @@ def mse_pitch_angle(B_R: float, B_Z: float, B_phi: float, v_beam: float, R: floa
 
 
 class KineticEFIT(RealtimeEFIT):
+    """Kinetic equilibrium reconstruction adding kinetic and MSE constraints.
+
+    Extends the magnetic :class:`RealtimeEFIT` with kinetic-profile and fast-ion
+    pressure constraints for a kinetic-EFIT-style reconstruction.
+
+    Parameters
+    ----------
+    diagnostics
+        Magnetic diagnostic set for the base reconstruction.
+    kinetic
+        Measured kinetic constraints.
+    fast_ions
+        Fast-ion pressure model.
+    R_grid
+        Major-radius grid in metres.
+    Z_grid
+        Vertical grid in metres.
+    """
+
     def __init__(
         self,
         diagnostics: MagneticDiagnostics,
@@ -329,6 +422,22 @@ class KineticEFIT(RealtimeEFIT):
         )
 
     def reconstruct(self, measurements: dict[str, Any]) -> KineticReconstructionResult:
+        """Reconstruct the equilibrium with kinetic and fast-ion constraints.
+
+        Runs the magnetic reconstruction, then folds in the kinetic pressure
+        profiles and the fast-ion pressure to produce a kinetic equilibrium.
+
+        Parameters
+        ----------
+        measurements
+            Magnetic and kinetic measurement payload for this reconstruction.
+
+        Returns
+        -------
+        KineticReconstructionResult
+            The kinetic reconstruction with pressure consistency, q-profile, and
+            fast-ion beta and anisotropy.
+        """
         res_mag = super().reconstruct(measurements)
 
         rho_1d = np.linspace(0, 1, 50)
