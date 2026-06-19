@@ -120,7 +120,7 @@ def _portable_reference_path(path: Path) -> str:
     """Return a stable in-repository path for persisted reports."""
 
     try:
-        return f"<repo-root>/{path.resolve().relative_to(ROOT)}"
+        return f"<repo-root>/{path.resolve().relative_to(ROOT).as_posix()}"
     except ValueError:
         return str(path)
 

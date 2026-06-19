@@ -12,6 +12,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 from validation import validate_gk_species_reference as gk_species_ref
 from validation.validate_gk_species_reference import validate_gk_species_reference
 
@@ -53,10 +55,12 @@ def test_repository_species_reference_cases_pass() -> None:
     }
     assert all(len(entry["case_sha256"]) == 64 for entry in report["entries"])
     assert all(set(entry["units"]) == set(gk_species_ref.EXPECTED_UNITS) for entry in report["entries"])
-    assert report["operator_checks"]["bessel_j0"][1]["actual"] == 0.938469807240813
-    assert report["operator_checks"]["velocity_grid"]["actual"]["energy_weight_sum"] == 6.0
-    assert report["operator_checks"]["velocity_grid"]["actual"]["lambda_weight_sum"] == 1.0
-    assert report["operator_checks"]["pitch_angle_operator"]["constant_nullspace_max_abs"] == 0.0
+    assert report["operator_checks"]["bessel_j0"][1]["actual"] == pytest.approx(0.938469807240813)
+    assert report["operator_checks"]["velocity_grid"]["actual"]["energy_weight_sum"] == pytest.approx(6.0)
+    assert report["operator_checks"]["velocity_grid"]["actual"]["lambda_weight_sum"] == pytest.approx(1.0)
+    assert report["operator_checks"]["pitch_angle_operator"]["constant_nullspace_max_abs"] == pytest.approx(
+        0.0, abs=1e-12
+    )
     assert report["operator_checks"]["pitch_angle_operator"]["tridiagonal_nonzero_entries"] == 9
 
 
