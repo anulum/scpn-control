@@ -96,11 +96,36 @@ class ConstrainedGymTokamakEnv:
         self.observation_space = base_env.observation_space
 
     def reset(self, **kwargs: Any) -> tuple[FloatArray, dict[str, Any]]:
+        """Reset the wrapped environment and cache the initial observation.
+
+        Parameters
+        ----------
+        **kwargs
+            Forwarded to the base environment's ``reset``.
+
+        Returns
+        -------
+        tuple[FloatArray, dict[str, Any]]
+            The initial observation and info mapping.
+        """
         obs, info = self.base_env.reset(**kwargs)
         self._last_obs = obs
         return obs, info
 
     def step(self, action: AnyFloatArray) -> tuple[FloatArray, float, bool, bool, dict[str, Any]]:
+        """Step the environment and append per-constraint costs to ``info``.
+
+        Parameters
+        ----------
+        action
+            The action applied to the base environment.
+
+        Returns
+        -------
+        tuple[FloatArray, float, bool, bool, dict[str, Any]]
+            The Gymnasium ``(obs, reward, terminated, truncated, info)`` tuple,
+            with ``info["constraint_costs"]`` added.
+        """
         obs, reward, terminated, truncated, info = self.base_env.step(action)
 
         costs = [c.cost_fn(self._last_obs, action, obs) for c in self.constraints]
@@ -184,6 +209,19 @@ class LagrangianPPO:
         self.trained = True
 
     def predict(self, obs: AnyFloatArray) -> FloatArray:
+        """Return an action for an observation.
+
+        Parameters
+        ----------
+        obs
+            The current observation.
+
+        Returns
+        -------
+        FloatArray
+            The selected action (a random action-space sample until a policy is
+            trained).
+        """
         return np.asarray(self.env.action_space.sample())
 
 
@@ -219,6 +257,8 @@ def ip_cost_fn(obs: AnyFloatArray, act: AnyFloatArray, next_obs: AnyFloatArray) 
 
 
 def default_safety_constraints() -> list[SafetyConstraint]:
+    """Return the default tokamak safety constraints (q95, beta_N, and limits)."""
+
     return [
         SafetyConstraint("q95_lower_bound", q95_cost_fn, limit=0.0),
         SafetyConstraint("beta_n_upper_bound", beta_n_cost_fn, limit=0.0),
