@@ -131,6 +131,7 @@ files = [
 [[tool.mypy.overrides]]
 module = [
     "scpn_control._typing",
+    "scpn_control.control.federated_disruption",
     "scpn_control.control.gym_tokamak_env",
     "scpn_control.core.lh_transition",
     "scpn_control.control.digital_twin_online_update",

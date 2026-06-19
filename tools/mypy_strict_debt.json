@@ -1,12 +1,11 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 415,
+  "total": 387,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 9,
     "scpn_control.control.codac_interface": 1,
     "scpn_control.control.detachment_controller": 2,
-    "scpn_control.control.federated_disruption": 28,
     "scpn_control.control.free_boundary_tracking": 4,
     "scpn_control.control.fusion_control_room": 5,
     "scpn_control.control.halo_re_physics": 2,

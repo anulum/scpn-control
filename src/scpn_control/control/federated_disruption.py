@@ -34,6 +34,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import FloatArray
+
 logger = logging.getLogger(__name__)
 
 N_FEATURES = 8  # Ip, beta_N, q95, n/n_GW, li, dBp/dt, locked_mode_amp, n1_rms
@@ -109,15 +111,15 @@ def _require_positive_float(name: str, value: float) -> float:
     return result
 
 
-def _l2_norm(weights: dict[str, np.ndarray]) -> float:
+def _l2_norm(weights: dict[str, FloatArray]) -> float:
     return float(np.sqrt(sum(float(np.sum(np.asarray(value, dtype=np.float64) ** 2)) for value in weights.values())))
 
 
-def _weight_delta(local_weights: dict[str, np.ndarray], global_weights: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+def _weight_delta(local_weights: dict[str, FloatArray], global_weights: dict[str, FloatArray]) -> dict[str, FloatArray]:
     return {key: np.asarray(local_weights[key], dtype=np.float64) - global_weights[key] for key in global_weights}
 
 
-def _apply_weight_delta(global_weights: dict[str, np.ndarray], delta: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+def _apply_weight_delta(global_weights: dict[str, FloatArray], delta: dict[str, FloatArray]) -> dict[str, FloatArray]:
     return {key: global_weights[key] + delta[key] for key in global_weights}
 
 
@@ -187,20 +189,20 @@ def compose_privacy_epsilon(noise_multiplier: float, delta: float, n_rounds: int
 # ── MLP (numpy-only, same pattern as neural_transport.py) ────────────
 
 
-def _relu(x: np.ndarray) -> np.ndarray:
+def _relu(x: FloatArray) -> FloatArray:
     return np.asarray(np.maximum(0.0, x), dtype=x.dtype)
 
 
-def _sigmoid(x: np.ndarray) -> np.ndarray:
+def _sigmoid(x: FloatArray) -> FloatArray:
     return np.asarray(1.0 / (1.0 + np.exp(-np.clip(x, -20.0, 20.0))), dtype=x.dtype)
 
 
-def _binary_cross_entropy(y_pred: np.ndarray, y_true: np.ndarray) -> float:
+def _binary_cross_entropy(y_pred: FloatArray, y_true: FloatArray) -> float:
     p = np.clip(y_pred, 1e-7, 1.0 - 1e-7)
     return -float(np.mean(y_true * np.log(p) + (1 - y_true) * np.log(1 - p)))
 
 
-def _init_mlp_weights(rng: np.random.Generator) -> dict[str, np.ndarray]:
+def _init_mlp_weights(rng: np.random.Generator) -> dict[str, FloatArray]:
     """Xavier initialisation for 8→32→16→1 MLP."""
     return {
         "w1": rng.normal(0, np.sqrt(2.0 / (N_FEATURES + 32)), (N_FEATURES, 32)),
@@ -212,14 +214,14 @@ def _init_mlp_weights(rng: np.random.Generator) -> dict[str, np.ndarray]:
     }
 
 
-def _mlp_forward(x: np.ndarray, weights: dict[str, np.ndarray]) -> np.ndarray:
+def _mlp_forward(x: FloatArray, weights: dict[str, FloatArray]) -> FloatArray:
     """Forward pass: 8→32→16→1 with ReLU hidden, sigmoid output."""
     h1 = _relu(x @ weights["w1"] + weights["b1"])
     h2 = _relu(h1 @ weights["w2"] + weights["b2"])
     return _sigmoid(h2 @ weights["w3"] + weights["b3"]).ravel()
 
 
-def _mlp_gradients(x: np.ndarray, y: np.ndarray, weights: dict[str, np.ndarray]) -> tuple[dict[str, np.ndarray], float]:
+def _mlp_gradients(x: FloatArray, y: FloatArray, weights: dict[str, FloatArray]) -> tuple[dict[str, FloatArray], float]:
     """Backprop for BCE loss. Returns (grads_dict, loss)."""
     n = x.shape[0]
     h1_pre = x @ weights["w1"] + weights["b1"]
@@ -234,7 +236,7 @@ def _mlp_gradients(x: np.ndarray, y: np.ndarray, weights: dict[str, np.ndarray])
     # dL/d_logits for BCE with sigmoid output
     dl = (y_pred - y) / n  # (n,)
 
-    grads: dict[str, np.ndarray] = {}
+    grads: dict[str, FloatArray] = {}
     grads["b3"] = dl.sum(axis=0, keepdims=True).ravel()
     grads["w3"] = h2.T @ dl.reshape(-1, 1)
 
@@ -255,11 +257,11 @@ def _mlp_gradients(x: np.ndarray, y: np.ndarray, weights: dict[str, np.ndarray])
 
 
 def differential_privacy_clip(
-    gradients: dict[str, np.ndarray],
+    gradients: dict[str, FloatArray],
     max_norm: float,
     noise_sigma: float,
     rng: np.random.Generator | None = None,
-) -> dict[str, np.ndarray]:
+) -> dict[str, FloatArray]:
     """Clip per-parameter gradient norms and add Gaussian noise (DP-SGD).
 
     Reference: Abadi et al., "Deep Learning with Differential Privacy",
@@ -268,7 +270,7 @@ def differential_privacy_clip(
     rng = rng or np.random.default_rng()
     total_norm = np.sqrt(sum(float(np.sum(g**2)) for g in gradients.values()))
     clip_factor = min(1.0, max_norm / max(total_norm, 1e-12))
-    clipped: dict[str, np.ndarray] = {}
+    clipped: dict[str, FloatArray] = {}
     for key, grad in gradients.items():
         clipped[key] = grad * clip_factor + rng.normal(0.0, noise_sigma, grad.shape)
     return clipped
@@ -282,7 +284,7 @@ def _generate_disruption_data(
     n_samples: int,
     disruption_fraction: float,
     rng: np.random.Generator,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[FloatArray, FloatArray]:
     """Synthetic disruption dataset for a tokamak.
 
     Safe shots: features sampled from machine profile.
@@ -360,10 +362,10 @@ class MachineClient:
     def __init__(
         self,
         machine: str,
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-        X_test: np.ndarray,
-        y_test: np.ndarray,
+        X_train: FloatArray,
+        y_train: FloatArray,
+        X_test: FloatArray,
+        y_test: FloatArray,
         learning_rate: float = 0.01,
     ) -> None:
         if machine not in MACHINE_PROFILES:
@@ -375,7 +377,7 @@ class MachineClient:
         self.y_test = np.asarray(y_test, dtype=np.float64).ravel()
         self.learning_rate = _require_positive_float("learning_rate", learning_rate)
         self._validate_dataset_contract()
-        self._weights: dict[str, np.ndarray] = {}
+        self._weights: dict[str, FloatArray] = {}
 
     def _validate_dataset_contract(self) -> None:
         for name, x in (("X_train", self.X_train), ("X_test", self.X_test)):
@@ -394,10 +396,10 @@ class MachineClient:
 
     def local_train(
         self,
-        global_weights: dict[str, np.ndarray],
+        global_weights: dict[str, FloatArray],
         n_epochs: int,
         mu_proximal: float = 0.0,
-    ) -> dict[str, np.ndarray]:
+    ) -> dict[str, FloatArray]:
         """SGD on local data, starting from global_weights.
 
         When mu_proximal > 0, adds the FedProx penalty
@@ -416,7 +418,7 @@ class MachineClient:
         self._weights = w
         return {k: v.copy() for k, v in w.items()}
 
-    def local_evaluate(self, weights: dict[str, np.ndarray]) -> dict[str, float]:
+    def local_evaluate(self, weights: dict[str, FloatArray]) -> dict[str, float]:
         """Binary classification metrics on local test set."""
         y_pred_prob = _mlp_forward(self.X_test, weights)
         y_pred = (y_pred_prob >= 0.5).astype(float)
@@ -457,7 +459,7 @@ class FederatedServer:
         self.global_weights = _init_mlp_weights(self.rng)
         self.privacy_ledger: list[PrivacyLedgerEntry] = []
 
-    def aggregate(self, client_updates: list[dict[str, Any]]) -> dict[str, np.ndarray]:
+    def aggregate(self, client_updates: list[dict[str, Any]]) -> dict[str, FloatArray]:
         """FedAvg: weighted average of model weights by dataset size.
 
         McMahan et al., "Communication-Efficient Learning of Deep Networks
@@ -468,7 +470,7 @@ class FederatedServer:
         total = sum(u["n_samples"] for u in client_updates)
         if total <= 0:
             raise ValueError("aggregate requires positive client sample counts")
-        avg: dict[str, np.ndarray] = {}
+        avg: dict[str, FloatArray] = {}
         for key in client_updates[0]["weights"]:
             avg[key] = sum(u["weights"][key] * (u["n_samples"] / total) for u in client_updates)
         return avg
@@ -494,7 +496,7 @@ class FederatedServer:
             if clip < 1.0:
                 clipped_clients.append(machine)
 
-            noised_delta: dict[str, np.ndarray] = {}
+            noised_delta: dict[str, FloatArray] = {}
             for key, value in delta.items():
                 noise = self.dp_rng.normal(
                     0.0,
@@ -529,9 +531,9 @@ class FederatedServer:
     def fedprox_aggregate(
         self,
         client_updates: list[dict[str, Any]],
-        global_weights: dict[str, np.ndarray],
+        global_weights: dict[str, FloatArray],
         mu: float,
-    ) -> dict[str, np.ndarray]:
+    ) -> dict[str, FloatArray]:
         """FedProx aggregation with proximal regularisation.
 
         The proximal term is applied during local training (not aggregation),
@@ -697,7 +699,7 @@ def create_machine_clients(
 
 
 def create_facility_clients_from_arrays(
-    datasets: dict[str, dict[str, np.ndarray]],
+    datasets: dict[str, dict[str, FloatArray]],
     *,
     learning_rate: float = 0.01,
 ) -> list[MachineClient]:
