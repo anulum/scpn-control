@@ -68,6 +68,26 @@ class ShapeParams:
 
 @dataclass
 class ReconstructionResult:
+    """Equilibrium reconstruction output from real-time EFIT.
+
+    Attributes
+    ----------
+    psi
+        Reconstructed poloidal-flux map.
+    p_prime_coeffs
+        Fitted ``p'(ψ)`` basis coefficients.
+    ff_prime_coeffs
+        Fitted ``FF'(ψ)`` basis coefficients.
+    shape
+        Derived plasma-shape parameters.
+    chi_squared
+        Goodness-of-fit chi-squared against the diagnostics.
+    n_iterations
+        Number of Picard iterations performed.
+    wall_time_ms
+        Reconstruction wall time in milliseconds.
+    """
+
     psi: AnyFloatArray
     p_prime_coeffs: AnyFloatArray
     ff_prime_coeffs: AnyFloatArray
@@ -261,6 +281,18 @@ def save_efit_lite_claim_evidence(evidence: EFITLiteClaimEvidence, path: str | P
 
 
 class DiagnosticResponse:
+    """Synthetic magnetic-diagnostic response from a flux map.
+
+    Parameters
+    ----------
+    diagnostics
+        The magnetic diagnostic set (probes, loops, coils).
+    R_grid
+        Major-radius grid in metres.
+    Z_grid
+        Vertical grid in metres.
+    """
+
     def __init__(self, diagnostics: MagneticDiagnostics, R_grid: AnyFloatArray, Z_grid: AnyFloatArray):
         self.diagnostics = diagnostics
         self.R = R_grid
@@ -451,6 +483,18 @@ class RealtimeEFIT:
         )
 
     def find_lcfs(self, psi: AnyFloatArray) -> AnyFloatArray:
+        """Trace the last closed flux surface from a flux map.
+
+        Parameters
+        ----------
+        psi
+            Poloidal-flux map on the EFIT R/Z grid.
+
+        Returns
+        -------
+        AnyFloatArray
+            The LCFS contour as an array of ``(R, Z)`` boundary points.
+        """
         psi_arr = np.asarray(psi, dtype=float)
         if psi_arr.shape != (self.nR, self.nZ):
             raise ValueError("psi shape must match the EFIT R/Z grid")
@@ -485,6 +529,18 @@ class RealtimeEFIT:
         return (R0, float(self.Z[0]) + 0.1)
 
     def compute_shape_params(self, psi: AnyFloatArray) -> ShapeParams:
+        """Compute plasma-shape parameters from a flux map.
+
+        Parameters
+        ----------
+        psi
+            Poloidal-flux map on the EFIT R/Z grid.
+
+        Returns
+        -------
+        ShapeParams
+            Elongation, triangularity, and related shape descriptors.
+        """
         # Extract R0 and a from the simple base_psi
         R0 = float(np.mean(self.R))
         a = float(self.R[-1] - self.R[0]) / 2.0
