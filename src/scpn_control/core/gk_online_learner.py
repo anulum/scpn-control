@@ -102,6 +102,27 @@ class OnlineLearner:
         ood_score: float = 0.0,
         source: str = "gk_spot_check",
     ) -> None:
+        """Admit one labelled GK spot-check sample into the replay buffer.
+
+        Parameters
+        ----------
+        input_10d
+            The 10-dimensional gyrokinetic input vector, shape ``(10,)``.
+        target_3d
+            The transport-coefficient target ``[chi_i, chi_e, D_e]``, shape
+            ``(3,)``; values must be non-negative.
+        ood_score
+            Out-of-distribution score; must be non-negative and not exceed the
+            configured admission threshold.
+        source
+            Non-empty provenance label for the sample.
+
+        Raises
+        ------
+        ValueError
+            If a shape, finiteness, non-negativity, OOD-threshold, or source
+            constraint is violated.
+        """
         input_arr = np.asarray(input_10d, dtype=np.float64)
         target_arr = np.asarray(target_3d, dtype=np.float64)
         ood_value = _require_nonnegative_float("ood_score", ood_score)
@@ -130,6 +151,7 @@ class OnlineLearner:
 
     @property
     def buffer_full(self) -> bool:
+        """Whether the replay buffer has reached the configured size."""
         return len(self.buffer) >= self.config.buffer_size
 
     def try_retrain(
@@ -360,6 +382,7 @@ class OnlineLearner:
         self.retrain_history.append(asdict(decision))
 
     def reset(self) -> None:
+        """Clear the buffer, generation counter, weight backup, and history."""
         self.buffer.clear()
         self.generation = 0
         self._best_val_loss = float("inf")
