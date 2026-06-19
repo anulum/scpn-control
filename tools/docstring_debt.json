@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 327,
+  "total": 316,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -91,7 +91,6 @@
     "scpn_control.scpn.compiler": 2,
     "scpn_control.scpn.controller": 3,
     "scpn_control.scpn.formal_verification": 1,
-    "scpn_control.scpn.geometry_neutral_contracts": 11,
     "scpn_control.scpn.geometry_neutral_replay": 2,
     "scpn_control.scpn.runtime_safety_certificate": 7,
     "scpn_control.scpn.structure": 6

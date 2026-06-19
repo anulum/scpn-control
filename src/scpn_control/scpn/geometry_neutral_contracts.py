@@ -58,6 +58,7 @@ class MagneticConfiguration:
             raise ValueError("field_periods must be >= 1.")
 
     def to_dict(self) -> dict[str, object]:
+        """Return the JSON-serialisable representation of the configuration."""
         return {
             "name": self.name,
             "device_class": self.device_class,
@@ -94,10 +95,39 @@ class ActuatorChannel:
             raise ValueError("latency_steps must be >= 0.")
 
     def clamp(self, value: float) -> float:
+        """Clamp a value to the channel's [min, max] envelope.
+
+        Parameters
+        ----------
+        value
+            Requested actuator value in the channel unit; must be finite.
+
+        Returns
+        -------
+        float
+            The value clamped to ``[min_value, max_value]``.
+        """
         value_f = _require_finite("value", value)
         return min(max(value_f, float(self.min_value)), float(self.max_value))
 
     def apply_slew(self, *, previous: float, requested: float, dt_s: float) -> float:
+        """Apply slew-rate and range limits to a requested set-point.
+
+        Parameters
+        ----------
+        previous
+            Previous actuator value in the channel unit; must be finite.
+        requested
+            Requested new value; clamped to the channel envelope first.
+        dt_s
+            Time step in seconds; must be positive.
+
+        Returns
+        -------
+        float
+            The new value, limited to a ``slew_rate_per_s × dt_s`` change and
+            the channel envelope.
+        """
         previous_f = _require_finite("previous", previous)
         requested_f = self.clamp(requested)
         dt = _require_finite("dt_s", dt_s)
@@ -108,6 +138,7 @@ class ActuatorChannel:
         return self.clamp(previous_f + delta)
 
     def to_dict(self) -> dict[str, object]:
+        """Return the JSON-serialisable representation of the channel."""
         return {
             "name": self.name,
             "unit": self.unit,
@@ -133,12 +164,30 @@ class ActuatorSet:
             raise ValueError("Actuator channel names must be unique.")
 
     def by_name(self, name: str) -> ActuatorChannel:
+        """Return the actuator channel with the given name.
+
+        Parameters
+        ----------
+        name
+            Channel name to look up.
+
+        Returns
+        -------
+        ActuatorChannel
+            The matching channel.
+
+        Raises
+        ------
+        KeyError
+            If no channel has that name.
+        """
         for channel in self.channels:
             if channel.name == name:
                 return channel
         raise KeyError(f"unknown actuator channel: {name}")
 
     def to_dict(self) -> dict[str, object]:
+        """Return the JSON-serialisable representation of the actuator set."""
         return {"channels": [channel.to_dict() for channel in self.channels]}
 
 
@@ -162,6 +211,7 @@ class DiagnosticChannel:
             raise ValueError("sigma must be >= 0.")
 
     def to_dict(self) -> dict[str, object]:
+        """Return the JSON-serialisable representation of the diagnostic channel."""
         return {
             "name": self.name,
             "value": float(self.value),
@@ -192,9 +242,11 @@ class DiagnosticFrame:
             raise ValueError("Diagnostic channel names must be unique.")
 
     def as_mapping(self) -> dict[str, float]:
+        """Return a ``{channel name: value}`` mapping for this frame."""
         return {channel.name: float(channel.value) for channel in self.channels}
 
     def to_dict(self) -> dict[str, object]:
+        """Return the JSON-serialisable representation of the diagnostic frame."""
         return {
             "step": int(self.step),
             "time_s": float(self.time_s),
@@ -227,6 +279,7 @@ class ControlObjective:
                     raise ValueError("weights must be positive.")
 
     def to_dict(self) -> dict[str, object]:
+        """Return the JSON-serialisable representation of the objective."""
         return {
             "target_metrics": {key: float(value) for key, value in self.target_metrics.items()},
             "weights": {key: float(value) for key, value in self.weights.items()},
@@ -294,6 +347,7 @@ class ReplayScenario:
                     raise ValueError("fault mode must be supported by actuator failure_mode.")
 
     def to_dict(self) -> dict[str, object]:
+        """Return the JSON-serialisable representation of the replay scenario."""
         return {
             "name": self.name,
             "seed": int(self.seed),
