@@ -170,6 +170,34 @@ class OptimalController:
         save_plot: bool = True,
         output_path: str = "Optimal_Control_Result.png",
     ) -> Dict[str, Any]:
+        """Run an SVD-MIMO optimal position-control shot.
+
+        Parameters
+        ----------
+        shot_steps
+            Number of control steps.
+        target_r
+            Target magnetic-axis major radius in metres.
+        target_z
+            Target magnetic-axis vertical position in metres.
+        gain
+            Closed-loop feedback gain.
+        ip_start_ma
+            Plasma current at the start of the ramp in MA.
+        ip_span_ma
+            Plasma-current ramp span in MA.
+        identify_first
+            Whether to run system identification before the shot.
+        save_plot
+            Whether to render the telemetry figure.
+        output_path
+            File path for the rendered telemetry figure.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The shot summary and recorded telemetry history.
+        """
         self._log("\n--- INITIATING OPTIMAL CONTROL SHOT ---")
         if identify_first:
             self.identify_system()
@@ -246,6 +274,19 @@ class OptimalController:
         self,
         output_path: str = "Optimal_Control_Result.png",
     ) -> Tuple[bool, str | None]:
+        """Render the optimal-control telemetry figure to a file.
+
+        Parameters
+        ----------
+        output_path
+            Destination path for the PNG figure.
+
+        Returns
+        -------
+        Tuple[bool, str | None]
+            ``(success, error_message)``; the message is ``None`` on success and
+            describes the failure (e.g. missing matplotlib) otherwise.
+        """
         if not HAS_MPL:
             return False, "matplotlib not installed"
         try:
