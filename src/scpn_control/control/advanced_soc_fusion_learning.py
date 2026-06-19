@@ -115,10 +115,32 @@ class CoupledSandpileReactor:
         self.flow = 0.0
 
     def drive(self, amount: float = 1.0) -> None:
+        """Add drive to the boundary site of the self-organised-criticality lattice.
+
+        Parameters
+        ----------
+        amount
+            Non-negative drive increment added to the first site.
+        """
         amount = _require_finite_scalar("drive amount", amount)
         self.Z[0] += max(amount, 0.0)
 
     def step_physics(self, external_shear: float) -> tuple[int, float, float]:
+        """Run sandpile toppling for one step under the given shear.
+
+        Sites above the shear-dependent critical slope topple to neighbours;
+        toppling feeds the mean flow, which is then damped and clamped.
+
+        Parameters
+        ----------
+        external_shear
+            Externally applied flow shear (added to the self-generated flow).
+
+        Returns
+        -------
+        tuple[int, float, float]
+            The total topple count, the updated flow, and the effective shear.
+        """
         external_shear = _require_finite_scalar("external_shear", external_shear)
         eff_shear = float(self.flow + external_shear)
         current_z_crit = float(self.z_crit_base + self.shear_efficiency * eff_shear)
@@ -143,6 +165,7 @@ class CoupledSandpileReactor:
         return int(total_topple), float(self.flow), eff_shear
 
     def get_profile_energy(self) -> float:
+        """Return the integrated profile height (a gradient-energy proxy)."""
         self.h[:] = np.cumsum(self.Z[::-1])[::-1]
         return float(self.h[0] if self.h.size else 0.0)
 
@@ -187,6 +210,20 @@ class FusionAIAgent:
         self.total_reward = 0.0
 
     def discretize_state(self, turb: float, flow: float) -> tuple[int, int]:
+        """Map continuous turbulence and flow values to a discrete Q-table state.
+
+        Parameters
+        ----------
+        turb
+            Turbulence level.
+        flow
+            Flow-shear level.
+
+        Returns
+        -------
+        tuple[int, int]
+            The ``(turbulence, flow)`` discrete state indices.
+        """
         turb = _require_finite_scalar("turb", turb)
         flow = _require_finite_scalar("flow", flow)
         s_turb = min(int(np.log1p(max(turb, 0.0))), self.n_states_turb - 1)
@@ -198,6 +235,20 @@ class FusionAIAgent:
         state: tuple[int, int],
         rng: np.random.Generator,
     ) -> int:
+        """Select an action by the epsilon-greedy policy.
+
+        Parameters
+        ----------
+        state
+            The discrete ``(turbulence, flow)`` state.
+        rng
+            NumPy random generator used for exploration.
+
+        Returns
+        -------
+        int
+            The chosen action index.
+        """
         if float(rng.random()) < self.epsilon:
             return int(rng.integers(self.n_actions))
         return int(np.argmax(self.q_table[state]))
@@ -209,6 +260,24 @@ class FusionAIAgent:
         new_state: tuple[int, int],
         reward: float,
     ) -> float:
+        """Apply one Q-learning update for an observed transition.
+
+        Parameters
+        ----------
+        state
+            The discrete state before the action.
+        action
+            The action taken.
+        new_state
+            The discrete state after the action.
+        reward
+            The observed reward.
+
+        Returns
+        -------
+        float
+            The updated Q-value for ``(state, action)``.
+        """
         state = _validate_state_index("state", state, (self.n_states_turb, self.n_states_flow))
         new_state = _validate_state_index("new_state", new_state, (self.n_states_turb, self.n_states_flow))
         action = int(action)
