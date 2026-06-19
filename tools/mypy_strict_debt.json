@@ -1,8 +1,6 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 147,
-  "per_module": {
-    "scpn_control.control.nmpc_controller": 147
-  }
+  "total": 0,
+  "per_module": {}
 }

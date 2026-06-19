@@ -31,28 +31,30 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 import numpy as np
-from scpn_control.core.differentiable_transport import (
-    has_jax as has_differentiable_transport_jax,
-)
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.differentiable_transport import (
     TransportCampaignMetadata,
     TransportGradientAudit,
     TransportParameterGradients,
     TransportRolloutSourceGradients,
     assert_transport_parameter_gradients_consistent,
+    transport_campaign_metadata,
+    transport_coefficients_from_neural_closure,
     transport_loss_gradient,
     transport_parameter_gradients,
     transport_rollout_source_gradients,
     transport_rollout_tracking_loss,
-    transport_coefficients_from_neural_closure,
-    transport_campaign_metadata,
+)
+from scpn_control.core.differentiable_transport import (
+    has_jax as has_differentiable_transport_jax,
 )
 
 _NX = 6
 _NU = 3
 
 
-def _as_finite_vector(name: str, value: np.ndarray, size: int) -> np.ndarray:
+def _as_finite_vector(name: str, value: AnyFloatArray, size: int) -> FloatArray:
     arr = np.asarray(value, dtype=np.float64)
     if arr.shape != (size,) or not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} must be a finite vector with shape ({size},).")
@@ -74,7 +76,7 @@ def _percentile_ms(sorted_values: list[float], percentile: float) -> float:
     return float(sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction)
 
 
-def _as_spd_matrix(name: str, value: np.ndarray, size: int) -> np.ndarray:
+def _as_spd_matrix(name: str, value: AnyFloatArray, size: int) -> FloatArray:
     arr = np.asarray(value, dtype=np.float64)
     if arr.shape != (size, size) or not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} must be a finite matrix with shape ({size}, {size}).")
@@ -100,24 +102,24 @@ class NMPCConfig:
     """
 
     horizon: int = 20
-    Q: np.ndarray = dataclasses.field(default_factory=lambda: np.eye(6))
-    R: np.ndarray = dataclasses.field(default_factory=lambda: np.eye(3))
+    Q: AnyFloatArray = dataclasses.field(default_factory=lambda: np.eye(6))
+    R: AnyFloatArray = dataclasses.field(default_factory=lambda: np.eye(3))
     # Terminal cost P: solved from DARE; None triggers auto-solve.
-    P: np.ndarray | None = None
-    terminal_x_min: np.ndarray | None = None
-    terminal_x_max: np.ndarray | None = None
+    P: AnyFloatArray | None = None
+    terminal_x_min: AnyFloatArray | None = None
+    terminal_x_max: AnyFloatArray | None = None
 
     # State bounds: [I_p, β_N, q_95, l_i, T_axis, n̄]
-    x_min: np.ndarray = dataclasses.field(default_factory=lambda: np.array([0.1, 0.0, 2.0, 0.5, 0.5, 0.1]))
-    x_max: np.ndarray = dataclasses.field(default_factory=lambda: np.array([17.0, 3.5, 10.0, 1.5, 50.0, 12.0]))
+    x_min: AnyFloatArray = dataclasses.field(default_factory=lambda: np.array([0.1, 0.0, 2.0, 0.5, 0.5, 0.1]))
+    x_max: AnyFloatArray = dataclasses.field(default_factory=lambda: np.array([17.0, 3.5, 10.0, 1.5, 50.0, 12.0]))
 
     # Input bounds: [P_aux (MW), I_p_ref (MA), Γ_gas]
     # ITER heating: P_aux ≤ 73 MW (33 NBI + 20 ECRH + 20 ICRH)
-    u_min: np.ndarray = dataclasses.field(default_factory=lambda: np.array([0.0, 0.1, 0.0]))
-    u_max: np.ndarray = dataclasses.field(default_factory=lambda: np.array([73.0, 17.0, 10.0]))
+    u_min: AnyFloatArray = dataclasses.field(default_factory=lambda: np.array([0.0, 0.1, 0.0]))
+    u_max: AnyFloatArray = dataclasses.field(default_factory=lambda: np.array([73.0, 17.0, 10.0]))
 
     # Slew rate limits (per control step)
-    du_max: np.ndarray = dataclasses.field(default_factory=lambda: np.array([5.0, 0.5, 2.0]))
+    du_max: AnyFloatArray = dataclasses.field(default_factory=lambda: np.array([5.0, 0.5, 2.0]))
 
     max_sqp_iter: int = 10
     qp_max_iter: int = 500
@@ -139,7 +141,7 @@ class NMPCConfig:
 
 
 AcadosSymbolicDynamics = Callable[[Any, Any, Any], Any]
-AcadosOcpFactory = Callable[[NMPCConfig, np.ndarray], object]
+AcadosOcpFactory = Callable[[NMPCConfig, AnyFloatArray], object]
 AcadosSolverFactory = Callable[..., object]
 
 
@@ -148,8 +150,8 @@ class TransportCoefficientTuningResult:
     """Result of a gradient-based transport-coefficient tuning step."""
 
     loss: float
-    gradient: np.ndarray
-    updated_chi: np.ndarray
+    gradient: FloatArray
+    updated_chi: FloatArray
     step_norm: float
     metadata: TransportCampaignMetadata
     gradient_audit: TransportGradientAudit | None
@@ -160,8 +162,8 @@ class TransportSourceScheduleTuningResult:
     """Result of a gradient-based transport source-schedule tuning step."""
 
     loss: float
-    gradient: np.ndarray
-    updated_sources: np.ndarray
+    gradient: FloatArray
+    updated_sources: FloatArray
     step_norm: float
     metadata: TransportCampaignMetadata
     gradient_audit: TransportGradientAudit | None
@@ -184,9 +186,9 @@ class TransportSourceRolloutTuningResult:
     """Result of a gradient-based multi-step transport source rollout update."""
 
     loss: float
-    gradient: np.ndarray
-    updated_sources: np.ndarray
-    final_profiles: np.ndarray
+    gradient: FloatArray
+    updated_sources: FloatArray
+    final_profiles: FloatArray
     step_norm: float
     metadata: TransportCampaignMetadata
     gradient_audit: TransportSourceRolloutGradientAudit | None
@@ -204,7 +206,7 @@ class RTIStepResult:
     the state bounds.
     """
 
-    u0: np.ndarray
+    u0: FloatArray
     solve_time_ms: float
     sqp_iterations: int
     stationarity_residual: float
@@ -250,7 +252,7 @@ class CostHessianAudit:
     passed: bool
 
 
-def _optional_finite_array_bound(name: str, value: object, shape: tuple[int, ...]) -> np.ndarray | None:
+def _optional_finite_array_bound(name: str, value: object, shape: tuple[int, ...]) -> FloatArray | None:
     if value is None:
         return None
     arr = np.asarray(value, dtype=np.float64)
@@ -262,7 +264,7 @@ def _optional_finite_array_bound(name: str, value: object, shape: tuple[int, ...
 
 
 def _rollout_audit_indices(
-    source_shape: tuple[int, int, int],
+    source_shape: tuple[int, ...],
     sample_indices: object | None,
 ) -> tuple[tuple[int, int, int], ...]:
     if len(source_shape) != 3:
@@ -302,16 +304,16 @@ def _rollout_audit_indices(
 
 
 def _audit_transport_rollout_source_gradients(
-    initial_profiles: np.ndarray,
-    chi: np.ndarray,
-    source_sequence: np.ndarray,
-    target_history: np.ndarray,
-    rho: np.ndarray,
+    initial_profiles: AnyFloatArray,
+    chi: AnyFloatArray,
+    source_sequence: AnyFloatArray,
+    target_history: AnyFloatArray,
+    rho: AnyFloatArray,
     dt: float,
-    edge_values: np.ndarray,
-    source_gradient: np.ndarray,
+    edge_values: AnyFloatArray,
+    source_gradient: AnyFloatArray,
     *,
-    weights: np.ndarray | None,
+    weights: AnyFloatArray | None,
     epsilon: float,
     tolerance: float,
     sample_indices: object | None,
@@ -381,15 +383,15 @@ def _audit_transport_rollout_source_gradients(
 
 
 def tune_transport_coefficients_for_tracking(
-    profiles: np.ndarray,
-    chi: np.ndarray,
-    sources: np.ndarray,
-    target_profiles: np.ndarray,
-    rho: np.ndarray,
+    profiles: AnyFloatArray,
+    chi: AnyFloatArray,
+    sources: AnyFloatArray,
+    target_profiles: AnyFloatArray,
+    rho: AnyFloatArray,
     dt: float,
-    edge_values: np.ndarray,
+    edge_values: AnyFloatArray,
     *,
-    weights: np.ndarray | None = None,
+    weights: AnyFloatArray | None = None,
     learning_rate: float,
     chi_min: float = 0.0,
     max_fractional_update: float | None = 0.1,
@@ -398,7 +400,7 @@ def tune_transport_coefficients_for_tracking(
     gradient_audit_epsilon: float = 1.0e-5,
     gradient_audit_tolerance: float = 5.0e-4,
     gradient_audit_sample_indices: object | None = None,
-    equilibrium_psi: np.ndarray | None = None,
+    equilibrium_psi: AnyFloatArray | None = None,
     _closure_for_metadata: object | None = None,
 ) -> TransportCoefficientTuningResult:
     """Tune transport coefficients for NMPC tracking through JAX autodiff.
@@ -486,25 +488,25 @@ def tune_transport_coefficients_for_tracking(
 
 
 def tune_transport_sources_for_tracking(
-    profiles: np.ndarray,
-    chi: np.ndarray,
-    sources: np.ndarray,
-    target_profiles: np.ndarray,
-    rho: np.ndarray,
+    profiles: AnyFloatArray,
+    chi: AnyFloatArray,
+    sources: AnyFloatArray,
+    target_profiles: AnyFloatArray,
+    rho: AnyFloatArray,
     dt: float,
-    edge_values: np.ndarray,
+    edge_values: AnyFloatArray,
     *,
-    weights: np.ndarray | None = None,
+    weights: AnyFloatArray | None = None,
     learning_rate: float,
-    source_min: np.ndarray | float | None = None,
-    source_max: np.ndarray | float | None = None,
+    source_min: AnyFloatArray | float | None = None,
+    source_max: AnyFloatArray | float | None = None,
     max_absolute_update: float | None = None,
     gradient_tolerance: float | None = None,
     require_gradient_audit: bool = True,
     gradient_audit_epsilon: float = 1.0e-5,
     gradient_audit_tolerance: float = 5.0e-4,
     gradient_audit_sample_indices: object | None = None,
-    equilibrium_psi: np.ndarray | None = None,
+    equilibrium_psi: AnyFloatArray | None = None,
     _closure_for_metadata: object | None = None,
 ) -> TransportSourceScheduleTuningResult:
     """Tune additive transport source schedules through JAX autodiff.
@@ -598,18 +600,18 @@ def tune_transport_sources_for_tracking(
 
 
 def tune_transport_source_rollout_for_tracking(
-    initial_profiles: np.ndarray,
-    chi: np.ndarray,
-    source_sequence: np.ndarray,
-    target_history: np.ndarray,
-    rho: np.ndarray,
+    initial_profiles: AnyFloatArray,
+    chi: AnyFloatArray,
+    source_sequence: AnyFloatArray,
+    target_history: AnyFloatArray,
+    rho: AnyFloatArray,
     dt: float,
-    edge_values: np.ndarray,
+    edge_values: AnyFloatArray,
     *,
-    weights: np.ndarray | None = None,
+    weights: AnyFloatArray | None = None,
     learning_rate: float,
-    source_min: np.ndarray | float | None = None,
-    source_max: np.ndarray | float | None = None,
+    source_min: AnyFloatArray | float | None = None,
+    source_max: AnyFloatArray | float | None = None,
     max_absolute_update: float | None = None,
     gradient_tolerance: float | None = None,
     require_gradient_audit: bool = True,
@@ -617,7 +619,7 @@ def tune_transport_source_rollout_for_tracking(
     gradient_audit_epsilon: float = 1.0e-5,
     gradient_audit_tolerance: float = 5.0e-4,
     gradient_audit_sample_indices: object | None = None,
-    equilibrium_psi: np.ndarray | None = None,
+    equilibrium_psi: AnyFloatArray | None = None,
     _closure_for_metadata: object | None = None,
 ) -> TransportSourceRolloutTuningResult:
     """Tune a full NMPC transport source rollout through JAX autodiff.
@@ -726,15 +728,15 @@ def tune_transport_source_rollout_for_tracking(
 
 
 def tune_neural_transport_closure_for_tracking(
-    profiles: np.ndarray,
+    profiles: AnyFloatArray,
     closure: object,
-    sources: np.ndarray,
-    target_profiles: np.ndarray,
-    rho: np.ndarray,
+    sources: AnyFloatArray,
+    target_profiles: AnyFloatArray,
+    rho: AnyFloatArray,
     dt: float,
-    edge_values: np.ndarray,
+    edge_values: AnyFloatArray,
     *,
-    weights: np.ndarray | None = None,
+    weights: AnyFloatArray | None = None,
     learning_rate: float,
     impurity_diffusivity_fraction: float = 1.0,
     chi_min: float = 0.0,
@@ -744,7 +746,7 @@ def tune_neural_transport_closure_for_tracking(
     gradient_audit_epsilon: float = 1.0e-5,
     gradient_audit_tolerance: float = 5.0e-4,
     gradient_audit_sample_indices: object | None = None,
-    equilibrium_psi: np.ndarray | None = None,
+    equilibrium_psi: AnyFloatArray | None = None,
 ) -> TransportCoefficientTuningResult:
     """Tune NMPC transport coefficients initialised from a neural closure."""
     chi = transport_coefficients_from_neural_closure(
@@ -785,9 +787,9 @@ class NonlinearMPC:
 
     def __init__(
         self,
-        plant_model: Callable[[np.ndarray, np.ndarray], np.ndarray],
+        plant_model: Callable[[AnyFloatArray, AnyFloatArray], FloatArray],
         config: NMPCConfig,
-        linearization_model: Callable[[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]] | None = None,
+        linearization_model: Callable[[AnyFloatArray, AnyFloatArray], tuple[FloatArray, FloatArray]] | None = None,
         symbolic_dynamics_model: AcadosSymbolicDynamics | None = None,
         acados_ocp_factory: AcadosOcpFactory | None = None,
         acados_solver_factory: AcadosSolverFactory | None = None,
@@ -821,14 +823,14 @@ class NonlinearMPC:
 
     def _estimate_qp_step_size(
         self,
-        A_k: list[np.ndarray],
-        B_k: list[np.ndarray],
-        P_term: np.ndarray,
+        A_k: list[FloatArray],
+        B_k: list[FloatArray],
+        P_term: AnyFloatArray,
     ) -> float:
         """Return a safe projected-gradient step from condensed QP curvature."""
         n_dec = self.N * self.nu
-        state_sensitivity: np.ndarray = np.zeros((self.nx, n_dec))
-        H: np.ndarray = np.zeros((n_dec, n_dec), dtype=np.float64)
+        state_sensitivity: AnyFloatArray = np.zeros((self.nx, n_dec))
+        H: AnyFloatArray = np.zeros((n_dec, n_dec), dtype=np.float64)
 
         for k in range(self.N):
             H += 2.0 * state_sensitivity.T @ self.config.Q @ state_sensitivity
@@ -925,7 +927,7 @@ class NonlinearMPC:
             if np.any(terminal_x_min < config.x_min) or np.any(terminal_x_max > config.x_max):
                 raise ValueError("terminal_x bounds must lie inside configured state bounds.")
 
-    def _plant_step(self, x: np.ndarray, u: np.ndarray) -> np.ndarray:
+    def _plant_step(self, x: AnyFloatArray, u: AnyFloatArray) -> FloatArray:
         x_safe = _as_finite_vector("x", x, self.nx)
         u_safe = _as_finite_vector("u", u, self.nu)
         out = np.asarray(self.plant_model(x_safe, u_safe), dtype=np.float64)
@@ -935,11 +937,11 @@ class NonlinearMPC:
 
     @staticmethod
     def _finite_difference_column(
-        f_plus: np.ndarray | None,
-        f0: np.ndarray,
-        f_minus: np.ndarray | None,
+        f_plus: AnyFloatArray | None,
+        f0: AnyFloatArray,
+        f_minus: AnyFloatArray | None,
         step: float,
-    ) -> np.ndarray:
+    ) -> FloatArray:
         if f_plus is not None and f_minus is not None:
             return np.asarray((f_plus - f_minus) / (2.0 * step), dtype=np.float64)
         if f_plus is not None:
@@ -948,13 +950,13 @@ class NonlinearMPC:
             return np.asarray((f0 - f_minus) / step, dtype=np.float64)
         raise ValueError("finite-difference perturbation interval collapsed.")
 
-    def _bounded_input_vector(self, name: str, value: np.ndarray) -> np.ndarray:
+    def _bounded_input_vector(self, name: str, value: AnyFloatArray) -> FloatArray:
         u = _as_finite_vector(name, value, self.nu)
         if np.any(u < self.config.u_min) or np.any(u > self.config.u_max):
             raise ValueError(f"{name} must satisfy configured input bounds.")
         return u
 
-    def _linearize(self, x0: np.ndarray, u0: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _linearize(self, x0: AnyFloatArray, u0: AnyFloatArray) -> tuple[FloatArray, FloatArray]:
         """Jacobians A = ∂f/∂x, B = ∂f/∂u for the local plant model."""
         x0_safe = _as_finite_vector("x0", x0, self.nx)
         u0_safe = _as_finite_vector("u0", u0, self.nu)
@@ -1007,7 +1009,7 @@ class NonlinearMPC:
         self.last_linearization_source = "finite_difference"
         return A, B
 
-    def _linearize_jax(self, x0_safe: np.ndarray, u0_safe: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _linearize_jax(self, x0_safe: AnyFloatArray, u0_safe: AnyFloatArray) -> tuple[FloatArray, FloatArray]:
         """Return plant Jacobians through JAX autodiff for traceable plants."""
         try:
             import jax
@@ -1035,7 +1037,7 @@ class NonlinearMPC:
         self.last_linearization_source = "jax"
         return A, B
 
-    def _compute_terminal_cost(self, A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    def _compute_terminal_cost(self, A: AnyFloatArray, B: AnyFloatArray) -> FloatArray:
         """Discrete-ARE terminal cost for recursive feasibility.
 
         Rawlings, Mayne & Diehl 2017, Ch. 2, Theorem 2.4: choosing P as the
@@ -1051,14 +1053,14 @@ class NonlinearMPC:
 
     def _qp_value_and_gradient(
         self,
-        dU_flat: np.ndarray,
-        A_k: list[np.ndarray],
-        B_k: list[np.ndarray],
-        P_term: np.ndarray,
-        x_ref: np.ndarray,
-    ) -> tuple[float, np.ndarray]:
+        dU_flat: AnyFloatArray,
+        A_k: list[FloatArray],
+        B_k: list[FloatArray],
+        P_term: AnyFloatArray,
+        x_ref: AnyFloatArray,
+    ) -> tuple[float, AnyFloatArray]:
         dU = np.asarray(dU_flat, dtype=np.float64).reshape(self.N, self.nu)
-        dx: np.ndarray = np.zeros((self.N + 1, self.nx))
+        dx: AnyFloatArray = np.zeros((self.N + 1, self.nx))
         for k in range(self.N):
             dx[k + 1] = A_k[k] @ dx[k] + B_k[k] @ dU[k]
 
@@ -1070,18 +1072,18 @@ class NonlinearMPC:
         x_err_N = (self.x_traj[self.N] + dx[self.N]) - x_ref
         value += float(x_err_N @ P_term @ x_err_N)
 
-        adj: np.ndarray = np.zeros((self.N + 1, self.nx))
+        adj: AnyFloatArray = np.zeros((self.N + 1, self.nx))
         adj[self.N] = 2.0 * P_term @ x_err_N
-        grad_dU: np.ndarray = np.zeros((self.N, self.nu))
+        grad_dU: AnyFloatArray = np.zeros((self.N, self.nu))
         for k in range(self.N - 1, -1, -1):
             x_err_k = (self.x_traj[k] + dx[k]) - x_ref
             adj[k] = A_k[k].T @ adj[k + 1] + 2.0 * self.config.Q @ x_err_k
             grad_dU[k] = B_k[k].T @ adj[k + 1] + 2.0 * self.config.R @ (self.u_traj[k] + dU[k])
         return value, grad_dU.reshape(-1)
 
-    def _terminal_state_sensitivity(self, A_k: list[np.ndarray], B_k: list[np.ndarray]) -> np.ndarray:
+    def _terminal_state_sensitivity(self, A_k: list[FloatArray], B_k: list[FloatArray]) -> AnyFloatArray:
         """Linear map from condensed control increments to terminal state."""
-        sensitivity: np.ndarray = np.zeros((self.nx, self.N * self.nu), dtype=np.float64)
+        sensitivity: AnyFloatArray = np.zeros((self.nx, self.N * self.nu), dtype=np.float64)
         for k in range(self.N):
             sensitivity = A_k[k] @ sensitivity
             block = slice(k * self.nu, (k + 1) * self.nu)
@@ -1090,16 +1092,16 @@ class NonlinearMPC:
 
     def _condensed_qp_terms(
         self,
-        A_k: list[np.ndarray],
-        B_k: list[np.ndarray],
-        P_term: np.ndarray,
-        x_ref: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray]:
+        A_k: list[FloatArray],
+        B_k: list[FloatArray],
+        P_term: AnyFloatArray,
+        x_ref: AnyFloatArray,
+    ) -> tuple[FloatArray, AnyFloatArray]:
         """Return Hessian and linear term for the condensed QP objective."""
         n_dec = self.N * self.nu
-        H: np.ndarray = np.zeros((n_dec, n_dec), dtype=np.float64)
-        q: np.ndarray = np.zeros(n_dec, dtype=np.float64)
-        sensitivity: np.ndarray = np.zeros((self.nx, n_dec), dtype=np.float64)
+        H: AnyFloatArray = np.zeros((n_dec, n_dec), dtype=np.float64)
+        q: AnyFloatArray = np.zeros(n_dec, dtype=np.float64)
+        sensitivity: AnyFloatArray = np.zeros((self.nx, n_dec), dtype=np.float64)
 
         for k in range(self.N):
             x_err = self.x_traj[k] - x_ref
@@ -1120,12 +1122,12 @@ class NonlinearMPC:
 
     def _solve_qp_scipy(
         self,
-        A_k: list[np.ndarray],
-        B_k: list[np.ndarray],
-        P_term: np.ndarray,
-        u_prev: np.ndarray,
-        x_ref: np.ndarray,
-    ) -> np.ndarray:
+        A_k: list[FloatArray],
+        B_k: list[FloatArray],
+        P_term: AnyFloatArray,
+        u_prev: AnyFloatArray,
+        x_ref: AnyFloatArray,
+    ) -> FloatArray:
         """Solve the condensed QP with SciPy SLSQP and explicit linear constraints."""
         import scipy.optimize
 
@@ -1170,10 +1172,10 @@ class NonlinearMPC:
         bounds = scipy.optimize.Bounds(lower, upper)
         constraints = [scipy.optimize.LinearConstraint(np.vstack(rows), np.asarray(lb), np.asarray(ub))]
 
-        def objective(z: np.ndarray) -> float:
+        def objective(z: AnyFloatArray) -> float:
             return self._qp_value_and_gradient(z, A_k, B_k, P_term, x_ref)[0]
 
-        def gradient(z: np.ndarray) -> np.ndarray:
+        def gradient(z: AnyFloatArray) -> AnyFloatArray:
             return self._qp_value_and_gradient(z, A_k, B_k, P_term, x_ref)[1]
 
         result = scipy.optimize.minimize(
@@ -1194,12 +1196,12 @@ class NonlinearMPC:
 
     def _solve_qp_osqp(
         self,
-        A_k: list[np.ndarray],
-        B_k: list[np.ndarray],
-        P_term: np.ndarray,
-        u_prev: np.ndarray,
-        x_ref: np.ndarray,
-    ) -> np.ndarray:
+        A_k: list[FloatArray],
+        B_k: list[FloatArray],
+        P_term: AnyFloatArray,
+        u_prev: AnyFloatArray,
+        x_ref: AnyFloatArray,
+    ) -> FloatArray:
         """Solve the condensed sparse QP with OSQP and explicit constraints."""
         import warnings
 
@@ -1276,12 +1278,12 @@ class NonlinearMPC:
 
     def _solve_qp_casadi(
         self,
-        A_k: list[np.ndarray],
-        B_k: list[np.ndarray],
-        P_term: np.ndarray,
-        u_prev: np.ndarray,
-        x_ref: np.ndarray,
-    ) -> np.ndarray:
+        A_k: list[FloatArray],
+        B_k: list[FloatArray],
+        P_term: AnyFloatArray,
+        u_prev: AnyFloatArray,
+        x_ref: AnyFloatArray,
+    ) -> FloatArray:
         """Solve the condensed QP with CasADi Opti and explicit linear constraints."""
         try:
             import casadi as ca
@@ -1334,7 +1336,7 @@ class NonlinearMPC:
         self.last_qp_converged = bool(solution.stats().get("success", True))
         return np.asarray(solution.value(z), dtype=np.float64).reshape(self.N, self.nu)
 
-    def _build_acados_ocp(self, P_term: np.ndarray) -> object:
+    def _build_acados_ocp(self, P_term: AnyFloatArray) -> object:
         """Build the acados augmented-state OCP from symbolic dynamics."""
         terminal_cost = _as_spd_matrix("terminal cost P", P_term, self.nx)
         if self.acados_ocp_factory is not None:
@@ -1474,7 +1476,7 @@ class NonlinearMPC:
             )
 
     @staticmethod
-    def _acados_set(solver: object, stage: int, field: str, value: np.ndarray) -> None:
+    def _acados_set(solver: object, stage: int, field: str, value: AnyFloatArray) -> None:
         solver_api: Any = solver
         try:
             solver_api.set(stage, field, np.asarray(value, dtype=np.float64))
@@ -1482,7 +1484,7 @@ class NonlinearMPC:
             raise RuntimeError(f"acados backend failed while setting {field} at stage {stage}.") from exc
 
     @staticmethod
-    def _acados_get(solver: object, stage: int, field: str) -> np.ndarray:
+    def _acados_get(solver: object, stage: int, field: str) -> FloatArray:
         solver_api: Any = solver
         try:
             return np.asarray(solver_api.get(stage, field), dtype=np.float64)
@@ -1505,10 +1507,10 @@ class NonlinearMPC:
 
     def _solve_qp_acados(
         self,
-        P_term: np.ndarray,
-        u_prev: np.ndarray,
-        x_ref: np.ndarray,
-    ) -> np.ndarray:
+        P_term: AnyFloatArray,
+        u_prev: AnyFloatArray,
+        x_ref: AnyFloatArray,
+    ) -> FloatArray:
         """Solve the full augmented-state OCP with acados."""
         try:
             if self._acados_ocp is None or self._acados_solver is None:
@@ -1593,7 +1595,7 @@ class NonlinearMPC:
             self._discard_acados_solver_after_failure()
             raise
 
-    def _solve_qp(self, x0: np.ndarray, u_prev: np.ndarray, x_ref: np.ndarray) -> np.ndarray:
+    def _solve_qp(self, x0: AnyFloatArray, u_prev: AnyFloatArray, x_ref: AnyFloatArray) -> FloatArray:
         """Projected gradient descent on condensed QP.
 
         Decision variables: ΔU = [δu_0, …, δu_{N−1}] where u_k = ū_k + δu_k.
@@ -1666,10 +1668,10 @@ class NonlinearMPC:
 
         return dU
 
-    def linearize(self, x0: np.ndarray, u0: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def linearize(self, x0: AnyFloatArray, u0: AnyFloatArray) -> tuple[FloatArray, FloatArray]:
         return self._linearize(x0, u0)
 
-    def compute_cost(self, x_traj: np.ndarray, u_traj: np.ndarray, x_ref: np.ndarray) -> float:
+    def compute_cost(self, x_traj: AnyFloatArray, u_traj: AnyFloatArray, x_ref: AnyFloatArray) -> float:
         """Evaluate the NMPC cost J over a trajectory.
 
         J = Σ_{k=0}^{N-1} ‖x_k − x_ref‖²_Q + ‖u_k‖²_R
@@ -1694,7 +1696,7 @@ class NonlinearMPC:
         J += float(e_terminal @ P_term @ e_terminal)
         return J
 
-    def step(self, x: np.ndarray, x_ref: np.ndarray, u_prev: np.ndarray) -> np.ndarray:
+    def step(self, x: AnyFloatArray, x_ref: AnyFloatArray, u_prev: AnyFloatArray) -> FloatArray:
         """Compute optimal first control action via SQP.
 
         Warm-started from the previous solution shifted by one step.
@@ -1736,15 +1738,15 @@ class NonlinearMPC:
 
     # ── Real-Time Iteration ───────────────────────────────────────────
 
-    def _reduced_cost_gradient(self, x_ref_safe: np.ndarray) -> np.ndarray:
+    def _reduced_cost_gradient(self, x_ref_safe: AnyFloatArray) -> FloatArray:
         """Adjoint reduced gradient dJ/du over the current (x_traj, u_traj).
 
         Re-linearises the plant along the stored trajectory and runs one backward
         adjoint pass, giving the unconstrained cost gradient with respect to each
         control in the horizon.
         """
-        A_k: list[np.ndarray] = []
-        B_k: list[np.ndarray] = []
+        A_k: list[FloatArray] = []
+        B_k: list[FloatArray] = []
         for k in range(self.N):
             Ak, Bk = self.linearize(self.x_traj[k], self.u_traj[k])
             A_k.append(Ak)
@@ -1759,7 +1761,7 @@ class NonlinearMPC:
             grad_u[k] = B_k[k].T @ adj[k + 1] + 2.0 * self.config.R @ self.u_traj[k]
         return grad_u
 
-    def _projected_stationarity_residual(self, grad_u: np.ndarray) -> float:
+    def _projected_stationarity_residual(self, grad_u: AnyFloatArray) -> float:
         """Infinity-norm of the box-projected KKT stationarity residual.
 
         Gradient components whose descent direction is blocked by an active input
@@ -1773,7 +1775,7 @@ class NonlinearMPC:
         proj[at_lower & (grad_u > 0.0)] = 0.0
         return float(np.max(np.abs(proj))) if proj.size else 0.0
 
-    def step_rti(self, x: np.ndarray, x_ref: np.ndarray, u_prev: np.ndarray) -> RTIStepResult:
+    def step_rti(self, x: AnyFloatArray, x_ref: AnyFloatArray, u_prev: AnyFloatArray) -> RTIStepResult:
         """Advance one Real-Time Iteration tick: one linearisation, one QP solve.
 
         The previous horizon solution is shifted forward as the warm start, then a
@@ -1834,9 +1836,9 @@ class NonlinearMPC:
 
     def benchmark_rti_latency(
         self,
-        x: np.ndarray,
-        x_ref: np.ndarray,
-        u_prev: np.ndarray,
+        x: AnyFloatArray,
+        x_ref: AnyFloatArray,
+        u_prev: AnyFloatArray,
         *,
         warmup_ticks: int = 2,
         timed_ticks: int = 20,
@@ -1898,7 +1900,7 @@ class NonlinearMPC:
         err_terminal = x - x_ref_arr
         return cost + err_terminal @ P @ err_terminal
 
-    def cost_hessian_jax(self, x0: np.ndarray, U: np.ndarray, x_ref: np.ndarray) -> np.ndarray:
+    def cost_hessian_jax(self, x0: AnyFloatArray, U: AnyFloatArray, x_ref: AnyFloatArray) -> FloatArray:
         """Exact Hessian d²J/dU² of the rolled-out NMPC cost through JAX autodiff.
 
         The Hessian is taken with respect to the flattened control sequence and
@@ -1937,9 +1939,9 @@ class NonlinearMPC:
 
     def audit_cost_hessian_jax(
         self,
-        x0: np.ndarray,
-        U: np.ndarray,
-        x_ref: np.ndarray,
+        x0: AnyFloatArray,
+        U: AnyFloatArray,
+        x_ref: AnyFloatArray,
         *,
         epsilon: float = 1.0e-4,
         tolerance: float = 1.0e-3,
@@ -1965,7 +1967,7 @@ class NonlinearMPC:
         x_ref_safe = _as_finite_vector("x_ref", x_ref, self.nx)
         u_flat = np.asarray(U, dtype=np.float64).reshape(-1)
 
-        def cost_np(candidate: np.ndarray) -> float:
+        def cost_np(candidate: AnyFloatArray) -> float:
             controls = candidate.reshape(self.N, self.nu)
             x = x0_safe.copy()
             terminal_p = self.config.P if self.config.P is not None else self.config.Q * 10.0
@@ -2027,9 +2029,9 @@ class NonlinearMPC:
 
     def assert_cost_hessian_consistent(
         self,
-        x0: np.ndarray,
-        U: np.ndarray,
-        x_ref: np.ndarray,
+        x0: AnyFloatArray,
+        U: AnyFloatArray,
+        x_ref: AnyFloatArray,
         *,
         epsilon: float = 1.0e-4,
         tolerance: float = 1.0e-3,
