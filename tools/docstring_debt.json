@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 300,
+  "total": 292,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -59,7 +59,6 @@
     "scpn_control.core.gk_tglf": 3,
     "scpn_control.core.gk_tglf_native": 5,
     "scpn_control.core.impurity_transport": 3,
-    "scpn_control.core.integrated_scenario": 8,
     "scpn_control.core.jax_gk_nonlinear": 2,
     "scpn_control.core.jax_gk_solver": 1,
     "scpn_control.core.jax_gs_solver": 1,

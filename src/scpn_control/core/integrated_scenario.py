@@ -154,6 +154,56 @@ def _validate_config(config: ScenarioConfig) -> ScenarioConfig:
 
 @dataclass
 class ScenarioConfig:
+    """Configuration of an integrated tokamak scenario simulation.
+
+    Attributes
+    ----------
+    R0
+        Major radius in metres.
+    a
+        Minor radius in metres.
+    B0
+        Toroidal field on axis in tesla.
+    kappa
+        Plasma elongation (dimensionless).
+    delta
+        Plasma triangularity (dimensionless).
+    Ip_MA
+        Plasma current in MA.
+    P_aux_MW
+        Auxiliary heating power in MW.
+    P_eccd_MW
+        Electron-cyclotron current-drive power in MW.
+    rho_eccd
+        Normalised radius of the ECCD deposition.
+    P_nbi_MW
+        Neutral-beam-injection power in MW.
+    E_nbi_keV
+        Neutral-beam energy in keV.
+    t_start
+        Scenario start time in seconds.
+    t_end
+        Scenario end time in seconds.
+    dt
+        Time step in seconds.
+    transport_model
+        Name of the transport model used for the profiles.
+    include_sawteeth
+        Enable the sawtooth-crash model.
+    include_ntm
+        Enable the neoclassical-tearing-mode model.
+    include_sol
+        Enable the scrape-off-layer/detachment model.
+    include_elm
+        Enable the edge-localised-mode model.
+    include_stability
+        Enable the MHD stability checks.
+    include_phase_bridge
+        Enable the Kuramoto phase-bridge coupling.
+    use_transport_solver
+        Use the full transport solver instead of the analytic profiles.
+    """
+
     # Geometry
     R0: float
     a: float
@@ -190,6 +240,60 @@ class ScenarioConfig:
 
 @dataclass
 class ScenarioState:
+    """Snapshot of the integrated-scenario state at one time.
+
+    Attributes
+    ----------
+    time
+        Simulation time in seconds.
+    rho
+        Normalised-radius grid.
+    Te
+        Electron-temperature profile in keV.
+    Ti
+        Ion-temperature profile in keV.
+    ne
+        Electron-density profile in 10¹⁹ m⁻³.
+    q
+        Safety-factor profile.
+    psi
+        Poloidal-flux profile in Wb.
+    j_total
+        Total current-density profile in A/m².
+    j_bs
+        Bootstrap current-density profile in A/m².
+    j_cd
+        Driven current-density profile in A/m².
+    Ip_MA
+        Plasma current in MA.
+    beta_N
+        Normalised beta.
+    tau_E
+        Energy confinement time in seconds.
+    P_loss
+        Total power loss in watts.
+    W_thermal
+        Thermal stored energy in joules.
+    li
+        Internal inductance.
+    ballooning_stable
+        Whether the ballooning-mode limit is satisfied.
+    troyon_stable
+        Whether the Troyon beta limit is satisfied.
+    ntm_island_widths
+        NTM island half-widths per mode in metres.
+    T_target
+        Divertor target electron temperature in eV.
+    q_peak
+        Peak parallel SOL heat flux in MW/m².
+    detached
+        Whether the divertor is detached.
+    last_crash_time
+        Time of the last sawtooth crash in seconds.
+    n_crashes
+        Number of sawtooth crashes so far.
+    """
+
     time: float
     rho: AnyFloatArray
     Te: AnyFloatArray
@@ -262,6 +366,8 @@ class ScenarioCouplingAudit:
 
 
 def iter_baseline_scenario() -> ScenarioConfig:
+    """Return the ITER baseline (15 MA, full heating) scenario configuration."""
+
     return ScenarioConfig(
         R0=6.2,
         a=2.0,
@@ -280,6 +386,8 @@ def iter_baseline_scenario() -> ScenarioConfig:
 
 
 def iter_hybrid_scenario() -> ScenarioConfig:
+    """Return the ITER hybrid (12 MA) scenario configuration."""
+
     return ScenarioConfig(
         R0=6.2,
         a=2.0,
@@ -294,6 +402,8 @@ def iter_hybrid_scenario() -> ScenarioConfig:
 
 
 def nstx_u_scenario() -> ScenarioConfig:
+    """Return the NSTX-U spherical-tokamak (low aspect ratio) scenario."""
+
     return ScenarioConfig(
         R0=0.93,
         a=0.58,
@@ -798,6 +908,19 @@ class IntegratedScenarioSimulator:
         return solver
 
     def initialize(self, profiles: dict[str, Any] | None = None) -> ScenarioState:
+        """Set up the transport solver and return the initial state.
+
+        Parameters
+        ----------
+        profiles
+            Optional initial profiles (``"Te"``, ``"Ti"``, ``"ne"``, ``"psi"``)
+            on the radial grid; defaults are used for any absent key.
+
+        Returns
+        -------
+        ScenarioState
+            The scenario state at ``t_start``.
+        """
         self.ts_solver = self._setup_transport_solver()
         if profiles:
             if "Te" in profiles:
@@ -1348,6 +1471,15 @@ class IntegratedScenarioSimulator:
         return self._build_state()
 
     def run(self) -> list[ScenarioState]:
+        """Run the scenario from start to end and collect the state trace.
+
+        Initialises the solver if needed, then steps to ``t_end``.
+
+        Returns
+        -------
+        list[ScenarioState]
+            The scenario state at each time step.
+        """
         if not hasattr(self, "ts_solver"):
             self.initialize()
         n_steps = int((self.config.t_end - self.config.t_start) / self.config.dt)
@@ -1357,6 +1489,13 @@ class IntegratedScenarioSimulator:
         return states
 
     def to_json(self, path: Path) -> None:
+        """Write the current scenario state to a JSON file.
+
+        Parameters
+        ----------
+        path
+            Destination JSON path.
+        """
         state = self._build_state()
         data = {
             "time": state.time,
