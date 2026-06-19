@@ -163,10 +163,12 @@ class ADCConfig:
 
     @property
     def n_levels(self) -> int:
+        """Number of distinct quantisation levels for the ADC resolution."""
         return (1 << self.resolution_bits) - 1
 
     @property
     def lsb_voltage(self) -> float:
+        """Least-significant-bit voltage step in volts."""
         vmin, vmax = self.voltage_range
         return (vmax - vmin) / self.n_levels
 
@@ -1004,10 +1006,34 @@ class HILDemoRunner:
 
     @staticmethod
     def float_to_q16_16(x: float) -> int:
+        """Convert a float to a 32-bit Q16.16 fixed-point integer.
+
+        Parameters
+        ----------
+        x
+            The value to convert.
+
+        Returns
+        -------
+        int
+            The Q16.16 representation masked to 32 bits.
+        """
         return int(round(x * HILDemoRunner.Q16_SCALE)) & 0xFFFFFFFF
 
     @staticmethod
     def q16_16_to_float(x: int) -> float:
+        """Convert a 32-bit Q16.16 fixed-point integer to a float.
+
+        Parameters
+        ----------
+        x
+            The Q16.16 representation (two's-complement 32-bit).
+
+        Returns
+        -------
+        float
+            The decoded floating-point value.
+        """
         if x & 0x80000000:
             x -= 0x100000000
         return x / HILDemoRunner.Q16_SCALE
