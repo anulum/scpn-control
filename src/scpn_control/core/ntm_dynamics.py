@@ -33,6 +33,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 # Permeability of free space (CODATA 2018)
 MU_0: float = 4.0 * np.pi * 1e-7  # H/m
 
@@ -85,7 +87,7 @@ def eccd_stabilization_factor(d_cd: float, w: float) -> float:
 
 
 def find_rational_surfaces(
-    q: np.ndarray, rho: np.ndarray, a: float, m_max: int = 5, n_max: int = 3
+    q: AnyFloatArray, rho: AnyFloatArray, a: float, m_max: int = 5, n_max: int = 3
 ) -> list[RationalSurface]:
     """Locate radii where q(rho) = m/n by zero-crossing interpolation."""
     if q.ndim != 1 or rho.ndim != 1:
@@ -472,7 +474,7 @@ class NTMIslandDynamics:
         B_pol: float | None = None,
         rho_theta_i: float | None = None,
         beta_pol: float | None = None,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[FloatArray, FloatArray]:
         """Integrate w(t) via RK4.
 
         All physics keyword arguments are forwarded to dw_dt unchanged.
@@ -484,7 +486,7 @@ class NTMIslandDynamics:
         dt = _finite_scalar("dt", dt, positive=True)
         w0 = _finite_scalar("w0", w0, positive=True)
         n_steps = int(np.ceil((t_end - t_start) / dt))
-        t_arr = np.linspace(t_start, t_end, n_steps + 1)
+        t_arr = np.linspace(t_start, t_end, n_steps + 1, dtype=np.float64)
         w_arr = np.zeros(n_steps + 1)
         w_arr[0] = max(w0, 1e-6)
 

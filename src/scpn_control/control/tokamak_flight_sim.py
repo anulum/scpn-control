@@ -144,7 +144,7 @@ class IsoFluxController:
     ) -> None:
         self.kernel = kernel_factory(config_file)
         self.verbose = bool(verbose)
-        self.history: dict[str, list] = {
+        self.history: dict[str, list[Any]] = {
             "t": [],
             "Ip": [],
             "R_axis": [],

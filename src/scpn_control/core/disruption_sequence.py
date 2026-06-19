@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import FloatArray
 from scpn_control.core.runaway_electrons import RunawayEvolution, RunawayParams
 
 
@@ -53,8 +54,8 @@ class TQResult:
 @dataclass
 class CQResult:
     cq_duration_ms: float
-    Ip_trace: np.ndarray
-    E_par_trace: np.ndarray
+    Ip_trace: FloatArray
+    E_par_trace: FloatArray
 
 
 @dataclass

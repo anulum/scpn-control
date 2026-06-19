@@ -21,6 +21,7 @@ Reference calibration: QLKNN-10D training distribution
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -61,7 +62,7 @@ class OODResult:
     is_ood: bool
     confidence: float  # 0.0 = clearly in-distribution, 1.0 = clearly OOD
     method: str  # "mahalanobis" / "ensemble" / "range" / "combined"
-    details: dict
+    details: dict[str, Any]
 
     def __post_init__(self) -> None:
         confidence_value = float(self.confidence)

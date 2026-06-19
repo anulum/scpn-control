@@ -13,6 +13,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray
+
 # ELM energy loss fraction bounds: ΔW_ELM / W_ped ≈ 0.04–0.15 for Type I.
 # Loarte et al. 2003, PPCF 45, 1549, Fig. 12.
 ELM_ENERGY_FRACTION_MIN = 0.04
@@ -156,8 +158,8 @@ class ELMCrashModel:
         return ELMCrashResult(delta_W_MJ, T_ped_post, n_ped_post, peak_heat_flux, duration_ms)
 
     def apply_to_profiles(
-        self, rho: np.ndarray, Te: np.ndarray, ne: np.ndarray, rho_ped: float
-    ) -> tuple[np.ndarray, np.ndarray]:
+        self, rho: AnyFloatArray, Te: AnyFloatArray, ne: AnyFloatArray, rho_ped: float
+    ) -> tuple[AnyFloatArray, AnyFloatArray]:
         if rho.ndim != 1 or Te.ndim != 1 or ne.ndim != 1:
             raise ValueError("rho, Te, and ne must be one-dimensional")
         if not (len(rho) == len(Te) == len(ne)):
@@ -219,7 +221,7 @@ class RMPSuppression:
         self.n_toroidal = n_toroidal
 
     def chirikov_parameter(
-        self, q_profile: np.ndarray, rho: np.ndarray, delta_B_r: float, B0: float, R0: float
+        self, q_profile: AnyFloatArray, rho: AnyFloatArray, delta_B_r: float, B0: float, R0: float
     ) -> float:
         """
         σ_Chir = Σ w_mn / dr_mn; w_mn = 4√(R0 q' δB_r / (n B0)).

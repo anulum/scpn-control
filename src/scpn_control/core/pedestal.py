@@ -24,6 +24,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray
+
 
 @dataclass(frozen=True)
 class PedestalParams:
@@ -59,14 +61,14 @@ class PedestalProfile:
     def __init__(self, params: PedestalParams) -> None:
         self.p = params
 
-    def mtanh(self, y: np.ndarray) -> np.ndarray:
+    def mtanh(self, y: AnyFloatArray) -> AnyFloatArray:
         """Core mtanh function: ((1+ay)e^y - e^-y) / (e^y + e^-y)."""
         exp_y = np.exp(np.clip(y, -20, 20))
         exp_ny = np.exp(np.clip(-y, -20, 20))
-        result: np.ndarray = ((1.0 + self.p.a * y) * exp_y - exp_ny) / (exp_y + exp_ny)
+        result: AnyFloatArray = ((1.0 + self.p.a * y) * exp_y - exp_ny) / (exp_y + exp_ny)
         return result
 
-    def evaluate(self, rho: np.ndarray) -> np.ndarray:
+    def evaluate(self, rho: AnyFloatArray) -> AnyFloatArray:
         """Evaluate the pedestal profile at given radial points.
 
         f(x) = (f_ped + f_sep)/2 + (f_ped - f_sep)/2 * mtanh((x_ped - x)/delta)

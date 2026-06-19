@@ -17,6 +17,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.special import ellipe, ellipk
 
+from scpn_control._typing import AnyFloatArray, FloatArray
+
 logger = logging.getLogger(__name__)
 
 # ─── Physical constants (CODATA 2018) ───────────────────────────────
@@ -182,7 +184,7 @@ class VesselModel:
         m = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / np.sqrt(k2)
         return float(m)
 
-    def step(self, dt: float, dphi_ext_dt: np.ndarray) -> np.ndarray:
+    def step(self, dt: float, dphi_ext_dt: AnyFloatArray) -> FloatArray:
         """Advance eddy currents by one time step (explicit Euler).
 
         M dI/dt + R I = −dΦ_ext/dt
@@ -206,7 +208,7 @@ class VesselModel:
         self.I += dI_dt * dt
         return self.I
 
-    def psi_vessel(self, R: np.ndarray, Z: np.ndarray) -> np.ndarray:
+    def psi_vessel(self, R: AnyFloatArray, Z: AnyFloatArray) -> FloatArray:
         """Poloidal flux contribution from vessel currents at observation points.
 
         Parameters
@@ -221,7 +223,7 @@ class VesselModel:
         out_shape = R.shape
         R_flat = R.flatten()
         Z_flat = Z.flatten()
-        psi = np.zeros_like(R_flat)
+        psi = np.zeros_like(R_flat, dtype=np.float64)
 
         for i in range(self.n_elements):
             el = self.elements[i]

@@ -82,7 +82,7 @@ class VerificationReport:
             raise ValueError("correction factor must be finite")
         self.correction_factors.append(factor_f)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, float]:
         return {
             "total_steps": self.total_steps,
             "steps_verified": self.steps_verified,

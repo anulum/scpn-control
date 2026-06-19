@@ -203,7 +203,25 @@ module = [
     "scpn_control.phase.upde",
     "scpn_control.phase.ws_phase_stream",
     "scpn_control.scpn.contracts",
-    "scpn_control.scpn.fpga_export"
+    "scpn_control.scpn.fpga_export",
+    "scpn_control.core.disruption_sequence",
+    "scpn_control.core.elm_model",
+    "scpn_control.core.eqdsk",
+    "scpn_control.core.gk_ood_detector",
+    "scpn_control.core.gk_tglf",
+    "scpn_control.core.gk_verification_report",
+    "scpn_control.core.locked_mode",
+    "scpn_control.core.mdsplus_acquisition",
+    "scpn_control.core.ntm_dynamics",
+    "scpn_control.core.pedestal",
+    "scpn_control.core.runaway_electrons",
+    "scpn_control.core.scaling_laws",
+    "scpn_control.core.vessel_model",
+    "scpn_control.control.advanced_soc_fusion_learning",
+    "scpn_control.control.detachment_controller",
+    "scpn_control.control.halo_re_physics",
+    "scpn_control.control.neuro_cybernetic_controller",
+    "scpn_control.control.tokamak_flight_sim"
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true

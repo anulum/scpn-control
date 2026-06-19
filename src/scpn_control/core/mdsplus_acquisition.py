@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 
 from scpn_control.core.real_data_manifest import load_real_data_manifest
 
@@ -108,7 +109,7 @@ def acquire_mdsplus_shot(
     module = mdsplus_module if mdsplus_module is not None else _import_mdsplus()
     tree_handle = module.Tree(tree, int(shot))
 
-    arrays: dict[str, np.ndarray] = {}
+    arrays: dict[str, npt.NDArray[Any]] = {}
     for signal in signals:
         raw = tree_handle.getNode(signal.node).data()
         array = np.asarray(raw)

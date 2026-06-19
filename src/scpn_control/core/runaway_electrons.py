@@ -15,6 +15,7 @@ from typing import Callable
 import numpy as np
 from scipy.special import erfc
 
+from scpn_control._typing import FloatArray
 
 # SI fundamental constants
 E_CHARGE = 1.602176634e-19  # C
@@ -291,7 +292,7 @@ class RunawayEvolution:
         E_par_profile: Callable[[float], float],
         t_span: tuple[float, float],
         dt: float,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[FloatArray, FloatArray]:
         dt = _positive_float("dt", dt)
         n_RE_0 = _nonnegative_float("n_RE_0", n_RE_0)
         t_start, t_end = t_span
@@ -301,7 +302,7 @@ class RunawayEvolution:
             raise ValueError("t_span end must be greater than start")
         n_steps = int(np.ceil((t_end - t_start) / dt))
 
-        t_arr = np.linspace(t_start, t_end, n_steps + 1)
+        t_arr = np.linspace(t_start, t_end, n_steps + 1, dtype=np.float64)
         n_RE_arr = np.zeros(n_steps + 1)
         n_RE_arr[0] = n_RE_0
 

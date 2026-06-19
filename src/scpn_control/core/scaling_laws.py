@@ -134,7 +134,7 @@ def _validate_ipb98y2_coefficients(raw: Any) -> dict[str, Any]:
 
 def load_ipb98y2_coefficients(
     path: str | Path | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Load IPB98(y,2) coefficients from the JSON reference file.
 
     Parameters
@@ -163,7 +163,7 @@ def ipb98y2_tau_e(
     epsilon: float,
     M: float = 2.5,  # D-T effective ion mass [AMU]; ITER Physics Basis, NF 39 (1999)
     *,
-    coefficients: dict | None = None,
+    coefficients: dict[str, Any] | None = None,
 ) -> float:
     """Evaluate the IPB98(y,2) confinement time scaling law.
 
@@ -242,7 +242,7 @@ def ipb98y2_with_uncertainty(
     epsilon: float,
     M: float = 2.5,  # D-T effective ion mass [AMU]; ITER Physics Basis, NF 39 (1999)
     *,
-    coefficients: dict | None = None,
+    coefficients: dict[str, Any] | None = None,
 ) -> tuple[float, float]:
     """Evaluate IPB98(y,2) with log-linear error propagation.
 

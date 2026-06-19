@@ -23,6 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray
 from scpn_control.core.gk_interface import GKLocalParams, GKOutput, GKSolverBase
 
 _logger = logging.getLogger(__name__)
@@ -157,7 +158,7 @@ def parse_tglf_output(run_dir: Path) -> GKOutput:
     )
 
 
-def _classify_dominant_mode(gamma: np.ndarray, omega_r: np.ndarray) -> str:
+def _classify_dominant_mode(gamma: AnyFloatArray, omega_r: AnyFloatArray) -> str:
     """Identify dominant instability from growth rate spectrum."""
     if len(gamma) == 0 or np.all(gamma <= 0):
         return "stable"

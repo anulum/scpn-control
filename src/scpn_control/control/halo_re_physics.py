@@ -48,10 +48,11 @@ References:
 
 from __future__ import annotations
 
-import logging
 import json
+import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -116,7 +117,7 @@ class DisruptionMitigationReport:
     p95_re_peak_ma: float
     mean_tpf_product: float
     passes_iter_limits: bool
-    per_run_details: list[dict]
+    per_run_details: list[dict[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -630,7 +631,7 @@ def run_disruption_ensemble(
 
     rng = np.random.default_rng(seed)
 
-    per_run: list[dict] = []
+    per_run: list[dict[str, Any]] = []
     prevented_count = 0
 
     for run_idx in range(ensemble_runs):

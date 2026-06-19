@@ -47,6 +47,8 @@ from typing import IO
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._typing import FloatArray
+
 # ── Data container ────────────────────────────────────────────────────
 
 
@@ -91,17 +93,17 @@ class GEqdsk:
     # ── Derived grids ─────────────────────────────────────────────────
 
     @property
-    def r(self) -> np.ndarray:
+    def r(self) -> FloatArray:
         """1-D array of R grid values."""
         return np.asarray(np.linspace(self.rleft, self.rleft + self.rdim, self.nw))
 
     @property
-    def z(self) -> np.ndarray:
+    def z(self) -> FloatArray:
         """1-D array of Z grid values."""
         return np.asarray(np.linspace(self.zmid - self.zdim / 2, self.zmid + self.zdim / 2, self.nh))
 
     @property
-    def psi_norm(self) -> np.ndarray:
+    def psi_norm(self) -> FloatArray:
         """Normalised poloidal flux ψ_N ∈ [0, 1] (axis=0, boundary=1)."""
         return np.asarray(np.linspace(0.0, 1.0, self.nw))
 

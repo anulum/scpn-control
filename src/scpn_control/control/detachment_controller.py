@@ -12,6 +12,7 @@ from enum import Enum, auto
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.sol_model import TwoPointSOL
 
 # Detachment onset: T_div < 5 eV causes volumetric recombination and ion-neutral
@@ -58,7 +59,7 @@ def _unit_interval(name: str, value: float) -> float:
     return scalar
 
 
-def _ordered_nonnegative_array(name: str, values: np.ndarray) -> np.ndarray:
+def _ordered_nonnegative_array(name: str, values: AnyFloatArray) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size == 0:
         raise ValueError(f"{name} must be a non-empty one-dimensional array")
@@ -262,7 +263,7 @@ class DetachmentBifurcation:
 
         return DetachmentPoint(seeding_rate, T_t, res.n_target_19, dod, f_rad, state)
 
-    def scan_seeding(self, seeding_range: np.ndarray, P_SOL_MW: float, n_u_19: float) -> list[DetachmentPoint]:
+    def scan_seeding(self, seeding_range: AnyFloatArray, P_SOL_MW: float, n_u_19: float) -> list[DetachmentPoint]:
         seeding_range = _ordered_nonnegative_array("seeding_range", seeding_range)
         return [self._steady_state_target(sr, P_SOL_MW, n_u_19) for sr in seeding_range]
 

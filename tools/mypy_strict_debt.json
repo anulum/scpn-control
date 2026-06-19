@@ -1,35 +1,17 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 347,
+  "total": 307,
   "per_module": {
-    "scpn_control.control.advanced_soc_fusion_learning": 9,
-    "scpn_control.control.detachment_controller": 2,
-    "scpn_control.control.halo_re_physics": 2,
     "scpn_control.control.nengo_snn_wrapper": 13,
-    "scpn_control.control.neuro_cybernetic_controller": 1,
     "scpn_control.control.nmpc_controller": 147,
-    "scpn_control.control.tokamak_flight_sim": 1,
     "scpn_control.core._rust_compat": 28,
     "scpn_control.core.differentiable_scenario": 9,
     "scpn_control.core.differentiable_transport": 44,
-    "scpn_control.core.disruption_sequence": 2,
-    "scpn_control.core.elm_model": 3,
-    "scpn_control.core.eqdsk": 3,
-    "scpn_control.core.gk_ood_detector": 1,
-    "scpn_control.core.gk_tglf": 1,
-    "scpn_control.core.gk_verification_report": 1,
     "scpn_control.core.jax_gk_nonlinear": 1,
     "scpn_control.core.jax_gk_solver": 7,
     "scpn_control.core.jax_gs_solver": 14,
     "scpn_control.core.jax_neural_equilibrium": 14,
-    "scpn_control.core.jax_solvers": 30,
-    "scpn_control.core.locked_mode": 2,
-    "scpn_control.core.mdsplus_acquisition": 1,
-    "scpn_control.core.ntm_dynamics": 2,
-    "scpn_control.core.pedestal": 3,
-    "scpn_control.core.runaway_electrons": 1,
-    "scpn_control.core.scaling_laws": 3,
-    "scpn_control.core.vessel_model": 2
+    "scpn_control.core.jax_solvers": 30
   }
 }

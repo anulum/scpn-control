@@ -30,6 +30,7 @@ except ImportError:
     HAS_MPL = False
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray
 from scpn_control.control import normalize_bounds
 from scpn_control.core._validators import (
     require_bounded_float,
@@ -227,11 +228,11 @@ class FusionAI_Agent(FusionAIAgent):
 
 
 def _plot_learning(
-    h_turb: np.ndarray,
-    h_flow: np.ndarray,
-    h_temp: np.ndarray,
-    h_shear_ctrl: np.ndarray,
-    q_table: np.ndarray,
+    h_turb: AnyFloatArray,
+    h_flow: AnyFloatArray,
+    h_temp: AnyFloatArray,
+    h_shear_ctrl: AnyFloatArray,
+    q_table: AnyFloatArray,
     output_path: str,
 ) -> tuple[bool, str | None]:
     try:
@@ -257,18 +258,18 @@ def _plot_learning(
         ax2 = fig.add_subplot(2, 3, (2, 3))
         ax2.plot(h_temp, color="orange", label="Core Temperature")
         ax2_twin = ax2.twinx()
-        ax2_twin.plot(h_flow, color="blue", alpha=0.3, label="Internal Flow")  # type: ignore[attr-defined]
+        ax2_twin.plot(h_flow, color="blue", alpha=0.3, label="Internal Flow")
         ax2.set_title("Reactor Evolution: Temperature Growth")
         ax2.legend(loc="upper left")
-        ax2_twin.legend(loc="upper right")  # type: ignore[attr-defined]
+        ax2_twin.legend(loc="upper right")
 
         ax3 = fig.add_subplot(2, 3, (4, 5))
         ax3.plot(h_turb, "r-", alpha=0.3, label="Turbulence")
         ax3_twin = ax3.twinx()
-        ax3_twin.plot(h_shear_ctrl, "g-", linewidth=2, label="AI Control Signal")  # type: ignore[attr-defined]
+        ax3_twin.plot(h_shear_ctrl, "g-", linewidth=2, label="AI Control Signal")
         ax3.set_title("AI Agent Response to Instability")
         ax3.legend(loc="upper left")
-        ax3_twin.legend(loc="upper right")  # type: ignore[attr-defined]
+        ax3_twin.legend(loc="upper right")
 
         ax4 = fig.add_subplot(2, 3, 6)
         policy_map = np.argmax(q_table, axis=2)

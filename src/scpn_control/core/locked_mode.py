@@ -26,6 +26,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from scpn_control._typing import FloatArray
+
 # Permeability of free space (CODATA 2018)
 _MU_0: float = 4.0 * math.pi * 1e-7  # H m⁻¹
 
@@ -113,7 +115,7 @@ class ResonantFieldAmplification:
 
 @dataclass
 class RotationEvolution:
-    omega_trace: np.ndarray
+    omega_trace: FloatArray
     locked: bool
     lock_time: float
 
@@ -233,7 +235,7 @@ class ModeLocking:
 
 @dataclass
 class IslandGrowth:
-    w_trace: np.ndarray
+    w_trace: FloatArray
     overlap_time: float
     stochastic: bool
 

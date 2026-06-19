@@ -26,6 +26,8 @@ import logging
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray
+
 logger = logging.getLogger(__name__)
 from scpn_control.control import solve_kernel
 
@@ -169,7 +171,7 @@ class SpikingControllerPool:
 
     def _step_numpy_population(
         self,
-        v: np.ndarray,
+        v: AnyFloatArray,
         rng: np.random.Generator,
         input_current: float,
     ) -> int:
